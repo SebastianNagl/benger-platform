@@ -46,7 +46,7 @@ from project_models import (
 from models import TaskEvaluation
 
 from routers.projects.deps import ProjectAccess, require_project_access
-from routers.projects.helpers import get_share_access_async
+from routers.projects.helpers import attempt_score_from_metrics, get_share_access_async
 
 router = APIRouter()
 token_router = APIRouter(prefix="/api/shares", tags=["shares"])
@@ -103,22 +103,23 @@ async def _compute_member_scores(
     """Best/last score per member, computed from ``task_evaluations``.
 
     Scores live canonically in ``task_evaluations`` (never denormalized onto
-    the membership row — that drifts on re-grades). A member's attempt score is
-    the unified ``metrics->>'value'`` (0..1) of the evaluation attached to their
-    annotation on this project's tasks. ``best`` = max across attempts, ``last``
-    = the most recent. Returns ``{user_id: {"best": float|None, "last":
-    float|None, "attempts": int}}``.
+    the membership row — that drifts on re-grades). A member's attempt score
+    is the unified 0..1 ``value`` of the evaluation attached to their
+    annotation on this project's tasks, extracted from the nested-canonical
+    ``metrics`` shape ``{"<metric_key>": {"value": ...}}`` via
+    :func:`attempt_score_from_metrics` (metric writers never produce a
+    top-level ``value``; reading one here silently zeroed every roster).
+    ``best`` = max across attempts, ``last`` = the most recent. Returns
+    ``{user_id: {"best": float|None, "last": float|None, "attempts": int}}``.
     """
     if not user_ids:
         return {}
 
-    # metrics is a plain JSON column (not JSONB), so use the generic-JSON
-    # ``.as_float()`` accessor rather than the JSONB-only ``.astext``.
-    value_col = TaskEvaluation.metrics["value"].as_float()
     stmt = (
         select(
             Annotation.completed_by.label("user_id"),
-            value_col.label("score"),
+            Annotation.id.label("annotation_id"),
+            TaskEvaluation.metrics.label("metrics"),
             TaskEvaluation.id.label("eval_id"),
             Annotation.created_at.label("attempted_at"),
         )
@@ -128,20 +129,28 @@ async def _compute_member_scores(
         .where(
             Task.project_id == project_id,
             Annotation.completed_by.in_(user_ids),
-            value_col.isnot(None),
         )
-        .order_by(Annotation.created_at.asc())
+        # Secondary key makes "last" deterministic when one annotation
+        # carries several evaluation rows (e.g. AI judge + human Korrektur).
+        .order_by(Annotation.created_at.asc(), TaskEvaluation.created_at.asc())
     )
     rows = (await db.execute(stmt)).all()
 
     out: dict[str, dict] = {uid: {"best": None, "last": None, "attempts": 0} for uid in user_ids}
+    scored_annotations: set[str] = set()
     for r in rows:
-        if r.score is None:
+        score = attempt_score_from_metrics(r.metrics)
+        if score is None:
             continue
         agg = out.setdefault(r.user_id, {"best": None, "last": None, "attempts": 0})
-        agg["attempts"] += 1
-        agg["last"] = r.score  # rows are ascending by time -> last wins
-        agg["best"] = r.score if agg["best"] is None else max(agg["best"], r.score)
+        # An attempt = a distinct scored annotation; one annotation may carry
+        # several evaluation rows (AI judge + human Korrektur) but is still
+        # one attempt.
+        if r.annotation_id not in scored_annotations:
+            scored_annotations.add(r.annotation_id)
+            agg["attempts"] += 1
+        agg["last"] = score  # rows are ascending by time -> last wins
+        agg["best"] = score if agg["best"] is None else max(agg["best"], score)
     return out
 
 
@@ -281,7 +290,10 @@ async def get_roster(
             {
                 "user_id": member.user_id,
                 "display_name": _display_name(user),
-                "attempts": member.attempts,
+                # Computed from task_evaluations like best/last — the
+                # ProjectShareMember.attempts column has no writer and is
+                # permanently 0 (kept only for API/schema stability).
+                "attempts": s.get("attempts", 0),
                 "best_score": s.get("best"),
                 "last_score": s.get("last"),
                 "joined_at": member.created_at.isoformat() if member.created_at else None,

@@ -441,3 +441,147 @@ async def test_kind_origin_write_once_on_create(async_test_client, async_test_db
         body = r.json()
         assert body["kind"] == "flashcard_deck"
         assert body["origin"] == "student"
+
+
+async def _seed_graded_attempt(db, exam, student, *, grader_id):
+    """Task + student annotation + AI-judge and human-Korrektur evaluation rows.
+
+    Persists the nested-canonical ``metrics`` shape every writer produces
+    (``{"<metric>": {"value": ...}}``) — the roster/score-history regression
+    this file guards is that readers must extract the nested value, not a
+    top-level ``metrics->>'value'`` no writer ever wrote.
+    """
+    from datetime import timedelta
+
+    from models import EvaluationJudgeRun, EvaluationRun, TaskEvaluation
+    from project_models import Annotation, Task
+
+    t0 = datetime.now(timezone.utc)
+    task = Task(
+        id=str(uuid.uuid4()),
+        project_id=exam.id,
+        data={"sachverhalt": "A verkauft B ein Auto.", "musterloesung": "..."},
+        inner_id=1,
+    )
+    db.add(task)
+    await db.flush()
+    annotation = Annotation(
+        id=str(uuid.uuid4()),
+        task_id=task.id,
+        project_id=exam.id,
+        completed_by=student.id,
+        result=[{"from_name": "loesung", "value": {"text": ["Anspruch aus § 433 II BGB..."]}}],
+    )
+    db.add(annotation)
+    run = EvaluationRun(
+        id=str(uuid.uuid4()),
+        project_id=exam.id,
+        model_id="immediate",
+        evaluation_type_ids=[],
+        metrics={},
+        created_by=grader_id,
+    )
+    db.add(run)
+    await db.flush()
+    judge_run = EvaluationJudgeRun(
+        id=str(uuid.uuid4()), evaluation_id=run.id, judge_model_id="gpt-5.4-mini"
+    )
+    db.add(judge_run)
+    await db.flush()
+
+    def _eval_row(metric_key: str, value: float, grade_points: int, created_at):
+        return TaskEvaluation(
+            id=str(uuid.uuid4()),
+            evaluation_id=run.id,
+            judge_run_id=judge_run.id,
+            task_id=task.id,
+            annotation_id=annotation.id,
+            field_name="loesung",
+            answer_type="long_text",
+            ground_truth="...",
+            prediction="Anspruch aus § 433 II BGB...",
+            metrics={
+                metric_key: {
+                    "value": value,
+                    "method": metric_key,
+                    "details": {
+                        "raw_score": int(value * 100),
+                        "grade_points": grade_points,
+                        "passed": grade_points >= 4,
+                    },
+                    "error": None,
+                }
+            },
+            passed=grade_points >= 4,
+            created_at=created_at,
+        )
+
+    # AI judge first (0.83 → 12 Punkte), human Korrektur later (0.66 → 8
+    # Punkte): "best" is the max, "last" is the later human row, and both
+    # rows on ONE annotation are ONE attempt.
+    db.add(_eval_row("llm_judge_falloesung", 0.83, 12, t0))
+    db.add(_eval_row("korrektur_falloesung", 0.66, 8, t0 + timedelta(minutes=5)))
+    await db.commit()
+    return annotation
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_roster_scores_read_nested_canonical_metrics(
+    async_test_client, async_test_db
+):
+    """Regression: roster/cohort scores were dead because readers looked for a
+    top-level ``metrics->>'value'`` that no metric writer produces."""
+    owner = await _make_user(async_test_db)
+    invitee = await _make_user(async_test_db)
+    exam = await _make_exam(async_test_db, owner)
+
+    with _as_user(owner):
+        r = await async_test_client.post(
+            f"/api/projects/{exam.id}/shares", json={"password": "klausur2026"}
+        )
+        token = r.json()["token"]
+    with _as_user(invitee):
+        r = await async_test_client.post(
+            f"/api/shares/{token}/join",
+            json={"password": "klausur2026", "gdpr_consent": True},
+        )
+        assert r.status_code == 200
+
+    await _seed_graded_attempt(async_test_db, exam, invitee, grader_id=owner.id)
+
+    with _as_user(owner):
+        r = await async_test_client.get(f"/api/projects/{exam.id}/shares/roster")
+        assert r.status_code == 200, r.text
+        (member,) = r.json()
+        assert member["user_id"] == invitee.id
+        assert member["best_score"] == pytest.approx(0.83)
+        assert member["last_score"] == pytest.approx(0.66)  # later human row wins
+        assert member["attempts"] == 1  # two eval rows, one annotation
+
+        r = await async_test_client.get(f"/api/projects/{exam.id}/cohort-leaderboard")
+        assert r.status_code == 200
+        (ranked,) = r.json()
+        assert ranked["best_score"] == pytest.approx(0.83)
+        assert ranked["rank"] == 1
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_score_history_reads_nested_canonical_metrics(
+    async_test_client, async_test_db
+):
+    """Same regression for the student dashboard's /score-history curve."""
+    owner = await _make_user(async_test_db)
+    student = await _make_user(async_test_db)
+    exam = await _make_exam(async_test_db, owner)
+    await _seed_graded_attempt(async_test_db, exam, student, grader_id=owner.id)
+
+    with _as_user(student):
+        r = await async_test_client.get("/api/student/score-history")
+        assert r.status_code == 200, r.text
+        points = r.json()
+        assert len(points) == 2  # one point per evaluation row, ascending
+        assert points[0]["score"] == pytest.approx(0.83)
+        assert points[1]["score"] == pytest.approx(0.66)
+        assert points[0]["project_id"] == exam.id

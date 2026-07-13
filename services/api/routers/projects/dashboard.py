@@ -21,6 +21,7 @@ from auth_module import require_user
 from database import get_async_db
 from models import TaskEvaluation
 from project_models import Annotation, FlashcardReview, Project, Task
+from routers.projects.helpers import attempt_score_from_metrics
 
 router = APIRouter(prefix="/api/student", tags=["student-dashboard"])
 
@@ -34,19 +35,19 @@ async def score_history(
     """The current user's exam attempt scores over time.
 
     One point per graded attempt on the user's own student exam projects
-    (``origin='student'``, ``kind='exam'``): the unified ``metrics->>'value'``
-    (0..1) of the evaluation attached to the user's annotation, with the
-    project title and timestamp. Ascending by time so the chart plots a
-    progress curve.
+    (``origin='student'``, ``kind='exam'``): the unified 0..1 ``value`` of the
+    evaluation attached to the user's annotation, extracted from the
+    nested-canonical ``metrics`` shape via
+    :func:`routers.projects.helpers.attempt_score_from_metrics` (no metric
+    writer produces a top-level ``value``), with the project title and
+    timestamp. Ascending by time so the chart plots a progress curve.
     """
     uid = str(current_user.id)
-    # metrics is a plain JSON column (not JSONB); generic-JSON accessor.
-    value_col = TaskEvaluation.metrics["value"].as_float()
     stmt = (
         select(
             Project.id.label("project_id"),
             Project.title.label("title"),
-            value_col.label("score"),
+            TaskEvaluation.metrics.label("metrics"),
             Annotation.created_at.label("attempted_at"),
         )
         .select_from(TaskEvaluation)
@@ -57,21 +58,26 @@ async def score_history(
             Annotation.completed_by == uid,
             Project.origin == "student",
             Project.kind == "exam",
-            value_col.isnot(None),
         )
-        .order_by(Annotation.created_at.asc())
-        .limit(limit)
+        .order_by(Annotation.created_at.asc(), TaskEvaluation.created_at.asc())
     )
     rows = (await db.execute(stmt)).all()
-    return [
-        {
-            "project_id": r.project_id,
-            "title": r.title,
-            "score": r.score,
-            "attempted_at": r.attempted_at.isoformat() if r.attempted_at else None,
-        }
-        for r in rows
-    ]
+    out = []
+    for r in rows:
+        score = attempt_score_from_metrics(r.metrics)
+        if score is None:
+            continue
+        out.append(
+            {
+                "project_id": r.project_id,
+                "title": r.title,
+                "score": score,
+                "attempted_at": r.attempted_at.isoformat() if r.attempted_at else None,
+            }
+        )
+        if len(out) >= limit:
+            break
+    return out
 
 
 @router.get("/retention")

@@ -10,6 +10,17 @@ from schemas.billing_schemas import (
     StudentSubscriptionRead,
     UsageSummary,
 )
+from schemas.lti_schemas import (
+    LtiDeploymentCreate,
+    LtiDeploymentRead,
+    LtiGradeSyncRead,
+    LtiRegistrationCreate,
+    LtiRegistrationRead,
+    LtiRegistrationUpdate,
+    LtiResourceLinkRead,
+    LtiToolConfigRead,
+    LtiUserLinkRead,
+)
 from schemas.template_schemas import (
     TaskTemplateBase,
     TaskTemplateCreate,
@@ -48,4 +59,14 @@ __all__ = [
     "GradingUsageEventRead",
     "UsageSummary",
     "InvoiceSummary",
+    # LTI 1.3 (Moodle integration) schemas
+    "LtiRegistrationCreate",
+    "LtiRegistrationUpdate",
+    "LtiRegistrationRead",
+    "LtiDeploymentCreate",
+    "LtiDeploymentRead",
+    "LtiResourceLinkRead",
+    "LtiUserLinkRead",
+    "LtiGradeSyncRead",
+    "LtiToolConfigRead",
 ]

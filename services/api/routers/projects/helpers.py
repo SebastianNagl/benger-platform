@@ -50,6 +50,33 @@ from metric_filters import (  # noqa: F401 — re-exported for legacy callers
 )
 
 
+def attempt_score_from_metrics(metrics: Any) -> Optional[float]:
+    """Unified attempt score (0..1) from a ``TaskEvaluation.metrics`` blob.
+
+    Every metric writer persists the nested-canonical shape
+    ``{"<metric_key>": {"value": <0..1>, ...}, ...}`` — falloesung, generic
+    llm_judge and korrektur rows alike; no writer produces a top-level
+    ``"value"`` key. A top-level ``"value"`` is still honored first so a
+    future flat writer keeps working. A row normally carries exactly one
+    real metric; if several are present the largest non-null value wins
+    (order-independent). Returns ``None`` for rows without a usable score
+    (e.g. judge-error rows, where ``value`` is null).
+    """
+    if not isinstance(metrics, dict):
+        return None
+    top = metrics.get("value")
+    if isinstance(top, (int, float)) and not isinstance(top, bool):
+        return float(top)
+    best: Optional[float] = None
+    for key, sub in metrics.items():
+        if not _metric_key_is_real(key) or not isinstance(sub, dict):
+            continue
+        value = sub.get("value")
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            best = float(value) if best is None else max(best, float(value))
+    return best
+
+
 def _scored_pairs_query(db: Session):
     """Base query that yields (project_id, subject_id, metric_key) for every
     (annotation|generation, metric) pair that has at least one scored row in a

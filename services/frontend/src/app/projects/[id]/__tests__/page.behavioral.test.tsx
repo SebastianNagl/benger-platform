@@ -141,16 +141,16 @@ jest.mock('@/components/shared/Tooltip', () => ({
 }))
 jest.mock('@/components/projects/LabelConfigEditor', () => {
   const React = require('react')
-  return {
-    LabelConfigEditor: React.forwardRef((_props: any, ref: any) => {
+  const LabelConfigEditor = React.forwardRef((_props: any, ref: any) => {
       React.useImperativeHandle(ref, () => ({
         save: jest.fn().mockResolvedValue(undefined),
         isDirty: () => false,
         hasErrors: () => false,
       }))
       return <div data-testid="label-config-editor" />
-    }),
-  }
+  })
+  LabelConfigEditor.displayName = 'LabelConfigEditorMock'
+  return { LabelConfigEditor }
 })
 jest.mock('@/components/projects/PromptStructuresManager', () => ({
   PromptStructuresManager: () => <div data-testid="prompt-structures-manager" />,

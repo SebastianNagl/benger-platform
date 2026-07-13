@@ -111,4 +111,24 @@ spec:
       {{- if .Values.vertretbar.betaAuth.enabled }}
       - name: {{ .Release.Name }}-vertretbar-beta-auth
       {{- end }}
+---
+# vertretbar /api/lti chain: security headers only — the beta BasicAuth is
+# deliberately absent (LTI server-to-server + cross-site launch POSTs cannot
+# answer a BasicAuth challenge; the endpoints carry their own auth). See the
+# vertretbar-lti Ingress.
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: {{ .Release.Name }}-vertretbar-lti-chain
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: benger
+    app.kubernetes.io/managed-by: helm
+spec:
+  chain:
+    middlewares:
+      {{- if .Values.middleware.enabled }}
+      - name: {{ .Release.Name }}-security-headers
+      {{- end }}
 {{- end }}

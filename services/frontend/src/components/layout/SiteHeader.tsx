@@ -22,9 +22,18 @@ export function SiteHeader() {
   const isHome = pathname === '/'
   const [activeSection, setActiveSection] = useState<string>('')
 
+  // Reset synchronously during render when leaving the home page — the
+  // React-sanctioned "adjust state on prop change" pattern. Doing it inside
+  // the effect below would schedule a cascading second render
+  // (react-hooks/set-state-in-effect).
+  const [wasHome, setWasHome] = useState(isHome)
+  if (wasHome !== isHome) {
+    setWasHome(isHome)
+    if (!isHome) setActiveSection('')
+  }
+
   useEffect(() => {
     if (!isHome) {
-      setActiveSection('')
       return
     }
     const visibleSections = new Set<string>()
