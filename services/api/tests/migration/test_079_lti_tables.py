@@ -69,7 +69,7 @@ def _op_context(connection):
         yield
 
 
-class TestMigration076Shape:
+class TestMigration079Shape:
     def test_revision_chains_after_075(self):
         mig = _load_migration()
         assert mig.revision == "079_add_lti_tables"
