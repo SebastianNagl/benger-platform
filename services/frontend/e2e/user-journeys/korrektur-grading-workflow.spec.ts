@@ -213,9 +213,12 @@ test.describe('Korrektur Falllösung Grading Workflow @extended', () => {
     console.log(`[Step 2] Seed annotation: ${JSON.stringify(annResult)}`)
     expect(annResult.created_count || 0).toBeGreaterThan(0)
 
-    // Resolve the annotation id for later API verification.
+    // Resolve the annotation id for later API verification. The annotation
+    // was seeded as user 'annotator' but we browse as admin — the list
+    // endpoint defaults to own-annotations-only (data isolation), so ask
+    // for all users explicitly.
     annotationId = await page.evaluate(async (tid) => {
-      const response = await fetch(`/api/projects/tasks/${tid}/annotations`, {
+      const response = await fetch(`/api/projects/tasks/${tid}/annotations?all_users=true`, {
         credentials: 'include',
       })
       if (!response.ok) return null
