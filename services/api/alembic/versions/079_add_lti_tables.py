@@ -39,8 +39,8 @@ from alembic import op
 import sqlalchemy as sa
 
 
-revision = "078_add_lti_tables"
-down_revision = "077_grading_usage_weekly_tiering"
+revision = "079_add_lti_tables"
+down_revision = "078_evaluation_lifecycle_columns"
 branch_labels = None
 depends_on = None
 
