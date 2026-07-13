@@ -242,6 +242,26 @@ describe('EvaluationsClient - uncovered methods', () => {
     })
   })
 
+  describe('lifecycle endpoints (issue #198)', () => {
+    it('pauseEvaluationRun POSTs the run pause endpoint', async () => {
+      await client.pauseEvaluationRun('eval-1')
+      expect(url()).toBe('/evaluations/run/eval-1/pause')
+      expect(opts()).toMatchObject({ method: 'POST' })
+    })
+
+    it('resumeEvaluationRun POSTs the run resume endpoint', async () => {
+      await client.resumeEvaluationRun('eval-1')
+      expect(url()).toBe('/evaluations/run/eval-1/resume')
+      expect(opts()).toMatchObject({ method: 'POST' })
+    })
+
+    it('retryEvaluationRun POSTs the run retry endpoint', async () => {
+      await client.retryEvaluationRun('eval-1')
+      expect(url()).toBe('/evaluations/run/eval-1/retry')
+      expect(opts()).toMatchObject({ method: 'POST' })
+    })
+  })
+
   describe('getResultsByTaskModel', () => {
     it('omits the query string by default', async () => {
       await client.getResultsByTaskModel('eval-1')
