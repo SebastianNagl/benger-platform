@@ -26,8 +26,20 @@ from routers.projects.helpers import check_project_accessible, get_org_context_f
 # meaningful comparative signal. Remove this constant (and the call sites
 # below) when the gate lifts. The frontend has no opt-out — the scope
 # applies to every user, superadmin included.
-_LLM_LEADERBOARD_ALLOWLISTED_ORG_IDS = (
-    "a22cbcfa-a5ab-4c7e-b93f-dd5585906a8b",  # TUM
+#
+# Overridable via LLM_LEADERBOARD_ALLOWLISTED_ORG_IDS (comma-separated org
+# ids; set EMPTY to lift the gate). Deployments without the env keep the
+# hardcoded TUM default. The test stack sets it empty — seeded orgs get
+# random ids, so a hardcoded prod id would 400 every leaderboard e2e.
+import os as _os
+
+_LLM_LEADERBOARD_ALLOWLIST_DEFAULT = "a22cbcfa-a5ab-4c7e-b93f-dd5585906a8b"  # TUM
+_LLM_LEADERBOARD_ALLOWLISTED_ORG_IDS = tuple(
+    org_id.strip()
+    for org_id in _os.environ.get(
+        "LLM_LEADERBOARD_ALLOWLISTED_ORG_IDS", _LLM_LEADERBOARD_ALLOWLIST_DEFAULT
+    ).split(",")
+    if org_id.strip()
 )
 
 # Default minimums for "meaningful sample" on the leaderboard. Frontend
@@ -603,7 +615,17 @@ async def get_llm_leaderboard(
                 min_samples_evaluated=min_samples_evaluated,
             )
         )
-    else:
+        if not entries and offset == 0:
+            # Empty first page means the snapshot has nothing for this
+            # scope — typically a project evaluated AFTER the aggregator's
+            # last twice-daily run (or a fresh deployment where it never
+            # ran). Fall through to live aggregation so new projects get a
+            # board immediately instead of an empty one until the next
+            # cron. A genuinely empty scope live-aggregates to [] anyway —
+            # same answer, slightly slower, and only paid on empty scopes.
+            use_precomputed = False
+            computed_at = None
+    if not use_precomputed:
         rows = await live_aggregate_leaderboard_async(
             db, project_ids, period, evaluation_types, aggregation=aggregation,
         )

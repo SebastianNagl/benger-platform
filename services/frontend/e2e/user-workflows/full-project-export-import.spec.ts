@@ -810,8 +810,10 @@ test.describe('Export/Import Data-Integrity Round-Trip @extended', () => {
     expect(seedResult.created_count || 0).toBe(2)
 
     // 4. Submit ONE korrektur falloesung grade on the first task's annotation.
+    // Seeded as 'annotator', browsing as admin — the list endpoint defaults
+    // to own-annotations-only (data isolation), so ask for all users.
     const firstAnnotationId = await page.evaluate(async (tid) => {
-      const response = await fetch(`/api/projects/tasks/${tid}/annotations`, {
+      const response = await fetch(`/api/projects/tasks/${tid}/annotations?all_users=true`, {
         credentials: 'include',
       })
       const data = await response.json()

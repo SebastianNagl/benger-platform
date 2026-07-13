@@ -74,11 +74,21 @@ const MODEL_RESPONSES: Record<string, string[]> = {
 
 // All non-LLM metrics for LONG_TEXT answer type (matches ANSWER_TYPE_TO_METRICS)
 // Lightweight text metrics + model-based metrics (models are downloaded on first run)
-const EVAL_METRICS = [
-  'bleu', 'rouge', 'meteor', 'chrf',          // lightweight text metrics
+//
+// On Apple-Silicon dev machines the test-worker image runs amd64 under QEMU
+// with a 4G limit — loading five transformer models there gets the pool
+// workers OOM-SIGKILLed deterministically (poison-cell guard then fails the
+// run). Keep the heavy metrics for amd64 hosts (CI runners, linux servers)
+// and fall back to the lightweight set locally on arm64 — same policy as
+// the workers suite's arch-conditional skips.
+const HEAVY_METRICS = [
   'bertscore', 'moverscore',                    // embedding-based metrics
   'semantic_similarity',                        // sentence-transformer-based
   'factcc', 'qags',                             // factual consistency
+]
+const EVAL_METRICS = [
+  'bleu', 'rouge', 'meteor', 'chrf',          // lightweight text metrics
+  ...(process.arch === 'arm64' ? [] : HEAVY_METRICS),
   // Note: 'coherence' excluded — requires 2+ sentences, test answers are single sentences
 ]
 
@@ -456,8 +466,11 @@ test.describe('QA Project Full Workflow (Create-to-Verify) @extended', () => {
       expect(hasMetric).toBeTruthy()
     }
 
-    // All values should be in valid range (0-1)
+    // All NORMALIZED values should be in valid range (0-1). `raw_score`
+    // is deliberately un-normalized (a 1-5-scale judge reports 1-5 there
+    // — that's its whole point), so exempt it.
     for (const [key, value] of Object.entries(aggMetrics)) {
+      if (key.includes('raw_score') || key.endsWith('_raw')) continue
       const numValue = Number(value)
       if (!isNaN(numValue)) {
         expect(numValue).toBeGreaterThanOrEqual(0)
@@ -520,10 +533,13 @@ test.describe('QA Project Full Workflow (Create-to-Verify) @extended', () => {
     expect(evalData.latestStatus).toBe('completed')
     expect(evalData.latestSamplesEvaluated).toBeGreaterThan(0)
 
-    // Verify scores for each metric
+    // Verify scores for each metric. `raw_score` is deliberately
+    // un-normalized (1-5-scale judges report 1-5 there) — exempt it from
+    // the 0-1 range check.
     const scores = evalData.scores as Record<string, number>
     for (const [key, value] of Object.entries(scores)) {
       console.log(`[Step 6]   ${key} = ${value}`)
+      if (key.includes('raw_score') || key.endsWith('_raw')) continue
       expect(value).toBeGreaterThanOrEqual(0)
       expect(value).toBeLessThanOrEqual(1)
     }

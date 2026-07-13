@@ -117,6 +117,25 @@ class CancelEvaluationResponse(BaseModel):
     message: str
 
 
+class EvaluationLifecycleResponse(BaseModel):
+    """Result of a pause/resume/retry lifecycle action on a run (issue #198).
+
+    ``changed`` is False when the run was not in a state the action applies
+    to (e.g. pausing an already-completed run) — the handler then reports
+    the current state instead of erroring, mirroring cancel's idempotent
+    style so double-clicks and stale UIs don't surface scary failures.
+    """
+
+    evaluation_id: str
+    action: str  # pause | resume | retry
+    changed: bool
+    previous_status: Optional[str] = None
+    status: str
+    retry_count: Optional[int] = None
+    celery_task_id: Optional[str] = None
+    message: str
+
+
 # Explicit export surface. ``from ._common import *`` binds exactly these names,
 # so the concern submodules (run / cancel / fields / results) no longer need to
 # repeat an explicit import block just to dodge F405 — this single list documents
@@ -186,4 +205,5 @@ __all__ = [
     "EvaluationRunResponse",
     "AvailableFieldsResponse",
     "CancelEvaluationResponse",
+    "EvaluationLifecycleResponse",
 ]

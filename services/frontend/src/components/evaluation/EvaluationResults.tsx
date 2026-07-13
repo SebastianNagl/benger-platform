@@ -29,6 +29,7 @@ import {
   CheckCircleIcon,
   ClockIcon,
   ExclamationCircleIcon,
+  PauseCircleIcon,
   PlayIcon,
   QueueListIcon,
   XCircleIcon,
@@ -203,10 +204,12 @@ export function EvaluationResults({
       (e) =>
         e.status === 'completed' ||
         e.status === 'running' ||
-        e.status === 'pending'
+        e.status === 'pending' ||
+        e.status === 'paused'
     )
     for (const e of visible) {
-      const inflight = e.status === 'running' || e.status === 'pending'
+      const inflight =
+        e.status === 'running' || e.status === 'pending' || e.status === 'paused'
       const cfgs = Array.isArray(e.evaluation_configs) ? e.evaluation_configs : []
       for (const cfg of cfgs) {
         const rawId = cfg?.id || ''
@@ -748,6 +751,8 @@ export function EvaluationResults({
         return <ArrowPathIcon className="h-5 w-5 animate-spin text-blue-500" />
       case 'pending':
         return <ClockIcon className="h-5 w-5 text-yellow-500" />
+      case 'paused':
+        return <PauseCircleIcon className="h-5 w-5 text-amber-500" />
       case 'failed':
         return <XCircleIcon className="h-5 w-5 text-red-500" />
       default:
@@ -762,6 +767,8 @@ export function EvaluationResults({
       case 'running':
         return 'blue'
       case 'pending':
+        return 'yellow'
+      case 'paused':
         return 'yellow'
       case 'failed':
         return 'red'

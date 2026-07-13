@@ -151,7 +151,12 @@ async def stream_evaluation_status(
                     last_status = current_status
                     last_samples = current_samples
 
-                if current_status in ["completed", "failed"]:
+                # 'cancelled' is terminal too — without it the stream kept
+                # polling a cancelled run until the 10-minute cap (#198).
+                # 'paused' deliberately keeps streaming: the run may resume
+                # within the stream's lifetime and the status events let the
+                # UI reflect the pause live.
+                if current_status in ["completed", "failed", "cancelled"]:
                     yield {"event": "done", "data": json.dumps(snapshot)}
                     break
 
