@@ -1,0 +1,24 @@
+\begin{table*}[t]
+\centering\footnotesize
+\caption{Per-system operational metadata from logged per-call metadata: mean per-generation cost (USD), mean latency (s), and mean output length (words), per corpus. Doctrinal Principles cost was not billed through the logging route and is omitted.}
+\label{tbl-operational}
+\setlength{\tabcolsep}{4pt}
+\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}lcccccccc@{}}
+\toprule
+System & B.~\$/gen & B.~s & B.~words & Z.~\$/gen & Z.~s & Z.~words & G.~s & G.~words \\
+\midrule
+Opus-4.7 & \$0.150 & 73.3 & 1422 & \$0.185 & 77.2 & 1760 & 9.4 & 104 \\
+Sonnet-4.6 & \$0.101 & 104.0 & 2355 & \$0.123 & 129.1 & 2861 & 10.0 & 167 \\
+Gemini-3.1-Flash-Lite & \$0.008 & 14.9 & 1281 & \$0.003 & 6.5 & 699 & 1.4 & 79 \\
+Gemini-3.1-Pro & \$0.035 & 102.7 & 1349 & \$0.039 & 76.4 & 1470 & 13.0 & 95 \\
+GPT-5.4 & — & 70.0 & 1830 & — & 80.4 & 2665 & 4.6 & 96 \\
+GPT-5.4-mini & — & 17.2 & 1252 & — & 21.4 & 1570 & 2.0 & 67 \\
+Qwen3-235B & \$0.014 & 125.1 & 678 & \$0.015 & 153.8 & 948 & 46.1 & 72 \\
+Qwen3.5-122B & \$0.018 & 77.0 & 1022 & \$0.020 & 95.0 & 1141 & 94.2 & 49 \\
+Qwen3.6-35B & \$0.008 & 74.8 & 802 & \$0.008 & 65.8 & 1008 & 18.5 & 77 \\
+DeepSeek-V4-Flash & \$0.001 & 89.1 & 1650 & \$0.001 & 129.2 & 1909 & 53.9 & 101 \\
+DeepSeek-V4-Pro & \$0.019 & 98.6 & 2012 & \$0.023 & 131.8 & 2561 & 16.1 & 109 \\
+Llama-4 & \$0.001 & 37.8 & 691 & \$0.001 & 37.2 & 709 & 9.4 & 86 \\
+\bottomrule
+\end{tabular*}
+\end{table*}

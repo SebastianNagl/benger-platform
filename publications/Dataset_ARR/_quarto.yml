@@ -25,6 +25,26 @@ format:
       text: |
         \usepackage{afterpage}
         \usepackage{colortbl}  % adds \cellcolor / \rowcolor for table highlights
+        \usepackage{framed}    % breakable left-rule box for the prompt appendices
+        % Verbatim-prompt container: grey left rule + \small, breaks across
+        % pages and columns (unlike tcolorbox). Used in Appendices J-L.
+        \definecolor{promptrule}{gray}{0.75}
+        \newenvironment{promptbox}
+          {\par\addvspace{4pt}%
+           \def\FrameCommand{{\color{promptrule}\vrule width 2.5pt}\hspace{7pt}}%
+           \MakeFramed{\advance\hsize-\width\FrameRestore}\small}
+          {\endMakeFramed\addvspace{4pt}}
+        % Dense float packing for the table-heavy appendices; the LaTeX
+        % defaults let two-column (table*) floats cascade far past their
+        % anchors once a queue forms.
+        \setcounter{topnumber}{4}
+        \setcounter{dbltopnumber}{4}
+        \setcounter{totalnumber}{8}
+        \renewcommand{\topfraction}{0.95}
+        \renewcommand{\dbltopfraction}{0.95}
+        \renewcommand{\textfraction}{0.03}
+        \renewcommand{\floatpagefraction}{0.85}
+        \renewcommand{\dblfloatpagefraction}{0.85}
         \usepackage{fontspec}
         % Text main font stays TeX Gyre Termes (set portably in the ACL
         % template's \else branch). aclpubcheck accepts `TeXGyreTermes-Reg`,

@@ -1,0 +1,62 @@
+{
+ "_meta": {
+  "thinking_model": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+  "instruct_model": "Qwen/Qwen3-235B-A22B-Instruct-2507",
+  "pass_threshold_raw": 50.0,
+  "sources": {
+   "thinking_benchathon": "data/raw/benchathon/Benchathon-tasks-2026-05-31.json",
+   "thinking_grundprinzipien": "data/processed/grundprinzipien_model_summary.json + operational_metadata.json",
+   "instruct": "data/raw/ablation/qwen_instruct_ablation.json"
+  }
+ },
+ "corpora": {
+  "benchathon": {
+   "thinking": {
+    "n": 28,
+    "judge_raw_mean": 41.285714285714285,
+    "judge_raw_stdev": 11.696334160934049,
+    "pass_rate": 0.17857142857142858,
+    "truncated": 0,
+    "mean_latency_s": 125.10813333333333,
+    "mean_words": 678,
+    "mean_cost_usd": 0.014416446,
+    "total_retries": 0
+   },
+   "instruct": {
+    "n": 30,
+    "judge_raw_mean": 37.8,
+    "judge_raw_stdev": 8.201765999907664,
+    "pass_rate": 0.1,
+    "truncated": 0,
+    "mean_latency_s": 123.59093333333334,
+    "mean_words": 1356,
+    "mean_cost_usd": 0.0004579118666666667,
+    "total_retries": 0
+   }
+  },
+  "grundprinzipien": {
+   "thinking": {
+    "n": 531,
+    "judge_raw_mean": 67.32297551789077,
+    "judge_raw_stdev": 29.2003767001639,
+    "pass_rate": 0.6949152542372882,
+    "truncated": 0,
+    "mean_latency_s": 46.11890395480226,
+    "mean_words": 72,
+    "mean_cost_usd": 0.002994104915254237,
+    "total_retries": 0
+   },
+   "instruct": {
+    "n": 531,
+    "judge_raw_mean": 63.25235404896422,
+    "judge_raw_stdev": 28.556025189733198,
+    "pass_rate": 0.6666666666666666,
+    "truncated": 0,
+    "mean_latency_s": 8.706587570621469,
+    "mean_words": 78,
+    "mean_cost_usd": 6.926983239171375e-05,
+    "total_retries": 0
+   }
+  }
+ }
+}

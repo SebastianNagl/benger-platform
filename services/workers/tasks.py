@@ -2212,6 +2212,49 @@ def _immediate_eval_metadata():
 # =============================================================================
 
 
+def _get_grading_dispatch_policy_fn():
+    """Extension hook: per-grading dispatch policy (extended edition only).
+
+    The extended edition can re-route which org's API key a grading resolves
+    against and override judge models per grading (e.g. subscription-tier
+    models) — and that policy must see EVERY dispatch path (client-fired
+    immediate eval, the annotation-submit hook, timer auto-submit, the
+    recovery sweep), which all funnel through run_single_sample_evaluation.
+    Community edition: returns None (no-op).
+    """
+    try:
+        from benger_extended.workers import get_grading_dispatch_policy_fn
+
+        return get_grading_dispatch_policy_fn()
+    except (ImportError, AttributeError):
+        return None
+
+
+def _run_grading_finalize_hook(evaluation_run_id: str, success: bool) -> None:
+    """Extension hook: settle the grading's metered-billing ledger row.
+
+    Called once the run is terminal. Path-B dispatches (submit hook, timer
+    auto-submit, sweep) have no status poller, so the worker is the only
+    place that reliably observes completion. The extended implementation
+    opens its own DB session and never raises. Community edition: no-op.
+    """
+    try:
+        from benger_extended.workers import get_grading_finalize_fn
+
+        finalize_fn = get_grading_finalize_fn()
+    except (ImportError, AttributeError):
+        return
+    if finalize_fn is None:
+        return
+    try:
+        finalize_fn(evaluation_run_id, success)
+    except Exception as finalize_err:  # defensive — billing must not kill evals
+        logger.error(
+            f"[SingleSampleEval] grading finalize hook failed for "
+            f"{evaluation_run_id}: {finalize_err}"
+        )
+
+
 @app.task(name="tasks.run_single_sample_evaluation", bind=True)
 def run_single_sample_evaluation(
     self,
@@ -2332,6 +2375,30 @@ def run_single_sample_evaluation(
             eval_run.status = "running"
             flag_modified(eval_run, "eval_metadata")
             db.flush()
+
+        # Extension hook: grading dispatch policy (see helper above). Runs
+        # BEFORE judge runs / jobs are built so an overridden judge model is
+        # what actually grades AND what EvaluationJudgeRun.judge_model_id
+        # records. On policy failure we log and keep the dispatched values —
+        # a metered grading then fails loud on key resolution rather than
+        # silently spending the wrong key.
+        _policy_fn = _get_grading_dispatch_policy_fn()
+        if _policy_fn is not None:
+            try:
+                organization_id, eligible_configs = _policy_fn(
+                    db,
+                    project=project_for_snapshot,
+                    user_id=user_id,
+                    organization_id=organization_id,
+                    configs=eligible_configs,
+                    evaluation_run_id=dispatch_eval_id,
+                    eval_metadata=eval_run.eval_metadata or {},
+                )
+            except Exception as policy_err:  # defensive — see comment above
+                logger.error(
+                    f"[SingleSampleEval] grading dispatch policy failed for "
+                    f"{dispatch_eval_id}: {policy_err}"
+                )
 
         # Every TaskEvaluation row needs a judge_run_id (NOT NULL since
         # migration 043). CRITICAL: the unique constraint uq_task_evaluations_cell
@@ -2602,6 +2669,13 @@ def run_single_sample_evaluation(
 
             db.commit()
 
+        _run_grading_finalize_hook(
+            dispatch_eval_id,
+            not any(
+                isinstance(r, dict) and r.get("status") == "error" for r in results
+            ),
+        )
+
         return {
             "status": "completed",
             "evaluation_record_id": evaluation_record_id,
@@ -2611,6 +2685,7 @@ def run_single_sample_evaluation(
     except Exception as e:
         logger.error(f"[SingleSampleEval] Task failed: {e}")
         db.rollback()
+        _run_grading_finalize_hook(evaluation_record_id, False)
         return {"status": "error", "message": str(e)}
     finally:
         db.close()

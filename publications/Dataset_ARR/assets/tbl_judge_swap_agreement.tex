@@ -1,0 +1,18 @@
+\begin{table*}[t]
+\centering\footnotesize
+\caption{System-level rank agreement of each cross-validation judge against the primary judge on the shared Benchathon subset (Spearman $\rho$ / Kendall $\tau$ over 12 per-system means), and each judge's mean pass rate at the fixed $\geq 50/100$ threshold, raw and after removing the judge's measured offset vs.\ the blind human pool.}
+\label{tbl-judge-swap-agreement}
+\setlength{\tabcolsep}{4pt}
+\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}lcccc@{}}
+\toprule
+Judge & $\rho$ & $\tau$ & Pass (raw) & Pass (offset-corr.) \\
+\midrule
+GPT-5.4-mini (primary) & — & — & 61\% & 61\% \\
+Opus-4.7 & 0.97 & 0.88 & 58\% & 55\% \\
+Sonnet-4.6 & 0.95 & 0.85 & 70\% & 58\% \\
+Gemini-3.1-Pro & 0.94 & 0.82 & 73\% & 45\% \\
+DeepSeek-V4-Pro & 0.94 & 0.84 & 60\% & 52\% \\
+Qwen3.5-397B & 0.94 & 0.82 & 87\% & 58\% \\
+\bottomrule
+\end{tabular*}
+\end{table*}

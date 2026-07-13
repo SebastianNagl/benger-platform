@@ -138,8 +138,10 @@ api:
       value: "stripe"
     - name: VERTRETBAR_ORG_ID
       value: "06620390-5817-4bc8-b94f-efa0798d5026"  # prod Vertretbar org (seed post-deploy with this id)
-    - name: VERTRETBAR_FREE_GRADINGS
-      value: "3"
+    - name: VERTRETBAR_FREE_GRADINGS_PER_WEEK
+      value: "1"
+    - name: VERTRETBAR_PER_GRADING_PRICE_CENTS
+      value: "100"
     - name: VERTRETBAR_FLASHCARD_BILLABLE
       value: "false"
     - name: STRIPE_METER_EVENT_NAME
@@ -295,6 +297,41 @@ workers:
       value: "true"
     - name: MAIL_ENABLED
       value: "true"
+    # Vertretbar billing (extended): the worker applies the grading dispatch
+    # policy (tier judge model + vertretbar-org key routing) and settles the
+    # metered ledger at task end, so it needs the same billing env as the api.
+    # Secrets are optional — an absent secret leaves billing a no-op. The beat
+    # deployment inherits this env block.
+    - name: BILLING_PROVIDER
+      value: "stripe"
+    - name: VERTRETBAR_ORG_ID
+      value: "06620390-5817-4bc8-b94f-efa0798d5026"  # prod Vertretbar org
+    - name: VERTRETBAR_FREE_GRADINGS_PER_WEEK
+      value: "1"
+    - name: VERTRETBAR_PER_GRADING_PRICE_CENTS
+      value: "100"
+    - name: VERTRETBAR_FLASHCARD_BILLABLE
+      value: "false"
+    - name: STRIPE_METER_EVENT_NAME
+      value: "exam_grading"
+    - name: STRIPE_SECRET_KEY
+      valueFrom:
+        secretKeyRef:
+          name: benger-billing-secrets
+          key: stripe_secret_key
+          optional: true
+    - name: STRIPE_PRICE_BASE
+      valueFrom:
+        secretKeyRef:
+          name: benger-billing-secrets
+          key: stripe_price_base
+          optional: true
+    - name: STRIPE_PRICE_METERED
+      valueFrom:
+        secretKeyRef:
+          name: benger-billing-secrets
+          key: stripe_price_metered
+          optional: true
 
 # Celery beat scheduler (deployment-beat.yaml). Single-replica process that
 # fires the periodic schedule in tasks.py (app.conf.beat_schedule), e.g.

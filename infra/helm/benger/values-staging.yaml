@@ -23,6 +23,42 @@ api:
     # REPLACES base, so a redeploy would otherwise blank this out.
     - name: VERTRETBAR_ORG_ID
       value: "3a683698-b43f-4fc8-aad0-d8fec00ac0b5"
+    # Tiered grading (mirrors base values.yaml; secrets optional — an absent
+    # benger-billing-secrets keeps billing a no-op on staging).
+    - name: BILLING_PROVIDER
+      value: "stripe"
+    - name: VERTRETBAR_FREE_GRADINGS_PER_WEEK
+      value: "1"
+    - name: VERTRETBAR_PER_GRADING_PRICE_CENTS
+      value: "100"
+    - name: VERTRETBAR_FLASHCARD_BILLABLE
+      value: "false"
+    - name: STRIPE_METER_EVENT_NAME
+      value: "exam_grading"
+    - name: STRIPE_SECRET_KEY
+      valueFrom:
+        secretKeyRef:
+          name: benger-billing-secrets
+          key: stripe_secret_key
+          optional: true
+    - name: STRIPE_WEBHOOK_SECRET
+      valueFrom:
+        secretKeyRef:
+          name: benger-billing-secrets
+          key: stripe_webhook_secret
+          optional: true
+    - name: STRIPE_PRICE_BASE
+      valueFrom:
+        secretKeyRef:
+          name: benger-billing-secrets
+          key: stripe_price_base
+          optional: true
+    - name: STRIPE_PRICE_METERED
+      valueFrom:
+        secretKeyRef:
+          name: benger-billing-secrets
+          key: stripe_price_metered
+          optional: true
     - name: FRONTEND_URL
       value: "https://staging.what-a-benger.net"
     - name: DATABASE_URI
@@ -104,6 +140,42 @@ workers:
     # REPLACES base, so a redeploy would otherwise blank this out.
     - name: VERTRETBAR_ORG_ID
       value: "3a683698-b43f-4fc8-aad0-d8fec00ac0b5"
+    # Tiered grading (mirrors base values.yaml; secrets optional — an absent
+    # benger-billing-secrets keeps billing a no-op on staging).
+    - name: BILLING_PROVIDER
+      value: "stripe"
+    - name: VERTRETBAR_FREE_GRADINGS_PER_WEEK
+      value: "1"
+    - name: VERTRETBAR_PER_GRADING_PRICE_CENTS
+      value: "100"
+    - name: VERTRETBAR_FLASHCARD_BILLABLE
+      value: "false"
+    - name: STRIPE_METER_EVENT_NAME
+      value: "exam_grading"
+    - name: STRIPE_SECRET_KEY
+      valueFrom:
+        secretKeyRef:
+          name: benger-billing-secrets
+          key: stripe_secret_key
+          optional: true
+    - name: STRIPE_WEBHOOK_SECRET
+      valueFrom:
+        secretKeyRef:
+          name: benger-billing-secrets
+          key: stripe_webhook_secret
+          optional: true
+    - name: STRIPE_PRICE_BASE
+      valueFrom:
+        secretKeyRef:
+          name: benger-billing-secrets
+          key: stripe_price_base
+          optional: true
+    - name: STRIPE_PRICE_METERED
+      valueFrom:
+        secretKeyRef:
+          name: benger-billing-secrets
+          key: stripe_price_metered
+          optional: true
     - name: FRONTEND_URL
       value: "https://staging.what-a-benger.net"
     - name: DATABASE_URI

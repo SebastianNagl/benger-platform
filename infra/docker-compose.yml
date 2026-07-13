@@ -204,7 +204,8 @@ services:
       STRIPE_PRICE_METERED: ${STRIPE_PRICE_METERED:-}
       STRIPE_METER_EVENT_NAME: ${STRIPE_METER_EVENT_NAME:-exam_grading}
       VERTRETBAR_ORG_ID: ${VERTRETBAR_ORG_ID:-}
-      VERTRETBAR_FREE_GRADINGS: ${VERTRETBAR_FREE_GRADINGS:-3}
+      VERTRETBAR_FREE_GRADINGS_PER_WEEK: ${VERTRETBAR_FREE_GRADINGS_PER_WEEK:-1}
+      VERTRETBAR_PER_GRADING_PRICE_CENTS: ${VERTRETBAR_PER_GRADING_PRICE_CENTS:-100}
       # Flashcard graded reviews: default included in the subscription (gated +
       # on the owner's key, not billed per-card). Set true to bill each like an exam.
       VERTRETBAR_FLASHCARD_BILLABLE: ${VERTRETBAR_FLASHCARD_BILLABLE:-false}
@@ -296,6 +297,19 @@ services:
       SENDGRID_API_KEY: ${SENDGRID_API_KEY:-}
       EMAIL_FROM_ADDRESS: ${EMAIL_FROM_ADDRESS:-noreply@what-a-benger.net}
       EMAIL_FROM_NAME: ${EMAIL_FROM_NAME:-BenGER Platform}
+
+      # Vertretbar billing (extended): the worker applies the grading dispatch
+      # policy (tier judge model + vertretbar-org key routing) and settles the
+      # metered ledger at task end — same env surface as the api service.
+      BILLING_PROVIDER: ${BILLING_PROVIDER:-stripe}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_PRICE_BASE: ${STRIPE_PRICE_BASE:-}
+      STRIPE_PRICE_METERED: ${STRIPE_PRICE_METERED:-}
+      STRIPE_METER_EVENT_NAME: ${STRIPE_METER_EVENT_NAME:-exam_grading}
+      VERTRETBAR_ORG_ID: ${VERTRETBAR_ORG_ID:-}
+      VERTRETBAR_FREE_GRADINGS_PER_WEEK: ${VERTRETBAR_FREE_GRADINGS_PER_WEEK:-1}
+      VERTRETBAR_PER_GRADING_PRICE_CENTS: ${VERTRETBAR_PER_GRADING_PRICE_CENTS:-100}
+      VERTRETBAR_FLASHCARD_BILLABLE: ${VERTRETBAR_FLASHCARD_BILLABLE:-false}
     volumes:
       - ../services/workers:/app:ro  # Read-only for security
       - ../services/shared:/shared:ro  # Shared services directory

@@ -1,0 +1,23 @@
+\begin{table}[t]
+\centering
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}p{0.58\columnwidth}p{0.32\columnwidth}@{}}
+\toprule
+\textbf{Dimension (weight / 100)} & \textbf{Scaffold step graded} \\
+\midrule
+Result correctness -- \emph{Ergebnisrichtigkeit} (20) & \emph{Ergebnis} \\
+Doctrinal knowledge -- \emph{Rechtskenntnis} (15) & \emph{Definition} \\
+Subsumption quality -- \emph{Subsumtion} (15) & \emph{Subsumtion} \\
+Issue identification -- \emph{Vollständigkeit} (10) & \emph{Obersatz} (issue spotting) \\
+Legal grounding -- \emph{Rechtsgrundlagen} (10) & \emph{Obersatz} (norm citation) \\
+Problem depth -- \emph{Schwerpunktsetzung} (10) & \emph{Subsumtion} (focal-issue depth) \\
+Methodological structure -- \emph{Methodischer Stil} (10) & whole-scaffold execution \\
+Organization -- \emph{Gliederung} (5) & form \\
+Terminology -- \emph{Sprache} (3) & form \\
+Formal correctness -- \emph{Formalia} (2) & form \\
+\bottomrule
+\end{tabular}
+\caption{Rubric dimensions mapped to the \emph{Gutachtenstil} scaffold step each grades, with /100 weights from the judge prompt (Appendix~\ref{evaluation-prompts-for-the-llm-judge}). The judge's global principle additionally gates all credit on the method: ``Keine Punkte für bloße Schlagworte ohne Definition/Subsumtion'' (no points for mere buzzwords without definition/subsumption).}
+\label{tbl-rubric-mapping}
+\end{table}

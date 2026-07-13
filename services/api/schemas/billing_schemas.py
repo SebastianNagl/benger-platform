@@ -68,6 +68,27 @@ class UsageSummary(BaseModel):
     total_cents: int = 0
     currency: str = "eur"
     events: List[GradingUsageEventRead] = Field(default_factory=list)
+    # Tiered-grading additions (nullable so pre-tiering clients keep parsing).
+    tier: Optional[str] = None
+    weekly_free_remaining: Optional[int] = None
+    unlimited_free: bool = False
+
+
+class GradingQuota(BaseModel):
+    """Pre-flight quote for the user's NEXT exam grading.
+
+    Lets the UI show "kostenlos" vs the per-grading price BEFORE the student
+    submits. Indicative only — the authoritative decision is made at grading
+    time by the metering logic in ``benger_extended``.
+    """
+
+    tier: str  # 'free' (non-subscriber) | 'subscriber'
+    judge_model: str
+    unlimited_free: bool = False
+    free_remaining_this_week: int = 0
+    next_grading_price_cents: int = 0
+    week_resets_at: Optional[datetime] = None
+    currency: str = "eur"
 
 
 class InvoiceSummary(BaseModel):

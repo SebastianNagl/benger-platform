@@ -1,0 +1,394 @@
+{
+  "_meta": {
+    "description": "Automatic metrics anchored to the mean blind-reviewer raw grade (0-100) on the 45-solution human-validation subset, plus the judge-residual and length-partial diagnostics for the reference-style-bias reviewer hypothesis.",
+    "inputs": [
+      "data/processed/benchathon_human_grades.json",
+      "data/processed/benchathon_human_automatic_metrics.json",
+      "data/processed/benchathon_automatic_metrics.json",
+      "data/processed/benchathon_model_evaluations.json",
+      "data/raw/benchathon/Benchathon_export.json"
+    ],
+    "matching_strategy": {
+      "human_authored_picks": "solution_id == annotation_id. Blind grades from benchathon_human_grades.json (role='blind', k=3 per pick); metric values from benchathon_human_automatic_metrics.json on annotation_id; judge raw from the raw export's task evaluations via compute_agreement.index_judge_on_humans (baseline judge field prefix, 'human:loesung' targets); candidate text = annotation result loesung.value.markdown.",
+      "llm_generated_picks": "solution_id == generation_id. Blind grades as above; metric values from benchathon_automatic_metrics.json on generation_id; judge raw from benchathon_model_evaluations.json (baseline judge); candidate text = generation response_content via derive_paper_exports._response_text.",
+      "human_anchor": "mean of the k=3 blind-reviewer raw_score per solution",
+      "length": "length_tokens = tiktoken o200k_base count of the candidate text (same count_tokens as the paper's output_tokens column); length_chars = len() of the same text. Metrics are never recomputed from text."
+    },
+    "n_picks": {
+      "human_authored": 30,
+      "llm_generated": 15,
+      "pooled": 45,
+      "by_solution_type": {
+        "human_co_creation": 15,
+        "human_traditional": 15,
+        "llm_system": 15
+      }
+    },
+    "bootstrap": {
+      "B": 2000,
+      "seed": 42,
+      "method": "percentile, paired resampling of (metric, grade) pairs",
+      "note": "fresh default_rng(seed) per cell (leaderboard convention)"
+    },
+    "exclusions": {
+      "picks_dropped": [],
+      "duplicate_metric_rows_last_wins": 0,
+      "chrf": "not computed on Benchathon (neither metrics export carries it) — all chrf cells have n=0",
+      "bertscore": "absent from the human-annotation metric sidecar — human_authored n=0; its pooled cell is the 15 LLM picks only",
+      "semantic_similarity_moverscore": "computed on only 7 of the 30 human-authored picks in the prod sidecar — pooled n=22",
+      "coherence": "missing for 1 of the 15 LLM picks (pooled n=44)",
+      "length_token_crosscheck_mismatches": 0
+    },
+    "caveats": [
+      "Small n throughout (<= 45); CIs are wide and cells with n <= 7 (semantic_similarity / moverscore on human picks) are at best directional.",
+      "Pooled cells mix two provenances with different judge calibration offsets (judge over-scores LLM picks by ~+27 raw); the split cells are the interpretable ones for the residual diagnostic.",
+      "residual_analysis sign convention: residual = judge_raw - mean_blind_raw; positive correlation with a lexical metric indicates judge reference-style bias, ~0 supports the templatic-writing account."
+    ]
+  },
+  "metric_vs_human": {
+    "bleu": {
+      "human_authored": {
+        "n": 30,
+        "pearson_r": 0.7044774654025375,
+        "pearson_ci95_lo": 0.4850627799870073,
+        "pearson_ci95_hi": 0.8478367999424137,
+        "spearman_rho": 0.7006341126901491
+      },
+      "llm_generated": {
+        "n": 15,
+        "pearson_r": 0.6981069919525674,
+        "pearson_ci95_lo": 0.4245152758212599,
+        "pearson_ci95_hi": 0.8883308975525692,
+        "spearman_rho": 0.555853662529728
+      },
+      "pooled": {
+        "n": 45,
+        "pearson_r": 0.7017989906183061,
+        "pearson_ci95_lo": 0.5423845523505241,
+        "pearson_ci95_hi": 0.8190620338490027,
+        "spearman_rho": 0.6833349837366947
+      }
+    },
+    "rouge": {
+      "human_authored": {
+        "n": 30,
+        "pearson_r": 0.6740680307343598,
+        "pearson_ci95_lo": 0.36874453628396,
+        "pearson_ci95_hi": 0.8409448190029618,
+        "spearman_rho": 0.5339859861722318
+      },
+      "llm_generated": {
+        "n": 15,
+        "pearson_r": 0.6770584413644225,
+        "pearson_ci95_lo": 0.2681933704633149,
+        "pearson_ci95_hi": 0.9052752132074577,
+        "spearman_rho": 0.6380699598813919
+      },
+      "pooled": {
+        "n": 45,
+        "pearson_r": 0.6776400087683646,
+        "pearson_ci95_lo": 0.46149863933390517,
+        "pearson_ci95_hi": 0.8164724785281209,
+        "spearman_rho": 0.5999934146635246
+      }
+    },
+    "meteor": {
+      "human_authored": {
+        "n": 30,
+        "pearson_r": 0.7143941759620901,
+        "pearson_ci95_lo": 0.44420237585663924,
+        "pearson_ci95_hi": 0.8615049365390081,
+        "spearman_rho": 0.7030815484601051
+      },
+      "llm_generated": {
+        "n": 15,
+        "pearson_r": 0.778860061534846,
+        "pearson_ci95_lo": 0.4647593469671541,
+        "pearson_ci95_hi": 0.9076834695980908,
+        "spearman_rho": 0.6005364328295454
+      },
+      "pooled": {
+        "n": 45,
+        "pearson_r": 0.7178005367886153,
+        "pearson_ci95_lo": 0.5302787050599872,
+        "pearson_ci95_hi": 0.8436364096629647,
+        "spearman_rho": 0.6838620450430862
+      }
+    },
+    "chrf": {
+      "human_authored": {
+        "n": 0,
+        "pearson_r": null,
+        "pearson_ci95_lo": null,
+        "pearson_ci95_hi": null,
+        "spearman_rho": null
+      },
+      "llm_generated": {
+        "n": 0,
+        "pearson_r": null,
+        "pearson_ci95_lo": null,
+        "pearson_ci95_hi": null,
+        "spearman_rho": null
+      },
+      "pooled": {
+        "n": 0,
+        "pearson_r": null,
+        "pearson_ci95_lo": null,
+        "pearson_ci95_hi": null,
+        "spearman_rho": null
+      }
+    },
+    "bertscore": {
+      "human_authored": {
+        "n": 0,
+        "pearson_r": null,
+        "pearson_ci95_lo": null,
+        "pearson_ci95_hi": null,
+        "spearman_rho": null
+      },
+      "llm_generated": {
+        "n": 15,
+        "pearson_r": 0.5883258888621917,
+        "pearson_ci95_lo": 0.07360437294916035,
+        "pearson_ci95_hi": 0.90426248646184,
+        "spearman_rho": 0.5683648382136768
+      },
+      "pooled": {
+        "n": 15,
+        "pearson_r": 0.5883258888621917,
+        "pearson_ci95_lo": 0.07360437294916035,
+        "pearson_ci95_hi": 0.90426248646184,
+        "spearman_rho": 0.5683648382136768
+      }
+    },
+    "moverscore": {
+      "human_authored": {
+        "n": 7,
+        "pearson_r": 0.8669112183984456,
+        "pearson_ci95_lo": -0.3275258775333973,
+        "pearson_ci95_hi": 0.9805040043950451,
+        "spearman_rho": 0.6785714285714287
+      },
+      "llm_generated": {
+        "n": 15,
+        "pearson_r": 0.8492503607912201,
+        "pearson_ci95_lo": 0.6804098297962894,
+        "pearson_ci95_hi": 0.9446943480354915,
+        "spearman_rho": 0.813226419456676
+      },
+      "pooled": {
+        "n": 22,
+        "pearson_r": 0.8481590384251191,
+        "pearson_ci95_lo": 0.6836225144046026,
+        "pearson_ci95_hi": 0.9329339312323816,
+        "spearman_rho": 0.7771816181136451
+      }
+    },
+    "semantic_similarity": {
+      "human_authored": {
+        "n": 7,
+        "pearson_r": 0.5332173069082562,
+        "pearson_ci95_lo": -0.7489946294709843,
+        "pearson_ci95_hi": 0.9801045392349679,
+        "spearman_rho": 0.1785714285714286
+      },
+      "llm_generated": {
+        "n": 15,
+        "pearson_r": -0.013979089032405393,
+        "pearson_ci95_lo": -0.4606451107868403,
+        "pearson_ci95_hi": 0.4789853331082426,
+        "spearman_rho": 0.042895459487824666
+      },
+      "pooled": {
+        "n": 22,
+        "pearson_r": 0.32169611700825634,
+        "pearson_ci95_lo": -0.3505926335988435,
+        "pearson_ci95_hi": 0.6999051063161131,
+        "spearman_rho": 0.11974019116285811
+      }
+    },
+    "coherence": {
+      "human_authored": {
+        "n": 30,
+        "pearson_r": -0.44832821465588685,
+        "pearson_ci95_lo": -0.70764585206104,
+        "pearson_ci95_hi": 0.015296218712591412,
+        "spearman_rho": -0.1877850718039015
+      },
+      "llm_generated": {
+        "n": 14,
+        "pearson_r": -0.03745328442161937,
+        "pearson_ci95_lo": -0.5644245925700082,
+        "pearson_ci95_hi": 0.5689279640263496,
+        "spearman_rho": 0.06380641924868087
+      },
+      "pooled": {
+        "n": 44,
+        "pearson_r": -0.342953313653991,
+        "pearson_ci95_lo": -0.6036184081741491,
+        "pearson_ci95_hi": 0.009340396160516374,
+        "spearman_rho": -0.1400429933470027
+      }
+    }
+  },
+  "residual_analysis": {
+    "bleu": {
+      "human_authored": {
+        "n": 30,
+        "pearson_r": -0.48795235884138244,
+        "pearson_ci95_lo": -0.727661085415319,
+        "pearson_ci95_hi": -0.18300254069233884,
+        "spearman_rho": -0.5159065628476084
+      },
+      "llm_generated": {
+        "n": 15,
+        "pearson_r": -0.7116775309801212,
+        "pearson_ci95_lo": -0.8732694535268188,
+        "pearson_ci95_hi": -0.33777790271997615,
+        "spearman_rho": -0.5714285714285713
+      },
+      "pooled": {
+        "n": 45,
+        "pearson_r": -0.536224358593326,
+        "pearson_ci95_lo": -0.7162901522022006,
+        "pearson_ci95_hi": -0.29851867137830684,
+        "spearman_rho": -0.4909090909090909
+      }
+    },
+    "rouge": {
+      "human_authored": {
+        "n": 30,
+        "pearson_r": -0.4472774741612423,
+        "pearson_ci95_lo": -0.7086405875047399,
+        "pearson_ci95_hi": -0.08114252720084915,
+        "spearman_rho": -0.3842046718576196
+      },
+      "llm_generated": {
+        "n": 15,
+        "pearson_r": -0.4818225954484778,
+        "pearson_ci95_lo": -0.833842780989826,
+        "pearson_ci95_hi": 0.01367259136202722,
+        "spearman_rho": -0.4357142857142856
+      },
+      "pooled": {
+        "n": 45,
+        "pearson_r": -0.4448267520398435,
+        "pearson_ci95_lo": -0.6623073003466288,
+        "pearson_ci95_hi": -0.1825348984365363,
+        "spearman_rho": -0.41067193675889324
+      }
+    },
+    "meteor": {
+      "human_authored": {
+        "n": 30,
+        "pearson_r": -0.3565336674664573,
+        "pearson_ci95_lo": -0.6583624111916855,
+        "pearson_ci95_hi": 0.01651917005123713,
+        "spearman_rho": -0.31790878754171303
+      },
+      "llm_generated": {
+        "n": 15,
+        "pearson_r": -0.7299040002793734,
+        "pearson_ci95_lo": -0.893350920752295,
+        "pearson_ci95_hi": -0.45859983494780476,
+        "spearman_rho": -0.6964285714285713
+      },
+      "pooled": {
+        "n": 45,
+        "pearson_r": -0.4278722457600823,
+        "pearson_ci95_lo": -0.6428552481868668,
+        "pearson_ci95_hi": -0.1493692833949114,
+        "spearman_rho": -0.3944664031620553
+      }
+    }
+  },
+  "length_partial": {
+    "bleu": {
+      "human_authored": {
+        "n": 30,
+        "zero_order_pearson_judge_metric": 0.4547257040685567,
+        "partial_pearson_given_tokens": 0.22509783194767488,
+        "partial_pearson_given_chars": 0.21498467632199575,
+        "n_chars": 30,
+        "pearson_judge_length_tokens": 0.5021254442819482,
+        "pearson_metric_length_tokens": 0.5936185457615918
+      },
+      "llm_generated": {
+        "n": 15,
+        "zero_order_pearson_judge_metric": 0.26806923106671576,
+        "partial_pearson_given_tokens": 0.22278941599008978,
+        "partial_pearson_given_chars": 0.21969969177903523,
+        "n_chars": 15,
+        "pearson_judge_length_tokens": 0.15731440470523067,
+        "pearson_metric_length_tokens": 0.46830048043278427
+      },
+      "pooled": {
+        "n": 45,
+        "zero_order_pearson_judge_metric": 0.43215084577689195,
+        "partial_pearson_given_tokens": 0.2155740839277889,
+        "partial_pearson_given_chars": 0.20713803759551008,
+        "n_chars": 45,
+        "pearson_judge_length_tokens": 0.4756803553336894,
+        "pearson_metric_length_tokens": 0.585257809192168
+      }
+    },
+    "rouge": {
+      "human_authored": {
+        "n": 30,
+        "zero_order_pearson_judge_metric": 0.4504214233063308,
+        "partial_pearson_given_tokens": 0.4379170355726176,
+        "partial_pearson_given_chars": 0.4382744902265589,
+        "n_chars": 30,
+        "pearson_judge_length_tokens": 0.5021254442819482,
+        "pearson_metric_length_tokens": 0.15152787479863136
+      },
+      "llm_generated": {
+        "n": 15,
+        "zero_order_pearson_judge_metric": 0.5621591998841518,
+        "partial_pearson_given_tokens": 0.5473666567550638,
+        "partial_pearson_given_chars": 0.5474197903496502,
+        "n_chars": 15,
+        "pearson_judge_length_tokens": 0.15731440470523067,
+        "pearson_metric_length_tokens": 0.22728458676599889
+      },
+      "pooled": {
+        "n": 45,
+        "zero_order_pearson_judge_metric": 0.48429792712090697,
+        "partial_pearson_given_tokens": 0.45395579718655543,
+        "partial_pearson_given_chars": 0.45502803797250607,
+        "n_chars": 45,
+        "pearson_judge_length_tokens": 0.4756803553336894,
+        "pearson_metric_length_tokens": 0.19474236102335837
+      }
+    },
+    "meteor": {
+      "human_authored": {
+        "n": 30,
+        "zero_order_pearson_judge_metric": 0.5691817076098218,
+        "partial_pearson_given_tokens": 0.3180161016309367,
+        "partial_pearson_given_chars": 0.31413803962749703,
+        "n_chars": 30,
+        "pearson_judge_length_tokens": 0.5021254442819482,
+        "pearson_metric_length_tokens": 0.8202611893858668
+      },
+      "llm_generated": {
+        "n": 15,
+        "zero_order_pearson_judge_metric": 0.39201662244373053,
+        "partial_pearson_given_tokens": 0.3765903144118828,
+        "partial_pearson_given_chars": 0.37849762219743016,
+        "n_chars": 15,
+        "pearson_judge_length_tokens": 0.15731440470523067,
+        "pearson_metric_length_tokens": 0.5991178397303056
+      },
+      "pooled": {
+        "n": 45,
+        "zero_order_pearson_judge_metric": 0.5528045241013321,
+        "partial_pearson_given_tokens": 0.32653877955613814,
+        "partial_pearson_given_chars": 0.32514326046700626,
+        "n_chars": 45,
+        "pearson_judge_length_tokens": 0.4756803553336894,
+        "pearson_metric_length_tokens": 0.7991696794617723
+      }
+    }
+  }
+}

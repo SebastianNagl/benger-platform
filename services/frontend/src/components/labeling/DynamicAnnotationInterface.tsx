@@ -227,8 +227,12 @@ export function DynamicAnnotationInterface({
     return { parsedConfig: parsed, configErrors: [] }
   }, [labelConfig, taskData, t])
 
-  // Handle component value change
-  const handleComponentChange = (componentName: string, value: any) => {
+  // Handle component value change. Memoized (stable identity): annotation
+  // components keep callbacks in effect dependency arrays, and a per-render
+  // identity re-fires those effects after every state landing — with a
+  // publish-on-effect component (Loesung/Gliederung) that becomes an infinite
+  // publish → setState → new callback → publish loop.
+  const handleComponentChange = useCallback((componentName: string, value: any) => {
     logger.debug('handleComponentChange called:', componentName, value)
     setComponentValues((prev) => {
       const updated = new Map(prev)
@@ -236,7 +240,7 @@ export function DynamicAnnotationInterface({
       logger.debug('Updated componentValues size:', updated.size)
       return updated
     })
-  }
+  }, [])
 
   // Notify parent when component values change (outside render cycle to avoid setState-during-render)
   useEffect(() => {
@@ -267,8 +271,10 @@ export function DynamicAnnotationInterface({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [annotations])
 
-  // Handle annotation from component
-  const handleAnnotation = (result: AnnotationResult) => {
+  // Handle annotation from component. Memoized for the same reason as
+  // handleComponentChange above — this exact callback sat in the Loesung/
+  // Gliederung publish-effect deps and looped the render cycle.
+  const handleAnnotation = useCallback((result: AnnotationResult) => {
     logger.debug('handleAnnotation called:', result)
     setAnnotations((prev) => {
       const updated = new Map(prev)
@@ -276,7 +282,7 @@ export function DynamicAnnotationInterface({
       logger.debug('Updated annotations size:', updated.size)
       return updated
     })
-  }
+  }, [])
 
   // Wrapper for saveNow that passes field info directly to avoid race conditions
   const handleSaveToDb = useCallback(async (fieldName: string, value: unknown): Promise<void> => {

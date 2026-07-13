@@ -836,3 +836,85 @@ describe('LabelingInterface - draft sync on change', () => {
     })
   })
 })
+
+describe('LabelingInterface - non-strict overtime (no auto-submit at 0)', () => {
+  // Non-strict timed project: at 0 the timer flips to overtime — the host
+  // must NOT create an auto-submitted annotation (that would fire a KI-Votum
+  // grading on a half-finished draft) and the editor stays mounted for a
+  // manual submit.
+  const nonStrictProject = {
+    ...strictProject,
+    strict_timer_enabled: false,
+  }
+
+  function mountTimerSlot() {
+    mockSlots.TimerIntegration = ({ onAutoSubmit }: any) => (
+      <button
+        data-testid="fire-auto-submit"
+        onClick={() => onAutoSubmit([{ from_name: 'a', value: 'x' }])}
+      >
+        AutoSubmit
+      </button>
+    )
+    mockApiGet.mockResolvedValue({
+      server_time: new Date().toISOString(),
+      session: { is_expired: false, completed_at: null },
+    })
+  }
+
+  it('expiry shows the overtime hint, creates NO annotation, and keeps the editor', async () => {
+    mountTimerSlot()
+    setupMocks({
+      currentProject: nonStrictProject,
+      currentTask: { id: 'task-1', data: {} },
+      currentTaskPosition: 1,
+      currentTaskTotal: 5,
+    })
+
+    render(<LabelingInterface projectId="proj-1" />)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('fire-auto-submit')).toBeInTheDocument()
+    })
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('fire-auto-submit'))
+    })
+
+    await waitFor(() => {
+      expect(screen.getByTestId('timer-overtime-hint')).toBeInTheDocument()
+    })
+    expect(projectsAPI.createAnnotation).not.toHaveBeenCalled()
+    // Editor still mounted — manual submit remains possible in overtime.
+    expect(screen.getByTestId('dynamic-annotation-interface')).toBeInTheDocument()
+    expect(screen.getByTestId('mock-submit')).toBeInTheDocument()
+    // No strict time_over lock screen.
+    expect(screen.queryByText("Time's Up")).not.toBeInTheDocument()
+  })
+
+  it('a second expiry callback stays idempotent (hint once, still no annotation)', async () => {
+    mountTimerSlot()
+    setupMocks({
+      currentProject: nonStrictProject,
+      currentTask: { id: 'task-1', data: {} },
+      currentTaskPosition: 1,
+      currentTaskTotal: 5,
+    })
+
+    render(<LabelingInterface projectId="proj-1" />)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('fire-auto-submit')).toBeInTheDocument()
+    })
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('fire-auto-submit'))
+      fireEvent.click(screen.getByTestId('fire-auto-submit'))
+    })
+
+    await waitFor(() => {
+      expect(screen.getAllByTestId('timer-overtime-hint')).toHaveLength(1)
+    })
+    expect(projectsAPI.createAnnotation).not.toHaveBeenCalled()
+  })
+})
