@@ -131,6 +131,46 @@ spec:
                 name: {{ .Release.Name }}-{{ .Values.frontend.name }}
                 port:
                   number: {{ .Values.frontend.service.port }}
+---
+# /api/lti on the vertretbar host bypasses the beta BasicAuth (issue #61):
+# Moodle's SERVER fetches /api/lti/jwks during grade-passback token calls and
+# auto-POSTs launches — it can never answer a BasicAuth challenge. Safe by
+# construction: login/launch/jwks authenticate via the LTI protocol itself
+# (platform-signed one-time tokens; Stripe-webhook trust model) and the
+# resource-link endpoints require a session cookie. Security headers stay on
+# via the lti-chain; only the beta lock is skipped. Higher router priority
+# wins over the gated catch-all above.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ .Release.Name }}-vertretbar-lti
+  labels:
+    app: {{ .Release.Name }}-{{ .Values.frontend.name }}
+    app.kubernetes.io/name: {{ .Release.Name }}-{{ .Values.frontend.name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: frontend
+    app.kubernetes.io/part-of: benger
+    app.kubernetes.io/managed-by: helm
+  annotations:
+    traefik.ingress.kubernetes.io/router.priority: "110"
+    traefik.ingress.kubernetes.io/router.middlewares: {{ .Release.Namespace }}-{{ .Release.Name }}-vertretbar-lti-chain@kubernetescrd
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - {{ .Values.vertretbar.host | quote }}
+      secretName: {{ .Values.vertretbar.tlsSecretName }}
+  rules:
+    - host: {{ .Values.vertretbar.host | quote }}
+      http:
+        paths:
+          - path: /api/lti
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ .Release.Name }}-{{ .Values.frontend.name }}
+                port:
+                  number: {{ .Values.frontend.service.port }}
 {{- end }}
 ---
 {{- if and .Values.minio.enabled .Values.minio.ingress.enabled }}
