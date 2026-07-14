@@ -78,6 +78,14 @@ services:
       # Optimize Next.js compilation
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_BUILD_OUTPUT_TRACE: false
+      # Give the dev server enough V8 heap that on-demand compilation of heavy
+      # routes (Klausuren/Milkdown editor) plus long-lived SSE streams
+      # (/api/notifications/stream) don't push heap past the /api/health 80%
+      # memory warning. The health route reads this same value as its limit;
+      # keeping them equal (and below the container memory limit) means the
+      # "unhealthy" flap that dropped frontend-dev out of traefik ("no
+      # available server") no longer happens on a normal dev session.
+      NODE_OPTIONS: "--max-old-space-size=3072"
     volumes:
       - ../services/frontend:/app:rw
       - /app/node_modules  # Anonymous volume for node_modules
@@ -114,7 +122,9 @@ services:
     deploy:
       resources:
         limits:
-          memory: 3G
+          # 4G (was 3G) leaves RSS headroom above the 3072MB V8 heap cap so
+          # the container isn't OOM-killed during heavy dev compilation.
+          memory: 4G
         reservations:
           memory: 1G
 
