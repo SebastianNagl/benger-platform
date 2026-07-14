@@ -8621,5 +8621,89 @@
       "profile": "Profile"
     },
     "loading": "Loading …"
+  },
+  "vertretbar": {
+    "landing": {
+      "signIn": "Sign in",
+      "hero": {
+        "badge": "Unlimited & free",
+        "title": "Is your answer defensible? You’ll know in seconds.",
+        "subtitle": "Write your case solution and get an instant assessment — 0 to 18 points, feedback across 10 criteria in Gutachtenstil. No waiting weeks for a grader."
+      },
+      "cta": {
+        "start": "Start free",
+        "note": "No credit card. No subscription. Your texts stay yours."
+      },
+      "sample": {
+        "heading": "Your assessment",
+        "passed": "Passed",
+        "points": "points",
+        "dim1": "Prioritisation",
+        "dim2": "Subsumption",
+        "dim3": "Gutachtenstil",
+        "caption": "Example — Vertretbar gives you a practice benchmark, not an official grade."
+      },
+      "contrast": {
+        "title": "Six weeks for a “missed the key issues”? Not anymore.",
+        "body": "You practise, get instant feedback and write the next exam. You improve through fast repetition — not by waiting on a grader."
+      },
+      "how": {
+        "title": "How it works"
+      },
+      "step": {
+        "pick": {
+          "title": "Pick an exam or bring your own",
+          "body": "Take a case from the library or paste in your own facts."
+        },
+        "write": {
+          "title": "Write your solution in Gutachtenstil",
+          "body": "Just like the real exam — premise, definition, subsumption, conclusion."
+        },
+        "grade": {
+          "title": "Points & feedback in seconds",
+          "body": "0 to 18 points, feedback across 10 criteria — concrete, not just “defensible” in red pen."
+        }
+      },
+      "feature": {
+        "grading": {
+          "title": "AI grading of your exams",
+          "body": "Write your case solution and get an instant assessment on the 10-criteria rubric — unlimited, no API key of your own."
+        },
+        "cards": {
+          "title": "Flashcards with spaced repetition",
+          "body": "Study with Anki-compatible cards and optional AI grading of your free-text answers."
+        },
+        "price": {
+          "title": "Free — no catch",
+          "body": "Grading exams is and stays free. If you want the stronger judge model before the Staatsexamen, it’s €5/month — a fraction of a Rep."
+        }
+      },
+      "trust": {
+        "free": {
+          "title": "Why is this free?",
+          "body": "Because most people use it for free — and a few pay €5/month for the stronger judge model before the exam. That covers the rest. No data selling, no catch."
+        },
+        "fair": {
+          "title": "Can an AI grade law fairly?",
+          "body": "Even human grading of the same answer varies a lot. Ours is instant, consistent and always there — as practice and orientation, not a replacement for the real correction."
+        }
+      },
+      "plan": {
+        "free": {
+          "tag": "For everyone",
+          "price": "€0",
+          "body": "Unlimited exam grading, flashcard study. No credit card, no subscription."
+        },
+        "premium": {
+          "tag": "Optional, for the exam",
+          "price": "€5",
+          "per": " / month",
+          "body": "Stronger judge model, 1 premium grading per week free, then €1. Cancel anytime."
+        }
+      },
+      "final": {
+        "title": "Write your first exam — free."
+      }
+    }
   }
 }
