@@ -583,13 +583,20 @@ class TestCustomModelAccessCheck:
 
         fake = types.ModuleType("models")
 
-        class User:  # noqa: D401 - marker classes for name-based dispatch
-            pass
+        # Marker classes for name-based dispatch. Column attributes must
+        # exist (as inert mocks) because the code under test builds filter
+        # expressions like ``User.id == user_id`` — a missing attribute
+        # would raise inside the helper's try and fail closed, masking the
+        # branch we want to exercise.
+        class User:
+            id = MagicMock(name="User.id")
 
         class OrganizationMembership:
-            pass
+            user_id = MagicMock(name="OrganizationMembership.user_id")
+            is_active = MagicMock(name="OrganizationMembership.is_active")
 
         class ModelOrganization:
+            model_id = MagicMock(name="ModelOrganization.model_id")
             organization_id = "ModelOrganization.organization_id"
 
         fake.User = User
