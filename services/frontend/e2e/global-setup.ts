@@ -56,6 +56,11 @@ async function validateInfrastructure(
 
       if (authResponse.ok()) {
         result.auth = true
+        // A successful login round-trip proves the API (and its database)
+        // are serving. Needed on stacks whose frontend hosts don't proxy
+        // /api/health (the live dev stack exposes health on the API host
+        // only, so the check above 404s there).
+        result.api = true
         console.log('  Auth: OK (demo user accessible)')
       }
 
