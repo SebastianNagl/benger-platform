@@ -387,6 +387,14 @@ def generate_fix_commands(engine) -> List[str]:
                 column_type = "VARCHAR(255)"
             elif column == "is_active":
                 column_type = "BOOLEAN DEFAULT TRUE"
+            elif column.startswith("is_") or column.startswith("requires_"):
+                # Boolean flags (is_official/is_private/is_public/
+                # requires_api_key, ...). A TEXT fallback here is actively
+                # dangerous: it would satisfy migration 080's _column_exists
+                # guard so the is_official backfill is skipped forever, and
+                # its boolean CHECK constraints fail to create against a TEXT
+                # column. Match the migration's NOT NULL DEFAULT false.
+                column_type = "BOOLEAN NOT NULL DEFAULT FALSE"
             else:
                 column_type = "TEXT"
 

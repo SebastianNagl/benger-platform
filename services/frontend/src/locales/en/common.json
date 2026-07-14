@@ -8485,6 +8485,7 @@
       "endpointModelName": "Model name at the endpoint",
       "endpointModelNameHelp": "The model name the endpoint expects in the \"model\" field",
       "endpointModelNameRequired": "Please enter the model name used by the endpoint",
+      "endpointModelNameTooLong": "The model name must be at most 255 characters",
       "requiresApiKey": "API key required",
       "requiresApiKeyHelp": "Disable if the endpoint is reachable without authentication (e.g. a local Ollama server). Otherwise every user stores their own key.",
       "apiKey": "Your API key (optional)",
@@ -8519,7 +8520,10 @@
       "deleteMessage": "\"{name}\" will be deleted permanently. Existing generations and evaluations that reference this model are kept and will keep showing it.",
       "deleteConfirm": "Delete permanently",
       "deleteSuccess": "Model deleted",
-      "deleteFailed": "Failed to delete model"
+      "deactivateSuccess": "Model deactivated – existing results still reference it",
+      "deleteFailed": "Failed to delete model",
+      "inactiveBadge": "Inactive",
+      "inactiveHint": "This model was deactivated because generations reference it. It is hidden from picker lists."
     },
     "page": {
       "title": "My Models",

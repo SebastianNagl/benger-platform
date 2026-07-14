@@ -628,8 +628,19 @@ async def _chat_ping(
                     "max_tokens": 16,
                 },
                 timeout=aiohttp.ClientTimeout(total=30),
+                # SECURITY: never follow redirects — a 3xx to an internal
+                # host would be replayed (307/308 preserve method + body),
+                # bypassing the url_guard the caller ran on base_url only.
+                allow_redirects=False,
             ) as response:
                 latency_ms = int((time.monotonic() - started) * 1000)
+                if 300 <= response.status < 400:
+                    return {
+                        "status": "error",
+                        "message": "Chat ping failed: unexpected response",
+                        "error_type": "invalid_response",
+                        "latency_ms": latency_ms,
+                    }
                 if response.status in (401, 403):
                     return {
                         "status": "error",

@@ -137,9 +137,15 @@ class TestAvailableModelsCustomPass:
         assert entry["created_by"] == user.id
 
     @pytest.mark.asyncio
-    async def test_keyed_custom_hidden_until_credential(
+    async def test_keyed_custom_visible_with_credential_flag(
         self, async_test_client, async_test_db
     ):
+        # A visible keyed custom model is ALWAYS listed — the picker needs
+        # it to render a disabled "add your key" row rather than silently
+        # drop a model a project may be configured to use. has_credential
+        # flips false -> true once the caller stores a key; the worker (not
+        # this endpoint) is what refuses to run a keyless requires_api_key
+        # model.
         user = _make_user()
         model = _make_custom_model(user.id, requires_api_key=True)
         async_test_db.add(user)
@@ -151,7 +157,10 @@ class TestAvailableModelsCustomPass:
             before = await async_test_client.get(
                 "/api/users/api-keys/available-models"
             )
-        assert model.id not in {m["id"] for m in before.json()}
+        before_by_id = {m["id"]: m for m in before.json()}
+        assert model.id in before_by_id
+        assert before_by_id[model.id]["has_credential"] is False
+        assert before_by_id[model.id]["requires_api_key"] is True
 
         async_test_db.add(
             CustomModelCredential(

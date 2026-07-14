@@ -211,8 +211,15 @@ class UserAwareAIService:
                 )
                 return None
 
-            constraints = model.parameter_constraints or {}
-            seed_cfg = constraints.get("seed") or {}
+            # parameter_constraints is owner-supplied JSON — tolerate
+            # malformed shapes ({"seed": true}, a list, ...) rather than
+            # raising into the except below, which would mask a bad-config
+            # bug as a misleading "no credential" error.
+            constraints = model.parameter_constraints
+            if not isinstance(constraints, dict):
+                constraints = {}
+            seed_cfg = constraints.get("seed")
+            supports_seed = bool(seed_cfg.get("supported", False)) if isinstance(seed_cfg, dict) else False
 
             service = OpenAICompatibleService(
                 base_url=model.base_url,
@@ -220,7 +227,7 @@ class UserAwareAIService:
                 endpoint_model_name=model.endpoint_model_name,
                 input_cost_per_million=model.input_cost_per_million,
                 output_cost_per_million=model.output_cost_per_million,
-                supports_seed=bool(seed_cfg.get("supported", False)),
+                supports_seed=supports_seed,
             )
             service._key_resolution_route = (
                 "custom_model_user_credential" if api_key else "custom_model_no_auth"

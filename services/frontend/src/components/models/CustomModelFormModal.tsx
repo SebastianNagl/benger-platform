@@ -25,6 +25,30 @@ import { Dialog } from '@headlessui/react'
 import { EyeIcon, EyeSlashIcon, XMarkIcon } from '@heroicons/react/24/outline'
 import { useEffect, useState } from 'react'
 
+/** Flatten any error `detail` shape (string, FastAPI 422 array of
+ * {loc,msg}, or object) into a single human-readable string, so it can
+ * never reach React as a non-string child. */
+function coerceErrorDetail(detail: unknown): string | null {
+  if (detail == null) return null
+  if (typeof detail === 'string') return detail
+  if (Array.isArray(detail)) {
+    const msgs = detail
+      .map((d) =>
+        d && typeof d === 'object' && 'msg' in d
+          ? String((d as { msg: unknown }).msg)
+          : typeof d === 'string'
+            ? d
+            : null
+      )
+      .filter(Boolean)
+    return msgs.length ? msgs.join('; ') : null
+  }
+  if (typeof detail === 'object' && 'msg' in (detail as object)) {
+    return String((detail as { msg: unknown }).msg)
+  }
+  return null
+}
+
 interface CustomModelFormModalProps {
   isOpen: boolean
   onClose: () => void
@@ -152,6 +176,12 @@ export function CustomModelFormModal({
       next.endpoint_model_name = t(
         'customModels.form.endpointModelNameRequired'
       )
+    } else if (form.endpoint_model_name.trim().length > 255) {
+      // Backend caps endpoint_model_name at 255 (CustomModelCreate); catch
+      // it here so an over-long value is a field error, not a 422.
+      next.endpoint_model_name = t(
+        'customModels.form.endpointModelNameTooLong'
+      )
     }
 
     const inputCost = form.input_cost.trim()
@@ -247,9 +277,14 @@ export function CustomModelFormModal({
         onSaved?.(created)
       }
     } catch (error: any) {
-      const detail =
-        error?.response?.data?.detail ||
+      const rawDetail =
+        error?.response?.data?.detail ??
         (error instanceof Error ? error.message : null)
+      // FastAPI 422 returns `detail` as an array of {loc,msg,...} objects.
+      // Rendering that array as a JSX child throws ("Objects are not valid
+      // as a React child") and takes the whole page down, so flatten any
+      // non-string shape into a readable string first.
+      const detail = coerceErrorDetail(rawDetail)
       setSubmitError(
         detail ||
           (isEdit
@@ -459,6 +494,7 @@ export function CustomModelFormModal({
                       setField('endpoint_model_name', e.target.value)
                     }
                     placeholder="llama-3.3-70b-instruct"
+                    maxLength={255}
                     className={inputClass}
                     data-testid="custom-model-endpoint-name-input"
                   />

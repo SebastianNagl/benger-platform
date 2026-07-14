@@ -428,7 +428,18 @@ async def validate_openai_compatible_endpoint(
                 url,
                 headers=headers,
                 timeout=aiohttp.ClientTimeout(total=timeout_seconds),
+                # SECURITY: never follow redirects. The caller ran url_guard
+                # on base_url only; a 3xx to an internal/metadata host would
+                # be followed to an address the guard was meant to fence off,
+                # turning this probe into an SSRF/port-scan oracle.
+                allow_redirects=False,
             ) as response:
+                if 300 <= response.status < 400:
+                    return (
+                        False,
+                        "Endpoint did not return a valid /models response",
+                        "invalid_response",
+                    )
                 if response.status in (401, 403):
                     return (
                         False,
