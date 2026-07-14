@@ -140,17 +140,18 @@ class OpenAICompatibleService(BaseAIService):
         if not self.is_available():
             raise ValueError("Custom model endpoint is not configured (missing base_url)")
 
-        # Call-time SSRF re-check (DNS rebinding narrows to the window
-        # between this resolve and aiohttp's own). Import here: url_guard
-        # lives at the /shared root, which is on sys.path in both the api
-        # and workers containers.
-        from url_guard import validate_custom_model_url
-
-        validate_custom_model_url(self.base_url)
-
         requested_seed = kwargs.get("seed", 42)
 
         try:
+            # Call-time SSRF re-check (DNS rebinding narrows to the window
+            # between this resolve and aiohttp's own). Inside the try so a
+            # rejection surfaces as the standard error dict, not an
+            # exception out of generate(). Import here: url_guard lives at
+            # the /shared root, on sys.path in both containers.
+            from url_guard import validate_custom_model_url
+
+            validate_custom_model_url(self.base_url)
+
             start_time = datetime.now()
 
             payload = {

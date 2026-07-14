@@ -378,3 +378,248 @@ class TestOrgContextPath:
             MagicMock(), "user-1", "openai", organization_id="org-xyz"
         )
         assert service is None
+
+
+# --------------------------------------------------------------------------
+# BYOM (custom models): get_ai_service_for_model_row + the 'custom' guard
+# --------------------------------------------------------------------------
+#
+# Custom rows cannot be resolved by provider string alone — they need the
+# llm_models ROW (base_url / endpoint_model_name / per-(user, model)
+# credential). The contract pinned here:
+#
+# 1. ``get_ai_service_for_user(..., "custom")`` refuses (returns None)
+#    BEFORE any key lookup — nothing may fall into the SDK map.
+# 2. ``get_ai_service_for_model_row`` with an OFFICIAL row delegates to the
+#    provider-keyed path (identical routing to the tests above).
+# 3. With a CUSTOM row it consults the access check + the per-model
+#    credential seam, builds an OpenAICompatibleService carrying exactly
+#    the row's endpoint data + THIS user's credential, and stamps the
+#    audit route ``custom_model_user_credential`` / ``custom_model_no_auth``.
+# 4. Missing credential on a requires_api_key row, failed access check, or
+#    an inactive (soft-deleted) row → None. Keyless rows run with
+#    api_key=None — is_available() must still be True.
+
+from types import SimpleNamespace  # noqa: E402
+
+import custom_model_credential_service as cmcs_mod  # noqa: E402
+from ai_services.openai_compatible_service import OpenAICompatibleService  # noqa: E402
+
+CUSTOM_CRED = "ck-user-model-credential-BEEF42"
+
+
+def _custom_row(**overrides):
+    row = SimpleNamespace(
+        id="custom-3f2b6a9e-0000-4111-8222-333344445555",
+        name="My vLLM",
+        provider="Custom",
+        is_official=False,
+        is_active=True,
+        is_public=True,
+        is_private=False,
+        created_by="owner-1",
+        requires_api_key=True,
+        base_url="https://models.example.org/v1",
+        endpoint_model_name="meta-llama/Llama-3.3-70B-Instruct",
+        input_cost_per_million=5.0,
+        output_cost_per_million=15.0,
+        parameter_constraints={"seed": {"supported": True}},
+    )
+    for k, v in overrides.items():
+        setattr(row, k, v)
+    return row
+
+
+def _official_row(provider="openai", model_id="gpt-4o"):
+    return SimpleNamespace(
+        id=model_id,
+        name=model_id,
+        provider=provider,
+        is_official=True,
+        is_active=True,
+        parameter_constraints=None,
+    )
+
+
+@pytest.fixture()
+def patched_credential(monkeypatch):
+    """Stub the per-model credential seam (module attr read at call time)."""
+    calls = []
+
+    def _fake_get_credential(db, user_id, model_id):
+        calls.append((user_id, model_id))
+        return CUSTOM_CRED
+
+    monkeypatch.setattr(cmcs_mod, "get_credential", _fake_get_credential)
+    return calls
+
+
+@pytest.fixture()
+def access_granted(monkeypatch):
+    monkeypatch.setattr(uaas_mod, "_user_can_use_custom_model", lambda db, u, m: True)
+
+
+class TestCustomProviderGuard:
+    def test_custom_provider_string_returns_none(self):
+        svc = UserAwareAIService()
+        # No key seam patched: the guard must fire BEFORE key resolution,
+        # so this returns None without touching user_api_key_service.
+        assert svc.get_ai_service_for_user(MagicMock(), "user-1", "custom") is None
+        assert svc.get_ai_service_for_user(MagicMock(), "user-1", "Custom") is None
+
+
+class TestModelRowDispatch:
+    def test_official_row_delegates_to_provider_path(self, svc, patched_key_service):
+        service = svc.get_ai_service_for_model_row(
+            MagicMock(), "user-1", _official_row("openai")
+        )
+        assert isinstance(service, UserSpecificOpenAIService)
+        assert service.api_key == USER_KEY
+
+    def test_row_without_flag_treated_official(self, svc, patched_key_service):
+        # Legacy row objects without is_official (pre-080 code paths,
+        # stale fixtures) must keep the old behavior.
+        row = SimpleNamespace(id="gpt-4o", provider="openai")
+        service = svc.get_ai_service_for_model_row(MagicMock(), "user-1", row)
+        assert isinstance(service, UserSpecificOpenAIService)
+
+    def test_custom_row_builds_openai_compatible_service(
+        self, svc, patched_credential, access_granted
+    ):
+        row = _custom_row()
+        service = svc.get_ai_service_for_model_row(MagicMock(), "user-9", row)
+        assert isinstance(service, OpenAICompatibleService)
+        assert service.api_key == CUSTOM_CRED
+        assert service.base_url == row.base_url
+        assert service.endpoint_model_name == row.endpoint_model_name
+        assert service.input_cost_per_million == 5.0
+        assert service.output_cost_per_million == 15.0
+        assert service.supports_seed is True
+        assert service._key_resolution_route == "custom_model_user_credential"
+        assert service._provider_name == "custom"
+        assert service._invocation_user_id == "user-9"
+        # Credential looked up for THIS user + THIS model — never the owner.
+        assert patched_credential == [("user-9", row.id)]
+
+    def test_custom_row_seed_defaults_off(self, svc, patched_credential, access_granted):
+        row = _custom_row(parameter_constraints=None)
+        service = svc.get_ai_service_for_model_row(MagicMock(), "user-9", row)
+        assert service.supports_seed is False
+
+    def test_keyless_row_runs_without_credential(self, svc, monkeypatch, access_granted):
+        monkeypatch.setattr(cmcs_mod, "get_credential", lambda db, u, m: None)
+        row = _custom_row(requires_api_key=False)
+        service = svc.get_ai_service_for_model_row(MagicMock(), "user-9", row)
+        assert isinstance(service, OpenAICompatibleService)
+        assert service.api_key is None
+        assert service.is_available() is True
+        assert service._key_resolution_route == "custom_model_no_auth"
+
+    def test_missing_credential_returns_none(self, svc, monkeypatch, access_granted):
+        monkeypatch.setattr(cmcs_mod, "get_credential", lambda db, u, m: None)
+        service = svc.get_ai_service_for_model_row(MagicMock(), "user-9", _custom_row())
+        assert service is None
+
+    def test_access_denied_returns_none(self, svc, patched_credential, monkeypatch):
+        monkeypatch.setattr(uaas_mod, "_user_can_use_custom_model", lambda db, u, m: False)
+        service = svc.get_ai_service_for_model_row(MagicMock(), "user-9", _custom_row())
+        assert service is None
+
+    def test_inactive_row_returns_none(self, svc, patched_credential, access_granted):
+        service = svc.get_ai_service_for_model_row(
+            MagicMock(), "user-9", _custom_row(is_active=False)
+        )
+        assert service is None
+
+
+class TestCustomModelAccessCheck:
+    """_user_can_use_custom_model — the pure branches (public/creator) plus
+    the org/superadmin branches via an injected fake ``models`` module."""
+
+    def test_public_row_allows_anyone(self):
+        row = _custom_row(is_public=True, created_by="someone-else")
+        assert uaas_mod._user_can_use_custom_model(MagicMock(), "user-9", row) is True
+
+    def test_creator_always_allowed(self):
+        row = _custom_row(is_public=False, created_by="user-9")
+        assert uaas_mod._user_can_use_custom_model(MagicMock(), "user-9", row) is True
+
+    def _db_for_org_branch(self, *, superadmin=False, model_org_ids=(), member_org_ids=()):
+        db = MagicMock()
+        user = SimpleNamespace(is_superadmin=superadmin)
+        memberships = [
+            SimpleNamespace(organization_id=oid, is_active=True) for oid in member_org_ids
+        ]
+
+        query_results = {
+            "User": user,
+            "ModelOrganization": [(oid,) for oid in model_org_ids],
+            "OrganizationMembership": memberships,
+        }
+
+        def _query(target):
+            name = getattr(target, "__name__", None) or getattr(
+                getattr(target, "class_", None), "__name__", ""
+            )
+            # ModelOrganization.organization_id arrives as a column attr —
+            # fall back to matching on its string repr.
+            if not name:
+                name = "ModelOrganization" if "organization_id" in str(target) else ""
+            q = MagicMock()
+            if name == "User":
+                q.filter.return_value.first.return_value = query_results["User"]
+            elif name == "OrganizationMembership":
+                q.filter.return_value.all.return_value = query_results["OrganizationMembership"]
+            else:
+                q.filter.return_value.all.return_value = query_results["ModelOrganization"]
+            return q
+
+        db.query.side_effect = _query
+        return db
+
+    @pytest.fixture()
+    def fake_models_module(self, monkeypatch):
+        import types
+
+        fake = types.ModuleType("models")
+
+        class User:  # noqa: D401 - marker classes for name-based dispatch
+            pass
+
+        class OrganizationMembership:
+            pass
+
+        class ModelOrganization:
+            organization_id = "ModelOrganization.organization_id"
+
+        fake.User = User
+        fake.OrganizationMembership = OrganizationMembership
+        fake.ModelOrganization = ModelOrganization
+        monkeypatch.setitem(sys.modules, "models", fake)
+        return fake
+
+    def test_superadmin_allowed(self, fake_models_module):
+        row = _custom_row(is_public=False, created_by="someone-else")
+        db = self._db_for_org_branch(superadmin=True)
+        assert uaas_mod._user_can_use_custom_model(db, "user-9", row) is True
+
+    def test_org_member_allowed(self, fake_models_module):
+        row = _custom_row(is_public=False, created_by="someone-else")
+        db = self._db_for_org_branch(model_org_ids=("org-a",), member_org_ids=("org-a", "org-b"))
+        assert uaas_mod._user_can_use_custom_model(db, "user-9", row) is True
+
+    def test_non_member_denied(self, fake_models_module):
+        row = _custom_row(is_public=False, created_by="someone-else")
+        db = self._db_for_org_branch(model_org_ids=("org-a",), member_org_ids=("org-z",))
+        assert uaas_mod._user_can_use_custom_model(db, "user-9", row) is False
+
+    def test_unshared_private_row_denied(self, fake_models_module):
+        row = _custom_row(is_public=False, created_by="someone-else")
+        db = self._db_for_org_branch(model_org_ids=())
+        assert uaas_mod._user_can_use_custom_model(db, "user-9", row) is False
+
+    def test_exception_fails_closed(self, monkeypatch):
+        row = _custom_row(is_public=False, created_by="someone-else")
+        db = MagicMock()
+        db.query.side_effect = RuntimeError("boom")
+        assert uaas_mod._user_can_use_custom_model(db, "user-9", row) is False
