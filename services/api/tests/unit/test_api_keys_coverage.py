@@ -87,6 +87,7 @@ def _seed_model(db_session, model_id, provider, name=None):
         parameter_constraints=None,
         recommended_parameters=None,
         is_active=True,
+        is_official=True,
         created_at=datetime.now(timezone.utc),
     )
     db_session.add(model)

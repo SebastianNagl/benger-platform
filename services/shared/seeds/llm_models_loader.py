@@ -52,6 +52,14 @@ def _validate(model: Dict[str, Any], source: str) -> None:
         raise ValueError(f"{source}: model {model.get('id')!r} missing required fields: {sorted(missing)}")
     if not isinstance(model["capabilities"], list):
         raise ValueError(f"{source}: model {model['id']!r} 'capabilities' must be a list")
+    # The "custom-" id namespace is reserved for user-registered BYOM rows
+    # (generated PKs, migration 080). A YAML/overlay entry there could
+    # collide with a user's model or get swept by the official-only
+    # deactivation pass — reject it outright.
+    if str(model["id"]).startswith("custom-"):
+        raise ValueError(
+            f"{source}: model id {model['id']!r} uses the reserved 'custom-' prefix"
+        )
 
 
 def _extended_yaml_path() -> Optional[Path]:

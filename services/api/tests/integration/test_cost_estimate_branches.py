@@ -127,6 +127,7 @@ async def _seed_model(
         default_config=default_config,
         recommended_parameters=recommended_parameters,
         is_active=True,
+        is_official=True,
     ))
     await db.flush()
 

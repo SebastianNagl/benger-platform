@@ -70,3 +70,4 @@ pytest-timeout>=2.4.0  # Prevent tests from hanging indefinitely
 # imported by both api and workers. arm64 wheels published — normal pin is fine.
 # Keep aligned with the api (requirements.txt + pyproject.toml).
 zstandard>=0.22,<1.0
+stripe>=11.0.0,<13.0.0  # Vertretbar billing meter reporting (extended-only)

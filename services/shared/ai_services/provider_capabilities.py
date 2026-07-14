@@ -189,6 +189,28 @@ PROVIDER_CAPABILITIES: Dict[str, Dict[str, Any]] = {
             "default": 0.0,
         },
     },
+    "custom": {
+        # User-registered BYOM endpoints (OpenAI-compatible). Conservative
+        # provider-level defaults: the actual per-model behavior comes from
+        # the DB row (parameter_constraints.seed.supported drives seed in
+        # OpenAICompatibleService; pricing comes from the row's per-million
+        # rates, never the YAML cost cache).
+        "display_name": "Custom",
+        "structured_output": {
+            "method": StructuredOutputMethod.PROMPT_BASED,
+            "strict_mode": False,
+            "guaranteed": False,
+        },
+        "determinism": {
+            "seed_support": False,
+            "recommended_seed": None,
+        },
+        "temperature": {
+            "min": 0.0,
+            "max": 2.0,
+            "default": 0.0,
+        },
+    },
 }
 
 
@@ -430,6 +452,12 @@ def get_provider_from_model(model_id: str) -> str:
     Falls back to 'openai' for unknown models.
     """
     model_lower = model_id.lower()
+
+    # BYOM: generated PKs of user-registered models. Without this branch a
+    # custom id would fall through every heuristic below and silently
+    # misroute to 'openai' (wrong provider, wrong billing).
+    if model_lower.startswith("custom-"):
+        return "custom"
 
     if "gpt" in model_lower or "o1" in model_lower or "o3" in model_lower or "o4" in model_lower:
         return "openai"

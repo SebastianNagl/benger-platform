@@ -100,9 +100,14 @@ def diff(db_url: str) -> dict:
     finally:
         session.close()
 
+    # Custom (BYOM) rows are DB-only by design — they never appear in the
+    # YAML and must not count as drift. Only official rows are compared.
+    official_rows = [r for r in rows if r.is_official]
+    custom_count = len(rows) - len(official_rows)
+
     db_by_id = {
         r.id: {k: getattr(r, k) for k in COMPARE_FIELDS}
-        for r in rows
+        for r in official_rows
     }
 
     missing_in_db = sorted(set(yaml_by_id) - set(db_by_id))
@@ -131,6 +136,7 @@ def diff(db_url: str) -> dict:
         "catalog_version": catalog.content_hash[:8],
         "yaml_count": len(yaml_by_id),
         "db_count": len(db_by_id),
+        "custom_rows": custom_count,
         "missing_in_db": missing_in_db,
         "extra_in_db": extra_in_db,
         "field_mismatches": field_mismatches,
@@ -155,7 +161,10 @@ def main() -> int:
         print(json.dumps(result, indent=2, default=str))
     else:
         print(f"Catalog version: {result['catalog_version']}")
-        print(f"YAML models: {result['yaml_count']} | DB rows: {result['db_count']}")
+        print(
+            f"YAML models: {result['yaml_count']} | official DB rows: {result['db_count']}"
+            f" | custom rows (ignored): {result['custom_rows']}"
+        )
         if result["missing_in_db"]:
             print(f"\n[!] {len(result['missing_in_db'])} model(s) in YAML but missing from DB:")
             for mid in result["missing_in_db"]:

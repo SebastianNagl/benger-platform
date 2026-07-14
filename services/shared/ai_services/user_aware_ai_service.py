@@ -13,6 +13,7 @@ from .deepinfra_service import DeepInfraService
 from .google_service import GoogleService
 from .grok_service import GrokService
 from .mistral_service import MistralService
+from .openai_compatible_service import OpenAICompatibleService
 from .openai_service import OpenAIService
 import sys
 import os
@@ -25,6 +26,49 @@ if parent_dir not in sys.path:
 from user_api_key_service import user_api_key_service
 
 logger = logging.getLogger(__name__)
+
+
+def _user_can_use_custom_model(db: Session, user_id: str, model: Any) -> bool:
+    """Access check for custom (BYOM) models: creator, public, org-shared
+    (active membership), or superadmin.
+
+    Enforced INSIDE the factory as defense in depth: every consumer
+    (generation worker, LLM-judge paths, future callers) goes through
+    here, so a guessed custom-<uuid> id can never be used by someone the
+    model isn't shared with — including keyless (requires_api_key=False)
+    endpoints where no missing-credential error would stop them.
+    """
+    if getattr(model, "is_public", False):
+        return True
+    if model.created_by and str(model.created_by) == str(user_id):
+        return True
+    try:
+        from models import ModelOrganization, OrganizationMembership, User
+
+        user = db.query(User).filter(User.id == user_id).first()
+        if user and getattr(user, "is_superadmin", False):
+            return True
+
+        model_org_ids = {
+            row[0]
+            for row in db.query(ModelOrganization.organization_id)
+            .filter(ModelOrganization.model_id == model.id)
+            .all()
+        }
+        if not model_org_ids:
+            return False
+        memberships = (
+            db.query(OrganizationMembership)
+            .filter(
+                OrganizationMembership.user_id == user_id,
+                OrganizationMembership.is_active.is_(True),
+            )
+            .all()
+        )
+        return any(m.organization_id in model_org_ids for m in memberships)
+    except Exception as e:
+        logger.error(f"Custom-model access check failed for {model.id}: {e}")
+        return False
 
 
 class UserAwareAIService:
@@ -44,6 +88,16 @@ class UserAwareAIService:
         Generation row shows the provider name (``openai``) but never
         which key actually billed for it (org's vs. user's).
         """
+        # Custom (BYOM) models cannot be resolved by provider name alone —
+        # they need the model row (base_url, endpoint_model_name,
+        # per-(user, model) credential). Refuse loudly instead of falling
+        # into the SDK map and producing a misleading "no key" error.
+        if provider and provider.lower() == "custom":
+            logger.error(
+                "Provider 'custom' requires the model row - use get_ai_service_for_model_row"
+            )
+            return None
+
         # Track which path we took so the caller can persist it.
         key_route = "user_key"  # default
         try:
@@ -115,6 +169,70 @@ class UserAwareAIService:
     ) -> Optional[Any]:
         """Get AI service for a specific model provider with user's API key"""
         return self.get_ai_service_for_user(db, user_id, model_provider)
+
+    def get_ai_service_for_model_row(
+        self, db: Session, user_id: str, model: Any, organization_id: str = None
+    ) -> Optional[Any]:
+        """Resolve an AI service from an llm_models ROW (BYOM-aware).
+
+        Official rows delegate to the provider-keyed path
+        (get_ai_service_for_user). Custom rows build an OpenAI-compatible
+        client from the row's base_url/endpoint_model_name with strictly
+        the INVOKING user's per-(user, model) credential — never the model
+        owner's key, and deliberately outside the org
+        ``require_private_keys`` shared-billing machinery.
+
+        Returns None when a requires_api_key custom model has no stored
+        credential for this user (callers surface a "add your key for this
+        model" error).
+        """
+        if getattr(model, "is_official", True):
+            return self.get_ai_service_for_user(
+                db, user_id, model.provider, organization_id=organization_id
+            )
+
+        try:
+            if not model.is_active:
+                logger.warning(f"Custom model {model.id} is inactive (deleted)")
+                return None
+            if not _user_can_use_custom_model(db, user_id, model):
+                logger.warning(
+                    f"User {user_id} has no access to custom model {model.id}"
+                )
+                return None
+
+            from custom_model_credential_service import get_credential
+
+            api_key = get_credential(db, user_id, str(model.id))
+            if getattr(model, "requires_api_key", True) and not api_key:
+                logger.warning(
+                    f"No custom-model credential stored for user {user_id} "
+                    f"and model {model.id}"
+                )
+                return None
+
+            constraints = model.parameter_constraints or {}
+            seed_cfg = constraints.get("seed") or {}
+
+            service = OpenAICompatibleService(
+                base_url=model.base_url,
+                api_key=api_key,
+                endpoint_model_name=model.endpoint_model_name,
+                input_cost_per_million=model.input_cost_per_million,
+                output_cost_per_million=model.output_cost_per_million,
+                supports_seed=bool(seed_cfg.get("supported", False)),
+            )
+            service._key_resolution_route = (
+                "custom_model_user_credential" if api_key else "custom_model_no_auth"
+            )
+            service._provider_name = "custom"
+            service._invocation_user_id = user_id
+            service._invocation_organization_id = organization_id
+            return service
+
+        except Exception as e:
+            logger.error(f"Error creating custom-model AI service: {e}")
+            return None
 
 
 class UserSpecificOpenAIService(OpenAIService):

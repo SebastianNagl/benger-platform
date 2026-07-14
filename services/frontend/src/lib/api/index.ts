@@ -18,6 +18,11 @@ import { UsersClient } from './users'
 export type {
   AddPromptsResponse,
   BatchEvaluationResponse,
+  CustomModel,
+  CustomModelCreate,
+  CustomModelTestResult,
+  CustomModelUpdate,
+  CustomModelVisibilityPayload,
   DefaultConfig,
   DefaultPrompts,
   EvaluationRequest,

@@ -386,6 +386,83 @@ export interface LLMModelResponse {
   is_active: boolean
   created_at: string | null
   updated_at?: string | null
+  // BYOM (bring-your-own-model) fields. Catalog models carry
+  // is_official: true (or omit the field); user-registered custom models
+  // come back with is_official: false plus the endpoint/credential info.
+  is_official?: boolean
+  requires_api_key?: boolean
+  has_credential?: boolean
+  base_url?: string
+  created_by?: string | null
+}
+
+/**
+ * A user-registered OpenAI-compatible custom model (BYOM).
+ * Served by the /custom-models endpoints.
+ */
+export interface CustomModel {
+  id: string // custom-<uuid>
+  name: string
+  description?: string | null
+  provider: 'Custom'
+  model_type: string
+  capabilities: string[]
+  base_url: string
+  endpoint_model_name: string
+  requires_api_key: boolean
+  input_cost_per_million: number | null
+  output_cost_per_million: number | null
+  parameter_constraints?: ParameterConstraints | null
+  is_active: boolean
+  is_official: false
+  created_by: string | null
+  created_by_username?: string | null
+  is_private: boolean
+  is_public: boolean
+  organization_ids: string[]
+  has_credential: boolean
+  can_edit: boolean
+  created_at: string | null
+  updated_at?: string | null
+}
+
+export interface CustomModelCreate {
+  name: string
+  description?: string
+  base_url: string
+  endpoint_model_name: string
+  requires_api_key: boolean
+  input_cost_per_million?: number
+  output_cost_per_million?: number
+  api_key?: string
+}
+
+export interface CustomModelUpdate {
+  name?: string
+  description?: string
+  base_url?: string
+  endpoint_model_name?: string
+  requires_api_key?: boolean
+  input_cost_per_million?: number | null
+  output_cost_per_million?: number | null
+}
+
+/**
+ * Visibility payload shapes accepted by PATCH /custom-models/{id}/visibility:
+ * - { is_private: true }                                  -> private
+ * - { is_private: false, organization_ids: string[] }     -> org-shared
+ * - { is_public: true }                                   -> public
+ */
+export type CustomModelVisibilityPayload =
+  | { is_private: true }
+  | { is_private: false; organization_ids: string[] }
+  | { is_public: true }
+
+/** Result of a custom-model connection test (same shape as the provider key test). */
+export interface CustomModelTestResult {
+  status: 'success' | 'error'
+  message: string
+  error_type?: string
 }
 
 export interface ProjectEvaluationConfigCreate {

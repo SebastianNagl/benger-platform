@@ -35,7 +35,7 @@ type EvaluationLike = {
   evaluation_id: string
   status: string
   samples_evaluated?: number
-  created_at?: string
+  created_at?: string | null
   eval_metadata?: {
     cells_dispatched?: number
     failures_by_reason?: Record<string, number>

@@ -75,6 +75,7 @@ dependencies = [
     # requirements.txt.
     "mammoth>=1.6,<2.0",
     "pdfplumber>=0.10,<1.0"
+    "stripe>=11.0.0,<13.0.0",  # Vertretbar billing (extended-only; community never imports)
 ]
 
 [project.optional-dependencies]

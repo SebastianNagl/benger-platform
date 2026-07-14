@@ -146,6 +146,41 @@ export function EvaluationBuilder({
     />
   )
 
+  // BYOM: judge picker options grouped into Official and Custom sections.
+  // Models without an is_official field count as official (back-compat).
+  const officialJudges = useMemo(
+    () => judgeModels.filter((m) => m.is_official !== false),
+    [judgeModels]
+  )
+  const customJudges = useMemo(
+    () => judgeModels.filter((m) => m.is_official === false),
+    [judgeModels]
+  )
+  const renderJudgeModelOptions = () => (
+    <>
+      {customJudges.length > 0 && officialJudges.length > 0 && (
+        <div className="px-3 py-1 text-xs font-semibold uppercase tracking-wider text-gray-400">
+          {t('customModels.picker.officialSection')}
+        </div>
+      )}
+      {officialJudges.map((model) => (
+        <SelectItem key={model.id} value={model.id}>
+          {model.name} ({model.provider})
+        </SelectItem>
+      ))}
+      {customJudges.length > 0 && (
+        <div className="px-3 py-1 text-xs font-semibold uppercase tracking-wider text-gray-400">
+          {t('customModels.picker.customSection')}
+        </div>
+      )}
+      {customJudges.map((model) => (
+        <SelectItem key={model.id} value={model.id}>
+          {model.name} ({model.provider})
+        </SelectItem>
+      ))}
+    </>
+  )
+
   // Field types for LLM Judge auto-detection
   const [fieldTypes, setFieldTypes] = useState<Record<string, FieldTypeInfo>>(
     {}
@@ -674,11 +709,7 @@ export function EvaluationBuilder({
                       <SelectValue placeholder="Select judge model..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {judgeModels.map((model) => (
-                        <SelectItem key={model.id} value={model.id}>
-                          {model.name} ({model.provider})
-                        </SelectItem>
-                      ))}
+                      {renderJudgeModelOptions()}
                     </SelectContent>
                   </Select>
                 </div>
@@ -856,11 +887,7 @@ export function EvaluationBuilder({
                       <SelectValue placeholder="Select judge model..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {judgeModels.map((model) => (
-                        <SelectItem key={model.id} value={model.id}>
-                          {model.name} ({model.provider})
-                        </SelectItem>
-                      ))}
+                      {renderJudgeModelOptions()}
                     </SelectContent>
                   </Select>
                 </div>

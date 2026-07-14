@@ -1603,11 +1603,137 @@ class LLMModel(Base):
     # then constraints.parameter_constraints clamps the final value.
     recommended_parameters = Column(JSON, nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
+    # --- BYOM columns (migration 080) -------------------------------------
+    # Official = shipped via the YAML catalog seed. Custom rows are
+    # user-registered OpenAI-compatible endpoints; they are never official
+    # and are exempt from the seeder's deactivation sweep and the drift
+    # checker (both filter on is_official).
+    is_official = Column(Boolean, default=False, server_default=sa.false(), nullable=False)
+    # Creator of a custom model. SET NULL so deleting a user keeps shared/
+    # public models usable (then only superadmins can edit them).
+    created_by = Column(
+        String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    # Project-style visibility for custom models: private (creator only),
+    # org-shared via model_organizations, or public (usable by everyone,
+    # editable only by creator/superadmin — models have no public_role).
+    # Official rows keep both flags false (check constraint below).
+    is_private = Column(Boolean, default=False, server_default=sa.false(), nullable=False)
+    is_public = Column(Boolean, default=False, server_default=sa.false(), nullable=False)
+    # OpenAI-compatible endpoint of a custom model. The PK of a custom row
+    # is a generated "custom-<uuid>" and is NEVER sent to the remote server;
+    # endpoint_model_name carries the remote "model" string instead.
+    base_url = Column(String(500), nullable=True)
+    endpoint_model_name = Column(String(255), nullable=True)
+    # False = open endpoint (e.g. local vLLM/Ollama) — runs without a
+    # per-user credential from custom_model_credentials.
+    requires_api_key = Column(Boolean, default=True, server_default=sa.true(), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
+    # Organizations a custom model is shared with (usage grant, not edit)
+    model_organizations = relationship(
+        "ModelOrganization", back_populates="model", cascade="all, delete-orphan"
+    )
+    organizations = relationship(
+        "Organization", secondary="model_organizations", viewonly=True
+    )
+
+    __table_args__ = (
+        sa.CheckConstraint(
+            "NOT (is_private AND is_public)",
+            name="ck_llm_models_visibility_exclusive",
+        ),
+        sa.CheckConstraint(
+            "is_official OR (base_url IS NOT NULL AND endpoint_model_name IS NOT NULL)",
+            name="ck_llm_models_custom_endpoint_required",
+        ),
+        sa.CheckConstraint(
+            "NOT is_official OR (NOT is_private AND NOT is_public)",
+            name="ck_llm_models_official_no_visibility_flags",
+        ),
+        sa.Index(
+            "ix_llm_models_is_public",
+            "is_public",
+            postgresql_where=sa.text("is_public = true"),
+        ),
+    )
+
     def __repr__(self):
         return f"<LLMModel(id={self.id}, name={self.name}, provider={self.provider})>"
+
+
+class ModelOrganization(Base):
+    """Many-to-many link between custom LLM models and organizations.
+
+    Mirrors ProjectOrganization (services/shared/project_models.py). A row
+    grants members of the organization *usage* of the model — never edit
+    rights: editing base_url could redirect other users' stored credentials
+    to an attacker-controlled endpoint, so edits stay with creator/superadmin.
+    """
+
+    __tablename__ = "model_organizations"
+
+    id = Column(String, primary_key=True, index=True)
+    model_id = Column(
+        String,
+        ForeignKey("llm_models.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    organization_id = Column(
+        String,
+        ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    # SET NULL (unlike ProjectOrganization's plain FK): deleting the user who
+    # shared a model must not break or revoke the org's access.
+    assigned_by = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    model = relationship("LLMModel", back_populates="model_organizations")
+    organization = relationship("Organization")
+
+    __table_args__ = (
+        sa.UniqueConstraint("model_id", "organization_id", name="unique_model_organization"),
+    )
+
+    def __repr__(self):
+        return f"<ModelOrganization(model_id={self.model_id}, org_id={self.organization_id})>"
+
+
+class CustomModelCredential(Base):
+    """Per-user, per-model encrypted API key for custom (BYOM) models.
+
+    Sharing a custom model shares only its endpoint definition — every user
+    stores their OWN key here before using it (unless the model has
+    requires_api_key=False). Fernet ciphertext via encryption_service, same
+    format as the per-provider User.encrypted_*_api_key columns.
+    Deliberately personal: exempt from the org require_private_keys
+    shared-billing machinery.
+    """
+
+    __tablename__ = "custom_model_credentials"
+
+    id = Column(String, primary_key=True, index=True)
+    user_id = Column(
+        String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    model_id = Column(
+        String, ForeignKey("llm_models.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    encrypted_api_key = Column(Text, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    __table_args__ = (
+        sa.UniqueConstraint("user_id", "model_id", name="unique_custom_model_credential"),
+    )
+
+    def __repr__(self):
+        return f"<CustomModelCredential(user_id={self.user_id}, model_id={self.model_id})>"
 
 
 # ProjectEvaluationConfig model removed - old task system cleanup

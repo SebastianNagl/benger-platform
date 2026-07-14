@@ -55,6 +55,9 @@ export const PROVIDER_TEMPERATURE_RANGES: Record<
   grok: { min: 0, max: 2 },
   mistral: { min: 0, max: 1 },
   cohere: { min: 0, max: 1 },
+  // BYOM custom models speak the OpenAI-compatible API; use its range as
+  // the fallback when the model declares no parameter_constraints.
+  custom: { min: 0, max: 2 },
 }
 
 export interface JudgeModelHelpers {

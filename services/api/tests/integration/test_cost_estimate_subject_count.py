@@ -117,6 +117,7 @@ async def _seed_judge_pricing(db: AsyncSession, judge_id: str) -> None:
         input_cost_per_million=1.0,
         output_cost_per_million=5.0,
         is_active=True,
+        is_official=True,
     ))
     await db.flush()
 

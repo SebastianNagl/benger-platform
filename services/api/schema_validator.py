@@ -148,6 +148,27 @@ def get_expected_schema() -> Dict[str, List[str]]:
             "model_type",
             "is_active",
             "created_at",
+            # BYOM columns (migration 080)
+            "is_official",
+            "created_by",
+            "is_private",
+            "is_public",
+            "base_url",
+            "endpoint_model_name",
+            "requires_api_key",
+        ],
+        "model_organizations": [
+            "id",
+            "model_id",
+            "organization_id",
+            "created_at",
+        ],
+        "custom_model_credentials": [
+            "id",
+            "user_id",
+            "model_id",
+            "encrypted_api_key",
+            "created_at",
         ],
         "response_generations": [
             "id",

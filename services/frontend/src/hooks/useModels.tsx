@@ -40,6 +40,13 @@ export interface Model {
   }
   parameter_constraints?: ParameterConstraints | null
   recommended_parameters?: RecommendedParameters | null
+  // BYOM: custom models arrive in the same flat array with
+  // is_official: false; officials carry true or omit the field.
+  is_official?: boolean
+  requires_api_key?: boolean
+  has_credential?: boolean
+  base_url?: string
+  created_by?: string | null
 }
 
 export interface UseModelsReturn {
@@ -116,6 +123,19 @@ export function useModels(): UseModelsReturn {
 
   useEffect(() => {
     fetchModels()
+  }, [fetchModels])
+
+  // Refetch when API keys or custom-model credentials change elsewhere
+  // (UserApiKeys and CustomModelCredentialRow dispatch 'apiKeysChanged'),
+  // so pickers pick up newly runnable models without a page reload.
+  useEffect(() => {
+    const handleApiKeysChanged = () => {
+      fetchModels()
+    }
+    window.addEventListener('apiKeysChanged', handleApiKeysChanged)
+    return () => {
+      window.removeEventListener('apiKeysChanged', handleApiKeysChanged)
+    }
   }, [fetchModels])
 
   return {
