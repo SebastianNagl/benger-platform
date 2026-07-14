@@ -465,6 +465,10 @@ def make_llm_model(db_conn, cleanup):
             provider=provider,
             model_type="chat",
             capabilities=["text_generation"],
+            # Catalog-shaped fixture: mark official so the BYOM
+            # ck_llm_models_custom_endpoint_required constraint (migration
+            # 080) doesn't require base_url/endpoint_model_name.
+            is_official=True,
         )
         db_conn.add(m)
         db_conn.commit()

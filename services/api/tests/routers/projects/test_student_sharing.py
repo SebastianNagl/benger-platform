@@ -489,7 +489,7 @@ async def _seed_graded_attempt(db, exam, student, *, grader_id):
     db.add(judge_run)
     await db.flush()
 
-    def _eval_row(metric_key: str, value: float, grade_points: int, created_at):
+    def _eval_row(metric_key: str, value: float, grade_points: int, created_at, created_by):
         return TaskEvaluation(
             id=str(uuid.uuid4()),
             evaluation_id=run.id,
@@ -514,13 +514,17 @@ async def _seed_graded_attempt(db, exam, student, *, grader_id):
             },
             passed=grade_points >= 4,
             created_at=created_at,
+            created_by=created_by,
         )
 
     # AI judge first (0.83 → 12 Punkte), human Korrektur later (0.66 → 8
     # Punkte): "best" is the max, "last" is the later human row, and both
-    # rows on ONE annotation are ONE attempt.
-    db.add(_eval_row("llm_judge_falloesung", 0.83, 12, t0))
-    db.add(_eval_row("korrektur_falloesung", 0.66, 8, t0 + timedelta(minutes=5)))
+    # rows on ONE annotation are ONE attempt. They must differ by grader:
+    # uq_task_evaluations_cell (migration 049) is unique per grader, so the
+    # AI row is grader-less (created_by=None) and the human Korrektur row
+    # carries the grader — otherwise the two rows collide on the same cell.
+    db.add(_eval_row("llm_judge_falloesung", 0.83, 12, t0, None))
+    db.add(_eval_row("korrektur_falloesung", 0.66, 8, t0 + timedelta(minutes=5), grader_id))
     await db.commit()
     return annotation
 
