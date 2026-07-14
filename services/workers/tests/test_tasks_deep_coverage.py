@@ -1379,6 +1379,44 @@ class TestTemperatureConstraints:
 
         assert result["status"] == "success"
 
+    @patch("tasks.HAS_DATABASE", True)
+    @patch("tasks.HAS_AI_SERVICES", True)
+    @patch("tasks.HAS_GENERATION_PARSER", False)
+    @patch("tasks.SessionLocal")
+    @pytest.mark.parametrize(
+        "bad_constraints",
+        [
+            {"temperature": "high"},               # temperature not a dict
+            {"temperature": {"min": "warm"}},      # non-numeric bound
+            {"temperature": {"required_value": []}},  # non-numeric required
+            {"temperature": {"supported": False, "required_value": "x"}},
+            ["not", "a", "dict"],                   # constraints not a dict
+        ],
+    )
+    def test_malformed_custom_constraints_do_not_crash_generation(
+        self, mock_session_cls, bad_constraints
+    ):
+        """A custom (BYOM) model's owner-supplied parameter_constraints is only
+        shape-checked as a dict at the API; malformed inner values must be
+        ignored by the temperature clamp, not raise and fail every cell."""
+        db, gen, project, task, model, ai_service = _setup_generate_llm_mocks(
+            generation_config={
+                "selected_configuration": {
+                    "parameters": {"temperature": 0.7},
+                    "model_configs": {},
+                }
+            },
+            model_id="custom-abc123",
+            model_name="My vLLM",
+            parameter_constraints=bad_constraints,
+        )
+        mock_session_cls.return_value = db
+
+        result = _run_generate_with_mocks(db, ai_service, model_id="custom-abc123")
+
+        # Clamp gracefully ignored the junk; generation still ran.
+        assert result["status"] == "success", result
+
 
 # ===========================================================================
 # Content format response parsing

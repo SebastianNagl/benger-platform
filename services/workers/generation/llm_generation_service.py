@@ -855,14 +855,25 @@ def generate_llm_responses_impl(
                         # `source` and `recommended_at_trigger` are kept
                         # so analysts can still see "user tried X, model
                         # forced Y".
-                        if hasattr(model, 'parameter_constraints') and model.parameter_constraints:
-                            constraints = model.parameter_constraints
-                            temp_config = constraints.get('temperature', {})
+                        # parameter_constraints is owner-supplied JSON for
+                        # custom (BYOM) models, only shape-checked as a dict at
+                        # the API. Guard every nested access so a malformed
+                        # value ({"temperature": "high"}, a non-numeric min,
+                        # ...) can't raise here and fail every generation cell.
+                        constraints = getattr(model, 'parameter_constraints', None)
+                        if isinstance(constraints, dict):
+                            temp_config = constraints.get('temperature')
+                            if not isinstance(temp_config, dict):
+                                temp_config = {}
+
+                            required_temp = temp_config.get('required_value')
+                            min_temp = temp_config.get('min')
+                            max_temp = temp_config.get('max')
+                            _numeric = (int, float)
 
                             # Fixed temperature (e.g., GPT-5 series, o-series)
                             if not temp_config.get('supported', True):
-                                required_temp = temp_config.get('required_value')
-                                if required_temp is not None:
+                                if isinstance(required_temp, _numeric):
                                     if temperature != required_temp:
                                         tasks.logger.info(
                                             f"🔒 Overriding temperature to {required_temp} for {api_model_name} (model requirement)"
@@ -872,9 +883,7 @@ def generate_llm_responses_impl(
                                     _provenance["temperature"]["value"] = temperature
                             else:
                                 # Clamp to allowed min/max range
-                                min_temp = temp_config.get('min')
-                                max_temp = temp_config.get('max')
-                                if min_temp is not None and temperature < min_temp:
+                                if isinstance(min_temp, _numeric) and temperature < min_temp:
                                     tasks.logger.info(
                                         f"⚠️ Clamping temperature from {temperature} to min {min_temp} for {api_model_name}. "
                                         f"Reason: {temp_config.get('reason', 'Model constraint')}"
@@ -882,7 +891,7 @@ def generate_llm_responses_impl(
                                     _provenance["temperature"]["clamped_from"] = temperature
                                     temperature = min_temp
                                     _provenance["temperature"]["value"] = temperature
-                                if max_temp is not None and temperature > max_temp:
+                                if isinstance(max_temp, _numeric) and temperature > max_temp:
                                     tasks.logger.info(
                                         f"⚠️ Clamping temperature from {temperature} to max {max_temp} for {api_model_name}. "
                                         f"Reason: {temp_config.get('reason', 'Model constraint')}"

@@ -655,6 +655,26 @@ async def get_llm_leaderboard(
             by_model.values(),
             key=lambda e: (e["score"] is None, -(e["score"] or 0), e["model_id"]),
         )
+        # BYOM: the shared leaderboard ranks the OFFICIAL catalog only.
+        # A custom model benchmarked in a project that falls in a public/org
+        # leaderboard scope would otherwise surface its (possibly private)
+        # name + aggregate scores to every reader of that scope. Drop any
+        # aggregated model id that is not an active official row (this also
+        # drops hard-deleted custom ids, which have no llm_models row).
+        agg_model_ids = [e["model_id"] for e in sorted_entries]
+        if agg_model_ids:
+            official_ids = {
+                r[0]
+                for r in (
+                    await db.execute(
+                        select(LLMModel.id).where(
+                            LLMModel.id.in_(agg_model_ids),
+                            LLMModel.is_official.is_(True),
+                        )
+                    )
+                ).all()
+            }
+            sorted_entries = [e for e in sorted_entries if e["model_id"] in official_ids]
         available_metrics = sorted({r["metric"] for r in rows})
         # Minimum-sample threshold: drop models whose aggregate counters
         # are too small to support a meaningful ranking. The toggle is
@@ -838,6 +858,13 @@ async def get_llm_model_details(
     model = (
         await db.execute(select(LLMModel).where(LLMModel.id == model_id))
     ).scalar_one_or_none()
+    # BYOM: the leaderboard surface is official-catalog only. A custom
+    # (non-official) model's aggregate scores must not be readable here even
+    # by id, to match the listing's official-only invariant — custom-model
+    # results live in the owner's project/generation views, not the shared
+    # leaderboard.
+    if model is not None and not model.is_official:
+        raise HTTPException(status_code=404, detail="Model not found")
     model_info = (
         {"id": model.id, "name": model.name, "provider": model.provider}
         if model
