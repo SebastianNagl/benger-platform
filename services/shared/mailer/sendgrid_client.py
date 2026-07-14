@@ -38,13 +38,7 @@ class SendGridClient:
         self.api_key = os.getenv("SENDGRID_API_KEY", "")
         self.from_email = os.getenv("EMAIL_FROM_ADDRESS", "noreply@what-a-benger.net")
         self.from_name = os.getenv("EMAIL_FROM_NAME", "BenGER Platform")
-        # Overridable so local dev / tests can point the SendGrid HTTP client
-        # at a mail catcher that speaks the same /v3/mail/send contract
-        # (no verified sender needed, links stay clickable on localhost).
-        # Defaults to the real SendGrid endpoint in prod.
-        self.api_url = os.getenv(
-            "SENDGRID_API_URL", "https://api.sendgrid.com/v3/mail/send"
-        )
+        self.api_url = "https://api.sendgrid.com/v3/mail/send"
 
         if not self.api_key:
             logger.warning("SendGrid API key not configured")
