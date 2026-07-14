@@ -57,10 +57,10 @@ echo "2. Cryptography Package Fix Verification"
 echo "----------------------------------------"
 
 # Check cryptography version in requirements
-echo "Checking cryptography requirement in services/api/requirements.txt..."
-if grep -q "cryptography>=43.0.1" services/api/requirements.txt; then
+echo "Checking cryptography requirement in services/api/pyproject.toml..."
+if grep -q "cryptography>=43.0.1" services/api/pyproject.toml; then
     echo "✅ Cryptography requirement updated to >=43.0.1"
-elif grep -q "cryptography>=43.0.0" services/api/requirements.txt; then
+elif grep -q "cryptography>=43.0.0" services/api/pyproject.toml; then
     echo "⚠️  Cryptography requirement found but should be >=43.0.1"
     ((FAILED_CHECKS++))
 else

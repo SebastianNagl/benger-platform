@@ -19,7 +19,7 @@ Usage:
     locust -f scripts/load_test_annotation.py --host=http://localhost:8002
 
 Prerequisites:
-    - pip install locust (already in services/api/requirements.txt)
+    - pip install locust (already in services/api/pyproject.toml)
     - A project with tasks assigned to test users and immediate evaluation enabled
     - Set environment variables:
         LOAD_TEST_PROJECT_ID  - project UUID to test against
