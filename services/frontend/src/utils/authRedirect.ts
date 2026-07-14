@@ -12,6 +12,9 @@ export const publicRoutes = [
   '/verify-email', // Email verification
   '/accept-invitation', // Organization invitation acceptance
   '/shares', // Exam-share join page — invitees land here before logging in (Issue #35)
+  '/lti/error', // LTI launch errors: most failures (invalid token, disabled
+  // registration, unavailable state store) abort BEFORE a session is minted,
+  // so the explanation page must render unauthenticated (issue #61).
   '/about/imprint', // Imprint page
   '/about/data-protection', // Data protection page
 ]
