@@ -108,3 +108,26 @@ class TestGenerateFixCommands:
             assert isinstance(result, list)
             # No commands generated for missing tables
             assert len(result) == 0
+
+    def test_byom_boolean_columns_get_boolean_not_text(self):
+        # The is_*/requires_* columns MUST be typed BOOLEAN, never TEXT: a
+        # TEXT fallback would satisfy migration 080's _column_exists guard
+        # (skipping the is_official backfill forever) and its boolean CHECK
+        # constraints would fail to create against a TEXT column.
+        mock_engine = Mock()
+        mock_inspector = Mock()
+        mock_inspector.has_table.return_value = True
+        # llm_models exists with only id; the BYOM booleans are "missing".
+        mock_inspector.get_columns.return_value = [{"name": "id"}]
+
+        with patch("schema_validator.inspect", return_value=mock_inspector):
+            result = generate_fix_commands(mock_engine)
+
+        cmds = "\n".join(result)
+        for col in ("is_official", "is_private", "is_public", "requires_api_key"):
+            matches = [c for c in result if f" {col} " in c]
+            assert matches, f"no fix command generated for {col}"
+            for c in matches:
+                assert "BOOLEAN" in c, f"{col} fix must be BOOLEAN, got: {c}"
+                assert " TEXT" not in c, f"{col} fix must not be TEXT, got: {c}"
+        assert "BOOLEAN NOT NULL DEFAULT FALSE" in cmds

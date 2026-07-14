@@ -635,3 +635,105 @@ class TestOfficialRowsUntouchable:
         assert get_resp.status_code == status.HTTP_404_NOT_FOUND
         assert patch_resp.status_code == status.HTTP_404_NOT_FOUND
         assert delete_resp.status_code == status.HTTP_404_NOT_FOUND
+
+
+class TestConnectionProbe:
+    """The two /test endpoints. Security contract: url_guard runs before any
+    outbound request, and /{id}/test uses strictly the CALLER's credential,
+    never the model owner's. Real network is stubbed by patching the probe
+    functions at the router module."""
+
+    @pytest.mark.asyncio
+    async def test_adhoc_probe_rejects_bad_url_before_network(
+        self, async_test_client, async_test_db, monkeypatch
+    ):
+        user = _make_user()
+        async_test_db.add(user)
+        await async_test_db.commit()
+
+        called = {"probe": False}
+
+        async def _spy(*a, **k):
+            called["probe"] = True
+            return (True, "ok", "success")
+
+        monkeypatch.setattr(
+            "routers.custom_models.validate_openai_compatible_endpoint", _spy
+        )
+
+        with _as_user(user):
+            resp = await async_test_client.post(
+                "/api/custom-models/test",
+                json={"base_url": "ftp://not-http/v1"},
+            )
+        assert resp.status_code == status.HTTP_400_BAD_REQUEST
+        # url_guard rejected structurally -> the network probe never ran.
+        assert called["probe"] is False
+
+    @pytest.mark.asyncio
+    async def test_saved_probe_uses_callers_credential_not_owners(
+        self, async_test_client, async_test_db, monkeypatch
+    ):
+        # Owner A shares a keyed model with org O; member B has their OWN
+        # credential. B's probe must send B's key, never A's.
+        a, b, org, model = await _seed_shared_setup(async_test_db)
+        async_test_db.add_all(
+            [
+                CustomModelCredential(
+                    id=_uid(), user_id=a.id, model_id=model.id,
+                    encrypted_api_key="OWNER-CIPHERTEXT",
+                ),
+                CustomModelCredential(
+                    id=_uid(), user_id=b.id, model_id=model.id,
+                    encrypted_api_key="MEMBER-CIPHERTEXT",
+                ),
+            ]
+        )
+        await async_test_db.commit()
+
+        seen = {}
+
+        async def _spy(url, api_key=None, **k):
+            seen["api_key"] = api_key
+            return (True, "ok", "success")
+
+        # The stored ciphertext decrypts to garbage, so assert on identity by
+        # patching get_credential_async to echo which user was asked.
+        async def _fake_get_cred(db, user_id, model_id):
+            return f"KEY-FOR-{user_id}"
+
+        monkeypatch.setattr(
+            "routers.custom_models.validate_openai_compatible_endpoint", _spy
+        )
+        monkeypatch.setattr(
+            "routers.custom_models.get_credential_async", _fake_get_cred
+        )
+
+        with _as_user(b):
+            resp = await async_test_client.post(
+                f"/api/custom-models/{model.id}/test", json={}
+            )
+        assert resp.status_code == status.HTTP_200_OK
+        assert seen["api_key"] == f"KEY-FOR-{b.id}"
+        assert a.id not in (seen["api_key"] or "")
+
+    @pytest.mark.asyncio
+    async def test_patch_base_url_rejects_bad_url(
+        self, async_test_client, async_test_db
+    ):
+        user = _make_user()
+        async_test_db.add(user)
+        await async_test_db.flush()
+        model = _make_custom_model(user.id)
+        async_test_db.add(model)
+        await async_test_db.commit()
+
+        with _as_user(user):
+            resp = await async_test_client.patch(
+                f"/api/custom-models/{model.id}",
+                json={"base_url": "http://x/v1/chat/completions"},
+            )
+        # url_guard rejects the /chat/completions suffix -> 400, not stored.
+        assert resp.status_code == status.HTTP_400_BAD_REQUEST
+        await async_test_db.refresh(model)
+        assert model.base_url == "http://10.10.3.7:8000/v1"
