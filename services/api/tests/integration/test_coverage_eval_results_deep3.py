@@ -765,6 +765,7 @@ class TestProjectResultsByTaskModel:
             provider="openai",
             model_type="chat",
             capabilities=["text_generation"],
+            is_official=True,
         )
         async_test_db.add(llm_model)
         await async_test_db.flush()
@@ -818,6 +819,7 @@ class TestProjectResultsByTaskModel:
             provider="openai",
             model_type="chat",
             capabilities=["text_generation"],
+            is_official=True,
         )
         async_test_db.add(llm_model)
         await async_test_db.flush()

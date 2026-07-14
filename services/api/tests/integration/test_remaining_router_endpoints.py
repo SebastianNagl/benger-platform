@@ -1746,6 +1746,7 @@ class TestLLMModelEndpoints:
             model_type="chat",
             capabilities=["text_generation"],
             is_active=True,
+            is_official=True,
         )
         async_test_db.add(model)
         await async_test_db.commit()
@@ -1764,6 +1765,7 @@ class TestLLMModelEndpoints:
             model_type="chat",
             capabilities=["text_generation"],
             is_active=False,
+            is_official=True,
         )
         async_test_db.add(model)
         await async_test_db.commit()

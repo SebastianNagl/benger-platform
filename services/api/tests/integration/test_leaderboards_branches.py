@@ -182,6 +182,7 @@ async def _make_llm_model(db, model_id, name=None, provider="openai", active=Tru
     db.add(LLMModel(
         id=model_id, name=name or model_id, provider=provider,
         model_type="chat", capabilities=["text_generation"], is_active=active,
+        is_official=True,
     ))
     await db.flush()
 

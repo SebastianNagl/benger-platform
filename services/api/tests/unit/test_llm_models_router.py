@@ -41,6 +41,7 @@ def _make_model(**overrides):
         },
         recommended_parameters=None,
         is_active=True,
+        is_official=True,
         created_at=datetime.now(timezone.utc),
         updated_at=None,
     )
