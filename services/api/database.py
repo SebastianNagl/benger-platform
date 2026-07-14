@@ -551,13 +551,21 @@ def initialize_llm_models(db: Session) -> int:
         row = dict(model)
         if "constraints" in row:
             row["parameter_constraints"] = row.pop("constraints")
+        # Every YAML-seeded row is official by definition (incl. the
+        # benger_extended overlay). User-registered custom rows never pass
+        # through this seeder.
+        row["is_official"] = True
         result = _upsert_llm_model(db, row)
         counts[result] += 1
 
     catalog_ids = {m["id"] for m in catalog.models}
     deactivated = 0
+    # Sweep only OFFICIAL rows: custom (BYOM) models are DB-only and would
+    # otherwise be deactivated on every startup/reseed.
     stale = db.query(DBLLMModel).filter(
-        ~DBLLMModel.id.in_(catalog_ids), DBLLMModel.is_active.is_(True)
+        ~DBLLMModel.id.in_(catalog_ids),
+        DBLLMModel.is_active.is_(True),
+        DBLLMModel.is_official.is_(True),
     ).all()
     for model in stale:
         model.is_active = False
