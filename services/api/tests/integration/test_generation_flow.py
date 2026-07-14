@@ -613,6 +613,123 @@ class TestStartGeneration:
         assert "no models configured" in response.json()["detail"].lower()
 
 
+class TestStartGenerationCustomModelGuard:
+    """BYOM guard in start_generation: custom ("custom-...") model ids must
+    exist, be active, and be visible to the triggering user. Official ids
+    keep the pre-existing behavior."""
+
+    @staticmethod
+    def _custom_model(created_by, **overrides):
+        from models import LLMModel as DBLLMModel
+
+        data = dict(
+            id=f"custom-{_uid()}",
+            name="Custom vLLM",
+            provider="Custom",
+            model_type="chat",
+            capabilities=["text_generation"],
+            is_active=True,
+            is_official=False,
+            created_by=created_by,
+            is_private=True,
+            is_public=False,
+            base_url="http://10.10.3.7:8000/v1",
+            endpoint_model_name="llama-3-8b",
+            requires_api_key=False,
+            created_at=datetime.now(timezone.utc),
+        )
+        data.update(overrides)
+        return DBLLMModel(**data)
+
+    @pytest.mark.asyncio
+    async def test_inaccessible_custom_model_403(self, async_test_client, async_test_db):
+        """A non-superadmin project owner cannot dispatch against someone
+        else's private custom model."""
+        owner = await _make_user(async_test_db, is_superadmin=False)
+        stranger = await _make_user(async_test_db, is_superadmin=False)
+        foreign_model = self._custom_model(stranger.id)
+        async_test_db.add(foreign_model)
+        project = await _create_project(
+            async_test_db,
+            owner,
+            generation_config={"selected_configuration": {"models": []}},
+            num_tasks=1,
+        )
+        await async_test_db.commit()
+
+        with patch("routers.generation_task_list.celery_app") as mock_celery:
+            with _as_user(owner):
+                response = await async_test_client.post(
+                    f"/api/generation-tasks/projects/{project.id}/generate",
+                    json={"mode": "all", "model_ids": [foreign_model.id]},
+                )
+
+        assert response.status_code == 403
+        assert foreign_model.id in response.json()["detail"]
+        mock_celery.send_task.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_unknown_or_inactive_custom_model_400(
+        self, async_test_client, async_test_db
+    ):
+        owner = await _make_user(async_test_db, is_superadmin=False)
+        inactive_model = self._custom_model(owner.id, is_active=False)
+        async_test_db.add(inactive_model)
+        project = await _create_project(
+            async_test_db,
+            owner,
+            generation_config={"selected_configuration": {"models": []}},
+            num_tasks=1,
+        )
+        await async_test_db.commit()
+
+        with patch("routers.generation_task_list.celery_app"):
+            with _as_user(owner):
+                missing = await async_test_client.post(
+                    f"/api/generation-tasks/projects/{project.id}/generate",
+                    json={"mode": "all", "model_ids": ["custom-does-not-exist"]},
+                )
+                inactive = await async_test_client.post(
+                    f"/api/generation-tasks/projects/{project.id}/generate",
+                    json={"mode": "all", "model_ids": [inactive_model.id]},
+                )
+
+        assert missing.status_code == 400
+        assert "custom-does-not-exist" in missing.json()["detail"]
+        assert inactive.status_code == 400
+        assert inactive_model.id in inactive.json()["detail"]
+
+    @pytest.mark.asyncio
+    async def test_accessible_custom_model_dispatches(
+        self, async_test_client, async_test_db
+    ):
+        """Happy path: the creator's own custom model passes the guard and
+        the run dispatches like any official model (Celery patched)."""
+        owner = await _make_user(async_test_db, is_superadmin=False)
+        own_model = self._custom_model(owner.id)
+        async_test_db.add(own_model)
+        project = await _create_project(
+            async_test_db,
+            owner,
+            generation_config={"selected_configuration": {"models": []}},
+            num_tasks=2,
+        )
+        await async_test_db.commit()
+
+        with patch("routers.generation_task_list.celery_app") as mock_celery:
+            with _as_user(owner):
+                response = await async_test_client.post(
+                    f"/api/generation-tasks/projects/{project.id}/generate",
+                    json={"mode": "all", "model_ids": [own_model.id]},
+                )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["models_count"] == 1
+        assert data["tasks_queued"] == 2
+        assert mock_celery.send_task.call_count == 2
+
+
 # ===========================================================================
 # WebSocket (still sync lane — Depends(get_db))
 # ===========================================================================

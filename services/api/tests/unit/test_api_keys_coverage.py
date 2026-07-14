@@ -87,6 +87,8 @@ def _seed_model(db_session, model_id, provider, name=None):
         parameter_constraints=None,
         recommended_parameters=None,
         is_active=True,
+        # BYOM (migration 080): catalog rows must be official — non-official
+        # rows require base_url + endpoint_model_name (check constraint).
         is_official=True,
         created_at=datetime.now(timezone.utc),
     )
