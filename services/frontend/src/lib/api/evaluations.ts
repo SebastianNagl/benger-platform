@@ -645,6 +645,14 @@ export class EvaluationsClient extends BaseApiClient {
       is_active: boolean
       created_at: string | null
       updated_at: string | null
+      // BYOM: runnable custom models are included in the same flat array.
+      // Officials carry is_official: true (or omit it); customs come back
+      // with is_official: false plus endpoint/credential info.
+      is_official?: boolean
+      requires_api_key?: boolean
+      has_credential?: boolean
+      base_url?: string
+      created_by?: string | null
     }>
   > {
     return this.request('/users/api-keys/available-models')
