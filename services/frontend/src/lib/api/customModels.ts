@@ -54,9 +54,14 @@ export const customModelsAPI = {
 
   /**
    * Delete a custom model (owner or superadmin only).
+   *
+   * Returns whether the backend hard-deleted the row or soft-deleted it
+   * (deactivated + privatized) because existing generations still
+   * reference the model id.
    */
-  remove: async (modelId: string): Promise<void> => {
-    await apiClient.delete(`/custom-models/${modelId}`)
+  remove: async (modelId: string): Promise<{ deleted: 'soft' | 'hard' }> => {
+    const response = await apiClient.delete(`/custom-models/${modelId}`)
+    return response
   },
 
   /**

@@ -67,12 +67,11 @@ dependencies = [
     # pyproject.toml, so this MUST live here (not only requirements.txt) or the
     # import endpoint fails to import the anki package. arm64 wheels published —
     # no FIPS/SIGILL concern, so a normal pin is fine. Keep in sync with
-    # requirements.txt and services/workers/requirements.txt.
+    # services/workers/pyproject.toml.
     "zstandard>=0.22,<1.0",
     # Document text extraction for comfortable exam setup (issue #35): Word
     # (.docx via mammoth -> Markdown) and text-layer PDF (pdfplumber) uploads
-    # become editable exam-field text. api-only. Keep in sync with
-    # requirements.txt.
+    # become editable exam-field text. api-only.
     "mammoth>=1.6,<2.0",
     "pdfplumber>=0.10,<1.0",
     "stripe>=11.0.0,<13.0.0",  # Vertretbar billing (extended-only; community never imports)

@@ -398,6 +398,75 @@ class UserApiKeyService:
             return False, f"{provider_label} validation failed: {str(e)}", "network"
 
 
+async def validate_openai_compatible_endpoint(
+    base_url: str,
+    api_key: Optional[str] = None,
+    timeout_seconds: float = 5.0,
+) -> Tuple[bool, str, str]:
+    """Probe an OpenAI-compatible endpoint via ``GET {base_url}/models``.
+
+    BYOM (custom model) variant of ``_validate_via_models_get``: the URL is
+    user-supplied, so the Authorization header is only sent when a key is
+    given, and — SECURITY — every upstream detail is collapsed into one of
+    three generic outcomes (auth / unreachable / invalid_response). Callers
+    MUST run the SSRF url_guard on ``base_url`` before calling this; the
+    generic messages here keep the endpoint from doubling as a port-scan
+    oracle (no upstream status codes, bodies, or socket errors are echoed).
+
+    Returns ``(ok, message, error_type)`` like ``validate_api_key``.
+    """
+    try:
+        import aiohttp
+
+        headers = {}
+        if api_key:
+            headers["Authorization"] = f"Bearer {api_key}"
+
+        url = f"{base_url.rstrip('/')}/models"
+        async with aiohttp.ClientSession() as session:
+            async with session.get(
+                url,
+                headers=headers,
+                timeout=aiohttp.ClientTimeout(total=timeout_seconds),
+                # SECURITY: never follow redirects. The caller ran url_guard
+                # on base_url only; a 3xx to an internal/metadata host would
+                # be followed to an address the guard was meant to fence off,
+                # turning this probe into an SSRF/port-scan oracle.
+                allow_redirects=False,
+            ) as response:
+                if 300 <= response.status < 400:
+                    return (
+                        False,
+                        "Endpoint did not return a valid /models response",
+                        "invalid_response",
+                    )
+                if response.status in (401, 403):
+                    return (
+                        False,
+                        "Endpoint reachable, but authentication failed",
+                        "auth",
+                    )
+                if response.status != 200:
+                    return (
+                        False,
+                        "Endpoint did not return a valid /models response",
+                        "invalid_response",
+                    )
+                try:
+                    await response.json()
+                except Exception:
+                    return (
+                        False,
+                        "Endpoint did not return a valid /models response",
+                        "invalid_response",
+                    )
+                return True, "Endpoint reachable — /models responded", "success"
+    except Exception:
+        # Timeout, DNS failure, connection refused, TLS error, ... — all
+        # deliberately indistinguishable to the caller.
+        return False, "Endpoint could not be reached", "unreachable"
+
+
 def create_user_api_key_service(encryption_service) -> UserApiKeyService:
     """Factory function to create UserApiKeyService with encryption service dependency"""
     return UserApiKeyService(encryption_service)

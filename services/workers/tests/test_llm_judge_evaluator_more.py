@@ -47,6 +47,64 @@ def _make_evaluator(**kwargs):
 # ===========================================================================
 
 
+class TestCreateLLMJudgeByomRouting:
+    """A custom (is_official=False) judge model must be resolved through
+    get_ai_service_for_model_row (row + evaluating user's per-model
+    credential), NOT the provider-keyed get_ai_service_for_user which the
+    string heuristic would misroute to 'openai'. Official rows keep the old
+    path."""
+
+    def _db_returning(self, row):
+        db = MagicMock()
+        db.query.return_value.filter.return_value.first.return_value = row
+        return db
+
+    def _fake_row(self, is_official):
+        r = MagicMock()
+        r.id = "custom-abc" if not is_official else "gpt-4o"
+        r.is_official = is_official
+        return r
+
+    def test_custom_judge_routes_through_model_row_factory(self):
+        import ai_services.user_aware_ai_service  # noqa: F401
+
+        uaas_mod = sys.modules["ai_services.user_aware_ai_service"]
+
+        row = self._fake_row(is_official=False)
+        fake_singleton = MagicMock()
+        fake_singleton.get_ai_service_for_model_row.return_value = MagicMock()
+        with patch.object(uaas_mod, "user_aware_ai_service", fake_singleton):
+            create_llm_judge_for_user(
+                db=self._db_returning(row),
+                user_id="user-9",
+                provider="openai",  # what the heuristic WOULD have said
+                judge_model="custom-abc",
+            )
+        fake_singleton.get_ai_service_for_model_row.assert_called_once()
+        _, kwargs = fake_singleton.get_ai_service_for_model_row.call_args
+        assert kwargs["model"] is row
+        assert kwargs["user_id"] == "user-9"
+        fake_singleton.get_ai_service_for_user.assert_not_called()
+
+    def test_official_judge_uses_provider_path(self):
+        import ai_services.user_aware_ai_service  # noqa: F401
+
+        uaas_mod = sys.modules["ai_services.user_aware_ai_service"]
+
+        row = self._fake_row(is_official=True)
+        fake_singleton = MagicMock()
+        fake_singleton.get_ai_service_for_user.return_value = MagicMock()
+        with patch.object(uaas_mod, "user_aware_ai_service", fake_singleton):
+            create_llm_judge_for_user(
+                db=self._db_returning(row),
+                user_id="user-9",
+                provider="openai",
+                judge_model="gpt-4o",
+            )
+        fake_singleton.get_ai_service_for_user.assert_called_once()
+        fake_singleton.get_ai_service_for_model_row.assert_not_called()
+
+
 # ===========================================================================
 # _parse_evaluation_response  (regex fallbacks for bare score/preference)
 # ===========================================================================

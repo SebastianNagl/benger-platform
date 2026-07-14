@@ -41,6 +41,8 @@ def _make_model(**overrides):
         },
         recommended_parameters=None,
         is_active=True,
+        # BYOM (migration 080): the public endpoint serves official rows only,
+        # so the default test row must be official to stay visible.
         is_official=True,
         created_at=datetime.now(timezone.utc),
         updated_at=None,
@@ -83,6 +85,31 @@ class TestLLMModelsRouter:
         assert response.status_code == status.HTTP_200_OK
         ids = {m["id"] for m in response.json()}
         assert "inactive-model" not in ids
+
+    @pytest.mark.asyncio
+    async def test_get_public_models_excludes_custom(
+        self, async_test_client, async_test_db
+    ):
+        """Custom (BYOM) rows never appear on the public catalog endpoint —
+        they are private/org/public-scoped and served via /api/custom-models."""
+        async_test_db.add(
+            _make_model(
+                id="custom-public-endpoint-test",
+                provider="Custom",
+                is_official=False,
+                base_url="http://10.10.3.7:8000/v1",
+                endpoint_model_name="llama-3-8b",
+            )
+        )
+        async_test_db.add(_make_model(id="official-alongside-custom"))
+        await async_test_db.commit()
+
+        response = await async_test_client.get("/api/llm_models/public/models")
+        assert response.status_code == status.HTTP_200_OK
+        by_id = {m["id"]: m for m in response.json()}
+        assert "custom-public-endpoint-test" not in by_id
+        assert "official-alongside-custom" in by_id
+        assert by_id["official-alongside-custom"]["is_official"] is True
 
     @pytest.mark.asyncio
     async def test_get_public_models_error(self, async_test_client):

@@ -67,8 +67,16 @@ export function CustomModelList({
     if (!deleteTarget) return
     try {
       setDeleting(true)
-      await customModelsAPI.remove(deleteTarget.id)
-      addToast(t('customModels.list.deleteSuccess'), 'success')
+      const result = await customModelsAPI.remove(deleteTarget.id)
+      // Soft delete = the model still has generations referencing it, so it
+      // is deactivated + privatized rather than removed. Tell the user the
+      // truth instead of claiming a permanent delete.
+      addToast(
+        result?.deleted === 'soft'
+          ? t('customModels.list.deactivateSuccess')
+          : t('customModels.list.deleteSuccess'),
+        'success'
+      )
       onChanged?.()
     } catch (error: any) {
       const detail =
@@ -126,6 +134,15 @@ export function CustomModelList({
                         model.can_edit ? undefined : model.created_by_username
                       }
                     />
+                    {model.is_active === false && (
+                      <span
+                        title={t('customModels.list.inactiveHint')}
+                        className="inline-flex items-center rounded-full bg-zinc-200 px-2 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-700 dark:text-zinc-300"
+                        data-testid="custom-model-inactive-badge"
+                      >
+                        {t('customModels.list.inactiveBadge')}
+                      </span>
+                    )}
                     <VisibilityBadge visibility={modelVisibility(model)} />
                     {model.requires_api_key && (
                       <span

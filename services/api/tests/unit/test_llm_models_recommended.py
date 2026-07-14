@@ -112,6 +112,7 @@ def _model_with_recommendations(**overrides):
             },
         },
         is_active=True,
+        # BYOM (migration 080): the public endpoint serves official rows only.
         is_official=True,
         created_at=datetime.now(timezone.utc),
         updated_at=None,

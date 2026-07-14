@@ -45,6 +45,7 @@ from models import (
     EvaluationRun,
     Generation,
     LLMLeaderboardScore,
+    LLMModel,
     ProjectSummary,
     ResponseGeneration,
     TaskEvaluation,
@@ -697,9 +698,19 @@ def _build_llm_leaderboard_stmts(
             )
         model_id_filter = LLMLeaderboardScore.model_id.in_(qualifier.distinct())
 
+    # BYOM: the shared leaderboard is the OFFICIAL catalog only. A custom
+    # (non-official) model benchmarked in a project that falls in this scope
+    # would otherwise leak its name + aggregate scores to every reader of the
+    # scope. Constrain every read to official model ids (this also drops
+    # hard-deleted custom ids, which have no llm_models row).
+    official_filter = LLMLeaderboardScore.model_id.in_(
+        select(LLMModel.id).where(LLMModel.is_official.is_(True))
+    )
+
     base = select(LLMLeaderboardScore).where(
         LLMLeaderboardScore.project_scope_key == project_scope_key,
         LLMLeaderboardScore.period == period,
+        official_filter,
     )
     if model_id_filter is not None:
         base = base.where(model_id_filter)
@@ -709,6 +720,7 @@ def _build_llm_leaderboard_stmts(
     ).where(
         LLMLeaderboardScore.project_scope_key == project_scope_key,
         LLMLeaderboardScore.period == period,
+        official_filter,
     )
     if model_id_filter is not None:
         total_count_stmt = total_count_stmt.where(model_id_filter)
@@ -718,6 +730,7 @@ def _build_llm_leaderboard_stmts(
         .where(
             LLMLeaderboardScore.project_scope_key == project_scope_key,
             LLMLeaderboardScore.period == period,
+            official_filter,
         )
         .distinct()
     )

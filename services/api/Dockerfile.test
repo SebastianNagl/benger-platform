@@ -16,8 +16,8 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /app
 
 # Install Python dependencies
-COPY requirements.txt requirements-test.txt ./
-RUN pip install --no-cache-dir -r requirements.txt -r requirements-test.txt
+COPY pyproject.toml requirements-test.txt ./
+RUN pip install --no-cache-dir uv && uv pip install --system --no-cache-dir -r pyproject.toml -r requirements-test.txt
 
 # Copy application code
 COPY . .

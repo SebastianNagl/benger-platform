@@ -161,7 +161,11 @@ def _run_generate_with_mocks(db, ai_service, config_data=None, model_id="gpt-4",
         config_data = {"project_id": "p1"}
 
     mock_user_aware = MagicMock()
+    # The worker resolves the AI service via get_ai_service_for_model_row
+    # (BYOM-aware, migration 080); keep get_ai_service_for_user wired too for
+    # any legacy path.
     mock_user_aware.get_ai_service_for_user.return_value = ai_service
+    mock_user_aware.get_ai_service_for_model_row.return_value = ai_service
 
     with patch.object(tasks_module, "user_aware_ai_service", mock_user_aware):
         with patch.object(tasks_module, "notify_task_completed", MagicMock()):
@@ -450,6 +454,7 @@ class TestGenerateLLMResponsesStructureKeyListFormat:
 
         mock_user_aware = MagicMock()
         mock_user_aware.get_ai_service_for_user.return_value = ai_service
+        mock_user_aware.get_ai_service_for_model_row.return_value = ai_service
 
         with patch.object(tasks_module, "user_aware_ai_service", mock_user_aware):
             with patch.object(tasks_module, "notify_task_completed", MagicMock()):
@@ -662,9 +667,9 @@ class TestGenerateLLMResponsesAPIKeyError:
         db.query.side_effect = query_side_effect
 
         mock_user_aware = MagicMock()
-        mock_user_aware.get_ai_service_for_user.side_effect = Exception(
-            "No API key configured for OpenAI"
-        )
+        _no_key = Exception("No API key configured for OpenAI")
+        mock_user_aware.get_ai_service_for_user.side_effect = _no_key
+        mock_user_aware.get_ai_service_for_model_row.side_effect = _no_key
 
         with patch.object(tasks_module, "user_aware_ai_service", mock_user_aware):
             result = generate_llm_responses(
@@ -1373,6 +1378,44 @@ class TestTemperatureConstraints:
         result = _run_generate_with_mocks(db, ai_service, model_id="gpt-5")
 
         assert result["status"] == "success"
+
+    @patch("tasks.HAS_DATABASE", True)
+    @patch("tasks.HAS_AI_SERVICES", True)
+    @patch("tasks.HAS_GENERATION_PARSER", False)
+    @patch("tasks.SessionLocal")
+    @pytest.mark.parametrize(
+        "bad_constraints",
+        [
+            {"temperature": "high"},               # temperature not a dict
+            {"temperature": {"min": "warm"}},      # non-numeric bound
+            {"temperature": {"required_value": []}},  # non-numeric required
+            {"temperature": {"supported": False, "required_value": "x"}},
+            ["not", "a", "dict"],                   # constraints not a dict
+        ],
+    )
+    def test_malformed_custom_constraints_do_not_crash_generation(
+        self, mock_session_cls, bad_constraints
+    ):
+        """A custom (BYOM) model's owner-supplied parameter_constraints is only
+        shape-checked as a dict at the API; malformed inner values must be
+        ignored by the temperature clamp, not raise and fail every cell."""
+        db, gen, project, task, model, ai_service = _setup_generate_llm_mocks(
+            generation_config={
+                "selected_configuration": {
+                    "parameters": {"temperature": 0.7},
+                    "model_configs": {},
+                }
+            },
+            model_id="custom-abc123",
+            model_name="My vLLM",
+            parameter_constraints=bad_constraints,
+        )
+        mock_session_cls.return_value = db
+
+        result = _run_generate_with_mocks(db, ai_service, model_id="custom-abc123")
+
+        # Clamp gracefully ignored the junk; generation still ran.
+        assert result["status"] == "success", result
 
 
 # ===========================================================================

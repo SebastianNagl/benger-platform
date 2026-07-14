@@ -49,6 +49,9 @@ class LLMModelResponse(BaseModel):
     # "keine Empfehlung" badge for that model.
     recommended_parameters: Optional[Dict[str, Any]] = None
     is_active: bool = True
+    # BYOM (migration 080): official = shipped via the YAML catalog seed.
+    # This public endpoint serves official rows only.
+    is_official: bool = True
     created_at: datetime
     updated_at: Optional[datetime] = None
 
@@ -65,8 +68,13 @@ async def get_public_llm_models(
     No authentication required.
     """
     try:
+        # Official catalog rows only — user-registered custom (BYOM) models
+        # are private/org/public-scoped and served via /api/custom-models.
         result = await db.execute(
-            select(DBLLMModel).where(DBLLMModel.is_active.is_(True))
+            select(DBLLMModel).where(
+                DBLLMModel.is_active.is_(True),
+                DBLLMModel.is_official.is_(True),
+            )
         )
         models = result.scalars().all()
 
@@ -87,6 +95,7 @@ async def get_public_llm_models(
                     parameter_constraints=model.parameter_constraints,
                     recommended_parameters=model.recommended_parameters,
                     is_active=model.is_active,
+                    is_official=model.is_official,
                     created_at=model.created_at,
                     updated_at=model.updated_at,
                 )

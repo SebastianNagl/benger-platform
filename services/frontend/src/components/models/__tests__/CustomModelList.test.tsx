@@ -4,6 +4,7 @@
 
 import { customModelsAPI } from '@/lib/api/customModels'
 import type { CustomModel } from '@/lib/api/types'
+import { mockToast } from '@/test-utils/setupTests'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { CustomModelList } from '../CustomModelList'
@@ -235,6 +236,71 @@ describe('CustomModelList', () => {
       await user.click(screen.getByTestId('confirm-dialog-cancel-button'))
 
       expect(customModelsAPI.remove).not.toHaveBeenCalled()
+    })
+
+    it('shows the deactivate toast (not "deleted") on a soft delete', async () => {
+      const user = userEvent.setup()
+      ;(customModelsAPI.remove as jest.Mock).mockResolvedValue({
+        deleted: 'soft',
+      })
+      render(<CustomModelList models={[ownModel]} />)
+
+      await user.click(screen.getByTestId('custom-model-delete-custom-own'))
+      await waitFor(() => {
+        expect(
+          screen.getByTestId('confirm-dialog-confirm-button')
+        ).toBeInTheDocument()
+      })
+      await user.click(screen.getByTestId('confirm-dialog-confirm-button'))
+
+      await waitFor(() => {
+        expect(mockToast.success).toHaveBeenCalledWith(
+          'customModels.list.deactivateSuccess'
+        )
+      })
+      expect(mockToast.success).not.toHaveBeenCalledWith(
+        'customModels.list.deleteSuccess'
+      )
+    })
+
+    it('shows the delete toast on a hard delete', async () => {
+      const user = userEvent.setup()
+      ;(customModelsAPI.remove as jest.Mock).mockResolvedValue({
+        deleted: 'hard',
+      })
+      render(<CustomModelList models={[ownModel]} />)
+
+      await user.click(screen.getByTestId('custom-model-delete-custom-own'))
+      await waitFor(() => {
+        expect(
+          screen.getByTestId('confirm-dialog-confirm-button')
+        ).toBeInTheDocument()
+      })
+      await user.click(screen.getByTestId('confirm-dialog-confirm-button'))
+
+      await waitFor(() => {
+        expect(mockToast.success).toHaveBeenCalledWith(
+          'customModels.list.deleteSuccess'
+        )
+      })
+    })
+  })
+
+  describe('inactive models', () => {
+    it('renders an Inactive badge for a soft-deleted (is_active=false) row', () => {
+      render(
+        <CustomModelList models={[{ ...ownModel, is_active: false }]} />
+      )
+      expect(
+        screen.getByTestId('custom-model-inactive-badge')
+      ).toBeInTheDocument()
+    })
+
+    it('does not render the Inactive badge for an active row', () => {
+      render(<CustomModelList models={[ownModel]} />)
+      expect(
+        screen.queryByTestId('custom-model-inactive-badge')
+      ).not.toBeInTheDocument()
     })
   })
 })

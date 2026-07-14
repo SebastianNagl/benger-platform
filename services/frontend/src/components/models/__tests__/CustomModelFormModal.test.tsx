@@ -284,4 +284,72 @@ describe('CustomModelFormModal', () => {
       expect(mockOnClose).toHaveBeenCalled()
     })
   })
+
+  describe('Error handling', () => {
+    it('flattens a FastAPI 422 detail array into a string instead of crashing', async () => {
+      const user = userEvent.setup()
+      // FastAPI 422: detail is an array of {loc, msg, ...} objects. Rendering
+      // that array as a JSX child would throw; the form must show a string.
+      ;(customModelsAPI.create as jest.Mock).mockRejectedValue({
+        response: {
+          data: {
+            detail: [
+              {
+                loc: ['body', 'endpoint_model_name'],
+                msg: 'String should have at most 255 characters',
+                type: 'string_too_long',
+              },
+            ],
+          },
+        },
+      })
+      render(
+        <CustomModelFormModal
+          isOpen
+          onClose={mockOnClose}
+          onSaved={mockOnSaved}
+        />
+      )
+      await fillRequired(user)
+      await user.click(screen.getByTestId('custom-model-form-submit'))
+
+      const banner = await screen.findByTestId('custom-model-form-error')
+      expect(banner).toHaveTextContent(
+        'String should have at most 255 characters'
+      )
+      // The banner is a plain string node — no React "Objects are not valid
+      // as a React child" crash (the test would have thrown on render).
+    })
+
+    it('rejects an over-255-char endpoint model name before hitting the API', async () => {
+      const user = userEvent.setup()
+      render(
+        <CustomModelFormModal
+          isOpen
+          onClose={mockOnClose}
+          onSaved={mockOnSaved}
+        />
+      )
+      await user.type(screen.getByTestId('custom-model-name-input'), 'M')
+      await user.type(
+        screen.getByTestId('custom-model-base-url-input'),
+        'https://api.example.com/v1'
+      )
+      // maxLength on the input caps typed length, so set the value directly
+      // to simulate a paste of an over-long identifier.
+      const endpointInput = screen.getByTestId(
+        'custom-model-endpoint-name-input'
+      ) as HTMLInputElement
+      endpointInput.setAttribute('maxlength', '10000')
+      await user.type(endpointInput, 'x'.repeat(256))
+      await user.click(screen.getByTestId('custom-model-form-submit'))
+
+      await waitFor(() => {
+        expect(
+          screen.getByTestId('custom-model-error-endpoint_model_name')
+        ).toBeInTheDocument()
+      })
+      expect(customModelsAPI.create).not.toHaveBeenCalled()
+    })
+  })
 })

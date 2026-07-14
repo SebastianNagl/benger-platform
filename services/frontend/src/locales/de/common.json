@@ -8475,6 +8475,7 @@
       "endpointModelName": "Modellname am Endpunkt",
       "endpointModelNameHelp": "Der Modellname, den der Endpunkt im Feld \"model\" erwartet",
       "endpointModelNameRequired": "Bitte gib den Modellnamen am Endpunkt ein",
+      "endpointModelNameTooLong": "Der Modellname darf höchstens 255 Zeichen lang sein",
       "requiresApiKey": "API-Schlüssel erforderlich",
       "requiresApiKeyHelp": "Deaktivieren, wenn der Endpunkt ohne Authentifizierung erreichbar ist (z. B. ein lokaler Ollama-Server). Andernfalls hinterlegt jeder Nutzer seinen eigenen Schlüssel.",
       "apiKey": "Dein API-Schlüssel (optional)",
@@ -8509,7 +8510,10 @@
       "deleteMessage": "\"{name}\" wird dauerhaft gelöscht. Vorhandene Generierungen und Evaluationen, die dieses Modell referenzieren, bleiben erhalten und zeigen es weiterhin an.",
       "deleteConfirm": "Endgültig löschen",
       "deleteSuccess": "Modell gelöscht",
-      "deleteFailed": "Modell konnte nicht gelöscht werden"
+      "deactivateSuccess": "Modell deaktiviert – vorhandene Ergebnisse referenzieren es weiterhin",
+      "deleteFailed": "Modell konnte nicht gelöscht werden",
+      "inactiveBadge": "Inaktiv",
+      "inactiveHint": "Dieses Modell wurde deaktiviert, weil Generierungen es referenzieren. Es ist in Auswahllisten ausgeblendet."
     },
     "page": {
       "title": "Eigene Modelle",

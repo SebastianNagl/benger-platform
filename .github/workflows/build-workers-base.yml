@@ -11,7 +11,7 @@ on:
   workflow_dispatch:
     inputs:
       reason:
-        description: 'Reason for rebuild (e.g., requirements.txt changed)'
+        description: 'Reason for rebuild (e.g., pyproject.toml changed)'
         required: false
         type: string
   schedule:
@@ -19,7 +19,7 @@ on:
   push:
     branches: [main]
     paths:
-      - services/workers/requirements.txt
+      - services/workers/pyproject.toml
       - services/workers/Dockerfile.base
       - .github/workflows/build-workers-base.yml
 

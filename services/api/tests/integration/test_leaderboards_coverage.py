@@ -159,16 +159,24 @@ async def _setup_project(db, admin, org, *, is_public=False, link_org=True):
     return p
 
 
-async def _make_llm_model(db, model_id, name=None, provider="openai", active=True):
+async def _make_llm_model(db, model_id, name=None, provider="openai", active=True,
+                          is_official=True):
     existing = (
         await db.execute(select(LLMModel).where(LLMModel.id == model_id))
     ).scalar_one_or_none()
     if existing:
         return
+    # Non-official (custom/BYOM) rows must carry endpoint fields per the
+    # ck_llm_models_custom_endpoint_required constraint.
+    extra = {} if is_official else {
+        "base_url": "https://models.example.org/v1",
+        "endpoint_model_name": "m",
+        "is_private": True,
+    }
     db.add(LLMModel(
         id=model_id, name=name or model_id, provider=provider,
         model_type="chat", capabilities=["text_generation"], is_active=active,
-        is_official=True,
+        is_official=is_official, **extra,
     ))
     await db.flush()
 
@@ -788,6 +796,55 @@ class TestLLMLeaderboardPagination:
         assert entry["rank"] == 2
         # total_models counts all qualifying models, not just the page.
         assert body["total_models"] >= 3
+
+    async def test_custom_models_never_appear_on_the_leaderboard(
+        self, async_test_client, async_test_db
+    ):
+        """BYOM: a custom (non-official) model benchmarked in a leaderboard
+        scope must NOT surface its name/scores — the shared leaderboard is
+        official-catalog only. Otherwise a private custom model leaks."""
+        admin = await _make_user(async_test_db, is_superadmin=True)
+        await _make_llm_model(async_test_db, "off-model", "Official Model")
+        await _make_llm_model(
+            async_test_db, "custom-secret-uuid", "My Private Model",
+            provider="Custom", is_official=False,
+        )
+        await _make_score(async_test_db, model_id="off-model", scope="tum",
+                          metric="accuracy", score=0.9, gens=80, samples=120)
+        await _make_score(async_test_db, model_id="custom-secret-uuid", scope="tum",
+                          metric="accuracy", score=0.99, gens=80, samples=120)
+        await async_test_db.commit()
+
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"{BASE}/llm-models?metric=accuracy",
+            )
+        assert resp.status_code == 200, resp.text
+        ids = {r["model_id"] for r in resp.json()["leaderboard"]}
+        names = {r["model_name"] for r in resp.json()["leaderboard"]}
+        assert "off-model" in ids
+        assert "custom-secret-uuid" not in ids  # not leaked despite top score
+        assert "My Private Model" not in names
+
+    async def test_per_model_leaderboard_404s_for_custom_model(
+        self, async_test_client, async_test_db
+    ):
+        """The per-model leaderboard endpoint must not expose a custom
+        model's aggregates even when its id is known."""
+        admin = await _make_user(async_test_db, is_superadmin=True)
+        await _make_llm_model(
+            async_test_db, "custom-secret-2", "Secret",
+            provider="Custom", is_official=False,
+        )
+        await _make_score(async_test_db, model_id="custom-secret-2", scope="tum",
+                          metric="accuracy", score=0.99, gens=80, samples=120)
+        await async_test_db.commit()
+
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"{BASE}/llm-models/custom-secret-2?metric=accuracy",
+            )
+        assert resp.status_code == 404, resp.text
 
     async def test_period_passthrough_reads_period_scoped_rows(
         self, async_test_client, async_test_db

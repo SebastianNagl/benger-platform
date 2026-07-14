@@ -128,6 +128,36 @@ def _create_tables():
                     "ADD COLUMN IF NOT EXISTS dispatch_epoch INTEGER NOT NULL DEFAULT 0"
                 )
             )
+            # Migration 080 (BYOM): visibility/endpoint columns on llm_models.
+            # Same create_all-skips-existing-tables drift as above — the two
+            # new tables (model_organizations, custom_model_credentials) are
+            # created by create_all, but a long-lived test DB won't have the
+            # new llm_models columns without these idempotent ALTERs.
+            for ddl in (
+                "ALTER TABLE llm_models ADD COLUMN IF NOT EXISTS "
+                "is_official BOOLEAN NOT NULL DEFAULT false",
+                "ALTER TABLE llm_models ADD COLUMN IF NOT EXISTS "
+                "created_by VARCHAR REFERENCES users(id) ON DELETE SET NULL",
+                "ALTER TABLE llm_models ADD COLUMN IF NOT EXISTS "
+                "is_private BOOLEAN NOT NULL DEFAULT false",
+                "ALTER TABLE llm_models ADD COLUMN IF NOT EXISTS "
+                "is_public BOOLEAN NOT NULL DEFAULT false",
+                "ALTER TABLE llm_models ADD COLUMN IF NOT EXISTS "
+                "base_url VARCHAR(500)",
+                "ALTER TABLE llm_models ADD COLUMN IF NOT EXISTS "
+                "endpoint_model_name VARCHAR(255)",
+                "ALTER TABLE llm_models ADD COLUMN IF NOT EXISTS "
+                "requires_api_key BOOLEAN NOT NULL DEFAULT true",
+            ):
+                conn.execute(text(ddl))
+            # Mirror migration 080's backfill: pre-existing catalog rows are
+            # official. Custom rows always carry a base_url, so this is a
+            # no-op for them (and for already-backfilled DBs).
+            conn.execute(
+                text(
+                    "UPDATE llm_models SET is_official = true WHERE base_url IS NULL"
+                )
+            )
     except Exception as e:
         pytest.exit(
             f"Cannot connect to test PostgreSQL ({os.environ.get('DATABASE_URL')}). "

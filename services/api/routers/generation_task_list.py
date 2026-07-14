@@ -668,6 +668,41 @@ async def start_generation(
             status_code=status.HTTP_400_BAD_REQUEST, detail="No models configured for generation"
         )
 
+    # BYOM guard: custom ("custom-...") model ids must exist, be active, and
+    # be visible to the TRIGGERING user (creator / public / org-shared /
+    # superadmin). Official catalog ids pass through untouched — they keep
+    # the provider-key resolution downstream.
+    custom_model_ids = [m for m in model_ids if isinstance(m, str) and m.startswith("custom-")]
+    if custom_model_ids:
+        from models import LLMModel as DBLLMModel
+        from routers.model_access import get_accessible_model_ids_async
+
+        custom_rows = (
+            await db.execute(
+                select(DBLLMModel.id, DBLLMModel.is_active).where(
+                    DBLLMModel.id.in_(custom_model_ids)
+                )
+            )
+        ).all()
+        active_by_id = {row_id: row_active for row_id, row_active in custom_rows}
+        unusable = sorted(
+            m for m in custom_model_ids
+            if m not in active_by_id or not active_by_id[m]
+        )
+        if unusable:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Unknown or inactive custom model(s): {', '.join(unusable)}",
+            )
+
+        accessible_ids = set(await get_accessible_model_ids_async(db, current_user))
+        denied = sorted(m for m in custom_model_ids if m not in accessible_ids)
+        if denied:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Access denied for custom model(s): {', '.join(denied)}",
+            )
+
     # Validate single mode requires exactly one task and one model
     if request.mode == "single":
         if not request.task_ids or len(request.task_ids) != 1:
