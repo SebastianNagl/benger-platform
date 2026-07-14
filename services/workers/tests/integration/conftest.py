@@ -458,6 +458,13 @@ def make_llm_model(db_conn, cleanup):
 
     def _make(model_id=None, provider="OpenAI"):
         mid = model_id or f"test-model-{uuid.uuid4().hex[:8]}"
+        # Idempotent: a fixed id like "gpt-4o" may already be present when the
+        # DB is catalog-seeded (locally) but absent on a bare integration DB
+        # (CI). Reuse the existing row and DON'T track it for cleanup so we
+        # never delete a seeded catalog model out from under later tests.
+        existing = db_conn.query(LLMModel).filter(LLMModel.id == mid).first()
+        if existing is not None:
+            return existing
         m = LLMModel(
             id=mid,
             name=f"Test {mid}",

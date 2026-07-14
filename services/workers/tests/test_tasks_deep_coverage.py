@@ -161,7 +161,11 @@ def _run_generate_with_mocks(db, ai_service, config_data=None, model_id="gpt-4",
         config_data = {"project_id": "p1"}
 
     mock_user_aware = MagicMock()
+    # The worker resolves the AI service via get_ai_service_for_model_row
+    # (BYOM-aware, migration 080); keep get_ai_service_for_user wired too for
+    # any legacy path.
     mock_user_aware.get_ai_service_for_user.return_value = ai_service
+    mock_user_aware.get_ai_service_for_model_row.return_value = ai_service
 
     with patch.object(tasks_module, "user_aware_ai_service", mock_user_aware):
         with patch.object(tasks_module, "notify_task_completed", MagicMock()):
@@ -450,6 +454,7 @@ class TestGenerateLLMResponsesStructureKeyListFormat:
 
         mock_user_aware = MagicMock()
         mock_user_aware.get_ai_service_for_user.return_value = ai_service
+        mock_user_aware.get_ai_service_for_model_row.return_value = ai_service
 
         with patch.object(tasks_module, "user_aware_ai_service", mock_user_aware):
             with patch.object(tasks_module, "notify_task_completed", MagicMock()):
@@ -662,9 +667,9 @@ class TestGenerateLLMResponsesAPIKeyError:
         db.query.side_effect = query_side_effect
 
         mock_user_aware = MagicMock()
-        mock_user_aware.get_ai_service_for_user.side_effect = Exception(
-            "No API key configured for OpenAI"
-        )
+        _no_key = Exception("No API key configured for OpenAI")
+        mock_user_aware.get_ai_service_for_user.side_effect = _no_key
+        mock_user_aware.get_ai_service_for_model_row.side_effect = _no_key
 
         with patch.object(tasks_module, "user_aware_ai_service", mock_user_aware):
             result = generate_llm_responses(

@@ -137,7 +137,11 @@ def _run(ai_service, *, organization_id, user_id="u1"):
     _response_objs = lambda: [o for o in captured if hasattr(o, "response_metadata")]
 
     mock_user_aware = MagicMock()
+    # The generation worker resolves via get_ai_service_for_model_row
+    # (BYOM-aware); return the same audited service so _key_resolution_route
+    # is preserved. get_ai_service_for_user stays wired for legacy paths.
     mock_user_aware.get_ai_service_for_user.return_value = ai_service
+    mock_user_aware.get_ai_service_for_model_row.return_value = ai_service
 
     with patch.object(tasks_module, "HAS_DATABASE", True), \
          patch.object(tasks_module, "HAS_AI_SERVICES", True), \
@@ -179,8 +183,11 @@ class TestKeyResolutionAuditTrail:
             result, mock_user_aware, captured = _run(ai_service, organization_id=org_id)
 
         assert result["status"] == "success", result
-        mock_user_aware.get_ai_service_for_user.assert_called_once()
-        _, kwargs = mock_user_aware.get_ai_service_for_user.call_args
+        # The worker dispatches through get_ai_service_for_model_row (which,
+        # for an official model, delegates to get_ai_service_for_user and its
+        # org-key resolution); the org context is forwarded on that call.
+        mock_user_aware.get_ai_service_for_model_row.assert_called_once()
+        _, kwargs = mock_user_aware.get_ai_service_for_model_row.call_args
         assert kwargs["organization_id"] == org_id
 
         assert len(captured) == 1, "expected exactly one LLMResponse persisted"
