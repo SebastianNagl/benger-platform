@@ -40,12 +40,13 @@ describe('authRedirect', () => {
         '/verify-email',
         '/accept-invitation',
         '/shares',
+        '/lti/error',
         '/about/imprint',
         '/about/data-protection',
       ]
 
       expect(publicRoutes).toEqual(expectedRoutes)
-      expect(publicRoutes).toHaveLength(10)
+      expect(publicRoutes).toHaveLength(11)
     })
 
     it('should contain unique routes only', () => {
