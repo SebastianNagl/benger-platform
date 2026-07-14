@@ -23,6 +23,42 @@ import re
 import tasks
 from typing import Any, Dict
 
+
+def _check_custom_model_access(db, user_id: str, model) -> bool:
+    """Worker-side re-check that the invoking user can still use a custom
+    (BYOM) model. Enqueue-time already 403s new runs; this catches
+    mid-run revocation (share removed / model privatized) — remaining
+    task cells fail cleanly instead of running against a model the user
+    no longer has access to."""
+    if model.is_public:
+        return True
+    if model.created_by and str(model.created_by) == str(user_id):
+        return True
+
+    from models import ModelOrganization, OrganizationMembership, User
+
+    user = db.query(User).filter(User.id == user_id).first()
+    if user and getattr(user, "is_superadmin", False):
+        return True
+
+    model_org_ids = {
+        row[0]
+        for row in db.query(ModelOrganization.organization_id)
+        .filter(ModelOrganization.model_id == model.id)
+        .all()
+    }
+    if not model_org_ids:
+        return False
+    memberships = (
+        db.query(OrganizationMembership)
+        .filter(
+            OrganizationMembership.user_id == user_id,
+            OrganizationMembership.is_active.is_(True),
+        )
+        .all()
+    )
+    return any(m.organization_id in model_org_ids for m in memberships)
+
 def generate_response_impl(
     generation_id: str,
     project_id: str,
@@ -394,14 +430,28 @@ def generate_llm_responses_impl(
             if not model:
                 raise Exception(f"Model {model_id} not found")
 
+            # BYOM: re-check access + liveness for custom models (mid-run
+            # revocation guard — see _check_custom_model_access).
+            if not getattr(model, "is_official", True):
+                if not model.is_active:
+                    raise Exception(
+                        f"Model access revoked: custom model '{model.name}' has been deleted"
+                    )
+                if not _check_custom_model_access(db, user_id, model):
+                    raise Exception(
+                        f"Model access revoked: you no longer have access to custom model '{model.name}'"
+                    )
+
             # Check if AI services are available
             if not tasks.HAS_AI_SERVICES:
                 raise Exception("AI services not available - check service imports")
 
-            # Initialize user-aware AI service based on model provider and user's/org's API keys
+            # Initialize user-aware AI service. BYOM-aware: official rows
+            # resolve by provider + user/org key, custom rows by the model
+            # row + the invoking user's per-model credential.
             try:
-                ai_service = tasks.user_aware_ai_service.get_ai_service_for_user(
-                    db, user_id, model.provider, organization_id=organization_id
+                ai_service = tasks.user_aware_ai_service.get_ai_service_for_model_row(
+                    db, user_id, model, organization_id=organization_id
                 )
                 # Read the actual resolution route off the service so the log
                 # reflects which key path the resolver took, not just whether
@@ -436,6 +486,15 @@ def generate_llm_responses_impl(
                     )
 
             if ai_service is None:
+                if not getattr(model, "is_official", True):
+                    # Custom model: the missing piece is a per-model
+                    # credential, not a provider key ("API key required"
+                    # prefix keeps the error classifier matching).
+                    raise Exception(
+                        f"API key required: no credential stored for custom model "
+                        f"'{model.name}'. Add your key for this model under "
+                        f"Settings → My models before generating."
+                    )
                 key_context = "organization settings" if organization_id else "profile settings"
                 raise Exception(
                     f"No {model.provider} API key configured. Please add your API key in {key_context} to use this model."
@@ -449,7 +508,13 @@ def generate_llm_responses_impl(
             # Use model.id for API calls - it contains the actual API identifier
             # model.id = API model name (e.g., "gpt-4o", "claude-3-5-sonnet-20241022")
             # model.name = display name (e.g., "GPT-4o", "Claude 3.5 Sonnet")
-            api_model_name = model.id
+            # BYOM exception: a custom row's PK is a generated "custom-<uuid>"
+            # that means nothing to the remote server — endpoint_model_name
+            # carries the real API model string.
+            if not getattr(model, "is_official", True) and model.endpoint_model_name:
+                api_model_name = model.endpoint_model_name
+            else:
+                api_model_name = model.id
 
             responses_generated = 0
             total_expected = len(tasks_data) * len(instruction_prompts)
@@ -471,6 +536,7 @@ def generate_llm_responses_impl(
                 "Grok": 60,  # xAI
                 "Mistral": 60,  # Mistral AI
                 "Cohere": 100,  # Cohere - higher limit
+                "Custom": 60,  # BYOM endpoints - conservative default
             }
 
             # Get rate limit for this provider

@@ -1517,12 +1517,43 @@ def create_llm_judge_for_user(
     try:
         from ai_services.user_aware_ai_service import user_aware_ai_service
 
-        ai_service = user_aware_ai_service.get_ai_service_for_user(
-            db=db,
-            user_id=user_id,
-            provider=provider,
-            organization_id=organization_id,
-        )
+        # BYOM: resolve the judge model's DB row first. A custom judge
+        # (is_official=False) must route to its OpenAI-compatible endpoint
+        # with the EVALUATING user's per-model credential — the provider
+        # string alone can't express that (and the heuristic used to
+        # misroute custom-<uuid> ids to OpenAI). Official rows keep the
+        # provider-keyed path unchanged.
+        judge_model_row = None
+        try:
+            from models import LLMModel as DBLLMModel
+
+            judge_model_row = (
+                db.query(DBLLMModel).filter(DBLLMModel.id == judge_model).first()
+            )
+        except Exception:
+            judge_model_row = None
+
+        if judge_model_row is not None and not getattr(
+            judge_model_row, "is_official", True
+        ):
+            ai_service = user_aware_ai_service.get_ai_service_for_model_row(
+                db=db,
+                user_id=user_id,
+                model=judge_model_row,
+                organization_id=organization_id,
+            )
+            if ai_service is None:
+                logger.warning(
+                    f"Custom judge model '{judge_model}' unusable for user {user_id}: "
+                    f"no access or no per-model credential stored"
+                )
+        else:
+            ai_service = user_aware_ai_service.get_ai_service_for_user(
+                db=db,
+                user_id=user_id,
+                provider=provider,
+                organization_id=organization_id,
+            )
 
         return LLMJudgeEvaluator(
             ai_service=ai_service,

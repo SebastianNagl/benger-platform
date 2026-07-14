@@ -383,8 +383,10 @@ class DeepInfraService(BaseAIService):
             raise ValueError("DeepInfra service is not available - check DEEPINFRA_API_KEY configuration")
 
         try:
-            # Add format instructions to system prompt
-            format_instructions = """
+            # Add format instructions to system prompt.
+            # (Was a plain string before — the schema placeholder was sent
+            # literally instead of the schema itself; f-string fixes it.)
+            format_instructions = f"""
 
 ## Output Format
 You MUST respond with a valid JSON object matching this schema:
