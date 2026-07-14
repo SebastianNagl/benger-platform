@@ -180,6 +180,21 @@ export default defineConfig({
       testMatch: ['**/settings/*.spec.ts'],
       workers: isIsolatedE2E ? 1 : 2,
     },
+    {
+      // Moodle LTI launch + registrations admin. Gated behind LTI_E2E=1
+      // (needs the live dev stack with the lti-dev Moodle harness — see
+      // e2e/lti/moodle-helpers.ts); skipped everywhere else. The student
+      // host is the launch surface, hence the vertretbar default. One
+      // worker: the specs drive one shared Moodle + dev DB.
+      name: 'lti',
+      use: {
+        ...devices['Desktop Chrome'],
+        baseURL: process.env.PLAYWRIGHT_BASE_URL || 'http://vertretbar.localhost',
+      },
+      testMatch: ['**/lti/*.spec.ts'],
+      workers: 1,
+      timeout: 120 * 1000,
+    },
   ],
 
   /* Skip webServer since we use Docker environment
