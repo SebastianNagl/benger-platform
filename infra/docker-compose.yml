@@ -191,8 +191,18 @@ services:
       # Email (SendGrid)
       MAIL_ENABLED: ${MAIL_ENABLED:-true}
       SENDGRID_API_KEY: ${SENDGRID_API_KEY:-}
+      # Overridable send endpoint: local dev points this at the mail catcher
+      # (see SENDGRID_API_URL in infra/.env); empty → real SendGrid in prod.
+      SENDGRID_API_URL: ${SENDGRID_API_URL:-}
       EMAIL_FROM_ADDRESS: ${EMAIL_FROM_ADDRESS:-noreply@what-a-benger.net}
       EMAIL_FROM_NAME: ${EMAIL_FROM_NAME:-BenGER Platform}
+      # Vertretbar transactional-email identity (host-driven branding, see
+      # services/shared/mailer/branding.py). Defaults are the prod identities;
+      # each env can override. Needs vertretbar.net verified in that env's
+      # SendGrid account for real delivery (local uses the catcher instead).
+      VERTRETBAR_EMAIL_FROM_ADDRESS: ${VERTRETBAR_EMAIL_FROM_ADDRESS:-noreply@vertretbar.net}
+      VERTRETBAR_EMAIL_FROM_NAME: ${VERTRETBAR_EMAIL_FROM_NAME:-Vertretbar}
+      VERTRETBAR_FRONTEND_URL: ${VERTRETBAR_FRONTEND_URL:-}
 
       # Vertretbar student billing (extended). Unset = billing surface loads as a
       # no-op (gate/metering still record local ledger rows). Use Stripe TEST
@@ -295,8 +305,18 @@ services:
       # Email (SendGrid)
       MAIL_ENABLED: ${MAIL_ENABLED:-true}
       SENDGRID_API_KEY: ${SENDGRID_API_KEY:-}
+      # Overridable send endpoint: local dev points this at the mail catcher
+      # (see SENDGRID_API_URL in infra/.env); empty → real SendGrid in prod.
+      SENDGRID_API_URL: ${SENDGRID_API_URL:-}
       EMAIL_FROM_ADDRESS: ${EMAIL_FROM_ADDRESS:-noreply@what-a-benger.net}
       EMAIL_FROM_NAME: ${EMAIL_FROM_NAME:-BenGER Platform}
+      # Vertretbar transactional-email identity (host-driven branding, see
+      # services/shared/mailer/branding.py). Defaults are the prod identities;
+      # each env can override. Needs vertretbar.net verified in that env's
+      # SendGrid account for real delivery (local uses the catcher instead).
+      VERTRETBAR_EMAIL_FROM_ADDRESS: ${VERTRETBAR_EMAIL_FROM_ADDRESS:-noreply@vertretbar.net}
+      VERTRETBAR_EMAIL_FROM_NAME: ${VERTRETBAR_EMAIL_FROM_NAME:-Vertretbar}
+      VERTRETBAR_FRONTEND_URL: ${VERTRETBAR_FRONTEND_URL:-}
 
       # Vertretbar billing (extended): the worker applies the grading dispatch
       # policy (tier judge model + vertretbar-org key routing) and settles the

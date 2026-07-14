@@ -123,6 +123,23 @@ api:
           name: benger-email-config
           key: EMAIL_FROM_NAME
           optional: true
+    # Vertretbar transactional-email identity (host-driven branding, see
+    # services/shared/mailer/branding.py). Optional overrides — unset falls
+    # back to the code defaults (noreply@vertretbar.net / "Vertretbar"). For
+    # real delivery, vertretbar.net must be an authenticated domain in this
+    # environment's SendGrid account (the benger-email-config SENDGRID_API_KEY).
+    - name: VERTRETBAR_EMAIL_FROM_ADDRESS
+      valueFrom:
+        secretKeyRef:
+          name: benger-email-config
+          key: VERTRETBAR_EMAIL_FROM_ADDRESS
+          optional: true
+    - name: VERTRETBAR_EMAIL_FROM_NAME
+      valueFrom:
+        secretKeyRef:
+          name: benger-email-config
+          key: VERTRETBAR_EMAIL_FROM_NAME
+          optional: true
     - name: EMAIL_ENABLED
       value: "true"
     - name: MAIL_ENABLED
@@ -292,6 +309,23 @@ workers:
         secretKeyRef:
           name: benger-email-config
           key: EMAIL_FROM_NAME
+          optional: true
+    # Vertretbar transactional-email identity (host-driven branding, see
+    # services/shared/mailer/branding.py). Optional overrides — unset falls
+    # back to the code defaults (noreply@vertretbar.net / "Vertretbar"). For
+    # real delivery, vertretbar.net must be an authenticated domain in this
+    # environment's SendGrid account (the benger-email-config SENDGRID_API_KEY).
+    - name: VERTRETBAR_EMAIL_FROM_ADDRESS
+      valueFrom:
+        secretKeyRef:
+          name: benger-email-config
+          key: VERTRETBAR_EMAIL_FROM_ADDRESS
+          optional: true
+    - name: VERTRETBAR_EMAIL_FROM_NAME
+      valueFrom:
+        secretKeyRef:
+          name: benger-email-config
+          key: VERTRETBAR_EMAIL_FROM_NAME
           optional: true
     - name: EMAIL_ENABLED
       value: "true"

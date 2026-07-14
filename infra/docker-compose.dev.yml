@@ -41,6 +41,11 @@ services:
       ENVIRONMENT: development
       PYTHONUNBUFFERED: 1
       PYTHONDONTWRITEBYTECODE: 1  # Prevent .pyc files from triggering reloads
+      # Local email: route SendGrid sends to the in-stack mail catcher (there
+      # is no verified sender for localhost). View captured mails, incl. the
+      # verify/reset links, at http://localhost:8026. Override in .env to hit
+      # real SendGrid.
+      SENDGRID_API_URL: ${SENDGRID_API_URL:-http://benger-mailsink:8025/v3/mail/send}
       # Object storage (MinIO) — async export/import (#158). Uploads use the
       # internal endpoint; browser-bound presigned download URLs are signed for
       # STORAGE_BASE_URL, the host the browser actually reaches.
@@ -139,6 +144,9 @@ services:
     environment:
       LOG_LEVEL: DEBUG
       ENVIRONMENT: development
+      # Local email: the send path runs on the worker → route it to the mail
+      # catcher too (http://localhost:8026). Override in .env for real SendGrid.
+      SENDGRID_API_URL: ${SENDGRID_API_URL:-http://benger-mailsink:8025/v3/mail/send}
       # Object storage (MinIO) — the worker streams the multipart upload (#158).
       STORAGE_TYPE: minio
       S3_ENDPOINT_URL: http://minio:9000
@@ -220,6 +228,23 @@ services:
         echo '{"Rules":[{"ID":"expire-exports","Status":"Enabled","Filter":{},"Expiration":{"Days":7}}]}' | mc ilm import local/benger-exports
         echo "MinIO bucket + lifecycle initialized."
         mc ilm rule ls local/benger-exports || true
+    networks:
+      - benger-network
+
+  # Local mail catcher (dev only): implements the SendGrid /v3/mail/send
+  # contract so transactional emails (signup verification, password reset,
+  # invitations) are captured instead of sent — no verified sender needed on
+  # localhost. View them, with clickable verify/reset links, at
+  # http://localhost:8026. api + worker point SENDGRID_API_URL here in dev.
+  mailsink:
+    image: python:3.11-slim
+    container_name: benger-mailsink
+    command: python /mailsink.py
+    volumes:
+      - ./mailsink/mailsink.py:/mailsink.py:ro
+    ports:
+      - "8026:8025"
+    restart: unless-stopped
     networks:
       - benger-network
 
