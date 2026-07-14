@@ -145,6 +145,14 @@ class Settings(BaseSettings):
     google_api_key: Optional[str] = None
     deepinfra_api_key: Optional[str] = None
 
+    # Custom model (BYOM) endpoints: allow private/loopback base URLs, for
+    # self-hosters pointing at LAN inference servers (vLLM, Ollama). The shared
+    # SSRF guard (services/shared/url_guard.py) reads the corresponding
+    # CUSTOM_MODEL_ALLOW_PRIVATE_URLS env var directly so api and workers share
+    # one flag; this field maps to the same variable and exists for
+    # documentation and API-side access.
+    custom_model_allow_private_urls: bool = False
+
     class Config:
         """Pydantic configuration"""
 
