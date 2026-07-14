@@ -1450,6 +1450,98 @@ def _insert_post_annotation_response(ctx: _FullImportContext, par_data: dict) ->
         ctx.db.add(new_par)
 
 
+def _reconcile_generation_config_models(
+    ctx: "_FullImportContext", generation_config, importing_user
+):
+    """Drop unusable model ids from ``generation_config.selected_configuration.models``.
+
+    An exported project may reference model ids that don't exist on this
+    instance, or custom (BYOM) rows the IMPORTING user cannot access
+    (private to someone else / shared with an org the importer isn't in).
+    Keeping them would make the next generation trigger 400/403 on the
+    guard in generation_task_list. Officials that exist are always kept.
+
+    Deliberately best-effort and non-fatal: any failure here keeps the
+    original config untouched — a stale model list must never fail an
+    import. Dropped ids are reported via logger.warning (there is no
+    structured warnings channel on the import job; the log line is the
+    established mechanism in this module).
+    """
+    if not isinstance(generation_config, dict):
+        return generation_config
+    selected = generation_config.get("selected_configuration")
+    if not isinstance(selected, dict):
+        return generation_config
+    models = selected.get("models")
+    if not isinstance(models, list) or not models:
+        return generation_config
+
+    try:
+        # Lazy import: LLMModel/ModelOrganization aren't needed anywhere else
+        # in this module.
+        from models import LLMModel, ModelOrganization
+
+        candidate_ids = [m for m in models if isinstance(m, str)]
+        rows = (
+            ctx.db.query(LLMModel).filter(LLMModel.id.in_(candidate_ids)).all()
+            if candidate_ids
+            else []
+        )
+        rows_by_id = {r.id: r for r in rows}
+
+        is_superadmin = bool(getattr(importing_user, "is_superadmin", False))
+        active_org_ids = {
+            m.organization_id
+            for m in (importing_user.organization_memberships or [])
+            if m.is_active
+        }
+        custom_ids = [r.id for r in rows if not r.is_official]
+        org_shared_ids: Set[str] = set()
+        if custom_ids and active_org_ids and not is_superadmin:
+            org_shared_ids = {
+                mo.model_id
+                for mo in ctx.db.query(ModelOrganization)
+                .filter(
+                    ModelOrganization.model_id.in_(custom_ids),
+                    ModelOrganization.organization_id.in_(active_org_ids),
+                )
+                .all()
+            }
+
+        kept, dropped = [], []
+        for model_id in models:
+            row = rows_by_id.get(model_id) if isinstance(model_id, str) else None
+            if row is None:
+                dropped.append(model_id)
+            elif row.is_official:
+                kept.append(model_id)
+            elif (
+                is_superadmin
+                or row.is_public
+                or (row.created_by is not None and str(row.created_by) == str(ctx.user_id))
+                or row.id in org_shared_ids
+            ):
+                kept.append(model_id)
+            else:
+                dropped.append(model_id)
+
+        if dropped:
+            logger.warning(
+                "Import: dropped %d model id(s) from generation_config."
+                "selected_configuration.models (unknown on this instance or "
+                "not accessible to the importing user): %s",
+                len(dropped),
+                dropped,
+            )
+            selected["models"] = kept
+    except Exception as e:
+        logger.warning(
+            f"Import: could not reconcile generation_config models, keeping "
+            f"the exported list as-is: {e}"
+        )
+    return generation_config
+
+
 def _create_imported_project(
     ctx: _FullImportContext, project_data: dict, new_title: str
 ):
@@ -1500,8 +1592,12 @@ def _create_imported_project(
         # organization_id removed - now handled via ProjectOrganization table
         min_annotations_per_task=project_data.get("min_annotations_per_task", 1),
         is_published=project_data.get("is_published", False),
-        # Issue #817: Add missing fields for full roundtrip capability
-        generation_config=project_data.get("generation_config"),
+        # Issue #817: Add missing fields for full roundtrip capability.
+        # BYOM: reconcile the selected model list against this instance's
+        # catalog + the importer's custom-model access before persisting.
+        generation_config=_reconcile_generation_config_models(
+            ctx, project_data.get("generation_config"), user_with_memberships
+        ),
         evaluation_config=project_data.get("evaluation_config"),
         label_config_version=project_data.get("label_config_version"),
         label_config_history=project_data.get("label_config_history"),

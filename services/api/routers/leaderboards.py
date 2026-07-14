@@ -744,7 +744,13 @@ async def get_llm_leaderboard(
         seen = {e.model_id for e in leaderboard}
         catalog_rows = (
             await db.execute(
-                select(LLMModel).where(LLMModel.is_active == True)  # noqa: E712
+                select(LLMModel).where(
+                    LLMModel.is_active == True,  # noqa: E712
+                    # Catalog padding is the OFFICIAL catalog only — private/
+                    # org-scoped custom (BYOM) rows must not leak onto a
+                    # leaderboard everyone can read.
+                    LLMModel.is_official == True,  # noqa: E712
+                )
             )
         ).scalars().all()
         for m in catalog_rows:

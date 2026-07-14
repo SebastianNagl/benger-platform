@@ -230,8 +230,15 @@ async def get_available_models_for_user(
     logger.info(f"🔍 User {current_user.username} requesting available models")
     logger.info(f"📋 Available providers for user: {available_providers}")
 
-    # Get all models from database
-    result = await db.execute(select(DBLLMModel).where(DBLLMModel.is_active == True))  # noqa: E712
+    # Get all OFFICIAL catalog models from database. Custom (BYOM) rows are
+    # appended by the separate pass below with per-model visibility and
+    # per-user credential rules instead of the provider-key filter.
+    result = await db.execute(
+        select(DBLLMModel).where(
+            DBLLMModel.is_active == True,  # noqa: E712
+            DBLLMModel.is_official.is_(True),
+        )
+    )
     models = result.scalars().all()
     logger.info(f"🗃️ Total active models in database: {len(models)}")
 
@@ -255,6 +262,7 @@ async def get_available_models_for_user(
                     "parameter_constraints": model.parameter_constraints,
                     "recommended_parameters": model.recommended_parameters,
                     "is_active": model.is_active,
+                    "is_official": True,
                     "created_at": (model.created_at.isoformat() if model.created_at else None),
                     "updated_at": (model.updated_at.isoformat() if model.updated_at else None),
                 }
@@ -262,6 +270,54 @@ async def get_available_models_for_user(
         else:
             logger.info(
                 f"❌ Excluding model {model.id} ({model.provider}) - user has no valid API key"
+            )
+
+    # Custom (BYOM) pass. Org context is deliberately ignored here: custom-
+    # model credentials are per-user by design (exempt from the org
+    # require_private_keys machinery), so the org key resolver has no say.
+    # A custom model is offered iff the caller can see it AND it either needs
+    # no key (open endpoint) or the caller has stored their own credential.
+    from custom_model_credential_service import get_credential_model_ids_async
+    from routers.model_access import get_accessible_model_ids_async
+
+    accessible_custom_ids = await get_accessible_model_ids_async(db, current_user)
+    if accessible_custom_ids:
+        custom_result = await db.execute(
+            select(DBLLMModel).where(
+                DBLLMModel.id.in_(accessible_custom_ids),
+                DBLLMModel.is_official.is_(False),
+                DBLLMModel.is_active == True,  # noqa: E712
+            )
+        )
+        custom_models = custom_result.scalars().all()
+        credential_ids = await get_credential_model_ids_async(db, current_user.id)
+        for model in custom_models:
+            has_credential = model.id in credential_ids
+            if model.requires_api_key and not has_credential:
+                continue
+            available_models.append(
+                {
+                    "id": model.id,
+                    "name": model.name,
+                    "description": model.description,
+                    "provider": model.provider,
+                    "model_type": model.model_type,
+                    "capabilities": model.capabilities,
+                    "config_schema": model.config_schema,
+                    "default_config": model.default_config,
+                    "input_cost_per_million": model.input_cost_per_million,
+                    "output_cost_per_million": model.output_cost_per_million,
+                    "parameter_constraints": model.parameter_constraints,
+                    "recommended_parameters": model.recommended_parameters,
+                    "is_active": model.is_active,
+                    "is_official": False,
+                    "requires_api_key": model.requires_api_key,
+                    "has_credential": has_credential,
+                    "base_url": model.base_url,
+                    "created_by": model.created_by,
+                    "created_at": (model.created_at.isoformat() if model.created_at else None),
+                    "updated_at": (model.updated_at.isoformat() if model.updated_at else None),
+                }
             )
 
     logger.info(f"✅ Returning {len(available_models)} models to user {current_user.username}")
