@@ -13,6 +13,7 @@
 
 'use client'
 
+import { CustomBadge } from '@/components/models/ModelBadges'
 import { Button } from '@/components/shared/Button'
 import {
   Select,
@@ -54,6 +55,7 @@ export const providerColors: Record<string, string> = {
   Grok: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200',
   Mistral: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200',
   Cohere: 'bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200',
+  Custom: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200',
 }
 
 interface ModelSelectionSectionProps {
@@ -206,6 +208,7 @@ export function ModelSelectionSection({
                                 {t('project.modelSelection.thinking', 'Thinking')}
                               </span>
                             )}
+                            {model.is_official === false && <CustomBadge />}
                             <span className={`inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium ${providerColors[model.provider] || 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'}`}>
                               {model.provider}
                             </span>

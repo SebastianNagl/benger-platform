@@ -1,4 +1,5 @@
 'use client'
+import { CustomBadge, OfficialBadge } from '@/components/models/ModelBadges'
 import { Button } from '@/components/shared/Button'
 import { CostEstimatePanel } from '@/components/shared/CostEstimatePanel'
 import { useToast } from '@/components/shared/Toast'
@@ -12,6 +13,7 @@ import {
 } from '@/lib/modelConstraints'
 import { Dialog, Transition } from '@headlessui/react'
 import { ExclamationTriangleIcon, XMarkIcon } from '@heroicons/react/24/outline'
+import Link from 'next/link'
 import { Fragment, useEffect, useMemo, useState } from 'react'
 
 import { Project } from '@/types/labelStudio'
@@ -69,6 +71,40 @@ export function GenerationControlModal({
 
   // Fetch model objects to access parameter_constraints
   const { models: availableModelObjects } = useModels()
+
+  // BYOM: partition the model-id pool into official and custom models via
+  // the catalog objects. Ids without a catalog object or without an
+  // is_official field count as official (back-compat with pre-BYOM data).
+  const { officialModelIds, customModelIds } = useMemo(() => {
+    const officials: string[] = []
+    const customs: string[] = []
+    for (const modelId of models) {
+      const model = availableModelObjects.find((m) => m.id === modelId)
+      if (model?.is_official === false) {
+        customs.push(modelId)
+      } else {
+        officials.push(modelId)
+      }
+    }
+    return { officialModelIds: officials, customModelIds: customs }
+  }, [models, availableModelObjects])
+
+  // A custom model that requires a key the user has not stored yet cannot
+  // run - render it disabled with a pointer to /settings/models.
+  const isMissingCredential = (modelId: string): boolean => {
+    const model = availableModelObjects.find((m) => m.id === modelId)
+    return (
+      model?.is_official === false &&
+      model?.requires_api_key === true &&
+      model?.has_credential === false
+    )
+  }
+
+  const selectableModels = useMemo(
+    () => models.filter((modelId) => !isMissingCredential(modelId)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [models, availableModelObjects]
+  )
 
   // Compute effective temperature constraints from selected models
   const temperatureConstraints = useMemo(() => {
@@ -377,27 +413,78 @@ export function GenerationControlModal({
                           {t('generation.controlModal.selectModels')}
                         </label>
                         <div className="max-h-48 space-y-2 overflow-y-auto rounded-lg border p-3">
-                          {models.map((modelId) => (
-                            <label
-                              key={modelId}
-                              htmlFor={`model-${modelId}`}
-                              className="flex items-center"
-                            >
-                              <input
-                                id={`model-${modelId}`}
-                                type="checkbox"
-                                checked={selectedModels.includes(modelId)}
-                                onChange={() => handleModelToggle(modelId)}
-                                className="mr-2"
-                              />
-                              <span className="text-sm">{modelId}</span>
-                            </label>
-                          ))}
+                          {(() => {
+                            const renderModelRow = (modelId: string) => {
+                              const model = availableModelObjects.find(
+                                (m) => m.id === modelId
+                              )
+                              const isCustom = model?.is_official === false
+                              const missingCredential =
+                                isMissingCredential(modelId)
+                              return (
+                                <div key={modelId}>
+                                  <label
+                                    htmlFor={`model-${modelId}`}
+                                    className="flex items-center"
+                                  >
+                                    <input
+                                      id={`model-${modelId}`}
+                                      type="checkbox"
+                                      checked={selectedModels.includes(modelId)}
+                                      disabled={missingCredential}
+                                      onChange={() =>
+                                        handleModelToggle(modelId)
+                                      }
+                                      className="mr-2"
+                                    />
+                                    <span
+                                      className={`text-sm ${missingCredential ? 'text-gray-400' : ''}`}
+                                    >
+                                      {model?.name || modelId}
+                                    </span>
+                                    {isCustom && (
+                                      <CustomBadge className="ml-2" />
+                                    )}
+                                  </label>
+                                  {missingCredential && (
+                                    <div className="ml-6 text-xs text-amber-600">
+                                      {t('customModels.picker.missingKey')}{' '}
+                                      <Link
+                                        href="/settings/models"
+                                        className="underline hover:text-amber-700"
+                                      >
+                                        {t('customModels.picker.configureKey')}
+                                      </Link>
+                                    </div>
+                                  )}
+                                </div>
+                              )
+                            }
+
+                            return (
+                              <>
+                                {customModelIds.length > 0 &&
+                                  officialModelIds.length > 0 && (
+                                    <div className="flex items-center gap-2 pb-1 text-xs font-semibold uppercase tracking-wider text-gray-400">
+                                      {t('customModels.picker.officialSection')}
+                                      <OfficialBadge />
+                                    </div>
+                                  )}
+                                {officialModelIds.map(renderModelRow)}
+                                {customModelIds.length > 0 && (
+                                  <div className="flex items-center gap-2 pb-1 pt-2 text-xs font-semibold uppercase tracking-wider text-gray-400">
+                                    {t('customModels.picker.customSection')}
+                                  </div>
+                                )}
+                                {customModelIds.map(renderModelRow)}
+                              </>
+                            )
+                          })()}
                         </div>
                         <div className="mt-2 flex justify-between text-sm">
                           <button
                             type="button"
-                            onClick={() => setSelectedModels(models)}
+                            onClick={() => setSelectedModels(selectableModels)}
                             className="text-blue-600 hover:text-blue-700"
                           >
                             {t('generation.controlModal.selectAll')}

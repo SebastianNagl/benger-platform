@@ -128,6 +128,10 @@ jest.mock('@heroicons/react/24/outline', () => {
     return <svg data-testid="academic-cap-icon" {...props} />
   }
 
+  function CpuChipIcon(props: any) {
+    return <svg data-testid="cpu-chip-icon" {...props} />
+  }
+
   return {
     ChevronDownIcon,
     UserIcon,
@@ -140,6 +144,7 @@ jest.mock('@heroicons/react/24/outline', () => {
     CheckIcon,
     ListBulletIcon,
     AcademicCapIcon,
+    CpuChipIcon,
   }
 })
 

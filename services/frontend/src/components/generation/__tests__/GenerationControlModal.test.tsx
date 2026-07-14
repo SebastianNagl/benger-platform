@@ -1716,4 +1716,173 @@ describe('GenerationControlModal', () => {
       })
     })
   })
+
+  describe('BYOM Model Grouping', () => {
+    const { useModels } = require('@/hooks/useModels')
+
+    const emptyCatalogReturn = {
+      models: [],
+      loading: false,
+      error: null,
+      refetch: jest.fn(),
+      hasApiKeys: true,
+      apiKeyStatus: null,
+    }
+
+    const byomCatalog = [
+      // Official model WITHOUT an is_official field (back-compat: treated
+      // as official).
+      {
+        id: 'openai-gpt-4',
+        name: 'GPT-4',
+        provider: 'OpenAI',
+        model_type: 'chat',
+        capabilities: [],
+        is_active: true,
+        created_at: null,
+      },
+      // Custom model whose required key is missing → disabled.
+      {
+        id: 'custom-nokey',
+        name: 'My Llama',
+        provider: 'Custom',
+        model_type: 'chat',
+        capabilities: [],
+        is_active: true,
+        created_at: null,
+        is_official: false,
+        requires_api_key: true,
+        has_credential: false,
+      },
+      // Custom model with a stored key → selectable.
+      {
+        id: 'custom-ready',
+        name: 'Ready Llama',
+        provider: 'Custom',
+        model_type: 'chat',
+        capabilities: [],
+        is_active: true,
+        created_at: null,
+        is_official: false,
+        requires_api_key: true,
+        has_credential: true,
+      },
+    ]
+
+    const byomModelIds = ['openai-gpt-4', 'custom-nokey', 'custom-ready']
+
+    beforeEach(() => {
+      useModels.mockReturnValue({
+        ...emptyCatalogReturn,
+        models: byomCatalog,
+      })
+    })
+
+    afterEach(() => {
+      useModels.mockReturnValue(emptyCatalogReturn)
+    })
+
+    it('splits the picker into Official and Custom sections', () => {
+      render(
+        <GenerationControlModal
+          isOpen={true}
+          onClose={mockOnClose}
+          models={byomModelIds}
+          onGenerate={mockOnGenerate}
+        />
+      )
+
+      expect(
+        screen.getByText('customModels.picker.officialSection')
+      ).toBeInTheDocument()
+      expect(
+        screen.getByText('customModels.picker.customSection')
+      ).toBeInTheDocument()
+      // Undefined is_official → rendered as a plain official row (name from
+      // the catalog object).
+      expect(screen.getByLabelText('GPT-4')).toBeInTheDocument()
+    })
+
+    it('renders no section headers when there are no custom models', () => {
+      render(
+        <GenerationControlModal
+          isOpen={true}
+          onClose={mockOnClose}
+          models={['openai-gpt-4']}
+          onGenerate={mockOnGenerate}
+        />
+      )
+
+      expect(
+        screen.queryByText('customModels.picker.officialSection')
+      ).not.toBeInTheDocument()
+      expect(
+        screen.queryByText('customModels.picker.customSection')
+      ).not.toBeInTheDocument()
+    })
+
+    it('disables credential-less custom models and links to /settings/models', () => {
+      render(
+        <GenerationControlModal
+          isOpen={true}
+          onClose={mockOnClose}
+          models={byomModelIds}
+          onGenerate={mockOnGenerate}
+        />
+      )
+
+      const disabledCheckbox = document.getElementById(
+        'model-custom-nokey'
+      ) as HTMLInputElement
+      expect(disabledCheckbox).toBeDisabled()
+
+      const link = screen
+        .getByText('customModels.picker.configureKey')
+        .closest('a')
+      expect(link).toHaveAttribute('href', '/settings/models')
+    })
+
+    it('keeps custom models with a stored credential selectable', async () => {
+      const user = userEvent.setup()
+      render(
+        <GenerationControlModal
+          isOpen={true}
+          onClose={mockOnClose}
+          models={byomModelIds}
+          onGenerate={mockOnGenerate}
+        />
+      )
+
+      const checkbox = document.getElementById(
+        'model-custom-ready'
+      ) as HTMLInputElement
+      await user.click(checkbox)
+
+      expect(checkbox).toBeChecked()
+    })
+
+    it('select-all skips credential-less custom models', async () => {
+      const user = userEvent.setup()
+      render(
+        <GenerationControlModal
+          isOpen={true}
+          onClose={mockOnClose}
+          models={byomModelIds}
+          onGenerate={mockOnGenerate}
+        />
+      )
+
+      await user.click(screen.getByText('Select All'))
+
+      expect(
+        (document.getElementById('model-openai-gpt-4') as HTMLInputElement)
+      ).toBeChecked()
+      expect(
+        (document.getElementById('model-custom-ready') as HTMLInputElement)
+      ).toBeChecked()
+      expect(
+        (document.getElementById('model-custom-nokey') as HTMLInputElement)
+      ).not.toBeChecked()
+    })
+  })
 })

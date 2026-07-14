@@ -14,6 +14,7 @@
 
 'use client'
 
+import { CustomBadge } from '@/components/models/ModelBadges'
 import { useI18n } from '@/contexts/I18nContext'
 import type { Model } from '@/hooks/useModels'
 
@@ -123,10 +124,18 @@ export function JudgeEnsembleControl<S extends BuilderStateWithParameters>({
           )}
         </label>
         <div className="grid grid-cols-2 gap-2">
-          {judgeModels
-            .filter((m) => m.id !== primaryJudge)
-            .map((m) => {
+          {(() => {
+            // BYOM: officials first, then a "Custom" sub-heading + custom
+            // models with badge. Missing is_official counts as official.
+            const selectable = judgeModels.filter((m) => m.id !== primaryJudge)
+            const officials = selectable.filter(
+              (m) => m.is_official !== false,
+            )
+            const customs = selectable.filter((m) => m.is_official === false)
+
+            const renderEntry = (m: Model) => {
               const checked = additionalJudges.includes(m.id)
+              const isCustom = m.is_official === false
               return (
                 <label
                   key={m.id}
@@ -147,9 +156,23 @@ export function JudgeEnsembleControl<S extends BuilderStateWithParameters>({
                     {m.name}{' '}
                     <span className="text-gray-400">({m.provider})</span>
                   </span>
+                  {isCustom && <CustomBadge className="flex-shrink-0" />}
                 </label>
               )
-            })}
+            }
+
+            return (
+              <>
+                {officials.map(renderEntry)}
+                {customs.length > 0 && (
+                  <div className="col-span-2 pt-1 text-xs font-semibold uppercase tracking-wider text-gray-400">
+                    {t('customModels.picker.customSection')}
+                  </div>
+                )}
+                {customs.map(renderEntry)}
+              </>
+            )
+          })()}
         </div>
         <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
           {t(

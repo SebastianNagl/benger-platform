@@ -84,6 +84,7 @@ jest.mock('@heroicons/react/24/outline', () => ({
   BuildingOfficeIcon: (props: any) => <svg {...props} />,
   CheckIcon: (props: any) => <svg {...props} />,
   ChevronDownIcon: (props: any) => <svg {...props} />,
+  CpuChipIcon: (props: any) => <svg {...props} />,
   ListBulletIcon: (props: any) => <svg {...props} />,
   UserIcon: (props: any) => <svg {...props} />,
   UsersIcon: (props: any) => <svg {...props} />,
