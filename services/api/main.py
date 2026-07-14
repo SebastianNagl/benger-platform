@@ -451,6 +451,8 @@ if get_settings().debug_routes_enabled:
 app.include_router(api_key_router)  # API key management
 from routers.llm_models_admin import router as llm_models_admin_router  # noqa: E402
 app.include_router(llm_models_admin_router)  # Superadmin: reseed/inspect llm catalog
+from routers.custom_models import router as custom_models_router  # noqa: E402
+app.include_router(custom_models_router)  # BYOM: user-registered OpenAI-compatible models
 from routers.lti_admin import router as lti_admin_router  # noqa: E402
 app.include_router(lti_admin_router)  # Superadmin: LTI 1.3 (Moodle) registrations + grade-sync outbox
 app.include_router(org_api_key_router)  # Organization API key management (Issue #1180)
