@@ -362,7 +362,11 @@ export interface ParameterConstraints {
     reason?: string
   }
   max_tokens?: {
-    default: number
+    default?: number
+    // Upper bound a model accepts for max_tokens. When present it caps the
+    // max-tokens input (e.g. the LLM-Judge picker); absent means only the
+    // generic ceiling applies.
+    max?: number
   }
   top_p?: {
     supported?: boolean

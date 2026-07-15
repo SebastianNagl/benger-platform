@@ -351,6 +351,53 @@ async def _gen_make_response_generation(
     return gen
 
 
+async def _gen_make_custom_model(db, creator, *, parameter_constraints=None):
+    """Seed an active custom (BYOM) LLMModel visible to its creator.
+
+    base_url + endpoint_model_name are always set so the
+    ck_llm_models_custom_endpoint_required CHECK holds.
+    """
+    model = LLMModel(
+        id=f"custom-{uuid.uuid4()}",
+        name="Custom vLLM",
+        provider="Custom",
+        model_type="chat",
+        capabilities=["text_generation"],
+        is_active=True,
+        is_official=False,
+        created_by=creator.id,
+        is_private=True,
+        is_public=False,
+        base_url="http://10.10.3.7:8000/v1",
+        endpoint_model_name="llama-3-8b",
+        requires_api_key=False,
+        parameter_constraints=parameter_constraints,
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(model)
+    await db.flush()
+    return model
+
+
+async def _gen_make_official_model(db, *, parameter_constraints=None):
+    model = LLMModel(
+        id=f"gpt-official-{_uid()[:8]}",
+        name="Official Model",
+        provider="OpenAI",
+        model_type="chat",
+        capabilities=["text_generation"],
+        is_active=True,
+        is_official=True,
+        is_private=False,
+        is_public=False,
+        parameter_constraints=parameter_constraints,
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(model)
+    await db.flush()
+    return model
+
+
 @pytest.mark.asyncio
 class TestGenerationStatusEndpoints:
     """Tests for /api/generation status, stop, pause, resume, retry, delete, parse-metrics.
@@ -608,6 +655,114 @@ class TestGenerationTaskListEndpoints:
                 "/api/generation-tasks/generation-result?task_id=nope&model_id=gpt-4o"
             )
         assert resp.status_code == 404
+
+    # ---- model-aware max_tokens (BYOM follow-up) ----
+
+    async def test_start_generation_rejects_max_tokens_above_model_declared_max(
+        self, async_test_client, async_test_db
+    ):
+        admin = await _gen_make_user(async_test_db)
+        project, _ = await _gen_make_project(async_test_db, admin, num_tasks=2)
+        model = await _gen_make_custom_model(
+            async_test_db, admin, parameter_constraints={"max_tokens": {"max": 8000}}
+        )
+        project_id, model_id = project.id, model.id
+        await async_test_db.commit()
+        with _gen_user_ctx(admin), patch(
+            "routers.generation_task_list.celery_app"
+        ) as mock_celery:
+            mock_celery.send_task.return_value = MagicMock(id="celery-task-id")
+            mock_celery.control.revoke = MagicMock()
+            resp = await async_test_client.post(
+                f"/api/generation-tasks/projects/{project_id}/generate",
+                json={
+                    "mode": "all",
+                    "model_ids": [model_id],
+                    "parameters": {"max_tokens": 12000},
+                },
+            )
+        assert resp.status_code == 400, resp.text
+        detail = resp.json()["detail"]
+        assert "12000" in detail and "8000" in detail and model_id in detail
+
+    async def test_start_generation_accepts_max_tokens_at_model_declared_max(
+        self, async_test_client, async_test_db
+    ):
+        admin = await _gen_make_user(async_test_db)
+        project, _ = await _gen_make_project(async_test_db, admin, num_tasks=2)
+        model = await _gen_make_custom_model(
+            async_test_db, admin, parameter_constraints={"max_tokens": {"max": 8000}}
+        )
+        project_id, model_id = project.id, model.id
+        await async_test_db.commit()
+        with _gen_user_ctx(admin), patch(
+            "routers.generation_task_list.celery_app"
+        ) as mock_celery:
+            mock_celery.send_task.return_value = MagicMock(id="celery-task-id")
+            mock_celery.control.revoke = MagicMock()
+            resp = await async_test_client.post(
+                f"/api/generation-tasks/projects/{project_id}/generate",
+                json={
+                    "mode": "all",
+                    "model_ids": [model_id],
+                    "parameters": {"max_tokens": 8000},
+                },
+            )
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["tasks_queued"] == 2
+
+    async def test_start_generation_allows_large_max_tokens_when_no_declared_max(
+        self, async_test_client, async_test_db
+    ):
+        admin = await _gen_make_user(async_test_db)
+        project, _ = await _gen_make_project(async_test_db, admin, num_tasks=2)
+        # No parameter_constraints at all → no declared max → schema ceiling applies.
+        model = await _gen_make_custom_model(async_test_db, admin, parameter_constraints=None)
+        project_id, model_id = project.id, model.id
+        await async_test_db.commit()
+        with _gen_user_ctx(admin), patch(
+            "routers.generation_task_list.celery_app"
+        ) as mock_celery:
+            mock_celery.send_task.return_value = MagicMock(id="celery-task-id")
+            mock_celery.control.revoke = MagicMock()
+            resp = await async_test_client.post(
+                f"/api/generation-tasks/projects/{project_id}/generate",
+                json={
+                    "mode": "all",
+                    "model_ids": [model_id],
+                    "parameters": {"max_tokens": 100000},
+                },
+            )
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["tasks_queued"] == 2
+
+    async def test_start_generation_official_model_unaffected_by_cap(
+        self, async_test_client, async_test_db
+    ):
+        admin = await _gen_make_user(async_test_db)
+        project, _ = await _gen_make_project(async_test_db, admin, num_tasks=2)
+        # Official row with a temperature constraint but NO max_tokens.max.
+        model = await _gen_make_official_model(
+            async_test_db,
+            parameter_constraints={"temperature": {"supported": True, "min": 0, "max": 2}},
+        )
+        project_id, model_id = project.id, model.id
+        await async_test_db.commit()
+        with _gen_user_ctx(admin), patch(
+            "routers.generation_task_list.celery_app"
+        ) as mock_celery:
+            mock_celery.send_task.return_value = MagicMock(id="celery-task-id")
+            mock_celery.control.revoke = MagicMock()
+            resp = await async_test_client.post(
+                f"/api/generation-tasks/projects/{project_id}/generate",
+                json={
+                    "mode": "all",
+                    "model_ids": [model_id],
+                    "parameters": {"max_tokens": 50000},
+                },
+            )
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["tasks_queued"] == 2
 
 
 # ===================================================================
