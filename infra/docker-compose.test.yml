@@ -458,6 +458,13 @@ services:
       DATABASE_URL: postgresql://postgres:postgres_test@test-db:5432/test_benger
       DATABASE_URI: postgresql://postgres:postgres_test@test-db:5432/test_benger
       REDIS_URL: redis://test-redis:6379
+      # Point Celery at the reachable test-redis (consistent with the other
+      # test services above). Without it the app falls back to a default broker
+      # and notification-enqueuing tests (create_notification -> send_task) hang
+      # on hosts where the container->host hairpin is firewall-blocked, stalling
+      # full-shard local runs.
+      CELERY_BROKER_URL: redis://test-redis:6379/0
+      CELERY_RESULT_BACKEND: redis://test-redis:6379/0
       TESTING: "true"
       JWT_SECRET_KEY: test-secret-key
       PYTHONDONTWRITEBYTECODE: 1
