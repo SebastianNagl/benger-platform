@@ -272,17 +272,25 @@ async def get_available_models_for_user(
                 f"❌ Excluding model {model.id} ({model.provider}) - user has no valid API key"
             )
 
-    # Custom (BYOM) pass. Org context is deliberately ignored here: custom-
-    # model credentials are per-user by design (exempt from the org
-    # require_private_keys machinery), so the org key resolver has no say.
-    # Every custom model the caller can SEE is returned, annotated with
-    # has_credential so the picker can render a keyed-but-keyless model
-    # disabled with an "add your key" prompt (GenerationControlModal) rather
-    # than silently dropping it — a project configured to use a shared model
-    # must still show it. Running one without a credential is prevented
-    # downstream: start_generation checks accessibility and the worker
-    # fails a requires_api_key model that has no stored credential.
+    # Custom (BYOM) pass. Every custom model the caller can SEE is returned,
+    # annotated with has_credential so the picker can render a keyed-but-
+    # keyless model disabled with an "add your key" prompt
+    # (GenerationControlModal) rather than silently dropping it — a project
+    # configured to use a shared model must still show it. Running one
+    # without a credential is prevented downstream: start_generation checks
+    # accessibility and the worker fails a requires_api_key model that has no
+    # usable credential.
+    #
+    # Org context is honored here for the SHARED-credential case only: when
+    # the org runs shared-billing mode (require_private_keys False) and has
+    # provisioned a shared key for the model, that satisfies has_credential
+    # even when the user has none — mirroring the dispatch precedence in
+    # user_aware_ai_service.get_ai_service_for_model_row. The user's own key
+    # always wins (credential_source "user").
     from custom_model_credential_service import get_credential_model_ids_async
+    from custom_model_org_credential_service import (
+        get_org_credential_model_ids_async,
+    )
     from routers.model_access import get_accessible_model_ids_async
 
     accessible_custom_ids = await get_accessible_model_ids_async(db, current_user)
@@ -296,8 +304,53 @@ async def get_available_models_for_user(
         )
         custom_models = custom_result.scalars().all()
         credential_ids = await get_credential_model_ids_async(db, current_user.id)
+
+        # Org shared-credential annotation (org-pays mode only).
+        org_credential_ids: set = set()
+        org_shared_billing = False
+        # X-Organization-Context is caller-supplied and unvalidated here, so
+        # only honor it for the org annotation when the caller is an ACTIVE
+        # member of that org — otherwise a non-member could probe another
+        # org's shared-credential provisioning for public custom models.
+        caller_is_org_member = False
+        if org_id:
+            from models import OrganizationMembership
+
+            caller_is_org_member = (
+                (
+                    await db.execute(
+                        select(OrganizationMembership.id).where(
+                            OrganizationMembership.user_id == current_user.id,
+                            OrganizationMembership.organization_id == org_id,
+                            OrganizationMembership.is_active.is_(True),
+                        )
+                    )
+                ).first()
+                is not None
+            )
+        if org_id and caller_is_org_member:
+            from services.org_api_key_service import org_api_key_service
+
+            require_private = (
+                await org_api_key_service._get_org_setting_require_private_keys_async(
+                    db, org_id
+                )
+            )
+            org_shared_billing = not require_private
+            if org_shared_billing:
+                org_credential_ids = await get_org_credential_model_ids_async(
+                    db, org_id
+                )
+
         for model in custom_models:
-            has_credential = model.id in credential_ids
+            user_has_credential = model.id in credential_ids
+            org_has_credential = org_shared_billing and (model.id in org_credential_ids)
+            has_credential = user_has_credential or org_has_credential
+            credential_source = (
+                "user"
+                if user_has_credential
+                else ("org" if org_has_credential else None)
+            )
             available_models.append(
                 {
                     "id": model.id,
@@ -316,6 +369,7 @@ async def get_available_models_for_user(
                     "is_official": False,
                     "requires_api_key": model.requires_api_key,
                     "has_credential": has_credential,
+                    "credential_source": credential_source,
                     "base_url": model.base_url,
                     "created_by": model.created_by,
                     "created_at": (model.created_at.isoformat() if model.created_at else None),

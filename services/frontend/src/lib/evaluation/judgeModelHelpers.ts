@@ -166,6 +166,12 @@ export function useJudgeModelHelpers(): JudgeModelHelpers {
     (modelId: string): ModelConstraints => {
       const model = judgeModels.find((m) => m.id === modelId)
       const tc = getTemperatureConstraints(model, PROVIDER_TEMPERATURE_RANGES)
+      // Cap max_tokens at the model's own declared limit when present, so a
+      // large-context/large-output model (e.g. a custom BYOM endpoint) isn't
+      // clamped to the generic 16000 fallback.
+      const declaredMaxTokens = model?.parameter_constraints?.max_tokens?.max
+      const maxTokensCap =
+        typeof declaredMaxTokens === 'number' ? declaredMaxTokens : 16000
       return {
         temperature: tc.fixed
           ? {
@@ -175,7 +181,7 @@ export function useJudgeModelHelpers(): JudgeModelHelpers {
               fixedValue: tc.fixedValue,
             }
           : { min: tc.min, max: tc.max },
-        maxTokens: { min: 100, max: 16000 },
+        maxTokens: { min: 100, max: maxTokensCap },
       }
     },
     [judgeModels],

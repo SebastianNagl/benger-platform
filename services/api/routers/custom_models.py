@@ -16,7 +16,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -24,6 +24,7 @@ from auth_module import User, require_user
 from database import get_async_db
 from models import (
     CustomModelCredential,
+    CustomModelOrgCredential,
     LLMModel,
     ModelOrganization,
     Organization,
@@ -77,6 +78,60 @@ async def _enforce_test_rate_limit(request: Request, current_user) -> None:
 # ============= Schemas =============
 
 
+def _validate_parameter_constraints(value: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    """Lenient-but-firm shape check for a custom model's parameter_constraints.
+
+    Custom (BYOM) rows store owner-supplied JSON verbatim, and the downstream
+    readers are hardened to ignore malformed shapes. Silently ignoring a typo
+    hides a constraint that never takes effect, so reject the common malformed
+    shapes at create/update time — FastAPI turns the ``ValueError`` into a 422.
+
+    Only the shapes the readers actually consume are checked; unknown top-level
+    keys are allowed (forward-compat).
+    """
+    if value is None:
+        return value
+    if not isinstance(value, dict):
+        raise ValueError("parameter_constraints must be an object")
+
+    def _is_number(x: Any) -> bool:
+        # bool is an int subclass; a JSON boolean is not a numeric bound.
+        return isinstance(x, (int, float)) and not isinstance(x, bool)
+
+    temperature = value.get("temperature")
+    if temperature is not None:
+        if not isinstance(temperature, dict):
+            raise ValueError("parameter_constraints.temperature must be an object")
+        if "supported" in temperature and not isinstance(temperature["supported"], bool):
+            raise ValueError(
+                "parameter_constraints.temperature.supported must be a boolean"
+            )
+        for key in ("required_value", "min", "max"):
+            if key in temperature and not _is_number(temperature[key]):
+                raise ValueError(
+                    f"parameter_constraints.temperature.{key} must be a number"
+                )
+
+    max_tokens = value.get("max_tokens")
+    if max_tokens is not None:
+        if not isinstance(max_tokens, dict):
+            raise ValueError("parameter_constraints.max_tokens must be an object")
+        for key in ("max", "default"):
+            if key in max_tokens and not _is_number(max_tokens[key]):
+                raise ValueError(
+                    f"parameter_constraints.max_tokens.{key} must be a number"
+                )
+
+    seed = value.get("seed")
+    if seed is not None:
+        if not isinstance(seed, dict):
+            raise ValueError("parameter_constraints.seed must be an object")
+        if "supported" in seed and not isinstance(seed["supported"], bool):
+            raise ValueError("parameter_constraints.seed.supported must be a boolean")
+
+    return value
+
+
 class CustomModelCreate(BaseModel):
     model_config = {"protected_namespaces": ()}
 
@@ -93,6 +148,11 @@ class CustomModelCreate(BaseModel):
     default_config: Optional[Dict[str, Any]] = None
     api_key: Optional[str] = None
 
+    @field_validator("parameter_constraints")
+    @classmethod
+    def _check_parameter_constraints(cls, v: Optional[Dict[str, Any]]):
+        return _validate_parameter_constraints(v)
+
 
 class CustomModelUpdate(BaseModel):
     model_config = {"protected_namespaces": ()}
@@ -108,6 +168,11 @@ class CustomModelUpdate(BaseModel):
     parameter_constraints: Optional[Dict[str, Any]] = None
     default_config: Optional[Dict[str, Any]] = None
     base_url: Optional[str] = None
+
+    @field_validator("parameter_constraints")
+    @classmethod
+    def _check_parameter_constraints(cls, v: Optional[Dict[str, Any]]):
+        return _validate_parameter_constraints(v)
 
 
 class ModelVisibilityUpdate(BaseModel):
@@ -493,6 +558,14 @@ async def update_custom_model_visibility(
                 ModelOrganization.model_id == model.id
             )
         )
+        # Every org is unshared -> drop all org shared-credential rows so they
+        # can't keep being billed/used and don't become un-manageable orphans
+        # (the credential endpoints gate on the model still being shared).
+        await db.execute(
+            CustomModelOrgCredential.__table__.delete().where(
+                CustomModelOrgCredential.model_id == model.id
+            )
+        )
         model.is_private = False
         model.is_public = True
 
@@ -500,6 +573,11 @@ async def update_custom_model_visibility(
         await db.execute(
             ModelOrganization.__table__.delete().where(
                 ModelOrganization.model_id == model.id
+            )
+        )
+        await db.execute(
+            CustomModelOrgCredential.__table__.delete().where(
+                CustomModelOrgCredential.model_id == model.id
             )
         )
         model.is_private = True
@@ -525,6 +603,16 @@ async def update_custom_model_visibility(
         await db.execute(
             ModelOrganization.__table__.delete().where(
                 ModelOrganization.model_id == model.id
+            )
+        )
+        # Drop org shared-credential rows for orgs that are NO LONGER in the
+        # share set (kept for orgs still shared, so their admins don't have to
+        # re-enter the key). Orphaned rows would otherwise be un-manageable and
+        # still usable via the org-billing fallback.
+        await db.execute(
+            CustomModelOrgCredential.__table__.delete().where(
+                CustomModelOrgCredential.model_id == model.id,
+                CustomModelOrgCredential.organization_id.notin_(organization_ids),
             )
         )
         for org_id in organization_ids:
@@ -609,8 +697,16 @@ async def _chat_ping(
 
     Same generic-error discipline as validate_openai_compatible_endpoint —
     no upstream bodies/status codes are echoed.
+
+    DNS-rebinding immunity: re-resolves + validates base_url at call time
+    and PINS the outbound connection to the exact validated IPs, so a TTL-0
+    rebind between the guard check and aiohttp's own lookup cannot reach an
+    internal address. A rebinding rejection (ValueError) collapses into the
+    generic "unreachable" outcome below — never an oracle.
     """
     import aiohttp
+
+    from url_guard import pinned_connector, resolve_and_validate
 
     headers = {}
     if api_key:
@@ -618,7 +714,10 @@ async def _chat_ping(
 
     started = time.monotonic()
     try:
-        async with aiohttp.ClientSession() as session:
+        _normalized_url, validated_ips = resolve_and_validate(base_url)
+        async with aiohttp.ClientSession(
+            connector=pinned_connector(validated_ips)
+        ) as session:
             async with session.post(
                 f"{base_url.rstrip('/')}/chat/completions",
                 headers=headers,

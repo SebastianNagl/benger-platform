@@ -698,19 +698,25 @@ def _build_llm_leaderboard_stmts(
             )
         model_id_filter = LLMLeaderboardScore.model_id.in_(qualifier.distinct())
 
-    # BYOM: the shared leaderboard is the OFFICIAL catalog only. A custom
-    # (non-official) model benchmarked in a project that falls in this scope
-    # would otherwise leak its name + aggregate scores to every reader of the
-    # scope. Constrain every read to official model ids (this also drops
-    # hard-deleted custom ids, which have no llm_models row).
-    official_filter = LLMLeaderboardScore.model_id.in_(
-        select(LLMModel.id).where(LLMModel.is_official.is_(True))
+    # BYOM: a custom model appears on the shared leaderboard iff it is
+    # official OR currently public. Official rows are the shipped catalog;
+    # genuinely public custom rows (is_public=True) are meant to be seen.
+    # Private/org-shared custom rows stay hidden so they can't leak their
+    # name + aggregate scores to every reader of the scope. Visibility is the
+    # ONLY gate — if a public custom model is later privatized or soft-deleted
+    # (which sets is_public=False), it drops off automatically on the next
+    # read; there is no retroactive score deletion. This also drops
+    # hard-deleted custom ids, which have no llm_models row.
+    visibility_filter = LLMLeaderboardScore.model_id.in_(
+        select(LLMModel.id).where(
+            or_(LLMModel.is_official.is_(True), LLMModel.is_public.is_(True))
+        )
     )
 
     base = select(LLMLeaderboardScore).where(
         LLMLeaderboardScore.project_scope_key == project_scope_key,
         LLMLeaderboardScore.period == period,
-        official_filter,
+        visibility_filter,
     )
     if model_id_filter is not None:
         base = base.where(model_id_filter)
@@ -720,7 +726,7 @@ def _build_llm_leaderboard_stmts(
     ).where(
         LLMLeaderboardScore.project_scope_key == project_scope_key,
         LLMLeaderboardScore.period == period,
-        official_filter,
+        visibility_filter,
     )
     if model_id_filter is not None:
         total_count_stmt = total_count_stmt.where(model_id_filter)
@@ -730,7 +736,7 @@ def _build_llm_leaderboard_stmts(
         .where(
             LLMLeaderboardScore.project_scope_key == project_scope_key,
             LLMLeaderboardScore.period == period,
-            official_filter,
+            visibility_filter,
         )
         .distinct()
     )

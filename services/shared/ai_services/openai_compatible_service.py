@@ -18,10 +18,11 @@ Differences from the fixed-provider services:
   (cost_estimate.py, DB-based) showed real numbers.
 - Seed is gated on the row's ``parameter_constraints.seed.supported``
   (constructor arg), not the YAML-backed ``model_supports_seed``.
-- SSRF hardening: the base_url is re-validated via url_guard before every
-  outbound request (save-time validation alone is defeated by DNS
-  rebinding), and redirects are NOT followed (a redirect to an internal
-  address would bypass the pre-flight IP check).
+- SSRF hardening: before every outbound request the base_url is re-resolved
+  and validated via url_guard, and the aiohttp connection is PINNED to the
+  exact validated IPs (save-time validation alone is defeated by a TTL-0 DNS
+  rebind between the guard's lookup and aiohttp's). Redirects are NOT followed
+  (a redirect to an internal address would bypass the pre-flight IP check).
 - response_metadata never includes ``base_url`` or credential material —
   project exports embed Generation.response_metadata verbatim, and shared
   results must not leak another user's endpoint details.
@@ -143,14 +144,17 @@ class OpenAICompatibleService(BaseAIService):
         requested_seed = kwargs.get("seed", 42)
 
         try:
-            # Call-time SSRF re-check (DNS rebinding narrows to the window
-            # between this resolve and aiohttp's own). Inside the try so a
-            # rejection surfaces as the standard error dict, not an
-            # exception out of generate(). Import here: url_guard lives at
-            # the /shared root, on sys.path in both containers.
-            from url_guard import validate_custom_model_url
+            # Call-time SSRF re-check + connection pinning. resolve_and_validate
+            # runs the full guard and returns the exact IPs that passed; the
+            # pinned connector then makes aiohttp connect to ONLY those IPs, so
+            # a TTL-0 DNS rebind between this lookup and aiohttp's own cannot
+            # swap in an internal address. Inside the try so a rejection
+            # surfaces as the standard error dict, not an exception out of
+            # generate(). Import here: url_guard lives at the /shared root, on
+            # sys.path in both containers.
+            from url_guard import pinned_connector, resolve_and_validate
 
-            validate_custom_model_url(self.base_url)
+            _normalized_url, validated_ips = resolve_and_validate(self.base_url)
 
             start_time = datetime.now()
 
@@ -167,7 +171,12 @@ class OpenAICompatibleService(BaseAIService):
             if self.supports_seed:
                 payload["seed"] = requested_seed
 
-            async with aiohttp.ClientSession() as session:
+            # URL keeps the hostname (never the pinned IP) so TLS SNI + cert
+            # verification stay correct; the connector routes it to the
+            # validated IP.
+            async with aiohttp.ClientSession(
+                connector=pinned_connector(validated_ips)
+            ) as session:
                 async with session.post(
                     f"{self.base_url}/chat/completions",
                     headers=self._headers(),

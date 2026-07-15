@@ -101,7 +101,11 @@ class GenerationParameters(BaseModel):
     """Parameters for LLM generation"""
 
     temperature: float = Field(default=0.0, ge=0.0, le=2.0)
-    max_tokens: int = Field(default=4000, ge=100, le=16000)
+    # The schema ceiling is intentionally high so it is NOT the binding limit
+    # for large-context/large-output custom (BYOM) models. The effective cap is
+    # enforced PER MODEL in start_generation against each model's declared
+    # parameter_constraints.max_tokens.max (issue: model-aware max_tokens).
+    max_tokens: int = Field(default=4000, ge=100, le=200000)
     # Phase 6.6: explicit seed for variance studies. Default 42 keeps
     # the historical determinism behavior. Providers that don't accept
     # a seed (Anthropic, Google, DeepInfra) record None on the row.
@@ -641,20 +645,11 @@ async def start_generation(
             f"Updated per-model configs for project {project_id}: {list(request.model_configs.keys())}"
         )
 
-    # Save config changes if any
-    if config_updated:
-        from sqlalchemy.orm.attributes import flag_modified
-
-        generation_config["selected_configuration"] = selected_config
-        project.generation_config = generation_config
-        # JSONB mutation guard: SQLAlchemy doesn't detect in-place dict edits,
-        # so without flag_modified the assignment above would not persist
-        # (the parent dict identity didn't change). Without this, the worker
-        # reads stale generation_config and falls back to SYSTEM_DEFAULTS for
-        # every parameter — silently dropping the per-trigger override.
-        flag_modified(project, "generation_config")
-        db.add(project)
-        await db.commit()
+    # NOTE: the generation_config persistence (params + model_configs) is
+    # deliberately deferred until AFTER the model-access and max_tokens
+    # validation below, so a request that is going to be rejected (e.g.
+    # max_tokens over a model's declared ceiling) never commits its values
+    # into the project's stored config.
 
     # Get models to use
     if request.model_ids:
@@ -702,6 +697,93 @@ async def start_generation(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=f"Access denied for custom model(s): {', '.join(denied)}",
             )
+
+    # Model-aware max_tokens ceiling. The request schema now permits up to a
+    # high hard ceiling (le=200000) so large-context/large-output custom (BYOM)
+    # models aren't blocked by the old global 16k cap. Instead, enforce EACH
+    # requested model's OWN declared limit: reject when the requested
+    # max_tokens exceeds that model's parameter_constraints.max_tokens.max.
+    # Models that declare no max (all official rows today, and custom rows
+    # without the field) are unaffected and may use up to the schema ceiling.
+    # The requested value per model is the per-model override in model_configs
+    # when present, else the global parameters.max_tokens — mirroring the
+    # worker's per-model → global resolution order.
+    _numeric = (int, float)
+
+    def _as_int_max_tokens(value: Any) -> Optional[int]:
+        # bool is an int subclass; a JSON `true` is not a token budget.
+        # A per-model override can arrive as a JSON float (e.g. 100000.0) — the
+        # worker uses it verbatim, so the check must too (coerce, don't drop it,
+        # or a float over the declared max would slip past this pre-check).
+        if isinstance(value, bool) or not isinstance(value, _numeric):
+            return None
+        return int(value)
+
+    global_max_tokens = (
+        request.parameters.max_tokens if request.parameters else None
+    )
+    incoming_model_configs = request.model_configs or {}
+    requested_max_by_model: Dict[str, int] = {}
+    for m in model_ids:
+        cfg = incoming_model_configs.get(m)
+        per_model_mt = (
+            _as_int_max_tokens(cfg.get("max_tokens")) if isinstance(cfg, dict) else None
+        )
+        effective = per_model_mt if per_model_mt is not None else global_max_tokens
+        if isinstance(effective, int) and not isinstance(effective, bool):
+            requested_max_by_model[m] = effective
+
+    if requested_max_by_model:
+        from models import LLMModel as DBLLMModel
+
+        constraint_rows = (
+            await db.execute(
+                select(DBLLMModel.id, DBLLMModel.parameter_constraints).where(
+                    DBLLMModel.id.in_(list(requested_max_by_model.keys()))
+                )
+            )
+        ).all()
+        constraints_by_id = {row_id: pc for row_id, pc in constraint_rows}
+        for m, requested in requested_max_by_model.items():
+            pc = constraints_by_id.get(m)
+            # parameter_constraints is owner-supplied JSON for custom models;
+            # a malformed non-dict row (or a non-dict max_tokens entry) means
+            # "no declared max" — same isinstance discipline as the worker clamp.
+            if not isinstance(pc, dict):
+                continue
+            mt_cfg = pc.get("max_tokens")
+            if not isinstance(mt_cfg, dict):
+                continue
+            declared_max = mt_cfg.get("max")
+            if (
+                isinstance(declared_max, _numeric)
+                and not isinstance(declared_max, bool)
+                and requested > declared_max
+            ):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=(
+                        f"Requested max_tokens={requested} exceeds the maximum of "
+                        f"{declared_max} allowed by model '{m}'."
+                    ),
+                )
+
+    # Persist the config changes now that access + max_tokens validation has
+    # passed (moved down from before model resolution so a rejected request
+    # can't poison the project's stored generation_config).
+    if config_updated:
+        from sqlalchemy.orm.attributes import flag_modified
+
+        generation_config["selected_configuration"] = selected_config
+        project.generation_config = generation_config
+        # JSONB mutation guard: SQLAlchemy doesn't detect in-place dict edits,
+        # so without flag_modified the assignment above would not persist
+        # (the parent dict identity didn't change). Without this, the worker
+        # reads stale generation_config and falls back to SYSTEM_DEFAULTS for
+        # every parameter — silently dropping the per-trigger override.
+        flag_modified(project, "generation_config")
+        db.add(project)
+        await db.commit()
 
     # Validate single mode requires exactly one task and one model
     if request.mode == "single":

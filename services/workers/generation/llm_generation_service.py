@@ -900,6 +900,37 @@ def generate_llm_responses_impl(
                                     temperature = max_temp
                                     _provenance["temperature"]["value"] = temperature
 
+                            # Authoritative max_tokens clamp — mirrors the
+                            # temperature clamp above. The owner-declared
+                            # parameter_constraints.max_tokens.max is the REAL
+                            # ceiling, enforced HERE regardless of how the
+                            # request/persisted config was built or whether the
+                            # value arrived as a float. The API-side pre-check
+                            # is only an early 400; this is the boundary.
+                            mt_config = constraints.get('max_tokens')
+                            if not isinstance(mt_config, dict):
+                                mt_config = {}
+                            declared_max_mt = mt_config.get('max')
+                            if (
+                                isinstance(declared_max_mt, _numeric)
+                                and not isinstance(declared_max_mt, bool)
+                                and isinstance(max_tokens, _numeric)
+                                and not isinstance(max_tokens, bool)
+                                and max_tokens > declared_max_mt
+                            ):
+                                tasks.logger.info(
+                                    f"⚠️ Clamping max_tokens from {max_tokens} to model max "
+                                    f"{declared_max_mt} for {api_model_name}."
+                                )
+                                _provenance["max_tokens"]["clamped_from"] = max_tokens
+                                max_tokens = int(declared_max_mt)
+                                _provenance["max_tokens"]["value"] = max_tokens
+
+                        # max_tokens must be an int for the provider APIs; a
+                        # per-model config override can arrive as a JSON float.
+                        if isinstance(max_tokens, float):
+                            max_tokens = int(max_tokens)
+
                         tasks.logger.info(
                             f"🌡️ Final temperature: {temperature}, max_tokens: {max_tokens} for model {model_id}"
                         )

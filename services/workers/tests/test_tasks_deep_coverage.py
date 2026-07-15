@@ -1418,6 +1418,179 @@ class TestTemperatureConstraints:
         assert result["status"] == "success", result
 
 
+class TestMaxTokensConstraints:
+    """Pin the authoritative worker-side max_tokens clamp (BYOM follow-up).
+
+    Mirrors TestTemperatureConstraints. The clamp runs right after the
+    temperature clamp and enforces the model's declared
+    parameter_constraints.max_tokens.max as the REAL ceiling — regardless of
+    how the request/persisted config was built or whether the value arrived
+    as a JSON float. The clamped/coerced value that reaches the AI service
+    must always be an int (no float ever reaches the provider APIs).
+
+    We capture the ``max_tokens`` the AI service actually received via a
+    ``generate`` stub, since that is the value the worker sends downstream.
+    """
+
+    @staticmethod
+    def _capturing_ai_response(captured):
+        """A sync generate() stub that records the max_tokens it was called
+        with, then returns a well-formed response so generation succeeds."""
+
+        def _gen(**kwargs):
+            captured["max_tokens"] = kwargs.get("max_tokens")
+            return {
+                "response_text": "answer",
+                "prompt_tokens": 1,
+                "completion_tokens": 1,
+                "total_tokens": 2,
+                "cost_usd": 0.0,
+            }
+
+        return _gen
+
+    @patch("tasks.HAS_DATABASE", True)
+    @patch("tasks.HAS_AI_SERVICES", True)
+    @patch("tasks.HAS_GENERATION_PARSER", False)
+    @patch("tasks.SessionLocal")
+    def test_project_param_over_declared_max_is_clamped(self, mock_session_cls):
+        """(a) project-level max_tokens over the model's max → clamped to max."""
+        captured = {}
+        db, gen, project, task, model, ai_service = _setup_generate_llm_mocks(
+            ai_response_fn=self._capturing_ai_response(captured),
+            generation_config={
+                "selected_configuration": {
+                    "parameters": {"max_tokens": 50000},
+                    "model_configs": {},
+                }
+            },
+            model_id="custom-mt",
+            model_name="My vLLM",
+            parameter_constraints={"max_tokens": {"max": 8000}},
+        )
+        mock_session_cls.return_value = db
+
+        result = _run_generate_with_mocks(db, ai_service, model_id="custom-mt")
+
+        assert result["status"] == "success", result
+        assert captured["max_tokens"] == 8000
+        assert isinstance(captured["max_tokens"], int)
+
+    @patch("tasks.HAS_DATABASE", True)
+    @patch("tasks.HAS_AI_SERVICES", True)
+    @patch("tasks.HAS_GENERATION_PARSER", False)
+    @patch("tasks.SessionLocal")
+    def test_per_model_float_override_over_max_is_clamped_to_int(
+        self, mock_session_cls
+    ):
+        """(b) a per-model JSON-float override over the max → clamped to the
+        max AND coerced to int (no float reaches the provider)."""
+        captured = {}
+        db, gen, project, task, model, ai_service = _setup_generate_llm_mocks(
+            ai_response_fn=self._capturing_ai_response(captured),
+            generation_config={
+                "selected_configuration": {
+                    "parameters": {},
+                    "model_configs": {"custom-mt": {"max_tokens": 100000.0}},
+                }
+            },
+            model_id="custom-mt",
+            model_name="My vLLM",
+            parameter_constraints={"max_tokens": {"max": 8000}},
+        )
+        mock_session_cls.return_value = db
+
+        result = _run_generate_with_mocks(db, ai_service, model_id="custom-mt")
+
+        assert result["status"] == "success", result
+        assert captured["max_tokens"] == 8000
+        assert isinstance(captured["max_tokens"], int)
+
+    @patch("tasks.HAS_DATABASE", True)
+    @patch("tasks.HAS_AI_SERVICES", True)
+    @patch("tasks.HAS_GENERATION_PARSER", False)
+    @patch("tasks.SessionLocal")
+    def test_value_under_declared_max_is_unchanged(self, mock_session_cls):
+        """(c) a value below the declared max passes through unchanged."""
+        captured = {}
+        db, gen, project, task, model, ai_service = _setup_generate_llm_mocks(
+            ai_response_fn=self._capturing_ai_response(captured),
+            generation_config={
+                "selected_configuration": {
+                    "parameters": {"max_tokens": 5000},
+                    "model_configs": {},
+                }
+            },
+            model_id="custom-mt",
+            model_name="My vLLM",
+            parameter_constraints={"max_tokens": {"max": 8000}},
+        )
+        mock_session_cls.return_value = db
+
+        result = _run_generate_with_mocks(db, ai_service, model_id="custom-mt")
+
+        assert result["status"] == "success", result
+        assert captured["max_tokens"] == 5000
+        assert isinstance(captured["max_tokens"], int)
+
+    @patch("tasks.HAS_DATABASE", True)
+    @patch("tasks.HAS_AI_SERVICES", True)
+    @patch("tasks.HAS_GENERATION_PARSER", False)
+    @patch("tasks.SessionLocal")
+    def test_no_declared_max_leaves_value_unchanged(self, mock_session_cls):
+        """(d) a model that declares no max_tokens.max is unaffected — even a
+        large requested value passes through."""
+        captured = {}
+        db, gen, project, task, model, ai_service = _setup_generate_llm_mocks(
+            ai_response_fn=self._capturing_ai_response(captured),
+            generation_config={
+                "selected_configuration": {
+                    "parameters": {"max_tokens": 50000},
+                    "model_configs": {},
+                }
+            },
+            model_id="custom-mt",
+            model_name="My vLLM",
+            # max_tokens block present but NO "max" key → no declared ceiling.
+            parameter_constraints={"max_tokens": {"default": 2000}},
+        )
+        mock_session_cls.return_value = db
+
+        result = _run_generate_with_mocks(db, ai_service, model_id="custom-mt")
+
+        assert result["status"] == "success", result
+        assert captured["max_tokens"] == 50000
+        assert isinstance(captured["max_tokens"], int)
+
+    @patch("tasks.HAS_DATABASE", True)
+    @patch("tasks.HAS_AI_SERVICES", True)
+    @patch("tasks.HAS_GENERATION_PARSER", False)
+    @patch("tasks.SessionLocal")
+    def test_float_under_max_is_coerced_to_int(self, mock_session_cls):
+        """(e) a per-model JSON-float below the max is coerced to int — no
+        float ever reaches the provider even when the clamp doesn't fire."""
+        captured = {}
+        db, gen, project, task, model, ai_service = _setup_generate_llm_mocks(
+            ai_response_fn=self._capturing_ai_response(captured),
+            generation_config={
+                "selected_configuration": {
+                    "parameters": {},
+                    "model_configs": {"custom-mt": {"max_tokens": 5000.0}},
+                }
+            },
+            model_id="custom-mt",
+            model_name="My vLLM",
+            parameter_constraints={"max_tokens": {"max": 8000}},
+        )
+        mock_session_cls.return_value = db
+
+        result = _run_generate_with_mocks(db, ai_service, model_id="custom-mt")
+
+        assert result["status"] == "success", result
+        assert captured["max_tokens"] == 5000
+        assert isinstance(captured["max_tokens"], int)
+
+
 # ===========================================================================
 # Content format response parsing
 # ===========================================================================

@@ -403,9 +403,11 @@ class TestOrgContextPath:
 from types import SimpleNamespace  # noqa: E402
 
 import custom_model_credential_service as cmcs_mod  # noqa: E402
+import custom_model_org_credential_service as cmocs_mod  # noqa: E402
 from ai_services.openai_compatible_service import OpenAICompatibleService  # noqa: E402
 
 CUSTOM_CRED = "ck-user-model-credential-BEEF42"
+ORG_CRED = "ck-org-shared-credential-CAFE99"
 
 
 def _custom_row(**overrides):
@@ -630,3 +632,155 @@ class TestCustomModelAccessCheck:
         db = MagicMock()
         db.query.side_effect = RuntimeError("boom")
         assert uaas_mod._user_can_use_custom_model(db, "user-9", row) is False
+
+
+# --------------------------------------------------------------------------
+# Org-owned (shared) custom-model credential precedence
+# --------------------------------------------------------------------------
+#
+# With an ``organization_id``, the custom-row path may fall back to the org's
+# SHARED credential — but only under the exact precedence mirrored from
+# shared_org_api_key_service.resolve_api_key:
+#
+#   require_private_keys True (default) → invoking user's own key ONLY; the
+#     org shared key is NEVER consulted (assert get_org_credential uncalled).
+#   require_private_keys False (org-pays) → user's own key if present, else
+#     the org shared key.
+#   The user's own key ALWAYS wins when present (org key uncalled).
+#
+# The model owner's key is never used implicitly in any branch. The seams are
+# imported inside get_ai_service_for_model_row, so we patch the module attrs.
+
+
+class TestOrgCredentialPrecedence:
+    @pytest.fixture()
+    def patched_org_seams(self, monkeypatch):
+        state = {"require_private": True, "org_key": None, "org_calls": []}
+
+        def _requires_private(db, org_id):
+            return state["require_private"]
+
+        def _get_org_credential(db, org_id, model_id):
+            state["org_calls"].append((org_id, model_id))
+            return state["org_key"]
+
+        monkeypatch.setattr(cmocs_mod, "org_requires_private_keys", _requires_private)
+        monkeypatch.setattr(cmocs_mod, "get_org_credential", _get_org_credential)
+        return state
+
+    def test_private_mode_never_consults_org_key(
+        self, svc, monkeypatch, access_granted, patched_org_seams
+    ):
+        monkeypatch.setattr(cmcs_mod, "get_credential", lambda db, u, m: None)
+        patched_org_seams["require_private"] = True
+        patched_org_seams["org_key"] = ORG_CRED  # present, but must be ignored
+
+        service = svc.get_ai_service_for_model_row(
+            MagicMock(), "user-9", _custom_row(), organization_id="org-1"
+        )
+        # No user key + require_private True → None, and the org key was
+        # never even looked up.
+        assert service is None
+        assert patched_org_seams["org_calls"] == []
+
+    def test_org_pays_uses_org_key_when_user_has_none(
+        self, svc, monkeypatch, access_granted, patched_org_seams
+    ):
+        monkeypatch.setattr(cmcs_mod, "get_credential", lambda db, u, m: None)
+        patched_org_seams["require_private"] = False
+        patched_org_seams["org_key"] = ORG_CRED
+
+        row = _custom_row()
+        service = svc.get_ai_service_for_model_row(
+            MagicMock(), "user-9", row, organization_id="org-1"
+        )
+        assert isinstance(service, OpenAICompatibleService)
+        assert service.api_key == ORG_CRED
+        assert service._key_resolution_route == "custom_model_org_credential"
+        assert service._provider_name == "custom"
+        assert service._invocation_organization_id == "org-1"
+        # Looked up for THIS org + THIS model.
+        assert patched_org_seams["org_calls"] == [("org-1", row.id)]
+
+    def test_user_key_wins_over_org_key(
+        self, svc, monkeypatch, access_granted, patched_org_seams
+    ):
+        monkeypatch.setattr(cmcs_mod, "get_credential", lambda db, u, m: CUSTOM_CRED)
+        patched_org_seams["require_private"] = False
+        patched_org_seams["org_key"] = ORG_CRED
+
+        service = svc.get_ai_service_for_model_row(
+            MagicMock(), "user-9", _custom_row(), organization_id="org-1"
+        )
+        assert service.api_key == CUSTOM_CRED
+        assert service._key_resolution_route == "custom_model_user_credential"
+        # User key present → org fallback short-circuited, never consulted.
+        assert patched_org_seams["org_calls"] == []
+
+    def test_org_pays_no_keys_returns_none(
+        self, svc, monkeypatch, access_granted, patched_org_seams
+    ):
+        monkeypatch.setattr(cmcs_mod, "get_credential", lambda db, u, m: None)
+        patched_org_seams["require_private"] = False
+        patched_org_seams["org_key"] = None
+
+        service = svc.get_ai_service_for_model_row(
+            MagicMock(), "user-9", _custom_row(), organization_id="org-1"
+        )
+        assert service is None
+
+    def test_no_org_context_never_consults_org_key(
+        self, svc, monkeypatch, access_granted, patched_org_seams
+    ):
+        monkeypatch.setattr(cmcs_mod, "get_credential", lambda db, u, m: None)
+        patched_org_seams["require_private"] = False
+        patched_org_seams["org_key"] = ORG_CRED
+
+        # organization_id omitted → the org fallback branch is never entered.
+        service = svc.get_ai_service_for_model_row(
+            MagicMock(), "user-9", _custom_row()
+        )
+        assert service is None
+        assert patched_org_seams["org_calls"] == []
+
+    # ---- sharing gate: the org key is only usable while the model is
+    # CURRENTLY shared with that org (a live ModelOrganization link exists).
+    # After the link is dropped (model made public/private, or re-shared to
+    # other orgs), a leftover org credential must NOT keep being used.
+
+    def test_org_pays_unshared_model_does_not_use_org_key(
+        self, svc, monkeypatch, access_granted, patched_org_seams
+    ):
+        # org-pays mode, org HAS a shared key, user has NO key — but the model
+        # is NOT currently shared with the org.
+        monkeypatch.setattr(cmcs_mod, "get_credential", lambda db, u, m: None)
+        monkeypatch.setattr(uaas_mod, "_model_shared_with_org", lambda db, mid, oid: False)
+        patched_org_seams["require_private"] = False
+        patched_org_seams["org_key"] = ORG_CRED  # present, but not shared → unusable
+
+        service = svc.get_ai_service_for_model_row(
+            MagicMock(), "user-9", _custom_row(), organization_id="org-1"
+        )
+        # requires_api_key row with no usable key → None. The org key was never
+        # even consulted (the sharing gate short-circuits before the lookup).
+        assert service is None
+        assert patched_org_seams["org_calls"] == []
+
+    def test_org_pays_shared_model_uses_org_key(
+        self, svc, monkeypatch, access_granted, patched_org_seams
+    ):
+        # Contrast: identical setup but the model IS currently shared → the org
+        # key is used and the route is stamped custom_model_org_credential.
+        monkeypatch.setattr(cmcs_mod, "get_credential", lambda db, u, m: None)
+        monkeypatch.setattr(uaas_mod, "_model_shared_with_org", lambda db, mid, oid: True)
+        patched_org_seams["require_private"] = False
+        patched_org_seams["org_key"] = ORG_CRED
+
+        row = _custom_row()
+        service = svc.get_ai_service_for_model_row(
+            MagicMock(), "user-9", row, organization_id="org-1"
+        )
+        assert isinstance(service, OpenAICompatibleService)
+        assert service.api_key == ORG_CRED
+        assert service._key_resolution_route == "custom_model_org_credential"
+        assert patched_org_seams["org_calls"] == [("org-1", row.id)]

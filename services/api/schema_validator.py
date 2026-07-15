@@ -170,6 +170,14 @@ def get_expected_schema() -> Dict[str, List[str]]:
             "encrypted_api_key",
             "created_at",
         ],
+        "custom_model_org_credentials": [
+            "id",
+            "organization_id",
+            "model_id",
+            "encrypted_api_key",
+            "created_by",
+            "created_at",
+        ],
         "response_generations": [
             "id",
             "project_id",

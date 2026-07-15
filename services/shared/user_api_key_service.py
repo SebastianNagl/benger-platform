@@ -413,17 +413,30 @@ async def validate_openai_compatible_endpoint(
     generic messages here keep the endpoint from doubling as a port-scan
     oracle (no upstream status codes, bodies, or socket errors are echoed).
 
+    DNS-rebinding immunity: this re-resolves ``base_url`` via
+    ``resolve_and_validate`` at call time and PINS the outbound connection
+    to the exact validated IPs, so a TTL-0 rebind between the caller's
+    guard check and aiohttp's own lookup cannot reach an internal address.
+    A rebinding rejection (ValueError) collapses into the generic
+    "unreachable" outcome below — never an oracle.
+
     Returns ``(ok, message, error_type)`` like ``validate_api_key``.
     """
     try:
         import aiohttp
+
+        from url_guard import pinned_connector, resolve_and_validate
+
+        _normalized_url, validated_ips = resolve_and_validate(base_url)
 
         headers = {}
         if api_key:
             headers["Authorization"] = f"Bearer {api_key}"
 
         url = f"{base_url.rstrip('/')}/models"
-        async with aiohttp.ClientSession() as session:
+        async with aiohttp.ClientSession(
+            connector=pinned_connector(validated_ips)
+        ) as session:
             async with session.get(
                 url,
                 headers=headers,

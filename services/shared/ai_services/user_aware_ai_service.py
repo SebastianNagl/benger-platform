@@ -71,6 +71,30 @@ def _user_can_use_custom_model(db: Session, user_id: str, model: Any) -> bool:
         return False
 
 
+def _model_shared_with_org(db: Session, model_id: Any, org_id: Any) -> bool:
+    """True iff the custom model is CURRENTLY shared with the org (a live
+    ModelOrganization link exists). The org shared-credential fallback gates
+    on this so an org is never billed for a model it no longer shares — e.g.
+    after the model was made public, privatized, or re-shared to other orgs,
+    the leftover org credential row must not keep being used. Fails closed."""
+    try:
+        from models import ModelOrganization
+
+        return (
+            db.query(ModelOrganization)
+            .filter(
+                ModelOrganization.model_id == str(model_id),
+                ModelOrganization.organization_id == str(org_id),
+            )
+            .first()
+        ) is not None
+    except Exception as e:
+        logger.error(
+            f"ModelOrganization sharing check failed for {model_id}/{org_id}: {e}"
+        )
+        return False
+
+
 class UserAwareAIService:
     """Service that creates AI service instances with user-specific API keys"""
 
@@ -177,14 +201,22 @@ class UserAwareAIService:
 
         Official rows delegate to the provider-keyed path
         (get_ai_service_for_user). Custom rows build an OpenAI-compatible
-        client from the row's base_url/endpoint_model_name with strictly
-        the INVOKING user's per-(user, model) credential — never the model
-        owner's key, and deliberately outside the org
-        ``require_private_keys`` shared-billing machinery.
+        client from the row's base_url/endpoint_model_name.
 
-        Returns None when a requires_api_key custom model has no stored
-        credential for this user (callers surface a "add your key for this
-        model" error).
+        Custom-model credential precedence (never the model owner's key):
+
+        | org context | require_private_keys | key used                    | route                         |
+        |-------------|----------------------|-----------------------------|-------------------------------|
+        | absent      | n/a                  | invoking user's own         | custom_model_user_credential  |
+        | present     | True (default)       | invoking user's own ONLY    | custom_model_user_credential  |
+        | present     | False (org-pays)     | user's own, else org shared | custom_model_org_credential   |
+
+        The invoking user's own credential ALWAYS wins when present; the org
+        shared key is a fallback consulted only in org-pays mode. This mirrors
+        ``shared_org_api_key_service.resolve_api_key`` for provider keys.
+
+        Returns None when a requires_api_key custom model has no usable
+        credential (callers surface a "add your key for this model" error).
         """
         if getattr(model, "is_official", True):
             return self.get_ai_service_for_user(
@@ -204,9 +236,43 @@ class UserAwareAIService:
             from custom_model_credential_service import get_credential
 
             api_key = get_credential(db, user_id, str(model.id))
+            key_route = (
+                "custom_model_user_credential" if api_key else "custom_model_no_auth"
+            )
+
+            # Org shared-credential fallback. Consulted ONLY when an org
+            # context is present, the invoking user has no personal key, and
+            # the org runs shared-billing mode (require_private_keys False) —
+            # same precedence as shared_org_api_key_service.resolve_api_key.
+            # The user's own key always wins; the model owner's key is never
+            # used implicitly.
+            if (
+                not api_key
+                and organization_id
+                and _model_shared_with_org(db, model.id, organization_id)
+            ):
+                try:
+                    from custom_model_org_credential_service import (
+                        get_org_credential,
+                        org_requires_private_keys,
+                    )
+
+                    if not org_requires_private_keys(db, str(organization_id)):
+                        org_key = get_org_credential(
+                            db, str(organization_id), str(model.id)
+                        )
+                        if org_key:
+                            api_key = org_key
+                            key_route = "custom_model_org_credential"
+                except Exception as e:
+                    logger.error(
+                        f"Org custom-model credential resolution failed for "
+                        f"org {organization_id}, model {model.id}: {e}"
+                    )
+
             if getattr(model, "requires_api_key", True) and not api_key:
                 logger.warning(
-                    f"No custom-model credential stored for user {user_id} "
+                    f"No custom-model credential available for user {user_id} "
                     f"and model {model.id}"
                 )
                 return None
@@ -229,9 +295,7 @@ class UserAwareAIService:
                 output_cost_per_million=model.output_cost_per_million,
                 supports_seed=supports_seed,
             )
-            service._key_resolution_route = (
-                "custom_model_user_credential" if api_key else "custom_model_no_auth"
-            )
+            service._key_resolution_route = key_route
             service._provider_name = "custom"
             service._invocation_user_id = user_id
             service._invocation_organization_id = organization_id

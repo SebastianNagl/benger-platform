@@ -187,13 +187,22 @@ class TestLeaderboardRankingOrderDB:
     """
 
     def test_higher_score_ranks_first_and_ties_break_by_model_id(
-        self, db_conn, make_project, make_user, make_task, make_generation
+        self, db_conn, make_project, make_user, make_task, make_generation,
+        make_llm_model,
     ):
         from aggregate_summaries import (
             read_llm_leaderboard,
             recompute_llm_leaderboard_scores,
         )
         from models import LLMLeaderboardScore
+
+        # read_llm_leaderboard applies the BYOM visibility gate: a model
+        # surfaces only if it exists in llm_models as is_official OR is_public.
+        # These synthetic models are never in the seeded catalog, so register
+        # them as official rows first, otherwise the pivoted read filters them
+        # all out and returns an empty leaderboard.
+        for _mid in ("zeta", "alpha", "beta"):
+            make_llm_model(model_id=_mid)
 
         # Three models on 'accuracy': zeta=0.9, alpha=0.5, beta=0.5.
         # Expected order: zeta (0.9) first, then the 0.5 tie broken by

@@ -230,6 +230,128 @@ class TestCreateCustomModel:
         assert "chat/completions" in response.json()["detail"]
 
 
+class TestParameterConstraintsValidation:
+    """The CustomModelCreate/Update validator rejects malformed
+    parameter_constraints shapes with a 422 instead of silently storing a
+    config the readers will ignore. Well-formed and absent are accepted."""
+
+    _MALFORMED = [
+        {"temperature": "high"},              # temperature must be an object
+        {"temperature": {"min": "warm"}},     # min must be numeric
+        {"temperature": {"supported": "yes"}},  # supported must be a bool
+        {"max_tokens": {"max": "big"}},       # max must be numeric
+        {"max_tokens": "8000"},               # max_tokens must be an object
+        {"seed": True},                       # seed must be an object
+    ]
+
+    _WELL_FORMED = {
+        "temperature": {"supported": False, "required_value": 1},
+        "max_tokens": {"max": 8000, "default": 2000},
+        "seed": {"supported": True},
+        # Unknown key allowed (forward-compat).
+        "some_future_key": {"whatever": 1},
+    }
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("bad", _MALFORMED)
+    async def test_create_rejects_malformed_constraints(
+        self, async_test_client, async_test_db, bad
+    ):
+        user = _make_user()
+        async_test_db.add(user)
+        await async_test_db.commit()
+
+        with _as_user(user):
+            response = await async_test_client.post(
+                "/api/custom-models/",
+                json={
+                    "name": "Bad Constraints",
+                    "base_url": "http://10.10.3.7:8000/v1",
+                    "endpoint_model_name": "llama-3-8b",
+                    "parameter_constraints": bad,
+                },
+            )
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+
+    @pytest.mark.asyncio
+    async def test_create_accepts_well_formed_constraints(
+        self, async_test_client, async_test_db
+    ):
+        user = _make_user()
+        async_test_db.add(user)
+        await async_test_db.commit()
+
+        with _as_user(user):
+            response = await async_test_client.post(
+                "/api/custom-models/",
+                json={
+                    "name": "Good Constraints",
+                    "base_url": "http://10.10.3.7:8000/v1",
+                    "endpoint_model_name": "llama-3-8b",
+                    "parameter_constraints": self._WELL_FORMED,
+                },
+            )
+        assert response.status_code == status.HTTP_201_CREATED
+        assert response.json()["parameter_constraints"] == self._WELL_FORMED
+
+    @pytest.mark.asyncio
+    async def test_create_accepts_absent_constraints(
+        self, async_test_client, async_test_db
+    ):
+        user = _make_user()
+        async_test_db.add(user)
+        await async_test_db.commit()
+
+        with _as_user(user):
+            response = await async_test_client.post(
+                "/api/custom-models/",
+                json={
+                    "name": "No Constraints",
+                    "base_url": "http://10.10.3.7:8000/v1",
+                    "endpoint_model_name": "llama-3-8b",
+                },
+            )
+        assert response.status_code == status.HTTP_201_CREATED
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("bad", _MALFORMED)
+    async def test_update_rejects_malformed_constraints(
+        self, async_test_client, async_test_db, bad
+    ):
+        user = _make_user()
+        model = _make_custom_model(user.id)
+        async_test_db.add(user)
+        await async_test_db.flush()
+        async_test_db.add(model)
+        await async_test_db.commit()
+
+        with _as_user(user):
+            response = await async_test_client.patch(
+                f"/api/custom-models/{model.id}",
+                json={"parameter_constraints": bad},
+            )
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+
+    @pytest.mark.asyncio
+    async def test_update_accepts_well_formed_constraints(
+        self, async_test_client, async_test_db
+    ):
+        user = _make_user()
+        model = _make_custom_model(user.id)
+        async_test_db.add(user)
+        await async_test_db.flush()
+        async_test_db.add(model)
+        await async_test_db.commit()
+
+        with _as_user(user):
+            response = await async_test_client.patch(
+                f"/api/custom-models/{model.id}",
+                json={"parameter_constraints": {"max_tokens": {"max": 16000}}},
+            )
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()["parameter_constraints"] == {"max_tokens": {"max": 16000}}
+
+
 class TestOrgSharedAccess:
     @pytest.mark.asyncio
     async def test_org_member_can_read_but_not_modify(

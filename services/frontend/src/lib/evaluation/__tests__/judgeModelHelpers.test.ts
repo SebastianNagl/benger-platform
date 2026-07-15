@@ -294,6 +294,34 @@ describe('useJudgeModelHelpers', () => {
       // anthropic provider range is 0..1
       expect(c.temperature).toEqual({ min: 0, max: 1 })
     })
+
+    it('caps maxTokens at the model-declared max when present', () => {
+      const { current } = setup([
+        baseModel({
+          id: 'bigctx',
+          provider: 'custom',
+          parameter_constraints: {
+            max_tokens: { max: 65536 },
+          },
+        }),
+      ])
+      const c = current.getModelConstraints('bigctx')
+      expect(c.maxTokens).toEqual({ min: 100, max: 65536 })
+    })
+
+    it('falls back to the generic 16000 cap when no max is declared', () => {
+      const { current } = setup([
+        baseModel({
+          id: 'nomax',
+          provider: 'custom',
+          parameter_constraints: {
+            max_tokens: { default: 4096 },
+          },
+        }),
+      ])
+      const c = current.getModelConstraints('nomax')
+      expect(c.maxTokens).toEqual({ min: 100, max: 16000 })
+    })
   })
 
   describe('getTemperatureValidation', () => {
