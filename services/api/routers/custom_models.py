@@ -16,7 +16,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -77,6 +77,60 @@ async def _enforce_test_rate_limit(request: Request, current_user) -> None:
 # ============= Schemas =============
 
 
+def _validate_parameter_constraints(value: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    """Lenient-but-firm shape check for a custom model's parameter_constraints.
+
+    Custom (BYOM) rows store owner-supplied JSON verbatim, and the downstream
+    readers are hardened to ignore malformed shapes. Silently ignoring a typo
+    hides a constraint that never takes effect, so reject the common malformed
+    shapes at create/update time — FastAPI turns the ``ValueError`` into a 422.
+
+    Only the shapes the readers actually consume are checked; unknown top-level
+    keys are allowed (forward-compat).
+    """
+    if value is None:
+        return value
+    if not isinstance(value, dict):
+        raise ValueError("parameter_constraints must be an object")
+
+    def _is_number(x: Any) -> bool:
+        # bool is an int subclass; a JSON boolean is not a numeric bound.
+        return isinstance(x, (int, float)) and not isinstance(x, bool)
+
+    temperature = value.get("temperature")
+    if temperature is not None:
+        if not isinstance(temperature, dict):
+            raise ValueError("parameter_constraints.temperature must be an object")
+        if "supported" in temperature and not isinstance(temperature["supported"], bool):
+            raise ValueError(
+                "parameter_constraints.temperature.supported must be a boolean"
+            )
+        for key in ("required_value", "min", "max"):
+            if key in temperature and not _is_number(temperature[key]):
+                raise ValueError(
+                    f"parameter_constraints.temperature.{key} must be a number"
+                )
+
+    max_tokens = value.get("max_tokens")
+    if max_tokens is not None:
+        if not isinstance(max_tokens, dict):
+            raise ValueError("parameter_constraints.max_tokens must be an object")
+        for key in ("max", "default"):
+            if key in max_tokens and not _is_number(max_tokens[key]):
+                raise ValueError(
+                    f"parameter_constraints.max_tokens.{key} must be a number"
+                )
+
+    seed = value.get("seed")
+    if seed is not None:
+        if not isinstance(seed, dict):
+            raise ValueError("parameter_constraints.seed must be an object")
+        if "supported" in seed and not isinstance(seed["supported"], bool):
+            raise ValueError("parameter_constraints.seed.supported must be a boolean")
+
+    return value
+
+
 class CustomModelCreate(BaseModel):
     model_config = {"protected_namespaces": ()}
 
@@ -93,6 +147,11 @@ class CustomModelCreate(BaseModel):
     default_config: Optional[Dict[str, Any]] = None
     api_key: Optional[str] = None
 
+    @field_validator("parameter_constraints")
+    @classmethod
+    def _check_parameter_constraints(cls, v: Optional[Dict[str, Any]]):
+        return _validate_parameter_constraints(v)
+
 
 class CustomModelUpdate(BaseModel):
     model_config = {"protected_namespaces": ()}
@@ -108,6 +167,11 @@ class CustomModelUpdate(BaseModel):
     parameter_constraints: Optional[Dict[str, Any]] = None
     default_config: Optional[Dict[str, Any]] = None
     base_url: Optional[str] = None
+
+    @field_validator("parameter_constraints")
+    @classmethod
+    def _check_parameter_constraints(cls, v: Optional[Dict[str, Any]]):
+        return _validate_parameter_constraints(v)
 
 
 class ModelVisibilityUpdate(BaseModel):
