@@ -22,6 +22,7 @@ from models import (
     EvaluationRun,
     Generation,
     LLMLeaderboardScore,
+    LLMModel,
     Organization,
     ProjectSummary,
     ResponseGeneration,
@@ -61,6 +62,33 @@ def seeded(test_db: Session):
         email_verified=True,
     )
     test_db.add(user)
+
+    # The shared leaderboard read (read_llm_leaderboard) filters to models
+    # present in llm_models as is_official OR is_public – the BYOM visibility
+    # gate added in the leaderboard-leak fix. The models this fixture
+    # benchmarks must therefore exist as official catalog rows, or the pivoted
+    # read reports zero models. Seed them idempotently so the test does not
+    # depend on ambient catalog seeding (init_complete.py does not seed the
+    # llm_models catalog; only the running API's startup does).
+    for _model_id in ("gpt-4o", "claude-sonnet-4-6"):
+        _model = test_db.get(LLMModel, _model_id)
+        if _model is None:
+            test_db.add(
+                LLMModel(
+                    id=_model_id,
+                    name=_model_id,
+                    provider="OpenAI",
+                    model_type="chat",
+                    capabilities=["text_generation"],
+                    is_official=True,
+                    is_private=False,
+                    is_public=False,
+                )
+            )
+        else:
+            _model.is_official = True
+            _model.is_private = False
+            _model.is_public = False
 
     project = Project(
         id=str(uuid.uuid4()),
