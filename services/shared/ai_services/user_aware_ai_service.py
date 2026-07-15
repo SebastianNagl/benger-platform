@@ -71,6 +71,30 @@ def _user_can_use_custom_model(db: Session, user_id: str, model: Any) -> bool:
         return False
 
 
+def _model_shared_with_org(db: Session, model_id: Any, org_id: Any) -> bool:
+    """True iff the custom model is CURRENTLY shared with the org (a live
+    ModelOrganization link exists). The org shared-credential fallback gates
+    on this so an org is never billed for a model it no longer shares — e.g.
+    after the model was made public, privatized, or re-shared to other orgs,
+    the leftover org credential row must not keep being used. Fails closed."""
+    try:
+        from models import ModelOrganization
+
+        return (
+            db.query(ModelOrganization)
+            .filter(
+                ModelOrganization.model_id == str(model_id),
+                ModelOrganization.organization_id == str(org_id),
+            )
+            .first()
+        ) is not None
+    except Exception as e:
+        logger.error(
+            f"ModelOrganization sharing check failed for {model_id}/{org_id}: {e}"
+        )
+        return False
+
+
 class UserAwareAIService:
     """Service that creates AI service instances with user-specific API keys"""
 
@@ -222,7 +246,11 @@ class UserAwareAIService:
             # same precedence as shared_org_api_key_service.resolve_api_key.
             # The user's own key always wins; the model owner's key is never
             # used implicitly.
-            if not api_key and organization_id:
+            if (
+                not api_key
+                and organization_id
+                and _model_shared_with_org(db, model.id, organization_id)
+            ):
                 try:
                     from custom_model_org_credential_service import (
                         get_org_credential,

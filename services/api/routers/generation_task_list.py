@@ -645,20 +645,11 @@ async def start_generation(
             f"Updated per-model configs for project {project_id}: {list(request.model_configs.keys())}"
         )
 
-    # Save config changes if any
-    if config_updated:
-        from sqlalchemy.orm.attributes import flag_modified
-
-        generation_config["selected_configuration"] = selected_config
-        project.generation_config = generation_config
-        # JSONB mutation guard: SQLAlchemy doesn't detect in-place dict edits,
-        # so without flag_modified the assignment above would not persist
-        # (the parent dict identity didn't change). Without this, the worker
-        # reads stale generation_config and falls back to SYSTEM_DEFAULTS for
-        # every parameter — silently dropping the per-trigger override.
-        flag_modified(project, "generation_config")
-        db.add(project)
-        await db.commit()
+    # NOTE: the generation_config persistence (params + model_configs) is
+    # deliberately deferred until AFTER the model-access and max_tokens
+    # validation below, so a request that is going to be rejected (e.g.
+    # max_tokens over a model's declared ceiling) never commits its values
+    # into the project's stored config.
 
     # Get models to use
     if request.model_ids:
@@ -721,9 +712,12 @@ async def start_generation(
 
     def _as_int_max_tokens(value: Any) -> Optional[int]:
         # bool is an int subclass; a JSON `true` is not a token budget.
-        if isinstance(value, bool) or not isinstance(value, int):
+        # A per-model override can arrive as a JSON float (e.g. 100000.0) — the
+        # worker uses it verbatim, so the check must too (coerce, don't drop it,
+        # or a float over the declared max would slip past this pre-check).
+        if isinstance(value, bool) or not isinstance(value, _numeric):
             return None
-        return value
+        return int(value)
 
     global_max_tokens = (
         request.parameters.max_tokens if request.parameters else None
@@ -773,6 +767,23 @@ async def start_generation(
                         f"{declared_max} allowed by model '{m}'."
                     ),
                 )
+
+    # Persist the config changes now that access + max_tokens validation has
+    # passed (moved down from before model resolution so a rejected request
+    # can't poison the project's stored generation_config).
+    if config_updated:
+        from sqlalchemy.orm.attributes import flag_modified
+
+        generation_config["selected_configuration"] = selected_config
+        project.generation_config = generation_config
+        # JSONB mutation guard: SQLAlchemy doesn't detect in-place dict edits,
+        # so without flag_modified the assignment above would not persist
+        # (the parent dict identity didn't change). Without this, the worker
+        # reads stale generation_config and falls back to SYSTEM_DEFAULTS for
+        # every parameter — silently dropping the per-trigger override.
+        flag_modified(project, "generation_config")
+        db.add(project)
+        await db.commit()
 
     # Validate single mode requires exactly one task and one model
     if request.mode == "single":

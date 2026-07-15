@@ -24,6 +24,7 @@ from auth_module import User, require_user
 from database import get_async_db
 from models import (
     CustomModelCredential,
+    CustomModelOrgCredential,
     LLMModel,
     ModelOrganization,
     Organization,
@@ -557,6 +558,14 @@ async def update_custom_model_visibility(
                 ModelOrganization.model_id == model.id
             )
         )
+        # Every org is unshared -> drop all org shared-credential rows so they
+        # can't keep being billed/used and don't become un-manageable orphans
+        # (the credential endpoints gate on the model still being shared).
+        await db.execute(
+            CustomModelOrgCredential.__table__.delete().where(
+                CustomModelOrgCredential.model_id == model.id
+            )
+        )
         model.is_private = False
         model.is_public = True
 
@@ -564,6 +573,11 @@ async def update_custom_model_visibility(
         await db.execute(
             ModelOrganization.__table__.delete().where(
                 ModelOrganization.model_id == model.id
+            )
+        )
+        await db.execute(
+            CustomModelOrgCredential.__table__.delete().where(
+                CustomModelOrgCredential.model_id == model.id
             )
         )
         model.is_private = True
@@ -589,6 +603,16 @@ async def update_custom_model_visibility(
         await db.execute(
             ModelOrganization.__table__.delete().where(
                 ModelOrganization.model_id == model.id
+            )
+        )
+        # Drop org shared-credential rows for orgs that are NO LONGER in the
+        # share set (kept for orgs still shared, so their admins don't have to
+        # re-enter the key). Orphaned rows would otherwise be un-manageable and
+        # still usable via the org-billing fallback.
+        await db.execute(
+            CustomModelOrgCredential.__table__.delete().where(
+                CustomModelOrgCredential.model_id == model.id,
+                CustomModelOrgCredential.organization_id.notin_(organization_ids),
             )
         )
         for org_id in organization_ids:

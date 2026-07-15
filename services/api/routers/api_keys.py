@@ -308,7 +308,27 @@ async def get_available_models_for_user(
         # Org shared-credential annotation (org-pays mode only).
         org_credential_ids: set = set()
         org_shared_billing = False
+        # X-Organization-Context is caller-supplied and unvalidated here, so
+        # only honor it for the org annotation when the caller is an ACTIVE
+        # member of that org — otherwise a non-member could probe another
+        # org's shared-credential provisioning for public custom models.
+        caller_is_org_member = False
         if org_id:
+            from models import OrganizationMembership
+
+            caller_is_org_member = (
+                (
+                    await db.execute(
+                        select(OrganizationMembership.id).where(
+                            OrganizationMembership.user_id == current_user.id,
+                            OrganizationMembership.organization_id == org_id,
+                            OrganizationMembership.is_active.is_(True),
+                        )
+                    )
+                ).first()
+                is not None
+            )
+        if org_id and caller_is_org_member:
             from services.org_api_key_service import org_api_key_service
 
             require_private = (
