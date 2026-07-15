@@ -364,3 +364,112 @@ class TestOrgCredentialAuthz:
                 json={"api_key": "sk-nope"},
             )
         assert resp.status_code == status.HTTP_404_NOT_FOUND
+
+
+class TestVisibilityChangeDropsOrgCredentials:
+    """A visibility PATCH that unshares a custom model from an org must delete
+    that org's leftover shared-credential row — otherwise it stays billable /
+    usable via the org-billing fallback and becomes an un-manageable orphan
+    (the credential endpoints gate on the model still being shared).
+
+    The visibility endpoint requires model-EDIT access, so the caller acts as
+    the model creator (owner).
+    """
+
+    async def _seed_owned(self, async_test_db, org_ids):
+        """Owner + a private custom model they created, shared with each org in
+        ``org_ids``, each org carrying a shared-credential row. Returns
+        (owner, model, {org_id: Organization})."""
+        owner = _make_user()
+        orgs = {oid: _make_org() for oid in org_ids}
+        async_test_db.add(owner)
+        async_test_db.add_all(list(orgs.values()))
+        await async_test_db.flush()
+        model = _make_custom_model(owner.id)
+        async_test_db.add(model)
+        await async_test_db.flush()
+        for org in orgs.values():
+            async_test_db.add_all(
+                [
+                    _share(model.id, org.id),
+                    CustomModelOrgCredential(
+                        id=_uid(),
+                        organization_id=org.id,
+                        model_id=model.id,
+                        encrypted_api_key=f"ct-{org.id}",
+                    ),
+                ]
+            )
+        await async_test_db.commit()
+        return owner, model, orgs
+
+    async def _remaining_cred_org_ids(self, async_test_db, model_id) -> set:
+        # Select the column directly (not ORM rows) so there is no lazy
+        # attribute access — a fresh SELECT reflects the handler's committed
+        # deletes without needing expire_all (which would expire the seeded
+        # owner object and break the sync _as_user() read that follows).
+        rows = (
+            await async_test_db.execute(
+                select(CustomModelOrgCredential.organization_id).where(
+                    CustomModelOrgCredential.model_id == model_id
+                )
+            )
+        ).all()
+        return {r[0] for r in rows}
+
+    @pytest.mark.asyncio
+    async def test_make_public_deletes_org_shared_credential(
+        self, async_test_client, async_test_db
+    ):
+        owner, model, orgs = await self._seed_owned(async_test_db, ["A"])
+        org = orgs["A"]
+        # Precondition: the shared credential row exists.
+        assert await self._remaining_cred_org_ids(async_test_db, model.id) == {org.id}
+
+        with _as_user(owner):
+            resp = await async_test_client.patch(
+                f"/api/custom-models/{model.id}/visibility",
+                json={"is_public": True},
+            )
+        assert resp.status_code == status.HTTP_200_OK
+
+        # Model unshared from every org → its org credential row is gone.
+        assert await self._remaining_cred_org_ids(async_test_db, model.id) == set()
+
+    @pytest.mark.asyncio
+    async def test_make_private_deletes_org_shared_credential(
+        self, async_test_client, async_test_db
+    ):
+        owner, model, orgs = await self._seed_owned(async_test_db, ["A"])
+
+        with _as_user(owner):
+            resp = await async_test_client.patch(
+                f"/api/custom-models/{model.id}/visibility",
+                json={"is_private": True},
+            )
+        assert resp.status_code == status.HTTP_200_OK
+        assert await self._remaining_cred_org_ids(async_test_db, model.id) == set()
+
+    @pytest.mark.asyncio
+    async def test_reshare_drops_only_removed_org_credentials(
+        self, async_test_client, async_test_db
+    ):
+        owner, model, orgs = await self._seed_owned(async_test_db, ["A", "B"])
+        org_a, org_b = orgs["A"], orgs["B"]
+        assert await self._remaining_cred_org_ids(async_test_db, model.id) == {
+            org_a.id,
+            org_b.id,
+        }
+
+        # Re-share to ONLY org B → org A's leftover credential is dropped, org
+        # B's is kept (its admin shouldn't have to re-enter the key).
+        with _as_user(owner):
+            resp = await async_test_client.patch(
+                f"/api/custom-models/{model.id}/visibility",
+                json={"is_private": False, "organization_ids": [org_b.id]},
+            )
+        assert resp.status_code == status.HTTP_200_OK
+
+        remaining = await self._remaining_cred_org_ids(async_test_db, model.id)
+        assert org_a.id not in remaining
+        assert remaining == {org_b.id}

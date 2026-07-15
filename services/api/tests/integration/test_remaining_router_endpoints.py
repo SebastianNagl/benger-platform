@@ -19,6 +19,7 @@ from typing import Dict
 from unittest.mock import patch, MagicMock
 
 import pytest
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from models import (
@@ -763,6 +764,120 @@ class TestGenerationTaskListEndpoints:
             )
         assert resp.status_code == 200, resp.text
         assert resp.json()["tasks_queued"] == 2
+
+    async def test_start_generation_over_limit_does_not_poison_config(
+        self, async_test_client, async_test_db
+    ):
+        """A request rejected by the model-aware max_tokens ceiling must NOT
+        persist its (rejected) value into the project's generation_config.
+
+        The config persistence was moved BELOW the validation so a 400 can't
+        poison the stored config (config-poisoning fix). Here the project
+        starts with a baseline max_tokens; after the 400 the persisted config
+        must still show the baseline, not the rejected value.
+        """
+        admin = await _gen_make_user(async_test_db)
+        baseline_config = {
+            "selected_configuration": {
+                "models": [],
+                "parameters": {"temperature": 0.0, "max_tokens": 4000, "seed": 42},
+                "active_structures": [],
+            }
+        }
+        project, _ = await _gen_make_project(
+            async_test_db, admin, generation_config=baseline_config, num_tasks=2
+        )
+        model = await _gen_make_custom_model(
+            async_test_db, admin, parameter_constraints={"max_tokens": {"max": 8000}}
+        )
+        project_id, model_id = project.id, model.id
+        await async_test_db.commit()
+        with _gen_user_ctx(admin), patch(
+            "routers.generation_task_list.celery_app"
+        ) as mock_celery:
+            mock_celery.send_task.return_value = MagicMock(id="celery-task-id")
+            mock_celery.control.revoke = MagicMock()
+            resp = await async_test_client.post(
+                f"/api/generation-tasks/projects/{project_id}/generate",
+                json={
+                    "mode": "all",
+                    "model_ids": [model_id],
+                    "parameters": {"max_tokens": 50000},
+                },
+            )
+        assert resp.status_code == 400, resp.text
+
+        # Re-read the persisted config straight from the DB row — the rejected
+        # 50000 must never have been committed.
+        async_test_db.expire_all()
+        refreshed = (
+            await async_test_db.execute(select(Project).where(Project.id == project_id))
+        ).scalar_one()
+        params = refreshed.generation_config["selected_configuration"]["parameters"]
+        assert params["max_tokens"] == 4000
+
+    async def test_start_generation_rejects_float_max_tokens_over_declared_max(
+        self, async_test_client, async_test_db
+    ):
+        """A per-model JSON-float max_tokens over the declared max is rejected
+        by the pre-check (previously floats were dropped and slipped past)."""
+        admin = await _gen_make_user(async_test_db)
+        project, _ = await _gen_make_project(async_test_db, admin, num_tasks=2)
+        model = await _gen_make_custom_model(
+            async_test_db, admin, parameter_constraints={"max_tokens": {"max": 8000}}
+        )
+        project_id, model_id = project.id, model.id
+        await async_test_db.commit()
+        with _gen_user_ctx(admin), patch(
+            "routers.generation_task_list.celery_app"
+        ) as mock_celery:
+            mock_celery.send_task.return_value = MagicMock(id="celery-task-id")
+            mock_celery.control.revoke = MagicMock()
+            resp = await async_test_client.post(
+                f"/api/generation-tasks/projects/{project_id}/generate",
+                json={
+                    "mode": "all",
+                    "model_ids": [model_id],
+                    "model_configs": {model_id: {"max_tokens": 100000.0}},
+                },
+            )
+        assert resp.status_code == 400, resp.text
+        detail = resp.json()["detail"]
+        assert "100000" in detail and "8000" in detail and model_id in detail
+
+    async def test_start_generation_valid_request_persists_config(
+        self, async_test_client, async_test_db
+    ):
+        """A valid (within-ceiling) request still persists the config after
+        the persistence was moved below validation."""
+        admin = await _gen_make_user(async_test_db)
+        project, _ = await _gen_make_project(async_test_db, admin, num_tasks=2)
+        model = await _gen_make_custom_model(
+            async_test_db, admin, parameter_constraints={"max_tokens": {"max": 8000}}
+        )
+        project_id, model_id = project.id, model.id
+        await async_test_db.commit()
+        with _gen_user_ctx(admin), patch(
+            "routers.generation_task_list.celery_app"
+        ) as mock_celery:
+            mock_celery.send_task.return_value = MagicMock(id="celery-task-id")
+            mock_celery.control.revoke = MagicMock()
+            resp = await async_test_client.post(
+                f"/api/generation-tasks/projects/{project_id}/generate",
+                json={
+                    "mode": "all",
+                    "model_ids": [model_id],
+                    "parameters": {"max_tokens": 8000},
+                },
+            )
+        assert resp.status_code == 200, resp.text
+
+        async_test_db.expire_all()
+        refreshed = (
+            await async_test_db.execute(select(Project).where(Project.id == project_id))
+        ).scalar_one()
+        params = refreshed.generation_config["selected_configuration"]["parameters"]
+        assert params["max_tokens"] == 8000
 
 
 # ===================================================================

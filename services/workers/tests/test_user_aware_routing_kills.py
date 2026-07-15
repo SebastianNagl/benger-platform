@@ -742,3 +742,45 @@ class TestOrgCredentialPrecedence:
         )
         assert service is None
         assert patched_org_seams["org_calls"] == []
+
+    # ---- sharing gate: the org key is only usable while the model is
+    # CURRENTLY shared with that org (a live ModelOrganization link exists).
+    # After the link is dropped (model made public/private, or re-shared to
+    # other orgs), a leftover org credential must NOT keep being used.
+
+    def test_org_pays_unshared_model_does_not_use_org_key(
+        self, svc, monkeypatch, access_granted, patched_org_seams
+    ):
+        # org-pays mode, org HAS a shared key, user has NO key — but the model
+        # is NOT currently shared with the org.
+        monkeypatch.setattr(cmcs_mod, "get_credential", lambda db, u, m: None)
+        monkeypatch.setattr(uaas_mod, "_model_shared_with_org", lambda db, mid, oid: False)
+        patched_org_seams["require_private"] = False
+        patched_org_seams["org_key"] = ORG_CRED  # present, but not shared → unusable
+
+        service = svc.get_ai_service_for_model_row(
+            MagicMock(), "user-9", _custom_row(), organization_id="org-1"
+        )
+        # requires_api_key row with no usable key → None. The org key was never
+        # even consulted (the sharing gate short-circuits before the lookup).
+        assert service is None
+        assert patched_org_seams["org_calls"] == []
+
+    def test_org_pays_shared_model_uses_org_key(
+        self, svc, monkeypatch, access_granted, patched_org_seams
+    ):
+        # Contrast: identical setup but the model IS currently shared → the org
+        # key is used and the route is stamped custom_model_org_credential.
+        monkeypatch.setattr(cmcs_mod, "get_credential", lambda db, u, m: None)
+        monkeypatch.setattr(uaas_mod, "_model_shared_with_org", lambda db, mid, oid: True)
+        patched_org_seams["require_private"] = False
+        patched_org_seams["org_key"] = ORG_CRED
+
+        row = _custom_row()
+        service = svc.get_ai_service_for_model_row(
+            MagicMock(), "user-9", row, organization_id="org-1"
+        )
+        assert isinstance(service, OpenAICompatibleService)
+        assert service.api_key == ORG_CRED
+        assert service._key_resolution_route == "custom_model_org_credential"
+        assert patched_org_seams["org_calls"] == [("org-1", row.id)]

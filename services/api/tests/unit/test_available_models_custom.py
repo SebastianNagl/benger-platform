@@ -405,3 +405,85 @@ class TestAvailableModelsCustomPass:
         assert by_id[with_key.id]["is_official"] is True
         # Provider-key filtering is unchanged for officials.
         assert without_key.id not in by_id
+
+
+class TestAvailableModelsNonMemberOrgSuppressed:
+    """X-Organization-Context is caller-supplied and unvalidated, so the org
+    shared-credential annotation is honored ONLY for ACTIVE members of that
+    org. A non-member passing another org's id must not learn whether that org
+    has provisioned a shared credential for a PUBLIC custom model."""
+
+    async def _seed_public_model_with_org_cred(self, async_test_db):
+        """Owner + a PUBLIC custom model + org A (shared-billing) that has a
+        shared credential for the model. Returns (org_a, model)."""
+        owner = _make_user()
+        org_a = _make_org(require_private_keys=False)  # org-pays mode
+        async_test_db.add_all([owner, org_a])
+        await async_test_db.flush()
+        model = _make_custom_model(
+            owner.id, requires_api_key=True, is_public=True, is_private=False
+        )
+        async_test_db.add(model)
+        await async_test_db.flush()
+        async_test_db.add(
+            CustomModelOrgCredential(
+                id=_uid(),
+                organization_id=org_a.id,
+                model_id=model.id,
+                encrypted_api_key="ciphertext",
+            )
+        )
+        await async_test_db.commit()
+        return org_a, model
+
+    @pytest.mark.asyncio
+    async def test_non_member_org_context_is_suppressed(
+        self, async_test_client, async_test_db
+    ):
+        org_a, model = await self._seed_public_model_with_org_cred(async_test_db)
+        outsider = _make_user()  # NOT a member of org A
+        async_test_db.add(outsider)
+        await async_test_db.commit()
+
+        with _as_user(outsider), _org_providers([]):
+            resp = await async_test_client.get(
+                "/api/users/api-keys/available-models",
+                headers={"X-Organization-Context": org_a.id},
+            )
+        assert resp.status_code == status.HTTP_200_OK
+        entry = {m["id"]: m for m in resp.json()}[model.id]
+        # Org annotation suppressed for the non-member: source not "org",
+        # has_credential reflects only the (absent) user key.
+        assert entry["credential_source"] != "org"
+        assert entry["credential_source"] is None
+        assert entry["has_credential"] is False
+
+    @pytest.mark.asyncio
+    async def test_active_member_org_context_is_honored(
+        self, async_test_client, async_test_db
+    ):
+        # Contrast: an ACTIVE member of the SAME org, same public model + org
+        # credential → the org annotation IS applied.
+        org_a, model = await self._seed_public_model_with_org_cred(async_test_db)
+        member = _make_user()
+        async_test_db.add(member)
+        await async_test_db.flush()
+        async_test_db.add(
+            OrganizationMembership(
+                id=_uid(),
+                user_id=member.id,
+                organization_id=org_a.id,
+                role=OrganizationRole.CONTRIBUTOR,
+                is_active=True,
+            )
+        )
+        await async_test_db.commit()
+
+        with _as_user(member), _org_providers([]):
+            resp = await async_test_client.get(
+                "/api/users/api-keys/available-models",
+                headers={"X-Organization-Context": org_a.id},
+            )
+        entry = {m["id"]: m for m in resp.json()}[model.id]
+        assert entry["credential_source"] == "org"
+        assert entry["has_credential"] is True
