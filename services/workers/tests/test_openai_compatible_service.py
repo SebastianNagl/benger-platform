@@ -11,8 +11,9 @@ security weight beyond the usual provider services:
   (keyless local endpoints are a supported first-class case);
 - cost comes from the row's per-million rates — the YAML cost cache never
   sees custom rows, so any regression here silently prices runs at 0;
-- the base_url is re-validated (url_guard) at CALL time and redirects are
-  refused — both are load-bearing halves of the SSRF story;
+- the base_url is re-resolved+validated (url_guard) at CALL time, the aiohttp
+  connection is PINNED to the validated IPs (DNS-rebinding immunity), and
+  redirects are refused — all load-bearing halves of the SSRF story;
 - ``response_metadata`` must never contain the base_url (project exports
   embed it verbatim; shared results must not leak endpoint details).
 
@@ -44,6 +45,22 @@ BASE_URL = "https://models.example.org/v1"
 REMOTE_MODEL = "meta-llama/Llama-3.3-70B-Instruct"
 PK = "custom-3f2b6a9e-0000-4111-8222-333344445555"
 KEY = "ck-credential-000-DEADBEEF"
+PINNED_IP = "203.0.113.7"
+
+
+class _FakePinnedConnector:
+    """Stand-in for url_guard.pinned_connector's return value; records the
+    validated IPs it was handed so tests can assert the session was pinned."""
+
+    last_ips = None
+
+    def __init__(self, ips):
+        self.ips = ips
+        _FakePinnedConnector.last_ips = ips
+
+
+def _fake_pinned_connector(ips):
+    return _FakePinnedConnector(ips)
 
 
 def _openai_response(content="Hallo!", prompt_tokens=100, completion_tokens=50,
@@ -80,13 +97,15 @@ class _FakeResponse:
 
 
 class _FakeSession:
-    """Records post() kwargs on the class; returns the canned response."""
+    """Records post() kwargs (and the connector) on the class; returns the
+    canned response."""
 
     last_call = None
+    last_connector = None
     response = None
 
     def __init__(self, *args, **kwargs):
-        pass
+        _FakeSession.last_connector = kwargs.get("connector")
 
     async def __aenter__(self):
         return self
@@ -111,13 +130,20 @@ def fake_http(monkeypatch):
     fake_aiohttp.ClientTimeout = lambda total=None: total
     monkeypatch.setattr(ocs_mod, "aiohttp", fake_aiohttp)
 
-    # Call-time SSRF guard: no-op by default; individual tests override.
+    # Call-time SSRF resolve+validate: no-op by default returning one pinned IP;
+    # pinned_connector is faked so the session's connector is inspectable and no
+    # real aiohttp connector is built. Individual tests override.
     import url_guard
 
-    monkeypatch.setattr(url_guard, "validate_custom_model_url", lambda u, **k: u)
+    monkeypatch.setattr(
+        url_guard, "resolve_and_validate", lambda u, **k: (u, [PINNED_IP])
+    )
+    monkeypatch.setattr(url_guard, "pinned_connector", _fake_pinned_connector)
 
     monkeypatch.delenv("E2E_TEST_MODE", raising=False)
     _FakeSession.last_call = None
+    _FakeSession.last_connector = None
+    _FakePinnedConnector.last_ips = None
     _FakeSession.response = _FakeResponse(200, _openai_response())
     return _FakeSession
 
@@ -228,11 +254,45 @@ class TestFailureModes:
         def _reject(url, **kwargs):
             raise ValueError("resolves to a private address")
 
-        monkeypatch.setattr(url_guard, "validate_custom_model_url", _reject)
+        monkeypatch.setattr(url_guard, "resolve_and_validate", _reject)
         result = _service().generate("q", "s", model_name=PK)
         assert result["success"] is False
         assert "private address" in result["error"]
         assert fake_http.last_call is None  # no HTTP attempt was made
+
+
+class TestSSRFPinning:
+    """The outbound connection is pinned to the IPs resolve_and_validate
+    approved — a hostile TTL-0 rebind can't retarget it to an internal host."""
+
+    def test_session_connector_is_pinned_to_validated_ips(self, fake_http):
+        _service().generate("q", "s", model_name=PK)
+        # The connector handed to ClientSession is the pinned one, built from
+        # exactly the IPs resolve_and_validate returned.
+        assert isinstance(fake_http.last_connector, _FakePinnedConnector)
+        assert _FakePinnedConnector.last_ips == [PINNED_IP]
+
+    def test_url_keeps_hostname_never_the_pinned_ip(self, fake_http):
+        # TLS/SNI correctness: the request URL still targets the hostname, so
+        # SNI + cert verification use the hostname; only the connector routes
+        # the socket to the pinned IP.
+        _service().generate("q", "s", model_name=PK)
+        assert fake_http.last_call["url"] == f"{BASE_URL}/chat/completions"
+        assert PINNED_IP not in fake_http.last_call["url"]
+
+    def test_allow_private_forwards_empty_ips_no_pinning(self, fake_http, monkeypatch):
+        # Self-hoster bypass: resolve_and_validate returns [] and the service
+        # forwards it (pinned_connector([]) is a default connector upstream).
+        import url_guard
+
+        monkeypatch.setattr(url_guard, "resolve_and_validate", lambda u, **k: (u, []))
+        result = _service().generate("q", "s", model_name=PK)
+        assert result["success"] is True
+        assert _FakePinnedConnector.last_ips == []
+
+    def test_redirects_still_disabled_with_pinning(self, fake_http):
+        _service().generate("q", "s", model_name=PK)
+        assert fake_http.last_call["allow_redirects"] is False
 
 
 class TestStructuredOutput:
