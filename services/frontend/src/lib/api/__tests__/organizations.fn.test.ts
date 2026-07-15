@@ -65,6 +65,35 @@ jest.mock('../base', () => ({
         return { message: 'Settings updated', require_private_keys: data.require_private_keys }
       }
 
+      // List org shared custom models
+      if (endpoint.match(/\/organizations\/[\w-]+\/custom-models$/) && method === 'GET') {
+        return [{ id: 'custom-1', name: 'Shared vLLM', has_org_credential: false }]
+      }
+
+      // Get org custom-model shared-credential status
+      if (
+        endpoint.match(/\/organizations\/[\w-]+\/custom-models\/[\w-]+\/credential$/) &&
+        method === 'GET'
+      ) {
+        return { has_credential: true, updated_at: '2026-07-15T00:00:00Z' }
+      }
+
+      // Set org custom-model shared credential
+      if (
+        endpoint.match(/\/organizations\/[\w-]+\/custom-models\/[\w-]+\/credential$/) &&
+        method === 'PUT'
+      ) {
+        return { has_credential: true }
+      }
+
+      // Remove org custom-model shared credential
+      if (
+        endpoint.match(/\/organizations\/[\w-]+\/custom-models\/[\w-]+\/credential$/) &&
+        method === 'DELETE'
+      ) {
+        return { has_credential: false }
+      }
+
       throw new Error(`Unmocked request: ${method} ${endpoint}`)
     }
 
@@ -186,6 +215,45 @@ describe('OrganizationsClient - API Key methods', () => {
       expect(putSpy).toHaveBeenCalledWith(
         '/organizations/org-1/api-keys/settings',
         { require_private_keys: true }
+      )
+    })
+  })
+
+  describe('org shared custom-model credential methods', () => {
+    it('listOrgCustomModels returns the shared custom models and calls the right endpoint', async () => {
+      const getSpy = jest.spyOn(client as any, 'get')
+      const result = await client.listOrgCustomModels('org-1')
+      expect(result).toEqual([
+        { id: 'custom-1', name: 'Shared vLLM', has_org_credential: false },
+      ])
+      expect(getSpy).toHaveBeenCalledWith('/organizations/org-1/custom-models')
+    })
+
+    it('getOrgCustomModelCredential returns status and calls the right endpoint', async () => {
+      const getSpy = jest.spyOn(client as any, 'get')
+      const result = await client.getOrgCustomModelCredential('org-1', 'custom-1')
+      expect(result.has_credential).toBe(true)
+      expect(getSpy).toHaveBeenCalledWith(
+        '/organizations/org-1/custom-models/custom-1/credential'
+      )
+    })
+
+    it('setOrgCustomModelCredential PUTs the key to the right endpoint', async () => {
+      const putSpy = jest.spyOn(client as any, 'put')
+      const result = await client.setOrgCustomModelCredential('org-1', 'custom-1', 'sk-shared')
+      expect(result.has_credential).toBe(true)
+      expect(putSpy).toHaveBeenCalledWith(
+        '/organizations/org-1/custom-models/custom-1/credential',
+        { api_key: 'sk-shared' }
+      )
+    })
+
+    it('removeOrgCustomModelCredential DELETEs the right endpoint', async () => {
+      const deleteSpy = jest.spyOn(client as any, 'delete')
+      const result = await client.removeOrgCustomModelCredential('org-1', 'custom-1')
+      expect(result.has_credential).toBe(false)
+      expect(deleteSpy).toHaveBeenCalledWith(
+        '/organizations/org-1/custom-models/custom-1/credential'
       )
     })
   })
