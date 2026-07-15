@@ -88,6 +88,27 @@ def _create_tables():
                     "REFERENCES users(id) ON DELETE SET NULL"
                 )
             )
+            # Migration 049: the per-grader unique cell index. The TaskEvaluation
+            # model declares NO __table_args__ for it (it lives only in alembic),
+            # so create_all() never builds it — a fresh test DB has no index at
+            # all, and whether one appears depends on ambient migration-test
+            # state, which made test_student_sharing's two-grader seed
+            # (AI created_by=NULL + human created_by=grader on one cell) flake on
+            # a uq_task_evaluations_cell dup-key. Force the correct per-grader
+            # shape (created_by in the key) so the two rows are always distinct,
+            # matching what the workers integration conftest already does.
+            conn.execute(
+                text(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS uq_task_evaluations_cell "
+                    "ON task_evaluations ("
+                    "evaluation_id, judge_run_id, "
+                    "COALESCE(generation_id, '00000000-0000-0000-0000-000000000000'), "
+                    "COALESCE(annotation_id, '00000000-0000-0000-0000-000000000000'), "
+                    "field_name, "
+                    "COALESCE(created_by, '00000000-0000-0000-0000-000000000000')) "
+                    "WHERE evaluation_id IS NOT NULL"
+                )
+            )
             # Migration 045: research-data consent timestamp on users. Same
             # `create_all`-skips-existing-tables drift as the line above.
             conn.execute(

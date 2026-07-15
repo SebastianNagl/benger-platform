@@ -2,12 +2,22 @@
 branch = True
 source = .
 parallel = True
+# `greenlet` is REQUIRED for the async lane: SQLAlchemy's asyncpg engine runs
+# each `await db.execute(...)` continuation inside a greenlet (`greenlet_spawn`),
+# so without greenlet-tracing every `async def` endpoint body after its first
+# `await` reads as uncovered — the whole handler collapses to its signature +
+# first query. This understated the async router surface massively (e.g.
+# projects/tasks/metadata_ops.py measured 15% while its endpoints are fully
+# exercised; with greenlet it's 100%). The June router decomposition + async
+# migration is what surfaced this — the newly-async handlers stopped being
+# traced, dropping combined coverage to ~73% even though the tests still run
+# their bodies.
 # `thread` is REQUIRED: FastAPI runs sync (`def`) route handlers in a
 # Starlette threadpool, so without thread-tracing every sync endpoint body
 # reads as uncovered (only its import-time lines count) — it understated
 # the real API source coverage by ~20pts. `multiprocessing` keeps coverage
 # of any worker-style subprocesses.
-concurrency = thread, multiprocessing
+concurrency = greenlet, thread, multiprocessing
 omit =
     # Infrastructure/startup — validated by app running, not unit tests
     */database.py
