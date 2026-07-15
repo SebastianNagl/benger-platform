@@ -245,6 +245,56 @@ async def test_preferred_ui_mode_endpoint_persists_without_side_effects(
     assert not row.mandatory_profile_completed
 
 
+@pytest.mark.asyncio
+async def test_vertretbar_onboarding_endpoint_persists_without_side_effects(
+    async_test_client, async_test_db
+):
+    """POST /me/vertretbar-onboarding stamps the completion timestamp (extended
+    plan-choice modal gate) and, like the ui-mode endpoint, must NOT trigger any
+    profile-confirmation side effects."""
+    user = await _make_user(async_test_db)
+    assert user.vertretbar_onboarding_completed_at is None
+
+    with _as_user(user):
+        r = await async_test_client.post("/api/auth/me/vertretbar-onboarding")
+        assert r.status_code == 200
+        assert r.json()["vertretbar_onboarding_completed_at"] is not None
+
+    row = (
+        await async_test_db.execute(select(User).where(User.id == user.id))
+    ).scalar_one()
+    assert row.vertretbar_onboarding_completed_at is not None
+    assert row.profile_confirmed_at is None
+    assert not row.mandatory_profile_completed
+
+
+@pytest.mark.asyncio
+async def test_auth_me_surfaces_vertretbar_onboarding_flag(
+    async_test_client, async_test_db
+):
+    """The one-time modal gates on user.vertretbar_onboarding_completed_at read
+    from the user-hydration endpoints, so both /auth/me (fallback) and
+    /auth/me/contexts (primary) must carry the flag — null before, set after."""
+    user = await _make_user(async_test_db)
+
+    with _as_user(user):
+        before_me = await async_test_client.get("/api/auth/me")
+        assert before_me.status_code == 200
+        assert before_me.json()["vertretbar_onboarding_completed_at"] is None
+        # /contexts nests the user payload under "user" (the frontend reads
+        # contexts.user to hydrate the auth store).
+        before_ctx = await async_test_client.get("/api/auth/me/contexts")
+        assert before_ctx.status_code == 200
+        assert before_ctx.json()["user"]["vertretbar_onboarding_completed_at"] is None
+
+        await async_test_client.post("/api/auth/me/vertretbar-onboarding")
+
+        after_me = await async_test_client.get("/api/auth/me")
+        assert after_me.json()["vertretbar_onboarding_completed_at"] is not None
+        after_ctx = await async_test_client.get("/api/auth/me/contexts")
+        assert after_ctx.json()["user"]["vertretbar_onboarding_completed_at"] is not None
+
+
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_dashboard_reads_are_valid_sql(async_test_client, async_test_db):

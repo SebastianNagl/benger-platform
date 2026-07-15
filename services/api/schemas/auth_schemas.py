@@ -163,6 +163,9 @@ class UserProfile(BaseModel):
     # Preferred UI mode (extended student experience, issue #35). A persisted
     # default hint the frontend reads on load; gating is always recomputed.
     preferred_ui_mode: Optional[str] = None
+    # Vertretbar plan-choice greeting (extended): ISO timestamp once the student
+    # has chosen; NULL until then. The modal reads this from /auth/me.
+    vertretbar_onboarding_completed_at: Optional[str] = None
 
     class Config:
         from_attributes = True

@@ -86,6 +86,12 @@ export interface User {
   // mode is resolved client-side by useResolvedUiMode() (edition + slot
   // availability + local override take precedence over this).
   preferred_ui_mode?: 'student' | 'expert' | null
+
+  // Vertretbar plan-choice greeting (extended). ISO timestamp set once the
+  // student has picked Free or started the Examens-Abo checkout; null until
+  // then. The one-time VertretbarPlanModal gates on this so the choice sticks
+  // across devices/sessions instead of per-browser localStorage.
+  vertretbar_onboarding_completed_at?: string | null
 }
 
 export interface AuthResponse {

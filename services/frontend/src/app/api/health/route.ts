@@ -54,10 +54,14 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Return 200 OK for healthy, 503 for warnings
-    const status = health.status === 'healthy' ? 200 : 503
-
-    return NextResponse.json(health, { status })
+    // A memory "warning" (high-but-not-OOM heap) is surfaced in the body for
+    // observability but does NOT fail the probe: the server is still serving.
+    // Returning 503 here used to fail both the container healthcheck and the
+    // Traefik load-balancer healthcheck, which dropped this backend from the
+    // pool ("no available server") during normal Next.js dev use — where the
+    // dev server's heap legitimately runs high over a long session. Only a
+    // genuine failure (the catch block below) returns 503.
+    return NextResponse.json(health, { status: 200 })
   } catch (error) {
     // If we can't even run this check, the app is unhealthy
     return NextResponse.json(

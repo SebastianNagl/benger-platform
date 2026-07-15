@@ -228,7 +228,7 @@ describe('/api/health', () => {
   })
 
   describe('Warning Status', () => {
-    it('should return 503 with warning when memory usage exceeds 80%', async () => {
+    it('should return 200 (warning in body, not a probe failure) when memory exceeds 80%', async () => {
       process.env.NODE_OPTIONS = '--max-old-space-size=1000'
       process.memoryUsage = jest.fn().mockReturnValue({
         heapUsed: 850 * 1024 * 1024, // 85% of 1000 MB
@@ -242,7 +242,10 @@ describe('/api/health', () => {
       const request = createRequest('http://localhost:3000/api/health')
       const response = await GET(request)
 
-      expect(response.status).toBe(503)
+      // A memory warning is reported in the body but does NOT fail the probe
+      // (see route.ts — 503 dropped the backend from Traefik under normal
+      // dev heap pressure). Status 200, warning surfaced in the payload.
+      expect(response.status).toBe(200)
       const data = await response.json()
       expect(data.status).toBe('warning')
       expect(data.warning).toContain('High memory usage')
@@ -301,7 +304,7 @@ describe('/api/health', () => {
       const request = createRequest('http://localhost:3000/api/health')
       const response = await GET(request)
 
-      expect(response.status).toBe(503)
+      expect(response.status).toBe(200)
       const data = await response.json()
       expect(data.status).toBe('warning')
     })
