@@ -8728,6 +8728,23 @@
       "final": {
         "title": "Write your first exam — free."
       }
+    },
+    "onboarding": {
+      "title": "Welcome to Vertretbar 👋",
+      "subtitle": "Both plans grade your exams — pick what fits. You can switch anytime.",
+      "free": {
+        "tag": "Free",
+        "price": "€0",
+        "body": "Unlimited AI grading of your exams — completely free. No credit card.",
+        "cta": "Continue free"
+      },
+      "premium": {
+        "tag": "Exam plan",
+        "price": "€5",
+        "per": " / month",
+        "body": "Exam-level grading with the stronger model — closer to a real Staatsexamen correction. 1 premium grading per week free, then €1. Cancel anytime.",
+        "cta": "Start exam plan"
+      }
     }
   }
 }

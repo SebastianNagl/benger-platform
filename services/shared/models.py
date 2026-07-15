@@ -281,6 +281,11 @@ class User(Base):
     # This is a default HINT only — never an authorization input; expert-view
     # gating is always recomputed from role/org membership on every render.
     preferred_ui_mode = Column(String(16), nullable=True)
+    # Vertretbar new-user plan-choice greeting (extended one-time modal):
+    # stamped when the student picks Free or starts the subscription checkout.
+    # NULL = not yet shown. Server-side so the once-only greeting follows the
+    # user across devices/browsers (localStorage couldn't).
+    vertretbar_onboarding_completed_at = Column(DateTime(timezone=True), nullable=True)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

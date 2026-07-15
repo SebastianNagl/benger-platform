@@ -264,7 +264,14 @@ class TestAuthRouter:
             return mock_user
 
         async def override_get_async_db():
-            yield AsyncMock()
+            # /auth/me now also does one indexed-PK lookup for the Vertretbar
+            # onboarding flag; return a result whose scalar_one_or_none() is None
+            # so the handler emits a null flag rather than an unserializable Mock.
+            async_db = AsyncMock()
+            onboarding_result = Mock()
+            onboarding_result.scalar_one_or_none.return_value = None
+            async_db.execute = AsyncMock(return_value=onboarding_result)
+            yield async_db
 
         # Override dependencies
         app.dependency_overrides[require_user] = override_require_user
