@@ -20,9 +20,15 @@ from fastapi import status
 from auth_module.dependencies import require_user
 from auth_module.models import User as AuthUser
 from main import app
-from models import CustomModelCredential
+from models import CustomModelCredential, CustomModelOrgCredential
 from models import LLMModel as DBLLMModel
-from models import User
+from models import (
+    ModelOrganization,
+    Organization,
+    OrganizationMembership,
+    OrganizationRole,
+    User,
+)
 
 
 def _uid() -> str:
@@ -106,6 +112,172 @@ def _providers(providers):
         "routers.api_keys.user_api_key_service.get_user_available_providers_async",
         new=AsyncMock(return_value=providers),
     )
+
+
+def _org_providers(providers):
+    """Patch the org-context provider resolver (official pass under org
+    context). The custom pass reads require_private_keys / the shared
+    credentials directly from the DB, so those stay real."""
+    return patch(
+        "services.org_api_key_service.org_api_key_service."
+        "get_available_providers_for_context_async",
+        new=AsyncMock(return_value=providers),
+    )
+
+
+def _make_org(require_private_keys=None) -> Organization:
+    uid = _uid()
+    settings = None
+    if require_private_keys is not None:
+        settings = {"require_private_keys": require_private_keys}
+    return Organization(
+        id=f"org-{uid[:8]}",
+        name=f"Org {uid[:8]}",
+        display_name=f"Org {uid[:8]}",
+        slug=f"org-{uid[:8]}",
+        settings=settings,
+        is_active=True,
+    )
+
+
+async def _seed_org_shared_model(async_test_db, *, require_private_keys):
+    """Caller (member) + org + a private custom model shared with the org."""
+    caller = _make_user()
+    owner = _make_user()
+    org = _make_org(require_private_keys=require_private_keys)
+    async_test_db.add_all([caller, owner, org])
+    await async_test_db.flush()
+    model = _make_custom_model(owner.id, requires_api_key=True)
+    async_test_db.add(model)
+    await async_test_db.flush()
+    async_test_db.add_all(
+        [
+            OrganizationMembership(
+                id=_uid(),
+                user_id=caller.id,
+                organization_id=org.id,
+                role=OrganizationRole.CONTRIBUTOR,
+                is_active=True,
+            ),
+            ModelOrganization(id=_uid(), model_id=model.id, organization_id=org.id),
+        ]
+    )
+    await async_test_db.commit()
+    return caller, org, model
+
+
+class TestAvailableModelsOrgCredentialSource:
+    """The custom pass honors the org shared credential ONLY in org-pays mode
+    (require_private_keys False); the user's own key always wins the
+    credential_source."""
+
+    @pytest.mark.asyncio
+    async def test_org_shared_credential_satisfies_in_org_pays_mode(
+        self, async_test_client, async_test_db
+    ):
+        caller, org, model = await _seed_org_shared_model(
+            async_test_db, require_private_keys=False
+        )
+        async_test_db.add(
+            CustomModelOrgCredential(
+                id=_uid(),
+                organization_id=org.id,
+                model_id=model.id,
+                encrypted_api_key="ciphertext",
+            )
+        )
+        await async_test_db.commit()
+
+        with _as_user(caller), _org_providers([]):
+            resp = await async_test_client.get(
+                "/api/users/api-keys/available-models",
+                headers={"X-Organization-Context": org.id},
+            )
+        assert resp.status_code == status.HTTP_200_OK
+        entry = {m["id"]: m for m in resp.json()}[model.id]
+        assert entry["has_credential"] is True
+        assert entry["credential_source"] == "org"
+
+    @pytest.mark.asyncio
+    async def test_org_shared_credential_ignored_in_private_mode(
+        self, async_test_client, async_test_db
+    ):
+        caller, org, model = await _seed_org_shared_model(
+            async_test_db, require_private_keys=True
+        )
+        async_test_db.add(
+            CustomModelOrgCredential(
+                id=_uid(),
+                organization_id=org.id,
+                model_id=model.id,
+                encrypted_api_key="ciphertext",
+            )
+        )
+        await async_test_db.commit()
+
+        with _as_user(caller), _org_providers([]):
+            resp = await async_test_client.get(
+                "/api/users/api-keys/available-models",
+                headers={"X-Organization-Context": org.id},
+            )
+        entry = {m["id"]: m for m in resp.json()}[model.id]
+        # require_private_keys True → shared key never counts.
+        assert entry["has_credential"] is False
+        assert entry["credential_source"] is None
+
+    @pytest.mark.asyncio
+    async def test_user_own_key_wins_credential_source(
+        self, async_test_client, async_test_db
+    ):
+        caller, org, model = await _seed_org_shared_model(
+            async_test_db, require_private_keys=False
+        )
+        async_test_db.add_all(
+            [
+                CustomModelOrgCredential(
+                    id=_uid(),
+                    organization_id=org.id,
+                    model_id=model.id,
+                    encrypted_api_key="org-ciphertext",
+                ),
+                CustomModelCredential(
+                    id=_uid(),
+                    user_id=caller.id,
+                    model_id=model.id,
+                    encrypted_api_key="user-ciphertext",
+                ),
+            ]
+        )
+        await async_test_db.commit()
+
+        with _as_user(caller), _org_providers([]):
+            resp = await async_test_client.get(
+                "/api/users/api-keys/available-models",
+                headers={"X-Organization-Context": org.id},
+            )
+        entry = {m["id"]: m for m in resp.json()}[model.id]
+        assert entry["has_credential"] is True
+        assert entry["credential_source"] == "user"
+
+    @pytest.mark.asyncio
+    async def test_no_org_context_source_is_user_or_none(
+        self, async_test_client, async_test_db
+    ):
+        # Without an org header the field still exists; org key is irrelevant.
+        user = _make_user()
+        model = _make_custom_model(user.id, requires_api_key=False)
+        async_test_db.add(user)
+        await async_test_db.flush()
+        async_test_db.add(model)
+        await async_test_db.commit()
+
+        with _as_user(user), _providers([]):
+            resp = await async_test_client.get(
+                "/api/users/api-keys/available-models"
+            )
+        entry = {m["id"]: m for m in resp.json()}[model.id]
+        assert entry["has_credential"] is False
+        assert entry["credential_source"] is None
 
 
 class TestAvailableModelsCustomPass:
@@ -233,3 +405,85 @@ class TestAvailableModelsCustomPass:
         assert by_id[with_key.id]["is_official"] is True
         # Provider-key filtering is unchanged for officials.
         assert without_key.id not in by_id
+
+
+class TestAvailableModelsNonMemberOrgSuppressed:
+    """X-Organization-Context is caller-supplied and unvalidated, so the org
+    shared-credential annotation is honored ONLY for ACTIVE members of that
+    org. A non-member passing another org's id must not learn whether that org
+    has provisioned a shared credential for a PUBLIC custom model."""
+
+    async def _seed_public_model_with_org_cred(self, async_test_db):
+        """Owner + a PUBLIC custom model + org A (shared-billing) that has a
+        shared credential for the model. Returns (org_a, model)."""
+        owner = _make_user()
+        org_a = _make_org(require_private_keys=False)  # org-pays mode
+        async_test_db.add_all([owner, org_a])
+        await async_test_db.flush()
+        model = _make_custom_model(
+            owner.id, requires_api_key=True, is_public=True, is_private=False
+        )
+        async_test_db.add(model)
+        await async_test_db.flush()
+        async_test_db.add(
+            CustomModelOrgCredential(
+                id=_uid(),
+                organization_id=org_a.id,
+                model_id=model.id,
+                encrypted_api_key="ciphertext",
+            )
+        )
+        await async_test_db.commit()
+        return org_a, model
+
+    @pytest.mark.asyncio
+    async def test_non_member_org_context_is_suppressed(
+        self, async_test_client, async_test_db
+    ):
+        org_a, model = await self._seed_public_model_with_org_cred(async_test_db)
+        outsider = _make_user()  # NOT a member of org A
+        async_test_db.add(outsider)
+        await async_test_db.commit()
+
+        with _as_user(outsider), _org_providers([]):
+            resp = await async_test_client.get(
+                "/api/users/api-keys/available-models",
+                headers={"X-Organization-Context": org_a.id},
+            )
+        assert resp.status_code == status.HTTP_200_OK
+        entry = {m["id"]: m for m in resp.json()}[model.id]
+        # Org annotation suppressed for the non-member: source not "org",
+        # has_credential reflects only the (absent) user key.
+        assert entry["credential_source"] != "org"
+        assert entry["credential_source"] is None
+        assert entry["has_credential"] is False
+
+    @pytest.mark.asyncio
+    async def test_active_member_org_context_is_honored(
+        self, async_test_client, async_test_db
+    ):
+        # Contrast: an ACTIVE member of the SAME org, same public model + org
+        # credential → the org annotation IS applied.
+        org_a, model = await self._seed_public_model_with_org_cred(async_test_db)
+        member = _make_user()
+        async_test_db.add(member)
+        await async_test_db.flush()
+        async_test_db.add(
+            OrganizationMembership(
+                id=_uid(),
+                user_id=member.id,
+                organization_id=org_a.id,
+                role=OrganizationRole.CONTRIBUTOR,
+                is_active=True,
+            )
+        )
+        await async_test_db.commit()
+
+        with _as_user(member), _org_providers([]):
+            resp = await async_test_client.get(
+                "/api/users/api-keys/available-models",
+                headers={"X-Organization-Context": org_a.id},
+            )
+        entry = {m["id"]: m for m in resp.json()}[model.id]
+        assert entry["credential_source"] == "org"
+        assert entry["has_credential"] is True

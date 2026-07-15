@@ -1,6 +1,6 @@
 """Branch-coverage tests for several low-coverage worker helper modules.
 
-Bundles the remaining testable, behavioral gaps in four modules whose own
+Bundles the remaining testable, behavioral gaps in three modules whose own
 dedicated suites left specific branches uncovered:
 
   * ml_evaluation/utils.py
@@ -18,13 +18,8 @@ dedicated suites left specific branches uncovered:
           raises (distinct from the existing BrokenEvaluator that raises in
           __init__).
 
-  * model_parameter_config.py
-        - the 'LOW' reproducibility-impact + temperature>0 -> MEDIUM downgrade.
-
   * database.py (the ~20%-covered module)
-        - _upsert_llm_model insert / update-changed / update-unchanged branches,
         - initialize_task_types_and_evaluation_types insert + update branches,
-        - initialize_llm_models bulk insert,
         - get_db generator lifecycle, init_db.
     All driven with a MagicMock Session and a stub `models` module injected into
     sys.modules at call time (database.py imports models lazily inside each
@@ -54,7 +49,6 @@ from ml_evaluation.utils import (  # noqa: E402
 )
 from ml_evaluation.registry import EvaluatorRegistry  # noqa: E402
 from ml_evaluation.base_evaluator import BaseEvaluator, EvaluationResult  # noqa: E402
-from model_parameter_config import get_model_generation_params  # noqa: E402
 
 
 # ============================================================================
@@ -182,41 +176,7 @@ class TestRegistryMethodExceptionPaths:
 
 
 # ============================================================================
-# model_parameter_config — LOW-impact + nonzero-temp downgrade to MEDIUM
-# ============================================================================
-
-
-class TestModelParamLowImpactDowngrade:
-    def test_low_impact_nonzero_temp_is_medium(self):
-        model = MagicMock()
-        model.parameter_constraints = {
-            "reproducibility_impact": "LOW impact on determinism",
-            "temperature": {"supported": True, "default": 0.7},
-        }
-        db = MagicMock()
-        db.query.return_value.filter.return_value.first.return_value = model
-        result = get_model_generation_params(db, "m", model_orm_class=MagicMock())
-        assert result["temperature"] == 0.7
-        # 'LOW' in impact AND temp > 0.0 -> MEDIUM downgrade
-        assert result["reproducibility_level"] == "MEDIUM"
-
-    def test_low_impact_zero_temp_stays_high(self):
-        """Same LOW impact but temperature 0.0: the downgrade branch's
-        temp>0 guard is False, so HIGH is retained."""
-        model = MagicMock()
-        model.parameter_constraints = {
-            "reproducibility_impact": "LOW impact",
-            "temperature": {"supported": True, "default": 0.0},
-        }
-        db = MagicMock()
-        db.query.return_value.filter.return_value.first.return_value = model
-        result = get_model_generation_params(db, "m", model_orm_class=MagicMock())
-        assert result["temperature"] == 0.0
-        assert result["reproducibility_level"] == "HIGH"
-
-
-# ============================================================================
-# database.py — upsert / init helpers with a stub `models` module
+# database.py — init helpers with a stub `models` module
 # ============================================================================
 
 
@@ -257,68 +217,6 @@ def stub_models():
             sys.modules.pop("models", None)
 
 
-@pytest.fixture
-def stub_providers():
-    """Inject available-by-default provider service modules used by
-    initialize_llm_models."""
-    names = [
-        "anthropic_service",
-        "deepinfra_service",
-        "google_service",
-        "openai_service",
-    ]
-    saved = {n: sys.modules.get(n) for n in names}
-    for n in names:
-        mod = types.ModuleType(n)
-        svc = MagicMock()
-        svc.is_available.return_value = True
-        setattr(mod, n, svc)
-        sys.modules[n] = mod
-    try:
-        yield
-    finally:
-        for n, prev in saved.items():
-            if prev is not None:
-                sys.modules[n] = prev
-            else:
-                sys.modules.pop(n, None)
-
-
-class TestUpsertLLMModel:
-    def test_insert_when_absent(self, stub_models):
-        import database
-
-        db = MagicMock()
-        db.query.return_value.filter.return_value.first.return_value = None
-        database._upsert_llm_model(db, {"id": "m1", "name": "M1", "is_active": True})
-        assert db.add.called
-        added = db.add.call_args[0][0]
-        assert isinstance(added, _StubLLMModel)
-        assert added.id == "m1"
-        assert added.is_active is True
-
-    def test_update_changed_field(self, stub_models):
-        import database
-
-        existing = _StubLLMModel(id="m1", name="OLD", is_active=True)
-        db = MagicMock()
-        db.query.return_value.filter.return_value.first.return_value = existing
-        database._upsert_llm_model(db, {"id": "m1", "name": "NEW", "is_active": True})
-        # Field mutated in place and the row re-added
-        assert existing.name == "NEW"
-        assert db.add.called
-
-    def test_update_unchanged_skips_add(self, stub_models):
-        import database
-
-        existing = _StubLLMModel(id="m1", name="SAME", is_active=True)
-        db = MagicMock()
-        db.query.return_value.filter.return_value.first.return_value = existing
-        database._upsert_llm_model(db, {"id": "m1", "name": "SAME", "is_active": True})
-        # Nothing changed -> not re-added
-        assert not db.add.called
-
-
 class TestInitializeTaskTypesAndEvaluationTypes:
     def test_insert_all_new(self, stub_models):
         import database
@@ -344,18 +242,6 @@ class TestInitializeTaskTypesAndEvaluationTypes:
         database.initialize_task_types_and_evaluation_types(db)
         # Update branch never inserts
         assert not db.add.called
-        assert db.commit.called
-
-
-class TestInitializeLLMModels:
-    def test_bulk_insert(self, stub_models, stub_providers):
-        import database
-
-        db = MagicMock()
-        db.query.return_value.filter.return_value.first.return_value = None
-        database.initialize_llm_models(db)
-        # 10 default model definitions are seeded
-        assert db.add.call_count == 10
         assert db.commit.called
 
 

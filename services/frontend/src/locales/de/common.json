@@ -4338,6 +4338,7 @@
       "tabLabel": "Organisationen",
       "selectOrganization": "Organisation auswählen",
       "apiKeys": "API-Schlüssel",
+      "customModelKeys": "Schlüssel für eigene Modelle",
       "createOrganization": "Organisation erstellen",
       "noDescription": "Keine Beschreibung",
       "membersCount": "{count} Mitglieder",
@@ -7521,6 +7522,29 @@
           "description": "Command Modelle"
         }
       }
+    },
+    "customModelKeys": {
+      "dialogTitle": "Gemeinsame Schlüssel für eigene Modelle",
+      "dialogDescription": "Hinterlegen Sie einen gemeinsamen API-Schlüssel pro eigenem Modell, damit nicht jedes Mitglied einen eigenen eingeben muss.",
+      "adminOnly": "Nur Organisationsadministratoren können gemeinsame Schlüssel für eigene Modelle einsehen und verwalten.",
+      "sharedModeActive": "Die gemeinsame Abrechnung ist aktiv. Diese gemeinsamen Schlüssel werden für Generierungen der Organisation verwendet, wenn ein Mitglied keinen persönlichen Schlüssel hinterlegt hat.",
+      "sharedModeInactive": "Die gemeinsame Abrechnung ist deaktiviert. Mitglieder verwenden derzeit ihre eigenen Schlüssel, daher werden diese gemeinsamen Schlüssel noch nicht verwendet. Aktivieren Sie „Organisation stellt API-Schlüssel bereit“ im API-Schlüssel-Dialog, um sie zu aktivieren.",
+      "configuredCount": "Für {configured} von {total} gemeinsam genutzten eigenen Modellen ist ein Schlüssel konfiguriert. Schlüssel werden mit allen Mitgliedern geteilt und sicher verschlüsselt.",
+      "loading": "Eigene Modelle werden geladen...",
+      "noModels": "Mit dieser Organisation sind noch keine eigenen Modelle geteilt. Teilen Sie ein eigenes Modell mit der Organisation, um einen gemeinsamen Schlüssel dafür zu hinterlegen.",
+      "configured": "Konfiguriert",
+      "notConfigured": "Nicht konfiguriert",
+      "keyPlaceholder": "Gemeinsamen API-Schlüssel eingeben",
+      "saveKey": "Schlüssel speichern",
+      "saving": "Wird gespeichert...",
+      "removeKey": "Schlüssel entfernen",
+      "removing": "Wird entfernt...",
+      "keySaved": "Gemeinsamer Schlüssel für {model} gespeichert",
+      "saveFailed": "Gemeinsamer Schlüssel konnte nicht gespeichert werden",
+      "keyRemoved": "Gemeinsamer Schlüssel für {model} entfernt",
+      "removeFailed": "Gemeinsamer Schlüssel konnte nicht entfernt werden",
+      "encryptedInfo": "Gemeinsame Schlüssel werden verschlüsselt und sicher gespeichert.",
+      "sharedInfo": "Ein gemeinsamer Schlüssel wird nur verwendet, wenn die Organisation API-Schlüssel bereitstellt und das Mitglied keinen persönlichen Schlüssel für das Modell hat."
     }
   },
   "review": {
