@@ -333,6 +333,68 @@ export class OrganizationsClient extends BaseApiClient {
       require_private_keys: requirePrivateKeys,
     })
   }
+
+  // ===== Org-owned (shared) custom-model credentials =====
+
+  /**
+   * List custom (BYOM) models shared with the org, annotated with whether a
+   * shared key is set. Admin-only. Never returns key material.
+   */
+  async listOrgCustomModels(
+    orgId: string
+  ): Promise<OrgSharedCustomModel[]> {
+    return this.get(`/organizations/${orgId}/custom-models`)
+  }
+
+  /**
+   * Whether the org has a shared key for a custom model (never the key).
+   */
+  async getOrgCustomModelCredential(
+    orgId: string,
+    modelId: string
+  ): Promise<{ has_credential: boolean; updated_at?: string | null }> {
+    return this.get(
+      `/organizations/${orgId}/custom-models/${modelId}/credential`
+    )
+  }
+
+  /**
+   * Set (or replace) the org's shared key for a custom model.
+   */
+  async setOrgCustomModelCredential(
+    orgId: string,
+    modelId: string,
+    apiKey: string
+  ): Promise<{ has_credential: boolean }> {
+    return this.put(
+      `/organizations/${orgId}/custom-models/${modelId}/credential`,
+      { api_key: apiKey }
+    )
+  }
+
+  /**
+   * Remove the org's shared key for a custom model.
+   */
+  async removeOrgCustomModelCredential(
+    orgId: string,
+    modelId: string
+  ): Promise<{ has_credential: boolean }> {
+    return this.delete(
+      `/organizations/${orgId}/custom-models/${modelId}/credential`
+    )
+  }
+}
+
+/** A custom model shared with an org + its shared-credential status. */
+export interface OrgSharedCustomModel {
+  id: string
+  name: string
+  description?: string | null
+  provider: string
+  base_url?: string | null
+  endpoint_model_name?: string | null
+  requires_api_key: boolean
+  has_org_credential: boolean
 }
 
 // Create and export a default instance for direct use

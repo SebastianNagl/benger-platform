@@ -4356,6 +4356,7 @@
       "tabLabel": "Organizations",
       "selectOrganization": "Select Organization",
       "apiKeys": "API Keys",
+      "customModelKeys": "Custom Model Keys",
       "createOrganization": "Create Organization",
       "noDescription": "No description",
       "membersCount": "{count} members",
@@ -7464,6 +7465,29 @@
           "description": "Command models"
         }
       }
+    },
+    "customModelKeys": {
+      "dialogTitle": "Shared Custom Model Keys",
+      "dialogDescription": "Provision one shared API key per custom model, so members do not each need to enter their own.",
+      "adminOnly": "Only organization admins can view and manage shared custom model keys.",
+      "sharedModeActive": "Shared billing is active. These shared keys are used for organization generations when a member has not stored a personal key.",
+      "sharedModeInactive": "Shared billing is off. Members currently use their own keys, so these shared keys are not used yet. Enable \"Organization provides API keys\" in the API keys dialog to activate them.",
+      "configuredCount": "{configured} of {total} shared custom models have a key configured. Keys are shared across all members and encrypted securely.",
+      "loading": "Loading custom models...",
+      "noModels": "No custom models are shared with this organization yet. Share a custom model with the organization to set a shared key for it.",
+      "configured": "Configured",
+      "notConfigured": "Not configured",
+      "keyPlaceholder": "Enter the shared API key",
+      "saveKey": "Save Key",
+      "saving": "Saving...",
+      "removeKey": "Remove Key",
+      "removing": "Removing...",
+      "keySaved": "Shared key saved for {model}",
+      "saveFailed": "Failed to save the shared key",
+      "keyRemoved": "Shared key removed for {model}",
+      "removeFailed": "Failed to remove the shared key",
+      "encryptedInfo": "Shared keys are encrypted and stored securely.",
+      "sharedInfo": "A shared key is used only when the organization provides API keys and the member has no personal key for the model."
     }
   },
   "review": {

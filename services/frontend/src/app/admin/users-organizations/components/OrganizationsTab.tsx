@@ -1,6 +1,7 @@
 'use client'
 
 import { OrgApiKeys } from '@/components/organization/OrgApiKeys'
+import { OrgCustomModelKeys } from '@/components/organization/OrgCustomModelKeys'
 import { Badge } from '@/components/shared/Badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/shared/Select'
 import { Button } from '@/components/shared/Button'
@@ -76,6 +77,7 @@ export function OrganizationsTab() {
   const [showAddUserModal, setShowAddUserModal] = useState(false)
   const [showOrgSwitcher, setShowOrgSwitcher] = useState(false)
   const [showApiKeysModal, setShowApiKeysModal] = useState(false)
+  const [showCustomModelKeysModal, setShowCustomModelKeysModal] = useState(false)
   const [isEditingOrg, setIsEditingOrg] = useState(false)
 
   // Form states
@@ -627,6 +629,15 @@ export function OrganizationsTab() {
               {t('admin.organizations.apiKeys')}
             </Button>
           )}
+          {selectedOrganization && canManageOrg && (
+            <Button
+              onClick={() => setShowCustomModelKeysModal(true)}
+              variant="outline"
+            >
+              <KeyIcon className="h-4 w-4" />
+              {t('admin.organizations.customModelKeys')}
+            </Button>
+          )}
           {canCreateOrganization && (
             <Button onClick={() => setShowCreateOrgModal(true)} variant="primary">
               <PlusIcon className="h-4 w-4" />
@@ -948,6 +959,16 @@ export function OrganizationsTab() {
               isAdmin={canManageOrg}
               open={showApiKeysModal}
               onOpenChange={setShowApiKeysModal}
+            />
+          )}
+
+          {/* Organization shared BYOM custom-model credentials */}
+          {selectedOrganization && (
+            <OrgCustomModelKeys
+              organizationId={selectedOrganization.id}
+              isAdmin={canManageOrg}
+              open={showCustomModelKeysModal}
+              onOpenChange={setShowCustomModelKeysModal}
             />
           )}
         </div>
