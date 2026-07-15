@@ -609,8 +609,16 @@ async def _chat_ping(
 
     Same generic-error discipline as validate_openai_compatible_endpoint —
     no upstream bodies/status codes are echoed.
+
+    DNS-rebinding immunity: re-resolves + validates base_url at call time
+    and PINS the outbound connection to the exact validated IPs, so a TTL-0
+    rebind between the guard check and aiohttp's own lookup cannot reach an
+    internal address. A rebinding rejection (ValueError) collapses into the
+    generic "unreachable" outcome below — never an oracle.
     """
     import aiohttp
+
+    from url_guard import pinned_connector, resolve_and_validate
 
     headers = {}
     if api_key:
@@ -618,7 +626,10 @@ async def _chat_ping(
 
     started = time.monotonic()
     try:
-        async with aiohttp.ClientSession() as session:
+        _normalized_url, validated_ips = resolve_and_validate(base_url)
+        async with aiohttp.ClientSession(
+            connector=pinned_connector(validated_ips)
+        ) as session:
             async with session.post(
                 f"{base_url.rstrip('/')}/chat/completions",
                 headers=headers,
