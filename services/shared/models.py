@@ -1736,6 +1736,55 @@ class CustomModelCredential(Base):
         return f"<CustomModelCredential(user_id={self.user_id}, model_id={self.model_id})>"
 
 
+class CustomModelOrgCredential(Base):
+    """Org-owned (shared) encrypted API key for a custom (BYOM) model.
+
+    The org-level counterpart of :class:`CustomModelCredential`: one shared
+    key per ``(organization, model)`` so an org can provision a single key
+    for a custom model instead of every member entering their own. Mirrors
+    :class:`OrganizationApiKey` (per-provider org key), including its unique
+    scope — here ``(organization_id, model_id)``.
+
+    Consulted only when the org runs shared-billing mode
+    (``settings.require_private_keys`` is False) and the invoking user has no
+    personal :class:`CustomModelCredential`; see
+    ``user_aware_ai_service.get_ai_service_for_model_row``. The model owner's
+    key is NEVER used implicitly. Fernet ciphertext via encryption_service,
+    same format as the other encrypted-key columns.
+    """
+
+    __tablename__ = "custom_model_org_credentials"
+
+    id = Column(String, primary_key=True, index=True)
+    organization_id = Column(
+        String,
+        ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    model_id = Column(
+        String, ForeignKey("llm_models.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    encrypted_api_key = Column(Text, nullable=False)
+    # SET NULL: deleting the admin who set the shared key must not revoke the
+    # org's access to it (same rationale as ModelOrganization.assigned_by).
+    created_by = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    __table_args__ = (
+        sa.UniqueConstraint(
+            "organization_id", "model_id", name="unique_custom_model_org_credential"
+        ),
+    )
+
+    def __repr__(self):
+        return (
+            f"<CustomModelOrgCredential(org_id={self.organization_id}, "
+            f"model_id={self.model_id})>"
+        )
+
+
 # ProjectEvaluationConfig model removed - old task system cleanup
 
 # Note: Prompt class removed in Issue #759 (using generation_structure in projects.generation_structure instead)

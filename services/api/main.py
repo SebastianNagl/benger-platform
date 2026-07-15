@@ -456,6 +456,8 @@ app.include_router(custom_models_router)  # BYOM: user-registered OpenAI-compati
 from routers.lti_admin import router as lti_admin_router  # noqa: E402
 app.include_router(lti_admin_router)  # Superadmin: LTI 1.3 (Moodle) registrations + grade-sync outbox
 app.include_router(org_api_key_router)  # Organization API key management (Issue #1180)
+from routers.custom_model_org_credentials import router as custom_model_org_cred_router  # noqa: E402
+app.include_router(custom_model_org_cred_router)  # Org-owned (shared) BYOM custom-model credentials
 app.include_router(file_upload_router)  # File uploads
 app.include_router(projects_router)  # Projects API
 app.include_router(share_token_router)  # Student exam sharing: /api/shares/{token} (issue #35)
