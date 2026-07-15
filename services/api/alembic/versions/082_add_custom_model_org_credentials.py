@@ -20,8 +20,8 @@ shared key when the user has none. The model owner's key is NEVER used.
 Idempotent — guards on table/index existence; safe to re-run. Reversible —
 downgrade drops the table.
 
-Revision ID: 081_add_custom_model_org_credentials
-Revises: 080_add_custom_llm_models
+Revision ID: 082_add_custom_model_org_credentials
+Revises: 081_add_vertretbar_onboarding
 Create Date: 2026-07-15
 """
 
@@ -31,8 +31,8 @@ from alembic import op
 import sqlalchemy as sa
 
 
-revision = "081_add_custom_model_org_credentials"
-down_revision = "080_add_custom_llm_models"
+revision = "082_add_custom_model_org_credentials"
+down_revision = "081_add_vertretbar_onboarding"
 branch_labels = None
 depends_on = None
 
