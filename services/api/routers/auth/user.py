@@ -128,6 +128,11 @@ def _profile_kwargs(db_user, *, role) -> dict:
         ),
         # Extended student experience (issue #35): persisted view-mode hint.
         preferred_ui_mode=getattr(db_user, "preferred_ui_mode", None),
+        vertretbar_onboarding_completed_at=(
+            db_user.vertretbar_onboarding_completed_at.isoformat()
+            if getattr(db_user, "vertretbar_onboarding_completed_at", None)
+            else None
+        ),
     )
 
 
@@ -148,6 +153,27 @@ async def _build_user_profile_response_async(db_user, db: AsyncSession) -> UserP
     return UserProfile(**_profile_kwargs(db_user, role=role))
 
 
+async def _get_vertretbar_onboarding_iso(user_id: str, db: AsyncSession) -> Optional[str]:
+    """ISO timestamp of the Vertretbar plan-choice greeting completion, or None.
+
+    Surfaced on the user-hydration endpoints (/auth/me[/contexts]) so the
+    one-time VertretbarPlanModal (extended) gates on a server-persisted flag and
+    the choice survives across devices/sessions. ``require_user`` yields a
+    Pydantic user that doesn't carry this column, so it's a single indexed-PK
+    lookup here rather than surface creep on the core auth user model.
+    """
+    from models import User as DBUser
+
+    ts = (
+        await db.execute(
+            select(DBUser.vertretbar_onboarding_completed_at).where(
+                DBUser.id == str(user_id)
+            )
+        )
+    ).scalar_one_or_none()
+    return ts.isoformat() if ts else None
+
+
 @router.get("/me")
 async def get_current_user(
     current_user: User = Depends(require_user),
@@ -166,6 +192,9 @@ async def get_current_user(
         "is_active": current_user.is_active,
         "created_at": current_user.created_at.isoformat() if current_user.created_at else None,
         "role": user_role,
+        "vertretbar_onboarding_completed_at": await _get_vertretbar_onboarding_iso(
+            current_user.id, db
+        ),
     }
 
     return user_dict
@@ -198,6 +227,9 @@ async def get_user_contexts(
         "is_active": current_user.is_active,
         "created_at": current_user.created_at.isoformat() if current_user.created_at else None,
         "role": user_role,
+        "vertretbar_onboarding_completed_at": await _get_vertretbar_onboarding_iso(
+            current_user.id, db
+        ),
     }
 
     # Build organization contexts
@@ -447,6 +479,33 @@ async def update_preferred_ui_mode(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
     db_user.preferred_ui_mode = body.preferred_ui_mode
+    await db.commit()
+    await db.refresh(db_user)
+
+    return await _build_user_profile_response_async(db_user, db)
+
+
+@router.post("/me/vertretbar-onboarding", response_model=UserProfile)
+async def complete_vertretbar_onboarding(
+    current_user: User = Depends(require_user),
+    db: AsyncSession = Depends(get_async_db),
+):
+    """Mark the Vertretbar plan-choice greeting as completed (extended).
+
+    Stamped when the student picks Free or starts the subscription checkout so
+    the one-time modal never shows again, on any device. Single-column write,
+    no side effects (mirrors ``PUT /me/ui-mode``); idempotent — a repeat call
+    just refreshes the timestamp.
+    """
+    from models import User as DBUser
+
+    db_user = (
+        await db.execute(select(DBUser).where(DBUser.id == str(current_user.id)))
+    ).scalar_one_or_none()
+    if not db_user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    db_user.vertretbar_onboarding_completed_at = datetime.now(timezone.utc)
     await db.commit()
     await db.refresh(db_user)
 
