@@ -66,9 +66,12 @@ jobs:
           python-version: '3.11'
 
       - name: Install API dependencies
+        # requirements.txt was dropped in 9878dc4 (pyproject.toml + uv);
+        # mirror the API Dockerfile's install step.
         run: |
           cd services/api
-          pip install -r requirements.txt
+          pip install uv
+          uv pip install --system -r pyproject.toml
 
       - name: Run alembic migrations + LLM seed (ephemeral DB)
         if: ${{ inputs.database_url == '' }}
