@@ -9,7 +9,7 @@ pytest-benchmark>=4.0.0
 
 # Mocking and test utilities
 responses>=0.26.1
-requests-mock>=1.11.0
+requests-mock>=1.12.1
 
 # Property-based + mutation testing (meaningful-coverage program / mutation co-gate)
 hypothesis>=6.100.0
