@@ -65,7 +65,23 @@ test.describe('Multi-run inventory + detail pages', () => {
     })
     await expect(page.locator('tbody tr').first()).toBeVisible({ timeout: 30000 })
 
-    const allRows = await page.locator('tbody tr').count()
+    // The table streams in after the first row is visible, so an immediate
+    // count() undershoots (nightly saw baseline 1 vs 3 rows post-filter).
+    // Poll until the count is stable across two consecutive reads before
+    // trusting it as the unfiltered baseline.
+    let settledCount = -1
+    await expect
+      .poll(
+        async () => {
+          const current = await page.locator('tbody tr').count()
+          const settled = current === settledCount
+          settledCount = current
+          return settled
+        },
+        { timeout: 15000, intervals: [500, 500, 500, 500, 500, 500, 500] },
+      )
+      .toBe(true)
+    const allRows = settledCount
 
     // Pick the second option in the project filter (first is "Alle Projekte"
     // / "All projects"). The dropdown is populated by a SEPARATE async projects
@@ -89,9 +105,10 @@ test.describe('Multi-run inventory + detail pages', () => {
     await expect(page).toHaveURL(/project_id=/, { timeout: 10000 })
     // After narrowing to one project the row count should be ≤ the unfiltered
     // count (it can equal if every run is in that project — still valid).
-    await page.waitForTimeout(800) // allow refetch
-    const filteredRows = await page.locator('tbody tr').count()
-    expect(filteredRows).toBeLessThanOrEqual(allRows)
+    // Poll instead of a fixed sleep so a slow refetch can't race the count.
+    await expect
+      .poll(() => page.locator('tbody tr').count(), { timeout: 15000 })
+      .toBeLessThanOrEqual(allRows)
   })
 
   test('clicking a generation row opens its detail page', async () => {

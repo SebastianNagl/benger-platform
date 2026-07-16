@@ -184,6 +184,36 @@ async def seed_mock_generations(
                 by_model[model_id] = []
             by_model[model_id].append(gen)
 
+        # The shared leaderboard read filters to models present in llm_models
+        # as is_official OR is_public (BYOM visibility gate) — mock model ids
+        # that aren't catalog rows would evaluate fine but never surface on
+        # the leaderboard. Upsert the seeded ids as official so leaderboard
+        # e2e journeys see them (mirrors the unit-test fixture fix, 557252f).
+        from models import LLMModel
+
+        for model_id in by_model:
+            model_row = await db.get(LLMModel, model_id)
+            if model_row is None:
+                db.add(
+                    LLMModel(
+                        id=model_id,
+                        name=model_id,
+                        provider="e2e-mock",
+                        model_type="chat",
+                        capabilities=["text_generation"],
+                        is_active=True,
+                        is_official=True,
+                        is_private=False,
+                        is_public=False,
+                    )
+                )
+            else:
+                # Check constraint: official rows must be neither private nor
+                # public (NOT is_official OR (NOT is_private AND NOT is_public)).
+                model_row.is_official = True
+                model_row.is_private = False
+                model_row.is_public = False
+
         # Create generations for each model
         for model_id, model_gens in by_model.items():
             # Create parent ResponseGeneration job

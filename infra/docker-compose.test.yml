@@ -202,6 +202,12 @@ services:
       # org id, but seeded test orgs get random ids — every leaderboard
       # e2e would 400 with "not in the trust scope" otherwise.
       LLM_LEADERBOARD_ALLOWLISTED_ORG_IDS: ""
+      # Skip the BYOM SSRF DNS checks: the custom-model e2e registers a
+      # deliberately unresolvable base URL (byom-e2e.invalid), which the
+      # url_guard would otherwise reject at save time. Structural checks
+      # still apply; no outbound call ever targets the fake host (the
+      # connection test is route-intercepted in the browser).
+      CUSTOM_MODEL_ALLOW_PRIVATE_URLS: "1"
       REDIS_URL: redis://test-redis:6379/0
       # Celery
       CELERY_BROKER_URL: redis://test-redis:6379/0
@@ -289,6 +295,9 @@ services:
       REDIS_PASSWORD: ""
       REDIS_URI: redis://test-redis:6379/0
       REDIS_URL: redis://test-redis:6379/0
+      # Keep the BYOM SSRF policy in sync with test-api (shared env switch
+      # read by services/shared/url_guard.py in both containers).
+      CUSTOM_MODEL_ALLOW_PRIVATE_URLS: "1"
       # Celery
       CELERY_BROKER_URL: redis://test-redis:6379/0
       CELERY_RESULT_BACKEND: redis://test-redis:6379/0

@@ -203,6 +203,14 @@ test.describe('Custom Model (BYOM) journey', () => {
       timeout: 60000,
     })
 
+    // The "Generierung starten" CTA sits in the footer of the (collapsed by
+    // default) Generierungskonfiguration ConfigCard — expand the card first.
+    const generationCard = page.getByRole('button', {
+      name: /Generierungskonfiguration|Generation [Cc]onfiguration/,
+    })
+    await expect(generationCard.first()).toBeVisible({ timeout: 30000 })
+    await generationCard.first().click()
+
     // Open the generation trigger modal via the footer CTA.
     const generateCta = page.getByRole('button', {
       name: /Generierung starten|Start Generation/,
