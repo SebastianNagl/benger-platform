@@ -62,6 +62,11 @@ updates:
     ignore:
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
+      # spacy >=3.8 pulls thinc 8.3.x (numpy-2.x ABI) and breaks at runtime
+      # under the numpy<2 cap — see the comment in services/workers/pyproject.toml.
+      # Drop this once the numpy 2.x migration lands.
+      - dependency-name: "spacy"
+        versions: [">=3.8"]
 
   - package-ecosystem: "github-actions"
     directory: "/"
