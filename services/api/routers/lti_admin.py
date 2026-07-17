@@ -160,21 +160,25 @@ async def create_registration(
 
 @router.get("/registrations", response_model=List[LtiRegistrationRead])
 async def list_registrations(
+    organization_id: Optional[str] = Query(None),
     _superadmin=Depends(require_superadmin),
     db: AsyncSession = Depends(get_async_db),
 ):
-    """All platform registrations (incl. their deployments + counts)."""
-    regs = (
-        (
-            await db.execute(
-                select(LtiPlatformRegistration)
-                .options(selectinload(LtiPlatformRegistration.deployments))
-                .order_by(LtiPlatformRegistration.created_at.desc())
-            )
-        )
-        .scalars()
-        .all()
+    """All platform registrations (incl. their deployments + counts).
+
+    Optionally filtered to one organization. An unknown organization id
+    yields an empty list – it's a list filter, not a lookup.
+    """
+    stmt = (
+        select(LtiPlatformRegistration)
+        .options(selectinload(LtiPlatformRegistration.deployments))
+        .order_by(LtiPlatformRegistration.created_at.desc())
     )
+    if organization_id:
+        stmt = stmt.where(
+            LtiPlatformRegistration.organization_id == organization_id
+        )
+    regs = (await db.execute(stmt)).scalars().all()
     return [_registration_read(reg) for reg in regs]
 
 
@@ -330,16 +334,25 @@ async def get_tool_config(
 @router.get("/grade-syncs", response_model=List[LtiGradeSyncRead])
 async def list_grade_syncs(
     project_id: Optional[str] = Query(None),
+    organization_id: Optional[str] = Query(None),
     status_filter: Optional[str] = Query(None, alias="status"),
     _superadmin=Depends(require_superadmin),
     db: AsyncSession = Depends(get_async_db),
 ):
-    """Grade-passback outbox rows, filterable by project and/or status."""
+    """Grade-passback outbox rows, filterable by project, organization, status."""
     stmt = select(LtiGradeSync)
-    if project_id:
+    if project_id or organization_id:
+        # Join the resource link exactly once, even when both filters are set.
         stmt = stmt.join(
             LtiResourceLink, LtiResourceLink.id == LtiGradeSync.resource_link_id
-        ).where(LtiResourceLink.project_id == project_id)
+        )
+    if project_id:
+        stmt = stmt.where(LtiResourceLink.project_id == project_id)
+    if organization_id:
+        stmt = stmt.join(
+            LtiPlatformRegistration,
+            LtiPlatformRegistration.id == LtiResourceLink.registration_id,
+        ).where(LtiPlatformRegistration.organization_id == organization_id)
     if status_filter:
         stmt = stmt.where(LtiGradeSync.status == status_filter)
     stmt = stmt.order_by(LtiGradeSync.created_at.desc())
