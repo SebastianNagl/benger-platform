@@ -185,3 +185,37 @@ class LtiToolConfigRead(BaseModel):
     launch_url: str
     jwks_url: str
     deep_linking_url: str
+
+
+class LtiRegistrationInviteCreate(BaseModel):
+    """Body for minting a one-time LTI Dynamic Registration invite."""
+
+    organization_id: str
+    expires_in_days: int = Field(14, ge=1, le=90)
+
+
+class LtiRegistrationInviteCreated(BaseModel):
+    """Create response for an invite — the ONLY place the raw token (and the
+    registration URL embedding it) ever appears; only its sha256 is stored."""
+
+    id: str
+    organization_id: str
+    token: str
+    register_url: str
+    expires_at: datetime
+
+
+class LtiRegistrationInviteRead(BaseModel):
+    """List shape for an invite. Never carries the raw token or its hash.
+
+    ``status`` is computed: 'used' if consumed, else 'expired' past
+    ``expires_at``, else 'pending'.
+    """
+
+    id: str
+    organization_id: str
+    created_at: Optional[datetime] = None
+    expires_at: datetime
+    used_at: Optional[datetime] = None
+    resulting_registration_id: Optional[str] = None
+    status: str

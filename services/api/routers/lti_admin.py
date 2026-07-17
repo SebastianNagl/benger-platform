@@ -10,11 +10,13 @@ extended edition). The community edition ships this admin surface over an
 otherwise-dormant schema.
 """
 
+import hashlib
+import secrets
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -25,6 +27,7 @@ from models import (
     LtiDeployment,
     LtiGradeSync,
     LtiPlatformRegistration,
+    LtiRegistrationInvite,
     LtiResourceLink,
     Organization,
 )
@@ -33,6 +36,9 @@ from schemas.lti_schemas import (
     LtiDeploymentRead,
     LtiGradeSyncRead,
     LtiRegistrationCreate,
+    LtiRegistrationInviteCreate,
+    LtiRegistrationInviteCreated,
+    LtiRegistrationInviteRead,
     LtiRegistrationRead,
     LtiRegistrationUpdate,
     LtiToolConfigRead,
@@ -180,6 +186,141 @@ async def list_registrations(
         )
     regs = (await db.execute(stmt)).scalars().all()
     return [_registration_read(reg) for reg in regs]
+
+
+# --------------------------------------------------------------------------- #
+# Dynamic Registration invites
+#
+# Routes with the fixed "/registrations/invites" path segment MUST stay
+# registered before "/registrations/{registration_id}" below — Starlette
+# matches in registration order, so the parametrized route would otherwise
+# swallow them with registration_id="invites".
+# --------------------------------------------------------------------------- #
+def _invite_status(invite: LtiRegistrationInvite, now: datetime) -> str:
+    if invite.used_at is not None:
+        return "used"
+    if invite.expires_at < now:
+        return "expired"
+    return "pending"
+
+
+def _invite_read(invite: LtiRegistrationInvite, now: datetime) -> LtiRegistrationInviteRead:
+    return LtiRegistrationInviteRead(
+        id=invite.id,
+        organization_id=invite.organization_id,
+        created_at=invite.created_at,
+        expires_at=invite.expires_at,
+        used_at=invite.used_at,
+        resulting_registration_id=invite.resulting_registration_id,
+        status=_invite_status(invite, now),
+    )
+
+
+@router.post(
+    "/registrations/invites",
+    status_code=201,
+    response_model=LtiRegistrationInviteCreated,
+)
+async def create_registration_invite(
+    body: LtiRegistrationInviteCreate,
+    request: Request,
+    base_url: Optional[str] = Query(
+        None,
+        description=(
+            "Public base URL of this deployment, e.g. https://what-a-benger.net. "
+            "Defaults to the request's base URL."
+        ),
+    ),
+    superadmin=Depends(require_superadmin),
+    db: AsyncSession = Depends(get_async_db),
+):
+    """Mint a one-time LTI Dynamic Registration invite for an organization.
+
+    The raw token (and the ``register_url`` embedding it) appears ONLY in
+    this response — like an API key, only its sha256 is stored. The
+    ``/api/lti/register/init`` endpoint that consumes the URL is served by
+    the extended edition.
+    """
+    await _require_organization(db, body.organization_id)
+
+    if base_url is None:
+        base_url = str(request.base_url)
+    try:
+        _require_http_url(base_url)
+    except ValueError:
+        raise HTTPException(
+            status_code=400, detail="base_url must be an absolute http(s) URL"
+        )
+
+    token = secrets.token_urlsafe(32)
+    invite = LtiRegistrationInvite(
+        id=str(uuid.uuid4()),
+        organization_id=body.organization_id,
+        token_hash=hashlib.sha256(token.encode()).hexdigest(),
+        created_by=superadmin.id,
+        expires_at=datetime.now(timezone.utc) + timedelta(days=body.expires_in_days),
+    )
+    db.add(invite)
+    await db.commit()
+    await db.refresh(invite)
+
+    base = base_url.rstrip("/")
+    return LtiRegistrationInviteCreated(
+        id=invite.id,
+        organization_id=invite.organization_id,
+        token=token,
+        register_url=f"{base}/api/lti/register/init?token={token}",
+        expires_at=invite.expires_at,
+    )
+
+
+@router.get(
+    "/registrations/invites", response_model=List[LtiRegistrationInviteRead]
+)
+async def list_registration_invites(
+    organization_id: Optional[str] = Query(None),
+    _superadmin=Depends(require_superadmin),
+    db: AsyncSession = Depends(get_async_db),
+):
+    """All Dynamic Registration invites, newest first, with computed status.
+
+    Optionally filtered to one organization (an unknown id is a filter miss,
+    not a 404). Never returns the raw token or its hash.
+    """
+    stmt = select(LtiRegistrationInvite).order_by(
+        LtiRegistrationInvite.created_at.desc()
+    )
+    if organization_id:
+        stmt = stmt.where(LtiRegistrationInvite.organization_id == organization_id)
+    invites = (await db.execute(stmt)).scalars().all()
+    now = datetime.now(timezone.utc)
+    return [_invite_read(invite, now) for invite in invites]
+
+
+@router.delete("/registrations/invites/{invite_id}", status_code=204)
+async def revoke_registration_invite(
+    invite_id: str,
+    _superadmin=Depends(require_superadmin),
+    db: AsyncSession = Depends(get_async_db),
+):
+    """Revoke an unused invite (hard delete).
+
+    A used invite is an audit record tied to the registration it created —
+    it cannot be revoked (409).
+    """
+    invite = (
+        await db.execute(
+            select(LtiRegistrationInvite).where(LtiRegistrationInvite.id == invite_id)
+        )
+    ).scalar_one_or_none()
+    if not invite:
+        raise HTTPException(status_code=404, detail="Invite not found")
+    if invite.used_at is not None:
+        raise HTTPException(
+            status_code=409, detail="Invite already used; it is kept as an audit record"
+        )
+    await db.delete(invite)
+    await db.commit()
 
 
 @router.get("/registrations/{registration_id}", response_model=LtiRegistrationRead)
