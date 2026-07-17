@@ -45,8 +45,16 @@ test.describe('Org LTI panel @extended', () => {
   let organizationId: string
   let registrationId: string
 
-  const openPanel = async () => {
+  /** Open the organizations tab with our org selected via the ?org= param. */
+  const gotoOrgTab = async () => {
     await gotoWithRetry(page, `${ADMIN_BASE}/users-organizations?org=${organizationId}`)
+    // Superadmins land on the Global Users tab by default; the ?org= param
+    // only takes effect inside the Organizations tab.
+    await page.getByRole('tab', { name: /Organisationen|Organizations/ }).click()
+  }
+
+  const openPanel = async () => {
+    await gotoOrgTab()
     const trigger = page.getByTestId('lti-org-open')
     await expect(trigger).toBeVisible({ timeout: 20_000 })
     await trigger.click()
@@ -74,6 +82,8 @@ test.describe('Org LTI panel @extended', () => {
     const created = await page.request.post(`${ADMIN_BASE}/api/organizations`, {
       data: {
         name: `E2E LTI Org ${runId}`,
+        display_name: `E2E LTI Org ${runId}`,
+        slug: `e2e-lti-org-${runId}`,
         description: 'Org-LTI-panel e2e — safe to delete',
       },
     })
@@ -98,7 +108,7 @@ test.describe('Org LTI panel @extended', () => {
   })
 
   test('shows "nicht verbunden" for an org without registrations', async () => {
-    await gotoWithRetry(page, `${ADMIN_BASE}/users-organizations?org=${organizationId}`)
+    await gotoOrgTab()
 
     const trigger = page.getByTestId('lti-org-open')
     await expect(trigger).toBeVisible({ timeout: 20_000 })
