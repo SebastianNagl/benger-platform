@@ -34,6 +34,21 @@ MIGRATION_PATH = os.path.normpath(
     )
 )
 
+# 083 hangs lti_registration_invites off lti_platform_registrations; its
+# downgrade must run before 079's (exactly the order a real
+# ``alembic downgrade`` walks the chain), or Postgres refuses to drop the
+# registrations table (DependentObjectsStillExist).
+INVITES_MIGRATION_PATH = os.path.normpath(
+    os.path.join(
+        os.path.dirname(__file__),
+        "..",
+        "..",
+        "alembic",
+        "versions",
+        "083_add_lti_registration_invites.py",
+    )
+)
+
 LTI_TABLES = [
     "lti_platform_registrations",
     "lti_deployments",
@@ -51,8 +66,8 @@ EXPECTED_UNIQUES = {
 }
 
 
-def _load_migration():
-    spec = importlib.util.spec_from_file_location("mig_076", MIGRATION_PATH)
+def _load_migration(path: str = MIGRATION_PATH, name: str = "mig_076"):
+    spec = importlib.util.spec_from_file_location(name, path)
     module = importlib.util.module_from_spec(spec)  # type: ignore[arg-type]
     spec.loader.exec_module(module)  # type: ignore[union-attr]
     return module
@@ -88,14 +103,19 @@ class TestMigration079Shape:
     def test_downgrade_then_upgrade_rebuilds_shape(self, test_db: Session):
         conn = test_db.get_bind()
         mig = _load_migration()
+        invites_mig = _load_migration(INVITES_MIGRATION_PATH, "mig_083")
 
+        # Walk the chain the way alembic would: 083 (dependent FK) first.
         with _op_context(conn):
+            invites_mig.downgrade()
             mig.downgrade()
         remaining = set(inspect(conn).get_table_names())
         assert not set(LTI_TABLES) & remaining
+        assert "lti_registration_invites" not in remaining
 
         with _op_context(conn):
             mig.upgrade()
+            invites_mig.upgrade()
         insp = inspect(conn)
         assert set(LTI_TABLES) <= set(insp.get_table_names())
 
