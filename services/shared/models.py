@@ -903,6 +903,52 @@ class LtiGradeSync(Base):
         )
 
 
+class LtiRegistrationInvite(Base):
+    """A one-time, org-bound invite for LTI Dynamic Registration.
+
+    A superadmin mints an invite URL in BenGER; the university's Moodle
+    admin pastes it into "Manage tools" and Moodle calls the tool's
+    registration endpoint (served by ``benger_extended``), which validates
+    the token and auto-creates the ``lti_platform_registrations`` row.
+    Only the sha256 hex of the raw token is stored — the raw token appears
+    exactly once, in the create response (API-key semantics). A used invite
+    stays as an audit record (``used_at`` + ``resulting_registration_id``);
+    a pending invite is revoked by hard delete.
+    """
+
+    __tablename__ = "lti_registration_invites"
+
+    id = Column(String, primary_key=True, index=True)
+    # CASCADE: invites are org-scoped ephemera/audit, not live LMS wiring —
+    # unlike registrations (RESTRICT above) they must never block an org
+    # deletion.
+    organization_id = Column(
+        String,
+        ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    # sha256 hex digest of the raw invite token; the raw token is never stored.
+    token_hash = Column(String(64), nullable=False, unique=True, index=True)
+    created_by = Column(
+        String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    used_at = Column(DateTime(timezone=True), nullable=True)
+    resulting_registration_id = Column(
+        String,
+        ForeignKey("lti_platform_registrations.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
+    def __repr__(self):
+        return (
+            f"<LtiRegistrationInvite(id={self.id}, "
+            f"organization_id={self.organization_id}, used_at={self.used_at})>"
+        )
+
+
 class Invitation(Base):
     """Organization invitation system for user onboarding"""
 

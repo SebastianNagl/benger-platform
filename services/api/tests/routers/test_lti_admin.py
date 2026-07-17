@@ -7,15 +7,18 @@ outbox reads + retry reset. The LTI protocol itself (login/launch/AGS) lives in
 ``benger_extended`` and is out of scope here.
 """
 
+import hashlib
 import uuid
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import pytest
+from sqlalchemy import select
 
 from models import (
     LtiGradeSync,
     LtiPlatformRegistration,
+    LtiRegistrationInvite,
     LtiResourceLink,
     Organization,
     User,
@@ -399,3 +402,361 @@ async def test_grade_sync_list_filters_and_retry_reset(
             f"/api/admin/lti/grade-syncs/{uuid.uuid4()}/retry"
         )
         assert r.status_code == 404
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_registrations_organization_filter(async_test_client, async_test_db):
+    org_a = await _make_org(async_test_db)
+    org_b = await _make_org(async_test_db)
+    admin = await _make_user(async_test_db, superadmin=True)
+
+    with _as_user(admin):
+        r = await async_test_client.post(
+            "/api/admin/lti/registrations", json=_registration_payload(org_a.id)
+        )
+        assert r.status_code == 201, r.text
+        reg_a = r.json()["id"]
+        r = await async_test_client.post(
+            "/api/admin/lti/registrations",
+            json=_registration_payload(
+                org_b.id, issuer="https://moodle.uni-b.example.com"
+            ),
+        )
+        assert r.status_code == 201, r.text
+        reg_b = r.json()["id"]
+
+        # Org filter returns only that org's registrations.
+        r = await async_test_client.get(
+            "/api/admin/lti/registrations", params={"organization_id": org_a.id}
+        )
+        assert r.status_code == 200
+        assert [reg["id"] for reg in r.json()] == [reg_a]
+        assert all(reg["organization_id"] == org_a.id for reg in r.json())
+
+        # Unknown org id is a filter miss, not a 404.
+        r = await async_test_client.get(
+            "/api/admin/lti/registrations",
+            params={"organization_id": str(uuid.uuid4())},
+        )
+        assert r.status_code == 200
+        assert r.json() == []
+
+        # No param keeps the unfiltered behavior (both rows, shape unchanged).
+        r = await async_test_client.get("/api/admin/lti/registrations")
+        assert r.status_code == 200
+        ids = [reg["id"] for reg in r.json()]
+        assert reg_a in ids and reg_b in ids
+        assert {"id", "organization_id", "deployments", "deployment_count"} <= set(
+            r.json()[0].keys()
+        )
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_grade_sync_organization_filter(async_test_client, async_test_db):
+    org_a = await _make_org(async_test_db)
+    org_b = await _make_org(async_test_db)
+    admin = await _make_user(async_test_db, superadmin=True)
+    project_a, sync_a = await _seed_grade_sync(async_test_db, org_a, admin)
+    project_b, sync_b = await _seed_grade_sync(async_test_db, org_b, admin)
+
+    with _as_user(admin):
+        # Org filter alone (join through resource link -> registration).
+        r = await async_test_client.get(
+            "/api/admin/lti/grade-syncs", params={"organization_id": org_a.id}
+        )
+        assert r.status_code == 200
+        assert [row["id"] for row in r.json()] == [sync_a.id]
+
+        # Unknown org id yields an empty list, not a 404.
+        r = await async_test_client.get(
+            "/api/admin/lti/grade-syncs",
+            params={"organization_id": str(uuid.uuid4())},
+        )
+        assert r.status_code == 200
+        assert r.json() == []
+
+        # Combined with the status filter.
+        r = await async_test_client.get(
+            "/api/admin/lti/grade-syncs",
+            params={"organization_id": org_a.id, "status": "failed"},
+        )
+        assert [row["id"] for row in r.json()] == [sync_a.id]
+        r = await async_test_client.get(
+            "/api/admin/lti/grade-syncs",
+            params={"organization_id": org_a.id, "status": "pending"},
+        )
+        assert r.json() == []
+
+        # Combined with project_id – the resource-link join must not double up.
+        r = await async_test_client.get(
+            "/api/admin/lti/grade-syncs",
+            params={"organization_id": org_a.id, "project_id": project_a.id},
+        )
+        assert r.status_code == 200
+        assert [row["id"] for row in r.json()] == [sync_a.id]
+
+        # Mismatched org/project combination matches nothing.
+        r = await async_test_client.get(
+            "/api/admin/lti/grade-syncs",
+            params={"organization_id": org_a.id, "project_id": project_b.id},
+        )
+        assert r.json() == []
+
+        # All three filters together.
+        r = await async_test_client.get(
+            "/api/admin/lti/grade-syncs",
+            params={
+                "organization_id": org_b.id,
+                "project_id": project_b.id,
+                "status": "failed",
+            },
+        )
+        assert [row["id"] for row in r.json()] == [sync_b.id]
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_organization_filters_stay_superadmin_only(
+    async_test_client, async_test_db
+):
+    org = await _make_org(async_test_db)
+    normal_user = await _make_user(async_test_db)
+
+    with _as_user(normal_user):
+        r = await async_test_client.get(
+            "/api/admin/lti/registrations", params={"organization_id": org.id}
+        )
+        assert r.status_code == 403
+        r = await async_test_client.get(
+            "/api/admin/lti/grade-syncs", params={"organization_id": org.id}
+        )
+        assert r.status_code == 403
+
+
+# --------------------------------------------------------------------------- #
+# Dynamic Registration invites
+# --------------------------------------------------------------------------- #
+async def _create_invite(async_test_client, org_id: str, **params) -> dict:
+    r = await async_test_client.post(
+        "/api/admin/lti/registrations/invites",
+        json={"organization_id": org_id},
+        params=params,
+    )
+    assert r.status_code == 201, r.text
+    return r.json()
+
+
+async def _get_invite_row(db, invite_id: str) -> LtiRegistrationInvite:
+    return (
+        await db.execute(
+            select(LtiRegistrationInvite).where(LtiRegistrationInvite.id == invite_id)
+        )
+    ).scalar_one()
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_create_invite_returns_raw_token_and_stores_only_hash(
+    async_test_client, async_test_db
+):
+    org = await _make_org(async_test_db)
+    admin = await _make_user(async_test_db, superadmin=True)
+
+    with _as_user(admin):
+        created = await _create_invite(async_test_client, org.id)
+        assert created["organization_id"] == org.id
+        token = created["token"]
+        assert len(token) >= 32
+        # base_url defaults to the request's base URL.
+        assert created["register_url"] == (
+            f"http://testserver/api/lti/register/init?token={token}"
+        )
+
+        # Default expiry is ~14 days out.
+        expires_at = datetime.fromisoformat(
+            created["expires_at"].replace("Z", "+00:00")
+        )
+        delta = expires_at - datetime.now(timezone.utc)
+        assert timedelta(days=13) < delta <= timedelta(days=14)
+
+        # The DB stores the sha256 hex only — never the raw token.
+        row = await _get_invite_row(async_test_db, created["id"])
+        assert row.token_hash == hashlib.sha256(token.encode()).hexdigest()
+        assert row.token_hash != token
+        assert token not in (row.token_hash, row.id)
+        assert row.created_by == admin.id
+        assert row.used_at is None
+        assert row.resulting_registration_id is None
+
+        # Explicit base_url wins (trailing slash normalized).
+        created2 = await _create_invite(
+            async_test_client, org.id, base_url="https://benger.example.com/"
+        )
+        assert created2["register_url"].startswith(
+            "https://benger.example.com/api/lti/register/init?token="
+        )
+        # Two invites never share a token or hash.
+        assert created2["token"] != token
+
+        # Non-http(s) base_url is rejected, like the tool-config endpoint.
+        r = await async_test_client.post(
+            "/api/admin/lti/registrations/invites",
+            json={"organization_id": org.id},
+            params={"base_url": "ftp://benger.example.com"},
+        )
+        assert r.status_code == 400
+
+        # expires_in_days is clamped to 1..90 by validation.
+        r = await async_test_client.post(
+            "/api/admin/lti/registrations/invites",
+            json={"organization_id": org.id, "expires_in_days": 0},
+        )
+        assert r.status_code == 422
+        r = await async_test_client.post(
+            "/api/admin/lti/registrations/invites",
+            json={"organization_id": org.id, "expires_in_days": 91},
+        )
+        assert r.status_code == 422
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_create_invite_rejects_unknown_org(async_test_client, async_test_db):
+    admin = await _make_user(async_test_db, superadmin=True)
+
+    with _as_user(admin):
+        r = await async_test_client.post(
+            "/api/admin/lti/registrations/invites",
+            json={"organization_id": str(uuid.uuid4())},
+        )
+        assert r.status_code == 404
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_list_invites_computes_status_and_hides_secrets(
+    async_test_client, async_test_db
+):
+    org = await _make_org(async_test_db)
+    admin = await _make_user(async_test_db, superadmin=True)
+
+    with _as_user(admin):
+        pending = await _create_invite(async_test_client, org.id)
+        expired = await _create_invite(async_test_client, org.id)
+        used = await _create_invite(async_test_client, org.id)
+
+        # Drive the rows into their states directly on the session.
+        expired_row = await _get_invite_row(async_test_db, expired["id"])
+        expired_row.expires_at = datetime.now(timezone.utc) - timedelta(days=1)
+        used_row = await _get_invite_row(async_test_db, used["id"])
+        used_row.used_at = datetime.now(timezone.utc)
+        await async_test_db.commit()
+
+        r = await async_test_client.get("/api/admin/lti/registrations/invites")
+        assert r.status_code == 200, r.text
+        by_id = {row["id"]: row for row in r.json()}
+        assert by_id[pending["id"]]["status"] == "pending"
+        assert by_id[expired["id"]]["status"] == "expired"
+        assert by_id[used["id"]]["status"] == "used"
+        assert by_id[used["id"]]["used_at"] is not None
+        assert by_id[pending["id"]]["used_at"] is None
+
+        # Neither the raw token nor the hash ever leaves via the list.
+        for row in r.json():
+            assert "token" not in row
+            assert "token_hash" not in row
+            assert "register_url" not in row
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_list_invites_organization_filter(async_test_client, async_test_db):
+    org_a = await _make_org(async_test_db)
+    org_b = await _make_org(async_test_db)
+    admin = await _make_user(async_test_db, superadmin=True)
+
+    with _as_user(admin):
+        invite_a = await _create_invite(async_test_client, org_a.id)
+        invite_b = await _create_invite(async_test_client, org_b.id)
+
+        r = await async_test_client.get(
+            "/api/admin/lti/registrations/invites",
+            params={"organization_id": org_a.id},
+        )
+        assert r.status_code == 200
+        assert [row["id"] for row in r.json()] == [invite_a["id"]]
+
+        # Unknown org id is a filter miss, not a 404.
+        r = await async_test_client.get(
+            "/api/admin/lti/registrations/invites",
+            params={"organization_id": str(uuid.uuid4())},
+        )
+        assert r.status_code == 200
+        assert r.json() == []
+
+        # Unfiltered list carries both.
+        r = await async_test_client.get("/api/admin/lti/registrations/invites")
+        ids = {row["id"] for row in r.json()}
+        assert {invite_a["id"], invite_b["id"]} <= ids
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_revoke_invite_deletes_pending_but_keeps_used(
+    async_test_client, async_test_db
+):
+    org = await _make_org(async_test_db)
+    admin = await _make_user(async_test_db, superadmin=True)
+
+    with _as_user(admin):
+        pending = await _create_invite(async_test_client, org.id)
+        used = await _create_invite(async_test_client, org.id)
+        used_row = await _get_invite_row(async_test_db, used["id"])
+        used_row.used_at = datetime.now(timezone.utc)
+        await async_test_db.commit()
+
+        # Pending invite: hard delete, then gone.
+        r = await async_test_client.delete(
+            f"/api/admin/lti/registrations/invites/{pending['id']}"
+        )
+        assert r.status_code == 204
+        r = await async_test_client.get("/api/admin/lti/registrations/invites")
+        assert pending["id"] not in {row["id"] for row in r.json()}
+
+        # Used invite: audit record, 409 and still listed.
+        r = await async_test_client.delete(
+            f"/api/admin/lti/registrations/invites/{used['id']}"
+        )
+        assert r.status_code == 409
+        r = await async_test_client.get("/api/admin/lti/registrations/invites")
+        assert used["id"] in {row["id"] for row in r.json()}
+
+        # Unknown invite id 404s.
+        r = await async_test_client.delete(
+            f"/api/admin/lti/registrations/invites/{uuid.uuid4()}"
+        )
+        assert r.status_code == 404
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_invite_endpoints_stay_superadmin_only(
+    async_test_client, async_test_db
+):
+    org = await _make_org(async_test_db)
+    normal_user = await _make_user(async_test_db)
+
+    with _as_user(normal_user):
+        r = await async_test_client.post(
+            "/api/admin/lti/registrations/invites",
+            json={"organization_id": org.id},
+        )
+        assert r.status_code == 403
+        r = await async_test_client.get("/api/admin/lti/registrations/invites")
+        assert r.status_code == 403
+        r = await async_test_client.delete(
+            f"/api/admin/lti/registrations/invites/{uuid.uuid4()}"
+        )
+        assert r.status_code == 403

@@ -15,6 +15,7 @@ import { useDeleteConfirm, useErrorAlert } from '@/hooks/useDialogs'
 import { Organization, OrganizationMember } from '@/lib/api'
 import { InvitationDetails } from '@/lib/api/invitations'
 import { organizationsAPI } from '@/lib/api/organizations'
+import { useSlot } from '@/lib/extensions/slots'
 import { UserOrganizationPermissions } from '@/lib/permissions/userOrganizationPermissions'
 import {
   BuildingOfficeIcon,
@@ -48,6 +49,7 @@ export function OrganizationsTab() {
   const showError = useErrorAlert()
   const confirmDelete = useDeleteConfirm()
   const searchParams = useSearchParams()
+  const OrgLtiPanel = useSlot('OrgLtiPanel')
 
   // Combine user with organizations for permissions system
   const userWithOrganizations = useMemo(
@@ -637,6 +639,12 @@ export function OrganizationsTab() {
               <KeyIcon className="h-4 w-4" />
               {t('admin.organizations.customModelKeys')}
             </Button>
+          )}
+          {selectedOrganization && currentUser?.is_superadmin && OrgLtiPanel && (
+            <OrgLtiPanel
+              organizationId={selectedOrganization.id}
+              organizationName={selectedOrganization.name}
+            />
           )}
           {canCreateOrganization && (
             <Button onClick={() => setShowCreateOrgModal(true)} variant="primary">
