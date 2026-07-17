@@ -110,6 +110,21 @@ export class ApiClient {
     this.leaderboardsClientInstance?.clearCache?.()
   }
 
+  // Invalidate cached GET responses matching an endpoint pattern across all
+  // resource clients. The generic get/post/put verbs are bound to the auth
+  // client, but callers cannot know which client cached a given endpoint —
+  // fan out like clearCache does.
+  invalidateCache = (pattern: string | RegExp) => {
+    this.authClient?.invalidateCache?.(pattern)
+    this.usersClient?.invalidateCache?.(pattern)
+    this.evaluationsClient?.invalidateCache?.(pattern)
+    this.organizationsClient?.invalidateCache?.(pattern)
+    this.notificationsClient?.invalidateCache?.(pattern)
+    this.invitationsClient?.invalidateCache?.(pattern)
+    this.featureFlagsClient?.invalidateCache?.(pattern)
+    this.leaderboardsClientInstance?.invalidateCache?.(pattern)
+  }
+
   // Clear cache for a specific user
   clearUserCache = (userId: string) => {
     this.authClient?.clearUserCache?.(userId)
