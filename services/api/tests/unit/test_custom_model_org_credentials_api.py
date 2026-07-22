@@ -378,7 +378,9 @@ class TestVisibilityChangeDropsOrgCredentials:
 
     async def _seed_owned(self, async_test_db, org_ids):
         """Owner + a private custom model they created, shared with each org in
-        ``org_ids``, each org carrying a shared-credential row. Returns
+        ``org_ids``, each org carrying a shared-credential row. The owner is an
+        ACTIVE member of every org — re-sharing via /visibility requires an
+        active membership in each target org. Returns
         (owner, model, {org_id: Organization})."""
         owner = _make_user()
         orgs = {oid: _make_org() for oid in org_ids}
@@ -391,6 +393,7 @@ class TestVisibilityChangeDropsOrgCredentials:
         for org in orgs.values():
             async_test_db.add_all(
                 [
+                    _membership(owner.id, org.id, OrganizationRole.CONTRIBUTOR),
                     _share(model.id, org.id),
                     CustomModelOrgCredential(
                         id=_uid(),

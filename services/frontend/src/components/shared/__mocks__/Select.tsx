@@ -111,12 +111,18 @@ export function SelectContent({
 export function SelectItem({
   value,
   children,
+  disabled,
 }: {
   value: string
   children: ReactNode
   className?: string
+  disabled?: boolean
 }) {
-  return <option value={value}>{children}</option>
+  return (
+    <option value={value} disabled={disabled}>
+      {children}
+    </option>
+  )
 }
 
 export function SelectValue({

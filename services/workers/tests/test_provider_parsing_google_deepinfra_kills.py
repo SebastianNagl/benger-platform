@@ -28,12 +28,16 @@ Mocking strategy
   (``candidates[0].finish_reason.name``, ``...content.parts[*].text``,
   ``usage_metadata.*_token_count``). ``is_available()`` returns
   ``self.client is not None``, so a non-None mock flips it available.
-* DEEPINFRA: ``_generate_async`` talks to ``aiohttp.ClientSession`` directly
-  (no client object). We construct ``DeepInfraService(api_key="...")`` so
-  ``self.client is True`` (available), then monkeypatch
-  ``aiohttp.ClientSession`` in the service module with a fake whose
-  ``.post(...)`` async-context-manager yields a fake response exposing
-  ``.status``, ``await .text()`` and ``await .json()``.
+* DEEPINFRA: ``_generate_async_attempts`` (the retry-decorated per-attempt
+  body under the undecorated ``_generate_async`` outer) talks to
+  ``aiohttp.ClientSession`` directly (no client object). We construct
+  ``DeepInfraService(api_key="...")`` so ``self.client is True``
+  (available), then monkeypatch ``aiohttp.ClientSession`` in the service
+  module with a fake whose ``.post(...)`` async-context-manager yields a
+  fake response exposing ``.status``, ``await .text()`` and
+  ``await .json()``. Retry tests additionally patch the module's ``_sleep``
+  backoff seam with an instant recorder (the workers conftest already
+  no-ops it autouse-wide).
 
 We assert EXACT values; the reasoning is in each test's docstring.
 """
@@ -595,10 +599,18 @@ class TestDeepInfraEmptyAndMissing:
         assert out["usage"]["completion_tokens"] == 0
         assert out["usage"]["total_tokens"] == 0
 
-    def test_http_error_status_becomes_error_response(self, patch_aiohttp):
-        """HTTP >= 400: the parser raises Exception(f'HTTP {status}: ...')
-        which the except block turns into a success=False error response
-        (no partial/garbage content stored)."""
+    def test_http_error_status_becomes_error_response(self, patch_aiohttp, monkeypatch):
+        """HTTP 5xx: each attempt raises RetryableUpstreamError('HTTP 503: ...'),
+        the retry decorator backs off and re-attempts until exhausted
+        (1 initial + 5 retries), and the undecorated _generate_async outer
+        converts the terminal raise into a success=False error response (no
+        partial/garbage content stored) carrying the full attempt trail."""
+        delays = []
+
+        async def _record(delay):
+            delays.append(delay)
+
+        monkeypatch.setattr(di_mod, "_sleep", _record)
         patch_aiohttp(
             lambda: _FakeAioResponse(status=503, text_body="upstream unavailable")
         )
@@ -608,3 +620,106 @@ class TestDeepInfraEmptyAndMissing:
         assert out["success"] is False
         assert out["content"] == ""
         assert "503" in (out.get("error") or "")
+        # Retry machinery: 6 recorded attempts, 5 instant backoffs.
+        assert out["metadata"]["retry_count"] == 6
+        assert len(delays) == 5
+
+
+class TestDeepInfraRetryAndScrub:
+    """Retry split behavior on the DeepInfra client: 429/5xx back off and
+    re-attempt (through the patched ``_sleep`` seam), auth errors fail fast
+    in one attempt, and — negative control for the BYOM endpoint scrubber —
+    official-provider error text is persisted VERBATIM (DeepInfraService
+    inherits the identity ``_sanitize_error_text`` hook)."""
+
+    def test_deepinfra_429_retries_then_succeeds(self, patch_aiohttp, monkeypatch):
+        """429 → RetryableUpstreamError → exactly one backoff, then the 200
+        parses normally; success metadata carries the single rate-limit
+        attempt in its retry trail."""
+        delays = []
+
+        async def _record(delay):
+            delays.append(delay)
+
+        monkeypatch.setattr(di_mod, "_sleep", _record)
+
+        responses = [
+            _FakeAioResponse(status=429, text_body="too many requests"),
+            _FakeAioResponse(
+                json_body={
+                    "choices": [
+                        {
+                            "message": {"content": "nach dem Backoff"},
+                            "finish_reason": "stop",
+                        }
+                    ],
+                    "usage": {
+                        "prompt_tokens": 9,
+                        "completion_tokens": 4,
+                        "total_tokens": 13,
+                    },
+                }
+            ),
+        ]
+        # Stateful factory: pop until only the terminal response remains.
+        patch_aiohttp(
+            lambda: responses.pop(0) if len(responses) > 1 else responses[0]
+        )
+        svc = _make_deepinfra_service()
+        out = svc.generate(prompt="p", model_name="DeepSeek-V3.1")
+
+        assert out["success"] is True
+        assert out["content"] == "nach dem Backoff"
+        assert out["metadata"]["retry_count"] == 1
+        assert out["metadata"]["retry_attempts"][0]["is_rate_limit"] is True
+        assert out["metadata"]["retry_attempts"][0]["retried"] is True
+        assert len(delays) == 1
+
+    def test_deepinfra_401_fails_fast(self, patch_aiohttp, monkeypatch):
+        """Auth failures are NOT transient: exactly one HTTP attempt, zero
+        backoffs, error dict classified as 'auth'."""
+        delays = []
+
+        async def _record(delay):
+            delays.append(delay)
+
+        monkeypatch.setattr(di_mod, "_sleep", _record)
+
+        calls = {"n": 0}
+
+        def _factory():
+            calls["n"] += 1
+            return _FakeAioResponse(status=401, text_body="invalid api key")
+
+        patch_aiohttp(_factory)
+        svc = _make_deepinfra_service()
+        out = svc.generate(prompt="p", model_name="DeepSeek-V3.1")
+
+        assert out["success"] is False
+        assert "401" in out["error"]
+        assert calls["n"] == 1
+        assert out["metadata"]["retry_count"] == 1
+        assert out["metadata"]["error_type"] == "auth"
+        assert delays == []
+
+    def test_deepinfra_error_body_kept_verbatim_no_scrub(self, patch_aiohttp):
+        """Negative control for the BYOM endpoint scrubber: DeepInfra is an
+        OFFICIAL provider, so its error text must survive verbatim (identity
+        _sanitize_error_text) — hostname and all — in both response['error']
+        and the retry-history entry. A regression that scrubs official
+        errors would destroy debuggability of real upstream incidents."""
+        patch_aiohttp(
+            lambda: _FakeAioResponse(
+                status=404,
+                text_body="no route to internal-host.example.org",
+            )
+        )
+        svc = _make_deepinfra_service()
+        out = svc.generate(prompt="p", model_name="DeepSeek-V3.1")
+
+        assert out["success"] is False
+        assert out["error"].startswith("HTTP 404:")
+        assert "internal-host.example.org" in out["error"]
+        attempts = out["metadata"]["retry_attempts"]
+        assert len(attempts) == 1
+        assert "internal-host.example.org" in attempts[0]["error"]

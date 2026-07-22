@@ -3,17 +3,26 @@ import userEvent from '@testing-library/user-event'
 import React from 'react'
 import { GenerationControlModal } from '../GenerationControlModal'
 
-// Mock useModels hook
-jest.mock('@/hooks/useModels', () => ({
-  useModels: jest.fn(() => ({
+// Mock useModels hook.
+// IMPORTANT: the default implementation must return a REFERENTIALLY STABLE
+// object. The modal's BYOM pruning effect is keyed on the `models` array; a
+// factory that builds `{ models: [] }` fresh on every call re-triggers the
+// effect each render, whose `prev.filter(...)` returns a new array → state
+// update → re-render → new mock object → infinite loop (OOMs the worker).
+// The real hook returns a stable useState value, so this is mock-only.
+jest.mock('@/hooks/useModels', () => {
+  const stableEmptyReturn = {
     models: [],
     loading: false,
     error: null,
     refetch: jest.fn(),
     hasApiKeys: true,
     apiKeyStatus: null,
-  })),
-}))
+  }
+  return {
+    useModels: jest.fn(() => stableEmptyReturn),
+  }
+})
 
 // Mock Toast
 jest.mock('@/components/shared/Toast', () => ({
@@ -69,6 +78,10 @@ jest.mock('@/contexts/I18nContext', () => ({
         'generation.controlModal.cancel': 'Cancel',
         'generation.controlModal.queuedJobs': 'Queued {tasks} generation jobs for {models} models. Estimated time: {minutes} minutes',
         'generation.controlModal.failedToStart': 'Failed to start generation',
+        'customModels.picker.officialSection': 'Official models',
+        'customModels.picker.customSection': 'Custom models',
+        'customModels.picker.missingKey': 'No API key stored.',
+        'customModels.picker.configureKey': 'Add key',
       }
       let result = translations[key] || key
       if (vars) {
@@ -1792,12 +1805,8 @@ describe('GenerationControlModal', () => {
         />
       )
 
-      expect(
-        screen.getByText('customModels.picker.officialSection')
-      ).toBeInTheDocument()
-      expect(
-        screen.getByText('customModels.picker.customSection')
-      ).toBeInTheDocument()
+      expect(screen.getByText('Official models')).toBeInTheDocument()
+      expect(screen.getByText('Custom models')).toBeInTheDocument()
       // Undefined is_official → rendered as a plain official row (name from
       // the catalog object).
       expect(screen.getByLabelText('GPT-4')).toBeInTheDocument()
@@ -1813,12 +1822,8 @@ describe('GenerationControlModal', () => {
         />
       )
 
-      expect(
-        screen.queryByText('customModels.picker.officialSection')
-      ).not.toBeInTheDocument()
-      expect(
-        screen.queryByText('customModels.picker.customSection')
-      ).not.toBeInTheDocument()
+      expect(screen.queryByText('Official models')).not.toBeInTheDocument()
+      expect(screen.queryByText('Custom models')).not.toBeInTheDocument()
     })
 
     it('disables credential-less custom models and links to /settings/models', () => {
@@ -1836,9 +1841,7 @@ describe('GenerationControlModal', () => {
       ) as HTMLInputElement
       expect(disabledCheckbox).toBeDisabled()
 
-      const link = screen
-        .getByText('customModels.picker.configureKey')
-        .closest('a')
+      const link = screen.getByText('Add key').closest('a')
       expect(link).toHaveAttribute('href', '/settings/models')
     })
 
@@ -1883,6 +1886,182 @@ describe('GenerationControlModal', () => {
       expect(
         (document.getElementById('model-custom-nokey') as HTMLInputElement)
       ).not.toBeChecked()
+    })
+  })
+
+  describe('BYOM missing-credential gating', () => {
+    const useModelsMock = jest.requireMock('@/hooks/useModels').useModels
+
+    // Full return shape of useModels() — the component only destructures
+    // `models`, but keep the rest so future destructuring can't crash.
+    const emptyCatalogReturn = {
+      models: [] as any[],
+      loading: false,
+      error: null,
+      refetch: jest.fn(),
+      hasApiKeys: true,
+      apiKeyStatus: null,
+    }
+
+    const gatingCatalog = [
+      {
+        id: 'gpt-4o-mini',
+        name: 'GPT-4o mini',
+        provider: 'openai',
+        model_type: 'chat',
+        capabilities: [],
+        is_active: true,
+        created_at: null,
+        is_official: true,
+      },
+      // Custom model whose required key is missing → must never stay/become
+      // selected.
+      {
+        id: 'custom-nokey',
+        name: 'Locked Llama',
+        provider: 'custom',
+        model_type: 'chat',
+        capabilities: [],
+        is_active: true,
+        created_at: null,
+        is_official: false,
+        requires_api_key: true,
+        has_credential: false,
+      },
+      // Custom model with a stored key → behaves like an official one.
+      {
+        id: 'custom-haskey',
+        name: 'Keyed Llama',
+        provider: 'custom',
+        model_type: 'chat',
+        capabilities: [],
+        is_active: true,
+        created_at: null,
+        is_official: false,
+        requires_api_key: true,
+        has_credential: true,
+      },
+    ]
+
+    const gatingIds = ['gpt-4o-mini', 'custom-nokey', 'custom-haskey']
+
+    const checkbox = (modelId: string) =>
+      document.getElementById(`model-${modelId}`) as HTMLInputElement
+
+    beforeEach(() => {
+      useModelsMock.mockReturnValue({
+        ...emptyCatalogReturn,
+        models: gatingCatalog,
+      })
+    })
+
+    afterEach(() => {
+      useModelsMock.mockReturnValue(emptyCatalogReturn)
+    })
+
+    it('does not pre-select saved models that are missing a credential', () => {
+      render(
+        <GenerationControlModal
+          isOpen={true}
+          onClose={mockOnClose}
+          models={gatingIds}
+          defaultSelectedModels={gatingIds}
+          onGenerate={mockOnGenerate}
+        />
+      )
+
+      // The saved selection contained all three ids, but the locked model
+      // is pruned on open: rendered unchecked AND disabled.
+      expect(checkbox('custom-nokey')).not.toBeChecked()
+      expect(checkbox('custom-nokey')).toBeDisabled()
+
+      // The official and the credentialed custom keep their pre-selection.
+      expect(checkbox('gpt-4o-mini')).toBeChecked()
+      expect(checkbox('custom-haskey')).toBeChecked()
+      expect(screen.getByText('2 models selected')).toBeInTheDocument()
+    })
+
+    it('prunes a locked model when catalog data arrives after open', () => {
+      // Catalog not loaded yet → isMissingCredential() is false for every
+      // id, so the open-reset keeps the full saved selection.
+      useModelsMock.mockReturnValue(emptyCatalogReturn)
+
+      const { rerender } = render(
+        <GenerationControlModal
+          isOpen={true}
+          onClose={mockOnClose}
+          models={gatingIds}
+          defaultSelectedModels={gatingIds}
+          onGenerate={mockOnGenerate}
+        />
+      )
+
+      expect(checkbox('custom-nokey')).toBeChecked()
+      expect(checkbox('custom-nokey')).not.toBeDisabled()
+      expect(screen.getByText('3 models selected')).toBeInTheDocument()
+
+      // Catalog lands (useModels re-renders the consumer) → the pruning
+      // effect keyed on availableModelObjects removes the locked id.
+      useModelsMock.mockReturnValue({
+        ...emptyCatalogReturn,
+        models: gatingCatalog,
+      })
+      rerender(
+        <GenerationControlModal
+          isOpen={true}
+          onClose={mockOnClose}
+          models={gatingIds}
+          defaultSelectedModels={gatingIds}
+          onGenerate={mockOnGenerate}
+        />
+      )
+
+      expect(checkbox('custom-nokey')).not.toBeChecked()
+      expect(checkbox('custom-nokey')).toBeDisabled()
+      expect(checkbox('gpt-4o-mini')).toBeChecked()
+      expect(checkbox('custom-haskey')).toBeChecked()
+      expect(screen.getByText('2 models selected')).toBeInTheDocument()
+    })
+
+    it('never submits a missing-credential model', async () => {
+      const user = userEvent.setup()
+      render(
+        <GenerationControlModal
+          isOpen={true}
+          onClose={mockOnClose}
+          models={gatingIds}
+          defaultSelectedModels={gatingIds}
+          onGenerate={mockOnGenerate}
+        />
+      )
+
+      // No structures on this project → models alone enable the button.
+      const startButton = screen.getByText('Start Generation')
+      expect(startButton).not.toBeDisabled()
+      await user.click(startButton)
+
+      expect(mockOnGenerate).toHaveBeenCalledWith(
+        ['gpt-4o-mini', 'custom-haskey'],
+        true, // default mode stays 'missing'
+        undefined
+      )
+    })
+
+    it('shows the amber configure-key hint linking to /settings/models', () => {
+      render(
+        <GenerationControlModal
+          isOpen={true}
+          onClose={mockOnClose}
+          models={gatingIds}
+          defaultSelectedModels={gatingIds}
+          onGenerate={mockOnGenerate}
+        />
+      )
+
+      // Only the locked row renders the hint.
+      expect(screen.getByText('No API key stored.')).toBeInTheDocument()
+      const link = screen.getByText('Add key').closest('a')
+      expect(link).toHaveAttribute('href', '/settings/models')
     })
   })
 })

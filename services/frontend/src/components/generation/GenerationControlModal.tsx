@@ -211,7 +211,12 @@ export function GenerationControlModal({
   // by hand).
   useEffect(() => {
     if (!isOpen) return
-    setSelectedModels((prev) => prev.filter((id) => !isMissingCredential(id)))
+    setSelectedModels((prev) => {
+      const next = prev.filter((id) => !isMissingCredential(id))
+      // Same reference when nothing was pruned so React bails out — the
+      // effect must be a no-op fixpoint, not a fresh-array producer.
+      return next.length === prev.length ? prev : next
+    })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, availableModelObjects])
 
