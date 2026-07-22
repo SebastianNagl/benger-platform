@@ -202,6 +202,19 @@ export function GenerationControlModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen])
 
+  // BYOM: never keep a missing-credential model selected. The saved config
+  // can contain locked models, and useModels() data may arrive AFTER the
+  // reset above ran (isMissingCredential is false for everything until the
+  // catalog lands) — so prune on the open transition AND when the catalog
+  // arrives. Only locked ids are ever removed, so the user's manual toggles
+  // are untouched (a locked row's checkbox is disabled and can't be checked
+  // by hand).
+  useEffect(() => {
+    if (!isOpen) return
+    setSelectedModels((prev) => prev.filter((id) => !isMissingCredential(id)))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, availableModelObjects])
+
   const handleModelToggle = (modelId: string) => {
     setSelectedModels((prev) =>
       prev.includes(modelId)

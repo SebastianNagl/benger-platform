@@ -8,8 +8,8 @@
  * NOTE: written against the /custom-models backend contract; the /test
  * call is the only intercepted route - register/visibility/credential go
  * against the real API. Requires a live stack (make dev) and the admin
- * dev user. This spec was authored alongside the frontend implementation
- * and has not been executed yet - do a live run before relying on it in CI.
+ * dev user. Runs in the nightly e2e shard (nightly-tests.yml matrix,
+ * make test-e2e).
  */
 
 import { expect, Page, test } from '@playwright/test'
