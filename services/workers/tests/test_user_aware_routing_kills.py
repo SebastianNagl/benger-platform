@@ -508,6 +508,34 @@ class TestModelRowDispatch:
         service = svc.get_ai_service_for_model_row(MagicMock(), "user-9", row)
         assert service.supports_seed is False
 
+    def test_custom_row_reasoning_param_from_default_config(
+        self, svc, patched_credential, access_granted
+    ):
+        row = _custom_row(
+            default_config={"reasoning_config": {"parameter": "reasoning_effort"}}
+        )
+        service = svc.get_ai_service_for_model_row(MagicMock(), "user-9", row)
+        assert service.reasoning_param == "reasoning_effort"
+
+    def test_custom_row_reasoning_defaults_off_and_tolerates_junk(
+        self, svc, patched_credential, access_granted
+    ):
+        # No default_config attr at all (legacy row object).
+        service = svc.get_ai_service_for_model_row(
+            MagicMock(), "user-9", _custom_row()
+        )
+        assert service.reasoning_param is None
+        # Owner-supplied junk shapes degrade to "no knob", never raise.
+        for junk in (
+            {"reasoning_config": "effort"},
+            {"reasoning_config": {"parameter": 42}},
+            ["not-a-dict"],
+        ):
+            service = svc.get_ai_service_for_model_row(
+                MagicMock(), "user-9", _custom_row(default_config=junk)
+            )
+            assert service.reasoning_param is None
+
     def test_keyless_row_runs_without_credential(self, svc, monkeypatch, access_granted):
         monkeypatch.setattr(cmcs_mod, "get_credential", lambda db, u, m: None)
         row = _custom_row(requires_api_key=False)
