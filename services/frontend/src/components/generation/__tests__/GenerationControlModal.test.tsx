@@ -1826,7 +1826,7 @@ describe('GenerationControlModal', () => {
       expect(screen.queryByText('Custom models')).not.toBeInTheDocument()
     })
 
-    it('disables credential-less custom models and links to /settings/models', () => {
+    it('disables credential-less custom models and links to /models', () => {
       render(
         <GenerationControlModal
           isOpen={true}
@@ -1842,7 +1842,7 @@ describe('GenerationControlModal', () => {
       expect(disabledCheckbox).toBeDisabled()
 
       const link = screen.getByText('Add key').closest('a')
-      expect(link).toHaveAttribute('href', '/settings/models')
+      expect(link).toHaveAttribute('href', '/models')
     })
 
     it('keeps custom models with a stored credential selectable', async () => {
@@ -2047,7 +2047,7 @@ describe('GenerationControlModal', () => {
       )
     })
 
-    it('shows the amber configure-key hint linking to /settings/models', () => {
+    it('shows the amber configure-key hint linking to /models', () => {
       render(
         <GenerationControlModal
           isOpen={true}
@@ -2061,7 +2061,7 @@ describe('GenerationControlModal', () => {
       // Only the locked row renders the hint.
       expect(screen.getByText('No API key stored.')).toBeInTheDocument()
       const link = screen.getByText('Add key').closest('a')
-      expect(link).toHaveAttribute('href', '/settings/models')
+      expect(link).toHaveAttribute('href', '/models')
     })
   })
 })

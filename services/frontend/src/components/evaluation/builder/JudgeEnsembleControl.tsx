@@ -172,7 +172,7 @@ export function JudgeEnsembleControl<S extends BuilderStateWithParameters>({
                     <div className="mt-0.5 text-xs text-amber-600">
                       {t('customModels.picker.missingKey')}{' '}
                       <Link
-                        href="/settings/models"
+                        href="/models"
                         className="underline hover:text-amber-700"
                       >
                         {t('customModels.picker.configureKey')}

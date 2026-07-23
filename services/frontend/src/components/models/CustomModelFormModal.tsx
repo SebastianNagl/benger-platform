@@ -67,7 +67,18 @@ interface FormState {
   input_cost: string
   output_cost: string
   api_key: string
+  reasoning_param: string
 }
+
+// The reasoning knobs the worker can forward — mirrors the backend
+// allowlist in OpenAICompatibleService (_REASONING_PARAMS). 'none' keeps
+// the legacy never-send behavior.
+export const REASONING_PARAM_OPTIONS = [
+  'reasoning_effort',
+  'thinking_budget',
+  'thinking_token_budget',
+  'prompt_mode',
+] as const
 
 const emptyForm: FormState = {
   name: '',
@@ -78,6 +89,19 @@ const emptyForm: FormState = {
   input_cost: '',
   output_cost: '',
   api_key: '',
+  reasoning_param: 'none',
+}
+
+function reasoningParamFromModel(model: CustomModel): string {
+  const dc = model.default_config
+  if (dc && typeof dc === 'object') {
+    const rc = (dc as Record<string, unknown>).reasoning_config
+    if (rc && typeof rc === 'object') {
+      const param = (rc as Record<string, unknown>).parameter
+      if (typeof param === 'string') return param
+    }
+  }
+  return 'none'
 }
 
 function formFromModel(model: CustomModel): FormState {
@@ -96,7 +120,26 @@ function formFromModel(model: CustomModel): FormState {
         ? String(model.output_cost_per_million)
         : '',
     api_key: '',
+    reasoning_param: reasoningParamFromModel(model),
   }
+}
+
+/**
+ * default_config for a chosen reasoning param, preserving every OTHER key
+ * the row may carry. 'none' removes reasoning_config (and drops the whole
+ * default_config when that leaves it empty, matching an undeclared row).
+ */
+function buildDefaultConfig(
+  original: Record<string, unknown> | null | undefined,
+  reasoningParam: string
+): Record<string, unknown> | undefined {
+  const base: Record<string, unknown> = { ...(original ?? {}) }
+  if (reasoningParam === 'none') {
+    delete base.reasoning_config
+    return Object.keys(base).length > 0 ? base : undefined
+  }
+  base.reasoning_config = { parameter: reasoningParam }
+  return base
 }
 
 export function CustomModelFormModal({
@@ -220,6 +263,8 @@ export function CustomModelFormModal({
     if (form.requires_api_key && form.api_key.trim()) {
       payload.api_key = form.api_key.trim()
     }
+    const defaultConfig = buildDefaultConfig(null, form.reasoning_param)
+    if (defaultConfig) payload.default_config = defaultConfig
     return payload
   }
 
@@ -254,6 +299,13 @@ export function CustomModelFormModal({
     }
     if (outputCost !== (original.output_cost_per_million ?? null)) {
       payload.output_cost_per_million = outputCost
+    }
+
+    if (form.reasoning_param !== reasoningParamFromModel(original)) {
+      // Backend PATCH sets fields verbatim: send the merged object (or an
+      // empty one to clear) so other default_config keys survive.
+      payload.default_config =
+        buildDefaultConfig(original.default_config, form.reasoning_param) ?? {}
     }
 
     return payload
@@ -522,6 +574,31 @@ export function CustomModelFormModal({
                       }
                     />
                   </div>
+                </div>
+
+                {/* Reasoning parameter (default_config.reasoning_config) */}
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                    {t('customModels.form.reasoningParam')}
+                  </label>
+                  <select
+                    value={form.reasoning_param}
+                    onChange={(e) => setField('reasoning_param', e.target.value)}
+                    className={inputClass}
+                    data-testid="custom-model-reasoning-select"
+                  >
+                    <option value="none">
+                      {t('customModels.form.reasoningParamNone')}
+                    </option>
+                    {REASONING_PARAM_OPTIONS.map((param) => (
+                      <option key={param} value={param}>
+                        {param}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                    {t('customModels.form.reasoningParamHelp')}
+                  </p>
                 </div>
 
                 {/* API key (create mode only, when a key is required) */}

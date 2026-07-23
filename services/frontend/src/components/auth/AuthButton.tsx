@@ -16,7 +16,6 @@ import {
   BuildingOfficeIcon,
   CheckIcon,
   ChevronDownIcon,
-  CpuChipIcon,
   ListBulletIcon,
   UserIcon,
   UsersIcon,
@@ -125,15 +124,9 @@ export function AuthButton() {
                   : 'Notification Settings'}
               </Link>
 
-              {/* Custom models (BYOM) */}
-              <Link
-                href="/settings/models"
-                className="flex items-center px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-700"
-                onClick={() => setDropdownOpen(false)}
-              >
-                <CpuChipIcon className="mr-3 h-4 w-4" />
-                {isClient ? t('auth.modelSettings') : 'My Models'}
-              </Link>
+              {/* Custom models (BYOM) live on /models now — the catalog
+                  page hosts registration + management, so no separate
+                  dropdown entry. */}
 
               {/* Org Switcher Section */}
               {organizations.length > 0 && (

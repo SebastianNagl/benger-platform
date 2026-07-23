@@ -5,7 +5,7 @@
  * grid. A custom judge (`is_official === false`) that requires an API key
  * the user has not stored (`has_credential === false`) renders its checkbox
  * disabled with a muted label and an amber configure-key hint linking to
- * /settings/models; official judges and credentialed customs stay
+ * /models; official judges and credentialed customs stay
  * selectable and write metric_parameters.judges via setNewEvaluation.
  *
  * judgeModels is a plain prop (no useModels mock needed). next/link is the
@@ -88,7 +88,7 @@ beforeEach(() => {
 })
 
 describe('JudgeEnsembleControl — BYOM credential gating', () => {
-  it('disables the credential-less custom judge and shows the amber hint with a /settings/models link', () => {
+  it('disables the credential-less custom judge and shows the amber hint with a /models link', () => {
     renderControl()
 
     // Locked custom: checkbox disabled, label muted, Custom badge shown.
@@ -104,7 +104,7 @@ describe('JudgeEnsembleControl — BYOM credential gating', () => {
     const link = screen
       .getByText('customModels.picker.configureKey')
       .closest('a')
-    expect(link).toHaveAttribute('href', '/settings/models')
+    expect(link).toHaveAttribute('href', '/models')
 
     // Official (non-primary) and credentialed custom stay enabled…
     expect(entryCheckbox(/Claude Sonnet 4/)).not.toBeDisabled()

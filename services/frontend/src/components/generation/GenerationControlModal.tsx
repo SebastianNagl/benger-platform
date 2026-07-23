@@ -468,7 +468,7 @@ export function GenerationControlModal({
                                     <div className="ml-6 text-xs text-amber-600">
                                       {t('customModels.picker.missingKey')}{' '}
                                       <Link
-                                        href="/settings/models"
+                                        href="/models"
                                         className="underline hover:text-amber-700"
                                       >
                                         {t('customModels.picker.configureKey')}

@@ -60,8 +60,8 @@ test.describe('Custom Model (BYOM) journey', () => {
   test('register → share with org → add credential → appears in generation picker', async () => {
     test.setTimeout(180000)
 
-    // ── 1. Register the model on /settings/models ──────────────────────
-    await page.goto(`${BASE_URL}/settings/models`, { timeout: 30000 })
+    // ── 1. Register the model on /models (community section) ───────────
+    await page.goto(`${BASE_URL}/models`, { timeout: 30000 })
     await expect(
       page.getByTestId('custom-model-register-button')
     ).toBeVisible({ timeout: 30000 })
