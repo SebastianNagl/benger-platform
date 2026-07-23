@@ -35,16 +35,29 @@ OpenAI-compatible servers cannot be assumed to support json_schema mode.
 import asyncio
 import logging
 import os
+import re
 from datetime import datetime
 from typing import Any, Dict, Optional
+from urllib.parse import urlsplit
 
 import aiohttp
 
-from .base_service import BaseAIService, derive_refusal, derive_truncated
+from .base_service import (
+    BaseAIService,
+    RetryableUpstreamError,
+    derive_refusal,
+    derive_truncated,
+)
 from .deepinfra_service import async_retry_with_exponential_backoff
 from .response_validator import ResponseValidator
 
 logger = logging.getLogger(__name__)
+
+# IP literals get redacted from custom-model error text wholesale. The IPv6
+# pattern over-matches colon-separated sequences (e.g. timestamps inside an
+# upstream error body) — accepted: the scrub must never under-redact.
+_IPV4_RE = re.compile(r"\b\d{1,3}(?:\.\d{1,3}){3}\b")
+_IPV6_RE = re.compile(r"\[?\b(?:[0-9A-Fa-f]{1,4}:){2,7}[0-9A-Fa-f]{0,4}\b\]?")
 
 
 class OpenAICompatibleService(BaseAIService):
@@ -100,7 +113,41 @@ class OpenAICompatibleService(BaseAIService):
         fallback for direct callers."""
         return self.endpoint_model_name or model_name
 
-    @async_retry_with_exponential_backoff(max_retries=5, base_delay=2.0)
+    _REDACTED = "<custom-endpoint>"
+    _REDACTED_IP = "<redacted-ip>"
+    _MAX_ERROR_LEN = 500
+
+    def _sanitize_error_text(self, text: str) -> str:
+        """Scrub the endpoint's identifiers from error text.
+
+        ``response['error']`` is persisted to ``generations.error_message``
+        (exportable) and the retry decorator's history entries land in
+        ``response_metadata`` — the module's "no base_url in metadata"
+        invariant must hold on failures too. Covers the full base_url, its
+        scheme-less form, host[:port], bare hostname, and raw IP literals
+        (url_guard rejections and aiohttp connection errors embed those).
+        """
+        if not text:
+            return text
+        needles = {self.base_url}
+        needles.add(self.base_url.split("://", 1)[-1])
+        split = urlsplit(
+            self.base_url if "://" in self.base_url else f"//{self.base_url}"
+        )
+        if split.netloc:
+            needles.add(split.netloc)
+        if split.hostname:
+            needles.add(split.hostname)
+        for needle in sorted(filter(None, needles), key=len, reverse=True):
+            text = re.sub(
+                re.escape(needle), self._REDACTED, text, flags=re.IGNORECASE
+            )
+        text = _IPV4_RE.sub(self._REDACTED_IP, text)
+        text = _IPV6_RE.sub(self._REDACTED_IP, text)
+        # Keep the head — the "HTTP <status>:" prefix must survive for error
+        # classification and the worker's message extraction; drop the tail.
+        return text[: self._MAX_ERROR_LEN]
+
     async def _generate_async(
         self,
         prompt: str,
@@ -138,118 +185,150 @@ class OpenAICompatibleService(BaseAIService):
                 error=None,
             )
 
+        try:
+            return await self._generate_async_attempts(
+                prompt,
+                system_prompt=system_prompt,
+                model_name=model_name,
+                max_tokens=max_tokens,
+                temperature=temperature,
+                **kwargs,
+            )
+        except Exception as e:
+            # Terminal failure (non-retryable, or retries exhausted) — callers
+            # expect the standard error dict, never an exception out of
+            # generate().
+            return self._error_response_with_history(e, api_model_name, "Custom")
+
+    @async_retry_with_exponential_backoff(max_retries=5, base_delay=2.0)
+    async def _generate_async_attempts(
+        self,
+        prompt: str,
+        system_prompt: str = "",
+        model_name: str = "",
+        max_tokens: int = 1000,
+        temperature: float = 0.0,
+        **kwargs,
+    ) -> Dict[str, Any]:
+        """One HTTP attempt; raises on failure. HTTP 429/5xx raise
+        RetryableUpstreamError so the decorator backs off; auth/other-4xx
+        errors, url_guard rejections, and redirect refusals raise plain
+        exceptions and fail fast to the outer error-dict conversion."""
+        api_model_name = self._resolve_model(model_name)
+
         if not self.is_available():
             raise ValueError("Custom model endpoint is not configured (missing base_url)")
 
         requested_seed = kwargs.get("seed", 42)
 
-        try:
-            # Call-time SSRF re-check + connection pinning. resolve_and_validate
-            # runs the full guard and returns the exact IPs that passed; the
-            # pinned connector then makes aiohttp connect to ONLY those IPs, so
-            # a TTL-0 DNS rebind between this lookup and aiohttp's own cannot
-            # swap in an internal address. Inside the try so a rejection
-            # surfaces as the standard error dict, not an exception out of
-            # generate(). Import here: url_guard lives at the /shared root, on
-            # sys.path in both containers.
-            from url_guard import pinned_connector, resolve_and_validate
+        # Call-time SSRF re-check + connection pinning. resolve_and_validate
+        # runs the full guard and returns the exact IPs that passed; the
+        # pinned connector then makes aiohttp connect to ONLY those IPs, so
+        # a TTL-0 DNS rebind between this lookup and aiohttp's own cannot
+        # swap in an internal address. A rejection raises out of this attempt
+        # (non-retryable); the outer _generate_async converts it to the
+        # standard error dict. Import here: url_guard lives at the /shared
+        # root, on sys.path in both containers.
+        from url_guard import pinned_connector, resolve_and_validate
 
-            _normalized_url, validated_ips = resolve_and_validate(self.base_url)
+        _normalized_url, validated_ips = resolve_and_validate(self.base_url)
 
-            start_time = datetime.now()
+        start_time = datetime.now()
 
-            payload = {
-                "model": api_model_name,
-                "messages": [
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": prompt},
-                ],
-                "max_tokens": max_tokens,
-                "temperature": temperature,
-                "stream": False,
-            }
-            if self.supports_seed:
-                payload["seed"] = requested_seed
+        payload = {
+            "model": api_model_name,
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": prompt},
+            ],
+            "max_tokens": max_tokens,
+            "temperature": temperature,
+            "stream": False,
+        }
+        if self.supports_seed:
+            payload["seed"] = requested_seed
 
-            # URL keeps the hostname (never the pinned IP) so TLS SNI + cert
-            # verification stay correct; the connector routes it to the
-            # validated IP.
-            async with aiohttp.ClientSession(
-                connector=pinned_connector(validated_ips)
-            ) as session:
-                async with session.post(
-                    f"{self.base_url}/chat/completions",
-                    headers=self._headers(),
-                    json=payload,
-                    timeout=aiohttp.ClientTimeout(total=self.timeout_s),
-                    allow_redirects=False,
-                ) as response:
-                    if 300 <= response.status < 400:
-                        # Following a redirect would bypass the pre-flight
-                        # IP check — refuse instead.
-                        raise Exception(
-                            f"HTTP {response.status}: custom model endpoints must not redirect"
+        # URL keeps the hostname (never the pinned IP) so TLS SNI + cert
+        # verification stay correct; the connector routes it to the
+        # validated IP.
+        async with aiohttp.ClientSession(
+            connector=pinned_connector(validated_ips)
+        ) as session:
+            async with session.post(
+                f"{self.base_url}/chat/completions",
+                headers=self._headers(),
+                json=payload,
+                timeout=aiohttp.ClientTimeout(total=self.timeout_s),
+                allow_redirects=False,
+            ) as response:
+                if 300 <= response.status < 400:
+                    # Following a redirect would bypass the pre-flight
+                    # IP check — refuse instead.
+                    raise Exception(
+                        f"HTTP {response.status}: custom model endpoints must not redirect"
+                    )
+                if response.status >= 400:
+                    error_body = await response.text()
+                    message = f"HTTP {response.status}: {error_body[:500]}"
+                    if response.status == 429 or response.status >= 500:
+                        raise RetryableUpstreamError(
+                            message, status=response.status
                         )
-                    if response.status >= 400:
-                        error_body = await response.text()
-                        raise Exception(f"HTTP {response.status}: {error_body[:500]}")
-                    result = await response.json()
+                    raise Exception(message)
+                result = await response.json()
 
-            end_time = datetime.now()
-            response_time_ms = int((end_time - start_time).total_seconds() * 1000)
+        end_time = datetime.now()
+        response_time_ms = int((end_time - start_time).total_seconds() * 1000)
 
-            response_text = ""
-            if result.get("choices") and len(result["choices"]) > 0:
-                response_text = result["choices"][0]["message"]["content"] or ""
+        response_text = ""
+        if result.get("choices") and len(result["choices"]) > 0:
+            response_text = result["choices"][0]["message"]["content"] or ""
 
-            usage = result.get("usage") or {}
-            input_tokens = usage.get("prompt_tokens", 0)
-            output_tokens = usage.get("completion_tokens", 0)
-            total_tokens = usage.get("total_tokens", input_tokens + output_tokens)
+        usage = result.get("usage") or {}
+        input_tokens = usage.get("prompt_tokens", 0)
+        output_tokens = usage.get("completion_tokens", 0)
+        total_tokens = usage.get("total_tokens", input_tokens + output_tokens)
 
-            cost_usd = self._calculate_cost(input_tokens, output_tokens)
+        cost_usd = self._calculate_cost(input_tokens, output_tokens)
 
-            finish_reason = (
-                result["choices"][0].get("finish_reason") if result.get("choices") else None
-            )
+        finish_reason = (
+            result["choices"][0].get("finish_reason") if result.get("choices") else None
+        )
 
-            logger.info(
-                f"🤖 Custom model generation: {api_model_name} | "
-                f"{input_tokens}+{output_tokens} tokens | ${cost_usd:.4f} | {response_time_ms}ms"
-            )
+        logger.info(
+            f"🤖 Custom model generation: {api_model_name} | "
+            f"{input_tokens}+{output_tokens} tokens | ${cost_usd:.4f} | {response_time_ms}ms"
+        )
 
-            # NOTE: no base_url in metadata — response_metadata is embedded
-            # verbatim in project exports and shared results.
-            return self._create_response_dict(
-                content=response_text,
-                model=api_model_name,
-                usage={
-                    "prompt_tokens": input_tokens,
-                    "completion_tokens": output_tokens,
-                    "total_tokens": total_tokens,
-                },
-                metadata={
-                    "temperature": temperature,
-                    "max_tokens": max_tokens,
-                    "response_time_ms": response_time_ms,
-                    "cost_usd": cost_usd,
-                    "provider": "Custom",
-                    "finish_reason": finish_reason,
-                    "truncated": derive_truncated(finish_reason),
-                    "refusal": derive_refusal(finish_reason),
-                    "error_type": None,
-                    "seed": requested_seed if self.supports_seed else None,
-                    "created_at": end_time.isoformat(),
-                    **self.get_invocation_provenance(),
-                },
-                success=True,
-                error=None,
-            )
+        # NOTE: no base_url in metadata — response_metadata is embedded
+        # verbatim in project exports and shared results.
+        return self._create_response_dict(
+            content=response_text,
+            model=api_model_name,
+            usage={
+                "prompt_tokens": input_tokens,
+                "completion_tokens": output_tokens,
+                "total_tokens": total_tokens,
+            },
+            metadata={
+                "temperature": temperature,
+                "max_tokens": max_tokens,
+                "response_time_ms": response_time_ms,
+                "cost_usd": cost_usd,
+                "provider": "Custom",
+                "finish_reason": finish_reason,
+                "truncated": derive_truncated(finish_reason),
+                "refusal": derive_refusal(finish_reason),
+                "error_type": None,
+                "seed": requested_seed if self.supports_seed else None,
+                "created_at": end_time.isoformat(),
+                **self.get_invocation_provenance(),
+            },
+            success=True,
+            error=None,
+        )
 
-        except Exception as e:
-            return self._create_error_response(e, api_model_name, "Custom")
 
-    @async_retry_with_exponential_backoff(max_retries=5, base_delay=2.0)
     async def _generate_structured_async(
         self,
         prompt: str,

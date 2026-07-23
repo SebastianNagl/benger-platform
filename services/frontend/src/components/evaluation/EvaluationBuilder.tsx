@@ -55,6 +55,7 @@ import {
   TrashIcon,
   XMarkIcon,
 } from '@heroicons/react/24/outline'
+import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { FieldMappingEditor } from './FieldMappingEditor'
 import { PromptTemplateEditor } from './PromptTemplateEditor'
@@ -156,6 +157,12 @@ export function EvaluationBuilder({
     () => judgeModels.filter((m) => m.is_official === false),
     [judgeModels]
   )
+  // A custom judge whose key the user has not stored cannot run — render it
+  // disabled (has_credential already ORs personal + usable org keys).
+  const isJudgeMissingCredential = (m: (typeof judgeModels)[number]) =>
+    m.is_official === false &&
+    m.requires_api_key === true &&
+    m.has_credential === false
   const renderJudgeModelOptions = () => (
     <>
       {customJudges.length > 0 && officialJudges.length > 0 && (
@@ -173,13 +180,37 @@ export function EvaluationBuilder({
           {t('customModels.picker.customSection')}
         </div>
       )}
-      {customJudges.map((model) => (
-        <SelectItem key={model.id} value={model.id}>
-          {model.name} ({model.provider})
-        </SelectItem>
-      ))}
+      {customJudges.map((model) => {
+        const missing = isJudgeMissingCredential(model)
+        return (
+          <SelectItem key={model.id} value={model.id} disabled={missing}>
+            {model.name} ({model.provider})
+            {missing && (
+              <span className="ml-2 text-xs text-amber-600">
+                {t('customModels.picker.missingKey')}
+              </span>
+            )}
+          </SelectItem>
+        )
+      })}
     </>
   )
+
+  // One hint line under the judge Select when any custom judge is locked —
+  // per-option links don't work inside a disabled Listbox option, so the
+  // pointer to /settings/models lives below the control.
+  const renderJudgeCredentialHint = () =>
+    customJudges.some(isJudgeMissingCredential) ? (
+      <div className="mt-1 text-xs text-amber-600">
+        {t('customModels.picker.missingKey')}{' '}
+        <Link
+          href="/settings/models"
+          className="underline hover:text-amber-700"
+        >
+          {t('customModels.picker.configureKey')}
+        </Link>
+      </div>
+    ) : null
 
   // Field types for LLM Judge auto-detection
   const [fieldTypes, setFieldTypes] = useState<Record<string, FieldTypeInfo>>(
@@ -712,6 +743,7 @@ export function EvaluationBuilder({
                       {renderJudgeModelOptions()}
                     </SelectContent>
                   </Select>
+                  {renderJudgeCredentialHint()}
                 </div>
 
                 {/* Multi-judge ensemble + runs (multi-run feature) */}
@@ -890,6 +922,7 @@ export function EvaluationBuilder({
                       {renderJudgeModelOptions()}
                     </SelectContent>
                   </Select>
+                  {renderJudgeCredentialHint()}
                 </div>
 
                 {/* Multi-judge ensemble + runs (multi-run feature) */}

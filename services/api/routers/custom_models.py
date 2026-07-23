@@ -34,6 +34,7 @@ from models import ResponseGeneration as DBResponseGeneration
 from models import User as DBUser
 from routers.model_access import (
     CustomModelAccess,
+    _get_active_org_ids_async,
     check_user_can_edit_model,
     get_accessible_model_ids_async,
     require_custom_model_access,
@@ -43,10 +44,11 @@ from services.rate_limiter import rate_limiter
 # /shared modules (mounted first on sys.path in the api container)
 from custom_model_credential_service import (  # noqa: E402
     delete_credential_async,
-    get_credential_async,
-    get_credential_model_ids_async,
-    has_credential_async,
     set_credential_async,
+)
+from custom_model_key_resolution import (  # noqa: E402
+    resolve_custom_model_credential_async,
+    resolve_custom_model_credentials_async,
 )
 from url_guard import validate_custom_model_url  # noqa: E402
 from user_api_key_service import validate_openai_compatible_endpoint  # noqa: E402
@@ -137,7 +139,7 @@ class CustomModelCreate(BaseModel):
 
     name: str = Field(..., min_length=1, max_length=200)
     description: Optional[str] = None
-    base_url: str
+    base_url: str = Field(..., max_length=500)  # llm_models.base_url is String(500)
     endpoint_model_name: str = Field(..., min_length=1, max_length=255)
     requires_api_key: bool = True
     model_type: str = "chat"
@@ -167,7 +169,7 @@ class CustomModelUpdate(BaseModel):
     output_cost_per_million: Optional[float] = Field(None, ge=0)
     parameter_constraints: Optional[Dict[str, Any]] = None
     default_config: Optional[Dict[str, Any]] = None
-    base_url: Optional[str] = None
+    base_url: Optional[str] = Field(None, max_length=500)
 
     @field_validator("parameter_constraints")
     @classmethod
@@ -290,7 +292,9 @@ async def _load_response_annotations(
             )
         )
     ).all()
-    has_cred = await has_credential_async(db, str(current_user.id), model.id)
+    resolution = await resolve_custom_model_credential_async(
+        db, str(current_user.id), model, search_user_orgs=True
+    )
     username = None
     if model.created_by:
         username = (
@@ -301,7 +305,7 @@ async def _load_response_annotations(
     return _to_response(
         model,
         organization_ids=[r[0] for r in org_rows],
-        has_credential=has_cred,
+        has_credential=resolution.has_credential,
         can_edit=check_user_can_edit_model(current_user, model),
         created_by_username=username,
     )
@@ -406,7 +410,8 @@ async def list_custom_models(
 
     model_ids = [m.id for m in models]
 
-    # Batch-load org links, the caller's credential set, and creator usernames.
+    # Batch-load org links, the caller's credential resolutions (personal OR
+    # usable org-shared key — same precedence as generation), and usernames.
     org_rows = (
         await db.execute(
             select(ModelOrganization.model_id, ModelOrganization.organization_id).where(
@@ -418,7 +423,9 @@ async def list_custom_models(
     for mid, oid in org_rows:
         orgs_by_model.setdefault(mid, []).append(oid)
 
-    credential_ids = await get_credential_model_ids_async(db, str(current_user.id))
+    resolutions = await resolve_custom_model_credentials_async(
+        db, str(current_user.id), models, search_user_orgs=True
+    )
 
     creator_ids = {m.created_by for m in models if m.created_by}
     usernames: Dict[str, str] = {}
@@ -434,7 +441,7 @@ async def list_custom_models(
         _to_response(
             m,
             organization_ids=orgs_by_model.get(m.id, []),
-            has_credential=m.id in credential_ids,
+            has_credential=resolutions[m.id].has_credential,
             can_edit=check_user_can_edit_model(current_user, m),
             created_by_username=usernames.get(m.created_by),
         )
@@ -473,6 +480,15 @@ async def update_custom_model(
                 CustomModelCredential.__table__.delete().where(
                     CustomModelCredential.model_id == model.id,
                     CustomModelCredential.user_id != str(access.user.id),
+                )
+            )
+            # Org shared keys were consented for the OLD host too — and orgs
+            # are third parties even when the editor administers one, so there
+            # is no editor-exception analog: drop them all; org admins must
+            # re-provision for the new endpoint.
+            await db.execute(
+                CustomModelOrgCredential.__table__.delete().where(
+                    CustomModelOrgCredential.model_id == model.id
                 )
             )
 
@@ -521,8 +537,16 @@ async def delete_custom_model(
                 ModelOrganization.model_id == model.id
             )
         )
-        # Credentials rows are kept on soft-delete — only a hard delete
-        # cascades them away.
+        # Personal credential rows are kept on soft-delete (only a hard delete
+        # cascades them away). ORG shared credentials are dropped because every
+        # share link is removed — same as the /visibility unshare paths; a kept
+        # row would be un-manageable (the org-credential endpoints gate on a
+        # live share) and would silently re-attach on a later re-share.
+        await db.execute(
+            CustomModelOrgCredential.__table__.delete().where(
+                CustomModelOrgCredential.model_id == model.id
+            )
+        )
         await db.commit()
         return {"deleted": "soft"}
 
@@ -598,6 +622,24 @@ async def update_custom_model_visibility(
             if not org:
                 raise HTTPException(
                     status_code=404, detail=f"Organization {org_id} not found"
+                )
+
+        # Sharing plants a creator-controlled endpoint inside an org (whose
+        # admins may then provision an org key that flows to that endpoint) —
+        # so the sharer must belong to every target org. Provisioning the key
+        # itself additionally requires ORG_ADMIN in the org-credential router.
+        if not access.user.is_superadmin:
+            member_org_ids = set(await _get_active_org_ids_async(db, access.user))
+            non_member = [
+                oid for oid in organization_ids if oid not in member_org_ids
+            ]
+            if non_member:
+                raise HTTPException(
+                    status_code=403,
+                    detail=(
+                        "You can only share a model with organizations you are "
+                        "an active member of"
+                    ),
                 )
 
         await db.execute(
@@ -811,9 +853,11 @@ async def test_custom_model(
 ):
     """Probe a saved custom model with the caller's key.
 
-    Key precedence: explicit body ``api_key``, else the caller's stored
-    credential. With ``chat_ping: true``, additionally sends a 1-message
-    chat completion and reports latency.
+    Key precedence: explicit body ``api_key``, else the caller's usable
+    stored credential — personal first, org shared key as fallback (same
+    resolution as generation, so the probe result matches what a run would
+    do). With ``chat_ping: true``, additionally sends a 1-message chat
+    completion and reports latency.
     """
     await _enforce_test_rate_limit(request, access.user)
 
@@ -823,9 +867,14 @@ async def test_custom_model(
 
     api_key = body.api_key
     if not api_key:
-        api_key = await get_credential_async(
-            db, str(access.user.id), access.model.id
+        resolution = await resolve_custom_model_credential_async(
+            db,
+            str(access.user.id),
+            access.model,
+            search_user_orgs=True,
+            include_key=True,
         )
+        api_key = resolution.api_key
 
     ok, message, error_type = await validate_openai_compatible_endpoint(
         normalized_url, api_key=api_key

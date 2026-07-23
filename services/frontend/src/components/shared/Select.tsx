@@ -43,6 +43,7 @@ interface SelectItemProps {
   value: string
   children: ReactNode
   className?: string
+  disabled?: boolean
 }
 
 interface SelectValueProps {
@@ -131,17 +132,19 @@ export function SelectContent({ children, className }: SelectContentProps) {
   )
 }
 
-export function SelectItem({ value, children, className }: SelectItemProps) {
+export function SelectItem({ value, children, className, disabled }: SelectItemProps) {
   return (
     <Listbox.Option
       value={value}
       data-value={value}
+      disabled={disabled}
       className={({ active }) =>
         clsx(
           'relative cursor-default select-none py-2 pl-10 pr-4',
           active
             ? 'bg-emerald-100 text-emerald-900 dark:bg-emerald-900 dark:text-emerald-100'
             : 'text-zinc-900 dark:text-zinc-100',
+          disabled && 'cursor-not-allowed opacity-50',
           className
         )
       }

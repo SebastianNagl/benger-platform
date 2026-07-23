@@ -252,6 +252,62 @@ describe('Select Component', () => {
     })
   })
 
+  describe('Disabled Items (BYOM gating)', () => {
+    const DisabledItemSelect = () => (
+      <Select value="" onValueChange={mockOnValueChange}>
+        <SelectTrigger>
+          <SelectValue placeholder="Select an option" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="enabled">Enabled option</SelectItem>
+          <SelectItem value="locked" disabled>
+            Locked option
+          </SelectItem>
+        </SelectContent>
+      </Select>
+    )
+
+    it('disabled SelectItem is not selectable and is aria-disabled', async () => {
+      const user = userEvent.setup()
+      render(<DisabledItemSelect />)
+
+      const button = screen.getByRole('button')
+      await user.click(button)
+
+      const listbox = screen.getByRole('listbox')
+      const lockedOption = within(listbox)
+        .getByText('Locked option')
+        .closest('[role="option"]')!
+      expect(lockedOption).toHaveAttribute('aria-disabled', 'true')
+
+      // Clicking the disabled option must not select it.
+      await user.click(within(listbox).getByText('Locked option'))
+      expect(mockOnValueChange).not.toHaveBeenCalled()
+
+      // The enabled sibling still selects normally.
+      await user.click(within(listbox).getByText('Enabled option'))
+      expect(mockOnValueChange).toHaveBeenCalledWith('enabled')
+    })
+
+    it('does not mark enabled items aria-disabled and applies disabled styling to locked ones', async () => {
+      const user = userEvent.setup()
+      render(<DisabledItemSelect />)
+
+      await user.click(screen.getByRole('button'))
+
+      const listbox = screen.getByRole('listbox')
+      const enabledOption = within(listbox)
+        .getByText('Enabled option')
+        .closest('[role="option"]')!
+      expect(enabledOption).not.toHaveAttribute('aria-disabled', 'true')
+
+      const lockedOption = within(listbox)
+        .getByText('Locked option')
+        .closest('[role="option"]')!
+      expect(lockedOption).toHaveClass('cursor-not-allowed', 'opacity-50')
+    })
+  })
+
   describe('Placeholder Handling', () => {
     it('shows placeholder when value is empty', () => {
       render(<DefaultSelect value="" />)

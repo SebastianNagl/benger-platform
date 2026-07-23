@@ -52,16 +52,58 @@ jest.mock('@/components/shared/Toast', () => ({
 // useJudgeModelHelpers consumes useModels(); supply a multi-provider
 // roster so the ensemble checkbox grid (which filters out the primary)
 // has >=1 selectable model, and so reasoning/thinking branches resolve.
+// The two BYOM customs exercise the credential gating: `custom-haskey`
+// behaves like an official judge, `custom-nokey` must render locked.
 jest.mock('@/hooks/useModels', () => ({
   useModels: () => ({
     models: [
       { id: 'gpt-4o', name: 'GPT-4o', provider: 'openai', default_config: { temperature: 0 } },
       { id: 'claude-sonnet-4', name: 'Claude Sonnet 4', provider: 'anthropic', default_config: { temperature: 0 } },
       { id: 'gemini-3-pro', name: 'Gemini 3 Pro', provider: 'google', default_config: { temperature: 0 } },
+      {
+        id: 'custom-haskey',
+        name: 'Keyed Llama',
+        provider: 'custom',
+        is_official: false,
+        requires_api_key: true,
+        has_credential: true,
+      },
+      {
+        id: 'custom-nokey',
+        name: 'Locked Llama',
+        provider: 'custom',
+        is_official: false,
+        requires_api_key: true,
+        has_credential: false,
+      },
     ],
     loading: false,
   }),
 }))
+
+// jest.config maps '@/components/shared/Select' to a manual native-<select>
+// mock whose SelectItem DROPS the `disabled` prop. Override just SelectItem
+// (keeping the manual mock's trigger/content/value plumbing) so the BYOM
+// judge-gating tests can observe the disabled/aria-disabled state the real
+// Listbox.Option receives. NOTE: jest.requireActual resolves through
+// moduleNameMapper, so `actual` here IS the manual mock, not Headless UI.
+jest.mock('@/components/shared/Select', () => {
+  const actual = jest.requireActual('@/components/shared/Select')
+  const React = jest.requireActual('react')
+  return {
+    ...actual,
+    SelectItem: ({ value, children, disabled }: any) =>
+      React.createElement(
+        'option',
+        {
+          value,
+          disabled: !!disabled,
+          'aria-disabled': disabled ? 'true' : undefined,
+        },
+        children
+      ),
+  }
+})
 
 // field-types endpoint: report `model_answer` as a single_choice field so
 // the llm_judge auto-detect path resolves a template and fires.
@@ -302,6 +344,73 @@ describe('Judge ensemble + runs control', () => {
     // Uncheck it again → writeJudges([], runs).
     await act(async () => { fireEvent.click(ensembleCheckbox(/Claude Sonnet 4/)) })
     await waitFor(() => expect(ensembleCheckbox(/Claude Sonnet 4/).checked).toBe(false))
+  })
+})
+
+// ====================================================================
+// BYOM: credential-less custom judges are gated in both judge pickers
+// ====================================================================
+
+describe('BYOM judge gating (credential-less custom judges)', () => {
+  it('disables the locked custom judge option and shows the missingKey suffix', async () => {
+    const user = userEvent.setup()
+    await gotoParameters(user, 'llm_judge_classic')
+
+    // Grouped section headers render inside the judge select (the
+    // customSection header also appears once in the ensemble grid).
+    expect(
+      screen.getByText('customModels.picker.officialSection')
+    ).toBeInTheDocument()
+    expect(
+      screen.getAllByText('customModels.picker.customSection').length
+    ).toBeGreaterThanOrEqual(1)
+
+    const locked = document.querySelector(
+      'option[value="custom-nokey"]'
+    ) as HTMLOptionElement
+    expect(locked).toBeTruthy()
+    expect(locked.disabled).toBe(true)
+    expect(locked).toHaveAttribute('aria-disabled', 'true')
+    expect(locked.textContent).toContain('customModels.picker.missingKey')
+
+    // The credentialed custom stays a normal, selectable option.
+    const keyed = document.querySelector(
+      'option[value="custom-haskey"]'
+    ) as HTMLOptionElement
+    expect(keyed).toBeTruthy()
+    expect(keyed.disabled).toBe(false)
+    expect(keyed).not.toHaveAttribute('aria-disabled')
+    expect(keyed.textContent).not.toContain('customModels.picker.missingKey')
+  })
+
+  it('renders the credential hint with a /settings/models link under the judge select', async () => {
+    const user = userEvent.setup()
+    await gotoParameters(user, 'llm_judge_classic')
+
+    // The hint renders under the judge Select AND (independently) under the
+    // locked entry in the ensemble grid — every instance links to
+    // /settings/models.
+    const links = screen
+      .getAllByText('customModels.picker.configureKey')
+      .map((el) => el.closest('a'))
+    expect(links.length).toBeGreaterThanOrEqual(2)
+    links.forEach((a) => expect(a).toHaveAttribute('href', '/settings/models'))
+
+    // Exactly one of those hints lives OUTSIDE the ensemble grid — that is
+    // the renderJudgeCredentialHint() line under the judge Select.
+    const grid = ensembleGrid()
+    const outsideGrid = screen
+      .getAllByText('customModels.picker.configureKey')
+      .filter((el) => !grid.contains(el))
+    expect(outsideGrid).toHaveLength(1)
+  })
+
+  it('locks the custom judge without a credential in the ensemble grid too', async () => {
+    const user = userEvent.setup()
+    await gotoParameters(user, 'llm_judge_classic')
+
+    expect(ensembleCheckbox(/Locked Llama/)).toBeDisabled()
+    expect(ensembleCheckbox(/Keyed Llama/)).not.toBeDisabled()
   })
 })
 

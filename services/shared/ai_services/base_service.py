@@ -102,6 +102,15 @@ def classify_error_type(exc: BaseException) -> str:
     return "api_error"
 
 
+class RetryableUpstreamError(Exception):
+    """Transient upstream failure (HTTP 429/5xx). The async retry decorator
+    backs off and re-attempts these; other exceptions fail fast."""
+
+    def __init__(self, message: str, status: Optional[int] = None):
+        super().__init__(message)
+        self.status = status
+
+
 class BaseAIService(ABC):
     """
     Abstract base class for AI service integrations.
@@ -275,7 +284,9 @@ class BaseAIService(ABC):
             Error response dictionary
         """
         service_name = service_name or self.__class__.__name__.replace("Service", "")
-        error_str = str(error)
+        # Classify on the ORIGINAL exception (name/message signals intact),
+        # then scrub the persisted text via the provider hook.
+        error_str = self._sanitize_error_text(str(error))
         error_type = classify_error_type(error)
 
         logger.error(f"❌ {service_name} API Error ({error_type}): {error_str}")
@@ -299,6 +310,30 @@ class BaseAIService(ABC):
         # most interesting case for a researcher (which retry exhausted).
         response["metadata"].update(self.get_invocation_provenance())
         return response
+
+    def _sanitize_error_text(self, text: str) -> str:
+        """Hook: providers may scrub endpoint identifiers from persisted
+        error text (``response['error']`` lands in ``generations.error_message``,
+        which is exportable). Default: identity — official providers keep
+        their errors verbatim."""
+        return text
+
+    def _error_response_with_history(
+        self,
+        error: Exception,
+        model: str,
+        service_name: str = None,
+    ) -> Dict[str, Any]:
+        """Build the standard error dict AFTER the retry decorator unwound:
+        re-seed the contextvar from the trail the decorator stamped on the
+        exception so retry provenance survives its reset."""
+        token = _retry_history_ctx.set(
+            list(getattr(error, "_retry_history", []) or [])
+        )
+        try:
+            return self._create_error_response(error, model, service_name)
+        finally:
+            _retry_history_ctx.reset(token)
 
 
 # ----------------------------------------------------------------

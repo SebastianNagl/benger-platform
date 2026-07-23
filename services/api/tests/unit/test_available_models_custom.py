@@ -425,6 +425,14 @@ class TestAvailableModelsNonMemberOrgSuppressed:
         )
         async_test_db.add(model)
         await async_test_db.flush()
+        # A LIVE share is part of the usable-org-key contract now (the
+        # resolution helper mirrors generation, which fails closed without a
+        # ModelOrganization row) — an org cred alone no longer annotates.
+        async_test_db.add(
+            ModelOrganization(
+                id=_uid(), model_id=model.id, organization_id=org_a.id
+            )
+        )
         async_test_db.add(
             CustomModelOrgCredential(
                 id=_uid(),

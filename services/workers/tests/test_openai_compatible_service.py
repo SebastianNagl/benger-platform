@@ -15,9 +15,21 @@ security weight beyond the usual provider services:
   connection is PINNED to the validated IPs (DNS-rebinding immunity), and
   redirects are refused — all load-bearing halves of the SSRF story;
 - ``response_metadata`` must never contain the base_url (project exports
-  embed it verbatim; shared results must not leak endpoint details).
+  embed it verbatim; shared results must not leak endpoint details);
+- transient upstream failures (429/5xx/timeouts/connection drops) are
+  retried with exponential backoff (decorated ``_generate_async_attempts``;
+  the undecorated ``_generate_async`` outer converts terminal raises into
+  the standard error dict), everything else fails fast in ONE attempt, and
+  the attempt trail lands in ``metadata["retry_attempts"]``;
+- on FAILURE the endpoint identity is scrubbed too: ``_sanitize_error_text``
+  replaces base_url/host with ``<custom-endpoint>`` and IP literals with
+  ``<redacted-ip>`` in ``response["error"]`` AND in every retry-history
+  entry, capped at 500 chars keeping the head.
 
-All HTTP is faked at the module's ``aiohttp`` seam — no network.
+All HTTP is faked at the module's ``aiohttp`` seam — no network. Backoff
+sleeps go through the ``ai_services.deepinfra_service._sleep`` seam — never
+real waiting (see ``recorded_sleeps`` and the workers-conftest autouse
+no-op).
 """
 
 from __future__ import annotations
@@ -30,6 +42,7 @@ os.environ.setdefault("SECRET_KEY", "test-secret-key")
 os.environ.setdefault("TESTING", "true")
 os.environ.setdefault("BENGER_TEST_MODE", "1")
 
+import asyncio  # noqa: E402
 import json  # noqa: E402
 import sys  # noqa: E402
 from unittest.mock import MagicMock  # noqa: E402
@@ -97,12 +110,26 @@ class _FakeResponse:
 
 
 class _FakeSession:
-    """Records post() kwargs (and the connector) on the class; returns the
-    canned response."""
+    """Records post() kwargs (and the connector) on the class; serves the
+    prepared response(s).
+
+    Two forms:
+
+    - single response (legacy): set ``response`` — every post() returns it;
+    - queue: set ``responses`` to a list consumed one entry per post(); the
+      LAST entry repeats once the queue is down to it (constant-failure and
+      trailing-success tails need no padding).
+
+    In either form, an entry that is an exception INSTANCE is raised from
+    post() instead of returned — that is how timeout / connection-layer
+    failures are simulated.
+    """
 
     last_call = None
     last_connector = None
     response = None
+    responses = None
+    calls = 0
 
     def __init__(self, *args, **kwargs):
         _FakeSession.last_connector = kwargs.get("connector")
@@ -120,7 +147,18 @@ class _FakeSession:
             "json": json,
             "allow_redirects": allow_redirects,
         }
-        return _FakeSession.response
+        _FakeSession.calls += 1
+        if _FakeSession.responses:
+            entry = (
+                _FakeSession.responses.pop(0)
+                if len(_FakeSession.responses) > 1
+                else _FakeSession.responses[0]
+            )
+        else:
+            entry = _FakeSession.response
+        if isinstance(entry, BaseException):
+            raise entry
+        return entry
 
 
 @pytest.fixture()
@@ -145,7 +183,31 @@ def fake_http(monkeypatch):
     _FakeSession.last_connector = None
     _FakePinnedConnector.last_ips = None
     _FakeSession.response = _FakeResponse(200, _openai_response())
+    _FakeSession.responses = None
+    _FakeSession.calls = 0
     return _FakeSession
+
+
+@pytest.fixture()
+def recorded_sleeps(monkeypatch, _instant_ai_backoff_sleep):
+    """Route the retry decorator's backoff through an instant recorder.
+
+    ``async_retry_with_exponential_backoff`` awaits the module seam
+    ``ai_services.deepinfra_service._sleep`` (shared by this BYOM client);
+    recording the requested delays proves backoff was scheduled without
+    ever waiting it out. Depends on the workers-conftest autouse no-op
+    (``_instant_ai_backoff_sleep``) so this re-patch is guaranteed to be
+    applied after it and win.
+    """
+    from ai_services import deepinfra_service as di_mod
+
+    delays: list = []
+
+    async def _record(delay):
+        delays.append(delay)
+
+    monkeypatch.setattr(di_mod, "_sleep", _record)
+    return delays
 
 
 def _service(**overrides):
@@ -242,23 +304,185 @@ class TestFailureModes:
         assert result["success"] is False
         assert "redirect" in result["error"].lower()
 
-    def test_http_error_surfaced(self, fake_http):
+    def test_http_error_surfaced(self, fake_http, recorded_sleeps):
         fake_http.response = _FakeResponse(500, text_data="kaputt")
         result = _service().generate("q", "s", model_name=PK)
         assert result["success"] is False
         assert "HTTP 500" in result["error"]
+        # 5xx is retryable: 1 initial + 5 retries recorded, every backoff
+        # routed through the instant recorder — no real sleeping.
+        assert result["metadata"]["retry_count"] == 6
+        assert len(recorded_sleeps) == 5
 
-    def test_url_guard_rejection_blocks_call(self, fake_http, monkeypatch):
+    def test_url_guard_rejection_blocks_call(self, fake_http, recorded_sleeps, monkeypatch):
         import url_guard
 
         def _reject(url, **kwargs):
-            raise ValueError("resolves to a private address")
+            raise ValueError(
+                "URL host 'models.example.org' resolves to a private address"
+            )
 
         monkeypatch.setattr(url_guard, "resolve_and_validate", _reject)
         result = _service().generate("q", "s", model_name=PK)
         assert result["success"] is False
         assert "private address" in result["error"]
         assert fake_http.last_call is None  # no HTTP attempt was made
+        # Guard rejections fail FAST: exactly one attempt, zero backoffs...
+        assert result["metadata"]["retry_count"] == 1
+        assert recorded_sleeps == []
+        # ...and the persisted reason is scrubbed of the endpoint host.
+        assert "models.example.org" not in result["error"]
+
+
+class TestRetryBehavior:
+    """The retry split: decorated ``_generate_async_attempts`` raises per
+    attempt, the undecorated ``_generate_async`` outer converts the terminal
+    raise into the standard error dict. Transient failures (429/5xx/timeout)
+    back off and re-attempt (max_retries=5 → up to 6 attempts); everything
+    else fails fast in exactly one attempt."""
+
+    def test_500_retries_then_succeeds(self, fake_http, recorded_sleeps):
+        fake_http.responses = [
+            _FakeResponse(500, text_data="wobble"),
+            _FakeResponse(500, text_data="wobble"),
+            _FakeResponse(200, _openai_response()),
+        ]
+        result = _service().generate("q", "s", model_name=PK)
+        assert result["success"] is True
+        assert result["metadata"]["retry_count"] == 2
+        assert result["metadata"]["retry_attempts"][0]["is_rate_limit"] is False
+        assert len(recorded_sleeps) == 2
+        assert fake_http.calls == 3
+
+    def test_429_retries_then_succeeds(self, fake_http, recorded_sleeps):
+        fake_http.responses = [
+            _FakeResponse(429, text_data="slow down"),
+            _FakeResponse(200, _openai_response()),
+        ]
+        result = _service().generate("q", "s", model_name=PK)
+        assert result["success"] is True
+        assert result["metadata"]["retry_count"] == 1
+        assert result["metadata"]["retry_attempts"][0]["is_rate_limit"] is True
+        assert len(recorded_sleeps) == 1
+
+    def test_404_fails_fast_single_attempt(self, fake_http, recorded_sleeps):
+        fake_http.responses = [_FakeResponse(404, text_data="no such route")]
+        result = _service().generate("q", "s", model_name=PK)
+        assert result["success"] is False
+        assert "HTTP 404" in result["error"]
+        assert result["metadata"]["retry_count"] == 1
+        assert recorded_sleeps == []
+        assert fake_http.calls == 1
+
+    def test_401_fails_fast_error_type_auth(self, fake_http, recorded_sleeps):
+        fake_http.responses = [_FakeResponse(401, text_data="bad credential")]
+        result = _service().generate("q", "s", model_name=PK)
+        assert result["success"] is False
+        assert result["metadata"]["error_type"] == "auth"
+        assert result["metadata"]["retry_count"] == 1
+        assert recorded_sleeps == []
+
+    def test_timeout_error_is_retried(self, fake_http, recorded_sleeps):
+        fake_http.responses = [
+            asyncio.TimeoutError(),
+            _FakeResponse(200, _openai_response()),
+        ]
+        result = _service().generate("q", "s", model_name=PK)
+        assert result["success"] is True
+        assert result["metadata"]["retry_count"] == 1
+        assert len(recorded_sleeps) == 1
+
+    def test_exhausted_retries_return_error_dict_with_full_history(
+        self, fake_http, recorded_sleeps
+    ):
+        fake_http.responses = [
+            _FakeResponse(503, text_data=f"upstream at {BASE_URL} unavailable")
+        ]
+        result = _service().generate("q", "s", model_name=PK)
+        assert result["success"] is False
+        assert result["error"].startswith("HTTP 503:")
+        attempts = result["metadata"]["retry_attempts"]
+        assert len(attempts) == 6
+        assert [a["attempt"] for a in attempts] == [1, 2, 3, 4, 5, 6]
+        assert [a["retried"] for a in attempts] == [True] * 5 + [False]
+        for a in attempts:
+            assert BASE_URL not in a["error"]
+            assert "models.example.org" not in a["error"]
+        assert result["metadata"]["retry_count"] == 6
+        assert len(recorded_sleeps) == 5
+
+    def test_e2e_mode_short_circuits_before_retry_machinery(
+        self, fake_http, recorded_sleeps, monkeypatch
+    ):
+        monkeypatch.setenv("E2E_TEST_MODE", "true")
+        # Poisoned queue: ANY HTTP attempt would raise.
+        fake_http.responses = [RuntimeError("HTTP must not be reached in E2E mode")]
+        result = _service().generate("q", "s", model_name=PK)
+        assert result["success"] is True
+        assert result["metadata"]["e2e_test_mode"] is True
+        assert fake_http.last_call is None
+        assert fake_http.calls == 0
+        assert recorded_sleeps == []
+
+
+class TestErrorScrubbing:
+    """``_sanitize_error_text`` must keep the endpoint's identity out of
+    everything persisted on failure: ``response["error"]`` (lands in
+    generations.error_message, exportable) AND every retry-history entry
+    (lands in response_metadata, embedded verbatim in project exports)."""
+
+    HOST = "models.example.org"
+
+    def test_error_response_never_leaks_base_url_or_host(self, fake_http):
+        fake_http.responses = [
+            _FakeResponse(
+                401,
+                text_data=f"unauthorized for {BASE_URL} (upstream host {self.HOST})",
+            )
+        ]
+        result = _service().generate("q", "s", model_name=PK)
+        assert result["success"] is False
+        assert result["error"].startswith("HTTP 401:")
+        assert "<custom-endpoint>" in result["error"]
+        # The WHOLE result dict — error included — must be clean.
+        for s in _walk_strings(result):
+            assert BASE_URL not in s
+            assert self.HOST not in s
+
+    def test_retry_history_error_entries_scrubbed(self, fake_http, recorded_sleeps):
+        fake_http.responses = [
+            _FakeResponse(503, text_data=f"connect to {self.HOST} failed")
+        ]
+        result = _service().generate("q", "s", model_name=PK)
+        assert result["success"] is False
+        attempts = result["metadata"]["retry_attempts"]
+        assert len(attempts) == 6
+        for a in attempts:
+            assert self.HOST not in a["error"]
+            assert "<custom-endpoint>" in a["error"]
+
+    def test_url_guard_message_host_and_ip_scrubbed(self, fake_http, monkeypatch):
+        import url_guard
+
+        def _reject(url, **kwargs):
+            raise ValueError(
+                "Custom model URL host 'models.example.org' resolves to "
+                "10.0.0.5, which is a private-network address and not allowed"
+            )
+
+        monkeypatch.setattr(url_guard, "resolve_and_validate", _reject)
+        result = _service().generate("q", "s", model_name=PK)
+        assert result["success"] is False
+        assert "models.example.org" not in result["error"]
+        assert "10.0.0.5" not in result["error"]
+        assert "private" in result["error"]
+
+    def test_error_body_capped(self, fake_http):
+        fake_http.responses = [_FakeResponse(400, text_data="x" * 5000)]
+        result = _service().generate("q", "s", model_name=PK)
+        assert result["success"] is False
+        assert result["error"].startswith("HTTP 400:")
+        assert len(result["error"]) <= 500
 
 
 class TestSSRFPinning:

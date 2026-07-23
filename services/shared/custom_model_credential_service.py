@@ -5,10 +5,13 @@ and the per-org ``OrganizationApiKey`` rows, custom-model credentials are
 keyed by (user_id, model_id): sharing a custom model shares only its
 endpoint definition, and every user stores their own key before using it.
 
-Deliberately exempt from the org ``require_private_keys`` shared-billing
-machinery — custom-model credentials are always personal. The worker's
-dispatch path (user_aware_ai_service.get_ai_service_for_model_row) resolves
-strictly the INVOKING user's credential, never the model owner's.
+This module stores strictly PERSONAL credentials; the org-shared counterpart
+lives in ``custom_model_org_credential_service`` and participates in the org
+``require_private_keys`` shared-billing machinery. Precedence between the two
+lanes (personal wins; org key only in org-pays mode while still shared) is
+implemented in ``user_aware_ai_service.get_ai_service_for_model_row`` (worker
+lane) and ``custom_model_key_resolution`` (API lane). The model owner's key is
+never used implicitly for another user.
 
 Keys are Fernet-encrypted via the shared encryption_service, same format as
 User.encrypted_*_api_key.

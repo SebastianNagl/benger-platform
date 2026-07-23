@@ -17,6 +17,7 @@
 import { CustomBadge } from '@/components/models/ModelBadges'
 import { useI18n } from '@/contexts/I18nContext'
 import type { Model } from '@/hooks/useModels'
+import Link from 'next/link'
 
 interface BuilderStateWithParameters {
   metric_parameters: Record<string, any>
@@ -136,28 +137,49 @@ export function JudgeEnsembleControl<S extends BuilderStateWithParameters>({
             const renderEntry = (m: Model) => {
               const checked = additionalJudges.includes(m.id)
               const isCustom = m.is_official === false
+              // A custom judge without a stored key can't run — disabled
+              // (has_credential already ORs personal + usable org keys).
+              const missing =
+                isCustom &&
+                m.requires_api_key === true &&
+                m.has_credential === false
               return (
-                <label
-                  key={m.id}
-                  className="flex items-center gap-2 rounded-md border border-gray-200 p-2 text-xs dark:border-gray-700"
-                >
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    onChange={(e) => {
-                      const next = e.target.checked
-                        ? [...additionalJudges, m.id]
-                        : additionalJudges.filter((id) => id !== m.id)
-                      writeJudges(next, runsPerJudge)
-                    }}
-                    className="h-3.5 w-3.5 rounded border-gray-300 text-emerald-600"
-                  />
-                  <span className="truncate">
-                    {m.name}{' '}
-                    <span className="text-gray-400">({m.provider})</span>
-                  </span>
-                  {isCustom && <CustomBadge className="flex-shrink-0" />}
-                </label>
+                <div key={m.id}>
+                  <label
+                    className="flex items-center gap-2 rounded-md border border-gray-200 p-2 text-xs dark:border-gray-700"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      disabled={missing}
+                      onChange={(e) => {
+                        const next = e.target.checked
+                          ? [...additionalJudges, m.id]
+                          : additionalJudges.filter((id) => id !== m.id)
+                        writeJudges(next, runsPerJudge)
+                      }}
+                      className="h-3.5 w-3.5 rounded border-gray-300 text-emerald-600"
+                    />
+                    <span
+                      className={`truncate ${missing ? 'text-gray-400' : ''}`}
+                    >
+                      {m.name}{' '}
+                      <span className="text-gray-400">({m.provider})</span>
+                    </span>
+                    {isCustom && <CustomBadge className="flex-shrink-0" />}
+                  </label>
+                  {missing && (
+                    <div className="mt-0.5 text-xs text-amber-600">
+                      {t('customModels.picker.missingKey')}{' '}
+                      <Link
+                        href="/settings/models"
+                        className="underline hover:text-amber-700"
+                      >
+                        {t('customModels.picker.configureKey')}
+                      </Link>
+                    </div>
+                  )}
+                </div>
               )
             }
 

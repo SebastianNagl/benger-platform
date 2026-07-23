@@ -13,7 +13,12 @@ from typing import Any, Dict, Optional
 
 import aiohttp
 
-from .base_service import BaseAIService, derive_refusal, derive_truncated
+from .base_service import (
+    BaseAIService,
+    RetryableUpstreamError,
+    derive_refusal,
+    derive_truncated,
+)
 from .provider_capabilities import calculate_cost, model_supports_seed
 from .response_validator import ResponseValidator
 
@@ -25,6 +30,32 @@ from .base_service import _retry_history_ctx, get_retry_history_snapshot  # noqa
 
 logger = logging.getLogger(__name__)
 
+# Seam for tests: backoff sleeps go through this module attribute so suites
+# can patch it instant instead of waiting out real exponential delays.
+_sleep = asyncio.sleep
+
+
+def _is_retryable_error(exc: BaseException) -> bool:
+    """Transient errors worth re-attempting: typed 429/5xx raises from our
+    HTTP paths, timeouts, and connection-layer failures. Everything else
+    (auth, other 4xx, SSRF-guard rejections, bugs) fails fast."""
+    if isinstance(exc, RetryableUpstreamError):
+        return True
+    if isinstance(exc, (asyncio.TimeoutError, TimeoutError)):
+        return True
+    try:
+        # Import the REAL aiohttp here: tests replace this module's
+        # ``aiohttp`` binding with a fake, which isinstance() can't take.
+        import aiohttp as _aiohttp
+
+        if isinstance(exc, _aiohttp.ClientConnectionError):
+            return True
+    except ImportError:  # pragma: no cover
+        pass
+    # Legacy substring fallback (untyped raise sites, foreign callers).
+    msg = str(exc).lower()
+    return "429" in msg or "rate limit" in msg or "too many requests" in msg
+
 
 def async_retry_with_exponential_backoff(
     max_retries: int = 5,
@@ -33,9 +64,13 @@ def async_retry_with_exponential_backoff(
     exponential_base: float = 2.0,
     jitter: bool = True
 ):
-    """Async decorator for exponential backoff retry on rate limit errors.
+    """Async decorator for exponential backoff retry on transient upstream
+    errors (rate limits, 5xx, timeouts, connection failures).
 
-    Records attempts in the shared retry-history contextvar (Phase 6.2).
+    Records attempts in the shared retry-history contextvar (Phase 6.2) and
+    stamps the final exception with ``_retry_history`` so callers can rebuild
+    provenance after this scope resets the contextvar (see
+    ``BaseAIService._error_response_with_history``).
     """
     def decorator(func):
         @wraps(func)
@@ -55,15 +90,23 @@ def async_retry_with_exponential_backoff(
                             or "rate limit" in error_str
                             or "too many requests" in error_str
                         )
+                        retryable = _is_retryable_error(e)
+                        # Scrub BEFORE truncating so a cut-off endpoint host
+                        # can't survive the provider's sanitizer.
+                        error_text = str(e)
+                        if args and hasattr(args[0], "_sanitize_error_text"):
+                            error_text = args[0]._sanitize_error_text(error_text)
                         history.append({
                             "attempt": retries + 1,
-                            "error": str(e)[:200],
+                            "error": error_text[:200],
                             "is_rate_limit": is_rate_limit,
+                            "retryable": retryable,
                             "latency_ms": int((time.time() - attempt_start) * 1000),
-                            "retried": is_rate_limit and retries < max_retries,
+                            "retried": retryable and retries < max_retries,
                         })
 
-                        if not is_rate_limit or retries >= max_retries:
+                        if not retryable or retries >= max_retries:
+                            e._retry_history = list(history)
                             raise
 
                         delay = min(base_delay * (exponential_base ** retries), max_delay)
@@ -71,9 +114,9 @@ def async_retry_with_exponential_backoff(
                             delay = delay * (0.5 + random.random())
 
                         logger.warning(
-                            f"⏳ Rate limit hit, retry {retries + 1}/{max_retries} in {delay:.1f}s"
+                            f"⏳ Transient upstream error, retry {retries + 1}/{max_retries} in {delay:.1f}s"
                         )
-                        await asyncio.sleep(delay)
+                        await _sleep(delay)
                         retries += 1
             finally:
                 _retry_history_ctx.reset(token)
@@ -146,7 +189,6 @@ class DeepInfraService(BaseAIService):
         """Check if DeepInfra service is available (API key set)"""
         return self.client != None
 
-    @async_retry_with_exponential_backoff(max_retries=5, base_delay=2.0)
     async def _generate_async(
         self,
         prompt: str,
@@ -202,6 +244,34 @@ class DeepInfraService(BaseAIService):
                 error=None,
             )
 
+        try:
+            return await self._generate_async_attempts(
+                prompt,
+                system_prompt=system_prompt,
+                model_name=model_name,
+                max_tokens=max_tokens,
+                temperature=temperature,
+                **kwargs,
+            )
+        except Exception as e:
+            # Terminal failure (non-retryable, or retries exhausted) — callers
+            # expect the standard error dict, never an exception out of
+            # generate().
+            return self._error_response_with_history(e, model_name, "DeepInfra")
+
+    @async_retry_with_exponential_backoff(max_retries=5, base_delay=2.0)
+    async def _generate_async_attempts(
+        self,
+        prompt: str,
+        system_prompt: str = "",
+        model_name: str = "meta-llama/Llama-3.3-70B-Instruct",
+        max_tokens: int = 1000,
+        temperature: float = 0.0,
+        **kwargs
+    ) -> Dict[str, Any]:
+        """One HTTP attempt; raises on failure. HTTP 429/5xx raise
+        RetryableUpstreamError so the decorator backs off; everything else
+        fails fast to the outer error-dict conversion."""
         if not self.is_available():
             raise ValueError(
                 "DeepInfra service is not available - check DEEPINFRA_API_KEY configuration"
@@ -215,108 +285,109 @@ class DeepInfraService(BaseAIService):
         requested_seed = kwargs.get("seed", 42)
         supports_seed_here = model_supports_seed("deepinfra", model_name)
 
-        try:
-            start_time = datetime.now()
+        start_time = datetime.now()
 
-            # Map display name to API model name
-            api_model_name = self.model_mapping.get(model_name, model_name)
-            logger.info(f"🔄 Model mapping: '{model_name}' -> '{api_model_name}'")
+        # Map display name to API model name
+        api_model_name = self.model_mapping.get(model_name, model_name)
+        logger.info(f"🔄 Model mapping: '{model_name}' -> '{api_model_name}'")
 
-            # Prepare the request payload (OpenAI-compatible format)
-            payload = {
-                "model": api_model_name,
-                "messages": [
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": prompt},
-                ],
-                "max_tokens": max_tokens,
+        # Prepare the request payload (OpenAI-compatible format)
+        payload = {
+            "model": api_model_name,
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": prompt},
+            ],
+            "max_tokens": max_tokens,
+            "temperature": temperature,
+            "stream": False,
+        }
+        if supports_seed_here:
+            payload["seed"] = requested_seed
+
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+        }
+
+        # Make DeepInfra API call
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                f"{self.base_url}/chat/completions",
+                headers=headers,
+                json=payload,
+                timeout=aiohttp.ClientTimeout(total=300),  # 5 minutes timeout
+            ) as response:
+                if response.status >= 400:
+                    error_body = await response.text()
+                    message = f"HTTP {response.status}: {error_body[:500]}"
+                    if response.status == 429 or response.status >= 500:
+                        raise RetryableUpstreamError(
+                            message, status=response.status
+                        )
+                    raise Exception(message)
+                result = await response.json()
+
+        end_time = datetime.now()
+        response_time_ms = int((end_time - start_time).total_seconds() * 1000)
+
+        # Extract response text
+        response_text = ""
+        if result.get("choices") and len(result["choices"]) > 0:
+            response_text = result["choices"][0]["message"]["content"]
+
+        # Calculate token usage
+        usage = result.get("usage", {})
+        input_tokens = usage.get("prompt_tokens", 0)
+        output_tokens = usage.get("completion_tokens", 0)
+        total_tokens = usage.get("total_tokens", input_tokens + output_tokens)
+
+        # Phase 6.6 (#9): cost from llm_models.yaml — DeepInfra
+        # hosts ~25 distinct model families with very different
+        # pricing (DeepSeek-V3 vs Llama-4 vs GLM-5 vs Kimi). The
+        # old hardcoded Llama-tier estimate misreported by 2-10x
+        # for most rows.
+        cost_usd = calculate_cost("deepinfra", model_name, input_tokens, output_tokens) or 0.0
+
+        logger.info(f"🤖 DeepInfra Generation: {model_name}")
+        logger.info(f"📊 Tokens: {input_tokens} input + {output_tokens} output = {total_tokens}")
+        logger.info(f"💰 Cost: ${cost_usd:.4f}")
+        logger.info(f"⏱️ Response time: {response_time_ms}ms")
+
+        finish_reason = (
+            result["choices"][0].get("finish_reason") if result.get("choices") else None
+        )
+
+        return self._create_response_dict(
+            content=response_text,
+            model=model_name,
+            usage={
+                "prompt_tokens": input_tokens,
+                "completion_tokens": output_tokens,
+                "total_tokens": total_tokens,
+            },
+            metadata={
                 "temperature": temperature,
-                "stream": False,
-            }
-            if supports_seed_here:
-                payload["seed"] = requested_seed
+                "max_tokens": max_tokens,
+                "response_time_ms": response_time_ms,
+                "cost_usd": cost_usd,
+                "provider": "DeepInfra",
+                "finish_reason": finish_reason,
+                "truncated": derive_truncated(finish_reason),
+                # DeepInfra is OpenAI-compatible: a content-policy block surfaces
+                # as the "content_filter" finish_reason (mapped by derive_refusal).
+                "refusal": derive_refusal(finish_reason),
+                "error_type": None,
+                # Per-model gated; None when the model doesn't accept seed.
+                "seed": requested_seed if supports_seed_here else None,
+                "created_at": end_time.isoformat(),
+                **self.get_invocation_provenance(),
+            },
+            success=True,
+            error=None,
+        )
 
-            headers = {
-                "Authorization": f"Bearer {self.api_key}",
-                "Content-Type": "application/json",
-            }
 
-            # Make DeepInfra API call
-            async with aiohttp.ClientSession() as session:
-                async with session.post(
-                    f"{self.base_url}/chat/completions",
-                    headers=headers,
-                    json=payload,
-                    timeout=aiohttp.ClientTimeout(total=300),  # 5 minutes timeout
-                ) as response:
-                    if response.status >= 400:
-                        error_body = await response.text()
-                        raise Exception(f"HTTP {response.status}: {error_body[:500]}")
-                    result = await response.json()
-
-            end_time = datetime.now()
-            response_time_ms = int((end_time - start_time).total_seconds() * 1000)
-
-            # Extract response text
-            response_text = ""
-            if result.get("choices") and len(result["choices"]) > 0:
-                response_text = result["choices"][0]["message"]["content"]
-
-            # Calculate token usage
-            usage = result.get("usage", {})
-            input_tokens = usage.get("prompt_tokens", 0)
-            output_tokens = usage.get("completion_tokens", 0)
-            total_tokens = usage.get("total_tokens", input_tokens + output_tokens)
-
-            # Phase 6.6 (#9): cost from llm_models.yaml — DeepInfra
-            # hosts ~25 distinct model families with very different
-            # pricing (DeepSeek-V3 vs Llama-4 vs GLM-5 vs Kimi). The
-            # old hardcoded Llama-tier estimate misreported by 2-10x
-            # for most rows.
-            cost_usd = calculate_cost("deepinfra", model_name, input_tokens, output_tokens) or 0.0
-
-            logger.info(f"🤖 DeepInfra Generation: {model_name}")
-            logger.info(f"📊 Tokens: {input_tokens} input + {output_tokens} output = {total_tokens}")
-            logger.info(f"💰 Cost: ${cost_usd:.4f}")
-            logger.info(f"⏱️ Response time: {response_time_ms}ms")
-
-            finish_reason = (
-                result["choices"][0].get("finish_reason") if result.get("choices") else None
-            )
-
-            return self._create_response_dict(
-                content=response_text,
-                model=model_name,
-                usage={
-                    "prompt_tokens": input_tokens,
-                    "completion_tokens": output_tokens,
-                    "total_tokens": total_tokens,
-                },
-                metadata={
-                    "temperature": temperature,
-                    "max_tokens": max_tokens,
-                    "response_time_ms": response_time_ms,
-                    "cost_usd": cost_usd,
-                    "provider": "DeepInfra",
-                    "finish_reason": finish_reason,
-                    "truncated": derive_truncated(finish_reason),
-                    # DeepInfra is OpenAI-compatible: a content-policy block surfaces
-                    # as the "content_filter" finish_reason (mapped by derive_refusal).
-                    "refusal": derive_refusal(finish_reason),
-                    "error_type": None,
-                    # Per-model gated; None when the model doesn't accept seed.
-                    "seed": requested_seed if supports_seed_here else None,
-                    "created_at": end_time.isoformat(),
-                    **self.get_invocation_provenance(),
-                },
-                success=True,
-                error=None,
-            )
-
-        except Exception as e:
-            return self._create_error_response(e, model_name, "DeepInfra")
-
-    @async_retry_with_exponential_backoff(max_retries=5, base_delay=2.0)
     async def _generate_structured_async(
         self,
         prompt: str,

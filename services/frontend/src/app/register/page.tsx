@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { hasSlot, useSlot } from '@/lib/extensions/slots'
-import { CheckBadgeIcon } from '@heroicons/react/24/solid'
+import { VertretbarMarkIcon } from '@/components/brand/VertretbarMark'
 import { getHostBrandName, isStudentLockedHost } from '@/lib/utils/subdomain'
 import { authRedirect } from '@/utils/authRedirect'
 import Link from 'next/link'
@@ -992,7 +992,7 @@ export default function RegisterPage() {
               <span className="sr-only">{brandName}</span>
               <div className="flex items-center gap-2 text-xl font-bold text-zinc-900 dark:text-white">
                 {isVtr ? (
-                  <CheckBadgeIcon className="h-7 w-7 text-emerald-500" />
+                  <VertretbarMarkIcon className="h-7 w-7 text-emerald-500" />
                 ) : (
                   <span className="text-2xl">🤘</span>
                 )}
