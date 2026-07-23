@@ -198,13 +198,13 @@ export function EvaluationBuilder({
 
   // One hint line under the judge Select when any custom judge is locked —
   // per-option links don't work inside a disabled Listbox option, so the
-  // pointer to /settings/models lives below the control.
+  // pointer to /models (community section) lives below the control.
   const renderJudgeCredentialHint = () =>
     customJudges.some(isJudgeMissingCredential) ? (
       <div className="mt-1 text-xs text-amber-600">
         {t('customModels.picker.missingKey')}{' '}
         <Link
-          href="/settings/models"
+          href="/models"
           className="underline hover:text-amber-700"
         >
           {t('customModels.picker.configureKey')}

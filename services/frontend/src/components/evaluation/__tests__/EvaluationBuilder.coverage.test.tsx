@@ -383,18 +383,18 @@ describe('BYOM judge gating (credential-less custom judges)', () => {
     expect(keyed.textContent).not.toContain('customModels.picker.missingKey')
   })
 
-  it('renders the credential hint with a /settings/models link under the judge select', async () => {
+  it('renders the credential hint with a /models link under the judge select', async () => {
     const user = userEvent.setup()
     await gotoParameters(user, 'llm_judge_classic')
 
     // The hint renders under the judge Select AND (independently) under the
     // locked entry in the ensemble grid — every instance links to
-    // /settings/models.
+    // /models.
     const links = screen
       .getAllByText('customModels.picker.configureKey')
       .map((el) => el.closest('a'))
     expect(links.length).toBeGreaterThanOrEqual(2)
-    links.forEach((a) => expect(a).toHaveAttribute('href', '/settings/models'))
+    links.forEach((a) => expect(a).toHaveAttribute('href', '/models'))
 
     // Exactly one of those hints lives OUTSIDE the ensemble grid — that is
     // the renderJudgeCredentialHint() line under the judge Select.

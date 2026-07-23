@@ -423,6 +423,7 @@ export interface CustomModel {
   input_cost_per_million: number | null
   output_cost_per_million: number | null
   parameter_constraints?: ParameterConstraints | null
+  default_config?: Record<string, unknown> | null
   is_active: boolean
   is_official: false
   created_by: string | null
@@ -445,6 +446,7 @@ export interface CustomModelCreate {
   input_cost_per_million?: number
   output_cost_per_million?: number
   api_key?: string
+  default_config?: Record<string, unknown>
 }
 
 export interface CustomModelUpdate {
@@ -455,6 +457,7 @@ export interface CustomModelUpdate {
   requires_api_key?: boolean
   input_cost_per_million?: number | null
   output_cost_per_million?: number | null
+  default_config?: Record<string, unknown>
 }
 
 /**

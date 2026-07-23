@@ -352,4 +352,111 @@ describe('CustomModelFormModal', () => {
       expect(customModelsAPI.create).not.toHaveBeenCalled()
     })
   })
+
+  describe('Reasoning parameter (default_config.reasoning_config)', () => {
+    it('create: default None sends no default_config', async () => {
+      const user = userEvent.setup()
+      render(
+        <CustomModelFormModal isOpen onClose={mockOnClose} onSaved={mockOnSaved} />
+      )
+      await fillRequired(user)
+      await user.click(screen.getByTestId('custom-model-form-submit'))
+      await waitFor(() => expect(customModelsAPI.create).toHaveBeenCalled())
+      const payload = (customModelsAPI.create as jest.Mock).mock.calls[0][0]
+      expect(payload.default_config).toBeUndefined()
+    })
+
+    it('create: selecting an effort knob declares reasoning_config', async () => {
+      const user = userEvent.setup()
+      render(
+        <CustomModelFormModal isOpen onClose={mockOnClose} onSaved={mockOnSaved} />
+      )
+      await fillRequired(user)
+      await user.selectOptions(
+        screen.getByTestId('custom-model-reasoning-select'),
+        'reasoning_effort'
+      )
+      await user.click(screen.getByTestId('custom-model-form-submit'))
+      await waitFor(() => expect(customModelsAPI.create).toHaveBeenCalled())
+      const payload = (customModelsAPI.create as jest.Mock).mock.calls[0][0]
+      expect(payload.default_config).toEqual({
+        reasoning_config: { parameter: 'reasoning_effort' },
+      })
+    })
+
+    it('edit: changing the knob merges with other default_config keys', async () => {
+      const user = userEvent.setup()
+      const modelWithConfig: CustomModel = {
+        ...existingModel,
+        default_config: {
+          reasoning_config: { parameter: 'reasoning_effort' },
+          some_other_key: 'kept',
+        },
+      }
+      render(
+        <CustomModelFormModal
+          isOpen
+          model={modelWithConfig}
+          onClose={mockOnClose}
+          onSaved={mockOnSaved}
+        />
+      )
+      const select = screen.getByTestId(
+        'custom-model-reasoning-select'
+      ) as HTMLSelectElement
+      expect(select.value).toBe('reasoning_effort')
+      await user.selectOptions(select, 'thinking_budget')
+      await user.click(screen.getByTestId('custom-model-form-submit'))
+      await waitFor(() => expect(customModelsAPI.update).toHaveBeenCalled())
+      const payload = (customModelsAPI.update as jest.Mock).mock.calls[0][1]
+      expect(payload.default_config).toEqual({
+        reasoning_config: { parameter: 'thinking_budget' },
+        some_other_key: 'kept',
+      })
+    })
+
+    it('edit: switching to None clears reasoning_config but keeps other keys', async () => {
+      const user = userEvent.setup()
+      const modelWithConfig: CustomModel = {
+        ...existingModel,
+        default_config: {
+          reasoning_config: { parameter: 'reasoning_effort' },
+          some_other_key: 'kept',
+        },
+      }
+      render(
+        <CustomModelFormModal
+          isOpen
+          model={modelWithConfig}
+          onClose={mockOnClose}
+          onSaved={mockOnSaved}
+        />
+      )
+      await user.selectOptions(
+        screen.getByTestId('custom-model-reasoning-select'),
+        'none'
+      )
+      await user.click(screen.getByTestId('custom-model-form-submit'))
+      await waitFor(() => expect(customModelsAPI.update).toHaveBeenCalled())
+      const payload = (customModelsAPI.update as jest.Mock).mock.calls[0][1]
+      expect(payload.default_config).toEqual({ some_other_key: 'kept' })
+    })
+
+    it('edit: unchanged knob sends no default_config field', async () => {
+      const user = userEvent.setup()
+      render(
+        <CustomModelFormModal
+          isOpen
+          model={existingModel}
+          onClose={mockOnClose}
+          onSaved={mockOnSaved}
+        />
+      )
+      await user.type(screen.getByTestId('custom-model-name-input'), '2')
+      await user.click(screen.getByTestId('custom-model-form-submit'))
+      await waitFor(() => expect(customModelsAPI.update).toHaveBeenCalled())
+      const payload = (customModelsAPI.update as jest.Mock).mock.calls[0][1]
+      expect('default_config' in payload).toBe(false)
+    })
+  })
 })

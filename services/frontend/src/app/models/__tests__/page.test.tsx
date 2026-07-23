@@ -7,6 +7,7 @@ import { act, fireEvent, render as rtlRender, screen, waitFor } from '@testing-l
 import userEvent from '@testing-library/user-event'
 import React from 'react'
 import ModelsPage from '../page'
+import { customModelsAPI } from '@/lib/api/customModels'
 
 // Phase 4 migrated this page to `useQuery` (30-min staleTime on the public
 // model catalog endpoints), so tests must provide a QueryClientProvider.
@@ -39,9 +40,102 @@ jest.mock('@/components/shared', () => ({
   HeroPattern: () => <div data-testid="hero-pattern" />,
 }))
 
-jest.mock('@heroicons/react/24/outline', () => ({
-  ChevronDownIcon: () => <div data-testid="chevron-down" />,
+// Logged-in viewer (id matches the own-model fixture) so the community
+// section renders and the own/shared split resolves.
+jest.mock('@/contexts/AuthContext', () => ({
+  useAuth: () => ({ user: { id: 'test-user-id', username: 'testuser' } }),
 }))
+
+// Community (BYOM) section: the manager fetches the access-scoped list
+// itself. One own model (created_by matches the global AuthContext mock's
+// test-user-id) and one org-shared model owned by someone else — the
+// "everyone with access sees it, only editors can edit" fixture.
+// (`mock` prefix so the hoisted jest.mock factory may reference it; the
+// suite's clearAllMocks wipes implementations, so community tests re-prime
+// list() from this array in their beforeEach.)
+const mockCommunityModels = [
+      {
+        id: 'custom-own-1',
+        name: 'My vLLM',
+        description: null,
+        provider: 'Custom',
+        model_type: 'chat',
+        capabilities: ['text_generation'],
+        base_url: 'https://own.example.org/v1',
+        endpoint_model_name: 'own-llm-7b',
+        requires_api_key: true,
+        input_cost_per_million: null,
+        output_cost_per_million: null,
+        parameter_constraints: null,
+        default_config: null,
+        is_active: true,
+        is_official: false,
+        created_by: 'test-user-id',
+        created_by_username: 'testuser',
+        is_private: true,
+        is_public: false,
+        organization_ids: [],
+        has_credential: true,
+        can_edit: true,
+        created_at: '2026-01-01T00:00:00Z',
+        updated_at: null,
+      },
+      {
+        id: 'custom-shared-1',
+        name: 'Group Soofi Endpoint',
+        description: 'shared by the group',
+        provider: 'Custom',
+        model_type: 'chat',
+        capabilities: ['text_generation'],
+        base_url: 'https://group.example.org/v1',
+        endpoint_model_name: 'soofi-s-isar',
+        requires_api_key: true,
+        input_cost_per_million: null,
+        output_cost_per_million: null,
+        parameter_constraints: null,
+        default_config: null,
+        is_active: true,
+        is_official: false,
+        created_by: 'someone-else',
+        created_by_username: 'groupmate',
+        is_private: false,
+        is_public: false,
+        organization_ids: ['org-1'],
+        has_credential: false,
+        can_edit: false,
+        created_at: '2026-01-02T00:00:00Z',
+        updated_at: null,
+      },
+]
+
+jest.mock('@/lib/api/customModels', () => ({
+  customModelsAPI: {
+    list: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+    getCredentialStatus: jest.fn().mockResolvedValue({ has_credential: false }),
+    setCredential: jest.fn(),
+    deleteCredential: jest.fn(),
+    testConnection: jest.fn(),
+    testEndpoint: jest.fn(),
+    updateVisibility: jest.fn(),
+  },
+}))
+
+// Any icon the page OR the community manager subtree pulls (PlusIcon,
+// ArrowPathIcon, the CustomModelList/FormModal icons, ...) resolves to a
+// stub — a Proxy so we don't have to enumerate them.
+jest.mock(
+  '@heroicons/react/24/outline',
+  () =>
+    new Proxy(
+      {},
+      {
+        get: () => () => <div data-testid="icon" />,
+      }
+    )
+)
 jest.mock('@/components/shared/FilterToolbar', () => {
   const FilterToolbar = ({
     searchValue,
@@ -531,6 +625,113 @@ describe('ModelsPage', () => {
     await waitFor(() => {
       const pre = screen.getByText(/provider_settings/).closest('pre')
       expect(pre!.textContent).toContain('"provider_settings": null')
+    })
+  })
+
+  describe('Community (BYOM) section', () => {
+    beforeEach(() => {
+      ;(customModelsAPI.list as jest.Mock).mockResolvedValue(
+        mockCommunityModels
+      )
+    })
+
+    it('hosts the manager: register button, own AND shared models with details', async () => {
+      global.fetch = jest.fn()
+        .mockResolvedValue({
+          ok: true,
+          json: () => Promise.resolve([]),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve(mockModels),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve(mockProviderCapabilities),
+        }) as any
+      render(<ModelsPage />)
+
+      await waitFor(() => {
+        expect(
+          screen.getByTestId('community-models-section')
+        ).toBeInTheDocument()
+      })
+      // Management moved here from /settings/models.
+      expect(
+        screen.getByTestId('custom-model-register-button')
+      ).toBeInTheDocument()
+      // Own model in "my models", the org-shared model (someone else's,
+      // can_edit false) in "shared & public" — everyone with access sees
+      // it here with its details.
+      await waitFor(() => {
+        expect(screen.getByText('My vLLM')).toBeInTheDocument()
+        expect(screen.getByText('Group Soofi Endpoint')).toBeInTheDocument()
+      })
+      expect(
+        screen.getByTestId('custom-models-own-section')
+      ).toHaveTextContent('My vLLM')
+      expect(
+        screen.getByTestId('custom-models-shared-section')
+      ).toHaveTextContent('Group Soofi Endpoint')
+    })
+
+    it('page search filters community rows too', async () => {
+      global.fetch = jest.fn()
+        .mockResolvedValue({
+          ok: true,
+          json: () => Promise.resolve([]),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve(mockModels),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve(mockProviderCapabilities),
+        }) as any
+      render(<ModelsPage />)
+      await waitFor(() =>
+        expect(screen.getByText('Group Soofi Endpoint')).toBeInTheDocument()
+      )
+
+      const searchInput = screen.getByPlaceholderText('models.searchPlaceholder')
+      fireEvent.change(searchInput, { target: { value: 'soofi' } })
+
+      await waitFor(() => {
+        expect(screen.queryByText('My vLLM')).not.toBeInTheDocument()
+      })
+      expect(screen.getByText('Group Soofi Endpoint')).toBeInTheDocument()
+    })
+
+    it('the Custom provider filter scopes the page to the community section', async () => {
+      global.fetch = jest.fn()
+        .mockResolvedValue({
+          ok: true,
+          json: () => Promise.resolve([]),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve(mockModels),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve(mockProviderCapabilities),
+        }) as any
+      render(<ModelsPage />)
+      await waitFor(() =>
+        expect(screen.getByText('GPT-4')).toBeInTheDocument()
+      )
+
+      const providerSelect = screen.getByRole('combobox')
+      fireEvent.change(providerSelect, { target: { value: 'Custom' } })
+
+      await waitFor(() => {
+        expect(screen.queryByText('GPT-4')).not.toBeInTheDocument()
+      })
+      expect(
+        screen.getByTestId('community-models-section')
+      ).toBeInTheDocument()
+      expect(screen.getByText('My vLLM')).toBeInTheDocument()
     })
   })
 })

@@ -6,9 +6,8 @@ import { FilterToolbar } from '@/components/shared/FilterToolbar'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/shared/Select'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
-import { customModelsAPI } from '@/lib/api/customModels'
+import { CustomModelsManager } from '@/components/models/CustomModelsManager'
 import { useQuery } from '@tanstack/react-query'
-import Link from 'next/link'
 import { useState } from 'react'
 
 interface LLMModel {
@@ -74,16 +73,11 @@ export default function ModelsPage() {
     staleTime: 30 * 60_000,
   })
 
-  // BYOM: community (custom) models are only visible to logged-in users -
-  // the query stays disabled for anonymous visitors so the public catalog
-  // part of this page is unchanged for them.
-  const communityModelsQuery = useQuery({
-    queryKey: ['custom-models'],
-    queryFn: () => customModelsAPI.list(),
-    enabled: !!user,
-    staleTime: 60_000,
-  })
-  const communityModels = communityModelsQuery.data ?? []
+  // BYOM: the community section is only rendered for logged-in users, so
+  // the public catalog part of this page is unchanged for anonymous
+  // visitors. The manager loads the (access-scoped) list itself; the
+  // count badge is fed back up from it.
+  const [communityCount, setCommunityCount] = useState<number | null>(null)
 
   const models = modelsQuery.data ?? []
   const providerCapabilities = capabilitiesQuery.data ?? {}
@@ -199,6 +193,11 @@ export default function ModelsPage() {
                       {provider}
                     </SelectItem>
                   ))}
+                  {user && (
+                    <SelectItem value="Custom">
+                      {t('customModels.catalog.communityTitle')}
+                    </SelectItem>
+                  )}
                 </SelectContent>
               </Select>
             </FilterToolbar.Field>
@@ -219,8 +218,8 @@ export default function ModelsPage() {
           </div>
         )}
 
-        {/* Models list */}
-        {!loading && !error && (
+        {/* Models list (hidden when the community filter is active) */}
+        {!loading && !error && providerFilter !== 'Custom' && (
           <div className="space-y-8">
             {sortedProviders.length === 0 ? (
               <div className="py-12 text-center text-zinc-600 dark:text-zinc-400">
@@ -335,112 +334,24 @@ export default function ModelsPage() {
           </div>
         )}
 
-        {/* Community (custom) models - only for logged-in users. The
+        {/* Community (custom) models — management lives HERE now (moved
+            from /settings/models): register, edit/delete (creator or
+            superadmin), per-user keys. Only for logged-in users; the
             anonymous catalog part above stays unchanged. */}
-        {user && (
+        {user && (providerFilter === 'all' || providerFilter === 'Custom') && (
           <div className="mt-12" data-testid="community-models-section">
             <div className="mb-4 flex flex-wrap items-center gap-3">
               <h2 className="text-xl font-semibold text-zinc-900 dark:text-white">
                 {t('customModels.catalog.communityTitle')}
               </h2>
               <span className="rounded-full bg-zinc-100 px-2.5 py-0.5 text-sm text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
-                {t('models.modelCount', { count: communityModels.length })}
+                {t('models.modelCount', { count: communityCount ?? 0 })}
               </span>
-              <Link
-                href="/settings/models"
-                className="ml-auto text-sm font-medium text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300"
-              >
-                {t('customModels.catalog.manageLink')}
-              </Link>
             </div>
-            <p className="mb-4 text-sm text-zinc-600 dark:text-zinc-400">
-              {t('customModels.catalog.communityDescription')}
-            </p>
-
-            {communityModels.length === 0 ? (
-              <div className="rounded-lg border border-dashed border-zinc-300 py-8 text-center text-sm text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
-                {t('customModels.catalog.communityEmpty')}
-              </div>
-            ) : (
-              <div className="overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-700">
-                <table className="w-full">
-                  <thead className="bg-zinc-50 dark:bg-zinc-800">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-sm font-medium text-zinc-600 dark:text-zinc-400">
-                        {t('models.columns.model')}
-                      </th>
-                      <th className="hidden px-4 py-3 text-left text-sm font-medium text-zinc-600 dark:text-zinc-400 md:table-cell">
-                        {t('customModels.catalog.columns.owner')}
-                      </th>
-                      <th className="hidden px-4 py-3 text-left text-sm font-medium text-zinc-600 dark:text-zinc-400 lg:table-cell">
-                        {t('customModels.catalog.columns.endpointModel')}
-                      </th>
-                      <th className="px-4 py-3 text-left text-sm font-medium text-zinc-600 dark:text-zinc-400">
-                        {t('customModels.catalog.columns.visibility')}
-                      </th>
-                      <th className="px-4 py-3 text-right text-sm font-medium text-zinc-600 dark:text-zinc-400">
-                        {t('models.columns.pricing')}
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-zinc-200 dark:divide-zinc-700">
-                    {communityModels.map((model) => (
-                      <tr
-                        key={model.id}
-                        className="bg-white dark:bg-zinc-900"
-                        data-testid={`community-model-row-${model.id}`}
-                      >
-                        <td className="px-4 py-3">
-                          <div className="font-medium text-zinc-900 dark:text-white">
-                            {model.name}
-                          </div>
-                          <div className="text-xs text-zinc-500 dark:text-zinc-500">
-                            {model.id}
-                          </div>
-                        </td>
-                        <td className="hidden px-4 py-3 md:table-cell">
-                          <div className="text-sm text-zinc-600 dark:text-zinc-400">
-                            {model.created_by_username || '-'}
-                          </div>
-                        </td>
-                        <td className="hidden px-4 py-3 lg:table-cell">
-                          <div className="font-mono text-xs text-zinc-600 dark:text-zinc-400">
-                            {model.endpoint_model_name}
-                          </div>
-                        </td>
-                        <td className="px-4 py-3">
-                          <VisibilityBadge
-                            visibility={
-                              model.is_public
-                                ? 'public'
-                                : model.is_private
-                                  ? 'private'
-                                  : 'organization'
-                            }
-                          />
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          {model.input_cost_per_million != null &&
-                          model.output_cost_per_million != null ? (
-                            <div className="text-sm">
-                              <div className="text-zinc-900 dark:text-white">
-                                ${model.input_cost_per_million.toFixed(2)} / $
-                                {model.output_cost_per_million.toFixed(2)}
-                              </div>
-                              <div className="text-xs text-zinc-500 dark:text-zinc-500">
-                                {t('models.input')} / {t('models.output')}
-                              </div>
-                            </div>
-                          ) : (
-                            <span className="text-sm text-zinc-400">-</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+            <CustomModelsManager
+              filterQuery={searchQuery}
+              onVisibleCountChange={setCommunityCount}
+            />
           </div>
         )}
       </div>
