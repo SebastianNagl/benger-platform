@@ -18,6 +18,11 @@ Differences from the fixed-provider services:
   (cost_estimate.py, DB-based) showed real numbers.
 - Seed is gated on the row's ``parameter_constraints.seed.supported``
   (constructor arg), not the YAML-backed ``model_supports_seed``.
+- Reasoning knobs are opt-in per row: ``default_config.reasoning_config``
+  (the same declaration the frontend reads to render the effort/budget
+  controls) names the parameter forwarded verbatim when a run supplies a
+  value. Undeclared rows never send one, so endpoints that reject unknown
+  fields are unaffected.
 - SSRF hardening: before every outbound request the base_url is re-resolved
   and validated via url_guard, and the aiohttp connection is PINNED to the
   exact validated IPs (save-time validation alone is defeated by a TTL-0 DNS
@@ -60,6 +65,16 @@ _IPV4_RE = re.compile(r"\b\d{1,3}(?:\.\d{1,3}){3}\b")
 _IPV6_RE = re.compile(r"\[?\b(?:[0-9A-Fa-f]{1,4}:){2,7}[0-9A-Fa-f]{0,4}\b\]?")
 
 
+# Reasoning knobs a custom model row may declare via
+# default_config.reasoning_config.parameter — the same declaration the
+# frontend reads to render the effort/budget controls. Only these names are
+# ever forwarded (they are exactly the kwargs the worker's reasoning_kwargs
+# can carry), so a row's declaration can not inject arbitrary payload keys.
+_REASONING_PARAMS = frozenset(
+    {"reasoning_effort", "thinking_budget", "thinking_token_budget", "prompt_mode"}
+)
+
+
 class OpenAICompatibleService(BaseAIService):
     """Client for a user-registered OpenAI-compatible endpoint."""
 
@@ -72,6 +87,7 @@ class OpenAICompatibleService(BaseAIService):
         input_cost_per_million: Optional[float] = None,
         output_cost_per_million: Optional[float] = None,
         supports_seed: bool = False,
+        reasoning_param: Optional[str] = None,
         timeout_s: int = 300,
     ):
         self.base_url = (base_url or "").rstrip("/")
@@ -79,6 +95,13 @@ class OpenAICompatibleService(BaseAIService):
         self.input_cost_per_million = input_cost_per_million
         self.output_cost_per_million = output_cost_per_million
         self.supports_seed = supports_seed
+        if reasoning_param is not None and reasoning_param not in _REASONING_PARAMS:
+            logger.warning(
+                "Ignoring unknown reasoning_config.parameter %r on custom model",
+                reasoning_param,
+            )
+            reasoning_param = None
+        self.reasoning_param = reasoning_param
         self.timeout_s = timeout_s
         super().__init__(api_key)
 
@@ -247,6 +270,15 @@ class OpenAICompatibleService(BaseAIService):
         }
         if self.supports_seed:
             payload["seed"] = requested_seed
+        # Reasoning knob: forwarded verbatim under the row-declared parameter
+        # name, only when this run supplied a value. Undeclared rows keep the
+        # legacy behavior (never sent) so endpoints that reject unknown
+        # fields stay unaffected.
+        reasoning_value = (
+            kwargs.get(self.reasoning_param) if self.reasoning_param else None
+        )
+        if reasoning_value is not None:
+            payload[self.reasoning_param] = reasoning_value
 
         # URL keeps the hostname (never the pinned IP) so TLS SNI + cert
         # verification stay correct; the connector routes it to the
@@ -321,6 +353,13 @@ class OpenAICompatibleService(BaseAIService):
                 "refusal": derive_refusal(finish_reason),
                 "error_type": None,
                 "seed": requested_seed if self.supports_seed else None,
+                # Mirror the seed convention: record the reasoning knob that
+                # was actually sent so runs are auditable/reproducible.
+                **(
+                    {self.reasoning_param: reasoning_value}
+                    if reasoning_value is not None
+                    else {}
+                ),
                 "created_at": end_time.isoformat(),
                 **self.get_invocation_provenance(),
             },

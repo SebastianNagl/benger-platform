@@ -267,6 +267,61 @@ class TestRequestShape:
         assert fake_http.last_call["allow_redirects"] is False
 
 
+class TestReasoningParamPassthrough:
+    """The row-declared reasoning knob (default_config.reasoning_config)
+    is forwarded verbatim — and ONLY when declared AND supplied."""
+
+    def test_declared_and_supplied_is_sent_and_recorded(self, fake_http):
+        result = _service(reasoning_param="reasoning_effort").generate(
+            "q", "s", model_name=PK, reasoning_effort="high"
+        )
+        assert fake_http.last_call["json"]["reasoning_effort"] == "high"
+        assert result["metadata"]["reasoning_effort"] == "high"
+
+    def test_undeclared_row_never_sends_reasoning_kwargs(self, fake_http):
+        result = _service().generate(
+            "q",
+            "s",
+            model_name=PK,
+            reasoning_effort="high",
+            thinking_budget=8000,
+        )
+        payload = fake_http.last_call["json"]
+        assert "reasoning_effort" not in payload
+        assert "thinking_budget" not in payload
+        assert "reasoning_effort" not in result["metadata"]
+
+    def test_declared_but_not_supplied_sends_nothing(self, fake_http):
+        _service(reasoning_param="reasoning_effort").generate(
+            "q", "s", model_name=PK
+        )
+        assert "reasoning_effort" not in fake_http.last_call["json"]
+
+    def test_budget_style_param_forwarded_verbatim(self, fake_http):
+        _service(reasoning_param="thinking_budget").generate(
+            "q", "s", model_name=PK, thinking_budget=4096
+        )
+        assert fake_http.last_call["json"]["thinking_budget"] == 4096
+
+    def test_unknown_declared_param_is_ignored(self, fake_http):
+        # An owner-supplied declaration outside the allowlist must not open
+        # an arbitrary-payload-key channel — it degrades to "no knob".
+        svc = _service(reasoning_param="tools")
+        assert svc.reasoning_param is None
+        svc.generate("q", "s", model_name=PK)
+        assert "tools" not in fake_http.last_call["json"]
+
+    def test_structured_path_forwards_via_nested_generate(self, fake_http):
+        _service(reasoning_param="reasoning_effort").generate_structured(
+            "q",
+            "s",
+            json_schema={"type": "object", "properties": {}},
+            model_name=PK,
+            reasoning_effort="low",
+        )
+        assert fake_http.last_call["json"]["reasoning_effort"] == "low"
+
+
 class TestCostAndMetadata:
     def test_cost_from_row_rates(self, fake_http):
         fake_http.response = _FakeResponse(

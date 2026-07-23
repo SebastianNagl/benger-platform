@@ -287,6 +287,22 @@ class UserAwareAIService:
             seed_cfg = constraints.get("seed")
             supports_seed = bool(seed_cfg.get("supported", False)) if isinstance(seed_cfg, dict) else False
 
+            # Reasoning knob: the row's default_config.reasoning_config is the
+            # SAME declaration the frontend reads to render the effort/budget
+            # controls, so one registration field drives both the UI and the
+            # wire format. Owner-supplied JSON — tolerate malformed shapes.
+            default_config = getattr(model, "default_config", None)
+            if not isinstance(default_config, dict):
+                default_config = {}
+            reasoning_cfg = default_config.get("reasoning_config")
+            reasoning_param = (
+                reasoning_cfg.get("parameter")
+                if isinstance(reasoning_cfg, dict)
+                else None
+            )
+            if not isinstance(reasoning_param, str):
+                reasoning_param = None
+
             service = OpenAICompatibleService(
                 base_url=model.base_url,
                 api_key=api_key,
@@ -294,6 +310,7 @@ class UserAwareAIService:
                 input_cost_per_million=model.input_cost_per_million,
                 output_cost_per_million=model.output_cost_per_million,
                 supports_seed=supports_seed,
+                reasoning_param=reasoning_param,
             )
             service._key_resolution_route = key_route
             service._provider_name = "custom"
