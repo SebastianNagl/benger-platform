@@ -823,9 +823,13 @@ class TestDelete:
         assert org_creds == []
 
     @pytest.mark.asyncio
-    async def test_soft_deleted_row_listed_for_creator_only(
+    async def test_soft_deleted_row_hidden_from_list_for_everyone(
         self, async_test_client, async_test_db
     ):
+        """Soft-deleted models leave the list for creator and members alike.
+        Listing them for the creator (old behavior) made "delete" look like
+        a no-op: referenced models can only ever be soft-deleted, so they
+        never left the owner's list despite the success toast."""
         a, b, org, model = await _seed_shared_setup(async_test_db)
         model.is_active = False
         await async_test_db.commit()
@@ -835,9 +839,7 @@ class TestDelete:
         with _as_user(b):
             member_list = await async_test_client.get("/api/custom-models/")
 
-        creator_ids = {m["id"]: m for m in creator_list.json()}
-        assert model.id in creator_ids
-        assert creator_ids[model.id]["is_active"] is False
+        assert model.id not in {m["id"] for m in creator_list.json()}
         assert model.id not in {m["id"] for m in member_list.json()}
 
 
