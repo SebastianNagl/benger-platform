@@ -257,7 +257,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         currentPath.startsWith('/about') ||
         currentPath.startsWith('/verify-email') ||
         currentPath.startsWith('/accept-invitation') ||
-        currentPath.startsWith('/reset-password')
+        currentPath.startsWith('/reset-password') ||
+        currentPath.startsWith('/activate')
 
       logger.debug('[AuthContext] Is public route:', isPublicRoute)
 
