@@ -177,6 +177,10 @@ class User(Base):
     password_set = Column(
         Boolean, server_default="false", nullable=False
     )  # Flag to track if user has set password
+    # Account activation (passwordless LTI accounts claiming standalone
+    # access): the address entered in the fallback flow parks here and is
+    # adopted onto ``email`` only when the activation link is clicked.
+    pending_activation_email = Column(String(255), nullable=True)
 
     name = Column(String, nullable=False)
     hashed_password = Column(String, nullable=True)  # Now nullable for invited users

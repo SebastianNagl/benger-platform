@@ -48,6 +48,7 @@ from . import tokens  # noqa: E402,F401
 from . import user  # noqa: E402,F401
 from . import password  # noqa: E402,F401
 from . import verification  # noqa: E402,F401
+from . import activation  # noqa: E402,F401
 
 # Profile helpers live in the `user` concern module; re-export them so
 # `from routers.auth import _build_user_profile_response` keeps working.
@@ -85,6 +86,10 @@ from .password import (  # noqa: E402,F401
     change_password,
     request_password_reset,
     reset_password,
+)
+from .activation import (  # noqa: E402,F401
+    request_account_activation,
+    activate_account,
 )
 from .verification import (  # noqa: E402,F401
     verify_email,

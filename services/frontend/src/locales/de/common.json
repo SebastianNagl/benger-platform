@@ -8640,5 +8640,20 @@
       "profile": "Profil"
     },
     "loading": "Wird geladen …"
+  },
+  "accountActivation": {
+    "title": "Konto aktivieren",
+    "description": "Wähle ein Passwort, um dich künftig direkt bei {brand} anzumelden. Deine Klausuren und Ergebnisse bleiben erhalten.",
+    "newPassword": "Neues Passwort",
+    "confirmPassword": "Passwort bestätigen",
+    "activate": "Konto aktivieren",
+    "activating": "Wird aktiviert...",
+    "success": "Konto aktiviert",
+    "successDescription": "Du kannst dich jetzt direkt anmelden. Weiterleitung zur Anmeldung...",
+    "mismatch": "Die Passwörter stimmen nicht überein",
+    "tooShort": "Das Passwort muss mindestens 6 Zeichen lang sein",
+    "expiredDescription": "Der Link ist abgelaufen oder wurde bereits verwendet. Melde dich an oder starte die Klausur erneut aus Moodle, um einen neuen Link anzufordern.",
+    "emailTaken": "Diese E-Mail-Adresse wird bereits verwendet. Bitte fordere den Zugang mit einer anderen Adresse erneut an.",
+    "backToLogin": "Zurück zur Anmeldung"
   }
 }

@@ -8669,5 +8669,20 @@
         "cta": "Start exam plan"
       }
     }
+  },
+  "accountActivation": {
+    "title": "Activate account",
+    "description": "Choose a password to sign in to {brand} directly from now on. Your exams and results stay with your account.",
+    "newPassword": "New password",
+    "confirmPassword": "Confirm password",
+    "activate": "Activate account",
+    "activating": "Activating...",
+    "success": "Account activated",
+    "successDescription": "You can now sign in directly. Redirecting to login...",
+    "mismatch": "Passwords do not match",
+    "tooShort": "Password must be at least 6 characters",
+    "expiredDescription": "This link has expired or was already used. Sign in, or launch the exam from Moodle again to request a new link.",
+    "emailTaken": "This email address is already in use. Please request access again with a different address.",
+    "backToLogin": "Back to login"
   }
 }

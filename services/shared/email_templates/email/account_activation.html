@@ -1,0 +1,17 @@
+Subject: Activate your {{ brand_name }} account
+<html>
+<body style="font-family: Arial, sans-serif; padding: 20px;">
+    <h2>Your {{ brand_name }} account is waiting</h2>
+    <p>Your learning platform (Moodle) created a {{ brand_name }} account for you. Set a password now to sign in directly at {{ frontend_host }} — your exams and results stay with your account.</p>
+    <p style="margin: 30px 0;">
+        <a href="{{ activation_url }}" style="background-color: #059669; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px;">
+            Activate account
+        </a>
+    </p>
+    <p>Or copy this link into your browser:</p>
+    <p style="color: #059669;">{{ activation_url }}</p>
+    <p style="color: #666; font-size: 12px; margin-top: 30px;">
+        This link is valid for {{ expiry_days }} days. You can keep using {{ brand_name }} through Moodle without activating — in that case simply ignore this email.
+    </p>
+</body>
+</html>

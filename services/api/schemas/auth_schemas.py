@@ -91,6 +91,27 @@ class PasswordResetConfirm(BaseModel):
     confirm_password: str = Field(..., description="Confirm new password")
 
 
+class AccountActivationRequest(BaseModel):
+    """Request the "Konto aktivieren" mail (passwordless LTI accounts).
+
+    ``email`` is required iff the account's current address is unroutable
+    (synthetic ``@lti.invalid``) — it parks in ``pending_activation_email``
+    and is adopted only when the link is clicked. Accounts with a routable
+    address omit it (resend semantics)."""
+
+    email: Optional[EmailStr] = Field(
+        None, description="Target address for sub-only accounts"
+    )
+
+
+class AccountActivateConfirm(BaseModel):
+    """Confirm activation: set the first password via the mailed token."""
+
+    token: str = Field(..., description="Activation token from email")
+    new_password: str = Field(..., min_length=6, description="New password")
+    confirm_password: str = Field(..., description="Confirm new password")
+
+
 class EmailVerificationRequest(BaseModel):
     """Model for email verification"""
 

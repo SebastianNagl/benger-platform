@@ -1175,6 +1175,133 @@ def send_invitation_email_task(
         raise
 
 
+@app.task(
+    name="emails.send_account_activation",
+    bind=True,
+    autoretry_for=(Exception,),
+    retry_kwargs={'max_retries': 3, 'countdown': 60},
+)
+def send_account_activation_task(
+    self,
+    user_id: str,
+    host: str = None,
+    target_email: str = None,
+    force: bool = False,
+) -> Dict[str, Any]:
+    """Send the "Konto aktivieren" mail to a passwordless (LTI) account.
+
+    Single writer for activation-token minting — both the auto path (first
+    LTI provisioning) and the fallback path (sub-only account entered an
+    address) enqueue this task. The eligibility guard makes double-fires
+    no-ops and refuses activated accounts; the token is committed BEFORE the
+    send so a delivered link always exists in the DB. ``target_email`` (the
+    fallback path) parks in ``pending_activation_email`` and is adopted only
+    when the link is clicked.
+    """
+    from sqlalchemy import select as sa_select
+
+    from account_activation import (
+        ACTIVATION_TOKEN_EXPIRY,
+        activation_eligibility,
+        build_activation_link,
+        current_or_new_activation_token,
+    )
+    from email_service import email_service
+    from mailer.branding import resolve_email_brand
+    from models import User as DBUser
+    from sendgrid_client import SendGridClient
+
+    db = SessionLocal()
+    try:
+        user = db.execute(
+            sa_select(DBUser).where(DBUser.id == user_id).with_for_update()
+        ).scalar_one_or_none()
+        if user is None:
+            logger.warning(f"Activation mail: user {user_id} not found; skipping")
+            return {"status": "skipped", "reason": "user_not_found"}
+
+        skip = activation_eligibility(user, target_email=target_email)
+        if skip is not None:
+            logger.info(f"Activation mail for {user_id} skipped: {skip}")
+            return {"status": "skipped", "reason": skip}
+
+        if target_email:
+            taken = db.execute(
+                sa_select(DBUser.id).where(
+                    DBUser.email == target_email, DBUser.id != user.id
+                )
+            ).first()
+            if taken is not None:
+                logger.warning(
+                    f"Activation mail for {user_id}: target email taken; aborting"
+                )
+                return {"status": "skipped", "reason": "email_taken"}
+
+        token = current_or_new_activation_token(
+            user, pending_email=target_email, force=force
+        )
+        recipient = target_email or user.email
+        # Commit before sending: a link that reaches a mailbox must resolve.
+        db.commit()
+
+        brand = resolve_email_brand(host)
+        subject, html_body = email_service.build_account_activation_email(
+            activation_url=build_activation_link(brand, token),
+            brand_name=brand.name,
+            frontend_host=brand.frontend_url.split("://", 1)[-1],
+            language=brand.default_language,
+            expiry_days=ACTIVATION_TOKEN_EXPIRY.days,
+        )
+
+        result = SendGridClient().send_message(
+            to=[recipient],
+            subject=subject,
+            html_body=html_body,
+            from_address=brand.from_address,
+            from_name=brand.from_name,
+            disable_tracking=True,
+        )
+
+        if result.get("status") == "success":
+            logger.info(f"Activation email sent to {recipient} (user {user_id})")
+            return {
+                "status": "success",
+                "user_id": user_id,
+                "recipient": recipient,
+                "message_id": result.get("message_id", "unknown"),
+            }
+
+        # Same permanent-vs-retryable split as the invitation task: 4xx
+        # (except 429) must not burn three retries on the rate-limited queue.
+        status_code = result.get("status_code")
+        error_msg = result.get("error", "Unknown SendGrid error")
+        if status_code is not None and 400 <= status_code < 500 and status_code != 429:
+            logger.error(
+                f"Permanent SendGrid {status_code} for activation mail to "
+                f"{recipient}; not retrying: {error_msg}"
+            )
+            return {
+                "status": "failed_permanent",
+                "user_id": user_id,
+                "recipient": recipient,
+                "status_code": status_code,
+                "error": error_msg,
+            }
+
+        logger.error(
+            f"Retryable SendGrid failure for activation mail to {recipient} "
+            f"(status_code={status_code}): {error_msg}"
+        )
+        raise RuntimeError(f"SendGrid error: {error_msg}")
+    except RuntimeError:
+        raise
+    except Exception as e:
+        logger.error(f"Error sending activation email for user {user_id}: {str(e)}")
+        raise
+    finally:
+        db.close()
+
+
 @app.task(name="emails.send_bulk_invitations")
 def send_bulk_invitations_task(invitations_data: List[Dict]) -> Dict[str, Any]:
     """
