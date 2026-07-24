@@ -143,7 +143,8 @@ export class UserOrganizationPermissions {
 
   /**
    * Check if user can view organization members
-   * All members of an organization can view other members
+   * CONTRIBUTOR and ORG_ADMIN members can view other members; ANNOTATOR
+   * members (every LTI-provisioned student) cannot enumerate the roster.
    * Superadmins can view all organization members
    */
   static canViewOrganizationMembers(
@@ -155,8 +156,10 @@ export class UserOrganizationPermissions {
     // Superadmins can view all
     if (user.is_superadmin === true) return true
 
-    // Check if user is a member of this organization
-    return user.organizations?.some((org) => org.id === orgId) ?? false
+    // Members see the roster only with a CONTRIBUTOR+ role (backend mirrors
+    // this: list_organization_members 403s annotators)
+    const userOrg = user.organizations?.find((org) => org.id === orgId)
+    return userOrg !== undefined && userOrg.role !== 'ANNOTATOR'
   }
 
   /**

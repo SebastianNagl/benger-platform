@@ -494,13 +494,13 @@ describe('UserOrganizationPermissions', () => {
       ).toBe(true)
     })
 
-    it('returns true for annotator on their organization', () => {
+    it('returns false for annotator on their organization (roster is CONTRIBUTOR+)', () => {
       expect(
         UserOrganizationPermissions.canViewOrganizationMembers(
           mockAnnotator,
           'org-1'
         )
-      ).toBe(true)
+      ).toBe(false)
     })
 
     it('returns false for user not in organization', () => {

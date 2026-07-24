@@ -48,6 +48,14 @@ async def list_organization_members(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Access denied to this organization",
             )
+        # ANNOTATOR members (incl. every LTI-provisioned student) must not
+        # enumerate the org roster — names and emails of the whole cohort and
+        # staff. Member visibility is a CONTRIBUTOR+ concern.
+        if membership.role == OrganizationRole.ANNOTATOR:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Member list requires a contributor or admin role",
+            )
 
     # Get members with user details
     members = (
