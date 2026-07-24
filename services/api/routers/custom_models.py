@@ -381,9 +381,15 @@ async def list_custom_models(
 ):
     """All custom models visible to the caller.
 
-    Active rows only, EXCEPT the caller's own soft-deleted rows (and, for
-    superadmins, every soft-deleted row) — these are included with
-    ``is_active: false`` so the UI can flag them.
+    Active rows only — soft-deleted models are excluded for everyone,
+    including their creator and superadmins. Listing them (the previous
+    behavior, flagged "Inaktiv" in the UI) made "Löschen" look like a
+    no-op: a referenced model can only ever be soft-deleted, so it never
+    left the owner's list despite the success toast (reported 2026-07-24).
+    The rows stay in the DB for historical generation references; there is
+    deliberately no UI lifecycle for them — if a restore/audit need
+    appears, add an explicit ``include_inactive`` query param rather than
+    reverting this default.
     """
     accessible_ids = await get_accessible_model_ids_async(db, current_user)
     if not accessible_ids:
@@ -392,14 +398,8 @@ async def list_custom_models(
     stmt = select(LLMModel).where(
         LLMModel.id.in_(accessible_ids),
         LLMModel.is_official.is_(False),
+        LLMModel.is_active.is_(True),
     )
-    if not current_user.is_superadmin:
-        stmt = stmt.where(
-            or_(
-                LLMModel.is_active.is_(True),
-                LLMModel.created_by == str(current_user.id),
-            )
-        )
     models = (
         (await db.execute(stmt.order_by(LLMModel.created_at.desc())))
         .scalars()
