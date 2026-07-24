@@ -715,26 +715,13 @@ async def get_project_results_by_task_model(
                 select(latest_ann.c.ann_id).where(latest_ann.c.rn == 1).subquery()
             )
 
-        # Project a "lite" metrics blob that drops the heavy nested fields we
-        # never use for score extraction — for an llm_judge_falloesung row on
-        # zjs fälle this collapses ~6 KB → ~50 B, so the by-task-model
-        # endpoint pulls ~600 KB from Postgres instead of ~45 MB (page-load
-        # latency 3.1s → ~0.4s on prod-shaped data, 2026-05-18 measurement).
-        # The Python `_extract_primary_score` still owns the priority logic;
-        # it only needs the `value` (or bare numeric) per metric key, and an
-        # optional `error` to skip failed runs.
-        # `task_evaluations.metrics` is `Column(JSON)` (text JSON), so
-        # `jsonb_each` requires an explicit cast — Postgres won't auto-promote
-        # `json` to `jsonb`. Production schemas where the column happens to
-        # be jsonb still work because the cast is a no-op there.
-        metrics_lite_expr = literal_column("""
-            (SELECT COALESCE(jsonb_object_agg(k,
-                CASE WHEN jsonb_typeof(v) = 'object'
-                     THEN v - 'details' - 'method' - 'raw' - 'justification'
-                     ELSE v END
-              ), '{}'::jsonb)
-             FROM jsonb_each(task_evaluations.metrics::jsonb) AS j(k, v))
-        """).label("metrics")
+        # "Lite" metrics projection — see routers/evaluations/metrics_lite.py
+        # for the rationale and measurements. `_extract_primary_score` still
+        # owns the priority logic; it only needs the `value` (or bare numeric)
+        # per metric key, and an optional `error` to skip failed runs.
+        from routers.evaluations.metrics_lite import metrics_lite_expr as _lite
+
+        metrics_lite_expr = _lite()
 
         # Subquery: rank results by (generation_id, field_name), ordered by created_at DESC
         # Keeps the latest result per generation per config/field combination
@@ -822,15 +809,10 @@ async def get_project_results_by_task_model(
         from models import User as DBUser
         from models import TaskEvaluation as TE2
 
-        # Same lite-metrics projection as the gen branch (see comment there).
-        ann_metrics_lite_expr = literal_column("""
-            (SELECT COALESCE(jsonb_object_agg(k,
-                CASE WHEN jsonb_typeof(v) = 'object'
-                     THEN v - 'details' - 'method' - 'raw' - 'justification'
-                     ELSE v END
-              ), '{}'::jsonb)
-             FROM jsonb_each(task_evaluations.metrics::jsonb) AS j(k, v))
-        """).label("metrics")
+        # Same lite-metrics projection as the gen branch (see metrics_lite.py).
+        from routers.evaluations.metrics_lite import metrics_lite_expr as _lite2
+
+        ann_metrics_lite_expr = _lite2()
 
         ann_query = (
             select(

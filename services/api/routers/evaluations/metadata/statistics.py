@@ -108,13 +108,22 @@ async def compute_project_statistics(
                         cfg_by_id[cfg_id] = cfg
 
         # Query sample results with model information (handles N:M field evaluations)
-        # This is the authoritative data source for per-sample, per-model scores
+        # This is the authoritative data source for per-sample, per-model scores.
+        # Metrics are projected through the shared "lite" expression
+        # (routers/evaluations/metrics_lite.py): statistics only ever extracts
+        # numeric values via `_coerce_metric_value`, but the full column drags
+        # the judge rubric/justification prose along — ZJS-scale projects carry
+        # ~140 MB of metrics JSON, and hydrating that per request OOM-killed
+        # both prod api pods on 2026-07-23 when two evaluation pages loaded
+        # concurrently.
+        from routers.evaluations.metrics_lite import metrics_lite_expr
+
         generation_sample_results_q = (
             select(
                 TaskEvaluation.task_id,
                 TaskEvaluation.field_name,
                 TaskEvaluation.evaluation_config_id,
-                TaskEvaluation.metrics,
+                metrics_lite_expr(),
                 Generation.model_id,
             )
             .join(
@@ -145,7 +154,7 @@ async def compute_project_statistics(
                 TaskEvaluation.task_id,
                 TaskEvaluation.field_name,
                 TaskEvaluation.evaluation_config_id,
-                TaskEvaluation.metrics,
+                metrics_lite_expr(),
                 TaskEvaluation.annotation_id,
             )
             .where(

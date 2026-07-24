@@ -389,11 +389,17 @@ export default function EvaluationDashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchComparisonData is stable, only re-run when filter selections change
   }, [selectedModels, selectedConfigIds, selectedProject])
 
-  // Debounced statistics computation — prevents API bursts when toggling filters
+  // Debounced statistics computation — prevents API bursts when toggling filters.
+  // `selectedModels.length > 0` is part of the gate: on initial load configs and
+  // models arrive from two different fetches >300ms apart, so without it the
+  // debounce can't coalesce them and the page fires the expensive /statistics
+  // call twice — the first time unfiltered (all models) while the model list is
+  // still empty.
   useEffect(() => {
     if (
       selectedProject &&
       selectedConfigIds.length > 0 &&
+      selectedModels.length > 0 &&
       aggregationLevels.length > 0
     ) {
       const timer = setTimeout(() => computeStatistics(), 300)
