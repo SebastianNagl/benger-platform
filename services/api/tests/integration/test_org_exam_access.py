@@ -98,7 +98,12 @@ def _project(test_db, owner_id, org=None, *, kind="exam", is_private=False,
     test_db.flush()
     if org is not None:
         test_db.add(
-            ProjectOrganization(project_id=p.id, organization_id=org.id)
+            ProjectOrganization(
+                id=str(uuid.uuid4()),
+                project_id=p.id,
+                organization_id=org.id,
+                assigned_by=owner_id,
+            )
         )
         test_db.flush()
     return p
