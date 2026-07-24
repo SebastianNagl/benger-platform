@@ -100,7 +100,6 @@ async def get_evaluation_history(
             .where(
                 DBEvaluationRun.project_id == project_id,
                 Generation.model_id.in_(model_ids),
-                DBEvaluationRun.status == "completed",
                 *date_filters,
             )
         )

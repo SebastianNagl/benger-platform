@@ -125,11 +125,11 @@ async def _task(db, project, admin_id, inner_id=1):
 
 
 async def _eval_run(db, project, admin_id, *, model_id="gpt-4o", metrics=None,
-                    eval_types=None):
+                    eval_types=None, status="completed"):
     er = EvaluationRun(
         id=_uid(), project_id=project.id, model_id=model_id,
         evaluation_type_ids=eval_types or ["accuracy"],
-        metrics=metrics or {}, status="completed", samples_evaluated=0,
+        metrics=metrics or {}, status=status, samples_evaluated=0,
         has_sample_results=True, created_by=admin_id,
         created_at=datetime.now(timezone.utc),
         completed_at=datetime.now(timezone.utc),
@@ -407,6 +407,52 @@ class TestStatisticsComplement:
         # All three shapes counted: (0.2 + 0.4 + 0.6) / 3 = 0.4
         assert stats["n"] == 3
         assert stats["mean"] == pytest.approx(0.4, abs=1e-6)
+
+    @pytest.mark.asyncio
+    async def test_cancelled_run_sample_rows_still_count(
+        self, async_test_client, async_test_db
+    ):
+        """Per-sample rows written by a run that later got CANCELLED are
+        facts and must surface in /statistics and the project data view.
+        Regression: ZJS's canonical judge re-score lived in two runs
+        cancelled at the tail — the run-status filter blanked ~7k
+        data-view cells and the statistics for exactly those models
+        (2026-07-24)."""
+        admin = await _seed_user(async_test_db)
+        p = await _project(async_test_db, admin)
+        p_id = p.id
+        er = await _eval_run(async_test_db, p, admin.id, status="cancelled")
+        jr = await _judge_run(async_test_db, er)
+        for i in range(3):
+            t = await _task(async_test_db, p, admin.id, inner_id=i + 1)
+            gen = await _generation(async_test_db, p, t, admin.id)
+            await _task_eval(async_test_db, er, jr, t, generation=gen,
+                             metrics={"accuracy": 0.8}, cfg_id="cfg-C")
+        await async_test_db.commit()
+
+        with _as_user(admin):
+            stats_resp = await async_test_client.post(
+                f"{BASE}/projects/{p_id}/statistics",
+                json={
+                    "metrics": ["accuracy"],
+                    "aggregation": "overall",
+                    "methods": ["ci"],
+                    "evaluation_config_ids": ["cfg-C"],
+                },
+            )
+            table_resp = await async_test_client.get(
+                f"{BASE}/projects/{p_id}/results/by-task-model"
+                "?metric=accuracy&evaluation_config_id=cfg-C",
+            )
+        assert stats_resp.status_code == 200, stats_resp.text
+        stats = stats_resp.json()["metrics"]["accuracy"]
+        assert stats["n"] == 3
+        assert stats["mean"] == pytest.approx(0.8, abs=1e-6)
+
+        assert table_resp.status_code == 200, table_resp.text
+        table = table_resp.json()
+        scored = sum(len(t.get("scores", {})) for t in table["tasks"])
+        assert scored == 3, table
 
     @pytest.mark.asyncio
     async def test_field_aggregation_parses_encoded_field_name(
