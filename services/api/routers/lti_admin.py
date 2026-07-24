@@ -70,6 +70,7 @@ def _registration_read(
         jwks_uri=reg.jwks_uri,
         link_existing_users_by_email=reg.link_existing_users_by_email,
         instructor_org_role=reg.instructor_org_role,
+        student_org_role=reg.student_org_role,
         status=reg.status,
         created_at=reg.created_at,
         updated_at=reg.updated_at,
@@ -149,6 +150,7 @@ async def create_registration(
         jwks_uri=body.jwks_uri,
         link_existing_users_by_email=body.link_existing_users_by_email,
         instructor_org_role=body.instructor_org_role,
+        student_org_role=body.student_org_role,
     )
     db.add(reg)
     for deployment_id in dict.fromkeys(body.deployment_ids):

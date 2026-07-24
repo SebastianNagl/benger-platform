@@ -665,9 +665,9 @@ class LtiPlatformRegistration(Base):
     The tool-side half of an LTI 1.3 registration: one row per
     ``(issuer, client_id)`` pair, carrying the platform's OIDC/JWKS endpoints
     plus per-tenant policy knobs (``link_existing_users_by_email``,
-    ``instructor_org_role``). Persistence only — the login/launch flow that
-    consumes these values lives in ``benger_extended``. ``status='disabled'``
-    blocks launches without losing the wiring.
+    ``instructor_org_role``, ``student_org_role``). Persistence only — the
+    login/launch flow that consumes these values lives in ``benger_extended``.
+    ``status='disabled'`` blocks launches without losing the wiring.
     """
 
     __tablename__ = "lti_platform_registrations"
@@ -696,6 +696,10 @@ class LtiPlatformRegistration(Base):
     # contributor | org_admin | none — org role granted to LMS instructors.
     instructor_org_role = Column(
         String(32), nullable=False, default="contributor", server_default="contributor"
+    )
+    # annotator | none — org role granted to LMS learners on launch.
+    student_org_role = Column(
+        String(32), nullable=False, default="annotator", server_default="annotator"
     )
     # active | disabled
     status = Column(
