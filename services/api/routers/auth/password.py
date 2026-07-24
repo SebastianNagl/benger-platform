@@ -1,4 +1,6 @@
 """Auth: password change / reset handlers."""
+from fastapi import Request
+
 from ._common import *  # noqa: F401,F403  (binds _common.__all__ — the shared surface)
 
 @router.post("/change-password")
@@ -33,10 +35,12 @@ async def change_password(
 @router.post("/request-password-reset")
 async def request_password_reset(
     reset_request: PasswordResetRequest,
+    request: Request,
     db: Session = Depends(get_db),
 ):
     """Request a password reset email"""
     from app.auth_module.password_reset import password_reset_service
+    from mailer.branding import resolve_email_brand
     from models import User as DBUser
 
     user = db.query(DBUser).filter(DBUser.email == reset_request.email).first()
@@ -47,9 +51,13 @@ async def request_password_reset(
         return {"message": "If the email exists, a password reset link has been sent"}
 
     try:
-        frontend_url = get_settings().frontend_url
+        # Host-aware like verification/invitation links: a Vertretbar student
+        # must land on vertretbar.net. resolve_email_brand falls back to the
+        # configured FRONTEND_URL for BenGER hosts, preserving old behavior.
+        host = request.headers.get("x-forwarded-host") or request.headers.get("host")
+        brand = resolve_email_brand(host)
         success = await password_reset_service.send_password_reset_email(
-            db=db, user=user, base_url=frontend_url, language=reset_request.language
+            db=db, user=user, base_url=brand.frontend_url, language=reset_request.language
         )
         if success:
             logger.info(f"Password reset email sent to: {user.email}")
