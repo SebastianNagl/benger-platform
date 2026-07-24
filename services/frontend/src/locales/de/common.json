@@ -7521,7 +7521,9 @@
         "cohere": {
           "description": "Command Modelle"
         }
-      }
+      },
+      "providerSection": "Provider-Schlüssel",
+      "customModelSection": "Schlüssel für eigene Modelle"
     },
     "customModelKeys": {
       "dialogTitle": "Gemeinsame Schlüssel für eigene Modelle",

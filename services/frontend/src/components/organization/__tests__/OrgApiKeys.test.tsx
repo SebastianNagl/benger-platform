@@ -64,6 +64,25 @@ jest.mock('@/contexts/I18nContext', () => ({
         'organization.apiKeys.encryptedInfo': 'API keys are encrypted and stored securely.',
         'organization.apiKeys.sharedInfo': 'These keys are shared across all organization members.',
         'organization.apiKeys.adminOnlyInfo': 'Only organization admins can view and manage these keys.',
+        'organization.apiKeys.providerSection': 'Provider keys',
+        'organization.apiKeys.customModelSection': 'Custom model keys',
+        'organization.customModelKeys.dialogDescription': 'Provision one shared key per custom model shared with this organization.',
+        'organization.customModelKeys.sharedModeActive': 'Shared billing is active — org keys are used.',
+        'organization.customModelKeys.sharedModeInactive': 'Shared billing is off — org keys are stored but not used.',
+        'organization.customModelKeys.configuredCount': '{configured} of {total} shared models have a key.',
+        'organization.customModelKeys.loading': 'Loading custom models...',
+        'organization.customModelKeys.noModels': 'No custom models are shared with this organization yet.',
+        'organization.customModelKeys.configured': 'Configured',
+        'organization.customModelKeys.notConfigured': 'Not configured',
+        'organization.customModelKeys.keyPlaceholder': 'Enter the shared API key',
+        'organization.customModelKeys.saveKey': 'Save Key',
+        'organization.customModelKeys.saving': 'Saving...',
+        'organization.customModelKeys.removeKey': 'Remove Key',
+        'organization.customModelKeys.removing': 'Removing...',
+        'organization.customModelKeys.keySaved': 'Shared key saved for {model}',
+        'organization.customModelKeys.saveFailed': 'Failed to save the shared key',
+        'organization.customModelKeys.keyRemoved': 'Shared key removed for {model}',
+        'organization.customModelKeys.removeFailed': 'Failed to remove the shared key',
         'common.done': 'Done',
       }
       let result = translations[key] || key
@@ -106,6 +125,9 @@ const mockSetOrgApiKey = jest.fn()
 const mockRemoveOrgApiKey = jest.fn()
 const mockTestOrgApiKey = jest.fn()
 const mockTestSavedOrgApiKey = jest.fn()
+const mockListOrgCustomModels = jest.fn()
+const mockSetOrgCustomModelCredential = jest.fn()
+const mockRemoveOrgCustomModelCredential = jest.fn()
 
 jest.mock('@/lib/api/organizations', () => ({
   organizationsAPI: {
@@ -117,6 +139,11 @@ jest.mock('@/lib/api/organizations', () => ({
     removeOrgApiKey: (...args: any[]) => mockRemoveOrgApiKey(...args),
     testOrgApiKey: (...args: any[]) => mockTestOrgApiKey(...args),
     testSavedOrgApiKey: (...args: any[]) => mockTestSavedOrgApiKey(...args),
+    listOrgCustomModels: (...args: any[]) => mockListOrgCustomModels(...args),
+    setOrgCustomModelCredential: (...args: any[]) =>
+      mockSetOrgCustomModelCredential(...args),
+    removeOrgCustomModelCredential: (...args: any[]) =>
+      mockRemoveOrgCustomModelCredential(...args),
   },
 }))
 
@@ -136,6 +163,7 @@ describe('OrgApiKeys', () => {
       },
       available_providers: [],
     })
+    mockListOrgCustomModels.mockResolvedValue([])
   })
 
   describe('Members-pay mode (default)', () => {
@@ -816,6 +844,109 @@ describe('OrgApiKeys', () => {
       await waitFor(() => {
         expect(screen.getByText('Connection test failed')).toBeInTheDocument()
       })
+    })
+  })
+
+  // Custom-model (BYOM) shared-key section — merged in from the former
+  // standalone OrgCustomModelKeys modal.
+  describe('Custom model shared keys section', () => {
+    const MODEL_UNCONFIGURED = {
+      id: 'custom-abc',
+      name: 'My vLLM',
+      provider: 'Custom',
+      base_url: 'http://10.0.0.5:8000/v1',
+      endpoint_model_name: 'llama-3-8b',
+      requires_api_key: true,
+      has_org_credential: false,
+    }
+    const MODEL_CONFIGURED = {
+      id: 'custom-def',
+      name: 'Shared GPU Model',
+      provider: 'Custom',
+      base_url: 'http://10.0.0.6:8000/v1',
+      endpoint_model_name: 'qwen-72b',
+      requires_api_key: true,
+      has_org_credential: true,
+    }
+
+    it('renders the custom-model section heading for an admin', async () => {
+      mockListOrgCustomModels.mockResolvedValue([MODEL_UNCONFIGURED])
+      render(<OrgApiKeys organizationId="org-1" isAdmin={true} open={true} onOpenChange={jest.fn()} />)
+      await waitFor(() => {
+        expect(screen.getByText('Custom model keys')).toBeInTheDocument()
+        expect(screen.getByText('My vLLM')).toBeInTheDocument()
+      })
+    })
+
+    it('shows the empty state when no custom models are shared', async () => {
+      mockListOrgCustomModels.mockResolvedValue([])
+      render(<OrgApiKeys organizationId="org-1" isAdmin={true} open={true} onOpenChange={jest.fn()} />)
+      await waitFor(() => {
+        expect(
+          screen.getByText('No custom models are shared with this organization yet.')
+        ).toBeInTheDocument()
+      })
+    })
+
+    it('shares the top toggle: shows shared-mode-inactive note in members-pay mode', async () => {
+      mockListOrgCustomModels.mockResolvedValue([MODEL_UNCONFIGURED])
+      render(<OrgApiKeys organizationId="org-1" isAdmin={true} open={true} onOpenChange={jest.fn()} />)
+      await waitFor(() => {
+        expect(
+          screen.getByText('Shared billing is off — org keys are stored but not used.')
+        ).toBeInTheDocument()
+      })
+    })
+
+    it('saves a shared custom-model key via setOrgCustomModelCredential', async () => {
+      mockListOrgCustomModels
+        .mockResolvedValueOnce([MODEL_UNCONFIGURED])
+        .mockResolvedValueOnce([
+          { ...MODEL_UNCONFIGURED, has_org_credential: true },
+        ])
+      mockSetOrgCustomModelCredential.mockResolvedValue({ has_credential: true })
+      render(<OrgApiKeys organizationId="org-1" isAdmin={true} open={true} onOpenChange={jest.fn()} />)
+
+      await waitFor(() => expect(screen.getByText('My vLLM')).toBeInTheDocument())
+      const input = screen.getByPlaceholderText('Enter the shared API key')
+      fireEvent.change(input, { target: { value: 'shared-secret-key' } })
+      fireEvent.click(screen.getByText('Save Key'))
+
+      await waitFor(() =>
+        expect(mockSetOrgCustomModelCredential).toHaveBeenCalledWith(
+          'org-1',
+          'custom-abc',
+          'shared-secret-key'
+        )
+      )
+    })
+
+    it('removes a configured shared key via removeOrgCustomModelCredential', async () => {
+      mockListOrgCustomModels.mockResolvedValue([MODEL_CONFIGURED])
+      mockRemoveOrgCustomModelCredential.mockResolvedValue({ has_credential: false })
+      render(<OrgApiKeys organizationId="org-1" isAdmin={true} open={true} onOpenChange={jest.fn()} />)
+
+      await waitFor(() =>
+        expect(screen.getByText('Shared GPU Model')).toBeInTheDocument()
+      )
+      fireEvent.click(screen.getByText('Remove Key'))
+      await waitFor(() =>
+        expect(mockRemoveOrgCustomModelCredential).toHaveBeenCalledWith(
+          'org-1',
+          'custom-def'
+        )
+      )
+    })
+
+    it('does not fetch custom models for a non-admin', async () => {
+      render(<OrgApiKeys organizationId="org-1" isAdmin={false} open={true} onOpenChange={jest.fn()} />)
+      await waitFor(() => {
+        expect(
+          screen.getByText('Members must configure their own API keys in their profile settings.')
+        ).toBeInTheDocument()
+      })
+      expect(mockListOrgCustomModels).not.toHaveBeenCalled()
+      expect(screen.queryByText('Custom model keys')).not.toBeInTheDocument()
     })
   })
 })

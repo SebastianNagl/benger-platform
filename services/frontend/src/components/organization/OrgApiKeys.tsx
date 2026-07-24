@@ -2,7 +2,10 @@
 
 import { useI18n } from '@/contexts/I18nContext'
 import { Button } from '@/components/shared/Button'
-import { organizationsAPI } from '@/lib/api/organizations'
+import {
+  organizationsAPI,
+  type OrgSharedCustomModel,
+} from '@/lib/api/organizations'
 import {
   EyeIcon,
   EyeSlashIcon,
@@ -113,6 +116,16 @@ export function OrgApiKeys({ organizationId, isAdmin, open, onOpenChange }: OrgA
     text: string
   } | null>(null)
 
+  // Custom-model (BYOM) shared credentials — keyed by model id, distinct from
+  // the provider state above (a custom model is a distinct endpoint + key).
+  const [customModels, setCustomModels] = useState<OrgSharedCustomModel[]>([])
+  const [customListLoading, setCustomListLoading] = useState(false)
+  const [newCustomKeys, setNewCustomKeys] = useState<Record<string, string>>({})
+  const [showCustomKeys, setShowCustomKeys] = useState<Record<string, boolean>>(
+    {}
+  )
+  const [customLoading, setCustomLoading] = useState<Record<string, boolean>>({})
+
   const fetchSettings = useCallback(async () => {
     try {
       const data = await organizationsAPI.getOrgApiKeySettings(organizationId)
@@ -131,13 +144,27 @@ export function OrgApiKeys({ organizationId, isAdmin, open, onOpenChange }: OrgA
     }
   }, [organizationId])
 
+  const fetchCustomModels = useCallback(async () => {
+    if (!isAdmin) return
+    setCustomListLoading(true)
+    try {
+      const data = await organizationsAPI.listOrgCustomModels(organizationId)
+      setCustomModels(data || [])
+    } catch {
+      setCustomModels([])
+    } finally {
+      setCustomListLoading(false)
+    }
+  }, [organizationId, isAdmin])
+
   useEffect(() => {
     if (open) {
       setMessage(null)
       fetchSettings()
       fetchKeyStatus()
+      fetchCustomModels()
     }
-  }, [open, fetchSettings, fetchKeyStatus])
+  }, [open, fetchSettings, fetchKeyStatus, fetchCustomModels])
 
   const toggleRequirePrivateKeys = async () => {
     if (!isAdmin) return
@@ -287,7 +314,66 @@ export function OrgApiKeys({ organizationId, isAdmin, open, onOpenChange }: OrgA
     }
   }
 
+  const setCustomModelKey = async (modelId: string, modelName: string) => {
+    const apiKey = newCustomKeys[modelId]
+    if (!apiKey || !apiKey.trim()) return
+
+    setCustomLoading((prev) => ({ ...prev, [modelId]: true }))
+    setMessage(null)
+    try {
+      await organizationsAPI.setOrgCustomModelCredential(
+        organizationId,
+        modelId,
+        apiKey
+      )
+      setMessage({
+        type: 'success',
+        text: t('organization.customModelKeys.keySaved', { model: modelName }),
+      })
+      setNewCustomKeys((prev) => ({ ...prev, [modelId]: '' }))
+      setShowCustomKeys((prev) => ({ ...prev, [modelId]: false }))
+      await fetchCustomModels()
+    } catch (error: any) {
+      setMessage({
+        type: 'error',
+        text:
+          error.response?.data?.detail ||
+          t('organization.customModelKeys.saveFailed'),
+      })
+    } finally {
+      setCustomLoading((prev) => ({ ...prev, [modelId]: false }))
+    }
+  }
+
+  const removeCustomModelKey = async (modelId: string, modelName: string) => {
+    setCustomLoading((prev) => ({ ...prev, [modelId]: true }))
+    setMessage(null)
+    try {
+      await organizationsAPI.removeOrgCustomModelCredential(
+        organizationId,
+        modelId
+      )
+      setMessage({
+        type: 'success',
+        text: t('organization.customModelKeys.keyRemoved', { model: modelName }),
+      })
+      await fetchCustomModels()
+    } catch (error: any) {
+      setMessage({
+        type: 'error',
+        text:
+          error.response?.data?.detail ||
+          t('organization.customModelKeys.removeFailed'),
+      })
+    } finally {
+      setCustomLoading((prev) => ({ ...prev, [modelId]: false }))
+    }
+  }
+
   const configuredCount = Object.values(apiKeyStatus).filter(Boolean).length
+  const customConfiguredCount = customModels.filter(
+    (m) => m.has_org_credential
+  ).length
 
   return (
     <Dialog open={open} onClose={() => onOpenChange(false)} className="relative z-50">
@@ -387,6 +473,9 @@ export function OrgApiKeys({ organizationId, isAdmin, open, onOpenChange }: OrgA
               {/* Provider cards (admin only) */}
               {isAdmin && (
                 <>
+                  <h3 className="text-base font-semibold text-zinc-900 dark:text-white">
+                    {t('organization.apiKeys.providerSection')}
+                  </h3>
                   <div className="text-sm text-zinc-600 dark:text-zinc-400">
                     <p>
                       {t('organization.apiKeys.configuredCount', { configured: configuredCount, total: providers.length })}
@@ -551,6 +640,155 @@ export function OrgApiKeys({ organizationId, isAdmin, open, onOpenChange }: OrgA
                     <p>{t('organization.apiKeys.encryptedInfo')}</p>
                     <p>{t('organization.apiKeys.sharedInfo')}</p>
                     <p>{t('organization.apiKeys.adminOnlyInfo')}</p>
+                  </div>
+
+                  {/* ── Custom model (BYOM) shared keys ─────────────────── */}
+                  <div className="border-t border-zinc-200 pt-6 dark:border-zinc-700">
+                    <h3 className="text-base font-semibold text-zinc-900 dark:text-white">
+                      {t('organization.apiKeys.customModelSection')}
+                    </h3>
+                    <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+                      {t('organization.customModelKeys.dialogDescription')}
+                    </p>
+
+                    {/* Shared keys are only USED in org-pays mode — the top
+                        toggle governs it; surface the state inline here. */}
+                    {requirePrivateKeys ? (
+                      <p className="mt-2 text-sm text-amber-600 dark:text-amber-400">
+                        {t('organization.customModelKeys.sharedModeInactive')}
+                      </p>
+                    ) : (
+                      <p className="mt-2 text-sm text-emerald-600 dark:text-emerald-400">
+                        {t('organization.customModelKeys.sharedModeActive')}
+                      </p>
+                    )}
+
+                    <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-400">
+                      {t('organization.customModelKeys.configuredCount', {
+                        configured: customConfiguredCount,
+                        total: customModels.length,
+                      })}
+                    </p>
+
+                    {customListLoading ? (
+                      <p className="mt-4 text-sm text-zinc-500 dark:text-zinc-400">
+                        {t('organization.customModelKeys.loading')}
+                      </p>
+                    ) : customModels.length === 0 ? (
+                      <div className="mt-4 rounded-lg border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-700 dark:bg-zinc-800/50">
+                        <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                          {t('organization.customModelKeys.noModels')}
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="mt-4 grid grid-cols-1 gap-6">
+                        {customModels.map((model) => {
+                          const hasKey = model.has_org_credential
+                          const isLoading = customLoading[model.id] || false
+                          const newKey = newCustomKeys[model.id] || ''
+                          const showKey = showCustomKeys[model.id] || false
+
+                          return (
+                            <div
+                              key={model.id}
+                              className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-800"
+                            >
+                              <div className="mb-3 flex items-center justify-between">
+                                <div>
+                                  <h4 className="font-medium text-zinc-900 dark:text-white">
+                                    {model.name}
+                                  </h4>
+                                  {model.base_url && (
+                                    <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                                      {model.base_url}
+                                    </p>
+                                  )}
+                                </div>
+                                <span
+                                  className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
+                                    hasKey
+                                      ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                                      : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-400'
+                                  }`}
+                                >
+                                  {hasKey
+                                    ? t('organization.customModelKeys.configured')
+                                    : t(
+                                        'organization.customModelKeys.notConfigured'
+                                      )}
+                                </span>
+                              </div>
+
+                              {hasKey ? (
+                                <div className="flex justify-end">
+                                  <Button
+                                    variant="outline"
+                                    onClick={() =>
+                                      removeCustomModelKey(model.id, model.name)
+                                    }
+                                    disabled={isLoading}
+                                    className="text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/50"
+                                  >
+                                    {isLoading
+                                      ? t('organization.customModelKeys.removing')
+                                      : t('organization.customModelKeys.removeKey')}
+                                  </Button>
+                                </div>
+                              ) : (
+                                <div className="space-y-3">
+                                  <div className="relative">
+                                    <input
+                                      type={showKey ? 'text' : 'password'}
+                                      placeholder={t(
+                                        'organization.customModelKeys.keyPlaceholder'
+                                      )}
+                                      value={newKey}
+                                      onChange={(e) =>
+                                        setNewCustomKeys((prev) => ({
+                                          ...prev,
+                                          [model.id]: e.target.value,
+                                        }))
+                                      }
+                                      className="w-full rounded-full bg-white px-4 py-2 pr-10 text-sm text-zinc-900 ring-1 ring-zinc-900/10 transition placeholder:text-zinc-500 hover:ring-zinc-900/20 focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:bg-white/5 dark:text-white dark:ring-inset dark:ring-white/10 dark:placeholder:text-zinc-400 dark:hover:ring-white/20 dark:focus:ring-emerald-400"
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setShowCustomKeys((prev) => ({
+                                          ...prev,
+                                          [model.id]: !prev[model.id],
+                                        }))
+                                      }
+                                      className="absolute inset-y-0 right-0 flex items-center pr-3 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
+                                    >
+                                      {showKey ? (
+                                        <EyeSlashIcon className="h-4 w-4" />
+                                      ) : (
+                                        <EyeIcon className="h-4 w-4" />
+                                      )}
+                                    </button>
+                                  </div>
+
+                                  <div className="flex justify-end">
+                                    <Button
+                                      variant="filled"
+                                      onClick={() =>
+                                        setCustomModelKey(model.id, model.name)
+                                      }
+                                      disabled={isLoading || !newKey}
+                                    >
+                                      {isLoading
+                                        ? t('organization.customModelKeys.saving')
+                                        : t('organization.customModelKeys.saveKey')}
+                                    </Button>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
                   </div>
                 </>
               )}

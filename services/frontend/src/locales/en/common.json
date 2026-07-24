@@ -7464,7 +7464,9 @@
         "cohere": {
           "description": "Command models"
         }
-      }
+      },
+      "providerSection": "Provider keys",
+      "customModelSection": "Custom model keys"
     },
     "customModelKeys": {
       "dialogTitle": "Shared Custom Model Keys",

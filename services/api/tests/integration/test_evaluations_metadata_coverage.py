@@ -353,6 +353,62 @@ class TestStatisticsComplement:
         assert stats["mean"] == pytest.approx(0.9, abs=1e-6)
 
     @pytest.mark.asyncio
+    async def test_statistics_survive_metrics_lite_projection(
+        self, async_test_client, async_test_db
+    ):
+        """/statistics reads metrics through the shared lite projection
+        (routers/evaluations/metrics_lite.py), which strips heavy nested
+        judge prose (details/method/raw/justification). All three coercion
+        shapes `_coerce_metric_value` supports must still yield their
+        numbers: legacy bare float, `{"value": ...}` with fat details, and
+        the pre-unified Korrektur blob with a top-level score. Guards the
+        fix for the 2026-07-23 prod OOM (full metrics hydration at
+        project scale)."""
+        admin = await _seed_user(async_test_db)
+        p = await _project(async_test_db, admin)
+        p_id = p.id
+        er = await _eval_run(async_test_db, p, admin.id)
+        jr = await _judge_run(async_test_db, er)
+        big_prose = "Begründung: " + ("sehr ausführlich " * 200)
+        shapes = [
+            # 1) legacy bare float
+            {"judge": 0.2},
+            # 2) unified shape with heavy details that the projection strips
+            {"judge": {"value": 0.4, "error": None,
+                       "method": "llm_judge_falloesung",
+                       "details": {"raw_score": 40.0,
+                                   "raw_output": big_prose,
+                                   "justification": big_prose}}},
+            # 3) pre-unified Korrektur blob — score at top level, fat
+            #    dimensions payload rides along
+            {"judge": {"score": 0.6, "total_score": 0.6,
+                       "dimensions": {"d1": {"score": 3,
+                                             "justification": big_prose}}}},
+        ]
+        for i, metrics in enumerate(shapes):
+            t = await _task(async_test_db, p, admin.id, inner_id=i + 1)
+            gen = await _generation(async_test_db, p, t, admin.id)
+            await _task_eval(async_test_db, er, jr, t, generation=gen,
+                             metrics=metrics, cfg_id="cfg-J")
+        await async_test_db.commit()
+
+        with _as_user(admin):
+            resp = await async_test_client.post(
+                f"{BASE}/projects/{p_id}/statistics",
+                json={
+                    "metrics": ["judge"],
+                    "aggregation": "overall",
+                    "methods": ["ci"],
+                    "evaluation_config_ids": ["cfg-J"],
+                },
+            )
+        assert resp.status_code == 200, resp.text
+        stats = resp.json()["metrics"]["judge"]
+        # All three shapes counted: (0.2 + 0.4 + 0.6) / 3 = 0.4
+        assert stats["n"] == 3
+        assert stats["mean"] == pytest.approx(0.4, abs=1e-6)
+
+    @pytest.mark.asyncio
     async def test_field_aggregation_parses_encoded_field_name(
         self, async_test_client, async_test_db
     ):
