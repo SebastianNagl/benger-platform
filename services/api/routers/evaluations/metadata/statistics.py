@@ -78,9 +78,12 @@ async def compute_project_statistics(
         evaluations = (
             (
                 await db.execute(
+                    # NOTE: no run-status filter — a cancelled/failed run's
+                    # finished sample rows are real results (the ZJS canonical
+                    # judge re-score lived in cancelled runs; filtering blanked
+                    # the statistics view for exactly those models, 2026-07-24).
                     select(DBEvaluationRun).where(
                         DBEvaluationRun.project_id == project_id,
-                        DBEvaluationRun.status == "completed",
                     )
                 )
             )

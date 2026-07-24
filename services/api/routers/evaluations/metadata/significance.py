@@ -68,7 +68,6 @@ async def get_significance_tests(
             )
             .where(
                 DBEvaluationRun.project_id == project_id,
-                DBEvaluationRun.status == "completed",
                 Generation.model_id.in_(model_ids),
             )
         )
@@ -113,7 +112,6 @@ async def get_significance_tests(
                             DBEvaluationRun.project_id == project_id,
                             DBEvaluationRun.model_id.in_(model_ids),
                             DBEvaluationRun.model_id != "unknown",  # Exclude legacy artifacts
-                            DBEvaluationRun.status == "completed",
                         )
                     )
                 )

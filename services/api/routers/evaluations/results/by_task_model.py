@@ -640,10 +640,14 @@ async def get_project_results_by_task_model(
         # optionally filtered by IDs. In-flight runs commit each row as
         # the evaluator finishes it, so surfacing them here lets the
         # frontend stream live progress instead of waiting for the run
-        # to flip to `completed`. Failed runs still drop out.
+        # to flip to `completed`. Deliberately NO run-status filter:
+        # per-sample rows are facts once written — a cancelled or failed
+        # run's finished samples are real results (ZJS's canonical judge
+        # re-score lived in two runs cancelled at the tail, which blanked
+        # ~7k data-view cells, 2026-07-24). Error rows are skipped by the
+        # score extraction and supersession is handled by latest-wins.
         eval_query = select(DBEvaluationRun.id).where(
             DBEvaluationRun.project_id == project_id,
-            DBEvaluationRun.status.in_(("completed", "running", "pending")),
         )
         if evaluation_ids:
             filter_ids = [eid.strip() for eid in evaluation_ids.split(",") if eid.strip()]
@@ -1142,7 +1146,6 @@ async def get_sample_result_by_task_model(
                                 TaskEvaluation.task_id == task_id,
                                 Annotation.completed_by == user.id,
                                 TaskEvaluation.generation_id == None,  # noqa: E711
-                                DBEvaluationRun.status.in_(("completed", "running", "pending")),
                             )
                             .order_by(TaskEvaluation.created_at.desc())
                         )
@@ -1167,7 +1170,6 @@ async def get_sample_result_by_task_model(
                 .where(
                     TaskEvaluation.task_id == task_id,
                     GenerationModel.model_id == model_id,
-                    DBEvaluationRun.status.in_(("completed", "running", "pending")),
                 )
             )
             if generation_id:
