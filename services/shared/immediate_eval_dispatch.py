@@ -42,6 +42,29 @@ from project_models import Annotation, Task
 logger = logging.getLogger(__name__)
 
 
+def _select_immediate_configs(db, user_id, configs):
+    """Extension hook: let the extended edition narrow the dispatched configs
+    for one grading (e.g. pick the billing-tier judge from a free/paid pair).
+
+    Community edition has no such hook → returns ``configs`` unchanged. This
+    makes tier-selection uniform across every server-side trigger that funnels
+    through ``ensure_immediate_evaluation`` (submit hook, timer auto-submit,
+    recovery sweep), so the expected-config list written below already reflects
+    the single config that will run. Best-effort — never breaks dispatch.
+    """
+    if not configs or user_id is None:
+        return configs
+    try:
+        from benger_extended.billing.policy import select_tier_config
+
+        return select_tier_config(db, user_id, configs)
+    except ImportError:
+        return configs
+    except Exception:
+        logger.exception("immediate-eval config selector failed; keeping all configs")
+        return configs
+
+
 # --------------------------------------------------------------------------- #
 # Eligibility + annotation-shape helpers (lifted from the recovery CLI so the
 # script and the live path share one definition).
@@ -284,6 +307,12 @@ def ensure_immediate_evaluation(
     (or, with ``min_age_minutes`` set, when the submit is too recent to act on).
     """
     cfgs = configs if configs is not None else eligible_configs(project)
+    # Narrow a free/paid judge pair to the solver's tier BEFORE the expected
+    # list is stamped, so all server-side triggers agree on the one config that
+    # runs (community: no-op). ``user_id`` falls back to the annotation author.
+    cfgs = _select_immediate_configs(
+        db, user_id or getattr(annotation, "completed_by", None), cfgs
+    )
     if not cfgs:
         return None
     elig = eligible_metrics(cfgs)
