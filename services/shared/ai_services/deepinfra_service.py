@@ -34,6 +34,16 @@ logger = logging.getLogger(__name__)
 # can patch it instant instead of waiting out real exponential delays.
 _sleep = asyncio.sleep
 
+# Wall-clock budget for a single DeepInfra completion. Long-form generations
+# (a full Klausur from a reasoning model at max_tokens=16000) legitimately run
+# for several minutes, and DeepInfra's latency drifts with its own load. When
+# the ceiling is too low the request is killed mid-stream, classified as a
+# transient upstream error, and retried – each retry burning another full
+# timeout – so a slow-but-healthy provider turns into permanent cell failures
+# and a collapsed throughput. Keep this comfortably above the slowest
+# legitimate generation; override per-deployment when a model needs longer.
+DEEPINFRA_REQUEST_TIMEOUT_S = int(os.getenv("DEEPINFRA_REQUEST_TIMEOUT_S", "900"))
+
 
 def _is_retryable_error(exc: BaseException) -> bool:
     """Transient errors worth re-attempting: typed 429/5xx raises from our
@@ -316,7 +326,7 @@ class DeepInfraService(BaseAIService):
                 f"{self.base_url}/chat/completions",
                 headers=headers,
                 json=payload,
-                timeout=aiohttp.ClientTimeout(total=300),  # 5 minutes timeout
+                timeout=aiohttp.ClientTimeout(total=DEEPINFRA_REQUEST_TIMEOUT_S),
             ) as response:
                 if response.status >= 400:
                     error_body = await response.text()
