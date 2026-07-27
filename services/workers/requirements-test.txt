@@ -15,7 +15,7 @@ requests-mock>=1.11.0
 hypothesis>=6.157.0
 mutmut>=2.4.4,<3.0
 factory-boy>=3.3.3
-freezegun>=1.2.2
+freezegun>=1.5.5
 
 # ML testing specific
 # pytest-ml>=0.1.0  # Disabled due to dependency issues
