@@ -634,5 +634,5 @@ vertretbar:
   #   htpasswd -nbB beta '<password>' | kubectl -n benger create secret generic \
   #     benger-beta-auth --from-file=users=/dev/stdin
   betaAuth:
-    enabled: true  # closed-beta password gate on vertretbar.net (benger-beta-auth secret)
+    enabled: false  # beta gate dropped 2026-07-27 (open beta); flip true to re-lock (needs benger-beta-auth secret)
     secretName: benger-beta-auth
