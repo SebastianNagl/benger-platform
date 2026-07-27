@@ -325,4 +325,4 @@ vertretbar:
   host: staging.vertretbar.net
   tlsSecretName: vertretbar-staging-tls
   betaAuth:
-    enabled: true
+    enabled: false  # gate dropped 2026-07-27 alongside prod (open beta); flip true to re-lock
