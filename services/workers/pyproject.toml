@@ -87,7 +87,7 @@ dependencies = [
     # imported by both api and workers. arm64 wheels published — normal pin is fine.
     # Keep aligned with the api (services/api/pyproject.toml).
     "zstandard>=0.22,<1.0",
-    "stripe>=11.0.0,<13.0.0",  # Vertretbar billing meter reporting (extended-only)
+    "stripe>=11.0.0,<14.0.0",  # Vertretbar billing meter reporting (extended-only)
 ]
 
 [tool.hatch.build.targets.wheel]
