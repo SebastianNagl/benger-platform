@@ -8,14 +8,14 @@ pytest-html>=4.2.0
 pytest-benchmark>=4.0.0
 
 # Mocking and test utilities
-responses>=0.26.1
-requests-mock>=1.11.0
+responses>=0.26.2
+requests-mock>=1.12.1
 
 # Property-based + mutation testing (meaningful-coverage program / mutation co-gate)
-hypothesis>=6.100.0
-mutmut>=2.4.4,<3.0
+hypothesis>=6.157.0
+mutmut>=2.5.1,<3.0
 factory-boy>=3.3.3
-freezegun>=1.2.2
+freezegun>=1.5.5
 
 # ML testing specific
 # pytest-ml>=0.1.0  # Disabled due to dependency issues
@@ -27,8 +27,8 @@ celery[pytest]>=5.6.3
 kombu>=5.6.2
 
 # Code quality
-coverage[toml]>=7.14.1
-bandit>=1.7.5
+coverage[toml]>=7.15.2
+bandit>=1.9.4
 safety>=2.3.5
 flake8>=6.1.0
 black>=23.12.1
