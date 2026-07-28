@@ -251,6 +251,22 @@ services:
         BUILDKIT_INLINE_CACHE: 0
     hostname: worker
     restart: unless-stopped
+    # THE BULK POOL, mirroring infra/helm/benger/values.yaml (workers.queues).
+    # Long, memory-hungry work only. The interactive/email queues are served by
+    # the `worker-fast` service below so a bulk evaluation can never occupy the
+    # slots user-blocking tasks need. Keeping the split in compose is what makes
+    # the starvation reproducible (and fixable) locally instead of only in K8s.
+    command:
+      - celery
+      - -A
+      - tasks
+      - worker
+      - --loglevel=info
+      - -n
+      - bulk@%h
+      - --prefetch-multiplier=1
+      - -Q
+      - generation,evaluation,bulk,default
     env_file:
       - ../services/workers/.env
     depends_on:
@@ -258,7 +274,7 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    environment:
+    environment: &worker-environment
       # Database
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
@@ -324,7 +340,10 @@ services:
       # 30s timeout + 60s start_period so the boot grace covers the
       # first-import cost. Verified live: ping completes in ~3-5s once
       # the module cache is warm.
-      test: ["CMD", "celery", "-A", "tasks", "inspect", "ping"]
+      # -d scopes the ping to THIS worker. A bare `inspect ping` broadcasts to
+      # every worker on the broker and succeeds if any of them replies, so with
+      # worker + worker-fast both running, a wedged pod would report healthy.
+      test: ["CMD-SHELL", "celery -A tasks inspect ping -d bulk@$$HOSTNAME"]
       interval: 30s
       timeout: 30s
       retries: 3
@@ -335,6 +354,64 @@ services:
           memory: 6G
         reservations:
           memory: 2G
+
+  # THE INTERACTIVE POOL. Mirrors workerPools.fast + workerPools.aux in
+  # infra/helm/benger/values.yaml, collapsed into one container for dev (prod
+  # splits emails onto its own pool so a rate-limited bulk invite cannot hold
+  # interactive prefetch slots -- see the values.yaml comment).
+  #
+  # Runs no local ML: immediate evaluation filters out HEAVY_METRICS via
+  # shared/metric_filters.is_immediate_eligible, so 1G is plenty.
+  worker-fast:
+    build:
+      context: ../services/workers
+      dockerfile: Dockerfile
+      args:
+        BUILDKIT_INLINE_CACHE: 0
+    hostname: worker-fast
+    restart: unless-stopped
+    command:
+      - celery
+      - -A
+      - tasks
+      - worker
+      - --loglevel=info
+      - -n
+      - fast@%h
+      # Pinned: the prefork default is one fork per CPU (16 on a dev box),
+      # which idles at ~0.8G of the 1G limit below. 4 forks mirror the prod
+      # pool shape and leave real headroom.
+      - --concurrency=4
+      - --prefetch-multiplier=1
+      - -Q
+      - interactive,emails,maintenance,celery
+    env_file:
+      - ../services/workers/.env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    # Same env as the bulk worker -- anchored above so the ~40 vars stay in one
+    # place and cannot drift between the two pools.
+    environment: *worker-environment
+    volumes:
+      - ../services/workers:/app:ro
+      - ../services/shared:/shared:ro
+    networks:
+      - benger-network
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A tasks inspect ping -d fast@$$HOSTNAME"]
+      interval: 30s
+      timeout: 30s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 256M
 
   # Frontend Application (Production Build)
   frontend:

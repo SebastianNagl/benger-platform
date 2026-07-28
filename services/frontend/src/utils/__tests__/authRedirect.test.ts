@@ -37,6 +37,7 @@ describe('authRedirect', () => {
         '/login',
         '/register',
         '/reset-password',
+        '/activate',
         '/verify-email',
         '/accept-invitation',
         '/shares',
@@ -46,7 +47,7 @@ describe('authRedirect', () => {
       ]
 
       expect(publicRoutes).toEqual(expectedRoutes)
-      expect(publicRoutes).toHaveLength(11)
+      expect(publicRoutes).toHaveLength(12)
     })
 
     it('should contain unique routes only', () => {

@@ -48,12 +48,13 @@ async def create_annotation(
 
     org_context = get_org_context_from_request(request)
     if not check_project_accessible(db, current_user, task.project_id, org_context):
-        # A consented share member (private exam) or an entitled/enrolled student
-        # has narrow participant access to ATTEMPT the task even when
-        # check_project_accessible (owner-only for a private project) refuses.
-        # Keeps the submit gate consistent with the read gate the extended
-        # student endpoints use, so a joined member can't see the attempt button
-        # but 403 on submit.
+        # A consented share member (private exam), an entitled/enrolled
+        # student, or a university-org member on an org-shared exam has narrow
+        # participant access to ATTEMPT the task even when
+        # check_project_accessible refuses (owner-only private project, or the
+        # annotator exam carve-out). Keeps the submit gate consistent with the
+        # read gate the extended student endpoints use, so a joined member
+        # can't see the attempt button but 403 on submit.
         if not get_student_read_access(db, current_user, task.project_id):
             raise HTTPException(status_code=403, detail="Access denied")
 
@@ -292,7 +293,6 @@ async def create_annotation(
         get_celery_app().send_task(
             "tasks.update_report_annotations_async",
             args=[task.project_id],
-            queue="default",
         )
     except Exception as e:
         logger = logging.getLogger(__name__)
@@ -486,7 +486,6 @@ async def update_annotation(
         get_celery_app().send_task(
             "tasks.update_report_annotations_async",
             args=[db_annotation.project_id],
-            queue="default",
         )
     except Exception as e:
         import logging

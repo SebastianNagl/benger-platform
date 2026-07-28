@@ -131,6 +131,7 @@ async def test_registration_crud_round_trip(async_test_client, async_test_db):
         assert created["status"] == "active"
         assert created["link_existing_users_by_email"] is True
         assert created["instructor_org_role"] == "contributor"
+        assert created["student_org_role"] == "annotator"
         assert created["deployment_count"] == 2
         assert sorted(d["deployment_id"] for d in created["deployments"]) == [
             "dep-1",
@@ -158,6 +159,7 @@ async def test_registration_crud_round_trip(async_test_client, async_test_db):
                 "name": "Uni Passau Moodle (renamed)",
                 "jwks_uri": "https://moodle.uni-passau.de/mod/lti/certs2.php",
                 "instructor_org_role": "org_admin",
+                "student_org_role": "none",
                 "status": "disabled",
             },
         )
@@ -166,6 +168,7 @@ async def test_registration_crud_round_trip(async_test_client, async_test_db):
         assert updated["name"] == "Uni Passau Moodle (renamed)"
         assert updated["jwks_uri"].endswith("certs2.php")
         assert updated["instructor_org_role"] == "org_admin"
+        assert updated["student_org_role"] == "none"
         assert updated["status"] == "disabled"
         # Untouched fields survive the partial update.
         assert updated["issuer"] == "https://moodle.uni-passau.de"
@@ -230,6 +233,34 @@ async def test_duplicate_issuer_client_conflict(async_test_client, async_test_db
             json={"client_id": "client-dup"},
         )
         assert r.status_code == 409
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_student_org_role_validation_and_explicit_none(
+    async_test_client, async_test_db
+):
+    org = await _make_org(async_test_db)
+    admin = await _make_user(async_test_db, superadmin=True)
+
+    with _as_user(admin):
+        payload = _registration_payload(org.id)
+        payload["student_org_role"] = "contributor"  # not a legal student role
+        r = await async_test_client.post("/api/admin/lti/registrations", json=payload)
+        assert r.status_code == 422
+
+        payload["student_org_role"] = "none"
+        r = await async_test_client.post("/api/admin/lti/registrations", json=payload)
+        assert r.status_code == 201, r.text
+        assert r.json()["student_org_role"] == "none"
+
+        reg_id = r.json()["id"]
+        r = await async_test_client.put(
+            f"/api/admin/lti/registrations/{reg_id}",
+            json={"student_org_role": "annotator"},
+        )
+        assert r.status_code == 200
+        assert r.json()["student_org_role"] == "annotator"
 
 
 @pytest.mark.integration

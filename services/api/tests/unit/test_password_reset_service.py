@@ -41,8 +41,12 @@ def mock_db():
 async def test_send_password_reset_email_end_to_end(mock_db, mock_user, monkeypatch):
     """Full path: PasswordResetService -> EmailService -> SendGridClient.send_message.
 
-    Asserts the token is persisted on the user row, the link uses FRONTEND_URL,
-    and the SendGrid client receives a single message addressed to the user.
+    Asserts the token is persisted on the user row, the link uses the
+    caller-resolved ``base_url`` (host-aware since 57ed92e — a Vertretbar
+    student must land on vertretbar.net), and the SendGrid client receives a
+    single message addressed to the user. FRONTEND_URL is set to a DIFFERENT
+    host on purpose: it must lose to base_url, being only the no-base_url
+    fallback.
     """
     monkeypatch.setenv("FRONTEND_URL", "https://what-a-benger.net")
 
@@ -70,7 +74,9 @@ async def test_send_password_reset_email_end_to_end(mock_db, mock_user, monkeypa
     call_kwargs = sg_instance.send_message.call_args[1]
     assert call_kwargs["to"] == ["user@example.com"]
     assert "Passwort" in call_kwargs["subject"]
-    assert "https://what-a-benger.net/reset-password/" in call_kwargs["html_body"]
+    assert "https://fallback.example/reset-password/" in call_kwargs["html_body"]
+    # The env FRONTEND_URL host must NOT appear — base_url wins.
+    assert "what-a-benger.net" not in call_kwargs["html_body"]
     assert mock_user.password_reset_token in call_kwargs["html_body"]
     # Template-declared duration must match PasswordResetService.TOKEN_EXPIRY_HOURS,
     # otherwise users assume the link is dead before it actually expires.

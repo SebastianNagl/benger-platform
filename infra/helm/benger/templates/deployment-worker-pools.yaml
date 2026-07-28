@@ -1,0 +1,155 @@
+{{/*
+Additional Celery worker pools.
+
+Each pool is a Deployment consuming a DISJOINT subset of queues, so long tasks
+(generation trials, bulk-eval cells, project export/import) can never occupy the
+execution slots that user-blocking tasks need. Celery does not preempt a running
+task and prefetch reserves messages ahead of publication, so message priority
+cannot substitute for slot isolation -- see the docstring in
+services/shared/celery_queues.py.
+
+The canonical BULK pool stays in deployment-workers.yaml with its shape
+untouched (concurrency 2 / 6Gi / maxTasksPerChild 20 -- see the 2026-05-31 OOM
+note in values.yaml). This template only adds the small pools.
+
+Pools inherit .Values.workers.{image,env,extraEnv} deliberately: CI pins images
+with `--set workers.image.*` only, and values-extended.yaml sets
+workers.extraEnv (BENGER_REQUIRE_EXTENDED, LTI keys) -- so the extended overlay
+needs no change. Same inheritance deployment-beat.yaml uses.
+
+`workerPools` is a MAP, not a list: Helm merges maps key-by-key but REPLACES
+lists, and values-staging.yaml layers on top of this.
+*/}}
+{{- range $poolName, $pool := .Values.workerPools }}
+{{- if $pool.enabled }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $.Release.Name }}-workers-{{ $poolName }}
+  labels:
+    app: {{ $.Release.Name }}-workers-{{ $poolName }}
+    app.kubernetes.io/name: {{ $.Release.Name }}-workers-{{ $poolName }}
+    app.kubernetes.io/instance: {{ $.Release.Name }}
+    app.kubernetes.io/component: workers
+    app.kubernetes.io/part-of: benger
+    app.kubernetes.io/managed-by: helm
+    benger.io/worker-pool: {{ $poolName }}
+spec:
+  replicas: {{ $pool.replicaCount | default 1 }}
+  strategy:
+    {{- if $pool.deploymentStrategy }}
+    {{- toYaml $pool.deploymentStrategy | nindent 4 }}
+    {{- else }}
+    # maxUnavailable 0: never drop this pool to zero capacity mid-rollout. The
+    # whole point of the pool is that a user-blocking task always has a slot.
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+    {{- end }}
+  selector:
+    matchLabels:
+      app: {{ $.Release.Name }}-workers-{{ $poolName }}
+  template:
+    metadata:
+      labels:
+        app: {{ $.Release.Name }}-workers-{{ $poolName }}
+        benger.io/worker-pool: {{ $poolName }}
+    spec:
+      {{- include "benger.imagePullSecrets" $ | nindent 6 }}
+      containers:
+        - name: workers-{{ $poolName }}
+          image: "{{ $.Values.workers.image.repository }}:{{ $.Values.workers.image.tag | default $.Chart.AppVersion }}"
+          imagePullPolicy: {{ $.Values.workers.image.pullPolicy }}
+          # -n gives this pool a FIXED nodename prefix so the probes below can
+          # name their own worker (see the probe comment).
+          command:
+            - celery
+            - -A
+            - tasks
+            - worker
+            - --loglevel=info
+            - -n
+            - {{ $poolName }}@%h
+            - -Q
+            - {{ join "," $pool.queues | quote }}
+            - --concurrency={{ $pool.concurrency | default 2 }}
+            - --prefetch-multiplier={{ $pool.prefetchMultiplier | default 1 }}
+            - --max-tasks-per-child={{ $pool.maxTasksPerChild | default 200 }}
+            {{- with $pool.maxMemoryPerChildKb }}
+            - --max-memory-per-child={{ . }}
+            {{- end }}
+          # Explicit empty args prevents server-side apply from preserving an
+          # `args:` array set out-of-band via `kubectl patch` (see the same note
+          # in deployment-workers.yaml -- it caused a duplicated celery
+          # invocation failing with "-A as worker option").
+          args: []
+          # `-d` scopes the probe to THIS pod. A bare `celery -A tasks inspect
+          # ping` broadcasts to every worker on the broker and succeeds if ANY
+          # of them replies, so a wedged pod would stay Ready as long as a
+          # sibling (or another pool entirely) answered.
+          livenessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - "celery -A tasks inspect ping -d {{ $poolName }}@$HOSTNAME --timeout=15"
+            initialDelaySeconds: 90
+            periodSeconds: 60
+            timeoutSeconds: 25
+            failureThreshold: 5
+          readinessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - "celery -A tasks inspect ping -d {{ $poolName }}@$HOSTNAME --timeout=10"
+            initialDelaySeconds: 45
+            periodSeconds: 30
+            timeoutSeconds: 20
+            failureThreshold: 5
+            successThreshold: 1
+          # `from tasks import app` is ~1.7s and pulls no neural ML (guarded by
+          # workers/tests/test_tasks_import_lightness.py). The generous ceiling
+          # is a deploy safety net: helm upgrade --wait rolls the release back if
+          # any pod misses Ready.
+          startupProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - "python -c 'from tasks import app; print(\"Celery app initialized\")'"
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 120
+            failureThreshold: 30
+          env:
+            - name: BENGER_WORKER_POOL
+              value: {{ $poolName | quote }}
+            {{- range $.Values.workers.env }}
+            - name: {{ .name }}
+              {{- if .value }}
+              {{- if eq .name "FRONTEND_URL" }}
+              value: {{ tpl .value $ | quote }}
+              {{- else }}
+              value: {{ .value | quote }}
+              {{- end }}
+              {{- else if .valueFrom }}
+              valueFrom:
+                {{- toYaml .valueFrom | nindent 16 }}
+              {{- end }}
+            {{- end }}
+            {{- if $.Values.minio.enabled }}
+            {{- include "benger.storageEnv" $ | nindent 12 }}
+            {{- end }}
+            {{- with $.Values.workers.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+            {{- with $pool.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          resources:
+            {{- toYaml $pool.resources | nindent 12 }}
+{{- end }}
+{{- end }}

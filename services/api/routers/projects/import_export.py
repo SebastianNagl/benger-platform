@@ -224,9 +224,7 @@ async def create_export_job(
     await db.refresh(job)
 
     try:
-        result = send_task_safe(
-            "tasks.export_project", args=[job.id], queue="default"
-        )
+        result = send_task_safe("tasks.export_project", args=[job.id])
         job.celery_task_id = getattr(result, "id", None)
         await db.commit()
     except Exception as exc:
@@ -446,9 +444,7 @@ async def create_import_job(
     await db.refresh(job)
 
     try:
-        result = send_task_safe(
-            "tasks.import_project", args=[job.id], queue="default"
-        )
+        result = send_task_safe("tasks.import_project", args=[job.id])
         job.celery_task_id = getattr(result, "id", None)
         await db.commit()
     except Exception as exc:
@@ -563,9 +559,7 @@ async def create_full_import_job(
     await db.refresh(job)
 
     try:
-        result = send_task_safe(
-            "tasks.import_project", args=[job.id], queue="default"
-        )
+        result = send_task_safe("tasks.import_project", args=[job.id])
         job.celery_task_id = getattr(result, "id", None)
         await db.commit()
     except Exception as exc:

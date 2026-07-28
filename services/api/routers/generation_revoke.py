@@ -83,6 +83,5 @@ def send_generation_trial(
             organization_id,
             run_index,
         ],
-        queue="generation",
         task_id=generation_run_task_id(generation_id, run_index, epoch),
     )

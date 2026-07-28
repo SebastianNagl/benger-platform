@@ -385,6 +385,36 @@ class EmailService:
             },
         )
 
+    def build_account_activation_email(
+        self,
+        *,
+        activation_url: str,
+        brand_name: str = "BenGER",
+        frontend_host: str = "",
+        language: str = "en",
+        expiry_days: int = 7,
+    ) -> tuple[str, str]:
+        """Render the account-activation email -> (subject, html_body).
+
+        First-contact mail for passwordless LTI-provisioned accounts: sets a
+        password via the /activate/<token> page. Template files
+        account_activation(.html|_de.html) next to the invitation templates;
+        ``language`` comes from the resolved email brand (German on
+        vertretbar hosts).
+        """
+        template = (
+            "account_activation_de.html" if language == "de" else "account_activation.html"
+        )
+        return self._render_template(
+            template,
+            {
+                "activation_url": activation_url,
+                "brand_name": brand_name,
+                "frontend_host": frontend_host,
+                "expiry_days": expiry_days,
+            },
+        )
+
     async def send_invitation_email(
         self,
         to_email: str,

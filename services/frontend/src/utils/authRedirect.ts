@@ -9,6 +9,8 @@ export const publicRoutes = [
   '/login', // Login page
   '/register', // Registration page
   '/reset-password', // Password reset
+  '/activate', // Account activation (Konto aktivieren) — the mailed link is
+  // clicked without a session; the token in the URL is the credential.
   '/verify-email', // Email verification
   '/accept-invitation', // Organization invitation acceptance
   '/shares', // Exam-share join page — invitees land here before logging in (Issue #35)

@@ -445,7 +445,9 @@ class TestCreateBulkInvitations:
         assert entry["inviter_name"] == "Admin User"
         assert entry["role"] == "ANNOTATOR"
         assert "/accept-invitation/" in entry["invitation_url"]
-        assert kwargs["queue"] == "emails"
+        # Routing moved to services/shared/celery_queues.py (emails.* -> the
+        # `emails` queue); a per-send queue= would override task_routes.
+        assert "queue" not in kwargs
 
     @pytest.mark.asyncio
     async def test_bulk_invite_no_valid_emails_skips_dispatch(

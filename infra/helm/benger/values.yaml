@@ -173,6 +173,21 @@ api:
 
 workers:
   name: workers
+  # THE BULK POOL. Long, memory-hungry work only. User-blocking tasks live on
+  # the `workerPools` entries below so they can never queue behind a generation
+  # run or a 6940-cell evaluation chord.
+  #
+  # Queue names are a contract with services/shared/celery_queues.py: every name
+  # in celery_queues.QUEUES must appear in exactly one pool's list here, or its
+  # messages strand with no consumer. services/workers/scripts/
+  # check_celery_queue_pools.py parses this file and asserts exactly that; it
+  # runs in the "Python Lint" CI job and via `make check-queue-pools`.
+  #
+  # `default` is drain-only: it carries messages published before the routing
+  # deploy (export/import, report refresh, timer, LTI, beat sweeps). It sits on
+  # THIS pool, not `aux`, so a lingering import_project can't land on a 1Gi pod.
+  # Dropped in the cleanup PR once `LLEN default` is 0 in both namespaces.
+  queues: [generation, evaluation, bulk, default]
   replicaCount: 2
   # Concurrency = number of cell-eval forks per worker pod. Each fork that
   # loads embedding evaluators (BERTScore + MoverScore + sentence-
@@ -332,6 +347,92 @@ workers:
           name: benger-billing-secrets
           key: stripe_price_metered
           optional: true
+
+# Additional Celery worker pools (deployment-worker-pools.yaml).
+#
+# Why pools instead of Celery message priority: Celery never preempts a running
+# task, and prefetch reserves messages before priority is consulted. With the
+# single 4-slot pool we had, a priority-9 immediate evaluation still waited for a
+# minutes-long LLM call to return. Isolating execution SLOTS is the only thing
+# that makes user-blocking work actually immediate. See the module docstring in
+# services/shared/celery_queues.py.
+#
+# A MAP, not a list: Helm merges maps key-by-key but REPLACES lists wholesale
+# (which is why values-staging.yaml has to restate all of workers.env). With a
+# map, staging overrides just replicaCount/resources and inherits the rest.
+#
+# Pools INHERIT workers.{image,env,extraEnv} on purpose:
+#   * CI pins images with `--set workers.image.*` only (extended/cicd.yml), so
+#     inheriting means no workflow change.
+#   * values-extended.yaml sets workers.extraEnv (BENGER_REQUIRE_EXTENDED, LTI
+#     signing key) — inheriting means the extended overlay needs no edit at all.
+# Same trick deployment-beat.yaml already uses.
+workerPools:
+  # User-blocking work: immediate evaluation (KI-Votum), report refresh on
+  # annotation write, timer auto-submit, flashcard grading, LTI grade push.
+  #
+  # Sizing rationale — this pool provably runs NO local ML, so the 2026-05-31
+  # OOM-cascade constraints on the bulk pool do not apply here:
+  #   * `import tasks` pulls no torch/spacy (tests/test_tasks_import_lightness.py)
+  #   * every interactive task filters out HEAVY_METRICS via
+  #     shared/metric_filters.is_immediate_eligible
+  # so a fork is SQLAlchemy + httpx (~250-400 MB), not the 1.5-2 GB of an
+  # embedding fork. --max-memory-per-child recycles a leaking fork long before it
+  # could walk toward the node-OOM path.
+  #
+  # maxTasksPerChild is 200, not the bulk pool's 20: recycling costs a ~1.7s
+  # re-import, and that latency is exactly what this pool exists to avoid. There
+  # is no embedding leak here to reclaim aggressively.
+  fast:
+    enabled: true
+    # `celery` is drain-only (it was Celery's default queue name and carried
+    # immediate eval + flashcards). Both of those become `interactive` on THIS
+    # pool, so the drain window has better latency, not worse.
+    queues: [interactive, celery]
+    replicaCount: 2
+    concurrency: 2
+    # 1 so a burst spreads across both replicas instead of one pod reserving it.
+    prefetchMultiplier: 1
+    maxTasksPerChild: 200
+    maxMemoryPerChildKb: 800000  # ~780 MB
+    resources:
+      limits:
+        cpu: 1000m
+        memory: 1536Mi
+      requests:
+        cpu: 100m
+        memory: 512Mi
+
+  # Rate-limited mail + short periodic housekeeping.
+  #
+  # Separate from `fast` because a rate-limited task takes the limit_task branch
+  # in celery/worker/strategy.py WITHOUT a qos.increment_eventually() — it holds
+  # its prefetch slot while waiting for a token. A 200-address bulk invite at
+  # 30/m would otherwise pin the interactive pool for ~7 minutes.
+  #
+  # ONE replica on purpose: the rate-limit token bucket is per worker process, so
+  # the old 2-replica shared pool made the effective invitation rate 60/m —
+  # double the configured 30/m. If 30/m is too slow for a course launch, raise
+  # the rate_limit in celery_queues.task_annotations() deliberately rather than
+  # adding replicas here.
+  #
+  # prefetchMultiplier stays at Celery's default 4: rate-limited tasks WANT
+  # headroom to sit in, otherwise emails would head-of-line-block maintenance.
+  aux:
+    enabled: true
+    queues: [emails, maintenance]
+    replicaCount: 1
+    concurrency: 2
+    prefetchMultiplier: 4
+    maxTasksPerChild: 200
+    maxMemoryPerChildKb: 800000
+    resources:
+      limits:
+        cpu: 500m
+        memory: 1Gi
+      requests:
+        cpu: 50m
+        memory: 256Mi
 
 # Celery beat scheduler (deployment-beat.yaml). Single-replica process that
 # fires the periodic schedule in tasks.py (app.conf.beat_schedule), e.g.

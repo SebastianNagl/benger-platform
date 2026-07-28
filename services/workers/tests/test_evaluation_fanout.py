@@ -140,15 +140,32 @@ def test_orchestrator_uses_celery_chord_dispatch():
 
 
 def test_sub_tasks_dispatch_to_evaluation_queue():
-    """Both cell sub-tasks and the finalizer must be dispatched to the
-    dedicated `evaluation` queue so they don't compete with generation
-    on the shared `celery`/`default` pool (the contention that prompted
-    this refactor in the first place)."""
+    """Both cell sub-tasks and the finalizer must land on the dedicated
+    `evaluation` queue so they don't compete with generation, and -- since the
+    worker-pool split -- so they can never occupy an interactive slot.
+
+    This used to count `queue="evaluation"` occurrences in the source. The
+    queue now comes from the shared routing table instead of a hardcoded kwarg
+    at each signature, so assert against the table itself: that is the thing
+    that actually decides where these messages go.
+    """
+    import celery_queues
+
+    for name in (
+        "tasks.evaluate_generation_cell",
+        "tasks.evaluate_annotation_cell",
+        "tasks.finalize_evaluation_run",
+    ):
+        assert celery_queues.queue_for(name) == celery_queues.EVALUATION, (
+            f"{name} must be routed to the dedicated evaluation queue"
+        )
+
+    # And the orchestrator must not re-pin a queue at the call site, which would
+    # override the table (celery lpmerges send options over the route).
     src = _tasks_source()
-    # The orchestrator dispatches three signatures; each must set the queue.
-    assert src.count('queue="evaluation"') >= 3, (
-        "orchestrator must dispatch all three sub-task signatures to "
-        "queue=\"evaluation\""
+    assert 'queue="' not in src.split("def run_evaluation")[-1].split("def ")[0], (
+        "orchestrator signatures must not hardcode a queue= kwarg; routing is "
+        "owned by services/shared/celery_queues.py"
     )
 
 

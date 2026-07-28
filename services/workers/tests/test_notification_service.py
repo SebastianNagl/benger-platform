@@ -318,7 +318,9 @@ class TestCreateNotification:
         mock_app.send_task.assert_called_once()
         args, kwargs = mock_app.send_task.call_args
         assert args[0] == "emails.send_notification_batch"
-        assert kwargs["queue"] == "emails"
+        # No queue pinned at the call site any more — an explicit queue= would
+        # override task_routes. The shared table routes this to `emails`.
+        assert "queue" not in kwargs
         payload = kwargs["args"][0]
         assert len(payload) == 2
         assert {p["user_id"] for p in payload} == {"u1", "u2"}

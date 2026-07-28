@@ -644,7 +644,50 @@ def extract_label_config_fields(label_config: str) -> List[str]:
 # `app` without importing all of tasks.py (breaks the cell_evaluator import
 # cycle). The worker is still launched as `celery -A tasks`: re-exporting `app`
 # here keeps the -A target and all `tasks.*` registered names unchanged.
+from celery.exceptions import SoftTimeLimitExceeded  # noqa: E402
 from worker_celery import app  # noqa: E402,F401
+
+
+def _mark_immediate_run_failed(db, evaluation_record_id: str, message: str) -> None:
+    """Flip a stuck immediate-eval run to ``failed``.
+
+    Every error path used to leave the row on ``running``. That is not a cosmetic
+    detail: the frontend poller keeps spinning until its own 300s ceiling and
+    only then soft-fails, AND ``_existing_immediate_run`` treats ``running`` as
+    in-flight, so the hourly sweep never retries the annotation either. The
+    dispatch path in shared/immediate_eval_dispatch.py already guards this same
+    case; this is the worker-side half.
+
+    Best-effort by construction — it runs while handling another exception, so a
+    failure here must never mask the original error.
+    """
+    try:
+        # Imported here, not at module scope: tasks.py keeps model + SQLAlchemy
+        # imports lazy so `from tasks import app` stays ~1.7s and pulls no ML
+        # (guarded by tests/test_tasks_import_lightness.py).
+        from models import EvaluationRun
+        from sqlalchemy.orm.attributes import flag_modified
+
+        stuck = (
+            db.query(EvaluationRun)
+            .filter(EvaluationRun.id == evaluation_record_id)
+            .first()
+        )
+        if stuck and stuck.status == "running":
+            stuck.status = "failed"
+            meta = dict(stuck.eval_metadata or {})
+            meta["error"] = message[:500]
+            stuck.eval_metadata = meta
+            flag_modified(stuck, "eval_metadata")
+            db.commit()
+    except Exception as exc:  # pragma: no cover - defensive
+        # Deliberately no rollback here: every caller has already rolled back
+        # before calling this, and closes the session immediately afterwards in
+        # its `finally`. Rolling back again would just add a confusing second
+        # call on a session that is about to be discarded.
+        logger.warning(
+            "Could not mark immediate run %s failed: %s", evaluation_record_id, exc
+        )
 
 
 # ---- Progress pub/sub (workers → API WebSocket clients) ---------------------
@@ -1173,6 +1216,133 @@ def send_invitation_email_task(
     except Exception as e:
         logger.error(f"Error sending invitation email to {to_email}: {str(e)}")
         raise
+
+
+@app.task(
+    name="emails.send_account_activation",
+    bind=True,
+    autoretry_for=(Exception,),
+    retry_kwargs={'max_retries': 3, 'countdown': 60},
+)
+def send_account_activation_task(
+    self,
+    user_id: str,
+    host: str = None,
+    target_email: str = None,
+    force: bool = False,
+) -> Dict[str, Any]:
+    """Send the "Konto aktivieren" mail to a passwordless (LTI) account.
+
+    Single writer for activation-token minting — both the auto path (first
+    LTI provisioning) and the fallback path (sub-only account entered an
+    address) enqueue this task. The eligibility guard makes double-fires
+    no-ops and refuses activated accounts; the token is committed BEFORE the
+    send so a delivered link always exists in the DB. ``target_email`` (the
+    fallback path) parks in ``pending_activation_email`` and is adopted only
+    when the link is clicked.
+    """
+    from sqlalchemy import select as sa_select
+
+    from account_activation import (
+        ACTIVATION_TOKEN_EXPIRY,
+        activation_eligibility,
+        build_activation_link,
+        current_or_new_activation_token,
+    )
+    from email_service import email_service
+    from mailer.branding import resolve_email_brand
+    from models import User as DBUser
+    from sendgrid_client import SendGridClient
+
+    db = SessionLocal()
+    try:
+        user = db.execute(
+            sa_select(DBUser).where(DBUser.id == user_id).with_for_update()
+        ).scalar_one_or_none()
+        if user is None:
+            logger.warning(f"Activation mail: user {user_id} not found; skipping")
+            return {"status": "skipped", "reason": "user_not_found"}
+
+        skip = activation_eligibility(user, target_email=target_email)
+        if skip is not None:
+            logger.info(f"Activation mail for {user_id} skipped: {skip}")
+            return {"status": "skipped", "reason": skip}
+
+        if target_email:
+            taken = db.execute(
+                sa_select(DBUser.id).where(
+                    DBUser.email == target_email, DBUser.id != user.id
+                )
+            ).first()
+            if taken is not None:
+                logger.warning(
+                    f"Activation mail for {user_id}: target email taken; aborting"
+                )
+                return {"status": "skipped", "reason": "email_taken"}
+
+        token = current_or_new_activation_token(
+            user, pending_email=target_email, force=force
+        )
+        recipient = target_email or user.email
+        # Commit before sending: a link that reaches a mailbox must resolve.
+        db.commit()
+
+        brand = resolve_email_brand(host)
+        subject, html_body = email_service.build_account_activation_email(
+            activation_url=build_activation_link(brand, token),
+            brand_name=brand.name,
+            frontend_host=brand.frontend_url.split("://", 1)[-1],
+            language=brand.default_language,
+            expiry_days=ACTIVATION_TOKEN_EXPIRY.days,
+        )
+
+        result = SendGridClient().send_message(
+            to=[recipient],
+            subject=subject,
+            html_body=html_body,
+            from_address=brand.from_address,
+            from_name=brand.from_name,
+            disable_tracking=True,
+        )
+
+        if result.get("status") == "success":
+            logger.info(f"Activation email sent to {recipient} (user {user_id})")
+            return {
+                "status": "success",
+                "user_id": user_id,
+                "recipient": recipient,
+                "message_id": result.get("message_id", "unknown"),
+            }
+
+        # Same permanent-vs-retryable split as the invitation task: 4xx
+        # (except 429) must not burn three retries on the rate-limited queue.
+        status_code = result.get("status_code")
+        error_msg = result.get("error", "Unknown SendGrid error")
+        if status_code is not None and 400 <= status_code < 500 and status_code != 429:
+            logger.error(
+                f"Permanent SendGrid {status_code} for activation mail to "
+                f"{recipient}; not retrying: {error_msg}"
+            )
+            return {
+                "status": "failed_permanent",
+                "user_id": user_id,
+                "recipient": recipient,
+                "status_code": status_code,
+                "error": error_msg,
+            }
+
+        logger.error(
+            f"Retryable SendGrid failure for activation mail to {recipient} "
+            f"(status_code={status_code}): {error_msg}"
+        )
+        raise RuntimeError(f"SendGrid error: {error_msg}")
+    except RuntimeError:
+        raise
+    except Exception as e:
+        logger.error(f"Error sending activation email for user {user_id}: {str(e)}")
+        raise
+    finally:
+        db.close()
 
 
 @app.task(name="emails.send_bulk_invitations")
@@ -2069,7 +2239,6 @@ def run_evaluation(
                             "label_config_version": label_config_version,
                             "already_evaluated_field_keys": cell_already_done,
                         },
-                        queue="evaluation",
                     )
                 )
             for (cell_task_id, cell_ann_id, cell_already_done) in ann_cells:
@@ -2087,7 +2256,6 @@ def run_evaluation(
                             "triggered_by_user_id": triggered_by,
                             "already_evaluated_field_keys": cell_already_done,
                         },
-                        queue="evaluation",
                     )
                 )
 
@@ -2115,7 +2283,6 @@ def run_evaluation(
 
             callback_sig = finalize_evaluation_run.signature(
                 kwargs={"evaluation_id": evaluation_id},
-                queue="evaluation",
             )
 
             chord_result = chord(header_sigs)(callback_sig)
@@ -2704,9 +2871,24 @@ def run_single_sample_evaluation(
             "results": results,
         }
 
+    except SoftTimeLimitExceeded:
+        # The `interactive` soft limit (180s) fired; the hard kill is 60s out.
+        # Do the minimum and get out: flag the row so the frontend's 2s poller
+        # reports a real failure well inside its own 300s ceiling.
+        logger.error(
+            "[SingleSampleEval] soft time limit exceeded for run %s",
+            evaluation_record_id,
+        )
+        db.rollback()
+        _mark_immediate_run_failed(
+            db, evaluation_record_id, "Evaluation timed out"
+        )
+        _run_grading_finalize_hook(evaluation_record_id, False)
+        return {"status": "error", "message": "Evaluation timed out"}
     except Exception as e:
         logger.error(f"[SingleSampleEval] Task failed: {e}")
         db.rollback()
+        _mark_immediate_run_failed(db, evaluation_record_id, str(e))
         _run_grading_finalize_hook(evaluation_record_id, False)
         return {"status": "error", "message": str(e)}
     finally:
@@ -3761,7 +3943,6 @@ def update_report_annotations_async(self, project_id: str):
                 app.send_task(
                     "tasks.update_report_annotations_async",
                     args=[project_id],
-                    queue="default",
                 )
             except Exception as exc:
                 logger.warning(

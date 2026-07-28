@@ -337,6 +337,10 @@ reseed-llm-models: ## Re-apply seeds/llm_models.yaml to the running dev API DB
 check-model-drift: ## Diff seeds/llm_models.yaml against the running dev API DB
 	@docker exec benger-api-1 sh -c 'python /app/scripts/check_model_catalog_drift.py --db-url "$$DATABASE_URI"'
 
+.PHONY: check-queue-pools
+check-queue-pools: ## Assert every Celery queue is served by exactly one worker pool
+	@python3 services/workers/scripts/check_celery_queue_pools.py
+
 .PHONY: test-all
 test-all: ## Run all tests (requires test-start first)
 	@echo "$(BLUE)🧪 Running all tests...$(NC)"

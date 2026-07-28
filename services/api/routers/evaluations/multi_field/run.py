@@ -384,7 +384,6 @@ async def run_evaluation(
                     "model_ids": request.model_ids,
                     "annotator_user_ids": request.annotator_user_ids,
                 },
-                queue="evaluation",
             )
 
             # Update evaluation with task ID

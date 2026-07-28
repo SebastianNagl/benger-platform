@@ -13,6 +13,7 @@ from urllib.parse import urlparse
 from pydantic import BaseModel, Field, field_validator
 
 INSTRUCTOR_ORG_ROLE_PATTERN = "^(contributor|org_admin|none)$"
+STUDENT_ORG_ROLE_PATTERN = "^(annotator|none)$"
 REGISTRATION_STATUS_PATTERN = "^(active|disabled)$"
 
 
@@ -38,6 +39,7 @@ class LtiRegistrationCreate(BaseModel):
     instructor_org_role: str = Field(
         "contributor", pattern=INSTRUCTOR_ORG_ROLE_PATTERN
     )
+    student_org_role: str = Field("annotator", pattern=STUDENT_ORG_ROLE_PATTERN)
     deployment_ids: List[str] = Field(default_factory=list)
 
     @field_validator("issuer", "auth_login_url", "auth_token_url", "jwks_uri")
@@ -60,6 +62,7 @@ class LtiRegistrationUpdate(BaseModel):
     instructor_org_role: Optional[str] = Field(
         None, pattern=INSTRUCTOR_ORG_ROLE_PATTERN
     )
+    student_org_role: Optional[str] = Field(None, pattern=STUDENT_ORG_ROLE_PATTERN)
     status: Optional[str] = Field(None, pattern=REGISTRATION_STATUS_PATTERN)
 
     @field_validator("issuer", "auth_login_url", "auth_token_url", "jwks_uri")
@@ -102,6 +105,7 @@ class LtiRegistrationRead(BaseModel):
     jwks_uri: str
     link_existing_users_by_email: bool
     instructor_org_role: str
+    student_org_role: str
     status: str
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None

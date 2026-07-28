@@ -657,3 +657,179 @@ class TestAutoSubmitExpiredTimerCounterBranches:
         assert task.total_annotations == 3
         assert task.is_labeled is False
         assert db.committed is True
+
+
+# ===========================================================================
+# _mark_immediate_run_failed + the SoftTimeLimitExceeded arm of
+# run_single_sample_evaluation.
+#
+# Both exist because EVERY error path used to leave the EvaluationRun row on
+# "running". That stranded the row twice over: the frontend poller spins to its
+# own 300s ceiling before soft-failing, and `_existing_immediate_run` treats
+# "running" as in-flight so the hourly sweep never retries the annotation.
+# ===========================================================================
+
+
+class _MarkFailedDB:
+    """Minimal fake session for _mark_immediate_run_failed."""
+
+    def __init__(self, row):
+        self._row = row
+        self.commits = 0
+        self.rolled_back = False
+
+    def query(self, model):
+        q = MagicMock()
+        q.filter.return_value.first.return_value = self._row
+        return q
+
+    def commit(self):
+        self.commits += 1
+
+    def rollback(self):
+        self.rolled_back = True
+
+
+@pytest.fixture
+def _no_flag_modified():
+    """``flag_modified`` needs a real SQLAlchemy-instrumented object, which the
+    plain fake rows below are not. Patch it out so these tests can exercise the
+    mark-failed logic itself; in production the row is a real ORM object.
+    (Reassigning ``eval_metadata`` to a NEW dict already marks the attribute
+    dirty on its own — flag_modified is belt-and-braces, matching how the rest
+    of tasks.py writes eval_metadata.)"""
+    with patch("sqlalchemy.orm.attributes.flag_modified", lambda obj, key: None):
+        yield
+
+
+class TestMarkImmediateRunFailed:
+    def test_running_row_is_flipped_to_failed_with_the_reason(self, _no_flag_modified):
+        row = types.SimpleNamespace(status="running", eval_metadata={"configs": ["x"]})
+        db = _MarkFailedDB(row)
+
+        tasks_module._mark_immediate_run_failed(db, "eval-1", "boom")
+
+        assert row.status == "failed"
+        assert row.eval_metadata["error"] == "boom"
+        # Pre-existing metadata must survive — the UI reads `configs` off it.
+        assert row.eval_metadata["configs"] == ["x"]
+        assert db.commits == 1
+
+    def test_long_reason_is_truncated(self, _no_flag_modified):
+        row = types.SimpleNamespace(status="running", eval_metadata=None)
+        db = _MarkFailedDB(row)
+
+        tasks_module._mark_immediate_run_failed(db, "eval-1", "x" * 5000)
+
+        assert len(row.eval_metadata["error"]) == 500
+
+    def test_already_terminal_row_is_left_alone(self):
+        """A completed run must not be rewritten to failed by a late error."""
+        row = types.SimpleNamespace(status="completed", eval_metadata={})
+        db = _MarkFailedDB(row)
+
+        tasks_module._mark_immediate_run_failed(db, "eval-1", "boom")
+
+        assert row.status == "completed"
+        assert db.commits == 0
+
+    def test_missing_row_is_a_noop(self):
+        db = _MarkFailedDB(None)
+        tasks_module._mark_immediate_run_failed(db, "gone", "boom")
+        assert db.commits == 0
+
+    def test_db_failure_is_swallowed_and_does_not_rollback(self):
+        """It runs while another exception is being handled, so it must never
+        raise — and must not roll back, because the caller already did and is
+        about to close the session."""
+        db = MagicMock()
+        db.query.side_effect = RuntimeError("session already dead")
+
+        tasks_module._mark_immediate_run_failed(db, "eval-1", "boom")
+
+        db.rollback.assert_not_called()
+
+
+class TestRunSingleSampleEvaluationSoftTimeLimit:
+    def test_soft_time_limit_marks_run_failed_and_returns_error(self, _no_flag_modified):
+        """The 180s soft limit fires ~60s before the hard kill. The row must be
+        flipped to failed so the 2s frontend poller reports a real error inside
+        its 300s ceiling instead of spinning the whole way to timeout."""
+        from celery.exceptions import SoftTimeLimitExceeded
+
+        row = types.SimpleNamespace(status="running", eval_metadata={})
+        real_db = MagicMock()
+        calls = {"n": 0}
+
+        def _query_dispatch(model):
+            # 1st query is the Project snapshot: raise the soft-limit exception
+            # there, exactly as it would surface when the limit fires mid-body.
+            # 2nd is _mark_immediate_run_failed's EvaluationRun lookup.
+            calls["n"] += 1
+            if calls["n"] == 1:
+                raise SoftTimeLimitExceeded()
+            q = MagicMock()
+            q.filter.return_value.first.return_value = row
+            return q
+
+        real_db.query.side_effect = _query_dispatch
+
+        with patch.object(tasks_module, "SessionLocal", MagicMock(return_value=real_db)):
+            result = run_single_sample_evaluation.run(
+                evaluation_record_id="eval-timeout-1",
+                project_id="p1",
+                task_id="t1",
+                annotation_id="a1",
+                evaluation_configs=[{
+                    "metric": "exact_match",
+                    "prediction_fields": ["answer"],
+                    "reference_fields": ["task.ref"],
+                }],
+                annotation_results={"answer": "a"},
+                task_data={"ref": "a"},
+                user_id="u1",
+            )
+
+        assert result["status"] == "error"
+        assert result["message"] == "Evaluation timed out"
+        assert row.status == "failed"
+        assert row.eval_metadata["error"] == "Evaluation timed out"
+        real_db.rollback.assert_called_once()
+        real_db.close.assert_called_once()
+
+    def test_generic_failure_also_marks_the_run_failed(self, _no_flag_modified):
+        """Regression guard for the original bug: it was not timeout-specific.
+        ANY exception used to leave the row on 'running' forever."""
+        row = types.SimpleNamespace(status="running", eval_metadata={})
+        real_db = MagicMock()
+        calls = {"n": 0}
+
+        def _query_dispatch(model):
+            calls["n"] += 1
+            if calls["n"] == 1:
+                raise RuntimeError("snapshot exploded")
+            q = MagicMock()
+            q.filter.return_value.first.return_value = row
+            return q
+
+        real_db.query.side_effect = _query_dispatch
+
+        with patch.object(tasks_module, "SessionLocal", MagicMock(return_value=real_db)):
+            result = run_single_sample_evaluation.run(
+                evaluation_record_id="eval-err-2",
+                project_id="p1",
+                task_id="t1",
+                annotation_id="a1",
+                evaluation_configs=[{
+                    "metric": "exact_match",
+                    "prediction_fields": ["answer"],
+                    "reference_fields": ["task.ref"],
+                }],
+                annotation_results={"answer": "a"},
+                task_data={"ref": "a"},
+                user_id="u1",
+            )
+
+        assert result["status"] == "error"
+        assert "snapshot exploded" in result["message"]
+        assert row.status == "failed"

@@ -237,6 +237,38 @@ workers:
     - name: MAIL_ENABLED
       value: "true"
 
+# Staging sizing for the interactive/aux worker pools. Because workerPools is a
+# MAP, this merges key-by-key with the base values: `queues`, `concurrency`,
+# `prefetchMultiplier` and `enabled` are inherited and must NOT be restated here
+# (unlike workers.env above, which is a list and therefore REPLACES the base).
+#
+# Sizing floor is set by the PROBES, not the workers: every liveness/readiness
+# exec spawns `celery -A tasks inspect ping`, which re-imports all of tasks.py
+# (~0.5Gi transient, 15-20s at full CPU) inside the pod's cgroup. The first
+# 512Mi/300m attempt OOMKilled both pools on the probe alone (2026-07-28) —
+# the worker booted to `ready.` and then died exit 137. Keep limits at
+# probe-import + worker parent, and CPU high enough that the import beats the
+# probe timeout.
+workerPools:
+  fast:
+    replicaCount: 1
+    resources:
+      limits:
+        cpu: 1000m
+        memory: 1Gi
+      requests:
+        cpu: 100m
+        memory: 256Mi
+  aux:
+    replicaCount: 1
+    resources:
+      limits:
+        cpu: 500m
+        memory: 768Mi
+      requests:
+        cpu: 50m
+        memory: 192Mi
+
 frontend:
   replicaCount: 1
   resources:

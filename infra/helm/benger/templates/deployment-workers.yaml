@@ -28,7 +28,14 @@ spec:
         - name: {{ .Values.workers.name }}
           image: "{{ .Values.workers.image.repository }}:{{ .Values.workers.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.workers.image.pullPolicy }}
-          command: ["celery", "-A", "tasks", "worker", "--loglevel=info", "--concurrency={{ .Values.workers.concurrency | default 4 }}", "--max-tasks-per-child={{ .Values.workers.maxTasksPerChild | default 50 }}", "-Q", "celery,emails,default,generation,evaluation"]
+          # THE BULK POOL. The -Q list moved into values.yaml (workers.queues)
+          # so the queue<->pool contract is parseable by
+          # services/workers/scripts/check_celery_queue_pools.py, which asserts
+          # every queue in celery_queues.QUEUES has exactly one consuming pool.
+          # `-n bulk@%h` fixes the nodename so the probes below can scope to
+          # this pod (a bare `inspect ping` broadcasts to every worker on the
+          # broker and passes whenever ANY of them replies).
+          command: ["celery", "-A", "tasks", "worker", "--loglevel=info", "-n", "bulk@%h", "--concurrency={{ .Values.workers.concurrency | default 4 }}", "--prefetch-multiplier={{ .Values.workers.prefetchMultiplier | default 1 }}", "--max-tasks-per-child={{ .Values.workers.maxTasksPerChild | default 50 }}", "-Q", "{{ join "," .Values.workers.queues }}"]
           # Explicit empty args prevents server-side apply from preserving
           # an `args:` array set out-of-band via `kubectl patch`. Without
           # this, the container ran command + args (the same celery
@@ -39,7 +46,7 @@ spec:
               command:
                 - /bin/sh
                 - -c
-                - "celery -A tasks inspect ping --timeout=15"
+                - "celery -A tasks inspect ping -d bulk@$HOSTNAME --timeout=15"
             initialDelaySeconds: 240
             periodSeconds: 90
             timeoutSeconds: 30
@@ -49,7 +56,7 @@ spec:
               command:
                 - /bin/sh
                 - -c
-                - "celery -A tasks inspect ping --timeout=10"
+                - "celery -A tasks inspect ping -d bulk@$HOSTNAME --timeout=10"
             initialDelaySeconds: 180
             periodSeconds: 30
             timeoutSeconds: 20

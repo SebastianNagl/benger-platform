@@ -279,10 +279,12 @@ class TestUpdateReportAnnotationsAsync:
                         result = update_report_annotations_async("pTail")
 
         assert result == {"status": "ok", "project_id": "pTail"}
+        # No queue= — routing is owned by services/shared/celery_queues.py,
+        # which puts this on `interactive` (it fires on every annotation write
+        # and a stale report is user-visible).
         send_task.assert_called_once_with(
             "tasks.update_report_annotations_async",
             args=["pTail"],
-            queue="default",
         )
 
     def test_redis_unavailable_runs_without_coalescing(self):

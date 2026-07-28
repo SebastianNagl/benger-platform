@@ -54,10 +54,17 @@ jobs:
           python-version: '3.11'
 
       - name: Install ruff
-        run: pip install ruff
+        run: pip install ruff pyyaml
 
       - name: Lint API, Workers, Shared
         run: ruff check --select=F821,F823 --exclude="*/scripts/*" services/api/ services/workers/ services/shared/
+
+      # Every Celery queue must be consumed by exactly one worker pool. A
+      # stranded queue fails silently in production -- tasks just never run --
+      # so it is checked here, on a runner that has the Helm chart. The workers
+      # pytest container only mounts services/workers + services/shared.
+      - name: Check Celery queue <-> worker-pool contract
+        run: python services/workers/scripts/check_celery_queue_pools.py
 
   # Full Dockerized suites — the prod gate. Run on push to main (and manual
   # dispatch), NOT on PRs, so PR iteration stays fast. A commit message

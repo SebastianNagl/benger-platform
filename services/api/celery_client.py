@@ -22,12 +22,25 @@ _lock = threading.Lock()
 def _create_celery_app() -> Celery:
     from app.core.config import get_settings
 
+    # /shared. Imported here rather than at module scope so this module stays
+    # importable regardless of when main.py inserts shared_dir into sys.path.
+    import celery_queues
+
     settings = get_settings()
     broker_url = settings.celery_broker
     backend_url = settings.celery_backend
 
     app = Celery("tasks", broker=broker_url, backend=backend_url)
     app.conf.broker_connection_retry_on_startup = True
+
+    # Same routing table the workers use, so the API cannot publish to a queue
+    # no pool consumes. send_task() routes through app.amqp.router, which
+    # resolves on the task NAME -- so this correctly routes extended tasks the
+    # API never registers (e.g. tasks.grade_and_schedule_card, which previously
+    # fell through to the default `celery` queue because its call site passes no
+    # queue= at all).
+    app.conf.task_routes = (celery_queues.route_task,)
+    app.conf.task_queues = celery_queues.celery_queue_defs()
     return app
 
 

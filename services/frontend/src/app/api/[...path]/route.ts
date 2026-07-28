@@ -97,14 +97,20 @@ async function proxyRequest(
     const path = pathSegments.join('/')
 
     // Auth endpoints that manage session cookies have dedicated handlers
-    // under src/app/api/auth/. Public auth endpoints (verify-email,
-    // request-password-reset, reset-password) don't touch cookies, so they
-    // are allowed through the catch-all here. Adding one to PUBLIC_AUTH_PATHS
-    // without a dedicated handler is intentional.
+    // under src/app/api/auth/. Endpoints that don't SET session cookies are
+    // allowed through the catch-all here — the forwarded Cookie header still
+    // authenticates the ones that READ it (request-account-activation).
+    // Adding one to PUBLIC_AUTH_PATHS without a dedicated handler is
+    // intentional.
     const PUBLIC_AUTH_PATHS = [
       'verify-email',
       'request-password-reset',
       'reset-password',
+      // Konto-aktivieren flow: activate-account is token-based like
+      // reset-password; request-account-activation is authed but only reads
+      // the forwarded cookie and returns JSON (never sets one).
+      'activate-account',
+      'request-account-activation',
     ]
     if (
       path.startsWith('auth/') &&

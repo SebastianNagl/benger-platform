@@ -868,17 +868,28 @@ def get_accessible_project_ids(
         .filter(ProjectOrganization.organization_id == org_context)
         .all()
     )
-    seen = set()
-    result = []
-    for r in rows:
-        if r.project_id not in seen:
-            seen.add(r.project_id)
-            result.append(r.project_id)
-    for pid in public_ids:
-        if pid not in seen:
-            seen.add(pid)
-            result.append(pid)
-    return result
+    org_project_ids = [r.project_id for r in rows]
+    # ANNOTATOR members reach org exams through the student surface (narrow
+    # participant tier) — the full-tier carve-out denies them the generic
+    # project detail, so listing exams here would only produce dead entries
+    # for the largest cohort (LTI students).
+    caller_role = next(
+        (
+            m.role
+            for m in user_with_memberships.organization_memberships
+            if m.organization_id == org_context and m.is_active
+        ),
+        None,
+    )
+    if caller_role == OrganizationRole.ANNOTATOR and org_project_ids:
+        exam_ids = {
+            r.id
+            for r in db.query(Project.id)
+            .filter(Project.id.in_(org_project_ids), Project.kind == "exam")
+            .all()
+        }
+        org_project_ids = [pid for pid in org_project_ids if pid not in exam_ids]
+    return _dedup_preserve_order(org_project_ids, public_ids)
 
 
 def _dedup_preserve_order(ids, extra=()):
@@ -960,7 +971,28 @@ async def get_accessible_project_ids_async(
             )
         )
     ).all()
-    return _dedup_preserve_order([r.project_id for r in rows], public_ids)
+    org_project_ids = [r.project_id for r in rows]
+    # Mirror of the sync helper: annotators reach org exams via the student
+    # surface only, so keep exam ids out of the generic browser list.
+    caller_role = next(
+        (
+            m.role
+            for m in user_with_memberships.organization_memberships
+            if m.organization_id == org_context and m.is_active
+        ),
+        None,
+    )
+    if caller_role == OrganizationRole.ANNOTATOR and org_project_ids:
+        exam_rows = (
+            await db.execute(
+                select(Project.id).where(
+                    Project.id.in_(org_project_ids), Project.kind == "exam"
+                )
+            )
+        ).all()
+        exam_ids = {r.id for r in exam_rows}
+        org_project_ids = [pid for pid in org_project_ids if pid not in exam_ids]
+    return _dedup_preserve_order(org_project_ids, public_ids)
 
 
 def get_org_context_from_request(request: Request) -> Optional[str]:
@@ -972,6 +1004,21 @@ def get_org_context_from_request(request: Request) -> Optional[str]:
     if hasattr(request, "state") and hasattr(request.state, "organization_context"):
         return request.state.organization_context
     return request.headers.get("X-Organization-Context")
+
+
+def _org_grants_full_tier(project, membership) -> bool:
+    """Whether an org membership confers the FULL project tier on ``project``.
+
+    ANNOTATOR org members never get the full tier on exam-kind projects —
+    for an exam, full tier means raw ``task.data`` (the Musterlösung),
+    exports, settings, and other students' attempts. Student-members reach
+    org-shared exams through the narrow participant tier instead
+    (``get_student_read_access``). Non-exam projects and staff roles are
+    unaffected.
+    """
+    if getattr(project, "kind", None) != "exam":
+        return True
+    return membership.role != OrganizationRole.ANNOTATOR
 
 
 def _decide_project_accessible_context_mode(
@@ -991,7 +1038,9 @@ def _decide_project_accessible_context_mode(
         return False
 
     return any(
-        m.organization_id == org_context and m.is_active
+        m.organization_id == org_context
+        and m.is_active
+        and _org_grants_full_tier(project, m)
         for m in user_with_memberships.organization_memberships
     )
 
@@ -1010,7 +1059,9 @@ def _decide_project_accessible_legacy_mode(
         return False
 
     user_org_ids = {
-        m.organization_id for m in user_with_memberships.organization_memberships if m.is_active
+        m.organization_id
+        for m in user_with_memberships.organization_memberships
+        if m.is_active and _org_grants_full_tier(project, m)
     }
     return bool(user_org_ids & set(project_org_ids))
 
@@ -1085,7 +1136,9 @@ def check_project_accessible(
             return False
 
         return any(
-            m.organization_id == org_context and m.is_active
+            m.organization_id == org_context
+            and m.is_active
+            and _org_grants_full_tier(project, m)
             for m in user_with_memberships.organization_memberships
         )
 
@@ -1107,7 +1160,9 @@ def check_project_accessible(
         return False
 
     user_org_ids = {
-        m.organization_id for m in user_with_memberships.organization_memberships if m.is_active
+        m.organization_id
+        for m in user_with_memberships.organization_memberships
+        if m.is_active and _org_grants_full_tier(project, m)
     }
     return bool(user_org_ids & set(project_org_ids))
 
@@ -1205,30 +1260,75 @@ async def get_entitlement_access_async(
 async def get_student_read_access_async(
     db: AsyncSession, user, project_id: str
 ) -> bool:
-    """Whether a student has participant access to a project (share OR purchase).
+    """Whether a student has participant access (share, purchase, or org exam).
 
     The single gate the student exam/deck/SRS read endpoints should use: True
-    if the user is a consented share member OR holds an active marketplace
-    entitlement. Short-circuits on the share check (the common #35 path) before
-    querying entitlements. Both grant the identical narrow tier; callers that
-    only need a yes/no should prefer this over calling the two primitives.
+    if the user is a consented share member, holds an active marketplace
+    entitlement, OR is an active member of an org that shares this exam
+    org-wide (non-private, non-archived, windowless ``kind='exam'`` — the
+    LTI/university ongoing-training catalog; windowed finals stay
+    explicit-grant-only). Short-circuits on the share check (the common
+    #35 path). All three grant the identical narrow tier; callers that only
+    need a yes/no should prefer this over calling the primitives.
     """
     if await get_share_access_async(db, user, project_id):
         return True
-    return await get_entitlement_access_async(db, user, project_id) is not None
+    if await get_entitlement_access_async(db, user, project_id) is not None:
+        return True
+    result = await db.execute(_build_select_org_exam_participant(user, project_id))
+    return result.first() is not None
+
+
+def _build_select_org_exam_participant(user, project_id: str):
+    """Shared SQL builder: participant grant via org membership on an
+    org-shared exam.
+
+    An ACTIVE membership (any role — CONTRIBUTOR+ callers pass
+    ``check_project_accessible`` first and never reach this fallback) in an
+    org attached to the project grants the narrow tier iff the project is a
+    NON-private, non-archived, WINDOWLESS exam. ``is_private=True`` exams
+    deliberately stay entitlement/share/creator-only: blanket org membership
+    is not per-project consent by anyone, and widening it would expose every
+    student-created exam (all private) to the whole university org. Exams
+    with an access window (scheduled finals) are likewise excluded — those
+    are entered through an explicit channel (LTI launch, share, entitlement)
+    so students cannot pre-read the Sachverhalt by browsing the org catalog
+    before the window opens.
+    """
+    return (
+        select(OrganizationMembership.id)
+        .join(
+            ProjectOrganization,
+            ProjectOrganization.organization_id
+            == OrganizationMembership.organization_id,
+        )
+        .join(Project, Project.id == ProjectOrganization.project_id)
+        .where(
+            ProjectOrganization.project_id == project_id,
+            OrganizationMembership.user_id == str(user.id),
+            OrganizationMembership.is_active == True,  # noqa: E712
+            Project.kind == "exam",
+            Project.is_private == False,  # noqa: E712
+            or_(Project.is_archived.is_(None), Project.is_archived == False),  # noqa: E712
+            Project.window_start_at.is_(None),
+            Project.window_end_at.is_(None),
+        )
+    )
 
 
 def get_student_read_access(db: Session, user, project_id: str) -> bool:
     """Sync twin of :func:`get_student_read_access_async`.
 
-    Participant access via a consented ``ProjectShareMember`` OR an active
-    ``MarketplaceEntitlement`` (a vendor purchase / vendor grant / discovery
-    enrollment). Used by the sync annotation-write path (``create_annotation``)
-    so its submit gate AGREES with the read gate the extended student endpoints
-    use: a consented share member of a private exam, or an entitled/enrolled
-    student, may attempt the task even though ``check_project_accessible`` is
-    owner-only for a private project. Narrow participant tier only — it never
-    widens export / settings / whole-``task.data`` access.
+    Participant access via a consented ``ProjectShareMember``, an active
+    ``MarketplaceEntitlement`` (vendor purchase / vendor grant / discovery
+    enrollment), OR active org membership on an org-shared exam (non-private,
+    non-archived, windowless — the university ongoing-training catalog). Used by the sync
+    annotation-write path (``create_annotation``) so its submit gate AGREES
+    with the read gate the extended student endpoints use: a consented share
+    member of a private exam, an entitled/enrolled student, or a university
+    org member may attempt the task even though ``check_project_accessible``
+    denies them the full tier. Narrow participant tier only — it never widens
+    export / settings / whole-``task.data`` access.
     """
     share = (
         db.query(ProjectShareMember)
@@ -1250,7 +1350,9 @@ def get_student_read_access(db: Session, user, project_id: str) -> bool:
         )
         .first()
     )
-    return ent is not None
+    if ent is not None:
+        return True
+    return db.execute(_build_select_org_exam_participant(user, project_id)).first() is not None
 
 
 def _build_select_org_admin_membership(user_id, project_org_ids):

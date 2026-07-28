@@ -323,11 +323,25 @@ class TestEmailTaskIntegration:
         assert task.retry_kwargs['countdown'] == 60
 
     def test_email_queue_routing(self):
-        """Test that email tasks are routed to the correct queue"""
+        """Test that email tasks are routed to the correct queue.
+
+        Routing moved from the `emails.*` glob to the shared table in
+        services/shared/celery_queues.py, so assert against that instead. The
+        destination is unchanged: mail still goes to `emails`, now served by its
+        own worker pool so a rate-limited bulk invite can't hold interactive
+        slots.
+        """
+        import celery_queues
+
         from tasks import app
 
-        assert 'emails.*' in app.conf.task_routes
-        assert app.conf.task_routes['emails.*']['queue'] == 'emails'
+        assert celery_queues.route_task in tuple(app.conf.task_routes)
+        for name in (
+            'emails.send_invitation',
+            'emails.send_bulk_invitations',
+            'emails.send_notification_batch',
+        ):
+            assert celery_queues.queue_for(name) == 'emails'
 
         assert 'emails.send_invitation' in app.conf.task_annotations
         assert app.conf.task_annotations['emails.send_invitation']['rate_limit'] == '30/m'

@@ -86,8 +86,11 @@ class PasswordResetService:
         if not user:
             return False
 
-        # Update password
+        # Update password. password_set also covers the first-password case:
+        # a passwordless LTI account recovering via "Passwort vergessen" is
+        # activated by this path exactly like by /auth/activate-account.
         user.hashed_password = get_password_hash(new_password)
+        user.password_set = True
 
         # Clear reset token
         user.password_reset_token = None
@@ -133,7 +136,10 @@ class PasswordResetService:
         Args:
             db: Database session
             user: User to send email to
-            base_url: Base URL for reset link (used as fallback if FRONTEND_URL is unset)
+            base_url: Base URL for the reset link. The caller resolves it
+                host-aware (``resolve_email_brand``) so a Vertretbar student
+                lands on vertretbar.net, not the BenGER host; the FRONTEND_URL
+                env is only the fallback when no base_url is supplied.
             language: Language for email template
 
         Returns:
@@ -145,7 +151,7 @@ class PasswordResetService:
 
         token = self.create_password_reset_token(db, user)
 
-        frontend_url = os.getenv("FRONTEND_URL", base_url)
+        frontend_url = base_url or os.getenv("FRONTEND_URL", "")
         reset_link = f"{frontend_url}/reset-password/{token}"
 
         email_service = EmailService()

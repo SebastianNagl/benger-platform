@@ -863,8 +863,12 @@ class TestRequestPasswordReset:
         db = _mock_db()
         db.query.return_value.filter.return_value.first.return_value = None
 
+        # Handler is host-aware since 57ed92e: it reads the request headers to
+        # resolve the email brand. An empty headers dict exercises the
+        # no-forwarded-host fallback path.
         result = await request_password_reset(
             reset_request=PasswordResetRequest(email="missing@test.com"),
+            request=Mock(headers={}),
             db=db,
         )
         assert "password reset link" in result["message"]
@@ -882,6 +886,7 @@ class TestRequestPasswordReset:
             mock_svc.send_password_reset_email = AsyncMock(return_value=True)
             result = await request_password_reset(
                 reset_request=PasswordResetRequest(email="test@example.com"),
+                request=Mock(headers={}),
                 db=db,
             )
         assert "password reset link" in result["message"]
@@ -899,6 +904,7 @@ class TestRequestPasswordReset:
             mock_svc.send_password_reset_email = AsyncMock(side_effect=Exception("SMTP fail"))
             result = await request_password_reset(
                 reset_request=PasswordResetRequest(email="test@example.com"),
+                request=Mock(headers={}),
                 db=db,
             )
         assert "password reset link" in result["message"]

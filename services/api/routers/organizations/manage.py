@@ -45,7 +45,8 @@ async def list_all_users(
     """List users visible to the current user.
 
     Superadmins see all users. Non-superadmins see only users from
-    their own organizations.
+    organizations where they hold a CONTRIBUTOR or ORG_ADMIN role —
+    ANNOTATOR memberships (every LTI student) grant no user enumeration.
     """
     if not current_user:
         raise HTTPException(
@@ -57,8 +58,23 @@ async def list_all_users(
     stmt = select(User).where(User.is_active == True)  # noqa: E712
 
     if not current_user.is_superadmin:
-        # Get user's organization IDs from the Pydantic User model
-        user_org_ids = [org['id'] for org in (current_user.organizations or [])]
+        # Resolve from the membership table, not the auth-model org dicts:
+        # role must gate this, and the dict shape is not guaranteed to carry it.
+        user_org_ids = (
+            (
+                await db.execute(
+                    select(OrganizationMembership.organization_id).where(
+                        OrganizationMembership.user_id == current_user.id,
+                        OrganizationMembership.is_active == True,  # noqa: E712
+                        OrganizationMembership.role.in_(
+                            (OrganizationRole.ORG_ADMIN, OrganizationRole.CONTRIBUTOR)
+                        ),
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
 
         if not user_org_ids:
             return []
