@@ -45,7 +45,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20'  # Playwright >=1.56 requires Node 20+; 18 broke the e2e job 2026-07-28
           cache: 'npm'
           cache-dependency-path: services/frontend/package-lock.json
 
