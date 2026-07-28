@@ -337,11 +337,17 @@ class TestListAllUsersOrgFiltering:
             "created_at": datetime(2025, 1, 1), "updated_at": None,
         }
 
-        # Non-superadmin path: subqueries are built into the statement (pure
-        # SQLAlchemy, no execute), then a single ``await db.execute(stmt)``
-        # whose ``.scalars().all()`` yields the User rows. ``search`` defaults
-        # to None so the ilike branch is skipped.
-        db = _async_db([_result(scalars_all=[u1])])
+        # Non-superadmin path since 33dfffd (CONTRIBUTOR+ gating): FIRST an
+        # ``await db.execute`` resolving the caller's org ids from the
+        # membership table (role-filtered), THEN the main user query. Two
+        # results, in call order. ``search`` defaults to None so the ilike
+        # branch is skipped.
+        db = _async_db(
+            [
+                _result(scalars_all=["org-1"]),  # caller's CONTRIBUTOR+ org ids
+                _result(scalars_all=[u1]),  # visible users
+            ]
+        )
 
         # `limit` is a FastAPI Query(...) default; when calling the handler
         # directly (no FastAPI param resolution) it must be passed an int,
