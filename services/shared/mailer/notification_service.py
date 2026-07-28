@@ -261,7 +261,6 @@ class NotificationService:
                 get_celery_app().send_task(
                     "emails.send_notification_batch",
                     args=[notification_data],
-                    queue="emails",
                 )
             except Exception as e:
                 # Never let an email-dispatch failure surface to the caller;

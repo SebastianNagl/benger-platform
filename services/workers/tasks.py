@@ -644,7 +644,50 @@ def extract_label_config_fields(label_config: str) -> List[str]:
 # `app` without importing all of tasks.py (breaks the cell_evaluator import
 # cycle). The worker is still launched as `celery -A tasks`: re-exporting `app`
 # here keeps the -A target and all `tasks.*` registered names unchanged.
+from celery.exceptions import SoftTimeLimitExceeded  # noqa: E402
 from worker_celery import app  # noqa: E402,F401
+
+
+def _mark_immediate_run_failed(db, evaluation_record_id: str, message: str) -> None:
+    """Flip a stuck immediate-eval run to ``failed``.
+
+    Every error path used to leave the row on ``running``. That is not a cosmetic
+    detail: the frontend poller keeps spinning until its own 300s ceiling and
+    only then soft-fails, AND ``_existing_immediate_run`` treats ``running`` as
+    in-flight, so the hourly sweep never retries the annotation either. The
+    dispatch path in shared/immediate_eval_dispatch.py already guards this same
+    case; this is the worker-side half.
+
+    Best-effort by construction — it runs while handling another exception, so a
+    failure here must never mask the original error.
+    """
+    try:
+        # Imported here, not at module scope: tasks.py keeps model + SQLAlchemy
+        # imports lazy so `from tasks import app` stays ~1.7s and pulls no ML
+        # (guarded by tests/test_tasks_import_lightness.py).
+        from models import EvaluationRun
+        from sqlalchemy.orm.attributes import flag_modified
+
+        stuck = (
+            db.query(EvaluationRun)
+            .filter(EvaluationRun.id == evaluation_record_id)
+            .first()
+        )
+        if stuck and stuck.status == "running":
+            stuck.status = "failed"
+            meta = dict(stuck.eval_metadata or {})
+            meta["error"] = message[:500]
+            stuck.eval_metadata = meta
+            flag_modified(stuck, "eval_metadata")
+            db.commit()
+    except Exception as exc:  # pragma: no cover - defensive
+        # Deliberately no rollback here: every caller has already rolled back
+        # before calling this, and closes the session immediately afterwards in
+        # its `finally`. Rolling back again would just add a confusing second
+        # call on a session that is about to be discarded.
+        logger.warning(
+            "Could not mark immediate run %s failed: %s", evaluation_record_id, exc
+        )
 
 
 # ---- Progress pub/sub (workers → API WebSocket clients) ---------------------
@@ -2196,7 +2239,6 @@ def run_evaluation(
                             "label_config_version": label_config_version,
                             "already_evaluated_field_keys": cell_already_done,
                         },
-                        queue="evaluation",
                     )
                 )
             for (cell_task_id, cell_ann_id, cell_already_done) in ann_cells:
@@ -2214,7 +2256,6 @@ def run_evaluation(
                             "triggered_by_user_id": triggered_by,
                             "already_evaluated_field_keys": cell_already_done,
                         },
-                        queue="evaluation",
                     )
                 )
 
@@ -2242,7 +2283,6 @@ def run_evaluation(
 
             callback_sig = finalize_evaluation_run.signature(
                 kwargs={"evaluation_id": evaluation_id},
-                queue="evaluation",
             )
 
             chord_result = chord(header_sigs)(callback_sig)
@@ -2831,9 +2871,24 @@ def run_single_sample_evaluation(
             "results": results,
         }
 
+    except SoftTimeLimitExceeded:
+        # The `interactive` soft limit (180s) fired; the hard kill is 60s out.
+        # Do the minimum and get out: flag the row so the frontend's 2s poller
+        # reports a real failure well inside its own 300s ceiling.
+        logger.error(
+            "[SingleSampleEval] soft time limit exceeded for run %s",
+            evaluation_record_id,
+        )
+        db.rollback()
+        _mark_immediate_run_failed(
+            db, evaluation_record_id, "Evaluation timed out"
+        )
+        _run_grading_finalize_hook(evaluation_record_id, False)
+        return {"status": "error", "message": "Evaluation timed out"}
     except Exception as e:
         logger.error(f"[SingleSampleEval] Task failed: {e}")
         db.rollback()
+        _mark_immediate_run_failed(db, evaluation_record_id, str(e))
         _run_grading_finalize_hook(evaluation_record_id, False)
         return {"status": "error", "message": str(e)}
     finally:
@@ -3888,7 +3943,6 @@ def update_report_annotations_async(self, project_id: str):
                 app.send_task(
                     "tasks.update_report_annotations_async",
                     args=[project_id],
-                    queue="default",
                 )
             except Exception as exc:
                 logger.warning(

@@ -208,7 +208,6 @@ async def create_invitation(
                 invitation.role.value,
             ],
             kwargs={"host": invite_host},
-            queue="emails",
             retry=True,
             retry_policy={
                 'max_retries': 3,
@@ -381,7 +380,6 @@ async def create_bulk_invitations(
             celery_app.send_task(
                 "emails.send_bulk_invitations",
                 args=[payload],
-                queue="emails",
                 retry=True,
                 retry_policy={
                     'max_retries': 3,

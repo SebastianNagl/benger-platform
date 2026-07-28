@@ -677,7 +677,10 @@ async def test_resume_success_redispatches_missing_trial(async_test_client, asyn
     call = mock_celery.send_task.call_args
     assert call.args[0] == "tasks.generate_response"
     assert call.kwargs["task_id"] == f"{gen_id}:0:1"
-    assert call.kwargs["queue"] == "generation"
+    # No queue= pinned at the call site — routing is owned by the shared table
+    # (services/shared/celery_queues.py -> `generation`); an explicit kwarg here
+    # would override task_routes.
+    assert "queue" not in call.kwargs
 
     async_test_db.expire_all()
     refreshed = (
@@ -1054,7 +1057,8 @@ async def test_retry_multirun_redispatches_only_missing_trials(
     for c in mock_celery.send_task.call_args_list:
         assert c.args[0] == "tasks.generate_response"
         assert c.kwargs["args"][5] is True  # force_rerun (known-missing)
-        assert c.kwargs["queue"] == "generation"
+        # Routing owned by services/shared/celery_queues.py; no per-send pin.
+        assert "queue" not in c.kwargs
 
     async_test_db.expire_all()
     refreshed = (

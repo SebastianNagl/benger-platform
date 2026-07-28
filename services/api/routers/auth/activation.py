@@ -89,7 +89,6 @@ async def request_account_activation(
                 "target_email": target_email,
                 "force": True,
             },
-            queue="emails",
         )
         logger.info(f"Queued account-activation email for user {db_user.id}")
     except Exception as e:

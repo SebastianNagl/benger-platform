@@ -115,9 +115,7 @@ def _redispatch(db: Session, evaluation: DBEvaluationRun, action: str) -> str:
     """
     kwargs = _dispatch_snapshot_kwargs(evaluation)
     try:
-        task = celery_app.send_task(
-            "tasks.run_evaluation", kwargs=kwargs, queue="evaluation"
-        )
+        task = celery_app.send_task("tasks.run_evaluation", kwargs=kwargs)
     except Exception as e:  # pragma: no cover - broker down
         logger.error(f"Failed to dispatch evaluation {action}: {e}")
         evaluation.status = "failed"

@@ -35,6 +35,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
+import celery_queues
 from metric_filters import is_immediate_eligible
 from models import EvaluationRun, OrganizationMembership, TaskEvaluation
 from project_models import Annotation, Task
@@ -384,7 +385,11 @@ def ensure_immediate_evaluation(
                 "organization_id": resolve_org(db, project, annotation.completed_by),
                 "user_id": user,
             },
-            "celery",
+            # Sourced from the routing table rather than hardcoded, but still
+            # passed explicitly: the last fallback below goes through
+            # `celery.current_app`, which in a bare worker/script context may
+            # carry no task_routes at all.
+            celery_queues.queue_for("tasks.run_single_sample_evaluation"),
         )
     except Exception:
         # The run row is already committed as "running". If the dispatch itself

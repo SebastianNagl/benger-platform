@@ -27,5 +27,11 @@ RUN if [ -d "./shared" ]; then \
       rm -rf ./shared; \
     fi
 
-# Start Celery Worker
-CMD ["celery", "-A", "tasks", "worker", "--loglevel=info", "-Q", "celery,emails,default,generation,evaluation"]
+# Start Celery Worker.
+#
+# This CMD consumes the FULL union of queues, including the retired `celery` and
+# `default` names, so a bare `docker run` of this image never strands a message.
+# Deployments override `command` per pool (see workers.queues + workerPools in
+# infra/helm/benger/values.yaml) -- that split is where the actual starvation fix
+# lives. Compose overrides it too; see infra/docker-compose.yml.
+CMD ["celery", "-A", "tasks", "worker", "--loglevel=info", "-Q", "interactive,emails,maintenance,generation,evaluation,bulk,celery,default"]

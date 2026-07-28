@@ -237,6 +237,30 @@ workers:
     - name: MAIL_ENABLED
       value: "true"
 
+# Staging sizing for the interactive/aux worker pools. Because workerPools is a
+# MAP, this merges key-by-key with the base values: `queues`, `concurrency`,
+# `prefetchMultiplier` and `enabled` are inherited and must NOT be restated here
+# (unlike workers.env above, which is a list and therefore REPLACES the base).
+workerPools:
+  fast:
+    replicaCount: 1
+    resources:
+      limits:
+        cpu: 300m
+        memory: 512Mi
+      requests:
+        cpu: 50m
+        memory: 192Mi
+  aux:
+    replicaCount: 1
+    resources:
+      limits:
+        cpu: 300m
+        memory: 512Mi
+      requests:
+        cpu: 50m
+        memory: 192Mi
+
 frontend:
   replicaCount: 1
   resources:

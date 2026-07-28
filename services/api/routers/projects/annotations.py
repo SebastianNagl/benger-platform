@@ -293,7 +293,6 @@ async def create_annotation(
         get_celery_app().send_task(
             "tasks.update_report_annotations_async",
             args=[task.project_id],
-            queue="default",
         )
     except Exception as e:
         logger = logging.getLogger(__name__)
@@ -487,7 +486,6 @@ async def update_annotation(
         get_celery_app().send_task(
             "tasks.update_report_annotations_async",
             args=[db_annotation.project_id],
-            queue="default",
         )
     except Exception as e:
         import logging

@@ -18,6 +18,8 @@ import os
 from celery import Celery
 from celery.schedules import crontab
 
+import celery_queues  # /shared -- single source of truth for task -> queue routing
+
 # Celery-App initialisieren
 app = Celery("tasks")
 
@@ -55,30 +57,44 @@ app.conf.beat_schedule = {
         "schedule": crontab(minute=0),
         "args": (),
         "kwargs": {},
-        "options": {"queue": "default"},
     },
     "sweep-missing-immediate-evals": {
         "task": "tasks.sweep_missing_immediate_evals",
         "schedule": crontab(minute=30),
         "args": (),
         "kwargs": {},
-        "options": {"queue": "default"},
     },
 }
+# Beat entries deliberately carry no ``options: {"queue": ...}``. Beat options go
+# through the same router as any other send and would override task_routes, so
+# pinning a queue here would let the schedule drift away from celery_queues.
+# ``test_celery_queues.py`` asserts that stays true.
 
 app.conf.timezone = "UTC"
 
-# Task routing configuration for different queues
-app.conf.task_routes = {
-    'emails.*': {'queue': 'emails'},
-    'tasks.*': {'queue': 'default'},
-}
+# Task routing. Queues are served by DISJOINT worker pools (see workers.queues +
+# workerPools in infra/helm/benger/values.yaml) so that long generation/evaluation
+# work can never occupy the execution slots user-blocking tasks need. The old
+# 'emails.*'/'tasks.*' globs put everything except mail on one queue, which is
+# how immediate evaluation ended up behind hours of bulk work.
+app.conf.task_routes = (celery_queues.route_task,)
+app.conf.task_queues = celery_queues.celery_queue_defs()
 
-# Rate limiting for email tasks to prevent overwhelming mail server
-app.conf.task_annotations = {
-    'emails.send_invitation': {'rate_limit': '30/m'},  # 30 invitations per minute
-    'emails.send_bulk_invitations': {'rate_limit': '5/m'},  # 5 bulk operations per minute
-}
+# Time limits (per queue class) + the email rate limits, both derived from the
+# routing table so they cannot drift away from queue membership.
+app.conf.task_annotations = celery_queues.task_annotations()
+
+# Default prefetch of 1: with acks_late cell tasks, a bigger reservation just
+# means more messages to redeliver when a pod is OOM-killed, and it lets one pod
+# claim a burst its siblings could have shared. The `aux` pool overrides this to
+# 4 on the command line -- rate-limited tasks hold their prefetch slot while
+# waiting for a token, so they need headroom to wait in.
+app.conf.worker_prefetch_multiplier = 1
+
+# kombu's default visibility_timeout is 3600s, which is below the `bulk` hard
+# time limit (5400s). A long acks_late export/import would otherwise outlive its
+# visibility window and get delivered a second time while still running.
+app.conf.broker_transport_options = {"visibility_timeout": 7200}
 
 # Build Redis URLs - prefer REDIS_URI for production compatibility
 redis_uri = os.getenv("REDIS_URI")
