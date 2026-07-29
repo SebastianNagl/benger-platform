@@ -139,9 +139,32 @@ jest.mock('@/components/projects/PromptStructuresManager', () => ({
 jest.mock('@/components/projects/ProjectPermissionsPanel', () => ({
   ProjectPermissionsPanel: () => <div data-testid="permissions-panel" />,
 }))
+// data-count mirrors the config list length; the add button drives
+// onEvaluationsChange like the real builder's add-metric flow does, so tests
+// can assert the page's change→save orchestration (issue #289).
 jest.mock('@/components/evaluation/EvaluationBuilder', () => ({
   EvaluationBuilder: (props: any) => (
-    <div data-testid="evaluation-builder" data-defaults-mode={props.defaultsMode} />
+    <div
+      data-testid="evaluation-builder"
+      data-defaults-mode={props.defaultsMode}
+      data-count={props.evaluations?.length ?? 0}
+    >
+      <button
+        data-testid="eval-builder-add"
+        onClick={() =>
+          props.onEvaluationsChange([
+            ...(props.evaluations || []),
+            {
+              id: `new-${(props.evaluations || []).length + 1}`,
+              metric: 'bleu',
+              enabled: true,
+            },
+          ])
+        }
+      >
+        add
+      </button>
+    </div>
   ),
 }))
 jest.mock('@/components/generation/GenerationControlModal', () => ({
@@ -696,6 +719,241 @@ describe('Evaluation card', () => {
         'minimum',
       )
     })
+  })
+})
+
+// ── Issue #289: lost-update regressions (change→save orchestration) ───────
+describe('Evaluation card — save orchestration (issue #289)', () => {
+  const bleuConfig = { id: 'e2', metric: 'bleu', enabled: true }
+
+  const mockEvalConfigGet = (configs: any[]) => {
+    ;(apiClient.get as jest.Mock).mockImplementation((url: string) => {
+      if (url.includes('/evaluation-config')) {
+        return Promise.resolve({ evaluation_configs: configs })
+      }
+      return Promise.resolve({ task: { id: 't' }, remaining: 5 })
+    })
+  }
+
+  it('changing evaluation methods fires no PUT and surfaces the Save button', async () => {
+    mockEvalConfigGet([bleuConfig])
+    setStore()
+    render(<ProjectDetailPage params={params()} />)
+    await screen.findByTestId('config-card-project.evaluation.title')
+    await waitFor(() => {
+      expect(screen.getByTestId('evaluation-builder')).toHaveAttribute('data-count', '1')
+    })
+
+    // No fire-and-forget autosave: a builder change stays local…
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('eval-builder-add'))
+    })
+    expect(apiClient.put).not.toHaveBeenCalled()
+    expect(screen.getByTestId('evaluation-builder')).toHaveAttribute('data-count', '2')
+    // …and auto-enters edit mode so the Save button is visible.
+    expect(screen.getByTestId('card-save-project.evaluation.title')).toBeInTheDocument()
+  })
+
+  it('a single Save sends one minimal PUT sequenced after both PATCH legs', async () => {
+    mockEvalConfigGet([bleuConfig])
+    const store = setStore()
+    const resolvers: Array<(v: any) => void> = []
+    ;(store.updateProject as jest.Mock).mockImplementation(
+      () => new Promise((res) => resolvers.push(res)),
+    )
+    render(<ProjectDetailPage params={params()} />)
+    await screen.findByTestId('config-card-project.evaluation.title')
+    await waitFor(() => {
+      expect(screen.getByTestId('evaluation-builder')).toHaveAttribute('data-count', '1')
+    })
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('eval-builder-add'))
+    })
+    fireEvent.click(screen.getByTestId('card-save-project.evaluation.title'))
+
+    // Settings PATCH in flight — configs PUT must wait.
+    await waitFor(() => expect(store.updateProject).toHaveBeenCalledTimes(1))
+    expect(apiClient.put).not.toHaveBeenCalled()
+    await act(async () => resolvers[0]({}))
+
+    // Eval-defaults PATCH in flight — configs PUT still waits.
+    await waitFor(() => expect(store.updateProject).toHaveBeenCalledTimes(2))
+    expect(apiClient.put).not.toHaveBeenCalled()
+    await act(async () => resolvers[1]({}))
+
+    // Exactly one PUT, minimal body (no read-modify-write spread of the
+    // stored doc), fired without any korrektur_falloesung config present.
+    await waitFor(() => expect(apiClient.put).toHaveBeenCalledTimes(1))
+    expect(apiClient.put).toHaveBeenCalledWith(
+      '/evaluations/projects/proj-1/evaluation-config',
+      {
+        evaluation_configs: [
+          bleuConfig,
+          { id: 'new-2', metric: 'bleu', enabled: true },
+        ],
+      },
+    )
+    // Successful save exits edit mode.
+    await waitFor(() => {
+      expect(
+        screen.queryByTestId('card-save-project.evaluation.title'),
+      ).not.toBeInTheDocument()
+    })
+  })
+
+  it('a failed configs PUT toasts and keeps the card in edit mode', async () => {
+    mockEvalConfigGet([bleuConfig])
+    setStore()
+    ;(apiClient.put as jest.Mock).mockRejectedValue(new Error('boom'))
+    render(<ProjectDetailPage params={params()} />)
+    await screen.findByTestId('config-card-project.evaluation.title')
+    await waitFor(() => {
+      expect(screen.getByTestId('evaluation-builder')).toHaveAttribute('data-count', '1')
+    })
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('eval-builder-add'))
+    })
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('card-save-project.evaluation.title'))
+    })
+
+    await waitFor(() => {
+      expect(mockAddToast).toHaveBeenCalledWith(
+        'toasts.project.evaluationConfigsSaveFailed:{"error":"boom"}',
+        'error',
+      )
+    })
+    // The card must not pretend the save succeeded.
+    expect(screen.getByTestId('card-save-project.evaluation.title')).toBeInTheDocument()
+  })
+
+  it('a failed eval-defaults PATCH aborts the sequence: no PUT, card stays dirty', async () => {
+    mockEvalConfigGet([bleuConfig])
+    const store = setStore()
+    ;(store.updateProject as jest.Mock)
+      .mockResolvedValueOnce({})
+      .mockRejectedValueOnce(new Error('defaults down'))
+    render(<ProjectDetailPage params={params()} />)
+    await screen.findByTestId('config-card-project.evaluation.title')
+    await waitFor(() => {
+      expect(screen.getByTestId('evaluation-builder')).toHaveAttribute('data-count', '1')
+    })
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('eval-builder-add'))
+    })
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('card-save-project.evaluation.title'))
+    })
+
+    await waitFor(() => {
+      expect(mockAddToast).toHaveBeenCalledWith(
+        'toasts.project.evaluationDefaultsSaveFailed:{"error":"defaults down"}',
+        'error',
+      )
+    })
+    expect(apiClient.put).not.toHaveBeenCalled()
+    expect(screen.getByTestId('card-save-project.evaluation.title')).toBeInTheDocument()
+  })
+
+  it('Abbrechen restores the last saved config list', async () => {
+    mockEvalConfigGet([bleuConfig])
+    setStore()
+    render(<ProjectDetailPage params={params()} />)
+    await screen.findByTestId('config-card-project.evaluation.title')
+    await waitFor(() => {
+      expect(screen.getByTestId('evaluation-builder')).toHaveAttribute('data-count', '1')
+    })
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('eval-builder-add'))
+    })
+    expect(screen.getByTestId('evaluation-builder')).toHaveAttribute('data-count', '2')
+
+    fireEvent.click(screen.getByTestId('card-cancel-project.evaluation.title'))
+    await waitFor(() => {
+      expect(screen.getByTestId('evaluation-builder')).toHaveAttribute('data-count', '1')
+    })
+    expect(apiClient.put).not.toHaveBeenCalled()
+  })
+})
+
+describe('Generation card — save orchestration (issue #289)', () => {
+  it('model save sends a minimal patch and the defaults PATCH waits for it', async () => {
+    setModels([recommendedModel])
+    const store = setStore({
+      currentProject: {
+        ...baseProject,
+        generation_config: {
+          selected_configuration: { models: [], parameters: { temperature: 0.7 } },
+        },
+      },
+    })
+    const resolvers: Array<(v: any) => void> = []
+    ;(store.updateProject as jest.Mock).mockImplementation(
+      () => new Promise((res) => resolvers.push(res)),
+    )
+    render(<ProjectDetailPage params={params()} />)
+    await screen.findByTestId('config-card-project.generationConfiguration.title')
+
+    fireEvent.click(screen.getByText('project.modelSelection.title'))
+    await act(async () => {
+      fireEvent.click(screen.getByLabelText('Claude X'))
+    })
+    fireEvent.click(screen.getByTestId('card-save-project.generationConfiguration.title'))
+
+    // Models PATCH in flight — the defaults PATCH must not start yet.
+    await waitFor(() => expect(store.updateProject).toHaveBeenCalledTimes(1))
+    const modelsPayload = (store.updateProject as jest.Mock).mock.calls[0][1]
+    // Minimal patch: no re-sent stale `parameters` snapshot; the server-side
+    // deep-merge preserves it.
+    expect(modelsPayload.generation_config.selected_configuration).toEqual({
+      models: ['claude-x'],
+      model_configs: expect.any(Object),
+    })
+    await act(async () => resolvers[0]({}))
+
+    await waitFor(() => expect(store.updateProject).toHaveBeenCalledTimes(2))
+    const defaultsPayload = (store.updateProject as jest.Mock).mock.calls[1][1]
+    expect(
+      defaultsPayload.generation_config.selected_configuration.parameters,
+    ).toBeDefined()
+    await act(async () => resolvers[1]({}))
+
+    await waitFor(() => {
+      expect(
+        screen.queryByTestId('card-save-project.generationConfiguration.title'),
+      ).not.toBeInTheDocument()
+    })
+  })
+
+  it('a failed models PATCH keeps the card editing and skips the defaults PATCH', async () => {
+    setModels([recommendedModel])
+    const store = setStore()
+    ;(store.updateProject as jest.Mock).mockRejectedValueOnce(new Error('models down'))
+    render(<ProjectDetailPage params={params()} />)
+    await screen.findByTestId('config-card-project.generationConfiguration.title')
+
+    fireEvent.click(screen.getByText('project.modelSelection.title'))
+    await act(async () => {
+      fireEvent.click(screen.getByLabelText('Claude X'))
+    })
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('card-save-project.generationConfiguration.title'))
+    })
+
+    await waitFor(() => {
+      expect(mockAddToast).toHaveBeenCalledWith(
+        'toasts.project.modelsSaveFailed:{"error":"models down"}',
+        'error',
+      )
+    })
+    expect(store.updateProject).toHaveBeenCalledTimes(1)
+    expect(
+      screen.getByTestId('card-save-project.generationConfiguration.title'),
+    ).toBeInTheDocument()
   })
 })
 

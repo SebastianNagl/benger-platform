@@ -529,16 +529,20 @@ describe('ProjectStore', () => {
       expect(state.labelConfigVersion).toBe(5)
     })
 
-    it('should handle update errors', async () => {
+    it('should rethrow update errors without toasting (callers own the toast)', async () => {
       mockProjectsAPI.update.mockRejectedValue(new Error('Update failed'))
 
       await act(async () => {
-        await useProjectStore.getState().updateProject('1', { title: 'New' })
+        await expect(
+          useProjectStore.getState().updateProject('1', { title: 'New' }),
+        ).rejects.toThrow('Update failed')
       })
 
       const state = useProjectStore.getState()
       expect(state.error).toBe('Update failed')
-      expect(mockToast.error).toHaveBeenCalledWith('Update failed')
+      // Issue #289: the store rethrows so card savers can keep their edit
+      // state; the specific error toast is the caller's responsibility.
+      expect(mockToast.error).not.toHaveBeenCalled()
     })
   })
 
@@ -608,6 +612,32 @@ describe('ProjectStore', () => {
       expect(mockProjectsAPI.update).toHaveBeenCalledWith('1', {
         is_archived: false,
       })
+    })
+
+    it('should swallow update failures and toast (no-throw contract)', async () => {
+      mockProjectsAPI.update.mockRejectedValue(new Error('Archive failed'))
+
+      // updateProject rethrows (issue #289), but archiveProject keeps its
+      // historical no-throw contract and surfaces the error itself.
+      await act(async () => {
+        await expect(
+          useProjectStore.getState().archiveProject('1'),
+        ).resolves.toBeUndefined()
+      })
+
+      expect(mockToast.error).toHaveBeenCalledWith('Archive failed')
+    })
+
+    it('should swallow non-Error unarchive failures with the fallback message', async () => {
+      mockProjectsAPI.update.mockRejectedValue('nope')
+
+      await act(async () => {
+        await expect(
+          (useProjectStore.getState() as any).unarchiveProject('1'),
+        ).resolves.toBeUndefined()
+      })
+
+      expect(mockToast.error).toHaveBeenCalledWith('store.project.updateFailed')
     })
   })
 

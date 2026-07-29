@@ -429,6 +429,35 @@ describe('BaseApiClient - additional uncovered paths', () => {
     })
   })
 
+  describe('PATCH invalidates related caches (issue #289)', () => {
+    it('clears project + evaluation-config GET caches after a project PATCH', async () => {
+      localStorageMock.getItem.mockReturnValue('user1')
+      client.seedCache('user1-GET-/projects/proj-1', { stale: true })
+      client.seedCache(
+        'user1-GET-/evaluations/projects/proj-1/evaluation-config',
+        { stale: true }
+      )
+      client.seedCache('user1-GET-/projects/other', { keep: true })
+      ;(global.fetch as jest.Mock).mockResolvedValueOnce(
+        jsonResponse(200, { id: 'proj-1' })
+      )
+
+      // PATCH is how updateProject persists; before issue #289 it never
+      // invalidated, leaving the evaluation-config GET warm for 30s after
+      // the eval-defaults PATCH mutated the stored doc server-side.
+      await client.testRequest('/projects/proj-1', { method: 'PATCH' })
+
+      expect(client.cacheHas('user1-GET-/projects/proj-1')).toBe(false)
+      expect(
+        client.cacheHas(
+          'user1-GET-/evaluations/projects/proj-1/evaluation-config'
+        )
+      ).toBe(false)
+      // Unrelated cache entry is preserved.
+      expect(client.cacheHas('user1-GET-/projects/other')).toBe(true)
+    })
+  })
+
   describe('invalidateCache pattern matching', () => {
     it('removes entries whose endpoint includes a string pattern', () => {
       client.seedCache('user1-GET-/organizations/123', { a: 1 })

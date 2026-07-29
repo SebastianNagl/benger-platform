@@ -375,7 +375,7 @@ export class BaseApiClient {
       // Handle 204 No Content responses
       if (response.status === 204) {
         // Invalidate related cache after successful mutations (204 is common for DELETE)
-        if (['POST', 'PUT', 'DELETE'].includes(method)) {
+        if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
           this.invalidateRelatedCache(endpoint)
           logger.debug(
             `Cache invalidated after ${method} to ${endpoint} (204 response)`
@@ -642,7 +642,7 @@ export class BaseApiClient {
       // Handle 204 No Content responses
       if (response.status === 204) {
         // Invalidate related cache after successful mutations (204 is common for DELETE)
-        if (['POST', 'PUT', 'DELETE'].includes(method)) {
+        if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
           this.invalidateRelatedCache(endpoint)
           logger.debug(
             `Cache invalidated after ${method} to ${endpoint} (204 response)`
@@ -703,7 +703,7 @@ export class BaseApiClient {
           }
 
           // Invalidate related cache after successful mutations
-          if (['POST', 'PUT', 'DELETE'].includes(method) && response.ok) {
+          if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method) && response.ok) {
             this.invalidateRelatedCache(endpoint)
             logger.debug(`Cache invalidated after ${method} to ${endpoint}`)
           }
@@ -734,7 +734,7 @@ export class BaseApiClient {
       }
 
       // Invalidate related cache after successful mutations
-      if (['POST', 'PUT', 'DELETE'].includes(method) && response.ok) {
+      if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method) && response.ok) {
         this.invalidateRelatedCache(endpoint)
         logger.debug(`Cache invalidated after ${method} to ${endpoint}`)
       }

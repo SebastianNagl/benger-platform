@@ -7294,6 +7294,7 @@
       "settingsSaveFailed": "Einstellungen konnten nicht gespeichert werden: {error}",
       "evaluationDefaultsSaveFailed": "Evaluierungs-Standardeinstellungen konnten nicht gespeichert werden: {error}",
       "generationDefaultsSaveFailed": "Generierungs-Standardeinstellungen konnten nicht gespeichert werden: {error}",
+      "evaluationConfigsSaveFailed": "Evaluierungsmethoden konnten nicht gespeichert werden: {error}",
       "evaluationFailed": "Evaluierung konnte nicht gestartet werden"
     },
     "projects": {

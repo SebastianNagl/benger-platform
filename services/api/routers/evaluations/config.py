@@ -23,6 +23,7 @@ from routers.projects.helpers import (
     check_project_accessible_async,
     get_org_context_from_request,
 )
+from utils.json_merge import deep_merge_dicts
 
 logger = logging.getLogger(__name__)
 
@@ -217,6 +218,13 @@ async def update_project_evaluation_config(
     Update evaluation configuration for a project.
 
     This endpoint is used to save the user's selection of which evaluation methods to run.
+
+    The body is deep-merged into the stored ``evaluation_config`` document
+    (same contract as ``PATCH /projects/{id}``): nested dicts merge
+    recursively, lists are replaced wholesale, explicit nulls delete keys.
+    Clients therefore send only the keys they own — e.g. the project page
+    sends ``{"evaluation_configs": [...]}`` — and sibling keys survive
+    (issue #289).
     """
     try:
         # Verify project exists
@@ -353,17 +361,24 @@ async def update_project_evaluation_config(
                             ),
                         )
 
-        # Update the evaluation config
+        # Deep-merge the body into the stored config — same contract as
+        # PATCH /projects/{id} (crud.py): nested dicts merge recursively,
+        # lists are replaced wholesale, explicit nulls delete keys. Lets
+        # callers send minimal bodies (e.g. only evaluation_configs) without
+        # clobbering sibling keys a concurrent eval-defaults PATCH wrote
+        # (issue #289 lost-update).
+        merged = deep_merge_dicts(project.evaluation_config or {}, config)
+
         # IMPORTANT: Include label_config_version to prevent unnecessary regeneration on GET
         # Without this, the GET endpoint will regenerate the config on every page reload,
         # losing the user's selected methods (Issue #794 follow-up)
-        config["label_config_version"] = project.label_config_version
-        project.evaluation_config = config
+        merged["label_config_version"] = project.label_config_version
+        project.evaluation_config = merged
 
         # Let extended derive any proprietary project fields (e.g. Korrektur)
         # from the new evaluation_configs. Hook is a no-op when extended is
-        # not loaded.
-        extensions.run_after_eval_config_save(db, project, config)
+        # not loaded. Receives the merged doc — the config as saved.
+        extensions.run_after_eval_config_save(db, project, merged)
 
         # CRITICAL: Mark JSONB column as modified for SQLAlchemy
         # Without this, SQLAlchemy won't detect the mutation and won't persist changes
@@ -374,7 +389,7 @@ async def update_project_evaluation_config(
         db.commit()
         db.refresh(project)
 
-        return {"message": "Evaluation configuration updated successfully", "config": config}
+        return {"message": "Evaluation configuration updated successfully", "config": merged}
 
     except HTTPException:
         raise

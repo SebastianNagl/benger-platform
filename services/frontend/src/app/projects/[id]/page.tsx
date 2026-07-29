@@ -177,6 +177,10 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   const [evaluationConfigs, setEvaluationConfigs] = useState<
     EvaluationConfig[]
   >([])
+  // Last-saved snapshot for the eval card's Cancel: configs are edited
+  // locally and persisted only on card save (issue #289), so Abbrechen
+  // must be able to restore the pre-edit list.
+  const savedEvalConfigsRef = useRef<EvaluationConfig[]>([])
   const [availableEvaluationFields, setAvailableEvaluationFields] =
     useState<AvailableEvaluationFields>({
       model_response_fields: [],
@@ -509,38 +513,41 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     fetchAvailableFields()
   }, [projectId])
 
-  // Save evaluation configs to project config when they change
+  // Persist the evaluation configs. Minimal body — the backend deep-merges
+  // into the stored document (lists replace wholesale), so sibling keys
+  // written by handleSaveEvalDefaults' PATCH survive without a
+  // read-modify-write here (issue #289: the old GET→PUT round-trip re-sent
+  // a 30s-cached snapshot of the whole doc and clobbered concurrent saves).
   const saveEvaluationConfigsToProject = async (
     evaluations: EvaluationConfig[]
   ) => {
     if (!projectId) return
 
     try {
-      // Get existing config first
-      const configResponse = await apiClient.get(
-        `/evaluations/projects/${projectId}/evaluation-config`
-      )
-      const existingConfig = configResponse || {}
-
-      // Update with evaluation configs
       await apiClient.put(
         `/evaluations/projects/${projectId}/evaluation-config`,
-        {
-          ...existingConfig,
-          evaluation_configs: evaluations,
-        }
+        { evaluation_configs: evaluations }
       )
     } catch (error) {
-      console.error('Failed to save evaluation config:', error)
+      const errorMessage =
+        error instanceof Error ? error.message : t('toasts.error.saveFailed')
+      addToast(
+        t('toasts.project.evaluationConfigsSaveFailed', { error: errorMessage }),
+        'error'
+      )
+      throw error
     }
   }
 
-  // Wrapper for onEvaluationsChange that also persists to backend
+  // Local state only — persistence happens on the card's Speichern
+  // (saveEvaluationCard). Auto-enter edit mode so the Save button surfaces,
+  // same UX guarantee as handleModelToggle; beginEditEvaluation runs first
+  // so its snapshot captures the pre-change list for Abbrechen.
   const handleEvaluationConfigsChange = (
     evaluations: EvaluationConfig[]
   ) => {
+    if (!cardEditing.evaluation) beginEditEvaluation()
     setEvaluationConfigs(evaluations)
-    saveEvaluationConfigsToProject(evaluations)
   }
 
   // Handle evaluation started callback (modal handles the API call)
@@ -849,6 +856,8 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
       const errorMessage =
         error instanceof Error ? error.message : t('toasts.error.updateFailed')
       addToast(t('toasts.project.instructionsUpdateFailed', { error: errorMessage }), 'error')
+      // Rethrow so saveAnnotationCard keeps the card in edit mode.
+      throw error
     } finally {
       setIsUpdating(false)
     }
@@ -1003,21 +1012,16 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
       logger.debug('[API CALL] Saving model IDs:', selectedModelIds)
       logger.debug('[API CALL] Saving model configs:', modelConfigs)
 
-      // Build a MINIMAL patch — only the fields this handler owns.
-      // The backend deep-merges at top level (see crud.py update_project),
-      // so unspecified keys (defaults_mode, runs_per_task, prompt_structures
-      // …) are preserved. Avoid spreading currentProject.generation_config
-      // here: a sibling save (handleSaveGenDefaults) running in parallel
-      // could see a stale snapshot if we did, racing-overwriting its
-      // newer defaults_mode/parameters write. Issue surfaced when the
-      // 3-mode picker was added — saves alternated between modes.
-      const existingSelectedConfig =
-        currentProject.generation_config?.selected_configuration || {}
-
+      // Minimal patch — only the fields this handler owns. The backend
+      // deep-merges (crud.py update_project), so unspecified keys inside
+      // selected_configuration (parameters, prompt structures, …) are
+      // preserved server-side. No spread of currentProject here: any
+      // snapshot of it is stale by definition and re-sending it resurrects
+      // old sibling values (issue #289: a re-sent stale `parameters`
+      // clobbered handleSaveGenDefaults' write).
       await updateProject(projectId, {
         generation_config: {
           selected_configuration: {
-            ...existingSelectedConfig,
             models: selectedModelIds,
             model_configs: modelConfigs,
           },
@@ -1064,6 +1068,9 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
           ? error.message
           : t('toasts.error.saveFailed')
       addToast(t('toasts.project.modelsSaveFailed', { error: errorMessage }), 'error')
+      // Rethrow so saveGenerationCard skips the defaults PATCH and keeps
+      // the card in edit mode.
+      throw error
     } finally {
       setIsUpdatingModels(false)
       // Reset the flag after a longer delay to ensure state updates complete
@@ -1089,10 +1096,10 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
 
     try {
       // Minimal patch — only the eval-defaults fields this handler owns.
-      // Backend deep-merges at top level so siblings (evaluation_configs,
-      // immediate_evaluation_enabled, …) survive when other handlers in
-      // the saveEvaluationCard Promise.all race write them concurrently.
-      // Same fix as handleSaveModels / handleSaveGenDefaults.
+      // PATCH /projects deep-merges server-side (crud.py), so sibling keys
+      // in evaluation_config (evaluation_configs, selected_methods, …)
+      // survive. Card saves are sequenced (saveEvaluationCard), so no two
+      // writers of this JSONB column are ever in flight together.
       await updateProject(projectId, {
         evaluation_config: {
           default_temperature: evalDefaultTemperature,
@@ -1115,6 +1122,9 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
           ? error.message
           : t('toasts.error.saveFailed')
       addToast(t('toasts.project.evaluationDefaultsSaveFailed', { error: errorMessage }), 'error')
+      // Rethrow so saveEvaluationCard aborts the sequence and keeps the
+      // card in edit mode.
+      throw error
     } finally {
       setIsUpdatingEvalDefaults(false)
     }
@@ -1126,13 +1136,11 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     setIsUpdatingGenDefaults(true)
 
     try {
-      // Minimal patch — only fields this handler owns. Backend deep-merges
-      // at the top level so siblings (e.g. selected_configuration.models
-      // from handleSaveModels) survive. Critical when both handlers fire
-      // in parallel from saveGenerationCard.
-      const existingParams =
-        currentProject.generation_config?.selected_configuration?.parameters || {}
-
+      // Minimal patch — only fields this handler owns. PATCH /projects
+      // deep-merges server-side (crud.py), so sibling keys (e.g.
+      // selected_configuration.models from handleSaveModels) and any other
+      // parameters keys survive without re-sending a stale snapshot of
+      // currentProject (issue #289).
       await updateProject(projectId, {
         generation_config: {
           // 3-mode picker for per-model pre-fill; see DefaultsMode type.
@@ -1145,7 +1153,6 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
             : {}),
           selected_configuration: {
             parameters: {
-              ...existingParams,
               temperature: genDefaultTemperature,
               max_tokens: genDefaultMaxTokens,
             },
@@ -1162,6 +1169,8 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
           ? error.message
           : t('toasts.error.saveFailed')
       addToast(t('toasts.project.generationDefaultsSaveFailed', { error: errorMessage }), 'error')
+      // Rethrow so saveGenerationCard keeps the card in edit mode.
+      throw error
     } finally {
       setIsUpdatingGenDefaults(false)
     }
@@ -1187,6 +1196,8 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
           ? error.message
           : t('toasts.error.saveFailed')
       addToast(t('toasts.project.settingsSaveFailed', { error: errorMessage }), 'error')
+      // Rethrow so saveAnnotationCard keeps the card in edit mode.
+      throw error
     } finally {
       setIsUpdating(false)
     }
@@ -1237,6 +1248,10 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
       ])
       setCardEditing((p) => ({ ...p, annotation: false }))
       setShowConfigEditor(false)
+    } catch {
+      // Legs toast their own errors; keep the card in edit mode so a failed
+      // save never looks saved, and swallow so ConfigCard's `void onSave`
+      // doesn't surface an unhandled rejection.
     } finally {
       setCardSaving((p) => ({ ...p, annotation: false }))
     }
@@ -1250,8 +1265,18 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   const saveGenerationCard = async () => {
     setCardSaving((p) => ({ ...p, generation: true }))
     try {
-      await Promise.all([handleSaveModels(), handleSaveGenDefaults()])
+      // Sequential on purpose: both handlers PATCH the same
+      // generation_config JSONB column, and the server merges via an
+      // unlocked read-merge-write — two in-flight PATCHes let the later
+      // commit resurrect the earlier one's stale keys (issue #289: a newly
+      // ticked model vanished ~1s after saving).
+      await handleSaveModels()
+      await handleSaveGenDefaults()
       setCardEditing((p) => ({ ...p, generation: false }))
+    } catch {
+      // Legs toast their own errors; keep the card in edit mode so a failed
+      // save never looks saved, and swallow so ConfigCard's `void onSave`
+      // doesn't surface an unhandled rejection.
     } finally {
       setCardSaving((p) => ({ ...p, generation: false }))
     }
@@ -1260,15 +1285,23 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   // Eval card hosts immediate_evaluation_enabled (now in its own evaluationSettings
   // buffer, decoupled from advancedSettings) plus the eval-defaults form. Card-edit
   // flips only cardEditing.evaluation; save PATCHes the buffer + eval defaults.
-  const beginEditEvaluation = () => setCardEditing((p) => ({ ...p, evaluation: true }))
+  const beginEditEvaluation = () => {
+    // Snapshot the config list so Abbrechen can restore it — builder edits
+    // stay local until the card's Speichern persists them (issue #289).
+    savedEvalConfigsRef.current = evaluationConfigs
+    setCardEditing((p) => ({ ...p, evaluation: true }))
+  }
   const cancelEditEvaluation = () => {
     setEvaluationSettings({
       immediate_evaluation_enabled:
         (currentProject as any)?.immediate_evaluation_enabled || false,
     })
+    setEvaluationConfigs(savedEvalConfigsRef.current)
     // Also revert the blind toggles to whatever the saved config has, so
     // discarding the eval card resets *all* of its buffered fields.
-    const fk = evaluationConfigs.find((c: any) => c.metric === 'korrektur_falloesung')
+    const fk = savedEvalConfigsRef.current.find(
+      (c: any) => c.metric === 'korrektur_falloesung',
+    )
     const mp = fk?.metric_parameters || {}
     setKorrekturBlindToPeers(mp.blind_to_peer_correctors !== false)
     setKorrekturBlindToLlm(mp.blind_to_llm_judge !== false)
@@ -1303,12 +1336,29 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
         configsToSave = next
         setEvaluationConfigs(next)
       }
-      await Promise.all([
-        handleSaveEvalDefaults(),
-        updateProject(projectId, evaluationSettings),
-        fkIdx >= 0 ? saveEvaluationConfigsToProject(configsToSave) : Promise.resolve(),
-      ])
+      // Sequential on purpose: the defaults PATCH and the configs PUT both
+      // write the evaluation_config JSONB column via unlocked server-side
+      // read-merge-writes, so overlapping requests can resurrect each
+      // other's stale keys (issue #289: first Save appeared to succeed but
+      // the backend kept the old value). The settings PATCH goes first so
+      // the store's currentProject updates don't interleave either.
+      try {
+        await updateProject(projectId, evaluationSettings)
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : t('toasts.error.saveFailed')
+        addToast(t('toasts.project.settingsSaveFailed', { error: errorMessage }), 'error')
+        throw error
+      }
+      await handleSaveEvalDefaults()
+      await saveEvaluationConfigsToProject(configsToSave)
+      // The saved list is the new Abbrechen baseline.
+      savedEvalConfigsRef.current = configsToSave
       setCardEditing((p) => ({ ...p, evaluation: false }))
+    } catch {
+      // Legs toast their own errors; keep the card in edit mode so a failed
+      // save never looks saved, and swallow so ConfigCard's `void onSave`
+      // doesn't surface an unhandled rejection.
     } finally {
       setCardSaving((p) => ({ ...p, evaluation: false }))
     }
