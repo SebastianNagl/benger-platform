@@ -7237,6 +7237,7 @@
       "settingsSaveFailed": "Failed to save settings: {error}",
       "evaluationDefaultsSaveFailed": "Failed to save evaluation defaults: {error}",
       "generationDefaultsSaveFailed": "Failed to save generation defaults: {error}",
+      "evaluationConfigsSaveFailed": "Failed to save evaluation methods: {error}",
       "evaluationFailed": "Failed to start evaluation"
     },
     "projects": {

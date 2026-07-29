@@ -13,6 +13,14 @@ import { toast } from '@/components/shared/Toast'
 import { create } from 'zustand'
 import { devtools } from 'zustand/middleware'
 
+// updateProject rethrows (issue #289) so page-level savers can hold their
+// edit state; wrappers that keep a no-throw contract surface the error here.
+const toastUpdateFailure = (error: unknown) => {
+  const message =
+    error instanceof Error ? error.message : t('store.project.updateFailed')
+  toast(message, 'error')
+}
+
 interface ProjectStore {
   // State
   projects: Project[]
@@ -273,7 +281,10 @@ export const useProjectStore = create<ProjectStore>()(
           const message =
             error instanceof Error ? error.message : t('store.project.updateFailed')
           set({ error: message, loading: false })
-          toast(message, 'error')
+          // No toast here — callers own the specific error message. Rethrow so
+          // card savers can keep their edit state on failure (issue #289);
+          // matches the createProject contract above.
+          throw error
         }
       },
 
@@ -283,11 +294,21 @@ export const useProjectStore = create<ProjectStore>()(
       },
 
       archiveProject: async (projectId: string) => {
-        await get().updateProject(projectId, { is_archived: true })
+        try {
+          await get().updateProject(projectId, { is_archived: true })
+        } catch (error) {
+          // updateProject rethrows but leaves toasting to callers; these
+          // wrappers keep their historical no-throw contract and toast here.
+          toastUpdateFailure(error)
+        }
       },
 
       unarchiveProject: async (projectId: string) => {
-        await get().updateProject(projectId, { is_archived: false })
+        try {
+          await get().updateProject(projectId, { is_archived: false })
+        } catch (error) {
+          toastUpdateFailure(error)
+        }
       },
 
       deleteProject: async (projectId: string) => {

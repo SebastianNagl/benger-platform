@@ -186,18 +186,23 @@ describe('projectStore br7', () => {
       expect(useProjectStore.getState().currentProject?.id).toBe('p2')
     })
 
-    it('handles updateProject error', async () => {
+    it('handles updateProject error: sets state and rethrows', async () => {
       api.update.mockRejectedValue(new Error('Update failed'))
 
-      await useProjectStore.getState().updateProject('p1', { title: 'x' })
+      // Issue #289: rethrown so callers (card savers) can react to failure.
+      await expect(
+        useProjectStore.getState().updateProject('p1', { title: 'x' }),
+      ).rejects.toThrow('Update failed')
 
       expect(useProjectStore.getState().error).toBe('Update failed')
     })
 
-    it('handles updateProject non-Error', async () => {
+    it('handles updateProject non-Error: sets fallback message and rethrows', async () => {
       api.update.mockRejectedValue(42)
 
-      await useProjectStore.getState().updateProject('p1', { title: 'x' })
+      await expect(
+        useProjectStore.getState().updateProject('p1', { title: 'x' }),
+      ).rejects.toBe(42)
 
       expect(useProjectStore.getState().error).toBe('store.project.updateFailed')
     })

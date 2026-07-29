@@ -37,6 +37,9 @@ from routers.projects.helpers import (
     get_org_membership_role_async,
     get_user_with_memberships_async,
 )
+# Module-level so `from routers.projects.crud import deep_merge_dicts` keeps
+# working for existing importers (tests) after the local copy was removed.
+from utils.json_merge import deep_merge_dicts
 
 logger = logging.getLogger(__name__)
 
@@ -101,43 +104,6 @@ def _calculate_generation_stats_batch_sync(projects):
         return calculate_generation_stats_batch(sync_db, projects)
     finally:
         sync_db.close()
-
-
-def deep_merge_dicts(
-    base: Optional[Dict[str, Any]], update: Optional[Dict[str, Any]]
-) -> Dict[str, Any]:
-    """
-    Deep merge two dictionaries, preserving nested structures.
-
-    Issue #818: Prevent generation_config updates from overwriting unrelated fields
-
-    Merging rules:
-    - Nested dicts are merged recursively
-    - Lists are replaced (not concatenated)
-    - None values in update remove the key from base
-    - If base or update is None/empty, handles gracefully
-    """
-    # Handle None/empty cases
-    if base is None or base == {}:
-        return update.copy() if update else {}
-    if update is None or update == {}:
-        return base.copy()
-
-    # Create a copy to avoid modifying the input
-    result = base.copy()
-
-    for key, value in update.items():
-        if value is None:
-            # None values remove the key
-            result.pop(key, None)
-        elif key in result and isinstance(result[key], dict) and isinstance(value, dict):
-            # Recursively merge nested dicts
-            result[key] = deep_merge_dicts(result[key], value)
-        else:
-            # Replace value (includes primitives, lists, and new keys)
-            result[key] = value
-
-    return result
 
 
 # XSS Prevention (Issue #798):
