@@ -750,8 +750,22 @@ async def get_project_results_by_task_model(
             .where(TaskEvaluation.evaluation_id.in_(completed_eval_ids))
         )
         if latest_gen_ids_subq is not None:
-            gen_query = gen_query.where(
-                TaskEvaluation.generation_id.in_(select(latest_gen_ids_subq.c.gen_id))
+            # JOIN, not `generation_id IN (subquery)`. As an IN-subquery the
+            # planner re-scanned the latest-gen set once per candidate row
+            # (`CTE/Subquery Scan ... loops=11523`) and fell back to a nested
+            # loop that fetched ~7 task_evaluations per generation only to
+            # discard 6 — ~50k block reads on a 2.8 GB table. On ZJS Fälle
+            # (581 tasks, 10.4k latest gens, 181k task_evaluations) that ran
+            # 10.2 s against the async engine's 15 s statement_timeout, so the
+            # results grid 500'd as soon as the cache was cold.
+            # The join is semantically identical: latest_gen_ids_subq yields
+            # DISTINCT gen_ids (row_number()=1 per (task_id, model_id)
+            # partition, and id is the PK), so it cannot duplicate rows.
+            # Measured on prod: 10185 ms -> 2645 ms, byte-identical output
+            # across all 10449 rows.
+            gen_query = gen_query.join(
+                latest_gen_ids_subq,
+                latest_gen_ids_subq.c.gen_id == TaskEvaluation.generation_id,
             )
         # When a single EvaluationRun bundles multiple metrics, every metric
         # produces its own row for the same (gen, model) cell. The aggregation
@@ -833,8 +847,15 @@ async def get_project_results_by_task_model(
             )
         )
         if latest_ann_ids_subq is not None:
-            ann_query = ann_query.where(
-                TE2.annotation_id.in_(select(latest_ann_ids_subq.c.ann_id))
+            # Same IN-subquery -> JOIN rewrite as the generation branch above,
+            # for the same reason. Not yet the bottleneck on generation-heavy
+            # projects, but this is the identical shape in the same endpoint,
+            # so an annotation-heavy project hits it on the same cliff.
+            # latest_ann_ids_subq is likewise DISTINCT (row_number()=1 per
+            # (task_id, completed_by), id is the PK), so no row duplication.
+            ann_query = ann_query.join(
+                latest_ann_ids_subq,
+                latest_ann_ids_subq.c.ann_id == TE2.annotation_id,
             )
         if metric:
             from sqlalchemy import cast as _cast
