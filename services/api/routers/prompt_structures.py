@@ -47,8 +47,14 @@ def validate_structure_key(key: str) -> None:
 async def get_project_or_403(
     project_id: str, current_user: User, db: AsyncSession, org_context: Optional[str] = None
 ) -> Project:
-    """Get project and verify user has edit permissions"""
-    result = await db.execute(select(Project).where(Project.id == project_id))
+    """Get project and verify user has edit permissions.
+
+    Every caller mutates generation_config, so the row is loaded FOR UPDATE to
+    serialize concurrent read-merge-writes on the JSONB column (issue #291).
+    """
+    result = await db.execute(
+        select(Project).where(Project.id == project_id).with_for_update()
+    )
     project = result.scalar_one_or_none()
 
     if not project:

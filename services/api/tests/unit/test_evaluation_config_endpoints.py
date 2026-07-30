@@ -36,7 +36,9 @@ class TestEvaluationConfigEndpoints:
         from auth_module.service import db_user_to_user
         mock_user.return_value = db_user_to_user(superadmin)
         mock_session = MagicMock()
-        mock_session.query.return_value.filter.return_value.first.return_value = None
+        mock_filtered = mock_session.query.return_value.filter.return_value
+        mock_filtered.with_for_update.return_value = mock_filtered
+        mock_filtered.first.return_value = None
         mock_db.return_value = mock_session
         response = client.get("/api/projects/nonexistent/evaluation-config")
         assert response.status_code == 404
@@ -48,7 +50,9 @@ class TestEvaluationConfigEndpoints:
         from auth_module.service import db_user_to_user
         mock_user.return_value = db_user_to_user(superadmin)
         mock_session = MagicMock()
-        mock_session.query.return_value.filter.return_value.first.return_value = None
+        mock_filtered = mock_session.query.return_value.filter.return_value
+        mock_filtered.with_for_update.return_value = mock_filtered
+        mock_filtered.first.return_value = None
         mock_db.return_value = mock_session
         response = client.put("/api/projects/nonexistent/evaluation-config", json={})
         assert response.status_code == 404
@@ -60,7 +64,9 @@ class TestEvaluationConfigEndpoints:
         from auth_module.service import db_user_to_user
         mock_user.return_value = db_user_to_user(superadmin)
         mock_session = MagicMock()
-        mock_session.query.return_value.filter.return_value.first.return_value = None
+        mock_filtered = mock_session.query.return_value.filter.return_value
+        mock_filtered.with_for_update.return_value = mock_filtered
+        mock_filtered.first.return_value = None
         mock_db.return_value = mock_session
         response = client.get("/api/projects/nonexistent/detect-answer-types")
         assert response.status_code == 404
@@ -72,7 +78,9 @@ class TestEvaluationConfigEndpoints:
         from auth_module.service import db_user_to_user
         mock_user.return_value = db_user_to_user(superadmin)
         mock_session = MagicMock()
-        mock_session.query.return_value.filter.return_value.first.return_value = None
+        mock_filtered = mock_session.query.return_value.filter.return_value
+        mock_filtered.with_for_update.return_value = mock_filtered
+        mock_filtered.first.return_value = None
         mock_db.return_value = mock_session
         response = client.get("/api/projects/nonexistent/field-types")
         assert response.status_code == 404

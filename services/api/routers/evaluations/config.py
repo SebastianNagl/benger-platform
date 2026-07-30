@@ -28,6 +28,44 @@ from utils.json_merge import deep_merge_dicts
 logger = logging.getLogger(__name__)
 
 
+def _stored_config_version(project: Project):
+    return (
+        project.evaluation_config.get("label_config_version")
+        if project.evaluation_config
+        else None
+    )
+
+
+def _needs_version_stamp(project: Project, force_regenerate: bool) -> bool:
+    """Old config predates version tracking — stamp it without regenerating."""
+    return bool(
+        project.evaluation_config
+        and not force_regenerate
+        and _stored_config_version(project) is None
+        and project.label_config_version
+    )
+
+
+def _needs_regeneration(project: Project, force_regenerate: bool) -> bool:
+    """Config missing, regeneration forced, or label config actually changed."""
+    stored_version = _stored_config_version(project)
+    return bool(
+        not project.evaluation_config
+        or force_regenerate
+        or (
+            project.label_config_version
+            and stored_version is not None
+            and stored_version != project.label_config_version
+        )
+    )
+
+
+def _needs_lazy_migration(project: Project) -> bool:
+    """Legacy per-field config without the newer evaluation_configs list."""
+    config = project.evaluation_config
+    return bool(config and config.get("selected_methods") and not config.get("evaluation_configs"))
+
+
 def _derive_evaluation_configs_from_selected_methods(
     selected_methods: Dict[str, Any],
 ) -> List[Dict[str, Any]]:
@@ -124,41 +162,34 @@ async def get_project_evaluation_config(
                 detail="You don't have permission to view evaluation config for this project",
             )
 
-        # Check if evaluation config exists or needs regeneration
-        # Regenerate if:
-        # 1. Config doesn't exist, OR
-        # 2. Force regenerate requested, OR
-        # 3. Label config version has ACTUALLY changed (not just missing from old config)
-        existing_config_version = (
-            project.evaluation_config.get("label_config_version")
-            if project.evaluation_config
-            else None
-        )
-        needs_regeneration = (
-            not project.evaluation_config
-            or force_regenerate
-            or (
-                project.label_config_version
-                and existing_config_version is not None
-                and existing_config_version != project.label_config_version
+        # This GET has three derivation-write paths (version stamp,
+        # regeneration, lazy migration). The hot read path stays lock-free;
+        # when any write may be needed, the row is re-read FOR UPDATE and the
+        # conditions re-checked on the refreshed state, so these writes can't
+        # clobber a concurrent config PUT/PATCH (issue #291).
+        if (
+            _needs_version_stamp(project, force_regenerate)
+            or _needs_regeneration(project, force_regenerate)
+            or _needs_lazy_migration(project)
+        ):
+            locked = await db.execute(
+                select(Project)
+                .where(Project.id == project_id)
+                .with_for_update()
+                .execution_options(populate_existing=True)
             )
-        )
+            project = locked.scalar_one()
+
+        from sqlalchemy.orm.attributes import flag_modified
 
         # If old config has no label_config_version, stamp it without regenerating
         # This preserves user selections from configs created before version tracking
-        if (
-            project.evaluation_config
-            and not force_regenerate
-            and existing_config_version is None
-            and project.label_config_version
-        ):
-            from sqlalchemy.orm.attributes import flag_modified
-
+        if _needs_version_stamp(project, force_regenerate):
             project.evaluation_config["label_config_version"] = project.label_config_version
             flag_modified(project, "evaluation_config")
             await db.commit()
 
-        if needs_regeneration:
+        if _needs_regeneration(project, force_regenerate):
             # Generate config based on label_config or return empty structure
             if project.label_config:
                 # Preserve existing selected methods if regenerating
@@ -186,9 +217,7 @@ async def get_project_evaluation_config(
         # Lazy migration: derive evaluation_configs from selected_methods
         # for legacy projects that only have the older per-field config format
         config = project.evaluation_config
-        if config and config.get("selected_methods") and not config.get("evaluation_configs"):
-            from sqlalchemy.orm.attributes import flag_modified
-
+        if _needs_lazy_migration(project):
             derived = _derive_evaluation_configs_from_selected_methods(config["selected_methods"])
             if derived:
                 config["evaluation_configs"] = derived
@@ -227,8 +256,10 @@ async def update_project_evaluation_config(
     (issue #289).
     """
     try:
-        # Verify project exists
-        project = db.query(Project).filter(Project.id == project_id).first()
+        # Verify project exists. FOR UPDATE: the deep-merge below is a
+        # read-merge-write on the JSONB column; the row lock serializes
+        # concurrent writers (issue #291)
+        project = db.query(Project).filter(Project.id == project_id).with_for_update().first()
         if not project:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,

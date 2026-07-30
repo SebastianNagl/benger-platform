@@ -97,6 +97,7 @@ def _mock_db():
     mock_db = Mock(spec=Session)
     mock_q = MagicMock()
     mock_q.filter.return_value = mock_q
+    mock_q.with_for_update.return_value = mock_q
     mock_q.first.return_value = None
     mock_q.all.return_value = []
     mock_db.query.return_value = mock_q
@@ -276,6 +277,7 @@ class TestUpdateProjectEvaluationConfig:
 
         mock_q = MagicMock()
         mock_q.filter.return_value = mock_q
+        mock_q.with_for_update.return_value = mock_q
         mock_q.first.return_value = project
         mock_db.query.return_value = mock_q
 
@@ -302,6 +304,7 @@ class TestUpdateProjectEvaluationConfig:
 
         mock_q = MagicMock()
         mock_q.filter.return_value = mock_q
+        mock_q.with_for_update.return_value = mock_q
         mock_q.first.return_value = project
         mock_db.query.return_value = mock_q
 
@@ -331,6 +334,7 @@ class TestUpdateProjectEvaluationConfig:
 
         mock_q = MagicMock()
         mock_q.filter.return_value = mock_q
+        mock_q.with_for_update.return_value = mock_q
         mock_q.first.return_value = project
         mock_db.query.return_value = mock_q
 
@@ -370,6 +374,7 @@ class TestUpdateProjectEvaluationConfig:
 
         mock_q = MagicMock()
         mock_q.filter.return_value = mock_q
+        mock_q.with_for_update.return_value = mock_q
         mock_q.first.return_value = project
         mock_db.query.return_value = mock_q
 
