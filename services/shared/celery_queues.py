@@ -65,11 +65,12 @@ BULK = "bulk"
 
 QUEUES = (INTERACTIVE, EMAILS, MAINTENANCE, GENERATION, EVALUATION, BULK)
 
-# Retired queue names, kept ONLY so the pools can drain messages that were
-# published before the routing deploy. Removed in the follow-up cleanup PR once
-# `LLEN celery` / `LLEN default` are 0 in both namespaces. See the rollout notes
-# in values.yaml.
-LEGACY_QUEUES = ("celery", "default")
+# Retired queue names kept as consumers only while their Redis lists drain.
+# The pool-split names ("celery", "default") were dropped 2026-07-30 after
+# `LLEN` reached 0 in both namespaces (issue #286). Repopulate this tuple when
+# the next queue retirement needs a drain window — the pool checker and tests
+# handle it generically.
+LEGACY_QUEUES: tuple[str, ...] = ()
 
 # Where a task with no declared queue lands. Deliberately `maintenance` and NOT
 # `interactive`: an unrouted task should be slow-and-visible, never a black hole
