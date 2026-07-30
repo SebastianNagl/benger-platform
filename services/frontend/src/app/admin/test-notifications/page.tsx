@@ -13,7 +13,7 @@ import {
   InformationCircleIcon,
   UserPlusIcon,
 } from '@heroicons/react/24/outline'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useToast } from '@/components/shared/Toast'
 
 interface TestNotificationType {
@@ -31,6 +31,15 @@ export default function TestNotificationsPage() {
   const { t } = useI18n()
   const { addToast } = useToast()
   const [loading, setLoading] = useState<string | null>(null)
+  // The generate-all fallback loop sleeps between requests and can outlive
+  // the page; stop it on unmount so no requests/toasts fire afterwards
+  const mountedRef = useRef(true)
+  useEffect(() => {
+    mountedRef.current = true
+    return () => {
+      mountedRef.current = false
+    }
+  }, [])
 
   if (!user?.is_superadmin) {
     return (
@@ -188,6 +197,7 @@ export default function TestNotificationsPage() {
         // Fallback: Generate one of each type with a small delay between them
         let successCount = 0
         for (const notificationType of testNotificationTypes) {
+          if (!mountedRef.current) return
           try {
             await api.notifications.createTestNotification({
               type: notificationType.type,

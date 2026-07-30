@@ -8499,6 +8499,7 @@
       "baseUrlRequired": "Bitte gib eine Basis-URL ein",
       "baseUrlInvalid": "Bitte gib eine gültige http(s)-URL ein",
       "httpWarning": "Unverschlüsselte http://-Verbindung – dein API-Schlüssel und alle Daten werden im Klartext übertragen.",
+      "httpKeyWarning": "Dieses Modell erfordert einen API-Schlüssel: über http:// wird der Schlüssel bei jeder Anfrage im Klartext übertragen. Nutze https:// oder deaktiviere die API-Schlüssel-Pflicht für Endpunkte im privaten Netz.",
       "endpointModelName": "Modellname am Endpunkt",
       "endpointModelNameHelp": "Der Modellname, den der Endpunkt im Feld \"model\" erwartet",
       "endpointModelNameRequired": "Bitte gib den Modellnamen am Endpunkt ein",

@@ -377,3 +377,161 @@ class TestPromptStructureEndpoints:
         assert "s1" in list_resp.json()
         assert get_resp.status_code == status.HTTP_200_OK
         assert get_resp.json()["key"] == "s1"
+
+
+class TestNormalizePromptStructures:
+    """Test _normalize_prompt_structures (pure) — issue #292."""
+
+    def test_dict_passthrough(self):
+        from routers.prompt_structures import _normalize_prompt_structures
+
+        value = {"s1": {"name": "S1"}}
+        assert _normalize_prompt_structures(value) is value
+
+    def test_list_keyed_by_key_then_name_then_index(self):
+        from routers.prompt_structures import _normalize_prompt_structures
+
+        result = _normalize_prompt_structures(
+            [
+                {"key": "k1", "name": "First", "system_prompt": "s"},
+                {"name": "Second", "system_prompt": "s"},
+                {"system_prompt": "s"},
+            ]
+        )
+        assert set(result) == {"k1", "Second", "2"}
+        # the key field is lifted out of the entry, not duplicated inside it
+        assert "key" not in result["k1"]
+
+    def test_non_dict_entries_dropped(self):
+        from routers.prompt_structures import _normalize_prompt_structures
+
+        result = _normalize_prompt_structures(["garbage", {"name": "ok"}])
+        assert set(result) == {"ok"}
+
+    def test_scalar_becomes_empty_dict(self):
+        from routers.prompt_structures import _normalize_prompt_structures
+
+        assert _normalize_prompt_structures(None) == {}
+        assert _normalize_prompt_structures("oops") == {}
+
+    def test_ensure_normalizes_list_shape(self):
+        from routers.prompt_structures import ensure_generation_config_structure
+
+        project = Mock()
+        project.generation_config = {
+            "prompt_structures": [{"name": "default", "template": "t"}]
+        }
+        ensure_generation_config_structure(project)
+        assert isinstance(project.generation_config["prompt_structures"], dict)
+
+
+class TestListShapedPromptStructures:
+    """Regression tests for issue #292 — list-shaped legacy data must not 500."""
+
+    @pytest.mark.asyncio
+    async def test_list_endpoint_with_legacy_list_shape(
+        self, async_test_client, async_test_db
+    ):
+        creator = await _make_user(async_test_db, is_superadmin=True)
+        # Exact shape observed in the reproduction project: entries carry
+        # legacy fields and do not match PromptStructureBase at all.
+        project = await _make_project(
+            async_test_db,
+            creator,
+            generation_config={
+                "prompt_structures": [
+                    {
+                        "name": "default",
+                        "template": "Answer the following: {{text}}",
+                        "is_active": True,
+                    }
+                ]
+            },
+        )
+        await async_test_db.commit()
+
+        with _as_user(creator):
+            response = await async_test_client.get(
+                f"{BASE}/{project.id}/generation-config/structures"
+            )
+        # 200 with the unmappable legacy entry skipped — never a 500
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json() == {}
+
+    @pytest.mark.asyncio
+    async def test_list_endpoint_with_valid_list_entries(
+        self, async_test_client, async_test_db
+    ):
+        creator = await _make_user(async_test_db, is_superadmin=True)
+        project = await _make_project(
+            async_test_db,
+            creator,
+            generation_config={
+                "prompt_structures": [
+                    {
+                        "key": "s1",
+                        "name": "S1",
+                        "system_prompt": "sys",
+                        "instruction_prompt": "inst",
+                    }
+                ]
+            },
+        )
+        await async_test_db.commit()
+
+        with _as_user(creator):
+            response = await async_test_client.get(
+                f"{BASE}/{project.id}/generation-config/structures"
+            )
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data["s1"]["name"] == "S1"
+        assert data["s1"]["key"] == "s1"
+
+    @pytest.mark.asyncio
+    async def test_list_endpoint_skips_invalid_dict_entry(
+        self, async_test_client, async_test_db
+    ):
+        creator = await _make_user(async_test_db, is_superadmin=True)
+        project = await _make_project(
+            async_test_db,
+            creator,
+            generation_config={
+                "prompt_structures": {
+                    "good": {
+                        "name": "Good",
+                        "system_prompt": "sys",
+                        "instruction_prompt": "inst",
+                    },
+                    "bad": {"template": "legacy-only fields"},
+                }
+            },
+        )
+        await async_test_db.commit()
+
+        with _as_user(creator):
+            response = await async_test_client.get(
+                f"{BASE}/{project.id}/generation-config/structures"
+            )
+        assert response.status_code == status.HTTP_200_OK
+        assert set(response.json()) == {"good"}
+
+    @pytest.mark.asyncio
+    async def test_get_structure_malformed_entry_is_404(
+        self, async_test_client, async_test_db
+    ):
+        creator = await _make_user(async_test_db, is_superadmin=True)
+        project = await _make_project(
+            async_test_db,
+            creator,
+            generation_config={
+                "prompt_structures": {"bad": {"template": "legacy-only fields"}}
+            },
+        )
+        await async_test_db.commit()
+
+        with _as_user(creator):
+            response = await async_test_client.get(
+                f"{BASE}/{project.id}/generation-config/structures/bad"
+            )
+        assert response.status_code == status.HTTP_404_NOT_FOUND

@@ -199,6 +199,10 @@ export function CustomModelFormModal({
     !!parsedUrl &&
     parsedUrl.protocol === 'http:' &&
     !['localhost', '127.0.0.1'].includes(parsedUrl.hostname)
+  // Escalated: with an API key required, every request ships the bearer in
+  // plain text over http (issue #274 item 2 — policy: warn, don't block,
+  // private-network endpoints are a legitimate BYOM use case)
+  const showHttpKeyWarning = showHttpWarning && form.requires_api_key
 
   const validate = (): boolean => {
     const next: Partial<Record<keyof FormState, string>> = {}
@@ -527,6 +531,14 @@ export function CustomModelFormModal({
                       data-testid="custom-model-http-warning"
                     >
                       {t('customModels.form.httpWarning')}
+                    </p>
+                  )}
+                  {showHttpKeyWarning && (
+                    <p
+                      className="mt-1 text-sm font-medium text-red-600 dark:text-red-400"
+                      data-testid="custom-model-http-key-warning"
+                    >
+                      {t('customModels.form.httpKeyWarning')}
                     </p>
                   )}
                 </div>

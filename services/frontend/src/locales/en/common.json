@@ -8509,6 +8509,7 @@
       "baseUrlRequired": "Please enter a base URL",
       "baseUrlInvalid": "Please enter a valid http(s) URL",
       "httpWarning": "Unencrypted http:// connection – your API key and all data will be transmitted in plain text.",
+      "httpKeyWarning": "This model requires an API key: over http:// the key is sent in plain text with every request. Use https://, or turn off the API key requirement for endpoints in a private network.",
       "endpointModelName": "Model name at the endpoint",
       "endpointModelNameHelp": "The model name the endpoint expects in the \"model\" field",
       "endpointModelNameRequired": "Please enter the model name used by the endpoint",

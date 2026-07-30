@@ -162,6 +162,50 @@ describe('CustomModelFormModal', () => {
       ).toBeInTheDocument()
     })
 
+    it('escalates the http warning when an API key is required', async () => {
+      const user = userEvent.setup()
+      render(<CustomModelFormModal isOpen onClose={mockOnClose} />)
+
+      await user.type(
+        screen.getByTestId('custom-model-base-url-input'),
+        'http://myserver.example.com/v1'
+      )
+
+      // requires_api_key defaults to true → the bearer-in-plaintext warning
+      // shows (issue #274 item 2: warn, don't block)
+      expect(
+        screen.getByTestId('custom-model-http-key-warning')
+      ).toBeInTheDocument()
+
+      // Turning the key requirement off drops the escalated warning but
+      // keeps the generic http one
+      const toggle = screen
+        .getByTestId('custom-model-requires-key-toggle')
+        .querySelector('button')
+      await user.click(toggle!)
+
+      expect(
+        screen.queryByTestId('custom-model-http-key-warning')
+      ).not.toBeInTheDocument()
+      expect(
+        screen.getByTestId('custom-model-http-warning')
+      ).toBeInTheDocument()
+    })
+
+    it('does not show the key warning for https endpoints', async () => {
+      const user = userEvent.setup()
+      render(<CustomModelFormModal isOpen onClose={mockOnClose} />)
+
+      await user.type(
+        screen.getByTestId('custom-model-base-url-input'),
+        'https://myserver.example.com/v1'
+      )
+
+      expect(
+        screen.queryByTestId('custom-model-http-key-warning')
+      ).not.toBeInTheDocument()
+    })
+
     it('enforces both-or-neither pricing', async () => {
       const user = userEvent.setup()
       render(<CustomModelFormModal isOpen onClose={mockOnClose} />)

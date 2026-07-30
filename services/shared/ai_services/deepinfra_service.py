@@ -562,61 +562,6 @@ Your response must be ONLY the JSON object, no other text before or after.
         finally:
             loop.close()
 
-    async def generate_response(
-        self,
-        system_prompt: str,
-        instruction_prompt: str,
-        case_data: str,
-        model_name: str = "meta-llama/Llama-3.3-70B-Instruct",
-        max_tokens: int = 1000,
-        temperature: float = 0.0,
-        **kwargs
-    ) -> Dict[str, Any]:
-        """
-        Legacy method for backward compatibility.
-        Generate a response using DeepInfra API with case data.
-
-        Args:
-            system_prompt: System-level instructions
-            instruction_prompt: Specific task instructions
-            case_data: The case/question to analyze
-            model_name: DeepInfra model to use
-            max_tokens: Maximum tokens in response
-            temperature: Sampling temperature
-            **kwargs: Additional parameters
-
-        Returns:
-            Dictionary with response data and metadata
-        """
-        # Combine prompts for the user message
-        user_message = f"{instruction_prompt}\n\nCase to analyze:\n{case_data}"
-
-        # Use the base generate method
-        result = await self.generate(
-            prompt=user_message,
-            system_prompt=system_prompt,
-            model_name=model_name,
-            max_tokens=max_tokens,
-            temperature=temperature,
-            **kwargs
-        )
-
-        # Map to legacy response format for backward compatibility
-        if result["success"]:
-            return {
-                "response_text": result["content"],
-                "model_name": result["model"],
-                "prompt_tokens": result["usage"]["prompt_tokens"],
-                "completion_tokens": result["usage"]["completion_tokens"],
-                "total_tokens": result["usage"]["total_tokens"],
-                "cost_usd": result["metadata"].get("cost_usd", 0),
-                "temperature": temperature,
-                "max_tokens": max_tokens,
-                "provider": "DeepInfra",
-            }
-        else:
-            raise Exception(result.get("error", "Unknown error"))
-
 
 # Global instance for backward compatibility
 deepinfra_service = DeepInfraService()

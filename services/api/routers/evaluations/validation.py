@@ -55,9 +55,15 @@ async def validate_evaluation_config(
         # Extract generation fields
         generation_fields = []
         if project.generation_config:
-            prompt_structures = project.generation_config.get("prompt_structures", [])
-            for structure in prompt_structures:
-                if "output_fields" in structure:
+            prompt_structures = project.generation_config.get("prompt_structures") or {}
+            # Stored as a dict keyed by structure key; legacy imports may be list-shaped
+            entries = (
+                prompt_structures.values()
+                if isinstance(prompt_structures, dict)
+                else prompt_structures
+            )
+            for structure in entries:
+                if isinstance(structure, dict) and "output_fields" in structure:
                     generation_fields.extend(structure["output_fields"])
 
         # Extract evaluation fields

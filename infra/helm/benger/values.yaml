@@ -182,12 +182,9 @@ workers:
   # messages strand with no consumer. services/workers/scripts/
   # check_celery_queue_pools.py parses this file and asserts exactly that; it
   # runs in the "Python Lint" CI job and via `make check-queue-pools`.
-  #
-  # `default` is drain-only: it carries messages published before the routing
-  # deploy (export/import, report refresh, timer, LTI, beat sweeps). It sits on
-  # THIS pool, not `aux`, so a lingering import_project can't land on a 1Gi pod.
-  # Dropped in the cleanup PR once `LLEN default` is 0 in both namespaces.
-  queues: [generation, evaluation, bulk, default]
+  # (The drain-only `default` queue was removed 2026-07-30 once its Redis list
+  # hit 0 in both namespaces — issue #286.)
+  queues: [generation, evaluation, bulk]
   replicaCount: 2
   # Concurrency = number of cell-eval forks per worker pod. Each fork that
   # loads embedding evaluators (BERTScore + MoverScore + sentence-
@@ -385,10 +382,9 @@ workerPools:
   # is no embedding leak here to reclaim aggressively.
   fast:
     enabled: true
-    # `celery` is drain-only (it was Celery's default queue name and carried
-    # immediate eval + flashcards). Both of those become `interactive` on THIS
-    # pool, so the drain window has better latency, not worse.
-    queues: [interactive, celery]
+    # (The drain-only `celery` queue — Celery's old default name — was removed
+    # 2026-07-30 once its Redis list hit 0 in both namespaces; issue #286.)
+    queues: [interactive]
     replicaCount: 2
     concurrency: 2
     # 1 so a burst spreads across both replicas instead of one pod reserving it.

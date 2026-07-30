@@ -156,7 +156,10 @@ class TestEvaluationConfigValidation:
             return mock_superadmin
 
         mock_session = Mock(spec=Session)
-        mock_session.query.return_value.filter.return_value.first.return_value = mock_project
+        mock_filtered = mock_session.query.return_value.filter.return_value
+        # PUT loads the row FOR UPDATE (issue #291); passthrough keeps the chain intact
+        mock_filtered.with_for_update.return_value = mock_filtered
+        mock_filtered.first.return_value = mock_project
 
         def override_get_db():
             return mock_session
@@ -173,6 +176,9 @@ class TestEvaluationConfigValidation:
                 assert response.status_code == status.HTTP_200_OK
                 assert "message" in response.json()
                 assert response.json()["message"] == "Evaluation configuration updated successfully"
+                # Issue #291: the PUT is a read-merge-write on the JSONB
+                # column and must serialize via a row lock
+                mock_filtered.with_for_update.assert_called_once()
         finally:
             app.dependency_overrides.clear()
 
@@ -199,7 +205,10 @@ class TestEvaluationConfigValidation:
             return mock_superadmin
 
         mock_session = Mock(spec=Session)
-        mock_session.query.return_value.filter.return_value.first.return_value = mock_project
+        mock_filtered = mock_session.query.return_value.filter.return_value
+        # PUT loads the row FOR UPDATE (issue #291); passthrough keeps the chain intact
+        mock_filtered.with_for_update.return_value = mock_filtered
+        mock_filtered.first.return_value = mock_project
 
         def override_get_db():
             return mock_session
@@ -251,7 +260,10 @@ class TestEvaluationConfigValidation:
             return mock_superadmin
 
         mock_session = Mock(spec=Session)
-        mock_session.query.return_value.filter.return_value.first.return_value = mock_project
+        mock_filtered = mock_session.query.return_value.filter.return_value
+        # PUT loads the row FOR UPDATE (issue #291); passthrough keeps the chain intact
+        mock_filtered.with_for_update.return_value = mock_filtered
+        mock_filtered.first.return_value = mock_project
 
         def override_get_db():
             return mock_session
@@ -278,7 +290,10 @@ class TestEvaluationConfigValidation:
             return mock_superadmin
 
         mock_session = Mock(spec=Session)
-        mock_session.query.return_value.filter.return_value.first.return_value = mock_project
+        mock_filtered = mock_session.query.return_value.filter.return_value
+        # PUT loads the row FOR UPDATE (issue #291); passthrough keeps the chain intact
+        mock_filtered.with_for_update.return_value = mock_filtered
+        mock_filtered.first.return_value = mock_project
 
         def override_get_db():
             return mock_session

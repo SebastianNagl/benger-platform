@@ -95,6 +95,32 @@ def _model_shared_with_org(db: Session, model_id: Any, org_id: Any) -> bool:
         return False
 
 
+def _user_is_active_org_member(db: Session, user_id: str, org_id: Any) -> bool:
+    """True iff the invoking user has an ACTIVE membership in the org.
+
+    The org shared-credential fallback must never bill an org the user has
+    left (or was never a member of) — the persisted organization_id on a
+    generation row is not proof of membership at execution time. Same gate
+    the API lane applies in custom_model_key_resolution. Fails closed.
+    """
+    try:
+        from models import OrganizationMembership
+
+        return (
+            db.query(OrganizationMembership)
+            .filter(
+                OrganizationMembership.user_id == str(user_id),
+                OrganizationMembership.organization_id == str(org_id),
+                OrganizationMembership.is_active.is_(True),
+            )
+            .first()
+            is not None
+        )
+    except Exception as e:
+        logger.error(f"Org membership check failed for {user_id}/{org_id}: {e}")
+        return False
+
+
 class UserAwareAIService:
     """Service that creates AI service instances with user-specific API keys"""
 
@@ -241,14 +267,17 @@ class UserAwareAIService:
             )
 
             # Org shared-credential fallback. Consulted ONLY when an org
-            # context is present, the invoking user has no personal key, and
-            # the org runs shared-billing mode (require_private_keys False) —
-            # same precedence as shared_org_api_key_service.resolve_api_key.
-            # The user's own key always wins; the model owner's key is never
-            # used implicitly.
+            # context is present, the invoking user is an ACTIVE member of
+            # that org, the user has no personal key, and the org runs
+            # shared-billing mode (require_private_keys False) — same
+            # precedence as shared_org_api_key_service.resolve_api_key and
+            # the same membership gate as the API lane
+            # (custom_model_key_resolution). The user's own key always wins;
+            # the model owner's key is never used implicitly.
             if (
                 not api_key
                 and organization_id
+                and _user_is_active_org_member(db, user_id, organization_id)
                 and _model_shared_with_org(db, model.id, organization_id)
             ):
                 try:

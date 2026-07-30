@@ -8,6 +8,7 @@ import re
 from typing import Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -46,8 +47,14 @@ def validate_structure_key(key: str) -> None:
 async def get_project_or_403(
     project_id: str, current_user: User, db: AsyncSession, org_context: Optional[str] = None
 ) -> Project:
-    """Get project and verify user has edit permissions"""
-    result = await db.execute(select(Project).where(Project.id == project_id))
+    """Get project and verify user has edit permissions.
+
+    Every caller mutates generation_config, so the row is loaded FOR UPDATE to
+    serialize concurrent read-merge-writes on the JSONB column (issue #291).
+    """
+    result = await db.execute(
+        select(Project).where(Project.id == project_id).with_for_update()
+    )
     project = result.scalar_one_or_none()
 
     if not project:
@@ -68,6 +75,32 @@ async def get_project_or_403(
     return project
 
 
+def _normalize_prompt_structures(value) -> Dict[str, dict]:
+    """Coerce legacy/imported prompt_structures values into the dict shape.
+
+    Old exports stored a list of structure objects; anything non-dict-shaped
+    would previously crash every reader with AttributeError (issue #292).
+    List entries are keyed by their "key"/"name" field (position as fallback);
+    non-dict entries are dropped.
+    """
+    if isinstance(value, dict):
+        return value
+    if not isinstance(value, list):
+        if value is not None:
+            logger.warning(
+                "Discarding prompt_structures of unexpected type %s", type(value).__name__
+            )
+        return {}
+    normalized: Dict[str, dict] = {}
+    for i, entry in enumerate(value):
+        if not isinstance(entry, dict):
+            logger.warning("Dropping non-dict prompt structure entry at index %d", i)
+            continue
+        key = str(entry.get("key") or entry.get("name") or i)
+        normalized[key] = {k: v for k, v in entry.items() if k != "key"}
+    return normalized
+
+
 def ensure_generation_config_structure(project: Project) -> None:
     """Ensure generation_config has the correct structure"""
     if project.generation_config == None:  # noqa: E711
@@ -79,8 +112,9 @@ def ensure_generation_config_structure(project: Project) -> None:
             "active_structures": [],
         }
 
-    if "prompt_structures" not in project.generation_config:
-        project.generation_config["prompt_structures"] = {}
+    structures = project.generation_config.get("prompt_structures")
+    if not isinstance(structures, dict):
+        project.generation_config["prompt_structures"] = _normalize_prompt_structures(structures)
 
 
 @router.put("/{key}", response_model=PromptStructureResponse)
@@ -261,9 +295,22 @@ async def list_structures(
     # Convert to response format with keys included
     response = {}
     for key, structure_data in structures.items():
-        # Create a copy to avoid mutating the database object
-        response_data = {**structure_data, "key": key}
-        response[key] = PromptStructureResponse(**response_data)
+        if not isinstance(structure_data, dict):
+            logger.warning(
+                "Skipping non-dict prompt structure '%s' in project %s", key, project_id
+            )
+            continue
+        try:
+            # Create a copy to avoid mutating the database object
+            response[key] = PromptStructureResponse(**{**structure_data, "key": key})
+        except ValidationError:
+            # Legacy/imported entries may predate the schema — a broken entry
+            # must not take down the whole listing (issue #292)
+            logger.warning(
+                "Skipping prompt structure '%s' in project %s: does not match schema",
+                key,
+                project_id,
+            )
 
     return response
 
@@ -307,12 +354,18 @@ async def get_structure(
     # Get structure
     structure_data = project.generation_config.get("prompt_structures", {}).get(key)
 
-    if not structure_data:
+    if not isinstance(structure_data, dict) or not structure_data:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Prompt structure '{key}' not found",
         )
 
-    # Create a copy to avoid mutating the database object
-    response_data = {**structure_data, "key": key}
-    return PromptStructureResponse(**response_data)
+    try:
+        # Create a copy to avoid mutating the database object
+        return PromptStructureResponse(**{**structure_data, "key": key})
+    except ValidationError:
+        # Malformed legacy entry — invisible in the listing, so absent here too
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Prompt structure '{key}' not found",
+        )
