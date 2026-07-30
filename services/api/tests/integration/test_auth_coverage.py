@@ -196,6 +196,11 @@ class TestLoginDeep:
         assert resp.status_code == 200
         assert len(calls) == 1
         user, ctx = calls[0]
+        # Contract: the ORM row, not the Pydantic auth schema — the hook
+        # mutates/persists it (pydantic would reject unknown-field writes).
+        from models import User as DBUser
+
+        assert isinstance(user, DBUser)
         assert user.email == "admin@test.com"
         assert ctx["host"] == "vertretbar.net"
         assert ctx["origin"] == "https://vertretbar.net"

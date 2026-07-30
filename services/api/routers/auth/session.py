@@ -81,17 +81,23 @@ async def login(
         # Vertretbar org membership (the signup hook only covers accounts
         # CREATED there). Runs before token creation so the issued profile
         # already carries the new membership. The context is derived
-        # server-side (not a spoofable body field). Never let a hook failure
+        # server-side (not a spoofable body field). The hook contract takes
+        # the ORM user (it mutates and commits) — authenticate_user returns
+        # the Pydantic schema, so re-fetch the row. Never let a hook failure
         # break login.
         try:
             from extensions import after_user_login as _after_user_login_ext
+            from models import User as DBUser
 
-            login_context = {
-                "host": request.headers.get("x-forwarded-host")
-                or request.headers.get("host"),
-                "origin": request.headers.get("origin") or request.headers.get("referer"),
-            }
-            _after_user_login_ext(db, user, login_context)
+            db_user = db.query(DBUser).filter(DBUser.id == str(user.id)).first()
+            if db_user is not None:
+                login_context = {
+                    "host": request.headers.get("x-forwarded-host")
+                    or request.headers.get("host"),
+                    "origin": request.headers.get("origin")
+                    or request.headers.get("referer"),
+                }
+                _after_user_login_ext(db, db_user, login_context)
         except Exception as e:
             logger.error(f"after_user_login hook failed (non-fatal): {e}", exc_info=True)
 

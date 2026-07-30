@@ -184,6 +184,8 @@ def after_user_signup(db, user, signup_context):
 def after_user_login(db, user, login_context):
     """Hook called during /auth/login after credentials are verified.
 
+    ``user`` is the ORM ``models.User`` row (NOT the Pydantic auth schema —
+    the hook may mutate and persist it, mirroring the signup hook contract).
     ``login_context`` mirrors the signup hook's context (``{"host": ...,
     "origin": ...}``, derived server-side from the request headers). The
     extended edition uses this to onboard EXISTING accounts that sign in on a
