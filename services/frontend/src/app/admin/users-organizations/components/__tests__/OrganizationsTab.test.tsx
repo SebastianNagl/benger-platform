@@ -1299,6 +1299,43 @@ describe('OrganizationsTab', () => {
 
       expect(options.length).toBe(1) // Only the "Select a user..." option
     })
+
+    it('should push the search query to the server after debounce', async () => {
+      const user = userEvent.setup()
+      const { organizationsAPI } = require('@/lib/api/organizations')
+      render(<OrganizationsTab />)
+
+      await waitFor(() => {
+        expect(
+          screen.getByRole('button', { name: /Add Existing User/i })
+        ).toBeInTheDocument()
+      })
+
+      await user.click(
+        screen.getByRole('button', { name: /Add Existing User/i })
+      )
+
+      // Initial fetch on open is unfiltered
+      await waitFor(() => {
+        expect(organizationsAPI.getAllUsers).toHaveBeenCalledWith(undefined)
+      })
+
+      const searchInput = screen.getByPlaceholderText(
+        /Search by name or email/i
+      )
+      await user.type(searchInput, 'mayrhofer')
+
+      // The debounced effect must re-fetch with the server-side filter, so
+      // users outside the endpoint's newest-500 window are still findable.
+      await waitFor(
+        () => {
+          expect(organizationsAPI.getAllUsers).toHaveBeenCalledWith({
+            search: 'mayrhofer',
+          })
+        },
+        { timeout: 3000 }
+      )
+    })
   })
 
   describe('Error Handling', () => {
