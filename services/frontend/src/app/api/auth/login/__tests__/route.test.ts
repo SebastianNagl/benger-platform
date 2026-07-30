@@ -34,6 +34,67 @@ describe('/api/auth/login', () => {
     jest.restoreAllMocks()
   })
 
+  describe('Host forwarding (after_user_login hook contract)', () => {
+    // The backend's login hook detects a student-locked origin
+    // (vertretbar.net) from x-forwarded-host. The proxy MUST forward the
+    // ORIGINAL external host — without it the backend only sees the internal
+    // service host and login onboarding silently no-ops (2026-07-30 E2E).
+    const mockBackendOk = () => {
+      ;(global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ access_token: 'tok', token_type: 'bearer' }),
+        headers: {
+          getSetCookie: () => [],
+        },
+      })
+    }
+
+    it('forwards the ingress x-forwarded-host to the backend', async () => {
+      mockBackendOk()
+
+      const request = createRequest('http://localhost:3000/api/auth/login', {
+        method: 'POST',
+        // What traefik/k8s ingress stamps for a vertretbar.net visitor.
+        headers: { 'x-forwarded-host': 'vertretbar.net' },
+        body: JSON.stringify({ username: 'student', password: 'pw' }),
+      })
+
+      const response = await POST(request)
+
+      expect(response.status).toBe(200)
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('/api/auth/login'),
+        expect.objectContaining({
+          method: 'POST',
+          headers: expect.objectContaining({
+            'x-forwarded-host': 'vertretbar.net',
+          }),
+        })
+      )
+    })
+
+    it('falls back to the request host when no x-forwarded-host is present', async () => {
+      mockBackendOk()
+
+      const request = createRequest('http://benger.localhost/api/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ username: 'admin', password: 'pw' }),
+      })
+
+      await POST(request)
+
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('/api/auth/login'),
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            'x-forwarded-host': 'benger.localhost',
+          }),
+        })
+      )
+    })
+  })
+
   describe('Invalid Credentials', () => {
     it('should return 401 for invalid credentials', async () => {
       const mockError = {
@@ -540,9 +601,11 @@ describe('/api/auth/login', () => {
         expect.any(String),
         expect.objectContaining({
           method: 'POST',
-          headers: {
+          // The route also forwards x-forwarded-host for the backend's
+          // host-aware login hook — allow extra headers.
+          headers: expect.objectContaining({
             'Content-Type': 'application/json',
-          },
+          }),
           body: JSON.stringify(credentials),
         })
       )
@@ -571,9 +634,9 @@ describe('/api/auth/login', () => {
       expect(global.fetch).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
-          headers: {
+          headers: expect.objectContaining({
             'Content-Type': 'application/json',
-          },
+          }),
         })
       )
     })
