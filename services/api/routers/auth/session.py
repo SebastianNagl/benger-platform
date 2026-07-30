@@ -76,6 +76,25 @@ async def login(
 
         logger.info(f"Authentication successful for user: {login_data.username}")
 
+        # Extension hook: host-aware login onboarding — an EXISTING account's
+        # first sign-in on a student-locked host (vertretbar.net) attaches the
+        # Vertretbar org membership (the signup hook only covers accounts
+        # CREATED there). Runs before token creation so the issued profile
+        # already carries the new membership. The context is derived
+        # server-side (not a spoofable body field). Never let a hook failure
+        # break login.
+        try:
+            from extensions import after_user_login as _after_user_login_ext
+
+            login_context = {
+                "host": request.headers.get("x-forwarded-host")
+                or request.headers.get("host"),
+                "origin": request.headers.get("origin") or request.headers.get("referer"),
+            }
+            _after_user_login_ext(db, user, login_context)
+        except Exception as e:
+            logger.error(f"after_user_login hook failed (non-fatal): {e}", exc_info=True)
+
         # Extract request metadata for security tracking
         user_agent = request.headers.get("user-agent")
         ip_address = request.client.host if request.client else None

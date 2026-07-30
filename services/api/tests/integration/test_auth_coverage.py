@@ -172,6 +172,51 @@ class TestLoginDeep:
         )
         assert resp.status_code == 401
 
+    def test_login_invokes_after_user_login_hook_with_host_context(
+        self, client, test_db, test_users, monkeypatch
+    ):
+        """Login hands the authenticated user + server-derived host/origin
+        context to the extension hook (vertretbar login onboarding seam)."""
+        import extensions
+
+        calls = []
+        monkeypatch.setattr(
+            extensions,
+            "after_user_login",
+            lambda db, user, ctx: calls.append((user, ctx)),
+        )
+        resp = client.post(
+            "/api/auth/login",
+            json={"username": "admin@test.com", "password": "admin123"},
+            headers={
+                "x-forwarded-host": "vertretbar.net",
+                "origin": "https://vertretbar.net",
+            },
+        )
+        assert resp.status_code == 200
+        assert len(calls) == 1
+        user, ctx = calls[0]
+        assert user.email == "admin@test.com"
+        assert ctx["host"] == "vertretbar.net"
+        assert ctx["origin"] == "https://vertretbar.net"
+
+    def test_login_not_broken_by_failing_login_hook(
+        self, client, test_db, test_users, monkeypatch
+    ):
+        """A raising extension hook is logged and swallowed — login succeeds."""
+        import extensions
+
+        def _boom(db, user, ctx):
+            raise RuntimeError("hook exploded")
+
+        monkeypatch.setattr(extensions, "after_user_login", _boom)
+        resp = client.post(
+            "/api/auth/login",
+            json={"username": "admin@test.com", "password": "admin123"},
+        )
+        assert resp.status_code == 200
+        assert "access_token" in resp.json()
+
     def test_login_nonexistent_user(self, client, test_db, test_users):
         """Nonexistent user returns 401."""
         resp = client.post(
