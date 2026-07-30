@@ -812,3 +812,52 @@ class TestOrgCredentialPrecedence:
         assert service.api_key == ORG_CRED
         assert service._key_resolution_route == "custom_model_org_credential"
         assert patched_org_seams["org_calls"] == [("org-1", row.id)]
+
+    # ---- membership gate (issue #274 item 3): the org shared key is only
+    # usable while the invoking user is an ACTIVE member of the context org.
+    # The organization_id persisted on a generation row is not proof of
+    # membership at execution time — a user who left the org must not keep
+    # billing it.
+
+    def test_org_pays_non_member_does_not_use_org_key(
+        self, svc, monkeypatch, access_granted, patched_org_seams
+    ):
+        monkeypatch.setattr(cmcs_mod, "get_credential", lambda db, u, m: None)
+        monkeypatch.setattr(uaas_mod, "_model_shared_with_org", lambda db, mid, oid: True)
+        monkeypatch.setattr(
+            uaas_mod, "_user_is_active_org_member", lambda db, uid, oid: False
+        )
+        patched_org_seams["require_private"] = False
+        patched_org_seams["org_key"] = ORG_CRED  # present, but user left the org
+
+        service = svc.get_ai_service_for_model_row(
+            MagicMock(), "user-9", _custom_row(), organization_id="org-1"
+        )
+        # No usable key → None, and the org key was never consulted (the
+        # membership gate short-circuits before the lookup).
+        assert service is None
+        assert patched_org_seams["org_calls"] == []
+
+    def test_org_pays_active_member_uses_org_key(
+        self, svc, monkeypatch, access_granted, patched_org_seams
+    ):
+        monkeypatch.setattr(cmcs_mod, "get_credential", lambda db, u, m: None)
+        monkeypatch.setattr(uaas_mod, "_model_shared_with_org", lambda db, mid, oid: True)
+        monkeypatch.setattr(
+            uaas_mod, "_user_is_active_org_member", lambda db, uid, oid: True
+        )
+        patched_org_seams["require_private"] = False
+        patched_org_seams["org_key"] = ORG_CRED
+
+        row = _custom_row()
+        service = svc.get_ai_service_for_model_row(
+            MagicMock(), "user-9", row, organization_id="org-1"
+        )
+        assert isinstance(service, OpenAICompatibleService)
+        assert service.api_key == ORG_CRED
+        assert service._key_resolution_route == "custom_model_org_credential"
+
+    def test_membership_check_fails_closed(self):
+        db = MagicMock()
+        db.query.side_effect = RuntimeError("boom")
+        assert uaas_mod._user_is_active_org_member(db, "user-9", "org-1") is False
