@@ -10,11 +10,16 @@ export async function POST(request: NextRequest) {
 
     logger.debug('🔐 Login request to:', `${apiBaseUrl}/api/auth/login`)
 
-    // Forward the login request to the backend
+    // Forward the login request to the backend. Pass the original external
+    // host as x-forwarded-host so the backend's after_user_login hook can
+    // detect a student-locked origin (vertretbar.net) server-side — this
+    // proxy otherwise strips the browser host, and a body field would be
+    // client-spoofable (same rationale as the signup route).
     const backendResponse = await fetch(`${apiBaseUrl}/api/auth/login`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'x-forwarded-host': getExternalHost(request),
       },
       body: JSON.stringify(body),
     })

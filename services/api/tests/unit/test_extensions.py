@@ -60,6 +60,13 @@ class TestExtensionLoader:
         # Should not raise even with None db and a vertretbar-looking context.
         after_user_signup(None, object(), {"host": "vertretbar.net"})
 
+    def test_after_user_login_noop_without_package(self):
+        """Community edition: after_user_login is a no-op (no Vertretbar)."""
+        from extensions import after_user_login
+
+        # Should not raise even with None db and a vertretbar-looking context.
+        after_user_login(None, object(), {"host": "vertretbar.net"})
+
     def test_core_api_version_defined(self):
         """CORE_API_VERSION is defined and is a string."""
         from extensions import CORE_API_VERSION

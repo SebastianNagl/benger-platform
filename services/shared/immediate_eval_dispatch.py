@@ -43,9 +43,12 @@ from project_models import Annotation, Task
 logger = logging.getLogger(__name__)
 
 
-def _select_immediate_configs(db, user_id, configs):
+def _select_immediate_configs(db, user_id, configs, project=None):
     """Extension hook: let the extended edition narrow the dispatched configs
     for one grading (e.g. pick the billing-tier judge from a free/paid pair).
+
+    ``project`` gives the selector the billing context (e.g. an org that
+    covers the grading picks the paid judge regardless of the solver's tier).
 
     Community edition has no such hook → returns ``configs`` unchanged. This
     makes tier-selection uniform across every server-side trigger that funnels
@@ -58,7 +61,7 @@ def _select_immediate_configs(db, user_id, configs):
     try:
         from benger_extended.billing.policy import select_tier_config
 
-        return select_tier_config(db, user_id, configs)
+        return select_tier_config(db, user_id, configs, project=project)
     except ImportError:
         return configs
     except Exception:
@@ -312,7 +315,7 @@ def ensure_immediate_evaluation(
     # list is stamped, so all server-side triggers agree on the one config that
     # runs (community: no-op). ``user_id`` falls back to the annotation author.
     cfgs = _select_immediate_configs(
-        db, user_id or getattr(annotation, "completed_by", None), cfgs
+        db, user_id or getattr(annotation, "completed_by", None), cfgs, project=project
     )
     if not cfgs:
         return None

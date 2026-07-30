@@ -181,6 +181,29 @@ def after_user_signup(db, user, signup_context):
             hook(db, user, signup_context)
 
 
+def after_user_login(db, user, login_context):
+    """Hook called during /auth/login after credentials are verified.
+
+    ``user`` is the ORM ``models.User`` row (NOT the Pydantic auth schema —
+    the hook may mutate and persist it, mirroring the signup hook contract).
+    ``login_context`` mirrors the signup hook's context (``{"host": ...,
+    "origin": ...}``, derived server-side from the request headers). The
+    extended edition uses this to onboard EXISTING accounts that sign in on a
+    student-locked host (vertretbar.net): pre-existing platform users never
+    pass through /auth/signup, so the signup hook alone leaves them without
+    the Vertretbar org membership that tier metering and cohort views key on.
+    The hook may mutate ``user`` and persist its own rows; it owns its commit.
+
+    No-op in community edition or when the extended package doesn't register
+    the hook.
+    """
+    if _extended and hasattr(_extended, "get_hooks"):
+        hooks = _extended.get_hooks()
+        hook = hooks.get("after_user_login")
+        if hook:
+            hook(db, user, login_context)
+
+
 def tasks_with_feedback_for_user(db, project_id, user_id, task_ids):
     """Return the subset of task_ids on which the given user has feedback.
 
