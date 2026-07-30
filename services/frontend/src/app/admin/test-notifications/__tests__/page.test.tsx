@@ -43,6 +43,14 @@ describe('TestNotificationsPage', () => {
 
   beforeEach(() => {
     jest.clearAllMocks()
+    // mockReset (not just clear) the API mocks: clearAllMocks keeps
+    // persistent mockRejectedValue implementations and unconsumed one-shot
+    // queues from earlier tests, which used to leak across tests (issue
+    // #279). Defaults are re-established below. The setupTests toast mocks
+    // keep their dispatch implementation, so only clear those.
+    mockApiNotifications.createTestNotification.mockReset()
+    mockApiNotifications.generateTestNotifications.mockReset()
+    mockApi.markAllNotificationsAsRead.mockReset()
 
     const mockUseAuth = useAuth as jest.MockedFunction<typeof useAuth>
     mockUseAuth.mockReturnValue({
@@ -335,9 +343,18 @@ describe('TestNotificationsPage', () => {
       const generateAllButton = screen.getByText('admin.testNotifications.generateAll')
       await user.click(generateAllButton)
 
-      await waitFor(() => {
-        expect(mockApiNotifications.createTestNotification).toHaveBeenCalled()
-      })
+      // Await the terminal toast, not just the first call — otherwise the
+      // fallback loop (per-success 200ms sleeps) outlives this test and
+      // consumes the next test's one-shot mocks (issue #279)
+      await waitFor(
+        () => {
+          expect(toast.success).toHaveBeenCalledWith(
+            'admin.testNotifications.sent'
+          )
+        },
+        { timeout: 5000 }
+      )
+      expect(mockApiNotifications.createTestNotification).toHaveBeenCalled()
     })
 
     it('should show success toast after fallback generation', async () => {
