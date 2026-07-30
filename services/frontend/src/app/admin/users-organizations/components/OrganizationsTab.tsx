@@ -11,6 +11,7 @@ import { useToast } from '@/components/shared/Toast'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { useDeleteConfirm, useErrorAlert } from '@/hooks/useDialogs'
+import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import { Organization, OrganizationMember } from '@/lib/api'
 import { InvitationDetails } from '@/lib/api/invitations'
 import { organizationsAPI } from '@/lib/api/organizations'
@@ -30,7 +31,7 @@ import {
   XMarkIcon,
 } from '@heroicons/react/24/outline'
 import { useSearchParams } from 'next/navigation'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 interface OrganizationWithRole extends Organization {
   user_role?: 'ORG_ADMIN' | 'CONTRIBUTOR' | 'ANNOTATOR'
@@ -213,7 +214,7 @@ export function OrganizationsTab() {
     } finally {
       setLoadingMembers(false)
     }
-  }, [selectedOrganization, apiClient, showError])
+  }, [selectedOrganization, apiClient, showError, t])
 
   useEffect(() => {
     if (selectedOrganization) {
@@ -494,18 +495,36 @@ export function OrganizationsTab() {
     }
   }
 
-  const loadAllUsers = async () => {
-    try {
-      const users = await organizationsAPI.getAllUsers()
-      // Filter out users who are already members
-      const memberIds = members.map((m) => m.user_id)
-      const availableUsers = users.filter((u) => !memberIds.includes(u.id))
-      setAllUsers(availableUsers)
-    } catch (error) {
-      console.error('Failed to load users:', error)
-      showError(t('admin.organizations.errors.loadUsersFailed'), t('admin.organizations.errors.errorTitle'))
-    }
-  }
+  // The server caps /manage/users at 500 rows (newest first), so the search
+  // must be pushed to SQL — filtering client-side over a truncated window
+  // silently hides older users once the user count exceeds the cap.
+  const userFetchSeq = useRef(0)
+  const loadAllUsers = useCallback(
+    async (search?: string) => {
+      const seq = ++userFetchSeq.current
+      try {
+        const users = await organizationsAPI.getAllUsers(
+          search ? { search } : undefined
+        )
+        if (seq !== userFetchSeq.current) return // stale response
+        // Filter out users who are already members
+        const memberIds = members.map((m) => m.user_id)
+        const availableUsers = users.filter((u) => !memberIds.includes(u.id))
+        setAllUsers(availableUsers)
+      } catch (error) {
+        if (seq !== userFetchSeq.current) return
+        console.error('Failed to load users:', error)
+        showError(t('admin.organizations.errors.loadUsersFailed'), t('admin.organizations.errors.errorTitle'))
+      }
+    },
+    [members, showError, t]
+  )
+
+  const debouncedUserSearch = useDebouncedValue(userSearchQuery, 300)
+  useEffect(() => {
+    if (!showAddUserModal) return
+    loadAllUsers(debouncedUserSearch.trim() || undefined)
+  }, [showAddUserModal, debouncedUserSearch, loadAllUsers])
 
   const handleAddExistingUser = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -544,8 +563,8 @@ export function OrganizationsTab() {
   }
 
   const openAddUserModal = () => {
+    // The search effect fires the initial (unfiltered) fetch on open.
     setShowAddUserModal(true)
-    loadAllUsers()
   }
 
   const canManageOrg = selectedOrganization
