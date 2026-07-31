@@ -749,10 +749,23 @@ async def get_project_results_by_task_model(
             TaskEvaluation.evaluation_id.in_(run_ids_select),
             TaskEvaluation.generation_id.isnot(None),
         ]
-        if latest_gen_ids_subq is not None:
-            gen_filters.append(
-                TaskEvaluation.generation_id.in_(select(latest_gen_ids_subq.c.gen_id))
+        # The latest-gen scope is applied as a JOIN below, not as a
+        # `generation_id IN (subquery)` filter: as an IN-subquery the planner
+        # re-scanned the latest-gen set once per candidate row and fell back
+        # to a nested loop (~50k block reads on a 2.8 GB table; 10.2 s on
+        # ZJS Fälle — the [hotfix] 11f3080 measurements: 10185 ms -> 2645 ms,
+        # byte-identical output). The join cannot duplicate rows:
+        # latest_gen_ids_subq yields DISTINCT gen_ids (row_number()=1 per
+        # (task_id, model_id) partition, and id is the PK).
+
+        def _scope_to_latest_gens(stmt):
+            if latest_gen_ids_subq is None:
+                return stmt
+            return stmt.join(
+                latest_gen_ids_subq,
+                latest_gen_ids_subq.c.gen_id == TaskEvaluation.generation_id,
             )
+
         # When a single EvaluationRun bundles multiple metrics, every metric
         # produces its own row for the same (gen, model) cell. The aggregation
         # loop below assigns score by overwriting `task_model_scores[t][m]`
@@ -773,7 +786,7 @@ async def get_project_results_by_task_model(
         # on every candidate row (issue #280). Filters MUST apply before the
         # window: a row without the selected metric must not win its
         # partition and then be discarded.
-        ranked_ids = (
+        ranked_ids = _scope_to_latest_gens(
             select(
                 TaskEvaluation.id.label("te_id"),
                 func.row_number()
@@ -784,8 +797,7 @@ async def get_project_results_by_task_model(
                 .label("rn"),
             )
             .where(*gen_filters)
-            .subquery()
-        )
+        ).subquery()
 
         sample_results = (
             await db.execute(
@@ -821,17 +833,19 @@ async def get_project_results_by_task_model(
         suppressed_count = (
             (
                 await db.execute(
-                    select(
-                        func.count()
-                        - func.count(
-                            distinct(
-                                tuple_(
-                                    TaskEvaluation.generation_id,
-                                    TaskEvaluation.field_name,
+                    _scope_to_latest_gens(
+                        select(
+                            func.count()
+                            - func.count(
+                                distinct(
+                                    tuple_(
+                                        TaskEvaluation.generation_id,
+                                        TaskEvaluation.field_name,
+                                    )
                                 )
                             )
-                        )
-                    ).where(*gen_filters)
+                        ).where(*gen_filters)
+                    )
                 )
             ).scalar()
             or 0
@@ -868,8 +882,15 @@ async def get_project_results_by_task_model(
             )
         )
         if latest_ann_ids_subq is not None:
-            ann_query = ann_query.where(
-                TE2.annotation_id.in_(select(latest_ann_ids_subq.c.ann_id))
+            # Same IN-subquery -> JOIN rewrite as the generation branch above,
+            # for the same reason. Not yet the bottleneck on generation-heavy
+            # projects, but this is the identical shape in the same endpoint,
+            # so an annotation-heavy project hits it on the same cliff.
+            # latest_ann_ids_subq is likewise DISTINCT (row_number()=1 per
+            # (task_id, completed_by), id is the PK), so no row duplication.
+            ann_query = ann_query.join(
+                latest_ann_ids_subq,
+                latest_ann_ids_subq.c.ann_id == TE2.annotation_id,
             )
         if metric:
             ann_query = ann_query.where(
