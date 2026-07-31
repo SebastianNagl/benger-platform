@@ -537,14 +537,23 @@ async def delete_custom_model(
                 ModelOrganization.model_id == model.id
             )
         )
-        # Personal credential rows are kept on soft-delete (only a hard delete
-        # cascades them away). ORG shared credentials are dropped because every
-        # share link is removed — same as the /visibility unshare paths; a kept
-        # row would be un-manageable (the org-credential endpoints gate on a
-        # live share) and would silently re-attach on a later re-share.
+        # ORG shared credentials are dropped because every share link is
+        # removed — same as the /visibility unshare paths; a kept row would be
+        # un-manageable (the org-credential endpoints gate on a live share)
+        # and would silently re-attach on a later re-share.
         await db.execute(
             CustomModelOrgCredential.__table__.delete().where(
                 CustomModelOrgCredential.model_id == model.id
+            )
+        )
+        # Personal credential rows are wiped too (#274 item 4): a soft-deleted
+        # model is invisible in every list, so kept rows would be secrets at
+        # rest their owners can neither see nor delete (non-creators even 404
+        # on the credential endpoints). Symmetric with the org wipe; users
+        # re-enter keys if the model is ever reactivated.
+        await db.execute(
+            CustomModelCredential.__table__.delete().where(
+                CustomModelCredential.model_id == model.id
             )
         )
         await db.commit()

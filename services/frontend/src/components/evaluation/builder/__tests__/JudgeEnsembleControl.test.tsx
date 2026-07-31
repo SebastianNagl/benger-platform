@@ -174,3 +174,91 @@ describe('JudgeEnsembleControl — BYOM credential gating', () => {
     ])
   })
 })
+
+describe('JudgeEnsembleControl — stale saved judges (#274 item 6)', () => {
+  it('a SAVED credential-less judge stays checked but removable', async () => {
+    const user = userEvent.setup()
+    const { setNewEvaluation } = renderControl({
+      metricParameters: {
+        judge_model: 'gpt-4o',
+        judges: [
+          { judge_model_id: 'gpt-4o', runs: 1 },
+          { judge_model_id: 'custom-nokey', runs: 1 },
+        ],
+      },
+    })
+
+    // Saved + credential-less: checked, NOT disabled — the owner must be
+    // able to remove the stale entry (annotate-and-allow-removal policy).
+    const savedCb = entryCheckbox(/Locked Llama/)
+    expect(savedCb).toBeChecked()
+    expect(savedCb).not.toBeDisabled()
+    // The amber missing-key hint still shows.
+    expect(
+      screen.getByText('customModels.picker.missingKey')
+    ).toBeInTheDocument()
+
+    // Unchecking removes it from the saved config.
+    await user.click(savedCb)
+    const updater = setNewEvaluation.mock.calls[0][0]
+    const next = updater({
+      metric: 'llm_judge_classic',
+      metric_parameters: { judge_model: 'gpt-4o' },
+    })
+    expect(next.metric_parameters.judges).toEqual([
+      { judge_model_id: 'gpt-4o', runs: 1 },
+    ])
+  })
+
+  it('an UNSAVED credential-less judge is still not selectable', () => {
+    renderControl()
+    expect(entryCheckbox(/Locked Llama/)).toBeDisabled()
+  })
+
+  it('a saved judge missing from the catalog renders as a removable orphan row', async () => {
+    const user = userEvent.setup()
+    const { setNewEvaluation } = renderControl({
+      metricParameters: {
+        judge_model: 'gpt-4o',
+        judges: [
+          { judge_model_id: 'gpt-4o', runs: 2 },
+          { judge_model_id: 'custom-deleted', runs: 2 },
+          { judge_model_id: 'claude-sonnet-4', runs: 2 },
+        ],
+      },
+    })
+
+    // The orphan renders visibly (it used to render nothing while being
+    // silently re-persisted) with its id and an unavailable notice.
+    const orphan = screen.getByTestId('judge-ensemble-orphan-custom-deleted')
+    expect(orphan).toBeInTheDocument()
+    expect(orphan).toHaveTextContent('custom-deleted')
+
+    // Removing it writes the config WITHOUT the orphan but keeps the rest.
+    await user.click(screen.getByText('Entfernen'))
+    const updater = setNewEvaluation.mock.calls[0][0]
+    const next = updater({
+      metric: 'llm_judge_classic',
+      metric_parameters: { judge_model: 'gpt-4o' },
+    })
+    expect(next.metric_parameters.judges).toEqual([
+      { judge_model_id: 'gpt-4o', runs: 2 },
+      { judge_model_id: 'claude-sonnet-4', runs: 2 },
+    ])
+  })
+
+  it('no orphan rows render when every saved judge exists in the catalog', () => {
+    renderControl({
+      metricParameters: {
+        judge_model: 'gpt-4o',
+        judges: [
+          { judge_model_id: 'gpt-4o', runs: 1 },
+          { judge_model_id: 'claude-sonnet-4', runs: 1 },
+        ],
+      },
+    })
+    expect(
+      screen.queryByTestId(/judge-ensemble-orphan-/)
+    ).not.toBeInTheDocument()
+  })
+})

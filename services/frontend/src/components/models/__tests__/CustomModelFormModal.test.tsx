@@ -423,8 +423,16 @@ describe('CustomModelFormModal', () => {
       await user.click(screen.getByTestId('custom-model-form-submit'))
       await waitFor(() => expect(customModelsAPI.create).toHaveBeenCalled())
       const payload = (customModelsAPI.create as jest.Mock).mock.calls[0][0]
+      // Full shape (#274 item 1): a bare {parameter} declared the knob but
+      // rendered no control, so no value ever reached the payload.
       expect(payload.default_config).toEqual({
-        reasoning_config: { parameter: 'reasoning_effort' },
+        reasoning_config: {
+          parameter: 'reasoning_effort',
+          type: 'select',
+          values: ['low', 'medium', 'high'],
+          default: 'medium',
+          label: 'Thinking/Reasoning Level',
+        },
       })
     })
 
@@ -454,9 +462,51 @@ describe('CustomModelFormModal', () => {
       await waitFor(() => expect(customModelsAPI.update).toHaveBeenCalled())
       const payload = (customModelsAPI.update as jest.Mock).mock.calls[0][1]
       expect(payload.default_config).toEqual({
-        reasoning_config: { parameter: 'thinking_budget' },
+        reasoning_config: {
+          parameter: 'thinking_budget',
+          type: 'budget',
+          presets: [
+            { label: 'Low', value: 2048 },
+            { label: 'Medium', value: 8192 },
+            { label: 'High', value: 24576 },
+          ],
+          min: 1024,
+          max: 128000,
+          default: 8192,
+          label: 'Thinking/Reasoning Budget (tokens)',
+        },
         some_other_key: 'kept',
       })
+    })
+
+    it('edit: a customized full config for the same param is preserved', async () => {
+      const user = userEvent.setup()
+      const customized = {
+        parameter: 'reasoning_effort',
+        type: 'select',
+        values: ['minimal', 'max'],
+        default: 'max',
+        label: 'Custom label',
+      }
+      const modelWithConfig: CustomModel = {
+        ...existingModel,
+        default_config: { reasoning_config: customized },
+      }
+      render(
+        <CustomModelFormModal
+          isOpen
+          model={modelWithConfig}
+          onClose={mockOnClose}
+          onSaved={mockOnSaved}
+        />
+      )
+      // Same param stays selected; a template must NOT clobber the
+      // customized declaration.
+      await user.type(screen.getByTestId('custom-model-name-input'), '2')
+      await user.click(screen.getByTestId('custom-model-form-submit'))
+      await waitFor(() => expect(customModelsAPI.update).toHaveBeenCalled())
+      const payload = (customModelsAPI.update as jest.Mock).mock.calls[0][1]
+      expect('default_config' in payload).toBe(false)
     })
 
     it('edit: switching to None clears reasoning_config but keeps other keys', async () => {

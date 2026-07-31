@@ -125,9 +125,64 @@ function formFromModel(model: CustomModel): FormState {
 }
 
 /**
+ * Full reasoning_config shapes per parameter. A bare `{parameter}` (the old
+ * behavior) declared the knob without `type`/`values`/`default`, so the
+ * project page rendered no control and no value ever reached the payload —
+ * the run silently ignored the setting (#274 item 1). These mirror the
+ * shapes official rows use in llm_models.yaml and are the two shapes the
+ * model-selection UI actually renders ('select', and 'budget' + presets).
+ * Owners can PATCH default_config to customize values/presets.
+ */
+const REASONING_CONFIG_TEMPLATES: Record<string, Record<string, unknown>> = {
+  reasoning_effort: {
+    parameter: 'reasoning_effort',
+    type: 'select',
+    values: ['low', 'medium', 'high'],
+    default: 'medium',
+    label: 'Thinking/Reasoning Level',
+  },
+  prompt_mode: {
+    parameter: 'prompt_mode',
+    type: 'select',
+    values: ['reasoning'],
+    default: 'reasoning',
+    label: 'Thinking/Reasoning Mode',
+  },
+  thinking_budget: {
+    parameter: 'thinking_budget',
+    type: 'budget',
+    presets: [
+      { label: 'Low', value: 2048 },
+      { label: 'Medium', value: 8192 },
+      { label: 'High', value: 24576 },
+    ],
+    min: 1024,
+    max: 128000,
+    default: 8192,
+    label: 'Thinking/Reasoning Budget (tokens)',
+  },
+  thinking_token_budget: {
+    parameter: 'thinking_token_budget',
+    type: 'budget',
+    presets: [
+      { label: 'Low', value: 2048 },
+      { label: 'Medium', value: 8192 },
+      { label: 'High', value: 24576 },
+    ],
+    min: 1024,
+    max: 128000,
+    default: 8192,
+    label: 'Thinking/Reasoning Budget (tokens)',
+  },
+}
+
+/**
  * default_config for a chosen reasoning param, preserving every OTHER key
  * the row may carry. 'none' removes reasoning_config (and drops the whole
  * default_config when that leaves it empty, matching an undeclared row).
+ * When the row already declares a FULL config for the same parameter
+ * (type present), it is kept verbatim — edits must not clobber a
+ * customized declaration.
  */
 function buildDefaultConfig(
   original: Record<string, unknown> | null | undefined,
@@ -138,7 +193,17 @@ function buildDefaultConfig(
     delete base.reasoning_config
     return Object.keys(base).length > 0 ? base : undefined
   }
-  base.reasoning_config = { parameter: reasoningParam }
+  const existing = base.reasoning_config as Record<string, unknown> | undefined
+  if (
+    existing &&
+    existing.parameter === reasoningParam &&
+    typeof existing.type === 'string'
+  ) {
+    return base
+  }
+  base.reasoning_config = REASONING_CONFIG_TEMPLATES[reasoningParam] ?? {
+    parameter: reasoningParam,
+  }
   return base
 }
 

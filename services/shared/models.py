@@ -1582,8 +1582,11 @@ class TaskEvaluation(Base):
     ground_truth = Column(JSON, nullable=False)
     prediction = Column(JSON, nullable=False)
 
-    # Computed metrics for this sample
-    metrics = Column(JSON, nullable=False)
+    # Computed metrics for this sample. Native JSONB (migration 087): the
+    # score readers filter with has_key and slim the blob via jsonb_each on
+    # every row — as text JSON each of those paid a full reparse per row
+    # (issue #280).
+    metrics = Column(JSONB, nullable=False)
 
     # Pass/fail status
     passed = Column(Boolean, nullable=False, index=True)
