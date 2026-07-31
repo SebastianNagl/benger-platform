@@ -794,9 +794,10 @@ class TestDelete:
         assert row.is_active is False
         assert row.is_private is True
         assert row.is_public is False
-        # Org links removed; PERSONAL credentials kept (cascade only on hard
-        # delete) — but ORG shared credentials are dropped along with the
-        # shares, or they'd linger un-manageable and re-attach on a re-share.
+        # Org links removed; BOTH credential tables wiped (#274 item 4): a
+        # soft-deleted model is invisible in every list, so kept personal
+        # rows would be secrets at rest their owners can neither see nor
+        # delete. Symmetric with the org-credential wipe.
         links = (
             await async_test_db.execute(
                 select(ModelOrganization).where(
@@ -812,7 +813,7 @@ class TestDelete:
                 )
             )
         ).scalar_one_or_none()
-        assert cred is not None
+        assert cred is None
         org_creds = (
             await async_test_db.execute(
                 select(CustomModelOrgCredential).where(

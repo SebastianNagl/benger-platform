@@ -134,11 +134,21 @@ export function JudgeEnsembleControl<S extends BuilderStateWithParameters>({
             )
             const customs = selectable.filter((m) => m.is_official === false)
 
+            // Saved judges whose model row is gone from the catalog
+            // (soft-deleted / access revoked). They used to render nothing
+            // while being silently re-persisted forever — surface them as
+            // removable "no longer available" rows instead (#274 item 6).
+            // Never auto-prune: removing them is the owner's decision.
+            const orphanedJudgeIds = additionalJudges.filter(
+              (id) => !judgeModels.some((m) => m.id === id),
+            )
+
             const renderEntry = (m: Model) => {
               const checked = additionalJudges.includes(m.id)
               const isCustom = m.is_official === false
-              // A custom judge without a stored key can't run — disabled
-              // (has_credential already ORs personal + usable org keys).
+              // A custom judge without a stored key can't run — block NEW
+              // selection, but keep a SAVED (checked) judge uncheckable so
+              // the stale entry can be removed from the config (#274 item 6).
               const missing =
                 isCustom &&
                 m.requires_api_key === true &&
@@ -151,7 +161,7 @@ export function JudgeEnsembleControl<S extends BuilderStateWithParameters>({
                     <input
                       type="checkbox"
                       checked={checked}
-                      disabled={missing}
+                      disabled={missing && !checked}
                       onChange={(e) => {
                         const next = e.target.checked
                           ? [...additionalJudges, m.id]
@@ -192,6 +202,38 @@ export function JudgeEnsembleControl<S extends BuilderStateWithParameters>({
                   </div>
                 )}
                 {customs.map(renderEntry)}
+                {orphanedJudgeIds.map((id) => (
+                  <div
+                    key={id}
+                    className="flex items-center justify-between gap-2 rounded-md border border-amber-300 bg-amber-50 p-2 text-xs dark:border-amber-700 dark:bg-amber-900/20"
+                    data-testid={`judge-ensemble-orphan-${id}`}
+                  >
+                    <span className="truncate text-amber-800 dark:text-amber-200">
+                      {id}{' '}
+                      <span className="text-amber-600 dark:text-amber-400">
+                        {t(
+                          'evaluationBuilder.parameters.judgeUnavailable',
+                          'nicht mehr verfügbar',
+                        )}
+                      </span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        writeJudges(
+                          additionalJudges.filter((jid) => jid !== id),
+                          runsPerJudge,
+                        )
+                      }
+                      className="flex-shrink-0 rounded px-1.5 py-0.5 text-amber-700 underline hover:text-amber-900 dark:text-amber-300"
+                    >
+                      {t(
+                        'evaluationBuilder.parameters.removeJudge',
+                        'Entfernen',
+                      )}
+                    </button>
+                  </div>
+                ))}
               </>
             )
           })()}
