@@ -1187,7 +1187,7 @@ export class EvaluationsClient extends BaseApiClient {
    * in multiple runs, uses the LATEST result.
    * @param projectId - The project ID to get aggregated results for
    */
-  async getProjectResultsByTaskModel(projectId: string, evaluationIds?: string[], includeHistory: boolean = false, metric?: string | null, evaluationConfigId?: string | null): Promise<{
+  async getProjectResultsByTaskModel(projectId: string, evaluationIds?: string[], includeHistory: boolean = false, metric?: string | null, evaluationConfigId?: string | null, options?: { signal?: AbortSignal }): Promise<{
     project_id: string
     models: string[]
     model_names: Record<string, string>
@@ -1223,7 +1223,10 @@ export class EvaluationsClient extends BaseApiClient {
     if (evaluationConfigId) sp.set('evaluation_config_id', evaluationConfigId)
     const qs = sp.toString()
     return this.request(
-      `/evaluations/projects/${projectId}/results/by-task-model${qs ? '?' + qs : ''}`
+      `/evaluations/projects/${projectId}/results/by-task-model${qs ? '?' + qs : ''}`,
+      // AbortSignal so a superseded config/metric switch cancels the old
+      // request instead of leaving it occupying a DB connection (issue #280)
+      options?.signal ? { signal: options.signal } : {}
     )
   }
 

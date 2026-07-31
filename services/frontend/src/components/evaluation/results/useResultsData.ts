@@ -55,8 +55,14 @@ export function useResultsData({
   const [loading, setLoading] = useState(true)
   const [results, setResults] = useState<ProjectEvaluationResults | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const inFlightRef = useRef(false)
 
   const fetchResults = useCallback(async () => {
+    // In-flight guard: the 5 s poll below must never stack a second request
+    // behind a slow one — overlapping full-cost queries are exactly what
+    // brushed the DB statement_timeout under load (issue #280).
+    if (inFlightRef.current) return
+    inFlightRef.current = true
     try {
       // Always fetch all runs so the metric selector can list all completed metrics.
       // showHistory controls display filtering, not the API fetch.
@@ -70,6 +76,7 @@ export function useResultsData({
       console.error('Failed to fetch evaluation results:', err)
       setError(err?.message || failedLoadMessage)
     } finally {
+      inFlightRef.current = false
       setLoading(false)
     }
   }, [projectId, showHistory]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -122,6 +129,16 @@ export interface UseTaskModelDataResult {
   taskModelLoading: boolean
 }
 
+// Module-scope response cache keyed by (project, config, metric, history):
+// switching methods back and forth serves the last matrix instantly while a
+// background revalidation runs (issue #280). Entries are overwritten by
+// every successful fetch, so live updates keep the cache current.
+const taskModelCache = new Map<string, { data: TaskModelData; at: number }>()
+const TASK_MODEL_CACHE_TTL_MS = 30_000
+// Tick/poll-driven refreshes are dropped if the last fetch was this recent —
+// with a slow backend a 5 s timer used to queue overlapping full-cost queries.
+const MIN_LIVE_REFETCH_INTERVAL_MS = 4_000
+
 export function useTaskModelData({
   projectId,
   showHistory,
@@ -133,18 +150,40 @@ export function useTaskModelData({
   const [taskModelLoading, setTaskModelLoading] = useState(false)
 
   const fetchTaskModelDataRef = useRef<() => Promise<void>>(async () => {})
+  const inFlightRef = useRef(false)
+  const lastFetchAtRef = useRef(0)
 
   useEffect(() => {
     let cancelled = false
-    const fetchTaskModelData = async () => {
+    const controller = new AbortController()
+    const cacheKey = `${projectId}|${selectedConfigId}|${selectedMetricKey}|${showHistory}`
+
+    // Serve a fresh-enough cached matrix immediately (no spinner), then
+    // revalidate in the background.
+    const cached = taskModelCache.get(cacheKey)
+    const hasFreshCache = !!cached && Date.now() - cached.at < TASK_MODEL_CACHE_TTL_MS
+    if (hasFreshCache) setTaskModelData(cached!.data)
+
+    const fetchTaskModelData = async (opts: { live?: boolean } = {}) => {
       if (!projectId) {
         if (!cancelled) setTaskModelData(null)
         return
       }
+      // Live (WS-tick / poll-driven) refreshes: drop when one is already in
+      // flight or the last fetch just finished — never stack full-cost
+      // queries behind a slow response (issue #280).
+      if (
+        opts.live &&
+        (inFlightRef.current ||
+          Date.now() - lastFetchAtRef.current < MIN_LIVE_REFETCH_INTERVAL_MS)
+      ) {
+        return
+      }
 
-      // Initial fetch shows a loading state; subsequent refreshes don't,
-      // so the table doesn't visibly flash on each tick.
-      if (!taskModelData) setTaskModelLoading(true)
+      // Initial fetch shows a loading state; cached and subsequent refreshes
+      // don't, so the table doesn't visibly flash on each tick.
+      if (!taskModelData && !hasFreshCache) setTaskModelLoading(true)
+      inFlightRef.current = true
       try {
         // No run-id pinning: the backend scans ALL runs for the selected
         // config id and unions generation + annotation cells.
@@ -154,20 +193,28 @@ export function useTaskModelData({
           showHistory,
           selectedMetricKey || null,
           selectedConfigId || null,
+          { signal: controller.signal },
         )
+        lastFetchAtRef.current = Date.now()
+        taskModelCache.set(cacheKey, { data, at: Date.now() })
         if (!cancelled) setTaskModelData(data)
       } catch (err) {
+        // A superseded request (config/metric switch, unmount) aborts —
+        // that is not an error and must not blank the current matrix.
+        if (cancelled || (err as any)?.name === 'AbortError') return
         console.error('Failed to fetch task-model data:', err)
         if (!cancelled) setTaskModelData(null)
       } finally {
+        inFlightRef.current = false
         if (!cancelled) setTaskModelLoading(false)
       }
     }
-    fetchTaskModelDataRef.current = fetchTaskModelData
+    fetchTaskModelDataRef.current = () => fetchTaskModelData({ live: true })
     fetchTaskModelData()
 
     return () => {
       cancelled = true
+      controller.abort()
     }
 
     // intentionally excluded; otherwise the effect re-fires on every
