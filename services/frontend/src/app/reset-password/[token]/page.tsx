@@ -1,11 +1,13 @@
 'use client'
 
+import { VertretbarMarkIcon } from '@/components/brand/VertretbarMark'
 import { LanguageSwitcher, ThemeToggle } from '@/components/layout'
 import { Button } from '@/components/shared/Button'
 import { useI18n } from '@/contexts/I18nContext'
+import { getHostBrandName, isStudentLockedHost } from '@/lib/utils/subdomain'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 export default function ResetPasswordConfirmPage() {
   const params = useParams()
@@ -18,6 +20,16 @@ export default function ResetPasswordConfirmPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const { t } = useI18n()
+
+  // Host-aware wordmark (Vertretbar on vertretbar.net). Resolved after mount
+  // so SSR stays neutral; the brief default is the BenGER name on benger hosts.
+  const [brandName, setBrandName] = useState('BenGER')
+  const [isVtr, setIsVtr] = useState(false)
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => {
+    setBrandName(getHostBrandName())
+    setIsVtr(isStudentLockedHost())
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -79,10 +91,14 @@ export default function ResetPasswordConfirmPage() {
         >
           <div className="flex lg:flex-1">
             <Link href="/" className="-m-1.5 p-1.5">
-              <span className="sr-only">BenGER</span>
+              <span className="sr-only">{brandName}</span>
               <div className="flex items-center gap-2 text-xl font-bold text-zinc-900 dark:text-white">
-                <span className="text-2xl">🤘</span>
-                <span>BenGER</span>
+                {isVtr ? (
+                  <VertretbarMarkIcon className="h-7 w-7 text-emerald-500" />
+                ) : (
+                  <span className="text-2xl">🤘</span>
+                )}
+                <span>{brandName}</span>
               </div>
             </Link>
           </div>

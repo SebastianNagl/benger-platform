@@ -1749,3 +1749,50 @@ class TestMultipartHelpers:
         service, mock_client = _make_s3_service()
         mock_client.abort_multipart_upload.side_effect = RuntimeError("boom")
         service.abort_multipart_upload("exports/x.json", "uid-1")  # no exception
+
+
+# ===========================================================================
+# S3 metadata ASCII sanitization (non-ASCII export filenames)
+# ===========================================================================
+
+class TestS3MetadataAsciiSanitization:
+    """Non-ASCII filenames (umlaut project titles like "ZJS_Fälle_export.json")
+    reach S3 object metadata via original_filename; boto3 rejects non-ASCII
+    metadata at parameter validation, failing the export job before a single
+    byte uploads. Metadata must be percent-encoded to ASCII."""
+
+    def test_multipart_metadata_is_ascii_for_umlaut_filename(self):
+        from urllib.parse import unquote
+
+        service, mock_client = _make_s3_service()
+        mock_client.create_multipart_upload.return_value = {"UploadId": "mp-1"}
+
+        service.create_multipart_upload("ZJS_Fälle_export.json", file_type="exports")
+
+        meta = mock_client.create_multipart_upload.call_args[1]["Metadata"]
+        for value in meta.values():
+            assert value.isascii()
+        assert unquote(meta["original_filename"]) == "ZJS_Fälle_export.json"
+
+    def test_put_object_metadata_is_ascii_for_umlaut_filename(self):
+        from urllib.parse import unquote
+
+        service, mock_client = _make_s3_service()
+        mock_client.generate_presigned_url.return_value = "https://signed"
+
+        service.upload_file(b"data", "Prüfungsbericht.json", user_id="u1")
+
+        meta = mock_client.put_object.call_args[1]["Metadata"]
+        for value in meta.values():
+            assert value.isascii()
+        assert unquote(meta["original_filename"]) == "Prüfungsbericht.json"
+
+    def test_ascii_metadata_passes_through_unchanged(self):
+        from services.storage.object_storage import ascii_safe_metadata
+
+        meta = {
+            "original_filename": "plain_export (v2).json",
+            "user_id": "user-123",
+            "file_size": "1024",
+        }
+        assert ascii_safe_metadata(meta) == meta

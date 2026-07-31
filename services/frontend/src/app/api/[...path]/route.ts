@@ -55,10 +55,17 @@ function forwardHeadersAndCookies(
   request: NextRequest
 ) {
   upstream.headers.forEach((value, key) => {
+    // content-encoding must never be copied: undici transparently
+    // DECOMPRESSES the upstream body (buffered and streamed alike) while
+    // leaving the stale header on response.headers — copying it labels
+    // plaintext as gzip and breaks strict clients downstream.
     if (
-      !['content-length', 'transfer-encoding', 'set-cookie'].includes(
-        key.toLowerCase()
-      )
+      ![
+        'content-length',
+        'content-encoding',
+        'transfer-encoding',
+        'set-cookie',
+      ].includes(key.toLowerCase())
     ) {
       downstream.headers.set(key, value)
     }

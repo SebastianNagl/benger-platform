@@ -45,6 +45,7 @@ from tasks import (
     _bulk_upsert_task_evaluations,
     _bump_evaluation_counters,
     _classify_cell_failure,
+    _finalize_judge_runs_by_rows,
     _get_insensitive,
     _immediate_eval_metadata,
     _llm_judge_columns_from_result,
@@ -148,6 +149,16 @@ class TestLLMJudgeColumnsFromResult:
         assert cols["output_tokens"] == 20
         assert cols["raw_output"] == "<judge text>"
 
+    def test_raw_output_control_chars_stripped(self):
+        # LLM output can carry literal control bytes; they must never reach
+        # the persisted column (keeping \n \r \t).
+        result = {
+            "_call_metadata": {},
+            "_raw_output": "ok\x00\x1f\ndone\x7f\tend",
+        }
+        cols = _llm_judge_columns_from_result(result)
+        assert cols["raw_output"] == "ok\ndone\tend"
+
     def test_defaults_when_call_metadata_empty(self):
         cols = _llm_judge_columns_from_result({"_call_metadata": {}})
         # Missing keys default; bool flags default False.
@@ -213,6 +224,96 @@ class TestBuildMultidimJudgeRowMetrics:
         metrics, value = _build_multidim_judge_row_metrics(multidim, "llm_judge", None)
         assert value == 0.0
         assert metrics["llm_judge"]["value"] == 0.0
+
+    def test_control_chars_scrubbed_from_judge_text(self):
+        # Strict json.loads decodes \u000X escapes in the judge's JSON into
+        # real control characters — they must not reach persisted details.
+        multidim = {
+            "scores": {"clarity": {"score": 3, "feedback": "gut\x00gemacht"}},
+            "total_score": 3.0,
+            "total_max": 4.0,
+            "overall_assessment": "solide\x1f Arbeit",
+            "_call_metadata": {"seed": 1},
+            "_raw_output": "raw\x08text\nzeile2",
+        }
+        metrics, _ = _build_multidim_judge_row_metrics(multidim, "llm_judge", None)
+        details = metrics["llm_judge"]["details"]
+        assert details["overall_assessment"] == "solide Arbeit"
+        assert details["raw_output"] == "rawtext\nzeile2"
+        assert details["scores"]["clarity"]["feedback"] == "gutgemacht"
+
+    def test_error_branch_scrubs_raw_output_and_message(self):
+        metrics, _ = _build_multidim_judge_row_metrics(
+            {"error": True, "error_message": "boom\x00!", "_raw_output": "r\x1fx"},
+            "llm_judge",
+            None,
+        )
+        assert metrics["llm_judge"]["error"] == "boom!"
+        assert metrics["llm_judge"]["details"]["raw_output"] == "rx"
+
+
+# ===========================================================================
+# _finalize_judge_runs_by_rows
+# ===========================================================================
+
+
+class TestFinalizeJudgeRunsByRows:
+    """Row-derived judge_run settlement — shared by the batch chord callback
+    and (since the immediate-finalization fix) the single-sample tail."""
+
+    def _make_db(self, children, counts):
+        from models import EvaluationJudgeRun
+
+        counts_iter = iter(counts)
+        db = MagicMock()
+
+        def _query(model):
+            q = MagicMock()
+            if model is EvaluationJudgeRun:
+                q.filter.return_value.all.return_value = children
+            else:
+                q.filter.return_value.count.side_effect = lambda: next(counts_iter)
+            return q
+
+        db.query.side_effect = _query
+        return db
+
+    def _child(self, cid, error_message=None):
+        return types.SimpleNamespace(
+            id=cid,
+            status="running",
+            error_message=error_message,
+            samples_evaluated=None,
+            completed_at=None,
+        )
+
+    def test_rows_complete_and_zero_rows_fail(self):
+        graded = self._child("jr-1")
+        empty = self._child("jr-2")
+        db = self._make_db([graded, empty], counts=[1, 0])
+        completed, failed, children = _finalize_judge_runs_by_rows(db, "eval-1")
+        assert (completed, failed) == (True, True)
+        assert children == [graded, empty]
+        assert graded.status == "completed"
+        assert graded.samples_evaluated == 1
+        assert graded.error_message is None
+        assert graded.completed_at is not None
+        assert empty.status == "failed"
+        assert empty.samples_evaluated == 0
+        assert empty.error_message == "no rows produced"
+        assert db.commit.called
+
+    def test_existing_error_message_preserved_on_failed_child(self):
+        stuck = self._child("jr-1", error_message="No AI service")
+        db = self._make_db([stuck], counts=[0])
+        _finalize_judge_runs_by_rows(db, "eval-1")
+        assert stuck.status == "failed"
+        assert stuck.error_message == "No AI service"
+
+    def test_no_children_returns_empty(self):
+        db = self._make_db([], counts=[])
+        completed, failed, children = _finalize_judge_runs_by_rows(db, "eval-1")
+        assert (completed, failed, children) == (False, False, [])
 
 
 # ===========================================================================

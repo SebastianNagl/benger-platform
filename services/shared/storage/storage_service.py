@@ -18,6 +18,13 @@ import logging  # noqa: E402
 import mimetypes  # noqa: E402
 from pathlib import Path  # noqa: E402
 
+# Imported as ``storage.storage_service`` (containers) or aliased flat via the
+# api shims — resolve the sibling module under either sys.path layout.
+try:
+    from storage.s3_metadata import ascii_safe_metadata  # noqa: E402
+except ImportError:
+    from s3_metadata import ascii_safe_metadata  # noqa: E402
+
 logger = logging.getLogger(__name__)
 
 
@@ -134,7 +141,9 @@ class S3StorageBackend(StorageBackend):
             }
 
             if metadata:
-                upload_kwargs["Metadata"] = metadata
+                # S3 metadata must be ASCII (it travels in HTTP headers);
+                # filenames derived from project titles often are not.
+                upload_kwargs["Metadata"] = ascii_safe_metadata(metadata)
 
             # Upload file
             self.s3_client.upload_fileobj(**upload_kwargs)
