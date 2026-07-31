@@ -49,6 +49,12 @@ def upgrade() -> None:
             "ALTER TABLE task_evaluations "
             "ALTER COLUMN metrics TYPE jsonb USING metrics::jsonb"
         )
+        # The rewrite invalidates planner statistics; until autovacuum
+        # re-analyzes, row estimates collapse (observed rows=4 vs actual 70k
+        # on prod ZJS right after this shipped) and the by-task-model plans
+        # degrade to pathological nested loops (22s vs ~5s). Refresh
+        # immediately so no such window exists.
+        op.execute("ANALYZE task_evaluations")
 
 
 def downgrade() -> None:
