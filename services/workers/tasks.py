@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import re
 import sys
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -123,6 +124,33 @@ def _get_insensitive(d: dict, key: str, default=""):
     return default
 
 
+# Raw control characters that must never reach persisted judge text —
+# everything below 0x20 except \t \n \r, plus DEL. LLM output carries them
+# both as literal bytes in the raw completion and as \u000X escapes that
+# strict json.loads decodes into real control characters in parsed dicts;
+# either form lands in JSONB and leaks into CSV/exports and strict JSON
+# clients downstream.
+_CTRL_CHARS = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
+
+
+def _strip_control_chars(text):
+    """Strip raw control characters (keeping tab/newline/CR) from judge text."""
+    if not isinstance(text, str):
+        return text
+    return _CTRL_CHARS.sub("", text)
+
+
+def _scrub_control_chars(obj):
+    """Recursively strip control characters from every string in a structure."""
+    if isinstance(obj, str):
+        return _strip_control_chars(obj)
+    if isinstance(obj, dict):
+        return {k: _scrub_control_chars(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_scrub_control_chars(v) for v in obj]
+    return obj
+
+
 def _llm_judge_columns_from_result(result: Optional[dict]) -> dict:
     """Phase 6.6: pull the eight academic-rigor column values + raw_output
     out of an LLM-judge ``result`` dict (which carries ``_call_metadata``
@@ -146,7 +174,7 @@ def _llm_judge_columns_from_result(result: Optional[dict]) -> dict:
         "latency_ms": call_meta.get("response_time_ms"),
         "input_tokens": call_meta.get("input_tokens"),
         "output_tokens": call_meta.get("output_tokens"),
-        "raw_output": result.get("_raw_output"),
+        "raw_output": _strip_control_chars(result.get("_raw_output")),
     }
 
 
@@ -175,10 +203,12 @@ def _build_multidim_judge_row_metrics(
                     "value": None,
                     "method": metric,
                     "details": {
-                        "raw_output": (multidim or {}).get("_raw_output", ""),
+                        "raw_output": _strip_control_chars(
+                            (multidim or {}).get("_raw_output", "")
+                        ),
                         "call_metadata": (multidim or {}).get("_call_metadata", {}),
                     },
-                    "error": (
+                    "error": _strip_control_chars(
                         error_msg
                         or (multidim or {}).get("error_message")
                         or "multi-dim LLM judge produced no scores"
@@ -197,12 +227,14 @@ def _build_multidim_judge_row_metrics(
                 "value": float(normalized),
                 "method": metric,
                 "details": {
-                    "scores": multidim["scores"],
+                    "scores": _scrub_control_chars(multidim["scores"]),
                     "total_score": total,
                     "total_max": total_max,
-                    "overall_assessment": multidim.get("overall_assessment", ""),
+                    "overall_assessment": _strip_control_chars(
+                        multidim.get("overall_assessment", "")
+                    ),
                     "call_metadata": multidim.get("_call_metadata", {}),
-                    "raw_output": multidim.get("_raw_output", ""),
+                    "raw_output": _strip_control_chars(multidim.get("_raw_output", "")),
                 },
                 "error": None,
             },
@@ -680,6 +712,10 @@ def _mark_immediate_run_failed(db, evaluation_record_id: str, message: str) -> N
             stuck.eval_metadata = meta
             flag_modified(stuck, "eval_metadata")
             db.commit()
+            # Settle the run's judge_runs too (rows>0 → completed, else
+            # failed) so a failed immediate run never strands children on
+            # 'running' — same best-effort contract as the parent flip.
+            _finalize_judge_runs_by_rows(db, evaluation_record_id)
     except Exception as exc:  # pragma: no cover - defensive
         # Deliberately no rollback here: every caller has already rolled back
         # before calling this, and closes the session immediately afterwards in
@@ -2788,10 +2824,19 @@ def run_single_sample_evaluation(
                         logger.error(f"[SingleSampleEval] config job crashed: {e}")
                         results.append({"status": "error", "error": str(e)})
 
+        # Settle the judge_run children from their produced rows BEFORE the
+        # parent flips terminal — the immediate path used to skip this
+        # entirely, stranding every immediate grading's judge_runs at
+        # 'running' with NULL completed_at/samples_evaluated forever.
+        _finalize_judge_runs_by_rows(db, dispatch_eval_id)
+
         # Mark the dispatch run as completed and aggregate metrics
         eval_run = db.query(EvaluationRun).filter(EvaluationRun.id == dispatch_eval_id).first()
         if eval_run:
+            from datetime import datetime as _dt_now
+
             eval_run.status = "completed"
+            eval_run.completed_at = _dt_now.now()
 
             # Aggregate TaskEvaluation scores into EvaluationRun.metrics
             # so the comparison table on /evaluations can display them.
@@ -2838,6 +2883,10 @@ def run_single_sample_evaluation(
 
                 eval_run.metrics = aggregated
                 eval_run.samples_evaluated = len(task_evals)
+                # Unlocks the per-sample drill-down on the eval detail page
+                # (frontend gates the samples fetch on this flag) — batch
+                # finalization sets it, the immediate path never did.
+                eval_run.has_sample_results = True
 
                 # Normalize eval_metadata to include evaluation_configs with full structure
                 if eval_run.eval_metadata and "configs" in eval_run.eval_metadata and "evaluation_configs" not in eval_run.eval_metadata:
@@ -3447,6 +3496,53 @@ def evaluate_annotation_cell(
     return evaluate_annotation_cell_impl(self, evaluation_id, task_id, annotation_id, project_id, configs_for_cell, judge_run_ids_by_config, default_judge_run_id, organization_id, triggered_by_user_id, already_evaluated_field_keys)
 
 
+def _finalize_judge_runs_by_rows(db, evaluation_id: str):
+    """Settle every EvaluationJudgeRun of a run from the rows it produced.
+
+    Derives each judge_run's terminal status from its TaskEvaluation row
+    count, never from its current status field — that field can be stale. A
+    missing-only resume into the SAME EvaluationRun (the supported way to
+    continue a cancelled run) reuses the cancelled attempt's judge_run,
+    which the cancel left marked 'failed'. The resume then grades every
+    cell under that very row. An early skip on status=='failed' would
+    strand it as failed and flip the whole parent to 'failed' despite a
+    complete, valid grade. Row count is authoritative: rows>0 means it
+    graded; rows==0 means it produced nothing (covers the legitimate
+    up-front "no AI service" failure, which never writes any rows).
+
+    Shared by the batch chord callback and the immediate single-sample
+    path — the latter previously never revisited its 'running' judge_run
+    rows at all, stranding every immediate grading's bookkeeping.
+
+    Commits. Returns (any_completed, any_failed, child_runs).
+    """
+    from datetime import datetime as _dt
+
+    from models import EvaluationJudgeRun, TaskEvaluation
+
+    child_runs = db.query(EvaluationJudgeRun).filter(
+        EvaluationJudgeRun.evaluation_id == evaluation_id
+    ).all()
+    any_child_failed = False
+    any_child_completed = False
+    for child in child_runs:
+        child_rows = db.query(TaskEvaluation).filter(
+            TaskEvaluation.judge_run_id == child.id
+        ).count()
+        child.samples_evaluated = child_rows
+        child.completed_at = _dt.now()
+        if child_rows > 0:
+            child.status = "completed"
+            child.error_message = None
+            any_child_completed = True
+        else:
+            child.status = "failed"
+            child.error_message = child.error_message or "no rows produced"
+            any_child_failed = True
+    db.commit()
+    return any_child_completed, any_child_failed, child_runs
+
+
 @app.task(
     name="tasks.finalize_evaluation_run",
     bind=True,
@@ -3508,39 +3604,11 @@ def finalize_evaluation_run(
             return {"status": "noop", "reason": "paused",
                     "evaluation_id": evaluation_id, "current_status": "paused"}
 
-        # Walk EvaluationJudgeRun children — lifted from ex-`tasks.py:3870-3893`.
-        child_runs = db.query(EvaluationJudgeRun).filter(
-            EvaluationJudgeRun.evaluation_id == evaluation_id
-        ).all()
-        any_child_failed = False
-        any_child_completed = False
-        for child in child_runs:
-            # Derive each judge_run's terminal status from the rows it actually
-            # produced, never from its current status field — that field can be
-            # stale. A missing-only resume into the SAME EvaluationRun (the
-            # supported way to continue a cancelled run) reuses the cancelled
-            # attempt's judge_run, which the cancel left marked 'failed'. The
-            # resume then grades every cell under that very row. An early skip on
-            # status=='failed' here would strand it as failed and flip the whole
-            # parent to 'failed'/'all judge_runs failed' despite a complete,
-            # valid grade — which is exactly the bug that forced a manual status
-            # fix. Row count is authoritative: rows>0 means it graded; rows==0
-            # means it produced nothing (covers the legitimate up-front "no AI
-            # service" failure, which never writes any rows).
-            child_rows = db.query(TaskEvaluation).filter(
-                TaskEvaluation.judge_run_id == child.id
-            ).count()
-            child.samples_evaluated = child_rows
-            child.completed_at = _dt.now()
-            if child_rows > 0:
-                child.status = "completed"
-                child.error_message = None
-                any_child_completed = True
-            else:
-                child.status = "failed"
-                child.error_message = child.error_message or "no rows produced"
-                any_child_failed = True
-        db.commit()
+        # Walk EvaluationJudgeRun children — row-derived statuses (see the
+        # helper's docstring for the resume-into-cancelled-run rationale).
+        any_child_completed, any_child_failed, child_runs = (
+            _finalize_judge_runs_by_rows(db, evaluation_id)
+        )
 
         # Recompute aggregate metrics from TaskEvaluation rows.
         # Replaces the orchestrator's per-iteration `aggregate_metrics`
