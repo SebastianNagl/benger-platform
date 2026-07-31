@@ -797,9 +797,24 @@ def test_finalizer_judges_children_by_produced_rows_not_stale_status():
     src = _tasks_source()
     import ast
     tree = ast.parse(src)
+    # The settlement loop lives in _finalize_judge_runs_by_rows since the
+    # immediate-finalization fix (2026-07-31) — shared by the chord callback
+    # and the single-sample tail. Pin BOTH halves: the chord callback must
+    # still route through the helper, and the helper's loop must keep the
+    # row-derived semantics.
+    finalize_src = None
     for node in ast.walk(tree):
         if (isinstance(node, ast.FunctionDef)
                 and node.name == "finalize_evaluation_run"):
+            finalize_src = ast.get_source_segment(src, node) or ""
+    assert finalize_src is not None, "finalize_evaluation_run function not found"
+    assert "_finalize_judge_runs_by_rows(" in finalize_src, (
+        "finalize_evaluation_run must settle judge_runs via "
+        "_finalize_judge_runs_by_rows (the row-derived settlement helper)"
+    )
+    for node in ast.walk(tree):
+        if (isinstance(node, ast.FunctionDef)
+                and node.name == "_finalize_judge_runs_by_rows"):
             for sub in ast.walk(node):
                 if (isinstance(sub, ast.For)
                         and isinstance(sub.target, ast.Name)
@@ -811,27 +826,28 @@ def test_finalizer_judges_children_by_produced_rows_not_stale_status():
                     # the branch. The fix only *writes* child.status (from the
                     # row count) — it never *compares* it. Assert no comparison.
                     assert not re.search(r"child\.status\s*==", loop_src), (
-                        "finalize_evaluation_run must not branch on a child's "
-                        "stale status field — a reused-but-graded judge_run is "
-                        "left 'failed' by the cancel, and an early skip here "
-                        "flips the parent to failed despite valid grades"
+                        "_finalize_judge_runs_by_rows must not branch on a "
+                        "child's stale status field — a reused-but-graded "
+                        "judge_run is left 'failed' by the cancel, and an "
+                        "early skip here flips the parent to failed despite "
+                        "valid grades"
                     )
                     assert (
                         "TaskEvaluation.judge_run_id == child.id" in loop_src
                     ), (
-                        "finalizer must count each child's produced rows "
+                        "settlement must count each child's produced rows "
                         "(TaskEvaluation.judge_run_id == child.id)"
                     )
                     assert "if child_rows > 0:" in loop_src, (
-                        "finalizer must derive completed/failed from the "
+                        "settlement must derive completed/failed from the "
                         "produced-row count, not the stale status field"
                     )
                     return
             raise AssertionError(
                 "`for child in child_runs:` loop not found in "
-                "finalize_evaluation_run"
+                "_finalize_judge_runs_by_rows"
             )
-    raise AssertionError("finalize_evaluation_run function not found")
+    raise AssertionError("_finalize_judge_runs_by_rows function not found")
 
 
 def test_judge_run_reuse_revives_terminal_rows_for_resume():

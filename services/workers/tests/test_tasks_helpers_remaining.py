@@ -713,7 +713,9 @@ class TestMarkImmediateRunFailed:
         assert row.eval_metadata["error"] == "boom"
         # Pre-existing metadata must survive — the UI reads `configs` off it.
         assert row.eval_metadata["configs"] == ["x"]
-        assert db.commits == 1
+        # Two commits: the parent flip, then the judge-run settlement
+        # (_finalize_judge_runs_by_rows) so children never strand on 'running'.
+        assert db.commits == 2
 
     def test_long_reason_is_truncated(self, _no_flag_modified):
         row = types.SimpleNamespace(status="running", eval_metadata=None)
