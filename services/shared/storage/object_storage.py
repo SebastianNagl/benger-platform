@@ -29,6 +29,14 @@ import shutil
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Tuple
 
+# This module is imported both as ``storage.object_storage`` (containers,
+# /shared on sys.path) and flat as ``object_storage`` (unit tests put
+# /shared/storage itself on sys.path) — support the sibling import either way.
+try:
+    from storage.s3_metadata import ascii_safe_metadata
+except ImportError:
+    from s3_metadata import ascii_safe_metadata
+
 try:
     import boto3
     from botocore.client import Config
@@ -329,7 +337,9 @@ class ObjectStorageService:
         # Calculate file hash
         file_hash = hashlib.sha256(file_data).hexdigest()
 
-        # Prepare metadata
+        # Prepare metadata. S3 metadata rides in HTTP headers and must be
+        # ASCII — a non-ASCII filename (umlaut project titles) fails boto3
+        # parameter validation before a single byte is uploaded.
         file_metadata = {
             "original_filename": filename,
             "user_id": user_id or "",
@@ -339,6 +349,7 @@ class ObjectStorageService:
         }
         if metadata:
             file_metadata.update(metadata)
+        file_metadata = ascii_safe_metadata(file_metadata)
 
         if self.storage_backend == "local":
             # Local filesystem storage
@@ -807,11 +818,11 @@ class ObjectStorageService:
                 Bucket=self.bucket_name,
                 Key=file_key,
                 ContentType=content_type,
-                Metadata={
+                Metadata=ascii_safe_metadata({
                     "original_filename": filename,
                     "user_id": user_id or "",
                     "upload_timestamp": datetime.now().isoformat(),
-                },
+                }),
             )
 
             return {
