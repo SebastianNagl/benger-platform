@@ -723,19 +723,72 @@ async def get_project_results_by_task_model(
         # for the rationale and measurements. `_extract_primary_score` still
         # owns the priority logic; it only needs the `value` (or bare numeric)
         # per metric key, and an optional `error` to skip failed runs.
+        from sqlalchemy import and_, cast, distinct, tuple_
+        from sqlalchemy.dialects.postgresql import JSONB
+
         from routers.evaluations.metrics_lite import metrics_lite_expr as _lite
 
         metrics_lite_expr = _lite()
 
-        # Subquery: rank results by (generation_id, field_name), ordered by created_at DESC
-        # Keeps the latest result per generation per config/field combination
-        gen_query = (
+        # Run scope as a semi-join instead of splatting every run id into an
+        # IN (...) literal list — ZJS-scale projects have hundreds of runs
+        # (issue #280). Same semantics as `eval_query` above, still
+        # deliberately NO run-status filter (#278).
+        run_ids_select = select(DBEvaluationRun.id).where(
+            DBEvaluationRun.project_id == project_id
+        )
+        if evaluation_ids:
+            filter_ids = [eid.strip() for eid in evaluation_ids.split(",") if eid.strip()]
+            if filter_ids:
+                run_ids_select = run_ids_select.where(DBEvaluationRun.id.in_(filter_ids))
+
+        # Shared predicates for the gen-side candidate set. The explicit
+        # generation_id IS NOT NULL replaces the old inner-join-drops-NULLs
+        # behavior now that ranking happens before the Generation join.
+        gen_filters = [
+            TaskEvaluation.evaluation_id.in_(run_ids_select),
+            TaskEvaluation.generation_id.isnot(None),
+        ]
+        # The latest-gen scope is applied as a JOIN below, not as a
+        # `generation_id IN (subquery)` filter: as an IN-subquery the planner
+        # re-scanned the latest-gen set once per candidate row and fell back
+        # to a nested loop (~50k block reads on a 2.8 GB table; 10.2 s on
+        # ZJS Fälle — the [hotfix] 11f3080 measurements: 10185 ms -> 2645 ms,
+        # byte-identical output). The join cannot duplicate rows:
+        # latest_gen_ids_subq yields DISTINCT gen_ids (row_number()=1 per
+        # (task_id, model_id) partition, and id is the PK).
+
+        def _scope_to_latest_gens(stmt):
+            if latest_gen_ids_subq is None:
+                return stmt
+            return stmt.join(
+                latest_gen_ids_subq,
+                latest_gen_ids_subq.c.gen_id == TaskEvaluation.generation_id,
+            )
+
+        # When a single EvaluationRun bundles multiple metrics, every metric
+        # produces its own row for the same (gen, model) cell. The aggregation
+        # loop below assigns score by overwriting `task_model_scores[t][m]`
+        # — so without filtering by the user's selected metric, the last
+        # row to land wins and every column shows the same number.
+        if metric:
+            gen_filters.append(cast(TaskEvaluation.metrics, JSONB).has_key(metric))
+        # Issue #111: scope to a single method. Pre-filtering to one config id
+        # also makes the (generation_id, field_name) latest-wins partition below
+        # collision-free across two configs that share a metric key.
+        if evaluation_config_id:
+            gen_filters.append(
+                TaskEvaluation.evaluation_config_id == evaluation_config_id
+            )
+
+        # Latest-wins rank per (generation_id, field_name), computed over ids
+        # only — the expensive metrics projection runs on the survivors, not
+        # on every candidate row (issue #280). Filters MUST apply before the
+        # window: a row without the selected metric must not win its
+        # partition and then be discarded.
+        ranked_ids = _scope_to_latest_gens(
             select(
-                TaskEvaluation.task_id,
-                TaskEvaluation.generation_id,
-                metrics_lite_expr,
-                GenerationModel.model_id,
-                TaskEvaluation.created_at,
+                TaskEvaluation.id.label("te_id"),
                 func.row_number()
                 .over(
                     partition_by=[TaskEvaluation.generation_id, TaskEvaluation.field_name],
@@ -743,61 +796,26 @@ async def get_project_results_by_task_model(
                 )
                 .label("rn"),
             )
-            .join(
-                GenerationModel,
-                TaskEvaluation.generation_id == GenerationModel.id,
-            )
-            .where(TaskEvaluation.evaluation_id.in_(completed_eval_ids))
-        )
-        if latest_gen_ids_subq is not None:
-            # JOIN, not `generation_id IN (subquery)`. As an IN-subquery the
-            # planner re-scanned the latest-gen set once per candidate row
-            # (`CTE/Subquery Scan ... loops=11523`) and fell back to a nested
-            # loop that fetched ~7 task_evaluations per generation only to
-            # discard 6 — ~50k block reads on a 2.8 GB table. On ZJS Fälle
-            # (581 tasks, 10.4k latest gens, 181k task_evaluations) that ran
-            # 10.2 s against the async engine's 15 s statement_timeout, so the
-            # results grid 500'd as soon as the cache was cold.
-            # The join is semantically identical: latest_gen_ids_subq yields
-            # DISTINCT gen_ids (row_number()=1 per (task_id, model_id)
-            # partition, and id is the PK), so it cannot duplicate rows.
-            # Measured on prod: 10185 ms -> 2645 ms, byte-identical output
-            # across all 10449 rows.
-            gen_query = gen_query.join(
-                latest_gen_ids_subq,
-                latest_gen_ids_subq.c.gen_id == TaskEvaluation.generation_id,
-            )
-        # When a single EvaluationRun bundles multiple metrics, every metric
-        # produces its own row for the same (gen, model) cell. The aggregation
-        # loop below assigns score by overwriting `task_model_scores[t][m]`
-        # — so without filtering by the user's selected metric, the last
-        # row to land wins and every column shows the same number.
-        if metric:
-            from sqlalchemy import cast
-            from sqlalchemy.dialects.postgresql import JSONB
-            gen_query = gen_query.where(
-                cast(TaskEvaluation.metrics, JSONB).has_key(metric)
-            )
-        # Issue #111: scope to a single method. Pre-filtering to one config id
-        # also makes the (generation_id, field_name) latest-wins partition below
-        # collision-free across two configs that share a metric key.
-        if evaluation_config_id:
-            gen_query = gen_query.where(
-                TaskEvaluation.evaluation_config_id == evaluation_config_id
-            )
-        ranked_results = gen_query.subquery()
+            .where(*gen_filters)
+        ).subquery()
 
-        # Filter to only the latest result per generation (rn = 1)
         sample_results = (
             await db.execute(
                 select(
-                    ranked_results.c.task_id,
-                    ranked_results.c.generation_id,
-                    ranked_results.c.metrics,
-                    ranked_results.c.model_id,
-                    ranked_results.c.created_at,
+                    TaskEvaluation.task_id,
+                    TaskEvaluation.generation_id,
+                    metrics_lite_expr,
+                    GenerationModel.model_id,
+                    TaskEvaluation.created_at,
                 )
-                .where(ranked_results.c.rn == 1)
+                .join(
+                    ranked_ids,
+                    and_(ranked_ids.c.te_id == TaskEvaluation.id, ranked_ids.c.rn == 1),
+                )
+                .join(
+                    GenerationModel,
+                    TaskEvaluation.generation_id == GenerationModel.id,
+                )
             )
         ).all()
 
@@ -807,12 +825,27 @@ async def get_project_results_by_task_model(
         # filtered out here. Without this audit trail a leaderboard score
         # could swing on re-evaluation with no record of which historical
         # run was hidden.
+        #
+        # Windowless equivalent of COUNT(*) WHERE rn > 1: total candidate
+        # rows minus the number of (generation_id, field_name) partitions.
+        # The old form re-executed the whole ranked subquery — including the
+        # per-row metrics projection — a second time (issue #280).
         suppressed_count = (
             (
                 await db.execute(
-                    select(func.count())
-                    .select_from(ranked_results)
-                    .where(ranked_results.c.rn > 1)
+                    _scope_to_latest_gens(
+                        select(
+                            func.count()
+                            - func.count(
+                                distinct(
+                                    tuple_(
+                                        TaskEvaluation.generation_id,
+                                        TaskEvaluation.field_name,
+                                    )
+                                )
+                            )
+                        ).where(*gen_filters)
+                    )
                 )
             ).scalar()
             or 0
@@ -841,7 +874,9 @@ async def get_project_results_by_task_model(
                 TE2.created_at,
             )
             .where(
-                TE2.evaluation_id.in_(completed_eval_ids),
+                # Same semi-join run scope as the gen branch (issue #280);
+                # still no run-status filter (#278).
+                TE2.evaluation_id.in_(run_ids_select),
                 TE2.generation_id == None,  # noqa: E711
                 TE2.annotation_id != None,  # noqa: E711
             )
@@ -858,10 +893,8 @@ async def get_project_results_by_task_model(
                 latest_ann_ids_subq.c.ann_id == TE2.annotation_id,
             )
         if metric:
-            from sqlalchemy import cast as _cast
-            from sqlalchemy.dialects.postgresql import JSONB as _JSONB
             ann_query = ann_query.where(
-                _cast(TE2.metrics, _JSONB).has_key(metric)
+                cast(TE2.metrics, JSONB).has_key(metric)
             )
         # Issue #111: scope to a single method (same key as the gen branch).
         if evaluation_config_id:

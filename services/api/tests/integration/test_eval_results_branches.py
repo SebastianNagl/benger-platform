@@ -1154,6 +1154,87 @@ class TestProjectByTaskModelBranches:
         assert cell["scores"].get("gpt-dedup") == pytest.approx(0.7)
 
     @pytest.mark.asyncio
+    async def test_cancelled_run_rows_still_count(
+        self, async_test_client, async_test_db
+    ):
+        """Characterization for issue #278 (pinned before the #280 query
+        restructure): per-sample rows are facts once written — a cancelled
+        run's finished samples MUST feed the matrix. ZJS's canonical judge
+        re-score lived in two runs cancelled at the tail; filtering by run
+        status blanked ~7k cells (2026-07-24)."""
+        owner = await _make_owner(async_test_db)
+        org = await _make_org(async_test_db)
+        await _make_llm_model(async_test_db, "gpt-cancelled", "GPT Cancelled")
+        p, tasks = await _setup_project(async_test_db, owner, org, num_tasks=1)
+        task = tasks[0]
+        er = await _make_eval_run(
+            async_test_db, p, model_id="gpt-cancelled", status="cancelled"
+        )
+        gen, _ = await _make_generation(async_test_db, task, model_id="gpt-cancelled")
+        await _make_task_evaluation(
+            async_test_db, er, task, generation=gen, metrics={"score": 0.66}
+        )
+        await async_test_db.commit()
+
+        with _as_user(owner):
+            resp = await async_test_client.get(
+                f"{BASE}/projects/{p.id}/results/by-task-model"
+            )
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        cell = next(t for t in body["tasks"] if t["task_id"] == task.id)
+        assert cell["scores"].get("gpt-cancelled") == pytest.approx(0.66)
+        assert body["summary"]["gpt-cancelled"]["count"] == 1
+
+    @pytest.mark.asyncio
+    async def test_metrics_with_heavy_subblobs_survive_lite_projection(
+        self, async_test_client, async_test_db
+    ):
+        """Characterization for issue #277 (pinned before the #280 query
+        restructure): rows whose metrics carry the heavy sub-blobs the lite
+        projection strips (details/justification/method/raw) still yield the
+        correct primary score, and unified {value: ...} shapes coexist with
+        bare numerics."""
+        owner = await _make_owner(async_test_db)
+        org = await _make_org(async_test_db)
+        await _make_llm_model(async_test_db, "gpt-lite", "GPT Lite")
+        p, tasks = await _setup_project(async_test_db, owner, org, num_tasks=2)
+        er = await _make_eval_run(async_test_db, p, model_id="gpt-lite")
+        # Row 1: unified shape with heavy sub-blobs on task 0.
+        gen1, _ = await _make_generation(async_test_db, tasks[0], model_id="gpt-lite")
+        await _make_task_evaluation(
+            async_test_db, er, tasks[0], generation=gen1,
+            metrics={
+                "llm_judge": {
+                    "value": 0.81,
+                    "details": {"per_dimension": [1, 2, 3], "padding": "x" * 2000},
+                    "justification": "long judge rationale " * 100,
+                    "method": "llm_judge",
+                    "raw": {"tokens": 1234},
+                }
+            },
+        )
+        # Row 2: bare numeric on task 1.
+        gen2, _ = await _make_generation(async_test_db, tasks[1], model_id="gpt-lite")
+        await _make_task_evaluation(
+            async_test_db, er, tasks[1], generation=gen2,
+            metrics={"llm_judge": 0.5},
+        )
+        await async_test_db.commit()
+
+        with _as_user(owner):
+            resp = await async_test_client.get(
+                f"{BASE}/projects/{p.id}/results/by-task-model?metric=llm_judge"
+            )
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        cell1 = next(t for t in body["tasks"] if t["task_id"] == tasks[0].id)
+        cell2 = next(t for t in body["tasks"] if t["task_id"] == tasks[1].id)
+        assert cell1["scores"].get("gpt-lite") == pytest.approx(0.81)
+        assert cell2["scores"].get("gpt-lite") == pytest.approx(0.5)
+        assert body["summary"]["gpt-lite"]["avg"] == pytest.approx(0.655)
+
+    @pytest.mark.asyncio
     async def test_include_history_means_project_level(
         self, async_test_client, async_test_db
     ):

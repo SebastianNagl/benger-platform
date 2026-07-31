@@ -22,6 +22,8 @@ survive this projection untouched.
 ``json`` to ``jsonb``. Schemas where the column is already jsonb still
 work because the cast is a no-op there.
 """
+import re
+
 from sqlalchemy import literal_column
 
 _METRICS_LITE_SQL = """
@@ -30,15 +32,22 @@ _METRICS_LITE_SQL = """
              THEN v - 'details' - 'method' - 'raw' - 'justification'
              ELSE v END
       ), '{}'::jsonb)
-     FROM jsonb_each(task_evaluations.metrics::jsonb) AS j(k, v))
+     FROM jsonb_each({table}.metrics::jsonb) AS j(k, v))
 """
 
+_IDENTIFIER = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
-def metrics_lite_expr(label: str = "metrics"):
+
+def metrics_lite_expr(label: str = "metrics", table: str = "task_evaluations"):
     """A labeled SQL expression selecting the slimmed metrics blob.
 
     Use in place of ``TaskEvaluation.metrics`` in any query that only
     extracts scores; the result keeps the ``metrics`` row-attribute name
-    (or ``label``) so consumers are unchanged.
+    (or ``label``) so consumers are unchanged. ``table`` names the relation
+    (or alias) the correlated subquery reads from — the default matches the
+    bare table so existing callers are unchanged.
     """
-    return literal_column(_METRICS_LITE_SQL).label(label)
+    if not _IDENTIFIER.match(table):
+        raise ValueError(f"invalid table identifier for metrics_lite_expr: {table!r}")
+    # str.replace, not .format(): the SQL contains a literal '{}'::jsonb
+    return literal_column(_METRICS_LITE_SQL.replace("{table}", table)).label(label)
