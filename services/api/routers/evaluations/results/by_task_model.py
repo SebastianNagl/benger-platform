@@ -772,6 +772,9 @@ async def get_project_results_by_task_model(
         # — so without filtering by the user's selected metric, the last
         # row to land wins and every column shows the same number.
         if metric:
+            # The cast supplies the JSONB comparator (the models shim maps
+            # JSONB declarations to generic JSON, which lacks has_key) and is
+            # a no-op on the wire since migration 087 made the column jsonb.
             gen_filters.append(cast(TaskEvaluation.metrics, JSONB).has_key(metric))
         # Issue #111: scope to a single method. Pre-filtering to one config id
         # also makes the (generation_id, field_name) latest-wins partition below
@@ -893,9 +896,7 @@ async def get_project_results_by_task_model(
                 latest_ann_ids_subq.c.ann_id == TE2.annotation_id,
             )
         if metric:
-            ann_query = ann_query.where(
-                cast(TE2.metrics, JSONB).has_key(metric)
-            )
+            ann_query = ann_query.where(cast(TE2.metrics, JSONB).has_key(metric))
         # Issue #111: scope to a single method (same key as the gen branch).
         if evaluation_config_id:
             ann_query = ann_query.where(
