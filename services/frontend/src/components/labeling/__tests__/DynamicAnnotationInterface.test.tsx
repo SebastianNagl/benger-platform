@@ -407,6 +407,25 @@ describe('DynamicAnnotationInterface', () => {
       const textarea = screen.getByTestId('textarea')
       expect(textarea).toHaveAttribute('placeholder', 'Enter your answer...')
     })
+
+    it('should forward the DB task id to rendered components', () => {
+      // Regression: annotation components key their localStorage drafts by
+      // this prop. Without it they fall back to taskData.id, which is the
+      // import payload's non-unique id and leaks drafts across projects.
+      render(
+        <DynamicAnnotationInterface
+          {...defaultProps}
+          taskId="9eda2dca-838f-4766-a19e-be7c734a0839"
+        />
+      )
+
+      expect(mockTextAreaComponent()).toHaveBeenCalledWith(
+        expect.objectContaining({
+          taskId: '9eda2dca-838f-4766-a19e-be7c734a0839',
+        }),
+        expect.any(Object)
+      )
+    })
   })
 
   describe('Component Rendering', () => {
