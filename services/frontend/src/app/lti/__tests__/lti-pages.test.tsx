@@ -70,7 +70,7 @@ describe('LTI consent host route', () => {
 
 describe('LTI error host route', () => {
   const DEFAULT_MESSAGE =
-    'The launch could not be completed. Go back to Moodle and click the activity again; if the problem persists, contact your instructor.'
+    'The launch could not be completed. Go back to your learning platform and click the activity again; if the problem persists, contact your instructor.'
 
   it('requests the LtiLaunchError slot and prefers it when registered', () => {
     mockUseSlot.mockReturnValue(() => <div>extended error view</div>)
@@ -93,13 +93,13 @@ describe('LTI error host route', () => {
   })
 
   it.each(['invalid_state', 'nonce_reused'])(
-    'tells the user to relaunch from Moodle for %s',
+    'tells the user to relaunch from the learning platform for %s',
     (code) => {
       mockSearchParams.current = new URLSearchParams(`code=${code}`)
       render(<LtiErrorPage />)
       expect(
         screen.getByText(
-          'This launch link has expired or was already used – go back to Moodle and click the activity again.'
+          'This launch link has expired or was already used – go back to your learning platform and click the activity again.'
         )
       ).toBeInTheDocument()
       expect(screen.getByText(`Error code: ${code}`)).toBeInTheDocument()

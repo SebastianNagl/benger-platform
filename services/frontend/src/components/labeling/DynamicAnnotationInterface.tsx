@@ -406,6 +406,7 @@ export function DynamicAnnotationInterface({
         <Component
           config={{ ...config, props: resolvedProps }}
           taskData={taskData}
+          taskId={taskId?.toString()}
           value={value}
           onChange={readOnly ? () => {} : (val) => handleComponentChange(componentName, val)}
           onAnnotation={readOnly ? () => {} : handleAnnotation}

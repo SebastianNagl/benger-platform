@@ -995,7 +995,10 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
             {currentProject?.label_config ? (
               <AnnotationContextWrapper>
               <DynamicAnnotationInterface
-                key={restoreKey}
+                // Remount per task so no editor keeps previous-task content in
+                // local state (extended editors guard against transient empty
+                // external values and would otherwise carry text across tasks).
+                key={`${currentTask.id}-${restoreKey}`}
                 labelConfig={currentProject.label_config}
                 taskData={currentTask.data || {}}
                 taskId={currentTask.id} // Pass task ID for proper state clearing

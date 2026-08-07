@@ -3,11 +3,11 @@
 import { useSlot } from '@/lib/extensions/slots'
 
 /**
- * Host route for the LTI deep-linking content picker.
+ * Host route for the LTI exam-binding content picker.
  *
- * Moodle instructors land here after a deep-linking launch to pick the exam
- * an activity should point at. The picker itself (data fetching, selection,
- * JWT response post-back) ships in the proprietary extended package; the
+ * LMS instructors land here after launching an unbound activity to pick the
+ * exam it should point at. The picker itself (data fetching, selection,
+ * link write-back) ships in the proprietary extended package; the
  * open-core platform only provides the route and a graceful fallback,
  * mirroring src/app/projects/[id]/review/page.tsx.
  */

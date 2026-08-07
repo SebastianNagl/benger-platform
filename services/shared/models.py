@@ -664,7 +664,7 @@ class MarketplaceOrder(Base):
 
 
 class LtiPlatformRegistration(Base):
-    """A registered LTI 1.3 platform (one Moodle site) for an organization.
+    """A registered LTI 1.3 platform (one LMS installation) for an organization.
 
     The tool-side half of an LTI 1.3 registration: one row per
     ``(issuer, client_id)`` pair, carrying the platform's OIDC/JWKS endpoints
@@ -709,6 +709,10 @@ class LtiPlatformRegistration(Base):
     status = Column(
         String(16), nullable=False, default="active", server_default="active", index=True
     )
+    # Advisory LMS-vendor tag: 'moodle' | 'ilias' | NULL (generic). Drives
+    # admin-UI presets/warnings and diagnostics only — protocol code never
+    # branches on it.
+    lms_family = Column(String(16), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -721,6 +725,10 @@ class LtiPlatformRegistration(Base):
     __table_args__ = (
         UniqueConstraint("issuer", "client_id", name="uq_lti_registration_issuer_client"),
         Index("ix_lti_platform_registrations_issuer", "issuer"),
+        CheckConstraint(
+            "lms_family IN ('moodle', 'ilias')",
+            name="ck_lti_platform_registrations_lms_family",
+        ),
     )
 
     def __repr__(self):

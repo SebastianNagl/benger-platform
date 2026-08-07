@@ -68,6 +68,7 @@ def _registration_read(
         auth_login_url=reg.auth_login_url,
         auth_token_url=reg.auth_token_url,
         jwks_uri=reg.jwks_uri,
+        lms_family=reg.lms_family,
         link_existing_users_by_email=reg.link_existing_users_by_email,
         instructor_org_role=reg.instructor_org_role,
         student_org_role=reg.student_org_role,
@@ -131,7 +132,7 @@ async def create_registration(
     _superadmin=Depends(require_superadmin),
     db: AsyncSession = Depends(get_async_db),
 ):
-    """Register an LTI platform (Moodle site) for an organization.
+    """Register an LTI platform (LMS installation) for an organization.
 
     ``deployment_ids`` become child ``LtiDeployment`` rows (deduplicated,
     order preserved). The (issuer, client_id) pair is globally unique.
@@ -148,6 +149,7 @@ async def create_registration(
         auth_login_url=body.auth_login_url,
         auth_token_url=body.auth_token_url,
         jwks_uri=body.jwks_uri,
+        lms_family=body.lms_family,
         link_existing_users_by_email=body.link_existing_users_by_email,
         instructor_org_role=body.instructor_org_role,
         student_org_role=body.student_org_role,
@@ -450,10 +452,13 @@ async def get_tool_config(
     _superadmin=Depends(require_superadmin),
     db: AsyncSession = Depends(get_async_db),
 ):
-    """The tool-side URLs to paste into Moodle's external-tool form.
+    """The tool-side URLs to paste into the LMS's external-tool form.
 
     The ``/api/lti/*`` routes themselves are served by the extended edition;
-    this endpoint only derives the canonical URLs from ``base_url``.
+    this endpoint only derives the canonical URLs from ``base_url``. No
+    deep-linking URL is advertised — the tool rejects deep-linking launches
+    (binding happens via the instructor-launch picker), so publishing one
+    would point LMS admins at a route that does not exist.
     """
     await _load_registration(db, registration_id)
     try:
@@ -467,7 +472,6 @@ async def get_tool_config(
         login_url=f"{base}/api/lti/login",
         launch_url=f"{base}/api/lti/launch",
         jwks_url=f"{base}/api/lti/jwks",
-        deep_linking_url=f"{base}/api/lti/deep-linking",
     )
 
 

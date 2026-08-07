@@ -1,4 +1,4 @@
-"""Pydantic shapes for the LTI 1.3 (Moodle) integration.
+"""Pydantic shapes for the LTI 1.3 (LMS) integration.
 
 Generic data shapes over the platform-owned ``lti_*`` tables. The proprietary
 LTI protocol logic (OIDC third-party login, id_token validation, deep linking,
@@ -15,6 +15,8 @@ from pydantic import BaseModel, Field, field_validator
 INSTRUCTOR_ORG_ROLE_PATTERN = "^(contributor|org_admin|none)$"
 STUDENT_ORG_ROLE_PATTERN = "^(annotator|none)$"
 REGISTRATION_STATUS_PATTERN = "^(active|disabled)$"
+# Advisory vendor tag; drives admin-UI presets/warnings + diagnostics only.
+LMS_FAMILY_PATTERN = "^(moodle|ilias)$"
 
 
 def _require_http_url(value: str) -> str:
@@ -26,7 +28,7 @@ def _require_http_url(value: str) -> str:
 
 
 class LtiRegistrationCreate(BaseModel):
-    """Create shape for a platform (Moodle site) registration."""
+    """Create shape for a platform (LMS installation) registration."""
 
     organization_id: str
     name: str = Field(min_length=1, max_length=200)
@@ -35,6 +37,7 @@ class LtiRegistrationCreate(BaseModel):
     auth_login_url: str = Field(max_length=500)
     auth_token_url: str = Field(max_length=500)
     jwks_uri: str = Field(max_length=500)
+    lms_family: Optional[str] = Field(None, pattern=LMS_FAMILY_PATTERN)
     link_existing_users_by_email: bool = True
     instructor_org_role: str = Field(
         "contributor", pattern=INSTRUCTOR_ORG_ROLE_PATTERN
@@ -58,6 +61,7 @@ class LtiRegistrationUpdate(BaseModel):
     auth_login_url: Optional[str] = Field(None, max_length=500)
     auth_token_url: Optional[str] = Field(None, max_length=500)
     jwks_uri: Optional[str] = Field(None, max_length=500)
+    lms_family: Optional[str] = Field(None, pattern=LMS_FAMILY_PATTERN)
     link_existing_users_by_email: Optional[bool] = None
     instructor_org_role: Optional[str] = Field(
         None, pattern=INSTRUCTOR_ORG_ROLE_PATTERN
@@ -103,6 +107,7 @@ class LtiRegistrationRead(BaseModel):
     auth_login_url: str
     auth_token_url: str
     jwks_uri: str
+    lms_family: Optional[str] = None
     link_existing_users_by_email: bool
     instructor_org_role: str
     student_org_role: str
@@ -181,14 +186,18 @@ class LtiGradeSyncRead(BaseModel):
 
 
 class LtiToolConfigRead(BaseModel):
-    """The tool-side URLs an LMS admin pastes into Moodle's external-tool
+    """The tool-side URLs an LMS admin pastes into their LMS's external-tool
     form, derived from a deployment base URL. The routes themselves are
-    served by the extended edition (``/api/lti/*``)."""
+    served by the extended edition (``/api/lti/*``).
+
+    Deliberately does NOT advertise a deep-linking URL: the tool rejects
+    ``LtiDeepLinkingRequest`` launches (content binding happens via the
+    instructor-launch picker instead), so publishing such a URL would point
+    LMS admins at a route that does not exist."""
 
     login_url: str
     launch_url: str
     jwks_url: str
-    deep_linking_url: str
 
 
 class LtiRegistrationInviteCreate(BaseModel):
