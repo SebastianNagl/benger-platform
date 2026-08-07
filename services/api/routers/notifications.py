@@ -330,6 +330,17 @@ async def notification_stream(request: Request, current_user: User = Depends(req
             loop_count = 0
             max_loops = 1800  # 1 hour at 2-second intervals
 
+            # SSE keepalive. The loop polls every 2 s but only yields when a
+            # notification actually arrives, so an idle stream sent NOTHING —
+            # and every hop with an idle-body timeout eventually killed it
+            # (undici in the Next proxy defaults to 300 s: the recurring
+            # "SSE stream error: BodyTimeoutError" in the frontend logs, one
+            # per connected client every few minutes, plus a reconnect gap in
+            # which notifications were missed). A comment line is the standard
+            # SSE keepalive: EventSource ignores it, proxies see traffic.
+            heartbeat_every = 20  # seconds
+            last_emit = asyncio.get_event_loop().time()
+
             while loop_count < max_loops:
                 # Check if client disconnected
                 if await request.is_disconnected():
@@ -423,6 +434,7 @@ async def notification_stream(request: Request, current_user: User = Depends(req
                             },
                         }
                         yield f"data: {json.dumps(notification_data)}\n\n"
+                        last_emit = asyncio.get_event_loop().time()
                         cursor_dt = notification.created_at
                         cursor_id = notification.id
 
@@ -434,6 +446,11 @@ async def notification_stream(request: Request, current_user: User = Depends(req
                         "message": "Error fetching notifications",
                     }
                     yield f"data: {json.dumps(error_data)}\n\n"
+
+                now = asyncio.get_event_loop().time()
+                if now - last_emit >= heartbeat_every:
+                    yield ": keepalive\n\n"
+                    last_emit = now
 
                 # Wait before next check (reduced interval for better responsiveness)
                 await asyncio.sleep(2)

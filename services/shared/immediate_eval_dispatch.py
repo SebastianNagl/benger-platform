@@ -245,9 +245,20 @@ def scan_ungraded(db, project, *, cutoff=None):
     return candidates, partials
 
 
+# A run only blocks a new attempt while it is genuinely still in flight.
+# A run that FINISHED (completed/cancelled/paused) without producing a real
+# grade must not block: callers check ``_graded_run_id`` first, so reaching
+# here with a finished run means the attempt ended without a usable grade —
+# the errored-grading case. Treating those as in-flight (status != 'failed')
+# pinned the annotation forever: the retrigger endpoint answered "already in
+# progress" and the hourly sweep skipped it, so a transient judge outage was
+# unrecoverable without hand-editing the row.
+IN_FLIGHT_RUN_STATUSES = ("pending", "queued", "running")
+
+
 def _existing_immediate_run(db, project_id, annotation):
-    """A non-failed immediate EvaluationRun already created for this annotation,
-    else None. ``eval_metadata`` is a generic JSON column, so we filter in
+    """An immediate EvaluationRun still IN FLIGHT for this annotation, else
+    None. ``eval_metadata`` is a generic JSON column, so we filter in
     Python over the submitter's own immediate runs (a handful — keyed by
     ``created_by`` to keep the scan cheap during a large exam)."""
     runs = (
@@ -256,7 +267,7 @@ def _existing_immediate_run(db, project_id, annotation):
             EvaluationRun.project_id == str(project_id),
             EvaluationRun.model_id == "immediate",
             EvaluationRun.created_by == str(annotation.completed_by),
-            EvaluationRun.status != "failed",
+            EvaluationRun.status.in_(IN_FLIGHT_RUN_STATUSES),
         )
         .order_by(EvaluationRun.created_at.desc())
         .limit(50)
