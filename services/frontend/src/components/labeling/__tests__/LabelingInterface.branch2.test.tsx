@@ -302,6 +302,49 @@ describe('LabelingInterface - branch2 coverage', () => {
     expect(screen.getByText('2 minutes')).toBeInTheDocument()
   })
 
+  it('solves in a full-viewport surface when the modern exam layout is active', () => {
+    // Force the predicate: the real hook needs the extended slot + user pref.
+    const modernHook = require('@/hooks/useModernExamLayout')
+    const spy = jest
+      .spyOn(modernHook, 'useModernExamLayout')
+      .mockReturnValue({
+        active: true,
+        prefs: {
+          mode: 'modern',
+          case_position: 'left',
+          notes_position: 'right',
+          outline_position: 'none',
+        },
+        Layout: () => null,
+      })
+    try {
+      setupMocks({
+        currentProject: {
+          id: 'proj-1',
+          title: 'Test',
+          label_config: '<View><Loesung name="l" toName="t"/></View>',
+        },
+        currentTask: { id: 'task-1', data: {} },
+      })
+
+      render(<LabelingInterface projectId="proj-1" />)
+      // App shell chrome is covered: the page root becomes a fixed overlay
+      // (the classic full-screen-modal immersion), classic pages stay in-flow.
+      expect(screen.getByTestId('labeling-fullscreen')).toHaveClass('fixed')
+    } finally {
+      spy.mockRestore()
+    }
+  })
+
+  it('has no fullscreen wrapper in classic mode', () => {
+    setupMocks({
+      currentProject: { id: 'proj-1', title: 'Test', label_config: '<View/>' },
+      currentTask: { id: 'task-1', data: {} },
+    })
+    render(<LabelingInterface projectId="proj-1" />)
+    expect(screen.queryByTestId('labeling-fullscreen')).not.toBeInTheDocument()
+  })
+
   it('shows task position fallback with ? when null', () => {
     setupMocks({
       currentProject: {
