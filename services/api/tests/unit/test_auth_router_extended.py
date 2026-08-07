@@ -248,6 +248,12 @@ class TestBuildUserProfileResponse:
         mock_user.vertretbar_onboarding_completed_at = datetime(
             2025, 6, 1, tzinfo=timezone.utc
         )
+        mock_user.exam_layout_prefs = {
+            "mode": "modern",
+            "case_position": "left",
+            "notes_position": "right",
+            "outline_position": "none",
+        }
 
         with patch("routers.auth.user.get_user_primary_role") as mock_role:
             mock_role.return_value = "CONTRIBUTOR"
@@ -259,6 +265,12 @@ class TestBuildUserProfileResponse:
         assert result.pseudonym == "anon_1234"
         assert result.ati_s_scores == {"item1": 5}
         assert result.vertretbar_onboarding_completed_at == "2025-06-01T00:00:00+00:00"
+        assert result.exam_layout_prefs == {
+            "mode": "modern",
+            "case_position": "left",
+            "notes_position": "right",
+            "outline_position": "none",
+        }
 
     def test_builds_profile_with_none_dates(self):
         from routers.auth import _build_user_profile_response
@@ -276,6 +288,7 @@ class TestBuildUserProfileResponse:
         # Set all optional fields to None to avoid Mock object validation errors
         mock_user.preferred_ui_mode = None
         mock_user.vertretbar_onboarding_completed_at = None
+        mock_user.exam_layout_prefs = None
         mock_user.pseudonym = None
         mock_user.use_pseudonym = True
         mock_user.age = None

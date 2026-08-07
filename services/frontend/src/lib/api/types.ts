@@ -5,6 +5,16 @@
 // Re-export defaults types
 export type { DefaultConfig, DefaultPrompts } from './admin-defaults'
 
+// Exam layout preference lives in the labelConfig contract module; re-exported
+// here so API-client consumers can import it alongside User.
+import type { ExamLayoutPrefs } from '@/lib/labelConfig/examLayout'
+export type {
+  ExamLayoutMode,
+  ExamLayoutPrefs,
+  ExamPanelPosition,
+  ExamPanelSide,
+} from '@/lib/labelConfig/examLayout'
+
 // Role type definitions for clarity
 export type OrganizationRole = 'ORG_ADMIN' | 'CONTRIBUTOR' | 'ANNOTATOR'
 
@@ -92,6 +102,13 @@ export interface User {
   // then. The one-time VertretbarPlanModal gates on this so the choice sticks
   // across devices/sessions instead of per-browser localStorage.
   vertretbar_onboarding_completed_at?: string | null
+
+  // Exam interface layout preference (extended). How exam-shaped labeling
+  // interfaces render for this user: classic 4-card modals or the modern
+  // sheet+panels layout. Server-persisted (PUT /auth/me/exam-layout); null
+  // until first configured. Never read raw — resolve through
+  // resolveExamLayoutPrefs() / useModernExamLayout().
+  exam_layout_prefs?: ExamLayoutPrefs | null
 }
 
 export interface AuthResponse {

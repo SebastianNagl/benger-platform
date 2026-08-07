@@ -22,6 +22,7 @@ import {
   validateParsedConfig,
 } from '@/lib/labelConfig/parser'
 import { getComponent } from '@/lib/labelConfig/registry'
+import { useModernExamLayout } from '@/hooks/useModernExamLayout'
 import React, {
   Suspense,
   useCallback,
@@ -44,6 +45,11 @@ interface DynamicAnnotationInterfaceProps {
   startTime?: number // Start time for lead_time tracking (defaults to now)
   enableAutoSave?: boolean // Enable auto-save functionality (defaults to true)
   readOnly?: boolean // When true, components display content but disable editing
+  // Host opt-in for the modern exam layout (extended). Only the interactive
+  // labeling hosts pass true; review surfaces stay classic by never opting in.
+  // The layout additionally requires the user preference, the ModernExamLayout
+  // slot, and an exam-shaped config — see useModernExamLayout.
+  allowModernLayout?: boolean
 }
 
 export function DynamicAnnotationInterface({
@@ -59,8 +65,21 @@ export function DynamicAnnotationInterface({
   startTime,
   enableAutoSave = true,
   readOnly = false,
+  allowModernLayout = false,
 }: DynamicAnnotationInterfaceProps) {
   const { t } = useI18n()
+
+  // Modern exam layout (extended): when active, the registered slot arranges
+  // WHERE the parsed nodes render (sheet + side panels) while this component
+  // keeps sole ownership of annotation state, submit merging, autosave, and
+  // the action bar. Inactive (community edition, classic preference, review
+  // hosts, non-exam configs) -> the classic stacked render below, unchanged.
+  const {
+    active: modernLayoutActive,
+    prefs: examLayoutPrefs,
+    Layout: ModernLayout,
+  } = useModernExamLayout(labelConfig)
+  const useModernRender = allowModernLayout && modernLayoutActive && !!ModernLayout
 
   // Track start time for lead_time calculation - use lazy initializer to avoid calling Date.now() on every render
   const [initialStartTime] = useState(() => startTime || Date.now())
@@ -455,8 +474,26 @@ export function DynamicAnnotationInterface({
   // Render dynamic interface
   const interfaceContent = (
     <div className="dynamic-annotation-interface space-y-6">
-      {/* Render parsed configuration */}
-      {parsedConfig && renderComponent(parsedConfig)}
+      {/* Render parsed configuration. Modern exam layout: the slot arranges
+          the SAME nodes (via renderComponent, which closes over the live
+          state and memoized handlers) into sheet + side panels. It must call
+          renderComponent for every field node exactly once — including
+          fields the user placed 'none' (they stay mounted and render null so
+          drafts, context registration, and heading sync keep working). */}
+      {parsedConfig &&
+        (useModernRender && ModernLayout ? (
+          <Suspense fallback={<Skeleton className="h-96 w-full" />}>
+            <ModernLayout
+              parsedConfig={parsedConfig}
+              renderComponent={renderComponent}
+              prefs={examLayoutPrefs}
+              readOnly={readOnly}
+              taskId={taskId?.toString()}
+            />
+          </Suspense>
+        ) : (
+          renderComponent(parsedConfig)
+        ))}
 
       {/* Show submission errors if any */}
       {submissionErrors.length > 0 && (

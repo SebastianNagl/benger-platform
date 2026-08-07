@@ -188,6 +188,7 @@ export class ApiClient {
     this.confirmProfile = safeBind(this.authClient, 'confirmProfile')
     this.getProfileHistory = safeBind(this.authClient, 'getProfileHistory')
     this.setUiMode = safeBind(this.authClient, 'setUiMode')
+    this.setExamLayout = safeBind(this.authClient, 'setExamLayout')
     this.get = safeBind(this.authClient, 'get')
     this.post = safeBind(this.authClient, 'post')
     this.put = safeBind(this.authClient, 'put')
@@ -499,6 +500,7 @@ export class ApiClient {
   confirmProfile: any
   getProfileHistory: any
   setUiMode: any
+  setExamLayout: any
 
   // Configuration method for organization context
   setOrganizationContextProvider(provider: () => string | null) {

@@ -1763,6 +1763,24 @@
     }
   },
   "profile": {
+    "examLayout": {
+      "title": "Klausur-Oberfläche",
+      "description": "Lege fest, wie Klausuren für dich dargestellt werden. Gilt für alle Klausur-Projekte.",
+      "modeLabel": "Darstellung",
+      "classic": "Klassisch",
+      "classicHelp": "Vier Karten (Angabe, Notizen, Gliederung, Lösung), die sich jeweils im Vollbild öffnen.",
+      "modern": "Modern",
+      "modernHelp": "Die Lösung ist dauerhaft geöffnet; Angabe, Notizen und Gliederung docken als ein- und ausklappbare Seitenleisten an.",
+      "casePanel": "Angabe",
+      "notesPanel": "Notizen",
+      "outlinePanel": "Gliederung",
+      "positionLeft": "Links",
+      "positionRight": "Rechts",
+      "positionNone": "Nicht benötigt",
+      "save": "Speichern",
+      "saved": "Klausur-Oberfläche gespeichert",
+      "saveError": "Speichern fehlgeschlagen. Bitte erneut versuchen."
+    },
     "title": "Profil",
     "personalInfo": "Persönliche Informationen",
     "username": "Benutzername",
@@ -6426,6 +6444,18 @@
     }
   },
   "annotation": {
+    "examLayout": {
+      "openPanel": "{label} öffnen",
+      "minimizePanel": "{label} minimieren",
+      "minimize": "Minimieren",
+      "textTab": "Text",
+      "commentsTab": "Kommentare",
+      "saveField": "Speichern"
+    },
+    "loesung": {
+      "create": "Lösung anlegen",
+      "edit": "Lösung bearbeiten"
+    },
     "checkpoints": {
       "restoreTitle": "Zwischenstand wiederherstellen",
       "pick": "Stand wählen…",

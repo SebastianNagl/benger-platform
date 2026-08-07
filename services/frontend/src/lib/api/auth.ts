@@ -6,6 +6,7 @@
 import { BaseApiClient } from './base'
 import {
   AuthResponse,
+  ExamLayoutPrefs,
   MandatoryProfileStatus,
   Organization,
   ProfileConfirmationResponse,
@@ -232,6 +233,20 @@ export class AuthClient extends BaseApiClient {
     return this.request('/auth/me/ui-mode', {
       method: 'PUT',
       body: JSON.stringify({ preferred_ui_mode: mode }),
+    })
+  }
+
+  /**
+   * Persist the exam interface layout preference server-side so it follows
+   * the user across devices. Always send the COMPLETE object; pass null to
+   * clear back to the never-configured classic default. Rides the dedicated
+   * /api/auth/me/exam-layout proxy route (the catch-all rejects auth/*
+   * writes).
+   */
+  async setExamLayout(prefs: ExamLayoutPrefs | null): Promise<User> {
+    return this.request('/auth/me/exam-layout', {
+      method: 'PUT',
+      body: JSON.stringify({ exam_layout_prefs: prefs }),
     })
   }
 

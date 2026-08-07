@@ -68,6 +68,38 @@ class UiModeUpdate(BaseModel):
     preferred_ui_mode: Optional[Literal["student", "expert"]] = Field(None)
 
 
+class ExamLayoutPrefs(BaseModel):
+    """Canonical exam-interface layout object stored in users.exam_layout_prefs.
+
+    ``mode`` is required; the panel positions default so a minimal
+    ``{"mode": ...}`` body validates to the full canonical shape. The stored
+    value is always the complete ``model_dump()`` — unknown request keys are
+    dropped by validation (default ``extra='ignore'``, deploy-skew tolerant),
+    so the column only ever holds exactly these four keys. The case has no
+    ``"none"``: the exam text is mandatory.
+    """
+
+    mode: Literal["classic", "modern"]
+    case_position: Literal["left", "right"] = "left"
+    notes_position: Literal["left", "right", "none"] = "right"
+    outline_position: Literal["left", "right", "none"] = "right"
+
+
+class ExamLayoutUpdate(BaseModel):
+    """Single-field body for ``PUT /auth/me/exam-layout``.
+
+    Deliberately NOT folded into ``UserUpdate`` (same rationale as
+    ``UiModeUpdate`` above): ``PUT /profile`` runs ``update_user_profile``
+    which snapshots profile history and stamps ``profile_confirmed_at`` /
+    ``mandatory_profile_completed`` — side effects that must not fire on a UI
+    preference change. ``None`` clears the stored preference (column NULL =
+    classic default). Purely a display preference — never an authorization or
+    exam-integrity input.
+    """
+
+    exam_layout_prefs: Optional[ExamLayoutPrefs] = Field(None)
+
+
 class PasswordUpdate(BaseModel):
     """Model for password change"""
 
@@ -187,6 +219,10 @@ class UserProfile(BaseModel):
     # Vertretbar plan-choice greeting (extended): ISO timestamp once the student
     # has chosen; NULL until then. The modal reads this from /auth/me.
     vertretbar_onboarding_completed_at: Optional[str] = None
+    # Exam interface layout preference (extended). The complete stored object
+    # (see ExamLayoutPrefs) or None. Loose dict on read: write-side strictness
+    # lives in ExamLayoutUpdate; a legacy/odd row must never 500 the profile.
+    exam_layout_prefs: Optional[dict] = None
 
     class Config:
         from_attributes = True

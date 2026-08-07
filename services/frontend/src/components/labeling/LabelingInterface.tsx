@@ -8,6 +8,7 @@
 import { PostAnnotationQuestionnaireModal } from '@/components/labeling/PostAnnotationQuestionnaireModal'
 import { useAuth } from '@/contexts/AuthContext'
 import { useActivityTracker } from '@/hooks/useActivityTracker'
+import { useModernExamLayout } from '@/hooks/useModernExamLayout'
 import { selectVariant } from '@/lib/utils/variantHash'
 import { logger } from '@/lib/utils/logger'
 import { Badge } from '@/components/shared/Badge'
@@ -79,6 +80,12 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
     allTasksCompleted,
     resetAnnotationCompletion,
   } = useProjectStore()
+  // Modern exam layout (extended, per-user preference): widens the content
+  // column and opts the interface into the ModernExamLayout slot. Inactive
+  // (community, classic preference, non-exam config) -> unchanged classic page.
+  const { active: modernExamLayoutActive } = useModernExamLayout(
+    currentProject?.label_config
+  )
 
   const [annotations, setAnnotations] = useState<AnnotationResult[]>([])
   const [loadedAnnotations, setLoadedAnnotations] = useState<AnnotationResult[]>([])
@@ -973,7 +980,13 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
 
         {/* Task content */}
         <div className="flex-1 overflow-auto p-6">
-          <div className="mx-auto max-w-4xl space-y-6">
+          <div
+            className={
+              modernExamLayoutActive
+                ? 'mx-auto max-w-screen-2xl space-y-6'
+                : 'mx-auto max-w-4xl space-y-6'
+            }
+          >
             {windowReadOnly && (
               <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800/40 dark:text-zinc-300">
                 {t('annotation.window.closedReadOnly', {
@@ -1008,6 +1021,7 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
                 showSubmitButton={currentProject?.show_submit_button !== false && !windowReadOnly}
                 requireConfirmBeforeSubmit={currentProject?.require_confirm_before_submit === true}
                 startTime={startTime} // Pass start time for auto-save lead_time tracking
+                allowModernLayout // Interactive labeling host: modern exam layout may apply
                 onChange={(results) => setAnnotations(results)}
                 onSubmit={async (results) => {
                   try {

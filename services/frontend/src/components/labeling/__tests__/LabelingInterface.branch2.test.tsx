@@ -94,6 +94,7 @@ jest.mock('@/lib/utils/logger', () => ({
 // Mock auth context
 jest.mock('@/contexts/AuthContext', () => ({
   useAuth: jest.fn(),
+  useOptionalAuth: () => null,
 }))
 
 // Mock I18n context

@@ -295,6 +295,146 @@ async def test_auth_me_surfaces_vertretbar_onboarding_flag(
         assert after_ctx.json()["user"]["vertretbar_onboarding_completed_at"] is not None
 
 
+_MODERN_LAYOUT = {
+    "mode": "modern",
+    "case_position": "left",
+    "notes_position": "right",
+    "outline_position": "none",
+}
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_exam_layout_endpoint_persists_without_side_effects(
+    async_test_client, async_test_db
+):
+    """PUT /me/exam-layout stores the complete layout object and, like the
+    ui-mode endpoint, must NOT trigger any profile-confirmation side effects."""
+    user = await _make_user(async_test_db)
+    with _as_user(user):
+        r = await async_test_client.put(
+            "/api/auth/me/exam-layout", json={"exam_layout_prefs": _MODERN_LAYOUT}
+        )
+        assert r.status_code == 200, r.text
+        assert r.json()["exam_layout_prefs"] == _MODERN_LAYOUT
+
+    row = (
+        await async_test_db.execute(select(User).where(User.id == user.id))
+    ).scalar_one()
+    assert row.exam_layout_prefs == _MODERN_LAYOUT
+    assert row.profile_confirmed_at is None
+    assert not row.mandatory_profile_completed
+
+
+@pytest.mark.asyncio
+async def test_exam_layout_validation_and_defaults(async_test_client, async_test_db):
+    """The Pydantic layer owns the shape: minimal bodies complete to the
+    canonical object, bad literals 422, unknown keys never reach the row,
+    null clears, and a classic write keeps the stored docking positions."""
+    user = await _make_user(async_test_db)
+
+    async def _row():
+        return (
+            await async_test_db.execute(select(User).where(User.id == user.id))
+        ).scalar_one()
+
+    with _as_user(user):
+        # Minimal modern body -> panel-position defaults fill in.
+        r = await async_test_client.put(
+            "/api/auth/me/exam-layout", json={"exam_layout_prefs": {"mode": "modern"}}
+        )
+        assert r.status_code == 200, r.text
+        assert r.json()["exam_layout_prefs"] == {
+            "mode": "modern",
+            "case_position": "left",
+            "notes_position": "right",
+            "outline_position": "right",
+        }
+
+        # Invalid literals are rejected by validation.
+        r = await async_test_client.put(
+            "/api/auth/me/exam-layout",
+            json={"exam_layout_prefs": {"mode": "sideways"}},
+        )
+        assert r.status_code == 422
+        r = await async_test_client.put(
+            "/api/auth/me/exam-layout",
+            json={"exam_layout_prefs": {"mode": "modern", "case_position": "none"}},
+        )
+        assert r.status_code == 422
+
+        # Unknown keys are dropped (extra='ignore'), never stored.
+        r = await async_test_client.put(
+            "/api/auth/me/exam-layout",
+            json={"exam_layout_prefs": {**_MODERN_LAYOUT, "case_width": 480}},
+        )
+        assert r.status_code == 200
+        assert "case_width" not in r.json()["exam_layout_prefs"]
+        assert (await _row()).exam_layout_prefs == _MODERN_LAYOUT
+
+        # A classic write stores the full object — docking positions survive
+        # the round-trip instead of being reset.
+        r = await async_test_client.put(
+            "/api/auth/me/exam-layout",
+            json={
+                "exam_layout_prefs": {
+                    "mode": "classic",
+                    "case_position": "right",
+                    "notes_position": "none",
+                    "outline_position": "left",
+                }
+            },
+        )
+        assert r.status_code == 200
+        assert (await _row()).exam_layout_prefs == {
+            "mode": "classic",
+            "case_position": "right",
+            "notes_position": "none",
+            "outline_position": "left",
+        }
+
+        # Explicit null clears back to never-configured.
+        r = await async_test_client.put(
+            "/api/auth/me/exam-layout", json={"exam_layout_prefs": None}
+        )
+        assert r.status_code == 200
+        assert r.json()["exam_layout_prefs"] is None
+        assert (await _row()).exam_layout_prefs is None
+
+
+@pytest.mark.asyncio
+async def test_auth_me_surfaces_exam_layout_prefs(async_test_client, async_test_db):
+    """The labeling hosts resolve the layout preference from the boot fetch,
+    so /auth/me (fallback), /auth/me/contexts (primary), and /auth/profile must
+    all carry it — null before, the stored object after."""
+    user = await _make_user(async_test_db)
+
+    with _as_user(user):
+        assert (await async_test_client.get("/api/auth/me")).json()[
+            "exam_layout_prefs"
+        ] is None
+        assert (await async_test_client.get("/api/auth/me/contexts")).json()["user"][
+            "exam_layout_prefs"
+        ] is None
+        assert (await async_test_client.get("/api/auth/profile")).json()[
+            "exam_layout_prefs"
+        ] is None
+
+        await async_test_client.put(
+            "/api/auth/me/exam-layout", json={"exam_layout_prefs": _MODERN_LAYOUT}
+        )
+
+        assert (await async_test_client.get("/api/auth/me")).json()[
+            "exam_layout_prefs"
+        ] == _MODERN_LAYOUT
+        assert (await async_test_client.get("/api/auth/me/contexts")).json()["user"][
+            "exam_layout_prefs"
+        ] == _MODERN_LAYOUT
+        assert (await async_test_client.get("/api/auth/profile")).json()[
+            "exam_layout_prefs"
+        ] == _MODERN_LAYOUT
+
+
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_dashboard_reads_are_valid_sql(async_test_client, async_test_db):

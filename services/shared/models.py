@@ -290,6 +290,13 @@ class User(Base):
     # NULL = not yet shown. Server-side so the once-only greeting follows the
     # user across devices/browsers (localStorage couldn't).
     vertretbar_onboarding_completed_at = Column(DateTime(timezone=True), nullable=True)
+    # Exam interface layout preference (extended edition). NULL = never
+    # configured -> classic. Always the complete validated object (mode + the
+    # three panel positions) so a user's modern docking survives classic
+    # round-trips. Shape enforced by Pydantic (ExamLayoutPrefs); the only
+    # writer is PUT /auth/me/exam-layout. Display preference only — never an
+    # authorization or exam-integrity input.
+    exam_layout_prefs = Column(JSON, nullable=True)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

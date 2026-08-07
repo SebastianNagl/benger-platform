@@ -17,6 +17,7 @@ const mockUser = {
 }
 
 jest.mock('@/contexts/AuthContext', () => ({
+  useOptionalAuth: () => null,
   useAuth: () => ({
     user: mockUser,
   }),

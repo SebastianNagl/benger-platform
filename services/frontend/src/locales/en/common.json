@@ -1781,6 +1781,24 @@
     }
   },
   "profile": {
+    "examLayout": {
+      "title": "Exam interface",
+      "description": "Choose how exams are displayed for you. Applies to all exam projects.",
+      "modeLabel": "Layout",
+      "classic": "Classic",
+      "classicHelp": "Four cards (Angabe, Notizen, Gliederung, Lösung), each opening full-screen.",
+      "modern": "Modern",
+      "modernHelp": "The solution stays open; Angabe, Notizen and Gliederung dock as collapsible side panels.",
+      "casePanel": "Angabe",
+      "notesPanel": "Notizen",
+      "outlinePanel": "Gliederung",
+      "positionLeft": "Left",
+      "positionRight": "Right",
+      "positionNone": "Not needed",
+      "save": "Save",
+      "saved": "Exam interface saved",
+      "saveError": "Saving failed. Please try again."
+    },
     "title": "Profile",
     "personalInfo": "Personal Info",
     "username": "Username",
@@ -6444,6 +6462,18 @@
     }
   },
   "annotation": {
+    "examLayout": {
+      "openPanel": "{label} öffnen",
+      "minimizePanel": "{label} minimieren",
+      "minimize": "Minimieren",
+      "textTab": "Text",
+      "commentsTab": "Kommentare",
+      "saveField": "Speichern"
+    },
+    "loesung": {
+      "create": "Lösung anlegen",
+      "edit": "Lösung bearbeiten"
+    },
     "checkpoints": {
       "restoreTitle": "Restore checkpoint",
       "pick": "Restore checkpoint…",
