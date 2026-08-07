@@ -818,3 +818,78 @@ async def test_invite_endpoints_stay_superadmin_only(
             f"/api/admin/lti/registrations/invites/{uuid.uuid4()}"
         )
         assert r.status_code == 403
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_missing_ags_count_on_list_and_detail(async_test_client, async_test_db):
+    """Bound links without an AGS lineitem are counted; unbound and graded
+    links are not — the org panel warns before the first grade push fails."""
+    org = await _make_org(async_test_db)
+    admin = await _make_user(async_test_db, superadmin=True)
+    reg = LtiPlatformRegistration(
+        id=str(uuid.uuid4()),
+        organization_id=org.id,
+        name="AGS Count Moodle",
+        issuer=f"https://lms-{uuid.uuid4().hex[:8]}.example.com",
+        client_id=f"client-{uuid.uuid4().hex[:8]}",
+        auth_login_url="https://lms.example.com/auth",
+        auth_token_url="https://lms.example.com/token",
+        jwks_uri="https://lms.example.com/certs",
+    )
+    async_test_db.add(reg)
+    project = Project(
+        id=str(uuid.uuid4()),
+        title="AGS-Count Probeklausur",
+        created_by=admin.id,
+        is_private=True,
+        kind="exam",
+        origin="student",
+    )
+    async_test_db.add(project)
+    await async_test_db.flush()
+
+    # One BOUND link without lineitem_url -> counts as 1.
+    async_test_db.add(
+        LtiResourceLink(
+            id=str(uuid.uuid4()),
+            registration_id=reg.id,
+            deployment_id="1",
+            resource_link_id="rl-gradeless",
+            project_id=project.id,
+        )
+    )
+    # A graded sibling (bound + lineitem) and an unbound one: both ignored.
+    async_test_db.add(
+        LtiResourceLink(
+            id=str(uuid.uuid4()),
+            registration_id=reg.id,
+            deployment_id="1",
+            resource_link_id="rl-graded",
+            project_id=project.id,
+            lineitem_url="https://lms.example/services/1/lineitems/9/lineitem",
+        )
+    )
+    async_test_db.add(
+        LtiResourceLink(
+            id=str(uuid.uuid4()),
+            registration_id=reg.id,
+            deployment_id="1",
+            resource_link_id="rl-unbound",
+            project_id=None,
+        )
+    )
+    await async_test_db.commit()
+
+    with _as_user(admin):
+        listed = await async_test_client.get(
+            "/api/admin/lti/registrations", params={"organization_id": org.id}
+        )
+        assert listed.status_code == 200
+        row = next(r for r in listed.json() if r["id"] == reg.id)
+        assert row["resource_links_missing_ags"] == 1
+
+        detail = await async_test_client.get(f"/api/admin/lti/registrations/{reg.id}")
+        assert detail.status_code == 200
+        assert detail.json()["resource_links_missing_ags"] == 1
+        assert detail.json()["resource_link_count"] == 3

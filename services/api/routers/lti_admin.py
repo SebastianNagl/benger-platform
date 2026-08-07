@@ -52,7 +52,10 @@ router = APIRouter(prefix="/api/admin/lti", tags=["admin", "lti"])
 # Helpers
 # --------------------------------------------------------------------------- #
 def _registration_read(
-    reg: LtiPlatformRegistration, *, resource_link_count: Optional[int] = None
+    reg: LtiPlatformRegistration,
+    *,
+    resource_link_count: Optional[int] = None,
+    resource_links_missing_ags: int = 0,
 ) -> LtiRegistrationRead:
     """Build the read shape from an eagerly-loaded registration row."""
     epoch = datetime.min.replace(tzinfo=timezone.utc)
@@ -78,7 +81,28 @@ def _registration_read(
         deployments=[LtiDeploymentRead.model_validate(d) for d in deployments],
         deployment_count=len(deployments),
         resource_link_count=resource_link_count,
+        resource_links_missing_ags=resource_links_missing_ags,
     )
+
+
+async def _missing_ags_counts(db: AsyncSession, registration_ids) -> dict:
+    """registration_id -> count of BOUND resource links without an AGS
+    lineitem (activities that cannot receive grades). One grouped query."""
+    ids = [rid for rid in registration_ids]
+    if not ids:
+        return {}
+    rows = (
+        await db.execute(
+            select(LtiResourceLink.registration_id, func.count())
+            .where(
+                LtiResourceLink.registration_id.in_(ids),
+                LtiResourceLink.project_id.isnot(None),
+                LtiResourceLink.lineitem_url.is_(None),
+            )
+            .group_by(LtiResourceLink.registration_id)
+        )
+    ).all()
+    return {rid: count for rid, count in rows}
 
 
 async def _load_registration(
@@ -189,7 +213,13 @@ async def list_registrations(
             LtiPlatformRegistration.organization_id == organization_id
         )
     regs = (await db.execute(stmt)).scalars().all()
-    return [_registration_read(reg) for reg in regs]
+    missing_ags = await _missing_ags_counts(db, [reg.id for reg in regs])
+    return [
+        _registration_read(
+            reg, resource_links_missing_ags=missing_ags.get(reg.id, 0)
+        )
+        for reg in regs
+    ]
 
 
 # --------------------------------------------------------------------------- #
@@ -342,7 +372,12 @@ async def get_registration(
             .where(LtiResourceLink.registration_id == registration_id)
         )
     ).scalar() or 0
-    return _registration_read(reg, resource_link_count=resource_link_count)
+    missing_ags = await _missing_ags_counts(db, [registration_id])
+    return _registration_read(
+        reg,
+        resource_link_count=resource_link_count,
+        resource_links_missing_ags=missing_ags.get(registration_id, 0),
+    )
 
 
 @router.put("/registrations/{registration_id}", response_model=LtiRegistrationRead)
