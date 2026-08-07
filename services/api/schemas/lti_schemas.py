@@ -118,6 +118,11 @@ class LtiRegistrationRead(BaseModel):
     deployment_count: int = 0
     # Only populated on the detail endpoint (extra count query).
     resource_link_count: Optional[int] = None
+    # Bound resource links whose launches never carried an AGS lineitem —
+    # activities that cannot receive grades (e.g. an ILIAS provider without
+    # "Advanced Grading Services"). Populated on list + detail so the org
+    # panel can warn before the first grade push fails.
+    resource_links_missing_ags: int = 0
 
     class Config:
         from_attributes = True
