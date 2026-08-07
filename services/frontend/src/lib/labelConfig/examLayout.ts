@@ -36,7 +36,16 @@ export interface ExamLayoutPrefs {
   case_position: ExamPanelSide
   notes_position: ExamPanelPosition
   outline_position: ExamPanelPosition
+  /** Drag-resized overlay panel widths (px), per side; absent = default.
+   *  Persisted so a width set in one exam applies to the next. */
+  left_panel_width?: number
+  right_panel_width?: number
 }
+
+/** Server-validated bounds for the drag-resizable panel widths (px). */
+export const PANEL_WIDTH_MIN = 260
+export const PANEL_WIDTH_MAX = 720
+export const PANEL_WIDTH_DEFAULT = 384
 
 /**
  * The resolved default: what every user gets until they configure the
@@ -92,11 +101,18 @@ const PANEL_POSITIONS: ReadonlySet<string> = new Set(['left', 'right', 'none'])
  * CLASSIC_LAYOUT; a non-object (null, undefined, string, ...) resolves to
  * CLASSIC_LAYOUT wholesale. Never throws, never returns null.
  */
+function resolvePanelWidth(raw: unknown): number | undefined {
+  if (typeof raw !== 'number' || !Number.isFinite(raw)) return undefined
+  return Math.min(PANEL_WIDTH_MAX, Math.max(PANEL_WIDTH_MIN, Math.round(raw)))
+}
+
 export function resolveExamLayoutPrefs(raw: unknown): ExamLayoutPrefs {
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
     return CLASSIC_LAYOUT
   }
   const value = raw as Record<string, unknown>
+  const leftWidth = resolvePanelWidth(value.left_panel_width)
+  const rightWidth = resolvePanelWidth(value.right_panel_width)
   return {
     mode: value.mode === 'modern' ? 'modern' : 'classic',
     case_position: PANEL_SIDES.has(value.case_position as string)
@@ -108,6 +124,10 @@ export function resolveExamLayoutPrefs(raw: unknown): ExamLayoutPrefs {
     outline_position: PANEL_POSITIONS.has(value.outline_position as string)
       ? (value.outline_position as ExamPanelPosition)
       : CLASSIC_LAYOUT.outline_position,
+    // Width keys appear only when valid — the canonical shape stays lean and
+    // JSON.stringify drops nothing unexpected on the write path.
+    ...(leftWidth !== undefined ? { left_panel_width: leftWidth } : {}),
+    ...(rightWidth !== undefined ? { right_panel_width: rightWidth } : {}),
   }
 }
 

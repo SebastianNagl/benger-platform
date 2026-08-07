@@ -6468,7 +6468,8 @@
       "minimize": "Minimieren",
       "textTab": "Text",
       "commentsTab": "Kommentare",
-      "saveField": "Speichern"
+      "saveField": "Speichern",
+      "resizePanel": "Breite anpassen"
     },
     "loesung": {
       "create": "Lösung anlegen",

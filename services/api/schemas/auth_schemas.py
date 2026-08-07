@@ -83,6 +83,10 @@ class ExamLayoutPrefs(BaseModel):
     case_position: Literal["left", "right"] = "left"
     notes_position: Literal["left", "right", "none"] = "right"
     outline_position: Literal["left", "right", "none"] = "right"
+    # Drag-resized overlay panel widths (px), one per side; None = client
+    # default. Persisted so a width set in one exam applies to the next.
+    left_panel_width: Optional[int] = Field(None, ge=260, le=720)
+    right_panel_width: Optional[int] = Field(None, ge=260, le=720)
 
 
 class ExamLayoutUpdate(BaseModel):

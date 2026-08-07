@@ -104,7 +104,7 @@ describe('resolveExamLayoutPrefs', () => {
   it('drops unknown keys from the resolved object', () => {
     const resolved = resolveExamLayoutPrefs({
       mode: 'modern',
-      case_width: 480,
+      zoom_level: 2,
     }) as Record<string, unknown>
     expect(Object.keys(resolved).sort()).toEqual([
       'case_position',
@@ -112,6 +112,29 @@ describe('resolveExamLayoutPrefs', () => {
       'notes_position',
       'outline_position',
     ])
+  })
+
+  it('passes valid panel widths through and clamps out-of-range ones', () => {
+    expect(
+      resolveExamLayoutPrefs({ mode: 'modern', left_panel_width: 500 })
+        .left_panel_width
+    ).toBe(500)
+    expect(
+      resolveExamLayoutPrefs({ mode: 'modern', left_panel_width: 100 })
+        .left_panel_width
+    ).toBe(260)
+    expect(
+      resolveExamLayoutPrefs({ mode: 'modern', right_panel_width: 9999 })
+        .right_panel_width
+    ).toBe(720)
+    // Invalid types are omitted entirely — the key never appears.
+    const resolved = resolveExamLayoutPrefs({
+      mode: 'modern',
+      left_panel_width: '400',
+      right_panel_width: NaN,
+    })
+    expect('left_panel_width' in resolved).toBe(false)
+    expect('right_panel_width' in resolved).toBe(false)
   })
 })
 

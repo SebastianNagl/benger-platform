@@ -990,12 +990,19 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
           </div>
         </div>
 
-        {/* Task content */}
-        <div className="flex-1 overflow-auto p-6">
+        {/* Task content. Modern: x-overflow hidden so the edge drawers'
+            off-screen resting position never grows a horizontal scrollbar. */}
+        <div
+          className={
+            modernExamLayoutActive
+              ? 'flex-1 overflow-y-auto overflow-x-hidden p-6'
+              : 'flex-1 overflow-auto p-6'
+          }
+        >
           <div
             className={
               modernExamLayoutActive
-                ? 'mx-auto max-w-screen-2xl space-y-6'
+                ? 'w-full space-y-6'
                 : 'mx-auto max-w-4xl space-y-6'
             }
           >

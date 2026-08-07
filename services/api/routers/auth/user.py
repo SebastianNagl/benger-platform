@@ -520,8 +520,12 @@ async def update_exam_layout_prefs(
     if not db_user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
+    # exclude_none: optional extras (panel widths) only appear in the stored
+    # object once actually set — the canonical 4-key shape stays canonical.
     db_user.exam_layout_prefs = (
-        body.exam_layout_prefs.model_dump() if body.exam_layout_prefs is not None else None
+        body.exam_layout_prefs.model_dump(exclude_none=True)
+        if body.exam_layout_prefs is not None
+        else None
     )
     await db.commit()
     await db.refresh(db_user)

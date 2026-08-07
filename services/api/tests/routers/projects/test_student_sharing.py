@@ -393,6 +393,28 @@ async def test_exam_layout_validation_and_defaults(async_test_client, async_test
             "outline_position": "left",
         }
 
+        # Drag-resized panel widths: optional, bounded, and only stored once
+        # actually set (exclude_none keeps the canonical shape lean).
+        r = await async_test_client.put(
+            "/api/auth/me/exam-layout",
+            json={"exam_layout_prefs": {"mode": "modern", "left_panel_width": 500}},
+        )
+        assert r.status_code == 200
+        stored = (await _row()).exam_layout_prefs
+        assert stored["left_panel_width"] == 500
+        assert "right_panel_width" not in stored
+
+        r = await async_test_client.put(
+            "/api/auth/me/exam-layout",
+            json={"exam_layout_prefs": {"mode": "modern", "left_panel_width": 100}},
+        )
+        assert r.status_code == 422
+        r = await async_test_client.put(
+            "/api/auth/me/exam-layout",
+            json={"exam_layout_prefs": {"mode": "modern", "right_panel_width": 9000}},
+        )
+        assert r.status_code == 422
+
         # Explicit null clears back to never-configured.
         r = await async_test_client.put(
             "/api/auth/me/exam-layout", json={"exam_layout_prefs": None}
