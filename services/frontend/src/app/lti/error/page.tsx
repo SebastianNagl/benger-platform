@@ -18,23 +18,23 @@ import { Suspense } from 'react'
 
 const ERROR_MESSAGES: Record<string, string> = {
   invalid_request:
-    'The launch request from Moodle was incomplete or malformed. Go back to Moodle and open the activity again.',
+    'The launch request from your learning platform was incomplete or malformed. Go back to your learning platform and open the activity again.',
   registration_not_found:
-    'This Moodle site is not registered with the platform. Ask an administrator to create the LTI registration first.',
+    'This learning platform is not registered with the platform. Ask an administrator to create the LTI registration first.',
   registration_disabled:
-    'The LTI registration for this Moodle site is disabled. Ask an administrator to re-enable it.',
+    'The LTI registration for this learning platform is disabled. Ask an administrator to re-enable it.',
   state_unavailable:
-    'Your browser did not send the cookie that protects this launch. Allow cookies for this site (including third-party cookies if the activity is embedded in Moodle) and try again.',
+    'Your browser did not send the cookie that protects this launch. Allow cookies for this site (including third-party cookies if the activity is embedded in your learning platform) and try again.',
   invalid_state:
-    'This launch link has expired or was already used – go back to Moodle and click the activity again.',
+    'This launch link has expired or was already used – go back to your learning platform and click the activity again.',
   invalid_token:
-    'The identity token from Moodle could not be verified. Go back to Moodle and try again; if this keeps happening, the registration keys may be out of date.',
+    'The identity token from your learning platform could not be verified. Go back and try again; if this keeps happening, the registration keys may be out of date.',
   nonce_mismatch:
-    'The launch could not be verified because it did not match the login it started from. Go back to Moodle and click the activity again.',
+    'The launch could not be verified because it did not match the login it started from. Go back to your learning platform and click the activity again.',
   nonce_reused:
-    'This launch link has expired or was already used – go back to Moodle and click the activity again.',
+    'This launch link has expired or was already used – go back to your learning platform and click the activity again.',
   unknown_deployment:
-    'This Moodle course connection is not known to the platform. Ask an administrator to add the deployment to the LTI registration.',
+    'This course connection is not known to the platform. Ask an administrator to add the deployment to the LTI registration.',
   unsupported_message:
     'This type of LTI message is not supported by the platform.',
   not_linked:
@@ -46,7 +46,7 @@ const ERROR_MESSAGES: Record<string, string> = {
 }
 
 const DEFAULT_MESSAGE =
-  'The launch could not be completed. Go back to Moodle and click the activity again; if the problem persists, contact your instructor.'
+  'The launch could not be completed. Go back to your learning platform and click the activity again; if the problem persists, contact your instructor.'
 
 function LtiErrorFallback() {
   const searchParams = useSearchParams()

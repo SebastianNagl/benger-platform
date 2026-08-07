@@ -129,6 +129,7 @@ async def test_registration_crud_round_trip(async_test_client, async_test_db):
         reg_id = created["id"]
         assert created["organization_id"] == org.id
         assert created["status"] == "active"
+        assert created["lms_family"] is None  # optional, defaults to generic
         assert created["link_existing_users_by_email"] is True
         assert created["instructor_org_role"] == "contributor"
         assert created["student_org_role"] == "annotator"
@@ -152,7 +153,7 @@ async def test_registration_crud_round_trip(async_test_client, async_test_db):
         assert detail["resource_link_count"] == 0
         assert len(detail["deployments"]) == 2
 
-        # Update a policy knob, an endpoint URL, and the status.
+        # Update a policy knob, an endpoint URL, the status, and the vendor tag.
         r = await async_test_client.put(
             f"/api/admin/lti/registrations/{reg_id}",
             json={
@@ -161,6 +162,7 @@ async def test_registration_crud_round_trip(async_test_client, async_test_db):
                 "instructor_org_role": "org_admin",
                 "student_org_role": "none",
                 "status": "disabled",
+                "lms_family": "ilias",
             },
         )
         assert r.status_code == 200, r.text
@@ -170,9 +172,33 @@ async def test_registration_crud_round_trip(async_test_client, async_test_db):
         assert updated["instructor_org_role"] == "org_admin"
         assert updated["student_org_role"] == "none"
         assert updated["status"] == "disabled"
+        assert updated["lms_family"] == "ilias"
         # Untouched fields survive the partial update.
         assert updated["issuer"] == "https://moodle.uni-passau.de"
         assert updated["deployment_count"] == 2
+
+        # Vendor tag accepts only known families.
+        r = await async_test_client.put(
+            f"/api/admin/lti/registrations/{reg_id}",
+            json={"lms_family": "blackboard"},
+        )
+        assert r.status_code == 422
+        r = await async_test_client.post(
+            "/api/admin/lti/registrations",
+            json=_registration_payload(org.id, lms_family="canvas"),
+        )
+        assert r.status_code == 422
+        # Creating tagged works.
+        r = await async_test_client.post(
+            "/api/admin/lti/registrations",
+            json=_registration_payload(
+                org.id,
+                issuer="https://ilias.uni-passau.de",
+                lms_family="ilias",
+            ),
+        )
+        assert r.status_code == 201, r.text
+        assert r.json()["lms_family"] == "ilias"
 
         # Add a deployment; adding it twice conflicts.
         r = await async_test_client.post(
@@ -308,11 +334,12 @@ async def test_tool_config_urls(async_test_client, async_test_db):
             params={"base_url": "https://benger.example.com/"},
         )
         assert r.status_code == 200, r.text
+        # No deep_linking_url: the tool rejects LtiDeepLinkingRequest, so the
+        # config sheet must not advertise a nonexistent route.
         assert r.json() == {
             "login_url": "https://benger.example.com/api/lti/login",
             "launch_url": "https://benger.example.com/api/lti/launch",
             "jwks_url": "https://benger.example.com/api/lti/jwks",
-            "deep_linking_url": "https://benger.example.com/api/lti/deep-linking",
         }
 
         # Non-http(s) base_url is rejected.
