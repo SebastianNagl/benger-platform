@@ -51,6 +51,18 @@ def retry_with_exponential_backoff(
     return decorator
 
 
+def _extract_text(content_blocks) -> str:
+    """Join TEXT blocks only. Claude 5 family responses lead with
+    always-on ThinkingBlock entries that have no .text — indexing
+    content[0].text raises AttributeError for those models."""
+    if not content_blocks:
+        return ""
+    return "".join(
+        getattr(b, "text", "") for b in content_blocks
+        if getattr(b, "type", None) == "text" or hasattr(b, "text")
+    )
+
+
 class AnthropicService(BaseAIService):
     """Service for handling Anthropic Claude API interactions"""
 
@@ -170,14 +182,25 @@ class AnthropicService(BaseAIService):
                 }
                 logger.info(f"🧠 Using thinking_budget={thinking_budget} for {model_name}")
 
-            # Make Anthropic API call
-            response = self.client.messages.create(**api_params)
+            # Make Anthropic API call. Large-budget requests must stream:
+            # the non-streaming endpoint is bound by a ~10-minute wall and
+            # the SDK refuses big max_tokens outright — long generations
+            # (e.g. 20k+-token Bewertungsbogen documents) hard-fail without
+            # this. Streaming accumulates the same final message, so the
+            # response handling below is identical for both paths.
+            if max_tokens >= 16384:
+                with self.client.messages.stream(**api_params) as stream:
+                    for _ in stream.text_stream:
+                        pass
+                    response = stream.get_final_message()
+            else:
+                response = self.client.messages.create(**api_params)
 
             end_time = datetime.now()
             response_time_ms = int((end_time - start_time).total_seconds() * 1000)
 
             # Extract response text
-            response_text = response.content[0].text if response.content else ""
+            response_text = _extract_text(response.content)
 
             # Calculate token usage
             input_tokens = response.usage.input_tokens if hasattr(response, "usage") else 0
@@ -332,7 +355,7 @@ class AnthropicService(BaseAIService):
             response_time_ms = int((end_time - start_time).total_seconds() * 1000)
 
             # Extract response text (same shape as generate() at line 180)
-            content = response.content[0].text if response.content else ""
+            content = _extract_text(response.content)
 
             input_tokens = response.usage.input_tokens if hasattr(response, "usage") else 0
             output_tokens = response.usage.output_tokens if hasattr(response, "usage") else 0
