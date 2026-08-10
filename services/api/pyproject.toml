@@ -6,11 +6,10 @@ build-backend = "hatchling.build"
 name = "benger-api"
 version = "0.1.0"
 description = "BenGER API Gateway"
-# Kept in step with services/workers, which is capped at 3.12 by its numpy<2 /
-# spaCy<3.8 pins. The api stack itself has cp313 wheels for everything and
-# could go higher; matching the workers keeps one runtime version across both
-# images and the shared /shared code.
-requires-python = ">=3.12"
+# Kept in step with services/workers so one runtime version covers both images
+# and the shared /shared code. Both are on 3.13 since the workers' numpy<2 /
+# spaCy<3.8 ceiling was lifted (numpy 2.x + spaCy 3.8 / thinc 8.3.x).
+requires-python = ">=3.13"
 dependencies = [
     "fastapi==0.140.0",
     "uvicorn[standard]==0.51.0",
@@ -110,14 +109,14 @@ test = [
 packages = ["."]
 
 [tool.black]
-target-version = ["py311"]
+target-version = ["py313"]
 line-length = 88
 
 [tool.isort]
 profile = "black"
 
 [tool.mypy]
-python_version = "3.12"
+python_version = "3.13"
 warn_unused_configs = true
 # Production-ready but pragmatic settings
 disallow_untyped_defs = false  # Too many functions to fix at once

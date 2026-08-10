@@ -4,7 +4,7 @@
 # the site-packages path the runner stage copies out of the deps stage. Those
 # two used to be independent literals, so bumping the base silently broke the
 # COPY (it points at a path that no longer exists). Keep it as one ARG.
-ARG PYTHON_VERSION=3.12
+ARG PYTHON_VERSION=3.13
 FROM python:${PYTHON_VERSION}-slim AS base
 
 # Install system dependencies
