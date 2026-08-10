@@ -31,6 +31,13 @@ export interface MetricEditorProps {
     metric: string
     metric_parameters?: Record<string, unknown>
   }>
+  /**
+   * Project the evaluation config belongs to. Editors that fetch
+   * project-scoped resources (e.g. the llm_judge_rubric editor listing
+   * generation-config prompt structures) need this. Optional for backwards
+   * compatibility with editors that don't fetch.
+   */
+  projectId?: string
 }
 
 const editors: Record<string, ComponentType<MetricEditorProps>> = {}

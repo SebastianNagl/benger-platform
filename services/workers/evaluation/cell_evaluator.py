@@ -17,6 +17,90 @@ unchanged.
 from typing import Any, Dict, List, Optional  # noqa: F401  (used by the bodies)
 
 
+def _resolve_task_rubric(db, task, metric_parameters):
+    """Resolve the Bewertungsbogen row for an ``llm_judge_rubric`` cell.
+
+    Default: the task's single ``status='active'`` rubric (enforced unique by
+    ``ux_task_rubrics_one_active``). ``metric_parameters.rubric_selector``
+    with ``{"generator_model_id": ...}`` overrides that and grades with a
+    specific generator's newest non-archived candidate instead — the lever
+    for crossed rubric-source × judge designs.
+
+    Returns ``None`` when no usable rubric exists, including rubrics whose
+    ``criteria`` carry no ``max_score`` (those cannot drive multi-dim mode).
+    Generic row lookup only — rubric semantics live in benger_extended.
+    """
+    from project_models import TaskRubric
+
+    selector = (metric_parameters or {}).get("rubric_selector") or {}
+    generator = selector.get("generator_model_id")
+
+    query = db.query(TaskRubric).filter(TaskRubric.task_id == task.id)
+    if generator:
+        row = (
+            query.filter(
+                TaskRubric.generator_model_id == generator,
+                TaskRubric.status != "archived",
+            )
+            .order_by(TaskRubric.created_at.desc())
+            .first()
+        )
+    else:
+        row = query.filter(TaskRubric.status == "active").first()
+
+    if row is None or not isinstance(row.criteria, dict):
+        return None
+    has_scored_step = any(
+        isinstance(d, dict) and d.get("max_score") is not None
+        for d in row.criteria.values()
+    )
+    return row if has_scored_step else None
+
+
+_NO_RUBRIC_ERROR = (
+    "No usable Bewertungsbogen for task {task_id}: the llm_judge_rubric "
+    "metric grades against a per-task rubric (status='active' in "
+    "task_rubrics), and none was found. Generate and activate one, or set "
+    "metric_parameters.rubric_selector."
+)
+
+
+def _render_rubric_text(rubric) -> str:
+    """Plain-text rendering of a rubric for prompt injection.
+
+    The multi-dim JSON schema carries only step keys and score bounds — the
+    grading guidance prose must reach the judge through the prompt. Because
+    per-task criteria vary, the user's ``custom_prompt_template`` cannot
+    contain them; instead this rendering is bound to the ``{bewertungsbogen}``
+    template variable at eval time.
+
+    When the rubric row carries a pre-rendered full-document text
+    (``generation_metadata.rendered_text``, written by the extended
+    generation worker; carries document-level context like alternative
+    Lösungswege that flat criteria cannot), that string wins. Otherwise the
+    flat criteria are rendered generically; the ``[Schlüssel: …]`` suffix
+    lets the model map each step to its schema key.
+    """
+    metadata = getattr(rubric, "generation_metadata", None) or {}
+    rendered = metadata.get("rendered_text")
+    if isinstance(rendered, str) and rendered.strip():
+        return rendered
+
+    criteria = getattr(rubric, "criteria", None)
+    lines = []
+    for i, (key, step) in enumerate((criteria or {}).items(), start=1):
+        if not isinstance(step, dict):
+            continue
+        name = step.get("name") or key
+        pts = step.get("max_score")
+        lines.append(f"{i}. {name} ({pts} Punkte) [Schlüssel: {key}]")
+        for text in (step.get("description"), step.get("rubric")):
+            text = (text or "").strip()
+            for ln in text.splitlines():
+                lines.append(f"   {ln}")
+    return "\n".join(lines)
+
+
 def evaluate_generation_cell_impl(
     self,
     evaluation_id: str,
@@ -279,7 +363,7 @@ def evaluate_generation_cell_impl(
                                 or ""
                             )
                             eval_ground_truth = str(ground_truth) if ground_truth else ""
-                            if metric == "llm_judge_falloesung" and task.data:
+                            if metric in ("llm_judge_falloesung", "llm_judge_rubric") and task.data:
                                 muster = (
                                     _get_insensitive(task.data, "musterloesung")
                                     or _get_insensitive(task.data, "musterlösung")
@@ -290,6 +374,43 @@ def evaluate_generation_cell_impl(
                             criterion = metric.replace("llm_judge_", "")
                             if criterion in ("custom", "overall"):
                                 criterion = "correctness"
+
+                            # llm_judge_rubric grades against the task's own
+                            # Bewertungsbogen; without a usable rubric the cell
+                            # is a terminal config error (mirrors the
+                            # evaluator-not-initialized row above).
+                            task_rubric = None
+                            if metric == "llm_judge_rubric":
+                                task_rubric = _resolve_task_rubric(
+                                    db, task, config.get("metric_parameters")
+                                )
+                                if task_rubric is None:
+                                    err = _NO_RUBRIC_ERROR.format(task_id=task.id)
+                                    sample_results.append({
+                                        "id": str(_gen_uuid.uuid4()),
+                                        "evaluation_id": evaluation_id,
+                                        "judge_run_id": default_judge_run_id,
+                                        "task_id": task.id,
+                                        "generation_id": gen.id,
+                                        "field_name": field_key,
+                                        "evaluation_config_id": config_id,
+                                        "answer_type": "text",
+                                        "ground_truth": str(ground_truth)[:1000] if ground_truth else "",
+                                        "prediction": str(prediction)[:1000] if prediction else "",
+                                        "metrics": {
+                                            metric: {
+                                                "value": None,
+                                                "method": metric,
+                                                "error": err,
+                                                "details": {},
+                                            },
+                                        },
+                                        "passed": False,
+                                        "error_message": err,
+                                    })
+                                    local_samples_evaluated += 1
+                                    local_samples_failed += 1
+                                    continue
 
                             for jr_entry in judge_runs_by_config.get(config_id, []):
                                 jr_evaluator = jr_entry["evaluator"]
@@ -321,6 +442,13 @@ def evaluate_generation_cell_impl(
                                         "error_message": f"judge {jr_judge_model} run {jr_run_index} not initialized",
                                     })
                                     continue
+
+                                if task_rubric is not None:
+                                    # Inject the task's rubric as this judge's
+                                    # criteria. Evaluators are cell-scoped
+                                    # (reconstructed per sub-task), so the
+                                    # assignment cannot leak across tasks.
+                                    jr_evaluator.custom_criteria = task_rubric.criteria
 
                                 multidim_mode = (
                                     metric != "llm_judge_falloesung"
@@ -367,11 +495,22 @@ def evaluate_generation_cell_impl(
                                         if getattr(gen, "parsed_annotation", None)
                                         else {}
                                     )
+                                    multidim_task_data = task.data
+                                    if task_rubric is not None:
+                                        # Bind the rendered rubric so the
+                                        # grading template's {bewertungsbogen}
+                                        # placeholder resolves per task.
+                                        multidim_task_data = {
+                                            **(task.data or {}),
+                                            "bewertungsbogen": _render_rubric_text(
+                                                task_rubric
+                                            ),
+                                        }
                                     result = jr_evaluator._evaluate_multidim_single_call(
                                         context=context,
                                         ground_truth=eval_ground_truth,
                                         prediction=str(prediction) if prediction else "",
-                                        task_data=task.data,
+                                        task_data=multidim_task_data,
                                         field_outputs=gen_field_outputs,
                                     )
                                 else:
@@ -390,6 +529,14 @@ def evaluate_generation_cell_impl(
                                 )
 
                                 if multidim_mode:
+                                    if task_rubric is not None:
+                                        if isinstance(result, dict):
+                                            result["rubric_id"] = task_rubric.id
+                                        if isinstance(judge_prompts, dict):
+                                            judge_prompts["task_rubric_id"] = task_rubric.id
+                                            judge_prompts["task_rubric_generator"] = (
+                                                task_rubric.generator_model_id
+                                            )
                                     error_msg = (
                                         result.get("error_message")
                                         if result and result.get("error")
@@ -830,7 +977,7 @@ def evaluate_annotation_cell_impl(
                                     or ""
                                 ) if task.data else ""
                                 eval_ground_truth = str(ground_truth) if ground_truth else ""
-                                if metric == "llm_judge_falloesung" and task.data:
+                                if metric in ("llm_judge_falloesung", "llm_judge_rubric") and task.data:
                                     muster = (
                                         _get_insensitive(task.data, "musterloesung")
                                         or _get_insensitive(task.data, "musterlösung")
@@ -840,6 +987,44 @@ def evaluate_annotation_cell_impl(
                                 criterion = metric.replace("llm_judge_", "")
                                 if criterion in ("custom", "overall"):
                                     criterion = "correctness"
+
+                                # llm_judge_rubric grades against the task's
+                                # own Bewertungsbogen; without a usable rubric
+                                # the cell is a terminal config error (mirrors
+                                # the evaluator-not-initialized row above).
+                                task_rubric = None
+                                if metric == "llm_judge_rubric":
+                                    task_rubric = _resolve_task_rubric(
+                                        db, task, config.get("metric_parameters")
+                                    )
+                                    if task_rubric is None:
+                                        err = _NO_RUBRIC_ERROR.format(task_id=task.id)
+                                        sample_results.append({
+                                            "id": str(_ann_uuid.uuid4()),
+                                            "evaluation_id": evaluation_id,
+                                            "judge_run_id": default_judge_run_id,
+                                            "task_id": task.id,
+                                            "generation_id": None,
+                                            "annotation_id": annotation.id,
+                                            "field_name": field_key,
+                                            "evaluation_config_id": config_id,
+                                            "answer_type": "text",
+                                            "ground_truth": str(ground_truth)[:1000] if ground_truth else "",
+                                            "prediction": str(prediction)[:1000] if prediction else "",
+                                            "metrics": {
+                                                metric: {
+                                                    "value": None,
+                                                    "method": metric,
+                                                    "error": err,
+                                                    "details": {},
+                                                },
+                                            },
+                                            "passed": False,
+                                            "error_message": err,
+                                        })
+                                        local_samples_evaluated += 1
+                                        local_samples_failed += 1
+                                        continue
 
                                 per_judge_results: List[Dict[str, Any]] = []
                                 for jr_entry in judge_runs_by_config.get(config_id, []):
@@ -873,6 +1058,12 @@ def evaluate_annotation_cell_impl(
                                             "error_message": f"judge {jr_judge_model} run {jr_run_index} not initialized",
                                         })
                                         continue
+
+                                    if task_rubric is not None:
+                                        # Inject the task's rubric as this
+                                        # judge's criteria; evaluators are
+                                        # cell-scoped, no cross-task leak.
+                                        jr_evaluator.custom_criteria = task_rubric.criteria
 
                                     multidim_mode = (
                                         metric != "llm_judge_falloesung"
@@ -918,11 +1109,22 @@ def evaluate_annotation_cell_impl(
                                             if getattr(annotation, "result", None)
                                             else {}
                                         )
+                                        multidim_task_data = task.data
+                                        if task_rubric is not None:
+                                            # Bind the rendered rubric so the
+                                            # grading template's
+                                            # {bewertungsbogen} resolves.
+                                            multidim_task_data = {
+                                                **(task.data or {}),
+                                                "bewertungsbogen": _render_rubric_text(
+                                                    task_rubric
+                                                ),
+                                            }
                                         result = jr_evaluator._evaluate_multidim_single_call(
                                             context=context,
                                             ground_truth=eval_ground_truth,
                                             prediction=str(prediction) if prediction else "",
-                                            task_data=task.data,
+                                            task_data=multidim_task_data,
                                             field_outputs=ann_field_outputs,
                                         )
                                     else:
@@ -941,6 +1143,14 @@ def evaluate_annotation_cell_impl(
                                     )
 
                                     if multidim_mode:
+                                        if task_rubric is not None:
+                                            if isinstance(result, dict):
+                                                result["rubric_id"] = task_rubric.id
+                                            if isinstance(judge_prompts, dict):
+                                                judge_prompts["task_rubric_id"] = task_rubric.id
+                                                judge_prompts["task_rubric_generator"] = (
+                                                    task_rubric.generator_model_id
+                                                )
                                         error_msg = (
                                             result.get("error_message")
                                             if result and result.get("error")

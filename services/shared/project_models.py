@@ -1359,3 +1359,73 @@ class MarketplaceGradingRequest(Base):
             f"<MarketplaceGradingRequest(id={self.id}, "
             f"annotation_id={self.annotation_id}, status={self.status})>"
         )
+
+
+class TaskRubric(Base):
+    """Per-task grading rubric (Bewertungsbogen) — an exam-specific 100-point
+    step scheme consumed by the ``llm_judge_rubric`` metric and (task-aware)
+    korrektur grading.
+
+    Platform owns only the persistence and generic reads; the generation
+    workflow (LLM prompting, parsing, renormalization, activation policy)
+    lives in the extended worker (``bewertungsbogen_tasks``).
+
+    ``criteria`` is a ``custom_criteria``-shaped dict
+    ``{step_key: {name, description, rubric, max_score}}`` so the multi-dim
+    LLM-judge schema builder and the korrektur_custom grading form consume it
+    unchanged. Multiple rows per task are expected (candidate rubrics from
+    different generator models); at most ONE row per task has
+    ``status='active'`` — enforced by the partial unique index
+    ``ux_task_rubrics_one_active`` (migration 088).
+    """
+
+    __tablename__ = "task_rubrics"
+
+    id = Column(String, primary_key=True, index=True)
+    task_id = Column(
+        String, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    project_id = Column(
+        String, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+
+    title = Column(String, nullable=True)
+    criteria = Column(JSONB, nullable=False)
+    total_points = Column(Integer, nullable=False, default=100, server_default="100")
+
+    # 'llm' (generated), 'llm_edited' (generated, then human-edited), 'human'
+    source = Column(String(16), nullable=False, server_default="llm")
+    generator_model_id = Column(String, nullable=True)
+    # Key into project.generation_config.prompt_structures used to generate
+    # this rubric, plus a content hash of that prompt at generation time.
+    prompt_key = Column(String, nullable=True)
+    prompt_version = Column(String, nullable=True)
+    # Provider params, token usage, latency, retry counts — provenance only.
+    generation_metadata = Column(JSONB, nullable=True)
+
+    # 'candidate' | 'active' | 'archived'
+    status = Column(String(16), nullable=False, server_default="candidate", index=True)
+
+    created_by = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now(), nullable=True)
+
+    task = relationship("Task", backref="rubrics")
+    project = relationship("Project")
+
+    __table_args__ = (
+        sa.Index(
+            "ux_task_rubrics_one_active",
+            "task_id",
+            unique=True,
+            postgresql_where=sa.text("status = 'active'"),
+        ),
+        sa.Index("ix_task_rubrics_task_status", "task_id", "status"),
+        sa.Index("ix_task_rubrics_generator", "project_id", "generator_model_id"),
+    )
+
+    def __repr__(self):
+        return (
+            f"<TaskRubric(id={self.id}, task_id={self.task_id}, "
+            f"status={self.status}, generator={self.generator_model_id})>"
+        )

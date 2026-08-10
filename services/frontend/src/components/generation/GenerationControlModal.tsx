@@ -553,6 +553,11 @@ export function GenerationControlModal({
                                     <span className="text-sm font-medium">
                                       {structure.name}
                                     </span>
+                                    {structure.exclude_from_generation && (
+                                      <span className="ml-2 rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-500">
+                                        {t('generation.controlModal.excludedFromGeneration')}
+                                      </span>
+                                    )}
                                     {structure.description && (
                                       <p className="text-xs text-gray-500">
                                         {structure.description}
@@ -567,7 +572,16 @@ export function GenerationControlModal({
                             <button
                               type="button"
                               onClick={() =>
-                                setSelectedStructures(structureKeys)
+                                // "Select all" skips structures flagged
+                                // exclude_from_generation (they can still be
+                                // ticked individually).
+                                setSelectedStructures(
+                                  structureKeys.filter(
+                                    (key) =>
+                                      !availableStructures[key]
+                                        ?.exclude_from_generation
+                                  )
+                                )
                               }
                               className="text-blue-600 hover:text-blue-700"
                             >

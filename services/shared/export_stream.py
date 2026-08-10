@@ -59,6 +59,7 @@ from project_models import (
     ProjectOrganization,
     Task,
     TaskAssignment,
+    TaskRubric,
 )
 # serializers relocated to /shared alongside this module (issue #158) so the
 # worker can import it; /shared is first on sys.path in both containers.
@@ -72,6 +73,7 @@ from serializers import (
     serialize_korrektur_comment,
     serialize_task,
     serialize_task_evaluation,
+    serialize_task_rubric,
 )
 from sqlalchemy import func as sa_func
 
@@ -183,6 +185,18 @@ def build_batch_objs(
     )
     te_by_task_id, te_by_gen_id = build_evaluation_indexes(te_all)
 
+    # Per-task Bewertungsbogen rows (one extra batched IN-query; kept out of
+    # fetch_batch_children so its 7-tuple contract stays untouched).
+    rubrics_all = (
+        db.query(TaskRubric)
+        .filter(TaskRubric.task_id.in_(batch_ids))
+        .order_by(TaskRubric.created_at)
+        .all()
+    )
+    rubrics_by_task: dict = {}
+    for rubric in rubrics_all:
+        rubrics_by_task.setdefault(rubric.task_id, []).append(rubric)
+
     out = []
     for task in batch:
         task_data = serialize_task(task, mode="data")
@@ -218,6 +232,12 @@ def build_batch_objs(
                     judge_model_lookup=judge_model_lookup,
                 )
             )
+
+        # Only emit the key when rubrics exist — keeps exports byte-stable
+        # for the (vast) majority of projects without Bewertungsbogen rows.
+        rubric_rows = rubrics_by_task.get(task.id, [])
+        if rubric_rows:
+            task_data["rubrics"] = [serialize_task_rubric(r) for r in rubric_rows]
         out.append(task_data)
 
     # Detach every ORM row this batch pulled in so the Session identity map
@@ -227,7 +247,7 @@ def build_batch_objs(
     # rather than BATCH_SIZE, which OOMKilled the API pod on large exports.
     # The caller's eval_run / judge_model_lookup objects are intentionally
     # left attached — they're reused on every batch.
-    for obj in chain(batch, anns_all, qrs_all, gens_all, te_all):
+    for obj in chain(batch, anns_all, qrs_all, gens_all, te_all, rubrics_all):
         db.expunge(obj)
     return out
 

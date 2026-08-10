@@ -61,6 +61,25 @@ def serialize_task(task, *, mode: str = "data", total_generations: int = 0) -> d
     return d
 
 
+def serialize_task_rubric(rubric) -> dict:
+    """Export shape for a task_rubrics row (per-task Bewertungsbogen)."""
+    return {
+        "id": rubric.id,
+        "title": rubric.title,
+        "criteria": rubric.criteria,
+        "total_points": rubric.total_points,
+        "source": rubric.source,
+        "generator_model_id": rubric.generator_model_id,
+        "prompt_key": rubric.prompt_key,
+        "prompt_version": rubric.prompt_version,
+        "generation_metadata": rubric.generation_metadata,
+        "status": rubric.status,
+        "created_by": rubric.created_by,
+        "created_at": _isoformat(rubric.created_at),
+        "updated_at": _isoformat(rubric.updated_at),
+    }
+
+
 def serialize_annotation(
     ann, *, mode: str = "data", questionnaire_response=None
 ) -> dict:
@@ -155,6 +174,10 @@ def serialize_task_evaluation(
         # multi-judge configs (where one EvaluationRun spawns N EvaluationJudgeRuns,
         # one per judge model) remain distinguishable in the export.
         "judge_run_id": te.judge_run_id,
+        # Discrete per-config linkage (issue #111 / migration 057). Without it
+        # a re-import into another instance loses per-config selectability in
+        # the data view (readers would have to re-parse field_name prefixes).
+        "evaluation_config_id": te.evaluation_config_id,
         # Grader user_id. Populated on rows written by a human (korrektur
         # grades, manual rubric edits) and on LLM-judge rows (the dispatcher).
         # Downstream analysis joins this to users.id when grader identity is

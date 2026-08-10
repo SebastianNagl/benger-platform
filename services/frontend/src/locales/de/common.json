@@ -2576,6 +2576,7 @@
       "oneModelSelected": "1 Modell ausgewählt",
       "modelsSelected": "{count} Modelle ausgewählt",
       "selectPromptStructures": "Prompt-Strukturen auswählen",
+      "excludedFromGeneration": "Nicht für Generierung",
       "oneStructureSelected": "1 Struktur ausgewählt",
       "structuresSelected": "{count} Strukturen ausgewählt",
       "advancedSettings": "Erweiterte Einstellungen",

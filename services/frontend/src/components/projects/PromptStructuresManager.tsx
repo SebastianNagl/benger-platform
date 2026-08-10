@@ -33,6 +33,7 @@ interface PromptStructure {
   system_prompt: string | object
   instruction_prompt: string | object
   evaluation_prompt?: string | object | null
+  exclude_from_generation?: boolean
 }
 
 interface PromptStructuresManagerProps {

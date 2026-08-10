@@ -251,6 +251,32 @@ class TestBuildMultidimJudgeRowMetrics:
         assert metrics["llm_judge"]["error"] == "boom!"
         assert metrics["llm_judge"]["details"]["raw_output"] == "rx"
 
+    def test_rubric_id_lands_in_details_when_present(self):
+        """llm_judge_rubric cells stamp the task_rubrics row id into the
+        multidim dict; the builder must surface it under details for
+        provenance queries."""
+        multidim = {
+            "scores": {"s01": {"score": 5, "max": 8, "reason": "ok"}},
+            "total_score": 5.0,
+            "total_max": 8.0,
+            "_call_metadata": {},
+            "_raw_output": "",
+            "rubric_id": "rub-123",
+        }
+        metrics, _ = _build_multidim_judge_row_metrics(
+            multidim, "llm_judge_rubric", None
+        )
+        assert metrics["llm_judge_rubric"]["details"]["rubric_id"] == "rub-123"
+
+    def test_no_rubric_id_key_when_absent(self):
+        multidim = {
+            "scores": {"s01": {"score": 5, "max": 8, "reason": "ok"}},
+            "total_score": 5.0,
+            "total_max": 8.0,
+        }
+        metrics, _ = _build_multidim_judge_row_metrics(multidim, "llm_judge", None)
+        assert "rubric_id" not in metrics["llm_judge"]["details"]
+
 
 # ===========================================================================
 # _finalize_judge_runs_by_rows

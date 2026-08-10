@@ -66,6 +66,7 @@ from project_models import (
     ProjectOrganization,
     Task,
     TaskAssignment,
+    TaskRubric,
 )
 from serializers import _parse_iso
 
@@ -356,6 +357,7 @@ def run_nested_import(db, project_id: str, fileobj, user_id: str) -> dict:
     created_annotations = 0
     created_generations = 0
     created_questionnaire_responses = 0
+    created_rubrics = 0
     created_evaluation_runs = 0
     created_task_evaluations = 0
     total_items = 0
@@ -387,6 +389,13 @@ def run_nested_import(db, project_id: str, fileobj, user_id: str) -> dict:
     # EvaluationRun (mirroring 043's backfill) so TaskEvaluations without an
     # explicit judge_run_id can attach.
     evaluation_run_judge_run: Dict[str, str] = {}  # new er id -> jr id
+    # Recreated-judge-run bookkeeping (see _ensure_judge_run below):
+    # uq_evaluation_judge_runs_eval_model_index pins (evaluation_id,
+    # judge_model_id, run_index), so multi-pass judges (e.g. 3× gpt-5-mini on
+    # one run) need incrementing run_index values, and the catch-all row
+    # occupies (er, None, 0).
+    _seen_judge_run_ids: set = set()
+    _jr_index_counter: Dict[tuple, int] = {}
     if data.evaluation_runs:
         for er_data in data.evaluation_runs:
             old_er_id = er_data.get("id")
@@ -407,9 +416,45 @@ def run_nested_import(db, project_id: str, fileobj, user_id: str) -> dict:
             db.add(er)
             jr_id = _add_catchall_judge_run(db, new_er_id)
             evaluation_run_judge_run[new_er_id] = jr_id
+            # The catch-all occupies (new_er_id, None, 0); recreated
+            # judge runs without a judge_model must start at index 1.
+            _jr_index_counter[(new_er_id, None)] = 1
             created_evaluation_runs += 1
             if old_er_id:
                 evaluation_run_id_mapping[old_er_id] = new_er_id
+
+    # Exports serialize each row's judge_run_id (and its judge_model via the
+    # export-side lookup) but never the evaluation_judge_runs rows themselves.
+    # Importing into a database that doesn't already hold those runs (a fresh
+    # instance, a cross-instance clone) used to FK-fail on
+    # task_evaluations.judge_run_id. Recreate each referenced judge run on
+    # first sight — preserving the ORIGINAL id and the serialized judge model,
+    # so multi-judge structure and per-judge analysis survive the import.
+    def _ensure_judge_run(jr_id, evaluation_id, judge_model):
+        if not jr_id:
+            return None
+        if jr_id not in _seen_judge_run_ids:
+            exists = (
+                db.query(EvaluationJudgeRun.id)
+                .filter(EvaluationJudgeRun.id == jr_id)
+                .first()
+                is not None
+            )
+            if not exists:
+                key = (evaluation_id, judge_model)
+                run_index = _jr_index_counter.get(key, 0)
+                _jr_index_counter[key] = run_index + 1
+                db.add(
+                    EvaluationJudgeRun(
+                        id=jr_id,
+                        evaluation_id=evaluation_id,
+                        judge_model_id=judge_model,
+                        run_index=run_index,
+                        status="completed",
+                    )
+                )
+            _seen_judge_run_ids.add(jr_id)
+        return jr_id
 
     # Create stub users for any referenced user IDs that don't exist locally.
     # This preserves original annotator IDs from the export. Cheap streaming
@@ -422,6 +467,32 @@ def run_nested_import(db, project_id: str, fileobj, user_id: str) -> dict:
                     import_user_ids.add(ann["completed_by"])
                 if ann.get("reviewed_by"):
                     import_user_ids.add(ann["reviewed_by"])
+            # Grader identity on human-graded evaluation rows (korrektur):
+            # created_by is FK'd to users and is part of the per-cell unique
+            # key — dropping it collapses multi-rater grades of the same
+            # target into constraint violations.
+            for ev in item.get("evaluations", []) or []:
+                if isinstance(ev, dict) and ev.get("created_by"):
+                    import_user_ids.add(ev["created_by"])
+            for gen in item.get("generations", []) or []:
+                if not isinstance(gen, dict):
+                    continue
+                for ev in gen.get("evaluations", []) or []:
+                    if isinstance(ev, dict) and ev.get("created_by"):
+                        import_user_ids.add(ev["created_by"])
+    # Korrektur comment authors/resolvers and human-eval evaluators are
+    # user FKs too; they live in the small top-level blocks.
+    for c in data.korrektur_comments or []:
+        if isinstance(c, dict):
+            for field in ("created_by", "resolved_by"):
+                if c.get(field):
+                    import_user_ids.add(c[field])
+    for session in data.human_evaluation_sessions or []:
+        if isinstance(session, dict) and session.get("evaluator_id"):
+            import_user_ids.add(session["evaluator_id"])
+    for he_result in data.human_evaluation_results or []:
+        if isinstance(he_result, dict) and he_result.get("evaluator_id"):
+            import_user_ids.add(he_result["evaluator_id"])
     if import_user_ids:
         existing_ids = {
             u.id for u in db.query(User.id).filter(User.id.in_(import_user_ids)).all()
@@ -454,6 +525,7 @@ def run_nested_import(db, project_id: str, fileobj, user_id: str) -> dict:
         annotations_to_import = []
         generations_to_import = []
         task_level_evaluations = []
+        rubrics_to_import = []
         original_task_id = None
 
         # If item has 'data' field, it's Label Studio format
@@ -476,6 +548,10 @@ def run_nested_import(db, project_id: str, fileobj, user_id: str) -> dict:
             # Extract task-level evaluations if present
             if "evaluations" in item and isinstance(item["evaluations"], list):
                 task_level_evaluations = item["evaluations"]
+
+            # Extract per-task rubrics (Bewertungsbogen) if present
+            if "rubrics" in item and isinstance(item["rubrics"], list):
+                rubrics_to_import = item["rubrics"]
 
         # No longer add generation prompts - using generation structure instead (Issue #519)
         # The prompts are now configured at project level via generation_config.prompt_structures
@@ -509,6 +585,33 @@ def run_nested_import(db, project_id: str, fileobj, user_id: str) -> dict:
         # Store ID mapping for cross-references
         if original_task_id:
             task_id_mapping[original_task_id] = task_id
+
+        # Import per-task rubrics (Bewertungsbogen). Fresh ids; the exported
+        # status round-trips (at most one 'active' per task can exist in a
+        # valid export, matching the partial unique index).
+        for rub_data in rubrics_to_import:
+            if not isinstance(rub_data, dict) or not isinstance(
+                rub_data.get("criteria"), dict
+            ):
+                continue
+            db.add(
+                TaskRubric(
+                    id=str(uuid.uuid4()),
+                    task_id=task_id,
+                    project_id=project_id,
+                    title=rub_data.get("title"),
+                    criteria=rub_data["criteria"],
+                    total_points=rub_data.get("total_points") or 100,
+                    source=rub_data.get("source") or "llm",
+                    generator_model_id=rub_data.get("generator_model_id"),
+                    prompt_key=rub_data.get("prompt_key"),
+                    prompt_version=rub_data.get("prompt_version"),
+                    generation_metadata=rub_data.get("generation_metadata"),
+                    status=rub_data.get("status") or "candidate",
+                    created_by=user_id,
+                )
+            )
+            created_rubrics += 1
 
         # Import annotations for this task
         for ann_data in annotations_to_import:
@@ -659,11 +762,22 @@ def run_nested_import(db, project_id: str, fileobj, user_id: str) -> dict:
                         error_message=eval_data.get("error_message"),
                         processing_time_ms=eval_data.get("processing_time_ms"),
                         judge_prompts_used=eval_data.get("judge_prompts_used"),
+                        # Grader identity (human korrektur rows); part of the
+                        # per-cell unique key. Stub users were pre-created.
+                        created_by=eval_data.get("created_by"),
+                        # Per-config linkage — config ids are stable strings
+                        # (not remapped), so pass through verbatim.
+                        evaluation_config_id=eval_data.get("evaluation_config_id"),
                         # Migration 042: forward judge_run_id when the export
-                        # carries it. Older exports pre-date the field; fall back
-                        # to the synthetic catch-all judge_run created above for
-                        # this evaluation_run (mirrors migration 043's backfill).
-                        judge_run_id=eval_data.get("judge_run_id")
+                        # carries it (recreating the judge-run row when it
+                        # doesn't exist locally). Older exports pre-date the
+                        # field; fall back to the synthetic catch-all judge_run
+                        # created above (mirrors migration 043's backfill).
+                        judge_run_id=_ensure_judge_run(
+                            eval_data.get("judge_run_id"),
+                            new_er_id,
+                            eval_data.get("judge_model"),
+                        )
                             or evaluation_run_judge_run.get(new_er_id),  # noqa: E131
                     )
                     db.add(te)
@@ -699,8 +813,16 @@ def run_nested_import(db, project_id: str, fileobj, user_id: str) -> dict:
                 error_message=eval_data.get("error_message"),
                 processing_time_ms=eval_data.get("processing_time_ms"),
                 judge_prompts_used=eval_data.get("judge_prompts_used"),
+                # Grader identity (human korrektur rows); see comment above.
+                created_by=eval_data.get("created_by"),
+                # Per-config linkage — pass through verbatim (stable strings).
+                evaluation_config_id=eval_data.get("evaluation_config_id"),
                 # Migration 042: see comment on the generation-attached path above.
-                judge_run_id=eval_data.get("judge_run_id")
+                judge_run_id=_ensure_judge_run(
+                    eval_data.get("judge_run_id"),
+                    new_er_id,
+                    eval_data.get("judge_model"),
+                )
                     or evaluation_run_judge_run.get(new_er_id),  # noqa: E131
             )
             db.add(te)
@@ -856,6 +978,7 @@ def run_nested_import(db, project_id: str, fileobj, user_id: str) -> dict:
         "created_annotations": created_annotations,
         "created_generations": created_generations,
         "created_questionnaire_responses": created_questionnaire_responses,
+        "created_rubrics": created_rubrics,
         "created_evaluation_runs": created_evaluation_runs,
         "created_task_evaluations": created_task_evaluations,
         "total_items": total_items,
@@ -1204,6 +1327,9 @@ def _insert_task_evaluation(ctx: _FullImportContext, te_data: dict) -> None:
             processing_time_ms=te_data.get("processing_time_ms"),
             judge_prompts_used=te_data.get("judge_prompts_used"),
             judge_run_id=judge_run_id,
+            # Per-config linkage — config ids are stable strings, not remapped.
+            evaluation_config_id=te_data.get("evaluation_config_id"),
+            created_by=te_data.get("created_by"),
         )
 
         ctx.db.add(new_te)

@@ -740,6 +740,94 @@ class TestUpdateEvaluationConfig:
         mp = stored["evaluation_configs"][0]["metric_parameters"]
         assert mp["score_scale"] == "0-100"
 
+    # --- llm_judge_rubric (per-task Bewertungsbogen) validation ---
+
+    def _rubric_config(self, **overrides):
+        mp = {
+            "judges": [{"judge_model_id": "gpt-4", "runs": 1}],
+            "rubric_generator_model_id": "gpt-5.4",
+            "rubric_prompt_key": "bewertungsbogen",
+            "custom_prompt_template": "Bewerte: {prediction} vs {ground_truth}",
+        }
+        mp.update(overrides)
+        # None means "remove the key"
+        mp = {k: v for k, v in mp.items() if v is not None}
+        return {
+            "evaluation_configs": [
+                {"metric": "llm_judge_rubric", "metric_parameters": mp}
+            ]
+        }
+
+    @pytest.mark.parametrize(
+        "missing_key",
+        [
+            "rubric_generator_model_id",
+            "rubric_prompt_key",
+            "custom_prompt_template",
+        ],
+    )
+    def test_rubric_missing_required_param_returns_422(
+        self, client, test_db, test_users, auth_headers, test_org, missing_key
+    ):
+        project = _make_project(test_db, test_users[0], test_org)
+        config = self._rubric_config(**{missing_key: None})
+        resp = client.put(
+            f"/api/evaluations/projects/{project.id}/evaluation-config",
+            json=config,
+            headers=_org_headers(auth_headers, "admin", test_org),
+        )
+        assert resp.status_code == 422
+        detail = resp.json()["detail"]
+        assert "llm_judge_rubric" in detail and missing_key in detail
+
+    def test_rubric_empty_string_param_returns_422(
+        self, client, test_db, test_users, auth_headers, test_org
+    ):
+        project = _make_project(test_db, test_users[0], test_org)
+        config = self._rubric_config(rubric_prompt_key="   ")
+        resp = client.put(
+            f"/api/evaluations/projects/{project.id}/evaluation-config",
+            json=config,
+            headers=_org_headers(auth_headers, "admin", test_org),
+        )
+        assert resp.status_code == 422
+        assert "rubric_prompt_key" in resp.json()["detail"]
+
+    def test_rubric_with_custom_criteria_returns_422(
+        self, client, test_db, test_users, auth_headers, test_org
+    ):
+        # criteria come from the task's Bewertungsbogen; config-level
+        # custom_criteria on the rubric metric is a misconfiguration.
+        project = _make_project(test_db, test_users[0], test_org)
+        config = self._rubric_config(
+            custom_criteria={"step": {"name": "s", "rubric": "r", "max_score": 100}}
+        )
+        resp = client.put(
+            f"/api/evaluations/projects/{project.id}/evaluation-config",
+            json=config,
+            headers=_org_headers(auth_headers, "admin", test_org),
+        )
+        assert resp.status_code == 422
+        assert "custom_criteria" in resp.json()["detail"]
+
+    def test_rubric_valid_config_persists(
+        self, client, test_db, test_users, auth_headers, test_org
+    ):
+        project = _make_project(test_db, test_users[0], test_org)
+        resp = client.put(
+            f"/api/evaluations/projects/{project.id}/evaluation-config",
+            json=self._rubric_config(),
+            headers=_org_headers(auth_headers, "admin", test_org),
+        )
+        assert resp.status_code == 200
+        test_db.expire_all()
+        stored = (
+            test_db.query(Project).filter(Project.id == project.id).first()
+        ).evaluation_config
+        mp = stored["evaluation_configs"][0]["metric_parameters"]
+        assert mp["rubric_generator_model_id"] == "gpt-5.4"
+        assert mp["rubric_prompt_key"] == "bewertungsbogen"
+
 
 # =====================================================================
 # GET /detect-answer-types  (async)
