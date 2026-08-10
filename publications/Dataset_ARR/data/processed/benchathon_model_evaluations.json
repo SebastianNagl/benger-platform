@@ -252,48 +252,6 @@
     "output_tokens": 2366
   },
   {
-    "system": "gpt-5.4",
-    "task_id": "1648d37e-ba60-4797-8c2a-d8648d7b5887",
-    "generation_id": "c2861490-91ed-42ff-9ca3-d384299a6a91",
-    "raw_score": 84.0,
-    "grade_points": 14,
-    "passed": true,
-    "dimensions": {
-      "sprache": 2.5,
-      "formalia": 1.5,
-      "gliederung": 4.5,
-      "subsumtion": 11.5,
-      "rechtskenntnis": 11.5,
-      "rechtsgrundlagen": 8.5,
-      "vollstaendigkeit": 8.5,
-      "methodischer_stil": 8.5,
-      "schwerpunktsetzung": 8.5,
-      "ergebnisrichtigkeit": 18.5
-    },
-    "output_tokens": 1906
-  },
-  {
-    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
-    "task_id": "1648d37e-ba60-4797-8c2a-d8648d7b5887",
-    "generation_id": "5aa21105-d737-4f0c-b511-299b731a6a7a",
-    "raw_score": 62.0,
-    "grade_points": 7,
-    "passed": true,
-    "dimensions": {
-      "sprache": 2.5,
-      "formalia": 1.5,
-      "gliederung": 4.5,
-      "subsumtion": 6.5,
-      "rechtskenntnis": 7.5,
-      "rechtsgrundlagen": 4.5,
-      "vollstaendigkeit": 4.5,
-      "methodischer_stil": 5.5,
-      "schwerpunktsetzung": 5.5,
-      "ergebnisrichtigkeit": 19.5
-    },
-    "output_tokens": 1044
-  },
-  {
     "system": "Qwen/Qwen3.6-35B-A3B",
     "task_id": "c5e7770b-1416-4c7b-994f-7714780f9dcb",
     "generation_id": "21333902-bfc3-40c1-af01-122eae6ed6ec",
@@ -502,27 +460,6 @@
       "ergebnisrichtigkeit": 10.5
     },
     "output_tokens": 2979
-  },
-  {
-    "system": "gpt-5.4",
-    "task_id": "c5e7770b-1416-4c7b-994f-7714780f9dcb",
-    "generation_id": "d722cc41-6338-48c3-8d4e-0ecbb758794a",
-    "raw_score": 65.0,
-    "grade_points": 8,
-    "passed": true,
-    "dimensions": {
-      "sprache": 2.5,
-      "formalia": 1.5,
-      "gliederung": 4.5,
-      "subsumtion": 8.5,
-      "rechtskenntnis": 8.5,
-      "rechtsgrundlagen": 6.5,
-      "vollstaendigkeit": 6.5,
-      "methodischer_stil": 7.5,
-      "schwerpunktsetzung": 6.5,
-      "ergebnisrichtigkeit": 12.5
-    },
-    "output_tokens": 3314
   },
   {
     "system": "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
@@ -798,48 +735,6 @@
     "output_tokens": 4482
   },
   {
-    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
-    "task_id": "762b7db3-6c4f-4e7b-8552-22d91371410f",
-    "generation_id": "9e485575-6b97-4b22-ac4f-30007774dd69",
-    "raw_score": 38.0,
-    "grade_points": 2,
-    "passed": false,
-    "dimensions": {
-      "sprache": 2.5,
-      "formalia": 1.5,
-      "gliederung": 3.5,
-      "subsumtion": 4.5,
-      "rechtskenntnis": 4.5,
-      "rechtsgrundlagen": 2.5,
-      "vollstaendigkeit": 3.5,
-      "methodischer_stil": 4.5,
-      "schwerpunktsetzung": 3.5,
-      "ergebnisrichtigkeit": 7.5
-    },
-    "output_tokens": 1268
-  },
-  {
-    "system": "gpt-5.4",
-    "task_id": "762b7db3-6c4f-4e7b-8552-22d91371410f",
-    "generation_id": "18ea1767-b515-44c9-bb1f-da3fb360785b",
-    "raw_score": 57.0,
-    "grade_points": 6,
-    "passed": true,
-    "dimensions": {
-      "sprache": 2.5,
-      "formalia": 1.5,
-      "gliederung": 4.5,
-      "subsumtion": 7.5,
-      "rechtskenntnis": 8.5,
-      "rechtsgrundlagen": 5.5,
-      "vollstaendigkeit": 5.5,
-      "methodischer_stil": 6.5,
-      "schwerpunktsetzung": 5.5,
-      "ergebnisrichtigkeit": 9.5
-    },
-    "output_tokens": 3072
-  },
-  {
     "system": "gemini-3.1-flash-lite-preview",
     "task_id": "762b7db3-6c4f-4e7b-8552-22d91371410f",
     "generation_id": "083575c5-fbd5-44e9-8fdc-e2f8e7fc654a",
@@ -922,27 +817,6 @@
       "ergebnisrichtigkeit": 15.5
     },
     "output_tokens": 4610
-  },
-  {
-    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
-    "task_id": "2c217f68-0dd1-4d34-9a5f-7b99c9fe2b8b",
-    "generation_id": "420d5b0e-93a0-4b62-8def-a796a8222819",
-    "raw_score": 29.0,
-    "grade_points": 2,
-    "passed": false,
-    "dimensions": {
-      "sprache": 2.5,
-      "formalia": 0.5,
-      "gliederung": 2.5,
-      "subsumtion": 3.5,
-      "rechtskenntnis": 4.5,
-      "rechtsgrundlagen": 2.5,
-      "vollstaendigkeit": 2.5,
-      "methodischer_stil": 3.5,
-      "schwerpunktsetzung": 2.5,
-      "ergebnisrichtigkeit": 4.5
-    },
-    "output_tokens": 1590
   },
   {
     "system": "gemini-3.1-flash-lite-preview",
@@ -1132,27 +1006,6 @@
       "ergebnisrichtigkeit": 17.5
     },
     "output_tokens": 2896
-  },
-  {
-    "system": "gpt-5.4",
-    "task_id": "2c217f68-0dd1-4d34-9a5f-7b99c9fe2b8b",
-    "generation_id": "81df5b87-0a62-41ee-8b1e-2ccf89da9bd1",
-    "raw_score": 75.0,
-    "grade_points": 11,
-    "passed": true,
-    "dimensions": {
-      "sprache": 2.5,
-      "formalia": 1.5,
-      "gliederung": 4.5,
-      "subsumtion": 11.5,
-      "rechtskenntnis": 10.5,
-      "rechtsgrundlagen": 7.5,
-      "vollstaendigkeit": 7.5,
-      "methodischer_stil": 7.5,
-      "schwerpunktsetzung": 7.5,
-      "ergebnisrichtigkeit": 14.5
-    },
-    "output_tokens": 3476
   },
   {
     "system": "gpt-5.4-mini",
@@ -1407,48 +1260,6 @@
     "output_tokens": 4994
   },
   {
-    "system": "gpt-5.4",
-    "task_id": "941f78d7-b26a-463c-b58a-a752d59bc0a5",
-    "generation_id": "3c5b8978-d773-46b1-b9ce-32f4278c8c58",
-    "raw_score": 74.0,
-    "grade_points": 11,
-    "passed": true,
-    "dimensions": {
-      "sprache": 2.5,
-      "formalia": 1.5,
-      "gliederung": 4.5,
-      "subsumtion": 9.5,
-      "rechtskenntnis": 10.5,
-      "rechtsgrundlagen": 6.5,
-      "vollstaendigkeit": 7.5,
-      "methodischer_stil": 7.5,
-      "schwerpunktsetzung": 7.5,
-      "ergebnisrichtigkeit": 16.5
-    },
-    "output_tokens": 3107
-  },
-  {
-    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
-    "task_id": "941f78d7-b26a-463c-b58a-a752d59bc0a5",
-    "generation_id": "7b85accd-2adf-442b-9f9d-84dbb60a7b03",
-    "raw_score": 24.0,
-    "grade_points": 1,
-    "passed": false,
-    "dimensions": {
-      "sprache": 2.5,
-      "formalia": 0.5,
-      "gliederung": 3.5,
-      "subsumtion": 3.5,
-      "rechtskenntnis": 2.5,
-      "rechtsgrundlagen": 2.5,
-      "vollstaendigkeit": 2.5,
-      "methodischer_stil": 3.5,
-      "schwerpunktsetzung": 1.5,
-      "ergebnisrichtigkeit": 1.5
-    },
-    "output_tokens": 1138
-  },
-  {
     "system": "gpt-5.4-mini",
     "task_id": "dfdea348-c434-4fc5-8ab1-e13172226b34",
     "generation_id": "baf3354d-68c7-483d-ac63-a78754031d1e",
@@ -1699,27 +1510,6 @@
       "ergebnisrichtigkeit": 15.5
     },
     "output_tokens": 2307
-  },
-  {
-    "system": "gpt-5.4",
-    "task_id": "dfdea348-c434-4fc5-8ab1-e13172226b34",
-    "generation_id": "fdf0a595-fb49-4651-8df3-8cc489bec176",
-    "raw_score": 44.0,
-    "grade_points": 3,
-    "passed": false,
-    "dimensions": {
-      "sprache": 2.5,
-      "formalia": 1.5,
-      "gliederung": 4.5,
-      "subsumtion": 6.5,
-      "rechtskenntnis": 6.5,
-      "rechtsgrundlagen": 4.5,
-      "vollstaendigkeit": 3.5,
-      "methodischer_stil": 5.5,
-      "schwerpunktsetzung": 4.5,
-      "ergebnisrichtigkeit": 4.5
-    },
-    "output_tokens": 2917
   },
   {
     "system": "gemini-3.1-pro-preview",
@@ -1974,48 +1764,6 @@
     "output_tokens": 3351
   },
   {
-    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
-    "task_id": "0dd46b63-ff6d-4912-b953-777281f8aec8",
-    "generation_id": "6634f270-1af5-438c-bb74-a15550f178ff",
-    "raw_score": 34.0,
-    "grade_points": 2,
-    "passed": false,
-    "dimensions": {
-      "sprache": 2.5,
-      "formalia": 1.5,
-      "gliederung": 2.5,
-      "subsumtion": 4.5,
-      "rechtskenntnis": 4.5,
-      "rechtsgrundlagen": 2.5,
-      "vollstaendigkeit": 3.5,
-      "methodischer_stil": 3.5,
-      "schwerpunktsetzung": 4.5,
-      "ergebnisrichtigkeit": 4.5
-    },
-    "output_tokens": 1149
-  },
-  {
-    "system": "gpt-5.4",
-    "task_id": "0dd46b63-ff6d-4912-b953-777281f8aec8",
-    "generation_id": "da5c6754-6b69-4079-a15d-7d18c38a4023",
-    "raw_score": 75.5,
-    "grade_points": 11,
-    "passed": true,
-    "dimensions": {
-      "sprache": 2.5,
-      "formalia": 2.0,
-      "gliederung": 4.5,
-      "subsumtion": 10.5,
-      "rechtskenntnis": 10.5,
-      "rechtsgrundlagen": 6.5,
-      "vollstaendigkeit": 7.5,
-      "methodischer_stil": 8.5,
-      "schwerpunktsetzung": 7.5,
-      "ergebnisrichtigkeit": 15.5
-    },
-    "output_tokens": 2106
-  },
-  {
     "system": "gpt-5.4-mini",
     "task_id": "c831f630-b724-4d74-9a97-7cf48edd4cf7",
     "generation_id": "02112043-be4f-4e95-b7e7-37a57a9d6447",
@@ -2268,48 +2016,6 @@
     "output_tokens": 2299
   },
   {
-    "system": "gpt-5.4",
-    "task_id": "c831f630-b724-4d74-9a97-7cf48edd4cf7",
-    "generation_id": "44cb734e-94b7-47c7-807a-6a07900c92a5",
-    "raw_score": 64.0,
-    "grade_points": 8,
-    "passed": true,
-    "dimensions": {
-      "sprache": 2.5,
-      "formalia": 1.5,
-      "gliederung": 4.5,
-      "subsumtion": 8.5,
-      "rechtskenntnis": 8.5,
-      "rechtsgrundlagen": 6.5,
-      "vollstaendigkeit": 6.5,
-      "methodischer_stil": 6.5,
-      "schwerpunktsetzung": 6.5,
-      "ergebnisrichtigkeit": 12.5
-    },
-    "output_tokens": 2975
-  },
-  {
-    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
-    "task_id": "c831f630-b724-4d74-9a97-7cf48edd4cf7",
-    "generation_id": "845039cf-fb5d-4d59-bfe5-86bf8cd99d35",
-    "raw_score": 34.0,
-    "grade_points": 2,
-    "passed": false,
-    "dimensions": {
-      "sprache": 2.5,
-      "formalia": 1.5,
-      "gliederung": 4.5,
-      "subsumtion": 3.5,
-      "rechtskenntnis": 4.5,
-      "rechtsgrundlagen": 2.5,
-      "vollstaendigkeit": 2.5,
-      "methodischer_stil": 4.5,
-      "schwerpunktsetzung": 3.5,
-      "ergebnisrichtigkeit": 4.5
-    },
-    "output_tokens": 1248
-  },
-  {
     "system": "gpt-5.4-mini",
     "task_id": "883e812d-6f6e-466e-bf8e-313bbdc0604a",
     "generation_id": "226219b0-cc9e-4067-8a38-2bdd88235651",
@@ -2539,48 +2245,6 @@
       "ergebnisrichtigkeit": 4.5
     },
     "output_tokens": 916
-  },
-  {
-    "system": "gpt-5.4",
-    "task_id": "883e812d-6f6e-466e-bf8e-313bbdc0604a",
-    "generation_id": "dab3b728-9180-4b81-aaef-07b44929a2a3",
-    "raw_score": 69.0,
-    "grade_points": 9,
-    "passed": true,
-    "dimensions": {
-      "sprache": 2.5,
-      "formalia": 1.5,
-      "gliederung": 4.5,
-      "subsumtion": 9.5,
-      "rechtskenntnis": 9.5,
-      "rechtsgrundlagen": 6.5,
-      "vollstaendigkeit": 7.5,
-      "methodischer_stil": 7.5,
-      "schwerpunktsetzung": 6.5,
-      "ergebnisrichtigkeit": 13.5
-    },
-    "output_tokens": 2052
-  },
-  {
-    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
-    "task_id": "883e812d-6f6e-466e-bf8e-313bbdc0604a",
-    "generation_id": "49aaafe0-eb46-4eff-be02-4474595ad8fe",
-    "raw_score": 44.0,
-    "grade_points": 3,
-    "passed": false,
-    "dimensions": {
-      "sprache": 2.5,
-      "formalia": 1.5,
-      "gliederung": 3.5,
-      "subsumtion": 6.5,
-      "rechtskenntnis": 5.5,
-      "rechtsgrundlagen": 3.5,
-      "vollstaendigkeit": 3.5,
-      "methodischer_stil": 5.5,
-      "schwerpunktsetzung": 5.5,
-      "ergebnisrichtigkeit": 6.5
-    },
-    "output_tokens": 829
   },
   {
     "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
@@ -2856,48 +2520,6 @@
     "output_tokens": 2251
   },
   {
-    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
-    "task_id": "6471701d-1b21-4fab-8dd2-4460e759eef9",
-    "generation_id": "73969e57-628d-41fb-af30-ac4175cc4a47",
-    "raw_score": 21.0,
-    "grade_points": 1,
-    "passed": false,
-    "dimensions": {
-      "sprache": 2.5,
-      "formalia": 1.5,
-      "gliederung": 2.5,
-      "subsumtion": 2.5,
-      "rechtskenntnis": 2.5,
-      "rechtsgrundlagen": 1.5,
-      "vollstaendigkeit": 1.5,
-      "methodischer_stil": 3.5,
-      "schwerpunktsetzung": 1.5,
-      "ergebnisrichtigkeit": 1.5
-    },
-    "output_tokens": 667
-  },
-  {
-    "system": "gpt-5.4",
-    "task_id": "6471701d-1b21-4fab-8dd2-4460e759eef9",
-    "generation_id": "5e50c3b6-132f-438f-b0ec-9a4cdd7d1153",
-    "raw_score": 81.0,
-    "grade_points": 13,
-    "passed": true,
-    "dimensions": {
-      "sprache": 2.5,
-      "formalia": 1.5,
-      "gliederung": 4.5,
-      "subsumtion": 10.5,
-      "rechtskenntnis": 11.5,
-      "rechtsgrundlagen": 8.5,
-      "vollstaendigkeit": 7.5,
-      "methodischer_stil": 8.5,
-      "schwerpunktsetzung": 8.5,
-      "ergebnisrichtigkeit": 17.5
-    },
-    "output_tokens": 1648
-  },
-  {
     "system": "Qwen/Qwen3.5-122B-A10B",
     "task_id": "242ede8c-5d49-498d-bdd4-75c8275ab557",
     "generation_id": "d0c14800-d468-4996-9c66-82e20bd4b8b7",
@@ -3148,48 +2770,6 @@
       "ergebnisrichtigkeit": 16.5
     },
     "output_tokens": 3631
-  },
-  {
-    "system": "gpt-5.4",
-    "task_id": "242ede8c-5d49-498d-bdd4-75c8275ab557",
-    "generation_id": "0e6e7bdb-1db2-4fe4-adae-d74d6ad00dd1",
-    "raw_score": 73.0,
-    "grade_points": 10,
-    "passed": true,
-    "dimensions": {
-      "sprache": 2.5,
-      "formalia": 1.5,
-      "gliederung": 4.5,
-      "subsumtion": 9.5,
-      "rechtskenntnis": 10.5,
-      "rechtsgrundlagen": 7.5,
-      "vollstaendigkeit": 7.5,
-      "methodischer_stil": 7.5,
-      "schwerpunktsetzung": 6.5,
-      "ergebnisrichtigkeit": 15.5
-    },
-    "output_tokens": 1588
-  },
-  {
-    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
-    "task_id": "242ede8c-5d49-498d-bdd4-75c8275ab557",
-    "generation_id": "d2de6bc8-a686-458c-88b1-7b9638064968",
-    "raw_score": 72.0,
-    "grade_points": 10,
-    "passed": true,
-    "dimensions": {
-      "sprache": 2.5,
-      "formalia": 1.5,
-      "gliederung": 4.5,
-      "subsumtion": 9.5,
-      "rechtskenntnis": 9.5,
-      "rechtsgrundlagen": 6.5,
-      "vollstaendigkeit": 7.5,
-      "methodischer_stil": 6.5,
-      "schwerpunktsetzung": 6.5,
-      "ergebnisrichtigkeit": 17.5
-    },
-    "output_tokens": 847
   },
   {
     "system": "gpt-5.4-mini",
@@ -3444,48 +3024,6 @@
     "output_tokens": 786
   },
   {
-    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
-    "task_id": "39f282c6-8eae-4b90-be83-d37c1928376a",
-    "generation_id": "646e30aa-0f62-4624-9b5d-b4834b432cdc",
-    "raw_score": 47.0,
-    "grade_points": 3,
-    "passed": false,
-    "dimensions": {
-      "sprache": 2.5,
-      "formalia": 1.5,
-      "gliederung": 4.5,
-      "subsumtion": 6.5,
-      "rechtskenntnis": 5.5,
-      "rechtsgrundlagen": 4.5,
-      "vollstaendigkeit": 4.5,
-      "methodischer_stil": 5.5,
-      "schwerpunktsetzung": 5.5,
-      "ergebnisrichtigkeit": 6.5
-    },
-    "output_tokens": 979
-  },
-  {
-    "system": "gpt-5.4",
-    "task_id": "39f282c6-8eae-4b90-be83-d37c1928376a",
-    "generation_id": "672bcdaf-1117-4b7f-9e25-2e69f51bd779",
-    "raw_score": 66.0,
-    "grade_points": 8,
-    "passed": true,
-    "dimensions": {
-      "sprache": 2.5,
-      "formalia": 1.5,
-      "gliederung": 4.5,
-      "subsumtion": 8.5,
-      "rechtskenntnis": 9.5,
-      "rechtsgrundlagen": 6.5,
-      "vollstaendigkeit": 6.5,
-      "methodischer_stil": 7.5,
-      "schwerpunktsetzung": 6.5,
-      "ergebnisrichtigkeit": 12.5
-    },
-    "output_tokens": 2333
-  },
-  {
     "system": "gpt-5.4",
     "task_id": "cb1e84ab-a1da-4010-880c-c1f44b0f9e14",
     "generation_id": "64c78e85-6930-45c7-a914-f8f7e2cafa59",
@@ -3736,48 +3274,6 @@
       "ergebnisrichtigkeit": 8.5
     },
     "output_tokens": 2646
-  },
-  {
-    "system": "gpt-5.4",
-    "task_id": "cb1e84ab-a1da-4010-880c-c1f44b0f9e14",
-    "generation_id": "370945d1-3585-4e63-b2df-3150c502c4b9",
-    "raw_score": 81.0,
-    "grade_points": 13,
-    "passed": true,
-    "dimensions": {
-      "sprache": 2.5,
-      "formalia": 1.5,
-      "gliederung": 4.5,
-      "subsumtion": 12.5,
-      "rechtskenntnis": 11.5,
-      "rechtsgrundlagen": 8.5,
-      "vollstaendigkeit": 8.5,
-      "methodischer_stil": 8.5,
-      "schwerpunktsetzung": 7.5,
-      "ergebnisrichtigkeit": 15.5
-    },
-    "output_tokens": 2856
-  },
-  {
-    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
-    "task_id": "cb1e84ab-a1da-4010-880c-c1f44b0f9e14",
-    "generation_id": "8f22574e-3aba-4812-ad6a-d4d124067723",
-    "raw_score": 49.0,
-    "grade_points": 3,
-    "passed": false,
-    "dimensions": {
-      "sprache": 2.5,
-      "formalia": 1.5,
-      "gliederung": 3.5,
-      "subsumtion": 6.5,
-      "rechtskenntnis": 6.5,
-      "rechtsgrundlagen": 4.5,
-      "vollstaendigkeit": 4.5,
-      "methodischer_stil": 6.5,
-      "schwerpunktsetzung": 4.5,
-      "ergebnisrichtigkeit": 8.5
-    },
-    "output_tokens": 846
   },
   {
     "system": "gemini-3.1-pro-preview",
@@ -4032,48 +3528,6 @@
     "output_tokens": 1814
   },
   {
-    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
-    "task_id": "c32ce744-16ca-4fba-ae07-aa79c5e83d1b",
-    "generation_id": "7dbe2877-b02a-4a5f-9a7f-a05224108d52",
-    "raw_score": 39.0,
-    "grade_points": 3,
-    "passed": false,
-    "dimensions": {
-      "sprache": 2.5,
-      "formalia": 0.5,
-      "gliederung": 4.5,
-      "subsumtion": 5.5,
-      "rechtskenntnis": 5.5,
-      "rechtsgrundlagen": 2.5,
-      "vollstaendigkeit": 3.5,
-      "methodischer_stil": 5.5,
-      "schwerpunktsetzung": 4.5,
-      "ergebnisrichtigkeit": 4.5
-    },
-    "output_tokens": 1126
-  },
-  {
-    "system": "gpt-5.4",
-    "task_id": "c32ce744-16ca-4fba-ae07-aa79c5e83d1b",
-    "generation_id": "a5c110e1-9a9a-4197-b158-01d212afc4ae",
-    "raw_score": 73.0,
-    "grade_points": 10,
-    "passed": true,
-    "dimensions": {
-      "sprache": 2.5,
-      "formalia": 1.5,
-      "gliederung": 4.5,
-      "subsumtion": 9.5,
-      "rechtskenntnis": 10.5,
-      "rechtsgrundlagen": 7.5,
-      "vollstaendigkeit": 7.5,
-      "methodischer_stil": 7.5,
-      "schwerpunktsetzung": 8.5,
-      "ergebnisrichtigkeit": 13.5
-    },
-    "output_tokens": 2881
-  },
-  {
     "system": "claude-opus-4-7",
     "task_id": "11007154-9fd0-420c-9a5c-73d8986fa3d5",
     "generation_id": "b1261191-e771-4281-be24-f0b0a87b1aec",
@@ -4324,47 +3778,5 @@
       "ergebnisrichtigkeit": 14.5
     },
     "output_tokens": 5211
-  },
-  {
-    "system": "gpt-5.4",
-    "task_id": "11007154-9fd0-420c-9a5c-73d8986fa3d5",
-    "generation_id": "c063e85a-033f-4408-b9dc-454f347d9746",
-    "raw_score": 65.0,
-    "grade_points": 8,
-    "passed": true,
-    "dimensions": {
-      "sprache": 2.5,
-      "formalia": 1.5,
-      "gliederung": 4.5,
-      "subsumtion": 8.5,
-      "rechtskenntnis": 9.5,
-      "rechtsgrundlagen": 6.5,
-      "vollstaendigkeit": 7.5,
-      "methodischer_stil": 6.5,
-      "schwerpunktsetzung": 7.5,
-      "ergebnisrichtigkeit": 10.5
-    },
-    "output_tokens": 3672
-  },
-  {
-    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
-    "task_id": "11007154-9fd0-420c-9a5c-73d8986fa3d5",
-    "generation_id": "e342abe7-48ba-44b8-8bef-4304edf9f8c4",
-    "raw_score": 34.0,
-    "grade_points": 2,
-    "passed": false,
-    "dimensions": {
-      "sprache": 2.5,
-      "formalia": 1.5,
-      "gliederung": 3.5,
-      "subsumtion": 4.5,
-      "rechtskenntnis": 4.5,
-      "rechtsgrundlagen": 2.5,
-      "vollstaendigkeit": 3.5,
-      "methodischer_stil": 4.5,
-      "schwerpunktsetzung": 2.5,
-      "ergebnisrichtigkeit": 4.5
-    },
-    "output_tokens": 1328
   }
 ]

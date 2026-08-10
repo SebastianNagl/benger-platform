@@ -5,7 +5,11 @@ so we stream `tasks.item` with ijson and only keep per-(system, metric)
 running aggregates. Output is a single small JSON file the manuscript loads.
 
 Source:
-  data/raw/zjs/ZJS Fälle-tasks-2026-05-18.json
+  data/raw/zjs/zjs_faelle_full_export.json
+
+Generations are deduped via `_gen_dedup.dedup_superseded` first: the
+2026-05-13 campaign's truncated 8k-budget attempts were re-generated on
+2026-05-14 at 20k and only the replacement counts (1,072 pairs corpus-wide).
 
 Output:
   data/processed/zjs_model_summary.json
@@ -33,12 +37,13 @@ from __future__ import annotations
 import json
 import sys
 import time
-from collections import defaultdict
+from collections import Counter, defaultdict
 from pathlib import Path
 
 import ijson
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _gen_dedup import dedup_superseded  # noqa: E402
 from _stats import pearson as _pearson  # noqa: E402
 from _stats import spearman as _spearman  # noqa: E402
 
@@ -118,6 +123,7 @@ def main() -> None:
     n_tasks_seen = 0
     n_gens_seen = 0
     n_evals_seen = 0
+    dropped = Counter()
 
     # Per-generation accumulator: gather judge_raw and each metric value across
     # the multiple evaluation rows on the same gen, then emit (metric_value,
@@ -128,7 +134,7 @@ def main() -> None:
         for task in ijson.items(f, "tasks.item"):
             n_tasks_seen += 1
             task_id = task.get("id")
-            for gen in task.get("generations") or []:
+            for gen in dedup_superseded(task.get("generations") or [], dropped):
                 mid = gen.get("model_id")
                 if not mid:
                     continue
@@ -217,6 +223,9 @@ def main() -> None:
             "system": mid,
             "n_tasks": len(slot["tasks"]),
             "n_generations": slot["n_generations"],
+            # Truncated 8k-budget first attempts replaced by the 2026-05-14
+            # 20k re-run and excluded from every aggregate (see _gen_dedup).
+            "n_superseded_dropped": dropped.get(mid, 0),
             "metrics": {
                 "llm_judge_falloesung_raw_mean": mean(slot["raw_score"]),
                 "llm_judge_falloesung_raw_stdev": raw_stdev,
@@ -252,6 +261,10 @@ def main() -> None:
     print(
         f"wrote {OUT.name} ({len(rows)} systems, {n_tasks_seen} tasks, "
         f"{n_gens_seen} gens, {n_evals_seen} evals) in {elapsed:.1f}s"
+    )
+    print(
+        f"superseded truncated attempts dropped: {sum(dropped.values())} "
+        f"({dict(dropped.most_common())})"
     )
     print(f"wrote {OUT_CORR.name} ({len(corr_out)} metrics)")
 

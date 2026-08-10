@@ -25,7 +25,7 @@ import json
 import statistics
 import sys
 import time
-from collections import defaultdict
+from collections import Counter, defaultdict
 from pathlib import Path
 
 import ijson
@@ -33,6 +33,7 @@ import numpy as np
 from scipy import stats as sp_stats
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _gen_dedup import dedup_superseded  # noqa: E402
 from _gp_decision import decision_accuracy  # noqa: E402
 
 HERE = Path(__file__).resolve().parent.parent
@@ -390,10 +391,11 @@ def build_zjs():
     t0 = time.time()
     n_tasks = 0
     n_gens = 0
+    dropped = Counter()
     with ZJS_SRC.open("rb") as f:
         for task in ijson.items(f, "tasks.item"):
             n_tasks += 1
-            for gen in task.get("generations") or []:
+            for gen in dedup_superseded(task.get("generations") or [], dropped):
                 mid = gen.get("model_id")
                 if not mid:
                     continue
@@ -447,6 +449,9 @@ def build_zjs():
                 el = time.time() - t0
                 print(f"  ... {n_tasks} tasks, {n_gens} gens in {el:.1f}s",
                       file=sys.stderr)
+
+    print(f"[zjs] superseded truncated attempts dropped: {sum(dropped.values())}",
+          file=sys.stderr)
 
     sys_order = sorted(
         sys_vals.keys(),

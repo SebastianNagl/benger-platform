@@ -37,6 +37,7 @@ from pathlib import Path
 import ijson
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _gen_dedup import dedup_superseded  # noqa: E402
 from _gp_decision import decision_accuracy  # noqa: E402
 
 HERE = Path(__file__).resolve().parent.parent
@@ -268,10 +269,11 @@ def stream_zjs(tiers):
         print("  ZJS source missing; skipping", file=sys.stderr)
         return None
     gens, t0, n = [], time.time(), 0
+    dropped = Counter()
     with ZJS_RAW.open("rb") as f:
         for task in ijson.items(f, "tasks.item"):
             tid = task.get("id"); n += 1
-            for g in (task.get("generations") or []):
+            for g in dedup_superseded(task.get("generations") or [], dropped):
                 mid = g.get("model_id")
                 if not mid:
                     continue
@@ -290,7 +292,9 @@ def stream_zjs(tiers):
                              "excerpt": _excerpt(rc, FALL_EXCERPT), "dimensions": dims})
             if n % 100 == 0:
                 print(f"  ... ZJS {n} tasks, {len(gens)} gens, {time.time()-t0:.0f}s", file=sys.stderr)
-    print(f"  ZJS: {len(gens)} primary-judged gens in {time.time()-t0:.0f}s", file=sys.stderr)
+    print(f"  ZJS: {len(gens)} primary-judged gens in {time.time()-t0:.0f}s "
+          f"(superseded truncated attempts dropped: {sum(dropped.values())})",
+          file=sys.stderr)
     return gens
 
 

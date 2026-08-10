@@ -1,0 +1,1234 @@
+[
+  {
+    "system": "gpt-5.4",
+    "task_id": "1648d37e-ba60-4797-8c2a-d8648d7b5887",
+    "generation_id": "c2861490-91ed-42ff-9ca3-d384299a6a91",
+    "metric": "rouge",
+    "value": 0.23555276381909546
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "1648d37e-ba60-4797-8c2a-d8648d7b5887",
+    "generation_id": "c2861490-91ed-42ff-9ca3-d384299a6a91",
+    "metric": "bertscore",
+    "value": 0.41917648911476135
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "1648d37e-ba60-4797-8c2a-d8648d7b5887",
+    "generation_id": "c2861490-91ed-42ff-9ca3-d384299a6a91",
+    "metric": "moverscore",
+    "value": 0.9252842697693432
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "1648d37e-ba60-4797-8c2a-d8648d7b5887",
+    "generation_id": "c2861490-91ed-42ff-9ca3-d384299a6a91",
+    "metric": "coherence",
+    "value": 0.27666172825067525
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "1648d37e-ba60-4797-8c2a-d8648d7b5887",
+    "generation_id": "c2861490-91ed-42ff-9ca3-d384299a6a91",
+    "metric": "bleu",
+    "value": 0.09404620851276631
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "1648d37e-ba60-4797-8c2a-d8648d7b5887",
+    "generation_id": "c2861490-91ed-42ff-9ca3-d384299a6a91",
+    "metric": "semantic_similarity",
+    "value": 0.8523623943328857
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "1648d37e-ba60-4797-8c2a-d8648d7b5887",
+    "generation_id": "c2861490-91ed-42ff-9ca3-d384299a6a91",
+    "metric": "meteor",
+    "value": 0.21889995513683266
+  },
+  {
+    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task_id": "1648d37e-ba60-4797-8c2a-d8648d7b5887",
+    "generation_id": "5aa21105-d737-4f0c-b511-299b731a6a7a",
+    "metric": "rouge",
+    "value": 0.11783066718689036
+  },
+  {
+    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task_id": "1648d37e-ba60-4797-8c2a-d8648d7b5887",
+    "generation_id": "5aa21105-d737-4f0c-b511-299b731a6a7a",
+    "metric": "coherence",
+    "value": 0.27895835872739555
+  },
+  {
+    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task_id": "1648d37e-ba60-4797-8c2a-d8648d7b5887",
+    "generation_id": "5aa21105-d737-4f0c-b511-299b731a6a7a",
+    "metric": "bertscore",
+    "value": 0.17635664343833923
+  },
+  {
+    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task_id": "1648d37e-ba60-4797-8c2a-d8648d7b5887",
+    "generation_id": "5aa21105-d737-4f0c-b511-299b731a6a7a",
+    "metric": "moverscore",
+    "value": 0.8598463952323961
+  },
+  {
+    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task_id": "1648d37e-ba60-4797-8c2a-d8648d7b5887",
+    "generation_id": "5aa21105-d737-4f0c-b511-299b731a6a7a",
+    "metric": "bleu",
+    "value": 0.0027645610420078937
+  },
+  {
+    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task_id": "1648d37e-ba60-4797-8c2a-d8648d7b5887",
+    "generation_id": "5aa21105-d737-4f0c-b511-299b731a6a7a",
+    "metric": "semantic_similarity",
+    "value": 0.7597820162773132
+  },
+  {
+    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task_id": "1648d37e-ba60-4797-8c2a-d8648d7b5887",
+    "generation_id": "5aa21105-d737-4f0c-b511-299b731a6a7a",
+    "metric": "meteor",
+    "value": 0.07114080824987977
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "c5e7770b-1416-4c7b-994f-7714780f9dcb",
+    "generation_id": "d722cc41-6338-48c3-8d4e-0ecbb758794a",
+    "metric": "rouge",
+    "value": 0.16720872393342262
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "c5e7770b-1416-4c7b-994f-7714780f9dcb",
+    "generation_id": "d722cc41-6338-48c3-8d4e-0ecbb758794a",
+    "metric": "bleu",
+    "value": 0.08296089632727217
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "c5e7770b-1416-4c7b-994f-7714780f9dcb",
+    "generation_id": "d722cc41-6338-48c3-8d4e-0ecbb758794a",
+    "metric": "semantic_similarity",
+    "value": 0.7179305553436279
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "c5e7770b-1416-4c7b-994f-7714780f9dcb",
+    "generation_id": "d722cc41-6338-48c3-8d4e-0ecbb758794a",
+    "metric": "meteor",
+    "value": 0.2128386025728222
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "c5e7770b-1416-4c7b-994f-7714780f9dcb",
+    "generation_id": "d722cc41-6338-48c3-8d4e-0ecbb758794a",
+    "metric": "bertscore",
+    "value": 0.21375970542430878
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "c5e7770b-1416-4c7b-994f-7714780f9dcb",
+    "generation_id": "d722cc41-6338-48c3-8d4e-0ecbb758794a",
+    "metric": "moverscore",
+    "value": 0.9019282824694049
+  },
+  {
+    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task_id": "762b7db3-6c4f-4e7b-8552-22d91371410f",
+    "generation_id": "9e485575-6b97-4b22-ac4f-30007774dd69",
+    "metric": "rouge",
+    "value": 0.09688909997625267
+  },
+  {
+    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task_id": "762b7db3-6c4f-4e7b-8552-22d91371410f",
+    "generation_id": "9e485575-6b97-4b22-ac4f-30007774dd69",
+    "metric": "bleu",
+    "value": 0.0005670239414307004
+  },
+  {
+    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task_id": "762b7db3-6c4f-4e7b-8552-22d91371410f",
+    "generation_id": "9e485575-6b97-4b22-ac4f-30007774dd69",
+    "metric": "semantic_similarity",
+    "value": 0.7159910202026367
+  },
+  {
+    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task_id": "762b7db3-6c4f-4e7b-8552-22d91371410f",
+    "generation_id": "9e485575-6b97-4b22-ac4f-30007774dd69",
+    "metric": "meteor",
+    "value": 0.04967049317573452
+  },
+  {
+    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task_id": "762b7db3-6c4f-4e7b-8552-22d91371410f",
+    "generation_id": "9e485575-6b97-4b22-ac4f-30007774dd69",
+    "metric": "moverscore",
+    "value": 0.858350774465165
+  },
+  {
+    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task_id": "762b7db3-6c4f-4e7b-8552-22d91371410f",
+    "generation_id": "9e485575-6b97-4b22-ac4f-30007774dd69",
+    "metric": "bertscore",
+    "value": 0.2054147571325302
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "762b7db3-6c4f-4e7b-8552-22d91371410f",
+    "generation_id": "18ea1767-b515-44c9-bb1f-da3fb360785b",
+    "metric": "rouge",
+    "value": 0.17325800376647832
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "762b7db3-6c4f-4e7b-8552-22d91371410f",
+    "generation_id": "18ea1767-b515-44c9-bb1f-da3fb360785b",
+    "metric": "bleu",
+    "value": 0.042689098085985595
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "762b7db3-6c4f-4e7b-8552-22d91371410f",
+    "generation_id": "18ea1767-b515-44c9-bb1f-da3fb360785b",
+    "metric": "semantic_similarity",
+    "value": 0.8198202252388
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "762b7db3-6c4f-4e7b-8552-22d91371410f",
+    "generation_id": "18ea1767-b515-44c9-bb1f-da3fb360785b",
+    "metric": "meteor",
+    "value": 0.1722886889814758
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "762b7db3-6c4f-4e7b-8552-22d91371410f",
+    "generation_id": "18ea1767-b515-44c9-bb1f-da3fb360785b",
+    "metric": "bertscore",
+    "value": 0.3011592924594879
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "762b7db3-6c4f-4e7b-8552-22d91371410f",
+    "generation_id": "18ea1767-b515-44c9-bb1f-da3fb360785b",
+    "metric": "moverscore",
+    "value": 0.8828317003643537
+  },
+  {
+    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task_id": "2c217f68-0dd1-4d34-9a5f-7b99c9fe2b8b",
+    "generation_id": "420d5b0e-93a0-4b62-8def-a796a8222819",
+    "metric": "rouge",
+    "value": 0.12398157987956074
+  },
+  {
+    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task_id": "2c217f68-0dd1-4d34-9a5f-7b99c9fe2b8b",
+    "generation_id": "420d5b0e-93a0-4b62-8def-a796a8222819",
+    "metric": "bleu",
+    "value": 0.014181329218629789
+  },
+  {
+    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task_id": "2c217f68-0dd1-4d34-9a5f-7b99c9fe2b8b",
+    "generation_id": "420d5b0e-93a0-4b62-8def-a796a8222819",
+    "metric": "meteor",
+    "value": 0.10134681405534295
+  },
+  {
+    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task_id": "2c217f68-0dd1-4d34-9a5f-7b99c9fe2b8b",
+    "generation_id": "420d5b0e-93a0-4b62-8def-a796a8222819",
+    "metric": "semantic_similarity",
+    "value": 0.5257323980331421
+  },
+  {
+    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task_id": "2c217f68-0dd1-4d34-9a5f-7b99c9fe2b8b",
+    "generation_id": "420d5b0e-93a0-4b62-8def-a796a8222819",
+    "metric": "bertscore",
+    "value": 0.14617286622524261
+  },
+  {
+    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task_id": "2c217f68-0dd1-4d34-9a5f-7b99c9fe2b8b",
+    "generation_id": "420d5b0e-93a0-4b62-8def-a796a8222819",
+    "metric": "moverscore",
+    "value": 0.8660487471395718
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "2c217f68-0dd1-4d34-9a5f-7b99c9fe2b8b",
+    "generation_id": "81df5b87-0a62-41ee-8b1e-2ccf89da9bd1",
+    "metric": "rouge",
+    "value": 0.17795353435491842
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "2c217f68-0dd1-4d34-9a5f-7b99c9fe2b8b",
+    "generation_id": "81df5b87-0a62-41ee-8b1e-2ccf89da9bd1",
+    "metric": "bleu",
+    "value": 0.0796266202737406
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "2c217f68-0dd1-4d34-9a5f-7b99c9fe2b8b",
+    "generation_id": "81df5b87-0a62-41ee-8b1e-2ccf89da9bd1",
+    "metric": "semantic_similarity",
+    "value": 0.7833299040794373
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "2c217f68-0dd1-4d34-9a5f-7b99c9fe2b8b",
+    "generation_id": "81df5b87-0a62-41ee-8b1e-2ccf89da9bd1",
+    "metric": "meteor",
+    "value": 0.26007144916005687
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "2c217f68-0dd1-4d34-9a5f-7b99c9fe2b8b",
+    "generation_id": "81df5b87-0a62-41ee-8b1e-2ccf89da9bd1",
+    "metric": "moverscore",
+    "value": 0.9070911882753928
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "2c217f68-0dd1-4d34-9a5f-7b99c9fe2b8b",
+    "generation_id": "81df5b87-0a62-41ee-8b1e-2ccf89da9bd1",
+    "metric": "bertscore",
+    "value": 0.3099419176578522
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "941f78d7-b26a-463c-b58a-a752d59bc0a5",
+    "generation_id": "3c5b8978-d773-46b1-b9ce-32f4278c8c58",
+    "metric": "rouge",
+    "value": 0.1543100390209294
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "941f78d7-b26a-463c-b58a-a752d59bc0a5",
+    "generation_id": "3c5b8978-d773-46b1-b9ce-32f4278c8c58",
+    "metric": "bleu",
+    "value": 0.04686788908142164
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "941f78d7-b26a-463c-b58a-a752d59bc0a5",
+    "generation_id": "3c5b8978-d773-46b1-b9ce-32f4278c8c58",
+    "metric": "semantic_similarity",
+    "value": 0.8555673956871033
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "941f78d7-b26a-463c-b58a-a752d59bc0a5",
+    "generation_id": "3c5b8978-d773-46b1-b9ce-32f4278c8c58",
+    "metric": "meteor",
+    "value": 0.16870504978567
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "941f78d7-b26a-463c-b58a-a752d59bc0a5",
+    "generation_id": "3c5b8978-d773-46b1-b9ce-32f4278c8c58",
+    "metric": "bertscore",
+    "value": 0.31860464811325073
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "941f78d7-b26a-463c-b58a-a752d59bc0a5",
+    "generation_id": "3c5b8978-d773-46b1-b9ce-32f4278c8c58",
+    "metric": "moverscore",
+    "value": 0.9218399581428167
+  },
+  {
+    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task_id": "941f78d7-b26a-463c-b58a-a752d59bc0a5",
+    "generation_id": "7b85accd-2adf-442b-9f9d-84dbb60a7b03",
+    "metric": "rouge",
+    "value": 0.0851159648727764
+  },
+  {
+    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task_id": "941f78d7-b26a-463c-b58a-a752d59bc0a5",
+    "generation_id": "7b85accd-2adf-442b-9f9d-84dbb60a7b03",
+    "metric": "bleu",
+    "value": 0.0005550414241333587
+  },
+  {
+    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task_id": "941f78d7-b26a-463c-b58a-a752d59bc0a5",
+    "generation_id": "7b85accd-2adf-442b-9f9d-84dbb60a7b03",
+    "metric": "meteor",
+    "value": 0.05561570544254795
+  },
+  {
+    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task_id": "941f78d7-b26a-463c-b58a-a752d59bc0a5",
+    "generation_id": "7b85accd-2adf-442b-9f9d-84dbb60a7b03",
+    "metric": "semantic_similarity",
+    "value": 0.6162405014038086
+  },
+  {
+    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task_id": "941f78d7-b26a-463c-b58a-a752d59bc0a5",
+    "generation_id": "7b85accd-2adf-442b-9f9d-84dbb60a7b03",
+    "metric": "bertscore",
+    "value": 0.35249221324920654
+  },
+  {
+    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task_id": "941f78d7-b26a-463c-b58a-a752d59bc0a5",
+    "generation_id": "7b85accd-2adf-442b-9f9d-84dbb60a7b03",
+    "metric": "moverscore",
+    "value": 0.8681247249134045
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "dfdea348-c434-4fc5-8ab1-e13172226b34",
+    "generation_id": "fdf0a595-fb49-4651-8df3-8cc489bec176",
+    "metric": "rouge",
+    "value": 0.13386454183266933
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "dfdea348-c434-4fc5-8ab1-e13172226b34",
+    "generation_id": "fdf0a595-fb49-4651-8df3-8cc489bec176",
+    "metric": "bleu",
+    "value": 0.01613385071087787
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "dfdea348-c434-4fc5-8ab1-e13172226b34",
+    "generation_id": "fdf0a595-fb49-4651-8df3-8cc489bec176",
+    "metric": "semantic_similarity",
+    "value": 0.5497738718986511
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "dfdea348-c434-4fc5-8ab1-e13172226b34",
+    "generation_id": "fdf0a595-fb49-4651-8df3-8cc489bec176",
+    "metric": "meteor",
+    "value": 0.1178822905809303
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "dfdea348-c434-4fc5-8ab1-e13172226b34",
+    "generation_id": "fdf0a595-fb49-4651-8df3-8cc489bec176",
+    "metric": "bertscore",
+    "value": 0.3085748851299286
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "dfdea348-c434-4fc5-8ab1-e13172226b34",
+    "generation_id": "fdf0a595-fb49-4651-8df3-8cc489bec176",
+    "metric": "moverscore",
+    "value": 0.9113664849679473
+  },
+  {
+    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task_id": "0dd46b63-ff6d-4912-b953-777281f8aec8",
+    "generation_id": "6634f270-1af5-438c-bb74-a15550f178ff",
+    "metric": "rouge",
+    "value": 0.09925093632958801
+  },
+  {
+    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task_id": "0dd46b63-ff6d-4912-b953-777281f8aec8",
+    "generation_id": "6634f270-1af5-438c-bb74-a15550f178ff",
+    "metric": "bertscore",
+    "value": 0.24046079814434052
+  },
+  {
+    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task_id": "0dd46b63-ff6d-4912-b953-777281f8aec8",
+    "generation_id": "6634f270-1af5-438c-bb74-a15550f178ff",
+    "metric": "moverscore",
+    "value": 0.8619541857325123
+  },
+  {
+    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task_id": "0dd46b63-ff6d-4912-b953-777281f8aec8",
+    "generation_id": "6634f270-1af5-438c-bb74-a15550f178ff",
+    "metric": "coherence",
+    "value": 0.2523969733801026
+  },
+  {
+    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task_id": "0dd46b63-ff6d-4912-b953-777281f8aec8",
+    "generation_id": "6634f270-1af5-438c-bb74-a15550f178ff",
+    "metric": "bleu",
+    "value": 0.0017700120607213497
+  },
+  {
+    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task_id": "0dd46b63-ff6d-4912-b953-777281f8aec8",
+    "generation_id": "6634f270-1af5-438c-bb74-a15550f178ff",
+    "metric": "semantic_similarity",
+    "value": 0.79541015625
+  },
+  {
+    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task_id": "0dd46b63-ff6d-4912-b953-777281f8aec8",
+    "generation_id": "6634f270-1af5-438c-bb74-a15550f178ff",
+    "metric": "meteor",
+    "value": 0.07409840010613991
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "0dd46b63-ff6d-4912-b953-777281f8aec8",
+    "generation_id": "da5c6754-6b69-4079-a15d-7d18c38a4023",
+    "metric": "rouge",
+    "value": 0.15134297520661158
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "0dd46b63-ff6d-4912-b953-777281f8aec8",
+    "generation_id": "da5c6754-6b69-4079-a15d-7d18c38a4023",
+    "metric": "bertscore",
+    "value": 0.3315548896789551
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "0dd46b63-ff6d-4912-b953-777281f8aec8",
+    "generation_id": "da5c6754-6b69-4079-a15d-7d18c38a4023",
+    "metric": "moverscore",
+    "value": 0.9094732860908725
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "0dd46b63-ff6d-4912-b953-777281f8aec8",
+    "generation_id": "da5c6754-6b69-4079-a15d-7d18c38a4023",
+    "metric": "coherence",
+    "value": 0.2655175134936912
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "0dd46b63-ff6d-4912-b953-777281f8aec8",
+    "generation_id": "da5c6754-6b69-4079-a15d-7d18c38a4023",
+    "metric": "bleu",
+    "value": 0.03789361206901284
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "0dd46b63-ff6d-4912-b953-777281f8aec8",
+    "generation_id": "da5c6754-6b69-4079-a15d-7d18c38a4023",
+    "metric": "meteor",
+    "value": 0.1903824514408386
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "0dd46b63-ff6d-4912-b953-777281f8aec8",
+    "generation_id": "da5c6754-6b69-4079-a15d-7d18c38a4023",
+    "metric": "semantic_similarity",
+    "value": 0.8038865327835083
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "c831f630-b724-4d74-9a97-7cf48edd4cf7",
+    "generation_id": "44cb734e-94b7-47c7-807a-6a07900c92a5",
+    "metric": "rouge",
+    "value": 0.17210440456769982
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "c831f630-b724-4d74-9a97-7cf48edd4cf7",
+    "generation_id": "44cb734e-94b7-47c7-807a-6a07900c92a5",
+    "metric": "bleu",
+    "value": 0.04098974054626726
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "c831f630-b724-4d74-9a97-7cf48edd4cf7",
+    "generation_id": "44cb734e-94b7-47c7-807a-6a07900c92a5",
+    "metric": "semantic_similarity",
+    "value": 0.7892732620239258
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "c831f630-b724-4d74-9a97-7cf48edd4cf7",
+    "generation_id": "44cb734e-94b7-47c7-807a-6a07900c92a5",
+    "metric": "meteor",
+    "value": 0.17975064400935645
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "c831f630-b724-4d74-9a97-7cf48edd4cf7",
+    "generation_id": "44cb734e-94b7-47c7-807a-6a07900c92a5",
+    "metric": "bertscore",
+    "value": 0.3898867666721344
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "c831f630-b724-4d74-9a97-7cf48edd4cf7",
+    "generation_id": "44cb734e-94b7-47c7-807a-6a07900c92a5",
+    "metric": "moverscore",
+    "value": 0.8832670428017819
+  },
+  {
+    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task_id": "c831f630-b724-4d74-9a97-7cf48edd4cf7",
+    "generation_id": "845039cf-fb5d-4d59-bfe5-86bf8cd99d35",
+    "metric": "rouge",
+    "value": 0.09780077619663649
+  },
+  {
+    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task_id": "c831f630-b724-4d74-9a97-7cf48edd4cf7",
+    "generation_id": "845039cf-fb5d-4d59-bfe5-86bf8cd99d35",
+    "metric": "bleu",
+    "value": 0.0011377637151453249
+  },
+  {
+    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task_id": "c831f630-b724-4d74-9a97-7cf48edd4cf7",
+    "generation_id": "845039cf-fb5d-4d59-bfe5-86bf8cd99d35",
+    "metric": "semantic_similarity",
+    "value": 0.7015208601951599
+  },
+  {
+    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task_id": "c831f630-b724-4d74-9a97-7cf48edd4cf7",
+    "generation_id": "845039cf-fb5d-4d59-bfe5-86bf8cd99d35",
+    "metric": "meteor",
+    "value": 0.059476875483057266
+  },
+  {
+    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task_id": "c831f630-b724-4d74-9a97-7cf48edd4cf7",
+    "generation_id": "845039cf-fb5d-4d59-bfe5-86bf8cd99d35",
+    "metric": "moverscore",
+    "value": 0.8567435538784386
+  },
+  {
+    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task_id": "c831f630-b724-4d74-9a97-7cf48edd4cf7",
+    "generation_id": "845039cf-fb5d-4d59-bfe5-86bf8cd99d35",
+    "metric": "bertscore",
+    "value": 0.22101673483848572
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "883e812d-6f6e-466e-bf8e-313bbdc0604a",
+    "generation_id": "dab3b728-9180-4b81-aaef-07b44929a2a3",
+    "metric": "rouge",
+    "value": 0.2029379760609358
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "883e812d-6f6e-466e-bf8e-313bbdc0604a",
+    "generation_id": "dab3b728-9180-4b81-aaef-07b44929a2a3",
+    "metric": "bleu",
+    "value": 0.0589101727514689
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "883e812d-6f6e-466e-bf8e-313bbdc0604a",
+    "generation_id": "dab3b728-9180-4b81-aaef-07b44929a2a3",
+    "metric": "semantic_similarity",
+    "value": 0.8325925469398499
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "883e812d-6f6e-466e-bf8e-313bbdc0604a",
+    "generation_id": "dab3b728-9180-4b81-aaef-07b44929a2a3",
+    "metric": "meteor",
+    "value": 0.1882087819188954
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "883e812d-6f6e-466e-bf8e-313bbdc0604a",
+    "generation_id": "dab3b728-9180-4b81-aaef-07b44929a2a3",
+    "metric": "bertscore",
+    "value": 0.3746655285358429
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "883e812d-6f6e-466e-bf8e-313bbdc0604a",
+    "generation_id": "dab3b728-9180-4b81-aaef-07b44929a2a3",
+    "metric": "moverscore",
+    "value": 0.9082358077758096
+  },
+  {
+    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task_id": "883e812d-6f6e-466e-bf8e-313bbdc0604a",
+    "generation_id": "49aaafe0-eb46-4eff-be02-4474595ad8fe",
+    "metric": "rouge",
+    "value": 0.10411537108688007
+  },
+  {
+    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task_id": "883e812d-6f6e-466e-bf8e-313bbdc0604a",
+    "generation_id": "49aaafe0-eb46-4eff-be02-4474595ad8fe",
+    "metric": "bleu",
+    "value": 0.00046873640197487145
+  },
+  {
+    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task_id": "883e812d-6f6e-466e-bf8e-313bbdc0604a",
+    "generation_id": "49aaafe0-eb46-4eff-be02-4474595ad8fe",
+    "metric": "meteor",
+    "value": 0.05340507967881439
+  },
+  {
+    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task_id": "883e812d-6f6e-466e-bf8e-313bbdc0604a",
+    "generation_id": "49aaafe0-eb46-4eff-be02-4474595ad8fe",
+    "metric": "semantic_similarity",
+    "value": 0.7913283705711365
+  },
+  {
+    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task_id": "883e812d-6f6e-466e-bf8e-313bbdc0604a",
+    "generation_id": "49aaafe0-eb46-4eff-be02-4474595ad8fe",
+    "metric": "bertscore",
+    "value": 0.20240454375743866
+  },
+  {
+    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task_id": "883e812d-6f6e-466e-bf8e-313bbdc0604a",
+    "generation_id": "49aaafe0-eb46-4eff-be02-4474595ad8fe",
+    "metric": "moverscore",
+    "value": 0.8649130706622914
+  },
+  {
+    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task_id": "6471701d-1b21-4fab-8dd2-4460e759eef9",
+    "generation_id": "73969e57-628d-41fb-af30-ac4175cc4a47",
+    "metric": "rouge",
+    "value": 0.06700266824785057
+  },
+  {
+    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task_id": "6471701d-1b21-4fab-8dd2-4460e759eef9",
+    "generation_id": "73969e57-628d-41fb-af30-ac4175cc4a47",
+    "metric": "bertscore",
+    "value": 0.18482057750225067
+  },
+  {
+    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task_id": "6471701d-1b21-4fab-8dd2-4460e759eef9",
+    "generation_id": "73969e57-628d-41fb-af30-ac4175cc4a47",
+    "metric": "moverscore",
+    "value": 0.8566095834483988
+  },
+  {
+    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task_id": "6471701d-1b21-4fab-8dd2-4460e759eef9",
+    "generation_id": "73969e57-628d-41fb-af30-ac4175cc4a47",
+    "metric": "coherence",
+    "value": 0.27860675895655596
+  },
+  {
+    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task_id": "6471701d-1b21-4fab-8dd2-4460e759eef9",
+    "generation_id": "73969e57-628d-41fb-af30-ac4175cc4a47",
+    "metric": "bleu",
+    "value": 2.9071137981471646e-05
+  },
+  {
+    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task_id": "6471701d-1b21-4fab-8dd2-4460e759eef9",
+    "generation_id": "73969e57-628d-41fb-af30-ac4175cc4a47",
+    "metric": "semantic_similarity",
+    "value": 0.7988582849502563
+  },
+  {
+    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task_id": "6471701d-1b21-4fab-8dd2-4460e759eef9",
+    "generation_id": "73969e57-628d-41fb-af30-ac4175cc4a47",
+    "metric": "meteor",
+    "value": 0.03795747532421187
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "6471701d-1b21-4fab-8dd2-4460e759eef9",
+    "generation_id": "5e50c3b6-132f-438f-b0ec-9a4cdd7d1153",
+    "metric": "rouge",
+    "value": 0.14993894993894993
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "6471701d-1b21-4fab-8dd2-4460e759eef9",
+    "generation_id": "5e50c3b6-132f-438f-b0ec-9a4cdd7d1153",
+    "metric": "coherence",
+    "value": 0.25730388748197586
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "6471701d-1b21-4fab-8dd2-4460e759eef9",
+    "generation_id": "5e50c3b6-132f-438f-b0ec-9a4cdd7d1153",
+    "metric": "moverscore",
+    "value": 0.9171503051443926
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "6471701d-1b21-4fab-8dd2-4460e759eef9",
+    "generation_id": "5e50c3b6-132f-438f-b0ec-9a4cdd7d1153",
+    "metric": "bertscore",
+    "value": 0.30337026715278625
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "6471701d-1b21-4fab-8dd2-4460e759eef9",
+    "generation_id": "5e50c3b6-132f-438f-b0ec-9a4cdd7d1153",
+    "metric": "bleu",
+    "value": 0.025055818780720246
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "6471701d-1b21-4fab-8dd2-4460e759eef9",
+    "generation_id": "5e50c3b6-132f-438f-b0ec-9a4cdd7d1153",
+    "metric": "semantic_similarity",
+    "value": 0.8995984196662903
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "6471701d-1b21-4fab-8dd2-4460e759eef9",
+    "generation_id": "5e50c3b6-132f-438f-b0ec-9a4cdd7d1153",
+    "metric": "meteor",
+    "value": 0.1425921450697614
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "242ede8c-5d49-498d-bdd4-75c8275ab557",
+    "generation_id": "0e6e7bdb-1db2-4fe4-adae-d74d6ad00dd1",
+    "metric": "rouge",
+    "value": 0.15001704739174906
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "242ede8c-5d49-498d-bdd4-75c8275ab557",
+    "generation_id": "0e6e7bdb-1db2-4fe4-adae-d74d6ad00dd1",
+    "metric": "bleu",
+    "value": 0.03743578773065669
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "242ede8c-5d49-498d-bdd4-75c8275ab557",
+    "generation_id": "0e6e7bdb-1db2-4fe4-adae-d74d6ad00dd1",
+    "metric": "semantic_similarity",
+    "value": 0.8801628351211548
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "242ede8c-5d49-498d-bdd4-75c8275ab557",
+    "generation_id": "0e6e7bdb-1db2-4fe4-adae-d74d6ad00dd1",
+    "metric": "meteor",
+    "value": 0.16432270644908195
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "242ede8c-5d49-498d-bdd4-75c8275ab557",
+    "generation_id": "0e6e7bdb-1db2-4fe4-adae-d74d6ad00dd1",
+    "metric": "bertscore",
+    "value": 0.29493436217308044
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "242ede8c-5d49-498d-bdd4-75c8275ab557",
+    "generation_id": "0e6e7bdb-1db2-4fe4-adae-d74d6ad00dd1",
+    "metric": "moverscore",
+    "value": 0.8968248383114461
+  },
+  {
+    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task_id": "242ede8c-5d49-498d-bdd4-75c8275ab557",
+    "generation_id": "d2de6bc8-a686-458c-88b1-7b9638064968",
+    "metric": "rouge",
+    "value": 0.11070998796630566
+  },
+  {
+    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task_id": "242ede8c-5d49-498d-bdd4-75c8275ab557",
+    "generation_id": "d2de6bc8-a686-458c-88b1-7b9638064968",
+    "metric": "bleu",
+    "value": 0.0033816453937242086
+  },
+  {
+    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task_id": "242ede8c-5d49-498d-bdd4-75c8275ab557",
+    "generation_id": "d2de6bc8-a686-458c-88b1-7b9638064968",
+    "metric": "semantic_similarity",
+    "value": 0.7960270643234253
+  },
+  {
+    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task_id": "242ede8c-5d49-498d-bdd4-75c8275ab557",
+    "generation_id": "d2de6bc8-a686-458c-88b1-7b9638064968",
+    "metric": "meteor",
+    "value": 0.07968223131450415
+  },
+  {
+    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task_id": "242ede8c-5d49-498d-bdd4-75c8275ab557",
+    "generation_id": "d2de6bc8-a686-458c-88b1-7b9638064968",
+    "metric": "bertscore",
+    "value": 0.23164336383342743
+  },
+  {
+    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task_id": "242ede8c-5d49-498d-bdd4-75c8275ab557",
+    "generation_id": "d2de6bc8-a686-458c-88b1-7b9638064968",
+    "metric": "moverscore",
+    "value": 0.8722948087591438
+  },
+  {
+    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task_id": "39f282c6-8eae-4b90-be83-d37c1928376a",
+    "generation_id": "646e30aa-0f62-4624-9b5d-b4834b432cdc",
+    "metric": "rouge",
+    "value": 0.08141369517197854
+  },
+  {
+    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task_id": "39f282c6-8eae-4b90-be83-d37c1928376a",
+    "generation_id": "646e30aa-0f62-4624-9b5d-b4834b432cdc",
+    "metric": "bleu",
+    "value": 0.0004470702028535435
+  },
+  {
+    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task_id": "39f282c6-8eae-4b90-be83-d37c1928376a",
+    "generation_id": "646e30aa-0f62-4624-9b5d-b4834b432cdc",
+    "metric": "semantic_similarity",
+    "value": 0.7276880145072937
+  },
+  {
+    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task_id": "39f282c6-8eae-4b90-be83-d37c1928376a",
+    "generation_id": "646e30aa-0f62-4624-9b5d-b4834b432cdc",
+    "metric": "meteor",
+    "value": 0.05003338508301233
+  },
+  {
+    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task_id": "39f282c6-8eae-4b90-be83-d37c1928376a",
+    "generation_id": "646e30aa-0f62-4624-9b5d-b4834b432cdc",
+    "metric": "moverscore",
+    "value": 0.8607793464734504
+  },
+  {
+    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task_id": "39f282c6-8eae-4b90-be83-d37c1928376a",
+    "generation_id": "646e30aa-0f62-4624-9b5d-b4834b432cdc",
+    "metric": "bertscore",
+    "value": 0.21703585982322693
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "39f282c6-8eae-4b90-be83-d37c1928376a",
+    "generation_id": "672bcdaf-1117-4b7f-9e25-2e69f51bd779",
+    "metric": "rouge",
+    "value": 0.16812172611623843
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "39f282c6-8eae-4b90-be83-d37c1928376a",
+    "generation_id": "672bcdaf-1117-4b7f-9e25-2e69f51bd779",
+    "metric": "bleu",
+    "value": 0.047664345817940525
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "39f282c6-8eae-4b90-be83-d37c1928376a",
+    "generation_id": "672bcdaf-1117-4b7f-9e25-2e69f51bd779",
+    "metric": "semantic_similarity",
+    "value": 0.6515893340110779
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "39f282c6-8eae-4b90-be83-d37c1928376a",
+    "generation_id": "672bcdaf-1117-4b7f-9e25-2e69f51bd779",
+    "metric": "meteor",
+    "value": 0.1651646457520755
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "39f282c6-8eae-4b90-be83-d37c1928376a",
+    "generation_id": "672bcdaf-1117-4b7f-9e25-2e69f51bd779",
+    "metric": "bertscore",
+    "value": 0.2300581932067871
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "39f282c6-8eae-4b90-be83-d37c1928376a",
+    "generation_id": "672bcdaf-1117-4b7f-9e25-2e69f51bd779",
+    "metric": "moverscore",
+    "value": 0.8898203558240024
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "cb1e84ab-a1da-4010-880c-c1f44b0f9e14",
+    "generation_id": "370945d1-3585-4e63-b2df-3150c502c4b9",
+    "metric": "rouge",
+    "value": 0.2069588793492996
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "cb1e84ab-a1da-4010-880c-c1f44b0f9e14",
+    "generation_id": "370945d1-3585-4e63-b2df-3150c502c4b9",
+    "metric": "bleu",
+    "value": 0.08009790627078445
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "cb1e84ab-a1da-4010-880c-c1f44b0f9e14",
+    "generation_id": "370945d1-3585-4e63-b2df-3150c502c4b9",
+    "metric": "semantic_similarity",
+    "value": 0.8119683265686035
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "cb1e84ab-a1da-4010-880c-c1f44b0f9e14",
+    "generation_id": "370945d1-3585-4e63-b2df-3150c502c4b9",
+    "metric": "meteor",
+    "value": 0.21848314837591812
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "cb1e84ab-a1da-4010-880c-c1f44b0f9e14",
+    "generation_id": "370945d1-3585-4e63-b2df-3150c502c4b9",
+    "metric": "bertscore",
+    "value": 0.36339545249938965
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "cb1e84ab-a1da-4010-880c-c1f44b0f9e14",
+    "generation_id": "370945d1-3585-4e63-b2df-3150c502c4b9",
+    "metric": "moverscore",
+    "value": 0.8989002148216321
+  },
+  {
+    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task_id": "cb1e84ab-a1da-4010-880c-c1f44b0f9e14",
+    "generation_id": "8f22574e-3aba-4812-ad6a-d4d124067723",
+    "metric": "rouge",
+    "value": 0.08558139534883721
+  },
+  {
+    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task_id": "cb1e84ab-a1da-4010-880c-c1f44b0f9e14",
+    "generation_id": "8f22574e-3aba-4812-ad6a-d4d124067723",
+    "metric": "bleu",
+    "value": 0.00020644592087826726
+  },
+  {
+    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task_id": "cb1e84ab-a1da-4010-880c-c1f44b0f9e14",
+    "generation_id": "8f22574e-3aba-4812-ad6a-d4d124067723",
+    "metric": "meteor",
+    "value": 0.04610965283030059
+  },
+  {
+    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task_id": "cb1e84ab-a1da-4010-880c-c1f44b0f9e14",
+    "generation_id": "8f22574e-3aba-4812-ad6a-d4d124067723",
+    "metric": "semantic_similarity",
+    "value": 0.6817073822021484
+  },
+  {
+    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task_id": "cb1e84ab-a1da-4010-880c-c1f44b0f9e14",
+    "generation_id": "8f22574e-3aba-4812-ad6a-d4d124067723",
+    "metric": "moverscore",
+    "value": 0.8607248355300012
+  },
+  {
+    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task_id": "cb1e84ab-a1da-4010-880c-c1f44b0f9e14",
+    "generation_id": "8f22574e-3aba-4812-ad6a-d4d124067723",
+    "metric": "bertscore",
+    "value": 0.18918465077877045
+  },
+  {
+    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task_id": "c32ce744-16ca-4fba-ae07-aa79c5e83d1b",
+    "generation_id": "7dbe2877-b02a-4a5f-9a7f-a05224108d52",
+    "metric": "rouge",
+    "value": 0.13610431947840262
+  },
+  {
+    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task_id": "c32ce744-16ca-4fba-ae07-aa79c5e83d1b",
+    "generation_id": "7dbe2877-b02a-4a5f-9a7f-a05224108d52",
+    "metric": "bleu",
+    "value": 0.0076941074150522724
+  },
+  {
+    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task_id": "c32ce744-16ca-4fba-ae07-aa79c5e83d1b",
+    "generation_id": "7dbe2877-b02a-4a5f-9a7f-a05224108d52",
+    "metric": "semantic_similarity",
+    "value": 0.6624385714530945
+  },
+  {
+    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task_id": "c32ce744-16ca-4fba-ae07-aa79c5e83d1b",
+    "generation_id": "7dbe2877-b02a-4a5f-9a7f-a05224108d52",
+    "metric": "meteor",
+    "value": 0.10499654242408744
+  },
+  {
+    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task_id": "c32ce744-16ca-4fba-ae07-aa79c5e83d1b",
+    "generation_id": "7dbe2877-b02a-4a5f-9a7f-a05224108d52",
+    "metric": "bertscore",
+    "value": 0.21529196202754974
+  },
+  {
+    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task_id": "c32ce744-16ca-4fba-ae07-aa79c5e83d1b",
+    "generation_id": "7dbe2877-b02a-4a5f-9a7f-a05224108d52",
+    "metric": "moverscore",
+    "value": 0.8620411233079783
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "c32ce744-16ca-4fba-ae07-aa79c5e83d1b",
+    "generation_id": "a5c110e1-9a9a-4197-b158-01d212afc4ae",
+    "metric": "rouge",
+    "value": 0.22939481268011527
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "c32ce744-16ca-4fba-ae07-aa79c5e83d1b",
+    "generation_id": "a5c110e1-9a9a-4197-b158-01d212afc4ae",
+    "metric": "bleu",
+    "value": 0.0995878259400312
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "c32ce744-16ca-4fba-ae07-aa79c5e83d1b",
+    "generation_id": "a5c110e1-9a9a-4197-b158-01d212afc4ae",
+    "metric": "semantic_similarity",
+    "value": 0.8729110360145569
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "c32ce744-16ca-4fba-ae07-aa79c5e83d1b",
+    "generation_id": "a5c110e1-9a9a-4197-b158-01d212afc4ae",
+    "metric": "meteor",
+    "value": 0.28336473194681616
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "c32ce744-16ca-4fba-ae07-aa79c5e83d1b",
+    "generation_id": "a5c110e1-9a9a-4197-b158-01d212afc4ae",
+    "metric": "moverscore",
+    "value": 0.9119505762542326
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "c32ce744-16ca-4fba-ae07-aa79c5e83d1b",
+    "generation_id": "a5c110e1-9a9a-4197-b158-01d212afc4ae",
+    "metric": "bertscore",
+    "value": 0.4209573566913605
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "11007154-9fd0-420c-9a5c-73d8986fa3d5",
+    "generation_id": "c063e85a-033f-4408-b9dc-454f347d9746",
+    "metric": "rouge",
+    "value": 0.13856209150326798
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "11007154-9fd0-420c-9a5c-73d8986fa3d5",
+    "generation_id": "c063e85a-033f-4408-b9dc-454f347d9746",
+    "metric": "bertscore",
+    "value": 0.3516199588775635
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "11007154-9fd0-420c-9a5c-73d8986fa3d5",
+    "generation_id": "c063e85a-033f-4408-b9dc-454f347d9746",
+    "metric": "moverscore",
+    "value": 0.9217771413246264
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "11007154-9fd0-420c-9a5c-73d8986fa3d5",
+    "generation_id": "c063e85a-033f-4408-b9dc-454f347d9746",
+    "metric": "coherence",
+    "value": 0.26380204238742594
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "11007154-9fd0-420c-9a5c-73d8986fa3d5",
+    "generation_id": "c063e85a-033f-4408-b9dc-454f347d9746",
+    "metric": "bleu",
+    "value": 0.054067471885739876
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "11007154-9fd0-420c-9a5c-73d8986fa3d5",
+    "generation_id": "c063e85a-033f-4408-b9dc-454f347d9746",
+    "metric": "semantic_similarity",
+    "value": 0.8262643814086914
+  },
+  {
+    "system": "gpt-5.4",
+    "task_id": "11007154-9fd0-420c-9a5c-73d8986fa3d5",
+    "generation_id": "c063e85a-033f-4408-b9dc-454f347d9746",
+    "metric": "meteor",
+    "value": 0.1913477575555846
+  },
+  {
+    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task_id": "11007154-9fd0-420c-9a5c-73d8986fa3d5",
+    "generation_id": "e342abe7-48ba-44b8-8bef-4304edf9f8c4",
+    "metric": "rouge",
+    "value": 0.09370932754880694
+  },
+  {
+    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task_id": "11007154-9fd0-420c-9a5c-73d8986fa3d5",
+    "generation_id": "e342abe7-48ba-44b8-8bef-4304edf9f8c4",
+    "metric": "bertscore",
+    "value": 0.314343124628067
+  },
+  {
+    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task_id": "11007154-9fd0-420c-9a5c-73d8986fa3d5",
+    "generation_id": "e342abe7-48ba-44b8-8bef-4304edf9f8c4",
+    "metric": "moverscore",
+    "value": 0.8744962728513431
+  },
+  {
+    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task_id": "11007154-9fd0-420c-9a5c-73d8986fa3d5",
+    "generation_id": "e342abe7-48ba-44b8-8bef-4304edf9f8c4",
+    "metric": "coherence",
+    "value": 0.26257925466944776
+  },
+  {
+    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task_id": "11007154-9fd0-420c-9a5c-73d8986fa3d5",
+    "generation_id": "e342abe7-48ba-44b8-8bef-4304edf9f8c4",
+    "metric": "bleu",
+    "value": 0.0006135877557961068
+  },
+  {
+    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task_id": "11007154-9fd0-420c-9a5c-73d8986fa3d5",
+    "generation_id": "e342abe7-48ba-44b8-8bef-4304edf9f8c4",
+    "metric": "semantic_similarity",
+    "value": 0.6772957444190979
+  },
+  {
+    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task_id": "11007154-9fd0-420c-9a5c-73d8986fa3d5",
+    "generation_id": "e342abe7-48ba-44b8-8bef-4304edf9f8c4",
+    "metric": "meteor",
+    "value": 0.056088045193082615
+  }
+]

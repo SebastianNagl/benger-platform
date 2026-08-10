@@ -216,7 +216,10 @@ def paired_within_cluster_bootstrap(samples_a, samples_b, n=2000):
     (point, lo, hi, n_clusters_paired).
     """
     deltas = []
-    for cid in set(samples_a) & set(samples_b):
+    # sorted: set-intersection iteration order is hash-randomized per
+    # process; an unstable delta order feeds the seeded resampler different
+    # draws, making the CI non-reproducible across runs.
+    for cid in sorted(set(samples_a) & set(samples_b)):
         a, b = samples_a[cid], samples_b[cid]
         if not a or not b:
             continue
@@ -1637,6 +1640,12 @@ def main() -> None:
     systems_meta = load_json(PROCESSED / "systems.json")
     zjs_summary_path = PROCESSED / "zjs_model_summary.json"
     zjs_summary = load_json(zjs_summary_path) if zjs_summary_path.exists() else []
+    # The 45 validation picks include one April-2026 generation that the
+    # leaderboard pool supersedes (benchathon_model_evaluations.json is
+    # May-campaign-only); union its judge rows back in for pick-level joins.
+    _superseded_path = PROCESSED / "benchathon_superseded_evaluations.json"
+    pick_model_evals = model_evals + (
+        load_json(_superseded_path) if _superseded_path.exists() else [])
 
     judge_on_humans = index_judge_on_humans(real)
     # IRR / judge-vs-human / dim / Calderon use the blind raters only, drawn
@@ -1688,9 +1697,9 @@ def main() -> None:
         "rq5_creator_vs_blind": rq5_creator_vs_blind(canonical_grades),
         # Activates when the real grading export covers LLM-generated solutions
         # in the 45-solution validation set (solution_type="llm_system").
-        "rq5_judge_on_llm_solutions": rq5_judge_on_llm_solutions(canonical_grades, model_evals),
-        "rq5_dim_on_llm_solutions": rq5_dim_on_llm_solutions(canonical_grades, model_evals),
-        "rq5_calderon_on_llm_solutions": rq5_calderon_on_llm_solutions(canonical_grades, model_evals),
+        "rq5_judge_on_llm_solutions": rq5_judge_on_llm_solutions(canonical_grades, pick_model_evals),
+        "rq5_dim_on_llm_solutions": rq5_dim_on_llm_solutions(canonical_grades, pick_model_evals),
+        "rq5_calderon_on_llm_solutions": rq5_calderon_on_llm_solutions(canonical_grades, pick_model_evals),
         # Per-solution-type breakdown of the blind-rater IRR — answers "do
         # reviewers agree more on LLM output than on human-written essays?"
         "rq5_human_irr_by_solution_type": rq5_human_irr_by_solution_type(canonical_grades),

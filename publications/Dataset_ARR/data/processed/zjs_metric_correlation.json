@@ -1,32 +1,32 @@
 {
   "bleu": {
-    "n": 8031,
-    "pearson_vs_judge_raw": 0.42649728734258474,
-    "spearman_vs_judge_raw": 0.5147638968765482
+    "n": 6959,
+    "pearson_vs_judge_raw": 0.41817466890777405,
+    "spearman_vs_judge_raw": 0.489840670935
   },
   "rouge": {
-    "n": 8031,
-    "pearson_vs_judge_raw": 0.5568792325963146,
-    "spearman_vs_judge_raw": 0.5459907395831625
+    "n": 6959,
+    "pearson_vs_judge_raw": 0.5207736119352302,
+    "spearman_vs_judge_raw": 0.5176056800055748
   },
   "meteor": {
-    "n": 8031,
-    "pearson_vs_judge_raw": 0.47513559218568874,
-    "spearman_vs_judge_raw": 0.5088443145065591
+    "n": 6959,
+    "pearson_vs_judge_raw": 0.4499987696387482,
+    "spearman_vs_judge_raw": 0.48403332623625317
   },
   "semantic_similarity": {
-    "n": 8031,
-    "pearson_vs_judge_raw": 0.192256313031065,
-    "spearman_vs_judge_raw": 0.1901749500343951
+    "n": 6959,
+    "pearson_vs_judge_raw": 0.19348295262527648,
+    "spearman_vs_judge_raw": 0.19133845740838212
   },
   "bertscore": {
-    "n": 8031,
-    "pearson_vs_judge_raw": 0.38736021287512107,
-    "spearman_vs_judge_raw": 0.36544153261959766
+    "n": 6959,
+    "pearson_vs_judge_raw": 0.37411812113969656,
+    "spearman_vs_judge_raw": 0.357589997347615
   },
   "moverscore": {
-    "n": 8024,
-    "pearson_vs_judge_raw": 0.5198007807958912,
-    "spearman_vs_judge_raw": 0.5576343349505376
+    "n": 6955,
+    "pearson_vs_judge_raw": 0.49029497634159785,
+    "spearman_vs_judge_raw": 0.5417390634122817
   }
 }

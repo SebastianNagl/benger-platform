@@ -120,8 +120,11 @@ def _rows_from_generations(gens, judge_prefix):
             "trunc": bool(md.get("truncated")),
             "retries": md.get("retry_count") or 0,
         })
-    # Only judge-scored generations enter the paired table (matches how the
-    # leaderboard counts n).
+    # Only judge-scored generations enter the paired table. Unlike the
+    # leaderboard (final-campaign generations only), this paired A/B keeps
+    # both Benchathon generation rounds on BOTH arms — the Instruct sidecar
+    # deliberately reproduced both prompt structures to mirror the Thinking
+    # pool, so the contrast stays within-round symmetric.
     return [r for r in rows if r["raw"] is not None]
 
 

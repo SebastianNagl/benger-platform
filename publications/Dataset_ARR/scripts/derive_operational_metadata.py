@@ -21,8 +21,14 @@ from __future__ import annotations
 
 import json
 import statistics
-from collections import defaultdict
+import sys
+from collections import Counter, defaultdict
 from pathlib import Path
+
+import ijson
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _gen_dedup import dedup_superseded  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 RAW = ROOT / "data" / "raw"
@@ -41,10 +47,17 @@ SAMPLING_KEYS = (
 )
 
 
-def _load_tasks(path: Path):
-    with open(path) as f:
-        doc = json.load(f)
-    return doc["tasks"] if isinstance(doc, dict) else doc
+def _iter_tasks(path: Path):
+    """Stream tasks with ijson — the ZJS export is multi-GB, json.load
+    would need >20 GB of RAM. Handles both {"tasks": [...]} and bare-list
+    export shapes."""
+    with open(path, "rb") as f:
+        head = f.read(64).lstrip()
+        f.seek(0)
+        prefix = "tasks.item" if head.startswith(b"{") else "item"
+        # use_float: plain floats, not Decimal — the sampling-observed block
+        # json.dumps-es raw metadata values.
+        yield from ijson.items(f, prefix, use_float=True)
 
 
 def _md(gen):
@@ -63,13 +76,16 @@ def main():
     run_dates = defaultdict(lambda: defaultdict(list))
 
     for corpus, path in CORPORA.items():
-        tasks = _load_tasks(path)
         acc = defaultdict(lambda: {
             "n": 0, "costs": [], "latencies_ms": [], "words": [],
             "truncated": 0, "retries": 0,
         })
-        for task in tasks:
-            for gen in task.get("generations") or []:
+        dropped = Counter()
+        for task in _iter_tasks(path):
+            # ZJS: drops the truncated 8k-budget first attempts replaced by
+            # the 05-14 re-run. Benchathon: drops the April pre-finalisation
+            # round replaced by the 2026-05-08 campaign. GP: verified no-op.
+            for gen in dedup_superseded(task.get("generations") or [], dropped):
                 model = gen.get("model_id")
                 if not model:
                     continue
@@ -93,6 +109,10 @@ def main():
                     if key in md and md[key] is not None:
                         sampling_observed[model][key].add(
                             json.dumps(md[key], sort_keys=True))
+
+        if dropped:
+            print(f"[{corpus}] superseded truncated attempts dropped: "
+                  f"{sum(dropped.values())}")
 
         per_corpus[corpus] = {
             model: {

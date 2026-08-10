@@ -173,6 +173,13 @@ def build_picks():
     human_auto = load_json(PROCESSED / "benchathon_human_automatic_metrics.json")
     llm_auto = load_json(PROCESSED / "benchathon_automatic_metrics.json")
     model_evals = load_json(PROCESSED / "benchathon_model_evaluations.json")
+    # One validation pick is an April-2026 generation superseded in the
+    # leaderboard pool; union its judge/metric rows back in for pick joins.
+    for _name, _target in (("benchathon_superseded_evaluations.json", model_evals),
+                           ("benchathon_superseded_automatic_metrics.json", llm_auto)):
+        _p = PROCESSED / _name
+        if _p.exists():
+            _target.extend(load_json(_p))
     real = load_json(REAL)
 
     # Per-solution mean blind raw grade (k = 3 blind reviewers per pick).

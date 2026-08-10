@@ -37,78 +37,78 @@
     "benchathon": {
       "primary_judge_prefix": "llm_judge_falloesung-mptmfvee-sqyx",
       "counters": {
-        "skipped_not_in_canonical_model_set": 51
+        "skipped_not_in_canonical_model_set": 44
       },
       "dimension_sanity": {
         "ergebnisrichtigkeit": {
           "weight": 20,
           "declared_max": 20.0,
-          "observed_max": 19.5,
-          "observed_min": 1.5,
-          "n": 208
+          "observed_max": 18.5,
+          "observed_min": 2.5,
+          "n": 180
         },
         "vollstaendigkeit": {
           "weight": 10,
           "declared_max": 10.0,
           "observed_max": 8.5,
           "observed_min": 0.5,
-          "n": 208
+          "n": 180
         },
         "rechtsgrundlagen": {
           "weight": 10,
           "declared_max": 10.0,
           "observed_max": 8.5,
           "observed_min": 0.5,
-          "n": 208
+          "n": 180
         },
         "rechtskenntnis": {
           "weight": 15,
           "declared_max": 15.0,
           "observed_max": 12.5,
           "observed_min": 1.5,
-          "n": 208
+          "n": 180
         },
         "subsumtion": {
           "weight": 15,
           "declared_max": 15.0,
           "observed_max": 12.5,
           "observed_min": 0.5,
-          "n": 208
+          "n": 180
         },
         "schwerpunktsetzung": {
           "weight": 10,
           "declared_max": 10.0,
           "observed_max": 8.5,
           "observed_min": 0.5,
-          "n": 208
+          "n": 180
         },
         "methodischer_stil": {
           "weight": 10,
           "declared_max": 10.0,
           "observed_max": 8.5,
           "observed_min": 1.5,
-          "n": 208
+          "n": 180
         },
         "gliederung": {
           "weight": 5,
           "declared_max": 5.0,
           "observed_max": 5.0,
           "observed_min": 1.5,
-          "n": 208
+          "n": 180
         },
         "sprache": {
           "weight": 3,
           "declared_max": 3.0,
           "observed_max": 2.5,
           "observed_min": 1.5,
-          "n": 208
+          "n": 180
         },
         "formalia": {
           "weight": 2,
           "declared_max": 2.0,
           "observed_max": 2.0,
           "observed_min": 0.5,
-          "n": 208
+          "n": 180
         }
       },
       "mean_abs_diff_dimsum_vs_raw_score": 0.0
@@ -122,70 +122,70 @@
           "declared_max": 20.0,
           "observed_max": 19.5,
           "observed_min": 0.5,
-          "n": 8031
+          "n": 6959
         },
         "vollstaendigkeit": {
           "weight": 10,
           "declared_max": 10.0,
           "observed_max": 9.5,
           "observed_min": 0.5,
-          "n": 8031
+          "n": 6959
         },
         "rechtsgrundlagen": {
           "weight": 10,
           "declared_max": 10.0,
           "observed_max": 9.5,
           "observed_min": 0.5,
-          "n": 8031
+          "n": 6959
         },
         "rechtskenntnis": {
           "weight": 15,
           "declared_max": 15.0,
           "observed_max": 13.5,
           "observed_min": 0.5,
-          "n": 8031
+          "n": 6959
         },
         "subsumtion": {
           "weight": 15,
           "declared_max": 15.0,
           "observed_max": 13.5,
           "observed_min": 0.5,
-          "n": 8031
+          "n": 6959
         },
         "schwerpunktsetzung": {
           "weight": 10,
           "declared_max": 10.0,
           "observed_max": 9.5,
           "observed_min": 0.5,
-          "n": 8031
+          "n": 6959
         },
         "methodischer_stil": {
           "weight": 10,
           "declared_max": 10.0,
           "observed_max": 9.5,
           "observed_min": 0.5,
-          "n": 8031
+          "n": 6959
         },
         "gliederung": {
           "weight": 5,
           "declared_max": 5.0,
           "observed_max": 5.0,
           "observed_min": 0.5,
-          "n": 8031
+          "n": 6959
         },
         "sprache": {
           "weight": 3,
           "declared_max": 3.0,
           "observed_max": 3.0,
-          "observed_min": 0.5,
-          "n": 8031
+          "observed_min": 1.5,
+          "n": 6959
         },
         "formalia": {
           "weight": 2,
           "declared_max": 2.0,
           "observed_max": 2.0,
           "observed_min": 0.5,
-          "n": 8031
+          "n": 6959
         }
       },
       "mean_abs_diff_dimsum_vs_raw_score": 0.0
@@ -203,9 +203,9 @@
       "mean_core": 66.70370370370371
     },
     "gpt-5.4": {
-      "n": 30,
-      "mean_full": 68.2,
-      "mean_core": 66.29629629629632
+      "n": 15,
+      "mean_full": 66.63333333333334,
+      "mean_core": 64.55555555555557
     },
     "gemini-3.1-flash-lite-preview": {
       "n": 15,
@@ -243,9 +243,9 @@
       "mean_core": 38.40740740740741
     },
     "Qwen/Qwen3-235B-A22B-Thinking-2507": {
-      "n": 28,
-      "mean_full": 41.285714285714285,
-      "mean_core": 37.53968253968254
+      "n": 15,
+      "mean_full": 41.93333333333333,
+      "mean_core": 38.18518518518518
     },
     "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8": {
       "n": 15,
@@ -254,30 +254,30 @@
     }
   },
   "zjs": {
-    "gpt-5.4": {
-      "n": 585,
-      "mean_full": 60.35726495726496,
-      "mean_core": 57.76543209876544
-    },
     "gemini-3.1-pro-preview": {
-      "n": 739,
-      "mean_full": 58.84573748308525,
-      "mean_core": 56.24642910840471
+      "n": 578,
+      "mean_full": 61.794117647058826,
+      "mean_core": 59.342560553633234
+    },
+    "gpt-5.4": {
+      "n": 580,
+      "mean_full": 60.38620689655173,
+      "mean_core": 57.79693486590039
     },
     "claude-opus-4-7": {
-      "n": 651,
-      "mean_full": 58.0284178187404,
-      "mean_core": 55.21505376344083
+      "n": 580,
+      "mean_full": 58.67672413793103,
+      "mean_core": 55.904214559386965
     },
     "claude-sonnet-4-6": {
-      "n": 781,
-      "mean_full": 49.93405889884763,
-      "mean_core": 46.43690425380566
+      "n": 580,
+      "mean_full": 51.54224137931035,
+      "mean_core": 48.14176245210729
     },
     "deepseek-ai/DeepSeek-V4-Pro": {
-      "n": 608,
-      "mean_full": 49.75657894736842,
-      "mean_core": 46.348684210526336
+      "n": 580,
+      "mean_full": 50.0551724137931,
+      "mean_core": 46.660919540229905
     },
     "gpt-5.4-mini": {
       "n": 581,
@@ -285,9 +285,9 @@
       "mean_core": 46.1895199847007
     },
     "deepseek-ai/DeepSeek-V4-Flash": {
-      "n": 580,
-      "mean_full": 45.88793103448276,
-      "mean_core": 42.065134099616806
+      "n": 579,
+      "mean_full": 45.894645941278064,
+      "mean_core": 42.07157935137206
     },
     "gemini-3.1-flash-lite-preview": {
       "n": 578,
@@ -295,14 +295,14 @@
       "mean_core": 40.816993464052295
     },
     "Qwen/Qwen3.5-122B-A10B": {
-      "n": 863,
-      "mean_full": 41.31981460023175,
-      "mean_core": 37.39732200334749
+      "n": 581,
+      "mean_full": 44.16006884681583,
+      "mean_core": 40.327978580990646
     },
     "Qwen/Qwen3.6-35B-A3B": {
-      "n": 828,
-      "mean_full": 37.91787439613527,
-      "mean_core": 33.76409017713366
+      "n": 580,
+      "mean_full": 39.762068965517244,
+      "mean_core": 35.60153256704982
     },
     "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8": {
       "n": 581,
@@ -310,9 +310,9 @@
       "mean_core": 31.704914897686013
     },
     "Qwen/Qwen3-235B-A22B-Thinking-2507": {
-      "n": 656,
-      "mean_full": 35.329268292682926,
-      "mean_core": 30.984078590785906
+      "n": 581,
+      "mean_full": 35.88123924268503,
+      "mean_core": 31.52323580034422
     }
   },
   "rank_agreement": {
