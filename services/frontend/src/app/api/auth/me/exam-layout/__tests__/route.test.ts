@@ -90,6 +90,42 @@ describe('PUT /api/auth/me/exam-layout', () => {
     expect(data.error).toBe('validation error')
   })
 
+  it('forwards empty strings when the request carries no auth headers', async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ id: 'u1' }),
+    })
+
+    const bare = new NextRequest('http://vertretbar.localhost/api/auth/me/exam-layout', {
+      method: 'PUT',
+      headers: { host: 'vertretbar.localhost', 'content-type': 'application/json' },
+      body: JSON.stringify(PREFS_BODY),
+    })
+
+    await PUT(bare)
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        headers: expect.objectContaining({ Cookie: '', Authorization: '' }),
+      })
+    )
+  })
+
+  it('falls back to a generic message when the backend error body is empty', async () => {
+    mockFetch.mockResolvedValue({
+      ok: false,
+      status: 502,
+      text: () => Promise.resolve(''),
+    })
+
+    const response = await PUT(makeRequest())
+    const data = await response.json()
+
+    expect(response.status).toBe(502)
+    expect(data.error).toBe('Request failed')
+  })
+
   it('returns 500 on fetch error', async () => {
     mockFetch.mockRejectedValue(new Error('Network error'))
 
