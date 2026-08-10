@@ -155,6 +155,9 @@ class TestSerializeTaskEvaluation:
             # (grader user_id for korrektur / LLM-judge rows). The fake
             # needs the attribute or serializer raises AttributeError.
             "created_by": "u1",
+            # Same story for the per-config linkage the serializer now
+            # exports so a re-import keeps per-config selectability.
+            "evaluation_config_id": "cfg1",
         }
         defaults.update(overrides)
         return SimpleNamespace(**defaults)

@@ -282,12 +282,15 @@ class TestAnthropicParsing:
         assert out["metadata"]["truncated"] is False
         assert out["metadata"]["refusal"] is False
 
-    def test_multiblock_content_takes_first_block_only(self):
-        """Multi-block content: Anthropic can return several content blocks
-        (e.g. a thinking block + text). The code extracts ONLY
-        content[0].text. This pins the documented behavior so a future
-        change that starts joining blocks is a deliberate, test-visible
-        decision rather than an accident.
+    def test_multiblock_content_joins_text_blocks(self):
+        """Multi-block content: Anthropic can return several content blocks.
+        The code JOINS every text block.
+
+        This used to take content[0].text only, and that older test asked for
+        any change to be a deliberate, test-visible decision. This is that
+        decision: the Claude 5 family emits an always-on thinking block first,
+        so first-block-only returned a block with no .text at all — see
+        test_thinking_block_is_skipped below.
         """
         svc = _make_anthropic(
             _anthropic_response(
@@ -299,7 +302,24 @@ class TestAnthropicParsing:
             )
         )
         out = svc.generate(prompt="frage")
-        assert out["content"] == "FIRST"
+        assert out["content"] == "FIRSTSECOND"
+
+    def test_thinking_block_is_skipped(self):
+        """A leading ThinkingBlock carries no .text. Indexing content[0].text
+        raised AttributeError for every Claude 5 model; the block is skipped
+        and only the text blocks contribute.
+        """
+        svc = _make_anthropic(
+            _anthropic_response(
+                content_blocks=[
+                    types.SimpleNamespace(type="thinking", thinking="reasoning..."),
+                    types.SimpleNamespace(type="text", text="ANSWER"),
+                ],
+                stop_reason="end_turn",
+            )
+        )
+        out = svc.generate(prompt="frage")
+        assert out["content"] == "ANSWER"
 
 
 # ===========================================================================
