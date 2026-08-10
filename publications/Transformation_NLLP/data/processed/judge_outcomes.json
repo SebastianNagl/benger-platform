@@ -1,0 +1,77 @@
+{
+ "per_judge": {
+  "claude-opus-4-7": {
+   "n_picks": 45,
+   "validity_r": 0.74,
+   "mae": 15.7,
+   "repeat_sd": 1.2,
+   "n_repeat_cells": 36,
+   "p01": 0.0
+  },
+  "claude-sonnet-4-6": {
+   "n_picks": 45,
+   "validity_r": 0.778,
+   "mae": 15.1,
+   "repeat_sd": 1.2,
+   "n_repeat_cells": 33,
+   "p01": 0.0
+  },
+  "deepseek-ai/DeepSeek-V4-Pro": {
+   "n_picks": 45,
+   "validity_r": 0.696,
+   "mae": 19.0,
+   "repeat_sd": 1.72,
+   "n_repeat_cells": 45,
+   "p01": 0.0
+  },
+  "Qwen/Qwen3.5-397B-A17B": {
+   "n_picks": 45,
+   "validity_r": 0.748,
+   "mae": 12.9,
+   "repeat_sd": 5.37,
+   "n_repeat_cells": 45,
+   "p01": 0.0
+  },
+  "gemini-3.1-pro-preview": {
+   "n_picks": 45,
+   "validity_r": 0.734,
+   "mae": 13.9,
+   "repeat_sd": 2.14,
+   "n_repeat_cells": 45,
+   "p01": 0.0
+  },
+  "claude-opus-5": {
+   "n_picks": 45,
+   "validity_r": 0.744,
+   "mae": 14.1,
+   "repeat_sd": null,
+   "n_repeat_cells": 0,
+   "p01": 0.0
+  },
+  "gpt-5.6-terra": {
+   "n_picks": 45,
+   "validity_r": 0.745,
+   "mae": 14.4,
+   "repeat_sd": null,
+   "n_repeat_cells": 0,
+   "p01": 0.0
+  },
+  "gpt-5.4-mini": {
+   "n_picks": 45,
+   "validity_r": 0.411,
+   "mae": 19.4,
+   "repeat_sd": 5.52,
+   "n_repeat_cells": 45,
+   "p01": 99.0
+  },
+  "gpt-5.6-luna": {
+   "n_picks": 45,
+   "validity_r": 0.769,
+   "mae": 12.8,
+   "repeat_sd": 1.97,
+   "n_repeat_cells": 45,
+   "p01": 0.0
+  }
+ },
+ "guard_dropped_rows": 8
+}

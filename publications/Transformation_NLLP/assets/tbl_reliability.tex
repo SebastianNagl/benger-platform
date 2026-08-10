@@ -1,0 +1,19 @@
+\begin{table}[t]
+\centering
+\scriptsize
+\begin{tabular}{@{}lrrrr@{}}
+\toprule
+Instrument – judge & SD\textsubscript{rep} & $r$ & MAE & bias \\
+\midrule
+Holistic – Luna & 2.25 & 0.80 & 11.2 & $+4.3$ \\
+Zero-shot – Luna & 1.97 & 0.77 & 12.8 & $-6.9$ \\
+Few-shot – Luna & 1.80 & 0.70 & 15.8 & $-7.9$ \\
+\midrule
+Holistic – Mini & 3.87 & 0.75 & 11.2 & $-2.7$ \\
+Zero-shot – Mini & 5.52 & 0.41 & 19.4 & $+7.4$ \\
+Few-shot – Mini & 5.22 & 0.36 & 21.3 & $+5.8$ \\
+\bottomrule
+\end{tabular}
+\caption{Within-judge reliability by instrument (Mini sits below the execution floor). SD\textsubscript{rep}: ×3 passes on 45 solutions. $r$/MAE/bias: first pass vs the four-grader human pool on 30 human-authored cells; bias = mean(judge $-$ human). The two holistic MAEs coincide numerically ($r$ differs); six-judge panel SD 6.98–8.13 throughout (n.s.).}
+\label{tab:reliability}
+\end{table}

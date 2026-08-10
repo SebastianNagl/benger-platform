@@ -1,0 +1,326 @@
+{
+  "n_rubrics": 170,
+  "sweep_log_present": true,
+  "generators": {
+    "Qwen/Qwen3-235B-A22B-Thinking-2507": {
+      "series": 15,
+      "rubrics": 15,
+      "failed_series": 0,
+      "timeout_series": 0,
+      "series_failure_rate": 0.0,
+      "sum_100_compliance": 1.0,
+      "first_attempt_rate": 0.4,
+      "attempts_per_success": {
+        "n": 15,
+        "mean": 1.6,
+        "stdev": 0.51,
+        "min": 1,
+        "max": 2
+      },
+      "failure_stages": {},
+      "failure_contract_categories": {},
+      "latency_ms": {
+        "n": 15,
+        "mean": 475841.8,
+        "stdev": 129875.11,
+        "min": 295469,
+        "max": 658735
+      }
+    },
+    "Qwen/Qwen3.5-122B-A10B": {
+      "series": 15,
+      "rubrics": 15,
+      "failed_series": 0,
+      "timeout_series": 0,
+      "series_failure_rate": 0.0,
+      "sum_100_compliance": 1.0,
+      "first_attempt_rate": 0.13333333333333333,
+      "attempts_per_success": {
+        "n": 15,
+        "mean": 1.93,
+        "stdev": 0.46,
+        "min": 1,
+        "max": 3
+      },
+      "failure_stages": {},
+      "failure_contract_categories": {},
+      "latency_ms": {
+        "n": 15,
+        "mean": 169944.47,
+        "stdev": 39845.37,
+        "min": 89061,
+        "max": 259986
+      }
+    },
+    "Qwen/Qwen3.6-35B-A3B": {
+      "series": 16,
+      "rubrics": 15,
+      "failed_series": 1,
+      "timeout_series": 0,
+      "series_failure_rate": 0.062,
+      "sum_100_compliance": 1.0,
+      "first_attempt_rate": 0.6,
+      "attempts_per_success": {
+        "n": 15,
+        "mean": 1.6,
+        "stdev": 0.83,
+        "min": 1,
+        "max": 3
+      },
+      "failure_stages": {
+        "contract": 1
+      },
+      "failure_contract_categories": {
+        "herkunft": 1
+      },
+      "latency_ms": {
+        "n": 15,
+        "mean": 795172.33,
+        "stdev": 428940.14,
+        "min": 390631,
+        "max": 1576999
+      }
+    },
+    "claude-opus-4-7": {
+      "series": 15,
+      "rubrics": 15,
+      "failed_series": 0,
+      "timeout_series": 0,
+      "series_failure_rate": 0.0,
+      "sum_100_compliance": 1.0,
+      "first_attempt_rate": 0.7333333333333333,
+      "attempts_per_success": {
+        "n": 15,
+        "mean": 1.27,
+        "stdev": 0.46,
+        "min": 1,
+        "max": 2
+      },
+      "failure_stages": {},
+      "failure_contract_categories": {},
+      "latency_ms": {
+        "n": 15,
+        "mean": 241360.07,
+        "stdev": 91666.43,
+        "min": 139671,
+        "max": 429284
+      }
+    },
+    "claude-sonnet-4-6": {
+      "series": 15,
+      "rubrics": 15,
+      "failed_series": 0,
+      "timeout_series": 0,
+      "series_failure_rate": 0.0,
+      "sum_100_compliance": 1.0,
+      "first_attempt_rate": 0.13333333333333333,
+      "attempts_per_success": {
+        "n": 15,
+        "mean": 1.93,
+        "stdev": 0.46,
+        "min": 1,
+        "max": 3
+      },
+      "failure_stages": {},
+      "failure_contract_categories": {},
+      "latency_ms": {
+        "n": 15,
+        "mean": 597385.2,
+        "stdev": 211810.19,
+        "min": 213883,
+        "max": 1154564
+      }
+    },
+    "deepseek-ai/DeepSeek-V4-Flash": {
+      "series": 17,
+      "rubrics": 15,
+      "failed_series": 2,
+      "timeout_series": 0,
+      "series_failure_rate": 0.118,
+      "sum_100_compliance": 1.0,
+      "first_attempt_rate": 0.8,
+      "attempts_per_success": {
+        "n": 15,
+        "mean": 1.27,
+        "stdev": 0.59,
+        "min": 1,
+        "max": 3
+      },
+      "failure_stages": {
+        "contract": 2
+      },
+      "failure_contract_categories": {
+        "alternativen": 1,
+        "schwerpunkte": 1
+      },
+      "latency_ms": {
+        "n": 15,
+        "mean": 364692.87,
+        "stdev": 167965.12,
+        "min": 201961,
+        "max": 801002
+      }
+    },
+    "deepseek-ai/DeepSeek-V4-Pro": {
+      "series": 15,
+      "rubrics": 15,
+      "failed_series": 0,
+      "timeout_series": 0,
+      "series_failure_rate": 0.0,
+      "sum_100_compliance": 1.0,
+      "first_attempt_rate": 1.0,
+      "attempts_per_success": {
+        "n": 15,
+        "mean": 1,
+        "stdev": 0.0,
+        "min": 1,
+        "max": 1
+      },
+      "failure_stages": {},
+      "failure_contract_categories": {},
+      "latency_ms": {
+        "n": 15,
+        "mean": 516553.2,
+        "stdev": 118913.26,
+        "min": 273783,
+        "max": 780235
+      }
+    },
+    "gemini-3.1-flash-lite-preview": {
+      "series": 15,
+      "rubrics": 15,
+      "failed_series": 0,
+      "timeout_series": 0,
+      "series_failure_rate": 0.0,
+      "sum_100_compliance": 1.0,
+      "first_attempt_rate": 0.8,
+      "attempts_per_success": {
+        "n": 15,
+        "mean": 1.2,
+        "stdev": 0.41,
+        "min": 1,
+        "max": 2
+      },
+      "failure_stages": {},
+      "failure_contract_categories": {},
+      "latency_ms": {
+        "n": 15,
+        "mean": 11328.07,
+        "stdev": 3885.84,
+        "min": 6579,
+        "max": 19351
+      }
+    },
+    "gemini-3.1-pro-preview": {
+      "series": 15,
+      "rubrics": 15,
+      "failed_series": 0,
+      "timeout_series": 0,
+      "series_failure_rate": 0.0,
+      "sum_100_compliance": 1.0,
+      "first_attempt_rate": 1.0,
+      "attempts_per_success": {
+        "n": 15,
+        "mean": 1,
+        "stdev": 0.0,
+        "min": 1,
+        "max": 1
+      },
+      "failure_stages": {},
+      "failure_contract_categories": {},
+      "latency_ms": {
+        "n": 15,
+        "mean": 64170.27,
+        "stdev": 7931.47,
+        "min": 52317,
+        "max": 75484
+      }
+    },
+    "gpt-5.4": {
+      "series": 15,
+      "rubrics": 15,
+      "failed_series": 0,
+      "timeout_series": 0,
+      "series_failure_rate": 0.0,
+      "sum_100_compliance": 1.0,
+      "first_attempt_rate": 1.0,
+      "attempts_per_success": {
+        "n": 15,
+        "mean": 1,
+        "stdev": 0.0,
+        "min": 1,
+        "max": 1
+      },
+      "failure_stages": {},
+      "failure_contract_categories": {},
+      "latency_ms": {
+        "n": 15,
+        "mean": 157117.8,
+        "stdev": 18660.94,
+        "min": 120167,
+        "max": 200543
+      }
+    },
+    "gpt-5.4-mini": {
+      "series": 52,
+      "rubrics": 8,
+      "failed_series": 44,
+      "timeout_series": 0,
+      "series_failure_rate": 0.846,
+      "sum_100_compliance": 1.0,
+      "first_attempt_rate": 0.375,
+      "attempts_per_success": {
+        "n": 8,
+        "mean": 1.88,
+        "stdev": 0.83,
+        "min": 1,
+        "max": 3
+      },
+      "failure_stages": {
+        "contract": 8,
+        "provider": 34,
+        "parse": 2
+      },
+      "failure_contract_categories": {
+        "struktur": 3,
+        "alternativen": 7
+      },
+      "latency_ms": {
+        "n": 8,
+        "mean": 101216.88,
+        "stdev": 41412.52,
+        "min": 53938,
+        "max": 158584
+      }
+    },
+    "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8": {
+      "series": 15,
+      "rubrics": 12,
+      "failed_series": 3,
+      "timeout_series": 0,
+      "series_failure_rate": 0.2,
+      "sum_100_compliance": 1.0,
+      "first_attempt_rate": 0.75,
+      "attempts_per_success": {
+        "n": 12,
+        "mean": 1.25,
+        "stdev": 0.45,
+        "min": 1,
+        "max": 2
+      },
+      "failure_stages": {
+        "contract": 3
+      },
+      "failure_contract_categories": {
+        "alternativen": 3
+      },
+      "latency_ms": {
+        "n": 12,
+        "mean": 119996.25,
+        "stdev": 82127.05,
+        "min": 50142,
+        "max": 293055
+      }
+    }
+  }
+}

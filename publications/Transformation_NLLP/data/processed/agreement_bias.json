@@ -1,0 +1,91 @@
+{
+ "basis": "first pass vs 4-grader pool mean, 30 annotation cells; bias = mean(judge - human); mae_loeo_calibrated subtracts a leave-one-exam-out bias estimate before |error|",
+ "per_condition": {
+  "holistic_luna": {
+   "n": 30,
+   "bias": 4.2875,
+   "mae": 11.245833333333334,
+   "mae_loeo_calibrated": 10.830654761904762
+  },
+  "tailored_luna": {
+   "n": 30,
+   "bias": -6.895833333333333,
+   "mae": 12.8125,
+   "mae_loeo_calibrated": 13.09047619047619
+  },
+  "fewshot_luna": {
+   "n": 30,
+   "bias": -7.8625,
+   "mae": 15.8125,
+   "mae_loeo_calibrated": 16.247619047619047
+  },
+  "holistic_mini": {
+   "n": 30,
+   "bias": -2.7291666666666665,
+   "mae": 11.245833333333334,
+   "mae_loeo_calibrated": 10.803273809523809
+  },
+  "tailored_mini": {
+   "n": 30,
+   "bias": 7.3875,
+   "mae": 19.4375,
+   "mae_loeo_calibrated": 19.238988095238096
+  },
+  "fewshot_mini": {
+   "n": 30,
+   "bias": 5.770833333333333,
+   "mae": 21.270833333333332,
+   "mae_loeo_calibrated": 21.18660714285714
+  },
+  "holistic_control": {
+   "n": 30,
+   "bias": 13.7375,
+   "mae": 14.8625,
+   "mae_loeo_calibrated": 9.461011904761905
+  }
+ },
+ "blind_only_sensitivity": {
+  "holistic_luna": {
+   "n": 30,
+   "pearson": 0.7468639928506602,
+   "mae": 12.616666666666667,
+   "bias": 4.5055555555555555
+  },
+  "tailored_luna": {
+   "n": 30,
+   "pearson": 0.7389092681847398,
+   "mae": 13.222222222222221,
+   "bias": -6.677777777777777
+  },
+  "fewshot_luna": {
+   "n": 30,
+   "pearson": 0.6518331858808135,
+   "mae": 16.844444444444445,
+   "bias": -7.644444444444444
+  },
+  "holistic_mini": {
+   "n": 30,
+   "pearson": 0.7194807935175754,
+   "mae": 11.6,
+   "bias": -2.5111111111111106
+  },
+  "tailored_mini": {
+   "n": 30,
+   "pearson": 0.37322354480697245,
+   "mae": 19.52777777777778,
+   "bias": 7.605555555555556
+  },
+  "fewshot_mini": {
+   "n": 30,
+   "pearson": 0.320796627332249,
+   "mae": 22.68888888888889,
+   "bias": 5.988888888888889
+  },
+  "holistic_control": {
+   "n": 30,
+   "pearson": 0.812514981570897,
+   "mae": 15.311111111111112,
+   "bias": 13.955555555555556
+  }
+ }
+}

@@ -1,0 +1,130 @@
+{
+ "note": "few-shot repeat SD contrasts; negative diff = few-shot more stable. exam-cluster bootstrap 95% CI (seed 20260806, 10k), paired sign tests.",
+ "repeat_sd_contrasts": {
+  "luna_fewshot_vs_holistic": {
+   "n": 44,
+   "a_lower": 25,
+   "a_higher": 19,
+   "p": 0.4513808323961257,
+   "mean_diff": -0.45255194238406565,
+   "ci95": [
+    -1.01088976545821,
+    0.0917676132572457
+   ],
+   "mean_a": 1.7981768382331995,
+   "mean_b": 2.250728780617265
+  },
+  "luna_fewshot_vs_zeroshot": {
+   "n": 43,
+   "a_lower": 21,
+   "a_higher": 22,
+   "p": 1.0,
+   "mean_diff": -0.17432671294674215,
+   "ci95": [
+    -0.6351111266724523,
+    0.24585146272432803
+   ],
+   "mean_a": 1.7981768382331995,
+   "mean_b": 1.9725035511799418
+  },
+  "mini_fewshot_vs_holistic": {
+   "n": 45,
+   "a_lower": 14,
+   "a_higher": 31,
+   "p": 0.016094360031274842,
+   "mean_diff": 1.352381837386723,
+   "ci95": [
+    -0.30061988212623936,
+    3.0391914401554248
+   ],
+   "mean_a": 5.224325531331507,
+   "mean_b": 3.871943693944784
+  },
+  "mini_fewshot_vs_zeroshot": {
+   "n": 45,
+   "a_lower": 24,
+   "a_higher": 21,
+   "p": 0.765991824244793,
+   "mean_diff": -0.2990615791711893,
+   "ci95": [
+    -1.331771211579712,
+    0.7673435371066023
+   ],
+   "mean_a": 5.224325531331507,
+   "mean_b": 5.523387110502696
+  }
+ },
+ "validity": {
+  "fewshot_luna": {
+   "n": 30,
+   "r": 0.6977245904648771,
+   "mae": 15.8125
+  },
+  "fewshot_mini": {
+   "n": 30,
+   "r": 0.3591187409520832,
+   "mae": 21.270833333333332
+  },
+  "zeroshot_luna": {
+   "n": 30,
+   "r": 0.7690939953034603,
+   "mae": 12.8125
+  },
+  "zeroshot_mini": {
+   "n": 30,
+   "r": 0.4107472089358974,
+   "mae": 19.4375
+  }
+ },
+ "means": {
+  "fewshot_luna_repeat_sd": 1.7981768382331995,
+  "fewshot_mini_repeat_sd": 5.224325531331507
+ },
+ "per_generator_repeat_sd": {
+  "gpt-5.4-mini": 1.26,
+  "gpt-5.4": 1.47,
+  "Qwen3-235B-A22B-Thinking-2507": 1.69,
+  "claude-sonnet-4-6": 1.93,
+  "gemini-3.1-flash-lite-preview": 2.45
+ },
+ "compliance_fewshot": {
+  "gemini-3.1-flash-lite-preview": {
+   "valid": 15,
+   "total": 15
+  },
+  "Qwen3-235B-A22B-Thinking-2507": {
+   "valid": 15,
+   "total": 15
+  },
+  "gpt-5.4": {
+   "valid": 15,
+   "total": 15
+  },
+  "gpt-5.4-mini": {
+   "valid": 10,
+   "total": 15
+  },
+  "claude-sonnet-4-6": {
+   "valid": 15,
+   "total": 15
+  }
+ },
+ "compliance_zeroshot": {
+  "gpt-5.4-mini": {
+   "valid": 8,
+   "total": 15
+  }
+ },
+ "p01": {
+  "fewshot_luna": {
+   "0": 0.0,
+   "1": 0.0,
+   "2": 0.0
+  },
+  "fewshot_mini": {
+   "0": 100.0,
+   "1": 94.0,
+   "2": 100.0
+  }
+ }
+}

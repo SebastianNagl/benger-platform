@@ -1,0 +1,156 @@
+{
+ "a02d6abd-7a4a-4acc-92a9-b5aad4f6953d": {
+  "model_ids": [
+   "claude-sonnet-4-6"
+  ],
+  "annotator_ids": [
+   "799860d1-5df9-40a4-bb58-83c7ba74448e",
+   "b6b276d6-56a4-45c8-a904-c2fe799a0078"
+  ],
+  "targets": [
+   "664a316f-d593-4645-98a5-7d9ae1061436",
+   "4a85c378-1c2c-4f64-aee5-62e58010bfeb",
+   "f95d177a-c3dc-4c27-9fec-24907f4f39f0"
+  ]
+ },
+ "483b0854-1ceb-4fb4-ac1f-c9812e43fd29": {
+  "model_ids": [
+   "Qwen/Qwen3-235B-A22B-Thinking-2507"
+  ],
+  "annotator_ids": [
+   "606fa38c-9129-43d4-ae11-e1131fc557c3",
+   "f7011f63-86e0-4a07-9e16-903f9bf2bd2f"
+  ],
+  "targets": [
+   "412f3aeb-de21-469a-8751-834d03fdf3a7",
+   "edb8e105-8752-4ab3-92a3-9024420b6958",
+   "f72bc571-03d3-4083-91b6-60817114b576"
+  ]
+ },
+ "2e894127-81e6-4226-98af-b4ba8bf07030": {
+  "model_ids": [
+   "gemini-3.1-pro-preview"
+  ],
+  "annotator_ids": [
+   "587c04a6-8d2d-4e0c-9dc6-7f5810374312",
+   "b06c3f77-1066-4d9c-8f37-20c406c6c285"
+  ],
+  "targets": [
+   "3c488c68-539d-410a-8f93-0c0f40dcfa0d",
+   "9c222a54-348e-40bb-9ff2-b97a94630cda",
+   "49803e7c-eef2-4c53-9b2e-9a59625fb98f"
+  ]
+ },
+ "95802146-90f4-465b-a3ab-6483b5a96c90": {
+  "model_ids": [
+   "deepseek-ai/DeepSeek-V4-Pro"
+  ],
+  "annotator_ids": [
+   "27d6a098-81ab-4009-b7eb-dc6e65e614aa",
+   "efd25831-ecc3-4ccb-af3c-25545fee4da4"
+  ],
+  "targets": [
+   "94b19868-ff4f-43d1-ad9c-73dcf733efd7",
+   "87d76979-157d-4ccf-8b3f-9e6b863c962b",
+   "83f28d1c-51ce-4d17-b98d-071589529713"
+  ]
+ },
+ "402df23e-3800-405d-87c1-bf3ef0c315dd": {
+  "model_ids": [
+   "Qwen/Qwen3.5-122B-A10B"
+  ],
+  "annotator_ids": [
+   "8333f4ea-baf0-473e-843c-d1a4f479e4ec",
+   "f7011f63-86e0-4a07-9e16-903f9bf2bd2f"
+  ],
+  "targets": [
+   "9bd4bed9-d602-411f-a690-9ba114c8ad3d",
+   "18b7db9d-ca96-4f41-adf2-10428476c9d2",
+   "ffdab9e9-3a62-489a-8597-db7d1444fbc1"
+  ]
+ },
+ "5837fa85-6423-4a56-97a4-57d6469e29e7": {
+  "model_ids": [
+   "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8"
+  ],
+  "annotator_ids": [
+   "27d6a098-81ab-4009-b7eb-dc6e65e614aa",
+   "2fd5515f-0a93-40f5-ad0b-42f0b48c408d"
+  ],
+  "targets": [
+   "7b755f90-f4c7-40f0-a2cd-12e311acd6ef",
+   "72e86e13-b7e3-4a7b-b22b-1e8e5cd09c0a",
+   "c4693baf-6c13-4e93-b802-c3cf8970b944"
+  ]
+ },
+ "37984fd6-46fb-4f90-bcb6-21032d4cb2c8": {
+  "model_ids": [
+   "deepseek-ai/DeepSeek-V4-Flash"
+  ],
+  "annotator_ids": [
+   "021fd592-75bc-490a-a241-b5bff31aa7fa",
+   "27d6a098-81ab-4009-b7eb-dc6e65e614aa"
+  ],
+  "targets": [
+   "f2e9f6c9-4f0b-41bd-aad2-48cdd296caea",
+   "d4aa8a57-4803-43f3-bdb9-3fd6fe301b99",
+   "8545f18c-e872-4d3d-9a5d-7950fa711d9e"
+  ]
+ },
+ "3c4c25ab-c53a-48e6-8304-95c3d9267d3d": {
+  "model_ids": [
+   "Qwen/Qwen3-235B-A22B-Thinking-2507"
+  ],
+  "annotator_ids": [
+   "2fd5515f-0a93-40f5-ad0b-42f0b48c408d",
+   "b25c14ef-ae6d-489a-a385-331987615aed"
+  ],
+  "targets": [
+   "3de0f66e-ff83-46d0-86f7-544f59d9d8f0",
+   "1d5fcba4-8de6-4e53-bc82-df0668135438",
+   "7ab94957-bcd3-4993-a55b-37a13a8697a0"
+  ]
+ },
+ "7f0d803d-aa42-465e-aa4f-5572f0fcd5df": {
+  "model_ids": [
+   "claude-opus-4-7"
+  ],
+  "annotator_ids": [
+   "8333f4ea-baf0-473e-843c-d1a4f479e4ec",
+   "b6b276d6-56a4-45c8-a904-c2fe799a0078"
+  ],
+  "targets": [
+   "61c71f9f-47ef-46dc-a244-cf11da91b706",
+   "d878c82d-f2ff-4b8b-98bd-d80011eb582f",
+   "c169a402-2cc6-42f0-8ebc-9e5ee52ccaf9"
+  ]
+ },
+ "590d4dfc-dc43-42eb-b938-ce2a64f1ab22": {
+  "model_ids": [
+   "gemini-3-flash-preview"
+  ],
+  "annotator_ids": [
+   "b06c3f77-1066-4d9c-8f37-20c406c6c285",
+   "b25c14ef-ae6d-489a-a385-331987615aed"
+  ],
+  "targets": [
+   "b3ed3486-73ce-46b8-b60d-175ea772354b",
+   "089e957d-a56a-48c7-b1c9-101b8c8379ce",
+   "fd10b47a-ee98-4266-91e7-08a974d559e1"
+  ]
+ },
+ "e8330cea-a142-4225-a482-ff5e1e111a37": {
+  "model_ids": [
+   "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8"
+  ],
+  "annotator_ids": [
+   "5fe60782-50cf-4655-b4b4-39645d8afbce",
+   "606fa38c-9129-43d4-ae11-e1131fc557c3"
+  ],
+  "targets": [
+   "6109814c-3471-4f17-ba2a-f426c9d70700",
+   "e1081672-b5fc-4d2c-bac0-235497116716",
+   "a606358b-ac99-46fc-b253-eef88667eee8"
+  ]
+ }
+}

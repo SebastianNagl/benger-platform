@@ -1,0 +1,365 @@
+{
+ "resolved": [
+  {
+   "pick_id": "P01",
+   "provenance": "classic",
+   "task_id": "660fb66a-c6d5-4a3a-ac5f-86507284c00a",
+   "target_type": "annotation",
+   "target_id": "1baf88fc-388c-4efa-961e-543aaf43d4db",
+   "system": null
+  },
+  {
+   "pick_id": "P02",
+   "provenance": "co_creation",
+   "task_id": "660fb66a-c6d5-4a3a-ac5f-86507284c00a",
+   "target_type": "annotation",
+   "target_id": "9e4571d7-8f9e-44dc-a32d-f223c39d04e5",
+   "system": null
+  },
+  {
+   "pick_id": "P03",
+   "provenance": "llm",
+   "task_id": "660fb66a-c6d5-4a3a-ac5f-86507284c00a",
+   "target_type": "generation",
+   "target_id": "af489c40-c3d9-46f6-bdaf-b6c90f4e9344",
+   "system": "Sonnet 4.6"
+  },
+  {
+   "pick_id": "P04",
+   "provenance": "classic",
+   "task_id": "6f5996ab-80d6-4611-a529-a0421fdff314",
+   "target_type": "annotation",
+   "target_id": "ad8ce115-9b34-4d12-9493-9987e39f3783",
+   "system": null
+  },
+  {
+   "pick_id": "P05",
+   "provenance": "co_creation",
+   "task_id": "6f5996ab-80d6-4611-a529-a0421fdff314",
+   "target_type": "annotation",
+   "target_id": "6dd6b6ab-dd62-4802-9365-0a7def32a744",
+   "system": null
+  },
+  {
+   "pick_id": "P06",
+   "provenance": "llm",
+   "task_id": "6f5996ab-80d6-4611-a529-a0421fdff314",
+   "target_type": "generation",
+   "target_id": "05111893-3487-4dec-8264-0ee5545d4747",
+   "system": "Qwen3 235B Thinking"
+  },
+  {
+   "pick_id": "P07",
+   "provenance": "classic",
+   "task_id": "0920a50b-9d08-49d7-89c8-473808f29d85",
+   "target_type": "annotation",
+   "target_id": "1147a5dc-4771-492e-be8b-3153167715e9",
+   "system": null
+  },
+  {
+   "pick_id": "P08",
+   "provenance": "co_creation",
+   "task_id": "0920a50b-9d08-49d7-89c8-473808f29d85",
+   "target_type": "annotation",
+   "target_id": "c48d283c-3211-4a05-bd8d-368158a03ce6",
+   "system": null
+  },
+  {
+   "pick_id": "P09",
+   "provenance": "llm",
+   "task_id": "0920a50b-9d08-49d7-89c8-473808f29d85",
+   "target_type": "generation",
+   "target_id": "dfe3444f-1f00-447e-bd86-8297d26841dc",
+   "system": "Gemini 3.1 Pro Preview"
+  },
+  {
+   "pick_id": "P10",
+   "provenance": "classic",
+   "task_id": "b0a4b82a-b610-4bd9-a300-5cf8804d512f",
+   "target_type": "annotation",
+   "target_id": "9322922b-e04d-4b98-ab7b-19aac35c9220",
+   "system": null
+  },
+  {
+   "pick_id": "P11",
+   "provenance": "co_creation",
+   "task_id": "b0a4b82a-b610-4bd9-a300-5cf8804d512f",
+   "target_type": "annotation",
+   "target_id": "f02695aa-3bf9-4981-a8ec-01045df49dc0",
+   "system": null
+  },
+  {
+   "pick_id": "P12",
+   "provenance": "llm",
+   "task_id": "b0a4b82a-b610-4bd9-a300-5cf8804d512f",
+   "target_type": "generation",
+   "target_id": "2114fc62-901a-47c8-bf05-ecef4ce56929",
+   "system": "GPT-5.4 Mini"
+  },
+  {
+   "pick_id": "P13",
+   "provenance": "classic",
+   "task_id": "b6420df7-d9f3-4ab4-8099-5a1767985cff",
+   "target_type": "annotation",
+   "target_id": "df879e54-1e38-43c7-861a-bcd80cd65210",
+   "system": null
+  },
+  {
+   "pick_id": "P14",
+   "provenance": "co_creation",
+   "task_id": "b6420df7-d9f3-4ab4-8099-5a1767985cff",
+   "target_type": "annotation",
+   "target_id": "e9782344-f4e6-4ae9-9a4a-ec48d93bf95b",
+   "system": null
+  },
+  {
+   "pick_id": "P15",
+   "provenance": "llm",
+   "task_id": "b6420df7-d9f3-4ab4-8099-5a1767985cff",
+   "target_type": "generation",
+   "target_id": "ad8a380b-1b5b-4cd6-9eb5-b98f593b3ff2",
+   "system": "DeepSeek v4 Pro"
+  },
+  {
+   "pick_id": "P16",
+   "provenance": "classic",
+   "task_id": "44f8f9cf-3999-4b99-8d7e-e37be3592a60",
+   "target_type": "annotation",
+   "target_id": "009387dc-3b11-4499-b63d-387a60e8e65d",
+   "system": null
+  },
+  {
+   "pick_id": "P17",
+   "provenance": "co_creation",
+   "task_id": "44f8f9cf-3999-4b99-8d7e-e37be3592a60",
+   "target_type": "annotation",
+   "target_id": "dae7fe83-a36b-4939-8092-a13570a5bc6c",
+   "system": null
+  },
+  {
+   "pick_id": "P18",
+   "provenance": "llm",
+   "task_id": "44f8f9cf-3999-4b99-8d7e-e37be3592a60",
+   "target_type": "generation",
+   "target_id": "a35be0b6-235c-4b64-ad6f-b6f8da27391a",
+   "system": "GPT-5.4"
+  },
+  {
+   "pick_id": "P19",
+   "provenance": "classic",
+   "task_id": "d8f3f9fe-06e6-41b9-ab20-092a05e0ceed",
+   "target_type": "annotation",
+   "target_id": "3fdff814-ab76-4240-8411-f8acb65bf95d",
+   "system": null
+  },
+  {
+   "pick_id": "P20",
+   "provenance": "co_creation",
+   "task_id": "d8f3f9fe-06e6-41b9-ab20-092a05e0ceed",
+   "target_type": "annotation",
+   "target_id": "f5194dd1-de64-4949-b0b2-f2a1a486a35c",
+   "system": null
+  },
+  {
+   "pick_id": "P21",
+   "provenance": "llm",
+   "task_id": "d8f3f9fe-06e6-41b9-ab20-092a05e0ceed",
+   "target_type": "generation",
+   "target_id": "3b21c53d-9592-44c3-8d7c-9f86304a69af",
+   "system": "Qwen 3.5 122B"
+  },
+  {
+   "pick_id": "P22",
+   "provenance": "classic",
+   "task_id": "08218fb0-9e75-47eb-a974-2f19ea2abb5c",
+   "target_type": "annotation",
+   "target_id": "c755eade-bc53-4c60-90d0-317cc011aeab",
+   "system": null
+  },
+  {
+   "pick_id": "P23",
+   "provenance": "co_creation",
+   "task_id": "08218fb0-9e75-47eb-a974-2f19ea2abb5c",
+   "target_type": "annotation",
+   "target_id": "a6f02765-4345-42c6-8876-d6338f0bab15",
+   "system": null
+  },
+  {
+   "pick_id": "P24",
+   "provenance": "llm",
+   "task_id": "08218fb0-9e75-47eb-a974-2f19ea2abb5c",
+   "target_type": "generation",
+   "target_id": "2c563630-7351-4069-9922-30a3c405d47b",
+   "system": "Llama 4 Maverick"
+  },
+  {
+   "pick_id": "P25",
+   "provenance": "classic",
+   "task_id": "b01bad13-0b69-4b26-9a03-ecd281afdaa8",
+   "target_type": "annotation",
+   "target_id": "069f7396-fb2f-42c6-8d3c-af1cd982bc2f",
+   "system": null
+  },
+  {
+   "pick_id": "P26",
+   "provenance": "co_creation",
+   "task_id": "b01bad13-0b69-4b26-9a03-ecd281afdaa8",
+   "target_type": "annotation",
+   "target_id": "a0310eda-9440-42a9-b778-729ef2331f2f",
+   "system": null
+  },
+  {
+   "pick_id": "P27",
+   "provenance": "llm",
+   "task_id": "b01bad13-0b69-4b26-9a03-ecd281afdaa8",
+   "target_type": "generation",
+   "target_id": "0303c517-359f-4e5b-bdc4-ccacc05ccb02",
+   "system": "Opus 4.7"
+  },
+  {
+   "pick_id": "P28",
+   "provenance": "classic",
+   "task_id": "023ad438-73f1-4983-9e83-fd7cc3ac91e0",
+   "target_type": "annotation",
+   "target_id": "470fe46e-86f8-4a4e-9f58-674601c4e19d",
+   "system": null
+  },
+  {
+   "pick_id": "P29",
+   "provenance": "co_creation",
+   "task_id": "023ad438-73f1-4983-9e83-fd7cc3ac91e0",
+   "target_type": "annotation",
+   "target_id": "af726b23-9428-4382-b474-2bbaabecdbe8",
+   "system": null
+  },
+  {
+   "pick_id": "P30",
+   "provenance": "llm",
+   "task_id": "023ad438-73f1-4983-9e83-fd7cc3ac91e0",
+   "target_type": "generation",
+   "target_id": "c83c39fd-948b-4ec5-afef-f1b91e226c1e",
+   "system": "DeepSeek v4 Flash"
+  },
+  {
+   "pick_id": "P31",
+   "provenance": "classic",
+   "task_id": "02aeba6c-5e39-425f-9482-cf91ed1be45d",
+   "target_type": "annotation",
+   "target_id": "94f15bae-0a94-4268-b9ed-63c4df6c548c",
+   "system": null
+  },
+  {
+   "pick_id": "P32",
+   "provenance": "co_creation",
+   "task_id": "02aeba6c-5e39-425f-9482-cf91ed1be45d",
+   "target_type": "annotation",
+   "target_id": "95a5f8a0-a22e-4a0b-ab5f-90fdde380bf3",
+   "system": null
+  },
+  {
+   "pick_id": "P33",
+   "provenance": "llm",
+   "task_id": "02aeba6c-5e39-425f-9482-cf91ed1be45d",
+   "target_type": "generation",
+   "target_id": "eedea88b-858a-4768-99d9-7c30ce08488d",
+   "system": "Qwen3 235B Thinking"
+  },
+  {
+   "pick_id": "P34",
+   "provenance": "classic",
+   "task_id": "a3c0aa07-9246-4b21-8190-4389261a01a4",
+   "target_type": "annotation",
+   "target_id": "510ac900-839b-4f96-b1ea-74beb2a82a50",
+   "system": null
+  },
+  {
+   "pick_id": "P35",
+   "provenance": "co_creation",
+   "task_id": "a3c0aa07-9246-4b21-8190-4389261a01a4",
+   "target_type": "annotation",
+   "target_id": "8bbf5223-ee4d-4560-9e26-019ad3506a4c",
+   "system": null
+  },
+  {
+   "pick_id": "P36",
+   "provenance": "llm",
+   "task_id": "a3c0aa07-9246-4b21-8190-4389261a01a4",
+   "target_type": "generation",
+   "target_id": "1c9de01a-ef39-4f8c-bf5b-0029ceac3fdd",
+   "system": "Opus 4.7"
+  },
+  {
+   "pick_id": "P37",
+   "provenance": "classic",
+   "task_id": "374fdd48-e89c-4918-8914-03f889700fa4",
+   "target_type": "annotation",
+   "target_id": "f9dfe30b-ffb9-49a5-8b73-6b6ca205d654",
+   "system": null
+  },
+  {
+   "pick_id": "P38",
+   "provenance": "co_creation",
+   "task_id": "374fdd48-e89c-4918-8914-03f889700fa4",
+   "target_type": "annotation",
+   "target_id": "cb35b512-80b9-4031-aed1-faba8b803142",
+   "system": null
+  },
+  {
+   "pick_id": "P39",
+   "provenance": "llm",
+   "task_id": "374fdd48-e89c-4918-8914-03f889700fa4",
+   "target_type": "generation",
+   "target_id": "2eeb4a78-e495-439c-bf7c-45569a72c82b",
+   "system": "Gemini 3.1 Flash Preview"
+  },
+  {
+   "pick_id": "P40",
+   "provenance": "classic",
+   "task_id": "f7be0ce5-4ce7-4ce9-83bc-1340f79b826e",
+   "target_type": "annotation",
+   "target_id": "e62eeabf-e439-4bd3-b092-c1aa2ddb07f9",
+   "system": null
+  },
+  {
+   "pick_id": "P41",
+   "provenance": "co_creation",
+   "task_id": "f7be0ce5-4ce7-4ce9-83bc-1340f79b826e",
+   "target_type": "annotation",
+   "target_id": "36471765-d974-414c-ba2c-2bb39ecf36f8",
+   "system": null
+  },
+  {
+   "pick_id": "P42",
+   "provenance": "llm",
+   "task_id": "f7be0ce5-4ce7-4ce9-83bc-1340f79b826e",
+   "target_type": "generation",
+   "target_id": "f808dbea-16a6-446b-b7a2-f65f8a55adbf",
+   "system": "Llama 4 Maverick"
+  },
+  {
+   "pick_id": "P43",
+   "provenance": "classic",
+   "task_id": "0016b6cc-42ed-4e31-a026-925092b62918",
+   "target_type": "annotation",
+   "target_id": "075e503a-85aa-4c1b-ab61-602df88a7a4f",
+   "system": null
+  },
+  {
+   "pick_id": "P44",
+   "provenance": "co_creation",
+   "task_id": "0016b6cc-42ed-4e31-a026-925092b62918",
+   "target_type": "annotation",
+   "target_id": "dcc2f96c-7015-4fc6-9226-69ffed0c3719",
+   "system": null
+  },
+  {
+   "pick_id": "P45",
+   "provenance": "llm",
+   "task_id": "0016b6cc-42ed-4e31-a026-925092b62918",
+   "target_type": "generation",
+   "target_id": "1251f6ed-36b9-49ea-8511-36e427fd6536",
+   "system": "Gemini 3.1 Pro Preview"
+  }
+ ],
+ "misses": []
+}

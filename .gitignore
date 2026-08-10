@@ -285,6 +285,60 @@ docs/security-reports/
 /.quarto/
 **/*.quarto_ipynb
 
+# Transformation_NLLP publication: tracked, except the artifacts below.
+# Build artifacts (.venv/ and __pycache__/ are already covered repo-wide).
+publications/Transformation_NLLP/.quarto/
+publications/Transformation_NLLP/manuscript_files/
+publications/Transformation_NLLP/manuscript_executed_files/
+publications/Transformation_NLLP/manuscript.tex
+publications/Transformation_NLLP/manuscript.fdb_latexmk
+# Internal decision log + study protocol, not audience-facing.
+publications/Transformation_NLLP/DESIGN.md
+# Regenerable ops output from scripts/ops/: blind-coded rubric renderings for
+# the manual audit.
+publications/Transformation_NLLP/data/interim/audit/exam_*.md
+# Run outputs from the judge/probe/audit dispatches — 23 MB of per-cell score
+# rows. Regenerable from the platform, and git is not a data store; they ship
+# with the dataset release. Every manuscript.qmd load goes through
+# load_optional(), so the paper still renders from the tracked data alone;
+# `make analyze` is what needs these back.
+publications/Transformation_NLLP/data/**/*.jsonl
+
+# The repo-wide `*.json` rule above hides every JSON in the project. This
+# publication's derived statistics are what the manuscript loads, so unignore
+# them - then re-block the sensitive and heavy files, because for git the
+# LAST matching pattern wins.
+!publications/Transformation_NLLP/data/**/*.json
+# Plaintext what-a-benger.net account passwords for the audit + probe
+# fixtures. No analysis script reads them; setup_audit_project.py takes
+# credentials as CLI args.
+publications/Transformation_NLLP/data/interim/audit/audit_users.json
+publications/Transformation_NLLP/data/interim/probes/probe_users.json
+# Full Sachverhalt + Musterloesung for all 15 exams - corpus text we do not
+# hold redistribution rights for. Same call as the Dataset_ARR ZJS source
+# trees below: ships via HF + Zenodo at release time, never via git.
+# exams.json is the extract_exam_pack.py output; manuscript.qmd reads it via
+# load_optional() and falls back to n_exams = 15, so the paper still renders.
+publications/Transformation_NLLP/data/interim/exams.json
+publications/Transformation_NLLP/data/interim/audit/audit_import.json
+publications/Transformation_NLLP/data/interim/audit/audit_import.resolved.json
+publications/Transformation_NLLP/data/interim/probes/probe_texts.json
+# The blind-code -> rubric_id/generator_model_id key for the human audit.
+# Same category as Dataset_ARR's .grader_map.json: publishing it alongside the
+# blind-coded audit sheet would undo the blinding. The de-blinded result the
+# paper reports lives in data/processed/audit_stats.json, which carries no
+# blind codes and is tracked.
+publications/Transformation_NLLP/data/interim/audit/KEY.json
+# Dated eval-config backups from the dispatch runs — regenerable ops output.
+publications/Transformation_NLLP/data/interim/clone_eval_config_backup_*.json
+# The 193 generated rubrics (21 MB) and the judge rows derived from them.
+# Their `criteria` enumerate the expected solution steps of each exam, so they
+# are a close derivative of the Musterloesungen — same redistribution call as
+# the corpus text above. Ships via HF + Zenodo with the dataset release.
+# Directory-level ignore: nothing under raw/ is publishable, and an excluded
+# directory cannot be re-included by the `!...*.json` rule above.
+publications/Transformation_NLLP/data/raw/
+
 # Dataset_ARR publication: tracked, except large/private artifacts.
 # - raw subtrees hold 5 GB of platform exports + ZJS PDFs/source — ship via HF + Zenodo, not git
 # - .grader_map.json is the private grader-anonymization key — never commit

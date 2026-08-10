@@ -1,0 +1,95 @@
+{
+  "seed_prefix": "benger-transformation-d6-v1",
+  "selection": [
+    {
+      "task_id": "0016b6cc-42ed-4e31-a026-925092b62918",
+      "pool_size": 12,
+      "rubric_id": "146e3834-34c4-4758-ac54-3b824270b9b0",
+      "generator_model_id": "gemini-3.1-flash-lite-preview"
+    },
+    {
+      "task_id": "023ad438-73f1-4983-9e83-fd7cc3ac91e0",
+      "pool_size": 10,
+      "rubric_id": "f24f2834-ccb6-41f9-843f-5961fe40b939",
+      "generator_model_id": "claude-opus-4-7"
+    },
+    {
+      "task_id": "02aeba6c-5e39-425f-9482-cf91ed1be45d",
+      "pool_size": 11,
+      "rubric_id": "92d24b33-c55a-403e-9118-caf2a6951716",
+      "generator_model_id": "deepseek-ai/DeepSeek-V4-Flash"
+    },
+    {
+      "task_id": "08218fb0-9e75-47eb-a974-2f19ea2abb5c",
+      "pool_size": 11,
+      "rubric_id": "e47ce33b-24ed-47a9-97cf-e447a3481349",
+      "generator_model_id": "deepseek-ai/DeepSeek-V4-Flash"
+    },
+    {
+      "task_id": "0920a50b-9d08-49d7-89c8-473808f29d85",
+      "pool_size": 12,
+      "rubric_id": "3e6fffb3-e936-4ce9-a463-ed3436a0e30d",
+      "generator_model_id": "gemini-3.1-flash-lite-preview"
+    },
+    {
+      "task_id": "374fdd48-e89c-4918-8914-03f889700fa4",
+      "pool_size": 11,
+      "rubric_id": "747965a3-7285-4599-bb13-25925199dfeb",
+      "generator_model_id": "claude-opus-4-7"
+    },
+    {
+      "task_id": "44f8f9cf-3999-4b99-8d7e-e37be3592a60",
+      "pool_size": 11,
+      "rubric_id": "6f3c4664-a7b8-4668-8813-8dcf8071746c",
+      "generator_model_id": "gpt-5.4"
+    },
+    {
+      "task_id": "660fb66a-c6d5-4a3a-ac5f-86507284c00a",
+      "pool_size": 12,
+      "rubric_id": "2c85179d-69e1-4334-bd56-5a00dc153cea",
+      "generator_model_id": "deepseek-ai/DeepSeek-V4-Pro"
+    },
+    {
+      "task_id": "6f5996ab-80d6-4611-a529-a0421fdff314",
+      "pool_size": 12,
+      "rubric_id": "895fb4ee-2a16-4d06-9cbe-4c44aafa9e7e",
+      "generator_model_id": "gpt-5.4-mini"
+    },
+    {
+      "task_id": "a3c0aa07-9246-4b21-8190-4389261a01a4",
+      "pool_size": 11,
+      "rubric_id": "8e2f028d-369e-4748-8054-accd612c743b",
+      "generator_model_id": "claude-opus-4-7"
+    },
+    {
+      "task_id": "b01bad13-0b69-4b26-9a03-ecd281afdaa8",
+      "pool_size": 12,
+      "rubric_id": "95bfc2f1-2fd4-4eb5-b936-fbfad825ef10",
+      "generator_model_id": "Qwen/Qwen3.5-122B-A10B"
+    },
+    {
+      "task_id": "b0a4b82a-b610-4bd9-a300-5cf8804d512f",
+      "pool_size": 11,
+      "rubric_id": "f7c38fdc-ef14-457c-9b93-9e9de39e0c01",
+      "generator_model_id": "Qwen/Qwen3.6-35B-A3B"
+    },
+    {
+      "task_id": "b6420df7-d9f3-4ab4-8099-5a1767985cff",
+      "pool_size": 12,
+      "rubric_id": "0a23279a-8a34-446e-9fe5-489b533c704e",
+      "generator_model_id": "claude-sonnet-4-6"
+    },
+    {
+      "task_id": "d8f3f9fe-06e6-41b9-ab20-092a05e0ceed",
+      "pool_size": 11,
+      "rubric_id": "d5c96513-7dd7-4d1b-9240-9b056caa8064",
+      "generator_model_id": "claude-sonnet-4-6"
+    },
+    {
+      "task_id": "f7be0ce5-4ce7-4ce9-83bc-1340f79b826e",
+      "pool_size": 11,
+      "rubric_id": "522545bd-0a04-413a-899a-f391085597ad",
+      "generator_model_id": "gpt-5.4"
+    }
+  ]
+}

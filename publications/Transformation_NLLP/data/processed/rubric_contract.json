@@ -1,0 +1,42 @@
+{
+  "source": "/home/pschorr95/Code/BenGER/benger-extended/benger_extended/workers/bewertungsbogen_constants.py",
+  "contract_version": 3,
+  "bounds": {
+    "total_points": 100,
+    "min_points_per_step": 1,
+    "textanker_soft_max_words": 20,
+    "step_key_pattern": "^[a-z][a-z0-9_]*$"
+  },
+  "enums": {
+    "gewichtungsklassen": [
+      "routine",
+      "tragend",
+      "schwerpunkt"
+    ],
+    "herkunft": [
+      "musterloesung_explizit",
+      "musterloesung_implizit",
+      "extern_ergaenzt"
+    ],
+    "ergaenzungstypen": [
+      "notwendiger_zwischenschritt",
+      "fehlender_kerninhalt",
+      "sonstige_fachliche_ergaenzung"
+    ],
+    "alternative_typen": [
+      "lokal",
+      "strukturveraendernd"
+    ],
+    "warnung_typen": [
+      "unklarer_pruefungsauftrag",
+      "widerspruch_im_material",
+      "unklarer_rechtsstand",
+      "fachlich_problematische_musterloesung",
+      "sonstiges"
+    ]
+  },
+  "validation": "two-tier: STRICT fails the attempt (structure incl. leading vorueberlegung field; integer relative weights >= 1; globally unique IDs A*/SP*/S*/ALT*/ALT*-S*; scoring-relevant cross-references resolve, with admissible values named in the error; provenance rules — Fundstelle for explizit/implizit, Begründung for extern; declared Schwerpunkte non-empty); SOFT is logged, never fails (Textanker length guideline, dangling refs in non-scoring fields, unknown warning types). The model states no derived number: code apportions 100 points over step weights (largest remainder, floor 1), derives section/Schwerpunkt totals and ALT budgets, and assigns partial-credit level ranges.",
+  "harness": "plain text generation (identical for every provider — no native structured-output APIs), 3-stage JSON parser + bounded encoding-only repair pass (logged), 3 attempts per series with validator-feedback on attempts 2-3 (attempt 1 feedback-free), max_tokens 32000 (Anthropic via streaming)",
+  "format_contract_suffix": "\n\n---\nAUSGABEFORMAT\n\nGib ausschließlich ein valides JSON-Objekt in der folgenden Struktur aus.\n\nGrundsatz: Du triffst alle fachlichen und wertenden Entscheidungen; die exakte Punktarithmetik übernimmt die Maschine. Gib deshalb NIRGENDS Summen, Abschnittspunkte, Schwerpunktpunkte oder Punktebudgets an — sie werden maschinell aus den Gewichten der regulären Schritte berechnet.\n\n- \"vorueberlegung\": Skizziere zuerst frei den erkannten Prüfungsauftrag, den geplanten Aufbau und die Klausurschwerpunkte, bevor du den Bogen ausfüllst.\n- \"gewicht\": ganze Zahl je Schritt. Richtwert: Die Gewichte aller regulären Schritte sollen sich in der Größenordnung von insgesamt 100 bewegen; eine exakte Summe ist NICHT erforderlich — die endgültigen Punktwerte werden maschinell exakt auf 100 Punkte normiert (Reihenfolge und Verhältnisse deiner Gewichte bleiben erhalten, Mindestpunktzahl je Schritt 1).\n- \"teilpunktstufen\": geordnete Liste von Leistungsbeschreibungen von der schwächsten zur stärksten Teilleistung, OHNE Punktgrenzen — die Punktbereiche werden maschinell zugewiesen. Für gewichtige Schritte regelmäßig 2 bis 4 Stufen; für gering gewichtete Schritte kann die Liste leer bleiben.\n- Schwerpunktzuordnung ausschließlich über \"schwerpunkt_id\" am Schritt; die Objekte unter \"klausurschwerpunkte\" selbst enthalten keine Schrittlisten und keine Punkte.\n- Alternative Lösungswege benennen die ersetzten regulären Schritte über \"ersetzt_schritt_ids\"; ihr Punktrahmen ergibt sich maschinell aus diesen Schritten. Die \"alternative_schritte\" tragen ebenfalls nur relative Gewichte.\n- Verwende leere Arrays, wenn keine Listenelemente vorliegen; null, wenn ein einzelnes Feld nicht einschlägig ist; keine zusätzlichen Felder.\n\n{\n  \"vorueberlegung\": \"Freitext: erkannter Prüfungsauftrag, geplanter Aufbau, Schwerpunkte\",\n  \"meta\": {\n    \"rechtsordnung\": \"Deutschland\",\n    \"rechtsstand\": null,\n    \"pruefungsniveau\": null,\n    \"pruefungsauftrag\": [\n      \"Kurze Beschreibung der zu bearbeitenden Prüfungsfrage\"\n    ],\n    \"bearbeitervermerke\": [\n      \"Erkannter Bearbeitervermerk\"\n    ],\n    \"warnungen\": [\n      {\n        \"typ\": \"unklarer_pruefungsauftrag | widerspruch_im_material | unklarer_rechtsstand | fachlich_problematische_musterloesung | sonstiges\",\n        \"beschreibung\": \"Konkrete Beschreibung des Problems und seines Umgangs im Bewertungsbogen\",\n        \"betroffene_schritt_ids\": []\n      }\n    ]\n  },\n  \"klausurschwerpunkte\": [\n    {\n      \"id\": \"SP1\",\n      \"bezeichnung\": \"Kurze Bezeichnung des Problemkomplexes\",\n      \"begruendung\": \"Fallbezogene Begründung seiner besonderen Bedeutung und Schwierigkeit\"\n    }\n  ],\n  \"abschnitte\": [\n    {\n      \"id\": \"A1\",\n      \"bezeichnung\": \"Bezeichnung des Abschnitts oder der Prüfungsstation\",\n      \"schritte\": [\n        {\n          \"id\": \"S1\",\n          \"bezeichnung\": \"Kurze Bezeichnung der bewerteten Prüfungsleistung\",\n          \"erwartete_leistung\": \"Konkrete Beschreibung der erwarteten juristischen Prüfungsleistung\",\n          \"gewicht\": 0,\n          \"gewichtungsklasse\": \"routine | tragend | schwerpunkt\",\n          \"gewichtungsbegruendung\": \"Kurze fallbezogene Begründung der Gewichtung\",\n          \"schwerpunkt_id\": null,\n          \"herkunft\": \"musterloesung_explizit | musterloesung_implizit | extern_ergaenzt\",\n          \"ergaenzungstyp\": null,\n          \"fundstelle_musterloesung\": {\n            \"position\": \"Überschrift oder eindeutige Positionsbeschreibung\",\n            \"textanker\": \"Kurzer Textanker (Richtwert: bis 20 Wörter)\"\n          },\n          \"fachliche_begruendung_externe_ergaenzung\": null,\n          \"abhaengig_von\": [],\n          \"bewertungshinweise\": {\n            \"volle_punkte\": \"Konkret beobachtbare Anforderungen für die Maximalpunktzahl\",\n            \"teilpunktstufen\": [\n              \"Schwächste kreditierbare Teilleistung: was vorhanden ist, was fehlt\",\n              \"Stärkere Teilleistung: was zusätzlich vorhanden ist, was noch fehlt\"\n            ],\n            \"keine_punkte\": \"Konkrete Beschreibung, wann keine relevante Prüfungsleistung vorliegt\"\n          },\n          \"folgefehlerhinweis\": null\n        }\n      ]\n    }\n  ],\n  \"alternative_loesungswege\": [\n    {\n      \"id\": \"ALT1\",\n      \"typ\": \"lokal | strukturveraendernd\",\n      \"bezeichnung\": \"Kurze Bezeichnung des alternativen Lösungswegs\",\n      \"herkunft\": \"musterloesung_explizit | musterloesung_implizit | extern_ergaenzt\",\n      \"fundstelle_musterloesung\": null,\n      \"fachliche_begruendung_externe_ergaenzung\": \"Bei extern_ergaenzt: konkrete dogmatische und sachverhaltsbezogene Begründung\",\n      \"rechtliche_ausgangsfrage\": \"Rechtsfrage, an der der alternative Lösungsweg ansetzt\",\n      \"sachverhaltsanknuepfung\": \"Konkrete Tatsachen, die den alternativen Weg eröffnen\",\n      \"fachliche_basis\": \"Dogmatische oder methodische Grundlage der Alternative\",\n      \"vertretbarkeitsanforderungen\": [\n        \"Erforderlicher rechtlicher Maßstab\",\n        \"Erforderliches fallbezogenes Argument\"\n      ],\n      \"auswirkung_auf_den_pruefungsweg\": \"Beschreibung der Veränderungen gegenüber dem primären Prüfungsweg\",\n      \"ersetzt_schritt_ids\": [\n        \"S1\"\n      ],\n      \"alternative_schritte\": [\n        {\n          \"id\": \"ALT1-S1\",\n          \"bezeichnung\": \"Kurze Bezeichnung der alternativen Prüfungsleistung\",\n          \"erwartete_leistung\": \"Konkrete Beschreibung der beim alternativen Weg erwarteten Leistung\",\n          \"gewicht\": 0,\n          \"abhaengig_von\": [],\n          \"bewertungshinweise\": {\n            \"volle_punkte\": \"Konkret beobachtbare Anforderungen für die Maximalpunktzahl\",\n            \"teilpunktstufen\": [],\n            \"keine_punkte\": \"Konkrete Beschreibung, wann keine relevante Prüfungsleistung vorliegt\"\n          },\n          \"folgefehlerhinweis\": null\n        }\n      ],\n      \"nicht_kumulativ_mit\": []\n    }\n  ]\n}",
+  "system_prompt_suffix": "Gib ausschließlich valides JSON entsprechend dem vorgegebenen Ausgabeschema aus. Gib keine Erläuterungen, Vorbemerkungen oder Markdown-Formatierungen außerhalb des JSON aus."
+}

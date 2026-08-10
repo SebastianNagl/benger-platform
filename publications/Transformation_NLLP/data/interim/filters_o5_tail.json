@@ -1,0 +1,30 @@
+{
+ "95802146-90f4-465b-a3ab-6483b5a96c90": {
+  "model_ids": [
+   "deepseek-ai/DeepSeek-V4-Pro"
+  ],
+  "annotator_ids": [
+   "27d6a098-81ab-4009-b7eb-dc6e65e614aa",
+   "efd25831-ecc3-4ccb-af3c-25545fee4da4"
+  ],
+  "targets": [
+   "94b19868-ff4f-43d1-ad9c-73dcf733efd7",
+   "87d76979-157d-4ccf-8b3f-9e6b863c962b",
+   "83f28d1c-51ce-4d17-b98d-071589529713"
+  ]
+ },
+ "a02d6abd-7a4a-4acc-92a9-b5aad4f6953d": {
+  "model_ids": [
+   "claude-sonnet-4-6"
+  ],
+  "annotator_ids": [
+   "799860d1-5df9-40a4-bb58-83c7ba74448e",
+   "b6b276d6-56a4-45c8-a904-c2fe799a0078"
+  ],
+  "targets": [
+   "664a316f-d593-4645-98a5-7d9ae1061436",
+   "4a85c378-1c2c-4f64-aee5-62e58010bfeb",
+   "f95d177a-c3dc-4c27-9fec-24907f4f39f0"
+  ]
+ }
+}

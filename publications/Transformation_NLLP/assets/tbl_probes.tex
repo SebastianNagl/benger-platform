@@ -1,0 +1,23 @@
+\begin{table*}[t]
+\centering
+\scriptsize\setlength{\tabcolsep}{4pt}
+\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}lrrrrrr@{}}
+\toprule
+Arm – judge & battery & pos.\ ctrl & repetition & empty & off-topic & Musterl. \\
+\midrule
+Zero-shot – Qwen3.5-397B-A17B & fail(19) & pass & 100/100/100 & 79/100/100 & 0/0/0 & 100/100/100 \\
+Zero-shot – claude-opus-4-7 & pass & pass & 0/0/0 & 0/0/0 & 0/1/4 & 99/100/100 \\
+Zero-shot – claude-sonnet-4-6 & fail(6) & pass & 0/100/100 & 0/24/81 & 0/0/0 & 100/100/100 \\
+Zero-shot – DeepSeek-V4-Pro & pass & pass & 0/0/0 & 0/0/0 & 0/0/0 & 100/100/100 \\
+Zero-shot – gemini-3.1-pro & fail(20) & pass & 80/100/100 & 100/100/100 & 0/0/0 & 100/100/100 \\
+Zero-shot – gpt-5.4-mini & fail(100) & pass & 100/100/100 & 95/100/100 & 8/83/94 & 100/100/100 \\
+Zero-shot – gpt-5.6-luna & fail(32) & pass & 0/100/100 & 89/100/100 & 0/1/4 & 100/100/100 \\
+Holistic – gpt-5.4-mini & fail(125) & fail(13) & 45/69/71 & 5/5/7 & 13/21/22 & 82/91/94 \\
+Holistic – gpt-5.6-luna & fail(17) & pass & 0/2/93 & 0/0/0 & 8/18/19 & 98/100/100 \\
+Few-shot – gpt-5.4-mini & fail(96) & – & 99/100/100 & 95/100/100 & 4/89/95 & – \\
+Few-shot – gpt-5.6-luna & fail(31) & – & 0/100/100 & 90/100/100 & 0/0/0 & – \\
+\bottomrule
+\end{tabular*}
+\caption{Probe battery by arm and judge: negative-battery verdict (fail($N$) = failing passes), positive-control verdict, and severity (median/p95/max of the awarded score per pass) per probe type. Thresholds: repetition $<5$, empty $=0$, off-topic $\leq 10$, Musterlösung $\geq 70$, each on every pass. Zero-shot rows: seven roster judges (mini and Luna ×3, flagships ×1 per exam); holistic and few-shot rows: the two primaries ×3.}
+\label{tab:probes}
+\end{table*}

@@ -1,0 +1,275 @@
+Create an analytic grading scheme with a total of exactly 100 raw points for the following examination material.
+
+LEGAL SYSTEM:
+{{rechtsordnung}}
+
+STATE OF THE LAW, IF KNOWN:
+{{rechtsstand}}
+
+EXAMINATION LEVEL, IF KNOWN:
+{{pruefungsniveau}}
+
+<TASK_INSTRUCTION_AND_CASE_FACTS>
+{{sachverhalt}}
+</TASK_INSTRUCTION_AND_CASE_FACTS>
+
+<MODEL_SOLUTION>
+{{musterloesung}}
+</MODEL_SOLUTION>
+
+Follow the rules below.
+
+1. EXAMINATION MANDATE AND SCOPE
+
+- First determine the concrete task instruction and all candidate instructions (Bearbeitervermerke).
+- The task instruction and the candidate instructions bindingly determine which questions are to be addressed.
+- Whatever is expressly excluded from examination must not receive a scored step.
+- Where task instruction, candidate instructions, and model solution diverge, the task instruction and candidate instructions prevail as regards the scope of examination.
+- Briefly summarize the recognized examination mandate and the candidate instructions in the "meta" field.
+- If the examination mandate is ambiguous, contradictory, or incomplete, note this under "warnungen" and proceed with the professionally most plausible interpretation.
+
+2. RELATIONSHIP BETWEEN MODEL SOLUTION AND OWN LEGAL KNOWLEDGE
+
+- The model solution is the primary, but not the exclusive, basis of the grading scheme.
+- Adopt from it in particular:
+  a) the intended examination structure,
+  b) the bases of claims, statutory elements, and legal questions addressed,
+  c) the case-specific arguments,
+  d) the recognizable focal problems of the exam, and
+  e) the expected results.
+
+- Additionally use your own legal knowledge where this is necessary to:
+  a) make gradable an examination performance contained only implicitly in the model solution,
+  b) supplement an intermediate step necessary for the legal derivation,
+  c) include a professionally necessary core content that the model solution recognizably omits,
+  d) take into account a fact-proximate defensible opposing view, or
+  e) map an alternative, legally defensible examination path.
+
+- Externally supplemented content is admissible only if it:
+  a) is opened up by the concrete facts of the case,
+  b) is compatible with the task instruction and candidate instructions,
+  c) is relevant for professionally sound or fair grading, and
+  d) rests on a recognized legal view or a methodically comprehensible legal argumentation.
+
+- Not to be included are:
+  a) merely abstractly conceivable or far-fetched problems,
+  b) additional problems without influence on the concrete solution of the case,
+  c) variants that presuppose facts not provided,
+  d) merely theoretically interesting doctrinal disputes without relevance to the case,
+  e) unsubstantiated divergent results, and
+  f) solutions that disregard unambiguous requirements of statute, case facts, or candidate instructions.
+
+- Externally supplemented content that every complete solution must address may be included as a regular grading step.
+- Content that becomes necessary only under a specific defensible solution path belongs in "alternative_loesungswege" and not as an additional regular step in the main scheme.
+
+3. HANDLING PROBLEMS OF THE MODEL SOLUTION
+
+- Do not silently adopt a recognizably problematic determination of the model solution.
+- If the model solution's solution path is professionally defensible, map it as the primary path and, where appropriate, supplement further defensible solutions.
+- If a determination of the model solution is not defensible by legal standards, flag this under "warnungen" and align the grading with a defensible solution.
+- Justify the deviation concretely, without inventing sources or authorities that were not provided.
+- If the state of the law is not specified and a supplement possibly depends on legal rules that change over time, flag this uncertainty under "warnungen".
+
+4. FOCAL PROBLEMS OF THE EXAM (KLAUSURSCHWERPUNKTE)
+
+- Determine the legally central and argumentatively demanding problem complexes of the concrete task.
+- The number of focal problems follows from the material. Produce neither a minimum number nor a fixed quota.
+- Assess focal-problem quality in particular by:
+  a) the significance for the concrete task instruction,
+  b) the legal difficulty,
+  c) the required depth of interpretation, balancing, or argumentation,
+  d) the required case-specific subsumption, and
+  e) the effects on the further solution path.
+
+- Do not claim that a problem empirically separates good from weak submissions. Such a statement is impossible without submission data.
+- Mark membership in a focal problem exclusively via the "schwerpunkt_id" field of the regular steps concerned; the objects under "klausurschwerpunkte" contain no step lists and no points.
+- Each regular step may be assigned to at most one focal problem.
+- The point total of a focal problem is computed by machine from its assigned steps; do not state it.
+
+5. FORMING THE GRADING STEPS
+
+- Order the grading steps along the professionally appropriate examination structure.
+- Sections and examination stations serve structuring purposes but receive no points independent of their steps.
+- A step is a legal examination performance gradable independently in substance, which can be delivered separately as correct, partially correct, or incorrect.
+- Separate two performances if one can be delivered correctly or incorrectly independently of the other.
+- Merge performances if they are regularly graded on the basis of the same student passages and do not constitute meaningfully separable partial performances.
+- A step may constitute neither a complete extensive examination station nor merely a heading, a bare result, or a single interchangeable sentence.
+- Avoid both needless one-point atomization and steps so broad that substantially different partial performances can no longer be graded differentially.
+- Definition and subsumption are not automatically separate steps. Separate them only if, in the concrete case, they constitute independently gradable performances.
+- Recognizing a basis of claim, a norm, or a problem may be scored independently, and with low weight, only if that recognition substantively steers the further solution path.
+- Not every heading of the model solution must produce its own grading step.
+- No step may score the same student performance that another step already scores.
+- Bare intermediate or final results receive no points of their own. The correctness of the result is taken into account within the associated substantive step.
+- Use globally unique and consecutive IDs:
+  Sections: A1, A2, ...
+  Focal problems: SP1, SP2, ...
+  Regular steps: S1, S2, ...
+  Alternative solution paths: ALT1, ALT2, ...
+  Steps within an alternative: ALT1-S1, ALT1-S2, ...
+
+6. PROVENANCE AND TRACEABILITY
+
+- Mark every regular step and every alternative solution path with exactly one provenance:
+  "musterloesung_explizit",
+  "musterloesung_implizit", or
+  "extern_ergaenzt".
+
+- "musterloesung_explizit" means the graded performance is expressly presented in the model solution.
+- "musterloesung_implizit" means the performance is directly presupposed by the solution path presented there but is not independently spelled out.
+- "extern_ergaenzt" means the performance or alternative is supplemented on the basis of your own legal knowledge.
+
+- For "musterloesung_explizit" and "musterloesung_implizit", a reference must be given:
+  a) a heading or unambiguous description of the position, and
+  b) a text anchor as short as possible (guideline: up to 20 words).
+
+- For "extern_ergaenzt", "fundstelle_musterloesung" remains null. Instead, "fachliche_begruendung_externe_ergaenzung" must concretely explain:
+  a) why the supplement is legally necessary or defensible,
+  b) how it connects to the case facts, and
+  c) why it is relevant for grading.
+
+- Do not invent sources, court decisions, literature opinions, or labels such as "prevailing opinion" if their existence is not certain.
+- A doctrinal or methodological justification suffices. Concrete source citations are not required.
+
+7. WEIGHTING
+
+- State a relative weight as an integer for every regular step ("gewicht").
+- Guideline: the weights of all regular steps should move in the order of magnitude of 100 in total. An exact sum is NOT required – the final point values are normalized by machine to exactly 100 raw points; the order and ratios of your weights are preserved, and every step receives at least one point.
+- State no section points, no focal-problem points, and no point budgets – they are computed by machine.
+- There is no free point pool, no bonus points, and no negative points.
+- Alternative solution paths do not change the total of 100 points.
+
+- Weight the steps in particular by:
+  a) significance for the task instruction,
+  b) legal difficulty,
+  c) required subsumption performance,
+  d) required depth of argumentation or balancing,
+  e) effects on the further examination path, and
+  f) the effort to be expected for a complete treatment.
+
+- The length of the presentation in the model solution is only a subordinate indication.
+- The mere number of norms or arguments mentioned is not an independent weighting criterion.
+- Assign every regular step to exactly one weighting class:
+
+  "routine":
+  necessary, predominantly standardized examination or application;
+
+  "tragend":
+  independent examination essential for the concrete solution path;
+
+  "schwerpunkt":
+  central problem with increased depth of justification, balancing, interpretation, or subsumption.
+
+- A focal step regularly receives clearly more weight than a comparable routine performance. However, no rigid numerical ratio applies.
+- Briefly justify the concrete weighting of each step with reference to the case.
+
+8. GRADING GUIDANCE AND PARTIAL CREDIT
+
+- Formulate exclusively observable professional performance requirements.
+- Avoid indeterminate empty formulas such as:
+  "well reasoned",
+  "essentially correct",
+  "largely complete",
+  "with minor errors", or
+  "defensible exposition",
+  unless it is concretely stated which performance is present and which is missing.
+
+- "volle_punkte" describes, to the extent pertinent to the step:
+  a) the required problem identification,
+  b) the legal standard,
+  c) the case-specific evaluation of the relevant facts,
+  d) the required subsumption,
+  e) the required arguments and counter-arguments, and
+  f) a result derived from these in a methodically defensible way.
+
+- "keine_punkte" concretely describes when no relevant performance for this step is present.
+- A mere repetition of the case facts without legal processing receives no points.
+- Merely naming a result receives no points if the graded performance consists in its legal justification.
+- An incorrect final result does not automatically lead to zero points if relevant legal standards, subsumptions, or arguments were developed correctly.
+
+- The "teilpunktstufen" are an ordered list of performance descriptions from the weakest to the strongest creditable partial performance – WITHOUT point boundaries; the point ranges are assigned by machine.
+- Each level concretely describes which required performances are present and which essential performances are missing or defective.
+- Use as few partial-credit levels as possible and as many as necessary; for weighty steps two to four levels regularly suffice, and for low-weighted steps the list may remain empty.
+- Requirements must increase cumulatively from lower to higher levels.
+- Avoid levels that differ only by words such as "partially", "predominantly", or "largely".
+
+9. DEFENSIBLE ALTERNATIVE SOLUTION PATHS
+
+- For legally open, interpretation-dependent, or disputed questions, actively check whether, besides the primary solution path, further fact-proximate and methodically defensible solutions exist.
+- An alternative may be included even if it is not mentioned in the model solution.
+- An alternative is defensible if:
+  a) it connects to the facts as provided,
+  b) it is compatible with the task instruction and candidate instructions,
+  c) it rests on a recognized legal view or a methodically comprehensible interpretation,
+  d) the required legal standards and case-specific arguments can be presented, and
+  e) a professionally competent corrector could not grade it as wrong solely because of its divergent result.
+
+- Merely asserting a different result is not a defensible alternative.
+- Do not include an alternative solely because it is theoretically conceivable. It must come seriously into professional consideration in a real student submission.
+- Assign each alternative to a type:
+
+  "lokal":
+  the alternative concerns a single legal question without substantially changing the subsequent examination structure.
+
+  "strukturveraendernd":
+  the alternative changes the further examination structure, causes regular steps to lapse, or requires different follow-up examinations.
+
+- For each alternative describe:
+  a) the legal question at which it starts,
+  b) its connecting points in the case facts,
+  c) its doctrinal or methodological basis,
+  d) the arguments required for its defensibility,
+  e) its effects on the further examination path, and
+  f) its grading within the already existing point frame.
+
+- A defensible alternative is graded by the quality of its own legal reasoning.
+- It does not receive fewer points solely because it deviates from the result or structure of the model solution.
+- Full points presuppose, on the alternative path too, a complete legal derivation, case-specific subsumption, and methodically comprehensible argumentation.
+
+- Every alternative solution path must name, via "ersetzt_schritt_ids", the regular steps whose point frame it replaces.
+- The point frame follows from these steps by machine; do not state it.
+- State relative weights for the "alternative_schritte"; their point values are assigned by machine within the point frame.
+- Alternative solution paths create no additional or bonus points.
+- The regular and the alternative solution path must not be scored cumulatively for the same performance.
+- Mutually exclusive alternatives must be marked under "nicht_kumulativ_mit".
+- If a submission mixes contradictory solution paths, only partial performances actually delivered coherently may be scored, and no performance may be scored twice.
+
+10. DEPENDENCIES AND CONSEQUENTIAL ERRORS
+
+- List under "abhaengig_von" the IDs of earlier steps whose legal course-setting influences the entry into the step concerned.
+- Do not penalize the same initial error more than once.
+- A follow-up examination that was actually carried out and is consistent on its own premise is to be graded by its independent legal quality.
+- An incorrect earlier course-setting does not automatically exclude partial or full points for a professionally correct follow-up examination.
+- However, the consequential-error rule does not lead to fictitious points for later examination performances that were not delivered at all.
+- Merely skipping an examination on the basis of an indefensible initial assumption justifies no points for the omitted performance.
+- Fill in "folgefehlerhinweis" only if a special dependency or grading rule exists for the concrete step. Otherwise use null.
+
+11. ASPECTS NOT TO BE GRADED
+
+- Award no points of their own for:
+  a) style,
+  b) language,
+  c) orthography,
+  d) outward structure,
+  e) headings,
+  f) Gutachtenstil (the appraisal style) as such,
+  g) mere length of the submission, or
+  h) mere completeness without substantive quality.
+
+- These aspects must not covertly enter the substantive grading guidance either.
+- Formal presentation may be taken into account only insofar as it is itself a direct component of an expressly required legal examination performance.
+
+12. FINAL CHECK
+
+Check internally before output:
+
+- Does every regular step and every alternative step carry an integer relative weight that is plausible and justified in relation to the remaining steps?
+- Are all IDs globally unique and do they follow the naming scheme?
+- Are all ID references valid (schwerpunkt_id, ersetzt_schritt_ids, nicht_kumulativ_mit, abhaengig_von)?
+- Is every step assigned to at most one focal problem, and does every declared focal problem have at least one assigned step?
+- Is a reference given for every explicit or implicit content?
+- Is a concrete professional justification given for every externally supplemented content?
+- Are the partial-credit levels per step ordered (weakest first) and cumulatively increasing?
+- Is no student performance scored twice?
+- Are the task instruction and the candidate instructions fully taken into account?
+- Are far-fetched or merely theoretically conceivable alternatives excluded?
+- Does the output contain no invented sources or claims of authority?

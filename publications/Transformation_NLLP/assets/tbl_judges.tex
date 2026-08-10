@@ -1,0 +1,21 @@
+\begin{table*}[t]
+\centering
+\small
+\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}lrrrrr@{}}
+\toprule
+Judge & $r$ & MAE & rep.\ SD & probe & battery \\
+\midrule
+gpt-5.6-luna & 0.769 & 12.8 & 1.97 & 0 & fail(32) \\
+Qwen3.5-397B-A17B & 0.748 & 12.9 & 5.37 & 0 & fail(19) \\
+gemini-3.1-pro & 0.734 & 13.9 & 2.14 & 0 & fail(20) \\
+claude-opus-5 & 0.744 & 14.1 & – & 0 & – \\
+gpt-5.6-terra & 0.745 & 14.4 & – & 0 & – \\
+claude-sonnet-4-6 & 0.778 & 15.1 & 1.20 & 0 & fail(6) \\
+claude-opus-4-7 & 0.740 & 15.7 & 1.20 & 0 & pass \\
+DeepSeek-V4-Pro & 0.696 & 19.0 & 1.72 & 0 & pass \\
+gpt-5.4-mini & 0.411 & 19.4 & 5.52 & 99 & fail(100) \\
+\bottomrule
+\end{tabular*}
+\caption{Judge profiles under the tailored rubric, sorted by MAE: agreement with the blind-human pool (first pass, 30 annotation cells), three-pass repeat SD (– = single-pass judge), the P01 probe (an honest judge scores the restated Sachverhalt 0), and the battery verdict over 45 degenerate submissions (– = not run).}
+\label{tab:judges}
+\end{table*}

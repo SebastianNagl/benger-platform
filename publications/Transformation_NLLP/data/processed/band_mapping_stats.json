@@ -1,0 +1,24 @@
+{
+ "n_rubrics_v3": 170,
+ "n_steps": 2867,
+ "n_steps_with_levels": 2217,
+ "level_count_histogram": {
+  "1": 476,
+  "2": 1263,
+  "3": 450,
+  "4": 28
+ },
+ "merges": {
+  "steps": 61,
+  "rubrics": 30,
+  "levels_lost": 61,
+  "hinweise_log_lines": 61,
+  "share_of_leveled_steps": 0.0275
+ },
+ "drops_at_max1": {
+  "steps": 11,
+  "rubrics": 9,
+  "hinweise_log_lines": 11
+ },
+ "note": "merge = weakest surplus+1 level strings concatenated into the lowest band; drop = all level strings removed at max_punkte 1 (notice text inaccurately claims carry-over); recomputed from full_document vs derived_document and cross-checked against the hinweise log"
+}

@@ -1,0 +1,296 @@
+{
+ "note": "within-judge tailored-minus-holistic repeat SD; pooled = mean of per-judge mean diffs, exam-cluster bootstrap 95% CI (seed 20260806, 10k). Negative = tailored more stable (the pre-registered reduction direction).",
+ "judges": [
+  "gpt-5.6-luna",
+  "claude-sonnet-4-6",
+  "gemini-3.1-pro-preview",
+  "deepseek-ai/DeepSeek-V4-Pro",
+  "Qwen/Qwen3.5-397B-A17B"
+ ],
+ "opus_excluded_for_cost": true,
+ "pooled": {
+  "point": 0.029420152739810322,
+  "ci95": [
+   -0.622139757857656,
+   0.7296586406281653
+  ],
+  "n_judges": 5
+ },
+ "per_judge": {
+  "gpt-5.6-luna": {
+   "n_cells": 45,
+   "tailored_mean": 1.9725035511799418,
+   "holistic_mean": 2.250728780617265,
+   "mean_diff": -0.2782252294373235,
+   "sign": {
+    "n": 44,
+    "tailored_lower": 24,
+    "tailored_higher": 20,
+    "p": 0.651587827208914
+   },
+   "wilcoxon": {
+    "p": 0.30491234658416033,
+    "n_nonzero": 44
+   },
+   "ci95": [
+    -0.758608095522136,
+    0.15883245413164393
+   ],
+   "exam_level": {
+    "n_exams": 15,
+    "mean": -0.2782252294373235,
+    "sign": {
+     "n": 15,
+     "tailored_lower": 9,
+     "tailored_higher": 6,
+     "p": 0.6072387695312499
+    },
+    "wilcoxon": {
+     "p": 0.33026123046875,
+     "n_nonzero": 15
+    }
+   }
+  },
+  "claude-sonnet-4-6": {
+   "n_cells": 45,
+   "tailored_mean": 1.1890454086936049,
+   "holistic_mean": 0.8291953000899417,
+   "mean_diff": 0.3598501086036633,
+   "sign": {
+    "n": 41,
+    "tailored_lower": 18,
+    "tailored_higher": 23,
+    "p": 0.5327092552361137
+   },
+   "wilcoxon": {
+    "p": 0.0801603567570055,
+    "n_nonzero": 41
+   },
+   "ci95": [
+    0.09518064630811983,
+    0.6485264891320237
+   ],
+   "exam_level": {
+    "n_exams": 15,
+    "mean": 0.3598501086036633,
+    "sign": {
+     "n": 15,
+     "tailored_lower": 3,
+     "tailored_higher": 12,
+     "p": 0.03515625
+    },
+    "wilcoxon": {
+     "p": 0.02557373046875,
+     "n_nonzero": 15
+    }
+   }
+  },
+  "gemini-3.1-pro-preview": {
+   "n_cells": 45,
+   "tailored_mean": 2.1413584785061697,
+   "holistic_mean": 2.4237281205277985,
+   "mean_diff": -0.2823696420216291,
+   "sign": {
+    "n": 44,
+    "tailored_lower": 23,
+    "tailored_higher": 21,
+    "p": 0.880395821280672
+   },
+   "wilcoxon": {
+    "p": 0.38190151335231803,
+    "n_nonzero": 44
+   },
+   "ci95": [
+    -0.8273521836196938,
+    0.2777306920452018
+   ],
+   "exam_level": {
+    "n_exams": 15,
+    "mean": -0.2823696420216291,
+    "sign": {
+     "n": 15,
+     "tailored_lower": 9,
+     "tailored_higher": 6,
+     "p": 0.6072387695312499
+    },
+    "wilcoxon": {
+     "p": 0.30279541015625,
+     "n_nonzero": 15
+    }
+   }
+  },
+  "deepseek-ai/DeepSeek-V4-Pro": {
+   "n_cells": 45,
+   "tailored_mean": 1.8059308073197486,
+   "holistic_mean": 1.6712998081700632,
+   "mean_diff": 0.1346309991496855,
+   "sign": {
+    "n": 43,
+    "tailored_lower": 22,
+    "tailored_higher": 21,
+    "p": 1.0
+   },
+   "wilcoxon": {
+    "p": 0.9096144707582425,
+    "n_nonzero": 43
+   },
+   "ci95": [
+    -0.48147543095508655,
+    0.651692443366289
+   ],
+   "exam_level": {
+    "n_exams": 15,
+    "mean": 0.1346309991496855,
+    "sign": {
+     "n": 15,
+     "tailored_lower": 4,
+     "tailored_higher": 11,
+     "p": 0.11846923828124999
+    },
+    "wilcoxon": {
+     "p": 0.389404296875,
+     "n_nonzero": 15
+    }
+   }
+  },
+  "Qwen/Qwen3.5-397B-A17B": {
+   "n_cells": 45,
+   "tailored_mean": 5.433583289311293,
+   "holistic_mean": 5.220368761906638,
+   "mean_diff": 0.21321452740465544,
+   "sign": {
+    "n": 45,
+    "tailored_lower": 26,
+    "tailored_higher": 19,
+    "p": 0.3712980344710104
+   },
+   "wilcoxon": {
+    "p": 0.32940378810144466,
+    "n_nonzero": 45
+   },
+   "ci95": [
+    -3.079072204724266,
+    3.7987882141134044
+   ],
+   "exam_level": {
+    "n_exams": 15,
+    "mean": 0.21321452740465544,
+    "sign": {
+     "n": 15,
+     "tailored_lower": 9,
+     "tailored_higher": 6,
+     "p": 0.6072387695312499
+    },
+    "wilcoxon": {
+     "p": 0.7197265625,
+     "n_nonzero": 15
+    }
+   }
+  },
+  "gpt-5.4-mini": {
+   "n_cells": 45,
+   "tailored_mean": 5.523387110502696,
+   "holistic_mean": 3.871943693944784,
+   "mean_diff": 1.6514434165579122,
+   "sign": {
+    "n": 45,
+    "tailored_lower": 15,
+    "tailored_higher": 30,
+    "p": 0.035697803555194696
+   },
+   "wilcoxon": {
+    "p": 0.007646796061294481,
+    "n_nonzero": 45
+   },
+   "below_floor": true,
+   "excluded_from_pooled": true,
+   "ci95": [
+    -0.16657874830034905,
+    3.46397169144305
+   ],
+   "exam_level": {
+    "n_exams": 15,
+    "mean": 1.6514434165579122,
+    "sign": {
+     "n": 15,
+     "tailored_lower": 3,
+     "tailored_higher": 12,
+     "p": 0.03515625
+    },
+    "wilcoxon": {
+     "p": 0.041259765625,
+     "n_nonzero": 15
+    }
+   }
+  }
+ },
+ "forest": [
+  {
+   "judge": "gpt-5.6-luna",
+   "label": "Luna",
+   "delta": -0.2782252294373235,
+   "ci95": [
+    -0.758608095522136,
+    0.15883245413164393
+   ],
+   "n_cells": 45,
+   "in_pooled": true
+  },
+  {
+   "judge": "claude-sonnet-4-6",
+   "label": "Sonnet",
+   "delta": 0.3598501086036633,
+   "ci95": [
+    0.09518064630811983,
+    0.6485264891320237
+   ],
+   "n_cells": 45,
+   "in_pooled": true
+  },
+  {
+   "judge": "gemini-3.1-pro-preview",
+   "label": "Gemini",
+   "delta": -0.2823696420216291,
+   "ci95": [
+    -0.8273521836196938,
+    0.2777306920452018
+   ],
+   "n_cells": 45,
+   "in_pooled": true
+  },
+  {
+   "judge": "deepseek-ai/DeepSeek-V4-Pro",
+   "label": "DS-Pro",
+   "delta": 0.1346309991496855,
+   "ci95": [
+    -0.48147543095508655,
+    0.651692443366289
+   ],
+   "n_cells": 45,
+   "in_pooled": true
+  },
+  {
+   "judge": "Qwen/Qwen3.5-397B-A17B",
+   "label": "Qwen",
+   "delta": 0.21321452740465544,
+   "ci95": [
+    -3.079072204724266,
+    3.7987882141134044
+   ],
+   "n_cells": 45,
+   "in_pooled": true
+  },
+  {
+   "judge": "gpt-5.4-mini",
+   "label": "Mini",
+   "delta": 1.6514434165579122,
+   "ci95": [
+    -0.16657874830034905,
+    3.46397169144305
+   ],
+   "n_cells": 45,
+   "in_pooled": false
+  }
+ ],
+ "forest_note": "per-judge Δ repeat SD (tailored − holistic) with exam-cluster bootstrap 95% CIs (seed 20260806, fresh rng per judge, identical draws); Mini shown for completeness, excluded from the pre-registered pooled endpoint (below the execution floor)"
+}

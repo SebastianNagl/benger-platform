@@ -1,0 +1,116 @@
+{
+ "basis": {
+  "panel_n": 43,
+  "panel_note": "mean within-cell SD over the cells with complete data in every panel definition (control opus-4-7 missing on 2)",
+  "repeat_n": 45,
+  "agreement_n": 30,
+  "bias_note": "bias = mean(first pass - human pool), 30 annotation cells"
+ },
+ "rows": [
+  {
+   "condition": "holistic_control",
+   "instrument": "holistic",
+   "primary": "gpt-5-mini (control)",
+   "interjudge_sd": 8.115224103702994,
+   "repeat_sd": 3.028416867006734,
+   "r": 0.8445612118064723,
+   "mae": 14.8625,
+   "bias": 13.7375,
+   "p01_runs": {
+    "0": 9.0,
+    "1": 2.0,
+    "2": 9.0
+   }
+  },
+  {
+   "condition": "tailored_mini",
+   "instrument": "tailored",
+   "primary": "gpt-5.4-mini",
+   "interjudge_sd": 10.232756537993435,
+   "repeat_sd": 5.523387110502696,
+   "r": 0.4107472089358974,
+   "mae": 19.4375,
+   "bias": 7.3875,
+   "p01_runs": {
+    "0": 99.0,
+    "1": 100.0,
+    "2": 100.0
+   }
+  },
+  {
+   "condition": "tailored_luna",
+   "instrument": "tailored",
+   "primary": "gpt-5.6-luna",
+   "interjudge_sd": 7.200030147636335,
+   "repeat_sd": 1.9725035511799418,
+   "r": 0.7690939953034603,
+   "mae": 12.8125,
+   "bias": -6.895833333333333,
+   "p01_runs": {
+    "0": 0.0,
+    "1": 0.0,
+    "2": 0.0
+   }
+  },
+  {
+   "condition": "fewshot_luna",
+   "instrument": "fewshot",
+   "primary": "gpt-5.6-luna",
+   "interjudge_sd": null,
+   "repeat_sd": 1.7981768382331995,
+   "r": 0.6977245904648771,
+   "mae": 15.8125,
+   "bias": -7.8625,
+   "p01_runs": {
+    "0": 0.0,
+    "1": 0.0,
+    "2": 0.0
+   }
+  },
+  {
+   "condition": "holistic_luna",
+   "instrument": "holistic",
+   "primary": "gpt-5.6-luna",
+   "interjudge_sd": 6.977920693986276,
+   "repeat_sd": 2.250728780617265,
+   "r": 0.8036335153580647,
+   "mae": 11.245833333333334,
+   "bias": 4.2875,
+   "p01_runs": {
+    "0": 2.0,
+    "1": 1.0,
+    "2": 1.0
+   }
+  },
+  {
+   "condition": "holistic_mini",
+   "instrument": "holistic",
+   "primary": "gpt-5.4-mini",
+   "interjudge_sd": 8.12686544301916,
+   "repeat_sd": 3.871943693944784,
+   "r": 0.7501040412222528,
+   "mae": 11.245833333333334,
+   "bias": -2.7291666666666665,
+   "p01_runs": {
+    "0": 9.0,
+    "1": 67.0,
+    "2": 47.0
+   }
+  },
+  {
+   "condition": "fewshot_mini",
+   "instrument": "fewshot",
+   "primary": "gpt-5.4-mini",
+   "interjudge_sd": null,
+   "repeat_sd": 5.224325531331507,
+   "r": 0.3591187409520832,
+   "mae": 21.270833333333332,
+   "bias": 5.770833333333333,
+   "p01_runs": {
+    "0": 100.0,
+    "1": 94.0,
+    "2": 100.0
+   }
+  }
+ ]
+}

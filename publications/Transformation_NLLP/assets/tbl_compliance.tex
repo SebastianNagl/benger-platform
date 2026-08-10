@@ -1,0 +1,24 @@
+\begin{table*}[t]
+\centering
+\small
+\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}lrrrrr@{}}
+\toprule
+Generator & valid & 1st try & att. & steps & audit \\
+\midrule
+Qwen3-235B-Think & 15/15 & 40\% & 1.60 & 12.8 & 25.6 \\
+Qwen3.5-122B-A10B & 15/15 & 13\% & 1.93 & 9.3 & 26.0 \\
+Qwen3.6-35B-A3B & 15/15 & 60\% & 1.60 & 11.5 & 26.3 \\
+claude-opus-4-7 & 15/15 & 73\% & 1.27 & 17.1 & 29.1 \\
+claude-sonnet-4-6 & 15/15 & 13\% & 1.93 & 22.0 & 29.0 \\
+DeepSeek-V4-Flash & 15/15 & 80\% & 1.27 & 18.5 & 27.0 \\
+DeepSeek-V4-Pro & 15/15 & 100\% & 1.00 & 25.5 & 26.6 \\
+gemini-3.1-flash-lite & 15/15 & 80\% & 1.20 & 6.3 & 24.4 \\
+gemini-3.1-pro & 15/15 & 100\% & 1.00 & 15.3 & 26.5 \\
+gpt-5.4 & 15/15 & 100\% & 1.00 & 16.8 & 28.5 \\
+Llama-4-Maverick & 12/15 & 75\% & 1.25 & 6.5 & 22.2 \\
+gpt-5.4-mini & 8/15 & 38\% & 1.88 & 17.1 & 27.4 \\
+\bottomrule
+\end{tabular*}
+\caption{Rubric generation per generator: schema-conformant cells (of 15 exams), first-attempt compliance, mean attempts per success, mean step count, and automated-audit total (of 35).}
+\label{tab:compliance}
+\end{table*}
