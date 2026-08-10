@@ -21,12 +21,12 @@ column.
 This is a display preference only — never an authorization or exam-integrity
 input.
 
-Chained on 090 (the committed head at authoring time). If the task-rubrics
-migration ``088_add_task_rubrics`` (in flight on a parallel stream, itself
-chained on 090) lands first, re-point ``down_revision`` to
-``"088_add_task_rubrics"`` — the single-head meta-test
-(tests/migration/test_single_alembic_head.py) turns the collision into a
-PR-time failure either way.
+Chained on 090 (the committed head at authoring time). The task-rubrics
+migration ``088_add_task_rubrics`` was in flight on a parallel stream and was
+also chained on 090; this one landed first, so 088 was re-pointed at
+``091_add_user_exam_layout_prefs`` rather than the other way round. The
+single-head meta-test (tests/migration/test_single_alembic_head.py) caught the
+collision, as designed.
 
 Idempotent — guards on column existence; safe to re-run. Mirrors the 067
 guard pattern.

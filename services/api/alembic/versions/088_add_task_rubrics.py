@@ -19,7 +19,7 @@ projects/tasks self-clean.
 Idempotent — guards on table/index existence; safe to re-run.
 
 Revision ID: 088_add_task_rubrics
-Revises: 090_exam_unlimited_annotations
+Revises: 091_add_user_exam_layout_prefs
 Create Date: 2026-08-02
 """
 
@@ -31,7 +31,7 @@ import sqlalchemy as sa
 
 
 revision = "088_add_task_rubrics"
-down_revision = "090_exam_unlimited_annotations"
+down_revision = "091_add_user_exam_layout_prefs"
 branch_labels = None
 depends_on = None
 
