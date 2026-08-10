@@ -14,6 +14,10 @@ WORKDIR /app
 # declared deps regardless of base staleness. Cached on pyproject.toml
 # content, so code-only commits still rebuild fast — it's a near no-op when the
 # base is already current (all packages already satisfied).
+#
+# This resolve reads the same pyproject.toml as the base, so it inherits the
+# CPU-only torch index declared there — it cannot silently reinstall the CUDA
+# build on top of the slimmed base.
 COPY pyproject.toml ./pyproject.toml
 RUN pip install --no-cache-dir uv && uv pip install --system --no-cache-dir -r pyproject.toml
 

@@ -1,7 +1,12 @@
 # Workers Base Image: Python + PyTorch + ML models + NLTK data
 # Rebuild when: pyproject.toml changes, or weekly via CI schedule
 # App code is NOT included — see Dockerfile which builds on top of this.
-FROM python:3.11-slim
+#
+# Python 3.12, NOT 3.13: numpy is capped below 2.0 and spaCy below 3.8 for the
+# thinc numpy-1.x ABI (see pyproject.toml), and neither numpy 1.26.x nor thinc
+# 8.2.x publishes a cp313 wheel — a 3.13 build falls back to compiling numpy
+# from source. Lifting those caps is the prerequisite for 3.13, not this pin.
+FROM python:3.12-slim
 
 # System dependencies (procps for health checks, gcc/g++ for C extensions)
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -15,7 +20,9 @@ RUN pip install uv
 
 WORKDIR /app
 
-# Install Python dependencies
+# Install Python dependencies. torch resolves to the CPU-only build via the
+# [tool.uv.index] / [tool.uv.sources] block in pyproject.toml — see the
+# rationale there; nothing index-related belongs in this file.
 COPY pyproject.toml .
 RUN uv pip install --system --no-cache-dir -r pyproject.toml
 

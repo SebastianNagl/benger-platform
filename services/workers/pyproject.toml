@@ -6,7 +6,11 @@ build-backend = "hatchling.build"
 name = "benger-workers"
 version = "0.1.0"
 description = "BenGER evaluation workers (Celery + ML metrics)"
-requires-python = ">=3.11"
+# 3.12, and NOT 3.13: numpy is capped <2.0 and spaCy <3.8 below for the thinc
+# numpy-1.x ABI, and neither numpy 1.26.x nor thinc 8.2.x ships a cp313 wheel,
+# so a 3.13 build silently falls back to compiling numpy from source. Lifting
+# those two caps is the prerequisite for 3.13.
+requires-python = ">=3.12"
 # Single dependency source for the workers images (base + app safety net),
 # installed via `uv pip install --system -r pyproject.toml` — same scheme as
 # services/api. requirements.txt is gone; test-runner extras stay in
@@ -93,3 +97,36 @@ dependencies = [
 [tool.hatch.build.targets.wheel]
 # Dep-manifest only — the images copy code directly; nothing is packaged.
 bypass-selection = true
+
+# ── CPU-only PyTorch ─────────────────────────────────────────────────────────
+# This deployment has no GPU: the node reports no nvidia.com/gpu capacity and
+# the Helm chart requests no accelerator. The default PyPI torch wheel drags in
+# ~2.7 GB of nvidia-* CUDA libraries plus ~690 MB of triton that can never
+# execute here, and torch itself is 1.1 GB instead of 718 MB. The only CUDA
+# code path (ml_evaluation/sample_evaluator.py) is an
+# `if torch.cuda.is_available()` guard that is already always false, so this
+# changes image size, not behaviour.
+#
+# Declared here rather than as an --index-url in the Dockerfiles because every
+# install path reads this file: Dockerfile.base, the app Dockerfile's
+# base-staleness safety net, and local dev. A flag in one Dockerfile would let
+# the other silently reinstall the CUDA build on top and undo the saving.
+#
+# `explicit = true` scopes the index to packages that name it below — every
+# other dependency still resolves from PyPI.
+#
+# TO RE-ENABLE GPU: delete both blocks below. The `torch` bound in
+# [project.dependencies] is untouched and index-agnostic, so the next install
+# picks the default CUDA wheel again.
+#
+# NOTE: this is uv-specific config. The worker images install with
+# `uv pip install -r pyproject.toml` (pip cannot install from a pyproject at
+# all), so there is no path that bypasses it — but a future switch to plain
+# pip would silently restore the CUDA wheels.
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cpu" }
