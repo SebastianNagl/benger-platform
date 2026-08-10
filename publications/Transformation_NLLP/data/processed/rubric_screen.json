@@ -1,0 +1,1704 @@
+{
+ "definitions": {
+  "listed_formulas": [
+   "gut begründet",
+   "im Wesentlichen richtig",
+   "weitgehend vollständig",
+   "mit kleineren Fehlern",
+   "vertretbare Ausführungen"
+  ],
+  "near_variant_patterns": {
+   "im_wesentlichen_x": "im wesentlichen (?:zutreffend|korrekt|erfasst|vollständig|erkannt)",
+   "kleinere_x": "kleinere[nr]? (?:unschärfen|fehler|mängel|ungenauigkeiten|lücken|schwächen)",
+   "weitgehend_x": "weitgehend (?:richtig|korrekt|zutreffend|erfasst)",
+   "ueberwiegend_x": "überwiegend (?:richtig|korrekt|zutreffend|vollständig)"
+  },
+  "degree_only_levels": "two partial-credit levels of one step become identical after removing teilweise/überwiegend/weitgehend/im Wesentlichen",
+  "note": "lexical screening over the judge-facing rendered_text; a hit is not automatically a semantic violation (the prompt allows the phrases when the missing performance is named concretely)"
+ },
+ "n_rubrics": 170,
+ "listed": {
+  "n_rubrics_hit": 7,
+  "occurrences": 10,
+  "per_phrase": {
+   "gut begründet": 8,
+   "im Wesentlichen richtig": 2
+  }
+ },
+ "near_variants": {
+  "n_rubrics_hit": 11,
+  "occurrences": 25,
+  "per_family": {
+   "im_wesentlichen_x": 20,
+   "ueberwiegend_x": 2,
+   "kleinere_x": 3
+  }
+ },
+ "degree_only_levels": {
+  "n_rubrics_hit": 0,
+  "n_steps_hit": 0
+ },
+ "any": {
+  "n_rubrics_hit": 16
+ },
+ "d6_active": {
+  "n": 15,
+  "listed_hit": 3,
+  "any_hit": 4
+ },
+ "per_generator": {
+  "Qwen/Qwen3-235B-A22B-Thinking-2507": {
+   "n": 15,
+   "listed_hit": 0,
+   "near_hit": 0,
+   "degree_hit": 0,
+   "any_hit": 0
+  },
+  "Qwen/Qwen3.5-122B-A10B": {
+   "n": 15,
+   "listed_hit": 0,
+   "near_hit": 0,
+   "degree_hit": 0,
+   "any_hit": 0
+  },
+  "Qwen/Qwen3.6-35B-A3B": {
+   "n": 15,
+   "listed_hit": 0,
+   "near_hit": 0,
+   "degree_hit": 0,
+   "any_hit": 0
+  },
+  "claude-opus-4-7": {
+   "n": 15,
+   "listed_hit": 1,
+   "near_hit": 3,
+   "degree_hit": 0,
+   "any_hit": 3
+  },
+  "claude-sonnet-4-6": {
+   "n": 15,
+   "listed_hit": 1,
+   "near_hit": 0,
+   "degree_hit": 0,
+   "any_hit": 1
+  },
+  "deepseek-ai/DeepSeek-V4-Flash": {
+   "n": 15,
+   "listed_hit": 0,
+   "near_hit": 1,
+   "degree_hit": 0,
+   "any_hit": 1
+  },
+  "deepseek-ai/DeepSeek-V4-Pro": {
+   "n": 15,
+   "listed_hit": 2,
+   "near_hit": 5,
+   "degree_hit": 0,
+   "any_hit": 6
+  },
+  "gemini-3.1-flash-lite-preview": {
+   "n": 15,
+   "listed_hit": 0,
+   "near_hit": 0,
+   "degree_hit": 0,
+   "any_hit": 0
+  },
+  "gemini-3.1-pro-preview": {
+   "n": 15,
+   "listed_hit": 3,
+   "near_hit": 0,
+   "degree_hit": 0,
+   "any_hit": 3
+  },
+  "gpt-5.4": {
+   "n": 15,
+   "listed_hit": 0,
+   "near_hit": 2,
+   "degree_hit": 0,
+   "any_hit": 2
+  },
+  "gpt-5.4-mini": {
+   "n": 8,
+   "listed_hit": 0,
+   "near_hit": 0,
+   "degree_hit": 0,
+   "any_hit": 0
+  },
+  "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8": {
+   "n": 12,
+   "listed_hit": 0,
+   "near_hit": 0,
+   "degree_hit": 0,
+   "any_hit": 0
+  }
+ },
+ "per_rubric": [
+  {
+   "rubric_id": "04a7f22f-0207-4420-9660-348f5d6d6ca2",
+   "task_id": "0920a50b-9d08-49d7-89c8-473808f29d85",
+   "generator_model_id": "Qwen/Qwen3.5-122B-A10B",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "089f145e-6335-4387-9a83-70af37d66adc",
+   "task_id": "374fdd48-e89c-4918-8914-03f889700fa4",
+   "generator_model_id": "gpt-5.4",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "0a23279a-8a34-446e-9fe5-489b533c704e",
+   "task_id": "b6420df7-d9f3-4ab4-8099-5a1767985cff",
+   "generator_model_id": "claude-sonnet-4-6",
+   "d6_active": true,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "0a3ef9da-63e8-4ad7-aa85-9b42627e8482",
+   "task_id": "d8f3f9fe-06e6-41b9-ab20-092a05e0ceed",
+   "generator_model_id": "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "0a847c80-25a3-49ce-b6d3-ab103853be94",
+   "task_id": "b0a4b82a-b610-4bd9-a300-5cf8804d512f",
+   "generator_model_id": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "0c60bd31-05f2-419a-853d-7c76378de90b",
+   "task_id": "023ad438-73f1-4983-9e83-fd7cc3ac91e0",
+   "generator_model_id": "deepseek-ai/DeepSeek-V4-Flash",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "0fc2dffc-f7ae-4644-acf2-178eb47c1f2d",
+   "task_id": "d8f3f9fe-06e6-41b9-ab20-092a05e0ceed",
+   "generator_model_id": "gemini-3.1-pro-preview",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "112fd040-1276-4198-ada7-44034488c10a",
+   "task_id": "f7be0ce5-4ce7-4ce9-83bc-1340f79b826e",
+   "generator_model_id": "gemini-3.1-pro-preview",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "146e3834-34c4-4758-ac54-3b824270b9b0",
+   "task_id": "0016b6cc-42ed-4e31-a026-925092b62918",
+   "generator_model_id": "gemini-3.1-flash-lite-preview",
+   "d6_active": true,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "14db8da0-01b7-49f4-9e43-95debf03dbe4",
+   "task_id": "6f5996ab-80d6-4611-a529-a0421fdff314",
+   "generator_model_id": "Qwen/Qwen3.5-122B-A10B",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "1611241c-af67-4e66-9f51-afca179d4fb8",
+   "task_id": "a3c0aa07-9246-4b21-8190-4389261a01a4",
+   "generator_model_id": "Qwen/Qwen3.6-35B-A3B",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "177d9557-c606-468f-b998-d34bf1414bb6",
+   "task_id": "44f8f9cf-3999-4b99-8d7e-e37be3592a60",
+   "generator_model_id": "gemini-3.1-pro-preview",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "19e07994-1074-4a35-bffb-a0fe2cb89341",
+   "task_id": "b01bad13-0b69-4b26-9a03-ecd281afdaa8",
+   "generator_model_id": "gpt-5.4-mini",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "1a159d73-7d92-46c0-944a-53fcd71c8d74",
+   "task_id": "b0a4b82a-b610-4bd9-a300-5cf8804d512f",
+   "generator_model_id": "Qwen/Qwen3.5-122B-A10B",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "1a81da27-00ac-41c0-bb45-1784b0bcec44",
+   "task_id": "b6420df7-d9f3-4ab4-8099-5a1767985cff",
+   "generator_model_id": "gemini-3.1-flash-lite-preview",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "1b36fee3-d012-4b2e-b4d3-80d19980d58c",
+   "task_id": "08218fb0-9e75-47eb-a974-2f19ea2abb5c",
+   "generator_model_id": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "1bf3f923-51b6-4493-a0aa-f1f1d8bde8fd",
+   "task_id": "0016b6cc-42ed-4e31-a026-925092b62918",
+   "generator_model_id": "Qwen/Qwen3.5-122B-A10B",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "1c9e1ff9-6d40-4a99-a2e2-9f63ecfe880d",
+   "task_id": "6f5996ab-80d6-4611-a529-a0421fdff314",
+   "generator_model_id": "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "1dc85d01-873f-4684-97fa-a4412ba7bc33",
+   "task_id": "44f8f9cf-3999-4b99-8d7e-e37be3592a60",
+   "generator_model_id": "claude-sonnet-4-6",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "21462ba3-3e6f-4e2a-8163-ecdb975e60e3",
+   "task_id": "a3c0aa07-9246-4b21-8190-4389261a01a4",
+   "generator_model_id": "gpt-5.4",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "21e17ec8-a5e1-44d7-904b-d55f4e7f0af7",
+   "task_id": "f7be0ce5-4ce7-4ce9-83bc-1340f79b826e",
+   "generator_model_id": "claude-sonnet-4-6",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "23d1bd61-fbab-4f3a-ba19-23c4166aa02f",
+   "task_id": "0920a50b-9d08-49d7-89c8-473808f29d85",
+   "generator_model_id": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "24044184-a9b1-4945-9788-66f2ebb428d8",
+   "task_id": "0920a50b-9d08-49d7-89c8-473808f29d85",
+   "generator_model_id": "claude-sonnet-4-6",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "2500b151-3234-4c09-914d-5de3963eec0a",
+   "task_id": "660fb66a-c6d5-4a3a-ac5f-86507284c00a",
+   "generator_model_id": "gemini-3.1-pro-preview",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "2a59be07-cddd-44e0-9955-0b7b39a6fabd",
+   "task_id": "374fdd48-e89c-4918-8914-03f889700fa4",
+   "generator_model_id": "deepseek-ai/DeepSeek-V4-Flash",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "2b77e838-1d2c-4745-b916-cf20c231c6fe",
+   "task_id": "b6420df7-d9f3-4ab4-8099-5a1767985cff",
+   "generator_model_id": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "2c85179d-69e1-4334-bd56-5a00dc153cea",
+   "task_id": "660fb66a-c6d5-4a3a-ac5f-86507284c00a",
+   "generator_model_id": "deepseek-ai/DeepSeek-V4-Pro",
+   "d6_active": true,
+   "listed": {
+    "gut begründet": 2
+   },
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "2d5bf1ec-31bd-4c01-be37-68c49ec58845",
+   "task_id": "660fb66a-c6d5-4a3a-ac5f-86507284c00a",
+   "generator_model_id": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "2e58d64c-f059-4ae8-9f1e-cf94b58467c7",
+   "task_id": "02aeba6c-5e39-425f-9482-cf91ed1be45d",
+   "generator_model_id": "deepseek-ai/DeepSeek-V4-Pro",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "30732072-cc15-4b7e-9469-1580379922e9",
+   "task_id": "660fb66a-c6d5-4a3a-ac5f-86507284c00a",
+   "generator_model_id": "claude-opus-4-7",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "313fd8e8-c988-4789-8d4d-0263269a2bfd",
+   "task_id": "0016b6cc-42ed-4e31-a026-925092b62918",
+   "generator_model_id": "gemini-3.1-pro-preview",
+   "d6_active": false,
+   "listed": {
+    "gut begründet": 1
+   },
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "316c970c-28f3-41f0-bfb0-baa4108642c6",
+   "task_id": "b01bad13-0b69-4b26-9a03-ecd281afdaa8",
+   "generator_model_id": "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "35ab15aa-eb0e-4d11-9555-4ed8e53b0d0e",
+   "task_id": "02aeba6c-5e39-425f-9482-cf91ed1be45d",
+   "generator_model_id": "claude-sonnet-4-6",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "36923403-db4b-4bd7-bc1a-d4d3ad377d37",
+   "task_id": "374fdd48-e89c-4918-8914-03f889700fa4",
+   "generator_model_id": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "3759b27d-4a30-4170-9481-6b379085920e",
+   "task_id": "b6420df7-d9f3-4ab4-8099-5a1767985cff",
+   "generator_model_id": "deepseek-ai/DeepSeek-V4-Flash",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "38d10316-22f3-4fde-b7b6-a8500f66fef6",
+   "task_id": "660fb66a-c6d5-4a3a-ac5f-86507284c00a",
+   "generator_model_id": "gpt-5.4-mini",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "3905162e-9f29-4320-b522-c69b511e8171",
+   "task_id": "44f8f9cf-3999-4b99-8d7e-e37be3592a60",
+   "generator_model_id": "gemini-3.1-flash-lite-preview",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "39665dd1-58d7-4fca-962e-018858bde168",
+   "task_id": "02aeba6c-5e39-425f-9482-cf91ed1be45d",
+   "generator_model_id": "Qwen/Qwen3.5-122B-A10B",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "3a3cefc4-f073-4876-b621-869c46e4a5d5",
+   "task_id": "b01bad13-0b69-4b26-9a03-ecd281afdaa8",
+   "generator_model_id": "gemini-3.1-pro-preview",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "3b562145-b99b-4a79-82ed-67a7f9775dc6",
+   "task_id": "02aeba6c-5e39-425f-9482-cf91ed1be45d",
+   "generator_model_id": "claude-opus-4-7",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "3c50676b-125e-45f0-8691-bbb19416c2a1",
+   "task_id": "d8f3f9fe-06e6-41b9-ab20-092a05e0ceed",
+   "generator_model_id": "claude-opus-4-7",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "3cb14dfb-a0c0-4645-b2f1-64ba1c88a09c",
+   "task_id": "b0a4b82a-b610-4bd9-a300-5cf8804d512f",
+   "generator_model_id": "gemini-3.1-pro-preview",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "3e6fffb3-e936-4ce9-a463-ed3436a0e30d",
+   "task_id": "0920a50b-9d08-49d7-89c8-473808f29d85",
+   "generator_model_id": "gemini-3.1-flash-lite-preview",
+   "d6_active": true,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "42c2dd27-fa48-42fc-848b-85f13a02f5f8",
+   "task_id": "a3c0aa07-9246-4b21-8190-4389261a01a4",
+   "generator_model_id": "deepseek-ai/DeepSeek-V4-Pro",
+   "d6_active": false,
+   "listed": {
+    "gut begründet": 3
+   },
+   "near_variants": {
+    "im_wesentlichen_x": 2
+   },
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "4493e5fd-6eb6-4b5c-8cbc-1439969fe832",
+   "task_id": "b0a4b82a-b610-4bd9-a300-5cf8804d512f",
+   "generator_model_id": "gpt-5.4",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "4596204d-c725-47d1-8699-bbc076ad32dd",
+   "task_id": "f7be0ce5-4ce7-4ce9-83bc-1340f79b826e",
+   "generator_model_id": "gemini-3.1-flash-lite-preview",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "46dabca5-a58c-4876-9ac1-f0deb32e26c7",
+   "task_id": "08218fb0-9e75-47eb-a974-2f19ea2abb5c",
+   "generator_model_id": "gemini-3.1-flash-lite-preview",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "47813761-ed7e-476c-aee0-46fd09c6789a",
+   "task_id": "0920a50b-9d08-49d7-89c8-473808f29d85",
+   "generator_model_id": "claude-opus-4-7",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "479ae30e-a92c-4830-835e-7e56befe5c2b",
+   "task_id": "d8f3f9fe-06e6-41b9-ab20-092a05e0ceed",
+   "generator_model_id": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "4a5767b7-8292-46cb-9804-cced81d239a3",
+   "task_id": "a3c0aa07-9246-4b21-8190-4389261a01a4",
+   "generator_model_id": "claude-sonnet-4-6",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "4bba1548-ae3b-4c8b-ac6c-3dafef5fc420",
+   "task_id": "374fdd48-e89c-4918-8914-03f889700fa4",
+   "generator_model_id": "deepseek-ai/DeepSeek-V4-Pro",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "4c42af45-04bd-4d8e-abd7-90018bc21434",
+   "task_id": "d8f3f9fe-06e6-41b9-ab20-092a05e0ceed",
+   "generator_model_id": "gemini-3.1-flash-lite-preview",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "4cc32b9e-7891-4c67-8796-0af241621b8d",
+   "task_id": "0016b6cc-42ed-4e31-a026-925092b62918",
+   "generator_model_id": "claude-opus-4-7",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "4f53b4de-9125-41fd-9718-cf8c7efc0f7e",
+   "task_id": "08218fb0-9e75-47eb-a974-2f19ea2abb5c",
+   "generator_model_id": "gemini-3.1-pro-preview",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "4fce9cd9-3f97-4481-b72b-e9e02ea4bda1",
+   "task_id": "b0a4b82a-b610-4bd9-a300-5cf8804d512f",
+   "generator_model_id": "deepseek-ai/DeepSeek-V4-Flash",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {
+    "im_wesentlichen_x": 3
+   },
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "5093f150-271a-41d7-9bee-604356669f4e",
+   "task_id": "08218fb0-9e75-47eb-a974-2f19ea2abb5c",
+   "generator_model_id": "claude-opus-4-7",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {
+    "im_wesentlichen_x": 1
+   },
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "51a9d200-504f-40de-bb2e-6cd59d1ff7cd",
+   "task_id": "0016b6cc-42ed-4e31-a026-925092b62918",
+   "generator_model_id": "gpt-5.4-mini",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "522545bd-0a04-413a-899a-f391085597ad",
+   "task_id": "f7be0ce5-4ce7-4ce9-83bc-1340f79b826e",
+   "generator_model_id": "gpt-5.4",
+   "d6_active": true,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "52e4b70b-a4dd-46b8-81fb-ad70f2c7b233",
+   "task_id": "374fdd48-e89c-4918-8914-03f889700fa4",
+   "generator_model_id": "Qwen/Qwen3.6-35B-A3B",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "546cd40a-5376-436e-8eb1-e9da109297e0",
+   "task_id": "b6420df7-d9f3-4ab4-8099-5a1767985cff",
+   "generator_model_id": "claude-opus-4-7",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "582fd6f1-a77b-415e-ae85-9f437b1903fe",
+   "task_id": "a3c0aa07-9246-4b21-8190-4389261a01a4",
+   "generator_model_id": "gemini-3.1-flash-lite-preview",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "58be4a78-62fe-4c6e-8db6-618c33cfef4d",
+   "task_id": "b6420df7-d9f3-4ab4-8099-5a1767985cff",
+   "generator_model_id": "Qwen/Qwen3.5-122B-A10B",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "5a64240c-ae0e-48d7-8a14-1818caf75f31",
+   "task_id": "023ad438-73f1-4983-9e83-fd7cc3ac91e0",
+   "generator_model_id": "gemini-3.1-pro-preview",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "5b65be77-5a2f-4dcb-9c89-28fd9c01bcfc",
+   "task_id": "02aeba6c-5e39-425f-9482-cf91ed1be45d",
+   "generator_model_id": "gemini-3.1-pro-preview",
+   "d6_active": false,
+   "listed": {
+    "gut begründet": 1
+   },
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "5f16265e-4bef-48c9-9fe5-ded06343814a",
+   "task_id": "08218fb0-9e75-47eb-a974-2f19ea2abb5c",
+   "generator_model_id": "Qwen/Qwen3.6-35B-A3B",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "6222a21e-8fd1-48c2-9944-c315e73d4804",
+   "task_id": "b01bad13-0b69-4b26-9a03-ecd281afdaa8",
+   "generator_model_id": "gemini-3.1-flash-lite-preview",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "631f4422-fcec-4184-af7c-bcd93a55bc00",
+   "task_id": "b01bad13-0b69-4b26-9a03-ecd281afdaa8",
+   "generator_model_id": "deepseek-ai/DeepSeek-V4-Flash",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "64e70e99-f1c0-4506-af07-778c117200c3",
+   "task_id": "660fb66a-c6d5-4a3a-ac5f-86507284c00a",
+   "generator_model_id": "Qwen/Qwen3.6-35B-A3B",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "676d4491-135b-4fa9-8036-81501b475960",
+   "task_id": "d8f3f9fe-06e6-41b9-ab20-092a05e0ceed",
+   "generator_model_id": "deepseek-ai/DeepSeek-V4-Pro",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {
+    "im_wesentlichen_x": 5
+   },
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "67e7ab64-9ffe-49c5-aa3c-3738078d9405",
+   "task_id": "b6420df7-d9f3-4ab4-8099-5a1767985cff",
+   "generator_model_id": "gpt-5.4",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "68881963-33c5-4c7a-ab73-8972440b5747",
+   "task_id": "0016b6cc-42ed-4e31-a026-925092b62918",
+   "generator_model_id": "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "68ce2500-97d3-4856-a532-60bfdba1dbc6",
+   "task_id": "08218fb0-9e75-47eb-a974-2f19ea2abb5c",
+   "generator_model_id": "deepseek-ai/DeepSeek-V4-Pro",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "6b46d40f-7d96-49fc-bc11-238cdc9db460",
+   "task_id": "b6420df7-d9f3-4ab4-8099-5a1767985cff",
+   "generator_model_id": "deepseek-ai/DeepSeek-V4-Pro",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "6e77ec2c-748f-4687-925f-d77110c48841",
+   "task_id": "f7be0ce5-4ce7-4ce9-83bc-1340f79b826e",
+   "generator_model_id": "Qwen/Qwen3.5-122B-A10B",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "6e89e723-cb2f-4a3a-ae85-ccdd159502e6",
+   "task_id": "b01bad13-0b69-4b26-9a03-ecd281afdaa8",
+   "generator_model_id": "claude-opus-4-7",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "6f3c4664-a7b8-4668-8813-8dcf8071746c",
+   "task_id": "44f8f9cf-3999-4b99-8d7e-e37be3592a60",
+   "generator_model_id": "gpt-5.4",
+   "d6_active": true,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "70153322-af01-4a31-a9ca-4cd8f6057a98",
+   "task_id": "0920a50b-9d08-49d7-89c8-473808f29d85",
+   "generator_model_id": "gpt-5.4",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "71657a3b-9fbc-4171-a60d-96bb8d776800",
+   "task_id": "f7be0ce5-4ce7-4ce9-83bc-1340f79b826e",
+   "generator_model_id": "deepseek-ai/DeepSeek-V4-Pro",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "747965a3-7285-4599-bb13-25925199dfeb",
+   "task_id": "374fdd48-e89c-4918-8914-03f889700fa4",
+   "generator_model_id": "claude-opus-4-7",
+   "d6_active": true,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "7993a201-091e-40d9-ba9d-9d27bcc0c80c",
+   "task_id": "44f8f9cf-3999-4b99-8d7e-e37be3592a60",
+   "generator_model_id": "deepseek-ai/DeepSeek-V4-Flash",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "7c191666-44ee-45ab-a87a-7618340432ef",
+   "task_id": "b01bad13-0b69-4b26-9a03-ecd281afdaa8",
+   "generator_model_id": "gpt-5.4",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "7eaf14b6-6dd0-4029-8649-f4b390475cba",
+   "task_id": "b0a4b82a-b610-4bd9-a300-5cf8804d512f",
+   "generator_model_id": "gemini-3.1-flash-lite-preview",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "807b3a56-c4d2-42bf-81f7-5703a3760e2d",
+   "task_id": "0920a50b-9d08-49d7-89c8-473808f29d85",
+   "generator_model_id": "Qwen/Qwen3.6-35B-A3B",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "8124a36a-98a1-4ddf-bf95-cbd62ae37ba2",
+   "task_id": "6f5996ab-80d6-4611-a529-a0421fdff314",
+   "generator_model_id": "claude-sonnet-4-6",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "826b65d1-17be-41e9-8a5b-c3263aadf1bb",
+   "task_id": "0920a50b-9d08-49d7-89c8-473808f29d85",
+   "generator_model_id": "deepseek-ai/DeepSeek-V4-Pro",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "88cf82a7-1a25-45f7-82bc-3a95bd42d5f4",
+   "task_id": "6f5996ab-80d6-4611-a529-a0421fdff314",
+   "generator_model_id": "deepseek-ai/DeepSeek-V4-Pro",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "895fb4ee-2a16-4d06-9cbe-4c44aafa9e7e",
+   "task_id": "6f5996ab-80d6-4611-a529-a0421fdff314",
+   "generator_model_id": "gpt-5.4-mini",
+   "d6_active": true,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "8a557009-1572-4917-9444-5dcc5e91038b",
+   "task_id": "0920a50b-9d08-49d7-89c8-473808f29d85",
+   "generator_model_id": "gpt-5.4-mini",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "8a780400-1365-49b0-80aa-ee84f4489bb0",
+   "task_id": "b6420df7-d9f3-4ab4-8099-5a1767985cff",
+   "generator_model_id": "Qwen/Qwen3.6-35B-A3B",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "8cc7c721-6fc1-46fa-a15a-4fba74be4b4e",
+   "task_id": "023ad438-73f1-4983-9e83-fd7cc3ac91e0",
+   "generator_model_id": "claude-sonnet-4-6",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "8e2f028d-369e-4748-8054-accd612c743b",
+   "task_id": "a3c0aa07-9246-4b21-8190-4389261a01a4",
+   "generator_model_id": "claude-opus-4-7",
+   "d6_active": true,
+   "listed": {},
+   "near_variants": {
+    "im_wesentlichen_x": 1
+   },
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "8e9ac6cb-20c7-4fba-a479-04f8e90ca3d1",
+   "task_id": "0920a50b-9d08-49d7-89c8-473808f29d85",
+   "generator_model_id": "gemini-3.1-pro-preview",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "9038487d-57ef-43f5-bdff-df649df41f0b",
+   "task_id": "a3c0aa07-9246-4b21-8190-4389261a01a4",
+   "generator_model_id": "deepseek-ai/DeepSeek-V4-Flash",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "92aaa208-60a3-4a4e-819b-1f3358fce1d5",
+   "task_id": "6f5996ab-80d6-4611-a529-a0421fdff314",
+   "generator_model_id": "gemini-3.1-flash-lite-preview",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "92d24b33-c55a-403e-9118-caf2a6951716",
+   "task_id": "02aeba6c-5e39-425f-9482-cf91ed1be45d",
+   "generator_model_id": "deepseek-ai/DeepSeek-V4-Flash",
+   "d6_active": true,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "93f07851-38c9-4b9f-800a-63b5705ba504",
+   "task_id": "0920a50b-9d08-49d7-89c8-473808f29d85",
+   "generator_model_id": "deepseek-ai/DeepSeek-V4-Flash",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "95bfc2f1-2fd4-4eb5-b936-fbfad825ef10",
+   "task_id": "b01bad13-0b69-4b26-9a03-ecd281afdaa8",
+   "generator_model_id": "Qwen/Qwen3.5-122B-A10B",
+   "d6_active": true,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "964d2190-408c-4e7a-a7ca-1bfc1bbe83fc",
+   "task_id": "08218fb0-9e75-47eb-a974-2f19ea2abb5c",
+   "generator_model_id": "claude-sonnet-4-6",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "96aaf689-dfc5-45bd-8aa8-c9d046ed80f6",
+   "task_id": "023ad438-73f1-4983-9e83-fd7cc3ac91e0",
+   "generator_model_id": "gemini-3.1-flash-lite-preview",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "97618e6a-a467-4727-bff9-9c30f091f624",
+   "task_id": "660fb66a-c6d5-4a3a-ac5f-86507284c00a",
+   "generator_model_id": "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "9dabb922-8dff-4305-a5c5-a3e6a389070f",
+   "task_id": "44f8f9cf-3999-4b99-8d7e-e37be3592a60",
+   "generator_model_id": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "9e039036-9e2b-4b5e-81e6-34fcc3720e87",
+   "task_id": "374fdd48-e89c-4918-8914-03f889700fa4",
+   "generator_model_id": "claude-sonnet-4-6",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "9eb3444a-d9d9-4f88-a13b-97c354277e7b",
+   "task_id": "02aeba6c-5e39-425f-9482-cf91ed1be45d",
+   "generator_model_id": "gpt-5.4",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "9f65d276-e505-4c6b-b06e-f49e50cf3318",
+   "task_id": "08218fb0-9e75-47eb-a974-2f19ea2abb5c",
+   "generator_model_id": "gpt-5.4",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {
+    "im_wesentlichen_x": 2
+   },
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "a269cc77-e06c-463a-ad0f-187fa31b2bc8",
+   "task_id": "660fb66a-c6d5-4a3a-ac5f-86507284c00a",
+   "generator_model_id": "Qwen/Qwen3.5-122B-A10B",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "a34a2293-2b97-4ef3-a658-d98c8dd76d0b",
+   "task_id": "b6420df7-d9f3-4ab4-8099-5a1767985cff",
+   "generator_model_id": "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "a8bc1722-9877-4f0e-9ee0-90e41c99b480",
+   "task_id": "023ad438-73f1-4983-9e83-fd7cc3ac91e0",
+   "generator_model_id": "gpt-5.4",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {
+    "im_wesentlichen_x": 1
+   },
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "a9f0c6d3-a3bd-4f79-98bd-7f548f52e116",
+   "task_id": "b0a4b82a-b610-4bd9-a300-5cf8804d512f",
+   "generator_model_id": "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "aa7d81ea-5b49-4b2d-a26e-1c702409c686",
+   "task_id": "660fb66a-c6d5-4a3a-ac5f-86507284c00a",
+   "generator_model_id": "gpt-5.4",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "aabeff74-971c-4fb2-aa83-1074c31f54ad",
+   "task_id": "374fdd48-e89c-4918-8914-03f889700fa4",
+   "generator_model_id": "gemini-3.1-flash-lite-preview",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "aaffb7bb-7cfe-41f7-b0e8-6efcb45a78e0",
+   "task_id": "0920a50b-9d08-49d7-89c8-473808f29d85",
+   "generator_model_id": "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "ace0e0c7-92c6-41e0-a157-8d0cc2ec7831",
+   "task_id": "02aeba6c-5e39-425f-9482-cf91ed1be45d",
+   "generator_model_id": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "af45c2e7-d539-446c-9fb8-31a7f937807f",
+   "task_id": "d8f3f9fe-06e6-41b9-ab20-092a05e0ceed",
+   "generator_model_id": "gpt-5.4",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "b06f6fa8-669e-461e-a5d6-7b6a2d548ea7",
+   "task_id": "f7be0ce5-4ce7-4ce9-83bc-1340f79b826e",
+   "generator_model_id": "claude-opus-4-7",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "b1c60e33-4466-4a8b-afc1-13568ee6da4b",
+   "task_id": "0016b6cc-42ed-4e31-a026-925092b62918",
+   "generator_model_id": "deepseek-ai/DeepSeek-V4-Flash",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "b2317417-9110-4151-a863-b13784d8c03e",
+   "task_id": "6f5996ab-80d6-4611-a529-a0421fdff314",
+   "generator_model_id": "Qwen/Qwen3.6-35B-A3B",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "b35a548e-e693-445c-bcd2-801d7ed1239e",
+   "task_id": "44f8f9cf-3999-4b99-8d7e-e37be3592a60",
+   "generator_model_id": "Qwen/Qwen3.5-122B-A10B",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "b51cabbc-6840-4017-9521-023658b1c8bf",
+   "task_id": "d8f3f9fe-06e6-41b9-ab20-092a05e0ceed",
+   "generator_model_id": "Qwen/Qwen3.6-35B-A3B",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "b5d7b556-d645-4225-8df1-2f4dececfc04",
+   "task_id": "44f8f9cf-3999-4b99-8d7e-e37be3592a60",
+   "generator_model_id": "gpt-5.4-mini",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "b7581ee5-d859-4835-b71d-0d46968e6d2c",
+   "task_id": "b01bad13-0b69-4b26-9a03-ecd281afdaa8",
+   "generator_model_id": "claude-sonnet-4-6",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "b8eca26e-a820-4f8c-9a6c-c747fbbaadd2",
+   "task_id": "44f8f9cf-3999-4b99-8d7e-e37be3592a60",
+   "generator_model_id": "claude-opus-4-7",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "b9f58ddc-7d65-4b4e-aefe-1cd56036f3a6",
+   "task_id": "6f5996ab-80d6-4611-a529-a0421fdff314",
+   "generator_model_id": "gemini-3.1-pro-preview",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "bcd8d89d-371c-4913-b12a-2d9ed16efce7",
+   "task_id": "023ad438-73f1-4983-9e83-fd7cc3ac91e0",
+   "generator_model_id": "Qwen/Qwen3.5-122B-A10B",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "c0a9988f-be41-47a7-8a7d-8b83c885e2cb",
+   "task_id": "b01bad13-0b69-4b26-9a03-ecd281afdaa8",
+   "generator_model_id": "Qwen/Qwen3.6-35B-A3B",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "c15d693c-f4e3-481b-895f-f7562cba83c1",
+   "task_id": "d8f3f9fe-06e6-41b9-ab20-092a05e0ceed",
+   "generator_model_id": "deepseek-ai/DeepSeek-V4-Flash",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "c48b0cb7-5565-4a09-ad05-97b4b078e99b",
+   "task_id": "02aeba6c-5e39-425f-9482-cf91ed1be45d",
+   "generator_model_id": "Qwen/Qwen3.6-35B-A3B",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "c6763436-9861-48f0-afae-0fba3996db8e",
+   "task_id": "023ad438-73f1-4983-9e83-fd7cc3ac91e0",
+   "generator_model_id": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "c6c926f5-6c99-4aa0-9533-051e22975146",
+   "task_id": "6f5996ab-80d6-4611-a529-a0421fdff314",
+   "generator_model_id": "claude-opus-4-7",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "c81846a2-f617-4f00-a507-dc95586bd65f",
+   "task_id": "b0a4b82a-b610-4bd9-a300-5cf8804d512f",
+   "generator_model_id": "claude-sonnet-4-6",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "ca13fc24-c5a2-48b5-a9fe-b2310d06cf54",
+   "task_id": "023ad438-73f1-4983-9e83-fd7cc3ac91e0",
+   "generator_model_id": "Qwen/Qwen3.6-35B-A3B",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "ca40a9be-b15d-4067-bde0-299088218547",
+   "task_id": "0016b6cc-42ed-4e31-a026-925092b62918",
+   "generator_model_id": "claude-sonnet-4-6",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "cabd36bc-edc4-4ea9-b454-5e37267a5f3b",
+   "task_id": "a3c0aa07-9246-4b21-8190-4389261a01a4",
+   "generator_model_id": "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "cb513944-bd70-496a-a38d-1dd741801323",
+   "task_id": "023ad438-73f1-4983-9e83-fd7cc3ac91e0",
+   "generator_model_id": "deepseek-ai/DeepSeek-V4-Pro",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {
+    "ueberwiegend_x": 2
+   },
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "cd0cbf37-71a4-4ee8-b6d3-b476510bc4ec",
+   "task_id": "374fdd48-e89c-4918-8914-03f889700fa4",
+   "generator_model_id": "gemini-3.1-pro-preview",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "ce04c39a-fa07-47a7-b8be-4e113d35c6de",
+   "task_id": "0016b6cc-42ed-4e31-a026-925092b62918",
+   "generator_model_id": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "ce75f3df-8728-407b-a816-8718c70b90d4",
+   "task_id": "f7be0ce5-4ce7-4ce9-83bc-1340f79b826e",
+   "generator_model_id": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "cf801e40-a2ad-4cfc-98f0-72b3d9ca45c9",
+   "task_id": "44f8f9cf-3999-4b99-8d7e-e37be3592a60",
+   "generator_model_id": "Qwen/Qwen3.6-35B-A3B",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "d14c07ee-58de-4088-ae98-fd36b2c459ca",
+   "task_id": "f7be0ce5-4ce7-4ce9-83bc-1340f79b826e",
+   "generator_model_id": "Qwen/Qwen3.6-35B-A3B",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "d5c6669a-3f52-4c39-a0de-3516f7553a7e",
+   "task_id": "a3c0aa07-9246-4b21-8190-4389261a01a4",
+   "generator_model_id": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "d5c96513-7dd7-4d1b-9240-9b056caa8064",
+   "task_id": "d8f3f9fe-06e6-41b9-ab20-092a05e0ceed",
+   "generator_model_id": "claude-sonnet-4-6",
+   "d6_active": true,
+   "listed": {
+    "im Wesentlichen richtig": 1
+   },
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "d6519a4c-1ea1-439b-b4fe-ef248feec5ef",
+   "task_id": "a3c0aa07-9246-4b21-8190-4389261a01a4",
+   "generator_model_id": "gemini-3.1-pro-preview",
+   "d6_active": false,
+   "listed": {
+    "gut begründet": 1
+   },
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "d750c510-d5a2-468e-811f-077d94d6f37c",
+   "task_id": "660fb66a-c6d5-4a3a-ac5f-86507284c00a",
+   "generator_model_id": "claude-sonnet-4-6",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "d7735dad-e953-4270-8adf-d961b4248923",
+   "task_id": "6f5996ab-80d6-4611-a529-a0421fdff314",
+   "generator_model_id": "gpt-5.4",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "d89a1090-d832-465b-9ef6-7da10a88060a",
+   "task_id": "374fdd48-e89c-4918-8914-03f889700fa4",
+   "generator_model_id": "Qwen/Qwen3.5-122B-A10B",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "d8a4fc45-7e1e-4243-bd9e-45b73cd04ae7",
+   "task_id": "02aeba6c-5e39-425f-9482-cf91ed1be45d",
+   "generator_model_id": "gemini-3.1-flash-lite-preview",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "d9703262-c7cd-41d1-a9a5-c0ddef36f772",
+   "task_id": "660fb66a-c6d5-4a3a-ac5f-86507284c00a",
+   "generator_model_id": "deepseek-ai/DeepSeek-V4-Flash",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "da218fe4-cda6-4471-8a45-6566ed844875",
+   "task_id": "d8f3f9fe-06e6-41b9-ab20-092a05e0ceed",
+   "generator_model_id": "Qwen/Qwen3.5-122B-A10B",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "df10a719-7268-4c77-a274-c46b0653b292",
+   "task_id": "6f5996ab-80d6-4611-a529-a0421fdff314",
+   "generator_model_id": "deepseek-ai/DeepSeek-V4-Flash",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "e21bb8cc-d0a5-45b0-9c8f-8b14d1fbe281",
+   "task_id": "02aeba6c-5e39-425f-9482-cf91ed1be45d",
+   "generator_model_id": "gpt-5.4-mini",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "e2cf8ab2-8643-4864-82b4-aa123d01305f",
+   "task_id": "b0a4b82a-b610-4bd9-a300-5cf8804d512f",
+   "generator_model_id": "deepseek-ai/DeepSeek-V4-Pro",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {
+    "im_wesentlichen_x": 3
+   },
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "e474e3ef-b673-492e-92ea-5a0467743f8f",
+   "task_id": "6f5996ab-80d6-4611-a529-a0421fdff314",
+   "generator_model_id": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "e47ce33b-24ed-47a9-97cf-e447a3481349",
+   "task_id": "08218fb0-9e75-47eb-a974-2f19ea2abb5c",
+   "generator_model_id": "deepseek-ai/DeepSeek-V4-Flash",
+   "d6_active": true,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "e5caa450-c704-40eb-b43b-d4352466ac67",
+   "task_id": "44f8f9cf-3999-4b99-8d7e-e37be3592a60",
+   "generator_model_id": "deepseek-ai/DeepSeek-V4-Pro",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "e7553b83-238d-4087-93d3-4df5873354d7",
+   "task_id": "08218fb0-9e75-47eb-a974-2f19ea2abb5c",
+   "generator_model_id": "Qwen/Qwen3.5-122B-A10B",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "e84c01ed-d0e0-40cf-85e6-ab790e702269",
+   "task_id": "08218fb0-9e75-47eb-a974-2f19ea2abb5c",
+   "generator_model_id": "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "e9490e75-3456-484d-8600-e1be3e4010e2",
+   "task_id": "f7be0ce5-4ce7-4ce9-83bc-1340f79b826e",
+   "generator_model_id": "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "ea659f02-bd29-4651-be8e-51c793a39c52",
+   "task_id": "b01bad13-0b69-4b26-9a03-ecd281afdaa8",
+   "generator_model_id": "deepseek-ai/DeepSeek-V4-Pro",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {
+    "im_wesentlichen_x": 2,
+    "kleinere_x": 1
+   },
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "ea9941c6-f708-455a-88e3-35515fb84d93",
+   "task_id": "a3c0aa07-9246-4b21-8190-4389261a01a4",
+   "generator_model_id": "Qwen/Qwen3.5-122B-A10B",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "eb004449-05aa-477a-b1c3-e3709fcd8603",
+   "task_id": "b6420df7-d9f3-4ab4-8099-5a1767985cff",
+   "generator_model_id": "gpt-5.4-mini",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "ebb4e5cf-ac95-4289-853a-4fd412269ebb",
+   "task_id": "374fdd48-e89c-4918-8914-03f889700fa4",
+   "generator_model_id": "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "ebb61456-40f1-4ff0-8ea2-5b5e36a64b90",
+   "task_id": "0016b6cc-42ed-4e31-a026-925092b62918",
+   "generator_model_id": "gpt-5.4",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "f083cd34-b762-4e81-85c0-50fe3f3b12da",
+   "task_id": "b0a4b82a-b610-4bd9-a300-5cf8804d512f",
+   "generator_model_id": "claude-opus-4-7",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "f16e9986-f4fe-4698-ad66-c53d9a79467f",
+   "task_id": "f7be0ce5-4ce7-4ce9-83bc-1340f79b826e",
+   "generator_model_id": "deepseek-ai/DeepSeek-V4-Flash",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "f2414904-725a-4cbf-af71-55c5d8e1f1d0",
+   "task_id": "0016b6cc-42ed-4e31-a026-925092b62918",
+   "generator_model_id": "deepseek-ai/DeepSeek-V4-Pro",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "f24f2834-ccb6-41f9-843f-5961fe40b939",
+   "task_id": "023ad438-73f1-4983-9e83-fd7cc3ac91e0",
+   "generator_model_id": "claude-opus-4-7",
+   "d6_active": true,
+   "listed": {
+    "im Wesentlichen richtig": 1
+   },
+   "near_variants": {
+    "kleinere_x": 2
+   },
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "f48dc813-5b34-4bff-a290-61b16960d52c",
+   "task_id": "0016b6cc-42ed-4e31-a026-925092b62918",
+   "generator_model_id": "Qwen/Qwen3.6-35B-A3B",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "f7c38fdc-ef14-457c-9b93-9e9de39e0c01",
+   "task_id": "b0a4b82a-b610-4bd9-a300-5cf8804d512f",
+   "generator_model_id": "Qwen/Qwen3.6-35B-A3B",
+   "d6_active": true,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "f8fd5fc6-aeee-4112-95bd-c11d9734f9aa",
+   "task_id": "b6420df7-d9f3-4ab4-8099-5a1767985cff",
+   "generator_model_id": "gemini-3.1-pro-preview",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "fb59c00d-2c9c-41bb-9750-4be4797ba83d",
+   "task_id": "660fb66a-c6d5-4a3a-ac5f-86507284c00a",
+   "generator_model_id": "gemini-3.1-flash-lite-preview",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  },
+  {
+   "rubric_id": "ffb61033-d52c-4955-bc1d-7e29a4f26587",
+   "task_id": "b01bad13-0b69-4b26-9a03-ecd281afdaa8",
+   "generator_model_id": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+   "d6_active": false,
+   "listed": {},
+   "near_variants": {},
+   "degree_only_level_steps": []
+  }
+ ]
+}

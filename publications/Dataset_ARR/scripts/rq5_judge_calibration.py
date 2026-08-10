@@ -275,6 +275,11 @@ def main():
     baseline_by_sol_h = {k: float(v["raw_score"]) for k, v in baseline_idx_h.items()
                          if v.get("raw_score") is not None}
     model_evals = load_json(PROCESSED / "benchathon_model_evaluations.json")
+    # One validation pick is an April-2026 generation superseded in the
+    # leaderboard pool; union its judge row back in for the pick joins.
+    _sup = PROCESSED / "benchathon_superseded_evaluations.json"
+    if _sup.exists():
+        model_evals = model_evals + load_json(_sup)
     baseline_by_sol_l = {r["generation_id"]: float(r["raw_score"]) for r in model_evals
                          if r.get("raw_score") is not None}
 

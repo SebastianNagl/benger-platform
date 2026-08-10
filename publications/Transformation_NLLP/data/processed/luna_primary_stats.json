@@ -1,0 +1,59 @@
+{
+ "n_common_cells": 43,
+ "validity_annotations": {
+  "mini_first_pass": {
+   "n": 30,
+   "pearson": 0.4107472089358974,
+   "mae": 19.4375
+  },
+  "mini_mean3": {
+   "n": 30,
+   "pearson": 0.4647074715104764,
+   "mae": 17.420833333333334
+  },
+  "luna_first_pass": {
+   "n": 30,
+   "pearson": 0.7690939953034603,
+   "mae": 12.8125
+  },
+  "luna_mean3": {
+   "n": 30,
+   "pearson": 0.7583491779262614,
+   "mae": 13.493055555555555
+  }
+ },
+ "repeats": {
+  "mini": {
+   "n": 45,
+   "mean_within_cell_stdev": 5.523387110502696
+  },
+  "luna": {
+   "n": 45,
+   "mean_within_cell_stdev": 1.9725035511799418
+  }
+ },
+ "panel_within_cell_sd_mean": {
+  "control_mini_panel": 8.115224103702994,
+  "tailored_mini_panel": 10.232756537993435,
+  "tailored_luna_panel": 7.200030147636335
+ },
+ "p01": {
+  "mini_runs": {
+   "0": 99.0,
+   "1": 100.0,
+   "2": 100.0
+  },
+  "luna_runs": {
+   "0": 0.0,
+   "1": 0.0,
+   "2": 0.0
+  },
+  "flagships": {
+   "claude-opus-4-7": 0.0,
+   "claude-sonnet-4-6": 0.0,
+   "gemini-3.1-pro-preview": 0.0,
+   "deepseek-ai/DeepSeek-V4-Pro": 0.0,
+   "Qwen/Qwen3.5-397B-A17B": 0.0
+  }
+ }
+}

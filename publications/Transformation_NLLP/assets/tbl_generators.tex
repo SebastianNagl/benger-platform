@@ -1,0 +1,26 @@
+\begin{table*}[t]
+\centering
+\scriptsize\setlength{\tabcolsep}{4pt}
+\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}lrrrrrrr@{}}
+\toprule
+Rubric source & rubrics & $r$ (Luna) & MAE & bias & rep.\ SD & $\Delta$MAE & rank \\
+\midrule
+gemini-3.1-flash-lite & 15 & 0.816 & 11.4 & $2.0$ & 2.40 & $-2.4$ & 2 [1–10] \\
+Qwen3-235B-Think & 15 & 0.808 & 12.0 & $-5.5$ & 2.19 & $-1.9$ & 3 [1–8] \\
+Qwen3.6-35B-A3B & 15 & 0.778 & 12.5 & $-4.9$ & 2.21 & $-1.4$ & 4 [1–8] \\
+gpt-5.4 & 15 & 0.799 & 12.6 & $-6.2$ & 1.80 & $-1.2$ & 5 [2–8] \\
+Qwen3.5-122B-A10B & 15 & 0.760 & 12.8 & $1.3$ & 1.73 & $-1.1$ & 5 [1–10] \\
+gemini-3.1-pro & 15 & 0.745 & 14.4 & $-9.0$ & 1.97 & $+0.6$ & 8 [2–12] \\
+claude-opus-4-7 & 15 & 0.790 & 14.7 & $-11.0$ & 1.86 & $+0.9$ & 8 [4–11] \\
+claude-sonnet-4-6 & 15 & 0.807 & 15.5 & $-14.5$ & 1.70 & $+1.7$ & 10 [5–12] \\
+DeepSeek-V4-Pro & 15 & 0.791 & 15.6 & $-11.6$ & 1.93 & $+1.8$ & 10 [7–12] \\
+DeepSeek-V4-Flash & 15 & 0.403 & 16.4 & $-3.5$ & 3.18 & $+2.6$ & 11 [4–12] \\
+\midrule
+\multicolumn{8}{@{}l}{\emph{Incomplete coverage (quality when schema-conformant; survivorship-conditional):}} \\
+gpt-5.4-mini & 8 & 0.882 & 10.3 & $-0.5$ & 1.66 & $-3.2$ & 2 [1–8] \\
+Llama-4-Maverick & 12 & 0.775 & 15.9 & $9.8$ & 4.07 & $+2.7$ & 11 [5–12] \\
+\bottomrule
+\end{tabular*}
+\caption{Rubric sources ranked by outcome under the Luna lens (within-exam-paired $\Delta$MAE; negative = better than the exam's cross-source mean): agreement $r$, MAE, signed bias vs the human anchor, three-pass repeat SD. Rank: bootstrap median and 95\% interval over exam resamples – individual ranks carry wide intervals. Sonnet replication: Table \ref{tab:generators-sonnet}.}
+\label{tab:generators}
+\end{table*}

@@ -511,16 +511,23 @@ describe('onDataLoaded fall-back from results_by_config', () => {
 
     render(<EvaluationResults projectId="p1" onDataLoaded={onDataLoaded} />)
 
-    await waitFor(() => expect(onDataLoaded).toHaveBeenCalled())
-    const chartData = onDataLoaded.mock.calls[onDataLoaded.mock.calls.length - 1][0]
-    expect(chartData).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          model_id: 'gpt-4',
-          metrics: expect.objectContaining({ exact_match: 0.85 }),
-        }),
-      ])
-    )
+    // onDataLoaded fires more than once as the staged fetches land; under
+    // full-suite CPU contention the first call can arrive without the
+    // results_by_config fallback yet. Retry until the LATEST call carries it
+    // instead of asserting on whichever call happened to be last.
+    await waitFor(() => {
+      expect(onDataLoaded).toHaveBeenCalled()
+      const chartData =
+        onDataLoaded.mock.calls[onDataLoaded.mock.calls.length - 1][0]
+      expect(chartData).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            model_id: 'gpt-4',
+            metrics: expect.objectContaining({ exact_match: 0.85 }),
+          }),
+        ])
+      )
+    })
   })
 
   it('labels the fall-back entry "All Models" when model_id is unknown', async () => {

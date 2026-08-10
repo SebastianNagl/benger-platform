@@ -221,21 +221,26 @@ def _build_multidim_judge_row_metrics(
     total = float(multidim.get("total_score") or 0.0)
     total_max = float(multidim.get("total_max") or 0.0)
     normalized = total / total_max if total_max > 0 else 0.0
+    details = {
+        "scores": _scrub_control_chars(multidim["scores"]),
+        "total_score": total,
+        "total_max": total_max,
+        "overall_assessment": _strip_control_chars(
+            multidim.get("overall_assessment", "")
+        ),
+        "call_metadata": multidim.get("_call_metadata", {}),
+        "raw_output": _strip_control_chars(multidim.get("_raw_output", "")),
+    }
+    # llm_judge_rubric provenance: which task_rubrics row produced the
+    # criteria this row was scored against.
+    if multidim.get("rubric_id"):
+        details["rubric_id"] = multidim["rubric_id"]
     return (
         {
             metric: {
                 "value": float(normalized),
                 "method": metric,
-                "details": {
-                    "scores": _scrub_control_chars(multidim["scores"]),
-                    "total_score": total,
-                    "total_max": total_max,
-                    "overall_assessment": _strip_control_chars(
-                        multidim.get("overall_assessment", "")
-                    ),
-                    "call_metadata": multidim.get("_call_metadata", {}),
-                    "raw_output": _strip_control_chars(multidim.get("_raw_output", "")),
-                },
+                "details": details,
                 "error": None,
             },
             "raw_score": float(normalized),

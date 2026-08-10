@@ -1,0 +1,20 @@
+{
+ "holistic": [
+  2.251,
+  1.823,
+  2.68
+ ],
+ "zeroshot": [
+  1.973,
+  1.624,
+  2.343
+ ],
+ "fewshot": [
+  1.798,
+  1.524,
+  2.07
+ ],
+ "oracle": 1.01,
+ "oracle_note": "per-exam retrospective min repeat SD over the crossed sweep's 170 rubrics — an in-sample, post-hoc selection floor (optimistic bound), not demonstrated headroom",
+ "generated_by": "compute_significance.py (2026-08-09; previously hand-maintained)"
+}

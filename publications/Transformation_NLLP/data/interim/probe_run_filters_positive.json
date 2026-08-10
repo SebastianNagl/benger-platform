@@ -1,0 +1,137 @@
+{
+ "a02d6abd-7a4a-4acc-92a9-b5aad4f6953d": {
+  "model_ids": [],
+  "annotator_ids": [
+   "2e7cde84-a9ed-4511-a1fc-f9b55918f630"
+  ],
+  "targets": [
+   "161dc02d-7b89-4fe0-b53d-367f9a1ffe77"
+  ]
+ },
+ "483b0854-1ceb-4fb4-ac1f-c9812e43fd29": {
+  "model_ids": [],
+  "annotator_ids": [
+   "2e7cde84-a9ed-4511-a1fc-f9b55918f630"
+  ],
+  "targets": [
+   "865eea2a-96e8-4c32-bd09-d35a6792c039"
+  ]
+ },
+ "2e894127-81e6-4226-98af-b4ba8bf07030": {
+  "model_ids": [],
+  "annotator_ids": [
+   "2e7cde84-a9ed-4511-a1fc-f9b55918f630"
+  ],
+  "targets": [
+   "9e305f71-a0fe-4b8b-977e-083761fe11b0"
+  ]
+ },
+ "788f2899-9ab0-4ede-9170-db576e5cec02": {
+  "model_ids": [],
+  "annotator_ids": [
+   "2e7cde84-a9ed-4511-a1fc-f9b55918f630"
+  ],
+  "targets": [
+   "4fb19f3d-9a5e-4af6-9b10-37f0e8267a53"
+  ]
+ },
+ "95802146-90f4-465b-a3ab-6483b5a96c90": {
+  "model_ids": [],
+  "annotator_ids": [
+   "2e7cde84-a9ed-4511-a1fc-f9b55918f630"
+  ],
+  "targets": [
+   "331caf2d-3f82-49b9-9d29-5a721406ed87"
+  ]
+ },
+ "f692e78d-1cb3-4d3f-85bd-0b0f46aebee6": {
+  "model_ids": [],
+  "annotator_ids": [
+   "2e7cde84-a9ed-4511-a1fc-f9b55918f630"
+  ],
+  "targets": [
+   "fdd50584-ca8c-47a3-a38d-d1d63c6171b7"
+  ]
+ },
+ "402df23e-3800-405d-87c1-bf3ef0c315dd": {
+  "model_ids": [],
+  "annotator_ids": [
+   "2e7cde84-a9ed-4511-a1fc-f9b55918f630"
+  ],
+  "targets": [
+   "98de20f2-4f6f-426a-86ee-f7b02cb1e9e7"
+  ]
+ },
+ "5837fa85-6423-4a56-97a4-57d6469e29e7": {
+  "model_ids": [],
+  "annotator_ids": [
+   "2e7cde84-a9ed-4511-a1fc-f9b55918f630"
+  ],
+  "targets": [
+   "2064e2c2-9f5d-4914-9f83-98f0057724cc"
+  ]
+ },
+ "a1dd9a07-1933-4dae-bc30-918effe6a361": {
+  "model_ids": [],
+  "annotator_ids": [
+   "2e7cde84-a9ed-4511-a1fc-f9b55918f630"
+  ],
+  "targets": [
+   "94c6dcd7-13af-41a1-9981-8b0e5132be96"
+  ]
+ },
+ "37984fd6-46fb-4f90-bcb6-21032d4cb2c8": {
+  "model_ids": [],
+  "annotator_ids": [
+   "2e7cde84-a9ed-4511-a1fc-f9b55918f630"
+  ],
+  "targets": [
+   "fbf80a9d-a4f9-4b3c-b2ed-3979f5639400"
+  ]
+ },
+ "3c4c25ab-c53a-48e6-8304-95c3d9267d3d": {
+  "model_ids": [],
+  "annotator_ids": [
+   "2e7cde84-a9ed-4511-a1fc-f9b55918f630"
+  ],
+  "targets": [
+   "8616f1d8-9b5e-4095-b618-f403d3aba1ef"
+  ]
+ },
+ "7f0d803d-aa42-465e-aa4f-5572f0fcd5df": {
+  "model_ids": [],
+  "annotator_ids": [
+   "2e7cde84-a9ed-4511-a1fc-f9b55918f630"
+  ],
+  "targets": [
+   "8a0e1fee-71cb-46b2-8b01-96edec10d4d2"
+  ]
+ },
+ "590d4dfc-dc43-42eb-b938-ce2a64f1ab22": {
+  "model_ids": [],
+  "annotator_ids": [
+   "2e7cde84-a9ed-4511-a1fc-f9b55918f630"
+  ],
+  "targets": [
+   "0d7411ed-1855-4bad-ab0d-e4935502a4dd"
+  ]
+ },
+ "e8330cea-a142-4225-a482-ff5e1e111a37": {
+  "model_ids": [],
+  "annotator_ids": [
+   "2e7cde84-a9ed-4511-a1fc-f9b55918f630"
+  ],
+  "targets": [
+   "911bc378-8659-434b-8572-32cc5cd867b3"
+  ]
+ },
+ "c664977d-788f-4be1-8672-6639617822e3": {
+  "model_ids": [],
+  "annotator_ids": [
+   "2e7cde84-a9ed-4511-a1fc-f9b55918f630"
+  ],
+  "targets": [
+   "a17d9c4f-b6e6-44ba-a5c6-1f07f70051ab"
+  ]
+ }
+}

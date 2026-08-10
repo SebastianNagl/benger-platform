@@ -60,6 +60,17 @@ class PromptStructureBase(BaseModel):
         None,
         description="List of criteria to evaluate when using this prompt structure",
     )
+    exclude_from_generation: bool = Field(
+        False,
+        description=(
+            "When true, generation runs that do not pass explicit "
+            "structure_keys (missing-mode sweeps, task-status enumeration) "
+            "skip this structure. For prompts that other features reference "
+            "by key (e.g. Bewertungsbogen generation) without being general "
+            "generation prompts. Explicitly requested structure_keys still "
+            "win."
+        ),
+    )
 
     @field_validator('system_prompt', 'instruction_prompt', 'evaluation_prompt')
     @classmethod
@@ -103,6 +114,7 @@ class PromptStructureUpdate(BaseModel):
     judge_system_prompt: Optional[str] = None
     judge_instruction_prompt: Optional[str] = None
     judge_criteria: Optional[List[str]] = None
+    exclude_from_generation: Optional[bool] = None
 
 
 class PromptStructureResponse(PromptStructureBase):

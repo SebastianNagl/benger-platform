@@ -1,0 +1,171 @@
+{
+ "auditor": "gpt-5.4-mini",
+ "n_audited": 170,
+ "overall": {
+  "vollstaendigkeit": 4.029,
+  "treue": 3.403,
+  "externe_ergaenzungen": 3.5,
+  "gewichtung": 4.065,
+  "alternativen": 3.826,
+  "teilpunkte": 3.868,
+  "gesamturteil": 3.915,
+  "total_mean": 26.6,
+  "n": 170
+ },
+ "self": {
+  "vollstaendigkeit": 4.188,
+  "treue": 3.438,
+  "externe_ergaenzungen": 3.562,
+  "gewichtung": 4.188,
+  "alternativen": 3.938,
+  "teilpunkte": 4.062,
+  "gesamturteil": 4.062,
+  "total_mean": 27.44,
+  "n": 8
+ },
+ "other": {
+  "vollstaendigkeit": 4.022,
+  "treue": 3.401,
+  "externe_ergaenzungen": 3.497,
+  "gewichtung": 4.059,
+  "alternativen": 3.821,
+  "teilpunkte": 3.858,
+  "gesamturteil": 3.907,
+  "total_mean": 26.56,
+  "n": 162
+ },
+ "per_generator": {
+  "claude-opus-4-7": {
+   "vollstaendigkeit": 4.233,
+   "treue": 3.767,
+   "externe_ergaenzungen": 4.133,
+   "gewichtung": 4.267,
+   "alternativen": 4.3,
+   "teilpunkte": 4.167,
+   "gesamturteil": 4.2,
+   "total_mean": 29.07,
+   "n": 15
+  },
+  "claude-sonnet-4-6": {
+   "vollstaendigkeit": 4.333,
+   "treue": 3.667,
+   "externe_ergaenzungen": 3.733,
+   "gewichtung": 4.3,
+   "alternativen": 4.5,
+   "teilpunkte": 4.167,
+   "gesamturteil": 4.3,
+   "total_mean": 29.0,
+   "n": 15
+  },
+  "gpt-5.4": {
+   "vollstaendigkeit": 4.233,
+   "treue": 3.633,
+   "externe_ergaenzungen": 3.767,
+   "gewichtung": 4.2,
+   "alternativen": 4.4,
+   "teilpunkte": 4.133,
+   "gesamturteil": 4.133,
+   "total_mean": 28.5,
+   "n": 15
+  },
+  "gpt-5.4-mini": {
+   "vollstaendigkeit": 4.188,
+   "treue": 3.438,
+   "externe_ergaenzungen": 3.562,
+   "gewichtung": 4.188,
+   "alternativen": 3.938,
+   "teilpunkte": 4.062,
+   "gesamturteil": 4.062,
+   "total_mean": 27.44,
+   "n": 8
+  },
+  "deepseek-ai/DeepSeek-V4-Flash": {
+   "vollstaendigkeit": 4.167,
+   "treue": 3.5,
+   "externe_ergaenzungen": 3.367,
+   "gewichtung": 4.033,
+   "alternativen": 4.033,
+   "teilpunkte": 3.967,
+   "gesamturteil": 3.967,
+   "total_mean": 27.03,
+   "n": 15
+  },
+  "deepseek-ai/DeepSeek-V4-Pro": {
+   "vollstaendigkeit": 4.1,
+   "treue": 3.267,
+   "externe_ergaenzungen": 3.233,
+   "gewichtung": 4.033,
+   "alternativen": 4.033,
+   "teilpunkte": 3.967,
+   "gesamturteil": 3.967,
+   "total_mean": 26.6,
+   "n": 15
+  },
+  "gemini-3.1-pro-preview": {
+   "vollstaendigkeit": 4.067,
+   "treue": 3.4,
+   "externe_ergaenzungen": 3.433,
+   "gewichtung": 4.067,
+   "alternativen": 3.867,
+   "teilpunkte": 3.733,
+   "gesamturteil": 4.0,
+   "total_mean": 26.53,
+   "n": 15
+  },
+  "Qwen/Qwen3.6-35B-A3B": {
+   "vollstaendigkeit": 4.033,
+   "treue": 3.433,
+   "externe_ergaenzungen": 3.367,
+   "gewichtung": 3.933,
+   "alternativen": 3.6,
+   "teilpunkte": 3.933,
+   "gesamturteil": 4.033,
+   "total_mean": 26.33,
+   "n": 15
+  },
+  "Qwen/Qwen3.5-122B-A10B": {
+   "vollstaendigkeit": 3.867,
+   "treue": 3.267,
+   "externe_ergaenzungen": 3.4,
+   "gewichtung": 4.133,
+   "alternativen": 3.933,
+   "teilpunkte": 3.667,
+   "gesamturteil": 3.733,
+   "total_mean": 26.0,
+   "n": 15
+  },
+  "Qwen/Qwen3-235B-A22B-Thinking-2507": {
+   "vollstaendigkeit": 4.033,
+   "treue": 3.233,
+   "externe_ergaenzungen": 3.167,
+   "gewichtung": 4.1,
+   "alternativen": 3.367,
+   "teilpunkte": 3.9,
+   "gesamturteil": 3.833,
+   "total_mean": 25.63,
+   "n": 15
+  },
+  "gemini-3.1-flash-lite-preview": {
+   "vollstaendigkeit": 3.7,
+   "treue": 3.233,
+   "externe_ergaenzungen": 3.433,
+   "gewichtung": 3.967,
+   "alternativen": 3.033,
+   "teilpunkte": 3.567,
+   "gesamturteil": 3.433,
+   "total_mean": 24.37,
+   "n": 15
+  },
+  "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8": {
+   "vollstaendigkeit": 3.333,
+   "treue": 2.917,
+   "externe_ergaenzungen": 3.417,
+   "gewichtung": 3.5,
+   "alternativen": 2.75,
+   "teilpunkte": 3.083,
+   "gesamturteil": 3.25,
+   "total_mean": 22.25,
+   "n": 12
+  }
+ }
+}

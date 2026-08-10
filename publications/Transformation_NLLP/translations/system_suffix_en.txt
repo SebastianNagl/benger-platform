@@ -1,0 +1,1 @@
+Output exclusively valid JSON conforming to the specified output schema. Output no explanations, preliminary remarks, or Markdown formatting outside the JSON.

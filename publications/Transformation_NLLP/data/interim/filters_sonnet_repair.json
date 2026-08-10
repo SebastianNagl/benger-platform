@@ -1,0 +1,58 @@
+{
+ "788f2899-9ab0-4ede-9170-db576e5cec02": {
+  "model_ids": [
+   "gpt-5.4-mini"
+  ],
+  "annotator_ids": [
+   "b6b276d6-56a4-45c8-a904-c2fe799a0078",
+   "ead2d2db-365c-42e0-bce0-6a369fb3b8be"
+  ],
+  "targets": [
+   "21128b99-b1a9-4fdc-991c-941d5ede3a58",
+   "b8ce24a6-76bc-426d-aa3e-96db03287a74",
+   "c3738e45-c0c8-465c-aa5f-3bb37d6638ba"
+  ]
+ },
+ "a1dd9a07-1933-4dae-bc30-918effe6a361": {
+  "model_ids": [
+   "claude-opus-4-7"
+  ],
+  "annotator_ids": [
+   "d339a7d4-05bb-41eb-a6c6-abc79040ab96",
+   "f0d42d7e-e33b-4288-bd34-4a6906727c78"
+  ],
+  "targets": [
+   "eb9ab3a4-b738-4f99-bff0-91c2bb62ca02",
+   "6bb88f14-e1c1-4703-ad7e-7ce62e98eb93",
+   "5ef5ebfe-83ce-4cbf-8ce5-1918d3b723e0"
+  ]
+ },
+ "c664977d-788f-4be1-8672-6639617822e3": {
+  "model_ids": [
+   "gemini-3.1-pro-preview"
+  ],
+  "annotator_ids": [
+   "27d6a098-81ab-4009-b7eb-dc6e65e614aa",
+   "5fe60782-50cf-4655-b4b4-39645d8afbce"
+  ],
+  "targets": [
+   "bb5757e3-d48d-4935-9400-3d8e1a452ae0",
+   "c1b91a0e-0010-410e-9f6c-e42a23b34fe8",
+   "385977f5-139c-44d7-ab60-9e80647a0fda"
+  ]
+ },
+ "f692e78d-1cb3-4d3f-85bd-0b0f46aebee6": {
+  "model_ids": [
+   "gpt-5.4"
+  ],
+  "annotator_ids": [
+   "606fa38c-9129-43d4-ae11-e1131fc557c3",
+   "b06c3f77-1066-4d9c-8f37-20c406c6c285"
+  ],
+  "targets": [
+   "c6f5ef8c-1f1d-4d4f-8318-73f7b38d24c1",
+   "d892e317-d8ee-4588-8ff5-2ee1afdb7cc8",
+   "9da2a880-6a22-4b02-a157-e8668e8f013f"
+  ]
+ }
+}

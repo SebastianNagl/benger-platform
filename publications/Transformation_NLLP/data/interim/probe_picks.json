@@ -1,0 +1,486 @@
+{
+ "clone_id": "81e474b8-d226-4bf8-bc2e-fb744d25cba5",
+ "resolved": [
+  {
+   "pick_id": "PB01-repetition",
+   "provenance": "repetition",
+   "task_id": "a02d6abd-7a4a-4acc-92a9-b5aad4f6953d",
+   "target_type": "annotation",
+   "target_id": "f5e1bf72-82dd-40a6-901a-57803c0b10f3",
+   "system": null
+  },
+  {
+   "pick_id": "PB01-empty",
+   "provenance": "empty",
+   "task_id": "a02d6abd-7a4a-4acc-92a9-b5aad4f6953d",
+   "target_type": "annotation",
+   "target_id": "35f09ac9-e9c9-418c-9518-380c671fdfe6",
+   "system": null
+  },
+  {
+   "pick_id": "PB01-offtopic",
+   "provenance": "offtopic",
+   "task_id": "a02d6abd-7a4a-4acc-92a9-b5aad4f6953d",
+   "target_type": "annotation",
+   "target_id": "5d133f0b-fbf6-45e0-b869-bc196c0805d0",
+   "system": null
+  },
+  {
+   "pick_id": "PB02-repetition",
+   "provenance": "repetition",
+   "task_id": "483b0854-1ceb-4fb4-ac1f-c9812e43fd29",
+   "target_type": "annotation",
+   "target_id": "4cbe9145-2ff0-44e6-accb-4a916ce70ce3",
+   "system": null
+  },
+  {
+   "pick_id": "PB02-empty",
+   "provenance": "empty",
+   "task_id": "483b0854-1ceb-4fb4-ac1f-c9812e43fd29",
+   "target_type": "annotation",
+   "target_id": "16748d87-35a6-41d4-a5bf-536ecbd44eee",
+   "system": null
+  },
+  {
+   "pick_id": "PB02-offtopic",
+   "provenance": "offtopic",
+   "task_id": "483b0854-1ceb-4fb4-ac1f-c9812e43fd29",
+   "target_type": "annotation",
+   "target_id": "05faeddf-8942-438a-8a24-6ca77652865c",
+   "system": null
+  },
+  {
+   "pick_id": "PB03-repetition",
+   "provenance": "repetition",
+   "task_id": "2e894127-81e6-4226-98af-b4ba8bf07030",
+   "target_type": "annotation",
+   "target_id": "27471331-0fd1-4cc6-882f-054ebb288481",
+   "system": null
+  },
+  {
+   "pick_id": "PB03-empty",
+   "provenance": "empty",
+   "task_id": "2e894127-81e6-4226-98af-b4ba8bf07030",
+   "target_type": "annotation",
+   "target_id": "4f768746-f007-487f-9d2f-75053ce77d23",
+   "system": null
+  },
+  {
+   "pick_id": "PB03-offtopic",
+   "provenance": "offtopic",
+   "task_id": "2e894127-81e6-4226-98af-b4ba8bf07030",
+   "target_type": "annotation",
+   "target_id": "f9a5e681-b410-49b3-90c6-e9020e591e36",
+   "system": null
+  },
+  {
+   "pick_id": "PB04-repetition",
+   "provenance": "repetition",
+   "task_id": "788f2899-9ab0-4ede-9170-db576e5cec02",
+   "target_type": "annotation",
+   "target_id": "8a0a2af1-4c9c-403b-a50f-790bcee41436",
+   "system": null
+  },
+  {
+   "pick_id": "PB04-empty",
+   "provenance": "empty",
+   "task_id": "788f2899-9ab0-4ede-9170-db576e5cec02",
+   "target_type": "annotation",
+   "target_id": "55c2f8d4-4bfa-4758-8090-d5bef333321b",
+   "system": null
+  },
+  {
+   "pick_id": "PB04-offtopic",
+   "provenance": "offtopic",
+   "task_id": "788f2899-9ab0-4ede-9170-db576e5cec02",
+   "target_type": "annotation",
+   "target_id": "b4f97c87-0cde-4d08-97b5-d893be5d2eeb",
+   "system": null
+  },
+  {
+   "pick_id": "PB05-repetition",
+   "provenance": "repetition",
+   "task_id": "95802146-90f4-465b-a3ab-6483b5a96c90",
+   "target_type": "annotation",
+   "target_id": "4decc7b8-7a68-4c19-8c1b-e62bff3f7a03",
+   "system": null
+  },
+  {
+   "pick_id": "PB05-empty",
+   "provenance": "empty",
+   "task_id": "95802146-90f4-465b-a3ab-6483b5a96c90",
+   "target_type": "annotation",
+   "target_id": "7e0fddf6-41a7-4604-851d-8459bce4b970",
+   "system": null
+  },
+  {
+   "pick_id": "PB05-offtopic",
+   "provenance": "offtopic",
+   "task_id": "95802146-90f4-465b-a3ab-6483b5a96c90",
+   "target_type": "annotation",
+   "target_id": "157559ee-5312-4d2f-909f-4c2e0ea2a11e",
+   "system": null
+  },
+  {
+   "pick_id": "PB06-repetition",
+   "provenance": "repetition",
+   "task_id": "f692e78d-1cb3-4d3f-85bd-0b0f46aebee6",
+   "target_type": "annotation",
+   "target_id": "87e2d13b-be07-4bd7-b8f0-72e0b07f1b4c",
+   "system": null
+  },
+  {
+   "pick_id": "PB06-empty",
+   "provenance": "empty",
+   "task_id": "f692e78d-1cb3-4d3f-85bd-0b0f46aebee6",
+   "target_type": "annotation",
+   "target_id": "29d332ff-b052-4fe5-9365-92213c288394",
+   "system": null
+  },
+  {
+   "pick_id": "PB06-offtopic",
+   "provenance": "offtopic",
+   "task_id": "f692e78d-1cb3-4d3f-85bd-0b0f46aebee6",
+   "target_type": "annotation",
+   "target_id": "d61702fc-246e-44dd-97f9-71f549af063d",
+   "system": null
+  },
+  {
+   "pick_id": "PB07-repetition",
+   "provenance": "repetition",
+   "task_id": "402df23e-3800-405d-87c1-bf3ef0c315dd",
+   "target_type": "annotation",
+   "target_id": "b963416b-08da-45bf-a825-3603708d3aaf",
+   "system": null
+  },
+  {
+   "pick_id": "PB07-empty",
+   "provenance": "empty",
+   "task_id": "402df23e-3800-405d-87c1-bf3ef0c315dd",
+   "target_type": "annotation",
+   "target_id": "67ec466d-bb39-4550-b305-f5de88fa626c",
+   "system": null
+  },
+  {
+   "pick_id": "PB07-offtopic",
+   "provenance": "offtopic",
+   "task_id": "402df23e-3800-405d-87c1-bf3ef0c315dd",
+   "target_type": "annotation",
+   "target_id": "08129d98-3544-4f31-84d8-a6b3aeb6bfa6",
+   "system": null
+  },
+  {
+   "pick_id": "PB08-repetition",
+   "provenance": "repetition",
+   "task_id": "5837fa85-6423-4a56-97a4-57d6469e29e7",
+   "target_type": "annotation",
+   "target_id": "4a743ec9-e03b-4b81-9aa7-e1150ac9d67b",
+   "system": null
+  },
+  {
+   "pick_id": "PB08-empty",
+   "provenance": "empty",
+   "task_id": "5837fa85-6423-4a56-97a4-57d6469e29e7",
+   "target_type": "annotation",
+   "target_id": "edf119c9-1686-44aa-be3c-9a7444f72d8b",
+   "system": null
+  },
+  {
+   "pick_id": "PB08-offtopic",
+   "provenance": "offtopic",
+   "task_id": "5837fa85-6423-4a56-97a4-57d6469e29e7",
+   "target_type": "annotation",
+   "target_id": "6e6c32ab-1c67-46c0-8fe9-79e6d1574499",
+   "system": null
+  },
+  {
+   "pick_id": "PB09-repetition",
+   "provenance": "repetition",
+   "task_id": "a1dd9a07-1933-4dae-bc30-918effe6a361",
+   "target_type": "annotation",
+   "target_id": "c10f3f9d-b041-4564-b35c-d484f1f4bb9f",
+   "system": null
+  },
+  {
+   "pick_id": "PB09-empty",
+   "provenance": "empty",
+   "task_id": "a1dd9a07-1933-4dae-bc30-918effe6a361",
+   "target_type": "annotation",
+   "target_id": "2a83813c-0e71-4da3-9c4b-00bf18c2a8fd",
+   "system": null
+  },
+  {
+   "pick_id": "PB09-offtopic",
+   "provenance": "offtopic",
+   "task_id": "a1dd9a07-1933-4dae-bc30-918effe6a361",
+   "target_type": "annotation",
+   "target_id": "4e6d37ae-508c-41e2-a5ad-e87dec8ee666",
+   "system": null
+  },
+  {
+   "pick_id": "PB10-repetition",
+   "provenance": "repetition",
+   "task_id": "37984fd6-46fb-4f90-bcb6-21032d4cb2c8",
+   "target_type": "annotation",
+   "target_id": "a9bfac4a-bbbd-4b32-b48d-03f03cf1280f",
+   "system": null
+  },
+  {
+   "pick_id": "PB10-empty",
+   "provenance": "empty",
+   "task_id": "37984fd6-46fb-4f90-bcb6-21032d4cb2c8",
+   "target_type": "annotation",
+   "target_id": "bd74590f-4a1a-40aa-b3d1-f0569122fca4",
+   "system": null
+  },
+  {
+   "pick_id": "PB10-offtopic",
+   "provenance": "offtopic",
+   "task_id": "37984fd6-46fb-4f90-bcb6-21032d4cb2c8",
+   "target_type": "annotation",
+   "target_id": "d569ada6-4c98-4532-ab40-00a5977fdf88",
+   "system": null
+  },
+  {
+   "pick_id": "PB11-repetition",
+   "provenance": "repetition",
+   "task_id": "3c4c25ab-c53a-48e6-8304-95c3d9267d3d",
+   "target_type": "annotation",
+   "target_id": "6059e133-68f1-4e42-85dd-e5fd493aba17",
+   "system": null
+  },
+  {
+   "pick_id": "PB11-empty",
+   "provenance": "empty",
+   "task_id": "3c4c25ab-c53a-48e6-8304-95c3d9267d3d",
+   "target_type": "annotation",
+   "target_id": "6909c270-c541-4f89-bd42-61b2795bf933",
+   "system": null
+  },
+  {
+   "pick_id": "PB11-offtopic",
+   "provenance": "offtopic",
+   "task_id": "3c4c25ab-c53a-48e6-8304-95c3d9267d3d",
+   "target_type": "annotation",
+   "target_id": "0fe1578b-3101-48d4-b9b7-a6a1947fafa3",
+   "system": null
+  },
+  {
+   "pick_id": "PB12-repetition",
+   "provenance": "repetition",
+   "task_id": "7f0d803d-aa42-465e-aa4f-5572f0fcd5df",
+   "target_type": "annotation",
+   "target_id": "9604a224-f06d-405d-8891-57926db4626a",
+   "system": null
+  },
+  {
+   "pick_id": "PB12-empty",
+   "provenance": "empty",
+   "task_id": "7f0d803d-aa42-465e-aa4f-5572f0fcd5df",
+   "target_type": "annotation",
+   "target_id": "23536af9-f470-47d3-acee-f45b0d69ea7f",
+   "system": null
+  },
+  {
+   "pick_id": "PB12-offtopic",
+   "provenance": "offtopic",
+   "task_id": "7f0d803d-aa42-465e-aa4f-5572f0fcd5df",
+   "target_type": "annotation",
+   "target_id": "caae5a79-be88-49a6-8a37-bfb71a4d2ceb",
+   "system": null
+  },
+  {
+   "pick_id": "PB13-repetition",
+   "provenance": "repetition",
+   "task_id": "590d4dfc-dc43-42eb-b938-ce2a64f1ab22",
+   "target_type": "annotation",
+   "target_id": "488f5215-ce5a-45ae-b0fa-dab401125596",
+   "system": null
+  },
+  {
+   "pick_id": "PB13-empty",
+   "provenance": "empty",
+   "task_id": "590d4dfc-dc43-42eb-b938-ce2a64f1ab22",
+   "target_type": "annotation",
+   "target_id": "419f05d0-148b-48ed-accd-7e6061675507",
+   "system": null
+  },
+  {
+   "pick_id": "PB13-offtopic",
+   "provenance": "offtopic",
+   "task_id": "590d4dfc-dc43-42eb-b938-ce2a64f1ab22",
+   "target_type": "annotation",
+   "target_id": "0086e0bc-a1d1-4496-8764-ee49dc7c8e5f",
+   "system": null
+  },
+  {
+   "pick_id": "PB14-repetition",
+   "provenance": "repetition",
+   "task_id": "e8330cea-a142-4225-a482-ff5e1e111a37",
+   "target_type": "annotation",
+   "target_id": "5fa1bdbc-d1f0-4848-8bff-63b506210f7a",
+   "system": null
+  },
+  {
+   "pick_id": "PB14-empty",
+   "provenance": "empty",
+   "task_id": "e8330cea-a142-4225-a482-ff5e1e111a37",
+   "target_type": "annotation",
+   "target_id": "45a75b7b-b62b-41f3-97f3-ae55a1364210",
+   "system": null
+  },
+  {
+   "pick_id": "PB14-offtopic",
+   "provenance": "offtopic",
+   "task_id": "e8330cea-a142-4225-a482-ff5e1e111a37",
+   "target_type": "annotation",
+   "target_id": "f246e4ab-26d1-4eac-93af-945daf8dda46",
+   "system": null
+  },
+  {
+   "pick_id": "PB15-repetition",
+   "provenance": "repetition",
+   "task_id": "c664977d-788f-4be1-8672-6639617822e3",
+   "target_type": "annotation",
+   "target_id": "e3c3ca30-ccb2-4d3d-a28f-3e66a0e006ab",
+   "system": null
+  },
+  {
+   "pick_id": "PB15-empty",
+   "provenance": "empty",
+   "task_id": "c664977d-788f-4be1-8672-6639617822e3",
+   "target_type": "annotation",
+   "target_id": "a2ddbd23-1fcb-4af9-b05d-5c8ac5d92dff",
+   "system": null
+  },
+  {
+   "pick_id": "PB15-offtopic",
+   "provenance": "offtopic",
+   "task_id": "c664977d-788f-4be1-8672-6639617822e3",
+   "target_type": "annotation",
+   "target_id": "217eb990-32e8-4f7a-8a85-4b21b6cf9ee7",
+   "system": null
+  },
+  {
+   "pick_id": "PB01-musterloesung",
+   "provenance": "musterloesung",
+   "task_id": "a02d6abd-7a4a-4acc-92a9-b5aad4f6953d",
+   "target_type": "annotation",
+   "target_id": "161dc02d-7b89-4fe0-b53d-367f9a1ffe77",
+   "system": null
+  },
+  {
+   "pick_id": "PB02-musterloesung",
+   "provenance": "musterloesung",
+   "task_id": "483b0854-1ceb-4fb4-ac1f-c9812e43fd29",
+   "target_type": "annotation",
+   "target_id": "865eea2a-96e8-4c32-bd09-d35a6792c039",
+   "system": null
+  },
+  {
+   "pick_id": "PB03-musterloesung",
+   "provenance": "musterloesung",
+   "task_id": "2e894127-81e6-4226-98af-b4ba8bf07030",
+   "target_type": "annotation",
+   "target_id": "9e305f71-a0fe-4b8b-977e-083761fe11b0",
+   "system": null
+  },
+  {
+   "pick_id": "PB04-musterloesung",
+   "provenance": "musterloesung",
+   "task_id": "788f2899-9ab0-4ede-9170-db576e5cec02",
+   "target_type": "annotation",
+   "target_id": "4fb19f3d-9a5e-4af6-9b10-37f0e8267a53",
+   "system": null
+  },
+  {
+   "pick_id": "PB05-musterloesung",
+   "provenance": "musterloesung",
+   "task_id": "95802146-90f4-465b-a3ab-6483b5a96c90",
+   "target_type": "annotation",
+   "target_id": "331caf2d-3f82-49b9-9d29-5a721406ed87",
+   "system": null
+  },
+  {
+   "pick_id": "PB06-musterloesung",
+   "provenance": "musterloesung",
+   "task_id": "f692e78d-1cb3-4d3f-85bd-0b0f46aebee6",
+   "target_type": "annotation",
+   "target_id": "fdd50584-ca8c-47a3-a38d-d1d63c6171b7",
+   "system": null
+  },
+  {
+   "pick_id": "PB07-musterloesung",
+   "provenance": "musterloesung",
+   "task_id": "402df23e-3800-405d-87c1-bf3ef0c315dd",
+   "target_type": "annotation",
+   "target_id": "98de20f2-4f6f-426a-86ee-f7b02cb1e9e7",
+   "system": null
+  },
+  {
+   "pick_id": "PB08-musterloesung",
+   "provenance": "musterloesung",
+   "task_id": "5837fa85-6423-4a56-97a4-57d6469e29e7",
+   "target_type": "annotation",
+   "target_id": "2064e2c2-9f5d-4914-9f83-98f0057724cc",
+   "system": null
+  },
+  {
+   "pick_id": "PB09-musterloesung",
+   "provenance": "musterloesung",
+   "task_id": "a1dd9a07-1933-4dae-bc30-918effe6a361",
+   "target_type": "annotation",
+   "target_id": "94c6dcd7-13af-41a1-9981-8b0e5132be96",
+   "system": null
+  },
+  {
+   "pick_id": "PB10-musterloesung",
+   "provenance": "musterloesung",
+   "task_id": "37984fd6-46fb-4f90-bcb6-21032d4cb2c8",
+   "target_type": "annotation",
+   "target_id": "fbf80a9d-a4f9-4b3c-b2ed-3979f5639400",
+   "system": null
+  },
+  {
+   "pick_id": "PB11-musterloesung",
+   "provenance": "musterloesung",
+   "task_id": "3c4c25ab-c53a-48e6-8304-95c3d9267d3d",
+   "target_type": "annotation",
+   "target_id": "8616f1d8-9b5e-4095-b618-f403d3aba1ef",
+   "system": null
+  },
+  {
+   "pick_id": "PB12-musterloesung",
+   "provenance": "musterloesung",
+   "task_id": "7f0d803d-aa42-465e-aa4f-5572f0fcd5df",
+   "target_type": "annotation",
+   "target_id": "8a0e1fee-71cb-46b2-8b01-96edec10d4d2",
+   "system": null
+  },
+  {
+   "pick_id": "PB13-musterloesung",
+   "provenance": "musterloesung",
+   "task_id": "590d4dfc-dc43-42eb-b938-ce2a64f1ab22",
+   "target_type": "annotation",
+   "target_id": "0d7411ed-1855-4bad-ab0d-e4935502a4dd",
+   "system": null
+  },
+  {
+   "pick_id": "PB14-musterloesung",
+   "provenance": "musterloesung",
+   "task_id": "e8330cea-a142-4225-a482-ff5e1e111a37",
+   "target_type": "annotation",
+   "target_id": "911bc378-8659-434b-8572-32cc5cd867b3",
+   "system": null
+  },
+  {
+   "pick_id": "PB15-musterloesung",
+   "provenance": "musterloesung",
+   "task_id": "c664977d-788f-4be1-8672-6639617822e3",
+   "target_type": "annotation",
+   "target_id": "a17d9c4f-b6e6-44ba-a5c6-1f07f70051ab",
+   "system": null
+  }
+ ],
+ "misses": []
+}

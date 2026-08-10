@@ -663,11 +663,14 @@ describe('TestNotificationsPage', () => {
       const generateButtons = screen.getAllByText('admin.testNotifications.generate')
       await user.click(generateButtons[0])
 
+      // 15s ceiling: full-suite CPU contention blew through 5s on clean main
+      // (known flake). waitFor returns as soon as the toast fires, so the
+      // larger ceiling costs nothing on the happy path.
       await waitFor(() => {
         expect(toast.error).toHaveBeenCalledWith(
           'admin.testNotifications.sendFailed'
         )
-      }, { timeout: 5000 })
+      }, { timeout: 15000 })
     })
 
     it('should continue working after an error', async () => {

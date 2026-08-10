@@ -333,7 +333,15 @@ class BaseAIService(ABC):
         try:
             return self._create_error_response(error, model, service_name)
         finally:
-            _retry_history_ctx.reset(token)
+            try:
+                _retry_history_ctx.reset(token)
+            except ValueError:
+                # The set() above ran in a different Context than this
+                # finally (provider SDKs hop threads/asyncio contexts on
+                # error paths). reset() then raises "Token was created in a
+                # different Context", masking the ORIGINAL error and killing
+                # the caller. Clearing directly is equivalent here.
+                _retry_history_ctx.set(None)
 
 
 # ----------------------------------------------------------------

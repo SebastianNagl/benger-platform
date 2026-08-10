@@ -136,7 +136,17 @@ export async function GET(request: NextRequest) {
               controller.enqueue(value)
             }
           } catch (error: any) {
-            if (!abortController.signal.aborted) {
+            // An idle-body timeout is a normal lifecycle event, not a fault:
+            // the client's EventSource reconnects immediately. Logging it as
+            // an error filled the prod logs with one entry per connected
+            // client every few minutes. The backend now sends a keepalive
+            // comment, so a genuine timeout here is worth a quiet note only.
+            const expected =
+              abortController.signal.aborted ||
+              error?.name === 'AbortError' ||
+              error?.cause?.code === 'UND_ERR_BODY_TIMEOUT' ||
+              String(error?.message ?? '').includes('BodyTimeout')
+            if (!expected) {
               console.error('SSE stream error:', error)
             }
           } finally {

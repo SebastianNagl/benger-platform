@@ -8,6 +8,7 @@
 import { PostAnnotationQuestionnaireModal } from '@/components/labeling/PostAnnotationQuestionnaireModal'
 import { useAuth } from '@/contexts/AuthContext'
 import { useActivityTracker } from '@/hooks/useActivityTracker'
+import { useModernExamLayout } from '@/hooks/useModernExamLayout'
 import { selectVariant } from '@/lib/utils/variantHash'
 import { logger } from '@/lib/utils/logger'
 import { Badge } from '@/components/shared/Badge'
@@ -79,6 +80,12 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
     allTasksCompleted,
     resetAnnotationCompletion,
   } = useProjectStore()
+  // Modern exam layout (extended, per-user preference): widens the content
+  // column and opts the interface into the ModernExamLayout slot. Inactive
+  // (community, classic preference, non-exam config) -> unchanged classic page.
+  const { active: modernExamLayoutActive } = useModernExamLayout(
+    currentProject?.label_config
+  )
 
   const [annotations, setAnnotations] = useState<AnnotationResult[]>([])
   const [loadedAnnotations, setLoadedAnnotations] = useState<AnnotationResult[]>([])
@@ -804,9 +811,21 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
   }
 
   return (
-    <div className="bg-background flex min-h-screen">
+    <div
+      className={
+        // Modern exam layout solves in a full-viewport surface layered over
+        // the app shell (sidebar + nav invisible) — the same immersion the
+        // classic full-screen field modals provide, with the page's own
+        // header (back, title, timer) as the only chrome. z-40 keeps the
+        // page's true modals (skip/instructions/eval, z-50) above it.
+        modernExamLayoutActive
+          ? 'fixed inset-0 z-40 flex overflow-hidden bg-white dark:bg-zinc-900'
+          : 'bg-background flex min-h-screen'
+      }
+      data-testid={modernExamLayoutActive ? 'labeling-fullscreen' : undefined}
+    >
       {/* Main content */}
-      <div className="flex flex-1 flex-col">
+      <div className="flex min-h-0 flex-1 flex-col">
         {/* Header */}
         <div className="border-b px-6 py-4">
           <div className="flex items-center justify-between">
@@ -971,9 +990,22 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
           </div>
         </div>
 
-        {/* Task content */}
-        <div className="flex-1 overflow-auto p-6">
-          <div className="mx-auto max-w-4xl space-y-6">
+        {/* Task content. Modern: x-overflow hidden so the edge drawers'
+            off-screen resting position never grows a horizontal scrollbar. */}
+        <div
+          className={
+            modernExamLayoutActive
+              ? 'flex-1 overflow-y-auto overflow-x-hidden p-6'
+              : 'flex-1 overflow-auto p-6'
+          }
+        >
+          <div
+            className={
+              modernExamLayoutActive
+                ? 'w-full space-y-6'
+                : 'mx-auto max-w-4xl space-y-6'
+            }
+          >
             {windowReadOnly && (
               <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800/40 dark:text-zinc-300">
                 {t('annotation.window.closedReadOnly', {
@@ -1008,6 +1040,7 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
                 showSubmitButton={currentProject?.show_submit_button !== false && !windowReadOnly}
                 requireConfirmBeforeSubmit={currentProject?.require_confirm_before_submit === true}
                 startTime={startTime} // Pass start time for auto-save lead_time tracking
+                allowModernLayout // Interactive labeling host: modern exam layout may apply
                 onChange={(results) => setAnnotations(results)}
                 onSubmit={async (results) => {
                   try {

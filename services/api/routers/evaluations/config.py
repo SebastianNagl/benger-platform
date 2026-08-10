@@ -392,6 +392,39 @@ async def update_project_evaluation_config(
                             ),
                         )
 
+                # llm_judge_rubric grades against per-task Bewertungsbogen
+                # rows generated from a project prompt structure. Both the
+                # generator model and the prompt reference are required —
+                # without them the generate-missing-rubrics flow has nothing
+                # to run — and the grading prompt template must exist because
+                # multi-dim mode fails without one (the wizard editor writes
+                # a default; API callers must supply their own).
+                if cfg.get("metric") == "llm_judge_rubric":
+                    for key, label in (
+                        ("rubric_generator_model_id", "the rubric-generator model id"),
+                        ("rubric_prompt_key", "the generation_config.prompt_structures key"),
+                        ("custom_prompt_template", "the grading prompt template"),
+                    ):
+                        value = mp.get(key)
+                        if not isinstance(value, str) or not value.strip():
+                            raise HTTPException(
+                                status_code=422,
+                                detail=(
+                                    f"llm_judge_rubric requires metric_parameters.{key} "
+                                    f"({label}) as a non-empty string"
+                                ),
+                            )
+                    if mp.get("custom_criteria"):
+                        raise HTTPException(
+                            status_code=422,
+                            detail=(
+                                "llm_judge_rubric resolves its criteria from the "
+                                "task's Bewertungsbogen; metric_parameters."
+                                "custom_criteria must be empty (use llm_judge_custom "
+                                "for config-level criteria)"
+                            ),
+                        )
+
         # Deep-merge the body into the stored config — same contract as
         # PATCH /projects/{id} (crud.py): nested dicts merge recursively,
         # lists are replaced wholesale, explicit nulls delete keys. Lets

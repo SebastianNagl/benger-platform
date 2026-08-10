@@ -1,0 +1,212 @@
+{
+ "660fb66a-c6d5-4a3a-ac5f-86507284c00a": {
+  "model_ids": [
+   "claude-sonnet-4-6"
+  ],
+  "annotator_ids": [
+   "799860d1-5df9-40a4-bb58-83c7ba74448e",
+   "b6b276d6-56a4-45c8-a904-c2fe799a0078"
+  ],
+  "targets": [
+   "1baf88fc-388c-4efa-961e-543aaf43d4db",
+   "9e4571d7-8f9e-44dc-a32d-f223c39d04e5",
+   "af489c40-c3d9-46f6-bdaf-b6c90f4e9344"
+  ]
+ },
+ "6f5996ab-80d6-4611-a529-a0421fdff314": {
+  "model_ids": [
+   "Qwen/Qwen3-235B-A22B-Thinking-2507"
+  ],
+  "annotator_ids": [
+   "606fa38c-9129-43d4-ae11-e1131fc557c3",
+   "f7011f63-86e0-4a07-9e16-903f9bf2bd2f"
+  ],
+  "targets": [
+   "ad8ce115-9b34-4d12-9493-9987e39f3783",
+   "6dd6b6ab-dd62-4802-9365-0a7def32a744",
+   "05111893-3487-4dec-8264-0ee5545d4747"
+  ]
+ },
+ "0920a50b-9d08-49d7-89c8-473808f29d85": {
+  "model_ids": [
+   "gemini-3.1-pro-preview"
+  ],
+  "annotator_ids": [
+   "587c04a6-8d2d-4e0c-9dc6-7f5810374312",
+   "b06c3f77-1066-4d9c-8f37-20c406c6c285"
+  ],
+  "targets": [
+   "1147a5dc-4771-492e-be8b-3153167715e9",
+   "c48d283c-3211-4a05-bd8d-368158a03ce6",
+   "dfe3444f-1f00-447e-bd86-8297d26841dc"
+  ]
+ },
+ "b0a4b82a-b610-4bd9-a300-5cf8804d512f": {
+  "model_ids": [
+   "gpt-5.4-mini"
+  ],
+  "annotator_ids": [
+   "b6b276d6-56a4-45c8-a904-c2fe799a0078",
+   "ead2d2db-365c-42e0-bce0-6a369fb3b8be"
+  ],
+  "targets": [
+   "9322922b-e04d-4b98-ab7b-19aac35c9220",
+   "f02695aa-3bf9-4981-a8ec-01045df49dc0",
+   "2114fc62-901a-47c8-bf05-ecef4ce56929"
+  ]
+ },
+ "b6420df7-d9f3-4ab4-8099-5a1767985cff": {
+  "model_ids": [
+   "deepseek-ai/DeepSeek-V4-Pro"
+  ],
+  "annotator_ids": [
+   "27d6a098-81ab-4009-b7eb-dc6e65e614aa",
+   "efd25831-ecc3-4ccb-af3c-25545fee4da4"
+  ],
+  "targets": [
+   "df879e54-1e38-43c7-861a-bcd80cd65210",
+   "e9782344-f4e6-4ae9-9a4a-ec48d93bf95b",
+   "ad8a380b-1b5b-4cd6-9eb5-b98f593b3ff2"
+  ]
+ },
+ "44f8f9cf-3999-4b99-8d7e-e37be3592a60": {
+  "model_ids": [
+   "gpt-5.4"
+  ],
+  "annotator_ids": [
+   "606fa38c-9129-43d4-ae11-e1131fc557c3",
+   "b06c3f77-1066-4d9c-8f37-20c406c6c285"
+  ],
+  "targets": [
+   "009387dc-3b11-4499-b63d-387a60e8e65d",
+   "dae7fe83-a36b-4939-8092-a13570a5bc6c",
+   "a35be0b6-235c-4b64-ad6f-b6f8da27391a"
+  ]
+ },
+ "d8f3f9fe-06e6-41b9-ab20-092a05e0ceed": {
+  "model_ids": [
+   "Qwen/Qwen3.5-122B-A10B"
+  ],
+  "annotator_ids": [
+   "8333f4ea-baf0-473e-843c-d1a4f479e4ec",
+   "f7011f63-86e0-4a07-9e16-903f9bf2bd2f"
+  ],
+  "targets": [
+   "3fdff814-ab76-4240-8411-f8acb65bf95d",
+   "f5194dd1-de64-4949-b0b2-f2a1a486a35c",
+   "3b21c53d-9592-44c3-8d7c-9f86304a69af"
+  ]
+ },
+ "08218fb0-9e75-47eb-a974-2f19ea2abb5c": {
+  "model_ids": [
+   "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8"
+  ],
+  "annotator_ids": [
+   "27d6a098-81ab-4009-b7eb-dc6e65e614aa",
+   "2fd5515f-0a93-40f5-ad0b-42f0b48c408d"
+  ],
+  "targets": [
+   "c755eade-bc53-4c60-90d0-317cc011aeab",
+   "a6f02765-4345-42c6-8876-d6338f0bab15",
+   "2c563630-7351-4069-9922-30a3c405d47b"
+  ]
+ },
+ "b01bad13-0b69-4b26-9a03-ecd281afdaa8": {
+  "model_ids": [
+   "claude-opus-4-7"
+  ],
+  "annotator_ids": [
+   "d339a7d4-05bb-41eb-a6c6-abc79040ab96",
+   "f0d42d7e-e33b-4288-bd34-4a6906727c78"
+  ],
+  "targets": [
+   "069f7396-fb2f-42c6-8d3c-af1cd982bc2f",
+   "a0310eda-9440-42a9-b778-729ef2331f2f",
+   "0303c517-359f-4e5b-bdc4-ccacc05ccb02"
+  ]
+ },
+ "023ad438-73f1-4983-9e83-fd7cc3ac91e0": {
+  "model_ids": [
+   "deepseek-ai/DeepSeek-V4-Flash"
+  ],
+  "annotator_ids": [
+   "021fd592-75bc-490a-a241-b5bff31aa7fa",
+   "27d6a098-81ab-4009-b7eb-dc6e65e614aa"
+  ],
+  "targets": [
+   "470fe46e-86f8-4a4e-9f58-674601c4e19d",
+   "af726b23-9428-4382-b474-2bbaabecdbe8",
+   "c83c39fd-948b-4ec5-afef-f1b91e226c1e"
+  ]
+ },
+ "02aeba6c-5e39-425f-9482-cf91ed1be45d": {
+  "model_ids": [
+   "Qwen/Qwen3-235B-A22B-Thinking-2507"
+  ],
+  "annotator_ids": [
+   "2fd5515f-0a93-40f5-ad0b-42f0b48c408d",
+   "b25c14ef-ae6d-489a-a385-331987615aed"
+  ],
+  "targets": [
+   "94f15bae-0a94-4268-b9ed-63c4df6c548c",
+   "95a5f8a0-a22e-4a0b-ab5f-90fdde380bf3",
+   "eedea88b-858a-4768-99d9-7c30ce08488d"
+  ]
+ },
+ "a3c0aa07-9246-4b21-8190-4389261a01a4": {
+  "model_ids": [
+   "claude-opus-4-7"
+  ],
+  "annotator_ids": [
+   "8333f4ea-baf0-473e-843c-d1a4f479e4ec",
+   "b6b276d6-56a4-45c8-a904-c2fe799a0078"
+  ],
+  "targets": [
+   "510ac900-839b-4f96-b1ea-74beb2a82a50",
+   "8bbf5223-ee4d-4560-9e26-019ad3506a4c",
+   "1c9de01a-ef39-4f8c-bf5b-0029ceac3fdd"
+  ]
+ },
+ "374fdd48-e89c-4918-8914-03f889700fa4": {
+  "model_ids": [
+   "gemini-3-flash-preview"
+  ],
+  "annotator_ids": [
+   "b06c3f77-1066-4d9c-8f37-20c406c6c285",
+   "b25c14ef-ae6d-489a-a385-331987615aed"
+  ],
+  "targets": [
+   "f9dfe30b-ffb9-49a5-8b73-6b6ca205d654",
+   "cb35b512-80b9-4031-aed1-faba8b803142",
+   "2eeb4a78-e495-439c-bf7c-45569a72c82b"
+  ]
+ },
+ "f7be0ce5-4ce7-4ce9-83bc-1340f79b826e": {
+  "model_ids": [
+   "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8"
+  ],
+  "annotator_ids": [
+   "5fe60782-50cf-4655-b4b4-39645d8afbce",
+   "606fa38c-9129-43d4-ae11-e1131fc557c3"
+  ],
+  "targets": [
+   "e62eeabf-e439-4bd3-b092-c1aa2ddb07f9",
+   "36471765-d974-414c-ba2c-2bb39ecf36f8",
+   "f808dbea-16a6-446b-b7a2-f65f8a55adbf"
+  ]
+ },
+ "0016b6cc-42ed-4e31-a026-925092b62918": {
+  "model_ids": [
+   "gemini-3.1-pro-preview"
+  ],
+  "annotator_ids": [
+   "27d6a098-81ab-4009-b7eb-dc6e65e614aa",
+   "5fe60782-50cf-4655-b4b4-39645d8afbce"
+  ],
+  "targets": [
+   "075e503a-85aa-4c1b-ab61-602df88a7a4f",
+   "dcc2f96c-7015-4fc6-9226-69ffed0c3719",
+   "1251f6ed-36b9-49ea-8511-36e427fd6536"
+  ]
+ }
+}

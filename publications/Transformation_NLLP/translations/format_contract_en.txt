@@ -1,0 +1,113 @@
+---
+OUTPUT FORMAT
+
+Output exclusively a valid JSON object in the following structure.
+
+Principle: you make all professional and evaluative decisions; the machine performs the exact point arithmetic. Therefore state NOWHERE any sums, section points, focal-problem points, or point budgets – they are computed by machine from the weights of the regular steps.
+
+- "vorueberlegung": first sketch freely the recognized examination mandate, the planned structure, and the focal problems of the exam before filling in the scheme.
+- "gewicht": integer per step. Guideline: the weights of all regular steps should move in the order of magnitude of 100 in total; an exact sum is NOT required – the final point values are normalized by machine to exactly 100 points (the order and ratios of your weights are preserved; minimum of 1 point per step).
+- "teilpunktstufen": ordered list of performance descriptions from the weakest to the strongest partial performance, WITHOUT point boundaries – the point ranges are assigned by machine. For weighty steps regularly 2 to 4 levels; for low-weighted steps the list may remain empty.
+- Focal-problem assignment exclusively via "schwerpunkt_id" on the step; the objects under "klausurschwerpunkte" themselves contain no step lists and no points.
+- Alternative solution paths name the replaced regular steps via "ersetzt_schritt_ids"; their point frame follows from these steps by machine. The "alternative_schritte" likewise carry only relative weights.
+- Use empty arrays if no list elements are present; null if a single field is not pertinent; no additional fields.
+
+{
+  "vorueberlegung": "Free text: recognized examination mandate, planned structure, focal problems",
+  "meta": {
+    "rechtsordnung": "Deutschland",
+    "rechtsstand": null,
+    "pruefungsniveau": null,
+    "pruefungsauftrag": [
+      "Brief description of the examination question to be addressed"
+    ],
+    "bearbeitervermerke": [
+      "Recognized candidate instruction"
+    ],
+    "warnungen": [
+      {
+        "typ": "unklarer_pruefungsauftrag | widerspruch_im_material | unklarer_rechtsstand | fachlich_problematische_musterloesung | sonstiges",
+        "beschreibung": "Concrete description of the problem and of how the grading scheme handles it",
+        "betroffene_schritt_ids": []
+      }
+    ]
+  },
+  "klausurschwerpunkte": [
+    {
+      "id": "SP1",
+      "bezeichnung": "Brief label of the problem complex",
+      "begruendung": "Case-specific justification of its particular significance and difficulty"
+    }
+  ],
+  "abschnitte": [
+    {
+      "id": "A1",
+      "bezeichnung": "Label of the section or examination station",
+      "schritte": [
+        {
+          "id": "S1",
+          "bezeichnung": "Brief label of the graded examination performance",
+          "erwartete_leistung": "Concrete description of the expected legal examination performance",
+          "gewicht": 0,
+          "gewichtungsklasse": "routine | tragend | schwerpunkt",
+          "gewichtungsbegruendung": "Brief case-specific justification of the weighting",
+          "schwerpunkt_id": null,
+          "herkunft": "musterloesung_explizit | musterloesung_implizit | extern_ergaenzt",
+          "ergaenzungstyp": null,
+          "fundstelle_musterloesung": {
+            "position": "Heading or unambiguous description of the position",
+            "textanker": "Short text anchor (guideline: up to 20 words)"
+          },
+          "fachliche_begruendung_externe_ergaenzung": null,
+          "abhaengig_von": [],
+          "bewertungshinweise": {
+            "volle_punkte": "Concretely observable requirements for the maximum score",
+            "teilpunktstufen": [
+              "Weakest creditable partial performance: what is present, what was missing",
+              "Stronger partial performance: what is additionally present, what is still missing"
+            ],
+            "keine_punkte": "Concrete description of when no relevant examination performance is present"
+          },
+          "folgefehlerhinweis": null
+        }
+      ]
+    }
+  ],
+  "alternative_loesungswege": [
+    {
+      "id": "ALT1",
+      "typ": "lokal | strukturveraendernd",
+      "bezeichnung": "Brief label of the alternative solution path",
+      "herkunft": "musterloesung_explizit | musterloesung_implizit | extern_ergaenzt",
+      "fundstelle_musterloesung": null,
+      "fachliche_begruendung_externe_ergaenzung": "For extern_ergaenzt: concrete doctrinal and case-facts-based justification",
+      "rechtliche_ausgangsfrage": "Legal question at which the alternative solution path starts",
+      "sachverhaltsanknuepfung": "Concrete facts that open up the alternative path",
+      "fachliche_basis": "Doctrinal or methodological basis of the alternative",
+      "vertretbarkeitsanforderungen": [
+        "Required legal standard",
+        "Required case-specific argument"
+      ],
+      "auswirkung_auf_den_pruefungsweg": "Description of the changes relative to the primary examination path",
+      "ersetzt_schritt_ids": [
+        "S1"
+      ],
+      "alternative_schritte": [
+        {
+          "id": "ALT1-S1",
+          "bezeichnung": "Brief label of the alternative examination performance",
+          "erwartete_leistung": "Concrete description of the performance expected on the alternative path",
+          "gewicht": 0,
+          "abhaengig_von": [],
+          "bewertungshinweise": {
+            "volle_punkte": "Concretely observable requirements for the maximum score",
+            "teilpunktstufen": [],
+            "keine_punkte": "Concrete description of when no relevant examination performance is present"
+          },
+          "folgefehlerhinweis": null
+        }
+      ],
+      "nicht_kumulativ_mit": []
+    }
+  ]
+}

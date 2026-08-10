@@ -1,0 +1,1295 @@
+{
+  "per_generator": {
+    "Qwen/Qwen3-235B-A22B-Thinking-2507": {
+      "rubrics": 15,
+      "v2_documents": 15,
+      "step_count": {
+        "n": 15,
+        "mean": 12.8,
+        "stdev": 2.68,
+        "min": 9,
+        "max": 18
+      },
+      "stated_weight_sum": {
+        "n": 15,
+        "mean": 82.27,
+        "stdev": 15.48,
+        "min": 50,
+        "max": 104
+      },
+      "weight_sum_abs_distance_from_100": {
+        "n": 15,
+        "mean": 18.27,
+        "stdev": 14.81,
+        "min": 0,
+        "max": 50
+      },
+      "share_exact_100": 0.067,
+      "weight_entropy_bits": {
+        "n": 15,
+        "mean": 3.4,
+        "stdev": 0.29,
+        "min": 2.964,
+        "max": 3.878
+      },
+      "heaviest_step_points": {
+        "n": 15,
+        "mean": 19.2,
+        "stdev": 3.99,
+        "min": 15,
+        "max": 26
+      },
+      "sections": {
+        "n": 15,
+        "mean": 3.13,
+        "stdev": 1.81,
+        "min": 1,
+        "max": 8
+      },
+      "schwerpunkte": {
+        "n": 15,
+        "mean": 2.2,
+        "stdev": 0.56,
+        "min": 1,
+        "max": 3
+      },
+      "gewichtungsklassen": {
+        "schwerpunkt": 39,
+        "routine": 94,
+        "tragend": 59
+      },
+      "herkunft_counts": {
+        "musterloesung_explizit": 187,
+        "musterloesung_implizit": 2,
+        "extern_ergaenzt": 3
+      },
+      "herkunft_shares": {
+        "musterloesung_explizit": 0.974,
+        "musterloesung_implizit": 0.01,
+        "extern_ergaenzt": 0.016
+      },
+      "teilpunktstufen_per_step": {
+        "n": 15,
+        "mean": 1.79,
+        "stdev": 0.29,
+        "min": 1.25,
+        "max": 2.28
+      },
+      "steps_with_dependencies": 86,
+      "steps_with_folgefehlerhinweis": 42,
+      "alternativen": {
+        "n": 15,
+        "mean": 1.27,
+        "stdev": 0.8,
+        "min": 0,
+        "max": 3
+      },
+      "alternativen_typen": {
+        "lokal": 19
+      },
+      "alternativen_extern": 12,
+      "warnungen": {
+        "n": 15,
+        "mean": 1.07,
+        "stdev": 0.59,
+        "min": 0,
+        "max": 2
+      },
+      "warnung_typen": {
+        "fachlich_problematische_musterloesung": 13,
+        "unklarer_rechtsstand": 2,
+        "widerspruch_im_material": 1
+      }
+    },
+    "Qwen/Qwen3.5-122B-A10B": {
+      "rubrics": 15,
+      "v2_documents": 15,
+      "step_count": {
+        "n": 15,
+        "mean": 9.27,
+        "stdev": 2.84,
+        "min": 5,
+        "max": 17
+      },
+      "stated_weight_sum": {
+        "n": 15,
+        "mean": 96.93,
+        "stdev": 9.52,
+        "min": 63,
+        "max": 100
+      },
+      "weight_sum_abs_distance_from_100": {
+        "n": 15,
+        "mean": 3.07,
+        "stdev": 9.52,
+        "min": 0,
+        "max": 37
+      },
+      "share_exact_100": 0.8,
+      "weight_entropy_bits": {
+        "n": 15,
+        "mean": 2.91,
+        "stdev": 0.41,
+        "min": 2.041,
+        "max": 3.5
+      },
+      "heaviest_step_points": {
+        "n": 15,
+        "mean": 24.4,
+        "stdev": 8.75,
+        "min": 13,
+        "max": 40
+      },
+      "sections": {
+        "n": 15,
+        "mean": 3,
+        "stdev": 1.2,
+        "min": 1,
+        "max": 5
+      },
+      "schwerpunkte": {
+        "n": 15,
+        "mean": 2.53,
+        "stdev": 0.64,
+        "min": 2,
+        "max": 4
+      },
+      "gewichtungsklassen": {
+        "tragend": 38,
+        "routine": 53,
+        "schwerpunkt": 48
+      },
+      "herkunft_counts": {
+        "musterloesung_explizit": 133,
+        "musterloesung_implizit": 3,
+        "extern_ergaenzt": 3
+      },
+      "herkunft_shares": {
+        "musterloesung_explizit": 0.957,
+        "musterloesung_implizit": 0.022,
+        "extern_ergaenzt": 0.022
+      },
+      "teilpunktstufen_per_step": {
+        "n": 15,
+        "mean": 2.05,
+        "stdev": 0.43,
+        "min": 1.35,
+        "max": 2.8
+      },
+      "steps_with_dependencies": 101,
+      "steps_with_folgefehlerhinweis": 0,
+      "alternativen": {
+        "n": 15,
+        "mean": 1.2,
+        "stdev": 0.56,
+        "min": 0,
+        "max": 2
+      },
+      "alternativen_typen": {
+        "lokal": 16,
+        "strukturveraendernd": 2
+      },
+      "alternativen_extern": 17,
+      "warnungen": {
+        "n": 15,
+        "mean": 1.6,
+        "stdev": 0.74,
+        "min": 0,
+        "max": 3
+      },
+      "warnung_typen": {
+        "fachlich_problematische_musterloesung": 18,
+        "widerspruch_im_material": 3,
+        "sonstiges": 2,
+        "unklarer_rechtsstand": 1
+      }
+    },
+    "Qwen/Qwen3.6-35B-A3B": {
+      "rubrics": 15,
+      "v2_documents": 15,
+      "step_count": {
+        "n": 15,
+        "mean": 11.53,
+        "stdev": 2.95,
+        "min": 7,
+        "max": 16
+      },
+      "stated_weight_sum": {
+        "n": 15,
+        "mean": 99.2,
+        "stdev": 3.45,
+        "min": 93,
+        "max": 105
+      },
+      "weight_sum_abs_distance_from_100": {
+        "n": 15,
+        "mean": 2.13,
+        "stdev": 2.77,
+        "min": 0,
+        "max": 7
+      },
+      "share_exact_100": 0.533,
+      "weight_entropy_bits": {
+        "n": 15,
+        "mean": 3.26,
+        "stdev": 0.42,
+        "min": 2.458,
+        "max": 3.966
+      },
+      "heaviest_step_points": {
+        "n": 15,
+        "mean": 19.4,
+        "stdev": 7.02,
+        "min": 8,
+        "max": 35
+      },
+      "sections": {
+        "n": 15,
+        "mean": 3.67,
+        "stdev": 3.11,
+        "min": 1,
+        "max": 13
+      },
+      "schwerpunkte": {
+        "n": 15,
+        "mean": 2.73,
+        "stdev": 0.88,
+        "min": 1,
+        "max": 4
+      },
+      "gewichtungsklassen": {
+        "tragend": 52,
+        "routine": 79,
+        "schwerpunkt": 42
+      },
+      "herkunft_counts": {
+        "musterloesung_explizit": 166,
+        "extern_ergaenzt": 4,
+        "musterloesung_implizit": 3
+      },
+      "herkunft_shares": {
+        "musterloesung_explizit": 0.96,
+        "extern_ergaenzt": 0.023,
+        "musterloesung_implizit": 0.017
+      },
+      "teilpunktstufen_per_step": {
+        "n": 15,
+        "mean": 1.98,
+        "stdev": 0.29,
+        "min": 1.21,
+        "max": 2.5
+      },
+      "steps_with_dependencies": 99,
+      "steps_with_folgefehlerhinweis": 0,
+      "alternativen": {
+        "n": 15,
+        "mean": 0.6,
+        "stdev": 0.63,
+        "min": 0,
+        "max": 2
+      },
+      "alternativen_typen": {
+        "lokal": 8,
+        "strukturveraendernd": 1
+      },
+      "alternativen_extern": 7,
+      "warnungen": {
+        "n": 15,
+        "mean": 0.8,
+        "stdev": 0.77,
+        "min": 0,
+        "max": 2
+      },
+      "warnung_typen": {
+        "unklarer_rechtsstand": 4,
+        "fachlich_problematische_musterloesung": 6,
+        "unklarer_pruefungsauftrag": 2
+      }
+    },
+    "claude-opus-4-7": {
+      "rubrics": 15,
+      "v2_documents": 15,
+      "step_count": {
+        "n": 15,
+        "mean": 17.07,
+        "stdev": 3.95,
+        "min": 11,
+        "max": 25
+      },
+      "stated_weight_sum": {
+        "n": 15,
+        "mean": 81.67,
+        "stdev": 12.29,
+        "min": 60,
+        "max": 100
+      },
+      "weight_sum_abs_distance_from_100": {
+        "n": 15,
+        "mean": 18.33,
+        "stdev": 12.29,
+        "min": 0,
+        "max": 40
+      },
+      "share_exact_100": 0.067,
+      "weight_entropy_bits": {
+        "n": 15,
+        "mean": 3.82,
+        "stdev": 0.35,
+        "min": 3.194,
+        "max": 4.49
+      },
+      "heaviest_step_points": {
+        "n": 15,
+        "mean": 14.87,
+        "stdev": 4.61,
+        "min": 6,
+        "max": 23
+      },
+      "sections": {
+        "n": 15,
+        "mean": 4.07,
+        "stdev": 1.83,
+        "min": 2,
+        "max": 8
+      },
+      "schwerpunkte": {
+        "n": 15,
+        "mean": 3.67,
+        "stdev": 0.82,
+        "min": 3,
+        "max": 5
+      },
+      "gewichtungsklassen": {
+        "schwerpunkt": 63,
+        "routine": 102,
+        "tragend": 91
+      },
+      "herkunft_counts": {
+        "musterloesung_explizit": 256
+      },
+      "herkunft_shares": {
+        "musterloesung_explizit": 1.0
+      },
+      "teilpunktstufen_per_step": {
+        "n": 15,
+        "mean": 2.2,
+        "stdev": 0.38,
+        "min": 1.72,
+        "max": 2.79
+      },
+      "steps_with_dependencies": 141,
+      "steps_with_folgefehlerhinweis": 61,
+      "alternativen": {
+        "n": 15,
+        "mean": 1.47,
+        "stdev": 0.92,
+        "min": 0,
+        "max": 3
+      },
+      "alternativen_typen": {
+        "lokal": 14,
+        "strukturveraendernd": 8
+      },
+      "alternativen_extern": 10,
+      "warnungen": {
+        "n": 15,
+        "mean": 1.33,
+        "stdev": 0.82,
+        "min": 0,
+        "max": 2
+      },
+      "warnung_typen": {
+        "fachlich_problematische_musterloesung": 15,
+        "sonstiges": 1,
+        "widerspruch_im_material": 1,
+        "unklarer_rechtsstand": 3
+      }
+    },
+    "claude-sonnet-4-6": {
+      "rubrics": 15,
+      "v2_documents": 15,
+      "step_count": {
+        "n": 15,
+        "mean": 22,
+        "stdev": 4.86,
+        "min": 15,
+        "max": 30
+      },
+      "stated_weight_sum": {
+        "n": 15,
+        "mean": 103,
+        "stdev": 13.23,
+        "min": 75,
+        "max": 125
+      },
+      "weight_sum_abs_distance_from_100": {
+        "n": 15,
+        "mean": 10.73,
+        "stdev": 7.83,
+        "min": 0,
+        "max": 25
+      },
+      "share_exact_100": 0.067,
+      "weight_entropy_bits": {
+        "n": 15,
+        "mean": 4.2,
+        "stdev": 0.31,
+        "min": 3.619,
+        "max": 4.707
+      },
+      "heaviest_step_points": {
+        "n": 15,
+        "mean": 11.93,
+        "stdev": 3.22,
+        "min": 8,
+        "max": 19
+      },
+      "sections": {
+        "n": 15,
+        "mean": 4.73,
+        "stdev": 3.03,
+        "min": 2,
+        "max": 11
+      },
+      "schwerpunkte": {
+        "n": 15,
+        "mean": 3.87,
+        "stdev": 0.74,
+        "min": 2,
+        "max": 5
+      },
+      "gewichtungsklassen": {
+        "routine": 171,
+        "schwerpunkt": 84,
+        "tragend": 75
+      },
+      "herkunft_counts": {
+        "musterloesung_explizit": 325,
+        "musterloesung_implizit": 4,
+        "extern_ergaenzt": 1
+      },
+      "herkunft_shares": {
+        "musterloesung_explizit": 0.985,
+        "musterloesung_implizit": 0.012,
+        "extern_ergaenzt": 0.003
+      },
+      "teilpunktstufen_per_step": {
+        "n": 15,
+        "mean": 0.98,
+        "stdev": 0.27,
+        "min": 0.7,
+        "max": 1.53
+      },
+      "steps_with_dependencies": 229,
+      "steps_with_folgefehlerhinweis": 60,
+      "alternativen": {
+        "n": 15,
+        "mean": 2.93,
+        "stdev": 0.8,
+        "min": 2,
+        "max": 5
+      },
+      "alternativen_typen": {
+        "strukturveraendernd": 12,
+        "lokal": 32
+      },
+      "alternativen_extern": 24,
+      "warnungen": {
+        "n": 15,
+        "mean": 2.73,
+        "stdev": 0.8,
+        "min": 2,
+        "max": 4
+      },
+      "warnung_typen": {
+        "unklarer_rechtsstand": 8,
+        "sonstiges": 21,
+        "fachlich_problematische_musterloesung": 12
+      }
+    },
+    "deepseek-ai/DeepSeek-V4-Flash": {
+      "rubrics": 15,
+      "v2_documents": 15,
+      "step_count": {
+        "n": 15,
+        "mean": 18.47,
+        "stdev": 4.56,
+        "min": 10,
+        "max": 26
+      },
+      "stated_weight_sum": {
+        "n": 15,
+        "mean": 71.73,
+        "stdev": 15.82,
+        "min": 46,
+        "max": 96
+      },
+      "weight_sum_abs_distance_from_100": {
+        "n": 15,
+        "mean": 28.27,
+        "stdev": 15.82,
+        "min": 4,
+        "max": 54
+      },
+      "share_exact_100": 0.0,
+      "weight_entropy_bits": {
+        "n": 15,
+        "mean": 3.91,
+        "stdev": 0.38,
+        "min": 2.989,
+        "max": 4.477
+      },
+      "heaviest_step_points": {
+        "n": 15,
+        "mean": 13.33,
+        "stdev": 3.74,
+        "min": 9,
+        "max": 22
+      },
+      "sections": {
+        "n": 15,
+        "mean": 2.6,
+        "stdev": 1.12,
+        "min": 1,
+        "max": 5
+      },
+      "schwerpunkte": {
+        "n": 15,
+        "mean": 2.73,
+        "stdev": 0.88,
+        "min": 2,
+        "max": 4
+      },
+      "gewichtungsklassen": {
+        "tragend": 77,
+        "routine": 150,
+        "schwerpunkt": 50
+      },
+      "herkunft_counts": {
+        "musterloesung_explizit": 270,
+        "musterloesung_implizit": 6,
+        "extern_ergaenzt": 1
+      },
+      "herkunft_shares": {
+        "musterloesung_explizit": 0.975,
+        "musterloesung_implizit": 0.022,
+        "extern_ergaenzt": 0.004
+      },
+      "teilpunktstufen_per_step": {
+        "n": 15,
+        "mean": 1.29,
+        "stdev": 0.38,
+        "min": 0.62,
+        "max": 2.31
+      },
+      "steps_with_dependencies": 153,
+      "steps_with_folgefehlerhinweis": 0,
+      "alternativen": {
+        "n": 15,
+        "mean": 1.47,
+        "stdev": 0.83,
+        "min": 1,
+        "max": 4
+      },
+      "alternativen_typen": {
+        "lokal": 21,
+        "strukturveraendernd": 1
+      },
+      "alternativen_extern": 14,
+      "warnungen": {
+        "n": 15,
+        "mean": 1.2,
+        "stdev": 0.41,
+        "min": 1,
+        "max": 2
+      },
+      "warnung_typen": {
+        "unklarer_rechtsstand": 15,
+        "fachlich_problematische_musterloesung": 3
+      }
+    },
+    "deepseek-ai/DeepSeek-V4-Pro": {
+      "rubrics": 15,
+      "v2_documents": 15,
+      "step_count": {
+        "n": 15,
+        "mean": 25.53,
+        "stdev": 7.4,
+        "min": 14,
+        "max": 41
+      },
+      "stated_weight_sum": {
+        "n": 15,
+        "mean": 86,
+        "stdev": 18.14,
+        "min": 59,
+        "max": 124
+      },
+      "weight_sum_abs_distance_from_100": {
+        "n": 15,
+        "mean": 18,
+        "stdev": 13.85,
+        "min": 0,
+        "max": 41
+      },
+      "share_exact_100": 0.067,
+      "weight_entropy_bits": {
+        "n": 15,
+        "mean": 4.33,
+        "stdev": 0.41,
+        "min": 3.58,
+        "max": 5.106
+      },
+      "heaviest_step_points": {
+        "n": 15,
+        "mean": 11.33,
+        "stdev": 3.39,
+        "min": 6,
+        "max": 19
+      },
+      "sections": {
+        "n": 15,
+        "mean": 4.6,
+        "stdev": 2.67,
+        "min": 2,
+        "max": 9
+      },
+      "schwerpunkte": {
+        "n": 15,
+        "mean": 3.33,
+        "stdev": 0.98,
+        "min": 2,
+        "max": 5
+      },
+      "gewichtungsklassen": {
+        "tragend": 77,
+        "schwerpunkt": 76,
+        "routine": 230
+      },
+      "herkunft_counts": {
+        "musterloesung_explizit": 365,
+        "musterloesung_implizit": 15,
+        "extern_ergaenzt": 3
+      },
+      "herkunft_shares": {
+        "musterloesung_explizit": 0.953,
+        "musterloesung_implizit": 0.039,
+        "extern_ergaenzt": 0.008
+      },
+      "teilpunktstufen_per_step": {
+        "n": 15,
+        "mean": 1.24,
+        "stdev": 0.39,
+        "min": 0.66,
+        "max": 1.93
+      },
+      "steps_with_dependencies": 233,
+      "steps_with_folgefehlerhinweis": 8,
+      "alternativen": {
+        "n": 15,
+        "mean": 1.73,
+        "stdev": 0.46,
+        "min": 1,
+        "max": 2
+      },
+      "alternativen_typen": {
+        "lokal": 24,
+        "strukturveraendernd": 2
+      },
+      "alternativen_extern": 22,
+      "warnungen": {
+        "n": 15,
+        "mean": 1.13,
+        "stdev": 1.25,
+        "min": 0,
+        "max": 4
+      },
+      "warnung_typen": {
+        "fachlich_problematische_musterloesung": 15,
+        "unklarer_rechtsstand": 1,
+        "sonstiges": 1
+      }
+    },
+    "gemini-3.1-flash-lite-preview": {
+      "rubrics": 15,
+      "v2_documents": 15,
+      "step_count": {
+        "n": 15,
+        "mean": 6.33,
+        "stdev": 1.59,
+        "min": 3,
+        "max": 9
+      },
+      "stated_weight_sum": {
+        "n": 15,
+        "mean": 91.53,
+        "stdev": 11.32,
+        "min": 63,
+        "max": 100
+      },
+      "weight_sum_abs_distance_from_100": {
+        "n": 15,
+        "mean": 8.47,
+        "stdev": 11.32,
+        "min": 0,
+        "max": 37
+      },
+      "share_exact_100": 0.467,
+      "weight_entropy_bits": {
+        "n": 15,
+        "mean": 2.45,
+        "stdev": 0.49,
+        "min": 1.351,
+        "max": 3.02
+      },
+      "heaviest_step_points": {
+        "n": 15,
+        "mean": 29.93,
+        "stdev": 13.57,
+        "min": 17,
+        "max": 70
+      },
+      "sections": {
+        "n": 15,
+        "mean": 2.07,
+        "stdev": 0.7,
+        "min": 1,
+        "max": 4
+      },
+      "schwerpunkte": {
+        "n": 15,
+        "mean": 2,
+        "stdev": 0.53,
+        "min": 1,
+        "max": 3
+      },
+      "gewichtungsklassen": {
+        "routine": 36,
+        "tragend": 26,
+        "schwerpunkt": 33
+      },
+      "herkunft_counts": {
+        "musterloesung_explizit": 94,
+        "musterloesung_implizit": 1
+      },
+      "herkunft_shares": {
+        "musterloesung_explizit": 0.989,
+        "musterloesung_implizit": 0.011
+      },
+      "teilpunktstufen_per_step": {
+        "n": 15,
+        "mean": 1.37,
+        "stdev": 0.5,
+        "min": 0.44,
+        "max": 2
+      },
+      "steps_with_dependencies": 20,
+      "steps_with_folgefehlerhinweis": 0,
+      "alternativen": {
+        "n": 15,
+        "mean": 0.33,
+        "stdev": 0.49,
+        "min": 0,
+        "max": 1
+      },
+      "alternativen_typen": {
+        "lokal": 5
+      },
+      "alternativen_extern": 4,
+      "warnungen": {
+        "n": 15,
+        "mean": 0.8,
+        "stdev": 0.41,
+        "min": 0,
+        "max": 1
+      },
+      "warnung_typen": {
+        "fachlich_problematische_musterloesung": 12
+      }
+    },
+    "gemini-3.1-pro-preview": {
+      "rubrics": 15,
+      "v2_documents": 15,
+      "step_count": {
+        "n": 15,
+        "mean": 15.33,
+        "stdev": 2.16,
+        "min": 12,
+        "max": 20
+      },
+      "stated_weight_sum": {
+        "n": 15,
+        "mean": 98.27,
+        "stdev": 3.49,
+        "min": 87,
+        "max": 100
+      },
+      "weight_sum_abs_distance_from_100": {
+        "n": 15,
+        "mean": 1.73,
+        "stdev": 3.49,
+        "min": 0,
+        "max": 13
+      },
+      "share_exact_100": 0.667,
+      "weight_entropy_bits": {
+        "n": 15,
+        "mean": 3.73,
+        "stdev": 0.21,
+        "min": 3.446,
+        "max": 4.244
+      },
+      "heaviest_step_points": {
+        "n": 15,
+        "mean": 14.07,
+        "stdev": 2.63,
+        "min": 9,
+        "max": 18
+      },
+      "sections": {
+        "n": 15,
+        "mean": 3.8,
+        "stdev": 1.82,
+        "min": 2,
+        "max": 8
+      },
+      "schwerpunkte": {
+        "n": 15,
+        "mean": 3.13,
+        "stdev": 0.83,
+        "min": 2,
+        "max": 4
+      },
+      "gewichtungsklassen": {
+        "tragend": 56,
+        "routine": 106,
+        "schwerpunkt": 68
+      },
+      "herkunft_counts": {
+        "musterloesung_explizit": 227,
+        "extern_ergaenzt": 2,
+        "musterloesung_implizit": 1
+      },
+      "herkunft_shares": {
+        "musterloesung_explizit": 0.987,
+        "extern_ergaenzt": 0.009,
+        "musterloesung_implizit": 0.004
+      },
+      "teilpunktstufen_per_step": {
+        "n": 15,
+        "mean": 0.7,
+        "stdev": 0.16,
+        "min": 0.44,
+        "max": 1
+      },
+      "steps_with_dependencies": 98,
+      "steps_with_folgefehlerhinweis": 19,
+      "alternativen": {
+        "n": 15,
+        "mean": 1,
+        "stdev": 0.85,
+        "min": 0,
+        "max": 3
+      },
+      "alternativen_typen": {
+        "lokal": 9,
+        "strukturveraendernd": 6
+      },
+      "alternativen_extern": 8,
+      "warnungen": {
+        "n": 15,
+        "mean": 0.2,
+        "stdev": 0.41,
+        "min": 0,
+        "max": 1
+      },
+      "warnung_typen": {
+        "sonstiges": 1,
+        "fachlich_problematische_musterloesung": 2
+      }
+    },
+    "gpt-5.4": {
+      "rubrics": 15,
+      "v2_documents": 15,
+      "step_count": {
+        "n": 15,
+        "mean": 16.8,
+        "stdev": 3.8,
+        "min": 10,
+        "max": 24
+      },
+      "stated_weight_sum": {
+        "n": 15,
+        "mean": 132.67,
+        "stdev": 18.4,
+        "min": 100,
+        "max": 179
+      },
+      "weight_sum_abs_distance_from_100": {
+        "n": 15,
+        "mean": 32.67,
+        "stdev": 18.4,
+        "min": 0,
+        "max": 79
+      },
+      "share_exact_100": 0.067,
+      "weight_entropy_bits": {
+        "n": 15,
+        "mean": 3.86,
+        "stdev": 0.34,
+        "min": 3.139,
+        "max": 4.464
+      },
+      "heaviest_step_points": {
+        "n": 15,
+        "mean": 13.53,
+        "stdev": 3.54,
+        "min": 8,
+        "max": 20
+      },
+      "sections": {
+        "n": 15,
+        "mean": 3.07,
+        "stdev": 1.16,
+        "min": 2,
+        "max": 5
+      },
+      "schwerpunkte": {
+        "n": 15,
+        "mean": 3.07,
+        "stdev": 0.46,
+        "min": 2,
+        "max": 4
+      },
+      "gewichtungsklassen": {
+        "schwerpunkt": 76,
+        "tragend": 94,
+        "routine": 82
+      },
+      "herkunft_counts": {
+        "musterloesung_explizit": 237,
+        "extern_ergaenzt": 5,
+        "musterloesung_implizit": 10
+      },
+      "herkunft_shares": {
+        "musterloesung_explizit": 0.94,
+        "extern_ergaenzt": 0.02,
+        "musterloesung_implizit": 0.04
+      },
+      "teilpunktstufen_per_step": {
+        "n": 15,
+        "mean": 2.45,
+        "stdev": 0.38,
+        "min": 1.79,
+        "max": 3.06
+      },
+      "steps_with_dependencies": 200,
+      "steps_with_folgefehlerhinweis": 117,
+      "alternativen": {
+        "n": 15,
+        "mean": 1.8,
+        "stdev": 0.68,
+        "min": 1,
+        "max": 3
+      },
+      "alternativen_typen": {
+        "lokal": 20,
+        "strukturveraendernd": 7
+      },
+      "alternativen_extern": 21,
+      "warnungen": {
+        "n": 15,
+        "mean": 2.53,
+        "stdev": 0.52,
+        "min": 2,
+        "max": 3
+      },
+      "warnung_typen": {
+        "fachlich_problematische_musterloesung": 24,
+        "unklarer_rechtsstand": 14
+      }
+    },
+    "gpt-5.4-mini": {
+      "rubrics": 8,
+      "v2_documents": 8,
+      "step_count": {
+        "n": 8,
+        "mean": 17.12,
+        "stdev": 2.7,
+        "min": 14,
+        "max": 22
+      },
+      "stated_weight_sum": {
+        "n": 8,
+        "mean": 131.88,
+        "stdev": 19.07,
+        "min": 102,
+        "max": 156
+      },
+      "weight_sum_abs_distance_from_100": {
+        "n": 8,
+        "mean": 31.88,
+        "stdev": 19.07,
+        "min": 2,
+        "max": 56
+      },
+      "share_exact_100": 0.0,
+      "weight_entropy_bits": {
+        "n": 8,
+        "mean": 3.91,
+        "stdev": 0.23,
+        "min": 3.648,
+        "max": 4.331
+      },
+      "heaviest_step_points": {
+        "n": 8,
+        "mean": 11.62,
+        "stdev": 2.33,
+        "min": 8,
+        "max": 14
+      },
+      "sections": {
+        "n": 8,
+        "mean": 3.25,
+        "stdev": 1.58,
+        "min": 2,
+        "max": 6
+      },
+      "schwerpunkte": {
+        "n": 8,
+        "mean": 2.88,
+        "stdev": 0.35,
+        "min": 2,
+        "max": 3
+      },
+      "gewichtungsklassen": {
+        "routine": 64,
+        "tragend": 34,
+        "schwerpunkt": 39
+      },
+      "herkunft_counts": {
+        "musterloesung_explizit": 135,
+        "musterloesung_implizit": 2
+      },
+      "herkunft_shares": {
+        "musterloesung_explizit": 0.985,
+        "musterloesung_implizit": 0.015
+      },
+      "teilpunktstufen_per_step": {
+        "n": 8,
+        "mean": 2.26,
+        "stdev": 0.36,
+        "min": 2,
+        "max": 3
+      },
+      "steps_with_dependencies": 117,
+      "steps_with_folgefehlerhinweis": 0,
+      "alternativen": {
+        "n": 8,
+        "mean": 1.62,
+        "stdev": 0.74,
+        "min": 1,
+        "max": 3
+      },
+      "alternativen_typen": {
+        "lokal": 12,
+        "strukturveraendernd": 1
+      },
+      "alternativen_extern": 7,
+      "warnungen": {
+        "n": 8,
+        "mean": 2.38,
+        "stdev": 0.52,
+        "min": 2,
+        "max": 3
+      },
+      "warnung_typen": {
+        "unklarer_rechtsstand": 6,
+        "fachlich_problematische_musterloesung": 12,
+        "unklarer_pruefungsauftrag": 1
+      }
+    },
+    "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8": {
+      "rubrics": 12,
+      "v2_documents": 12,
+      "step_count": {
+        "n": 12,
+        "mean": 6.5,
+        "stdev": 1.78,
+        "min": 4,
+        "max": 10
+      },
+      "stated_weight_sum": {
+        "n": 12,
+        "mean": 64.83,
+        "stdev": 19.48,
+        "min": 34,
+        "max": 100
+      },
+      "weight_sum_abs_distance_from_100": {
+        "n": 12,
+        "mean": 35.17,
+        "stdev": 19.48,
+        "min": 0,
+        "max": 66
+      },
+      "share_exact_100": 0.083,
+      "weight_entropy_bits": {
+        "n": 12,
+        "mean": 2.52,
+        "stdev": 0.38,
+        "min": 1.99,
+        "max": 3.126
+      },
+      "heaviest_step_points": {
+        "n": 12,
+        "mean": 26.75,
+        "stdev": 5.59,
+        "min": 16,
+        "max": 34
+      },
+      "sections": {
+        "n": 12,
+        "mean": 2.17,
+        "stdev": 0.94,
+        "min": 1,
+        "max": 4
+      },
+      "schwerpunkte": {
+        "n": 12,
+        "mean": 2.17,
+        "stdev": 0.58,
+        "min": 1,
+        "max": 3
+      },
+      "gewichtungsklassen": {
+        "routine": 26,
+        "tragend": 35,
+        "schwerpunkt": 17
+      },
+      "herkunft_counts": {
+        "musterloesung_explizit": 78
+      },
+      "herkunft_shares": {
+        "musterloesung_explizit": 1.0
+      },
+      "teilpunktstufen_per_step": {
+        "n": 12,
+        "mean": 1.6,
+        "stdev": 0.44,
+        "min": 1,
+        "max": 2
+      },
+      "steps_with_dependencies": 12,
+      "steps_with_folgefehlerhinweis": 4,
+      "alternativen": {
+        "n": 12,
+        "mean": 0.42,
+        "stdev": 0.67,
+        "min": 0,
+        "max": 2
+      },
+      "alternativen_typen": {
+        "lokal": 5
+      },
+      "alternativen_extern": 5,
+      "warnungen": {
+        "n": 12,
+        "mean": 0.33,
+        "stdev": 0.49,
+        "min": 0,
+        "max": 1
+      },
+      "warnung_typen": {
+        "unklarer_rechtsstand": 4
+      }
+    }
+  },
+  "cross_generator_convergence": {
+    "n_tasks_with_multiple_generators": 15,
+    "step_count_spread": {
+      "n": 15,
+      "mean": 21.27,
+      "stdev": 6.44,
+      "min": 12,
+      "max": 36
+    },
+    "per_task": [
+      {
+        "task_id": "d8f3f9fe-06e6-41b9-ab20-092a05e0ceed",
+        "n_generators": 11,
+        "step_count_spread": 21
+      },
+      {
+        "task_id": "0016b6cc-42ed-4e31-a026-925092b62918",
+        "n_generators": 12,
+        "step_count_spread": 26
+      },
+      {
+        "task_id": "023ad438-73f1-4983-9e83-fd7cc3ac91e0",
+        "n_generators": 10,
+        "step_count_spread": 18
+      },
+      {
+        "task_id": "374fdd48-e89c-4918-8914-03f889700fa4",
+        "n_generators": 11,
+        "step_count_spread": 22
+      },
+      {
+        "task_id": "08218fb0-9e75-47eb-a974-2f19ea2abb5c",
+        "n_generators": 11,
+        "step_count_spread": 17
+      },
+      {
+        "task_id": "02aeba6c-5e39-425f-9482-cf91ed1be45d",
+        "n_generators": 11,
+        "step_count_spread": 34
+      },
+      {
+        "task_id": "b0a4b82a-b610-4bd9-a300-5cf8804d512f",
+        "n_generators": 11,
+        "step_count_spread": 16
+      },
+      {
+        "task_id": "660fb66a-c6d5-4a3a-ac5f-86507284c00a",
+        "n_generators": 12,
+        "step_count_spread": 18
+      },
+      {
+        "task_id": "f7be0ce5-4ce7-4ce9-83bc-1340f79b826e",
+        "n_generators": 11,
+        "step_count_spread": 36
+      },
+      {
+        "task_id": "a3c0aa07-9246-4b21-8190-4389261a01a4",
+        "n_generators": 11,
+        "step_count_spread": 21
+      },
+      {
+        "task_id": "6f5996ab-80d6-4611-a529-a0421fdff314",
+        "n_generators": 12,
+        "step_count_spread": 20
+      },
+      {
+        "task_id": "44f8f9cf-3999-4b99-8d7e-e37be3592a60",
+        "n_generators": 11,
+        "step_count_spread": 17
+      },
+      {
+        "task_id": "b6420df7-d9f3-4ab4-8099-5a1767985cff",
+        "n_generators": 12,
+        "step_count_spread": 12
+      },
+      {
+        "task_id": "0920a50b-9d08-49d7-89c8-473808f29d85",
+        "n_generators": 12,
+        "step_count_spread": 19
+      },
+      {
+        "task_id": "b01bad13-0b69-4b26-9a03-ecd281afdaa8",
+        "n_generators": 12,
+        "step_count_spread": 22
+      }
+    ]
+  }
+}

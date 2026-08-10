@@ -1,0 +1,267 @@
+{
+ "gpt-5.4-mini|b6420df7": {
+  "status": "completed",
+  "result": {
+   "status": "completed",
+   "rubric_id": "05b579ff-8e12-4586-8a09-20df6820eedc",
+   "task_id": "b6420df7-d9f3-4ab4-8099-5a1767985cff",
+   "generator_model_id": "gpt-5.4-mini",
+   "prompt_key": "bewertungsbogen",
+   "steps": 8,
+   "rubric_status": "active",
+   "attempts": 2
+  }
+ },
+ "gpt-5.4|023ad438": {
+  "status": "completed",
+  "result": {
+   "status": "completed",
+   "rubric_id": "5904a1de-152a-46f5-9917-6ce18bbe0add",
+   "task_id": "023ad438-73f1-4983-9e83-fd7cc3ac91e0",
+   "generator_model_id": "gpt-5.4",
+   "prompt_key": "bewertungsbogen",
+   "steps": 15,
+   "rubric_status": "active",
+   "attempts": 1
+  }
+ },
+ "gemini-3.1-pro-preview|b6420df7": {
+  "status": "completed",
+  "result": {
+   "status": "completed",
+   "rubric_id": "dceacabc-e537-425c-8c8c-1ff5ace8ceda",
+   "task_id": "b6420df7-d9f3-4ab4-8099-5a1767985cff",
+   "generator_model_id": "gemini-3.1-pro-preview",
+   "prompt_key": "bewertungsbogen",
+   "steps": 12,
+   "rubric_status": "candidate",
+   "attempts": 2
+  }
+ },
+ "gpt-5.4-mini|023ad438": {
+  "status": "failed",
+  "result": {
+   "status": "error",
+   "error": "punkte: Summe der regulären Schritt-Maximalpunkte ist 110, muss 100 sein; abschnittssumme: Abschnitt 'A1': punkte 50 != Summe der Schritte 60; schwerpunkte: Schwerpunkt SP2: punkte 24 != Summe der zugeordneten Schritte 34; alternativen: nicht_kumulativ_mit referenziert unbekannte Alternative 'S4'",
+   "error_stage": "contract",
+   "error_categories": [
+    "abschnittssumme",
+    "alternativen",
+    "punkte",
+    "schwerpunkte"
+   ],
+   "attempts": 3,
+   "attempt_errors": [
+    {
+     "attempt": 1,
+     "stage": "parse",
+     "detail": "response was not parseable Bewertungsbogen JSON"
+    },
+    {
+     "attempt": 2,
+     "stage": "parse",
+     "detail": "response was not parseable Bewertungsbogen JSON"
+    },
+    {
+     "attempt": 3,
+     "stage": "contract",
+     "detail": "punkte: Summe der regulären Schritt-Maximalpunkte ist 110, muss 100 sein; abschnittssumme: Abschnitt 'A1': punkte 50 != Summe der Schritte 60; schwerpunkte: Schwerpunkt SP2: punkte 24 != Summe der zugeordneten Schritte 34; alternativen: nicht_kumulativ_mit referenziert unbekannte Alternative 'S4'",
+     "categories": [
+      "abschnittssumme",
+      "alternativen",
+      "punkte",
+      "schwerpunkte"
+     ]
+    }
+   ],
+   "task_id": "023ad438-73f1-4983-9e83-fd7cc3ac91e0",
+   "generator_model_id": "gpt-5.4-mini"
+  }
+ },
+ "gemini-3.1-pro-preview|023ad438": {
+  "status": "completed",
+  "result": {
+   "status": "completed",
+   "rubric_id": "9a9a526e-7194-4877-99e6-5bed19fb5c21",
+   "task_id": "023ad438-73f1-4983-9e83-fd7cc3ac91e0",
+   "generator_model_id": "gemini-3.1-pro-preview",
+   "prompt_key": "bewertungsbogen",
+   "steps": 17,
+   "rubric_status": "candidate",
+   "attempts": 2
+  }
+ },
+ "gpt-5.4|b6420df7": {
+  "status": "completed",
+  "result": {
+   "status": "completed",
+   "rubric_id": "f4533c80-dd6d-4242-9723-a6d61b1f5c03",
+   "task_id": "b6420df7-d9f3-4ab4-8099-5a1767985cff",
+   "generator_model_id": "gpt-5.4",
+   "prompt_key": "bewertungsbogen",
+   "steps": 10,
+   "rubric_status": "candidate",
+   "attempts": 2
+  }
+ },
+ "deepseek-ai/DeepSeek-V4-Flash|b6420df7": {
+  "status": "completed",
+  "result": {
+   "status": "completed",
+   "rubric_id": "6aba4fc5-5223-4460-abb6-fac98d66eea0",
+   "task_id": "b6420df7-d9f3-4ab4-8099-5a1767985cff",
+   "generator_model_id": "deepseek-ai/DeepSeek-V4-Flash",
+   "prompt_key": "bewertungsbogen",
+   "steps": 13,
+   "rubric_status": "candidate",
+   "attempts": 2
+  }
+ },
+ "claude-sonnet-4-6|b6420df7": {
+  "status": "failed",
+  "result": {
+   "status": "error",
+   "error": "herkunft: Schritt S16: textanker länger als 20 Wörter (21); punkte: Summe der regulären Schritt-Maximalpunkte ist 94, muss 100 sein; abschnittssumme: Abschnitt 'A3': punkte 88 != Summe der Schritte 82",
+   "error_stage": "contract",
+   "error_categories": [
+    "abschnittssumme",
+    "herkunft",
+    "punkte"
+   ],
+   "attempts": 3,
+   "attempt_errors": [
+    {
+     "attempt": 1,
+     "stage": "contract",
+     "detail": "herkunft: Schritt S1: textanker länger als 20 Wörter (22); herkunft: Schritt S4: textanker länger als 20 Wörter (22); herkunft: Schritt S5: textanker länger als 20 Wörter (21); herkunft: Schritt S11: textanker länger als 20 Wörter (26); herkunft: Schritt S14: textanker länger als 20 Wörter (24); herkunft: Schritt S15: textanker länger als 20 Wörter (21); herkunft: Schritt S16: textanker länger als 20 Wörter (21); punkte: Summe der regulären Schritt-Maximalpunkte ist 94, muss 100 sein; abschnittssumme: Abschnitt 'A3': punkte 88 != Summe der Schritte 82; alternativen: nicht_kumulativ_mit referenziert unbekannte Alternative 'S8'; alternativen: nicht_kumulativ_mit referenziert unbekannte Alternative 'S9'; alternativen: nicht_kumulativ_mit referenziert unbekannte Alternative 'S10'; alternativen: nicht_kumulativ_mit referenziert unbekannte Alternative 'S12'",
+     "categories": [
+      "abschnittssumme",
+      "alternativen",
+      "herkunft",
+      "punkte"
+     ]
+    },
+    {
+     "attempt": 2,
+     "stage": "contract",
+     "detail": "herkunft: Schritt S11: textanker länger als 20 Wörter (22); herkunft: Schritt S15: textanker länger als 20 Wörter (21); herkunft: Schritt S16: textanker länger als 20 Wörter (21); punkte: Summe der regulären Schritt-Maximalpunkte ist 94, muss 100 sein; abschnittssumme: Abschnitt 'A3': punkte 88 != Summe der Schritte 82",
+     "categories": [
+      "abschnittssumme",
+      "herkunft",
+      "punkte"
+     ]
+    },
+    {
+     "attempt": 3,
+     "stage": "contract",
+     "detail": "herkunft: Schritt S16: textanker länger als 20 Wörter (21); punkte: Summe der regulären Schritt-Maximalpunkte ist 94, muss 100 sein; abschnittssumme: Abschnitt 'A3': punkte 88 != Summe der Schritte 82",
+     "categories": [
+      "abschnittssumme",
+      "herkunft",
+      "punkte"
+     ]
+    }
+   ],
+   "task_id": "b6420df7-d9f3-4ab4-8099-5a1767985cff",
+   "generator_model_id": "claude-sonnet-4-6"
+  }
+ },
+ "claude-sonnet-4-6|023ad438": {
+  "status": "failed",
+  "result": {
+   "status": "error",
+   "error": "punkte: Summe der regulären Schritt-Maximalpunkte ist 89, muss 100 sein; abschnittssumme: Abschnitt 'A1': punkte 57 != Summe der Schritte 47; abschnittssumme: Abschnitt 'A2': punkte 43 != Summe der Schritte 42",
+   "error_stage": "contract",
+   "error_categories": [
+    "abschnittssumme",
+    "punkte"
+   ],
+   "attempts": 3,
+   "attempt_errors": [
+    {
+     "attempt": 1,
+     "stage": "contract",
+     "detail": "punkte: Summe der regulären Schritt-Maximalpunkte ist 88, muss 100 sein; abschnittssumme: Abschnitt 'A1': punkte 55 != Summe der Schritte 46; abschnittssumme: Abschnitt 'A2': punkte 45 != Summe der Schritte 42; schwerpunkte: Schwerpunkt SP2: punkte 10 != Summe der zugeordneten Schritte 6; schwerpunkte: Schritt 'S4' trägt schwerpunkt_id 'SP2', wird dort aber nicht in schritt_ids gelistet",
+     "categories": [
+      "abschnittssumme",
+      "punkte",
+      "schwerpunkte"
+     ]
+    },
+    {
+     "attempt": 2,
+     "stage": "contract",
+     "detail": "punkte: Summe der regulären Schritt-Maximalpunkte ist 87, muss 100 sein; abschnittssumme: Abschnitt 'A1': punkte 55 != Summe der Schritte 46; abschnittssumme: Abschnitt 'A2': punkte 45 != Summe der Schritte 41; schwerpunkte: Schwerpunkt SP3: punkte 22 != Summe der zugeordneten Schritte 21; schwerpunkte: Schritt 'S24' wird von SP3 gelistet, trägt aber keine schwerpunkt_id",
+     "categories": [
+      "abschnittssumme",
+      "punkte",
+      "schwerpunkte"
+     ]
+    },
+    {
+     "attempt": 3,
+     "stage": "contract",
+     "detail": "punkte: Summe der regulären Schritt-Maximalpunkte ist 89, muss 100 sein; abschnittssumme: Abschnitt 'A1': punkte 57 != Summe der Schritte 47; abschnittssumme: Abschnitt 'A2': punkte 43 != Summe der Schritte 42",
+     "categories": [
+      "abschnittssumme",
+      "punkte"
+     ]
+    }
+   ],
+   "task_id": "023ad438-73f1-4983-9e83-fd7cc3ac91e0",
+   "generator_model_id": "claude-sonnet-4-6"
+  }
+ },
+ "deepseek-ai/DeepSeek-V4-Flash|023ad438": {
+  "status": "failed",
+  "result": {
+   "status": "error",
+   "error": "teilpunktstufen: Schritt S2: Stufen decken 1..6 ab, erwartet 1..7; teilpunktstufen: Schritt S3: Stufen decken 1..4 ab, erwartet 1..5; teilpunktstufen: Schritt S9: Stufen decken 1..6 ab, erwartet 1..7; teilpunktstufen: Schritt S11: Stufen decken 1..2 ab, erwartet 1..3; teilpunktstufen: Schritt S19: Stufen decken 1..2 ab, erwartet 1..3; teilpunktstufen: Schritt S20: Stufen decken 1..2 ab, erwartet 1..3; teilpunktstufen: Schritt S26: Stufen decken 1..4 ab, erwartet 1..5; teilpunktstufen: Schritt S30: Stufen decken 1..6 ab, erwartet 1..7; teilpunktstufen: Schritt S31: Stufen decken 1..2 ab, erwartet 1..3; punkte: Summe der regulären Schritt-Maximalpunkte ist 92, muss 100 sein; abschnittssumme: Abschnitt 'A2': punkte 42 != Summe der Schritte 34",
+   "error_stage": "contract",
+   "error_categories": [
+    "abschnittssumme",
+    "punkte",
+    "teilpunktstufen"
+   ],
+   "attempts": 3,
+   "attempt_errors": [
+    {
+     "attempt": 1,
+     "stage": "contract",
+     "detail": "punkte: Schritt S1: max_punkte 0 ist keine ganze Zahl >= 1; punkte: Schritt S2: max_punkte 0 ist keine ganze Zahl >= 1; punkte: Schritt S3: max_punkte 0 ist keine ganze Zahl >= 1; herkunft: Schritt S3: textanker länger als 20 Wörter (21); punkte: Schritt S4: max_punkte 0 ist keine ganze Zahl >= 1; punkte: Schritt S5: max_punkte 0 ist keine ganze Zahl >= 1; punkte: Schritt S6: max_punkte 0 ist keine ganze Zahl >= 1; punkte: Schritt S7: max_punkte 0 ist keine ganze Zahl >= 1; punkte: Schritt S8: max_punkte 0 ist keine ganze Zahl >= 1; herkunft: Schritt S8: textanker länger als 20 Wörter (28); punkte: Schritt S9: max_punkte 0 ist keine ganze Zahl >= 1; punkte: Schritt S10: max_punkte 0 ist keine ganze Zahl >= 1; herkunft: Schritt S10: textanker länger als 20 Wörter (21); punkte: Schritt S11: max_punkte 0 ist keine ganze Zahl >= 1; herkunft: Schritt S11: textanker länger als 20 Wörter (26); punkte: Schritt S12: max_punkte 0 ist keine ganze Zahl >= 1; herkunft: Schritt S12: textanker länger als 20 Wörter (33); punkte: Schritt S13: max_punkte 0 ist keine ganze Zahl >= 1; punkte: Schritt S14: max_punkte 0 ist keine ganze Zahl >= 1; herkunft: Schritt S14: textanker länger als 20 Wörter (25)",
+     "categories": [
+      "abschnittssumme",
+      "herkunft",
+      "ids",
+      "punkte",
+      "schwerpunkte",
+      "warnungen"
+     ]
+    },
+    {
+     "attempt": 2,
+     "stage": "contract",
+     "detail": "teilpunktstufen: Schritt S2: Stufen decken 1..6 ab, erwartet 1..7; teilpunktstufen: Schritt S3: Stufen decken 1..4 ab, erwartet 1..5; teilpunktstufen: Schritt S9: Stufen decken 1..6 ab, erwartet 1..7; teilpunktstufen: Schritt S11: Stufen decken 1..2 ab, erwartet 1..3; herkunft: Schritt S16: textanker länger als 20 Wörter (24); herkunft: Schritt S18: textanker länger als 20 Wörter (23); teilpunktstufen: Schritt S19: Stufen decken 1..2 ab, erwartet 1..3; teilpunktstufen: Schritt S20: Stufen decken 1..2 ab, erwartet 1..3; teilpunktstufen: Schritt S26: Stufen decken 1..4 ab, erwartet 1..5; teilpunktstufen: Schritt S30: Stufen decken 1..6 ab, erwartet 1..7; teilpunktstufen: Schritt S31: Stufen decken 1..2 ab, erwartet 1..3; punkte: Summe der regulären Schritt-Maximalpunkte ist 92, muss 100 sein; abschnittssumme: Abschnitt 'A1': punkte 50 != Summe der Schritte 58; abschnittssumme: Abschnitt 'A2': punkte 50 != Summe der Schritte 34",
+     "categories": [
+      "abschnittssumme",
+      "herkunft",
+      "punkte",
+      "teilpunktstufen"
+     ]
+    },
+    {
+     "attempt": 3,
+     "stage": "contract",
+     "detail": "teilpunktstufen: Schritt S2: Stufen decken 1..6 ab, erwartet 1..7; teilpunktstufen: Schritt S3: Stufen decken 1..4 ab, erwartet 1..5; teilpunktstufen: Schritt S9: Stufen decken 1..6 ab, erwartet 1..7; teilpunktstufen: Schritt S11: Stufen decken 1..2 ab, erwartet 1..3; teilpunktstufen: Schritt S19: Stufen decken 1..2 ab, erwartet 1..3; teilpunktstufen: Schritt S20: Stufen decken 1..2 ab, erwartet 1..3; teilpunktstufen: Schritt S26: Stufen decken 1..4 ab, erwartet 1..5; teilpunktstufen: Schritt S30: Stufen decken 1..6 ab, erwartet 1..7; teilpunktstufen: Schritt S31: Stufen decken 1..2 ab, erwartet 1..3; punkte: Summe der regulären Schritt-Maximalpunkte ist 92, muss 100 sein; abschnittssumme: Abschnitt 'A2': punkte 42 != Summe der Schritte 34",
+     "categories": [
+      "abschnittssumme",
+      "punkte",
+      "teilpunktstufen"
+     ]
+    }
+   ],
+   "task_id": "023ad438-73f1-4983-9e83-fd7cc3ac91e0",
+   "generator_model_id": "deepseek-ai/DeepSeek-V4-Flash"
+  }
+ }
+}

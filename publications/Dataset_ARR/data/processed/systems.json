@@ -104,15 +104,15 @@
     "tier": "flagship",
     "size": null,
     "access_date": "2026-05",
-    "temperature": 0.5,
+    "temperature": 1.0,
     "max_output_tokens": 16000,
-    "repetitions": 30,
+    "repetitions": 15,
     "n_truncated": 0,
     "n_short_words": 0,
     "truncation_rate": 0.0,
     "mean_cost_usd": null,
     "mean_response_time_s": 70.00766666666667,
-    "mean_output_words": 1829.5333333333333
+    "mean_output_words": 2190.4666666666667
   },
   {
     "model_id": "gpt-5.4-mini",
@@ -152,13 +152,13 @@
     "access_date": "2026-05",
     "temperature": 0.6,
     "max_output_tokens": 16000,
-    "repetitions": 28,
+    "repetitions": 15,
     "n_truncated": 0,
     "n_short_words": 0,
     "truncation_rate": 0.0,
     "mean_cost_usd": 0.014416446,
     "mean_response_time_s": 125.10813333333333,
-    "mean_output_words": 678.4285714285714
+    "mean_output_words": 825.4
   },
   {
     "model_id": "Qwen/Qwen3.5-122B-A10B",

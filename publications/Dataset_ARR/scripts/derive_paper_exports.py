@@ -28,8 +28,12 @@ from __future__ import annotations
 
 import json
 import statistics
-from collections import defaultdict
+import sys
+from collections import Counter, defaultdict
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _gen_dedup import dedup_export_view  # noqa: E402
 
 try:
     import tiktoken
@@ -655,17 +659,40 @@ def main() -> None:
     else:
         print("zjs_model_summary.json not found — no model filtering applied.")
 
+    # Leaderboard pool: the newest generation per (task, system). The partial
+    # April 2026 pre-finalisation round (no logged prompts, temp 0.0, no token
+    # budget; superseded by the finalized 2026-05-08 campaign) drops out here.
+    # Pick-level derivations (human grades, judge repeats) keep using `real`:
+    # one human-graded validation pick is an April generation, and its
+    # judge/metric rows are side-exported below so pick joins stay complete.
+    dropped = Counter()
+    removed_by_task: dict = {}
+    real_lb = dedup_export_view(real, dropped, removed_by_task)
+    if dropped:
+        print(f"Superseded generations excluded from the leaderboard pool: "
+              f"{sum(dropped.values())} ({dict(dropped.most_common())})")
+    superseded_export = {"tasks": [
+        {"id": tid, "generations": gens}
+        for tid, gens in removed_by_task.items()
+    ]}
+
     pipeline = [
-        ("systems.json",                       derive_systems(real, whitelist)),
-        ("benchathon_model_evaluations.json",  derive_model_evaluations(real, whitelist)),
-        ("benchathon_automatic_metrics.json",  derive_automatic_metrics(real, whitelist)),
+        ("systems.json",                       derive_systems(real_lb, whitelist)),
+        ("benchathon_model_evaluations.json",  derive_model_evaluations(real_lb, whitelist)),
+        ("benchathon_automatic_metrics.json",  derive_automatic_metrics(real_lb, whitelist)),
+        ("benchathon_superseded_evaluations.json",
+                                               derive_model_evaluations(
+                                                    superseded_export, whitelist)),
+        ("benchathon_superseded_automatic_metrics.json",
+                                               derive_automatic_metrics(
+                                                    superseded_export, whitelist)),
         ("benchathon_human_automatic_metrics.json",
                                                derive_human_automatic_metrics(
                                                     HUMAN_AUTO_EXPORT, variants)),
         ("benchathon_human_grades.json",       derive_human_grades(
                                                     sidecar, real=real, variants=variants)),
         ("benchathon_human_judge_repeats.json", derive_judge_repeats(real, whitelist)),
-        ("benchathon_generations_stats.json",  derive_generations_stats(real, whitelist)),
+        ("benchathon_generations_stats.json",  derive_generations_stats(real_lb, whitelist)),
     ]
     for name, payload in pipeline:
         dump(OUT / name, payload)

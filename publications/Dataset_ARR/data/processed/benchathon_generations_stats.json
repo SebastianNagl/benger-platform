@@ -60,16 +60,6 @@
     "words": 1395
   },
   {
-    "model": "gpt-5.4",
-    "task": "1648d37e-ba60-4797-8c2a-d8648d7b5887",
-    "words": 1056
-  },
-  {
-    "model": "Qwen/Qwen3-235B-A22B-Thinking-2507",
-    "task": "1648d37e-ba60-4797-8c2a-d8648d7b5887",
-    "words": 491
-  },
-  {
     "model": "Qwen/Qwen3.6-35B-A3B",
     "task": "c5e7770b-1416-4c7b-994f-7714780f9dcb",
     "words": 834
@@ -118,11 +108,6 @@
     "model": "gemini-3.1-flash-lite-preview",
     "task": "c5e7770b-1416-4c7b-994f-7714780f9dcb",
     "words": 1589
-  },
-  {
-    "model": "gpt-5.4",
-    "task": "c5e7770b-1416-4c7b-994f-7714780f9dcb",
-    "words": 1856
   },
   {
     "model": "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
@@ -190,16 +175,6 @@
     "words": 2668
   },
   {
-    "model": "Qwen/Qwen3-235B-A22B-Thinking-2507",
-    "task": "762b7db3-6c4f-4e7b-8552-22d91371410f",
-    "words": 617
-  },
-  {
-    "model": "gpt-5.4",
-    "task": "762b7db3-6c4f-4e7b-8552-22d91371410f",
-    "words": 1733
-  },
-  {
     "model": "gemini-3.1-flash-lite-preview",
     "task": "762b7db3-6c4f-4e7b-8552-22d91371410f",
     "words": 1280
@@ -218,11 +193,6 @@
     "model": "gpt-5.4",
     "task": "2c217f68-0dd1-4d34-9a5f-7b99c9fe2b8b",
     "words": 2598
-  },
-  {
-    "model": "Qwen/Qwen3-235B-A22B-Thinking-2507",
-    "task": "2c217f68-0dd1-4d34-9a5f-7b99c9fe2b8b",
-    "words": 715
   },
   {
     "model": "gemini-3.1-flash-lite-preview",
@@ -268,11 +238,6 @@
     "model": "gemini-3.1-pro-preview",
     "task": "2c217f68-0dd1-4d34-9a5f-7b99c9fe2b8b",
     "words": 1547
-  },
-  {
-    "model": "gpt-5.4",
-    "task": "2c217f68-0dd1-4d34-9a5f-7b99c9fe2b8b",
-    "words": 1897
   },
   {
     "model": "gpt-5.4-mini",
@@ -335,16 +300,6 @@
     "words": 2594
   },
   {
-    "model": "gpt-5.4",
-    "task": "941f78d7-b26a-463c-b58a-a752d59bc0a5",
-    "words": 1628
-  },
-  {
-    "model": "Qwen/Qwen3-235B-A22B-Thinking-2507",
-    "task": "941f78d7-b26a-463c-b58a-a752d59bc0a5",
-    "words": 556
-  },
-  {
     "model": "gpt-5.4-mini",
     "task": "dfdea348-c434-4fc5-8ab1-e13172226b34",
     "words": 1360
@@ -403,11 +358,6 @@
     "model": "gemini-3.1-pro-preview",
     "task": "dfdea348-c434-4fc5-8ab1-e13172226b34",
     "words": 1328
-  },
-  {
-    "model": "gpt-5.4",
-    "task": "dfdea348-c434-4fc5-8ab1-e13172226b34",
-    "words": 1622
   },
   {
     "model": "gemini-3.1-pro-preview",
@@ -470,16 +420,6 @@
     "words": 1895
   },
   {
-    "model": "Qwen/Qwen3-235B-A22B-Thinking-2507",
-    "task": "0dd46b63-ff6d-4912-b953-777281f8aec8",
-    "words": 548
-  },
-  {
-    "model": "gpt-5.4",
-    "task": "0dd46b63-ff6d-4912-b953-777281f8aec8",
-    "words": 1154
-  },
-  {
     "model": "gpt-5.4-mini",
     "task": "c831f630-b724-4d74-9a97-7cf48edd4cf7",
     "words": 1128
@@ -540,16 +480,6 @@
     "words": 1254
   },
   {
-    "model": "gpt-5.4",
-    "task": "c831f630-b724-4d74-9a97-7cf48edd4cf7",
-    "words": 1630
-  },
-  {
-    "model": "Qwen/Qwen3-235B-A22B-Thinking-2507",
-    "task": "c831f630-b724-4d74-9a97-7cf48edd4cf7",
-    "words": 595
-  },
-  {
     "model": "gpt-5.4-mini",
     "task": "883e812d-6f6e-466e-bf8e-313bbdc0604a",
     "words": 897
@@ -603,16 +533,6 @@
     "model": "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
     "task": "883e812d-6f6e-466e-bf8e-313bbdc0604a",
     "words": 594
-  },
-  {
-    "model": "gpt-5.4",
-    "task": "883e812d-6f6e-466e-bf8e-313bbdc0604a",
-    "words": 1215
-  },
-  {
-    "model": "Qwen/Qwen3-235B-A22B-Thinking-2507",
-    "task": "883e812d-6f6e-466e-bf8e-313bbdc0604a",
-    "words": 382
   },
   {
     "model": "Qwen/Qwen3-235B-A22B-Thinking-2507",
@@ -680,16 +600,6 @@
     "words": 1345
   },
   {
-    "model": "Qwen/Qwen3-235B-A22B-Thinking-2507",
-    "task": "6471701d-1b21-4fab-8dd2-4460e759eef9",
-    "words": 329
-  },
-  {
-    "model": "gpt-5.4",
-    "task": "6471701d-1b21-4fab-8dd2-4460e759eef9",
-    "words": 979
-  },
-  {
     "model": "Qwen/Qwen3.5-122B-A10B",
     "task": "242ede8c-5d49-498d-bdd4-75c8275ab557",
     "words": 985
@@ -748,16 +658,6 @@
     "model": "gpt-5.4",
     "task": "242ede8c-5d49-498d-bdd4-75c8275ab557",
     "words": 2184
-  },
-  {
-    "model": "gpt-5.4",
-    "task": "242ede8c-5d49-498d-bdd4-75c8275ab557",
-    "words": 895
-  },
-  {
-    "model": "Qwen/Qwen3-235B-A22B-Thinking-2507",
-    "task": "242ede8c-5d49-498d-bdd4-75c8275ab557",
-    "words": 446
   },
   {
     "model": "gpt-5.4-mini",
@@ -820,16 +720,6 @@
     "words": 477
   },
   {
-    "model": "Qwen/Qwen3-235B-A22B-Thinking-2507",
-    "task": "39f282c6-8eae-4b90-be83-d37c1928376a",
-    "words": 444
-  },
-  {
-    "model": "gpt-5.4",
-    "task": "39f282c6-8eae-4b90-be83-d37c1928376a",
-    "words": 1291
-  },
-  {
     "model": "gpt-5.4",
     "task": "cb1e84ab-a1da-4010-880c-c1f44b0f9e14",
     "words": 2799
@@ -888,16 +778,6 @@
     "model": "Qwen/Qwen3.5-122B-A10B",
     "task": "cb1e84ab-a1da-4010-880c-c1f44b0f9e14",
     "words": 1553
-  },
-  {
-    "model": "gpt-5.4",
-    "task": "cb1e84ab-a1da-4010-880c-c1f44b0f9e14",
-    "words": 1560
-  },
-  {
-    "model": "Qwen/Qwen3-235B-A22B-Thinking-2507",
-    "task": "cb1e84ab-a1da-4010-880c-c1f44b0f9e14",
-    "words": 387
   },
   {
     "model": "gemini-3.1-pro-preview",
@@ -960,16 +840,6 @@
     "words": 977
   },
   {
-    "model": "Qwen/Qwen3-235B-A22B-Thinking-2507",
-    "task": "c32ce744-16ca-4fba-ae07-aa79c5e83d1b",
-    "words": 510
-  },
-  {
-    "model": "gpt-5.4",
-    "task": "c32ce744-16ca-4fba-ae07-aa79c5e83d1b",
-    "words": 1513
-  },
-  {
     "model": "claude-opus-4-7",
     "task": "11007154-9fd0-420c-9a5c-73d8986fa3d5",
     "words": 1626
@@ -1028,15 +898,5 @@
     "model": "gpt-5.4",
     "task": "11007154-9fd0-420c-9a5c-73d8986fa3d5",
     "words": 2922
-  },
-  {
-    "model": "gpt-5.4",
-    "task": "11007154-9fd0-420c-9a5c-73d8986fa3d5",
-    "words": 2000
-  },
-  {
-    "model": "Qwen/Qwen3-235B-A22B-Thinking-2507",
-    "task": "11007154-9fd0-420c-9a5c-73d8986fa3d5",
-    "words": 595
   }
 ]

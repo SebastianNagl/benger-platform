@@ -802,6 +802,71 @@ class TestStartGeneration:
         assert resp.json()["tasks_queued"] == 2
 
     @pytest.mark.asyncio
+    async def test_implicit_structures_skip_exclude_from_generation(
+        self, async_test_client, async_test_db
+    ):
+        """A structure flagged exclude_from_generation (e.g. a Bewertungsbogen
+        prompt) is skipped when the run falls back to all prompt_structures —
+        one cell instead of two."""
+        admin = await _seed_user(async_test_db, is_superadmin=True)
+        project = await _seed_project(
+            async_test_db, admin,
+            generation_config={
+                "selected_configuration": {"models": ["gpt-4"]},
+                "prompt_structures": {
+                    "default": {"name": "Default"},
+                    "bewertungsbogen": {
+                        "name": "Bewertungsbogen",
+                        "exclude_from_generation": True,
+                    },
+                },
+            },
+        )
+        await _seed_task(async_test_db, project, admin)
+        await async_test_db.commit()
+
+        with patch("routers.generation_task_list.celery_app") as mock_celery, _as_user(admin):
+            mock_celery.send_task = Mock()
+            resp = await async_test_client.post(
+                f"/api/generation-tasks/projects/{project.id}/generate",
+                json={"mode": "all"},
+            )
+        assert resp.status_code == 200
+        assert resp.json()["tasks_queued"] == 1
+
+    @pytest.mark.asyncio
+    async def test_explicit_structure_keys_may_include_excluded(
+        self, async_test_client, async_test_db
+    ):
+        """Explicit structure_keys bypass the exclude_from_generation filter —
+        the flag only governs implicit fallbacks."""
+        admin = await _seed_user(async_test_db, is_superadmin=True)
+        project = await _seed_project(
+            async_test_db, admin,
+            generation_config={
+                "selected_configuration": {"models": ["gpt-4"]},
+                "prompt_structures": {
+                    "default": {"name": "Default"},
+                    "bewertungsbogen": {
+                        "name": "Bewertungsbogen",
+                        "exclude_from_generation": True,
+                    },
+                },
+            },
+        )
+        await _seed_task(async_test_db, project, admin)
+        await async_test_db.commit()
+
+        with patch("routers.generation_task_list.celery_app") as mock_celery, _as_user(admin):
+            mock_celery.send_task = Mock()
+            resp = await async_test_client.post(
+                f"/api/generation-tasks/projects/{project.id}/generate",
+                json={"mode": "all", "structure_keys": ["bewertungsbogen"]},
+            )
+        assert resp.status_code == 200
+        assert resp.json()["tasks_queued"] == 1
+
+    @pytest.mark.asyncio
     async def test_org_context_resolved_from_single_linked_org(
         self, async_test_client, async_test_db
     ):

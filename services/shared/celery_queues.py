@@ -101,6 +101,7 @@ TASK_QUEUES: dict[str, str] = {
     "tasks.generate_response": GENERATION,
     "tasks.generate_llm_responses": GENERATION,
     "tasks.generate_synthetic_data": GENERATION,
+    "tasks.generate_bewertungsbogen": GENERATION,  # extended; per-task rubric
     # --- evaluation: orchestrator + the big chord fan-out ---
     "tasks.run_evaluation": EVALUATION,
     "tasks.run_multi_field_evaluation": EVALUATION,  # back-compat alias of the above
@@ -123,6 +124,7 @@ EXTENDED_TASK_NAMES = frozenset(
         "tasks.lti_push_grade",
         "tasks.reconcile_grading_usage",
         "tasks.lti_grade_sync_sweep",
+        "tasks.generate_bewertungsbogen",
     }
 )
 
@@ -141,7 +143,13 @@ QUEUE_TIME_LIMITS: dict[str, tuple[int, int]] = {
     EMAILS: (60, 90),
     MAINTENANCE: (600, 660),
     GENERATION: (1800, 2100),
-    EVALUATION: (900, 1200),
+    # 3600 hard: a cell is one target x ALL judge-runs of its config — a
+    # 12-call multi-judge repeat cell (3 passes x 4 judges, 30-100s/call
+    # plus provider retries) legitimately runs 20-40 min. The old 1200s
+    # hard limit SIGKILLed such cells without a trace (no rows, no retry,
+    # chord never fires -> run stuck 'running'). Stays below the broker
+    # visibility_timeout (7200) so acks_late redelivery semantics hold.
+    EVALUATION: (3300, 3600),
     BULK: (5100, 5400),
 }
 

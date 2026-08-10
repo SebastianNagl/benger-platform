@@ -340,6 +340,9 @@ export interface PromptStructure {
   system_prompt: string | Record<string, any>
   instruction_prompt: string | Record<string, any>
   evaluation_prompt?: string | Record<string, any>
+  /** Skipped by implicit "all structures" generation fallbacks (e.g. a
+   * Bewertungsbogen prompt referenced by the rubric judge). */
+  exclude_from_generation?: boolean
 }
 
 export interface GenerationConfig {

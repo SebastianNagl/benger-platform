@@ -91,6 +91,35 @@ def _evaluate_llm_judge_single_impl(
     if not llm_judge.ai_service:
         raise RuntimeError(f"No AI service available for LLM judge ({provider})")
 
+    # llm_judge_rubric: the criteria come from the task's own Bewertungsbogen
+    # (task_rubrics row), not from the config. Injecting them here flips
+    # is_multidim_mode() below, so the rubric metric always takes the
+    # multi-dim path. Missing rubric raises — same failure convention as the
+    # other terminal errors in this impl (caller persists the error row).
+    task_rubric = None
+    if metric_type == "llm_judge_rubric":
+        from evaluation.cell_evaluator import _NO_RUBRIC_ERROR, _resolve_task_rubric
+        from project_models import Task as ProjectTask
+
+        rubric_task_row = (
+            db.query(ProjectTask).filter(ProjectTask.id == task_id).first()
+        )
+        task_rubric = (
+            _resolve_task_rubric(db, rubric_task_row, params)
+            if rubric_task_row is not None
+            else None
+        )
+        if task_rubric is None:
+            raise RuntimeError(_NO_RUBRIC_ERROR.format(task_id=task_id))
+        llm_judge.custom_criteria = task_rubric.criteria
+        # Grade against the Musterlösung when the task carries one — mirrors
+        # the bulk cell path's ground-truth swap.
+        muster = tasks._get_insensitive(
+            (rubric_task_row.data or {}), "musterloesung"
+        ) or tasks._get_insensitive((rubric_task_row.data or {}), "musterlösung")
+        if muster:
+            reference = str(muster)
+
     # Multi-dim single-call mode: when custom_criteria carries max_score on
     # any dimension, the user's prompt is expected to score every dimension
     # in one LLM call (Grundprinzipien-style 4-dim rubric). Skip the
@@ -101,6 +130,15 @@ def _evaluate_llm_judge_single_impl(
         from annotation_utils import extract_all_field_values
         task_row = db.query(ProjectTask).filter(ProjectTask.id == task_id).first()
         task_data = (task_row.data if task_row else {}) or {}
+        if task_rubric is not None:
+            # Bind the rendered rubric so the grading template's
+            # {bewertungsbogen} placeholder resolves (mirror of the bulk path).
+            from evaluation.cell_evaluator import _render_rubric_text
+
+            task_data = {
+                **task_data,
+                "bewertungsbogen": _render_rubric_text(task_rubric),
+            }
 
         # Flatten the model/annotation output so the prompt can reference
         # individual fields by name (e.g. {{kurzantwort}}, {{begruendung}})
@@ -136,6 +174,22 @@ def _evaluate_llm_judge_single_impl(
         total = float(multidim.get("total_score") or 0.0)
         total_max = float(multidim.get("total_max") or 0.0)
         normalized = total / total_max if total_max > 0 else 0.0
+        multidim_details = {
+            "scores": multidim["scores"],
+            "total_score": total,
+            "total_max": total_max,
+            "overall_assessment": multidim.get("overall_assessment", ""),
+            "call_metadata": multidim.get("_call_metadata", {}),
+            "raw_output": multidim.get("_raw_output", ""),
+        }
+        judge_prompts_used = multidim.get("_judge_prompts_used")
+        if task_rubric is not None:
+            multidim_details["rubric_id"] = task_rubric.id
+            if isinstance(judge_prompts_used, dict):
+                judge_prompts_used["task_rubric_id"] = task_rubric.id
+                judge_prompts_used["task_rubric_generator"] = (
+                    task_rubric.generator_model_id
+                )
         eval_record = TaskEvaluation(
             id=record_id,
             evaluation_id=immediate_eval_id,
@@ -153,19 +207,12 @@ def _evaluate_llm_judge_single_impl(
                 metric_type: {
                     "value": float(normalized),
                     "method": metric_type,
-                    "details": {
-                        "scores": multidim["scores"],
-                        "total_score": total,
-                        "total_max": total_max,
-                        "overall_assessment": multidim.get("overall_assessment", ""),
-                        "call_metadata": multidim.get("_call_metadata", {}),
-                        "raw_output": multidim.get("_raw_output", ""),
-                    },
+                    "details": multidim_details,
                     "error": None,
                 },
                 "raw_score": float(normalized),
             },
-            judge_prompts_used=multidim.get("_judge_prompts_used"),
+            judge_prompts_used=judge_prompts_used,
             passed=float(normalized) >= 0.5,
         )
         db.add(eval_record)

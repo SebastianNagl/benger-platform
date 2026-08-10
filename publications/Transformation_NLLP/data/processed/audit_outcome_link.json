@@ -1,0 +1,181 @@
+{
+ "seed": 20260806,
+ "n_boot": 10000,
+ "note": "per-rubric join on (exam task, generator); outcomes = Luna lens (rubric_outcomes.json); centered = exam means removed from both variables; CIs = exam-level cluster bootstrap on the pearson r",
+ "n_rubrics": 170,
+ "audit_total_vs": {
+  "mae": {
+   "raw": {
+    "n": 170,
+    "pearson": 0.037082277231872254,
+    "spearman": -0.004266183661378072,
+    "ci95": [
+     -0.1230938608473966,
+     0.20635122284015037
+    ]
+   },
+   "within_exam_centered": {
+    "n": 170,
+    "pearson": 0.0851111668264196,
+    "spearman": 0.08742535030468838,
+    "ci95": [
+     -0.07826155003994063,
+     0.25696168154463017
+    ]
+   }
+  },
+  "repeat_sd": {
+   "raw": {
+    "n": 170,
+    "pearson": -0.07276418290849423,
+    "spearman": -0.16162299761252,
+    "ci95": [
+     -0.2947247264878911,
+     -0.01334219086092549
+    ]
+   },
+   "within_exam_centered": {
+    "n": 170,
+    "pearson": -0.13101460922564254,
+    "spearman": -0.21538260539562765,
+    "ci95": [
+     -0.32951054152586523,
+     -0.08601036160657166
+    ]
+   }
+  },
+  "abs_bias": {
+   "raw": {
+    "n": 170,
+    "pearson": 0.07585179949981115,
+    "spearman": 0.04152518097480477,
+    "ci95": [
+     -0.10867914383759542,
+     0.2673336197996142
+    ]
+   },
+   "within_exam_centered": {
+    "n": 170,
+    "pearson": 0.19180925750085917,
+    "spearman": 0.19248559399983053,
+    "ci95": [
+     0.0002134577143897097,
+     0.35125784933530113
+    ]
+   }
+  }
+ },
+ "per_dimension_vs_mae": {
+  "alternativen": {
+   "raw": {
+    "n": 170,
+    "pearson": 0.11924414398401982,
+    "spearman": 0.06461133316379414
+   },
+   "within_exam_centered": {
+    "n": 170,
+    "pearson": 0.07924825606079244,
+    "spearman": 0.07117701596032505
+   }
+  },
+  "externe_ergaenzungen": {
+   "raw": {
+    "n": 170,
+    "pearson": 0.03804816374580073,
+    "spearman": 0.018640256065341976
+   },
+   "within_exam_centered": {
+    "n": 170,
+    "pearson": 0.1323294209898975,
+    "spearman": 0.1476978704966934
+   }
+  },
+  "gesamturteil": {
+   "raw": {
+    "n": 170,
+    "pearson": 0.034829592570821445,
+    "spearman": -0.019879585962812227
+   },
+   "within_exam_centered": {
+    "n": 170,
+    "pearson": 0.08975709931579526,
+    "spearman": 0.04660032789457977
+   }
+  },
+  "gewichtung": {
+   "raw": {
+    "n": 170,
+    "pearson": -0.09949365851990799,
+    "spearman": -0.10718321490449222
+   },
+   "within_exam_centered": {
+    "n": 170,
+    "pearson": -0.03572248036908204,
+    "spearman": -0.03386741750493183
+   }
+  },
+  "teilpunkte": {
+   "raw": {
+    "n": 170,
+    "pearson": 0.04240910081326696,
+    "spearman": 0.024501701651360345
+   },
+   "within_exam_centered": {
+    "n": 170,
+    "pearson": 0.07259746468983706,
+    "spearman": 0.06027950553812473
+   }
+  },
+  "treue": {
+   "raw": {
+    "n": 170,
+    "pearson": -0.02625608101296548,
+    "spearman": -0.056801157080365636
+   },
+   "within_exam_centered": {
+    "n": 170,
+    "pearson": 0.0716448052471858,
+    "spearman": 0.06580080144956768
+   }
+  },
+  "vollstaendigkeit": {
+   "raw": {
+    "n": 170,
+    "pearson": 0.06335648072364553,
+    "spearman": 0.013678507393769005
+   },
+   "within_exam_centered": {
+    "n": 170,
+    "pearson": 0.04478566131971717,
+    "spearman": 0.03589165052165324
+   }
+  }
+ },
+ "sensitivity_excluding_self_audit": {
+  "mae": {
+   "raw": {
+    "n": 162,
+    "pearson": 0.04523668253858148,
+    "spearman": 0.002863184308033785
+   },
+   "within_exam_centered": {
+    "n": 162,
+    "pearson": 0.09427477129565633,
+    "spearman": 0.08677072707591632
+   }
+  },
+  "repeat_sd": {
+   "raw": {
+    "n": 162,
+    "pearson": -0.07061068061490881,
+    "spearman": -0.16215848796733986
+   },
+   "within_exam_centered": {
+    "n": 162,
+    "pearson": -0.13125851296367452,
+    "spearman": -0.24043614979495279
+   }
+  },
+  "n": 162
+ }
+}

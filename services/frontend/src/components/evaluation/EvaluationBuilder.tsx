@@ -1476,6 +1476,7 @@ export function EvaluationBuilder({
                       metric: e.metric,
                       metric_parameters: e.metric_parameters as Record<string, unknown> | undefined,
                     }))}
+                    projectId={projectId}
                   />
                 )
               }
@@ -1664,7 +1665,9 @@ export function EvaluationBuilder({
                         <span className="font-medium">
                           {t('evaluationBuilder.list.predictions')}
                         </span>{' '}
-                        {evaluation.prediction_fields
+                        {/* Scripted/imported configs may omit the field
+                            arrays — never crash the whole builder on it. */}
+                        {(evaluation.prediction_fields ?? [])
                           .map(getFieldDisplayName)
                           .join(', ')}
                       </div>
@@ -1672,7 +1675,7 @@ export function EvaluationBuilder({
                         <span className="font-medium">
                           {t('evaluationBuilder.list.references')}
                         </span>{' '}
-                        {evaluation.reference_fields.join(', ')}
+                        {(evaluation.reference_fields ?? []).join(', ')}
                       </div>
                       {evaluation.metric_parameters &&
                         Object.keys(evaluation.metric_parameters).length >

@@ -18,6 +18,7 @@ import { Button } from '@/components/shared/Button'
 import { ResponsiveContainer } from '@/components/shared/ResponsiveContainer'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
+import { useSlot } from '@/lib/extensions/slots'
 import type { ProfileHistoryEntry } from '@/lib/api/types'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
@@ -25,6 +26,11 @@ export default function ProfilePage() {
   const { user, updateUser, apiClient } = useAuth()
   const { t } = useI18n()
   const { addToast } = useToast()
+  // Extended-only, self-saving settings sections (e.g. the exam interface
+  // layout). Rendered OUTSIDE the profile-form save path: these sections own
+  // their persistence via dedicated endpoints (no profile-history side
+  // effects). Community edition: slot never registers -> nothing renders.
+  const ProfileSettingsExtended = useSlot('profile-settings-extended')
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
   const [profileLoading, setProfileLoading] = useState(false)
@@ -419,6 +425,10 @@ export default function ProfilePage() {
                   : t('profile.updateProfile')}
               </Button>
             </div>
+
+            {/* Extended-only self-saving settings (below the submit row so the
+                profile-update button visually can't claim to save them) */}
+            {ProfileSettingsExtended && <ProfileSettingsExtended />}
 
             {/* Profile History - Collapsible (superadmin only, Issue #1206) */}
             {profile?.is_superadmin && profileHistory.length > 0 && (

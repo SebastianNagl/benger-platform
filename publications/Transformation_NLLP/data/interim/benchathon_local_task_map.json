@@ -1,0 +1,37 @@
+{
+  "description": "Prod/export task id -> LOCAL dev task id for the Benchathon import (2026-08-02). Source: Benchathon-tasks-2026-05-31.json imported into local dev project e529779b-300f-48c0-89cb-90f3f4b72a51 via run_nested_import. Local inner_ids were resequenced 1..15 in import order. Driver scripts targeting the local stack must use the LOCAL ids (values).",
+  "project_id": "e529779b-300f-48c0-89cb-90f3f4b72a51",
+  "imported_at": "2026-08-02",
+  "source_export": "../Dataset_ARR/data/raw/benchathon/Benchathon-tasks-2026-05-31.json",
+  "preprocessing": "5 duplicate active annotations (empty auto-submit timer artifacts) marked was_cancelled to satisfy uq_annotations_active_task_user",
+  "task_id_map": {
+    "1648d37e-ba60-4797-8c2a-d8648d7b5887": "b6420df7-d9f3-4ab4-8099-5a1767985cff",
+    "c5e7770b-1416-4c7b-994f-7714780f9dcb": "374fdd48-e89c-4918-8914-03f889700fa4",
+    "762b7db3-6c4f-4e7b-8552-22d91371410f": "f7be0ce5-4ce7-4ce9-83bc-1340f79b826e",
+    "2c217f68-0dd1-4d34-9a5f-7b99c9fe2b8b": "023ad438-73f1-4983-9e83-fd7cc3ac91e0",
+    "941f78d7-b26a-463c-b58a-a752d59bc0a5": "44f8f9cf-3999-4b99-8d7e-e37be3592a60",
+    "dfdea348-c434-4fc5-8ab1-e13172226b34": "660fb66a-c6d5-4a3a-ac5f-86507284c00a",
+    "0dd46b63-ff6d-4912-b953-777281f8aec8": "d8f3f9fe-06e6-41b9-ab20-092a05e0ceed",
+    "c831f630-b724-4d74-9a97-7cf48edd4cf7": "a3c0aa07-9246-4b21-8190-4389261a01a4",
+    "883e812d-6f6e-466e-bf8e-313bbdc0604a": "6f5996ab-80d6-4611-a529-a0421fdff314",
+    "6471701d-1b21-4fab-8dd2-4460e759eef9": "0920a50b-9d08-49d7-89c8-473808f29d85",
+    "242ede8c-5d49-498d-bdd4-75c8275ab557": "b0a4b82a-b610-4bd9-a300-5cf8804d512f",
+    "39f282c6-8eae-4b90-be83-d37c1928376a": "02aeba6c-5e39-425f-9482-cf91ed1be45d",
+    "cb1e84ab-a1da-4010-880c-c1f44b0f9e14": "0016b6cc-42ed-4e31-a026-925092b62918",
+    "c32ce744-16ca-4fba-ae07-aa79c5e83d1b": "08218fb0-9e75-47eb-a974-2f19ea2abb5c",
+    "11007154-9fd0-420c-9a5c-73d8986fa3d5": "b01bad13-0b69-4b26-9a03-ecd281afdaa8"
+  },
+  "verified_counts": {
+    "tasks": 15,
+    "annotations_active": 224,
+    "annotations_cancelled": 13,
+    "generations": 259,
+    "evaluation_runs": 369,
+    "judge_runs": 635,
+    "task_evaluations": 9095,
+    "human_korrektur_rows": 184,
+    "distinct_graders": 7,
+    "judge_falloesung_rows": 5276,
+    "korrektur_comments": 440
+  }
+}

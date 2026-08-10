@@ -146,3 +146,61 @@ describe('notifications/stream route', () => {
     fetchSpy.mockRestore()
   })
 })
+
+describe('notifications/stream route — reader-loop error classification', () => {
+  const origEnv = { ...process.env }
+
+  beforeEach(() => {
+    jest.resetModules()
+    process.env = { ...origEnv }
+  })
+  afterEach(() => {
+    process.env = origEnv
+    jest.restoreAllMocks()
+  })
+
+  /** Backend response whose body stream rejects with `err` on first read. */
+  function streamingResponseThatFails(err: unknown) {
+    return {
+      ok: true,
+      body: {
+        getReader: () => ({
+          read: () => Promise.reject(err),
+        }),
+      },
+    } as unknown as Response
+  }
+
+  async function drain(res: Response) {
+    const reader = res.body!.getReader()
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      const { done } = await reader.read()
+      if (done) break
+    }
+  }
+
+  it('does not log an idle-body timeout — EventSource just reconnects', async () => {
+    const timeout = Object.assign(new TypeError('terminated'), {
+      cause: { code: 'UND_ERR_BODY_TIMEOUT' },
+    })
+    jest.spyOn(global, 'fetch').mockResolvedValue(streamingResponseThatFails(timeout))
+    const errSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
+
+    const { GET } = await import('../route')
+    await drain(await GET(makeRequest('benger.localhost')))
+
+    expect(errSpy).not.toHaveBeenCalledWith('SSE stream error:', timeout)
+  })
+
+  it('still logs a genuine stream failure', async () => {
+    const boom = new Error('backend exploded')
+    jest.spyOn(global, 'fetch').mockResolvedValue(streamingResponseThatFails(boom))
+    const errSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
+
+    const { GET } = await import('../route')
+    await drain(await GET(makeRequest('benger.localhost')))
+
+    expect(errSpy).toHaveBeenCalledWith('SSE stream error:', boom)
+  })
+})

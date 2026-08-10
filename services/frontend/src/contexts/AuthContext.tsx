@@ -763,3 +763,13 @@ export function useAuth() {
   }
   return context
 }
+
+/**
+ * Non-throwing variant for hooks that must work in provider-less mounts
+ * (isolated component tests, embeddable widgets). Returns null outside an
+ * AuthProvider — callers fall back to their unauthenticated default. Mirrors
+ * useOptionalApiClient / useLegalMarkdownSafe.
+ */
+export function useOptionalAuth() {
+  return useContext(AuthContext)
+}

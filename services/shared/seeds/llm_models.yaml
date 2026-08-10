@@ -730,9 +730,37 @@ models:
       provenance:
         source: https://platform.claude.com/docs/en/about-claude/models/migration-guide
         retrieved: '2026-07-16'
+  - id: claude-opus-5
+    name: Claude Opus 5
+    description: Opus tier of the Claude 5 family (GA 2026-07-24), 1M context, adaptive thinking
+    provider: Anthropic
+    model_type: chat
+    capabilities: [text-generation, data-synthesis, reasoning, analysis, coding, advanced-reasoning, adaptive-thinking]
+    is_active: true
+    input_cost_per_million: 5.0
+    output_cost_per_million: 25.0
+    constraints:
+      # Claude 5 family request surface (same as Fable 5): HTTP 400 on any
+      # non-default temperature/top_p/top_k; adaptive thinking only.
+      temperature:
+        supported: false
+        required_value: 1.0
+        reason: Claude Opus 5 rejects any non-default temperature with HTTP 400. Worker coerces to the API default (1.0).
+      unsupported_params: [top_p, top_k]
+      max_tokens:
+        default: 16000
+      benchmark_notes: >-
+        Fast mode (2.5x speed) bills at $10/$50 per million — the flat cost
+        map assumes default speed.
+    recommended_parameters:
+      default:
+        max_tokens: 8000
+      provenance:
+        source: https://platform.claude.com/docs/en/about-claude/models/migration-guide
+        retrieved: '2026-08-04'
   - id: claude-opus-4-8
     name: Claude Opus 4.8
-    description: Current Opus flagship with adaptive thinking and 1M context
+    description: Opus 4.8 with adaptive thinking and 1M context (superseded by Claude Opus 5)
     provider: Anthropic
     model_type: chat
     capabilities: [text-generation, data-synthesis, reasoning, analysis, coding, advanced-reasoning, adaptive-thinking]
@@ -890,11 +918,11 @@ models:
         retrieved: '2026-05-07'
   - id: claude-opus-4-1-20250805
     name: Claude Opus 4.1
-    description: Legacy Opus (deprecated 2026-06-05, retires 2026-08-05 — deactivate then)
+    description: Legacy Opus (deprecated 2026-06-05, retired 2026-08-05)
     provider: Anthropic
     model_type: chat
     capabilities: [text-generation, data-synthesis, reasoning, analysis, coding, advanced-reasoning, extended-thinking]
-    is_active: true
+    is_active: false
     input_cost_per_million: 15.0
     output_cost_per_million: 75.0
     default_config:
@@ -1151,6 +1179,60 @@ models:
       provenance:
         source: https://ai.google.dev/gemini-api/docs/gemini-3
         retrieved: '2026-05-07'
+  - id: gemini-3.6-flash
+    name: Gemini 3.6 Flash
+    description: GA 2026-07; long-horizon agentic Flash, up to 65% fewer agent tokens vs 3.5 Flash
+    provider: Google
+    model_type: chat
+    capabilities: [text-generation, data-synthesis, reasoning, thinking]
+    is_active: true
+    input_cost_per_million: 1.5
+    output_cost_per_million: 7.5
+    default_config:
+      reasoning_config:
+        parameter: thinking_budget
+        type: number
+        min: 0
+        max: 24576
+        default: 1024
+        label: Thinking/Reasoning Budget (tokens)
+    recommended_parameters:
+      default:
+        max_tokens: 8000
+      generation:
+        temperature: 1.0
+      evaluation:
+        temperature: 1.0
+      provenance:
+        source: https://ai.google.dev/gemini-api/docs/pricing
+        retrieved: '2026-08-04'
+  - id: gemini-3.5-flash-lite
+    name: Gemini 3.5 Flash-Lite
+    description: Cost-efficient 3.5-generation Flash tier
+    provider: Google
+    model_type: chat
+    capabilities: [text-generation, data-synthesis, reasoning, thinking]
+    is_active: true
+    input_cost_per_million: 0.3
+    output_cost_per_million: 2.5
+    default_config:
+      reasoning_config:
+        parameter: thinking_budget
+        type: number
+        min: 0
+        max: 24576
+        default: 1024
+        label: Thinking/Reasoning Budget (tokens)
+    recommended_parameters:
+      default:
+        max_tokens: 8000
+      generation:
+        temperature: 1.0
+      evaluation:
+        temperature: 1.0
+      provenance:
+        source: https://ai.google.dev/gemini-api/docs/pricing
+        retrieved: '2026-08-04'
   - id: gemini-3.5-flash
     name: Gemini 3.5 Flash
     description: GA 2026-05-19; Google's most intelligent Flash, outperforms 3.1 Pro on coding/agentic tasks
@@ -1236,6 +1318,18 @@ models:
     is_active: false
     input_cost_per_million: 0.25
     output_cost_per_million: 1.5
+    # Mirrors the DB row so the drift checker stays green — the upsert never
+    # nulls a field the YAML omits, so this deactivated row kept its params.
+    recommended_parameters:
+      default:
+        max_tokens: 8000
+      generation:
+        temperature: 1.0
+      evaluation:
+        temperature: 1.0
+      provenance:
+        source: https://ai.google.dev/gemini-api/docs/gemini-3
+        retrieved: '2026-05-07'
   - id: gemini-2.5-pro
     name: Gemini 2.5 Pro
     description: State-of-the-art thinking model for complex problems (shutdown scheduled 2026-10-16)
@@ -1373,6 +1467,25 @@ models:
       provenance:
         source: https://api-docs.deepseek.com/quick_start/parameter_settings
         retrieved: '2026-05-07'
+  - id: deepseek-ai/DeepSeek-V4-Flash-0731
+    name: DeepSeek V4 Flash 0731
+    description: Re-post-trained V4 Flash (2026-07-31), 284B MoE / 13B activated, 1M context
+    provider: DeepInfra
+    model_type: chat
+    capabilities: [text-generation, reasoning, analysis, coding]
+    is_active: true
+    input_cost_per_million: 0.09
+    output_cost_per_million: 0.18
+    recommended_parameters:
+      default:
+        max_tokens: 8000
+      generation:
+        temperature: 1.0
+      evaluation:
+        temperature: 0.0
+      provenance:
+        source: https://deepinfra.com/deepseek-ai/DeepSeek-V4-Flash-0731
+        retrieved: '2026-08-04'
   - id: deepseek-ai/DeepSeek-V3.1
     name: DeepSeek-V3.1
     description: 671B params MoE model with 37B activated
@@ -1468,6 +1581,44 @@ models:
       provenance:
         source: https://api-docs.deepseek.com/quick_start/parameter_settings
         retrieved: '2026-05-07'
+  - id: Qwen/Qwen3.8-Max
+    name: Qwen3.8 Max
+    description: Qwen3.8 flagship (GA 2026-08-02), 256K context
+    provider: DeepInfra
+    model_type: chat
+    capabilities: [text-generation, data-synthesis, reasoning, analysis, coding]
+    is_active: true
+    input_cost_per_million: 1.65
+    output_cost_per_million: 4.95
+    recommended_parameters:
+      default:
+        max_tokens: 8000
+      generation:
+        temperature: 0.7
+      evaluation:
+        temperature: 0.0
+      provenance:
+        source: https://deepinfra.com/Qwen/Qwen3.8-Max
+        retrieved: '2026-08-04'
+  - id: Qwen/Qwen3.7-Max
+    name: Qwen3.7 Max
+    description: Qwen3.7 flagship, 256K context
+    provider: DeepInfra
+    model_type: chat
+    capabilities: [text-generation, data-synthesis, reasoning, analysis, coding]
+    is_active: true
+    input_cost_per_million: 2.5
+    output_cost_per_million: 7.5
+    recommended_parameters:
+      default:
+        max_tokens: 8000
+      generation:
+        temperature: 0.7
+      evaluation:
+        temperature: 0.0
+      provenance:
+        source: https://deepinfra.com/Qwen/Qwen3.7-Max
+        retrieved: '2026-08-04'
   - id: Qwen/Qwen3-Max
     name: Qwen3 Max
     description: Qwen3 flagship, 250K context
@@ -1847,6 +1998,50 @@ models:
       provenance:
         source: https://huggingface.co/MiniMaxAI/MiniMax-M2#inference-parameters
         retrieved: '2026-05-07'
+  - id: MiniMaxAI/MiniMax-M2.7
+    name: MiniMax-M2.7
+    description: M2-line refresh, 196K context
+    provider: DeepInfra
+    model_type: chat
+    capabilities: [text-generation, reasoning, analysis, thinking]
+    is_active: true
+    input_cost_per_million: 0.25
+    output_cost_per_million: 1.0
+    constraints:
+      seed:
+        supported: false  # MiniMax backend (Phase 6.6 #7).
+    recommended_parameters:
+      default:
+        max_tokens: 8000
+      generation:
+        temperature: 1.0
+      evaluation:
+        temperature: 0.0
+      provenance:
+        source: https://deepinfra.com/MiniMaxAI/MiniMax-M2.7
+        retrieved: '2026-08-04'
+  - id: MiniMaxAI/MiniMax-M2.7-Turbo
+    name: MiniMax-M2.7 Turbo
+    description: Faster-serving M2.7 variant, 196K context
+    provider: DeepInfra
+    model_type: chat
+    capabilities: [text-generation, reasoning, analysis, thinking]
+    is_active: true
+    input_cost_per_million: 0.38
+    output_cost_per_million: 1.7
+    constraints:
+      seed:
+        supported: false  # MiniMax backend (Phase 6.6 #7).
+    recommended_parameters:
+      default:
+        max_tokens: 8000
+      generation:
+        temperature: 1.0
+      evaluation:
+        temperature: 0.0
+      provenance:
+        source: https://deepinfra.com/MiniMaxAI/MiniMax-M2.7-Turbo
+        retrieved: '2026-08-04'
   - id: MiniMaxAI/MiniMax-M3
     name: MiniMax-M3
     description: 428B MoE (23B active) multimodal, 524K context on DeepInfra (replaces MiniMax-M2.5)
@@ -2106,6 +2301,25 @@ models:
       provenance:
         source: https://huggingface.co/nvidia/Llama-3.3-Nemotron-Super-49B-v1.5
         retrieved: '2026-05-07'
+  - id: nvidia/Nemotron-3-Nano-30B-A3B
+    name: Nemotron 3 Nano 30B
+    description: NVIDIA's 30B MoE / 3B activated nano tier, 262K context
+    provider: DeepInfra
+    model_type: chat
+    capabilities: [text-generation, reasoning, analysis]
+    is_active: true
+    input_cost_per_million: 0.05
+    output_cost_per_million: 0.2
+    recommended_parameters:
+      default:
+        max_tokens: 8000
+      generation:
+        temperature: 0.6
+      evaluation:
+        temperature: 0.0
+      provenance:
+        source: https://deepinfra.com/nvidia/Nemotron-3-Nano-30B-A3B
+        retrieved: '2026-08-04'
   - id: google/gemma-4-31B-it
     name: Gemma 4 31B
     description: Google Gemma 4 31B instruct, 256K context, multimodal

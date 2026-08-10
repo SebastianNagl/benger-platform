@@ -14,6 +14,7 @@ import { Textarea } from '@/components/shared/Textarea'
 import { useToast } from '@/components/shared/Toast'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
+import { useSlot } from '@/lib/extensions/slots'
 import { projectsAPI } from '@/lib/api/projects'
 import { useProjectStore } from '@/stores/projectStore'
 import { Task } from '@/types/labelStudio'
@@ -37,6 +38,9 @@ export default function TaskDetailPage({ params }: TaskDetailPageProps) {
   const { addToast } = useToast()
   const { user } = useAuth()
   const { t } = useI18n()
+  // Extended edition mounts the per-task Bewertungsbogen viewer/editor here
+  // (candidate rubrics, activation, regenerate). Null in community edition.
+  const TaskRubricPanel = useSlot('TaskRubricPanel')
 
   // Resolve params in useEffect to avoid potential issues with use() hook
   useEffect(() => {
@@ -407,6 +411,13 @@ export default function TaskDetailPage({ params }: TaskDetailPageProps) {
                   {t('tasks.detail.annotationCount', { count: task.total_annotations })}
                 </p>
                 {/* TODO: Load and display actual annotations */}
+              </div>
+            )}
+
+            {/* Per-task Bewertungsbogen (extended edition) */}
+            {TaskRubricPanel && projectId && taskId && (
+              <div className="mt-6">
+                <TaskRubricPanel projectId={projectId} taskId={taskId} />
               </div>
             )}
           </div>

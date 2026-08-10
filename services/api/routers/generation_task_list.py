@@ -43,6 +43,30 @@ from celery_client import get_celery_app  # noqa: E402
 logger = logging.getLogger(__name__)
 celery_app = get_celery_app()
 
+
+def _implicit_structure_keys(prompt_structures) -> List[str]:
+    """Structure keys used when a caller does NOT pass explicit structure_keys.
+
+    Handles both the dict shape and the legacy list shape, and skips
+    structures flagged ``exclude_from_generation`` — prompts that other
+    features reference by key (e.g. Bewertungsbogen generation) without
+    being general generation prompts. Explicitly requested structure_keys
+    bypass this filter (validated against ALL known keys).
+    """
+    if isinstance(prompt_structures, dict):
+        return [
+            key
+            for key, entry in prompt_structures.items()
+            if not (isinstance(entry, dict) and entry.get("exclude_from_generation"))
+        ]
+    if isinstance(prompt_structures, list):
+        return [
+            ps.get("key", str(i))
+            for i, ps in enumerate(prompt_structures)
+            if not (isinstance(ps, dict) and ps.get("exclude_from_generation"))
+        ]
+    return []
+
 # Issue #106: when a trigger omits explicit task_ids, the handler dispatches
 # for every task in the project. The dispatch itself is synchronous (one
 # ResponseGeneration row per cell plus N Celery sends), so an unbounded
@@ -378,12 +402,7 @@ async def get_task_generation_status(
     # Get structure keys from prompt_structures (matching GenerationControlModal behavior)
     # This fixes the mismatch where generation uses prompt_structures keys but status used active_structures
     prompt_structures = generation_config.get("prompt_structures", {})
-    if isinstance(prompt_structures, dict):
-        structure_keys = list(prompt_structures.keys()) if prompt_structures else []
-    elif isinstance(prompt_structures, list):
-        structure_keys = [ps.get("key", str(i)) for i, ps in enumerate(prompt_structures)]
-    else:
-        structure_keys = []
+    structure_keys = _implicit_structure_keys(prompt_structures)
 
     # If no structures configured, use None for backward compatibility
     if not structure_keys:
@@ -802,14 +821,10 @@ async def start_generation(
     if request.structure_keys:
         structure_keys = request.structure_keys
     else:
-        # Use prompt_structures keys (matching task-status endpoint behavior)
+        # Use prompt_structures keys (matching task-status endpoint behavior),
+        # minus exclude_from_generation-flagged prompts.
         prompt_structures = generation_config.get("prompt_structures", {})
-        if isinstance(prompt_structures, dict):
-            structure_keys = list(prompt_structures.keys()) if prompt_structures else []
-        elif isinstance(prompt_structures, list):
-            structure_keys = [ps.get("key", str(i)) for i, ps in enumerate(prompt_structures)]
-        else:
-            structure_keys = []
+        structure_keys = _implicit_structure_keys(prompt_structures)
 
     # Validate requested structure_keys against available structures
     if request.structure_keys:

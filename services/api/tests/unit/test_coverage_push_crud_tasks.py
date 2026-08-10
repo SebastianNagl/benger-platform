@@ -1008,6 +1008,7 @@ class TestSerializers:
             evaluation_id = "er1"
             judge_prompts_used = None
             judge_run_id = "jr-1"
+            evaluation_config_id = "cfg1"
 
         class FakeER:
             model_id = "gpt-4o"
@@ -1044,6 +1045,7 @@ class TestSerializers:
             generation_id = "g1"
             judge_prompts_used = None
             judge_run_id = None
+            evaluation_config_id = None
 
         result = serialize_task_evaluation(FakeTE(), mode="full")
         assert result["evaluation_id"] == "er1"

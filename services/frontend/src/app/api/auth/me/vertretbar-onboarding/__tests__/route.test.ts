@@ -98,4 +98,23 @@ describe('POST /api/auth/me/vertretbar-onboarding', () => {
       expect.anything()
     )
   })
+
+  it('falls back to a generic message when the backend error body is empty', async () => {
+    mockFetch.mockResolvedValue({
+      ok: false,
+      status: 502,
+      text: () => Promise.resolve(''),
+    })
+
+    const request = new NextRequest(
+      'http://vertretbar.localhost/api/auth/me/vertretbar-onboarding',
+      { method: 'POST', headers: { host: 'vertretbar.localhost' } }
+    )
+
+    const response = await POST(request)
+    const data = await response.json()
+
+    expect(response.status).toBe(502)
+    expect(data.error).toBe('Request failed')
+  })
 })

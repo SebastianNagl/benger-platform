@@ -90,6 +90,11 @@ def main():
     real = load_json(REAL)
     canonical = load_json(PROCESSED / "benchathon_human_grades.json")
     model_evals = load_json(PROCESSED / "benchathon_model_evaluations.json")
+    # One validation pick is an April-2026 generation superseded in the
+    # leaderboard pool; union its judge row back in for the pick joins.
+    _sup = PROCESSED / "benchathon_superseded_evaluations.json"
+    if _sup.exists():
+        model_evals = model_evals + load_json(_sup)
     humans_h = humans_by_solution(canonical, role_filter="blind")
     humans_llm = humans_by_solution(canonical, role_filter="blind",
                                     solution_type_filter="llm_system")

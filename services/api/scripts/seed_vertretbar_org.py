@@ -109,9 +109,15 @@ def _resolve_key(db, owner, args) -> str | None:
 def _get_or_create_org(db, apply: bool) -> tuple[Organization, bool]:
     org = db.query(Organization).filter(Organization.slug == VERTRETBAR_SLUG).first()
     created = False
+    # An environment that already pins VERTRETBAR_ORG_ID (compose .env, Helm)
+    # dictates the id: the API's login auto-join inserts memberships against
+    # that env id, so a freshly seeded org under any OTHER id turns every
+    # vertretbar sign-in into a ForeignKeyViolation 500. Honor the pin on
+    # create; scream on mismatch instead of silently seeding a broken pair.
+    env_org_id = (os.environ.get("VERTRETBAR_ORG_ID") or "").strip() or None
     if org is None:
         org = Organization(
-            id=str(uuid.uuid4()),
+            id=env_org_id or str(uuid.uuid4()),
             name="Vertretbar",
             display_name="Vertretbar",
             slug=VERTRETBAR_SLUG,
@@ -123,6 +129,14 @@ def _get_or_create_org(db, apply: bool) -> tuple[Organization, bool]:
         if apply:
             db.add(org)
     else:
+        if env_org_id and org.id != env_org_id:
+            print(
+                f"WARNING: existing '{VERTRETBAR_SLUG}' org has id {org.id} but the "
+                f"environment pins VERTRETBAR_ORG_ID={env_org_id}. Sign-ins on "
+                "vertretbar hosts will 500 (auto-join FK violation) until they "
+                "match — update VERTRETBAR_ORG_ID to the printed id, or re-point "
+                "the org row."
+            )
         settings = dict(org.settings or {})
         if settings.get("require_private_keys") is not False:
             settings["require_private_keys"] = False

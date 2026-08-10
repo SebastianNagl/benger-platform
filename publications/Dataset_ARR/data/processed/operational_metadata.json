@@ -31,13 +31,13 @@
         "total_retries": 0
       },
       "Qwen/Qwen3-235B-A22B-Thinking-2507": {
-        "n": 28,
+        "n": 15,
         "mean_cost_usd": 0.014416446,
         "total_cost_usd": 0.2162,
         "n_with_cost": 15,
         "mean_latency_s": 125.10813333333333,
         "median_latency_s": 110.617,
-        "mean_words": 678,
+        "mean_words": 825,
         "truncated": 0,
         "total_retries": 0
       },
@@ -119,13 +119,13 @@
         "total_retries": 0
       },
       "gemini-2.5-pro": {
-        "n": 22,
+        "n": 15,
         "mean_cost_usd": null,
         "total_cost_usd": null,
         "n_with_cost": 0,
         "mean_latency_s": null,
         "median_latency_s": null,
-        "mean_words": 1086,
+        "mean_words": 1323,
         "truncated": 0,
         "total_retries": 0
       },
@@ -152,13 +152,13 @@
         "total_retries": 0
       },
       "gpt-5.4": {
-        "n": 30,
+        "n": 15,
         "mean_cost_usd": null,
         "total_cost_usd": null,
         "n_with_cost": 0,
         "mean_latency_s": 70.00766666666667,
         "median_latency_s": 69.377,
-        "mean_words": 1830,
+        "mean_words": 2190,
         "truncated": 0,
         "total_retries": 0
       },
@@ -187,80 +187,80 @@
     },
     "zjs": {
       "Qwen/Qwen3-235B-A22B-Thinking-2507": {
-        "n": 656,
-        "mean_cost_usd": 0.015169638079268292,
-        "total_cost_usd": 9.9513,
-        "n_with_cost": 656,
-        "mean_latency_s": 153.77968140243902,
-        "median_latency_s": 150.325,
-        "mean_words": 948,
-        "truncated": 75,
+        "n": 581,
+        "mean_cost_usd": 0.014667044974182444,
+        "total_cost_usd": 8.5216,
+        "n_with_cost": 581,
+        "mean_latency_s": 148.37142512908778,
+        "median_latency_s": 143.573,
+        "mean_words": 971,
+        "truncated": 0,
         "total_retries": 0
       },
       "Qwen/Qwen3.5-122B-A10B": {
-        "n": 863,
-        "mean_cost_usd": 0.019830906709154113,
-        "total_cost_usd": 17.1141,
-        "n_with_cost": 863,
-        "mean_latency_s": 95.010932792584,
-        "median_latency_s": 90.306,
-        "mean_words": 1141,
-        "truncated": 282,
+        "n": 581,
+        "mean_cost_usd": 0.019802478915662648,
+        "total_cost_usd": 11.5052,
+        "n_with_cost": 581,
+        "mean_latency_s": 90.05339586919105,
+        "median_latency_s": 86.435,
+        "mean_words": 1297,
+        "truncated": 0,
         "total_retries": 0
       },
       "Qwen/Qwen3.6-35B-A3B": {
-        "n": 829,
-        "mean_cost_usd": 0.008260340036188179,
-        "total_cost_usd": 6.8478,
-        "n_with_cost": 829,
-        "mean_latency_s": 65.75826537997587,
-        "median_latency_s": 57.951,
-        "mean_words": 1008,
-        "truncated": 252,
+        "n": 581,
+        "mean_cost_usd": 0.008171215404475043,
+        "total_cost_usd": 4.7475,
+        "n_with_cost": 581,
+        "mean_latency_s": 64.82228227194493,
+        "median_latency_s": 57.751,
+        "mean_words": 1122,
+        "truncated": 4,
         "total_retries": 0
       },
       "claude-opus-4-7": {
-        "n": 652,
-        "mean_cost_usd": 0.1853252070552147,
-        "total_cost_usd": 120.832,
-        "n_with_cost": 652,
-        "mean_latency_s": 77.19123466257668,
-        "median_latency_s": 75.1105,
-        "mean_words": 1760,
-        "truncated": 71,
+        "n": 581,
+        "mean_cost_usd": 0.18011697074010327,
+        "total_cost_usd": 104.648,
+        "n_with_cost": 581,
+        "mean_latency_s": 75.16960929432014,
+        "median_latency_s": 71.871,
+        "mean_words": 1710,
+        "truncated": 0,
         "total_retries": 0
       },
       "claude-sonnet-4-6": {
-        "n": 782,
-        "mean_cost_usd": 0.12265539897698209,
-        "total_cost_usd": 95.9165,
-        "n_with_cost": 782,
-        "mean_latency_s": 129.13971227621482,
-        "median_latency_s": 129.1715,
-        "mean_words": 2861,
-        "truncated": 202,
-        "total_retries": 0
-      },
-      "deepseek-ai/DeepSeek-V4-Flash": {
-        "n": 582,
-        "mean_cost_usd": 0.0014791935738831617,
-        "total_cost_usd": 0.8609,
-        "n_with_cost": 582,
-        "mean_latency_s": 129.21272164948454,
-        "median_latency_s": 121.4895,
-        "mean_words": 1909,
+        "n": 581,
+        "mean_cost_usd": 0.11967088296041307,
+        "total_cost_usd": 69.5288,
+        "n_with_cost": 581,
+        "mean_latency_s": 126.10347160068847,
+        "median_latency_s": 122.044,
+        "mean_words": 2796,
         "truncated": 1,
         "total_retries": 0
       },
+      "deepseek-ai/DeepSeek-V4-Flash": {
+        "n": 581,
+        "mean_cost_usd": 0.0014768657831325303,
+        "total_cost_usd": 0.8581,
+        "n_with_cost": 581,
+        "mean_latency_s": 129.08554733218588,
+        "median_latency_s": 121.443,
+        "mean_words": 1906,
+        "truncated": 0,
+        "total_retries": 0
+      },
       "deepseek-ai/DeepSeek-V4-Pro": {
-        "n": 609,
-        "mean_cost_usd": 0.023260925714285716,
-        "total_cost_usd": 14.1659,
-        "n_with_cost": 609,
-        "mean_latency_s": 131.7936091954023,
-        "median_latency_s": 121.173,
-        "mean_words": 2561,
-        "truncated": 29,
+        "n": 581,
+        "mean_cost_usd": 0.022789977934595525,
+        "total_cost_usd": 13.241,
+        "n_with_cost": 581,
+        "mean_latency_s": 130.1772822719449,
+        "median_latency_s": 119.301,
+        "mean_words": 2498,
+        "truncated": 1,
         "total_retries": 0
       },
       "gemini-3.1-flash-lite-preview": {
@@ -275,25 +275,25 @@
         "total_retries": 0
       },
       "gemini-3.1-pro-preview": {
-        "n": 740,
-        "mean_cost_usd": 0.03911912162162162,
-        "total_cost_usd": 28.9481,
-        "n_with_cost": 740,
-        "mean_latency_s": 76.44918918918918,
-        "median_latency_s": 71.865,
-        "mean_words": 1470,
-        "truncated": 161,
+        "n": 579,
+        "mean_cost_usd": 0.04115672884283247,
+        "total_cost_usd": 23.8297,
+        "n_with_cost": 579,
+        "mean_latency_s": 72.60933851468047,
+        "median_latency_s": 67.956,
+        "mean_words": 1558,
+        "truncated": 0,
         "total_retries": 0
       },
       "gpt-5.4": {
-        "n": 586,
+        "n": 581,
         "mean_cost_usd": null,
         "total_cost_usd": null,
         "n_with_cost": 0,
-        "mean_latency_s": 80.39665017064847,
-        "median_latency_s": 79.4,
-        "mean_words": 2665,
-        "truncated": 5,
+        "mean_latency_s": 79.88891394148021,
+        "median_latency_s": 79.125,
+        "mean_words": 2649,
+        "truncated": 0,
         "total_retries": 0
       },
       "gpt-5.4-mini": {
@@ -462,9 +462,9 @@
         "n": 14
       },
       "Qwen/Qwen3-235B-A22B-Thinking-2507": {
-        "first": "2026-04-02",
+        "first": "2026-05-08",
         "last": "2026-05-08",
-        "n": 28
+        "n": 15
       },
       "Qwen/Qwen3.5-122B-A10B": {
         "first": "2026-05-08",
@@ -504,7 +504,7 @@
       "gemini-2.5-pro": {
         "first": "2026-04-02",
         "last": "2026-04-02",
-        "n": 22
+        "n": 15
       },
       "gemini-3-flash-preview": {
         "first": "2026-05-08",
@@ -517,9 +517,9 @@
         "n": 15
       },
       "gpt-5.4": {
-        "first": "2026-04-02",
+        "first": "2026-05-08",
         "last": "2026-05-08",
-        "n": 30
+        "n": 15
       },
       "gpt-5.4-mini": {
         "first": "2026-05-08",
@@ -536,37 +536,37 @@
       "Qwen/Qwen3-235B-A22B-Thinking-2507": {
         "first": "2026-05-13",
         "last": "2026-05-14",
-        "n": 656
+        "n": 581
       },
       "Qwen/Qwen3.5-122B-A10B": {
         "first": "2026-05-13",
         "last": "2026-05-14",
-        "n": 863
+        "n": 581
       },
       "Qwen/Qwen3.6-35B-A3B": {
         "first": "2026-05-13",
         "last": "2026-05-14",
-        "n": 829
+        "n": 581
       },
       "claude-opus-4-7": {
         "first": "2026-05-13",
         "last": "2026-05-14",
-        "n": 652
+        "n": 581
       },
       "claude-sonnet-4-6": {
         "first": "2026-05-13",
         "last": "2026-05-14",
-        "n": 782
+        "n": 581
       },
       "deepseek-ai/DeepSeek-V4-Flash": {
         "first": "2026-05-13",
         "last": "2026-05-14",
-        "n": 582
+        "n": 581
       },
       "deepseek-ai/DeepSeek-V4-Pro": {
         "first": "2026-05-13",
         "last": "2026-05-14",
-        "n": 609
+        "n": 581
       },
       "gemini-3.1-flash-lite-preview": {
         "first": "2026-05-13",
@@ -576,12 +576,12 @@
       "gemini-3.1-pro-preview": {
         "first": "2026-05-13",
         "last": "2026-05-14",
-        "n": 740
+        "n": 579
       },
       "gpt-5.4": {
         "first": "2026-05-13",
         "last": "2026-05-14",
-        "n": 586
+        "n": 581
       },
       "gpt-5.4-mini": {
         "first": "2026-05-13",
@@ -673,7 +673,6 @@
         42
       ],
       "temperature": [
-        0.0,
         0.6
       ]
     },
@@ -785,7 +784,6 @@
         20000
       ],
       "temperature": [
-        0.0,
         1.0
       ]
     },

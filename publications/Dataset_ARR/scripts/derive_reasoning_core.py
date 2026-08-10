@@ -42,12 +42,13 @@ from __future__ import annotations
 
 import json
 import sys
-from collections import defaultdict
+from collections import Counter, defaultdict
 from pathlib import Path
 
 import ijson
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _gen_dedup import dedup_export_view, dedup_superseded  # noqa: E402
 from _stats import kendall_tau, spearman  # noqa: E402
 from derive_paper_exports import (  # noqa: E402
     BASELINE_JUDGE_FIELD_PREFIX,
@@ -191,7 +192,13 @@ class _CorpusAccumulator:
 
 def collect_benchathon() -> _CorpusAccumulator:
     acc = _CorpusAccumulator(BASELINE_JUDGE_FIELD_PREFIX)
-    export = load(BENCHATHON_EXPORT)
+    # Leaderboard pool: superseded April-round attempts drop out, matching
+    # benchathon_model_evaluations.json.
+    _dropped = Counter()
+    export = dedup_export_view(load(BENCHATHON_EXPORT), _dropped)
+    if _dropped:
+        print(f"  benchathon: superseded attempts dropped: {sum(_dropped.values())}",
+              file=sys.stderr)
     whitelist = _zjs_model_whitelist()
     seen_gens: set[str] = set()
     for _task_id, gen, ev in iter_gen_evals(export):
@@ -216,10 +223,11 @@ def collect_zjs() -> _CorpusAccumulator:
         sys.exit(f"ZJS source missing: {ZJS_SRC}")
     seen_gens: set[str] = set()
     n_tasks = 0
+    dropped = Counter()
     with ZJS_SRC.open("rb") as f:
         for task in ijson.items(f, "tasks.item"):
             n_tasks += 1
-            for gen in task.get("generations") or []:
+            for gen in dedup_superseded(task.get("generations") or [], dropped):
                 mid = gen.get("model_id")
                 if not mid:
                     continue
@@ -235,6 +243,10 @@ def collect_zjs() -> _CorpusAccumulator:
                     acc.add(canonical_model_id(mid), ev.get("metrics"))
             if n_tasks % 100 == 0:
                 print(f"  ... zjs: {n_tasks} tasks streamed", file=sys.stderr)
+    print(
+        f"  zjs: superseded truncated attempts dropped: {sum(dropped.values())}",
+        file=sys.stderr,
+    )
     return acc
 
 

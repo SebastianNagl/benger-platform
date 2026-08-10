@@ -1,0 +1,24 @@
+\begin{table}[t]
+\centering
+\scriptsize
+\begin{tabular}{@{}lrr@{}}
+\toprule
+Rubric source & MAE (Son.) & bias \\
+\midrule
+gemini-3.1-flash-lite & 13.7 & $-5.9$ \\
+Qwen3-235B-Think & 13.2 & $-11.2$ \\
+Qwen3.6-35B-A3B & 13.8 & $-10.2$ \\
+gpt-5.4 & 14.7 & $-10.8$ \\
+Qwen3.5-122B-A10B & 14.1 & $-5.8$ \\
+gemini-3.1-pro & 16.0 & $-13.1$ \\
+claude-opus-4-7 & 17.7 & $-17.0$ \\
+claude-sonnet-4-6 & 17.8 & $-17.4$ \\
+DeepSeek-V4-Pro & 18.7 & $-16.4$ \\
+DeepSeek-V4-Flash & 16.0 & $-12.2$ \\
+gpt-5.4-mini & 12.4 & $-5.6$ \\
+Llama-4-Maverick & 11.8 & $1.0$ \\
+\bottomrule
+\end{tabular}
+\caption{Sonnet lens (one pass, identical cells): MAE and signed bias per rubric source – the harshness gradient is judge-independent, with no evidence of family self-preference under this single lens.}
+\label{tab:generators-sonnet}
+\end{table}

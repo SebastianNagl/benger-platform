@@ -1,0 +1,1051 @@
+{
+ "criteria": {
+  "repetition": "< 5 on every pass",
+  "empty": "= 0 on every pass",
+  "offtopic": "<= 10 on every pass",
+  "musterloesung": ">= 70 on every pass (positive control)",
+  "preregistered": "negatives: DESIGN.md 2026-08-06; positive control + holistic arm: DESIGN.md 2026-08-09 — both before dispatch",
+  "battery_verdict": "negative probes only (comparable to the published fail counts); positive_control reported separately"
+ },
+ "n_probes": 45,
+ "per_judge": {
+  "Qwen/Qwen3.5-397B-A17B": {
+   "repetition": {
+    "n_passes": 15,
+    "mean": 71.97,
+    "median": 100.0,
+    "p95": 100.0,
+    "max": 100.0,
+    "min": 0.0,
+    "n_fail_passes": 11,
+    "fail_probes": [
+     "PB01-repetition",
+     "PB03-repetition",
+     "PB04-repetition",
+     "PB05-repetition",
+     "PB07-repetition",
+     "PB10-repetition",
+     "PB11-repetition",
+     "PB12-repetition",
+     "PB13-repetition",
+     "PB14-repetition",
+     "PB15-repetition"
+    ]
+   },
+   "empty": {
+    "n_passes": 15,
+    "mean": 51.83,
+    "median": 79.0,
+    "p95": 100.0,
+    "max": 100.0,
+    "min": 0.0,
+    "n_fail_passes": 8,
+    "fail_probes": [
+     "PB04-empty",
+     "PB05-empty",
+     "PB06-empty",
+     "PB07-empty",
+     "PB12-empty",
+     "PB13-empty",
+     "PB14-empty",
+     "PB15-empty"
+    ]
+   },
+   "offtopic": {
+    "n_passes": 15,
+    "mean": 0.0,
+    "median": 0.0,
+    "p95": 0.0,
+    "max": 0.0,
+    "min": 0.0,
+    "n_fail_passes": 0,
+    "fail_probes": []
+   },
+   "battery": "fail(19)"
+  },
+  "claude-opus-4-7": {
+   "repetition": {
+    "n_passes": 15,
+    "mean": 0.0,
+    "median": 0.0,
+    "p95": 0.0,
+    "max": 0.0,
+    "min": 0.0,
+    "n_fail_passes": 0,
+    "fail_probes": []
+   },
+   "empty": {
+    "n_passes": 15,
+    "mean": 0.0,
+    "median": 0.0,
+    "p95": 0.0,
+    "max": 0.0,
+    "min": 0.0,
+    "n_fail_passes": 0,
+    "fail_probes": []
+   },
+   "offtopic": {
+    "n_passes": 15,
+    "mean": 0.3,
+    "median": 0.0,
+    "p95": 1.4,
+    "max": 3.5,
+    "min": 0.0,
+    "n_fail_passes": 0,
+    "fail_probes": []
+   },
+   "battery": "pass"
+  },
+  "claude-sonnet-4-6": {
+   "repetition": {
+    "n_passes": 15,
+    "mean": 29.63,
+    "median": 0.0,
+    "p95": 100.0,
+    "max": 100.0,
+    "min": 0.0,
+    "n_fail_passes": 5,
+    "fail_probes": [
+     "PB03-repetition",
+     "PB04-repetition",
+     "PB08-repetition",
+     "PB09-repetition",
+     "PB14-repetition"
+    ]
+   },
+   "empty": {
+    "n_passes": 15,
+    "mean": 5.4,
+    "median": 0.0,
+    "p95": 24.3,
+    "max": 81.0,
+    "min": 0.0,
+    "n_fail_passes": 1,
+    "fail_probes": [
+     "PB14-empty"
+    ]
+   },
+   "offtopic": {
+    "n_passes": 15,
+    "mean": 0.0,
+    "median": 0.0,
+    "p95": 0.0,
+    "max": 0.0,
+    "min": 0.0,
+    "n_fail_passes": 0,
+    "fail_probes": []
+   },
+   "battery": "fail(6)"
+  },
+  "deepseek-ai/DeepSeek-V4-Pro": {
+   "repetition": {
+    "n_passes": 15,
+    "mean": 0.0,
+    "median": 0.0,
+    "p95": 0.0,
+    "max": 0.0,
+    "min": 0.0,
+    "n_fail_passes": 0,
+    "fail_probes": []
+   },
+   "empty": {
+    "n_passes": 15,
+    "mean": 0.0,
+    "median": 0.0,
+    "p95": 0.0,
+    "max": 0.0,
+    "min": 0.0,
+    "n_fail_passes": 0,
+    "fail_probes": []
+   },
+   "offtopic": {
+    "n_passes": 15,
+    "mean": 0.0,
+    "median": 0.0,
+    "p95": 0.0,
+    "max": 0.0,
+    "min": 0.0,
+    "n_fail_passes": 0,
+    "fail_probes": []
+   },
+   "battery": "pass"
+  },
+  "gemini-3.1-pro-preview": {
+   "repetition": {
+    "n_passes": 15,
+    "mean": 51.27,
+    "median": 80.0,
+    "p95": 100.0,
+    "max": 100.0,
+    "min": 0.0,
+    "n_fail_passes": 8,
+    "fail_probes": [
+     "PB04-repetition",
+     "PB09-repetition",
+     "PB10-repetition",
+     "PB11-repetition",
+     "PB12-repetition",
+     "PB13-repetition",
+     "PB14-repetition",
+     "PB15-repetition"
+    ]
+   },
+   "empty": {
+    "n_passes": 15,
+    "mean": 77.87,
+    "median": 100.0,
+    "p95": 100.0,
+    "max": 100.0,
+    "min": 0.0,
+    "n_fail_passes": 12,
+    "fail_probes": [
+     "PB03-empty",
+     "PB04-empty",
+     "PB06-empty",
+     "PB07-empty",
+     "PB08-empty",
+     "PB09-empty",
+     "PB10-empty",
+     "PB11-empty",
+     "PB12-empty",
+     "PB13-empty",
+     "PB14-empty",
+     "PB15-empty"
+    ]
+   },
+   "offtopic": {
+    "n_passes": 15,
+    "mean": 0.0,
+    "median": 0.0,
+    "p95": 0.0,
+    "max": 0.0,
+    "min": 0.0,
+    "n_fail_passes": 0,
+    "fail_probes": []
+   },
+   "battery": "fail(20)"
+  },
+  "gpt-5.4-mini": {
+   "repetition": {
+    "n_passes": 45,
+    "mean": 96.83,
+    "median": 100.0,
+    "p95": 100.0,
+    "max": 100.0,
+    "min": 75.0,
+    "n_fail_passes": 45,
+    "fail_probes": [
+     "PB01-repetition",
+     "PB02-repetition",
+     "PB03-repetition",
+     "PB04-repetition",
+     "PB05-repetition",
+     "PB06-repetition",
+     "PB07-repetition",
+     "PB08-repetition",
+     "PB09-repetition",
+     "PB10-repetition",
+     "PB11-repetition",
+     "PB12-repetition",
+     "PB13-repetition",
+     "PB14-repetition",
+     "PB15-repetition"
+    ]
+   },
+   "empty": {
+    "n_passes": 45,
+    "mean": 83.93,
+    "median": 95.0,
+    "p95": 100.0,
+    "max": 100.0,
+    "min": 0.0,
+    "n_fail_passes": 42,
+    "fail_probes": [
+     "PB01-empty",
+     "PB02-empty",
+     "PB03-empty",
+     "PB04-empty",
+     "PB05-empty",
+     "PB06-empty",
+     "PB07-empty",
+     "PB08-empty",
+     "PB09-empty",
+     "PB10-empty",
+     "PB11-empty",
+     "PB12-empty",
+     "PB13-empty",
+     "PB14-empty",
+     "PB15-empty"
+    ]
+   },
+   "offtopic": {
+    "n_passes": 45,
+    "mean": 13.12,
+    "median": 8.0,
+    "p95": 83.0,
+    "max": 94.0,
+    "min": 0.0,
+    "n_fail_passes": 13,
+    "fail_probes": [
+     "PB01-offtopic",
+     "PB07-offtopic",
+     "PB08-offtopic",
+     "PB11-offtopic",
+     "PB12-offtopic",
+     "PB13-offtopic",
+     "PB14-offtopic"
+    ]
+   },
+   "battery": "fail(100)"
+  },
+  "gpt-5.6-luna": {
+   "repetition": {
+    "n_passes": 45,
+    "mean": 12.98,
+    "median": 0.0,
+    "p95": 99.5,
+    "max": 100.0,
+    "min": 0.0,
+    "n_fail_passes": 6,
+    "fail_probes": [
+     "PB03-repetition",
+     "PB12-repetition",
+     "PB14-repetition",
+     "PB15-repetition"
+    ]
+   },
+   "empty": {
+    "n_passes": 45,
+    "mean": 55.59,
+    "median": 89.0,
+    "p95": 100.0,
+    "max": 100.0,
+    "min": 0.0,
+    "n_fail_passes": 26,
+    "fail_probes": [
+     "PB01-empty",
+     "PB02-empty",
+     "PB03-empty",
+     "PB04-empty",
+     "PB05-empty",
+     "PB08-empty",
+     "PB10-empty",
+     "PB12-empty",
+     "PB13-empty",
+     "PB14-empty",
+     "PB15-empty"
+    ]
+   },
+   "offtopic": {
+    "n_passes": 45,
+    "mean": 0.23,
+    "median": 0.0,
+    "p95": 1.0,
+    "max": 4.5,
+    "min": 0.0,
+    "n_fail_passes": 0,
+    "fail_probes": []
+   },
+   "battery": "fail(32)"
+  }
+ },
+ "arms": {
+  "tailored": {
+   "Qwen/Qwen3.5-397B-A17B": {
+    "repetition": {
+     "n_passes": 15,
+     "mean": 71.97,
+     "median": 100.0,
+     "p95": 100.0,
+     "max": 100.0,
+     "min": 0.0,
+     "n_fail_passes": 11,
+     "fail_probes": [
+      "PB01-repetition",
+      "PB03-repetition",
+      "PB04-repetition",
+      "PB05-repetition",
+      "PB07-repetition",
+      "PB10-repetition",
+      "PB11-repetition",
+      "PB12-repetition",
+      "PB13-repetition",
+      "PB14-repetition",
+      "PB15-repetition"
+     ]
+    },
+    "empty": {
+     "n_passes": 15,
+     "mean": 51.83,
+     "median": 79.0,
+     "p95": 100.0,
+     "max": 100.0,
+     "min": 0.0,
+     "n_fail_passes": 8,
+     "fail_probes": [
+      "PB04-empty",
+      "PB05-empty",
+      "PB06-empty",
+      "PB07-empty",
+      "PB12-empty",
+      "PB13-empty",
+      "PB14-empty",
+      "PB15-empty"
+     ]
+    },
+    "offtopic": {
+     "n_passes": 15,
+     "mean": 0.0,
+     "median": 0.0,
+     "p95": 0.0,
+     "max": 0.0,
+     "min": 0.0,
+     "n_fail_passes": 0,
+     "fail_probes": []
+    },
+    "musterloesung": {
+     "n_passes": 15,
+     "mean": 98.43,
+     "median": 100.0,
+     "p95": 100.0,
+     "max": 100.0,
+     "min": 80.0,
+     "n_fail_passes": 0,
+     "fail_probes": []
+    },
+    "battery": "fail(19)",
+    "positive_control": "pass"
+   },
+   "claude-opus-4-7": {
+    "repetition": {
+     "n_passes": 15,
+     "mean": 0.0,
+     "median": 0.0,
+     "p95": 0.0,
+     "max": 0.0,
+     "min": 0.0,
+     "n_fail_passes": 0,
+     "fail_probes": []
+    },
+    "empty": {
+     "n_passes": 15,
+     "mean": 0.0,
+     "median": 0.0,
+     "p95": 0.0,
+     "max": 0.0,
+     "min": 0.0,
+     "n_fail_passes": 0,
+     "fail_probes": []
+    },
+    "offtopic": {
+     "n_passes": 15,
+     "mean": 0.3,
+     "median": 0.0,
+     "p95": 1.4,
+     "max": 3.5,
+     "min": 0.0,
+     "n_fail_passes": 0,
+     "fail_probes": []
+    },
+    "musterloesung": {
+     "n_passes": 15,
+     "mean": 96.67,
+     "median": 99.0,
+     "p95": 100.0,
+     "max": 100.0,
+     "min": 74.0,
+     "n_fail_passes": 0,
+     "fail_probes": []
+    },
+    "battery": "pass",
+    "positive_control": "pass"
+   },
+   "claude-sonnet-4-6": {
+    "repetition": {
+     "n_passes": 15,
+     "mean": 29.63,
+     "median": 0.0,
+     "p95": 100.0,
+     "max": 100.0,
+     "min": 0.0,
+     "n_fail_passes": 5,
+     "fail_probes": [
+      "PB03-repetition",
+      "PB04-repetition",
+      "PB08-repetition",
+      "PB09-repetition",
+      "PB14-repetition"
+     ]
+    },
+    "empty": {
+     "n_passes": 15,
+     "mean": 5.4,
+     "median": 0.0,
+     "p95": 24.3,
+     "max": 81.0,
+     "min": 0.0,
+     "n_fail_passes": 1,
+     "fail_probes": [
+      "PB14-empty"
+     ]
+    },
+    "offtopic": {
+     "n_passes": 15,
+     "mean": 0.0,
+     "median": 0.0,
+     "p95": 0.0,
+     "max": 0.0,
+     "min": 0.0,
+     "n_fail_passes": 0,
+     "fail_probes": []
+    },
+    "musterloesung": {
+     "n_passes": 15,
+     "mean": 95.53,
+     "median": 100.0,
+     "p95": 100.0,
+     "max": 100.0,
+     "min": 72.0,
+     "n_fail_passes": 0,
+     "fail_probes": []
+    },
+    "battery": "fail(6)",
+    "positive_control": "pass"
+   },
+   "deepseek-ai/DeepSeek-V4-Pro": {
+    "repetition": {
+     "n_passes": 15,
+     "mean": 0.0,
+     "median": 0.0,
+     "p95": 0.0,
+     "max": 0.0,
+     "min": 0.0,
+     "n_fail_passes": 0,
+     "fail_probes": []
+    },
+    "empty": {
+     "n_passes": 15,
+     "mean": 0.0,
+     "median": 0.0,
+     "p95": 0.0,
+     "max": 0.0,
+     "min": 0.0,
+     "n_fail_passes": 0,
+     "fail_probes": []
+    },
+    "offtopic": {
+     "n_passes": 15,
+     "mean": 0.0,
+     "median": 0.0,
+     "p95": 0.0,
+     "max": 0.0,
+     "min": 0.0,
+     "n_fail_passes": 0,
+     "fail_probes": []
+    },
+    "musterloesung": {
+     "n_passes": 15,
+     "mean": 98.07,
+     "median": 100.0,
+     "p95": 100.0,
+     "max": 100.0,
+     "min": 80.0,
+     "n_fail_passes": 0,
+     "fail_probes": []
+    },
+    "battery": "pass",
+    "positive_control": "pass"
+   },
+   "gemini-3.1-pro-preview": {
+    "repetition": {
+     "n_passes": 15,
+     "mean": 51.27,
+     "median": 80.0,
+     "p95": 100.0,
+     "max": 100.0,
+     "min": 0.0,
+     "n_fail_passes": 8,
+     "fail_probes": [
+      "PB04-repetition",
+      "PB09-repetition",
+      "PB10-repetition",
+      "PB11-repetition",
+      "PB12-repetition",
+      "PB13-repetition",
+      "PB14-repetition",
+      "PB15-repetition"
+     ]
+    },
+    "empty": {
+     "n_passes": 15,
+     "mean": 77.87,
+     "median": 100.0,
+     "p95": 100.0,
+     "max": 100.0,
+     "min": 0.0,
+     "n_fail_passes": 12,
+     "fail_probes": [
+      "PB03-empty",
+      "PB04-empty",
+      "PB06-empty",
+      "PB07-empty",
+      "PB08-empty",
+      "PB09-empty",
+      "PB10-empty",
+      "PB11-empty",
+      "PB12-empty",
+      "PB13-empty",
+      "PB14-empty",
+      "PB15-empty"
+     ]
+    },
+    "offtopic": {
+     "n_passes": 15,
+     "mean": 0.0,
+     "median": 0.0,
+     "p95": 0.0,
+     "max": 0.0,
+     "min": 0.0,
+     "n_fail_passes": 0,
+     "fail_probes": []
+    },
+    "musterloesung": {
+     "n_passes": 15,
+     "mean": 98.47,
+     "median": 100.0,
+     "p95": 100.0,
+     "max": 100.0,
+     "min": 80.0,
+     "n_fail_passes": 0,
+     "fail_probes": []
+    },
+    "battery": "fail(20)",
+    "positive_control": "pass"
+   },
+   "gpt-5.4-mini": {
+    "repetition": {
+     "n_passes": 45,
+     "mean": 96.83,
+     "median": 100.0,
+     "p95": 100.0,
+     "max": 100.0,
+     "min": 75.0,
+     "n_fail_passes": 45,
+     "fail_probes": [
+      "PB01-repetition",
+      "PB02-repetition",
+      "PB03-repetition",
+      "PB04-repetition",
+      "PB05-repetition",
+      "PB06-repetition",
+      "PB07-repetition",
+      "PB08-repetition",
+      "PB09-repetition",
+      "PB10-repetition",
+      "PB11-repetition",
+      "PB12-repetition",
+      "PB13-repetition",
+      "PB14-repetition",
+      "PB15-repetition"
+     ]
+    },
+    "empty": {
+     "n_passes": 45,
+     "mean": 83.93,
+     "median": 95.0,
+     "p95": 100.0,
+     "max": 100.0,
+     "min": 0.0,
+     "n_fail_passes": 42,
+     "fail_probes": [
+      "PB01-empty",
+      "PB02-empty",
+      "PB03-empty",
+      "PB04-empty",
+      "PB05-empty",
+      "PB06-empty",
+      "PB07-empty",
+      "PB08-empty",
+      "PB09-empty",
+      "PB10-empty",
+      "PB11-empty",
+      "PB12-empty",
+      "PB13-empty",
+      "PB14-empty",
+      "PB15-empty"
+     ]
+    },
+    "offtopic": {
+     "n_passes": 45,
+     "mean": 13.12,
+     "median": 8.0,
+     "p95": 83.0,
+     "max": 94.0,
+     "min": 0.0,
+     "n_fail_passes": 13,
+     "fail_probes": [
+      "PB01-offtopic",
+      "PB07-offtopic",
+      "PB08-offtopic",
+      "PB11-offtopic",
+      "PB12-offtopic",
+      "PB13-offtopic",
+      "PB14-offtopic"
+     ]
+    },
+    "musterloesung": {
+     "n_passes": 45,
+     "mean": 96.71,
+     "median": 100.0,
+     "p95": 100.0,
+     "max": 100.0,
+     "min": 75.0,
+     "n_fail_passes": 0,
+     "fail_probes": []
+    },
+    "battery": "fail(100)",
+    "positive_control": "pass"
+   },
+   "gpt-5.6-luna": {
+    "repetition": {
+     "n_passes": 45,
+     "mean": 12.98,
+     "median": 0.0,
+     "p95": 99.5,
+     "max": 100.0,
+     "min": 0.0,
+     "n_fail_passes": 6,
+     "fail_probes": [
+      "PB03-repetition",
+      "PB12-repetition",
+      "PB14-repetition",
+      "PB15-repetition"
+     ]
+    },
+    "empty": {
+     "n_passes": 45,
+     "mean": 55.59,
+     "median": 89.0,
+     "p95": 100.0,
+     "max": 100.0,
+     "min": 0.0,
+     "n_fail_passes": 26,
+     "fail_probes": [
+      "PB01-empty",
+      "PB02-empty",
+      "PB03-empty",
+      "PB04-empty",
+      "PB05-empty",
+      "PB08-empty",
+      "PB10-empty",
+      "PB12-empty",
+      "PB13-empty",
+      "PB14-empty",
+      "PB15-empty"
+     ]
+    },
+    "offtopic": {
+     "n_passes": 45,
+     "mean": 0.23,
+     "median": 0.0,
+     "p95": 1.0,
+     "max": 4.5,
+     "min": 0.0,
+     "n_fail_passes": 0,
+     "fail_probes": []
+    },
+    "musterloesung": {
+     "n_passes": 45,
+     "mean": 96.74,
+     "median": 100.0,
+     "p95": 100.0,
+     "max": 100.0,
+     "min": 77.0,
+     "n_fail_passes": 0,
+     "fail_probes": []
+    },
+    "battery": "fail(32)",
+    "positive_control": "pass"
+   }
+  },
+  "fewshot": {
+   "gpt-5.4-mini": {
+    "repetition": {
+     "n_passes": 45,
+     "mean": 95.27,
+     "median": 99.0,
+     "p95": 100.0,
+     "max": 100.0,
+     "min": 71.5,
+     "n_fail_passes": 45,
+     "fail_probes": [
+      "PB01-repetition",
+      "PB02-repetition",
+      "PB03-repetition",
+      "PB04-repetition",
+      "PB05-repetition",
+      "PB06-repetition",
+      "PB07-repetition",
+      "PB08-repetition",
+      "PB09-repetition",
+      "PB10-repetition",
+      "PB11-repetition",
+      "PB12-repetition",
+      "PB13-repetition",
+      "PB14-repetition",
+      "PB15-repetition"
+     ]
+    },
+    "empty": {
+     "n_passes": 45,
+     "mean": 87.44,
+     "median": 95.0,
+     "p95": 100.0,
+     "max": 100.0,
+     "min": 0.0,
+     "n_fail_passes": 43,
+     "fail_probes": [
+      "PB01-empty",
+      "PB02-empty",
+      "PB03-empty",
+      "PB04-empty",
+      "PB05-empty",
+      "PB06-empty",
+      "PB07-empty",
+      "PB08-empty",
+      "PB09-empty",
+      "PB10-empty",
+      "PB11-empty",
+      "PB12-empty",
+      "PB13-empty",
+      "PB14-empty",
+      "PB15-empty"
+     ]
+    },
+    "offtopic": {
+     "n_passes": 45,
+     "mean": 11.79,
+     "median": 4.5,
+     "p95": 88.6,
+     "max": 95.0,
+     "min": 0.0,
+     "n_fail_passes": 8,
+     "fail_probes": [
+      "PB01-offtopic",
+      "PB06-offtopic",
+      "PB07-offtopic",
+      "PB11-offtopic",
+      "PB13-offtopic"
+     ]
+    },
+    "battery": "fail(96)"
+   },
+   "gpt-5.6-luna": {
+    "repetition": {
+     "n_passes": 45,
+     "mean": 15.11,
+     "median": 0.0,
+     "p95": 99.6,
+     "max": 100.0,
+     "min": 0.0,
+     "n_fail_passes": 7,
+     "fail_probes": [
+      "PB12-repetition",
+      "PB14-repetition",
+      "PB15-repetition"
+     ]
+    },
+    "empty": {
+     "n_passes": 45,
+     "mean": 51.79,
+     "median": 90.0,
+     "p95": 100.0,
+     "max": 100.0,
+     "min": 0.0,
+     "n_fail_passes": 24,
+     "fail_probes": [
+      "PB01-empty",
+      "PB03-empty",
+      "PB04-empty",
+      "PB05-empty",
+      "PB06-empty",
+      "PB08-empty",
+      "PB09-empty",
+      "PB11-empty",
+      "PB12-empty",
+      "PB13-empty",
+      "PB14-empty"
+     ]
+    },
+    "offtopic": {
+     "n_passes": 45,
+     "mean": 0.0,
+     "median": 0.0,
+     "p95": 0.0,
+     "max": 0.0,
+     "min": 0.0,
+     "n_fail_passes": 0,
+     "fail_probes": []
+    },
+    "battery": "fail(31)"
+   }
+  },
+  "holistic": {
+   "gpt-5.4-mini": {
+    "repetition": {
+     "n_passes": 45,
+     "mean": 41.04,
+     "median": 45.0,
+     "p95": 68.6,
+     "max": 71.0,
+     "min": 5.0,
+     "n_fail_passes": 45,
+     "fail_probes": [
+      "PB01-repetition",
+      "PB02-repetition",
+      "PB03-repetition",
+      "PB04-repetition",
+      "PB05-repetition",
+      "PB06-repetition",
+      "PB07-repetition",
+      "PB08-repetition",
+      "PB09-repetition",
+      "PB10-repetition",
+      "PB11-repetition",
+      "PB12-repetition",
+      "PB13-repetition",
+      "PB14-repetition",
+      "PB15-repetition"
+     ]
+    },
+    "empty": {
+     "n_passes": 45,
+     "mean": 4.4,
+     "median": 5.0,
+     "p95": 5.0,
+     "max": 7.0,
+     "min": 0.0,
+     "n_fail_passes": 39,
+     "fail_probes": [
+      "PB01-empty",
+      "PB02-empty",
+      "PB03-empty",
+      "PB04-empty",
+      "PB05-empty",
+      "PB06-empty",
+      "PB07-empty",
+      "PB08-empty",
+      "PB09-empty",
+      "PB10-empty",
+      "PB11-empty",
+      "PB12-empty",
+      "PB13-empty",
+      "PB14-empty",
+      "PB15-empty"
+     ]
+    },
+    "offtopic": {
+     "n_passes": 45,
+     "mean": 14.56,
+     "median": 13.0,
+     "p95": 20.8,
+     "max": 22.0,
+     "min": 10.0,
+     "n_fail_passes": 41,
+     "fail_probes": [
+      "PB01-offtopic",
+      "PB02-offtopic",
+      "PB03-offtopic",
+      "PB04-offtopic",
+      "PB05-offtopic",
+      "PB06-offtopic",
+      "PB07-offtopic",
+      "PB08-offtopic",
+      "PB09-offtopic",
+      "PB10-offtopic",
+      "PB11-offtopic",
+      "PB12-offtopic",
+      "PB13-offtopic",
+      "PB14-offtopic",
+      "PB15-offtopic"
+     ]
+    },
+    "musterloesung": {
+     "n_passes": 45,
+     "mean": 76.62,
+     "median": 82.0,
+     "p95": 90.9,
+     "max": 94.5,
+     "min": 26.0,
+     "n_fail_passes": 13,
+     "fail_probes": [
+      "PB04-musterloesung",
+      "PB05-musterloesung",
+      "PB06-musterloesung",
+      "PB09-musterloesung",
+      "PB12-musterloesung",
+      "PB14-musterloesung"
+     ]
+    },
+    "battery": "fail(125)",
+    "positive_control": "fail(13)"
+   },
+   "gpt-5.6-luna": {
+    "repetition": {
+     "n_passes": 45,
+     "mean": 4.49,
+     "median": 0.0,
+     "p95": 1.9,
+     "max": 93.0,
+     "min": 0.0,
+     "n_fail_passes": 2,
+     "fail_probes": [
+      "PB12-repetition"
+     ]
+    },
+    "empty": {
+     "n_passes": 45,
+     "mean": 0.0,
+     "median": 0.0,
+     "p95": 0.0,
+     "max": 0.0,
+     "min": 0.0,
+     "n_fail_passes": 0,
+     "fail_probes": []
+    },
+    "offtopic": {
+     "n_passes": 45,
+     "mean": 9.23,
+     "median": 8.0,
+     "p95": 17.5,
+     "max": 19.0,
+     "min": 1.0,
+     "n_fail_passes": 15,
+     "fail_probes": [
+      "PB03-offtopic",
+      "PB04-offtopic",
+      "PB06-offtopic",
+      "PB07-offtopic",
+      "PB09-offtopic",
+      "PB11-offtopic",
+      "PB12-offtopic",
+      "PB13-offtopic",
+      "PB15-offtopic"
+     ]
+    },
+    "musterloesung": {
+     "n_passes": 45,
+     "mean": 96.83,
+     "median": 97.5,
+     "p95": 100.0,
+     "max": 100.0,
+     "min": 92.5,
+     "n_fail_passes": 0,
+     "fail_probes": []
+    },
+    "battery": "fail(17)",
+    "positive_control": "pass"
+   }
+  }
+ }
+}

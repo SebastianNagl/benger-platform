@@ -210,7 +210,9 @@ export function HistoricalTrendChart({
               boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
             }}
             labelFormatter={(label) => {
-              const date = new Date(label)
+              // Recharts types `label` as ReactNode; ours is the timestamp
+              // string from the x-axis dataKey.
+              const date = new Date(label as string | number)
               return date.toLocaleString('en-US', {
                 month: 'short',
                 day: 'numeric',

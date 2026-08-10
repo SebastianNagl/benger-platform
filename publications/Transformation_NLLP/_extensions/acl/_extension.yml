@@ -1,0 +1,18 @@
+title: ACL
+author: BenGER
+version: 1.0.0
+quarto-required: ">=1.4.0"
+contributes:
+  formats:
+    pdf:
+      format: pdf
+      documentclass: article
+      classoption: [11pt]
+      template: template.tex
+      format-resources:
+        - acl.sty
+        - acl_natbib.bst
+      cite-method: natbib
+      biblio-style: acl_natbib
+      keep-tex: true
+      pdf-engine: pdflatex

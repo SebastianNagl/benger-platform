@@ -1,0 +1,157 @@
+{
+ "seed": 20260806,
+ "n_boot": 10000,
+ "n_clusters": 15,
+ "method": "exam-level cluster bootstrap, percentile 95% CI",
+ "agreement_basis": "30 annotation cells (since 2026-08-09; previously all 45)",
+ "contrasts": {
+  "repeat_sd_luna_tailored_minus_holistic": {
+   "point": -0.2782252294373235,
+   "ci95": [
+    -0.758608095522136,
+    0.15883245413164393
+   ],
+   "n_boot_valid": 10000
+  },
+  "repeat_sd_mini_tailored_minus_holistic": {
+   "point": 1.6514434165579122,
+   "ci95": [
+    -0.16657874830034905,
+    3.46397169144305
+   ],
+   "n_boot_valid": 10000
+  },
+  "panel_sd_luna_tailored_minus_holistic": {
+   "point": 0.22210945365005907,
+   "ci95": [
+    -0.5227011555075669,
+    1.0551607075148308
+   ],
+   "n_boot_valid": 10000
+  },
+  "repeat_sd_luna_tailored_minus_control_gpt5mini": {
+   "point": -1.0559133158267924,
+   "ci95": [
+    -1.5331070357716705,
+    -0.5803386069578136
+   ],
+   "n_boot_valid": 10000
+  },
+  "panel_sd_luna_tailored_minus_control": {
+   "point": -0.9151939560666588,
+   "ci95": [
+    -2.144973307167009,
+    0.12208602689929735
+   ],
+   "n_boot_valid": 10000
+  },
+  "panel_sd_mini_tailored_minus_control": {
+   "point": 2.117532434290442,
+   "ci95": [
+    1.0402149775895155,
+    3.325695494401497
+   ],
+   "n_boot_valid": 10000
+  },
+  "mae_luna_tailored_minus_holistic": {
+   "point": 1.5666666666666664,
+   "ci95": [
+    -3.2750000000000004,
+    6.958333333333332
+   ],
+   "n_boot_valid": 10000
+  },
+  "mae_mini_tailored_minus_holistic": {
+   "point": 8.191666666666666,
+   "ci95": [
+    2.033333333333333,
+    15.783541666666661
+   ],
+   "n_boot_valid": 10000
+  },
+  "r_luna_tailored_minus_holistic": {
+   "point": -0.03453952005460437,
+   "ci95": [
+    -0.20701276578383157,
+    0.11610523963510574
+   ],
+   "n_boot_valid": 10000
+  },
+  "r_mini_tailored_minus_holistic": {
+   "point": -0.33935683228635544,
+   "ci95": [
+    -0.8950148177573864,
+    0.18229318746492287
+   ],
+   "n_boot_valid": 10000
+  },
+  "mae_luna_fewshot_minus_holistic": {
+   "point": 4.566666666666666,
+   "ci95": [
+    -0.5916666666666668,
+    10.083333333333332
+   ],
+   "n_boot_valid": 10000
+  },
+  "mae_luna_fewshot_minus_tailored": {
+   "point": 3.0,
+   "ci95": [
+    -0.2916666666666661,
+    6.583333333333334
+   ],
+   "n_boot_valid": 10000
+  },
+  "r_luna_fewshot_minus_holistic": {
+   "point": -0.1059089248931876,
+   "ci95": [
+    -0.24966005206813263,
+    0.045658742598776135
+   ],
+   "n_boot_valid": 10000
+  },
+  "r_luna_fewshot_minus_tailored": {
+   "point": -0.07136940483858323,
+   "ci95": [
+    -0.1924486400501304,
+    0.04302780722764789
+   ],
+   "n_boot_valid": 10000
+  },
+  "mae_mini_fewshot_minus_holistic": {
+   "point": 10.024999999999999,
+   "ci95": [
+    3.875,
+    17.916874999999997
+   ],
+   "n_boot_valid": 10000
+  },
+  "r_mini_fewshot_minus_holistic": {
+   "point": -0.39098530027016964,
+   "ci95": [
+    -0.9202052494291084,
+    0.09330537537795054
+   ],
+   "n_boot_valid": 10000
+  }
+ },
+ "sd_vs_variance_framing": {
+  "luna_tailored_vs_luna_holistic": {
+   "mean_a": 1.9725035511799418,
+   "mean_b": 2.250728780617265,
+   "sd_change_pct": -12.361561812037596,
+   "variance_change_pct": -23.195041519746937
+  },
+  "luna_tailored_vs_control_gpt5mini": {
+   "mean_a": 1.9725035511799418,
+   "mean_b": 3.028416867006734,
+   "sd_change_pct": -34.866841726134275,
+   "variance_change_pct": -57.57671693271556
+  },
+  "mini_tailored_vs_mini_holistic": {
+   "mean_a": 5.523387110502696,
+   "mean_b": 3.871943693944784,
+   "sd_change_pct": 42.65153491618576,
+   "variance_change_pct": 103.49460413943763
+  }
+ }
+}

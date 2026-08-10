@@ -133,6 +133,9 @@ def _profile_kwargs(db_user, *, role) -> dict:
             if getattr(db_user, "vertretbar_onboarding_completed_at", None)
             else None
         ),
+        # Exam interface layout preference (extended): the complete stored
+        # object or None (= classic default).
+        exam_layout_prefs=_ensure_dict(getattr(db_user, "exam_layout_prefs", None)),
     )
 
 
@@ -153,25 +156,33 @@ async def _build_user_profile_response_async(db_user, db: AsyncSession) -> UserP
     return UserProfile(**_profile_kwargs(db_user, role=role))
 
 
-async def _get_vertretbar_onboarding_iso(user_id: str, db: AsyncSession) -> Optional[str]:
-    """ISO timestamp of the Vertretbar plan-choice greeting completion, or None.
+async def _get_me_pref_extras(user_id: str, db: AsyncSession) -> dict:
+    """Preference columns surfaced on the user-hydration endpoints
+    (/auth/me[/contexts]) that ``require_user``'s lean Pydantic user doesn't
+    carry: the Vertretbar plan-choice greeting stamp (the one-time
+    VertretbarPlanModal gates on it) and the exam interface layout preference
+    (the labeling hosts resolve it from the boot fetch, no second request).
 
-    Surfaced on the user-hydration endpoints (/auth/me[/contexts]) so the
-    one-time VertretbarPlanModal (extended) gates on a server-persisted flag and
-    the choice survives across devices/sessions. ``require_user`` yields a
-    Pydantic user that doesn't carry this column, so it's a single indexed-PK
-    lookup here rather than surface creep on the core auth user model.
+    One single indexed-PK lookup for all of them — not one per field, and no
+    surface creep on the core auth user model.
     """
     from models import User as DBUser
 
-    ts = (
+    row = (
         await db.execute(
-            select(DBUser.vertretbar_onboarding_completed_at).where(
-                DBUser.id == str(user_id)
-            )
+            select(
+                DBUser.vertretbar_onboarding_completed_at,
+                DBUser.exam_layout_prefs,
+            ).where(DBUser.id == str(user_id))
         )
-    ).scalar_one_or_none()
-    return ts.isoformat() if ts else None
+    ).one_or_none()
+    onboarding_ts, exam_layout = (row[0], row[1]) if row else (None, None)
+    return {
+        "vertretbar_onboarding_completed_at": (
+            onboarding_ts.isoformat() if onboarding_ts else None
+        ),
+        "exam_layout_prefs": _ensure_dict(exam_layout),
+    }
 
 
 @router.get("/me")
@@ -192,9 +203,7 @@ async def get_current_user(
         "is_active": current_user.is_active,
         "created_at": current_user.created_at.isoformat() if current_user.created_at else None,
         "role": user_role,
-        "vertretbar_onboarding_completed_at": await _get_vertretbar_onboarding_iso(
-            current_user.id, db
-        ),
+        **(await _get_me_pref_extras(current_user.id, db)),
     }
 
     return user_dict
@@ -227,9 +236,7 @@ async def get_user_contexts(
         "is_active": current_user.is_active,
         "created_at": current_user.created_at.isoformat() if current_user.created_at else None,
         "role": user_role,
-        "vertretbar_onboarding_completed_at": await _get_vertretbar_onboarding_iso(
-            current_user.id, db
-        ),
+        **(await _get_me_pref_extras(current_user.id, db)),
     }
 
     # Build organization contexts
@@ -479,6 +486,47 @@ async def update_preferred_ui_mode(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
     db_user.preferred_ui_mode = body.preferred_ui_mode
+    await db.commit()
+    await db.refresh(db_user)
+
+    return await _build_user_profile_response_async(db_user, db)
+
+
+@router.put("/me/exam-layout", response_model=UserProfile)
+async def update_exam_layout_prefs(
+    body: ExamLayoutUpdate,
+    current_user: User = Depends(require_user),
+    db: AsyncSession = Depends(get_async_db),
+):
+    """Persist the exam interface layout preference (extended).
+
+    Deliberately separate from ``PUT /profile``: that path runs
+    ``update_user_profile`` (profile-history snapshot + ``profile_confirmed_at``
+    / ``mandatory_profile_completed`` side effects) which must NOT fire on a
+    UI preference change. This is a single-column write, no side effects
+    (mirrors ``PUT /me/ui-mode``).
+
+    The stored value is always the complete validated object (Pydantic fills
+    the panel-position defaults), so a user's modern docking survives classic
+    round-trips; ``{"exam_layout_prefs": null}`` clears the column back to the
+    never-configured classic default. Purely a display preference — never an
+    authorization or exam-integrity input.
+    """
+    from models import User as DBUser
+
+    db_user = (
+        await db.execute(select(DBUser).where(DBUser.id == str(current_user.id)))
+    ).scalar_one_or_none()
+    if not db_user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    # exclude_none: optional extras (panel widths) only appear in the stored
+    # object once actually set — the canonical 4-key shape stays canonical.
+    db_user.exam_layout_prefs = (
+        body.exam_layout_prefs.model_dump(exclude_none=True)
+        if body.exam_layout_prefs is not None
+        else None
+    )
     await db.commit()
     await db.refresh(db_user)
 
