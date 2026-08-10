@@ -264,12 +264,15 @@ class TestAuthRouter:
             return mock_user
 
         async def override_get_async_db():
-            # /auth/me now also does one indexed-PK lookup for the Vertretbar
-            # onboarding flag; return a result whose scalar_one_or_none() is None
-            # so the handler emits a null flag rather than an unserializable Mock.
+            # /auth/me does one indexed-PK lookup that now fetches BOTH the
+            # Vertretbar onboarding flag and exam_layout_prefs as a row, so the
+            # handler reads it via one_or_none() and indexes row[0]/row[1].
+            # Both accessors return None here so the handler emits null prefs
+            # rather than indexing an unserializable Mock.
             async_db = AsyncMock()
             onboarding_result = Mock()
             onboarding_result.scalar_one_or_none.return_value = None
+            onboarding_result.one_or_none.return_value = None
             async_db.execute = AsyncMock(return_value=onboarding_result)
             yield async_db
 
