@@ -60,6 +60,26 @@ class TestVersionHandshake:
         with pytest.raises(RuntimeError, match="incompatible"):
             extensions.load_extended()
 
+    def test_empty_namespace_package_degrades_to_community(self, monkeypatch):
+        # A bare `benger_extended/` dir on sys.path (extended overlay not
+        # mounted, e.g. the empty build-context dir) imports as a namespace
+        # package: no __file__, no COMPATIBLE_CORE_VERSIONS, no routers.
+        # It must NOT count as a loaded extended edition (2026-08-11: this
+        # silently 404ed every extended route while logging "loaded").
+        mod = types.ModuleType("benger_extended")
+        mod.__path__ = ["/app/benger_extended"]
+        monkeypatch.setitem(sys.modules, "benger_extended", mod)
+        assert extensions.load_extended() is False
+        assert extensions._extended is None
+
+    def test_empty_namespace_package_with_require_raises(self, monkeypatch):
+        mod = types.ModuleType("benger_extended")
+        mod.__path__ = ["/app/benger_extended"]
+        monkeypatch.setitem(sys.modules, "benger_extended", mod)
+        monkeypatch.setenv("BENGER_REQUIRE_EXTENDED", "true")
+        with pytest.raises(RuntimeError, match="namespace package"):
+            extensions.load_extended()
+
     def test_import_failure_without_require_degrades(self, monkeypatch):
         def _boom(name):
             raise ImportError("no extended overlay in this build")
