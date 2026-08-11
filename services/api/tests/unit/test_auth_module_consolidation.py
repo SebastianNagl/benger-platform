@@ -85,6 +85,37 @@ class TestAuthModuleConsolidation:
         assert user.name == "Test User"
         assert user.is_superadmin == False  # noqa: E712
         assert user.is_active == True  # noqa: E712
+        # Unset pref columns (here: Mock attributes, not real values) must
+        # degrade to None, not leak Mocks into the Pydantic model.
+        assert user.vertretbar_onboarding_completed_at is None
+        assert user.exam_layout_prefs is None
+
+    def test_db_user_to_user_carries_pref_fields(self):
+        """The lean User mirrors the /auth/me pref extras: the Vertretbar
+        onboarding stamp as an ISO string and exam_layout_prefs as a dict
+        (parsing legacy JSON-string rows)."""
+        db_user = Mock(spec=DBUser)
+        db_user.id = "test-id"
+        db_user.username = "testuser"
+        db_user.email = "test@example.com"
+        db_user.name = "Test User"
+        db_user.is_superadmin = False
+        db_user.is_active = True
+        db_user.email_verified = True
+        db_user.created_at = datetime.now(timezone.utc)
+        db_user.organization_memberships = []
+        db_user.vertretbar_onboarding_completed_at = datetime(
+            2026, 1, 1, tzinfo=timezone.utc
+        )
+        db_user.exam_layout_prefs = {"mode": "modern"}
+
+        user = db_user_to_user(db_user)
+        assert user.vertretbar_onboarding_completed_at == "2026-01-01T00:00:00+00:00"
+        assert user.exam_layout_prefs == {"mode": "modern"}
+
+        # Legacy JSON-as-string row parses to a dict
+        db_user.exam_layout_prefs = '{"mode": "modern"}'
+        assert db_user_to_user(db_user).exam_layout_prefs == {"mode": "modern"}
 
     @patch("auth_module.service.db_authenticate_user")
     def test_authenticate_user_success(self, mock_db_auth):

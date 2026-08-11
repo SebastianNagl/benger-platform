@@ -58,22 +58,10 @@ async def get_user_primary_role_async(user: User, db: AsyncSession) -> Optional[
     return memberships[0].role.value if memberships else None
 
 
-def _ensure_dict(value):
-    """Convert JSON string to dict if needed. Handles DB columns that may
-    store JSON as a string instead of a native dict."""
-    if value is None:
-        return None
-    if isinstance(value, dict):
-        return value
-    if isinstance(value, str):
-        import json
-        try:
-            parsed = json.loads(value)
-            if isinstance(parsed, dict):
-                return parsed
-        except (json.JSONDecodeError, ValueError):
-            pass
-    return None
+# Shared with the lean auth User builder (db_user_to_user); kept under the old
+# name so the routers.auth re-export and existing patch paths stay valid.
+from auth_module.serialization import ensure_dict as _ensure_dict  # noqa: E402,F401
+from auth_module.serialization import iso_or_none as _iso_or_none  # noqa: E402
 
 
 def _profile_kwargs(db_user, *, role) -> dict:
@@ -178,9 +166,7 @@ async def _get_me_pref_extras(user_id: str, db: AsyncSession) -> dict:
     ).one_or_none()
     onboarding_ts, exam_layout = (row[0], row[1]) if row else (None, None)
     return {
-        "vertretbar_onboarding_completed_at": (
-            onboarding_ts.isoformat() if onboarding_ts else None
-        ),
+        "vertretbar_onboarding_completed_at": _iso_or_none(onboarding_ts),
         "exam_layout_prefs": _ensure_dict(exam_layout),
     }
 

@@ -17,6 +17,7 @@ from .user_service import authenticate_user as db_authenticate_user
 
 from .config import ACCESS_TOKEN_EXPIRE_MINUTES, ALGORITHM, SECRET_KEY
 from .models import Token, User
+from .serialization import ensure_dict, iso_or_none
 
 
 def db_user_to_user(db_user: DBUser) -> User:
@@ -45,6 +46,10 @@ def db_user_to_user(db_user: DBUser) -> User:
         is_active=db_user.is_active,
         created_at=db_user.created_at,
         organizations=organizations if organizations else None,
+        vertretbar_onboarding_completed_at=iso_or_none(
+            getattr(db_user, 'vertretbar_onboarding_completed_at', None)
+        ),
+        exam_layout_prefs=ensure_dict(getattr(db_user, 'exam_layout_prefs', None)),
     )
 
 

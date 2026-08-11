@@ -172,6 +172,36 @@ class TestLoginBody:
         assert user["email"] == "admin@test.com"
         assert user["is_superadmin"] == True  # noqa: E712
 
+    def test_login_user_carries_vertretbar_onboarding_flag(
+        self, client, test_db, test_users
+    ):
+        """Regression: the login response's user must carry the pref fields the
+        hydration endpoints (/auth/me[/contexts]) already surface — the frontend
+        does setUser(data.user) on login, and the one-time Vertretbar plan-choice
+        modal gates on vertretbar_onboarding_completed_at. Before this field was
+        added, every fresh login re-showed the modal."""
+        creds = {"username": "annotator@test.com", "password": "annotator123"}
+
+        resp = client.post("/api/auth/login", json=creds)
+        assert resp.status_code == 200
+        user = resp.json()["user"]
+        assert user["vertretbar_onboarding_completed_at"] is None
+        assert user["exam_layout_prefs"] is None
+
+        # Stamp the choice (as POST /auth/me/vertretbar-onboarding would)
+        from datetime import datetime, timezone
+
+        from models import User as DBUser
+
+        row = test_db.query(DBUser).filter(DBUser.id == "annotator-test-id").one()
+        row.vertretbar_onboarding_completed_at = datetime.now(timezone.utc)
+        test_db.commit()
+
+        resp = client.post("/api/auth/login", json=creds)
+        assert resp.status_code == 200
+        stamped = resp.json()["user"]["vertretbar_onboarding_completed_at"]
+        assert isinstance(stamped, str) and stamped
+
     def test_login_sets_access_cookie(self, client, test_db, test_users):
         resp = client.post(
             "/api/auth/login",
