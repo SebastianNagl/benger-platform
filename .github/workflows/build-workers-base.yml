@@ -30,6 +30,18 @@ permissions:
 env:
   REGISTRY: ghcr.io
   IMAGE: ghcr.io/sebastiannagl/benger-platform/workers-base
+  # Content tag, pinned by services/workers/Dockerfile's WORKERS_BASE_IMAGE arg.
+  # `:latest` is a FLOATING tag: the app image used to build FROM it, so a base
+  # rebuild and an app build could silently disagree — on 2026-08-11 a staging
+  # deploy shipped numpy 2.x + spaCy 3.8 layered onto a stale Python 3.11 +
+  # CUDA base, because the base only rebuilds on pushes to main. Pinning the
+  # app image to a content tag makes that impossible: the tag changes in the
+  # same commit as the base content.
+  #
+  # BUMP THIS whenever Dockerfile.base or pyproject.toml changes the base
+  # materially (Python version, torch variant, ML stack), and bump the matching
+  # default in services/workers/Dockerfile in the SAME commit.
+  CONTENT_TAG: py313-cpu
 
 jobs:
   build-base:
@@ -53,7 +65,19 @@ jobs:
 
       - name: Build and push workers-base
         working-directory: services/workers
+        # Always publishes the content tag. `:latest` moves ONLY on the default
+        # branch, so a workflow_dispatch from a feature ref (gh workflow run
+        # --ref <branch>) can stage a new base for that branch's app images
+        # without repointing main, the platform nightly, or a prod build at
+        # content their pyproject.toml cannot install.
         run: |
-          docker build -f Dockerfile.base -t "$IMAGE:latest" .
-          docker push "$IMAGE:latest"
-          echo "Pushed $IMAGE:latest"
+          docker build -f Dockerfile.base -t "$IMAGE:$CONTENT_TAG" .
+          docker push "$IMAGE:$CONTENT_TAG"
+          echo "Pushed $IMAGE:$CONTENT_TAG"
+          if [ "${{ github.ref_name }}" = "main" ]; then
+            docker tag "$IMAGE:$CONTENT_TAG" "$IMAGE:latest"
+            docker push "$IMAGE:latest"
+            echo "Pushed $IMAGE:latest (default branch)"
+          else
+            echo "Ref is ${{ github.ref_name }}, not main — leaving :latest untouched."
+          fi
