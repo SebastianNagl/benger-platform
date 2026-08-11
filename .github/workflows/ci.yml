@@ -51,7 +51,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.13'
 
       - name: Install ruff
         run: pip install ruff pyyaml
@@ -65,6 +65,15 @@ jobs:
       # pytest container only mounts services/workers + services/shared.
       - name: Check Celery queue <-> worker-pool contract
         run: python services/workers/scripts/check_celery_queue_pools.py
+
+      # The workers app image builds FROM a CONTENT tag of workers-base, and
+      # build-workers-base.yml publishes that tag. Bumping only the workflow
+      # side is SILENT: the new base lands on a tag nothing consumes and the
+      # app keeps building on the previous one, green all the way to a deploy.
+      # Same reason as the queue check above -- needs the repo root, which the
+      # workers pytest container does not have.
+      - name: Check workers-base tag lockstep
+        run: python services/api/scripts/check_workers_base_tag.py
 
   # Full Dockerized suites — the prod gate. Run on push to main (and manual
   # dispatch), NOT on PRs, so PR iteration stays fast. A commit message
