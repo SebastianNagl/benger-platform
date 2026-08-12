@@ -46,7 +46,7 @@ export function Button({
   const hasCustomGap = className && /gap-\d+/.test(className)
 
   className = clsx(
-    'inline-flex items-center justify-center overflow-hidden text-sm font-medium transition leading-tight',
+    'inline-flex items-center justify-center overflow-hidden text-sm font-medium transition leading-tight focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-zinc-900',
     !hasCustomGap && 'gap-2', // Only add default gap if no custom gap is provided
     variantStyles[variant],
     className

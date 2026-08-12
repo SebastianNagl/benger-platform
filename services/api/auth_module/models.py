@@ -7,7 +7,9 @@ Consolidated Pydantic models for authentication, user management, and token hand
 from datetime import datetime
 from typing import List, Optional
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
+
+from .serialization import ensure_dict, iso_or_none
 
 
 class User(BaseModel):
@@ -22,6 +24,25 @@ class User(BaseModel):
     is_active: bool = True
     created_at: datetime
     organizations: Optional[List[dict]] = None  # User's organization memberships
+
+    # Preference fields also surfaced by /auth/me[/contexts] (_get_me_pref_extras)
+    # so the login/refresh Token.user matches the hydration user shape and the
+    # one-time Vertretbar plan-choice modal doesn't re-fire on fresh login.
+    vertretbar_onboarding_completed_at: Optional[str] = None  # ISO-8601, matches /auth/me wire format
+    exam_layout_prefs: Optional[dict] = None
+
+    # Several endpoints (signup, register, PATCH /users/{id}/...) use
+    # response_model=User on a raw ORM row, so the datetime column reaches the
+    # schema unconverted — coerce at the boundary instead of per call site.
+    @field_validator("vertretbar_onboarding_completed_at", mode="before")
+    @classmethod
+    def _coerce_onboarding_ts(cls, v):
+        return v if v is None or isinstance(v, str) else iso_or_none(v)
+
+    @field_validator("exam_layout_prefs", mode="before")
+    @classmethod
+    def _coerce_exam_layout(cls, v):
+        return ensure_dict(v)
 
     class Config:
         from_attributes = True

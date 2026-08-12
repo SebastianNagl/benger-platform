@@ -1581,6 +1581,7 @@ def run_evaluation(
     task_ids: Optional[List[str]] = None,
     model_ids: Optional[List[str]] = None,
     annotator_user_ids: Optional[List[str]] = None,
+    structure_keys: Optional[List[str]] = None,
 ) -> Dict[str, Any]:
     """
     Run evaluation based on configured field mappings.
@@ -1614,12 +1615,13 @@ def run_evaluation(
     # E3: surface scope filters at the start of the run so debugging
     # "why did this score only N cells" needs only the log, not the
     # eval_metadata blob. Cheap (just lengths), fires once per run.
-    if task_ids or model_ids or annotator_user_ids:
+    if task_ids or model_ids or annotator_user_ids or structure_keys:
         logger.info(
             f"[evaluation {evaluation_id}] scope filters active: "
             f"task_ids={len(task_ids) if task_ids else 0}, "
             f"model_ids={len(model_ids) if model_ids else 0}, "
-            f"annotator_user_ids={len(annotator_user_ids) if annotator_user_ids else 0}"
+            f"annotator_user_ids={len(annotator_user_ids) if annotator_user_ids else 0}, "
+            f"structure_keys={len(structure_keys) if structure_keys else 0}"
         )
 
     try:
@@ -1629,7 +1631,7 @@ def run_evaluation(
 
         try:
             # Import models here to avoid circular imports
-            from models import EvaluationRun, TaskEvaluation, Generation
+            from models import EvaluationRun, TaskEvaluation, Generation, ResponseGeneration
             from project_models import Annotation, Project, Task
 
             # Update evaluation status to running
@@ -2098,6 +2100,17 @@ def run_evaluation(
                     generations_query = generations_query.filter(
                         Generation.model_id.in_(model_ids)
                     )
+                if structure_keys:
+                    # Scope generation cells to specific prompt structures
+                    # (Generation.generation_id -> response_generations.id).
+                    # SQL IN never matches NULL, so legacy generations with
+                    # structure_key IS NULL are excluded whenever the filter
+                    # is given — intended: a scoped run grades only cells
+                    # produced under the named structures.
+                    generations_query = generations_query.join(
+                        ResponseGeneration,
+                        Generation.generation_id == ResponseGeneration.id,
+                    ).filter(ResponseGeneration.structure_key.in_(structure_keys))
                 generations = generations_query.all()
                 for gen in generations:
                     gen_done = evaluated_by_gen.get(gen.id, set())

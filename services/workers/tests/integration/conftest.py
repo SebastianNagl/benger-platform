@@ -542,7 +542,7 @@ def make_generation(db_conn):
 
     def _make(project_id, task_id, model_id, created_by, response_content,
               parse_status="success", status="completed", run_index=0,
-              runs_requested=1):
+              runs_requested=1, structure_key=None):
         rg = ResponseGeneration(
             id=_uid(),
             project_id=project_id,
@@ -551,6 +551,7 @@ def make_generation(db_conn):
             status=status,
             runs_requested=runs_requested,
             created_by=created_by,
+            structure_key=structure_key,
         )
         db_conn.add(rg)
         db_conn.commit()

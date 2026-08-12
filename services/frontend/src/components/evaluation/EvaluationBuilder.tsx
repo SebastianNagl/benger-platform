@@ -500,6 +500,20 @@ export function EvaluationBuilder({
         }
       })
     }
+
+    // Registered llm_judge_* metrics without a dedicated extended editor
+    // render the generic judge editor, whose sub-editors expect these keys
+    // to exist (same scaffolding llm_judge_custom starts with).
+    if (metric.startsWith('llm_judge_') && !getMetricEditor(metric)) {
+      for (const [key, empty] of Object.entries({
+        dimensions: [],
+        custom_criteria: {},
+        custom_prompt_template: '',
+        field_mappings: {},
+      })) {
+        if (!(key in defaults)) defaults[key] = empty
+      }
+    }
     return defaults
   }
 
@@ -518,8 +532,14 @@ export function EvaluationBuilder({
           const customCriteria = newEvaluation.metric_parameters.custom_criteria || {}
           return dimensions.length > 0 || Object.keys(customCriteria).length > 0
         }
-        // Custom LLM Judge: require either custom prompt OR custom criteria
-        if (newEvaluation.metric === 'llm_judge_custom') {
+        // Generic judge metrics (llm_judge_custom + any llm_judge_* without
+        // a dedicated extended editor): require either a custom prompt OR
+        // custom criteria — without both, the worker would judge with its
+        // generic default prompt, which is never what these metrics mean.
+        if (
+          newEvaluation.metric.startsWith('llm_judge_') &&
+          !getMetricEditor(newEvaluation.metric)
+        ) {
           const customPrompt = newEvaluation.metric_parameters.custom_prompt_template || ''
           const customCriteria = newEvaluation.metric_parameters.custom_criteria || {}
           return customPrompt.trim().length > 0 || Object.keys(customCriteria).length > 0
@@ -879,7 +899,15 @@ export function EvaluationBuilder({
                 />
 
               </div>
-            ) : newEvaluation.metric === 'llm_judge_custom' ? (
+            ) : newEvaluation.metric.startsWith('llm_judge_') &&
+              !getMetricEditor(newEvaluation.metric) ? (
+              // Generic judge editor: llm_judge_custom and any registered
+              // llm_judge_* metric WITHOUT a dedicated extended editor (e.g.
+              // llm_judge_lexam) share the worker's generic judge path, so
+              // they share this full configuration surface too. Metrics with
+              // a registered editor (falloesung, rubric) fall through to the
+              // extended-editor branch below; llm_judge_classic has its own
+              // branch above.
               <div className="space-y-6">
                 {/* Custom LLM Judge - Full configuration exposed */}
                 <div className="rounded-lg bg-purple-50 p-3 dark:bg-purple-900/20">

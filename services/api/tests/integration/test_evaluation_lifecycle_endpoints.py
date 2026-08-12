@@ -72,6 +72,7 @@ def _seed_run(db, admin: User, org, *, status: str = "running",
                 "task_ids": None,
                 "model_ids": None,
                 "annotator_user_ids": None,
+                "structure_keys": ["lexam-open"],
             }
         )
     eval_run = EvaluationRun(
@@ -226,6 +227,9 @@ class TestResume:
         assert kwargs["evaluate_missing_only"] is True
         assert kwargs["evaluation_configs"] == SNAPSHOT_CONFIGS
         assert kwargs["batch_size"] == 50
+        # The structure scope survives resume — a resumed scoped run must
+        # not silently widen back to every structure's generations.
+        assert kwargs["structure_keys"] == ["lexam-open"]
 
         test_db.expire_all()
         run = test_db.query(EvaluationRun).filter_by(id=eval_id).one()

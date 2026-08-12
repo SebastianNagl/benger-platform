@@ -7066,7 +7066,7 @@
       "code": "404",
       "title": "Seite nicht gefunden",
       "description": "Entschuldigung, wir konnten die Seite, nach der Sie suchen, nicht finden.",
-      "backButton": "Zurück zur Dokumentation"
+      "backButton": "Zur Startseite"
     },
     "global": {
       "title": "Etwas ist schiefgelaufen",

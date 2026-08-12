@@ -74,6 +74,7 @@ class EvaluationRunRequest(BaseModel):
     task_ids: Optional[List[str]] = None  # Filter to specific tasks (for single-cell re-evaluation)
     model_ids: Optional[List[str]] = None  # Filter to specific models (for single-cell re-evaluation)
     annotator_user_ids: Optional[List[str]] = None  # Filter annotation-side judge fan-out to specific annotators
+    structure_keys: Optional[List[str]] = None  # Filter generation-side cells to specific prompt structures
     # (H) Top-level seed mirrors GenerationRequest.parameters.seed. When set,
     # every metric_parameters block in this run inherits the seed unless it
     # carries its own metric_parameters.seed (per-config override wins for

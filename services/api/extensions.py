@@ -41,6 +41,29 @@ def load_extended():
         logger.info("BenGER community edition (extended package not installed)")
         return False
 
+    if getattr(_extended, "__file__", None) is None and not hasattr(
+        _extended, "COMPATIBLE_CORE_VERSIONS"
+    ):
+        # A bare directory named benger_extended on sys.path (e.g. an empty
+        # build-context mount point when the extended overlay is missing)
+        # imports as an empty namespace package. Treating it as installed
+        # would skip the version handshake, register no routers, and still
+        # log "loaded" — every extended route would 404 while the logs claim
+        # the extended edition is running.
+        message = (
+            "benger_extended resolved to an empty namespace package "
+            f"({list(getattr(_extended, '__path__', []))}) — the extended "
+            "package is not actually installed/mounted."
+        )
+        _extended = None
+        if extended_required():
+            raise RuntimeError(
+                f"{message} BENGER_REQUIRE_EXTENDED is set — refusing to "
+                "start as community edition."
+            )
+        logger.warning(f"{message} Continuing as community edition.")
+        return False
+
     if hasattr(_extended, "COMPATIBLE_CORE_VERSIONS"):
         if CORE_API_VERSION not in _extended.COMPATIBLE_CORE_VERSIONS:
             message = (

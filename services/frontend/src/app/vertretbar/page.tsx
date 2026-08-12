@@ -20,7 +20,7 @@ import { isStudentLockedHost } from '@/lib/utils/subdomain'
 function Spinner() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-white dark:bg-zinc-950">
-      <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-indigo-500" />
+      <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-emerald-500" />
     </div>
   )
 }

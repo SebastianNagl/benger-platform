@@ -34,6 +34,10 @@ export interface EvaluationRunScope {
   modelIds?: string[]
   /** Same semantics as `modelIds` but for annotation-side judges. */
   annotatorUserIds?: string[]
+  /** Same semantics as `modelIds` but for generation prompt structures:
+   *  undefined = no filter (all structures), otherwise the run only grades
+   *  generations produced under the named structure keys. */
+  structureKeys?: string[]
 }
 
 interface EvaluationControlModalProps {
@@ -62,6 +66,11 @@ interface ScopeAnnotator {
   display_name: string
 }
 
+interface ScopeStructure {
+  key: string
+  name: string
+}
+
 export function EvaluationControlModal({
   isOpen,
   projectId,
@@ -82,9 +91,11 @@ export function EvaluationControlModal({
   // when the user just hits Run without touching anything.
   const [availableModels, setAvailableModels] = useState<ScopeModel[]>([])
   const [availableAnnotators, setAvailableAnnotators] = useState<ScopeAnnotator[]>([])
+  const [availableStructures, setAvailableStructures] = useState<ScopeStructure[]>([])
   const [selectedMetrics, setSelectedMetrics] = useState<string[]>([])
   const [selectedModels, setSelectedModels] = useState<string[]>([])
   const [selectedAnnotators, setSelectedAnnotators] = useState<string[]>([])
+  const [selectedStructures, setSelectedStructures] = useState<string[]>([])
   const [scopeLoading, setScopeLoading] = useState(false)
 
   const allConfigs = evaluationConfigs ?? []
@@ -137,8 +148,10 @@ export function EvaluationControlModal({
     // covers the gap consistently.
     setAvailableModels([])
     setAvailableAnnotators([])
+    setAvailableStructures([])
     setSelectedModels([])
     setSelectedAnnotators([])
+    setSelectedStructures([])
 
     if (!projectId) return
 
@@ -186,6 +199,23 @@ export function EvaluationControlModal({
       } finally {
         if (!cancelled) setScopeLoading(false)
       }
+      // Prompt-structure scope: fetched separately so a failure here (e.g.
+      // no generation config on the project) degrades to "no structure
+      // section" without touching the model/annotator pickers above.
+      try {
+        const structuresData: Record<string, { name?: string }> | null =
+          await apiClient.get(`/projects/${projectId}/generation-config/structures`)
+        if (cancelled) return
+        const structures: ScopeStructure[] = Object.entries(structuresData || {}).map(
+          ([key, s]) => ({ key, name: s?.name || key }),
+        )
+        setAvailableStructures(structures)
+        setSelectedStructures(structures.map(s => s.key))
+      } catch {
+        if (cancelled) return
+        setAvailableStructures([])
+        setSelectedStructures([])
+      }
     })()
     return () => {
       cancelled = true
@@ -205,6 +235,14 @@ export function EvaluationControlModal({
     setSelectedAnnotators(prev =>
       prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id],
     )
+  const toggleStructure = (key: string) =>
+    setSelectedStructures(prev =>
+      prev.includes(key) ? prev.filter(x => x !== key) : [...prev, key],
+    )
+
+  // The structure section only renders when scoping is meaningful: with a
+  // single (or no) prompt structure every generation belongs to it anyway.
+  const showStructureScope = availableStructures.length > 1
 
   // Run is blocked when any *rendered* scope section has zero selections.
   // The annotator section only renders when the project has annotators, so
@@ -224,6 +262,10 @@ export function EvaluationControlModal({
     {
       blocked: availableAnnotators.length > 0 && selectedAnnotators.length === 0,
       reason: t('evaluation.controlModal.runDisabledNoAnnotators', 'Mindestens eine:n Annotator:in auswählen').toString(),
+    },
+    {
+      blocked: showStructureScope && selectedStructures.length === 0,
+      reason: t('evaluation.controlModal.runDisabledNoStructures', 'Mindestens eine Prompt-Struktur auswählen').toString(),
     },
   ]
   const firstBlocker = blockChecks.find(c => c.blocked)
@@ -247,10 +289,15 @@ export function EvaluationControlModal({
       selectedAnnotators.length < availableAnnotators.length
         ? selectedAnnotators
         : undefined
+    const structureKeysFilter =
+      showStructureScope && selectedStructures.length < availableStructures.length
+        ? selectedStructures
+        : undefined
     return {
       evaluationConfigs: dispatchConfigs.length > 0 ? dispatchConfigs : undefined,
       modelIds: modelIdsFilter,
       annotatorUserIds: annotatorIdsFilter,
+      structureKeys: structureKeysFilter,
     }
   }
 
@@ -284,7 +331,7 @@ export function EvaluationControlModal({
       return
     }
 
-    const { evaluationConfigs: dispatchConfigs = [], modelIds: modelIdsFilter, annotatorUserIds: annotatorIdsFilter } = buildScope()
+    const { evaluationConfigs: dispatchConfigs = [], modelIds: modelIdsFilter, annotatorUserIds: annotatorIdsFilter, structureKeys: structureKeysFilter } = buildScope()
 
     try {
       setLoading(true)
@@ -297,6 +344,7 @@ export function EvaluationControlModal({
           force_rerun: forceRerun,
           model_ids: modelIdsFilter,
           annotator_user_ids: annotatorIdsFilter,
+          structure_keys: structureKeysFilter,
         })
       }
 
@@ -546,6 +594,59 @@ export function EvaluationControlModal({
                             {selectedAnnotators.length === 1
                               ? t('evaluation.controlModal.oneAnnotatorSelected', '1 Annotator:in ausgewählt')
                               : t('evaluation.controlModal.annotatorsSelected', '{count} Annotator:innen ausgewählt').toString().replace('{count}', String(selectedAnnotators.length))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Prompt-structure scope: narrows the run to
+                          generations produced under specific prompt
+                          structures. Only rendered when the project defines
+                          more than one structure — with a single structure
+                          the filter is a no-op. */}
+                      {showStructureScope && (
+                        <div>
+                          <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-zinc-300">
+                            {t('evaluation.controlModal.selectStructures', 'Prompt-Strukturen')}
+                          </label>
+                          <div className="max-h-48 space-y-2 overflow-y-auto rounded-lg border p-3 dark:border-zinc-700">
+                            {availableStructures.map(s => (
+                              <label key={s.key} htmlFor={`structure-${s.key}`} className="flex items-center">
+                                <input
+                                  id={`structure-${s.key}`}
+                                  type="checkbox"
+                                  checked={selectedStructures.includes(s.key)}
+                                  onChange={() => toggleStructure(s.key)}
+                                  className="mr-2"
+                                />
+                                <span className="text-sm">
+                                  {s.name}
+                                  {s.name !== s.key && (
+                                    <span className="ml-1 text-xs text-gray-400 dark:text-zinc-500">({s.key})</span>
+                                  )}
+                                </span>
+                              </label>
+                            ))}
+                          </div>
+                          <div className="mt-2 flex justify-between text-sm">
+                            <button
+                              type="button"
+                              onClick={() => setSelectedStructures(availableStructures.map(s => s.key))}
+                              className="text-blue-600 hover:text-blue-700"
+                            >
+                              {t('generation.controlModal.selectAll')}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setSelectedStructures([])}
+                              className="text-blue-600 hover:text-blue-700"
+                            >
+                              {t('generation.controlModal.clearAll')}
+                            </button>
+                          </div>
+                          <div className="mt-2 text-sm text-gray-600 dark:text-zinc-400">
+                            {selectedStructures.length === 1
+                              ? t('evaluation.controlModal.oneStructureSelected', '1 Prompt-Struktur ausgewählt')
+                              : t('evaluation.controlModal.structuresSelected', '{count} Prompt-Strukturen ausgewählt').toString().replace('{count}', String(selectedStructures.length))}
                           </div>
                         </div>
                       )}
