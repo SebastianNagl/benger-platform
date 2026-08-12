@@ -993,6 +993,7 @@ export class EvaluationsClient extends BaseApiClient {
     task_ids?: string[]    // Filter to specific tasks (for single-cell re-evaluation)
     model_ids?: string[]   // Filter to specific models (for single-cell re-evaluation)
     annotator_user_ids?: string[]  // Filter annotation-side judge fan-out to specific annotators
+    structure_keys?: string[]  // Filter generation-side cells to specific prompt structures
   }): Promise<{
     evaluation_id: string
     project_id: string

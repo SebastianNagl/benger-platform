@@ -105,6 +105,7 @@ def _dispatch_snapshot_kwargs(evaluation: DBEvaluationRun) -> Dict[str, Any]:
         "task_ids": meta.get("task_ids"),
         "model_ids": meta.get("model_ids"),
         "annotator_user_ids": meta.get("annotator_user_ids"),
+        "structure_keys": meta.get("structure_keys"),
     }
 
 

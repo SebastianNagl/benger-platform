@@ -176,6 +176,27 @@ async def run_evaluation(
                     ),
                 )
 
+        if request.structure_keys:
+            valid_structure_keys = {
+                sk for (sk,) in db.query(DBResponseGeneration.structure_key)
+                .filter(
+                    DBResponseGeneration.project_id == request.project_id,
+                    DBResponseGeneration.structure_key.isnot(None),
+                )
+                .distinct()
+            }
+            invalid_keys = [
+                k for k in request.structure_keys if k not in valid_structure_keys
+            ]
+            if invalid_keys:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=(
+                        "structure_keys contains keys without generations on "
+                        f"this project: {invalid_keys}"
+                    ),
+                )
+
         # Split configs into human-graded vs LLM-driven. Human-graded
         # metrics (e.g. korrektur_falloesung) have no worker; each writes
         # into a singleton ongoing EvaluationRun per (project, metric).
@@ -274,6 +295,7 @@ async def run_evaluation(
             "task_ids": request.task_ids or [],
             "model_ids": request.model_ids or [],
             "annotator_user_ids": request.annotator_user_ids or [],
+            "structure_keys": request.structure_keys or [],
             "force_rerun": request.force_rerun,
         }
         dispatch_hash = hashlib.sha1(
@@ -351,6 +373,7 @@ async def run_evaluation(
                 "task_ids": request.task_ids,
                 "model_ids": request.model_ids,
                 "annotator_user_ids": request.annotator_user_ids,
+                "structure_keys": request.structure_keys,
                 # (H) Run-level seed snapshotted on eval_metadata even when
                 # it's None, for unambiguous post-hoc reproducibility.
                 "_top_level_seed": request.seed,
@@ -383,6 +406,7 @@ async def run_evaluation(
                     "task_ids": request.task_ids,
                     "model_ids": request.model_ids,
                     "annotator_user_ids": request.annotator_user_ids,
+                    "structure_keys": request.structure_keys,
                 },
             )
 

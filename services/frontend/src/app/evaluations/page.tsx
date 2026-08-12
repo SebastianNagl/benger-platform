@@ -822,6 +822,7 @@ export default function EvaluationDashboard() {
         force_rerun: forceRerun,
         model_ids: scope?.modelIds,
         annotator_user_ids: scope?.annotatorUserIds,
+        structure_keys: scope?.structureKeys,
       })
 
       // Use operation toast for real-time status updates

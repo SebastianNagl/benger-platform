@@ -450,6 +450,79 @@ class TestRunEvaluation:
         assert "model_ids" in resp.json()["detail"]
         assert "ghost-model" in resp.json()["detail"]
 
+    def test_invalid_structure_keys_400(self, client, test_db, test_users, auth_headers, test_org):
+        """structure_keys that have no generations on the project → 400."""
+        p, _ = _setup_project(test_db, test_users[0], test_org)
+        test_db.commit()
+
+        resp = client.post(
+            f"{BASE}/run",
+            json={
+                "project_id": p.id,
+                "evaluation_configs": [_config()],
+                "structure_keys": ["ghost-structure"],
+            },
+            headers=_h(auth_headers, test_org),
+        )
+        assert resp.status_code == 400, resp.text
+        assert "structure_keys" in resp.json()["detail"]
+        assert "ghost-structure" in resp.json()["detail"]
+
+    def test_structure_keys_threaded_to_dispatch(
+        self, client, test_db, test_users, auth_headers, test_org
+    ):
+        """A valid structure_keys filter is forwarded to the celery kwargs,
+        persisted in eval_metadata, and changes the dispatch_hash — so a
+        scoped run within the 30s idempotency window is NOT deduplicated
+        into an unscoped one."""
+        p, tasks = _setup_project(test_db, test_users[0], test_org)
+        rg = ResponseGeneration(
+            id=_uid(), project_id=p.id, task_id=tasks[0].id,
+            model_id="gpt-4", status="completed",
+            created_by=test_users[0].id, structure_key="lexam-open",
+        )
+        test_db.add(rg)
+        test_db.commit()
+
+        stub_task = type("T", (), {"id": "celery-task-stub"})()
+        with patch(CELERY_TARGET, return_value=stub_task) as send_task:
+            unscoped = client.post(
+                f"{BASE}/run",
+                json={
+                    "project_id": p.id,
+                    "evaluation_configs": [_config(metric="bleu")],
+                },
+                headers=_h(auth_headers, test_org),
+            )
+            scoped = client.post(
+                f"{BASE}/run",
+                json={
+                    "project_id": p.id,
+                    "evaluation_configs": [_config(metric="bleu")],
+                    "structure_keys": ["lexam-open"],
+                },
+                headers=_h(auth_headers, test_org),
+            )
+        assert unscoped.status_code == 200, unscoped.text
+        assert scoped.status_code == 200, scoped.text
+        # Different dispatch payloads → no idempotency collapse.
+        assert scoped.json()["status"] == "started"
+        assert scoped.json()["evaluation_id"] != unscoped.json()["evaluation_id"]
+
+        dispatch_kwargs = send_task.call_args_list[-1].kwargs["kwargs"]
+        assert dispatch_kwargs["structure_keys"] == ["lexam-open"]
+
+        unscoped_run = test_db.query(EvaluationRun).filter_by(
+            id=unscoped.json()["evaluation_id"]).one()
+        scoped_run = test_db.query(EvaluationRun).filter_by(
+            id=scoped.json()["evaluation_id"]).one()
+        assert scoped_run.eval_metadata["structure_keys"] == ["lexam-open"]
+        assert unscoped_run.eval_metadata["structure_keys"] is None
+        assert (
+            scoped_run.eval_metadata["dispatch_hash"]
+            != unscoped_run.eval_metadata["dispatch_hash"]
+        )
+
     def test_all_human_metric_returns_ongoing(
         self, client, test_db, test_users, auth_headers, test_org
     ):
