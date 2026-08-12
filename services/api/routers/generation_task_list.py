@@ -383,6 +383,13 @@ async def get_task_generation_status(
     page_size: int = Query(50, ge=1, le=200, description="Items per page"),
     search: Optional[str] = Query(None, description="Search in task data"),
     status_filter: Optional[str] = Query(None, description="Filter by generation status"),
+    structure_key: Optional[str] = Query(
+        None,
+        description=(
+            "Show only cells produced under this prompt structure. Omit for "
+            "the aggregate view across all structures (default)."
+        ),
+    ),
     current_user: User = Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ):
@@ -403,6 +410,21 @@ async def get_task_generation_status(
     # This fixes the mismatch where generation uses prompt_structures keys but status used active_structures
     prompt_structures = generation_config.get("prompt_structures", {})
     structure_keys = _implicit_structure_keys(prompt_structures)
+
+    # The response's `structures` list must stay the full catalog — it drives
+    # the page's structure selector, so cell filtering below must not shrink it.
+    all_structure_keys = list(structure_keys)
+
+    if structure_key is not None:
+        if structure_key not in structure_keys:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"Unknown structure_key '{structure_key}' — not among this "
+                    f"project's prompt structures: {sorted(k for k in structure_keys if k)}"
+                ),
+            )
+        structure_keys = [structure_key]
 
     # If no structures configured, use None for backward compatibility
     if not structure_keys:
@@ -445,6 +467,13 @@ async def get_task_generation_status(
             .where(
                 DBResponseGeneration.project_id == project_id,
                 DBResponseGeneration.model_id.in_(model_ids),
+                # Structure-scoped view: status narrowing must look at the
+                # same cell subset the page will render.
+                *(
+                    [DBResponseGeneration.structure_key == structure_key]
+                    if structure_key is not None
+                    else []
+                ),
             )
             .distinct(
                 DBResponseGeneration.task_id,
@@ -556,8 +585,10 @@ async def get_task_generation_status(
     # Calculate total pages
     total_pages = (total + page_size - 1) // page_size
 
-    # Filter out None from structures for response
-    structures_for_response = [s for s in structure_keys if s is not None]
+    # Filter out None from structures for response. Always the FULL catalog,
+    # even when a structure_key filter narrowed the cells — the selector needs
+    # every option to stay switchable.
+    structures_for_response = [s for s in all_structure_keys if s is not None]
 
     return PaginatedTaskGenerationResponse(
         tasks=task_responses,

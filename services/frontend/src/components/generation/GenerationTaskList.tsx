@@ -120,6 +120,10 @@ export function GenerationTaskList({
   const [pageSize, setPageSize] = useState(50)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<string | null>(null)
+  // Structure-scoped view: null = aggregate across all prompt structures
+  // (legacy behavior); a key narrows every cell to that structure's runs,
+  // mirroring how the evaluations page scopes by evaluation method.
+  const [structureFilter, setStructureFilter] = useState<string | null>(null)
   const [showControlModal, setShowControlModal] = useState(false)
   const [showResultModal, setShowResultModal] = useState(false)
   const [selectedTaskModel, setSelectedTaskModel] = useState<{
@@ -159,10 +163,12 @@ export function GenerationTaskList({
   const pageSizeRef = useRef(pageSize)
   const searchRef = useRef(debouncedSearch)
   const statusFilterRef = useRef(statusFilter)
+  const structureFilterRef = useRef(structureFilter)
   pageRef.current = page
   pageSizeRef.current = pageSize
   searchRef.current = debouncedSearch
   statusFilterRef.current = statusFilter
+  structureFilterRef.current = structureFilter
 
   const fetchProjectData = useCallback(async () => {
     if (!projectId) return
@@ -194,6 +200,8 @@ export function GenerationTaskList({
       if (searchRef.current) params.append('search', searchRef.current)
       if (statusFilterRef.current)
         params.append('status_filter', statusFilterRef.current)
+      if (structureFilterRef.current)
+        params.append('structure_key', structureFilterRef.current)
 
       const url = `/generation-tasks/projects/${projectId}/task-status?${params}`
       logger.debug('[GenerationTaskList] Fetching from:', url)
@@ -217,7 +225,7 @@ export function GenerationTaskList({
   // `debouncedSearch` (not `search`) so per-keystroke typing coalesces.
   useEffect(() => {
     fetchData()
-  }, [fetchData, page, pageSize, debouncedSearch, statusFilter])
+  }, [fetchData, page, pageSize, debouncedSearch, statusFilter, structureFilter])
 
   // Fetch project data when projectId changes
   useEffect(() => {
@@ -436,9 +444,10 @@ export function GenerationTaskList({
       searchPlaceholder={t('generation.taskList.searchPlaceholder')}
       searchLabel={t('common.filters.search')}
       filtersLabel={t('common.filters.filters')}
-      hasActiveFilters={!!statusFilter || search.trim() !== ''}
+      hasActiveFilters={!!statusFilter || !!structureFilter || search.trim() !== ''}
       onClearFilters={() => {
         setStatusFilter(null)
+        setStructureFilter(null)
         setSearch('')
       }}
       clearLabel={t('common.filters.clearAll')}
@@ -472,6 +481,30 @@ export function GenerationTaskList({
           </SelectContent>
         </Select>
       </FilterToolbar.Field>
+      {(data?.structures?.length ?? 0) > 1 && (
+        <FilterToolbar.Field label={t('generation.taskList.allStructures', 'Prompt-Strukturen')}>
+          <Select
+            value={structureFilter || ''}
+            onValueChange={(v) => setStructureFilter(v || null)}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder={t('generation.taskList.allStructures', 'Alle Strukturen')} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">{t('generation.taskList.allStructures', 'Alle Strukturen')}</SelectItem>
+              {(data?.structures ?? []).map((key) => {
+                const ps = (project?.generation_config as any)?.prompt_structures?.[key]
+                const label = ps?.name && ps.name !== key ? `${ps.name} (${key})` : key
+                return (
+                  <SelectItem key={key} value={key}>
+                    {label}
+                  </SelectItem>
+                )
+              })}
+            </SelectContent>
+          </Select>
+        </FilterToolbar.Field>
+      )}
     </FilterToolbar>
   )
 

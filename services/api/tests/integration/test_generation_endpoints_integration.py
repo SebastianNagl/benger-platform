@@ -396,4 +396,76 @@ class TestGenerationRouter:
         # The exact-match response should be returned, not the legacy NULL one
         assert task_statuses[0]["generation_id"] == rg_exact_id
 
+    async def test_structure_key_filter_narrows_cells_and_keeps_full_catalog(
+        self, async_test_client, async_test_db
+    ):
+        """?structure_key= narrows every cell to that structure's runs while the
+        response's `structures` list stays the full catalog (it drives the
+        page's structure selector, which must remain switchable)."""
+        admin = await _make_user(async_test_db, is_superadmin=True)
+        org = await _make_org(async_test_db)
+        config = {
+            "selected_configuration": {"models": ["gpt-4o"]},
+            "prompt_structures": {
+                "fallloesung": {"system_prompt": "A"},
+                "lexam-open": {"system_prompt": "B"},
+            },
+        }
+        project, tasks, _ = await _setup_async(
+            async_test_db, admin, org, generation_config=config
+        )
+
+        rg_fall_id, rg_lexam_id = _uid(), _uid()
+        for rg_id, key in ((rg_fall_id, "fallloesung"), (rg_lexam_id, "lexam-open")):
+            async_test_db.add(ResponseGeneration(
+                id=rg_id,
+                project_id=project.id,
+                model_id="gpt-4o",
+                task_id=tasks[0].id,
+                status="completed",
+                structure_key=key,
+                created_by=admin.id,
+                started_at=datetime.now(timezone.utc),
+                completed_at=datetime.now(timezone.utc),
+            ))
+        await async_test_db.commit()
+
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"/api/generation-tasks/projects/{project.id}/task-status",
+                params={"structure_key": "lexam-open"},
+                headers={"X-Organization-Context": org.id},
+            )
+        assert resp.status_code == 200
+        data = resp.json()
+
+        # Cells carry ONLY the filtered structure's status...
+        task_statuses = data["tasks"][0]["generation_status"]["gpt-4o"]
+        assert [s["structure_key"] for s in task_statuses] == ["lexam-open"]
+        assert task_statuses[0]["generation_id"] == rg_lexam_id
+        # ...while the selector catalog stays complete.
+        assert sorted(data["structures"]) == ["fallloesung", "lexam-open"]
+
+    async def test_structure_key_filter_unknown_key_400(
+        self, async_test_client, async_test_db
+    ):
+        admin = await _make_user(async_test_db, is_superadmin=True)
+        org = await _make_org(async_test_db)
+        config = {
+            "selected_configuration": {"models": ["gpt-4o"]},
+            "prompt_structures": {"default": {"system_prompt": "A"}},
+        }
+        project, _, _ = await _setup_async(
+            async_test_db, admin, org, generation_config=config
+        )
+
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"/api/generation-tasks/projects/{project.id}/task-status",
+                params={"structure_key": "ghost-structure"},
+                headers={"X-Organization-Context": org.id},
+            )
+        assert resp.status_code == 400
+        assert "ghost-structure" in resp.json()["detail"]
+
     # start_generation tested in test_remaining_router_endpoints.py::TestGenerationStatusEndpoints
