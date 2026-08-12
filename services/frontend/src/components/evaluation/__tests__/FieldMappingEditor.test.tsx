@@ -300,4 +300,53 @@ describe('FieldMappingEditor', () => {
       expect(row).toBeInTheDocument()
     })
   })
+
+  describe('Controlled-parent echo (regression)', () => {
+    // EvaluationBuilder feeds onChange straight back into `value` as a NEW
+    // object each time. Incomplete rows are excluded from the emitted
+    // mappings, so a naive value-sync wiped the in-progress row after the
+    // first keystroke — making it impossible to ever complete a mapping
+    // through the wizard.
+    function ControlledParent() {
+      const [mappings, setMappings] = (require('react') as typeof import('react')).useState<Record<string, string>>({})
+      return (
+        <FieldMappingEditor
+          projectId="project-1"
+          value={mappings}
+          onChange={(m) => setMappings({ ...m })}
+        />
+      )
+    }
+
+    it('keeps an in-progress row alive while typing under a controlled parent', async () => {
+      const user = userEvent.setup()
+      render(<ControlledParent />)
+
+      await user.click(screen.getByText('Add Mapping'))
+      const input = screen.getByRole('textbox')
+      await user.type(input, 'question')
+
+      // Row survived every keystroke echo.
+      expect(screen.getByRole('textbox')).toHaveValue('question')
+
+      // Completing the row emits the full mapping and the row persists.
+      const selector = screen.getByTestId('task-field-selector')
+      await user.selectOptions(selector, 'data.text')
+      await waitFor(() => {
+        expect(screen.getByRole('textbox')).toHaveValue('question')
+        expect(screen.getByTestId('task-field-selector')).toHaveValue('data.text')
+      })
+    })
+
+    it('still resyncs rows when the parent changes value externally', async () => {
+      const { rerender } = render(
+        <FieldMappingEditor projectId="project-1" value={{ a: '$x' }} onChange={jest.fn()} />
+      )
+      expect(screen.getByRole('textbox')).toHaveValue('a')
+      rerender(
+        <FieldMappingEditor projectId="project-1" value={{ b: '$y' }} onChange={jest.fn()} />
+      )
+      await waitFor(() => expect(screen.getByRole('textbox')).toHaveValue('b'))
+    })
+  })
 })

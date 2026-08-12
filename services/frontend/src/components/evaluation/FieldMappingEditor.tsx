@@ -47,16 +47,31 @@ export function FieldMappingEditor({
   const [fields, setFields] = useState<TaskFieldInfo[]>([])
   const [loading, setLoading] = useState(false)
 
-  // Sync rows from value prop
+  // Sync rows from value prop. Guard against the echo of our own
+  // emitChanges: incomplete rows (variable typed, field not yet picked) are
+  // deliberately excluded from the emitted mappings, so a naive resync on
+  // every value-identity change would wipe an in-progress row after the
+  // first keystroke. Only rebuild rows when the incoming value actually
+  // differs from what the current rows emit (i.e. an external change).
   useEffect(() => {
-    const mappings = Object.entries(value || {}).map(
-      ([variableName, fieldPath], index) => ({
+    setRows((prev) => {
+      const emitted: Record<string, string> = {}
+      prev.forEach((row) => {
+        if (row.variableName && row.fieldPath) {
+          emitted[row.variableName] = row.fieldPath
+        }
+      })
+      const incoming = value || {}
+      const isEcho =
+        Object.keys(incoming).length === Object.keys(emitted).length &&
+        Object.entries(incoming).every(([k, v]) => emitted[k] === v)
+      if (isEcho && prev.length > 0) return prev
+      return Object.entries(incoming).map(([variableName, fieldPath], index) => ({
         id: `mapping-${index}-${Date.now()}`,
         variableName,
         fieldPath,
-      })
-    )
-    setRows(mappings.length > 0 ? mappings : [])
+      }))
+    })
   }, [value])
 
   // Fetch available fields for reference
