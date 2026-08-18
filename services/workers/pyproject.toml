@@ -70,7 +70,7 @@ dependencies = [
     "pytest-asyncio==0.26.0",
     # AI service dependencies
     "openai==1.109.1",
-    "anthropic==0.120.0",
+    "anthropic==0.122.0",
     "google-genai>=1.75.0",
     "mistralai>=1.12.4",  # Mistral AI models
     "cohere>=5.21.1",  # Cohere models
@@ -100,7 +100,7 @@ dependencies = [
     # imported by both api and workers. arm64 wheels published — normal pin is fine.
     # Keep aligned with the api (services/api/pyproject.toml).
     "zstandard>=0.22,<1.0",
-    "stripe>=11.0.0,<14.0.0",  # Vertretbar billing meter reporting (extended-only)
+    "stripe>=11.0.0,<15.0.0",  # Vertretbar billing meter reporting (extended-only)
 ]
 
 [tool.hatch.build.targets.wheel]
