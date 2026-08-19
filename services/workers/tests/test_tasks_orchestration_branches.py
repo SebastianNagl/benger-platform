@@ -57,6 +57,7 @@ from tasks import (  # noqa: E402
     _fail_import_job,
     _run_immediate_config_job,
     recompute_aggregates,
+    sweep_missing_immediate_evals,
     update_report_annotations_async,
 )
 
@@ -932,3 +933,82 @@ class TestEvaluateLLMJudgeSingleMultidim:
         assert result["score"] == pytest.approx(0.5)
         _, kwargs = judge._evaluate_multidim_single_call.call_args
         assert kwargs["field_outputs"] == {}
+
+
+# ===========================================================================
+# sweep_missing_immediate_evals  (hourly KI-Votum backstop)
+# ===========================================================================
+
+
+def _patch_dispatch_module(scan_side=None, ensure_side=None):
+    """Inject a fake `immediate_eval_dispatch` module so the sweep's local
+    import resolves without the real (DB-heavy) scan/dispatch machinery."""
+    fake = types.ModuleType("immediate_eval_dispatch")
+    fake.scan_ungraded = MagicMock(side_effect=scan_side)
+    fake.ensure_immediate_evaluation = MagicMock(side_effect=ensure_side)
+    return patch.dict(sys.modules, {"immediate_eval_dispatch": fake})
+
+
+class TestSweepMissingImmediateEvals:
+    def test_dispatches_per_candidate_and_counts(self):
+        """Two immediate-eval projects; one has two ungraded candidates and one
+        is clean → ensure_immediate_evaluation runs once per candidate, the
+        clean project isn't counted as a gap, and the summary dict reports
+        both tallies."""
+        db = MagicMock()
+        p_gaps, p_clean = MagicMock(name="p1"), MagicMock(name="p2")
+        db.query.return_value.filter.return_value.all.return_value = [p_gaps, p_clean]
+        ann1, task1 = MagicMock(id="a1"), MagicMock(id="t1")
+        ann2, task2 = MagicMock(id="a2"), MagicMock(id="t2")
+
+        def scan(_db, project, *, cutoff=None):
+            return ([(ann1, task1), (ann2, task2)], []) if project is p_gaps else ([], [])
+
+        with _patch_dispatch_module(scan_side=scan) as _:
+            disp = sys.modules["immediate_eval_dispatch"]
+            disp.ensure_immediate_evaluation.side_effect = ["run-1", None]
+            with patch.object(tasks_module, "SessionLocal", MagicMock(return_value=db)):
+                result = sweep_missing_immediate_evals()
+
+        assert result == {"status": "success", "projects_with_gaps": 1, "dispatched": 1}
+        assert disp.ensure_immediate_evaluation.call_count == 2
+        # Every dispatch is stamped with the sweep trigger for the audit trail.
+        for call in disp.ensure_immediate_evaluation.call_args_list:
+            assert call.kwargs["trigger"] == "sweep_missing_immediate_evals"
+        db.close.assert_called_once()
+
+    def test_failed_candidate_rolls_back_and_continues(self):
+        """One candidate's dispatch raising must not abort the sweep: the
+        session rolls back and the next candidate still dispatches."""
+        db = MagicMock()
+        project = MagicMock()
+        db.query.return_value.filter.return_value.all.return_value = [project]
+        ann1, ann2 = MagicMock(id="a1"), MagicMock(id="a2")
+
+        def scan(_db, _project, *, cutoff=None):
+            return ([(ann1, MagicMock()), (ann2, MagicMock())], [])
+
+        with _patch_dispatch_module(scan_side=scan) as _:
+            disp = sys.modules["immediate_eval_dispatch"]
+            disp.ensure_immediate_evaluation.side_effect = [RuntimeError("boom"), "run-2"]
+            with patch.object(tasks_module, "SessionLocal", MagicMock(return_value=db)):
+                result = sweep_missing_immediate_evals()
+
+        assert result == {"status": "success", "projects_with_gaps": 1, "dispatched": 1}
+        db.rollback.assert_called_once()
+        db.close.assert_called_once()
+
+    def test_outer_exception_returns_error_dict(self):
+        """A failure before/while scanning (here: the Project query) lands in
+        the outer handler: rollback attempted, error dict returned, session
+        still closed."""
+        db = MagicMock()
+        db.query.side_effect = RuntimeError("db down")
+
+        with _patch_dispatch_module():
+            with patch.object(tasks_module, "SessionLocal", MagicMock(return_value=db)):
+                result = sweep_missing_immediate_evals()
+
+        assert result == {"status": "error", "error": "db down"}
+        db.rollback.assert_called_once()
+        db.close.assert_called_once()
