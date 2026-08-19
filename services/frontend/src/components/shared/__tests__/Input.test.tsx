@@ -3,7 +3,7 @@
  * Issue #364: Comprehensive component testing for shared components
  */
 
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import React from 'react'
 import { Input } from '../Input'
@@ -126,6 +126,37 @@ describe('Input Component', () => {
     expect(input).toHaveClass('w-full')
     expect(input).toHaveClass('rounded-md')
     expect(input).toHaveClass('border-zinc-300')
+  })
+
+  it('blurs a number input on wheel so scrolling never changes the value', () => {
+    render(<Input {...defaultProps} type="number" />)
+
+    const input = screen.getByRole('spinbutton') as HTMLInputElement
+    input.focus()
+    expect(input).toHaveFocus()
+
+    fireEvent.wheel(input, { deltaY: 100 })
+    expect(input).not.toHaveFocus()
+  })
+
+  it('does not blur non-number inputs on wheel', () => {
+    render(<Input {...defaultProps} type="text" />)
+
+    const input = screen.getByRole('textbox') as HTMLInputElement
+    input.focus()
+    fireEvent.wheel(input, { deltaY: 100 })
+    expect(input).toHaveFocus()
+  })
+
+  it('lets a caller-supplied onWheel override the number-input default', () => {
+    const mockWheel = jest.fn()
+    render(<Input {...defaultProps} type="number" onWheel={mockWheel} />)
+
+    const input = screen.getByRole('spinbutton') as HTMLInputElement
+    input.focus()
+    fireEvent.wheel(input, { deltaY: 100 })
+    expect(mockWheel).toHaveBeenCalledTimes(1)
+    expect(input).toHaveFocus()
   })
 
   it('supports all standard input props', () => {

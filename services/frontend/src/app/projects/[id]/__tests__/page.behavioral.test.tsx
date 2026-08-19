@@ -71,24 +71,11 @@ jest.mock('@/lib/api/client', () => ({
 // renders (the real ones are collapsed-by-default), letting us assert the
 // page's own DOM + handlers.
 jest.mock('@/components/projects/ConfigCard', () => ({
-  ConfigCard: ({ title, children, canEdit, editing, onEdit, onSave, onCancel }: any) => (
+  ConfigCard: ({ title, children, dirty, saving }: any) => (
     <section data-testid={`config-card-${title}`}>
       <h2>{title}</h2>
-      {canEdit !== false && onEdit && (
-        <button onClick={onEdit} data-testid={`card-edit-${title}`}>
-          edit-{title}
-        </button>
-      )}
-      {editing && onSave && (
-        <button onClick={onSave} data-testid={`card-save-${title}`}>
-          save-{title}
-        </button>
-      )}
-      {editing && onCancel && (
-        <button onClick={onCancel} data-testid={`card-cancel-${title}`}>
-          cancel-{title}
-        </button>
-      )}
+      {dirty && <span data-testid={`card-dirty-${title}`} />}
+      {saving && <span data-testid={`card-saving-${title}`} />}
       {children}
     </section>
   ),

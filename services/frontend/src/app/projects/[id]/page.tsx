@@ -66,7 +66,6 @@ import {
   DocumentTextIcon,
   PencilIcon,
   PlayIcon,
-  TagIcon,
 } from '@heroicons/react/24/outline'
 import { formatDistanceToNow } from 'date-fns'
 import { de } from 'date-fns/locale'
@@ -143,7 +142,6 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
 
   const [tasks, setTasks] = useState([])
   const [userCompletedAllTasks, setUserCompletedAllTasks] = useState(false)
-  const [showConfigEditor, setShowConfigEditor] = useState(false)
   const labelConfigRef = useRef<LabelConfigEditorHandle>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -177,10 +175,6 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   const [evaluationConfigs, setEvaluationConfigs] = useState<
     EvaluationConfig[]
   >([])
-  // Last-saved snapshot for the eval card's Cancel: configs are edited
-  // locally and persisted only on card save (issue #289), so Abbrechen
-  // must be able to restore the pre-edit list.
-  const savedEvalConfigsRef = useRef<EvaluationConfig[]>([])
   const [availableEvaluationFields, setAvailableEvaluationFields] =
     useState<AvailableEvaluationFields>({
       model_response_fields: [],
@@ -316,12 +310,10 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
 
   // Instructions state
   const [instructions, setInstructions] = useState('')
-  const [editingInstructions, setEditingInstructions] = useState(false)
   const [instructionsValue, setInstructionsValue] = useState('')
 
   //  settings
   const [expanded, setExpanded] = useState(false)
-  const [editing, setEditing] = useState(false)
   const ProjectSettingsExtended = useSlot('project-settings-extended')
   const ProjectStatisticsExtended = useSlot('project-statistics-extended')
   const [advancedSettings, setAdvancedSettings] = useState({
@@ -539,14 +531,12 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     }
   }
 
-  // Local state only — persistence happens on the card's Speichern
-  // (saveEvaluationCard). Auto-enter edit mode so the Save button surfaces,
-  // same UX guarantee as handleModelToggle; beginEditEvaluation runs first
-  // so its snapshot captures the pre-change list for Abbrechen.
+  // Local state, flushed by the eval card's debounced auto-save
+  // (saveEvaluationCard).
   const handleEvaluationConfigsChange = (
     evaluations: EvaluationConfig[]
   ) => {
-    if (!cardEditing.evaluation) beginEditEvaluation()
+    markEvaluationDirty()
     setEvaluationConfigs(evaluations)
   }
 
@@ -743,11 +733,11 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
       // Refetch project to ensure all components get updated state
       await fetchProject(projectId)
       addToast(t('toasts.project.labelConfigSaved'), 'success')
-      // Close editor only after all async operations complete
-      setShowConfigEditor(false)
     } catch (error) {
       console.error('Failed to save label configuration:', error)
       addToast(t('toasts.project.labelConfigFailed'), 'error')
+      // Rethrow so the annotation card's auto-save keeps the card dirty.
+      throw error
     }
   }
 
@@ -831,17 +821,6 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     }
   }
 
-  // Instructions editing handlers
-  const handleStartEditInstructions = () => {
-    setInstructionsValue(instructions)
-    setEditingInstructions(true)
-  }
-
-  const handleCancelEditInstructions = () => {
-    setEditingInstructions(false)
-    setInstructionsValue(instructions)
-  }
-
   const handleSaveInstructions = async () => {
     if (!currentProject || !projectId) return
 
@@ -850,7 +829,6 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     try {
       await updateProject(projectId, { instructions: instructionsValue })
       setInstructions(instructionsValue)
-      setEditingInstructions(false)
       addToast(t('toasts.project.instructionsUpdated'), 'success')
     } catch (error) {
       const errorMessage =
@@ -923,11 +901,8 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   }
 
   const handleModelToggle = (modelId: string) => {
-    // Toggling a model checkbox is an edit — auto-enter the card's edit
-    // mode so the Speichern button surfaces. Without this the user can
-    // tick boxes without realising they aren't persisted until the card
-    // is saved (Issue: model selection silently lost on refresh).
-    if (!cardEditing.generation) beginEditGeneration()
+    // Mark the card dirty so the change auto-saves.
+    markGenerationDirty()
 
     const isCurrentlySelected = selectedModelIds.includes(modelId)
 
@@ -1188,7 +1163,6 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
       // stale local-buffer values.
       const { korrektur_enabled: _ke, korrektur_config: _kc, ...payload } = advancedSettings
       await updateProject(projectId, payload)
-      setEditing(false)
       addToast(t('toasts.project.settingsSaved'), 'success')
     } catch (error) {
       const errorMessage =
@@ -1203,11 +1177,12 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     }
   }
 
-  // Card-level edit lifecycle. Each ConfigCard exposes a single
-  // Bearbeiten / Speichern / Abbrechen control. When entered, we flip every
-  // dependent sub-section's edit flag at once; on Speichern the matching
-  // save handlers run together so the card flushes atomically.
-  const [cardEditing, setCardEditing] = useState({
+  // Card-level dirty/auto-save lifecycle. Sub-sections are always editable
+  // for users with edit permission — there is no Bearbeiten mode. Any change
+  // marks its card dirty and schedules a debounced flush through the card's
+  // save handler, so all pending sub-section changes persist together
+  // (sequenced per card — issue #289).
+  const [cardDirty, setCardDirty] = useState({
     annotation: false,
     generation: false,
     evaluation: false,
@@ -1218,51 +1193,112 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     evaluation: false,
   })
 
-  const beginEditAnnotation = () => {
-    setEditingInstructions(true)
-    setEditing(true)
-    setShowConfigEditor(true)
-    setCardEditing((p) => ({ ...p, annotation: true }))
+  type CardKey = 'annotation' | 'generation' | 'evaluation'
+  const AUTOSAVE_DEBOUNCE_MS = 2000
+  const autosaveTimersRef = useRef<
+    Partial<Record<CardKey, ReturnType<typeof setTimeout>>>
+  >({})
+  const cardSavingRef = useRef({
+    annotation: false,
+    generation: false,
+    evaluation: false,
+  })
+  // Latest save closures — the debounce timer must call the CURRENT
+  // render's closure at fire time, not the stale one captured when the
+  // timer was scheduled (the state change that triggered the schedule
+  // hasn't rendered yet at that point).
+  const cardSaveFnsRef = useRef<Record<CardKey, () => Promise<void>>>({
+    annotation: async () => {},
+    generation: async () => {},
+    evaluation: async () => {},
+  })
+
+  const scheduleCardSave = (card: CardKey) => {
+    const timers = autosaveTimersRef.current
+    if (timers[card]) clearTimeout(timers[card])
+    const fire = () => {
+      if (cardSavingRef.current[card]) {
+        // A flush is in flight; retry shortly so the newest values land.
+        timers[card] = setTimeout(fire, 500)
+        return
+      }
+      delete timers[card]
+      void cardSaveFnsRef.current[card]()
+    }
+    timers[card] = setTimeout(fire, AUTOSAVE_DEBOUNCE_MS)
   }
 
-  const cancelEditAnnotation = () => {
-    setEditingInstructions(false)
-    setInstructionsValue(instructions)
-    setEditing(false)
-    setShowConfigEditor(false)
-    setCardEditing((p) => ({ ...p, annotation: false }))
+  const markCardDirty = (card: CardKey) => {
+    setCardDirty((p) => (p[card] ? p : { ...p, [card]: true }))
+    scheduleCardSave(card)
+  }
+  const markAnnotationDirty = () => markCardDirty('annotation')
+  const markGenerationDirty = () => markCardDirty('generation')
+  const markEvaluationDirty = () => markCardDirty('evaluation')
+
+  // Clear pending flush timers on unmount.
+  useEffect(() => {
+    const timers = autosaveTimersRef.current
+    return () => {
+      for (const key of Object.keys(timers) as CardKey[]) {
+        const timer = timers[key]
+        if (timer) clearTimeout(timer)
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Only clear the dirty flag when no newer changes are waiting to flush.
+  const finishCardSave = (card: CardKey) => {
+    if (!autosaveTimersRef.current[card]) {
+      setCardDirty((p) => ({ ...p, [card]: false }))
+    }
+  }
+
+  // Track whether the annotation settings buffer actually changed so the
+  // flush only PATCHes what the user touched.
+  const advancedSettingsDirtyRef = useRef(false)
+  const handleAdvancedSettingsChange: typeof setAdvancedSettings = (value) => {
+    advancedSettingsDirtyRef.current = true
+    markAnnotationDirty()
+    setAdvancedSettings(value)
   }
 
   const saveAnnotationCard = async () => {
+    cardSavingRef.current.annotation = true
     setCardSaving((p) => ({ ...p, annotation: true }))
     try {
-      // Run all sub-section saves in parallel; LabelConfigEditor's imperative
-      // save() short-circuits the Promise.all on validation error so the
-      // user sees the inline alert and the other PATCHes still go through.
+      // Run all sub-section saves in parallel; each leg guards on its own
+      // dirty state so untouched sub-sections don't produce PATCHes. A
+      // label config with a validation error is skipped (the editor shows
+      // the inline alert) and keeps the card dirty until it parses.
+      const labelDirty = !!labelConfigRef.current?.isDirty()
+      const labelBlocked = labelDirty && !!labelConfigRef.current?.hasErrors()
       await Promise.all([
-        editingInstructions ? handleSaveInstructions() : Promise.resolve(),
-        editing ? handleSaveSettings() : Promise.resolve(),
-        showConfigEditor && labelConfigRef.current?.isDirty()
-          ? labelConfigRef.current.save()
+        instructionsValue !== instructions
+          ? handleSaveInstructions()
+          : Promise.resolve(),
+        advancedSettingsDirtyRef.current
+          ? handleSaveSettings()
+          : Promise.resolve(),
+        labelDirty && !labelBlocked
+          ? labelConfigRef.current!.save()
           : Promise.resolve(),
       ])
-      setCardEditing((p) => ({ ...p, annotation: false }))
-      setShowConfigEditor(false)
+      advancedSettingsDirtyRef.current = false
+      if (!labelBlocked) finishCardSave('annotation')
     } catch {
-      // Legs toast their own errors; keep the card in edit mode so a failed
-      // save never looks saved, and swallow so ConfigCard's `void onSave`
-      // doesn't surface an unhandled rejection.
+      // Legs toast their own errors; keep the card dirty so a failed save
+      // never looks saved, and swallow so the timer's void call doesn't
+      // surface an unhandled rejection. The next change reschedules.
     } finally {
+      cardSavingRef.current.annotation = false
       setCardSaving((p) => ({ ...p, annotation: false }))
     }
   }
 
-  // Generation/Evaluation cards have no per-section "edit mode" today — their
-  // controls are always editable when the card is expanded. The card-level
-  // Speichern just flushes the corresponding payload through one handler.
-  const beginEditGeneration = () => setCardEditing((p) => ({ ...p, generation: true }))
-  const cancelEditGeneration = () => setCardEditing((p) => ({ ...p, generation: false }))
   const saveGenerationCard = async () => {
+    cardSavingRef.current.generation = true
     setCardSaving((p) => ({ ...p, generation: true }))
     try {
       // Sequential on purpose: both handlers PATCH the same
@@ -1272,45 +1308,23 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
       // ticked model vanished ~1s after saving).
       await handleSaveModels()
       await handleSaveGenDefaults()
-      setCardEditing((p) => ({ ...p, generation: false }))
+      finishCardSave('generation')
     } catch {
-      // Legs toast their own errors; keep the card in edit mode so a failed
-      // save never looks saved, and swallow so ConfigCard's `void onSave`
-      // doesn't surface an unhandled rejection.
+      // Legs toast their own errors; keep the card dirty so a failed save
+      // never looks saved, and swallow so the timer's void call doesn't
+      // surface an unhandled rejection.
     } finally {
+      cardSavingRef.current.generation = false
       setCardSaving((p) => ({ ...p, generation: false }))
     }
   }
 
   // Eval card hosts immediate_evaluation_enabled (now in its own evaluationSettings
-  // buffer, decoupled from advancedSettings) plus the eval-defaults form. Card-edit
-  // flips only cardEditing.evaluation; save PATCHes the buffer + eval defaults.
-  const beginEditEvaluation = () => {
-    // Snapshot the config list so Abbrechen can restore it — builder edits
-    // stay local until the card's Speichern persists them (issue #289).
-    savedEvalConfigsRef.current = evaluationConfigs
-    setCardEditing((p) => ({ ...p, evaluation: true }))
-  }
-  const cancelEditEvaluation = () => {
-    setEvaluationSettings({
-      immediate_evaluation_enabled:
-        (currentProject as any)?.immediate_evaluation_enabled || false,
-    })
-    setEvaluationConfigs(savedEvalConfigsRef.current)
-    // Also revert the blind toggles to whatever the saved config has, so
-    // discarding the eval card resets *all* of its buffered fields.
-    const fk = savedEvalConfigsRef.current.find(
-      (c: any) => c.metric === 'korrektur_falloesung',
-    )
-    const mp = fk?.metric_parameters || {}
-    setKorrekturBlindToPeers(mp.blind_to_peer_correctors !== false)
-    setKorrekturBlindToLlm(mp.blind_to_llm_judge !== false)
-    setKorrekturBlindToNonJudge(mp.blind_to_non_judge_metrics !== false)
-    setKorrekturKeepBlindAfterSubmit(mp.keep_blind_after_submit === true)
-    setCardEditing((p) => ({ ...p, evaluation: false }))
-  }
+  // buffer, decoupled from advancedSettings) plus the eval-defaults form. The
+  // auto-save flush PATCHes the buffer + eval defaults + configs.
   const saveEvaluationCard = async () => {
     if (!projectId) return
+    cardSavingRef.current.evaluation = true
     setCardSaving((p) => ({ ...p, evaluation: true }))
     try {
       // Patch the korrektur_falloesung config's metric_parameters with the
@@ -1352,16 +1366,22 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
       }
       await handleSaveEvalDefaults()
       await saveEvaluationConfigsToProject(configsToSave)
-      // The saved list is the new Abbrechen baseline.
-      savedEvalConfigsRef.current = configsToSave
-      setCardEditing((p) => ({ ...p, evaluation: false }))
+      finishCardSave('evaluation')
     } catch {
-      // Legs toast their own errors; keep the card in edit mode so a failed
-      // save never looks saved, and swallow so ConfigCard's `void onSave`
-      // doesn't surface an unhandled rejection.
+      // Legs toast their own errors; keep the card dirty so a failed save
+      // never looks saved, and swallow so the timer's void call doesn't
+      // surface an unhandled rejection.
     } finally {
+      cardSavingRef.current.evaluation = false
       setCardSaving((p) => ({ ...p, evaluation: false }))
     }
+  }
+
+  // Keep the debounce timers pointed at the current render's closures.
+  cardSaveFnsRef.current = {
+    annotation: saveAnnotationCard,
+    generation: saveGenerationCard,
+    evaluation: saveEvaluationCard,
   }
 
   if (!projectId || (loading && !currentProject)) {
@@ -1616,12 +1636,8 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
           <ConfigCard
             title={t('project.annotationConfiguration.title')}
             defaultExpanded={false}
-            canEdit={canEditProject()}
-            editing={cardEditing.annotation}
+            dirty={cardDirty.annotation}
             saving={cardSaving.annotation}
-            onEdit={beginEditAnnotation}
-            onCancel={cancelEditAnnotation}
-            onSave={saveAnnotationCard}
           >
           {/* Annotation Instructions Section */}
           <div className="bg-white dark:bg-zinc-900">
@@ -1661,34 +1677,20 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
             </div>
 
             {expandedInstructions && (
-              <>
-                {editingInstructions ? (
-                  <div className="space-y-4">
-                    <Textarea
-                      value={instructionsValue}
-                      onChange={(e) => setInstructionsValue(e.target.value)}
-                      placeholder={t(
-                        'project.annotationInstructions.placeholder'
-                      )}
-                      rows={6}
-                      className="w-full resize-none"
-                    />
-                    {/* Per-section Save/Cancel removed — card-level Speichern flushes everything. */}
-                  </div>
-                ) : instructions ? (
-                  <div className="text-sm text-gray-700 dark:text-gray-300">
-                    <pre className="whitespace-pre-wrap rounded-lg bg-zinc-50 p-4 text-gray-700 dark:bg-zinc-800 dark:text-gray-300">
-                      {instructions}
-                    </pre>
-                  </div>
-                ) : (
-                  <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                    {t('project.annotationInstructions.noInstructions')}
-                    {canEditProject() &&
-                      ` ${t('project.annotationInstructions.clickToAdd')}`}
-                  </p>
-                )}
-              </>
+              <div className="space-y-4">
+                <Textarea
+                  value={instructionsValue}
+                  onChange={(e) => {
+                    markAnnotationDirty()
+                    setInstructionsValue(e.target.value)
+                  }}
+                  placeholder={t(
+                    'project.annotationInstructions.placeholder'
+                  )}
+                  rows={6}
+                  className="w-full resize-none"
+                />
+              </div>
             )}
 
             {/* Conditional Instructions Editor */}
@@ -1914,52 +1916,20 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                   />
                 </svg>
               </button>
-              {/* Label-Konfiguration now folds into the card-level Speichern:
-                  beginEditAnnotation flips showConfigEditor=true, and
+              {/* Label-Konfiguration folds into the card-level auto-save:
                   saveAnnotationCard awaits labelConfigRef.current.save() in
                   Promise.all alongside the other sub-section saves. */}
             </div>
 
             {expandedConfig && (
-              <>
-                {showConfigEditor ? (
-                  <LabelConfigEditor
-                    ref={labelConfigRef}
-                    initialConfig={currentProject.label_config || ''}
-                    onSave={handleSaveLabelConfig}
-                    onCancel={() => setShowConfigEditor(false)}
-                    projectId={currentProject.id}
-                    hideInternalControls={cardEditing.annotation}
-                  />
-                ) : (
-                  <>
-                    {currentProject.label_config ? (
-                      <div className="space-y-4">
-                        <pre className="overflow-x-auto rounded-lg bg-zinc-100 p-4 text-sm dark:bg-zinc-800">
-                          <code className="text-zinc-900 dark:text-zinc-100">
-                            {currentProject.label_config}
-                          </code>
-                        </pre>
-                      </div>
-                    ) : (
-                      <div className="py-8 text-center">
-                        <TagIcon className="mx-auto mb-4 h-12 w-12 text-zinc-400" />
-                        <p className="mb-4 text-zinc-600 dark:text-zinc-400">
-                          {t('project.labelConfiguration.noConfigSet')}
-                        </p>
-                        {canEditProject() && (
-                          <Button
-                            variant="outline"
-                            onClick={() => setShowConfigEditor(true)}
-                          >
-                            {t('project.labelConfiguration.configureLabels')}
-                          </Button>
-                        )}
-                      </div>
-                    )}
-                  </>
-                )}
-              </>
+              <LabelConfigEditor
+                ref={labelConfigRef}
+                initialConfig={currentProject.label_config || ''}
+                onSave={handleSaveLabelConfig}
+                onConfigChange={markAnnotationDirty}
+                projectId={currentProject.id}
+                hideInternalControls
+              />
             )}
             </>
             ) : (
@@ -1980,8 +1950,8 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
             canEditProject={canEditProject}
             getReadOnlyMessage={getReadOnlyMessage}
             advancedSettings={advancedSettings}
-            setAdvancedSettings={setAdvancedSettings}
-            editing={editing}
+            setAdvancedSettings={handleAdvancedSettingsChange}
+            editing={canEditProject()}
             ProjectSettingsExtended={ProjectSettingsExtended}
           />
           </SubSection>
@@ -1993,12 +1963,8 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
           <ConfigCard
             title={t('project.generationConfiguration.title')}
             defaultExpanded={false}
-            canEdit={canEditProject()}
-            editing={cardEditing.generation}
+            dirty={cardDirty.generation}
             saving={cardSaving.generation}
-            onEdit={beginEditGeneration}
-            onCancel={cancelEditGeneration}
-            onSave={saveGenerationCard}
           >
           {/* Generation Defaults — peer of Model Selection (was nested inside
               expandedModels until the multi-run feature; pulled out so the new
@@ -2018,8 +1984,10 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
               setGenDefaultMaxTokens={setGenDefaultMaxTokens}
               selectedModelIds={selectedModelIds}
               genRecConsensus={genRecConsensus}
-              cardEditingGeneration={cardEditing.generation}
-              beginEditGeneration={beginEditGeneration}
+              // Always false so every change re-marks the card dirty and
+              // extends the auto-save debounce (the marker is idempotent).
+              cardEditingGeneration={false}
+              beginEditGeneration={markGenerationDirty}
             />
           )}
 
@@ -2047,12 +2015,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                     value={genDefaultRunsPerTask ?? 1}
                     placeholder="1"
                     onChange={(e) => {
-                      // Auto-enter card edit mode so the Speichern button
-                      // surfaces — same UX guarantee as the model toggle
-                      // and the mode picker. Without this, typing a value
-                      // doesn't persist on its own and the user has no
-                      // visible save trigger.
-                      if (!cardEditing.generation) beginEditGeneration()
+                      markGenerationDirty()
                       setGenDefaultRunsPerTask(
                         e.target.value ? parseInt(e.target.value) : undefined
                       )
@@ -2136,12 +2099,8 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
           <ConfigCard
             title={t('project.evaluation.title')}
             defaultExpanded={false}
-            canEdit={canEditProject()}
-            editing={cardEditing.evaluation}
+            dirty={cardDirty.evaluation}
             saving={cardSaving.evaluation}
-            onEdit={beginEditEvaluation}
-            onCancel={cancelEditEvaluation}
-            onSave={saveEvaluationCard}
           >
           {/* Evaluation Configuration Section — flat sub-sections (no redundant
               middle collapsible). Direct children of the ConfigCard. */}
@@ -2162,8 +2121,10 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                       setEvalDefaultMaxTokens={setEvalDefaultMaxTokens}
                       selectedModelIds={selectedModelIds}
                       evalRecConsensus={evalRecConsensus}
-                      cardEditingEvaluation={cardEditing.evaluation}
-                      beginEditEvaluation={beginEditEvaluation}
+                      // Always false so every change re-marks the card dirty
+                      // and extends the auto-save debounce (idempotent).
+                      cardEditingEvaluation={false}
+                      beginEditEvaluation={markEvaluationDirty}
                     />
                   )}
 
@@ -2189,9 +2150,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                             value={evalDefaultRunsPerTask ?? 1}
                             placeholder="1"
                             onChange={(e) => {
-                              // Auto-enter card edit mode so the Speichern
-                              // button surfaces — mirrors gen-side fix.
-                              if (!cardEditing.evaluation) beginEditEvaluation()
+                              markEvaluationDirty()
                               setEvalDefaultRunsPerTask(
                                 e.target.value ? parseInt(e.target.value) : undefined
                               )
@@ -2231,13 +2190,13 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                         <input
                           type="checkbox"
                           checked={evaluationSettings.immediate_evaluation_enabled}
-                          onChange={(e) =>
+                          onChange={(e) => {
+                            markEvaluationDirty()
                             setEvaluationSettings((prev) => ({
                               ...prev,
                               immediate_evaluation_enabled: e.target.checked,
                             }))
-                          }
-                          disabled={!cardEditing.evaluation}
+                          }}
                           className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
                         />
                       </div>
@@ -2263,8 +2222,10 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                             <input
                               type="checkbox"
                               checked={korrekturBlindToPeers}
-                              onChange={(e) => setKorrekturBlindToPeers(e.target.checked)}
-                              disabled={!cardEditing.evaluation}
+                              onChange={(e) => {
+                                markEvaluationDirty()
+                                setKorrekturBlindToPeers(e.target.checked)
+                              }}
                               className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
                             />
                           </div>
@@ -2286,8 +2247,10 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                             <input
                               type="checkbox"
                               checked={korrekturBlindToLlm}
-                              onChange={(e) => setKorrekturBlindToLlm(e.target.checked)}
-                              disabled={!cardEditing.evaluation}
+                              onChange={(e) => {
+                                markEvaluationDirty()
+                                setKorrekturBlindToLlm(e.target.checked)
+                              }}
                               className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
                             />
                           </div>
@@ -2309,8 +2272,10 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                             <input
                               type="checkbox"
                               checked={korrekturBlindToNonJudge}
-                              onChange={(e) => setKorrekturBlindToNonJudge(e.target.checked)}
-                              disabled={!cardEditing.evaluation}
+                              onChange={(e) => {
+                                markEvaluationDirty()
+                                setKorrekturBlindToNonJudge(e.target.checked)
+                              }}
                               className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
                             />
                           </div>
@@ -2332,8 +2297,10 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                             <input
                               type="checkbox"
                               checked={korrekturKeepBlindAfterSubmit}
-                              onChange={(e) => setKorrekturKeepBlindAfterSubmit(e.target.checked)}
-                              disabled={!cardEditing.evaluation}
+                              onChange={(e) => {
+                                markEvaluationDirty()
+                                setKorrekturKeepBlindAfterSubmit(e.target.checked)
+                              }}
                               className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
                             />
                           </div>

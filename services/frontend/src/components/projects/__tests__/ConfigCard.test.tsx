@@ -1,9 +1,9 @@
 /**
  * Tests for ConfigCard — the top-level collapsible card on project detail.
  *
- * Tests the contract, not the markup: edit/save/cancel lifecycle, the
- * "single Speichern flushes everything" model, button visibility rules,
- * disabled-while-saving, and canEdit gating. The actual layout is incidental.
+ * Tests the contract, not the markup: expand/collapse, badge, and the
+ * dirty/saving status chip of the auto-save model (there is no edit mode
+ * and no manual save button). The actual layout is incidental.
  *
  * @jest-environment jsdom
  */
@@ -11,14 +11,6 @@
 import { ConfigCard } from '@/components/projects/ConfigCard'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-
-jest.mock('@/components/shared/Button', () => ({
-  Button: ({ children, onClick, disabled, ...props }: any) => (
-    <button onClick={onClick} disabled={disabled} {...props}>
-      {children}
-    </button>
-  ),
-}))
 
 describe('ConfigCard', () => {
   describe('expand / collapse', () => {
@@ -63,166 +55,62 @@ describe('ConfigCard', () => {
     })
   })
 
-  describe('edit / save / cancel lifecycle', () => {
-    it('shows Bearbeiten when not editing and lifecycle is wired', () => {
-      const onEdit = jest.fn()
-      render(
-        <ConfigCard
-          title="Annotation"
-          editing={false}
-          onEdit={onEdit}
-          onSave={jest.fn()}
-          onCancel={jest.fn()}
-          canEdit
-        >
-          <div>inner</div>
-        </ConfigCard>
-      )
-      expect(screen.getByRole('button', { name: 'Bearbeiten' })).toBeInTheDocument()
-      expect(screen.queryByRole('button', { name: 'Speichern' })).not.toBeInTheDocument()
-      expect(screen.queryByRole('button', { name: 'Abbrechen' })).not.toBeInTheDocument()
-    })
-
-    it('shows Speichern + Abbrechen when editing', () => {
-      render(
-        <ConfigCard
-          title="Annotation"
-          editing
-          onEdit={jest.fn()}
-          onSave={jest.fn()}
-          onCancel={jest.fn()}
-          canEdit
-        >
-          <div>inner</div>
-        </ConfigCard>
-      )
-      expect(screen.getByRole('button', { name: 'Speichern' })).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: 'Abbrechen' })).toBeInTheDocument()
-      expect(screen.queryByRole('button', { name: 'Bearbeiten' })).not.toBeInTheDocument()
-    })
-
-    it('Bearbeiten click triggers onEdit', async () => {
-      const onEdit = jest.fn()
-      const user = userEvent.setup()
-      render(
-        <ConfigCard
-          title="Annotation"
-          editing={false}
-          onEdit={onEdit}
-          onSave={jest.fn()}
-          onCancel={jest.fn()}
-          canEdit
-        >
-          <div>inner</div>
-        </ConfigCard>
-      )
-      await user.click(screen.getByRole('button', { name: 'Bearbeiten' }))
-      expect(onEdit).toHaveBeenCalledTimes(1)
-    })
-
-    it('Speichern click triggers onSave', async () => {
-      const onSave = jest.fn().mockResolvedValue(undefined)
-      const user = userEvent.setup()
-      render(
-        <ConfigCard
-          title="Annotation"
-          editing
-          onEdit={jest.fn()}
-          onSave={onSave}
-          onCancel={jest.fn()}
-          canEdit
-        >
-          <div>inner</div>
-        </ConfigCard>
-      )
-      await user.click(screen.getByRole('button', { name: 'Speichern' }))
-      expect(onSave).toHaveBeenCalledTimes(1)
-    })
-
-    it('Abbrechen click triggers onCancel', async () => {
-      const onCancel = jest.fn()
-      const user = userEvent.setup()
-      render(
-        <ConfigCard
-          title="Annotation"
-          editing
-          onEdit={jest.fn()}
-          onSave={jest.fn()}
-          onCancel={onCancel}
-          canEdit
-        >
-          <div>inner</div>
-        </ConfigCard>
-      )
-      await user.click(screen.getByRole('button', { name: 'Abbrechen' }))
-      expect(onCancel).toHaveBeenCalledTimes(1)
-    })
-
-    it('shows "Speichert…" and disables both buttons when saving', () => {
-      render(
-        <ConfigCard
-          title="Annotation"
-          editing
-          onEdit={jest.fn()}
-          onSave={jest.fn()}
-          onCancel={jest.fn()}
-          saving
-          canEdit
-        >
-          <div>inner</div>
-        </ConfigCard>
-      )
-      expect(screen.getByRole('button', { name: 'Speichert…' })).toBeDisabled()
-      expect(screen.getByRole('button', { name: 'Abbrechen' })).toBeDisabled()
-    })
-  })
-
-  describe('canEdit gating', () => {
-    it('hides edit controls when canEdit is false', () => {
-      render(
-        <ConfigCard
-          title="Annotation"
-          editing={false}
-          onEdit={jest.fn()}
-          onSave={jest.fn()}
-          onCancel={jest.fn()}
-          canEdit={false}
-        >
-          <div>inner</div>
-        </ConfigCard>
-      )
-      expect(screen.queryByRole('button', { name: 'Bearbeiten' })).not.toBeInTheDocument()
-    })
-
-    it('hides edit controls when no onEdit/onSave is wired (read-only mode)', () => {
+  describe('auto-save status chip', () => {
+    it('shows no status chip when neither dirty nor saving', () => {
       render(
         <ConfigCard title="Annotation">
           <div>inner</div>
         </ConfigCard>
       )
-      expect(screen.queryByRole('button', { name: 'Bearbeiten' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('status')).not.toBeInTheDocument()
     })
 
-    it('hides edit controls while collapsed even if lifecycle is wired', async () => {
-      const user = userEvent.setup()
+    it('shows the unsaved-changes chip while dirty', () => {
       render(
-        <ConfigCard
-          title="Annotation"
-          defaultExpanded={false}
-          editing={false}
-          onEdit={jest.fn()}
-          onSave={jest.fn()}
-          onCancel={jest.fn()}
-          canEdit
-        >
+        <ConfigCard title="Annotation" dirty>
           <div>inner</div>
         </ConfigCard>
       )
-      // Collapsed: no Bearbeiten visible
-      expect(screen.queryByRole('button', { name: 'Bearbeiten' })).not.toBeInTheDocument()
-      // Expand → it appears
-      await user.click(screen.getByRole('button', { name: /Annotation/i }))
-      expect(screen.getByRole('button', { name: 'Bearbeiten' })).toBeInTheDocument()
+      expect(screen.getByRole('status')).toHaveTextContent(
+        'Ungespeicherte Änderungen'
+      )
+    })
+
+    it('shows "Speichert…" while a flush is in flight', () => {
+      render(
+        <ConfigCard title="Annotation" dirty saving>
+          <div>inner</div>
+        </ConfigCard>
+      )
+      expect(screen.getByRole('status')).toHaveTextContent('Speichert…')
+    })
+
+    it('shows the status chip even while collapsed', () => {
+      render(
+        <ConfigCard title="Annotation" defaultExpanded={false} dirty>
+          <div>inner</div>
+        </ConfigCard>
+      )
+      expect(screen.getByRole('status')).toHaveTextContent(
+        'Ungespeicherte Änderungen'
+      )
+    })
+
+    it('renders no edit or save buttons (auto-save has no manual controls)', () => {
+      render(
+        <ConfigCard title="Annotation" dirty saving>
+          <div>inner</div>
+        </ConfigCard>
+      )
+      expect(
+        screen.queryByRole('button', { name: 'Bearbeiten' })
+      ).not.toBeInTheDocument()
+      expect(
+        screen.queryByRole('button', { name: /Speicher/ })
+      ).not.toBeInTheDocument()
+      expect(
+        screen.queryByRole('button', { name: 'Abbrechen' })
+      ).not.toBeInTheDocument()
     })
   })
 })

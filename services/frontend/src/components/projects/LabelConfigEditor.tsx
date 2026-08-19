@@ -35,6 +35,9 @@ interface LabelConfigEditorProps {
   /** Suppress the editor's own Save/Cancel buttons. The parent owns the
    *  lifecycle and calls `save()` via the ref. */
   hideInternalControls?: boolean
+  /** Fired on every user edit so the parent can mark its card dirty and
+   *  schedule an auto-save flush. */
+  onConfigChange?: () => void
 }
 
 export interface LabelConfigEditorHandle {
@@ -48,7 +51,14 @@ export const LabelConfigEditor = forwardRef<
   LabelConfigEditorHandle,
   LabelConfigEditorProps
 >(function LabelConfigEditor(
-  { initialConfig = '', onSave, onCancel, projectId, hideInternalControls },
+  {
+    initialConfig = '',
+    onSave,
+    onCancel,
+    projectId,
+    hideInternalControls,
+    onConfigChange,
+  },
   ref,
 ) {
   const { t } = useI18n()
@@ -114,7 +124,10 @@ export const LabelConfigEditor = forwardRef<
 
           <Textarea
             value={config}
-            onChange={(e) => setConfig(e.target.value)}
+            onChange={(e) => {
+              setConfig(e.target.value)
+              onConfigChange?.()
+            }}
             placeholder={t('projects.labelConfig.placeholder')}
             className="font-mono text-sm"
             rows={15}

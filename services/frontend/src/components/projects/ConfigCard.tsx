@@ -2,14 +2,16 @@
  * Top-level collapsible card for the project detail page.
  *
  * Each card groups related sub-sections (Annotation, Generation, Evaluation,
- * Project Settings). The card owns a single edit/save lifecycle so all
- * sub-sections inside flush as one atomic Speichern action.
+ * Project Settings). Sub-sections are always editable for users with edit
+ * permission; changes save automatically (the page debounces a flush through
+ * the card's save handler). The header shows a small status chip while a
+ * card has unsaved changes or a save in flight — there is no edit mode and
+ * no manual save button.
  */
 
 'use client'
 
 import { useState, type ReactNode } from 'react'
-import { Button } from '@/components/shared/Button'
 
 interface ConfigCardProps {
   title: string
@@ -19,18 +21,10 @@ interface ConfigCardProps {
    */
   badge?: ReactNode
   defaultExpanded?: boolean
-  /**
-   * When the consumer wires `editing` + `onEdit` + `onSave`, the card
-   * renders a single Bearbeiten / Speichern / Abbrechen button group at
-   * its header. Sub-sections inside should treat `editing` as the source
-   * of truth so the one Save flushes everything.
-   */
-  editing?: boolean
-  onEdit?: () => void
-  onSave?: () => Promise<void> | void
-  onCancel?: () => void
+  /** Unsaved changes pending an auto-save flush. */
+  dirty?: boolean
+  /** A save flush is in flight. */
   saving?: boolean
-  canEdit?: boolean
   children: ReactNode
 }
 
@@ -38,16 +32,11 @@ export function ConfigCard({
   title,
   badge,
   defaultExpanded = true,
-  editing,
-  onEdit,
-  onSave,
-  onCancel,
+  dirty,
   saving,
-  canEdit,
   children,
 }: ConfigCardProps) {
   const [expanded, setExpanded] = useState(defaultExpanded)
-  const showEditControls = !!onEdit && !!onSave && canEdit !== false
 
   return (
     <div className="mb-8 rounded-lg bg-white p-6 shadow-sm ring-1 ring-zinc-900/5 dark:bg-zinc-900 dark:ring-white/10">
@@ -81,36 +70,18 @@ export function ConfigCard({
             />
           </svg>
         </button>
-        {expanded && showEditControls && (
-          <div className="ml-3 flex items-center gap-2">
-            {editing ? (
-              <>
-                <Button
-                  variant="outline"
-                  className="text-sm"
-                  onClick={onCancel}
-                  disabled={saving}
-                >
-                  Abbrechen
-                </Button>
-                <Button
-                  className="text-sm"
-                  onClick={() => void onSave?.()}
-                  disabled={saving}
-                >
-                  {saving ? 'Speichert…' : 'Speichern'}
-                </Button>
-              </>
-            ) : (
-              <Button
-                variant="outline"
-                className="text-sm"
-                onClick={onEdit}
-              >
-                Bearbeiten
-              </Button>
-            )}
-          </div>
+        {(saving || dirty) && (
+          <span
+            className="ml-3 flex items-center gap-1.5 whitespace-nowrap text-xs text-zinc-500 dark:text-zinc-400"
+            role="status"
+          >
+            <span
+              className={`h-1.5 w-1.5 rounded-full ${
+                saving ? 'animate-pulse bg-emerald-500' : 'bg-amber-500'
+              }`}
+            />
+            {saving ? 'Speichert…' : 'Ungespeicherte Änderungen'}
+          </span>
         )}
       </div>
       {expanded && (
