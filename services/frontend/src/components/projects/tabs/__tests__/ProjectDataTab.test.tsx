@@ -31,9 +31,17 @@ jest.mock('@/contexts/ProgressContext', () => ({
   ProgressProvider: ({ children }: any) => children,
 }))
 
-jest.mock('@/stores/projectStore', () => ({
-  useProjectStore: jest.fn(),
-}))
+jest.mock('@/stores/projectStore', () => {
+  // The bulk-delete/archive flows refetch the project's stats imperatively
+  // via useProjectStore.getState().fetchProject — the hook mock must carry
+  // a getState too, or the flows' catch branch swallows the success path.
+  const fetchProject = jest.fn().mockResolvedValue(undefined)
+  return {
+    useProjectStore: Object.assign(jest.fn(), {
+      getState: () => ({ fetchProject }),
+    }),
+  }
+})
 
 jest.mock('@/hooks/useColumnSettings', () => ({
   useColumnSettings: jest.fn(),

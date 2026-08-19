@@ -108,11 +108,24 @@ class TestCheckProjectAccessiblePrivateContext:
         user = Mock(is_superadmin=False, id="user-1")
         assert check_project_accessible(db, user, "proj-1", org_context="private") == False  # noqa: E712
 
-    def test_private_context_non_private_project_denied(self):
+    def test_private_context_org_project_creator_keeps_access(self):
+        # Creator keeps access to their own org-assigned project from the
+        # private context (regression: 403 right after an org-visibility
+        # switch while the client still sends the private context).
         from routers.projects.helpers import check_project_accessible
 
         db = MagicMock()
         project = Mock(is_private=False, created_by="user-1", id="proj-1")
+        db.query.return_value.filter.return_value.first.return_value = project
+
+        user = Mock(is_superadmin=False, id="user-1")
+        assert check_project_accessible(db, user, "proj-1", org_context="private") == True  # noqa: E712
+
+    def test_private_context_org_project_non_creator_denied(self):
+        from routers.projects.helpers import check_project_accessible
+
+        db = MagicMock()
+        project = Mock(is_private=False, created_by="user-2", id="proj-1")
         db.query.return_value.filter.return_value.first.return_value = project
 
         user = Mock(is_superadmin=False, id="user-1")

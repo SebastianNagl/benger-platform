@@ -1,7 +1,11 @@
 'use client'
 
+import { useEffect, useState } from 'react'
+
+import { VertretbarMarkIcon } from '@/components/brand/VertretbarMark'
 import { Button } from '@/components/shared/Button'
 import { useI18n } from '@/contexts/I18nContext'
+import { isStudentLockedHost } from '@/lib/utils/subdomain'
 import { logger } from '@/lib/utils/logger'
 
 export default function GlobalError({
@@ -11,7 +15,14 @@ export default function GlobalError({
   error: Error & { digest?: string }
   reset: () => void
 }) {
+  // Inline German defaults on every t(): when the crash originates inside the
+  // provider tree this segment renders WITHOUT I18nProvider, and the bare-key
+  // fallback would otherwise show raw `errors.global.*` keys.
   const { t } = useI18n()
+  const [isVtr, setIsVtr] = useState(false)
+  useEffect(() => {
+    setIsVtr(isStudentLockedHost())
+  }, [])
   // Safely log error to prevent any undefined access
   if (error) {
     try {
@@ -25,6 +36,14 @@ export default function GlobalError({
   return (
     <div className="flex min-h-screen items-center justify-center bg-zinc-50 p-4 dark:bg-zinc-900">
       <div className="w-full max-w-2xl rounded-lg border border-zinc-200 bg-white p-6 shadow-lg dark:border-zinc-700 dark:bg-zinc-800">
+        {isVtr && (
+          <div className="mb-4 flex items-center gap-2" data-testid="error-brand-vertretbar">
+            <VertretbarMarkIcon className="h-6 w-6 text-emerald-500" />
+            <span className="text-lg font-semibold text-zinc-900 dark:text-white">
+              Vertretbar
+            </span>
+          </div>
+        )}
         <div className="mb-4 flex items-center">
           <div className="mr-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/20">
             <svg
@@ -42,20 +61,23 @@ export default function GlobalError({
             </svg>
           </div>
           <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">
-            {t('errors.global.title')}
+            {t('errors.global.title', 'Etwas ist schiefgelaufen')}
           </h2>
         </div>
 
         <p className="mb-4 text-zinc-600 dark:text-zinc-300">
-          {t('errors.global.description')}
+          {t(
+            'errors.global.description',
+            'Beim Laden dieses Inhalts ist ein unerwarteter Fehler aufgetreten.'
+          )}
         </p>
 
         <div className="flex gap-3">
           <Button variant="primary" onClick={reset}>
-            {t('errors.global.tryAgain')}
+            {t('errors.global.tryAgain', 'Erneut versuchen')}
           </Button>
           <Button variant="secondary" onClick={() => window.location.reload()}>
-            {t('errors.global.reloadPage')}
+            {t('errors.global.reloadPage', 'Seite neu laden')}
           </Button>
         </div>
 
@@ -63,7 +85,7 @@ export default function GlobalError({
         {process.env.NODE_ENV === 'development' && (
           <details className="mt-4">
             <summary className="cursor-pointer text-sm text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300">
-              {t('errors.global.technicalDetails')}
+              {t('errors.global.technicalDetails', 'Technische Details')}
             </summary>
             <pre className="mt-2 max-h-96 overflow-auto rounded bg-zinc-100 p-3 text-xs text-zinc-600 dark:bg-zinc-900 dark:text-zinc-400">
               {error?.message || 'Unknown error'}

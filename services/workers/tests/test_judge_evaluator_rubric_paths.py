@@ -12,6 +12,12 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+# `evaluation.judge_evaluator` does `import tasks` at module top while
+# tasks.py imports it back near its bottom — importing tasks FIRST resolves
+# the cycle (same order the worker runtime uses). Without this the file only
+# collects when an earlier test module happens to have imported tasks.
+import tasks  # noqa: F401  isort: skip
+
 from evaluation.cell_evaluator import _NO_RUBRIC_ERROR
 from evaluation.judge_evaluator import _evaluate_llm_judge_single_impl
 
@@ -107,6 +113,62 @@ def test_rubric_multidim_path_binds_rendering_and_stamps_provenance():
     assert details["rubric_id"] == "rub-9"
     assert persisted.judge_prompts_used["task_rubric_id"] == "rub-9"
     assert persisted.judge_prompts_used["task_rubric_generator"] == "gpt-5.4"
+
+
+def test_multidim_path_feeds_exam_parts_into_judge_context():
+    """Case-side exam parts + author grading hints from task.data
+    (bearbeitervermerk / zusatzmaterial / korrekturhinweise) are composed
+    into the judge's {context} block, in the standard German exam order."""
+    db = MagicMock()
+    task_row = SimpleNamespace(
+        id="task-1",
+        data={
+            "musterlösung": "ML",
+            "bearbeitervermerk": "Nur Strafrecht prüfen.",
+            "zusatzmaterial": "§ 242 StGB Auszug",
+            "korrekturhinweise": "Schwerpunkt Zueignungsabsicht",
+        },
+    )
+    db.query.return_value.filter.return_value.first.return_value = task_row
+
+    rubric = SimpleNamespace(
+        id="rub-9",
+        generator_model_id="gpt-5.4",
+        criteria={"s01_x": {"name": "X", "rubric": "r", "max_score": 100}},
+        generation_metadata={"rendered_text": "BEWERTUNGSBOGEN"},
+    )
+
+    judge = _judge_factory_mock()
+    judge.is_multidim_mode.return_value = True
+    judge._evaluate_multidim_single_call.return_value = {
+        "scores": {"s01_x": {"score": 80, "max": 100, "reason": "ok"}},
+        "total_score": 80.0,
+        "total_max": 100.0,
+        "overall_assessment": "solide",
+        "_call_metadata": {},
+        "_raw_output": "",
+        "_judge_prompts_used": {"system": "…"},
+    }
+
+    with patch(
+        "ml_evaluation.llm_judge_evaluator.create_llm_judge_for_user",
+        return_value=judge,
+    ), patch(
+        "evaluation.cell_evaluator._resolve_task_rubric", return_value=rubric
+    ):
+        result = _evaluate_llm_judge_single_impl(**_impl_kwargs(db))
+
+    assert result["status"] == "completed"
+    context = judge._evaluate_multidim_single_call.call_args.kwargs["context"]
+    assert "## Bearbeitervermerk\n\nNur Strafrecht prüfen." in context
+    assert "## Zusatzmaterial\n\n§ 242 StGB Auszug" in context
+    assert "Schwerpunkt Zueignungsabsicht" in context
+    # Standard exam order: Bearbeitervermerk → Zusatzmaterial → Hinweise.
+    assert (
+        context.index("Bearbeitervermerk")
+        < context.index("Zusatzmaterial")
+        < context.index("Schwerpunkt")
+    )
 
 
 def test_unusable_rubric_raises_no_rubric_error():

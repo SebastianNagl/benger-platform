@@ -188,6 +188,30 @@ async def test_access_async_private_non_owner_denied(async_test_db):
 
 
 @pytest.mark.asyncio
+async def test_access_async_org_project_creator_in_private_context(async_test_db):
+    """The creator keeps access to their own org-assigned project when the
+    request still carries the private context — regression for the 403 toast
+    right after switching a project from private to an org (the client's org
+    context only changes on subdomain navigation, not on the switch itself).
+    Non-creators stay denied under the private context."""
+    creator = await _make_user(async_test_db)
+    other = await _make_user(async_test_db)
+    org = await _make_org(async_test_db)
+    project = await _make_project(
+        async_test_db, creator.id, org=org, is_private=False
+    )
+    await _add_membership(async_test_db, other.id, org.id)
+    await async_test_db.commit()
+
+    assert await check_project_accessible_async(
+        async_test_db, creator, project.id, org_context="private"
+    ) is True
+    assert await check_project_accessible_async(
+        async_test_db, other, project.id, org_context="private"
+    ) is False
+
+
+@pytest.mark.asyncio
 async def test_access_async_org_member_active(async_test_db):
     owner = await _make_user(async_test_db)
     member = await _make_user(async_test_db)

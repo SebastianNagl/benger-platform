@@ -4,11 +4,11 @@
  * Tests for useViewModeSwitch — the shared student⇄expert switch gating + action
  * (Issue #35).
  *
- * Under the CLOSED-BETA LOCK the switch is never offered on the benchmark
- * platform: the status is only ever 'unavailable' (or 'loading' before
- * hydration). switchTo still performs the optimistic local flip + navigate +
- * server persist, so it stays correct for when opt-in switching is reopened and
- * for the student-locked-host sidebar surface.
+ * Under the CLOSED-BETA LOCK the switch is offered ONLY to superadmins (the
+ * vertretbar⇄benger switch in the student sidebar + expert account dropdown);
+ * for everyone else the status is 'unavailable' (or 'loading' before
+ * hydration). switchTo performs the optimistic local flip + navigate + server
+ * persist.
  */
 
 import { renderHook, act, waitFor } from '@testing-library/react'
@@ -99,9 +99,19 @@ describe('useViewModeSwitch', () => {
     expect(result.current.status).toBe('loading')
   })
 
-  it('CLOSED-BETA LOCK: unavailable even for a capable superadmin on the benchmark platform', () => {
-    // extended + mounted + superadmin would previously be 'ready'; the beta lock
-    // forces 'unavailable' so the toggle never shows to admins/contributors.
+  it("superadmin exception: 'ready' for a superadmin (vertretbar⇄benger switch)", () => {
+    const { result } = renderHook(() => useViewModeSwitch())
+    expect(result.current.status).toBe('ready')
+  })
+
+  it('CLOSED-BETA LOCK: unavailable for non-superadmins', () => {
+    mockAuth = { ...mockAuth, user: { id: 'u1', is_superadmin: false } }
+    const { result } = renderHook(() => useViewModeSwitch())
+    expect(result.current.status).toBe('unavailable')
+  })
+
+  it('CLOSED-BETA LOCK: unavailable when logged out', () => {
+    mockAuth = { ...mockAuth, user: null }
     const { result } = renderHook(() => useViewModeSwitch())
     expect(result.current.status).toBe('unavailable')
   })

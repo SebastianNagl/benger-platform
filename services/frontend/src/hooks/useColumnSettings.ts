@@ -5,12 +5,26 @@
  */
 
 import { logger } from '@/lib/utils/logger'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 interface ColumnSetting {
   id: string
   visible: boolean
   order?: number
+}
+
+function readSavedSettings(storageKey: string): Map<string, ColumnSetting> {
+  if (typeof window === 'undefined') return new Map()
+  try {
+    const saved = localStorage.getItem(storageKey)
+    if (saved) {
+      const savedSettings: ColumnSetting[] = JSON.parse(saved)
+      return new Map(savedSettings.map((s) => [s.id, s]))
+    }
+  } catch (error) {
+    console.error('Failed to load column settings:', error)
+  }
+  return new Map()
 }
 
 export function useColumnSettings(
@@ -20,6 +34,16 @@ export function useColumnSettings(
 ) {
   // Create a unique storage key for this user/project combination
   const storageKey = `column-settings-${userId}-${projectId}`
+
+  // Saved settings snapshot from mount time. Dynamic columns (data_*/meta_*)
+  // are injected AFTER mount via updateColumns and don't exist in
+  // defaultColumns, so their saved visibility/order can only be restored from
+  // this snapshot when they arrive — without it, a hidden data column
+  // silently reverted to visible on every reload.
+  const savedSettingsRef = useRef<Map<string, ColumnSetting> | null>(null)
+  if (savedSettingsRef.current === null) {
+    savedSettingsRef.current = userId ? readSavedSettings(storageKey) : new Map()
+  }
 
   // Initialize columns from localStorage or use defaults
   const [columns, setColumns] = useState(() => {
@@ -108,6 +132,9 @@ export function useColumnSettings(
       order: index,
     }))
     setColumns(resetCols)
+    // Drop the mount-time snapshot too, so dynamic columns re-injected after
+    // the reset come back with their defaults instead of the stale settings.
+    savedSettingsRef.current = new Map()
     if (typeof window !== 'undefined' && userId) {
       localStorage.removeItem(storageKey)
     }
@@ -130,12 +157,23 @@ export function useColumnSettings(
             visible: existing.visible,
             order: existing.order ?? index,
           }
-        } else {
-          // New column, add at the end
+        }
+        // A column arriving for the first time this session (dynamic
+        // data_*/meta_* columns): restore its persisted visibility/order —
+        // the mount-time load couldn't, because dynamic ids aren't in
+        // defaultColumns yet.
+        const saved = savedSettingsRef.current?.get(col.id)
+        if (saved) {
           return {
             ...col,
-            order: prevColumns.length + index,
+            visible: saved.visible,
+            order: saved.order ?? prevColumns.length + index,
           }
+        }
+        // Genuinely new column, add at the end
+        return {
+          ...col,
+          order: prevColumns.length + index,
         }
       })
 

@@ -44,26 +44,31 @@ describe('GlobalError', () => {
     ;(console.error as jest.Mock).mockClear()
   })
 
+  // The component passes inline German defaults to t() so the card stays
+  // readable even when it renders without I18nProvider (provider-tree crash);
+  // the mock above mirrors the real fallback behavior and returns them.
   it('renders error title', () => {
     render(<GlobalError error={mockError} reset={mockReset} />)
-    expect(screen.getByText('errors.global.title')).toBeInTheDocument()
+    expect(screen.getByText('Etwas ist schiefgelaufen')).toBeInTheDocument()
   })
 
   it('renders error description', () => {
     render(<GlobalError error={mockError} reset={mockReset} />)
-    expect(screen.getByText('errors.global.description')).toBeInTheDocument()
+    expect(
+      screen.getByText('Beim Laden dieses Inhalts ist ein unerwarteter Fehler aufgetreten.')
+    ).toBeInTheDocument()
   })
 
   it('renders try again button that calls reset', () => {
     render(<GlobalError error={mockError} reset={mockReset} />)
-    const btn = screen.getByText('errors.global.tryAgain')
+    const btn = screen.getByText('Erneut versuchen')
     fireEvent.click(btn)
     expect(mockReset).toHaveBeenCalledTimes(1)
   })
 
   it('renders reload page button', () => {
     render(<GlobalError error={mockError} reset={mockReset} />)
-    const btn = screen.getByText('errors.global.reloadPage')
+    const btn = screen.getByText('Seite neu laden')
     expect(btn).toBeInTheDocument()
   })
 
@@ -71,7 +76,7 @@ describe('GlobalError', () => {
     render(<GlobalError error={mockError} reset={mockReset} />)
     // In test env (NODE_ENV=test), development block won't render
     // But we still test the component renders without error
-    expect(screen.getByText('errors.global.title')).toBeInTheDocument()
+    expect(screen.getByText('Etwas ist schiefgelaufen')).toBeInTheDocument()
   })
 
   it('logs error to console', () => {

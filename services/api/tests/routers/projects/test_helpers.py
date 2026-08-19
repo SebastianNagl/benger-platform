@@ -224,6 +224,32 @@ def test_calculate_project_stats_zero_tasks():
     assert response.progress_percentage == 0.0
 
 
+def test_calculate_project_stats_zero_tasks_ignores_stale_summary():
+    """A stale precomputed summary must not claim evaluations for a project
+    with no tasks — task deletion cascades the evaluation rows away, but the
+    summary only refreshes hourly / on mutation endpoints."""
+    db = Mock()
+    summary = Mock()
+    summary.evaluation_pairs_count = 7
+    db.execute.return_value.scalar_one_or_none.return_value = summary
+
+    count_query = Mock()
+    count_query.filter.return_value.count.return_value = 0
+    db.query.side_effect = [
+        count_query,  # task_count
+        count_query,  # annotation_count
+        count_query,  # completed_tasks_count
+    ]
+
+    response = Mock()
+    calculate_project_stats(
+        db, 'stale-project', response, project=_annotation_only_project_mock()
+    )
+
+    assert response.task_count == 0
+    assert response.evaluation_count == 0
+
+
 def test_get_user_with_memberships():
     """Test fetching user with memberships."""
     db = Mock()

@@ -108,12 +108,26 @@ async def get_available_fields(
         # would keep showing up as a selectable option). The label_config is
         # the single source of truth for which annotation fields exist now —
         # we only need it for human_annotation_fields.
-        sample_task = (
-            (await db.execute(select(Task).where(Task.project_id == project_id)))
+        #
+        # Sample up to 20 tasks in a deterministic order (mirrors the
+        # /task-fields endpoint) — a single unordered `.first()` used to miss
+        # keys that only appear on later tasks, so this endpoint and
+        # /task-fields could disagree about which fields exist.
+        sample_tasks = (
+            (
+                await db.execute(
+                    select(Task)
+                    .where(Task.project_id == project_id)
+                    .order_by(Task.inner_id)
+                    .limit(20)
+                )
+            )
             .scalars()
-            .first()
+            .all()
         )
-        if sample_task and sample_task.data and isinstance(sample_task.data, dict):
+        for sample_task in sample_tasks:
+            if not sample_task.data or not isinstance(sample_task.data, dict):
+                continue
             for field_name, field_value in sample_task.data.items():
                 if not field_name.startswith("_") and isinstance(field_value, (str, list)):
                     reference_fields.add(field_name)

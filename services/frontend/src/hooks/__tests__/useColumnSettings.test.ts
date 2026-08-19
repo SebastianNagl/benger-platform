@@ -123,6 +123,64 @@ describe('useColumnSettings Hook', () => {
     // SSR case lives in useColumnSettings.ssr.test.ts (node env).
   })
 
+  describe('1b. Dynamic column persistence (data_*/meta_* injected after mount)', () => {
+    const storageKey = `column-settings-${mockUserId}-${mockProjectId}`
+
+    it('restores saved visibility/order for columns arriving via updateColumns', () => {
+      // A dynamic data_ column the user hid in a previous session. It is NOT
+      // part of defaultColumns, so the mount-time load can't restore it — the
+      // updateColumns path must.
+      localStorageMock.setItem(
+        storageKey,
+        JSON.stringify([
+          { id: 'name', visible: true, order: 0 },
+          { id: 'data_sachverhalt', visible: false, order: 1 },
+        ])
+      )
+      const { result } = renderHook(() =>
+        useColumnSettings(mockProjectId, mockUserId, mockDefaultColumns)
+      )
+
+      act(() => {
+        result.current.updateColumns([
+          ...mockDefaultColumns,
+          { id: 'data_sachverhalt', label: 'Sachverhalt', visible: true, type: 'data' },
+          { id: 'data_korrekturhinweise', label: 'Korrekturhinweise', visible: true, type: 'data' },
+        ])
+      })
+
+      const byId = new Map(result.current.columns.map((c: any) => [c.id, c]))
+      // Hidden preference survives the reload.
+      expect(byId.get('data_sachverhalt')).toMatchObject({ visible: false })
+      // A never-seen dynamic column keeps its default visibility.
+      expect(byId.get('data_korrekturhinweise')).toMatchObject({ visible: true })
+    })
+
+    it('resetColumns also forgets saved dynamic-column settings', () => {
+      localStorageMock.setItem(
+        storageKey,
+        JSON.stringify([{ id: 'data_sachverhalt', visible: false, order: 9 }])
+      )
+      const { result } = renderHook(() =>
+        useColumnSettings(mockProjectId, mockUserId, mockDefaultColumns)
+      )
+
+      act(() => {
+        result.current.resetColumns()
+      })
+      act(() => {
+        result.current.updateColumns([
+          ...mockDefaultColumns,
+          { id: 'data_sachverhalt', label: 'Sachverhalt', visible: true, type: 'data' },
+        ])
+      })
+
+      const col = result.current.columns.find((c: any) => c.id === 'data_sachverhalt')
+      // After a reset the stale hidden preference must NOT come back.
+      expect(col).toMatchObject({ visible: true })
+    })
+  })
+
   describe('2. Data Fetching/State Management', () => {
     it('should load saved settings from localStorage on mount', () => {
       const savedSettings = [

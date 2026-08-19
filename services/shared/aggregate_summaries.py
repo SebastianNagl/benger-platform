@@ -159,6 +159,20 @@ def recompute_project_summaries(db: Session) -> int:
     return upserts
 
 
+def refresh_project_summary(db: Session, project_id: str) -> None:
+    """Refresh the `project_summaries` rows of ONE project immediately.
+
+    For endpoints that mutate a project's tasks/evaluations (e.g. bulk task
+    deletion): without this, stats read from the summary (evaluation_count)
+    stay stale until the hourly `recompute_aggregates` beat runs.
+    """
+    now = datetime.now(timezone.utc)
+    for period in PERIODS:
+        row = _compute_project_summary(db, project_id, period, _period_cutoff(period), now)
+        _upsert_project_summary(db, row)
+    db.commit()
+
+
 def _compute_project_summary(
     db: Session,
     project_id: str,

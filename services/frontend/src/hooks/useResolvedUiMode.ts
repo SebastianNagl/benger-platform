@@ -1,7 +1,9 @@
 'use client'
 
+import { useAuth } from '@/contexts/AuthContext'
 import { hasSlot, useSlot } from '@/lib/extensions/slots'
 import { isStudentLockedHost } from '@/lib/utils/subdomain'
+import { useUIStore } from '@/stores'
 
 export type UiMode = 'student' | 'expert'
 
@@ -18,22 +20,27 @@ export function isExtendedEdition(): boolean {
  * renders).
  *
  * The student shell is a CLOSED BETA — it renders ONLY on student-locked hosts
- * (vertretbar.net, behind the beta password). Precedence:
+ * (vertretbar.net, behind the beta password), with a SUPERADMIN exception.
+ * Precedence:
  *
  *   1. Community edition (NEXT_PUBLIC_BENGER_EDITION !== 'extended') → 'expert'.
  *      There is no student experience to render.
  *   2. Extended edition but the StudentShell slot is not registered yet (the
  *      extended package hasn't loaded, or this build doesn't ship it) →
  *      'expert'. Never show a broken/empty student shell.
- *   3. Student-locked host (vertretbar.net & co) → 'student'.
- *   4. EVERY other host — the benger benchmark platform (what-a-benger.net) —
- *      → ALWAYS 'expert'. No user, org admin, contributor, local toggle, or
+ *   3. Superadmin → their switch choice wins over the host lock: the local
+ *      (session) toggle first, then the server-saved preference, then the
+ *      host default. This powers the vertretbar⇄benger switch offered in the
+ *      student sidebar and the expert account dropdown (useViewModeSwitch
+ *      gates the switch surfaces to superadmins).
+ *   4. Everyone else: student-locked host (vertretbar.net & co) → 'student';
+ *      EVERY other host — the benger benchmark platform (what-a-benger.net) —
+ *      → ALWAYS 'expert'. No org admin, contributor, local toggle, or
  *      server-saved preference can surface the student shell there. This is a
  *      deliberate hard lock for the closed beta.
  *
- * To later re-open opt-in student mode on non-locked hosts, restore the old
- * precedence `localMode ?? user?.preferred_ui_mode ?? 'expert'` here (and the
- * useAuth()/useUIStore() reads it needs).
+ * To later re-open opt-in switching for non-superadmins, widen the gate in
+ * useViewModeSwitch and the `is_superadmin` check below in lockstep.
  *
  * The hook subscribes to slot registrations via useSlot so a late-loading
  * extended package flips locked-host users from the expert fallback into the
@@ -43,12 +50,21 @@ export function useResolvedUiMode(): UiMode {
   // Subscribe to StudentShell registration so this re-resolves when the
   // extended package finishes loading (async loadExtended()).
   const studentShell = useSlot('StudentShell')
+  const { user } = useAuth()
+  const localMode = useUIStore((s) => s.uiMode)
 
   if (!isExtendedEdition()) return 'expert'
   if (!studentShell && !hasSlot('StudentShell')) return 'expert'
 
-  // Closed beta: the student shell exists ONLY on student-locked hosts. Every
-  // other host always gets the expert shell — full stop.
-  if (isStudentLockedHost()) return 'student'
-  return 'expert'
+  const hostDefault: UiMode = isStudentLockedHost() ? 'student' : 'expert'
+
+  // Superadmin exception to the closed-beta lock: their explicit switch
+  // choice (or persisted preference) picks the shell on any host.
+  if (user?.is_superadmin) {
+    return localMode ?? user.preferred_ui_mode ?? hostDefault
+  }
+
+  // Closed beta: for everyone else the student shell exists ONLY on
+  // student-locked hosts. Every other host gets the expert shell — full stop.
+  return hostDefault
 }

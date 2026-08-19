@@ -23,38 +23,34 @@ export type UiMode = 'student' | 'expert'
  * ``status``:
  *  - ``'unavailable'`` — community edition, OR the closed-beta lock: the student
  *    shell renders only on student-locked hosts (vertretbar.net), so the switch
- *    is never offered on the benchmark platform. Render nothing.
+ *    is never offered to regular users on the benchmark platform. Render nothing.
  *  - ``'loading'`` — extended edition but auth/hydration not settled yet
  *    (role-flicker guard; render a neutral skeleton where one fits).
- *  - ``'ready'`` — offer the switch. (Unreachable while the beta lock is in
- *    place; retained for when opt-in switching is reopened — see below.)
+ *  - ``'ready'`` — offer the switch. Superadmins only while the closed beta is
+ *    in place: they get the vertretbar⇄benger switch on both shells (the
+ *    student sidebar control and the expert account-dropdown item), backed by
+ *    the superadmin branch in useResolvedUiMode.
  */
 export function useViewModeSwitch() {
   const router = useRouter()
-  const { isLoading, updateUser } = useAuth()
+  const { isLoading, updateUser, user } = useAuth()
   const apiClient = useOptionalApiClient() ?? apiSingleton
   const setUiMode = useUIStore((s) => s.setUiMode)
   const resolved = useResolvedUiMode()
   const mounted = useHydration()
   const [pending, setPending] = useState(false)
 
-  // Declared as the full union (incl. 'ready') via an annotated IIFE so TS does
-  // NOT narrow 'ready' away while the beta lock always resolves to
-  // 'unavailable' — that keeps the retained switch code below (and the account
-  // menu item in AuthButton, which reads this `status`) type-valid instead of
-  // erroring as an impossible comparison.
   const status = ((): 'unavailable' | 'loading' | 'ready' => {
     if (!isExtendedEdition()) return 'unavailable'
     if (!mounted || isLoading) return 'loading'
-    // Closed beta: the student shell renders ONLY on student-locked hosts
-    // (vertretbar.net), and even there the expert⇄student toggle is not offered
-    // (student-only surface). So the switch is never available while the lock is
-    // in place — this matches useResolvedUiMode's hard lock and keeps the toggle
-    // out of every org admin's / contributor's menu on the benchmark platform.
-    // To reopen opt-in switching there, restore the isStudentLockedHost() guard +
-    // `canUseExpertView(user, organizations, parseSubdomain())` gate here and
-    // return 'ready'.
-    return 'unavailable'
+    // Closed beta with a superadmin exception: superadmins may switch between
+    // the vertretbar (student) and benger (expert) shells anywhere. For
+    // everyone else the switch stays locked away — this matches
+    // useResolvedUiMode's host lock and keeps the toggle out of every org
+    // admin's / contributor's menu on the benchmark platform. To reopen
+    // opt-in switching more broadly, widen this gate and the superadmin
+    // branch in useResolvedUiMode in lockstep.
+    return user?.is_superadmin ? 'ready' : 'unavailable'
   })()
 
   // Warm both interface homes so the switch transition is fast — otherwise the

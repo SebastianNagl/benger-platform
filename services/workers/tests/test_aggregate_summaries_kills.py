@@ -100,6 +100,37 @@ class TestPeriodCutoff:
 
 
 # ===========================================================================
+# refresh_project_summary — single-project immediate refresh (used by task
+# mutation endpoints so stats don't stay stale until the hourly beat)
+# ===========================================================================
+class TestRefreshProjectSummary:
+    def test_refreshes_every_period_and_commits(self, monkeypatch):
+        from unittest.mock import MagicMock, call
+
+        compute = MagicMock(side_effect=lambda db, pid, period, cutoff, now: {
+            "project_id": pid,
+            "period": period,
+        })
+        upsert = MagicMock()
+        monkeypatch.setattr(agg, "_compute_project_summary", compute)
+        monkeypatch.setattr(agg, "_upsert_project_summary", upsert)
+
+        db = MagicMock()
+        agg.refresh_project_summary(db, "proj-1")
+
+        # One (compute, upsert) pair per period, all for the SAME project —
+        # a mutation that loops projects (like recompute_project_summaries)
+        # or skips a period must fail here.
+        assert compute.call_count == len(agg.PERIODS)
+        assert {c.args[1] for c in compute.call_args_list} == {"proj-1"}
+        assert {c.args[2] for c in compute.call_args_list} == set(agg.PERIODS)
+        assert upsert.call_args_list == [
+            call(db, {"project_id": "proj-1", "period": p}) for p in agg.PERIODS
+        ]
+        db.commit.assert_called_once()
+
+
+# ===========================================================================
 # _coerce_metric_value — JSON metric value -> float | None
 # Wrong coercion silently drops a score from (or injects garbage into) a
 # bucket, biasing the model's mean.
