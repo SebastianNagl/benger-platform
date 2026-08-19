@@ -394,3 +394,7 @@ publications/Dataset_ARR/benger_arxiv_source*
 publications/Dataset_ARR/data/interim/zjs.json
 publications/Dataset_ARR/data/interim/zjs_strict.json
 publications/Dataset_ARR/data/interim/zjs_optimistic.json
+
+# WIP publications - not yet ready for the public repo
+publications/LEXam_DE/
+publications/Watermark_Study/

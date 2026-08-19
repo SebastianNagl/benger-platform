@@ -130,6 +130,30 @@ def _evaluate_llm_judge_single_impl(
         from annotation_utils import extract_all_field_values
         task_row = db.query(ProjectTask).filter(ProjectTask.id == task_id).first()
         task_data = (task_row.data if task_row else {}) or {}
+        # Case-side exam parts + author-provided grading hints, fed via the
+        # prompt's {context} slot — empty for tasks without the keys. The
+        # parts live under separate task-data keys (never composed into the
+        # sachverhalt string, whose highlight spans anchor to char offsets).
+        _context_blocks = []
+        bearbeitervermerk = str(
+            tasks._get_insensitive(task_data, "bearbeitervermerk") or ""
+        ).strip()
+        if bearbeitervermerk:
+            _context_blocks.append(f"## Bearbeitervermerk\n\n{bearbeitervermerk}")
+        zusatzmaterial = str(
+            tasks._get_insensitive(task_data, "zusatzmaterial") or ""
+        ).strip()
+        if zusatzmaterial:
+            _context_blocks.append(f"## Zusatzmaterial\n\n{zusatzmaterial}")
+        korrekturhinweise = str(
+            tasks._get_insensitive(task_data, "korrekturhinweise") or ""
+        ).strip()
+        if korrekturhinweise:
+            _context_blocks.append(
+                "Zusätzliche Hinweise für die Korrektur (vom Aufgabensteller):\n"
+                f"{korrekturhinweise}"
+            )
+        judge_context = "\n\n".join(_context_blocks)
         if task_rubric is not None:
             # Bind the rendered rubric so the grading template's
             # {bewertungsbogen} placeholder resolves (mirror of the bulk path).
@@ -159,7 +183,7 @@ def _evaluate_llm_judge_single_impl(
                 field_outputs = extract_all_field_values(parsed)
 
         multidim = llm_judge._evaluate_multidim_single_call(
-            context="",
+            context=judge_context,
             ground_truth=reference,
             prediction=prediction,
             task_data=task_data,

@@ -64,9 +64,14 @@ class LabelConfigParser:
         bound: set = set()
         try:
             for field in cls.extract_fields(label_config or "", sanitize=False):
-                value = (field.get("attributes") or {}).get("value")
-                if isinstance(value, str) and value.startswith("$"):
-                    bound.add(value[1:])
+                # ANY $-prefixed attribute is a data binding, not just
+                # ``value`` — the frontend resolver
+                # (lib/labelConfig/dataBinding.resolvePropsDataBindings)
+                # resolves every prop, e.g. the exam Angabe's
+                # ``bearbeitervermerk="$bearbeitervermerk"`` side sections.
+                for value in (field.get("attributes") or {}).values():
+                    if isinstance(value, str) and value.startswith("$"):
+                        bound.add(value[1:])
         except Exception:  # pragma: no cover - defensive: never leak on parse error
             return set()
         return bound

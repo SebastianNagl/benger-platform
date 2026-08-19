@@ -530,6 +530,40 @@ class TestAvailableFieldsComplement:
         assert "musterloesung" in body["reference_fields"]
 
     @pytest.mark.asyncio
+    async def test_reference_fields_union_over_multiple_tasks(
+        self, async_test_client, async_test_db
+    ):
+        """Keys that only exist on LATER tasks must still surface. The old
+        implementation sampled a single unordered task, so this endpoint and
+        /task-fields (which samples 20) could disagree about which fields
+        exist; now up to 20 tasks are unioned in inner_id order."""
+        owner = await _make_owner(async_test_db)
+        org = await _make_org(async_test_db)
+        p, tasks = await _setup_project_async(async_test_db, owner, org, num_tasks=3)
+        # Only the LAST task carries the extra keys (and one non-string value
+        # that must stay excluded).
+        tasks[-1].data = {
+            **tasks[-1].data,
+            "korrekturhinweise": "Streng bewerten.",
+            "zusatzmaterial": "§433 BGB",
+            "_internal": "hidden",
+            "numeric_meta": 42,
+        }
+        await async_test_db.commit()
+
+        with _as_user(owner):
+            resp = await async_test_client.get(
+                f"{BASE}/projects/{p.id}/available-fields",
+            )
+        assert resp.status_code == 200, resp.text
+        ref = resp.json()["reference_fields"]
+        assert "korrekturhinweise" in ref
+        assert "zusatzmaterial" in ref
+        assert "musterloesung" in ref  # keys from earlier tasks still present
+        assert "_internal" not in ref
+        assert "numeric_meta" not in ref
+
+    @pytest.mark.asyncio
     async def test_evaluation_config_detected_answer_types_reference_fields(
         self, async_test_client, async_test_db
     ):

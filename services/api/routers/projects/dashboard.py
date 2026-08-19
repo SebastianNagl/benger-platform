@@ -19,7 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth_module import require_user
 from database import get_async_db
-from models import TaskEvaluation
+from models import EvaluationRun, TaskEvaluation
 from project_models import Annotation, FlashcardReview, Project, Task
 from routers.projects.helpers import attempt_score_from_metrics
 
@@ -41,6 +41,13 @@ async def score_history(
     :func:`routers.projects.helpers.attempt_score_from_metrics` (no metric
     writer produces a top-level ``value``), with the project title and
     timestamp. Ascending by time so the chart plots a progress curve.
+
+    Scoped to the runs a student actually sees: the immediate KI grading
+    (``model_id='immediate'``) and human Korrektur (``model_id='human'``).
+    Batch/research runs — which grade BOTH tier variants of every exam —
+    would otherwise double-count into the curve. Each point carries
+    ``source`` (``'ki'`` | ``'human'``) so the chart can plot the two lanes
+    as separate labeled series.
     """
     uid = str(current_user.id)
     stmt = (
@@ -49,15 +56,18 @@ async def score_history(
             Project.title.label("title"),
             TaskEvaluation.metrics.label("metrics"),
             Annotation.created_at.label("attempted_at"),
+            EvaluationRun.model_id.label("run_model_id"),
         )
         .select_from(TaskEvaluation)
         .join(Annotation, Annotation.id == TaskEvaluation.annotation_id)
         .join(Task, Task.id == TaskEvaluation.task_id)
         .join(Project, Project.id == Task.project_id)
+        .join(EvaluationRun, EvaluationRun.id == TaskEvaluation.evaluation_id)
         .where(
             Annotation.completed_by == uid,
             Project.origin == "student",
             Project.kind == "exam",
+            EvaluationRun.model_id.in_(("immediate", "human")),
         )
         .order_by(Annotation.created_at.asc(), TaskEvaluation.created_at.asc())
     )
@@ -73,6 +83,7 @@ async def score_history(
                 "title": r.title,
                 "score": score,
                 "attempted_at": r.attempted_at.isoformat() if r.attempted_at else None,
+                "source": "human" if r.run_model_id == "human" else "ki",
             }
         )
         if len(out) >= limit:

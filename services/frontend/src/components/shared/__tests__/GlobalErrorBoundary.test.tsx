@@ -21,6 +21,14 @@ jest.mock('@/contexts/I18nContext', () => ({
   }),
 }))
 
+// Host-branding gate: default benger (false); individual tests flip it to
+// vertretbar via the mock.
+jest.mock('@/lib/utils/subdomain', () => ({
+  isStudentLockedHost: jest.fn(() => false),
+}))
+const mockIsStudentLockedHost = (require('@/lib/utils/subdomain') as any)
+  .isStudentLockedHost as jest.Mock
+
 // Test component that throws errors
 const ThrowError: React.FC<{ error: Error }> = ({ error }) => {
   throw error
@@ -522,6 +530,32 @@ describe('GlobalErrorBoundary', () => {
       expect(
         screen.getByText('An unexpected error occurred')
       ).toBeInTheDocument()
+    })
+  })
+
+  describe('Host branding (vertretbar)', () => {
+    afterEach(() => {
+      mockIsStudentLockedHost.mockReturnValue(false)
+    })
+
+    it('shows the Vertretbar brand row on student-locked hosts', () => {
+      mockIsStudentLockedHost.mockReturnValue(true)
+      render(
+        <GlobalErrorBoundary>
+          <ThrowError error={new Error('Brand test')} />
+        </GlobalErrorBoundary>
+      )
+      const brand = screen.getByTestId('error-brand-vertretbar')
+      expect(brand).toHaveTextContent('Vertretbar')
+    })
+
+    it('shows no brand row on benger hosts', () => {
+      render(
+        <GlobalErrorBoundary>
+          <ThrowError error={new Error('Brand test')} />
+        </GlobalErrorBoundary>
+      )
+      expect(screen.queryByTestId('error-brand-vertretbar')).not.toBeInTheDocument()
     })
   })
 

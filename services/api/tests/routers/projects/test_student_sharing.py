@@ -801,3 +801,97 @@ async def test_score_history_reads_nested_canonical_metrics(
         assert points[0]["score"] == pytest.approx(0.83)
         assert points[1]["score"] == pytest.approx(0.66)
         assert points[0]["project_id"] == exam.id
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_score_history_labels_sources_and_excludes_batch_runs(
+    async_test_client, async_test_db
+):
+    """Issue #322: points carry a ``source`` lane label ('ki' for the
+    immediate grading, 'human' for Korrektur runs), and batch/research runs
+    (any other model_id — they grade BOTH tier variants of every exam) are
+    excluded so the curve doesn't double-count."""
+    from models import EvaluationJudgeRun, EvaluationRun, TaskEvaluation
+    from project_models import Annotation, Task
+
+    owner = await _make_user(async_test_db)
+    student = await _make_user(async_test_db)
+    exam = await _make_exam(async_test_db, owner)
+    task = Task(
+        id=str(uuid.uuid4()),
+        project_id=exam.id,
+        data={"sachverhalt": "S", "musterloesung": "M"},
+        inner_id=1,
+    )
+    async_test_db.add(task)
+    await async_test_db.flush()
+    annotation = Annotation(
+        id=str(uuid.uuid4()),
+        task_id=task.id,
+        project_id=exam.id,
+        completed_by=student.id,
+        result=[{"from_name": "loesung", "value": {"text": ["..."]}}],
+    )
+    async_test_db.add(annotation)
+    await async_test_db.flush()
+
+    async def _run_with_row(model_id, metric_key, value, *, judge_model, created_by):
+        run = EvaluationRun(
+            id=str(uuid.uuid4()),
+            project_id=exam.id,
+            model_id=model_id,
+            evaluation_type_ids=[],
+            metrics={},
+            created_by=owner.id,
+        )
+        async_test_db.add(run)
+        await async_test_db.flush()
+        jr = EvaluationJudgeRun(
+            id=str(uuid.uuid4()), evaluation_id=run.id, judge_model_id=judge_model
+        )
+        async_test_db.add(jr)
+        await async_test_db.flush()
+        async_test_db.add(
+            TaskEvaluation(
+                id=str(uuid.uuid4()),
+                evaluation_id=run.id,
+                judge_run_id=jr.id,
+                task_id=task.id,
+                annotation_id=annotation.id,
+                field_name="loesung",
+                answer_type="long_text",
+                ground_truth="M",
+                prediction="...",
+                metrics={
+                    metric_key: {"value": value, "method": metric_key, "error": None}
+                },
+                passed=True,
+                created_by=created_by,
+            )
+        )
+
+    await _run_with_row(
+        "immediate", "llm_judge_falloesung", 0.8, judge_model="gpt-5.4-mini",
+        created_by=None,
+    )
+    # Human Korrektur run: model_id='human', judge_model_id NULL (prod shape).
+    await _run_with_row(
+        "human", "korrektur_falloesung", 0.6, judge_model=None, created_by=owner.id
+    )
+    # A batch/research run on the same annotation must NOT surface.
+    await _run_with_row(
+        "gpt-5.4-mini", "llm_judge_falloesung", 0.99, judge_model="gpt-5.4-mini",
+        created_by=owner.id,
+    )
+    await async_test_db.commit()
+
+    with _as_user(student):
+        r = await async_test_client.get("/api/student/score-history")
+        assert r.status_code == 200, r.text
+        points = r.json()
+    assert len(points) == 2
+    by_source = {p["source"]: p for p in points}
+    assert by_source["ki"]["score"] == pytest.approx(0.8)
+    assert by_source["human"]["score"] == pytest.approx(0.6)
+    assert not any(p["score"] == pytest.approx(0.99) for p in points)

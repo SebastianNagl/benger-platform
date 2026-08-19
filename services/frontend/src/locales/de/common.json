@@ -2013,7 +2013,9 @@
     "aggregation": {
       "average": "Durchschnitt",
       "sum": "Summe"
-    }
+    },
+    "coCreationNoData": "Keine KI-unterstützten Annotationen für diesen Zeitraum gefunden.",
+    "coCreationNoSearchResults": "Keine Co-Creators gefunden, die Ihrer Suche entsprechen."
   },
   "fields": {
     "pdf": {
@@ -3915,7 +3917,10 @@
     "task": "Aufgabe",
     "model": "Modell",
     "models": "Modelle",
-    "export": "Exportieren"
+    "export": "Exportieren",
+    "clear": "Auswahl aufheben",
+    "menu": "Menü",
+    "refresh": "Aktualisieren"
   },
   "validation": {
     "required": "Dieses Feld ist erforderlich",
@@ -6412,7 +6417,14 @@
       "resetToRecommended": "Zurücksetzen auf Empfohlen",
       "noRecommendation": "Keine Empfehlung",
       "noRecommendationForKey": "Keine Empfehlung für diesen Parameter",
-      "divergentRecommendations": "Verschiedene Empfehlungen pro Modell"
+      "divergentRecommendations": "Verschiedene Empfehlungen pro Modell",
+      "additionalJudges": "Zusätzliche Judges (Ensemble)",
+      "additionalJudgesHelp": "Mehrere Judges erzeugen Inter-Judge-Agreement (Cohen/Fleiss kappa, Pearson).",
+      "ensembleAndRuns": "Ensemble & Läufe",
+      "judgeUnavailable": "nicht mehr verfügbar",
+      "removeJudge": "Entfernen",
+      "runsPerJudge": "Läufe pro Judge",
+      "runsPerJudgeHelp": "Wie oft jeder Judge die gleiche Probe bewertet (Varianzanalyse). Cap 25."
     },
     "list": {
       "predictions": "Vorhersagen:",
@@ -7668,7 +7680,8 @@
       "bewertungsanleitung": {
         "label": "Bewertungsanleitung anzeigen",
         "subtitle": "Identisch zur LLM-Korrektor-Anleitung"
-      }
+      },
+      "projectGuidance": "Hinweise des Projekts"
     },
     "stats": {
       "totalTasks": "Aufgaben gesamt",
@@ -7787,7 +7800,9 @@
       "review": "Review",
       "reference": "Referenz",
       "falloesungGrade": "Bewertung (Standard Falllösung)",
-      "falloesungLlmReference": "LLM-Vorbewertung (Vergleich, nicht übernommen)"
+      "falloesungLlmReference": "LLM-Vorbewertung (Vergleich, nicht übernommen)",
+      "customGrade": "Bewertung (Custom Rubrik)",
+      "customLlmReference": "LLM-Vorbewertung (Vergleich, nicht übernommen)"
     },
     "comments": {
       "title": "Kommentare",
@@ -7817,8 +7832,16 @@
       "prediction": "Vorhersage"
     },
     "myKorrektur": {
-      "title": "Meine Korrektur"
-    }
+      "title": "Meine Korrektur",
+      "noSubmission": "Keine Abgabe für diese Aufgabe gefunden.",
+      "referenceTitle": "Referenz / Musterlösung"
+    },
+    "assigneeFilterAny": "Zugewiesen: alle",
+    "assigneeFilterUnassigned": "Nicht zugewiesen",
+    "customSaveError": "Speichern fehlgeschlagen",
+    "customSaveSuccess": "Bewertung gespeichert",
+    "priorityFilterAny": "Priorität: alle",
+    "searchPlaceholder": "#…"
   },
   "korrektur": {
     "falloesung": {
@@ -7866,7 +7889,37 @@
       "blindToLlmJudge": "LLM-Vorbewertungen verbergen",
       "blindToNonJudgeMetrics": "Klassische automatische Metriken (BLEU, ROUGE, BERTScore …) verbergen",
       "blindToPeerCorrectors": "Bewertungen anderer Korrektoren verbergen",
-      "keepBlindAfterSubmit": "Auch nach eigener Bewertung verborgen halten"
+      "keepBlindAfterSubmit": "Auch nach eigener Bewertung verborgen halten",
+      "customRubricSection": "Rubrik",
+      "customRubricStandaloneHint": "Standalone-Modus: Die Rubrik wird aus den custom_criteria dieser Metrik gelesen. Vorerst per API/JSON definieren.",
+      "instructionMarkdownPlaceholder": "Hinweise an die Korrektoren (Markdown unterstützt)…",
+      "instructionSection": "Projektspezifische Bewertungsanleitung",
+      "instructionSectionHelp": "Optionaler Markdown-Text, der Korrektoren über der Standard-Bewertungsanleitung angezeigt wird.",
+      "mirrorLlmRubric": "Dieselbe Rubrik wie der Custom LLM Judge verwenden",
+      "mirrorLlmRubricEmpty": "Für dieses Projekt ist noch kein llm_judge_custom konfiguriert — zuerst einen mit Dimensionen anlegen.",
+      "strictTimerEnabled": "Strenger Modus (Timer startet automatisch)",
+      "timeLimitEnabled": "Zeitlimit aktivieren",
+      "timeLimitSeconds": "Zeitlimit in Sekunden",
+      "timerSection": "Zeitlimit pro Element",
+      "timerSectionHelp": "Optionales Zeitlimit pro Bewertungs-Element. Bei Ablauf endet die Session, ohne automatisch zu speichern."
+    },
+    "custom": {
+      "assessmentPlaceholder": "Kurze Gesamtwürdigung",
+      "justificationPlaceholder": "Begründung",
+      "loadingRubric": "Lade Rubrik …",
+      "noDimensions": "Keine Dimensionen konfiguriert. Definiere die Rubrik in der Evaluation-Konfiguration.",
+      "noDimensionsConfigured": "Keine Rubrik konfiguriert. Definiere custom_criteria in der Evaluation-Konfiguration (LLM Judge oder Korrektur).",
+      "noScores": "Keine Dimensionen erfasst.",
+      "overallAssessment": "Gesamtwürdigung",
+      "submit": "Bewertung speichern",
+      "submitError": "Speichern fehlgeschlagen",
+      "submitting": "Speichert…",
+      "totalPoints": "Gesamtpunkte"
+    },
+    "render": {
+      "annotatorComments": "Annotator-Kommentare:",
+      "noText": "Kein Text vorhanden",
+      "notFilled": "Nicht ausgefüllt"
     }
   },
   "emptyStates": {
@@ -8651,6 +8704,164 @@
       "useText": "Anonymisierte Daten werden verwendet, um zu untersuchen, wie Menschen und große Sprachmodelle bei deutschsprachigen juristischen Aufgaben abschneiden: Übereinstimmung, Kalibrierung, Fehlermuster und die Entwicklung besserer Evaluationsmethoden. Ergebnisse können in wissenschaftlichen Publikationen, öffentlichen Benchmarks oder aggregierten Dashboards erscheinen. Rohdaten mit Personenbezug werden nicht veröffentlicht.",
       "consentTitle": "Ihre Einwilligung",
       "consentText": "Mit dem Setzen des Häkchens bei der Registrierung erteilen Sie diese Erlaubnis, solange Ihre Daten anonymisiert bleiben. Bestehende Konten dieses Deployments wurden als einwilligend behandelt; wenn Sie das anders handhaben möchten, wenden Sie sich bitte an die Betreiber."
+    },
+    "lti": {
+      "admin": {
+        "add": "Hinzufügen",
+        "attempts": "Versuche",
+        "authLoginUrl": "Auth-Login-URL",
+        "authTokenUrl": "Token-URL",
+        "colName": "Name",
+        "colStatus": "Status",
+        "copied": "Kopiert.",
+        "create": "Anlegen",
+        "createTitle": "Neue Registrierung",
+        "deploymentAddError": "Deployment konnte nicht angelegt werden.",
+        "deploymentIdPlaceholder": "Deployment-ID",
+        "deploymentIds": "Deployment-IDs",
+        "deploymentIdsHint": "Optional — mehrere IDs mit Komma oder Zeilenumbruch trennen. Können später ergänzt werden.",
+        "deploymentIdsIliasHint": "ILIAS: die Deployment-ID ist die numerische Provider-ID (z. B. „1\").",
+        "deploymentRemoveError": "Deployment konnte nicht entfernt werden.",
+        "deploymentsTitle": "Deployments",
+        "editTitle": "Registrierung bearbeiten",
+        "empty": "Noch keine Registrierungen. Lege die erste LMS-Anbindung an.",
+        "failedSyncs": "Fehlgeschlagene Synchronisationen",
+        "iliasWarningJwks": "ILIAS validiert unsere Signaturen ausschließlich über die JWKS-URL — das Tool in ILIAS unbedingt mit der JWKS-URL registrieren, nie mit einem eingefügten RSA-Schlüssel (sonst schlägt die Notenübertragung fehl).",
+        "iliasWarningMastery": "ILIAS zeigt Noten als Lernfortschritt relativ zum „Mastery Score\" des Objekts. Empfehlung an die Universität: Mastery Score ≈ 22 (4 von 18 Punkten = bestanden), nicht der Default 80.",
+        "iliasWarningPrivacy": "Der Privacy-Modus des ILIAS-Providers bestimmt die Nutzerkennung (sub). Nach Go-Live nicht mehr ändern — sonst verlieren alle verknüpften Konten ihre Zuordnung.",
+        "iliasWarningsTitle": "ILIAS-Hinweise",
+        "instructorRole": "Org-Rolle für Lehrende",
+        "instructorRoleHint": "Optional — Rolle, die Lehrende in der Organisation erhalten (z. B. CONTRIBUTOR).",
+        "issuerHint": "Basis-URL der LMS-Installation, z. B. ",
+        "jwksUri": "JWKS-URI",
+        "jwksUrl": "Öffentliche JWKS-URL",
+        "launchUrl": "Weiterleitungs-URL (Launch)",
+        "linkByEmail": "Bestehende Konten anhand der E-Mail-Adresse verknüpfen",
+        "lmsFamily": "Lernplattform",
+        "lmsFamilyHint": "Steuert URL-Vorlagen und Hinweise — nicht das Protokoll.",
+        "lmsFamilyOther": "Andere (generisch)",
+        "loadError": "Registrierungen konnten nicht geladen werden.",
+        "loginUrl": "Initiate-Login-URL",
+        "name": "Name",
+        "new": "Neue Registrierung",
+        "noDeployments": "Noch keine Deployments. Die Deployment-ID zeigt Moodle nach dem Aktivieren des Tools an.",
+        "noFailedSyncs": "Keine fehlgeschlagenen Synchronisationen.",
+        "orgId": "Organisations-ID",
+        "orgIdHint": "Organisation, der Nutzer:innen aus dieser Lernplattform zugeordnet werden.",
+        "registrations": "Registrierungen",
+        "remove": "Entfernen",
+        "retry": "Erneut versuchen",
+        "retryError": "Erneuter Versuch fehlgeschlagen.",
+        "saveError": "Speichern fehlgeschlagen.",
+        "studentRole": "Org-Rolle für Studierende",
+        "studentRoleHint": "annotator: Studierende werden Org-Mitglieder und sehen alle org-weiten Klausuren ohne Zeitfenster. none: nur die verknüpfte LMS-Klausur.",
+        "syncsLoadError": "Fehlgeschlagene Synchronisationen konnten nicht geladen werden.",
+        "title": "LTI-Registrierungen",
+        "toolConfig": "Tool-Konfiguration",
+        "toolConfigError": "Tool-Konfiguration konnte nicht geladen werden.",
+        "toolConfigHint": "Diese Werte im LMS beim Einrichten des externen Tools eintragen (Moodle: „Externes Tool konfigurieren\", ILIAS: „LTI-Konsument\" — dort unbedingt die JWKS-URL wählen, keinen eingefügten Schlüssel).",
+        "urlDefaults": "Standard-URLs übernehmen"
+      },
+      "consent": {
+        "alreadyConsented": "Du hast der Verknüpfung bereits zugestimmt.",
+        "continue": "Weiter zur Klausur",
+        "gdprLabel": "Ich stimme zu, dass mein Konto der Lernplattform meiner Universität (z. B. Moodle oder ILIAS) mit meinem Konto hier verknüpft wird und meine Klausurergebnisse zur Notenübernahme an diese Lernplattform übertragen werden.",
+        "intro": "Du öffnest diese Klausur zum ersten Mal aus der Lernplattform deiner Universität. Damit es losgehen kann, brauchen wir deine Zustimmung zur Datenverarbeitung.",
+        "loadError": "Die Aktivität konnte nicht geladen werden.",
+        "openExam": "Zur Klausur",
+        "requiredHint": "* Pflichtfeld — ohne diese Zustimmung kann die Klausur nicht aus der Lernplattform heraus genutzt werden.",
+        "submitError": "Deine Zustimmung konnte nicht gespeichert werden. Bitte versuche es erneut.",
+        "submitting": "Wird gespeichert …",
+        "title": "Zustimmung erforderlich",
+        "unavailableTitle": "Aktivität nicht verfügbar"
+      },
+      "error": {
+        "codeLabel": "Fehlercode",
+        "default": "Beim Start aus der Lernplattform ist ein unbekannter Fehler aufgetreten.",
+        "internal": "Ein interner Fehler ist aufgetreten. Bitte versuche es später erneut.",
+        "invalid_request": "Die Anfrage der Lernplattform war unvollständig oder fehlerhaft.",
+        "invalid_state": "Die Anmeldesitzung ist abgelaufen oder ungültig.",
+        "invalid_token": "Die Anmeldedaten der Lernplattform konnten nicht überprüft werden.",
+        "nonce_mismatch": "Die Sicherheitsprüfung der Anmeldung ist fehlgeschlagen.",
+        "nonce_reused": "Diese Anmeldung wurde bereits verwendet.",
+        "not_linked": "Diese Aktivität ist noch keiner Klausur zugeordnet.",
+        "registration_disabled": "Die Anbindung dieser Lernplattform ist derzeit deaktiviert.",
+        "registration_not_found": "Diese Lernplattform ist hier nicht registriert. Bitte wende dich an die Administration deiner Universität.",
+        "retryHint": "Zurück zur Lernplattform und die Aktivität erneut öffnen.",
+        "state_unavailable": "Deine Sitzung konnte nicht zugeordnet werden. Bitte erlaube Cookies für diese Seite oder öffne die Aktivität in einem neuen Tab.",
+        "title": "Start aus der Lernplattform fehlgeschlagen",
+        "unknown_deployment": "Diese Aktivität (Deployment) ist für die Anbindung nicht freigeschaltet.",
+        "unsupported_message": "Dieser Aufruf-Typ wird nicht unterstützt.",
+        "user_inactive": "Dein Benutzerkonto ist deaktiviert. Bitte wende dich an die Administration."
+      },
+      "invalidCallBody": "Diese Seite kann nur über eine Aktivität deiner Lernplattform geöffnet werden.",
+      "invalidCallTitle": "Ungültiger Aufruf",
+      "orgPanel": {
+        "confirmDisable": "Deaktivieren blockiert sofort alle Logins, Launches, LTI-Seiten in der App und die Notenübertragung für diese Lernplattform. Fortfahren?",
+        "confirmDisableCta": "Deaktivieren",
+        "confirmEnable": "Aktivieren erlaubt sofort wieder Logins, Launches und Notenübertragung für diese Lernplattform. Fortfahren?",
+        "confirmEnableCta": "Aktivieren",
+        "connectIntro": "Erstellen Sie einen einmaligen Einladungslink und leiten Sie ihn an die LMS-Administration der Universität weiter (Dynamic Registration; von Moodle unterstützt, von ILIAS erst ab ILIAS 11 — dort stattdessen manuell registrieren). Nach der Registrierung erscheint die Anbindung oben als Karte — zunächst deaktiviert, bis sie hier aktiviert wird.",
+        "connectTitle": "Lernplattform verbinden",
+        "deploymentCount": "Deployments: {n}",
+        "disable": "Anbindung deaktivieren",
+        "empty": "Diese Organisation ist noch mit keiner Lernplattform verbunden.",
+        "enable": "Anbindung aktivieren",
+        "inviteCreate": "Einladungslink erstellen",
+        "inviteCreateError": "Einladungslink konnte nicht erstellt werden.",
+        "inviteInstructions": "Anleitung für Moodle-Administrationen: Website-Administration → Plugins → Externes Tool → Tools verwalten → URL einfügen → „LTI Advantage hinzufügen“ → Tool aktivieren.",
+        "inviteLoadError": "Einladungen konnten nicht geladen werden.",
+        "invitePending": "Offene Einladungen",
+        "inviteRevoke": "Widerrufen",
+        "inviteRevokeError": "Einladung konnte nicht widerrufen werden.",
+        "inviteRow": "Erstellt {created} — gültig bis {expires}",
+        "inviteUrlOnce": "Dieser Link wird nur einmal angezeigt. Jetzt kopieren und an die LMS-Administration weiterleiten:",
+        "loadError": "LTI-Registrierungen konnten nicht geladen werden.",
+        "missingAgs": "{n} verknüpfte Aktivität(en) ohne Notenübertragung — Grade Sync im LMS aktivieren und die Aktivität neu öffnen.",
+        "statusActive": "aktiv",
+        "statusDisabled": "deaktiviert",
+        "statusNone": "nicht verbunden",
+        "title": "LTI-Anbindung — {org}",
+        "toggleError": "Statusänderung fehlgeschlagen.",
+        "trigger": "Lernplattform (LTI)"
+      },
+      "picker": {
+        "createExam": "Neue Klausur anlegen",
+        "createExamSecondary": "Oder neue Klausur anlegen",
+        "currentlyLinked": "Aktuell verknüpft:",
+        "defaultTitle": "Lernplattform-Aktivität",
+        "evalUnsupported": "Bewertungskonfiguration wird für die Notenrückgabe noch nicht unterstützt",
+        "intro": "Wähle die Klausur, die hinter dieser Aktivität liegen soll. Studierende, die die Aktivität öffnen, landen direkt in der gewählten Klausur.",
+        "link": "Verknüpfen",
+        "linkError": "Die Verknüpfung ist fehlgeschlagen. Bitte versuche es erneut.",
+        "linking": "Wird verknüpft …",
+        "loadError": "Die Aktivität konnte nicht geladen werden.",
+        "noAgsBody": "Die Notenübertragung ist in der Lernplattform für dieses Tool nicht aktiviert — Klausurergebnisse würden dort nicht ankommen.",
+        "noAgsHint": "Bitte die Administration der Lernplattform kontaktieren und die Aktivität danach neu öffnen.",
+        "noAgsHintIlias": "In ILIAS beim Provider „Advanced Grading Services\" aktivieren und die Aktivität danach neu öffnen.",
+        "noAgsTitle": "Diese Aktivität kann keine Noten empfangen.",
+        "noCandidatesInline": "Du hast noch keine Klausuren, die verknüpft werden können. Lege deine erste Klausur direkt hier an.",
+        "notInstructor": "Nur Lehrende dieses Kurses können die Aktivität verknüpfen.",
+        "openExam": "Zur Klausur",
+        "relinkBlocked": "Für die bereits verknüpfte Klausur wurden schon Noten an die Lernplattform übertragen. Die Verknüpfung kann deshalb nicht mehr geändert werden.",
+        "syncAt": "Zuletzt übertragen",
+        "syncEmpty": "Noch keine Abgaben zur Übertragung.",
+        "syncFailed": "Fehlgeschlagen",
+        "syncPending": "Ausstehend",
+        "syncScore": "Punkte",
+        "syncStatus": "Status",
+        "syncSynced": "Übertragen",
+        "syncTitle": "Notenübertragung an die Lernplattform",
+        "syncUser": "Studierende/r",
+        "taskCount": "{count} Aufgabe(n)",
+        "title": "Aktivität verknüpfen",
+        "unavailableTitle": "Aktivität nicht verfügbar",
+        "waitingForInstructor": "Diese Aktivität wurde noch nicht mit einer Klausur verknüpft. Bitte warte, bis deine Dozentin oder dein Dozent die Verknüpfung eingerichtet hat, und öffne die Aktivität dann erneut aus deiner Lernplattform."
+      },
+      "sessionMismatch": {
+        "body": "In diesem Browser wurde inzwischen ein anderes Lernplattform-Konto angemeldet. ",
+        "title": "Andere LTI-Sitzung aktiv"
+      }
     }
   },
   "student": {
@@ -8671,9 +8882,420 @@
       "exams": "Klausuren",
       "decks": "Karteikarten",
       "leaderboard": "Bestenliste",
-      "profile": "Profil"
+      "profile": "Profil",
+      "account": "Konto",
+      "billing": "Mein Abo",
+      "notifications": "Benachrichtigungen",
+      "settings": "Einstellungen",
+      "tierFree": "Free",
+      "tierPro": "Pro"
     },
-    "loading": "Wird geladen …"
+    "loading": "Wird geladen …",
+    "account": {
+      "standaloneAccess": "Zugang ohne Lernplattform einrichten"
+    },
+    "appName": "Lernbereich",
+    "billing": {
+      "basePrice": "Grundgebühr / Monat",
+      "checkoutCancelled": "Checkout abgebrochen.",
+      "checkoutError": "Checkout konnte nicht gestartet werden. Bitte später erneut versuchen.",
+      "checkoutSuccess": "Vielen Dank! Dein Abo wird aktiviert…",
+      "download": "PDF",
+      "endsOn": "Endet am {date}",
+      "estimatedTotal": "Voraussichtlich",
+      "freeThisWeek": "Gratis diese Woche",
+      "freeUnlimited": "Gratis-Korrekturen (Basis-Modell)",
+      "gradingsThisMonth": "Korrekturen (Monat)",
+      "invoicesTitle": "Rechnungen",
+      "manage": "Abo verwalten",
+      "metered": "Korrekturen",
+      "month": "Monat",
+      "noInvoices": "Noch keine Rechnungen.",
+      "pageSubtitle": "Verwalte dein Abo, sieh deine Nutzung und lade deine Rechnungen herunter.",
+      "pageTitle": "Abo & Abrechnung",
+      "perGrading": "Jede weitere Korrektur",
+      "perGradingShort": "pro Korrektur",
+      "planTitle": "Dein Abo",
+      "quotaFree": "KI-Korrektur: kostenlos",
+      "quotaPriced": "Nächste KI-Korrektur: {price}",
+      "quotaPricedReset": "Nächste KI-Korrektur: {price} (gratis wieder ab {day})",
+      "quotaWeeklyFree": "Nächste KI-Korrektur: kostenlos ({n}/Woche übrig)",
+      "renewsOn": "Verlängert sich am {date}",
+      "subscribeCta": "Jetzt abonnieren",
+      "unlimited": "Unbegrenzt",
+      "upsellBody": "Bessere KI-Korrektur mit dem Premium-Modell, 1 Gratis-Korrektur pro Woche – danach pro Korrektur abgerechnet. Kein eigener API-Schlüssel nötig.",
+      "upsellTitle": "Vertretbar Abo",
+      "usageNote": "Grundgebühr",
+      "usageTitle": "Nutzung & Kosten",
+      "useOwnKey": "Mit eigenem API-Schlüssel bewerten",
+      "weeklyFree": "Gratis-Korrektur / Woche"
+    },
+    "dashboard": {
+      "dueToday": {
+        "empty": "Heute sind keine Karten fällig. Gut gemacht!",
+        "title": "Heute fällig"
+      },
+      "loadError": "Daten konnten nicht geladen werden.",
+      "retention": {
+        "empty": "Noch keine Wiederholungsdaten.",
+        "rate": "Behaltensrate",
+        "title": "Behaltensrate"
+      },
+      "scoreOverTime": {
+        "empty": "Noch keine Klausurversuche.",
+        "score": "Notenpunkte",
+        "seriesHuman": "Mensch",
+        "seriesKi": "KI-Korrektur",
+        "title": "Notenverlauf"
+      },
+      "title": "Dashboard"
+    },
+    "deck": {
+      "backToList": "Zurück zu den Stapeln",
+      "card": {
+        "add": "Hinzufügen",
+        "added": "Karte hinzugefügt.",
+        "error": "Karte konnte nicht gespeichert werden.",
+        "title": "Karte hinzufügen"
+      },
+      "create": {
+        "addCard": "Karte hinzufügen",
+        "back": "Rückseite (Antwort)",
+        "card": "Karte",
+        "error": "Stapel konnte nicht erstellt werden.",
+        "front": "Vorderseite (Frage)",
+        "submit": "Stapel erstellen",
+        "success": "Stapel erstellt.",
+        "tags": "Tags (kommagetrennt)",
+        "title": "Neuer Karteikartenstapel",
+        "titleField": "Titel",
+        "titlePlaceholder": "z.B. Definitionen Strafrecht AT"
+      },
+      "delete": {
+        "message": "„{title}“ und alle Karten samt Lernfortschritt werden dauerhaft gelöscht. Das kann nicht rückgängig gemacht werden.",
+        "title": "Stapel löschen?"
+      },
+      "dueNow": "{count} Karten fällig",
+      "import": {
+        "button": "Importieren",
+        "error": "Import fehlgeschlagen.",
+        "success": "Stapel importiert.",
+        "successMulti": "{cards} Karten in {decks} Stapeln importiert."
+      },
+      "joined": "Beigetreten",
+      "limits": {
+        "default": "Standard: {n}",
+        "error": "Speichern fehlgeschlagen.",
+        "help": "Wie viele Karten pro Tag du höchstens lernst. Leer = Standard. (Wie in Anki: das Wiederholungslimit begrenzt auch neue Karten.)",
+        "invalid": "Bitte ganze Zahlen (oder leer) eingeben.",
+        "newPerDay": "Neue Karten pro Tag",
+        "reviewPerDay": "Wiederholungen pro Tag",
+        "saved": "Tageslimits gespeichert.",
+        "title": "Tageslimits"
+      },
+      "loadError": "Stapel konnte nicht geladen werden.",
+      "noneDue": "Heute nichts fällig. Gut gemacht!",
+      "notFound": "Stapel nicht gefunden.",
+      "share": {
+        "copied": "Link kopiert.",
+        "copyError": "Kopieren fehlgeschlagen.",
+        "create": "Teilen",
+        "created": "Freigabe-Link erstellt.",
+        "error": "Freigabe fehlgeschlagen.",
+        "hint": "Beitretende benötigen dieses Passwort und lernen mit ihrem eigenen Wiederholungsplan. Erneuern ersetzt den alten Link.",
+        "link": "Freigabe-Link",
+        "listed": "Im Verzeichnis auflisten, damit andere Studierende ihn finden (Passwort bleibt erforderlich).",
+        "needPassword": "Bitte ein Passwort festlegen.",
+        "password": "Zugangspasswort",
+        "passwordPlaceholder": "z.B. bgb2026",
+        "rotate": "Erneuern",
+        "title": "Stapel teilen"
+      },
+      "stats": {
+        "dailyLimit": "Heute: {newDone}/{newCap} neu · {revDone}/{revCap} Wdh.",
+        "due": "Fällig",
+        "learning": "Lernen",
+        "new": "Neu",
+        "total": "Gesamt"
+      },
+      "study": "Lernsitzung starten",
+      "tree": {
+        "all": "Alle Karten",
+        "title": "Stapel"
+      }
+    },
+    "decks": {
+      "cardCount": "{count} Karten",
+      "create": "Neuer Stapel",
+      "deckCount": "{count} Stapel",
+      "due": "{count} fällig",
+      "empty": "Noch keine Stapel. Erstelle oder importiere deinen ersten Kartenstapel.",
+      "joined": "Beigetreten",
+      "loadError": "Stapel konnten nicht geladen werden.",
+      "title": "Karteikarten"
+    },
+    "delete": {
+      "error": "Löschen fehlgeschlagen.",
+      "success": "Gelöscht."
+    },
+    "discover": {
+      "buy": "Kaufen · {price}",
+      "buyError": "Der Kauf konnte nicht gestartet werden.",
+      "buying": "Weiterleitung…",
+      "by": "von {name}",
+      "deck": "Kartenstapel",
+      "empty": "Derzeit sind keine geteilten Inhalte verfügbar.",
+      "enroll": "Zur Klausurensammlung hinzufügen",
+      "enrollError": "Die Klausur konnte nicht hinzugefügt werden.",
+      "enrolling": "Wird hinzugefügt…",
+      "exam": "Klausur",
+      "humanGrading": "Mit Korrektur durch Menschen verfügbar",
+      "join": "Beitreten",
+      "loadError": "Das Verzeichnis konnte nicht geladen werden.",
+      "open": "Öffnen",
+      "research": "Forschungsklausur",
+      "researchBadge": "Forschung",
+      "researchHint": "Löse echte Klausuren und erhalte eine KI-Bewertung. Die Bewertung wird über dein Guthaben abgerechnet.",
+      "subtitleVendor": "Klausuren und Kartenstapel von Anbietern und anderen Studierenden.",
+      "taskCount": "{count} Aufgaben",
+      "title": "Entdecken",
+      "vendor": "Anbieter"
+    },
+    "exam": {
+      "allDone": "Alle Aufgaben gelöst. Vielen Dank für deinen Beitrag!",
+      "allSolvedHint": "Du hast alle Aufgaben dieser Klausur gelöst.",
+      "attempt": {
+        "empty": "Bitte schreibe zuerst eine Lösung.",
+        "error": "Abgabe fehlgeschlagen.",
+        "noConfig": "Diese Klausur ist nicht korrekt konfiguriert.",
+        "noTask": "Diese Klausur hat keine Aufgabe zum Bearbeiten.",
+        "overtime": "Zeit abgelaufen — du schreibst jetzt in der Nachspielzeit. Gib deine Lösung ab, wenn du fertig bist.",
+        "windowClosed": "Diese Klausur ist beendet — nur noch Ansicht."
+      },
+      "backToList": "Zurück zu den Klausuren",
+      "closedHint": "Diese Klausur ist beendet. Du kannst deine Abgabe ansehen.",
+      "create": {
+        "angabe": "Angabe (Sachverhalt)",
+        "angabeDescription": "Der Sachverhalt — während der Klausur sichtbar.",
+        "angabePlaceholder": "Sachverhalt einfügen oder Datei hochladen...",
+        "bearbeitervermerk": "Bearbeitervermerk",
+        "bearbeitervermerkDescription": "Hinweise für die Bearbeitung — während der Klausur sichtbar.",
+        "bearbeitervermerkPlaceholder": "Hinweise für die Bearbeitung...",
+        "editor": {
+          "apply": "Übernehmen",
+          "back": "Zurück",
+          "discardConfirm": "Änderungen verwerfen?"
+        },
+        "error": "Klausur konnte nicht erstellt werden.",
+        "gliederung": "Gliederung / Lösungsskizze",
+        "gliederungDescription": "Referenz-Gliederung oder Lösungsskizze — erst nach der Abgabe sichtbar.",
+        "gliederungPlaceholder": "Optionale Gliederung...",
+        "korrekturhinweise": "Korrekturhinweise",
+        "korrekturhinweiseDescription": "Hinweise für die Korrektur — erst nach der Abgabe sichtbar.",
+        "korrekturhinweisePlaceholder": "Hinweise für die Korrektur...",
+        "musterloesung": "Musterlösung",
+        "musterloesungDescription": "Die Referenzlösung für die Korrektur — erst nach der Abgabe sichtbar.",
+        "musterloesungPlaceholder": "Musterlösung einfügen oder Datei hochladen...",
+        "parts": {
+          "add": "Inhalt hinzufügen",
+          "chars": "{count} Zeichen",
+          "criteria": "{count} Kriterien",
+          "empty": "Leer",
+          "hint": "Klicke einen Inhalt an, um Text einzufügen oder eine Datei hochzuladen.",
+          "remove": "Entfernen",
+          "removeConfirm": "„{label}“ enthält Inhalte. Wirklich entfernen?",
+          "title": "Inhalte"
+        },
+        "rubricDescription": "Eigene Kriterien — die KI-Korrektur bewertet dann nach deiner Rubrik statt nach Notenpunkten.",
+        "rubricLabel": "Bewertungskriterien",
+        "submit": "Klausur erstellen",
+        "success": "Klausur erstellt.",
+        "title": "Neue Klausur",
+        "titleField": "Titel",
+        "titlePlaceholder": "z.B. BGB AT — Probeklausur",
+        "zusatzmaterial": "Zusatzmaterial",
+        "zusatzmaterialDescription": "z.B. Normtexte oder Auszüge — während der Klausur sichtbar.",
+        "zusatzmaterialPlaceholder": "z.B. Normtexte oder Auszüge..."
+      },
+      "delete": {
+        "message": "„{title}“ und alle zugehörigen Versuche werden dauerhaft gelöscht. Das kann nicht rückgängig gemacht werden.",
+        "title": "Klausur löschen?"
+      },
+      "exitConfirm": "Bearbeitung beenden? Nicht abgegebene Eingaben gehen verloren.",
+      "extract": {
+        "append": "Anhängen",
+        "discard": "Verwerfen",
+        "formats": "Unterstützte Formate:",
+        "genericError": "Datei konnte nicht verarbeitet werden.",
+        "pendingHint": "Das Feld enthält bereits Text. Was soll mit dem extrahierten Text passieren?",
+        "replace": "Ersetzen",
+        "upload": "Hochladen"
+      },
+      "joined": "Beigetreten",
+      "loadError": "Klausur konnte nicht geladen werden.",
+      "nextTask": "Nächste Aufgabe",
+      "notFound": "Klausur nicht gefunden.",
+      "opensAt": "Diese Klausur öffnet am {date}.",
+      "print": {
+        "button": "Aufgabe drucken",
+        "empty": "Diese Klausur hat keinen Sachverhalt zum Drucken.",
+        "footer": "Gedruckt am {date}",
+        "noTimeLimit": "Keine Zeitbegrenzung",
+        "sachverhalt": "Sachverhalt",
+        "timeLimit": "Zeitlimit: {minutes} Minuten"
+      },
+      "result": {
+        "details": "Korrektur ansehen",
+        "graded": "Korrigiert",
+        "humanFeedback": "Feedback deiner Korrektur",
+        "humanFeedbackHint": "Deine Abgabe wurde von einem Menschen korrigiert.",
+        "notPassed": "Nicht bestanden",
+        "passed": "Bestanden",
+        "pendingHint": "Das Ergebnis erscheint hier automatisch.",
+        "pointsSuffix": "/ 18 Punkte",
+        "title": "Deine Korrektur",
+        "waiting": "Warte auf Korrektur …",
+        "waitingRetryHint": "Die Korrektur wird automatisch erneut versucht.",
+        "topPercent": "Top {percent}%",
+        "ofSubmissions": "von {count} Abgaben",
+        "tabs": {
+          "angabe": "Angabe",
+          "submission": "Abgabe",
+          "musterloesung": "Musterlösung",
+          "ki": "KI-Korrektur",
+          "human": "Feedback"
+        }
+      },
+      "review": "Abgabe ansehen",
+      "roster": {
+        "attempts": "{count} Versuche",
+        "empty": "Noch niemand beigetreten.",
+        "title": "Teilnehmende"
+      },
+      "rubric": {
+        "add": "Kriterium",
+        "description": "Beschreibung",
+        "hint": "Ohne Kriterien wird das Standard-Falllösungsschema (10 Dimensionen) verwendet.",
+        "key": "Schlüssel",
+        "maxScore": "Maximalpunktzahl",
+        "title": "Bewertungskriterien (optional)"
+      },
+      "settings": {
+        "confirm": "Bestätigung vor der Abgabe verlangen",
+        "error": "Speichern fehlgeschlagen.",
+        "invalidTimer": "Bitte 1–600 Minuten (oder leer) eingeben.",
+        "reveal": "Musterlösung nach der Abgabe zeigen",
+        "saved": "Einstellungen gespeichert.",
+        "timer": "Bearbeitungszeit (Minuten)",
+        "timerHint": "Bei Ablauf wird die Klausur automatisch abgegeben.",
+        "timerOff": "Leer = kein Zeitlimit",
+        "title": "Einstellungen"
+      },
+      "share": {
+        "copied": "Link kopiert.",
+        "copyError": "Kopieren fehlgeschlagen.",
+        "create": "Teilen",
+        "created": "Freigabe-Link erstellt.",
+        "error": "Freigabe fehlgeschlagen.",
+        "hint": "Eingeladene benötigen dieses Passwort, um beizutreten. Erneuern ersetzt den alten Link.",
+        "link": "Freigabe-Link",
+        "listed": "Im Verzeichnis auflisten, damit andere Studierende sie finden (Passwort bleibt erforderlich).",
+        "needPassword": "Bitte ein Passwort festlegen.",
+        "password": "Zugangspasswort",
+        "passwordPlaceholder": "z.B. klausur2026",
+        "rotate": "Erneuern",
+        "title": "Klausur teilen"
+      },
+      "solve": "Klausur lösen",
+      "solvedHint": "Du hast diese Klausur abgegeben.",
+      "taskProgress": "Aufgabe {n} von {total}"
+    },
+    "exams": {
+      "attempts": "{count} Versuche",
+      "closed": "Beendet",
+      "create": "Neue Klausur",
+      "empty": "Noch keine Klausuren. Erstelle deine erste Klausur, um zu üben.",
+      "gradePoints": "{points} Punkte",
+      "graded": "Korrigiert",
+      "joined": "Beigetreten",
+      "loadError": "Klausuren konnten nicht geladen werden.",
+      "notAttempted": "Noch nicht bearbeitet",
+      "opensAt": "Öffnet {date}",
+      "remove": "Entfernen",
+      "removeTitle": "Aus meiner Liste entfernen",
+      "shared": "Geteilt",
+      "submitted": "Abgegeben",
+      "title": "Klausuren"
+    },
+    "focus": {
+      "exit": "Beenden"
+    },
+    "leaderboard": {
+      "attempts": "Versuche",
+      "boardError": "Bestenliste konnte nicht geladen werden.",
+      "empty": "Noch keine Versuche in dieser Kohorte.",
+      "loadError": "Klausuren konnten nicht geladen werden.",
+      "name": "Name",
+      "noShared": "Du hast noch keine geteilten Klausuren. Teile eine Klausur, um eine Kohorten-Bestenliste zu sehen.",
+      "rank": "Rang",
+      "score": "Bestwert",
+      "selectExam": "Klausur wählen",
+      "tabCohort": "Klausur-Kohorte",
+      "tabHuman": "Annotatoren",
+      "title": "Bestenliste",
+      "you": "Du"
+    },
+    "ltiAccess": {
+      "alreadyActivated": "Dein Konto ist bereits aktiviert — du kannst dich direkt anmelden.",
+      "changeAddress": "Adresse ändern / erneut senden",
+      "description": "Du nutzt Vertretbar bisher über die Lernplattform deiner Universität (z. B. Moodle oder ILIAS). Hinterlege deine E-Mail-Adresse, um zusätzlich einen direkten Login mit Passwort zu erhalten — deine Klausuren und Ergebnisse bleiben erhalten.",
+      "emailPlaceholder": "deine@uni-mail.de",
+      "emailTaken": "Diese E-Mail-Adresse wird bereits verwendet. Bitte nutze eine andere Adresse.",
+      "genericError": "Das hat nicht geklappt. Bitte versuche es später erneut.",
+      "notEligible": "Dein Konto hat bereits einen direkten Zugang oder benötigt diesen Schritt nicht.",
+      "send": "Aktivierungslink senden",
+      "sending": "Wird gesendet…",
+      "sentHint": "Öffne den Link in der E-Mail, um ein Passwort zu wählen. Der Link ist 7 Tage gültig.",
+      "sentPrefix": "E-Mail versendet an",
+      "title": "Zugang ohne Lernplattform einrichten"
+    },
+    "review": {
+      "allDone": "Alle fälligen Karten wiederholt. Gut gemacht!",
+      "answerPlaceholder": "Deine Antwort...",
+      "back": "Antwort",
+      "empty": "Keine fälligen Karten.",
+      "error": "Bewertung fehlgeschlagen.",
+      "front": "Frage",
+      "gradeError": "Bewertung durch KI fehlgeschlagen.",
+      "gradeSubmit": "Antwort bewerten",
+      "grading": "Wird bewertet...",
+      "mode": {
+        "graded": "Bewertet",
+        "quick": "Schnell"
+      },
+      "reload": "Erneut laden",
+      "remaining": "{count} übrig",
+      "reveal": "Antwort zeigen",
+      "suggested": "Vorgeschlagen: {rating} — überschreibbar"
+    },
+    "share": {
+      "alreadyMember": "Du bist dieser Klausur bereits beigetreten.",
+      "consent": "Ich stimme zu, meine Klausurergebnisse mit der Erstellerin/dem Ersteller und der Kohorte zu teilen.",
+      "inviteBody": "Melde dich an oder erstelle ein Konto, um beizutreten.",
+      "inviteTitle": "Du wurdest zu einer geteilten Klausur eingeladen",
+      "join": "Beitreten",
+      "joinError": "Beitritt fehlgeschlagen. Bitte versuche es erneut.",
+      "joining": "Trete bei …",
+      "loadError": "Diese Einladung konnte nicht geladen werden.",
+      "login": "Anmelden",
+      "open": "Öffnen",
+      "password": "Passwort",
+      "passwordPlaceholder": "Passwort aus der Einladung",
+      "register": "Konto erstellen",
+      "revoked": "Dieser Einladungslink wurde widerrufen.",
+      "sharedBy": "Geteilt von {name}",
+      "unavailableTitle": "Einladung nicht verfügbar"
+    }
   },
   "accountActivation": {
     "title": "Konto aktivieren",
@@ -8689,5 +9311,106 @@
     "expiredDescription": "Der Link ist abgelaufen oder wurde bereits verwendet. Melde dich an oder starte die Klausur erneut aus Moodle, um einen neuen Link anzufordern.",
     "emailTaken": "Diese E-Mail-Adresse wird bereits verwendet. Bitte fordere den Zugang mit einer anderen Adresse erneut an.",
     "backToLogin": "Zurück zur Anmeldung"
+  },
+  "rubricJudge": {
+    "excludeNow": "Von Generierung ausschließen",
+    "generatorModel": "Modell für die Bogen-Erzeugung",
+    "generatorPlaceholder": "Modell wählen…",
+    "generatorSection": "Bewertungsbogen-Erzeugung",
+    "gradingTemplate": "Bewertungs-Prompt (Vorlage)",
+    "gradingTemplateHelp": "Platzhalter: {context}, {ground_truth}, {prediction}, {bewertungsbogen} (der Bogen der jeweiligen Aufgabe) sowie alle Felder aus task.data.",
+    "intro": "Jede Aufgabe wird gegen ihren eigenen, automatisch erzeugten Bewertungsbogen (100-Punkte-Schema) bewertet. Bewertungsbögen werden aus Sachverhalt und Musterlösung generiert und können pro Aufgabe eingesehen, bearbeitet und aktiviert werden.",
+    "noStructures": "Keine Prompt-Strukturen vorhanden. Lege zuerst unter „Prompt-Strukturen\" einen Erzeugungs-Prompt an (Platzhalter wie {sachverhalt} und {musterlösung} werden pro Aufgabe ersetzt).",
+    "notExcludedHint": "Dieser Prompt läuft aktuell auch bei impliziten Generierungsläufen mit.",
+    "promptPlaceholder": "Prompt wählen…",
+    "promptStructure": "Prompt für die Bogen-Erzeugung",
+    "structuresLoadError": "Prompt-Strukturen konnten nicht geladen werden."
+  },
+  "rubricPanel": {
+    "actionFailed": "Aktion fehlgeschlagen",
+    "activate": "Aktivieren",
+    "active": "Aktiv",
+    "archive": "Archivieren",
+    "candidate": "Kandidat",
+    "dispatchFailed": "Erzeugung konnte nicht gestartet werden.",
+    "edited": "bearbeitet",
+    "empty": "Noch kein Bewertungsbogen. „Neu erzeugen\" nutzt Modell und Prompt aus der „LLM Custom Rubric\"-Evaluationskonfiguration.",
+    "generate": "Neu erzeugen",
+    "generateFailed": "Erzeugung fehlgeschlagen",
+    "generateTimeout": "Erzeugung läuft noch — Ansicht später aktualisieren.",
+    "generated": "Bewertungsbogen erzeugt.",
+    "generating": "Erzeuge…",
+    "guidance": "Bewertungshinweise",
+    "hide": "Einklappen",
+    "human": "manuell",
+    "points": "Punkte",
+    "pointsShort": "Pkt.",
+    "show": "Anzeigen",
+    "step": "Prüfungspunkt",
+    "steps": "Schritte",
+    "title": "Bewertungsbogen"
+  },
+  "vendor": {
+    "adminTitle": "Anbieter freischalten (Superadmin)",
+    "approve": "Freischalten",
+    "connectStripe": "Mit Stripe verbinden",
+    "create": "Anlegen",
+    "draft": "Entwurf",
+    "feeBps": "Provision (bps)",
+    "gradeAi": "Nur KI",
+    "gradeBoth": "KI + Mensch",
+    "gradeFirst": "Bitte zuerst die Korrektur erfassen, dann abschließen.",
+    "gradeHuman": "Nur Mensch",
+    "gradingMode": "Korrektur",
+    "grant": "Kostenlos freischalten",
+    "grantAccess": "Zugang",
+    "grantBtn": "Freischalten",
+    "grantGrading": "Korrektur-Guthaben",
+    "granted": "Freigeschaltet.",
+    "hgPrice": "Korrektur-Preis (€)",
+    "hgQty": "Korrekturen je Kauf",
+    "hgShort": "Korrektur",
+    "listings": "Angebote",
+    "live": "Live",
+    "markGraded": "Als korrigiert markieren",
+    "newListing": "Neues Angebot",
+    "noListings": "Noch keine Angebote.",
+    "noOrgs": "Sie verwalten keine Anbieter-Organisation.",
+    "notApproved": "Diese Organisation ist noch nicht als Anbieter freigeschaltet.",
+    "onboardNeeded": "Stripe-Onboarding abschließen, um Verkäufe zu aktivieren.",
+    "openKorrektur": "Zur Korrektur",
+    "orgId": "Organisations-ID",
+    "payouts": "Auszahlungen (Stripe)",
+    "priceEur": "Preis (€)",
+    "projectId": "Projekt-ID (Klausur/Stapel)",
+    "publish": "Veröffentlichen",
+    "publishNow": "Sofort veröffentlichen",
+    "queue": "Korrektur-Warteschlange",
+    "queueEmpty": "Keine offenen Korrekturen.",
+    "ready": "Bereit für Verkäufe.",
+    "refresh": "Aktualisieren",
+    "revoke": "Entziehen",
+    "studentEmail": "E-Mail des/der Studierenden",
+    "title": "Anbieter-Konsole",
+    "unpublish": "Zurückziehen"
+  },
+  "vertretbar": {
+    "onboarding": {
+      "free": {
+        "body": "Unbegrenzt KI-Korrektur deiner Klausuren — komplett gratis. Keine Kreditkarte.",
+        "cta": "Kostenlos weiter",
+        "price": "0 €",
+        "tag": "Kostenlos"
+      },
+      "premium": {
+        "body": "Korrektur auf Examens-Niveau mit dem stärkeren Modell — näher an einer echten Examenskorrektur. 1 Premium-Korrektur pro Woche gratis, danach 1 €. Jederzeit kündbar.",
+        "cta": "Examens-Abo starten",
+        "per": " / Monat",
+        "price": "5 €",
+        "tag": "Examens-Abo"
+      },
+      "subtitle": "Beide Pläne korrigieren deine Klausuren — wähl, was zu dir passt. Du kannst jederzeit wechseln.",
+      "title": "Willkommen bei Vertretbar 👋"
+    }
   }
 }

@@ -477,3 +477,37 @@ class TestExtensionFieldTypes:
 </View>"""
         names = LabelConfigParser.extract_field_names(xml)
         assert names == ["angabe"]
+
+
+class TestBoundDataFields:
+    """bound_data_fields — the annotator-blinding allowlist."""
+
+    def test_value_bindings_are_bound(self):
+        xml = (
+            '<View><Text name="t" value="$sachverhalt"/>'
+            '<TextArea name="a" toName="t"/></View>'
+        )
+        assert LabelConfigParser.bound_data_fields(xml) == {"sachverhalt"}
+
+    def test_any_dollar_attribute_counts_as_bound(self):
+        # ANY $-prefixed attribute is a data binding (the frontend resolver
+        # resolves every prop) — e.g. the exam Angabe's side sections.
+        LabelConfigParser.register_field_types(["Angabe"])
+        xml = (
+            '<View><Angabe name="angabe" value="$sachverhalt" '
+            'bearbeitervermerk="$bearbeitervermerk" '
+            'zusatzmaterial="$zusatzmaterial" toName="sachverhalt"/></View>'
+        )
+        assert LabelConfigParser.bound_data_fields(xml) == {
+            "sachverhalt",
+            "bearbeitervermerk",
+            "zusatzmaterial",
+        }
+
+    def test_non_dollar_attributes_stay_unbound(self):
+        xml = '<View><Text name="t" value="$fall" toName="fall" hint="plain"/></View>'
+        assert LabelConfigParser.bound_data_fields(xml) == {"fall"}
+
+    def test_malformed_config_fails_closed(self):
+        assert LabelConfigParser.bound_data_fields("<View><broken") == set()
+        assert LabelConfigParser.bound_data_fields("") == set()
