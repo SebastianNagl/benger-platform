@@ -183,9 +183,20 @@ class TestCheckProjectAccessSimple:
             user, project, Permission.PROJECT_VIEW, db, org_context="private"
         )
 
-    def test_private_context_non_private_project_denied(self):
+    def test_private_context_org_project_creator_keeps_access(self):
+        # Creator keeps access to their own org-assigned project from the
+        # private context (regression: 403 right after an org-visibility
+        # switch while the client still sends the private context).
         user = Mock(is_superadmin=False, id="user-1")
         project = Mock(is_private=False, created_by="user-1")
+        db = Mock()
+        assert self.service.check_project_access(
+            user, project, Permission.PROJECT_VIEW, db, org_context="private"
+        )
+
+    def test_private_context_org_project_non_creator_denied(self):
+        user = Mock(is_superadmin=False, id="user-1")
+        project = Mock(is_private=False, created_by="user-2")
         db = Mock()
         assert not self.service.check_project_access(
             user, project, Permission.PROJECT_VIEW, db, org_context="private"

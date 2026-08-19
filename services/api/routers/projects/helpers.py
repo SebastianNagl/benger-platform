@@ -278,7 +278,12 @@ def calculate_project_stats(
     from aggregate_summaries import read_project_summary
 
     summary = read_project_summary(db, project_id, period="overall")
-    if summary is not None:
+    if response.task_count == 0:
+        # No tasks -> no evaluable pairs. Guards against a stale precomputed
+        # summary claiming evaluations after the last task was deleted (the
+        # summary only refreshes hourly / on mutation endpoints).
+        response.evaluation_count = 0
+    elif summary is not None:
         response.evaluation_count = int(summary.evaluation_pairs_count or 0)
     else:
         pairs = (
@@ -382,7 +387,11 @@ async def calculate_project_stats_async(
     summary = (
         await db.execute(_build_select_project_summary(project_id))
     ).scalar_one_or_none()
-    if summary is not None:
+    if response.task_count == 0:
+        # Mirrors the sync guard: a stale summary must not claim evaluations
+        # for a project whose last task was just deleted.
+        response.evaluation_count = 0
+    elif summary is not None:
         response.evaluation_count = int(summary.evaluation_pairs_count or 0)
     else:
         pairs_result = await db.execute(
@@ -1029,7 +1038,11 @@ def _decide_project_accessible_context_mode(
         return str(user.id) == str(project.created_by)
 
     if org_context == "private":
-        return False
+        # Creator keeps access to their own org-assigned projects from the
+        # private context — otherwise the refetch right after an
+        # org-visibility switch (client still sends the private context)
+        # 403s and the project vanishes from the creator's private scope.
+        return str(user.id) == str(project.created_by)
 
     if org_context not in project_org_ids:
         return False
@@ -1117,8 +1130,9 @@ def check_project_accessible(
             return str(user.id) == str(project.created_by)
 
         if org_context == "private":
-            # Private context but project is not private -> no access
-            return False
+            # Creator keeps access to their own org-assigned projects from
+            # the private context (mirrors the async decision helper).
+            return str(user.id) == str(project.created_by)
 
         # Org mode: project must belong to this specific org
         # AND user must be an active member of this org

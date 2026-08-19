@@ -355,6 +355,11 @@ export function ProjectDataTab({ projectId }: ProjectDataTabProps) {
       // Refresh tasks
       await reloadCurrentPage()
 
+      // Refresh the project itself too — the sidebar statistics (task,
+      // annotation and evaluation counts) come from the project response,
+      // not the task page fetch, and would otherwise stay stale.
+      await useProjectStore.getState().fetchProject(projectId)
+
       updateProgress(
         progressId,
         100,
@@ -546,6 +551,11 @@ export function ProjectDataTab({ projectId }: ProjectDataTabProps) {
       // Refresh tasks
       await reloadCurrentPage()
 
+      // Refresh the project itself too — the sidebar statistics (task,
+      // annotation and evaluation counts) come from the project response,
+      // not the task page fetch, and would otherwise stay stale.
+      await useProjectStore.getState().fetchProject(projectId)
+
       updateProgress(
         progressId,
         100,
@@ -619,15 +629,46 @@ export function ProjectDataTab({ projectId }: ProjectDataTabProps) {
   // Track if initial columns have been set
   const [columnsInitialized, setColumnsInitialized] = useState(false)
 
+  // Sorted id fingerprints of the dynamic columns the current tasks imply.
+  // In the effect's dep array so a task gaining (or renaming) a data key
+  // while the tab is mounted — e.g. via the edit-data modal — re-runs the
+  // sync and produces the new column without a remount. Order-insensitive
+  // because useColumnSettings re-sorts columns by the user's saved order.
+  const expectedDataIds = useMemo(
+    () =>
+      (useDataColumns ? dataColumns : [])
+        .map((col) => `data_${col.id}`)
+        .sort()
+        .join('|'),
+    [useDataColumns, dataColumns]
+  )
+  const expectedMetaIds = useMemo(
+    () =>
+      (useMetadataColumns ? metadataColumns : [])
+        .map((col) => `meta_${col.key}`)
+        .sort()
+        .join('|'),
+    [useMetadataColumns, metadataColumns]
+  )
+
   // Update columns to include dynamic data and metadata columns for the column selector
   useEffect(() => {
-    // Only update columns if they haven't been initialized or if structure changes
-    const hasDataCols = columns.some((c) => c.id.startsWith('data_'))
-    const hasMetaCols = columns.some((c) => c.id.startsWith('meta_'))
+    // Only update columns if they haven't been initialized or if the SET of
+    // dynamic column ids changed (not just their presence).
+    const currentDataIds = columns
+      .filter((c) => c.id.startsWith('data_'))
+      .map((c) => c.id)
+      .sort()
+      .join('|')
+    const currentMetaIds = columns
+      .filter((c) => c.id.startsWith('meta_'))
+      .map((c) => c.id)
+      .sort()
+      .join('|')
     const needsUpdate =
       !columnsInitialized ||
-      useDataColumns !== hasDataCols ||
-      useMetadataColumns !== hasMetaCols
+      expectedDataIds !== currentDataIds ||
+      expectedMetaIds !== currentMetaIds
 
     if (needsUpdate) {
       let baseColumns = defaultColumns.filter((c) => c.type === 'system')
@@ -696,8 +737,8 @@ export function ProjectDataTab({ projectId }: ProjectDataTabProps) {
   }, [
     useDataColumns,
     useMetadataColumns,
-    dataColumns.length,
-    metadataColumns.length,
+    expectedDataIds,
+    expectedMetaIds,
     columnsInitialized,
   ])
 

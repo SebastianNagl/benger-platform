@@ -137,8 +137,12 @@ class AuthorizationService:
         # Context-aware mode
         if org_context is not None:
             if org_context == "private":
-                if not getattr(project, 'is_private', False):
-                    return False
+                # Private mode: the creator keeps access to their own
+                # projects even after assigning them to an org — otherwise
+                # the request that refreshes the page right after an
+                # org-visibility switch (still carrying the private context)
+                # 403s, and the creator loses their project from the private
+                # scope entirely. Non-creators get nothing here.
                 return user.id == project.created_by
 
             if org_context not in project_org_ids:
@@ -224,9 +228,8 @@ class AuthorizationService:
         # Context-aware mode
         if org_context is not None:
             if org_context == "private":
-                # Private mode: only creator's own private projects
-                if not getattr(project, 'is_private', False):
-                    return False
+                # Private mode: creator keeps access to their own projects,
+                # including org-assigned ones (mirrors _decide_project_access).
                 return user.id == project.created_by
 
             # Org mode: project must belong to this specific org

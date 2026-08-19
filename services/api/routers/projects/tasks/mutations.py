@@ -7,6 +7,23 @@ from ._common import *  # noqa: F401,F403  (binds _common.__all__ — the shared
 from routers.projects.deps import ProjectAccess, require_project_access
 
 
+def _refresh_project_summary_sync(project_id: str) -> None:
+    """Refresh the project's `project_summaries` rows on a fresh sync session.
+
+    Task deletion cascades away task_evaluations rows, but the stats read
+    (`calculate_project_stats*`) serves evaluation_count from the precomputed
+    summary — without this refresh the counter stays stale until the hourly
+    `recompute_aggregates` beat. Best-effort: failures are logged by the
+    caller, not raised."""
+    from aggregate_summaries import refresh_project_summary
+
+    sync_db = SessionLocal()
+    try:
+        refresh_project_summary(sync_db, project_id)
+    finally:
+        sync_db.close()
+
+
 def _update_report_data_section_sync(project_id: str) -> None:
     """Run the sync ``update_report_data_section`` on a fresh short-lived sync
     session. The report service is sync-only (lives in /shared) and has no
@@ -203,6 +220,16 @@ async def bulk_delete_tasks(
 
         logger = logging.getLogger(__name__)
         logger.error(f"Failed to update report data section: {e}")
+
+    # Same best-effort treatment for the precomputed stats summary, so the
+    # project page's evaluation counter reflects the deletion immediately.
+    try:
+        await run_in_threadpool(_refresh_project_summary_sync, project_id)
+    except Exception as e:
+        import logging
+
+        logger = logging.getLogger(__name__)
+        logger.error(f"Failed to refresh project summary: {e}")
 
     return {"deleted": deleted_count}
 
