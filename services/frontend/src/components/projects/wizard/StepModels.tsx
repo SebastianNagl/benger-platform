@@ -5,13 +5,14 @@ import { Input } from '@/components/shared/Input'
 import { Label } from '@/components/shared/Label'
 import { useI18n } from '@/contexts/I18nContext'
 import { useModels } from '@/hooks/useModels'
+import { DEFAULT_MODEL_ID } from '@/lib/modelDefaults'
 import { cn } from '@/lib/utils'
 import {
   AdjustmentsHorizontalIcon,
   ChevronDownIcon,
   ChevronUpIcon,
 } from '@heroicons/react/24/outline'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { GenerationParameters, ModelConfig } from './types'
 
 interface StepModelsProps {
@@ -45,6 +46,20 @@ export function StepModels({
   const { models, loading, error } = useModels()
   const [expandedModel, setExpandedModel] = useState<string | null>(null)
   const [showDefaults, setShowDefaults] = useState(false)
+  const seeded = useRef(false)
+
+  // Preselect the default model the first time the catalog arrives, so a new
+  // project can generate without a detour through this picker. Guarded three
+  // ways: only when nothing is selected yet (an edited//resumed wizard is left
+  // alone), only when the catalog actually offers the id (never write a
+  // phantom model into generation_config), and only once (a `seeded` ref, so
+  // deselecting the default does not immediately re-add it).
+  useEffect(() => {
+    if (seeded.current || loading || selectedModelIds.length > 0) return
+    if (!models.some((m) => m.id === DEFAULT_MODEL_ID)) return
+    seeded.current = true
+    onSelectedModelsChange([DEFAULT_MODEL_ID])
+  }, [loading, models, selectedModelIds, onSelectedModelsChange])
 
   // Group models by provider
   const groupedModels = models.reduce(

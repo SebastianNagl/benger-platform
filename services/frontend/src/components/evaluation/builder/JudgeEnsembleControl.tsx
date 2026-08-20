@@ -17,6 +17,7 @@
 import { CustomBadge } from '@/components/models/ModelBadges'
 import { useI18n } from '@/contexts/I18nContext'
 import type { Model } from '@/hooks/useModels'
+import { DEFAULT_MODEL_ID } from '@/lib/modelDefaults'
 import Link from 'next/link'
 
 interface BuilderStateWithParameters {
@@ -45,7 +46,7 @@ export function JudgeEnsembleControl<S extends BuilderStateWithParameters>({
 }: JudgeEnsembleControlProps<S>) {
   const { t } = useI18n()
 
-  const primaryJudge: string = metricParameters.judge_model || 'gpt-4o'
+  const primaryJudge: string = metricParameters.judge_model || DEFAULT_MODEL_ID
   const existingJudges = Array.isArray(metricParameters.judges)
     ? (metricParameters.judges as Array<{ judge_model_id: string; runs?: number }>)
     : []

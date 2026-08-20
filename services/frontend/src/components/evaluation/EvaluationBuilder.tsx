@@ -29,6 +29,7 @@ import { MaxTokensInput } from '@/lib/evaluation/MaxTokensInput'
 import { computeDefaultEvalName } from '@/lib/evaluation/evalName'
 import { useJudgeModelHelpers } from '@/lib/evaluation/judgeModelHelpers'
 import { getMetricEditor } from '@/lib/extensions/metricEditors'
+import { DEFAULT_MODEL_ID } from '@/lib/modelDefaults'
 import {
   CustomCriteriaDefinition,
   DEFAULT_PROMPT_TEMPLATES,
@@ -136,7 +137,7 @@ export function EvaluationBuilder({
 
   const renderTemperatureInput = () => (
     <TemperatureInput
-      judgeModelId={newEvaluation.metric_parameters.judge_model || 'gpt-4o'}
+      judgeModelId={newEvaluation.metric_parameters.judge_model || DEFAULT_MODEL_ID}
       value={newEvaluation.metric_parameters.temperature}
       onChange={(temperature) =>
         setNewEvaluation((prev) => ({
@@ -739,7 +740,7 @@ export function EvaluationBuilder({
                   </label>
                   <Select
                     value={
-                      newEvaluation.metric_parameters.judge_model || 'gpt-4o'
+                      newEvaluation.metric_parameters.judge_model || DEFAULT_MODEL_ID
                     }
                     onValueChange={(modelId) => {
                       const defaults = getJudgeModelDefaults(modelId, defaultsMode, customTemp, customMaxTokens)
@@ -754,7 +755,7 @@ export function EvaluationBuilder({
                         },
                       }))
                     }}
-                    displayValue={(() => { const m = judgeModels.find(m => m.id === (newEvaluation.metric_parameters.judge_model || 'gpt-4o')); return m ? `${m.name} (${m.provider})` : undefined })()}
+                    displayValue={(() => { const m = judgeModels.find(m => m.id === (newEvaluation.metric_parameters.judge_model || DEFAULT_MODEL_ID)); return m ? `${m.name} (${m.provider})` : undefined })()}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select judge model..." />
@@ -778,7 +779,7 @@ export function EvaluationBuilder({
 
                 {/* Thinking Budget - for Anthropic/Google models */}
                 {getThinkingConfig(
-                  newEvaluation.metric_parameters.judge_model || 'gpt-4o'
+                  newEvaluation.metric_parameters.judge_model || DEFAULT_MODEL_ID
                 )?.type === 'budget' && (
                   <div>
                     <label className="mb-2 flex items-center gap-2 text-xs font-medium text-gray-700 dark:text-gray-300">
@@ -799,7 +800,7 @@ export function EvaluationBuilder({
                       }
                       placeholder={String(
                         getThinkingConfig(
-                          newEvaluation.metric_parameters.judge_model || 'gpt-4o'
+                          newEvaluation.metric_parameters.judge_model || DEFAULT_MODEL_ID
                         )?.default || 8000
                       )}
                       onChange={(e) =>
@@ -826,7 +827,7 @@ export function EvaluationBuilder({
 
                 {/* Reasoning Effort - for OpenAI o-series */}
                 {getThinkingConfig(
-                  newEvaluation.metric_parameters.judge_model || 'gpt-4o'
+                  newEvaluation.metric_parameters.judge_model || DEFAULT_MODEL_ID
                 )?.type === 'effort' && (
                   <div>
                     <label className="mb-2 flex items-center gap-2 text-xs font-medium text-gray-700 dark:text-gray-300">
@@ -885,7 +886,7 @@ export function EvaluationBuilder({
 
                 {/* Max Tokens for Judge Response */}
                 <MaxTokensInput
-                  judgeModelId={newEvaluation.metric_parameters.judge_model || 'gpt-4o'}
+                  judgeModelId={newEvaluation.metric_parameters.judge_model || DEFAULT_MODEL_ID}
                   value={newEvaluation.metric_parameters.max_tokens}
                   onChange={(max_tokens) =>
                     setNewEvaluation((prev) => ({
@@ -926,7 +927,7 @@ export function EvaluationBuilder({
                   </label>
                   <Select
                     value={
-                      newEvaluation.metric_parameters.judge_model || 'gpt-4o'
+                      newEvaluation.metric_parameters.judge_model || DEFAULT_MODEL_ID
                     }
                     onValueChange={(modelId) => {
                       const defaults = getJudgeModelDefaults(modelId, defaultsMode, customTemp, customMaxTokens)
@@ -941,7 +942,7 @@ export function EvaluationBuilder({
                         },
                       }))
                     }}
-                    displayValue={(() => { const m = judgeModels.find(m => m.id === (newEvaluation.metric_parameters.judge_model || 'gpt-4o')); return m ? `${m.name} (${m.provider})` : undefined })()}
+                    displayValue={(() => { const m = judgeModels.find(m => m.id === (newEvaluation.metric_parameters.judge_model || DEFAULT_MODEL_ID)); return m ? `${m.name} (${m.provider})` : undefined })()}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select judge model..." />
@@ -965,7 +966,7 @@ export function EvaluationBuilder({
 
                 {/* Thinking Budget - for Anthropic/Google models */}
                 {getThinkingConfig(
-                  newEvaluation.metric_parameters.judge_model || 'gpt-4o'
+                  newEvaluation.metric_parameters.judge_model || DEFAULT_MODEL_ID
                 )?.type === 'budget' && (
                   <div>
                     <label className="mb-2 flex items-center gap-2 text-xs font-medium text-gray-700 dark:text-gray-300">
@@ -986,7 +987,7 @@ export function EvaluationBuilder({
                       }
                       placeholder={String(
                         getThinkingConfig(
-                          newEvaluation.metric_parameters.judge_model || 'gpt-4o'
+                          newEvaluation.metric_parameters.judge_model || DEFAULT_MODEL_ID
                         )?.default || 8000
                       )}
                       onChange={(e) =>
@@ -1013,7 +1014,7 @@ export function EvaluationBuilder({
 
                 {/* Reasoning Effort - for OpenAI o-series */}
                 {getThinkingConfig(
-                  newEvaluation.metric_parameters.judge_model || 'gpt-4o'
+                  newEvaluation.metric_parameters.judge_model || DEFAULT_MODEL_ID
                 )?.type === 'effort' && (
                   <div>
                     <label className="mb-2 flex items-center gap-2 text-xs font-medium text-gray-700 dark:text-gray-300">
@@ -1072,7 +1073,7 @@ export function EvaluationBuilder({
 
                 {/* Max Tokens for Judge Response */}
                 <MaxTokensInput
-                  judgeModelId={newEvaluation.metric_parameters.judge_model || 'gpt-4o'}
+                  judgeModelId={newEvaluation.metric_parameters.judge_model || DEFAULT_MODEL_ID}
                   value={newEvaluation.metric_parameters.max_tokens}
                   onChange={(max_tokens) =>
                     setNewEvaluation((prev) => ({

@@ -21,6 +21,7 @@ import {
 import { computeDefaultEvalName } from '@/lib/evaluation/evalName'
 import { OutputField } from '@/lib/labelConfig/fieldExtractor'
 import { useModels } from '@/hooks/useModels'
+import { DEFAULT_MODEL_ID } from '@/lib/modelDefaults'
 import { ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/24/outline'
 import { useState } from 'react'
 
@@ -350,7 +351,15 @@ export function StepEvaluationMethods({
                               {t('projects.creation.wizard.step7.judgeModel')}
                             </Label>
                             <Select
-                              value={(config.metric_parameters as any)?.judge_model || ''}
+                              value={
+                                (config.metric_parameters as any)?.judge_model ||
+                                // Preselect the shared default, but only when the
+                                // catalog actually offers it — a value with no
+                                // matching SelectItem renders as a blank trigger.
+                                (models.some((m) => m.id === DEFAULT_MODEL_ID)
+                                  ? DEFAULT_MODEL_ID
+                                  : '')
+                              }
                               onValueChange={(val) =>
                                 updateConfig(metricKey, 'metric_parameters', {
                                   ...config.metric_parameters,
