@@ -317,3 +317,104 @@ class TestPostSubmitReveal:
                 f"/api/projects/tasks/{w['tasks'][0].id}"
             )
         assert resp.json()["data"] == {"sachverhalt": SECRET_DATA["sachverhalt"]}
+
+
+class TestBindingNormalization:
+    """Binding→data-key matching must mirror the frontend resolver
+    (case-insensitive, nested paths) — see blinding.visible_top_level_keys."""
+
+    @pytest.mark.asyncio
+    async def test_case_insensitive_binding_match(
+        self, async_test_client, async_test_db, blinding_world
+    ):
+        """Bindings match data keys case-insensitively, like the frontend.
+
+        The labeling UI resolves ``$sachverhalt`` against a ``Sachverhalt``
+        data key (``findKeyInsensitive``), so blinding must too — an exact
+        match strips the case text for annotators while editor tiers (who
+        skip blinding) still see it: the 2026-08-20 "empty Angabe" prod
+        incident on capitalized import keys. Case-variant SECRETS stay
+        withheld: matching is insensitive, the visibility rule is not wider.
+        """
+        w = blinding_world
+        w["tasks"][0].data = {
+            "Sachverhalt": SECRET_DATA["sachverhalt"],
+            "Musterlösung": "GEHEIM",
+            "MUSTERLOESUNG": "AUCH GEHEIM",
+        }
+        await async_test_db.commit()
+
+        with _as_user(w["annotator"]):
+            resp = await async_test_client.get(
+                f"/api/projects/tasks/{w['tasks'][0].id}"
+            )
+        assert resp.status_code == 200, resp.text
+        # Original key casing is preserved in the served payload.
+        assert resp.json()["data"] == {"Sachverhalt": SECRET_DATA["sachverhalt"]}
+
+    @pytest.mark.asyncio
+    async def test_nested_binding_keeps_top_level_object(
+        self, async_test_client, async_test_db, blinding_world
+    ):
+        """``$case.sachverhalt`` renders from inside ``data.case`` in the UI,
+        so the top-level ``case`` object must survive blinding; unbound
+        siblings still don't."""
+        w = blinding_world
+        w["project"].label_config = (
+            '<View><Text name="sv" value="$case.sachverhalt"/>'
+            '<TextArea name="loesung" toName="sv"/></View>'
+        )
+        w["tasks"][0].data = {
+            "case": {"sachverhalt": "K kauft von B.", "note": "n"},
+            "musterloesung": "GEHEIM",
+        }
+        await async_test_db.commit()
+
+        with _as_user(w["annotator"]):
+            resp = await async_test_client.get(
+                f"/api/projects/tasks/{w['tasks'][0].id}"
+            )
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["data"] == {
+            "case": {"sachverhalt": "K kauft von B.", "note": "n"}
+        }
+
+    @pytest.mark.asyncio
+    async def test_extension_tag_config_binds_for_annotator(
+        self, async_test_client, async_test_db, blinding_world
+    ):
+        """An extension-registered tag (exam ``<Angabe>``) contributes its
+        ``$``-bindings like a core tag — previously untested, and the reason
+        an unregistered extension would blind the ENTIRE exam payload."""
+        from services.label_config.parser import LabelConfigParser
+
+        w = blinding_world
+        w["project"].label_config = (
+            "<View>"
+            '<Angabe name="angabe" value="$sachverhalt" toName="sachverhalt"'
+            ' bearbeitervermerk="$bearbeitervermerk"/>'
+            '<TextArea name="loesung" toName="angabe"/>'
+            "</View>"
+        )
+        w["tasks"][0].data = {
+            "sachverhalt": SECRET_DATA["sachverhalt"],
+            "bearbeitervermerk": "Vermerk",
+            "musterloesung": "GEHEIM",
+        }
+        await async_test_db.commit()
+
+        newly_registered = "Angabe" not in LabelConfigParser._EXTENSION_FIELD_TYPES
+        LabelConfigParser.register_field_types(["Angabe"])
+        try:
+            with _as_user(w["annotator"]):
+                resp = await async_test_client.get(
+                    f"/api/projects/tasks/{w['tasks'][0].id}"
+                )
+        finally:
+            if newly_registered:
+                LabelConfigParser._EXTENSION_FIELD_TYPES.discard("Angabe")
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["data"] == {
+            "sachverhalt": SECRET_DATA["sachverhalt"],
+            "bearbeitervermerk": "Vermerk",
+        }
