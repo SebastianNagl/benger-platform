@@ -23,6 +23,7 @@ import { I18nProvider } from '@/contexts/I18nContext'
 import StudentDashboardPage from '../page'
 import StudentExamsListPage from '../exams/page'
 import StudentExamDetailPage from '../exams/[id]/page'
+import StudentBuilderPage from '../builder/page'
 import StudentDecksPage from '../decks/page'
 import StudentDeckDetailPage from '../decks/[id]/page'
 import StudentLeaderboardPage from '../leaderboard/page'
@@ -39,6 +40,7 @@ describe('student host routes (community edition fallback)', () => {
     ['dashboard', StudentDashboardPage],
     ['exams list', StudentExamsListPage],
     ['exam detail', StudentExamDetailPage],
+    ['builder', StudentBuilderPage],
     ['decks', StudentDecksPage],
     ['deck detail', StudentDeckDetailPage],
     ['leaderboard', StudentLeaderboardPage],

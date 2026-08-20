@@ -102,6 +102,11 @@ TASK_QUEUES: dict[str, str] = {
     "tasks.generate_llm_responses": GENERATION,
     "tasks.generate_synthetic_data": GENERATION,
     "tasks.generate_bewertungsbogen": GENERATION,  # extended; per-task rubric
+    # extended; Skript -> synthetic Klausur / Karteikarten deck. One LLM call
+    # per job over a whole lecture script (up to 400k chars in, 32k tokens out),
+    # so it belongs with the other minutes-long generation work, NOT on
+    # `interactive` — the student polls for it and is not holding a slot.
+    "tasks.generate_synthetic_project": GENERATION,  # extended
     # --- evaluation: orchestrator + the big chord fan-out ---
     "tasks.run_evaluation": EVALUATION,
     "tasks.run_multi_field_evaluation": EVALUATION,  # back-compat alias of the above
@@ -125,6 +130,7 @@ EXTENDED_TASK_NAMES = frozenset(
         "tasks.reconcile_grading_usage",
         "tasks.lti_grade_sync_sweep",
         "tasks.generate_bewertungsbogen",
+        "tasks.generate_synthetic_project",
     }
 )
 
