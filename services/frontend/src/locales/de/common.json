@@ -8888,7 +8888,8 @@
       "notifications": "Benachrichtigungen",
       "settings": "Einstellungen",
       "tierFree": "Free",
-      "tierPro": "Pro"
+      "tierPro": "Pro",
+      "builder": "KI-Generator"
     },
     "loading": "Wird geladen …",
     "account": {
@@ -9295,6 +9296,31 @@
       "revoked": "Dieser Einladungslink wurde widerrufen.",
       "sharedBy": "Geteilt von {name}",
       "unavailableTitle": "Einladung nicht verfügbar"
+    },
+    "builder": {
+      "title": "KI-Generator",
+      "subtitle": "Aus einem Skript eine synthetische Klausur oder ein Karteikarten-Deck erzeugen.",
+      "kindExam": "Synthetische Klausur",
+      "kindExamHint": "Sachverhalt + Musterlösung, sofort lösbar und automatisch bewertet.",
+      "kindCards": "Karteikarten-Deck",
+      "kindCardsHint": "Frage-/Antwort-Karten mit Stapelstruktur aus dem Skript.",
+      "skript": "Skript",
+      "skriptPlaceholder": "Skript hier einfügen oder oben eine Datei hochladen (PDF, DOCX, TXT, MD)…",
+      "model": "Modell",
+      "wishes": "Wünsche (optional)",
+      "wishesPlaceholder": "z. B. Schwerpunkt auf Stellvertretung, mit Prozessrecht…",
+      "difficulty": "Schwierigkeit",
+      "difficultyGrundlagen": "Grundlagen",
+      "difficultyKlausurnah": "Klausurnah",
+      "difficultyExamensniveau": "Examensniveau",
+      "itemCount": "Anzahl Karten",
+      "submit": "Erzeugen",
+      "running": "Wird erstellt — das kann 1–3 Minuten dauern…",
+      "charCount": "{count} Zeichen",
+      "tooLong": "Das Skript ist zu lang (max. {max} Zeichen).",
+      "skriptTooShort": "Das Skript ist zu kurz (mindestens 200 Zeichen).",
+      "error": "Erzeugung fehlgeschlagen.",
+      "noModels": "Keine Modelle verfügbar."
     }
   },
   "accountActivation": {

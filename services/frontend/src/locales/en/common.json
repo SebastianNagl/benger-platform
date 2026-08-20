@@ -8898,7 +8898,8 @@
       "notifications": "Notifications",
       "settings": "Settings",
       "tierFree": "Free",
-      "tierPro": "Pro"
+      "tierPro": "Pro",
+      "builder": "AI generator"
     },
     "loading": "Loading …",
     "account": {
@@ -9305,6 +9306,31 @@
       "revoked": "This invitation link has been revoked.",
       "sharedBy": "Shared by {name}",
       "unavailableTitle": "Invitation unavailable"
+    },
+    "builder": {
+      "title": "AI generator",
+      "subtitle": "Turn a lecture script into a synthetic exam or a flashcard deck.",
+      "kindExam": "Synthetic exam",
+      "kindExamHint": "Case text + reference solution, immediately solvable and auto-graded.",
+      "kindCards": "Flashcard deck",
+      "kindCardsHint": "Question/answer cards with deck structure derived from the script.",
+      "skript": "Script",
+      "skriptPlaceholder": "Paste the script here or upload a file above (PDF, DOCX, TXT, MD)…",
+      "model": "Model",
+      "wishes": "Wishes (optional)",
+      "wishesPlaceholder": "e.g. focus on agency law, include procedural questions…",
+      "difficulty": "Difficulty",
+      "difficultyGrundlagen": "Fundamentals",
+      "difficultyKlausurnah": "Exam-like",
+      "difficultyExamensniveau": "State-exam level",
+      "itemCount": "Number of cards",
+      "submit": "Generate",
+      "running": "Generating — this can take 1–3 minutes…",
+      "charCount": "{count} characters",
+      "tooLong": "The script is too long (max. {max} characters).",
+      "skriptTooShort": "The script is too short (at least 200 characters).",
+      "error": "Generation failed.",
+      "noModels": "No models available."
     }
   },
   "vertretbar": {

@@ -33,6 +33,7 @@ jest.mock('@/hooks/useModels', () => ({
 }))
 
 import { useModels } from '@/hooks/useModels'
+import { DEFAULT_MODEL_ID } from '@/lib/modelDefaults'
 
 const mockUseModels = useModels as jest.MockedFunction<typeof useModels>
 
@@ -288,6 +289,68 @@ describe('StepModels', () => {
       expect(onGenerationParametersChange).toHaveBeenCalledWith(
         expect.objectContaining({ temperature: 1.5 })
       )
+    })
+  })
+
+  describe('default model seeding', () => {
+    const DEFAULT_ROW = {
+      id: DEFAULT_MODEL_ID,
+      name: 'GPT-5.4 Mini',
+      description: 'Cost-efficient',
+      provider: 'openai',
+      model_type: 'chat',
+      capabilities: [],
+      is_active: true,
+      created_at: null,
+    }
+
+    it('preselects the default model once the catalog offers it', () => {
+      setModels({ models: [...MODELS, DEFAULT_ROW] as any })
+      const { onSelectedModelsChange } = renderStep()
+      expect(onSelectedModelsChange).toHaveBeenCalledWith([DEFAULT_MODEL_ID])
+    })
+
+    it('seeds nothing when the catalog has no such model', () => {
+      // A deployment whose catalog lacks the default must NOT get a phantom
+      // id written into generation_config.
+      setModels({ models: MODELS as any })
+      const { onSelectedModelsChange } = renderStep()
+      expect(onSelectedModelsChange).not.toHaveBeenCalled()
+    })
+
+    it('leaves an existing selection alone', () => {
+      setModels({ models: [...MODELS, DEFAULT_ROW] as any })
+      const { onSelectedModelsChange } = renderStep({
+        selectedModelIds: ['gpt-4'],
+      })
+      expect(onSelectedModelsChange).not.toHaveBeenCalled()
+    })
+
+    it('does not seed while the catalog is still loading', () => {
+      setModels({ models: [] as any, loading: true })
+      const { onSelectedModelsChange } = renderStep()
+      expect(onSelectedModelsChange).not.toHaveBeenCalled()
+    })
+
+    it('does not re-add the default after the user deselects it', () => {
+      // The seed is one-shot: without the ref guard, emptying the selection
+      // would immediately re-trigger the effect and the default would be
+      // impossible to remove.
+      setModels({ models: [...MODELS, DEFAULT_ROW] as any })
+      const { onSelectedModelsChange, rerender } = renderStep()
+      expect(onSelectedModelsChange).toHaveBeenCalledTimes(1)
+
+      rerender(
+        <StepModels
+          selectedModelIds={[]}
+          modelConfigs={{}}
+          generationParameters={DEFAULT_GEN_PARAMS}
+          onSelectedModelsChange={onSelectedModelsChange}
+          onModelConfigsChange={jest.fn()}
+          onGenerationParametersChange={jest.fn()}
+        />
+      )
+      expect(onSelectedModelsChange).toHaveBeenCalledTimes(1)
     })
   })
 })

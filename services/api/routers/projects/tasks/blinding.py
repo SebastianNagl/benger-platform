@@ -77,8 +77,32 @@ async def revealed_task_ids_async(
     return {row for row in result.scalars().all()}
 
 
+def visible_top_level_keys(bound_fields: Iterable[str]) -> Set[str]:
+    """Normalize config bindings to the comparable top-level data keys.
+
+    Must mirror how the labeling UI resolves a binding, or blinding strips
+    keys the annotator is meant to see (empty Angabe while admins, who skip
+    blinding, see content — 2026-08-20 prod incident on capitalized import
+    keys):
+
+    - Case-insensitive: the frontend resolver (``findKeyInsensitive`` in
+      ``lib/labelConfig/dataBinding.ts``) matches ``$sachverhalt`` to a
+      ``Sachverhalt`` data key; so must we. ``casefold`` on both sides.
+    - Nested paths: ``$case.sachverhalt`` renders from inside the top-level
+      ``case`` object, so the top-level segment is what must survive the
+      filter. Deliberate consequence: a nested binding exposes its WHOLE
+      top-level object — no wider than what the labeling UI can render.
+    """
+    return {f.split(".", 1)[0].casefold() for f in bound_fields}
+
+
 def blind_task_data(task_data, bound_fields: Set[str]) -> Dict:
-    """Reduce a ``task.data`` dict to the label-config-bound keys."""
+    """Reduce a ``task.data`` dict to the label-config-bound keys.
+
+    An empty ``bound_fields`` still blinds everything (fail-closed). Unbound
+    keys — most importantly a Musterlösung under ANY spelling — never pass.
+    """
     if not isinstance(task_data, dict):
         return {}
-    return {k: v for k, v in task_data.items() if k in bound_fields}
+    visible = visible_top_level_keys(bound_fields)
+    return {k: v for k, v in task_data.items() if k.casefold() in visible}

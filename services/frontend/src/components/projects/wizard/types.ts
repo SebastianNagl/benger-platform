@@ -128,6 +128,9 @@ export const INITIAL_WIZARD_DATA: WizardData = {
   pastedData: '',
   selectedFile: null,
   dataColumns: [],
+  // Seeded with DEFAULT_MODEL_ID by StepModels once the catalog loads —
+  // not here, because a static seed would carry the id into a project's
+  // generation config even on a deployment whose catalog lacks it.
   selectedModelIds: [],
   modelConfigs: {},
   generationParameters: {
