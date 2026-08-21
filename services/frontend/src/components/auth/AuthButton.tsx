@@ -76,7 +76,7 @@ export function AuthButton() {
         </button>
 
         {dropdownOpen && (
-          <div className="absolute right-0 z-50 mt-2 w-52 rounded-lg border border-zinc-200 bg-white shadow-lg dark:border-zinc-700 dark:bg-zinc-800">
+          <div className="absolute right-0 z-50 mt-2 max-h-[calc(100vh-5rem)] w-52 overflow-y-auto rounded-lg border border-zinc-200 bg-white shadow-lg dark:border-zinc-700 dark:bg-zinc-800">
             <div className="py-1">
               {/* Student⇄expert view switch (issue #35) — only for users with
                   expert-view capability in the extended edition. Lives here, in
@@ -148,22 +148,26 @@ export function AuthButton() {
                       <CheckIcon className="ml-auto h-4 w-4 text-amber-600" />
                     )}
                   </button>
-                  {organizations.map((org) => (
-                    <button
-                      key={org.id}
-                      onClick={() => {
-                        setDropdownOpen(false)
-                        setCurrentOrganization(org)
-                      }}
-                      className="flex w-full items-center px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-700"
-                    >
-                      <BuildingOfficeIcon className="mr-3 h-4 w-4" />
-                      {org.name}
-                      {currentOrganization?.id === org.id && (
-                        <CheckIcon className="ml-auto h-4 w-4 text-amber-600" />
-                      )}
-                    </button>
-                  ))}
+                  {/* Long org lists scroll here so the entries below
+                      (Läufe, admin links, logout) stay reachable. */}
+                  <div className="max-h-60 overflow-y-auto overscroll-contain">
+                    {organizations.map((org) => (
+                      <button
+                        key={org.id}
+                        onClick={() => {
+                          setDropdownOpen(false)
+                          setCurrentOrganization(org)
+                        }}
+                        className="flex w-full items-center px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-700"
+                      >
+                        <BuildingOfficeIcon className="mr-3 h-4 w-4" />
+                        {org.name}
+                        {currentOrganization?.id === org.id && (
+                          <CheckIcon className="ml-auto h-4 w-4 text-amber-600" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
                 </>
               )}
 
