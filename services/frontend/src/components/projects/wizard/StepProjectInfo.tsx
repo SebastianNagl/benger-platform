@@ -5,6 +5,7 @@ import { Label } from '@/components/shared/Label'
 import { Textarea } from '@/components/shared/Textarea'
 import { useI18n } from '@/contexts/I18nContext'
 import { organizationsAPI } from '@/lib/api/organizations'
+import { useSlot } from '@/lib/extensions/slots'
 import { cn } from '@/lib/utils'
 import { useEffect, useState } from 'react'
 import {
@@ -56,6 +57,11 @@ export function StepProjectInfo({
 }: StepProjectInfoProps) {
   const { t } = useI18n()
   const [orgs, setOrgs] = useState<Array<{ id: string; name: string }>>([])
+  // Extended-edition feature row rendered below the core feature checkboxes:
+  // the experimental KI-Generator, styled like the rows above and toggling
+  // `features.synthetic` (which adds the synthetic step to the wizard). Null
+  // in the community edition.
+  const SyntheticEntry = useSlot('ProjectWizardSyntheticEntry')
 
   useEffect(() => {
     let cancelled = false
@@ -180,6 +186,14 @@ export function StepProjectInfo({
               />
             </div>
           ))}
+
+          {SyntheticEntry && (
+            // eslint-disable-next-line react-hooks/static-components
+            <SyntheticEntry
+              checked={data.features.synthetic}
+              onToggle={() => toggleFeature('synthetic')}
+            />
+          )}
         </div>
       </div>
 

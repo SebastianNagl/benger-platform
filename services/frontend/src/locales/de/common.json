@@ -247,6 +247,10 @@
           "settings": {
             "name": "Einstellungen",
             "description": "Projekteinstellungen konfigurieren"
+          },
+          "synthetic": {
+            "name": "KI-Generator",
+            "description": "Synthetische Klausur oder Karteikarten aus einem Skript erzeugen"
           }
         },
         "features": {

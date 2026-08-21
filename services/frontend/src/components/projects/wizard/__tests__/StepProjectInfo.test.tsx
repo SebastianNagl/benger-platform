@@ -29,6 +29,16 @@ jest.mock('@/lib/api/organizations', () => ({
   },
 }))
 
+// Extension slot below the feature checkboxes (extended registers the
+// experimental KI-Generator feature row there). Null = community edition.
+let mockSyntheticSlot:
+  | ((props: { checked?: boolean; onToggle?: () => void }) => JSX.Element)
+  | null = null
+jest.mock('@/lib/extensions/slots', () => ({
+  useSlot: (name: string) =>
+    name === 'ProjectWizardSyntheticEntry' ? mockSyntheticSlot : null,
+}))
+
 import { organizationsAPI } from '@/lib/api/organizations'
 
 const mockGetOrganizations = organizationsAPI.getOrganizations as jest.Mock
@@ -53,6 +63,41 @@ describe('StepProjectInfo', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     mockGetOrganizations.mockResolvedValue([])
+    mockSyntheticSlot = null
+  })
+
+  describe('ProjectWizardSyntheticEntry slot', () => {
+    it('renders nothing when no slot is registered (community edition)', () => {
+      renderStep()
+      expect(
+        screen.queryByTestId('synthetic-slot-stub')
+      ).not.toBeInTheDocument()
+    })
+
+    it('renders the registered slot with the synthetic feature state', () => {
+      mockSyntheticSlot = ({ checked }) => (
+        <div data-testid="synthetic-slot-stub">{String(checked)}</div>
+      )
+      renderStep({
+        features: { ...INITIAL_WIZARD_DATA.features, synthetic: true },
+      })
+      expect(screen.getByTestId('synthetic-slot-stub')).toHaveTextContent(
+        'true'
+      )
+    })
+
+    it('toggles features.synthetic via the slot onToggle', () => {
+      mockSyntheticSlot = ({ onToggle }) => (
+        <button data-testid="synthetic-slot-stub" onClick={onToggle}>
+          toggle
+        </button>
+      )
+      const { onChange, data } = renderStep()
+      fireEvent.click(screen.getByTestId('synthetic-slot-stub'))
+      expect(onChange).toHaveBeenCalledWith({
+        features: { ...data.features, synthetic: true },
+      })
+    })
   })
 
   describe('basic fields', () => {

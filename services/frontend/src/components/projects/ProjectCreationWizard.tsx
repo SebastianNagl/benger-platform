@@ -14,6 +14,7 @@ import { useI18n } from '@/contexts/I18nContext'
 import { apiClient } from '@/lib/api/client'
 import { projectsAPI } from '@/lib/api/projects'
 import { getRegisteredWizardTemplates } from '@/lib/extensions'
+import { useSlot } from '@/lib/extensions/slots'
 import { getWizardFinishContributors } from '@/lib/extensions/wizardFinish'
 import { extractFieldsFromLabelConfig } from '@/lib/labelConfig/fieldExtractor'
 import { useProjectStore } from '@/stores/projectStore'
@@ -135,6 +136,10 @@ export function ProjectCreationWizard() {
     [t]
   )
 
+  // Extended-edition step body for the experimental KI-Generator feature
+  // (checkbox row = ProjectWizardSyntheticEntry slot in StepProjectInfo).
+  const SyntheticStep = useSlot('ProjectWizardSyntheticStep')
+
   // Build dynamic step list from features
   const activeSteps: WizardStepDef[] = useMemo(() => {
     const steps: WizardStepDef[] = [
@@ -146,6 +151,16 @@ export function ProjectCreationWizard() {
         ),
       },
     ]
+
+    if (wizardData.features.synthetic) {
+      steps.push({
+        id: 'synthetic',
+        name: t('projects.creation.wizard.steps.synthetic.name'),
+        description: t(
+          'projects.creation.wizard.steps.synthetic.description'
+        ),
+      })
+    }
 
     if (wizardData.features.dataImport) {
       steps.push({
@@ -646,6 +661,14 @@ export function ProjectCreationWizard() {
             errors={errors}
           />
         )
+      case 'synthetic':
+        // Extended-only step; the feature checkbox exists only when the
+        // entry slot is registered, so this can't be reached without the
+        // step slot in practice. Null keeps the frame rendering regardless.
+        return SyntheticStep ? (
+          // eslint-disable-next-line react-hooks/static-components
+          <SyntheticStep />
+        ) : null
       case 'labelingSetup':
         return (
           <StepLabelingSetup

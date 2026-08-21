@@ -247,6 +247,10 @@
           "settings": {
             "name": "Settings",
             "description": "Configure project settings"
+          },
+          "synthetic": {
+            "name": "KI-Generator",
+            "description": "Generate a synthetic exam or flashcards from a lecture script"
           }
         },
         "features": {
