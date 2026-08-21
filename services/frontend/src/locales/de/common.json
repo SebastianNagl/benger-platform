@@ -1767,6 +1767,11 @@
     }
   },
   "profile": {
+    "interface": {
+      "title": "Oberfläche",
+      "show": "Oberfläche anzeigen",
+      "hide": "Oberfläche ausblenden"
+    },
     "examLayout": {
       "title": "Klausur-Oberfläche",
       "description": "Lege fest, wie Klausuren für dich dargestellt werden. Gilt für alle Klausur-Projekte.",

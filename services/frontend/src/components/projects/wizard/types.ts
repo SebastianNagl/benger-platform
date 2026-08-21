@@ -101,6 +101,12 @@ export interface WizardData {
   evaluationConfigs: EvaluationConfig[]
   immediate_evaluation_enabled: boolean
 
+  // KI-Generator (if synthetic): the in-flight generation job, kept in the
+  // wizard state so the step can resume polling after a step change (the
+  // step component unmounts between steps; without this the finished
+  // result would be silently lost).
+  syntheticJobId: string | null
+
   // Settings (always)
   settings: ProjectSettings
 }
@@ -149,6 +155,7 @@ export const INITIAL_WIZARD_DATA: WizardData = {
   instructionPrompt: '',
   evaluationConfigs: [],
   immediate_evaluation_enabled: false,
+  syntheticJobId: null,
   settings: {
     assignment_mode: 'open',
     maximum_annotations: 0,
