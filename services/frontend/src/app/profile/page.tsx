@@ -389,6 +389,11 @@ export default function ProfilePage() {
               }}
             />
 
+            {/* Extended-only self-saving settings (own save buttons via
+                dedicated endpoints; the profile-update button below does not
+                touch them) */}
+            {ProfileSettingsExtended && <ProfileSettingsExtended />}
+
             {/* Research Profile - Collapsible Section */}
             <ProfileResearchSection
               profileForm={profileForm}
@@ -425,10 +430,6 @@ export default function ProfilePage() {
                   : t('profile.updateProfile')}
               </Button>
             </div>
-
-            {/* Extended-only self-saving settings (below the submit row so the
-                profile-update button visually can't claim to save them) */}
-            {ProfileSettingsExtended && <ProfileSettingsExtended />}
 
             {/* Profile History - Collapsible (superadmin only, Issue #1206) */}
             {profile?.is_superadmin && profileHistory.length > 0 && (
