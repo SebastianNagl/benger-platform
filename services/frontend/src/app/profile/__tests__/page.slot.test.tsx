@@ -2,9 +2,10 @@
  * @jest-environment jsdom
  *
  * The profile page hosts the 'profile-settings-extended' slot for extended-only
- * self-saving settings sections (exam interface layout). Community edition:
- * slot unregistered -> nothing renders. The section renders OUTSIDE the
- * profile-form save path (below the submit row).
+ * self-saving settings sections (the "Interface" section with the exam
+ * interface picker). Community edition: slot unregistered -> nothing renders.
+ * The section renders after the legal-experience section but saves OUTSIDE
+ * the profile-form save path (own save buttons, dedicated endpoints).
  */
 
 import { render, screen, waitFor } from '@testing-library/react'
