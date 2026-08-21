@@ -5,6 +5,7 @@ import { Label } from '@/components/shared/Label'
 import { Textarea } from '@/components/shared/Textarea'
 import { useI18n } from '@/contexts/I18nContext'
 import { organizationsAPI } from '@/lib/api/organizations'
+import { useSlot } from '@/lib/extensions/slots'
 import { cn } from '@/lib/utils'
 import { useEffect, useState } from 'react'
 import {
@@ -56,6 +57,9 @@ export function StepProjectInfo({
 }: StepProjectInfoProps) {
   const { t } = useI18n()
   const [orgs, setOrgs] = useState<Array<{ id: string; name: string }>>([])
+  // Extended-edition extras rendered below the feature checkboxes (e.g. the
+  // experimental KI-Generator entry card). Null in the community edition.
+  const SyntheticEntry = useSlot('ProjectWizardSyntheticEntry')
 
   useEffect(() => {
     let cancelled = false
@@ -181,6 +185,11 @@ export function StepProjectInfo({
             </div>
           ))}
         </div>
+
+        {SyntheticEntry && (
+          // eslint-disable-next-line react-hooks/static-components
+          <SyntheticEntry />
+        )}
       </div>
 
       <hr className="border-zinc-200 dark:border-zinc-700" />

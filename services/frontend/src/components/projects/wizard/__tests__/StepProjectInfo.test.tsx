@@ -29,6 +29,14 @@ jest.mock('@/lib/api/organizations', () => ({
   },
 }))
 
+// Extension slot below the feature checkboxes (extended registers the
+// experimental KI-Generator entry card there). Null = community edition.
+let mockSyntheticSlot: (() => JSX.Element) | null = null
+jest.mock('@/lib/extensions/slots', () => ({
+  useSlot: (name: string) =>
+    name === 'ProjectWizardSyntheticEntry' ? mockSyntheticSlot : null,
+}))
+
 import { organizationsAPI } from '@/lib/api/organizations'
 
 const mockGetOrganizations = organizationsAPI.getOrganizations as jest.Mock
@@ -53,6 +61,24 @@ describe('StepProjectInfo', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     mockGetOrganizations.mockResolvedValue([])
+    mockSyntheticSlot = null
+  })
+
+  describe('ProjectWizardSyntheticEntry slot', () => {
+    it('renders nothing when no slot is registered (community edition)', () => {
+      renderStep()
+      expect(
+        screen.queryByTestId('synthetic-slot-stub')
+      ).not.toBeInTheDocument()
+    })
+
+    it('renders the registered slot component below the feature checkboxes', () => {
+      mockSyntheticSlot = () => (
+        <div data-testid="synthetic-slot-stub">KI-Generator</div>
+      )
+      renderStep()
+      expect(screen.getByTestId('synthetic-slot-stub')).toBeInTheDocument()
+    })
   })
 
   describe('basic fields', () => {
