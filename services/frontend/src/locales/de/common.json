@@ -302,6 +302,8 @@
         "step2": {
           "title": "Daten importieren",
           "subtitle": "Laden Sie Ihre Daten jetzt hoch oder überspringen Sie diesen Schritt und fügen Sie sie später hinzu",
+        "syntheticNotice": "Der KI-Generator liefert bereits synthetische Daten. Zusätzliche Uploads sind möglich, müssen aber derselben Struktur folgen.",
+        "syntheticNoticeColumns": "Erwartete Spalten:",
           "tabs": {
             "upload": "Dateien hochladen",
             "paste": "Daten einfügen",

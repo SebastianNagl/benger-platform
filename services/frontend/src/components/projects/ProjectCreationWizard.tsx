@@ -721,6 +721,8 @@ export function ProjectCreationWizard() {
             onDataColumnsChange={(dataColumns) =>
               updateWizardData({ dataColumns })
             }
+            syntheticActive={wizardData.features.synthetic}
+            syntheticColumns={wizardData.dataColumns}
           />
         )
       case 'models':

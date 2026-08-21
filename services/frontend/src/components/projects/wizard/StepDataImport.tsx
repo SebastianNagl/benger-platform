@@ -1,5 +1,6 @@
 'use client'
 
+import { Alert } from '@/components/shared/Alert'
 import { Button } from '@/components/shared/Button'
 import { Card } from '@/components/shared/Card'
 import { Label } from '@/components/shared/Label'
@@ -25,6 +26,12 @@ interface StepDataImportProps {
   onPastedDataChange: (data: string) => void
   onFileChange: (file: File | null) => void
   onDataColumnsChange: (columns: string[]) => void
+  /** The synthetic generator feature is active: uploads join generated rows
+   *  and must follow their structure — a warning box says so. */
+  syntheticActive?: boolean
+  /** Column structure of the already-present synthetic rows (shown as chips
+   *  in the warning when known). */
+  syntheticColumns?: string[]
 }
 
 /** Extract column names from a data string (JSON keys or CSV/TSV headers) */
@@ -67,6 +74,8 @@ export function StepDataImport({
   onPastedDataChange,
   onFileChange,
   onDataColumnsChange,
+  syntheticActive = false,
+  syntheticColumns = [],
 }: StepDataImportProps) {
   const { t } = useI18n()
   const { addToast } = useToast()
@@ -134,6 +143,32 @@ export function StepDataImport({
           {t('projects.creation.wizard.step2.subtitle')}
         </p>
       </div>
+
+      {syntheticActive && (
+        <div data-testid="step2-synthetic-warning">
+          <Alert variant="warning">
+            <span>
+              {t('projects.creation.wizard.step2.syntheticNotice')}
+              {syntheticColumns.length > 0 && (
+                <>
+                  {' '}
+                  {t('projects.creation.wizard.step2.syntheticNoticeColumns')}{' '}
+                  <span className="inline-flex flex-wrap gap-1 align-middle">
+                    {syntheticColumns.map((col) => (
+                      <code
+                        key={col}
+                        className="rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-xs dark:bg-zinc-800"
+                      >
+                        {col}
+                      </code>
+                    ))}
+                  </span>
+                </>
+              )}
+            </span>
+          </Alert>
+        </div>
+      )}
 
       <Tabs defaultValue="upload" data-testid="project-create-data-tabs">
         <TabsList className="grid w-full grid-cols-3">

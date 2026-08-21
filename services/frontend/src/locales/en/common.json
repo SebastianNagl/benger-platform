@@ -302,6 +302,8 @@
         "step2": {
           "title": "Import Data",
           "subtitle": "Upload your data now or skip and add it later",
+        "syntheticNotice": "The AI generator already provides synthetic data. Additional uploads are possible but must follow the same structure.",
+        "syntheticNoticeColumns": "Expected columns:",
           "tabs": {
             "upload": "Upload Files",
             "paste": "Paste Data",
