@@ -1785,6 +1785,11 @@
     }
   },
   "profile": {
+    "interface": {
+      "title": "Interface",
+      "show": "Show interface",
+      "hide": "Hide interface"
+    },
     "examLayout": {
       "title": "Exam interface",
       "description": "Choose how exams are displayed for you. Applies to all exam projects.",

@@ -430,9 +430,10 @@ export function ProjectCreationWizard() {
         }
       }
 
-      // 2. Import data if provided
+      // 2. Import data if provided (the synthetic step feeds generated rows
+      // through pastedData, so it imports even without the dataImport step)
       if (
-        wizardData.features.dataImport &&
+        (wizardData.features.dataImport || wizardData.features.synthetic) &&
         (wizardData.pastedData.trim() || wizardData.selectedFile)
       ) {
         try {
@@ -665,9 +666,12 @@ export function ProjectCreationWizard() {
         // Extended-only step; the feature checkbox exists only when the
         // entry slot is registered, so this can't be reached without the
         // step slot in practice. Null keeps the frame rendering regardless.
+        // The step feeds generated rows back through the normal wizard state
+        // (pastedData/dataColumns/labelingConfig), so finishing the wizard
+        // imports them like hand-uploaded data.
         return SyntheticStep ? (
           // eslint-disable-next-line react-hooks/static-components
-          <SyntheticStep />
+          <SyntheticStep data={wizardData} onChange={updateWizardData} />
         ) : null
       case 'labelingSetup':
         return (
