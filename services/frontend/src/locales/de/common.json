@@ -8968,6 +8968,21 @@
         "error": "Karte konnte nicht gespeichert werden.",
         "title": "Karte hinzufügen"
       },
+      "cards": {
+        "count": "{count} Karten",
+        "delete": "Löschen",
+        "deleteConfirm": "Karte wirklich löschen? Der Lernfortschritt zu dieser Karte geht für alle Lernenden verloren.",
+        "deleteError": "Karte konnte nicht gelöscht werden.",
+        "deleted": "Karte gelöscht.",
+        "edit": "Karte bearbeiten",
+        "empty": "Keine Karten gefunden.",
+        "next": "Weiter",
+        "prev": "Zurück",
+        "saveError": "Karte konnte nicht gespeichert werden.",
+        "saved": "Karte gespeichert.",
+        "searchPlaceholder": "Karten durchsuchen...",
+        "title": "Karten"
+      },
       "create": {
         "addCard": "Karte hinzufügen",
         "back": "Rückseite (Antwort)",
@@ -9130,6 +9145,15 @@
       "delete": {
         "message": "„{title}“ und alle zugehörigen Versuche werden dauerhaft gelöscht. Das kann nicht rückgängig gemacht werden.",
         "title": "Klausur löschen?"
+      },
+      "edit": {
+        "attemptWarning": "Für diese Klausur gibt es bereits Abgaben. Bestehende Korrekturen beziehen sich auf die alte Version.",
+        "button": "Bearbeiten",
+        "error": "Klausur konnte nicht gespeichert werden.",
+        "loadError": "Inhalte konnten nicht geladen werden.",
+        "submit": "Speichern",
+        "success": "Klausur gespeichert.",
+        "title": "Klausur bearbeiten"
       },
       "exitConfirm": "Bearbeitung beenden? Nicht abgegebene Eingaben gehen verloren.",
       "extract": {

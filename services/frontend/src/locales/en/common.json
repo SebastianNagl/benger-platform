@@ -8978,6 +8978,21 @@
         "error": "Card could not be saved.",
         "title": "Add card"
       },
+      "cards": {
+        "count": "{count} cards",
+        "delete": "Delete",
+        "deleteConfirm": "Delete this card? Learning progress for this card is lost for everyone studying it.",
+        "deleteError": "Card could not be deleted.",
+        "deleted": "Card deleted.",
+        "edit": "Edit card",
+        "empty": "No cards found.",
+        "next": "Next",
+        "prev": "Previous",
+        "saveError": "Card could not be saved.",
+        "saved": "Card saved.",
+        "searchPlaceholder": "Search cards...",
+        "title": "Cards"
+      },
       "create": {
         "addCard": "Add card",
         "back": "Back (answer)",
@@ -9140,6 +9155,15 @@
       "delete": {
         "message": "“{title}” and all associated attempts will be permanently deleted. This cannot be undone.",
         "title": "Delete exam?"
+      },
+      "edit": {
+        "attemptWarning": "This exam already has submissions. Existing gradings refer to the old version.",
+        "button": "Edit",
+        "error": "The exam could not be saved.",
+        "loadError": "The exam content could not be loaded.",
+        "submit": "Save",
+        "success": "Exam saved.",
+        "title": "Edit exam"
       },
       "exitConfirm": "Stop working on this exam? Unsubmitted input will be lost.",
       "extract": {
