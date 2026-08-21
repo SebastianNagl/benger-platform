@@ -5,6 +5,10 @@ export interface WizardFeatures {
   dataImport: boolean
   llmGeneration: boolean
   evaluation: boolean
+  // Extended-edition hook: the experimental KI-Generator step. The checkbox
+  // row is rendered by the ProjectWizardSyntheticEntry slot (community builds
+  // register nothing, so this can never become true there).
+  synthetic: boolean
 }
 
 export interface ConditionalInstruction {
@@ -115,6 +119,7 @@ export const INITIAL_WIZARD_DATA: WizardData = {
     dataImport: false,
     llmGeneration: false,
     evaluation: false,
+    synthetic: false,
   },
   visibility: 'private',
   publicRole: 'ANNOTATOR',

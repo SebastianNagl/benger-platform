@@ -57,8 +57,10 @@ export function StepProjectInfo({
 }: StepProjectInfoProps) {
   const { t } = useI18n()
   const [orgs, setOrgs] = useState<Array<{ id: string; name: string }>>([])
-  // Extended-edition extras rendered below the feature checkboxes (e.g. the
-  // experimental KI-Generator entry card). Null in the community edition.
+  // Extended-edition feature row rendered below the core feature checkboxes:
+  // the experimental KI-Generator, styled like the rows above and toggling
+  // `features.synthetic` (which adds the synthetic step to the wizard). Null
+  // in the community edition.
   const SyntheticEntry = useSlot('ProjectWizardSyntheticEntry')
 
   useEffect(() => {
@@ -184,12 +186,15 @@ export function StepProjectInfo({
               />
             </div>
           ))}
-        </div>
 
-        {SyntheticEntry && (
-          // eslint-disable-next-line react-hooks/static-components
-          <SyntheticEntry />
-        )}
+          {SyntheticEntry && (
+            // eslint-disable-next-line react-hooks/static-components
+            <SyntheticEntry
+              checked={data.features.synthetic}
+              onToggle={() => toggleFeature('synthetic')}
+            />
+          )}
+        </div>
       </div>
 
       <hr className="border-zinc-200 dark:border-zinc-700" />
