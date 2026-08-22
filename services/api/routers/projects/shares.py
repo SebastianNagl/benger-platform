@@ -18,8 +18,9 @@ Security notes:
   is governed by membership existence (owner eviction removes the row).
 - ``max_uses`` is enforced transactionally (``SELECT ... FOR UPDATE`` on the
   link) so concurrent joins can't overshoot the cap.
-- Rate-limiting / brute-force lockout on join is a deliberate v1 follow-up
-  (tracked in the issue), not implemented here.
+- Join is rate-limited per user (``_JOIN_RATE_LIMITS``, Redis fixed window via
+  the shared limiter; in-process fallback when Redis is down, skipped under
+  ``TESTING=true``) so a listed link's password can't be brute-forced.
 """
 
 import secrets
@@ -50,6 +51,24 @@ from routers.projects.helpers import attempt_score_from_metrics, get_share_acces
 
 router = APIRouter()
 token_router = APIRouter(prefix="/api/shares", tags=["shares"])
+
+# Password attempts per joining user (all attempts count, not just failures —
+# a legitimate student needs a handful per link, a guesser needs thousands).
+_JOIN_RATE_LIMITS = {"minute": (10, 60), "hour": (30, 3600)}
+
+
+async def _enforce_join_rate_limit(request: Request, current_user) -> None:
+    from rate_limiter import rate_limiter
+
+    error = await rate_limiter.check_rate_limit(
+        request, "share_join", _JOIN_RATE_LIMITS, user=current_user
+    )
+    if error:
+        raise HTTPException(
+            status_code=429,
+            detail=error,
+            headers={"Retry-After": str(error["retry_after"])},
+        )
 
 # Bump when the consent copy materially changes so withdrawals/re-consents are
 # auditable. Kept here (not the DB) because it tracks the wording, not data.
@@ -394,7 +413,7 @@ async def cohort_leaderboard(
 # --------------------------------------------------------------------------- #
 
 # Student-generated project kinds that may be discovered + joined.
-STUDENT_SHARE_KINDS = ("exam", "flashcard_collection", "flashcard_deck")
+STUDENT_SHARE_KINDS = ("exam", "flashcard_collection")
 
 
 # NOTE: declared BEFORE the "/{token}" route so a request to /api/shares/discover
@@ -518,14 +537,16 @@ async def get_share_info(
 async def join_share(
     token: str,
     body: ShareJoin,
+    request: Request,
     current_user=Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ):
-    """Join a shared exam by password, capturing GDPR consent.
+    """Join a shared exam/deck by password, capturing GDPR consent.
 
-    Enforces revoked/expired/max_uses gates transactionally. NOTE: brute-force
-    lockout / rate-limiting on this endpoint is a tracked v1 follow-up.
+    Enforces revoked/expired/max_uses gates transactionally; password guesses
+    are rate-limited per user (see ``_enforce_join_rate_limit``).
     """
+    await _enforce_join_rate_limit(request, current_user)
     if not body.gdpr_consent:
         raise HTTPException(
             status_code=400,

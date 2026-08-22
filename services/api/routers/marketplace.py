@@ -52,7 +52,7 @@ router = APIRouter(prefix="/api/marketplace", tags=["marketplace"])
 admin_router = APIRouter(prefix="/api/admin", tags=["marketplace-admin"])
 
 # Project kinds a vendor may list (exams + flashcard collections; legacy deck).
-LISTABLE_KINDS = ("exam", "flashcard_collection", "flashcard_deck")
+LISTABLE_KINDS = ("exam", "flashcard_collection")
 EDITOR_ROLES = ("ORG_ADMIN", "CONTRIBUTOR")
 
 

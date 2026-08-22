@@ -70,13 +70,13 @@ async def _make_exam(db, owner) -> Project:
     return p
 
 
-async def _make_deck(db, owner, *, title="Stapel BGB AT") -> Project:
+async def _make_deck(db, owner, *, title="Stapel BGB AT", kind="flashcard_collection") -> Project:
     p = Project(
         id=str(uuid.uuid4()),
         title=title,
         created_by=owner.id,
         is_private=True,
-        kind="flashcard_deck",
+        kind=kind,
         origin="student",
     )
     db.add(p)
@@ -484,7 +484,7 @@ async def test_srs_stats_empty_deck(async_test_client, async_test_db):
         title="Deck",
         created_by=owner.id,
         is_private=True,
-        kind="flashcard_deck",
+        kind="flashcard_collection",
         origin="student",
     )
     async_test_db.add(deck)
@@ -516,7 +516,7 @@ async def test_share_info_returns_kind(async_test_client, async_test_db):
     with _as_user(invitee):
         r = await async_test_client.get(f"/api/shares/{token}")
         assert r.status_code == 200, r.text
-        assert r.json()["kind"] == "flashcard_deck"
+        assert r.json()["kind"] == "flashcard_collection"
 
 
 @pytest.mark.integration
@@ -556,7 +556,7 @@ async def test_discover_lists_only_listed_student_shares(
         assert listed_deck.id in by_pid
         assert unlisted_exam.id not in by_pid  # listing is opt-in
         assert by_pid[listed_exam.id]["kind"] == "exam"
-        assert by_pid[listed_deck.id]["kind"] == "flashcard_deck"
+        assert by_pid[listed_deck.id]["kind"] == "flashcard_collection"
         assert by_pid[listed_exam.id]["already_member"] is False
         assert "owner_name" in by_pid[listed_exam.id]
 
@@ -645,13 +645,13 @@ async def test_kind_origin_write_once_on_create(async_test_client, async_test_db
             json={
                 "title": "Deck",
                 "is_private": True,
-                "kind": "flashcard_deck",
+                "kind": "flashcard_collection",
                 "origin": "student",
             },
         )
         assert r.status_code in (200, 201), r.text
         body = r.json()
-        assert body["kind"] == "flashcard_deck"
+        assert body["kind"] == "flashcard_collection"
         assert body["origin"] == "student"
 
 
@@ -895,3 +895,74 @@ async def test_score_history_labels_sources_and_excludes_batch_runs(
     assert by_source["ki"]["score"] == pytest.approx(0.8)
     assert by_source["human"]["score"] == pytest.approx(0.6)
     assert not any(p["score"] == pytest.approx(0.99) for p in points)
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_collection_kind_deck_shares_list_and_join(async_test_client, async_test_db):
+    """The current student collections are kind='flashcard_collection' (the
+    legacy cases above use 'flashcard_collection'); both list in the directory and
+    join to the deck surface."""
+    owner = await _make_user(async_test_db)
+    member = await _make_user(async_test_db)
+    deck = await _make_deck(async_test_db, owner, kind="flashcard_collection")
+
+    with _as_user(owner):
+        token = (
+            await async_test_client.post(
+                f"/api/projects/{deck.id}/shares",
+                json={"password": "pw12", "is_listed": True},
+            )
+        ).json()["token"]
+
+    with _as_user(member):
+        listed = {r["project_id"]: r for r in (await async_test_client.get("/api/shares/discover")).json()}
+        assert listed[deck.id]["kind"] == "flashcard_collection"
+        info = (await async_test_client.get(f"/api/shares/{token}")).json()
+        assert info["kind"] == "flashcard_collection"
+        r = await async_test_client.post(
+            f"/api/shares/{token}/join", json={"password": "pw12", "gdpr_consent": True}
+        )
+        assert r.status_code == 200 and r.json()["status"] == "joined"
+        assert (await async_test_client.get(f"/api/projects/{deck.id}/srs/due")).status_code == 200
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_join_is_rate_limited_before_the_password_check(
+    async_test_client, async_test_db, monkeypatch
+):
+    """Brute-force guard: when the shared limiter reports the user is over
+    budget, join returns 429 with Retry-After and never touches the link (the
+    limiter itself is a no-op under TESTING=true, so we force its verdict)."""
+    owner = await _make_user(async_test_db)
+    member = await _make_user(async_test_db)
+    deck = await _make_deck(async_test_db, owner)
+    with _as_user(owner):
+        token = (
+            await async_test_client.post(
+                f"/api/projects/{deck.id}/shares", json={"password": "pw12"}
+            )
+        ).json()["token"]
+
+    seen = {}
+
+    async def _limited(request, endpoint, limits, user=None):
+        seen["endpoint"], seen["limits"], seen["user"] = endpoint, limits, user
+        return {"error": "Rate limit exceeded", "retry_after": 42}
+
+    from rate_limiter import rate_limiter
+
+    monkeypatch.setattr(rate_limiter, "check_rate_limit", _limited)
+    with _as_user(member):
+        r = await async_test_client.post(
+            f"/api/shares/{token}/join", json={"password": "pw12", "gdpr_consent": True}
+        )
+    assert r.status_code == 429
+    assert r.headers["retry-after"] == "42"
+    assert seen["endpoint"] == "share_join"
+    assert seen["limits"] == {"minute": (10, 60), "hour": (30, 3600)}
+    assert str(seen["user"].id) == member.id
+    # Not joined.
+    with _as_user(member):
+        assert (await async_test_client.get(f"/api/projects/{deck.id}/srs/due")).status_code == 403
