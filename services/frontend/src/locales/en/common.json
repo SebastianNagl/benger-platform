@@ -9058,6 +9058,13 @@
       "title": "Dashboard"
     },
     "deck": {
+      "export": {
+        "title": "Export as Anki file",
+        "label": "Export"
+      },
+      "roster": {
+        "title": "Participants"
+      },
       "backToList": "Back to decks",
       "card": {
         "add": "Add",

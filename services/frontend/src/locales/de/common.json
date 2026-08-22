@@ -9048,6 +9048,13 @@
       "title": "Dashboard"
     },
     "deck": {
+      "export": {
+        "title": "Als Anki-Datei exportieren",
+        "label": "Exportieren"
+      },
+      "roster": {
+        "title": "Teilnehmende"
+      },
       "backToList": "Zurück zu den Stapeln",
       "card": {
         "add": "Hinzufügen",
