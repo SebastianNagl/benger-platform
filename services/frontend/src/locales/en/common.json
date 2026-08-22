@@ -9327,6 +9327,8 @@
       "gradeSubmit": "Grade answer",
       "grading": "Grading...",
       "mode": {
+        "gradedSoon": "AI grading coming soon",
+        "soon": "soon",
         "graded": "Graded",
         "quick": "Quick"
       },

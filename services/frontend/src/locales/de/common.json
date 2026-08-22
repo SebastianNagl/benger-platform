@@ -9317,6 +9317,8 @@
       "gradeSubmit": "Antwort bewerten",
       "grading": "Wird bewertet...",
       "mode": {
+        "gradedSoon": "KI-Bewertung bald verfügbar",
+        "soon": "bald",
         "graded": "Bewertet",
         "quick": "Schnell"
       },
