@@ -1058,6 +1058,91 @@
       "minAnnotations": "{count} min. Annotationen",
       "editSettings": "Einstellungen bearbeiten",
       "saveSettings": "Einstellungen speichern",
+      "studentAccess": {
+        "discoverability": {
+          "title": "Entdeckbarkeit für Studierende",
+          "help": "Ob Studierende dieses Projekt unter „Entdecken“ finden und bearbeiten können. Nur Anzeige: Änderungen erfolgen in den jeweiligen Einstellungen.",
+          "discoverable": "Entdeckbar",
+          "notDiscoverable": "Nicht entdeckbar",
+          "shape": {
+            "exam": "Klausur",
+            "deck": "Kartenstapel",
+            "none": "Keine Klausur-/Kartenstapel-Form"
+          },
+          "refresh": "Aktualisieren",
+          "loadError": "Entdeckbarkeit konnte nicht geladen werden.",
+          "access": {
+            "title": "Zugang",
+            "public": "Öffentlich",
+            "org": "In Organisation geteilt",
+            "none": "Weder öffentlich noch in einer Organisation geteilt",
+            "window": {
+              "none": "Kein Zugriffsfenster",
+              "open": "Zugriffsfenster offen",
+              "upcoming": "Zugriffsfenster noch nicht offen",
+              "closed": "Zugriffsfenster geschlossen"
+            }
+          },
+          "check": {
+            "not_archived": "Projekt ist nicht archiviert",
+            "not_private": "Projekt ist nicht privat (Sichtbarkeit)",
+            "assignment_open": "Zuweisungsmodus „Offen“ (Annotationseinstellungen)",
+            "origin_not_student": "Kein von Studierenden erstelltes Projekt",
+            "klausurloesung_config": "Klausurlösung-Label-Konfiguration (Angabe, Notizen, Gliederung, Lösung)",
+            "falloesung_judge": "Aktive Falllösung-Bewertungsmethode (Evaluierungsmethoden)",
+            "sachverhalt_binding": "Angabe an $sachverhalt gebunden (Label-Konfiguration)",
+            "musterloesung_key": "Aufgaben enthalten „musterloesung“ (Daten)",
+            "kind_flashcard_or_null": "Projektart ist Kartenstapel oder generisch",
+            "deck_config": "Karteikarten-Label-Konfiguration ($front)",
+            "card_keys": "Aufgaben enthalten „front“ und „back“ (Daten)",
+            "has_tasks": "Projekt enthält Aufgaben"
+          }
+        },
+        "links": {
+          "title": "Freigabe-Links",
+          "help": "Passwortgeschützte Einladungslinks. Wer beitritt, wird Teilnehmende/r.",
+          "empty": "Noch keine Freigabe-Links.",
+          "create": "Link erstellen",
+          "creating": "Wird erstellt…",
+          "password": "Passwort",
+          "passwordPlaceholder": "mind. 4 Zeichen",
+          "expiresAt": "Gültig bis (optional)",
+          "maxUses": "Max. Beitritte (optional)",
+          "listed": "Im Verzeichnis „Entdecken“ listen",
+          "listedHelp": "Nur für Klausuren und Kartenstapel aus der Studierenden-Oberfläche.",
+          "listedBadge": "Gelistet",
+          "revokedBadge": "Widerrufen",
+          "expires": "bis {date}",
+          "uses": "{count} Beitritte",
+          "usesCapped": "{count} / {max} Beitritte",
+          "copy": "Link kopieren",
+          "copied": "Link kopiert",
+          "copyError": "Link konnte nicht kopiert werden.",
+          "rotate": "Passwort erneuern",
+          "rotatePrompt": "Neues Passwort",
+          "rotated": "Passwort aktualisiert. Der Link bleibt gleich.",
+          "unlist": "Aus Verzeichnis entfernen",
+          "list": "Im Verzeichnis listen",
+          "revoke": "Widerrufen",
+          "confirmRevoke": "Link widerrufen? Beitritte sind dann nicht mehr möglich, bestehende Teilnehmende behalten den Zugang.",
+          "error": "Aktion fehlgeschlagen.",
+          "created": "Freigabe-Link erstellt."
+        },
+        "participants": {
+          "title": "Teilnehmende",
+          "help": "Über Freigabe-Links beigetretene Personen.",
+          "empty": "Noch keine Teilnehmenden.",
+          "name": "Name",
+          "attempts": "Versuche",
+          "best": "Beste",
+          "last": "Letzte",
+          "joined": "Beigetreten",
+          "remove": "Entfernen",
+          "confirmRemove": "{name} entfernen? Die Person verliert den Zugang; bisherige Versuche bleiben erhalten.",
+          "removed": "Teilnehmende/r entfernt.",
+          "error": "Teilnehmende konnten nicht geladen werden."
+        }
+      },
       "featureVisibility": {
         "title": "Sichtbarkeit der Bereiche",
         "help": "Wählen Sie, welche Konfigurationsbereiche auf dieser Seite angezeigt werden. Diese Schalter steuern auch die Statistik-Kachel und den Fortschrittsbalken: nur aktivierte Bereiche fließen in den Projektfortschritt ein."

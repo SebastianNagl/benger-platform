@@ -316,6 +316,9 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   const [expanded, setExpanded] = useState(false)
   const ProjectSettingsExtended = useSlot('project-settings-extended')
   const ProjectStatisticsExtended = useSlot('project-statistics-extended')
+  // Student access (share links, participants, discoverability) — sub-sections
+  // of the Project settings card, filled by the extended edition.
+  const ProjectSettingsStudentAccess = useSlot('project-settings-student-access')
   const [advancedSettings, setAdvancedSettings] = useState({
     show_instruction: true,
     instructions_always_visible: false,
@@ -2406,6 +2409,18 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                 ))}
               </div>
             </SubSection>
+          )}
+
+          {/* Student access — share links, participants, discoverability
+              (extended). Sits with the other "who can reach this project"
+              sections; not gated on enable_annotation so decks get it too. */}
+          {ProjectSettingsStudentAccess && currentProject && canEditProject() && (
+            <div data-testid="project-settings-student-access">
+              <ProjectSettingsStudentAccess
+                project={currentProject}
+                onRefresh={() => fetchProject(projectId)}
+              />
+            </div>
           )}
 
           {/* Visibility — collapsible sub-section, danger-zone styled

@@ -111,6 +111,11 @@ export interface Project {
   public_role?: 'ANNOTATOR' | 'CONTRIBUTOR' | null
   organization_ids?: string[]
 
+  // Student-surface markers (extended): e.g. kind 'exam' |
+  // 'flashcard_collection', origin 'student'. NULL for ordinary projects.
+  kind?: string | null
+  origin?: string | null
+
   // Timestamps
   created_at: string
   updated_at?: string

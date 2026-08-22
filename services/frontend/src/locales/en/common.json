@@ -1058,6 +1058,91 @@
       "minAnnotations": "{count} min annotations",
       "editSettings": "Edit Settings",
       "saveSettings": "Save Settings",
+      "studentAccess": {
+        "discoverability": {
+          "title": "Discoverability for students",
+          "help": "Whether students can find and work on this project under \"Discover\". Read-only: change things in the respective settings.",
+          "discoverable": "Discoverable",
+          "notDiscoverable": "Not discoverable",
+          "shape": {
+            "exam": "Exam",
+            "deck": "Flashcard deck",
+            "none": "Not exam- or deck-shaped"
+          },
+          "refresh": "Refresh",
+          "loadError": "Could not load discoverability.",
+          "access": {
+            "title": "Access",
+            "public": "Public",
+            "org": "Shared with organization",
+            "none": "Neither public nor shared with an organization",
+            "window": {
+              "none": "No access window",
+              "open": "Access window open",
+              "upcoming": "Access window not open yet",
+              "closed": "Access window closed"
+            }
+          },
+          "check": {
+            "not_archived": "Project is not archived",
+            "not_private": "Project is not private (Visibility)",
+            "assignment_open": "Assignment mode \"open\" (Annotation settings)",
+            "origin_not_student": "Not a student-created project",
+            "klausurloesung_config": "Klausurlösung label config (Angabe, Notizen, Gliederung, Lösung)",
+            "falloesung_judge": "Active Falllösung evaluation method (Evaluation methods)",
+            "sachverhalt_binding": "Angabe bound to $sachverhalt (Label config)",
+            "musterloesung_key": "Tasks contain \"musterloesung\" (Data)",
+            "kind_flashcard_or_null": "Project kind is flashcard or generic",
+            "deck_config": "Flashcard label config ($front)",
+            "card_keys": "Tasks contain \"front\" and \"back\" (Data)",
+            "has_tasks": "Project has tasks"
+          }
+        },
+        "links": {
+          "title": "Share links",
+          "help": "Password-protected invitation links. Whoever joins becomes a participant.",
+          "empty": "No share links yet.",
+          "create": "Create link",
+          "creating": "Creating…",
+          "password": "Password",
+          "passwordPlaceholder": "at least 4 characters",
+          "expiresAt": "Valid until (optional)",
+          "maxUses": "Max. joins (optional)",
+          "listed": "List in the \"Discover\" directory",
+          "listedHelp": "Only for exams and decks from the student surface.",
+          "listedBadge": "Listed",
+          "revokedBadge": "Revoked",
+          "expires": "until {date}",
+          "uses": "{count} joins",
+          "usesCapped": "{count} / {max} joins",
+          "copy": "Copy link",
+          "copied": "Link copied",
+          "copyError": "Could not copy the link.",
+          "rotate": "Rotate password",
+          "rotatePrompt": "New password",
+          "rotated": "Password updated. The link stays the same.",
+          "unlist": "Remove from directory",
+          "list": "List in directory",
+          "revoke": "Revoke",
+          "confirmRevoke": "Revoke link? Joining will no longer be possible; existing participants keep access.",
+          "error": "Action failed.",
+          "created": "Share link created."
+        },
+        "participants": {
+          "title": "Participants",
+          "help": "People who joined via share links.",
+          "empty": "No participants yet.",
+          "name": "Name",
+          "attempts": "Attempts",
+          "best": "Best",
+          "last": "Last",
+          "joined": "Joined",
+          "remove": "Remove",
+          "confirmRemove": "Remove {name}? They lose access; previous attempts are kept.",
+          "removed": "Participant removed.",
+          "error": "Could not load participants."
+        }
+      },
       "featureVisibility": {
         "title": "Section visibility",
         "help": "Choose which configuration sections render on this page. These toggles also drive the Statistics box and progress bar: only enabled stages contribute to the project's progress percentage."
