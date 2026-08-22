@@ -185,7 +185,7 @@ class ProjectCreate(ProjectBase):
     # is intentionally no counterpart in ProjectUpdate, so a student project
     # can never be silently un-flagged back into the public leaderboards.
     kind: Optional[str] = Field(
-        None, max_length=32, description='Project kind, e.g. "exam" or "flashcard_deck" (extended).'
+        None, max_length=32, description='Project kind, e.g. "exam" or "flashcard_collection" (extended).'
     )
     origin: Optional[str] = Field(
         None, max_length=32, description='Project origin, e.g. "student" (extended).'

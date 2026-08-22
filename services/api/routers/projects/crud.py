@@ -124,7 +124,7 @@ async def list_projects(
     kind: Optional[str] = Query(
         None,
         description=(
-            'Filter by project kind, e.g. "exam" or "flashcard_deck" (extended '
+            'Filter by project kind, e.g. "exam" or "flashcard_collection" (extended '
             "student experience). Omit to include every kind."
         ),
     ),

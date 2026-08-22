@@ -302,6 +302,8 @@
         "step2": {
           "title": "Daten importieren",
           "subtitle": "Laden Sie Ihre Daten jetzt hoch oder überspringen Sie diesen Schritt und fügen Sie sie später hinzu",
+        "syntheticNotice": "Der KI-Generator liefert bereits synthetische Daten. Zusätzliche Uploads sind möglich, müssen aber derselben Struktur folgen.",
+        "syntheticNoticeColumns": "Erwartete Spalten:",
           "tabs": {
             "upload": "Dateien hochladen",
             "paste": "Daten einfügen",
@@ -8968,6 +8970,21 @@
         "error": "Karte konnte nicht gespeichert werden.",
         "title": "Karte hinzufügen"
       },
+      "cards": {
+        "count": "{count} Karten",
+        "delete": "Löschen",
+        "deleteConfirm": "Karte wirklich löschen? Der Lernfortschritt zu dieser Karte geht für alle Lernenden verloren.",
+        "deleteError": "Karte konnte nicht gelöscht werden.",
+        "deleted": "Karte gelöscht.",
+        "edit": "Karte bearbeiten",
+        "empty": "Keine Karten gefunden.",
+        "next": "Weiter",
+        "prev": "Zurück",
+        "saveError": "Karte konnte nicht gespeichert werden.",
+        "saved": "Karte gespeichert.",
+        "searchPlaceholder": "Karten durchsuchen...",
+        "title": "Karten"
+      },
       "create": {
         "addCard": "Karte hinzufügen",
         "back": "Rückseite (Antwort)",
@@ -9065,6 +9082,17 @@
       "open": "Öffnen",
       "research": "Forschungsklausur",
       "researchBadge": "Forschung",
+      "enrollDeck": "Zu meinen Stapeln hinzufügen",
+      "enrollDeckError": "Der Kartenstapel konnte nicht hinzugefügt werden.",
+      "deckHint": "Lerne mit Karteikarten aus deiner Organisation. Dein Lernfortschritt bleibt bei dir.",
+      "previouslyEnrolledDeck": "Du hattest diesen Kartenstapel bereits in deiner Sammlung.",
+      "orgBadge": "Katalog",
+      "kindFilterLabel": "Nach Art filtern",
+      "filterAll": "Alle",
+      "filterExams": "Klausuren",
+      "filterDecks": "Kartenstapel",
+      "noDecks": "Derzeit sind keine Kartenstapel verfügbar.",
+      "noExams": "Derzeit sind keine Klausuren verfügbar.",
       "researchHint": "Löse echte Klausuren und erhalte eine KI-Bewertung. Die Bewertung wird über dein Guthaben abgerechnet.",
       "subtitleVendor": "Klausuren und Kartenstapel von Anbietern und anderen Studierenden.",
       "taskCount": "{count} Aufgaben",
@@ -9130,6 +9158,15 @@
       "delete": {
         "message": "„{title}“ und alle zugehörigen Versuche werden dauerhaft gelöscht. Das kann nicht rückgängig gemacht werden.",
         "title": "Klausur löschen?"
+      },
+      "edit": {
+        "attemptWarning": "Für diese Klausur gibt es bereits Abgaben. Bestehende Korrekturen beziehen sich auf die alte Version.",
+        "button": "Bearbeiten",
+        "error": "Klausur konnte nicht gespeichert werden.",
+        "loadError": "Inhalte konnten nicht geladen werden.",
+        "submit": "Speichern",
+        "success": "Klausur gespeichert.",
+        "title": "Klausur bearbeiten"
       },
       "exitConfirm": "Bearbeitung beenden? Nicht abgegebene Eingaben gehen verloren.",
       "extract": {
@@ -9280,6 +9317,8 @@
       "gradeSubmit": "Antwort bewerten",
       "grading": "Wird bewertet...",
       "mode": {
+        "gradedSoon": "KI-Bewertung bald verfügbar",
+        "soon": "bald",
         "graded": "Bewertet",
         "quick": "Schnell"
       },
@@ -9294,6 +9333,12 @@
       "inviteBody": "Melde dich an oder erstelle ein Konto, um beizutreten.",
       "inviteTitle": "Du wurdest zu einer geteilten Klausur eingeladen",
       "join": "Beitreten",
+      "wrongPassword": "Falsches Passwort.",
+      "usageLimit": "Dieser Einladungslink wurde bereits zu oft verwendet.",
+      "expired": "Dieser Einladungslink ist abgelaufen.",
+      "rateLimited": "Zu viele Versuche. Bitte warte einen Moment und versuche es erneut.",
+      "alreadyMemberDeck": "Du bist diesem Kartenstapel bereits beigetreten.",
+      "consentDeck": "Ich stimme zu, dass die Erstellerin/der Ersteller sieht, dass ich diesem Kartenstapel beigetreten bin.",
       "joinError": "Beitritt fehlgeschlagen. Bitte versuche es erneut.",
       "joining": "Trete bei …",
       "loadError": "Diese Einladung konnte nicht geladen werden.",

@@ -163,6 +163,12 @@ export interface EvaluationConfig {
   /** Whether this evaluation is enabled */
   enabled: boolean
 
+  /**
+   * Optional tier tag ('free' | 'paid') for judge-config pairs whose model is
+   * selected per user tier at grading time; research grouping metadata.
+   */
+  variant?: string
+
   /** Creation timestamp */
   created_at?: string
 }

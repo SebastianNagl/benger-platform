@@ -302,6 +302,8 @@
         "step2": {
           "title": "Import Data",
           "subtitle": "Upload your data now or skip and add it later",
+        "syntheticNotice": "The AI generator already provides synthetic data. Additional uploads are possible but must follow the same structure.",
+        "syntheticNoticeColumns": "Expected columns:",
           "tabs": {
             "upload": "Upload Files",
             "paste": "Paste Data",
@@ -8978,6 +8980,21 @@
         "error": "Card could not be saved.",
         "title": "Add card"
       },
+      "cards": {
+        "count": "{count} cards",
+        "delete": "Delete",
+        "deleteConfirm": "Delete this card? Learning progress for this card is lost for everyone studying it.",
+        "deleteError": "Card could not be deleted.",
+        "deleted": "Card deleted.",
+        "edit": "Edit card",
+        "empty": "No cards found.",
+        "next": "Next",
+        "prev": "Previous",
+        "saveError": "Card could not be saved.",
+        "saved": "Card saved.",
+        "searchPlaceholder": "Search cards...",
+        "title": "Cards"
+      },
       "create": {
         "addCard": "Add card",
         "back": "Back (answer)",
@@ -9075,6 +9092,17 @@
       "open": "Open",
       "research": "Research exam",
       "researchBadge": "Research",
+      "enrollDeck": "Add to my decks",
+      "enrollDeckError": "The deck could not be added.",
+      "deckHint": "Study flashcards from your organization. Your learning progress stays with you.",
+      "previouslyEnrolledDeck": "You previously had this deck in your collection.",
+      "orgBadge": "Catalog",
+      "kindFilterLabel": "Filter by type",
+      "filterAll": "All",
+      "filterExams": "Exams",
+      "filterDecks": "Decks",
+      "noDecks": "No decks are available at the moment.",
+      "noExams": "No exams are available at the moment.",
       "researchHint": "Solve real exams and receive an AI grading. The grading is billed against your credit.",
       "subtitleVendor": "Exams and flashcard decks from vendors and other students.",
       "taskCount": "{count} tasks",
@@ -9140,6 +9168,15 @@
       "delete": {
         "message": "“{title}” and all associated attempts will be permanently deleted. This cannot be undone.",
         "title": "Delete exam?"
+      },
+      "edit": {
+        "attemptWarning": "This exam already has submissions. Existing gradings refer to the old version.",
+        "button": "Edit",
+        "error": "The exam could not be saved.",
+        "loadError": "The exam content could not be loaded.",
+        "submit": "Save",
+        "success": "Exam saved.",
+        "title": "Edit exam"
       },
       "exitConfirm": "Stop working on this exam? Unsubmitted input will be lost.",
       "extract": {
@@ -9290,6 +9327,8 @@
       "gradeSubmit": "Grade answer",
       "grading": "Grading...",
       "mode": {
+        "gradedSoon": "AI grading coming soon",
+        "soon": "soon",
         "graded": "Graded",
         "quick": "Quick"
       },
@@ -9304,6 +9343,12 @@
       "inviteBody": "Sign in or create an account to join.",
       "inviteTitle": "You have been invited to a shared exam",
       "join": "Join",
+      "wrongPassword": "Incorrect password.",
+      "usageLimit": "This invitation link has already been used too often.",
+      "expired": "This invitation link has expired.",
+      "rateLimited": "Too many attempts. Please wait a moment and try again.",
+      "alreadyMemberDeck": "You have already joined this deck.",
+      "consentDeck": "I agree that the creator can see that I joined this deck.",
       "joinError": "Joining failed. Please try again.",
       "joining": "Joining …",
       "loadError": "This invitation could not be loaded.",

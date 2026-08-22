@@ -144,7 +144,7 @@ class Project(Base):
     # free-form nullable strings — NOT Postgres ENUMs — so the community
     # edition ships a forward-compatible schema and an extended overlay can
     # introduce new kinds without an ALTER TYPE. `kind` distinguishes a
-    # student exam ("exam") or flashcard deck ("flashcard_deck") from a plain
+    # student exam ("exam") or flashcard collection ("flashcard_collection") from a plain
     # benchmark project (NULL). `origin` marks student-generated projects
     # ("student") so they can be excluded from public leaderboards while
     # remaining benchmarkable in the expert view. Write-once at creation.

@@ -109,14 +109,17 @@ export function StepEvaluationMethods({
     }
   }
 
+  // Keyed by config ID, not metric: a metric can carry several configs at
+  // once (e.g. the synthetic prefill's free/paid Falllösung judge pair), and
+  // each must stay individually editable.
   const updateConfig = (
-    metricKey: string,
+    configId: string,
     field: keyof EvaluationConfig,
     value: any
   ) => {
     onEvaluationConfigsChange(
       evaluationConfigs.map((c) =>
-        c.metric === metricKey ? { ...c, [field]: value } : c
+        c.id === configId ? { ...c, [field]: value } : c
       )
     )
   }
@@ -144,7 +147,7 @@ export function StepEvaluationMethods({
     labels: Array<{ value: string; background: string }>,
   ) => {
     if (!korrekturClassicConfig) return
-    updateConfig('korrektur_classic', 'metric_parameters', {
+    updateConfig(korrekturClassicConfig.id, 'metric_parameters', {
       ...(korrekturClassicConfig.metric_parameters as any),
       highlight_labels: labels,
     })
@@ -207,7 +210,9 @@ export function StepEvaluationMethods({
                 if (!def) return null
 
                 const isSelected = selectedMetrics.has(metricKey)
-                const config = evaluationConfigs.find(
+                // ALL configs of this metric — usually one, but pairs exist
+                // (tier-selected judge configs); each gets its own editor.
+                const metricConfigs = evaluationConfigs.filter(
                   (c) => c.metric === metricKey
                 )
                 const isExpanded = expandedMetric === metricKey
@@ -269,119 +274,142 @@ export function StepEvaluationMethods({
                       </div>
                     </div>
 
-                    {/* Field mapping (expanded) */}
-                    {isSelected && isExpanded && config && hasFieldOptions && (
-                      <div className="ml-4 mt-2 space-y-3 rounded-lg border border-zinc-200 p-3 dark:border-zinc-700">
-                        <div>
-                          <Label className="text-xs">
-                            {t('projects.creation.wizard.step7.name')}
-                          </Label>
-                          <input
-                            type="text"
-                            value={config.display_name || ''}
-                            placeholder={
-                              computeDefaultEvalName(
-                                def,
-                                config.metric_parameters,
-                                metricKey
-                              ) ||
-                              t('projects.creation.wizard.step7.namePlaceholder')
-                            }
-                            onChange={(e) =>
-                              updateConfig(
-                                metricKey,
-                                'display_name',
-                                e.target.value
-                              )
-                            }
-                            className="mt-1 w-full rounded border border-zinc-300 px-2 py-1 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-white"
-                            data-testid={`wizard-metric-name-${metricKey}`}
-                          />
+                    {/* Field mapping (expanded) — one editor per config of
+                        this metric, so pairs stay individually editable. */}
+                    {isSelected &&
+                      isExpanded &&
+                      hasFieldOptions &&
+                      metricConfigs.map((config, configIndex) => (
+                        <div
+                          key={config.id}
+                          className="ml-4 mt-2 space-y-3 rounded-lg border border-zinc-200 p-3 dark:border-zinc-700"
+                          data-testid={`wizard-metric-config-${metricKey}-${configIndex}`}
+                        >
+                          {metricConfigs.length > 1 && (
+                            <p className="flex items-center gap-2 text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                              {config.display_name ||
+                                `${def.display_name} ${configIndex + 1}`}
+                              {config.variant && (
+                                <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-medium text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
+                                  {config.variant}
+                                </span>
+                              )}
+                            </p>
+                          )}
+                          <div>
+                            <Label className="text-xs">
+                              {t('projects.creation.wizard.step7.name')}
+                            </Label>
+                            <input
+                              type="text"
+                              value={config.display_name || ''}
+                              placeholder={
+                                computeDefaultEvalName(
+                                  def,
+                                  config.metric_parameters,
+                                  metricKey
+                                ) ||
+                                t('projects.creation.wizard.step7.namePlaceholder')
+                              }
+                              onChange={(e) =>
+                                updateConfig(
+                                  config.id,
+                                  'display_name',
+                                  e.target.value
+                                )
+                              }
+                              className="mt-1 w-full rounded border border-zinc-300 px-2 py-1 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-white"
+                              data-testid={
+                                configIndex === 0
+                                  ? `wizard-metric-name-${metricKey}`
+                                  : `wizard-metric-name-${metricKey}-${configIndex}`
+                              }
+                            />
+                          </div>
+
+                          {predictionOptions.length > 0 && (
+                            <div>
+                              <Label className="text-xs">
+                                {t('projects.creation.wizard.step7.predictionField')}
+                              </Label>
+                              <Select
+                                value={config.prediction_fields[0] || ''}
+                                onValueChange={(val) =>
+                                  updateConfig(config.id, 'prediction_fields', [val])
+                                }
+                              >
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  {predictionOptions.map((opt) => (
+                                    <SelectItem key={opt.value} value={opt.value}>
+                                      {opt.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          )}
+
+                          {referenceOptions.length > 0 && (
+                            <div>
+                              <Label className="text-xs">
+                                {t('projects.creation.wizard.step7.referenceField')}
+                              </Label>
+                              <Select
+                                value={config.reference_fields[0] || ''}
+                                onValueChange={(val) =>
+                                  updateConfig(config.id, 'reference_fields', [val])
+                                }
+                              >
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  {referenceOptions.map((opt) => (
+                                    <SelectItem key={opt.value} value={opt.value}>
+                                      {opt.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          )}
+
+                          {def.category === LLM_JUDGE_CATEGORY && models.length > 0 && (
+                            <div>
+                              <Label className="text-xs">
+                                {t('projects.creation.wizard.step7.judgeModel')}
+                              </Label>
+                              <Select
+                                value={
+                                  (config.metric_parameters as any)?.judge_model ||
+                                  // Preselect the shared default, but only when the
+                                  // catalog actually offers it — a value with no
+                                  // matching SelectItem renders as a blank trigger.
+                                  (models.some((m) => m.id === DEFAULT_MODEL_ID)
+                                    ? DEFAULT_MODEL_ID
+                                    : '')
+                                }
+                                onValueChange={(val) =>
+                                  updateConfig(config.id, 'metric_parameters', {
+                                    ...config.metric_parameters,
+                                    judge_model: val,
+                                  })
+                                }
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder={t('projects.creation.wizard.step7.selectJudgeModel')} />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {models.map((m) => (
+                                    <SelectItem key={m.id} value={m.id}>
+                                      {m.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          )}
                         </div>
-
-                        {predictionOptions.length > 0 && (
-                          <div>
-                            <Label className="text-xs">
-                              {t('projects.creation.wizard.step7.predictionField')}
-                            </Label>
-                            <Select
-                              value={config.prediction_fields[0] || ''}
-                              onValueChange={(val) =>
-                                updateConfig(metricKey, 'prediction_fields', [val])
-                              }
-                            >
-                              <SelectTrigger><SelectValue /></SelectTrigger>
-                              <SelectContent>
-                                {predictionOptions.map((opt) => (
-                                  <SelectItem key={opt.value} value={opt.value}>
-                                    {opt.label}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        )}
-
-                        {referenceOptions.length > 0 && (
-                          <div>
-                            <Label className="text-xs">
-                              {t('projects.creation.wizard.step7.referenceField')}
-                            </Label>
-                            <Select
-                              value={config.reference_fields[0] || ''}
-                              onValueChange={(val) =>
-                                updateConfig(metricKey, 'reference_fields', [val])
-                              }
-                            >
-                              <SelectTrigger><SelectValue /></SelectTrigger>
-                              <SelectContent>
-                                {referenceOptions.map((opt) => (
-                                  <SelectItem key={opt.value} value={opt.value}>
-                                    {opt.label}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        )}
-
-                        {def.category === LLM_JUDGE_CATEGORY && models.length > 0 && (
-                          <div>
-                            <Label className="text-xs">
-                              {t('projects.creation.wizard.step7.judgeModel')}
-                            </Label>
-                            <Select
-                              value={
-                                (config.metric_parameters as any)?.judge_model ||
-                                // Preselect the shared default, but only when the
-                                // catalog actually offers it — a value with no
-                                // matching SelectItem renders as a blank trigger.
-                                (models.some((m) => m.id === DEFAULT_MODEL_ID)
-                                  ? DEFAULT_MODEL_ID
-                                  : '')
-                              }
-                              onValueChange={(val) =>
-                                updateConfig(metricKey, 'metric_parameters', {
-                                  ...config.metric_parameters,
-                                  judge_model: val,
-                                })
-                              }
-                            >
-                              <SelectTrigger>
-                                <SelectValue placeholder={t('projects.creation.wizard.step7.selectJudgeModel')} />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {models.map((m) => (
-                                  <SelectItem key={m.id} value={m.id}>
-                                    {m.name}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        )}
-                      </div>
-                    )}
+                      ))}
                   </div>
                 )
               })}
