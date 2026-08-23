@@ -258,9 +258,14 @@ describe('ProtectedRoute Component', () => {
         </ProtectedRoute>
       )
 
-      const loadingContainer = container.querySelector('.min-h-screen')
+      // Viewport overlay (not min-h-screen inside the page chrome), so the
+      // spinner is centred exactly like the layout's auth-loading screen.
+      const loadingContainer = container.querySelector(
+        '[data-testid="protected-route-redirecting"]'
+      )
       expect(loadingContainer).toHaveClass(
-        'min-h-screen',
+        'fixed',
+        'inset-0',
         'flex',
         'items-center',
         'justify-center'
