@@ -254,7 +254,16 @@ describe('ProjectDetailPage — participant tier', () => {
   })
 
   it('mounts the deck workspace slot with canEdit for editors', async () => {
-    setup({ access_tier: 'full', effective_role: 'CONTRIBUTOR' })
+    // Org project + CONTRIBUTOR context role (edit rights are membership
+    // based; the API's effective_role is display-only on this page).
+    setup({ access_tier: 'full', effective_role: 'CONTRIBUTOR' }, {
+      ...annotatorUser,
+      role: 'CONTRIBUTOR',
+    })
+    ;(useAuth as jest.Mock).mockReturnValue({
+      user: { ...annotatorUser, role: 'CONTRIBUTOR' },
+      currentOrganization: { id: 'org-1', name: 'TUM' },
+    })
     const { registerSlot } = jest.requireActual('@/lib/extensions/slots')
     const Stub = jest.fn(({ project, canEdit }: any) => (
       <div data-testid="deck-stub" data-can-edit={String(canEdit)}>{project.id}</div>

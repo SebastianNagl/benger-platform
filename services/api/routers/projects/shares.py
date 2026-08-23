@@ -488,6 +488,14 @@ async def discover_shares(
             Project.origin == "student",
             Project.kind.in_(STUDENT_SHARE_KINDS),
         ]
+    else:
+        # scope=all: peer (student-origin) shares stay listable even though
+        # they are private by design; any OTHER private project (org
+        # research, personal work) must not surface its title/owner in a
+        # global directory just because a link was once listed.
+        filters.append(
+            or_(Project.origin == "student", Project.is_private == False)  # noqa: E712
+        )
 
     rows = (
         await db.execute(
@@ -776,15 +784,18 @@ async def join_share(
     if not verify_password(body.password, link.password_hash):
         raise HTTPException(status_code=403, detail="Incorrect password.")
 
-    # Idempotent: re-joining is a no-op that just refreshes consent.
+    # Idempotent PER PROJECT, not per link: a user who already joined this
+    # project through ANY link (a rotated/re-minted one included) keeps a
+    # single membership row — a second row per (project, user) would break
+    # the scalar membership lookups and double the roster.
     existing = (
         await db.execute(
             select(ProjectShareMember).where(
-                ProjectShareMember.share_link_id == link.id,
+                ProjectShareMember.project_id == link.project_id,
                 ProjectShareMember.user_id == str(current_user.id),
             )
         )
-    ).scalar_one_or_none()
+    ).scalars().first()
     if existing:
         existing.gdpr_consent_at = now
         existing.consent_version = CONSENT_VERSION

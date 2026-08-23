@@ -420,11 +420,13 @@ async def test_discover_scopes(async_test_client, async_test_db):
     db = async_test_db
     owner, browser = await _user(db), await _user(db)
     student_exam = await _project(db, owner, kind="exam", origin="student")
-    research = await _project(db, owner)  # kind NULL, origin NULL
+    research = await _project(db, owner, private=False)  # kind NULL, origin NULL
+    private_org = await _project(db, owner)  # private, NOT student-origin
     archived = await _project(db, owner, archived=True)
     org = await _org(db, (owner, OrganizationRole.ORG_ADMIN))
     await _attach(db, research, org, owner)
-    for proj in (student_exam, research, archived):
+    await _attach(db, private_org, org, owner)
+    for proj in (student_exam, research, private_org, archived):
         link = ProjectShareLink(id=str(uuid.uuid4()), token=uuid.uuid4().hex, project_id=proj.id,
                                 created_by=owner.id, password_hash="x", is_listed=True)
         db.add(link)
@@ -435,6 +437,9 @@ async def test_discover_scopes(async_test_client, async_test_db):
         assert {x["project_id"] for x in r.json()} == {student_exam.id}
         r = await async_test_client.get("/api/shares/discover", params={"scope": "all"})
         by_id = {x["project_id"]: x for x in r.json()}
+        # Private NON-student projects never surface in the global directory,
+        # listed link or not (their title/owner is not public material);
+        # private student-origin peer shares stay listable by design.
         assert set(by_id) == {student_exam.id, research.id}
         assert by_id[research.id]["is_org_project"] is True
         assert by_id[student_exam.id]["is_org_project"] is False
@@ -464,3 +469,137 @@ async def test_project_icon_and_locked_kind(async_test_client, async_test_db):
         assert r.json()["kind"] == "exam"  # locked after creation
         r = await async_test_client.get("/api/projects/")
         assert next(p for p in r.json()["items"] if p["id"] == pid)["icon"] == "📚"
+
+
+async def test_participant_enrichment_and_search_hardening(async_test_client, async_test_db):
+    """Blinded callers get no cross-user identities and no raw-JSON search
+    oracle over the blinded Musterlösung; editors keep both."""
+    from project_models import Annotation
+
+    db = async_test_db
+    owner, member, other = await _user(db), await _user(db), await _user(db)
+    p = await _project(db, owner, tasks=1)
+    await _share_member(db, p, owner, member)
+    await _share_member(db, p, owner, other)
+    task_id = (await db.execute(select(Task.id).where(Task.project_id == p.id))).scalars().first()
+    for u in (member, other):
+        db.add(Annotation(id=str(uuid.uuid4()), task_id=task_id, project_id=p.id,
+                          completed_by=u.id, result=[{"v": 1}]))
+    await db.commit()
+
+    with _as_user(member):
+        r = await async_test_client.get(f"/api/projects/{p.id}/tasks")
+        assert r.status_code == 200, r.text
+        items = r.json()["items"] if isinstance(r.json(), dict) else r.json()
+        # Only the caller appears in annotators; no other identities, no emails.
+        for t in items:
+            assert {a["id"] for a in t["annotators"]} <= {member.id}
+            assert all("user_email" not in a or a["user_id"] == member.id for a in t["assignments"])
+        # Raw-JSON search over the blinded key is not an oracle: a prefix of
+        # the Musterlösung must NOT match for a blinded caller...
+        r = await async_test_client.get(f"/api/projects/{p.id}/tasks", params={"search": "GEHEIM"})
+        body = r.json()
+        total = body["total"] if isinstance(body, dict) and "total" in body else len(body["items"])
+        assert total == 0
+        # ...while a visible-field term still matches.
+        r = await async_test_client.get(f"/api/projects/{p.id}/tasks", params={"search": "Fall"})
+        body = r.json()
+        total = body["total"] if isinstance(body, dict) and "total" in body else len(body["items"])
+        assert total == 1
+
+    with _as_user(owner):
+        r = await async_test_client.get(f"/api/projects/{p.id}/tasks", params={"search": "GEHEIM"})
+        body = r.json()
+        total = body["total"] if isinstance(body, dict) and "total" in body else len(body["items"])
+        assert total == 1
+        r = await async_test_client.get(f"/api/projects/{p.id}/tasks")
+        items = r.json()["items"] if isinstance(r.json(), dict) else r.json()
+        assert {a["id"] for t in items for a in t["annotators"]} == {member.id, other.id}
+
+
+async def test_participant_skip_blocked_on_global_skip_queue(async_test_client, async_test_db):
+    db = async_test_db
+    owner, member = await _user(db), await _user(db)
+    p = await _project(db, owner, tasks=1)
+    p.skip_queue = "ignore_skipped"
+    await _share_member(db, p, owner, member)
+    await db.commit()
+    task_id = (await db.execute(select(Task.id).where(Task.project_id == p.id))).scalars().first()
+    with _as_user(member):
+        r = await async_test_client.post(f"/api/projects/{p.id}/tasks/{task_id}/skip", json={})
+        assert r.status_code == 403
+        assert r.json()["detail"]["code"] == "participant_skip_disabled"
+    # requeue mode: participants may skip (self-scoped).
+    p.skip_queue = "requeue_for_others"
+    await db.commit()
+    with _as_user(member):
+        r = await async_test_client.post(f"/api/projects/{p.id}/tasks/{task_id}/skip", json={})
+        assert r.status_code in (200, 201), r.text
+
+
+async def test_stale_org_context_falls_back_to_participant_list(async_test_client, async_test_db):
+    db = async_test_db
+    owner, member = await _user(db), await _user(db)
+    p = await _project(db, owner)
+    await _share_member(db, p, owner, member)
+    with _as_user(member):
+        r = await async_test_client.get(
+            "/api/projects/", headers={"X-Organization-Context": "org-i-never-joined"}
+        )
+        assert r.status_code == 200, r.text
+        rows = {x["id"]: x for x in r.json()["items"]}
+        assert rows[p.id]["access_tier"] == "participant"
+    # Without participant standing the stale context still 403s (old behavior).
+    stranger = await _user(db)
+    with _as_user(stranger):
+        r = await async_test_client.get(
+            "/api/projects/", headers={"X-Organization-Context": "org-i-never-joined"}
+        )
+        assert r.status_code == 403
+
+
+async def test_double_join_via_two_links_keeps_one_membership(async_test_client, async_test_db):
+    from auth_module.user_service import get_password_hash
+
+    db = async_test_db
+    owner, member = await _user(db), await _user(db)
+    p = await _project(db, owner)
+    tokens = []
+    for _ in range(2):
+        link = ProjectShareLink(id=str(uuid.uuid4()), token=uuid.uuid4().hex, project_id=p.id,
+                                created_by=owner.id, password_hash=get_password_hash("abcdefgh"))
+        db.add(link)
+        tokens.append(link.token)
+    await db.commit()
+    with _as_user(member):
+        for tok in tokens:
+            r = await async_test_client.post(
+                f"/api/shares/{tok}/join", json={"password": "abcdefgh", "gdpr_consent": True}
+            )
+            assert r.status_code == 200, r.text
+        # One membership row; every participant surface keeps working.
+        rows = (await db.execute(select(ProjectShareMember).where(
+            ProjectShareMember.project_id == p.id, ProjectShareMember.user_id == member.id
+        ))).scalars().all()
+        assert len(rows) == 1
+        assert (await async_test_client.get(f"/api/projects/{p.id}")).status_code == 200
+
+
+async def test_icon_must_be_emoji(async_test_client, async_test_db):
+    db = async_test_db
+    owner = await _user(db)
+    with _as_user(owner):
+        r = await async_test_client.post(
+            "/api/projects/",
+            json={"title": "X", "label_config": EXAM_CONFIG, "icon": "<script>", "is_private": True},
+        )
+        assert r.status_code == 422
+        r = await async_test_client.post(
+            "/api/projects/",
+            json={"title": "X", "label_config": EXAM_CONFIG, "icon": "👩‍⚖️", "is_private": True},
+        )
+        assert r.status_code in (200, 201), r.text
+        pid = r.json()["id"]
+        assert r.json()["icon"] == "👩‍⚖️"
+        r = await async_test_client.patch(f"/api/projects/{pid}", json={"icon": "abc"})
+        assert r.status_code == 422

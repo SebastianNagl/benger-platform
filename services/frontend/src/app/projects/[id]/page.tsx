@@ -696,14 +696,10 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     if (!user || !currentProject) return false
     if (user.is_superadmin) return true
     if (isParticipant) return false
-    // The API resolves the caller's effective role (creator → ORG_ADMIN, org
-    // membership, public role); prefer it over the context role when present.
-    if (currentProject.effective_role) {
-      return (
-        currentProject.effective_role === 'ORG_ADMIN' ||
-        currentProject.effective_role === 'CONTRIBUTOR'
-      )
-    }
+    // NOTE: currentProject.effective_role is NOT used here — the backend
+    // resolves it to public_role for any logged-in visitor of a public
+    // project, but public visitors have no write access
+    // (check_user_can_edit_project is membership/creator based).
     if (isOrgProject) return user.role === 'ORG_ADMIN' || user.role === 'CONTRIBUTOR'
     return currentProject.created_by === user.id
   }

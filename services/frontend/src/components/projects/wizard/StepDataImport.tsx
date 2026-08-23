@@ -89,7 +89,14 @@ export function StepDataImport({
   // Extended: structured Klausur entry as a fourth tab. Auto-selected for
   // exam-type projects so the natural flow lands on the typed part editor.
   const StructuredEntry = useSlot('ProjectWizardStructuredEntry')
-  const hasStructuredTab = !!(StructuredEntry && wizardData && onWizardChange)
+  // Hidden on deck-type projects: applying an exam there would silently
+  // overwrite the flashcard labeling config.
+  const hasStructuredTab = !!(
+    StructuredEntry &&
+    wizardData &&
+    onWizardChange &&
+    wizardData.projectKind !== 'flashcard_collection'
+  )
   const { addToast } = useToast()
 
   // Extract columns when pasted data changes

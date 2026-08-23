@@ -311,13 +311,22 @@ async def skip_task(
         raise HTTPException(status_code=404, detail="Project not found")
 
     org_context = get_org_context_from_request(request)
-    if (
-        await get_project_access_tier_async(
-            db, current_user, project_id, org_context, project=project
-        )
-        is None
-    ):
+    tier = await get_project_access_tier_async(
+        db, current_user, project_id, org_context, project=project
+    )
+    if tier is None:
         raise HTTPException(status_code=403, detail="Access denied")
+    # In 'ignore_skipped' mode a single SkippedTask row hides the task from
+    # EVERY user's queue — a hostile share-joinee could blank the whole
+    # cohort. Participants may only skip where skipping is self-scoped.
+    if tier == "participant" and getattr(project, "skip_queue", None) == "ignore_skipped":
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "code": "participant_skip_disabled",
+                "message": "Skipping is disabled for participants on this project",
+            },
+        )
 
     # Enforce task assignment in manual/auto mode (Label Studio aligned: task is invisible)
     if not await check_task_assigned_to_user_async(db, current_user, task_id, project):

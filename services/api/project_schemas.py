@@ -192,6 +192,11 @@ class ProjectCreate(ProjectBase):
     )
     # Display icon (an emoji). Editable later via ProjectUpdate.
     icon: Optional[str] = Field(None, max_length=16, description="Project emoji icon.")
+
+    @field_validator("icon")
+    @classmethod
+    def _icon_is_emoji(cls, v):
+        return _validate_icon(v)
     # Timed access window (optional; see ProjectUpdate for semantics).
     window_start_at: Optional[datetime] = None
     window_end_at: Optional[datetime] = None
@@ -217,12 +222,32 @@ class ProjectCreate(ProjectBase):
         return self
 
 
+def _validate_icon(v):
+    """Shared icon guard: an emoji sequence (possibly with ZWJ/variation
+    selectors), never plain text/markup — the value renders verbatim in
+    lists, headers and the global discover directory."""
+    if v is None:
+        return v
+    v = v.strip()
+    if not v:
+        return None
+    if any(ord(ch) < 0x2000 for ch in v):
+        raise ValueError("icon must be an emoji")
+    return v
+
+
 class ProjectUpdate(BaseModel):
     """Schema for updating a project"""
 
     title: Optional[str] = Field(None, min_length=1, max_length=255)
     description: Optional[str] = None
     icon: Optional[str] = Field(None, max_length=16, description="Project emoji icon.")
+
+    @field_validator("icon")
+    @classmethod
+    def _icon_is_emoji(cls, v):
+        return _validate_icon(v)
+
     label_config: Optional[str] = None
     # Note: generation_structure removed in Issue #762 - now in generation_config.prompt_structures
     expert_instruction: Optional[str] = None

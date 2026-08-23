@@ -35,7 +35,7 @@ export const filesAPI = {
     } catch (err: any) {
       // The apiClient surfaces the parsed body on `err.data` / `err.body`;
       // an image-only PDF returns 422 {code, message}.
-      const body = err?.data ?? err?.body ?? err?.response
+      const body = err?.response?.data ?? err?.data ?? err?.body
       if (body && (body.code || body.message)) {
         throw new ExtractTextError(
           body.code ?? 'extract_failed',

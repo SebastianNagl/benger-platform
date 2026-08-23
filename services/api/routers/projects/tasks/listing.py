@@ -4,6 +4,7 @@ from .blinding import (
     annotator_bound_fields_or_none_async,
     blind_task_data,
     revealed_task_ids_async,
+    visible_top_level_keys,
 )
 from routers.projects.deps import ProjectAccess, require_project_access
 
@@ -155,15 +156,33 @@ async def list_project_tasks(
     # Server-side search across the task's JSON payload + id. Mirrors the
     # client-side filter that AnnotationTab used to apply after loading every
     # task into memory.
+    # Blinding decides more than the payload below: a blinded caller (org
+    # ANNOTATOR or participant tier) must not be able to probe hidden keys
+    # through the search filter, and must not receive the cross-user
+    # enrichment (annotator identities, grader emails).
+    _bound_fields = await annotator_bound_fields_or_none_async(db, current_user, project)
+
+    # Server-side search across the task's JSON payload + id. For blinded
+    # callers it runs ONLY over the visible (config-bound) top-level keys —
+    # searching the raw JSON would be an extraction oracle over the blinded
+    # Musterlösung (the match count reveals whether a guessed prefix occurs).
     if search:
         escaped = search.replace('%', r'\%').replace('_', r'\_')
         like = f"%{escaped}%"
-        query = query.where(
-            or_(
-                func.cast(Task.data, String).ilike(like),
-                func.cast(Task.id, String).ilike(like),
+        if _bound_fields is None:
+            query = query.where(
+                or_(
+                    func.cast(Task.data, String).ilike(like),
+                    func.cast(Task.id, String).ilike(like),
+                )
             )
-        )
+        else:
+            visible = sorted(visible_top_level_keys(_bound_fields))
+            clauses = [func.cast(Task.id, String).ilike(like)]
+            # ->> via .op(): works on both JSONB and the plain-JSON shim the
+            # dev stack runs (.astext only exists on the JSONB comparator).
+            clauses += [Task.data.op('->>')(key).ilike(like) for key in visible]
+            query = query.where(or_(*clauses))
 
     # created_at range; tolerate either YYYY-MM-DD or full ISO.
     def _parse_date(raw: Optional[str]):
@@ -359,7 +378,6 @@ async def list_project_tasks(
     # (musterloesung, ground_truth, …) never ship in the payload. Editor-tier
     # roles get the full data; reveal-enabled projects un-blind tasks the user
     # has already submitted. See tasks/blinding.py for the policy.
-    _bound_fields = await annotator_bound_fields_or_none_async(db, current_user, project)
     _revealed_ids = (
         await revealed_task_ids_async(db, current_user, project, [t.id for t in tasks])
         if _bound_fields is not None
@@ -392,13 +410,26 @@ async def list_project_tasks(
             # Who actually annotated / reviewed this task (distinct from the
             # assignment list above). Annotators come from completed_by,
             # reviewers from reviewed_by; both are [{id, name}].
-            "annotators": _people(annotators_by_task.get(task.id, [])),
-            "reviewers": _people(reviewers_by_task.get(task.id, [])),
+            # Blinded callers see only THEMSELVES here: other students'
+            # identities (and below, grader emails) are editor material.
+            "annotators": _people(
+                annotators_by_task.get(task.id, [])
+                if _bound_fields is None
+                else [u for u in annotators_by_task.get(task.id, []) if u == str(current_user.id)]
+            ),
+            "reviewers": _people(
+                reviewers_by_task.get(task.id, [])
+                if _bound_fields is None
+                else [u for u in reviewers_by_task.get(task.id, []) if u == str(current_user.id)]
+            ),
             # Keep tags for backward compatibility temporarily
             "tags": task.meta.get("tags", []) if task.meta else [],
         }
 
         for assignment in assignments_by_task.get(task.id, []):
+            if _bound_fields is not None and str(assignment.user_id) != str(current_user.id):
+                # Non-editors only see their own assignment rows.
+                continue
             assigned_user = users_by_id.get(assignment.user_id)
             if assigned_user is None:
                 continue

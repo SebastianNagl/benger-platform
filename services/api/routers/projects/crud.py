@@ -167,22 +167,28 @@ async def list_projects(
         # Read organization context from header
         org_context = request.headers.get("X-Organization-Context")
 
+        # Projects reached only through the participant tier are computed
+        # FIRST: the org-context helper below 403s for non-members, and a
+        # participant with a stale X-Organization-Context header must still
+        # see their joined projects (fall back to the participant-only set).
+        participant_map: Dict[str, str] = {}
+        if not current_user.is_superadmin:
+            participant_map = await get_participant_project_ids_async(db, current_user.id)
+
         # Use shared helper for consistent org-context filtering
-        accessible_ids = await get_accessible_project_ids_async(
-            db, current_user, org_context, include_all_private=include_all_private
-        )
+        try:
+            accessible_ids = await get_accessible_project_ids_async(
+                db, current_user, org_context, include_all_private=include_all_private
+            )
+        except HTTPException:
+            if not participant_map:
+                raise
+            accessible_ids = []
 
         # Eager-load every relationship the response reads (creator + the two
         # organization paths) so the async engine never lazy-loads during
         # from_orm serialization (MissingGreenlet). The two collection loads
         # require .unique() before .scalars().all().
-        # Projects reached only through the participant tier (share link,
-        # entitlement, windowless org exam) are listed too, tagged so the UI
-        # can show the "Teilnehmer" badge and the solver-only surface.
-        participant_map: Dict[str, str] = {}
-        if not current_user.is_superadmin:
-            participant_map = await get_participant_project_ids_async(db, current_user.id)
-
         accessible_set = set(accessible_ids) if accessible_ids is not None else None
         base_filters = []
         if accessible_ids is not None:

@@ -1245,7 +1245,10 @@ async def get_share_access_async(
             ProjectShareMember.gdpr_consent_at.isnot(None),
         )
     )
-    return result.scalar_one_or_none()
+    # .first(), not scalar_one_or_none: one user can hold memberships via
+    # SEVERAL links of the same project (rotated/re-minted links), and a
+    # MultipleResultsFound here would 500 every participant surface.
+    return result.scalars().first()
 
 
 async def get_entitlement_access_async(
@@ -1280,8 +1283,8 @@ async def get_student_read_access_async(
     if the user is a consented share member, holds an active marketplace
     entitlement, OR is an active member of an org that shares this exam
     org-wide (non-private, non-archived, windowless ``kind='exam'`` — the
-    LTI/university ongoing-training catalog; windowed finals stay
-    explicit-grant-only). Short-circuits on the share check (the common
+    LTI/university ongoing-training catalog; a windowed exam counts once its
+    window has started — never before). Short-circuits on the share check (the common
     #35 path). All three grant the identical narrow tier; callers that only
     need a yes/no should prefer this over calling the primitives.
     """
@@ -1300,14 +1303,16 @@ def _build_select_org_exam_participant(user, project_id: str):
     An ACTIVE membership (any role — CONTRIBUTOR+ callers pass
     ``check_project_accessible`` first and never reach this fallback) in an
     org attached to the project grants the narrow tier iff the project is a
-    NON-private, non-archived, WINDOWLESS exam. ``is_private=True`` exams
+    NON-private, non-archived exam whose access window (if any) has STARTED.
+    ``is_private=True`` exams
     deliberately stay entitlement/share/creator-only: blanket org membership
     is not per-project consent by anyone, and widening it would expose every
     student-created exam (all private) to the whole university org. Exams
-    with an access window (scheduled finals) are likewise excluded — those
-    are entered through an explicit channel (LTI launch, share, entitlement)
-    so students cannot pre-read the Sachverhalt by browsing the org catalog
-    before the window opens.
+    whose window has NOT YET OPENED are likewise excluded — pre-window entry
+    stays explicit-channel-only (LTI launch, share, entitlement) so students
+    cannot pre-read the Sachverhalt by browsing the org catalog. Once the
+    window has started the grant holds (post-window too, so students keep
+    their own review; the read-window enforcement governs the timeline).
     """
     return (
         select(OrganizationMembership.id)
@@ -1324,8 +1329,10 @@ def _build_select_org_exam_participant(user, project_id: str):
             Project.kind == "exam",
             Project.is_private == False,  # noqa: E712
             or_(Project.is_archived.is_(None), Project.is_archived == False),  # noqa: E712
-            Project.window_start_at.is_(None),
-            Project.window_end_at.is_(None),
+            or_(
+                Project.window_start_at.is_(None),
+                Project.window_start_at <= func.now(),
+            ),
         )
     )
 
@@ -1790,8 +1797,10 @@ async def get_participant_project_ids_async(
             Project.is_private == False,  # noqa: E712
             Project.created_by != uid,
             not_archived,
-            Project.window_start_at.is_(None),
-            Project.window_end_at.is_(None),
+            or_(
+                Project.window_start_at.is_(None),
+                Project.window_start_at <= func.now(),
+            ),
         )
     )
     for pid in org_rows.scalars().all():
