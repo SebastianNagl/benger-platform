@@ -330,7 +330,8 @@
           "tabs": {
             "upload": "Upload Files",
             "paste": "Paste Data",
-            "cloud": "Cloud Storage"
+            "cloud": "Cloud Storage",
+            "structured": "Enter exam"
           },
           "upload": {
             "dropzone": "Drop files here or click to upload",

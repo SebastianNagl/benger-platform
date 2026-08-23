@@ -140,9 +140,6 @@ export function ProjectCreationWizard() {
   // Extended-edition step body for the experimental KI-Generator feature
   // (checkbox row = ProjectWizardSyntheticEntry slot in StepProjectInfo).
   const SyntheticStep = useSlot('ProjectWizardSyntheticStep')
-  // Extended: structured exam authoring (typed parts → one import row +
-  // the Klausurlösung template), shown above the generic data import.
-  const StructuredEntry = useSlot('ProjectWizardStructuredEntry')
   const EvaluationExtras = useSlot('ProjectWizardEvaluationExtras')
 
   // Build dynamic step list from features
@@ -775,11 +772,6 @@ export function ProjectCreationWizard() {
       case 'dataImport':
         return (
           <>
-            {StructuredEntry && (
-              <div className="mb-6" data-testid="wizard-structured-entry">
-                <StructuredEntry data={wizardData} onChange={updateWizardData} />
-              </div>
-            )}
           <StepDataImport
             pastedData={wizardData.pastedData}
             selectedFile={wizardData.selectedFile}
@@ -795,6 +787,8 @@ export function ProjectCreationWizard() {
             }
             syntheticActive={wizardData.features.synthetic}
             syntheticColumns={wizardData.dataColumns}
+            wizardData={wizardData}
+            onWizardChange={updateWizardData}
           />
           </>
         )

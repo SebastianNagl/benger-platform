@@ -330,7 +330,8 @@
           "tabs": {
             "upload": "Dateien hochladen",
             "paste": "Daten einfügen",
-            "cloud": "Cloud-Speicher"
+            "cloud": "Cloud-Speicher",
+            "structured": "Klausur erfassen"
           },
           "upload": {
             "dropzone": "Dateien hier ablegen oder klicken zum Hochladen",
