@@ -9227,7 +9227,9 @@
       "subtitleVendor": "Exams and flashcard decks from vendors and other students.",
       "taskCount": "{count} tasks",
       "title": "Discover",
-      "vendor": "Vendor"
+      "vendor": "Vendor",
+      "peerBadge": "Shared",
+      "enrollShort": "Add"
     },
     "exam": {
       "allDone": "All tasks solved. Thank you for your contribution!",

@@ -9217,7 +9217,9 @@
       "subtitleVendor": "Klausuren und Kartenstapel von Anbietern und anderen Studierenden.",
       "taskCount": "{count} Aufgaben",
       "title": "Entdecken",
-      "vendor": "Anbieter"
+      "vendor": "Anbieter",
+      "peerBadge": "Geteilt",
+      "enrollShort": "Hinzufügen"
     },
     "exam": {
       "allDone": "Alle Aufgaben gelöst. Vielen Dank für deinen Beitrag!",
