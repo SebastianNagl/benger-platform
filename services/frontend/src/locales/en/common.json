@@ -302,8 +302,8 @@
         "step2": {
           "title": "Import Data",
           "subtitle": "Upload your data now or skip and add it later",
-        "syntheticNotice": "The AI generator already provides synthetic data. Additional uploads are possible but must follow the same structure.",
-        "syntheticNoticeColumns": "Expected columns:",
+          "syntheticNotice": "The AI generator already provides synthetic data. Additional uploads are possible but must follow the same structure.",
+          "syntheticNoticeColumns": "Expected columns:",
           "tabs": {
             "upload": "Upload Files",
             "paste": "Paste Data",
@@ -1096,6 +1096,20 @@
             "deck_config": "Flashcard label config ($front)",
             "card_keys": "Tasks contain \"front\" and \"back\" (Data)",
             "has_tasks": "Project has tasks"
+          },
+          "checkFailed": {
+            "not_archived": "Project is archived",
+            "not_private": "Project is private (change under “Visibility”)",
+            "assignment_open": "Assignment mode is not “Open” (annotation settings)",
+            "origin_not_student": "Project was created by a student",
+            "klausurloesung_config": "No Klausurlösung label configuration (Angabe, Notizen, Gliederung, Lösung)",
+            "falloesung_judge": "No active Falllösung evaluation method (evaluation methods)",
+            "sachverhalt_binding": "Angabe is not bound to $sachverhalt (label configuration)",
+            "musterloesung_key": "Tasks lack “musterloesung” (data)",
+            "kind_flashcard_or_null": "Project kind is neither flashcard deck nor generic",
+            "deck_config": "No flashcard label configuration ($front)",
+            "card_keys": "Tasks lack “front” and “back” (data)",
+            "has_tasks": "Project has no tasks"
           }
         },
         "links": {

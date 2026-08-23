@@ -302,8 +302,8 @@
         "step2": {
           "title": "Daten importieren",
           "subtitle": "Laden Sie Ihre Daten jetzt hoch oder überspringen Sie diesen Schritt und fügen Sie sie später hinzu",
-        "syntheticNotice": "Der KI-Generator liefert bereits synthetische Daten. Zusätzliche Uploads sind möglich, müssen aber derselben Struktur folgen.",
-        "syntheticNoticeColumns": "Erwartete Spalten:",
+          "syntheticNotice": "Der KI-Generator liefert bereits synthetische Daten. Zusätzliche Uploads sind möglich, müssen aber derselben Struktur folgen.",
+          "syntheticNoticeColumns": "Erwartete Spalten:",
           "tabs": {
             "upload": "Dateien hochladen",
             "paste": "Daten einfügen",
@@ -1096,6 +1096,20 @@
             "deck_config": "Karteikarten-Label-Konfiguration ($front)",
             "card_keys": "Aufgaben enthalten „front“ und „back“ (Daten)",
             "has_tasks": "Projekt enthält Aufgaben"
+          },
+          "checkFailed": {
+            "not_archived": "Projekt ist archiviert",
+            "not_private": "Projekt ist privat (unter „Sichtbarkeit“ ändern)",
+            "assignment_open": "Zuweisungsmodus ist nicht „Offen“ (Annotationseinstellungen)",
+            "origin_not_student": "Projekt wurde von Studierenden erstellt",
+            "klausurloesung_config": "Keine Klausurlösung-Label-Konfiguration (Angabe, Notizen, Gliederung, Lösung)",
+            "falloesung_judge": "Keine aktive Falllösung-Bewertungsmethode (Evaluierungsmethoden)",
+            "sachverhalt_binding": "Angabe ist nicht an $sachverhalt gebunden (Label-Konfiguration)",
+            "musterloesung_key": "Aufgaben enthalten kein „musterloesung“ (Daten)",
+            "kind_flashcard_or_null": "Projektart ist weder Kartenstapel noch generisch",
+            "deck_config": "Keine Karteikarten-Label-Konfiguration ($front)",
+            "card_keys": "Aufgaben enthalten nicht „front“ und „back“ (Daten)",
+            "has_tasks": "Projekt enthält keine Aufgaben"
           }
         },
         "links": {
