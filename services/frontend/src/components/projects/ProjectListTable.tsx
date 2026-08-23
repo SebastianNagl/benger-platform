@@ -15,6 +15,7 @@ import { useI18n } from '@/contexts/I18nContext'
 import { useProgress } from '@/contexts/ProgressContext'
 import { useConfirm } from '@/hooks/useDialogs'
 import { projectsAPI } from '@/lib/api/projects'
+import { useSlot } from '@/lib/extensions/slots'
 import { useProjectStore } from '@/stores/projectStore'
 import { Project } from '@/types/labelStudio'
 import { parseSubdomain } from '@/lib/utils/subdomain'
@@ -27,6 +28,9 @@ import {
   CloudArrowUpIcon,
   FolderIcon,
   GlobeAltIcon,
+  MagnifyingGlassIcon,
+  RectangleStackIcon,
+  UserGroupIcon,
   PlusIcon,
 } from '@heroicons/react/24/outline'
 import { formatDistanceToNow } from 'date-fns'
@@ -98,6 +102,10 @@ export function ProjectListTable({
     }
   }
   const fileInputRef = useRef<HTMLInputElement>(null)
+  // Extended "Entdecken": browse listed share links / catalog projects you
+  // do not have access to yet. Rendered as a modal; absent in community.
+  const ProjectDiscoverModal = useSlot('ProjectDiscoverModal')
+  const [discoverOpen, setDiscoverOpen] = useState(false)
 
   // Check if user has permissions to create/modify projects
   const { isPrivateMode } = typeof window !== 'undefined' ? parseSubdomain() : { isPrivateMode: true }
@@ -514,6 +522,16 @@ export function ProjectListTable({
             </h1>
           </div>
           <div className="flex items-center gap-3">
+            {!showArchivedOnly && ProjectDiscoverModal && (
+              <Button
+                onClick={() => setDiscoverOpen(true)}
+                variant="outline"
+                data-testid="projects-discover-button"
+              >
+                <MagnifyingGlassIcon className="h-4 w-4" />
+                {t('projects.discover', 'Entdecken')}
+              </Button>
+            )}
             {!showArchivedOnly && userCanCreateProjects && (
               <Button
                 onClick={() => router.push('/projects/archived')}
@@ -557,6 +575,18 @@ export function ProjectListTable({
           </div>
         </div>
       </div>
+
+      {ProjectDiscoverModal && (
+        <ProjectDiscoverModal
+          isOpen={discoverOpen}
+          onClose={() => setDiscoverOpen(false)}
+          onJoined={(projectId: string) => {
+            setDiscoverOpen(false)
+            fetchProjects(undefined, undefined, showArchivedOnly, includeAllPrivate)
+            router.push(`/projects/${projectId}`)
+          }}
+        />
+      )}
 
       {/* Search and Bulk Actions */}
       <div className="space-y-4">
@@ -787,11 +817,13 @@ export function ProjectListTable({
                           className="px-6 py-4"
                           onClick={(e) => e.stopPropagation()}
                         >
-                          <TableCheckbox
-                            checked={selectedProjects.has(project.id)}
-                            onChange={() => handleSelectProject(project.id)}
-                            data-testid={`projects-table-checkbox-${project.id}`}
-                          />
+                          {project.access_tier !== 'participant' && (
+                            <TableCheckbox
+                              checked={selectedProjects.has(project.id)}
+                              onChange={() => handleSelectProject(project.id)}
+                              data-testid={`projects-table-checkbox-${project.id}`}
+                            />
+                          )}
                         </td>
                       )}
                       <td
@@ -821,6 +853,28 @@ export function ProjectListTable({
                                       'projects.list.publicAnnotatorBadge',
                                       'Public · Annotator'
                                     )}
+                              </span>
+                            )}
+                            {project.access_tier === 'participant' && (
+                              <span
+                                className="inline-flex items-center gap-1 rounded-md bg-sky-50 px-1.5 py-0.5 text-xs font-medium text-sky-700 dark:bg-sky-400/10 dark:text-sky-400"
+                                data-testid={`project-participant-badge-${project.id}`}
+                                title={t(
+                                  `projects.list.participantVia.${project.participant_via ?? 'share'}`,
+                                  'Beigetreten'
+                                )}
+                              >
+                                <UserGroupIcon className="h-3.5 w-3.5" />
+                                {t('projects.list.participantBadge', 'Teilnehmer')}
+                              </span>
+                            )}
+                            {project.kind === 'flashcard_collection' && (
+                              <span
+                                className="inline-flex items-center gap-1 rounded-md bg-violet-50 px-1.5 py-0.5 text-xs font-medium text-violet-700 dark:bg-violet-400/10 dark:text-violet-400"
+                                data-testid={`project-kind-badge-${project.id}`}
+                              >
+                                <RectangleStackIcon className="h-3.5 w-3.5" />
+                                {t('projects.list.kindDeck', 'Kartenstapel')}
                               </span>
                             )}
                             {(() => {
@@ -903,7 +957,18 @@ export function ProjectListTable({
                         })}
                       </td>
                       <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
-                        {project.enable_annotation !== false && (
+                        {project.kind === 'flashcard_collection' ? (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              router.push(`/projects/${project.id}`)
+                            }}
+                            className="mr-4 text-emerald-600 hover:text-emerald-500 dark:text-emerald-400 dark:hover:text-emerald-300"
+                            data-testid={`project-study-${project.id}`}
+                          >
+                            {t('projects.list.study', 'Lernen')}
+                          </button>
+                        ) : project.enable_annotation !== false && (
                           <button
                             onClick={(e) => {
                               e.stopPropagation()

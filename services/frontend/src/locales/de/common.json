@@ -28,7 +28,8 @@
     "task": "Aufgabe",
     "mobile": {
       "toggleNavigation": "Navigation umschalten"
-    }
+    },
+    "billing": "Abo & Abrechnung"
   },
   "header": {
     "expandSidebar": "Seitenleiste erweitern",
@@ -152,6 +153,13 @@
       "title": "Evaluierungen anzeigen",
       "description": "Abgeschlossene Evaluierungen und Metriken überprüfen",
       "button": "Ergebnisse anzeigen"
+    },
+    "personal": {
+      "title": "Meine Lernstatistik",
+      "subtitle": "Deine Bewertungen, Lernfortschritt und fällige Karten",
+      "empty": "Noch keine Bewertungen oder Lernsitzungen.",
+      "collapse": "Einklappen",
+      "expand": "Ausklappen"
     }
   },
   "projects": {
@@ -469,7 +477,9 @@
           "minutes": "Minuten",
           "strictTimer": "Strikter Timer",
           "strictTimerHint": "Annotation automatisch absenden, wenn die Zeit abläuft",
-          "advancedNote": "Weitere Einstellungen (Review-Modus, Feedback) sind nach der Erstellung auf der Projektseite verfügbar."
+          "advancedNote": "Weitere Einstellungen (Review-Modus, Feedback) sind nach der Erstellung auf der Projektseite verfügbar.",
+          "revealSolution": "Musterlösung nach Abgabe anzeigen",
+          "revealSolutionHint": "Nach der Abgabe sehen Bearbeitende alle Aufgabenfelder inkl. Musterlösung."
         },
         "evalSaveFailed": "Evaluationskonfiguration konnte nicht gespeichert werden",
         "promptStructureSaveFailed": "Prompt-Struktur konnte nicht gespeichert werden (Prompts sind weiterhin in der Generierungskonfiguration gespeichert)",
@@ -501,7 +511,20 @@
           "examSolving": {
             "name": "Klausurlösung",
             "description": "Annotiere juristische Falllösungen mit Angabe, Notizen, Gliederung und Lösung"
+          },
+          "flashcardDeck": {
+            "name": "Karteikarten (leer)",
+            "description": "Leerer Kartenstapel mit Vorder-/Rückseite; Karten im Projekt anlegen, lernen und exportieren"
           }
+        },
+        "rubric": {
+          "title": "Bewertungsbogen automatisch erzeugen (experimentell)",
+          "help": "Ein LLM erstellt aus Sachverhalt und Musterlösung pro Aufgabe einen analytischen 100-Punkte-Bewertungsbogen (inkl. vertretbarer Alternativen), gegen den anschließend bewertet wird.",
+          "warning": "Experimentell: Die Zuverlässigkeit hängt stark vom Paar aus Generator und Judge ab. Generierte Bögen sollten vor dem Einsatz fachlich geprüft werden (Aufgabenseite → Bewertungsbogen). Die Erzeugung verursacht LLM-Kosten pro Aufgabe.",
+          "model": "Generator-Modell",
+          "modelHint": "Dasselbe Modell bewertet anschließend gegen den Bogen (im Evaluierungs-Editor änderbar).",
+          "modelsLoading": "Modelle werden geladen…",
+          "modelsError": "Modelle konnten nicht geladen werden."
         }
       }
     },
@@ -590,7 +613,15 @@
       "showAllPrivate": "Alle privaten Projekte anzeigen",
       "windowUpcoming": "Öffnet {date}",
       "windowClosed": "Beendet",
-      "windowOpen": "Offen"
+      "windowOpen": "Offen",
+      "participantBadge": "Teilnehmer",
+      "participantVia": {
+        "share": "Über Freigabe-Link beigetreten",
+        "entitlement": "Über „Entdecken“ freigeschaltet",
+        "org_exam": "Über deine Organisation freigegeben"
+      },
+      "kindDeck": "Kartenstapel",
+      "study": "Lernen"
     },
     "columns": {
       "label": "Spalten",
@@ -810,8 +841,10 @@
       "customConfigName": "Benutzerdefinierte Konfiguration",
       "customConfigDescription": "Benutzerdefinierte Konfiguration",
       "labelStudioDocs": "Label Studio Dokumentation",
-      "note": "Hinweis"
-    }
+      "note": "Hinweis",
+      "postCreateHookFailed": "Nachbearbeitung fehlgeschlagen"
+    },
+    "discover": "Entdecken"
   },
   "project": {
     "loading": "Projekt wird geladen...",
@@ -1349,7 +1382,20 @@
         "links": "{count} Links",
         "participants": "{count} Teilnehmende",
         "notShared": "Nicht geteilt"
-      }
+      },
+      "adminOnlyHint": "Nur Organisations-Admins können Freigabe-Links verwalten."
+    },
+    "participant": {
+      "title": "Teilnahme",
+      "leave": "Projekt verlassen",
+      "leaveConfirm": "Du verlierst den Zugang zu diesem Projekt. Deine bisherigen Abgaben bleiben erhalten.",
+      "left": "Du hast das Projekt verlassen.",
+      "cannotLeavePurchase": "Gekaufter Zugang kann nicht verlassen werden.",
+      "cannotLeaveOrg": "Der Zugang kommt über deine Organisation und wird dort verwaltet."
+    },
+    "deck": {
+      "title": "Kartenstapel",
+      "subtitle": "Lernen, Karten verwalten, exportieren"
     }
   },
   "tasks": {
@@ -1791,7 +1837,12 @@
       "validationError": "Import-Validierungsfehler",
       "validationErrorDescription": "Der folgende Validierungsfehler ist beim Import aufgetreten:",
       "importAnyway": "Trotzdem importieren",
-      "orUseFieldMapping": "oder Feldzuordnung unten verwenden"
+      "orUseFieldMapping": "oder Feldzuordnung unten verwenden",
+      "extractText": {
+        "button": "Text aus Dokument (PDF/DOCX)",
+        "busy": "Extrahiere…",
+        "failed": "Text konnte nicht extrahiert werden."
+      }
     },
     "taskAssignment": {
       "assigningTasks": "{count} Aufgabe(n) zuweisen",
@@ -2085,7 +2136,8 @@
       "sum": "Summe"
     },
     "coCreationNoData": "Keine KI-unterstützten Annotationen für diesen Zeitraum gefunden.",
-    "coCreationNoSearchResults": "Keine Co-Creators gefunden, die Ihrer Suche entsprechen."
+    "coCreationNoSearchResults": "Keine Co-Creators gefunden, die Ihrer Suche entsprechen.",
+    "cohort": "Klausur-Kohorte"
   },
   "fields": {
     "pdf": {
@@ -9558,5 +9610,8 @@
       "subtitle": "Beide Pläne korrigieren deine Klausuren — wähl, was zu dir passt. Du kannst jederzeit wechseln.",
       "title": "Willkommen bei Vertretbar 👋"
     }
+  },
+  "billing": {
+    "unavailable": "Abrechnung ist in dieser Edition nicht verfügbar."
   }
 }

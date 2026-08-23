@@ -8,13 +8,15 @@ import { useI18n } from '@/contexts/I18nContext'
 import { useSlot } from '@/lib/extensions/slots'
 import { Suspense, useState } from 'react'
 
-type LeaderboardTab = 'human' | 'co-creation' | 'llm'
+type LeaderboardTab = 'human' | 'co-creation' | 'cohort' | 'llm'
 
 function LeaderboardsContent() {
   const { t } = useI18n()
 
   const AnnotatorLeaderboardTab = useSlot('AnnotatorLeaderboardTab')
   const CoCreationLeaderboardTab = useSlot('CoCreationLeaderboardTab')
+  // Extended: per-exam cohort ranking (share/discovery participants).
+  const CohortLeaderboardTab = useSlot('CohortLeaderboardTab')
 
   // Default to 'human' to match the old monolith. Falls back to 'llm' in
   // community edition where the human/co-creation slots aren't registered.
@@ -63,6 +65,15 @@ function LeaderboardsContent() {
                 {t('leaderboards.coCreation') || 'Co-Creation'}
               </button>
             )}
+            {CohortLeaderboardTab && (
+              <button
+                onClick={() => setActiveTab('cohort')}
+                className={tabClass('cohort')}
+                data-testid="leaderboards-tab-cohort"
+              >
+                {t('leaderboards.cohort', 'Klausur-Kohorte')}
+              </button>
+            )}
             <button onClick={() => setActiveTab('llm')} className={tabClass('llm')}>
               {t('leaderboards.llms') || 'LLMs'}
             </button>
@@ -83,6 +94,9 @@ function LeaderboardsContent() {
         ) : activeTab === 'co-creation' && CoCreationLeaderboardTab ? (
           // eslint-disable-next-line react-hooks/static-components
           <CoCreationLeaderboardTab />
+        ) : activeTab === 'cohort' && CohortLeaderboardTab ? (
+          // eslint-disable-next-line react-hooks/static-components
+          <CohortLeaderboardTab />
         ) : (
           <LLMLeaderboardTable />
         )}

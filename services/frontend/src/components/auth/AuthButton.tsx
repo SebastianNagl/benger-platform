@@ -8,6 +8,7 @@ import { useFeatureFlags } from '@/contexts/FeatureFlagContext'
 import { useHydration } from '@/contexts/HydrationContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { useViewModeSwitch } from '@/hooks/useViewModeSwitch'
+import { useSlot } from '@/lib/extensions/slots'
 import {
   AcademicCapIcon,
   ArrowRightOnRectangleIcon,
@@ -27,6 +28,8 @@ export function AuthButton() {
   const { user, logout, isLoading, currentOrganization, organizations, setCurrentOrganization } =
     useAuth()
   const { t } = useI18n()
+  // Extended: account-menu entries (e.g. Abo & Abrechnung + tier badge).
+  const AuthMenuExtended = useSlot('AuthMenuExtended')
   const viewMode = useViewModeSwitch()
   const { isEnabled } = useFeatureFlags()
   const isClient = useHydration()
@@ -111,6 +114,12 @@ export function AuthButton() {
                 <UserIcon className="mr-3 h-4 w-4" />
                 {isClient ? t('auth.profileSettings') : 'Profile Settings'}
               </Link>
+
+              {AuthMenuExtended && (
+                <span data-testid="auth-menu-extended">
+                  <AuthMenuExtended onNavigate={() => setDropdownOpen(false)} />
+                </span>
+              )}
 
               {/* Settings Section */}
               <Link

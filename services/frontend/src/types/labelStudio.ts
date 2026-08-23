@@ -114,6 +114,11 @@ export interface Project {
   // Student-surface markers (extended): e.g. kind 'exam' |
   // 'flashcard_collection', origin 'student'. NULL for ordinary projects.
   kind?: string | null
+  // Caller-relative access info from the API (never stored):
+  access_tier?: 'full' | 'participant' | null
+  participant_via?: 'share' | 'entitlement' | 'org_exam' | null
+  effective_role?: string | null
+  can_manage_shares?: boolean
   origin?: string | null
 
   // Timestamps

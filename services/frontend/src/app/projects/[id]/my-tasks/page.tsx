@@ -78,6 +78,10 @@ export default function MyTasksPage() {
   // The submission+scores modal is contributed by the extended package. When
   // absent (community edition) the row falls back to navigation.
   const ReviewModal = useSlot('MyTaskEvaluationModal')
+  // Extended solver surfaces: the persistent result card (NP, bestanden,
+  // percentile) above the list and per-row actions (e.g. print sheet).
+  const MyTasksResultCard = useSlot('MyTasksResultCard')
+  const MyTaskRowActions = useSlot('MyTaskRowActions')
   const [reviewTaskId, setReviewTaskId] = useState<string | null>(null)
 
   // Debounce search so per-keystroke typing doesn't burst /my-tasks.
@@ -269,6 +273,16 @@ export default function MyTasksPage() {
       </div>
 
       {/* Tasks List */}
+      {MyTasksResultCard && !loading && tasks.length > 0 && (
+        <div className="mb-6" data-testid="my-tasks-result-card">
+          <MyTasksResultCard
+            projectId={projectId}
+            tasks={tasks}
+            onOpenReview={(taskId: string) => setReviewTaskId(taskId)}
+          />
+        </div>
+      )}
+
       {loading ? (
         <div className="flex items-center justify-center py-12">
           <div className="text-center">
@@ -358,7 +372,17 @@ export default function MyTasksPage() {
                   )}
                 </div>
 
-                <ChevronRightIcon className="ml-4 h-5 w-5 text-zinc-400" />
+                <div className="ml-4 flex items-center gap-2">
+                  {MyTaskRowActions && (
+                    <span
+                      data-testid={`my-task-row-actions-${task.id}`}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <MyTaskRowActions projectId={projectId} task={task} />
+                    </span>
+                  )}
+                  <ChevronRightIcon className="h-5 w-5 text-zinc-400" />
+                </div>
               </div>
             </Card>
           ))}

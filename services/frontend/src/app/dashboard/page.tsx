@@ -6,6 +6,7 @@ import { Button } from '@/components/shared/Button'
 import { ResponsiveContainer } from '@/components/shared/ResponsiveContainer'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
+import { useSlot } from '@/lib/extensions/slots'
 import { useProjectStore } from '@/stores/projectStore'
 import { useQuery } from '@tanstack/react-query'
 import Link from 'next/link'
@@ -22,6 +23,9 @@ export default function DashboardPage() {
   const { projects, fetchProjects } = useProjectStore()
   const { user, organizations } = useAuth()
   const router = useRouter()
+  // Extended: personal learning analytics (score history, retention, due
+  // cards) — the same widgets the student dashboard shows.
+  const DashboardPersonalSection = useSlot('DashboardPersonalSection')
   const searchParams = useSearchParams()
   const [error, setError] = useState<string | null>(null)
   const errorParam = searchParams?.get('error') ?? null
@@ -330,6 +334,12 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+
+      {DashboardPersonalSection && (
+        <div className="mb-8" data-testid="dashboard-personal-section">
+          <DashboardPersonalSection />
+        </div>
+      )}
 
       {/* Only show project sections if user has organization or is superadmin */}
       {canAccessProjects && (

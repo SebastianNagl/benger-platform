@@ -30,10 +30,15 @@ from routers.projects.helpers import (
     calculate_generation_stats_batch,
     calculate_project_stats_async,
     calculate_project_stats_batch,
-    check_project_accessible_async,
     check_user_can_edit_project_async,
+    check_user_can_manage_shares_async,
     get_accessible_project_ids_async,
+    get_effective_project_role_async,
     get_org_context_from_request,
+    get_participant_project_ids_async,
+    get_project_access_tier_async,
+    TIER_FULL,
+    TIER_PARTICIPANT,
     get_org_membership_role_async,
     get_user_with_memberships_async,
 )
@@ -171,9 +176,20 @@ async def list_projects(
         # organization paths) so the async engine never lazy-loads during
         # from_orm serialization (MissingGreenlet). The two collection loads
         # require .unique() before .scalars().all().
+        # Projects reached only through the participant tier (share link,
+        # entitlement, windowless org exam) are listed too, tagged so the UI
+        # can show the "Teilnehmer" badge and the solver-only surface.
+        participant_map: Dict[str, str] = {}
+        if not current_user.is_superadmin:
+            participant_map = await get_participant_project_ids_async(db, current_user.id)
+
+        accessible_set = set(accessible_ids) if accessible_ids is not None else None
         base_filters = []
         if accessible_ids is not None:
-            base_filters.append(Project.id.in_(accessible_ids))
+            id_filter = Project.id.in_(accessible_ids)
+            if participant_map:
+                id_filter = or_(id_filter, Project.id.in_(list(participant_map.keys())))
+            base_filters.append(id_filter)
         if search:
             base_filters.append(
                 Project.title.ilike(f"%{search}%") | Project.description.ilike(f"%{search}%")
@@ -247,6 +263,15 @@ async def list_projects(
         for project in projects:
             response = ProjectResponse.from_orm(project)
             response.created_by_name = project.creator.name if project.creator else None
+            via = participant_map.get(str(project.id))
+            if via is not None and (
+                accessible_set is not None and project.id not in accessible_set
+            ):
+                response.access_tier = TIER_PARTICIPANT
+                response.participant_via = via
+                _strip_participant_fields(response)
+            else:
+                response.access_tier = TIER_FULL
 
             # Apply pre-fetched statistics
             stats = stats_map.get(
@@ -501,6 +526,13 @@ async def create_project(
     return response
 
 
+def _strip_participant_fields(response: ProjectResponse) -> None:
+    """Participants never see judge prompts, rubrics or generation setup."""
+    response.evaluation_config = None
+    response.generation_config = None
+    response.llm_model_ids = None
+
+
 @router.get("/{project_id}", response_model=ProjectResponse)
 async def get_project(
     project_id: str,
@@ -534,14 +566,24 @@ async def get_project(
     # Check access using shared helper. Pass the already-loaded project so the
     # async helper doesn't re-query it.
     org_context = get_org_context_from_request(request)
-    if not await check_project_accessible_async(
+    tier = await get_project_access_tier_async(
         db, current_user, project_id, org_context, project=project
-    ):
+    )
+    if tier is None:
         raise HTTPException(status_code=403, detail="Access denied")
 
     # Build response with enriched fields
     response = ProjectResponse.from_orm(project)
     response.created_by_name = project.creator.name if project.creator else None
+    response.access_tier = tier
+    response.effective_role = await get_effective_project_role_async(db, current_user, project)
+    response.can_manage_shares = await check_user_can_manage_shares_async(
+        db, current_user, project
+    )
+    if tier == TIER_PARTICIPANT:
+        participant_map = await get_participant_project_ids_async(db, current_user.id)
+        response.participant_via = participant_map.get(str(project.id))
+        _strip_participant_fields(response)
 
     # Calculate statistics
     await calculate_project_stats_async(db, project.id, response, project=project)

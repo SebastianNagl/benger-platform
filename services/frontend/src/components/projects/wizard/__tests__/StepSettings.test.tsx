@@ -113,6 +113,14 @@ describe('StepSettings — toggle handlers', () => {
     )
   })
 
+  it('toggles annotator_full_visibility_after_submit (Musterlösung nach Abgabe)', () => {
+    const { onSettingsChange } = renderStep()
+    fireEvent.click(screen.getByTestId('wizard-setting-reveal-solution'))
+    expect(onSettingsChange).toHaveBeenCalledWith(
+      expect.objectContaining({ annotator_full_visibility_after_submit: true })
+    )
+  })
+
   it('toggles randomize_task_order', () => {
     const { onSettingsChange } = renderStep()
     fireEvent.click(screen.getByTestId('wizard-setting-randomize'))

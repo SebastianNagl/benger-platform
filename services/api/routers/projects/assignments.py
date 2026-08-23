@@ -24,9 +24,9 @@ from project_models import (
     TaskAssignment,
 )
 from routers.projects.helpers import (
-    check_project_accessible,
     check_project_accessible_async,
     get_org_context_from_request,
+    get_project_access_tier,
     get_user_with_memberships,
 )
 
@@ -556,7 +556,7 @@ async def get_my_tasks(
         raise HTTPException(status_code=404, detail="Project not found")
 
     org_context = get_org_context_from_request(request)
-    if not check_project_accessible(db, current_user, project_id, org_context):
+    if get_project_access_tier(db, current_user, project_id, org_context, project=project) is None:
         raise HTTPException(status_code=403, detail="Access denied")
 
     from sqlalchemy import exists as sa_exists, or_ as sa_or

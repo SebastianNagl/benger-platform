@@ -419,7 +419,16 @@ class TestPublicProjectHelpers:
                 public_role=None,
             )
             user = Mock(is_superadmin=False, id="visitor-1")
-            assert get_effective_project_role(db, user, project) is None
+            with patch(
+                "routers.projects.helpers.get_student_read_access", return_value=False
+            ):
+                assert get_effective_project_role(db, user, project) is None
+            # Participants (share member / entitlement / org exam) resolve to
+            # ANNOTATOR so blinding and write-role gates apply to them.
+            with patch(
+                "routers.projects.helpers.get_student_read_access", return_value=True
+            ):
+                assert get_effective_project_role(db, user, project) == "ANNOTATOR"
 
 
 class TestCalculateProjectStatsBatch:

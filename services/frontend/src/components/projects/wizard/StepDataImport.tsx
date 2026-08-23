@@ -2,6 +2,7 @@
 
 import { Alert } from '@/components/shared/Alert'
 import { Button } from '@/components/shared/Button'
+import { ExtractTextButton } from '@/components/projects/ExtractTextButton'
 import { Card } from '@/components/shared/Card'
 import { Label } from '@/components/shared/Label'
 import {
@@ -262,7 +263,14 @@ export function StepDataImport({
 
         <TabsContent value="paste" className="mt-6">
           <div className="space-y-4">
-            <Label>{t('projects.creation.wizard.step2.paste.label')}</Label>
+            <div className="flex items-center justify-between gap-3">
+              <Label>{t('projects.creation.wizard.step2.paste.label')}</Label>
+              <ExtractTextButton
+                onText={(text) =>
+                  handlePastedDataChange(JSON.stringify([{ text }], null, 2))
+                }
+              />
+            </div>
             <Textarea
               placeholder={t(
                 'projects.creation.wizard.step2.paste.placeholder'

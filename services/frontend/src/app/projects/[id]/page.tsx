@@ -31,6 +31,7 @@ import {
   providerColors,
   type ReasoningConfig,
 } from '@/components/projects/ModelSelectionSection'
+import { ParticipantCard } from '@/components/projects/ParticipantCard'
 import { ProjectMetadataCard } from '@/components/projects/ProjectMetadataCard'
 import { ProjectPermissionsPanel } from '@/components/projects/ProjectPermissionsPanel'
 import { PromptStructuresManager } from '@/components/projects/PromptStructuresManager'
@@ -66,6 +67,7 @@ import {
   DocumentTextIcon,
   PencilIcon,
   PlayIcon,
+  UserGroupIcon,
 } from '@heroicons/react/24/outline'
 import { formatDistanceToNow } from 'date-fns'
 import { de } from 'date-fns/locale'
@@ -139,6 +141,12 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   } = useProjectStore()
 
   const isOrgProject = !!(currentOrganization && currentProject?.organizations?.length)
+  // Narrow tier: joined via share link / discovery enrollment / org exam.
+  // The page then behaves like an annotator's view plus a "Teilnehmer" badge.
+  const isParticipant = currentProject?.access_tier === 'participant'
+  // Editor-only fetches wait for the project (so a participant never fires
+  // requests that would 403) and run once its id is known.
+  const accessTierKnown = currentProject?.id === projectId
 
   const [tasks, setTasks] = useState([])
   const [userCompletedAllTasks, setUserCompletedAllTasks] = useState(false)
@@ -319,6 +327,8 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   // Student access (share links, participants, discoverability) — sub-sections
   // of the Project settings card, filled by the extended edition.
   const ProjectSharing = useSlot('project-sharing')
+  const ProjectDeckWorkspace = useSlot('project-deck-workspace')
+  const ProjectSolverActions = useSlot('project-solver-actions')
   const [advancedSettings, setAdvancedSettings] = useState({
     show_instruction: true,
     instructions_always_visible: false,
@@ -451,17 +461,19 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
 
   // Fetch report status when user or projectId changes (Issue #770)
   useEffect(() => {
-    if (projectId && user) {
+    if (projectId && user && accessTierKnown && !isParticipant) {
       fetchReportStatus()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchReportStatus is stable, only re-run when projectId or user changes
-  }, [projectId, user])
+  }, [projectId, user, accessTierKnown, isParticipant])
    
 
   // Fetch existing multi-field evaluations on page load (for badge display)
   useEffect(() => {
     const fetchEvaluationConfig = async () => {
       if (!projectId) return
+      // Participants have no evaluation config to read (403) — skip.
+      if (!accessTierKnown || isParticipant) return
 
       try {
         // Fetch existing evaluation config to load evaluation configs
@@ -490,11 +502,12 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     }
 
     fetchEvaluationConfig()
-  }, [projectId])
+  }, [projectId, accessTierKnown, isParticipant])
 
   useEffect(() => {
     const fetchAvailableFields = async () => {
       if (!projectId) return
+      if (!accessTierKnown || isParticipant) return
 
       try {
         const fields =
@@ -506,7 +519,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     }
 
     fetchAvailableFields()
-  }, [projectId])
+  }, [projectId, accessTierKnown, isParticipant])
 
   // Persist the evaluation configs. Minimal body — the backend deep-merges
   // into the stored document (lists replace wholesale), so sibling keys
@@ -679,6 +692,15 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   const canEditProject = () => {
     if (!user || !currentProject) return false
     if (user.is_superadmin) return true
+    if (isParticipant) return false
+    // The API resolves the caller's effective role (creator → ORG_ADMIN, org
+    // membership, public role); prefer it over the context role when present.
+    if (currentProject.effective_role) {
+      return (
+        currentProject.effective_role === 'ORG_ADMIN' ||
+        currentProject.effective_role === 'CONTRIBUTOR'
+      )
+    }
     if (isOrgProject) return user.role === 'ORG_ADMIN' || user.role === 'CONTRIBUTOR'
     return currentProject.created_by === user.id
   }
@@ -686,6 +708,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   const canDeleteProject = () => {
     if (!user) return false
     if (user.is_superadmin) return true
+    if (isParticipant) return false
     if (isOrgProject) return user.role === 'ORG_ADMIN'
     return false
   }
@@ -696,8 +719,9 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
       : t('project.permissions.creatorOnly', { section: sectionTitle })
 
   const canSeeQuickAction = (action: string) => {
-    if (!isOrgProject) return true
     if (user?.is_superadmin) return true
+    if (isParticipant) return action === 'startLabeling' || action === 'myTasks'
+    if (!isOrgProject) return true
     const role = user?.role
     switch (action) {
       case 'startLabeling':
@@ -1509,6 +1533,15 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                   <h1 className="text-3xl font-bold text-zinc-900 dark:text-white">
                     {currentProject.title}
                   </h1>
+                  {isParticipant && (
+                    <span
+                      className="inline-flex items-center gap-1 rounded-md bg-sky-50 px-2 py-0.5 text-xs font-medium text-sky-700 dark:bg-sky-400/10 dark:text-sky-400"
+                      data-testid="project-participant-badge"
+                    >
+                      <UserGroupIcon className="h-3.5 w-3.5" />
+                      {t('projects.list.participantBadge', 'Teilnehmer')}
+                    </span>
+                  )}
                   {canEditProject() && (
                     <Button
                       onClick={handleStartEditTitle}
@@ -1635,6 +1668,22 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
           {/* Project Details */}
           <ProjectMetadataCard project={currentProject} t={t} />
 
+          {/* Flashcard deck workspace (extended): study / cards / export for
+              deck-shaped projects; renders nothing otherwise. */}
+          {ProjectDeckWorkspace && (
+            <div data-testid="project-deck-workspace">
+              <ProjectDeckWorkspace
+                project={currentProject}
+                canEdit={canEditProject()}
+                onRefresh={() => fetchProject(projectId)}
+              />
+            </div>
+          )}
+
+          {/* Configuration cards: editors/annotators only. Participants (narrow
+              tier) get the metadata, deck workspace and quick actions. */}
+          {!isParticipant && (
+            <>
           {currentProject.enable_annotation && (
           <ConfigCard
             title={t('project.annotationConfiguration.title')}
@@ -2468,10 +2517,20 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
               <ProjectSharing project={currentProject} onRefresh={() => fetchProject(projectId)} />
             </div>
           )}
+            </>
+          )}
         </div>
 
         {/* Sidebar */}
         <div className="space-y-6">
+          {isParticipant && (
+            <ParticipantCard
+              projectId={projectId}
+              via={currentProject.participant_via ?? null}
+              onLeft={() => router.push('/projects')}
+            />
+          )}
+
           {/* Quick Actions */}
           <div className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm ring-1 ring-zinc-900/5 dark:border-zinc-700 dark:bg-zinc-900 dark:ring-white/10">
             <h2 className="mb-6 text-lg font-semibold text-zinc-900 dark:text-white">
@@ -2497,6 +2556,11 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                     <PlayIcon className="mr-2 h-4 w-4" />
                     {t('project.quickActions.startLabeling')}
                   </Button>
+                  {ProjectSolverActions && (
+                    <div data-testid="project-solver-actions">
+                      <ProjectSolverActions project={currentProject} />
+                    </div>
+                  )}
                 </>
               )}
 

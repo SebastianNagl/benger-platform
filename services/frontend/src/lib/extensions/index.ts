@@ -14,8 +14,10 @@ export { registerSlot, getSlot, useSlot, hasSlot } from './slots'
 export {
   registerWizardTemplate,
   getRegisteredWizardTemplates,
+  registerWizardPostCreateHook,
+  getWizardPostCreateHooks,
 } from './wizardTemplates'
-export type { RegisteredWizardTemplate } from './wizardTemplates'
+export type { RegisteredWizardTemplate, WizardPostCreateHook } from './wizardTemplates'
 
 let extendedLoaded = false
 

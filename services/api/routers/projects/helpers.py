@@ -1591,9 +1591,12 @@ def get_effective_project_role(
         .filter(ProjectOrganization.project_id == project.id)
         .all()
     ]
-    return _resolve_effective_role(
+    role = _resolve_effective_role(
         user, project, user_with_memberships, project_org_ids
     )
+    if role is None and get_student_read_access(db, user, str(project.id)):
+        return PARTICIPANT_EFFECTIVE_ROLE
+    return role
 
 
 async def get_effective_project_role_async(
@@ -1608,9 +1611,186 @@ async def get_effective_project_role_async(
     user_with_memberships = await get_user_with_memberships_async(db, str(user.id))
     result = await db.execute(_build_select_project_org_ids(project.id))
     project_org_ids = list(result.scalars().all())
-    return _resolve_effective_role(
+    role = _resolve_effective_role(
         user, project, user_with_memberships, project_org_ids
     )
+    if role is None and await get_student_read_access_async(db, user, str(project.id)):
+        return PARTICIPANT_EFFECTIVE_ROLE
+    return role
+
+
+# Participants (consented share members, entitled/enrolled students, org
+# members of a windowless org exam) hold the NARROW tier. For every existing
+# ``role == "ANNOTATOR"`` branch (task-data blinding, write-role gates, the
+# archived carve-out) they must behave exactly like an org annotator, so the
+# effective-role resolvers fall back to this value when no membership/public
+# claim exists but ``get_student_read_access`` holds.
+PARTICIPANT_EFFECTIVE_ROLE = "ANNOTATOR"
+
+TIER_FULL = "full"
+TIER_PARTICIPANT = "participant"
+
+
+async def get_project_access_tier_async(
+    db: AsyncSession,
+    user,
+    project_id: str,
+    org_context: Optional[str] = None,
+    project: Optional[Project] = None,
+) -> Optional[str]:
+    """Resolve which access tier a user holds on a project.
+
+    ``"full"`` is exactly today's :func:`check_project_accessible_async`
+    (unchanged — exports, settings and whole-``task.data`` reads keep gating
+    on it). ``"participant"`` is the narrow tier of
+    :func:`get_student_read_access_async` (share member, entitlement, org
+    exam) and is only honoured by the explicit allow-list of solver endpoints
+    (task listing/next with blinding, own annotations, drafts, my-tasks,
+    cohort leaderboard). Archived projects never grant the participant tier
+    (mirrors the org-annotator archived carve-out). ``None`` = no access.
+    """
+    if project is None:
+        result = await db.execute(select(Project).where(Project.id == project_id))
+        project = result.scalar_one_or_none()
+    if not project:
+        return None
+    if await check_project_accessible_async(db, user, project_id, org_context, project=project):
+        return TIER_FULL
+    if getattr(project, "is_archived", False):
+        return None
+    if await get_student_read_access_async(db, user, project_id):
+        return TIER_PARTICIPANT
+    return None
+
+
+def get_project_access_tier(
+    db: Session,
+    user,
+    project_id: str,
+    org_context: Optional[str] = None,
+    project: Optional[Project] = None,
+) -> Optional[str]:
+    """Sync twin of :func:`get_project_access_tier_async`."""
+    if project is None:
+        project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        return None
+    if check_project_accessible(db, user, project_id, org_context, project=project):
+        return TIER_FULL
+    if getattr(project, "is_archived", False):
+        return None
+    if get_student_read_access(db, user, project_id):
+        return TIER_PARTICIPANT
+    return None
+
+
+async def check_user_can_manage_shares_async(db: AsyncSession, user, project: Project) -> bool:
+    """Whether a user may create / update / revoke share links on a project.
+
+    Org projects (≥1 ``ProjectOrganization`` row): only active ORG_ADMIN
+    members of one of those orgs — deliberately NO creator fast-path, so a
+    CONTRIBUTOR who created an org project cannot let outside people in on
+    their own. Personal projects (no org rows): the creator. Superadmins
+    always. Viewing links / the roster / evicting stays on the edit tier.
+    """
+    if user.is_superadmin:
+        return True
+    org_result = await db.execute(_build_select_project_org_ids(project.id))
+    project_org_ids = list(org_result.scalars().all())
+    if not project_org_ids:
+        return str(user.id) == str(project.created_by)
+    admin_result = await db.execute(
+        _build_select_org_admin_membership(user.id, project_org_ids)
+    )
+    return admin_result.first() is not None
+
+
+def check_user_can_manage_shares(db: Session, user, project: Project) -> bool:
+    """Sync twin of :func:`check_user_can_manage_shares_async`."""
+    if user.is_superadmin:
+        return True
+    project_org_ids = [
+        r.organization_id
+        for r in db.query(ProjectOrganization.organization_id)
+        .filter(ProjectOrganization.project_id == project.id)
+        .all()
+    ]
+    if not project_org_ids:
+        return str(user.id) == str(project.created_by)
+    return (
+        db.execute(_build_select_org_admin_membership(user.id, project_org_ids)).first()
+        is not None
+    )
+
+
+PARTICIPANT_VIA_SHARE = "share"
+PARTICIPANT_VIA_ENTITLEMENT = "entitlement"
+PARTICIPANT_VIA_ORG_EXAM = "org_exam"
+
+
+async def get_participant_project_ids_async(
+    db: AsyncSession, user_id: str
+) -> Dict[str, str]:
+    """Projects the user reaches ONLY through the participant tier.
+
+    Returns ``{project_id: via}`` with ``via`` ∈ share / entitlement /
+    org_exam (first match wins in that order). Archived projects and projects
+    the user created are excluded — the creator already holds the full tier
+    and archived projects never grant the narrow one. Used by the project
+    list so joined/enrolled projects show up (tagged) next to the projects
+    the user owns or reaches through an org.
+    """
+    uid = str(user_id)
+    not_archived = or_(Project.is_archived.is_(None), Project.is_archived == False)  # noqa: E712
+    result: Dict[str, str] = {}
+
+    share_rows = await db.execute(
+        select(ProjectShareMember.project_id)
+        .join(Project, Project.id == ProjectShareMember.project_id)
+        .where(
+            ProjectShareMember.user_id == uid,
+            ProjectShareMember.gdpr_consent_at.isnot(None),
+            Project.created_by != uid,
+            not_archived,
+        )
+    )
+    for pid in share_rows.scalars().all():
+        result.setdefault(str(pid), PARTICIPANT_VIA_SHARE)
+
+    ent_rows = await db.execute(
+        select(MarketplaceEntitlement.project_id)
+        .join(Project, Project.id == MarketplaceEntitlement.project_id)
+        .where(
+            MarketplaceEntitlement.user_id == uid,
+            MarketplaceEntitlement.revoked_at.is_(None),
+            Project.created_by != uid,
+            not_archived,
+        )
+    )
+    for pid in ent_rows.scalars().all():
+        result.setdefault(str(pid), PARTICIPANT_VIA_ENTITLEMENT)
+
+    org_rows = await db.execute(
+        select(ProjectOrganization.project_id)
+        .join(
+            OrganizationMembership,
+            OrganizationMembership.organization_id == ProjectOrganization.organization_id,
+        )
+        .join(Project, Project.id == ProjectOrganization.project_id)
+        .where(
+            OrganizationMembership.user_id == uid,
+            OrganizationMembership.is_active == True,  # noqa: E712
+            Project.kind == "exam",
+            Project.is_private == False,  # noqa: E712
+            Project.created_by != uid,
+            not_archived,
+            Project.window_start_at.is_(None),
+            Project.window_end_at.is_(None),
+        )
+    )
+    for pid in org_rows.scalars().all():
+        result.setdefault(str(pid), PARTICIPANT_VIA_ORG_EXAM)
+    return result
 
 
 def check_project_write_access(

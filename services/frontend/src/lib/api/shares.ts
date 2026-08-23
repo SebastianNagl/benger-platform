@@ -46,6 +46,26 @@ export interface RosterEntry {
 const asList = <T,>(res: unknown): T[] =>
   Array.isArray(res) ? (res as T[]) : ((res as { items?: T[] } | null)?.items ?? [])
 
+export interface Participation {
+  tier: 'full' | 'participant'
+  via: 'share' | 'entitlement' | 'org_exam' | null
+  can_leave: boolean
+  cannot_leave_reason: 'entitlement_not_leavable' | 'org_membership' | null
+  share_tokens: string[]
+  entitlement_source: string | null
+}
+
+export interface DiscoverShareItem {
+  token: string
+  project_id: string
+  title: string
+  kind: string | null
+  owner_name: string | null
+  already_member: boolean
+  origin?: string | null
+  is_org_project?: boolean
+}
+
 export const sharesAPI = {
   /** Every share link of the project, including revoked ones. */
   listShares: async (projectId: string): Promise<ShareLink[]> =>
@@ -73,6 +93,24 @@ export const sharesAPI = {
   evictMember: async (projectId: string, userId: string): Promise<void> => {
     await apiClient.delete(`/projects/${projectId}/shares/roster/${userId}`)
   },
+
+  /** The caller's own standing on a project (tier, how reached, leavable?). */
+  getParticipation: async (projectId: string): Promise<Participation> => {
+    apiClient.invalidateCache(`/projects/${projectId}/participation`)
+    return apiClient.get(`/projects/${projectId}/participation`)
+  },
+
+  /** Leave a project joined via share link / discovery enrollment. */
+  leaveProject: async (projectId: string): Promise<void> => {
+    await apiClient.delete(`/projects/${projectId}/participation`)
+    apiClient.invalidateCache('/projects')
+  },
+
+  /** Listed share links. scope 'all' = every kind (benger Entdecken). */
+  discover: async (scope: 'student' | 'all' = 'student'): Promise<DiscoverShareItem[]> =>
+    asList<DiscoverShareItem>(
+      await apiClient.get(scope === 'all' ? '/shares/discover?scope=all' : '/shares/discover'),
+    ),
 }
 
 export default sharesAPI

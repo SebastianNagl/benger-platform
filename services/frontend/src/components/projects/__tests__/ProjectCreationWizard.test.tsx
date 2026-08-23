@@ -606,6 +606,33 @@ describe('ProjectCreationWizard', () => {
   })
 
   describe('Data Import Step', () => {
+    it('renders the extended structured-entry slot above the import and applies its rows', async () => {
+      const { registerSlot } = jest.requireActual('@/lib/extensions/slots')
+      registerSlot('ProjectWizardStructuredEntry', ({ data, onChange }: any) => (
+        <button
+          data-testid="structured-entry-stub"
+          onClick={() =>
+            onChange({
+              pastedData: JSON.stringify([{ sachverhalt: 'Fall', musterloesung: 'Lsg' }]),
+              structuredExam: true,
+            })
+          }
+        >
+          {String(typeof data === 'object')}
+        </button>
+      ))
+      const user = userEvent.setup()
+      render(<ProjectCreationWizard />)
+      await navigateToStep(user, 'dataImport')
+      const stub = screen.getByTestId('structured-entry-stub')
+      expect(stub).toHaveTextContent('true')
+      await user.click(stub)
+      await user.click(screen.getByText('Paste'))
+      const textarea = await screen.findByTestId('project-create-paste-data-textarea')
+      expect((textarea as HTMLTextAreaElement).value).toContain('"sachverhalt":"Fall"')
+      registerSlot('ProjectWizardStructuredEntry', null as any)
+    })
+
     it('displays upload/paste/cloud tabs', async () => {
       const user = userEvent.setup()
       render(<ProjectCreationWizard />)

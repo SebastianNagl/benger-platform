@@ -12,8 +12,8 @@ from auth_module.models import User as AuthUser
 from database import get_db
 from project_models import Project, TaskDraft, TaskDraftCheckpoint
 from routers.projects.helpers import (
-    check_project_accessible,
     check_task_assigned_to_user,
+    get_project_access_tier,
     get_org_context_from_request,
 )
 
@@ -37,7 +37,7 @@ async def save_draft(
     Upserts into task_drafts table for crash recovery.
     """
     org_context = get_org_context_from_request(request)
-    if not check_project_accessible(db, current_user, project_id, org_context):
+    if get_project_access_tier(db, current_user, project_id, org_context) is None:
         raise HTTPException(status_code=403, detail="Access denied")
 
     project = db.query(Project).filter(Project.id == project_id).first()
@@ -111,7 +111,7 @@ def _draft_has_content(draft_result: Any) -> bool:
 def _require_task_access(db, request, current_user, project_id, task_id):
     """Shared access guard (mirrors save_draft); returns the Project or raises."""
     org_context = get_org_context_from_request(request)
-    if not check_project_accessible(db, current_user, project_id, org_context):
+    if get_project_access_tier(db, current_user, project_id, org_context) is None:
         raise HTTPException(status_code=403, detail="Access denied")
     project = db.query(Project).filter(Project.id == project_id).first()
     if project and not check_task_assigned_to_user(db, current_user, task_id, project):

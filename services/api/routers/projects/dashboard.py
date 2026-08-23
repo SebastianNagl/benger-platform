@@ -13,6 +13,8 @@ widgets own presentation; this only shapes the data.
 
 from datetime import datetime, timezone
 
+from typing import Literal
+
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -31,6 +33,14 @@ async def score_history(
     current_user=Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
     limit: int = Query(200, ge=1, le=1000),
+    scope: Literal["student", "all"] = Query(
+        "student",
+        description=(
+            "student: own student exams only (vertretbar dashboard). "
+            "all: every graded attempt of the caller, research projects included "
+            "(benger dashboard)."
+        ),
+    ),
 ):
     """The current user's exam attempt scores over time.
 
@@ -54,6 +64,7 @@ async def score_history(
         select(
             Project.id.label("project_id"),
             Project.title.label("title"),
+            Project.kind.label("kind"),
             TaskEvaluation.metrics.label("metrics"),
             Annotation.created_at.label("attempted_at"),
             EvaluationRun.model_id.label("run_model_id"),
@@ -65,12 +76,12 @@ async def score_history(
         .join(EvaluationRun, EvaluationRun.id == TaskEvaluation.evaluation_id)
         .where(
             Annotation.completed_by == uid,
-            Project.origin == "student",
-            Project.kind == "exam",
             EvaluationRun.model_id.in_(("immediate", "human")),
         )
         .order_by(Annotation.created_at.asc(), TaskEvaluation.created_at.asc())
     )
+    if scope == "student":
+        stmt = stmt.where(Project.origin == "student", Project.kind == "exam")
     rows = (await db.execute(stmt)).all()
     out = []
     for r in rows:
@@ -81,6 +92,7 @@ async def score_history(
             {
                 "project_id": r.project_id,
                 "title": r.title,
+                "kind": r.kind,
                 "score": score,
                 "attempted_at": r.attempted_at.isoformat() if r.attempted_at else None,
                 "source": "human" if r.run_model_id == "human" else "ki",

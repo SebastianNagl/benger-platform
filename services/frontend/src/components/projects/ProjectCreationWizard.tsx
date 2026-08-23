@@ -13,7 +13,7 @@ import { Card } from '@/components/shared/Card'
 import { useI18n } from '@/contexts/I18nContext'
 import { apiClient } from '@/lib/api/client'
 import { projectsAPI } from '@/lib/api/projects'
-import { getRegisteredWizardTemplates } from '@/lib/extensions'
+import { getRegisteredWizardTemplates, getWizardPostCreateHooks } from '@/lib/extensions'
 import { useSlot } from '@/lib/extensions/slots'
 import { getWizardFinishContributors } from '@/lib/extensions/wizardFinish'
 import { extractFieldsFromLabelConfig } from '@/lib/labelConfig/fieldExtractor'
@@ -139,6 +139,10 @@ export function ProjectCreationWizard() {
   // Extended-edition step body for the experimental KI-Generator feature
   // (checkbox row = ProjectWizardSyntheticEntry slot in StepProjectInfo).
   const SyntheticStep = useSlot('ProjectWizardSyntheticStep')
+  // Extended: structured exam authoring (typed parts → one import row +
+  // the Klausurlösung template), shown above the generic data import.
+  const StructuredEntry = useSlot('ProjectWizardStructuredEntry')
+  const EvaluationExtras = useSlot('ProjectWizardEvaluationExtras')
 
   // Build dynamic step list from features
   const activeSteps: WizardStepDef[] = useMemo(() => {
@@ -570,6 +574,8 @@ export function ProjectCreationWizard() {
       updatePayload.min_annotations_per_task = s.min_annotations_per_task
       updatePayload.randomize_task_order = s.randomize_task_order
       updatePayload.require_confirm_before_submit = s.require_confirm_before_submit
+      updatePayload.annotator_full_visibility_after_submit =
+        s.annotator_full_visibility_after_submit
       updatePayload.annotation_time_limit_enabled = s.annotation_time_limit_enabled
       updatePayload.annotation_time_limit_seconds = s.annotation_time_limit_seconds
       updatePayload.strict_timer_enabled = s.strict_timer_enabled
@@ -632,7 +638,22 @@ export function ProjectCreationWizard() {
         }
       }
 
-      // 5. Refresh and redirect
+      // 5. Extended post-create hooks (e.g. rubric generation). The project
+      // exists at this point, so a failing hook only toasts.
+      for (const hook of getWizardPostCreateHooks()) {
+        try {
+          await hook({ projectId: project.id, wizardData })
+        } catch (hookError) {
+          addToast(
+            hookError instanceof Error
+              ? hookError.message
+              : t('projects.wizard.postCreateHookFailed', 'Nachbearbeitung fehlgeschlagen'),
+            'error'
+          )
+        }
+      }
+
+      // 6. Refresh and redirect
       await new Promise((resolve) => setTimeout(resolve, 100))
       await fetchProject(project.id)
       addToast(t('projects.wizard.projectCreated'), 'success')
@@ -708,6 +729,12 @@ export function ProjectCreationWizard() {
         )
       case 'dataImport':
         return (
+          <>
+            {StructuredEntry && (
+              <div className="mb-6" data-testid="wizard-structured-entry">
+                <StructuredEntry data={wizardData} onChange={updateWizardData} />
+              </div>
+            )}
           <StepDataImport
             pastedData={wizardData.pastedData}
             selectedFile={wizardData.selectedFile}
@@ -724,6 +751,7 @@ export function ProjectCreationWizard() {
             syntheticActive={wizardData.features.synthetic}
             syntheticColumns={wizardData.dataColumns}
           />
+          </>
         )
       case 'models':
         return (
@@ -762,7 +790,8 @@ export function ProjectCreationWizard() {
         )
       case 'evaluation':
         return (
-          <StepEvaluationMethods
+          <>
+            <StepEvaluationMethods
             evaluationConfigs={wizardData.evaluationConfigs}
             onEvaluationConfigsChange={(evaluationConfigs) =>
               updateWizardData({ evaluationConfigs })
@@ -775,6 +804,14 @@ export function ProjectCreationWizard() {
             dataColumns={wizardData.dataColumns}
             selectedModelIds={wizardData.selectedModelIds}
           />
+            {/* Extended: experimental auto-generated Bewertungsbogen (rubric)
+                option with generator-model picker; runs via post-create hook. */}
+            {EvaluationExtras && (
+              <div className="mt-6" data-testid="wizard-evaluation-extras">
+                <EvaluationExtras data={wizardData} onChange={updateWizardData} />
+              </div>
+            )}
+          </>
         )
       case 'settings':
         return (

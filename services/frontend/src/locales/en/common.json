@@ -28,7 +28,8 @@
     "task": "Task",
     "mobile": {
       "toggleNavigation": "Toggle navigation"
-    }
+    },
+    "billing": "Plan & billing"
   },
   "header": {
     "expandSidebar": "Expand sidebar",
@@ -152,6 +153,13 @@
       "title": "View Evaluations",
       "description": "Review completed evaluations and metrics",
       "button": "View Results"
+    },
+    "personal": {
+      "title": "My learning statistics",
+      "subtitle": "Your scores, learning progress and due cards",
+      "empty": "No scores or study sessions yet.",
+      "collapse": "Collapse",
+      "expand": "Expand"
     }
   },
   "projects": {
@@ -469,7 +477,9 @@
           "minutes": "minutes",
           "strictTimer": "Strict Timer",
           "strictTimerHint": "Auto-submit annotation when time expires",
-          "advancedNote": "Additional settings (review mode, feedback) are available on the project page after creation."
+          "advancedNote": "Additional settings (review mode, feedback) are available on the project page after creation.",
+          "revealSolution": "Reveal model solution after submit",
+          "revealSolutionHint": "After submitting, solvers see all task fields including the model solution."
         },
         "evalSaveFailed": "Failed to save evaluation configuration",
         "promptStructureSaveFailed": "Failed to save prompt structure (prompts are still saved in generation config)",
@@ -501,7 +511,20 @@
           "examSolving": {
             "name": "Exam Solving",
             "description": "Annotate legal case solutions with statement, notes, outline, and solution"
+          },
+          "flashcardDeck": {
+            "name": "Flashcards (empty)",
+            "description": "Empty flashcard deck with front/back; add, study and export cards in the project"
           }
+        },
+        "rubric": {
+          "title": "Auto-generate grading rubric (experimental)",
+          "help": "An LLM derives an analytic 100-point grading scheme (incl. defensible alternatives) per task from the facts and model solution; grading then runs against it.",
+          "warning": "Experimental: reliability depends strongly on the generator/judge pair. Review generated rubrics before use (task page → Bewertungsbogen). Generation incurs LLM cost per task.",
+          "model": "Generator model",
+          "modelHint": "The same model then grades against the rubric (changeable in the evaluation editor).",
+          "modelsLoading": "Loading models…",
+          "modelsError": "Models could not be loaded."
         }
       }
     },
@@ -590,7 +613,15 @@
       "showAllPrivate": "Show all private projects",
       "windowUpcoming": "Opens {date}",
       "windowClosed": "Closed",
-      "windowOpen": "Open"
+      "windowOpen": "Open",
+      "participantBadge": "Participant",
+      "participantVia": {
+        "share": "Joined via share link",
+        "entitlement": "Unlocked via “Discover”",
+        "org_exam": "Shared by your organization"
+      },
+      "kindDeck": "Flashcard deck",
+      "study": "Study"
     },
     "columns": {
       "label": "Columns",
@@ -810,8 +841,10 @@
       "customConfigName": "Custom Configuration",
       "customConfigDescription": "User-defined configuration",
       "labelStudioDocs": "Label Studio documentation",
-      "note": "Note"
-    }
+      "note": "Note",
+      "postCreateHookFailed": "Post-processing failed"
+    },
+    "discover": "Discover"
   },
   "project": {
     "loading": "Loading project...",
@@ -1349,7 +1382,20 @@
         "links": "{count} links",
         "participants": "{count} participants",
         "notShared": "Not shared"
-      }
+      },
+      "adminOnlyHint": "Only organization admins can manage share links."
+    },
+    "participant": {
+      "title": "Participation",
+      "leave": "Leave project",
+      "leaveConfirm": "You will lose access to this project. Your submissions so far are kept.",
+      "left": "You left the project.",
+      "cannotLeavePurchase": "Purchased access cannot be left.",
+      "cannotLeaveOrg": "Access comes from your organization and is managed there."
+    },
+    "deck": {
+      "title": "Flashcard deck",
+      "subtitle": "Study, manage cards, export"
     }
   },
   "tasks": {
@@ -1809,7 +1855,12 @@
       "validationError": "Import Validation Error",
       "validationErrorDescription": "The following validation error occurred during import:",
       "importAnyway": "Import Anyway",
-      "orUseFieldMapping": "or use field mapping below"
+      "orUseFieldMapping": "or use field mapping below",
+      "extractText": {
+        "button": "Text from document (PDF/DOCX)",
+        "busy": "Extracting…",
+        "failed": "Text could not be extracted."
+      }
     },
     "taskAssignment": {
       "assigningTasks": "Assigning {count} task(s)",
@@ -2103,7 +2154,8 @@
       "sum": "Sum"
     },
     "coCreationNoData": "No AI-assisted annotations found for this period.",
-    "coCreationNoSearchResults": "No co-creators found matching your search."
+    "coCreationNoSearchResults": "No co-creators found matching your search.",
+    "cohort": "Exam cohort"
   },
   "fields": {
     "pdf": {
@@ -9568,5 +9620,8 @@
     "studentEmail": "Student's email",
     "title": "Vendor console",
     "unpublish": "Unpublish"
+  },
+  "billing": {
+    "unavailable": "Billing is not available in this edition."
   }
 }

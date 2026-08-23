@@ -3,7 +3,7 @@ import { sharesAPI } from '../shares'
 
 jest.mock('@/lib/api', () => ({
   __esModule: true,
-  default: { get: jest.fn(), post: jest.fn(), put: jest.fn(), delete: jest.fn() },
+  default: { get: jest.fn(), post: jest.fn(), put: jest.fn(), delete: jest.fn(), invalidateCache: jest.fn() },
 }))
 
 const client = apiClient as unknown as Record<'get' | 'post' | 'put' | 'delete', jest.Mock>
@@ -58,5 +58,30 @@ describe('sharesAPI', () => {
   it('evictMember deletes the roster entry', async () => {
     await sharesAPI.evictMember('p1', 'u1')
     expect(client.delete).toHaveBeenCalledWith('/projects/p1/shares/roster/u1')
+  })
+})
+
+describe('sharesAPI participation + discover', () => {
+  it('getParticipation invalidates then GETs; leaveProject DELETEs and invalidates the list', async () => {
+    const { sharesAPI } = require('../shares')
+    const apiClient = require('@/lib/api').default
+    apiClient.get.mockResolvedValue({ tier: 'participant' })
+    await expect(sharesAPI.getParticipation('p1')).resolves.toEqual({ tier: 'participant' })
+    expect(apiClient.invalidateCache).toHaveBeenCalledWith('/projects/p1/participation')
+    expect(apiClient.get).toHaveBeenCalledWith('/projects/p1/participation')
+    apiClient.delete.mockResolvedValue(undefined)
+    await sharesAPI.leaveProject('p1')
+    expect(apiClient.delete).toHaveBeenCalledWith('/projects/p1/participation')
+    expect(apiClient.invalidateCache).toHaveBeenCalledWith('/projects')
+  })
+
+  it('discover defaults to the student scope and passes scope=all', async () => {
+    const { sharesAPI } = require('../shares')
+    const apiClient = require('@/lib/api').default
+    apiClient.get.mockResolvedValue([{ token: 't' }])
+    await expect(sharesAPI.discover()).resolves.toEqual([{ token: 't' }])
+    expect(apiClient.get).toHaveBeenCalledWith('/shares/discover')
+    await sharesAPI.discover('all')
+    expect(apiClient.get).toHaveBeenCalledWith('/shares/discover?scope=all')
   })
 })

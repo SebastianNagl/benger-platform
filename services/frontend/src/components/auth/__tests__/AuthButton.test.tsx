@@ -336,6 +336,23 @@ describe('AuthButton', () => {
       expect(mockViewSwitchTo).toHaveBeenCalledWith('student')
     })
 
+    it('renders the extended account-menu slot inside the dropdown and closes on navigate', async () => {
+      const user = userEvent.setup()
+      const { registerSlot } = jest.requireActual('@/lib/extensions/slots')
+      registerSlot('AuthMenuExtended', ({ onNavigate }: any) => (
+        <button data-testid="billing-entry" onClick={onNavigate}>
+          Abo
+        </button>
+      ))
+      render(<AuthButton />)
+      expect(screen.queryByTestId('auth-menu-extended')).not.toBeInTheDocument()
+      await user.click(screen.getByRole('button'))
+      expect(screen.getByTestId('auth-menu-extended')).toBeInTheDocument()
+      await user.click(screen.getByTestId('billing-entry'))
+      expect(screen.queryByTestId('auth-menu-extended')).not.toBeInTheDocument()
+      registerSlot('AuthMenuExtended', null as any)
+    })
+
     it('hides the view-mode switch when not capable', async () => {
       const user = userEvent.setup()
       // Default mockViewModeState.status is 'unavailable'.

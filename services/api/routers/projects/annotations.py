@@ -18,15 +18,15 @@ from utils.assignment_helpers import (
     mark_assignment_completed as _mark_assignment_completed,
 )
 from routers.projects.helpers import (
-    check_project_accessible,
-    check_project_accessible_async,
     check_task_assigned_to_user,
     check_task_assigned_to_user_async,
     enforce_project_read_window_async,
     enforce_project_write_window,
     enforce_project_write_window_async,
+    get_effective_project_role_async,
     get_org_context_from_request,
-    get_student_read_access,
+    get_project_access_tier,
+    get_project_access_tier_async,
 )
 
 router = APIRouter()
@@ -47,16 +47,12 @@ async def create_annotation(
         raise HTTPException(status_code=404, detail="Task not found")
 
     org_context = get_org_context_from_request(request)
-    if not check_project_accessible(db, current_user, task.project_id, org_context):
-        # A consented share member (private exam), an entitled/enrolled
-        # student, or a university-org member on an org-shared exam has narrow
-        # participant access to ATTEMPT the task even when
-        # check_project_accessible refuses (owner-only private project, or the
-        # annotator exam carve-out). Keeps the submit gate consistent with the
-        # read gate the extended student endpoints use, so a joined member
-        # can't see the attempt button but 403 on submit.
-        if not get_student_read_access(db, current_user, task.project_id):
-            raise HTTPException(status_code=403, detail="Access denied")
+    # Participants (consented share member, entitled/enrolled student,
+    # university-org member on an org-shared exam) hold the narrow tier and
+    # may ATTEMPT the task even when check_project_accessible refuses. Keeps
+    # the submit gate consistent with the read gates (task listing / next).
+    if get_project_access_tier(db, current_user, task.project_id, org_context) is None:
+        raise HTTPException(status_code=403, detail="Access denied")
 
     # Enforce task assignment in manual/auto mode (Label Studio aligned: task is invisible)
     project = db.query(Project).filter(Project.id == task.project_id).first()
@@ -329,7 +325,10 @@ async def list_task_annotations(
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
     org_context = get_org_context_from_request(request)
-    if not await check_project_accessible_async(db, current_user, task.project_id, org_context):
+    if (
+        await get_project_access_tier_async(db, current_user, task.project_id, org_context)
+        is None
+    ):
         raise HTTPException(status_code=403, detail="Access denied")
 
     # Enforce task assignment in manual/auto mode (Label Studio aligned: task is invisible)
@@ -338,6 +337,14 @@ async def list_task_annotations(
     ).scalar_one_or_none()
     if project and not await check_task_assigned_to_user_async(db, current_user, task_id, project):
         raise HTTPException(status_code=404, detail="Task not found")
+
+    # Other users' annotations are editor material: annotators and
+    # participants always get their own rows only, whatever the query says.
+    if project is not None and (all_users or completed_by_username):
+        role = await get_effective_project_role_async(db, current_user, project)
+        if role not in ("ORG_ADMIN", "CONTRIBUTOR"):
+            all_users = False
+            completed_by_username = None
 
     # Timed access window: hide data from the access group before the window
     # opens (editors exempt). No-op when the project has no window.
@@ -418,8 +425,11 @@ async def update_annotation(
         raise HTTPException(status_code=404, detail="Annotation not found")
 
     org_context = get_org_context_from_request(request)
-    if not await check_project_accessible_async(
-        db, current_user, db_annotation.project_id, org_context
+    if (
+        await get_project_access_tier_async(
+            db, current_user, db_annotation.project_id, org_context
+        )
+        is None
     ):
         raise HTTPException(status_code=403, detail="Access denied")
 

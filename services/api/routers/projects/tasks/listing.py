@@ -53,7 +53,7 @@ async def list_project_tasks(
     ),
     current_user: AuthUser = Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
-    access: ProjectAccess = Depends(require_project_access()),
+    access: ProjectAccess = Depends(require_project_access(allow_participant=True)),
 ):
     """
     List tasks in a project with role-based visibility
@@ -464,7 +464,12 @@ async def get_next_task(
         return {"detail": "Project not found", "task": None}
 
     org_context = get_org_context_from_request(request)
-    if not await check_project_accessible_async(db, current_user, project_id, org_context):
+    if (
+        await get_project_access_tier_async(
+            db, current_user, project_id, org_context, project=project
+        )
+        is None
+    ):
         raise HTTPException(status_code=403, detail="Access denied")
 
     # Timed access window: no next task to hand out before the window opens
@@ -826,8 +831,9 @@ async def get_task(
         raise HTTPException(status_code=404, detail="Task not found")
 
     org_context = get_org_context_from_request(request)
-    if not await check_project_accessible_async(
-        db, current_user, task.project_id, org_context
+    if (
+        await get_project_access_tier_async(db, current_user, task.project_id, org_context)
+        is None
     ):
         raise HTTPException(status_code=403, detail="Access denied")
 

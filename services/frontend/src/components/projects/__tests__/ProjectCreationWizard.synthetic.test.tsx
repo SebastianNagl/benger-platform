@@ -63,9 +63,10 @@ jest.mock('@/hooks/useModels', () => ({
   default: () => ({}),
 }))
 
+const mockAddToast = jest.fn()
 jest.mock('@/components/shared/Toast', () => ({
   useToast: () => ({
-    addToast: jest.fn(),
+    addToast: mockAddToast,
     showToast: jest.fn(),
     removeToast: jest.fn(),
   }),
@@ -186,6 +187,38 @@ describe('ProjectCreationWizard — synthetic step (extended)', () => {
     expect(uploaded.data).toEqual([
       { title: 'Fall A', sachverhalt: 's', musterloesung: 'm' },
     ])
+  })
+
+  it('runs registered post-create hooks with the project id after import; a throwing hook only toasts', async () => {
+    const { registerWizardPostCreateHook, _resetWizardPostCreateHooks } =
+      jest.requireActual('@/lib/extensions/wizardTemplates')
+    _resetWizardPostCreateHooks()
+    const hook = jest.fn().mockResolvedValue(undefined)
+    const badHook = jest.fn().mockRejectedValue(new Error('rubric dispatch failed'))
+    registerWizardPostCreateHook(hook)
+    registerWizardPostCreateHook(badHook)
+    mockCreateProject.mockResolvedValue({ id: 'proj-1' })
+    mockProjectUpdate.mockResolvedValue({})
+    mockRunNestedImportJob.mockResolvedValue({})
+    const user = userEvent.setup()
+    render(<ProjectCreationWizard />)
+    await user.type(screen.getByTestId('project-create-name-input'), 'Hooked')
+    await user.click(screen.getByTestId('wizard-synthetic-checkbox'))
+    await user.click(screen.getByTestId('project-create-next-button'))
+    await waitFor(() => expect(currentStepId()).toBe('synthetic'))
+    await user.click(screen.getByTestId('synthetic-step-inject'))
+    await user.click(screen.getByTestId('project-create-next-button'))
+    await waitFor(() => expect(currentStepId()).toBe('settings'))
+    await user.click(screen.getByTestId('project-create-submit-button'))
+    await waitFor(() => expect(hook).toHaveBeenCalledTimes(1))
+    expect(hook.mock.calls[0][0].projectId).toBe('proj-1')
+    expect(hook.mock.calls[0][0].wizardData.title).toBe('Hooked')
+    // Import ran before the hooks.
+    expect(mockRunNestedImportJob).toHaveBeenCalled()
+    await waitFor(() => expect(mockAddToast).toHaveBeenCalledWith('rubric dispatch failed', 'error'))
+    // The project was still created → success toast + redirect.
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/projects/proj-1'))
+    _resetWizardPostCreateHooks()
   })
 
   it('skips the synthetic step when the row is left unchecked', async () => {

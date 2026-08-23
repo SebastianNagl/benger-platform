@@ -966,3 +966,31 @@ async def test_join_is_rate_limited_before_the_password_check(
     # Not joined.
     with _as_user(member):
         assert (await async_test_client.get(f"/api/projects/{deck.id}/srs/due")).status_code == 403
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_score_history_scope_all_includes_research_projects(
+    async_test_client, async_test_db
+):
+    """benger dashboard: scope=all drops the origin/kind filter so graded
+    attempts on research projects count too; the default stays student-only."""
+    owner = await _make_user(async_test_db)
+    student = await _make_user(async_test_db)
+    research = Project(
+        id=str(uuid.uuid4()), title="Forschung", created_by=owner.id,
+        is_private=False, is_public=True, public_role="ANNOTATOR",
+    )
+    async_test_db.add(research)
+    await async_test_db.commit()
+    await _seed_graded_attempt(async_test_db, research, student, grader_id=owner.id)
+
+    with _as_user(student):
+        r = await async_test_client.get("/api/student/score-history")
+        assert r.status_code == 200 and r.json() == []
+        r = await async_test_client.get("/api/student/score-history", params={"scope": "all"})
+        assert r.status_code == 200, r.text
+        points = r.json()
+        assert len(points) == 2
+        assert {p["project_id"] for p in points} == {research.id}
+        assert points[0]["kind"] is None

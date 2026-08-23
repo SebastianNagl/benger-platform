@@ -377,6 +377,13 @@ class ProjectResponse(ProjectBase):
     is_archived: bool = False
     created_at: datetime
     updated_at: Optional[datetime] = None
+    # Caller-relative access info (set by list/detail handlers, never stored):
+    # "full" = normal project access, "participant" = narrow tier reached via
+    # a share link / entitlement / org exam (solver surfaces only).
+    access_tier: Optional[str] = None
+    participant_via: Optional[str] = None  # share | entitlement | org_exam
+    effective_role: Optional[str] = None  # ORG_ADMIN | CONTRIBUTOR | ANNOTATOR
+    can_manage_shares: bool = False
 
     # Additional fields not in ProjectBase
     instructions: Optional[str] = None  # Mapped from expert_instruction

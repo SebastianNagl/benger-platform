@@ -26,3 +26,30 @@ export function registerWizardTemplate(template: RegisteredWizardTemplate) {
 export function getRegisteredWizardTemplates(): RegisteredWizardTemplate[] {
   return [...registry]
 }
+
+/**
+ * Post-create hooks — run by the project wizard after the project exists and
+ * its data import has been dispatched, right before the redirect. Extended
+ * options that need the project id (e.g. kicking off rubric generation for
+ * every imported task) register one; the wizard awaits them in order. A
+ * hook that throws only surfaces a toast: the project is already created.
+ */
+export type WizardPostCreateHook = (ctx: {
+  projectId: string
+  wizardData: Record<string, any>
+}) => Promise<void> | void
+
+const postCreateHooks: WizardPostCreateHook[] = []
+
+export function registerWizardPostCreateHook(hook: WizardPostCreateHook) {
+  if (!postCreateHooks.includes(hook)) postCreateHooks.push(hook)
+}
+
+export function getWizardPostCreateHooks(): WizardPostCreateHook[] {
+  return [...postCreateHooks]
+}
+
+/** Test helper. */
+export function _resetWizardPostCreateHooks() {
+  postCreateHooks.length = 0
+}

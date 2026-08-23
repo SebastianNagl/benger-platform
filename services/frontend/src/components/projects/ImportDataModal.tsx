@@ -10,6 +10,7 @@
 'use client'
 
 import { logger } from '@/lib/utils/logger'
+import { ExtractTextButton } from '@/components/projects/ExtractTextButton'
 import { Card } from '@/components/shared/Card'
 import { Dialog } from '@/components/shared/Dialog'
 import { Label } from '@/components/shared/Label'
@@ -562,7 +563,16 @@ export function ImportDataModal({
 
           <TabsContent value="paste" className="mt-6">
             <div className="space-y-4">
-              <Label>{t('tasks.importModal.pasteYourData')}</Label>
+              <div className="flex items-center justify-between gap-3">
+                <Label>{t('tasks.importModal.pasteYourData')}</Label>
+                <ExtractTextButton
+                  onText={(text) => {
+                    // One task per document; the mapping step binds `text`.
+                    setPastedData(JSON.stringify([{ text }], null, 2))
+                    setSelectedFile(null)
+                  }}
+                />
+              </div>
               <Textarea
                 placeholder={t('tasks.importModal.pastePlaceholder')}
                 value={pastedData}

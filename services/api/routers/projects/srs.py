@@ -36,9 +36,8 @@ from project_models import (
 )
 
 from routers.projects.helpers import (
-    check_project_accessible_async,
     get_org_context_from_request,
-    get_student_read_access_async,
+    get_project_access_tier_async,
 )
 
 router = APIRouter()
@@ -75,13 +74,14 @@ async def _require_deck_read_access(
     if not project:
         raise HTTPException(status_code=404, detail="Deck not found")
     org_context = get_org_context_from_request(request)
-    if await check_project_accessible_async(
-        db, current_user, project_id, org_context, project=project
+    if (
+        await get_project_access_tier_async(
+            db, current_user, project_id, org_context, project=project
+        )
+        is None
     ):
-        return project
-    if await get_student_read_access_async(db, current_user, project_id):
-        return project
-    raise HTTPException(status_code=403, detail="Access denied")
+        raise HTTPException(status_code=403, detail="Access denied")
+    return project
 
 
 def _deck_scope_clause(deck: str | None):

@@ -311,7 +311,12 @@ async def skip_task(
         raise HTTPException(status_code=404, detail="Project not found")
 
     org_context = get_org_context_from_request(request)
-    if not await check_project_accessible_async(db, current_user, project_id, org_context):
+    if (
+        await get_project_access_tier_async(
+            db, current_user, project_id, org_context, project=project
+        )
+        is None
+    ):
         raise HTTPException(status_code=403, detail="Access denied")
 
     # Enforce task assignment in manual/auto mode (Label Studio aligned: task is invisible)
