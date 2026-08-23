@@ -2137,7 +2137,9 @@
     },
     "coCreationNoData": "Keine KI-unterstützten Annotationen für diesen Zeitraum gefunden.",
     "coCreationNoSearchResults": "Keine Co-Creators gefunden, die Ihrer Suche entsprechen.",
-    "cohort": "Klausur-Kohorte"
+    "cohort": "Klausur-Kohorte",
+    "cohortEmpty": "Keine Projekte mit Kohorte.",
+    "cohortProject": "Projekt"
   },
   "fields": {
     "pdf": {

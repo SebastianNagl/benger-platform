@@ -2155,7 +2155,9 @@
     },
     "coCreationNoData": "No AI-assisted annotations found for this period.",
     "coCreationNoSearchResults": "No co-creators found matching your search.",
-    "cohort": "Exam cohort"
+    "cohort": "Exam cohort",
+    "cohortEmpty": "No projects with a cohort.",
+    "cohortProject": "Project"
   },
   "fields": {
     "pdf": {
