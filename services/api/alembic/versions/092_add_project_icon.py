@@ -4,8 +4,12 @@ discover directory.
 Nullable, short (emoji sequences are at most a handful of code points);
 no default so existing rows keep rendering their kind-derived fallback icon.
 
+Idempotent — mirrors the 067 guard pattern (inspector check before DDL).
+
 Revision ID: 092_add_project_icon
-Revises: 091_add_user_exam_layout_prefs
+Revises: 088_add_task_rubrics (the committed head — 088 was re-parented onto
+091, see 091's docstring)
+Create Date: 2026-08-23
 """
 
 import sqlalchemy as sa
@@ -13,7 +17,7 @@ from alembic import op
 from sqlalchemy import inspect
 
 revision = "092_add_project_icon"
-down_revision = "091_add_user_exam_layout_prefs"
+down_revision = "088_add_task_rubrics"
 branch_labels = None
 depends_on = None
 

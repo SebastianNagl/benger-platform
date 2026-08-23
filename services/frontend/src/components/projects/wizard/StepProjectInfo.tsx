@@ -119,7 +119,7 @@ export function StepProjectInfo({
             onClick={() => setIconPickerOpen(true)}
             title={t('projects.creation.wizard.step1.icon.title', 'Symbol wählen')}
             data-testid="project-icon-button"
-            className="flex h-14 w-14 items-center justify-center rounded-xl border border-zinc-200 text-3xl transition-colors hover:border-emerald-400 hover:bg-emerald-50 dark:border-zinc-700 dark:hover:bg-emerald-900/20"
+            className="flex h-14 w-14 items-center justify-center rounded-xl border border-zinc-200 text-3xl transition-colors hover:border-emerald-400 hover:bg-emerald-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:border-zinc-700 dark:hover:bg-emerald-900/20"
           >
             {data.icon ||
               defaultIconForKind(data.projectKind === 'generic' ? null : data.projectKind)}

@@ -22,7 +22,7 @@ interface Props {
  */
 export function ExtractTextButton({ onText, className }: Props) {
   const { t } = useI18n()
-  const { showToast } = useToast()
+  const { addToast } = useToast()
   const inputRef = useRef<HTMLInputElement>(null)
   const [busy, setBusy] = useState(false)
 
@@ -32,9 +32,9 @@ export function ExtractTextButton({ onText, className }: Props) {
     try {
       const res = await filesAPI.extractText(file)
       onText(res.text, file.name)
-      if (res.warnings?.length) showToast(res.warnings.join(' '), 'warning')
+      if (res.warnings?.length) addToast(res.warnings.join(' '), 'warning')
     } catch (err: any) {
-      showToast(
+      addToast(
         err?.message || t('tasks.importModal.extractText.failed', 'Text konnte nicht extrahiert werden.'),
         'error',
       )

@@ -159,7 +159,9 @@
       "subtitle": "Your scores, learning progress and due cards",
       "empty": "No scores or study sessions yet.",
       "collapse": "Collapse",
-      "expand": "Expand"
+      "expand": "Expand",
+      "show": "Show",
+      "hide": "Hide"
     }
   },
   "projects": {
@@ -542,6 +544,13 @@
           "modelsLoading": "Loading models…",
           "modelsError": "Models could not be loaded."
         }
+      },
+      "structuredExam": {
+        "button": "Enter exam (structured)",
+        "title": "Enter exam (structured)",
+        "apply": "Apply",
+        "appliedHint": "Applied — the exam is imported as a task on create.",
+        "hint": "Enter facts, model solution and optional parts as one exam task — labeling template and AI grading are set automatically."
       }
     },
     "data": {
@@ -1415,6 +1424,11 @@
     },
     "icon": {
       "saveFailed": "Icon could not be saved."
+    },
+    "discover": {
+      "title": "Discover project",
+      "back": "Back to the directory",
+      "alreadyMember": "You have already joined this project."
     }
   },
   "tasks": {
@@ -1577,7 +1591,11 @@
       "labeled": "Labeled",
       "feedbackAvailable": "Feedback",
       "evaluationAvailable": "Evaluation",
-      "due": "Due"
+      "due": "Due",
+      "result": {
+        "pick": "Task",
+        "loadError": "The grading could not be loaded."
+      }
     },
     "review": {
       "title": "Review",
@@ -1913,6 +1931,12 @@
       "updateSuccess": "Annotation guidelines updated successfully",
       "updateFailed": "Failed to update annotation guidelines",
       "updateFailedWithMessage": "Failed to update annotation guidelines: {message}"
+    },
+    "structured": {
+      "button": "Edit structured",
+      "title": "Edit exam (structured)",
+      "saved": "Task saved.",
+      "saveError": "Task could not be saved."
     }
   },
   "profile": {
@@ -9102,7 +9126,13 @@
         "seriesKi": "AI grading",
         "title": "Score history"
       },
-      "title": "Dashboard"
+      "title": "Dashboard",
+      "tiles": {
+        "dueToday": "Due today",
+        "exams": "Exams",
+        "decks": "Decks",
+        "avgScore": "Avg. grade points"
+      }
     },
     "deck": {
       "export": {
@@ -9248,7 +9278,13 @@
       "title": "Discover",
       "vendor": "Vendor",
       "peerBadge": "Shared",
-      "enrollShort": "Add"
+      "enrollShort": "Add",
+      "cardCount": "{count} cards",
+      "reEnroll": "Add again",
+      "noMatches": "No matches for “{query}”.",
+      "previouslyEnrolled": "You previously had this exam in your collection.",
+      "searchLabel": "Search the directory",
+      "searchPlaceholder": "Search by title or vendor…"
     },
     "exam": {
       "allDone": "All tasks solved. Thank you for your contribution!",

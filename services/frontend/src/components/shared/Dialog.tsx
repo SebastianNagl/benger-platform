@@ -81,7 +81,7 @@ export function Dialog({
                   'w-full transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all dark:bg-gray-800',
                   // Default width unless the caller sets its own max-w-* (clsx
                   // cannot resolve the Tailwind conflict, so guard it here).
-                  !/(^|\s)max-w-/.test(className ?? '') && 'max-w-md',
+                  !/(^|\s)([a-z]+:)?max-w-/.test(className ?? '') && 'max-w-md',
                   className
                 )}
               >

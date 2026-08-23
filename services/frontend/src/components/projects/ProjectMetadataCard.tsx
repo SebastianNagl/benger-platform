@@ -29,13 +29,14 @@ export function ProjectMetadataCard({ project, t }: ProjectMetadataCardProps) {
         <div>
           <dt className="flex items-center gap-1 text-sm font-medium text-zinc-500 dark:text-zinc-400">
             {t('projects.creation.wizard.step1.kind.title', 'Projekttyp')}
-            <LockClosedIcon
-              className="h-3.5 w-3.5"
+            <span
               title={t(
                 'projects.creation.wizard.step1.kind.locked',
                 'Wird bei der Erstellung festgelegt und kann danach nicht geändert werden.'
               )}
-            />
+            >
+              <LockClosedIcon className="h-3.5 w-3.5" />
+            </span>
           </dt>
           <dd className="mt-1 text-sm text-zinc-900 dark:text-white" data-testid="project-kind">
             <span className="mr-1" aria-hidden>

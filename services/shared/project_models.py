@@ -1221,7 +1221,8 @@ class MarketplaceEntitlement(Base):
     listing_id = Column(
         String, ForeignKey("marketplace_listings.id", ondelete="SET NULL"), nullable=True
     )
-    # purchase | vendor_grant
+    # purchase | vendor_grant | discovered (extended catalog enrollment —
+    # soft-revoked by "leave"/unenroll, unlike paid grants)
     source = Column(String(16), nullable=False)
     order_id = Column(
         String, ForeignKey("marketplace_orders.id", ondelete="SET NULL"), nullable=True

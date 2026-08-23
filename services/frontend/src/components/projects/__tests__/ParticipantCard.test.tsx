@@ -6,9 +6,9 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { ParticipantCard } from '../ParticipantCard'
 
 const mockConfirm = jest.fn()
-const mockShowToast = jest.fn()
+const mockAddToast = jest.fn()
 jest.mock('@/hooks/useDialogs', () => ({ useConfirm: () => mockConfirm }))
-jest.mock('@/components/shared/Toast', () => ({ useToast: () => ({ showToast: mockShowToast }) }))
+jest.mock('@/components/shared/Toast', () => ({ useToast: () => ({ addToast: mockAddToast }) }))
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({ t: (key: string, def?: any) => (typeof def === 'string' ? def : key) }),
 }))
@@ -37,7 +37,7 @@ describe('ParticipantCard', () => {
     fireEvent.click(await screen.findByTestId('participant-leave'))
     await waitFor(() => expect(mockLeave).toHaveBeenCalledWith('p1'))
     expect(onLeft).toHaveBeenCalled()
-    expect(mockShowToast).toHaveBeenCalledWith(expect.any(String), 'success')
+    expect(mockAddToast).toHaveBeenCalledWith(expect.any(String), 'success')
   })
 
   it('cancelled confirm does nothing; leave error toasts', async () => {
@@ -51,7 +51,7 @@ describe('ParticipantCard', () => {
     mockConfirm.mockResolvedValueOnce(true)
     mockLeave.mockRejectedValueOnce(new Error('boom'))
     fireEvent.click(screen.getByTestId('participant-leave'))
-    await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith('boom', 'error'))
+    await waitFor(() => expect(mockAddToast).toHaveBeenCalledWith('boom', 'error'))
     expect(onLeft).not.toHaveBeenCalled()
   })
 

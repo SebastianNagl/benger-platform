@@ -23,7 +23,7 @@ describe('/billing', () => {
     registerSlot('StudentBilling', Stub)
     render(<BillingPage />)
     expect(screen.getByTestId('billing-stub')).toHaveTextContent('expert')
-    expect(screen.getByText(/Abo & Abrechnung/)).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Abo & Abrechnung' })).toBeInTheDocument()
   })
 
   it('community: shows the unavailable notice', () => {

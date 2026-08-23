@@ -21,6 +21,13 @@ Security notes:
 - Join is rate-limited per user (``_JOIN_RATE_LIMITS``, Redis fixed window via
   the shared limiter; in-process fallback when Redis is down, skipped under
   ``TESTING=true``) so a listed link's password can't be brute-forced.
+
+Since the benger Entdecken work (platform 2.9) this module also hosts the
+generic surfaces built on the same tables: the ``scope=all`` discover
+directory (every listed project kind, not just student shares), the
+caller-relative participation endpoints (``GET/DELETE
+/projects/{id}/participation``) and the ORG_ADMIN-only share governance
+(``_require_share_admin``).
 """
 
 import secrets
@@ -639,6 +646,9 @@ async def leave_project(
     access (``org_membership``); 404 when there is nothing to leave.
     """
     uid = str(current_user.id)
+    # Deliberately NOT consent-filtered (unlike the participation read):
+    # leaving must purge every membership row of the caller, including a
+    # half-joined row whose consent was never captured.
     members = (
         await db.execute(
             select(ProjectShareMember).where(

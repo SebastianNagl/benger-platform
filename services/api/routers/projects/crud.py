@@ -528,10 +528,22 @@ async def create_project(
 
 
 def _strip_participant_fields(response: ProjectResponse) -> None:
-    """Participants never see judge prompts, rubrics or generation setup."""
+    """Remove editor material from a participant-tier project response.
+
+    Stripped: ``evaluation_config`` (judge prompts / rubrics / model choices),
+    ``generation_config`` (prompt structures), ``llm_model_ids`` and
+    ``korrektur_config`` (grader part definitions and point budgets).
+    Deliberately KEPT because the solver surface needs them: ``label_config``
+    (renders the annotation UI; task-data blinding is separate),
+    ``conditional_instructions`` (annotator-facing instruction variants) and
+    ``questionnaire_config`` (participants may submit the questionnaire —
+    see the ``allow_participant`` questionnaire route).
+    """
     response.evaluation_config = None
     response.generation_config = None
     response.llm_model_ids = None
+    if hasattr(response, "korrektur_config"):
+        response.korrektur_config = None
 
 
 @router.get("/{project_id}", response_model=ProjectResponse)

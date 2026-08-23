@@ -26,7 +26,7 @@ interface Props {
 export function ParticipantCard({ projectId, via, onLeft }: Props) {
   const { t } = useI18n()
   const confirm = useConfirm()
-  const { showToast } = useToast()
+  const { addToast } = useToast()
   const CohortLeaderboard = useSlot('ProjectCohortLeaderboard')
   const [participation, setParticipation] = useState<Participation | null>(null)
   const [leaving, setLeaving] = useState(false)
@@ -55,7 +55,7 @@ export function ParticipantCard({ projectId, via, onLeft }: Props) {
       title: t('project.participant.leave', 'Projekt verlassen'),
       message: t(
         'project.participant.leaveConfirm',
-        'Du verlierst den Zugang zu diesem Projekt. Deine bisherigen Abgaben bleiben erhalten.'
+        'Sie verlieren den Zugang zu diesem Projekt. Ihre bisherigen Abgaben bleiben erhalten.'
       ),
       variant: 'warning',
       confirmText: t('project.participant.leave', 'Projekt verlassen'),
@@ -64,10 +64,10 @@ export function ParticipantCard({ projectId, via, onLeft }: Props) {
     setLeaving(true)
     try {
       await sharesAPI.leaveProject(projectId)
-      showToast(t('project.participant.left', 'Du hast das Projekt verlassen.'), 'success')
+      addToast(t('project.participant.left', 'Sie haben das Projekt verlassen.'), 'success')
       onLeft()
     } catch (err: any) {
-      showToast(err?.message || t('common.error', 'Fehler'), 'error')
+      addToast(err?.message || t('common.error', 'Fehler'), 'error')
     } finally {
       setLeaving(false)
     }
@@ -79,7 +79,7 @@ export function ParticipantCard({ projectId, via, onLeft }: Props) {
       data-testid="participant-card"
     >
       <h2 className="mb-2 flex items-center gap-2 text-lg font-semibold text-zinc-900 dark:text-white">
-        <UserGroupIcon className="h-5 w-5 text-sky-500" />
+        <UserGroupIcon className="h-5 w-5 text-sky-500 dark:text-sky-400" />
         {t('project.participant.title', 'Teilnahme')}
       </h2>
       <p className="mb-4 text-sm text-zinc-600 dark:text-zinc-400" data-testid="participant-via">
@@ -104,7 +104,7 @@ export function ParticipantCard({ projectId, via, onLeft }: Props) {
               )
             : t(
                 'project.participant.cannotLeaveOrg',
-                'Der Zugang kommt über deine Organisation und wird dort verwaltet.'
+                'Der Zugang kommt über Ihre Organisation und wird dort verwaltet.'
               )}
         </p>
       ) : null}

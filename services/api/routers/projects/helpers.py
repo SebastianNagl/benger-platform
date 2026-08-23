@@ -1564,6 +1564,15 @@ def _resolve_effective_role(
     return None
 
 
+# Participants (consented share members, entitled/enrolled students, org
+# members of a windowless org exam) hold the NARROW tier. For every existing
+# ``role == "ANNOTATOR"`` branch (task-data blinding, write-role gates, the
+# archived carve-out) they must behave exactly like an org annotator, so the
+# effective-role resolvers fall back to this value when no membership/public
+# claim exists but ``get_student_read_access`` holds.
+PARTICIPANT_EFFECTIVE_ROLE = "ANNOTATOR"
+
+
 def get_effective_project_role(
     db: Session,
     user,
@@ -1619,13 +1628,6 @@ async def get_effective_project_role_async(
     return role
 
 
-# Participants (consented share members, entitled/enrolled students, org
-# members of a windowless org exam) hold the NARROW tier. For every existing
-# ``role == "ANNOTATOR"`` branch (task-data blinding, write-role gates, the
-# archived carve-out) they must behave exactly like an org annotator, so the
-# effective-role resolvers fall back to this value when no membership/public
-# claim exists but ``get_student_read_access`` holds.
-PARTICIPANT_EFFECTIVE_ROLE = "ANNOTATOR"
 
 TIER_FULL = "full"
 TIER_PARTICIPANT = "participant"
@@ -1734,7 +1736,11 @@ async def get_participant_project_ids_async(
     """Projects the user reaches ONLY through the participant tier.
 
     Returns ``{project_id: via}`` with ``via`` ∈ share / entitlement /
-    org_exam (first match wins in that order). Archived projects and projects
+    org_exam (first match wins in that order). The three arms mirror the
+    per-project predicates — consent filter of :func:`get_share_access_async`,
+    revoked filter of :func:`get_entitlement_access_async`, and every
+    condition of :func:`_build_select_org_exam_participant` — as batch
+    queries; change those predicates and this tagging in lockstep. Archived projects and projects
     the user created are excluded — the creator already holds the full tier
     and archived projects never grant the narrow one. Used by the project
     list so joined/enrolled projects show up (tagged) next to the projects

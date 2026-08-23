@@ -156,10 +156,12 @@
     },
     "personal": {
       "title": "Meine Lernstatistik",
-      "subtitle": "Deine Bewertungen, Lernfortschritt und fällige Karten",
+      "subtitle": "Ihre Bewertungen, Ihr Lernfortschritt und fällige Karten",
       "empty": "Noch keine Bewertungen oder Lernsitzungen.",
       "collapse": "Einklappen",
-      "expand": "Ausklappen"
+      "expand": "Ausklappen",
+      "show": "Anzeigen",
+      "hide": "Ausblenden"
     }
   },
   "projects": {
@@ -542,6 +544,13 @@
           "modelsLoading": "Modelle werden geladen…",
           "modelsError": "Modelle konnten nicht geladen werden."
         }
+      },
+      "structuredExam": {
+        "button": "Klausur strukturiert erfassen",
+        "title": "Klausur strukturiert erfassen",
+        "apply": "Übernehmen",
+        "appliedHint": "Übernommen — die Klausur wird beim Erstellen als Aufgabe importiert.",
+        "hint": "Sachverhalt, Musterlösung und optionale Teile als eine Klausur-Aufgabe anlegen — Labeling-Vorlage und KI-Korrektur werden automatisch gesetzt."
       }
     },
     "data": {
@@ -634,7 +643,7 @@
       "participantVia": {
         "share": "Über Freigabe-Link beigetreten",
         "entitlement": "Über „Entdecken“ freigeschaltet",
-        "org_exam": "Über deine Organisation freigegeben"
+        "org_exam": "Über Ihre Organisation freigegeben"
       },
       "kindDeck": "Kartenstapel",
       "study": "Lernen"
@@ -1404,10 +1413,10 @@
     "participant": {
       "title": "Teilnahme",
       "leave": "Projekt verlassen",
-      "leaveConfirm": "Du verlierst den Zugang zu diesem Projekt. Deine bisherigen Abgaben bleiben erhalten.",
-      "left": "Du hast das Projekt verlassen.",
+      "leaveConfirm": "Sie verlieren den Zugang zu diesem Projekt. Ihre bisherigen Abgaben bleiben erhalten.",
+      "left": "Sie haben das Projekt verlassen.",
       "cannotLeavePurchase": "Gekaufter Zugang kann nicht verlassen werden.",
-      "cannotLeaveOrg": "Der Zugang kommt über deine Organisation und wird dort verwaltet."
+      "cannotLeaveOrg": "Der Zugang kommt über Ihre Organisation und wird dort verwaltet."
     },
     "deck": {
       "title": "Kartenstapel",
@@ -1415,6 +1424,11 @@
     },
     "icon": {
       "saveFailed": "Symbol konnte nicht gespeichert werden."
+    },
+    "discover": {
+      "title": "Projekt entdecken",
+      "back": "Zurück zum Verzeichnis",
+      "alreadyMember": "Sie sind diesem Projekt bereits beigetreten."
     }
   },
   "tasks": {
@@ -1577,7 +1591,11 @@
       "labeled": "Beschriftet",
       "feedbackAvailable": "Feedback",
       "evaluationAvailable": "Bewertung",
-      "due": "Fällig"
+      "due": "Fällig",
+      "result": {
+        "pick": "Aufgabe",
+        "loadError": "Korrektur konnte nicht geladen werden."
+      }
     },
     "review": {
       "title": "Überprüfung",
@@ -1895,6 +1913,12 @@
       "updateSuccess": "Annotationsrichtlinien erfolgreich aktualisiert",
       "updateFailed": "Aktualisierung der Annotationsrichtlinien fehlgeschlagen",
       "updateFailedWithMessage": "Aktualisierung der Annotationsrichtlinien fehlgeschlagen: {message}"
+    },
+    "structured": {
+      "button": "Strukturiert bearbeiten",
+      "title": "Klausur strukturiert bearbeiten",
+      "saved": "Aufgabe gespeichert.",
+      "saveError": "Aufgabe konnte nicht gespeichert werden."
     }
   },
   "profile": {
@@ -9092,7 +9116,13 @@
         "seriesKi": "KI-Korrektur",
         "title": "Notenverlauf"
       },
-      "title": "Dashboard"
+      "title": "Dashboard",
+      "tiles": {
+        "dueToday": "Heute fällig",
+        "exams": "Klausuren",
+        "decks": "Stapel",
+        "avgScore": "Ø Notenpunkte"
+      }
     },
     "deck": {
       "export": {
@@ -9238,7 +9268,13 @@
       "title": "Entdecken",
       "vendor": "Anbieter",
       "peerBadge": "Geteilt",
-      "enrollShort": "Hinzufügen"
+      "enrollShort": "Hinzufügen",
+      "cardCount": "{count} Karten",
+      "reEnroll": "Wieder hinzufügen",
+      "noMatches": "Keine Treffer für „{query}“.",
+      "previouslyEnrolled": "Du hattest diese Klausur bereits in deiner Sammlung.",
+      "searchLabel": "Verzeichnis durchsuchen",
+      "searchPlaceholder": "Nach Titel oder Anbieter suchen…"
     },
     "exam": {
       "allDone": "Alle Aufgaben gelöst. Vielen Dank für deinen Beitrag!",

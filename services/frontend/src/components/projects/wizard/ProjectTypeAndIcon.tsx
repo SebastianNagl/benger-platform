@@ -75,7 +75,11 @@ export function ProjectTypeSelector({
         {t('projects.creation.wizard.step1.kind.title', 'Projekttyp')}{' '}
         <span className="text-red-600 dark:text-red-400">*</span>
       </Label>
-      <div className="mt-2 grid grid-cols-3 gap-2" role="radiogroup">
+      <div
+        className="mt-2 grid grid-cols-3 gap-2"
+        role="radiogroup"
+        aria-label={t('projects.creation.wizard.step1.kind.title', 'Projekttyp')}
+      >
         {PROJECT_KIND_OPTIONS.map((opt) => {
           const isSelected = projectKind === opt.id
           return (
@@ -88,7 +92,7 @@ export function ProjectTypeSelector({
               onClick={() => onChange({ projectKind: opt.id })}
               data-testid={`project-kind-${opt.id}`}
               className={cn(
-                'flex items-center justify-center gap-2 rounded-lg border px-3 py-2.5 text-sm font-medium transition-colors',
+                'flex items-center justify-center gap-2 rounded-lg border px-3 py-2.5 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500',
                 isSelected
                   ? 'border-emerald-500 bg-emerald-50 text-zinc-900 ring-1 ring-emerald-500 dark:bg-emerald-900/20 dark:text-white'
                   : 'border-zinc-200 text-zinc-700 hover:border-zinc-300 dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-zinc-600'
@@ -149,7 +153,7 @@ export function IconPickerModal({
               aria-pressed={draft === e}
               data-testid={`project-icon-${e}`}
               className={cn(
-                'flex h-10 w-10 items-center justify-center rounded-md border text-xl',
+                'flex h-10 w-10 items-center justify-center rounded-md border text-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500',
                 draft === e
                   ? 'border-emerald-500 bg-emerald-50 ring-1 ring-emerald-500 dark:bg-emerald-900/20'
                   : 'border-zinc-200 hover:border-zinc-300 dark:border-zinc-700 dark:hover:border-zinc-600'

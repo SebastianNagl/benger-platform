@@ -26,6 +26,9 @@ export default function BillingPage() {
           ]}
         />
       </div>
+      <h1 className="mb-6 text-3xl font-bold text-zinc-900 dark:text-white">
+        {t('navigation.billing', 'Abo & Abrechnung')}
+      </h1>
       {StudentBilling ? (
         // eslint-disable-next-line react-hooks/static-components
         <StudentBilling variant="expert" />

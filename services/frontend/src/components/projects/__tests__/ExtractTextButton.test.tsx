@@ -4,8 +4,8 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { ExtractTextButton } from '../ExtractTextButton'
 
-const mockShowToast = jest.fn()
-jest.mock('@/components/shared/Toast', () => ({ useToast: () => ({ showToast: mockShowToast }) }))
+const mockAddToast = jest.fn()
+jest.mock('@/components/shared/Toast', () => ({ useToast: () => ({ addToast: mockAddToast }) }))
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({ t: (k: string, d?: any) => (typeof d === 'string' ? d : k) }),
 }))
@@ -31,7 +31,7 @@ describe('ExtractTextButton', () => {
     fireEvent.click(screen.getByTestId('extract-text-button'))
     pick(new File(['x'], 'fall.pdf'))
     await waitFor(() => expect(onText).toHaveBeenCalledWith('Sachverhalt…', 'fall.pdf'))
-    expect(mockShowToast).toHaveBeenCalledWith('Seite 3 übersprungen', 'warning')
+    expect(mockAddToast).toHaveBeenCalledWith('Seite 3 übersprungen', 'warning')
   })
 
   it('failure toasts the error and does not call onText', async () => {
@@ -39,7 +39,7 @@ describe('ExtractTextButton', () => {
     const onText = jest.fn()
     render(<ExtractTextButton onText={onText} />)
     pick(new File(['x'], 'scan.pdf'))
-    await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith('Nur Bilder', 'error'))
+    await waitFor(() => expect(mockAddToast).toHaveBeenCalledWith('Nur Bilder', 'error'))
     expect(onText).not.toHaveBeenCalled()
   })
 })

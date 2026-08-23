@@ -874,7 +874,7 @@ export function ProjectListTable({
                             )}
                             {project.kind === 'flashcard_collection' && (
                               <span
-                                className="inline-flex items-center gap-1 rounded-md bg-violet-50 px-1.5 py-0.5 text-xs font-medium text-violet-700 dark:bg-violet-400/10 dark:text-violet-400"
+                                className="inline-flex items-center gap-1 rounded-md bg-purple-50 px-1.5 py-0.5 text-xs font-medium text-purple-700 dark:bg-purple-400/10 dark:text-purple-400"
                                 data-testid={`project-kind-badge-${project.id}`}
                               >
                                 <RectangleStackIcon className="h-3.5 w-3.5" />

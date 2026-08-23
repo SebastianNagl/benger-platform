@@ -116,9 +116,9 @@ export function AuthButton() {
               </Link>
 
               {AuthMenuExtended && (
-                <span data-testid="auth-menu-extended">
+                <div data-testid="auth-menu-extended">
                   <AuthMenuExtended onNavigate={() => setDropdownOpen(false)} />
-                </span>
+                </div>
               )}
 
               {/* Settings Section */}

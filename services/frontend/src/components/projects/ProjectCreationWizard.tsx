@@ -771,7 +771,6 @@ export function ProjectCreationWizard() {
         )
       case 'dataImport':
         return (
-          <>
           <StepDataImport
             pastedData={wizardData.pastedData}
             selectedFile={wizardData.selectedFile}
@@ -790,7 +789,6 @@ export function ProjectCreationWizard() {
             wizardData={wizardData}
             onWizardChange={updateWizardData}
           />
-          </>
         )
       case 'models':
         return (
