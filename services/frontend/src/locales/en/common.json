@@ -1059,59 +1059,6 @@
       "editSettings": "Edit Settings",
       "saveSettings": "Save Settings",
       "studentAccess": {
-        "discoverability": {
-          "title": "Discoverability for students",
-          "help": "Whether students can find and work on this project under \"Discover\". Read-only: change things in the respective settings.",
-          "discoverable": "Discoverable",
-          "notDiscoverable": "Not discoverable",
-          "shape": {
-            "exam": "Exam",
-            "deck": "Flashcard deck",
-            "none": "Not exam- or deck-shaped"
-          },
-          "refresh": "Refresh",
-          "loadError": "Could not load discoverability.",
-          "access": {
-            "title": "Access",
-            "public": "Public",
-            "org": "Shared with organization",
-            "none": "Neither public nor shared with an organization",
-            "window": {
-              "none": "No access window",
-              "open": "Access window open",
-              "upcoming": "Access window not open yet",
-              "closed": "Access window closed"
-            }
-          },
-          "check": {
-            "not_archived": "Project is not archived",
-            "not_private": "Project is not private (Visibility)",
-            "assignment_open": "Assignment mode \"open\" (Annotation settings)",
-            "origin_not_student": "Not a student-created project",
-            "klausurloesung_config": "Klausurlösung label config (Angabe, Notizen, Gliederung, Lösung)",
-            "falloesung_judge": "Active Falllösung evaluation method (Evaluation methods)",
-            "sachverhalt_binding": "Angabe bound to $sachverhalt (Label config)",
-            "musterloesung_key": "Tasks contain \"musterloesung\" (Data)",
-            "kind_flashcard_or_null": "Project kind is flashcard or generic",
-            "deck_config": "Flashcard label config ($front)",
-            "card_keys": "Tasks contain \"front\" and \"back\" (Data)",
-            "has_tasks": "Project has tasks"
-          },
-          "checkFailed": {
-            "not_archived": "Project is archived",
-            "not_private": "Project is private (change under “Visibility”)",
-            "assignment_open": "Assignment mode is not “Open” (annotation settings)",
-            "origin_not_student": "Project was created by a student",
-            "klausurloesung_config": "No Klausurlösung label configuration (Angabe, Notizen, Gliederung, Lösung)",
-            "falloesung_judge": "No active Falllösung evaluation method (evaluation methods)",
-            "sachverhalt_binding": "Angabe is not bound to $sachverhalt (label configuration)",
-            "musterloesung_key": "Tasks lack “musterloesung” (data)",
-            "kind_flashcard_or_null": "Project kind is neither flashcard deck nor generic",
-            "deck_config": "No flashcard label configuration ($front)",
-            "card_keys": "Tasks lack “front” and “back” (data)",
-            "has_tasks": "Project has no tasks"
-          }
-        },
         "links": {
           "title": "Share links",
           "help": "Password-protected invitation links. Whoever joins becomes a participant.",
@@ -1390,6 +1337,19 @@
       "saving": "Saving...",
       "titlePlaceholder": "Add a description...",
       "titleCannotBeEmpty": "Title cannot be empty"
+    },
+    "sharing": {
+      "title": "Sharing",
+      "help": "Students reach the project through “Discover” (public or shared with the organization) or through share links.",
+      "discoverableHint": "Students find this project under “Discover”.",
+      "notDiscoverableHint": "Students do not find this project under “Discover”; it is reachable only through share links.",
+      "refresh": "Refresh",
+      "status": {
+        "discoverable": "Visible under “Discover”",
+        "links": "{count} links",
+        "participants": "{count} participants",
+        "notShared": "Not shared"
+      }
     }
   },
   "tasks": {

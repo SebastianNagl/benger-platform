@@ -318,7 +318,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   const ProjectStatisticsExtended = useSlot('project-statistics-extended')
   // Student access (share links, participants, discoverability) — sub-sections
   // of the Project settings card, filled by the extended edition.
-  const ProjectSettingsStudentAccess = useSlot('project-settings-student-access')
+  const ProjectSharing = useSlot('project-sharing')
   const [advancedSettings, setAdvancedSettings] = useState({
     show_instruction: true,
     instructions_always_visible: false,
@@ -2411,18 +2411,6 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
             </SubSection>
           )}
 
-          {/* Student access — share links, participants, discoverability
-              (extended). Sits with the other "who can reach this project"
-              sections; not gated on enable_annotation so decks get it too. */}
-          {ProjectSettingsStudentAccess && currentProject && canEditProject() && (
-            <div data-testid="project-settings-student-access">
-              <ProjectSettingsStudentAccess
-                project={currentProject}
-                onRefresh={() => fetchProject(projectId)}
-              />
-            </div>
-          )}
-
           {/* Visibility — collapsible sub-section, danger-zone styled
               because flipping to public exposes the project platform-wide. */}
           {currentProject &&
@@ -2471,6 +2459,15 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
               </div>
             )}
           </ConfigCard>
+
+          {/* Sharing (extended): share links, participants and whether
+              students can find the project. Own collapsible; not gated on
+              enable_annotation so flashcard decks get it too. */}
+          {ProjectSharing && currentProject && canEditProject() && (
+            <div data-testid="project-sharing">
+              <ProjectSharing project={currentProject} onRefresh={() => fetchProject(projectId)} />
+            </div>
+          )}
         </div>
 
         {/* Sidebar */}

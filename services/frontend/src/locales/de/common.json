@@ -1059,59 +1059,6 @@
       "editSettings": "Einstellungen bearbeiten",
       "saveSettings": "Einstellungen speichern",
       "studentAccess": {
-        "discoverability": {
-          "title": "Entdeckbarkeit für Studierende",
-          "help": "Ob Studierende dieses Projekt unter „Entdecken“ finden und bearbeiten können. Nur Anzeige: Änderungen erfolgen in den jeweiligen Einstellungen.",
-          "discoverable": "Entdeckbar",
-          "notDiscoverable": "Nicht entdeckbar",
-          "shape": {
-            "exam": "Klausur",
-            "deck": "Kartenstapel",
-            "none": "Keine Klausur-/Kartenstapel-Form"
-          },
-          "refresh": "Aktualisieren",
-          "loadError": "Entdeckbarkeit konnte nicht geladen werden.",
-          "access": {
-            "title": "Zugang",
-            "public": "Öffentlich",
-            "org": "In Organisation geteilt",
-            "none": "Weder öffentlich noch in einer Organisation geteilt",
-            "window": {
-              "none": "Kein Zugriffsfenster",
-              "open": "Zugriffsfenster offen",
-              "upcoming": "Zugriffsfenster noch nicht offen",
-              "closed": "Zugriffsfenster geschlossen"
-            }
-          },
-          "check": {
-            "not_archived": "Projekt ist nicht archiviert",
-            "not_private": "Projekt ist nicht privat (Sichtbarkeit)",
-            "assignment_open": "Zuweisungsmodus „Offen“ (Annotationseinstellungen)",
-            "origin_not_student": "Kein von Studierenden erstelltes Projekt",
-            "klausurloesung_config": "Klausurlösung-Label-Konfiguration (Angabe, Notizen, Gliederung, Lösung)",
-            "falloesung_judge": "Aktive Falllösung-Bewertungsmethode (Evaluierungsmethoden)",
-            "sachverhalt_binding": "Angabe an $sachverhalt gebunden (Label-Konfiguration)",
-            "musterloesung_key": "Aufgaben enthalten „musterloesung“ (Daten)",
-            "kind_flashcard_or_null": "Projektart ist Kartenstapel oder generisch",
-            "deck_config": "Karteikarten-Label-Konfiguration ($front)",
-            "card_keys": "Aufgaben enthalten „front“ und „back“ (Daten)",
-            "has_tasks": "Projekt enthält Aufgaben"
-          },
-          "checkFailed": {
-            "not_archived": "Projekt ist archiviert",
-            "not_private": "Projekt ist privat (unter „Sichtbarkeit“ ändern)",
-            "assignment_open": "Zuweisungsmodus ist nicht „Offen“ (Annotationseinstellungen)",
-            "origin_not_student": "Projekt wurde von Studierenden erstellt",
-            "klausurloesung_config": "Keine Klausurlösung-Label-Konfiguration (Angabe, Notizen, Gliederung, Lösung)",
-            "falloesung_judge": "Keine aktive Falllösung-Bewertungsmethode (Evaluierungsmethoden)",
-            "sachverhalt_binding": "Angabe ist nicht an $sachverhalt gebunden (Label-Konfiguration)",
-            "musterloesung_key": "Aufgaben enthalten kein „musterloesung“ (Daten)",
-            "kind_flashcard_or_null": "Projektart ist weder Kartenstapel noch generisch",
-            "deck_config": "Keine Karteikarten-Label-Konfiguration ($front)",
-            "card_keys": "Aufgaben enthalten nicht „front“ und „back“ (Daten)",
-            "has_tasks": "Projekt enthält keine Aufgaben"
-          }
-        },
         "links": {
           "title": "Freigabe-Links",
           "help": "Passwortgeschützte Einladungslinks. Wer beitritt, wird Teilnehmende/r.",
@@ -1390,6 +1337,19 @@
       "saving": "Wird gespeichert...",
       "titlePlaceholder": "Beschreibung hinzufügen...",
       "titleCannotBeEmpty": "Titel kann nicht leer sein"
+    },
+    "sharing": {
+      "title": "Freigabe",
+      "help": "Studierende erreichen das Projekt über „Entdecken“ (öffentlich oder in der Organisation geteilt) oder über Freigabe-Links.",
+      "discoverableHint": "Studierende finden dieses Projekt unter „Entdecken“.",
+      "notDiscoverableHint": "Studierende finden dieses Projekt nicht unter „Entdecken“; es ist nur über Freigabe-Links erreichbar.",
+      "refresh": "Aktualisieren",
+      "status": {
+        "discoverable": "Unter „Entdecken“ sichtbar",
+        "links": "{count} Links",
+        "participants": "{count} Teilnehmende",
+        "notShared": "Nicht geteilt"
+      }
     }
   },
   "tasks": {

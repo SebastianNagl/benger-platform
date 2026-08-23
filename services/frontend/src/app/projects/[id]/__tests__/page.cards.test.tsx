@@ -212,12 +212,12 @@ describe('ProjectDetailPage — 4-card structure', () => {
     jest.spyOn(window, 'removeEventListener').mockImplementation(jest.fn())
   })
 
-  it('renders the student-access slot inside the settings card with project + onRefresh', async () => {
+  it('renders the sharing slot as its own block after the settings card with project + onRefresh', async () => {
     const { registerSlot } = jest.requireActual('@/lib/extensions/slots')
     const Stub = jest.fn(({ project }: any) => (
-      <div data-testid="student-access-stub">{project.id}</div>
+      <div data-testid="sharing-stub">{project.id}</div>
     ))
-    registerSlot('project-settings-student-access', Stub)
+    registerSlot('project-sharing', Stub)
     const fetchProject = jest.fn()
     ;(useProjectStore as jest.Mock).mockReturnValue({
       currentProject: mockProject,
@@ -228,21 +228,18 @@ describe('ProjectDetailPage — 4-card structure', () => {
     })
     const params = Promise.resolve({ id: 'test-project-123' })
     render(<ProjectDetailPage params={params} />)
-    // The settings card is collapsed by default — expand it via its header.
-    const header = await screen.findByText('project.settings.title')
-    fireEvent.click(header.closest('button') ?? header)
+    // Visible without expanding the (collapsed) settings card.
     await waitFor(() => {
-      expect(screen.getByTestId('student-access-stub')).toHaveTextContent('test-project-123')
+      expect(screen.getByTestId('sharing-stub')).toHaveTextContent('test-project-123')
     })
-    // Rendered within the settings card, before the visibility danger zone.
-    const host = screen.getByTestId('project-settings-student-access')
-    const danger = screen.getByTestId('project-visibility-danger-zone')
-    expect(host.compareDocumentPosition(danger) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    const host = screen.getByTestId('project-sharing')
+    const settings = screen.getByText('project.settings.title')
+    expect(settings.compareDocumentPosition(host) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     const props = Stub.mock.calls[0][0]
     fetchProject.mockClear()
     props.onRefresh()
     expect(fetchProject).toHaveBeenCalledWith('test-project-123')
-    registerSlot('project-settings-student-access', null as any)
+    registerSlot('project-sharing', null as any)
   })
 
   it('renders the project title in the header', async () => {
