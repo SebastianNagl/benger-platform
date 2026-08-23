@@ -7,7 +7,8 @@ import { useI18n } from '@/contexts/I18nContext'
 import { organizationsAPI } from '@/lib/api/organizations'
 import { useSlot } from '@/lib/extensions/slots'
 import { cn } from '@/lib/utils'
-import { ProjectTypeAndIcon } from './ProjectTypeAndIcon'
+import { IconPickerModal, ProjectTypeSelector } from './ProjectTypeAndIcon'
+import { defaultIconForKind } from '@/lib/projectKind'
 import { useEffect, useState } from 'react'
 import {
   WizardData,
@@ -57,6 +58,7 @@ export function StepProjectInfo({
   errors,
 }: StepProjectInfoProps) {
   const { t } = useI18n()
+  const [iconPickerOpen, setIconPickerOpen] = useState(false)
   const [orgs, setOrgs] = useState<Array<{ id: string; name: string }>>([])
   // Extended-edition feature row rendered below the core feature checkboxes:
   // the experimental KI-Generator, styled like the rows above and toggling
@@ -101,13 +103,38 @@ export function StepProjectInfo({
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="mb-2 text-2xl font-semibold text-zinc-900 dark:text-white">
-          {t('projects.creation.wizard.step1.title')}
-        </h2>
-        <p className="text-zinc-600 dark:text-zinc-400">
-          {t('projects.creation.wizard.step1.subtitle')}
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h2 className="mb-2 text-2xl font-semibold text-zinc-900 dark:text-white">
+            {t('projects.creation.wizard.step1.title')}
+          </h2>
+          <p className="text-zinc-600 dark:text-zinc-400">
+            {t('projects.creation.wizard.step1.subtitle')}
+          </p>
+        </div>
+        {/* Project icon: pre-filled with the type default; click to pick. */}
+        <div className="flex shrink-0 flex-col items-center gap-1">
+          <button
+            type="button"
+            onClick={() => setIconPickerOpen(true)}
+            title={t('projects.creation.wizard.step1.icon.title', 'Symbol wählen')}
+            data-testid="project-icon-button"
+            className="flex h-14 w-14 items-center justify-center rounded-xl border border-zinc-200 text-3xl transition-colors hover:border-emerald-400 hover:bg-emerald-50 dark:border-zinc-700 dark:hover:bg-emerald-900/20"
+          >
+            {data.icon ||
+              defaultIconForKind(data.projectKind === 'generic' ? null : data.projectKind)}
+          </button>
+          <span className="text-[11px] text-zinc-500 dark:text-zinc-400">
+            {t('projects.creation.wizard.step1.icon.clickToEdit', 'Klicken zum Bearbeiten')}
+          </span>
+        </div>
+        <IconPickerModal
+          isOpen={iconPickerOpen}
+          onClose={() => setIconPickerOpen(false)}
+          icon={data.icon}
+          projectKind={data.projectKind}
+          onPick={(icon) => onChange({ icon })}
+        />
       </div>
 
       <div className="space-y-4">
@@ -152,11 +179,7 @@ export function StepProjectInfo({
           />
         </div>
 
-        <ProjectTypeAndIcon
-          projectKind={data.projectKind}
-          icon={data.icon}
-          onChange={onChange}
-        />
+        <ProjectTypeSelector projectKind={data.projectKind} onChange={onChange} />
       </div>
 
       <hr className="border-zinc-200 dark:border-zinc-700" />

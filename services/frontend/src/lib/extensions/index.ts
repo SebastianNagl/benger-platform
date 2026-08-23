@@ -16,8 +16,10 @@ export {
   getRegisteredWizardTemplates,
   registerWizardPostCreateHook,
   getWizardPostCreateHooks,
+  registerWizardKindPreset,
+  getWizardKindPreset,
 } from './wizardTemplates'
-export type { RegisteredWizardTemplate, WizardPostCreateHook } from './wizardTemplates'
+export type { RegisteredWizardTemplate, WizardPostCreateHook, WizardKindPreset } from './wizardTemplates'
 
 let extendedLoaded = false
 

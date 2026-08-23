@@ -318,7 +318,8 @@
           },
           "icon": {
             "title": "Icon",
-            "help": "Shown in lists, the project header and under “Discover”. Without a choice the type icon is used."
+            "help": "Shown in lists, the project header and under “Discover”. Without a choice the type icon is used.",
+            "clickToEdit": "Click to edit"
           }
         },
         "step2": {
@@ -1410,6 +1411,9 @@
     "deck": {
       "title": "Flashcard deck",
       "subtitle": "Study, manage cards, export"
+    },
+    "icon": {
+      "saveFailed": "Icon could not be saved."
     }
   },
   "tasks": {

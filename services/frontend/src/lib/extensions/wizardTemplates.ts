@@ -53,3 +53,29 @@ export function getWizardPostCreateHooks(): WizardPostCreateHook[] {
 export function _resetWizardPostCreateHooks() {
   postCreateHooks.length = 0
 }
+
+/**
+ * Kind presets — applied by the wizard when the user picks a project type
+ * (Klausur / Kartenstapel). The extended edition registers presets that
+ * prefill evaluation configs (tier judge pair), immediate evaluation and
+ * exam settings so a wizard-made project works on both the benger and the
+ * vertretbar surface without manual setup. The preset receives the wizard
+ * state AFTER the template/annotation defaults and returns a partial to
+ * merge (nested objects must be returned whole).
+ */
+export type WizardKindPreset = (data: Record<string, any>) => Record<string, any>
+
+const kindPresets: Record<string, WizardKindPreset> = {}
+
+export function registerWizardKindPreset(kind: string, preset: WizardKindPreset) {
+  kindPresets[kind] = preset
+}
+
+export function getWizardKindPreset(kind: string): WizardKindPreset | undefined {
+  return kindPresets[kind]
+}
+
+/** Test helper. */
+export function _resetWizardKindPresets() {
+  for (const k of Object.keys(kindPresets)) delete kindPresets[k]
+}

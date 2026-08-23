@@ -19,6 +19,7 @@ import { EvaluationControlModal } from '@/components/evaluation/EvaluationContro
 import { GenerationControlModal } from '@/components/generation/GenerationControlModal'
 import { useSlot } from '@/lib/extensions/slots'
 import { projectIcon } from '@/lib/projectKind'
+import { IconPickerModal } from '@/components/projects/wizard/ProjectTypeAndIcon'
 import {
   LabelConfigEditor,
   type LabelConfigEditorHandle,
@@ -157,6 +158,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
 
   // Editing states
   const [editingTitle, setEditingTitle] = useState(false)
+  const [iconPickerOpen, setIconPickerOpen] = useState(false)
   const [titleValue, setTitleValue] = useState('')
   const [editingDescription, setEditingDescription] = useState(false)
   const [descriptionValue, setDescriptionValue] = useState('')
@@ -704,6 +706,24 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     }
     if (isOrgProject) return user.role === 'ORG_ADMIN' || user.role === 'CONTRIBUTOR'
     return currentProject.created_by === user.id
+  }
+
+  // Icon: creator, org admins and superadmins may change it later.
+  const canEditIcon = () => {
+    if (!user || !currentProject) return false
+    if (user.is_superadmin) return true
+    if (isParticipant) return false
+    if (String(currentProject.created_by) === String(user.id)) return true
+    return isOrgProject && user.role === 'ORG_ADMIN'
+  }
+
+  const handlePickIcon = async (icon: string) => {
+    if (!projectId) return
+    try {
+      await updateProject(projectId, { icon })
+    } catch {
+      addToast(t('project.icon.saveFailed', 'Symbol konnte nicht gespeichert werden.'), 'error')
+    }
   }
 
   const canDeleteProject = () => {
@@ -1532,11 +1552,32 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
               ) : (
                 <div className="group flex items-center space-x-3">
                   <h1 className="text-3xl font-bold text-zinc-900 dark:text-white">
-                    <span className="mr-2" aria-hidden data-testid="project-header-icon">
-                      {projectIcon(currentProject)}
-                    </span>
+                    {canEditIcon() ? (
+                      <button
+                        type="button"
+                        className="mr-2 rounded-md px-1 transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                        title={t('projects.creation.wizard.step1.icon.clickToEdit', 'Klicken zum Bearbeiten')}
+                        onClick={() => setIconPickerOpen(true)}
+                        data-testid="project-header-icon"
+                      >
+                        {projectIcon(currentProject)}
+                      </button>
+                    ) : (
+                      <span className="mr-2" aria-hidden data-testid="project-header-icon">
+                        {projectIcon(currentProject)}
+                      </span>
+                    )}
                     {currentProject.title}
                   </h1>
+                  {iconPickerOpen && (
+                    <IconPickerModal
+                      isOpen={iconPickerOpen}
+                      onClose={() => setIconPickerOpen(false)}
+                      icon={currentProject.icon ?? ''}
+                      projectKind={(currentProject.kind as any) ?? 'generic'}
+                      onPick={handlePickIcon}
+                    />
+                  )}
                   {isParticipant && (
                     <span
                       className="inline-flex items-center gap-1 rounded-md bg-sky-50 px-2 py-0.5 text-xs font-medium text-sky-700 dark:bg-sky-400/10 dark:text-sky-400"

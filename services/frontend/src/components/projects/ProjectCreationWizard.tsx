@@ -13,8 +13,9 @@ import { Card } from '@/components/shared/Card'
 import { useI18n } from '@/contexts/I18nContext'
 import { apiClient } from '@/lib/api/client'
 import { projectsAPI } from '@/lib/api/projects'
-import { getRegisteredWizardTemplates, getWizardPostCreateHooks } from '@/lib/extensions'
+import { getRegisteredWizardTemplates, getWizardKindPreset, getWizardPostCreateHooks } from '@/lib/extensions'
 import { useSlot } from '@/lib/extensions/slots'
+import { defaultIconForKind } from '@/lib/projectKind'
 import { getWizardFinishContributors } from '@/lib/extensions/wizardFinish'
 import { extractFieldsFromLabelConfig } from '@/lib/labelConfig/fieldExtractor'
 import { useProjectStore } from '@/stores/projectStore'
@@ -285,6 +286,21 @@ export function ProjectCreationWizard() {
           if (template) {
             next.labelingConfig = template
             next.features = { ...next.features, annotation: true }
+          }
+          // The icon follows the type default until the user picked their own.
+          const prevDefault = defaultIconForKind(
+            prev.projectKind === 'generic' ? null : prev.projectKind
+          )
+          if (!prev.icon || prev.icon === prevDefault) {
+            next.icon = defaultIconForKind(
+              partial.projectKind === 'generic' ? null : partial.projectKind
+            )
+          }
+          // Extended kind preset: prefills judge pair / immediate eval /
+          // exam settings so the project works on both surfaces.
+          const preset = getWizardKindPreset(partial.projectKind)
+          if (preset) {
+            Object.assign(next, preset(next))
           }
         }
         return next

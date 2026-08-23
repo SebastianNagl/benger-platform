@@ -268,3 +268,55 @@ describe('ProjectDetailPage — participant tier', () => {
     registerSlot('project-deck-workspace', null as any)
   })
 })
+
+describe('ProjectDetailPage — header icon editing', () => {
+  const setup = (projectOverrides: any, user: any) => {
+    ;(useRouter as jest.Mock).mockReturnValue(mockRouter)
+    ;(useAuth as jest.Mock).mockReturnValue({ user, currentOrganization: null })
+    ;(useI18n as jest.Mock).mockReturnValue({ t: (k: string, d?: any) => (typeof d === 'string' ? d : k) })
+    ;(useFeatureFlag as jest.Mock).mockReturnValue(true)
+    ;(useUIStore as jest.Mock).mockReturnValue({ isSidebarHidden: false })
+    ;(useModels as jest.Mock).mockReturnValue({
+      models: [], loading: false, error: null, refetch: jest.fn(), hasApiKeys: true, apiKeyStatus: {},
+    })
+    const updateProject = jest.fn().mockResolvedValue({})
+    ;(useProjectStore as jest.Mock).mockReturnValue({
+      currentProject: { ...mockProject, ...projectOverrides },
+      loading: false,
+      fetchProject: jest.fn(),
+      updateProject,
+      deleteProject: jest.fn().mockResolvedValue({}),
+    })
+    ;(apiClient.get as jest.Mock).mockResolvedValue({ status: 'ok' })
+    jest.spyOn(window, 'addEventListener').mockImplementation(jest.fn())
+    jest.spyOn(window, 'removeEventListener').mockImplementation(jest.fn())
+    return { updateProject }
+  }
+  beforeEach(() => jest.clearAllMocks())
+
+  it('creator: icon is a button that opens the picker and PATCHes the choice', async () => {
+    const { updateProject } = setup(
+      { icon: '📚', kind: 'exam', created_by: 'user-123' },
+      { ...mockUser, is_superadmin: false, role: 'ANNOTATOR' },
+    )
+    const params = Promise.resolve({ id: 'test-project-123' })
+    render(<ProjectDetailPage params={params} />)
+    const icon = await screen.findByTestId('project-header-icon')
+    expect(icon.tagName).toBe('BUTTON')
+    expect(icon).toHaveTextContent('📚')
+    fireEvent.click(icon)
+    fireEvent.click(await screen.findByTestId('project-icon-🎓'))
+    fireEvent.click(screen.getByTestId('project-icon-save'))
+    await waitFor(() =>
+      expect(updateProject).toHaveBeenCalledWith('test-project-123', { icon: '🎓' }),
+    )
+  })
+
+  it('non-creator annotator: icon is plain text', async () => {
+    setup({ icon: '📚', created_by: 'someone-else' }, { ...mockUser, id: 'member-1', is_superadmin: false, role: 'ANNOTATOR' })
+    const params = Promise.resolve({ id: 'test-project-123' })
+    render(<ProjectDetailPage params={params} />)
+    const icon = await screen.findByTestId('project-header-icon')
+    expect(icon.tagName).toBe('SPAN')
+  })
+})

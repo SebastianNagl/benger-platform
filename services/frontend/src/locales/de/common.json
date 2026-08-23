@@ -318,7 +318,8 @@
           },
           "icon": {
             "title": "Symbol",
-            "help": "Wird in Listen, im Projektkopf und unter „Entdecken“ angezeigt. Ohne Auswahl gilt das Typ-Symbol."
+            "help": "Wird in Listen, im Projektkopf und unter „Entdecken“ angezeigt. Ohne Auswahl gilt das Typ-Symbol.",
+            "clickToEdit": "Klicken zum Bearbeiten"
           }
         },
         "step2": {
@@ -1410,6 +1411,9 @@
     "deck": {
       "title": "Kartenstapel",
       "subtitle": "Lernen, Karten verwalten, exportieren"
+    },
+    "icon": {
+      "saveFailed": "Symbol konnte nicht gespeichert werden."
     }
   },
   "tasks": {

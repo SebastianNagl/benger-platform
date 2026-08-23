@@ -128,7 +128,8 @@ export interface WizardStepDef {
 export const INITIAL_WIZARD_DATA: WizardData = {
   title: '',
   projectKind: 'generic',
-  icon: '',
+  // Pre-filled with the generic type icon; follows the type until customised.
+  icon: '🗂️',
   description: '',
   features: {
     annotation: false,

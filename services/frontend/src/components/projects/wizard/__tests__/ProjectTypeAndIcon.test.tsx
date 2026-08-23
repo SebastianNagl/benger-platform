@@ -2,31 +2,52 @@
  * @jest-environment jsdom
  */
 import { fireEvent, render, screen } from '@testing-library/react'
-import { ProjectTypeAndIcon } from '../ProjectTypeAndIcon'
+import { IconPickerModal, ProjectTypeSelector } from '../ProjectTypeAndIcon'
 
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({ t: (k: string, d?: any) => (typeof d === 'string' ? d : k) }),
 }))
+jest.mock('@/components/shared/Dialog', () => ({
+  Dialog: ({ isOpen, title, children }: any) =>
+    isOpen ? (
+      <div role="dialog">
+        <h3>{title}</h3>
+        {children}
+      </div>
+    ) : null,
+}))
 
-describe('ProjectTypeAndIcon', () => {
-  it('selects a project type and toggles an icon choice', () => {
+describe('ProjectTypeSelector', () => {
+  it('renders the three options in one row and selects a type', () => {
     const onChange = jest.fn()
-    render(<ProjectTypeAndIcon projectKind="generic" icon="" onChange={onChange} />)
+    const { container } = render(
+      <ProjectTypeSelector projectKind="generic" onChange={onChange} />
+    )
+    expect(container.querySelector('[role="radiogroup"]')).toHaveClass('grid-cols-3')
     expect(screen.getByTestId('project-kind-generic')).toHaveAttribute('aria-checked', 'true')
     fireEvent.click(screen.getByTestId('project-kind-exam'))
     expect(onChange).toHaveBeenCalledWith({ projectKind: 'exam' })
-    fireEvent.click(screen.getByTestId('project-icon-📚'))
-    expect(onChange).toHaveBeenCalledWith({ icon: '📚' })
-    fireEvent.change(screen.getByTestId('project-icon-input'), { target: { value: '🦉' } })
-    expect(onChange).toHaveBeenCalledWith({ icon: '🦉' })
     expect(screen.getByText(/kann danach nicht geändert/)).toBeInTheDocument()
   })
+})
 
-  it('clicking the selected icon clears it; placeholder shows the kind default', () => {
-    const onChange = jest.fn()
-    render(<ProjectTypeAndIcon projectKind="flashcard_collection" icon="📚" onChange={onChange} />)
+describe('IconPickerModal', () => {
+  it('picks a curated emoji and saves; free text works; empty falls back to the kind default', () => {
+    const onPick = jest.fn()
+    const onClose = jest.fn()
+    const { rerender } = render(
+      <IconPickerModal isOpen icon="" projectKind="exam" onPick={onPick} onClose={onClose} />
+    )
     fireEvent.click(screen.getByTestId('project-icon-📚'))
-    expect(onChange).toHaveBeenCalledWith({ icon: '' })
-    expect(screen.getByTestId('project-icon-input')).toHaveAttribute('placeholder', '🗃️')
+    fireEvent.click(screen.getByTestId('project-icon-save'))
+    expect(onPick).toHaveBeenCalledWith('📚')
+    expect(onClose).toHaveBeenCalled()
+
+    rerender(
+      <IconPickerModal isOpen icon="" projectKind="flashcard_collection" onPick={onPick} onClose={onClose} />
+    )
+    fireEvent.change(screen.getByTestId('project-icon-input'), { target: { value: ' ' } })
+    fireEvent.click(screen.getByTestId('project-icon-save'))
+    expect(onPick).toHaveBeenLastCalledWith('🗃️')
   })
 })
