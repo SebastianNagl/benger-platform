@@ -433,6 +433,7 @@ async def create_project(
         # here at creation.
         kind=project.kind,
         origin=project.origin,
+        icon=project.icon,
         # Timed access window (optional at creation; also editable via ProjectUpdate).
         window_start_at=project.window_start_at,
         window_end_at=project.window_end_at,

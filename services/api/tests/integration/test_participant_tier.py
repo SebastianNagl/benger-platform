@@ -438,3 +438,29 @@ async def test_discover_scopes(async_test_client, async_test_db):
         assert set(by_id) == {student_exam.id, research.id}
         assert by_id[research.id]["is_org_project"] is True
         assert by_id[student_exam.id]["is_org_project"] is False
+
+
+async def test_project_icon_and_locked_kind(async_test_client, async_test_db):
+    """icon is set at creation and editable; kind is write-once (locked)."""
+    db = async_test_db
+    owner = await _user(db)
+    with _as_user(owner):
+        r = await async_test_client.post(
+            "/api/projects/",
+            json={
+                "title": "Mit Icon",
+                "label_config": EXAM_CONFIG,
+                "kind": "exam",
+                "icon": "⚖️",
+                "is_private": True,
+            },
+        )
+        assert r.status_code in (200, 201), r.text
+        pid = r.json()["id"]
+        assert r.json()["icon"] == "⚖️" and r.json()["kind"] == "exam"
+        r = await async_test_client.patch(f"/api/projects/{pid}", json={"icon": "📚", "kind": "flashcard_collection"})
+        assert r.status_code == 200, r.text
+        assert r.json()["icon"] == "📚"
+        assert r.json()["kind"] == "exam"  # locked after creation
+        r = await async_test_client.get("/api/projects/")
+        assert next(p for p in r.json()["items"] if p["id"] == pid)["icon"] == "📚"

@@ -10,6 +10,8 @@
 'use client'
 
 import type { Project } from '@/types/labelStudio'
+import { projectIcon, projectKindLabelKey } from '@/lib/projectKind'
+import { LockClosedIcon } from '@heroicons/react/24/outline'
 
 interface ProjectMetadataCardProps {
   project: Project
@@ -24,6 +26,24 @@ export function ProjectMetadataCard({ project, t }: ProjectMetadataCardProps) {
       </h2>
 
       <dl className="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2">
+        <div>
+          <dt className="flex items-center gap-1 text-sm font-medium text-zinc-500 dark:text-zinc-400">
+            {t('projects.creation.wizard.step1.kind.title', 'Projekttyp')}
+            <LockClosedIcon
+              className="h-3.5 w-3.5"
+              title={t(
+                'projects.creation.wizard.step1.kind.locked',
+                'Wird bei der Erstellung festgelegt und kann danach nicht geändert werden.'
+              )}
+            />
+          </dt>
+          <dd className="mt-1 text-sm text-zinc-900 dark:text-white" data-testid="project-kind">
+            <span className="mr-1" aria-hidden>
+              {projectIcon(project)}
+            </span>
+            {t(projectKindLabelKey(project.kind))}
+          </dd>
+        </div>
         <div>
           <dt className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
             {t('project.details.status')}

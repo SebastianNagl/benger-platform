@@ -190,6 +190,8 @@ class ProjectCreate(ProjectBase):
     origin: Optional[str] = Field(
         None, max_length=32, description='Project origin, e.g. "student" (extended).'
     )
+    # Display icon (an emoji). Editable later via ProjectUpdate.
+    icon: Optional[str] = Field(None, max_length=16, description="Project emoji icon.")
     # Timed access window (optional; see ProjectUpdate for semantics).
     window_start_at: Optional[datetime] = None
     window_end_at: Optional[datetime] = None
@@ -220,6 +222,7 @@ class ProjectUpdate(BaseModel):
 
     title: Optional[str] = Field(None, min_length=1, max_length=255)
     description: Optional[str] = None
+    icon: Optional[str] = Field(None, max_length=16, description="Project emoji icon.")
     label_config: Optional[str] = None
     # Note: generation_structure removed in Issue #762 - now in generation_config.prompt_structures
     expert_instruction: Optional[str] = None
@@ -373,6 +376,7 @@ class ProjectResponse(ProjectBase):
     # Student-experience tags (extended). Null on plain benchmark projects.
     kind: Optional[str] = None
     origin: Optional[str] = None
+    icon: Optional[str] = None
     is_published: bool = False
     is_archived: bool = False
     created_at: datetime

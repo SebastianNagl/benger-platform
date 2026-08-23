@@ -539,6 +539,7 @@ async def discover_shares(
                 "owner_name": _display_name(owner) if owner else None,
                 "already_member": project.id in member_pids,
                 "origin": project.origin,
+                "icon": project.icon,
                 "is_org_project": project.id in org_pids,
             }
         )

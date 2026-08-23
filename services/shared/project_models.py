@@ -150,6 +150,8 @@ class Project(Base):
     # remaining benchmarkable in the expert view. Write-once at creation.
     kind = Column(String(32), nullable=True, index=True)
     origin = Column(String(32), nullable=True, index=True)
+    # User-chosen emoji shown in lists / headers / discover (migration 092).
+    icon = Column(String(16), nullable=True)
 
     # Feature visibility — controls which configuration cards render on the
     # project detail page. Hides the card; underlying data is preserved and

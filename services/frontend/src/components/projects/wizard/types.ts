@@ -62,10 +62,16 @@ export interface GenerationParameters {
 export type WizardVisibility = 'private' | 'organization' | 'public'
 export type WizardPublicRole = 'ANNOTATOR' | 'CONTRIBUTOR'
 
+export type WizardProjectKind = 'generic' | 'exam' | 'flashcard_collection'
+
 export interface WizardData {
   // Step 1: Project Info
   title: string
   description: string
+  // Project type — locked after creation (maps to the write-once `kind`).
+  projectKind: WizardProjectKind
+  // Emoji shown in lists / headers; empty = kind-derived fallback.
+  icon: string
   features: WizardFeatures
   visibility: WizardVisibility
   publicRole: WizardPublicRole
@@ -121,6 +127,8 @@ export interface WizardStepDef {
 
 export const INITIAL_WIZARD_DATA: WizardData = {
   title: '',
+  projectKind: 'generic',
+  icon: '',
   description: '',
   features: {
     annotation: false,

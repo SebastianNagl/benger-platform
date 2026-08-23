@@ -18,6 +18,7 @@ import { EvaluationBuilder } from '@/components/evaluation/EvaluationBuilder'
 import { EvaluationControlModal } from '@/components/evaluation/EvaluationControlModal'
 import { GenerationControlModal } from '@/components/generation/GenerationControlModal'
 import { useSlot } from '@/lib/extensions/slots'
+import { projectIcon } from '@/lib/projectKind'
 import {
   LabelConfigEditor,
   type LabelConfigEditorHandle,
@@ -1531,6 +1532,9 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
               ) : (
                 <div className="group flex items-center space-x-3">
                   <h1 className="text-3xl font-bold text-zinc-900 dark:text-white">
+                    <span className="mr-2" aria-hidden data-testid="project-header-icon">
+                      {projectIcon(currentProject)}
+                    </span>
                     {currentProject.title}
                   </h1>
                   {isParticipant && (

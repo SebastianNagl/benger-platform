@@ -118,6 +118,10 @@ def _create_tables():
                     "TIMESTAMP WITH TIME ZONE"
                 )
             )
+            # Migration 092: projects.icon (emoji). Same drift guard.
+            conn.execute(
+                text("ALTER TABLE projects ADD COLUMN IF NOT EXISTS icon VARCHAR(16)")
+            )
             # Migration 063: pause/resume/retry lifecycle columns on
             # response_generations. Same create_all-skips-existing-tables
             # drift — a long-lived test DB bootstrapped before these landed

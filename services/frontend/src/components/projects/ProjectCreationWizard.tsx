@@ -265,9 +265,32 @@ export function ProjectCreationWizard() {
 
   const updateWizardData = useCallback(
     (partial: Partial<WizardData>) => {
-      setWizardData((prev) => ({ ...prev, ...partial }))
+      setWizardData((prev) => {
+        const next = { ...prev, ...partial }
+        // Choosing a project type pre-selects the matching labeling template
+        // (Klausurlösung / Karteikarten, registered by the extended edition)
+        // and switches annotation on, so the project gets the shape the
+        // student surfaces, discovery and the deck workspace recognise. The
+        // user can still pick another template afterwards.
+        if (partial.projectKind && partial.projectKind !== prev.projectKind) {
+          const templateId =
+            partial.projectKind === 'exam'
+              ? 'exam-solving'
+              : partial.projectKind === 'flashcard_collection'
+                ? 'flashcard-deck'
+                : null
+          const template = templateId
+            ? nlpTemplates.find((tpl) => tpl.id === templateId)
+            : undefined
+          if (template) {
+            next.labelingConfig = template
+            next.features = { ...next.features, annotation: true }
+          }
+        }
+        return next
+      })
     },
-    []
+    [nlpTemplates]
   )
 
   const validateStep = (): boolean => {
@@ -393,11 +416,17 @@ export function ProjectCreationWizard() {
         is_private?: boolean
         is_public?: boolean
         public_role?: 'ANNOTATOR' | 'CONTRIBUTOR' | null
+        kind?: string | null
+        icon?: string | null
       } = {
         title: wizardData.title.trim(),
         description: wizardData.description.trim(),
         label_config:
           wizardData.labelingConfig?.config || defaultLabelConfig,
+        // Write-once project type; generic stays NULL so plain benchmark
+        // projects are unaffected.
+        kind: wizardData.projectKind === 'generic' ? null : wizardData.projectKind,
+        icon: wizardData.icon.trim() || null,
       }
       if (wizardData.visibility === 'private') {
         createData.is_private = true

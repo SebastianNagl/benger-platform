@@ -221,6 +221,37 @@ describe('ProjectCreationWizard — synthetic step (extended)', () => {
     _resetWizardPostCreateHooks()
   })
 
+  it('sends the locked project type + icon at creation and preselects the exam template', async () => {
+    const { registerWizardTemplate } = jest.requireActual('@/lib/extensions/wizardTemplates')
+    registerWizardTemplate({
+      id: 'exam-solving', nameKey: 'x', descriptionKey: 'y', icon: '', category: 'NLP',
+      config: '<View><Angabe name="a" value="$sachverhalt"/></View>',
+    })
+    mockCreateProject.mockResolvedValue({ id: 'proj-1' })
+    mockProjectUpdate.mockResolvedValue({})
+    mockRunNestedImportJob.mockResolvedValue({})
+    const user = userEvent.setup()
+    render(<ProjectCreationWizard />)
+    await user.type(screen.getByTestId('project-create-name-input'), 'Typed')
+    await user.click(screen.getByTestId('project-kind-exam'))
+    await user.click(screen.getByTestId('project-icon-📚'))
+    await user.click(screen.getByTestId('wizard-synthetic-checkbox'))
+    await user.click(screen.getByTestId('project-create-next-button'))
+    await waitFor(() => expect(currentStepId()).toBe('synthetic'))
+    await user.click(screen.getByTestId('synthetic-step-inject'))
+    // Picking "Klausur" switched annotation on → labeling (+ instructions)
+    // steps are present; keep clicking Next until the submit button shows.
+    for (let i = 0; i < 6 && !screen.queryByTestId('project-create-submit-button'); i++) {
+      await user.click(screen.getByTestId('project-create-next-button'))
+    }
+    await user.click(screen.getByTestId('project-create-submit-button'))
+    await waitFor(() => expect(mockCreateProject).toHaveBeenCalled())
+    const payload = mockCreateProject.mock.calls[0][0]
+    expect(payload.kind).toBe('exam')
+    expect(payload.icon).toBe('📚')
+    expect(payload.label_config).toContain('$sachverhalt')
+  })
+
   it('skips the synthetic step when the row is left unchecked', async () => {
     const user = userEvent.setup()
     render(<ProjectCreationWizard />)

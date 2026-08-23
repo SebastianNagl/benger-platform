@@ -305,6 +305,20 @@
           "validation": {
             "nameRequired": "Projektname ist erforderlich",
             "orgRequired": "Mindestens eine Organisation wählen oder Sichtbarkeit ändern."
+          },
+          "kind": {
+            "title": "Projekttyp",
+            "locked": "Wird bei der Erstellung festgelegt und kann danach nicht geändert werden.",
+            "generic": "Generisch",
+            "genericDescription": "Benchmark-/Annotationsprojekt ohne Klausur- oder Karten-Logik",
+            "exam": "Klausur",
+            "examDescription": "Falllösung mit Angabe, Musterlösung und KI-Korrektur; für Studierende lösbar",
+            "deck": "Kartenstapel",
+            "deckDescription": "Karteikarten mit Vorder-/Rückseite und Lernplan (SRS)"
+          },
+          "icon": {
+            "title": "Symbol",
+            "help": "Wird in Listen, im Projektkopf und unter „Entdecken“ angezeigt. Ohne Auswahl gilt das Typ-Symbol."
           }
         },
         "step2": {

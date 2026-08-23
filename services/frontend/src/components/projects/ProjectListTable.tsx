@@ -16,6 +16,7 @@ import { useProgress } from '@/contexts/ProgressContext'
 import { useConfirm } from '@/hooks/useDialogs'
 import { projectsAPI } from '@/lib/api/projects'
 import { useSlot } from '@/lib/extensions/slots'
+import { projectIcon } from '@/lib/projectKind'
 import { useProjectStore } from '@/stores/projectStore'
 import { Project } from '@/types/labelStudio'
 import { parseSubdomain } from '@/lib/utils/subdomain'
@@ -832,6 +833,9 @@ export function ProjectListTable({
                       >
                         <div>
                           <div className="flex items-center gap-2 text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                            <span className="mr-0.5" aria-hidden data-testid={`project-icon-${project.id}`}>
+                              {projectIcon(project)}
+                            </span>
                             <span>{project.title}</span>
                             {project.is_public && (
                               <span

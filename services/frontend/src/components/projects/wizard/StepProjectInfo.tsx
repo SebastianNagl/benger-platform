@@ -7,6 +7,7 @@ import { useI18n } from '@/contexts/I18nContext'
 import { organizationsAPI } from '@/lib/api/organizations'
 import { useSlot } from '@/lib/extensions/slots'
 import { cn } from '@/lib/utils'
+import { ProjectTypeAndIcon } from './ProjectTypeAndIcon'
 import { useEffect, useState } from 'react'
 import {
   WizardData,
@@ -150,6 +151,12 @@ export function StepProjectInfo({
             data-testid="project-create-description-textarea"
           />
         </div>
+
+        <ProjectTypeAndIcon
+          projectKind={data.projectKind}
+          icon={data.icon}
+          onChange={onChange}
+        />
       </div>
 
       <hr className="border-zinc-200 dark:border-zinc-700" />

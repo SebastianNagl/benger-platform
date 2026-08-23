@@ -305,6 +305,20 @@
           "validation": {
             "nameRequired": "Project name is required",
             "orgRequired": "Pick at least one organization, or change visibility."
+          },
+          "kind": {
+            "title": "Project type",
+            "locked": "Set at creation and cannot be changed afterwards.",
+            "generic": "Generic",
+            "genericDescription": "Benchmark / annotation project without exam or flashcard logic",
+            "exam": "Exam",
+            "examDescription": "Case solution with facts, model solution and AI grading; solvable by students",
+            "deck": "Flashcard deck",
+            "deckDescription": "Front/back cards with a spaced-repetition study plan"
+          },
+          "icon": {
+            "title": "Icon",
+            "help": "Shown in lists, the project header and under “Discover”. Without a choice the type icon is used."
           }
         },
         "step2": {

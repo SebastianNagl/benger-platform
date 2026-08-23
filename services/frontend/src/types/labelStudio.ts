@@ -114,6 +114,7 @@ export interface Project {
   // Student-surface markers (extended): e.g. kind 'exam' |
   // 'flashcard_collection', origin 'student'. NULL for ordinary projects.
   kind?: string | null
+  icon?: string | null
   // Caller-relative access info from the API (never stored):
   access_tier?: 'full' | 'participant' | null
   participant_via?: 'share' | 'entitlement' | 'org_exam' | null
@@ -129,6 +130,9 @@ export interface Project {
 export interface ProjectCreate {
   title: string
   description?: string
+  // Write-once project type (exam | flashcard_collection | null = generic).
+  kind?: string | null
+  icon?: string | null
   label_config?: string
   generation_structure?: string
   expert_instruction?: string
