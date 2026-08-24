@@ -482,6 +482,7 @@ async def discover_shares(
         ),
         Project.created_by != uid,
         or_(Project.is_archived.is_(None), Project.is_archived.is_(False)),
+        Project.deleted_at.is_(None),
     ]
     if scope == "student":
         filters += [
@@ -708,6 +709,15 @@ async def _load_link_by_token(db: AsyncSession, token: str) -> ProjectShareLink:
     ).scalar_one_or_none()
     if not link:
         raise HTTPException(status_code=404, detail="Share link not found")
+    # A soft-deleted project's links don't resolve (behaves like the project
+    # is gone — preview, join and withdrawal all 404).
+    deleted = (
+        await db.execute(
+            select(Project.deleted_at).where(Project.id == link.project_id)
+        )
+    ).scalar_one_or_none()
+    if deleted is not None:
+        raise HTTPException(status_code=404, detail="Share link not found")
     return link
 
 
@@ -773,6 +783,14 @@ async def join_share(
         )
     ).scalar_one_or_none()
     if not link:
+        raise HTTPException(status_code=404, detail="Share link not found")
+    # Soft-deleted project (093): the link behaves as if the project is gone.
+    _deleted = (
+        await db.execute(
+            select(Project.deleted_at).where(Project.id == link.project_id)
+        )
+    ).scalar_one_or_none()
+    if _deleted is not None:
         raise HTTPException(status_code=404, detail="Share link not found")
 
     now = datetime.now(timezone.utc)

@@ -116,6 +116,7 @@ export interface Project {
   kind?: string | null
   icon?: string | null
   // Caller-relative access info from the API (never stored):
+  deleted_at?: string | null
   access_tier?: 'full' | 'participant' | null
   participant_via?: 'share' | 'entitlement' | 'org_exam' | null
   effective_role?: string | null

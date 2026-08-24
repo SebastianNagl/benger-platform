@@ -1,8 +1,9 @@
 """Bulk operations for projects."""
 
 import logging
+from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.concurrency import run_in_threadpool
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -44,7 +45,9 @@ async def bulk_delete_projects(
     current_user: AuthUser = Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ):
-    """Bulk delete multiple projects"""
+    """Bulk SOFT-delete (migration 093): stamps ``deleted_at`` — projects
+    vanish for every non-superadmin, all data survives. Superadmins restore /
+    purge via bulk-restore / bulk-purge."""
 
     project_ids = data.get("project_ids", [])
 
@@ -66,10 +69,17 @@ async def bulk_delete_projects(
                 failed_projects.append({"id": project_id, "reason": "Project not found"})
                 continue
 
-            # Check permission - only creator or superadmin can delete
-            if project.created_by != current_user.id and not current_user.is_superadmin:
+            # Same rule as the single delete: superadmin, creator of a
+            # PRIVATE project, or org admin (the old bulk rule let creators
+            # delete org projects — tightened deliberately).
+            from routers.projects.crud import _can_soft_delete
+
+            if project.deleted_at is not None and not current_user.is_superadmin:
+                failed_projects.append({"id": project_id, "reason": "Project not found"})
+                continue
+            if not await _can_soft_delete(db, current_user, project):
                 logger.warning(
-                    f"User {current_user.email} lacks permission to delete project {project_id} (created by {project.created_by}, user is_superadmin: {current_user.is_superadmin})"
+                    f"User {current_user.email} lacks permission to delete project {project_id}"
                 )
                 failed_projects.append({"id": project_id, "reason": "Permission denied"})
                 continue
@@ -87,34 +97,10 @@ async def bulk_delete_projects(
                 )
             ).scalar_one_or_none()
 
-            # Delete associated records first to avoid foreign key constraint violations
-            # ProjectMember and ProjectOrganization are already imported at the top of the file
-
-            # Delete project organizations
-            await db.execute(
-                ProjectOrganization.__table__.delete().where(
-                    ProjectOrganization.project_id == project_id
-                )
-            )
-
-            # Delete project members
-            await db.execute(
-                ProjectMember.__table__.delete().where(
-                    ProjectMember.project_id == project_id
-                )
-            )
-
-            # Delete associated tasks. Annotations (annotations table) are
-            # removed automatically by the DB: their task_id and project_id FKs
-            # both carry ON DELETE CASCADE (migration 001_complete_baseline), so
-            # this raw DELETE on tasks (and the project delete below) cascades to
-            # annotations. No explicit annotation delete is needed.
-            await db.execute(Task.__table__.delete().where(Task.project_id == project_id))
-
-            # Delete the project
-            await db.delete(project)
-
-            # Commit this individual project deletion
+            # Soft delete: stamp only; every cascading table keeps its data.
+            if project.deleted_at is None:
+                project.deleted_at = datetime.now(timezone.utc)
+                project.deleted_by = str(current_user.id)
             await db.commit()
             deleted_count += 1
             logger.info(f"Successfully deleted project {project_id}")
@@ -155,6 +141,71 @@ async def bulk_delete_projects(
         "failed": len(failed_projects),
         "failed_projects": failed_projects,
     }
+
+
+@router.post("/bulk-restore")
+async def bulk_restore_projects(
+    data: dict,
+    current_user: AuthUser = Depends(require_user),
+    db: AsyncSession = Depends(get_async_db),
+):
+    """Restore soft-deleted projects (superadmin only)."""
+    if not current_user.is_superadmin:
+        raise HTTPException(status_code=403, detail="Only superadmins can restore projects")
+    project_ids = data.get("project_ids", [])
+    restored = 0
+    for project_id in project_ids:
+        project = (
+            await db.execute(select(Project).where(Project.id == project_id))
+        ).scalar_one_or_none()
+        if project is None:
+            continue
+        project.deleted_at = None
+        project.deleted_by = None
+        restored += 1
+    await db.commit()
+    return {"restored": restored}
+
+
+@router.post("/bulk-purge")
+async def bulk_purge_projects(
+    data: dict,
+    current_user: AuthUser = Depends(require_user),
+    db: AsyncSession = Depends(get_async_db),
+):
+    """Irreversibly destroy projects + cascades (superadmin only) — the bulk
+    twin of DELETE /projects/{id}/purge."""
+    if not current_user.is_superadmin:
+        raise HTTPException(status_code=403, detail="Only superadmins can purge projects")
+    project_ids = data.get("project_ids", [])
+    purged = 0
+    failed = []
+    for project_id in project_ids:
+        try:
+            project = (
+                await db.execute(select(Project).where(Project.id == project_id))
+            ).scalar_one_or_none()
+            if project is None:
+                failed.append({"id": project_id, "reason": "Project not found"})
+                continue
+            await db.execute(
+                ProjectOrganization.__table__.delete().where(
+                    ProjectOrganization.project_id == project_id
+                )
+            )
+            await db.execute(
+                ProjectMember.__table__.delete().where(
+                    ProjectMember.project_id == project_id
+                )
+            )
+            await db.execute(Task.__table__.delete().where(Task.project_id == project_id))
+            await db.delete(project)
+            await db.commit()
+            purged += 1
+        except Exception as exc:  # pragma: no cover - defensive parity with bulk-delete
+            failed.append({"id": project_id, "reason": str(exc)})
+            await db.rollback()
+    return {"purged": purged, "failed": len(failed), "failed_projects": failed}
 
 
 @router.post("/bulk-archive")

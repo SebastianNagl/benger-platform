@@ -869,7 +869,21 @@
       "note": "Note",
       "postCreateHookFailed": "Post-processing failed"
     },
-    "discover": "Discover"
+    "discover": "Discover",
+    "deleted": {
+      "title": "Deleted projects",
+      "subtitle": "Deleted projects are hidden from everyone; their data is preserved. Only here can they be restored or destroyed for good.",
+      "empty": "No deleted projects.",
+      "project": "Project",
+      "deletedAt": "Deleted at",
+      "actions": "Actions",
+      "badge": "Deleted",
+      "restore": "Restore",
+      "restored": "Project restored.",
+      "purge": "Delete permanently",
+      "purged": "Project permanently deleted.",
+      "purgeConfirm": "Permanently delete “{title}” and ALL its data (tasks, submissions, gradings, learning history)? This cannot be undone."
+    }
   },
   "project": {
     "loading": "Loading project...",
@@ -877,12 +891,12 @@
     "notFoundDescription": "The project you're looking for doesn't exist or you don't have access to it.",
     "backToProjects": "Back to Projects",
     "deleteConfirmTitle": "Delete Project",
-    "deleteConfirmMessage": "Are you sure you want to delete this project? This will permanently delete:",
+    "deleteConfirmMessage": "Are you sure you want to delete this project? It will be hidden from everyone:",
     "deleteConfirmItems": {
-      "config": "The project and all its configuration",
+      "config": "The project and its entire configuration",
       "tasks": "All tasks ({count} tasks)",
       "annotations": "All annotations ({count} annotations)",
-      "irreversible": "This action cannot be undone"
+      "irreversible": "Data is preserved; only superadmins can restore or permanently delete the project"
     },
     "deleting": "Deleting...",
     "deleteProject": "Delete Project",
@@ -9178,7 +9192,7 @@
         "titlePlaceholder": "e.g. Criminal law definitions"
       },
       "delete": {
-        "message": "“{title}” and all its cards including learning progress will be permanently deleted. This cannot be undone.",
+        "message": "“{title}” will be deleted and no longer visible to anyone.",
         "title": "Delete deck?"
       },
       "dueNow": "{count} cards due",
@@ -9343,7 +9357,7 @@
         "zusatzmaterialPlaceholder": "e.g. statute texts or excerpts..."
       },
       "delete": {
-        "message": "“{title}” and all associated attempts will be permanently deleted. This cannot be undone.",
+        "message": "“{title}” will be deleted and no longer visible to anyone.",
         "title": "Delete exam?"
       },
       "edit": {

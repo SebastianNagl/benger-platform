@@ -406,6 +406,8 @@ class ProjectResponse(ProjectBase):
     is_archived: bool = False
     created_at: datetime
     updated_at: Optional[datetime] = None
+    # Soft delete (read-only; delete/restore/purge have explicit endpoints).
+    deleted_at: Optional[datetime] = None
     # Caller-relative access info (set by list/detail handlers, never stored):
     # "full" = normal project access, "participant" = narrow tier reached via
     # a share link / entitlement / org exam (solver surfaces only).

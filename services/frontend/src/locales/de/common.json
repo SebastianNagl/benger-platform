@@ -869,7 +869,21 @@
       "note": "Hinweis",
       "postCreateHookFailed": "Nachbearbeitung fehlgeschlagen"
     },
-    "discover": "Entdecken"
+    "discover": "Entdecken",
+    "deleted": {
+      "title": "Gelöschte Projekte",
+      "subtitle": "Gelöschte Projekte sind für alle ausgeblendet, ihre Daten bleiben erhalten. Nur hier können sie wiederhergestellt oder endgültig gelöscht werden.",
+      "empty": "Keine gelöschten Projekte.",
+      "project": "Projekt",
+      "deletedAt": "Gelöscht am",
+      "actions": "Aktionen",
+      "badge": "Gelöscht",
+      "restore": "Wiederherstellen",
+      "restored": "Projekt wiederhergestellt.",
+      "purge": "Endgültig löschen",
+      "purged": "Projekt endgültig gelöscht.",
+      "purgeConfirm": "„{title}“ und ALLE zugehörigen Daten (Aufgaben, Abgaben, Bewertungen, Lernverläufe) endgültig löschen? Das kann nicht rückgängig gemacht werden."
+    }
   },
   "project": {
     "loading": "Projekt wird geladen...",
@@ -877,12 +891,12 @@
     "notFoundDescription": "Das gesuchte Projekt existiert nicht oder Sie haben keinen Zugriff darauf.",
     "backToProjects": "Zurück zu Projekten",
     "deleteConfirmTitle": "Projekt löschen",
-    "deleteConfirmMessage": "Sind Sie sicher, dass Sie dieses Projekt löschen möchten? Dies löscht dauerhaft:",
+    "deleteConfirmMessage": "Sind Sie sicher, dass Sie dieses Projekt löschen möchten? Es wird für alle ausgeblendet:",
     "deleteConfirmItems": {
       "config": "Das Projekt und seine gesamte Konfiguration",
       "tasks": "Alle Aufgaben ({count} Aufgaben)",
       "annotations": "Alle Annotationen ({count} Annotationen)",
-      "irreversible": "Diese Aktion kann nicht rückgängig gemacht werden"
+      "irreversible": "Die Daten bleiben erhalten; nur Superadmins können das Projekt wiederherstellen oder endgültig löschen"
     },
     "deleting": "Wird gelöscht...",
     "deleteProject": "Projekt löschen",
@@ -9168,7 +9182,7 @@
         "titlePlaceholder": "z.B. Definitionen Strafrecht AT"
       },
       "delete": {
-        "message": "„{title}“ und alle Karten samt Lernfortschritt werden dauerhaft gelöscht. Das kann nicht rückgängig gemacht werden.",
+        "message": "„{title}“ wird gelöscht und ist danach für niemanden mehr sichtbar.",
         "title": "Stapel löschen?"
       },
       "dueNow": "{count} Karten fällig",
@@ -9333,7 +9347,7 @@
         "zusatzmaterialPlaceholder": "z.B. Normtexte oder Auszüge..."
       },
       "delete": {
-        "message": "„{title}“ und alle zugehörigen Versuche werden dauerhaft gelöscht. Das kann nicht rückgängig gemacht werden.",
+        "message": "„{title}“ wird gelöscht und ist danach für niemanden mehr sichtbar.",
         "title": "Klausur löschen?"
       },
       "edit": {

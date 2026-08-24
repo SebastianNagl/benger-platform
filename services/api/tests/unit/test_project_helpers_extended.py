@@ -92,7 +92,7 @@ class TestCheckProjectAccessiblePrivateContext:
         from routers.projects.helpers import check_project_accessible
 
         db = MagicMock()
-        project = Mock(is_private=True, created_by="user-1", id="proj-1")
+        project = Mock(deleted_at=None, is_private=True, created_by="user-1", id="proj-1")
         db.query.return_value.filter.return_value.first.return_value = project
 
         user = Mock(is_superadmin=False, id="user-1")
@@ -102,7 +102,7 @@ class TestCheckProjectAccessiblePrivateContext:
         from routers.projects.helpers import check_project_accessible
 
         db = MagicMock()
-        project = Mock(is_private=True, created_by="user-2", id="proj-1")
+        project = Mock(deleted_at=None, is_private=True, created_by="user-2", id="proj-1")
         db.query.return_value.filter.return_value.first.return_value = project
 
         user = Mock(is_superadmin=False, id="user-1")
@@ -115,7 +115,7 @@ class TestCheckProjectAccessiblePrivateContext:
         from routers.projects.helpers import check_project_accessible
 
         db = MagicMock()
-        project = Mock(is_private=False, created_by="user-1", id="proj-1")
+        project = Mock(deleted_at=None, is_private=False, created_by="user-1", id="proj-1")
         db.query.return_value.filter.return_value.first.return_value = project
 
         user = Mock(is_superadmin=False, id="user-1")
@@ -125,7 +125,7 @@ class TestCheckProjectAccessiblePrivateContext:
         from routers.projects.helpers import check_project_accessible
 
         db = MagicMock()
-        project = Mock(is_private=False, created_by="user-2", id="proj-1")
+        project = Mock(deleted_at=None, is_private=False, created_by="user-2", id="proj-1")
         db.query.return_value.filter.return_value.first.return_value = project
 
         user = Mock(is_superadmin=False, id="user-1")
@@ -141,7 +141,7 @@ class TestCheckProjectAccessibleOrgContextPrivateProject:
         from routers.projects.helpers import check_project_accessible
 
         db = MagicMock()
-        project = Mock(is_private=True, is_public=False, created_by="user-1", id="proj-1")
+        project = Mock(deleted_at=None, is_private=True, is_public=False, created_by="user-1", id="proj-1")
         db.query.return_value.filter.return_value.first.return_value = project
 
         user = Mock(is_superadmin=False, id="user-1")
@@ -151,7 +151,7 @@ class TestCheckProjectAccessibleOrgContextPrivateProject:
         from routers.projects.helpers import check_project_accessible
 
         db = MagicMock()
-        project = Mock(is_private=True, is_public=False, created_by="user-2", id="proj-1")
+        project = Mock(deleted_at=None, is_private=True, is_public=False, created_by="user-2", id="proj-1")
         db.query.return_value.filter.return_value.first.return_value = project
 
         user = Mock(is_superadmin=False, id="user-1")
@@ -165,7 +165,7 @@ class TestCheckProjectAccessibleLegacy:
         from routers.projects.helpers import check_project_accessible
 
         db = MagicMock()
-        project = Mock(is_private=True, created_by="user-1", id="proj-1")
+        project = Mock(deleted_at=None, is_private=True, created_by="user-1", id="proj-1")
         db.query.return_value.filter.return_value.first.return_value = project
 
         user = Mock(is_superadmin=False, id="user-1")
@@ -175,7 +175,7 @@ class TestCheckProjectAccessibleLegacy:
         from routers.projects.helpers import check_project_accessible
 
         db = MagicMock()
-        project = Mock(is_private=True, created_by="user-2", id="proj-1")
+        project = Mock(deleted_at=None, is_private=True, created_by="user-2", id="proj-1")
         db.query.return_value.filter.return_value.first.return_value = project
 
         user = Mock(is_superadmin=False, id="user-1")
@@ -189,7 +189,7 @@ class TestCheckProjectAccessibleArchived:
         from routers.projects.helpers import check_project_accessible
 
         db = MagicMock()
-        project = Mock(
+        project = Mock(deleted_at=None, 
             is_archived=True,
             is_public=False,
             is_private=False,
@@ -212,7 +212,7 @@ class TestCheckProjectAccessibleArchived:
         from routers.projects.helpers import check_project_accessible
 
         db = MagicMock()
-        project = Mock(
+        project = Mock(deleted_at=None, 
             is_archived=True,
             is_public=False,
             is_private=False,
@@ -242,7 +242,7 @@ class TestCheckProjectAccessibleArchived:
         db = MagicMock()
         # Public + not archived: annotator visitor still gets access via the
         # public short-circuit. Proves the gate only fires when is_archived.
-        project = Mock(
+        project = Mock(deleted_at=None, 
             is_archived=False,
             is_public=True,
             is_private=False,
@@ -303,7 +303,7 @@ class TestCheckUserCanEditProject:
 
         db = MagicMock()
         user = Mock(is_superadmin=False, id="user-1")
-        project = Mock(created_by="user-1")
+        project = Mock(deleted_at=None, created_by="user-1")
         db.query.return_value.filter.return_value.first.return_value = project
         assert check_user_can_edit_project(db, user, "proj-1") == True  # noqa: E712
 
@@ -352,7 +352,7 @@ class TestPublicProjectHelpers:
         from routers.projects.helpers import check_project_accessible
 
         db = MagicMock()
-        project = Mock(
+        project = Mock(deleted_at=None, 
             is_private=False,
             is_public=True,
             is_archived=False,
@@ -381,6 +381,7 @@ class TestPublicProjectHelpers:
             return_value=memberships_query,
         ):
             project = Mock(
+                deleted_at=None,
                 id="proj-1",
                 created_by="creator-1",
                 is_public=True,
@@ -394,6 +395,7 @@ class TestPublicProjectHelpers:
 
         db = MagicMock()
         project = Mock(
+                deleted_at=None,
             id="proj-1",
             created_by="me",
             is_public=True,
@@ -413,6 +415,7 @@ class TestPublicProjectHelpers:
             return_value=memberships_query,
         ):
             project = Mock(
+                deleted_at=None,
                 id="proj-1",
                 created_by="creator-1",
                 is_public=False,

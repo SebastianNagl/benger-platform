@@ -152,6 +152,11 @@ class Project(Base):
     origin = Column(String(32), nullable=True, index=True)
     # User-chosen emoji shown in lists / headers / discover (migration 092).
     icon = Column(String(16), nullable=True)
+    # Soft delete (migration 093): a stamped project is invisible to EVERYONE
+    # except superadmins (restore/purge from the deleted view). Data in every
+    # cascading table survives until an explicit superadmin purge.
+    deleted_at = Column(DateTime(timezone=True), nullable=True, index=True)
+    deleted_by = Column(String, nullable=True)
 
     # Feature visibility — controls which configuration cards render on the
     # project detail page. Hides the card; underlying data is preserved and

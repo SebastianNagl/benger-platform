@@ -30,6 +30,7 @@ import {
   FolderIcon,
   GlobeAltIcon,
   MagnifyingGlassIcon,
+  TrashIcon,
   RectangleStackIcon,
   UserGroupIcon,
   PlusIcon,
@@ -531,6 +532,16 @@ export function ProjectListTable({
               >
                 <MagnifyingGlassIcon className="h-4 w-4" />
                 {t('projects.discover', 'Entdecken')}
+              </Button>
+            )}
+            {!showArchivedOnly && user?.is_superadmin && (
+              <Button
+                onClick={() => router.push('/projects/deleted')}
+                variant="outline"
+                data-testid="projects-deleted-button"
+              >
+                <TrashIcon className="h-4 w-4" />
+                {t('projects.deleted.title', 'Gelöschte Projekte')}
               </Button>
             )}
             {!showArchivedOnly && userCanCreateProjects && (

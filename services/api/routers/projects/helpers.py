@@ -820,7 +820,8 @@ def get_accessible_project_ids(
                 or_(
                     Project.is_private == False,  # noqa: E712
                     Project.created_by == str(user.id),
-                )
+                ),
+                not_deleted(),
             )
             .all()
         )
@@ -833,7 +834,10 @@ def get_accessible_project_ids(
         return result
 
     public_ids = [
-        r.id for r in db.query(Project.id).filter(Project.is_public == True).all()  # noqa: E712
+        r.id
+        for r in db.query(Project.id)
+        .filter(Project.is_public == True, not_deleted())  # noqa: E712
+        .all()
     ]
 
     if not org_context or org_context == "private":
@@ -842,6 +846,7 @@ def get_accessible_project_ids(
             .filter(
                 Project.is_private == True,  # noqa: E712
                 Project.created_by == str(user.id),
+                not_deleted(),
             )
             .all()
         )
@@ -878,6 +883,15 @@ def get_accessible_project_ids(
         .all()
     )
     org_project_ids = [r.project_id for r in rows]
+    # Soft-deleted projects vanish from the org list too (migration 093).
+    if org_project_ids:
+        deleted_ids = {
+            r.id
+            for r in db.query(Project.id)
+            .filter(Project.id.in_(org_project_ids), Project.deleted_at.isnot(None))
+            .all()
+        }
+        org_project_ids = [pid for pid in org_project_ids if pid not in deleted_ids]
     # ANNOTATOR members reach org exams through the student surface (narrow
     # participant tier) — the full-tier carve-out denies them the generic
     # project detail, so listing exams here would only produce dead entries
@@ -934,7 +948,8 @@ async def get_accessible_project_ids_async(
                     or_(
                         Project.is_private == False,  # noqa: E712
                         Project.created_by == str(user.id),
-                    )
+                    ),
+                    not_deleted(),
                 )
             )
         ).all()
@@ -942,7 +957,7 @@ async def get_accessible_project_ids_async(
 
     public_rows = (
         await db.execute(
-            select(Project.id).where(Project.is_public == True)  # noqa: E712
+            select(Project.id).where(Project.is_public == True, not_deleted())  # noqa: E712
         )
     ).all()
     public_ids = [r.id for r in public_rows]
@@ -953,6 +968,7 @@ async def get_accessible_project_ids_async(
                 select(Project.id).where(
                     Project.is_private == True,  # noqa: E712
                     Project.created_by == str(user.id),
+                    not_deleted(),
                 )
             )
         ).all()
@@ -981,6 +997,17 @@ async def get_accessible_project_ids_async(
         )
     ).all()
     org_project_ids = [r.project_id for r in rows]
+    # Soft-deleted projects vanish from the org list too (migration 093).
+    if org_project_ids:
+        deleted_rows = (
+            await db.execute(
+                select(Project.id).where(
+                    Project.id.in_(org_project_ids), Project.deleted_at.isnot(None)
+                )
+            )
+        ).all()
+        deleted_ids = {r.id for r in deleted_rows}
+        org_project_ids = [pid for pid in org_project_ids if pid not in deleted_ids]
     # Mirror of the sync helper: annotators reach org exams via the student
     # surface only, so keep exam ids out of the generic browser list.
     caller_role = next(
@@ -1107,6 +1134,10 @@ def check_project_accessible(
     if not project:
         return False
 
+    if _is_deleted(project):
+        # Soft-deleted: invisible to every non-superadmin (owner included).
+        return False
+
     # Archived projects are read-only to annotators: an annotator who is
     # otherwise a member loses access once a project is archived. Higher roles
     # (and the creator/superadmin, who already short-circuit above / resolve to
@@ -1196,6 +1227,10 @@ async def check_project_accessible_async(
         result = await db.execute(select(Project).where(Project.id == project_id))
         project = result.scalar_one_or_none()
     if not project:
+        return False
+
+    if _is_deleted(project):
+        # Soft-deleted: invisible to every non-superadmin (owner included).
         return False
 
     if getattr(project, "is_archived", False):
@@ -1328,6 +1363,7 @@ def _build_select_org_exam_participant(user, project_id: str):
             OrganizationMembership.is_active == True,  # noqa: E712
             Project.kind == "exam",
             Project.is_private == False,  # noqa: E712
+            not_deleted(),
             or_(Project.is_archived.is_(None), Project.is_archived == False),  # noqa: E712
             or_(
                 Project.window_start_at.is_(None),
@@ -1544,6 +1580,16 @@ async def check_task_assigned_to_user_async(
     return assignment_result.scalars().first() is not None
 
 
+def not_deleted():
+    """Shared soft-delete predicate (migration 093): every visibility query
+    excludes stamped projects; superadmin surfaces opt back in explicitly."""
+    return Project.deleted_at.is_(None)
+
+
+def _is_deleted(project) -> bool:
+    return getattr(project, "deleted_at", None) is not None
+
+
 def _build_select_project_org_ids(project_id: str):
     """Shared SQL builder for the org ids a project is assigned to."""
     return select(ProjectOrganization.organization_id).where(
@@ -1663,6 +1709,8 @@ async def get_project_access_tier_async(
         project = result.scalar_one_or_none()
     if not project:
         return None
+    if _is_deleted(project) and not user.is_superadmin:
+        return None
     if await check_project_accessible_async(db, user, project_id, org_context, project=project):
         return TIER_FULL
     if getattr(project, "is_archived", False):
@@ -1683,6 +1731,8 @@ def get_project_access_tier(
     if project is None:
         project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
+        return None
+    if _is_deleted(project) and not user.is_superadmin:
         return None
     if check_project_accessible(db, user, project_id, org_context, project=project):
         return TIER_FULL
@@ -1755,6 +1805,7 @@ async def get_participant_project_ids_async(
     """
     uid = str(user_id)
     not_archived = or_(Project.is_archived.is_(None), Project.is_archived == False)  # noqa: E712
+    alive = not_deleted()
     result: Dict[str, str] = {}
 
     share_rows = await db.execute(
@@ -1765,6 +1816,7 @@ async def get_participant_project_ids_async(
             ProjectShareMember.gdpr_consent_at.isnot(None),
             Project.created_by != uid,
             not_archived,
+            alive,
         )
     )
     for pid in share_rows.scalars().all():
@@ -1778,6 +1830,7 @@ async def get_participant_project_ids_async(
             MarketplaceEntitlement.revoked_at.is_(None),
             Project.created_by != uid,
             not_archived,
+            alive,
         )
     )
     for pid in ent_rows.scalars().all():
@@ -1797,6 +1850,7 @@ async def get_participant_project_ids_async(
             Project.is_private == False,  # noqa: E712
             Project.created_by != uid,
             not_archived,
+            alive,
             or_(
                 Project.window_start_at.is_(None),
                 Project.window_start_at <= func.now(),

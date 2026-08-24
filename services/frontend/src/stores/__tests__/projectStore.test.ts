@@ -189,6 +189,7 @@ describe('ProjectStore', () => {
         '',
         false,
         false,
+        false
       )
       const state = useProjectStore.getState()
       expect(state.currentPage).toBe(2)
@@ -218,6 +219,7 @@ describe('ProjectStore', () => {
         'test search',
         false,
         false,
+        false
       )
     })
 
@@ -240,6 +242,7 @@ describe('ProjectStore', () => {
         '',
         true,
         false,
+        false
       )
     })
 
@@ -257,14 +260,14 @@ describe('ProjectStore', () => {
       await act(async () => {
         await useProjectStore.getState().fetchProjects(1, 30, true, true)
       })
-      expect(mockProjectsAPI.list).toHaveBeenLastCalledWith(1, 30, '', true, true)
+      expect(mockProjectsAPI.list).toHaveBeenLastCalledWith(1, 30, '', true, true, false)
 
       // A bare paginate call (the setCurrentPage path) must keep that scope
       // instead of dropping isArchived/includeAllPrivate back to undefined.
       await act(async () => {
         await useProjectStore.getState().fetchProjects(2)
       })
-      expect(mockProjectsAPI.list).toHaveBeenLastCalledWith(2, 30, '', true, true)
+      expect(mockProjectsAPI.list).toHaveBeenLastCalledWith(2, 30, '', true, true, false)
     })
 
     it('should handle undefined response gracefully', async () => {
@@ -1342,7 +1345,8 @@ describe('ProjectStore', () => {
           '',
           false,
           false,
-        )
+        false
+      )
       })
     })
 
@@ -1373,7 +1377,8 @@ describe('ProjectStore', () => {
           '',
           false,
           false,
-        )
+        false
+      )
       })
     })
 

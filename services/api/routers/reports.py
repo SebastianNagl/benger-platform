@@ -551,7 +551,11 @@ async def list_published_reports(
     stmt = (
         select(ProjectReport)
         .options(joinedload(ProjectReport.project))
-        .where(ProjectReport.is_published == True)  # noqa: E712
+        .join(Project, Project.id == ProjectReport.project_id)
+        .where(
+            ProjectReport.is_published == True,  # noqa: E712
+            Project.deleted_at.is_(None),
+        )
     )
 
     # Filter by organization for non-superadmins

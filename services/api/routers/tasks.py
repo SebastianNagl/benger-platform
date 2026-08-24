@@ -45,7 +45,7 @@ async def get_user_accessible_projects(db: AsyncSession, user: AuthUser) -> List
     """Get list of project IDs that the user has access to."""
     # Superadmins can access everything
     if user.is_superadmin:
-        result = await db.execute(select(Project.id))
+        result = await db.execute(select(Project.id).where(Project.deleted_at.is_(None)))
         return [row[0] for row in result.all()]
 
     # Get user's organizations (active memberships only — a deactivated
@@ -63,7 +63,10 @@ async def get_user_accessible_projects(db: AsyncSession, user: AuthUser) -> List
     org_result = await db.execute(
         select(Project.id)
         .join(ProjectOrganization, ProjectOrganization.project_id == Project.id)
-        .where(ProjectOrganization.organization_id.in_(user_orgs))
+        .where(
+            ProjectOrganization.organization_id.in_(user_orgs),
+            Project.deleted_at.is_(None),
+        )
     )
     org_projects = org_result.all()
 

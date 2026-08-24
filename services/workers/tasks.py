@@ -1663,8 +1663,10 @@ def run_evaluation(
             evaluation.status = "running"
             db.commit()
 
-            # Load project
+            # Load project (soft-deleted projects don't run queued jobs).
             project = db.query(Project).filter(Project.id == project_id).first()
+            if project is not None and getattr(project, "deleted_at", None) is not None:
+                project = None
             if not project:
                 evaluation.status = "failed"
                 evaluation.error_message = f"Project {project_id} not found"
@@ -3919,7 +3921,10 @@ def sweep_missing_immediate_evals(self, min_age_minutes: int = 15):
     try:
         projects = (
             db.query(Project)
-            .filter(Project.immediate_evaluation_enabled == True)  # noqa: E712
+            .filter(
+                Project.immediate_evaluation_enabled == True,  # noqa: E712
+                Project.deleted_at.is_(None),
+            )
             .all()
         )
         for project in projects:

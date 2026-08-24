@@ -112,6 +112,9 @@ def require_project_access(
         project = result.scalar_one_or_none()
         if not project:
             raise HTTPException(status_code=404, detail=not_found_detail)
+        # Soft-deleted projects don't exist for non-superadmins (093).
+        if getattr(project, "deleted_at", None) is not None and not current_user.is_superadmin:
+            raise HTTPException(status_code=404, detail=not_found_detail)
 
         org_context = get_org_context_from_request(request)
         tier = "full"

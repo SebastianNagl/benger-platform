@@ -73,6 +73,7 @@ async def score_history(
         .join(Annotation, Annotation.id == TaskEvaluation.annotation_id)
         .join(Task, Task.id == TaskEvaluation.task_id)
         .join(Project, Project.id == Task.project_id)
+        .where(Project.deleted_at.is_(None))
         .join(EvaluationRun, EvaluationRun.id == TaskEvaluation.evaluation_id)
         .where(
             Annotation.completed_by == uid,
