@@ -538,10 +538,13 @@ class TestDeleteProjectSuccess:
 
         assert resp.status_code in (200, 204)
         assert resp.json()["message"] == "Project deleted successfully"
+        # Soft delete (093): the row SURVIVES with deleted_at stamped —
+        # only a superadmin purge destroys data.
         row = (
             await async_test_db.execute(select(Project).where(Project.id == project_id))
         ).scalar_one_or_none()
-        assert row is None
+        assert row is not None
+        assert row.deleted_at is not None
 
     @pytest.mark.asyncio
     async def test_delete_private_by_creator(self, async_test_client, async_test_db):
@@ -557,10 +560,13 @@ class TestDeleteProjectSuccess:
 
         assert resp.status_code in (200, 204)
         assert resp.json()["message"] == "Project deleted successfully"
+        # Soft delete (093): the row SURVIVES with deleted_at stamped —
+        # only a superadmin purge destroys data.
         row = (
             await async_test_db.execute(select(Project).where(Project.id == project_id))
         ).scalar_one_or_none()
-        assert row is None
+        assert row is not None
+        assert row.deleted_at is not None
 
     @pytest.mark.asyncio
     async def test_delete_notification_failure(self, async_test_client, async_test_db):
@@ -578,10 +584,13 @@ class TestDeleteProjectSuccess:
 
         assert resp.status_code in (200, 204)
         assert resp.json()["message"] == "Project deleted successfully"
+        # Soft delete (093): the row SURVIVES with deleted_at stamped —
+        # only a superadmin purge destroys data.
         row = (
             await async_test_db.execute(select(Project).where(Project.id == project_id))
         ).scalar_one_or_none()
-        assert row is None
+        assert row is not None
+        assert row.deleted_at is not None
 
     @pytest.mark.asyncio
     async def test_delete_not_found(self, async_test_client, async_test_db):

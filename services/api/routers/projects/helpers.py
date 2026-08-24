@@ -877,21 +877,14 @@ def get_accessible_project_ids(
             detail="You are not a member of this organization",
         )
 
+    # One joined query: org projects that are not soft-deleted (093).
     rows = (
         db.query(ProjectOrganization.project_id)
-        .filter(ProjectOrganization.organization_id == org_context)
+        .join(Project, Project.id == ProjectOrganization.project_id)
+        .filter(ProjectOrganization.organization_id == org_context, not_deleted())
         .all()
     )
     org_project_ids = [r.project_id for r in rows]
-    # Soft-deleted projects vanish from the org list too (migration 093).
-    if org_project_ids:
-        deleted_ids = {
-            r.id
-            for r in db.query(Project.id)
-            .filter(Project.id.in_(org_project_ids), Project.deleted_at.isnot(None))
-            .all()
-        }
-        org_project_ids = [pid for pid in org_project_ids if pid not in deleted_ids]
     # ANNOTATOR members reach org exams through the student surface (narrow
     # participant tier) — the full-tier carve-out denies them the generic
     # project detail, so listing exams here would only produce dead entries
@@ -989,25 +982,15 @@ async def get_accessible_project_ids_async(
             detail="You are not a member of this organization",
         )
 
+    # One joined query: org projects that are not soft-deleted (093).
     rows = (
         await db.execute(
-            select(ProjectOrganization.project_id).where(
-                ProjectOrganization.organization_id == org_context
-            )
+            select(ProjectOrganization.project_id)
+            .join(Project, Project.id == ProjectOrganization.project_id)
+            .where(ProjectOrganization.organization_id == org_context, not_deleted())
         )
     ).all()
     org_project_ids = [r.project_id for r in rows]
-    # Soft-deleted projects vanish from the org list too (migration 093).
-    if org_project_ids:
-        deleted_rows = (
-            await db.execute(
-                select(Project.id).where(
-                    Project.id.in_(org_project_ids), Project.deleted_at.isnot(None)
-                )
-            )
-        ).all()
-        deleted_ids = {r.id for r in deleted_rows}
-        org_project_ids = [pid for pid in org_project_ids if pid not in deleted_ids]
     # Mirror of the sync helper: annotators reach org exams via the student
     # surface only, so keep exam ids out of the generic browser list.
     caller_role = next(
@@ -1580,14 +1563,11 @@ async def check_task_assigned_to_user_async(
     return assignment_result.scalars().first() is not None
 
 
-def not_deleted():
-    """Shared soft-delete predicate (migration 093): every visibility query
-    excludes stamped projects; superadmin surfaces opt back in explicitly."""
-    return Project.deleted_at.is_(None)
-
-
-def _is_deleted(project) -> bool:
-    return getattr(project, "deleted_at", None) is not None
+# Canonical definitions live in /shared (usable by workers + extended too);
+# re-exported here because router code imports visibility helpers from this
+# module.
+from project_models import project_is_deleted as _is_deleted  # noqa: E402
+from project_models import project_not_deleted as not_deleted  # noqa: E402
 
 
 def _build_select_project_org_ids(project_id: str):
@@ -1885,7 +1865,7 @@ def check_project_write_access(
         return True
 
     project = db.query(Project).filter(Project.id == project_id).first()
-    if not project:
+    if not project or _is_deleted(project):
         return False
 
     role = get_effective_project_role(db, user, project)
@@ -1904,7 +1884,7 @@ async def check_project_write_access_async(
 
     result = await db.execute(select(Project).where(Project.id == project_id))
     project = result.scalar_one_or_none()
-    if not project:
+    if not project or _is_deleted(project):
         return False
 
     role = await get_effective_project_role_async(db, user, project)
@@ -1927,6 +1907,9 @@ def check_user_can_edit_project(
 
     # Check if user is the project creator
     project = db.query(Project).filter(Project.id == project_id).first()
+    if _is_deleted(project):
+        # Soft-deleted (093): no edit rights for anyone but superadmins.
+        return False
     if project and str(project.created_by) == str(user.id):
         return True
 
@@ -1962,6 +1945,9 @@ async def check_user_can_edit_project_async(
 
     result = await db.execute(select(Project).where(Project.id == project_id))
     project = result.scalar_one_or_none()
+    if _is_deleted(project):
+        # Soft-deleted (093): no edit rights for anyone but superadmins.
+        return False
     if project and str(project.created_by) == str(user.id):
         return True
 

@@ -375,6 +375,7 @@ class TestProjectHelpersCoverage:
         project = Mock()
         project.is_private = True
         project.created_by = "u1"
+        project.deleted_at = None
         mock_db.query.return_value.filter.return_value.first.return_value = project
         assert check_project_accessible(mock_db, user, "proj-1", "private") == True  # noqa: E712
 
@@ -442,6 +443,7 @@ class TestProjectHelpersCoverage:
         mock_db = MagicMock()
         project = Mock()
         project.created_by = "u1"
+        project.deleted_at = None
         mock_db.query.return_value.filter.return_value.first.return_value = project
         assert check_user_can_edit_project(mock_db, user, "proj-1") == True  # noqa: E712
 
@@ -518,6 +520,7 @@ class TestProjectHelpersLegacyAccess:
         project = Mock()
         project.is_private = True
         project.created_by = "u1"
+        project.deleted_at = None
         mock_db.query.return_value.filter.return_value.first.return_value = project
         # org_context=None -> legacy mode
         assert check_project_accessible(mock_db, user, "proj-1", None) == True  # noqa: E712
@@ -543,6 +546,7 @@ class TestProjectHelpersLegacyAccess:
         project = Mock()
         project.is_private = False
         project.created_by = "u1"
+        project.deleted_at = None
 
         call_count = [0]
 

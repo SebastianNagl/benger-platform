@@ -77,9 +77,7 @@ async def _project_titles_map(db: AsyncSession, project_ids: List[str]) -> Dict[
     if not project_ids:
         return {}
     result = await db.execute(
-        select(Project.id, Project.title).where(
-            Project.id.in_(project_ids), Project.deleted_at.is_(None)
-        )
+        select(Project.id, Project.title).where(Project.id.in_(project_ids))
     )
     return {row.id: row.title for row in result.all()}
 

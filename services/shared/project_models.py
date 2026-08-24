@@ -155,8 +155,9 @@ class Project(Base):
     # Soft delete (migration 093): a stamped project is invisible to EVERYONE
     # except superadmins (restore/purge from the deleted view). Data in every
     # cascading table survives until an explicit superadmin purge.
-    deleted_at = Column(DateTime(timezone=True), nullable=True, index=True)
-    deleted_by = Column(String, nullable=True)
+    # Partial index (deleted_at IS NOT NULL) created by migration 093.
+    deleted_at = Column(DateTime(timezone=True), nullable=True)
+    deleted_by = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
 
     # Feature visibility — controls which configuration cards render on the
     # project detail page. Hides the card; underlying data is preserved and
@@ -1437,3 +1438,15 @@ class TaskRubric(Base):
             f"<TaskRubric(id={self.id}, task_id={self.task_id}, "
             f"status={self.status}, generator={self.generator_model_id})>"
         )
+
+
+def project_not_deleted():
+    """Soft-delete predicate (migration 093): every visibility query excludes
+    stamped projects; superadmin surfaces opt back in explicitly. Lives in
+    /shared so api, workers and the extended package share ONE definition."""
+    return Project.deleted_at.is_(None)
+
+
+def project_is_deleted(project) -> bool:
+    """Instance twin of :func:`project_not_deleted`."""
+    return getattr(project, "deleted_at", None) is not None

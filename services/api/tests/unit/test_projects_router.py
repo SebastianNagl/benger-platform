@@ -318,11 +318,13 @@ class TestProjectsRouter:
             response = await async_test_client.delete(f"/api/projects/{project_id}")
 
         assert response.status_code in [200, 204]
-        # Row is gone.
+        # Soft delete (093): the row SURVIVES with deleted_at stamped —
+        # only a superadmin purge destroys data.
         row = (
             await async_test_db.execute(select(Project).where(Project.id == project_id))
         ).scalar_one_or_none()
-        assert row is None
+        assert row is not None
+        assert row.deleted_at is not None
 
 
 class TestPrivateProjectDeletion:
@@ -344,10 +346,13 @@ class TestPrivateProjectDeletion:
             response = await async_test_client.delete(f"/api/projects/{project_id}")
 
         assert response.status_code in [200, 204]
+        # Soft delete (093): the row SURVIVES with deleted_at stamped —
+        # only a superadmin purge destroys data.
         row = (
             await async_test_db.execute(select(Project).where(Project.id == project_id))
         ).scalar_one_or_none()
-        assert row is None
+        assert row is not None
+        assert row.deleted_at is not None
 
     @pytest.mark.asyncio
     async def test_delete_private_project_by_other_user_blocked(
@@ -376,12 +381,30 @@ class TestPrivateProjectDeletion:
     async def test_delete_org_project_by_regular_user_blocked(
         self, async_test_client, async_test_db
     ):
-        """Non-superadmin should NOT be able to delete an org project."""
+        """A creator who is not an org admin cannot delete an ORG project.
+
+        (Creators of org-less/personal projects and org ADMINS may soft-
+        delete; a mere creator must not pull an org project out from under
+        the org — soft delete, 093.)
+        """
+        from models import Organization
+
         regular_user = await _make_user(async_test_db)
-        # Org project (not private) created by the regular user. The delete
-        # guard only allows superadmins, or creators of *private* projects.
         project = await _make_project(
             async_test_db, created_by=regular_user.id, is_private=False
+        )
+        org = Organization(
+            id=_uid(), name="o", display_name="o", slug=f"o-{_uid()[:8]}"
+        )
+        async_test_db.add(org)
+        await async_test_db.flush()
+        async_test_db.add(
+            ProjectOrganization(
+                id=_uid(),
+                project_id=project.id,
+                organization_id=org.id,
+                assigned_by=regular_user.id,
+            )
         )
         project_id = project.id
         await async_test_db.commit()

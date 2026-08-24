@@ -17,6 +17,7 @@ from contextlib import contextmanager
 from datetime import datetime, timezone
 
 import pytest
+from sqlalchemy import select
 
 from routers.projects.crud import deep_merge_dicts
 
@@ -211,17 +212,22 @@ class TestDeleteProject:
     async def test_non_private_project_non_superadmin(
         self, async_test_client, async_test_db
     ):
-        # Non-private (org) project, non-superadmin creator -> delete guard only
-        # allows superadmins or creators of *private* projects -> 403.
+        # Non-private but ORG-LESS project: its creator may soft-delete it
+        # (only creators of true org projects are pushed to the org admin).
         user = await _make_user(async_test_db)
         project = await _make_project(
             async_test_db, created_by=user.id, is_private=False
         )
+        pid = project.id
         await async_test_db.commit()
 
         with _as_user(user):
-            resp = await async_test_client.delete(f"/api/projects/{project.id}")
-        assert resp.status_code == 403
+            resp = await async_test_client.delete(f"/api/projects/{pid}")
+        assert resp.status_code == 200
+        row = (
+            await async_test_db.execute(select(Project).where(Project.id == pid))
+        ).scalar_one()
+        assert row.deleted_at is not None
 
 
 class TestGetProject:

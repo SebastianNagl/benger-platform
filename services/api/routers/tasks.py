@@ -76,7 +76,9 @@ async def get_user_accessible_projects(db: AsyncSession, user: AuthUser) -> List
 
     # Get projects where user is a member
     member_result = await db.execute(
-        select(ProjectMember.project_id).where(ProjectMember.user_id == user.id)
+        select(ProjectMember.project_id)
+        .join(Project, Project.id == ProjectMember.project_id)
+        .where(ProjectMember.user_id == user.id, Project.deleted_at.is_(None))
     )
     member_projects = member_result.all()
 

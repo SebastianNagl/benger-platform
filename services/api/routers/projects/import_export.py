@@ -149,6 +149,17 @@ async def _load_export_job_for_read(
     ).scalar_one_or_none()
     if job is None or job.project_id != project_id:
         raise HTTPException(status_code=404, detail="Export job not found")
+    # Soft-deleted project (093): finished exports of it stop being
+    # downloadable for non-superadmins — the requester-match arm below would
+    # otherwise bypass the write-access gate's deleted check.
+    if not current_user.is_superadmin:
+        deleted = (
+            await db.execute(
+                select(Project.deleted_at).where(Project.id == project_id)
+            )
+        ).scalar_one_or_none()
+        if deleted is not None:
+            raise HTTPException(status_code=404, detail="Export job not found")
     if str(job.requested_by) != str(current_user.id) and not await check_project_write_access_async(
         db, current_user, project_id
     ):

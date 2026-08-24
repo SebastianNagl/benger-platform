@@ -397,18 +397,15 @@ class TestGetAccessibleProjectIds:
         user_query.filter.return_value = user_query
         user_query.first.return_value = user_with_memberships
 
-        # 3) Project IDs in the org
+        # 3) Project IDs in the org — one joined query with the soft-delete
+        #    filter inlined (migration 093).
         proj_query = MagicMock()
+        proj_query.join.return_value = proj_query
         proj_query.filter.return_value = proj_query
         proj_row = Mock(project_id="proj-1")
         proj_query.all.return_value = [proj_row]
 
-        # 4) soft-delete filter over the org project ids (migration 093)
-        deleted_query = MagicMock()
-        deleted_query.filter.return_value = deleted_query
-        deleted_query.all.return_value = []
-
-        db.query.side_effect = [public_query, user_query, proj_query, deleted_query]
+        db.query.side_effect = [public_query, user_query, proj_query]
 
         result = get_accessible_project_ids(db, user, org_context="org-1")
         assert result == ["proj-1"]

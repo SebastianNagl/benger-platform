@@ -57,6 +57,10 @@ async def assign_tasks(
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
+    if getattr(project, "deleted_at", None) is not None and not current_user.is_superadmin:
+        # Soft-deleted (093): no new assignments (or assignment notifications)
+        # on a hidden project.
+        raise HTTPException(status_code=404, detail="Project not found")
 
     # Check permission - only superadmin, org admin, or contributor can assign
     user_with_memberships = get_user_with_memberships(db, current_user.id)

@@ -13,6 +13,7 @@ from auth_module.models import User as AuthUser
 from database import SessionLocal, get_async_db
 from notification_service import notify_project_archived, notify_project_deleted
 from project_models import Project, ProjectMember, ProjectOrganization, Task
+from routers.projects.crud import _can_soft_delete
 from routers.projects.helpers import check_user_can_edit_project_async
 
 router = APIRouter()
@@ -69,11 +70,6 @@ async def bulk_delete_projects(
                 failed_projects.append({"id": project_id, "reason": "Project not found"})
                 continue
 
-            # Same rule as the single delete: superadmin, creator of a
-            # PRIVATE project, or org admin (the old bulk rule let creators
-            # delete org projects — tightened deliberately).
-            from routers.projects.crud import _can_soft_delete
-
             if project.deleted_at is not None and not current_user.is_superadmin:
                 failed_projects.append({"id": project_id, "reason": "Project not found"})
                 continue
@@ -98,10 +94,15 @@ async def bulk_delete_projects(
             ).scalar_one_or_none()
 
             # Soft delete: stamp only; every cascading table keeps its data.
-            if project.deleted_at is None:
+            # Already-deleted ids (superadmin re-submits) count as no-ops:
+            # no second notification, no inflated count.
+            freshly_deleted = project.deleted_at is None
+            if freshly_deleted:
                 project.deleted_at = datetime.now(timezone.utc)
                 project.deleted_by = str(current_user.id)
             await db.commit()
+            if not freshly_deleted:
+                continue
             deleted_count += 1
             logger.info(f"Successfully deleted project {project_id}")
 
@@ -187,6 +188,10 @@ async def bulk_purge_projects(
             ).scalar_one_or_none()
             if project is None:
                 failed.append({"id": project_id, "reason": "Project not found"})
+                continue
+            if project.deleted_at is None:
+                # Two-step destruction: soft-delete first (see single purge).
+                failed.append({"id": project_id, "reason": "Not soft-deleted"})
                 continue
             await db.execute(
                 ProjectOrganization.__table__.delete().where(

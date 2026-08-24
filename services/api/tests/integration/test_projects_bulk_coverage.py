@@ -2,9 +2,10 @@
 
 Targets the uncovered arms of ``services/api/routers/projects/bulk.py``:
 
-  * ``POST /api/projects/bulk-delete``    — creator/superadmin gate, not-found
-    skip, permission-denied skip, the successful delete (project + members +
-    orgs + tasks removed, notification fired), and per-project error isolation.
+  * ``POST /api/projects/bulk-delete``    — soft-delete gate (superadmin /
+    creator of org-less project / org admin), not-found skip, permission-denied
+    skip, the successful soft delete (``deleted_at`` stamped, child rows
+    preserved, notification fired), and per-project error isolation.
   * ``POST /api/projects/bulk-archive``   — edit-permission gate (creator /
     org-admin / contributor allowed, annotator / non-member skipped), the
     ``is_archived`` flip persisted, not-found skip, notification fired.
@@ -206,25 +207,21 @@ class TestBulkDelete:
         assert body["failed"] == 0
         assert body["failed_projects"] == []
 
-        # Project + all child rows gone.
-        assert await _get_project(async_test_db, pid) is None
+        # Soft delete (093): the project is stamped, every child row SURVIVES.
+        proj = await _get_project(async_test_db, pid)
+        assert proj is not None and proj.deleted_at is not None
         assert (
             await async_test_db.execute(
                 select(Task).where(Task.project_id == pid)
             )
-        ).scalars().all() == []
-        assert (
-            await async_test_db.execute(
-                select(ProjectMember).where(ProjectMember.project_id == pid)
-            )
-        ).scalars().all() == []
+        ).scalars().all() != []
         assert (
             await async_test_db.execute(
                 select(ProjectOrganization).where(
                     ProjectOrganization.project_id == pid
                 )
             )
-        ).scalars().all() == []
+        ).scalars().all() != []
 
     @pytest.mark.asyncio
     async def test_missing_project_reported_as_failed(
@@ -306,8 +303,10 @@ class TestBulkDelete:
         assert body["deleted"] == 1
         assert body["failed"] == 2
 
-        assert await _get_project(async_test_db, own.id) is None
-        assert await _get_project(async_test_db, foreign.id) is not None
+        own_row = await _get_project(async_test_db, own.id)
+        assert own_row is not None and own_row.deleted_at is not None
+        foreign_row = await _get_project(async_test_db, foreign.id)
+        assert foreign_row is not None and foreign_row.deleted_at is None
 
     @pytest.mark.asyncio
     async def test_empty_project_ids_is_noop(

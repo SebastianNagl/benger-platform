@@ -60,7 +60,6 @@ async def test_soft_delete_hides_everywhere_and_preserves_data(
         assert p.id not in {x["id"] for x in (await async_test_client.get("/api/projects/")).json()["items"]}
 
     # Every row survives.
-    await db.expire_all() if False else None
     proj = (await db.execute(select(Project).where(Project.id == p.id))).scalar_one()
     assert proj.deleted_at is not None and proj.deleted_by == owner.id
     assert (await db.execute(select(Task).where(Task.project_id == p.id))).scalars().all()
@@ -115,11 +114,16 @@ async def test_superadmin_deleted_view_restore_and_purge(async_test_client, asyn
         assert r.status_code == 200 and r.json()["deleted_at"] is None
         assert (await async_test_client.get(f"/api/projects/{p.id}/tasks")).status_code == 200
 
-    # Purge: superadmin only, rows really gone.
+    # Purge: superadmin only, requires a prior soft delete, rows really gone.
     with _as_user(owner):
         assert (await async_test_client.delete(f"/api/projects/{p.id}/purge")).status_code == 403
         assert (await async_test_client.post(f"/api/projects/{p.id}/restore")).status_code == 403
     with _as_user(admin):
+        # The project is live again after the restore — purging it directly
+        # is refused (409 not_deleted) until it is soft-deleted first.
+        r = await async_test_client.delete(f"/api/projects/{p.id}/purge")
+        assert r.status_code == 409, r.text
+        assert (await async_test_client.delete(f"/api/projects/{p.id}")).status_code == 200
         assert (await async_test_client.delete(f"/api/projects/{p.id}/purge")).status_code == 200
     assert (await db.execute(select(Project).where(Project.id == p.id))).scalar_one_or_none() is None
     assert not (await db.execute(select(Task).where(Task.project_id == p.id))).scalars().all()
@@ -142,6 +146,33 @@ async def test_delete_permissions(async_test_client, async_test_db):
     proj = (await db.execute(select(Project).where(Project.id == org_project.id))).scalar_one()
     assert proj.deleted_at is not None
 
+    # bulk-delete enforces the same rule: creator of an ORG project is denied.
+    org_project2 = await _project(db, creator, private=False)
+    await _attach(db, org_project2, org, admin)
+    with _as_user(creator):
+        r = await async_test_client.post(
+            "/api/projects/bulk-delete", json={"project_ids": [org_project2.id]}
+        )
+        assert r.status_code == 200 and r.json()["deleted"] == 0
+        assert r.json()["failed"] == 1
+
+
+async def test_deleted_project_rejects_writes_and_only_deleted_is_superadmin_only(
+    async_test_client, async_test_db
+):
+    db = async_test_db
+    owner = await _user(db)
+    p = await _project(db, owner)
+    with _as_user(owner):
+        await async_test_client.delete(f"/api/projects/{p.id}")
+        # Writes bounce off a deleted project with 404 (existence-hiding).
+        r = await async_test_client.patch(f"/api/projects/{p.id}", json={"title": "Zombie"})
+        assert r.status_code == 404, r.text
+        # only_deleted is a superadmin-only lens; others just get nothing.
+        r = await async_test_client.get("/api/projects/", params={"only_deleted": "true"})
+        assert r.status_code == 200
+        assert p.id not in {x["id"] for x in r.json()["items"]}
+
 
 async def test_bulk_soft_delete_restore_purge(async_test_client, async_test_db):
     db = async_test_db
@@ -160,7 +191,10 @@ async def test_bulk_soft_delete_restore_purge(async_test_client, async_test_db):
         assert (await db.execute(select(Task).where(Task.project_id == pid))).scalars().all()
     with _as_user(admin):
         assert (await async_test_client.post("/api/projects/bulk-restore", json={"project_ids": [p1.id]})).json()["restored"] == 1
-        assert (await async_test_client.post("/api/projects/bulk-purge", json={"project_ids": [p2.id]})).json()["purged"] == 1
+        # Bulk-purge only touches soft-deleted rows: the restored p1 is skipped.
+        r = (await async_test_client.post("/api/projects/bulk-purge", json={"project_ids": [p1.id, p2.id]})).json()
+        assert r["purged"] == 1
+        assert [f["reason"] for f in r["failed_projects"]] == ["Not soft-deleted"]
     assert (await db.execute(select(Project.deleted_at).where(Project.id == p1.id))).scalar_one() is None
     assert (await db.execute(select(Project).where(Project.id == p2.id))).scalar_one_or_none() is None
 

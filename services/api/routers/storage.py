@@ -169,7 +169,9 @@ async def get_download_url(
             task = (
                 await db.execute(select(Project).where(Project.id == uploaded_data.task_id))
             ).scalar_one_or_none()
-            if not task:
+            if not task or getattr(task, "deleted_at", None) is not None:
+                # Soft-deleted project (093): its files stop resolving for
+                # non-superadmins (the superadmin arm short-circuits above).
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail="Associated task not found",

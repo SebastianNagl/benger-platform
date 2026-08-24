@@ -77,6 +77,7 @@ def _setup_generate_llm_mocks(
     gen.structure_key = None
 
     project = MagicMock()
+    project.deleted_at = None  # soft-delete guard (093)
     project.generation_config = generation_config
     project.label_config = label_config
     project.label_config_version = None
@@ -385,6 +386,7 @@ class TestGenerateLLMResponsesStructureKeyListFormat:
         gen.task_id = "task-1"
 
         project = MagicMock()
+        project.deleted_at = None  # soft-delete guard (093)
         project.generation_config = {
             "prompt_structures": [
                 {"key": "my_struct", "structure": {"system_prompt": "test"}},
@@ -485,6 +487,7 @@ class TestGenerateLLMResponsesStructureKeyNotFound:
         gen.task_id = "task-1"
 
         project = MagicMock()
+        project.deleted_at = None  # soft-delete guard (093)
         project.generation_config = {
             "prompt_structures": [
                 {"key": "other_struct", "structure": {}},
@@ -532,6 +535,7 @@ class TestGenerateLLMResponsesStructureKeyDictFormat:
         gen.task_id = "task-1"
 
         project = MagicMock()
+        project.deleted_at = None  # soft-delete guard (093)
         project.generation_config = {
             "prompt_structures": {"other": {"system_prompt": "x"}},
         }
@@ -575,6 +579,7 @@ class TestGenerateLLMResponsesNoAIServices:
         gen.task_id = "task-1"
 
         project = MagicMock()
+        project.deleted_at = None  # soft-delete guard (093)
         project.generation_config = None
         project.label_config = None
 
@@ -632,6 +637,7 @@ class TestGenerateLLMResponsesAPIKeyError:
         gen.task_id = "task-1"
 
         project = MagicMock()
+        project.deleted_at = None  # soft-delete guard (093)
         project.generation_config = None
         project.label_config = None
 
@@ -866,6 +872,7 @@ class TestRunEvaluationNoEnabledConfigs:
         evaluation.eval_metadata = {}
 
         project = MagicMock()
+        project.deleted_at = None  # soft-delete guard (093)
 
         call_idx = [0]
 
@@ -901,6 +908,7 @@ class TestRunEvaluationNoTasks:
         evaluation.eval_metadata = {}
 
         project = MagicMock()
+        project.deleted_at = None  # soft-delete guard (093)
 
         call_idx = [0]
 

@@ -709,8 +709,13 @@ async def _load_link_by_token(db: AsyncSession, token: str) -> ProjectShareLink:
     ).scalar_one_or_none()
     if not link:
         raise HTTPException(status_code=404, detail="Share link not found")
-    # A soft-deleted project's links don't resolve (behaves like the project
-    # is gone — preview, join and withdrawal all 404).
+    await _ensure_link_project_alive(db, link)
+    return link
+
+
+async def _ensure_link_project_alive(db: AsyncSession, link: ProjectShareLink) -> None:
+    """A soft-deleted project's links don't resolve (behaves like the project
+    is gone — preview, join and withdrawal all 404)."""
     deleted = (
         await db.execute(
             select(Project.deleted_at).where(Project.id == link.project_id)
@@ -718,7 +723,6 @@ async def _load_link_by_token(db: AsyncSession, token: str) -> ProjectShareLink:
     ).scalar_one_or_none()
     if deleted is not None:
         raise HTTPException(status_code=404, detail="Share link not found")
-    return link
 
 
 @token_router.get("/{token}")
@@ -784,14 +788,7 @@ async def join_share(
     ).scalar_one_or_none()
     if not link:
         raise HTTPException(status_code=404, detail="Share link not found")
-    # Soft-deleted project (093): the link behaves as if the project is gone.
-    _deleted = (
-        await db.execute(
-            select(Project.deleted_at).where(Project.id == link.project_id)
-        )
-    ).scalar_one_or_none()
-    if _deleted is not None:
-        raise HTTPException(status_code=404, detail="Share link not found")
+    await _ensure_link_project_alive(db, link)
 
     now = datetime.now(timezone.utc)
     if link.revoked_at is not None:
