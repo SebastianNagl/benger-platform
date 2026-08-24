@@ -4,6 +4,7 @@
     "next": "Weiter",
     "dashboard": "Dashboard",
     "reports": "Berichte",
+    "learningStats": "Lernstatistik",
     "leaderboards": "Bestenlisten",
     "projects": "Projekte",
     "dataManagement": "Datenverwaltung",
@@ -161,7 +162,8 @@
       "collapse": "Einklappen",
       "expand": "Ausklappen",
       "show": "Anzeigen",
-      "hide": "Ausblenden"
+      "hide": "Ausblenden",
+      "unavailable": "Die Lernstatistik ist in dieser Edition nicht verfügbar."
     }
   },
   "projects": {
@@ -9060,7 +9062,7 @@
       "unavailable": "Diese Funktion ist in der Community-Edition nicht verfügbar."
     },
     "nav": {
-      "dashboard": "Übersicht",
+      "stats": "Lernstatistik",
       "exams": "Klausuren",
       "decks": "Karteikarten",
       "leaderboard": "Bestenliste",
@@ -9131,7 +9133,7 @@
         "seriesKi": "KI-Korrektur",
         "title": "Notenverlauf"
       },
-      "title": "Dashboard",
+      "title": "Meine Lernstatistik",
       "tiles": {
         "dueToday": "Heute fällig",
         "exams": "Klausuren",

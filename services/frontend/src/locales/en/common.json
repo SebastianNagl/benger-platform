@@ -4,6 +4,7 @@
     "next": "Next",
     "dashboard": "Dashboard",
     "reports": "Reports",
+    "learningStats": "Learning Statistics",
     "leaderboards": "Leaderboards",
     "projects": "Projects",
     "dataManagement": "Data Management",
@@ -161,7 +162,8 @@
       "collapse": "Collapse",
       "expand": "Expand",
       "show": "Show",
-      "hide": "Hide"
+      "hide": "Hide",
+      "unavailable": "Learning statistics are not available in this edition."
     }
   },
   "projects": {
@@ -9070,7 +9072,7 @@
       "unavailable": "This feature is not available in the community edition."
     },
     "nav": {
-      "dashboard": "Overview",
+      "stats": "Learning statistics",
       "exams": "Exams",
       "decks": "Flashcards",
       "leaderboard": "Leaderboard",
@@ -9141,7 +9143,7 @@
         "seriesKi": "AI grading",
         "title": "Score history"
       },
-      "title": "Dashboard",
+      "title": "My learning statistics",
       "tiles": {
         "dueToday": "Due today",
         "exams": "Exams",
