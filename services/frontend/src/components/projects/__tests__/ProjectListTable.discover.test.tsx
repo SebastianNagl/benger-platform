@@ -93,6 +93,7 @@ describe('ProjectListTable — discover + participant', () => {
     ;(useProjectStore as unknown as jest.Mock).mockReturnValue(s)
     render(<ProjectListTable />)
     // Not gated on create permissions (annotator-role users browse too).
+    fireEvent.click(screen.getByTestId('projects-more-button'))
     fireEvent.click(screen.getByTestId('projects-discover-button'))
     expect(await screen.findByTestId('discover-modal')).toBeInTheDocument()
     s.fetchProjects.mockClear()

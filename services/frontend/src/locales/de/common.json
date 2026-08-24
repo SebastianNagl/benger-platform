@@ -870,6 +870,7 @@
       "postCreateHookFailed": "Nachbearbeitung fehlgeschlagen"
     },
     "discover": "Entdecken",
+    "more": "Mehr",
     "deleted": {
       "title": "Gelöschte Projekte",
       "subtitle": "Gelöschte Projekte sind für alle ausgeblendet, ihre Daten bleiben erhalten. Nur hier können sie wiederhergestellt oder endgültig gelöscht werden.",

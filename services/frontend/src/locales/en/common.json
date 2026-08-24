@@ -870,6 +870,7 @@
       "postCreateHookFailed": "Post-processing failed"
     },
     "discover": "Discover",
+    "more": "More",
     "deleted": {
       "title": "Deleted projects",
       "subtitle": "Deleted projects are hidden from everyone; their data is preserved. Only here can they be restored or destroyed for good.",

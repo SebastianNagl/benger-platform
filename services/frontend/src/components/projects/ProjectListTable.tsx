@@ -35,6 +35,7 @@ import {
   UserGroupIcon,
   PlusIcon,
 } from '@heroicons/react/24/outline'
+import { Menu } from '@headlessui/react'
 import { formatDistanceToNow } from 'date-fns'
 import { computeWindowState } from '@/utils/projectWindow'
 import { de } from 'date-fns/locale'
@@ -524,36 +525,6 @@ export function ProjectListTable({
             </h1>
           </div>
           <div className="flex items-center gap-3">
-            {!showArchivedOnly && ProjectDiscoverModal && (
-              <Button
-                onClick={() => setDiscoverOpen(true)}
-                variant="outline"
-                data-testid="projects-discover-button"
-              >
-                <MagnifyingGlassIcon className="h-4 w-4" />
-                {t('projects.discover', 'Entdecken')}
-              </Button>
-            )}
-            {!showArchivedOnly && user?.is_superadmin && (
-              <Button
-                onClick={() => router.push('/projects/deleted')}
-                variant="outline"
-                data-testid="projects-deleted-button"
-              >
-                <TrashIcon className="h-4 w-4" />
-                {t('projects.deleted.title', 'Gelöschte Projekte')}
-              </Button>
-            )}
-            {!showArchivedOnly && userCanCreateProjects && (
-              <Button
-                onClick={() => router.push('/projects/archived')}
-                variant="outline"
-                data-testid="projects-archived-button"
-              >
-                <ArchiveBoxIcon className="h-4 w-4" />
-                {t('projects.archived')}
-              </Button>
-            )}
             {showArchivedOnly && userCanCreateProjects && (
               <Button
                 onClick={() => router.push('/projects')}
@@ -564,25 +535,90 @@ export function ProjectListTable({
                 {t('projects.activeProjects')}
               </Button>
             )}
+            {!showArchivedOnly &&
+              (ProjectDiscoverModal || user?.is_superadmin || userCanCreateProjects) && (
+                <Menu as="div" className="relative inline-block text-left">
+                  <Menu.Button as={Button} variant="outline" data-testid="projects-more-button">
+                    {t('projects.more', 'Mehr')}
+                    <ChevronDownIcon className="h-4 w-4" />
+                  </Menu.Button>
+                  <Menu.Items className="absolute right-0 z-10 mt-2 w-56 origin-top-right rounded-lg bg-white p-1 shadow-lg ring-1 ring-black ring-opacity-5 transition duration-100 ease-out focus:outline-none data-[closed]:scale-95 data-[closed]:transform data-[closed]:opacity-0 dark:bg-zinc-900">
+                    {ProjectDiscoverModal && (
+                      <Menu.Item>
+                        {({ active }) => (
+                          <button
+                            className={`${
+                              active ? 'bg-zinc-100 dark:bg-zinc-800' : ''
+                            } group flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-zinc-900 dark:text-white`}
+                            onClick={() => setDiscoverOpen(true)}
+                            data-testid="projects-discover-button"
+                          >
+                            <MagnifyingGlassIcon className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
+                            {t('projects.discover', 'Entdecken')}
+                          </button>
+                        )}
+                      </Menu.Item>
+                    )}
+                    {user?.is_superadmin && (
+                      <Menu.Item>
+                        {({ active }) => (
+                          <button
+                            className={`${
+                              active ? 'bg-zinc-100 dark:bg-zinc-800' : ''
+                            } group flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-zinc-900 dark:text-white`}
+                            onClick={() => router.push('/projects/deleted')}
+                            data-testid="projects-deleted-button"
+                          >
+                            <TrashIcon className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
+                            {t('projects.deleted.title', 'Gelöschte Projekte')}
+                          </button>
+                        )}
+                      </Menu.Item>
+                    )}
+                    {userCanCreateProjects && (
+                      <Menu.Item>
+                        {({ active }) => (
+                          <button
+                            className={`${
+                              active ? 'bg-zinc-100 dark:bg-zinc-800' : ''
+                            } group flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-zinc-900 dark:text-white`}
+                            onClick={() => router.push('/projects/archived')}
+                            data-testid="projects-archived-button"
+                          >
+                            <ArchiveBoxIcon className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
+                            {t('projects.archived')}
+                          </button>
+                        )}
+                      </Menu.Item>
+                    )}
+                    {userCanCreateProjects && (
+                      <Menu.Item>
+                        {({ active }) => (
+                          <button
+                            className={`${
+                              active ? 'bg-zinc-100 dark:bg-zinc-800' : ''
+                            } group flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-zinc-900 dark:text-white`}
+                            onClick={() => fileInputRef.current?.click()}
+                            data-testid="projects-import-button"
+                          >
+                            <CloudArrowUpIcon className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
+                            {t('projects.importProject')}
+                          </button>
+                        )}
+                      </Menu.Item>
+                    )}
+                  </Menu.Items>
+                </Menu>
+              )}
             {!showArchivedOnly && userCanCreateProjects && (
-              <>
-                <Button
-                  onClick={() => fileInputRef.current?.click()}
-                  variant="outline"
-                  data-testid="projects-import-button"
-                >
-                  <CloudArrowUpIcon className="h-4 w-4" />
-                  {t('projects.importProject')}
-                </Button>
-                <Button
-                  onClick={() => router.push('/projects/create')}
-                  variant="filled"
-                  data-testid="projects-create-button"
-                >
-                  <PlusIcon className="h-4 w-4" />
-                  {t('projects.newProject')}
-                </Button>
-              </>
+              <Button
+                onClick={() => router.push('/projects/create')}
+                variant="filled"
+                data-testid="projects-create-button"
+              >
+                <PlusIcon className="h-4 w-4" />
+                {t('projects.newProject')}
+              </Button>
             )}
           </div>
         </div>
