@@ -12,6 +12,12 @@
 
 export { registerSlot, getSlot, useSlot, hasSlot } from './slots'
 export {
+  registerChangelogEntries,
+  getChangelogEntries,
+  useChangelogEntries,
+} from './changelog'
+export type { ChangelogEntry, ChangelogAudience } from './changelog'
+export {
   registerWizardTemplate,
   getRegisteredWizardTemplates,
   registerWizardPostCreateHook,

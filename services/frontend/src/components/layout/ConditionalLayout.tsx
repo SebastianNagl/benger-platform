@@ -55,7 +55,7 @@ export function ConditionalLayout({
   ]
 
   // Legal pages that should use minimal layout for unauthenticated users
-  const legalPages = ['/about/imprint', '/about/data-protection']
+  const legalPages = ['/about/imprint', '/about/data-protection', '/changelog']
 
   // Check if the current path is a standalone page
   // For pages with dynamic routes (like /verify-email/[token]), check if path starts with the base

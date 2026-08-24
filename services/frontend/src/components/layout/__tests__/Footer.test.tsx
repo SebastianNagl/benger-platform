@@ -9,6 +9,7 @@ jest.mock('@/contexts/I18nContext', () => ({
           footer: {
             imprint: 'Imprint',
             dataProtection: 'Privacy Policy',
+            changelog: 'Changelog',
             followNotion: 'Follow us on Notion',
             followGithub: 'Follow us on GitHub',
             allRightsReserved: 'All rights reserved.',
@@ -84,6 +85,10 @@ describe('Footer', () => {
       expect(
         screen.getByRole('link', { name: /privacy policy/i })
       ).toHaveAttribute('href', '/about/data-protection')
+      expect(screen.getByRole('link', { name: /changelog/i })).toHaveAttribute(
+        'href',
+        '/changelog'
+      )
     })
 
     it('renders copyright notice with current year', () => {
@@ -220,6 +225,7 @@ describe('Footer', () => {
       const legalLinks = [
         screen.getByRole('link', { name: /imprint/i }),
         screen.getByRole('link', { name: /privacy policy/i }),
+        screen.getByRole('link', { name: /changelog/i }),
       ]
 
       legalLinks.forEach((link) => {

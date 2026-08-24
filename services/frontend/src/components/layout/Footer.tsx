@@ -51,6 +51,12 @@ function SmallPrint() {
           >
             {t('layout.footer.dataProtection')}
           </Link>
+          <Link
+            href="/changelog"
+            className="text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-300"
+          >
+            {t('layout.footer.changelog')}
+          </Link>
         </div>
         <p className="text-xs text-zinc-600 dark:text-zinc-400">
           &copy; Copyright{' '}

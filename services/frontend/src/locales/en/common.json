@@ -3517,6 +3517,11 @@
       "loading": "Loading..."
     }
   },
+  "changelog": {
+    "title": "Changelog",
+    "intro": "An overview of new features and improvements.",
+    "empty": "No entries yet."
+  },
   "footer": {
     "imprint": "Impressum",
     "dataProtection": "Datenschutz",
@@ -8570,6 +8575,7 @@
     "footer": {
       "imprint": "Imprint",
       "dataProtection": "Privacy Policy",
+      "changelog": "Changelog",
       "followNotion": "Follow us on Notion",
       "followGithub": "Follow us on GitHub",
       "allRightsReserved": "All rights reserved."
