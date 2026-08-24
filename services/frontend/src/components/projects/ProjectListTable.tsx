@@ -535,6 +535,16 @@ export function ProjectListTable({
                 {t('projects.activeProjects')}
               </Button>
             )}
+            {!showArchivedOnly && userCanCreateProjects && (
+              <Button
+                onClick={() => router.push('/projects/create')}
+                variant="filled"
+                data-testid="projects-create-button"
+              >
+                <PlusIcon className="h-4 w-4" />
+                {t('projects.newProject')}
+              </Button>
+            )}
             {!showArchivedOnly &&
               (ProjectDiscoverModal || user?.is_superadmin || userCanCreateProjects) && (
                 <Menu as="div" className="relative inline-block text-left">
@@ -610,16 +620,6 @@ export function ProjectListTable({
                   </Menu.Items>
                 </Menu>
               )}
-            {!showArchivedOnly && userCanCreateProjects && (
-              <Button
-                onClick={() => router.push('/projects/create')}
-                variant="filled"
-                data-testid="projects-create-button"
-              >
-                <PlusIcon className="h-4 w-4" />
-                {t('projects.newProject')}
-              </Button>
-            )}
           </div>
         </div>
       </div>
