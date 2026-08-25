@@ -10,7 +10,7 @@ import { useI18n } from '@/contexts/I18nContext'
 import { projectsAPI } from '@/lib/api/projects'
 import { useProjectStore } from '@/stores/projectStore'
 import '@testing-library/jest-dom'
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useRouter } from 'next/navigation'
 import TaskDetailPage from '../page'
@@ -585,6 +585,29 @@ describe('TaskDetailPage', () => {
       await waitFor(() => {
         expect(screen.getByText('Edit')).toBeInTheDocument()
       })
+    })
+
+    it('mounts the structured editor slot next to Edit and applies onSaved', async () => {
+      const { registerSlot } = jest.requireActual('@/lib/extensions/slots')
+      const Stub = jest.fn(({ task, canEdit, onSaved }: any) => (
+        <button
+          data-testid="structured-stub"
+          data-can-edit={String(canEdit)}
+          onClick={() => onSaved({ ...task.data, sachverhalt: 'neu' })}
+        >
+          {task.id}
+        </button>
+      ))
+      registerSlot('TaskStructuredEditor', Stub)
+      ;(useAuth as jest.Mock).mockReturnValue({ user: mockSuperadmin })
+      const params = Promise.resolve({ id: 'project-123', taskId: 'task-456' })
+      render(<TaskDetailPage params={params} />)
+      const stub = await screen.findByTestId('structured-stub')
+      expect(stub).toHaveAttribute('data-can-edit', 'true')
+      expect(Stub.mock.calls[0][0].projectId).toBe('project-123')
+      fireEvent.click(stub)
+      await waitFor(() => expect(screen.getByText(/"sachverhalt": "neu"/)).toBeInTheDocument())
+      registerSlot('TaskStructuredEditor', null as any)
     })
 
     it('hides edit button for non-superadmins', async () => {

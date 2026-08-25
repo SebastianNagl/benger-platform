@@ -820,7 +820,8 @@ def get_accessible_project_ids(
                 or_(
                     Project.is_private == False,  # noqa: E712
                     Project.created_by == str(user.id),
-                )
+                ),
+                not_deleted(),
             )
             .all()
         )
@@ -833,7 +834,10 @@ def get_accessible_project_ids(
         return result
 
     public_ids = [
-        r.id for r in db.query(Project.id).filter(Project.is_public == True).all()  # noqa: E712
+        r.id
+        for r in db.query(Project.id)
+        .filter(Project.is_public == True, not_deleted())  # noqa: E712
+        .all()
     ]
 
     if not org_context or org_context == "private":
@@ -842,6 +846,7 @@ def get_accessible_project_ids(
             .filter(
                 Project.is_private == True,  # noqa: E712
                 Project.created_by == str(user.id),
+                not_deleted(),
             )
             .all()
         )
@@ -872,9 +877,11 @@ def get_accessible_project_ids(
             detail="You are not a member of this organization",
         )
 
+    # One joined query: org projects that are not soft-deleted (093).
     rows = (
         db.query(ProjectOrganization.project_id)
-        .filter(ProjectOrganization.organization_id == org_context)
+        .join(Project, Project.id == ProjectOrganization.project_id)
+        .filter(ProjectOrganization.organization_id == org_context, not_deleted())
         .all()
     )
     org_project_ids = [r.project_id for r in rows]
@@ -934,7 +941,8 @@ async def get_accessible_project_ids_async(
                     or_(
                         Project.is_private == False,  # noqa: E712
                         Project.created_by == str(user.id),
-                    )
+                    ),
+                    not_deleted(),
                 )
             )
         ).all()
@@ -942,7 +950,7 @@ async def get_accessible_project_ids_async(
 
     public_rows = (
         await db.execute(
-            select(Project.id).where(Project.is_public == True)  # noqa: E712
+            select(Project.id).where(Project.is_public == True, not_deleted())  # noqa: E712
         )
     ).all()
     public_ids = [r.id for r in public_rows]
@@ -953,6 +961,7 @@ async def get_accessible_project_ids_async(
                 select(Project.id).where(
                     Project.is_private == True,  # noqa: E712
                     Project.created_by == str(user.id),
+                    not_deleted(),
                 )
             )
         ).all()
@@ -973,11 +982,12 @@ async def get_accessible_project_ids_async(
             detail="You are not a member of this organization",
         )
 
+    # One joined query: org projects that are not soft-deleted (093).
     rows = (
         await db.execute(
-            select(ProjectOrganization.project_id).where(
-                ProjectOrganization.organization_id == org_context
-            )
+            select(ProjectOrganization.project_id)
+            .join(Project, Project.id == ProjectOrganization.project_id)
+            .where(ProjectOrganization.organization_id == org_context, not_deleted())
         )
     ).all()
     org_project_ids = [r.project_id for r in rows]
@@ -1107,6 +1117,10 @@ def check_project_accessible(
     if not project:
         return False
 
+    if _is_deleted(project):
+        # Soft-deleted: invisible to every non-superadmin (owner included).
+        return False
+
     # Archived projects are read-only to annotators: an annotator who is
     # otherwise a member loses access once a project is archived. Higher roles
     # (and the creator/superadmin, who already short-circuit above / resolve to
@@ -1198,6 +1212,10 @@ async def check_project_accessible_async(
     if not project:
         return False
 
+    if _is_deleted(project):
+        # Soft-deleted: invisible to every non-superadmin (owner included).
+        return False
+
     if getattr(project, "is_archived", False):
         if await get_effective_project_role_async(db, user, project) == "ANNOTATOR":
             return False
@@ -1245,7 +1263,10 @@ async def get_share_access_async(
             ProjectShareMember.gdpr_consent_at.isnot(None),
         )
     )
-    return result.scalar_one_or_none()
+    # .first(), not scalar_one_or_none: one user can hold memberships via
+    # SEVERAL links of the same project (rotated/re-minted links), and a
+    # MultipleResultsFound here would 500 every participant surface.
+    return result.scalars().first()
 
 
 async def get_entitlement_access_async(
@@ -1280,8 +1301,8 @@ async def get_student_read_access_async(
     if the user is a consented share member, holds an active marketplace
     entitlement, OR is an active member of an org that shares this exam
     org-wide (non-private, non-archived, windowless ``kind='exam'`` — the
-    LTI/university ongoing-training catalog; windowed finals stay
-    explicit-grant-only). Short-circuits on the share check (the common
+    LTI/university ongoing-training catalog; a windowed exam counts once its
+    window has started — never before). Short-circuits on the share check (the common
     #35 path). All three grant the identical narrow tier; callers that only
     need a yes/no should prefer this over calling the primitives.
     """
@@ -1300,14 +1321,16 @@ def _build_select_org_exam_participant(user, project_id: str):
     An ACTIVE membership (any role — CONTRIBUTOR+ callers pass
     ``check_project_accessible`` first and never reach this fallback) in an
     org attached to the project grants the narrow tier iff the project is a
-    NON-private, non-archived, WINDOWLESS exam. ``is_private=True`` exams
+    NON-private, non-archived exam whose access window (if any) has STARTED.
+    ``is_private=True`` exams
     deliberately stay entitlement/share/creator-only: blanket org membership
     is not per-project consent by anyone, and widening it would expose every
     student-created exam (all private) to the whole university org. Exams
-    with an access window (scheduled finals) are likewise excluded — those
-    are entered through an explicit channel (LTI launch, share, entitlement)
-    so students cannot pre-read the Sachverhalt by browsing the org catalog
-    before the window opens.
+    whose window has NOT YET OPENED are likewise excluded — pre-window entry
+    stays explicit-channel-only (LTI launch, share, entitlement) so students
+    cannot pre-read the Sachverhalt by browsing the org catalog. Once the
+    window has started the grant holds (post-window too, so students keep
+    their own review; the read-window enforcement governs the timeline).
     """
     return (
         select(OrganizationMembership.id)
@@ -1323,9 +1346,12 @@ def _build_select_org_exam_participant(user, project_id: str):
             OrganizationMembership.is_active == True,  # noqa: E712
             Project.kind == "exam",
             Project.is_private == False,  # noqa: E712
+            not_deleted(),
             or_(Project.is_archived.is_(None), Project.is_archived == False),  # noqa: E712
-            Project.window_start_at.is_(None),
-            Project.window_end_at.is_(None),
+            or_(
+                Project.window_start_at.is_(None),
+                Project.window_start_at <= func.now(),
+            ),
         )
     )
 
@@ -1537,6 +1563,13 @@ async def check_task_assigned_to_user_async(
     return assignment_result.scalars().first() is not None
 
 
+# Canonical definitions live in /shared (usable by workers + extended too);
+# re-exported here because router code imports visibility helpers from this
+# module.
+from project_models import project_is_deleted as _is_deleted  # noqa: E402
+from project_models import project_not_deleted as not_deleted  # noqa: E402
+
+
 def _build_select_project_org_ids(project_id: str):
     """Shared SQL builder for the org ids a project is assigned to."""
     return select(ProjectOrganization.organization_id).where(
@@ -1562,6 +1595,15 @@ def _resolve_effective_role(
         return project.public_role
 
     return None
+
+
+# Participants (consented share members, entitled/enrolled students, org
+# members of a windowless org exam) hold the NARROW tier. For every existing
+# ``role == "ANNOTATOR"`` branch (task-data blinding, write-role gates, the
+# archived carve-out) they must behave exactly like an org annotator, so the
+# effective-role resolvers fall back to this value when no membership/public
+# claim exists but ``get_student_read_access`` holds.
+PARTICIPANT_EFFECTIVE_ROLE = "ANNOTATOR"
 
 
 def get_effective_project_role(
@@ -1591,9 +1633,12 @@ def get_effective_project_role(
         .filter(ProjectOrganization.project_id == project.id)
         .all()
     ]
-    return _resolve_effective_role(
+    role = _resolve_effective_role(
         user, project, user_with_memberships, project_org_ids
     )
+    if role is None and get_student_read_access(db, user, str(project.id)):
+        return PARTICIPANT_EFFECTIVE_ROLE
+    return role
 
 
 async def get_effective_project_role_async(
@@ -1608,9 +1653,193 @@ async def get_effective_project_role_async(
     user_with_memberships = await get_user_with_memberships_async(db, str(user.id))
     result = await db.execute(_build_select_project_org_ids(project.id))
     project_org_ids = list(result.scalars().all())
-    return _resolve_effective_role(
+    role = _resolve_effective_role(
         user, project, user_with_memberships, project_org_ids
     )
+    if role is None and await get_student_read_access_async(db, user, str(project.id)):
+        return PARTICIPANT_EFFECTIVE_ROLE
+    return role
+
+
+
+TIER_FULL = "full"
+TIER_PARTICIPANT = "participant"
+
+
+async def get_project_access_tier_async(
+    db: AsyncSession,
+    user,
+    project_id: str,
+    org_context: Optional[str] = None,
+    project: Optional[Project] = None,
+) -> Optional[str]:
+    """Resolve which access tier a user holds on a project.
+
+    ``"full"`` is exactly today's :func:`check_project_accessible_async`
+    (unchanged — exports, settings and whole-``task.data`` reads keep gating
+    on it). ``"participant"`` is the narrow tier of
+    :func:`get_student_read_access_async` (share member, entitlement, org
+    exam) and is only honoured by the explicit allow-list of solver endpoints
+    (task listing/next with blinding, own annotations, drafts, my-tasks,
+    cohort leaderboard). Archived projects never grant the participant tier
+    (mirrors the org-annotator archived carve-out). ``None`` = no access.
+    """
+    if project is None:
+        result = await db.execute(select(Project).where(Project.id == project_id))
+        project = result.scalar_one_or_none()
+    if not project:
+        return None
+    if _is_deleted(project) and not user.is_superadmin:
+        return None
+    if await check_project_accessible_async(db, user, project_id, org_context, project=project):
+        return TIER_FULL
+    if getattr(project, "is_archived", False):
+        return None
+    if await get_student_read_access_async(db, user, project_id):
+        return TIER_PARTICIPANT
+    return None
+
+
+def get_project_access_tier(
+    db: Session,
+    user,
+    project_id: str,
+    org_context: Optional[str] = None,
+    project: Optional[Project] = None,
+) -> Optional[str]:
+    """Sync twin of :func:`get_project_access_tier_async`."""
+    if project is None:
+        project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        return None
+    if _is_deleted(project) and not user.is_superadmin:
+        return None
+    if check_project_accessible(db, user, project_id, org_context, project=project):
+        return TIER_FULL
+    if getattr(project, "is_archived", False):
+        return None
+    if get_student_read_access(db, user, project_id):
+        return TIER_PARTICIPANT
+    return None
+
+
+async def check_user_can_manage_shares_async(db: AsyncSession, user, project: Project) -> bool:
+    """Whether a user may create / update / revoke share links on a project.
+
+    Org projects (≥1 ``ProjectOrganization`` row): only active ORG_ADMIN
+    members of one of those orgs — deliberately NO creator fast-path, so a
+    CONTRIBUTOR who created an org project cannot let outside people in on
+    their own. Personal projects (no org rows): the creator. Superadmins
+    always. Viewing links / the roster / evicting stays on the edit tier.
+    """
+    if user.is_superadmin:
+        return True
+    org_result = await db.execute(_build_select_project_org_ids(project.id))
+    project_org_ids = list(org_result.scalars().all())
+    if not project_org_ids:
+        return str(user.id) == str(project.created_by)
+    admin_result = await db.execute(
+        _build_select_org_admin_membership(user.id, project_org_ids)
+    )
+    return admin_result.first() is not None
+
+
+def check_user_can_manage_shares(db: Session, user, project: Project) -> bool:
+    """Sync twin of :func:`check_user_can_manage_shares_async`."""
+    if user.is_superadmin:
+        return True
+    project_org_ids = [
+        r.organization_id
+        for r in db.query(ProjectOrganization.organization_id)
+        .filter(ProjectOrganization.project_id == project.id)
+        .all()
+    ]
+    if not project_org_ids:
+        return str(user.id) == str(project.created_by)
+    return (
+        db.execute(_build_select_org_admin_membership(user.id, project_org_ids)).first()
+        is not None
+    )
+
+
+PARTICIPANT_VIA_SHARE = "share"
+PARTICIPANT_VIA_ENTITLEMENT = "entitlement"
+PARTICIPANT_VIA_ORG_EXAM = "org_exam"
+
+
+async def get_participant_project_ids_async(
+    db: AsyncSession, user_id: str
+) -> Dict[str, str]:
+    """Projects the user reaches ONLY through the participant tier.
+
+    Returns ``{project_id: via}`` with ``via`` ∈ share / entitlement /
+    org_exam (first match wins in that order). The three arms mirror the
+    per-project predicates — consent filter of :func:`get_share_access_async`,
+    revoked filter of :func:`get_entitlement_access_async`, and every
+    condition of :func:`_build_select_org_exam_participant` — as batch
+    queries; change those predicates and this tagging in lockstep. Archived projects and projects
+    the user created are excluded — the creator already holds the full tier
+    and archived projects never grant the narrow one. Used by the project
+    list so joined/enrolled projects show up (tagged) next to the projects
+    the user owns or reaches through an org.
+    """
+    uid = str(user_id)
+    not_archived = or_(Project.is_archived.is_(None), Project.is_archived == False)  # noqa: E712
+    alive = not_deleted()
+    result: Dict[str, str] = {}
+
+    share_rows = await db.execute(
+        select(ProjectShareMember.project_id)
+        .join(Project, Project.id == ProjectShareMember.project_id)
+        .where(
+            ProjectShareMember.user_id == uid,
+            ProjectShareMember.gdpr_consent_at.isnot(None),
+            Project.created_by != uid,
+            not_archived,
+            alive,
+        )
+    )
+    for pid in share_rows.scalars().all():
+        result.setdefault(str(pid), PARTICIPANT_VIA_SHARE)
+
+    ent_rows = await db.execute(
+        select(MarketplaceEntitlement.project_id)
+        .join(Project, Project.id == MarketplaceEntitlement.project_id)
+        .where(
+            MarketplaceEntitlement.user_id == uid,
+            MarketplaceEntitlement.revoked_at.is_(None),
+            Project.created_by != uid,
+            not_archived,
+            alive,
+        )
+    )
+    for pid in ent_rows.scalars().all():
+        result.setdefault(str(pid), PARTICIPANT_VIA_ENTITLEMENT)
+
+    org_rows = await db.execute(
+        select(ProjectOrganization.project_id)
+        .join(
+            OrganizationMembership,
+            OrganizationMembership.organization_id == ProjectOrganization.organization_id,
+        )
+        .join(Project, Project.id == ProjectOrganization.project_id)
+        .where(
+            OrganizationMembership.user_id == uid,
+            OrganizationMembership.is_active == True,  # noqa: E712
+            Project.kind == "exam",
+            Project.is_private == False,  # noqa: E712
+            Project.created_by != uid,
+            not_archived,
+            alive,
+            or_(
+                Project.window_start_at.is_(None),
+                Project.window_start_at <= func.now(),
+            ),
+        )
+    )
+    for pid in org_rows.scalars().all():
+        result.setdefault(str(pid), PARTICIPANT_VIA_ORG_EXAM)
+    return result
 
 
 def check_project_write_access(
@@ -1636,7 +1865,7 @@ def check_project_write_access(
         return True
 
     project = db.query(Project).filter(Project.id == project_id).first()
-    if not project:
+    if not project or _is_deleted(project):
         return False
 
     role = get_effective_project_role(db, user, project)
@@ -1655,7 +1884,7 @@ async def check_project_write_access_async(
 
     result = await db.execute(select(Project).where(Project.id == project_id))
     project = result.scalar_one_or_none()
-    if not project:
+    if not project or _is_deleted(project):
         return False
 
     role = await get_effective_project_role_async(db, user, project)
@@ -1678,6 +1907,9 @@ def check_user_can_edit_project(
 
     # Check if user is the project creator
     project = db.query(Project).filter(Project.id == project_id).first()
+    if _is_deleted(project):
+        # Soft-deleted (093): no edit rights for anyone but superadmins.
+        return False
     if project and str(project.created_by) == str(user.id):
         return True
 
@@ -1713,6 +1945,9 @@ async def check_user_can_edit_project_async(
 
     result = await db.execute(select(Project).where(Project.id == project_id))
     project = result.scalar_one_or_none()
+    if _is_deleted(project):
+        # Soft-deleted (093): no edit rights for anyone but superadmins.
+        return False
     if project and str(project.created_by) == str(user.id):
         return True
 

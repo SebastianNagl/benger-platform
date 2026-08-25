@@ -93,6 +93,7 @@ def _build_fixtures():
     gen.structure_key = None
 
     project = MagicMock()
+    project.deleted_at = None  # soft-delete guard (093)
     project.generation_config = {
         "prompt_structures": [
             {"key": "default", "structure": {"system_prompt": "be helpful"}},

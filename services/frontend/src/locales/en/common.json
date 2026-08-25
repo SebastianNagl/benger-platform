@@ -4,6 +4,7 @@
     "next": "Next",
     "dashboard": "Dashboard",
     "reports": "Reports",
+    "learningStats": "Learning Statistics",
     "leaderboards": "Leaderboards",
     "projects": "Projects",
     "dataManagement": "Data Management",
@@ -28,7 +29,8 @@
     "task": "Task",
     "mobile": {
       "toggleNavigation": "Toggle navigation"
-    }
+    },
+    "billing": "Plan & billing"
   },
   "header": {
     "expandSidebar": "Expand sidebar",
@@ -152,6 +154,16 @@
       "title": "View Evaluations",
       "description": "Review completed evaluations and metrics",
       "button": "View Results"
+    },
+    "personal": {
+      "title": "My learning statistics",
+      "subtitle": "Your scores, learning progress and due cards",
+      "empty": "No scores or study sessions yet.",
+      "collapse": "Collapse",
+      "expand": "Expand",
+      "show": "Show",
+      "hide": "Hide",
+      "unavailable": "Learning statistics are not available in this edition."
     }
   },
   "projects": {
@@ -251,6 +263,10 @@
           "synthetic": {
             "name": "KI-Generator",
             "description": "Generate a synthetic exam or flashcards from a lecture script"
+          },
+          "rubric": {
+            "name": "AI grading rubric",
+            "description": "Experimental: generate a per-task grading rubric via LLM (second evaluation method)"
           }
         },
         "features": {
@@ -297,15 +313,35 @@
           "validation": {
             "nameRequired": "Project name is required",
             "orgRequired": "Pick at least one organization, or change visibility."
+          },
+          "kind": {
+            "title": "Project type",
+            "locked": "Editors can change the project type under \"Settings\".",
+            "lockedStudent": "The type of student-created projects cannot be changed.",
+            "editableHint": "The type controls whether students can find this project as an exam or flashcard deck.",
+            "generic": "Generic",
+            "genericDescription": "Benchmark / annotation project without exam or flashcard logic",
+            "exam": "Exam",
+            "examDescription": "Case solution with facts, model solution and AI grading; solvable by students",
+            "deck": "Flashcard deck",
+            "deckDescription": "Front/back cards with a spaced-repetition study plan"
+          },
+          "icon": {
+            "title": "Icon",
+            "help": "Shown in lists, the project header and under “Discover”. Without a choice the type icon is used.",
+            "clickToEdit": "Click to edit"
           }
         },
         "step2": {
           "title": "Import Data",
           "subtitle": "Upload your data now or skip and add it later",
+          "syntheticNotice": "The AI generator already provides synthetic data. Additional uploads are possible but must follow the same structure.",
+          "syntheticNoticeColumns": "Expected columns:",
           "tabs": {
             "upload": "Upload Files",
             "paste": "Paste Data",
-            "cloud": "Cloud Storage"
+            "cloud": "Cloud Storage",
+            "structured": "Enter exam"
           },
           "upload": {
             "dropzone": "Drop files here or click to upload",
@@ -467,7 +503,9 @@
           "minutes": "minutes",
           "strictTimer": "Strict Timer",
           "strictTimerHint": "Auto-submit annotation when time expires",
-          "advancedNote": "Additional settings (review mode, feedback) are available on the project page after creation."
+          "advancedNote": "Additional settings (review mode, feedback) are available on the project page after creation.",
+          "revealSolution": "Reveal model solution after submit",
+          "revealSolutionHint": "After submitting, solvers see all task fields including the model solution."
         },
         "evalSaveFailed": "Failed to save evaluation configuration",
         "promptStructureSaveFailed": "Failed to save prompt structure (prompts are still saved in generation config)",
@@ -499,8 +537,30 @@
           "examSolving": {
             "name": "Exam Solving",
             "description": "Annotate legal case solutions with statement, notes, outline, and solution"
+          },
+          "flashcardDeck": {
+            "name": "Flashcards (empty)",
+            "description": "Empty flashcard deck with front/back; add, study and export cards in the project"
           }
+        },
+        "rubric": {
+          "title": "Auto-generate grading rubric (experimental)",
+          "help": "An LLM derives an analytic 100-point grading scheme (incl. defensible alternatives) per task from the facts and model solution; grading then runs against it.",
+          "warning": "Experimental: reliability depends strongly on the generator/judge pair. Review generated rubrics before use (task page → Bewertungsbogen). Generation incurs LLM cost per task.",
+          "model": "Generator model",
+          "modelHint": "The same model then grades against the rubric (changeable in the evaluation editor).",
+          "modelsLoading": "Loading models…",
+          "modelsError": "Models could not be loaded.",
+          "noTasksWarning": "Neither data import nor the AI generator is enabled — at creation time there are no tasks to generate a rubric for. Rubrics can be generated later per task on the task page.",
+          "warningTitle": "Experimental – review generated rubrics before use."
         }
+      },
+      "structuredExam": {
+        "button": "Enter exam (structured)",
+        "title": "Enter exam (structured)",
+        "apply": "Apply",
+        "appliedHint": "Applied — the exam is imported as a task on create.",
+        "hint": "Enter facts, model solution and optional parts as one exam task — labeling template and AI grading are set automatically."
       }
     },
     "data": {
@@ -588,7 +648,16 @@
       "showAllPrivate": "Show all private projects",
       "windowUpcoming": "Opens {date}",
       "windowClosed": "Closed",
-      "windowOpen": "Open"
+      "windowOpen": "Open",
+      "participantBadge": "Participant",
+      "participantVia": {
+        "share": "Joined via share link",
+        "entitlement": "Unlocked via “Discover”",
+        "org_exam": "Shared by your organization"
+      },
+      "kindDeck": "Flashcard deck",
+      "kindExam": "Exam",
+      "study": "Study"
     },
     "columns": {
       "label": "Columns",
@@ -808,7 +877,24 @@
       "customConfigName": "Custom Configuration",
       "customConfigDescription": "User-defined configuration",
       "labelStudioDocs": "Label Studio documentation",
-      "note": "Note"
+      "note": "Note",
+      "postCreateHookFailed": "Post-processing failed"
+    },
+    "discover": "Discover",
+    "more": "More",
+    "deleted": {
+      "title": "Deleted projects",
+      "subtitle": "Deleted projects are hidden from everyone; their data is preserved. Only here can they be restored or destroyed for good.",
+      "empty": "No deleted projects.",
+      "project": "Project",
+      "deletedAt": "Deleted at",
+      "actions": "Actions",
+      "badge": "Deleted",
+      "restore": "Restore",
+      "restored": "Project restored.",
+      "purge": "Delete permanently",
+      "purged": "Project permanently deleted.",
+      "purgeConfirm": "Permanently delete “{title}” and ALL its data (tasks, submissions, gradings, learning history)? This cannot be undone."
     }
   },
   "project": {
@@ -817,12 +903,12 @@
     "notFoundDescription": "The project you're looking for doesn't exist or you don't have access to it.",
     "backToProjects": "Back to Projects",
     "deleteConfirmTitle": "Delete Project",
-    "deleteConfirmMessage": "Are you sure you want to delete this project? This will permanently delete:",
+    "deleteConfirmMessage": "Are you sure you want to delete this project? It will be hidden from everyone:",
     "deleteConfirmItems": {
-      "config": "The project and all its configuration",
+      "config": "The project and its entire configuration",
       "tasks": "All tasks ({count} tasks)",
       "annotations": "All annotations ({count} annotations)",
-      "irreversible": "This action cannot be undone"
+      "irreversible": "Data is preserved; only superadmins can restore or permanently delete the project"
     },
     "deleting": "Deleting...",
     "deleteProject": "Delete Project",
@@ -837,7 +923,8 @@
       "organizations": "Organizations",
       "noOrganizations": "No organizations",
       "at": "at",
-      "unknown": "Unknown"
+      "unknown": "Unknown",
+      "kindSaveFailed": "Project type could not be saved."
     },
     "labelConfiguration": {
       "title": "Label Configuration",
@@ -1056,6 +1143,52 @@
       "minAnnotations": "{count} min annotations",
       "editSettings": "Edit Settings",
       "saveSettings": "Save Settings",
+      "studentAccess": {
+        "links": {
+          "title": "Share links",
+          "help": "Password-protected invitation links. Whoever joins becomes a participant.",
+          "empty": "No share links yet.",
+          "create": "Create link",
+          "creating": "Creating…",
+          "password": "Password",
+          "passwordPlaceholder": "at least 4 characters",
+          "expiresAt": "Valid until (optional)",
+          "maxUses": "Max. joins (optional)",
+          "listed": "List in the \"Discover\" directory",
+          "listedHelp": "Only for exams and decks from the student surface.",
+          "listedBadge": "Listed",
+          "revokedBadge": "Revoked",
+          "expires": "until {date}",
+          "uses": "{count} joins",
+          "usesCapped": "{count} / {max} joins",
+          "copy": "Copy link",
+          "copied": "Link copied",
+          "copyError": "Could not copy the link.",
+          "rotate": "Rotate password",
+          "rotatePrompt": "New password",
+          "rotated": "Password updated. The link stays the same.",
+          "unlist": "Remove from directory",
+          "list": "List in directory",
+          "revoke": "Revoke",
+          "confirmRevoke": "Revoke link? Joining will no longer be possible; existing participants keep access.",
+          "error": "Action failed.",
+          "created": "Share link created."
+        },
+        "participants": {
+          "title": "Participants",
+          "help": "People who joined via share links.",
+          "empty": "No participants yet.",
+          "name": "Name",
+          "attempts": "Attempts",
+          "best": "Best",
+          "last": "Last",
+          "joined": "Joined",
+          "remove": "Remove",
+          "confirmRemove": "Remove {name}? They lose access; previous attempts are kept.",
+          "removed": "Participant removed.",
+          "error": "Could not load participants."
+        }
+      },
       "featureVisibility": {
         "title": "Section visibility",
         "help": "Choose which configuration sections render on this page. These toggles also drive the Statistics box and progress bar: only enabled stages contribute to the project's progress percentage."
@@ -1289,6 +1422,56 @@
       "saving": "Saving...",
       "titlePlaceholder": "Add a description...",
       "titleCannotBeEmpty": "Title cannot be empty"
+    },
+    "sharing": {
+      "title": "Sharing",
+      "help": "Students reach the project through “Discover” (public or shared with the organization) or through share links.",
+      "discoverableHint": "Students find this project under “Discover”.",
+      "notDiscoverableHint": "Students do not find this project under “Discover”; it is reachable only through share links.",
+      "refresh": "Refresh",
+      "status": {
+        "discoverable": "Visible under “Discover”",
+        "links": "{count} links",
+        "participants": "{count} participants",
+        "notShared": "Not shared"
+      },
+      "adminOnlyHint": "Only organization admins can manage share links.",
+      "checks": {
+        "title": "Discoverability hints",
+        "kind_is_exam": "Project type is not \"Exam\" — students will not find this project as an exam.",
+        "kind_is_collection": "Project type is not \"Flashcard deck\" — students will not find this project as a deck.",
+        "not_archived": "The project is archived.",
+        "not_private": "The project is private.",
+        "assignment_open": "The assignment mode is not \"open\".",
+        "origin_not_student": "Student-created projects use their own lists, not discovery.",
+        "klausurloesung_config": "The labeling configuration is not a Klausurlösung (Angabe/Notizen/Gliederung/Lösung).",
+        "falloesung_judge": "No active case-solution AI judge configured — AI grading will not work.",
+        "sachverhalt_binding": "The configuration does not bind a $sachverhalt field.",
+        "musterloesung_key": "The tasks carry no model solution.",
+        "deck_config": "The labeling configuration is not card-shaped ($front).",
+        "card_keys": "The tasks carry no front/back card fields.",
+        "has_tasks": "The project has no tasks."
+      }
+    },
+    "participant": {
+      "title": "Participation",
+      "leave": "Leave project",
+      "leaveConfirm": "You will lose access to this project. Your submissions so far are kept.",
+      "left": "You left the project.",
+      "cannotLeavePurchase": "Purchased access cannot be left.",
+      "cannotLeaveOrg": "Access comes from your organization and is managed there."
+    },
+    "deck": {
+      "title": "Flashcard deck",
+      "subtitle": "Study, manage cards, export"
+    },
+    "icon": {
+      "saveFailed": "Icon could not be saved."
+    },
+    "discover": {
+      "title": "Discover project",
+      "back": "Back to the directory",
+      "alreadyMember": "You have already joined this project."
     }
   },
   "tasks": {
@@ -1451,7 +1634,11 @@
       "labeled": "Labeled",
       "feedbackAvailable": "Feedback",
       "evaluationAvailable": "Evaluation",
-      "due": "Due"
+      "due": "Due",
+      "result": {
+        "pick": "Task",
+        "loadError": "The grading could not be loaded."
+      }
     },
     "review": {
       "title": "Review",
@@ -1748,7 +1935,12 @@
       "validationError": "Import Validation Error",
       "validationErrorDescription": "The following validation error occurred during import:",
       "importAnyway": "Import Anyway",
-      "orUseFieldMapping": "or use field mapping below"
+      "orUseFieldMapping": "or use field mapping below",
+      "extractText": {
+        "button": "Text from document (PDF/DOCX)",
+        "busy": "Extracting…",
+        "failed": "Text could not be extracted."
+      }
     },
     "taskAssignment": {
       "assigningTasks": "Assigning {count} task(s)",
@@ -1782,6 +1974,12 @@
       "updateSuccess": "Annotation guidelines updated successfully",
       "updateFailed": "Failed to update annotation guidelines",
       "updateFailedWithMessage": "Failed to update annotation guidelines: {message}"
+    },
+    "structured": {
+      "button": "Edit structured",
+      "title": "Edit exam (structured)",
+      "saved": "Task saved.",
+      "saveError": "Task could not be saved."
     }
   },
   "profile": {
@@ -2042,7 +2240,10 @@
       "sum": "Sum"
     },
     "coCreationNoData": "No AI-assisted annotations found for this period.",
-    "coCreationNoSearchResults": "No co-creators found matching your search."
+    "coCreationNoSearchResults": "No co-creators found matching your search.",
+    "cohort": "Exam cohort",
+    "cohortEmpty": "No projects with a cohort.",
+    "cohortProject": "Project"
   },
   "fields": {
     "pdf": {
@@ -3341,6 +3542,11 @@
     "rotatingText": {
       "loading": "Loading..."
     }
+  },
+  "changelog": {
+    "title": "Changelog",
+    "intro": "An overview of new features and improvements.",
+    "empty": "No entries yet."
   },
   "footer": {
     "imprint": "Impressum",
@@ -8395,6 +8601,7 @@
     "footer": {
       "imprint": "Imprint",
       "dataProtection": "Privacy Policy",
+      "changelog": "Changelog",
       "followNotion": "Follow us on Notion",
       "followGithub": "Follow us on GitHub",
       "allRightsReserved": "All rights reserved."
@@ -8897,7 +9104,7 @@
       "unavailable": "This feature is not available in the community edition."
     },
     "nav": {
-      "dashboard": "Overview",
+      "stats": "Learning statistics",
       "exams": "Exams",
       "decks": "Flashcards",
       "leaderboard": "Leaderboard",
@@ -8968,15 +9175,43 @@
         "seriesKi": "AI grading",
         "title": "Score history"
       },
-      "title": "Dashboard"
+      "title": "My learning statistics",
+      "tiles": {
+        "dueToday": "Due today",
+        "exams": "Exams",
+        "decks": "Decks",
+        "avgScore": "Avg. grade points"
+      }
     },
     "deck": {
+      "export": {
+        "title": "Export as Anki file",
+        "label": "Export"
+      },
+      "roster": {
+        "title": "Participants"
+      },
       "backToList": "Back to decks",
       "card": {
         "add": "Add",
         "added": "Card added.",
         "error": "Card could not be saved.",
         "title": "Add card"
+      },
+      "cards": {
+        "count": "{count} cards",
+        "delete": "Delete",
+        "deleteConfirm": "Delete this card? Learning progress for this card is lost for everyone studying it.",
+        "deleteError": "Card could not be deleted.",
+        "deleted": "Card deleted.",
+        "edit": "Edit card",
+        "empty": "No cards found.",
+        "next": "Next",
+        "prev": "Previous",
+        "saveError": "Card could not be saved.",
+        "saved": "Card saved.",
+        "searchPlaceholder": "Search cards...",
+        "title": "Cards"
       },
       "create": {
         "addCard": "Add card",
@@ -8992,7 +9227,7 @@
         "titlePlaceholder": "e.g. Criminal law definitions"
       },
       "delete": {
-        "message": "“{title}” and all its cards including learning progress will be permanently deleted. This cannot be undone.",
+        "message": "“{title}” will be deleted and no longer visible to anyone.",
         "title": "Delete deck?"
       },
       "dueNow": "{count} cards due",
@@ -9075,15 +9310,34 @@
       "open": "Open",
       "research": "Research exam",
       "researchBadge": "Research",
+      "enrollDeck": "Add to my decks",
+      "enrollDeckError": "The deck could not be added.",
+      "deckHint": "Study flashcards from your organization. Your learning progress stays with you.",
+      "previouslyEnrolledDeck": "You previously had this deck in your collection.",
+      "orgBadge": "Catalog",
+      "kindFilterLabel": "Filter by type",
+      "filterAll": "All",
+      "filterExams": "Exams",
+      "filterDecks": "Decks",
+      "noDecks": "No decks are available at the moment.",
+      "noExams": "No exams are available at the moment.",
       "researchHint": "Solve real exams and receive an AI grading. The grading is billed against your credit.",
       "subtitleVendor": "Exams and flashcard decks from vendors and other students.",
-      "taskCount": "{count} tasks",
+      "taskCount": "{count} exams",
       "title": "Discover",
-      "vendor": "Vendor"
+      "vendor": "Vendor",
+      "peerBadge": "Shared",
+      "enrollShort": "Add",
+      "cardCount": "{count} cards",
+      "reEnroll": "Add again",
+      "noMatches": "No matches for “{query}”.",
+      "previouslyEnrolled": "You previously had this exam in your collection.",
+      "searchLabel": "Search the directory",
+      "searchPlaceholder": "Search by title or vendor…"
     },
     "exam": {
-      "allDone": "All tasks solved. Thank you for your contribution!",
-      "allSolvedHint": "You have completed all tasks of this exam.",
+      "allDone": "All exams solved. Thank you for your contribution!",
+      "allSolvedHint": "You have completed all exams of this collection.",
       "attempt": {
         "empty": "Please write a solution first.",
         "error": "Submission failed.",
@@ -9138,8 +9392,17 @@
         "zusatzmaterialPlaceholder": "e.g. statute texts or excerpts..."
       },
       "delete": {
-        "message": "“{title}” and all associated attempts will be permanently deleted. This cannot be undone.",
+        "message": "“{title}” will be deleted and no longer visible to anyone.",
         "title": "Delete exam?"
+      },
+      "edit": {
+        "attemptWarning": "This exam already has submissions. Existing gradings refer to the old version.",
+        "button": "Edit",
+        "error": "The exam could not be saved.",
+        "loadError": "The exam content could not be loaded.",
+        "submit": "Save",
+        "success": "Exam saved.",
+        "title": "Edit exam"
       },
       "exitConfirm": "Stop working on this exam? Unsubmitted input will be lost.",
       "extract": {
@@ -9153,7 +9416,7 @@
       },
       "joined": "Joined",
       "loadError": "Exam could not be loaded.",
-      "nextTask": "Next task",
+      "nextTask": "Next exam",
       "notFound": "Exam not found.",
       "opensAt": "This exam opens on {date}.",
       "print": {
@@ -9184,7 +9447,9 @@
           "musterloesung": "Model solution",
           "ki": "AI grading",
           "human": "Feedback"
-        }
+        },
+        "taskPicker": "Exam",
+        "taskFallback": "Exam {n}"
       },
       "review": "View submission",
       "roster": {
@@ -9198,7 +9463,17 @@
         "hint": "Without criteria, the standard case-solution rubric (10 dimensions) is used.",
         "key": "Key",
         "maxScore": "Maximum score",
-        "title": "Grading criteria (optional)"
+        "title": "Grading criteria (optional)",
+        "aiPropose": "Suggest with AI",
+        "aiRun": "Generate suggestion",
+        "aiRunning": "Generating…",
+        "aiEmpty": "The suggestion contained no criteria.",
+        "aiFailed": "AI suggestion failed.",
+        "aiModel": "Generator model",
+        "aiModelsError": "Model list could not be loaded.",
+        "aiWarning": "Experimental: the AI drafts a suggestion from the case and the model solution (LLM costs, 1–2 minutes). Review the criteria before saving.",
+        "aiReplaceConfirm": "The AI suggestion replaces the existing criteria. Continue?",
+        "aiCreateHint": "Available after creation — open the exam and edit the criteria."
       },
       "settings": {
         "confirm": "Require confirmation before submitting",
@@ -9228,7 +9503,8 @@
       },
       "solve": "Take exam",
       "solvedHint": "You have submitted this exam.",
-      "taskProgress": "Task {n} of {total}"
+      "taskProgress": "Exam {n} of {total}",
+      "continueSolving": "Continue solving"
     },
     "exams": {
       "attempts": "{count} attempts",
@@ -9240,6 +9516,9 @@
       "joined": "Joined",
       "loadError": "Exams could not be loaded.",
       "notAttempted": "Not attempted yet",
+      "sammlung": "Exam collection",
+      "taskProgress": "{solved} of {total} exams",
+      "avgGradePoints": "Ø {points} points",
       "opensAt": "Opens {date}",
       "remove": "Remove",
       "removeTitle": "Remove from my list",
@@ -9290,6 +9569,8 @@
       "gradeSubmit": "Grade answer",
       "grading": "Grading...",
       "mode": {
+        "gradedSoon": "AI grading coming soon",
+        "soon": "soon",
         "graded": "Graded",
         "quick": "Quick"
       },
@@ -9304,6 +9585,12 @@
       "inviteBody": "Sign in or create an account to join.",
       "inviteTitle": "You have been invited to a shared exam",
       "join": "Join",
+      "wrongPassword": "Incorrect password.",
+      "usageLimit": "This invitation link has already been used too often.",
+      "expired": "This invitation link has expired.",
+      "rateLimited": "Too many attempts. Please wait a moment and try again.",
+      "alreadyMemberDeck": "You have already joined this deck.",
+      "consentDeck": "I agree that the creator can see that I joined this deck.",
       "joinError": "Joining failed. Please try again.",
       "joining": "Joining …",
       "loadError": "This invitation could not be loaded.",
@@ -9339,7 +9626,11 @@
       "tooLong": "The script is too long (max. {max} characters).",
       "skriptTooShort": "The script is too short (at least 200 characters).",
       "error": "Generation failed.",
-      "noModels": "No models available."
+      "noModels": "No models available.",
+      "rubricTitle": "Generate grading rubric automatically (experimental)",
+      "rubricHint": "After generation, suggests grading criteria from the case and the model solution (same model as above) and adds them to the exam — you can review and adjust them under \"Edit\".",
+      "rubricWarning": "Experimental: the generated criteria may be flawed and generation makes one extra AI call (1–2 minutes).",
+      "rubricGenerating": "Suggesting grading criteria… (may take 1–2 minutes)"
     }
   },
   "vertretbar": {
@@ -9457,5 +9748,8 @@
     "studentEmail": "Student's email",
     "title": "Vendor console",
     "unpublish": "Unpublish"
+  },
+  "billing": {
+    "unavailable": "Billing is not available in this edition."
   }
 }

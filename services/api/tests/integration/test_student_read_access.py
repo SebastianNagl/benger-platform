@@ -142,13 +142,13 @@ class TestGetStudentReadAccess:
 
 
 def test_create_annotation_falls_back_to_participant_gate():
-    """Guard: create_annotation must consult get_student_read_access when
-    check_project_accessible refuses, so a consented share member / entitled
+    """Guard: create_annotation must gate on the access-tier helper (which
+    subsumes get_student_read_access), so a consented share member / entitled
     student can submit on a private exam (read + submit gates agree)."""
     from routers.projects.annotations import create_annotation
 
     source = inspect.getsource(create_annotation)
-    assert "get_student_read_access" in source, (
-        "create_annotation must fall back to the participant gate so a joined "
-        "member / entitled student isn't 403'd on submit"
+    assert "get_project_access_tier" in source, (
+        "create_annotation must consult the participant-inclusive tier gate so "
+        "a joined member / entitled student isn't 403'd on submit"
     )

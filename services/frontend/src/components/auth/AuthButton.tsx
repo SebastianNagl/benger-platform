@@ -8,6 +8,7 @@ import { useFeatureFlags } from '@/contexts/FeatureFlagContext'
 import { useHydration } from '@/contexts/HydrationContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { useViewModeSwitch } from '@/hooks/useViewModeSwitch'
+import { useSlot } from '@/lib/extensions/slots'
 import {
   AcademicCapIcon,
   ArrowRightOnRectangleIcon,
@@ -27,6 +28,8 @@ export function AuthButton() {
   const { user, logout, isLoading, currentOrganization, organizations, setCurrentOrganization } =
     useAuth()
   const { t } = useI18n()
+  // Extended: account-menu entries (e.g. Abo & Abrechnung + tier badge).
+  const AuthMenuExtended = useSlot('AuthMenuExtended')
   const viewMode = useViewModeSwitch()
   const { isEnabled } = useFeatureFlags()
   const isClient = useHydration()
@@ -78,30 +81,6 @@ export function AuthButton() {
         {dropdownOpen && (
           <div className="absolute right-0 z-50 mt-2 max-h-[calc(100vh-5rem)] w-52 overflow-y-auto rounded-lg border border-zinc-200 bg-white shadow-lg dark:border-zinc-700 dark:bg-zinc-800">
             <div className="py-1">
-              {/* Student⇄expert view switch (issue #35) — only for users with
-                  expert-view capability in the extended edition. Lives here, in
-                  the account dropdown, rather than as a separate header control. */}
-              {viewMode.status === 'ready' && (
-                <>
-                  <button
-                    onClick={() => {
-                      setDropdownOpen(false)
-                      viewMode.switchTo(
-                        viewMode.resolved === 'student' ? 'expert' : 'student'
-                      )
-                    }}
-                    className="flex w-full items-center px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-700"
-                    data-testid="account-view-switch"
-                  >
-                    <AcademicCapIcon className="mr-3 h-4 w-4" />
-                    {viewMode.resolved === 'student'
-                      ? t('student.view.expert')
-                      : t('student.view.student')}
-                  </button>
-                  <hr className="my-1 border-zinc-200 dark:border-zinc-700" />
-                </>
-              )}
-
               {/* Profile Section */}
               <Link
                 href="/profile"
@@ -111,6 +90,12 @@ export function AuthButton() {
                 <UserIcon className="mr-3 h-4 w-4" />
                 {isClient ? t('auth.profileSettings') : 'Profile Settings'}
               </Link>
+
+              {AuthMenuExtended && (
+                <div data-testid="auth-menu-extended">
+                  <AuthMenuExtended onNavigate={() => setDropdownOpen(false)} />
+                </div>
+              )}
 
               {/* Settings Section */}
               <Link
@@ -205,6 +190,28 @@ export function AuthButton() {
                   <BeakerIcon className="mr-3 h-4 w-4" />
                   {isClient ? t('admin.featureFlags') : 'Feature Flags'}
                 </Link>
+              )}
+
+              {/* Student⇄expert view switch (issue #35) — only for users with
+                  expert-view capability in the extended edition. Sits with the
+                  admin links below Feature Flags (2026-08-25 request), not at
+                  the top of the dropdown. */}
+              {viewMode.status === 'ready' && (
+                <button
+                  onClick={() => {
+                    setDropdownOpen(false)
+                    viewMode.switchTo(
+                      viewMode.resolved === 'student' ? 'expert' : 'student'
+                    )
+                  }}
+                  className="flex w-full items-center px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-700"
+                  data-testid="account-view-switch"
+                >
+                  <AcademicCapIcon className="mr-3 h-4 w-4" />
+                  {viewMode.resolved === 'student'
+                    ? t('student.view.expert')
+                    : t('student.view.student')}
+                </button>
               )}
 
               <hr className="my-1 border-zinc-200 dark:border-zinc-700" />

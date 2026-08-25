@@ -1044,6 +1044,7 @@ describe('ProjectListTable', () => {
 
       render(<ProjectListTable />)
 
+      fireEvent.click(screen.getByTestId('projects-more-button'))
       const importButton = screen.getByTestId('projects-import-button')
       fireEvent.click(importButton)
 
@@ -1181,6 +1182,7 @@ describe('ProjectListTable', () => {
 
       render(<ProjectListTable />)
 
+      fireEvent.click(screen.getByTestId('projects-more-button'))
       const archivedButton = screen.getByTestId('projects-archived-button')
       fireEvent.click(archivedButton)
 
@@ -2140,6 +2142,7 @@ describe('ProjectListTable', () => {
       ) as HTMLInputElement
       const clickSpy = jest.spyOn(fileInput, 'click')
 
+      fireEvent.click(screen.getByTestId('projects-more-button'))
       const importButton = screen.getByTestId('projects-import-button')
       fireEvent.click(importButton)
 

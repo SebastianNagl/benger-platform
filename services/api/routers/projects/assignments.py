@@ -24,9 +24,9 @@ from project_models import (
     TaskAssignment,
 )
 from routers.projects.helpers import (
-    check_project_accessible,
     check_project_accessible_async,
     get_org_context_from_request,
+    get_project_access_tier,
     get_user_with_memberships,
 )
 
@@ -56,6 +56,10 @@ async def assign_tasks(
     # Verify project exists and user has permission
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    if getattr(project, "deleted_at", None) is not None and not current_user.is_superadmin:
+        # Soft-deleted (093): no new assignments (or assignment notifications)
+        # on a hidden project.
         raise HTTPException(status_code=404, detail="Project not found")
 
     # Check permission - only superadmin, org admin, or contributor can assign
@@ -556,7 +560,7 @@ async def get_my_tasks(
         raise HTTPException(status_code=404, detail="Project not found")
 
     org_context = get_org_context_from_request(request)
-    if not check_project_accessible(db, current_user, project_id, org_context):
+    if get_project_access_tier(db, current_user, project_id, org_context, project=project) is None:
         raise HTTPException(status_code=403, detail="Access denied")
 
     from sqlalchemy import exists as sa_exists, or_ as sa_or
@@ -591,14 +595,33 @@ async def get_my_tasks(
 
     if search:
         from sqlalchemy import String as SAString, func as sa_func, or_ as sa_or
+
+        from routers.projects.tasks.blinding import (
+            annotator_bound_fields_or_none,
+            visible_top_level_keys,
+        )
+
         escaped = search.replace('%', r'\%').replace('_', r'\_')
         like = f"%{escaped}%"
-        query = query.filter(
-            sa_or(
-                sa_func.cast(Task.data, SAString).ilike(like),
-                sa_func.cast(Task.id, SAString).ilike(like),
+        # Blinded callers (annotator role / participant tier) search only the
+        # visible keys — the raw-JSON search would be an oracle over the
+        # blinded Musterlösung (see tasks listing for the same guard).
+        bound = annotator_bound_fields_or_none(db, current_user, project)
+        if bound is None:
+            query = query.filter(
+                sa_or(
+                    sa_func.cast(Task.data, SAString).ilike(like),
+                    sa_func.cast(Task.id, SAString).ilike(like),
+                )
             )
-        )
+        else:
+            clauses = [sa_func.cast(Task.id, SAString).ilike(like)]
+            clauses += [
+                # ->> via .op(): JSONB and plain-JSON (dev shim) compatible.
+                Task.data.op('->>')(key).ilike(like)
+                for key in sorted(visible_top_level_keys(bound))
+            ]
+            query = query.filter(sa_or(*clauses))
 
     # Assigned tasks rank first by priority/due-date; annotation-only tasks
     # (null assignment) fall after, ordered by inner_id for stable paging.

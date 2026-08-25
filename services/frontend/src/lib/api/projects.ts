@@ -92,7 +92,8 @@ export const projectsAPI = {
     pageSize = 100,
     search?: string,
     isArchived?: boolean,
-    includeAllPrivate?: boolean
+    includeAllPrivate?: boolean,
+    onlyDeleted?: boolean
   ): Promise<PaginatedResponse<Project>> => {
     const params = new URLSearchParams({
       page: page.toString(),
@@ -114,6 +115,11 @@ export const projectsAPI = {
     // projects. Backend ignores the flag for non-superadmins.
     if (includeAllPrivate === true) {
       params.append('include_all_private', 'true')
+    }
+
+    // Superadmin-only: the deleted-projects view (soft delete, 093).
+    if (onlyDeleted === true) {
+      params.append('only_deleted', 'true')
     }
 
     // Add cache-busting parameter to ensure fresh data after deletions
@@ -154,6 +160,24 @@ export const projectsAPI = {
   /**
    * Delete a project
    */
+  /** Restore a soft-deleted project (superadmin only). */
+  restoreProject: async (projectId: string): Promise<void> => {
+    await apiClient.post(`/projects/${projectId}/restore`, {})
+  },
+
+  /** Irreversibly destroy a project + data (superadmin only). */
+  purgeProject: async (projectId: string): Promise<void> => {
+    await apiClient.delete(`/projects/${projectId}/purge`)
+  },
+
+  bulkRestoreProjects: async (projectIds: string[]): Promise<{ restored: number }> =>
+    apiClient.post('/projects/bulk-restore', { project_ids: projectIds }),
+
+  bulkPurgeProjects: async (
+    projectIds: string[],
+  ): Promise<{ purged: number; failed: number }> =>
+    apiClient.post('/projects/bulk-purge', { project_ids: projectIds }),
+
   delete: async (projectId: string): Promise<void> => {
     await apiClient.delete(`/projects/${projectId}`)
   },

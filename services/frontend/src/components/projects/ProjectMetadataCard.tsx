@@ -10,6 +10,8 @@
 'use client'
 
 import type { Project } from '@/types/labelStudio'
+import { projectIcon, projectKindLabelKey } from '@/lib/projectKind'
+import { LockClosedIcon } from '@heroicons/react/24/outline'
 
 interface ProjectMetadataCardProps {
   project: Project
@@ -17,6 +19,9 @@ interface ProjectMetadataCardProps {
 }
 
 export function ProjectMetadataCard({ project, t }: ProjectMetadataCardProps) {
+  // Read-only display: the editable picker lives in the settings card
+  // (ProjectKindSection). Student-created projects are locked entirely.
+  const lockedStudent = project.origin === 'student'
   return (
     <div className="mb-8 rounded-lg bg-white p-6 shadow-sm ring-1 ring-zinc-900/5 dark:bg-zinc-900 dark:ring-white/10">
       <h2 className="mb-6 text-lg font-semibold text-zinc-900 dark:text-white">
@@ -24,6 +29,27 @@ export function ProjectMetadataCard({ project, t }: ProjectMetadataCardProps) {
       </h2>
 
       <dl className="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2">
+        <div>
+          <dt className="flex items-center gap-1 text-sm font-medium text-zinc-500 dark:text-zinc-400">
+            {t('projects.creation.wizard.step1.kind.title', 'Projekttyp')}
+            {lockedStudent && (
+              <span
+                title={t(
+                  'projects.creation.wizard.step1.kind.lockedStudent',
+                  'Der Typ studentischer Projekte kann nicht geändert werden.'
+                )}
+              >
+                <LockClosedIcon className="h-3.5 w-3.5" />
+              </span>
+            )}
+          </dt>
+          <dd className="mt-1 text-sm text-zinc-900 dark:text-white" data-testid="project-kind">
+            <span className="mr-1" aria-hidden>
+              {projectIcon(project)}
+            </span>
+            {t(projectKindLabelKey(project.kind))}
+          </dd>
+        </div>
         <div>
           <dt className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
             {t('project.details.status')}

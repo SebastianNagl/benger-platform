@@ -41,6 +41,8 @@ export default function TaskDetailPage({ params }: TaskDetailPageProps) {
   // Extended edition mounts the per-task Bewertungsbogen viewer/editor here
   // (candidate rubrics, activation, regenerate). Null in community edition.
   const TaskRubricPanel = useSlot('TaskRubricPanel')
+  // Extended: typed Klausur part editor as an alternative to raw JSON.
+  const TaskStructuredEditor = useSlot('TaskStructuredEditor')
 
   // Resolve params in useEffect to avoid potential issues with use() hook
   useEffect(() => {
@@ -283,14 +285,26 @@ export default function TaskDetailPage({ params }: TaskDetailPageProps) {
                     {t('tasks.detail.taskData')}
                   </h3>
                   {user?.is_superadmin && !isEditing && (
-                    <Button
-                      variant="outline"
-                      onClick={handleStartEdit}
-                      className="flex items-center gap-1"
-                    >
-                      <PencilIcon className="h-4 w-4" />
-                      {t('tasks.detail.edit')}
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      {TaskStructuredEditor && task && (
+                        <span data-testid="task-structured-editor">
+                          <TaskStructuredEditor
+                            projectId={projectId}
+                            task={task}
+                            canEdit
+                            onSaved={(data: any) => setTask({ ...(task as any), data })}
+                          />
+                        </span>
+                      )}
+                      <Button
+                        variant="outline"
+                        onClick={handleStartEdit}
+                        className="flex items-center gap-1"
+                      >
+                        <PencilIcon className="h-4 w-4" />
+                        {t('tasks.detail.edit')}
+                      </Button>
+                    </div>
                   )}
                   {isEditing && (
                     <div className="flex items-center gap-2">

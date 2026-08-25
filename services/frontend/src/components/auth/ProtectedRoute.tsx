@@ -49,8 +49,14 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
 
   // If not authenticated and trying to access protected route, show loading
   // (redirect will happen in useEffect)
+  // Rendered inside the page chrome (header + container), so `min-h-screen`
+  // would push the spinner below the viewport centre. Overlay the viewport
+  // like ConditionalLayout's auth-loading screen so both screens match.
   return (
-    <div className="flex min-h-screen items-center justify-center bg-white dark:bg-zinc-900">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-white dark:bg-zinc-900"
+      data-testid="protected-route-redirecting"
+    >
       <div className="text-center">
         <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-b-2 border-emerald-500"></div>
         <p className="text-zinc-600 dark:text-zinc-400">{t('common.redirecting')}</p>

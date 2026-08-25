@@ -772,3 +772,22 @@ describe('Dialog Component', () => {
     })
   })
 })
+
+describe('Dialog width override', () => {
+  it('keeps max-w-md by default and yields to a caller max-w-*', () => {
+    const { unmount } = render(
+      <Dialog open onOpenChange={() => {}} title="T">
+        <p>body</p>
+      </Dialog>
+    )
+    expect(document.querySelector('.max-w-md')).not.toBeNull()
+    unmount()
+    render(
+      <Dialog open onOpenChange={() => {}} title="T" className="max-w-4xl">
+        <p>body</p>
+      </Dialog>
+    )
+    expect(document.querySelector('.max-w-md')).toBeNull()
+    expect(document.querySelector('.max-w-4xl')).not.toBeNull()
+  })
+})

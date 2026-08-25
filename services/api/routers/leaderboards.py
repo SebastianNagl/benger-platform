@@ -199,7 +199,7 @@ def _apply_default_visibility_filter(query, project_ids):
         return query.filter(EvaluationRun.project_id.in_(project_ids))
     return query.join(
         Project, EvaluationRun.project_id == Project.id,
-    ).filter(Project.is_public.is_(True))
+    ).filter(Project.is_public.is_(True), Project.deleted_at.is_(None))
 
 
 def detect_provider_from_model_id(model_id: str) -> str:

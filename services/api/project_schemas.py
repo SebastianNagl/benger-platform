@@ -180,16 +180,25 @@ class ProjectCreate(ProjectBase):
         description="Role public visitors are treated as for is_public projects. ANNOTATOR (view+annotate) or CONTRIBUTOR (also add tasks, run jobs). Required when is_public=True.",
     )
     # Project kind / origin (extended-edition student experience). Free-form,
-    # length-capped nullable strings — NOT enums — so the community edition
-    # stays forward-compatible. Accepted ONLY at creation (write-once); there
-    # is intentionally no counterpart in ProjectUpdate, so a student project
-    # can never be silently un-flagged back into the public leaderboards.
+    # length-capped nullable strings at CREATION — NOT enums — so the
+    # community edition stays forward-compatible. ``kind`` is also editable
+    # later via ProjectUpdate (enum-validated there, and update_project
+    # rejects changes on origin='student' projects so a student project can
+    # never be silently un-flagged back into the public leaderboards).
+    # ``origin`` stays write-once.
     kind: Optional[str] = Field(
-        None, max_length=32, description='Project kind, e.g. "exam" or "flashcard_deck" (extended).'
+        None, max_length=32, description='Project kind, e.g. "exam" or "flashcard_collection" (extended).'
     )
     origin: Optional[str] = Field(
         None, max_length=32, description='Project origin, e.g. "student" (extended).'
     )
+    # Display icon (an emoji). Editable later via ProjectUpdate.
+    icon: Optional[str] = Field(None, max_length=16, description="Project emoji icon.")
+
+    @field_validator("icon")
+    @classmethod
+    def _icon_is_emoji(cls, v):
+        return _validate_icon(v)
     # Timed access window (optional; see ProjectUpdate for semantics).
     window_start_at: Optional[datetime] = None
     window_end_at: Optional[datetime] = None
@@ -215,11 +224,51 @@ class ProjectCreate(ProjectBase):
         return self
 
 
+def _validate_icon(v):
+    """Shared icon guard: an emoji sequence (possibly with ZWJ/variation
+    selectors), never plain text/markup — the value renders verbatim in
+    lists, headers and the global discover directory."""
+    if v is None:
+        return v
+    v = v.strip()
+    if not v:
+        return None
+    if any(ord(ch) < 0x2000 for ch in v):
+        raise ValueError("icon must be an emoji")
+    return v
+
+
 class ProjectUpdate(BaseModel):
     """Schema for updating a project"""
 
     title: Optional[str] = Field(None, min_length=1, max_length=255)
     description: Optional[str] = None
+    icon: Optional[str] = Field(None, max_length=16, description="Project emoji icon.")
+
+    @field_validator("icon")
+    @classmethod
+    def _icon_is_emoji(cls, v):
+        return _validate_icon(v)
+
+    # Project kind — the single source of truth for the extended edition's
+    # student-facing discovery/listing (exam / flashcard deck). Unlike the
+    # free-form creation field, updates are enum-validated: only the values
+    # the student surfaces understand (or an explicit null to clear back to a
+    # generic project). update_project additionally rejects kind CHANGES on
+    # origin='student' projects (anti-un-flag contract).
+    kind: Optional[str] = Field(
+        None,
+        max_length=32,
+        description='Project kind: "exam", "flashcard_collection", or null (generic).',
+    )
+
+    @field_validator("kind")
+    @classmethod
+    def _kind_is_known(cls, v):
+        if v is not None and v not in ("exam", "flashcard_collection"):
+            raise ValueError('kind must be "exam", "flashcard_collection", or null')
+        return v
+
     label_config: Optional[str] = None
     # Note: generation_structure removed in Issue #762 - now in generation_config.prompt_structures
     expert_instruction: Optional[str] = None
@@ -373,10 +422,20 @@ class ProjectResponse(ProjectBase):
     # Student-experience tags (extended). Null on plain benchmark projects.
     kind: Optional[str] = None
     origin: Optional[str] = None
+    icon: Optional[str] = None
     is_published: bool = False
     is_archived: bool = False
     created_at: datetime
     updated_at: Optional[datetime] = None
+    # Soft delete (read-only; delete/restore/purge have explicit endpoints).
+    deleted_at: Optional[datetime] = None
+    # Caller-relative access info (set by list/detail handlers, never stored):
+    # "full" = normal project access, "participant" = narrow tier reached via
+    # a share link / entitlement / org exam (solver surfaces only).
+    access_tier: Optional[str] = None
+    participant_via: Optional[str] = None  # share | entitlement | org_exam
+    effective_role: Optional[str] = None  # ORG_ADMIN | CONTRIBUTOR | ANNOTATOR
+    can_manage_shares: bool = False
 
     # Additional fields not in ProjectBase
     instructions: Optional[str] = None  # Mapped from expert_instruction

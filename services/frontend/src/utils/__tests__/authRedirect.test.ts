@@ -44,10 +44,11 @@ describe('authRedirect', () => {
         '/lti/error',
         '/about/imprint',
         '/about/data-protection',
+        '/changelog',
       ]
 
       expect(publicRoutes).toEqual(expectedRoutes)
-      expect(publicRoutes).toHaveLength(12)
+      expect(publicRoutes).toHaveLength(13)
     })
 
     it('should contain unique routes only', () => {

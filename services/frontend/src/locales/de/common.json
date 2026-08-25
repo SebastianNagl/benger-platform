@@ -4,6 +4,7 @@
     "next": "Weiter",
     "dashboard": "Dashboard",
     "reports": "Berichte",
+    "learningStats": "Lernstatistik",
     "leaderboards": "Bestenlisten",
     "projects": "Projekte",
     "dataManagement": "Datenverwaltung",
@@ -28,7 +29,8 @@
     "task": "Aufgabe",
     "mobile": {
       "toggleNavigation": "Navigation umschalten"
-    }
+    },
+    "billing": "Abo & Abrechnung"
   },
   "header": {
     "expandSidebar": "Seitenleiste erweitern",
@@ -152,6 +154,16 @@
       "title": "Evaluierungen anzeigen",
       "description": "Abgeschlossene Evaluierungen und Metriken überprüfen",
       "button": "Ergebnisse anzeigen"
+    },
+    "personal": {
+      "title": "Meine Lernstatistik",
+      "subtitle": "Ihre Bewertungen, Ihr Lernfortschritt und fällige Karten",
+      "empty": "Noch keine Bewertungen oder Lernsitzungen.",
+      "collapse": "Einklappen",
+      "expand": "Ausklappen",
+      "show": "Anzeigen",
+      "hide": "Ausblenden",
+      "unavailable": "Die Lernstatistik ist in dieser Edition nicht verfügbar."
     }
   },
   "projects": {
@@ -251,6 +263,10 @@
           "synthetic": {
             "name": "KI-Generator",
             "description": "Synthetische Klausur oder Karteikarten aus einem Skript erzeugen"
+          },
+          "rubric": {
+            "name": "AI-Bewertungsbogen",
+            "description": "Experimentell: pro Aufgabe einen Bewertungsbogen per LLM erzeugen (zweite Bewertungsmethode)"
           }
         },
         "features": {
@@ -297,15 +313,35 @@
           "validation": {
             "nameRequired": "Projektname ist erforderlich",
             "orgRequired": "Mindestens eine Organisation wählen oder Sichtbarkeit ändern."
+          },
+          "kind": {
+            "title": "Projekttyp",
+            "locked": "Der Projekttyp kann von Bearbeitenden unter „Einstellungen“ geändert werden.",
+            "lockedStudent": "Der Typ studentischer Projekte kann nicht geändert werden.",
+            "editableHint": "Der Typ steuert, ob Studierende dieses Projekt als Klausur bzw. Kartenstapel finden können.",
+            "generic": "Generisch",
+            "genericDescription": "Benchmark-/Annotationsprojekt ohne Klausur- oder Karten-Logik",
+            "exam": "Klausur",
+            "examDescription": "Falllösung mit Angabe, Musterlösung und KI-Korrektur; für Studierende lösbar",
+            "deck": "Kartenstapel",
+            "deckDescription": "Karteikarten mit Vorder-/Rückseite und Lernplan (SRS)"
+          },
+          "icon": {
+            "title": "Symbol",
+            "help": "Wird in Listen, im Projektkopf und unter „Entdecken“ angezeigt. Ohne Auswahl gilt das Typ-Symbol.",
+            "clickToEdit": "Klicken zum Bearbeiten"
           }
         },
         "step2": {
           "title": "Daten importieren",
           "subtitle": "Laden Sie Ihre Daten jetzt hoch oder überspringen Sie diesen Schritt und fügen Sie sie später hinzu",
+          "syntheticNotice": "Der KI-Generator liefert bereits synthetische Daten. Zusätzliche Uploads sind möglich, müssen aber derselben Struktur folgen.",
+          "syntheticNoticeColumns": "Erwartete Spalten:",
           "tabs": {
             "upload": "Dateien hochladen",
             "paste": "Daten einfügen",
-            "cloud": "Cloud-Speicher"
+            "cloud": "Cloud-Speicher",
+            "structured": "Klausur erfassen"
           },
           "upload": {
             "dropzone": "Dateien hier ablegen oder klicken zum Hochladen",
@@ -467,7 +503,9 @@
           "minutes": "Minuten",
           "strictTimer": "Strikter Timer",
           "strictTimerHint": "Annotation automatisch absenden, wenn die Zeit abläuft",
-          "advancedNote": "Weitere Einstellungen (Review-Modus, Feedback) sind nach der Erstellung auf der Projektseite verfügbar."
+          "advancedNote": "Weitere Einstellungen (Review-Modus, Feedback) sind nach der Erstellung auf der Projektseite verfügbar.",
+          "revealSolution": "Musterlösung nach Abgabe anzeigen",
+          "revealSolutionHint": "Nach der Abgabe sehen Bearbeitende alle Aufgabenfelder inkl. Musterlösung."
         },
         "evalSaveFailed": "Evaluationskonfiguration konnte nicht gespeichert werden",
         "promptStructureSaveFailed": "Prompt-Struktur konnte nicht gespeichert werden (Prompts sind weiterhin in der Generierungskonfiguration gespeichert)",
@@ -499,8 +537,30 @@
           "examSolving": {
             "name": "Klausurlösung",
             "description": "Annotiere juristische Falllösungen mit Angabe, Notizen, Gliederung und Lösung"
+          },
+          "flashcardDeck": {
+            "name": "Karteikarten (leer)",
+            "description": "Leerer Kartenstapel mit Vorder-/Rückseite; Karten im Projekt anlegen, lernen und exportieren"
           }
+        },
+        "rubric": {
+          "title": "Bewertungsbogen automatisch erzeugen (experimentell)",
+          "help": "Ein LLM erstellt aus Sachverhalt und Musterlösung pro Aufgabe einen analytischen 100-Punkte-Bewertungsbogen (inkl. vertretbarer Alternativen), gegen den anschließend bewertet wird.",
+          "warning": "Experimentell: Die Zuverlässigkeit hängt stark vom Paar aus Generator und Judge ab. Generierte Bögen sollten vor dem Einsatz fachlich geprüft werden (Aufgabenseite → Bewertungsbogen). Die Erzeugung verursacht LLM-Kosten pro Aufgabe.",
+          "model": "Generator-Modell",
+          "modelHint": "Dasselbe Modell bewertet anschließend gegen den Bogen (im Evaluierungs-Editor änderbar).",
+          "modelsLoading": "Modelle werden geladen…",
+          "modelsError": "Modelle konnten nicht geladen werden.",
+          "noTasksWarning": "Weder Datenimport noch KI-Generator sind aktiviert — beim Erstellen existieren keine Aufgaben, für die ein Bogen erzeugt werden könnte. Der Bogen kann später pro Aufgabe auf der Aufgabenseite erzeugt werden.",
+          "warningTitle": "Experimentell – erzeugte Bögen vor dem Einsatz fachlich prüfen."
         }
+      },
+      "structuredExam": {
+        "button": "Klausur strukturiert erfassen",
+        "title": "Klausur strukturiert erfassen",
+        "apply": "Übernehmen",
+        "appliedHint": "Übernommen — die Klausur wird beim Erstellen als Aufgabe importiert.",
+        "hint": "Sachverhalt, Musterlösung und optionale Teile als eine Klausur-Aufgabe anlegen — Labeling-Vorlage und KI-Korrektur werden automatisch gesetzt."
       }
     },
     "data": {
@@ -588,7 +648,16 @@
       "showAllPrivate": "Alle privaten Projekte anzeigen",
       "windowUpcoming": "Öffnet {date}",
       "windowClosed": "Beendet",
-      "windowOpen": "Offen"
+      "windowOpen": "Offen",
+      "participantBadge": "Teilnehmer",
+      "participantVia": {
+        "share": "Über Freigabe-Link beigetreten",
+        "entitlement": "Über „Entdecken“ freigeschaltet",
+        "org_exam": "Über Ihre Organisation freigegeben"
+      },
+      "kindDeck": "Kartenstapel",
+      "kindExam": "Klausur",
+      "study": "Lernen"
     },
     "columns": {
       "label": "Spalten",
@@ -808,7 +877,24 @@
       "customConfigName": "Benutzerdefinierte Konfiguration",
       "customConfigDescription": "Benutzerdefinierte Konfiguration",
       "labelStudioDocs": "Label Studio Dokumentation",
-      "note": "Hinweis"
+      "note": "Hinweis",
+      "postCreateHookFailed": "Nachbearbeitung fehlgeschlagen"
+    },
+    "discover": "Entdecken",
+    "more": "Mehr",
+    "deleted": {
+      "title": "Gelöschte Projekte",
+      "subtitle": "Gelöschte Projekte sind für alle ausgeblendet, ihre Daten bleiben erhalten. Nur hier können sie wiederhergestellt oder endgültig gelöscht werden.",
+      "empty": "Keine gelöschten Projekte.",
+      "project": "Projekt",
+      "deletedAt": "Gelöscht am",
+      "actions": "Aktionen",
+      "badge": "Gelöscht",
+      "restore": "Wiederherstellen",
+      "restored": "Projekt wiederhergestellt.",
+      "purge": "Endgültig löschen",
+      "purged": "Projekt endgültig gelöscht.",
+      "purgeConfirm": "„{title}“ und ALLE zugehörigen Daten (Aufgaben, Abgaben, Bewertungen, Lernverläufe) endgültig löschen? Das kann nicht rückgängig gemacht werden."
     }
   },
   "project": {
@@ -817,12 +903,12 @@
     "notFoundDescription": "Das gesuchte Projekt existiert nicht oder Sie haben keinen Zugriff darauf.",
     "backToProjects": "Zurück zu Projekten",
     "deleteConfirmTitle": "Projekt löschen",
-    "deleteConfirmMessage": "Sind Sie sicher, dass Sie dieses Projekt löschen möchten? Dies löscht dauerhaft:",
+    "deleteConfirmMessage": "Sind Sie sicher, dass Sie dieses Projekt löschen möchten? Es wird für alle ausgeblendet:",
     "deleteConfirmItems": {
       "config": "Das Projekt und seine gesamte Konfiguration",
       "tasks": "Alle Aufgaben ({count} Aufgaben)",
       "annotations": "Alle Annotationen ({count} Annotationen)",
-      "irreversible": "Diese Aktion kann nicht rückgängig gemacht werden"
+      "irreversible": "Die Daten bleiben erhalten; nur Superadmins können das Projekt wiederherstellen oder endgültig löschen"
     },
     "deleting": "Wird gelöscht...",
     "deleteProject": "Projekt löschen",
@@ -837,7 +923,8 @@
       "organizations": "Organisationen",
       "noOrganizations": "Keine Organisationen",
       "at": "um",
-      "unknown": "Unbekannt"
+      "unknown": "Unbekannt",
+      "kindSaveFailed": "Projekttyp konnte nicht gespeichert werden."
     },
     "labelConfiguration": {
       "title": "Label-Konfiguration",
@@ -1056,6 +1143,52 @@
       "minAnnotations": "{count} min. Annotationen",
       "editSettings": "Einstellungen bearbeiten",
       "saveSettings": "Einstellungen speichern",
+      "studentAccess": {
+        "links": {
+          "title": "Freigabe-Links",
+          "help": "Passwortgeschützte Einladungslinks. Wer beitritt, wird Teilnehmende/r.",
+          "empty": "Noch keine Freigabe-Links.",
+          "create": "Link erstellen",
+          "creating": "Wird erstellt…",
+          "password": "Passwort",
+          "passwordPlaceholder": "mind. 4 Zeichen",
+          "expiresAt": "Gültig bis (optional)",
+          "maxUses": "Max. Beitritte (optional)",
+          "listed": "Im Verzeichnis „Entdecken“ listen",
+          "listedHelp": "Nur für Klausuren und Kartenstapel aus der Studierenden-Oberfläche.",
+          "listedBadge": "Gelistet",
+          "revokedBadge": "Widerrufen",
+          "expires": "bis {date}",
+          "uses": "{count} Beitritte",
+          "usesCapped": "{count} / {max} Beitritte",
+          "copy": "Link kopieren",
+          "copied": "Link kopiert",
+          "copyError": "Link konnte nicht kopiert werden.",
+          "rotate": "Passwort erneuern",
+          "rotatePrompt": "Neues Passwort",
+          "rotated": "Passwort aktualisiert. Der Link bleibt gleich.",
+          "unlist": "Aus Verzeichnis entfernen",
+          "list": "Im Verzeichnis listen",
+          "revoke": "Widerrufen",
+          "confirmRevoke": "Link widerrufen? Beitritte sind dann nicht mehr möglich, bestehende Teilnehmende behalten den Zugang.",
+          "error": "Aktion fehlgeschlagen.",
+          "created": "Freigabe-Link erstellt."
+        },
+        "participants": {
+          "title": "Teilnehmende",
+          "help": "Über Freigabe-Links beigetretene Personen.",
+          "empty": "Noch keine Teilnehmenden.",
+          "name": "Name",
+          "attempts": "Versuche",
+          "best": "Beste",
+          "last": "Letzte",
+          "joined": "Beigetreten",
+          "remove": "Entfernen",
+          "confirmRemove": "{name} entfernen? Die Person verliert den Zugang; bisherige Versuche bleiben erhalten.",
+          "removed": "Teilnehmende/r entfernt.",
+          "error": "Teilnehmende konnten nicht geladen werden."
+        }
+      },
       "featureVisibility": {
         "title": "Sichtbarkeit der Bereiche",
         "help": "Wählen Sie, welche Konfigurationsbereiche auf dieser Seite angezeigt werden. Diese Schalter steuern auch die Statistik-Kachel und den Fortschrittsbalken: nur aktivierte Bereiche fließen in den Projektfortschritt ein."
@@ -1289,6 +1422,56 @@
       "saving": "Wird gespeichert...",
       "titlePlaceholder": "Beschreibung hinzufügen...",
       "titleCannotBeEmpty": "Titel kann nicht leer sein"
+    },
+    "sharing": {
+      "title": "Freigabe",
+      "help": "Studierende erreichen das Projekt über „Entdecken“ (öffentlich oder in der Organisation geteilt) oder über Freigabe-Links.",
+      "discoverableHint": "Studierende finden dieses Projekt unter „Entdecken“.",
+      "notDiscoverableHint": "Studierende finden dieses Projekt nicht unter „Entdecken“; es ist nur über Freigabe-Links erreichbar.",
+      "refresh": "Aktualisieren",
+      "status": {
+        "discoverable": "Unter „Entdecken“ sichtbar",
+        "links": "{count} Links",
+        "participants": "{count} Teilnehmende",
+        "notShared": "Nicht geteilt"
+      },
+      "adminOnlyHint": "Nur Organisations-Admins können Freigabe-Links verwalten.",
+      "checks": {
+        "title": "Hinweise zur Auffindbarkeit",
+        "kind_is_exam": "Projekttyp ist nicht „Klausur“ — Studierende finden das Projekt nicht als Klausur.",
+        "kind_is_collection": "Projekttyp ist nicht „Kartenstapel“ — Studierende finden das Projekt nicht als Stapel.",
+        "not_archived": "Das Projekt ist archiviert.",
+        "not_private": "Das Projekt ist privat.",
+        "assignment_open": "Der Zuweisungsmodus ist nicht „offen“.",
+        "origin_not_student": "Studentische Projekte laufen über die eigenen Listen, nicht über „Entdecken“.",
+        "klausurloesung_config": "Die Beschriftungskonfiguration ist keine Klausurlösung (Angabe/Notizen/Gliederung/Lösung).",
+        "falloesung_judge": "Keine aktive Falllösungs-KI-Bewertung konfiguriert — die KI-Korrektur funktioniert nicht.",
+        "sachverhalt_binding": "Die Konfiguration bindet kein $sachverhalt-Feld.",
+        "musterloesung_key": "Die Aufgaben enthalten keine Musterlösung.",
+        "deck_config": "Die Beschriftungskonfiguration ist nicht kartenförmig ($front).",
+        "card_keys": "Die Aufgaben enthalten keine front/back-Kartenfelder.",
+        "has_tasks": "Das Projekt enthält keine Aufgaben."
+      }
+    },
+    "participant": {
+      "title": "Teilnahme",
+      "leave": "Projekt verlassen",
+      "leaveConfirm": "Sie verlieren den Zugang zu diesem Projekt. Ihre bisherigen Abgaben bleiben erhalten.",
+      "left": "Sie haben das Projekt verlassen.",
+      "cannotLeavePurchase": "Gekaufter Zugang kann nicht verlassen werden.",
+      "cannotLeaveOrg": "Der Zugang kommt über Ihre Organisation und wird dort verwaltet."
+    },
+    "deck": {
+      "title": "Kartenstapel",
+      "subtitle": "Lernen, Karten verwalten, exportieren"
+    },
+    "icon": {
+      "saveFailed": "Symbol konnte nicht gespeichert werden."
+    },
+    "discover": {
+      "title": "Projekt entdecken",
+      "back": "Zurück zum Verzeichnis",
+      "alreadyMember": "Sie sind diesem Projekt bereits beigetreten."
     }
   },
   "tasks": {
@@ -1451,7 +1634,11 @@
       "labeled": "Beschriftet",
       "feedbackAvailable": "Feedback",
       "evaluationAvailable": "Bewertung",
-      "due": "Fällig"
+      "due": "Fällig",
+      "result": {
+        "pick": "Aufgabe",
+        "loadError": "Korrektur konnte nicht geladen werden."
+      }
     },
     "review": {
       "title": "Überprüfung",
@@ -1730,7 +1917,12 @@
       "validationError": "Import-Validierungsfehler",
       "validationErrorDescription": "Der folgende Validierungsfehler ist beim Import aufgetreten:",
       "importAnyway": "Trotzdem importieren",
-      "orUseFieldMapping": "oder Feldzuordnung unten verwenden"
+      "orUseFieldMapping": "oder Feldzuordnung unten verwenden",
+      "extractText": {
+        "button": "Text aus Dokument (PDF/DOCX)",
+        "busy": "Extrahiere…",
+        "failed": "Text konnte nicht extrahiert werden."
+      }
     },
     "taskAssignment": {
       "assigningTasks": "{count} Aufgabe(n) zuweisen",
@@ -1764,6 +1956,12 @@
       "updateSuccess": "Annotationsrichtlinien erfolgreich aktualisiert",
       "updateFailed": "Aktualisierung der Annotationsrichtlinien fehlgeschlagen",
       "updateFailedWithMessage": "Aktualisierung der Annotationsrichtlinien fehlgeschlagen: {message}"
+    },
+    "structured": {
+      "button": "Strukturiert bearbeiten",
+      "title": "Klausur strukturiert bearbeiten",
+      "saved": "Aufgabe gespeichert.",
+      "saveError": "Aufgabe konnte nicht gespeichert werden."
     }
   },
   "profile": {
@@ -2024,7 +2222,10 @@
       "sum": "Summe"
     },
     "coCreationNoData": "Keine KI-unterstützten Annotationen für diesen Zeitraum gefunden.",
-    "coCreationNoSearchResults": "Keine Co-Creators gefunden, die Ihrer Suche entsprechen."
+    "coCreationNoSearchResults": "Keine Co-Creators gefunden, die Ihrer Suche entsprechen.",
+    "cohort": "Klausur-Kohorte",
+    "cohortEmpty": "Keine Projekte mit Kohorte.",
+    "cohortProject": "Projekt"
   },
   "fields": {
     "pdf": {
@@ -3323,6 +3524,11 @@
     "rotatingText": {
       "loading": "Laden..."
     }
+  },
+  "changelog": {
+    "title": "Changelog",
+    "intro": "Neue Funktionen und Verbesserungen im Überblick.",
+    "empty": "Noch keine Einträge."
   },
   "footer": {
     "imprint": "Impressum",
@@ -8385,6 +8591,7 @@
     "footer": {
       "imprint": "Impressum",
       "dataProtection": "Datenschutzerklärung",
+      "changelog": "Changelog",
       "followNotion": "Folge uns auf Notion",
       "followGithub": "Folge uns auf GitHub",
       "allRightsReserved": "Alle Rechte vorbehalten."
@@ -8887,7 +9094,7 @@
       "unavailable": "Diese Funktion ist in der Community-Edition nicht verfügbar."
     },
     "nav": {
-      "dashboard": "Übersicht",
+      "stats": "Lernstatistik",
       "exams": "Klausuren",
       "decks": "Karteikarten",
       "leaderboard": "Bestenliste",
@@ -8958,15 +9165,43 @@
         "seriesKi": "KI-Korrektur",
         "title": "Notenverlauf"
       },
-      "title": "Dashboard"
+      "title": "Meine Lernstatistik",
+      "tiles": {
+        "dueToday": "Heute fällig",
+        "exams": "Klausuren",
+        "decks": "Stapel",
+        "avgScore": "Ø Notenpunkte"
+      }
     },
     "deck": {
+      "export": {
+        "title": "Als Anki-Datei exportieren",
+        "label": "Exportieren"
+      },
+      "roster": {
+        "title": "Teilnehmende"
+      },
       "backToList": "Zurück zu den Stapeln",
       "card": {
         "add": "Hinzufügen",
         "added": "Karte hinzugefügt.",
         "error": "Karte konnte nicht gespeichert werden.",
         "title": "Karte hinzufügen"
+      },
+      "cards": {
+        "count": "{count} Karten",
+        "delete": "Löschen",
+        "deleteConfirm": "Karte wirklich löschen? Der Lernfortschritt zu dieser Karte geht für alle Lernenden verloren.",
+        "deleteError": "Karte konnte nicht gelöscht werden.",
+        "deleted": "Karte gelöscht.",
+        "edit": "Karte bearbeiten",
+        "empty": "Keine Karten gefunden.",
+        "next": "Weiter",
+        "prev": "Zurück",
+        "saveError": "Karte konnte nicht gespeichert werden.",
+        "saved": "Karte gespeichert.",
+        "searchPlaceholder": "Karten durchsuchen...",
+        "title": "Karten"
       },
       "create": {
         "addCard": "Karte hinzufügen",
@@ -8982,7 +9217,7 @@
         "titlePlaceholder": "z.B. Definitionen Strafrecht AT"
       },
       "delete": {
-        "message": "„{title}“ und alle Karten samt Lernfortschritt werden dauerhaft gelöscht. Das kann nicht rückgängig gemacht werden.",
+        "message": "„{title}“ wird gelöscht und ist danach für niemanden mehr sichtbar.",
         "title": "Stapel löschen?"
       },
       "dueNow": "{count} Karten fällig",
@@ -9065,15 +9300,34 @@
       "open": "Öffnen",
       "research": "Forschungsklausur",
       "researchBadge": "Forschung",
+      "enrollDeck": "Zu meinen Stapeln hinzufügen",
+      "enrollDeckError": "Der Kartenstapel konnte nicht hinzugefügt werden.",
+      "deckHint": "Lerne mit Karteikarten aus deiner Organisation. Dein Lernfortschritt bleibt bei dir.",
+      "previouslyEnrolledDeck": "Du hattest diesen Kartenstapel bereits in deiner Sammlung.",
+      "orgBadge": "Katalog",
+      "kindFilterLabel": "Nach Art filtern",
+      "filterAll": "Alle",
+      "filterExams": "Klausuren",
+      "filterDecks": "Kartenstapel",
+      "noDecks": "Derzeit sind keine Kartenstapel verfügbar.",
+      "noExams": "Derzeit sind keine Klausuren verfügbar.",
       "researchHint": "Löse echte Klausuren und erhalte eine KI-Bewertung. Die Bewertung wird über dein Guthaben abgerechnet.",
       "subtitleVendor": "Klausuren und Kartenstapel von Anbietern und anderen Studierenden.",
-      "taskCount": "{count} Aufgaben",
+      "taskCount": "{count} Klausuren",
       "title": "Entdecken",
-      "vendor": "Anbieter"
+      "vendor": "Anbieter",
+      "peerBadge": "Geteilt",
+      "enrollShort": "Hinzufügen",
+      "cardCount": "{count} Karten",
+      "reEnroll": "Wieder hinzufügen",
+      "noMatches": "Keine Treffer für „{query}“.",
+      "previouslyEnrolled": "Du hattest diese Klausur bereits in deiner Sammlung.",
+      "searchLabel": "Verzeichnis durchsuchen",
+      "searchPlaceholder": "Nach Titel oder Anbieter suchen…"
     },
     "exam": {
-      "allDone": "Alle Aufgaben gelöst. Vielen Dank für deinen Beitrag!",
-      "allSolvedHint": "Du hast alle Aufgaben dieser Klausur gelöst.",
+      "allDone": "Alle Klausuren gelöst. Vielen Dank für deinen Beitrag!",
+      "allSolvedHint": "Du hast alle Klausuren dieser Sammlung gelöst.",
       "attempt": {
         "empty": "Bitte schreibe zuerst eine Lösung.",
         "error": "Abgabe fehlgeschlagen.",
@@ -9128,8 +9382,17 @@
         "zusatzmaterialPlaceholder": "z.B. Normtexte oder Auszüge..."
       },
       "delete": {
-        "message": "„{title}“ und alle zugehörigen Versuche werden dauerhaft gelöscht. Das kann nicht rückgängig gemacht werden.",
+        "message": "„{title}“ wird gelöscht und ist danach für niemanden mehr sichtbar.",
         "title": "Klausur löschen?"
+      },
+      "edit": {
+        "attemptWarning": "Für diese Klausur gibt es bereits Abgaben. Bestehende Korrekturen beziehen sich auf die alte Version.",
+        "button": "Bearbeiten",
+        "error": "Klausur konnte nicht gespeichert werden.",
+        "loadError": "Inhalte konnten nicht geladen werden.",
+        "submit": "Speichern",
+        "success": "Klausur gespeichert.",
+        "title": "Klausur bearbeiten"
       },
       "exitConfirm": "Bearbeitung beenden? Nicht abgegebene Eingaben gehen verloren.",
       "extract": {
@@ -9143,7 +9406,7 @@
       },
       "joined": "Beigetreten",
       "loadError": "Klausur konnte nicht geladen werden.",
-      "nextTask": "Nächste Aufgabe",
+      "nextTask": "Nächste Klausur",
       "notFound": "Klausur nicht gefunden.",
       "opensAt": "Diese Klausur öffnet am {date}.",
       "print": {
@@ -9174,7 +9437,9 @@
           "musterloesung": "Musterlösung",
           "ki": "KI-Korrektur",
           "human": "Feedback"
-        }
+        },
+        "taskPicker": "Klausur",
+        "taskFallback": "Klausur {n}"
       },
       "review": "Abgabe ansehen",
       "roster": {
@@ -9188,7 +9453,17 @@
         "hint": "Ohne Kriterien wird das Standard-Falllösungsschema (10 Dimensionen) verwendet.",
         "key": "Schlüssel",
         "maxScore": "Maximalpunktzahl",
-        "title": "Bewertungskriterien (optional)"
+        "title": "Bewertungskriterien (optional)",
+        "aiPropose": "Mit KI vorschlagen",
+        "aiRun": "Vorschlag erzeugen",
+        "aiRunning": "Wird erstellt…",
+        "aiEmpty": "Der Vorschlag enthielt keine Kriterien.",
+        "aiFailed": "KI-Vorschlag fehlgeschlagen.",
+        "aiModel": "Generator-Modell",
+        "aiModelsError": "Modellliste konnte nicht geladen werden.",
+        "aiWarning": "Experimentell: Die KI erstellt aus Angabe und Musterlösung einen Vorschlag (LLM-Kosten, 1–2 Minuten). Prüfe die Kriterien fachlich, bevor du speicherst.",
+        "aiReplaceConfirm": "Der KI-Vorschlag ersetzt die vorhandenen Kriterien. Fortfahren?",
+        "aiCreateHint": "Nach dem Erstellen verfügbar — öffne die Klausur und bearbeite die Kriterien."
       },
       "settings": {
         "confirm": "Bestätigung vor der Abgabe verlangen",
@@ -9218,7 +9493,8 @@
       },
       "solve": "Klausur lösen",
       "solvedHint": "Du hast diese Klausur abgegeben.",
-      "taskProgress": "Aufgabe {n} von {total}"
+      "taskProgress": "Klausur {n} von {total}",
+      "continueSolving": "Weiter lösen"
     },
     "exams": {
       "attempts": "{count} Versuche",
@@ -9230,6 +9506,9 @@
       "joined": "Beigetreten",
       "loadError": "Klausuren konnten nicht geladen werden.",
       "notAttempted": "Noch nicht bearbeitet",
+      "sammlung": "Klausurensammlung",
+      "taskProgress": "{solved} von {total} Klausuren",
+      "avgGradePoints": "Ø {points} Punkte",
       "opensAt": "Öffnet {date}",
       "remove": "Entfernen",
       "removeTitle": "Aus meiner Liste entfernen",
@@ -9280,6 +9559,8 @@
       "gradeSubmit": "Antwort bewerten",
       "grading": "Wird bewertet...",
       "mode": {
+        "gradedSoon": "KI-Bewertung bald verfügbar",
+        "soon": "bald",
         "graded": "Bewertet",
         "quick": "Schnell"
       },
@@ -9294,6 +9575,12 @@
       "inviteBody": "Melde dich an oder erstelle ein Konto, um beizutreten.",
       "inviteTitle": "Du wurdest zu einer geteilten Klausur eingeladen",
       "join": "Beitreten",
+      "wrongPassword": "Falsches Passwort.",
+      "usageLimit": "Dieser Einladungslink wurde bereits zu oft verwendet.",
+      "expired": "Dieser Einladungslink ist abgelaufen.",
+      "rateLimited": "Zu viele Versuche. Bitte warte einen Moment und versuche es erneut.",
+      "alreadyMemberDeck": "Du bist diesem Kartenstapel bereits beigetreten.",
+      "consentDeck": "Ich stimme zu, dass die Erstellerin/der Ersteller sieht, dass ich diesem Kartenstapel beigetreten bin.",
       "joinError": "Beitritt fehlgeschlagen. Bitte versuche es erneut.",
       "joining": "Trete bei …",
       "loadError": "Diese Einladung konnte nicht geladen werden.",
@@ -9329,7 +9616,11 @@
       "tooLong": "Das Skript ist zu lang (max. {max} Zeichen).",
       "skriptTooShort": "Das Skript ist zu kurz (mindestens 200 Zeichen).",
       "error": "Erzeugung fehlgeschlagen.",
-      "noModels": "Keine Modelle verfügbar."
+      "noModels": "Keine Modelle verfügbar.",
+      "rubricTitle": "Bewertungsbogen automatisch erzeugen (experimentell)",
+      "rubricHint": "Schlägt nach der Erzeugung Bewertungskriterien aus Sachverhalt und Musterlösung vor (gleiches Modell wie oben) und trägt sie in die Klausur ein — du kannst sie unter „Bearbeiten“ prüfen und anpassen.",
+      "rubricWarning": "Experimentell: Die erzeugten Kriterien können fehlerhaft sein und die Erzeugung verursacht einen zusätzlichen KI-Aufruf (1–2 Minuten).",
+      "rubricGenerating": "Bewertungskriterien werden vorgeschlagen… (kann 1–2 Minuten dauern)"
     }
   },
   "accountActivation": {
@@ -9447,5 +9738,8 @@
       "subtitle": "Beide Pläne korrigieren deine Klausuren — wähl, was zu dir passt. Du kannst jederzeit wechseln.",
       "title": "Willkommen bei Vertretbar 👋"
     }
+  },
+  "billing": {
+    "unavailable": "Abrechnung ist in dieser Edition nicht verfügbar."
   }
 }

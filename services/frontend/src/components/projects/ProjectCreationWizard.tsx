@@ -13,8 +13,9 @@ import { Card } from '@/components/shared/Card'
 import { useI18n } from '@/contexts/I18nContext'
 import { apiClient } from '@/lib/api/client'
 import { projectsAPI } from '@/lib/api/projects'
-import { getRegisteredWizardTemplates } from '@/lib/extensions'
+import { getRegisteredWizardTemplates, getWizardKindPreset, getWizardPostCreateHooks } from '@/lib/extensions'
 import { useSlot } from '@/lib/extensions/slots'
+import { defaultIconForKind } from '@/lib/projectKind'
 import { getWizardFinishContributors } from '@/lib/extensions/wizardFinish'
 import { extractFieldsFromLabelConfig } from '@/lib/labelConfig/fieldExtractor'
 import { useProjectStore } from '@/stores/projectStore'
@@ -139,6 +140,11 @@ export function ProjectCreationWizard() {
   // Extended-edition step body for the experimental KI-Generator feature
   // (checkbox row = ProjectWizardSyntheticEntry slot in StepProjectInfo).
   const SyntheticStep = useSlot('ProjectWizardSyntheticStep')
+  // Extended-edition step body for the experimental AI-Bewertungsbogen
+  // (checkbox row = ProjectWizardRubricEntry slot in StepProjectInfo). The
+  // generated per-task rubrics become a SECOND evaluation method
+  // (llm_judge_rubric) next to the configured judges.
+  const RubricStep = useSlot('ProjectWizardRubricStep')
 
   // Build dynamic step list from features
   const activeSteps: WizardStepDef[] = useMemo(() => {
@@ -222,6 +228,21 @@ export function ProjectCreationWizard() {
       })
     }
 
+    // AI-Bewertungsbogen sits after evaluation: by then the tasks
+    // (dataImport/synthetic) and the judge configs are declared, and the
+    // post-create hook runs after the awaited import so generation sees the
+    // tasks. Extended-only (the step body slot registers nothing in
+    // community builds — the entry row can then never enable it either).
+    if (wizardData.features.rubric) {
+      steps.push({
+        id: 'rubric',
+        name: t('projects.creation.wizard.steps.rubric.name'),
+        description: t(
+          'projects.creation.wizard.steps.rubric.description'
+        ),
+      })
+    }
+
     steps.push({
       id: 'settings',
       name: t('projects.creation.wizard.steps.settings.name'),
@@ -261,9 +282,69 @@ export function ProjectCreationWizard() {
 
   const updateWizardData = useCallback(
     (partial: Partial<WizardData>) => {
-      setWizardData((prev) => ({ ...prev, ...partial }))
+      setWizardData((prev) => {
+        const next = { ...prev, ...partial }
+        // Choosing a project type pre-selects the matching labeling template
+        // (Klausurlösung / Karteikarten, registered by the extended edition)
+        // and switches annotation on, so the project gets the shape the
+        // student surfaces, discovery and the deck workspace recognise. The
+        // user can still pick another template afterwards.
+        if (partial.projectKind && partial.projectKind !== prev.projectKind) {
+          const templateId =
+            partial.projectKind === 'exam'
+              ? 'exam-solving'
+              : partial.projectKind === 'flashcard_collection'
+                ? 'flashcard-deck'
+                : null
+          const template = templateId
+            ? nlpTemplates.find((tpl) => tpl.id === templateId)
+            : undefined
+          // An update that carries its own labelingConfig (e.g. the
+          // KI-Generator stamping type + its synthetic template together)
+          // wins over the type's default template.
+          if (template && !partial.labelingConfig) {
+            next.labelingConfig = template
+            next.features = { ...next.features, annotation: true }
+          } else if (partial.labelingConfig) {
+            next.features = { ...next.features, annotation: true }
+          }
+          // The icon follows the type default until the user picked their own.
+          const prevDefault = defaultIconForKind(
+            prev.projectKind === 'generic' ? null : prev.projectKind
+          )
+          if (!prev.icon || prev.icon === prevDefault) {
+            next.icon = defaultIconForKind(
+              partial.projectKind === 'generic' ? null : partial.projectKind
+            )
+          }
+          // Extended kind preset: prefills judge pair / immediate eval /
+          // exam settings so the project works on both surfaces.
+          const preset = getWizardKindPreset(partial.projectKind)
+          if (preset) {
+            Object.assign(next, preset(next))
+          }
+        }
+        // Reverse coupling: picking the Karteikarten template while the type
+        // is still "Generisch" stamps the deck kind — kind is the single
+        // source of truth for the student surfaces, so a deck-shaped project
+        // must not be created kind-NULL by the template path. Guarded on the
+        // template actually changing so re-renders can't loop.
+        if (
+          partial.labelingConfig &&
+          partial.labelingConfig !== prev.labelingConfig &&
+          partial.labelingConfig.id === 'flashcard-deck' &&
+          next.projectKind === 'generic'
+        ) {
+          next.projectKind = 'flashcard_collection'
+          const prevDefault = defaultIconForKind(null)
+          if (!next.icon || next.icon === prevDefault) {
+            next.icon = defaultIconForKind('flashcard_collection')
+          }
+        }
+        return next
+      })
     },
-    []
+    [nlpTemplates]
   )
 
   const validateStep = (): boolean => {
@@ -389,11 +470,17 @@ export function ProjectCreationWizard() {
         is_private?: boolean
         is_public?: boolean
         public_role?: 'ANNOTATOR' | 'CONTRIBUTOR' | null
+        kind?: string | null
+        icon?: string | null
       } = {
         title: wizardData.title.trim(),
         description: wizardData.description.trim(),
         label_config:
           wizardData.labelingConfig?.config || defaultLabelConfig,
+        // Write-once project type; generic stays NULL so plain benchmark
+        // projects are unaffected.
+        kind: wizardData.projectKind === 'generic' ? null : wizardData.projectKind,
+        icon: wizardData.icon.trim() || null,
       }
       if (wizardData.visibility === 'private') {
         createData.is_private = true
@@ -570,6 +657,8 @@ export function ProjectCreationWizard() {
       updatePayload.min_annotations_per_task = s.min_annotations_per_task
       updatePayload.randomize_task_order = s.randomize_task_order
       updatePayload.require_confirm_before_submit = s.require_confirm_before_submit
+      updatePayload.annotator_full_visibility_after_submit =
+        s.annotator_full_visibility_after_submit
       updatePayload.annotation_time_limit_enabled = s.annotation_time_limit_enabled
       updatePayload.annotation_time_limit_seconds = s.annotation_time_limit_seconds
       updatePayload.strict_timer_enabled = s.strict_timer_enabled
@@ -632,7 +721,22 @@ export function ProjectCreationWizard() {
         }
       }
 
-      // 5. Refresh and redirect
+      // 5. Extended post-create hooks (e.g. rubric generation). The project
+      // exists at this point, so a failing hook only toasts.
+      for (const hook of getWizardPostCreateHooks()) {
+        try {
+          await hook({ projectId: project.id, wizardData })
+        } catch (hookError) {
+          addToast(
+            hookError instanceof Error
+              ? hookError.message
+              : t('projects.wizard.postCreateHookFailed', 'Nachbearbeitung fehlgeschlagen'),
+            'error'
+          )
+        }
+      }
+
+      // 6. Refresh and redirect
       await new Promise((resolve) => setTimeout(resolve, 100))
       await fetchProject(project.id)
       addToast(t('projects.wizard.projectCreated'), 'success')
@@ -721,6 +825,10 @@ export function ProjectCreationWizard() {
             onDataColumnsChange={(dataColumns) =>
               updateWizardData({ dataColumns })
             }
+            syntheticActive={wizardData.features.synthetic}
+            syntheticColumns={wizardData.dataColumns}
+            wizardData={wizardData}
+            onWizardChange={updateWizardData}
           />
         )
       case 'models':
@@ -774,6 +882,14 @@ export function ProjectCreationWizard() {
             selectedModelIds={wizardData.selectedModelIds}
           />
         )
+      case 'rubric':
+        // Extended-only step (mirrors 'synthetic'): the AI-Bewertungsbogen —
+        // per-task rubric generation installed as a SECOND evaluation method
+        // (llm_judge_rubric) by the post-create hook once tasks exist.
+        return RubricStep ? (
+          // eslint-disable-next-line react-hooks/static-components
+          <RubricStep data={wizardData} onChange={updateWizardData} />
+        ) : null
       case 'settings':
         return (
           <StepSettings

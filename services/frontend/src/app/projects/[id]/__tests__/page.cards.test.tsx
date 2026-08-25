@@ -19,7 +19,7 @@ import { apiClient } from '@/lib/api/client'
 import { useUIStore } from '@/stores'
 import { useProjectStore } from '@/stores/projectStore'
 import '@testing-library/jest-dom'
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { useRouter, useParams, useSearchParams, usePathname } from 'next/navigation'
 
 jest.mock('next/navigation', () => ({
@@ -210,6 +210,36 @@ describe('ProjectDetailPage — 4-card structure', () => {
     ;(apiClient.get as jest.Mock).mockResolvedValue({ status: 'ok' })
     jest.spyOn(window, 'addEventListener').mockImplementation(jest.fn())
     jest.spyOn(window, 'removeEventListener').mockImplementation(jest.fn())
+  })
+
+  it('renders the sharing slot as its own block after the settings card with project + onRefresh', async () => {
+    const { registerSlot } = jest.requireActual('@/lib/extensions/slots')
+    const Stub = jest.fn(({ project }: any) => (
+      <div data-testid="sharing-stub">{project.id}</div>
+    ))
+    registerSlot('project-sharing', Stub)
+    const fetchProject = jest.fn()
+    ;(useProjectStore as jest.Mock).mockReturnValue({
+      currentProject: mockProject,
+      loading: false,
+      fetchProject,
+      updateProject: jest.fn().mockResolvedValue({}),
+      deleteProject: jest.fn().mockResolvedValue({}),
+    })
+    const params = Promise.resolve({ id: 'test-project-123' })
+    render(<ProjectDetailPage params={params} />)
+    // Visible without expanding the (collapsed) settings card.
+    await waitFor(() => {
+      expect(screen.getByTestId('sharing-stub')).toHaveTextContent('test-project-123')
+    })
+    const host = screen.getByTestId('project-sharing')
+    const settings = screen.getByText('project.settings.title')
+    expect(settings.compareDocumentPosition(host) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    const props = Stub.mock.calls[0][0]
+    fetchProject.mockClear()
+    props.onRefresh()
+    expect(fetchProject).toHaveBeenCalledWith('test-project-123')
+    registerSlot('project-sharing', null as any)
   })
 
   it('renders the project title in the header', async () => {

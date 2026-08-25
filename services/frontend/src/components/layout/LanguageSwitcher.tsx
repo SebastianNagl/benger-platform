@@ -15,13 +15,20 @@ const localeNames = {
   en: 'English',
 } as const
 
-export function LanguageSwitcher() {
+export function LanguageSwitcher({
+  // The button's full class list — overridable so shells can restyle the
+  // whole control (e.g. the student sidebar's full-width bordered variant)
+  // with the entire styled area staying the click target.
+  className = 'flex size-6 items-center justify-center rounded-md transition hover:bg-zinc-900/5 dark:hover:bg-white/5',
+}: {
+  className?: string
+} = {}) {
   const { locale, changeLocale } = useI18n()
   const mounted = useHydration()
 
   if (!mounted) {
     return (
-      <div className="flex size-6 items-center justify-center rounded-md">
+      <div className={className}>
         <span className="text-sm">🇩🇪</span>
       </div>
     )
@@ -44,7 +51,7 @@ export function LanguageSwitcher() {
   return (
     <button
       type="button"
-      className="flex size-6 items-center justify-center rounded-md transition hover:bg-zinc-900/5 dark:hover:bg-white/5"
+      className={className}
       aria-label={`Language: ${localeNames[safeLocale]} → ${localeNames[otherLocale]}`}
       onClick={handleLanguageChange}
       title={`Language: ${localeNames[safeLocale]} → ${localeNames[otherLocale]}`}

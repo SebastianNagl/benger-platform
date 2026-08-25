@@ -31,7 +31,7 @@ from auth_module.user_service import get_user_by_id
 from database import get_async_db, get_db
 from models import Generation as DBLLMResponse
 from models import ResponseGeneration as DBResponseGeneration
-from project_models import Task
+from project_models import Project, Task
 from redis_cache import get_redis_client
 from routers.generation_revoke import (
     generation_run_task_ids,
@@ -223,6 +223,19 @@ async def stop_generation(
                 detail="You can only stop your own generations",
             )
 
+        # Soft-deleted project (093): its generations are frozen — no new
+        # lifecycle transitions (and no fresh LLM spend) for non-superadmins.
+        if not current_user.is_superadmin and generation.project_id:
+            _proj_deleted = (
+                await db.execute(
+                    select(Project.deleted_at).where(Project.id == generation.project_id)
+                )
+            ).scalar_one_or_none()
+            if _proj_deleted is not None:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND, detail="Generation not found"
+                )
+
         # Only allow stopping pending/running generations
         if generation.status not in ["pending", "running"]:
             raise HTTPException(
@@ -297,6 +310,19 @@ async def pause_generation(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="You can only pause your own generations",
             )
+
+        # Soft-deleted project (093): its generations are frozen — no new
+        # lifecycle transitions (and no fresh LLM spend) for non-superadmins.
+        if not current_user.is_superadmin and generation.project_id:
+            _proj_deleted = (
+                await db.execute(
+                    select(Project.deleted_at).where(Project.id == generation.project_id)
+                )
+            ).scalar_one_or_none()
+            if _proj_deleted is not None:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND, detail="Generation not found"
+                )
 
         # Only allow pausing running generations
         if generation.status != "running":
@@ -495,6 +521,19 @@ async def resume_generation(
                 detail="You can only resume your own generations",
             )
 
+        # Soft-deleted project (093): its generations are frozen — no new
+        # lifecycle transitions (and no fresh LLM spend) for non-superadmins.
+        if not current_user.is_superadmin and generation.project_id:
+            _proj_deleted = (
+                await db.execute(
+                    select(Project.deleted_at).where(Project.id == generation.project_id)
+                )
+            ).scalar_one_or_none()
+            if _proj_deleted is not None:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND, detail="Generation not found"
+                )
+
         # Only allow resuming paused generations
         if generation.status != "paused":
             raise HTTPException(
@@ -578,6 +617,19 @@ async def retry_generation(
                 detail="You can only retry your own generations",
             )
 
+        # Soft-deleted project (093): its generations are frozen — no new
+        # lifecycle transitions (and no fresh LLM spend) for non-superadmins.
+        if not current_user.is_superadmin and generation.project_id:
+            _proj_deleted = (
+                await db.execute(
+                    select(Project.deleted_at).where(Project.id == generation.project_id)
+                )
+            ).scalar_one_or_none()
+            if _proj_deleted is not None:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND, detail="Generation not found"
+                )
+
         # Only allow retrying failed or stopped generations
         if generation.status not in ["failed", "stopped"]:
             raise HTTPException(
@@ -660,6 +712,19 @@ async def delete_generation(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="You can only delete your own generations",
             )
+
+        # Soft-deleted project (093): its generations are frozen — no new
+        # lifecycle transitions (and no fresh LLM spend) for non-superadmins.
+        if not current_user.is_superadmin and generation.project_id:
+            _proj_deleted = (
+                await db.execute(
+                    select(Project.deleted_at).where(Project.id == generation.project_id)
+                )
+            ).scalar_one_or_none()
+            if _proj_deleted is not None:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND, detail="Generation not found"
+                )
 
         # Don't allow deleting running generations
         if generation.status == "running":

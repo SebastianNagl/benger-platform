@@ -29,14 +29,22 @@ jest.mock('@/lib/api/organizations', () => ({
   },
 }))
 
-// Extension slot below the feature checkboxes (extended registers the
-// experimental KI-Generator feature row there). Null = community edition.
+// Extension slots below the feature checkboxes (extended registers the
+// experimental KI-Generator and AI-Bewertungsbogen feature rows there).
+// Null = community edition.
 let mockSyntheticSlot:
+  | ((props: { checked?: boolean; onToggle?: () => void }) => JSX.Element)
+  | null = null
+let mockRubricSlot:
   | ((props: { checked?: boolean; onToggle?: () => void }) => JSX.Element)
   | null = null
 jest.mock('@/lib/extensions/slots', () => ({
   useSlot: (name: string) =>
-    name === 'ProjectWizardSyntheticEntry' ? mockSyntheticSlot : null,
+    name === 'ProjectWizardSyntheticEntry'
+      ? mockSyntheticSlot
+      : name === 'ProjectWizardRubricEntry'
+        ? mockRubricSlot
+        : null,
 }))
 
 import { organizationsAPI } from '@/lib/api/organizations'
@@ -64,6 +72,7 @@ describe('StepProjectInfo', () => {
     jest.clearAllMocks()
     mockGetOrganizations.mockResolvedValue([])
     mockSyntheticSlot = null
+    mockRubricSlot = null
   })
 
   describe('ProjectWizardSyntheticEntry slot', () => {
@@ -96,6 +105,36 @@ describe('StepProjectInfo', () => {
       fireEvent.click(screen.getByTestId('synthetic-slot-stub'))
       expect(onChange).toHaveBeenCalledWith({
         features: { ...data.features, synthetic: true },
+      })
+    })
+  })
+
+  describe('ProjectWizardRubricEntry slot', () => {
+    it('renders nothing when no slot is registered (community edition)', () => {
+      renderStep()
+      expect(screen.queryByTestId('rubric-slot-stub')).not.toBeInTheDocument()
+    })
+
+    it('renders the registered slot with the rubric feature state', () => {
+      mockRubricSlot = ({ checked }) => (
+        <div data-testid="rubric-slot-stub">{String(checked)}</div>
+      )
+      renderStep({
+        features: { ...INITIAL_WIZARD_DATA.features, rubric: true },
+      })
+      expect(screen.getByTestId('rubric-slot-stub')).toHaveTextContent('true')
+    })
+
+    it('toggles features.rubric via the slot onToggle', () => {
+      mockRubricSlot = ({ onToggle }) => (
+        <button data-testid="rubric-slot-stub" onClick={onToggle}>
+          toggle
+        </button>
+      )
+      const { onChange, data } = renderStep()
+      fireEvent.click(screen.getByTestId('rubric-slot-stub'))
+      expect(onChange).toHaveBeenCalledWith({
+        features: { ...data.features, rubric: true },
       })
     })
   })

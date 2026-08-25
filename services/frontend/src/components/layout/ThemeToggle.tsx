@@ -21,14 +21,21 @@ function MoonIcon(props: React.ComponentPropsWithoutRef<'svg'>) {
   )
 }
 
-export function ThemeToggle() {
+export function ThemeToggle({
+  // The button's full class list — overridable so shells can restyle the
+  // whole control (e.g. the student sidebar's full-width bordered variant)
+  // with the entire styled area staying the click target.
+  className = 'flex size-6 items-center justify-center rounded-md transition hover:bg-zinc-900/5 dark:hover:bg-white/5',
+}: {
+  className?: string
+} = {}) {
   const { resolvedTheme, setTheme } = useTheme()
   const otherTheme = resolvedTheme === 'dark' ? 'light' : 'dark'
   const mounted = useHydration()
 
   if (!mounted) {
     return (
-      <div className="flex size-6 items-center justify-center rounded-md">
+      <div className={className}>
         <SunIcon className="h-5 w-5 stroke-zinc-900" />
       </div>
     )
@@ -46,7 +53,7 @@ export function ThemeToggle() {
   return (
     <button
       type="button"
-      className="flex size-6 items-center justify-center rounded-md transition hover:bg-zinc-900/5 dark:hover:bg-white/5"
+      className={className}
       aria-label={`Switch to ${otherTheme} theme`}
       onClick={handleThemeToggle}
       data-testid="theme-toggle"

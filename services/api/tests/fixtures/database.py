@@ -118,6 +118,20 @@ def _create_tables():
                     "TIMESTAMP WITH TIME ZONE"
                 )
             )
+            # Migration 092: projects.icon (emoji). Same drift guard.
+            conn.execute(
+                text("ALTER TABLE projects ADD COLUMN IF NOT EXISTS icon VARCHAR(16)")
+            )
+            # Migration 093: soft delete. Same drift guard.
+            conn.execute(
+                text(
+                    "ALTER TABLE projects "
+                    "ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP WITH TIME ZONE"
+                )
+            )
+            conn.execute(
+                text("ALTER TABLE projects ADD COLUMN IF NOT EXISTS deleted_by VARCHAR")
+            )
             # Migration 063: pause/resume/retry lifecycle columns on
             # response_generations. Same create_all-skips-existing-tables
             # drift — a long-lived test DB bootstrapped before these landed

@@ -3,6 +3,7 @@
 import logging
 import math
 import uuid
+from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -30,10 +31,15 @@ from routers.projects.helpers import (
     calculate_generation_stats_batch,
     calculate_project_stats_async,
     calculate_project_stats_batch,
-    check_project_accessible_async,
     check_user_can_edit_project_async,
+    check_user_can_manage_shares_async,
     get_accessible_project_ids_async,
+    get_effective_project_role_async,
     get_org_context_from_request,
+    get_participant_project_ids_async,
+    get_project_access_tier_async,
+    TIER_FULL,
+    TIER_PARTICIPANT,
     get_org_membership_role_async,
     get_user_with_memberships_async,
 )
@@ -124,7 +130,7 @@ async def list_projects(
     kind: Optional[str] = Query(
         None,
         description=(
-            'Filter by project kind, e.g. "exam" or "flashcard_deck" (extended '
+            'Filter by project kind, e.g. "exam" or "flashcard_collection" (extended '
             "student experience). Omit to include every kind."
         ),
     ),
@@ -133,6 +139,13 @@ async def list_projects(
         description=(
             'Filter by project origin, e.g. "student". Omit to include every '
             "origin (the expert view stays able to surface student datasets)."
+        ),
+    ),
+    only_deleted: bool = Query(
+        False,
+        description=(
+            "Superadmin only: list ONLY soft-deleted projects (the deleted-"
+            "projects view). Ignored for everyone else."
         ),
     ),
     include_all_private: bool = Query(
@@ -162,18 +175,48 @@ async def list_projects(
         # Read organization context from header
         org_context = request.headers.get("X-Organization-Context")
 
+        # Projects reached only through the participant tier are computed
+        # FIRST: the org-context helper below 403s for non-members, and a
+        # participant with a stale X-Organization-Context header must still
+        # see their joined projects (fall back to the participant-only set).
+        participant_map: Dict[str, str] = {}
+        if not current_user.is_superadmin:
+            participant_map = await get_participant_project_ids_async(db, current_user.id)
+
         # Use shared helper for consistent org-context filtering
-        accessible_ids = await get_accessible_project_ids_async(
-            db, current_user, org_context, include_all_private=include_all_private
-        )
+        try:
+            accessible_ids = await get_accessible_project_ids_async(
+                db,
+                current_user,
+                org_context,
+                # The deleted view must not be pre-filtered by the alive-only
+                # id helper; superadmin + include_all_private returns None
+                # (no id filter) and the only_deleted base filter takes over.
+                include_all_private=include_all_private
+                or (only_deleted and current_user.is_superadmin),
+            )
+        except HTTPException:
+            if not participant_map:
+                raise
+            accessible_ids = []
 
         # Eager-load every relationship the response reads (creator + the two
         # organization paths) so the async engine never lazy-loads during
         # from_orm serialization (MissingGreenlet). The two collection loads
         # require .unique() before .scalars().all().
+        accessible_set = set(accessible_ids) if accessible_ids is not None else None
         base_filters = []
+        # Soft delete (093): hidden from every list by default; the
+        # superadmin deleted-projects view flips the filter.
+        if only_deleted and current_user.is_superadmin:
+            base_filters.append(Project.deleted_at.isnot(None))
+        else:
+            base_filters.append(Project.deleted_at.is_(None))
         if accessible_ids is not None:
-            base_filters.append(Project.id.in_(accessible_ids))
+            id_filter = Project.id.in_(accessible_ids)
+            if participant_map:
+                id_filter = or_(id_filter, Project.id.in_(list(participant_map.keys())))
+            base_filters.append(id_filter)
         if search:
             base_filters.append(
                 Project.title.ilike(f"%{search}%") | Project.description.ilike(f"%{search}%")
@@ -247,6 +290,15 @@ async def list_projects(
         for project in projects:
             response = ProjectResponse.from_orm(project)
             response.created_by_name = project.creator.name if project.creator else None
+            via = participant_map.get(str(project.id))
+            if via is not None and (
+                accessible_set is not None and project.id not in accessible_set
+            ):
+                response.access_tier = TIER_PARTICIPANT
+                response.participant_via = via
+                _strip_participant_fields(response)
+            else:
+                response.access_tier = TIER_FULL
 
             # Apply pre-fetched statistics
             stats = stats_map.get(
@@ -408,6 +460,7 @@ async def create_project(
         # here at creation.
         kind=project.kind,
         origin=project.origin,
+        icon=project.icon,
         # Timed access window (optional at creation; also editable via ProjectUpdate).
         window_start_at=project.window_start_at,
         window_end_at=project.window_end_at,
@@ -501,6 +554,25 @@ async def create_project(
     return response
 
 
+def _strip_participant_fields(response: ProjectResponse) -> None:
+    """Remove editor material from a participant-tier project response.
+
+    Stripped: ``evaluation_config`` (judge prompts / rubrics / model choices),
+    ``generation_config`` (prompt structures), ``llm_model_ids`` and
+    ``korrektur_config`` (grader part definitions and point budgets).
+    Deliberately KEPT because the solver surface needs them: ``label_config``
+    (renders the annotation UI; task-data blinding is separate),
+    ``conditional_instructions`` (annotator-facing instruction variants) and
+    ``questionnaire_config`` (participants may submit the questionnaire —
+    see the ``allow_participant`` questionnaire route).
+    """
+    response.evaluation_config = None
+    response.generation_config = None
+    response.llm_model_ids = None
+    if hasattr(response, "korrektur_config"):
+        response.korrektur_config = None
+
+
 @router.get("/{project_id}", response_model=ProjectResponse)
 async def get_project(
     project_id: str,
@@ -533,15 +605,29 @@ async def get_project(
 
     # Check access using shared helper. Pass the already-loaded project so the
     # async helper doesn't re-query it.
+    # Soft-deleted (093): does not exist for non-superadmins.
+    if project.deleted_at is not None and not current_user.is_superadmin:
+        raise HTTPException(status_code=404, detail="Project not found")
+
     org_context = get_org_context_from_request(request)
-    if not await check_project_accessible_async(
+    tier = await get_project_access_tier_async(
         db, current_user, project_id, org_context, project=project
-    ):
+    )
+    if tier is None:
         raise HTTPException(status_code=403, detail="Access denied")
 
     # Build response with enriched fields
     response = ProjectResponse.from_orm(project)
     response.created_by_name = project.creator.name if project.creator else None
+    response.access_tier = tier
+    response.effective_role = await get_effective_project_role_async(db, current_user, project)
+    response.can_manage_shares = await check_user_can_manage_shares_async(
+        db, current_user, project
+    )
+    if tier == TIER_PARTICIPANT:
+        participant_map = await get_participant_project_ids_async(db, current_user.id)
+        response.participant_via = participant_map.get(str(project.id))
+        _strip_participant_fields(response)
 
     # Calculate statistics
     await calculate_project_stats_async(db, project.id, response, project=project)
@@ -574,6 +660,9 @@ async def update_project(
     project = result.scalar_one_or_none()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
+    if project.deleted_at is not None and not current_user.is_superadmin:
+        # Soft-deleted (093): not editable, not even by its creator.
+        raise HTTPException(status_code=404, detail="Project not found")
 
     # Check permission - project creator, superadmin, org admin, or contributor
     if not await check_user_can_edit_project_async(db, current_user, project_id):
@@ -581,6 +670,20 @@ async def update_project(
 
     # Update fields
     update_data = update.dict(exclude_unset=True)
+
+    # Kind is editable on expert projects (the extended student surfaces key
+    # discovery off it), but a student-origin project can never be un-flagged
+    # back into the public/expert lanes. Only kind CHANGES are rejected, so a
+    # client echoing the current value back keeps working.
+    if (
+        "kind" in update_data
+        and update_data["kind"] != project.kind
+        and getattr(project, "origin", None) == "student"
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail="The kind of a student-created project cannot be changed",
+        )
 
     # Handle field mappings
     if "instructions" in update_data:
@@ -707,34 +810,34 @@ async def update_project(
     return response
 
 
-@router.delete("/{project_id}")
-async def delete_project(
-    project_id: str,
-    current_user: AuthUser = Depends(require_user),
-    db: AsyncSession = Depends(get_async_db),
-):
-    """Delete a project and all its associated data"""
-
-    result = await db.execute(select(Project).where(Project.id == project_id))
-    project = result.scalar_one_or_none()
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
-
-    # Check permission - superadmins can delete any project,
-    # private project creators can delete their own
-    if not current_user.is_superadmin:
-        if not (project.is_private and str(project.created_by) == str(current_user.id)):
-            raise HTTPException(
-                status_code=403,
-                detail="Only superadmins can delete projects (or creators of private projects)",
+async def _can_soft_delete(db: AsyncSession, current_user, project: Project) -> bool:
+    """Who may (soft-)delete: superadmin; the creator of a PERSONAL project
+    (private, or org-less — mirrors the share-management rule); an active
+    ORG_ADMIN of an org the project is shared with (matches the project
+    page's delete button, which the old hard delete silently 403'd for org
+    admins). A creator who is a mere CONTRIBUTOR of an org project cannot
+    delete it out from under the org."""
+    if current_user.is_superadmin:
+        return True
+    is_creator = str(project.created_by) == str(current_user.id)
+    if project.is_private and is_creator:
+        return True
+    org_ids = (
+        await db.execute(
+            select(ProjectOrganization.organization_id).where(
+                ProjectOrganization.project_id == project.id
             )
+        )
+    ).scalars().all()
+    if not org_ids:
+        return is_creator
+    from routers.projects.helpers import _build_select_org_admin_membership
 
-    # Capture the title before deletion (used in the notification below; reading
-    # it after the row is deleted/expired would re-trigger a load).
-    project_title = project.title
+    admin = await db.execute(_build_select_org_admin_membership(current_user.id, list(org_ids)))
+    return admin.first() is not None
 
-    # Read the first org assignment for the notification BEFORE deleting the
-    # ProjectOrganization rows.
+
+async def _notify_deleted(db, project_id, project_title, current_user):
     first_org_id = (
         await db.execute(
             select(ProjectOrganization.organization_id)
@@ -742,35 +845,6 @@ async def delete_project(
             .limit(1)
         )
     ).scalar_one_or_none()
-
-    # Delete all associated data to avoid foreign key constraint violations.
-
-    # Delete project organizations
-    await db.execute(
-        ProjectOrganization.__table__.delete().where(
-            ProjectOrganization.project_id == project_id
-        )
-    )
-
-    # Delete project members
-    await db.execute(
-        ProjectMember.__table__.delete().where(ProjectMember.project_id == project_id)
-    )
-
-    # Annotations (annotations table) are removed automatically by the DB: their
-    # task_id and project_id FKs both carry ON DELETE CASCADE (migration
-    # 001_complete_baseline), so the tasks DELETE below and the project delete
-    # cascade to annotations. No explicit annotation delete is needed.
-
-    # Delete tasks
-    await db.execute(Task.__table__.delete().where(Task.project_id == project_id))
-
-    # Delete the project
-    await db.delete(project)
-    await db.commit()
-
-    # Send notification (sync-only path; run on a short-lived sync session off
-    # the event loop). Failures must not fail the deletion.
     try:
         await run_in_threadpool(
             _notify_project_deleted_sync,
@@ -784,7 +858,106 @@ async def delete_project(
         # Don't fail the deletion if notification fails
         print(f"Failed to send project deletion notification: {e}")
 
+
+@router.delete("/{project_id}")
+async def delete_project(
+    project_id: str,
+    current_user: AuthUser = Depends(require_user),
+    db: AsyncSession = Depends(get_async_db),
+):
+    """SOFT-delete a project (migration 093): stamp ``deleted_at`` so it
+    disappears from every surface for every non-superadmin — creator and org
+    included — while ALL data (tasks, annotations/grades, SRS history,
+    comments, rubrics, reports…) survives. Superadmins restore or truly purge
+    from the deleted-projects view (``/projects/deleted``,
+    ``DELETE /projects/{id}/purge``)."""
+
+    result = await db.execute(select(Project).where(Project.id == project_id))
+    project = result.scalar_one_or_none()
+    # A soft-deleted project does not exist for non-superadmins.
+    if not project or (
+        project.deleted_at is not None and not current_user.is_superadmin
+    ):
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    if not await _can_soft_delete(db, current_user, project):
+        raise HTTPException(
+            status_code=403,
+            detail="Only superadmins, creators of private projects or org admins can delete projects",
+        )
+
+    project_title = project.title
+    if project.deleted_at is None:
+        project.deleted_at = datetime.now(timezone.utc)
+        project.deleted_by = str(current_user.id)
+        await db.commit()
+        await _notify_deleted(db, project_id, project_title, current_user)
+
     return {"message": "Project deleted successfully"}
+
+
+@router.post("/{project_id}/restore")
+async def restore_project(
+    project_id: str,
+    current_user: AuthUser = Depends(require_user),
+    db: AsyncSession = Depends(get_async_db),
+):
+    """Restore a soft-deleted project (superadmin only) — everything comes
+    back exactly as it was, since the data never left."""
+    if not current_user.is_superadmin:
+        raise HTTPException(status_code=403, detail="Only superadmins can restore projects")
+    result = await db.execute(select(Project).where(Project.id == project_id))
+    project = result.scalar_one_or_none()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    project.deleted_at = None
+    project.deleted_by = None
+    await db.commit()
+    return {"message": "Project restored", "id": project_id}
+
+
+@router.delete("/{project_id}/purge")
+async def purge_project(
+    project_id: str,
+    current_user: AuthUser = Depends(require_user),
+    db: AsyncSession = Depends(get_async_db),
+):
+    """Irreversibly destroy a project and its cascading data (superadmin
+    only). This is the ONLY real delete on the platform; the generic DELETE
+    soft-deletes. Object-storage files are not cleaned up (pre-existing
+    behavior — uploads were already orphaned by the old hard delete)."""
+    if not current_user.is_superadmin:
+        raise HTTPException(status_code=403, detail="Only superadmins can purge projects")
+
+    result = await db.execute(select(Project).where(Project.id == project_id))
+    project = result.scalar_one_or_none()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    if project.deleted_at is None:
+        # Destruction is two-step by construction: soft-delete first, purge
+        # from the deleted view. Protects against a typo'd id nuking a live
+        # project via the API.
+        raise HTTPException(
+            status_code=409,
+            detail={"code": "not_deleted", "message": "Purge requires a soft-deleted project"},
+        )
+
+    # Delete all associated data to avoid foreign key constraint violations.
+    await db.execute(
+        ProjectOrganization.__table__.delete().where(
+            ProjectOrganization.project_id == project_id
+        )
+    )
+    await db.execute(
+        ProjectMember.__table__.delete().where(ProjectMember.project_id == project_id)
+    )
+    # Annotations cascade from the task/project FKs (001_complete_baseline).
+    await db.execute(Task.__table__.delete().where(Task.project_id == project_id))
+    await db.delete(project)
+    await db.commit()
+    # No second PROJECT_DELETED notification: the soft delete already told
+    # the org; the purge is superadmin housekeeping.
+    return {"message": "Project purged"}
 
 
 @router.patch("/{project_id}/visibility")
@@ -805,6 +978,8 @@ async def update_project_visibility(
     result = await db.execute(select(Project).where(Project.id == project_id))
     project = result.scalar_one_or_none()
     if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    if project.deleted_at is not None and not current_user.is_superadmin:
         raise HTTPException(status_code=404, detail="Project not found")
 
     if not current_user.is_superadmin and str(project.created_by) != str(current_user.id):

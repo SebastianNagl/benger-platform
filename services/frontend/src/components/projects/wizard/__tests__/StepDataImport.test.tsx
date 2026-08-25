@@ -72,6 +72,8 @@ function setup(
       onPastedDataChange={props.onPastedDataChange ?? onPastedDataChange}
       onFileChange={props.onFileChange ?? onFileChange}
       onDataColumnsChange={props.onDataColumnsChange ?? onDataColumnsChange}
+      syntheticActive={props.syntheticActive}
+      syntheticColumns={props.syntheticColumns}
     />
   )
   return { ...utils, onPastedDataChange, onFileChange, onDataColumnsChange }
@@ -290,5 +292,39 @@ describe('StepDataImport — upload tab', () => {
     // Should not throw.
     fireEvent.dragOver(dropzone)
     expect(dropzone).toBeInTheDocument()
+  })
+})
+
+describe('StepDataImport — synthetic data warning', () => {
+  it('is absent by default', () => {
+    setup()
+    expect(
+      screen.queryByTestId('step2-synthetic-warning')
+    ).not.toBeInTheDocument()
+  })
+
+  it('renders when the synthetic generator is active', () => {
+    setup({ syntheticActive: true })
+    const warning = screen.getByTestId('step2-synthetic-warning')
+    expect(warning).toHaveTextContent(
+      'projects.creation.wizard.step2.syntheticNotice'
+    )
+    // No columns known yet -> no column chips.
+    expect(warning).not.toHaveTextContent(
+      'projects.creation.wizard.step2.syntheticNoticeColumns'
+    )
+  })
+
+  it('lists the expected columns when known', () => {
+    setup({
+      syntheticActive: true,
+      syntheticColumns: ['sachverhalt', 'musterloesung'],
+    })
+    const warning = screen.getByTestId('step2-synthetic-warning')
+    expect(warning).toHaveTextContent(
+      'projects.creation.wizard.step2.syntheticNoticeColumns'
+    )
+    expect(warning).toHaveTextContent('sachverhalt')
+    expect(warning).toHaveTextContent('musterloesung')
   })
 })

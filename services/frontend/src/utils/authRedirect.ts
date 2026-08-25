@@ -19,6 +19,7 @@ export const publicRoutes = [
   // so the explanation page must render unauthenticated (issue #61).
   '/about/imprint', // Imprint page
   '/about/data-protection', // Data protection page
+  '/changelog', // Changelog page
 ]
 
 /**

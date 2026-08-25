@@ -12,10 +12,20 @@
 
 export { registerSlot, getSlot, useSlot, hasSlot } from './slots'
 export {
+  registerChangelogEntries,
+  getChangelogEntries,
+  useChangelogEntries,
+} from './changelog'
+export type { ChangelogEntry, ChangelogAudience } from './changelog'
+export {
   registerWizardTemplate,
   getRegisteredWizardTemplates,
+  registerWizardPostCreateHook,
+  getWizardPostCreateHooks,
+  registerWizardKindPreset,
+  getWizardKindPreset,
 } from './wizardTemplates'
-export type { RegisteredWizardTemplate } from './wizardTemplates'
+export type { RegisteredWizardTemplate, WizardPostCreateHook, WizardKindPreset } from './wizardTemplates'
 
 let extendedLoaded = false
 

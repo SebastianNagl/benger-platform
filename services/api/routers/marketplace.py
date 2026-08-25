@@ -52,7 +52,7 @@ router = APIRouter(prefix="/api/marketplace", tags=["marketplace"])
 admin_router = APIRouter(prefix="/api/admin", tags=["marketplace-admin"])
 
 # Project kinds a vendor may list (exams + flashcard collections; legacy deck).
-LISTABLE_KINDS = ("exam", "flashcard_collection", "flashcard_deck")
+LISTABLE_KINDS = ("exam", "flashcard_collection")
 EDITOR_ROLES = ("ORG_ADMIN", "CONTRIBUTOR")
 
 
@@ -242,6 +242,7 @@ async def discover_listings(
         await db.execute(
             select(MarketplaceListing, Project, Organization)
             .join(Project, Project.id == MarketplaceListing.project_id)
+            .where(Project.deleted_at.is_(None))
             .join(Organization, Organization.id == MarketplaceListing.vendor_org_id)
             .where(MarketplaceListing.published.is_(True))
             .order_by(MarketplaceListing.created_at.desc())
@@ -294,6 +295,9 @@ async def get_listing(
     project = (
         await db.execute(select(Project).where(Project.id == listing.project_id))
     ).scalar_one_or_none()
+    if project is not None and project.deleted_at is not None:
+        # Soft-deleted (093): the listing's project is gone for buyers.
+        raise HTTPException(status_code=404, detail="Listing not found")
     vendor = (
         await db.execute(
             select(Organization).where(Organization.id == listing.vendor_org_id)
@@ -322,6 +326,7 @@ async def list_entitlements(
         await db.execute(
             select(MarketplaceEntitlement, Project)
             .join(Project, Project.id == MarketplaceEntitlement.project_id)
+            .where(Project.deleted_at.is_(None))
             .where(
                 MarketplaceEntitlement.user_id == uid,
                 MarketplaceEntitlement.revoked_at.is_(None),
@@ -352,6 +357,7 @@ async def list_grading_credits(
         await db.execute(
             select(MarketplaceGradingCredit, Project)
             .join(Project, Project.id == MarketplaceGradingCredit.project_id)
+            .where(Project.deleted_at.is_(None))
             .where(
                 MarketplaceGradingCredit.user_id == uid,
                 MarketplaceGradingCredit.revoked_at.is_(None),
@@ -382,6 +388,7 @@ async def list_grading_requests(
         await db.execute(
             select(MarketplaceGradingRequest, Project)
             .join(Project, Project.id == MarketplaceGradingRequest.project_id)
+            .where(Project.deleted_at.is_(None))
             .where(MarketplaceGradingRequest.user_id == uid)
             .order_by(MarketplaceGradingRequest.created_at.desc())
         )
@@ -420,6 +427,7 @@ async def vendor_grading_queue(
         await db.execute(
             select(MarketplaceGradingRequest, Project)
             .join(Project, Project.id == MarketplaceGradingRequest.project_id)
+            .where(Project.deleted_at.is_(None))
             .where(
                 MarketplaceGradingRequest.vendor_org_id == organization_id,
                 MarketplaceGradingRequest.status == status_filter,
@@ -625,6 +633,7 @@ async def vendor_listings(
         await db.execute(
             select(MarketplaceListing, Project)
             .join(Project, Project.id == MarketplaceListing.project_id)
+            .where(Project.deleted_at.is_(None))
             .where(MarketplaceListing.vendor_org_id == organization_id)
             .order_by(MarketplaceListing.created_at.desc())
         )

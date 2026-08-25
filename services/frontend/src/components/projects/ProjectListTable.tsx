@@ -15,6 +15,8 @@ import { useI18n } from '@/contexts/I18nContext'
 import { useProgress } from '@/contexts/ProgressContext'
 import { useConfirm } from '@/hooks/useDialogs'
 import { projectsAPI } from '@/lib/api/projects'
+import { useSlot } from '@/lib/extensions/slots'
+import { projectIcon } from '@/lib/projectKind'
 import { useProjectStore } from '@/stores/projectStore'
 import { Project } from '@/types/labelStudio'
 import { parseSubdomain } from '@/lib/utils/subdomain'
@@ -27,8 +29,14 @@ import {
   CloudArrowUpIcon,
   FolderIcon,
   GlobeAltIcon,
+  MagnifyingGlassIcon,
+  TrashIcon,
+  RectangleStackIcon,
+  ScaleIcon,
+  UserGroupIcon,
   PlusIcon,
 } from '@heroicons/react/24/outline'
+import { Menu } from '@headlessui/react'
 import { formatDistanceToNow } from 'date-fns'
 import { computeWindowState } from '@/utils/projectWindow'
 import { de } from 'date-fns/locale'
@@ -98,6 +106,10 @@ export function ProjectListTable({
     }
   }
   const fileInputRef = useRef<HTMLInputElement>(null)
+  // Extended "Entdecken": browse listed share links / catalog projects you
+  // do not have access to yet. Rendered as a modal; absent in community.
+  const ProjectDiscoverModal = useSlot('ProjectDiscoverModal')
+  const [discoverOpen, setDiscoverOpen] = useState(false)
 
   // Check if user has permissions to create/modify projects
   const { isPrivateMode } = typeof window !== 'undefined' ? parseSubdomain() : { isPrivateMode: true }
@@ -514,16 +526,6 @@ export function ProjectListTable({
             </h1>
           </div>
           <div className="flex items-center gap-3">
-            {!showArchivedOnly && userCanCreateProjects && (
-              <Button
-                onClick={() => router.push('/projects/archived')}
-                variant="outline"
-                data-testid="projects-archived-button"
-              >
-                <ArchiveBoxIcon className="h-4 w-4" />
-                {t('projects.archived')}
-              </Button>
-            )}
             {showArchivedOnly && userCanCreateProjects && (
               <Button
                 onClick={() => router.push('/projects')}
@@ -535,28 +537,105 @@ export function ProjectListTable({
               </Button>
             )}
             {!showArchivedOnly && userCanCreateProjects && (
-              <>
-                <Button
-                  onClick={() => fileInputRef.current?.click()}
-                  variant="outline"
-                  data-testid="projects-import-button"
-                >
-                  <CloudArrowUpIcon className="h-4 w-4" />
-                  {t('projects.importProject')}
-                </Button>
-                <Button
-                  onClick={() => router.push('/projects/create')}
-                  variant="filled"
-                  data-testid="projects-create-button"
-                >
-                  <PlusIcon className="h-4 w-4" />
-                  {t('projects.newProject')}
-                </Button>
-              </>
+              <Button
+                onClick={() => router.push('/projects/create')}
+                variant="filled"
+                data-testid="projects-create-button"
+              >
+                <PlusIcon className="h-4 w-4" />
+                {t('projects.newProject')}
+              </Button>
             )}
+            {!showArchivedOnly &&
+              (ProjectDiscoverModal || user?.is_superadmin || userCanCreateProjects) && (
+                <Menu as="div" className="relative inline-block text-left">
+                  <Menu.Button as={Button} variant="outline" data-testid="projects-more-button">
+                    {t('projects.more', 'Mehr')}
+                    <ChevronDownIcon className="h-4 w-4" />
+                  </Menu.Button>
+                  <Menu.Items className="absolute right-0 z-10 mt-2 w-56 origin-top-right rounded-lg bg-white p-1 shadow-lg ring-1 ring-black ring-opacity-5 transition duration-100 ease-out focus:outline-none data-[closed]:scale-95 data-[closed]:transform data-[closed]:opacity-0 dark:bg-zinc-900">
+                    {ProjectDiscoverModal && (
+                      <Menu.Item>
+                        {({ active }) => (
+                          <button
+                            className={`${
+                              active ? 'bg-zinc-100 dark:bg-zinc-800' : ''
+                            } group flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-zinc-900 dark:text-white`}
+                            onClick={() => setDiscoverOpen(true)}
+                            data-testid="projects-discover-button"
+                          >
+                            <MagnifyingGlassIcon className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
+                            {t('projects.discover', 'Entdecken')}
+                          </button>
+                        )}
+                      </Menu.Item>
+                    )}
+                    {user?.is_superadmin && (
+                      <Menu.Item>
+                        {({ active }) => (
+                          <button
+                            className={`${
+                              active ? 'bg-zinc-100 dark:bg-zinc-800' : ''
+                            } group flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-zinc-900 dark:text-white`}
+                            onClick={() => router.push('/projects/deleted')}
+                            data-testid="projects-deleted-button"
+                          >
+                            <TrashIcon className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
+                            {t('projects.deleted.title', 'Gelöschte Projekte')}
+                          </button>
+                        )}
+                      </Menu.Item>
+                    )}
+                    {userCanCreateProjects && (
+                      <Menu.Item>
+                        {({ active }) => (
+                          <button
+                            className={`${
+                              active ? 'bg-zinc-100 dark:bg-zinc-800' : ''
+                            } group flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-zinc-900 dark:text-white`}
+                            onClick={() => router.push('/projects/archived')}
+                            data-testid="projects-archived-button"
+                          >
+                            <ArchiveBoxIcon className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
+                            {t('projects.archived')}
+                          </button>
+                        )}
+                      </Menu.Item>
+                    )}
+                    {userCanCreateProjects && (
+                      <Menu.Item>
+                        {({ active }) => (
+                          <button
+                            className={`${
+                              active ? 'bg-zinc-100 dark:bg-zinc-800' : ''
+                            } group flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-zinc-900 dark:text-white`}
+                            onClick={() => fileInputRef.current?.click()}
+                            data-testid="projects-import-button"
+                          >
+                            <CloudArrowUpIcon className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
+                            {t('projects.importProject')}
+                          </button>
+                        )}
+                      </Menu.Item>
+                    )}
+                  </Menu.Items>
+                </Menu>
+              )}
           </div>
         </div>
       </div>
+
+      {ProjectDiscoverModal && (
+        <ProjectDiscoverModal
+          isOpen={discoverOpen}
+          onClose={() => setDiscoverOpen(false)}
+          onJoined={(projectId: string) => {
+            setDiscoverOpen(false)
+            fetchProjects(undefined, undefined, showArchivedOnly, includeAllPrivate)
+            router.push(`/projects/${projectId}`)
+          }}
+        />
+      )}
 
       {/* Search and Bulk Actions */}
       <div className="space-y-4">
@@ -787,11 +866,13 @@ export function ProjectListTable({
                           className="px-6 py-4"
                           onClick={(e) => e.stopPropagation()}
                         >
-                          <TableCheckbox
-                            checked={selectedProjects.has(project.id)}
-                            onChange={() => handleSelectProject(project.id)}
-                            data-testid={`projects-table-checkbox-${project.id}`}
-                          />
+                          {project.access_tier !== 'participant' && (
+                            <TableCheckbox
+                              checked={selectedProjects.has(project.id)}
+                              onChange={() => handleSelectProject(project.id)}
+                              data-testid={`projects-table-checkbox-${project.id}`}
+                            />
+                          )}
                         </td>
                       )}
                       <td
@@ -800,6 +881,9 @@ export function ProjectListTable({
                       >
                         <div>
                           <div className="flex items-center gap-2 text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                            <span className="mr-0.5" aria-hidden data-testid={`project-icon-${project.id}`}>
+                              {projectIcon(project)}
+                            </span>
                             <span>{project.title}</span>
                             {project.is_public && (
                               <span
@@ -821,6 +905,37 @@ export function ProjectListTable({
                                       'projects.list.publicAnnotatorBadge',
                                       'Public · Annotator'
                                     )}
+                              </span>
+                            )}
+                            {project.access_tier === 'participant' && (
+                              <span
+                                className="inline-flex items-center gap-1 rounded-md bg-sky-50 px-1.5 py-0.5 text-xs font-medium text-sky-700 dark:bg-sky-400/10 dark:text-sky-400"
+                                data-testid={`project-participant-badge-${project.id}`}
+                                title={t(
+                                  `projects.list.participantVia.${project.participant_via ?? 'share'}`,
+                                  'Beigetreten'
+                                )}
+                              >
+                                <UserGroupIcon className="h-3.5 w-3.5" />
+                                {t('projects.list.participantBadge', 'Teilnehmer')}
+                              </span>
+                            )}
+                            {project.kind === 'flashcard_collection' && (
+                              <span
+                                className="inline-flex items-center gap-1 rounded-md bg-purple-50 px-1.5 py-0.5 text-xs font-medium text-purple-700 dark:bg-purple-400/10 dark:text-purple-400"
+                                data-testid={`project-kind-badge-${project.id}`}
+                              >
+                                <RectangleStackIcon className="h-3.5 w-3.5" />
+                                {t('projects.list.kindDeck', 'Kartenstapel')}
+                              </span>
+                            )}
+                            {project.kind === 'exam' && (
+                              <span
+                                className="inline-flex items-center gap-1 rounded-md bg-indigo-50 px-1.5 py-0.5 text-xs font-medium text-indigo-700 dark:bg-indigo-400/10 dark:text-indigo-400"
+                                data-testid={`project-kind-badge-${project.id}`}
+                              >
+                                <ScaleIcon className="h-3.5 w-3.5" />
+                                {t('projects.list.kindExam', 'Klausur')}
                               </span>
                             )}
                             {(() => {
@@ -903,7 +1018,18 @@ export function ProjectListTable({
                         })}
                       </td>
                       <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
-                        {project.enable_annotation !== false && (
+                        {project.kind === 'flashcard_collection' ? (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              router.push(`/projects/${project.id}`)
+                            }}
+                            className="mr-4 text-emerald-600 hover:text-emerald-500 dark:text-emerald-400 dark:hover:text-emerald-300"
+                            data-testid={`project-study-${project.id}`}
+                          >
+                            {t('projects.list.study', 'Lernen')}
+                          </button>
+                        ) : project.enable_annotation !== false && (
                           <button
                             onClick={(e) => {
                               e.stopPropagation()

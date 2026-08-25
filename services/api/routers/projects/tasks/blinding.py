@@ -58,6 +58,20 @@ async def annotator_bound_fields_or_none_async(
     return LabelConfigParser.bound_data_fields(project.label_config)
 
 
+def annotator_bound_fields_or_none(db, user, project: Project) -> Optional[Set[str]]:
+    """Sync twin of :func:`annotator_bound_fields_or_none_async` (for the
+    legacy-sync my-tasks route)."""
+    from routers.projects.helpers import get_effective_project_role
+
+    role = get_effective_project_role(db, user, project)
+    if role in _FULL_DATA_ROLES:
+        return None
+
+    from services.label_config.parser import LabelConfigParser
+
+    return LabelConfigParser.bound_data_fields(project.label_config)
+
+
 async def revealed_task_ids_async(
     db: AsyncSession, user, project: Project, task_ids: Iterable[str]
 ) -> Set[str]:

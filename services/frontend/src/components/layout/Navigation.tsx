@@ -15,6 +15,7 @@ import { useFeatureFlags } from '@/contexts/FeatureFlagContext'
 import { useHydration } from '@/contexts/HydrationContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { parseSubdomain } from '@/lib/utils/subdomain'
+import { useSlot } from '@/lib/extensions/slots'
 import { remToPx } from '@/lib/remToPx'
 import { CloseButton } from '@headlessui/react'
 
@@ -47,6 +48,22 @@ const DashboardIcon = () => (
       strokeLinejoin="round"
       strokeWidth={2}
       d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"
+    />
+  </svg>
+)
+
+const LearningStatsIcon = () => (
+  <svg
+    className="h-4 w-4"
+    fill="none"
+    stroke="currentColor"
+    viewBox="0 0 24 24"
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth={2}
+      d="M2.25 18L9 11.25l4.306 4.306a11.95 11.95 0 015.814-5.518l2.74-1.22m0 0l-5.94-2.281m5.94 2.28l-2.28 5.941"
     />
   </svg>
 )
@@ -472,6 +489,10 @@ export function Navigation(props: React.ComponentPropsWithoutRef<'nav'>) {
   const isHowToPageEnabled = Boolean(flags?.['how-to'])
   const isLeaderboardsPageEnabled = Boolean(flags?.leaderboards)
 
+  // Extended edition: the personal learning-statistics page (slot-backed;
+  // community edition registers nothing and the entry stays hidden).
+  const hasLearningStats = !!useSlot('PersonalAnalyticsPage')
+
   // Parse current subdomain context
   const { isPrivateMode, orgSlug } = typeof window !== 'undefined' ? parseSubdomain() : { isPrivateMode: true, orgSlug: null }
   const currentOrgRole = orgSlug
@@ -521,6 +542,15 @@ export function Navigation(props: React.ComponentPropsWithoutRef<'nav'>) {
         icon: <ReportsIcon />,
         disabled: !isReportsPageEnabled,
       },
+      ...(hasLearningStats
+        ? [
+            {
+              title: isClient ? t('navigation.learningStats') : 'Learning Statistics',
+              href: '/learning-stats',
+              icon: <LearningStatsIcon />,
+            },
+          ]
+        : []),
       {
         title: isClient ? t('navigation.leaderboards') : 'Leaderboards',
         href: '/leaderboards',

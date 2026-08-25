@@ -1250,14 +1250,31 @@ class TestFourRolePermissions:
         assert resp.status_code != 403
 
     @pytest.mark.asyncio
-    async def test_org_admin_cannot_delete_project(self, async_test_client, async_test_db):
+    async def test_org_admin_delete_is_soft(self, async_test_client, async_test_db):
+        # Since soft delete (093) the org admin's delete button works — but it
+        # only HIDES the project; data survives and superadmins can restore.
+        from sqlalchemy import select
+
+        from project_models import Project, Task
+
         p = await _make_assignment_project_async(async_test_db)
         await async_test_db.commit()
         with _as_user(p["users"]["org_admin"]):
             resp = await async_test_client.delete(
                 f"/api/projects/{p['project'].id}",
             )
-        assert resp.status_code == 403
+        assert resp.status_code == 200
+        proj = (
+            await async_test_db.execute(
+                select(Project).where(Project.id == p["project"].id)
+            )
+        ).scalar_one()
+        assert proj.deleted_at is not None
+        assert (
+            await async_test_db.execute(
+                select(Task).where(Task.project_id == p["project"].id)
+            )
+        ).scalars().all()
 
     @pytest.mark.asyncio
     async def test_contributor_cannot_delete_project(self, async_test_client, async_test_db):

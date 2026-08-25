@@ -235,6 +235,105 @@ async def get_project_evaluation_config(
         )
 
 
+def validate_evaluation_config_entries(eval_configs_list) -> None:
+    """Per-entry validation of ``evaluation_configs`` (raises HTTPException 422).
+
+    The single source of truth for what a valid entry looks like — used by
+    the eval-config PUT below, and importable by extension code that writes
+    eval configs through other paths (e.g. the Bewertungsbogen setup) so
+    their tests can pin that written configs stay PUT-able.
+    """
+    if not isinstance(eval_configs_list, list):
+        return
+    for cfg in eval_configs_list:
+        if not isinstance(cfg, dict):
+            continue
+        mp = cfg.get("metric_parameters")
+        if not isinstance(mp, dict):
+            continue
+        # metric_parameters.judges shape: list of
+        # {judge_model_id: str, runs: int (1..25)}.
+        judges = mp.get("judges")
+        if judges is not None:
+            if not isinstance(judges, list) or not judges:
+                raise HTTPException(
+                    status_code=422,
+                    detail="metric_parameters.judges must be a non-empty list",
+                )
+            for j in judges:
+                if not isinstance(j, dict):
+                    raise HTTPException(
+                        status_code=422,
+                        detail="each judges entry must be {judge_model_id: str, runs: int}",
+                    )
+                if not isinstance(j.get("judge_model_id"), str) or not j["judge_model_id"]:
+                    raise HTTPException(
+                        status_code=422,
+                        detail="judges[].judge_model_id must be a non-empty string",
+                    )
+                runs = j.get("runs", 1)
+                if not isinstance(runs, int) or runs < 1 or runs > 25:
+                    raise HTTPException(
+                        status_code=422,
+                        detail="judges[].runs must be an integer between 1 and 25",
+                    )
+
+        # Phase 7 consolidation guard: Falllösung's prompt template
+        # hardcodes a 0–100 raw rubric (10 dimensions summing to 100).
+        # If a config sets score_scale to anything else, the worker's
+        # score-scale ladder produces nonsense (e.g. score_scale="1-5"
+        # would compute (75 - 1) / 4 = 18.5 from a 75/100 raw score).
+        # Reject at config-save time so the misconfiguration fails
+        # loud here instead of silently mis-grading every cell at
+        # eval time.
+        if cfg.get("metric") == "llm_judge_falloesung":
+            score_scale = mp.get("score_scale")
+            if score_scale is not None and score_scale != "0-100":
+                raise HTTPException(
+                    status_code=422,
+                    detail=(
+                        "llm_judge_falloesung requires "
+                        "metric_parameters.score_scale='0-100' "
+                        "(falloesung's prompt is a fixed 0–100 "
+                        f"rubric); got {score_scale!r}"
+                    ),
+                )
+
+        # llm_judge_rubric grades against per-task Bewertungsbogen
+        # rows generated from a project prompt structure. Both the
+        # generator model and the prompt reference are required —
+        # without them the generate-missing-rubrics flow has nothing
+        # to run — and the grading prompt template must exist because
+        # multi-dim mode fails without one (the wizard editor and the
+        # extended setup endpoint write a default; API callers must
+        # supply their own).
+        if cfg.get("metric") == "llm_judge_rubric":
+            for key, label in (
+                ("rubric_generator_model_id", "the rubric-generator model id"),
+                ("rubric_prompt_key", "the generation_config.prompt_structures key"),
+                ("custom_prompt_template", "the grading prompt template"),
+            ):
+                value = mp.get(key)
+                if not isinstance(value, str) or not value.strip():
+                    raise HTTPException(
+                        status_code=422,
+                        detail=(
+                            f"llm_judge_rubric requires metric_parameters.{key} "
+                            f"({label}) as a non-empty string"
+                        ),
+                    )
+            if mp.get("custom_criteria"):
+                raise HTTPException(
+                    status_code=422,
+                    detail=(
+                        "llm_judge_rubric resolves its criteria from the "
+                        "task's Bewertungsbogen; metric_parameters."
+                        "custom_criteria must be empty (use llm_judge_custom "
+                        "for config-level criteria)"
+                    ),
+                )
+
+
 @router.put("/projects/{project_id}/evaluation-config")
 async def update_project_evaluation_config(
     project_id: str,
@@ -335,95 +434,12 @@ async def update_project_evaluation_config(
                     detail="evaluation_config.runs_per_task must be an integer between 1 and 25",
                 )
 
-        # Validate metric_parameters.judges shape on every evaluation_config
-        # entry: list of {judge_model_id: str, runs: int (1..25)}.
+        # Validate every evaluation_config entry (judges shape + per-metric
+        # rules) — extracted so extension code that WRITES eval configs
+        # outside this PUT (e.g. the Bewertungsbogen setup) can round-trip
+        # the same rules in its tests.
         eval_configs_list = config.get("evaluation_configs") or config.get("multi_field_evaluations") or []
-        if isinstance(eval_configs_list, list):
-            for cfg in eval_configs_list:
-                if not isinstance(cfg, dict):
-                    continue
-                mp = cfg.get("metric_parameters")
-                if not isinstance(mp, dict):
-                    continue
-                judges = mp.get("judges")
-                if judges is None:
-                    continue
-                if not isinstance(judges, list) or not judges:
-                    raise HTTPException(
-                        status_code=422,
-                        detail="metric_parameters.judges must be a non-empty list",
-                    )
-                for j in judges:
-                    if not isinstance(j, dict):
-                        raise HTTPException(
-                            status_code=422,
-                            detail="each judges entry must be {judge_model_id: str, runs: int}",
-                        )
-                    if not isinstance(j.get("judge_model_id"), str) or not j["judge_model_id"]:
-                        raise HTTPException(
-                            status_code=422,
-                            detail="judges[].judge_model_id must be a non-empty string",
-                        )
-                    runs = j.get("runs", 1)
-                    if not isinstance(runs, int) or runs < 1 or runs > 25:
-                        raise HTTPException(
-                            status_code=422,
-                            detail="judges[].runs must be an integer between 1 and 25",
-                        )
-
-                # Phase 7 consolidation guard: Falllösung's prompt template
-                # hardcodes a 0–100 raw rubric (10 dimensions summing to 100).
-                # If a config sets score_scale to anything else, the worker's
-                # score-scale ladder produces nonsense (e.g. score_scale="1-5"
-                # would compute (75 - 1) / 4 = 18.5 from a 75/100 raw score).
-                # Reject at config-save time so the misconfiguration fails
-                # loud here instead of silently mis-grading every cell at
-                # eval time.
-                if cfg.get("metric") == "llm_judge_falloesung":
-                    score_scale = mp.get("score_scale")
-                    if score_scale is not None and score_scale != "0-100":
-                        raise HTTPException(
-                            status_code=422,
-                            detail=(
-                                "llm_judge_falloesung requires "
-                                "metric_parameters.score_scale='0-100' "
-                                "(falloesung's prompt is a fixed 0–100 "
-                                f"rubric); got {score_scale!r}"
-                            ),
-                        )
-
-                # llm_judge_rubric grades against per-task Bewertungsbogen
-                # rows generated from a project prompt structure. Both the
-                # generator model and the prompt reference are required —
-                # without them the generate-missing-rubrics flow has nothing
-                # to run — and the grading prompt template must exist because
-                # multi-dim mode fails without one (the wizard editor writes
-                # a default; API callers must supply their own).
-                if cfg.get("metric") == "llm_judge_rubric":
-                    for key, label in (
-                        ("rubric_generator_model_id", "the rubric-generator model id"),
-                        ("rubric_prompt_key", "the generation_config.prompt_structures key"),
-                        ("custom_prompt_template", "the grading prompt template"),
-                    ):
-                        value = mp.get(key)
-                        if not isinstance(value, str) or not value.strip():
-                            raise HTTPException(
-                                status_code=422,
-                                detail=(
-                                    f"llm_judge_rubric requires metric_parameters.{key} "
-                                    f"({label}) as a non-empty string"
-                                ),
-                            )
-                    if mp.get("custom_criteria"):
-                        raise HTTPException(
-                            status_code=422,
-                            detail=(
-                                "llm_judge_rubric resolves its criteria from the "
-                                "task's Bewertungsbogen; metric_parameters."
-                                "custom_criteria must be empty (use llm_judge_custom "
-                                "for config-level criteria)"
-                            ),
-                        )
+        validate_evaluation_config_entries(eval_configs_list)
 
         # Deep-merge the body into the stored config — same contract as
         # PATCH /projects/{id} (crud.py): nested dicts merge recursively,

@@ -47,13 +47,15 @@ interface ProjectStore {
   // same archive + visibility scope instead of silently dropping it.
   lastIsArchived: boolean
   lastIncludeAllPrivate: boolean
+  lastOnlyDeleted: boolean
 
   // Project actions
   fetchProjects: (
     page?: number,
     pageSize?: number,
     isArchived?: boolean,
-    includeAllPrivate?: boolean
+    includeAllPrivate?: boolean,
+    onlyDeleted?: boolean
   ) => Promise<void>
   fetchProject: (projectId: string) => Promise<void>
   createProject: (data: {
@@ -139,13 +141,15 @@ export const useProjectStore = create<ProjectStore>()(
       labelConfigVersion: 0,
       lastIsArchived: false,
       lastIncludeAllPrivate: false,
+      lastOnlyDeleted: false,
 
       // Project actions
       fetchProjects: async (
         page?: number,
         pageSize?: number,
         isArchived?: boolean,
-        includeAllPrivate?: boolean
+        includeAllPrivate?: boolean,
+        onlyDeleted?: boolean
       ) => {
         const currentPageToUse = page ?? get().currentPage
         const pageSizeToUse = pageSize ?? get().pageSize
@@ -157,6 +161,7 @@ export const useProjectStore = create<ProjectStore>()(
         const isArchivedToUse = isArchived ?? get().lastIsArchived
         const includeAllPrivateToUse =
           includeAllPrivate ?? get().lastIncludeAllPrivate
+        const onlyDeletedToUse = onlyDeleted ?? get().lastOnlyDeleted
         const search = get().searchQuery
 
         set({
@@ -164,6 +169,7 @@ export const useProjectStore = create<ProjectStore>()(
           error: null,
           lastIsArchived: isArchivedToUse,
           lastIncludeAllPrivate: includeAllPrivateToUse,
+          lastOnlyDeleted: onlyDeletedToUse,
         })
         try {
           const response = await projectsAPI.list(
@@ -171,7 +177,8 @@ export const useProjectStore = create<ProjectStore>()(
             pageSizeToUse,
             search,
             isArchivedToUse,
-            includeAllPrivateToUse
+            includeAllPrivateToUse,
+            onlyDeletedToUse
           )
 
           // Ensure response has the expected structure

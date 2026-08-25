@@ -606,6 +606,37 @@ describe('ProjectCreationWizard', () => {
   })
 
   describe('Data Import Step', () => {
+    it('offers the extended structured entry as a fourth tab and applies its rows', async () => {
+      const { registerSlot } = jest.requireActual('@/lib/extensions/slots')
+      registerSlot('ProjectWizardStructuredEntry', ({ data, onChange, variant }: any) => (
+        <button
+          data-testid="structured-entry-stub"
+          data-variant={String(variant)}
+          onClick={() =>
+            onChange({
+              pastedData: JSON.stringify([{ sachverhalt: 'Fall', musterloesung: 'Lsg' }]),
+              structuredExam: true,
+            })
+          }
+        >
+          {String(typeof data === 'object')}
+        </button>
+      ))
+      const user = userEvent.setup()
+      render(<ProjectCreationWizard />)
+      await navigateToStep(user, 'dataImport')
+      // Fourth tab present; the slot renders inside it in tab mode.
+      await user.click(screen.getByTestId('project-create-structured-tab'))
+      const stub = screen.getByTestId('structured-entry-stub')
+      expect(stub).toHaveTextContent('true')
+      expect(stub).toHaveAttribute('data-variant', 'tab')
+      await user.click(stub)
+      await user.click(screen.getByText('Paste'))
+      const textarea = await screen.findByTestId('project-create-paste-data-textarea')
+      expect((textarea as HTMLTextAreaElement).value).toContain('"sachverhalt":"Fall"')
+      registerSlot('ProjectWizardStructuredEntry', null as any)
+    })
+
     it('displays upload/paste/cloud tabs', async () => {
       const user = userEvent.setup()
       render(<ProjectCreationWizard />)

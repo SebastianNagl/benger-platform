@@ -214,6 +214,15 @@ async def check_report_access(
     if user.is_superadmin:
         return True
 
+    # Soft-deleted project (093): its reports are gone for non-superadmins.
+    deleted = (
+        await db.execute(select(Project.deleted_at).where(Project.id == project_id))
+    ).scalar_one_or_none()
+    if deleted is not None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Report not found"
+        )
+
     # For non-superadmins, check if they're in an organization that has access to the project
     if not require_edit:
         user_org_rows = await db.execute(
@@ -551,7 +560,11 @@ async def list_published_reports(
     stmt = (
         select(ProjectReport)
         .options(joinedload(ProjectReport.project))
-        .where(ProjectReport.is_published == True)  # noqa: E712
+        .join(Project, Project.id == ProjectReport.project_id)
+        .where(
+            ProjectReport.is_published == True,  # noqa: E712
+            Project.deleted_at.is_(None),
+        )
     )
 
     # Filter by organization for non-superadmins

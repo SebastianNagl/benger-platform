@@ -1,6 +1,9 @@
 'use client'
 
+import { Alert } from '@/components/shared/Alert'
 import { Button } from '@/components/shared/Button'
+import { ExtractTextButton } from '@/components/projects/ExtractTextButton'
+import { useSlot } from '@/lib/extensions/slots'
 import { Card } from '@/components/shared/Card'
 import { Label } from '@/components/shared/Label'
 import {
@@ -25,6 +28,16 @@ interface StepDataImportProps {
   onPastedDataChange: (data: string) => void
   onFileChange: (file: File | null) => void
   onDataColumnsChange: (columns: string[]) => void
+  /** The synthetic generator feature is active: uploads join generated rows
+   *  and must follow their structure — a warning box says so. */
+  syntheticActive?: boolean
+  /** Column structure of the already-present synthetic rows (shown as chips
+   *  in the warning when known). */
+  syntheticColumns?: string[]
+  /** Full wizard state + updater — passed through to the extended
+   *  structured-exam tab (ProjectWizardStructuredEntry slot). */
+  wizardData?: Record<string, any>
+  onWizardChange?: (partial: Record<string, any>) => void
 }
 
 /** Extract column names from a data string (JSON keys or CSV/TSV headers) */
@@ -67,8 +80,23 @@ export function StepDataImport({
   onPastedDataChange,
   onFileChange,
   onDataColumnsChange,
+  syntheticActive = false,
+  syntheticColumns = [],
+  wizardData,
+  onWizardChange,
 }: StepDataImportProps) {
   const { t } = useI18n()
+  // Extended: structured Klausur entry as a fourth tab. Auto-selected for
+  // exam-type projects so the natural flow lands on the typed part editor.
+  const StructuredEntry = useSlot('ProjectWizardStructuredEntry')
+  // Hidden on deck-type projects: applying an exam there would silently
+  // overwrite the flashcard labeling config.
+  const hasStructuredTab = !!(
+    StructuredEntry &&
+    wizardData &&
+    onWizardChange &&
+    wizardData.projectKind !== 'flashcard_collection'
+  )
   const { addToast } = useToast()
 
   // Extract columns when pasted data changes
@@ -135,8 +163,39 @@ export function StepDataImport({
         </p>
       </div>
 
-      <Tabs defaultValue="upload" data-testid="project-create-data-tabs">
-        <TabsList className="grid w-full grid-cols-3">
+      {syntheticActive && (
+        <div data-testid="step2-synthetic-warning">
+          <Alert variant="warning">
+            <span>
+              {t('projects.creation.wizard.step2.syntheticNotice')}
+              {syntheticColumns.length > 0 && (
+                <>
+                  {' '}
+                  {t('projects.creation.wizard.step2.syntheticNoticeColumns')}{' '}
+                  <span className="inline-flex flex-wrap gap-1 align-middle">
+                    {syntheticColumns.map((col) => (
+                      <code
+                        key={col}
+                        className="rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-xs dark:bg-zinc-800"
+                      >
+                        {col}
+                      </code>
+                    ))}
+                  </span>
+                </>
+              )}
+            </span>
+          </Alert>
+        </div>
+      )}
+
+      <Tabs
+        defaultValue={
+          hasStructuredTab && wizardData?.projectKind === 'exam' ? 'structured' : 'upload'
+        }
+        data-testid="project-create-data-tabs"
+      >
+        <TabsList className={hasStructuredTab ? 'grid w-full grid-cols-4' : 'grid w-full grid-cols-3'}>
           <TabsTrigger value="upload" data-testid="project-create-upload-tab">
             {t('projects.creation.wizard.step2.tabs.upload')}
           </TabsTrigger>
@@ -146,7 +205,20 @@ export function StepDataImport({
           <TabsTrigger value="cloud" data-testid="project-create-cloud-tab">
             {t('projects.creation.wizard.step2.tabs.cloud')}
           </TabsTrigger>
+          {hasStructuredTab && (
+            <TabsTrigger value="structured" data-testid="project-create-structured-tab">
+              {t('projects.creation.wizard.step2.tabs.structured', 'Klausur erfassen')}
+            </TabsTrigger>
+          )}
         </TabsList>
+
+        {hasStructuredTab && (
+          <TabsContent value="structured" className="mt-6">
+            <div data-testid="wizard-structured-entry">
+              <StructuredEntry data={wizardData} onChange={onWizardChange} variant="tab" />
+            </div>
+          </TabsContent>
+        )}
 
         <TabsContent value="upload" className="mt-6">
           <div
@@ -227,7 +299,14 @@ export function StepDataImport({
 
         <TabsContent value="paste" className="mt-6">
           <div className="space-y-4">
-            <Label>{t('projects.creation.wizard.step2.paste.label')}</Label>
+            <div className="flex items-center justify-between gap-3">
+              <Label>{t('projects.creation.wizard.step2.paste.label')}</Label>
+              <ExtractTextButton
+                onText={(text) =>
+                  handlePastedDataChange(JSON.stringify([{ text }], null, 2))
+                }
+              />
+            </div>
             <Textarea
               placeholder={t(
                 'projects.creation.wizard.step2.paste.placeholder'

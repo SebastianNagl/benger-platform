@@ -151,7 +151,9 @@ def generate_response_impl(
             from project_models import Project
 
             project = db.query(Project).filter(Project.id == project_id).first()
-            if not project:
+            if not project or getattr(project, "deleted_at", None) is not None:
+                # Soft-deleted (093): queued generations on hidden projects
+                # must not spend LLM budget.
                 raise Exception(f"Project {project_id} not found")
 
             # Build config_data for generate_llm_responses
@@ -326,7 +328,9 @@ def generate_llm_responses_impl(
                 "project_id", config_data.get("task_id")
             )  # Support both keys for compatibility
             project = db.query(Project).filter(Project.id == project_id).first()
-            if not project:
+            if not project or getattr(project, "deleted_at", None) is not None:
+                # Soft-deleted (093): queued generations on hidden projects
+                # must not spend LLM budget.
                 raise Exception(f"Project {project_id} not found")
 
             # Issue #762: Fetch prompt structure from generation_config if structure_key provided

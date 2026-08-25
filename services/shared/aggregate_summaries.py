@@ -147,7 +147,7 @@ def recompute_project_summaries(db: Session) -> int:
 
     Returns the number of rows UPSERTed.
     """
-    project_ids = [row[0] for row in db.execute(select(Project.id)).all()]
+    project_ids = [row[0] for row in db.execute(select(Project.id).where(Project.deleted_at.is_(None))).all()]
     now = datetime.now(timezone.utc)
     upserts = 0
     for pid in project_ids:
@@ -356,7 +356,7 @@ def _eval_run_ids_for_scope(
     stmt = select(EvaluationRun.id).where(EvaluationRun.status == "completed")
     if scope == "public":
         stmt = stmt.join(Project, EvaluationRun.project_id == Project.id).where(
-            Project.is_public.is_(True)
+            Project.is_public.is_(True), Project.deleted_at.is_(None)
         )
     elif scope == "tum":
         # Restrict to runs whose project is assigned to a TUM-scope org via

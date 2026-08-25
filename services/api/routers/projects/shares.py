@@ -18,16 +18,24 @@ Security notes:
   is governed by membership existence (owner eviction removes the row).
 - ``max_uses`` is enforced transactionally (``SELECT ... FOR UPDATE`` on the
   link) so concurrent joins can't overshoot the cap.
-- Rate-limiting / brute-force lockout on join is a deliberate v1 follow-up
-  (tracked in the issue), not implemented here.
+- Join is rate-limited per user (``_JOIN_RATE_LIMITS``, Redis fixed window via
+  the shared limiter; in-process fallback when Redis is down, skipped under
+  ``TESTING=true``) so a listed link's password can't be brute-forced.
+
+Since the benger Entdecken work (platform 2.9) this module also hosts the
+generic surfaces built on the same tables: the ``scope=all`` discover
+directory (every listed project kind, not just student shares), the
+caller-relative participation endpoints (``GET/DELETE
+/projects/{id}/participation``) and the ORG_ADMIN-only share governance
+(``_require_share_admin``).
 """
 
 import secrets
 import uuid
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Literal, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -38,7 +46,9 @@ from database import get_async_db
 from models import User
 from project_models import (
     Annotation,
+    MarketplaceEntitlement,
     Project,
+    ProjectOrganization,
     ProjectShareLink,
     ProjectShareMember,
     Task,
@@ -46,10 +56,33 @@ from project_models import (
 from models import TaskEvaluation
 
 from routers.projects.deps import ProjectAccess, require_project_access
-from routers.projects.helpers import attempt_score_from_metrics, get_share_access_async
+from routers.projects.helpers import (
+    attempt_score_from_metrics,
+    check_user_can_manage_shares_async,
+    get_share_access_async,
+    get_student_read_access_async,
+)
 
 router = APIRouter()
 token_router = APIRouter(prefix="/api/shares", tags=["shares"])
+
+# Password attempts per joining user (all attempts count, not just failures —
+# a legitimate student needs a handful per link, a guesser needs thousands).
+_JOIN_RATE_LIMITS = {"minute": (10, 60), "hour": (30, 3600)}
+
+
+async def _enforce_join_rate_limit(request: Request, current_user) -> None:
+    from rate_limiter import rate_limiter
+
+    error = await rate_limiter.check_rate_limit(
+        request, "share_join", _JOIN_RATE_LIMITS, user=current_user
+    )
+    if error:
+        raise HTTPException(
+            status_code=429,
+            detail=error,
+            headers={"Retry-After": str(error["retry_after"])},
+        )
 
 # Bump when the consent copy materially changes so withdrawals/re-consents are
 # auditable. Kept here (not the DB) because it tracks the wording, not data.
@@ -164,6 +197,20 @@ def _display_name(user: User) -> str:
 # --------------------------------------------------------------------------- #
 # Owner operations (project-scoped, /api/projects/{id}/shares...)
 # --------------------------------------------------------------------------- #
+async def _require_share_admin(db: AsyncSession, current_user, project: Project) -> None:
+    """Org projects: only ORG_ADMINs may let outside people in (create /
+    update / list / revoke links). Personal projects: the owner. Viewing links,
+    the roster and evicting stay on the edit tier."""
+    if not await check_user_can_manage_shares_async(db, current_user, project):
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "code": "share_admin_only",
+                "message": "Only organization admins can manage share links for this project",
+            },
+        )
+
+
 @router.post("/{project_id}/shares", status_code=201)
 async def create_share(
     project_id: str,
@@ -172,7 +219,8 @@ async def create_share(
     current_user=Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ):
-    """Mint a password-protected share link for the project (owner/editor)."""
+    """Mint a password-protected share link (personal: owner; org project: ORG_ADMIN)."""
+    await _require_share_admin(db, current_user, access.project)
     link = ProjectShareLink(
         id=str(uuid.uuid4()),
         token=secrets.token_urlsafe(32),
@@ -228,9 +276,12 @@ async def update_share(
     share_id: str,
     body: ShareUpdate,
     access: ProjectAccess = Depends(require_project_access(min_role="edit")),
+    current_user=Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ):
-    """Rotate the password and/or adjust expiry / max_uses (owner/editor)."""
+    """Rotate the password and/or adjust expiry / max_uses / listing
+    (personal: owner; org project: ORG_ADMIN)."""
+    await _require_share_admin(db, current_user, access.project)
     link = await _load_owned_link(db, project_id, share_id)
     if body.password is not None:
         link.password_hash = get_password_hash(body.password)
@@ -250,10 +301,12 @@ async def revoke_share(
     project_id: str,
     share_id: str,
     access: ProjectAccess = Depends(require_project_access(min_role="edit")),
+    current_user=Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ):
     """Revoke a link (blocks future joins; existing members keep access until
-    explicitly evicted)."""
+    explicitly evicted). Personal: owner; org project: ORG_ADMIN."""
+    await _require_share_admin(db, current_user, access.project)
     link = await _load_owned_link(db, project_id, share_id)
     if link.revoked_at is None:
         link.revoked_at = datetime.now(timezone.utc)
@@ -336,17 +389,15 @@ async def cohort_leaderboard(
     and to any member of the cohort (so students see where they stand). Honors
     pseudonyms and the consent gate.
     """
-    # Access: project owner/editor OR a consented share member.
+    # Access: full tier (owner/editor/org member) OR any participant (share
+    # member, entitled/enrolled student, org-exam participant).
     from routers.projects.helpers import (
-        check_project_accessible_async,
         get_org_context_from_request,
+        get_project_access_tier_async,
     )
 
     org_context = get_org_context_from_request(request)
-    is_owner = await check_project_accessible_async(
-        db, current_user, project_id, org_context
-    )
-    if not is_owner and not await get_share_access_async(db, current_user, project_id):
+    if await get_project_access_tier_async(db, current_user, project_id, org_context) is None:
         raise HTTPException(status_code=403, detail="Access denied")
 
     members = (
@@ -394,46 +445,84 @@ async def cohort_leaderboard(
 # --------------------------------------------------------------------------- #
 
 # Student-generated project kinds that may be discovered + joined.
-STUDENT_SHARE_KINDS = ("exam", "flashcard_collection", "flashcard_deck")
+STUDENT_SHARE_KINDS = ("exam", "flashcard_collection")
 
 
 # NOTE: declared BEFORE the "/{token}" route so a request to /api/shares/discover
 # matches this literal route rather than being captured as token="discover".
 @token_router.get("/discover")
 async def discover_shares(
+    scope: Literal["student", "all"] = Query(
+        "student",
+        description=(
+            "student: listed student-created exams/decks (vertretbar Entdecken). "
+            "all: every listed project of any kind (benger Entdecken)."
+        ),
+    ),
     current_user=Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ):
-    """Browse student exams/decks whose owners opted to list them (issue #35).
+    """Browse projects whose owners/org admins opted to list them (issue #35).
 
-    Global directory: any logged-in student sees every listed, still-joinable
-    student share except their own. Browsing reveals only title + owner name; a
+    Global directory: any logged-in user sees every listed, still-joinable
+    share except their own. Browsing reveals only title + owner name; a
     password is still required to JOIN (via POST /shares/{token}/join).
-    Revoked/expired links are filtered out here; the rare max_uses-exhausted
-    case is left to the join endpoint's 410.
+    Revoked/expired links and archived projects are filtered out here; the
+    rare max_uses-exhausted case is left to the join endpoint's 410.
     """
     now = datetime.now(timezone.utc)
     uid = str(current_user.id)
+
+    filters = [
+        ProjectShareLink.is_listed.is_(True),
+        ProjectShareLink.revoked_at.is_(None),
+        or_(
+            ProjectShareLink.expires_at.is_(None),
+            ProjectShareLink.expires_at > now,
+        ),
+        Project.created_by != uid,
+        or_(Project.is_archived.is_(None), Project.is_archived.is_(False)),
+        Project.deleted_at.is_(None),
+    ]
+    if scope == "student":
+        filters += [
+            Project.origin == "student",
+            Project.kind.in_(STUDENT_SHARE_KINDS),
+        ]
+    else:
+        # scope=all: peer (student-origin) shares stay listable even though
+        # they are private by design; any OTHER private project (org
+        # research, personal work) must not surface its title/owner in a
+        # global directory just because a link was once listed.
+        filters.append(
+            or_(Project.origin == "student", Project.is_private == False)  # noqa: E712
+        )
 
     rows = (
         await db.execute(
             select(ProjectShareLink, Project, User)
             .join(Project, Project.id == ProjectShareLink.project_id)
             .join(User, User.id == Project.created_by)
-            .where(
-                ProjectShareLink.is_listed.is_(True),
-                ProjectShareLink.revoked_at.is_(None),
-                or_(
-                    ProjectShareLink.expires_at.is_(None),
-                    ProjectShareLink.expires_at > now,
-                ),
-                Project.origin == "student",
-                Project.kind.in_(STUDENT_SHARE_KINDS),
-                Project.created_by != uid,
-            )
+            .where(*filters)
             .order_by(ProjectShareLink.created_at.desc())
         )
     ).all()
+
+    org_pids: set = set()
+    if rows:
+        org_pids = set(
+            (
+                await db.execute(
+                    select(ProjectOrganization.project_id).where(
+                        ProjectOrganization.project_id.in_(
+                            list({p.id for _, p, _ in rows})
+                        )
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
 
     # One query for the caller's consented memberships -> mark already-joined.
     member_pids = set(
@@ -465,9 +554,151 @@ async def discover_shares(
                 "kind": project.kind,
                 "owner_name": _display_name(owner) if owner else None,
                 "already_member": project.id in member_pids,
+                "origin": project.origin,
+                "icon": project.icon,
+                "is_org_project": project.id in org_pids,
             }
         )
     return out
+
+
+# --------------------------------------------------------------------------
+# Participation (the caller's own narrow-tier standing on a project)
+# --------------------------------------------------------------------------
+
+
+@router.get("/{project_id}/participation")
+async def get_participation(
+    project_id: str,
+    request: Request,
+    current_user=Depends(require_user),
+    db: AsyncSession = Depends(get_async_db),
+):
+    """How the caller reaches this project and whether they can leave it.
+
+    ``tier``: full | participant. ``via`` (participant only): share |
+    entitlement | org_exam. ``can_leave``: share memberships and discovery
+    enrollments can be left; purchases / vendor grants and org-wide exam
+    access cannot (money, resp. org membership is managed by the org).
+    ``share_tokens`` lists only the caller's OWN memberships' link tokens.
+    """
+    from routers.projects.helpers import (
+        get_org_context_from_request,
+        get_project_access_tier_async,
+    )
+
+    org_context = get_org_context_from_request(request)
+    tier = await get_project_access_tier_async(db, current_user, project_id, org_context)
+    if tier is None:
+        raise HTTPException(status_code=403, detail="Access denied")
+    uid = str(current_user.id)
+
+    share_rows = (
+        await db.execute(
+            select(ProjectShareLink.token)
+            .join(ProjectShareMember, ProjectShareMember.share_link_id == ProjectShareLink.id)
+            .where(
+                ProjectShareMember.project_id == project_id,
+                ProjectShareMember.user_id == uid,
+                ProjectShareMember.gdpr_consent_at.isnot(None),
+            )
+        )
+    ).scalars().all()
+    entitlement = (
+        await db.execute(
+            select(MarketplaceEntitlement).where(
+                MarketplaceEntitlement.project_id == project_id,
+                MarketplaceEntitlement.user_id == uid,
+                MarketplaceEntitlement.revoked_at.is_(None),
+            )
+        )
+    ).scalar_one_or_none()
+
+    via = None
+    if share_rows:
+        via = "share"
+    elif entitlement is not None:
+        via = "entitlement"
+    elif tier == "participant":
+        via = "org_exam"
+
+    leavable_entitlement = entitlement is not None and entitlement.source == "discovered"
+    can_leave = bool(share_rows) or leavable_entitlement
+    blocked = None
+    if not can_leave:
+        if entitlement is not None:
+            blocked = "entitlement_not_leavable"
+        elif via == "org_exam":
+            blocked = "org_membership"
+    return {
+        "tier": tier,
+        "via": via,
+        "can_leave": can_leave,
+        "cannot_leave_reason": blocked,
+        "share_tokens": list(share_rows),
+        "entitlement_source": entitlement.source if entitlement is not None else None,
+    }
+
+
+@router.delete("/{project_id}/participation", status_code=204)
+async def leave_project(
+    project_id: str,
+    current_user=Depends(require_user),
+    db: AsyncSession = Depends(get_async_db),
+):
+    """Leave a project joined via share link(s) and/or discovery enrollment.
+
+    Deletes every consented share membership of the caller on the project
+    (GDPR Art. 7(3): withdrawal as easy as consent) and soft-revokes a
+    ``source='discovered'`` entitlement. 409 when the only standing is a
+    purchase / vendor grant (``entitlement_not_leavable``) or org-wide exam
+    access (``org_membership``); 404 when there is nothing to leave.
+    """
+    uid = str(current_user.id)
+    # Deliberately NOT consent-filtered (unlike the participation read):
+    # leaving must purge every membership row of the caller, including a
+    # half-joined row whose consent was never captured.
+    members = (
+        await db.execute(
+            select(ProjectShareMember).where(
+                ProjectShareMember.project_id == project_id,
+                ProjectShareMember.user_id == uid,
+            )
+        )
+    ).scalars().all()
+    entitlement = (
+        await db.execute(
+            select(MarketplaceEntitlement).where(
+                MarketplaceEntitlement.project_id == project_id,
+                MarketplaceEntitlement.user_id == uid,
+                MarketplaceEntitlement.revoked_at.is_(None),
+            )
+        )
+    ).scalar_one_or_none()
+
+    left = False
+    for m in members:
+        await db.delete(m)
+        left = True
+    if entitlement is not None:
+        if entitlement.source == "discovered":
+            entitlement.revoked_at = datetime.now(timezone.utc)
+            left = True
+        elif not left:
+            raise HTTPException(
+                status_code=409,
+                detail={"code": "entitlement_not_leavable", "message": "Purchased access cannot be left"},
+            )
+    if left:
+        await db.commit()
+        return None
+
+    if await get_student_read_access_async(db, current_user, project_id):
+        raise HTTPException(
+            status_code=409,
+            detail={"code": "org_membership", "message": "Access comes from your organization"},
+        )
+    raise HTTPException(status_code=404, detail="Not a participant")
 
 
 async def _load_link_by_token(db: AsyncSession, token: str) -> ProjectShareLink:
@@ -478,7 +709,20 @@ async def _load_link_by_token(db: AsyncSession, token: str) -> ProjectShareLink:
     ).scalar_one_or_none()
     if not link:
         raise HTTPException(status_code=404, detail="Share link not found")
+    await _ensure_link_project_alive(db, link)
     return link
+
+
+async def _ensure_link_project_alive(db: AsyncSession, link: ProjectShareLink) -> None:
+    """A soft-deleted project's links don't resolve (behaves like the project
+    is gone — preview, join and withdrawal all 404)."""
+    deleted = (
+        await db.execute(
+            select(Project.deleted_at).where(Project.id == link.project_id)
+        )
+    ).scalar_one_or_none()
+    if deleted is not None:
+        raise HTTPException(status_code=404, detail="Share link not found")
 
 
 @token_router.get("/{token}")
@@ -518,14 +762,16 @@ async def get_share_info(
 async def join_share(
     token: str,
     body: ShareJoin,
+    request: Request,
     current_user=Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ):
-    """Join a shared exam by password, capturing GDPR consent.
+    """Join a shared exam/deck by password, capturing GDPR consent.
 
-    Enforces revoked/expired/max_uses gates transactionally. NOTE: brute-force
-    lockout / rate-limiting on this endpoint is a tracked v1 follow-up.
+    Enforces revoked/expired/max_uses gates transactionally; password guesses
+    are rate-limited per user (see ``_enforce_join_rate_limit``).
     """
+    await _enforce_join_rate_limit(request, current_user)
     if not body.gdpr_consent:
         raise HTTPException(
             status_code=400,
@@ -542,6 +788,7 @@ async def join_share(
     ).scalar_one_or_none()
     if not link:
         raise HTTPException(status_code=404, detail="Share link not found")
+    await _ensure_link_project_alive(db, link)
 
     now = datetime.now(timezone.utc)
     if link.revoked_at is not None:
@@ -552,15 +799,18 @@ async def join_share(
     if not verify_password(body.password, link.password_hash):
         raise HTTPException(status_code=403, detail="Incorrect password.")
 
-    # Idempotent: re-joining is a no-op that just refreshes consent.
+    # Idempotent PER PROJECT, not per link: a user who already joined this
+    # project through ANY link (a rotated/re-minted one included) keeps a
+    # single membership row — a second row per (project, user) would break
+    # the scalar membership lookups and double the roster.
     existing = (
         await db.execute(
             select(ProjectShareMember).where(
-                ProjectShareMember.share_link_id == link.id,
+                ProjectShareMember.project_id == link.project_id,
                 ProjectShareMember.user_id == str(current_user.id),
             )
         )
-    ).scalar_one_or_none()
+    ).scalars().first()
     if existing:
         existing.gdpr_consent_at = now
         existing.consent_version = CONSENT_VERSION

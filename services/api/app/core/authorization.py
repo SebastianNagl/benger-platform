@@ -119,6 +119,11 @@ class AuthorizationService:
         if user.is_superadmin:
             return True
 
+        # Soft-deleted (migration 093): the project does not exist for
+        # non-superadmins — no permission, not even for its creator.
+        if getattr(project, "deleted_at", None) is not None:
+            return False
+
         # Public projects: dedicated path that ignores org_context.
         if getattr(project, 'is_public', False) is True:
             if user.id == project.created_by:
@@ -312,6 +317,9 @@ class AuthorizationService:
         # two needless round-trips for superadmins / public-creator / private.
         if user.is_superadmin:
             return True
+        # Soft-deleted (093): gone for every non-superadmin.
+        if getattr(project, "deleted_at", None) is not None:
+            return False
 
         from project_models import ProjectOrganization
 

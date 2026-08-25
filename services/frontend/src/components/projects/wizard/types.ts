@@ -9,6 +9,10 @@ export interface WizardFeatures {
   // row is rendered by the ProjectWizardSyntheticEntry slot (community builds
   // register nothing, so this can never become true there).
   synthetic: boolean
+  // Extended-edition hook: the experimental AI-Bewertungsbogen step (per-task
+  // rubric generation as a second evaluation method). Row = the
+  // ProjectWizardRubricEntry slot; community builds register nothing.
+  rubric: boolean
 }
 
 export interface ConditionalInstruction {
@@ -39,6 +43,8 @@ export interface ProjectSettings {
   min_annotations_per_task: number
   randomize_task_order: boolean
   require_confirm_before_submit: boolean
+  // Reveal the full task data (incl. Musterlösung) to the solver after submit.
+  annotator_full_visibility_after_submit: boolean
   annotation_time_limit_enabled: boolean
   annotation_time_limit_seconds: number | null
   strict_timer_enabled: boolean
@@ -60,10 +66,16 @@ export interface GenerationParameters {
 export type WizardVisibility = 'private' | 'organization' | 'public'
 export type WizardPublicRole = 'ANNOTATOR' | 'CONTRIBUTOR'
 
+export type WizardProjectKind = 'generic' | 'exam' | 'flashcard_collection'
+
 export interface WizardData {
   // Step 1: Project Info
   title: string
   description: string
+  // Project type — locked after creation (maps to the write-once `kind`).
+  projectKind: WizardProjectKind
+  // Emoji shown in lists / headers; empty = kind-derived fallback.
+  icon: string
   features: WizardFeatures
   visibility: WizardVisibility
   publicRole: WizardPublicRole
@@ -119,6 +131,9 @@ export interface WizardStepDef {
 
 export const INITIAL_WIZARD_DATA: WizardData = {
   title: '',
+  projectKind: 'generic',
+  // Pre-filled with the generic type icon; follows the type until customised.
+  icon: '🗂️',
   description: '',
   features: {
     annotation: false,
@@ -126,6 +141,7 @@ export const INITIAL_WIZARD_DATA: WizardData = {
     llmGeneration: false,
     evaluation: false,
     synthetic: false,
+    rubric: false,
   },
   visibility: 'private',
   publicRole: 'ANNOTATOR',
@@ -162,6 +178,7 @@ export const INITIAL_WIZARD_DATA: WizardData = {
     min_annotations_per_task: 1,
     randomize_task_order: false,
     require_confirm_before_submit: true,
+    annotator_full_visibility_after_submit: false,
     annotation_time_limit_enabled: false,
     annotation_time_limit_seconds: null,
     strict_timer_enabled: false,

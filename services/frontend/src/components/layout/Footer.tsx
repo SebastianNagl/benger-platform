@@ -51,6 +51,12 @@ function SmallPrint() {
           >
             {t('layout.footer.dataProtection')}
           </Link>
+          <Link
+            href="/changelog"
+            className="text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-300"
+          >
+            {t('layout.footer.changelog')}
+          </Link>
         </div>
         <p className="text-xs text-zinc-600 dark:text-zinc-400">
           &copy; Copyright{' '}
@@ -75,10 +81,18 @@ function SmallPrint() {
   )
 }
 
-export function Footer() {
+export function Footer({ innerClassName }: { innerClassName?: string }) {
+  // The default inner width matches the expert layout/landing content column;
+  // shells with a different content width (e.g. the student shell's max-w-6xl)
+  // pass their own so the footer rule aligns with the content above it.
   return (
     <footer className="w-full px-4 pb-16 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-2xl space-y-10 lg:max-w-5xl 3xl:max-w-5xl 4xl:max-w-6xl 5xl:max-w-7xl">
+      <div
+        className={
+          innerClassName ??
+          'mx-auto max-w-2xl space-y-10 lg:max-w-5xl 3xl:max-w-5xl 4xl:max-w-6xl 5xl:max-w-7xl'
+        }
+      >
         <SmallPrint />
       </div>
     </footer>

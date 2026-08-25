@@ -111,6 +111,18 @@ export interface Project {
   public_role?: 'ANNOTATOR' | 'CONTRIBUTOR' | null
   organization_ids?: string[]
 
+  // Student-surface markers (extended): e.g. kind 'exam' |
+  // 'flashcard_collection', origin 'student'. NULL for ordinary projects.
+  kind?: string | null
+  icon?: string | null
+  // Caller-relative access info from the API (never stored):
+  deleted_at?: string | null
+  access_tier?: 'full' | 'participant' | null
+  participant_via?: 'share' | 'entitlement' | 'org_exam' | null
+  effective_role?: string | null
+  can_manage_shares?: boolean
+  origin?: string | null
+
   // Timestamps
   created_at: string
   updated_at?: string
@@ -119,6 +131,11 @@ export interface Project {
 export interface ProjectCreate {
   title: string
   description?: string
+  // Project type (exam | flashcard_collection | null = generic). Editable
+  // post-creation via PATCH for non-student projects; it is the single
+  // source of truth for the student surfaces (Entdecken, deck workspace).
+  kind?: string | null
+  icon?: string | null
   label_config?: string
   generation_structure?: string
   expert_instruction?: string

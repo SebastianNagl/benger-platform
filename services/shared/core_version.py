@@ -17,7 +17,7 @@ on a single line in the form: CORE_API_VERSION = "<version>".
 
 import os
 
-CORE_API_VERSION = "2.8"
+CORE_API_VERSION = "2.9"
 
 
 def extended_required() -> bool:

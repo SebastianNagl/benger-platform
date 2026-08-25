@@ -32,7 +32,10 @@ async def submit_questionnaire_response(
     current_user: AuthUser = Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
     access: ProjectAccess = Depends(
-        require_project_access(access_denied_detail="You don't have access to this project")
+        require_project_access(
+            access_denied_detail="You don't have access to this project",
+            allow_participant=True,
+        )
     ),
 ):
     """Submit a post-annotation questionnaire response."""
