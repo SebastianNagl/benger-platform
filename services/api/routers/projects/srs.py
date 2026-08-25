@@ -105,6 +105,39 @@ def _deck_scope_clause(deck: str | None):
     return or_(col == deck, col.startswith(deck + "::", autoescape=True))
 
 
+def raw_due_clause(now: datetime):
+    """The canonical "card is due" predicate, for a Task↔FlashcardSrsState
+    outer join scoped to one user: no SRS row yet, no due_at, or due_at in the
+    past. This is THE raw-due formula — every due figure (deck workspace
+    "Fällig", ``/srs/stats``, the extended deck listing's ``due_count``) must
+    derive from it so the numbers can never diverge.
+    """
+    return or_(
+        FlashcardSrsState.id.is_(None),
+        FlashcardSrsState.due_at.is_(None),
+        FlashcardSrsState.due_at <= now,
+    )
+
+
+def select_due_counts_by_project(project_ids, user_id: str, now: datetime):
+    """Grouped raw-due counts: ``(project_id, count)`` rows for the given
+    projects and user. Generic aggregation over platform tables (no
+    proprietary logic) — importable by extension routers so they reuse the
+    canonical formula instead of copying it.
+    """
+    return (
+        select(Task.project_id, func.count())
+        .select_from(Task)
+        .outerjoin(
+            FlashcardSrsState,
+            (FlashcardSrsState.task_id == Task.id)
+            & (FlashcardSrsState.user_id == user_id),
+        )
+        .where(Task.project_id.in_(project_ids), raw_due_clause(now))
+        .group_by(Task.project_id)
+    )
+
+
 def _srs_day_window(now_utc: datetime) -> tuple[datetime, datetime]:
     """Half-open ``[start, end)`` UTC range for the current SRS 'day'.
 
@@ -372,11 +405,7 @@ async def get_srs_stats(
             )
             .where(
                 Task.project_id == project_id,
-                or_(
-                    FlashcardSrsState.id.is_(None),
-                    FlashcardSrsState.due_at.is_(None),
-                    FlashcardSrsState.due_at <= now,
-                ),
+                raw_due_clause(now),
                 *scope_filter,
             )
         )

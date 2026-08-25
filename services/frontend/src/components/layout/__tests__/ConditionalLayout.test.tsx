@@ -34,7 +34,8 @@ describe('ConditionalLayout', () => {
   })
 
   describe('Legal pages layout behavior', () => {
-    const legalPages = ['/about/imprint', '/about/data-protection']
+    // Keep in sync with ConditionalLayout's legalPages.
+    const legalPages = ['/about/imprint', '/about/data-protection', '/changelog']
 
     describe('when user is not authenticated', () => {
       beforeEach(() => {

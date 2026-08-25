@@ -1,5 +1,7 @@
 'use client'
 
+import { useSyncExternalStore } from 'react'
+
 import { PLATFORM_CHANGELOG } from '@/data/changelog'
 import { LegalPageWrapper } from '@/components/layout/LegalPageWrapper'
 import { useAuth } from '@/contexts/AuthContext'
@@ -12,19 +14,29 @@ import { filterAndGroup } from '@/lib/utils/changelog'
 import { useResolvedUiMode } from '@/hooks/useResolvedUiMode'
 import { isStudentLockedHost } from '@/lib/utils/subdomain'
 
+// isStudentLockedHost reads window.location, which does not exist during SSR.
+// Routing it through useSyncExternalStore (server snapshot: false) keeps the
+// server HTML and the hydration render identical, then React re-renders with
+// the real host synchronously after hydration — no mismatch warning, no
+// visible flash, even once a benger-only platform entry exists.
+const noopSubscribe = () => () => {}
+const useStudentLockedHost = () =>
+  useSyncExternalStore(noopSubscribe, isStudentLockedHost, () => false)
+
 export default function ChangelogPage() {
   const { t, locale } = useI18n()
   const { user } = useAuth()
   const mode = useResolvedUiMode()
   const extendedEntries = useChangelogEntries()
+  const studentLockedHost = useStudentLockedHost()
 
   // Which product the visitor is experiencing. useResolvedUiMode is the
   // single source of truth (host default + superadmin view switch); the
-  // isStudentLockedHost term covers the window on vertretbar hosts before
+  // studentLockedHost term covers the window on vertretbar hosts before
   // the extended package registers StudentShell (the hook returns 'expert'
   // then), so anonymous vertretbar visitors never flash benger entries.
   const brand: ChangelogAudience =
-    mode === 'student' || (isStudentLockedHost() && !user?.is_superadmin)
+    mode === 'student' || (studentLockedHost && !user?.is_superadmin)
       ? 'vertretbar'
       : 'benger'
 

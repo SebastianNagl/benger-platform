@@ -17,8 +17,9 @@ jest.mock('@/contexts/I18nContext', () => ({
   }),
 }))
 
+let mockUser: { is_superadmin?: boolean } | null = null
 jest.mock('@/contexts/AuthContext', () => ({
-  useAuth: () => ({ user: null }),
+  useAuth: () => ({ user: mockUser }),
 }))
 
 let mockUiMode: 'student' | 'expert' = 'expert'
@@ -26,8 +27,9 @@ jest.mock('@/hooks/useResolvedUiMode', () => ({
   useResolvedUiMode: () => mockUiMode,
 }))
 
+let mockStudentLockedHost = false
 jest.mock('@/lib/utils/subdomain', () => ({
-  isStudentLockedHost: () => false,
+  isStudentLockedHost: () => mockStudentLockedHost,
 }))
 
 jest.mock('@/components/layout/LegalPageWrapper', () => ({
@@ -45,6 +47,8 @@ describe('ChangelogPage', () => {
   beforeEach(() => {
     mockLocale = 'de'
     mockUiMode = 'expert'
+    mockUser = null
+    mockStudentLockedHost = false
     PLATFORM_CHANGELOG.length = 0
     PLATFORM_CHANGELOG.push(
       {
@@ -85,6 +89,33 @@ describe('ChangelogPage', () => {
     mockUiMode = 'student'
     render(<ChangelogPage />)
     expect(screen.getByText('Plattform beide')).toBeInTheDocument()
+    expect(screen.getByText('Nur Vertretbar')).toBeInTheDocument()
+    expect(screen.queryByText('Nur BenGER')).not.toBeInTheDocument()
+  })
+
+  it('falls back to vertretbar for anonymous visitors on a student-locked host (pre-registration window)', () => {
+    // useResolvedUiMode still says 'expert' before StudentShell registers.
+    mockUiMode = 'expert'
+    mockStudentLockedHost = true
+    render(<ChangelogPage />)
+    expect(screen.getByText('Nur Vertretbar')).toBeInTheDocument()
+    expect(screen.queryByText('Nur BenGER')).not.toBeInTheDocument()
+  })
+
+  it('excludes superadmins from the student-locked-host fallback (view switch stays authoritative)', () => {
+    mockUiMode = 'expert'
+    mockStudentLockedHost = true
+    mockUser = { is_superadmin: true }
+    render(<ChangelogPage />)
+    expect(screen.getByText('Nur BenGER')).toBeInTheDocument()
+    expect(screen.queryByText('Nur Vertretbar')).not.toBeInTheDocument()
+  })
+
+  it('keeps the superadmin view switch to student mode authoritative on any host', () => {
+    mockUiMode = 'student'
+    mockStudentLockedHost = false
+    mockUser = { is_superadmin: true }
+    render(<ChangelogPage />)
     expect(screen.getByText('Nur Vertretbar')).toBeInTheDocument()
     expect(screen.queryByText('Nur BenGER')).not.toBeInTheDocument()
   })
