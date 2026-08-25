@@ -550,7 +550,9 @@
           "model": "Generator model",
           "modelHint": "The same model then grades against the rubric (changeable in the evaluation editor).",
           "modelsLoading": "Loading models…",
-          "modelsError": "Models could not be loaded."
+          "modelsError": "Models could not be loaded.",
+          "noTasksWarning": "Neither data import nor the AI generator is enabled — at creation time there are no tasks to generate a rubric for. Rubrics can be generated later per task on the task page.",
+          "warningTitle": "Experimental – review generated rubrics before use."
         }
       },
       "structuredExam": {
@@ -9334,7 +9336,7 @@
       "searchPlaceholder": "Search by title or vendor…"
     },
     "exam": {
-      "allDone": "All tasks solved. Thank you for your contribution!",
+      "allDone": "All exams solved. Thank you for your contribution!",
       "allSolvedHint": "You have completed all exams of this collection.",
       "attempt": {
         "empty": "Please write a solution first.",
@@ -9445,7 +9447,9 @@
           "musterloesung": "Model solution",
           "ki": "AI grading",
           "human": "Feedback"
-        }
+        },
+        "taskPicker": "Exam",
+        "taskFallback": "Exam {n}"
       },
       "review": "View submission",
       "roster": {
@@ -9459,7 +9463,17 @@
         "hint": "Without criteria, the standard case-solution rubric (10 dimensions) is used.",
         "key": "Key",
         "maxScore": "Maximum score",
-        "title": "Grading criteria (optional)"
+        "title": "Grading criteria (optional)",
+        "aiPropose": "Suggest with AI",
+        "aiRun": "Generate suggestion",
+        "aiRunning": "Generating…",
+        "aiEmpty": "The suggestion contained no criteria.",
+        "aiFailed": "AI suggestion failed.",
+        "aiModel": "Generator model",
+        "aiModelsError": "Model list could not be loaded.",
+        "aiWarning": "Experimental: the AI drafts a suggestion from the case and the model solution (LLM costs, 1–2 minutes). Review the criteria before saving.",
+        "aiReplaceConfirm": "The AI suggestion replaces the existing criteria. Continue?",
+        "aiCreateHint": "Available after creation — open the exam and edit the criteria."
       },
       "settings": {
         "confirm": "Require confirmation before submitting",
@@ -9489,7 +9503,8 @@
       },
       "solve": "Take exam",
       "solvedHint": "You have submitted this exam.",
-      "taskProgress": "Exam {n} of {total}"
+      "taskProgress": "Exam {n} of {total}",
+      "continueSolving": "Continue solving"
     },
     "exams": {
       "attempts": "{count} attempts",
@@ -9611,7 +9626,11 @@
       "tooLong": "The script is too long (max. {max} characters).",
       "skriptTooShort": "The script is too short (at least 200 characters).",
       "error": "Generation failed.",
-      "noModels": "No models available."
+      "noModels": "No models available.",
+      "rubricTitle": "Generate grading rubric automatically (experimental)",
+      "rubricHint": "After generation, suggests grading criteria from the case and the model solution (same model as above) and adds them to the exam — you can review and adjust them under \"Edit\".",
+      "rubricWarning": "Experimental: the generated criteria may be flawed and generation makes one extra AI call (1–2 minutes).",
+      "rubricGenerating": "Suggesting grading criteria… (may take 1–2 minutes)"
     }
   },
   "vertretbar": {

@@ -550,7 +550,9 @@
           "model": "Generator-Modell",
           "modelHint": "Dasselbe Modell bewertet anschließend gegen den Bogen (im Evaluierungs-Editor änderbar).",
           "modelsLoading": "Modelle werden geladen…",
-          "modelsError": "Modelle konnten nicht geladen werden."
+          "modelsError": "Modelle konnten nicht geladen werden.",
+          "noTasksWarning": "Weder Datenimport noch KI-Generator sind aktiviert — beim Erstellen existieren keine Aufgaben, für die ein Bogen erzeugt werden könnte. Der Bogen kann später pro Aufgabe auf der Aufgabenseite erzeugt werden.",
+          "warningTitle": "Experimentell – erzeugte Bögen vor dem Einsatz fachlich prüfen."
         }
       },
       "structuredExam": {
@@ -9324,7 +9326,7 @@
       "searchPlaceholder": "Nach Titel oder Anbieter suchen…"
     },
     "exam": {
-      "allDone": "Alle Aufgaben gelöst. Vielen Dank für deinen Beitrag!",
+      "allDone": "Alle Klausuren gelöst. Vielen Dank für deinen Beitrag!",
       "allSolvedHint": "Du hast alle Klausuren dieser Sammlung gelöst.",
       "attempt": {
         "empty": "Bitte schreibe zuerst eine Lösung.",
@@ -9435,7 +9437,9 @@
           "musterloesung": "Musterlösung",
           "ki": "KI-Korrektur",
           "human": "Feedback"
-        }
+        },
+        "taskPicker": "Klausur",
+        "taskFallback": "Klausur {n}"
       },
       "review": "Abgabe ansehen",
       "roster": {
@@ -9449,7 +9453,17 @@
         "hint": "Ohne Kriterien wird das Standard-Falllösungsschema (10 Dimensionen) verwendet.",
         "key": "Schlüssel",
         "maxScore": "Maximalpunktzahl",
-        "title": "Bewertungskriterien (optional)"
+        "title": "Bewertungskriterien (optional)",
+        "aiPropose": "Mit KI vorschlagen",
+        "aiRun": "Vorschlag erzeugen",
+        "aiRunning": "Wird erstellt…",
+        "aiEmpty": "Der Vorschlag enthielt keine Kriterien.",
+        "aiFailed": "KI-Vorschlag fehlgeschlagen.",
+        "aiModel": "Generator-Modell",
+        "aiModelsError": "Modellliste konnte nicht geladen werden.",
+        "aiWarning": "Experimentell: Die KI erstellt aus Angabe und Musterlösung einen Vorschlag (LLM-Kosten, 1–2 Minuten). Prüfe die Kriterien fachlich, bevor du speicherst.",
+        "aiReplaceConfirm": "Der KI-Vorschlag ersetzt die vorhandenen Kriterien. Fortfahren?",
+        "aiCreateHint": "Nach dem Erstellen verfügbar — öffne die Klausur und bearbeite die Kriterien."
       },
       "settings": {
         "confirm": "Bestätigung vor der Abgabe verlangen",
@@ -9479,7 +9493,8 @@
       },
       "solve": "Klausur lösen",
       "solvedHint": "Du hast diese Klausur abgegeben.",
-      "taskProgress": "Klausur {n} von {total}"
+      "taskProgress": "Klausur {n} von {total}",
+      "continueSolving": "Weiter lösen"
     },
     "exams": {
       "attempts": "{count} Versuche",
@@ -9601,7 +9616,11 @@
       "tooLong": "Das Skript ist zu lang (max. {max} Zeichen).",
       "skriptTooShort": "Das Skript ist zu kurz (mindestens 200 Zeichen).",
       "error": "Erzeugung fehlgeschlagen.",
-      "noModels": "Keine Modelle verfügbar."
+      "noModels": "Keine Modelle verfügbar.",
+      "rubricTitle": "Bewertungsbogen automatisch erzeugen (experimentell)",
+      "rubricHint": "Schlägt nach der Erzeugung Bewertungskriterien aus Sachverhalt und Musterlösung vor (gleiches Modell wie oben) und trägt sie in die Klausur ein — du kannst sie unter „Bearbeiten“ prüfen und anpassen.",
+      "rubricWarning": "Experimentell: Die erzeugten Kriterien können fehlerhaft sein und die Erzeugung verursacht einen zusätzlichen KI-Aufruf (1–2 Minuten).",
+      "rubricGenerating": "Bewertungskriterien werden vorgeschlagen… (kann 1–2 Minuten dauern)"
     }
   },
   "accountActivation": {
