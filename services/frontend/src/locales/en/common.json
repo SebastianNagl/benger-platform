@@ -650,6 +650,7 @@
         "org_exam": "Shared by your organization"
       },
       "kindDeck": "Flashcard deck",
+      "kindExam": "Exam",
       "study": "Study"
     },
     "columns": {

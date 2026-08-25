@@ -32,6 +32,7 @@ import {
   MagnifyingGlassIcon,
   TrashIcon,
   RectangleStackIcon,
+  ScaleIcon,
   UserGroupIcon,
   PlusIcon,
 } from '@heroicons/react/24/outline'
@@ -926,6 +927,15 @@ export function ProjectListTable({
                               >
                                 <RectangleStackIcon className="h-3.5 w-3.5" />
                                 {t('projects.list.kindDeck', 'Kartenstapel')}
+                              </span>
+                            )}
+                            {project.kind === 'exam' && (
+                              <span
+                                className="inline-flex items-center gap-1 rounded-md bg-indigo-50 px-1.5 py-0.5 text-xs font-medium text-indigo-700 dark:bg-indigo-400/10 dark:text-indigo-400"
+                                data-testid={`project-kind-badge-${project.id}`}
+                              >
+                                <ScaleIcon className="h-3.5 w-3.5" />
+                                {t('projects.list.kindExam', 'Klausur')}
                               </span>
                             )}
                             {(() => {

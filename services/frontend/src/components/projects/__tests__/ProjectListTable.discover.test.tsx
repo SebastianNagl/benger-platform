@@ -121,4 +121,16 @@ describe('ProjectListTable — discover + participant', () => {
     fireEvent.click(screen.getByTestId('project-study-d1'))
     expect(push).toHaveBeenCalledWith('/projects/d1')
   })
+
+  it('renders a matching kind badge for exams; generic projects get none', () => {
+    ;(useProjectStore as unknown as jest.Mock).mockReturnValue(
+      store([
+        project({ id: 'e1', kind: 'exam', access_tier: 'full' }),
+        project({ id: 'g1', kind: null, access_tier: 'full' }),
+      ]),
+    )
+    render(<ProjectListTable />)
+    expect(screen.getByTestId('project-kind-badge-e1')).toHaveTextContent('Klausur')
+    expect(screen.queryByTestId('project-kind-badge-g1')).not.toBeInTheDocument()
+  })
 })
