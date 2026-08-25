@@ -140,7 +140,11 @@ export function ProjectCreationWizard() {
   // Extended-edition step body for the experimental KI-Generator feature
   // (checkbox row = ProjectWizardSyntheticEntry slot in StepProjectInfo).
   const SyntheticStep = useSlot('ProjectWizardSyntheticStep')
-  const EvaluationExtras = useSlot('ProjectWizardEvaluationExtras')
+  // Extended-edition step body for the experimental AI-Bewertungsbogen
+  // (checkbox row = ProjectWizardRubricEntry slot in StepProjectInfo). The
+  // generated per-task rubrics become a SECOND evaluation method
+  // (llm_judge_rubric) next to the configured judges.
+  const RubricStep = useSlot('ProjectWizardRubricStep')
 
   // Build dynamic step list from features
   const activeSteps: WizardStepDef[] = useMemo(() => {
@@ -220,6 +224,21 @@ export function ProjectCreationWizard() {
         name: t('projects.creation.wizard.steps.evaluation.name'),
         description: t(
           'projects.creation.wizard.steps.evaluation.description'
+        ),
+      })
+    }
+
+    // AI-Bewertungsbogen sits after evaluation: by then the tasks
+    // (dataImport/synthetic) and the judge configs are declared, and the
+    // post-create hook runs after the awaited import so generation sees the
+    // tasks. Extended-only (the step body slot registers nothing in
+    // community builds — the entry row can then never enable it either).
+    if (wizardData.features.rubric) {
+      steps.push({
+        id: 'rubric',
+        name: t('projects.creation.wizard.steps.rubric.name'),
+        description: t(
+          'projects.creation.wizard.steps.rubric.description'
         ),
       })
     }
@@ -849,8 +868,7 @@ export function ProjectCreationWizard() {
         )
       case 'evaluation':
         return (
-          <>
-            <StepEvaluationMethods
+          <StepEvaluationMethods
             evaluationConfigs={wizardData.evaluationConfigs}
             onEvaluationConfigsChange={(evaluationConfigs) =>
               updateWizardData({ evaluationConfigs })
@@ -863,15 +881,15 @@ export function ProjectCreationWizard() {
             dataColumns={wizardData.dataColumns}
             selectedModelIds={wizardData.selectedModelIds}
           />
-            {/* Extended: experimental auto-generated Bewertungsbogen (rubric)
-                option with generator-model picker; runs via post-create hook. */}
-            {EvaluationExtras && (
-              <div className="mt-6" data-testid="wizard-evaluation-extras">
-                <EvaluationExtras data={wizardData} onChange={updateWizardData} />
-              </div>
-            )}
-          </>
         )
+      case 'rubric':
+        // Extended-only step (mirrors 'synthetic'): the AI-Bewertungsbogen —
+        // per-task rubric generation installed as a SECOND evaluation method
+        // (llm_judge_rubric) by the post-create hook once tasks exist.
+        return RubricStep ? (
+          // eslint-disable-next-line react-hooks/static-components
+          <RubricStep data={wizardData} onChange={updateWizardData} />
+        ) : null
       case 'settings':
         return (
           <StepSettings

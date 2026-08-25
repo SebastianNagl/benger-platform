@@ -9,6 +9,10 @@ export interface WizardFeatures {
   // row is rendered by the ProjectWizardSyntheticEntry slot (community builds
   // register nothing, so this can never become true there).
   synthetic: boolean
+  // Extended-edition hook: the experimental AI-Bewertungsbogen step (per-task
+  // rubric generation as a second evaluation method). Row = the
+  // ProjectWizardRubricEntry slot; community builds register nothing.
+  rubric: boolean
 }
 
 export interface ConditionalInstruction {
@@ -137,6 +141,7 @@ export const INITIAL_WIZARD_DATA: WizardData = {
     llmGeneration: false,
     evaluation: false,
     synthetic: false,
+    rubric: false,
   },
   visibility: 'private',
   publicRole: 'ANNOTATOR',

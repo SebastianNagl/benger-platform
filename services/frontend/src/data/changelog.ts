@@ -8,6 +8,14 @@ import type { ChangelogEntry } from '@/lib/extensions/changelog'
 export const PLATFORM_CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-08-25',
+    audience: 'benger',
+    text: {
+      de: 'AI-Bewertungsbogen ist jetzt ein eigener Schritt im Projekt-Assistenten (experimentell) und funktioniert für jede Klausur, nicht nur KI-generierte.',
+      en: 'The AI grading rubric is now its own project-wizard step (experimental) and works for any exam, not just AI-generated ones.',
+    },
+  },
+  {
+    date: '2026-08-25',
     audience: 'both',
     text: {
       de: 'Alle Nutzer:innen können jetzt über das Kontomenü zwischen Studierenden- und Expertenansicht wechseln.',

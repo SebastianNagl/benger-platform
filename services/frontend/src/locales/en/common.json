@@ -263,6 +263,10 @@
           "synthetic": {
             "name": "KI-Generator",
             "description": "Generate a synthetic exam or flashcards from a lecture script"
+          },
+          "rubric": {
+            "name": "AI grading rubric",
+            "description": "Experimental: generate a per-task grading rubric via LLM (second evaluation method)"
           }
         },
         "features": {
@@ -9317,7 +9321,7 @@
       "noExams": "No exams are available at the moment.",
       "researchHint": "Solve real exams and receive an AI grading. The grading is billed against your credit.",
       "subtitleVendor": "Exams and flashcard decks from vendors and other students.",
-      "taskCount": "{count} tasks",
+      "taskCount": "{count} exams",
       "title": "Discover",
       "vendor": "Vendor",
       "peerBadge": "Shared",
@@ -9331,7 +9335,7 @@
     },
     "exam": {
       "allDone": "All tasks solved. Thank you for your contribution!",
-      "allSolvedHint": "You have completed all tasks of this exam.",
+      "allSolvedHint": "You have completed all exams of this collection.",
       "attempt": {
         "empty": "Please write a solution first.",
         "error": "Submission failed.",
@@ -9410,7 +9414,7 @@
       },
       "joined": "Joined",
       "loadError": "Exam could not be loaded.",
-      "nextTask": "Next task",
+      "nextTask": "Next exam",
       "notFound": "Exam not found.",
       "opensAt": "This exam opens on {date}.",
       "print": {
@@ -9485,7 +9489,7 @@
       },
       "solve": "Take exam",
       "solvedHint": "You have submitted this exam.",
-      "taskProgress": "Task {n} of {total}"
+      "taskProgress": "Exam {n} of {total}"
     },
     "exams": {
       "attempts": "{count} attempts",
@@ -9497,6 +9501,9 @@
       "joined": "Joined",
       "loadError": "Exams could not be loaded.",
       "notAttempted": "Not attempted yet",
+      "sammlung": "Exam collection",
+      "taskProgress": "{solved} of {total} exams",
+      "avgGradePoints": "Ø {points} points",
       "opensAt": "Opens {date}",
       "remove": "Remove",
       "removeTitle": "Remove from my list",

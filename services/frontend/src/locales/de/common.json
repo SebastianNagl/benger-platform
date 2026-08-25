@@ -263,6 +263,10 @@
           "synthetic": {
             "name": "KI-Generator",
             "description": "Synthetische Klausur oder Karteikarten aus einem Skript erzeugen"
+          },
+          "rubric": {
+            "name": "AI-Bewertungsbogen",
+            "description": "Experimentell: pro Aufgabe einen Bewertungsbogen per LLM erzeugen (zweite Bewertungsmethode)"
           }
         },
         "features": {
@@ -9307,7 +9311,7 @@
       "noExams": "Derzeit sind keine Klausuren verfügbar.",
       "researchHint": "Löse echte Klausuren und erhalte eine KI-Bewertung. Die Bewertung wird über dein Guthaben abgerechnet.",
       "subtitleVendor": "Klausuren und Kartenstapel von Anbietern und anderen Studierenden.",
-      "taskCount": "{count} Aufgaben",
+      "taskCount": "{count} Klausuren",
       "title": "Entdecken",
       "vendor": "Anbieter",
       "peerBadge": "Geteilt",
@@ -9321,7 +9325,7 @@
     },
     "exam": {
       "allDone": "Alle Aufgaben gelöst. Vielen Dank für deinen Beitrag!",
-      "allSolvedHint": "Du hast alle Aufgaben dieser Klausur gelöst.",
+      "allSolvedHint": "Du hast alle Klausuren dieser Sammlung gelöst.",
       "attempt": {
         "empty": "Bitte schreibe zuerst eine Lösung.",
         "error": "Abgabe fehlgeschlagen.",
@@ -9400,7 +9404,7 @@
       },
       "joined": "Beigetreten",
       "loadError": "Klausur konnte nicht geladen werden.",
-      "nextTask": "Nächste Aufgabe",
+      "nextTask": "Nächste Klausur",
       "notFound": "Klausur nicht gefunden.",
       "opensAt": "Diese Klausur öffnet am {date}.",
       "print": {
@@ -9475,7 +9479,7 @@
       },
       "solve": "Klausur lösen",
       "solvedHint": "Du hast diese Klausur abgegeben.",
-      "taskProgress": "Aufgabe {n} von {total}"
+      "taskProgress": "Klausur {n} von {total}"
     },
     "exams": {
       "attempts": "{count} Versuche",
@@ -9487,6 +9491,9 @@
       "joined": "Beigetreten",
       "loadError": "Klausuren konnten nicht geladen werden.",
       "notAttempted": "Noch nicht bearbeitet",
+      "sammlung": "Klausurensammlung",
+      "taskProgress": "{solved} von {total} Klausuren",
+      "avgGradePoints": "Ø {points} Punkte",
       "opensAt": "Öffnet {date}",
       "remove": "Entfernen",
       "removeTitle": "Aus meiner Liste entfernen",

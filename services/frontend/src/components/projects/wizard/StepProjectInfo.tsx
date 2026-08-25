@@ -65,6 +65,10 @@ export function StepProjectInfo({
   // `features.synthetic` (which adds the synthetic step to the wizard). Null
   // in the community edition.
   const SyntheticEntry = useSlot('ProjectWizardSyntheticEntry')
+  // Extended-edition feature row: the experimental AI-Bewertungsbogen step
+  // (per-task rubric generation as a second evaluation method). Null in the
+  // community edition.
+  const RubricEntry = useSlot('ProjectWizardRubricEntry')
 
   useEffect(() => {
     let cancelled = false
@@ -222,6 +226,14 @@ export function StepProjectInfo({
             <SyntheticEntry
               checked={data.features.synthetic}
               onToggle={() => toggleFeature('synthetic')}
+            />
+          )}
+
+          {RubricEntry && (
+            // eslint-disable-next-line react-hooks/static-components
+            <RubricEntry
+              checked={data.features.rubric}
+              onToggle={() => toggleFeature('rubric')}
             />
           )}
         </div>
