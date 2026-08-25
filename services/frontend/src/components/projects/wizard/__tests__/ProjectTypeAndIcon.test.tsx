@@ -27,7 +27,7 @@ describe('ProjectTypeSelector', () => {
     expect(screen.getByTestId('project-kind-generic')).toHaveAttribute('aria-checked', 'true')
     fireEvent.click(screen.getByTestId('project-kind-exam'))
     expect(onChange).toHaveBeenCalledWith({ projectKind: 'exam' })
-    expect(screen.getByText(/kann danach nicht geändert/)).toBeInTheDocument()
+    expect(screen.getByText(/unter „Einstellungen“ geändert/)).toBeInTheDocument()
   })
 })
 

@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { LockClosedIcon } from '@heroicons/react/24/outline'
 
 import { Dialog } from '@/components/shared/Dialog'
 import { Input } from '@/components/shared/Input'
@@ -55,10 +54,11 @@ export const ICON_CHOICES = [
 export { defaultIconForKind } from '@/lib/projectKind'
 
 /**
- * Compact one-row project-type selector. The type is write-once — it drives
- * discoverability, the deck workspace and the student surfaces — hence the
- * lock note. Option descriptions surface as tooltips and under the selected
- * option to keep the row height flat.
+ * Compact one-row project-type selector. The type drives discoverability,
+ * the deck workspace and the student surfaces; it can be changed later in
+ * the project details (except on student-created projects). Option
+ * descriptions surface as tooltips and under the selected option to keep
+ * the row height flat.
  */
 export function ProjectTypeSelector({
   projectKind,
@@ -106,12 +106,11 @@ export function ProjectTypeSelector({
           )
         })}
       </div>
-      <p className="mt-2 flex items-center gap-1 text-xs text-zinc-500 dark:text-zinc-400">
-        <LockClosedIcon className="h-3.5 w-3.5 shrink-0" />
+      <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
         {selected ? `${t(selected.descriptionKey, selected.descriptionFallback)} · ` : ''}
         {t(
           'projects.creation.wizard.step1.kind.locked',
-          'Wird bei der Erstellung festgelegt und kann danach nicht geändert werden.'
+          'Der Projekttyp kann von Bearbeitenden unter „Einstellungen“ geändert werden.'
         )}
       </p>
     </div>

@@ -671,6 +671,20 @@ async def update_project(
     # Update fields
     update_data = update.dict(exclude_unset=True)
 
+    # Kind is editable on expert projects (the extended student surfaces key
+    # discovery off it), but a student-origin project can never be un-flagged
+    # back into the public/expert lanes. Only kind CHANGES are rejected, so a
+    # client echoing the current value back keeps working.
+    if (
+        "kind" in update_data
+        and update_data["kind"] != project.kind
+        and getattr(project, "origin", None) == "student"
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail="The kind of a student-created project cannot be changed",
+        )
+
     # Handle field mappings
     if "instructions" in update_data:
         # Map frontend 'instructions' to database 'expert_instruction'

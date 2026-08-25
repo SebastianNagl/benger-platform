@@ -180,10 +180,12 @@ class ProjectCreate(ProjectBase):
         description="Role public visitors are treated as for is_public projects. ANNOTATOR (view+annotate) or CONTRIBUTOR (also add tasks, run jobs). Required when is_public=True.",
     )
     # Project kind / origin (extended-edition student experience). Free-form,
-    # length-capped nullable strings — NOT enums — so the community edition
-    # stays forward-compatible. Accepted ONLY at creation (write-once); there
-    # is intentionally no counterpart in ProjectUpdate, so a student project
-    # can never be silently un-flagged back into the public leaderboards.
+    # length-capped nullable strings at CREATION — NOT enums — so the
+    # community edition stays forward-compatible. ``kind`` is also editable
+    # later via ProjectUpdate (enum-validated there, and update_project
+    # rejects changes on origin='student' projects so a student project can
+    # never be silently un-flagged back into the public leaderboards).
+    # ``origin`` stays write-once.
     kind: Optional[str] = Field(
         None, max_length=32, description='Project kind, e.g. "exam" or "flashcard_collection" (extended).'
     )
@@ -247,6 +249,25 @@ class ProjectUpdate(BaseModel):
     @classmethod
     def _icon_is_emoji(cls, v):
         return _validate_icon(v)
+
+    # Project kind — the single source of truth for the extended edition's
+    # student-facing discovery/listing (exam / flashcard deck). Unlike the
+    # free-form creation field, updates are enum-validated: only the values
+    # the student surfaces understand (or an explicit null to clear back to a
+    # generic project). update_project additionally rejects kind CHANGES on
+    # origin='student' projects (anti-un-flag contract).
+    kind: Optional[str] = Field(
+        None,
+        max_length=32,
+        description='Project kind: "exam", "flashcard_collection", or null (generic).',
+    )
+
+    @field_validator("kind")
+    @classmethod
+    def _kind_is_known(cls, v):
+        if v is not None and v not in ("exam", "flashcard_collection"):
+            raise ValueError('kind must be "exam", "flashcard_collection", or null')
+        return v
 
     label_config: Optional[str] = None
     # Note: generation_structure removed in Issue #762 - now in generation_config.prompt_structures

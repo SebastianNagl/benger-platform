@@ -312,7 +312,9 @@
           },
           "kind": {
             "title": "Project type",
-            "locked": "Set at creation and cannot be changed afterwards.",
+            "locked": "Editors can change the project type under \"Settings\".",
+            "lockedStudent": "The type of student-created projects cannot be changed.",
+            "editableHint": "The type controls whether students can find this project as an exam or flashcard deck.",
             "generic": "Generic",
             "genericDescription": "Benchmark / annotation project without exam or flashcard logic",
             "exam": "Exam",
@@ -914,7 +916,8 @@
       "organizations": "Organizations",
       "noOrganizations": "No organizations",
       "at": "at",
-      "unknown": "Unknown"
+      "unknown": "Unknown",
+      "kindSaveFailed": "Project type could not be saved."
     },
     "labelConfiguration": {
       "title": "Label Configuration",
@@ -1425,7 +1428,23 @@
         "participants": "{count} participants",
         "notShared": "Not shared"
       },
-      "adminOnlyHint": "Only organization admins can manage share links."
+      "adminOnlyHint": "Only organization admins can manage share links.",
+      "checks": {
+        "title": "Discoverability hints",
+        "kind_is_exam": "Project type is not \"Exam\" — students will not find this project as an exam.",
+        "kind_is_collection": "Project type is not \"Flashcard deck\" — students will not find this project as a deck.",
+        "not_archived": "The project is archived.",
+        "not_private": "The project is private.",
+        "assignment_open": "The assignment mode is not \"open\".",
+        "origin_not_student": "Student-created projects use their own lists, not discovery.",
+        "klausurloesung_config": "The labeling configuration is not a Klausurlösung (Angabe/Notizen/Gliederung/Lösung).",
+        "falloesung_judge": "No active case-solution AI judge configured — AI grading will not work.",
+        "sachverhalt_binding": "The configuration does not bind a $sachverhalt field.",
+        "musterloesung_key": "The tasks carry no model solution.",
+        "deck_config": "The labeling configuration is not card-shaped ($front).",
+        "card_keys": "The tasks carry no front/back card fields.",
+        "has_tasks": "The project has no tasks."
+      }
     },
     "participant": {
       "title": "Participation",

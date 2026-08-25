@@ -312,7 +312,9 @@
           },
           "kind": {
             "title": "Projekttyp",
-            "locked": "Wird bei der Erstellung festgelegt und kann danach nicht geändert werden.",
+            "locked": "Der Projekttyp kann von Bearbeitenden unter „Einstellungen“ geändert werden.",
+            "lockedStudent": "Der Typ studentischer Projekte kann nicht geändert werden.",
+            "editableHint": "Der Typ steuert, ob Studierende dieses Projekt als Klausur bzw. Kartenstapel finden können.",
             "generic": "Generisch",
             "genericDescription": "Benchmark-/Annotationsprojekt ohne Klausur- oder Karten-Logik",
             "exam": "Klausur",
@@ -914,7 +916,8 @@
       "organizations": "Organisationen",
       "noOrganizations": "Keine Organisationen",
       "at": "um",
-      "unknown": "Unbekannt"
+      "unknown": "Unbekannt",
+      "kindSaveFailed": "Projekttyp konnte nicht gespeichert werden."
     },
     "labelConfiguration": {
       "title": "Label-Konfiguration",
@@ -1425,7 +1428,23 @@
         "participants": "{count} Teilnehmende",
         "notShared": "Nicht geteilt"
       },
-      "adminOnlyHint": "Nur Organisations-Admins können Freigabe-Links verwalten."
+      "adminOnlyHint": "Nur Organisations-Admins können Freigabe-Links verwalten.",
+      "checks": {
+        "title": "Hinweise zur Auffindbarkeit",
+        "kind_is_exam": "Projekttyp ist nicht „Klausur“ — Studierende finden das Projekt nicht als Klausur.",
+        "kind_is_collection": "Projekttyp ist nicht „Kartenstapel“ — Studierende finden das Projekt nicht als Stapel.",
+        "not_archived": "Das Projekt ist archiviert.",
+        "not_private": "Das Projekt ist privat.",
+        "assignment_open": "Der Zuweisungsmodus ist nicht „offen“.",
+        "origin_not_student": "Studentische Projekte laufen über die eigenen Listen, nicht über „Entdecken“.",
+        "klausurloesung_config": "Die Beschriftungskonfiguration ist keine Klausurlösung (Angabe/Notizen/Gliederung/Lösung).",
+        "falloesung_judge": "Keine aktive Falllösungs-KI-Bewertung konfiguriert — die KI-Korrektur funktioniert nicht.",
+        "sachverhalt_binding": "Die Konfiguration bindet kein $sachverhalt-Feld.",
+        "musterloesung_key": "Die Aufgaben enthalten keine Musterlösung.",
+        "deck_config": "Die Beschriftungskonfiguration ist nicht kartenförmig ($front).",
+        "card_keys": "Die Aufgaben enthalten keine front/back-Kartenfelder.",
+        "has_tasks": "Das Projekt enthält keine Aufgaben."
+      }
     },
     "participant": {
       "title": "Teilnahme",

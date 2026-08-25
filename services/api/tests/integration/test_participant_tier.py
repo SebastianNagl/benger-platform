@@ -445,8 +445,10 @@ async def test_discover_scopes(async_test_client, async_test_db):
         assert by_id[student_exam.id]["is_org_project"] is False
 
 
-async def test_project_icon_and_locked_kind(async_test_client, async_test_db):
-    """icon is set at creation and editable; kind is write-once (locked)."""
+async def test_project_icon_and_editable_kind(async_test_client, async_test_db):
+    """icon is set at creation and editable; kind is editable on EXPERT
+    projects (enum-validated, incl. clearing to null), but a student-origin
+    project's kind can never be changed (anti-un-flag contract)."""
     db = async_test_db
     owner = await _user(db)
     with _as_user(owner):
@@ -463,12 +465,44 @@ async def test_project_icon_and_locked_kind(async_test_client, async_test_db):
         assert r.status_code in (200, 201), r.text
         pid = r.json()["id"]
         assert r.json()["icon"] == "⚖️" and r.json()["kind"] == "exam"
-        r = await async_test_client.patch(f"/api/projects/{pid}", json={"icon": "📚", "kind": "flashcard_collection"})
+        # Expert project: kind is editable in both directions + clearable.
+        r = await async_test_client.patch(
+            f"/api/projects/{pid}", json={"icon": "📚", "kind": "flashcard_collection"}
+        )
         assert r.status_code == 200, r.text
         assert r.json()["icon"] == "📚"
-        assert r.json()["kind"] == "exam"  # locked after creation
+        assert r.json()["kind"] == "flashcard_collection"
+        r = await async_test_client.patch(f"/api/projects/{pid}", json={"kind": None})
+        assert r.status_code == 200, r.text
+        assert r.json()["kind"] is None
+        r = await async_test_client.patch(f"/api/projects/{pid}", json={"kind": "exam"})
+        assert r.status_code == 200, r.text
+        assert r.json()["kind"] == "exam"
+        # Unknown values are rejected by the update schema.
+        r = await async_test_client.patch(f"/api/projects/{pid}", json={"kind": "leaderboard"})
+        assert r.status_code == 422, r.text
         r = await async_test_client.get("/api/projects/")
         assert next(p for p in r.json()["items"] if p["id"] == pid)["icon"] == "📚"
+
+        # Student-origin project: kind CHANGES are 403; echoing the current
+        # value back is tolerated (clients PATCH whole objects).
+        r = await async_test_client.post(
+            "/api/projects/",
+            json={
+                "title": "Studentische Klausur",
+                "label_config": EXAM_CONFIG,
+                "kind": "exam",
+                "origin": "student",
+                "is_private": True,
+            },
+        )
+        assert r.status_code in (200, 201), r.text
+        sid = r.json()["id"]
+        r = await async_test_client.patch(f"/api/projects/{sid}", json={"kind": None})
+        assert r.status_code == 403, r.text
+        r = await async_test_client.patch(f"/api/projects/{sid}", json={"kind": "exam"})
+        assert r.status_code == 200, r.text
+        assert r.json()["kind"] == "exam"
 
 
 async def test_participant_enrichment_and_search_hardening(async_test_client, async_test_db):

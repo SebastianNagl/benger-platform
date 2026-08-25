@@ -21,15 +21,15 @@ export type UiMode = 'student' | 'expert'
  *  - the student shell's sidebar control
  *
  * ``status``:
- *  - ``'unavailable'`` — community edition, OR the closed-beta lock: the student
- *    shell renders only on student-locked hosts (vertretbar.net), so the switch
- *    is never offered to regular users on the benchmark platform. Render nothing.
+ *  - ``'unavailable'`` — community edition (no student shell to switch to),
+ *    or no authenticated user.
  *  - ``'loading'`` — extended edition but auth/hydration not settled yet
  *    (role-flicker guard; render a neutral skeleton where one fits).
- *  - ``'ready'`` — offer the switch. Superadmins only while the closed beta is
- *    in place: they get the vertretbar⇄benger switch on both shells (the
- *    student sidebar control and the expert account-dropdown item), backed by
- *    the superadmin branch in useResolvedUiMode.
+ *  - ``'ready'`` — offer the switch. Open to EVERY authenticated user since
+ *    2026-08-25 (previously superadmin-only during the closed beta): anyone
+ *    may move between the vertretbar (student) and benger (expert) shells on
+ *    any host, backed by the choice branch in useResolvedUiMode (kept in
+ *    lockstep with this gate).
  */
 export function useViewModeSwitch() {
   const router = useRouter()
@@ -43,14 +43,11 @@ export function useViewModeSwitch() {
   const status = ((): 'unavailable' | 'loading' | 'ready' => {
     if (!isExtendedEdition()) return 'unavailable'
     if (!mounted || isLoading) return 'loading'
-    // Closed beta with a superadmin exception: superadmins may switch between
-    // the vertretbar (student) and benger (expert) shells anywhere. For
-    // everyone else the switch stays locked away — this matches
-    // useResolvedUiMode's host lock and keeps the toggle out of every org
-    // admin's / contributor's menu on the benchmark platform. To reopen
-    // opt-in switching more broadly, widen this gate and the superadmin
-    // branch in useResolvedUiMode in lockstep.
-    return user?.is_superadmin ? 'ready' : 'unavailable'
+    // Open switching (2026-08-25): every authenticated user may move between
+    // the vertretbar (student) and benger (expert) shells — students who
+    // want the expert interface included. Kept in lockstep with the
+    // choice branch in useResolvedUiMode.
+    return user ? 'ready' : 'unavailable'
   })()
 
   // Warm both interface homes so the switch transition is fast — otherwise the

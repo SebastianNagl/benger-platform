@@ -131,7 +131,9 @@ export interface Project {
 export interface ProjectCreate {
   title: string
   description?: string
-  // Write-once project type (exam | flashcard_collection | null = generic).
+  // Project type (exam | flashcard_collection | null = generic). Editable
+  // post-creation via PATCH for non-student projects; it is the single
+  // source of truth for the student surfaces (Entdecken, deck workspace).
   kind?: string | null
   icon?: string | null
   label_config?: string

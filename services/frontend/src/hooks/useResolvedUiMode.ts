@@ -19,8 +19,6 @@ export function isExtendedEdition(): boolean {
  * Resolve the EFFECTIVE UI mode (the single source of truth for which shell
  * renders).
  *
- * The student shell is a CLOSED BETA — it renders ONLY on student-locked hosts
- * (vertretbar.net, behind the beta password), with a SUPERADMIN exception.
  * Precedence:
  *
  *   1. Community edition (NEXT_PUBLIC_BENGER_EDITION !== 'extended') → 'expert'.
@@ -28,19 +26,18 @@ export function isExtendedEdition(): boolean {
  *   2. Extended edition but the StudentShell slot is not registered yet (the
  *      extended package hasn't loaded, or this build doesn't ship it) →
  *      'expert'. Never show a broken/empty student shell.
- *   3. Superadmin → their switch choice wins over the host lock: the local
- *      (session) toggle first, then the server-saved preference, then the
- *      host default. This powers the vertretbar⇄benger switch offered in the
- *      student sidebar and the expert account dropdown (useViewModeSwitch
- *      gates the switch surfaces to superadmins).
- *   4. Everyone else: student-locked host (vertretbar.net & co) → 'student';
- *      EVERY other host — the benger benchmark platform (what-a-benger.net) —
- *      → ALWAYS 'expert'. No org admin, contributor, local toggle, or
- *      server-saved preference can surface the student shell there. This is a
- *      deliberate hard lock for the closed beta.
+ *   3. Authenticated user → their switch choice wins over the host default:
+ *      the local (session) toggle first, then the server-saved preference,
+ *      then the host default. Open to EVERY user since 2026-08-25
+ *      (previously a superadmin exception during the closed beta) — this
+ *      powers the vertretbar⇄benger switch in the student sidebar and the
+ *      expert account dropdown (useViewModeSwitch, kept in lockstep).
+ *   4. Anonymous visitors: student-locked host (vertretbar.net & co) →
+ *      'student'; every other host → 'expert'.
  *
- * To later re-open opt-in switching for non-superadmins, widen the gate in
- * useViewModeSwitch and the `is_superadmin` check below in lockstep.
+ * Branding note: legal/changelog pages brand by HOST, not by mode — a
+ * student switching to the expert shell on vertretbar.net keeps vertretbar
+ * branding there.
  *
  * The hook subscribes to slot registrations via useSlot so a late-loading
  * extended package flips locked-host users from the expert fallback into the
@@ -58,13 +55,11 @@ export function useResolvedUiMode(): UiMode {
 
   const hostDefault: UiMode = isStudentLockedHost() ? 'student' : 'expert'
 
-  // Superadmin exception to the closed-beta lock: their explicit switch
-  // choice (or persisted preference) picks the shell on any host.
-  if (user?.is_superadmin) {
+  // Any authenticated user's explicit switch choice (or persisted
+  // preference) picks the shell on any host.
+  if (user) {
     return localMode ?? user.preferred_ui_mode ?? hostDefault
   }
 
-  // Closed beta: for everyone else the student shell exists ONLY on
-  // student-locked hosts. Every other host gets the expert shell — full stop.
   return hostDefault
 }

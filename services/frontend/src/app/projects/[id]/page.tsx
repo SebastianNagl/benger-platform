@@ -34,6 +34,7 @@ import {
   type ReasoningConfig,
 } from '@/components/projects/ModelSelectionSection'
 import { ParticipantCard } from '@/components/projects/ParticipantCard'
+import { ProjectKindSection } from '@/components/projects/ProjectKindSection'
 import { ProjectMetadataCard } from '@/components/projects/ProjectMetadataCard'
 import { ProjectPermissionsPanel } from '@/components/projects/ProjectPermissionsPanel'
 import { PromptStructuresManager } from '@/components/projects/PromptStructuresManager'
@@ -719,6 +720,22 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
       await updateProject(projectId, { icon })
     } catch {
       addToast(t('project.icon.saveFailed', 'Symbol konnte nicht gespeichert werden.'), 'error')
+    }
+  }
+
+  // Kind is the single source of truth for the student surfaces (Entdecken,
+  // deck workspace); editable here for non-student projects. The store echo
+  // refreshes updated_at, which re-runs the sharing card's discoverability
+  // check automatically.
+  const handleKindChange = async (kind: string | null) => {
+    if (!projectId) return
+    try {
+      await updateProject(projectId, { kind })
+    } catch {
+      addToast(
+        t('project.details.kindSaveFailed', 'Projekttyp konnte nicht gespeichert werden.'),
+        'error'
+      )
     }
   }
 
@@ -2460,6 +2477,18 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
           )}
 
           <ConfigCard title={t('project.settings.title')} defaultExpanded={false}>
+          {/* Project type (exam / deck / generic) — the flag the student
+              surfaces key discovery off. Student-created projects keep it
+              locked (server-enforced too). */}
+          {canEditProject() && currentProject.origin !== 'student' && (
+            <div className="mb-6">
+              <ProjectKindSection
+                project={currentProject}
+                onKindChange={handleKindChange}
+              />
+            </div>
+          )}
+
           {/* Feature visibility — its own collapsed-by-default sub-section. */}
           {canEditProject() && (
             <SubSection title={t('project.settings.featureVisibility.title')}>

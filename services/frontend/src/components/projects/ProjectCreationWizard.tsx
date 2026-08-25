@@ -280,8 +280,13 @@ export function ProjectCreationWizard() {
           const template = templateId
             ? nlpTemplates.find((tpl) => tpl.id === templateId)
             : undefined
-          if (template) {
+          // An update that carries its own labelingConfig (e.g. the
+          // KI-Generator stamping type + its synthetic template together)
+          // wins over the type's default template.
+          if (template && !partial.labelingConfig) {
             next.labelingConfig = template
+            next.features = { ...next.features, annotation: true }
+          } else if (partial.labelingConfig) {
             next.features = { ...next.features, annotation: true }
           }
           // The icon follows the type default until the user picked their own.
@@ -298,6 +303,23 @@ export function ProjectCreationWizard() {
           const preset = getWizardKindPreset(partial.projectKind)
           if (preset) {
             Object.assign(next, preset(next))
+          }
+        }
+        // Reverse coupling: picking the Karteikarten template while the type
+        // is still "Generisch" stamps the deck kind — kind is the single
+        // source of truth for the student surfaces, so a deck-shaped project
+        // must not be created kind-NULL by the template path. Guarded on the
+        // template actually changing so re-renders can't loop.
+        if (
+          partial.labelingConfig &&
+          partial.labelingConfig !== prev.labelingConfig &&
+          partial.labelingConfig.id === 'flashcard-deck' &&
+          next.projectKind === 'generic'
+        ) {
+          next.projectKind = 'flashcard_collection'
+          const prevDefault = defaultIconForKind(null)
+          if (!next.icon || next.icon === prevDefault) {
+            next.icon = defaultIconForKind('flashcard_collection')
           }
         }
         return next
