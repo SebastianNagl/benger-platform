@@ -1316,13 +1316,13 @@ async def get_student_read_access_async(
 
 def _build_select_org_exam_participant(user, project_id: str):
     """Shared SQL builder: participant grant via org membership on an
-    org-shared exam.
+    org-shared exam or flashcard collection.
 
     An ACTIVE membership (any role — CONTRIBUTOR+ callers pass
     ``check_project_accessible`` first and never reach this fallback) in an
     org attached to the project grants the narrow tier iff the project is a
-    NON-private, non-archived exam whose access window (if any) has STARTED.
-    ``is_private=True`` exams
+    NON-private, non-archived exam or deck whose access window (if any) has
+    STARTED. ``is_private=True`` projects
     deliberately stay entitlement/share/creator-only: blanket org membership
     is not per-project consent by anyone, and widening it would expose every
     student-created exam (all private) to the whole university org. Exams
@@ -1331,6 +1331,10 @@ def _build_select_org_exam_participant(user, project_id: str):
     cannot pre-read the Sachverhalt by browsing the org catalog. Once the
     window has started the grant holds (post-window too, so students keep
     their own review; the read-window enforcement governs the timeline).
+    Decks (``flashcard_collection``, included 2026-08-26) have no windows —
+    the clause passes on NULL. Without this arm, an org member studying an
+    org deck under a mismatched org context (the vertretbar apex host sends
+    ``X-Organization-Context: private``) had no fallback and got 403.
     """
     return (
         select(OrganizationMembership.id)
@@ -1344,7 +1348,7 @@ def _build_select_org_exam_participant(user, project_id: str):
             ProjectOrganization.project_id == project_id,
             OrganizationMembership.user_id == str(user.id),
             OrganizationMembership.is_active == True,  # noqa: E712
-            Project.kind == "exam",
+            Project.kind.in_(("exam", "flashcard_collection")),
             Project.is_private == False,  # noqa: E712
             not_deleted(),
             or_(Project.is_archived.is_(None), Project.is_archived == False),  # noqa: E712
@@ -1826,7 +1830,9 @@ async def get_participant_project_ids_async(
         .where(
             OrganizationMembership.user_id == uid,
             OrganizationMembership.is_active == True,  # noqa: E712
-            Project.kind == "exam",
+            # Lockstep with _build_select_org_exam_participant (decks
+            # included 2026-08-26).
+            Project.kind.in_(("exam", "flashcard_collection")),
             Project.is_private == False,  # noqa: E712
             Project.created_by != uid,
             not_archived,
