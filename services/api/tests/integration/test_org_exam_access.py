@@ -308,6 +308,32 @@ class TestOrgExamParticipantSource:
 
         assert get_student_read_access(test_db, student, proj.id) is False
 
+    def test_org_member_participant_tier_on_org_deck(self, test_db):
+        """Decks joined the participant source 2026-08-26: an org member can
+        study an org-shared flashcard collection even when the request's
+        active org context does not match (the vertretbar apex host sends
+        'private') — without this arm those requests 403'd."""
+        org = _org(test_db)
+        owner = _user(test_db, "owner")
+        student = _user(test_db, "student")
+        _member(test_db, student, org, OrganizationRole.ANNOTATOR)
+        deck = _project(
+            test_db, owner.id, org, kind="flashcard_collection", is_private=False
+        )
+
+        assert get_student_read_access(test_db, student, deck.id) is True
+
+    def test_private_org_deck_not_granted_by_membership(self, test_db):
+        org = _org(test_db)
+        owner = _user(test_db, "owner")
+        student = _user(test_db, "student")
+        _member(test_db, student, org, OrganizationRole.ANNOTATOR)
+        deck = _project(
+            test_db, owner.id, org, kind="flashcard_collection", is_private=True
+        )
+
+        assert get_student_read_access(test_db, student, deck.id) is False
+
     def test_non_member_and_inactive_member_denied(self, test_db):
         org = _org(test_db)
         owner = _user(test_db, "owner")
