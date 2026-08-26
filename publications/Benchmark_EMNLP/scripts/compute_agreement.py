@@ -822,7 +822,7 @@ def rq5_dim_agreement(judge_on_humans, humans):
 # annotator from the blind-reviewer pool; the §D.2 variant compares against
 # a single expert reference (here: the un-blind creator grade). Both share
 # the per-annotator paired test, Benjamini–Yekutieli FDR, and winning-rate
-# decision rule. See `publications/Dataset_ARR/scripts/test_rq5_calderon.py`
+# decision rule. See `publications/Benchmark_EMNLP/scripts/test_rq5_calderon.py`
 # for hand-traced regression toys.
 
 # Minimum per-annotator instance count before we run a test. Paper §3.3 uses

@@ -2,7 +2,7 @@
   "description": "Prod/export task id -> LOCAL dev task id for the Benchathon import (2026-08-02). Source: Benchathon-tasks-2026-05-31.json imported into local dev project e529779b-300f-48c0-89cb-90f3f4b72a51 via run_nested_import. Local inner_ids were resequenced 1..15 in import order. Driver scripts targeting the local stack must use the LOCAL ids (values).",
   "project_id": "e529779b-300f-48c0-89cb-90f3f4b72a51",
   "imported_at": "2026-08-02",
-  "source_export": "../Dataset_ARR/data/raw/benchathon/Benchathon-tasks-2026-05-31.json",
+  "source_export": "../Benchmark_EMNLP/data/raw/benchathon/Benchathon-tasks-2026-05-31.json",
   "preprocessing": "5 duplicate active annotations (empty auto-submit timer artifacts) marked was_cancelled to satisfy uq_annotations_active_task_user",
   "task_id_map": {
     "1648d37e-ba60-4797-8c2a-d8648d7b5887": "b6420df7-d9f3-4ab4-8099-5a1767985cff",

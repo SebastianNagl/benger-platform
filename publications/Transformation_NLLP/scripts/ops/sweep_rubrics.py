@@ -35,7 +35,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent.parent.parent
-SYSTEMS = HERE.parent / "Dataset_ARR" / "data" / "processed" / "systems.json"
+SYSTEMS = HERE.parent / "Benchmark_EMNLP" / "data" / "processed" / "systems.json"
 LOG = HERE / "data" / "interim" / "rubric_sweep_log.jsonl"
 
 BASE_URL = os.environ.get("BENGER_BASE_URL", "http://benger.localhost")

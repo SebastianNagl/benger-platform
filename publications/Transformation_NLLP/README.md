@@ -8,7 +8,7 @@ schemes, whether grading against them stabilises a judge across repeated
 passes, at what cost in human-score agreement, and which generators write the
 best instruments.
 
-Companion to the BenGER dataset paper in `../Dataset_ARR`, and built on the
+Companion to the BenGER dataset paper in `../Benchmark_EMNLP`, and built on the
 BenGER platform (this repo).
 
 ## Building the paper
@@ -55,7 +55,7 @@ Some inputs are withheld and ship with the dataset release instead:
   These are third-party materials used under the permissions documented for
   the underlying corpus; we do not hold redistribution rights, so the audit
   import files and probe texts that embed them are not published here. The
-  same applies to the ZJS sources in `../Dataset_ARR`.
+  same applies to the ZJS sources in `../Benchmark_EMNLP`.
 - **The generated rubrics** (`data/raw/local/task_rubrics.json`, 193 documents).
   Their step criteria enumerate the expected solution of each exam, which makes
   them a close derivative of the *Musterlösungen* — so they fall under the same

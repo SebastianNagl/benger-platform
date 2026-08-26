@@ -11,7 +11,7 @@ dependencies = [
     "nbclient>=0.8",
     "numpy>=2.0",
     # Upper-bound scipy: scipy 1.17 changed wilcoxon's default `method`,
-    # which silently shifts small-n p-values (see Dataset_ARR pin rationale).
+    # which silently shifts small-n p-values (see Benchmark_EMNLP pin rationale).
     "scipy>=1.13,<2.0",
     "scikit-learn>=1.5",
     "statsmodels>=0.14",

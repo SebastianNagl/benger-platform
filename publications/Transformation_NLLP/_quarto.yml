@@ -17,7 +17,7 @@ format:
     # aclpubcheck's accepted set); STIX Two Math is bundled under fonts/ and
     # loaded by explicit filename + Path so the build is self-contained on
     # arXiv. Do not "simplify" any of this — it encodes aclpubcheck + arXiv
-    # constraints debugged for the Dataset_ARR submission.
+    # constraints debugged for the Benchmark_EMNLP submission.
     pdf-engine: xelatex
     include-in-header:
       text: |

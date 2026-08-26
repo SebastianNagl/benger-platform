@@ -1,8 +1,8 @@
 {
   "control_arm": {
     "_sources": {
-      "agreement_stats": "/home/pschorr95/Code/BenGER/benger-platform/publications/Dataset_ARR/data/processed/agreement_stats.json",
-      "inter_judge": "/home/pschorr95/Code/BenGER/benger-platform/publications/Dataset_ARR/data/processed/benchathon_inter_judge_agreement.json"
+      "agreement_stats": "/home/pschorr95/Code/BenGER/benger-platform/publications/Benchmark_EMNLP/data/processed/agreement_stats.json",
+      "inter_judge": "/home/pschorr95/Code/BenGER/benger-platform/publications/Benchmark_EMNLP/data/processed/benchathon_inter_judge_agreement.json"
     },
     "inter_judge": {
       "judges": [

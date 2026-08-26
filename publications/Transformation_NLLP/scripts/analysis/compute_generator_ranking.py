@@ -11,7 +11,7 @@ conditional-coverage ones (gpt-5.4-mini 8/15, Llama-4 12/15), whose
 quality-when-valid is a survivorship-conditional observation.
 
 Inputs: data/interim/crossed_cells.{luna,sonnet}.jsonl (analyze_crossed.py),
-        picks_temp0.json, Dataset_ARR human pool,
+        picks_temp0.json, Benchmark_EMNLP human pool,
         data/processed/generator_outcomes.json (assert + read-modify-write)
 Output: generator_outcomes.json (adds "ranking", refreshes formalized blocks)
 """
@@ -27,7 +27,7 @@ import numpy as np
 from scipy import stats as sps
 
 HERE = Path(__file__).resolve().parent.parent.parent
-DATASET_ARR = HERE.parent / "Dataset_ARR"
+DATASET_ARR = HERE.parent / "Benchmark_EMNLP"
 INTERIM = HERE / "data" / "interim"
 OUT = HERE / "data" / "processed" / "generator_outcomes.json"
 

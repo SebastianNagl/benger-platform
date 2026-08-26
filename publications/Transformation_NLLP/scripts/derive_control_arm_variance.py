@@ -2,7 +2,7 @@
 """RQ2 baseline: abstract-rubric (control-arm) variance from the dataset paper.
 
 The control arm already exists — the dataset paper's Benchathon data. This
-script LIFTS the relevant reliability numbers from Dataset_ARR's processed
+script LIFTS the relevant reliability numbers from Benchmark_EMNLP's processed
 artifacts (single source of truth; nothing is recomputed here) into
 ``data/processed/variance_stats.json``:
 
@@ -25,7 +25,7 @@ import json
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent.parent
-ARR = HERE.parent / "Dataset_ARR" / "data" / "processed"
+ARR = HERE.parent / "Benchmark_EMNLP" / "data" / "processed"
 OUT = HERE / "data" / "processed" / "variance_stats.json"
 
 

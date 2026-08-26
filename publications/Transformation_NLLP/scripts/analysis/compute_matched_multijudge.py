@@ -35,7 +35,7 @@ from scipy import stats as sps
 
 HERE = Path(__file__).resolve().parent.parent.parent
 INTERIM = HERE / "data" / "interim"
-DATASET_ARR = HERE.parent / "Dataset_ARR"
+DATASET_ARR = HERE.parent / "Benchmark_EMNLP"
 OUT = HERE / "data" / "processed" / "matched_multijudge.json"
 SIG = HERE / "data" / "processed" / "significance.json"
 

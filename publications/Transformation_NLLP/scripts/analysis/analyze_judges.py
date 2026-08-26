@@ -28,7 +28,7 @@ from collections import defaultdict
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent.parent.parent
-DATASET_ARR = HERE.parent / "Dataset_ARR"
+DATASET_ARR = HERE.parent / "Benchmark_EMNLP"
 INTERIM = HERE / "data" / "interim"
 OUT = HERE / "data" / "processed" / "judge_outcomes.json"
 

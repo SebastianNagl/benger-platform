@@ -17,7 +17,7 @@ Inputs: holistic_results_{luna,mini}.jsonl (matched arms),
         judge_results_temp0.jsonl (tailored panel incl. Mini ×3),
         judge_results_luna.jsonl (tailored Luna ×3),
         control_results_temp0.jsonl (control panel + GPT-5 Mini ×3),
-        picks_temp0.json, Dataset_ARR human pool.
+        picks_temp0.json, Benchmark_EMNLP human pool.
 Output: data/processed/matched_stats.json (incl. per-pick arrays for the
         significance/bootstrap script) + console summary.
 """
@@ -30,7 +30,7 @@ from collections import defaultdict
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent.parent.parent
-DATASET_ARR = HERE.parent / "Dataset_ARR"
+DATASET_ARR = HERE.parent / "Benchmark_EMNLP"
 INTERIM = HERE / "data" / "interim"
 OUT = HERE / "data" / "processed" / "matched_stats.json"
 

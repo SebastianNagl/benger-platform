@@ -1,10 +1,10 @@
-# Dataset_ARR — BenGER paper sources
+# Benchmark_EMNLP: BenGER paper sources
 
-Quarto manuscript for the BenGER dataset paper (ACL/ARR target). The dataset is **BenGER**, a single benchmark with three thematic subsets: Benchathon, ZJS, and Grundprinzipien. 12 LLM systems, rubric-aligned LLM-as-a-Judge with a human-grading validation layer.
+Quarto manuscript for the BenGER benchmark paper, accepted at EMNLP 2026 (Main Conference). The dataset is **BenGER**, a single benchmark with three thematic subsets: Benchathon, ZJS, and Grundprinzipien. 12 LLM systems, rubric-aligned LLM-as-a-Judge with a human-grading validation layer.
 
 ## Public release
 
-- **Paper (preprint)**: [arXiv:2605.28183](https://arxiv.org/abs/2605.28183)
+- **Paper**: EMNLP 2026 Main Conference (camera-ready source in this folder; ACL Anthology entry follows publication). Preprint: [arXiv:2605.28183](https://arxiv.org/abs/2605.28183)
 - **Zenodo (canonical dataset distribution)**: [10.5281/zenodo.20489788](https://doi.org/10.5281/zenodo.20489788) — `benger-v2.0.zip` with the full anonymised `benchathon/`, `zjs/`, `grundprinzipien/`, and `processed/` subtrees. The v2.0 release re-anchors the LLM-as-a-Judge on GPT-5.4-mini and expands the Benchathon judge ensemble; see the deposit's `CHANGELOG.md` for the full diff against the predecessor [v1.0](https://doi.org/10.5281/zenodo.20409635).
 - **GitHub** (this folder): ships the manuscript source, the derived `data/processed/` and `data/interim/` JSONs the paper loads, and the scripts that produced everything. The raw platform exports and the unredacted ZJS source stay out of git.
 
@@ -39,7 +39,7 @@ make render
 make derive       # runs each script under `uv run` against this project's pyproject
 ```
 
-The four scripts run in dependency order:
+`make derive` runs the full set of 13 scripts; the backbone four in dependency order:
 
 1. `scripts/derive_zjs_summary.py`             → `data/processed/zjs_{model_summary,metric_correlation}.json`
 2. `scripts/derive_paper_exports.py`           → `data/processed/{systems,benchathon_*}.json`  *(needs zjs_model_summary.json for the system whitelist)*
@@ -81,4 +81,4 @@ Convention: nothing in `data/raw/` is ever overwritten; `data/interim/` and `dat
 
 ## Known model-version drift
 
-The Google efficiency-tier slot was generated under two different ids. Benchathon ran `gemini-3-flash-preview`; ZJS and Grundprinzipien ran the successor `gemini-3.1-flash-lite-preview`. The paper exports (`data/processed/systems.json`, leaderboards, model-evaluation rows) collapse both ids into one row keyed by the canonical id `gemini-3.1-flash-lite-preview`; the raw per-row id is preserved on each generation in `data/raw/benchathon/` so downstream consumers can disambiguate if needed. The aliasing is driven by `MODEL_ID_ALIASES` in `scripts/derive_paper_exports.py`. Manuscript discloses the drift in @tbl-system-overview and §Limitations.
+The Google efficiency-tier slot was generated under two different ids. Benchathon ran `gemini-3-flash-preview`; ZJS and Grundprinzipien ran the successor `gemini-3.1-flash-lite-preview`. The paper exports (`data/processed/systems.json`, leaderboards, model-evaluation rows) collapse both ids into one row keyed by the canonical id `gemini-3.1-flash-lite-preview`; the raw per-row id is preserved on each generation in `data/raw/benchathon/` so downstream consumers can disambiguate if needed. The aliasing is driven by `MODEL_ID_ALIASES` in `scripts/derive_paper_exports.py`. Manuscript discloses the drift in @tbl-system-overview and Appendix B (with a pointer in §Limitations).

@@ -64,8 +64,11 @@ abstract: >-
   validate the judge. The dataset is released as a single Hugging Face
   dataset (`SebastianNagl/benger`) with three configurations.
 preferred-citation:
-  type: article
+  type: conference-paper
   title: "BenGER: Benchmarking LLM Systems on Subsumption-Based Legal Reasoning in German Law"
+  collection-title: "Proceedings of the 2026 Conference on Empirical Methods in Natural Language Processing"
+  publisher:
+    name: "Association for Computational Linguistics"
   authors:
     - family-names: Nagl
       given-names: Sebastian
@@ -90,7 +93,11 @@ preferred-citation:
   identifiers:
     - type: other
       value: "arXiv:2605.28183"
-      description: "arXiv preprint"
+      description: "arXiv preprint of the EMNLP 2026 paper"
     - type: doi
       value: 10.5281/zenodo.20489788
       description: "Zenodo archival snapshot (BenGER v2.0)"
+    # TODO once the ACL Anthology assigns them (post-publication):
+    # - type: doi
+    #   value: 10.18653/v1/2026.emnlp-main.XXX
+    #   description: "ACL Anthology"

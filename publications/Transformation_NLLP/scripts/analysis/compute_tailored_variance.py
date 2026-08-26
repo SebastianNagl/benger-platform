@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """RQ2/RQ3 tailored-arm statistics, method-mirrored to the control arm.
 
-Conventions copied from Dataset_ARR/scripts/derive_inter_judge_agreement.py
+Conventions copied from Benchmark_EMNLP/scripts/derive_inter_judge_agreement.py
 and derive_paper_exports.derive_judge_repeats so the two arms are comparable:
 
 - One score per (cell, judge); the primary judge (gpt-5.4-mini) enters the
@@ -12,12 +12,12 @@ and derive_paper_exports.derive_judge_repeats so the two arms are comparable:
 - judge_repeats: population stdev over the primary judge's 3 passes per
   cell, averaged.
 - judge_vs_human: per-pick blind-human pool mean (4 reviews each, from
-  Dataset_ARR benchathon_human_grades.json joined via the pick's
+  Benchmark_EMNLP benchathon_human_grades.json joined via the pick's
   subject_id) vs the judge score; Pearson/Spearman/MAE. Reported for the
   30 annotation picks (control-arm convention) and for all 45.
 
 Inputs: data/interim/judge_results.jsonl (extract_judge_results.py),
-        data/interim/picks.json, Dataset_ARR human-grade artifacts.
+        data/interim/picks.json, Benchmark_EMNLP human-grade artifacts.
 Output: data/processed/variance_stats.json — fills the "tailored_arm" block
         next to the existing "control_arm" block.
 """
@@ -31,7 +31,7 @@ from collections import defaultdict
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent.parent.parent
-DATASET_ARR = HERE.parent / "Dataset_ARR"
+DATASET_ARR = HERE.parent / "Benchmark_EMNLP"
 RESULTS = HERE / "data" / "interim" / "judge_results.jsonl"
 PICKS = HERE / "data" / "interim" / "picks.json"
 SAMPLE = DATASET_ARR / "data" / "interim" / "benchathon_human_grading_sample.json"

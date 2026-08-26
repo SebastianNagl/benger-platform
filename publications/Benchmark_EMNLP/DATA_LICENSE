@@ -1,6 +1,6 @@
 Creative Commons Attribution 4.0 International (CC BY 4.0)
 
-The BenGER benchmark dataset — the contents of `publications/Dataset_ARR/data/`
+The BenGER benchmark dataset — the contents of `publications/Benchmark_EMNLP/data/`
 in this repository, the dataset uploaded to Hugging Face Hub at
 `huggingface.co/datasets/SebastianNagl/benger`, and the Zenodo deposit linked
 from the same — is released under the Creative Commons Attribution 4.0
@@ -28,7 +28,7 @@ Under the following terms:
 Attribution
 -----------
 When using the BenGER dataset, please cite the accompanying paper (see
-`publications/Dataset_ARR/CITATION.cff`) and link back to either the GitHub
+`publications/Benchmark_EMNLP/CITATION.cff`) and link back to either the GitHub
 repository or the Hugging Face dataset card.
 
 Notes on Subset Provenance

@@ -1,6 +1,6 @@
 """Build a Benchathon-shaped export JSON with mock korrektur_falloesung entries.
 
-Produces `publications/Dataset_ARR/data/raw/mock/benchathon_mock.json` for manuscript
+Produces `publications/Benchmark_EMNLP/data/raw/mock/benchathon_mock.json` for manuscript
 work while the human correctors finish grading. As real korrektur_falloesung
 rows land in prod, they replace mocks on the next re-run; mocks only fill the
 4-grader-per-pick slots that are still unfinished.
@@ -20,9 +20,9 @@ Re-running with new real grades is idempotent: the mock generator is determinist
 per (target_id, pass) and real rows always supersede mocks.
 
 Usage (from anywhere on host):
-    python publications/Dataset_ARR/scripts/build_benchathon_mock.py
-    python publications/Dataset_ARR/scripts/build_benchathon_mock.py --out /tmp/test.json
-    python publications/Dataset_ARR/scripts/build_benchathon_mock.py --from-snapshot fetched.json --no-pull
+    python publications/Benchmark_EMNLP/scripts/build_benchathon_mock.py
+    python publications/Benchmark_EMNLP/scripts/build_benchathon_mock.py --out /tmp/test.json
+    python publications/Benchmark_EMNLP/scripts/build_benchathon_mock.py --from-snapshot fetched.json --no-pull
 """
 
 from __future__ import annotations
@@ -63,7 +63,7 @@ MOCK_NAMESPACE = uuid.UUID("00000000-0000-0000-0000-00000000feb1")
 MOCK_CREATED_AT = "2026-05-13T12:00:00+00:00"
 
 DEFAULT_OUT = (
-    PLATFORM_ROOT / "publications" / "Dataset_ARR" / "data" / "raw" / "mock" / "benchathon_mock.json"
+    PLATFORM_ROOT / "publications" / "Benchmark_EMNLP" / "data" / "raw" / "mock" / "benchathon_mock.json"
 )
 
 EXPECTED_PASSES = ("A", "B", "C", "D")                          # 4 graders/pick

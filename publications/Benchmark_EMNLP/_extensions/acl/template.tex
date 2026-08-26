@@ -18,19 +18,23 @@ $endif$
   \DeclareUnicodeCharacter{2265}{\ensuremath{\geq}}
 \else
   \usepackage{fontspec}
-  % Main font: TeX Gyre Termes, bundled under fonts/ and loaded by explicit
-  % filename + Path. This keeps the build self-contained on arXiv (no
-  % reliance on the TeX Live font-name database or fontconfig, neither of
-  % which arXiv's source scanner can see) and lets that scanner find the
-  % real files in the upload. TeXGyreTermes-Reg is on aclpubcheck's accepted
-  % main-font set and carries the Greek text glyphs (ρ κ σ). Sans/mono are
-  % intentionally left at the NFSS defaults — this manuscript embeds no
-  % TeX Gyre Heros/Cursor glyphs, so declaring them only tripped arXiv's
-  % missing-file scan for fonts the output never used.
-  \setmainfont{texgyretermes-regular.otf}[Path=fonts/,
-    BoldFont=texgyretermes-bold.otf,
-    ItalicFont=texgyretermes-italic.otf,
-    BoldItalicFont=texgyretermes-bolditalic.otf]
+  % Main font: TeX Gyre Termes X (newtx's Termes variant), bundled under
+  % fonts/ and loaded by explicit filename + Path. This keeps the build
+  % self-contained on arXiv (no reliance on the TeX Live font-name database
+  % or fontconfig, neither of which arXiv's source scanner can see) and lets
+  % that scanner find the real files in the upload. aclpubcheck's accepted
+  % main-font set is {TeXGyreTermesX-Regular, NimbusRomNo9L-Regu,
+  % TimesNewRomanPSMT, STIXGeneral-Regular} — plain TeXGyreTermes-Regular is
+  % NOT on it (verified against aclpubcheck 2026-08; the EMNLP camera-ready
+  % screen flags it), so the X variant is required. It carries the Greek
+  % text glyphs (ρ κ σ) like plain Termes. Sans/mono are intentionally left
+  % at the NFSS defaults — this manuscript embeds no TeX Gyre Heros/Cursor
+  % glyphs, so declaring them only tripped arXiv's missing-file scan for
+  % fonts the output never used.
+  \setmainfont{TeXGyreTermesX-Regular.otf}[Path=fonts/,
+    BoldFont=TeXGyreTermesX-Bold.otf,
+    ItalicFont=TeXGyreTermesX-Italic.otf,
+    BoldItalicFont=TeXGyreTermesX-BoldItalic.otf]
 \fi
 \usepackage{microtype}
 \usepackage{inconsolata}

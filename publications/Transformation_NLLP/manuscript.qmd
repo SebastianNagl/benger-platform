@@ -174,13 +174,13 @@ def write_table(name, caption, label, header, rows, *, span=False,
     """Write a captioned booktabs float to assets/<name>.tex.
 
     Raw ```{=latex}``` blocks containing \\caption get mangled by Quarto's
-    crossref pass (Dataset_ARR lesson) — an \\input one-liner is inert.
+    crossref pass (Benchmark_EMNLP lesson) — an \\input one-liner is inert.
     span=True emits table* (full text width) for the two-column float.
     """
     env = "table*" if span else "table"
     if span:
         # Stretch to the full text width (tabular* + \extracolsep{\fill},
-        # Dataset_ARR's fill_width pattern) instead of centering a
+        # Benchmark_EMNLP's fill_width pattern) instead of centering a
         # natural-width tabular.
         inner_open = ("\\begin{tabular*}{\\textwidth}"
                       "{@{\\extracolsep{\\fill}}l"

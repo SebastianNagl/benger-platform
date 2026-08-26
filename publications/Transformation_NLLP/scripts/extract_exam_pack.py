@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Extract the 15 Benchathon exams (Sachverhalt + Musterlösung) from the
-sibling Dataset_ARR publication's task export into data/interim/exams.json.
+sibling Benchmark_EMNLP publication's task export into data/interim/exams.json.
 
 The export stores task content in Task.data with the umlaut key form
 ("musterlösung"); older/newer writers use "musterloesung". Lookups are
@@ -21,7 +21,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent.parent
 EXPORT = (
     HERE.parent
-    / "Dataset_ARR"
+    / "Benchmark_EMNLP"
     / "data"
     / "raw"
     / "benchathon"

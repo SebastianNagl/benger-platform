@@ -21,7 +21,7 @@ Inputs: data/processed/matched_stats.json (per_pick; compute_matched_contrasts.p
         data/processed/significance.json (regression reference, if present)
         data/interim/fewshot_results_{luna,mini}.jsonl (lever A per-pass rows)
         data/processed/rubric_outcomes.json (oracle floor, luna lens)
-        ../Dataset_ARR/data/... (blind-only sensitivity pool)
+        ../Benchmark_EMNLP/data/... (blind-only sensitivity pool)
 Usage:  uv run python scripts/analysis/compute_significance.py [--check-only]
 Output: data/processed/significance.json (superset, legacy keys byte-stable)
         data/processed/bootstrap_cis.json
@@ -52,7 +52,7 @@ from scipy import stats as sps
 HERE = Path(__file__).resolve().parent.parent.parent
 PROCESSED = HERE / "data" / "processed"
 INTERIM = HERE / "data" / "interim"
-DATASET = HERE.parent / "Dataset_ARR"
+DATASET = HERE.parent / "Benchmark_EMNLP"
 MATCHED = PROCESSED / "matched_stats.json"
 SIG_OUT = PROCESSED / "significance.json"
 BOOT_OUT = PROCESSED / "bootstrap_cis.json"
