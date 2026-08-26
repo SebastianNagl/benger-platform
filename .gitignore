@@ -399,6 +399,18 @@ publications/Benchmark_EMNLP/data/interim/zjs.json
 publications/Benchmark_EMNLP/data/interim/zjs_strict.json
 publications/Benchmark_EMNLP/data/interim/zjs_optimistic.json
 
+# LEXam_DE publication: tracked, except build artifacts and the result
+# dumps below. The dumps ship as a Zenodo dataset instead; regenerate via
+# publications/LEXam_DE/analysis/dump_results.sh (needs prod access).
+publications/LEXam_DE/.quarto/
+publications/LEXam_DE/manuscript_files/
+publications/LEXam_DE/manuscript.tex
+publications/LEXam_DE/manuscript.log
+publications/LEXam_DE/manuscript.fdb_latexmk
+publications/LEXam_DE/analysis/data/
+# ...but the generated eval-config payloads are part of the rerun recipe
+# (see LEXam_DE/README.md) and must survive the generic *.json rule.
+!publications/LEXam_DE/configs/generated/*.json
+
 # WIP publications - not yet ready for the public repo
-publications/LEXam_DE/
 publications/Watermark_Study/

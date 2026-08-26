@@ -1,0 +1,36 @@
+project:
+  type: default
+
+format:
+  pdf:
+    # One-column article layout, matching the accepted abstract's look.
+    documentclass: article
+    papersize: a4
+    geometry:
+      - margin=2.5cm
+    fontsize: 11pt
+    number-sections: true
+    keep-tex: true
+    pdf-engine: xelatex
+    include-in-header:
+      text: |
+        % Fonts loaded by explicit filename so the build is self-contained
+        % (same approach as the sibling publications).
+        \usepackage{fontspec}
+        \setmainfont{texgyretermes-regular.otf}[
+          Path=fonts/,
+          BoldFont=texgyretermes-bold.otf,
+          ItalicFont=texgyretermes-italic.otf,
+          BoldItalicFont=texgyretermes-bolditalic.otf]
+        \usepackage{unicode-math}
+        \setmathfont{STIXTwoMath-Regular.otf}[Path=fonts/]
+        % Embed ActualText for ligatures so copy-paste/search extracts
+        % "ffi" etc. correctly (fixes the ffi ToUnicode quirk).
+        \XeTeXgenerateactualtext=1
+
+execute:
+  echo: false
+  warning: false
+
+bibliography: references.bib
+link-citations: true

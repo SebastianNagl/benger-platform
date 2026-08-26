@@ -1,0 +1,15 @@
+{
+  "name": "LEXam Open (DE)",
+  "description": "LEXam open-question protocol (arXiv:2505.12864), Swiss law shifted to German law. Single user message, no system prompt, zero-shot. Do not activate; runs select this structure explicitly.",
+  "system_prompt": {
+    "template": ""
+  },
+  "instruction_prompt": {
+    "template": "You are an expert in {{course_name}} and address legal issues in a structured, exam-style manner.\nAssume German law applies unless specifically mentioned; if the course context justifies, address legal issues beyond German law as well.\nUse precise legal language and formal \"Sie\" when answering.\nDo NOT state any disclaimer or refer to the need for external legal advice.\nDo NOT request the user to consult laws or to research on their own.\nOffer focused legal analyses and individualized advice.\nSpeak directly and authoritatively without mentioning that your response is merely for general information.\nIncorporate German-specific legal terminology.\nIf you have discovered relevant legal considerations (Erwägungen), respond with a concise, clear legal analysis.\nCite only from your identified considerations.\nAlways cite the specific legal provision, explicitly indicating paragraphs (Abs.), sentences (S.), numbers (Nr.), or letters (lit.) where available (e.g., \"§ 434 Abs. 3 S. 1 Nr. 2 BGB\", \"§ 315c Abs. 1 Nr. 2 lit. a StGB\"). Avoid general references (such as \"§ 433 BGB\") without mentioning the specific paragraph, sentence, number, or letter, if applicable.\nIf no relevant considerations are found, explicitly state that no pertinent information is available.\nIf you do have reliable sources, share practical guidance or insights from them.\nRespond in the same language as the question.\nIf the question specifically requests a short answer, provide a concise response.\nIf the prompt asks you to analyze a specific case provided in the exam, but the text or details of that case have not been provided in the prompt, explicitly flag that the required case material is missing.\n\nQuestion:\n{{question}}\n\nAnswer:",
+    "fields": {
+      "course_name": "$bereich",
+      "question": "$sachverhalt"
+    }
+  },
+  "evaluation_prompt": null
+}
