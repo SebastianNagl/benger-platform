@@ -282,7 +282,7 @@ services/frontend/coverage-baseline.txt
 # Security scan reports (may contain local environment secrets)
 docs/security-reports/
 
-/.quarto/
+.quarto/
 **/*.quarto_ipynb
 
 # Transformation_NLLP publication: tracked, except the artifacts below.

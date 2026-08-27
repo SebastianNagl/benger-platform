@@ -9,9 +9,19 @@ the number of discordant pairs.
 Reference output (2026-08-14): 11 overlapping models, exactly 1 discordant
 (adjacent) pair - Qwen3.5-122B vs Qwen3.6-27B. Caveat: the rubric-side dump
 still contains superseded duplicate generations (e.g. Qwen3.5-122B n=863 on
-581 tasks); with the Dataset_ARR post-dedup value for Qwen3.5-122B (44.2)
-the swap disappears and the rankings agree exactly, so the shipped claim
-("identical up to one adjacent swap") is conservative.
+581 tasks), and paired_wide.csv carries no generation timestamps, so this
+script cannot dedup on its own.
+
+Canonical dedup EXECUTED against the prod DB (2026-08-27), keeping the
+latest generation per (task, model):
+
+    SELECT DISTINCT ON (te.task_id, g.model_id) ...
+    ORDER BY te.task_id, g.model_id, g.created_at DESC
+
+Result: every model at n=581, Qwen3.5-122B rubric mean 44.2 (41.3 with the
+dupes), and the two rankings agree EXACTLY - 0 discordant pairs. The paper
+now states the deduped result; running this script on the shipped CSV shows
+the conservative 1-swap variant.
 """
 
 from itertools import combinations

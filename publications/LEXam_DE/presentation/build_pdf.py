@@ -5,11 +5,27 @@ Needs a chromium binary on PATH. Usage: python3 presentation/build_pdf.py
 (from the LEXam_DE folder) or python3 build_pdf.py (from presentation/).
 """
 
+import shutil
 import subprocess
 import tempfile
 from pathlib import Path
 
 HERE = Path(__file__).parent
+
+CHROME_FALLBACKS = [
+    "chromium",
+    "chromium-browser",
+    "google-chrome",
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    "/Applications/Chromium.app/Contents/MacOS/Chromium",
+]
+
+
+def find_chrome() -> str:
+    for cand in CHROME_FALLBACKS:
+        if shutil.which(cand) or Path(cand).is_file():
+            return cand
+    raise SystemExit("no chromium/chrome binary found; install one or add it to PATH")
 
 PRINT_CSS = """<style media="print">
   @page { size: 1280px 720px; margin: 0; }
@@ -37,7 +53,7 @@ def main() -> None:
         tmp = f.name
     try:
         subprocess.run(
-            ["chromium", "--headless", "--disable-gpu", "--no-sandbox",
+            [find_chrome(), "--headless", "--disable-gpu", "--no-sandbox",
              "--virtual-time-budget=4000", "--no-pdf-header-footer",
              f"--print-to-pdf={HERE / 'slides.pdf'}", f"file://{tmp}"],
             check=True, capture_output=True,

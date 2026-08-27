@@ -106,15 +106,21 @@ account in the TUM org context, since removed).
   ≤0.7 pp, and canonical dedup would only *improve* the rank agreement (the
   one adjacent swap involves Qwen3.5-122B, whose rubric mean is dragged down
   by superseded truncated generations).
+- Canonical dedup executed 2026-08-27 directly against the prod DB (latest
+  generation per task and model, `DISTINCT ON (task_id, model_id) ... ORDER BY
+  created_at DESC`): every model lands at n=581, Qwen3.5-122B rubric mean
+  44.2, and the two pipelines' rankings agree exactly (0 discordant pairs).
+  Manuscript and slides state the deduped result.
 - `snapshots/` — pre-LEXam prod config snapshots (restored after the runs).
 
 ## LEXam pipeline vs the BenGER Falllösung pipeline (ZJS, same models, same judge model)
 
 Comparing the two full pipelines (generation prompt + judging protocol differ;
 judge model gpt-5.4-mini on both sides): the **rank ordering of models is
-identical up to one adjacent swap** across the 11 overlapping models, but the
-LEXam pipeline scores 1–10 points lower, with the gap growing for stronger
-models. Answer lengths are essentially equal under both prompts (~6.5k output
+identical** across the 11 overlapping models (0 discordant pairs after the
+canonical dedup above; with the superseded duplicates left in, one adjacent
+swap appears), but the LEXam pipeline scores 1–10 points lower, with the gap
+growing for stronger models. Answer lengths are essentially equal under both prompts (~6.5k output
 tokens on ZJS), so the level gap comes from the judging protocol: the
 Falllösung rubric awards ~30/100 craft points (Gliederung, Sprache, Formalia,
 Methodik) that well-formed answers collect regardless of substance, while the
