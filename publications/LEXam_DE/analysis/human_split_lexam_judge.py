@@ -5,13 +5,13 @@ The pooled human mean (57.1) mixes two arms of the grading event. This script
 derives the traditional (unaided) vs co-creation (AI-assisted) split by joining
 the LEXam judge cells against the Benchathon export's per-annotation
 `ai_assisted` flag. The flag agrees with the canonical `solution_type` labels
-in Dataset_ARR/data/processed/benchathon_human_grades.json on every matched
+in Benchmark_EMNLP/data/processed/benchathon_human_grades.json on every matched
 graded solution (validated 2026-08-14: 120/120 grader-rows, 0 disagreements).
 
 Inputs (one of them private):
   - data/judge_cells.tsv (this folder's dump; human cells carry annotation_id)
-  - ../../Dataset_ARR/data/raw/benchathon/Benchathon_export.json (PRIVATE raw
-    export - present in the local working copy, never in the public repo)
+  - ../../Benchmark_EMNLP/data/raw/benchathon/Benchathon_export.json (PRIVATE
+    raw export - present in the local working copy, never in the public repo)
 
 Reference output (2026-08-14, judge gpt-5.4-mini, scores x100):
   co-creation  n=156  mean 61.60  se 1.48
@@ -26,7 +26,7 @@ import collections
 from pathlib import Path
 
 HERE = Path(__file__).parent
-EXPORT = HERE / ".." / ".." / "Dataset_ARR" / "data" / "raw" / "benchathon" / "Benchathon_export.json"
+EXPORT = HERE / ".." / ".." / "Benchmark_EMNLP" / "data" / "raw" / "benchathon" / "Benchathon_export.json"
 
 
 def main() -> None:

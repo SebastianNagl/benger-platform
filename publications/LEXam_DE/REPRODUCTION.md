@@ -96,12 +96,14 @@ account in the TUM org context, since removed).
   single-brace `{var}`).
 - `analysis/dump_results.sh` + `analysis/lexam_report.py` → `analysis/report.md`.
 - `analysis/human_split_lexam_judge.py` — the traditional/co-creation split of
-  the human baseline (needs the private Benchathon export from Dataset_ARR).
+  the human baseline (needs the private Benchathon export from
+  Benchmark_EMNLP, formerly Dataset_ARR).
 - `analysis/pipeline_rank_comparison.py` — the 11-model rank agreement between
   the two pipelines (the paper's mutual-validation claim).
 - Known data quirk: a handful of superseded duplicate generations survive in
   the dumps (Benchathon Qwen3.6-27B n=16 on 15 tasks; GP-binary gpt-5.4-mini
-  n=532 on 531) — same platform pattern as the Dataset_ARR double-count fix.
+  n=532 on 531) — same platform pattern as the Benchmark_EMNLP (then
+  Dataset_ARR) double-count fix.
   Verified immaterial: similarity correlations shift ≤0.02, quadrant shares
   ≤0.7 pp, and canonical dedup would only *improve* the rank agreement (the
   one adjacent swap involves Qwen3.5-122B, whose rubric mean is dragged down
