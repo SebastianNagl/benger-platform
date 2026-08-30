@@ -10,24 +10,7 @@
 #
 # Blind title:
 #   title: "Exploring Automated Rubric Generation to Reduce LLM Grading Variance in German Legal Exams"
-#
-# TARGET: SHORT PAPER (4 pages main body incl. floats; Limitations/Ethics/
-# refs/appendix do not count). Decision 2026-08-05 (Sebastian): content
-# does not justify the long format. Revision 2026-08-09 (reviewer round 2):
-# Table 1 = within-judge rows only (bias column added; panel SDs + legacy
-# control in the caption; anchored at end of RQ1 so the float lands p3);
-# Figure 2 = two panels (forest + Luna trend); Vertretbarkeit folded into
-# §3.1; Three-levers ¶ cut (clauses preserved inline). Detail now in
-# appendices A-K (new: grading prompts, few-shot instrument, audit
-# instrument; severity table in judge profiles).
-#
-# TITLE — Sebastian's exploration framing (2026-08-06): states the goal
-# ("to reduce"), not an achieved reduction — reviewer-safe; the conditional
-# findings are reported inside. Earlier candidates, retired:
-#   - "Exam-Specific Point Schemes for LLM Legal Grading: Reliability
-#     Depends on Judge Capability" (reviewer's suggestion)
-#   - "From Holistic Rubrics to Exam-Specific Point Schemes: Reducing
-#     Variance in ..." (claimed the reduction; killed by the matched arms)
+
 title: "BenGER Transformation: Exploring Automated Rubric Generation to Reduce LLM Grading Variance in German Legal Exams"
 author:
   - name: Sebastian Nagl
@@ -47,19 +30,16 @@ author-tex: |
 abstract: |
   LLM-as-judge grading of free-text legal exam solutions suffers from high
   score variance across judges and repeated passes. We auto-generate an
-  exam-specific 100-point step rubric (Bewertungsbogen) from case facts and
-  model solution – weighted steps, partial-credit bands, budget-neutral
-  alternatives, deterministic arithmetic – and re-grade a prior study's 45
-  solutions with matched same-judge replications. Within-judge
-  repeat dispersion falls monotonically as the rubric improves (holistic to
-  random zero-shot to outcome-informed few-shot), so better rubrics push
-  reliability the right way – though at $n=45$ the reduction is not yet
-  significant, is judge-specific (pooled across five capable judges the
-  zero-shot effect is null), and trades against human-score agreement. Two
-  limits temper this.
-  First, the gain disappears below a judge-capability floor: there the detailed
+  exam-specific 100-point step rubric (Bewertungsbogen) from the case reference solution.
+  Rubrics consist of weighted steps, partial-credit bands, alternative solution, and 
+  grading logic. With this we re-grade a prior study's 45 
+  solutions with the same judges.  As the rubrics improve, the variance in repeated runs sinks monotonistic,
+  so better rubrics push reliability the right way – though at $n=45$ the reduction is not yet
+  significant, is judge-specific (pooled across five capable judges the 
+  zero-shot effect is null), and trades against human-score agreement. We also found that
+  the gain disappear below a judge-capability floor: there the detailed
   rubric leads a weak judge into fluent confabulation. Second, how plausible an
-  automated audit rates a
+  automated audit rates a 
   rubric does not predict how accurately it grades. We release rubrics,
   gradings, and telemetry.^[Full code and data are available at
   <https://github.com/SebastianNagl/benger-platform>.]
@@ -241,23 +221,72 @@ def print_promptbox(text):
 
 # Introduction
 
-LLM-as-judge grading is increasingly the evaluation method of choice for free-text legal benchmarks: expert grading does not scale, and surface metrics do not measure legal reasoning. Prior work on benchmarking German legal reasoning [@nagl2026bengerdata] showed that an LLM judge with an abstract, exam-independent rubric grades case solutions (*Falllösungen*) at human-grader level – but with high score variance across judges, passes, and the human reference pool, destabilizing rankings.
+LLM-as-judge grading is increasingly the evaluation method of choice for free-text legal benchmarks:
+expert grading does not scale, and surface metrics do not measure legal reasoning. Prior work on
+benchmarking German legal reasoning [@nagl2026bengerdata] showed that an LLM judge with an abstract,
+exam-independent rubric grades case solutions (*Falllösungen*) at human-grader level – but with high
+score variance across judges, passes, and the human reference pool, destabilizing rankings.
 
-German legal exams receive a single holistic 0–18 grade under the applicable grading ordinance (*Klausur*) [@jurprnotskv1981], and grading objectivity is documented to be poor: identical exams span 6.5 grade points across correctors [@hufeld2024]. The informal remedy is analytic: correctors privately construct partial-point matrices over the expected solution [@frenzel2011korrektur]. This paper formalizes and automates that practice (Figure \ref{fig:pipeline}): for each exam we generate a 100-point step rubric (*Bewertungsbogen*) from case facts (*Sachverhalt*) and model solution (*Musterlösung*), with scoreable allowances for defensible alternatives ("a.A. vertretbar" – another view is tenable), and grade against it. We ask whether heterogeneous generators can produce schema-conformant, exam-specific schemes under one strict output specification (*RQ1*); whether grading against them stabilizes a judge across repeated passes on identical answers (*RQ2*), and at what cost in human-score agreement (*RQ3*); and which generators write the best instruments, if an automated audit can tell (*RQ4*). Contributions:
+German legal exams receive a single holistic 0–18 grade under the applicable grading ordinance
+(*Klausur*) [@jurprnotskv1981], and grading objectivity is documented to be poor: identical exams
+span 6.5 grade points across correctors [@hufeld2024]. The informal remedy is analytic: correctors
+privately construct partial-point matrices over the expected solution [@frenzel2011korrektur]. This
+paper formalizes and automates that practice (Figure \ref{fig:pipeline}): for each exam we generate
+a 100-point step rubric (*Bewertungsbogen*) from case facts (*Sachverhalt*) and model solution
+(*Musterlösung*), with scoreable allowances for defensible alternatives ("a.A. vertretbar" – another
+view is tenable), and grade against it. We ask whether heterogeneous generators can produce
+schema-conformant, exam-specific schemes under one strict output specification (*RQ1*); whether
+grading against them stabilizes a judge across repeated passes on identical answers (*RQ2*), and at
+what cost in human-score agreement (*RQ3*); and which generators write the best instruments, if an
+automated audit can tell (*RQ4*). Contributions:
 
 ```{=latex}
 \input{assets/fig_pipeline.tex}
 ```
 
-\(1) A method for auto-generating exam-specific point schemes under one strict output specification, across a 12-generator, `{python} n_exams`-exam study; failures are measured, not repaired. (2) Matched same-judge replications under both instruments on identical answers, judges, and human pool, plus a probe battery of degenerate submissions and a positive control, showing that *reliability depends on the judge–instrument pair*: no average zero-shot change across five capable judges, modest gains for the best-matched judge, and – below the execution floor – collapse into fluent step-level confabulation by a judge that grades adequately holistically. (3) An outcome ranking of rubric generators against an automated audit. We release all rubrics, gradings, and telemetry; human re-grading follows (Limitations).
+\(1) A method for auto-generating exam-specific point schemes under one strict output specification,
+across a 12-generator, `{python} n_exams`-exam study; failures are measured, not repaired. (2)
+Matched same-judge replications under both instruments on identical answers, judges, and human pool,
+plus a probe battery of degenerate submissions and a positive control, showing that *reliability
+depends on the judge–instrument pair*: no average zero-shot change across five capable judges,
+modest gains for the best-matched judge, and – below the execution floor – collapse into fluent
+step-level confabulation by a judge that grades adequately holistically. (3) An outcome ranking of
+rubric generators against an automated audit. We release all rubrics, gradings, and telemetry; human
+re-grading follows (Limitations).
 
 # Related Work
 
-*Judge reliability.* Direct-scoring LLM judges [@liu2023geval; @zheng2023mtbench] correlate with humans on average but are unreliable at the instance level: scores drift across runs [@haldar2025rating], flip under reordering and prompt changes [@wang2024fair; @shi2024judging], carry self-preference [@panickssery2024self], and need per-task human validation [@gu2024survey; @bavaresco2025llms]. Existing remedies are judge-side – calibration, bias mitigation, panels [@verga2024replacing]; we target the instrument.
+*Judge reliability.* Direct-scoring LLM judges [@liu2023geval;
+@zheng2023mtbench] correlate with humans on average but are unreliable at the
+instance level: scores drift across runs [@haldar2025rating], flip under
+reordering and prompt changes [@wang2024fair; @shi2024judging], carry
+self-preference [@panickssery2024self], and need per-task human validation
+[@gu2024survey; @bavaresco2025llms]. Existing remedies are judge-side –
+calibration, bias mitigation, panels [@verga2024replacing]; we target the
+instrument.
 
-*Structured evaluation.* Fine-grained decomposition improves reliability – skill-wise scoring, rubric-conditioned evaluators, atomic facts, and variance-reducing binary checklists that can be LLM-generated per instance [@ye2024flask; @kim2024prometheus; @hashemi2024llmrubric; @min2023factscore; @wu2023finegrained; @lee2025checkeval; @cook2024ticking; @chen2026holistic] – echoing the educational-measurement result that analytic rubrics beat holistic scoring at a human rater-time cost [@klein1998analytic; @jonsson2007use; @brookhart2018appropriate] that an LLM rater converts into inference cost. LLM essay scoring has applied only fixed, exam-independent rubrics [@ke2019automated; @mizumoto2023exploring; @stahl2024exploring]; prior decompositions carry uniform or binary weights and no partial-credit doctrine [@kucia2026llm].
+*Structured evaluation.* Fine-grained decomposition improves reliability –
+skill-wise scoring, rubric-conditioned evaluators, atomic facts, and
+variance-reducing binary checklists that can be LLM-generated per instance
+[@ye2024flask; @kim2024prometheus; @hashemi2024llmrubric; @min2023factscore;
+@wu2023finegrained; @lee2025checkeval; @cook2024ticking; @chen2026holistic] –
+echoing the educational-measurement result that analytic rubrics beat holistic
+scoring at a human rater-time cost [@klein1998analytic; @jonsson2007use;
+@brookhart2018appropriate] that an LLM rater converts into inference cost. LLM
+essay scoring has applied only fixed, exam-independent rubrics
+[@ke2019automated; @mizumoto2023exploring; @stahl2024exploring]; prior
+decompositions carry uniform or binary weights and no partial-credit doctrine
+[@kucia2026llm].
 
-*Grading legal free text.* Legal NLP has moved from LLMs taking exams [@choi2023chatgpt; @katz2024gpt4] to LLMs grading them with per-question evaluation structure – reasoning guidance, span-level criteria, expert-curated or official rubrics, atomic judging [@fan2026lexam; @chlapanis2025greekbarbench; @shi2026plawbench; @pires2025automatic; @pires2026magisbench; @enguehard2025lemaj; @zubaer2026gradelegal; @cope2026grading] – all assuming an expert-written scheme. No prior work *generates* the exam-specific point scheme, encodes defensible alternatives ("a.A. vertretbar") as scoreable allowances, or evaluates the generated instrument psychometrically.
+*Grading legal free text.* Legal NLP has moved from LLMs taking exams
+[@choi2023chatgpt; @katz2024gpt4] to LLMs grading them with per-question
+evaluation structure – reasoning guidance, span-level criteria, expert-curated
+or official rubrics, atomic judging [@fan2026lexam; @chlapanis2025greekbarbench;
+@shi2026plawbench; @pires2025automatic; @pires2026magisbench;
+@enguehard2025lemaj; @zubaer2026gradelegal; @cope2026grading] – all assuming an
+expert-written scheme. No prior work *generates* the exam-specific point scheme,
+encodes defensible alternatives ("a.A. vertretbar") as scoreable allowances, or
+evaluates the generated instrument psychometrically.
 
 # Method: Exam-Specific Point Schemes {#sec-method}
 
@@ -292,9 +321,26 @@ bound). Per-judge matched effects: Figure~\ref{fig:forest}.}
 \end{figure}
 ```
 
-The control arm is the prior study [@nagl2026bengerdata]: 45 solutions – per exam one traditional, one AI-assisted (*co-creation*), one model-generated – with 180 human reviews (3 blind + the creator per solution), a six-judge panel, and a three-pass repeat protocol. Its judges grade against one exam-independent scheme, reused for every exam: the *holistic* instrument.^[Holistic here contrasts with *exam-specific*, not with *analytic* scoring [@klein1998analytic]: the baseline does decompose into dimensions, but the same ten for every exam (@sec-appendix-grading).] Raw scores (0–100) sum ten dimensions; the statutory 0–18 grade follows a fixed table (10.8 raw ≈ 2.7 grade points). Blind raters span 23.9 raw points per solution (ICC(2,1) = .63); the prior study's primary judge tracks the pool at $r = .76$, MAE 10.8 (single pass). Agreement metrics use the 30 human-authored cells, matching that protocol; repeat metrics use all 45.
+The control arm is the prior study [@nagl2026bengerdata]: 45 solutions – per
+exam one traditional, one AI-assisted (*co-creation*), one model-generated –
+with 180 human reviews (3 blind + the creator per solution), a six-judge panel,
+and a three-pass repeat protocol. Its judges grade against one exam-independent
+scheme, reused for every exam: the *holistic* instrument.^[Holistic here
+contrasts with *exam-specific*, not with *analytic* scoring
+[@klein1998analytic]: the baseline does decompose into dimensions, but the same
+ten for every exam (@sec-appendix-grading).] Raw scores (0–100) sum ten
+dimensions; the statutory 0–18 grade follows a fixed table (10.8 raw ≈ 2.7 grade
+points). Blind raters span 23.9 raw points per solution (ICC(2,1) = .63); the
+prior study's primary judge tracks the pool at $r = .76$, MAE 10.8 (single
+pass). Agreement metrics use the 30 human-authored cells, matching that
+protocol; repeat metrics use all 45.
 
-*Main arm.* Twelve systems each attempt one rubric per exam (failures = RQ1 data); one per exam is then fixed for all graders by a seeded random draw from the conformant pool, judged by the prior study's roster and repeat protocol at control-arm temperatures. The primary judge (GPT-5.4 Mini) fails the instrument outright (@sec-results-rq2), so we also judge with GPT-5.6 Luna (same family, a fraction of flagship price).
+*Main arm.* Twelve systems each attempt one rubric per exam (failures = RQ1
+data); one per exam is then fixed for all graders by a seeded random draw from
+the conformant pool, judged by the prior study's roster and repeat protocol at
+control-arm temperatures. The primary judge (GPT-5.4 Mini) fails the instrument
+outright (@sec-results-rq2), so we also judge with GPT-5.6 Luna (same family, a
+fraction of flagship price).
 
 *Matched replications.* Because the control repeats ran on a since-deprecated judge, five capable judges (Luna, Sonnet, Gemini 3.1 Pro, DS-V4-Pro, Qwen3.5) re-grade the identical 45 cells ×3 under *both* instruments – every repeat and agreement contrast is within-judge. *Few-shot.* We regenerate rubrics with one exemplar from the *next* same-area exam (lowest repeat-SD under a median-MAE cap, chosen on donor-exam outcomes only: @sec-appendix-fewshot) and re-judge with Luna and Mini ×3. *Probes.* Per exam, three degenerate submissions (verbatim fact pattern; near-empty; another exam's model solution) plus the exam's own Musterlösung (positive control) test execution under both instruments against thresholds of $<5$, $=0$, $\leq 10$, and $\geq 70$ of 100, each on every pass. Draws, thresholds, and endpoints were fixed before any dispatch (released record).
 
@@ -608,7 +654,7 @@ The study introduces no new personal data beyond the prior study's corpus. Human
 
 # AI usage
 
-The authors leveraged Anthropic Fable and Opus 5 for coding tasks and OpenAI GPT-5.6 Sol for brainstorming.
+The authors leveraged Anthropic Fable and Opus 5 for coding and writing tasks and OpenAI GPT-5.6 Sol for brainstorming.
 
 ::: {#refs}
 :::
