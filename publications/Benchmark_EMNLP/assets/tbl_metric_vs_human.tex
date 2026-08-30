@@ -1,11 +1,11 @@
 \begin{table*}[t]
 \centering\footnotesize
-\caption{Automatic metrics anchored to the mean blind-human raw grade on the 45-pick validation subset (Pearson $r$; 30 human-authored, 15 LLM-generated picks). The residual column correlates (judge $-$ mean blind grade) with the metric on the pooled picks; the uniformly negative values run opposite to a judge reference-style bias. chrF is not computed on Benchathon; BERTScore is unavailable for the human-authored sidecar. Small-$n$ cells are directional. Bootstrap CIs and per-split residuals in \texttt{metric\_vs\_human.json} of the released pipeline.}
+\caption{Automatic metrics correlated with the mean blind-human raw grade on the 45-solution validation subset (Pearson $r$; 30 human-written, 15 LLM-generated solutions). The residual column correlates (judge $-$ mean blind grade) with the metric on the pooled subset; the uniformly negative values run opposite to a judge reference-style bias. chrF is not computed on Benchathon; BERTScore is unavailable for the human-written solutions. Small-$n$ cells indicate direction, not precise magnitude. Bootstrap CIs and per-split residuals in \texttt{metric\_vs\_human.json} of the released pipeline.}
 \label{tbl-metric-vs-human}
 \setlength{\tabcolsep}{4pt}
 \begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}lcccc@{}}
 \toprule
-Metric & Human-auth. & LLM-gen. & Pooled & Residual (pooled) \\
+Metric & Human-writ. & LLM-gen. & Pooled & Residual (pooled) \\
 \midrule
 BLEU & +0.70 {\scriptsize (n=30)} & +0.70 {\scriptsize (n=15)} & +0.70 {\scriptsize (n=45)} & -0.54 {\scriptsize (n=45)} \\
 ROUGE & +0.67 {\scriptsize (n=30)} & +0.68 {\scriptsize (n=15)} & +0.68 {\scriptsize (n=45)} & -0.44 {\scriptsize (n=45)} \\

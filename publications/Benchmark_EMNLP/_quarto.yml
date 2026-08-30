@@ -45,6 +45,18 @@ format:
         \renewcommand{\textfraction}{0.03}
         \renewcommand{\floatpagefraction}{0.85}
         \renewcommand{\dblfloatpagefraction}{0.85}
+        % Top-align float pages: the LaTeX default glue (\@fpsep = 8pt plus
+        % 2fil) spreads stacked floats across the page with large whitespace
+        % bands. Fixed separation + bottom-only fill packs them at the top.
+        % Affects only float-only pages (every main-text page carries text).
+        \makeatletter
+        \setlength{\@fptop}{0pt}
+        \setlength{\@fpsep}{16pt plus 4pt}
+        \setlength{\@fpbot}{0pt plus 1fil}
+        \setlength{\@dblfptop}{0pt}
+        \setlength{\@dblfpsep}{16pt plus 4pt}
+        \setlength{\@dblfpbot}{0pt plus 1fil}
+        \makeatother
         \usepackage{fontspec}
         % Text main font stays TeX Gyre Termes (set portably in the ACL
         % template's \else branch). aclpubcheck accepts `TeXGyreTermes-Reg`,

@@ -19,11 +19,14 @@ later generation of the same ``model_id`` exists on the same task (the
 newest generation per (task, system) is the canonical one). Grundprinzipien
 has no multi-generation groups; the rule is a verified no-op there.
 
-Pick-level analyses (the 45 human-graded validation picks, judge swap,
-judge repeats) intentionally do NOT dedup: one graded LLM pick is an April
-Benchathon generation, and human grades exist for exactly that text. The
-superseded generations' judge/metric rows are exported separately
-(``benchathon_superseded_*.json``) so those joins stay complete.
+Pick-level analyses (the 45 human-graded validation picks, judge repeats)
+intentionally do NOT dedup: one graded LLM pick is an April Benchathon
+generation, and human grades exist for exactly that text. The superseded
+generations' judge/metric rows are exported separately
+(``benchathon_superseded_*.json``) so those joins stay complete. The
+judge-swap / inter-judge layer DOES dedup since the camera-ready
+(derive_inter_judge_agreement.py), so Table-20 per-system n and means line
+up with the main leaderboard.
 """
 
 from __future__ import annotations

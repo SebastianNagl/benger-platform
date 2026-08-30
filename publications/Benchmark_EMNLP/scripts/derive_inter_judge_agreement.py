@@ -8,6 +8,13 @@ script reads each generation's evaluations, joins scores by
 (generation_id, judge_model) across all judges, and emits per-cell stats +
 pairwise correlations.
 
+Final-run-only (camera-ready change): superseded April-round generation
+attempts are dropped via `_gen_dedup.dedup_superseded` before evaluations are
+collected, so the cross-judge subset matches the leaderboard's generation
+pool and per-system means in the judge-swap view line up with the main
+leaderboard. Previously this layer kept the 28 superseded rows (gpt-5.4: 15,
+Qwen3-235B: 13), which made Table-20 n and means diverge from Table 1.
+
 Output: data/processed/benchathon_inter_judge_agreement.json
 {
   "n_cells_with_all_judges": int,    # intersection across all 7
@@ -49,6 +56,7 @@ from collections import Counter, defaultdict
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _gen_dedup import dedup_superseded  # noqa: E402
 from _stats import kendall_tau, mae, pearson, spearman  # noqa: E402
 
 HERE = Path(__file__).resolve().parent.parent
@@ -191,7 +199,10 @@ def write_judge_swap(all_judge_cells: dict[str, dict[str, float]],
             },
             "notes": [
                 "Subset = the n_cells_with_all_judges intersection from "
-                "benchathon_inter_judge_agreement.json (258 generations).",
+                f"benchathon_inter_judge_agreement.json "
+                f"({len(all_judge_cells)} generations), final-run-only "
+                "(superseded April-round attempts dropped via "
+                "_gen_dedup.dedup_superseded before collection).",
                 "Excluded off-leaderboard generations (raw model_id not in "
                 f"systems.json): {dict(sorted(excluded.items()))}.",
                 "Per-judge n equals coverage for every judge by construction "
@@ -226,8 +237,10 @@ def main() -> None:
 
     by_cell: dict[str, dict[str, float]] = defaultdict(dict)
     gid_model: dict[str, str] = {}
+    dropped_superseded: Counter[str] = Counter()
     for task in real["tasks"]:
-        for gen in task.get("generations") or []:
+        for gen in dedup_superseded(task.get("generations") or [],
+                                    dropped_superseded):
             gid = gen["id"]
             gid_model[gid] = gen.get("model_id")
             for ev in gen.get("evaluations") or []:
@@ -244,6 +257,11 @@ def main() -> None:
                 if raw is None:
                     continue
                 by_cell[gid][judge] = float(raw)
+
+    if dropped_superseded:
+        print(f"superseded generation attempts dropped: "
+              f"{sum(dropped_superseded.values())} "
+              f"{dict(sorted(dropped_superseded.items()))}")
 
     all_judge_cells = {gid: scores for gid, scores in by_cell.items()
                    if all(j in scores for j in JUDGES)}
