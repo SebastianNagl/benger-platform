@@ -43,6 +43,41 @@ class OrgApiKeyService:
             return None
         return self.encryption_service.decrypt_api_key(record.encrypted_key)
 
+    def _user_may_spend_org_key(self, db: Session, user_id: str, org_id: str) -> bool:
+        """Active org membership or superadmin — fail-closed.
+
+        Mirrors the BYOM lane's ``_user_is_active_org_member`` gate: an org
+        that pays (``require_private_keys`` False) pays for its members, not
+        for anyone who reaches a dispatch with its id (unvalidated headers,
+        historical first-org fallbacks).
+        """
+        try:
+            from models import OrganizationMembership, User
+
+            member = (
+                db.query(OrganizationMembership)
+                .filter(
+                    OrganizationMembership.user_id == str(user_id),
+                    OrganizationMembership.organization_id == str(org_id),
+                    OrganizationMembership.is_active == True,  # noqa: E712
+                )
+                .first()
+            )
+            if member is not None:
+                return True
+            row = (
+                db.query(User.is_superadmin).filter(User.id == str(user_id)).first()
+            )
+            return bool(row and row[0])
+        except Exception:
+            logger.warning(
+                "org-key membership check failed for user %s / org %s; refusing org key",
+                user_id,
+                org_id,
+                exc_info=True,
+            )
+            return False
+
     def resolve_api_key(
         self, db: Session, user_id: str, org_id: Optional[str], provider: str
     ) -> Optional[str]:
@@ -51,7 +86,9 @@ class OrgApiKeyService:
 
         - If org_id is None: use personal key
         - If org requires private keys: use personal key
-        - If org provides keys: use org key (None if not set)
+        - If org provides keys: use org key (None if not set) — but only for
+          an active member or a superadmin; anyone else degrades to their
+          personal key ("individual pays") instead of spending org money.
         """
         from user_api_key_service import user_api_key_service
 
@@ -62,9 +99,16 @@ class OrgApiKeyService:
 
         if require_private:
             return user_api_key_service.get_user_api_key(db, user_id, provider)
-        else:
-            # Org pays - use org key only (None if not set = provider unavailable)
-            return self._get_org_api_key(db, org_id, provider)
+        if not self._user_may_spend_org_key(db, user_id, org_id):
+            logger.warning(
+                "org-pays key refused: user %s is not an active member of org %s; "
+                "falling back to the personal key",
+                user_id,
+                org_id,
+            )
+            return user_api_key_service.get_user_api_key(db, user_id, provider)
+        # Org pays - use org key only (None if not set = provider unavailable)
+        return self._get_org_api_key(db, org_id, provider)
 
 
 # Create singleton instance

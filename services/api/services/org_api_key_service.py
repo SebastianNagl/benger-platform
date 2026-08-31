@@ -183,6 +183,38 @@ class OrgApiKeyService:
             self.PROVIDER_DISPLAY_NAMES[provider] for provider, has_key in status.items() if has_key
         ]
 
+    def _user_may_spend_org_key(self, db: Session, user_id: str, org_id: str) -> bool:
+        """Active org membership or superadmin — fail-closed.
+
+        Mirrors the BYOM lane's ``_user_is_active_org_member`` gate: an org
+        that pays (``require_private_keys`` False) pays for its members, not
+        for anyone who reaches a dispatch with its id (unvalidated headers,
+        historical first-org fallbacks).
+        """
+        try:
+            from models import OrganizationMembership, User
+
+            member = (
+                db.query(OrganizationMembership)
+                .filter(
+                    OrganizationMembership.user_id == str(user_id),
+                    OrganizationMembership.organization_id == str(org_id),
+                    OrganizationMembership.is_active == True,  # noqa: E712
+                )
+                .first()
+            )
+            if member is not None:
+                return True
+            row = db.query(User.is_superadmin).filter(User.id == str(user_id)).first()
+            return bool(row and row[0])
+        except Exception:
+            logger.warning(
+                f"org-key membership check failed for user {user_id} / org {org_id}; "
+                "refusing org key",
+                exc_info=True,
+            )
+            return False
+
     def resolve_api_key(
         self, db: Session, user_id: str, org_id: Optional[str], provider: str
     ) -> Optional[str]:
@@ -191,7 +223,9 @@ class OrgApiKeyService:
 
         - If org_id is None: use personal key (backward compat / private context)
         - If org requires private keys: use personal key
-        - If org provides keys: use org key (None if org hasn't set it)
+        - If org provides keys: use org key (None if org hasn't set it) — but
+          only for an active member or a superadmin; anyone else degrades to
+          their personal key ("individual pays") instead of spending org money.
         """
         from services.user_api_key_service import user_api_key_service
 
@@ -204,9 +238,14 @@ class OrgApiKeyService:
         if require_private:
             # Members pay - use personal key
             return user_api_key_service.get_user_api_key(db, user_id, provider)
-        else:
-            # Org pays - use org key only (None if not set = provider unavailable)
-            return self.get_org_api_key(db, org_id, provider)
+        if not self._user_may_spend_org_key(db, user_id, org_id):
+            logger.warning(
+                f"org-pays key refused: user {user_id} is not an active member of "
+                f"org {org_id}; falling back to the personal key"
+            )
+            return user_api_key_service.get_user_api_key(db, user_id, provider)
+        # Org pays - use org key only (None if not set = provider unavailable)
+        return self.get_org_api_key(db, org_id, provider)
 
     def get_available_providers_for_context(
         self, db: Session, user_id: str, org_id: Optional[str]
@@ -215,7 +254,9 @@ class OrgApiKeyService:
         Get provider display names based on context.
 
         - Private context or org with require_private_keys=true: user's personal providers
-        - Org with require_private_keys=false: org's providers
+        - Org with require_private_keys=false: org's providers (members only —
+          mirrors resolve_api_key so the UI never advertises a provider the
+          key resolution would refuse)
         """
         from services.user_api_key_service import user_api_key_service
 
@@ -224,10 +265,9 @@ class OrgApiKeyService:
 
         require_private = self._get_org_setting_require_private_keys(db, org_id)
 
-        if require_private:
+        if require_private or not self._user_may_spend_org_key(db, user_id, org_id):
             return user_api_key_service.get_user_available_providers(db, user_id)
-        else:
-            return self.get_org_available_providers(db, org_id)
+        return self.get_org_available_providers(db, org_id)
 
     # ------------------------------------------------------------------
     # Async twins (async DB lane). Share pure ``_build_select_*`` builders
@@ -377,6 +417,42 @@ class OrgApiKeyService:
             self.PROVIDER_DISPLAY_NAMES[provider] for provider, has_key in status.items() if has_key
         ]
 
+    async def _user_may_spend_org_key_async(
+        self, db: AsyncSession, user_id: str, org_id: str
+    ) -> bool:
+        """Async twin of :meth:`_user_may_spend_org_key`."""
+        try:
+            from models import OrganizationMembership, User
+
+            member = (
+                (
+                    await db.execute(
+                        select(OrganizationMembership.id).where(
+                            OrganizationMembership.user_id == str(user_id),
+                            OrganizationMembership.organization_id == str(org_id),
+                            OrganizationMembership.is_active.is_(True),
+                        )
+                    )
+                )
+                .scalars()
+                .first()
+            )
+            if member is not None:
+                return True
+            row = (
+                (await db.execute(select(User.is_superadmin).where(User.id == str(user_id))))
+                .scalars()
+                .first()
+            )
+            return bool(row)
+        except Exception:
+            logger.warning(
+                f"org-key membership check failed for user {user_id} / org {org_id}; "
+                "refusing org key",
+                exc_info=True,
+            )
+            return False
+
     async def get_available_providers_for_context_async(
         self, db: AsyncSession, user_id: str, org_id: Optional[str]
     ) -> List[str]:
@@ -388,10 +464,11 @@ class OrgApiKeyService:
 
         require_private = await self._get_org_setting_require_private_keys_async(db, org_id)
 
-        if require_private:
+        if require_private or not await self._user_may_spend_org_key_async(
+            db, user_id, org_id
+        ):
             return await user_api_key_service.get_user_available_providers_async(db, user_id)
-        else:
-            return await self.get_org_available_providers_async(db, org_id)
+        return await self.get_org_available_providers_async(db, org_id)
 
 
 # Create singleton instance

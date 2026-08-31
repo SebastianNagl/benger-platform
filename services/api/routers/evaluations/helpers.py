@@ -27,31 +27,14 @@ celery_app = get_celery_app()
 def resolve_user_org_for_project(user, project, db: Session) -> Optional[str]:
     """Find the org the current user belongs to among the project's orgs.
 
-    When a project belongs to multiple orgs, we need to resolve which org
-    context to use for API key resolution. Uses the user's membership.
+    Thin delegate kept for its many importers — the shared implementation in
+    ``org_resolution`` is the single source of truth (active membership wins;
+    superadmins fall back to the project's first org; ordinary non-members
+    resolve to ``None`` → personal key).
     """
-    if not project.organizations:
-        return None
+    from org_resolution import resolve_dispatch_org_for_project
 
-    from models import OrganizationMembership
-
-    project_org_ids = {str(org.id) for org in project.organizations}
-
-    memberships = (
-        db.query(OrganizationMembership)
-        .filter(
-            OrganizationMembership.user_id == user.id,
-            OrganizationMembership.is_active == True,  # noqa: E712
-            OrganizationMembership.organization_id.in_(project_org_ids),
-        )
-        .all()
-    )
-
-    if memberships:
-        return str(memberships[0].organization_id)
-
-    # Fallback for superadmins or edge cases
-    return str(project.organizations[0].id)
+    return resolve_dispatch_org_for_project(db, user, project)
 
 
 def _build_select_evaluation_types_for_task_type(dialect_name: str, task_type: str):

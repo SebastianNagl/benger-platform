@@ -664,6 +664,14 @@ async def start_generation(
         # If multiple: caller must disambiguate via the header; leave None
         # so the resolver continues to use the user's personal keys rather
         # than guessing which org's keys to spend.
+    # Trust boundary: the header travels unvalidated through the middleware,
+    # and the sole-org fallback can name an org the caller never joined. An
+    # org id only survives for an active member (or a superadmin) — anyone
+    # else falls back to their personal key instead of spending org money.
+    if org_id is not None:
+        from org_resolution import validate_org_context_header_async
+
+        org_id = await validate_org_context_header_async(db, current_user, org_id)
 
     # Get generation configuration
     generation_config = project.generation_config or {}
