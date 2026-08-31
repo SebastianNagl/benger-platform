@@ -273,3 +273,189 @@ class TestDispatchOrgResolver:
             == paying_org.id
         )
         assert validate_org_context_header(test_db, member, None) is None
+
+
+@pytest.mark.unit
+class TestConsumerBillingFlag:
+    """org_billing_authorized: policy-asserted consumer inheritance
+    (2026-08-31). Bypasses only the membership gate — never the
+    require_private_keys check."""
+
+    def test_flag_lets_a_non_member_spend_the_org_pays_key(
+        self, service, test_db, paying_org
+    ):
+        consumer = _mk_user(test_db, "flag-consumer")
+        _seed_keys(service, test_db, paying_org, "flag-admin-1")
+
+        assert (
+            service.resolve_api_key(
+                test_db,
+                consumer.id,
+                paying_org.id,
+                "openai",
+                org_billing_authorized=True,
+            )
+            == ORG_KEY
+        )
+
+    def test_flag_never_overrides_require_private_keys(self, service, test_db):
+        org = Organization(
+            id="org-private-flag",
+            name="Private Org",
+            display_name="Private Org",
+            slug="org-private-flag",
+            settings={"require_private_keys": True},
+        )
+        test_db.add(org)
+        test_db.commit()
+        consumer = _mk_user(test_db, "flag-private-consumer")
+        _seed_keys(service, test_db, org, "flag-admin-2", personal_for=consumer)
+
+        assert (
+            service.resolve_api_key(
+                test_db, consumer.id, org.id, "openai", org_billing_authorized=True
+            )
+            == PERSONAL_KEY
+        )
+
+    def test_default_false_preserves_the_gate(self, service, test_db, paying_org):
+        consumer = _mk_user(test_db, "flag-default-consumer")
+        _seed_keys(service, test_db, paying_org, "flag-admin-3", personal_for=consumer)
+
+        assert (
+            service.resolve_api_key(test_db, consumer.id, paying_org.id, "openai")
+            == PERSONAL_KEY
+        )
+
+    def test_shared_worker_twin_honors_the_flag(self, test_db, paying_org):
+        from shared_org_api_key_service import OrgApiKeyService as SharedService
+
+        shared = SharedService(EncryptionService())
+        consumer = _mk_user(test_db, "flag-shared-consumer")
+        _seed_keys(
+            OrgApiKeyService(EncryptionService()),
+            test_db,
+            paying_org,
+            "flag-admin-4",
+        )
+
+        assert (
+            shared.resolve_api_key(
+                test_db,
+                consumer.id,
+                paying_org.id,
+                "openai",
+                org_billing_authorized=True,
+            )
+            == ORG_KEY
+        )
+        assert (
+            shared.resolve_api_key(test_db, consumer.id, paying_org.id, "openai")
+            is None
+        )
+
+    def test_route_stamp_marks_consumer_resolution(self, test_db, paying_org):
+        from ai_services.user_aware_ai_service import user_aware_ai_service
+
+        consumer = _mk_user(test_db, "flag-route-consumer")
+        _seed_keys(
+            OrgApiKeyService(EncryptionService()), test_db, paying_org, "flag-admin-5"
+        )
+
+        svc = user_aware_ai_service.get_ai_service_for_user(
+            test_db,
+            consumer.id,
+            "openai",
+            organization_id=paying_org.id,
+            org_billing_authorized=True,
+        )
+        assert svc is not None
+        assert svc._key_resolution_route == "org_resolved_consumer"
+
+
+@pytest.mark.unit
+class TestProjectConsumers:
+    def test_predicates(self, test_db, paying_org):
+        from datetime import datetime, timezone
+
+        from project_consumers import is_project_consumer, project_linked_org_ids
+        from project_models import (
+            MarketplaceEntitlement,
+            Project,
+            ProjectOrganization,
+            ProjectShareLink,
+            ProjectShareMember,
+        )
+
+        creator = _mk_user(test_db, "pc-creator")
+        project = Project(id="pc-project", title="PC", created_by=creator.id)
+        test_db.add(project)
+        test_db.flush()
+        test_db.add(
+            ProjectOrganization(
+                id="pc-po",
+                project_id=project.id,
+                organization_id=paying_org.id,
+                assigned_by=creator.id,
+            )
+        )
+        test_db.commit()
+
+        assert project_linked_org_ids(test_db, project) == [paying_org.id]
+        assert project_linked_org_ids(test_db, project.id) == [paying_org.id]
+
+        entitled = _mk_user(test_db, "pc-entitled")
+        test_db.add(
+            MarketplaceEntitlement(
+                id="pc-ent",
+                user_id=entitled.id,
+                project_id=project.id,
+                source="purchase",
+            )
+        )
+        revoked = _mk_user(test_db, "pc-revoked")
+        test_db.add(
+            MarketplaceEntitlement(
+                id="pc-rev",
+                user_id=revoked.id,
+                project_id=project.id,
+                source="discovered",
+                revoked_at=datetime.now(timezone.utc),
+            )
+        )
+        link = ProjectShareLink(
+            id="pc-link",
+            token="pc-token",
+            project_id=project.id,
+            created_by=creator.id,
+            password_hash="!",
+        )
+        test_db.add(link)
+        test_db.flush()
+        consented = _mk_user(test_db, "pc-consented")
+        test_db.add(
+            ProjectShareMember(
+                id="pc-sm1",
+                share_link_id=link.id,
+                user_id=consented.id,
+                project_id=project.id,
+                gdpr_consent_at=datetime.now(timezone.utc),
+            )
+        )
+        unconsented = _mk_user(test_db, "pc-unconsented")
+        test_db.add(
+            ProjectShareMember(
+                id="pc-sm2",
+                share_link_id=link.id,
+                user_id=unconsented.id,
+                project_id=project.id,
+                gdpr_consent_at=None,
+            )
+        )
+        test_db.commit()
+
+        assert is_project_consumer(test_db, entitled.id, project.id) is True
+        assert is_project_consumer(test_db, consented.id, project.id) is True
+        assert is_project_consumer(test_db, revoked.id, project.id) is False
+        assert is_project_consumer(test_db, unconsented.id, project.id) is False
+        assert is_project_consumer(test_db, creator.id, project.id) is False

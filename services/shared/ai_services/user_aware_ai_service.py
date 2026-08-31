@@ -128,7 +128,13 @@ class UserAwareAIService:
         pass
 
     def get_ai_service_for_user(
-        self, db: Session, user_id: str, provider: str, organization_id: str = None
+        self,
+        db: Session,
+        user_id: str,
+        provider: str,
+        organization_id: str = None,
+        *,
+        org_billing_authorized: bool = False,
     ) -> Optional[Any]:
         """Get AI service instance configured with user's or org's API key.
 
@@ -158,14 +164,25 @@ class UserAwareAIService:
 
                     if org_api_key_service is not None:
                         user_api_key = org_api_key_service.resolve_api_key(
-                            db, user_id, organization_id, provider
+                            db,
+                            user_id,
+                            organization_id,
+                            provider,
+                            org_billing_authorized=org_billing_authorized,
                         )
                         # The org service returns either the org's shared
                         # key or falls through to the user's depending on
                         # require_private_keys; record the higher-level
                         # decision so a researcher tracing billing can
                         # at least see the org context was honored.
-                        key_route = "org_resolved" if user_api_key else "org_resolved_failed"
+                        if user_api_key and org_billing_authorized:
+                            # Policy-asserted consumer inheritance (an
+                            # entitled non-member on an org-pays project).
+                            key_route = "org_resolved_consumer"
+                        elif user_api_key:
+                            key_route = "org_resolved"
+                        else:
+                            key_route = "org_resolved_failed"
                     else:
                         logger.warning(
                             f"org_api_key_service is None - falling back to user key for {provider}"
@@ -221,7 +238,13 @@ class UserAwareAIService:
         return self.get_ai_service_for_user(db, user_id, model_provider)
 
     def get_ai_service_for_model_row(
-        self, db: Session, user_id: str, model: Any, organization_id: str = None
+        self,
+        db: Session,
+        user_id: str,
+        model: Any,
+        organization_id: str = None,
+        *,
+        org_billing_authorized: bool = False,
     ) -> Optional[Any]:
         """Resolve an AI service from an llm_models ROW (BYOM-aware).
 
@@ -246,8 +269,15 @@ class UserAwareAIService:
         """
         if getattr(model, "is_official", True):
             return self.get_ai_service_for_user(
-                db, user_id, model.provider, organization_id=organization_id
+                db,
+                user_id,
+                model.provider,
+                organization_id=organization_id,
+                org_billing_authorized=org_billing_authorized,
             )
+        # v1 decision: consumer inheritance does NOT extend to org custom-model
+        # credentials below — BYOM org secrets are per-(org, model) with their
+        # own sharing gate (ModelOrganization) and stay member-only.
 
         try:
             if not model.is_active:

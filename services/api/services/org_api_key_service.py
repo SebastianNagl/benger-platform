@@ -216,7 +216,13 @@ class OrgApiKeyService:
             return False
 
     def resolve_api_key(
-        self, db: Session, user_id: str, org_id: Optional[str], provider: str
+        self,
+        db: Session,
+        user_id: str,
+        org_id: Optional[str],
+        provider: str,
+        *,
+        org_billing_authorized: bool = False,
     ) -> Optional[str]:
         """
         Resolve which API key to use based on context.
@@ -226,6 +232,12 @@ class OrgApiKeyService:
         - If org provides keys: use org key (None if org hasn't set it) — but
           only for an active member or a superadmin; anyone else degrades to
           their personal key ("individual pays") instead of spending org money.
+
+        ``org_billing_authorized`` is a policy-asserted flag: set True ONLY
+        by code that re-derived the caller's consumer entitlement from the
+        DB in the same process — never from HTTP or task-payload input. It
+        bypasses only the membership gate, never the require_private_keys
+        check: an org that requires private keys is never charged.
         """
         from services.user_api_key_service import user_api_key_service
 
@@ -238,7 +250,9 @@ class OrgApiKeyService:
         if require_private:
             # Members pay - use personal key
             return user_api_key_service.get_user_api_key(db, user_id, provider)
-        if not self._user_may_spend_org_key(db, user_id, org_id):
+        if not org_billing_authorized and not self._user_may_spend_org_key(
+            db, user_id, org_id
+        ):
             logger.warning(
                 f"org-pays key refused: user {user_id} is not an active member of "
                 f"org {org_id}; falling back to the personal key"
@@ -256,7 +270,9 @@ class OrgApiKeyService:
         - Private context or org with require_private_keys=true: user's personal providers
         - Org with require_private_keys=false: org's providers (members only —
           mirrors resolve_api_key so the UI never advertises a provider the
-          key resolution would refuse)
+          key resolution would refuse). Deliberately does NOT model consumer
+          inheritance: key-management UI stays member-scoped; the who-pays
+          surface for consumers is the billing/grading-payer endpoint.
         """
         from services.user_api_key_service import user_api_key_service
 

@@ -79,7 +79,13 @@ class OrgApiKeyService:
             return False
 
     def resolve_api_key(
-        self, db: Session, user_id: str, org_id: Optional[str], provider: str
+        self,
+        db: Session,
+        user_id: str,
+        org_id: Optional[str],
+        provider: str,
+        *,
+        org_billing_authorized: bool = False,
     ) -> Optional[str]:
         """
         Resolve which API key to use based on context.
@@ -89,6 +95,13 @@ class OrgApiKeyService:
         - If org provides keys: use org key (None if not set) — but only for
           an active member or a superadmin; anyone else degrades to their
           personal key ("individual pays") instead of spending org money.
+
+        ``org_billing_authorized`` is a policy-asserted flag: set True ONLY
+        by code that re-derived the caller's consumer entitlement from the
+        DB in the same process (the extended dispatch policy / flashcard
+        worker recompute) — never from HTTP or task-payload input. It
+        bypasses only the membership gate, never the require_private_keys
+        check: an org that requires private keys is never charged.
         """
         from user_api_key_service import user_api_key_service
 
@@ -99,7 +112,9 @@ class OrgApiKeyService:
 
         if require_private:
             return user_api_key_service.get_user_api_key(db, user_id, provider)
-        if not self._user_may_spend_org_key(db, user_id, org_id):
+        if not org_billing_authorized and not self._user_may_spend_org_key(
+            db, user_id, org_id
+        ):
             logger.warning(
                 "org-pays key refused: user %s is not an active member of org %s; "
                 "falling back to the personal key",

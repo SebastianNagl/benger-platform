@@ -1286,6 +1286,12 @@
       "korrektur": "Correction",
       "members": "Members"
     },
+    "billing": {
+      "title": "Billing",
+      "orgPays": "{org} covers the AI grading costs in this project (for members and enrolled participants).",
+      "personalKey": "AI evaluations run on each user's own API key.",
+      "dependsOnAccess": "Who pays depends on your access — details below."
+    },
     "statistics": {
       "title": "Statistics",
       "totalTasks": "Total Tasks",

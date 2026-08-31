@@ -1286,6 +1286,12 @@
       "korrektur": "Korrektur",
       "members": "Mitglieder"
     },
+    "billing": {
+      "title": "Abrechnung",
+      "orgPays": "{org} übernimmt die KI-Korrektur-Kosten in diesem Projekt (für Mitglieder und eingeschriebene Teilnehmer:innen).",
+      "personalKey": "KI-Auswertungen laufen über den eigenen API-Schlüssel der jeweiligen Nutzer:innen.",
+      "dependsOnAccess": "Wer zahlt, hängt von deinem Zugang ab — Details unten."
+    },
     "statistics": {
       "title": "Statistiken",
       "totalTasks": "Aufgaben gesamt",

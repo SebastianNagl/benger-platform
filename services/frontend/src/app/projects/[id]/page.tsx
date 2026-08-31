@@ -34,6 +34,7 @@ import {
   type ReasoningConfig,
 } from '@/components/projects/ModelSelectionSection'
 import { ParticipantCard } from '@/components/projects/ParticipantCard'
+import { ProjectBillingCard } from '@/components/projects/ProjectBillingCard'
 import { ProjectKindSection } from '@/components/projects/ProjectKindSection'
 import { ProjectMetadataCard } from '@/components/projects/ProjectMetadataCard'
 import { ProjectPermissionsPanel } from '@/components/projects/ProjectPermissionsPanel'
@@ -2724,6 +2725,9 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
               )}
             </div>
           </div>
+
+          {/* Billing — whose API key pays for AI evaluations */}
+          <ProjectBillingCard project={currentProject} />
 
           {/* Project Statistics */}
           <div className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm ring-1 ring-zinc-900/5 dark:border-zinc-700 dark:bg-zinc-900 dark:ring-white/10">

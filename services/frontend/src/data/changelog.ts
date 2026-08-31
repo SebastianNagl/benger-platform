@@ -10,6 +10,14 @@ export const PLATFORM_CHANGELOG: ChangelogEntry[] = [
     date: '2026-08-31',
     audience: 'benger',
     text: {
+      de: 'Projektseite: neue Karte „Abrechnung" zeigt, wessen API-Schlüssel die KI-Auswertungen bezahlt.',
+      en: 'Project page: new "Billing" card shows whose API key pays for AI evaluations.',
+    },
+  },
+  {
+    date: '2026-08-31',
+    audience: 'benger',
+    text: {
       de: 'Cloud-Speicher-Import: Organisationen können S3-kompatible Speicher verbinden; Dateien lassen sich direkt aus dem Bucket als Aufgaben importieren.',
       en: 'Cloud storage import: organizations can connect S3-compatible storage and import files from the bucket as tasks.',
     },

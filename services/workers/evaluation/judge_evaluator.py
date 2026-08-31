@@ -20,6 +20,7 @@ def _evaluate_llm_judge_single_impl(
     reference, metric_params, organization_id,
     judge_run_id: Optional[str] = None,
     evaluation_config_id: Optional[str] = None,
+    org_billing_authorized: bool = False,
 ):
     """Run generic LLM judge evaluation for a single sample.
 
@@ -86,6 +87,7 @@ def _evaluate_llm_judge_single_impl(
         score_scale=params.get("score_scale", "1-5"),
         organization_id=organization_id,
         seed=_resolve_judge("seed", 42),
+        org_billing_authorized=org_billing_authorized,
     )
 
     if not llm_judge.ai_service:

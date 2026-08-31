@@ -91,6 +91,21 @@ class GradingQuota(BaseModel):
     currency: str = "eur"
 
 
+class GradingPayer(BaseModel):
+    """Who pays for the user's next AI grading on one project.
+
+    Indicative — the worker dispatch policy decides authoritatively at
+    grading time. Served by the extended billing router (the classification
+    logic is proprietary); the shape lives here per the open-core split rule.
+    """
+
+    context: str  # 'org' | 'vertretbar_exam' | 'discovered' | 'none'
+    payer_org_id: Optional[str] = None
+    payer_org_name: Optional[str] = None
+    metered: bool = False  # a metering ledger row would be written
+    judge_tier: Optional[str] = None  # 'free' | 'paid'
+
+
 class InvoiceSummary(BaseModel):
     """Provider-agnostic invoice DTO (filled from the payment provider)."""
 

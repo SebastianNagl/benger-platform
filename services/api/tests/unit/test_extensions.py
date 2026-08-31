@@ -76,7 +76,9 @@ class TestExtensionLoader:
         # 2.8 adds task_rubrics + llm_judge_rubric (Bewertungsbogen).
         # 2.9 adds the participant access tier + share governance helpers
         # (get_project_access_tier, check_user_can_manage_shares).
-        assert CORE_API_VERSION == "2.9"
+        # 2.10 adds org_resolution + project_consumers + the
+        # org_billing_authorized consumer-inheritance flag.
+        assert CORE_API_VERSION == "2.10"
 
     def test_tasks_with_feedback_for_user_empty_without_package(self):
         """Community edition: no human-feedback workflow -> empty set."""
