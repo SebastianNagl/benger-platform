@@ -654,7 +654,7 @@ The study introduces no new personal data beyond the prior study's corpus. Human
 
 # AI usage
 
-The authors leveraged Anthropic Fable and Opus 5 for coding and writing tasks and OpenAI GPT-5.6 Sol for brainstorming.
+The authors used OpenAI GPT-5.6 Sol to brainstorm and discuss approaches; all final decisions on method and experiment design were made by the authors. Anthropic Claude Fable 5 was used for coding and writing assistance throughout: AI agents implemented parts of the analysis code, and the authors checked the implementations and verified all reported results. Generated text was checked, edited, and approved by the authors. The authors take full responsibility for the paper's contents.
 
 ::: {#refs}
 :::
