@@ -224,6 +224,100 @@ export class OrganizationsClient extends BaseApiClient {
     )
   }
 
+  // ===== Organization groups =====
+
+  /**
+   * List an organization's groups. Any active member may call; member_count
+   * is null for ANNOTATOR callers.
+   */
+  async getGroups(organizationId: string): Promise<OrganizationGroup[]> {
+    return this.get(`/organizations/${organizationId}/groups`)
+  }
+
+  /**
+   * Create a group (org admin only; 409 on duplicate name)
+   */
+  async createGroup(
+    organizationId: string,
+    data: OrganizationGroupCreate
+  ): Promise<OrganizationGroup> {
+    return this.post(`/organizations/${organizationId}/groups`, data)
+  }
+
+  /**
+   * Update a group's name / description / active flag (org admin only)
+   */
+  async updateGroup(
+    organizationId: string,
+    groupId: string,
+    patch: OrganizationGroupUpdate
+  ): Promise<OrganizationGroup> {
+    return this.patch(`/organizations/${organizationId}/groups/${groupId}`, patch)
+  }
+
+  /**
+   * Delete a group (org admin only). Responds 409 with a detail message when
+   * project attachments or group-scoped API keys still reference the group.
+   */
+  async deleteGroup(
+    organizationId: string,
+    groupId: string
+  ): Promise<{ message: string }> {
+    return this.delete(`/organizations/${organizationId}/groups/${groupId}`)
+  }
+
+  /**
+   * List a group's members (org admin or that group's admin)
+   */
+  async getGroupMembers(
+    organizationId: string,
+    groupId: string
+  ): Promise<OrganizationGroupMember[]> {
+    return this.get(`/organizations/${organizationId}/groups/${groupId}/members`)
+  }
+
+  /**
+   * Add an existing org member to a group (upserts; org admin or group admin)
+   */
+  async addGroupMember(
+    organizationId: string,
+    groupId: string,
+    data: { user_id: string; is_group_admin: boolean }
+  ): Promise<OrganizationGroupMember> {
+    return this.post(
+      `/organizations/${organizationId}/groups/${groupId}/members`,
+      data
+    )
+  }
+
+  /**
+   * Toggle a group member's group-admin flag
+   */
+  async updateGroupMember(
+    organizationId: string,
+    groupId: string,
+    userId: string,
+    data: { is_group_admin: boolean }
+  ): Promise<OrganizationGroupMember> {
+    return this.patch(
+      `/organizations/${organizationId}/groups/${groupId}/members/${userId}`,
+      data
+    )
+  }
+
+  /**
+   * Remove a member from a group (org membership is untouched)
+   */
+  async removeGroupMember(
+    organizationId: string,
+    groupId: string,
+    userId: string
+  ): Promise<{ message: string }> {
+    return this.delete(
+      `/organizations/${organizationId}/groups/${groupId}/members/${userId}`
+    )
+  }
+
   /**
    * Bulk verify emails for organization members (org admin/superadmin only)
    */
@@ -253,15 +347,27 @@ export class OrganizationsClient extends BaseApiClient {
   // ===== Organization API Keys (Issue #1180) =====
 
   /**
+   * Scope suffix for the org api-key endpoints: absent groupId = the
+   * org-wide key pool, set = that group's keys (group projects fall back to
+   * the org-wide pool when no group key exists).
+   */
+  private groupScopeQuery(groupId?: string): string {
+    return groupId ? `?group_id=${encodeURIComponent(groupId)}` : ''
+  }
+
+  /**
    * Get API key status for all providers in an organization
    */
   async getOrgApiKeyStatus(
-    orgId: string
+    orgId: string,
+    groupId?: string
   ): Promise<{
     api_key_status: Record<string, boolean>
     available_providers: string[]
   }> {
-    return this.get(`/organizations/${orgId}/api-keys/status`)
+    return this.get(
+      `/organizations/${orgId}/api-keys/status${this.groupScopeQuery(groupId)}`
+    )
   }
 
   /**
@@ -270,11 +376,15 @@ export class OrganizationsClient extends BaseApiClient {
   async setOrgApiKey(
     orgId: string,
     provider: string,
-    apiKey: string
+    apiKey: string,
+    groupId?: string
   ): Promise<{ message: string }> {
-    return this.post(`/organizations/${orgId}/api-keys/${provider}`, {
-      api_key: apiKey,
-    })
+    return this.post(
+      `/organizations/${orgId}/api-keys/${provider}${this.groupScopeQuery(groupId)}`,
+      {
+        api_key: apiKey,
+      }
+    )
   }
 
   /**
@@ -282,9 +392,12 @@ export class OrganizationsClient extends BaseApiClient {
    */
   async removeOrgApiKey(
     orgId: string,
-    provider: string
+    provider: string,
+    groupId?: string
   ): Promise<{ message: string }> {
-    return this.delete(`/organizations/${orgId}/api-keys/${provider}`)
+    return this.delete(
+      `/organizations/${orgId}/api-keys/${provider}${this.groupScopeQuery(groupId)}`
+    )
   }
 
   /**
@@ -293,11 +406,15 @@ export class OrganizationsClient extends BaseApiClient {
   async testOrgApiKey(
     orgId: string,
     provider: string,
-    apiKey: string
+    apiKey: string,
+    groupId?: string
   ): Promise<{ status: string; message: string; error_type?: string }> {
-    return this.post(`/organizations/${orgId}/api-keys/${provider}/test`, {
-      api_key: apiKey,
-    })
+    return this.post(
+      `/organizations/${orgId}/api-keys/${provider}/test${this.groupScopeQuery(groupId)}`,
+      {
+        api_key: apiKey,
+      }
+    )
   }
 
   /**
@@ -305,10 +422,11 @@ export class OrganizationsClient extends BaseApiClient {
    */
   async testSavedOrgApiKey(
     orgId: string,
-    provider: string
+    provider: string,
+    groupId?: string
   ): Promise<{ status: string; message: string; error_type?: string }> {
     return this.post(
-      `/organizations/${orgId}/api-keys/${provider}/test-saved`,
+      `/organizations/${orgId}/api-keys/${provider}/test-saved${this.groupScopeQuery(groupId)}`,
       {}
     )
   }
@@ -534,6 +652,46 @@ export interface OrgStorageObjectPage {
   objects: OrgStorageObject[]
   prefixes: string[]
   next_token: string | null
+}
+
+/**
+ * An organization group (e.g. a university chair). `member_count` is null
+ * for ANNOTATOR callers; `is_member` / `is_group_admin` are caller-relative.
+ */
+export interface OrganizationGroup {
+  id: string
+  organization_id: string
+  name: string
+  description: string | null
+  is_active: boolean
+  created_at: string
+  updated_at: string | null
+  member_count: number | null
+  is_member: boolean
+  is_group_admin: boolean
+}
+
+export interface OrganizationGroupCreate {
+  name: string
+  description?: string
+}
+
+export interface OrganizationGroupUpdate {
+  name?: string
+  description?: string
+  is_active?: boolean
+}
+
+/** A member row of one organization group. */
+export interface OrganizationGroupMember {
+  id: string
+  group_id: string
+  user_id: string
+  is_group_admin: boolean
+  created_at: string
+  user_name: string
+  user_email: string
+  org_role: OrganizationRole
 }
 
 /** A custom model shared with an org + its shared-credential status. */

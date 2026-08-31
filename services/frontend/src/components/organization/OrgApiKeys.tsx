@@ -4,6 +4,7 @@ import { useI18n } from '@/contexts/I18nContext'
 import { Button } from '@/components/shared/Button'
 import {
   organizationsAPI,
+  type OrganizationGroup,
   type OrgSharedCustomModel,
 } from '@/lib/api/organizations'
 import {
@@ -17,6 +18,12 @@ import { useCallback, useEffect, useState } from 'react'
 interface OrgApiKeysProps {
   organizationId: string
   isAdmin: boolean
+  /**
+   * Group admin of at least one group (without being org admin): may manage
+   * keys of their own groups. The group scope selector then has no org-wide
+   * option.
+   */
+  canManageGroups?: boolean
   open: boolean
   onOpenChange: (open: boolean) => void
 }
@@ -86,7 +93,13 @@ const providers: Provider[] = [
   },
 ]
 
-export function OrgApiKeys({ organizationId, isAdmin, open, onOpenChange }: OrgApiKeysProps) {
+export function OrgApiKeys({
+  organizationId,
+  isAdmin,
+  canManageGroups = false,
+  open,
+  onOpenChange,
+}: OrgApiKeysProps) {
   const { t } = useI18n()
 
   const getProviderDescription = (id: string) => {
@@ -126,6 +139,12 @@ export function OrgApiKeys({ organizationId, isAdmin, open, onOpenChange }: OrgA
   )
   const [customLoading, setCustomLoading] = useState<Record<string, boolean>>({})
 
+  // Group scope: null = the org-wide key pool, otherwise that group's keys.
+  // Group projects spend their group's key first and fall back to the
+  // org-wide pool.
+  const [groups, setGroups] = useState<OrganizationGroup[]>([])
+  const [scopeGroupId, setScopeGroupId] = useState<string | null>(null)
+
   const fetchSettings = useCallback(async () => {
     try {
       const data = await organizationsAPI.getOrgApiKeySettings(organizationId)
@@ -137,12 +156,24 @@ export function OrgApiKeys({ organizationId, isAdmin, open, onOpenChange }: OrgA
 
   const fetchKeyStatus = useCallback(async () => {
     try {
-      const data = await organizationsAPI.getOrgApiKeyStatus(organizationId)
+      const data = scopeGroupId
+        ? await organizationsAPI.getOrgApiKeyStatus(organizationId, scopeGroupId)
+        : await organizationsAPI.getOrgApiKeyStatus(organizationId)
       setApiKeyStatus(data.api_key_status || {})
     } catch {
       setApiKeyStatus({})
     }
-  }, [organizationId])
+  }, [organizationId, scopeGroupId])
+
+  const fetchGroups = useCallback(async () => {
+    if (!isAdmin && !canManageGroups) return
+    try {
+      const rows = await organizationsAPI.getGroups(organizationId)
+      setGroups(Array.isArray(rows) ? rows : [])
+    } catch {
+      setGroups([])
+    }
+  }, [organizationId, isAdmin, canManageGroups])
 
   const fetchCustomModels = useCallback(async () => {
     if (!isAdmin) return
@@ -163,8 +194,49 @@ export function OrgApiKeys({ organizationId, isAdmin, open, onOpenChange }: OrgA
       fetchSettings()
       fetchKeyStatus()
       fetchCustomModels()
+      fetchGroups()
     }
-  }, [open, fetchSettings, fetchKeyStatus, fetchCustomModels])
+  }, [open, fetchSettings, fetchKeyStatus, fetchCustomModels, fetchGroups])
+
+  // Drop a stale group scope when the dialog closes so the next open starts
+  // from the org-wide pool again (or re-pins to the group admin's group).
+  useEffect(() => {
+    if (!open) setScopeGroupId(null)
+  }, [open])
+
+  // Groups the caller may manage keys for: org admins see every group,
+  // group admins only their own admin groups (and no org-wide option).
+  const manageableGroups = isAdmin
+    ? groups
+    : groups.filter((group) => group.is_group_admin)
+
+  // Group-admin-only callers have no org-wide scope — pin the selector to
+  // their first admin group once the group list is in.
+  useEffect(() => {
+    if (!open || isAdmin || !canManageGroups) return
+    if (
+      scopeGroupId &&
+      manageableGroups.some((group) => group.id === scopeGroupId)
+    ) {
+      return
+    }
+    const first = manageableGroups[0]
+    if (first) setScopeGroupId(first.id)
+  }, [open, isAdmin, canManageGroups, manageableGroups, scopeGroupId])
+
+  const handleScopeChange = (value: string) => {
+    setScopeGroupId(value || null)
+    setMessage(null)
+    setTestResults({})
+    setNewApiKeys({})
+    setShowApiKeys({})
+    // fetchKeyStatus re-runs via the open-effect (its identity depends on
+    // the scope), so the status list always matches the selected scope.
+  }
+
+  // Provider keys are editable by org admins in every scope, and by group
+  // admins within one of their group scopes.
+  const canEditKeys = isAdmin || (canManageGroups && scopeGroupId !== null)
 
   const toggleRequirePrivateKeys = async () => {
     if (!isAdmin) return
@@ -211,7 +283,16 @@ export function OrgApiKeys({ organizationId, isAdmin, open, onOpenChange }: OrgA
     setMessage(null)
 
     try {
-      await organizationsAPI.setOrgApiKey(organizationId, provider, apiKey)
+      if (scopeGroupId) {
+        await organizationsAPI.setOrgApiKey(
+          organizationId,
+          provider,
+          apiKey,
+          scopeGroupId
+        )
+      } else {
+        await organizationsAPI.setOrgApiKey(organizationId, provider, apiKey)
+      }
       setMessage({
         type: 'success',
         text: t('organization.apiKeys.keySaved', { provider: providers.find((p) => p.id === provider)?.name }),
@@ -235,7 +316,15 @@ export function OrgApiKeys({ organizationId, isAdmin, open, onOpenChange }: OrgA
     setMessage(null)
 
     try {
-      await organizationsAPI.removeOrgApiKey(organizationId, provider)
+      if (scopeGroupId) {
+        await organizationsAPI.removeOrgApiKey(
+          organizationId,
+          provider,
+          scopeGroupId
+        )
+      } else {
+        await organizationsAPI.removeOrgApiKey(organizationId, provider)
+      }
       setMessage({
         type: 'success',
         text: t('organization.apiKeys.keyRemoved', { provider: providers.find((p) => p.id === provider)?.name }),
@@ -260,11 +349,14 @@ export function OrgApiKeys({ organizationId, isAdmin, open, onOpenChange }: OrgA
     setTestResults((prev) => ({ ...prev, [provider]: null }))
 
     try {
-      const result = await organizationsAPI.testOrgApiKey(
-        organizationId,
-        provider,
-        apiKey
-      )
+      const result = scopeGroupId
+        ? await organizationsAPI.testOrgApiKey(
+            organizationId,
+            provider,
+            apiKey,
+            scopeGroupId
+          )
+        : await organizationsAPI.testOrgApiKey(organizationId, provider, apiKey)
       setTestResults((prev) => ({
         ...prev,
         [provider]: {
@@ -290,10 +382,13 @@ export function OrgApiKeys({ organizationId, isAdmin, open, onOpenChange }: OrgA
     setTestResults((prev) => ({ ...prev, [provider]: null }))
 
     try {
-      const result = await organizationsAPI.testSavedOrgApiKey(
-        organizationId,
-        provider
-      )
+      const result = scopeGroupId
+        ? await organizationsAPI.testSavedOrgApiKey(
+            organizationId,
+            provider,
+            scopeGroupId
+          )
+        : await organizationsAPI.testSavedOrgApiKey(organizationId, provider)
       setTestResults((prev) => ({
         ...prev,
         [provider]: {
@@ -416,7 +511,46 @@ export function OrgApiKeys({ organizationId, isAdmin, open, onOpenChange }: OrgA
                 </div>
               )}
 
-              {/* Mode toggle (admin only) */}
+              {/* Scope selector: org-wide pool vs one group's keys */}
+              {(isAdmin || canManageGroups) && manageableGroups.length > 0 && (
+                <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-700 dark:bg-zinc-800/50">
+                  <label
+                    htmlFor="org-api-keys-scope"
+                    className="block text-sm font-medium text-zinc-900 dark:text-zinc-100"
+                  >
+                    {t('organization.apiKeys.scopeLabel')}
+                  </label>
+                  <select
+                    id="org-api-keys-scope"
+                    value={scopeGroupId ?? ''}
+                    onChange={(e) => handleScopeChange(e.target.value)}
+                    data-testid="org-api-keys-scope-select"
+                    className="mt-2 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-100"
+                  >
+                    {isAdmin && (
+                      <option value="">
+                        {t('organization.apiKeys.scopeOrgWide')}
+                      </option>
+                    )}
+                    {manageableGroups.map((group) => (
+                      <option key={group.id} value={group.id}>
+                        {group.name}
+                        {group.is_active
+                          ? ''
+                          : t('organization.apiKeys.scopeInactiveSuffix')}
+                      </option>
+                    ))}
+                  </select>
+                  {scopeGroupId && (
+                    <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
+                      {t('organization.apiKeys.scopeGroupHint')}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* Mode toggle (admin only; the setting is org-wide, so it is
+                  locked while a group scope is selected) */}
               {isAdmin && (
                 <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-700 dark:bg-zinc-800/50">
                   <div className="flex items-center justify-between">
@@ -425,14 +559,16 @@ export function OrgApiKeys({ organizationId, isAdmin, open, onOpenChange }: OrgA
                         {t('organization.apiKeys.orgProvidesToggle')}
                       </p>
                       <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                        {!requirePrivateKeys
-                          ? t('organization.apiKeys.sharedKeysActive')
-                          : t('organization.apiKeys.enableSharedKeys')}
+                        {scopeGroupId
+                          ? t('organization.apiKeys.settingsOrgWideHint')
+                          : !requirePrivateKeys
+                            ? t('organization.apiKeys.sharedKeysActive')
+                            : t('organization.apiKeys.enableSharedKeys')}
                       </p>
                     </div>
                     <button
                       onClick={toggleRequirePrivateKeys}
-                      disabled={settingsLoading}
+                      disabled={settingsLoading || scopeGroupId !== null}
                       className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 ${
                         !requirePrivateKeys
                           ? 'bg-emerald-600'
@@ -453,7 +589,7 @@ export function OrgApiKeys({ organizationId, isAdmin, open, onOpenChange }: OrgA
               )}
 
               {/* Non-admin info when members-pay mode */}
-              {!isAdmin && requirePrivateKeys && (
+              {!isAdmin && !canManageGroups && requirePrivateKeys && (
                 <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-700 dark:bg-zinc-800/50">
                   <p className="text-sm text-zinc-600 dark:text-zinc-400">
                     {t('organization.apiKeys.membersConfigureOwn')}
@@ -462,7 +598,7 @@ export function OrgApiKeys({ organizationId, isAdmin, open, onOpenChange }: OrgA
               )}
 
               {/* Non-admin info when org-pays mode */}
-              {!isAdmin && !requirePrivateKeys && (
+              {!isAdmin && !canManageGroups && !requirePrivateKeys && (
                 <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-800 dark:bg-emerald-900/20">
                   <p className="text-sm text-emerald-700 dark:text-emerald-400">
                     {t('organization.apiKeys.orgProvidesSharedKeys')}
@@ -470,8 +606,8 @@ export function OrgApiKeys({ organizationId, isAdmin, open, onOpenChange }: OrgA
                 </div>
               )}
 
-              {/* Provider cards (admin only) */}
-              {isAdmin && (
+              {/* Provider cards (org admins; group admins in a group scope) */}
+              {canEditKeys && (
                 <>
                   <h3 className="text-base font-semibold text-zinc-900 dark:text-white">
                     {t('organization.apiKeys.providerSection')}
@@ -643,6 +779,8 @@ export function OrgApiKeys({ organizationId, isAdmin, open, onOpenChange }: OrgA
                   </div>
 
                   {/* ── Custom model (BYOM) shared keys ─────────────────── */}
+                  {/* Custom-model credentials stay org-wide (admin, org scope). */}
+                  {isAdmin && !scopeGroupId && (
                   <div className="border-t border-zinc-200 pt-6 dark:border-zinc-700">
                     <h3 className="text-base font-semibold text-zinc-900 dark:text-white">
                       {t('organization.apiKeys.customModelSection')}
@@ -790,6 +928,7 @@ export function OrgApiKeys({ organizationId, isAdmin, open, onOpenChange }: OrgA
                       </div>
                     )}
                   </div>
+                  )}
                 </>
               )}
             </div>

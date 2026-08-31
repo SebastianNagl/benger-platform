@@ -52,6 +52,35 @@ describe('UserOrganizationPermissions', () => {
     organizations: [],
   }
 
+  // Group admin of grp-1 in org-1, plain CONTRIBUTOR at the org level.
+  const mockGroupAdmin: UserWithOrganizations = {
+    id: 'user-6',
+    email: 'groupadmin@example.com',
+    username: 'groupadmin',
+    is_superadmin: false,
+    is_active: true,
+    organizations: [
+      {
+        id: 'org-1',
+        role: 'CONTRIBUTOR',
+        groups: [
+          {
+            id: 'grp-1',
+            name: 'Chair A',
+            is_active: true,
+            is_group_admin: true,
+          },
+          {
+            id: 'grp-2',
+            name: 'Chair B',
+            is_active: true,
+            is_group_admin: false,
+          },
+        ],
+      },
+    ],
+  }
+
   describe('canManageGlobalUsers', () => {
     it('returns true for superadmin', () => {
       expect(
@@ -166,9 +195,156 @@ describe('UserOrganizationPermissions', () => {
       ).toBe(false)
     })
 
+    it('returns true for a group admin (invite gate opens for group-scoped invites)', () => {
+      expect(
+        UserOrganizationPermissions.canInviteToOrganization(
+          mockGroupAdmin,
+          'org-1'
+        )
+      ).toBe(true)
+    })
+
+    it('returns false for a group admin in another organization', () => {
+      expect(
+        UserOrganizationPermissions.canInviteToOrganization(
+          mockGroupAdmin,
+          'org-2'
+        )
+      ).toBe(false)
+    })
+
     it('returns false for null user', () => {
       expect(
         UserOrganizationPermissions.canInviteToOrganization(null, 'org-1')
+      ).toBe(false)
+    })
+  })
+
+  describe('canManageGroup', () => {
+    it('returns true for superadmin on any group', () => {
+      expect(
+        UserOrganizationPermissions.canManageGroup(
+          mockSuperadmin,
+          'org-1',
+          'grp-999'
+        )
+      ).toBe(true)
+    })
+
+    it('returns true for org admin on any group of their org', () => {
+      expect(
+        UserOrganizationPermissions.canManageGroup(
+          mockOrgAdmin,
+          'org-1',
+          'grp-999'
+        )
+      ).toBe(true)
+    })
+
+    it('returns false for org admin on a group of another org', () => {
+      expect(
+        UserOrganizationPermissions.canManageGroup(
+          mockOrgAdmin,
+          'org-3',
+          'grp-1'
+        )
+      ).toBe(false)
+    })
+
+    it('returns true for the group admin on their admin group', () => {
+      expect(
+        UserOrganizationPermissions.canManageGroup(
+          mockGroupAdmin,
+          'org-1',
+          'grp-1'
+        )
+      ).toBe(true)
+    })
+
+    it('returns false for the group admin on a group they merely belong to', () => {
+      expect(
+        UserOrganizationPermissions.canManageGroup(
+          mockGroupAdmin,
+          'org-1',
+          'grp-2'
+        )
+      ).toBe(false)
+    })
+
+    it('returns false for a plain contributor without groups', () => {
+      expect(
+        UserOrganizationPermissions.canManageGroup(
+          mockContributor,
+          'org-1',
+          'grp-1'
+        )
+      ).toBe(false)
+    })
+
+    it('returns false for null user', () => {
+      expect(
+        UserOrganizationPermissions.canManageGroup(null, 'org-1', 'grp-1')
+      ).toBe(false)
+    })
+  })
+
+  describe('canManageAnyGroup', () => {
+    it('returns true for superadmin', () => {
+      expect(
+        UserOrganizationPermissions.canManageAnyGroup(mockSuperadmin, 'org-1')
+      ).toBe(true)
+    })
+
+    it('returns true for org admin of the org', () => {
+      expect(
+        UserOrganizationPermissions.canManageAnyGroup(mockOrgAdmin, 'org-1')
+      ).toBe(true)
+    })
+
+    it('returns true for a group admin of one group', () => {
+      expect(
+        UserOrganizationPermissions.canManageAnyGroup(mockGroupAdmin, 'org-1')
+      ).toBe(true)
+    })
+
+    it('returns false for the same group admin in another org', () => {
+      expect(
+        UserOrganizationPermissions.canManageAnyGroup(mockGroupAdmin, 'org-2')
+      ).toBe(false)
+    })
+
+    it('returns false for a contributor without group-admin flags', () => {
+      expect(
+        UserOrganizationPermissions.canManageAnyGroup(mockContributor, 'org-1')
+      ).toBe(false)
+    })
+
+    it('returns false for a member whose groups all lack the admin flag', () => {
+      const memberOnly: UserWithOrganizations = {
+        ...mockContributor,
+        organizations: [
+          {
+            id: 'org-1',
+            role: 'CONTRIBUTOR',
+            groups: [
+              {
+                id: 'grp-2',
+                name: 'Chair B',
+                is_active: true,
+                is_group_admin: false,
+              },
+            ],
+          },
+        ],
+      }
+      expect(
+        UserOrganizationPermissions.canManageAnyGroup(memberOnly, 'org-1')
+      ).toBe(false)
+    })
+
+    it('returns false for null user', () => {
+      expect(
+        UserOrganizationPermissions.canManageAnyGroup(null, 'org-1')
       ).toBe(false)
     })
   })

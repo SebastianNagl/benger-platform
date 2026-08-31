@@ -18,11 +18,16 @@ export interface InvitationDetails {
   created_at: string
   organization_name?: string
   inviter_name?: string
+  // Group-scoped invitations (organization groups)
+  group_id?: string | null
+  invited_as_group_admin?: boolean
 }
 
 export interface CreateInvitationRequest {
   email: string
   role: OrganizationRole
+  group_id?: string | null
+  invited_as_group_admin?: boolean
 }
 
 export class InvitationsApiClient extends BaseApiClient {

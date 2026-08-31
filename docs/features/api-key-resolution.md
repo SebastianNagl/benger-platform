@@ -10,7 +10,7 @@ two runtimes and kept in lockstep:
 ## The rule
 
 ```
-resolve_api_key(db, user_id, org_id, provider):
+resolve_api_key(db, user_id, org_id, provider, project_id=None):
   org_id is None                          -> the user's personal key
   org.settings.require_private_keys      -> the user's personal key
     (unset defaults to True)
@@ -21,6 +21,32 @@ resolve_api_key(db, user_id, org_id, provider):
 
 There is no platform/env key fallback: when the resolved key is missing, the
 dispatch fails loudly rather than silently billing the deployment.
+
+## Group scope (org → group → user layer, 2026-08-31)
+
+Org keys live per `(organization_id, provider, group_id)` — `group_id` NULL
+is the org-wide pool, a set `group_id` is that organization group's own key.
+`project_id` selects WHICH row the org-pays arm spends: when the project's
+attachment to the org (`project_organizations.group_id`) is group-scoped,
+the group's key is tried first, falling back to the org-wide row. The key
+follows the PROJECT's attachment, never the dispatching user's groups — an
+org admin grading a chair's exam spends the chair's key. Two invariants:
+
+- Every read/write against `organization_api_keys` carries an explicit
+  group-scope predicate (`services/api/services/org_api_key_service.py`
+  documents this on the model too) — a bare `(org, provider)` filter would
+  silently mix org-wide and group rows once both exist.
+- Callers that omit `project_id` resolve the org-wide row only, so worker
+  dispatch leaves all thread the project id
+  (`services/workers/tests/test_group_key_threading.py` pins each site).
+  For an org whose keys are ALL group-scoped, an unthreaded site means
+  "no key configured" and a loud failure. Known exception: the synthetic
+  builder generates before its project exists and therefore always
+  resolves the org-wide row.
+
+`get_available_providers_for_context` reports the union of the org-wide
+pool and the caller's own groups' keys so a group-only-keyed org does not
+show zero providers to its members.
 
 The membership gate (2026-08-31) mirrors the BYOM credential path's
 `_user_is_active_org_member` check: an org that pays, pays for its members —

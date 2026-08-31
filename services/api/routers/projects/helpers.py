@@ -21,6 +21,16 @@ from models import (
     TaskEvaluation,
     User,
 )
+from org_groups import (
+    attachment_eligible,
+    attachment_group_clause,
+    build_select_group_admin_on_attachments,
+    get_attachment_group_map,
+    get_attachment_group_map_async,
+    get_user_group_context,
+    get_user_group_context_async,
+    grants_full_tier,
+)
 from project_models import (
     Annotation,
     MarketplaceEntitlement,
@@ -877,18 +887,6 @@ def get_accessible_project_ids(
             detail="You are not a member of this organization",
         )
 
-    # One joined query: org projects that are not soft-deleted (093).
-    rows = (
-        db.query(ProjectOrganization.project_id)
-        .join(Project, Project.id == ProjectOrganization.project_id)
-        .filter(ProjectOrganization.organization_id == org_context, not_deleted())
-        .all()
-    )
-    org_project_ids = [r.project_id for r in rows]
-    # ANNOTATOR members reach org exams through the student surface (narrow
-    # participant tier) — the full-tier carve-out denies them the generic
-    # project detail, so listing exams here would only produce dead entries
-    # for the largest cohort (LTI students).
     caller_role = next(
         (
             m.role
@@ -897,6 +895,25 @@ def get_accessible_project_ids(
         ),
         None,
     )
+
+    # One joined query: org projects that are not soft-deleted (093). Group-
+    # scoped attachments are eligible only for their group's members and the
+    # creator — ORG_ADMINs see through group boundaries and skip the clause.
+    org_query = (
+        db.query(ProjectOrganization.project_id)
+        .join(Project, Project.id == ProjectOrganization.project_id)
+        .filter(ProjectOrganization.organization_id == org_context, not_deleted())
+    )
+    if caller_role != OrganizationRole.ORG_ADMIN:
+        org_query = org_query.filter(
+            attachment_group_clause(ProjectOrganization, str(user.id), project=Project)
+        )
+    org_project_ids = [r.project_id for r in org_query.all()]
+    # ANNOTATOR members reach org exams through the student surface (narrow
+    # participant tier) — the full-tier carve-out denies them the generic
+    # project detail, so listing exams here would only produce dead entries
+    # for the largest cohort (LTI students). Exception: exams attached via a
+    # group the caller group-admins (group admin ⇒ admin on group projects).
     if caller_role == OrganizationRole.ANNOTATOR and org_project_ids:
         exam_ids = {
             r.id
@@ -904,6 +921,23 @@ def get_accessible_project_ids(
             .filter(Project.id.in_(org_project_ids), Project.kind == "exam")
             .all()
         }
+        if exam_ids:
+            admin_group_ids = {
+                gid
+                for gid, is_admin in get_user_group_context(db, str(user.id)).items()
+                if is_admin
+            }
+            if admin_group_ids:
+                exam_ids -= {
+                    r.project_id
+                    for r in db.query(ProjectOrganization.project_id)
+                    .filter(
+                        ProjectOrganization.project_id.in_(exam_ids),
+                        ProjectOrganization.organization_id == org_context,
+                        ProjectOrganization.group_id.in_(admin_group_ids),
+                    )
+                    .all()
+                }
         org_project_ids = [pid for pid in org_project_ids if pid not in exam_ids]
     return _dedup_preserve_order(org_project_ids, public_ids)
 
@@ -982,17 +1016,6 @@ async def get_accessible_project_ids_async(
             detail="You are not a member of this organization",
         )
 
-    # One joined query: org projects that are not soft-deleted (093).
-    rows = (
-        await db.execute(
-            select(ProjectOrganization.project_id)
-            .join(Project, Project.id == ProjectOrganization.project_id)
-            .where(ProjectOrganization.organization_id == org_context, not_deleted())
-        )
-    ).all()
-    org_project_ids = [r.project_id for r in rows]
-    # Mirror of the sync helper: annotators reach org exams via the student
-    # surface only, so keep exam ids out of the generic browser list.
     caller_role = next(
         (
             m.role
@@ -1001,6 +1024,23 @@ async def get_accessible_project_ids_async(
         ),
         None,
     )
+
+    # One joined query: org projects that are not soft-deleted (093). Mirror
+    # of the sync helper's group-eligibility clause — ORG_ADMINs skip it.
+    org_stmt = (
+        select(ProjectOrganization.project_id)
+        .join(Project, Project.id == ProjectOrganization.project_id)
+        .where(ProjectOrganization.organization_id == org_context, not_deleted())
+    )
+    if caller_role != OrganizationRole.ORG_ADMIN:
+        org_stmt = org_stmt.where(
+            attachment_group_clause(ProjectOrganization, str(user.id), project=Project)
+        )
+    rows = (await db.execute(org_stmt)).all()
+    org_project_ids = [r.project_id for r in rows]
+    # Mirror of the sync helper: annotators reach org exams via the student
+    # surface only, so keep exam ids out of the generic browser list —
+    # except exams attached via a group the caller group-admins.
     if caller_role == OrganizationRole.ANNOTATOR and org_project_ids:
         exam_rows = (
             await db.execute(
@@ -1010,6 +1050,25 @@ async def get_accessible_project_ids_async(
             )
         ).all()
         exam_ids = {r.id for r in exam_rows}
+        if exam_ids:
+            admin_group_ids = {
+                gid
+                for gid, is_admin in (
+                    await get_user_group_context_async(db, str(user.id))
+                ).items()
+                if is_admin
+            }
+            if admin_group_ids:
+                admin_exam_rows = (
+                    await db.execute(
+                        select(ProjectOrganization.project_id).where(
+                            ProjectOrganization.project_id.in_(exam_ids),
+                            ProjectOrganization.organization_id == org_context,
+                            ProjectOrganization.group_id.in_(admin_group_ids),
+                        )
+                    )
+                ).all()
+                exam_ids -= {r.project_id for r in admin_exam_rows}
         org_project_ids = [pid for pid in org_project_ids if pid not in exam_ids]
     return _dedup_preserve_order(org_project_ids, public_ids)
 
@@ -1025,7 +1084,9 @@ def get_org_context_from_request(request: Request) -> Optional[str]:
     return request.headers.get("X-Organization-Context")
 
 
-def _org_grants_full_tier(project, membership) -> bool:
+def _org_grants_full_tier(
+    project, membership, attachment_group_id=None, user_groups=None
+) -> bool:
     """Whether an org membership confers the FULL project tier on ``project``.
 
     ANNOTATOR org members never get the full tier on exam-kind projects —
@@ -1033,17 +1094,34 @@ def _org_grants_full_tier(project, membership) -> bool:
     exports, settings, and other students' attempts. Student-members reach
     org-shared exams through the narrow participant tier instead
     (``get_student_read_access``). Non-exam projects and staff roles are
-    unaffected.
+    unaffected, and a group admin of the attachment's group is staff on
+    that group's projects regardless of org role (see shared/org_groups).
     """
-    if getattr(project, "kind", None) != "exam":
-        return True
-    return membership.role != OrganizationRole.ANNOTATOR
+    return grants_full_tier(
+        getattr(project, "kind", None),
+        membership.role,
+        attachment_group_id,
+        user_groups,
+    )
 
 
 def _decide_project_accessible_context_mode(
-    user, project, org_context, project_org_ids, user_with_memberships
+    user,
+    project,
+    org_context,
+    project_org_ids,
+    user_with_memberships,
+    *,
+    attachment_groups=None,
+    user_groups=None,
 ) -> bool:
-    """Org-context-mode decision (pure; no DB). Mirrors the inline logic."""
+    """Org-context-mode decision (pure; no DB). Mirrors the inline logic.
+
+    ``attachment_groups`` ({org_id: group_id|None}) and ``user_groups``
+    ({group_id: is_group_admin}) carry the group axis; omitted (None) they
+    fall back to "every attachment is org-wide" — pre-groups behavior, kept
+    for legacy callers. Production wrappers always pass both.
+    """
     if getattr(project, "is_private", False):
         return str(user.id) == str(project.created_by)
 
@@ -1060,18 +1138,36 @@ def _decide_project_accessible_context_mode(
     if not user_with_memberships or not user_with_memberships.organization_memberships:
         return False
 
+    group_id = (attachment_groups or {}).get(org_context)
+    is_creator = str(user.id) == str(project.created_by)
     return any(
         m.organization_id == org_context
         and m.is_active
-        and _org_grants_full_tier(project, m)
+        and attachment_eligible(
+            group_id,
+            is_creator=is_creator,
+            membership_role=m.role,
+            user_groups=user_groups,
+        )
+        and _org_grants_full_tier(project, m, group_id, user_groups)
         for m in user_with_memberships.organization_memberships
     )
 
 
 def _decide_project_accessible_legacy_mode(
-    user, project, project_org_ids, user_with_memberships
+    user,
+    project,
+    project_org_ids,
+    user_with_memberships,
+    *,
+    attachment_groups=None,
+    user_groups=None,
 ) -> bool:
-    """Legacy-mode (org_context=None) decision (pure; no DB)."""
+    """Legacy-mode (org_context=None) decision (pure; no DB).
+
+    Evaluated per attachment (not org-set intersection) so a group-scoped
+    attachment only counts through an eligible membership.
+    """
     if getattr(project, "is_private", False):
         return str(user.id) == str(project.created_by)
 
@@ -1081,12 +1177,22 @@ def _decide_project_accessible_legacy_mode(
     if not user_with_memberships or not user_with_memberships.organization_memberships:
         return False
 
-    user_org_ids = {
-        m.organization_id
-        for m in user_with_memberships.organization_memberships
-        if m.is_active and _org_grants_full_tier(project, m)
-    }
-    return bool(user_org_ids & set(project_org_ids))
+    is_creator = str(user.id) == str(project.created_by)
+    project_org_id_set = set(project_org_ids)
+    for m in user_with_memberships.organization_memberships:
+        if m.organization_id not in project_org_id_set or not m.is_active:
+            continue
+        group_id = (attachment_groups or {}).get(m.organization_id)
+        if not attachment_eligible(
+            group_id,
+            is_creator=is_creator,
+            membership_role=m.role,
+            user_groups=user_groups,
+        ):
+            continue
+        if _org_grants_full_tier(project, m, group_id, user_groups):
+            return True
+    return False
 
 
 def check_project_accessible(
@@ -1133,66 +1239,41 @@ def check_project_accessible(
     if getattr(project, "is_public", False) is True:
         return True
 
-    # Context-aware mode
-    if org_context is not None:
-        # A user's own private project is always accessible to its creator,
-        # regardless of which org context the request carries. On an org
-        # subdomain the frontend always sends X-Organization-Context: <org id>,
-        # so without this a private project becomes unreadable/unconfigurable
-        # by the very user who created it.
-        if getattr(project, "is_private", False):
-            return str(user.id) == str(project.created_by)
-
-        if org_context == "private":
-            # Creator keeps access to their own org-assigned projects from
-            # the private context (mirrors the async decision helper).
-            return str(user.id) == str(project.created_by)
-
-        # Org mode: project must belong to this specific org
-        # AND user must be an active member of this org
-        project_org_ids = [
-            r.organization_id
-            for r in db.query(ProjectOrganization.organization_id)
-            .filter(ProjectOrganization.project_id == project_id)
-            .all()
-        ]
-        if org_context not in project_org_ids:
-            return False
-
-        user_with_memberships = get_user_with_memberships(db, str(user.id))
-        if not user_with_memberships or not user_with_memberships.organization_memberships:
-            return False
-
-        return any(
-            m.organization_id == org_context
-            and m.is_active
-            and _org_grants_full_tier(project, m)
-            for m in user_with_memberships.organization_memberships
-        )
-
-    # Legacy mode (org_context=None): backward compatibility
+    # Fast-paths that need no org/group reads: a private project and the
+    # private context resolve purely on creatorship (the deciders below
+    # apply the same rule — this just skips three queries on those paths).
     if getattr(project, "is_private", False):
         return str(user.id) == str(project.created_by)
-
-    project_org_ids = [
-        r.organization_id
-        for r in db.query(ProjectOrganization.organization_id)
-        .filter(ProjectOrganization.project_id == project_id)
-        .all()
-    ]
-    if not project_org_ids:
+    if org_context == "private":
         return str(user.id) == str(project.created_by)
 
+    # Both modes now delegate to the pure deciders (same as the async lane)
+    # so the sync/async semantics — including the group-eligibility axis —
+    # cannot drift. The reads stay on the legacy ``db.query`` API for the
+    # mock-based unit tests.
+    attachment_groups = get_attachment_group_map(db, project_id)
+    project_org_ids = list(attachment_groups.keys())
     user_with_memberships = get_user_with_memberships(db, str(user.id))
-    if not user_with_memberships or not user_with_memberships.organization_memberships:
-        return False
+    user_groups = get_user_group_context(db, str(user.id))
 
-    user_org_ids = {
-        m.organization_id
-        for m in user_with_memberships.organization_memberships
-        if m.is_active and _org_grants_full_tier(project, m)
-    }
-    return bool(user_org_ids & set(project_org_ids))
+    if org_context is not None:
+        return _decide_project_accessible_context_mode(
+            user,
+            project,
+            org_context,
+            project_org_ids,
+            user_with_memberships,
+            attachment_groups=attachment_groups,
+            user_groups=user_groups,
+        )
+    return _decide_project_accessible_legacy_mode(
+        user,
+        project,
+        project_org_ids,
+        user_with_memberships,
+        attachment_groups=attachment_groups,
+        user_groups=user_groups,
+    )
 
 
 async def check_project_accessible_async(
@@ -1223,16 +1304,28 @@ async def check_project_accessible_async(
     if getattr(project, "is_public", False) is True:
         return True
 
-    org_result = await db.execute(_build_select_project_org_ids(project_id))
-    project_org_ids = list(org_result.scalars().all())
+    attachment_groups = await get_attachment_group_map_async(db, project_id)
+    project_org_ids = list(attachment_groups.keys())
     user_with_memberships = await get_user_with_memberships_async(db, str(user.id))
+    user_groups = await get_user_group_context_async(db, str(user.id))
 
     if org_context is not None:
         return _decide_project_accessible_context_mode(
-            user, project, org_context, project_org_ids, user_with_memberships
+            user,
+            project,
+            org_context,
+            project_org_ids,
+            user_with_memberships,
+            attachment_groups=attachment_groups,
+            user_groups=user_groups,
         )
     return _decide_project_accessible_legacy_mode(
-        user, project, project_org_ids, user_with_memberships
+        user,
+        project,
+        project_org_ids,
+        user_with_memberships,
+        attachment_groups=attachment_groups,
+        user_groups=user_groups,
     )
 
 
@@ -1356,6 +1449,15 @@ def _build_select_org_exam_participant(user, project_id: str):
                 Project.window_start_at.is_(None),
                 Project.window_start_at <= func.now(),
             ),
+            # Group axis: a group-scoped attachment grants the participant
+            # tier only to that group's members (org admins and the creator
+            # keep it — the same eligibility rule as everywhere else).
+            attachment_group_clause(
+                ProjectOrganization,
+                str(user.id),
+                membership=OrganizationMembership,
+                project=Project,
+            ),
         )
     )
 
@@ -1444,7 +1546,15 @@ def check_user_can_edit_task_data(db: Session, user, project: Project) -> bool:
         )
         .first()
     )
-    return admin_membership is not None
+    if admin_membership is not None:
+        return True
+    # Group admins hold ORG_ADMIN-equivalent powers on projects attached via
+    # their group (the builder is inherently scoped to THIS project's
+    # grouped attachments).
+    return (
+        db.execute(build_select_group_admin_on_attachments(user.id, project.id)).first()
+        is not None
+    )
 
 
 async def check_user_can_edit_task_data_async(db: AsyncSession, user, project: Project) -> bool:
@@ -1462,7 +1572,12 @@ async def check_user_can_edit_task_data_async(db: AsyncSession, user, project: P
     admin_result = await db.execute(
         _build_select_org_admin_membership(user.id, project_org_ids)
     )
-    return admin_result.first() is not None
+    if admin_result.first() is not None:
+        return True
+    group_admin_result = await db.execute(
+        build_select_group_admin_on_attachments(user.id, project.id)
+    )
+    return group_admin_result.first() is not None
 
 
 def check_task_assigned_to_user(
@@ -1581,19 +1696,59 @@ def _build_select_project_org_ids(project_id: str):
     )
 
 
+_ROLE_RANK = {"ORG_ADMIN": 3, "CONTRIBUTOR": 2, "ANNOTATOR": 1}
+
+
+def _role_rank(role) -> int:
+    """Rank an OrganizationRole enum or bare string (str() on a str-enum
+    yields 'OrganizationRole.X', so normalize via .value)."""
+    return _ROLE_RANK.get(str(getattr(role, "value", role)).upper(), 0)
+
+
 def _resolve_effective_role(
-    user, project: Project, user_with_memberships, project_org_ids
+    user,
+    project: Project,
+    user_with_memberships,
+    project_org_ids,
+    *,
+    attachment_groups=None,
+    user_groups=None,
 ) -> Optional[str]:
     """Pure resolution logic shared by the sync/async role helpers.
 
     Takes already-loaded data (no DB access) so both lanes share identical
-    semantics — only the two reads (memberships + project org ids) differ
-    between sync and async.
+    semantics — only the reads (memberships + attachment group map + user
+    group context) differ between sync and async. Group axis: a membership
+    only counts through an ELIGIBLE attachment, and eligibility via a group
+    the user group-admins upgrades that attachment's role to ORG_ADMIN. All
+    memberships are considered and the best eligible role wins — first-match
+    would be membership-order-dependent once ineligible attachments are
+    skipped. Group inputs omitted (None) = every attachment org-wide
+    (pre-groups behavior, kept for legacy callers).
     """
+    best: Optional[str] = None
     if user_with_memberships and user_with_memberships.organization_memberships:
+        is_creator = str(getattr(user, "id", user)) == str(project.created_by)
         for membership in user_with_memberships.organization_memberships:
-            if membership.organization_id in project_org_ids and membership.is_active:
-                return membership.role
+            if membership.organization_id not in project_org_ids or not membership.is_active:
+                continue
+            group_id = (attachment_groups or {}).get(membership.organization_id)
+            if not attachment_eligible(
+                group_id,
+                is_creator=is_creator,
+                membership_role=membership.role,
+                user_groups=user_groups,
+            ):
+                continue
+            role = (
+                "ORG_ADMIN"
+                if group_id is not None and (user_groups or {}).get(group_id, False)
+                else membership.role
+            )
+            if best is None or _role_rank(role) > _role_rank(best):
+                best = role
+    if best is not None:
+        return best
 
     if getattr(project, "is_public", False) is True and getattr(project, "public_role", None):
         return project.public_role
@@ -1631,14 +1786,15 @@ def get_effective_project_role(
         return "ORG_ADMIN"
 
     user_with_memberships = get_user_with_memberships(db, str(user.id))
-    project_org_ids = [
-        r.organization_id
-        for r in db.query(ProjectOrganization.organization_id)
-        .filter(ProjectOrganization.project_id == project.id)
-        .all()
-    ]
+    attachment_groups = get_attachment_group_map(db, str(project.id))
+    user_groups = get_user_group_context(db, str(user.id))
     role = _resolve_effective_role(
-        user, project, user_with_memberships, project_org_ids
+        user,
+        project,
+        user_with_memberships,
+        list(attachment_groups.keys()),
+        attachment_groups=attachment_groups,
+        user_groups=user_groups,
     )
     if role is None and get_student_read_access(db, user, str(project.id)):
         return PARTICIPANT_EFFECTIVE_ROLE
@@ -1655,10 +1811,15 @@ async def get_effective_project_role_async(
         return "ORG_ADMIN"
 
     user_with_memberships = await get_user_with_memberships_async(db, str(user.id))
-    result = await db.execute(_build_select_project_org_ids(project.id))
-    project_org_ids = list(result.scalars().all())
+    attachment_groups = await get_attachment_group_map_async(db, str(project.id))
+    user_groups = await get_user_group_context_async(db, str(user.id))
     role = _resolve_effective_role(
-        user, project, user_with_memberships, project_org_ids
+        user,
+        project,
+        user_with_memberships,
+        list(attachment_groups.keys()),
+        attachment_groups=attachment_groups,
+        user_groups=user_groups,
     )
     if role is None and await get_student_read_access_async(db, user, str(project.id)):
         return PARTICIPANT_EFFECTIVE_ROLE
@@ -1745,7 +1906,14 @@ async def check_user_can_manage_shares_async(db: AsyncSession, user, project: Pr
     admin_result = await db.execute(
         _build_select_org_admin_membership(user.id, project_org_ids)
     )
-    return admin_result.first() is not None
+    if admin_result.first() is not None:
+        return True
+    # Group admins manage share links of their group's projects (chair staff
+    # must run their own exams without holding org-wide admin).
+    group_admin_result = await db.execute(
+        build_select_group_admin_on_attachments(user.id, project.id)
+    )
+    return group_admin_result.first() is not None
 
 
 def check_user_can_manage_shares(db: Session, user, project: Project) -> bool:
@@ -1760,8 +1928,13 @@ def check_user_can_manage_shares(db: Session, user, project: Project) -> bool:
     ]
     if not project_org_ids:
         return str(user.id) == str(project.created_by)
-    return (
+    if (
         db.execute(_build_select_org_admin_membership(user.id, project_org_ids)).first()
+        is not None
+    ):
+        return True
+    return (
+        db.execute(build_select_group_admin_on_attachments(user.id, project.id)).first()
         is not None
     )
 
@@ -1831,7 +2004,7 @@ async def get_participant_project_ids_async(
             OrganizationMembership.user_id == uid,
             OrganizationMembership.is_active == True,  # noqa: E712
             # Lockstep with _build_select_org_exam_participant (decks
-            # included 2026-08-26).
+            # included 2026-08-26, group clause 2026-08-31).
             Project.kind.in_(("exam", "flashcard_collection")),
             Project.is_private == False,  # noqa: E712
             Project.created_by != uid,
@@ -1840,6 +2013,12 @@ async def get_participant_project_ids_async(
             or_(
                 Project.window_start_at.is_(None),
                 Project.window_start_at <= func.now(),
+            ),
+            attachment_group_clause(
+                ProjectOrganization,
+                uid,
+                membership=OrganizationMembership,
+                project=Project,
             ),
         )
     )
@@ -1919,23 +2098,42 @@ def check_user_can_edit_project(
     if project and str(project.created_by) == str(user.id):
         return True
 
-    # Check org role
+    # Check org role — a membership only counts through an ELIGIBLE
+    # attachment (group axis), and eligibility via a group the user
+    # group-admins upgrades that attachment's role to ORG_ADMIN.
     user_with_memberships = get_user_with_memberships(db, str(user.id))
     if user_with_memberships and user_with_memberships.organization_memberships:
-        project_org_ids = [
-            r.organization_id
-            for r in db.query(ProjectOrganization.organization_id)
-            .filter(ProjectOrganization.project_id == project_id)
-            .all()
-        ]
-        for membership in user_with_memberships.organization_memberships:
-            if (
-                membership.organization_id in project_org_ids
-                and membership.is_active
-                and membership.role in allowed_roles
-            ):
-                return True
+        attachment_groups = get_attachment_group_map(db, project_id)
+        user_groups = get_user_group_context(db, str(user.id))
+        return _membership_grants_edit(
+            user_with_memberships.organization_memberships,
+            attachment_groups,
+            user_groups,
+            allowed_roles,
+        )
 
+    return False
+
+
+def _membership_grants_edit(
+    memberships, attachment_groups, user_groups, allowed_roles
+) -> bool:
+    """Pure edit-role loop shared by the sync/async edit-project gates."""
+    for membership in memberships:
+        if membership.organization_id not in attachment_groups or not membership.is_active:
+            continue
+        group_id = attachment_groups[membership.organization_id]
+        if not attachment_eligible(
+            group_id, membership_role=membership.role, user_groups=user_groups
+        ):
+            continue
+        role = (
+            "ORG_ADMIN"
+            if group_id is not None and (user_groups or {}).get(group_id, False)
+            else membership.role
+        )
+        if role in allowed_roles:
+            return True
     return False
 
 
@@ -1959,15 +2157,14 @@ async def check_user_can_edit_project_async(
 
     user_with_memberships = await get_user_with_memberships_async(db, str(user.id))
     if user_with_memberships and user_with_memberships.organization_memberships:
-        org_result = await db.execute(_build_select_project_org_ids(project_id))
-        project_org_ids = list(org_result.scalars().all())
-        for membership in user_with_memberships.organization_memberships:
-            if (
-                membership.organization_id in project_org_ids
-                and membership.is_active
-                and membership.role in allowed_roles
-            ):
-                return True
+        attachment_groups = await get_attachment_group_map_async(db, project_id)
+        user_groups = await get_user_group_context_async(db, str(user.id))
+        return _membership_grants_edit(
+            user_with_memberships.organization_memberships,
+            attachment_groups,
+            user_groups,
+            allowed_roles,
+        )
 
     return False
 

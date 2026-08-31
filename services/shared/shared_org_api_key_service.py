@@ -27,18 +27,26 @@ class OrgApiKeyService:
             return True
         return org.settings.get("require_private_keys", True)
 
-    def _get_org_api_key(self, db: Session, org_id: str, provider: str) -> Optional[str]:
-        """Get decrypted org API key."""
+    def _get_org_api_key(
+        self, db: Session, org_id: str, provider: str, group_id: Optional[str] = None
+    ) -> Optional[str]:
+        """Get decrypted org API key for one scope.
+
+        ``group_id`` None = the org-wide key row. The predicate is always
+        explicit — a bare (org, provider) filter would silently mix org-wide
+        and group-scoped rows once groups exist.
+        """
         from models import OrganizationApiKey
 
-        record = (
-            db.query(OrganizationApiKey)
-            .filter(
-                OrganizationApiKey.organization_id == org_id,
-                OrganizationApiKey.provider == provider.lower(),
-            )
-            .first()
+        query = db.query(OrganizationApiKey).filter(
+            OrganizationApiKey.organization_id == org_id,
+            OrganizationApiKey.provider == provider.lower(),
         )
+        if group_id:
+            query = query.filter(OrganizationApiKey.group_id == str(group_id))
+        else:
+            query = query.filter(OrganizationApiKey.group_id.is_(None))
+        record = query.first()
         if not record:
             return None
         return self.encryption_service.decrypt_api_key(record.encrypted_key)
@@ -86,6 +94,7 @@ class OrgApiKeyService:
         provider: str,
         *,
         org_billing_authorized: bool = False,
+        project_id: Optional[str] = None,
     ) -> Optional[str]:
         """
         Resolve which API key to use based on context.
@@ -102,6 +111,15 @@ class OrgApiKeyService:
         worker recompute) — never from HTTP or task-payload input. It
         bypasses only the membership gate, never the require_private_keys
         check: an org that requires private keys is never charged.
+
+        ``project_id`` selects WHICH org key row is spent: when the
+        project's attachment to ``org_id`` is scoped to an organization
+        group, that group's key is tried first, falling back to the org-wide
+        row (a group without its own key spends the org's shared pool, never
+        another group's). The key follows the PROJECT's attachment, not the
+        dispatching user's groups — an org admin grading a group exam spends
+        that group's key. Callers that omit ``project_id`` resolve the
+        org-wide row only.
         """
         from user_api_key_service import user_api_key_service
 
@@ -122,7 +140,16 @@ class OrgApiKeyService:
                 org_id,
             )
             return user_api_key_service.get_user_api_key(db, user_id, provider)
-        # Org pays - use org key only (None if not set = provider unavailable)
+        # Org pays - use org key only (None if not set = provider unavailable).
+        # Group-scoped projects spend their group's key first.
+        if project_id:
+            from org_groups import resolve_project_group_for_org
+
+            group_id = resolve_project_group_for_org(db, project_id, org_id)
+            if group_id:
+                group_key = self._get_org_api_key(db, org_id, provider, group_id)
+                if group_key is not None:
+                    return group_key
         return self._get_org_api_key(db, org_id, provider)
 
 

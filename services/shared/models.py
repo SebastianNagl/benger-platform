@@ -383,6 +383,7 @@ class Organization(Base):
 
     # Relationships
     memberships = relationship("OrganizationMembership", back_populates="organization")
+    groups = relationship("OrganizationGroup", back_populates="organization")
     invitations = relationship("Invitation", back_populates="organization")
     task_templates = relationship("TaskTemplate", back_populates="organization")
     # tasks relationship now handled via many-to-many backref
@@ -417,8 +418,94 @@ class OrganizationMembership(Base):
         return f"<OrganizationMembership(user_id={self.user_id}, org_id={self.organization_id}, role={self.role})>"
 
 
+class OrganizationGroup(Base):
+    """A named sub-unit of an organization (e.g. a chair / Lehrstuhl).
+
+    Groups partition project visibility and provider API keys INSIDE an org:
+    a ``project_organizations`` row or ``organization_api_keys`` row carrying
+    a ``group_id`` is scoped to that group's members (org admins and
+    superadmins always see through group boundaries). Everything group-related
+    is opt-in — a NULL ``group_id`` anywhere means "whole org", so orgs
+    without groups behave exactly as before this table existed.
+    """
+
+    __tablename__ = "organization_groups"
+
+    id = Column(String, primary_key=True, index=True)
+    organization_id = Column(
+        String, ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    organization = relationship("Organization", back_populates="groups")
+    memberships = relationship("OrganizationGroupMembership", back_populates="group")
+
+    __table_args__ = (
+        sa.UniqueConstraint("organization_id", "name", name="uq_org_group_name"),
+        # Target for the composite FKs on project_organizations /
+        # organization_api_keys — lets the DB itself guarantee a group can
+        # only ever scope rows of its own org.
+        sa.UniqueConstraint("organization_id", "id", name="uq_org_group_org_scope"),
+    )
+
+    def __repr__(self):
+        return f"<OrganizationGroup(id={self.id}, org_id={self.organization_id}, name={self.name})>"
+
+
+class OrganizationGroupMembership(Base):
+    """A user's membership in an organization group.
+
+    Orthogonal to the org-level role: the ``organization_memberships.role``
+    stays the capability axis (ORG_ADMIN/CONTRIBUTOR/ANNOTATOR), while group
+    membership is the visibility axis. ``is_group_admin`` grants
+    ORG_ADMIN-equivalent powers scoped to projects attached via this group,
+    plus group member/key management — never org-wide powers.
+    """
+
+    __tablename__ = "organization_group_memberships"
+
+    id = Column(String, primary_key=True, index=True)
+    group_id = Column(
+        String, ForeignKey("organization_groups.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    user_id = Column(
+        String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    is_group_admin = Column(Boolean, default=False, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    group = relationship("OrganizationGroup", back_populates="memberships")
+    user = relationship("User")
+
+    __table_args__ = (
+        sa.UniqueConstraint("group_id", "user_id", name="uq_group_membership"),
+    )
+
+    def __repr__(self):
+        return (
+            f"<OrganizationGroupMembership(group_id={self.group_id}, "
+            f"user_id={self.user_id}, is_group_admin={self.is_group_admin})>"
+        )
+
+
 class OrganizationApiKey(Base):
-    """Encrypted API keys stored at the organization level (Issue #1180)"""
+    """Encrypted API keys stored at the organization level (Issue #1180).
+
+    ``group_id`` NULL = the org-wide key pool (pre-groups behavior). A row
+    with ``group_id`` set belongs to that group: it is only spent for
+    projects attached via that group (key resolution follows the project's
+    attachment, not the dispatching user), and only group admins / org
+    admins manage it. Every query against this table MUST carry an explicit
+    ``group_id`` predicate — a bare ``(organization_id, provider)`` filter
+    silently mixes org-wide and group rows.
+    """
 
     __tablename__ = "organization_api_keys"
 
@@ -427,6 +514,9 @@ class OrganizationApiKey(Base):
         String, ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True
     )
     provider = Column(String, nullable=False)
+    # Composite FK with organization_id (see __table_args__) so a key can
+    # only ever be scoped to a group of its own org.
+    group_id = Column(String, nullable=True, index=True)
     encrypted_key = Column(Text, nullable=False)
     created_by = Column(String, ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
@@ -434,9 +524,40 @@ class OrganizationApiKey(Base):
 
     # Relationships
     organization = relationship("Organization")
+    group = relationship(
+        "OrganizationGroup",
+        primaryjoin="foreign(OrganizationApiKey.group_id) == OrganizationGroup.id",
+        viewonly=True,
+    )
 
     __table_args__ = (
-        sa.UniqueConstraint("organization_id", "provider", name="unique_org_provider_key"),
+        # A key's group must belong to the key's org (MATCH SIMPLE: rows
+        # with group_id NULL are unconstrained). CASCADE: group keys die
+        # with their group — SET NULL would silently promote them org-wide.
+        sa.ForeignKeyConstraint(
+            ["organization_id", "group_id"],
+            ["organization_groups.organization_id", "organization_groups.id"],
+            name="fk_organization_api_keys_group_scope",
+            ondelete="CASCADE",
+        ),
+        # One org-wide key per (org, provider) plus one per (org, provider,
+        # group) — split into two partial uniques because NULLs are distinct
+        # to a plain unique constraint (pattern: TaskAssignment's pair).
+        sa.Index(
+            "uq_org_provider_key_orgwide",
+            "organization_id",
+            "provider",
+            unique=True,
+            postgresql_where=sa.text("group_id IS NULL"),
+        ),
+        sa.Index(
+            "uq_org_provider_key_group",
+            "organization_id",
+            "provider",
+            "group_id",
+            unique=True,
+            postgresql_where=sa.text("group_id IS NOT NULL"),
+        ),
     )
 
     def __repr__(self):
@@ -759,6 +880,15 @@ class LtiPlatformRegistration(Base):
     student_org_role = Column(
         String(32), nullable=False, default="annotator", server_default="annotator"
     )
+    # Optional group scope (org → group → user layer): a group-scoped
+    # registration provisions launched users INTO that group and links
+    # launched projects with the group's visibility — a chair's Moodle
+    # never leaks into the rest of the university org. NULL = org-wide
+    # (pre-groups behavior). Composite FK (see __table_args__) keeps the
+    # group inside the registration's org; deliberately NO ondelete so a
+    # group with live LMS wiring cannot be deleted (mirrors the org-level
+    # RESTRICT above — the groups router 409s first).
+    group_id = Column(String, nullable=True, index=True)
     # active | disabled
     status = Column(
         String(16), nullable=False, default="active", server_default="active", index=True
@@ -782,6 +912,11 @@ class LtiPlatformRegistration(Base):
         CheckConstraint(
             "lms_family IN ('moodle', 'ilias')",
             name="ck_lti_platform_registrations_lms_family",
+        ),
+        sa.ForeignKeyConstraint(
+            ["organization_id", "group_id"],
+            ["organization_groups.organization_id", "organization_groups.id"],
+            name="fk_lti_platform_registrations_group_scope",
         ),
     )
 
@@ -998,6 +1133,16 @@ class LtiRegistrationInvite(Base):
         nullable=False,
         index=True,
     )
+    # Optional group scope carried into the auto-created registration (a
+    # chair's one-link Moodle onboarding). SET NULL: a deleted group
+    # degrades the pending invite to org-wide — invites are ephemera, and
+    # the resulting registration is reviewed before activation anyway.
+    group_id = Column(
+        String,
+        ForeignKey("organization_groups.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
     # sha256 hex digest of the raw invite token; the raw token is never stored.
     token_hash = Column(String(64), nullable=False, unique=True, index=True)
     created_by = Column(
@@ -1028,6 +1173,15 @@ class Invitation(Base):
     organization_id = Column(String, ForeignKey("organizations.id"), nullable=False)
     email = Column(String, nullable=False)
     role = Column(SQLEnum(OrganizationRole), nullable=False)
+    # Optional group scope: accepting also joins this group. SET NULL on group
+    # deletion degrades the pending invite to a plain org invite.
+    group_id = Column(
+        String,
+        ForeignKey("organization_groups.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    invited_as_group_admin = Column(Boolean, default=False, nullable=False)
     token = Column(String, unique=True, index=True, nullable=False)  # Secure invitation token
     invited_by = Column(String, ForeignKey("users.id"), nullable=False)
     expires_at = Column(DateTime(timezone=True), nullable=False)
@@ -1040,6 +1194,7 @@ class Invitation(Base):
 
     # Relationships
     organization = relationship("Organization", back_populates="invitations")
+    group = relationship("OrganizationGroup")
     inviter = relationship("User", back_populates="sent_invitations", foreign_keys=[invited_by])
     pending_user = relationship("User", foreign_keys=[pending_user_id])
 

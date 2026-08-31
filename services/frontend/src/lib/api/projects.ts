@@ -206,7 +206,9 @@ export const projectsAPI = {
    *
    * Payload shapes accepted by the backend:
    * - { is_private: true, owner_user_id?: string }
-   * - { is_private: false, organization_ids: string[] }
+   * - { is_private: false, organization_ids: string[] } (legacy: all org-wide)
+   * - { is_private: false, organization_attachments: [{ organization_id, group_id }] }
+   *   (group_id null = org-wide, set = scoped to that organization group)
    * - { is_public: true, public_role: 'ANNOTATOR' | 'CONTRIBUTOR' }
    * - { public_role: 'ANNOTATOR' | 'CONTRIBUTOR' } (flip role on already-public)
    */
@@ -215,6 +217,13 @@ export const projectsAPI = {
     payload:
       | { is_private: true; owner_user_id?: string }
       | { is_private: false; organization_ids: string[] }
+      | {
+          is_private: false
+          organization_attachments: Array<{
+            organization_id: string
+            group_id: string | null
+          }>
+        }
       | { is_public: true; public_role: 'ANNOTATOR' | 'CONTRIBUTOR' }
       | { public_role: 'ANNOTATOR' | 'CONTRIBUTOR' }
   ): Promise<Project> => {

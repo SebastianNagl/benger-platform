@@ -39,6 +39,7 @@ def _build_ai_service(
     ai_service._provider_name = provider_name
     ai_service._invocation_user_id = invocation_user_id
     ai_service._invocation_organization_id = invocation_organization_id
+    ai_service._invocation_project_id = None
 
     def _generate(**kwargs):
         return {

@@ -69,6 +69,30 @@ async def list_organization_members(
         )
     ).all()
 
+    # Group chips: one joined query over this org's groups.
+    from models import OrganizationGroup, OrganizationGroupMembership
+
+    group_rows = (
+        await db.execute(
+            select(
+                OrganizationGroupMembership.user_id,
+                OrganizationGroup.id,
+                OrganizationGroup.name,
+                OrganizationGroupMembership.is_group_admin,
+            )
+            .join(
+                OrganizationGroup,
+                OrganizationGroup.id == OrganizationGroupMembership.group_id,
+            )
+            .where(OrganizationGroup.organization_id == organization_id)
+        )
+    ).all()
+    groups_by_user: dict = {}
+    for user_id, gid, gname, is_admin in group_rows:
+        groups_by_user.setdefault(user_id, []).append(
+            MemberGroupInfo(id=gid, name=gname, is_group_admin=bool(is_admin))
+        )
+
     result = []
     for membership, user in members:
         member_dict = membership.__dict__.copy()
@@ -76,6 +100,7 @@ async def list_organization_members(
         member_dict["user_email"] = user.email
         member_dict["email_verified"] = user.email_verified
         member_dict["email_verification_method"] = user.email_verification_method
+        member_dict["groups"] = groups_by_user.get(membership.user_id, [])
         result.append(OrganizationMemberResponse(**member_dict))
 
     return result

@@ -246,9 +246,13 @@ class TestListMembersSuccess:
         user_mock.email_verified = True
         user_mock.email_verification_method = "link"
 
-        # Superadmin path: single ``await db.execute(...).all()`` yielding
-        # (membership, user) row tuples.
-        db = _async_db([_result(all_=[(member_mock, user_mock)])])
+        # Superadmin path: ``await db.execute(...).all()`` yielding
+        # (membership, user) row tuples, then the group-chips query
+        # (user_id, group_id, group_name, is_group_admin).
+        db = _async_db([
+            _result(all_=[(member_mock, user_mock)]),
+            _result(all_=[("user-1", "grp-1", "LS A", True)]),
+        ])
 
         result = await list_organization_members(
             organization_id="org-1", current_user=user, db=db,

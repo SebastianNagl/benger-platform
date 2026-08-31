@@ -1910,6 +1910,7 @@ def run_evaluation(
                                     score_scale=params.get("score_scale", "1-5"),
                                     organization_id=organization_id,
                                     seed=judge_seed,
+                                    project_id=project_id,
                                 )
                                 e2e_test_mode = os.environ.get("E2E_TEST_MODE") == "true"
                                 if not (evaluator.ai_service or e2e_test_mode):
@@ -3121,6 +3122,7 @@ def _reconstruct_judge_evaluators_for_cell(
     triggered_by_user_id: str,
     organization_id: Optional[str],
     db,
+    project_id: Optional[str] = None,
 ) -> tuple:
     """Per-sub-task reconstruction of LLMJudgeEvaluator instances.
 
@@ -3168,6 +3170,7 @@ def _reconstruct_judge_evaluators_for_cell(
                     db=db,
                     user_id=triggered_by_user_id,
                     organization_id=organization_id,
+                    project_id=project_id,
                     **construct_kwargs,
                 )
             except Exception as init_err:

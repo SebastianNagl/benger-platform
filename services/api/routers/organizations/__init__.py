@@ -17,6 +17,7 @@ re-exported here so that ``from routers.organizations import X`` and
 from ._common import (  # noqa: F401
     router,
     can_create_organization,
+    can_manage_group,
     can_manage_organization,
     OrganizationBase,
     OrganizationCreate,
@@ -31,6 +32,7 @@ from ._common import (  # noqa: F401
 from . import crud  # noqa: E402,F401
 from . import members  # noqa: E402,F401
 from . import manage  # noqa: E402,F401
+from . import groups  # noqa: E402,F401
 
 # Re-export handlers + schemas defined in the concern modules so that existing
 # ``from routers.organizations import <name>`` imports keep working.
@@ -59,4 +61,20 @@ from .manage import (  # noqa: E402,F401
     delete_user,
     UserResponse,
     UserSuperadminUpdate,
+)
+from .groups import (  # noqa: E402,F401
+    list_organization_groups,
+    create_organization_group,
+    update_organization_group,
+    delete_organization_group,
+    list_group_members,
+    add_group_member,
+    update_group_member,
+    remove_group_member,
+    GroupCreate,
+    GroupUpdate,
+    GroupResponse,
+    GroupMemberResponse,
+    GroupMemberUpsert,
+    GroupMemberUpdate,
 )

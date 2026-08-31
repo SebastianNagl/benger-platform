@@ -484,11 +484,11 @@ class TestAuthorizationOrgContextMode:
 
         svc = AuthorizationService()
         user = Mock(is_superadmin=False, id="user-1")
-        project = Mock(id="proj-1", is_private=False, created_by="other")
+        project = Mock(id="proj-1", deleted_at=None, is_private=False, created_by="other")
         db = Mock()
 
         # Project has no org matching org_context
-        db.query.return_value.filter.return_value.all.return_value = [("org-other",)]
+        db.query.return_value.filter.return_value.all.return_value = [("org-other", None)]
 
         result = svc.check_project_access(
             user, project, Permission.PROJECT_VIEW, db, org_context="org-123"
@@ -500,11 +500,11 @@ class TestAuthorizationOrgContextMode:
 
         svc = AuthorizationService()
         user = Mock(is_superadmin=False, id="user-1")
-        project = Mock(id="proj-1", is_private=False, created_by="other")
+        project = Mock(id="proj-1", deleted_at=None, is_private=False, created_by="other")
         db = Mock()
 
         # Project belongs to org-123
-        db.query.return_value.filter.return_value.all.return_value = [("org-123",)]
+        db.query.return_value.filter.return_value.all.return_value = [("org-123", None)]
 
         # User has no memberships
         with patch.object(svc, "_get_user_org_memberships", return_value=[]):
@@ -518,11 +518,11 @@ class TestAuthorizationOrgContextMode:
 
         svc = AuthorizationService()
         user = Mock(is_superadmin=False, id="user-1")
-        project = Mock(id="proj-1", is_private=False, created_by="other")
+        project = Mock(id="proj-1", deleted_at=None, is_private=False, created_by="other")
         db = Mock()
 
         # Project belongs to org-123
-        db.query.return_value.filter.return_value.all.return_value = [("org-123",)]
+        db.query.return_value.filter.return_value.all.return_value = [("org-123", None)]
 
         # User is active org_admin
         membership = Mock(organization_id="org-123", is_active=True, role="org_admin")
@@ -537,10 +537,10 @@ class TestAuthorizationOrgContextMode:
 
         svc = AuthorizationService()
         user = Mock(is_superadmin=False, id="user-1")
-        project = Mock(id="proj-1", is_private=False, created_by="other")
+        project = Mock(id="proj-1", deleted_at=None, is_private=False, created_by="other")
         db = Mock()
 
-        db.query.return_value.filter.return_value.all.return_value = [("org-123",)]
+        db.query.return_value.filter.return_value.all.return_value = [("org-123", None)]
 
         # User membership is inactive
         membership = Mock(organization_id="org-123", is_active=False, role="org_admin")
@@ -560,7 +560,7 @@ class TestAuthorizationLegacyOrgMembership:
 
         svc = AuthorizationService()
         user = Mock(is_superadmin=False, id="user-1")
-        project = Mock(id="proj-1", is_private=False, created_by="user-1")
+        project = Mock(id="proj-1", deleted_at=None, is_private=False, created_by="user-1")
         db = Mock()
 
         # Project not in any org
@@ -576,11 +576,11 @@ class TestAuthorizationLegacyOrgMembership:
 
         svc = AuthorizationService()
         user = Mock(is_superadmin=False, id="user-2")
-        project = Mock(id="proj-1", is_private=False, created_by="user-1")
+        project = Mock(id="proj-1", deleted_at=None, is_private=False, created_by="user-1")
         db = Mock()
 
         # Project in org-1
-        db.query.return_value.filter.return_value.all.return_value = [("org-1",)]
+        db.query.return_value.filter.return_value.all.return_value = [("org-1", None)]
 
         # User is contributor in org-1
         membership = Mock(organization_id="org-1", role="contributor")
@@ -595,11 +595,11 @@ class TestAuthorizationLegacyOrgMembership:
 
         svc = AuthorizationService()
         user = Mock(is_superadmin=False, id="user-2")
-        project = Mock(id="proj-1", is_private=False, created_by="user-1")
+        project = Mock(id="proj-1", deleted_at=None, is_private=False, created_by="user-1")
         db = Mock()
 
         # Project in org-1
-        db.query.return_value.filter.return_value.all.return_value = [("org-1",)]
+        db.query.return_value.filter.return_value.all.return_value = [("org-1", None)]
 
         # User in different org
         membership = Mock(organization_id="org-2", role="org_admin")
@@ -614,7 +614,7 @@ class TestAuthorizationLegacyOrgMembership:
 
         svc = AuthorizationService()
         user = Mock(is_superadmin=False, id="user-2")
-        project = Mock(id="proj-1", is_private=False, created_by="user-1")
+        project = Mock(id="proj-1", deleted_at=None, is_private=False, created_by="user-1")
         db = Mock()
 
         db.query.return_value.filter.return_value.all.return_value = []

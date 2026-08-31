@@ -108,12 +108,16 @@ class AuthorizationService:
         org_context: Optional[str],
         project_org_ids: List[str],
         memberships,
+        attachment_groups=None,
+        user_groups=None,
     ) -> bool:
         """Pure access decision shared by the sync/async entry points.
 
         Takes already-loaded data (project org ids + the user's memberships) so
-        both lanes run byte-identical decision logic; only the two reads differ
-        between sync and async.
+        both lanes run byte-identical decision logic; only the reads differ
+        between sync and async. ``attachment_groups`` ({org_id: group_id|None})
+        and ``user_groups`` ({group_id: is_group_admin}) carry the group axis
+        (see shared/org_groups); omitted, every attachment counts as org-wide.
         """
         # Superadmins have all permissions
         if user.is_superadmin:
@@ -159,7 +163,22 @@ class AuthorizationService:
             )
             if not membership:
                 return False
-            return self._check_org_role_permission(membership.role, permission)
+            from org_groups import attachment_eligible
+
+            group_id = (attachment_groups or {}).get(org_context)
+            if not attachment_eligible(
+                group_id,
+                is_creator=user.id == project.created_by,
+                membership_role=membership.role,
+                user_groups=user_groups,
+            ):
+                return False
+            role = (
+                "ORG_ADMIN"
+                if group_id is not None and (user_groups or {}).get(group_id, False)
+                else membership.role
+            )
+            return self._check_org_role_permission(role, permission)
 
         # Legacy mode (org_context=None): backward compatibility
         if getattr(project, 'is_private', False):
@@ -174,6 +193,8 @@ class AuthorizationService:
                 return True
 
         if project_org_ids:
+            from org_groups import attachment_eligible
+
             user_org_ids = [m.organization_id for m in memberships]
             for org_id in project_org_ids:
                 if org_id in user_org_ids:
@@ -182,7 +203,25 @@ class AuthorizationService:
                         None,
                     )
                     if membership:
-                        return self._check_org_role_permission(membership.role, permission)
+                        # Group axis: an ineligible grouped attachment is
+                        # skipped (the next attachment may still grant);
+                        # eligibility via a group the user group-admins
+                        # upgrades that attachment's role to ORG_ADMIN.
+                        group_id = (attachment_groups or {}).get(org_id)
+                        if not attachment_eligible(
+                            group_id,
+                            is_creator=user.id == project.created_by,
+                            membership_role=membership.role,
+                            user_groups=user_groups,
+                        ):
+                            continue
+                        role = (
+                            "ORG_ADMIN"
+                            if group_id is not None
+                            and (user_groups or {}).get(group_id, False)
+                            else membership.role
+                        )
+                        return self._check_org_role_permission(role, permission)
 
         return False
 
@@ -212,10 +251,10 @@ class AuthorizationService:
         if user.is_superadmin:
             return True
 
-        # Public projects: dedicated path that ignores org_context.
-        # Creator gets full ORG_ADMIN-equivalent permissions; visitors get
-        # the project's public_role permissions, capped so settings-edit
-        # (PROJECT_EDIT/DELETE/CREATE) is never granted via the public path.
+        # Zero-DB fast-paths (mirrored inside the decider, kept here so the
+        # deleted/public/private shapes resolve without loading memberships):
+        if getattr(project, "deleted_at", None) is not None:
+            return False
         if getattr(project, 'is_public', False) is True:
             if user.id == project.created_by:
                 return self._check_org_role_permission("ORG_ADMIN", permission)
@@ -229,74 +268,38 @@ class AuthorizationService:
             if public_role:
                 return self._check_org_role_permission(public_role, permission)
             return False
-
-        # Context-aware mode
-        if org_context is not None:
-            if org_context == "private":
-                # Private mode: creator keeps access to their own projects,
-                # including org-assigned ones (mirrors _decide_project_access).
-                return user.id == project.created_by
-
-            # Org mode: project must belong to this specific org
-            from project_models import ProjectOrganization
-
-            project_orgs = (
-                db.query(ProjectOrganization.organization_id)
-                .filter(ProjectOrganization.project_id == project.id)
-                .all()
-            )
-            project_org_ids = [org[0] for org in project_orgs] if project_orgs else []
-
-            if org_context not in project_org_ids:
-                return False
-
-            # User must be a member of this specific org with the right role
-            memberships = self._get_user_org_memberships(user, db)
-            membership = next(
-                (m for m in memberships if m.organization_id == org_context and m.is_active),
-                None,
-            )
-            if not membership:
-                return False
-            return self._check_org_role_permission(membership.role, permission)
-
-        # Legacy mode (org_context=None): backward compatibility
-        # Private projects: only creator can access
         if getattr(project, 'is_private', False):
             return user.id == project.created_by
+        if org_context == "private":
+            return user.id == project.created_by
+        if org_context is None and user.id == project.created_by and permission in (
+            Permission.PROJECT_VIEW,
+            Permission.PROJECT_EDIT,
+            Permission.PROJECT_DELETE,
+        ):
+            # Legacy-mode creator fast-path (identical branch inside the
+            # decider) — kept zero-DB like the pre-refactor inline code.
+            return True
 
-        # Check if user is project creator for edit/delete permissions
-        if user.id == project.created_by:
-            if permission in [
-                Permission.PROJECT_VIEW,
-                Permission.PROJECT_EDIT,
-                Permission.PROJECT_DELETE,
-            ]:
-                return True
+        # Load-then-delegate to the shared pure decider (same as the async
+        # lane) so the sync/async ORG semantics — including the group axis
+        # and the soft-delete guard the old inline copy was missing — cannot
+        # drift. This used to be a third inline copy of the decision logic.
+        from org_groups import get_attachment_group_map, get_user_group_context
 
-        # Check organization membership
-        from project_models import ProjectOrganization
-
-        project_orgs = (
-            db.query(ProjectOrganization.organization_id)
-            .filter(ProjectOrganization.project_id == project.id)
-            .all()
+        attachment_groups = get_attachment_group_map(db, str(project.id))
+        memberships = self._get_user_org_memberships(user, db)
+        user_groups = get_user_group_context(db, str(user.id))
+        return self._decide_project_access(
+            user,
+            project,
+            permission,
+            org_context,
+            list(attachment_groups.keys()),
+            memberships,
+            attachment_groups=attachment_groups,
+            user_groups=user_groups,
         )
-        project_org_ids = [org[0] for org in project_orgs] if project_orgs else []
-
-        if project_org_ids:
-            memberships = self._get_user_org_memberships(user, db)
-            user_org_ids = [m.organization_id for m in memberships]
-            for org_id in project_org_ids:
-                if org_id in user_org_ids:
-                    membership = next(
-                        (m for m in memberships if m.organization_id == org_id),
-                        None,
-                    )
-                    if membership:
-                        return self._check_org_role_permission(membership.role, permission)
-
-        return False
 
     async def check_project_access_async(
         self,
@@ -321,17 +324,23 @@ class AuthorizationService:
         if getattr(project, "deleted_at", None) is not None:
             return False
 
-        from project_models import ProjectOrganization
-
-        org_result = await db.execute(
-            select(ProjectOrganization.organization_id).where(
-                ProjectOrganization.project_id == project.id
-            )
+        from org_groups import (
+            get_attachment_group_map_async,
+            get_user_group_context_async,
         )
-        project_org_ids = list(org_result.scalars().all())
+
+        attachment_groups = await get_attachment_group_map_async(db, str(project.id))
         memberships = await self._get_user_org_memberships_async(user, db)
+        user_groups = await get_user_group_context_async(db, str(user.id))
         return self._decide_project_access(
-            user, project, permission, org_context, project_org_ids, memberships
+            user,
+            project,
+            permission,
+            org_context,
+            list(attachment_groups.keys()),
+            memberships,
+            attachment_groups=attachment_groups,
+            user_groups=user_groups,
         )
 
     def check_organization_access(

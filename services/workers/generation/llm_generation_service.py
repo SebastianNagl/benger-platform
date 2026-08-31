@@ -455,7 +455,8 @@ def generate_llm_responses_impl(
             # row + the invoking user's per-model credential.
             try:
                 ai_service = tasks.user_aware_ai_service.get_ai_service_for_model_row(
-                    db, user_id, model, organization_id=organization_id
+                    db, user_id, model, organization_id=organization_id,
+                    project_id=project_id,
                 )
                 # Read the actual resolution route off the service so the log
                 # reflects which key path the resolver took, not just whether
@@ -1127,6 +1128,7 @@ def generate_llm_responses_impl(
                                 "provider_name": getattr(ai_service, "_provider_name", None),
                                 "invocation_user_id": getattr(ai_service, "_invocation_user_id", None),
                                 "invocation_organization_id": getattr(ai_service, "_invocation_organization_id", None),
+                                "invocation_project_id": getattr(ai_service, "_invocation_project_id", None),
                             }
                             tasks.logger.info(
                                 f"✅ Using response_text format, content length: {len(response_text)}"
@@ -1156,6 +1158,7 @@ def generate_llm_responses_impl(
                                 "provider_name": getattr(ai_service, "_provider_name", None),
                                 "invocation_user_id": getattr(ai_service, "_invocation_user_id", None),
                                 "invocation_organization_id": getattr(ai_service, "_invocation_organization_id", None),
+                                "invocation_project_id": getattr(ai_service, "_invocation_project_id", None),
                             }
                             tasks.logger.info(
                                 f"✅ Using content format, content length: {len(response_text)}"

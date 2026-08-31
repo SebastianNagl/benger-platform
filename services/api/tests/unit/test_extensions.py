@@ -78,7 +78,9 @@ class TestExtensionLoader:
         # (get_project_access_tier, check_user_can_manage_shares).
         # 2.10 adds org_resolution + project_consumers + the
         # org_billing_authorized consumer-inheritance flag.
-        assert CORE_API_VERSION == "2.10"
+        # 2.11 adds organization groups (shared/org_groups,
+        # ProjectOrganization.group_id, group-scoped org API keys).
+        assert CORE_API_VERSION == "2.11"
 
     def test_tasks_with_feedback_for_user_empty_without_package(self):
         """Community edition: no human-feedback workflow -> empty set."""

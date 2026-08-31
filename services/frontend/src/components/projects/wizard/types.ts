@@ -83,6 +83,9 @@ export interface WizardData {
   // override the X-Organization-Context header (e.g. when wizard is opened
   // on a no-org subdomain and they want to publish into a specific org).
   organizationIds: string[]
+  // Optional group scope per selected org (org id -> group id, or null for
+  // the whole organization). Orgs without an entry default to org-wide.
+  organizationGroupIds: Record<string, string | null>
 
   // Labeling Setup (if annotation)
   labelingConfig: LabelingTemplate | null
@@ -153,6 +156,7 @@ export const INITIAL_WIZARD_DATA: WizardData = {
   visibility: 'private',
   publicRole: 'ANNOTATOR',
   organizationIds: [],
+  organizationGroupIds: {},
   labelingConfig: null,
   instructions: '',
   conditionalInstructions: [],

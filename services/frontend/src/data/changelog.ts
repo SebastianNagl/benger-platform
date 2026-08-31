@@ -7,6 +7,14 @@ import type { ChangelogEntry } from '@/lib/extensions/changelog'
  */
 export const PLATFORM_CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-09-01',
+    audience: 'benger',
+    text: {
+      de: 'Organisationen können Mitglieder, Projekte und API-Schlüssel jetzt in Gruppen (z.B. Lehrstühle) aufteilen — Gruppen sehen nur ihre eigenen Projekte und nutzen ihre eigenen Schlüssel; Gruppen-Admins verwalten ihre Gruppe selbst.',
+      en: 'Organizations can now split members, projects, and API keys into groups (e.g. chairs) — groups only see their own projects and spend their own keys; group admins manage their group themselves.',
+    },
+  },
+  {
     date: '2026-08-31',
     audience: 'benger',
     text: {

@@ -43,6 +43,11 @@ class LtiRegistrationCreate(BaseModel):
         "contributor", pattern=INSTRUCTOR_ORG_ROLE_PATTERN
     )
     student_org_role: str = Field("annotator", pattern=STUDENT_ORG_ROLE_PATTERN)
+    # Optional group scope (org → group → user layer): a group-scoped
+    # registration provisions launched users into the group and links
+    # launched projects with the group's visibility. Must reference an
+    # active group of the registration's org.
+    group_id: Optional[str] = None
     deployment_ids: List[str] = Field(default_factory=list)
 
     @field_validator("issuer", "auth_login_url", "auth_token_url", "jwks_uri")
@@ -67,6 +72,7 @@ class LtiRegistrationUpdate(BaseModel):
         None, pattern=INSTRUCTOR_ORG_ROLE_PATTERN
     )
     student_org_role: Optional[str] = Field(None, pattern=STUDENT_ORG_ROLE_PATTERN)
+    group_id: Optional[str] = None
     status: Optional[str] = Field(None, pattern=REGISTRATION_STATUS_PATTERN)
 
     @field_validator("issuer", "auth_login_url", "auth_token_url", "jwks_uri")
@@ -111,6 +117,7 @@ class LtiRegistrationRead(BaseModel):
     link_existing_users_by_email: bool
     instructor_org_role: str
     student_org_role: str
+    group_id: Optional[str] = None
     status: str
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
@@ -209,6 +216,8 @@ class LtiRegistrationInviteCreate(BaseModel):
     """Body for minting a one-time LTI Dynamic Registration invite."""
 
     organization_id: str
+    # Optional group scope carried into the auto-created registration.
+    group_id: Optional[str] = None
     expires_in_days: int = Field(14, ge=1, le=90)
 
 
@@ -218,6 +227,7 @@ class LtiRegistrationInviteCreated(BaseModel):
 
     id: str
     organization_id: str
+    group_id: Optional[str] = None
     token: str
     register_url: str
     expires_at: datetime
@@ -232,6 +242,7 @@ class LtiRegistrationInviteRead(BaseModel):
 
     id: str
     organization_id: str
+    group_id: Optional[str] = None
     created_at: Optional[datetime] = None
     expires_at: datetime
     used_at: Optional[datetime] = None

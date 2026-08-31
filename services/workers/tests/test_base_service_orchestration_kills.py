@@ -327,6 +327,7 @@ class TestGetInvocationProvenance:
         svc._provider_name = "openai"
         svc._invocation_user_id = "user-123"
         svc._invocation_organization_id = "org-456"
+        svc._invocation_project_id = None
 
         prov = svc.get_invocation_provenance()
         assert prov["provider_route"] == "org_key"

@@ -10,6 +10,7 @@ from auth_module import require_user
 from auth_module.models import User as AuthUser
 from database import get_async_db
 from models import OrganizationMembership, User
+from org_groups import group_member_fan_in_clause
 from project_models import Annotation, ProjectMember, ProjectOrganization
 from routers.projects.deps import ProjectAccess, require_project_access
 
@@ -36,29 +37,26 @@ async def list_project_members(
     )
     direct_members = direct_result.scalars().unique().all()
 
-    # Get organization IDs assigned to the project
-    org_ids_result = await db.execute(
-        select(ProjectOrganization.organization_id).where(
-            ProjectOrganization.project_id == project_id
+    # Get members from project organizations only. Grouped attachments
+    # narrow the fan-in to the group's members + the org's ORG_ADMINs.
+    org_result = await db.execute(
+        select(OrganizationMembership)
+        .join(
+            ProjectOrganization,
+            ProjectOrganization.organization_id
+            == OrganizationMembership.organization_id,
+        )
+        .options(
+            joinedload(OrganizationMembership.user),
+            joinedload(OrganizationMembership.organization),
+        )
+        .where(
+            ProjectOrganization.project_id == project_id,
+            OrganizationMembership.is_active == True,  # noqa: E712
+            group_member_fan_in_clause(ProjectOrganization, OrganizationMembership),
         )
     )
-    project_org_ids = [row[0] for row in org_ids_result.all()]
-
-    # Get members from project organizations only
-    org_members = []
-    if project_org_ids:
-        org_result = await db.execute(
-            select(OrganizationMembership)
-            .options(
-                joinedload(OrganizationMembership.user),
-                joinedload(OrganizationMembership.organization),
-            )
-            .where(
-                OrganizationMembership.organization_id.in_(project_org_ids),
-                OrganizationMembership.is_active == True,  # noqa: E712
-            )
-        )
-        org_members = org_result.scalars().unique().all()
+    org_members = org_result.scalars().unique().all()
 
     # Combine results
     members = []

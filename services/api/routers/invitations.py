@@ -17,14 +17,22 @@ from sqlalchemy.orm import Session  # noqa: E402
 
 from auth_module import require_user  # noqa: E402
 from database import get_async_db, get_db  # noqa: E402
-from models import Invitation, Organization, OrganizationMembership, OrganizationRole, User  # noqa: E402
+from models import (  # noqa: E402
+    Invitation,
+    Organization,
+    OrganizationGroup,
+    OrganizationGroupMembership,
+    OrganizationMembership,
+    OrganizationRole,
+    User,
+)
 from notification_service import (  # noqa: E402
     notify_organization_invitation_accepted,
     notify_organization_invitation_sent,
 )
 
-# Import organization management check from organizations router
-from routers.organizations import can_manage_organization  # noqa: E402
+# Import organization management checks from organizations router
+from routers.organizations import can_manage_group, can_manage_organization  # noqa: E402
 
 router = APIRouter(prefix="/api/invitations", tags=["invitations"])
 
@@ -41,6 +49,10 @@ celery_app = get_celery_app()
 class InvitationCreate(BaseModel):
     email: EmailStr
     role: OrganizationRole
+    # Optional group scope: accepting also joins this group. Group admins may
+    # invite ONLY into their own group (role capped below ORG_ADMIN).
+    group_id: Optional[str] = None
+    invited_as_group_admin: bool = False
 
 
 class InvitationResponse(BaseModel):
@@ -48,6 +60,8 @@ class InvitationResponse(BaseModel):
     organization_id: str
     email: str
     role: OrganizationRole
+    group_id: Optional[str] = None
+    invited_as_group_admin: bool = False
     token: str
     invited_by: str
     expires_at: datetime
@@ -76,6 +90,8 @@ class BulkInvitationCreate(BaseModel):
     # instead of 422-ing the whole batch.
     emails: List[str]
     role: OrganizationRole
+    group_id: Optional[str] = None
+    invited_as_group_admin: bool = False
 
 
 class BulkInvitationResultItem(BaseModel):
@@ -100,6 +116,56 @@ _email_adapter = TypeAdapter(EmailStr)
 def generate_invitation_token() -> str:
     """Generate a secure invitation token"""
     return secrets.token_urlsafe(32)
+
+
+def _authorize_invitation(
+    db: Session,
+    current_user: User,
+    organization_id: str,
+    role: OrganizationRole,
+    group_id: Optional[str],
+) -> None:
+    """Gate + group validation for invitation creation (single AND bulk).
+
+    Org admins / superadmins invite freely (with or without a group scope).
+    A GROUP admin may additionally invite — but only INTO their own group,
+    and never as ORG_ADMIN (group admins must not mint org-wide admins).
+    A group scope must reference an ACTIVE group of this org.
+    """
+    if can_manage_organization(current_user, organization_id, db):
+        pass
+    elif group_id and can_manage_group(current_user, organization_id, group_id, db):
+        if role == OrganizationRole.ORG_ADMIN:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Group admins cannot invite users as ORG_ADMIN",
+            )
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                "Only organization admins, superadmins, or the group's admins "
+                "can send invitations"
+            ),
+        )
+
+    if group_id:
+        group = (
+            db.query(OrganizationGroup)
+            .filter(
+                OrganizationGroup.id == group_id,
+                OrganizationGroup.organization_id == organization_id,
+            )
+            .first()
+        )
+        if group is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Group not found"
+            )
+        if not group.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Group is not active"
+            )
 
 
 @router.post("/organizations/{organization_id}/invitations", response_model=InvitationResponse)
@@ -127,12 +193,15 @@ async def create_invitation(
     if not organization:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Organization not found")
 
-    # Check permissions
-    if not can_manage_organization(current_user, organization_id, db):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only organization admins or superadmins can send invitations",
-        )
+    # Check permissions (org admin / superadmin, or the group's admin for
+    # group-scoped invitations) + validate the group scope.
+    _authorize_invitation(
+        db,
+        current_user,
+        organization_id,
+        invitation_data.role,
+        invitation_data.group_id,
+    )
 
     # Check if user is already a member
     existing_user = db.query(User).filter(User.email == invitation_data.email).first()
@@ -175,6 +244,8 @@ async def create_invitation(
         organization_id=organization_id,
         email=invitation_data.email,
         role=invitation_data.role,
+        group_id=invitation_data.group_id,
+        invited_as_group_admin=invitation_data.invited_as_group_admin,
         token=generate_invitation_token(),
         invited_by=current_user.id,
         expires_at=datetime.now(timezone.utc) + timedelta(days=7),  # 7 days to accept
@@ -240,6 +311,8 @@ async def create_invitation(
         organization_id=invitation.organization_id,
         email=invitation.email,
         role=invitation.role,
+        group_id=invitation.group_id,
+        invited_as_group_admin=invitation.invited_as_group_admin,
         token=invitation.token,
         invited_by=invitation.invited_by,
         expires_at=invitation.expires_at,
@@ -273,11 +346,9 @@ async def create_bulk_invitations(
     if not organization:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Organization not found")
 
-    if not can_manage_organization(current_user, organization_id, db):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only organization admins or superadmins can send invitations",
-        )
+    _authorize_invitation(
+        db, current_user, organization_id, bulk_data.role, bulk_data.group_id
+    )
 
     if len(bulk_data.emails) > MAX_BULK_INVITES:
         raise HTTPException(
@@ -344,6 +415,8 @@ async def create_bulk_invitations(
             organization_id=organization_id,
             email=email,
             role=bulk_data.role,
+            group_id=bulk_data.group_id,
+            invited_as_group_admin=bulk_data.invited_as_group_admin,
             token=generate_invitation_token(),
             invited_by=current_user.id,
             expires_at=datetime.now(timezone.utc) + timedelta(days=7),
@@ -426,9 +499,15 @@ async def list_organization_invitations(
     current_user: User = Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ):
-    """List organization invitations (org admin or superadmin only)"""
+    """List organization invitations.
+
+    Superadmins and the org's ORG_ADMINs see all pending invitations; a
+    GROUP admin sees only the invitations scoped to their own groups (so
+    the admin UI's pending list works for chair staff too).
+    """
 
     # Check permissions
+    admin_group_ids: Optional[List[str]] = None  # None = unrestricted
     if not current_user.is_superadmin:
         membership = (
             await db.execute(
@@ -441,10 +520,24 @@ async def list_organization_invitations(
             )
         ).scalar_one_or_none()
         if not membership:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Only organization admins can view invitations",
+            group_rows = await db.execute(
+                select(OrganizationGroupMembership.group_id)
+                .join(
+                    OrganizationGroup,
+                    OrganizationGroup.id == OrganizationGroupMembership.group_id,
+                )
+                .where(
+                    OrganizationGroupMembership.user_id == current_user.id,
+                    OrganizationGroupMembership.is_group_admin == True,  # noqa: E712
+                    OrganizationGroup.organization_id == organization_id,
+                )
             )
+            admin_group_ids = [r[0] for r in group_rows.all()]
+            if not admin_group_ids:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Only organization admins can view invitations",
+                )
 
     # Build query
     stmt = (
@@ -454,6 +547,8 @@ async def list_organization_invitations(
         .where(Invitation.organization_id == organization_id)
         .where(Invitation.accepted == False)  # Only show pending invitations  # noqa: E712
     )
+    if admin_group_ids is not None:
+        stmt = stmt.where(Invitation.group_id.in_(admin_group_ids))
 
     if not include_expired:
         stmt = stmt.where(Invitation.expires_at > datetime.now(timezone.utc))
@@ -638,6 +733,40 @@ async def accept_invitation(
     # Organization membership created - no default organization needed in new system
 
     db.add(membership)
+
+    # Group-scoped invitation: also join the group. Skipped silently when
+    # the group is gone (FK SET NULL) / deactivated / re-parented — the
+    # invite then degrades to a plain org invite instead of failing.
+    if invitation.group_id:
+        group = (
+            db.query(OrganizationGroup)
+            .filter(
+                OrganizationGroup.id == invitation.group_id,
+                OrganizationGroup.organization_id == invitation.organization_id,
+                OrganizationGroup.is_active == True,  # noqa: E712
+            )
+            .first()
+        )
+        existing_group_membership = (
+            db.query(OrganizationGroupMembership)
+            .filter(
+                OrganizationGroupMembership.group_id == invitation.group_id,
+                OrganizationGroupMembership.user_id == current_user.id,
+            )
+            .first()
+            if group
+            else None
+        )
+        if group and existing_group_membership is None:
+            db.add(
+                OrganizationGroupMembership(
+                    id=str(uuid4()),
+                    group_id=invitation.group_id,
+                    user_id=current_user.id,
+                    is_group_admin=bool(invitation.invited_as_group_admin),
+                )
+            )
+
     db.commit()
 
     # Get organization name for notification

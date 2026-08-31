@@ -4,7 +4,10 @@ import { Input } from '@/components/shared/Input'
 import { Label } from '@/components/shared/Label'
 import { Textarea } from '@/components/shared/Textarea'
 import { useI18n } from '@/contexts/I18nContext'
-import { organizationsAPI } from '@/lib/api/organizations'
+import {
+  organizationsAPI,
+  type OrganizationGroup,
+} from '@/lib/api/organizations'
 import { useSlot } from '@/lib/extensions/slots'
 import { cn } from '@/lib/utils'
 import { IconPickerModal, ProjectTypeSelector } from './ProjectTypeAndIcon'
@@ -59,7 +62,18 @@ export function StepProjectInfo({
 }: StepProjectInfoProps) {
   const { t } = useI18n()
   const [iconPickerOpen, setIconPickerOpen] = useState(false)
-  const [orgs, setOrgs] = useState<Array<{ id: string; name: string }>>([])
+  const [orgs, setOrgs] = useState<
+    Array<{
+      id: string
+      name: string
+      role?: 'ORG_ADMIN' | 'CONTRIBUTOR' | 'ANNOTATOR'
+    }>
+  >([])
+  // Organization groups per org id (undefined = not fetched yet, [] =
+  // fetched and empty / fetch failed). Fetched lazily for checked orgs.
+  const [groupsByOrg, setGroupsByOrg] = useState<
+    Record<string, OrganizationGroup[]>
+  >({})
   // Extended-edition feature row rendered below the core feature checkboxes:
   // the experimental KI-Generator, styled like the rows above and toggling
   // `features.synthetic` (which adds the synthetic step to the wizard). Null
@@ -92,6 +106,66 @@ export function StepProjectInfo({
     }
   }, [data.visibility])
 
+  // Fetch the group list of every checked org once (mirrors the defensive
+  // orgs fetch above: a failing/absent groups endpoint yields no groups).
+  useEffect(() => {
+    let cancelled = false
+    if (data.visibility !== 'organization') return
+    const missing = data.organizationIds.filter(
+      (orgId) => groupsByOrg[orgId] === undefined
+    )
+    if (missing.length === 0) return
+    missing.forEach((orgId) => {
+      let p: Promise<unknown>
+      try {
+        p = Promise.resolve(organizationsAPI.getGroups(orgId))
+      } catch {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setGroupsByOrg((prev) => ({ ...prev, [orgId]: [] }))
+        return
+      }
+      p.then((rows) => {
+        if (cancelled) return
+        setGroupsByOrg((prev) => ({
+          ...prev,
+          [orgId]: Array.isArray(rows) ? (rows as OrganizationGroup[]) : [],
+        }))
+      }).catch(() => {
+        if (!cancelled) {
+          setGroupsByOrg((prev) => ({ ...prev, [orgId]: [] }))
+        }
+      })
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [data.visibility, data.organizationIds, groupsByOrg])
+
+  // Default group scope: when the user belongs to exactly one group of a
+  // checked org, preselect it; otherwise the org stays org-wide (implicit
+  // null). Only fires while the org has no explicit choice yet.
+  useEffect(() => {
+    if (data.visibility !== 'organization') return
+    const defaults: Record<string, string | null> = {}
+    for (const orgId of data.organizationIds) {
+      if (data.organizationGroupIds[orgId] !== undefined) continue
+      const groups = groupsByOrg[orgId]
+      if (groups === undefined) continue
+      const memberGroups = groups.filter(
+        (group) => group.is_active && group.is_member
+      )
+      if (memberGroups.length === 1) {
+        defaults[orgId] = memberGroups[0].id
+      }
+    }
+    if (Object.keys(defaults).length > 0) {
+      onChange({
+        organizationGroupIds: { ...data.organizationGroupIds, ...defaults },
+      })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data.visibility, data.organizationIds, data.organizationGroupIds, groupsByOrg])
+
   const toggleFeature = (key: keyof WizardFeatures) => {
     onChange({
       features: { ...data.features, [key]: !data.features[key] },
@@ -103,6 +177,25 @@ export function StepProjectInfo({
       ? data.organizationIds.filter((id) => id !== orgId)
       : [...data.organizationIds, orgId]
     onChange({ organizationIds: next })
+  }
+
+  const setOrgGroup = (orgId: string, groupId: string | null) => {
+    onChange({
+      organizationGroupIds: { ...data.organizationGroupIds, [orgId]: groupId },
+    })
+  }
+
+  // Groups offered for one org: org admins pick any active group, everyone
+  // else only active groups they belong to.
+  const groupOptionsFor = (org: {
+    id: string
+    role?: 'ORG_ADMIN' | 'CONTRIBUTOR' | 'ANNOTATOR'
+  }): OrganizationGroup[] => {
+    const groups = groupsByOrg[org.id] ?? []
+    const isOrgAdmin = org.role === 'ORG_ADMIN'
+    return groups.filter(
+      (group) => group.is_active && (isOrgAdmin || group.is_member)
+    )
   }
 
   return (
@@ -326,24 +419,67 @@ export function StepProjectInfo({
                 className="space-y-2"
                 data-testid="wizard-organization-list"
               >
-                {orgs.map((org) => (
-                  <label
-                    key={org.id}
-                    className="flex cursor-pointer items-center space-x-3 rounded-lg border border-zinc-200 p-3 transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800/50"
-                    data-testid={`wizard-organization-${org.id}-option`}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={data.organizationIds.includes(org.id)}
-                      onChange={() => toggleOrg(org.id)}
-                      className="h-4 w-4 rounded border-zinc-300 accent-emerald-600 focus:ring-emerald-500 dark:border-zinc-600 dark:accent-emerald-500"
-                      data-testid={`wizard-organization-${org.id}-checkbox`}
-                    />
-                    <span className="text-sm font-medium text-zinc-900 dark:text-white">
-                      {org.name}
-                    </span>
-                  </label>
-                ))}
+                {orgs.map((org) => {
+                  const isChecked = data.organizationIds.includes(org.id)
+                  const groupOptions = isChecked ? groupOptionsFor(org) : []
+                  return (
+                    <div key={org.id}>
+                      <label
+                        className="flex cursor-pointer items-center space-x-3 rounded-lg border border-zinc-200 p-3 transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800/50"
+                        data-testid={`wizard-organization-${org.id}-option`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => toggleOrg(org.id)}
+                          className="h-4 w-4 rounded border-zinc-300 accent-emerald-600 focus:ring-emerald-500 dark:border-zinc-600 dark:accent-emerald-500"
+                          data-testid={`wizard-organization-${org.id}-checkbox`}
+                        />
+                        <span className="text-sm font-medium text-zinc-900 dark:text-white">
+                          {org.name}
+                        </span>
+                      </label>
+                      {isChecked && groupOptions.length > 0 && (
+                        <div
+                          className="ml-7 mt-2"
+                          data-testid={`wizard-organization-group-section-${org.id}`}
+                        >
+                          <label
+                            htmlFor={`wizard-organization-group-${org.id}`}
+                            className="block text-xs font-medium text-zinc-600 dark:text-zinc-400"
+                          >
+                            {t('projects.creation.wizard.step1.groupScopeLabel')}
+                          </label>
+                          <select
+                            id={`wizard-organization-group-${org.id}`}
+                            value={data.organizationGroupIds[org.id] ?? ''}
+                            onChange={(e) =>
+                              setOrgGroup(org.id, e.target.value || null)
+                            }
+                            data-testid={`wizard-organization-group-select-${org.id}`}
+                            className="mt-1 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-100"
+                          >
+                            <option value="">
+                              {t(
+                                'projects.creation.wizard.step1.groupScopeOrgWide'
+                              )}
+                            </option>
+                            {groupOptions.map((group) => (
+                              <option key={group.id} value={group.id}>
+                                {group.name}
+                              </option>
+                            ))}
+                          </select>
+                          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                            {t(
+                              'projects.creation.wizard.step1.groupScopeHelp'
+                            )}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
               </div>
             )}
             {errors.organizationIds && (

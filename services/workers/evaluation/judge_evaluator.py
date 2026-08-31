@@ -88,6 +88,7 @@ def _evaluate_llm_judge_single_impl(
         organization_id=organization_id,
         seed=_resolve_judge("seed", 42),
         org_billing_authorized=org_billing_authorized,
+        project_id=project_id,
     )
 
     if not llm_judge.ai_service:

@@ -2,6 +2,7 @@
 
 import { OrgApiKeys } from '@/components/organization/OrgApiKeys'
 import { OrgStorageConnections } from '@/components/organization/OrgStorageConnections'
+import { OrgGroups } from '@/components/organization/OrgGroups'
 import { Badge } from '@/components/shared/Badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/shared/Select'
 import { Button } from '@/components/shared/Button'
@@ -14,8 +15,12 @@ import { useI18n } from '@/contexts/I18nContext'
 import { useDeleteConfirm, useErrorAlert } from '@/hooks/useDialogs'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import { Organization, OrganizationMember } from '@/lib/api'
+import type { BulkInvitationCreate, InvitationCreate } from '@/lib/api/types'
 import { InvitationDetails } from '@/lib/api/invitations'
-import { organizationsAPI } from '@/lib/api/organizations'
+import {
+  organizationsAPI,
+  type OrganizationGroup,
+} from '@/lib/api/organizations'
 import { useSlot } from '@/lib/extensions/slots'
 import { UserOrganizationPermissions } from '@/lib/permissions/userOrganizationPermissions'
 import {
@@ -62,6 +67,7 @@ export function OrganizationsTab() {
             organizations: organizations.map((org) => ({
               id: org.id,
               role: org.role!,
+              groups: org.groups,
             })),
           }
         : null,
@@ -83,6 +89,7 @@ export function OrganizationsTab() {
   const [showApiKeysModal, setShowApiKeysModal] = useState(false)
   const [showStorageConnectionsModal, setShowStorageConnectionsModal] =
     useState(false)
+  const [showGroupsModal, setShowGroupsModal] = useState(false)
   const [isEditingOrg, setIsEditingOrg] = useState(false)
 
   // Form states
@@ -93,6 +100,11 @@ export function OrganizationsTab() {
   const [inviteRole, setInviteRole] = useState<
     'ANNOTATOR' | 'CONTRIBUTOR' | 'ORG_ADMIN'
   >('ANNOTATOR')
+  // Group scoping for invitations (shared by the single and bulk modals):
+  // '' = whole organization, otherwise the selected group id.
+  const [inviteGroups, setInviteGroups] = useState<OrganizationGroup[]>([])
+  const [inviteGroupId, setInviteGroupId] = useState('')
+  const [inviteAsGroupAdmin, setInviteAsGroupAdmin] = useState(false)
   const [editOrgName, setEditOrgName] = useState('')
   const [editOrgDescription, setEditOrgDescription] = useState('')
   const [orgUpdateLoading, setOrgUpdateLoading] = useState(false)
@@ -277,10 +289,17 @@ export function OrganizationsTab() {
 
     try {
       setInviting(true)
-      await organizationsAPI.sendInvitation(selectedOrganization.id, {
+      const payload: InvitationCreate = {
         email: inviteEmail,
         role: inviteRole,
-      })
+      }
+      // Only group-scoped invitations carry the group fields; plain org
+      // invitations keep the legacy payload shape.
+      if (inviteGroupId) {
+        payload.group_id = inviteGroupId
+        payload.invited_as_group_admin = inviteAsGroupAdmin
+      }
+      await organizationsAPI.sendInvitation(selectedOrganization.id, payload)
 
       await loadOrganizationData()
       addToast(t('toasts.admin.invitationSent'), 'success')
@@ -335,10 +354,18 @@ export function OrganizationsTab() {
 
     try {
       setBulkInviting(true)
-      const result = await organizationsAPI.bulkInvite(selectedOrganization.id, {
+      const payload: BulkInvitationCreate = {
         emails,
         role: bulkRole,
-      })
+      }
+      if (inviteGroupId) {
+        payload.group_id = inviteGroupId
+        payload.invited_as_group_admin = inviteAsGroupAdmin
+      }
+      const result = await organizationsAPI.bulkInvite(
+        selectedOrganization.id,
+        payload
+      )
 
       await loadOrganizationData()
       addToast(
@@ -586,6 +613,85 @@ export function OrganizationsTab() {
       )
     : false
 
+  // Group-admin status for the selected org, straight from the auth
+  // context's /auth/me/contexts data (each org entry carries the caller's
+  // group memberships incl. the per-group is_group_admin flag).
+  const isGroupAdminOfSelectedOrg = useMemo(() => {
+    if (!selectedOrganization) return false
+    const entry = organizations.find(
+      (org) => org.id === selectedOrganization.id
+    )
+    return Boolean(entry?.groups?.some((group) => group.is_group_admin))
+  }, [organizations, selectedOrganization])
+
+  // A group admin without org-admin rights may only invite into one of
+  // their own groups (and never as ORG_ADMIN).
+  const inviteViaGroupOnly = !canManageOrg && isGroupAdminOfSelectedOrg
+  const inviteAdminGroups = useMemo(
+    () =>
+      inviteGroups.filter((group) => group.is_group_admin && group.is_active),
+    [inviteGroups]
+  )
+  const inviteSelectableGroups = useMemo(
+    () =>
+      inviteViaGroupOnly
+        ? inviteAdminGroups
+        : inviteGroups.filter((group) => group.is_active),
+    [inviteViaGroupOnly, inviteAdminGroups, inviteGroups]
+  )
+
+  // Load the org's groups when an invite modal opens (defensive: a failing
+  // groups endpoint simply leaves the invite modals group-less).
+  useEffect(() => {
+    if (!showInviteModal && !showBulkInviteModal) return
+    if (!selectedOrganization) return
+    let cancelled = false
+    ;(async () => {
+      try {
+        const rows = await organizationsAPI.getGroups(selectedOrganization.id)
+        if (!cancelled) setInviteGroups(Array.isArray(rows) ? rows : [])
+      } catch {
+        if (!cancelled) setInviteGroups([])
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [showInviteModal, showBulkInviteModal, selectedOrganization])
+
+  // Group-only inviters have no org-wide option — pin the select to one of
+  // their admin groups once the group list is in.
+  useEffect(() => {
+    if (!showInviteModal && !showBulkInviteModal) return
+    if (!inviteViaGroupOnly) return
+    if (inviteAdminGroups.length === 0) return
+    if (
+      !inviteGroupId ||
+      !inviteAdminGroups.some((group) => group.id === inviteGroupId)
+    ) {
+      setInviteGroupId(inviteAdminGroups[0].id)
+    }
+  }, [
+    showInviteModal,
+    showBulkInviteModal,
+    inviteViaGroupOnly,
+    inviteAdminGroups,
+    inviteGroupId,
+  ])
+
+  // Reset the shared group selection whenever both invite modals are closed.
+  useEffect(() => {
+    if (!showInviteModal && !showBulkInviteModal) {
+      setInviteGroupId('')
+      setInviteAsGroupAdmin(false)
+    }
+  }, [showInviteModal, showBulkInviteModal])
+
+  const inviteGroupDisplayValue = (groupId: string) =>
+    groupId === ''
+      ? t('admin.organizations.groups.inviteGroupNone')
+      : inviteGroups.find((group) => group.id === groupId)?.name || groupId
+
   return (
     <div className="space-y-6">
       {/* Organization Selector and Actions */}
@@ -654,7 +760,7 @@ export function OrganizationsTab() {
         </div>
 
         <div className="flex gap-2">
-          {selectedOrganization && canManageOrg && (
+          {selectedOrganization && (canManageOrg || isGroupAdminOfSelectedOrg) && (
             <Button onClick={() => setShowApiKeysModal(true)} variant="outline">
               <KeyIcon className="h-4 w-4" />
               {t('admin.organizations.apiKeys')}
@@ -667,6 +773,16 @@ export function OrganizationsTab() {
             >
               <CloudIcon className="h-4 w-4" />
               {t('admin.organizations.storageConnections')}
+            </Button>
+          )}
+          {selectedOrganization && (canManageOrg || isGroupAdminOfSelectedOrg) && (
+            <Button
+              onClick={() => setShowGroupsModal(true)}
+              variant="outline"
+              data-testid="org-groups-button"
+            >
+              <UserGroupIcon className="h-4 w-4" />
+              {t('admin.organizations.groups.button')}
             </Button>
           )}
           {selectedOrganization && currentUser?.is_superadmin && OrgLtiPanel && (
@@ -786,7 +902,7 @@ export function OrganizationsTab() {
                 <h3 className="font-semibold text-zinc-900 dark:text-white">
                   {t('admin.organizations.members')}
                 </h3>
-                {canManageOrg && (
+                {(canManageOrg || isGroupAdminOfSelectedOrg) && (
                   <div className="flex gap-2">
                     <Button
                       onClick={() => setShowInviteModal(true)}
@@ -884,6 +1000,29 @@ export function OrganizationsTab() {
                         <p className="text-sm text-zinc-500 dark:text-zinc-400">
                           {member.user_email}
                         </p>
+                        {member.groups && member.groups.length > 0 && (
+                          <div className="mt-1 flex flex-wrap gap-1">
+                            {member.groups.map((group) => (
+                              <span
+                                key={group.id}
+                                data-testid={`member-group-chip-${member.user_id}-${group.id}`}
+                                title={
+                                  group.is_group_admin
+                                    ? t(
+                                        'admin.organizations.groups.groupAdminBadge'
+                                      )
+                                    : undefined
+                                }
+                                className="inline-flex items-center gap-0.5 rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-600 dark:bg-zinc-700 dark:text-zinc-300"
+                              >
+                                {group.is_group_admin && (
+                                  <span aria-hidden="true">★</span>
+                                )}
+                                {group.name}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -994,6 +1133,7 @@ export function OrganizationsTab() {
             <OrgApiKeys
               organizationId={selectedOrganization.id}
               isAdmin={canManageOrg}
+              canManageGroups={isGroupAdminOfSelectedOrg}
               open={showApiKeysModal}
               onOpenChange={setShowApiKeysModal}
             />
@@ -1006,6 +1146,17 @@ export function OrganizationsTab() {
               isAdmin={canManageOrg}
               open={showStorageConnectionsModal}
               onOpenChange={setShowStorageConnectionsModal}
+            />
+          )}
+
+          {/* Organization Groups Modal */}
+          {selectedOrganization && (
+            <OrgGroups
+              organizationId={selectedOrganization.id}
+              isAdmin={canManageOrg}
+              canManageGroups={isGroupAdminOfSelectedOrg}
+              open={showGroupsModal}
+              onOpenChange={setShowGroupsModal}
             />
           )}
 
@@ -1232,10 +1383,58 @@ export function OrganizationsTab() {
                     <SelectContent>
                       <SelectItem value="ANNOTATOR">{t('admin.organizations.roleAnnotator')}</SelectItem>
                       <SelectItem value="CONTRIBUTOR">{t('admin.organizations.roleContributor')}</SelectItem>
-                      <SelectItem value="ORG_ADMIN">{t('admin.organizations.roleAdmin')}</SelectItem>
+                      {!inviteViaGroupOnly && (
+                        <SelectItem value="ORG_ADMIN">{t('admin.organizations.roleAdmin')}</SelectItem>
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
+                {inviteSelectableGroups.length > 0 && (
+                  <div className="mb-4" data-testid="invite-group-section">
+                    <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                      {t('admin.organizations.groups.inviteGroupLabel')}
+                    </label>
+                    <Select
+                      value={inviteGroupId}
+                      onValueChange={setInviteGroupId}
+                      displayValue={inviteGroupDisplayValue(inviteGroupId)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue
+                          placeholder={t(
+                            'admin.organizations.groups.inviteGroupNone'
+                          )}
+                        />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {!inviteViaGroupOnly && (
+                          <SelectItem value="">
+                            {t('admin.organizations.groups.inviteGroupNone')}
+                          </SelectItem>
+                        )}
+                        {inviteSelectableGroups.map((group) => (
+                          <SelectItem key={group.id} value={group.id}>
+                            {group.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {inviteGroupId && (
+                      <label className="mt-2 flex cursor-pointer items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300">
+                        <input
+                          type="checkbox"
+                          checked={inviteAsGroupAdmin}
+                          onChange={(e) =>
+                            setInviteAsGroupAdmin(e.target.checked)
+                          }
+                          data-testid="invite-as-group-admin-checkbox"
+                          className="h-4 w-4 rounded border-zinc-300 accent-emerald-600 dark:border-zinc-600"
+                        />
+                        {t('admin.organizations.groups.inviteAsGroupAdmin')}
+                      </label>
+                    )}
+                  </div>
+                )}
                 <div className="flex items-center justify-between">
                   <Button
                     type="button"
@@ -1310,10 +1509,58 @@ export function OrganizationsTab() {
                     <SelectContent>
                       <SelectItem value="ANNOTATOR">{t('admin.organizations.roleAnnotator')}</SelectItem>
                       <SelectItem value="CONTRIBUTOR">{t('admin.organizations.roleContributor')}</SelectItem>
-                      <SelectItem value="ORG_ADMIN">{t('admin.organizations.roleAdmin')}</SelectItem>
+                      {!inviteViaGroupOnly && (
+                        <SelectItem value="ORG_ADMIN">{t('admin.organizations.roleAdmin')}</SelectItem>
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
+                {inviteSelectableGroups.length > 0 && (
+                  <div className="mb-4" data-testid="bulk-invite-group-section">
+                    <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                      {t('admin.organizations.groups.inviteGroupLabel')}
+                    </label>
+                    <Select
+                      value={inviteGroupId}
+                      onValueChange={setInviteGroupId}
+                      displayValue={inviteGroupDisplayValue(inviteGroupId)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue
+                          placeholder={t(
+                            'admin.organizations.groups.inviteGroupNone'
+                          )}
+                        />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {!inviteViaGroupOnly && (
+                          <SelectItem value="">
+                            {t('admin.organizations.groups.inviteGroupNone')}
+                          </SelectItem>
+                        )}
+                        {inviteSelectableGroups.map((group) => (
+                          <SelectItem key={group.id} value={group.id}>
+                            {group.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {inviteGroupId && (
+                      <label className="mt-2 flex cursor-pointer items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300">
+                        <input
+                          type="checkbox"
+                          checked={inviteAsGroupAdmin}
+                          onChange={(e) =>
+                            setInviteAsGroupAdmin(e.target.checked)
+                          }
+                          data-testid="bulk-invite-as-group-admin-checkbox"
+                          className="h-4 w-4 rounded border-zinc-300 accent-emerald-600 dark:border-zinc-600"
+                        />
+                        {t('admin.organizations.groups.inviteAsGroupAdmin')}
+                      </label>
+                    )}
+                  </div>
+                )}
                 <div className="flex justify-end space-x-3">
                   <Button
                     type="button"

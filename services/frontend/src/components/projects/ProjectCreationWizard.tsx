@@ -413,6 +413,7 @@ export function ProjectCreationWizard() {
         public_role?: 'ANNOTATOR' | 'CONTRIBUTOR' | null
         kind?: string | null
         icon?: string | null
+        organization_group_id?: string | null
       } = {
         title: wizardData.title.trim(),
         description: wizardData.description.trim(),
@@ -428,6 +429,12 @@ export function ProjectCreationWizard() {
       } else if (wizardData.visibility === 'public') {
         createData.is_public = true
         createData.public_role = wizardData.publicRole
+      } else if (wizardData.organizationIds.length === 1) {
+        // Single-org creation flow: scope the context-created attachment to
+        // the selected group right away (null = org-wide), so there is no
+        // window where the whole org can see a group-scoped project.
+        createData.organization_group_id =
+          wizardData.organizationGroupIds[wizardData.organizationIds[0]] ?? null
       }
       // For 'organization' visibility, create_project honours
       // X-Organization-Context. We then explicitly PATCH the visibility with
@@ -443,7 +450,13 @@ export function ProjectCreationWizard() {
         try {
           await projectsAPI.updateVisibility(project.id, {
             is_private: false,
-            organization_ids: wizardData.organizationIds,
+            // Per-org group scope (null = the whole organization).
+            organization_attachments: wizardData.organizationIds.map(
+              (orgId) => ({
+                organization_id: orgId,
+                group_id: wizardData.organizationGroupIds[orgId] ?? null,
+              })
+            ),
           })
         } catch (err) {
            
