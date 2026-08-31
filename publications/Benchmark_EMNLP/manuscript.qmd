@@ -1641,9 +1641,10 @@ in the evaluation of legal-domain LLMs.
 
 # AI usage {.unnumbered}
 The authors used Anthropic Claude Opus 4.7, OpenAI GPT-5.5 Pro, and Anthropic Claude Fable 5
-(camera-ready revision) for coding, drafting, and writing assistance throughout. AI agents implemented parts
-of the analysis code; the authors checked the implementations and verified all reported results.
-Generated text was checked, edited, and approved by the authors. The authors take full
+(camera-ready revision) for coding, drafting text from code and outlines, and writing assistance
+throughout. AI agents implemented parts of the analysis code; the authors checked the
+implementations and verified all reported results. Generated text was checked, edited, and
+approved by the authors. All citations were verified against their sources. The authors take full
 responsibility for the paper's contents.
 
 <!-- BLIND-REVIEW SWAP: comment out the entire Acknowledgments section
