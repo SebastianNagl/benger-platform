@@ -4,41 +4,39 @@
  * Supports multiple import methods:
  * - File upload (JSON, CSV, TSV, TXT)
  * - Paste data directly
- * - Cloud storage (future)
+ * - Cloud storage (org S3 storage connections, immediate-mode panel)
+ *
+ * Parsing/format detection and the tab DOM are shared with the
+ * project-creation wizard (lib/import/parseImportData + ImportSourceTabs).
  */
 
 'use client'
 
 import { logger } from '@/lib/utils/logger'
-import { ExtractTextButton } from '@/components/projects/ExtractTextButton'
-import { Card } from '@/components/shared/Card'
+import { CloudImportPanel } from '@/components/projects/import/CloudImportPanel'
+import { ImportSourceTabs } from '@/components/projects/import/ImportSourceTabs'
 import { Dialog } from '@/components/shared/Dialog'
-import { Label } from '@/components/shared/Label'
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from '@/components/shared/Tabs'
-import { Textarea } from '@/components/shared/Textarea'
 import { useToast } from '@/components/shared/Toast'
 import { ImportPreviewWithMapping } from '@/components/tasks/ImportPreviewWithMapping'
 import { Button } from '@/components/ui/button'
 import { useI18n } from '@/contexts/I18nContext'
 import { useProgress } from '@/contexts/ProgressContext'
 import { projectsAPI } from '@/lib/api/projects'
-import { useProjectStore } from '@/stores/projectStore'
 import {
-  CheckIcon,
-  CloudArrowUpIcon,
-  ExclamationTriangleIcon,
-} from '@heroicons/react/24/outline'
+  buildImportFile,
+  detectFormat,
+  parseImportData,
+} from '@/lib/import/parseImportData'
+import { useProjectStore } from '@/stores/projectStore'
+import { ExclamationTriangleIcon } from '@heroicons/react/24/outline'
 import React, { useCallback, useEffect, useState } from 'react'
 
 interface ImportDataModalProps {
   isOpen: boolean
   onClose: () => void
   projectId: string
+  /** Project kind steering the import-tab order (exam leads structured). */
+  projectKind?: string
   onImportComplete?: () => void
 }
 
@@ -46,6 +44,7 @@ export function ImportDataModal({
   isOpen,
   onClose,
   projectId,
+  projectKind,
   onImportComplete,
 }: ImportDataModalProps) {
   const { t } = useI18n()
@@ -55,43 +54,24 @@ export function ImportDataModal({
   const [loading, setLoading] = useState(false)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [pastedData, setPastedData] = useState('')
-  const [activeTab, setActiveTab] = useState('upload')
   const [showFieldMapping, setShowFieldMapping] = useState(false)
   const [templateFields, setTemplateFields] = useState<string[]>([])
   const [parsedData, setParsedData] = useState<any[]>([])
   const [validationErrors, setValidationErrors] = useState<string[]>([])
 
-  const handleFileSelect = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0]
-      if (file) {
-        setSelectedFile(file)
-        // Clear pasted data when selecting a file
-        if (pastedData) {
-          setPastedData('')
-        }
-      }
-    },
-    [pastedData]
-  )
+  // The two sources are mutually exclusive: picking one clears the other.
+  const handleFileChange = useCallback((file: File | null) => {
+    setSelectedFile(file)
+    if (file) {
+      setPastedData('')
+    }
+  }, [])
 
-  const handleDrop = useCallback(
-    (e: React.DragEvent<HTMLDivElement>) => {
-      e.preventDefault()
-      const file = e.dataTransfer.files?.[0]
-      if (file) {
-        setSelectedFile(file)
-        // Clear pasted data when dropping a file
-        if (pastedData) {
-          setPastedData('')
-        }
-      }
-    },
-    [pastedData]
-  )
-
-  const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault()
+  const handlePastedDataChange = useCallback((data: string) => {
+    setPastedData(data)
+    if (data) {
+      setSelectedFile(null)
+    }
   }, [])
 
   const fetchProjectTemplate = useCallback(async () => {
@@ -116,95 +96,6 @@ export function ImportDataModal({
       fetchProjectTemplate()
     }
   }, [isOpen, projectId, fetchProjectTemplate])
-
-  const parseData = async (content: string, format: string): Promise<any[]> => {
-    try {
-      if (format === 'json') {
-        let parsed
-        try {
-          parsed = JSON.parse(content)
-        } catch (jsonError: any) {
-          throw new Error(`Invalid JSON format: ${jsonError.message}`)
-        }
-
-        // Bulk-export envelope from /projects/{id}/export or
-        // bulk_export_tasks: { tasks: [...], evaluation_runs: [...], ... }.
-        // Items already carry `data`/`annotations`/`evaluations` per task.
-        let dataArray: any[]
-        if (Array.isArray(parsed)) {
-          dataArray = parsed
-        } else if (parsed && Array.isArray(parsed.tasks)) {
-          // Capture auxiliary arrays so the caller can forward them.
-          const extras: Record<string, unknown> = {}
-          for (const k of [
-            'evaluation_runs',
-            'human_evaluation_configs',
-            'human_evaluation_sessions',
-            'human_evaluation_results',
-            'preference_rankings',
-            'likert_scale_evaluations',
-            'korrektur_comments',
-          ] as const) {
-            if (Array.isArray(parsed[k])) extras[k] = parsed[k]
-          }
-          // Stash on the function for the caller to read.
-          ;(parseData as any)._extras = extras
-          dataArray = parsed.tasks
-        } else {
-          dataArray = [parsed]
-        }
-
-        // Label Studio alignment: wrap data if not already wrapped
-        return dataArray.map((item) => {
-          // If already has 'data' field, use as-is (already in Label Studio format)
-          if (item.data && typeof item.data === 'object') {
-            return item
-          }
-          // Otherwise, wrap in 'data' field as Label Studio does
-          return { data: item }
-        })
-      } else if (format === 'csv' || format === 'tsv') {
-        const delimiter = format === 'csv' ? ',' : '\t'
-        const lines = content.trim().split('\n')
-        if (lines.length === 0) return []
-
-        // Parse header
-        const headers = lines[0]
-          .split(delimiter)
-          .map((h) => h.trim().replace(/^["']|["']$/g, ''))
-
-        // Parse data rows
-        return lines.slice(1).map((line, lineIndex) => {
-          const values = line
-            .split(delimiter)
-            .map((v) => v.trim().replace(/^["']|["']$/g, ''))
-          const obj: any = {}
-          headers.forEach((header, index) => {
-            obj[header] = values[index] || ''
-          })
-          // Label Studio alignment: wrap in data field
-          return { data: obj }
-        })
-      } else {
-        // Plain text - each line becomes a task
-        return content
-          .trim()
-          .split('\n')
-          .filter((line) => line.trim())
-          .map((line, index) => ({
-            data: { text: line.trim() },
-          }))
-      }
-    } catch (error: any) {
-      // Re-throw with the original error message if it's already formatted
-      if (error.message && error.message.includes('Invalid JSON')) {
-        throw error
-      }
-      throw new Error(
-        `Failed to parse ${format.toUpperCase()} data: ${error.message || error}`
-      )
-    }
-  }
 
   const validateDataAgainstTemplate = (data: any[]) => {
     if (templateFields.length === 0) return { valid: true, errors: [] }
@@ -245,6 +136,9 @@ export function ImportDataModal({
     try {
       setLoading(true)
       let data: any[] = mappedData || []
+      // Auxiliary arrays from the bulk-export envelope (eval runs, human-eval,
+      // korrektur) — forwarded alongside the task rows when present.
+      let extras: Record<string, unknown> = {}
 
       startProgress(progressId, 'Importing data...', {
         sublabel: 'Processing file...',
@@ -266,30 +160,20 @@ export function ImportDataModal({
 
           updateProgress(progressId, 30, 'Parsing data...')
 
-          // Determine format from file extension
-          const format =
-            selectedFile.name.split('.').pop()?.toLowerCase() || 'txt'
-          data = await parseData(content, format)
+          const parsed = parseImportData(
+            content,
+            detectFormat(content, selectedFile.name)
+          )
+          data = parsed.rows
+          extras = parsed.extras
         } else if (pastedData) {
           updateProgress(progressId, 10, 'Processing pasted data...')
 
-          // Try to detect format from content
           const trimmed = pastedData.trim()
-          let format = 'txt'
-
-          if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
-            format = 'json'
-          } else if (trimmed.includes('\t')) {
-            format = 'tsv'
-          } else if (
-            trimmed.includes(',') &&
-            trimmed.split('\n')[0]?.includes(',')
-          ) {
-            format = 'csv'
-          }
-
           updateProgress(progressId, 30, 'Parsing data...')
-          data = await parseData(trimmed, format)
+          const parsed = parseImportData(trimmed, detectFormat(trimmed))
+          data = parsed.rows
+          extras = parsed.extras
         }
       }
 
@@ -322,24 +206,12 @@ export function ImportDataModal({
         sampleData: data[0],
       })
 
-      // Import data to project; forward auxiliary arrays from the bulk-export
-      // envelope (eval runs, human-eval, korrektur) when present.
-      const extras = (parseData as any)._extras as
-        | Record<string, unknown>
-        | undefined
-      ;(parseData as any)._extras = undefined
-
       // Async job flow: serialize the assembled nested envelope to a JSON file,
       // upload it straight to object storage via a presigned URL, then let a
       // worker stream-import it. This keeps the bulk payload off the API request
       // path (the sync endpoint OOM-killed the pod on large imports). The
       // client-side parse/validation/field-mapping above is unchanged.
-      const envelope = { data, ...(extras || {}) }
-      const file = new File(
-        [JSON.stringify(envelope)],
-        `import-${Date.now()}.json`,
-        { type: 'application/json' }
-      )
+      const file = buildImportFile(data, extras)
       const job = await projectsAPI.runNestedImportJob(projectId, file, {
         onStatus: (status) => {
           if (status.status === 'running' || status.status === 'pending') {
@@ -507,101 +379,21 @@ export function ImportDataModal({
           </div>
         )}
 
-        <Tabs defaultValue={activeTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="upload">{t('tasks.importModal.uploadFiles')}</TabsTrigger>
-            <TabsTrigger value="paste">{t('tasks.importModal.pasteData')}</TabsTrigger>
-            <TabsTrigger value="cloud">{t('tasks.importModal.cloudStorage')}</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="upload" className="mt-6">
-            <div
-              onDrop={handleDrop}
-              onDragOver={handleDragOver}
-              className="rounded-lg border-2 border-dashed border-zinc-300 p-8 text-center transition-colors hover:border-emerald-500 dark:border-zinc-700 dark:hover:border-emerald-500"
-            >
-              {selectedFile ? (
-                <div className="space-y-3">
-                  <CheckIcon className="mx-auto h-12 w-12 text-emerald-500" />
-                  <p className="text-lg font-medium">{selectedFile.name}</p>
-                  <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                    {(selectedFile.size / 1024).toFixed(1)} KB
-                  </p>
-                  <Button
-                    variant="outline"
-                    onClick={() => setSelectedFile(null)}
-                  >
-                    {t('common.remove')}
-                  </Button>
-                </div>
-              ) : (
-                <>
-                  <CloudArrowUpIcon className="mx-auto mb-4 h-12 w-12 text-zinc-400 dark:text-zinc-500" />
-                  <p className="mb-2 text-lg font-medium">
-                    {t('tasks.importModal.dropFilesHere')}
-                  </p>
-                  <p className="mb-4 text-sm text-zinc-600 dark:text-zinc-400">
-                    {t('tasks.importModal.supportedFormats')}
-                  </p>
-                  <input
-                    type="file"
-                    id="file-upload"
-                    className="sr-only"
-                    accept=".json,.csv,.tsv,.txt"
-                    onChange={handleFileSelect}
-                  />
-                  <label
-                    htmlFor="file-upload"
-                    className="inline-flex cursor-pointer items-center justify-center rounded-md border border-zinc-300 bg-transparent px-4 py-2 text-sm font-medium transition-colors hover:bg-zinc-100 dark:border-zinc-600 dark:hover:bg-zinc-800"
-                  >
-                    {t('tasks.importModal.chooseFiles')}
-                  </label>
-                </>
-              )}
-            </div>
-          </TabsContent>
-
-          <TabsContent value="paste" className="mt-6">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between gap-3">
-                <Label>{t('tasks.importModal.pasteYourData')}</Label>
-                <ExtractTextButton
-                  onText={(text) => {
-                    // One task per document; the mapping step binds `text`.
-                    setPastedData(JSON.stringify([{ text }], null, 2))
-                    setSelectedFile(null)
-                  }}
-                />
-              </div>
-              <Textarea
-                placeholder={t('tasks.importModal.pastePlaceholder')}
-                value={pastedData}
-                onChange={(e) => {
-                  setPastedData(e.target.value)
-                  // Clear file selection when pasting data
-                  if (e.target.value && selectedFile) {
-                    setSelectedFile(null)
-                  }
-                }}
-                rows={10}
-                className="font-mono text-sm"
-              />
-              <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                {t('tasks.importModal.csvTip')}
-              </p>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="cloud" className="mt-6">
-            <Card>
-              <div className="p-8 text-center">
-                <p className="text-zinc-600 dark:text-zinc-400">
-                  {t('tasks.importModal.cloudComingSoon')}
-                </p>
-              </div>
-            </Card>
-          </TabsContent>
-        </Tabs>
+        <ImportSourceTabs
+          selectedFile={selectedFile}
+          pastedData={pastedData}
+          onFileChange={handleFileChange}
+          onPastedDataChange={handlePastedDataChange}
+          projectKind={projectKind}
+          testIdPrefix="import-modal"
+          cloudPanel={
+            <CloudImportPanel
+              mode="immediate"
+              projectId={projectId}
+              onImportComplete={onImportComplete}
+            />
+          }
+        />
 
         <div className="flex justify-end space-x-3 border-t border-zinc-200 pt-4 dark:border-zinc-800">
           <Button variant="outline" onClick={onClose} disabled={loading}>

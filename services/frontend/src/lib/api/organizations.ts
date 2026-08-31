@@ -383,6 +383,157 @@ export class OrganizationsClient extends BaseApiClient {
       `/organizations/${orgId}/custom-models/${modelId}/credential`
     )
   }
+
+  // ===== Org S3 storage connections (cloud imports) =====
+
+  /**
+   * List the org's storage connections (metadata only — credentials never
+   * leave the server; the access key surfaces as a last-4 hint). Any member.
+   */
+  async listStorageConnections(
+    orgId: string
+  ): Promise<OrgStorageConnection[]> {
+    return this.get(`/organizations/${orgId}/storage-connections`)
+  }
+
+  /**
+   * Create a storage connection. Admin only.
+   */
+  async createStorageConnection(
+    orgId: string,
+    data: OrgStorageConnectionCreate
+  ): Promise<OrgStorageConnection> {
+    return this.post(`/organizations/${orgId}/storage-connections`, data)
+  }
+
+  /**
+   * Update a storage connection. Admin only. Omitted credential fields keep
+   * the stored values; `endpoint_url: null` resets to the AWS default.
+   */
+  async updateStorageConnection(
+    orgId: string,
+    connectionId: string,
+    data: OrgStorageConnectionUpdate
+  ): Promise<OrgStorageConnection> {
+    return this.put(
+      `/organizations/${orgId}/storage-connections/${connectionId}`,
+      data
+    )
+  }
+
+  /**
+   * Delete a storage connection. Admin only.
+   */
+  async deleteStorageConnection(
+    orgId: string,
+    connectionId: string
+  ): Promise<{ message: string }> {
+    return this.delete(
+      `/organizations/${orgId}/storage-connections/${connectionId}`
+    )
+  }
+
+  /**
+   * Test unsaved connection params (pre-save "Test connection"). Admin only.
+   */
+  async testStorageConnection(
+    orgId: string,
+    data: OrgStorageConnectionCreate
+  ): Promise<{ status: string; message: string }> {
+    return this.post(`/organizations/${orgId}/storage-connections/test`, data)
+  }
+
+  /**
+   * Test a saved connection with its stored credentials. Admin only.
+   */
+  async testSavedStorageConnection(
+    orgId: string,
+    connectionId: string
+  ): Promise<{ status: string; message: string }> {
+    return this.post(
+      `/organizations/${orgId}/storage-connections/${connectionId}/test`,
+      {}
+    )
+  }
+
+  /**
+   * Browse one listing page of the connected bucket (server-side; the
+   * browser never talks to the customer bucket). Any org member.
+   */
+  async listStorageConnectionObjects(
+    orgId: string,
+    connectionId: string,
+    options?: {
+      prefix?: string
+      continuationToken?: string
+      maxResults?: number
+    }
+  ): Promise<OrgStorageObjectPage> {
+    const params = new URLSearchParams()
+    if (options?.prefix !== undefined) params.append('prefix', options.prefix)
+    if (options?.continuationToken)
+      params.append('continuation_token', options.continuationToken)
+    if (options?.maxResults)
+      params.append('max_results', String(options.maxResults))
+    const qs = params.toString()
+    return this.get(
+      `/organizations/${orgId}/storage-connections/${connectionId}/objects${qs ? '?' + qs : ''}`
+    )
+  }
+}
+
+/** An org-level S3 storage connection (metadata view; secrets never leave the server). */
+export interface OrgStorageConnection {
+  id: string
+  organization_id: string
+  name: string
+  endpoint_url: string | null
+  bucket: string
+  prefix: string
+  region: string | null
+  use_ssl: boolean
+  /** Last 4 chars of the access key id (display only). */
+  access_key_hint: string | null
+  created_by: string | null
+  created_at: string | null
+  updated_at: string | null
+}
+
+export interface OrgStorageConnectionCreate {
+  name: string
+  endpoint_url?: string | null
+  bucket: string
+  prefix?: string
+  region?: string | null
+  use_ssl?: boolean
+  access_key: string
+  secret_key: string
+}
+
+/** Update body — credential fields optional (omitted keeps stored values). */
+export interface OrgStorageConnectionUpdate {
+  name?: string
+  endpoint_url?: string | null
+  bucket?: string
+  prefix?: string
+  region?: string | null
+  use_ssl?: boolean
+  access_key?: string
+  secret_key?: string
+}
+
+/** One listed object in a storage connection's bucket. */
+export interface OrgStorageObject {
+  key: string
+  size: number | null
+  last_modified: string | null
+}
+
+/** One page of a server-side bucket listing (Delimiter '/'). */
+export interface OrgStorageObjectPage {
+  objects: OrgStorageObject[]
+  prefixes: string[]
+  next_token: string | null
 }
 
 /** A custom model shared with an org + its shared-credential status. */

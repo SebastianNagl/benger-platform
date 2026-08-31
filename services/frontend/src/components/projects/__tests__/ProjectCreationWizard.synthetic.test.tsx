@@ -184,8 +184,9 @@ describe('ProjectCreationWizard — synthetic step (extended)', () => {
     const [projectId, file] = mockRunNestedImportJob.mock.calls[0]
     expect(projectId).toBe('proj-1')
     const uploaded = JSON.parse(await (file as File).text())
+    // Rows are Label-Studio-wrapped by the shared parse lib.
     expect(uploaded.data).toEqual([
-      { title: 'Fall A', sachverhalt: 's', musterloesung: 'm' },
+      { data: { title: 'Fall A', sachverhalt: 's', musterloesung: 'm' } },
     ])
   })
 

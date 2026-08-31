@@ -10,6 +10,22 @@ export const PLATFORM_CHANGELOG: ChangelogEntry[] = [
     date: '2026-08-31',
     audience: 'benger',
     text: {
+      de: 'Cloud-Speicher-Import: Organisationen können S3-kompatible Speicher verbinden; Dateien lassen sich direkt aus dem Bucket als Aufgaben importieren.',
+      en: 'Cloud storage import: organizations can connect S3-compatible storage and import files from the bucket as tasks.',
+    },
+  },
+  {
+    date: '2026-08-31',
+    audience: 'benger',
+    text: {
+      de: 'Projekt-Assistent: klarere Datenquellen-Auswahl — bei Klausur-Projekten steht „Klausur erfassen“ jetzt an erster Stelle, „Tabelle/JSON einfügen“ heißt, was es ist.',
+      en: 'Project wizard: clearer data-source picker — for exam projects "Enter exam" now comes first, and paste is labeled for what it is.',
+    },
+  },
+  {
+    date: '2026-08-31',
+    audience: 'benger',
+    text: {
       de: 'Projekt-Assistent: „Klausur erfassen“ übernimmt eingegebene Inhalte jetzt automatisch — die Klausur-Aufgabe geht nicht mehr verloren, wenn „Übernehmen“ übersprungen wurde.',
       en: 'Project wizard: "Enter exam" now saves entered content automatically — the exam task is no longer lost when "Apply" was skipped.',
     },

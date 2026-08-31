@@ -91,9 +91,16 @@ jest.mock('@/components/organization/OrgApiKeys', () => ({
   OrgApiKeys: ({ open }: any) => open ? <div data-testid="api-keys-modal">API Keys</div> : null,
 }))
 
+jest.mock('@/components/organization/OrgStorageConnections', () => ({
+  OrgStorageConnections: ({ open }: any) =>
+    open ? <div data-testid="storage-connections-modal">Storage</div> : null,
+}))
+
 jest.mock('@heroicons/react/24/outline', () => ({
   BuildingOfficeIcon: () => <span data-testid="building-icon" />,
   ChevronDownIcon: () => <span />,
+  CloudIcon: () => <span data-testid="cloud-icon" />,
+  MagnifyingGlassIcon: () => <span />,
   EnvelopeIcon: () => <span />,
   KeyIcon: () => <span />,
   PencilIcon: () => <span data-testid="pencil-icon" />,

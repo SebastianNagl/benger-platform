@@ -1208,6 +1208,7 @@ export function ProjectDataTab({ projectId }: ProjectDataTabProps) {
         isOpen={showImportModal}
         onClose={() => setShowImportModal(false)}
         projectId={projectId}
+        projectKind={currentProject?.kind ?? undefined}
         onImportComplete={async () => {
           // Imports may produce more pages — reset to page 1 so the user
           // lands on the freshest rows, then refresh.

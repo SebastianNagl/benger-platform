@@ -45,6 +45,12 @@ jest.mock('@/stores/projectStore', () => ({
   useProjectStore: jest.fn(),
 }))
 
+jest.mock('@/components/projects/import/CloudImportPanel', () => ({
+  CloudImportPanel: () => (
+    <div data-testid="cloud-import-panel-stub">cloud panel</div>
+  ),
+}))
+
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
     t: (key: string, params?: any) => {
@@ -58,16 +64,23 @@ jest.mock('@/contexts/I18nContext', () => ({
         'tasks.importModal.fieldRequirements': 'Field Requirements',
         'tasks.importModal.fieldRequirementsDescription': 'Required fields',
         'tasks.importModal.missingFieldsWarning': 'Missing fields warning',
-        'tasks.importModal.uploadFiles': 'Upload Files',
-        'tasks.importModal.pasteData': 'Paste Data',
-        'tasks.importModal.cloudStorage': 'Cloud Storage',
-        'tasks.importModal.dropFilesHere': 'Drop files here',
-        'tasks.importModal.supportedFormats': 'JSON, CSV, TSV, TXT',
-        'tasks.importModal.chooseFiles': 'Choose Files',
-        'tasks.importModal.pasteYourData': 'Paste your data',
-        'tasks.importModal.pastePlaceholder': 'Paste data here...',
-        'tasks.importModal.csvTip': 'CSV tip',
-        'tasks.importModal.cloudComingSoon': 'Coming soon',
+        // Shared ImportSourceTabs keys
+        'dataImport.tabs.upload': 'Upload Files',
+        'dataImport.tabs.paste': 'Paste Data',
+        'dataImport.tabs.cloud': 'Cloud Storage',
+        'projects.creation.wizard.step2.upload.dropzone': 'Drop files here',
+        'projects.creation.wizard.step2.upload.supportedFormats': 'JSON, CSV, TSV, TXT',
+        'projects.creation.wizard.step2.upload.chooseFiles': 'Choose Files',
+        'projects.creation.wizard.step2.upload.removeFile': 'Remove File',
+        'projects.creation.wizard.step2.upload.selectedFile': 'Selected: {filename}',
+        'projects.creation.wizard.step2.paste.label': 'Paste your data',
+        'projects.creation.wizard.step2.paste.placeholder': 'Paste data here...',
+        'projects.creation.wizard.step2.paste.lines': '{count} lines',
+        'projects.creation.wizard.step2.paste.noData': 'No data',
+        'projects.creation.wizard.step2.paste.clear': 'Clear',
+        'projects.creation.wizard.step2.paste.validate': 'Validate',
+        'projects.creation.wizard.step2.paste.formatDetected': '{format} detected',
+        'projects.creation.wizard.step2.paste.invalidFormat': 'Invalid format',
         'tasks.importModal.validationError': 'Validation Error',
         'tasks.importModal.validationErrorDescription': 'Fields do not match',
         'tasks.importModal.importAnyway': 'Import Anyway',
@@ -192,7 +205,7 @@ describe('ImportDataModal - branch2 coverage', () => {
       const input = document.querySelector('input[type="file"]') as HTMLInputElement
       await userEvent.upload(input, file)
 
-      await waitFor(() => screen.getByText('data.tsv'))
+      await waitFor(() => screen.getByText('Selected: data.tsv'))
 
       await userEvent.click(screen.getByRole('button', { name: /Import Data/i }))
 
@@ -223,7 +236,7 @@ describe('ImportDataModal - branch2 coverage', () => {
       const file = new File(['[{"data":{"text":"test"}}]'], 'test.json', { type: 'application/json' })
       const input = document.querySelector('input[type="file"]') as HTMLInputElement
       await userEvent.upload(input, file)
-      await waitFor(() => screen.getByText('test.json'))
+      await waitFor(() => screen.getByText('Selected: test.json'))
 
       await user.click(screen.getByRole('button', { name: /Import Data/i }))
 
@@ -246,7 +259,7 @@ describe('ImportDataModal - branch2 coverage', () => {
       const file = new File(['[{"data":{"text":"test"}}]'], 'test.json', { type: 'application/json' })
       const input = document.querySelector('input[type="file"]') as HTMLInputElement
       await userEvent.upload(input, file)
-      await waitFor(() => screen.getByText('test.json'))
+      await waitFor(() => screen.getByText('Selected: test.json'))
 
       await user.click(screen.getByRole('button', { name: /Import Data/i }))
 
@@ -290,7 +303,7 @@ describe('ImportDataModal - branch2 coverage', () => {
       const file = new File(['[{"data":{"text":"test"}}]'], 'test.json', { type: 'application/json' })
       const input = document.querySelector('input[type="file"]') as HTMLInputElement
       await userEvent.upload(input, file)
-      await waitFor(() => screen.getByText('test.json'))
+      await waitFor(() => screen.getByText('Selected: test.json'))
 
       const importButton = screen.getByRole('button', { name: /Import Data/i })
       await user.click(importButton)
@@ -336,7 +349,7 @@ describe('ImportDataModal - branch2 coverage', () => {
       const file = new File(['[{"data":{"wrong":"test"}}]'], 'test.json', { type: 'application/json' })
       const input = document.querySelector('input[type="file"]') as HTMLInputElement
       await userEvent.upload(input, file)
-      await waitFor(() => screen.getByText('test.json'))
+      await waitFor(() => screen.getByText('Selected: test.json'))
 
       await user.click(screen.getByRole('button', { name: /Import Data/i }))
 

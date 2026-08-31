@@ -8,7 +8,6 @@ import {
   ReactNode,
   createContext,
   useContext,
-  useEffect,
   useState,
 } from 'react'
 
@@ -19,8 +18,13 @@ interface TabsContextType {
 
 const TabsContext = createContext<TabsContextType | null>(null)
 
-interface TabsProps {
+interface TabsProps
+  extends Omit<HTMLAttributes<HTMLDivElement>, 'defaultValue' | 'children' | 'className'> {
   defaultValue: string
+  /** Controlled mode: when set, the active tab is owned by the parent. */
+  value?: string
+  /** Fires on every trigger click (controlled and uncontrolled mode). */
+  onValueChange?: (value: string) => void
   children: ReactNode
   className?: string
 }
@@ -48,21 +52,49 @@ interface TabsContentProps
   forceMount?: boolean
 }
 
-export function Tabs({ defaultValue, children, className }: TabsProps) {
-  const [activeTab, setActiveTab] = useState<string>(defaultValue)
+export function Tabs({
+  defaultValue,
+  value,
+  onValueChange,
+  children,
+  className,
+  ...rest
+}: TabsProps) {
+  const [internalTab, setInternalTab] = useState<string>(value ?? defaultValue)
+  // Once the user picks a tab themselves, a changed defaultValue must not
+  // yank them away from it (uncontrolled mode only).
+  const [userSelected, setUserSelected] = useState(false)
   const mounted = useHydration()
+  const isControlled = value !== undefined
 
-  // Sync activeTab with defaultValue when it changes externally
-  useEffect(() => {
-     
-    setActiveTab(defaultValue)
-  }, [defaultValue])
+  // Uncontrolled mode: re-sync with a changed defaultValue only while the
+  // user has not yet clicked a tab (render-phase state adjustment, see
+  // react.dev "adjusting state when a prop changes").
+  const [prevDefault, setPrevDefault] = useState(defaultValue)
+  if (prevDefault !== defaultValue) {
+    setPrevDefault(defaultValue)
+    if (!isControlled && !userSelected) {
+      setInternalTab(defaultValue)
+    }
+  }
+
+  const activeTab = isControlled ? value : internalTab
+  const setActiveTab = (tab: string) => {
+    setUserSelected(true)
+    if (!isControlled) setInternalTab(tab)
+    onValueChange?.(tab)
+  }
 
   return (
     <TabsContext.Provider
-      value={{ activeTab: mounted ? activeTab : defaultValue, setActiveTab }}
+      value={{
+        activeTab: mounted || isControlled ? activeTab : defaultValue,
+        setActiveTab,
+      }}
     >
-      <div className={className}>{children}</div>
+      <div className={className} {...rest}>
+        {children}
+      </div>
     </TabsContext.Provider>
   )
 }

@@ -1,6 +1,7 @@
 'use client'
 
 import { OrgApiKeys } from '@/components/organization/OrgApiKeys'
+import { OrgStorageConnections } from '@/components/organization/OrgStorageConnections'
 import { Badge } from '@/components/shared/Badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/shared/Select'
 import { Button } from '@/components/shared/Button'
@@ -20,6 +21,7 @@ import { UserOrganizationPermissions } from '@/lib/permissions/userOrganizationP
 import {
   BuildingOfficeIcon,
   ChevronDownIcon,
+  CloudIcon,
   EnvelopeIcon,
   KeyIcon,
   MagnifyingGlassIcon,
@@ -79,6 +81,8 @@ export function OrganizationsTab() {
   const [showAddUserModal, setShowAddUserModal] = useState(false)
   const [showOrgSwitcher, setShowOrgSwitcher] = useState(false)
   const [showApiKeysModal, setShowApiKeysModal] = useState(false)
+  const [showStorageConnectionsModal, setShowStorageConnectionsModal] =
+    useState(false)
   const [isEditingOrg, setIsEditingOrg] = useState(false)
 
   // Form states
@@ -656,6 +660,15 @@ export function OrganizationsTab() {
               {t('admin.organizations.apiKeys')}
             </Button>
           )}
+          {selectedOrganization && canManageOrg && (
+            <Button
+              onClick={() => setShowStorageConnectionsModal(true)}
+              variant="outline"
+            >
+              <CloudIcon className="h-4 w-4" />
+              {t('admin.organizations.storageConnections')}
+            </Button>
+          )}
           {selectedOrganization && currentUser?.is_superadmin && OrgLtiPanel && (
             <OrgLtiPanel
               organizationId={selectedOrganization.id}
@@ -983,6 +996,16 @@ export function OrganizationsTab() {
               isAdmin={canManageOrg}
               open={showApiKeysModal}
               onOpenChange={setShowApiKeysModal}
+            />
+          )}
+
+          {/* Organization storage connections (cloud imports) */}
+          {selectedOrganization && (
+            <OrgStorageConnections
+              organizationId={selectedOrganization.id}
+              isAdmin={canManageOrg}
+              open={showStorageConnectionsModal}
+              onOpenChange={setShowStorageConnectionsModal}
             />
           )}
 

@@ -264,3 +264,98 @@ describe('Tabs', () => {
     })
   })
 })
+
+describe('Tabs — defaultValue re-sync guard', () => {
+  const GuardTabs = ({ defaultValue }: { defaultValue: string }) => (
+    <Tabs defaultValue={defaultValue}>
+      <TabsList>
+        <TabsTrigger value="tab1">Tab 1</TabsTrigger>
+        <TabsTrigger value="tab2">Tab 2</TabsTrigger>
+      </TabsList>
+      <TabsContent value="tab1">Content 1</TabsContent>
+      <TabsContent value="tab2">Content 2</TabsContent>
+    </Tabs>
+  )
+
+  it('follows a changed defaultValue while the user has not clicked', async () => {
+    const { rerender } = render(<GuardTabs defaultValue="tab1" />)
+    await waitFor(() => {
+      expect(screen.getByText('Content 1')).toBeInTheDocument()
+    })
+
+    rerender(<GuardTabs defaultValue="tab2" />)
+    await waitFor(() => {
+      expect(screen.getByText('Content 2')).toBeInTheDocument()
+    })
+  })
+
+  it('does not yank the user off their chosen tab when defaultValue changes', async () => {
+    const { rerender } = render(<GuardTabs defaultValue="tab1" />)
+    await waitFor(() => {
+      expect(screen.getByText('Content 1')).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByText('Tab 2'))
+    await waitFor(() => {
+      expect(screen.getByText('Content 2')).toBeInTheDocument()
+    })
+
+    // A recomputed default must not override the explicit user choice.
+    rerender(<GuardTabs defaultValue="tab1" />)
+    expect(screen.getByText('Content 2')).toBeInTheDocument()
+    expect(screen.queryByText('Content 1')).not.toBeInTheDocument()
+  })
+})
+
+describe('Tabs — controlled mode', () => {
+  const Controlled = ({
+    value,
+    onValueChange,
+  }: {
+    value: string
+    onValueChange?: (v: string) => void
+  }) => (
+    <Tabs defaultValue="tab1" value={value} onValueChange={onValueChange}>
+      <TabsList>
+        <TabsTrigger value="tab1">Tab 1</TabsTrigger>
+        <TabsTrigger value="tab2">Tab 2</TabsTrigger>
+      </TabsList>
+      <TabsContent value="tab1">Content 1</TabsContent>
+      <TabsContent value="tab2">Content 2</TabsContent>
+    </Tabs>
+  )
+
+  it('renders the tab named by value and follows value changes', async () => {
+    const { rerender } = render(<Controlled value="tab2" />)
+    await waitFor(() => {
+      expect(screen.getByText('Content 2')).toBeInTheDocument()
+    })
+
+    rerender(<Controlled value="tab1" />)
+    expect(screen.getByText('Content 1')).toBeInTheDocument()
+    expect(screen.queryByText('Content 2')).not.toBeInTheDocument()
+  })
+
+  it('reports clicks via onValueChange without switching on its own', async () => {
+    const onValueChange = jest.fn()
+    render(<Controlled value="tab1" onValueChange={onValueChange} />)
+    await waitFor(() => {
+      expect(screen.getByText('Content 1')).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByText('Tab 2'))
+    expect(onValueChange).toHaveBeenCalledWith('tab2')
+    // Still controlled by the unchanged value prop.
+    expect(screen.getByText('Content 1')).toBeInTheDocument()
+    expect(screen.queryByText('Content 2')).not.toBeInTheDocument()
+  })
+
+  it('spreads extra div props such as data-testid', () => {
+    render(
+      <Tabs defaultValue="tab1" data-testid="my-tabs">
+        <TabsContent value="tab1">Content 1</TabsContent>
+      </Tabs>
+    )
+    expect(screen.getByTestId('my-tabs')).toBeInTheDocument()
+  })
+})

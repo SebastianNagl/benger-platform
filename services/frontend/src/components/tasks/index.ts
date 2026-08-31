@@ -12,7 +12,6 @@ export { QuestionManager, questionsToJson } from './QuestionManager'
 // Import/export components still used by projects
 export { ImportPreviewWithMapping } from './ImportPreviewWithMapping'
 export { TaskDataViewModal } from './TaskDataViewModal'
-export { UniversalDataImport } from './UniversalDataImport'
 
 // Model and prompt management still used by projects
 export { ModelProviderStatus } from './ModelProviderStatus'

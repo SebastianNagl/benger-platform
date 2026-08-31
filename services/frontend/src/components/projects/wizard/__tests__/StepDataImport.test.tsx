@@ -20,15 +20,39 @@ jest.mock('@/components/shared/Toast', () => ({
   useToast: () => ({ addToast: mockAddToast }),
 }))
 
+// The real CloudImportPanel talks to auth/progress contexts and the API —
+// stub it and exercise the select-mode wiring through the stub's button.
+jest.mock('@/components/projects/import/CloudImportPanel', () => ({
+  CloudImportPanel: ({ mode, initialSelection, onSelectionChange }: any) => (
+    <div data-testid="cloud-import-panel-stub" data-mode={mode}>
+      <span data-testid="cloud-import-initial">
+        {JSON.stringify(initialSelection)}
+      </span>
+      <button
+        data-testid="cloud-import-select-stub"
+        onClick={() =>
+          onSelectionChange?.({
+            organizationId: 'org-1',
+            connectionId: 'conn-1',
+            objectKeys: ['data/a.json'],
+          })
+        }
+      >
+        select
+      </button>
+    </div>
+  ),
+}))
+
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
     t: (key: string, params?: any) => {
       const translations: Record<string, string> = {
         'projects.creation.wizard.step2.title': 'Import Data',
         'projects.creation.wizard.step2.subtitle': 'Add your dataset',
-        'projects.creation.wizard.step2.tabs.upload': 'Upload',
-        'projects.creation.wizard.step2.tabs.paste': 'Paste',
-        'projects.creation.wizard.step2.tabs.cloud': 'Cloud',
+        'dataImport.tabs.upload': 'Upload',
+        'dataImport.tabs.paste': 'Paste',
+        'dataImport.tabs.cloud': 'Cloud',
         'projects.creation.wizard.step2.upload.dropzone': 'Drop files here',
         'projects.creation.wizard.step2.upload.supportedFormats': 'JSON, CSV, TSV',
         'projects.creation.wizard.step2.upload.chooseFiles': 'Choose Files',
@@ -42,7 +66,6 @@ jest.mock('@/contexts/I18nContext', () => ({
         'projects.creation.wizard.step2.paste.validate': 'Validate',
         'projects.creation.wizard.step2.paste.formatDetected': '{format} detected',
         'projects.creation.wizard.step2.paste.invalidFormat': 'Invalid format',
-        'projects.creation.wizard.step2.cloud.comingSoon': 'Coming soon',
         'projects.creation.wizard.step2.detectedColumns': 'Detected columns',
         'projects.creation.wizard.step2.note': 'Note text',
         'projects.wizard.note': 'Note',
@@ -74,6 +97,8 @@ function setup(
       onDataColumnsChange={props.onDataColumnsChange ?? onDataColumnsChange}
       syntheticActive={props.syntheticActive}
       syntheticColumns={props.syntheticColumns}
+      wizardData={props.wizardData}
+      onWizardChange={props.onWizardChange}
     />
   )
   return { ...utils, onPastedDataChange, onFileChange, onDataColumnsChange }
@@ -326,5 +351,47 @@ describe('StepDataImport — synthetic data warning', () => {
     )
     expect(warning).toHaveTextContent('sachverhalt')
     expect(warning).toHaveTextContent('musterloesung')
+  })
+})
+
+describe('StepDataImport — cloud tab (select-mode panel)', () => {
+  it('mounts the select-mode CloudImportPanel on the cloud tab', async () => {
+    const user = userEvent.setup()
+    setup()
+    await user.click(screen.getByTestId('project-create-cloud-tab'))
+    const stub = await screen.findByTestId('cloud-import-panel-stub')
+    expect(stub).toHaveAttribute('data-mode', 'select')
+  })
+
+  it('commits the panel selection into the wizard state', async () => {
+    const user = userEvent.setup()
+    const onWizardChange = jest.fn()
+    setup({ wizardData: { cloudImport: null }, onWizardChange })
+    await user.click(screen.getByTestId('project-create-cloud-tab'))
+    await user.click(await screen.findByTestId('cloud-import-select-stub'))
+    expect(onWizardChange).toHaveBeenCalledWith({
+      cloudImport: {
+        organizationId: 'org-1',
+        connectionId: 'conn-1',
+        objectKeys: ['data/a.json'],
+      },
+    })
+  })
+
+  it('passes the stored selection back into the panel for restore', async () => {
+    const user = userEvent.setup()
+    const selection = {
+      organizationId: 'org-1',
+      connectionId: 'conn-1',
+      objectKeys: ['data/a.json'],
+    }
+    setup({
+      wizardData: { cloudImport: selection },
+      onWizardChange: jest.fn(),
+    })
+    await user.click(screen.getByTestId('project-create-cloud-tab'))
+    expect(
+      await screen.findByTestId('cloud-import-initial')
+    ).toHaveTextContent(JSON.stringify(selection))
   })
 })
