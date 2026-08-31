@@ -444,6 +444,14 @@ export function OrganizationsTab() {
         description: editOrgDescription,
       })
 
+      // Merge into the local selection: the detail card reads
+      // selectedOrganization, which refreshOrganizations() does not touch,
+      // and the PUT response carries no user_role to adopt wholesale.
+      setSelectedOrganization((prev) =>
+        prev
+          ? { ...prev, name: editOrgName, description: editOrgDescription }
+          : prev
+      )
       await refreshOrganizations()
       setIsEditingOrg(false)
       addToast(t('toasts.admin.orgUpdated'), 'success')

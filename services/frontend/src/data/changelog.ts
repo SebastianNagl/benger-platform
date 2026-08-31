@@ -7,6 +7,22 @@ import type { ChangelogEntry } from '@/lib/extensions/changelog'
  */
 export const PLATFORM_CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-08-31',
+    audience: 'benger',
+    text: {
+      de: 'Projekt-Assistent: „Klausur erfassen“ übernimmt eingegebene Inhalte jetzt automatisch — die Klausur-Aufgabe geht nicht mehr verloren, wenn „Übernehmen“ übersprungen wurde.',
+      en: 'Project wizard: "Enter exam" now saves entered content automatically — the exam task is no longer lost when "Apply" was skipped.',
+    },
+  },
+  {
+    date: '2026-08-31',
+    audience: 'benger',
+    text: {
+      de: 'Organisationsverwaltung: Eine geänderte Beschreibung ist sofort sichtbar, ohne die Seite neu zu laden.',
+      en: 'Organization management: an edited description now shows immediately, without reloading the page.',
+    },
+  },
+  {
     date: '2026-08-25',
     audience: 'benger',
     text: {

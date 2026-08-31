@@ -713,6 +713,45 @@ describe('OrganizationsTab', () => {
       }
     })
 
+    it('should show the updated name and description without a reload', async () => {
+      const user = userEvent.setup()
+      render(<OrganizationsTab />)
+
+      await waitFor(() => {
+        expect(screen.getByText('Test description')).toBeInTheDocument()
+      })
+
+      const editButtons = screen.getAllByRole('button')
+      const editButton = editButtons.find(
+        (btn) =>
+          btn.querySelector('svg')?.classList.contains('h-4') &&
+          btn.className.includes('text-indigo-600')
+      )
+      expect(editButton).toBeDefined()
+      await user.click(editButton!)
+
+      await waitFor(() => {
+        const nameInputs = screen.queryAllByDisplayValue('Test Organization')
+        expect(nameInputs.some((el) => el.tagName === 'INPUT')).toBe(true)
+      })
+
+      const descriptionInput = screen
+        .getAllByDisplayValue('Test description')
+        .find((el) => el.tagName === 'TEXTAREA') as HTMLTextAreaElement
+      await user.clear(descriptionInput)
+      await user.type(descriptionInput, 'Fresh description')
+
+      const saveButton = screen.getByRole('button', { name: /Save/i })
+      await user.click(saveButton)
+
+      // The detail card must reflect the save immediately (regression:
+      // selectedOrganization stayed stale until a full page reload).
+      await waitFor(() => {
+        expect(screen.getByText('Fresh description')).toBeInTheDocument()
+      })
+      expect(screen.queryByText('Test description')).not.toBeInTheDocument()
+    })
+
     it('should cancel edit mode', async () => {
       const user = userEvent.setup()
       render(<OrganizationsTab />)

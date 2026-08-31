@@ -560,6 +560,8 @@
         "title": "Enter exam (structured)",
         "apply": "Apply",
         "appliedHint": "Applied — the exam is imported as a task on create.",
+        "autoHint": "The exam is imported as a task automatically when the project is created.",
+        "missingParts": "Not yet filled in: {parts}. The exam is still imported as a task and can be completed later.",
         "hint": "Enter facts, model solution and optional parts as one exam task — labeling template and AI grading are set automatically."
       }
     },

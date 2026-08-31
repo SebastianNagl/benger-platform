@@ -560,6 +560,8 @@
         "title": "Klausur strukturiert erfassen",
         "apply": "Übernehmen",
         "appliedHint": "Übernommen — die Klausur wird beim Erstellen als Aufgabe importiert.",
+        "autoHint": "Die Klausur wird beim Erstellen des Projekts automatisch als Aufgabe importiert.",
+        "missingParts": "Noch nicht ausgefüllt: {parts}. Die Klausur wird trotzdem als Aufgabe importiert und kann später ergänzt werden.",
         "hint": "Sachverhalt, Musterlösung und optionale Teile als eine Klausur-Aufgabe anlegen — Labeling-Vorlage und KI-Korrektur werden automatisch gesetzt."
       }
     },
