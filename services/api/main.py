@@ -385,6 +385,7 @@ from routers.feature_flags import router as feature_flags_router  # noqa: E402
 from routers.file_uploads import router as file_upload_router  # noqa: E402
 from routers.invitations import router as invitations_router  # noqa: E402
 from routers.org_api_keys import router as org_api_key_router  # noqa: E402
+from routers.org_storage_connections import router as org_storage_connections_router  # noqa: E402
 from routers.organizations import router as organizations_router  # noqa: E402
 
 # Core domain routers
@@ -458,6 +459,7 @@ app.include_router(custom_models_router)  # BYOM: user-registered OpenAI-compati
 from routers.lti_admin import router as lti_admin_router  # noqa: E402
 app.include_router(lti_admin_router)  # Superadmin: LTI 1.3 (Moodle) registrations + grade-sync outbox
 app.include_router(org_api_key_router)  # Organization API key management (Issue #1180)
+app.include_router(org_storage_connections_router)  # Org S3 storage connections (cloud imports)
 from routers.custom_model_org_credentials import router as custom_model_org_cred_router  # noqa: E402
 app.include_router(custom_model_org_cred_router)  # Org-owned (shared) BYOM custom-model credentials
 app.include_router(file_upload_router)  # File uploads

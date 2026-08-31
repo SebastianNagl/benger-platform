@@ -40,12 +40,18 @@ def _stage_object(storage, object_key, content: bytes):
         f.write(content)
 
 
-def _make_job(project_id="proj-1", status="pending", object_key="imports/proj-1/file.json"):
+def _make_job(
+    project_id="proj-1",
+    status="pending",
+    object_key="imports/proj-1/file.json",
+    source_connection_id=None,
+):
     return types.SimpleNamespace(
         id="ijob-1",
         project_id=project_id,
         requested_by="user-1",
         object_key=object_key,
+        source_connection_id=source_connection_id,
         format=None,
         status=status,
         byte_size=None,
@@ -234,3 +240,150 @@ def test_import_missing_job_returns_error(_patched):
         result = workers_tasks.import_project("missing")
     assert result["status"] == "error"
     assert result["error"] == "job_not_found"
+
+
+# ---- Cloud-source jobs (org storage connections) ---------------------------
+#
+# A job with `source_connection_id` set downloads from the customer bucket via
+# the shared org_storage_connection_service (mocked here) instead of our own
+# object storage, and tabular keys dispatch to run_tabular_import.
+
+
+def _make_conn():
+    return types.SimpleNamespace(
+        id="conn-1",
+        organization_id="org-1",
+        name="Customer bucket",
+        endpoint_url=None,
+        bucket="customer-bucket",
+        prefix="in/",
+        region=None,
+        use_ssl=True,
+        encrypted_access_key="enc-ak",
+        encrypted_secret_key="enc-sk",
+    )
+
+
+def _run_cloud_job(workers_tasks, ImportJob, job, conn):
+    from models import OrgStorageConnection
+
+    session = _FakeSession({ImportJob: job, OrgStorageConnection: conn})
+    with patch.object(workers_tasks, "SessionLocal", return_value=session):
+        result = workers_tasks.import_project("ijob-1")
+    return result, session
+
+
+def test_cloud_import_tabular_key_runs_tabular_driver(_patched):
+    workers_tasks, storage, ImportJob = _patched
+    job = _make_job(object_key="in/data.csv", source_connection_id="conn-1")
+    conn = _make_conn()
+    content = b"a,b\n1,2\n"
+
+    def _fake_download(c, key, fileobj):
+        assert c is conn
+        assert key == "in/data.csv"
+        fileobj.write(content)
+
+    captured = {}
+
+    def _fake_tabular(db, project_id, fileobj, user_id, fmt):
+        captured["project_id"] = project_id
+        captured["user_id"] = user_id
+        captured["fmt"] = fmt
+        captured["bytes"] = fileobj.read()
+        return {"created_tasks": 1, "format": fmt}
+
+    with patch(
+        "org_storage_connection_service.head_object_size", return_value=len(content)
+    ), patch(
+        "org_storage_connection_service.download_to_fileobj", _fake_download
+    ), patch(
+        "import_stream.run_tabular_import", _fake_tabular
+    ), patch(
+        "import_stream.run_nested_import"
+    ) as mock_nested:
+        result, _ = _run_cloud_job(workers_tasks, ImportJob, job, conn)
+
+    assert result["status"] == "completed"
+    mock_nested.assert_not_called()
+    assert captured["project_id"] == "proj-1"
+    assert captured["user_id"] == "user-1"
+    assert captured["fmt"] == "csv"
+    assert captured["bytes"] == content
+    assert job.status == "completed"
+    assert job.byte_size == len(content)
+
+
+def test_cloud_import_json_key_runs_nested_driver(_patched):
+    workers_tasks, storage, ImportJob = _patched
+    job = _make_job(object_key="in/tasks.json", source_connection_id="conn-1")
+    conn = _make_conn()
+    content = b'{"data": [{"id": 1}]}'
+
+    def _fake_download(c, key, fileobj):
+        fileobj.write(content)
+
+    captured = {}
+
+    def _fake_nested(db, project_id, fileobj, user_id):
+        captured["bytes"] = fileobj.read()
+        return {"created_tasks": 1}
+
+    with patch(
+        "org_storage_connection_service.head_object_size", return_value=len(content)
+    ), patch(
+        "org_storage_connection_service.download_to_fileobj", _fake_download
+    ), patch(
+        "import_stream.run_nested_import", _fake_nested
+    ), patch(
+        "import_stream.run_tabular_import"
+    ) as mock_tabular:
+        result, _ = _run_cloud_job(workers_tasks, ImportJob, job, conn)
+
+    assert result["status"] == "completed"
+    mock_tabular.assert_not_called()
+    assert captured["bytes"] == content
+    assert job.format == "nested"
+
+
+def test_cloud_import_deleted_connection_fails_job(_patched):
+    # SET NULL raced / row deleted between enqueue and run: fail cleanly, never
+    # fall back to our own object storage.
+    workers_tasks, storage, ImportJob = _patched
+    job = _make_job(object_key="in/data.csv", source_connection_id="conn-1")
+
+    with patch("import_stream.run_tabular_import") as mock_tabular, patch(
+        "import_stream.run_nested_import"
+    ) as mock_nested:
+        result, _ = _run_cloud_job(workers_tasks, ImportJob, job, conn=None)
+
+    assert result["status"] == "error"
+    assert result["error"] == "storage connection removed"
+    mock_tabular.assert_not_called()
+    mock_nested.assert_not_called()
+    assert job.status == "failed"
+    assert "storage connection removed" in (job.error_message or "")
+
+
+def test_cloud_import_oversize_object_fails_before_download(_patched):
+    workers_tasks, storage, ImportJob = _patched
+    from project.export_import_service import _CLOUD_IMPORT_MAX_BYTES
+
+    job = _make_job(object_key="in/huge.csv", source_connection_id="conn-1")
+    conn = _make_conn()
+
+    with patch(
+        "org_storage_connection_service.head_object_size",
+        return_value=_CLOUD_IMPORT_MAX_BYTES + 1,
+    ), patch(
+        "org_storage_connection_service.download_to_fileobj"
+    ) as mock_download, patch(
+        "import_stream.run_tabular_import"
+    ) as mock_tabular:
+        result, _ = _run_cloud_job(workers_tasks, ImportJob, job, conn)
+
+    assert result["status"] == "error"
+    mock_download.assert_not_called()
+    mock_tabular.assert_not_called()
+    assert job.status == "failed"
+    assert "413" in (job.error_message or "")

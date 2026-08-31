@@ -443,6 +443,53 @@ class OrganizationApiKey(Base):
         return f"<OrganizationApiKey(id={self.id}, org_id={self.organization_id}, provider={self.provider})>"
 
 
+class OrgStorageConnection(Base):
+    """Org-level S3-compatible storage connection for cloud imports.
+
+    Read-only credentials to a customer-owned bucket (AWS S3, self-hosted
+    MinIO, ...) so org members can browse and import files server-side
+    instead of round-tripping them through the browser. Credentials are
+    Fernet-encrypted via the same shared ``encryption_service`` path as
+    :class:`OrganizationApiKey`. ``endpoint_url`` NULL means the AWS default
+    endpoint; ``prefix`` jails all listing/download operations to a sub-tree
+    of the bucket. The proprietary-free service half lives in
+    ``services/shared/org_storage_connection_service.py``.
+    """
+
+    __tablename__ = "org_storage_connections"
+
+    id = Column(String, primary_key=True, index=True)  # uuid4
+    organization_id = Column(
+        String, ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    name = Column(String(255), nullable=False)
+    endpoint_url = Column(String, nullable=True)  # NULL => AWS default endpoint
+    bucket = Column(String, nullable=False)
+    prefix = Column(String, nullable=False, server_default="")
+    region = Column(String, nullable=True)
+    use_ssl = Column(Boolean, nullable=False, server_default=text("true"))
+    encrypted_access_key = Column(Text, nullable=False)
+    encrypted_secret_key = Column(Text, nullable=False)
+    created_by = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    organization = relationship("Organization")
+
+    __table_args__ = (
+        sa.UniqueConstraint(
+            "organization_id", "name", name="uq_org_storage_connection_name"
+        ),
+    )
+
+    def __repr__(self):
+        return (
+            f"<OrgStorageConnection(id={self.id}, org_id={self.organization_id}, "
+            f"name={self.name}, bucket={self.bucket})>"
+        )
+
+
 class StudentSubscription(Base):
     """A student's paid subscription for AI exam grading (Vertretbar).
 
@@ -2627,7 +2674,17 @@ class ImportJob(Base):
     format = Column(String, nullable=True)
     status = Column(String, nullable=False, server_default="pending")
     # Client uploads the file before the job row is created, so this is required.
+    # For cloud imports this holds the key in the CUSTOMER bucket instead.
     object_key = Column(String, nullable=False)
+    # Set for cloud imports (file pulled from an org storage connection instead
+    # of our own object storage). SET NULL on connection delete keeps the job
+    # history row alive while marking the source as removed.
+    source_connection_id = Column(
+        String,
+        ForeignKey("org_storage_connections.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
     byte_size = Column(BigInteger, nullable=True)
     progress = Column(Integer, nullable=False, server_default=text("0"))
     error_message = Column(Text, nullable=True)

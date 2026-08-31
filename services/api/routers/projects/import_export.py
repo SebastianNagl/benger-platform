@@ -90,6 +90,8 @@ from models import (  # noqa: E402
     ExportJob,
     ImportJob,
     JobStatus,
+    OrganizationMembership,
+    OrgStorageConnection,
 )
 from project_models import (  # noqa: E402
     Annotation,
@@ -484,6 +486,241 @@ async def get_import_job(
     """Return the status of an import job (poll target for the client)."""
     job = await _load_import_job_for_read(db, current_user, project_id, job_id)
     return _serialize_import_job(job)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Cloud imports (org storage connections)
+#
+# The third import surface: instead of the client uploading a file to OUR
+# object storage, the worker pulls files directly from a customer bucket
+# registered as an OrgStorageConnection (routers/org_storage_connections.py).
+# One ImportJob per selected key, with `source_connection_id` set so the worker
+# downloads via the connection's read-only client; the jobs then run through the
+# exact same import pipeline (same task, same polling endpoints). Tabular files
+# (.csv/.tsv/.txt) dispatch to the tabular driver in the worker.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Allowed source-file extensions for a cloud import, mapped to the format hint
+# stored on the job (the worker re-derives dispatch from the key's extension).
+_CLOUD_IMPORT_EXTENSIONS = (
+    (".json.gz", "json_gz"),
+    (".ndjson", "ndjson"),
+    (".json", "json"),
+    (".csv", "csv"),
+    (".tsv", "tsv"),
+    (".txt", "txt"),
+)
+
+# Cap keys per request so one call can't fan out unbounded worker jobs.
+_CLOUD_IMPORT_MAX_KEYS = 20
+
+
+def _cloud_import_format(object_key: str) -> Optional[str]:
+    """Format hint for an allowed extension; None for a disallowed one."""
+    lowered = object_key.lower()
+    for suffix, fmt in _CLOUD_IMPORT_EXTENSIONS:
+        if lowered.endswith(suffix):
+            return fmt
+    return None
+
+
+async def _require_connection_org_membership(
+    db: AsyncSession, current_user: AuthUser, conn: OrgStorageConnection
+) -> None:
+    """403 unless the requester holds an ACTIVE membership in the connection's
+    org (superadmin bypass). Project write access alone must not unlock another
+    org's bucket credentials."""
+    if current_user.is_superadmin:
+        return
+    membership = (
+        await db.execute(
+            select(OrganizationMembership).where(
+                OrganizationMembership.user_id == current_user.id,
+                OrganizationMembership.organization_id == conn.organization_id,
+                OrganizationMembership.is_active == True,  # noqa: E712
+            )
+        )
+    ).scalar_one_or_none()
+    if membership is None:
+        raise HTTPException(
+            status_code=403,
+            detail="You are not a member of the storage connection's organization",
+        )
+
+
+@router.post("/{project_id}/cloud-imports", status_code=202)
+async def create_cloud_import_jobs(
+    project_id: str,
+    data: dict,
+    request: Request,
+    current_user: AuthUser = Depends(require_user),
+    db: AsyncSession = Depends(get_async_db),
+):
+    """Create one import job per selected object in an org storage connection.
+
+    Body: ``{"connection_id": "...", "object_keys": ["...", ...]}``. Gates:
+    write access to the project AND active membership in the connection's org.
+    Every key must live under the connection's configured prefix (the same jail
+    the browse endpoint enforces) and carry an allowed data-file extension.
+    Returns 202 with one job descriptor per key; each job is polled via the
+    regular GET .../imports/{job_id}.
+    """
+    project = (
+        await db.execute(select(Project).where(Project.id == project_id))
+    ).scalar_one_or_none()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    if not await check_project_write_access_async(db, current_user, project_id):
+        raise HTTPException(
+            status_code=403,
+            detail="Only contributors or admins can import tasks into this project",
+        )
+
+    data = data or {}
+    connection_id = data.get("connection_id")
+    if not isinstance(connection_id, str) or not connection_id:
+        raise HTTPException(status_code=400, detail="connection_id is required")
+    conn = (
+        await db.execute(
+            select(OrgStorageConnection).where(OrgStorageConnection.id == connection_id)
+        )
+    ).scalar_one_or_none()
+    if conn is None:
+        raise HTTPException(status_code=404, detail="Storage connection not found")
+
+    await _require_connection_org_membership(db, current_user, conn)
+
+    object_keys = data.get("object_keys")
+    if (
+        not isinstance(object_keys, list)
+        or not object_keys
+        or not all(isinstance(k, str) and k for k in object_keys)
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="object_keys must be a non-empty list of strings",
+        )
+    if len(object_keys) > _CLOUD_IMPORT_MAX_KEYS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"At most {_CLOUD_IMPORT_MAX_KEYS} files per cloud import",
+        )
+
+    jail = conn.prefix or ""
+    formats: Dict[str, str] = {}
+    for key in object_keys:
+        if not key.startswith(jail):
+            raise HTTPException(
+                status_code=400,
+                detail="object_keys must be inside the connection's configured prefix",
+            )
+        fmt = _cloud_import_format(key)
+        if fmt is None:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "Unsupported file type; allowed: "
+                    + ", ".join(suffix for suffix, _ in _CLOUD_IMPORT_EXTENSIONS)
+                ),
+            )
+        formats[key] = fmt
+
+    jobs = []
+    for key in object_keys:
+        job = ImportJob(
+            id=str(uuid.uuid4()),
+            project_id=project_id,
+            requested_by=current_user.id,
+            object_key=key,
+            source_connection_id=conn.id,
+            format=formats[key],
+            status=JobStatus.PENDING.value,
+            progress=0,
+        )
+        db.add(job)
+        jobs.append(job)
+    await db.commit()
+
+    try:
+        for job in jobs:
+            result = send_task_safe("tasks.import_project", args=[job.id])
+            job.celery_task_id = getattr(result, "id", None)
+        await db.commit()
+    except Exception as exc:
+        # Queue down mid-fanout: mark every not-yet-enqueued job failed so none
+        # is left pending forever, keep the already-enqueued ones running, and
+        # surface 503 (same contract as the single-job import endpoints).
+        logger.error(
+            "Failed to enqueue cloud import jobs for project %s: %s", project_id, exc
+        )
+        for job in jobs:
+            if job.celery_task_id is None:
+                job.status = JobStatus.FAILED.value
+                job.error_message = f"Failed to enqueue import: {exc}"
+        await db.commit()
+        raise HTTPException(
+            status_code=503, detail="Import queue unavailable, please retry"
+        )
+
+    return JSONResponse(
+        status_code=202,
+        content={
+            "jobs": [
+                {"job_id": job.id, "object_key": job.object_key, "status": job.status}
+                for job in jobs
+            ]
+        },
+    )
+
+
+@router.get("/{project_id}/cloud-imports")
+async def list_cloud_import_jobs(
+    project_id: str,
+    request: Request,
+    current_user: AuthUser = Depends(require_user),
+    db: AsyncSession = Depends(get_async_db),
+):
+    """Cloud-import history for a project (newest first), with connection names.
+
+    Only jobs sourced from a storage connection appear here (upload-based
+    imports keep their own flow). NOTE: the FK is ON DELETE SET NULL, so a job
+    whose connection is deleted BEFORE the worker ran fails with "storage
+    connection removed" but drops out of this filtered listing once the column
+    is nulled — an accepted trade-off for keeping the job rows alive.
+    """
+    project = (
+        await db.execute(select(Project).where(Project.id == project_id))
+    ).scalar_one_or_none()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    if not await check_project_write_access_async(db, current_user, project_id):
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    rows = (
+        await db.execute(
+            select(ImportJob, OrgStorageConnection.name)
+            .outerjoin(
+                OrgStorageConnection,
+                OrgStorageConnection.id == ImportJob.source_connection_id,
+            )
+            .where(
+                ImportJob.project_id == project_id,
+                ImportJob.source_connection_id.isnot(None),
+            )
+            .order_by(ImportJob.created_at.desc())
+        )
+    ).all()
+
+    return [
+        {
+            **_serialize_import_job(job),
+            "object_key": job.object_key,
+            "connection_name": connection_name,
+        }
+        for job, connection_name in rows
+    ]
 
 
 # ─────────────────────────────────────────────────────────────────────────────
