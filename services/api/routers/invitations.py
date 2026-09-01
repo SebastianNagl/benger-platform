@@ -734,38 +734,12 @@ async def accept_invitation(
 
     db.add(membership)
 
-    # Group-scoped invitation: also join the group. Skipped silently when
-    # the group is gone (FK SET NULL) / deactivated / re-parented — the
-    # invite then degrades to a plain org invite instead of failing.
-    if invitation.group_id:
-        group = (
-            db.query(OrganizationGroup)
-            .filter(
-                OrganizationGroup.id == invitation.group_id,
-                OrganizationGroup.organization_id == invitation.organization_id,
-                OrganizationGroup.is_active == True,  # noqa: E712
-            )
-            .first()
-        )
-        existing_group_membership = (
-            db.query(OrganizationGroupMembership)
-            .filter(
-                OrganizationGroupMembership.group_id == invitation.group_id,
-                OrganizationGroupMembership.user_id == current_user.id,
-            )
-            .first()
-            if group
-            else None
-        )
-        if group and existing_group_membership is None:
-            db.add(
-                OrganizationGroupMembership(
-                    id=str(uuid4()),
-                    group_id=invitation.group_id,
-                    user_id=current_user.id,
-                    is_group_admin=bool(invitation.invited_as_group_admin),
-                )
-            )
+    # Group-scoped invitation: also join the group (shared with the
+    # register-with-token path in auth/session.py — silent degrade when the
+    # group is gone/inactive, idempotent for existing memberships).
+    from org_groups import ensure_invitation_group_membership
+
+    ensure_invitation_group_membership(db, invitation, current_user.id)
 
     db.commit()
 

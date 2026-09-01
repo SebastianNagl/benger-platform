@@ -274,3 +274,55 @@ async def resolve_project_group_for_org_async(db, project_id, org_id) -> Optiona
         )
     ).scalar_one_or_none()
     return str(row) if row else None
+
+
+def ensure_invitation_group_membership(db, invitation, user_id: str) -> bool:
+    """Join ``user_id`` to a group-scoped invitation's group (sync, no commit).
+
+    The single implementation behind BOTH invitation-consumption paths — the
+    accept endpoint (existing users) and register-with-token (new users) —
+    so a group-scoped email invite lands the invitee in the group either way.
+
+    Skipped silently when the invitation carries no group or the group is
+    gone (FK SET NULL) / deactivated / re-parented to another org — the
+    invite then degrades to a plain org invite instead of failing.
+    Idempotent: an existing group membership is left untouched (its admin
+    flag is NOT escalated). Returns True iff a membership row was added.
+    """
+    group_id = getattr(invitation, "group_id", None)
+    if not group_id:
+        return False
+    from uuid import uuid4
+
+    from models import OrganizationGroup, OrganizationGroupMembership
+
+    group = (
+        db.query(OrganizationGroup)
+        .filter(
+            OrganizationGroup.id == group_id,
+            OrganizationGroup.organization_id == invitation.organization_id,
+            OrganizationGroup.is_active == True,  # noqa: E712
+        )
+        .first()
+    )
+    if group is None:
+        return False
+    existing = (
+        db.query(OrganizationGroupMembership)
+        .filter(
+            OrganizationGroupMembership.group_id == group_id,
+            OrganizationGroupMembership.user_id == str(user_id),
+        )
+        .first()
+    )
+    if existing is not None:
+        return False
+    db.add(
+        OrganizationGroupMembership(
+            id=str(uuid4()),
+            group_id=group_id,
+            user_id=str(user_id),
+            is_group_admin=bool(getattr(invitation, "invited_as_group_admin", False)),
+        )
+    )
+    return True

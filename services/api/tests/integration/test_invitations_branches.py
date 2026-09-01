@@ -1016,3 +1016,115 @@ class TestAcceptGroupScopedInvitation:
             .first()
         )
         assert membership is not None
+
+    def test_signup_with_token_creates_group_membership(
+        self, client, test_db, test_users, test_org
+    ):
+        """The NEW-user path: registering via the invite email's token must
+        join the group too (regression — signup used to create only the org
+        membership, silently dropping the group scope + admin flag, and the
+        accept endpoint can't recover it later: 400 already-a-member)."""
+        import uuid as _uuid
+
+        from models import OrganizationGroupMembership, User
+
+        group = self._group(test_db, test_org.id)
+        email = f"signup_{_uuid.uuid4().hex[:8]}@test.com"
+        token = _uid()
+        _make_invitation(
+            test_db,
+            test_org.id,
+            test_users[0].id,
+            email=email,
+            token=token,
+            role=OrganizationRole.CONTRIBUTOR,
+            group_id=group.id,
+            invited_as_group_admin=True,
+        )
+
+        resp = client.post(
+            "/api/auth/signup",
+            json={
+                "username": f"user_{_uuid.uuid4().hex[:8]}",
+                "email": email,
+                "name": "Signup Via Group Invite",
+                "password": "secure123password",
+                "legal_expertise_level": "layperson",
+                "german_proficiency": "native",
+                "invitation_token": token,
+            },
+        )
+        assert resp.status_code == 200
+
+        user = test_db.query(User).filter(User.email == email).first()
+        assert user is not None
+        membership = (
+            test_db.query(OrganizationMembership)
+            .filter(
+                OrganizationMembership.user_id == user.id,
+                OrganizationMembership.organization_id == test_org.id,
+            )
+            .first()
+        )
+        assert membership is not None and membership.role == OrganizationRole.CONTRIBUTOR
+        gm = (
+            test_db.query(OrganizationGroupMembership)
+            .filter(
+                OrganizationGroupMembership.group_id == group.id,
+                OrganizationGroupMembership.user_id == user.id,
+            )
+            .first()
+        )
+        assert gm is not None
+        assert gm.is_group_admin is True
+
+    def test_signup_with_token_inactive_group_degrades(
+        self, client, test_db, test_users, test_org
+    ):
+        import uuid as _uuid
+
+        from models import OrganizationGroupMembership, User
+
+        group = self._group(test_db, test_org.id, active=False)
+        email = f"signup_{_uuid.uuid4().hex[:8]}@test.com"
+        token = _uid()
+        _make_invitation(
+            test_db,
+            test_org.id,
+            test_users[0].id,
+            email=email,
+            token=token,
+            group_id=group.id,
+        )
+
+        resp = client.post(
+            "/api/auth/signup",
+            json={
+                "username": f"user_{_uuid.uuid4().hex[:8]}",
+                "email": email,
+                "name": "Signup Degraded Invite",
+                "password": "secure123password",
+                "legal_expertise_level": "layperson",
+                "german_proficiency": "native",
+                "invitation_token": token,
+            },
+        )
+        assert resp.status_code == 200
+
+        user = test_db.query(User).filter(User.email == email).first()
+        assert user is not None
+        gm = (
+            test_db.query(OrganizationGroupMembership)
+            .filter(OrganizationGroupMembership.user_id == user.id)
+            .first()
+        )
+        assert gm is None  # no group join — but the org membership stands
+        membership = (
+            test_db.query(OrganizationMembership)
+            .filter(
+                OrganizationMembership.user_id == user.id,
+                OrganizationMembership.organization_id == test_org.id,
+            )
+            .first()
+        )
+        assert membership is not None
