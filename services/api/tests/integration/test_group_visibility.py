@@ -439,16 +439,30 @@ async def test_groups_router_crud_and_gates(async_test_client, async_test_db):
         )
         assert r.status_code == 200
 
-    # Delete: 409 while attachments reference the group; clean group deletes.
+    # Delete: 409 while attachments reference the group; a group WITH
+    # members but no attachments deletes cleanly (the memberships go with
+    # it via the DB cascade — regression: an ORM delete without
+    # passive_deletes tried to NULL the NOT-NULL group_id and 500'd).
     with _as_user(w["orgadmin"]):
         r = await async_test_client.delete(
             f"/api/organizations/{org_id}/groups/{w['group_a'].id}"
         )
         assert r.status_code == 409
+        r = await async_test_client.post(
+            f"/api/organizations/{org_id}/groups/{group_c['id']}/members",
+            json={"user_id": w["loose"].id, "is_group_admin": False},
+        )
+        assert r.status_code == 201
         r = await async_test_client.delete(
             f"/api/organizations/{org_id}/groups/{group_c['id']}"
         )
-        assert r.status_code == 200
+        assert r.status_code == 200, r.text
+        member_rows = await db.run_sync(
+            lambda s: s.query(OrganizationGroupMembership)
+            .filter(OrganizationGroupMembership.group_id == group_c["id"])
+            .count()
+        )
+        assert member_rows == 0
 
 
 async def test_attachment_endpoints_group_scope(async_test_client, async_test_db):

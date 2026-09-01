@@ -443,7 +443,16 @@ class OrganizationGroup(Base):
 
     # Relationships
     organization = relationship("Organization", back_populates="groups")
-    memberships = relationship("OrganizationGroupMembership", back_populates="group")
+    # passive_deletes: the DB-level ON DELETE CASCADE removes memberships on
+    # group deletion — without it, an ORM ``db.delete(group)`` tries to NULL
+    # the children's NOT-NULL group_id and 500s (caught on staging 2026-09-01
+    # deleting a group that had members but no attachments).
+    memberships = relationship(
+        "OrganizationGroupMembership",
+        back_populates="group",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
 
     __table_args__ = (
         sa.UniqueConstraint("organization_id", "name", name="uq_org_group_name"),
