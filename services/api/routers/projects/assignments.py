@@ -15,6 +15,7 @@ from auth_module.models import User as AuthUser
 from database import get_async_db, get_db
 from models import NotificationType, OrganizationMembership, User
 from notification_service import NotificationService
+from org_groups import group_member_fan_in_clause
 from project_models import (
     Annotation,
     Project,
@@ -135,18 +136,20 @@ async def assign_tasks(
     remaining_user_ids = [uid for uid in user_ids if uid not in direct_member_ids]
 
     if remaining_user_ids:
-        project_orgs = (
-            db.query(ProjectOrganization.organization_id)
-            .filter(ProjectOrganization.project_id == project_id)
-            .subquery()
-        )
-
+        # Grouped attachments narrow assignee eligibility to the group's
+        # members + the org's ORG_ADMINs (same fan-in as the roster).
         org_members = (
             db.query(OrganizationMembership)
+            .join(
+                ProjectOrganization,
+                ProjectOrganization.organization_id
+                == OrganizationMembership.organization_id,
+            )
             .filter(
-                OrganizationMembership.organization_id.in_(project_orgs),
+                ProjectOrganization.project_id == project_id,
                 OrganizationMembership.user_id.in_(remaining_user_ids),
                 OrganizationMembership.is_active == True,  # noqa: E712
+                group_member_fan_in_clause(ProjectOrganization, OrganizationMembership),
             )
             .all()
         )

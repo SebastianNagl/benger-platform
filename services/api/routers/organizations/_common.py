@@ -50,6 +50,32 @@ def can_manage_organization(user: User, organization_id: str, db: Session) -> bo
     return membership is not None
 
 
+def can_manage_group(user: User, organization_id: str, group_id: str, db: Session) -> bool:
+    """Check if user can manage the specified organization group.
+
+    Superadmin ∨ ORG_ADMIN of the org ∨ that group's admin
+    (``organization_group_memberships.is_group_admin``). Sync twin of the
+    async ``_require_can_manage_group`` gate in ``groups.py``.
+    """
+    if not user:
+        return False
+    if can_manage_organization(user, organization_id, db):
+        return True
+
+    from models import OrganizationGroupMembership
+
+    group_admin = (
+        db.query(OrganizationGroupMembership)
+        .filter(
+            OrganizationGroupMembership.group_id == group_id,
+            OrganizationGroupMembership.user_id == user.id,
+            OrganizationGroupMembership.is_group_admin == True,  # noqa: E712
+        )
+        .first()
+    )
+    return group_admin is not None
+
+
 def can_create_organization(user: User, db: Session) -> bool:
     """Check if user can create organizations (superadmin or org admin of any organization)"""
     if not user:
@@ -105,6 +131,14 @@ class OrganizationResponse(OrganizationBase):
         from_attributes = True
 
 
+class MemberGroupInfo(BaseModel):
+    """One group membership shown on a member row (group chips)."""
+
+    id: str
+    name: str
+    is_group_admin: bool = False
+
+
 class OrganizationMemberResponse(BaseModel):
     id: str
     user_id: str
@@ -116,6 +150,7 @@ class OrganizationMemberResponse(BaseModel):
     user_email: Optional[str] = None
     email_verified: Optional[bool] = None
     email_verification_method: Optional[str] = None
+    groups: List[MemberGroupInfo] = []
 
     class Config:
         from_attributes = True
@@ -164,11 +199,13 @@ __all__ = [
     # this module — helpers, router and schemas
     "router",
     "can_manage_organization",
+    "can_manage_group",
     "can_create_organization",
     "OrganizationBase",
     "OrganizationCreate",
     "OrganizationUpdate",
     "OrganizationResponse",
+    "MemberGroupInfo",
     "OrganizationMemberResponse",
     "UpdateMemberRole",
 ]

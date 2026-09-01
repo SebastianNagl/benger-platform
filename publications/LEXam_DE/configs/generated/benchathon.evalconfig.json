@@ -1,0 +1,34 @@
+[
+  {
+    "id": "llm-judge-lexam-open",
+    "metric": "llm_judge_lexam",
+    "display_name": "LEXam Judge (DE)",
+    "prediction_fields": [
+      "__all_model__",
+      "human:loesung"
+    ],
+    "reference_fields": [
+      "musterlösung"
+    ],
+    "enabled": true,
+    "metric_parameters": {
+      "judges": [
+        {
+          "judge_model_id": "gpt-5-mini",
+          "runs": 1
+        },
+        {
+          "judge_model_id": "gpt-5.4-mini",
+          "runs": 1
+        }
+      ],
+      "score_scale": "0-1",
+      "max_tokens": 8000,
+      "seed": 42,
+      "field_mappings": {
+        "question": "$sachverhalt"
+      },
+      "custom_prompt_template": "Act as a Judge specializing in the evaluation of German law schools exams. Your task is to assess how well the response aligns with the reference answer, with a focus on accuracy, completeness, and legal reasoning.\n\nGoal:\nYour task is to assess how well the response aligns with the reference answer, with a focus on accuracy, completeness, and legal reasoning.\n\nContext:\nYou will be provided with a response (labeled: Model's Answer) to a law school exam question (labeled: Question) and a reference answer (labeled: Reference Answer).\n\nReturn format:\n    After reviewing the response:\n    1. Explanation: Briefly explain your reasoning regarding how the response conforms to or deviates from the reference answer.\n    2. Constructive feedback: Additionally, provide neutral, constructive feedback and corrections in the style of a university professor.\n    3. Correctness score: Assign a final correctness score on a scale from 0.0 to 1.0 (in increments of 0.1). This score should reflect the extent to which the response satisfies the reference answer, where\n        - 1.0 = complete fulfillment (100%)\n        - lower scores reflect proportionate shortfalls (e.g. 0.5 = 50% fulfillment).\n\nWarnings:\n    - In some cases, the reference answer may include only keywords or factual elements to be examined, along with (+), (-) or (+/-). Respect these indications when determining correctness:\n        - (+) means the element must be affirmed.\n        - (–) means the element must be denied.\n        - (-/+) indicates that arguments in either direction are acceptable if legally sound.\n    - Deviations or additional elements not found in the reference answer should generally be penalized unless you are certain they are legally correct and relevant. Assume the reference answer includes all information necessary for a perfect response.\n    - The reference answer may contain citations (e.g., from books or law review articles), which the response does not need to replicate. However, statutes should be cited precisely, specifying Abs., S., Nr., or lit. whenever applicable.\n    - If the reference answer includes separate sub-points, use these for proportional scoring guidance (e.g., addressing 2 out of 4 sub-points correctly equals approximately a 0.5 score).\nJudge the below case, give the brief reasoning process and the final grade.\n\n\nQuestion:\n```{question}```\n\nReference Answer:\n```{ground_truth}```\n\nModel's Answer:\n```{prediction}```\n\nYour Judgment:\nRespond ONLY with valid JSON in exactly this format: {{\"explanation\": \"<your explanation>\", \"feedback\": \"<your constructive feedback>\", \"score\": <one of 0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0>}}"
+    }
+  }
+]

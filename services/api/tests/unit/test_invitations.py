@@ -584,6 +584,10 @@ class TestAcceptInvitation:
         invitation.token = "test-token-123"
         invitation.expires_at = datetime.now(timezone.utc) + timedelta(days=1)
         invitation.accepted = False
+        # Plain org invite (no group scope) — the group-scoped accept path
+        # is covered in tests/integration/test_invitations_branches.py.
+        invitation.group_id = None
+        invitation.invited_as_group_admin = False
         return invitation
 
     @pytest.mark.asyncio

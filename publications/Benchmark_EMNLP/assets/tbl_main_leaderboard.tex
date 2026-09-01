@@ -1,0 +1,30 @@
+\begin{table*}[!t]
+\centering\footnotesize
+\caption{Main leaderboard across the three corpora. Per-system mean LLM-judge raw score (0-100, mean\,$\pm$\,half-width of a 95\% CI: percentile bootstrap $B=2000$ on Benchathon for small per-system $n$, analytic 1.96\,$\cdot$\,SE on ZJS and Doctrinal Principles) and pass rate. Doctrinal Principles also reports yes/no (\emph{Ja/Nein}) decision accuracy. Systems are ranked by the mean of their available per-corpus raw scores. Per-system $n$ sits below the corpus total where the provider's safety filter refused individual items (\S\ref{generation}). The two human-baseline rows use the LLM judge's grades of human-written Benchathon solutions.}
+\label{tbl-main-leaderboard}
+\setlength{\tabcolsep}{4pt}
+\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}} l rrr rrr rrrr @{}}
+\toprule
+ & \multicolumn{3}{c}{Benchathon} & \multicolumn{3}{c}{ZJS} & \multicolumn{4}{c}{Doctrinal Principles} \\
+\cmidrule(lr){2-4} \cmidrule(lr){5-7} \cmidrule(lr){8-11}
+System / Group & $n$ & Raw & Pass & $n$ & Raw & Pass & $n$ & Raw & Pass & Acc. \\
+\midrule
+Gemini-3.1-Pro & 15 & 68.3\,$\pm$\,8.3 & 93\% & 579 & 61.8\,$\pm$\,1.0 & 83\% & 531 & 83.2\,$\pm$\,1.8 & 87\% & 83\% \\
+Opus-4.7 & 15 & 69.3\,$\pm$\,5.5 & 93\% & 581 & 58.7\,$\pm$\,1.1 & 76\% & 531 & 83.1\,$\pm$\,2.0 & 86\% & 81\% \\
+GPT-5.4 & 15 & 66.6\,$\pm$\,4.9 & 100\% & 581 & 60.4\,$\pm$\,1.1 & 78\% & 531 & 80.3\,$\pm$\,2.1 & 82\% & 79\% \\
+Sonnet-4.6 & 15 & 58.9\,$\pm$\,5.9 & 73\% & 581 & 51.5\,$\pm$\,1.0 & 50\% & 531 & 81.6\,$\pm$\,2.1 & 83\% & 81\% \\
+Gemini-3.1-Flash-Lite & 15 & 63.5\,$\pm$\,5.7 & 87\% & 579 & 44.6\,$\pm$\,0.8 & 26\% & 531 & 73.3\,$\pm$\,2.3 & 76\% & 76\% \\
+GPT-5.4-mini & 15 & 58.6\,$\pm$\,5.6 & 73\% & 581 & 49.7\,$\pm$\,0.9 & 46\% & 531 & 71.8\,$\pm$\,2.4 & 72\% & 71\% \\
+DeepSeek-V4-Pro & 15 & 56.1\,$\pm$\,6.1 & 67\% & 581 & 50.1\,$\pm$\,1.0 & 45\% & 531 & 73.5\,$\pm$\,2.3 & 73\% & 73\% \\
+DeepSeek-V4-Flash & 15 & 49.3\,$\pm$\,3.7 & 47\% & 581 & 45.9\,$\pm$\,0.8 & 30\% & 530 & 70.7\,$\pm$\,2.4 & 73\% & 69\% \\
+Qwen3.5-122B & 15 & 49.4\,$\pm$\,4.9 & 40\% & 581 & 44.2\,$\pm$\,0.8 & 25\% & 526 & 69.8\,$\pm$\,2.4 & 75\% & 78\% \\
+Qwen3.6-35B & 15 & 42.4\,$\pm$\,7.6 & 27\% & 581 & 39.8\,$\pm$\,0.8 & 13\% & 531 & 69.5\,$\pm$\,2.5 & 69\% & 71\% \\
+Qwen3-235B & 15 & 41.9\,$\pm$\,4.3 & 20\% & 581 & 35.9\,$\pm$\,0.7 & 6\% & 531 & 67.3\,$\pm$\,2.5 & 69\% & 73\% \\
+Llama-4 & 15 & 37.8\,$\pm$\,4.3 & 20\% & 581 & 36.1\,$\pm$\,0.6 & 4\% & 531 & 70.1\,$\pm$\,2.3 & 75\% & 77\% \\
+\midrule
+Human (all) & 220 & 61.1\,$\pm$\,2.1 & 77\% & --- & --- & --- & --- & --- & --- & --- \\
+\quad traditional & 65 & 50.0\,$\pm$\,3.6 & 52\% & --- & --- & --- & --- & --- & --- & --- \\
+\quad co-creation & 155 & 65.7\,$\pm$\,2.1 & 88\% & --- & --- & --- & --- & --- & --- & --- \\
+\bottomrule
+\end{tabular*}
+\end{table*}

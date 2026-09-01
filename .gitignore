@@ -282,64 +282,64 @@ services/frontend/coverage-baseline.txt
 # Security scan reports (may contain local environment secrets)
 docs/security-reports/
 
-/.quarto/
+.quarto/
 **/*.quarto_ipynb
 
-# Transformation_NLLP publication: tracked, except the artifacts below.
+# Transformation publication: tracked, except the artifacts below.
 # Build artifacts (.venv/ and __pycache__/ are already covered repo-wide).
-publications/Transformation_NLLP/.quarto/
-publications/Transformation_NLLP/manuscript_files/
-publications/Transformation_NLLP/manuscript_executed_files/
-publications/Transformation_NLLP/manuscript.tex
-publications/Transformation_NLLP/manuscript.fdb_latexmk
+publications/Transformation/.quarto/
+publications/Transformation/manuscript_files/
+publications/Transformation/manuscript_executed_files/
+publications/Transformation/manuscript.tex
+publications/Transformation/manuscript.fdb_latexmk
 # Internal decision log + study protocol, not audience-facing.
-publications/Transformation_NLLP/DESIGN.md
+publications/Transformation/DESIGN.md
 # Regenerable ops output from scripts/ops/: blind-coded rubric renderings for
 # the manual audit.
-publications/Transformation_NLLP/data/interim/audit/exam_*.md
+publications/Transformation/data/interim/audit/exam_*.md
 # Run outputs from the judge/probe/audit dispatches — 23 MB of per-cell score
 # rows. Regenerable from the platform, and git is not a data store; they ship
 # with the dataset release. Every manuscript.qmd load goes through
 # load_optional(), so the paper still renders from the tracked data alone;
 # `make analyze` is what needs these back.
-publications/Transformation_NLLP/data/**/*.jsonl
+publications/Transformation/data/**/*.jsonl
 
 # The repo-wide `*.json` rule above hides every JSON in the project. This
 # publication's derived statistics are what the manuscript loads, so unignore
 # them - then re-block the sensitive and heavy files, because for git the
 # LAST matching pattern wins.
-!publications/Transformation_NLLP/data/**/*.json
+!publications/Transformation/data/**/*.json
 # Plaintext what-a-benger.net account passwords for the audit + probe
 # fixtures. No analysis script reads them; setup_audit_project.py takes
 # credentials as CLI args.
-publications/Transformation_NLLP/data/interim/audit/audit_users.json
-publications/Transformation_NLLP/data/interim/probes/probe_users.json
+publications/Transformation/data/interim/audit/audit_users.json
+publications/Transformation/data/interim/probes/probe_users.json
 # Full Sachverhalt + Musterloesung for all 15 exams - corpus text we do not
-# hold redistribution rights for. Same call as the Dataset_ARR ZJS source
+# hold redistribution rights for. Same call as the Benchmark_EMNLP ZJS source
 # trees below: ships via HF + Zenodo at release time, never via git.
 # exams.json is the extract_exam_pack.py output; manuscript.qmd reads it via
 # load_optional() and falls back to n_exams = 15, so the paper still renders.
-publications/Transformation_NLLP/data/interim/exams.json
-publications/Transformation_NLLP/data/interim/audit/audit_import.json
-publications/Transformation_NLLP/data/interim/audit/audit_import.resolved.json
-publications/Transformation_NLLP/data/interim/probes/probe_texts.json
+publications/Transformation/data/interim/exams.json
+publications/Transformation/data/interim/audit/audit_import.json
+publications/Transformation/data/interim/audit/audit_import.resolved.json
+publications/Transformation/data/interim/probes/probe_texts.json
 # The blind-code -> rubric_id/generator_model_id key for the human audit.
-# Same category as Dataset_ARR's .grader_map.json: publishing it alongside the
+# Same category as Benchmark_EMNLP's .grader_map.json: publishing it alongside the
 # blind-coded audit sheet would undo the blinding. The de-blinded result the
 # paper reports lives in data/processed/audit_stats.json, which carries no
 # blind codes and is tracked.
-publications/Transformation_NLLP/data/interim/audit/KEY.json
+publications/Transformation/data/interim/audit/KEY.json
 # Dated eval-config backups from the dispatch runs — regenerable ops output.
-publications/Transformation_NLLP/data/interim/clone_eval_config_backup_*.json
+publications/Transformation/data/interim/clone_eval_config_backup_*.json
 # The 193 generated rubrics (21 MB) and the judge rows derived from them.
 # Their `criteria` enumerate the expected solution steps of each exam, so they
 # are a close derivative of the Musterloesungen — same redistribution call as
 # the corpus text above. Ships via HF + Zenodo with the dataset release.
 # Directory-level ignore: nothing under raw/ is publishable, and an excluded
 # directory cannot be re-included by the `!...*.json` rule above.
-publications/Transformation_NLLP/data/raw/
+publications/Transformation/data/raw/
 
-# Dataset_ARR publication: tracked, except large/private artifacts.
+# Benchmark_EMNLP publication: tracked, except large/private artifacts.
 # - raw subtrees hold 5 GB of platform exports + ZJS PDFs/source — ship via HF + Zenodo, not git
 # - .grader_map.json is the private grader-anonymization key — never commit
 # - ZJS variant trees (source_strict/, source_optimistic/) stay local until
@@ -349,52 +349,68 @@ publications/Transformation_NLLP/data/raw/
 # ignored, files inside cannot be re-included via `!file/path`. So instead
 # we ignore the specific heavy subtrees and the IP-clearance map files stay
 # tracked by default.
-publications/Dataset_ARR/data/raw/zjs/source/
-publications/Dataset_ARR/data/raw/zjs/source_strict/
-publications/Dataset_ARR/data/raw/zjs/source_optimistic/
-publications/Dataset_ARR/data/raw/zjs/ZJS Fälle-tasks-*.json
-publications/Dataset_ARR/data/raw/zjs/zjs_merged*.json
+publications/Benchmark_EMNLP/data/raw/zjs/source/
+publications/Benchmark_EMNLP/data/raw/zjs/source_strict/
+publications/Benchmark_EMNLP/data/raw/zjs/source_optimistic/
+publications/Benchmark_EMNLP/data/raw/zjs/ZJS Fälle-tasks-*.json
+publications/Benchmark_EMNLP/data/raw/zjs/zjs_merged*.json
 # IP-clearance roster CSV carries the outreach email column (396 work emails).
 # It is the input that produces ip_clearance.json (public, email-free); the
 # CSV itself never ships. The roster is regenerated on demand from the
 # upstream tracking sheet, not from this file.
-publications/Dataset_ARR/data/raw/zjs/ip_clearance_*.csv
+publications/Benchmark_EMNLP/data/raw/zjs/ip_clearance_*.csv
 # Scripts that hold real grader identities (name → uuid → email) for the
 # one-shot anonymization + sample-building pipeline. Outputs are tracked and
 # fully anonymized; the scripts themselves stay local until refactored to
 # load identities from an external private file.
-publications/Dataset_ARR/scripts/anonymize_graders.py
-publications/Dataset_ARR/scripts/build_human_grading_sample.py
-publications/Dataset_ARR/data/raw/benchathon/
-publications/Dataset_ARR/data/raw/grundprinzipien/
-publications/Dataset_ARR/data/raw/mock/
-publications/Dataset_ARR/data/raw/archive/
-publications/Dataset_ARR/data/.grader_map.json
-publications/Dataset_ARR/.quarto/
-publications/Dataset_ARR/manuscript_files/
-publications/Dataset_ARR/manuscript.tex
-publications/Dataset_ARR/manuscript.fdb_latexmk
+publications/Benchmark_EMNLP/scripts/anonymize_graders.py
+publications/Benchmark_EMNLP/scripts/build_human_grading_sample.py
+publications/Benchmark_EMNLP/data/raw/benchathon/
+publications/Benchmark_EMNLP/data/raw/grundprinzipien/
+publications/Benchmark_EMNLP/data/raw/mock/
+publications/Benchmark_EMNLP/data/raw/archive/
+publications/Benchmark_EMNLP/data/.grader_map.json
+publications/Benchmark_EMNLP/.quarto/
+publications/Benchmark_EMNLP/manuscript_files/
+publications/Benchmark_EMNLP/manuscript.tex
+publications/Benchmark_EMNLP/manuscript.fdb_latexmk
 # arXiv upload bundles are built locally via `make arxiv` and shipped to
 # arXiv directly - never committed (the repo tree IS the source).
-publications/Dataset_ARR/benger_arxiv_source*
+publications/Benchmark_EMNLP/benger_arxiv_source*
 
 # The repo-wide `*.json` rule below hides every JSON in the project. The
-# Dataset_ARR publication needs its small derived JSONs tracked (the ones
+# Benchmark_EMNLP publication needs its small derived JSONs tracked (the ones
 # the manuscript loads), so unignore them explicitly.
 # Note: the IP-clearance roster (CSV with emails AND its email-free JSON
 # derivative) stays out of the public repo — it's internal accounting and
 # the redaction state is already encoded in source_strict/.
-!publications/Dataset_ARR/data/interim/*.json
-!publications/Dataset_ARR/data/processed/*.json
+!publications/Benchmark_EMNLP/data/interim/*.json
+!publications/Benchmark_EMNLP/data/processed/*.json
+# The Qwen Thinking-vs-Instruct ablation sidecar (Appendix P input) is small
+# and shippable. It was force-added under the old folder name; make the
+# un-ignore explicit so a rename can never silently drop it again.
+!publications/Benchmark_EMNLP/data/raw/ablation/*.json
 # …but re-block all merged ZJS dumps. The unredacted `zjs.json` is the
 # full-text 21 MB merge (never publish); the strict and optimistic variants
 # are computed from raw/, ship only to HF/Zenodo at release time, and are
 # regenerable from `scripts/zjs_apply_ip_clearance.py`. Keeping them out of
 # git defers the strict-vs-optimistic legal choice to release time.
-publications/Dataset_ARR/data/interim/zjs.json
-publications/Dataset_ARR/data/interim/zjs_strict.json
-publications/Dataset_ARR/data/interim/zjs_optimistic.json
+publications/Benchmark_EMNLP/data/interim/zjs.json
+publications/Benchmark_EMNLP/data/interim/zjs_strict.json
+publications/Benchmark_EMNLP/data/interim/zjs_optimistic.json
+
+# LEXam_DE publication: tracked, except build artifacts and the result
+# dumps below. The dumps ship as a Zenodo dataset instead; regenerate via
+# publications/LEXam_DE/analysis/dump_results.sh (needs prod access).
+publications/LEXam_DE/.quarto/
+publications/LEXam_DE/manuscript_files/
+publications/LEXam_DE/manuscript.tex
+publications/LEXam_DE/manuscript.log
+publications/LEXam_DE/manuscript.fdb_latexmk
+publications/LEXam_DE/analysis/data/
+# ...but the generated eval-config payloads are part of the rerun recipe
+# (see LEXam_DE/README.md) and must survive the generic *.json rule.
+!publications/LEXam_DE/configs/generated/*.json
 
 # WIP publications - not yet ready for the public repo
-publications/LEXam_DE/
 publications/Watermark_Study/

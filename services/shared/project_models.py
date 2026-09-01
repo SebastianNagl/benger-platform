@@ -513,6 +513,12 @@ class ProjectOrganization(Base):
         nullable=False,
         index=True,
     )
+    # Optional group scope inside the org: NULL = visible to the whole org
+    # (pre-groups behavior); set = visible only to that group's members,
+    # the org's ORG_ADMINs, the creator, and superadmins. Composite FK with
+    # organization_id (see __table_args__) so an attachment can only carry
+    # a group of its own org.
+    group_id = Column(String, nullable=True, index=True)
     assigned_by = Column(String, ForeignKey("users.id"), nullable=False)
 
     # Timestamps
@@ -522,11 +528,29 @@ class ProjectOrganization(Base):
     # Relationships
     project = relationship("Project", back_populates="project_organizations")
     organization = relationship("Organization")
+    group = relationship(
+        "OrganizationGroup",
+        primaryjoin="foreign(ProjectOrganization.group_id) == OrganizationGroup.id",
+        viewonly=True,
+    )
     assigner = relationship("User")
 
-    # Unique constraint
     __table_args__ = (
+        # One attachment per (project, org) — an org-attached project is
+        # either org-wide or in exactly ONE group of that org (v1 limit).
         sa.UniqueConstraint("project_id", "organization_id", name="unique_project_organization"),
+        # The attachment's group must belong to the attachment's org
+        # (MATCH SIMPLE: NULL group_id rows are unconstrained). Deliberately
+        # NO ondelete action — a direct group delete with live attachments
+        # must fail (no silent visibility widening), while org deletion
+        # still works because the org→groups and org→project_organizations
+        # CASCADEs both resolve before this NO ACTION check runs at
+        # end-of-statement.
+        sa.ForeignKeyConstraint(
+            ["organization_id", "group_id"],
+            ["organization_groups.organization_id", "organization_groups.id"],
+            name="fk_project_organizations_group_scope",
+        ),
     )
 
     def __repr__(self):

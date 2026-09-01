@@ -176,12 +176,16 @@ def _make_invitation(
     accepted=False,
     accepted_at=None,
     expires_in_days=7,
+    group_id=None,
+    invited_as_group_admin=False,
 ):
     inv = Invitation(
         id=_uid(),
         organization_id=org_id,
         email=email,
         role=role,
+        group_id=group_id,
+        invited_as_group_admin=invited_as_group_admin,
         token=token or _uid(),
         invited_by=invited_by,
         expires_at=datetime.now(timezone.utc) + timedelta(days=expires_in_days),
@@ -915,3 +919,100 @@ class TestCancelInvitation:
             )
         ).scalar_one_or_none()
         assert row is not None
+
+
+class TestAcceptGroupScopedInvitation:
+    """Group-scoped invitations (org → group → user layer): accepting also
+    joins the group; a deactivated group degrades to a plain org invite."""
+
+    def _group(self, test_db, org_id, *, active=True):
+        from models import OrganizationGroup
+
+        group = OrganizationGroup(
+            id=_uid(), organization_id=org_id, name=f"G-{_uid()[:6]}", is_active=active
+        )
+        test_db.add(group)
+        test_db.commit()
+        return group
+
+    def test_accept_creates_group_membership_with_admin_flag(
+        self, client, test_db, test_users, test_org
+    ):
+        from models import OrganizationGroupMembership
+
+        group = self._group(test_db, test_org.id)
+        invitee = _make_user(test_db, "groupaccept@example.com", "Group Accept")
+        token = _uid()
+        _make_invitation(
+            test_db,
+            test_org.id,
+            test_users[0].id,
+            email=invitee.email,
+            token=token,
+            role=OrganizationRole.CONTRIBUTOR,
+            group_id=group.id,
+            invited_as_group_admin=True,
+        )
+
+        resp = client.post(
+            f"/api/invitations/accept/{token}", headers=_bearer(invitee)
+        )
+        assert resp.status_code == 200
+
+        gm = (
+            test_db.query(OrganizationGroupMembership)
+            .filter(
+                OrganizationGroupMembership.group_id == group.id,
+                OrganizationGroupMembership.user_id == invitee.id,
+            )
+            .first()
+        )
+        assert gm is not None
+        assert gm.is_group_admin is True
+        membership = (
+            test_db.query(OrganizationMembership)
+            .filter(
+                OrganizationMembership.user_id == invitee.id,
+                OrganizationMembership.organization_id == test_org.id,
+            )
+            .first()
+        )
+        assert membership is not None and membership.role == OrganizationRole.CONTRIBUTOR
+
+    def test_accept_with_inactive_group_degrades_to_org_invite(
+        self, client, test_db, test_users, test_org
+    ):
+        from models import OrganizationGroupMembership
+
+        group = self._group(test_db, test_org.id, active=False)
+        invitee = _make_user(test_db, "inactivegroup@example.com", "Degraded")
+        token = _uid()
+        _make_invitation(
+            test_db,
+            test_org.id,
+            test_users[0].id,
+            email=invitee.email,
+            token=token,
+            group_id=group.id,
+        )
+
+        resp = client.post(
+            f"/api/invitations/accept/{token}", headers=_bearer(invitee)
+        )
+        assert resp.status_code == 200
+
+        gm = (
+            test_db.query(OrganizationGroupMembership)
+            .filter(OrganizationGroupMembership.user_id == invitee.id)
+            .first()
+        )
+        assert gm is None  # no group join — but the org membership stands
+        membership = (
+            test_db.query(OrganizationMembership)
+            .filter(
+                OrganizationMembership.user_id == invitee.id,
+                OrganizationMembership.organization_id == test_org.id,
+            )
+            .first()
+        )
+        assert membership is not None

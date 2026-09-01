@@ -18,6 +18,11 @@ import { useSlot } from '@/lib/extensions/slots'
 import { defaultIconForKind } from '@/lib/projectKind'
 import { getWizardFinishContributors } from '@/lib/extensions/wizardFinish'
 import { extractFieldsFromLabelConfig } from '@/lib/labelConfig/fieldExtractor'
+import {
+  buildImportFile,
+  detectFormat,
+  parseImportData,
+} from '@/lib/import/parseImportData'
 import { useProjectStore } from '@/stores/projectStore'
 import { ArrowLeftIcon, ArrowRightIcon } from '@heroicons/react/24/outline'
 import { useRouter } from 'next/navigation'
@@ -383,70 +388,6 @@ export function ProjectCreationWizard() {
     }
   }
 
-  const parseData = async (
-    content: string,
-    format: string
-  ): Promise<{ data: any[]; extras: Record<string, unknown> }> => {
-    try {
-      if (format === 'json') {
-        const parsed = JSON.parse(content)
-        if (Array.isArray(parsed)) return { data: parsed, extras: {} }
-        if (parsed.qa_samples && Array.isArray(parsed.qa_samples))
-          return { data: parsed.qa_samples, extras: {} }
-        if (parsed.questions && Array.isArray(parsed.questions))
-          return {
-            data: parsed.questions.map((q: any) => q.question_data || q),
-            extras: {},
-          }
-        // Bulk-export envelope: extract tasks + forward auxiliary arrays so
-        // judge scores, korrektur threads, etc. round-trip into the new project.
-        if (Array.isArray(parsed.tasks)) {
-          const extras: Record<string, unknown> = {}
-          for (const k of [
-            'evaluation_runs',
-            'human_evaluation_configs',
-            'human_evaluation_sessions',
-            'human_evaluation_results',
-            'preference_rankings',
-            'likert_scale_evaluations',
-            'korrektur_comments',
-          ] as const) {
-            if (Array.isArray(parsed[k])) extras[k] = parsed[k]
-          }
-          return { data: parsed.tasks, extras }
-        }
-        return { data: [parsed], extras: {} }
-      } else if (format === 'csv' || format === 'tsv') {
-        const delimiter = format === 'csv' ? ',' : '\t'
-        const lines = content.trim().split('\n')
-        if (lines.length === 0) return { data: [], extras: {} }
-        const headers = lines[0]
-          .split(delimiter)
-          .map((h) => h.trim().replace(/^["']|["']$/g, ''))
-        const data = lines.slice(1).map((line) => {
-          const values = line
-            .split(delimiter)
-            .map((v) => v.trim().replace(/^["']|["']$/g, ''))
-          const obj: any = {}
-          headers.forEach((header, index) => {
-            obj[header] = values[index] || ''
-          })
-          return obj
-        })
-        return { data, extras: {} }
-      } else {
-        const data = content
-          .trim()
-          .split('\n')
-          .filter((line) => line.trim())
-          .map((line) => ({ text: line.trim() }))
-        return { data, extras: {} }
-      }
-    } catch (error) {
-      throw new Error(`Failed to parse ${format.toUpperCase()} data: ${error}`)
-    }
-  }
-
   const handleFinish = async () => {
     if (isFinishingRef.current) return
     if (!validateStep()) return
@@ -472,6 +413,7 @@ export function ProjectCreationWizard() {
         public_role?: 'ANNOTATOR' | 'CONTRIBUTOR' | null
         kind?: string | null
         icon?: string | null
+        organization_group_id?: string | null
       } = {
         title: wizardData.title.trim(),
         description: wizardData.description.trim(),
@@ -487,6 +429,12 @@ export function ProjectCreationWizard() {
       } else if (wizardData.visibility === 'public') {
         createData.is_public = true
         createData.public_role = wizardData.publicRole
+      } else if (wizardData.organizationIds.length === 1) {
+        // Single-org creation flow: scope the context-created attachment to
+        // the selected group right away (null = org-wide), so there is no
+        // window where the whole org can see a group-scoped project.
+        createData.organization_group_id =
+          wizardData.organizationGroupIds[wizardData.organizationIds[0]] ?? null
       }
       // For 'organization' visibility, create_project honours
       // X-Organization-Context. We then explicitly PATCH the visibility with
@@ -502,7 +450,13 @@ export function ProjectCreationWizard() {
         try {
           await projectsAPI.updateVisibility(project.id, {
             is_private: false,
-            organization_ids: wizardData.organizationIds,
+            // Per-org group scope (null = the whole organization).
+            organization_attachments: wizardData.organizationIds.map(
+              (orgId) => ({
+                organization_id: orgId,
+                group_id: wizardData.organizationGroupIds[orgId] ?? null,
+              })
+            ),
           })
         } catch (err) {
            
@@ -521,10 +475,12 @@ export function ProjectCreationWizard() {
       // through pastedData, so it imports even without the dataImport step)
       if (
         (wizardData.features.dataImport || wizardData.features.synthetic) &&
-        (wizardData.pastedData.trim() || wizardData.selectedFile)
+        (wizardData.pastedData.trim() ||
+          wizardData.selectedFile ||
+          wizardData.cloudImport?.objectKeys?.length)
       ) {
         try {
-          let data: any[] = []
+          let rows: any[] = []
           let extras: Record<string, unknown> = {}
 
           if (wizardData.selectedFile) {
@@ -534,40 +490,34 @@ export function ProjectCreationWizard() {
               reader.onerror = reject
               reader.readAsText(wizardData.selectedFile!)
             })
-            const format =
-              wizardData.selectedFile.name.split('.').pop()?.toLowerCase() ||
-              'txt'
-            const parsed = await parseData(content, format)
-            data = parsed.data
+            const parsed = parseImportData(
+              content,
+              detectFormat(content, wizardData.selectedFile.name)
+            )
+            rows = parsed.rows
             extras = parsed.extras
           } else if (wizardData.pastedData.trim()) {
             const trimmed = wizardData.pastedData.trim()
-            let format = 'txt'
-            if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
-              format = 'json'
-            } else if (trimmed.includes('\t')) {
-              format = 'tsv'
-            } else if (
-              trimmed.includes(',') &&
-              trimmed.split('\n')[0]?.includes(',')
-            ) {
-              format = 'csv'
-            }
-            const parsed = await parseData(trimmed, format)
-            data = parsed.data
+            const parsed = parseImportData(trimmed, detectFormat(trimmed))
+            rows = parsed.rows
             extras = parsed.extras
           }
 
-          if (data.length > 0) {
+          if (rows.length > 0) {
             // Async job flow (object storage is the only import path): serialize
             // the nested envelope to a JSON file, upload it via a presigned URL,
             // then let a worker stream-import it.
-            const file = new File(
-              [JSON.stringify({ data, ...extras })],
-              `import-${Date.now()}.json`,
-              { type: 'application/json' }
-            )
+            const file = buildImportFile(rows, extras)
             await projectsAPI.runNestedImportJob(project.id, file)
+          }
+
+          // Cloud-storage selection: the workers pull the selected objects
+          // straight from the org storage connection (one job per key).
+          if (wizardData.cloudImport?.objectKeys?.length) {
+            await projectsAPI.runCloudImportJobs(project.id, {
+              connection_id: wizardData.cloudImport.connectionId,
+              object_keys: wizardData.cloudImport.objectKeys,
+            })
           }
         } catch (importError) {
           addToast(

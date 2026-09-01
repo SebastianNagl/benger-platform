@@ -18,6 +18,18 @@ export type {
 // Role type definitions for clarity
 export type OrganizationRole = 'ORG_ADMIN' | 'CONTRIBUTOR' | 'ANNOTATOR'
 
+/**
+ * The caller's membership in one organization group, as embedded in
+ * /auth/me/contexts org entries and permission checks. `is_group_admin` is
+ * orthogonal to the org role (a group admin can be a plain CONTRIBUTOR).
+ */
+export interface OrganizationGroupMembershipSummary {
+  id: string
+  name: string
+  is_active?: boolean
+  is_group_admin: boolean
+}
+
 export interface User {
   id: string
   username: string
@@ -131,6 +143,8 @@ export interface Organization {
   updated_at?: string
   member_count?: number
   role?: OrganizationRole // User's role in this organization
+  // Groups of this org the current user belongs to (from /auth/me/contexts).
+  groups?: OrganizationGroupMembershipSummary[]
 }
 
 export interface OrganizationCreate {
@@ -160,6 +174,8 @@ export interface OrganizationMember {
   user_email?: string
   email_verified?: boolean
   email_verification_method?: 'self' | 'admin' | 'system' | null
+  // Group memberships of this member within the organization.
+  groups?: Array<{ id: string; name: string; is_group_admin: boolean }>
 }
 
 export interface Invitation {
@@ -175,16 +191,26 @@ export interface Invitation {
   created_at: string
   organization_name?: string
   inviter_name?: string
+  // Group-scoped invitations (organization groups): the invitee joins this
+  // group on accept; null/absent = plain org-wide invitation.
+  group_id?: string | null
+  invited_as_group_admin?: boolean
 }
 
 export interface InvitationCreate {
   email: string
   role: OrganizationRole
+  // Scope the invitation to one organization group. Group admins MUST set
+  // this (to one of their groups) and may not invite ORG_ADMINs.
+  group_id?: string | null
+  invited_as_group_admin?: boolean
 }
 
 export interface BulkInvitationCreate {
   emails: string[]
   role: OrganizationRole
+  group_id?: string | null
+  invited_as_group_admin?: boolean
 }
 
 export interface BulkInvitationResultItem {

@@ -22,10 +22,12 @@ jest.mock('@/contexts/I18nContext', () => ({
   }),
 }))
 
-// Organization list comes from organizationsAPI.getOrganizations()
+// Organization list comes from organizationsAPI.getOrganizations();
+// per-org group lists from organizationsAPI.getGroups()
 jest.mock('@/lib/api/organizations', () => ({
   organizationsAPI: {
     getOrganizations: jest.fn(),
+    getGroups: jest.fn(),
   },
 }))
 
@@ -50,6 +52,7 @@ jest.mock('@/lib/extensions/slots', () => ({
 import { organizationsAPI } from '@/lib/api/organizations'
 
 const mockGetOrganizations = organizationsAPI.getOrganizations as jest.Mock
+const mockGetGroups = organizationsAPI.getGroups as jest.Mock
 
 function makeData(overrides: Partial<WizardData> = {}): WizardData {
   return { ...INITIAL_WIZARD_DATA, ...overrides }
@@ -71,6 +74,7 @@ describe('StepProjectInfo', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     mockGetOrganizations.mockResolvedValue([])
+    mockGetGroups.mockResolvedValue([])
     mockSyntheticSlot = null
     mockRubricSlot = null
   })
@@ -318,6 +322,122 @@ describe('StepProjectInfo', () => {
           screen.getByText('Pick at least one organization')
         ).toBeInTheDocument()
       )
+    })
+  })
+
+  describe('organization group scope', () => {
+    const groupFixture = (overrides: Record<string, any> = {}) => ({
+      id: 'grp-1',
+      organization_id: 'org-1',
+      name: 'Chair A',
+      description: null,
+      is_active: true,
+      created_at: '2026-01-01T00:00:00Z',
+      updated_at: null,
+      member_count: 2,
+      is_member: true,
+      is_group_admin: false,
+      ...overrides,
+    })
+
+    it('renders the group sub-select for a checked org with groups and emits the selection', async () => {
+      mockGetOrganizations.mockResolvedValue([
+        { id: 'org-1', name: 'Org One', role: 'ORG_ADMIN' },
+      ])
+      mockGetGroups.mockResolvedValue([
+        groupFixture(),
+        groupFixture({ id: 'grp-2', name: 'Chair B', is_member: false }),
+      ])
+      const { onChange } = renderStep({
+        visibility: 'organization',
+        organizationIds: ['org-1'],
+      })
+
+      const select = await screen.findByTestId(
+        'wizard-organization-group-select-org-1'
+      )
+      expect(mockGetGroups).toHaveBeenCalledWith('org-1')
+      // Org admins see every active group + the org-wide option.
+      const optionValues = Array.from(
+        (select as HTMLSelectElement).options
+      ).map((o) => o.value)
+      expect(optionValues).toEqual(['', 'grp-1', 'grp-2'])
+
+      fireEvent.change(select, { target: { value: 'grp-2' } })
+      expect(onChange).toHaveBeenCalledWith({
+        organizationGroupIds: { 'org-1': 'grp-2' },
+      })
+    })
+
+    it('preselects the sole member group as the default (lands in the wizard payload state)', async () => {
+      mockGetOrganizations.mockResolvedValue([
+        { id: 'org-1', name: 'Org One', role: 'CONTRIBUTOR' },
+      ])
+      mockGetGroups.mockResolvedValue([
+        groupFixture(),
+        groupFixture({ id: 'grp-2', name: 'Chair B', is_member: false }),
+      ])
+      const { onChange } = renderStep({
+        visibility: 'organization',
+        organizationIds: ['org-1'],
+      })
+
+      await waitFor(() =>
+        expect(onChange).toHaveBeenCalledWith({
+          organizationGroupIds: { 'org-1': 'grp-1' },
+        })
+      )
+    })
+
+    it('does not preselect when the user belongs to several groups', async () => {
+      mockGetOrganizations.mockResolvedValue([
+        { id: 'org-1', name: 'Org One', role: 'CONTRIBUTOR' },
+      ])
+      mockGetGroups.mockResolvedValue([
+        groupFixture(),
+        groupFixture({ id: 'grp-2', name: 'Chair B' }),
+      ])
+      const { onChange } = renderStep({
+        visibility: 'organization',
+        organizationIds: ['org-1'],
+      })
+
+      await screen.findByTestId('wizard-organization-group-select-org-1')
+      expect(onChange).not.toHaveBeenCalledWith(
+        expect.objectContaining({
+          organizationGroupIds: expect.anything(),
+        })
+      )
+    })
+
+    it('renders no group select for a checked org without groups', async () => {
+      mockGetOrganizations.mockResolvedValue([
+        { id: 'org-1', name: 'Org One', role: 'ORG_ADMIN' },
+      ])
+      mockGetGroups.mockResolvedValue([])
+      renderStep({ visibility: 'organization', organizationIds: ['org-1'] })
+
+      await waitFor(() => expect(mockGetGroups).toHaveBeenCalledWith('org-1'))
+      expect(
+        screen.queryByTestId('wizard-organization-group-select-org-1')
+      ).not.toBeInTheDocument()
+    })
+
+    it('hides other orgs groups from non-admin non-members', async () => {
+      mockGetOrganizations.mockResolvedValue([
+        { id: 'org-1', name: 'Org One', role: 'CONTRIBUTOR' },
+      ])
+      mockGetGroups.mockResolvedValue([
+        groupFixture({ is_member: false }),
+        groupFixture({ id: 'grp-2', name: 'Chair B', is_member: false }),
+      ])
+      renderStep({ visibility: 'organization', organizationIds: ['org-1'] })
+
+      await waitFor(() => expect(mockGetGroups).toHaveBeenCalledWith('org-1'))
+      // No visible groups -> no select at all (org-wide attachment).
+      expect(
+        screen.queryByTestId('wizard-organization-group-select-org-1')
+      ).not.toBeInTheDocument()
     })
   })
 

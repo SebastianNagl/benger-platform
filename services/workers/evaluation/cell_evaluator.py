@@ -242,6 +242,7 @@ def evaluate_generation_cell_impl(
             triggered_by_user_id=triggered_by_user_id,
             organization_id=organization_id,
             db=db,
+            project_id=project_id,
         )
         sample_evaluator = _build_sample_evaluator_for_cell(evaluation_id, configs_for_cell)
 
@@ -922,6 +923,7 @@ def evaluate_annotation_cell_impl(
             triggered_by_user_id=triggered_by_user_id,
             organization_id=organization_id,
             db=db,
+            project_id=project_id,
         )
         sample_evaluator = _build_sample_evaluator_for_cell(evaluation_id, configs_for_cell)
 

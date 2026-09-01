@@ -65,6 +65,25 @@ export interface ImportJobStatus {
   expires_at: string | null
 }
 
+/** Request body for POST /projects/{id}/cloud-imports. */
+export interface CloudImportRequest {
+  connection_id: string
+  object_keys: string[]
+}
+
+/** One job descriptor from the 202 cloud-imports response. */
+export interface CloudImportJobDescriptor {
+  job_id: string
+  object_key: string
+  status: ImportJobState
+}
+
+/** One row of the cloud-import history listing. */
+export interface CloudImportHistoryEntry extends ImportJobStatus {
+  object_key: string
+  connection_name: string | null
+}
+
 /** Presigned-POST descriptor returned by the *.../imports/upload-url endpoints. */
 export interface PresignedUpload {
   upload_url: string
@@ -187,7 +206,9 @@ export const projectsAPI = {
    *
    * Payload shapes accepted by the backend:
    * - { is_private: true, owner_user_id?: string }
-   * - { is_private: false, organization_ids: string[] }
+   * - { is_private: false, organization_ids: string[] } (legacy: all org-wide)
+   * - { is_private: false, organization_attachments: [{ organization_id, group_id }] }
+   *   (group_id null = org-wide, set = scoped to that organization group)
    * - { is_public: true, public_role: 'ANNOTATOR' | 'CONTRIBUTOR' }
    * - { public_role: 'ANNOTATOR' | 'CONTRIBUTOR' } (flip role on already-public)
    */
@@ -196,6 +217,13 @@ export const projectsAPI = {
     payload:
       | { is_private: true; owner_user_id?: string }
       | { is_private: false; organization_ids: string[] }
+      | {
+          is_private: false
+          organization_attachments: Array<{
+            organization_id: string
+            group_id: string | null
+          }>
+        }
       | { is_public: true; public_role: 'ANNOTATOR' | 'CONTRIBUTOR' }
       | { public_role: 'ANNOTATOR' | 'CONTRIBUTOR' }
   ): Promise<Project> => {
@@ -714,6 +742,81 @@ export const projectsAPI = {
       }
       await sleep(nextPollDelay(attempt++, options?.pollIntervalMs))
     }
+  },
+
+  /**
+   * Create one import job per selected object of an org storage connection
+   * (202). Each job is polled via the regular getImportJob.
+   */
+  createCloudImportJobs: async (
+    projectId: string,
+    body: CloudImportRequest
+  ): Promise<{ jobs: CloudImportJobDescriptor[] }> => {
+    return apiClient.post(`/projects/${projectId}/cloud-imports`, body)
+  },
+
+  /** Cloud-import history for a project (newest first, with connection names). */
+  listCloudImports: async (
+    projectId: string
+  ): Promise<CloudImportHistoryEntry[]> => {
+    return apiClient.get(`/projects/${projectId}/cloud-imports`)
+  },
+
+  /**
+   * Drive a cloud import through the async job flow: create one job per
+   * selected object key, then poll each job to a terminal state.
+   *
+   * Resolves with the final status of every job once ALL are terminal. If any
+   * job failed, throws an aggregate Error whose message lists each failed
+   * object key with the worker's error message.
+   */
+  runCloudImportJobs: async (
+    projectId: string,
+    body: CloudImportRequest,
+    callbacks?: {
+      onStatus?: (objectKey: string, status: ImportJobStatus) => void
+    },
+    options?: { pollIntervalMs?: number; signal?: AbortSignal }
+  ): Promise<ImportJobStatus[]> => {
+    const { jobs } = await projectsAPI.createCloudImportJobs(projectId, body)
+
+    const pollJob = async (job: CloudImportJobDescriptor) => {
+      let attempt = 0
+      for (;;) {
+        if (options?.signal?.aborted) {
+          throw new DOMException('Import polling aborted', 'AbortError')
+        }
+        const status = await projectsAPI.getImportJob(projectId, job.job_id)
+        callbacks?.onStatus?.(job.object_key, status)
+        if (status.status === 'completed' || status.status === 'failed') {
+          return status
+        }
+        await sleep(nextPollDelay(attempt++, options?.pollIntervalMs))
+      }
+    }
+
+    const settled = await Promise.allSettled(jobs.map(pollJob))
+    // An AbortError (or unexpected poll failure) propagates as-is.
+    const rejected = settled.find((s) => s.status === 'rejected')
+    if (rejected && rejected.status === 'rejected') throw rejected.reason
+
+    const finals = settled.map(
+      (s) => (s as PromiseFulfilledResult<ImportJobStatus>).value
+    )
+    const failures = finals
+      .map((status, i) => ({ status, objectKey: jobs[i].object_key }))
+      .filter(({ status }) => status.status === 'failed')
+    if (failures.length > 0) {
+      throw new Error(
+        failures
+          .map(
+            ({ objectKey, status }) =>
+              `${objectKey}: ${status.error_message || 'Import job failed'}`
+          )
+          .join('\n')
+      )
+    }
+    return finals
   },
 
   /**

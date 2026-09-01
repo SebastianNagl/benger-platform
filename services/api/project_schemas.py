@@ -202,6 +202,14 @@ class ProjectCreate(ProjectBase):
     # Timed access window (optional; see ProjectUpdate for semantics).
     window_start_at: Optional[datetime] = None
     window_end_at: Optional[datetime] = None
+    # Optional group scope for the org attachment (org-context creations
+    # only): the project is then visible inside the org solely to that
+    # group's members, the org's ORG_ADMINs, and the creator. Must be an
+    # active group of the target org that the creator may scope to.
+    organization_group_id: Optional[str] = Field(
+        None,
+        description="Scope the org attachment to this organization group (NULL = whole org).",
+    )
 
     @model_validator(mode="after")
     def _validate_visibility(self):
@@ -537,12 +545,26 @@ class ProjectResponse(ProjectBase):
         else:
             data["organization"] = None
 
-        # Handle organizations relationship (many-to-many)
+        # Handle organizations relationship (many-to-many). Attach the
+        # group scope per attachment when the project_organizations rows are
+        # already eager-loaded (read via __dict__ only — never trigger a
+        # lazy load, which raises on the async lane).
         if hasattr(obj, "organizations") and obj.organizations:
+            group_by_org = {}
+            loaded_pos = (
+                obj.__dict__.get("project_organizations")
+                if hasattr(obj, "__dict__")
+                else None
+            )
+            if loaded_pos:
+                group_by_org = {
+                    po.organization_id: po.group_id for po in loaded_pos
+                }
             data["organizations"] = [
                 {
                     "id": org.id,
                     "name": org.name,
+                    "group_id": group_by_org.get(org.id),
                 }
                 for org in obj.organizations
             ]

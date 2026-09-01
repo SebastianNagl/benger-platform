@@ -370,12 +370,38 @@ class NotificationService:
                 logger.info(
                     f"  🏢 Looking up organization members for org: {context['organization_id']}"
                 )
-                # Get all members of the organization
-                memberships = (
-                    db.query(OrganizationMembership)
-                    .filter(OrganizationMembership.organization_id == context["organization_id"])
-                    .all()
+                # Get all members of the organization. When the project is
+                # attached via a GROUP (context carries organization_group_id),
+                # fan out to that group's members + the org's ORG_ADMINs only —
+                # the other groups must not learn about the project.
+                membership_query = db.query(OrganizationMembership).filter(
+                    OrganizationMembership.organization_id == context["organization_id"]
                 )
+                group_id = context.get("organization_group_id")
+                if group_id is None and context.get("project_id"):
+                    # Derive the attachment's group here (single place) so
+                    # every PROJECT_* producer is covered without threading
+                    # the group through each call site.
+                    from org_groups import resolve_project_group_for_org
+
+                    group_id = resolve_project_group_for_org(
+                        db, context["project_id"], context["organization_id"]
+                    )
+                if group_id:
+                    from models import OrganizationGroupMembership
+                    from sqlalchemy import or_ as _or
+
+                    membership_query = membership_query.filter(
+                        _or(
+                            OrganizationMembership.role == OrganizationRole.ORG_ADMIN,
+                            OrganizationMembership.user_id.in_(
+                                db.query(OrganizationGroupMembership.user_id).filter(
+                                    OrganizationGroupMembership.group_id == str(group_id)
+                                )
+                            ),
+                        )
+                    )
+                memberships = membership_query.all()
                 org_members = [m.user_id for m in memberships]
                 logger.info(f"  👥 Found {len(org_members)} organization members")
                 recipients.extend(org_members)
@@ -948,7 +974,7 @@ def notify_project_created(
         recipients = NotificationService.get_notification_recipients(
             db,
             NotificationType.PROJECT_CREATED.value,
-            {"organization_id": organization_id},
+            {"organization_id": organization_id, "project_id": project_id},
         )
 
         logger.info(

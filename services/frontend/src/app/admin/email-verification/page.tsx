@@ -10,6 +10,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import {
   Activity,
@@ -65,6 +66,7 @@ interface StatisticsReport {
 
 export default function EmailVerificationManagement() {
   const { t } = useI18n()
+  const { user } = useAuth()
   const [statistics, setStatistics] = useState<VerificationStatistics | null>(
     null
   )
@@ -103,6 +105,22 @@ export default function EmailVerificationManagement() {
   useEffect(() => {
     loadInitialData()
   }, [loadInitialData])
+
+  // Superadmin self-gate (parity with /admin/feature-flags — this page had
+  // none; the API endpoints behind it are superadmin-gated, so non-admins
+  // only ever saw a broken shell, but the page must deny like its siblings).
+  if (!user?.is_superadmin) {
+    return (
+      <div className="py-16 text-center">
+        <h1 className="text-2xl font-bold text-red-600">
+          {t('admin.accessDenied')}
+        </h1>
+        <p className="mt-2 text-zinc-600 dark:text-zinc-400">
+          {t('admin.accessDeniedDesc')}
+        </p>
+      </div>
+    )
+  }
 
   const loadStatistics = async () => {
     const response = await fetch(

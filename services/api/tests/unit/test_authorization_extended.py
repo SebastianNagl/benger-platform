@@ -27,6 +27,7 @@ class TestAuthorizationService:
         user.id = "admin-1"
 
         project = Mock()
+        project.deleted_at = None
         project.id = "p-1"
         project.created_by = "other-user"
         project.is_private = False
@@ -45,6 +46,7 @@ class TestAuthorizationService:
         user.id = "user-1"
 
         project = Mock()
+        project.deleted_at = None
         project.id = "p-1"
         project.created_by = "user-1"
         project.is_private = True
@@ -64,6 +66,7 @@ class TestAuthorizationService:
         user.id = "user-2"
 
         project = Mock()
+        project.deleted_at = None
         project.id = "p-1"
         project.created_by = "user-1"
         project.is_private = True
@@ -88,6 +91,7 @@ class TestAuthorizationService:
         user.id = "user-1"
 
         project = Mock()
+        project.deleted_at = None
         project.id = "p-1"
         project.created_by = "user-1"
         project.is_private = False
@@ -112,6 +116,7 @@ class TestAuthorizationService:
         user.id = "user-3"
 
         project = Mock()
+        project.deleted_at = None
         project.id = "p-1"
         project.created_by = "user-1"
         project.is_private = False

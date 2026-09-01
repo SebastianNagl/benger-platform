@@ -378,6 +378,7 @@ class FakeAIService:
         self._provider_name = "OpenAI"
         self._invocation_user_id = None
         self._invocation_organization_id = None
+        self._invocation_project_id = None
 
     def is_available(self):
         return True

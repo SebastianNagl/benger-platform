@@ -50,12 +50,35 @@ async def list_organization_members(
             )
         # ANNOTATOR members (incl. every LTI-provisioned student) must not
         # enumerate the org roster — names and emails of the whole cohort and
-        # staff. Member visibility is a CONTRIBUTOR+ concern.
+        # staff. Member visibility is a CONTRIBUTOR+ concern — or a GROUP
+        # admin's: the org role is the capability axis and is_group_admin is
+        # orthogonal, so an org-ANNOTATOR may legitimately administer a
+        # group (group-scoped invitation, admin toggle) and needs the roster
+        # to pick members for it.
         if membership.role == OrganizationRole.ANNOTATOR:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Member list requires a contributor or admin role",
-            )
+            from models import OrganizationGroup, OrganizationGroupMembership
+
+            group_admin = (
+                await db.execute(
+                    select(OrganizationGroupMembership.id)
+                    .join(
+                        OrganizationGroup,
+                        OrganizationGroup.id
+                        == OrganizationGroupMembership.group_id,
+                    )
+                    .where(
+                        OrganizationGroupMembership.user_id == current_user.id,
+                        OrganizationGroupMembership.is_group_admin == True,  # noqa: E712
+                        OrganizationGroup.organization_id == organization_id,
+                    )
+                    .limit(1)
+                )
+            ).first()
+            if group_admin is None:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Member list requires a contributor or admin role",
+                )
 
     # Get members with user details
     members = (
@@ -69,6 +92,30 @@ async def list_organization_members(
         )
     ).all()
 
+    # Group chips: one joined query over this org's groups.
+    from models import OrganizationGroup, OrganizationGroupMembership
+
+    group_rows = (
+        await db.execute(
+            select(
+                OrganizationGroupMembership.user_id,
+                OrganizationGroup.id,
+                OrganizationGroup.name,
+                OrganizationGroupMembership.is_group_admin,
+            )
+            .join(
+                OrganizationGroup,
+                OrganizationGroup.id == OrganizationGroupMembership.group_id,
+            )
+            .where(OrganizationGroup.organization_id == organization_id)
+        )
+    ).all()
+    groups_by_user: dict = {}
+    for user_id, gid, gname, is_admin in group_rows:
+        groups_by_user.setdefault(user_id, []).append(
+            MemberGroupInfo(id=gid, name=gname, is_group_admin=bool(is_admin))
+        )
+
     result = []
     for membership, user in members:
         member_dict = membership.__dict__.copy()
@@ -76,6 +123,7 @@ async def list_organization_members(
         member_dict["user_email"] = user.email
         member_dict["email_verified"] = user.email_verified
         member_dict["email_verification_method"] = user.email_verification_method
+        member_dict["groups"] = groups_by_user.get(membership.user_id, [])
         result.append(OrganizationMemberResponse(**member_dict))
 
     return result

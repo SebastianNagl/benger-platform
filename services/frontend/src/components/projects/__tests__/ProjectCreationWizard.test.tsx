@@ -81,9 +81,9 @@ jest.mock('@/contexts/I18nContext', () => ({
         // Step 2 (data import)
         'projects.creation.wizard.step2.title': 'Import Data',
         'projects.creation.wizard.step2.subtitle': 'Add data to project',
-        'projects.creation.wizard.step2.tabs.upload': 'Upload',
-        'projects.creation.wizard.step2.tabs.paste': 'Paste',
-        'projects.creation.wizard.step2.tabs.cloud': 'Cloud',
+        'dataImport.tabs.upload': 'Upload',
+        'dataImport.tabs.paste': 'Paste',
+        'dataImport.tabs.cloud': 'Cloud',
         'projects.creation.wizard.step2.upload.dropzone':
           'Drop files here or click to upload',
         'projects.creation.wizard.step2.upload.supportedFormats':
@@ -100,7 +100,6 @@ jest.mock('@/contexts/I18nContext', () => ({
         'projects.creation.wizard.step2.paste.validate': 'Validate',
         'projects.creation.wizard.step2.paste.formatDetected': `Format detected: ${params?.format}`,
         'projects.creation.wizard.step2.paste.invalidFormat': 'Invalid format',
-        'projects.creation.wizard.step2.cloud.comingSoon': 'Coming soon',
         'projects.creation.wizard.step2.note': 'You can skip this step',
         // Step 3 (labeling)
         'projects.creation.wizard.step3.title': 'Labeling Configuration',

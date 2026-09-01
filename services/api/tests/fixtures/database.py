@@ -193,6 +193,17 @@ def _create_tables():
                     "UPDATE llm_models SET is_official = true WHERE base_url IS NULL"
                 )
             )
+            # Migration 096: cloud-import source connection on import_jobs.
+            # Same create_all-skips-existing-tables drift — the new
+            # org_storage_connections table is created by create_all above,
+            # but a long-lived test DB won't have the new import_jobs column.
+            conn.execute(
+                text(
+                    "ALTER TABLE import_jobs "
+                    "ADD COLUMN IF NOT EXISTS source_connection_id VARCHAR "
+                    "REFERENCES org_storage_connections(id) ON DELETE SET NULL"
+                )
+            )
     except Exception as e:
         pytest.exit(
             f"Cannot connect to test PostgreSQL ({os.environ.get('DATABASE_URL')}). "

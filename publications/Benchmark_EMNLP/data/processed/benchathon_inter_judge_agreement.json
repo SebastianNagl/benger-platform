@@ -1,0 +1,162 @@
+{
+  "n_cells_with_all_judges": 223,
+  "n_cells_with_triplets": 224,
+  "judges": [
+    "gpt-5.4-mini",
+    "claude-opus-4-7",
+    "claude-sonnet-4-6",
+    "gemini-3.1-pro-preview",
+    "deepseek-ai/DeepSeek-V4-Pro",
+    "Qwen/Qwen3.5-397B-A17B"
+  ],
+  "per_judge_stats": {
+    "gpt-5.4-mini": {
+      "n": 223,
+      "mean": 55.47757847533632,
+      "stdev": 15.53152268217129,
+      "min": 15.0,
+      "max": 85.0
+    },
+    "claude-opus-4-7": {
+      "n": 223,
+      "mean": 53.32286995515695,
+      "stdev": 19.54725828758508,
+      "min": 0.0,
+      "max": 96.0
+    },
+    "claude-sonnet-4-6": {
+      "n": 223,
+      "mean": 59.15470852017937,
+      "stdev": 17.07171795874749,
+      "min": 5.5,
+      "max": 92.0
+    },
+    "gemini-3.1-pro-preview": {
+      "n": 223,
+      "mean": 65.20627802690584,
+      "stdev": 21.63123584481067,
+      "min": 3.0,
+      "max": 100.0
+    },
+    "deepseek-ai/DeepSeek-V4-Pro": {
+      "n": 223,
+      "mean": 58.05829596412556,
+      "stdev": 22.051228792669704,
+      "min": 1.0,
+      "max": 93.0
+    },
+    "Qwen/Qwen3.5-397B-A17B": {
+      "n": 223,
+      "mean": 68.48878923766816,
+      "stdev": 16.133373756231826,
+      "min": 10.0,
+      "max": 95.0
+    }
+  },
+  "pairwise": {
+    "gpt-5.4-mini__claude-opus-4-7": {
+      "n": 223,
+      "pearson_r": 0.8098572252825292,
+      "spearman_rho": 0.819971992974788,
+      "mae": 8.60762331838565
+    },
+    "gpt-5.4-mini__claude-sonnet-4-6": {
+      "n": 223,
+      "pearson_r": 0.8245999171647934,
+      "spearman_rho": 0.815751496980092,
+      "mae": 7.887892376681615
+    },
+    "gpt-5.4-mini__gemini-3.1-pro-preview": {
+      "n": 223,
+      "pearson_r": 0.7703410865627011,
+      "spearman_rho": 0.7537012115732343,
+      "mae": 13.374439461883409
+    },
+    "gpt-5.4-mini__deepseek-ai/DeepSeek-V4-Pro": {
+      "n": 223,
+      "pearson_r": 0.7680422644864395,
+      "spearman_rho": 0.7558062393794396,
+      "mae": 11.544843049327355
+    },
+    "gpt-5.4-mini__Qwen/Qwen3.5-397B-A17B": {
+      "n": 223,
+      "pearson_r": 0.7688110427461102,
+      "spearman_rho": 0.7627042401200896,
+      "mae": 14.163677130044842
+    },
+    "claude-opus-4-7__claude-sonnet-4-6": {
+      "n": 223,
+      "pearson_r": 0.9434476344104165,
+      "spearman_rho": 0.9551553746106878,
+      "mae": 6.791479820627803
+    },
+    "claude-opus-4-7__gemini-3.1-pro-preview": {
+      "n": 223,
+      "pearson_r": 0.9058504301929121,
+      "spearman_rho": 0.9093318500532139,
+      "mae": 12.233183856502242
+    },
+    "claude-opus-4-7__deepseek-ai/DeepSeek-V4-Pro": {
+      "n": 223,
+      "pearson_r": 0.9023289218366412,
+      "spearman_rho": 0.917306468037157,
+      "mae": 7.497757847533633
+    },
+    "claude-opus-4-7__Qwen/Qwen3.5-397B-A17B": {
+      "n": 223,
+      "pearson_r": 0.8923841557507589,
+      "spearman_rho": 0.9048235562675437,
+      "mae": 15.210762331838565
+    },
+    "claude-sonnet-4-6__gemini-3.1-pro-preview": {
+      "n": 223,
+      "pearson_r": 0.9048259190648971,
+      "spearman_rho": 0.8925596332688741,
+      "mae": 8.961883408071749
+    },
+    "claude-sonnet-4-6__deepseek-ai/DeepSeek-V4-Pro": {
+      "n": 223,
+      "pearson_r": 0.9063223052561625,
+      "spearman_rho": 0.9128336598336809,
+      "mae": 7.719730941704036
+    },
+    "claude-sonnet-4-6__Qwen/Qwen3.5-397B-A17B": {
+      "n": 223,
+      "pearson_r": 0.9155643756242623,
+      "spearman_rho": 0.9116769537351316,
+      "mae": 9.742152466367713
+    },
+    "gemini-3.1-pro-preview__deepseek-ai/DeepSeek-V4-Pro": {
+      "n": 223,
+      "pearson_r": 0.837050887661951,
+      "spearman_rho": 0.8351402582944275,
+      "mae": 10.72645739910314
+    },
+    "gemini-3.1-pro-preview__Qwen/Qwen3.5-397B-A17B": {
+      "n": 223,
+      "pearson_r": 0.8801379536575508,
+      "spearman_rho": 0.8815289660434317,
+      "mae": 8.533632286995516
+    },
+    "deepseek-ai/DeepSeek-V4-Pro__Qwen/Qwen3.5-397B-A17B": {
+      "n": 223,
+      "pearson_r": 0.8556053956223064,
+      "spearman_rho": 0.8708772839616614,
+      "mae": 12.605381165919283
+    }
+  },
+  "within_cell_spread": {
+    "n": 223,
+    "mean": 23.522421524663677,
+    "median": 22.5,
+    "min": 7.5,
+    "max": 71.0
+  },
+  "within_cell_stdev": {
+    "n": 223,
+    "mean": 8.08277624557626,
+    "median": 7.724420150837645,
+    "min": 2.5,
+    "max": 24.190936089554057
+  }
+}

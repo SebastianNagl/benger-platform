@@ -1480,6 +1480,9 @@ def create_llm_judge_for_user(
     reasoning_effort: Optional[str] = None,
     organization_id: Optional[str] = None,
     seed: int = 42,
+    *,
+    org_billing_authorized: bool = False,
+    project_id: Optional[str] = None,
 ) -> LLMJudgeEvaluator:
     """
     Factory function to create LLM Judge evaluator with user's or org's API key.
@@ -1541,6 +1544,8 @@ def create_llm_judge_for_user(
                 user_id=user_id,
                 model=judge_model_row,
                 organization_id=organization_id,
+                org_billing_authorized=org_billing_authorized,
+                project_id=project_id,
             )
             if ai_service is None:
                 logger.warning(
@@ -1553,6 +1558,8 @@ def create_llm_judge_for_user(
                 user_id=user_id,
                 provider=provider,
                 organization_id=organization_id,
+                org_billing_authorized=org_billing_authorized,
+                project_id=project_id,
             )
 
         return LLMJudgeEvaluator(

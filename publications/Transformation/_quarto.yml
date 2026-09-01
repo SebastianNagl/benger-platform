@@ -1,0 +1,78 @@
+project:
+  type: default
+
+format:
+  acl-pdf:
+    # CAMERA-READY mode. The byline is carried by the `author-tex` LaTeX
+    # block in manuscript.qmd, so review/anonymous stay false — otherwise the
+    # formatter adds review marks or tries to strip the byline it already
+    # has. Set both back to `true` for an ARR blind resubmission and pair
+    # that flip with the BLIND-REVIEW SWAP list in manuscript.qmd's header.
+    review: false
+    anonymous: false
+    keep-tex: true
+    # xelatex (arXiv-supported since Nov 2025; lualatex is NOT selectable on
+    # arXiv) handles Greek stats glyphs (ρ, κ, σ) via fontspec/unicode-math;
+    # pdflatex chokes on them. Main text font stays TeX Gyre Termes (in
+    # aclpubcheck's accepted set); STIX Two Math is bundled under fonts/ and
+    # loaded by explicit filename + Path so the build is self-contained on
+    # arXiv. Do not "simplify" any of this — it encodes aclpubcheck + arXiv
+    # constraints debugged for the Benchmark_EMNLP submission.
+    pdf-engine: xelatex
+    include-in-header:
+      text: |
+        \usepackage{afterpage}
+        \usepackage{colortbl}  % \cellcolor / \rowcolor for table highlights
+        \usepackage{tikz}      % method-overview pipeline figure
+        \usetikzlibrary{positioning,arrows.meta}
+        % Verbatim-prompt container. NOT framed/MakeFramed: with the long
+        % (100+ line) prompt bodies of this paper, framed degenerates into
+        % one frame per page (a 300-page pdf) regardless of column mode.
+        % A plain indented \ttfamily paragraph group breaks across pages
+        % and columns natively; the indent marks the block visually.
+        \newenvironment{promptbox}
+          {\par\addvspace{6pt}\begingroup\small
+           \leftskip=10pt\rightskip=0pt plus 1fil\parindent=0pt}
+          {\par\endgroup\addvspace{6pt}}
+        % Dense float packing for table-heavy appendices.
+        \setcounter{topnumber}{4}
+        \setcounter{dbltopnumber}{4}
+        \setcounter{totalnumber}{8}
+        \renewcommand{\topfraction}{0.95}
+        \renewcommand{\dbltopfraction}{0.95}
+        \renewcommand{\textfraction}{0.03}
+        \renewcommand{\floatpagefraction}{0.85}
+        \renewcommand{\dblfloatpagefraction}{0.85}
+        % Tightened float/caption separations (2026-08-06, short-paper
+        % budget): defaults waste ~2 body lines per float.
+        \setlength{\textfloatsep}{9pt plus 2pt minus 3pt}
+        \setlength{\floatsep}{7pt plus 2pt minus 2pt}
+        \setlength{\dbltextfloatsep}{9pt plus 2pt minus 3pt}
+        \setlength{\abovecaptionskip}{5pt}
+        % acl.sty sets \flushbottom, which force-stretches short columns to
+        % the bottom margin. p1 is structurally short — the title block, the
+        % byline and the abstract leave less than two columns of text, and
+        % Figure 1 is a figure* that cannot land on p1 — so \flushbottom
+        % dumped the whole ~59pt slack into p1's single paragraph break,
+        % after "Contributions:". \raggedbottom lets short columns simply end
+        % short instead. Every other page carries a float and is full, so
+        % this only changes p1 and the last appendix page.
+        \raggedbottom
+        \usepackage{fontspec}
+        \usepackage{unicode-math}
+        \setmathfont{STIXTwoMath-Regular.otf}[Path=fonts/]
+        % Wrap \maketitle in NoHyper so byline \thanks symbols aren't typeset
+        % as hyperlinks (acl.sty resets the footnote counter after the title
+        % page, colliding hyperref's Hfootnote anchors).
+        \makeatletter
+        \AtBeginDocument{%
+          \let\acl@orig@maketitle\maketitle
+          \def\maketitle{\begin{NoHyper}\acl@orig@maketitle\end{NoHyper}}%
+        }
+        \makeatother
+
+execute:
+  echo: false
+  warning: false
+
+bibliography: references.bib

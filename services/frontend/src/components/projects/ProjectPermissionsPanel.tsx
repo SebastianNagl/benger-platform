@@ -19,15 +19,23 @@ import { Button } from '@/components/shared/Button'
 import { Label } from '@/components/shared/Label'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
-import { organizationsAPI } from '@/lib/api/organizations'
+import {
+  organizationsAPI,
+  type OrganizationGroup,
+} from '@/lib/api/organizations'
 import { projectsAPI } from '@/lib/api/projects'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useToast } from '@/components/shared/Toast'
 
 interface Organization {
   id: string
   name: string
   slug?: string
+  // Caller's role in the org (from GET /organizations); org admins may scope
+  // a project to any active group, others only to groups they belong to.
+  role?: 'ORG_ADMIN' | 'CONTRIBUTOR' | 'ANNOTATOR'
+  // Group scope of an existing attachment (project.organizations entries).
+  group_id?: string | null
 }
 
 export type ProjectVisibility = 'private' | 'organization' | 'public'
@@ -73,6 +81,23 @@ export function ProjectPermissionsPanel({
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // Organization groups, cached per org id (undefined = not fetched yet,
+  // [] = fetched, org has no groups / fetch failed).
+  const [orgGroupsById, setOrgGroupsById] = useState<
+    Record<string, OrganizationGroup[]>
+  >({})
+  const groupFetchInFlight = useRef<Set<string>>(new Set())
+  // Group scope per selected org: null = whole organization. Seeded from the
+  // project's existing attachments; newly checked orgs get a default once
+  // their group list is loaded (sole membership -> that group, else org-wide).
+  const [selectedGroupByOrg, setSelectedGroupByOrg] = useState<
+    Record<string, string | null>
+  >(() =>
+    Object.fromEntries(
+      initialOrganizations.map((o) => [o.id, o.group_id ?? null])
+    )
+  )
+
   const canEditPermissions = () => {
     if (!user) return false
     if (user.is_superadmin) return true
@@ -107,12 +132,81 @@ export function ProjectPermissionsPanel({
     }
   }, [addToast])
 
+  // Lazily fetch the group list of every checked org (cached per org id;
+  // failures degrade to "no groups", keeping the legacy org-wide behavior).
+  useEffect(() => {
+    let cancelled = false
+    const missing = selectedOrgIds.filter(
+      (orgId) =>
+        orgGroupsById[orgId] === undefined &&
+        !groupFetchInFlight.current.has(orgId)
+    )
+    missing.forEach((orgId) => {
+      groupFetchInFlight.current.add(orgId)
+      ;(async () => {
+        let rows: OrganizationGroup[] = []
+        try {
+          const data = await organizationsAPI.getGroups(orgId)
+          rows = Array.isArray(data) ? data : []
+        } catch {
+          rows = []
+        } finally {
+          groupFetchInFlight.current.delete(orgId)
+        }
+        if (!cancelled) {
+          setOrgGroupsById((prev) => ({ ...prev, [orgId]: rows }))
+        }
+      })()
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [selectedOrgIds, orgGroupsById])
+
+  // Default group scope for orgs without an explicit choice yet: preselect
+  // the user's group when they belong to exactly one, else org-wide.
+  useEffect(() => {
+    setSelectedGroupByOrg((prev) => {
+      let changed = false
+      const next = { ...prev }
+      for (const orgId of selectedOrgIds) {
+        if (next[orgId] !== undefined) continue
+        const groups = orgGroupsById[orgId]
+        if (groups === undefined) continue
+        const memberGroups = groups.filter(
+          (group) => group.is_active && group.is_member
+        )
+        next[orgId] = memberGroups.length === 1 ? memberGroups[0].id : null
+        changed = true
+      }
+      return changed ? next : prev
+    })
+  }, [selectedOrgIds, orgGroupsById])
+
   const toggleOrg = (orgId: string) => {
     setSelectedOrgIds((prev) =>
       prev.includes(orgId)
         ? prev.filter((id) => id !== orgId)
         : [...prev, orgId]
     )
+  }
+
+  // Groups offered in an org's scope select: org admins (and superadmins)
+  // pick any active group, everyone else only groups they belong to. A
+  // stored-but-hidden selection is appended so the select reflects reality.
+  const groupOptionsFor = (org: Organization): OrganizationGroup[] => {
+    const groups = orgGroupsById[org.id] ?? []
+    const isOrgAdmin =
+      Boolean(user?.is_superadmin) || org.role === 'ORG_ADMIN'
+    const options = groups.filter(
+      (group) => group.is_active && (isOrgAdmin || group.is_member)
+    )
+    const selected = selectedGroupByOrg[org.id]
+    if (selected && !options.some((group) => group.id === selected)) {
+      const stored = groups.find((group) => group.id === selected)
+      if (stored) return [...options, stored]
+    }
+    return options
   }
 
   const handleSave = async () => {
@@ -137,7 +231,12 @@ export function ProjectPermissionsPanel({
             ? ({ is_public: true, public_role: publicRole } as const)
             : ({
                 is_private: false,
-                organization_ids: selectedOrgIds,
+                // Each attachment may be scoped to one group of that org
+                // (null = the whole organization).
+                organization_attachments: selectedOrgIds.map((orgId) => ({
+                  organization_id: orgId,
+                  group_id: selectedGroupByOrg[orgId] ?? null,
+                })),
               } as const)
 
       await projectsAPI.updateVisibility(projectId, payload)
@@ -164,6 +263,11 @@ export function ProjectPermissionsPanel({
     setVisibility(initialVisibility)
     setPublicRole(initialPublicRole)
     setSelectedOrgIds(initialOrganizations.map((o) => o.id))
+    setSelectedGroupByOrg(
+      Object.fromEntries(
+        initialOrganizations.map((o) => [o.id, o.group_id ?? null])
+      )
+    )
     setError(null)
     if (onCancel) {
       onCancel()
@@ -314,31 +418,73 @@ export function ProjectPermissionsPanel({
             </p>
           ) : (
             <div className="mt-3 space-y-2" data-testid="organization-list">
-              {availableOrganizations.map((org) => (
-                <label
-                  key={org.id}
-                  className="flex cursor-pointer items-center space-x-3 rounded-lg border border-zinc-200 p-3 transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800/50"
-                  data-testid={`organization-item-${org.id}`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedOrgIds.includes(org.id)}
-                    onChange={() => toggleOrg(org.id)}
-                    className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
-                    data-testid={`organization-checkbox-${org.id}`}
-                  />
-                  <div className="flex-1">
-                    <span className="text-sm font-medium text-zinc-900 dark:text-white">
-                      {org.name}
-                    </span>
-                    {org.slug && (
-                      <span className="ml-2 text-xs text-zinc-500 dark:text-zinc-400">
-                        ({org.slug})
-                      </span>
+              {availableOrganizations.map((org) => {
+                const isChecked = selectedOrgIds.includes(org.id)
+                const groupOptions = isChecked ? groupOptionsFor(org) : []
+                return (
+                  <div key={org.id}>
+                    <label
+                      className="flex cursor-pointer items-center space-x-3 rounded-lg border border-zinc-200 p-3 transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800/50"
+                      data-testid={`organization-item-${org.id}`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={() => toggleOrg(org.id)}
+                        className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
+                        data-testid={`organization-checkbox-${org.id}`}
+                      />
+                      <div className="flex-1">
+                        <span className="text-sm font-medium text-zinc-900 dark:text-white">
+                          {org.name}
+                        </span>
+                        {org.slug && (
+                          <span className="ml-2 text-xs text-zinc-500 dark:text-zinc-400">
+                            ({org.slug})
+                          </span>
+                        )}
+                      </div>
+                    </label>
+                    {isChecked && groupOptions.length > 0 && (
+                      <div
+                        className="ml-7 mt-2"
+                        data-testid={`organization-group-section-${org.id}`}
+                      >
+                        <label
+                          htmlFor={`organization-group-${org.id}`}
+                          className="block text-xs font-medium text-zinc-600 dark:text-zinc-400"
+                        >
+                          {t('project.permissions.groupScopeLabel')}
+                        </label>
+                        <select
+                          id={`organization-group-${org.id}`}
+                          value={selectedGroupByOrg[org.id] ?? ''}
+                          onChange={(e) =>
+                            setSelectedGroupByOrg((prev) => ({
+                              ...prev,
+                              [org.id]: e.target.value || null,
+                            }))
+                          }
+                          data-testid={`organization-group-select-${org.id}`}
+                          className="mt-1 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-100"
+                        >
+                          <option value="">
+                            {t('project.permissions.groupScopeOrgWide')}
+                          </option>
+                          {groupOptions.map((group) => (
+                            <option key={group.id} value={group.id}>
+                              {group.name}
+                            </option>
+                          ))}
+                        </select>
+                        <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                          {t('project.permissions.groupScopeHelp')}
+                        </p>
+                      </div>
                     )}
                   </div>
-                </label>
-              ))}
+                )
+              })}
             </div>
           )}
         </div>

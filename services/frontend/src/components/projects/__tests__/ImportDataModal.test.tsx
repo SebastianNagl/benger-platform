@@ -41,6 +41,20 @@ jest.mock('@/stores/projectStore', () => ({
   useProjectStore: jest.fn(),
 }))
 
+// The real CloudImportPanel talks to auth/progress contexts and the API —
+// the modal only has to inject it in immediate mode with the project id.
+jest.mock('@/components/projects/import/CloudImportPanel', () => ({
+  CloudImportPanel: ({ mode, projectId }: any) => (
+    <div
+      data-testid="cloud-import-panel-stub"
+      data-mode={mode}
+      data-project-id={projectId}
+    >
+      cloud panel
+    </div>
+  ),
+}))
+
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
     t: (key: string, params?: any) => {
@@ -52,16 +66,23 @@ jest.mock('@/contexts/I18nContext', () => ({
         'tasks.importModal.fieldRequirements': 'Data Field Requirements',
         'tasks.importModal.fieldRequirementsDescription': 'Your template requires these data fields',
         'tasks.importModal.missingFieldsWarning': 'Missing required fields will cause validation errors',
-        'tasks.importModal.uploadFiles': 'Upload Files',
-        'tasks.importModal.pasteData': 'Paste Data',
-        'tasks.importModal.cloudStorage': 'Cloud Storage',
-        'tasks.importModal.dropFilesHere': 'Drop files here or click to upload',
-        'tasks.importModal.supportedFormats': 'Supports JSON, CSV, TSV, and plain text files',
-        'tasks.importModal.chooseFiles': 'Choose Files',
-        'tasks.importModal.pasteYourData': 'Paste your data',
-        'tasks.importModal.pastePlaceholder': 'Paste JSON, CSV, or plain text data...',
-        'tasks.importModal.csvTip': 'Tip: For CSV data, include a header row with column names',
-        'tasks.importModal.cloudComingSoon': 'Cloud storage integration coming soon',
+        // Shared ImportSourceTabs keys
+        'dataImport.tabs.upload': 'Upload Files',
+        'dataImport.tabs.paste': 'Paste Data',
+        'dataImport.tabs.cloud': 'Cloud Storage',
+        'projects.creation.wizard.step2.upload.dropzone': 'Drop files here or click to upload',
+        'projects.creation.wizard.step2.upload.supportedFormats': 'Supports JSON, CSV, TSV, and plain text files',
+        'projects.creation.wizard.step2.upload.chooseFiles': 'Choose Files',
+        'projects.creation.wizard.step2.upload.removeFile': 'Remove File',
+        'projects.creation.wizard.step2.upload.selectedFile': 'Selected: {filename}',
+        'projects.creation.wizard.step2.paste.label': 'Paste your data',
+        'projects.creation.wizard.step2.paste.placeholder': 'Paste JSON, CSV, or plain text data...',
+        'projects.creation.wizard.step2.paste.lines': '{count} lines',
+        'projects.creation.wizard.step2.paste.noData': 'No data',
+        'projects.creation.wizard.step2.paste.clear': 'Clear',
+        'projects.creation.wizard.step2.paste.validate': 'Validate',
+        'projects.creation.wizard.step2.paste.formatDetected': '{format} detected',
+        'projects.creation.wizard.step2.paste.invalidFormat': 'Invalid format',
         'tasks.importModal.validationError': 'Import Validation Error',
         'tasks.importModal.validationErrorDescription': 'The imported data fields do not match the template requirements',
         'tasks.importModal.importAnyway': 'Import Anyway',
@@ -210,15 +231,15 @@ describe('ImportDataModal', () => {
       ).toBeInTheDocument()
     })
 
-    it('shows cloud storage coming soon message', async () => {
+    it('shows the immediate-mode cloud import panel on the cloud tab', async () => {
       const user = userEvent.setup()
       render(<ImportDataModal {...defaultProps} />)
 
       await user.click(screen.getByText('Cloud Storage'))
 
-      expect(
-        screen.getByText('Cloud storage integration coming soon')
-      ).toBeInTheDocument()
+      const panel = screen.getByTestId('cloud-import-panel-stub')
+      expect(panel).toHaveAttribute('data-mode', 'immediate')
+      expect(panel).toHaveAttribute('data-project-id', defaultProps.projectId)
     })
   })
 
@@ -237,7 +258,7 @@ describe('ImportDataModal', () => {
       await userEvent.upload(input, file)
 
       await waitFor(() => {
-        expect(screen.getByText('test.json')).toBeInTheDocument()
+        expect(screen.getByText('Selected: test.json')).toBeInTheDocument()
       })
     })
 
@@ -254,8 +275,7 @@ describe('ImportDataModal', () => {
       await userEvent.upload(input, file)
 
       await waitFor(() => {
-        expect(screen.getByText('test.txt')).toBeInTheDocument()
-        expect(screen.getByText(/KB/)).toBeInTheDocument()
+        expect(screen.getByText('Selected: test.txt')).toBeInTheDocument()
       })
     })
 
@@ -269,12 +289,12 @@ describe('ImportDataModal', () => {
       ) as HTMLInputElement
 
       await userEvent.upload(input, file)
-      await waitFor(() => screen.getByText('test.txt'))
+      await waitFor(() => screen.getByText('Selected: test.txt'))
 
       const removeButton = screen.getByRole('button', { name: /Remove/i })
       await user.click(removeButton)
 
-      expect(screen.queryByText('test.txt')).not.toBeInTheDocument()
+      expect(screen.queryByText('Selected: test.txt')).not.toBeInTheDocument()
       expect(
         screen.getByText('Drop files here or click to upload')
       ).toBeInTheDocument()
@@ -297,7 +317,7 @@ describe('ImportDataModal', () => {
       })
 
       await waitFor(() => {
-        expect(screen.getByText('dropped.json')).toBeInTheDocument()
+        expect(screen.getByText('Selected: dropped.json')).toBeInTheDocument()
       })
     })
 
@@ -321,7 +341,7 @@ describe('ImportDataModal', () => {
       await userEvent.upload(input, file)
 
       await waitFor(() => {
-        expect(screen.getByText('test.txt')).toBeInTheDocument()
+        expect(screen.getByText('Selected: test.txt')).toBeInTheDocument()
       })
     })
   })
@@ -354,7 +374,7 @@ describe('ImportDataModal', () => {
       ) as HTMLInputElement
       await userEvent.upload(input, file)
 
-      await waitFor(() => screen.getByText('test.txt'))
+      await waitFor(() => screen.getByText('Selected: test.txt'))
 
       // Then paste data
       await user.click(screen.getByText('Paste Data'))
@@ -365,7 +385,7 @@ describe('ImportDataModal', () => {
 
       // File should be cleared
       await user.click(screen.getByText('Upload Files'))
-      expect(screen.queryByText('test.txt')).not.toBeInTheDocument()
+      expect(screen.queryByText('Selected: test.txt')).not.toBeInTheDocument()
     })
   })
 
@@ -421,7 +441,7 @@ describe('ImportDataModal', () => {
       ) as HTMLInputElement
 
       await userEvent.upload(input, file)
-      await waitFor(() => screen.getByText('test.json'))
+      await waitFor(() => screen.getByText('Selected: test.json'))
 
       const importButton = screen.getByRole('button', { name: /Import Data/i })
       await user.click(importButton)
@@ -445,7 +465,7 @@ describe('ImportDataModal', () => {
       ) as HTMLInputElement
       await userEvent.upload(input, file)
 
-      await waitFor(() => screen.getByText('test.json'))
+      await waitFor(() => screen.getByText('Selected: test.json'))
 
       const importButton = screen.getByRole('button', { name: /Import Data/i })
       await user.click(importButton)
@@ -475,7 +495,7 @@ describe('ImportDataModal', () => {
       ) as HTMLInputElement
       await userEvent.upload(input, file)
 
-      await waitFor(() => screen.getByText('test.csv'))
+      await waitFor(() => screen.getByText('Selected: test.csv'))
 
       const importButton = screen.getByRole('button', { name: /Import Data/i })
       await user.click(importButton)
@@ -504,7 +524,7 @@ describe('ImportDataModal', () => {
       ) as HTMLInputElement
       await userEvent.upload(input, file)
 
-      await waitFor(() => screen.getByText('test.txt'))
+      await waitFor(() => screen.getByText('Selected: test.txt'))
 
       const importButton = screen.getByRole('button', { name: /Import Data/i })
       await user.click(importButton)
@@ -553,7 +573,7 @@ describe('ImportDataModal', () => {
       ) as HTMLInputElement
 
       await userEvent.upload(input, file)
-      await waitFor(() => screen.getByText('test.json'))
+      await waitFor(() => screen.getByText('Selected: test.json'))
 
       const importButton = screen.getByRole('button', { name: /Import Data/i })
       await user.click(importButton)
@@ -584,7 +604,7 @@ describe('ImportDataModal', () => {
       ) as HTMLInputElement
 
       await userEvent.upload(input, file)
-      await waitFor(() => screen.getByText('test.json'))
+      await waitFor(() => screen.getByText('Selected: test.json'))
 
       const importButton = screen.getByRole('button', { name: /Import Data/i })
       await user.click(importButton)
@@ -609,7 +629,7 @@ describe('ImportDataModal', () => {
       ) as HTMLInputElement
 
       await userEvent.upload(input, file)
-      await waitFor(() => screen.getByText('test.json'))
+      await waitFor(() => screen.getByText('Selected: test.json'))
 
       const importButton = screen.getByRole('button', { name: /Import Data/i })
       await user.click(importButton)
@@ -634,7 +654,7 @@ describe('ImportDataModal', () => {
       ) as HTMLInputElement
 
       await userEvent.upload(input, file)
-      await waitFor(() => screen.getByText('test.json'))
+      await waitFor(() => screen.getByText('Selected: test.json'))
 
       const importButton = screen.getByRole('button', { name: /Import Data/i })
       await user.click(importButton)
@@ -686,7 +706,7 @@ describe('ImportDataModal', () => {
       ) as HTMLInputElement
 
       await userEvent.upload(input, file)
-      await waitFor(() => screen.getByText('test.json'))
+      await waitFor(() => screen.getByText('Selected: test.json'))
 
       const importButton = screen.getByRole('button', { name: /Import Data/i })
       await user.click(importButton)
@@ -716,7 +736,7 @@ describe('ImportDataModal', () => {
       ) as HTMLInputElement
 
       await userEvent.upload(input, file)
-      await waitFor(() => screen.getByText('test.json'))
+      await waitFor(() => screen.getByText('Selected: test.json'))
 
       const importButton = screen.getByRole('button', { name: /Import Data/i })
       await user.click(importButton)
@@ -745,7 +765,7 @@ describe('ImportDataModal', () => {
       ) as HTMLInputElement
 
       await userEvent.upload(input, file)
-      await waitFor(() => screen.getByText('test.json'))
+      await waitFor(() => screen.getByText('Selected: test.json'))
 
       const importButton = screen.getByRole('button', { name: /Import Data/i })
       await user.click(importButton)
@@ -775,7 +795,7 @@ describe('ImportDataModal', () => {
       ) as HTMLInputElement
 
       await userEvent.upload(input, file)
-      await waitFor(() => screen.getByText('test.json'))
+      await waitFor(() => screen.getByText('Selected: test.json'))
 
       const importButton = screen.getByRole('button', { name: /Import Data/i })
       await user.click(importButton)
@@ -799,7 +819,7 @@ describe('ImportDataModal', () => {
       ) as HTMLInputElement
 
       await userEvent.upload(input, file)
-      await waitFor(() => screen.getByText('test.json'))
+      await waitFor(() => screen.getByText('Selected: test.json'))
 
       const importButton = screen.getByRole('button', { name: /Import Data/i })
       await user.click(importButton)
@@ -826,7 +846,7 @@ describe('ImportDataModal', () => {
       ) as HTMLInputElement
 
       await userEvent.upload(input, file)
-      await waitFor(() => screen.getByText('test.json'))
+      await waitFor(() => screen.getByText('Selected: test.json'))
 
       const importButton = screen.getByRole('button', { name: /Import Data/i })
       await user.click(importButton)
@@ -861,7 +881,7 @@ describe('ImportDataModal', () => {
       ) as HTMLInputElement
 
       await userEvent.upload(input, file)
-      await waitFor(() => screen.getByText('test.json'))
+      await waitFor(() => screen.getByText('Selected: test.json'))
 
       const importButton = screen.getByRole('button', { name: /Import Data/i })
       await user.click(importButton)
@@ -921,7 +941,7 @@ describe('ImportDataModal', () => {
       ) as HTMLInputElement
 
       await userEvent.upload(input, file)
-      await waitFor(() => screen.getByText('test.json'))
+      await waitFor(() => screen.getByText('Selected: test.json'))
 
       const importButton = screen.getByRole('button', { name: /Import Data/i })
       await userEvent.click(importButton)

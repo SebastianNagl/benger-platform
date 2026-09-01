@@ -1,0 +1,135 @@
+---
+# Full paper behind the accepted conference abstract (2026-08-14).
+# This folder is self-contained: REPRODUCTION.md + prompts/ + configs/ +
+# analysis/ hold the runs and scripts behind every number.
+title: "Replicating LEXam on German First State Exam-Style Essay Cases to Probe the “Statistical” Face of Legal Reasoning"
+author:
+  - name: Sebastian Nagl
+    affiliations:
+      - name: Technical University of Munich (TUM)
+    email: sebastian.nagl@tum.de
+    corresponding: true
+abstract: |
+  Large language models were trained to predict text, not to apply legal
+  method. Still, they produce fluent German legal prose. We measure what
+  that fluency is worth on one corpus of 1,127 German exam cases, in two
+  ways. The first is a faithful replication of the Swiss LEXam benchmark
+  [@fan2025lexam], changed only from Swiss to German law. The second is
+  BenGER [@nagl2026bengerdata], our German benchmark with a 100-point
+  doctrinal rubric, the German grade scale, and human baselines. The two
+  pipelines rank models identically. This validates LEXam's lean
+  recipe across jurisdictions and grounds our rubric in an established
+  method. Capability is tiered. Flagship systems pass full
+  Übungsklausuren (up to 7.3 grade points, 83 per cent pass rate). The
+  affordable
+  tier largely fails them. Models with published Swiss scores land 15–22
+  points lower on German Klausuren and 5–11 points higher on German
+  principle questions. The long-form format is the differentiator, not
+  the language. The human baseline splits by working mode, not by grader.
+  Unaided participants sit mid-field under both instruments. Human-AI
+  co-creation beats the affordable field, matches the flagship tier, and
+  shows the same ~15-point uplift under both graders. Text-similarity
+  metrics predict the doctrinal grade on mid-tier cases (rank correlation
+  0.77) but less well on hard ones (0.58). Part of what German legal
+  grading rewards is pattern-like. The rest is where doctrine still
+  decides.
+---
+
+# The question
+
+Large language models write legal prose that looks like the real thing. Ask one to solve a German practice exam. It will produce an Obersatz, define the elements of § 823 Abs. 1 BGB, subsume the facts, and close with a confident Ergebnis. Yet these systems were not taught legal method. They were trained to predict the next word. That is a statistical process, not a doctrinal one.
+
+This raises a question beyond computer science. If a statistical machine can pass our exams, what does that say about the exams? There are two possible answers. Either the machines only imitate the surface of legal argument, and a careful grader should catch them. Or substantial parts of what we grade, such as structure, phrasing, and the form of the Gutachtenstil, are regular patterns that a statistical learner can absorb. Both answers are informative. The first locates the legal core of legal work. The second tells us which parts of legal assessment are already statistical in practice.
+
+An empirical answer requires two things that rarely coexist. It needs an established way of scoring machine answers to law exams. It also needs an evaluation that fits the legal system being examined. This paper has both and explains why both were needed.
+
+# Two benchmarks, one goal
+
+LEXam, the established method. The Swiss LEXam benchmark [@fan2025lexam] set the standard for measuring legal-exam performance of language models. It covers 340 University of Zurich examinations. Its evaluation is zero-shot, with a single prompt and no examples. Its grading design has a language model score each answer against the professor-written reference solution. The authors validated this judge against human legal experts. The method is lean, reproducible, and strict. When we say "correctness judge" below, we mean LEXam's method.
+
+BenGER, our German benchmark. In parallel, we built BenGER [@nagl2026bengerdata], a benchmark for subsumption-based legal reasoning in German law. Legal experts curate it on an open collaborative platform [@nagl2026benger]. Its corpus is the corpus of this study. It contains 1,127 German cases in three difficulty tiers, all with official model solutions (Musterlösungen):
+
+- Grundprinzipien: 531 short cases on fundamental legal principles. Each can be answered with a justified Ja or Nein.
+- Benchathon: 15 curated exam cases from civil, criminal, and public law, plus 220 written answers from a grading event with 37 human participants. This is the one tier where humans and machines answered identical questions under identical conditions.
+- ZJS Fälle: 581 full practice exams (Übungsklausuren) from the *Zeitschrift für das Juristische Studium*. These are First State Exam-style cases that demand complete, structured solutions. Their model solutions average thirty thousand characters.
+
+BenGER grades answers the way a German corrector would. A 100-point rubric covers ten dimensions of German correction practice, from Ergebnisrichtigkeit and Subsumtion to Gliederung, language, and formalities. The score converts into the 18-point grade scale. About seventy of the hundred points concern substance. About thirty reward craft, meaning structure, style, and form.
+
+The experiment. We replicated LEXam faithfully on the BenGER corpus. Every model received exactly the LEXam prompt, translated from the Swiss to the German legal context. There was no system prompt, no examples, and no other help. Fourteen affordable-tier models wrote about 23,000 answers, all machine-graded. The roster deliberately includes the three models with published Swiss scores. BenGER's existing rubric evaluations cover twelve systems on the same cases, including the flagships GPT-5.4, Claude Opus-4.7, and Gemini-3.1-Pro [@nagl2026bengerdata]. The design gives us one corpus and two complete pipelines. We can ask how good the models are. We can also ask what each way of grading sees that the other does not.
+
+# A faithful replication and its deviations
+
+A reproduction is only useful if it is honest about its deviations, so we record ours. The generation prompts are byte-identical to LEXam's up to the Swiss-to-German substitutions. Four engineering choices differ. None touches the method's substance. We used a single judge model instead of the three-judge ensemble to save cost. Rankings stay comparable, and absolute scores read slightly milder. We used structured JSON judge output instead of free text. We capped answers at 16,000 tokens, which was never binding in practice. We adapted the multiple-choice track, for which our corpus has no data, into a Ja/Nein binary track. The full deviations register ships with this paper.
+
+The replication worked. It reproduced LEXam's qualitative ordering among the shared anchor models, with zero judge errors, for well under a hundred euros. Another group can run the LEXam recipe on a different jurisdiction's corpus within days. That is a credit to how the original was built.
+
+# Why German data needed its own benchmark
+
+If the replication worked, why build BenGER at all? Why not run LEXam's protocol on German data and stop? The reason is not that LEXam's method falls short at what it does. The German examination context asks additional questions that a reference-based correctness score is not designed to answer.
+
+The format differs in kind, not just in language. Swiss LEXam questions are mostly focused essay questions. The German Übungsklausur demands a multi-hour, multi-issue solution in a rigid methodical form. German grading practice officially rewards the craft of that form. A correctness-vs-reference score should exclude craft. That is its strength as a measure of substance. But a benchmark meant to tell German legal educators how machine answers would fare under German correction must include craft. This is why the rubric has about 30 craft points.
+
+German correction accepts alternative solution paths. An answer can deviate from the Musterlösung and still be *vertretbar*, meaning doctrinally sound on a different route. Any evaluation anchored to a single reference text will penalise such answers. Our data are consistent with this at 6.5 per cent (§ 7). A tradition that protects defensible alternatives needs an instrument that can credit them.
+
+Benchmarks need human anchors and living curation. BenGER's platform keeps legal experts in the loop. They curate cases, contribute answers, and audit gradings. The 37 Benchathon participants and the platform's anonymised student cohorts give every machine number a human reference point.
+
+None of this replaces LEXam. It builds on it. The replication gave us a validated external yardstick. That yardstick makes the comparison in the next two sections possible.
+
+# What the machines can and cannot do
+
+Capability is tiered. Under the doctrinal rubric on the 581 ZJS Klausuren, the flagship systems pass. Gemini-3.1-Pro averages 61.7 of 100, or 7.3 grade points, with 83 per cent of its exams at "ausreichend" or better. The pass bar sits at 50/100, which is about grade 4. GPT-5.4 follows at 60.4 (78 per cent) and Claude Opus-4.7 at 58.7 (76 per cent) [@nagl2026bengerdata]. Below them the field falls away steeply. The middle tier hovers around the pass bar. The weakest open-weight systems fail almost everything, at 2.4–2.8 grade points and pass rates of 5–13 per cent. Anonymised student cohorts on comparable practice exams average roughly 2 to 6 grade points. The result has two sides. Today's best systems write full German Klausuren at a solid "befriedigend" level, above a typical practice cohort. Everything below the flagship tier largely fails. Even the best average stays well short of the distinction-level grade bands.
+
+The difficulty gradient holds at every price point. Under the LEXam judge, the best affordable model per tier reaches 74 of 100 on the short Grundprinzipien questions (82 per cent on the Ja/Nein decision), 57 on the mid-tier Benchathon cases, and 43 on the full ZJS Klausuren. The ZJS field stretches down to 22. The flagships show the same slope under the rubric. Gemini-3.1-Pro falls from 83 on principle questions to 62 on full Klausuren. Sustaining a complete, correctly weighted solution across thousands of words remains the hardest task we ask of these systems.
+
+The human baseline splits by working mode, and the split decides who leads. Under the identical LEXam correctness judge, on the same fifteen Benchathon cases, the 220 participant solutions average 57 of 100. The pool mixes two working modes that behave very differently. Solutions written with AI assistance (co-creation, n=156) average 62. They beat every model in the affordable replication field, whose average is 42 and whose best is 57. Unaided solutions (n=63) average 47. That is above the field's average and below its leaders. BenGER's craft-inclusive rubric shows the same structure. Unaided work averages 50.0, or 4.7 grade points. Co-creation reaches 65.7, which is statistically equivalent to the flagship tier's 66.6–69.3 [@nagl2026bengerdata]. The co-creation uplift of about 15 points appears under both grading philosophies (§ 6).
+
+The German exam is harder than the Swiss one because of format, not language. The methodology is intact and three models have published Swiss scores, so the cross-country comparison is direct (@tbl-swiss). Those models score 15 to 22 points lower on our full German Klausuren and 5 to 11 points higher on the short German principle questions. Same models, same method. The difference is the shape of the task, namely the disciplined structure of the full Gutachten. The two benchmarks probe different formats and complement each other. A model's standing can shift by twenty points depending on which format its deployment context resembles.
+
+| Model | Swiss LEXam | German Klausuren (ZJS) | German principles (GP) |
+|:--|--:|--:|--:|
+| gpt-4.1-mini | 54.6 | 33.1 | 60.5 |
+| gpt-4o-mini | 42.6 | 27.3 | 53.6 |
+| gemma-3-12b | 41.3 | 21.6 | 46.9 |
+
+: Scores are 0–100 under the LEXam correctness judge. The published Swiss values come from LEXam's stricter three-judge ensemble. Our single judge is milder. The Klausur deficit is therefore conservative, and part of the principle-question gain may be judge leniency. {#tbl-swiss}
+
+# What the two instruments say about each other
+
+Both pipelines ran end to end on the same cases and overlapping models, each with its own prompt and grader. The two grading philosophies can therefore be compared at the system level. Across the eleven models covered by both pipelines on ZJS, the correctness judge and the German rubric produce the identical ranking. For LEXam, this validates a deliberately lean design across jurisdictions. A single reference-anchored judge, moved to a different legal system and a much longer exam format, sorts models the same way a ten-dimension doctrinal rubric does. For BenGER, this grounds the richer instrument. Its substance core moves with the established method.
+
+The two instruments disagree on the level. The rubric's scores run 1–10 points higher, and the gap grows for stronger models. This is consistent with fluent systems collecting most of the roughly 30 craft points that the correctness judge ignores. The agreement extends beyond rankings. The co-creation uplift of § 5 comes out at the same 15 points under both instruments. Two independently built graders measure the same effect. The graders agree on who is better and on what collaboration adds. They disagree on how much credit fluent form deserves. The correctness judge shows what an answer is worth once form is stripped away. The rubric shows what a German corrector would write under it. A benchmark for German legal education needs both numbers. That is why BenGER exists alongside LEXam rather than instead of it.
+
+# The statistical face: what similarity sees and what it misses
+
+We also scored every answer with standard text-similarity metrics. These measure how similar an answer is to the model solution. Some count shared words and phrases [@papineni2002bleu; @lin2004rouge; @banerjee2005meteor]. Others compare neural meaning representations [@zhang2020bertscore; @zhao2019moverscore]. None of them knows anything about law. If legal grading were only about producing text that resembles the sample solution, similarity should predict the rubric grade well.
+
+It does in part, and less so as the law gets harder. We compared similarity scores with rubric grades answer by answer, over ten thousand paired gradings on ZJS alone. We used rank correlation. Sort all answers once by similarity and once by grade, then measure how well the two orderings coincide (1.0 means perfect agreement, 0 means none). On the mid-tier Benchathon cases, word-overlap measures track the doctrinal grade at about 0.77. On the full ZJS Klausuren they drop to about 0.58. Whole-document embedding similarity does far worse and reaches only 0.23. Neural metrics that align word by word keep pace with the overlap measures. Shared legal vocabulary beats document-level meaning. A plausible reason is that every answer to the same case occupies the same semantic space. Meaning-similarity saturates there. The presence of the right words of the law, the correct provisions and terms of art, still discriminates. In plain terms, on easier cases, sounding like the model solution and deserving a good grade are nearly the same thing. On hard cases they come apart. A third or more of the grading signal is invisible to every similarity measure.
+
+The mismatches are the most instructive part. We split answers into thirds by embedding similarity and thirds by grade. About 36 per cent sit in the aligned corners, meaning similar and good or dissimilar and poor. Chance would put 22 per cent there. But 5 per cent are highly similar to the model solution and still fail. One such answer, written by Claude Opus, sits in the top similarity third and received 29 of 100 points. It paraphrases the solution's terrain and omits the decisive doctrinal steps. Conversely, 6.5 per cent are dissimilar yet well graded. This is consistent with the *vertretbar* alternative paths of § 4. Similarity punishes them and doctrine rewards them.
+
+The aligned majority shows that a substantial share of what German legal grading rewards is pattern-regular. Statistics can reproduce it and overlap can measure it. The mismatch minority localises the rest: the decisive step taken or missed, the weighting of arguments, the recognition of what the case turns on. Similarity is silent exactly there. Model answers also lose most of their points there.
+
+# What this means
+
+For legal education. Fluent structure is now cheap. Any student and any machine can produce a clean Gutachten scaffold. Grading schemes that award substantial credit for form will overvalue machine-assisted work. The discriminating signal has moved into issue-spotting, weighting, and the decisive doctrinal step. Examination design should follow it there.
+
+For the profession's self-understanding. Part of legal reasoning, the reproducible and formulaic part, is demonstrably statistical. Machines master it. Similarity metrics can even grade it. The rest is what similarity cannot see and what caps even the flagships at "befriedigend" on full Klausuren. It is identifiable, teachable method. The upper grade bands it guards remain human territory for now.
+
+For benchmarking. Legal-reasoning evaluation does not need one benchmark to win. It needs a common methodological foundation and jurisdiction-specific instruments built on it. LEXam supplies the foundation, a validated grading protocol that travels. BenGER supplies the German instantiation, format-aware and human-anchored. Machine grading of legal work is feasible and consistent. But the level disagreements show that whoever configures the grader decides how much fluent form counts, and with it what counts as legal quality. If such systems enter legal education or practice, that configuration deserves the transparency and contestability we demand of human examination regimes.
+
+# Method notes and limitations
+
+Everything reported here is reproducible. Prompts, configurations, and analysis code are published with the paper. The corpus is the published BenGER dataset [@nagl2026bengerdata]. The runs live on our open-core platform [@nagl2026benger], where the grading pipeline is inspectable end to end.
+
+Five limitations. First, the graders are themselves language models. LEXam validated the design against human legal experts, and BenGER cross-validated its judge against a multi-rater human layer. Machine judges still inherit biases, plausibly including mild leniency towards machine-typical prose. Second, we used one judge model rather than the three-judge ensemble. Published LEXam scores are comparable in ranking and slightly stricter in level. Third, the flagships appear only in the rubric pipeline. The human-vs-flagship comparison under the LEXam judge remains open. Fourth, coverage has gaps. One model is missing 17 per cent of ZJS cells, and zero-filling every gap would leave the ZJS leader unchanged. Superseded duplicate generations from earlier runs were removed before the cross-pipeline comparison, keeping one generation per task and model. Judge zeros pool genuine failures with a rare unparseable-answer default. One provider refused a criminal-law fact pattern on content-policy grounds, which is itself a finding about deploying general-purpose AI on legal material. Fifth, fifteen cases and 220 human solutions in two working modes are a small but clean sample.
+
+None of this touches the central pattern: a tiered capability picture, a human baseline whose working mode matters more than its grader, and a measurable gap between what similarity sees and what doctrine demands.
+
+# AI usage disclosure {-}
+
+Claude Fable 5 (Anthropic) assisted with the coding work behind this study, including the run configuration tooling and the analysis scripts, and assisted with the wording of parts of this text. The experimental design, the interpretation of the results, and the text of this paper are the author's own responsibility. All reported numbers were checked against the underlying data.
+
+# References {-}
+
+::: {#refs}
+:::

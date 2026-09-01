@@ -330,16 +330,31 @@ class TestResolveUserOrgForProject:
         result = resolve_user_org_for_project(user, project, db)
         assert result is None
 
-    def test_fallback_to_first_org(self):
+    def test_non_member_resolves_none(self):
+        """2026-08-31: the unconditional first-org fallback is gone — an
+        ordinary non-member resolves to None (personal key)."""
         from routers.evaluations.helpers import resolve_user_org_for_project
 
         org1 = Mock(id="org-1")
         project = Mock(organizations=[org1])
-        user = Mock(id="user-1")
+        user = Mock(id="user-1", is_superadmin=False)
         db = MagicMock()
 
-        # No memberships found
-        db.query.return_value.filter.return_value.all.return_value = []
+        # No membership found
+        db.query.return_value.filter.return_value.first.return_value = None
+
+        result = resolve_user_org_for_project(user, project, db)
+        assert result is None
+
+    def test_superadmin_keeps_first_org_fallback(self):
+        from routers.evaluations.helpers import resolve_user_org_for_project
+
+        org1 = Mock(id="org-1")
+        project = Mock(organizations=[org1])
+        user = Mock(id="user-1", is_superadmin=True)
+        db = MagicMock()
+
+        db.query.return_value.filter.return_value.first.return_value = None
 
         result = resolve_user_org_for_project(user, project, db)
         assert result == "org-1"
@@ -350,11 +365,11 @@ class TestResolveUserOrgForProject:
         org1 = Mock(id="org-1")
         org2 = Mock(id="org-2")
         project = Mock(organizations=[org1, org2])
-        user = Mock(id="user-1")
+        user = Mock(id="user-1", is_superadmin=False)
         db = MagicMock()
 
         membership = Mock(organization_id="org-2")
-        db.query.return_value.filter.return_value.all.return_value = [membership]
+        db.query.return_value.filter.return_value.first.return_value = membership
 
         result = resolve_user_org_for_project(user, project, db)
         assert result == "org-2"

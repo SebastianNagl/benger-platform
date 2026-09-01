@@ -1,6 +1,0 @@
-/.quarto/
-**/*.quarto_ipynb
-manuscript_files/
-manuscript_executed_files/
-# Never commit provider keys.
-.env

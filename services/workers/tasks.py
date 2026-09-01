@@ -1910,6 +1910,7 @@ def run_evaluation(
                                     score_scale=params.get("score_scale", "1-5"),
                                     organization_id=organization_id,
                                     seed=judge_seed,
+                                    project_id=project_id,
                                 )
                                 e2e_test_mode = os.environ.get("E2E_TEST_MODE") == "true"
                                 if not (evaluator.ai_service or e2e_test_mode):
@@ -2628,9 +2629,10 @@ def run_single_sample_evaluation(
         # a metered grading then fails loud on key resolution rather than
         # silently spending the wrong key.
         _policy_fn = _get_grading_dispatch_policy_fn()
+        org_billing_authorized = False
         if _policy_fn is not None:
             try:
-                organization_id, eligible_configs = _policy_fn(
+                _policy_res = _policy_fn(
                     db,
                     project=project_for_snapshot,
                     user_id=user_id,
@@ -2639,6 +2641,17 @@ def run_single_sample_evaluation(
                     evaluation_run_id=dispatch_eval_id,
                     eval_metadata=eval_run.eval_metadata or {},
                 )
+                # Newer extended packages return a third element: the
+                # policy-asserted consumer-billing authorization (an entitled
+                # non-member on an org-pays project). Older ones return a
+                # 2-tuple — treat as not authorized.
+                if isinstance(_policy_res, tuple) and len(_policy_res) == 3:
+                    organization_id, eligible_configs, org_billing_authorized = (
+                        _policy_res
+                    )
+                    org_billing_authorized = bool(org_billing_authorized)
+                else:
+                    organization_id, eligible_configs = _policy_res
             except Exception as policy_err:  # defensive — see comment above
                 logger.error(
                     f"[SingleSampleEval] grading dispatch policy failed for "
@@ -2834,6 +2847,7 @@ def run_single_sample_evaluation(
                         organization_id=organization_id,
                         user_id=user_id,
                         task_data=task_data,
+                        org_billing_authorized=org_billing_authorized,
                     )
                     for job in jobs
                 ]
@@ -2980,6 +2994,7 @@ def _run_immediate_config_job(
     organization_id: Optional[str],
     user_id: Optional[str],
     task_data: Dict[str, Any],
+    org_billing_authorized: bool = False,
 ) -> Dict[str, Any]:
     return _run_immediate_config_job_impl(
         job=job,
@@ -2990,6 +3005,7 @@ def _run_immediate_config_job(
         organization_id=organization_id,
         user_id=user_id,
         task_data=task_data,
+        org_billing_authorized=org_billing_authorized,
     )
 
 
@@ -2999,6 +3015,7 @@ def _evaluate_llm_judge_single(
     reference, metric_params, organization_id,
     judge_run_id: Optional[str] = None,
     evaluation_config_id: Optional[str] = None,
+    org_billing_authorized: bool = False,
 ):
     return _evaluate_llm_judge_single_impl(
         db, record_id, immediate_eval_id, project_id, task_id,
@@ -3006,6 +3023,7 @@ def _evaluate_llm_judge_single(
         reference, metric_params, organization_id,
         judge_run_id=judge_run_id,
         evaluation_config_id=evaluation_config_id,
+        org_billing_authorized=org_billing_authorized,
     )
 
 
@@ -3104,6 +3122,7 @@ def _reconstruct_judge_evaluators_for_cell(
     triggered_by_user_id: str,
     organization_id: Optional[str],
     db,
+    project_id: Optional[str] = None,
 ) -> tuple:
     """Per-sub-task reconstruction of LLMJudgeEvaluator instances.
 
@@ -3151,6 +3170,7 @@ def _reconstruct_judge_evaluators_for_cell(
                     db=db,
                     user_id=triggered_by_user_id,
                     organization_id=organization_id,
+                    project_id=project_id,
                     **construct_kwargs,
                 )
             except Exception as init_err:

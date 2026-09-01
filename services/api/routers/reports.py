@@ -21,6 +21,7 @@ from sqlalchemy.orm import joinedload
 from auth_module import User, require_user
 from database import get_async_db
 from models import OrganizationMembership
+from org_groups import attachment_group_clause
 from project_models import Project, ProjectOrganization
 from report_models import ProjectReport
 from report_service import (
@@ -223,25 +224,30 @@ async def check_report_access(
             status_code=status.HTTP_404_NOT_FOUND, detail="Report not found"
         )
 
-    # For non-superadmins, check if they're in an organization that has access to the project
+    # For non-superadmins, check if they're in an organization that has access
+    # to the project — through an ELIGIBLE attachment (grouped attachments
+    # count only for the group's members / the org's ORG_ADMINs).
     if not require_edit:
-        user_org_rows = await db.execute(
-            select(OrganizationMembership.organization_id).where(
+        eligible = await db.execute(
+            select(OrganizationMembership.id)
+            .join(
+                ProjectOrganization,
+                ProjectOrganization.organization_id
+                == OrganizationMembership.organization_id,
+            )
+            .where(
+                ProjectOrganization.project_id == project_id,
                 OrganizationMembership.user_id == user.id,
                 OrganizationMembership.is_active == True,  # noqa: E712
+                attachment_group_clause(
+                    ProjectOrganization,
+                    str(user.id),
+                    membership=OrganizationMembership,
+                ),
             )
+            .limit(1)
         )
-        user_org_ids = [row[0] for row in user_org_rows.all()]
-
-        project_org_rows = await db.execute(
-            select(ProjectOrganization.organization_id).where(
-                ProjectOrganization.project_id == project_id
-            )
-        )
-        project_org_ids = [row[0] for row in project_org_rows.all()]
-
-        # Check if user has any overlapping organizations
-        if any(org_id in project_org_ids for org_id in user_org_ids):
+        if eligible.first() is not None:
             return True
 
     raise HTTPException(
@@ -544,17 +550,6 @@ async def list_published_reports(
     - Superadmins: See all published reports
     - Org members: See published reports from their organizations
     """
-    # Get user's organization IDs
-    user_org_ids = []
-    if not current_user.is_superadmin:
-        user_org_rows = await db.execute(
-            select(OrganizationMembership.organization_id).where(
-                OrganizationMembership.user_id == current_user.id,
-                OrganizationMembership.is_active == True,  # noqa: E712
-            )
-        )
-        user_org_ids = [row[0] for row in user_org_rows.all()]
-
     # Query published reports. Eager-load `.project` (accessed below for the
     # title) via joinedload so the async session never lazy-loads it.
     stmt = (
@@ -567,11 +562,28 @@ async def list_published_reports(
         )
     )
 
-    # Filter by organization for non-superadmins
-    if not current_user.is_superadmin and user_org_ids:
+    # Filter by organization for non-superadmins (grouped attachments count
+    # only through the caller's groups / ORG_ADMIN memberships). Applied
+    # even when the caller has NO orgs: the old `and user_org_ids` guard
+    # skipped the filter entirely for org-less users, listing every
+    # published report they could never open (the per-report gate denies
+    # them) — docstring says org members see their orgs' reports.
+    if not current_user.is_superadmin:
         proj_id_rows = await db.execute(
-            select(ProjectOrganization.project_id).where(
-                ProjectOrganization.organization_id.in_(user_org_ids)
+            select(ProjectOrganization.project_id)
+            .join(
+                OrganizationMembership,
+                OrganizationMembership.organization_id
+                == ProjectOrganization.organization_id,
+            )
+            .where(
+                OrganizationMembership.user_id == current_user.id,
+                OrganizationMembership.is_active == True,  # noqa: E712
+                attachment_group_clause(
+                    ProjectOrganization,
+                    str(current_user.id),
+                    membership=OrganizationMembership,
+                ),
             )
         )
         project_ids = [row[0] for row in proj_id_rows.all()]

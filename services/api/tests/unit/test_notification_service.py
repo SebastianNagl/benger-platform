@@ -530,7 +530,11 @@ class TestHelperFunctions:
         )
 
         mock_get_recipients.assert_called_once_with(
-            mock_db, NotificationType.PROJECT_CREATED, {"organization_id": "org-1"}
+            mock_db,
+            NotificationType.PROJECT_CREATED,
+            # project_id rides along so the recipients helper can derive the
+            # attachment's group (org → group → user layer) in one place.
+            {"organization_id": "org-1", "project_id": "proj-1"},
         )
 
         mock_create.assert_called_once()

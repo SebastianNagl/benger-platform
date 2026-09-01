@@ -104,6 +104,7 @@ def _setup_generate_llm_mocks(
     ai_service._provider_name = model_provider.lower()
     ai_service._invocation_user_id = "u1"
     ai_service._invocation_organization_id = None
+    ai_service._invocation_project_id = None
 
     if ai_response_fn is None:
         async def ai_response_fn(**kwargs):
@@ -416,6 +417,7 @@ class TestGenerateLLMResponsesStructureKeyListFormat:
         ai_service._provider_name = "openai"
         ai_service._invocation_user_id = "u1"
         ai_service._invocation_organization_id = None
+        ai_service._invocation_project_id = None
 
         def mock_gen_response(**kwargs):
             return {"response_text": "answer", "prompt_tokens": 5, "completion_tokens": 5, "total_tokens": 10, "cost_usd": 0.001}

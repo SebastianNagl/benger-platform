@@ -8,10 +8,22 @@
 
 import { User } from '@/lib/api/types'
 
+/**
+ * The caller's membership in one organization group. `is_group_admin` is a
+ * per-group flag orthogonal to the org role.
+ */
+export interface UserGroupMembership {
+  id: string
+  name?: string
+  is_active?: boolean
+  is_group_admin: boolean
+}
+
 export interface UserWithOrganizations extends User {
   organizations?: Array<{
     id: string
     role: 'ORG_ADMIN' | 'CONTRIBUTOR' | 'ANNOTATOR'
+    groups?: UserGroupMembership[]
   }>
 }
 
@@ -44,14 +56,63 @@ export class UserOrganizationPermissions {
   }
 
   /**
+   * Check if user can manage a specific organization group
+   * Superadmins and org admins can manage every group; otherwise the user
+   * needs the is_group_admin flag on that group's membership.
+   */
+  static canManageGroup(
+    user: UserWithOrganizations | null,
+    organizationId: string,
+    groupId: string
+  ): boolean {
+    if (!user) return false
+
+    if (user.is_superadmin === true) return true
+
+    const userOrg = user.organizations?.find(
+      (org) => org.id === organizationId
+    )
+    if (!userOrg) return false
+    if (userOrg.role === 'ORG_ADMIN') return true
+
+    return (
+      userOrg.groups?.some(
+        (group) => group.id === groupId && group.is_group_admin
+      ) ?? false
+    )
+  }
+
+  /**
+   * Check if user can manage at least one group of the organization
+   * (superadmin, org admin, or group admin of any group).
+   */
+  static canManageAnyGroup(
+    user: UserWithOrganizations | null,
+    organizationId: string
+  ): boolean {
+    if (!user) return false
+
+    if (this.canManageOrganization(user, organizationId)) return true
+
+    const userOrg = user.organizations?.find(
+      (org) => org.id === organizationId
+    )
+    return userOrg?.groups?.some((group) => group.is_group_admin) ?? false
+  }
+
+  /**
    * Check if user can invite members to an organization
-   * Superadmins and org admins can invite
+   * Superadmins and org admins invite freely; group admins may invite too
+   * (the backend restricts them to their own group and non-admin roles).
    */
   static canInviteToOrganization(
     user: UserWithOrganizations | null,
     orgId: string
   ): boolean {
-    return this.canManageOrganization(user, orgId)
+    return (
+      this.canManageOrganization(user, orgId) ||
+      this.canManageAnyGroup(user, orgId)
+    )
   }
 
   /**

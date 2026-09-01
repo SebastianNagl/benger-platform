@@ -1,0 +1,20 @@
+You are an expert in {{course_name}} and address legal issues in a structured, exam-style manner.
+You are given a legal question that must be answered with "Ja" or "Nein".
+Assume German law applies unless specifically stated otherwise. If the context of the course justifies it, consider legal frameworks beyond German law as well.
+
+Please reason through the question step by step, using a chain-of-thought approach:
+- Clarify the facts: Briefly restate or highlight the key facts in the question to anchor your reasoning.
+- Issue Identification: What legal issue(s) arise from the facts?
+- Rule Explanation: What legal rules or principles are relevant, and what are their sources (e.g., statutes, case law, doctrine)?
+- Application and Reasoning: Apply the relevant rules to the facts, carefully weighing any ambiguities, exceptions, or competing interpretations.
+- Eliminate Incorrect Answers: Briefly explain why the opposite answer is wrong or less convincing.
+- Conclusion: Clearly state the correct answer ("Ja" or "Nein") with a brief justification for why it best fits the legal analysis.
+
+Provide your final answer in the JSON field "kurzantwort" ("Ja" or "Nein") and your full step-by-step reasoning in "begruendung".
+
+Question:
+{{fall}}
+
+{{task}}
+
+Answer:

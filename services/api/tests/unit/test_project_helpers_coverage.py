@@ -471,20 +471,21 @@ class TestCheckProjectAccessibleBranches:
 
         # First call: get project
         db.query.return_value.filter.return_value.first.return_value = project
-        # Second call: project org IDs
+        # Second call: attachment map rows (organization_id, group_id) tuples
         proj_org_query = MagicMock()
         proj_org_query.filter.return_value = proj_org_query
         proj_org_query.all.return_value = []  # Not in org
 
-        # We need to handle the chain of calls
-        call_count = [0]
-        original_query = db.query
+        # Third/fourth calls (group-aware flow): user memberships + the
+        # caller's group context.
+        user_q = MagicMock()
+        user_q.options.return_value = user_q
+        user_q.filter.return_value = user_q
+        user_q.first.return_value = None
 
-        def query_side_effect(*args):
-            call_count[0] += 1
-            if call_count[0] == 1:
-                return original_query(*args)
-            return proj_org_query
+        ogm_q = MagicMock()
+        ogm_q.filter.return_value = ogm_q
+        ogm_q.all.return_value = []
 
         db.query.side_effect = [
             MagicMock(
@@ -493,6 +494,8 @@ class TestCheckProjectAccessibleBranches:
                 )
             ),
             proj_org_query,
+            user_q,
+            ogm_q,
         ]
 
         assert check_project_accessible(db, user, "proj-1", org_context="org-1") == False  # noqa: E712
@@ -507,11 +510,10 @@ class TestCheckProjectAccessibleBranches:
         proj_q.filter.return_value = proj_q
         proj_q.first.return_value = project
 
-        # Project org IDs
+        # Attachment map rows: (organization_id, group_id) tuples
         org_q = MagicMock()
         org_q.filter.return_value = org_q
-        org_row = Mock(organization_id="org-1")
-        org_q.all.return_value = [org_row]
+        org_q.all.return_value = [("org-1", None)]
 
         # User memberships (inactive)
         membership = Mock(organization_id="org-1", is_active=False)
@@ -521,7 +523,12 @@ class TestCheckProjectAccessibleBranches:
         user_q.filter.return_value = user_q
         user_q.first.return_value = user_with_mem
 
-        db.query.side_effect = [proj_q, org_q, user_q]
+        # Caller's group context (empty)
+        ogm_q = MagicMock()
+        ogm_q.filter.return_value = ogm_q
+        ogm_q.all.return_value = []
+
+        db.query.side_effect = [proj_q, org_q, user_q, ogm_q]
 
         assert check_project_accessible(db, user, "proj-1", org_context="org-1") == False  # noqa: E712
 
@@ -555,7 +562,16 @@ class TestCheckProjectAccessibleBranches:
         org_q.filter.return_value = org_q
         org_q.all.return_value = []  # No orgs
 
-        db.query.side_effect = [proj_q, org_q]
+        user_q = MagicMock()
+        user_q.options.return_value = user_q
+        user_q.filter.return_value = user_q
+        user_q.first.return_value = None
+
+        ogm_q = MagicMock()
+        ogm_q.filter.return_value = ogm_q
+        ogm_q.all.return_value = []
+
+        db.query.side_effect = [proj_q, org_q, user_q, ogm_q]
 
         assert check_project_accessible(db, user, "proj-1", org_context=None) == True  # noqa: E712
 
@@ -570,8 +586,7 @@ class TestCheckProjectAccessibleBranches:
 
         org_q = MagicMock()
         org_q.filter.return_value = org_q
-        org_row = Mock(organization_id="org-1")
-        org_q.all.return_value = [org_row]
+        org_q.all.return_value = [("org-1", None)]
 
         membership = Mock(organization_id="org-1", is_active=True)
         user_with_mem = Mock(organization_memberships=[membership])
@@ -580,7 +595,11 @@ class TestCheckProjectAccessibleBranches:
         user_q.filter.return_value = user_q
         user_q.first.return_value = user_with_mem
 
-        db.query.side_effect = [proj_q, org_q, user_q]
+        ogm_q = MagicMock()
+        ogm_q.filter.return_value = ogm_q
+        ogm_q.all.return_value = []
+
+        db.query.side_effect = [proj_q, org_q, user_q, ogm_q]
 
         assert check_project_accessible(db, user, "proj-1", org_context=None) == True  # noqa: E712
 
@@ -595,8 +614,7 @@ class TestCheckProjectAccessibleBranches:
 
         org_q = MagicMock()
         org_q.filter.return_value = org_q
-        org_row = Mock(organization_id="org-1")
-        org_q.all.return_value = [org_row]
+        org_q.all.return_value = [("org-1", None)]
 
         membership = Mock(organization_id="org-2", is_active=True)  # Different org
         user_with_mem = Mock(organization_memberships=[membership])
@@ -605,7 +623,11 @@ class TestCheckProjectAccessibleBranches:
         user_q.filter.return_value = user_q
         user_q.first.return_value = user_with_mem
 
-        db.query.side_effect = [proj_q, org_q, user_q]
+        ogm_q = MagicMock()
+        ogm_q.filter.return_value = ogm_q
+        ogm_q.all.return_value = []
+
+        db.query.side_effect = [proj_q, org_q, user_q, ogm_q]
 
         assert check_project_accessible(db, user, "proj-1", org_context=None) == False  # noqa: E712
 
@@ -620,15 +642,18 @@ class TestCheckProjectAccessibleBranches:
 
         org_q = MagicMock()
         org_q.filter.return_value = org_q
-        org_row = Mock(organization_id="org-1")
-        org_q.all.return_value = [org_row]
+        org_q.all.return_value = [("org-1", None)]
 
         user_q = MagicMock()
         user_q.options.return_value = user_q
         user_q.filter.return_value = user_q
         user_q.first.return_value = None
 
-        db.query.side_effect = [proj_q, org_q, user_q]
+        ogm_q = MagicMock()
+        ogm_q.filter.return_value = ogm_q
+        ogm_q.all.return_value = []
+
+        db.query.side_effect = [proj_q, org_q, user_q, ogm_q]
 
         assert check_project_accessible(db, user, "proj-1", org_context=None) == False  # noqa: E712
 
@@ -782,12 +807,16 @@ class TestCheckUserCanEditProject:
         user_q.filter.return_value = user_q
         user_q.first.return_value = user_with_mem
 
+        # Attachment map rows: (organization_id, group_id) tuples
         org_q = MagicMock()
         org_q.filter.return_value = org_q
-        org_row = Mock(organization_id="org-1")
-        org_q.all.return_value = [org_row]
+        org_q.all.return_value = [("org-1", None)]
 
-        db.query.side_effect = [proj_q, user_q, org_q]
+        ogm_q = MagicMock()
+        ogm_q.filter.return_value = ogm_q
+        ogm_q.all.return_value = []
+
+        db.query.side_effect = [proj_q, user_q, org_q, ogm_q]
 
         assert check_user_can_edit_project(db, user, "proj-1") == True  # noqa: E712
 
@@ -807,12 +836,16 @@ class TestCheckUserCanEditProject:
         user_q.filter.return_value = user_q
         user_q.first.return_value = user_with_mem
 
+        # Attachment map rows: (organization_id, group_id) tuples
         org_q = MagicMock()
         org_q.filter.return_value = org_q
-        org_row = Mock(organization_id="org-1")
-        org_q.all.return_value = [org_row]
+        org_q.all.return_value = [("org-1", None)]
 
-        db.query.side_effect = [proj_q, user_q, org_q]
+        ogm_q = MagicMock()
+        ogm_q.filter.return_value = ogm_q
+        ogm_q.all.return_value = []
+
+        db.query.side_effect = [proj_q, user_q, org_q, ogm_q]
 
         assert check_user_can_edit_project(db, user, "proj-1") == False  # noqa: E712
 
@@ -849,12 +882,16 @@ class TestCheckUserCanEditProject:
         user_q.filter.return_value = user_q
         user_q.first.return_value = user_with_mem
 
+        # Attachment map rows: (organization_id, group_id) tuples
         org_q = MagicMock()
         org_q.filter.return_value = org_q
-        org_row = Mock(organization_id="org-1")
-        org_q.all.return_value = [org_row]
+        org_q.all.return_value = [("org-1", None)]
 
-        db.query.side_effect = [proj_q, user_q, org_q]
+        ogm_q = MagicMock()
+        ogm_q.filter.return_value = ogm_q
+        ogm_q.all.return_value = []
+
+        db.query.side_effect = [proj_q, user_q, org_q, ogm_q]
 
         assert check_user_can_edit_project(
             db, user, "proj-1", allowed_roles=("ORG_ADMIN",)

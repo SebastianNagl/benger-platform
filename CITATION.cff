@@ -32,7 +32,7 @@ preferred-citation:
     city: Singapore
   notes: "System demonstration paper (accepted to the demonstrations track; published alongside research papers in the main ICAIL proceedings)."
 references:
-  # The BenGER benchmark dataset paper — see publications/Dataset_ARR/CITATION.cff
+  # The BenGER benchmark dataset paper — see publications/Benchmark_EMNLP/CITATION.cff
   # for the canonical dataset citation including its CC BY 4.0 license.
   # Note: the benchmark paper has a different (larger) author list than the
   # platform paper above — the dataset is the work of nine contributors.

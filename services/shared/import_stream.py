@@ -12,12 +12,15 @@ problems are raised as ``ImportValidationError`` (carrying the HTTP status the
 endpoints used to raise); the API layer rebuilds the matching ``HTTPException``,
 and the worker records the message on the job row.
 
-Two drivers, mirroring the two endpoints:
+Three drivers:
 
 - ``run_nested_import(db, project_id, fileobj, user_id)`` — the nested
   Label-Studio payload imported into an *existing* project (``POST /import``).
 - ``run_full_project_import(db, fileobj, user_id)`` — the flat comprehensive
   payload that *creates* a new project (``POST /import-project``).
+- ``run_tabular_import(db, project_id, fileobj, user_id, fmt)`` — plain
+  CSV/TSV/TXT rows imported as tasks into an *existing* project (the cloud
+  import flow's tabular arm).
 
 Both take a seekable binary file object already filled with the upload body
 (``SpooledTemporaryFile`` / ``io.BytesIO``); the caller streams the request body
@@ -27,7 +30,9 @@ one element at a time and the session identity map is flushed + expunged every
 ``_IMPORT_BATCH`` rows.
 """
 
+import csv
 import gzip
+import io
 import json
 import logging
 import re
@@ -984,6 +989,124 @@ def run_nested_import(db, project_id: str, fileobj, user_id: str) -> dict:
         "total_items": total_items,
         "project_id": project_id,
         "task_id_mapping": task_id_mapping,  # Return mapping for debugging/reference
+    }
+
+
+# Delimiters for the tabular import formats. ``txt`` is handled separately
+# (one task per non-blank line, no header row).
+_TABULAR_DELIMITERS = {"csv": ",", "tsv": "\t"}
+
+
+def run_tabular_import(
+    db, project_id: str, fileobj, user_id: str, fmt: str, progress_cb=None
+) -> dict:
+    """Import a plain tabular file (csv/tsv/txt) as tasks into an existing project.
+
+    The cloud-import flow's tabular arm: each data row becomes one ``Task``
+    whose ``data`` maps the trimmed header names to the row's cell values
+    (missing cells → ``""``); for ``txt`` every non-blank line becomes
+    ``{"text": <line>}``. Same conventions as ``run_nested_import``: uuid4 task
+    ids, sequential ``inner_id``, ``_IMPORT_BATCH`` flush/expunge batching, and
+    a single commit at the end (the caller owns rollback on failure). A
+    gzip-compressed body is inflated transparently; a UTF-8 BOM is consumed
+    (``utf-8-sig``). ``progress_cb(created_tasks)``, when given, fires once per
+    flushed batch.
+
+    Raises ``ImportValidationError(422)`` for an empty file, a header row with
+    no usable column names, an unknown ``fmt``, or a body that isn't valid
+    UTF-8.
+    """
+    if fmt not in ("csv", "tsv", "txt"):
+        raise ImportValidationError(422, f"Unsupported tabular format '{fmt}'")
+
+    fileobj = _maybe_decompress(fileobj)
+
+    # utf-8-sig eats a leading BOM (Excel CSVs); newline="" is the csv-module
+    # contract for correct quoted-newline handling.
+    text_stream = io.TextIOWrapper(fileobj, encoding="utf-8-sig", newline="")
+
+    created_tasks = 0
+    total_rows = 0
+    try:
+        if fmt == "txt":
+            for line in text_stream:
+                if not line.strip():
+                    continue
+                total_rows += 1
+                db.add(
+                    Task(
+                        id=str(uuid.uuid4()),
+                        project_id=project_id,
+                        data={"text": line.rstrip("\r\n")},
+                        meta={},
+                        inner_id=created_tasks + 1,
+                    )
+                )
+                created_tasks += 1
+                flush_every(db, created_tasks, _IMPORT_BATCH)
+                if progress_cb is not None and created_tasks % _IMPORT_BATCH == 0:
+                    progress_cb(created_tasks)
+            if created_tasks == 0:
+                raise ImportValidationError(422, "File contains no non-blank lines")
+        else:
+            reader = csv.reader(text_stream, delimiter=_TABULAR_DELIMITERS[fmt])
+            headers = None
+            for row in reader:
+                if headers is None:
+                    headers = [h.strip() for h in row]
+                    if not any(headers):
+                        raise ImportValidationError(
+                            422, "Header row contains no column names"
+                        )
+                    continue
+                if not row or not any(cell.strip() for cell in row):
+                    continue  # skip fully-blank rows
+                total_rows += 1
+                data = {
+                    header: (row[idx] if idx < len(row) else "")
+                    for idx, header in enumerate(headers)
+                    if header
+                }
+                db.add(
+                    Task(
+                        id=str(uuid.uuid4()),
+                        project_id=project_id,
+                        data=data,
+                        meta={},
+                        inner_id=created_tasks + 1,
+                    )
+                )
+                created_tasks += 1
+                flush_every(db, created_tasks, _IMPORT_BATCH)
+                if progress_cb is not None and created_tasks % _IMPORT_BATCH == 0:
+                    progress_cb(created_tasks)
+            if headers is None:
+                raise ImportValidationError(422, "File is empty")
+    except UnicodeDecodeError:
+        raise ImportValidationError(422, "File is not valid UTF-8")
+    finally:
+        # Detach so the wrapper's GC never closes the caller-owned spool.
+        text_stream.detach()
+
+    # Commit everything atomically (single end commit, like run_nested_import).
+    db.commit()
+    if progress_cb is not None:
+        progress_cb(created_tasks)
+
+    # Update report data section after task import (Issue #770). Best-effort,
+    # mirroring run_nested_import.
+    try:
+        from report_service import update_report_data_section
+
+        update_report_data_section(db, project_id)
+    except Exception as e:
+        logger.error(f"Failed to update report data section: {e}")
+
+    return {
+        "created_tasks": created_tasks,
+        "total_items": total_rows,
+        "project_id": project_id,
+        "format": fmt,
     }
 
 

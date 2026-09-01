@@ -17,6 +17,7 @@ from auth_module import User as AuthUser
 from auth_module import require_user
 from database import get_async_db
 from models import Organization, OrganizationMembership
+from org_groups import attachment_group_clause
 from project_models import Project, ProjectMember, ProjectOrganization, Task
 from project_schemas import PaginatedResponse
 
@@ -48,24 +49,28 @@ async def get_user_accessible_projects(db: AsyncSession, user: AuthUser) -> List
         result = await db.execute(select(Project.id).where(Project.deleted_at.is_(None)))
         return [row[0] for row in result.all()]
 
-    # Get user's organizations (active memberships only — a deactivated
-    # membership must not grant continued access to that org's task data).
-    user_orgs = (
-        select(OrganizationMembership.organization_id)
-        .where(
-            OrganizationMembership.user_id == user.id,
-            OrganizationMembership.is_active == True,  # noqa: E712
-        )
-        .scalar_subquery()
-    )
-
-    # Get projects linked to user's organizations (private projects)
+    # Get projects linked to user's organizations (active memberships only —
+    # a deactivated membership must not grant continued access to that org's
+    # task data). Grouped attachments are eligible only for their group's
+    # members / the org's ORG_ADMINs / the creator (shared/org_groups rule).
     org_result = await db.execute(
         select(Project.id)
         .join(ProjectOrganization, ProjectOrganization.project_id == Project.id)
+        .join(
+            OrganizationMembership,
+            OrganizationMembership.organization_id
+            == ProjectOrganization.organization_id,
+        )
         .where(
-            ProjectOrganization.organization_id.in_(user_orgs),
+            OrganizationMembership.user_id == user.id,
+            OrganizationMembership.is_active == True,  # noqa: E712
             Project.deleted_at.is_(None),
+            attachment_group_clause(
+                ProjectOrganization,
+                str(user.id),
+                membership=OrganizationMembership,
+                project=Project,
+            ),
         )
     )
     org_projects = org_result.all()

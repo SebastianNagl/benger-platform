@@ -5,7 +5,8 @@
  * organization-scoped branches that were still uncovered:
  *   - org list fetch → render (incl. the slug sub-label branch)
  *   - toggleOrg checkbox add/remove
- *   - organization-scoped save payload (is_private:false + organization_ids)
+ *   - organization-scoped save payload (is_private:false +
+ *     organization_attachments with per-org group_id)
  *   - the "organization needs at least one org" validation guard
  *   - the org-fetch error toast
  *   - the read-only (non-creator) view's org-pill + public-role rendering
@@ -29,6 +30,7 @@ jest.mock('@/lib/api/projects', () => ({
 jest.mock('@/lib/api/organizations', () => ({
   organizationsAPI: {
     getOrganizations: jest.fn().mockResolvedValue([]),
+    getGroups: jest.fn().mockResolvedValue([]),
   },
 }))
 
@@ -142,7 +144,7 @@ describe('ProjectPermissionsPanel — organization branches', () => {
     expect(checkbox.checked).toBe(false)
   })
 
-  it('saves the org-scoped payload (is_private:false + organization_ids)', async () => {
+  it('saves the org-scoped payload (is_private:false + organization_attachments)', async () => {
     ;(organizationsAPI.getOrganizations as jest.Mock).mockResolvedValue([
       { id: 'org-a', name: 'Org A', slug: 'org-a' },
     ])
@@ -164,7 +166,9 @@ describe('ProjectPermissionsPanel — organization branches', () => {
     await waitFor(() => {
       expect(projectsAPI.updateVisibility).toHaveBeenCalledWith('p1', {
         is_private: false,
-        organization_ids: ['org-a'],
+        organization_attachments: [
+          { organization_id: 'org-a', group_id: null },
+        ],
       })
     })
     expect(onSave).toHaveBeenCalledWith({
@@ -173,6 +177,52 @@ describe('ProjectPermissionsPanel — organization branches', () => {
       organization_ids: ['org-a'],
     })
     expect(toast.success).toHaveBeenCalledWith('Permissions saved successfully')
+  })
+
+  it('sends the selected group scope in organization_attachments', async () => {
+    ;(organizationsAPI.getOrganizations as jest.Mock).mockResolvedValue([
+      { id: 'org-a', name: 'Org A', slug: 'org-a', role: 'ORG_ADMIN' },
+    ])
+    ;(organizationsAPI.getGroups as jest.Mock).mockResolvedValue([
+      {
+        id: 'grp-1',
+        organization_id: 'org-a',
+        name: 'Chair A',
+        description: null,
+        is_active: true,
+        created_at: '2026-01-01T00:00:00Z',
+        updated_at: null,
+        member_count: 2,
+        is_member: false,
+        is_group_admin: false,
+      },
+    ])
+    const user = userEvent.setup()
+
+    render(
+      <ProjectPermissionsPanel
+        projectId="p1"
+        initialVisibility="organization"
+      />
+    )
+
+    const checkbox = await screen.findByTestId('organization-checkbox-org-a')
+    await user.click(checkbox)
+
+    const groupSelect = await screen.findByTestId(
+      'organization-group-select-org-a'
+    )
+    await user.selectOptions(groupSelect, 'grp-1')
+    await user.click(screen.getByTestId('save-button'))
+
+    await waitFor(() => {
+      expect(projectsAPI.updateVisibility).toHaveBeenCalledWith('p1', {
+        is_private: false,
+        organization_attachments: [
+          { organization_id: 'org-a', group_id: 'grp-1' },
+        ],
+      })
+    })
   })
 
   it('blocks save with a validation error when org-scoped but no org selected', async () => {

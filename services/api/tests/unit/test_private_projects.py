@@ -49,6 +49,7 @@ class TestPrivateProjectAuthorization:
     @pytest.fixture
     def private_project(self, creator_user):
         project = Mock()
+        project.deleted_at = None
         project.id = str(uuid.uuid4())
         project.is_private = True
         project.created_by = creator_user.id
@@ -57,6 +58,7 @@ class TestPrivateProjectAuthorization:
     @pytest.fixture
     def org_project(self):
         project = Mock()
+        project.deleted_at = None
         project.id = str(uuid.uuid4())
         project.is_private = False
         project.created_by = str(uuid.uuid4())
@@ -235,6 +237,7 @@ class TestPublicProjectAuthorization:
     @pytest.fixture
     def public_project_annotator(self, creator_user):
         project = Mock()
+        project.deleted_at = None
         project.id = str(uuid.uuid4())
         project.is_private = False
         project.is_public = True
@@ -245,6 +248,7 @@ class TestPublicProjectAuthorization:
     @pytest.fixture
     def public_project_contributor(self, creator_user):
         project = Mock()
+        project.deleted_at = None
         project.id = str(uuid.uuid4())
         project.is_private = False
         project.is_public = True

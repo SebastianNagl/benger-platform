@@ -1,0 +1,232 @@
+<title>LEXam-DE</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background: #ffffff;
+    color: #000000;
+    font-family: Arial, 'Helvetica Neue', Helvetica, sans-serif;
+    overflow: hidden;
+  }
+  #stage-wrap {
+    position: fixed; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+  }
+  #stage {
+    width: 1280px; height: 720px;
+    position: relative;
+    transform-origin: center center;
+  }
+  .slide {
+    position: absolute; inset: 0;
+    background: #ffffff;
+    border: 1px solid #cccccc;
+    padding: 56px 90px 64px;
+    display: none;
+    flex-direction: column;
+  }
+  .slide.active { display: flex; }
+  h1 { font-size: 44px; line-height: 1.2; font-weight: 700; margin: 0 0 16px; }
+  h2 { font-size: 32px; line-height: 1.2; font-weight: 700; margin: 0 0 24px; border-bottom: 2px solid #000; padding-bottom: 12px; }
+  p, li { font-size: 21px; line-height: 1.45; }
+  p { margin: 0 0 14px; }
+  ul { margin: 0; padding-left: 28px; }
+  li { margin-bottom: 12px; }
+  strong { font-weight: 700; }
+  em { font-style: italic; }
+  .small { font-size: 17px; color: #444; }
+  .pagenum {
+    position: absolute; right: 40px; bottom: 20px;
+    font-size: 14px; color: #666;
+  }
+  table { border-collapse: collapse; margin-top: 8px; }
+  th, td { border: 1px solid #000; padding: 8px 18px; font-size: 19px; text-align: left; }
+  th { font-weight: 700; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  td.na { text-align: right; color: #888; font-size: 16px; }
+  table.compact th, table.compact td { padding: 5px 16px; font-size: 18px; }
+  svg text { font-family: Arial, Helvetica, sans-serif; fill: #000; }
+  #hud {
+    position: fixed; right: 18px; bottom: 12px;
+    font-size: 13px; color: #999;
+    user-select: none;
+  }
+</style>
+
+<div id="stage-wrap"><div id="stage">
+
+<!-- 1 · Title -->
+<section class="slide active">
+  <div style="margin: auto 0;">
+    <h1>Can a statistics machine pass the German state examination?</h1>
+    <p style="font-size: 26px; margin-bottom: 40px;">Replicating LEXam on German First State Exam-style essay cases</p>
+    <p><strong>RA Sebastian Nagl</strong></p>
+    <p class="small">Professorship for Legal Technology (Prof. Matthias Grabmair) · Technical University of Munich</p>
+  </div>
+  <p class="small">1,127 German exam cases · 14 models under the LEXam protocol · 37 human participants · ~23,000 newly graded answers</p>
+</section>
+
+<!-- 2 · Research questions -->
+<section class="slide">
+  <h2>Research questions</h2>
+  <p>Language models are statistics machines: never taught legal method, only trained to predict likely text. Yet their answers look like proper Gutachten - Obersatz, definition, subsumption, conclusion.</p>
+  <ul style="margin-top: 8px;">
+    <li><strong>RQ1:</strong> How well do they actually do on German state-exam-style cases, measured with an established method (LEXam)?</li>
+    <li><strong>RQ2:</strong> Does that established method fit German correction practice - and what changes when a German doctrinal rubric does the grading instead?</li>
+    <li><strong>RQ3:</strong> How do the machines compare with humans who wrote the same exams?</li>
+  </ul>
+  <p style="margin-top: 20px;">Behind all three: if a machine that only learned patterns scores well, then part of what our exams reward is itself a learnable pattern. The answer tells us something about the machines <em>and</em> about the exams.</p>
+</section>
+
+<!-- 3 · What we did -->
+<section class="slide">
+  <h2>What we did</h2>
+  <ul>
+    <li><strong>Replicated LEXam</strong> (Fan et al. 2026, University of Zurich) faithfully on the German BenGER corpus: generation prompt and judge prompt <strong>verbatim</strong>, only Swiss law substituted for German law. Zero-shot - no system prompt, no examples, no retrieval.</li>
+    <li>The LEXam judge is an LLM examiner that scores each answer <strong>against the reference solution</strong> (0-100).</li>
+    <li>Deviations (engineering, not method): one judge model instead of the 3-judge ensemble, structured JSON output, MCQ track adapted to yes/no.</li>
+    <li>0 judge errors over ~23,000 cells. Total cost under €100. Prompts, configs, and analysis code published.</li>
+  </ul>
+</section>
+
+<!-- 4 · Corpus and models -->
+<section class="slide">
+  <h2>Corpus and models</h2>
+  <table>
+    <tr><th>Tier</th><th class="num">Cases</th><th>What it is</th></tr>
+    <tr><td>Grundprinzipien</td><td class="num">531</td><td>short yes/no principle questions (civil &amp; criminal law)</td></tr>
+    <tr><td>Benchathon</td><td class="num">15</td><td>curated exam cases, also answered by 37 humans (220 solutions)</td></tr>
+    <tr><td>ZJS Fälle</td><td class="num">581</td><td>full practice exams in state-exam format; reference solutions avg. 30,000 characters</td></tr>
+  </table>
+  <ul style="margin-top: 24px;">
+    <li><strong>14 affordable-tier models</strong> from every major provider, incl. the 3 with published Swiss LEXam scores.</li>
+    <li><strong>Flagships</strong> (GPT-5.4, Claude Opus, Gemini Pro) join the German-rubric analysis.</li>
+  </ul>
+</section>
+
+<!-- 5 · Replication result -->
+<section class="slide">
+  <h2>The replication result</h2>
+  <p>Best model per tier, LEXam correctness judge (0-100). Competent on principle questions, overwhelmed by the full exam:</p>
+  <svg viewBox="0 0 1080 300" style="width:100%; height:auto; margin-top:12px;">
+    <line x1="200" y1="270" x2="1080" y2="270" stroke="#000"/>
+    <text x="188" y="66" text-anchor="end" font-size="20">Principles (GP)</text>
+    <rect x="200" y="40" width="622" height="42" fill="#000"/>
+    <text x="834" y="68" font-size="21" font-weight="700">74</text>
+    <text x="188" y="151" text-anchor="end" font-size="20">Benchathon</text>
+    <rect x="200" y="125" width="479" height="42" fill="#000"/>
+    <text x="691" y="153" font-size="21" font-weight="700">57</text>
+    <text x="188" y="236" text-anchor="end" font-size="20">Full exams (ZJS)</text>
+    <rect x="200" y="210" width="361" height="42" fill="#000"/>
+    <text x="573" y="238" font-size="21" font-weight="700">43</text>
+  </svg>
+  <ul style="margin-top: 16px;">
+    <li>The three models with published Swiss LEXam scores land <strong>15-22 points lower</strong> on German full exams and 5-11 higher on principle questions - the multi-hour Gutachten format is the hurdle, not the language.</li>
+  </ul>
+</section>
+
+<!-- 6 · The misfit -->
+<section class="slide">
+  <h2>Why the LEXam judge does not fit the German Klausur</h2>
+  <ul>
+    <li>The LEXam judge anchors every score to <strong>one reference solution</strong>. That is its strength - a strict, reproducible measure of substance.</li>
+    <li>But German correction accepts <strong>vertretbar alternative paths</strong>: an answer may deviate from the Musterlösung and still be doctrinally sound. A single-reference anchor <strong>penalises exactly these answers</strong> - ~6.5% of ZJS answers sit in this spot.</li>
+    <li>And German grading practice officially rewards <strong>craft</strong> - Gliederung, method, language, ~30 of 100 points. A correctness-vs-reference score rightly excludes craft; a benchmark for German legal education must include it.</li>
+    <li><strong>So we graded everything a second time ourselves:</strong> a 100-point German doctrinal rubric (10 dimensions of German correction practice, mapped to Notenpunkte) - same cases, each pipeline with its own prompt and its own judge.</li>
+  </ul>
+</section>
+
+<!-- 7 · Side-by-side table -->
+<section class="slide">
+  <h2>Two graders, same 581 Klausuren - the numbers</h2>
+  <table class="compact">
+    <tr><th>Model</th><th class="num">LEXam judge</th><th class="num">German rubric</th><th class="num">Δ</th></tr>
+    <tr><td>GLM-5.2</td><td class="num">43.3</td><td class="num">49.8</td><td class="num">+6.5</td></tr>
+    <tr><td>gpt-5.4-mini</td><td class="num">39.9</td><td class="num">49.7</td><td class="num">+9.8</td></tr>
+    <tr><td>DeepSeek-V4-Flash</td><td class="num">39.2</td><td class="num">45.9</td><td class="num">+6.7</td></tr>
+    <tr><td>Gemini-3.1-Flash-Lite</td><td class="num">39.2</td><td class="num">44.6</td><td class="num">+5.4</td></tr>
+    <tr><td>Qwen3.5-122B</td><td class="num">36.6</td><td class="num">44.2</td><td class="num">+7.6</td></tr>
+    <tr><td>Qwen3.6-27B</td><td class="num">36.0</td><td class="num">42.5</td><td class="num">+6.5</td></tr>
+    <tr><td>Qwen3.6-35B-A3B</td><td class="num">33.3</td><td class="num">39.7</td><td class="num">+6.4</td></tr>
+    <tr><td>Llama-4-Maverick</td><td class="num">32.3</td><td class="num">36.1</td><td class="num">+3.8</td></tr>
+    <tr><td>Gemma-4-26B</td><td class="num">32.3</td><td class="num">35.5</td><td class="num">+3.2</td></tr>
+    <tr><td>custom (anonymised)</td><td class="num">26.6</td><td class="num">28.9</td><td class="num">+2.3</td></tr>
+    <tr><td>GLM-4.7-Flash</td><td class="num">24.4</td><td class="num">25.5</td><td class="num">+1.1</td></tr>
+  </table>
+  <p class="small" style="margin-top: 14px;">Per-model mean, 0-100, ZJS full exams, one (latest) generation per task and model. The 11 models covered by both pipelines: 3 affordable models were never graded under the rubric, flagships never under the LEXam judge. Δ = rubric - judge.</p>
+</section>
+
+<!-- 8 · Reading the comparison -->
+<section class="slide">
+  <h2>What the comparison shows</h2>
+  <ul>
+    <li><strong>The rankings agree exactly:</strong> across all 11 models, the correctness judge and the German rubric produce the identical ordering. LEXam's lean single-reference recipe survives the jurisdiction change and a much longer exam format - and our rubric's substance core moves with the established method.</li>
+    <li><strong>The levels differ:</strong> the rubric grades 1-10 points higher, and the gap grows with model strength - consistent with fluent systems collecting most of the ~30 craft points the correctness judge ignores.</li>
+    <li><strong>What a German corrector would write:</strong> under the rubric, flagships pass 76-83% of full Klausuren (6.5-7.3 grade points, a solid "befriedigend"); real student cohorts average 2-6 grade points.</li>
+    <li>Neither number replaces the other: the judge shows what an answer is worth with form stripped away; the rubric shows the German grade under it.</li>
+  </ul>
+</section>
+
+<!-- 9 · Humans vs machines -->
+<section class="slide">
+  <h2>Humans vs. machines - under both graders</h2>
+  <p>Benchathon cases, same exams for humans and models:</p>
+  <table>
+    <tr><th>Group</th><th class="num">LEXam judge (0-100)</th><th class="num">German rubric (0-100)</th></tr>
+    <tr><td>Affordable-model field average</td><td class="num">42</td><td class="na">not run</td></tr>
+    <tr><td>Unaided participants</td><td class="num">47</td><td class="num">50</td></tr>
+    <tr><td>Best affordable model</td><td class="num">57</td><td class="na">not run</td></tr>
+    <tr><td>Human-AI co-creation</td><td class="num">62</td><td class="num">66</td></tr>
+    <tr><td>Flagships</td><td class="na">not run</td><td class="num">67-69</td></tr>
+  </table>
+  <p style="margin-top: 20px;"><strong>The second agreement:</strong> the co-creation uplift measures ~15 points under both instruments (+14.9 judge, +15.7 rubric). Two independently built graders detect the same effect.</p>
+  <p class="small">"not run": that pipeline was not executed for this group - the affordable replication models were not graded under the rubric on Benchathon, and the flagships were not run under the LEXam judge.</p>
+</section>
+
+<!-- 10 · Takeaways -->
+<section class="slide">
+  <h2>Takeaways</h2>
+  <ul>
+    <li><strong>Legal education:</strong> flawless structure is now cheap - for every student and every machine. The discriminating signal has moved to issue-spotting, weighting, and the decisive doctrinal step. Exam design should follow it there.</li>
+    <li><strong>The profession:</strong> part of legal argument is demonstrably pattern-like; machines master it. The rest is identifiable, teachable method - and remains human territory for now.</li>
+    <li><strong>Benchmarking:</strong> the field needs a common validated foundation (LEXam) plus jurisdiction-specific instruments on top (BenGER). Whoever configures the grader defines legal quality.</li>
+  </ul>
+  <div style="margin-top: auto; border-top: 1px solid #000; padding-top: 20px;">
+    <p style="margin: 0;"><strong>what-a-benger.net</strong> · sebastian.nagl@tum.de</p>
+    <p class="small" style="margin: 6px 0 0;">Use requires registration - after signing up, reach out and we will grant you access to the projects.</p>
+  </div>
+</section>
+
+</div></div>
+<div id="hud"><span id="pos">1</span> / <span id="total"></span> · ←/→</div>
+
+<script>
+  const slides = [...document.querySelectorAll('.slide')];
+  const stage = document.getElementById('stage');
+  let i = 0;
+  document.getElementById('total').textContent = slides.length;
+  slides.forEach((s, k) => {
+    if (k > 0) s.insertAdjacentHTML('beforeend', `<div class="pagenum">${k + 1}</div>`);
+  });
+  function show(n) {
+    i = Math.max(0, Math.min(slides.length - 1, n));
+    slides.forEach((s, k) => s.classList.toggle('active', k === i));
+    document.getElementById('pos').textContent = i + 1;
+  }
+  function fit() {
+    const s = Math.min(window.innerWidth / 1320, window.innerHeight / 760);
+    stage.style.transform = `scale(${s})`;
+  }
+  addEventListener('resize', fit); fit();
+  addEventListener('keydown', e => {
+    if (['ArrowRight',' ','PageDown','Enter'].includes(e.key)) { e.preventDefault(); show(i + 1); }
+    else if (['ArrowLeft','PageUp','Backspace'].includes(e.key)) { e.preventDefault(); show(i - 1); }
+    else if (e.key === 'Home') show(0);
+    else if (e.key === 'End') show(slides.length - 1);
+  });
+  addEventListener('click', e => {
+    if (e.clientX > window.innerWidth * 0.66) show(i + 1);
+    else if (e.clientX < window.innerWidth * 0.33) show(i - 1);
+  });
+</script>

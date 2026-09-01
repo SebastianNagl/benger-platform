@@ -19,7 +19,14 @@ from auth_module.models import User as AuthUser
 from database import SessionLocal, get_async_db
 from services.label_config.validator import LabelConfigValidator
 from services.label_config.version_service import LabelConfigVersionService
-from models import Organization, User
+from models import (
+    Organization,
+    OrganizationGroup,
+    OrganizationGroupMembership,
+    OrganizationMembership,
+    OrganizationRole,
+    User,
+)
 from notification_service import notify_project_created, notify_project_deleted
 from project_models import Project, ProjectMember, ProjectOrganization, Task
 from project_schemas import PaginatedResponse, ProjectCreate, ProjectResponse, ProjectUpdate
@@ -59,6 +66,57 @@ def _notify_project_created_sync(**kwargs) -> None:
         notify_project_created(db=sync_db, **kwargs)
     finally:
         sync_db.close()
+
+
+async def _validate_group_attachment(
+    db: AsyncSession, current_user, org_id: str, group_id: str
+) -> None:
+    """Validate scoping a project attachment to an organization group.
+
+    The group must be an ACTIVE group of the target org, and the caller must
+    be allowed to scope to it: superadmin, ORG_ADMIN of the org, or a member
+    of the group (attachment policy v1 — anyone who can create org projects
+    may pick org-wide or any of their own groups).
+    """
+    group = (
+        await db.execute(
+            select(OrganizationGroup).where(OrganizationGroup.id == str(group_id))
+        )
+    ).scalar_one_or_none()
+    if not group or str(group.organization_id) != str(org_id):
+        raise HTTPException(
+            status_code=400,
+            detail="Group does not belong to the target organization",
+        )
+    if not group.is_active:
+        raise HTTPException(status_code=400, detail="Group is not active")
+    if current_user.is_superadmin:
+        return
+    admin = (
+        await db.execute(
+            select(OrganizationMembership.id).where(
+                OrganizationMembership.user_id == current_user.id,
+                OrganizationMembership.organization_id == str(org_id),
+                OrganizationMembership.role == OrganizationRole.ORG_ADMIN,
+                OrganizationMembership.is_active.is_(True),
+            )
+        )
+    ).first()
+    if admin is not None:
+        return
+    member = (
+        await db.execute(
+            select(OrganizationGroupMembership.id).where(
+                OrganizationGroupMembership.group_id == str(group_id),
+                OrganizationGroupMembership.user_id == current_user.id,
+            )
+        )
+    ).first()
+    if member is None:
+        raise HTTPException(
+            status_code=403,
+            detail="You can only scope a project to a group you belong to",
+        )
 
 
 def _notify_project_deleted_sync(**kwargs) -> None:
@@ -404,14 +462,25 @@ async def create_project(
     if not is_private and not is_public:
         # Organization mode: validate org membership and role
         user_with_memberships = await get_user_with_memberships_async(db, current_user.id)
-        if not user_with_memberships or not user_with_memberships.organization_memberships:
+        memberships = (
+            user_with_memberships.organization_memberships
+            if user_with_memberships
+            else []
+        ) or []
+        if not memberships and not (
+            current_user.is_superadmin and org_context and org_context != "private"
+        ):
+            # Everyone else needs a membership; a SUPERADMIN may create into
+            # an explicit org context without one (admin backfills — the
+            # target-org resolution below already handles this case, but the
+            # blanket 400 here used to fire first and contradict it).
             raise HTTPException(status_code=400, detail="User must belong to an organization")
 
         # Find membership for the specified org
         primary_membership = next(
             (
                 m
-                for m in user_with_memberships.organization_memberships
+                for m in memberships
                 if m.is_active and m.organization_id == org_context
             ),
             None,
@@ -419,7 +488,7 @@ async def create_project(
         if not primary_membership and not current_user.is_superadmin:
             # Fallback to first active membership
             primary_membership = next(
-                (m for m in user_with_memberships.organization_memberships if m.is_active), None
+                (m for m in memberships if m.is_active), None
             )
         if not primary_membership and not current_user.is_superadmin:
             raise HTTPException(
@@ -476,10 +545,29 @@ async def create_project(
             else (primary_membership.organization_id if primary_membership else None)
         )
         if target_org_id:
+            # The header org is superadmin-trusted as the TARGET — but it
+            # must exist, or the ProjectOrganization insert dies on the FK
+            # with a 500 (pre-existing hazard for any superadmin sending a
+            # bogus X-Organization-Context).
+            target_org = (
+                await db.execute(
+                    select(Organization.id).where(Organization.id == target_org_id)
+                )
+            ).first()
+            if target_org is None:
+                raise HTTPException(
+                    status_code=404, detail="Target organization not found"
+                )
+            group_id = project.organization_group_id or None
+            if group_id:
+                await _validate_group_attachment(
+                    db, current_user, target_org_id, group_id
+                )
             project_org = ProjectOrganization(
                 id=str(uuid.uuid4()),
                 project_id=project_id,
                 organization_id=target_org_id,
+                group_id=group_id,
                 assigned_by=current_user.id,
             )
             db.add(project_org)
@@ -1059,21 +1147,44 @@ async def update_project_visibility(
         project.public_role = None
 
     else:
-        # Make project org-assigned
-        organization_ids = visibility.get("organization_ids", [])
-        if not organization_ids:
+        # Make project org-assigned. Two accepted shapes:
+        # - organization_ids: ["org1", ...]            (legacy, all org-wide)
+        # - organization_attachments: [{"organization_id": ..., "group_id": ...|null}, ...]
+        #   (group-aware; group_id null/absent = org-wide)
+        attachments = visibility.get("organization_attachments")
+        if attachments is None:
+            attachments = [
+                {"organization_id": org_id, "group_id": None}
+                for org_id in visibility.get("organization_ids", [])
+            ]
+        if not attachments:
             raise HTTPException(
                 status_code=400,
                 detail="At least one organization_id is required for non-private projects",
             )
 
-        # Verify all orgs exist
-        for org_id in organization_ids:
+        seen_orgs = set()
+        for att in attachments:
+            org_id = (att or {}).get("organization_id")
+            if not org_id:
+                raise HTTPException(
+                    status_code=400, detail="organization_id is required per attachment"
+                )
+            if org_id in seen_orgs:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Organization {org_id} listed more than once",
+                )
+            seen_orgs.add(org_id)
             org = (
                 await db.execute(select(Organization).where(Organization.id == org_id))
             ).scalar_one_or_none()
             if not org:
                 raise HTTPException(status_code=404, detail=f"Organization {org_id} not found")
+            if att.get("group_id"):
+                await _validate_group_attachment(
+                    db, current_user, org_id, att["group_id"]
+                )
 
         # Remove existing org assignments
         await db.execute(
@@ -1083,11 +1194,12 @@ async def update_project_visibility(
         )
 
         # Create new org assignments
-        for org_id in organization_ids:
+        for att in attachments:
             project_org = ProjectOrganization(
                 id=str(uuid.uuid4()),
                 project_id=project_id,
-                organization_id=org_id,
+                organization_id=att["organization_id"],
+                group_id=att.get("group_id") or None,
                 assigned_by=current_user.id,
             )
             db.add(project_org)

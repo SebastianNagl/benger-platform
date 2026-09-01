@@ -19,6 +19,7 @@ jest.mock('@/lib/api/projects', () => ({
 jest.mock('@/lib/api/organizations', () => ({
   organizationsAPI: {
     getOrganizations: jest.fn().mockResolvedValue([]),
+    getGroups: jest.fn().mockResolvedValue([]),
   },
 }))
 const mockUseAuth = jest.fn(() => ({

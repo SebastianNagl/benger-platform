@@ -83,6 +83,9 @@ export interface WizardData {
   // override the X-Organization-Context header (e.g. when wizard is opened
   // on a no-org subdomain and they want to publish into a specific org).
   organizationIds: string[]
+  // Optional group scope per selected org (org id -> group id, or null for
+  // the whole organization). Orgs without an entry default to org-wide.
+  organizationGroupIds: Record<string, string | null>
 
   // Labeling Setup (if annotation)
   labelingConfig: LabelingTemplate | null
@@ -98,6 +101,13 @@ export interface WizardData {
   pastedData: string
   selectedFile: File | null
   dataColumns: string[]
+  // Cloud-storage selection (org storage connection + object keys); imported
+  // via runCloudImportJobs after project creation.
+  cloudImport: {
+    organizationId: string
+    connectionId: string
+    objectKeys: string[]
+  } | null
 
   // Models (if llmGeneration)
   selectedModelIds: string[]
@@ -146,6 +156,7 @@ export const INITIAL_WIZARD_DATA: WizardData = {
   visibility: 'private',
   publicRole: 'ANNOTATOR',
   organizationIds: [],
+  organizationGroupIds: {},
   labelingConfig: null,
   instructions: '',
   conditionalInstructions: [],
@@ -155,6 +166,7 @@ export const INITIAL_WIZARD_DATA: WizardData = {
   pastedData: '',
   selectedFile: null,
   dataColumns: [],
+  cloudImport: null,
   // Seeded with DEFAULT_MODEL_ID by StepModels once the catalog loads —
   // not here, because a static seed would carry the id into a project's
   // generation config even on a deployment whose catalog lacks it.

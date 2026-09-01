@@ -75,6 +75,7 @@ def _registration_read(
         link_existing_users_by_email=reg.link_existing_users_by_email,
         instructor_org_role=reg.instructor_org_role,
         student_org_role=reg.student_org_role,
+        group_id=reg.group_id,
         status=reg.status,
         created_at=reg.created_at,
         updated_at=reg.updated_at,
@@ -131,6 +132,30 @@ async def _require_organization(db: AsyncSession, organization_id: str) -> None:
         raise HTTPException(status_code=404, detail="Organization not found")
 
 
+async def _require_group_in_org(
+    db: AsyncSession, organization_id: str, group_id: Optional[str]
+) -> None:
+    """A registration's group scope must be an ACTIVE group of its org."""
+    if not group_id:
+        return
+    from models import OrganizationGroup
+
+    group = (
+        await db.execute(
+            select(OrganizationGroup).where(
+                OrganizationGroup.id == group_id,
+                OrganizationGroup.organization_id == organization_id,
+            )
+        )
+    ).scalar_one_or_none()
+    if group is None:
+        raise HTTPException(
+            status_code=404, detail="Group not found in this organization"
+        )
+    if not group.is_active:
+        raise HTTPException(status_code=400, detail="Group is not active")
+
+
 async def _reject_issuer_client_conflict(
     db: AsyncSession, issuer: str, client_id: str, *, exclude_id: Optional[str] = None
 ) -> None:
@@ -162,11 +187,13 @@ async def create_registration(
     order preserved). The (issuer, client_id) pair is globally unique.
     """
     await _require_organization(db, body.organization_id)
+    await _require_group_in_org(db, body.organization_id, body.group_id)
     await _reject_issuer_client_conflict(db, body.issuer, body.client_id)
 
     reg = LtiPlatformRegistration(
         id=str(uuid.uuid4()),
         organization_id=body.organization_id,
+        group_id=body.group_id,
         name=body.name,
         issuer=body.issuer,
         client_id=body.client_id,
@@ -242,6 +269,7 @@ def _invite_read(invite: LtiRegistrationInvite, now: datetime) -> LtiRegistratio
     return LtiRegistrationInviteRead(
         id=invite.id,
         organization_id=invite.organization_id,
+        group_id=invite.group_id,
         created_at=invite.created_at,
         expires_at=invite.expires_at,
         used_at=invite.used_at,
@@ -276,6 +304,7 @@ async def create_registration_invite(
     the extended edition.
     """
     await _require_organization(db, body.organization_id)
+    await _require_group_in_org(db, body.organization_id, body.group_id)
 
     if base_url is None:
         base_url = str(request.base_url)
@@ -290,6 +319,7 @@ async def create_registration_invite(
     invite = LtiRegistrationInvite(
         id=str(uuid.uuid4()),
         organization_id=body.organization_id,
+        group_id=body.group_id,
         token_hash=hashlib.sha256(token.encode()).hexdigest(),
         created_by=superadmin.id,
         expires_at=datetime.now(timezone.utc) + timedelta(days=body.expires_in_days),
@@ -302,6 +332,7 @@ async def create_registration_invite(
     return LtiRegistrationInviteCreated(
         id=invite.id,
         organization_id=invite.organization_id,
+        group_id=invite.group_id,
         token=token,
         register_url=f"{base}/api/lti/register/init?token={token}",
         expires_at=invite.expires_at,
@@ -393,6 +424,17 @@ async def update_registration(
 
     if "organization_id" in data:
         await _require_organization(db, data["organization_id"])
+    # Validate the EFFECTIVE (org, group) pair whenever either side moves —
+    # the composite FK would reject an org/group mismatch at commit anyway,
+    # but a clean 4xx beats an IntegrityError 500. An org move without an
+    # explicit group keeps a stale group only if it still belongs; otherwise
+    # it must be cleared/re-set in the same request.
+    if "group_id" in data or "organization_id" in data:
+        await _require_group_in_org(
+            db,
+            data.get("organization_id", reg.organization_id),
+            data.get("group_id", reg.group_id),
+        )
 
     new_issuer = data.get("issuer", reg.issuer)
     new_client_id = data.get("client_id", reg.client_id)

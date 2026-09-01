@@ -3,16 +3,22 @@ API endpoints for organization-level API key management (Issue #1180)
 """
 
 import logging
-from typing import Dict
+from typing import Dict, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth_module import User, require_user
 from database import get_async_db
 from models import LLMModel as DBLLMModel
-from models import Organization, OrganizationMembership, OrganizationRole
+from models import (
+    Organization,
+    OrganizationGroup,
+    OrganizationGroupMembership,
+    OrganizationMembership,
+    OrganizationRole,
+)
 from services.org_api_key_service import org_api_key_service
 
 logger = logging.getLogger(__name__)
@@ -77,21 +83,79 @@ async def _require_org_exists(org_id: str, db: AsyncSession):
         )
 
 
+async def _require_scope_admin(
+    user: User, org_id: str, group_id: Optional[str], db: AsyncSession
+):
+    """Gate a key-management call for one scope.
+
+    Org-wide scope (``group_id`` None): org admin only (unchanged). Group
+    scope: additionally validates the group belongs to the org (404
+    otherwise) and lets that group's admins through — chair staff manage
+    their own group's keys without holding org-wide admin.
+    """
+    if group_id is None:
+        await _require_org_admin(user, org_id, db)
+        return
+
+    group_row = await db.execute(
+        select(OrganizationGroup.id).where(
+            OrganizationGroup.id == group_id,
+            OrganizationGroup.organization_id == org_id,
+        )
+    )
+    if group_row.first() is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Group not found"
+        )
+
+    if user.is_superadmin:
+        return
+    admin = await db.execute(
+        select(OrganizationMembership.id).where(
+            OrganizationMembership.user_id == user.id,
+            OrganizationMembership.organization_id == org_id,
+            OrganizationMembership.role == OrganizationRole.ORG_ADMIN,
+            OrganizationMembership.is_active == True,  # noqa: E712
+        )
+    )
+    if admin.first() is not None:
+        return
+    group_admin = await db.execute(
+        select(OrganizationGroupMembership.id).where(
+            OrganizationGroupMembership.group_id == group_id,
+            OrganizationGroupMembership.user_id == user.id,
+            OrganizationGroupMembership.is_group_admin == True,  # noqa: E712
+        )
+    )
+    if group_admin.first() is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to manage this group's API keys",
+        )
+
+
 # ===== Admin endpoints =====
 
 
 @router.get("/{org_id}/api-keys/status")
 async def get_org_api_key_status(
     org_id: str,
+    group_id: Optional[str] = Query(
+        None, description="Key scope: omitted = org-wide pool, set = that group's keys"
+    ),
     current_user: User = Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ):
-    """Get API key status for all providers in an organization."""
+    """Get API key status for all providers in one scope of an organization."""
     await _require_org_exists(org_id, db)
-    await _require_org_admin(current_user, org_id, db)
+    await _require_scope_admin(current_user, org_id, group_id, db)
 
-    status_data = await org_api_key_service.get_org_api_key_status_async(db, org_id)
-    available_providers = await org_api_key_service.get_org_available_providers_async(db, org_id)
+    status_data = await org_api_key_service.get_org_api_key_status_async(
+        db, org_id, group_id
+    )
+    available_providers = await org_api_key_service.get_org_available_providers_async(
+        db, org_id, group_id
+    )
 
     return {"api_key_status": status_data, "available_providers": available_providers}
 
@@ -101,12 +165,13 @@ async def set_org_api_key(
     org_id: str,
     provider: str,
     request_body: Dict[str, str],
+    group_id: Optional[str] = Query(None),
     current_user: User = Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ):
-    """Set an API key for an organization provider."""
+    """Set an API key for an organization provider (org-wide or group scope)."""
     await _require_org_exists(org_id, db)
-    await _require_org_admin(current_user, org_id, db)
+    await _require_scope_admin(current_user, org_id, group_id, db)
 
     api_key = request_body.get("api_key")
     if not api_key:
@@ -122,7 +187,7 @@ async def set_org_api_key(
         )
 
     success = await org_api_key_service.set_org_api_key_async(
-        db, org_id, provider, api_key, current_user.id
+        db, org_id, provider, api_key, current_user.id, group_id
     )
 
     if success:
@@ -138,14 +203,17 @@ async def set_org_api_key(
 async def remove_org_api_key(
     org_id: str,
     provider: str,
+    group_id: Optional[str] = Query(None),
     current_user: User = Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ):
-    """Remove an API key for an organization provider."""
+    """Remove an API key for an organization provider (one scope)."""
     await _require_org_exists(org_id, db)
-    await _require_org_admin(current_user, org_id, db)
+    await _require_scope_admin(current_user, org_id, group_id, db)
 
-    success = await org_api_key_service.remove_org_api_key_async(db, org_id, provider)
+    success = await org_api_key_service.remove_org_api_key_async(
+        db, org_id, provider, group_id
+    )
 
     if success:
         return {"message": f"API key for {provider} removed successfully"}
@@ -161,12 +229,17 @@ async def test_org_api_key(
     org_id: str,
     provider: str,
     request_body: Dict[str, str],
+    group_id: Optional[str] = Query(None),
     current_user: User = Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ):
-    """Test an unsaved API key for an organization provider."""
+    """Test an unsaved API key for an organization provider.
+
+    ``group_id`` only widens the GATE to that group's admins (the key under
+    test is unsaved, so there is no stored scope to select).
+    """
     await _require_org_exists(org_id, db)
-    await _require_org_admin(current_user, org_id, db)
+    await _require_scope_admin(current_user, org_id, group_id, db)
 
     api_key = request_body.get("api_key")
     if not api_key:
@@ -204,14 +277,17 @@ async def test_org_api_key(
 async def test_saved_org_api_key(
     org_id: str,
     provider: str,
+    group_id: Optional[str] = Query(None),
     current_user: User = Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ):
-    """Test a saved API key for an organization provider."""
+    """Test a saved API key for an organization provider (one scope)."""
     await _require_org_exists(org_id, db)
-    await _require_org_admin(current_user, org_id, db)
+    await _require_scope_admin(current_user, org_id, group_id, db)
 
-    api_key = await org_api_key_service.get_org_api_key_async(db, org_id, provider)
+    api_key = await org_api_key_service.get_org_api_key_async(
+        db, org_id, provider, group_id
+    )
     if not api_key:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

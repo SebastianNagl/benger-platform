@@ -208,7 +208,42 @@ async def get_user_contexts(
     """
     from sqlalchemy import func
 
-    from models import Organization, OrganizationMembership
+    from models import (
+        Organization,
+        OrganizationGroup,
+        OrganizationGroupMembership,
+        OrganizationMembership,
+    )
+
+    # The caller's own group memberships, keyed by org — lets the frontend
+    # permission layer (canManageGroup, group pickers) decide without extra
+    # fetches. One joined query regardless of org count.
+    group_rows = (
+        await db.execute(
+            select(
+                OrganizationGroup.organization_id,
+                OrganizationGroup.id,
+                OrganizationGroup.name,
+                OrganizationGroup.is_active,
+                OrganizationGroupMembership.is_group_admin,
+            )
+            .join(
+                OrganizationGroupMembership,
+                OrganizationGroupMembership.group_id == OrganizationGroup.id,
+            )
+            .where(OrganizationGroupMembership.user_id == current_user.id)
+        )
+    ).all()
+    groups_by_org: dict = {}
+    for org_id, gid, gname, g_active, is_admin in group_rows:
+        groups_by_org.setdefault(org_id, []).append(
+            {
+                "id": gid,
+                "name": gname,
+                "is_active": bool(g_active),
+                "is_group_admin": bool(is_admin),
+            }
+        )
 
     # Build user dict (same as /me)
     user_role = await get_user_primary_role_async(current_user, db)
@@ -269,6 +304,7 @@ async def get_user_contexts(
                 "is_active": org.is_active,
                 "role": user_roles[org.id].value if org.id in user_roles else None,
                 "member_count": member_counts.get(org.id, 0),
+                "groups": groups_by_org.get(org.id, []),
             }
             for org in organizations
         ]
@@ -317,6 +353,7 @@ async def get_user_contexts(
                 "is_active": org.is_active,
                 "role": role.value if role else None,
                 "member_count": member_counts.get(org.id, 0),
+                "groups": groups_by_org.get(org.id, []),
             }
             for org, role in user_orgs_with_roles
         ]

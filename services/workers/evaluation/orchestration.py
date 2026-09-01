@@ -28,6 +28,7 @@ def _run_immediate_config_job_impl(
     organization_id: Optional[str],
     user_id: Optional[str],
     task_data: Dict[str, Any],
+    org_billing_authorized: bool = False,
 ) -> Dict[str, Any]:
     """Compute + persist a single immediate-eval config in its OWN DB session.
 
@@ -76,6 +77,8 @@ def _run_immediate_config_job_impl(
                 extra["judge_run_id"] = judge_run_id
             if "evaluation_config_id" in fn_params:
                 extra["evaluation_config_id"] = evaluation_config_id
+            if "org_billing_authorized" in fn_params:
+                extra["org_billing_authorized"] = org_billing_authorized
             return falloesung_fn(
                 db=db,
                 record_id=record_id,
@@ -110,6 +113,7 @@ def _run_immediate_config_job_impl(
                 metric_params=metric_params,
                 organization_id=organization_id,
                 evaluation_config_id=evaluation_config_id,
+                org_billing_authorized=org_billing_authorized,
             )
 
         else:

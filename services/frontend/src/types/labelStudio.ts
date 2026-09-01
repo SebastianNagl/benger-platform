@@ -20,6 +20,9 @@ export interface Project {
   organizations?: Array<{
     id: string
     name: string
+    // Group scope of this org attachment: null/absent = visible to the whole
+    // org, set = only that group's members (+ org admins + the creator).
+    group_id?: string | null
   }>
 
   // Label Studio fields
@@ -146,6 +149,9 @@ export interface ProjectCreate {
   is_private?: boolean
   is_public?: boolean
   public_role?: 'ANNOTATOR' | 'CONTRIBUTOR' | null
+  // Scope the created org attachment to one organization group (null =
+  // org-wide). Only meaningful for the single-org creation flow.
+  organization_group_id?: string | null
 }
 
 export interface ProjectUpdate extends Partial<ProjectCreate> {

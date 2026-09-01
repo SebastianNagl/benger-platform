@@ -91,8 +91,18 @@ class EmailService:
         # source. Previously each service had its own copy and the worker's
         # was empty, so every notification email dispatched from a Celery
         # task failed silently at template lookup.
+        #
+        # Default is derived from THIS module's location instead of the
+        # hardcoded ``/shared/...`` container path: in the images this file
+        # IS /shared/mailer/email_service.py so the result is identical,
+        # while host runs (pytest outside Docker) resolve to the checkout —
+        # the old absolute default made every email test fall back to the
+        # generic "BenGER Notification" subject on hosts without /shared.
+        default_template_dir = (
+            Path(__file__).resolve().parent.parent / "email_templates" / "email"
+        )
         template_dir = Path(
-            os.environ.get("EMAIL_TEMPLATE_DIR", "/shared/email_templates/email")
+            os.environ.get("EMAIL_TEMPLATE_DIR", str(default_template_dir))
         )
 
         if not template_dir.exists():

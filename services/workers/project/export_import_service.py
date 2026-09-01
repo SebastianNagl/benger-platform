@@ -24,6 +24,15 @@ _EXPORT_PART_SIZE = 8 * 1024 * 1024
 # heap during download stays bounded the same way.
 _IMPORT_SPOOL_THRESHOLD = 4 * 1024 * 1024
 
+# Cap for a cloud-import source object (customer bucket). Mirrors the API's
+# _IMPORT_UPLOAD_MAX_BYTES presigned-upload cap so both import surfaces bound
+# the artifact the same way; checked via head_object BEFORE downloading.
+_CLOUD_IMPORT_MAX_BYTES = 2 * 1024 * 1024 * 1024
+
+# Cloud-import extensions dispatched to the tabular driver; everything else
+# runs through the regular nested JSON driver.
+_TABULAR_EXTENSIONS = {".csv": "csv", ".tsv": "tsv", ".txt": "txt"}
+
 def export_project_impl(self, job_id: str) -> Dict[str, Any]:
     """Stream a project export into object storage as a multipart upload.
 
@@ -294,8 +303,9 @@ def import_project_impl(self, job_id: str) -> Dict[str, Any]:
         ImportValidationError,
         run_full_project_import,
         run_nested_import,
+        run_tabular_import,
     )
-    from models import ImportJob, JobStatus
+    from models import ImportJob, JobStatus, OrgStorageConnection
     from storage.object_storage import object_storage
 
     db = tasks.SessionLocal()
@@ -320,6 +330,28 @@ def import_project_impl(self, job_id: str) -> Dict[str, Any]:
         requested_by = job.requested_by
         object_key = job.object_key
         project_id = job.project_id
+        source_connection_id = job.source_connection_id
+
+        # Cloud import: the artifact lives in a customer bucket reached through
+        # an org storage connection, not in our own object storage. Resolve the
+        # connection BEFORE flipping to running so a deleted connection (FK SET
+        # NULL races included) fails cleanly.
+        source_connection = None
+        if source_connection_id:
+            import org_storage_connection_service
+
+            source_connection = (
+                db.query(OrgStorageConnection)
+                .filter(OrgStorageConnection.id == source_connection_id)
+                .first()
+            )
+            if source_connection is None:
+                tasks._fail_import_job(db, job_id, "storage connection removed")
+                return {
+                    "status": "error",
+                    "job_id": job_id,
+                    "error": "storage connection removed",
+                }
 
         job.status = JobStatus.RUNNING.value
         db.commit()
@@ -330,11 +362,41 @@ def import_project_impl(self, job_id: str) -> Dict[str, Any]:
 
         spooled = tempfile.SpooledTemporaryFile(max_size=_IMPORT_SPOOL_THRESHOLD)
         try:
-            object_storage.download_to_fileobj(object_key, spooled)
+            if source_connection is not None:
+                # Size cap BEFORE downloading — a customer bucket is not bounded
+                # by our presigned-upload cap, so enforce the equivalent here.
+                size = org_storage_connection_service.head_object_size(
+                    source_connection, object_key
+                )
+                if size > _CLOUD_IMPORT_MAX_BYTES:
+                    raise ImportValidationError(
+                        413,
+                        f"Source file is too large ({size} bytes; "
+                        f"limit {_CLOUD_IMPORT_MAX_BYTES})",
+                    )
+                org_storage_connection_service.download_to_fileobj(
+                    source_connection, object_key, spooled
+                )
+            else:
+                object_storage.download_to_fileobj(object_key, spooled)
             byte_size = spooled.tell()
             spooled.seek(0)
 
-            if project_id:
+            lowered_key = object_key.lower()
+            tabular_fmt = next(
+                (
+                    fmt
+                    for ext, fmt in _TABULAR_EXTENSIONS.items()
+                    if lowered_key.endswith(ext)
+                ),
+                None,
+            )
+            if source_connection is not None and tabular_fmt is not None:
+                result = run_tabular_import(
+                    db, project_id, spooled, requested_by, tabular_fmt
+                )
+                detected_format = tabular_fmt
+            elif project_id:
                 result = run_nested_import(db, project_id, spooled, requested_by)
                 detected_format = "nested"
             else:

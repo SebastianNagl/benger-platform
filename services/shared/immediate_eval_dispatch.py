@@ -37,7 +37,7 @@ from typing import Optional
 
 import celery_queues
 from metric_filters import is_immediate_eligible
-from models import EvaluationRun, OrganizationMembership, TaskEvaluation
+from models import EvaluationRun, TaskEvaluation
 from project_models import Annotation, Task
 
 logger = logging.getLogger(__name__)
@@ -154,24 +154,13 @@ def parse_annotation_results(annotation) -> dict:
 
 
 def resolve_org(db, project, user_id) -> Optional[str]:
-    """Org to attribute the run to — the submitter's membership in one of the
-    project's orgs, else the project's first org. Mirrors
-    ``resolve_user_org_for_project`` without importing the api router."""
-    if not project.organizations:
-        return None
-    org_ids = {str(o.id) for o in project.organizations}
-    m = (
-        db.query(OrganizationMembership)
-        .filter(
-            OrganizationMembership.user_id == user_id,
-            OrganizationMembership.is_active == True,  # noqa: E712
-            OrganizationMembership.organization_id.in_(org_ids),
-        )
-        .first()
-    )
-    if m:
-        return str(m.organization_id)
-    return str(project.organizations[0].id)
+    """Org to attribute the run to. Thin delegate kept for its importers —
+    ``org_resolution.resolve_dispatch_org_for_project`` is the single source
+    of truth (active membership wins; superadmins get the first-org fallback;
+    ordinary non-members resolve to ``None`` → personal key)."""
+    from org_resolution import resolve_dispatch_org_for_project
+
+    return resolve_dispatch_org_for_project(db, user_id, project)
 
 
 # --------------------------------------------------------------------------- #
