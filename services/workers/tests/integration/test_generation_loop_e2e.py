@@ -221,7 +221,7 @@ def test_generation_loop_failed_trial_latches_even_if_not_last(
     monkeypatch.setattr(
         tasks.user_aware_ai_service,
         "get_ai_service_for_user",
-        lambda db, user_id, provider, organization_id=None: fake,
+        lambda db, user_id, provider, *a, **k: fake,
     )
 
     # Trial 1 fails first → status latches 'failed', no child written.
@@ -339,7 +339,7 @@ def test_generation_loop_post_loop_failure_preserves_user_terminal_status(
     rg.status = "running"
     db_conn.commit()
 
-    def _flip_to_stopped_then_raise(db, user_id, provider, organization_id=None):
+    def _flip_to_stopped_then_raise(db, user_id, provider, *a, **k):
         # Simulate a concurrent stop landing while this trial is in flight, then
         # a failure (e.g. SIGTERM) surfacing outside the per-prompt try.
         sess = tasks.SessionLocal()
@@ -439,7 +439,7 @@ def test_generation_loop_failed_trial_sends_no_completion_notification(
     fake = FakeAIService(on_generate=_always_fail)
     monkeypatch.setattr(
         tasks.user_aware_ai_service, "get_ai_service_for_user",
-        lambda db, user_id, provider, organization_id=None: fake,
+        lambda db, user_id, provider, *a, **k: fake,
     )
 
     result = tasks.generate_llm_responses(
@@ -489,7 +489,7 @@ def test_generation_loop_structured_output_parses_via_response_parser(
     fake = FakeAIService(response_text='{"sentiment": "positive"}')
     monkeypatch.setattr(
         tasks.user_aware_ai_service, "get_ai_service_for_user",
-        lambda db, user_id, provider, organization_id=None: fake,
+        lambda db, user_id, provider, *a, **k: fake,
     )
 
     result = tasks.generate_llm_responses(
@@ -556,7 +556,7 @@ def test_generation_loop_cooperative_cancel_midrun(
     monkeypatch.setattr(
         tasks.user_aware_ai_service,
         "get_ai_service_for_user",
-        lambda db, user_id, provider, organization_id=None: fake,
+        lambda db, user_id, provider, *a, **k: fake,
     )
 
     result = tasks.generate_llm_responses(

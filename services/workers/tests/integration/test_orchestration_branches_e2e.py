@@ -2048,12 +2048,13 @@ def test_llm_judge_cell_handles_none_evaluator_entry(
     real_reconstruct = tasks._reconstruct_judge_evaluators_for_cell
 
     def _reconstruct_with_none(*, configs_for_cell, judge_run_ids_by_config,
-                               triggered_by_user_id, organization_id, db):
+                               triggered_by_user_id, organization_id, db,
+                               project_id=None):
         jrbc, evals = real_reconstruct(
             configs_for_cell=configs_for_cell,
             judge_run_ids_by_config=judge_run_ids_by_config,
             triggered_by_user_id=triggered_by_user_id,
-            organization_id=organization_id, db=db,
+            organization_id=organization_id, db=db, project_id=project_id,
         )
         # Null out the SECOND entry's evaluator for the config so the cell
         # hits the per-judge None-evaluator arm while the first stays valid.
@@ -2103,12 +2104,13 @@ def test_llm_judge_annotation_cell_handles_none_evaluator_entry(
     real_reconstruct = tasks._reconstruct_judge_evaluators_for_cell
 
     def _reconstruct_with_none(*, configs_for_cell, judge_run_ids_by_config,
-                               triggered_by_user_id, organization_id, db):
+                               triggered_by_user_id, organization_id, db,
+                               project_id=None):
         jrbc, evals = real_reconstruct(
             configs_for_cell=configs_for_cell,
             judge_run_ids_by_config=judge_run_ids_by_config,
             triggered_by_user_id=triggered_by_user_id,
-            organization_id=organization_id, db=db,
+            organization_id=organization_id, db=db, project_id=project_id,
         )
         for cid, entries in jrbc.items():
             if len(entries) >= 2:

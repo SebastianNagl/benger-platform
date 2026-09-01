@@ -412,10 +412,10 @@ def patch_ai_service(monkeypatch, fake_ai_service):
     """Patch the generation loop's AI service factory to return the fake.
 
     `tasks.user_aware_ai_service.get_ai_service_for_user(db, user_id,
-    provider, organization_id=...)` is the single resolution point in
+    provider, organization_id=..., project_id=...)` is the single resolution point in
     `generate_llm_responses`.
     """
-    def _factory(db, user_id, provider, organization_id=None):
+    def _factory(db, user_id, provider, *a, **k):
         return fake_ai_service
 
     monkeypatch.setattr(
