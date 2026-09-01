@@ -1,3 +1,4 @@
+import logging
 import os
 
 # Import our models and database configuration
@@ -39,9 +40,15 @@ config = context.config
 # This will automatically use SQLite for local dev and PostgreSQL for production
 config.set_main_option("sqlalchemy.url", DATABASE_URL)
 
-# Interpret the config file for Python logging.
-# This line sets up loggers basically.
-if config.config_file_name != None:  # noqa: E711
+# Interpret the config file for Python logging — but ONLY when logging is
+# not configured yet (standalone `alembic ...` CLI runs). The API runs
+# migrations IN-PROCESS at startup (main.py lifespan -> command.upgrade),
+# and fileConfig's default disable_existing_loggers=True permanently
+# muted every already-imported logger in every uvicorn worker — routers,
+# mailer, even uvicorn.access: prod pods logged nothing after startup.
+# (alembic.ini's [logger_root] would also re-level root to WARN, so
+# passing disable_existing_loggers=False alone would still eat INFO.)
+if config.config_file_name is not None and not logging.getLogger().handlers:
     fileConfig(config.config_file_name)
 
 # add your model's MetaData object here

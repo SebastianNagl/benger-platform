@@ -38,6 +38,38 @@ def _create_test_user(session: Session) -> str:
     return user_id
 
 
+class TestAlembicEnvLoggingGuard:
+    """alembic/env.py must NOT reconfigure logging when the app already has.
+
+    The API runs migrations IN-PROCESS at startup (main.py lifespan ->
+    command.upgrade), so env.py executes inside every uvicorn worker. An
+    unguarded fileConfig(...) there permanently disabled every
+    already-imported logger (fileConfig defaults to
+    disable_existing_loggers=True) — prod pods emitted NO request-handler
+    or uvicorn.access logs after startup, only boot lines. The guard skips
+    fileConfig whenever root already has handlers (i.e. anything but a
+    standalone `alembic` CLI run). env.py can't be imported outside an
+    alembic context (`from alembic import context`), so this pins the
+    source instead.
+    """
+
+    def test_fileconfig_guarded_by_existing_handlers(self):
+        env_py = os.path.join(
+            os.path.dirname(__file__), "..", "..", "alembic", "env.py"
+        )
+        with open(env_py) as f:
+            source = f.read()
+        guard_pos = source.find("not logging.getLogger().handlers")
+        call_pos = source.find("fileConfig(config.config_file_name)")
+        assert guard_pos != -1, (
+            "env.py lost the no-handlers guard on fileConfig — in-process "
+            "migrations would disable all app loggers again"
+        )
+        assert call_pos != -1 and guard_pos < call_pos, (
+            "the no-handlers guard must gate the fileConfig call"
+        )
+
+
 class TestDatabaseMigrations:
     """Test database migration functionality and schema evolution"""
 
