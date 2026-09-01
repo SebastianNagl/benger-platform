@@ -37,7 +37,7 @@ pytestmark = [pytest.mark.integration, pytest.mark.asyncio]
 
 @contextmanager
 def _as_user(db_user):
-    from auth_module.dependencies import require_user
+    from auth_module.dependencies import get_current_user, require_user
     from auth_module.models import User as AuthUser
     from main import app
 
@@ -51,11 +51,15 @@ def _as_user(db_user):
         email_verified=True,
         created_at=db_user.created_at or datetime.now(timezone.utc),
     )
+    # Some org endpoints depend on the optional get_current_user instead of
+    # require_user (e.g. the org roster) — override both.
     app.dependency_overrides[require_user] = lambda: auth_user
+    app.dependency_overrides[get_current_user] = lambda: auth_user
     try:
         yield auth_user
     finally:
         app.dependency_overrides.pop(require_user, None)
+        app.dependency_overrides.pop(get_current_user, None)
 
 
 async def _user(db, *, superadmin=False) -> User:
@@ -520,6 +524,46 @@ async def test_attachment_endpoints_group_scope(async_test_client, async_test_db
             .first()
         )
         assert row.group_id == w["group_b"].id
+
+
+async def test_org_annotator_group_admin_may_list_roster(
+    async_test_client, async_test_db
+):
+    """The org role (capability) and is_group_admin (delegation) are
+    orthogonal: an org-ANNOTATOR who administers a group needs the org
+    roster for the add-member picker — plain ANNOTATORs stay blocked."""
+    db = async_test_db
+    w = await _world(db)
+    annot_admin = await _user(db)
+    db.add(
+        OrganizationMembership(
+            id=str(uuid.uuid4()),
+            user_id=annot_admin.id,
+            organization_id=w["org"].id,
+            role=OrganizationRole.ANNOTATOR,
+            is_active=True,
+        )
+    )
+    db.add(
+        OrganizationGroupMembership(
+            id=str(uuid.uuid4()),
+            group_id=w["group_a"].id,
+            user_id=annot_admin.id,
+            is_group_admin=True,
+        )
+    )
+    await db.commit()
+
+    with _as_user(annot_admin):
+        r = await async_test_client.get(
+            f"/api/organizations/{w['org'].id}/members"
+        )
+        assert r.status_code == 200
+    with _as_user(w["annot_b"]):  # plain annotator: unchanged 403
+        r = await async_test_client.get(
+            f"/api/organizations/{w['org'].id}/members"
+        )
+        assert r.status_code == 403
 
 
 async def test_superadmin_without_membership_creates_into_org_context(

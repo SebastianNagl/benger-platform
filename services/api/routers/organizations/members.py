@@ -50,12 +50,35 @@ async def list_organization_members(
             )
         # ANNOTATOR members (incl. every LTI-provisioned student) must not
         # enumerate the org roster — names and emails of the whole cohort and
-        # staff. Member visibility is a CONTRIBUTOR+ concern.
+        # staff. Member visibility is a CONTRIBUTOR+ concern — or a GROUP
+        # admin's: the org role is the capability axis and is_group_admin is
+        # orthogonal, so an org-ANNOTATOR may legitimately administer a
+        # group (group-scoped invitation, admin toggle) and needs the roster
+        # to pick members for it.
         if membership.role == OrganizationRole.ANNOTATOR:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Member list requires a contributor or admin role",
-            )
+            from models import OrganizationGroup, OrganizationGroupMembership
+
+            group_admin = (
+                await db.execute(
+                    select(OrganizationGroupMembership.id)
+                    .join(
+                        OrganizationGroup,
+                        OrganizationGroup.id
+                        == OrganizationGroupMembership.group_id,
+                    )
+                    .where(
+                        OrganizationGroupMembership.user_id == current_user.id,
+                        OrganizationGroupMembership.is_group_admin == True,  # noqa: E712
+                        OrganizationGroup.organization_id == organization_id,
+                    )
+                    .limit(1)
+                )
+            ).first()
+            if group_admin is None:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Member list requires a contributor or admin role",
+                )
 
     # Get members with user details
     members = (
