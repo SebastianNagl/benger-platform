@@ -12,6 +12,13 @@ jest.mock('@/contexts/I18nContext', () => ({
   useI18n: jest.fn(),
 }))
 
+// Superadmin by default — the page self-gates like /admin/feature-flags
+// (gate behavior covered in its own describe below).
+const mockUseAuth = jest.fn(() => ({ user: { is_superadmin: true } }))
+jest.mock('@/contexts/AuthContext', () => ({
+  useAuth: () => mockUseAuth(),
+}))
+
 // Mock fetch
 global.fetch = jest.fn()
 
@@ -2238,5 +2245,20 @@ describe('EmailVerificationManagement', () => {
         )
       })
     })
+  })
+})
+
+describe('superadmin gate', () => {
+  afterEach(() => {
+    mockUseAuth.mockImplementation(() => ({ user: { is_superadmin: true } }))
+  })
+
+  it('denies non-superadmins (parity with /admin/feature-flags)', async () => {
+    // mockReturnValue (not Once): the initial data effect re-renders the
+    // page, and every render must see the non-admin user.
+    mockUseAuth.mockReturnValue({ user: { is_superadmin: false } })
+    render(<EmailVerificationManagement />)
+    expect(screen.getByText('admin.accessDenied')).toBeInTheDocument()
+    expect(screen.getByText('admin.accessDeniedDesc')).toBeInTheDocument()
   })
 })

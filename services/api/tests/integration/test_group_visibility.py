@@ -522,6 +522,43 @@ async def test_attachment_endpoints_group_scope(async_test_client, async_test_db
         assert row.group_id == w["group_b"].id
 
 
+async def test_superadmin_without_membership_creates_into_org_context(
+    async_test_client, async_test_db
+):
+    """Pre-existing bug (hit on staging 2026-09-01): the blanket "must belong
+    to an organization" 400 fired for superadmins with no memberships even
+    though the target-org resolution below it explicitly supports them —
+    a superadmin with an explicit org context creates an org project."""
+    db = async_test_db
+    w = await _world(db)
+    superadmin = await _user(db, superadmin=True)
+
+    with _as_user(superadmin):
+        r = await async_test_client.post(
+            "/api/projects/",
+            headers={"X-Organization-Context": w["org"].id},
+            json={"title": "SA backfill project"},
+        )
+        assert r.status_code == 200, r.text
+        new_id = r.json()["id"]
+    row = await db.run_sync(
+        lambda s: s.query(ProjectOrganization)
+        .filter(ProjectOrganization.project_id == new_id)
+        .first()
+    )
+    assert row is not None and row.organization_id == w["org"].id
+
+    # A bogus org id in the header is a clean 404 now — it used to reach
+    # the ProjectOrganization insert and die on the FK with a 500.
+    with _as_user(superadmin):
+        r = await async_test_client.post(
+            "/api/projects/",
+            headers={"X-Organization-Context": "unknown-org-id"},
+            json={"title": "SA no target"},
+        )
+        assert r.status_code == 404
+
+
 # ------------------------------------------------------- invitations gate ----
 
 

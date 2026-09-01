@@ -462,14 +462,25 @@ async def create_project(
     if not is_private and not is_public:
         # Organization mode: validate org membership and role
         user_with_memberships = await get_user_with_memberships_async(db, current_user.id)
-        if not user_with_memberships or not user_with_memberships.organization_memberships:
+        memberships = (
+            user_with_memberships.organization_memberships
+            if user_with_memberships
+            else []
+        ) or []
+        if not memberships and not (
+            current_user.is_superadmin and org_context and org_context != "private"
+        ):
+            # Everyone else needs a membership; a SUPERADMIN may create into
+            # an explicit org context without one (admin backfills — the
+            # target-org resolution below already handles this case, but the
+            # blanket 400 here used to fire first and contradict it).
             raise HTTPException(status_code=400, detail="User must belong to an organization")
 
         # Find membership for the specified org
         primary_membership = next(
             (
                 m
-                for m in user_with_memberships.organization_memberships
+                for m in memberships
                 if m.is_active and m.organization_id == org_context
             ),
             None,
@@ -477,7 +488,7 @@ async def create_project(
         if not primary_membership and not current_user.is_superadmin:
             # Fallback to first active membership
             primary_membership = next(
-                (m for m in user_with_memberships.organization_memberships if m.is_active), None
+                (m for m in memberships if m.is_active), None
             )
         if not primary_membership and not current_user.is_superadmin:
             raise HTTPException(
@@ -534,6 +545,19 @@ async def create_project(
             else (primary_membership.organization_id if primary_membership else None)
         )
         if target_org_id:
+            # The header org is superadmin-trusted as the TARGET — but it
+            # must exist, or the ProjectOrganization insert dies on the FK
+            # with a 500 (pre-existing hazard for any superadmin sending a
+            # bogus X-Organization-Context).
+            target_org = (
+                await db.execute(
+                    select(Organization.id).where(Organization.id == target_org_id)
+                )
+            ).first()
+            if target_org is None:
+                raise HTTPException(
+                    status_code=404, detail="Target organization not found"
+                )
             group_id = project.organization_group_id or None
             if group_id:
                 await _validate_group_attachment(

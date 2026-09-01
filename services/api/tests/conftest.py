@@ -44,6 +44,22 @@ os.environ["ASYNC_DATABASE_URL"] = _pg_test_url.replace("postgresql://", "postgr
 os.environ["REDIS_URL"] = "redis://localhost:6379/1"
 os.environ["JWT_SECRET_KEY"] = "test-secret-key-for-testing-only"
 os.environ["SECRET_KEY"] = "test-secret-key-for-testing-only"
+# Celery: default to in-process transports so HOST runs (no broker) neither
+# hang on send_task connection retries (unit suite used to stall in
+# test_invitations.py) nor storm the redis RESULT backend with blocking
+# 20×1s reconnects that kill the async DB fixtures (both must be set
+# together — a memory broker with a redis backend reproduces the storm).
+# setdefault: the Docker test env explicitly sets both to test-redis and
+# keeps real transports there.
+os.environ.setdefault("CELERY_BROKER_URL", "memory://")
+os.environ.setdefault("CELERY_RESULT_BACKEND", "cache+memory://")
+# database.py reads TESTING at IMPORT time to pick NullPool for the global
+# async engine (no cross-event-loop asyncpg connection reuse — the pooled
+# config intermittently 500s TestClient requests with greenlet/pool teardown
+# errors when earlier async tests' loops are gone). The Docker test env sets
+# this in the container; host runs relied on the async_test_client fixture
+# setting it far too late, after the engine was already built.
+os.environ.setdefault("TESTING", "true")
 
 # Register fixture modules — pytest discovers all fixtures from these modules
 pytest_plugins = [

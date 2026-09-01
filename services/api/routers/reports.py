@@ -550,17 +550,6 @@ async def list_published_reports(
     - Superadmins: See all published reports
     - Org members: See published reports from their organizations
     """
-    # Get user's organization IDs
-    user_org_ids = []
-    if not current_user.is_superadmin:
-        user_org_rows = await db.execute(
-            select(OrganizationMembership.organization_id).where(
-                OrganizationMembership.user_id == current_user.id,
-                OrganizationMembership.is_active == True,  # noqa: E712
-            )
-        )
-        user_org_ids = [row[0] for row in user_org_rows.all()]
-
     # Query published reports. Eager-load `.project` (accessed below for the
     # title) via joinedload so the async session never lazy-loads it.
     stmt = (
@@ -574,8 +563,12 @@ async def list_published_reports(
     )
 
     # Filter by organization for non-superadmins (grouped attachments count
-    # only through the caller's groups / ORG_ADMIN memberships).
-    if not current_user.is_superadmin and user_org_ids:
+    # only through the caller's groups / ORG_ADMIN memberships). Applied
+    # even when the caller has NO orgs: the old `and user_org_ids` guard
+    # skipped the filter entirely for org-less users, listing every
+    # published report they could never open (the per-report gate denies
+    # them) — docstring says org members see their orgs' reports.
+    if not current_user.is_superadmin:
         proj_id_rows = await db.execute(
             select(ProjectOrganization.project_id)
             .join(

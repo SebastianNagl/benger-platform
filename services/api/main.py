@@ -50,6 +50,26 @@ celery_app = get_celery_app()
 
 
 _STARTUP_INIT_FLAG = "/tmp/.benger_startup_init_done"
+
+
+def _boot_marker() -> str:
+    """Identifier for the current PID-1 incarnation (its /proc starttime).
+
+    The startup-init flag stores this marker so only a genuine HOT RELOAD
+    (uvicorn --reload cycle: same PID 1) skips the heavy initialization. A
+    container RESTART starts a new PID 1 but keeps /tmp, and the bare flag
+    used to survive it — dev stacks then silently skipped alembic and sat
+    on stale schemas (found at migration 088 while the code was at 097).
+    """
+    try:
+        with open("/proc/1/stat") as f:
+            # "pid (comm) state ppid ..." — comm may contain spaces, so
+            # split after the closing paren; starttime is overall field 22.
+            return f.read().rsplit(")", 1)[-1].split()[19]
+    except Exception:
+        return "no-proc-stat"
+
+
 _LLM_SEED_FLAG_DIR = "/tmp"  # files: .benger_llm_seed_<hash8>.done
 
 
@@ -101,7 +121,14 @@ async def lifespan(app: FastAPI):
     )
     from services.websocket_clustering import cluster_manager
 
-    is_reload = os.path.exists(_STARTUP_INIT_FLAG)
+    is_reload = False
+    try:
+        with open(_STARTUP_INIT_FLAG) as _flag:
+            # Only a flag written by THIS PID-1 incarnation counts — see
+            # _boot_marker(): a container restart must re-run migrations.
+            is_reload = _flag.read().strip() == _boot_marker()
+    except OSError:
+        pass
 
     # Skip database initialization in test mode
     if not settings.testing:
@@ -254,7 +281,7 @@ async def lifespan(app: FastAPI):
     if not settings.testing and not is_reload:
         try:
             with open(_STARTUP_INIT_FLAG, "w") as f:
-                f.write("1")
+                f.write(_boot_marker())
         except OSError:
             pass
 
