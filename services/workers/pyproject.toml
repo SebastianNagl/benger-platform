@@ -32,7 +32,7 @@ dependencies = [
     "PyJWT[crypto]>=2.8.0,<2.14.0",  # bounds aligned with api; LTI 1.3 AGS token client (extended workers)
     "psycopg2-binary>=2.9.10",
     "sqlalchemy>=2.0.49",
-    "python-dotenv==1.2.2",
+    "python-dotenv==1.2.3",
     "httpx==0.28.1",
     "transformers>=4.57.6",  # Required by sentence-transformers>=3.2.0 for ONNX support
     "sentencepiece>=0.2.1",  # Required by T5Tokenizer for QAGS
@@ -70,7 +70,7 @@ dependencies = [
     "pytest-asyncio==0.26.0",
     # AI service dependencies
     "openai==1.109.1",
-    "anthropic==0.120.0",
+    "anthropic==0.125.0",
     "google-genai>=1.75.0",
     "mistralai>=1.12.4",  # Mistral AI models
     "cohere>=5.21.1",  # Cohere models
@@ -100,7 +100,7 @@ dependencies = [
     # imported by both api and workers. arm64 wheels published — normal pin is fine.
     # Keep aligned with the api (services/api/pyproject.toml).
     "zstandard>=0.22,<1.0",
-    "stripe>=11.0.0,<14.0.0",  # Vertretbar billing meter reporting (extended-only)
+    "stripe>=11.0.0,<15.0.0",  # Vertretbar billing meter reporting (extended-only)
 ]
 
 [tool.hatch.build.targets.wheel]

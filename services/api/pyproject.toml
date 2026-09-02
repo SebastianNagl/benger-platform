@@ -11,29 +11,29 @@ description = "BenGER API Gateway"
 # spaCy<3.8 ceiling was lifted (numpy 2.x + spaCy 3.8 / thinc 8.3.x).
 requires-python = ">=3.13"
 dependencies = [
-    "fastapi==0.140.0",
-    "uvicorn[standard]==0.51.0",
+    "fastapi==0.141.1",
+    "uvicorn[standard]==0.52.4",
     "pydantic==2.13.4",
     "python-multipart==0.0.32",
     "PyJWT[crypto]==2.13.0",
     "cryptography>=43.0.0,<47.0.0",
     "bcrypt==4.3.0",
-    "python-dotenv==1.2.2",
+    "python-dotenv==1.2.3",
     "httpx==0.28.1",
     "celery==5.6.3",
     "redis==5.3.1",
-    "sqlalchemy==2.0.51",
+    "sqlalchemy==2.0.52",
     "psycopg2-binary==2.9.12",
     # asyncpg is the asyncio Postgres driver for the new async engine
     # (database.async_engine). 0.30.x verified against PG 18.3 on prod
     # (Bitnami/Broadcom Photon rebuild) via 2026-05-18 pre-flight.
     "asyncpg==0.31.0",
-    "alembic==1.18.5",
+    "alembic==1.19.1",
     "email-validator==2.3.0",
     # starlette version is managed by fastapi
     "anyio==4.14.2",
     "openai==1.109.1",
-    "anthropic==0.120.0",
+    "anthropic==0.125.0",
     "google-genai>=1.0.0",
     # tiktoken powers the prompt-token count in services/api/services/
     # token_estimation.py — without it the cost estimator falls back to
@@ -77,7 +77,7 @@ dependencies = [
     # become editable exam-field text. api-only.
     "mammoth>=1.6,<2.0",
     "pdfplumber>=0.10,<1.0",
-    "stripe>=11.0.0,<14.0.0",  # Vertretbar billing (extended-only; community never imports)
+    "stripe>=11.0.0,<15.0.0",  # Vertretbar billing (extended-only; community never imports)
 ]
 
 [project.optional-dependencies]
