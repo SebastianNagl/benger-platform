@@ -9,8 +9,16 @@ interface ConfigSelectorProps {
   t: TranslateFn
 }
 
-export function configOptionLabel(config: ReportConfigRef): string {
-  return config.judge_label || config.name || config.id || config.metric
+export function configOptionLabel(config: ReportConfigRef, siblings: ReportConfigRef[] = []): string {
+  const judge = config.judge_label
+  // Several configurations can use the same judge model (e.g. ×3 runs vs a
+  // single run, or a multi-judge ensemble led by the same model). A bare
+  // judge name would then repeat across buttons, so fall back to the
+  // configuration's own name whenever another option carries the same judge.
+  const judgeShared =
+    !!judge && siblings.some((other) => other.id !== config.id && other.judge_label === judge)
+  if (judge && !judgeShared) return judge
+  return config.name || judge || config.id || config.metric
 }
 
 /** Segmented control to switch between configs (judges) sharing the primary metric. */
@@ -24,7 +32,7 @@ export function ConfigSelector({ options, value, onChange, t }: ConfigSelectorPr
       <div
         role="radiogroup"
         aria-label={t('reports.view.judge', 'Judge')}
-        className="inline-flex overflow-hidden rounded-md border border-zinc-300 dark:border-zinc-700"
+        className="inline-flex flex-wrap overflow-hidden rounded-md border border-zinc-300 dark:border-zinc-700"
       >
         {options.map((option) => {
           const active = option.id === value
@@ -35,6 +43,7 @@ export function ConfigSelector({ options, value, onChange, t }: ConfigSelectorPr
               role="radio"
               aria-checked={active}
               onClick={() => onChange(option.id)}
+              title={option.name ? `${option.name} (n=${option.n})` : undefined}
               className={clsx(
                 'px-3 py-1.5 text-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500',
                 active
@@ -42,7 +51,7 @@ export function ConfigSelector({ options, value, onChange, t }: ConfigSelectorPr
                   : 'bg-white text-zinc-700 hover:bg-zinc-50 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800',
               )}
             >
-              {configOptionLabel(option)}
+              {configOptionLabel(option, options)}
             </button>
           )
         })}

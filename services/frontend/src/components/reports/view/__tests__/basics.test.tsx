@@ -177,6 +177,14 @@ describe('ConfigSelector', () => {
   it('falls back from judge label to name to id to metric', () => {
     expect(configOptionLabel({ id: 'x', metric: 'm', judge_model: null, judge_label: null, name: 'Name', n: 1 })).toBe('Name')
     expect(configOptionLabel({ id: 'x', metric: 'm', judge_model: null, judge_label: null, name: null, n: 1 })).toBe('x')
+    // Two configs on the same judge model: the bare judge name would repeat,
+    // so each falls back to its configuration name.
+    const a = { id: 'a', metric: 'm', judge_model: 'gpt-5-mini', judge_label: 'GPT-5 Mini', name: 'Judge (×3)', n: 3 }
+    const b = { id: 'b', metric: 'm', judge_model: 'gpt-5-mini', judge_label: 'GPT-5 Mini', name: 'Judge (single)', n: 1 }
+    const c = { id: 'c', metric: 'm', judge_model: 'gpt-5.4-mini', judge_label: 'GPT-5.4 Mini', name: 'Other', n: 1 }
+    expect(configOptionLabel(a, [a, b, c])).toBe('Judge (×3)')
+    expect(configOptionLabel(b, [a, b, c])).toBe('Judge (single)')
+    expect(configOptionLabel(c, [a, b, c])).toBe('GPT-5.4 Mini')
     expect(configOptionLabel({ id: '', metric: 'm', judge_model: null, judge_label: null, name: null, n: 1 })).toBe('m')
   })
 })
