@@ -25,7 +25,6 @@ export default function LoginPage() {
   const { t } = useI18n()
   const router = useRouter()
 
-  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { setBrandName(getHostBrandName()); setIsVtr(isStudentLockedHost()) }, [])
 
   // Capture an optional ?next= return path (sanitized to an internal route).

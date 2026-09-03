@@ -147,17 +147,15 @@ export const canStartGeneration = (
 }
 
 /**
- * Check if user can access reports
- * Only superadmins and org_admins can access reports
+ * Check if user can access the reports list (/reports).
+ *
+ * Everyone can, including anonymous visitors: the API filters what each
+ * caller may see (anonymous → public reports, members → public + own
+ * organizations' published reports, superadmins → all published). The
+ * parameter is kept so callers (and the permission summary) stay uniform.
  */
-export const canAccessReports = (user: User | null): boolean => {
-  if (!user) return false
-
-  // Superadmins can always access reports
-  if (user.is_superadmin) return true
-
-  // Only ORG_ADMIN can access reports
-  return user.role === 'ORG_ADMIN'
+export const canAccessReports = (_user: User | null): boolean => {
+  return true
 }
 
 /**
@@ -170,7 +168,7 @@ export const getUserPermissions = (user: User | null) => {
       canAccessData: false,
       canDelete: false,
       canStartGeneration: false,
-      canAccessReports: false,
+      canAccessReports: canAccessReports(null),
       isAnnotatorOnly: false,
       role: 'none',
       isAuthenticated: false,

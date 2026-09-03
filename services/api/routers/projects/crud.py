@@ -1239,7 +1239,7 @@ async def update_project_visibility(
 async def recalculate_project_statistics(
     project_id: str,
     db: AsyncSession = Depends(get_async_db),
-    current_user: User = Depends(get_current_user),
+    current_user: Optional[User] = Depends(get_current_user),
 ):
     """
     Recalculate project statistics to fix annotation counts.
@@ -1247,6 +1247,10 @@ async def recalculate_project_statistics(
 
     Admin only endpoint.
     """
+    # get_current_user is optional auth: an anonymous caller must get a clean
+    # 401 rather than an AttributeError on ``None.is_superadmin``.
+    if current_user is None:
+        raise HTTPException(status_code=401, detail="Authentication required")
     # Check if user is admin
     if not current_user.is_superadmin:
         raise HTTPException(

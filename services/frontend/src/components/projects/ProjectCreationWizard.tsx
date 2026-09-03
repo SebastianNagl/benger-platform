@@ -724,7 +724,6 @@ export function ProjectCreationWizard() {
         // (pastedData/dataColumns/labelingConfig), so finishing the wizard
         // imports them like hand-uploaded data.
         return SyntheticStep ? (
-          // eslint-disable-next-line react-hooks/static-components
           <SyntheticStep data={wizardData} onChange={updateWizardData} />
         ) : null
       case 'labelingSetup':
@@ -837,7 +836,6 @@ export function ProjectCreationWizard() {
         // per-task rubric generation installed as a SECOND evaluation method
         // (llm_judge_rubric) by the post-create hook once tasks exist.
         return RubricStep ? (
-          // eslint-disable-next-line react-hooks/static-components
           <RubricStep data={wizardData} onChange={updateWizardData} />
         ) : null
       case 'settings':

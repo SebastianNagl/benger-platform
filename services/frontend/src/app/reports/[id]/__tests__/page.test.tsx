@@ -1,93 +1,57 @@
 /**
- * Tests for Report Viewer Page
+ * Tests for the report reader page (/reports/[id]).
  *
- * Tests the detailed report view including:
- * - Report content display (loading, error, data states)
- * - Statistics rendering
- * - Evaluation charts with different metric scales
- * - Participants modal open/close
- * - Section visibility toggling
- * - Custom content overrides
+ * Renders the page from `{ report, snapshot }` with the shared snapshot
+ * fixture and asserts header, stat tiles, sections, ranking/config behaviour,
+ * chart wiring and the empty/draft states.
  */
 
 import React from 'react'
-import { render, screen, waitFor } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 
-// Mock next/navigation
-const mockPush = jest.fn()
 jest.mock('next/navigation', () => ({
-  useRouter: () => ({
-    push: mockPush,
-    replace: jest.fn(),
-    prefetch: jest.fn(),
-  }),
+  useRouter: () => ({ push: jest.fn(), replace: jest.fn(), prefetch: jest.fn() }),
 }))
 
-// Mock next/dynamic to return a simple component
-jest.mock('next/dynamic', () => {
-  return function mockDynamic(loader: () => Promise<any>, _options?: any) {
-    return function MockPlot({ data, layout }: { data: any; layout: any }) {
-      return (
-        <div data-testid="plotly-chart" data-layout={JSON.stringify(layout)}>
-          {data?.map((trace: any, i: number) => (
-            <div key={i} data-testid={`chart-trace-${i}`}>
-              {trace.name}: {trace.y?.join(', ')}
-            </div>
-          ))}
-        </div>
-      )
-    }
-  }
-})
-
-// Mock the chart components used by the Evaluation block. The viewer
-// delegates rendering to DynamicChartRenderer; we surface the active
-// chartType + metric set as data-attrs so individual tests can assert.
-jest.mock('@/components/evaluation/DynamicChartRenderer', () => ({
-  DynamicChartRenderer: ({ chartType, models, metrics }: any) => (
-    <div
-      data-testid="plotly-chart"
-      data-chart-type={chartType}
-      data-model-count={models?.length ?? 0}
-      data-metrics={(metrics ?? []).join(',')}
-    >
-      {(metrics ?? []).map((m: string) => (
-        <div key={m}>{m.replace(/_/g, ' ')}</div>
-      ))}
-    </div>
-  ),
-}))
-jest.mock('@/components/evaluation/ChartTypeSelector', () => ({
+jest.mock('next/link', () => ({
   __esModule: true,
-  ChartTypeSelector: ({ selectedType, onChange }: any) => (
-    <button
-      data-testid="chart-type-selector"
-      data-active={selectedType}
-      onClick={() => onChange?.(selectedType)}
-    >
-      {selectedType}
-    </button>
+  default: ({ href, children, ...rest }: any) => (
+    <a href={href} {...rest}>
+      {children}
+    </a>
   ),
 }))
 
-// Mock the I18n context
+jest.mock('recharts', () => require('@/components/reports/view/__mocks__/testUtils').rechartsMock())
+
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
-    t: (key: string, vars?: Record<string, any>) => {
-      if (vars) {
-        let result = key
-        for (const [k, v] of Object.entries(vars)) {
-          result = result.replace(`{${k}}`, String(v))
-        }
-        return result
-      }
-      return key
+    locale: 'de',
+    t: (key: string, fallback?: string | Record<string, any>, vars?: Record<string, any>) => {
+      const base = typeof fallback === 'string' ? fallback : key
+      const v = typeof fallback === 'string' ? vars : fallback
+      if (!v) return base
+      return base.replace(/\{(\w+)\}/g, (m, name) => (v[name] !== undefined ? String(v[name]) : m))
     },
   }),
 }))
 
-// Mock Breadcrumb
+let mockAuth: any = null
+jest.mock('@/contexts/AuthContext', () => ({
+  useOptionalAuth: () => mockAuth,
+}))
+
+jest.mock('@/lib/api/evaluation-types', () => ({
+  getMetricDefinitions: () => ({
+    llm_judge_falloesung: { display_name: 'Falllösung LLM Judge', display_scale: '0-100' },
+    llm_judge_falloesung_grade_points: { display_name: 'Notenpunkte (Falllösung)', display_scale: '0-18' },
+  }),
+}))
+
+jest.mock('@/components/shared/ResponsiveContainer', () => ({
+  ResponsiveContainer: ({ children }: any) => <div data-testid="responsive-container">{children}</div>,
+}))
+
 jest.mock('@/components/shared/Breadcrumb', () => ({
   Breadcrumb: ({ items }: any) => (
     <nav data-testid="breadcrumb">
@@ -98,780 +62,321 @@ jest.mock('@/components/shared/Breadcrumb', () => ({
   ),
 }))
 
-// Mock the reports API
 jest.mock('@/lib/api/reports', () => ({
   getReportData: jest.fn(),
 }))
 
-// Mock React's use() hook to synchronously return the value
-// This is necessary because use() with Promises doesn't work in jsdom tests
-const originalReact = jest.requireActual('react')
+let mockUseResult = { id: 'report-1' }
 jest.mock('react', () => ({
   ...jest.requireActual('react'),
-  use: (promise: any) => {
-    // For promises, return { id: 'report-1' } by default
-    // The mock ID can be overridden per test
-    if (promise && typeof promise.then === 'function') {
-      return mockUseResult
-    }
-    return promise
-  },
+  use: (promise: any) => (promise && typeof promise.then === 'function' ? mockUseResult : promise),
 }))
 
-let mockUseResult = { id: 'report-1' }
-
+import { REPORT_SNAPSHOT_FIXTURE } from '@/lib/reports/fixture'
 import { getReportData } from '@/lib/api/reports'
-import ReportViewerPage from '../page'
+import ReportViewerPage, { classifyLoadError } from '../page'
 
 const mockGetReportData = getReportData as jest.Mock
 
-// Mock report data factory
-const createMockReportData = (overrides: any = {}) => ({
-  report: {
+function makeReport(overrides: any = {}) {
+  const base = {
     id: 'report-1',
     project_id: 'project-1',
-    project_title: 'Test Project',
+    project_title: 'Benchathon 2026',
+    is_published: true,
+    is_public: true,
+    published_at: '2026-09-01T10:00:00Z',
+    published_by: 'u',
+    created_by: 'u',
+    created_at: '2026-08-01T10:00:00Z',
+    updated_at: null,
+    can_publish: true,
+    can_publish_reason: '',
     content: {
       sections: {
         project_info: {
           status: 'completed',
           editable: true,
           visible: true,
-          title: 'Test Project',
-          description: 'A test project for evaluation',
+          title: 'Benchathon 2026',
+          description: 'Projektbeschreibung',
           custom_title: null,
           custom_description: null,
         },
-        data: {
-          status: 'completed',
-          editable: true,
-          visible: true,
-          task_count: 100,
-          custom_text: null,
-          show_count: true,
-        },
+        data: { status: 'completed', editable: true, visible: true, task_count: 15, custom_text: null, show_count: true },
         annotations: {
           status: 'completed',
           editable: true,
           visible: true,
-          annotation_count: 300,
+          annotation_count: 224,
           custom_text: null,
           show_count: true,
           show_participants: true,
-          acknowledgment_text: 'Thanks to all participants',
+          acknowledgment_text: 'Danke an alle.',
         },
-        generation: {
-          status: 'completed',
-          editable: true,
-          visible: true,
-          models: ['gpt-4', 'claude-3'],
-          custom_text: null,
-          show_models: true,
-          show_config: false,
-        },
+        generation: { status: 'completed', editable: true, visible: true, custom_text: null, show_models: true, show_config: false },
         evaluation: {
           status: 'completed',
           editable: true,
           visible: true,
-          methods: ['exact_match', 'f1'],
-          metrics: {},
           charts_config: {},
-          custom_interpretation: 'GPT-4 performed best overall',
-          conclusions: 'The evaluation shows promising results',
+          custom_interpretation: 'Die Modelle schlagen den Median.',
+          conclusions: 'Fazit hier.',
         },
       },
-      metadata: {
-        last_auto_update: '2025-01-10T10:00:00Z',
-        sections_completed: [
-          'project_info',
-          'data',
-          'annotations',
-          'generation',
-          'evaluation',
-        ],
-        can_publish: true,
-      },
+      metadata: { last_auto_update: '', sections_completed: [], can_publish: true },
     },
-    is_published: true,
-    published_at: '2025-01-10T10:00:00Z',
-    published_by: 'admin',
-    created_by: 'admin',
-    created_at: '2025-01-01T10:00:00Z',
-    updated_at: '2025-01-10T10:00:00Z',
-    can_publish: true,
-    can_publish_reason: 'All requirements met',
-  },
-  statistics: {
-    task_count: 100,
-    annotation_count: 300,
-    participant_count: 5,
-    model_count: 2,
-  },
-  participants: [
-    { id: 'user-1', username: 'annotator1', annotation_count: 100 },
-    { id: 'user-2', username: 'annotator2', annotation_count: 80 },
-    { id: 'user-3', username: 'annotator3', annotation_count: 60 },
-    { id: 'user-4', username: 'annotator4', annotation_count: 40 },
-    { id: 'user-5', username: 'annotator5', annotation_count: 20 },
-  ],
-  models: ['gpt-4', 'claude-3'],
-  evaluation_charts: {
-    by_model: {
-      'gpt-4': { exact_match: 0.85, f1: 0.92 },
-      'claude-3': { exact_match: 0.88, f1: 0.94 },
-    },
-    by_method: {
-      exact_match: { 'gpt-4': 0.85, 'claude-3': 0.88 },
-      f1: { 'gpt-4': 0.92, 'claude-3': 0.94 },
-    },
-    metric_metadata: {
-      exact_match: {
-        higher_is_better: true,
-        range: [0, 1],
-        name: 'Exact Match',
-        category: 'qa',
-      },
-      f1: {
-        higher_is_better: true,
-        range: [0, 1],
-        name: 'F1 Score',
-        category: 'qa',
-      },
-    },
-  },
-  ...overrides,
-})
-
-function renderPage(id = 'report-1') {
-  mockUseResult = { id }
-  const params = Promise.resolve({ id })
-  return render(<ReportViewerPage params={params} />)
+  }
+  const merged = { ...base, ...overrides }
+  if (overrides.sections) {
+    merged.content = {
+      ...base.content,
+      sections: Object.fromEntries(
+        Object.entries(base.content.sections).map(([k, v]) => [k, { ...(v as any), ...(overrides.sections[k] ?? {}) }]),
+      ) as any,
+    }
+  }
+  return merged
 }
 
-describe('Report Viewer Page', () => {
+function mockData(report: any = makeReport(), snapshot: any = REPORT_SNAPSHOT_FIXTURE) {
+  mockGetReportData.mockResolvedValue({ report, snapshot })
+}
+
+async function renderPage() {
+  const params = Promise.resolve({ id: 'report-1' })
+  const utils = render(<ReportViewerPage params={params} />)
+  await waitFor(() => expect(screen.queryByTestId('report-loading')).not.toBeInTheDocument())
+  return utils
+}
+
+const modelRowsOf = (tableId = 'ranking-table-models') =>
+  within(screen.getByTestId(tableId)).getAllByTestId('ranking-row')
+
+describe('ReportViewerPage', () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    mockAuth = null
     mockUseResult = { id: 'report-1' }
   })
 
-  describe('Loading State', () => {
-    it('shows loading state while data is being fetched', () => {
-      mockGetReportData.mockImplementation(
-        () => new Promise(() => {})
-      )
-
-      renderPage()
-
-      expect(
-        screen.getByText('reports.detail.loadingReport')
-      ).toBeInTheDocument()
-    })
+  it('shows the loading state first', () => {
+    mockGetReportData.mockReturnValue(new Promise(() => {}))
+    render(<ReportViewerPage params={Promise.resolve({ id: 'report-1' })} />)
+    expect(screen.getByTestId('report-loading')).toBeInTheDocument()
   })
 
-  describe('Error State', () => {
-    it('shows error message when API fails', async () => {
-      mockGetReportData.mockRejectedValue(new Error('Network error'))
+  it('renders header, tiles and prose sections from snapshot + content', async () => {
+    mockData()
+    await renderPage()
+    expect(mockGetReportData).toHaveBeenCalledWith('report-1')
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Benchathon 2026')
+    expect(screen.getByText('Projektbeschreibung')).toBeInTheDocument()
+    expect(screen.getByText(/Veröffentlicht am/)).toBeInTheDocument()
+    expect(screen.getByTestId('data-as-of')).toHaveTextContent('Datenstand:')
+    expect(screen.queryByTestId('draft-badge')).not.toBeInTheDocument()
+    expect(screen.getByTestId('breadcrumb')).toHaveTextContent('Berichte')
 
-      renderPage()
+    expect(screen.getByTestId('stat-tasks')).toHaveTextContent('15')
+    expect(screen.getByTestId('stat-annotations')).toHaveTextContent('224')
+    expect(screen.getByTestId('stat-participants')).toHaveTextContent('36')
+    expect(screen.getByTestId('stat-models')).toHaveTextContent('4')
+    expect(screen.getByTestId('stat-evaluations')).toHaveTextContent('3.626')
 
-      await waitFor(() => {
-        expect(screen.getByText('Network error')).toBeInTheDocument()
-      })
-    })
-
-    it('shows fallback error when error message is empty', async () => {
-      mockGetReportData.mockRejectedValue(new Error(''))
-
-      renderPage()
-
-      await waitFor(() => {
-        expect(
-          screen.getByText('reports.detail.failedToLoadReport')
-        ).toBeInTheDocument()
-      })
-    })
-
-    it('shows retry button on error', async () => {
-      mockGetReportData.mockRejectedValue(new Error('fail'))
-
-      renderPage()
-
-      await waitFor(() => {
-        expect(
-          screen.getByText('reports.detail.retry')
-        ).toBeInTheDocument()
-      })
-    })
-
-    it('shows back to reports button on error', async () => {
-      mockGetReportData.mockRejectedValue(new Error('fail'))
-
-      renderPage()
-
-      await waitFor(() => {
-        expect(
-          screen.getByText('reports.detail.backToReports')
-        ).toBeInTheDocument()
-      })
-    })
-
-    it('navigates to /reports on back button click', async () => {
-      const user = userEvent.setup()
-      mockGetReportData.mockRejectedValue(new Error('fail'))
-
-      renderPage()
-
-      await waitFor(() => {
-        expect(screen.getByText('reports.detail.backToReports')).toBeInTheDocument()
-      })
-
-      await user.click(screen.getByText('reports.detail.backToReports'))
-      expect(mockPush).toHaveBeenCalledWith('/reports')
-    })
-
-    it('retries loading on retry button click', async () => {
-      mockGetReportData
-        .mockRejectedValueOnce(new Error('fail'))
-        .mockResolvedValueOnce(createMockReportData())
-
-      const user = userEvent.setup()
-      renderPage()
-
-      await waitFor(() => {
-        expect(screen.getByText('reports.detail.retry')).toBeInTheDocument()
-      })
-
-      await user.click(screen.getByText('reports.detail.retry'))
-
-      await waitFor(() => {
-        expect(mockGetReportData).toHaveBeenCalledTimes(2)
-      })
-    })
-
-    it('shows reportNotFound when data is null', async () => {
-      mockGetReportData.mockResolvedValue(null)
-
-      renderPage()
-
-      await waitFor(() => {
-        expect(screen.getByText('reports.detail.reportNotFound')).toBeInTheDocument()
-      })
-    })
+    expect(screen.getByTestId('section-data')).toHaveTextContent('Der Datensatz umfasst 15 Aufgaben.')
+    expect(screen.getByTestId('section-annotations')).toHaveTextContent('224 Abgaben von 36 Teilnehmenden wurden erfasst.')
+    expect(screen.getByText('Danke an alle.')).toBeInTheDocument()
+    expect(screen.getByTestId('section-generation')).toHaveTextContent('4 Sprachmodellen')
+    expect(screen.getAllByTestId('model-chip')).toHaveLength(4)
+    expect(screen.getByTestId('section-evaluation')).toBeInTheDocument()
+    expect(screen.getByText('Die Modelle schlagen den Median.')).toBeInTheDocument()
+    expect(screen.getByText('Fazit hier.')).toBeInTheDocument()
+    expect(screen.getByTestId('participants-list')).toBeInTheDocument()
+    expect(within(screen.getByTestId('participants-list')).getByText('KindAlly')).toBeInTheDocument()
+    expect(screen.getByText('Erstellt mit')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'BenGER' })).toHaveAttribute('href', '/')
+    expect(screen.queryByRole('link', { name: 'Bearbeiten' })).not.toBeInTheDocument()
   })
 
-  describe('Report Content Display', () => {
-    it('renders project title from default', async () => {
-      mockGetReportData.mockResolvedValue(createMockReportData())
-
-      renderPage()
-
-      await waitFor(() => {
-        const headings = screen.getAllByText('Test Project')
-        expect(headings.length).toBeGreaterThanOrEqual(1)
-      })
-    })
-
-    it('renders custom title when provided', async () => {
-      const data = createMockReportData()
-      data.report.content.sections.project_info.custom_title = 'Custom Title'
-      mockGetReportData.mockResolvedValue(data)
-
-      renderPage()
-
-      await waitFor(() => {
-        const headings = screen.getAllByText('Custom Title')
-        expect(headings.length).toBeGreaterThanOrEqual(1)
-      })
-    })
-
-    it('renders custom description when provided', async () => {
-      const data = createMockReportData()
-      data.report.content.sections.project_info.custom_description = 'Custom Desc'
-      mockGetReportData.mockResolvedValue(data)
-
-      renderPage()
-
-      await waitFor(() => {
-        expect(screen.getByText('Custom Desc')).toBeInTheDocument()
-      })
-    })
-
-    it('renders published_at date', async () => {
-      mockGetReportData.mockResolvedValue(createMockReportData())
-
-      renderPage()
-
-      await waitFor(() => {
-        const publishedText = screen.getByText(/reports\.detail\.publishedOn/)
-        expect(publishedText).toBeInTheDocument()
-      })
-    })
-
-    it('does not render published_at when null', async () => {
-      const data = createMockReportData()
-      data.report.published_at = null
-      mockGetReportData.mockResolvedValue(data)
-
-      renderPage()
-
-      await waitFor(() => {
-        expect(screen.getAllByText('Test Project').length).toBeGreaterThanOrEqual(1)
-      })
-
-      expect(screen.queryByText(/reports\.detail\.publishedOn/)).not.toBeInTheDocument()
-    })
+  it('ranks models by mean with badges computed from the sort', async () => {
+    mockData(makeReport(), { ...REPORT_SNAPSHOT_FIXTURE, series: [...REPORT_SNAPSHOT_FIXTURE.series].reverse() })
+    await renderPage()
+    const rows = modelRowsOf()
+    expect(rows).toHaveLength(4)
+    expect(rows[0]).toHaveTextContent('GPT-5.4')
+    expect(within(rows[0]).getByTestId('rank-badge')).toHaveTextContent('1')
+    expect(rows[0]).toHaveTextContent('84,7 / 100')
+    expect(rows[0]).toHaveTextContent('13,9 / 18 NP')
+    expect(rows[3]).toHaveTextContent('Llama 4 Maverick')
+    expect(within(rows[3]).getByTestId('rank-badge')).toHaveTextContent('4')
+    const headers = within(screen.getByTestId('ranking-table-models')).getAllByRole('columnheader').map((h) => h.textContent)
+    expect(headers).toEqual(['Rang', 'Modell', 'Falllösung LLM Judge', 'Notenpunkte', 'Bestanden', 'n'])
   })
 
-  describe('Statistics Grid', () => {
-    it('renders task count', async () => {
-      mockGetReportData.mockResolvedValue(createMockReportData())
-
-      renderPage()
-
-      await waitFor(() => {
-        expect(screen.getByText('100')).toBeInTheDocument()
-      })
-      expect(screen.getByText('reports.detail.tasks')).toBeInTheDocument()
-    })
-
-    it('renders annotation count when visible', async () => {
-      mockGetReportData.mockResolvedValue(createMockReportData())
-
-      renderPage()
-
-      await waitFor(() => {
-        expect(screen.getByText('300')).toBeInTheDocument()
-      })
-    })
-
-    it('hides annotation count when show_count is false', async () => {
-      const data = createMockReportData()
-      data.report.content.sections.annotations.show_count = false
-      mockGetReportData.mockResolvedValue(data)
-
-      renderPage()
-
-      await waitFor(() => {
-        expect(screen.getAllByText('Test Project').length).toBeGreaterThanOrEqual(1)
-      })
-
-      // Annotation count stat card should not be present
-      expect(screen.queryByText('reports.detail.annotations')).not.toBeInTheDocument()
-    })
-
-    it('renders participant count with view all button', async () => {
-      mockGetReportData.mockResolvedValue(createMockReportData())
-
-      renderPage()
-
-      await waitFor(() => {
-        expect(screen.getByText('5')).toBeInTheDocument()
-      })
-      expect(screen.getByText('reports.detail.viewAll')).toBeInTheDocument()
-    })
-
-    it('hides participant count when show_participants is false', async () => {
-      const data = createMockReportData()
-      data.report.content.sections.annotations.show_participants = false
-      mockGetReportData.mockResolvedValue(data)
-
-      renderPage()
-
-      await waitFor(() => {
-        expect(screen.getAllByText('Test Project').length).toBeGreaterThanOrEqual(1)
-      })
-
-      expect(screen.queryByText('reports.detail.viewAll')).not.toBeInTheDocument()
-    })
-
-    it('renders model count', async () => {
-      mockGetReportData.mockResolvedValue(createMockReportData())
-
-      renderPage()
-
-      await waitFor(() => {
-        expect(screen.getByText('reports.detail.modelsEvaluated')).toBeInTheDocument()
-      })
-    })
+  it('switches rows when another judge config is selected', async () => {
+    mockData()
+    await renderPage()
+    expect(screen.getByTestId('config-selector')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('radio', { name: 'GPT-5 mini' }))
+    const rows = modelRowsOf()
+    expect(rows).toHaveLength(1)
+    expect(rows[0]).toHaveTextContent('79,1 / 100')
+    fireEvent.click(screen.getByRole('radio', { name: 'Claude Sonnet 4.6' }))
+    expect(modelRowsOf()).toHaveLength(4)
   })
 
-  describe('Data Section', () => {
-    it('renders data section when visible', async () => {
-      mockGetReportData.mockResolvedValue(createMockReportData())
-
-      renderPage()
-
-      await waitFor(() => {
-        expect(screen.getByText('reports.detail.data')).toBeInTheDocument()
-      })
-    })
-
-    it('renders custom data text when provided', async () => {
-      const data = createMockReportData()
-      data.report.content.sections.data.custom_text = 'Custom data description'
-      mockGetReportData.mockResolvedValue(data)
-
-      renderPage()
-
-      await waitFor(() => {
-        expect(screen.getByText('Custom data description')).toBeInTheDocument()
-      })
-    })
-
-    it('hides data section when not visible', async () => {
-      const data = createMockReportData()
-      data.report.content.sections.data.visible = false
-      mockGetReportData.mockResolvedValue(data)
-
-      renderPage()
-
-      await waitFor(() => {
-        expect(screen.getAllByText('Test Project').length).toBeGreaterThanOrEqual(1)
-      })
-
-      const headings = screen.queryAllByText('reports.detail.data')
-      expect(headings.length).toBe(0)
-    })
+  it('removes hidden subjects from the ranking', async () => {
+    mockData(makeReport({ sections: { evaluation: { charts_config: { hidden_subjects: ['gpt-5.4'] } } } }))
+    await renderPage()
+    const rows = modelRowsOf()
+    expect(rows).toHaveLength(3)
+    expect(rows[0]).toHaveTextContent('Claude Opus 4.7')
+    expect(within(rows[0]).getByTestId('rank-badge')).toHaveTextContent('1')
   })
 
-  describe('Annotations Section', () => {
-    it('renders annotations section with acknowledgment', async () => {
-      mockGetReportData.mockResolvedValue(createMockReportData())
-
-      renderPage()
-
-      await waitFor(() => {
-        expect(screen.getByText('reports.detail.annotationsSection')).toBeInTheDocument()
-      })
-      expect(screen.getByText('Thanks to all participants')).toBeInTheDocument()
-    })
-
-    it('renders custom annotation text', async () => {
-      const data = createMockReportData()
-      data.report.content.sections.annotations.custom_text = 'Custom annotations'
-      mockGetReportData.mockResolvedValue(data)
-
-      renderPage()
-
-      await waitFor(() => {
-        expect(screen.getByText('Custom annotations')).toBeInTheDocument()
-      })
-    })
-
-    it('hides annotations section when not visible', async () => {
-      const data = createMockReportData()
-      data.report.content.sections.annotations.visible = false
-      mockGetReportData.mockResolvedValue(data)
-
-      renderPage()
-
-      await waitFor(() => {
-        expect(screen.getAllByText('Test Project').length).toBeGreaterThanOrEqual(1)
-      })
-
-      expect(screen.queryByText('reports.detail.annotationsSection')).not.toBeInTheDocument()
-    })
-
-    it('hides acknowledgment when not provided', async () => {
-      const data = createMockReportData()
-      data.report.content.sections.annotations.acknowledgment_text = null
-      mockGetReportData.mockResolvedValue(data)
-
-      renderPage()
-
-      await waitFor(() => {
-        expect(screen.getByText('reports.detail.annotationsSection')).toBeInTheDocument()
-      })
-
-      expect(screen.queryByText('Thanks to all participants')).not.toBeInTheDocument()
-    })
+  it('hides the humans table when show_humans is false', async () => {
+    mockData(makeReport({ sections: { evaluation: { charts_config: { show_humans: false } } } }))
+    await renderPage()
+    expect(screen.queryByTestId('ranking-table-humans')).not.toBeInTheDocument()
+    expect(screen.getByTestId('ranking-table-models')).toBeInTheDocument()
   })
 
-  describe('Generation Section', () => {
-    it('renders generation section with models', async () => {
-      mockGetReportData.mockResolvedValue(createMockReportData())
-
-      renderPage()
-
-      await waitFor(() => {
-        expect(screen.getByText('reports.detail.generation')).toBeInTheDocument()
-      })
-    })
-
-    it('renders custom generation text', async () => {
-      const data = createMockReportData()
-      data.report.content.sections.generation.custom_text = 'Custom gen text'
-      mockGetReportData.mockResolvedValue(data)
-
-      renderPage()
-
-      await waitFor(() => {
-        expect(screen.getByText('Custom gen text')).toBeInTheDocument()
-      })
-    })
-
-    it('hides models when show_models is false', async () => {
-      const data = createMockReportData()
-      data.report.content.sections.generation.show_models = false
-      mockGetReportData.mockResolvedValue(data)
-
-      renderPage()
-
-      await waitFor(() => {
-        expect(screen.getByText('reports.detail.generation')).toBeInTheDocument()
-      })
-    })
-
-    it('hides generation section when not visible', async () => {
-      const data = createMockReportData()
-      data.report.content.sections.generation.visible = false
-      mockGetReportData.mockResolvedValue(data)
-
-      renderPage()
-
-      await waitFor(() => {
-        expect(screen.getAllByText('Test Project').length).toBeGreaterThanOrEqual(1)
-      })
-
-      expect(screen.queryByText('reports.detail.generation')).not.toBeInTheDocument()
-    })
+  it('renders the humans table separately ranked by default', async () => {
+    mockData()
+    await renderPage()
+    const rows = modelRowsOf('ranking-table-humans')
+    expect(rows.map((r) => r.getAttribute('data-subject'))).toEqual(['annotator:KindAlly', 'annotator:BraveOtter'])
+    expect(within(rows[0]).getByTestId('rank-badge')).toHaveTextContent('1')
   })
 
-  describe('Evaluation Section', () => {
-    it('renders evaluation section with interpretation', async () => {
-      mockGetReportData.mockResolvedValue(createMockReportData())
-
-      renderPage()
-
-      await waitFor(() => {
-        expect(screen.getByText('reports.detail.evaluationResults')).toBeInTheDocument()
-      })
-      expect(screen.getByText('GPT-4 performed best overall')).toBeInTheDocument()
-    })
-
-    it('renders conclusions', async () => {
-      mockGetReportData.mockResolvedValue(createMockReportData())
-
-      renderPage()
-
-      await waitFor(() => {
-        expect(screen.getByText('The evaluation shows promising results')).toBeInTheDocument()
-      })
-    })
-
-    it('hides evaluation section when not visible', async () => {
-      const data = createMockReportData()
-      data.report.content.sections.evaluation.visible = false
-      mockGetReportData.mockResolvedValue(data)
-
-      renderPage()
-
-      await waitFor(() => {
-        expect(screen.getAllByText('Test Project').length).toBeGreaterThanOrEqual(1)
-      })
-
-      expect(screen.queryByText('reports.detail.evaluationResults')).not.toBeInTheDocument()
-    })
-
-    it('hides interpretation when not provided', async () => {
-      const data = createMockReportData()
-      data.report.content.sections.evaluation.custom_interpretation = null
-      mockGetReportData.mockResolvedValue(data)
-
-      renderPage()
-
-      await waitFor(() => {
-        expect(screen.getByText('reports.detail.evaluationResults')).toBeInTheDocument()
-      })
-
-      expect(screen.queryByText('reports.detail.interpretation')).not.toBeInTheDocument()
-    })
-
-    it('hides conclusions when not provided', async () => {
-      const data = createMockReportData()
-      data.report.content.sections.evaluation.conclusions = null
-      mockGetReportData.mockResolvedValue(data)
-
-      renderPage()
-
-      await waitFor(() => {
-        expect(screen.getByText('reports.detail.evaluationResults')).toBeInTheDocument()
-      })
-
-      expect(screen.queryByText('reports.detail.conclusions')).not.toBeInTheDocument()
-    })
+  it('renders the distribution chart with model and human series', async () => {
+    mockData()
+    await renderPage()
+    const chart = screen.getByTestId('distribution-chart')
+    const bars = within(chart).getAllByTestId('bar')
+    expect(bars.map((b) => b.getAttribute('data-key'))).toEqual(['modelPct', 'humanPct'])
+    expect(screen.getByTestId('per-subject-distribution')).toBeInTheDocument()
+    expect(screen.getByTestId('mean-bar-chart')).toBeInTheDocument()
   })
 
-  describe('Evaluation Charts', () => {
-    it('renders QA metrics chart (0-1 scale)', async () => {
-      mockGetReportData.mockResolvedValue(createMockReportData())
-
-      renderPage()
-
-      await waitFor(() => {
-        expect(screen.getByText('reports.detail.performanceByModel')).toBeInTheDocument()
-      })
-
-      const charts = screen.getAllByTestId('plotly-chart')
-      expect(charts.length).toBeGreaterThan(0)
-    })
-
-    it('combines QA and LLM Judge metrics into the per-model chart', async () => {
-      const data = createMockReportData()
-      data.evaluation_charts.by_model['gpt-4'].llm_judge_overall = 4.2
-      data.evaluation_charts.by_model['claude-3'].llm_judge_overall = 4.5
-      data.evaluation_charts.metric_metadata.llm_judge_overall = {
-        higher_is_better: true,
-        range: [1, 5],
-        name: 'LLM Judge Overall',
-        category: 'llm_judge',
-      }
-      mockGetReportData.mockResolvedValue(data)
-
-      renderPage()
-
-      await waitFor(() => {
-        expect(screen.getByText('reports.detail.performanceByModel')).toBeInTheDocument()
-      })
-
-      // The page now renders one DynamicChartRenderer per model-class
-      // (LLM models, optional annotators) and bundles every metric into it.
-      // With only LLM model data + both QA + judge metrics present, we get a
-      // single chart whose metrics attr lists both scales.
-      const charts = screen.getAllByTestId('plotly-chart')
-      expect(charts.length).toBe(1)
-      const metricsAttr = charts[0].getAttribute('data-metrics') ?? ''
-      expect(metricsAttr).toMatch(/llm_judge_overall/)
-      // QA-side metrics from createMockReportData
-      expect(metricsAttr).toMatch(/exact_match|f1_score/)
-    })
-
-    it('does not render charts when no models', async () => {
-      const data = createMockReportData()
-      data.evaluation_charts = { by_model: {}, by_method: {}, metric_metadata: {} }
-      mockGetReportData.mockResolvedValue(data)
-
-      renderPage()
-
-      await waitFor(() => {
-        expect(screen.getByText('reports.detail.evaluationResults')).toBeInTheDocument()
-      })
-
-      expect(screen.queryByText('reports.detail.performanceByModel')).not.toBeInTheDocument()
-    })
-
-    it('does not render charts when by_model is null', async () => {
-      const data = createMockReportData()
-      data.evaluation_charts.by_model = null
-      mockGetReportData.mockResolvedValue(data)
-
-      renderPage()
-
-      await waitFor(() => {
-        expect(screen.getByText('reports.detail.evaluationResults')).toBeInTheDocument()
-      })
-
-      expect(screen.queryByTestId('plotly-chart')).not.toBeInTheDocument()
-    })
-
-    it('forwards the report metric keys to the chart renderer', async () => {
-      mockGetReportData.mockResolvedValue(createMockReportData())
-
-      renderPage()
-
-      const chart = await screen.findByTestId('plotly-chart')
-      const metrics = (chart.getAttribute('data-metrics') ?? '').split(',')
-      // Metric metadata in createMockReportData supplies these keys; the
-      // human-readable display-name rendering is the responsibility of
-      // DynamicChartRenderer and is asserted in its own test suite.
-      expect(metrics).toEqual(expect.arrayContaining(['exact_match', 'f1']))
-    })
-
-    it('handles metrics without metadata (defaults to 0-1 scale)', async () => {
-      const data = createMockReportData()
-      // Add metric present in model data but without metadata entry
-      data.evaluation_charts.by_model['gpt-4'].custom_metric = 0.7
-      data.evaluation_charts.by_model['claude-3'].custom_metric = 0.8
-      mockGetReportData.mockResolvedValue(data)
-
-      renderPage()
-
-      await waitFor(() => {
-        expect(screen.getByText('reports.detail.performanceByModel')).toBeInTheDocument()
-      })
-    })
+  it('shows the empty evaluation state without a snapshot', async () => {
+    mockData(makeReport(), null)
+    await renderPage()
+    expect(screen.getByText('Für diesen Bericht liegt noch keine Auswertung vor.')).toBeInTheDocument()
+    expect(screen.queryByTestId('stat-tiles')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('rank-badge')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('participants-list')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('section-annotations')).not.toBeInTheDocument()
+    expect(screen.getByTestId('section-data')).toHaveTextContent('0 Aufgaben')
+    expect(screen.queryByTestId('data-as-of')).not.toBeInTheDocument()
   })
 
-  describe('Participants Modal', () => {
-    it('opens participants modal on view all click', async () => {
-      const user = userEvent.setup()
-      mockGetReportData.mockResolvedValue(createMockReportData())
-
-      renderPage()
-
-      await waitFor(() => {
-        expect(screen.getByText('reports.detail.viewAll')).toBeInTheDocument()
-      })
-
-      await user.click(screen.getByText('reports.detail.viewAll'))
-
-      await waitFor(() => {
-        expect(screen.getByText('annotator1')).toBeInTheDocument()
-        expect(screen.getByText('annotator2')).toBeInTheDocument()
-        expect(screen.getByText('annotator3')).toBeInTheDocument()
-      })
-    })
-
-    it('closes participants modal on close button click', async () => {
-      const user = userEvent.setup()
-      mockGetReportData.mockResolvedValue(createMockReportData())
-
-      renderPage()
-
-      await waitFor(() => {
-        expect(screen.getByText('reports.detail.viewAll')).toBeInTheDocument()
-      })
-
-      await user.click(screen.getByText('reports.detail.viewAll'))
-
-      await waitFor(() => {
-        expect(screen.getByText('annotator1')).toBeInTheDocument()
-      })
-
-      await user.click(screen.getByText('reports.detail.close'))
-
-      await waitFor(() => {
-        expect(screen.queryByText('annotator1')).not.toBeInTheDocument()
-      })
-    })
-
-    it('displays annotation counts in modal', async () => {
-      const user = userEvent.setup()
-      mockGetReportData.mockResolvedValue(createMockReportData())
-
-      renderPage()
-
-      await waitFor(() => {
-        expect(screen.getByText('reports.detail.viewAll')).toBeInTheDocument()
-      })
-
-      await user.click(screen.getByText('reports.detail.viewAll'))
-
-      await waitFor(() => {
-        expect(screen.getByText('annotator1')).toBeInTheDocument()
-      })
-    })
+  it('shows the draft badge and edit link for a superadmin on an unpublished report', async () => {
+    mockAuth = { user: { is_superadmin: true } }
+    mockData(makeReport({ is_published: false, published_at: null }))
+    await renderPage()
+    expect(screen.getByTestId('draft-badge')).toHaveTextContent('Entwurf')
+    expect(screen.getByRole('link', { name: 'Bearbeiten' })).toHaveAttribute('href', '/projects/project-1/report/edit')
+    expect(screen.queryByText(/Veröffentlicht am/)).not.toBeInTheDocument()
   })
 
-  describe('Breadcrumb', () => {
-    it('renders breadcrumb navigation', async () => {
-      mockGetReportData.mockResolvedValue(createMockReportData())
+  it('honours custom texts and section visibility flags', async () => {
+    mockData(
+      makeReport({
+        sections: {
+          project_info: { custom_title: 'Eigener Titel', custom_description: 'Eigene Beschreibung' },
+          data: { visible: false },
+          annotations: { custom_text: 'Eigener Abgabentext', show_participants: false, acknowledgment_text: null },
+          generation: { custom_text: 'Eigener Modelltext', show_models: false },
+          evaluation: { visible: false },
+        },
+      }),
+    )
+    await renderPage()
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Eigener Titel')
+    expect(screen.getByText('Eigene Beschreibung')).toBeInTheDocument()
+    expect(screen.queryByTestId('section-data')).not.toBeInTheDocument()
+    expect(screen.getByText('Eigener Abgabentext')).toBeInTheDocument()
+    expect(screen.getByText('Eigener Modelltext')).toBeInTheDocument()
+    expect(screen.queryByTestId('model-chip')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('section-evaluation')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('stat-participants')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('participants-list')).not.toBeInTheDocument()
+  })
 
-      renderPage()
+  it('keeps the annotations section for custom text even with zero submissions', async () => {
+    mockData(
+      makeReport({ sections: { annotations: { custom_text: 'Nur Text' } } }),
+      { ...REPORT_SNAPSHOT_FIXTURE, statistics: { ...REPORT_SNAPSHOT_FIXTURE.statistics, annotation_count: 0, participant_count: 0 } },
+    )
+    await renderPage()
+    expect(screen.getByText('Nur Text')).toBeInTheDocument()
+    expect(screen.queryByTestId('stat-annotations')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('stat-participants')).not.toBeInTheDocument()
+  })
 
-      await waitFor(() => {
-        expect(screen.getByTestId('breadcrumb')).toBeInTheDocument()
-      })
-    })
+  it('shows an in-layout error card with reload and back link', async () => {
+    mockGetReportData.mockRejectedValueOnce(new Error('Kaputt')).mockResolvedValueOnce({ report: makeReport(), snapshot: null })
+    await renderPage()
+    // breadcrumb + fallback title stay around the card
+    expect(screen.getByTestId('breadcrumb')).toHaveTextContent('Berichte')
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Bericht')
+    const card = screen.getByTestId('report-error')
+    expect(card).toHaveTextContent('Der Bericht konnte nicht geladen werden.')
+    expect(card).toHaveTextContent('Kaputt')
+    expect(within(card).getByRole('link', { name: 'Zurück zu den Berichten' })).toHaveAttribute('href', '/reports')
+    fireEvent.click(within(card).getByRole('button', { name: 'Erneut laden' }))
+    await waitFor(() => expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Benchathon 2026'))
+    expect(screen.queryByTestId('report-error')).not.toBeInTheDocument()
+  })
+
+  it('falls back to a generic hint for non-Error rejections', async () => {
+    mockGetReportData.mockRejectedValueOnce('nope')
+    await renderPage()
+    expect(screen.getByTestId('report-error')).toHaveTextContent('Bitte versuchen Sie es in einem Moment erneut.')
+  })
+
+  it('shows not-found inside the error card when the API returns nothing', async () => {
+    mockGetReportData.mockResolvedValueOnce(null)
+    await renderPage()
+    expect(screen.getByTestId('report-error')).toHaveTextContent('Bericht nicht gefunden.')
+  })
+
+  it.each([401, 403])('shows the not-public card with a login link on %s', async (status) => {
+    const err = Object.assign(new Error(`HTTP error! status: ${status}`), { response: { status } })
+    mockGetReportData.mockRejectedValueOnce(err)
+    await renderPage()
+    const card = screen.getByTestId('report-forbidden')
+    expect(card).toHaveTextContent('Dieser Bericht ist nicht öffentlich.')
+    expect(card).toHaveTextContent('Melden Sie sich an')
+    expect(within(card).getByRole('link', { name: 'Anmelden' })).toHaveAttribute('href', '/login?next=%2Freports%2Freport-1')
+    expect(within(card).getByRole('link', { name: 'Zurück zu den Berichten' })).toHaveAttribute('href', '/reports')
+    expect(screen.queryByTestId('report-error')).not.toBeInTheDocument()
+    expect(screen.getByTestId('breadcrumb')).toBeInTheDocument()
+  })
+
+  it('renders the loading card inside the layout', () => {
+    mockGetReportData.mockReturnValue(new Promise(() => {}))
+    render(<ReportViewerPage params={Promise.resolve({ id: 'report-1' })} />)
+    expect(screen.getByTestId('report-loading')).toHaveTextContent('Bericht wird geladen')
+    expect(screen.getByTestId('breadcrumb')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Bericht')
+  })
+})
+
+describe('classifyLoadError', () => {
+  it('detects 401/403 via response.status, status or message text', () => {
+    expect(classifyLoadError(Object.assign(new Error('x'), { response: { status: 403 } }))).toEqual({ forbidden: true, message: null })
+    expect(classifyLoadError(Object.assign(new Error('x'), { status: 401 }))).toEqual({ forbidden: true, message: null })
+    expect(classifyLoadError(new Error('Unauthenticated'))).toEqual({ forbidden: true, message: null })
+    expect(classifyLoadError(new Error('HTTP error! status: 403 - Forbidden'))).toEqual({ forbidden: true, message: null })
+  })
+
+  it('keeps other errors with their message', () => {
+    expect(classifyLoadError(Object.assign(new Error('Boom'), { response: { status: 500 } }))).toEqual({ forbidden: false, message: 'Boom' })
+    expect(classifyLoadError(new Error('HTTP error! status: 404'))).toEqual({ forbidden: false, message: 'HTTP error! status: 404' })
+    expect(classifyLoadError('nope')).toEqual({ forbidden: false, message: null })
+    expect(classifyLoadError(null)).toEqual({ forbidden: false, message: null })
+    expect(classifyLoadError(new Error(''))).toEqual({ forbidden: false, message: null })
   })
 })

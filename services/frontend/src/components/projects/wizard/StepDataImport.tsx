@@ -110,6 +110,7 @@ export function StepDataImport({
                 label: t('dataImport.tabs.structured', 'Klausur erfassen'),
                 content: (
                   <div data-testid="wizard-structured-entry">
+                    {/* eslint-disable-next-line react-hooks/static-components -- slot component resolved by useSlot */}
                     <StructuredEntry
                       data={wizardData}
                       onChange={onWizardChange}

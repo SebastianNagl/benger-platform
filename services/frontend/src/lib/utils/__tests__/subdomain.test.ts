@@ -14,11 +14,40 @@ import {
   getLastOrgSlug,
   getOrgUrl,
   getPrivateUrl,
+  getSisterHostUrl,
   isStudentLockedHost,
   parseSubdomain,
   parseSubdomainFromHost,
   setLastOrgSlug,
 } from '../subdomain'
+
+describe('getSisterHostUrl (benger <-> vertretbar cross-link)', () => {
+  it.each([
+    ['what-a-benger.net', 'https://vertretbar.net'],
+    ['benchathon.what-a-benger.net', 'https://vertretbar.net'],
+    ['staging.what-a-benger.net', 'https://staging.vertretbar.net'],
+    ['vertretbar.net', 'https://what-a-benger.net'],
+    ['www.vertretbar.net', 'https://what-a-benger.net'],
+    ['staging.vertretbar.net', 'https://staging.what-a-benger.net'],
+    ['WHAT-A-BENGER.NET', 'https://vertretbar.net'],
+    ['benger.localhost', 'http://vertretbar.localhost'],
+    ['benger.localhost:3000', 'http://vertretbar.localhost:3000'],
+    ['vertretbar.localhost:3000', 'http://benger.localhost:3000'],
+  ])('%s -> %s', (host, expected) => {
+    expect(getSisterHostUrl(host)).toBe(expected)
+  })
+
+  it.each(['localhost', 'example.org', 'benger.example.org', ''])(
+    'returns null outside the known host pairs (%s)',
+    (host) => {
+      expect(getSisterHostUrl(host)).toBeNull()
+    }
+  )
+
+  it('falls back to window.location (jsdom localhost has no sister)', () => {
+    expect(getSisterHostUrl()).toBeNull()
+  })
+})
 
 describe('isStudentLockedHost (vertretbar)', () => {
   it.each([

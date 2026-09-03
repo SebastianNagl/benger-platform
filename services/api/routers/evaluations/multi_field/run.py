@@ -66,6 +66,17 @@ def _translate_annotator_model_ids(db, project_id, model_ids, annotator_user_ids
     return new_model_ids, new_annotator_ids
 
 
+def _can_launch_evaluation(db, user, project_id: str) -> bool:
+    """Editors (effective ORG_ADMIN / CONTRIBUTOR, incl. the public_role
+    contract) OR real org members of any role (the timed-window access group).
+
+    See the comment at the call site in :func:`run_evaluation`.
+    """
+    return check_project_write_access(db, user, project_id) or check_user_can_edit_project(
+        db, user, project_id, allowed_roles=("ORG_ADMIN", "CONTRIBUTOR", "ANNOTATOR")
+    )
+
+
 @router.post("/run", response_model=EvaluationRunResponse)
 async def run_evaluation(
     http_request: Request,
@@ -91,7 +102,9 @@ async def run_evaluation(
         # Extract organization context for API key resolution (Issue #1180)
         organization_id = resolve_user_org_for_project(current_user, project, db)
 
-        # Check access permissions
+        # Check access permissions (context-aware read gate first, so a stale
+        # / wrong X-Organization-Context still 403s the way every other
+        # project endpoint does).
         org_context = get_org_context_from_request(http_request)
         if not auth_service.check_project_access(
             current_user, project, Permission.PROJECT_VIEW, db, org_context=org_context
@@ -101,9 +114,31 @@ async def run_evaluation(
                 detail="You don't have permission to run evaluations on this project",
             )
 
+        # Launch gate. PROJECT_VIEW admits every signed-in user of a PUBLIC
+        # project (public_role=ANNOTATOR included), and a batch run spends the
+        # org's / creator's judge budget — so a public visitor must not be
+        # able to launch one. Who may:
+        #   - editors: effective ORG_ADMIN / CONTRIBUTOR (creator, superadmin,
+        #     org admins / contributors) — this arm also honours the documented
+        #     public_role contract: a public CONTRIBUTOR visitor may, a public
+        #     ANNOTATOR visitor may not;
+        #   - the timed-window "access group": REAL org members of any role
+        #     (ANNOTATOR included) through an eligible attachment. The
+        #     membership-based check ignores public_role by construction, so a
+        #     non-member never enters through it.
+        if not _can_launch_evaluation(db, current_user, request.project_id):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=(
+                    "Only project members, contributors or admins can run "
+                    "evaluations on this project"
+                ),
+            )
+
         # Timed access window: the access group can only run evaluations while
-        # the window is open (editors exempt). PROJECT_VIEW above admits
-        # non-editors, so this gate is load-bearing here. No-op without a window.
+        # the window is open (editors exempt). The launch gate above still
+        # admits non-editors (org ANNOTATOR members, public CONTRIBUTOR
+        # visitors), so this gate is load-bearing here. No-op without a window.
         enforce_project_write_window(db, current_user, project)
 
         # Validate evaluation configs

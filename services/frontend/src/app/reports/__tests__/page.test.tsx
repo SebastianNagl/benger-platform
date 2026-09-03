@@ -1,18 +1,16 @@
 /**
  * Tests for Reports Listing Page
  *
- * Tests the reports grid display including:
- * - Loading states
- * - Empty state when no reports
- * - Report cards display
- * - Navigation to report details
- * - Permission checks
+ * - Loading / error / empty states keep the page chrome
+ * - Anonymous visitors see the list (public reports) with a sign-in hint
+ * - Visibility badge per card ("Öffentlich" / "Organisation")
+ * - Cards link to /reports/[id]
+ * - No permission gate / redirect
  */
 
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
-// Mock next/navigation
 const mockPush = jest.fn()
 const mockReplace = jest.fn()
 jest.mock('next/navigation', () => ({
@@ -21,9 +19,9 @@ jest.mock('next/navigation', () => ({
     replace: mockReplace,
     prefetch: jest.fn(),
   }),
+  usePathname: () => '/reports',
 }))
 
-// Mock auth context - default to superadmin
 let mockUser: any = { id: 'test-user', is_superadmin: true }
 let mockAuthLoading = false
 jest.mock('@/contexts/AuthContext', () => ({
@@ -33,25 +31,29 @@ jest.mock('@/contexts/AuthContext', () => ({
   }),
 }))
 
-// Mock permissions
-jest.mock('@/utils/permissions', () => ({
-  canAccessReports: (user: any) =>
-    user?.is_superadmin ||
-    user?.org_memberships?.some((m: any) => m.role === 'admin'),
+jest.mock('@/lib/api/reports', () => ({
+  listPublishedReports: jest.fn(),
 }))
 
-// Mock I18n context
+jest.mock('@/components/shared/Breadcrumb', () => ({
+  Breadcrumb: ({ items }: any) => (
+    <nav data-testid="breadcrumb">
+      {items.map((item: any, i: number) => (
+        <span key={i}>{item.label}</span>
+      ))}
+    </nav>
+  ),
+}))
+
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
-    t: (key: string) => {
+    t: (key: string, fallback?: any) => {
       const translations: Record<string, string> = {
-        'common.loading': 'Loading...',
-        'common.accessDenied': 'Access Denied',
-        'common.backToProjects': 'Back to Projects',
         'common.retry': 'Retry',
+        'navigation.dashboard': 'Dashboard',
+        'navigation.reports': 'Reports',
         'reports.title': 'Reports',
         'reports.loadFailed': 'Failed to load reports',
-        'reports.accessDeniedMessage': 'Only superadmins and organization admins can access reports.',
         'reports.loadingReports': 'Loading reports...',
         'reports.noReports': 'No Published Reports',
         'reports.noReportsDescription': 'No reports have been published yet.',
@@ -60,47 +62,67 @@ jest.mock('@/contexts/I18nContext', () => ({
         'reports.models': 'models evaluated',
         'reports.published': 'Published',
       }
-      return translations[key] || key
+      if (translations[key]) return translations[key]
+      return typeof fallback === 'string' ? fallback : key
     },
     locale: 'en',
   }),
 }))
 
-// Store fetch mock for tests
-let mockFetch: jest.Mock
+import { listPublishedReports } from '@/lib/api/reports'
+import ReportsPage from '../page'
+
+const mockList = listPublishedReports as jest.Mock
+
+const mockReports = [
+  {
+    id: 'report-1',
+    project_id: 'project-1',
+    project_title: 'Test Project 1',
+    published_at: '2025-01-10T10:00:00Z',
+    task_count: 100,
+    annotation_count: 300,
+    model_count: 3,
+    is_public: true,
+    visibility: 'public',
+    organizations: [{ id: 'org-1', name: 'TUM' }],
+  },
+  {
+    id: 'report-2',
+    project_id: 'project-2',
+    project_title: 'Test Project 2',
+    published_at: '2025-01-11T10:00:00Z',
+    task_count: 50,
+    annotation_count: 0,
+    model_count: 2,
+    is_public: false,
+    visibility: 'organizations',
+    organizations: [{ id: 'org-1', name: 'TUM' }],
+  },
+]
 
 describe('Reports Listing Page', () => {
   beforeEach(() => {
     jest.clearAllMocks()
-    // Reset user to superadmin
     mockUser = { id: 'test-user', is_superadmin: true }
     mockAuthLoading = false
-
-    // Setup fetch mock
-    mockFetch = jest.fn()
-    global.fetch = mockFetch
-  })
-
-  afterEach(() => {
-    jest.restoreAllMocks()
   })
 
   describe('Loading State', () => {
-    it('shows loading state while checking auth', async () => {
+    it('shows the loading state (with page title) while auth is checked', () => {
       mockAuthLoading = true
-
-      const ReportsPage = (await import('../page')).default
 
       render(<ReportsPage />)
 
-      expect(screen.getByText(/loading/i)).toBeInTheDocument()
+      expect(screen.getByTestId('reports-loading')).toBeInTheDocument()
+      expect(
+        screen.getByRole('heading', { level: 1, name: 'Reports' })
+      ).toBeInTheDocument()
+      expect(mockList).not.toHaveBeenCalled()
     })
 
-    it('shows loading state while fetching reports', async () => {
-      // Never resolving fetch
-      mockFetch.mockImplementation(() => new Promise(() => {}))
-
-      const ReportsPage = (await import('../page')).default
+    it('shows the loading state while fetching reports', async () => {
+      mockList.mockImplementation(() => new Promise(() => {}))
 
       render(<ReportsPage />)
 
@@ -110,265 +132,208 @@ describe('Reports Listing Page', () => {
     })
   })
 
-  describe('Permission Checks', () => {
-    it('redirects non-authorized users', async () => {
-      mockUser = { id: 'test-user', is_superadmin: false }
-
-      const ReportsPage = (await import('../page')).default
+  describe('No permission gate', () => {
+    it('never redirects (annotators, contributors, anonymous all allowed)', async () => {
+      mockUser = { id: 'test-user', is_superadmin: false, role: 'ANNOTATOR' }
+      mockList.mockResolvedValue([])
 
       render(<ReportsPage />)
 
       await waitFor(() => {
-        expect(mockReplace).toHaveBeenCalledWith(
-          '/projects?error=no-permission'
-        )
+        expect(mockList).toHaveBeenCalledTimes(1)
       })
+      expect(mockReplace).not.toHaveBeenCalled()
+      expect(mockPush).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('Anonymous visitors', () => {
+    beforeEach(() => {
+      mockUser = null
     })
 
-    it('allows superadmins to access', async () => {
-      mockUser = { id: 'test-user', is_superadmin: true }
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: async () => [],
-      })
-
-      const ReportsPage = (await import('../page')).default
+    it('loads and shows public reports with a sign-in hint and no breadcrumb', async () => {
+      mockList.mockResolvedValue([mockReports[0]])
 
       render(<ReportsPage />)
 
       await waitFor(() => {
-        expect(mockReplace).not.toHaveBeenCalled()
+        expect(screen.getByText('Test Project 1')).toBeInTheDocument()
       })
+      expect(mockList).toHaveBeenCalledTimes(1)
+      expect(screen.queryByTestId('breadcrumb')).not.toBeInTheDocument()
+      const signIn = screen.getByRole('link', { name: 'Anmelden' })
+      expect(signIn).toHaveAttribute('href', '/login?next=%2Freports')
+      expect(mockReplace).not.toHaveBeenCalled()
     })
 
-    it('allows org admins to access', async () => {
-      mockUser = {
-        id: 'test-user',
-        is_superadmin: false,
-        org_memberships: [{ organization_id: 'org-1', role: 'admin' }],
-      }
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: async () => [],
-      })
-
-      const ReportsPage = (await import('../page')).default
+    it('shows the public-specific empty state', async () => {
+      mockList.mockResolvedValue([])
 
       render(<ReportsPage />)
 
       await waitFor(() => {
-        expect(mockReplace).not.toHaveBeenCalled()
+        expect(screen.getByTestId('reports-empty')).toBeInTheDocument()
       })
+      expect(
+        screen.getByText('Derzeit ist kein Bericht öffentlich freigegeben.')
+      ).toBeInTheDocument()
     })
   })
 
   describe('Empty State', () => {
-    it('shows empty state when no reports exist', async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: async () => [],
-      })
-
-      const ReportsPage = (await import('../page')).default
+    it('keeps the page chrome and shows the empty state', async () => {
+      mockList.mockResolvedValue([])
 
       render(<ReportsPage />)
 
       await waitFor(() => {
         expect(screen.getByText(/no published reports/i)).toBeInTheDocument()
       })
+      expect(
+        screen.getByRole('heading', { level: 1, name: 'Reports' })
+      ).toBeInTheDocument()
+      expect(screen.getByTestId('breadcrumb')).toBeInTheDocument()
+      expect(
+        screen.getByText('No reports have been published yet.')
+      ).toBeInTheDocument()
     })
   })
 
   describe('Reports Display', () => {
-    const mockReports = [
-      {
-        id: 'report-1',
-        project_id: 'project-1',
-        project_title: 'Test Project 1',
-        published_at: '2025-01-10T10:00:00Z',
-        task_count: 100,
-        annotation_count: 300,
-        model_count: 3,
-        organizations: [{ id: 'org-1', name: 'TUM' }],
-      },
-      {
-        id: 'report-2',
-        project_id: 'project-2',
-        project_title: 'Test Project 2',
-        published_at: '2025-01-11T10:00:00Z',
-        task_count: 50,
-        annotation_count: 150,
-        model_count: 2,
-        organizations: [{ id: 'org-1', name: 'TUM' }],
-      },
-    ]
+    beforeEach(() => {
+      mockList.mockResolvedValue(mockReports)
+    })
 
-    it('displays report cards with correct information', async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: async () => mockReports,
-      })
-
-      const ReportsPage = (await import('../page')).default
-
+    it('displays report cards with titles, counts and org chips', async () => {
       render(<ReportsPage />)
 
       await waitFor(() => {
         expect(screen.getByText('Test Project 1')).toBeInTheDocument()
-        expect(screen.getByText('Test Project 2')).toBeInTheDocument()
       })
+      expect(screen.getByText('Test Project 2')).toBeInTheDocument()
+      expect(screen.getByText('100 tasks')).toBeInTheDocument()
+      expect(screen.getByText('50 tasks')).toBeInTheDocument()
+      expect(screen.getByText('300 annotations')).toBeInTheDocument()
+      expect(screen.getByText('3 models evaluated')).toBeInTheDocument()
+      expect(screen.getByText('2 models evaluated')).toBeInTheDocument()
+      expect(screen.getAllByText('TUM').length).toBe(2)
     })
 
-    it('shows task counts on report cards', async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: async () => mockReports,
-      })
+    it('shows the visibility badge per card', async () => {
+      render(<ReportsPage />)
 
-      const ReportsPage = (await import('../page')).default
+      await waitFor(() => {
+        expect(screen.getByTestId('report-card-report-1')).toBeInTheDocument()
+      })
+      expect(
+        within(screen.getByTestId('report-card-report-1')).getByTestId(
+          'report-visibility'
+        )
+      ).toHaveTextContent('Öffentlich')
+      expect(
+        within(screen.getByTestId('report-card-report-2')).getByTestId(
+          'report-visibility'
+        )
+      ).toHaveTextContent('Organisation')
+    })
+
+    it('falls back to is_public when visibility is missing', async () => {
+      mockList.mockResolvedValue([
+        { ...mockReports[0], visibility: undefined, is_public: true },
+      ])
 
       render(<ReportsPage />)
 
       await waitFor(() => {
-        expect(screen.getByText('100 tasks')).toBeInTheDocument()
-        expect(screen.getByText('50 tasks')).toBeInTheDocument()
+        expect(screen.getByTestId('report-visibility')).toHaveTextContent(
+          'Öffentlich'
+        )
       })
     })
 
-    it('shows organization badges', async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: async () => mockReports,
-      })
-
-      const ReportsPage = (await import('../page')).default
-
+    it('shows an intro line', async () => {
       render(<ReportsPage />)
 
       await waitFor(() => {
-        expect(screen.getAllByText('TUM').length).toBeGreaterThan(0)
-      })
-    })
-
-    it('shows model counts', async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: async () => mockReports,
-      })
-
-      const ReportsPage = (await import('../page')).default
-
-      render(<ReportsPage />)
-
-      await waitFor(() => {
-        expect(screen.getByText('3 models evaluated')).toBeInTheDocument()
-        expect(screen.getByText('2 models evaluated')).toBeInTheDocument()
+        expect(screen.getByText(/Veröffentlichte Evaluationsberichte/)).toBeInTheDocument()
       })
     })
   })
 
   describe('Navigation', () => {
-    it('navigates to report detail on card click', async () => {
-      const mockReports = [
-        {
-          id: 'report-1',
-          project_id: 'project-1',
-          project_title: 'Clickable Project',
-          published_at: '2025-01-10T10:00:00Z',
-          task_count: 100,
-          annotation_count: 300,
-          model_count: 3,
-          organizations: [],
-        },
-      ]
-
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: async () => mockReports,
-      })
-
-      const ReportsPage = (await import('../page')).default
+    it('cards link to the report detail page', async () => {
+      mockList.mockResolvedValue(mockReports)
 
       render(<ReportsPage />)
 
       await waitFor(() => {
-        expect(screen.getByText('Clickable Project')).toBeInTheDocument()
+        expect(screen.getByTestId('report-card-report-1')).toBeInTheDocument()
       })
-
-      // Click on the report card
-      const reportCard = screen
-        .getByText('Clickable Project')
-        .closest('div[class*="cursor-pointer"]')
-      if (reportCard) {
-        await userEvent.click(reportCard)
-      }
-
-      await waitFor(() => {
-        expect(mockPush).toHaveBeenCalledWith('/reports/report-1')
-      })
+      expect(screen.getByTestId('report-card-report-1')).toHaveAttribute(
+        'href',
+        '/reports/report-1'
+      )
+      expect(screen.getByTestId('report-card-report-2')).toHaveAttribute(
+        'href',
+        '/reports/report-2'
+      )
     })
   })
 
   describe('Error Handling', () => {
-    it('shows error message on API failure', async () => {
-      mockFetch.mockResolvedValue({
-        ok: false,
-        statusText: 'Internal Server Error',
-      })
-
-      const ReportsPage = (await import('../page')).default
+    it('shows the error card (German message + detail) with an "Erneut laden" button', async () => {
+      mockList.mockRejectedValue(new Error('Internal Server Error'))
 
       render(<ReportsPage />)
 
       await waitFor(() => {
-        expect(screen.getByText(/failed to load reports/i)).toBeInTheDocument()
+        expect(screen.getByTestId('reports-error')).toBeInTheDocument()
       })
+      expect(screen.getByRole('alert')).toHaveTextContent(
+        'Failed to load reports'
+      )
+      expect(screen.getByText('Internal Server Error')).toBeInTheDocument()
+      expect(
+        screen.getByRole('button', { name: 'Erneut laden' })
+      ).toBeInTheDocument()
+      // Chrome stays
+      expect(
+        screen.getByRole('heading', { level: 1, name: 'Reports' })
+      ).toBeInTheDocument()
+      expect(screen.getByTestId('breadcrumb')).toBeInTheDocument()
     })
 
-    it('shows retry button on error', async () => {
-      mockFetch.mockResolvedValue({
-        ok: false,
-        statusText: 'Internal Server Error',
-      })
+    it('does not duplicate the generic message when the error has none', async () => {
+      mockList.mockRejectedValue({})
 
-      const ReportsPage = (await import('../page')).default
+      render(<ReportsPage />)
+
+      await waitFor(() => {
+        expect(screen.getByTestId('reports-error')).toBeInTheDocument()
+      })
+      expect(screen.getAllByText('Failed to load reports')).toHaveLength(1)
+    })
+
+    it('reloads on button click', async () => {
+      mockList
+        .mockRejectedValueOnce(new Error('Error'))
+        .mockResolvedValueOnce([])
 
       render(<ReportsPage />)
 
       await waitFor(() => {
         expect(
-          screen.getByRole('button', { name: /retry/i })
-        ).toBeInTheDocument()
-      })
-    })
-
-    it('retries on button click', async () => {
-      // First call fails
-      mockFetch
-        .mockResolvedValueOnce({
-          ok: false,
-          statusText: 'Error',
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => [],
-        })
-
-      const ReportsPage = (await import('../page')).default
-
-      render(<ReportsPage />)
-
-      await waitFor(() => {
-        expect(
-          screen.getByRole('button', { name: /retry/i })
+          screen.getByRole('button', { name: 'Erneut laden' })
         ).toBeInTheDocument()
       })
 
-      await userEvent.click(screen.getByRole('button', { name: /retry/i }))
+      await userEvent.click(screen.getByRole('button', { name: 'Erneut laden' }))
 
       await waitFor(() => {
-        expect(mockFetch).toHaveBeenCalledTimes(2)
+        expect(mockList).toHaveBeenCalledTimes(2)
       })
+      expect(screen.getByTestId('reports-empty')).toBeInTheDocument()
     })
   })
 })

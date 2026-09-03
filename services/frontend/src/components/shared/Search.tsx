@@ -23,6 +23,8 @@ import {
 import Highlighter from 'react-highlight-words'
 
 import { navigation } from '@/components/layout/Navigation'
+import { useHowToGuides } from '@/lib/howto'
+import { buildSearchIndex, rankSearchResults } from '@/lib/search'
 import { useAuth } from '@/contexts/AuthContext'
 import { useFeatureFlags } from '@/contexts/FeatureFlagContext'
 import { useI18n } from '@/contexts/I18nContext'
@@ -39,70 +41,6 @@ type Autocomplete = AutocompleteApi<
   React.MouseEvent,
   React.KeyboardEvent
 >
-
-// Helper function for fuzzy matching with multilingual support
-function isCloseMatch(word1: string, word2: string): boolean {
-  if (Math.abs(word1.length - word2.length) > 2) return false
-
-  let distance = 0
-  const minLength = Math.min(word1.length, word2.length)
-
-  for (let i = 0; i < minLength; i++) {
-    if (word1[i] !== word2[i]) distance++
-    if (distance > 2) return false
-  }
-
-  return distance <= 1
-}
-
-// Cross-language mapping for search terms
-const CROSS_LANGUAGE_MAPPINGS: Record<string, string[]> = {
-  // English -> German mappings
-  about: ['über', 'über uns', 'ueber'],
-  projects: ['projekte', 'projekt'],
-  tasks: ['aufgaben'],
-  data: ['daten'],
-  management: ['verwaltung', 'management'],
-  evaluation: ['evaluierung', 'bewertung'],
-  architecture: ['architektur'],
-  profile: ['profil'],
-  user: ['benutzer'],
-  dashboard: ['dashboard', 'übersicht'],
-  landing: ['startseite', 'home', 'landing'],
-  reports: ['berichte', 'bericht'],
-  generations: ['generierungen', 'generierung'],
-  'how-to': ['anleitung', 'anleitungen', 'tutorial'],
-  howto: ['anleitung', 'anleitungen', 'tutorial'],
-  organizations: ['organisationen', 'organisation'],
-  guides: ['anleitungen', 'leitfaden', 'tutorials'],
-  models: ['modelle', 'llm', 'sprachmodelle'],
-  llm: ['models', 'modelle', 'language models', 'sprachmodelle'],
-
-  // German -> English mappings
-  über: ['about'],
-  projekte: ['projects'],
-  projekt: ['project'],
-  aufgaben: ['tasks'],
-  daten: ['data'],
-  verwaltung: ['management', 'administration'],
-  evaluierung: ['evaluation'],
-  architektur: ['architecture'],
-  profil: ['profile'],
-  benutzer: ['user'],
-  übersicht: ['dashboard', 'overview'],
-  startseite: ['landing', 'home'],
-  berichte: ['reports'],
-  bericht: ['report', 'reports'],
-  generierungen: ['generations'],
-  generierung: ['generation', 'generations'],
-  anleitung: ['how-to', 'howto', 'guide'],
-  anleitungen: ['how-to', 'guides', 'tutorials'],
-  tutorial: ['how-to', 'tutorial', 'guide'],
-  organisationen: ['organizations'],
-  organisation: ['organization', 'organizations'],
-  modelle: ['models', 'llm'],
-  sprachmodelle: ['language models', 'llm', 'models'],
-}
 
 function useAutocomplete({ onNavigate }: { onNavigate: () => void }) {
   let id = useId()
@@ -132,157 +70,19 @@ function useAutocomplete({ onNavigate }: { onNavigate: () => void }) {
     }
   }
 
-  // Get localized search results
+  // Every registered how-to guide is searchable; the hook re-renders when
+  // the extended package registers its guides after initial load.
+  const guides = useHowToGuides()
+
+  // Get localized search results: the static page index (feature flags +
+  // roles applied) plus the how-to guides — see lib/search for the list.
   const getLocalizedResults = useCallback(() => {
     // Wait for translations to be ready to avoid displaying raw translation keys
     if (!isReady) {
       return []
     }
-
-    const allPages = []
-
-    // BenGER Core
-    allPages.push(
-      {
-        url: '/',
-        title: t('search.pages.landing.title'),
-        description: t('search.pages.landing.description'),
-        category: t('search.categories.benger'),
-      },
-      {
-        url: '/dashboard',
-        title: t('search.pages.dashboard.title'),
-        description: t('search.pages.dashboard.description'),
-        category: t('search.categories.benger'),
-      }
-    )
-
-    // Add Reports if feature flag is enabled
-    if (flags?.reports) {
-      allPages.push({
-        url: '/reports',
-        title: t('search.pages.reports.title'),
-        description: t('search.pages.reports.description'),
-        category: t('search.categories.benger'),
-      })
-    }
-
-    // Add Leaderboards if feature flag is enabled
-    if (flags?.leaderboards) {
-      allPages.push({
-        url: '/leaderboards',
-        title: t('search.pages.leaderboards.title'),
-        description: t('search.pages.leaderboards.description'),
-        category: t('search.categories.benger'),
-      })
-    }
-
-    allPages.push({
-      url: '/architecture',
-      title: t('search.pages.architecture.title'),
-      description: t('search.pages.architecture.description'),
-      category: t('search.categories.benger'),
-    })
-
-    // Projects & Data
-    allPages.push(
-      {
-        url: '/projects',
-        title: t('search.pages.projects.title'),
-        description: t('search.pages.projects.description'),
-        category: t('search.categories.projectsAndData'),
-      },
-      {
-        url: '/projects/create',
-        title: t('search.pages.createProject.title'),
-        description: t('search.pages.createProject.description'),
-        category: t('search.categories.projectsAndData'),
-      }
-    )
-
-    // Add Data Management if feature flag is enabled
-    if (flags?.data) {
-      allPages.push({
-        url: '/data',
-        title: t('search.pages.dataManagement.title'),
-        description: t('search.pages.dataManagement.description'),
-        category: t('search.categories.projectsAndData'),
-      })
-    }
-
-    // Add Generations if feature flag is enabled
-    if (flags?.generations) {
-      allPages.push({
-        url: '/generations',
-        title: t('search.pages.generations.title'),
-        description: t('search.pages.generations.description'),
-        category: t('search.categories.projectsAndData'),
-      })
-    }
-
-    // Add Evaluations if feature flag is enabled
-    if (flags?.evaluations) {
-      allPages.push({
-        url: '/evaluations',
-        title: t('search.pages.evaluations.title'),
-        description: t('search.pages.evaluations.description'),
-        category: t('search.categories.projectsAndData'),
-      })
-    }
-
-    // Knowledge
-    // Add How-To if feature flag is enabled
-    if (flags?.['how-to']) {
-      allPages.push({
-        url: '/how-to',
-        title: t('search.pages.howTo.title'),
-        description: t('search.pages.howTo.description'),
-        category: t('search.categories.knowledge'),
-      })
-    }
-
-    // Add Models page (always available, public page)
-    allPages.push({
-      url: '/models',
-      title: t('search.pages.models.title'),
-      description: t('search.pages.models.description'),
-      category: t('search.categories.knowledge'),
-    })
-
-    // User Management
-    allPages.push({
-      url: '/profile',
-      title: t('search.pages.profile.title'),
-      description: t('search.pages.profile.description'),
-      category: t('search.categories.user'),
-    })
-
-    // Administration (role-based)
-    // Add Organizations for admins
-    if (
-      user?.is_superadmin ||
-      organizations?.some((org: any) => org.role === 'ORG_ADMIN')
-    ) {
-      allPages.push({
-        url: '/organizations',
-        title: t('search.pages.organizations.title'),
-        description: t('search.pages.organizations.description'),
-        category: t('search.categories.administration'),
-      })
-    }
-
-    // User Management for superadmins
-    if (user?.is_superadmin) {
-      allPages.push({
-        url: '/admin/users',
-        title: t('search.pages.userManagement.title'),
-        description: t('search.pages.userManagement.description'),
-        category: t('search.categories.administration'),
-      })
-    }
-
-    return allPages
-  }, [t, flags, user, organizations, isReady])
+    return buildSearchIndex({ t, locale, flags, user, organizations, guides })
+  }, [t, locale, flags, user, organizations, isReady, guides])
 
   // Memoize the localized results to prevent unnecessary re-translations
   const localizedResults = useMemo(() => {
@@ -334,33 +134,6 @@ function useAutocomplete({ onNavigate }: { onNavigate: () => void }) {
     },
     [user, t]
   )
-
-  // Expand query with cross-language terms
-  const expandQueryWithTranslations = (query: string): string[] => {
-    const queryLower = query.toLowerCase()
-    const expandedTerms = [queryLower]
-
-    // Check if the query matches any cross-language mappings
-    Object.entries(CROSS_LANGUAGE_MAPPINGS).forEach(([term, translations]) => {
-      if (queryLower.includes(term.toLowerCase())) {
-        translations.forEach((translation) => {
-          expandedTerms.push(
-            queryLower.replace(term.toLowerCase(), translation)
-          )
-        })
-      }
-    })
-
-    // Also check individual words
-    const words = queryLower.split(/\s+/)
-    words.forEach((word) => {
-      if (CROSS_LANGUAGE_MAPPINGS[word]) {
-        expandedTerms.push(...CROSS_LANGUAGE_MAPPINGS[word])
-      }
-    })
-
-    return [...new Set(expandedTerms)] // Remove duplicates
-  }
 
   // eslint-disable-next-line react-hooks/refs -- Valid: one-time ref initialization in useState initializer
   let [autocomplete] = useState<Autocomplete>(() => {
@@ -414,132 +187,11 @@ function useAutocomplete({ onNavigate }: { onNavigate: () => void }) {
                   ...projectResultsRef.current,
                 ]
 
-                // Expand query with cross-language terms
-                const expandedQueries =
-                  expandQueryWithTranslations(trimmedQuery)
-
-                // Multi-field search with enhanced multilingual relevance scoring
-                const scoredResults = allMockResults.map((result) => {
-                  if (
-                    !result.title ||
-                    !result.description ||
-                    !result.url ||
-                    !result.category
-                  ) {
-                    return null
-                  }
-
-                  let score = 0
-
-                  // Check against all expanded queries
-                  expandedQueries.forEach((queryTerm) => {
-                    const lowerQuery = queryTerm.toLowerCase()
-
-                    // Title matching (highest priority)
-                    if (result.title.toLowerCase() === lowerQuery) {
-                      score += 100
-                    } else if (
-                      result.title.toLowerCase().includes(lowerQuery)
-                    ) {
-                      score += 50
-                    }
-
-                    // Description matching
-                    if (result.description.toLowerCase().includes(lowerQuery)) {
-                      score += 25
-                    }
-
-                    // Category matching
-                    if (result.category.toLowerCase().includes(lowerQuery)) {
-                      score += 10
-                    }
-
-                    // URL matching (for direct paths)
-                    if (result.url.toLowerCase().includes(lowerQuery)) {
-                      score += 15
-                    }
-
-                    // Partial and multi-word matches
-                    try {
-                      const titleWords = result.title.toLowerCase().split(/\s+/)
-                      const descWords = result.description
-                        .toLowerCase()
-                        .split(/\s+/)
-                      const queryWords = lowerQuery.split(/\s+/)
-
-                      queryWords.forEach((qWord) => {
-                        if (qWord.length > 0) {
-                          // Partial word matching
-                          if (
-                            titleWords.some((tWord: string) =>
-                              tWord.startsWith(qWord)
-                            )
-                          ) {
-                            score += 15
-                          }
-                          if (
-                            descWords.some((dWord: string) =>
-                              dWord.startsWith(qWord)
-                            )
-                          ) {
-                            score += 5
-                          }
-
-                          // Fuzzy matching for common typos
-                          if (
-                            titleWords.some((tWord: string) =>
-                              isCloseMatch(tWord, qWord)
-                            )
-                          ) {
-                            score += 8
-                          }
-                        }
-                      })
-                    } catch (error) {
-                      console.warn('Error in word matching:', error)
-                    }
-                  })
-
-                  return score > 0 ? { ...result, score } : null
-                })
-
-                // Filter out null results
-                const validResults = scoredResults.filter(
-                  (
-                    result
-                  ): result is {
-                    url: string
-                    title: string
-                    description: string
-                    category: string
-                    score: number
-                  } => result !== null && result.score > 0
-                )
-
-                // Role-based filtering
-                const filteredResults = validResults.filter((result) => {
-                  if (
-                    !result.url ||
-                    !result.title ||
-                    typeof result.url !== 'string'
-                  ) {
-                    return false
-                  }
-
-                  // Filter admin pages for non-superadmin users
-                  if (
-                    result.category === t('search.categories.administration')
-                  ) {
-                    return user?.is_superadmin
-                  }
-                  return true
-                })
-
-                // Sort by relevance score (descending) and return top 5 results
-                return filteredResults
-                  .sort((a, b) => b.score - a.score)
-                  .slice(0, 5)
-                  .map(({ score, ...result }) => result) // Remove score from final results
+                // Cross-language expansion, multi-field scoring (title,
+                // description, category, url, keywords) and role filtering
+                // happen in lib/search; superadmin-only pages are never in
+                // the index for other users.
+                return rankSearchResults(allMockResults, trimmedQuery, 8)
               } catch (error) {
                 console.error('Search error:', error)
                 // Return graceful fallback results from ref

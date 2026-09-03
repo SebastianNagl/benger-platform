@@ -140,7 +140,6 @@ jest.mock('@algolia/autocomplete-core', () => {
   }
 })
 
-// eslint-disable-next-line import/first
 import { Search } from '../Search'
 
 describe('Search onStateChange -> searchProjects debounce', () => {

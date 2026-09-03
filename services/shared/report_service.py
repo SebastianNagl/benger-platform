@@ -119,7 +119,7 @@ def create_initial_report_draft(db: Session, project_id: str, user_id: str) -> P
     initial_content = {
         "sections": {
             "project_info": {
-                "title": f"In Project {project.title} We investigated {project.description or 'various aspects'}",
+                "title": project.title,
                 "description": project.description or "",
                 "custom_title": None,
                 "custom_description": None,
@@ -788,7 +788,7 @@ def create_or_update_report_from_existing_data(
 
     # 1. Project Info Section (always present)
     content["sections"]["project_info"] = {
-        "title": f"In Project {project.title} We investigated {project.description or 'various aspects'}",
+        "title": project.title,
         "description": project.description or "",
         "custom_title": content.get("sections", {}).get("project_info", {}).get("custom_title"),
         "custom_description": content.get("sections", {})

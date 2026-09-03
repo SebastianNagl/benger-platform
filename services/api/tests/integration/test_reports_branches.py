@@ -34,7 +34,7 @@ from datetime import datetime, timezone
 
 import pytest
 
-from auth_module.dependencies import require_user
+from auth_module.dependencies import optional_user, require_user
 from auth_module.models import User as AuthUser
 from main import app
 from models import Organization, OrganizationMembership, User
@@ -63,10 +63,13 @@ def _as_user(db_user: User):
         created_at=db_user.created_at or datetime.now(timezone.utc),
     )
     app.dependency_overrides[require_user] = lambda: auth_user
+    # The list/data endpoints take the optional-auth dependency (public reports).
+    app.dependency_overrides[optional_user] = lambda: auth_user
     try:
         yield auth_user
     finally:
         app.dependency_overrides.pop(require_user, None)
+        app.dependency_overrides.pop(optional_user, None)
 
 
 async def _make_user(db, *, is_superadmin=False, username_prefix="rpt") -> User:
@@ -718,8 +721,8 @@ async def test_get_report_data_unpublished_forbidden_for_non_superadmin(
 
 @pytest.mark.asyncio
 async def test_get_report_data_superadmin_draft_ok(async_test_client, async_test_db):
-    """Superadmin can fetch data for a draft report; response carries the
-    statistics / participants / models / evaluation_charts envelope."""
+    """Superadmin can fetch data for a draft report; the response carries the
+    report plus a freshly computed snapshot (statistics inside it)."""
     admin = await _make_user(async_test_db, is_superadmin=True)
     org = await _make_org(async_test_db)
     project = await _create_project(async_test_db, admin, org=org, with_task=True)
@@ -731,11 +734,9 @@ async def test_get_report_data_superadmin_draft_ok(async_test_client, async_test
     assert resp.status_code == 200
     body = resp.json()
     assert body["report"]["id"] == report.id
-    assert "statistics" in body
-    assert body["statistics"]["task_count"] == 1
-    assert "participants" in body
-    assert "models" in body
-    assert "evaluation_charts" in body
+    assert body["snapshot"]["statistics"]["task_count"] == 1
+    assert body["snapshot"]["series"] == []
+    assert body["report"]["content"]["snapshot"]["generated_at"]
 
 
 @pytest.mark.asyncio
@@ -765,6 +766,9 @@ async def test_get_report_data_published_org_member_allowed(async_test_client, a
 
 @pytest.mark.asyncio
 async def test_reports_endpoints_require_auth(async_test_client):
-    """No credentials -> 401 on a representative endpoint (require_user gate)."""
-    resp = await async_test_client.get("/api/reports")
+    """No credentials -> 401 on a require_user endpoint. (The public list
+    endpoint deliberately answers anonymous callers with public reports only.)"""
+    resp = await async_test_client.get(f"/api/projects/{_uid()}/report")
     assert resp.status_code == 401
+    listing = await async_test_client.get("/api/reports")
+    assert listing.status_code == 200 and listing.json() == []

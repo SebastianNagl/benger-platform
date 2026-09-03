@@ -101,10 +101,6 @@ export function SignificanceHeatmap({
   }, [modelIds, significanceData])
 
   // eslint-disable-next-line react-hooks/preserve-manual-memoization
-  // eslint-disable-next-line react-hooks/preserve-manual-memoization
-  // eslint-disable-next-line react-hooks/preserve-manual-memoization
-  // eslint-disable-next-line react-hooks/preserve-manual-memoization
-  // eslint-disable-next-line react-hooks/preserve-manual-memoization
   const plotData = useMemo(() => {
     const customData = modelIds.map((modelA, i) =>
       modelIds.map((modelB, j) => {

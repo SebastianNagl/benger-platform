@@ -120,6 +120,77 @@ describe('ConditionalLayout', () => {
     })
   })
 
+  describe('Public report pages (/reports, /reports/[id])', () => {
+    const reportPaths = ['/reports', '/reports/report-123']
+
+    it.each(reportPaths)(
+      'renders %s with the minimal (logged-out) layout when unauthenticated',
+      (path) => {
+        mockUseAuth.mockReturnValue({
+          user: null,
+          isLoading: false,
+          login: jest.fn(),
+          logout: jest.fn(),
+          isInitialized: true,
+        } as any)
+        mockUsePathname.mockReturnValue(path)
+
+        render(
+          <ConditionalLayout allSections={{}}>
+            <div>Report content</div>
+          </ConditionalLayout>
+        )
+
+        expect(screen.getByTestId('minimal-layout')).toBeInTheDocument()
+        expect(screen.queryByTestId('full-layout')).not.toBeInTheDocument()
+        expect(screen.getByText('Report content')).toBeInTheDocument()
+      }
+    )
+
+    it.each(reportPaths)(
+      'renders %s with the full layout when authenticated',
+      (path) => {
+        mockUseAuth.mockReturnValue({
+          user: { id: '1', email: 'test@example.com' },
+          isLoading: false,
+          login: jest.fn(),
+          logout: jest.fn(),
+          isInitialized: true,
+        } as any)
+        mockUsePathname.mockReturnValue(path)
+
+        render(
+          <ConditionalLayout allSections={{}}>
+            <div>Report content</div>
+          </ConditionalLayout>
+        )
+
+        expect(screen.getByTestId('full-layout')).toBeInTheDocument()
+        expect(screen.queryByTestId('minimal-layout')).not.toBeInTheDocument()
+      }
+    )
+
+    it('does not treat a look-alike prefix (/reportsfoo) as public content', () => {
+      mockUseAuth.mockReturnValue({
+        user: null,
+        isLoading: false,
+        login: jest.fn(),
+        logout: jest.fn(),
+        isInitialized: true,
+      } as any)
+      mockUsePathname.mockReturnValue('/reportsfoo')
+
+      render(
+        <ConditionalLayout allSections={{}}>
+          <div>Other content</div>
+        </ConditionalLayout>
+      )
+
+      expect(screen.getByTestId('full-layout')).toBeInTheDocument()
+      expect(screen.queryByTestId('minimal-layout')).not.toBeInTheDocument()
+    })
+  })
+
   describe('Other pages layout behavior', () => {
     describe('dashboard page', () => {
       beforeEach(() => {

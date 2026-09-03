@@ -83,7 +83,7 @@ describe('usePermissions', () => {
       expect(p.canEditTaskData()).toBe(false)
       expect(p.canDeleteProjects()).toBe(false)
       expect(p.canStartGeneration()).toBe(false)
-      expect(p.canAccessReports()).toBe(false)
+      expect(p.canAccessReports()).toBe(true) // reports list is public (API filters)
       expect(p.canMakeProjectPublic(project())).toBe(false)
       expect(p.getEffectiveProjectRole(project())).toBeNull()
       expect(p.isAnnotatorOnly()).toBe(false)
@@ -104,7 +104,7 @@ describe('usePermissions', () => {
         canAccessData: false,
         canDelete: false,
         canStartGeneration: false,
-        canAccessReports: false,
+        canAccessReports: true, // reports list is public (API filters)
         isAnnotatorOnly: false,
         role: 'none',
         isAuthenticated: false,
@@ -199,17 +199,17 @@ describe('usePermissions', () => {
       expect(result.current.canEditTaskData()).toBe(false)
     })
 
-    it('cannot access reports', () => {
+    it('can access the (public) reports list', () => {
       const { result } = renderHook(() => usePermissions())
-      expect(result.current.canAccessReports()).toBe(false)
+      expect(result.current.canAccessReports()).toBe(true) // reports list is public (API filters)
     })
 
-    it('summary reflects CONTRIBUTOR (no reports, no delete)', () => {
+    it('summary reflects CONTRIBUTOR (reports public, no delete)', () => {
       const { result } = renderHook(() => usePermissions())
       expect(result.current.summary).toMatchObject({
         role: 'CONTRIBUTOR',
         canCreate: true,
-        canAccessReports: false,
+        canAccessReports: true, // reports list is public (API filters)
         canDelete: false,
       })
     })
@@ -218,13 +218,13 @@ describe('usePermissions', () => {
   describe('ANNOTATOR', () => {
     beforeEach(() => setUser(makeUser({ role: 'ANNOTATOR' })))
 
-    it('cannot create / access data / start generation / access reports', () => {
+    it('cannot create / access data / start generation; reports list is public', () => {
       const { result } = renderHook(() => usePermissions())
       const p = result.current
       expect(p.canCreateProjects()).toBe(false)
       expect(p.canAccessProjectData()).toBe(false)
       expect(p.canStartGeneration()).toBe(false)
-      expect(p.canAccessReports()).toBe(false)
+      expect(p.canAccessReports()).toBe(true) // reports list is public (API filters)
       expect(p.canEditTaskData()).toBe(false)
     })
 

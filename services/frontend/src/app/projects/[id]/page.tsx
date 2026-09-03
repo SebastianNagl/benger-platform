@@ -144,7 +144,15 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     deleteProject,
   } = useProjectStore()
 
-  const isOrgProject = !!(currentOrganization && currentProject?.organizations?.length)
+  // Only counts when the SELECTED org is one of the project's orgs — the
+  // caller's role in an unrelated org must not unlock the edit UI of a
+  // public project (the backend 403s anyway; this avoids a false affordance).
+  const isOrgProject = !!(
+    currentOrganization &&
+    currentProject?.organizations?.some(
+      (org) => String(org.id) === String(currentOrganization.id)
+    )
+  )
   // Narrow tier: joined via share link / discovery enrollment / org exam.
   // The page then behaves like an annotator's view plus a "Teilnehmer" badge.
   const isParticipant = currentProject?.access_tier === 'participant'
@@ -388,7 +396,9 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   // Report state (Issue #770)
   const [reportStatus, setReportStatus] = useState<{
     exists: boolean
+    reportId: string | null
     isPublished: boolean
+    isPublic: boolean
     canPublish: boolean
     canPublishReason: string
   } | null>(null)
@@ -417,14 +427,18 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
         const data = await response.json()
         setReportStatus({
           exists: true,
+          reportId: data.id ?? null,
           isPublished: data.is_published,
+          isPublic: Boolean(data.is_public),
           canPublish: data.can_publish,
           canPublishReason: data.can_publish_reason,
         })
       } else if (response.status === 404) {
         setReportStatus({
           exists: false,
+          reportId: null,
           isPublished: false,
+          isPublic: false,
           canPublish: false,
           canPublishReason: t('project.settings.review.reportNotCreated'),
         })
@@ -1307,7 +1321,6 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
         if (timer) clearTimeout(timer)
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // Only clear the dirty flag when no newer changes are waiting to flush.
@@ -2869,7 +2882,9 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                   <div className="space-y-4">
                     <PublicationToggle
                       projectId={projectId || ''}
+                      reportId={reportStatus.reportId}
                       isPublished={reportStatus.isPublished}
+                      isPublic={reportStatus.isPublic}
                       canPublish={reportStatus.canPublish}
                       canPublishReason={reportStatus.canPublishReason}
                       onToggle={(published) => {
@@ -2881,6 +2896,17 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                             ? t('project.report.publishedSuccessfully')
                             : t('project.report.unpublishedSuccessfully'),
                           'success'
+                        )
+                      }}
+                      onChange={(next) => {
+                        setReportStatus((prev) =>
+                          prev
+                            ? {
+                                ...prev,
+                                isPublished: next.is_published,
+                                isPublic: next.is_public,
+                              }
+                            : null
                         )
                       }}
                     />

@@ -107,6 +107,10 @@ class ProjectReport(Base):
 
     # Publication status
     is_published = Column(Boolean, default=False, nullable=False, index=True)
+    # Public reports are additionally readable by every signed-in user and by
+    # anonymous visitors (benchmark result pages). Only meaningful while
+    # is_published is true; migration 098.
+    is_public = Column(Boolean, default=False, server_default="false", nullable=False)
     published_at = Column(DateTime(timezone=True), nullable=True)
     published_by = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
 

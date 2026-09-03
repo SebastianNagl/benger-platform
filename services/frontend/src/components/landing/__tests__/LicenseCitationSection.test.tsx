@@ -48,6 +48,12 @@ describe('LicenseCitationSection', () => {
     expect(cards.length).toBeGreaterThanOrEqual(1)
   })
 
+  it('flags the benchmark paper as a preprint accepted at EMNLP 2026', () => {
+    render(<LicenseCitationSection />)
+    // The status is a line of the BibTeX body itself, not a separate label.
+    expect(screen.getByText(/note=\{Preprint, accepted at EMNLP 2026\}/)).toBeInTheDocument()
+  })
+
   it('renders citation cards from locale data', () => {
     render(<LicenseCitationSection />)
     // Should have at least the license card plus citation cards

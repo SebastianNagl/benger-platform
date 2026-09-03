@@ -32,31 +32,31 @@ type BillingMessage =
 export function ProjectBillingCard({ project }: Props) {
   const { t } = useI18n()
   const Extra = useSlot('project-billing-extended')
-  const [message, setMessage] = useState<BillingMessage | null>(null)
+  const [fetched, setFetched] = useState<BillingMessage | null>(null)
 
   const org = project?.organizations?.[0] ?? null
   const orgId = org?.id ?? null
   const orgName = org?.name ?? ''
+  // No org attached: the answer is static, so derive it instead of setting
+  // state from the effect (the async org lookup below is the only setter).
+  const message: BillingMessage | null = orgId ? fetched : { kind: 'personalKey' }
 
   useEffect(() => {
-    if (!orgId) {
-      setMessage({ kind: 'personalKey' })
-      return
-    }
+    if (!orgId) return
     let cancelled = false
     organizationsAPI
       .getOrgApiKeySettings(orgId)
       .then((settings) => {
         if (cancelled) return
         if (settings.require_private_keys === false) {
-          setMessage({ kind: 'orgPays', orgName })
+          setFetched({ kind: 'orgPays', orgName })
         } else {
-          setMessage({ kind: 'personalKey' })
+          setFetched({ kind: 'personalKey' })
         }
       })
       .catch(() => {
         // Non-members can't read org settings — don't guess, don't toast.
-        if (!cancelled) setMessage({ kind: 'dependsOnAccess' })
+        if (!cancelled) setFetched({ kind: 'dependsOnAccess' })
       })
     return () => {
       cancelled = true
@@ -83,6 +83,7 @@ export function ProjectBillingCard({ project }: Props) {
       {line && (
         <p className="text-sm text-zinc-500 dark:text-zinc-400">{line}</p>
       )}
+      {/* eslint-disable-next-line react-hooks/static-components -- slot component resolved by useSlot */}
       {Extra && <Extra project={project} />}
     </div>
   )

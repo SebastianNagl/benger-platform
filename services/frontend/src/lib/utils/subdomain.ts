@@ -51,6 +51,43 @@ export function getHostBrandName(hostname?: string | null): string {
 }
 
 /**
+ * Sister product hosts: the expert/benchmarking interface (what-a-benger.net)
+ * and the student exam interface (vertretbar.net) are two shells over one
+ * deployment. Environments pair up (prod <-> prod, staging <-> staging,
+ * localhost <-> localhost); an org subdomain maps to the sister apex.
+ */
+const SISTER_HOSTS: Record<string, string> = {
+  'what-a-benger.net': 'vertretbar.net',
+  'staging.what-a-benger.net': 'staging.vertretbar.net',
+  'benger.localhost': 'vertretbar.localhost',
+  'vertretbar.net': 'what-a-benger.net',
+  'staging.vertretbar.net': 'staging.what-a-benger.net',
+  'vertretbar.localhost': 'benger.localhost',
+}
+
+/**
+ * Absolute URL of the sister interface for the given (or current) host —
+ * the landing pages cross-link so a visitor who landed on the wrong shell
+ * finds the other one. A dev port is carried over. Returns null for any
+ * host outside the known pairs (community deployments have no sister), so
+ * callers simply hide the link.
+ */
+export function getSisterHostUrl(host?: string | null): string | null {
+  const fromWindow = host == null && typeof window !== 'undefined'
+  const raw = host ?? (fromWindow ? window.location.host : '')
+  if (!raw) return null
+  const [bare, port] = raw.toLowerCase().split(':')
+  const sister = SISTER_HOSTS[getBaseDomainFromHost(bare)]
+  if (!sister) return null
+  const protocol = fromWindow
+    ? window.location.protocol
+    : sister.endsWith('.localhost')
+      ? 'http:'
+      : 'https:'
+  return `${protocol}//${sister}${port ? `:${port}` : ''}`
+}
+
+/**
  * Get the base domain from a hostname string.
  */
 export function getBaseDomainFromHost(hostname: string): string {

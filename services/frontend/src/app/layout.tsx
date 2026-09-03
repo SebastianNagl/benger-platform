@@ -9,19 +9,9 @@ import { headers } from 'next/headers'
 import { isStudentLockedHost } from '@/lib/utils/subdomain'
 
 // Define sections for different pages
-const allSections: Record<string, Array<Section>> = {
-  '/how-to': [
-    { id: 'platform-overview', title: 'Platform Overview' },
-    { id: 'projects', title: 'Projects' },
-    { id: 'data-import', title: 'Data Import' },
-    { id: 'annotation', title: 'Annotation' },
-    { id: 'generation', title: 'Generation' },
-    { id: 'evaluation', title: 'Evaluation' },
-    { id: 'organizations', title: 'Organizations & Roles' },
-    { id: 'api-key-management', title: 'API Key Management' },
-    { id: 'troubleshooting', title: 'Troubleshooting' },
-  ],
-}
+// (The /how-to page owns its own localized table of contents since the
+// 2026-09 rewrite; no page currently needs sidebar sub-sections.)
+const allSections: Record<string, Array<Section>> = {}
 
 // Host-aware metadata: Vertretbar branding on the student-locked apex
 // (vertretbar.net), BenGER everywhere else — resolved server-side from the

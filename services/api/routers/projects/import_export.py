@@ -183,8 +183,9 @@ async def create_export_job(
 ):
     """Create an async export job and enqueue the worker that streams it.
 
-    Read access to the project is required. Returns 202 with the job id; the
-    client polls GET .../{job_id} for status.
+    Write access to the project (effective ORG_ADMIN / CONTRIBUTOR — the
+    roles that see unblinded task data) is required. Returns 202 with the job
+    id; the client polls GET .../{job_id} for status.
 
     Optional body ``{"task_ids": [...]}`` restricts the export to a task subset
     (selected/filtered export). Subset export is json-only — a non-empty
@@ -201,10 +202,22 @@ async def create_export_job(
         db, current_user, project_id, org_context, project=project
     ):
         raise HTTPException(status_code=403, detail="Access denied")
+    # The export worker streams raw ``task.data`` with NO annotator blinding
+    # (reference solutions included), so exporting is reserved for the roles
+    # that see the full payload anyway: effective ORG_ADMIN / CONTRIBUTOR
+    # (the blinding module's full-data roles; public CONTRIBUTOR visitors
+    # keep it per the public_role contract, public ANNOTATOR visitors and org
+    # annotators do not).
+    if not await check_project_write_access_async(db, current_user, project_id):
+        raise HTTPException(
+            status_code=403,
+            detail="Only contributors or admins can export this project",
+        )
 
-    # Timed access window: an export dumps all task data, so the access group
-    # can't export before the window opens (editors exempt). Reads stay open once
-    # open/closed, so post-window export/review still works.
+    # Timed access window: an export dumps all task data, so a non-editor who
+    # passed the write gate (public CONTRIBUTOR visitor) can't export before
+    # the window opens (editors exempt). Reads stay open once open/closed, so
+    # post-window export/review still works.
     await enforce_project_read_window_async(db, current_user, project)
 
     task_ids = (data or {}).get("task_ids")

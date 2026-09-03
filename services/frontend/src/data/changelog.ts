@@ -7,6 +7,70 @@ import type { ChangelogEntry } from '@/lib/extensions/changelog'
  */
 export const PLATFORM_CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-09-03',
+    audience: 'benger',
+    text: {
+      de: 'Öffentliche Projekte abgesichert: Auch bei öffentlichen Projekten können nur noch Mitglieder mit Bearbeitungsrechten die Bewertungskonfiguration ändern, Evaluierungsläufe starten, Aufgaben-Metadaten bearbeiten oder Exporte erzeugen. Außenstehende sehen weiterhin nur, was ihre Rolle erlaubt.',
+      en: 'Public projects hardened: on public projects, only members with edit rights can change the evaluation configuration, launch evaluation runs, edit task metadata or create exports. Outside users still see only what their role allows.',
+    },
+  },
+  {
+    date: '2026-09-02',
+    audience: 'benger',
+    text: {
+      de: 'Berichte neu aufgebaut: Berichte können jetzt öffentlich (auch ohne Anmeldung) veröffentlicht werden, zeigen Modelle mit Anzeigenamen, korrekte Rangfolge und Notenpunkte, trennen Judge-Konfigurationen, und visualisieren die Verteilung der Notenpunkte von Menschen und Modellen. Die Zahlen werden beim Veröffentlichen eingefroren und lassen sich gezielt aktualisieren.',
+      en: 'Reports rebuilt: reports can now be published publicly (readable without signing in), show models by display name with correct ranking and grade points, keep judge configurations apart, and visualize how grade points are distributed across humans and models. Numbers are frozen on publish and can be refreshed deliberately.',
+    },
+  },
+  {
+    date: '2026-09-02',
+    audience: 'benger',
+    text: {
+      de: 'Architektur-Seite aktualisiert: Open-Core-Aufbau (Plattform + Erweiterungen), die zwei Oberflächen BenGER und Vertretbar, Worker-Warteschlangen, Objektspeicher, Gruppen, LTI sowie der aktuelle Deployment- und CI-Ablauf.',
+      en: 'Architecture page updated: open-core structure (platform + extensions), the two interfaces BenGER and Vertretbar, worker queues, object storage, groups, LTI and the current deployment and CI flow.',
+    },
+  },
+  {
+    date: '2026-09-02',
+    audience: 'benger',
+    text: {
+      de: 'Anleitungen neu: Die Seite „Anleitungen" ist jetzt ein durchsuchbarer Katalog kurzer Frage-Antwort-Anleitungen (Organisationen & Gruppen, Projekte, Datenimport, Annotations-XML, API-Schlüssel, Bewertungsverfahren, Moodle/ILIAS, Fehlerbehebung). Die Suche in der Kopfzeile findet jetzt alle Seiten und jede einzelne Anleitung.',
+      en: 'New guides: the "How-to guides" page is now a searchable catalog of short question-and-answer guides (organizations & groups, projects, data import, annotation XML, API keys, evaluation methods, Moodle/ILIAS, troubleshooting). The header search now finds every page and every individual guide.',
+    },
+  },
+  {
+    date: '2026-09-02',
+    audience: 'benger',
+    text: {
+      de: 'Generierung: Platzhalter wie $sachverhalt innerhalb eines Prompt-Textes werden jetzt durch den Aufgabeninhalt ersetzt. Bisher wurde der Platzhalter wörtlich an das Modell geschickt.',
+      en: 'Generation: placeholders such as $sachverhalt inside a prompt text are now replaced with the task content. Previously the placeholder was sent to the model literally.',
+    },
+  },
+  {
+    date: '2026-09-02',
+    audience: 'benger',
+    text: {
+      de: 'Startseite: Der Abschnitt „Gruppe & Netzwerk" führt jetzt alle Beteiligten in einem Block auf; die Benchmark-Zitation ist als Preprint (angenommen bei EMNLP 2026) gekennzeichnet.',
+      en: 'Landing page: the "Group & Network" section now lists everyone involved in one block; the benchmark citation is marked as a preprint accepted at EMNLP 2026.',
+    },
+  },
+  {
+    date: '2026-09-02',
+    audience: 'benger',
+    text: {
+      de: 'Kontextmenü oben rechts: Lange Organisationsnamen werden jetzt einzeilig mit „…" gekürzt (voller Name als Tooltip), statt umzubrechen und das Symbol zu stauchen.',
+      en: 'Top-right context menu: long organization names are now cut to one line with "…" (full name as tooltip) instead of wrapping and squeezing the icon.',
+    },
+  },
+  {
+    date: '2026-09-02',
+    audience: 'benger',
+    text: {
+      de: 'Bestenliste: Der Tab „Klausur-Kohorte" ist entfernt. Menschliche Ranglisten stehen unter „Menschliche Annotatoren", das Kohorten-Ranking je Klausur weiterhin auf der Projektseite. Die Lernstatistik-Seite nutzt jetzt denselben Seitenabstand wie die übrigen Seiten.',
+      en: 'Leaderboards: the "Exam cohort" tab is gone. Human rankings live under "Human Annotators"; the per-exam cohort ranking stays on the project page. The learning statistics page now uses the same page spacing as the other pages.',
+    },
+  },
+  {
     date: '2026-09-01',
     audience: 'benger',
     text: {

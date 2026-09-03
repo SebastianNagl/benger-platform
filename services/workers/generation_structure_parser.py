@@ -274,6 +274,34 @@ class GenerationStructureParser:
 
         return result
 
+    def interpolate_inline_refs(self, text: str, task_data: Dict[str, Any]) -> str:
+        """
+        Replace inline ``$field`` / ``$parent.child`` / ``$items[0]`` references
+        inside a literal prompt with the task values.
+
+        Sensitive fields (reference answers, annotations, …) are never
+        substituted — the reference is replaced with an empty string and a
+        warning is logged, mirroring :meth:`filter_task_data`. Unknown fields
+        are left untouched so a stray ``$`` (e.g. a price) survives intact.
+        """
+        if '$' not in text:
+            return text
+
+        def _replace(match: 're.Match[str]') -> str:
+            field_path = match.group(1)
+            parts = re.split(r'[.\[]', field_path)
+            if any(part.rstrip(']').lower() in self.SENSITIVE_FIELDS for part in parts):
+                logger.warning(f"Skipping sensitive inline field reference: ${field_path}")
+                return ""
+            value = self.extract_nested_value(task_data, field_path)
+            if value is None:
+                return match.group(0)
+            if isinstance(value, (dict, list)):
+                return json.dumps(value, ensure_ascii=False, indent=2)
+            return str(value)
+
+        return self.VARIABLE_PATTERN.sub(_replace, text)
+
     def filter_task_data(
         self,
         task_data: Dict[str, Any],
@@ -409,8 +437,11 @@ class GenerationStructureParser:
                     return str(value)
                 return ""
             else:
-                # Literal string
-                return prompt_config
+                # Literal string, possibly with inline $field references
+                # ("Sachverhalt:\n$sachverhalt\n\nErstellen Sie …" — the shape the
+                # project wizard writes). Before 2026-09 these were sent to the
+                # model verbatim, placeholder included.
+                return self.interpolate_inline_refs(prompt_config, task_data)
 
         elif isinstance(prompt_config, dict):
             # Template-based prompt

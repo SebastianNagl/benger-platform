@@ -18,8 +18,8 @@ export default function LearningStatsPage() {
   const PersonalAnalyticsPage = useSlot('PersonalAnalyticsPage')
 
   return (
-    <ResponsiveContainer>
-      <div className="mb-6">
+    <ResponsiveContainer size="xl" className="pb-10 pt-8">
+      <div className="mb-4">
         <Breadcrumb
           items={[
             { label: t('navigation.dashboard', 'Dashboard'), href: '/dashboard' },

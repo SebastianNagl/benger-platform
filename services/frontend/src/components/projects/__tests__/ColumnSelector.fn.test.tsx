@@ -25,7 +25,6 @@ jest.mock('@headlessui/react', () => {
   // eslint-disable-next-line react/display-name
   Menu.Button = ({ children, ...rest }: any) => (
     <button data-testid="menu-button">{typeof children === 'function' ? children({}) : children}</button>
-  // eslint-disable-next-line react/display-name
   )
   // eslint-disable-next-line react/display-name
   Menu.Items = ({ children }: any) => <div data-testid="menu-items">{children}</div>

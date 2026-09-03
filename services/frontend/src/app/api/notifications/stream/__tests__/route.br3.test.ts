@@ -173,7 +173,6 @@ describe('notifications/stream route — reader-loop error classification', () =
 
   async function drain(res: Response) {
     const reader = res.body!.getReader()
-    // eslint-disable-next-line no-constant-condition
     while (true) {
       const { done } = await reader.read()
       if (done) break

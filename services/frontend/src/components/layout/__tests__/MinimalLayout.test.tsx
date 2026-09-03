@@ -174,4 +174,17 @@ describe('MinimalLayout', () => {
     const root = container.querySelector('[data-testid="section-provider"] > div')
     expect(root).toHaveClass('min-h-screen', 'w-full', 'flex', 'flex-col', 'bg-white')
   })
+  it('renders app content without the prose wrapper at the wider column when prose={false}', () => {
+    const { container } = render(
+      <MinimalLayout prose={false}>
+        <h2 data-testid="app-heading">Daten</h2>
+      </MinimalLayout>
+    )
+    // Public report pages bring their own components: no typography margins
+    // must be imposed on their headings, and they get the wider column.
+    expect(container.querySelector('.prose')).toBeNull()
+    expect(container.querySelector('main')?.className).toContain('max-w-6xl')
+    expect(screen.getByTestId('app-heading')).toBeInTheDocument()
+  })
+
 })

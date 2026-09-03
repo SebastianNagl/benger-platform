@@ -46,9 +46,9 @@ export function OrganizationSwitcher({
         <Listbox.Button className="relative w-full cursor-default rounded-lg border border-gray-300 bg-white py-2 pl-3 pr-10 text-left shadow-md focus:outline-none focus-visible:border-indigo-500 focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-orange-300 sm:text-sm">
           <span className="flex items-center">
             {selectedOption.id === 'private' ? (
-              <UserIcon className="mr-2 h-5 w-5 text-gray-400" />
+              <UserIcon className="mr-2 h-5 w-5 shrink-0 text-gray-400" />
             ) : (
-              <BuildingOfficeIcon className="mr-2 h-5 w-5 text-gray-400" />
+              <BuildingOfficeIcon className="mr-2 h-5 w-5 shrink-0 text-gray-400" />
             )}
             <span className="block truncate">
               {selectedOption.name}
@@ -77,9 +77,9 @@ export function OrganizationSwitcher({
                 <>
                   <div className="flex items-center">
                     {option.id === 'private' ? (
-                      <UserIcon className="mr-2 h-4 w-4 text-gray-400" />
+                      <UserIcon className="mr-2 h-4 w-4 shrink-0 text-gray-400" />
                     ) : (
-                      <BuildingOfficeIcon className="mr-2 h-4 w-4 text-gray-400" />
+                      <BuildingOfficeIcon className="mr-2 h-4 w-4 shrink-0 text-gray-400" />
                     )}
                     <span
                       className={`block truncate ${

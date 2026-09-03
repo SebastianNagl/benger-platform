@@ -38,6 +38,16 @@ def bulk_export_tasks(
     org_context = get_org_context_from_request(request)
     if not check_project_accessible(db, current_user, project_id, org_context):
         raise HTTPException(status_code=403, detail="Access denied")
+    # The export streams raw ``task.data`` with NO annotator blinding (reference
+    # solutions included), so it is only for users who could see the full
+    # payload anyway: effective ORG_ADMIN / CONTRIBUTOR (the blinding module's
+    # full-data roles). Public ANNOTATOR visitors and org annotators are
+    # blinded on the task endpoints and must not get the unblinded dump here.
+    if not check_project_write_access(db, current_user, project_id):
+        raise HTTPException(
+            status_code=403,
+            detail="Only contributors or admins can export tasks from this project",
+        )
 
     # Capture scalars now — we'll reference them inside the generator after
     # the closure has been handed off to StreamingResponse.

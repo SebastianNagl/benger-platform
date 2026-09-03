@@ -358,10 +358,13 @@ test.describe('Full Project Export/Import Roundtrip (Issue #817)', () => {
     await page.goto('/projects')
     await page.waitForTimeout(2000)
 
-    // Click import button
-    const importButton = page.locator(
-      'button:has-text("Import"), [data-testid="import-project-button"]'
-    )
+    // Click import button. Since the projects header collapsed its secondary
+    // actions into the "Mehr" dropdown (2026-08-26), the import entry lives
+    // inside that menu and must be opened first.
+    const moreButton = page.locator('[data-testid="projects-more-button"]')
+    await expect(moreButton).toBeVisible({ timeout: 10000 })
+    await moreButton.click()
+    const importButton = page.locator('[data-testid="projects-import-button"]')
     await expect(importButton).toBeVisible({ timeout: 10000 })
     await importButton.click()
     await page.waitForTimeout(1000)

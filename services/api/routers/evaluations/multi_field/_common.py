@@ -34,6 +34,8 @@ from routers.evaluations.helpers import celery_app, resolve_user_org_for_project
 from routers.projects.helpers import (
     check_project_accessible,
     check_project_accessible_async,
+    check_project_write_access,
+    check_user_can_edit_project,
     enforce_project_write_window,
     get_org_context_from_request,
 )
@@ -192,6 +194,8 @@ __all__ = [
     # routers.projects.helpers
     "check_project_accessible",
     "check_project_accessible_async",
+    "check_project_write_access",
+    "check_user_can_edit_project",
     "enforce_project_write_window",
     "get_org_context_from_request",
     # services.evaluation.human_eval_runs

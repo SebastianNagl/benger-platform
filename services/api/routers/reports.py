@@ -12,13 +12,14 @@ import logging
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Body, Depends, HTTPException, status
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
 from auth_module import User, require_user
+from auth_module.dependencies import optional_user
 from database import get_async_db
 from models import OrganizationMembership
 from org_groups import attachment_group_clause
@@ -27,12 +28,9 @@ from report_models import ProjectReport
 from report_service import (
     can_publish_report,
     create_or_update_report_from_existing_data,
-    get_evaluation_charts_data,
-    get_report_models,
-    get_report_participants,
-    get_report_statistics,
     get_report_statistics_batch,
 )
+from report_snapshot import build_report_snapshot
 
 logger = logging.getLogger(__name__)
 
@@ -102,6 +100,9 @@ class ReportContent(BaseModel):
 
     sections: Dict[str, Any]
     metadata: Dict[str, Any]
+    # Computed report numbers (see report_snapshot.build_report_snapshot);
+    # written on publish/refresh, rendered verbatim by the viewer.
+    snapshot: Optional[Dict[str, Any]] = None
 
 
 class ReportResponse(BaseModel):
@@ -112,6 +113,7 @@ class ReportResponse(BaseModel):
     project_title: str
     content: ReportContent
     is_published: bool
+    is_public: bool = False
     published_at: Optional[datetime] = None
     published_by: Optional[str] = None
     created_by: str
@@ -127,27 +129,57 @@ class ReportUpdateRequest(BaseModel):
     content: ReportContent
 
 
+class PublishRequest(BaseModel):
+    """Optional publish body: whether the report is public (anonymous readable)."""
+
+    is_public: bool = False
+
+
+class VisibilityRequest(BaseModel):
+    is_public: bool
+
+
 class PublishedReportListItem(BaseModel):
     """List item for published reports"""
 
     id: str
     project_id: str
     project_title: str
-    published_at: datetime
+    published_at: Optional[datetime] = None
     task_count: int
     annotation_count: int
     model_count: int
     organizations: List[Dict[str, str]]
+    is_public: bool = False
+    # 'public' (anyone) or 'organizations' (members of the project's orgs)
+    visibility: str = "organizations"
 
 
 class ReportDataResponse(BaseModel):
-    """Response model for report data with statistics and charts"""
+    """Response model for the viewer: the report row plus its snapshot."""
 
     report: ReportResponse
-    statistics: Dict[str, int]
-    participants: List[Dict[str, Any]]
-    models: List[str]
-    evaluation_charts: Dict[str, Any]
+    snapshot: Optional[Dict[str, Any]] = None
+
+
+def _report_response(
+    report: ProjectReport, project_title: str, can_publish: bool, reason: str
+) -> "ReportResponse":
+    return ReportResponse(
+        id=report.id,
+        project_id=report.project_id,
+        project_title=project_title,
+        content=ReportContent(**report.content),
+        is_published=report.is_published,
+        is_public=bool(getattr(report, "is_public", False)),
+        published_at=report.published_at,
+        published_by=report.published_by,
+        created_by=report.created_by,
+        created_at=report.created_at,
+        updated_at=report.updated_at,
+        can_publish=can_publish,
+        can_publish_reason=reason,
+    )
 
 
 # ============= Sync-service bridges =============
@@ -175,15 +207,10 @@ def _create_or_update_report_sync(sync_db, project_id: str, user_id: str):
     return report.id
 
 
-def _report_data_bundle_sync(sync_db, project_id: str):
-    """Fetch the full report-data aggregation bundle on the bridged sync
-    session (statistics/participants/models/charts/can_publish)."""
-    statistics = get_report_statistics(sync_db, project_id)
-    participants = get_report_participants(sync_db, project_id)
-    models = get_report_models(sync_db, project_id)
-    evaluation_charts = get_evaluation_charts_data(sync_db, project_id)
-    can_publish, reason = can_publish_report(sync_db, project_id)
-    return statistics, participants, models, evaluation_charts, can_publish, reason
+def _build_snapshot_sync(sync_db, project_id: str):
+    """Compute the report snapshot on the bridged sync session (SQL
+    aggregation only — see report_snapshot)."""
+    return build_report_snapshot(sync_db, project_id)
 
 
 def _report_statistics_batch_sync(sync_db, project_ids: List[str]):
@@ -326,20 +353,7 @@ async def get_project_report(
     # Check if report can be published
     can_publish, reason = await db.run_sync(_can_publish_report_sync, project_id)
 
-    return ReportResponse(
-        id=report.id,
-        project_id=report.project_id,
-        project_title=project.title,
-        content=ReportContent(**report.content),
-        is_published=report.is_published,
-        published_at=report.published_at,
-        published_by=report.published_by,
-        created_by=report.created_by,
-        created_at=report.created_at,
-        updated_at=report.updated_at,
-        can_publish=can_publish,
-        can_publish_reason=reason,
-    )
+    return _report_response(report, project.title, can_publish, reason)
 
 
 @router.post("/projects/{project_id}/report", response_model=ReportResponse)
@@ -381,8 +395,13 @@ async def update_project_report(
             detail=f"Report not found for project {project_id}",
         )
 
-    # Update content
-    report.content = update_request.content.model_dump()
+    # Update content. The editor round-trips prose and presentation settings;
+    # the computed snapshot is server-owned and survives a body that omits it.
+    new_content = update_request.content.model_dump()
+    existing = report.content if isinstance(report.content, dict) else {}
+    if new_content.get("snapshot") is None and existing.get("snapshot"):
+        new_content["snapshot"] = existing["snapshot"]
+    report.content = new_content
     report.updated_at = datetime.utcnow()
 
     await db.commit()
@@ -391,32 +410,22 @@ async def update_project_report(
     # Check if report can be published
     can_publish, reason = await db.run_sync(_can_publish_report_sync, project_id)
 
-    return ReportResponse(
-        id=report.id,
-        project_id=report.project_id,
-        project_title=project.title,
-        content=ReportContent(**report.content),
-        is_published=report.is_published,
-        published_at=report.published_at,
-        published_by=report.published_by,
-        created_by=report.created_by,
-        created_at=report.created_at,
-        updated_at=report.updated_at,
-        can_publish=can_publish,
-        can_publish_reason=reason,
-    )
+    return _report_response(report, project.title, can_publish, reason)
 
 
 @router.put("/projects/{project_id}/report/publish", response_model=ReportResponse)
 async def publish_report(
     project_id: str,
+    body: Optional[PublishRequest] = Body(default=None),
     current_user: User = Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ):
     """
     Publish a report (superadmin only)
 
-    Validates that all requirements are met before publishing
+    Validates that all requirements are met, computes the report snapshot
+    (the numbers a published report shows, frozen at this point) and sets
+    the visibility: organizations only (default) or public.
     """
     # Only superadmins can publish reports
     if not current_user.is_superadmin:
@@ -452,28 +461,18 @@ async def publish_report(
             status_code=status.HTTP_400_BAD_REQUEST, detail=f"Cannot publish report: {reason}"
         )
 
-    # Publish the report
+    # Freeze the numbers, then publish
+    snapshot = await db.run_sync(_build_snapshot_sync, project_id)
+    report.content = {**(report.content or {}), "snapshot": snapshot}
     report.is_published = True
+    report.is_public = bool(body.is_public) if body else False
     report.published_at = datetime.utcnow()
     report.published_by = current_user.id
 
     await db.commit()
     await db.refresh(report)
 
-    return ReportResponse(
-        id=report.id,
-        project_id=report.project_id,
-        project_title=project.title,
-        content=ReportContent(**report.content),
-        is_published=report.is_published,
-        published_at=report.published_at,
-        published_by=report.published_by,
-        created_by=report.created_by,
-        created_at=report.created_at,
-        updated_at=report.updated_at,
-        can_publish=can_publish,
-        can_publish_reason=reason,
-    )
+    return _report_response(report, project.title, can_publish, reason)
 
 
 @router.put("/projects/{project_id}/report/unpublish", response_model=ReportResponse)
@@ -514,6 +513,7 @@ async def unpublish_report(
 
     # Unpublish the report
     report.is_published = False
+    report.is_public = False
     report.published_at = None
     report.published_by = None
 
@@ -523,32 +523,92 @@ async def unpublish_report(
     # Check if report can be published
     can_publish, reason = await db.run_sync(_can_publish_report_sync, project_id)
 
-    return ReportResponse(
-        id=report.id,
-        project_id=report.project_id,
-        project_title=project.title,
-        content=ReportContent(**report.content),
-        is_published=report.is_published,
-        published_at=report.published_at,
-        published_by=report.published_by,
-        created_by=report.created_by,
-        created_at=report.created_at,
-        updated_at=report.updated_at,
-        can_publish=can_publish,
-        can_publish_reason=reason,
-    )
+    return _report_response(report, project.title, can_publish, reason)
+
+
+async def _load_project_and_report(db: AsyncSession, project_id: str):
+    project = (
+        await db.execute(select(Project).where(Project.id == project_id))
+    ).scalar_one_or_none()
+    if not project:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"Project {project_id} not found"
+        )
+    report = (
+        await db.execute(
+            select(ProjectReport).where(ProjectReport.project_id == project_id)
+        )
+    ).scalar_one_or_none()
+    if not report:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Report not found for project {project_id}",
+        )
+    return project, report
+
+
+@router.put("/projects/{project_id}/report/visibility", response_model=ReportResponse)
+async def set_report_visibility(
+    project_id: str,
+    body: VisibilityRequest,
+    current_user: User = Depends(require_user),
+    db: AsyncSession = Depends(get_async_db),
+):
+    """Switch a published report between organizations-only and public (superadmin)."""
+    if not current_user.is_superadmin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Only superadmins can change report visibility"
+        )
+    project, report = await _load_project_and_report(db, project_id)
+    if not report.is_published:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Publish the report before changing its visibility",
+        )
+    report.is_public = bool(body.is_public)
+    report.updated_at = datetime.utcnow()
+    await db.commit()
+    await db.refresh(report)
+    can_publish, reason = await db.run_sync(_can_publish_report_sync, project_id)
+    return _report_response(report, project.title, can_publish, reason)
+
+
+@router.post("/projects/{project_id}/report/refresh", response_model=ReportResponse)
+async def refresh_report_snapshot(
+    project_id: str,
+    current_user: User = Depends(require_user),
+    db: AsyncSession = Depends(get_async_db),
+):
+    """Recompute the report snapshot from current data (superadmin).
+
+    Published reports keep their numbers until this is called explicitly, so
+    a benchmark report never changes underneath its readers.
+    """
+    if not current_user.is_superadmin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Only superadmins can refresh reports"
+        )
+    project, report = await _load_project_and_report(db, project_id)
+    snapshot = await db.run_sync(_build_snapshot_sync, project_id)
+    report.content = {**(report.content or {}), "snapshot": snapshot}
+    report.updated_at = datetime.utcnow()
+    await db.commit()
+    await db.refresh(report)
+    can_publish, reason = await db.run_sync(_can_publish_report_sync, project_id)
+    return _report_response(report, project.title, can_publish, reason)
 
 
 @router.get("/reports", response_model=List[PublishedReportListItem])
 async def list_published_reports(
-    current_user: User = Depends(require_user),
+    current_user: Optional[User] = Depends(optional_user),
     db: AsyncSession = Depends(get_async_db),
 ):
     """
-    List all published reports
+    List published reports
 
-    - Superadmins: See all published reports
-    - Org members: See published reports from their organizations
+    - Anonymous visitors: public reports only
+    - Signed-in users: public reports plus published reports of their organizations
+    - Superadmins: every published report
     """
     # Query published reports. Eager-load `.project` (accessed below for the
     # title) via joinedload so the async session never lazy-loads it.
@@ -568,7 +628,9 @@ async def list_published_reports(
     # skipped the filter entirely for org-less users, listing every
     # published report they could never open (the per-report gate denies
     # them) — docstring says org members see their orgs' reports.
-    if not current_user.is_superadmin:
+    if current_user is None:
+        stmt = stmt.where(ProjectReport.is_public == True)  # noqa: E712
+    elif not current_user.is_superadmin:
         proj_id_rows = await db.execute(
             select(ProjectOrganization.project_id)
             .join(
@@ -587,7 +649,12 @@ async def list_published_reports(
             )
         )
         project_ids = [row[0] for row in proj_id_rows.all()]
-        stmt = stmt.where(ProjectReport.project_id.in_(project_ids))
+        stmt = stmt.where(
+            or_(
+                ProjectReport.is_public == True,  # noqa: E712
+                ProjectReport.project_id.in_(project_ids),
+            )
+        )
 
     stmt = stmt.order_by(ProjectReport.published_at.desc())
     reports = (await db.execute(stmt)).scalars().all()
@@ -616,20 +683,32 @@ async def list_published_reports(
 
     result = []
     for report in reports:
-        stats = stats_map.get(
+        stats = dict(stats_map.get(
             report.project_id,
             {"task_count": 0, "annotation_count": 0, "participant_count": 0, "model_count": 0},
-        )
+        ))
+        # A published report shows its frozen snapshot, so the card must count
+        # the same way (hidden private models excluded, numbers as of the
+        # snapshot) — otherwise the list says "22 models" and the page "21".
+        content = report.content if isinstance(report.content, dict) else {}
+        snapshot = content.get("snapshot") if isinstance(content.get("snapshot"), dict) else None
+        if snapshot:
+            snap_stats = snapshot.get("statistics") or {}
+            for key in ("task_count", "annotation_count", "model_count"):
+                if isinstance(snap_stats.get(key), int):
+                    stats[key] = snap_stats[key]
         result.append(
             PublishedReportListItem(
                 id=report.id,
                 project_id=report.project_id,
                 project_title=report.project.title,
-                published_at=report.published_at,
+                published_at=report.published_at or report.updated_at or report.created_at,
                 task_count=stats["task_count"],
                 annotation_count=stats["annotation_count"],
                 model_count=stats["model_count"],
                 organizations=orgs_by_project.get(report.project_id, []),
+                is_public=bool(report.is_public),
+                visibility="public" if report.is_public else "organizations",
             )
         )
 
@@ -639,15 +718,16 @@ async def list_published_reports(
 @router.get("/reports/{report_id}/data", response_model=ReportDataResponse)
 async def get_report_data(
     report_id: str,
-    current_user: User = Depends(require_user),
+    current_user: Optional[User] = Depends(optional_user),
     db: AsyncSession = Depends(get_async_db),
 ):
     """
-    Get complete report data including statistics and charts
+    Report row plus its snapshot for the viewer.
 
-    Only accessible for published reports (or superadmins for drafts)
+    - Public reports: anyone, signed in or not
+    - Published organization reports: members of the project's organizations
+    - Drafts: superadmins only (the snapshot is computed on first view)
     """
-    # Get report. Eager-load `.project` (accessed below for the title).
     report = (
         await db.execute(
             select(ProjectReport)
@@ -661,43 +741,37 @@ async def get_report_data(
             status_code=status.HTTP_404_NOT_FOUND, detail=f"Report {report_id} not found"
         )
 
-    # Check access
-    if not report.is_published and not current_user.is_superadmin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="This report is not published yet"
-        )
-
-    if report.is_published and not current_user.is_superadmin:
+    is_superadmin = bool(current_user and current_user.is_superadmin)
+    if not report.is_published:
+        if not is_superadmin:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN if current_user else status.HTTP_401_UNAUTHORIZED,
+                detail="This report is not published yet",
+            )
+    elif not report.is_public and not is_superadmin:
+        if current_user is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Sign in to view this report",
+            )
         await check_report_access(db, report.project_id, current_user, require_edit=False)
 
-    # Get all data + can_publish via the sync-only aggregation helpers on a
-    # short-lived sync session off the event loop.
-    (
-        statistics,
-        participants,
-        models,
-        evaluation_charts,
-        can_publish,
-        reason,
-    ) = await db.run_sync(_report_data_bundle_sync, report.project_id)
+    content = report.content if isinstance(report.content, dict) else {}
+    snapshot = content.get("snapshot")
+    if snapshot is None and is_superadmin:
+        # Draft preview: compute once and keep it so the editor sees stable numbers.
+        snapshot = await db.run_sync(_build_snapshot_sync, report.project_id)
+        report.content = {**content, "snapshot": snapshot}
+        await db.commit()
+        await db.refresh(report)
+
+    can_publish, reason = (
+        await db.run_sync(_can_publish_report_sync, report.project_id)
+        if is_superadmin
+        else (report.is_published, "published")
+    )
 
     return ReportDataResponse(
-        report=ReportResponse(
-            id=report.id,
-            project_id=report.project_id,
-            project_title=report.project.title,
-            content=ReportContent(**report.content),
-            is_published=report.is_published,
-            published_at=report.published_at,
-            published_by=report.published_by,
-            created_by=report.created_by,
-            created_at=report.created_at,
-            updated_at=report.updated_at,
-            can_publish=can_publish,
-            can_publish_reason=reason,
-        ),
-        statistics=statistics,
-        participants=participants,
-        models=models,
-        evaluation_charts=evaluation_charts,
+        report=_report_response(report, report.project.title, can_publish, reason),
+        snapshot=snapshot,
     )
