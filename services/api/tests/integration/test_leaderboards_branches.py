@@ -632,6 +632,44 @@ class TestLLMLeaderboardAnonymous:
         ids = {r["model_id"] for r in resp.json()["leaderboard"]}
         assert "gpt-anon" in ids
 
+    async def test_anonymous_project_ids_private_project_400_not_500(
+        self, async_test_client, async_test_db
+    ):
+        """An anonymous caller passing ``project_ids`` used to crash the
+        accessible-projects filter (``user.is_superadmin`` on ``None`` → 500).
+        The anonymous scope is public projects only, so a private id is
+        stripped and the strict filter answers 400."""
+        admin = await _make_user(async_test_db, is_superadmin=True)
+        org = await _make_org(async_test_db)
+        await _add_membership(async_test_db, admin, org)
+        p = await _setup_project(async_test_db, admin, org, is_private=True)
+        await async_test_db.commit()
+
+        resp = await async_test_client.get(f"{BASE}/llm-models?project_ids={p.id}")
+        assert resp.status_code == 400, resp.text
+        assert "no accessible project" in resp.json()["detail"]
+
+    async def test_anonymous_project_ids_public_project_allowed(
+        self, async_test_client, async_test_db
+    ):
+        """A public project stays in the anonymous caller's scope (same rule as
+        the no-filter default) and the request succeeds."""
+        admin = await _make_user(async_test_db, is_superadmin=True)
+        org = await _make_org(async_test_db)
+        await _add_membership(async_test_db, admin, org)
+        p = await _setup_project(async_test_db, admin, org)
+        # ck_projects_public_role_required_when_public: set both together.
+        p.is_public = True
+        p.public_role = "ANNOTATOR"
+        await async_test_db.commit()
+
+        with patch(ALLOWLIST_ATTR, ()):
+            resp = await async_test_client.get(
+                f"{BASE}/llm-models?project_ids={p.id}&min_generation_count=0"
+            )
+        assert resp.status_code == 200, resp.text
+        assert "leaderboard" in resp.json()
+
 
 # ===========================================================================
 # GET /llm-models/{model_id}

@@ -4,9 +4,16 @@ import { HeroPattern } from '@/components/shared'
 import { Button } from '@/components/shared/Button'
 import { RotatingText } from '@/components/shared/RotatingText'
 import { useI18n } from '@/contexts/I18nContext'
+import { getSisterHostUrl } from '@/lib/utils/subdomain'
+import { useEffect, useState } from 'react'
 
 export function HeroSection() {
   const { t } = useI18n()
+  // Students who landed on the benchmarking shell get pointed at Vertretbar.
+  // Resolved after mount (host-dependent); null hides the line.
+  const [studentSiteUrl, setStudentSiteUrl] = useState<string | null>(null)
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { setStudentSiteUrl(getSisterHostUrl()) }, [])
 
   return (
     <div className="relative isolate px-4 pt-8 sm:px-6 sm:pt-14 lg:px-8">
@@ -57,6 +64,23 @@ export function HeroSection() {
               </a>
             </p>
           </div>
+
+          {/* Highlight box: the sister interface for students (Vertretbar).
+              Below the CTA block so the primary flow stays untouched. */}
+          {studentSiteUrl && (
+            <a
+              href={studentSiteUrl}
+              data-testid="hero-student-site"
+              className="group mt-10 flex w-full flex-col items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-6 py-5 text-center transition-colors hover:border-emerald-400 hover:bg-emerald-100/70 dark:border-emerald-900 dark:bg-emerald-950/40 dark:hover:border-emerald-700 dark:hover:bg-emerald-950/70 sm:mt-14 sm:flex-row sm:justify-between sm:gap-6 sm:text-left"
+            >
+              <span className="text-base text-emerald-900 dark:text-emerald-200">
+                {t('landing.cta.studentPrompt')}
+              </span>
+              <span className="shrink-0 text-base font-semibold text-emerald-700 group-hover:text-emerald-600 dark:text-emerald-400 dark:group-hover:text-emerald-300">
+                {t('landing.cta.studentLink')} &rarr;
+              </span>
+            </a>
+          )}
         </div>
       </div>
     </div>

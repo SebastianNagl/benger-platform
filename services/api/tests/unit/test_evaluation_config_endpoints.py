@@ -45,7 +45,7 @@ class TestEvaluationConfigEndpoints:
 
     @patch("routers.evaluations.config.get_db")
     @patch("routers.evaluations.config.require_user")
-    @patch("routers.evaluations.config.check_project_accessible")
+    @patch("routers.evaluations.config.auth_service.check_project_access")
     def test_update_config_project_not_found(self, mock_access, mock_user, mock_db, client, superadmin):
         from auth_module.service import db_user_to_user
         mock_user.return_value = db_user_to_user(superadmin)
@@ -59,7 +59,7 @@ class TestEvaluationConfigEndpoints:
 
     @patch("routers.evaluations.config.get_db")
     @patch("routers.evaluations.config.require_user")
-    @patch("routers.evaluations.config.check_project_accessible")
+    @patch("routers.evaluations.config.auth_service.check_project_access")
     def test_detect_answer_types_not_found(self, mock_access, mock_user, mock_db, client, superadmin):
         from auth_module.service import db_user_to_user
         mock_user.return_value = db_user_to_user(superadmin)
@@ -73,7 +73,7 @@ class TestEvaluationConfigEndpoints:
 
     @patch("routers.evaluations.config.get_db")
     @patch("routers.evaluations.config.require_user")
-    @patch("routers.evaluations.config.check_project_accessible")
+    @patch("routers.evaluations.config.auth_service.check_project_access")
     def test_field_types_not_found(self, mock_access, mock_user, mock_db, client, superadmin):
         from auth_module.service import db_user_to_user
         mock_user.return_value = db_user_to_user(superadmin)

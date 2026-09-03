@@ -87,12 +87,14 @@ def _as_user(db_user: User):
 
 @contextmanager
 def _as_current_user(db_user: User):
-    """Override get_current_user (the recalc endpoint's dep) with the DB user."""
+    """Override the recalc endpoint's auth dep (require_user; get_current_user kept for older callers) with the DB user."""
     app.dependency_overrides[get_current_user] = lambda: db_user
+    app.dependency_overrides[require_user] = lambda: db_user
     try:
         yield db_user
     finally:
         app.dependency_overrides.pop(get_current_user, None)
+        app.dependency_overrides.pop(require_user, None)
 
 
 # Patch the sync report/notification wrappers so create/delete never stall on

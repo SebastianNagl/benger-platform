@@ -78,7 +78,7 @@ jest.mock('@/components/shared/Toast', () => ({
 jest.mock('@/lib/extensions/slots', () => ({
   useSlot: (name: string) => {
     if (name === 'ProjectWizardSyntheticEntry') {
-      return ({ checked, onToggle }: any) => (
+      const SyntheticEntryStub = ({ checked, onToggle }: any) => (
         <div data-testid="wizard-feature-synthetic">
           <input
             type="checkbox"
@@ -88,11 +88,13 @@ jest.mock('@/lib/extensions/slots', () => ({
           />
         </div>
       )
+      SyntheticEntryStub.displayName = 'SyntheticEntryStub'
+      return SyntheticEntryStub
     }
     if (name === 'ProjectWizardSyntheticStep') {
       // Mirrors the real step's contract: it receives the wizard state and
       // feeds generated rows back through onChange (pastedData/dataColumns).
-      return ({ data, onChange }: any) => (
+      const SyntheticStepStub = ({ data, onChange }: any) => (
         <div data-testid="synthetic-step-stub">
           <span data-testid="synthetic-step-wired">
             {String(!!data && typeof onChange === 'function')}
@@ -112,6 +114,8 @@ jest.mock('@/lib/extensions/slots', () => ({
           </button>
         </div>
       )
+      SyntheticStepStub.displayName = 'SyntheticStepStub'
+      return SyntheticStepStub
     }
     return null
   },

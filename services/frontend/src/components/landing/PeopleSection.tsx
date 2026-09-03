@@ -23,19 +23,29 @@ interface NetworkPartner {
 export function PeopleSection() {
   const { t } = useI18n()
 
-  const teamPlatform = t('landing.people.teamPlatform') as unknown as TeamMember[]
-  const teamDatasetCore = t('landing.people.teamDatasetCore') as unknown as TeamMember[]
-  const teamDatasetContribution = t('landing.people.teamDatasetContribution') as unknown as TeamMember[]
-  const teamDatasetSenior = t('landing.people.teamDatasetSenior') as unknown as TeamMember[]
-  const acknowledgements = t('landing.people.acknowledgements') as unknown as TeamMember[]
+  // One block: every person from the (historically separate) platform,
+  // dataset, senior-author and acknowledgement lists, each listed once
+  // (first occurrence wins, so a person who leads the project and
+  // contributed to the dataset shows their project role).
+  const lists = [
+    'landing.people.teamPlatform',
+    'landing.people.teamDatasetCore',
+    'landing.people.teamDatasetContribution',
+    'landing.people.teamDatasetSenior',
+    'landing.people.acknowledgements',
+  ]
+  const seen = new Set<string>()
+  const members: TeamMember[] = []
+  for (const key of lists) {
+    const list = t(key) as unknown as TeamMember[]
+    if (!Array.isArray(list)) continue
+    for (const member of list) {
+      if (!member?.name || seen.has(member.name)) continue
+      seen.add(member.name)
+      members.push(member)
+    }
+  }
   const network = t('landing.people.network') as unknown as NetworkPartner[]
-  const platformMembers = Array.isArray(teamPlatform) ? teamPlatform : []
-  const datasetCoreMembers = Array.isArray(teamDatasetCore) ? teamDatasetCore : []
-  const datasetContributionMembers = Array.isArray(teamDatasetContribution)
-    ? teamDatasetContribution
-    : []
-  const datasetSeniorMembers = Array.isArray(teamDatasetSenior) ? teamDatasetSenior : []
-  const acknowledgementsMembers = Array.isArray(acknowledgements) ? acknowledgements : []
   const networkPartners = Array.isArray(network) ? network : []
 
   const renderMemberCard = (member: TeamMember, key: number) => (
@@ -47,18 +57,18 @@ export function PeopleSection() {
             alt={member.name}
             width={56}
             height={56}
-            className="h-14 w-14 flex-shrink-0 rounded-full object-cover"
+            className="h-14 w-14 shrink-0 rounded-full object-cover"
           />
         ) : (
           <div
-            className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-full bg-zinc-200 dark:bg-zinc-700"
+            className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-zinc-200 dark:bg-zinc-700"
             aria-hidden="true"
           >
             <UserIcon className="h-8 w-8 text-zinc-500 dark:text-zinc-400" />
           </div>
         )}
         <div className="min-w-0">
-          <h4 className="truncate font-semibold text-zinc-900 dark:text-white">
+          <h3 className="truncate font-semibold text-zinc-900 dark:text-white">
             {member.url ? (
               <a
                 href={member.url}
@@ -71,11 +81,11 @@ export function PeopleSection() {
             ) : (
               member.name
             )}
-          </h4>
+          </h3>
           <p className="text-sm text-zinc-600 dark:text-zinc-400">
             {member.role}
           </p>
-          <p className="text-xs text-zinc-500 dark:text-zinc-500">
+          <p className="text-xs text-zinc-500 dark:text-zinc-400">
             {member.institution}
           </p>
         </div>
@@ -98,70 +108,17 @@ export function PeopleSection() {
           </p>
         </div>
 
-        {/* Platform Team */}
-        <div className="mt-12">
-          <h3 className="text-xl font-semibold text-zinc-900 dark:text-white">
-            {t('landing.people.teamPlatformTitle')}
-          </h3>
-          <div className="mt-6 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {platformMembers.map((member, i) => renderMemberCard(member, i))}
-          </div>
+        {/* People */}
+        <div className="mt-12 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {members.map((member, i) => renderMemberCard(member, i))}
         </div>
 
-        {/* Dataset Team */}
+        {/* Network partners — same block, logo cards below the people. */}
         <div className="mt-12">
-          <h3 className="text-xl font-semibold text-zinc-900 dark:text-white">
-            {t('landing.people.teamDatasetTitle')}
-          </h3>
-
-          <div className="mt-6">
-            <h4 className="text-sm font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-              {t('landing.people.teamDatasetCoreTitle')}
-            </h4>
-            <div className="mt-3 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {datasetCoreMembers.map((member, i) => renderMemberCard(member, i))}
-            </div>
-          </div>
-
-          <div className="mt-8">
-            <h4 className="text-sm font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-              {t('landing.people.teamDatasetContributionTitle')}
-            </h4>
-            <div className="mt-3 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {datasetContributionMembers.map((member, i) =>
-                renderMemberCard(member, i)
-              )}
-            </div>
-          </div>
-
-          <div className="mt-8">
-            <h4 className="text-sm font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-              {t('landing.people.teamDatasetSeniorTitle')}
-            </h4>
-            <div className="mt-3 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {datasetSeniorMembers.map((member, i) => renderMemberCard(member, i))}
-            </div>
-          </div>
-        </div>
-
-        {/* Acknowledgements */}
-        <div className="mt-12">
-          <h3 className="text-xl font-semibold text-zinc-900 dark:text-white">
-            {t('landing.people.acknowledgementsTitle')}
-          </h3>
-          <div className="mt-6 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {acknowledgementsMembers.map((member, i) =>
-              renderMemberCard(member, i)
-            )}
-          </div>
-        </div>
-
-        {/* Network */}
-        <div className="mt-16">
-          <h3 className="text-xl font-semibold text-zinc-900 dark:text-white">
+          <h3 className="text-sm font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
             {t('landing.people.networkTitle')}
           </h3>
-          <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-4 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
             {networkPartners.map((partner, i) => (
               <Card key={i} className="flex flex-col items-center p-6">
                 <div className="mb-4 flex h-16 w-full items-center justify-center">

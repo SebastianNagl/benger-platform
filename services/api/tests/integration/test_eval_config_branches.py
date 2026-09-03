@@ -417,7 +417,7 @@ class TestUpdateEvaluationConfig:
             },
         )
         assert resp.status_code == 403
-        assert resp.json()["detail"] == "Access denied"
+        assert "permission" in resp.json()["detail"].lower()
 
     def test_valid_update_persists_config(
         self, client, test_db, test_users, auth_headers, test_org

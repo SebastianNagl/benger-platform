@@ -57,6 +57,11 @@ export function ConditionalLayout({
   // Legal pages that should use minimal layout for unauthenticated users
   const legalPages = ['/about/imprint', '/about/data-protection', '/changelog']
 
+  // Public content that is readable without a session and gets the same
+  // logged-out treatment as the legal pages: the published-reports list and
+  // a single report (/reports/[id]). Signed-in users keep the full layout.
+  const publicContentPrefixes = ['/reports']
+
   // Check if the current path is a standalone page
   // For pages with dynamic routes (like /verify-email/[token]), check if path starts with the base
   const isStandalonePage = standalonePages.some((page) => {
@@ -72,8 +77,14 @@ export function ConditionalLayout({
   // Check if current page is a legal page
   const isLegalPage = legalPages.some((page) => pathname === page)
 
-  // Legal pages should use minimal layout for unauthenticated users
-  const shouldUseMinimalLayoutForLegal = isLegalPage && !user
+  // /reports and /reports/<id> (but not e.g. /reportsfoo)
+  const isPublicContentPage = publicContentPrefixes.some(
+    (prefix) => pathname === prefix || pathname?.startsWith(`${prefix}/`)
+  )
+
+  // Legal + public content pages use the minimal layout for unauthenticated users
+  const shouldUseMinimalLayoutForLegal =
+    (isLegalPage || isPublicContentPage) && !user
 
   // If auth is loading and we're not on a standalone page, show the auth loading state
   // without any layout constraints to ensure proper centering
@@ -101,7 +112,10 @@ export function ConditionalLayout({
         <div className="w-full">{children}</div>
       ) : isMinimalLayoutPage || shouldUseMinimalLayoutForLegal ? (
         /* For MDX standalone pages and unauthenticated legal pages, use minimal layout with SectionProvider */
-        <MinimalLayout sections={allSections[pathname || '/'] ?? []}>
+        <MinimalLayout
+          sections={allSections[pathname || '/'] ?? []}
+          prose={!isPublicContentPage}
+        >
           {children}
         </MinimalLayout>
       ) : (

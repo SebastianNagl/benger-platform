@@ -284,7 +284,7 @@ class TestUpdateProjectEvaluationConfig:
         app.dependency_overrides[require_user] = lambda: user
         app.dependency_overrides[get_db] = lambda: mock_db
         try:
-            with patch("routers.evaluations.config.check_project_accessible", return_value=False):
+            with patch("routers.evaluations.config.auth_service.check_project_access", return_value=False):
                 resp = client.put(
                     "/api/evaluations/projects/p-1/evaluation-config",
                     json={"selected_methods": {}},
@@ -311,7 +311,7 @@ class TestUpdateProjectEvaluationConfig:
         app.dependency_overrides[require_user] = lambda: user
         app.dependency_overrides[get_db] = lambda: mock_db
         try:
-            with patch("routers.evaluations.config.check_project_accessible", return_value=True):
+            with patch("routers.evaluations.config.auth_service.check_project_access", return_value=True):
                 resp = client.put(
                     "/api/evaluations/projects/p-1/evaluation-config",
                     json={
@@ -341,7 +341,7 @@ class TestUpdateProjectEvaluationConfig:
         app.dependency_overrides[require_user] = lambda: user
         app.dependency_overrides[get_db] = lambda: mock_db
         try:
-            with patch("routers.evaluations.config.check_project_accessible", return_value=True):
+            with patch("routers.evaluations.config.auth_service.check_project_access", return_value=True):
                 resp = client.put(
                     "/api/evaluations/projects/p-1/evaluation-config",
                     json={
@@ -381,7 +381,7 @@ class TestUpdateProjectEvaluationConfig:
         app.dependency_overrides[require_user] = lambda: user
         app.dependency_overrides[get_db] = lambda: mock_db
         try:
-            with patch("routers.evaluations.config.check_project_accessible", return_value=True), \
+            with patch("routers.evaluations.config.auth_service.check_project_access", return_value=True), \
                  patch("sqlalchemy.orm.attributes.flag_modified"):
                 resp = client.put(
                     "/api/evaluations/projects/p-1/evaluation-config",

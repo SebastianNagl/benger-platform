@@ -20,6 +20,9 @@ export const publicRoutes = [
   '/about/imprint', // Imprint page
   '/about/data-protection', // Data protection page
   '/changelog', // Changelog page
+  '/reports', // Published project reports: the list and /reports/[id] are
+  // readable without a session (the API filters to public reports for
+  // anonymous callers); prefix match also covers /reports/<id>.
 ]
 
 /**

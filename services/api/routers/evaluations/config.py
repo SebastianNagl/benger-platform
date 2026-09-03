@@ -19,7 +19,6 @@ from services.evaluation.config import update_project_evaluation_config as gener
 from project_models import Project
 from routers.evaluations.helpers import extract_metric_name
 from routers.projects.helpers import (
-    check_project_accessible,
     check_project_accessible_async,
     get_org_context_from_request,
 )
@@ -346,6 +345,8 @@ async def update_project_evaluation_config(
     Update evaluation configuration for a project.
 
     This endpoint is used to save the user's selection of which evaluation methods to run.
+    Requires edit rights (``Permission.PROJECT_EDIT``), like ``PUT
+    /projects/{id}/generation-config``.
 
     The body is deep-merged into the stored ``evaluation_config`` document
     (same contract as ``PATCH /projects/{id}``): nested dicts merge
@@ -365,9 +366,21 @@ async def update_project_evaluation_config(
                 detail=f"Project '{project_id}' not found",
             )
 
+        # Edit gate — the same mechanism as the sibling
+        # ``PUT /projects/{id}/generation-config``: PROJECT_EDIT is granted to
+        # the creator / superadmin / ORG_ADMIN / CONTRIBUTOR members and
+        # hard-denied to every non-creator on a PUBLIC project, so a signed-in
+        # visitor of a public project (public_role ANNOTATOR *or* CONTRIBUTOR)
+        # cannot rewrite the judge configuration. Read access alone used to
+        # suffice here, which let any public visitor mutate it.
         org_context = get_org_context_from_request(request)
-        if not check_project_accessible(db, current_user, project_id, org_context):
-            raise HTTPException(status_code=403, detail="Access denied")
+        if not auth_service.check_project_access(
+            current_user, project, Permission.PROJECT_EDIT, db, org_context=org_context
+        ):
+            raise HTTPException(
+                status_code=403,
+                detail="You don't have permission to edit this project's evaluation config",
+            )
 
         # Validate selected methods against available methods
         if "selected_methods" in config and "available_methods" in config:

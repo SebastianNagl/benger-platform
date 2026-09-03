@@ -106,9 +106,11 @@ const SubsetShell = ({ parsedConfig, renderComponent }: ModernExamLayoutProps) =
   </div>
 )
 
-let lastSlotProps: ModernExamLayoutProps | null = null
+const recordShell = jest.fn<void, [ModernExamLayoutProps]>()
+const lastSlotProps = (): ModernExamLayoutProps | null =>
+  recordShell.mock.calls.length ? recordShell.mock.calls[recordShell.mock.calls.length - 1][0] : null
 const RecordingShell = (props: ModernExamLayoutProps) => {
-  lastSlotProps = props
+  recordShell(props)
   return <div data-testid="modern-shell" />
 }
 
@@ -132,7 +134,7 @@ describe('DynamicAnnotationInterface modern layout seam', () => {
     process.env[EDITION_KEY] = 'extended'
     mockSlots = { ModernExamLayout: RecordingShell }
     mockUser = { id: 'u1', exam_layout_prefs: MODERN_PREFS }
-    lastSlotProps = null
+    recordShell.mockClear()
     localStorage.clear()
     for (const key of Object.keys(fieldRenderCounts)) delete fieldRenderCounts[key]
   })
@@ -169,11 +171,11 @@ describe('DynamicAnnotationInterface modern layout seam', () => {
     renderInterface({ allowModernLayout: true, readOnly: false })
 
     expect(await screen.findByTestId('modern-shell')).toBeInTheDocument()
-    expect(lastSlotProps).not.toBeNull()
-    expect(lastSlotProps!.parsedConfig.type).toBe('View')
-    expect(typeof lastSlotProps!.renderComponent).toBe('function')
-    expect(lastSlotProps!.prefs).toEqual(MODERN_PREFS)
-    expect(lastSlotProps!.taskId).toBe('task-1')
+    expect(lastSlotProps()).not.toBeNull()
+    expect(lastSlotProps()!.parsedConfig.type).toBe('View')
+    expect(typeof lastSlotProps()!.renderComponent).toBe('function')
+    expect(lastSlotProps()!.prefs).toEqual(MODERN_PREFS)
+    expect(lastSlotProps()!.taskId).toBe('task-1')
     // The platform action bar renders below the slot in the modern branch too.
     expect(screen.getByText('annotation.interface.submit')).toBeInTheDocument()
   })

@@ -89,8 +89,10 @@ describe('isAnnotatorOnly', () => {
 })
 
 describe('canAccessReports', () => {
-  it('should return false for null user', () => {
-    expect(canAccessReports(null)).toBe(false)
+  // The reports list is public: the API filters per caller, the frontend
+  // never gates the page (anonymous visitors see public reports).
+  it('should return true for null (anonymous) user', () => {
+    expect(canAccessReports(null)).toBe(true)
   })
   it('should return true for superadmin', () => {
     expect(canAccessReports(superadmin)).toBe(true)
@@ -98,11 +100,11 @@ describe('canAccessReports', () => {
   it('should return true for ORG_ADMIN', () => {
     expect(canAccessReports(orgAdmin)).toBe(true)
   })
-  it('should return false for contributor', () => {
-    expect(canAccessReports(contributor)).toBe(false)
+  it('should return true for contributor', () => {
+    expect(canAccessReports(contributor)).toBe(true)
   })
-  it('should return false for annotator', () => {
-    expect(canAccessReports(annotator)).toBe(false)
+  it('should return true for annotator', () => {
+    expect(canAccessReports(annotator)).toBe(true)
   })
 })
 

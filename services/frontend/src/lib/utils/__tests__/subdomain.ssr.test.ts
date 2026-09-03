@@ -9,10 +9,22 @@
 import {
   clearLastOrgSlug,
   getLastOrgSlug,
+  getSisterHostUrl,
   setLastOrgSlug,
 } from '../subdomain'
 
 describe('subdomain helpers (SSR)', () => {
+  it('getSisterHostUrl returns null without window and no host', () => {
+    expect(getSisterHostUrl()).toBeNull()
+  })
+
+  it('getSisterHostUrl infers the protocol from an explicit host', () => {
+    expect(getSisterHostUrl('what-a-benger.net')).toBe('https://vertretbar.net')
+    expect(getSisterHostUrl('vertretbar.localhost:3000')).toBe(
+      'http://benger.localhost:3000'
+    )
+  })
+
   it('getLastOrgSlug returns null when document is undefined', () => {
     expect(getLastOrgSlug()).toBeNull()
   })

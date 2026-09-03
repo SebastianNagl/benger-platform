@@ -45,10 +45,26 @@ describe('authRedirect', () => {
         '/about/imprint',
         '/about/data-protection',
         '/changelog',
+        '/reports',
       ]
 
       expect(publicRoutes).toEqual(expectedRoutes)
-      expect(publicRoutes).toHaveLength(13)
+      expect(publicRoutes).toHaveLength(14)
+    })
+
+    it('treats the reports list and a single report as public (no login bounce)', () => {
+      const reportPaths = ['/reports', '/reports/', '/reports/abc-123']
+      reportPaths.forEach((path) => {
+        expect(authRedirect.isPublicRoute(path)).toBe(true)
+        expect(authRedirect.isProtectedRoute(path)).toBe(false)
+
+        jest.clearAllMocks()
+        authRedirect.getRedirectForAuthState(false, path, mockRouter)
+        expect(mockRouter.replace).not.toHaveBeenCalled()
+
+        authRedirect.getRedirectForAuthState(true, path, mockRouter)
+        expect(mockRouter.replace).not.toHaveBeenCalled()
+      })
     })
 
     it('should contain unique routes only', () => {

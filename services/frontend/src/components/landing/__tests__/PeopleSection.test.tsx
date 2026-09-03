@@ -90,14 +90,8 @@ describe('PeopleSection', () => {
 
   const mockT = jest.fn((key: string) => {
     const translations: Record<string, any> = {
-      'landing.people.title': 'People & Network',
+      'landing.people.title': 'Group & Network',
       'landing.people.subtitle': 'Meet the team behind BenGER.',
-      'landing.people.teamPlatformTitle': 'Team — Platform',
-      'landing.people.teamDatasetTitle': 'Team — Dataset',
-      'landing.people.teamDatasetCoreTitle': 'Core Contributor',
-      'landing.people.teamDatasetContributionTitle': 'Dataset Contribution',
-      'landing.people.teamDatasetSeniorTitle': 'Senior Authors',
-      'landing.people.acknowledgementsTitle': 'Acknowledgements',
       'landing.people.networkTitle': 'Network & Partners',
       'landing.people.teamPlatform': mockTeamPlatform,
       'landing.people.teamDatasetCore': mockTeamDatasetCore,
@@ -126,7 +120,7 @@ describe('PeopleSection', () => {
 
     it('renders section title and subtitle', () => {
       render(<PeopleSection />)
-      expect(screen.getByText('People & Network')).toBeInTheDocument()
+      expect(screen.getByText('Group & Network')).toBeInTheDocument()
       expect(
         screen.getByText('Meet the team behind BenGER.')
       ).toBeInTheDocument()
@@ -138,14 +132,10 @@ describe('PeopleSection', () => {
       expect(section).toHaveClass('min-h-screen')
     })
 
-    it('renders team, acknowledgements and network sub-headers', () => {
+    it('renders one block: no team/acknowledgement sub-headers, only the network label', () => {
       render(<PeopleSection />)
-      expect(screen.getByText('Team — Platform')).toBeInTheDocument()
-      expect(screen.getByText('Team — Dataset')).toBeInTheDocument()
-      expect(screen.getByText('Core Contributor')).toBeInTheDocument()
-      expect(screen.getByText('Dataset Contribution')).toBeInTheDocument()
-      expect(screen.getByText('Senior Authors')).toBeInTheDocument()
-      expect(screen.getByText('Acknowledgements')).toBeInTheDocument()
+      expect(screen.queryByText('Team — Platform')).not.toBeInTheDocument()
+      expect(screen.queryByText('Acknowledgements')).not.toBeInTheDocument()
       expect(screen.getByText('Network & Partners')).toBeInTheDocument()
     })
   })
@@ -154,8 +144,15 @@ describe('PeopleSection', () => {
     it('renders correct number of cards', () => {
       render(<PeopleSection />)
       const cards = screen.getAllByTestId('card')
-      // 2 platform + 1 core + 1 contribution + 1 senior + 1 ack + 2 network = 8
-      expect(cards).toHaveLength(8)
+      // People are merged into one list and de-duplicated by name:
+      // Sebastian (platform + dataset core) once, Matthias, Team Member,
+      // Senior Author, Acknowledged Person = 5, plus 2 network = 7.
+      expect(cards).toHaveLength(7)
+    })
+
+    it('lists a person appearing in several source lists only once', () => {
+      render(<PeopleSection />)
+      expect(screen.getAllByText('Sebastian Nagl')).toHaveLength(1)
     })
 
     it('renders team member names', () => {
@@ -236,11 +233,13 @@ describe('PeopleSection', () => {
     it('uses proper heading hierarchy', () => {
       render(<PeopleSection />)
       const h2 = screen.getByRole('heading', { level: 2 })
-      expect(h2).toHaveTextContent('People & Network')
+      expect(h2).toHaveTextContent('Group & Network')
 
+      // One block under the h2: every person name is an h3 (5 unique people
+      // in the mocks) plus the network label — no skipped heading level.
       const h3s = screen.getAllByRole('heading', { level: 3 })
-      // platform + dataset + acknowledgements + network = 4
-      expect(h3s).toHaveLength(4)
+      expect(h3s).toHaveLength(6)
+      expect(screen.getByRole('heading', { level: 3, name: 'Sebastian Nagl' })).toBeInTheDocument()
     })
 
     it('opens external links in new tab safely', () => {
@@ -258,14 +257,6 @@ describe('PeopleSection', () => {
       render(<PeopleSection />)
       expect(mockT).toHaveBeenCalledWith('landing.people.title')
       expect(mockT).toHaveBeenCalledWith('landing.people.subtitle')
-      expect(mockT).toHaveBeenCalledWith('landing.people.teamPlatformTitle')
-      expect(mockT).toHaveBeenCalledWith('landing.people.teamDatasetTitle')
-      expect(mockT).toHaveBeenCalledWith('landing.people.teamDatasetCoreTitle')
-      expect(mockT).toHaveBeenCalledWith(
-        'landing.people.teamDatasetContributionTitle'
-      )
-      expect(mockT).toHaveBeenCalledWith('landing.people.teamDatasetSeniorTitle')
-      expect(mockT).toHaveBeenCalledWith('landing.people.acknowledgementsTitle')
       expect(mockT).toHaveBeenCalledWith('landing.people.networkTitle')
       expect(mockT).toHaveBeenCalledWith('landing.people.teamPlatform')
       expect(mockT).toHaveBeenCalledWith('landing.people.teamDatasetCore')

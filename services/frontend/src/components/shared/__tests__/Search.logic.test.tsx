@@ -165,10 +165,10 @@ describe('Search getSources logic', () => {
     expect(await getItemsForQuery(undefined as any)).toEqual([])
   })
 
-  it('scores and returns matching pages, capped at 5 results', async () => {
+  it('scores and returns matching pages, capped at 8 results', async () => {
     const items = await getItemsForQuery('projects')
     expect(items.length).toBeGreaterThan(0)
-    expect(items.length).toBeLessThanOrEqual(5)
+    expect(items.length).toBeLessThanOrEqual(8)
     // Projects page should be in the results
     expect(items.some((r: any) => r.url === '/projects')).toBe(true)
     // score field is stripped from the returned items

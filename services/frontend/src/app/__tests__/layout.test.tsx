@@ -223,8 +223,9 @@ describe('RootLayout', () => {
       expect(sectionsData).toBeDefined()
 
       const sections = JSON.parse(sectionsData!)
-      expect(sections).toHaveProperty('/how-to')
-      expect(Array.isArray(sections['/how-to'])).toBe(true)
+      // No page defines sidebar sub-sections anymore (the /how-to page owns
+      // its own localized TOC); the prop is still passed, as an empty map.
+      expect(sections).toEqual({})
     })
 
     it('includes DevModeIndicator', () => {
@@ -311,7 +312,7 @@ describe('RootLayout', () => {
   })
 
   describe('Section Configuration', () => {
-    it('defines /how-to sections correctly', () => {
+    it('defines no sidebar sub-sections (the /how-to page owns its own TOC)', () => {
       const { getByTestId } = render(
         <RootLayout>
           <div>Test</div>
@@ -322,79 +323,8 @@ describe('RootLayout', () => {
       const sectionsData = conditionalLayout.getAttribute('data-sections')
       const sections = JSON.parse(sectionsData!)
 
-      expect(sections['/how-to']).toEqual([
-        { id: 'platform-overview', title: 'Platform Overview' },
-        { id: 'projects', title: 'Projects' },
-        { id: 'data-import', title: 'Data Import' },
-        { id: 'annotation', title: 'Annotation' },
-        { id: 'generation', title: 'Generation' },
-        { id: 'evaluation', title: 'Evaluation' },
-        { id: 'organizations', title: 'Organizations & Roles' },
-        { id: 'api-key-management', title: 'API Key Management' },
-        { id: 'troubleshooting', title: 'Troubleshooting' },
-      ])
-    })
-
-    it('includes all required section IDs for /how-to', () => {
-      const { getByTestId } = render(
-        <RootLayout>
-          <div>Test</div>
-        </RootLayout>
-      )
-
-      const conditionalLayout = getByTestId('conditional-layout')
-      const sectionsData = conditionalLayout.getAttribute('data-sections')
-      const sections = JSON.parse(sectionsData!)
-      const howToSections = sections['/how-to']
-
-      const sectionIds = howToSections.map((s: any) => s.id)
-      expect(sectionIds).toContain('platform-overview')
-      expect(sectionIds).toContain('projects')
-      expect(sectionIds).toContain('data-import')
-      expect(sectionIds).toContain('annotation')
-      expect(sectionIds).toContain('generation')
-      expect(sectionIds).toContain('evaluation')
-      expect(sectionIds).toContain('organizations')
-      expect(sectionIds).toContain('api-key-management')
-      expect(sectionIds).toContain('troubleshooting')
-    })
-
-    it('includes all required section titles for /how-to', () => {
-      const { getByTestId } = render(
-        <RootLayout>
-          <div>Test</div>
-        </RootLayout>
-      )
-
-      const conditionalLayout = getByTestId('conditional-layout')
-      const sectionsData = conditionalLayout.getAttribute('data-sections')
-      const sections = JSON.parse(sectionsData!)
-      const howToSections = sections['/how-to']
-
-      const sectionTitles = howToSections.map((s: any) => s.title)
-      expect(sectionTitles).toContain('Platform Overview')
-      expect(sectionTitles).toContain('Projects')
-      expect(sectionTitles).toContain('Data Import')
-      expect(sectionTitles).toContain('Annotation')
-      expect(sectionTitles).toContain('Generation')
-      expect(sectionTitles).toContain('Evaluation')
-      expect(sectionTitles).toContain('Organizations & Roles')
-      expect(sectionTitles).toContain('API Key Management')
-      expect(sectionTitles).toContain('Troubleshooting')
-    })
-
-    it('has correct number of sections for /how-to', () => {
-      const { getByTestId } = render(
-        <RootLayout>
-          <div>Test</div>
-        </RootLayout>
-      )
-
-      const conditionalLayout = getByTestId('conditional-layout')
-      const sectionsData = conditionalLayout.getAttribute('data-sections')
-      const sections = JSON.parse(sectionsData!)
-
-      expect(sections['/how-to']).toHaveLength(9)
+      expect(sections).toEqual({})
+      expect(sections['/how-to']).toBeUndefined()
     })
   })
 

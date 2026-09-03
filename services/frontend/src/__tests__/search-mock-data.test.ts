@@ -1,120 +1,82 @@
 /**
- * Unit test to verify that invalid search results have been removed from Search component
- * Addresses Issue #150: Remove invalid search results causing 404 errors
- *
- * This test directly examines the mock search data to ensure no invalid URLs are present.
+ * Guards the nav-bar search index (lib/search) against dead links.
+ * Addresses Issue #150: invalid search results caused 404s. The index
+ * moved out of the Search component into lib/search/index.ts (2026-09), so
+ * this test reads that file: every static URL must be a real route.
  */
 
-// We'll read the Search component file and extract the mock data to test
 import fs from 'fs'
 import path from 'path'
 
-describe('Search Mock Data - Invalid Results Cleanup', () => {
-  // List of invalid URLs that should NOT appear in search results
-  const invalidUrls = [
-    '/docs',
-    '/api-docs',
-    '/getting-started',
-    '/results',
-    '/admin',
-    '/admin/tasks',
-    '/admin/system',
-    '/settings',
-  ]
+const INVALID_URLS = [
+  '/docs',
+  '/api-docs',
+  '/getting-started',
+  '/results',
+  '/admin',
+  '/admin/tasks',
+  '/admin/system',
+  '/settings',
+]
 
-  // List of valid URLs that SHOULD appear in search results
-  const validUrls = [
-    '/',
-    '/dashboard',
-    '/reports',
-    '/leaderboards',
-    '/architecture',
-    '/projects',
-    '/projects/create',
-    '/data',
-    '/generations',
-    '/evaluations',
-    '/how-to',
-    '/models',
-    '/profile',
-    '/organizations',
-    '/admin/users',
-  ]
+const REQUIRED_URLS = [
+  '/',
+  '/dashboard',
+  '/reports',
+  '/leaderboards',
+  '/runs',
+  '/learning-stats',
+  '/architecture',
+  '/changelog',
+  '/projects',
+  '/projects/create',
+  '/projects/archived',
+  '/data',
+  '/generations',
+  '/evaluations',
+  '/how-to',
+  '/models',
+  '/profile',
+  '/settings/notifications',
+  '/settings/models',
+  '/users-organizations',
+  '/organizations',
+  '/admin/users',
+  '/admin/lti',
+]
 
-  let searchComponentContent: string
+function staticUrls(source: string): string[] {
+  const matches = source.matchAll(/page\(t,\s*'([^']+)'/g)
+  return [...matches].map((m) => m[1])
+}
+
+describe('Search index - static pages are real routes', () => {
+  let source: string
+  let appDir: string
 
   beforeAll(() => {
-    // Read the Search component file
-    const searchFilePath = path.join(
-      __dirname,
-      '../components/shared/Search.tsx'
-    )
-    searchComponentContent = fs.readFileSync(searchFilePath, 'utf-8')
+    source = fs.readFileSync(path.join(__dirname, '../lib/search/index.ts'), 'utf-8')
+    appDir = path.join(__dirname, '../app')
   })
 
-  it('should not contain any invalid URLs in the mock data', () => {
-    // Check that none of the invalid URLs appear in the file
-    invalidUrls.forEach((invalidUrl) => {
-      const urlPattern = new RegExp(
-        `url:\\s*['"\`]${invalidUrl.replace('/', '\\/')}['"\`]`
-      )
-      expect(searchComponentContent).not.toMatch(urlPattern)
+  it('contains no known-dead URLs', () => {
+    const urls = staticUrls(source)
+    INVALID_URLS.forEach((u) => expect(urls).not.toContain(u))
+    expect(source).not.toMatch(/\/api-docs/)
+  })
+
+  it('lists every page users regularly look for', () => {
+    const urls = staticUrls(source)
+    REQUIRED_URLS.forEach((u) => expect(urls).toContain(u))
+  })
+
+  it('every static URL resolves to an app route (page.tsx)', () => {
+    const urls = staticUrls(source)
+    expect(urls.length).toBeGreaterThan(20)
+    urls.forEach((u) => {
+      const route = u === '/' ? '' : u
+      const pagePath = path.join(appDir, route, 'page.tsx')
+      expect({ url: u, exists: fs.existsSync(pagePath) }).toEqual({ url: u, exists: true })
     })
-  })
-
-  it('should still contain all valid URLs in the mock data', () => {
-    // Check that all valid URLs are still present
-    validUrls.forEach((validUrl) => {
-      const urlPattern = new RegExp(
-        `url:\\s*['"\`]${validUrl.replace('/', '\\/')}['"\`]`
-      )
-      expect(searchComponentContent).toMatch(urlPattern)
-    })
-  })
-
-  it('should not contain "API Documentation" text', () => {
-    // Specifically check that the problematic "API Documentation" entry is gone
-    expect(searchComponentContent).not.toMatch(/['"`]API Documentation['"`]/)
-  })
-
-  it('should not contain references to /api-docs', () => {
-    // Make sure no references to the broken /api-docs URL exist
-    expect(searchComponentContent).not.toMatch(/\/api-docs/)
-  })
-
-  it('should have reduced the total number of mock results', () => {
-    // Check that getLocalizedResults function exists and contains the expected URLs
-    expect(searchComponentContent).toContain('getLocalizedResults')
-
-    // Count the number of URL entries in the entire search results
-    const urlMatches = searchComponentContent.match(/url:\s*['"`][^'"`]+['"`]/g)
-    const urlCount = urlMatches ? urlMatches.length : 0
-
-    // Should have exactly 16 valid URLs (15 static + 1 dynamic project template)
-    expect(urlCount).toBe(16)
-  })
-
-  it('should maintain proper JavaScript syntax after cleanup', () => {
-    // Basic syntax check - the file should still be valid JavaScript/TypeScript
-    expect(searchComponentContent).toContain('getLocalizedResults')
-    expect(searchComponentContent).toContain('return [')
-    expect(searchComponentContent).toContain('return allPages')
-    // Check that useCallback dependencies include at least 't' for translations
-    expect(searchComponentContent).toMatch(/\[t,/) // Check function dependencies include t
-  })
-
-  it('should not have any malformed entries after cleanup', () => {
-    // Check that the getLocalizedResults function contains proper structure
-    expect(searchComponentContent).toContain('getLocalizedResults')
-
-    // Check that all remaining entries have the basic required fields
-    expect(searchComponentContent).toContain('url:')
-    expect(searchComponentContent).toContain('title:')
-    expect(searchComponentContent).toContain('description:')
-    expect(searchComponentContent).toContain('category:')
-
-    // Check that translation functions are used properly
-    expect(searchComponentContent).toContain("t('search.pages.")
-    expect(searchComponentContent).toContain("t('search.categories.")
   })
 })

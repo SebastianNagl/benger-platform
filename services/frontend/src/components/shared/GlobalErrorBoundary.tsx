@@ -3,7 +3,9 @@
 import { VertretbarMarkIcon } from '@/components/brand/VertretbarMark'
 import { useI18n } from '@/contexts/I18nContext'
 import { isStudentLockedHost } from '@/lib/utils/subdomain'
-import { Component, ReactNode, useEffect, useState } from 'react'
+import { Component, ReactNode, useSyncExternalStore } from 'react'
+
+const subscribeNoop = () => () => {}
 
 interface Props {
   children: ReactNode
@@ -30,10 +32,9 @@ function GlobalErrorContent({
   const { t } = useI18n()
   // Resolved after mount (same pattern as the auth pages) so the SSR/first
   // paint is deterministic and never hydration-mismatches.
-  const [isVtr, setIsVtr] = useState(false)
-  useEffect(() => {
-    setIsVtr(isStudentLockedHost())
-  }, [])
+  // Host resolved on the client only: the server snapshot stays neutral so
+  // the first paint never hydration-mismatches (no state, no effect needed).
+  const isVtr = useSyncExternalStore(subscribeNoop, isStudentLockedHost, () => false)
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-zinc-50 dark:bg-zinc-900">

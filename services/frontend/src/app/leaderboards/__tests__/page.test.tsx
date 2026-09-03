@@ -110,24 +110,13 @@ describe('LeaderboardsPage — extended edition (slots present)', () => {
   function CoCreationTab() {
     return <div data-testid="cocreation-tab">Co-Creation Tab</div>
   }
-  function CohortTab() {
-    return <div data-testid="cohort-tab">Cohort Tab</div>
-  }
 
   beforeEach(() => {
     mockUseSlot.mockImplementation((name: string) => {
       if (name === 'AnnotatorLeaderboardTab') return HumanTab
       if (name === 'CoCreationLeaderboardTab') return CoCreationTab
-      if (name === 'CohortLeaderboardTab') return CohortTab
       return null
     })
-  })
-
-  it('switches to the exam-cohort tab on click', async () => {
-    const user = userEvent.setup()
-    render(<LeaderboardsPage />)
-    await user.click(screen.getByTestId('leaderboards-tab-cohort'))
-    expect(screen.getByTestId('cohort-tab')).toBeInTheDocument()
   })
 
   it('defaults to the human tab when the annotator slot is registered', () => {

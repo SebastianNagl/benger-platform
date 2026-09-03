@@ -1,5 +1,12 @@
 import { render, screen } from '@testing-library/react'
+import { getSisterHostUrl } from '@/lib/utils/subdomain'
 import { HeroSection } from '../HeroSection'
+
+// Host pair helper: null (no sister host) unless a test says otherwise.
+jest.mock('@/lib/utils/subdomain', () => ({
+  getSisterHostUrl: jest.fn(() => null),
+}))
+const mockGetSisterHostUrl = getSisterHostUrl as jest.Mock
 
 // Mock the dependencies
 jest.mock('@/components/shared/Button', () => ({
@@ -288,5 +295,24 @@ describe('HeroSection', () => {
         .closest('div')
       expect(registerSection).toHaveClass('mt-8', 'sm:mt-12')
     })
+  })
+})
+
+describe('HeroSection — student interface cross-link', () => {
+  it('points students at Vertretbar when the host has a sister host', () => {
+    mockGetSisterHostUrl.mockReturnValueOnce('https://vertretbar.net')
+    render(<HeroSection />)
+    const box = screen.getByTestId('hero-student-site')
+    expect(box).toHaveAttribute('href', 'https://vertretbar.net')
+    expect(box).toHaveTextContent('Are you a student?')
+    expect(box).toHaveTextContent('Switch to Vertretbar, the platform for students')
+    // The whole box is one link, rendered below the register prompt.
+    const prompt = screen.getByText(/have an account/i)
+    expect(prompt.compareDocumentPosition(box) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('renders no cross-link outside the known host pairs', () => {
+    render(<HeroSection />)
+    expect(screen.queryByTestId('hero-student-site')).not.toBeInTheDocument()
   })
 })

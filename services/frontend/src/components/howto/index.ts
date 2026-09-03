@@ -1,1 +1,2 @@
-export { HowToSection } from './HowToSection'
+export { GuideCard } from './GuideCard'
+export { InlineText } from './InlineText'

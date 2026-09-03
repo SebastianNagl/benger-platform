@@ -1,6 +1,8 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useSyncExternalStore } from 'react'
+
+const subscribeNoop = () => () => {}
 
 import { VertretbarMarkIcon } from '@/components/brand/VertretbarMark'
 import { Button } from '@/components/shared/Button'
@@ -19,10 +21,9 @@ export default function GlobalError({
   // provider tree this segment renders WITHOUT I18nProvider, and the bare-key
   // fallback would otherwise show raw `errors.global.*` keys.
   const { t } = useI18n()
-  const [isVtr, setIsVtr] = useState(false)
-  useEffect(() => {
-    setIsVtr(isStudentLockedHost())
-  }, [])
+  // Host resolved on the client only: the server snapshot stays neutral so
+  // the first paint never hydration-mismatches (no state, no effect needed).
+  const isVtr = useSyncExternalStore(subscribeNoop, isStudentLockedHost, () => false)
   // Safely log error to prevent any undefined access
   if (error) {
     try {

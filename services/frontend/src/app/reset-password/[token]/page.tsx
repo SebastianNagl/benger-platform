@@ -25,7 +25,6 @@ export default function ResetPasswordConfirmPage() {
   // so SSR stays neutral; the brief default is the BenGER name on benger hosts.
   const [brandName, setBrandName] = useState('BenGER')
   const [isVtr, setIsVtr] = useState(false)
-  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => {
     setBrandName(getHostBrandName())
     setIsVtr(isStudentLockedHost())

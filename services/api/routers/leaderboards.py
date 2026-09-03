@@ -131,9 +131,24 @@ def _filter_accessible_project_ids(
     """
     if not project_ids:
         return project_ids
-    if user.is_superadmin:
+    if user is not None and user.is_superadmin:
         return project_ids
-    kept = [pid for pid in project_ids if check_project_accessible(db, user, pid, org_context)]
+    if user is None:
+        # Anonymous caller: only public, live projects (same scope as the
+        # no-`project_ids` default in _apply_default_visibility_filter).
+        rows = (
+            db.query(Project.id)
+            .filter(
+                Project.id.in_(project_ids),
+                Project.is_public.is_(True),
+                Project.deleted_at.is_(None),
+            )
+            .all()
+        )
+        public_ids = {row[0] for row in rows}
+        kept = [pid for pid in project_ids if pid in public_ids]
+    else:
+        kept = [pid for pid in project_ids if check_project_accessible(db, user, pid, org_context)]
     if strict and not kept:
         raise HTTPException(
             status_code=400,
@@ -161,10 +176,24 @@ async def _filter_accessible_project_ids_async(
     """
     if not project_ids:
         return project_ids
-    if user.is_superadmin:
+    if user is not None and user.is_superadmin:
         return project_ids
 
     def _keep(sync_db) -> List[str]:
+        if user is None:
+            # Anonymous caller: only public, live projects — the same scope the
+            # no-`project_ids` default uses (see _apply_default_visibility_filter).
+            rows = (
+                sync_db.query(Project.id)
+                .filter(
+                    Project.id.in_(project_ids),
+                    Project.is_public.is_(True),
+                    Project.deleted_at.is_(None),
+                )
+                .all()
+            )
+            public_ids = {row[0] for row in rows}
+            return [pid for pid in project_ids if pid in public_ids]
         return [
             pid
             for pid in project_ids

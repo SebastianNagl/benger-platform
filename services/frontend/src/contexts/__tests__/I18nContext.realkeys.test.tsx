@@ -17,7 +17,6 @@
  * Real keys are read against the bundled de/en translation JSON so the
  * assertions stay in sync with the source of truth.
  */
-/* eslint-disable react-hooks/globals -- capturing hook values for assertions */
 
 import { act, renderHook, waitFor } from '@testing-library/react'
 import React from 'react'

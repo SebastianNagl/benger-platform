@@ -90,7 +90,6 @@ export default function RegisterPage() {
   const [brandName, setBrandName] = useState('BenGER')
   const [isVtr, setIsVtr] = useState(false)
 
-  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { setBrandName(getHostBrandName()); setIsVtr(isStudentLockedHost()) }, [])
   const ResearchConsentSlot = useSlot('signup-step5-consent')
 

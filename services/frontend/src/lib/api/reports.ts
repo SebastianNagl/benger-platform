@@ -4,11 +4,13 @@
  * Provides functions to interact with the report publishing system:
  * - Get project reports (draft or published)
  * - Update report content (superadmin only)
- * - Publish/unpublish reports
- * - List published reports (org-filtered)
- * - Get complete report data with statistics and charts
+ * - Publish/unpublish reports and switch their visibility
+ * - Recompute the report snapshot
+ * - List published reports (public + org-filtered; works anonymously)
+ * - Get complete report data (report + snapshot)
  */
 
+import type { ReportChartsConfig, ReportSnapshot } from '@/types/report'
 import { apiClient } from './client'
 
 // Types matching backend schema
@@ -54,7 +56,7 @@ export interface GenerationSection extends ReportSection {
 export interface EvaluationSection extends ReportSection {
   methods?: string[]
   metrics?: Record<string, any>
-  charts_config?: Record<string, any>
+  charts_config?: ReportChartsConfig
   custom_interpretation?: string | null
   conclusions?: string | null
 }
@@ -72,6 +74,8 @@ export interface ReportContent {
     sections_completed: string[]
     can_publish: boolean
   }
+  /** Server-computed aggregate the viewer renders. Null until refreshed. */
+  snapshot?: ReportSnapshot | null
 }
 
 export interface ReportResponse {
@@ -80,6 +84,8 @@ export interface ReportResponse {
   project_title: string
   content: ReportContent
   is_published: boolean
+  /** Readable without a session (only meaningful while published). */
+  is_public: boolean
   published_at?: string | null
   published_by?: string | null
   created_by: string
@@ -89,6 +95,8 @@ export interface ReportResponse {
   can_publish_reason: string
 }
 
+export type ReportVisibility = 'public' | 'organizations'
+
 export interface PublishedReportListItem {
   id: string
   project_id: string
@@ -97,6 +105,8 @@ export interface PublishedReportListItem {
   task_count: number
   annotation_count: number
   model_count: number
+  is_public: boolean
+  visibility: ReportVisibility
   organizations: Array<{
     id: string
     name: string
@@ -112,35 +122,54 @@ export interface MetricMetadata {
 
 export interface ReportDataResponse {
   report: ReportResponse
-  statistics: {
+  /** The stored snapshot (null when the report was never refreshed). */
+  snapshot: ReportSnapshot | null
+  /** @deprecated Legacy live-aggregation fields (pre-snapshot viewer). */
+  statistics?: {
     task_count: number
     annotation_count: number
     participant_count: number
     model_count: number
   }
-  participants: Array<{
+  /** @deprecated */
+  participants?: Array<{
     id: string
     username: string
     annotation_count: number
   }>
-  models: string[]
-  evaluation_charts: {
+  /** @deprecated */
+  models?: string[]
+  /** @deprecated */
+  evaluation_charts?: {
     by_model: Record<string, Record<string, number>>
     by_method: Record<string, Record<string, number>>
     metric_metadata?: Record<string, MetricMetadata>
   }
 }
 
+export interface PublishReportOptions {
+  /** Publish for everyone (no login) instead of project organizations only. */
+  is_public?: boolean
+}
+
+export interface ReportVisibilityOptions {
+  is_public: boolean
+}
+
+/** The list endpoint is cached by the GET cache; drop it after any publication change. */
+function invalidateReportLists() {
+  apiClient.invalidateCache?.('/reports')
+}
+
 /**
  * Get report for a project
- * - Superadmins can view draft or published reports
+ * - Superadmins can view draft or published reports (incl. content.snapshot)
  * - Org members can view only published reports
  */
 export async function getProjectReport(
   projectId: string
 ): Promise<ReportResponse> {
-  const response = await apiClient.get(`/projects/${projectId}/report`)
-  return response.data
+  return await apiClient.get(`/projects/${projectId}/report`)
 }
 
 /**
@@ -151,21 +180,26 @@ export async function updateProjectReport(
   projectId: string,
   content: ReportContent
 ): Promise<ReportResponse> {
-  const response = await apiClient.post(`/projects/${projectId}/report`, {
-    content,
-  })
-  return response.data
+  return await apiClient.post(`/projects/${projectId}/report`, { content })
 }
 
 /**
  * Publish a report (superadmin only)
- * Validates that all requirements are met before publishing
+ * Validates that all requirements are met before publishing.
+ * Pass `{ is_public: true }` to make it readable without a session.
  */
 export async function publishReport(
-  projectId: string
+  projectId: string,
+  options?: PublishReportOptions
 ): Promise<ReportResponse> {
-  const response = await apiClient.put(`/projects/${projectId}/report/publish`)
-  return response.data
+  const result = await apiClient.put(
+    `/projects/${projectId}/report/publish`,
+    options?.is_public !== undefined
+      ? { is_public: options.is_public }
+      : undefined
+  )
+  invalidateReportLists()
+  return result
 }
 
 /**
@@ -174,27 +208,53 @@ export async function publishReport(
 export async function unpublishReport(
   projectId: string
 ): Promise<ReportResponse> {
-  const response = await apiClient.put(
-    `/projects/${projectId}/report/unpublish`
-  )
-  return response.data
+  const result = await apiClient.put(`/projects/${projectId}/report/unpublish`)
+  invalidateReportLists()
+  return result
 }
 
 /**
- * List all published reports
- * - Superadmins: See all published reports
- * - Org members: See published reports from their organizations
+ * Switch a published report between "project organizations only" and
+ * "public" (superadmin only; the API rejects it for drafts).
+ */
+export async function setReportVisibility(
+  projectId: string,
+  options: ReportVisibilityOptions
+): Promise<ReportResponse> {
+  const result = await apiClient.put(
+    `/projects/${projectId}/report/visibility`,
+    { is_public: options.is_public }
+  )
+  invalidateReportLists()
+  return result
+}
+
+/**
+ * Recompute the report snapshot from live project data (superadmin only).
+ * Returns the report with the fresh `content.snapshot`.
+ */
+export async function refreshReport(
+  projectId: string
+): Promise<ReportResponse> {
+  return await apiClient.post(`/projects/${projectId}/report/refresh`)
+}
+
+/**
+ * List published reports
+ * - Anonymous: public reports only
+ * - Signed in: public reports + published reports of own organizations
+ * - Superadmins: all published reports
  */
 export async function listPublishedReports(): Promise<
   PublishedReportListItem[]
 > {
-  const response = await apiClient.get('/reports')
-  return response.data
+  return await apiClient.get('/reports')
 }
 
 /**
- * Get complete report data including statistics and charts
- * Only accessible for published reports (or superadmins for drafts)
+ * Get complete report data (report + snapshot)
+ * Public reports work anonymously; org reports need membership; drafts are
+ * readable by superadmins.
  */
 export async function getReportData(
   reportId: string

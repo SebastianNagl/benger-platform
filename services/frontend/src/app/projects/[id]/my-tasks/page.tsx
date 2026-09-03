@@ -417,7 +417,6 @@ export default function MyTasksPage() {
       {/* Read-only submission + scores modal (extended slot). Refreshes the
           list on close so any newly-arrived evaluation badge appears. */}
       {ReviewModal && reviewTaskId && (
-        // eslint-disable-next-line react-hooks/static-components
         <ReviewModal
           projectId={projectId}
           taskId={reviewTaskId}

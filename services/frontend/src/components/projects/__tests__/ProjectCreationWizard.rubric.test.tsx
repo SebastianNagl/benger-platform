@@ -77,7 +77,7 @@ jest.mock('@/lib/extensions/slots', () => ({
   useSlot: (name: string) => {
     if (!mockSlotsRegistered) return null
     if (name === 'ProjectWizardRubricEntry') {
-      return ({ checked, onToggle }: any) => (
+      const RubricEntryStub = ({ checked, onToggle }: any) => (
         <div data-testid="wizard-feature-rubric">
           <input
             type="checkbox"
@@ -87,15 +87,19 @@ jest.mock('@/lib/extensions/slots', () => ({
           />
         </div>
       )
+      RubricEntryStub.displayName = 'RubricEntryStub'
+      return RubricEntryStub
     }
     if (name === 'ProjectWizardRubricStep') {
-      return ({ data, onChange }: any) => (
+      const RubricStepStub = ({ data, onChange }: any) => (
         <div data-testid="rubric-step-stub">
           <span data-testid="rubric-step-wired">
             {String(!!data && typeof onChange === 'function')}
           </span>
         </div>
       )
+      RubricStepStub.displayName = 'RubricStepStub'
+      return RubricStepStub
     }
     return null
   },

@@ -62,14 +62,16 @@ def _as_user(db_user: User):
 
 @contextmanager
 def _as_current_user(db_user: User):
-    """Override get_current_user (used by recalculate-stats) with the seeded
+    """Override require_user (used by recalculate-stats) with the seeded
     DB ``User`` row — that endpoint reads ``current_user.is_superadmin`` off a
     real ``User``, not an ``AuthUser``."""
     app.dependency_overrides[get_current_user] = lambda: db_user
+    app.dependency_overrides[require_user] = lambda: db_user
     try:
         yield db_user
     finally:
         app.dependency_overrides.pop(get_current_user, None)
+        app.dependency_overrides.pop(require_user, None)
 
 
 async def _make_user(db, *, is_superadmin=False, name="Test User"):

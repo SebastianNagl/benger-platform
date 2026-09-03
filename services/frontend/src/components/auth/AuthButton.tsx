@@ -70,7 +70,10 @@ export function AuthButton() {
           className="hover:bg-zinc-900/2.5 inline-flex items-center justify-center gap-2 overflow-hidden rounded-full px-4 py-1.5 text-sm font-medium leading-tight text-zinc-700 ring-1 ring-inset ring-zinc-900/10 transition hover:text-zinc-900 dark:text-zinc-400 dark:ring-white/10 dark:hover:bg-white/5 dark:hover:text-white"
         >
           <span className="hidden sm:block">{user.username}</span>
-          <span className="hidden text-xs opacity-70 md:block">
+          <span
+            className="hidden max-w-[14rem] truncate text-xs opacity-70 md:block"
+            title={currentOrganization ? currentOrganization.name : undefined}
+          >
             ({currentOrganization ? currentOrganization.name : t('auth.private')})
           </span>
           <ChevronDownIcon
@@ -93,6 +96,7 @@ export function AuthButton() {
 
               {AuthMenuExtended && (
                 <div data-testid="auth-menu-extended">
+                  {/* eslint-disable-next-line react-hooks/static-components */}
                   <AuthMenuExtended onNavigate={() => setDropdownOpen(false)} />
                 </div>
               )}
@@ -127,10 +131,10 @@ export function AuthButton() {
                     }}
                     className="flex w-full items-center px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-700"
                   >
-                    <UserIcon className="mr-3 h-4 w-4" />
-                    {t('auth.private')}
+                    <UserIcon className="mr-3 h-4 w-4 shrink-0" />
+                    <span className="truncate">{t('auth.private')}</span>
                     {!currentOrganization && (
-                      <CheckIcon className="ml-auto h-4 w-4 text-amber-600" />
+                      <CheckIcon className="ml-auto h-4 w-4 shrink-0 text-amber-600" />
                     )}
                   </button>
                   {/* Long org lists scroll here so the entries below
@@ -143,12 +147,16 @@ export function AuthButton() {
                           setDropdownOpen(false)
                           setCurrentOrganization(org)
                         }}
-                        className="flex w-full items-center px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-700"
+                        className="flex w-full min-w-0 items-center px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-700"
+                        title={org.name}
                       >
-                        <BuildingOfficeIcon className="mr-3 h-4 w-4" />
-                        {org.name}
+                        <BuildingOfficeIcon className="mr-3 h-4 w-4 shrink-0" />
+                        {/* One line only: a long org name is cut with an
+                            ellipsis (full name in the tooltip) so the icon
+                            and the check mark keep their size. */}
+                        <span className="truncate">{org.name}</span>
                         {currentOrganization?.id === org.id && (
-                          <CheckIcon className="ml-auto h-4 w-4 text-amber-600" />
+                          <CheckIcon className="ml-auto h-4 w-4 shrink-0 text-amber-600" />
                         )}
                       </button>
                     ))}

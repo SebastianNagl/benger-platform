@@ -7,7 +7,9 @@ import { useI18n } from '@/contexts/I18nContext'
 import { getHostBrandName, isStudentLockedHost } from '@/lib/utils/subdomain'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, useSyncExternalStore } from 'react'
+
+const subscribeNoop = () => () => {}
 
 export default function VerifyEmailPage() {
   const router = useRouter()
@@ -18,13 +20,8 @@ export default function VerifyEmailPage() {
 
   // Host-aware wordmark (Vertretbar on vertretbar.net). Resolved after mount
   // so SSR stays neutral; the brief default is the BenGER name on benger hosts.
-  const [brandName, setBrandName] = useState('BenGER')
-  const [isVtr, setIsVtr] = useState(false)
-  // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => {
-    setBrandName(getHostBrandName())
-    setIsVtr(isStudentLockedHost())
-  }, [])
+  const brandName = useSyncExternalStore(subscribeNoop, getHostBrandName, () => 'BenGER')
+  const isVtr = useSyncExternalStore(subscribeNoop, isStudentLockedHost, () => false)
 
   const [status, setStatus] = useState<
     'loading' | 'success' | 'error' | 'info'

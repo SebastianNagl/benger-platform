@@ -91,7 +91,6 @@ export function StepProjectInfo({
     try {
       p = Promise.resolve(organizationsAPI.getOrganizations())
     } catch {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setOrgs([])
       return
     }
@@ -120,7 +119,6 @@ export function StepProjectInfo({
       try {
         p = Promise.resolve(organizationsAPI.getGroups(orgId))
       } catch {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
         setGroupsByOrg((prev) => ({ ...prev, [orgId]: [] }))
         return
       }
@@ -315,7 +313,6 @@ export function StepProjectInfo({
           ))}
 
           {SyntheticEntry && (
-            // eslint-disable-next-line react-hooks/static-components
             <SyntheticEntry
               checked={data.features.synthetic}
               onToggle={() => toggleFeature('synthetic')}
@@ -323,7 +320,6 @@ export function StepProjectInfo({
           )}
 
           {RubricEntry && (
-            // eslint-disable-next-line react-hooks/static-components
             <RubricEntry
               checked={data.features.rubric}
               onToggle={() => toggleFeature('rubric')}
