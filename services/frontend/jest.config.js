@@ -4,6 +4,11 @@ const config = {
   projects: [
     {
       displayName: 'client',
+      // ESM-only packages that babel-jest must transpile for the CJS test runtime.
+      transformIgnorePatterns: [
+        '/node_modules/(?!(@tanstack|@faker-js|@sindresorhus)/)',
+        '^.+\\.module\\.(css|sass|scss)$',
+      ],
       testEnvironment: 'jsdom',
       setupFilesAfterEnv: [
         '<rootDir>/jest.setup.js',
@@ -41,6 +46,11 @@ const config = {
     },
     {
       displayName: 'api-routes',
+      // ESM-only packages that babel-jest must transpile for the CJS test runtime.
+      transformIgnorePatterns: [
+        '/node_modules/(?!(@tanstack|@faker-js|@sindresorhus)/)',
+        '^.+\\.module\\.(css|sass|scss)$',
+      ],
       testEnvironment: 'node', // Node environment for API routes
       setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
       testMatch: [
@@ -182,7 +192,8 @@ const config = {
   ],
 
   transformIgnorePatterns: [
-    '/node_modules/',
+    // ESM-only packages that babel-jest must transpile for the CJS test runtime.
+    '/node_modules/(?!(@tanstack|@faker-js|@sindresorhus)/)',
     '^.+\\.module\\.(css|sass|scss)$',
   ],
 

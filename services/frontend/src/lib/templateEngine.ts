@@ -15,7 +15,7 @@ import {
   TaskTemplateField,
   validateFieldValue,
 } from '@/types/taskTemplate'
-import { ColumnDef } from '@tanstack/react-table'
+import type { ColumnDef, TableFeatures } from '@tanstack/react-table'
 import React from 'react'
 
 // Import field components (to be implemented)
@@ -198,15 +198,15 @@ export class TemplateEngine {
         (value: any, rowData: T) => React.ReactElement
       >
     } = {}
-  ): ColumnDef<T>[] {
-    const columns: ColumnDef<T>[] = []
+  ): ColumnDef<TableFeatures, T>[] {
+    const columns: ColumnDef<TableFeatures, T>[] = []
     const { template, fieldMap } = parsedTemplate
 
     for (const columnName of template.display_config.table_columns) {
       const field = fieldMap.get(columnName)
       if (!field || field.display.table === 'hidden') continue
 
-      const column: ColumnDef<T, any> = {
+      const column: ColumnDef<TableFeatures, T, any> = {
         id: field.name,
         header: field.label || field.name,
         accessorFn: (row) => row[field.name],

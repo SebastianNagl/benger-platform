@@ -20,14 +20,45 @@ import {
   XCircleIcon,
 } from '@heroicons/react/24/outline'
 import {
-  ColumnDef,
+  type ColumnDef,
+  columnFilteringFeature,
+  columnSizingFeature,
+  columnVisibilityFeature,
+  createFilteredRowModel,
+  createPaginatedRowModel,
+  createSortedRowModel,
+  filterFn_equals,
+  filterFn_includesString,
+  filterFn_weakEquals,
   flexRender,
-  getCoreRowModel,
-  getFilteredRowModel,
-  getPaginationRowModel,
-  getSortedRowModel,
-  useReactTable,
+  rowPaginationFeature,
+  rowSortingFeature,
+  sortFn_alphanumeric,
+  sortFn_basic,
+  tableFeatures,
+  useTable,
 } from '@tanstack/react-table'
+
+// TanStack Table v9 is feature-sliced: declare once, statically, which
+// features and row models this table uses (sorting, per-column filtering for
+// the text + status filters, client-side pagination).
+const features = tableFeatures({
+  columnFilteringFeature,
+  columnSizingFeature, // header.getSize()
+  columnVisibilityFeature, // row.getVisibleCells()
+  rowSortingFeature,
+  rowPaginationFeature,
+  filteredRowModel: createFilteredRowModel(),
+  sortedRowModel: createSortedRowModel(),
+  paginatedRowModel: createPaginatedRowModel(),
+  filterFns: {
+    includesString: filterFn_includesString,
+    equals: filterFn_equals,
+    weakEquals: filterFn_weakEquals,
+  },
+  sortFns: { alphanumeric: sortFn_alphanumeric, basic: sortFn_basic },
+})
+type SampleTableFeatures = typeof features
 import { useMemo, useState } from 'react'
 
 interface SampleResult {
@@ -80,7 +111,7 @@ export function SampleResultsTable({
     return Object.values(consistencyByTaskId).some((c) => (c?.n_runs ?? 0) > 1)
   }, [consistencyByTaskId])
 
-  const columns = useMemo<ColumnDef<SampleResult>[]>(
+  const columns = useMemo<ColumnDef<SampleTableFeatures, SampleResult>[]>(
     () => [
       {
         accessorKey: 'passed',
@@ -223,7 +254,7 @@ export function SampleResultsTable({
                 return <span className="text-gray-400">—</span>
               },
               size: 110,
-            } as ColumnDef<SampleResult>,
+            } as ColumnDef<SampleTableFeatures, SampleResult>,
           ]
         : []),
       {
@@ -249,15 +280,13 @@ export function SampleResultsTable({
     [expandedRow, t, showConsistencyColumn, consistencyByTaskId]
   )
 
-  const table = useReactTable({
+  const table = useTable<SampleTableFeatures, SampleResult>({
+    features,
     data,
     columns,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
     initialState: {
       pagination: {
+        pageIndex: 0,
         pageSize: 25,
       },
     },
@@ -427,13 +456,13 @@ export function SampleResultsTable({
       <div className="flex items-center justify-between">
         <div className="text-sm text-gray-600">
           {t('evaluation.sampleResultsTable.showing')}{' '}
-          {table.getState().pagination.pageIndex *
-            table.getState().pagination.pageSize +
+          {table.state.pagination.pageIndex *
+            table.state.pagination.pageSize +
             1}{' '}
           {t('evaluation.sampleResultsTable.to')}{' '}
           {Math.min(
-            (table.getState().pagination.pageIndex + 1) *
-              table.getState().pagination.pageSize,
+            (table.state.pagination.pageIndex + 1) *
+              table.state.pagination.pageSize,
             table.getFilteredRowModel().rows.length
           )}{' '}
           {t('evaluation.sampleResultsTable.of')} {table.getFilteredRowModel().rows.length} {t('evaluation.sampleResultsTable.results')}
