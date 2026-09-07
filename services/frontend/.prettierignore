@@ -21,3 +21,6 @@ node_modules/
 # IDE
 .vscode/
 .idea/
+
+# Extended overlay mount (proprietary code, formatted in its own repo)
+benger-extended-frontend/
