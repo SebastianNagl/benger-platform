@@ -110,9 +110,9 @@ test.describe('Choice Annotation', () => {
       await page.waitForTimeout(2000)
 
       // Check for annotation statistics or count
-      const annotationStats = page.locator(
-        'text=/annotations/i, text=/annotated/i, [data-testid="annotation-count"]'
-      )
+      const annotationStats = page
+        .locator('[data-testid="annotation-count"]')
+        .or(page.getByText(/annotations|annotated/i))
 
       // The project should have annotations from seeded data
       const pageContent = await page.content()

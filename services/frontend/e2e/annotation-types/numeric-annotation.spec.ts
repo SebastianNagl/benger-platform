@@ -101,9 +101,9 @@ test.describe('Numeric Annotation', () => {
       await page.waitForTimeout(2000)
 
       // Check for task count
-      const taskCountIndicator = page.locator(
-        'text=/5 tasks/i, text=/\\d+ task/i, [data-testid="task-count"]'
-      )
+      const taskCountIndicator = page
+        .locator('[data-testid="task-count"]')
+        .or(page.getByText(/\d+ tasks?/i))
 
       const pageContent = await page.content()
       // Seeded data should have 5 tasks

@@ -230,9 +230,10 @@ test.describe('LLM Judge Mocked API Workflow', () => {
       await page.waitForTimeout(1000)
 
       // Verify we got a response (toast or status change)
-      const toast = page.locator(
-        '[role="alert"], .toast, text=/started|running/i'
-      )
+      const toast = page
+        .locator('[role="alert"], .toast')
+        .or(page.getByText(/started|running/i))
+        .first()
       const hasResponse = await toast
         .isVisible({ timeout: 5000 })
         .catch(() => false)

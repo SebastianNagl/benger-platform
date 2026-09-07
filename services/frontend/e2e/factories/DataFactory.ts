@@ -254,12 +254,11 @@ export class TestDataFactory {
     await importButton.click()
 
     // Wait for import success
-    await page.waitForSelector(
-      '[data-testid="import-success"], text=/imported successfully/i',
-      {
-        timeout: 30000,
-      }
-    )
+    await page
+      .locator('[data-testid="import-success"]')
+      .or(page.getByText(/imported successfully/i))
+      .first()
+      .waitFor({ state: 'visible', timeout: 30000 })
   }
 
   /**
@@ -286,12 +285,11 @@ export class TestDataFactory {
     )
     await importButton.click()
 
-    await page.waitForSelector(
-      '[data-testid="import-success"], text=/imported successfully/i',
-      {
-        timeout: 30000,
-      }
-    )
+    await page
+      .locator('[data-testid="import-success"]')
+      .or(page.getByText(/imported successfully/i))
+      .first()
+      .waitFor({ state: 'visible', timeout: 30000 })
   }
 
   /**
