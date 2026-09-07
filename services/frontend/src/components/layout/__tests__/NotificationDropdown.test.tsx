@@ -81,7 +81,7 @@ describe('NotificationDropdown', () => {
   }
 
   const createNotification = (
-    overrides?: Partial<Notification>
+    overrides?: Partial<Notification>,
   ): Notification => ({
     id: '1',
     type: 'task_created',
@@ -113,7 +113,7 @@ describe('NotificationDropdown', () => {
       render(<NotificationDropdown {...defaultProps} />)
 
       expect(
-        screen.getByRole('heading', { name: /notifications/i })
+        screen.getByRole('heading', { name: /notifications/i }),
       ).toBeInTheDocument()
     })
 
@@ -128,10 +128,9 @@ describe('NotificationDropdown', () => {
         'bg-white',
         'shadow-lg',
         'ring-1',
-        'ring-black',
-        'ring-opacity-5',
+        'ring-black/5',
         'dark:bg-zinc-900',
-        'dark:ring-zinc-700'
+        'dark:ring-zinc-700',
       )
     })
 
@@ -173,7 +172,10 @@ describe('NotificationDropdown', () => {
       ]
 
       render(
-        <NotificationDropdown {...defaultProps} notifications={notifications} />
+        <NotificationDropdown
+          {...defaultProps}
+          notifications={notifications}
+        />,
       )
 
       expect(screen.getByText('First Notification')).toBeInTheDocument()
@@ -190,7 +192,7 @@ describe('NotificationDropdown', () => {
         <NotificationDropdown
           {...defaultProps}
           notifications={[notification]}
-        />
+        />,
       )
 
       expect(screen.getByText('This is a test message')).toBeInTheDocument()
@@ -203,7 +205,7 @@ describe('NotificationDropdown', () => {
         <NotificationDropdown
           {...defaultProps}
           notifications={[notification]}
-        />
+        />,
       )
 
       expect(screen.getByText('5 minutes ago')).toBeInTheDocument()
@@ -216,11 +218,11 @@ describe('NotificationDropdown', () => {
         <NotificationDropdown
           {...defaultProps}
           notifications={[notification]}
-        />
+        />,
       )
 
       const unreadIndicator = container.querySelector(
-        '.h-2.w-2.flex-shrink-0.rounded-full.bg-emerald-600'
+        '.h-2.w-2.shrink-0.rounded-full.bg-emerald-600',
       )
       expect(unreadIndicator).toBeInTheDocument()
     })
@@ -232,11 +234,11 @@ describe('NotificationDropdown', () => {
         <NotificationDropdown
           {...defaultProps}
           notifications={[notification]}
-        />
+        />,
       )
 
       const unreadIndicator = container.querySelector(
-        '.h-2.w-2.flex-shrink-0.rounded-full.bg-emerald-600'
+        '.h-2.w-2.shrink-0.rounded-full.bg-emerald-600',
       )
       expect(unreadIndicator).not.toBeInTheDocument()
     })
@@ -253,7 +255,7 @@ describe('NotificationDropdown', () => {
         <NotificationDropdown
           {...defaultProps}
           notifications={[unreadNotification, readNotification]}
-        />
+        />,
       )
 
       const notifications = container.querySelectorAll('.cursor-pointer')
@@ -267,7 +269,7 @@ describe('NotificationDropdown', () => {
         <NotificationDropdown
           {...defaultProps}
           notifications={[notification]}
-        />
+        />,
       )
 
       expect(screen.getByTestId('info-icon')).toBeInTheDocument()
@@ -280,7 +282,7 @@ describe('NotificationDropdown', () => {
         <NotificationDropdown
           {...defaultProps}
           notifications={[notification]}
-        />
+        />,
       )
 
       expect(screen.getByTestId('check-circle-icon')).toBeInTheDocument()
@@ -293,7 +295,7 @@ describe('NotificationDropdown', () => {
         <NotificationDropdown
           {...defaultProps}
           notifications={[notification]}
-        />
+        />,
       )
 
       expect(screen.getByTestId('exclamation-icon')).toBeInTheDocument()
@@ -308,7 +310,7 @@ describe('NotificationDropdown', () => {
         <NotificationDropdown
           {...defaultProps}
           notifications={[notification]}
-        />
+        />,
       )
 
       expect(screen.getByTestId('user-plus-icon')).toBeInTheDocument()
@@ -321,7 +323,7 @@ describe('NotificationDropdown', () => {
         <NotificationDropdown
           {...defaultProps}
           notifications={[notification]}
-        />
+        />,
       )
 
       expect(screen.getByTestId('info-icon')).toBeInTheDocument()
@@ -334,11 +336,11 @@ describe('NotificationDropdown', () => {
         <NotificationDropdown
           {...defaultProps}
           notifications={[notification]}
-        />
+        />,
       )
 
       const iconContainer = container.querySelector(
-        '.text-blue-600.bg-blue-100.dark\\:text-blue-400.dark\\:bg-blue-900'
+        '.text-blue-600.bg-blue-100.dark\\:text-blue-400.dark\\:bg-blue-900',
       )
       expect(iconContainer).toBeInTheDocument()
     })
@@ -350,11 +352,11 @@ describe('NotificationDropdown', () => {
         <NotificationDropdown
           {...defaultProps}
           notifications={[notification]}
-        />
+        />,
       )
 
       const iconContainer = container.querySelector(
-        '.text-red-600.bg-red-100.dark\\:text-red-400.dark\\:bg-red-900'
+        '.text-red-600.bg-red-100.dark\\:text-red-400.dark\\:bg-red-900',
       )
       expect(iconContainer).toBeInTheDocument()
     })
@@ -366,11 +368,11 @@ describe('NotificationDropdown', () => {
         <NotificationDropdown
           {...defaultProps}
           notifications={[notification]}
-        />
+        />,
       )
 
       const iconContainer = container.querySelector(
-        '.text-green-600.bg-green-100.dark\\:text-green-400.dark\\:bg-green-900'
+        '.text-green-600.bg-green-100.dark\\:text-green-400.dark\\:bg-green-900',
       )
       expect(iconContainer).toBeInTheDocument()
     })
@@ -385,7 +387,7 @@ describe('NotificationDropdown', () => {
         <NotificationDropdown
           {...defaultProps}
           notifications={[notification]}
-        />
+        />,
       )
 
       const notificationItem = screen.getByText('Task Created')
@@ -403,7 +405,7 @@ describe('NotificationDropdown', () => {
         <NotificationDropdown
           {...defaultProps}
           notifications={[notification]}
-        />
+        />,
       )
 
       const notificationItem = screen.getByText('Task Created')
@@ -460,7 +462,7 @@ describe('NotificationDropdown', () => {
         'hover:bg-zinc-100',
         'hover:text-zinc-600',
         'dark:hover:bg-zinc-700',
-        'dark:hover:text-zinc-300'
+        'dark:hover:text-zinc-300',
       )
     })
   })
@@ -480,11 +482,11 @@ describe('NotificationDropdown', () => {
 
     it('applies correct styling to empty state icon', () => {
       const { container } = render(
-        <NotificationDropdown {...defaultProps} notifications={[]} />
+        <NotificationDropdown {...defaultProps} notifications={[]} />,
       )
 
       const icon = container.querySelector(
-        '.mx-auto.mb-2.h-8.w-8.text-zinc-300.dark\\:text-zinc-600'
+        '.mx-auto.mb-2.h-8.w-8.text-zinc-300.dark\\:text-zinc-600',
       )
       expect(icon).toBeInTheDocument()
     })
@@ -493,7 +495,7 @@ describe('NotificationDropdown', () => {
       render(<NotificationDropdown {...defaultProps} notifications={[]} />)
 
       expect(
-        screen.queryByText('View all notifications')
+        screen.queryByText('View all notifications'),
       ).not.toBeInTheDocument()
     })
 
@@ -504,7 +506,7 @@ describe('NotificationDropdown', () => {
         <NotificationDropdown
           {...defaultProps}
           notifications={[notification]}
-        />
+        />,
       )
 
       expect(screen.getByText('View all notifications')).toBeInTheDocument()
@@ -534,7 +536,7 @@ describe('NotificationDropdown', () => {
         <NotificationDropdown
           {...defaultProps}
           notifications={[notification]}
-        />
+        />,
       )
 
       const notificationItem = screen.getByText('Task Created')
@@ -551,7 +553,7 @@ describe('NotificationDropdown', () => {
         <NotificationDropdown
           {...defaultProps}
           notifications={[notification]}
-        />
+        />,
       )
 
       const notificationItem = screen.getByText('Task Created')
@@ -568,7 +570,7 @@ describe('NotificationDropdown', () => {
         <NotificationDropdown
           {...defaultProps}
           notifications={[notification]}
-        />
+        />,
       )
 
       const viewAllButton = screen.getByText('View all notifications')
@@ -584,7 +586,7 @@ describe('NotificationDropdown', () => {
         <NotificationDropdown
           {...defaultProps}
           notifications={[notification]}
-        />
+        />,
       )
 
       const notificationItem = container.querySelector('.cursor-pointer')
@@ -598,13 +600,13 @@ describe('NotificationDropdown', () => {
         <NotificationDropdown
           {...defaultProps}
           notifications={[notification]}
-        />
+        />,
       )
 
       const notificationItem = container.querySelector('.cursor-pointer')
       expect(notificationItem).toHaveClass(
         'hover:bg-zinc-50',
-        'dark:hover:bg-zinc-700'
+        'dark:hover:bg-zinc-700',
       )
     })
   })
@@ -614,7 +616,7 @@ describe('NotificationDropdown', () => {
       render(<NotificationDropdown {...defaultProps} />)
 
       expect(
-        screen.getByRole('heading', { name: /notifications/i })
+        screen.getByRole('heading', { name: /notifications/i }),
       ).toBeInTheDocument()
     })
 
@@ -660,7 +662,7 @@ describe('NotificationDropdown', () => {
         <NotificationDropdown
           {...defaultProps}
           notifications={[notification]}
-        />
+        />,
       )
 
       const notificationItem = screen
@@ -683,7 +685,7 @@ describe('NotificationDropdown', () => {
         <NotificationDropdown
           {...defaultProps}
           notifications={[notification]}
-        />
+        />,
       )
 
       expect(screen.getByText('Task Created')).toBeInTheDocument()
@@ -696,7 +698,7 @@ describe('NotificationDropdown', () => {
         <NotificationDropdown
           {...defaultProps}
           notifications={[notification]}
-        />
+        />,
       )
 
       expect(screen.getByText('Task Created')).toBeInTheDocument()
@@ -712,13 +714,13 @@ describe('NotificationDropdown', () => {
         <NotificationDropdown
           {...defaultProps}
           notifications={[notification]}
-        />
+        />,
       )
 
       expect(
         screen.getByText(
-          'This is a very long notification title that should be truncated'
-        )
+          'This is a very long notification title that should be truncated',
+        ),
       ).toBeInTheDocument()
     })
 
@@ -732,13 +734,13 @@ describe('NotificationDropdown', () => {
         <NotificationDropdown
           {...defaultProps}
           notifications={[notification]}
-        />
+        />,
       )
 
       expect(
         screen.getByText(
-          'This is a very long notification message that contains a lot of text and should be handled appropriately by the component'
-        )
+          'This is a very long notification message that contains a lot of text and should be handled appropriately by the component',
+        ),
       ).toBeInTheDocument()
     })
 
@@ -747,15 +749,18 @@ describe('NotificationDropdown', () => {
         createNotification({
           id: `${i}`,
           title: `Notification ${i}`,
-        })
+        }),
       )
 
       const { container } = render(
-        <NotificationDropdown {...defaultProps} notifications={notifications} />
+        <NotificationDropdown
+          {...defaultProps}
+          notifications={notifications}
+        />,
       )
 
       const scrollContainer = container.querySelector(
-        '.max-h-96.overflow-y-auto'
+        '.max-h-96.overflow-y-auto',
       )
       expect(scrollContainer).toBeInTheDocument()
     })
@@ -768,7 +773,7 @@ describe('NotificationDropdown', () => {
           {...defaultProps}
           notifications={[notification]}
           unreadCount={10}
-        />
+        />,
       )
 
       expect(screen.getByText('(10 unread)')).toBeInTheDocument()
@@ -789,7 +794,7 @@ describe('NotificationDropdown', () => {
         <NotificationDropdown
           {...defaultProps}
           notifications={[notification]}
-        />
+        />,
       )
 
       expect(screen.getByText('Task Created')).toBeInTheDocument()
@@ -802,7 +807,7 @@ describe('NotificationDropdown', () => {
         <NotificationDropdown
           {...defaultProps}
           notifications={[notification]}
-        />
+        />,
       )
 
       expect(screen.getByText('Task Created')).toBeInTheDocument()
@@ -817,7 +822,7 @@ describe('NotificationDropdown', () => {
         <NotificationDropdown
           {...defaultProps}
           notifications={[notification]}
-        />
+        />,
       )
 
       expect(screen.getByText('5 minutes ago')).toBeInTheDocument()
@@ -831,7 +836,7 @@ describe('NotificationDropdown', () => {
         <NotificationDropdown
           {...defaultProps}
           notifications={[notification]}
-        />
+        />,
       )
 
       const notificationItem = screen.getByText('Task Created')
@@ -882,13 +887,13 @@ describe('NotificationDropdown', () => {
       const refreshButton = screen.getByTitle('Refresh notifications')
       expect(refreshButton).toHaveClass(
         'dark:hover:bg-zinc-700',
-        'dark:hover:text-zinc-300'
+        'dark:hover:text-zinc-300',
       )
     })
 
     it('includes dark mode classes for empty state text', () => {
       const { container } = render(
-        <NotificationDropdown {...defaultProps} notifications={[]} />
+        <NotificationDropdown {...defaultProps} notifications={[]} />,
       )
 
       const emptyText = screen.getByText('No notifications yet')
@@ -902,7 +907,10 @@ describe('NotificationDropdown', () => {
       ]
 
       const { container } = render(
-        <NotificationDropdown {...defaultProps} notifications={notifications} />
+        <NotificationDropdown
+          {...defaultProps}
+          notifications={notifications}
+        />,
       )
 
       const divider = container.querySelector('.divide-y')
@@ -916,7 +924,7 @@ describe('NotificationDropdown', () => {
         <NotificationDropdown
           {...defaultProps}
           notifications={[notification]}
-        />
+        />,
       )
 
       const footer = container.querySelector('.border-t')
@@ -930,13 +938,13 @@ describe('NotificationDropdown', () => {
         <NotificationDropdown
           {...defaultProps}
           notifications={[notification]}
-        />
+        />,
       )
 
       const viewAllButton = screen.getByText('View all notifications')
       expect(viewAllButton).toHaveClass(
         'dark:text-blue-400',
-        'dark:hover:text-blue-300'
+        'dark:hover:text-blue-300',
       )
     })
   })

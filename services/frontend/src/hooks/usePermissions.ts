@@ -59,13 +59,13 @@ export function usePermissions() {
         canMakeProjectPublic(user, project),
       getEffectiveProjectRole: (
         project: ProjectRoleInput | null,
-        orgRole?: 'ORG_ADMIN' | 'CONTRIBUTOR' | 'ANNOTATOR' | null
+        orgRole?: 'ORG_ADMIN' | 'CONTRIBUTOR' | 'ANNOTATOR' | null,
       ) => getEffectiveProjectRole(user, project, orgRole),
       isAnnotatorOnly: () => isAnnotatorOnly(user),
       /** Memoised summary bundle for display/debug. */
       summary: getUserPermissions(user),
     }),
-    [user]
+    [user],
   )
 }
 

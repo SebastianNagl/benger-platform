@@ -20,7 +20,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { apiClient } from '@/lib/api/client'
 import { projectsAPI } from '@/lib/api/projects'
-import { render, screen, waitFor, act, fireEvent } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useRouter, useSearchParams } from 'next/navigation'
 import EvaluationDashboard from '../page'
@@ -129,7 +129,9 @@ jest.mock('@/components/shared/LoadingSpinner', () => ({
 jest.mock('@/components/evaluation/AggregationSelector', () => ({
   AggregationSelector: ({ onChange }: any) => (
     <div data-testid="aggregation-selector">
-      <button onClick={() => onChange(['model', 'annotator'])}>Set Aggregation</button>
+      <button onClick={() => onChange(['model', 'annotator'])}>
+        Set Aggregation
+      </button>
     </div>
   ),
 }))
@@ -158,7 +160,8 @@ jest.mock('@/components/evaluation/EvaluationResults', () => ({
   EvaluationResults: ({ onHasResults, onChartData }: any) => {
     // Simulate having results
     if (onHasResults) setTimeout(() => onHasResults(true), 0)
-    if (onChartData) setTimeout(() => onChartData([{ name: 'test', data: [] }]), 0)
+    if (onChartData)
+      setTimeout(() => onChartData([{ name: 'test', data: [] }]), 0)
     return <div data-testid="evaluation-results" />
   },
 }))
@@ -250,8 +253,12 @@ describe('EvaluationDashboard - coverage extensions', () => {
 
     // Default API mocks
     ;(projectsAPI.list as jest.Mock).mockResolvedValue({ items: [mockProject] })
-    ;(apiClient.evaluations.getProjectEvaluationConfig as jest.Mock).mockResolvedValue(mockEvalConfig)
-    ;(apiClient.evaluations.getConfiguredMethods as jest.Mock).mockResolvedValue({
+    ;(
+      apiClient.evaluations.getProjectEvaluationConfig as jest.Mock
+    ).mockResolvedValue(mockEvalConfig)
+    ;(
+      apiClient.evaluations.getConfiguredMethods as jest.Mock
+    ).mockResolvedValue({
       fields: [
         {
           field_name: 'model_answer',
@@ -261,12 +268,22 @@ describe('EvaluationDashboard - coverage extensions', () => {
         },
       ],
     })
-    ;(apiClient.evaluations.getEvaluatedModels as jest.Mock).mockResolvedValue(mockModels)
-    ;(apiClient.evaluations.getProjectAnnotators as jest.Mock).mockResolvedValue({ annotators: [] })
+    ;(apiClient.evaluations.getEvaluatedModels as jest.Mock).mockResolvedValue(
+      mockModels,
+    )
+    ;(
+      apiClient.evaluations.getProjectAnnotators as jest.Mock
+    ).mockResolvedValue({ annotators: [] })
     ;(apiClient.get as jest.Mock).mockResolvedValue({ data: [] })
-    ;(apiClient.evaluations.getEvaluationHistory as jest.Mock).mockResolvedValue({ series: [] })
-    ;(apiClient.evaluations.getSignificanceTests as jest.Mock).mockResolvedValue({ comparisons: [] })
-    ;(apiClient.evaluations.computeStatistics as jest.Mock).mockResolvedValue({})
+    ;(
+      apiClient.evaluations.getEvaluationHistory as jest.Mock
+    ).mockResolvedValue({ series: [] })
+    ;(
+      apiClient.evaluations.getSignificanceTests as jest.Mock
+    ).mockResolvedValue({ comparisons: [] })
+    ;(apiClient.evaluations.computeStatistics as jest.Mock).mockResolvedValue(
+      {},
+    )
   })
 
   describe('URL parameter loading', () => {
@@ -282,7 +299,9 @@ describe('EvaluationDashboard - coverage extensions', () => {
     })
 
     it('should load aggregation from URL', async () => {
-      const params = new URLSearchParams('projectId=1&aggregation=model,annotator')
+      const params = new URLSearchParams(
+        'projectId=1&aggregation=model,annotator',
+      )
       ;(useSearchParams as jest.Mock).mockReturnValue(params)
 
       render(<EvaluationDashboard />)
@@ -316,7 +335,9 @@ describe('EvaluationDashboard - coverage extensions', () => {
 
       // Should auto-select project from localStorage
       await waitFor(() => {
-        expect(apiClient.evaluations.getProjectEvaluationConfig).toHaveBeenCalled()
+        expect(
+          apiClient.evaluations.getProjectEvaluationConfig,
+        ).toHaveBeenCalled()
       })
     })
   })
@@ -347,11 +368,15 @@ describe('EvaluationDashboard - coverage extensions', () => {
       render(<EvaluationDashboard />)
 
       await waitFor(() => {
-        expect(screen.getByText('evaluation.viewer.filters.selectProject')).toBeInTheDocument()
+        expect(
+          screen.getByText('evaluation.viewer.filters.selectProject'),
+        ).toBeInTheDocument()
       })
 
       // Open dropdown and select project
-      await user.click(screen.getByText('evaluation.viewer.filters.selectProject'))
+      await user.click(
+        screen.getByText('evaluation.viewer.filters.selectProject'),
+      )
       await waitFor(() => {
         expect(screen.getByText('Test Project')).toBeInTheDocument()
       })
@@ -359,7 +384,9 @@ describe('EvaluationDashboard - coverage extensions', () => {
 
       // After selection, project data should be fetched
       await waitFor(() => {
-        expect(apiClient.evaluations.getProjectEvaluationConfig).toHaveBeenCalledWith('1')
+        expect(
+          apiClient.evaluations.getProjectEvaluationConfig,
+        ).toHaveBeenCalledWith('1')
         expect(apiClient.evaluations.getEvaluatedModels).toHaveBeenCalled()
       })
     })
@@ -368,22 +395,30 @@ describe('EvaluationDashboard - coverage extensions', () => {
       const user = userEvent.setup()
       const emptyParams = new URLSearchParams()
       ;(useSearchParams as jest.Mock).mockReturnValue(emptyParams)
-      ;(apiClient.evaluations.getConfiguredMethods as jest.Mock).mockRejectedValue(new Error('fail'))
+      ;(
+        apiClient.evaluations.getConfiguredMethods as jest.Mock
+      ).mockRejectedValue(new Error('fail'))
 
       render(<EvaluationDashboard />)
 
       await waitFor(() => {
-        expect(screen.getByText('evaluation.viewer.filters.selectProject')).toBeInTheDocument()
+        expect(
+          screen.getByText('evaluation.viewer.filters.selectProject'),
+        ).toBeInTheDocument()
       })
 
-      await user.click(screen.getByText('evaluation.viewer.filters.selectProject'))
+      await user.click(
+        screen.getByText('evaluation.viewer.filters.selectProject'),
+      )
       await waitFor(() => {
         expect(screen.getByText('Test Project')).toBeInTheDocument()
       })
       await user.click(screen.getByText('Test Project'))
 
       await waitFor(() => {
-        expect(apiClient.evaluations.getProjectEvaluationConfig).toHaveBeenCalled()
+        expect(
+          apiClient.evaluations.getProjectEvaluationConfig,
+        ).toHaveBeenCalled()
       })
     })
 
@@ -391,22 +426,30 @@ describe('EvaluationDashboard - coverage extensions', () => {
       const user = userEvent.setup()
       const emptyParams = new URLSearchParams()
       ;(useSearchParams as jest.Mock).mockReturnValue(emptyParams)
-      ;(apiClient.evaluations.getProjectAnnotators as jest.Mock).mockRejectedValue(new Error('fail'))
+      ;(
+        apiClient.evaluations.getProjectAnnotators as jest.Mock
+      ).mockRejectedValue(new Error('fail'))
 
       render(<EvaluationDashboard />)
 
       await waitFor(() => {
-        expect(screen.getByText('evaluation.viewer.filters.selectProject')).toBeInTheDocument()
+        expect(
+          screen.getByText('evaluation.viewer.filters.selectProject'),
+        ).toBeInTheDocument()
       })
 
-      await user.click(screen.getByText('evaluation.viewer.filters.selectProject'))
+      await user.click(
+        screen.getByText('evaluation.viewer.filters.selectProject'),
+      )
       await waitFor(() => {
         expect(screen.getByText('Test Project')).toBeInTheDocument()
       })
       await user.click(screen.getByText('Test Project'))
 
       await waitFor(() => {
-        expect(apiClient.evaluations.getProjectEvaluationConfig).toHaveBeenCalled()
+        expect(
+          apiClient.evaluations.getProjectEvaluationConfig,
+        ).toHaveBeenCalled()
       })
     })
   })
@@ -421,7 +464,9 @@ describe('EvaluationDashboard - coverage extensions', () => {
       render(<EvaluationDashboard />)
 
       await waitFor(() => {
-        expect(mockRouter.replace).toHaveBeenCalledWith('/projects?error=no-permission')
+        expect(mockRouter.replace).toHaveBeenCalledWith(
+          '/projects?error=no-permission',
+        )
       })
 
       // Restore mock
@@ -434,7 +479,9 @@ describe('EvaluationDashboard - coverage extensions', () => {
       const user = userEvent.setup()
       const emptyParams = new URLSearchParams()
       ;(useSearchParams as jest.Mock).mockReturnValue(emptyParams)
-      ;(apiClient.evaluations.getProjectEvaluationConfig as jest.Mock).mockResolvedValue({
+      ;(
+        apiClient.evaluations.getProjectEvaluationConfig as jest.Mock
+      ).mockResolvedValue({
         selected_methods: {
           model_answer: {
             automated: [
@@ -453,17 +500,23 @@ describe('EvaluationDashboard - coverage extensions', () => {
       render(<EvaluationDashboard />)
 
       await waitFor(() => {
-        expect(screen.getByText('evaluation.viewer.filters.selectProject')).toBeInTheDocument()
+        expect(
+          screen.getByText('evaluation.viewer.filters.selectProject'),
+        ).toBeInTheDocument()
       })
 
-      await user.click(screen.getByText('evaluation.viewer.filters.selectProject'))
+      await user.click(
+        screen.getByText('evaluation.viewer.filters.selectProject'),
+      )
       await waitFor(() => {
         expect(screen.getByText('Test Project')).toBeInTheDocument()
       })
       await user.click(screen.getByText('Test Project'))
 
       await waitFor(() => {
-        expect(apiClient.evaluations.getProjectEvaluationConfig).toHaveBeenCalled()
+        expect(
+          apiClient.evaluations.getProjectEvaluationConfig,
+        ).toHaveBeenCalled()
       })
     })
   })

@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server'
 import { getInternalApiUrl } from '@/lib/utils/apiUrl'
+import { NextRequest, NextResponse } from 'next/server'
 
 export async function GET(request: NextRequest) {
   try {
@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
       const errorData = await backendResponse.text()
       return NextResponse.json(
         { error: errorData || 'Verification failed' },
-        { status: backendResponse.status }
+        { status: backendResponse.status },
       )
     }
 
@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
     console.error('❌ Auth verify proxy error:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
-      { status: 500 }
+      { status: 500 },
     )
   }
 }

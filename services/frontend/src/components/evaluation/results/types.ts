@@ -163,7 +163,13 @@ export type AnnotationData = Array<{
   id: string
   task_id: number
   completed_by: string
-  result: Array<{ value: any; from_name: string; to_name: string; type: string; [key: string]: any }>
+  result: Array<{
+    value: any
+    from_name: string
+    to_name: string
+    type: string
+    [key: string]: any
+  }>
   was_cancelled: boolean
   ground_truth: boolean
   lead_time?: number

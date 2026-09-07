@@ -37,8 +37,7 @@ const ERROR_MESSAGES: Record<string, string> = {
     'This course connection is not known to the platform. Ask an administrator to add the deployment to the LTI registration.',
   unsupported_message:
     'This type of LTI message is not supported by the platform.',
-  not_linked:
-    'Your instructor has not connected this activity to an exam yet.',
+  not_linked: 'Your instructor has not connected this activity to an exam yet.',
   user_inactive:
     'Your account on this platform is deactivated. Contact your instructor or an administrator.',
   internal:

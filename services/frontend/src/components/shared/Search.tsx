@@ -23,12 +23,12 @@ import {
 import Highlighter from 'react-highlight-words'
 
 import { navigation } from '@/components/layout/Navigation'
-import { useHowToGuides } from '@/lib/howto'
-import { buildSearchIndex, rankSearchResults } from '@/lib/search'
 import { useAuth } from '@/contexts/AuthContext'
 import { useFeatureFlags } from '@/contexts/FeatureFlagContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { projectsAPI } from '@/lib/api/projects'
+import { useHowToGuides } from '@/lib/howto'
+import { buildSearchIndex, rankSearchResults } from '@/lib/search'
 import type { Project } from '@/types/labelStudio'
 import { type Result } from '@/types/search'
 import { useMobileNavigationStore } from '../layout/MobileNavigation'
@@ -132,7 +132,7 @@ function useAutocomplete({ onNavigate }: { onNavigate: () => void }) {
         setProjectResults([])
       }
     },
-    [user, t]
+    [user, t],
   )
 
   // eslint-disable-next-line react-hooks/refs -- Valid: one-time ref initialization in useState initializer
@@ -310,11 +310,11 @@ function SearchResult({
 
   let sectionTitle = navigation.find((section) =>
     section.links.find(
-      (link) => result.url && link.href === result.url.split('#')[0]
-    )
+      (link) => result.url && link.href === result.url.split('#')[0],
+    ),
   )?.title
   let hierarchy = [sectionTitle, result.pageTitle].filter(
-    (x): x is string => typeof x === 'string'
+    (x): x is string => typeof x === 'string',
   )
 
   // Use category from search result or fall back to navigation hierarchy
@@ -325,7 +325,7 @@ function SearchResult({
     <li
       className={clsx(
         'group block cursor-default px-4 py-3 hover:bg-zinc-50 aria-selected:bg-zinc-50 dark:hover:bg-zinc-700/30 dark:aria-selected:bg-zinc-700/50',
-        resultIndex > 0 && 'border-t border-zinc-100 dark:border-zinc-700'
+        resultIndex > 0 && 'border-t border-zinc-100 dark:border-zinc-700',
       )}
       aria-labelledby={`${id}-hierarchy ${id}-title`}
       {...autocomplete.getItemProps({
@@ -349,7 +349,7 @@ function SearchResult({
         <div
           id={`${id}-hierarchy`}
           aria-hidden="true"
-          className="mt-1 truncate whitespace-nowrap text-2xs text-zinc-500 dark:text-zinc-400"
+          className="mt-1 truncate text-2xs whitespace-nowrap text-zinc-500 dark:text-zinc-400"
         >
           {displayHierarchy.map((item, itemIndex, items) => (
             <Fragment key={itemIndex}>
@@ -388,7 +388,7 @@ function SearchResults({
         <NoResultsIcon className="mx-auto h-5 w-5 stroke-zinc-900 dark:stroke-zinc-400" />
         <p className="mt-2 text-xs text-zinc-700 dark:text-zinc-300">
           {t('search.noResults')}{' '}
-          <strong className="break-words font-semibold text-zinc-900 dark:text-white">
+          <strong className="font-semibold wrap-break-word text-zinc-900 dark:text-white">
             &lsquo;{query}&rsquo;
           </strong>
           . {t('search.tryAgain')}
@@ -426,13 +426,13 @@ const SearchInput = forwardRef<
 
   return (
     <div className="group relative flex h-12">
-      <SearchIcon className="pointer-events-none absolute left-3 top-0 h-full w-5 stroke-zinc-500 dark:stroke-zinc-400" />
+      <SearchIcon className="pointer-events-none absolute top-0 left-3 h-full w-5 stroke-zinc-500 dark:stroke-zinc-400" />
       <input
         ref={inputRef}
         data-autofocus
         className={clsx(
-          'outline-hidden flex-auto appearance-none bg-transparent pl-10 text-zinc-900 placeholder:text-zinc-500 focus:w-full focus:flex-none dark:text-white dark:placeholder:text-zinc-400 sm:text-sm [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden [&::-webkit-search-results-button]:hidden [&::-webkit-search-results-decoration]:hidden',
-          autocompleteState.status === 'stalled' ? 'pr-11' : 'pr-4'
+          'flex-auto appearance-none bg-transparent pl-10 text-zinc-900 outline-hidden placeholder:text-zinc-500 focus:w-full focus:flex-none sm:text-sm dark:text-white dark:placeholder:text-zinc-400 [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden [&::-webkit-search-results-button]:hidden [&::-webkit-search-results-decoration]:hidden',
+          autocompleteState.status === 'stalled' ? 'pr-11' : 'pr-4',
         )}
         {...inputProps}
         placeholder={inputProps.placeholder || t('search.placeholder')}
@@ -518,13 +518,13 @@ function SearchDialog({
     >
       <DialogBackdrop
         transition
-        className="backdrop-blur-xs data-closed:opacity-0 data-enter:duration-300 data-enter:ease-out data-leave:duration-200 data-leave:ease-in fixed inset-0 bg-zinc-400/25 dark:bg-black/40"
+        className="fixed inset-0 bg-zinc-400/25 backdrop-blur-xs data-closed:opacity-0 data-enter:duration-300 data-enter:ease-out data-leave:duration-200 data-leave:ease-in dark:bg-black/40"
       />
 
       <div className="fixed inset-0 overflow-y-auto px-4 py-4 sm:px-6 sm:py-20 md:py-32 lg:px-8 lg:py-[15vh]">
         <DialogPanel
           transition
-          className="ring-zinc-900/7.5 data-closed:scale-95 data-closed:opacity-0 data-enter:duration-300 data-enter:ease-out data-leave:duration-200 data-leave:ease-in mx-auto transform-gpu overflow-hidden rounded-lg bg-zinc-50 shadow-xl ring-1 dark:bg-zinc-900 dark:ring-zinc-800 sm:max-w-xl"
+          className="mx-auto transform-gpu overflow-hidden rounded-lg bg-zinc-50 shadow-xl ring-1 ring-zinc-900/7.5 data-closed:scale-95 data-closed:opacity-0 data-enter:duration-300 data-enter:ease-out data-leave:duration-200 data-leave:ease-in sm:max-w-xl dark:bg-zinc-900 dark:ring-zinc-800"
         >
           <div {...autocomplete.getRootProps({})}>
             <form
@@ -582,7 +582,7 @@ function useSearchProps() {
             setOpen(open)
           }
         },
-        [setOpen]
+        [setOpen],
       ),
     },
   }
@@ -601,7 +601,7 @@ export function Search() {
     <div className="hidden w-full lg:block">
       <button
         type="button"
-        className="hidden h-8 w-full items-center gap-2 rounded-full bg-white pl-2 pr-3 text-sm text-zinc-500 ring-1 ring-zinc-900/10 transition hover:ring-zinc-900/20 dark:bg-white/5 dark:text-zinc-400 dark:ring-inset dark:ring-white/10 dark:hover:ring-white/20 lg:flex"
+        className="hidden h-8 w-full items-center gap-2 rounded-full bg-white pr-3 pl-2 text-sm text-zinc-500 ring-1 ring-zinc-900/10 transition hover:ring-zinc-900/20 lg:flex dark:bg-white/5 dark:text-zinc-400 dark:ring-white/10 dark:ring-inset dark:hover:ring-white/20"
         {...buttonProps}
       >
         <SearchIcon className="h-5 w-5 stroke-current" />
@@ -627,11 +627,11 @@ export function MobileSearch() {
     <div className="contents lg:hidden">
       <button
         type="button"
-        className="relative flex size-6 items-center justify-center rounded-md transition hover:bg-zinc-900/5 dark:hover:bg-white/5 lg:hidden"
+        className="relative flex size-6 items-center justify-center rounded-md transition hover:bg-zinc-900/5 lg:hidden dark:hover:bg-white/5"
         aria-label={t('search.placeholder')}
         {...buttonProps}
       >
-        <span className="pointer-fine:hidden absolute size-12" />
+        <span className="absolute size-12 pointer-fine:hidden" />
         <SearchIcon className="h-5 w-5 stroke-zinc-900 dark:stroke-white" />
       </button>
       <Suspense fallback={null}>

@@ -33,7 +33,7 @@ function djb2Hash(str: string): number {
 export function selectVariant(
   userId: string,
   taskId: string,
-  variants: Variant[]
+  variants: Variant[],
 ): string | null {
   if (!variants || variants.length === 0) return null
   if (variants.length === 1) return variants[0].id

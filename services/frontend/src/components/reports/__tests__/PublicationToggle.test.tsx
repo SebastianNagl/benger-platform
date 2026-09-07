@@ -24,7 +24,14 @@ jest.mock('@/lib/api/reports', () => ({
 }))
 
 jest.mock('@/components/shared/Button', () => ({
-  Button: ({ children, onClick, disabled, variant, className, ...props }: any) => (
+  Button: ({
+    children,
+    onClick,
+    disabled,
+    variant,
+    className,
+    ...props
+  }: any) => (
     <button
       onClick={onClick}
       disabled={disabled}
@@ -95,7 +102,7 @@ describe('PublicationToggle', () => {
 
       expect(screen.getByText(T.title)).toBeInTheDocument()
       expect(screen.getByTestId('publication-status')).toHaveTextContent(
-        T.statusDraft
+        T.statusDraft,
       )
       expect(screen.getByText(T.draft)).toBeInTheDocument()
       expect(screen.getByText(T.publish)).toBeInTheDocument()
@@ -116,12 +123,12 @@ describe('PublicationToggle', () => {
           {...defaultProps}
           canPublish={false}
           canPublishReason="Report not found"
-        />
+        />,
       )
 
       expect(screen.getByText(T.publish).closest('button')).toBeDisabled()
       expect(
-        screen.getByText('project.report.reasons.reportNotFound')
+        screen.getByText('project.report.reasons.reportNotFound'),
       ).toBeInTheDocument()
     })
 
@@ -131,7 +138,7 @@ describe('PublicationToggle', () => {
           {...defaultProps}
           canPublish={false}
           canPublishReason="Some unknown reason"
-        />
+        />,
       )
       expect(screen.getByText('Some unknown reason')).toBeInTheDocument()
     })
@@ -150,7 +157,7 @@ describe('PublicationToggle', () => {
             {...defaultProps}
             canPublish={false}
             canPublishReason={reason}
-          />
+          />,
         )
         expect(screen.queryByText(reason)).not.toBeInTheDocument()
         unmount()
@@ -164,8 +171,12 @@ describe('PublicationToggle', () => {
 
       expect(screen.getByRole('dialog')).toBeInTheDocument()
       expect(screen.getByText(T.confirmPublishTitle)).toBeInTheDocument()
-      const orgRadio = screen.getByRole('radio', { name: new RegExp(T.visibilityOrgs) })
-      const publicRadio = screen.getByRole('radio', { name: new RegExp(T.visibilityPublic) })
+      const orgRadio = screen.getByRole('radio', {
+        name: new RegExp(T.visibilityOrgs),
+      })
+      const publicRadio = screen.getByRole('radio', {
+        name: new RegExp(T.visibilityPublic),
+      })
       expect(orgRadio).toBeChecked()
       expect(publicRadio).not.toBeChecked()
     })
@@ -188,7 +199,7 @@ describe('PublicationToggle', () => {
           {...defaultProps}
           onToggle={onToggle}
           onChange={onChange}
-        />
+        />,
       )
 
       fireEvent.click(screen.getByText(T.publish))
@@ -213,7 +224,7 @@ describe('PublicationToggle', () => {
 
       fireEvent.click(screen.getByText(T.publish))
       fireEvent.click(
-        screen.getByRole('radio', { name: new RegExp(T.visibilityPublic) })
+        screen.getByRole('radio', { name: new RegExp(T.visibilityPublic) }),
       )
       const confirmButtons = screen.getAllByText(T.publish)
       fireEvent.click(confirmButtons[confirmButtons.length - 1])
@@ -261,7 +272,7 @@ describe('PublicationToggle', () => {
       render(<PublicationToggle {...props} />)
 
       expect(screen.getByTestId('publication-status')).toHaveTextContent(
-        T.statusPublished
+        T.statusPublished,
       )
       expect(screen.getByText(T.visibleToOrgs)).toBeInTheDocument()
       expect(screen.getByText(T.makePublic)).toBeInTheDocument()
@@ -275,10 +286,10 @@ describe('PublicationToggle', () => {
           {...props}
           canPublish={false}
           canPublishReason="Report not found"
-        />
+        />,
       )
       expect(
-        screen.queryByText('project.report.reasons.reportNotFound')
+        screen.queryByText('project.report.reasons.reportNotFound'),
       ).not.toBeInTheDocument()
     })
 
@@ -286,7 +297,11 @@ describe('PublicationToggle', () => {
       const onToggle = jest.fn()
       const onChange = jest.fn()
       render(
-        <PublicationToggle {...props} onToggle={onToggle} onChange={onChange} />
+        <PublicationToggle
+          {...props}
+          onToggle={onToggle}
+          onChange={onChange}
+        />,
       )
 
       fireEvent.click(screen.getByText(T.makePublic))
@@ -353,7 +368,7 @@ describe('PublicationToggle', () => {
       render(<PublicationToggle {...props} />)
 
       expect(screen.getByTestId('publication-status')).toHaveTextContent(
-        T.statusPublic
+        T.statusPublic,
       )
       expect(screen.getByText(T.visibleToPublic)).toBeInTheDocument()
       const link = screen.getByLabelText(T.publicLink) as HTMLInputElement
@@ -370,10 +385,12 @@ describe('PublicationToggle', () => {
 
       await waitFor(() => {
         expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
-          'http://localhost/reports/report-1'
+          'http://localhost/reports/report-1',
         )
       })
-      expect(screen.getByText(T.copied)).toBeInTheDocument()
+      await waitFor(() => {
+        expect(screen.getByText(T.copied)).toBeInTheDocument()
+      })
     })
 
     it('switches back to organizations only', async () => {

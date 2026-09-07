@@ -40,7 +40,7 @@ function TestAnnotationLoading({ taskId }: { taskId: string }) {
   // Replicate the enhanced annotation loading logic from the fix
   const loadAnnotationDataWithRetry = async (
     taskId: string,
-    retryCount = 0
+    retryCount = 0,
   ) => {
     const maxRetries = 3
     const baseDelay = 100 // Reduced for testing
@@ -59,15 +59,15 @@ function TestAnnotationLoading({ taskId }: { taskId: string }) {
           {
             offset: 0,
             limit: 1000,
-          }
+          },
         )
 
         // Add timeout to prevent hanging requests (shorter for testing)
         const timeoutPromise = new Promise((_, reject) =>
           setTimeout(
             () => reject(new Error('Annotation request timeout')),
-            1000
-          )
+            1000,
+          ),
         )
 
         const annotationResponse = (await Promise.race([
@@ -80,7 +80,10 @@ function TestAnnotationLoading({ taskId }: { taskId: string }) {
         try {
           const overviewPromise = mockApi.getTaskAnnotationOverview(taskId)
           const overviewTimeoutPromise = new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('Overview request timeout')), 800)
+            setTimeout(
+              () => reject(new Error('Overview request timeout')),
+              800,
+            ),
           )
 
           const overviewResponse = (await Promise.race([
@@ -125,7 +128,7 @@ function TestAnnotationLoading({ taskId }: { taskId: string }) {
       if ((isNetworkError || isServerError) && retryCount < maxRetries) {
         const delay = baseDelay * Math.pow(2, retryCount) // Exponential backoff
         console.log(
-          `Retrying attempt ${retryCount + 1}/${maxRetries} after ${delay}ms delay`
+          `Retrying attempt ${retryCount + 1}/${maxRetries} after ${delay}ms delay`,
         )
         await new Promise((resolve) => setTimeout(resolve, delay))
         return loadAnnotationDataWithRetry(taskId, retryCount + 1)
@@ -210,13 +213,13 @@ describe('Issue #157: Annotation Loading Fix', () => {
 
     // Verify successful state
     expect(screen.getByTestId('project-status')).toHaveTextContent(
-      'Project found'
+      'Project found',
     )
     expect(screen.getByTestId('annotation-count')).toHaveTextContent(
-      'Annotations: 2'
+      'Annotations: 2',
     )
     expect(screen.getByTestId('user-status-count')).toHaveTextContent(
-      'User statuses: 1'
+      'User statuses: 1',
     )
     expect(screen.queryByTestId('error')).not.toBeInTheDocument()
   })
@@ -254,16 +257,16 @@ describe('Issue #157: Annotation Loading Fix', () => {
     await waitFor(
       () => {
         expect(screen.getByTestId('project-status')).toHaveTextContent(
-          'Project found'
+          'Project found',
         )
       },
-      { timeout: 8000 }
+      { timeout: 8000 },
     )
 
     // Verify retry attempts were made
     expect(attemptCount).toBe(3)
     expect(screen.getByTestId('annotation-count')).toHaveTextContent(
-      'Annotations: 1'
+      'Annotations: 1',
     )
   }, 10000)
 
@@ -285,7 +288,7 @@ describe('Issue #157: Annotation Loading Fix', () => {
     expect(mockAnnotationApi.projects.getByTask).toHaveBeenCalledTimes(1)
     expect(screen.getByTestId('project-status')).toHaveTextContent('No project')
     expect(screen.getByTestId('annotation-count')).toHaveTextContent(
-      'Annotations: 0'
+      'Annotations: 0',
     )
   })
 
@@ -321,10 +324,10 @@ describe('Issue #157: Annotation Loading Fix', () => {
     await waitFor(
       () => {
         expect(screen.getByTestId('project-status')).toHaveTextContent(
-          'Project found'
+          'Project found',
         )
       },
-      { timeout: 3000 }
+      { timeout: 3000 },
     )
 
     expect(attemptCount).toBe(2)
@@ -343,7 +346,7 @@ describe('Issue #157: Annotation Loading Fix', () => {
 
     // Overview fails but shouldn't break the entire load
     mockApi.getTaskAnnotationOverview.mockRejectedValue(
-      new Error('Overview service unavailable')
+      new Error('Overview service unavailable'),
     )
 
     render(<TestAnnotationLoading taskId="task-123" />)
@@ -354,13 +357,13 @@ describe('Issue #157: Annotation Loading Fix', () => {
 
     // Should have project and annotations but no user status
     expect(screen.getByTestId('project-status')).toHaveTextContent(
-      'Project found'
+      'Project found',
     )
     expect(screen.getByTestId('annotation-count')).toHaveTextContent(
-      'Annotations: 1'
+      'Annotations: 1',
     )
     expect(screen.getByTestId('user-status-count')).toHaveTextContent(
-      'User statuses: 0'
+      'User statuses: 0',
     )
     expect(screen.queryByTestId('error')).not.toBeInTheDocument()
   })
@@ -380,23 +383,23 @@ describe('Issue #157: Annotation Loading Fix', () => {
       () => {
         expect(screen.queryByTestId('loading')).not.toBeInTheDocument()
       },
-      { timeout: 8000 }
+      { timeout: 8000 },
     )
 
     // Should have made retry attempts (at least initial + some retries)
     // Note: Due to async nature and function scoping, exact count may vary
     expect(mockAnnotationApi.projects.getByTask).toHaveBeenCalledWith(
-      'task-123'
+      'task-123',
     )
     expect(mockAnnotationApi.projects.getByTask).toHaveBeenCalled()
 
     // Should fail gracefully with safe state
     expect(screen.getByTestId('project-status')).toHaveTextContent('No project')
     expect(screen.getByTestId('annotation-count')).toHaveTextContent(
-      'Annotations: 0'
+      'Annotations: 0',
     )
     expect(screen.getByTestId('user-status-count')).toHaveTextContent(
-      'User statuses: 0'
+      'User statuses: 0',
     )
   }, 10000)
 
@@ -413,10 +416,10 @@ describe('Issue #157: Annotation Loading Fix', () => {
     // Should handle null project gracefully
     expect(screen.getByTestId('project-status')).toHaveTextContent('No project')
     expect(screen.getByTestId('annotation-count')).toHaveTextContent(
-      'Annotations: 0'
+      'Annotations: 0',
     )
     expect(screen.getByTestId('user-status-count')).toHaveTextContent(
-      'User statuses: 0'
+      'User statuses: 0',
     )
     expect(screen.queryByTestId('error')).not.toBeInTheDocument()
   })

@@ -173,7 +173,7 @@ const memberFixture = (overrides: Record<string, any> = {}) => ({
 })
 
 function renderOrgGroups(
-  props: Partial<React.ComponentProps<typeof OrgGroups>> = {}
+  props: Partial<React.ComponentProps<typeof OrgGroups>> = {},
 ) {
   return render(
     <OrgGroups
@@ -182,7 +182,7 @@ function renderOrgGroups(
       open={true}
       onOpenChange={jest.fn()}
       {...props}
-    />
+    />,
   )
 }
 
@@ -225,7 +225,7 @@ describe('OrgGroups', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('This organization has no groups yet.')
+          screen.getByText('This organization has no groups yet.'),
         ).toBeInTheDocument()
       })
     })
@@ -288,7 +288,7 @@ describe('OrgGroups', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('Group name already exists')
+          screen.getByText('Group name already exists'),
         ).toBeInTheDocument()
       })
     })
@@ -302,9 +302,7 @@ describe('OrgGroups', () => {
         expect(screen.getByText('Chair of Civil Law')).toBeInTheDocument()
       })
       expect(screen.queryByTestId('group-create-name')).not.toBeInTheDocument()
-      expect(
-        screen.queryByTestId('group-delete-grp-1')
-      ).not.toBeInTheDocument()
+      expect(screen.queryByTestId('group-delete-grp-1')).not.toBeInTheDocument()
       expect(screen.queryByTestId('group-edit-grp-1')).not.toBeInTheDocument()
       // But member management of their own group stays available.
       expect(screen.getByTestId('group-members-grp-1')).toBeInTheDocument()
@@ -333,8 +331,8 @@ describe('OrgGroups', () => {
       await waitFor(() => {
         expect(
           screen.getByText(
-            'Group still has 2 project attachments and 1 API key; detach them first.'
-          )
+            'Group still has 2 project attachments and 1 API key; detach them first.',
+          ),
         ).toBeInTheDocument()
       })
       expect(mockDeleteGroup).toHaveBeenCalledWith('org-1', 'grp-1')
@@ -403,7 +401,7 @@ describe('OrgGroups', () => {
       expect(mockGetGroupMembers).toHaveBeenCalledWith('org-1', 'grp-1')
       expect(mockGetOrganizationMembers).toHaveBeenCalledWith('org-1')
       expect(
-        screen.getByText('grete@example.com · CONTRIBUTOR')
+        screen.getByText('grete@example.com · CONTRIBUTOR'),
       ).toBeInTheDocument()
     })
 
@@ -411,7 +409,7 @@ describe('OrgGroups', () => {
       await openMembers()
 
       const select = screen.getByTestId(
-        'group-add-member-select'
+        'group-add-member-select',
       ) as HTMLSelectElement
       const optionValues = Array.from(select.options).map((o) => o.value)
       expect(optionValues).toContain('user-3')
@@ -420,7 +418,7 @@ describe('OrgGroups', () => {
 
     it('adds a member (optionally as group admin)', async () => {
       mockAddGroupMember.mockResolvedValue(
-        memberFixture({ user_id: 'user-3', id: 'gm-2' })
+        memberFixture({ user_id: 'user-3', id: 'gm-2' }),
       )
       await openMembers()
 
@@ -449,7 +447,7 @@ describe('OrgGroups', () => {
         expect(mockRemoveGroupMember).toHaveBeenCalledWith(
           'org-1',
           'grp-1',
-          'user-2'
+          'user-2',
         )
       })
       expect(screen.getByText('Member removed')).toBeInTheDocument()
@@ -457,7 +455,7 @@ describe('OrgGroups', () => {
 
     it('toggles the group-admin flag', async () => {
       mockUpdateGroupMember.mockResolvedValue(
-        memberFixture({ is_group_admin: true })
+        memberFixture({ is_group_admin: true }),
       )
       await openMembers()
 
@@ -468,7 +466,7 @@ describe('OrgGroups', () => {
           'org-1',
           'grp-1',
           'user-2',
-          { is_group_admin: true }
+          { is_group_admin: true },
         )
       })
     })
@@ -484,7 +482,7 @@ describe('OrgGroups', () => {
         expect(screen.getByText('Chair of Civil Law')).toBeInTheDocument()
       })
       expect(
-        screen.queryByTestId('group-members-grp-1')
+        screen.queryByTestId('group-members-grp-1'),
       ).not.toBeInTheDocument()
     })
 
@@ -502,7 +500,7 @@ describe('OrgGroups', () => {
 
       await waitFor(() => {
         expect(screen.getByTestId('org-groups-message')).toHaveTextContent(
-          'boom'
+          'boom',
         )
       })
     })
@@ -529,7 +527,9 @@ describe('OrgGroups', () => {
       })
       fireEvent.click(screen.getByTestId('group-members-grp-1'))
       await waitFor(() => {
-        expect(screen.getByTestId('group-add-member-select')).toBeInTheDocument()
+        expect(
+          screen.getByTestId('group-add-member-select'),
+        ).toBeInTheDocument()
       })
 
       fireEvent.change(screen.getByTestId('group-add-member-select'), {
@@ -538,21 +538,21 @@ describe('OrgGroups', () => {
       fireEvent.click(screen.getByTestId('group-add-member-submit'))
       await waitFor(() => {
         expect(screen.getByTestId('org-groups-message')).toHaveTextContent(
-          'not an org member'
+          'not an org member',
         )
       })
 
       fireEvent.click(screen.getByTestId('group-member-admin-toggle-user-2'))
       await waitFor(() => {
         expect(screen.getByTestId('org-groups-message')).toHaveTextContent(
-          'Failed to update member'
+          'Failed to update member',
         )
       })
 
       fireEvent.click(screen.getByTestId('group-member-remove-user-2'))
       await waitFor(() => {
         expect(screen.getByTestId('org-groups-message')).toHaveTextContent(
-          'Failed to remove member'
+          'Failed to remove member',
         )
       })
     })
@@ -604,7 +604,7 @@ describe('OrgGroups', () => {
 
       await waitFor(() => {
         expect(screen.getByTestId('org-groups-message')).toHaveTextContent(
-          'name already taken'
+          'name already taken',
         )
       })
       expect(screen.getByTestId('group-edit-name-grp-1')).toBeInTheDocument()
@@ -622,25 +622,21 @@ describe('OrgGroups', () => {
 
       await waitFor(() => {
         expect(
-          screen.queryByTestId('group-edit-name-grp-1')
+          screen.queryByTestId('group-edit-name-grp-1'),
         ).not.toBeInTheDocument()
       })
       expect(mockUpdateGroup).not.toHaveBeenCalled()
     })
 
     it('does not offer edit or delete to non-admins', async () => {
-      mockGetGroups.mockResolvedValue([
-        groupFixture({ is_group_admin: true }),
-      ])
+      mockGetGroups.mockResolvedValue([groupFixture({ is_group_admin: true })])
 
       renderOrgGroups({ isAdmin: false, canManageGroups: true })
       await waitFor(() => {
         expect(screen.getByText('Chair of Civil Law')).toBeInTheDocument()
       })
       expect(screen.queryByTestId('group-edit-grp-1')).not.toBeInTheDocument()
-      expect(
-        screen.queryByTestId('group-delete-grp-1')
-      ).not.toBeInTheDocument()
+      expect(screen.queryByTestId('group-delete-grp-1')).not.toBeInTheDocument()
     })
   })
 })

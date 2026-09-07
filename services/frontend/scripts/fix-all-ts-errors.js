@@ -32,7 +32,7 @@ function fixButtonSizeProps() {
       /<Button([^>]*)\ssize="[^"]*"([^>]*)>/g,
       (match) => {
         return match.replace(/\ssize="[^"]*"/g, '')
-      }
+      },
     )
 
     if (content !== original) {
@@ -48,7 +48,7 @@ function fixButtonSizeProps() {
 // Fix params and searchParams null checks
 function fixParamsNullChecks() {
   console.log(
-    `${colors.blue}Fixing params/searchParams null checks...${colors.reset}`
+    `${colors.blue}Fixing params/searchParams null checks...${colors.reset}`,
   )
 
   const files = glob.sync('src/app/**/page.tsx')
@@ -69,7 +69,7 @@ function fixParamsNullChecks() {
     // Fix destructuring of params - add null check
     content = content.replace(
       /const\s+{\s*id[^}]*}\s*=\s+params(?!\?)/g,
-      'const { id } = params || {}'
+      'const { id } = params || {}',
     )
 
     if (content !== original) {
@@ -125,7 +125,7 @@ function fixApiImports() {
   if (!indexContent.includes('Organization,')) {
     indexContent = indexContent.replace(
       'export type {',
-      'export type {\n  Organization,'
+      'export type {\n  Organization,',
     )
   }
 
@@ -133,7 +133,7 @@ function fixApiImports() {
   if (!indexContent.includes('Invitation,')) {
     indexContent = indexContent.replace(
       'export type {',
-      'export type {\n  Invitation,'
+      'export type {\n  Invitation,',
     )
   }
 
@@ -155,13 +155,13 @@ function fixUserTypeIssues() {
     // Replace user.role with proper organization role check
     content = content.replace(
       /user\.role\s*===?\s*['"](\w+)['"]/g,
-      "(user as any).role === '$1'"
+      "(user as any).role === '$1'",
     )
 
     // Replace user.organization_memberships
     content = content.replace(
       /user\.organization_memberships/g,
-      '(user as any).organization_memberships'
+      '(user as any).organization_memberships',
     )
 
     if (content !== original) {
@@ -177,7 +177,7 @@ function fixUserTypeIssues() {
 // Fix Task data property issues
 function fixTaskDataProperty() {
   console.log(
-    `${colors.blue}Fixing Task.data property issues...${colors.reset}`
+    `${colors.blue}Fixing Task.data property issues...${colors.reset}`,
   )
 
   const files = glob.sync('src/**/*.tsx')
@@ -255,7 +255,7 @@ function fixTabsComponent() {
 // Main function
 function main() {
   console.log(
-    `${colors.blue}🔧 Fixing all TypeScript errors...${colors.reset}\n`
+    `${colors.blue}🔧 Fixing all TypeScript errors...${colors.reset}\n`,
   )
 
   fixButtonSizeProps()
@@ -269,7 +269,7 @@ function main() {
 
   console.log(`${colors.green}✅ All fixes applied!${colors.reset}`)
   console.log(
-    `\n${colors.yellow}Now run 'npm run type-check' to verify the fixes${colors.reset}`
+    `\n${colors.yellow}Now run 'npm run type-check' to verify the fixes${colors.reset}`,
   )
 }
 

@@ -8,8 +8,8 @@ describe('computeDefaultEvalName', () => {
       computeDefaultEvalName(
         FALL,
         { judges: [{ runs: 1, judge_model_id: 'gpt-5-mini' }] },
-        'llm_judge_falloesung'
-      )
+        'llm_judge_falloesung',
+      ),
     ).toBe('Falllösung LLM Judge (gpt-5-mini)')
   })
 
@@ -18,8 +18,8 @@ describe('computeDefaultEvalName', () => {
       computeDefaultEvalName(
         FALL,
         { judges: [{ runs: 3, judge_model_id: 'gpt-5-mini' }] },
-        'llm_judge_falloesung'
-      )
+        'llm_judge_falloesung',
+      ),
     ).toBe('Falllösung LLM Judge (gpt-5-mini ×3)')
   })
 
@@ -33,8 +33,8 @@ describe('computeDefaultEvalName', () => {
             { runs: 1, judge_model_id: 'gpt-5-mini' },
           ],
         },
-        'llm_judge_falloesung'
-      )
+        'llm_judge_falloesung',
+      ),
     ).toBe('Falllösung LLM Judge (gpt-5-mini ×2)')
   })
 
@@ -43,8 +43,8 @@ describe('computeDefaultEvalName', () => {
       computeDefaultEvalName(
         FALL,
         { judges: [{ judge_model_id: 'gpt-5-mini' }] },
-        'llm_judge_falloesung'
-      )
+        'llm_judge_falloesung',
+      ),
     ).toBe('Falllösung LLM Judge (gpt-5-mini)')
   })
 
@@ -59,10 +59,10 @@ describe('computeDefaultEvalName', () => {
             { runs: 1, judge_model_id: 'gemini-3.1-pro-preview' },
           ],
         },
-        'llm_judge_falloesung'
-      )
+        'llm_judge_falloesung',
+      ),
     ).toBe(
-      'Falllösung LLM Judge (gpt-5-mini + claude-opus-4-7 + gemini-3.1-pro-preview)'
+      'Falllösung LLM Judge (gpt-5-mini + claude-opus-4-7 + gemini-3.1-pro-preview)',
     )
   })
 
@@ -76,8 +76,8 @@ describe('computeDefaultEvalName', () => {
             { runs: 1, judge_model_id: 'claude-opus-4-7' },
           ],
         },
-        'llm_judge_falloesung'
-      )
+        'llm_judge_falloesung',
+      ),
     ).toBe('Falllösung LLM Judge (gpt-5-mini ×2 + claude-opus-4-7)')
   })
 
@@ -86,8 +86,8 @@ describe('computeDefaultEvalName', () => {
       computeDefaultEvalName(
         FALL,
         { judge_model: 'gpt-5-mini' },
-        'llm_judge_falloesung'
-      )
+        'llm_judge_falloesung',
+      ),
     ).toBe('Falllösung LLM Judge (gpt-5-mini)')
   })
 
@@ -96,8 +96,8 @@ describe('computeDefaultEvalName', () => {
       computeDefaultEvalName(
         { display_name: 'Classic LLM Judge' } as any,
         { judges: [{ runs: 1, judge_model_id: 'x' }], judge_model: 'gpt-4o' },
-        'llm_judge_classic'
-      )
+        'llm_judge_classic',
+      ),
     ).toBe('Classic LLM Judge (x)')
   })
 
@@ -111,16 +111,20 @@ describe('computeDefaultEvalName', () => {
             { runs: 3, judge_model_id: 'Qwen/Qwen3.5-397B-A17B' },
           ],
         },
-        'llm_judge_falloesung'
-      )
+        'llm_judge_falloesung',
+      ),
     ).toBe(
-      'Falllösung LLM Judge (deepseek-ai/DeepSeek-V4-Pro + Qwen/Qwen3.5-397B-A17B ×3)'
+      'Falllösung LLM Judge (deepseek-ai/DeepSeek-V4-Pro + Qwen/Qwen3.5-397B-A17B ×3)',
     )
   })
 
   it('non-llm metric unchanged', () => {
     expect(
-      computeDefaultEvalName({ display_name: 'BLEU' } as any, { max_order: 4 }, 'bleu')
+      computeDefaultEvalName(
+        { display_name: 'BLEU' } as any,
+        { max_order: 4 },
+        'bleu',
+      ),
     ).toBe('BLEU')
   })
 
@@ -129,8 +133,8 @@ describe('computeDefaultEvalName', () => {
       computeDefaultEvalName(
         { display_name: 'Korrektur Fallloesung' } as any,
         { judge_model: 'gpt-5-mini' },
-        'korrektur_falloesung'
-      )
+        'korrektur_falloesung',
+      ),
     ).toBe('Korrektur Fallloesung')
   })
 
@@ -139,8 +143,8 @@ describe('computeDefaultEvalName', () => {
       computeDefaultEvalName(
         { display_name: 'Classic LLM Judge' } as any,
         {},
-        'llm_judge_classic'
-      )
+        'llm_judge_classic',
+      ),
     ).toBe('Classic LLM Judge')
   })
 
@@ -149,14 +153,18 @@ describe('computeDefaultEvalName', () => {
       computeDefaultEvalName(
         { display_name: 'Falllösung LLM Judge (gpt-5-mini ×3)' } as any,
         { judges: [{ runs: 3, judge_model_id: 'gpt-5-mini' }] },
-        'llm_judge_falloesung'
-      )
+        'llm_judge_falloesung',
+      ),
     ).toBe('Falllösung LLM Judge (gpt-5-mini ×3)')
   })
 
   it('falls back to the metric key when metricDef is missing', () => {
     expect(
-      computeDefaultEvalName(undefined, { judge_model: 'gpt-4o' }, 'llm_judge_classic')
+      computeDefaultEvalName(
+        undefined,
+        { judge_model: 'gpt-4o' },
+        'llm_judge_classic',
+      ),
     ).toBe('llm_judge_classic (gpt-4o)')
   })
 })

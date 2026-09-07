@@ -24,7 +24,7 @@ interface PostAnnotationQuestionnaireModalProps {
     projectId: string,
     taskId: string,
     annotationId: string,
-    result: AnnotationResult[]
+    result: AnnotationResult[],
   ) => Promise<void>
 }
 
@@ -54,7 +54,7 @@ export function PostAnnotationQuestionnaireModal({
         setIsSubmitting(false)
       }
     },
-    [projectId, taskId, annotationId, onSubmitResponse, onComplete]
+    [projectId, taskId, annotationId, onSubmitResponse, onComplete],
   )
 
   return (
@@ -69,7 +69,7 @@ export function PostAnnotationQuestionnaireModal({
           leaveFrom="opacity-100"
           leaveTo="opacity-0"
         >
-          <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity dark:bg-zinc-900/80" />
+          <div className="fixed inset-0 bg-gray-500/75 transition-opacity dark:bg-zinc-900/80" />
         </Transition.Child>
 
         <div className="fixed inset-0 z-10 overflow-y-auto">
@@ -83,9 +83,9 @@ export function PostAnnotationQuestionnaireModal({
               leaveFrom="opacity-100 translate-y-0 sm:scale-100"
               leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
             >
-              <Dialog.Panel className="relative flex max-h-[90vh] transform flex-col rounded-lg bg-white text-left shadow-xl transition-all dark:bg-zinc-800 sm:my-8 sm:w-full sm:max-w-2xl">
+              <Dialog.Panel className="relative flex max-h-[90vh] transform flex-col rounded-lg bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-2xl dark:bg-zinc-800">
                 {/* Fixed header */}
-                <div className="flex-shrink-0 px-4 pt-5 sm:px-6 sm:pt-6">
+                <div className="shrink-0 px-4 pt-5 sm:px-6 sm:pt-6">
                   <div className="mb-4 flex items-center gap-3">
                     <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/30">
                       <ClipboardDocumentListIcon className="h-6 w-6 text-blue-600 dark:text-blue-400" />
@@ -93,7 +93,7 @@ export function PostAnnotationQuestionnaireModal({
                     <div>
                       <Dialog.Title
                         as="h3"
-                        className="text-lg font-semibold leading-6 text-zinc-900 dark:text-white"
+                        className="text-lg leading-6 font-semibold text-zinc-900 dark:text-white"
                       >
                         {t('annotation.questionnaire.title')}
                       </Dialog.Title>
@@ -106,7 +106,9 @@ export function PostAnnotationQuestionnaireModal({
                   {/* Error */}
                   {error && (
                     <div className="mb-4 rounded-md bg-red-50 p-3 dark:bg-red-900/20">
-                      <p className="text-sm text-red-800 dark:text-red-300">{error}</p>
+                      <p className="text-sm text-red-800 dark:text-red-300">
+                        {error}
+                      </p>
                     </div>
                   )}
                 </div>

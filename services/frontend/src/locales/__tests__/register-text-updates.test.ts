@@ -156,7 +156,9 @@ describe('Locale Files Text Updates (Issue #105)', () => {
       // Shown atop the now-optional research-data steps (2–5).
       expect(typeof englishLocale.register.optionalPageNotice).toBe('string')
       expect(typeof germanLocale.register.optionalPageNotice).toBe('string')
-      expect(englishLocale.register.optionalPageNotice.length).toBeGreaterThan(0)
+      expect(englishLocale.register.optionalPageNotice.length).toBeGreaterThan(
+        0,
+      )
       expect(germanLocale.register.optionalPageNotice.length).toBeGreaterThan(0)
     })
 
@@ -197,7 +199,7 @@ describe('Locale Files Text Updates (Issue #105)', () => {
           file.includes('.backup') ||
           file.includes('.tmp') ||
           file.includes('~') ||
-          file.endsWith('.bak')
+          file.endsWith('.bak'),
       )
 
       expect(backupFiles).toHaveLength(0)
@@ -209,10 +211,10 @@ describe('Locale Files Text Updates (Issue #105)', () => {
 
       // Should not contain weird characters or encoding issues
       expect(englishContent).not.toMatch(
-        /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F]/
+        /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F]/,
       )
       expect(germanContent).not.toMatch(
-        /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F]/
+        /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F]/,
       )
 
       // Should end with newline for proper git handling

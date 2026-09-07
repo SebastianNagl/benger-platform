@@ -112,7 +112,9 @@ export function TaskAssignmentModal({
         <div className="space-y-6 py-4">
           <div className="rounded-lg bg-zinc-50 p-4 dark:bg-zinc-800">
             <p className="text-sm text-zinc-600 dark:text-zinc-400">
-              {t('projects.taskAssignment.assigningTasks', { count: selectedTaskIds.length })}
+              {t('projects.taskAssignment.assigningTasks', {
+                count: selectedTaskIds.length,
+              })}
             </p>
           </div>
 

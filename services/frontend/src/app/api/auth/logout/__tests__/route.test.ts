@@ -70,7 +70,7 @@ describe('/api/auth/logout', () => {
             'Content-Type': 'application/json',
             Cookie: cookieHeader,
           }),
-        })
+        }),
       )
     })
 
@@ -110,7 +110,7 @@ describe('/api/auth/logout', () => {
           headers: expect.objectContaining({
             Cookie: '',
           }),
-        })
+        }),
       )
     })
   })
@@ -163,7 +163,7 @@ describe('/api/auth/logout', () => {
       // Should log the error
       expect(console.error).toHaveBeenCalledWith(
         '❌ Logout proxy error:',
-        expect.any(Error)
+        expect.any(Error),
       )
     })
 
@@ -251,7 +251,7 @@ describe('/api/auth/logout', () => {
 
       expect(mockFetch).toHaveBeenCalledWith(
         'http://localhost:8001/api/auth/logout',
-        expect.any(Object)
+        expect.any(Object),
       )
     })
 
@@ -269,14 +269,14 @@ describe('/api/auth/logout', () => {
           headers: {
             host: 'benger.localhost',
           },
-        }
+        },
       )
 
       await POST(request)
 
       expect(mockFetch).toHaveBeenCalledWith(
         'http://api:8000/api/auth/logout',
-        expect.any(Object)
+        expect.any(Object),
       )
     })
 
@@ -294,14 +294,14 @@ describe('/api/auth/logout', () => {
           headers: {
             host: 'what-a-benger.net',
           },
-        }
+        },
       )
 
       await POST(request)
 
       expect(mockFetch).toHaveBeenCalledWith(
         'http://benger-api:8000/api/auth/logout',
-        expect.any(Object)
+        expect.any(Object),
       )
     })
 
@@ -319,14 +319,14 @@ describe('/api/auth/logout', () => {
           headers: {
             host: 'staging.what-a-benger.net',
           },
-        }
+        },
       )
 
       await POST(request)
 
       expect(mockFetch).toHaveBeenCalledWith(
         'http://benger-api:8000/api/auth/logout',
-        expect.any(Object)
+        expect.any(Object),
       )
     })
 
@@ -348,14 +348,14 @@ describe('/api/auth/logout', () => {
             headers: {
               host: 'what-a-benger.net',
             },
-          }
+          },
         )
 
         await POST(request)
 
         expect(mockFetch).toHaveBeenCalledWith(
           'http://custom-api:9000/api/auth/logout',
-          expect.any(Object)
+          expect.any(Object),
         )
       } finally {
         // Restore original env var
@@ -381,14 +381,14 @@ describe('/api/auth/logout', () => {
           headers: {
             host: 'unknown-host.com',
           },
-        }
+        },
       )
 
       await POST(request)
 
       expect(mockFetch).toHaveBeenCalledWith(
         'http://api:8000/api/auth/logout',
-        expect.any(Object)
+        expect.any(Object),
       )
     })
   })
@@ -424,7 +424,7 @@ describe('/api/auth/logout', () => {
 
       expect(console.error).toHaveBeenCalledWith(
         '❌ Logout proxy error:',
-        error
+        error,
       )
     })
   })
@@ -516,7 +516,7 @@ describe('/api/auth/logout', () => {
           headers: expect.objectContaining({
             Cookie: ';;;invalid;;;',
           }),
-        })
+        }),
       )
     })
   })
@@ -588,7 +588,7 @@ describe('/api/auth/logout', () => {
       expect(response.status).toBe(204)
       expect(mockFetch).toHaveBeenCalledWith(
         'http://api:8000/api/auth/logout',
-        expect.any(Object)
+        expect.any(Object),
       )
     })
 
@@ -616,7 +616,7 @@ describe('/api/auth/logout', () => {
           headers: expect.objectContaining({
             Cookie: '',
           }),
-        })
+        }),
       )
     })
 
@@ -653,7 +653,7 @@ describe('/api/auth/logout', () => {
           headers: expect.objectContaining({
             Cookie: cookieHeader,
           }),
-        })
+        }),
       )
     })
   })

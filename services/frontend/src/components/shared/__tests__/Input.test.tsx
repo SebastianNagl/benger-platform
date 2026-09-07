@@ -167,7 +167,7 @@ describe('Input Component', () => {
         placeholder="test"
         autoComplete="email"
         readOnly={true}
-      />
+      />,
     )
 
     const input = screen.getByRole('textbox')

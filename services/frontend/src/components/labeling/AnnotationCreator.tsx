@@ -51,7 +51,7 @@ export function AnnotationCreator({
           {
             result: results,
             was_cancelled: false, // Mark as submitted
-          }
+          },
         )
       } else {
         // Create new annotation as submitted
@@ -86,7 +86,9 @@ export function AnnotationCreator({
             {t('labeling.annotationCreator.taskLabel')} #{task.id}
           </span>
           {isSaving && (
-            <span className="text-gray-500">{t('labeling.annotationCreator.saving')}</span>
+            <span className="text-gray-500">
+              {t('labeling.annotationCreator.saving')}
+            </span>
           )}
         </div>
       </div>

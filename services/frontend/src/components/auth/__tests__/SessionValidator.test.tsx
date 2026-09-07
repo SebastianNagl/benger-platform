@@ -34,11 +34,11 @@ describe('SessionValidator Component', () => {
         <div>
           <SessionValidator />
           <div data-testid="sibling">Sibling Component</div>
-        </div>
+        </div>,
       )
 
       expect(
-        container.querySelector('[data-testid="sibling"]')
+        container.querySelector('[data-testid="sibling"]'),
       ).toBeInTheDocument()
     })
 
@@ -68,7 +68,7 @@ describe('SessionValidator Component', () => {
           <SessionValidator />
           <SessionValidator />
           <SessionValidator />
-        </div>
+        </div>,
       )
 
       expect(container).toBeDefined()

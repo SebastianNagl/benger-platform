@@ -7,9 +7,15 @@ import { TableCheckbox } from '@/components/projects/TableCheckbox'
 import { Button } from '@/components/shared/Button'
 import { FilterToolbar } from '@/components/shared/FilterToolbar'
 import { Pagination } from '@/components/shared/Pagination'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/shared/Select'
-import { ToggleSwitch } from '@/components/shared/ToggleSwitch'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/shared/Select'
 import { useToast } from '@/components/shared/Toast'
+import { ToggleSwitch } from '@/components/shared/ToggleSwitch'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { useProgress } from '@/contexts/ProgressContext'
@@ -17,10 +23,12 @@ import { useConfirm } from '@/hooks/useDialogs'
 import { projectsAPI } from '@/lib/api/projects'
 import { useSlot } from '@/lib/extensions/slots'
 import { projectIcon } from '@/lib/projectKind'
+import { parseSubdomain } from '@/lib/utils/subdomain'
 import { useProjectStore } from '@/stores/projectStore'
 import { Project } from '@/types/labelStudio'
-import { parseSubdomain } from '@/lib/utils/subdomain'
 import { canCreateProjects } from '@/utils/permissions'
+import { computeWindowState } from '@/utils/projectWindow'
+import { Menu } from '@headlessui/react'
 import {
   ArchiveBoxIcon,
   ChevronDownIcon,
@@ -30,15 +38,13 @@ import {
   FolderIcon,
   GlobeAltIcon,
   MagnifyingGlassIcon,
-  TrashIcon,
+  PlusIcon,
   RectangleStackIcon,
   ScaleIcon,
+  TrashIcon,
   UserGroupIcon,
-  PlusIcon,
 } from '@heroicons/react/24/outline'
-import { Menu } from '@headlessui/react'
 import { formatDistanceToNow } from 'date-fns'
-import { computeWindowState } from '@/utils/projectWindow'
 import { de } from 'date-fns/locale'
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
@@ -78,7 +84,7 @@ export function ProjectListTable({
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc')
   const [localSearchQuery, setLocalSearchQuery] = useState('')
   const [selectedProjects, setSelectedProjects] = useState<Set<string>>(
-    new Set()
+    new Set(),
   )
   // Superadmin-only opt-in to broaden the response to include every other
   // user's private projects. Default OFF (narrow view) — the toggle restores
@@ -100,7 +106,10 @@ export function ProjectListTable({
     setIncludeAllPrivate(next)
     if (typeof window === 'undefined') return
     try {
-      window.localStorage.setItem(includeAllPrivateStorageKey, next ? 'true' : 'false')
+      window.localStorage.setItem(
+        includeAllPrivateStorageKey,
+        next ? 'true' : 'false',
+      )
     } catch {
       // ignore persistence failures
     }
@@ -112,7 +121,8 @@ export function ProjectListTable({
   const [discoverOpen, setDiscoverOpen] = useState(false)
 
   // Check if user has permissions to create/modify projects
-  const { isPrivateMode } = typeof window !== 'undefined' ? parseSubdomain() : { isPrivateMode: true }
+  const { isPrivateMode } =
+    typeof window !== 'undefined' ? parseSubdomain() : { isPrivateMode: true }
   const userCanCreateProjects = canCreateProjects(user, { isPrivateMode })
 
   // Clear selections when page changes
@@ -199,7 +209,9 @@ export function ProjectListTable({
 
     const confirmed = await confirm({
       title: t('projects.list.deleteProjectsTitle'),
-      message: t('projects.list.deleteProjectsMessage', { count: selectedProjects.size }),
+      message: t('projects.list.deleteProjectsMessage', {
+        count: selectedProjects.size,
+      }),
       confirmText: t('projects.list.delete'),
       variant: 'danger',
     })
@@ -210,17 +222,20 @@ export function ProjectListTable({
       const result = await projectsAPI.bulkDeleteProjects(projectIds)
 
       if (result.deleted === 0) {
-        addToast(
-          t('projects.list.noProjectsDeleted'),
-          'warning'
-        )
+        addToast(t('projects.list.noProjectsDeleted'), 'warning')
       } else if (result.deleted < projectIds.length) {
         addToast(
-          t('projects.list.partialDeleteWarning', { deleted: result.deleted, total: projectIds.length }),
-          'warning'
+          t('projects.list.partialDeleteWarning', {
+            deleted: result.deleted,
+            total: projectIds.length,
+          }),
+          'warning',
         )
       } else {
-        addToast(t('toasts.projects.deleted', { count: result.deleted }), 'success')
+        addToast(
+          t('toasts.projects.deleted', { count: result.deleted }),
+          'success',
+        )
       }
 
       setSelectedProjects(new Set())
@@ -236,8 +251,12 @@ export function ProjectListTable({
     if (selectedProjects.size === 0) return
 
     const loadingMessage = fullExport
-      ? t('projects.list.exportingFullProjects', { count: selectedProjects.size })
-      : t('projects.list.exportingProjectData', { count: selectedProjects.size })
+      ? t('projects.list.exportingFullProjects', {
+          count: selectedProjects.size,
+        })
+      : t('projects.list.exportingProjectData', {
+          count: selectedProjects.size,
+        })
     // Multi-project bulk export is a single synchronous request that returns the
     // whole archive as one blob — there's no per-step progress signal, so the bar
     // stays indeterminate until the download resolves (completeProgress then flips
@@ -260,7 +279,7 @@ export function ProjectListTable({
         throw new Error(
           `Invalid response from server: expected Blob, got ${typeof blob}. ${
             blob ? `Response: ${JSON.stringify(blob).substring(0, 100)}...` : ''
-          }`
+          }`,
         )
       }
 
@@ -288,10 +307,16 @@ export function ProjectListTable({
       // Success notification with timing (with normal duration)
       addToast(
         fullExport
-          ? t('projects.list.exportFullSuccess', { count: selectedProjects.size, time: exportTime })
-          : t('projects.list.exportSuccess', { count: selectedProjects.size, time: exportTime }),
+          ? t('projects.list.exportFullSuccess', {
+              count: selectedProjects.size,
+              time: exportTime,
+            })
+          : t('projects.list.exportSuccess', {
+              count: selectedProjects.size,
+              time: exportTime,
+            }),
         'success',
-        5000 // Auto-dismiss after 5 seconds
+        5000, // Auto-dismiss after 5 seconds
       )
       setSelectedProjects(new Set())
     } catch (error) {
@@ -299,14 +324,19 @@ export function ProjectListTable({
 
       completeProgress(progressId, 'error')
       addToast(
-        t('projects.list.exportFailed', { error: error instanceof Error ? error.message : t('projects.list.unknownError') }),
-        'error'
+        t('projects.list.exportFailed', {
+          error:
+            error instanceof Error
+              ? error.message
+              : t('projects.list.unknownError'),
+        }),
+        'error',
       )
     }
   }
 
   const handleImportProject = async (
-    event: React.ChangeEvent<HTMLInputElement>
+    event: React.ChangeEvent<HTMLInputElement>,
   ) => {
     const file = event.target.files?.[0]
     if (!file) return
@@ -321,8 +351,11 @@ export function ProjectListTable({
 
     try {
       addToast(
-        t('projects.list.importingProject', { filename: file.name, size: fileSizeMB }),
-        'info'
+        t('projects.list.importingProject', {
+          filename: file.name,
+          size: fileSizeMB,
+        }),
+        'info',
       )
 
       const startTime = Date.now()
@@ -347,7 +380,7 @@ export function ProjectListTable({
           stats: statsMessage,
           time: importTime,
         }),
-        'success'
+        'success',
       )
 
       // Clear file input
@@ -396,7 +429,7 @@ export function ProjectListTable({
       title: t('projects.bulkActions.archiveTitle'),
       message: t('projects.bulkActions.archiveMessage').replace(
         '{count}',
-        selectedProjects.size.toString()
+        selectedProjects.size.toString(),
       ),
       confirmText: t('projects.bulkActions.archive'),
       variant: 'warning',
@@ -409,9 +442,9 @@ export function ProjectListTable({
       addToast(
         t('projects.bulkActions.archiveSuccess').replace(
           '{count}',
-          result.archived.toString()
+          result.archived.toString(),
         ),
-        'success'
+        'success',
       )
       setSelectedProjects(new Set())
       // Refresh projects list immediately after operation completes with correct filter
@@ -429,7 +462,7 @@ export function ProjectListTable({
       title: t('projects.bulkActions.unarchiveTitle'),
       message: t('projects.bulkActions.unarchiveMessage').replace(
         '{count}',
-        selectedProjects.size.toString()
+        selectedProjects.size.toString(),
       ),
       confirmText: t('projects.bulkActions.unarchive'),
       variant: 'info',
@@ -442,9 +475,9 @@ export function ProjectListTable({
       addToast(
         t('projects.bulkActions.unarchiveSuccess').replace(
           '{count}',
-          result.unarchived.toString()
+          result.unarchived.toString(),
         ),
-        'success'
+        'success',
       )
       setSelectedProjects(new Set())
       // Refresh projects list immediately after operation completes with correct filter
@@ -463,36 +496,38 @@ export function ProjectListTable({
   // resolves. Only an *explicit* mismatch is dropped (is_archived is a
   // non-nullable boolean in real data), so this filters nothing in steady state.
   const sortedProjects = [...(projects || [])]
-    .filter((p) => (showArchivedOnly ? p.is_archived !== false : p.is_archived !== true))
+    .filter((p) =>
+      showArchivedOnly ? p.is_archived !== false : p.is_archived !== true,
+    )
     .sort((a, b) => {
-    let aValue: any
-    let bValue: any
+      let aValue: any
+      let bValue: any
 
-    switch (sortField) {
-      case 'title':
-        aValue = a.title.toLowerCase()
-        bValue = b.title.toLowerCase()
-        break
-      case 'created_at':
-        aValue = new Date(a.created_at).getTime()
-        bValue = new Date(b.created_at).getTime()
-        break
-      case 'task_count':
-        aValue = a.task_count
-        bValue = b.task_count
-        break
-      case 'progress':
-        aValue = getProgress(a)
-        bValue = getProgress(b)
-        break
-    }
+      switch (sortField) {
+        case 'title':
+          aValue = a.title.toLowerCase()
+          bValue = b.title.toLowerCase()
+          break
+        case 'created_at':
+          aValue = new Date(a.created_at).getTime()
+          bValue = new Date(b.created_at).getTime()
+          break
+        case 'task_count':
+          aValue = a.task_count
+          bValue = b.task_count
+          break
+        case 'progress':
+          aValue = getProgress(a)
+          bValue = getProgress(b)
+          break
+      }
 
-    if (sortOrder === 'asc') {
-      return aValue > bValue ? 1 : -1
-    } else {
-      return aValue < bValue ? 1 : -1
-    }
-  })
+      if (sortOrder === 'asc') {
+        return aValue > bValue ? 1 : -1
+      } else {
+        return aValue < bValue ? 1 : -1
+      }
+    })
 
   const SortIcon = ({ field }: { field: SortField }) => {
     if (sortField !== field) {
@@ -519,7 +554,7 @@ export function ProjectListTable({
       <div className="mb-8">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-white sm:text-3xl">
+            <h1 className="text-2xl font-bold tracking-tight text-zinc-900 sm:text-3xl dark:text-white">
               {showArchivedOnly
                 ? `${t('projects.archived')} ${t('projects.title')}`
                 : t('projects.title')}
@@ -547,13 +582,19 @@ export function ProjectListTable({
               </Button>
             )}
             {!showArchivedOnly &&
-              (ProjectDiscoverModal || user?.is_superadmin || userCanCreateProjects) && (
+              (ProjectDiscoverModal ||
+                user?.is_superadmin ||
+                userCanCreateProjects) && (
                 <Menu as="div" className="relative inline-block text-left">
-                  <Menu.Button as={Button} variant="outline" data-testid="projects-more-button">
+                  <Menu.Button
+                    as={Button}
+                    variant="outline"
+                    data-testid="projects-more-button"
+                  >
                     {t('projects.more', 'Mehr')}
                     <ChevronDownIcon className="h-4 w-4" />
                   </Menu.Button>
-                  <Menu.Items className="absolute right-0 z-10 mt-2 w-56 origin-top-right rounded-lg bg-white p-1 shadow-lg ring-1 ring-black ring-opacity-5 transition duration-100 ease-out focus:outline-none data-[closed]:scale-95 data-[closed]:transform data-[closed]:opacity-0 dark:bg-zinc-900">
+                  <Menu.Items className="absolute right-0 z-10 mt-2 w-56 origin-top-right rounded-lg bg-white p-1 shadow-lg ring-1 ring-black/5 transition duration-100 ease-out focus:outline-none data-closed:scale-95 data-closed:transform data-closed:opacity-0 dark:bg-zinc-900">
                     {ProjectDiscoverModal && (
                       <Menu.Item>
                         {({ active }) => (
@@ -631,7 +672,12 @@ export function ProjectListTable({
           onClose={() => setDiscoverOpen(false)}
           onJoined={(projectId: string) => {
             setDiscoverOpen(false)
-            fetchProjects(undefined, undefined, showArchivedOnly, includeAllPrivate)
+            fetchProjects(
+              undefined,
+              undefined,
+              showArchivedOnly,
+              includeAllPrivate,
+            )
             router.push(`/projects/${projectId}`)
           }}
         />
@@ -665,10 +711,15 @@ export function ProjectListTable({
                   className="font-medium text-zinc-900 dark:text-white"
                   data-testid="projects-selection-count"
                 >
-                  {t('projects.list.projectsSelected', { count: selectedProjects.size })}
+                  {t('projects.list.projectsSelected', {
+                    count: selectedProjects.size,
+                  })}
                 </span>
               ) : (
-                t('projects.list.showingResults', { shown: sortedProjects.length, total: totalProjects })
+                t('projects.list.showingResults', {
+                  shown: sortedProjects.length,
+                  total: totalProjects,
+                })
               )}
             </span>
           }
@@ -682,10 +733,18 @@ export function ProjectListTable({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="title">{t('projects.list.sortTitle')}</SelectItem>
-                <SelectItem value="created_at">{t('projects.list.sortCreated')}</SelectItem>
-                <SelectItem value="task_count">{t('projects.list.sortTaskCount')}</SelectItem>
-                <SelectItem value="progress">{t('projects.list.sortProgress')}</SelectItem>
+                <SelectItem value="title">
+                  {t('projects.list.sortTitle')}
+                </SelectItem>
+                <SelectItem value="created_at">
+                  {t('projects.list.sortCreated')}
+                </SelectItem>
+                <SelectItem value="task_count">
+                  {t('projects.list.sortTaskCount')}
+                </SelectItem>
+                <SelectItem value="progress">
+                  {t('projects.list.sortProgress')}
+                </SelectItem>
               </SelectContent>
             </Select>
           </FilterToolbar.Field>
@@ -747,7 +806,7 @@ export function ProjectListTable({
                       indeterminate={
                         sortedProjects.length > 0 &&
                         sortedProjects.some((p) =>
-                          selectedProjects.has(p.id)
+                          selectedProjects.has(p.id),
                         ) &&
                         !sortedProjects.every((p) => selectedProjects.has(p.id))
                       }
@@ -758,7 +817,7 @@ export function ProjectListTable({
                 )}
                 <th
                   scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400"
+                  className="px-6 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400"
                 >
                   <button
                     onClick={() => handleSort('title')}
@@ -770,7 +829,7 @@ export function ProjectListTable({
                 </th>
                 <th
                   scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400"
+                  className="px-6 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400"
                 >
                   <button
                     onClick={() => handleSort('task_count')}
@@ -782,13 +841,13 @@ export function ProjectListTable({
                 </th>
                 <th
                   scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400"
+                  className="px-6 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400"
                 >
                   {t('projects.table.annotations')}
                 </th>
                 <th
                   scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400"
+                  className="px-6 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400"
                 >
                   <button
                     onClick={() => handleSort('progress')}
@@ -800,7 +859,7 @@ export function ProjectListTable({
                 </th>
                 <th
                   scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400"
+                  className="px-6 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400"
                 >
                   <button
                     onClick={() => handleSort('created_at')}
@@ -881,7 +940,11 @@ export function ProjectListTable({
                       >
                         <div>
                           <div className="flex items-center gap-2 text-sm font-medium text-zinc-900 dark:text-zinc-100">
-                            <span className="mr-0.5" aria-hidden data-testid={`project-icon-${project.id}`}>
+                            <span
+                              className="mr-0.5"
+                              aria-hidden
+                              data-testid={`project-icon-${project.id}`}
+                            >
                               {projectIcon(project)}
                             </span>
                             <span>{project.title}</span>
@@ -899,11 +962,11 @@ export function ProjectListTable({
                                 {project.public_role === 'CONTRIBUTOR'
                                   ? t(
                                       'projects.list.publicContributorBadge',
-                                      'Public · Contributor'
+                                      'Public · Contributor',
                                     )
                                   : t(
                                       'projects.list.publicAnnotatorBadge',
-                                      'Public · Annotator'
+                                      'Public · Annotator',
                                     )}
                               </span>
                             )}
@@ -913,11 +976,14 @@ export function ProjectListTable({
                                 data-testid={`project-participant-badge-${project.id}`}
                                 title={t(
                                   `projects.list.participantVia.${project.participant_via ?? 'share'}`,
-                                  'Beigetreten'
+                                  'Beigetreten',
                                 )}
                               >
                                 <UserGroupIcon className="h-3.5 w-3.5" />
-                                {t('projects.list.participantBadge', 'Teilnehmer')}
+                                {t(
+                                  'projects.list.participantBadge',
+                                  'Teilnehmer',
+                                )}
                               </span>
                             )}
                             {project.kind === 'flashcard_collection' && (
@@ -941,7 +1007,7 @@ export function ProjectListTable({
                             {(() => {
                               const ws = computeWindowState(
                                 (project as any).window_start_at,
-                                (project as any).window_end_at
+                                (project as any).window_end_at,
                               )
                               if (ws === 'none') return null
                               const cls =
@@ -952,11 +1018,15 @@ export function ProjectListTable({
                                     : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-400'
                               const label =
                                 ws === 'upcoming'
-                                  ? t('projects.list.windowUpcoming', 'Opens {date}', {
-                                      date: new Date(
-                                        (project as any).window_start_at
-                                      ).toLocaleDateString(),
-                                    })
+                                  ? t(
+                                      'projects.list.windowUpcoming',
+                                      'Opens {date}',
+                                      {
+                                        date: new Date(
+                                          (project as any).window_start_at,
+                                        ).toLocaleDateString(),
+                                      },
+                                    )
                                   : ws === 'closed'
                                     ? t('projects.list.windowClosed', 'Closed')
                                     : t('projects.list.windowOpen', 'Open')
@@ -979,19 +1049,19 @@ export function ProjectListTable({
                         </div>
                       </td>
                       <td
-                        className="cursor-pointer whitespace-nowrap px-6 py-4 text-sm text-zinc-900 dark:text-zinc-100"
+                        className="cursor-pointer px-6 py-4 text-sm whitespace-nowrap text-zinc-900 dark:text-zinc-100"
                         onClick={() => router.push(`/projects/${project.id}`)}
                       >
                         {project.task_count}
                       </td>
                       <td
-                        className="cursor-pointer whitespace-nowrap px-6 py-4 text-sm text-zinc-900 dark:text-zinc-100"
+                        className="cursor-pointer px-6 py-4 text-sm whitespace-nowrap text-zinc-900 dark:text-zinc-100"
                         onClick={() => router.push(`/projects/${project.id}`)}
                       >
                         {project.annotation_count}
                       </td>
                       <td
-                        className="cursor-pointer whitespace-nowrap px-6 py-4"
+                        className="cursor-pointer px-6 py-4 whitespace-nowrap"
                         onClick={() => router.push(`/projects/${project.id}`)}
                       >
                         <div className="flex items-center">
@@ -1009,7 +1079,7 @@ export function ProjectListTable({
                         </div>
                       </td>
                       <td
-                        className="cursor-pointer whitespace-nowrap px-6 py-4 text-sm text-zinc-500 dark:text-zinc-400"
+                        className="cursor-pointer px-6 py-4 text-sm whitespace-nowrap text-zinc-500 dark:text-zinc-400"
                         onClick={() => router.push(`/projects/${project.id}`)}
                       >
                         {formatDistanceToNow(new Date(project.created_at), {
@@ -1017,7 +1087,7 @@ export function ProjectListTable({
                           locale: de,
                         })}
                       </td>
-                      <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
+                      <td className="px-6 py-4 text-right text-sm font-medium whitespace-nowrap">
                         {project.kind === 'flashcard_collection' ? (
                           <button
                             onClick={(e) => {
@@ -1029,16 +1099,18 @@ export function ProjectListTable({
                           >
                             {t('projects.list.study', 'Lernen')}
                           </button>
-                        ) : project.enable_annotation !== false && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              router.push(`/projects/${project.id}/label`)
-                            }}
-                            className="mr-4 text-emerald-600 hover:text-emerald-500 dark:text-emerald-400 dark:hover:text-emerald-300"
-                          >
-                            {t('projects.list.label')}
-                          </button>
+                        ) : (
+                          project.enable_annotation !== false && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                router.push(`/projects/${project.id}/label`)
+                              }}
+                              className="mr-4 text-emerald-600 hover:text-emerald-500 dark:text-emerald-400 dark:hover:text-emerald-300"
+                            >
+                              {t('projects.list.label')}
+                            </button>
+                          )
                         )}
                       </td>
                     </tr>

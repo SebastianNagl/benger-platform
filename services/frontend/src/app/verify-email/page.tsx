@@ -20,8 +20,16 @@ export default function VerifyEmailPage() {
 
   // Host-aware wordmark (Vertretbar on vertretbar.net). Resolved after mount
   // so SSR stays neutral; the brief default is the BenGER name on benger hosts.
-  const brandName = useSyncExternalStore(subscribeNoop, getHostBrandName, () => 'BenGER')
-  const isVtr = useSyncExternalStore(subscribeNoop, isStudentLockedHost, () => false)
+  const brandName = useSyncExternalStore(
+    subscribeNoop,
+    getHostBrandName,
+    () => 'BenGER',
+  )
+  const isVtr = useSyncExternalStore(
+    subscribeNoop,
+    isStudentLockedHost,
+    () => false,
+  )
 
   const [status, setStatus] = useState<
     'loading' | 'success' | 'error' | 'info'
@@ -62,7 +70,7 @@ export default function VerifyEmailPage() {
         setMessage(t('emailVerification.invalidDescription'))
       }
     },
-    [t, router]
+    [t, router],
   )
 
   useEffect(() => {
@@ -71,12 +79,11 @@ export default function VerifyEmailPage() {
       verifyEmail(token)
     } else if (messageKey) {
       // This is a redirect after registration with a message key
-       
+
       setStatus('info')
       // Translate the message key (e.g., 'registrationSuccess' -> 'emailVerification.registrationSuccess')
       setMessage(t(`emailVerification.${messageKey}`))
     } else {
-       
       setStatus('error')
       setMessage(t('emailVerification.noToken'))
     }
@@ -256,7 +263,7 @@ export default function VerifyEmailPage() {
                 {email && (
                   <Button
                     onClick={handleResendVerification}
-                    className="w-full bg-emerald-600 px-4 py-2 text-white shadow-sm hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 dark:focus:ring-offset-zinc-900"
+                    className="w-full bg-emerald-600 px-4 py-2 text-white shadow-sm hover:bg-emerald-700 focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:outline-none dark:focus:ring-offset-zinc-900"
                   >
                     {t('emailVerification.resend')}
                   </Button>

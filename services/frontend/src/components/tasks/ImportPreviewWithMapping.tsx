@@ -3,12 +3,6 @@
  * Issue #220: Smart field mapping for flexible data import
  */
 
-import { useI18n } from '@/contexts/I18nContext'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Progress } from '@/components/ui/progress'
 import {
   Select,
   SelectContent,
@@ -16,6 +10,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/shared/Select'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Progress } from '@/components/ui/progress'
 import {
   Table,
   TableBody,
@@ -25,6 +24,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { useI18n } from '@/contexts/I18nContext'
 import {
   FieldMapping,
   MappingSuggestion,
@@ -67,7 +67,7 @@ export function ImportPreviewWithMapping({
   const [mappingSuggestion, setMappingSuggestion] =
     useState<MappingSuggestion | null>(null)
   const [customMappings, setCustomMappings] = useState<Map<string, string>>(
-    new Map()
+    new Map(),
   )
   const [isProcessing, setIsProcessing] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -92,7 +92,7 @@ export function ImportPreviewWithMapping({
         const suggestion = suggestFieldMappings(
           result.headers,
           templateFields,
-          result.data.slice(0, 10) // Use first 10 rows for content analysis
+          result.data.slice(0, 10), // Use first 10 rows for content analysis
         )
         setMappingSuggestion(suggestion)
 
@@ -123,7 +123,7 @@ export function ImportPreviewWithMapping({
 
     return Array.from(customMappings.entries()).map(([source, target]) => {
       const original = mappingSuggestion.mappings.find(
-        (m) => m.source === source
+        (m) => m.source === source,
       )
       return {
         source,
@@ -175,7 +175,9 @@ export function ImportPreviewWithMapping({
         <CardContent className="py-12">
           <div className="flex flex-col items-center space-y-4">
             <ArrowPathIcon className="h-8 w-8 animate-spin text-gray-400" />
-            <p className="text-sm text-gray-500">{t('tasks.import.processingFile')}</p>
+            <p className="text-sm text-gray-500">
+              {t('tasks.import.processingFile')}
+            </p>
           </div>
         </CardContent>
       </Card>
@@ -211,7 +213,9 @@ export function ImportPreviewWithMapping({
           <span>{t('tasks.import.importPreview')}</span>
           <div className="flex items-center gap-2">
             <Badge variant="outline">{importResult.format.toUpperCase()}</Badge>
-            <Badge>{t('tasks.import.rowCount', { count: importResult.data.length })}</Badge>
+            <Badge>
+              {t('tasks.import.rowCount', { count: importResult.data.length })}
+            </Badge>
           </div>
         </CardTitle>
       </CardHeader>
@@ -247,11 +251,15 @@ export function ImportPreviewWithMapping({
             {/* Import summary */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <p className="text-sm font-medium text-gray-500">{t('tasks.import.file')}</p>
+                <p className="text-sm font-medium text-gray-500">
+                  {t('tasks.import.file')}
+                </p>
                 <p className="text-sm">{file?.name}</p>
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-500">{t('tasks.import.size')}</p>
+                <p className="text-sm font-medium text-gray-500">
+                  {t('tasks.import.size')}
+                </p>
                 <p className="text-sm">{formatFileSize(file?.size || 0)}</p>
               </div>
             </div>
@@ -261,7 +269,9 @@ export function ImportPreviewWithMapping({
               <Alert>
                 <ExclamationTriangleIcon className="h-4 w-4" />
                 <AlertDescription>
-                  <p className="font-medium">{t('tasks.import.importWarnings')}</p>
+                  <p className="font-medium">
+                    {t('tasks.import.importWarnings')}
+                  </p>
                   <ul className="mt-1 list-inside list-disc">
                     {importResult.errors.slice(0, 3).map((err, i) => (
                       <li key={i} className="text-sm">
@@ -270,7 +280,9 @@ export function ImportPreviewWithMapping({
                     ))}
                     {importResult.errors.length > 3 && (
                       <li className="text-sm">
-                        {t('tasks.import.andMoreErrors', { count: importResult.errors.length - 3 })}
+                        {t('tasks.import.andMoreErrors', {
+                          count: importResult.errors.length - 3,
+                        })}
                       </li>
                     )}
                   </ul>
@@ -301,7 +313,7 @@ export function ImportPreviewWithMapping({
                           <TableCell key={header} className="text-sm">
                             {truncate(String(row[header] || ''), 50)}
                           </TableCell>
-                        )
+                        ),
                       )}
                     </TableRow>
                   ))}
@@ -309,7 +321,9 @@ export function ImportPreviewWithMapping({
               </Table>
               {importResult.data.length > 5 && (
                 <div className="bg-gray-50 p-2 text-center text-sm text-gray-500">
-                  {t('tasks.import.andMoreRows', { count: importResult.data.length - 5 })}
+                  {t('tasks.import.andMoreRows', {
+                    count: importResult.data.length - 5,
+                  })}
                 </div>
               )}
             </div>
@@ -321,9 +335,14 @@ export function ImportPreviewWithMapping({
                 {/* Mapping quality indicator */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">{t('tasks.import.mappingQuality')}</span>
+                    <span className="text-sm font-medium">
+                      {t('tasks.import.mappingQuality')}
+                    </span>
                     <span className="text-sm text-gray-500">
-                      {t('tasks.import.fieldsMapped', { mapped: finalMappings.length, total: importResult.headers?.length || 0 })}
+                      {t('tasks.import.fieldsMapped', {
+                        mapped: finalMappings.length,
+                        total: importResult.headers?.length || 0,
+                      })}
                     </span>
                   </div>
                   <Progress
@@ -339,7 +358,9 @@ export function ImportPreviewWithMapping({
                 {/* Field mappings */}
                 <div className="space-y-2">
                   <div className="mb-2 flex items-center justify-between">
-                    <h4 className="text-sm font-medium">{t('tasks.import.fieldMappings')}</h4>
+                    <h4 className="text-sm font-medium">
+                      {t('tasks.import.fieldMappings')}
+                    </h4>
                     <Button variant="outline" onClick={handleExportMapping}>
                       <DocumentArrowDownIcon className="mr-2 h-4 w-4" />
                       {t('tasks.import.exportMapping')}
@@ -349,7 +370,7 @@ export function ImportPreviewWithMapping({
                   <div className="max-h-96 space-y-2 overflow-y-auto">
                     {importResult.headers?.map((sourceField) => {
                       const mapping = finalMappings.find(
-                        (m) => m.source === sourceField
+                        (m) => m.source === sourceField,
                       )
                       const confidence = mapping?.confidence || 0
 
@@ -416,7 +437,9 @@ export function ImportPreviewWithMapping({
                   <Alert>
                     <ExclamationTriangleIcon className="h-4 w-4" />
                     <AlertDescription>
-                      <p className="font-medium">{t('tasks.import.unmappedSourceFields')}</p>
+                      <p className="font-medium">
+                        {t('tasks.import.unmappedSourceFields')}
+                      </p>
                       <p className="mt-1 text-sm">
                         {mappingSuggestion.unmappedSource.join(', ')}
                       </p>
@@ -446,7 +469,9 @@ export function ImportPreviewWithMapping({
             )}
             <Button onClick={handleImport}>
               <CheckCircleIcon className="mr-2 h-4 w-4" />
-              {t('tasks.import.importItems', { count: importResult.data.length })}
+              {t('tasks.import.importItems', {
+                count: importResult.data.length,
+              })}
             </Button>
           </div>
         </div>

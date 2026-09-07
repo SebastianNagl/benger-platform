@@ -35,46 +35,70 @@ const modelWithoutRecommendations = {
 
 describe('getRecommendedParam', () => {
   it('returns the mode-specific value when present', () => {
-    expect(getRecommendedParam(modelWithSplit, 'temperature', 'generation')).toBe(0.7)
-    expect(getRecommendedParam(modelWithSplit, 'temperature', 'evaluation')).toBe(0.0)
+    expect(
+      getRecommendedParam(modelWithSplit, 'temperature', 'generation'),
+    ).toBe(0.7)
+    expect(
+      getRecommendedParam(modelWithSplit, 'temperature', 'evaluation'),
+    ).toBe(0.0)
   })
 
   it('falls back to the default block when the mode block lacks the key', () => {
     // max_tokens lives only in `default`; it should surface for both modes.
-    expect(getRecommendedParam(modelWithSplit, 'max_tokens', 'generation')).toBe(4000)
-    expect(getRecommendedParam(modelWithSplit, 'max_tokens', 'evaluation')).toBe(4000)
+    expect(
+      getRecommendedParam(modelWithSplit, 'max_tokens', 'generation'),
+    ).toBe(4000)
+    expect(
+      getRecommendedParam(modelWithSplit, 'max_tokens', 'evaluation'),
+    ).toBe(4000)
   })
 
   it('treats default-only models as applying to either mode', () => {
-    expect(getRecommendedParam(modelWithDefaultOnly, 'temperature', 'generation')).toBe(1.0)
-    expect(getRecommendedParam(modelWithDefaultOnly, 'temperature', 'evaluation')).toBe(1.0)
+    expect(
+      getRecommendedParam(modelWithDefaultOnly, 'temperature', 'generation'),
+    ).toBe(1.0)
+    expect(
+      getRecommendedParam(modelWithDefaultOnly, 'temperature', 'evaluation'),
+    ).toBe(1.0)
   })
 
   it('returns undefined when the model carries no recommendation', () => {
-    expect(getRecommendedParam(modelWithoutRecommendations, 'temperature')).toBeUndefined()
+    expect(
+      getRecommendedParam(modelWithoutRecommendations, 'temperature'),
+    ).toBeUndefined()
     expect(getRecommendedParam(undefined, 'temperature')).toBeUndefined()
   })
 
   it('returns undefined when the recommendation lacks the requested key', () => {
-    expect(getRecommendedParam(modelWithSplit, 'top_p', 'generation')).toBeUndefined()
+    expect(
+      getRecommendedParam(modelWithSplit, 'top_p', 'generation'),
+    ).toBeUndefined()
   })
 })
 
 describe('isOverridden', () => {
   it('flags a deviating user value as overridden', () => {
-    expect(isOverridden(modelWithSplit, 'temperature', 0.3, 'generation')).toBe(true)
+    expect(isOverridden(modelWithSplit, 'temperature', 0.3, 'generation')).toBe(
+      true,
+    )
   })
 
   it('returns false when the user value matches the recommendation exactly', () => {
-    expect(isOverridden(modelWithSplit, 'temperature', 0.7, 'generation')).toBe(false)
+    expect(isOverridden(modelWithSplit, 'temperature', 0.7, 'generation')).toBe(
+      false,
+    )
   })
 
   it('returns false when the model has no recommendation to deviate from', () => {
-    expect(isOverridden(modelWithoutRecommendations, 'temperature', 0.3)).toBe(false)
+    expect(isOverridden(modelWithoutRecommendations, 'temperature', 0.3)).toBe(
+      false,
+    )
   })
 
   it('returns false when the user has not set a value yet', () => {
-    expect(isOverridden(modelWithSplit, 'temperature', undefined, 'generation')).toBe(false)
+    expect(
+      isOverridden(modelWithSplit, 'temperature', undefined, 'generation'),
+    ).toBe(false)
   })
 })
 

@@ -11,10 +11,10 @@
  * - selectedProject rendering of GenerationTaskList
  */
 
-import React from 'react'
+import '@testing-library/jest-dom'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import '@testing-library/jest-dom'
+import React from 'react'
 
 const mockPush = jest.fn()
 const mockReplace = jest.fn()
@@ -79,7 +79,9 @@ jest.mock('@/lib/utils/subdomain', () => ({
 jest.mock('@/utils/permissions', () => ({
   canAccessProjectData: (user: any, opts: any) => {
     if (!user) return false
-    return user.role === 'CONTRIBUTOR' || user.role === 'admin' || user.is_superadmin
+    return (
+      user.role === 'CONTRIBUTOR' || user.role === 'admin' || user.is_superadmin
+    )
   },
 }))
 
@@ -91,21 +93,36 @@ jest.mock('@/lib/api/projects', () => ({
 }))
 
 jest.mock('@/lib/utils/logger', () => ({
-  logger: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn() },
+  logger: {
+    debug: jest.fn(),
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+  },
 }))
 
 jest.mock('@/components/shared/Breadcrumb', () => ({
-  Breadcrumb: ({ items }: any) => <nav>{items?.map((i: any, k: number) => <span key={k}>{i.label}</span>)}</nav>,
+  Breadcrumb: ({ items }: any) => (
+    <nav>
+      {items?.map((i: any, k: number) => (
+        <span key={k}>{i.label}</span>
+      ))}
+    </nav>
+  ),
 }))
 
 jest.mock('@/components/shared/Button', () => ({
   Button: ({ children, onClick, disabled, ...props }: any) => (
-    <button onClick={onClick} disabled={disabled} {...props}>{children}</button>
+    <button onClick={onClick} disabled={disabled} {...props}>
+      {children}
+    </button>
   ),
 }))
 
 jest.mock('@/components/shared/Card', () => ({
-  Card: ({ children, className }: any) => <div className={className}>{children}</div>,
+  Card: ({ children, className }: any) => (
+    <div className={className}>{children}</div>
+  ),
 }))
 
 jest.mock('@/components/shared/ResponsiveContainer', () => ({
@@ -113,11 +130,7 @@ jest.mock('@/components/shared/ResponsiveContainer', () => ({
 }))
 
 jest.mock('@/components/generation/GenerationTaskList', () => ({
-  GenerationTaskList: ({
-    projectId,
-    projects,
-    onProjectChange,
-  }: any) => (
+  GenerationTaskList: ({ projectId, projects, onProjectChange }: any) => (
     <div data-testid="generation-task-list">
       <div>Tasks for {projectId || '(none)'}</div>
       {(projects ?? []).map((p: any) => (
@@ -151,7 +164,13 @@ import GenerationPage from '../page'
 describe('GenerationPage br9', () => {
   beforeEach(() => {
     jest.clearAllMocks()
-    mockUser = { id: 'test-user', username: 'testuser', role: 'CONTRIBUTOR', is_superadmin: false, is_active: true }
+    mockUser = {
+      id: 'test-user',
+      username: 'testuser',
+      role: 'CONTRIBUTOR',
+      is_superadmin: false,
+      is_active: true,
+    }
     mockIsLoading = false
     mockSearchParamsGet = jest.fn(() => null)
     mockProjectsList.mockResolvedValue({ items: mockProjects, total: 2 })
@@ -165,7 +184,12 @@ describe('GenerationPage br9', () => {
   })
 
   it('shows permission denied when user has no access', () => {
-    mockUser = { id: 'u1', username: 'test', role: 'ANNOTATOR', is_superadmin: false }
+    mockUser = {
+      id: 'u1',
+      username: 'test',
+      role: 'ANNOTATOR',
+      is_superadmin: false,
+    }
     render(<GenerationPage />)
     expect(screen.getByText('dataManagement.accessDenied')).toBeInTheDocument()
   })
@@ -207,7 +231,9 @@ describe('GenerationPage br9', () => {
   })
 
   it('auto-selects project from URL searchParam', async () => {
-    mockSearchParamsGet = jest.fn((key: string) => key === 'projectId' ? 'p1' : null)
+    mockSearchParamsGet = jest.fn((key: string) =>
+      key === 'projectId' ? 'p1' : null,
+    )
 
     render(<GenerationPage />)
 
@@ -229,7 +255,12 @@ describe('GenerationPage br9', () => {
   })
 
   it('handles back to projects button in permission denied state', async () => {
-    mockUser = { id: 'u1', username: 'test', role: 'ANNOTATOR', is_superadmin: false }
+    mockUser = {
+      id: 'u1',
+      username: 'test',
+      role: 'ANNOTATOR',
+      is_superadmin: false,
+    }
     render(<GenerationPage />)
 
     const backBtn = screen.getByText('common.backToProjects')
@@ -247,7 +278,7 @@ describe('GenerationPage br9', () => {
     await waitFor(() => {
       expect(consoleSpy).toHaveBeenCalledWith(
         'Failed to load projects:',
-        expect.any(Error)
+        expect.any(Error),
       )
     })
 
@@ -255,7 +286,9 @@ describe('GenerationPage br9', () => {
   })
 
   it('does not auto-select when URL projectId does not match', async () => {
-    mockSearchParamsGet = jest.fn((key: string) => key === 'projectId' ? 'nonexistent' : null)
+    mockSearchParamsGet = jest.fn((key: string) =>
+      key === 'projectId' ? 'nonexistent' : null,
+    )
 
     render(<GenerationPage />)
 

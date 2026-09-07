@@ -89,13 +89,13 @@ export function DynamicChartRenderer({
         if (model.scores && model.scores.length > 0) {
           return calculateBoxPlotStats(
             model.scores,
-            `${model.model_name || model.model_id} - ${metric}`
+            `${model.model_name || model.model_id} - ${metric}`,
           )
         }
         // Return null if no distribution data - do not generate synthetic data
         return null
       })
-      .filter((d): d is BoxPlotData => d !== null)
+      .filter((d): d is BoxPlotData => d !== null),
   )
 
   // Track if box plot data is available
@@ -231,7 +231,9 @@ export function DynamicChartRenderer({
             className="flex items-center justify-center text-gray-500 dark:text-gray-400"
             style={{ height }}
           >
-            {t('evaluation.charts.unknownChartType', { type: displayedChartType })}
+            {t('evaluation.charts.unknownChartType', {
+              type: displayedChartType,
+            })}
           </div>
         )
     }
@@ -279,13 +281,13 @@ function ScoreHeatmap({
       <table className="min-w-full text-sm">
         <thead>
           <tr>
-            <th className="sticky left-0 top-0 z-20 bg-white px-3 py-2 text-left font-medium text-gray-700 dark:bg-gray-900 dark:text-gray-300">
+            <th className="sticky top-0 left-0 z-20 bg-white px-3 py-2 text-left font-medium text-gray-700 dark:bg-gray-900 dark:text-gray-300">
               {t('evaluation.charts.model')}
             </th>
             {metrics.map((metric) => (
               <th
                 key={metric}
-                className="sticky top-0 z-10 whitespace-nowrap bg-white px-3 py-2 text-center font-medium text-gray-700 dark:bg-gray-900 dark:text-gray-300"
+                className="sticky top-0 z-10 bg-white px-3 py-2 text-center font-medium whitespace-nowrap text-gray-700 dark:bg-gray-900 dark:text-gray-300"
               >
                 {metric.replace(/_/g, ' ')}
               </th>
@@ -295,7 +297,7 @@ function ScoreHeatmap({
         <tbody>
           {models.map((model) => (
             <tr key={model.model_id}>
-              <td className="sticky left-0 z-10 whitespace-nowrap bg-white px-3 py-2 font-medium text-gray-900 dark:bg-gray-900 dark:text-gray-100">
+              <td className="sticky left-0 z-10 bg-white px-3 py-2 font-medium whitespace-nowrap text-gray-900 dark:bg-gray-900 dark:text-gray-100">
                 {model.model_name || model.model_id}
               </td>
               {metrics.map((metric) => {
@@ -327,7 +329,7 @@ function ScoreHeatmap({
 export function getSmartChartDefault(
   models: ModelData[],
   metrics: string[],
-  hasSignificanceData: boolean
+  hasSignificanceData: boolean,
 ): ChartType {
   const modelCount = models.length
   const metricCount = metrics.length

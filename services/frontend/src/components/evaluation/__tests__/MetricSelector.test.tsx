@@ -81,7 +81,7 @@ describe('MetricSelector', () => {
         <MetricSelector
           {...defaultProps}
           selectedMetrics={['accuracy', 'f1']}
-        />
+        />,
       )
       expect(screen.getByText('2 of 7 selected')).toBeInTheDocument()
     })
@@ -89,7 +89,7 @@ describe('MetricSelector', () => {
     it('shows search input', () => {
       render(<MetricSelector {...defaultProps} />)
       expect(
-        screen.getByPlaceholderText('Search metrics...')
+        screen.getByPlaceholderText('Search metrics...'),
       ).toBeInTheDocument()
     })
 
@@ -109,7 +109,7 @@ describe('MetricSelector', () => {
     it('shows category descriptions', () => {
       render(<MetricSelector {...defaultProps} />)
       expect(
-        screen.getByText('For categorical predictions')
+        screen.getByText('For categorical predictions'),
       ).toBeInTheDocument()
     })
 
@@ -118,7 +118,7 @@ describe('MetricSelector', () => {
         <MetricSelector
           {...defaultProps}
           selectedMetrics={['accuracy', 'f1']}
-        />
+        />,
       )
       // Classification has 4 available and 2 selected
       expect(screen.getByText('2/4')).toBeInTheDocument()
@@ -169,7 +169,7 @@ describe('MetricSelector', () => {
           {...defaultProps}
           groupByCategory={false}
           onSelectionChange={onSelectionChange}
-        />
+        />,
       )
 
       const checkbox = screen.getAllByRole('checkbox')[0]
@@ -187,7 +187,7 @@ describe('MetricSelector', () => {
           groupByCategory={false}
           selectedMetrics={['bleu']}
           onSelectionChange={onSelectionChange}
-        />
+        />,
       )
 
       // Click the label for 'bleu' to deselect it
@@ -201,9 +201,7 @@ describe('MetricSelector', () => {
   describe('Search', () => {
     it('filters metrics by search query', async () => {
       const user = userEvent.setup()
-      render(
-        <MetricSelector {...defaultProps} groupByCategory={false} />
-      )
+      render(<MetricSelector {...defaultProps} groupByCategory={false} />)
 
       const searchInput = screen.getByPlaceholderText('Search metrics...')
       await user.type(searchInput, 'acc')
@@ -215,9 +213,7 @@ describe('MetricSelector', () => {
 
     it('shows no results message when search finds nothing', async () => {
       const user = userEvent.setup()
-      render(
-        <MetricSelector {...defaultProps} groupByCategory={false} />
-      )
+      render(<MetricSelector {...defaultProps} groupByCategory={false} />)
 
       const searchInput = screen.getByPlaceholderText('Search metrics...')
       await user.type(searchInput, 'nonexistent')
@@ -241,14 +237,14 @@ describe('MetricSelector', () => {
         <MetricSelector
           {...defaultProps}
           onSelectionChange={onSelectionChange}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Classification Suite'))
 
       // Should only include metrics that are in availableMetrics
       expect(onSelectionChange).toHaveBeenCalledWith(
-        expect.arrayContaining(['accuracy', 'precision', 'recall', 'f1'])
+        expect.arrayContaining(['accuracy', 'precision', 'recall', 'f1']),
       )
     })
 
@@ -259,7 +255,7 @@ describe('MetricSelector', () => {
         <MetricSelector
           {...defaultProps}
           onSelectionChange={onSelectionChange}
-        />
+        />,
       )
 
       await user.click(screen.getByText('All Available'))
@@ -277,7 +273,7 @@ describe('MetricSelector', () => {
           {...defaultProps}
           selectedMetrics={['accuracy']}
           onSelectionChange={onSelectionChange}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Clear All'))
@@ -293,7 +289,7 @@ describe('MetricSelector', () => {
           {...defaultProps}
           availableMetrics={['accuracy']}
           groupByCategory={false}
-        />
+        />,
       )
       expect(screen.getByText('accuracy')).toBeInTheDocument()
       expect(screen.queryByText('f1')).not.toBeInTheDocument()
@@ -301,10 +297,7 @@ describe('MetricSelector', () => {
 
     it('filters out categories with no available metrics', () => {
       render(
-        <MetricSelector
-          {...defaultProps}
-          availableMetrics={['accuracy']}
-        />
+        <MetricSelector {...defaultProps} availableMetrics={['accuracy']} />,
       )
       // Lexical Metrics category should not appear
       expect(screen.queryByText('Lexical Metrics')).not.toBeInTheDocument()

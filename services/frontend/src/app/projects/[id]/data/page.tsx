@@ -8,8 +8,8 @@ import { ProjectDataTab } from '@/components/projects/tabs/ProjectDataTab'
 import { Breadcrumb } from '@/components/shared/Breadcrumb'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
-import { useProjectStore } from '@/stores/projectStore'
 import { parseSubdomain } from '@/lib/utils/subdomain'
+import { useProjectStore } from '@/stores/projectStore'
 import { canAccessProjectData } from '@/utils/permissions'
 import { useRouter } from 'next/navigation'
 import { use, useEffect } from 'react'
@@ -26,14 +26,17 @@ export default function ProjectDataPage({ params }: ProjectDataPageProps) {
   const { t } = useI18n()
   const { user, isLoading } = useAuth()
   const router = useRouter()
-  const { isPrivateMode } = typeof window !== 'undefined' ? parseSubdomain() : { isPrivateMode: true }
+  const { isPrivateMode } =
+    typeof window !== 'undefined' ? parseSubdomain() : { isPrivateMode: true }
 
   const { currentProject, fetchProject } = useProjectStore()
 
   // Check permissions - redirect if user cannot access project data
   useEffect(() => {
     if (!isLoading) {
-      if (!canAccessProjectData(user, { isPrivateMode, project: currentProject })) {
+      if (
+        !canAccessProjectData(user, { isPrivateMode, project: currentProject })
+      ) {
         // Redirect to project overview with error message
         router.replace(`/projects/${projectId}?error=no-data-access`)
       }

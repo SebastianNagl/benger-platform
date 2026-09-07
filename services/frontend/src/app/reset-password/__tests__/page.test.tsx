@@ -12,7 +12,13 @@ import React from 'react'
 
 // Mock next/link
 jest.mock('next/link', () => {
-  return function MockLink({ children, href }: { children: React.ReactNode; href: string }) {
+  return function MockLink({
+    children,
+    href,
+  }: {
+    children: React.ReactNode
+    href: string
+  }) {
     return <a href={href}>{children}</a>
   }
 })
@@ -218,14 +224,14 @@ describe('Reset Password Page', () => {
               email: 'test@example.com',
               language: 'en',
             }),
-          })
+          }),
         )
       })
     })
 
     it('shows loading state during submission', async () => {
       ;(global.fetch as jest.Mock).mockImplementation(
-        () => new Promise((resolve) => setTimeout(resolve, 100))
+        () => new Promise((resolve) => setTimeout(resolve, 100)),
       )
 
       render(<ResetPasswordPage />)
@@ -245,7 +251,7 @@ describe('Reset Password Page', () => {
 
     it('disables submit button during submission', async () => {
       ;(global.fetch as jest.Mock).mockImplementation(
-        () => new Promise((resolve) => setTimeout(resolve, 100))
+        () => new Promise((resolve) => setTimeout(resolve, 100)),
       )
 
       render(<ResetPasswordPage />)
@@ -264,7 +270,7 @@ describe('Reset Password Page', () => {
 
     it('shows spinner icon during loading', async () => {
       ;(global.fetch as jest.Mock).mockImplementation(
-        () => new Promise((resolve) => setTimeout(resolve, 100))
+        () => new Promise((resolve) => setTimeout(resolve, 100)),
       )
 
       render(<ResetPasswordPage />)
@@ -314,7 +320,7 @@ describe('Reset Password Page', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText(/We sent a password reset link/)
+          screen.getByText(/We sent a password reset link/),
         ).toBeInTheDocument()
       })
     })
@@ -559,7 +565,7 @@ describe('Reset Password Page', () => {
     it('logo has screen reader text', () => {
       render(<ResetPasswordPage />)
       expect(
-        screen.getByText('BenGER', { selector: '.sr-only' })
+        screen.getByText('BenGER', { selector: '.sr-only' }),
       ).toBeInTheDocument()
     })
 

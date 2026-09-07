@@ -30,7 +30,7 @@ jest.mock('@/components/shared/LikertScale', () => ({
   LikertScale: ({ name, label, value, onChange, required }: any) => (
     <fieldset data-testid={`likert-${name}`}>
       <legend>{label}</legend>
-      {[1,2,3,4,5,6,7].map((n: number) => (
+      {[1, 2, 3, 4, 5, 6, 7].map((n: number) => (
         <label key={n}>
           <input
             type="radio"
@@ -82,31 +82,52 @@ describe('RegisterPage', () => {
   // Helper: fill Step 1 fields
   async function fillStep1(user: ReturnType<typeof userEvent.setup>) {
     await user.type(screen.getByTestId('auth-register-name-input'), 'Test User')
-    await user.type(screen.getByTestId('auth-register-username-input'), 'testuser')
-    await user.type(screen.getByTestId('auth-register-email-input'), 'test@example.com')
-    await user.type(screen.getByTestId('auth-register-password-input'), 'password123')
-    await user.type(screen.getByTestId('auth-register-confirm-password-input'), 'password123')
+    await user.type(
+      screen.getByTestId('auth-register-username-input'),
+      'testuser',
+    )
+    await user.type(
+      screen.getByTestId('auth-register-email-input'),
+      'test@example.com',
+    )
+    await user.type(
+      screen.getByTestId('auth-register-password-input'),
+      'password123',
+    )
+    await user.type(
+      screen.getByTestId('auth-register-confirm-password-input'),
+      'password123',
+    )
   }
 
   // Helper: get select element inside a test-id wrapper
   function getSelectInTestId(testId: string): HTMLSelectElement {
     const wrapper = screen.getByTestId(testId)
     const select = wrapper.querySelector('select')
-    if (!select) throw new Error(`No <select> found inside data-testid="${testId}"`)
+    if (!select)
+      throw new Error(`No <select> found inside data-testid="${testId}"`)
     return select as HTMLSelectElement
   }
 
   // Helper: fill Step 2 fields (legal background)
   async function fillStep2(user: ReturnType<typeof userEvent.setup>) {
-    await user.selectOptions(getSelectInTestId('auth-register-legal-expertise-select'), 'layperson')
-    await user.selectOptions(getSelectInTestId('auth-register-german-proficiency-select'), 'native')
+    await user.selectOptions(
+      getSelectInTestId('auth-register-legal-expertise-select'),
+      'layperson',
+    )
+    await user.selectOptions(
+      getSelectInTestId('auth-register-german-proficiency-select'),
+      'native',
+    )
   }
 
   // Helper: fill Step 4 required fields (competence scales)
   async function fillStep4(user: ReturnType<typeof userEvent.setup>) {
     await user.click(screen.getByTestId('likert-subjectiveCompetenceCivil-4'))
     await user.click(screen.getByTestId('likert-subjectiveCompetencePublic-4'))
-    await user.click(screen.getByTestId('likert-subjectiveCompetenceCriminal-4'))
+    await user.click(
+      screen.getByTestId('likert-subjectiveCompetenceCriminal-4'),
+    )
   }
 
   // Helper: fill Step 5 required fields (psychometric scales)
@@ -129,7 +150,10 @@ describe('RegisterPage', () => {
   }
 
   // Helper: navigate to a specific step (fills all required fields along the way)
-  async function navigateToStep(user: ReturnType<typeof userEvent.setup>, targetStep: number) {
+  async function navigateToStep(
+    user: ReturnType<typeof userEvent.setup>,
+    targetStep: number,
+  ) {
     if (targetStep >= 2) {
       await fillStep1(user)
       await user.click(screen.getByTestId('register-next-button'))
@@ -155,20 +179,18 @@ describe('RegisterPage', () => {
       expect(screen.getByTestId('auth-register-form')).toBeInTheDocument()
       expect(screen.getByTestId('auth-register-name-input')).toBeInTheDocument()
       expect(
-        screen.getByTestId('auth-register-username-input')
+        screen.getByTestId('auth-register-username-input'),
       ).toBeInTheDocument()
       expect(
-        screen.getByTestId('auth-register-email-input')
+        screen.getByTestId('auth-register-email-input'),
       ).toBeInTheDocument()
       expect(
-        screen.getByTestId('auth-register-password-input')
+        screen.getByTestId('auth-register-password-input'),
       ).toBeInTheDocument()
       expect(
-        screen.getByTestId('auth-register-confirm-password-input')
+        screen.getByTestId('auth-register-confirm-password-input'),
       ).toBeInTheDocument()
-      expect(
-        screen.getByTestId('register-next-button')
-      ).toBeInTheDocument()
+      expect(screen.getByTestId('register-next-button')).toBeInTheDocument()
     })
 
     it('should render navigation elements', () => {
@@ -201,7 +223,7 @@ describe('RegisterPage', () => {
       const privacyLink = screen.getByText('register.privacyLink')
       expect(privacyLink.closest('a')).toHaveAttribute(
         'href',
-        '/about/data-protection'
+        '/about/data-protection',
       )
     })
   })
@@ -215,7 +237,7 @@ describe('RegisterPage', () => {
       const emailInput = screen.getByTestId('auth-register-email-input')
       const passwordInput = screen.getByTestId('auth-register-password-input')
       const confirmPasswordInput = screen.getByTestId(
-        'auth-register-confirm-password-input'
+        'auth-register-confirm-password-input',
       )
 
       expect(nameInput).toHaveAttribute('required')
@@ -230,19 +252,19 @@ describe('RegisterPage', () => {
       render(<RegisterPage />)
 
       const nameInput = screen.getByTestId(
-        'auth-register-name-input'
+        'auth-register-name-input',
       ) as HTMLInputElement
       const usernameInput = screen.getByTestId(
-        'auth-register-username-input'
+        'auth-register-username-input',
       ) as HTMLInputElement
       const emailInput = screen.getByTestId(
-        'auth-register-email-input'
+        'auth-register-email-input',
       ) as HTMLInputElement
       const passwordInput = screen.getByTestId(
-        'auth-register-password-input'
+        'auth-register-password-input',
       ) as HTMLInputElement
       const confirmPasswordInput = screen.getByTestId(
-        'auth-register-confirm-password-input'
+        'auth-register-confirm-password-input',
       ) as HTMLInputElement
 
       await user.type(nameInput, 'Test User')
@@ -270,7 +292,7 @@ describe('RegisterPage', () => {
 
       const passwordInput = screen.getByTestId('auth-register-password-input')
       const confirmPasswordInput = screen.getByTestId(
-        'auth-register-confirm-password-input'
+        'auth-register-confirm-password-input',
       )
 
       expect(passwordInput).toHaveAttribute('type', 'password')
@@ -283,23 +305,23 @@ describe('RegisterPage', () => {
 
       await user.type(
         screen.getByTestId('auth-register-name-input'),
-        'Test User'
+        'Test User',
       )
       await user.type(
         screen.getByTestId('auth-register-username-input'),
-        'testuser'
+        'testuser',
       )
       await user.type(
         screen.getByTestId('auth-register-email-input'),
-        'test@example.com'
+        'test@example.com',
       )
       await user.type(
         screen.getByTestId('auth-register-password-input'),
-        'password123'
+        'password123',
       )
       await user.type(
         screen.getByTestId('auth-register-confirm-password-input'),
-        'different'
+        'different',
       )
       await user.click(screen.getByTestId('register-next-button'))
 
@@ -317,23 +339,23 @@ describe('RegisterPage', () => {
 
       await user.type(
         screen.getByTestId('auth-register-name-input'),
-        'Test User'
+        'Test User',
       )
       await user.type(
         screen.getByTestId('auth-register-username-input'),
-        'testuser'
+        'testuser',
       )
       await user.type(
         screen.getByTestId('auth-register-email-input'),
-        'test@example.com'
+        'test@example.com',
       )
       await user.type(
         screen.getByTestId('auth-register-password-input'),
-        '12345'
+        '12345',
       )
       await user.type(
         screen.getByTestId('auth-register-confirm-password-input'),
-        '12345'
+        '12345',
       )
       await user.click(screen.getByTestId('register-next-button'))
 
@@ -376,7 +398,7 @@ describe('RegisterPage', () => {
             subjective_competence_public: 4,
             subjective_competence_criminal: 4,
           }),
-          undefined
+          undefined,
         )
       })
     })
@@ -387,7 +409,7 @@ describe('RegisterPage', () => {
       mockSignup.mockReturnValue(
         new Promise((resolve) => {
           resolveSignup = resolve
-        })
+        }),
       )
 
       render(<RegisterPage />)
@@ -470,10 +492,10 @@ describe('RegisterPage', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByTestId('auth-register-error-message')
+          screen.getByTestId('auth-register-error-message'),
         ).toBeInTheDocument()
         expect(
-          screen.getByTestId('auth-register-submit-button')
+          screen.getByTestId('auth-register-submit-button'),
         ).not.toBeDisabled()
       })
     })
@@ -515,12 +537,20 @@ describe('RegisterPage', () => {
     it('should have proper form labels', () => {
       render(<RegisterPage />)
 
-      expect(screen.getByLabelText('register.name', { exact: false })).toBeInTheDocument()
-      expect(screen.getByLabelText('register.username', { exact: false })).toBeInTheDocument()
-      expect(screen.getByLabelText('register.email', { exact: false })).toBeInTheDocument()
-      expect(screen.getByLabelText('register.password', { exact: false })).toBeInTheDocument()
       expect(
-        screen.getByLabelText('register.confirmPassword', { exact: false })
+        screen.getByLabelText('register.name', { exact: false }),
+      ).toBeInTheDocument()
+      expect(
+        screen.getByLabelText('register.username', { exact: false }),
+      ).toBeInTheDocument()
+      expect(
+        screen.getByLabelText('register.email', { exact: false }),
+      ).toBeInTheDocument()
+      expect(
+        screen.getByLabelText('register.password', { exact: false }),
+      ).toBeInTheDocument()
+      expect(
+        screen.getByLabelText('register.confirmPassword', { exact: false }),
       ).toBeInTheDocument()
     })
 
@@ -529,20 +559,20 @@ describe('RegisterPage', () => {
 
       expect(screen.getByTestId('auth-register-name-input')).toHaveAttribute(
         'autocomplete',
-        'name'
+        'name',
       )
       expect(
-        screen.getByTestId('auth-register-username-input')
+        screen.getByTestId('auth-register-username-input'),
       ).toHaveAttribute('autocomplete', 'username')
       expect(screen.getByTestId('auth-register-email-input')).toHaveAttribute(
         'autocomplete',
-        'email'
+        'email',
       )
       expect(
-        screen.getByTestId('auth-register-password-input')
+        screen.getByTestId('auth-register-password-input'),
       ).toHaveAttribute('autocomplete', 'new-password')
       expect(
-        screen.getByTestId('auth-register-confirm-password-input')
+        screen.getByTestId('auth-register-confirm-password-input'),
       ).toHaveAttribute('autocomplete', 'new-password')
     })
 

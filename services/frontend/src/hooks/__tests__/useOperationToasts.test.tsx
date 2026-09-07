@@ -11,7 +11,7 @@ jest.mock('@/contexts/I18nContext', () => ({
     t: (key: string, vars?: Record<string, any>) => {
       if (vars) {
         return key.replace(/\{(\w+)\}/g, (_, name) =>
-          vars[name] !== undefined ? String(vars[name]) : `{${name}}`
+          vars[name] !== undefined ? String(vars[name]) : `{${name}}`,
         )
       }
       return key
@@ -89,11 +89,11 @@ describe('useOperationToasts', () => {
 
       expect(result.current.addOperationToast).toBe(firstAddOperationToast)
       expect(result.current.updateOperationToast).toBe(
-        firstUpdateOperationToast
+        firstUpdateOperationToast,
       )
       expect(result.current.dismissToast).toBe(firstDismissToast)
       expect(result.current.dismissOperationToasts).toBe(
-        firstDismissOperationToasts
+        firstDismissOperationToasts,
       )
       expect(result.current.clearAllToasts).toBe(firstClearAllToasts)
       expect(result.current.renderToasts).toBe(firstRenderToasts)
@@ -110,7 +110,7 @@ describe('useOperationToasts', () => {
           'started',
           'task-123',
           'Test message',
-          'Test details'
+          'Test details',
         )
       })
 
@@ -137,7 +137,7 @@ describe('useOperationToasts', () => {
           'task-456',
           'Persistent message',
           undefined,
-          true
+          true,
         )
       })
 
@@ -153,7 +153,7 @@ describe('useOperationToasts', () => {
           'generation',
           'started',
           'task-789',
-          'Test'
+          'Test',
         )
       })
 
@@ -170,19 +170,19 @@ describe('useOperationToasts', () => {
           'generation',
           'started',
           'task-1',
-          'Message 1'
+          'Message 1',
         )
         result.current.addOperationToast(
           'evaluation',
           'running',
           'task-2',
-          'Message 2'
+          'Message 2',
         )
         result.current.addOperationToast(
           'generation',
           'completed',
           'task-3',
-          'Message 3'
+          'Message 3',
         )
       })
 
@@ -200,7 +200,7 @@ describe('useOperationToasts', () => {
           'generation',
           'started',
           'task-123',
-          'First message'
+          'First message',
         )
       })
 
@@ -212,7 +212,7 @@ describe('useOperationToasts', () => {
           'generation',
           'running',
           'task-123',
-          'Second message'
+          'Second message',
         )
       })
 
@@ -230,13 +230,13 @@ describe('useOperationToasts', () => {
           'generation',
           'started',
           'task-123',
-          'Generation'
+          'Generation',
         )
         result.current.addOperationToast(
           'evaluation',
           'started',
           'task-123',
-          'Evaluation'
+          'Evaluation',
         )
       })
 
@@ -251,13 +251,13 @@ describe('useOperationToasts', () => {
           'generation',
           'started',
           'task-123',
-          'Task 123'
+          'Task 123',
         )
         result.current.addOperationToast(
           'generation',
           'started',
           'task-456',
-          'Task 456'
+          'Task 456',
         )
       })
 
@@ -274,7 +274,7 @@ describe('useOperationToasts', () => {
           'generation',
           'started',
           'task-1',
-          'Starting...'
+          'Starting...',
         )
       })
 
@@ -289,7 +289,7 @@ describe('useOperationToasts', () => {
           'generation',
           'running',
           'task-1',
-          'Processing...'
+          'Processing...',
         )
       })
 
@@ -304,7 +304,7 @@ describe('useOperationToasts', () => {
           'generation',
           'started',
           'task-1',
-          'Starting...'
+          'Starting...',
         )
       })
 
@@ -315,7 +315,7 @@ describe('useOperationToasts', () => {
           'generation',
           'task-1',
           'running',
-          'Processing...'
+          'Processing...',
         )
       })
 
@@ -334,7 +334,7 @@ describe('useOperationToasts', () => {
           'failed',
           'task-1',
           'Operation failed',
-          'Error details'
+          'Error details',
         )
       })
 
@@ -350,7 +350,7 @@ describe('useOperationToasts', () => {
           'generation',
           'failed',
           'task-1',
-          'Failed'
+          'Failed',
         )
       })
 
@@ -379,7 +379,7 @@ describe('useOperationToasts', () => {
           'task-1',
           'Failed',
           'Error',
-          true
+          true,
         )
       })
 
@@ -403,7 +403,7 @@ describe('useOperationToasts', () => {
           'started',
           'task-1',
           'Initial message',
-          'Initial details'
+          'Initial details',
         )
       })
 
@@ -413,7 +413,7 @@ describe('useOperationToasts', () => {
           'task-1',
           'running',
           'Updated message',
-          'Updated details'
+          'Updated details',
         )
       })
 
@@ -430,7 +430,7 @@ describe('useOperationToasts', () => {
           'generation',
           'started',
           'task-1',
-          'Message'
+          'Message',
         )
       })
 
@@ -441,7 +441,7 @@ describe('useOperationToasts', () => {
           'generation',
           'task-1',
           'running',
-          'Updated'
+          'Updated',
         )
       })
 
@@ -457,7 +457,7 @@ describe('useOperationToasts', () => {
           'generation',
           'started',
           'task-1',
-          'Message'
+          'Message',
         )
       })
 
@@ -478,19 +478,19 @@ describe('useOperationToasts', () => {
           'generation',
           'started',
           'task-1',
-          'Gen 1'
+          'Gen 1',
         )
         result.current.addOperationToast(
           'evaluation',
           'started',
           'task-1',
-          'Eval 1'
+          'Eval 1',
         )
         result.current.addOperationToast(
           'generation',
           'started',
           'task-2',
-          'Gen 2'
+          'Gen 2',
         )
       })
 
@@ -513,19 +513,19 @@ describe('useOperationToasts', () => {
           'generation',
           'started',
           'task-1',
-          'M1'
+          'M1',
         )
         result.current.addOperationToast(
           'evaluation',
           'started',
           'task-2',
-          'M2'
+          'M2',
         )
         result.current.addOperationToast(
           'generation',
           'started',
           'task-3',
-          'M3'
+          'M3',
         )
       })
 
@@ -548,7 +548,7 @@ describe('useOperationToasts', () => {
           'generation',
           'completed',
           'task-1',
-          'Completed'
+          'Completed',
         )
       })
 
@@ -575,7 +575,7 @@ describe('useOperationToasts', () => {
           'generation',
           'running',
           'task-1',
-          'Running'
+          'Running',
         )
       })
 
@@ -584,7 +584,7 @@ describe('useOperationToasts', () => {
           'generation',
           'task-1',
           'completed',
-          'Done'
+          'Done',
         )
       })
 
@@ -605,7 +605,7 @@ describe('useOperationToasts', () => {
           'generation',
           'started',
           'task-1',
-          'Started'
+          'Started',
         )
       })
 
@@ -626,7 +626,7 @@ describe('useOperationToasts', () => {
           'generation',
           'running',
           'task-1',
-          'Running'
+          'Running',
         )
       })
 
@@ -649,7 +649,7 @@ describe('useOperationToasts', () => {
           'task-1',
           'Done',
           undefined,
-          true
+          true,
         )
       })
 
@@ -672,7 +672,7 @@ describe('useOperationToasts', () => {
           'generation',
           'started',
           'task-1',
-          'M1'
+          'M1',
         )
       })
 
@@ -693,7 +693,7 @@ describe('useOperationToasts', () => {
           'generation',
           'started',
           'task-1',
-          'M1'
+          'M1',
         )
       })
 
@@ -714,7 +714,7 @@ describe('useOperationToasts', () => {
           'generation',
           'started',
           'task-1',
-          'M1'
+          'M1',
         )
       })
 
@@ -723,7 +723,7 @@ describe('useOperationToasts', () => {
           'evaluation',
           'task-99',
           'completed',
-          'Done'
+          'Done',
         )
       })
 
@@ -751,7 +751,7 @@ describe('useOperationToasts', () => {
           'generation',
           'started',
           'task-1',
-          'Message only'
+          'Message only',
         )
       })
 
@@ -767,7 +767,7 @@ describe('useOperationToasts', () => {
           'started',
           'task-1',
           'Initial',
-          'Initial details'
+          'Initial details',
         )
       })
 
@@ -776,7 +776,7 @@ describe('useOperationToasts', () => {
           'generation',
           'task-1',
           'completed',
-          'Done'
+          'Done',
         )
       })
 
@@ -794,7 +794,7 @@ describe('useOperationToasts', () => {
           'generation',
           'completed',
           'task-1',
-          'M1'
+          'M1',
         )
       })
 
@@ -807,7 +807,7 @@ describe('useOperationToasts', () => {
           'generation',
           'started',
           'task-1',
-          'M2'
+          'M2',
         )
       })
 
@@ -822,19 +822,19 @@ describe('useOperationToasts', () => {
           'generation',
           'started',
           'task-1',
-          'M1'
+          'M1',
         )
         result.current.updateOperationToast(
           'generation',
           'task-1',
           'running',
-          'M2'
+          'M2',
         )
         result.current.updateOperationToast(
           'generation',
           'task-1',
           'completed',
-          'M3'
+          'M3',
         )
       })
 
@@ -851,25 +851,25 @@ describe('useOperationToasts', () => {
           'generation',
           'running',
           'task-1',
-          'M1'
+          'M1',
         )
         result.current.addOperationToast(
           'generation',
           'running',
           'task-2',
-          'M2'
+          'M2',
         )
         result.current.addOperationToast(
           'evaluation',
           'running',
           'task-3',
-          'M3'
+          'M3',
         )
       })
 
       expect(result.current.toasts).toHaveLength(3)
       expect(result.current.toasts.every((t) => t.status === 'running')).toBe(
-        true
+        true,
       )
     })
   })
@@ -891,7 +891,7 @@ describe('useOperationToasts', () => {
           'generation',
           'started',
           'task-1',
-          'Test message'
+          'Test message',
         )
       })
 
@@ -907,7 +907,7 @@ describe('useOperationToasts', () => {
           status: 'started',
           taskId: 'task-1',
           message: 'Test message',
-        })
+        }),
       )
     })
 
@@ -926,7 +926,7 @@ describe('useOperationToasts', () => {
           'generation',
           'started',
           'task-1',
-          'M1'
+          'M1',
         )
       })
 
@@ -935,7 +935,7 @@ describe('useOperationToasts', () => {
           'evaluation',
           'started',
           'task-2',
-          'M2'
+          'M2',
         )
       })
 
@@ -944,7 +944,7 @@ describe('useOperationToasts', () => {
           'generation',
           'started',
           'task-3',
-          'M3'
+          'M3',
         )
       })
 
@@ -966,7 +966,7 @@ describe('useOperationToasts', () => {
           'generation',
           'started',
           'task-1',
-          'Test'
+          'Test',
         )
       })
 
@@ -996,10 +996,10 @@ describe('useOperationToasts', () => {
       expect(result.current.toasts[0].status).toBe('started')
       expect(result.current.toasts[0].taskId).toBe('gen-task-1')
       expect(result.current.toasts[0].message).toBe(
-        'operations.generation.starting'
+        'operations.generation.starting',
       )
       expect(result.current.toasts[0].details).toBe(
-        'operations.generation.initializing'
+        'operations.generation.initializing',
       )
       expect(result.current.toasts[0].persistent).toBe(false)
     })
@@ -1012,7 +1012,7 @@ describe('useOperationToasts', () => {
       })
 
       expect(result.current.toasts[0].message).toBe(
-        'operations.generation.starting'
+        'operations.generation.starting',
       )
     })
 
@@ -1028,7 +1028,7 @@ describe('useOperationToasts', () => {
           'gen-task-1',
           'running',
           'Processing...',
-          'Model 1 of 2'
+          'Model 1 of 2',
         )
       })
 
@@ -1049,10 +1049,10 @@ describe('useOperationToasts', () => {
       expect(result.current.toasts[0].status).toBe('started')
       expect(result.current.toasts[0].taskId).toBe('eval-task-1')
       expect(result.current.toasts[0].message).toBe(
-        'operations.evaluation.starting'
+        'operations.evaluation.starting',
       )
       expect(result.current.toasts[0].details).toBe(
-        'operations.evaluation.initializing'
+        'operations.evaluation.initializing',
       )
     })
 
@@ -1064,7 +1064,7 @@ describe('useOperationToasts', () => {
       })
 
       expect(result.current.toasts[0].message).toBe(
-        'operations.evaluation.starting'
+        'operations.evaluation.starting',
       )
     })
 
@@ -1080,7 +1080,7 @@ describe('useOperationToasts', () => {
           'eval-task-1',
           'completed',
           'Evaluation complete',
-          'All responses evaluated'
+          'All responses evaluated',
         )
       })
 
@@ -1098,7 +1098,7 @@ describe('useOperationToasts', () => {
           'generation',
           'completed',
           'task-1',
-          'Done'
+          'Done',
         )
       })
 
@@ -1125,13 +1125,13 @@ describe('useOperationToasts', () => {
           'generation',
           'completed',
           'task-1',
-          'Done'
+          'Done',
         )
         result.current.addOperationToast(
           'evaluation',
           'failed',
           'task-2',
-          'Error'
+          'Error',
         )
       })
 
@@ -1187,7 +1187,7 @@ describe('useOperationToasts', () => {
           'generation',
           'started',
           'task-1',
-          'M1'
+          'M1',
         )
       })
 
@@ -1209,7 +1209,7 @@ describe('useOperationToasts', () => {
           'running',
           'task-123',
           'Test message',
-          'Test details'
+          'Test details',
         )
       })
 
@@ -1225,7 +1225,7 @@ describe('useOperationToasts', () => {
           message: 'Test message',
           details: 'Test details',
           onDismiss: expect.any(Function),
-        })
+        }),
       )
     })
   })

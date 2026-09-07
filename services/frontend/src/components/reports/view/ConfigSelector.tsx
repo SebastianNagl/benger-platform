@@ -1,5 +1,5 @@
-import clsx from 'clsx'
 import type { ReportConfigRef } from '@/types/report'
+import clsx from 'clsx'
 import type { TranslateFn } from './chartTheme'
 
 interface ConfigSelectorProps {
@@ -9,23 +9,37 @@ interface ConfigSelectorProps {
   t: TranslateFn
 }
 
-export function configOptionLabel(config: ReportConfigRef, siblings: ReportConfigRef[] = []): string {
+export function configOptionLabel(
+  config: ReportConfigRef,
+  siblings: ReportConfigRef[] = [],
+): string {
   const judge = config.judge_label
   // Several configurations can use the same judge model (e.g. ×3 runs vs a
   // single run, or a multi-judge ensemble led by the same model). A bare
   // judge name would then repeat across buttons, so fall back to the
   // configuration's own name whenever another option carries the same judge.
   const judgeShared =
-    !!judge && siblings.some((other) => other.id !== config.id && other.judge_label === judge)
+    !!judge &&
+    siblings.some(
+      (other) => other.id !== config.id && other.judge_label === judge,
+    )
   if (judge && !judgeShared) return judge
   return config.name || judge || config.id || config.metric
 }
 
 /** Segmented control to switch between configs (judges) sharing the primary metric. */
-export function ConfigSelector({ options, value, onChange, t }: ConfigSelectorProps) {
+export function ConfigSelector({
+  options,
+  value,
+  onChange,
+  t,
+}: ConfigSelectorProps) {
   if (options.length < 2) return null
   return (
-    <div className="flex items-center gap-2 text-sm" data-testid="config-selector">
+    <div
+      className="flex items-center gap-2 text-sm"
+      data-testid="config-selector"
+    >
       <span className="text-zinc-500 dark:text-zinc-400">
         {t('reports.view.judge', 'Judge')}:
       </span>

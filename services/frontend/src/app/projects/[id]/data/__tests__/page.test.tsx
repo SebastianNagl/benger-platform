@@ -191,7 +191,7 @@ describe('ProjectDataPage', () => {
 
       await waitFor(() => {
         expect(mockRouter.replace).toHaveBeenCalledWith(
-          '/projects/test-project-id?error=no-data-access'
+          '/projects/test-project-id?error=no-data-access',
         )
       })
     })
@@ -204,10 +204,10 @@ describe('ProjectDataPage', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('projects.data.accessDenied')
+          screen.getByText('projects.data.accessDenied'),
         ).toBeInTheDocument()
         expect(
-          screen.getByText('projects.data.accessDeniedDescription')
+          screen.getByText('projects.data.accessDeniedDescription'),
         ).toBeInTheDocument()
       })
     })
@@ -293,7 +293,7 @@ describe('ProjectDataPage', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('projects.data.accessDenied')
+          screen.getByText('projects.data.accessDenied'),
         ).toBeInTheDocument()
       })
     })
@@ -388,7 +388,7 @@ describe('ProjectDataPage', () => {
 
       await waitFor(() => {
         expect(screen.getByTestId('annotation-tab')).toHaveTextContent(
-          'test-project-id'
+          'test-project-id',
         )
       })
     })
@@ -447,7 +447,7 @@ describe('ProjectDataPage', () => {
 
       await waitFor(() => {
         expect(screen.getByTestId('annotation-tab')).toHaveTextContent(
-          'custom-project-id'
+          'custom-project-id',
         )
       })
     })
@@ -487,7 +487,7 @@ describe('ProjectDataPage', () => {
       await waitFor(() => {
         expect(mockT).toHaveBeenCalledWith('projects.data.accessDenied')
         expect(mockT).toHaveBeenCalledWith(
-          'projects.data.accessDeniedDescription'
+          'projects.data.accessDeniedDescription',
         )
         expect(mockT).toHaveBeenCalledWith('projects.data.backToOverview')
       })
@@ -508,7 +508,7 @@ describe('ProjectDataPage', () => {
       await waitFor(() => {
         expect(canAccessProjectData).toHaveBeenCalledWith(
           mockUser,
-          expect.objectContaining({ isPrivateMode: false })
+          expect.objectContaining({ isPrivateMode: false }),
         )
       })
     })
@@ -521,7 +521,7 @@ describe('ProjectDataPage', () => {
 
       await waitFor(() => {
         expect(mockRouter.replace).toHaveBeenCalledWith(
-          '/projects/test-project-id?error=no-data-access'
+          '/projects/test-project-id?error=no-data-access',
         )
       })
     })
@@ -556,7 +556,7 @@ describe('ProjectDataPage', () => {
 
       await waitFor(() => {
         expect(mockRouter.replace).toHaveBeenCalledWith(
-          '/projects/test-project-id?error=no-data-access'
+          '/projects/test-project-id?error=no-data-access',
         )
       })
     })
@@ -574,7 +574,7 @@ describe('ProjectDataPage', () => {
 
       await waitFor(() => {
         expect(screen.getByTestId('annotation-tab')).toHaveTextContent(
-          specialId
+          specialId,
         )
       })
     })
@@ -617,7 +617,7 @@ describe('ProjectDataPage', () => {
       await waitFor(() => {
         const annotationTab = screen.getByTestId('annotation-tab')
         expect(annotationTab).toHaveTextContent(
-          'ProjectDataTab for test-project-id'
+          'ProjectDataTab for test-project-id',
         )
       })
     })
@@ -733,7 +733,7 @@ describe('ProjectDataPage', () => {
 
       await waitFor(() => {
         const loadingContainer = container.querySelector(
-          '.items-center.justify-center'
+          '.items-center.justify-center',
         )
         expect(loadingContainer).toBeInTheDocument()
       })

@@ -91,7 +91,8 @@ const translations: Record<string, string | ((params: any) => string)> = {
   'invitation.expired': 'This invitation has expired.',
   'invitation.emailMismatch': (params: any) =>
     `This invitation is for ${params.invitedEmail}, but you're logged in as ${params.currentEmail}.`,
-  'invitation.welcomeTo': (params: any) => `Welcome to ${params.organizationName}!`,
+  'invitation.welcomeTo': (params: any) =>
+    `Welcome to ${params.organizationName}!`,
   'invitation.joinedSuccess': (params: any) =>
     `You have successfully joined as ${params.role}.`,
   'invitation.redirectingToOrg': 'Redirecting to organization...',
@@ -153,7 +154,7 @@ describe('AcceptInvitationPage', () => {
   it('should show loading state initially', async () => {
     const params = Promise.resolve({ token: 'test-token-123' })
     ;(api.getInvitationByToken as jest.Mock).mockImplementation(
-      () => new Promise(() => {}) // Never resolves to keep loading
+      () => new Promise(() => {}), // Never resolves to keep loading
     )
 
     render(<AcceptInvitationPage params={params} />)
@@ -178,7 +179,7 @@ describe('AcceptInvitationPage', () => {
   it('should show error for invalid invitation', async () => {
     const params = Promise.resolve({ token: 'invalid-token' })
     ;(api.getInvitationByToken as jest.Mock).mockRejectedValue(
-      new Error('Invitation not found')
+      new Error('Invitation not found'),
     )
 
     render(<AcceptInvitationPage params={params} />)
@@ -242,7 +243,7 @@ describe('AcceptInvitationPage', () => {
     await waitFor(() => {
       expect(api.acceptInvitation).toHaveBeenCalledWith('test-token-123')
       expect(
-        screen.getByText(/Welcome to Test Organization/)
+        screen.getByText(/Welcome to Test Organization/),
       ).toBeInTheDocument()
     })
 
@@ -251,7 +252,7 @@ describe('AcceptInvitationPage', () => {
       () => {
         expect(mockRouter.push).toHaveBeenCalledWith('/dashboard')
       },
-      { timeout: 3000 }
+      { timeout: 3000 },
     )
   })
 
@@ -273,10 +274,10 @@ describe('AcceptInvitationPage', () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText(/This invitation is for test@example.com/)
+        screen.getByText(/This invitation is for test@example.com/),
       ).toBeInTheDocument()
       expect(
-        screen.getByText(/you're logged in as different@example.com/)
+        screen.getByText(/you're logged in as different@example.com/),
       ).toBeInTheDocument()
     })
 
@@ -293,14 +294,14 @@ describe('AcceptInvitationPage', () => {
     }
 
     ;(api.getInvitationByToken as jest.Mock).mockResolvedValue(
-      expiredInvitation
+      expiredInvitation,
     )
 
     render(<AcceptInvitationPage params={params} />)
 
     await waitFor(() => {
       expect(
-        screen.getByText(/This invitation has expired/)
+        screen.getByText(/This invitation has expired/),
       ).toBeInTheDocument()
     })
   })
@@ -320,14 +321,14 @@ describe('AcceptInvitationPage', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('Accept Invitation & Create Account')
+          screen.getByText('Accept Invitation & Create Account'),
         ).toBeInTheDocument()
       })
 
       fireEvent.click(screen.getByText('Accept Invitation & Create Account'))
 
       expect(mockRouter.push).toHaveBeenCalledWith(
-        '/register?invitation=test-token-123&email=test%40example.com'
+        '/register?invitation=test-token-123&email=test%40example.com',
       )
     })
   })
@@ -367,7 +368,7 @@ describe('AcceptInvitationPage', () => {
       fireEvent.click(screen.getByText('Log In to Accept'))
 
       expect(mockRouter.push).toHaveBeenCalledWith(
-        '/login?redirect=/accept-invitation/test-token-123'
+        '/login?redirect=/accept-invitation/test-token-123',
       )
     })
   })
@@ -468,7 +469,7 @@ describe('AcceptInvitationPage', () => {
         isLoading: true,
       })
       ;(api.getInvitationByToken as jest.Mock).mockImplementation(
-        () => new Promise(() => {})
+        () => new Promise(() => {}),
       )
 
       render(<AcceptInvitationPage params={params} />)
@@ -517,14 +518,14 @@ describe('AcceptInvitationPage', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('Accept Invitation & Create Account')
+          screen.getByText('Accept Invitation & Create Account'),
         ).toBeInTheDocument()
       })
 
       fireEvent.click(screen.getByText('Accept Invitation & Create Account'))
 
       expect(mockRouter.push).toHaveBeenCalledWith(
-        expect.stringContaining('/register?invitation=')
+        expect.stringContaining('/register?invitation='),
       )
     })
   })
@@ -533,7 +534,7 @@ describe('AcceptInvitationPage', () => {
     it('should show return to home button on error', async () => {
       const params = Promise.resolve({ token: 'invalid-token' })
       ;(api.getInvitationByToken as jest.Mock).mockRejectedValue(
-        new Error('Invitation not found')
+        new Error('Invitation not found'),
       )
 
       render(<AcceptInvitationPage params={params} />)
@@ -546,7 +547,7 @@ describe('AcceptInvitationPage', () => {
     it('should navigate home when clicking return button', async () => {
       const params = Promise.resolve({ token: 'invalid-token' })
       ;(api.getInvitationByToken as jest.Mock).mockRejectedValue(
-        new Error('Invitation not found')
+        new Error('Invitation not found'),
       )
 
       render(<AcceptInvitationPage params={params} />)
@@ -574,14 +575,14 @@ describe('AcceptInvitationPage', () => {
         isLoading: false,
       })
       ;(api.getInvitationByToken as jest.Mock).mockResolvedValue(
-        expiredInvitation
+        expiredInvitation,
       )
 
       render(<AcceptInvitationPage params={params} />)
 
       await waitFor(() => {
         const acceptButton = screen.getByText(
-          'Accept Invitation & Create Account'
+          'Accept Invitation & Create Account',
         )
         expect(acceptButton.closest('button')).toBeDisabled()
       })
@@ -621,7 +622,7 @@ describe('AcceptInvitationPage', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('Invitation already accepted')
+          screen.getByText('Invitation already accepted'),
         ).toBeInTheDocument()
       })
     })
@@ -641,7 +642,7 @@ describe('AcceptInvitationPage', () => {
       })
       ;(api.getInvitationByToken as jest.Mock).mockResolvedValue(mockInvitation)
       ;(api.acceptInvitation as jest.Mock).mockRejectedValue(
-        new Error('Network error')
+        new Error('Network error'),
       )
 
       render(<AcceptInvitationPage params={params} />)
@@ -653,11 +654,8 @@ describe('AcceptInvitationPage', () => {
       fireEvent.click(screen.getByText('Accept Invitation'))
 
       await waitFor(() => {
-        expect(
-          screen.getByText('invitation.acceptFailed')
-        ).toBeInTheDocument()
+        expect(screen.getByText('invitation.acceptFailed')).toBeInTheDocument()
       })
     })
   })
-
 })

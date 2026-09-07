@@ -98,7 +98,11 @@ jest.mock('@/components/shared/ResponsiveContainer', () => ({
 }))
 jest.mock('@/components/shared/Button', () => ({
   Button: ({ children, onClick, disabled, ...rest }: any) => (
-    <button onClick={onClick} disabled={disabled} aria-label={rest['aria-label']}>
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={rest['aria-label']}
+    >
       {children}
     </button>
   ),
@@ -139,7 +143,9 @@ jest.mock('@/components/evaluation/ScoreCard', () => ({
   ScoreCard: ({ metric }: any) => <div data-testid="score-card">{metric}</div>,
 }))
 jest.mock('@/components/evaluation/StatisticalResultsPanel', () => ({
-  StatisticalResultsPanel: () => <div data-testid="statistical-results-panel" />,
+  StatisticalResultsPanel: () => (
+    <div data-testid="statistical-results-panel" />
+  ),
 }))
 jest.mock('@/components/evaluation/StatisticsSelector', () => ({
   StatisticsSelector: () => <div data-testid="statistics-selector" />,
@@ -202,8 +208,18 @@ const evalConfig = {
 }
 
 const twoModels = [
-  { model_id: 'gpt-4', model_name: 'GPT-4', has_results: true, has_generations: true },
-  { model_id: 'claude', model_name: 'Claude', has_results: true, has_generations: true },
+  {
+    model_id: 'gpt-4',
+    model_name: 'GPT-4',
+    has_results: true,
+    has_generations: true,
+  },
+  {
+    model_id: 'claude',
+    model_name: 'Claude',
+    has_results: true,
+    has_generations: true,
+  },
 ]
 
 // A minimal EventSource stand-in we can drive in tests.
@@ -221,7 +237,7 @@ class FakeEventSource {
   }
   emit(type: string, data: any) {
     ;(this.listeners[type] || []).forEach((cb) =>
-      cb({ data: JSON.stringify(data) })
+      cb({ data: JSON.stringify(data) }),
     )
   }
   emitRaw(type: string) {
@@ -234,7 +250,9 @@ class FakeEventSource {
 
 const baseEvalMocks = () => {
   ;(projectsAPI.list as jest.Mock).mockResolvedValue({ items: [mockProject] })
-  ;(apiClient.evaluations.getProjectEvaluationConfig as jest.Mock).mockResolvedValue(evalConfig)
+  ;(
+    apiClient.evaluations.getProjectEvaluationConfig as jest.Mock
+  ).mockResolvedValue(evalConfig)
   ;(apiClient.evaluations.getConfiguredMethods as jest.Mock).mockResolvedValue({
     fields: [
       {
@@ -246,7 +264,9 @@ const baseEvalMocks = () => {
       },
     ],
   })
-  ;(apiClient.evaluations.getEvaluatedModels as jest.Mock).mockResolvedValue(twoModels)
+  ;(apiClient.evaluations.getEvaluatedModels as jest.Mock).mockResolvedValue(
+    twoModels,
+  )
   ;(apiClient.get as jest.Mock).mockResolvedValue({
     data: [
       {
@@ -263,7 +283,14 @@ const baseEvalMocks = () => {
     ],
   })
   ;(apiClient.evaluations.getEvaluationHistory as jest.Mock).mockResolvedValue({
-    series: [{ metric: 'bleu', evaluation_config_id: 'cfg1', display_name: 'BLEU', data: [] }],
+    series: [
+      {
+        metric: 'bleu',
+        evaluation_config_id: 'cfg1',
+        display_name: 'BLEU',
+        data: [],
+      },
+    ],
   })
   ;(apiClient.evaluations.getSignificanceTests as jest.Mock).mockResolvedValue({
     comparisons: [{ model_a: 'gpt-4', model_b: 'claude', p_value: 0.01 }],
@@ -280,7 +307,9 @@ const renderSelected = async () => {
   ;(useSearchParams as jest.Mock).mockReturnValue(new URLSearchParams())
   render(<EvaluationDashboard />)
   await waitFor(() => {
-    expect(apiClient.evaluations.getProjectEvaluationConfig).toHaveBeenCalledWith('1')
+    expect(
+      apiClient.evaluations.getProjectEvaluationConfig,
+    ).toHaveBeenCalledWith('1')
   })
   // Models + configs settle.
   await waitFor(() => {
@@ -298,7 +327,10 @@ describe('EvaluationDashboard - coverage complement', () => {
     originalEventSource = (global as any).EventSource
     ;(global as any).EventSource = FakeEventSource as any
     ;(useRouter as jest.Mock).mockReturnValue(mockRouter)
-    ;(useAuth as jest.Mock).mockReturnValue({ user: mockUser, isLoading: false })
+    ;(useAuth as jest.Mock).mockReturnValue({
+      user: mockUser,
+      isLoading: false,
+    })
     ;(useI18n as jest.Mock).mockReturnValue({ t: mockT })
     ;(useToast as jest.Mock).mockReturnValue({ addToast: mockAddToast })
     baseEvalMocks()
@@ -313,7 +345,9 @@ describe('EvaluationDashboard - coverage complement', () => {
     // getConfiguredMethods resolves but with a non-array `fields`, so the
     // `(configuredMethods?.fields || []).flatMap(...)` call (outside the inner
     // try) throws -> outer catch -> addToast(dataFailed) (lines 548-550).
-    ;(apiClient.evaluations.getConfiguredMethods as jest.Mock).mockResolvedValue({
+    ;(
+      apiClient.evaluations.getConfiguredMethods as jest.Mock
+    ).mockResolvedValue({
       fields: 42 as any,
     })
 
@@ -324,7 +358,7 @@ describe('EvaluationDashboard - coverage complement', () => {
     await waitFor(() => {
       expect(mockAddToast).toHaveBeenCalledWith(
         'toasts.evaluation.dataFailed',
-        'error'
+        'error',
       )
     })
     errSpy.mockRestore()
@@ -341,7 +375,10 @@ describe('EvaluationDashboard - coverage complement', () => {
     await waitFor(() => {
       expect(apiClient.evaluations.runEvaluation).toHaveBeenCalled()
     })
-    expect(mockStartEvaluation).toHaveBeenCalledWith('eval-99', expect.any(Number))
+    expect(mockStartEvaluation).toHaveBeenCalledWith(
+      'eval-99',
+      expect.any(Number),
+    )
 
     // An EventSource was opened for the returned evaluation id.
     await waitFor(() => expect(FakeEventSource.instances.length).toBe(1))
@@ -356,7 +393,7 @@ describe('EvaluationDashboard - coverage complement', () => {
       'eval-99',
       'running',
       expect.any(String),
-      expect.any(String)
+      expect.any(String),
     )
 
     act(() => {
@@ -368,7 +405,7 @@ describe('EvaluationDashboard - coverage complement', () => {
     })
     expect(mockAddToast).toHaveBeenCalledWith(
       'toasts.evaluation.complete',
-      'success'
+      'success',
     )
     expect(es.closed).toBe(true)
   })
@@ -385,7 +422,10 @@ describe('EvaluationDashboard - coverage complement', () => {
       es.emit('done', { status: 'failed', error_message: 'kaboom' })
     })
 
-    expect(mockAddToast).toHaveBeenCalledWith('toasts.evaluation.failed', 'error')
+    expect(mockAddToast).toHaveBeenCalledWith(
+      'toasts.evaluation.failed',
+      'error',
+    )
     expect(es.closed).toBe(true)
   })
 
@@ -404,7 +444,7 @@ describe('EvaluationDashboard - coverage complement', () => {
       'eval-99',
       'running',
       'evaluation.viewer.status.reconnecting',
-      expect.stringContaining('1/3')
+      expect.stringContaining('1/3'),
     )
     expect(es.closed).toBe(true)
 
@@ -436,7 +476,7 @@ describe('EvaluationDashboard - coverage complement', () => {
       'eval-99',
       'failed',
       'evaluation.viewer.status.connectionLost',
-      'evaluation.viewer.status.unableToTrack'
+      'evaluation.viewer.status.unableToTrack',
     )
     jest.useRealTimers()
   })
@@ -444,9 +484,17 @@ describe('EvaluationDashboard - coverage complement', () => {
   it('toasts when running an evaluation with no configured methods', async () => {
     const user = userEvent.setup()
     // Config with all methods disabled -> deriveEvaluationConfigs filters to [].
-    ;(apiClient.evaluations.getProjectEvaluationConfig as jest.Mock).mockResolvedValue({
+    ;(
+      apiClient.evaluations.getProjectEvaluationConfig as jest.Mock
+    ).mockResolvedValue({
       evaluation_configs: [
-        { id: 'cfg1', metric: 'bleu', enabled: false, prediction_fields: [], reference_fields: [] },
+        {
+          id: 'cfg1',
+          metric: 'bleu',
+          enabled: false,
+          prediction_fields: [],
+          reference_fields: [],
+        },
       ],
     })
     await renderSelected()
@@ -456,7 +504,7 @@ describe('EvaluationDashboard - coverage complement', () => {
     await waitFor(() => {
       expect(mockAddToast).toHaveBeenCalledWith(
         'evaluation.noMethodsConfigured',
-        'error'
+        'error',
       )
     })
     expect(apiClient.evaluations.runEvaluation).not.toHaveBeenCalled()
@@ -466,7 +514,7 @@ describe('EvaluationDashboard - coverage complement', () => {
     const user = userEvent.setup()
     const errSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
     ;(apiClient.evaluations.runEvaluation as jest.Mock).mockRejectedValue(
-      new Error('run failed')
+      new Error('run failed'),
     )
     await renderSelected()
 
@@ -479,8 +527,10 @@ describe('EvaluationDashboard - coverage complement', () => {
   })
 
   it('captures a significance error when the significance endpoint rejects', async () => {
-    ;(apiClient.evaluations.getSignificanceTests as jest.Mock).mockRejectedValue(
-      Object.assign(new Error('sig down'), { message: 'sig down' })
+    ;(
+      apiClient.evaluations.getSignificanceTests as jest.Mock
+    ).mockRejectedValue(
+      Object.assign(new Error('sig down'), { message: 'sig down' }),
     )
     await renderSelected()
 
@@ -491,14 +541,14 @@ describe('EvaluationDashboard - coverage complement', () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText('evaluation.viewer.results.statisticalSignificance')
+        screen.getByText('evaluation.viewer.results.statisticalSignificance'),
       ).toBeInTheDocument()
     })
   })
 
   it('captures a statistics error when computeStatistics rejects for all levels', async () => {
     ;(apiClient.evaluations.computeStatistics as jest.Mock).mockRejectedValue(
-      Object.assign(new Error('stats down'), { message: 'stats down' })
+      Object.assign(new Error('stats down'), { message: 'stats down' }),
     )
     await renderSelected()
 
@@ -507,7 +557,9 @@ describe('EvaluationDashboard - coverage complement', () => {
 
     // The statistical results panel renders (with the error wired in).
     await waitFor(() => {
-      expect(screen.getByTestId('statistical-results-panel')).toBeInTheDocument()
+      expect(
+        screen.getByTestId('statistical-results-panel'),
+      ).toBeInTheDocument()
     })
   })
 
@@ -533,7 +585,7 @@ describe('EvaluationDashboard - coverage complement', () => {
     await user.click(screen.getAllByText('set-bar-view')[0])
 
     const clearBtn = await screen.findByLabelText(
-      'evaluation.viewer.filters.clearAllFilters'
+      'evaluation.viewer.filters.clearAllFilters',
     )
     await user.click(clearBtn)
 
@@ -541,7 +593,7 @@ describe('EvaluationDashboard - coverage complement', () => {
     // (chart-only) disappears.
     await waitFor(() => {
       expect(
-        screen.queryByText('evaluation.viewer.results.statisticalSignificance')
+        screen.queryByText('evaluation.viewer.results.statisticalSignificance'),
       ).not.toBeInTheDocument()
     })
   })
@@ -553,24 +605,26 @@ describe('EvaluationDashboard - coverage complement', () => {
     // Open the metrics dropdown.
     await user.click(screen.getByText('evaluation.viewer.filters.allMetrics'))
 
-    const clearAll = await screen.findAllByText('evaluation.viewer.filters.clearAll')
+    const clearAll = await screen.findAllByText(
+      'evaluation.viewer.filters.clearAll',
+    )
     await user.click(clearAll[clearAll.length - 1])
 
     // With nothing selected, the trigger label flips to "selectMetrics".
     await waitFor(() => {
       expect(
-        screen.getByText('evaluation.viewer.filters.selectMetrics')
+        screen.getByText('evaluation.viewer.filters.selectMetrics'),
       ).toBeInTheDocument()
     })
 
     const selectAll = await screen.findAllByText(
-      'evaluation.viewer.filters.selectAll'
+      'evaluation.viewer.filters.selectAll',
     )
     await user.click(selectAll[selectAll.length - 1])
 
     await waitFor(() => {
       expect(
-        screen.getByText('evaluation.viewer.filters.allMetrics')
+        screen.getByText('evaluation.viewer.filters.allMetrics'),
       ).toBeInTheDocument()
     })
   })

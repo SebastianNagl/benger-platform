@@ -15,7 +15,7 @@ describe('Badge', () => {
         'px-2.5',
         'py-0.5',
         'text-xs',
-        'font-medium'
+        'font-medium',
       )
     })
 
@@ -43,7 +43,7 @@ describe('Badge', () => {
         'bg-emerald-100',
         'text-emerald-800',
         'dark:bg-emerald-900/20',
-        'dark:text-emerald-400'
+        'dark:text-emerald-400',
       )
     })
 
@@ -55,7 +55,7 @@ describe('Badge', () => {
         'bg-emerald-100',
         'text-emerald-800',
         'dark:bg-emerald-900/20',
-        'dark:text-emerald-400'
+        'dark:text-emerald-400',
       )
     })
 
@@ -67,7 +67,7 @@ describe('Badge', () => {
         'bg-zinc-100',
         'text-zinc-800',
         'dark:bg-zinc-800',
-        'dark:text-zinc-300'
+        'dark:text-zinc-300',
       )
     })
 
@@ -79,7 +79,7 @@ describe('Badge', () => {
         'bg-red-100',
         'text-red-800',
         'dark:bg-red-900/20',
-        'dark:text-red-400'
+        'dark:text-red-400',
       )
     })
 
@@ -92,7 +92,7 @@ describe('Badge', () => {
         'border-zinc-200',
         'dark:border-zinc-700',
         'text-zinc-600',
-        'dark:text-zinc-400'
+        'dark:text-zinc-400',
       )
     })
   })
@@ -113,7 +113,7 @@ describe('Badge', () => {
         'custom-class',
         'inline-flex',
         'items-center',
-        'rounded-full'
+        'rounded-full',
       )
     })
 
@@ -121,7 +121,7 @@ describe('Badge', () => {
       render(
         <Badge variant="secondary" className="custom-class">
           Custom Badge
-        </Badge>
+        </Badge>,
       )
 
       const badge = screen.getByText('Custom Badge')
@@ -146,7 +146,7 @@ describe('Badge', () => {
       render(
         <Badge>
           <span>JSX Content</span>
-        </Badge>
+        </Badge>,
       )
 
       expect(screen.getByText('JSX Content')).toBeInTheDocument()
@@ -157,7 +157,7 @@ describe('Badge', () => {
         <Badge>
           <span>First</span>
           <span>Second</span>
-        </Badge>
+        </Badge>,
       )
 
       expect(screen.getByText('First')).toBeInTheDocument()
@@ -204,7 +204,7 @@ describe('Badge', () => {
 
       expect(screen.getByText('Active')).toHaveClass(
         'bg-emerald-100',
-        'text-emerald-800'
+        'text-emerald-800',
       )
     })
 
@@ -213,7 +213,7 @@ describe('Badge', () => {
 
       expect(screen.getByText('Error')).toHaveClass(
         'bg-red-100',
-        'text-red-800'
+        'text-red-800',
       )
     })
 
@@ -222,7 +222,7 @@ describe('Badge', () => {
 
       expect(screen.getByText('Info')).toHaveClass(
         'bg-zinc-100',
-        'text-zinc-800'
+        'text-zinc-800',
       )
     })
 
@@ -240,7 +240,7 @@ describe('Badge', () => {
       const badge = screen.getByText('Dark Mode')
       expect(badge).toHaveClass(
         'dark:bg-emerald-900/20',
-        'dark:text-emerald-400'
+        'dark:text-emerald-400',
       )
     })
 
@@ -279,7 +279,7 @@ describe('Badge', () => {
         <div className="flex gap-2">
           <Badge>First</Badge>
           <Badge>Second</Badge>
-        </div>
+        </div>,
       )
 
       expect(screen.getByText('First')).toHaveClass('inline-flex')
@@ -330,7 +330,7 @@ describe('Badge', () => {
     it('renders as button when onClick provided', () => {
       const mockOnClick = jest.fn()
       const { container } = render(
-        <Badge onClick={mockOnClick}>Clickable Badge</Badge>
+        <Badge onClick={mockOnClick}>Clickable Badge</Badge>,
       )
 
       const button = container.querySelector('button')
@@ -360,7 +360,7 @@ describe('Badge', () => {
         'focus:outline-none',
         'focus:ring-2',
         'focus:ring-offset-1',
-        'focus:ring-blue-500'
+        'focus:ring-blue-500',
       )
     })
 
@@ -371,7 +371,7 @@ describe('Badge', () => {
       expect(badge).not.toHaveClass(
         'cursor-pointer',
         'hover:opacity-80',
-        'transition-opacity'
+        'transition-opacity',
       )
     })
 
@@ -380,7 +380,7 @@ describe('Badge', () => {
       render(
         <Badge onClick={mockOnClick} aria-label="Navigate to project settings">
           Status
-        </Badge>
+        </Badge>,
       )
 
       const badge = screen.getByLabelText('Navigate to project settings')
@@ -407,7 +407,7 @@ describe('Badge', () => {
       render(
         <Badge variant="destructive" onClick={mockOnClick}>
           Error Status
-        </Badge>
+        </Badge>,
       )
 
       const badge = screen.getByText('Error Status')
@@ -415,7 +415,7 @@ describe('Badge', () => {
         'bg-red-100',
         'text-red-800',
         'cursor-pointer',
-        'hover:opacity-80'
+        'hover:opacity-80',
       )
     })
 
@@ -424,7 +424,7 @@ describe('Badge', () => {
       render(
         <Badge onClick={mockOnClick} className="custom-interactive">
           Custom Interactive
-        </Badge>
+        </Badge>,
       )
 
       const badge = screen.getByText('Custom Interactive')
@@ -432,7 +432,7 @@ describe('Badge', () => {
         'custom-interactive',
         'cursor-pointer',
         'hover:opacity-80',
-        'transition-opacity'
+        'transition-opacity',
       )
     })
   })

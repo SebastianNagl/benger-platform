@@ -11,7 +11,10 @@ import { CheckboxField } from '../CheckboxField'
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
     t: (key: string, varsOrDefault?: any) => {
-      const translations: Record<string, any> = require('../../../locales/en/common.json')
+      const translations: Record<
+        string,
+        any
+      > = require('../../../locales/en/common.json')
       const parts = key.split('.')
       let value: any = translations
       for (const part of parts) {
@@ -104,7 +107,7 @@ describe('CheckboxField Component', () => {
       expect(description).toHaveClass(
         'text-sm',
         'text-gray-500',
-        'dark:text-gray-400'
+        'dark:text-gray-400',
       )
     })
 
@@ -142,7 +145,7 @@ describe('CheckboxField Component', () => {
       expect(noChoicesMessage).toHaveClass(
         'text-sm',
         'text-gray-500',
-        'dark:text-gray-400'
+        'dark:text-gray-400',
       )
 
       expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
@@ -171,7 +174,7 @@ describe('CheckboxField Component', () => {
 
     it('handles pre-selected values correctly', () => {
       render(
-        <CheckboxField {...defaultProps} value={['Technology', 'Sports']} />
+        <CheckboxField {...defaultProps} value={['Technology', 'Sports']} />,
       )
 
       const technologyCheckbox = screen.getByLabelText('Technology')
@@ -194,7 +197,7 @@ describe('CheckboxField Component', () => {
 
     it('handles null/undefined values gracefully', () => {
       const { rerender } = render(
-        <CheckboxField {...defaultProps} value={null} />
+        <CheckboxField {...defaultProps} value={null} />,
       )
       let checkboxes = screen.getAllByRole('checkbox')
       checkboxes.forEach((checkbox) => {
@@ -224,7 +227,7 @@ describe('CheckboxField Component', () => {
     it('calls onChange when user deselects a checkbox', async () => {
       const user = userEvent.setup()
       render(
-        <CheckboxField {...defaultProps} value={['Technology', 'Sports']} />
+        <CheckboxField {...defaultProps} value={['Technology', 'Sports']} />,
       )
 
       const technologyCheckbox = screen.getByLabelText('Technology')
@@ -348,7 +351,7 @@ describe('CheckboxField Component', () => {
       const label = screen.getByText('Categories (Optional)')
       expect(label).toBeInTheDocument()
       expect(
-        screen.queryByText('Categories (Optional) (Optional)')
+        screen.queryByText('Categories (Optional) (Optional)'),
       ).not.toBeInTheDocument()
     })
   })
@@ -387,7 +390,7 @@ describe('CheckboxField Component', () => {
           {...defaultProps}
           readonly={true}
           value={['Technology', 'Sports']}
-        />
+        />,
       )
 
       const technologyCheckbox = screen.getByLabelText('Technology')
@@ -409,7 +412,7 @@ describe('CheckboxField Component', () => {
       render(<CheckboxField {...defaultProps} errors={errors} />)
 
       const errorMessage = screen.getByText(
-        'At least one option must be selected'
+        'At least one option must be selected',
       )
       expect(errorMessage).toBeInTheDocument()
       expect(errorMessage).toHaveClass('text-red-600', 'dark:text-red-400')
@@ -454,7 +457,7 @@ describe('CheckboxField Component', () => {
           'border-gray-300',
           'dark:border-gray-600',
           'rounded',
-          'focus:ring-blue-500'
+          'focus:ring-blue-500',
         )
       })
     })
@@ -467,13 +470,13 @@ describe('CheckboxField Component', () => {
         'ml-3',
         'text-sm',
         'text-gray-700',
-        'dark:text-gray-300'
+        'dark:text-gray-300',
       )
     })
 
     it('applies custom className to wrapper', () => {
       render(
-        <CheckboxField {...defaultProps} className="custom-checkbox-class" />
+        <CheckboxField {...defaultProps} className="custom-checkbox-class" />,
       )
 
       const wrapper = screen.getByText('Technology').closest('.field-wrapper')
@@ -500,7 +503,7 @@ describe('CheckboxField Component', () => {
         ],
       }
       render(
-        <CheckboxField {...defaultProps} field={fieldWithSpecialChoices} />
+        <CheckboxField {...defaultProps} field={fieldWithSpecialChoices} />,
       )
 
       expect(screen.getByText('Choice & More')).toBeInTheDocument()
@@ -515,7 +518,7 @@ describe('CheckboxField Component', () => {
         choices: ['Emoji 🚀', 'Chinese 中文', 'Accents àáâãäå', 'Math ∑∏∫'],
       }
       render(
-        <CheckboxField {...defaultProps} field={fieldWithUnicodeChoices} />
+        <CheckboxField {...defaultProps} field={fieldWithUnicodeChoices} />,
       )
 
       expect(screen.getByText('Emoji 🚀')).toBeInTheDocument()
@@ -617,7 +620,7 @@ describe('CheckboxField Component', () => {
       await user.click(submitButton)
 
       expect(
-        screen.getByText('Form submitted with: Technology, Sports')
+        screen.getByText('Form submitted with: Technology, Sports'),
       ).toBeInTheDocument()
     })
 
@@ -672,7 +675,7 @@ describe('CheckboxField Component', () => {
           <button>Before</button>
           <CheckboxField {...defaultProps} />
           <button>After</button>
-        </div>
+        </div>,
       )
 
       const beforeButton = screen.getByRole('button', { name: 'Before' })

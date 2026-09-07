@@ -91,7 +91,7 @@ export function StepPrompts({
     variable: string,
     ref: React.RefObject<HTMLTextAreaElement | null>,
     currentValue: string,
-    onChange: (val: string) => void
+    onChange: (val: string) => void,
   ) => {
     const textarea = ref.current
     const insertion = `$${variable}`
@@ -135,7 +135,7 @@ export function StepPrompts({
               className={cn(
                 'cursor-pointer p-3 transition-colors hover:border-emerald-600',
                 promptTemplate === template.id &&
-                  'border-emerald-600 bg-emerald-50 dark:bg-emerald-900/20'
+                  'border-emerald-600 bg-emerald-50 dark:bg-emerald-900/20',
               )}
               onClick={() => selectTemplate(template)}
               data-testid={`wizard-prompt-template-${template.id}`}
@@ -163,7 +163,7 @@ export function StepPrompts({
           id="system-prompt"
           ref={systemPromptRef}
           placeholder={t(
-            'projects.creation.wizard.step6.systemPromptPlaceholder'
+            'projects.creation.wizard.step6.systemPromptPlaceholder',
           )}
           value={systemPrompt}
           onChange={(e) => onSystemPromptChange(e.target.value)}
@@ -182,7 +182,7 @@ export function StepPrompts({
                     v,
                     systemPromptRef,
                     systemPrompt,
-                    onSystemPromptChange
+                    onSystemPromptChange,
                   )
                 }
                 className="rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-xs text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-700"
@@ -206,7 +206,7 @@ export function StepPrompts({
           id="instruction-prompt"
           ref={instructionPromptRef}
           placeholder={t(
-            'projects.creation.wizard.step6.instructionPromptPlaceholder'
+            'projects.creation.wizard.step6.instructionPromptPlaceholder',
           )}
           value={instructionPrompt}
           onChange={(e) => onInstructionPromptChange(e.target.value)}
@@ -225,7 +225,7 @@ export function StepPrompts({
                     v,
                     instructionPromptRef,
                     instructionPrompt,
-                    onInstructionPromptChange
+                    onInstructionPromptChange,
                   )
                 }
                 className="rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-xs text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-700"

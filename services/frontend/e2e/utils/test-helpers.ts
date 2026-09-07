@@ -17,18 +17,18 @@ export async function loginAsTestUser(page: Page) {
 
   // Fill login form using test IDs
   const emailInput = await page.locator(
-    '[data-testid="auth-login-email-input"]'
+    '[data-testid="auth-login-email-input"]',
   )
   await emailInput.fill('admin')
 
   const passwordInput = await page.locator(
-    '[data-testid="auth-login-password-input"]'
+    '[data-testid="auth-login-password-input"]',
   )
   await passwordInput.fill('admin')
 
   // Click login button
   const loginButton = await page.locator(
-    '[data-testid="auth-login-submit-button"]'
+    '[data-testid="auth-login-submit-button"]',
   )
   await loginButton.click()
 
@@ -75,7 +75,7 @@ export async function uploadFile(
   selector: string,
   fileName: string,
   content: string,
-  mimeType: string
+  mimeType: string,
 ) {
   const buffer = Buffer.from(content)
   await page.setInputFiles(selector, {
@@ -143,11 +143,11 @@ export function createQAJSONData(numItems: number = 3): string {
 export async function navigateToTask(
   page: Page,
   taskId: string,
-  projectId?: string
+  projectId?: string,
 ) {
   if (!projectId) {
     throw new Error(
-      'Project ID is required to navigate to tasks. Tasks are now accessed through projects.'
+      'Project ID is required to navigate to tasks. Tasks are now accessed through projects.',
     )
   }
   await page.goto(`/projects/${projectId}/tasks/${taskId}`)
@@ -162,11 +162,11 @@ export async function navigateToAnnotation(
   page: Page,
   taskId: string,
   itemIndex: number = 0,
-  projectId?: string
+  projectId?: string,
 ) {
   if (!projectId) {
     throw new Error(
-      'Project ID is required to navigate to task annotations. Tasks are now accessed through projects.'
+      'Project ID is required to navigate to task annotations. Tasks are now accessed through projects.',
     )
   }
   await page.goto(`/projects/${projectId}/tasks/${taskId}?item=${itemIndex}`)
@@ -189,7 +189,7 @@ export async function mockUserSession(page: Page) {
         email: 'test@example.com',
         name: 'Test User',
         is_superadmin: true,
-      })
+      }),
     )
   })
 }
@@ -199,7 +199,7 @@ export async function mockUserSession(page: Page) {
  */
 export async function setupProject(
   page: Page,
-  projectData: { title: string; description?: string }
+  projectData: { title: string; description?: string },
 ) {
   // Navigate to projects page
   await page.goto('/projects')
@@ -242,7 +242,7 @@ export async function testLogin(page: Page) {
  */
 export async function createTestProject(
   page: Page,
-  name: string
+  name: string,
 ): Promise<string | null> {
   const currentUrl = page.url()
 
@@ -260,7 +260,7 @@ export async function createTestProject(
   await nameInput.fill(name)
 
   const descriptionTextarea = page.locator(
-    '[data-testid="project-create-description-textarea"]'
+    '[data-testid="project-create-description-textarea"]',
   )
   await descriptionTextarea.fill(`Test project for ${name}`)
 
@@ -273,14 +273,14 @@ export async function createTestProject(
 
   // Look for "Skip Data Import" button
   const skipButton = page.locator(
-    '[data-testid="project-create-skip-data-button"]'
+    '[data-testid="project-create-skip-data-button"]',
   )
   if (await skipButton.isVisible()) {
     await skipButton.click()
   } else {
     // If no skip button, try clicking Next again
     const nextButton2 = page.locator(
-      '[data-testid="project-create-next-button"]'
+      '[data-testid="project-create-next-button"]',
     )
     await nextButton2.click()
   }
@@ -290,7 +290,7 @@ export async function createTestProject(
 
   // Click "Create Project" button
   const createButton = page.locator(
-    '[data-testid="project-create-submit-button"]'
+    '[data-testid="project-create-submit-button"]',
   )
   await createButton.click()
 
@@ -300,7 +300,7 @@ export async function createTestProject(
   // Wait for redirect to project page with UUID pattern
   await page.waitForURL(
     /\/projects\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
-    { timeout: 10000 }
+    { timeout: 10000 },
   )
   const projectUrl = page.url()
   console.log('Project URL after creation:', projectUrl)
@@ -326,7 +326,7 @@ export async function createTestProject(
  */
 export async function deleteTestProject(
   page: Page,
-  projectId: string
+  projectId: string,
 ): Promise<void> {
   try {
     // Navigate to projects page first to ensure we're in the right context

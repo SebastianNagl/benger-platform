@@ -41,7 +41,7 @@ export class FeatureFlagsClient extends BaseApiClient {
    */
   async updateFeatureFlag(
     flagId: string,
-    updates: FeatureFlagUpdate
+    updates: FeatureFlagUpdate,
   ): Promise<FeatureFlag> {
     const response = await this.put(`/feature-flags/${flagId}`, updates)
     return response

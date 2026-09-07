@@ -11,13 +11,13 @@
  * the expected value hand-computed from the source.
  */
 
+import { AnnotationResult } from '@/types/labelStudio'
 import {
   computeAnnotationDiff,
+  computeCommentDiff,
   computeHighlightDiff,
   computeLineDiff,
-  computeCommentDiff,
 } from '../annotationDiff'
-import { AnnotationResult } from '@/types/labelStudio'
 
 const ar = (
   from_name: string,
@@ -67,7 +67,10 @@ describe('computeAnnotationDiff: L57/L62 deepEqual + `isEqual ? unchanged : modi
   // L62 ternary, true side: equal values -> 'unchanged'. If ternary forced to
   // false -> 'modified'. Distinguish unchanged vs modified directly.
   it('equal values -> unchanged (L62 ternary true side)', () => {
-    const res = computeAnnotationDiff([ar('a', { t: [1] })], [ar('a', { t: [1] })])
+    const res = computeAnnotationDiff(
+      [ar('a', { t: [1] })],
+      [ar('a', { t: [1] })],
+    )
     expect(res.fields[0].status).toBe('unchanged')
     expect(res.summary.unchanged).toBe(1)
     expect(res.summary.modified).toBe(0)
@@ -75,7 +78,10 @@ describe('computeAnnotationDiff: L57/L62 deepEqual + `isEqual ? unchanged : modi
 
   // L62 ternary, false side: differing values -> 'modified'.
   it('differing values -> modified (L62 ternary false side)', () => {
-    const res = computeAnnotationDiff([ar('a', { t: [1] })], [ar('a', { t: [2] })])
+    const res = computeAnnotationDiff(
+      [ar('a', { t: [1] })],
+      [ar('a', { t: [2] })],
+    )
     expect(res.fields[0].status).toBe('modified')
     expect(res.summary.modified).toBe(1)
     expect(res.summary.unchanged).toBe(0)
@@ -175,7 +181,9 @@ describe('computeHighlightDiff: L122/L131 has() Conditionals + L136 sort `-`', (
   // different id with identical start/end/labels still matches.
   it('matching start:end:labels -> common, even with different id (L122 true)', () => {
     const orig = [{ id: 'o', start: 2, end: 7, text: 't', labels: ['A'] }]
-    const rev = [{ id: 'DIFFERENT', start: 2, end: 7, text: 't', labels: ['A'] }]
+    const rev = [
+      { id: 'DIFFERENT', start: 2, end: 7, text: 't', labels: ['A'] },
+    ]
     const res = computeHighlightDiff(orig, rev)
     expect(res.filter((r) => r.status === 'common')).toHaveLength(1)
     expect(res.filter((r) => r.status === 'added')).toHaveLength(0) // L131 false
@@ -302,22 +310,18 @@ describe('computeLineDiff: L164-170 while guards (`<`, `&&`, `!==`) + `+1` lineN
   // `<` guard (must keep going while oi<3) and the L182 `oi + 1`.
   it('trailing removals B@2,C@3 from tail loop (L181 `<` guard, L182 `oi+1`)', () => {
     const res = computeLineDiff('A\nB\nC', 'A')
-    expect(res.map((r) => `${r.status}:${r.line}:${r.lineNumber ?? ''}`)).toEqual([
-      'unchanged:A:',
-      'removed:B:2',
-      'removed:C:3',
-    ])
+    expect(
+      res.map((r) => `${r.status}:${r.line}:${r.lineNumber ?? ''}`),
+    ).toEqual(['unchanged:A:', 'removed:B:2', 'removed:C:3'])
   })
 
   // Trailing-insertion path (L185-187). orig = [A], rev = [A,B,C]; LCS = [A].
   // L185 tail loop emits B (ri+1=2) and C (ri+1=3). Pins L185 `<` + L186 `ri+1`.
   it('trailing insertions B@2,C@3 from tail loop (L185 `<` guard, L186 `ri+1`)', () => {
     const res = computeLineDiff('A', 'A\nB\nC')
-    expect(res.map((r) => `${r.status}:${r.line}:${r.lineNumber ?? ''}`)).toEqual([
-      'unchanged:A:',
-      'added:B:2',
-      'added:C:3',
-    ])
+    expect(
+      res.map((r) => `${r.status}:${r.line}:${r.lineNumber ?? ''}`),
+    ).toEqual(['unchanged:A:', 'added:B:2', 'added:C:3'])
   })
 
   // L174 unchanged line carries NO lineNumber. A swap that pushed a numbered
@@ -358,10 +362,16 @@ describe('computeLCS (via computeLineDiff): kills `<=`, `===`, `+`, `-`, `>`, Ma
   // tiebreak (L259) pick the longer chain.
   it('LCS [X,A,B] vs [A,B,Y] = [A,B] (L245 Math.max, L259 `>` direction)', () => {
     const res = computeLineDiff('X\nA\nB', 'A\nB\nY')
-    const unchanged = res.filter((r) => r.status === 'unchanged').map((r) => r.line)
+    const unchanged = res
+      .filter((r) => r.status === 'unchanged')
+      .map((r) => r.line)
     expect(unchanged).toEqual(['A', 'B']) // common subsequence length 2
-    expect(res.filter((r) => r.status === 'removed').map((r) => r.line)).toEqual(['X'])
-    expect(res.filter((r) => r.status === 'added').map((r) => r.line)).toEqual(['Y'])
+    expect(
+      res.filter((r) => r.status === 'removed').map((r) => r.line),
+    ).toEqual(['X'])
+    expect(res.filter((r) => r.status === 'added').map((r) => r.line)).toEqual([
+      'Y',
+    ])
   })
 
   // Empty original string vs single review line. '' splits to [''], 'only'
@@ -398,8 +408,12 @@ describe('computeLCS (via computeLineDiff): kills `<=`, `===`, `+`, `-`, `>`, Ma
   it('disjoint single lines -> LCS empty -> removed+added (L242 `===` false side)', () => {
     const res = computeLineDiff('A', 'B')
     expect(res.filter((r) => r.status === 'unchanged')).toHaveLength(0)
-    expect(res.filter((r) => r.status === 'removed').map((r) => r.line)).toEqual(['A'])
-    expect(res.filter((r) => r.status === 'added').map((r) => r.line)).toEqual(['B'])
+    expect(
+      res.filter((r) => r.status === 'removed').map((r) => r.line),
+    ).toEqual(['A'])
+    expect(res.filter((r) => r.status === 'added').map((r) => r.line)).toEqual([
+      'B',
+    ])
   })
 
   // Repeated lines exercise the L243 `+1` vs L245 max more sharply. orig =
@@ -408,7 +422,11 @@ describe('computeLCS (via computeLineDiff): kills `<=`, `===`, `+`, `-`, `>`, Ma
   // and we'd see two removals instead of one.
   it('repeated A: [A,A,B] vs [A,B] -> LCS [A,B], exactly one A removed', () => {
     const res = computeLineDiff('A\nA\nB', 'A\nB')
-    expect(res.filter((r) => r.status === 'removed').map((r) => r.line)).toEqual(['A'])
-    expect(res.filter((r) => r.status === 'unchanged').map((r) => r.line)).toEqual(['A', 'B'])
+    expect(
+      res.filter((r) => r.status === 'removed').map((r) => r.line),
+    ).toEqual(['A'])
+    expect(
+      res.filter((r) => r.status === 'unchanged').map((r) => r.line),
+    ).toEqual(['A', 'B'])
   })
 })

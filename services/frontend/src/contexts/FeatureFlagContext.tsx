@@ -60,7 +60,7 @@ export function FeatureFlagProvider({
         console.error('Error fetching feature flags:', err)
       }
       setError(
-        err instanceof Error ? err.message : 'Failed to fetch feature flags'
+        err instanceof Error ? err.message : 'Failed to fetch feature flags',
       )
       // On error, keep existing flags to avoid breaking the app
     } finally {
@@ -82,14 +82,14 @@ export function FeatureFlagProvider({
         return false
       }
     },
-    [user]
+    [user],
   )
 
   const isEnabled = useCallback(
     (flagName: string): boolean => {
       return (flags && flags[flagName]) || false
     },
-    [flags]
+    [flags],
   )
 
   // Load flags when user or organization changes

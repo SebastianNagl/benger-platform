@@ -39,14 +39,14 @@ describe('API Client Method Bindings', () => {
       // These should have the same behavior since listInvitations is assigned to getOrganizationInvitations
       // They may not be the same object reference due to .bind() creating new functions
       expect(apiClient.getOrganizationInvitations).toEqual(
-        apiClient.listInvitations
+        apiClient.listInvitations,
       )
 
       // Both should be functions with the same signature
       expect(typeof apiClient.getOrganizationInvitations).toBe('function')
       expect(typeof apiClient.listInvitations).toBe('function')
       expect(apiClient.getOrganizationInvitations.length).toBe(
-        apiClient.listInvitations.length
+        apiClient.listInvitations.length,
       )
     })
 
@@ -115,7 +115,7 @@ describe('API Client Method Bindings', () => {
       if (hasGetOrgInvitations && hasListInvitations) {
         // If both exist, they should have equivalent behavior
         expect(apiClient.getOrganizationInvitations).toEqual(
-          apiClient.listInvitations
+          apiClient.listInvitations,
         )
 
         // Both methods should accept the same parameters
@@ -198,7 +198,7 @@ describe('API Client Method Bindings', () => {
 
       expect(mockRequest).toHaveBeenCalledWith(
         expect.stringContaining(`/organizations/${orgId}/invitations`),
-        expect.any(Object)
+        expect.any(Object),
       )
 
       // If getOrganizationInvitations exists, it should work the same way
@@ -207,7 +207,7 @@ describe('API Client Method Bindings', () => {
 
       expect(mockRequest).toHaveBeenCalledWith(
         expect.stringContaining(`/organizations/${orgId}/invitations`),
-        expect.any(Object)
+        expect.any(Object),
       )
     })
   })

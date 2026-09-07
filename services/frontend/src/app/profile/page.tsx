@@ -18,8 +18,8 @@ import { Button } from '@/components/shared/Button'
 import { ResponsiveContainer } from '@/components/shared/ResponsiveContainer'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
-import { useSlot } from '@/lib/extensions/slots'
 import type { ProfileHistoryEntry } from '@/lib/api/types'
+import { useSlot } from '@/lib/extensions/slots'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 export default function ProfilePage() {
@@ -68,7 +68,7 @@ export default function ProfilePage() {
   const [apiKeysModalOpen, setApiKeysModalOpen] = useState(false)
 
   const [profileHistory, setProfileHistory] = useState<ProfileHistoryEntry[]>(
-    []
+    [],
   )
 
   // Ref to skip the loadProfile re-fetch triggered by updateUser after save.
@@ -125,10 +125,10 @@ export default function ProfilePage() {
       // Validate that the profile data matches the current user
       if (user && profileData.id !== user.id) {
         console.error(
-          '[POLLUTION PREVENTION v2] Profile data mismatch - user pollution detected!'
+          '[POLLUTION PREVENTION v2] Profile data mismatch - user pollution detected!',
         )
         console.error(
-          `[POLLUTION PREVENTION v2] Expected user: ${user.id}, Got: ${profileData.id}`
+          `[POLLUTION PREVENTION v2] Expected user: ${user.id}, Got: ${profileData.id}`,
         )
 
         // Clear all auth data and redirect to login instead of reloading
@@ -154,10 +154,16 @@ export default function ProfilePage() {
         profileData.ki_experience_scores
       )
       if (typeof window !== 'undefined') {
-        if (localStorage.getItem('profile_legal_experience_expanded') === null && hasLegalData) {
+        if (
+          localStorage.getItem('profile_legal_experience_expanded') === null &&
+          hasLegalData
+        ) {
           setLegalExperienceExpanded(false)
         }
-        if (localStorage.getItem('profile_research_profile_expanded') === null && hasResearchData) {
+        if (
+          localStorage.getItem('profile_research_profile_expanded') === null &&
+          hasResearchData
+        ) {
           setOptionalInfoExpanded(false)
         }
       }
@@ -224,10 +230,10 @@ export default function ProfilePage() {
       const storedUserId = localStorage.getItem('benger_last_session_user')
       if (storedUserId && storedUserId !== String(user.id)) {
         console.error(
-          '[POLLUTION PREVENTION] User ID mismatch detected in profile page!'
+          '[POLLUTION PREVENTION] User ID mismatch detected in profile page!',
         )
         console.error(
-          `[POLLUTION PREVENTION] Context user: ${user.id}, Stored user: ${storedUserId}`
+          `[POLLUTION PREVENTION] Context user: ${user.id}, Stored user: ${storedUserId}`,
         )
         // Clear everything and redirect to login
         localStorage.clear()
@@ -290,7 +296,8 @@ export default function ProfilePage() {
         current_semester: updatedProfile.current_semester,
         gender: updatedProfile.gender,
         subjective_competence_civil: updatedProfile.subjective_competence_civil,
-        subjective_competence_public: updatedProfile.subjective_competence_public,
+        subjective_competence_public:
+          updatedProfile.subjective_competence_public,
         subjective_competence_criminal:
           updatedProfile.subjective_competence_criminal,
         grade_zwischenpruefung: updatedProfile.grade_zwischenpruefung,
@@ -327,7 +334,7 @@ export default function ProfilePage() {
 
   return (
     <AuthGuard>
-      <ResponsiveContainer size="xl" className="pb-10 pt-8">
+      <ResponsiveContainer size="xl" className="pt-8 pb-10">
         {/* Breadcrumb */}
         <div className="mb-4">
           <Breadcrumb
@@ -385,7 +392,10 @@ export default function ProfilePage() {
               expanded={legalExperienceExpanded}
               onToggle={(next) => {
                 setLegalExperienceExpanded(next)
-                localStorage.setItem('profile_legal_experience_expanded', String(next))
+                localStorage.setItem(
+                  'profile_legal_experience_expanded',
+                  String(next),
+                )
               }}
             />
 
@@ -401,7 +411,10 @@ export default function ProfilePage() {
               expanded={optionalInfoExpanded}
               onToggle={(next) => {
                 setOptionalInfoExpanded(next)
-                localStorage.setItem('profile_research_profile_expanded', String(next))
+                localStorage.setItem(
+                  'profile_research_profile_expanded',
+                  String(next),
+                )
               }}
             />
 
@@ -413,7 +426,10 @@ export default function ProfilePage() {
               expanded={privacySettingsExpanded}
               onToggle={(next) => {
                 setPrivacySettingsExpanded(next)
-                localStorage.setItem('profile_privacy_settings_expanded', String(next))
+                localStorage.setItem(
+                  'profile_privacy_settings_expanded',
+                  String(next),
+                )
               }}
             />
 

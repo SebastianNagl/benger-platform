@@ -157,7 +157,10 @@ export function formatAxisValue(
 }
 
 /** Date-only formatting ("2. September 2026"); returns '' for invalid input. */
-export function formatDate(iso: string | null | undefined, locale: string): string {
+export function formatDate(
+  iso: string | null | undefined,
+  locale: string,
+): string {
   if (!iso) return ''
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return ''

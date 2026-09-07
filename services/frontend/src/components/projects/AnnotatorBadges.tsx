@@ -75,19 +75,19 @@ function getStatusIndicator(status?: string) {
   switch (status) {
     case 'completed':
       return (
-        <div className="absolute -bottom-0.5 -right-0.5 flex h-3 w-3 items-center justify-center rounded-full bg-white dark:bg-zinc-900">
+        <div className="absolute -right-0.5 -bottom-0.5 flex h-3 w-3 items-center justify-center rounded-full bg-white dark:bg-zinc-900">
           <div className="h-2 w-2 rounded-full bg-emerald-500" />
         </div>
       )
     case 'in_progress':
       return (
-        <div className="absolute -bottom-0.5 -right-0.5 flex h-3 w-3 items-center justify-center rounded-full bg-white dark:bg-zinc-900">
+        <div className="absolute -right-0.5 -bottom-0.5 flex h-3 w-3 items-center justify-center rounded-full bg-white dark:bg-zinc-900">
           <div className="h-2 w-2 animate-pulse rounded-full bg-yellow-500" />
         </div>
       )
     case 'skipped':
       return (
-        <div className="absolute -bottom-0.5 -right-0.5 flex h-3 w-3 items-center justify-center rounded-full bg-white dark:bg-zinc-900">
+        <div className="absolute -right-0.5 -bottom-0.5 flex h-3 w-3 items-center justify-center rounded-full bg-white dark:bg-zinc-900">
           <div className="h-2 w-2 rounded-full bg-zinc-400" />
         </div>
       )
@@ -119,7 +119,9 @@ export function AnnotatorBadges({
             : 'cursor-default text-zinc-400 dark:text-zinc-500'
         } transition-colors`}
       >
-        {canAssign && onAssign ? t('projects.annotators.assign') : t('projects.annotators.unassigned')}
+        {canAssign && onAssign
+          ? t('projects.annotators.assign')
+          : t('projects.annotators.unassigned')}
       </button>
     )
   }
@@ -139,10 +141,12 @@ export function AnnotatorBadges({
       {visibleAssignments.map((assignment, index) => {
         const initials = getInitials(
           assignment.user_name,
-          assignment.user_email
+          assignment.user_email,
         )
         const displayName =
-          assignment.user_name || assignment.user_email || t('projects.annotators.unknown')
+          assignment.user_name ||
+          assignment.user_email ||
+          t('projects.annotators.unknown')
         const colorClass = getUserColor(assignment.user_id)
 
         const tooltipContent = `${displayName}${
@@ -168,7 +172,7 @@ export function AnnotatorBadges({
                     e.stopPropagation()
                     onUnassign(assignment.id)
                   }}
-                  className="absolute -right-1 -top-1 z-20 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-xs text-white opacity-0 transition-colors hover:bg-red-600 group-hover:opacity-100"
+                  className="absolute -top-1 -right-1 z-20 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-xs text-white opacity-0 transition-colors group-hover:opacity-100 hover:bg-red-600"
                   title={t('projects.annotators.removeAssignment')}
                 >
                   ×
@@ -183,7 +187,10 @@ export function AnnotatorBadges({
         <Tooltip
           content={`+${remainingCount} more: ${assignments
             .slice(maxVisible)
-            .map((a) => a.user_name || a.user_email || t('projects.annotators.unknown'))
+            .map(
+              (a) =>
+                a.user_name || a.user_email || t('projects.annotators.unknown'),
+            )
             .join(', ')}`}
         >
           <div

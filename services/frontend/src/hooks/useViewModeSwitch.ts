@@ -3,11 +3,11 @@
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 
-import apiSingleton from '@/lib/api'
 import { useOptionalApiClient } from '@/contexts/ApiClientContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { useHydration } from '@/contexts/HydrationContext'
 import { isExtendedEdition, useResolvedUiMode } from '@/hooks/useResolvedUiMode'
+import apiSingleton from '@/lib/api'
 import { useUIStore } from '@/stores'
 
 export type UiMode = 'student' | 'expert'

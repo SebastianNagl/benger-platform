@@ -13,7 +13,7 @@ describe('SubSection', () => {
     render(
       <SubSection title="Settings">
         <div data-testid="inner">x</div>
-      </SubSection>
+      </SubSection>,
     )
     expect(screen.queryByTestId('inner')).not.toBeInTheDocument()
     expect(screen.getByText('Settings')).toBeInTheDocument()
@@ -23,7 +23,7 @@ describe('SubSection', () => {
     render(
       <SubSection title="Settings" defaultExpanded>
         <div data-testid="inner">x</div>
-      </SubSection>
+      </SubSection>,
     )
     expect(screen.getByTestId('inner')).toBeInTheDocument()
   })
@@ -33,7 +33,7 @@ describe('SubSection', () => {
     render(
       <SubSection title="Settings">
         <div data-testid="inner">x</div>
-      </SubSection>
+      </SubSection>,
     )
     await user.click(screen.getByRole('button', { name: /Settings/i }))
     expect(screen.getByTestId('inner')).toBeInTheDocument()
@@ -45,7 +45,7 @@ describe('SubSection', () => {
     render(
       <SubSection title="Methods" badge="3 configured">
         <div>x</div>
-      </SubSection>
+      </SubSection>,
     )
     expect(screen.getByText('3 configured')).toBeInTheDocument()
   })
@@ -58,7 +58,7 @@ describe('SubSection', () => {
         actions={<span data-testid="action-slot">edit</span>}
       >
         <div>x</div>
-      </SubSection>
+      </SubSection>,
     )
     expect(screen.queryByTestId('action-slot')).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: /Methods/i }))

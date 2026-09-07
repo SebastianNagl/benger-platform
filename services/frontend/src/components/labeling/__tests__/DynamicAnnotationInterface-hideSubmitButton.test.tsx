@@ -72,7 +72,7 @@ const MockTextAreaComponent = jest.fn(
         <button data-testid="component-submit-button">Component Submit</button>
       )}
     </div>
-  )
+  ),
 )
 
 // Mock the registry
@@ -129,7 +129,7 @@ jest.mock('@/lib/labelConfig/dataBinding', () => ({
       to_name: toName,
       type,
       value,
-    })
+    }),
   ),
 }))
 
@@ -156,7 +156,7 @@ describe('DynamicAnnotationInterface hideSubmitButton Integration', () => {
     // When showSubmitButton=true, hideSubmitButton=true, so component buttons are hidden
     // This prevents duplicate submit buttons (Issue #1030)
     const componentSubmitButton = screen.queryByTestId(
-      'component-submit-button'
+      'component-submit-button',
     )
     expect(componentSubmitButton).not.toBeInTheDocument()
 
@@ -165,7 +165,7 @@ describe('DynamicAnnotationInterface hideSubmitButton Integration', () => {
       expect.objectContaining({
         hideSubmitButton: true,
       }),
-      expect.any(Object)
+      undefined,
     )
   })
 
@@ -188,7 +188,7 @@ describe('DynamicAnnotationInterface hideSubmitButton Integration', () => {
     // When showSubmitButton=false, hideSubmitButton=false, so component buttons are shown
     // This allows individual components to have their own submit buttons in embedded scenarios
     const componentSubmitButton = screen.queryByTestId(
-      'component-submit-button'
+      'component-submit-button',
     )
     expect(componentSubmitButton).toBeInTheDocument()
 
@@ -197,7 +197,7 @@ describe('DynamicAnnotationInterface hideSubmitButton Integration', () => {
       expect.objectContaining({
         hideSubmitButton: false,
       }),
-      expect.any(Object)
+      undefined,
     )
   })
 
@@ -220,7 +220,7 @@ describe('DynamicAnnotationInterface hideSubmitButton Integration', () => {
 
     // Component submit button should NOT be present
     const componentSubmitButton = screen.queryByTestId(
-      'component-submit-button'
+      'component-submit-button',
     )
     expect(componentSubmitButton).not.toBeInTheDocument()
   })

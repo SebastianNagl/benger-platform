@@ -50,7 +50,7 @@ describe('projectsAPI', () => {
       const result = await projectsAPI.list()
 
       expect(apiClient.get).toHaveBeenCalledWith(
-        expect.stringMatching(/^\/projects\/\?page=1&page_size=100&_=\d+$/)
+        expect.stringMatching(/^\/projects\/\?page=1&page_size=100&_=\d+$/),
       )
       expect(result).toEqual(mockResponse)
     })
@@ -69,7 +69,7 @@ describe('projectsAPI', () => {
       await projectsAPI.list(2, 20)
 
       expect(apiClient.get).toHaveBeenCalledWith(
-        expect.stringMatching(/page=2&page_size=20/)
+        expect.stringMatching(/page=2&page_size=20/),
       )
     })
 
@@ -79,7 +79,7 @@ describe('projectsAPI', () => {
       await projectsAPI.list(1, 100, 'test search')
 
       expect(apiClient.get).toHaveBeenCalledWith(
-        expect.stringMatching(/search=test\+search/)
+        expect.stringMatching(/search=test\+search/),
       )
     })
 
@@ -89,7 +89,7 @@ describe('projectsAPI', () => {
       await projectsAPI.list(1, 100, undefined, true)
 
       expect(apiClient.get).toHaveBeenCalledWith(
-        expect.stringMatching(/is_archived=true/)
+        expect.stringMatching(/is_archived=true/),
       )
     })
 
@@ -99,7 +99,7 @@ describe('projectsAPI', () => {
       await projectsAPI.list(1, 100, undefined, false)
 
       expect(apiClient.get).toHaveBeenCalledWith(
-        expect.stringMatching(/is_archived=false/)
+        expect.stringMatching(/is_archived=false/),
       )
     })
 
@@ -135,7 +135,7 @@ describe('projectsAPI', () => {
       const result = await projectsAPI.get('proj-1')
 
       expect(apiClient.get).toHaveBeenCalledWith(
-        expect.stringMatching(/^\/projects\/proj-1\?_=\d+$/)
+        expect.stringMatching(/^\/projects\/proj-1\?_=\d+$/),
       )
       expect(result).toEqual(mockProject)
     })
@@ -146,7 +146,7 @@ describe('projectsAPI', () => {
       await projectsAPI.get('proj-1')
 
       expect(apiClient.get).toHaveBeenCalledWith(
-        expect.stringMatching(/\?_=\d+$/)
+        expect.stringMatching(/\?_=\d+$/),
       )
     })
   })
@@ -194,7 +194,7 @@ describe('projectsAPI', () => {
 
       expect(apiClient.patch).toHaveBeenCalledWith(
         '/projects/proj-1',
-        updateData
+        updateData,
       )
       expect(result).toEqual(mockResponse)
     })
@@ -225,8 +225,8 @@ describe('projectsAPI', () => {
 
       expect(apiClient.get).toHaveBeenCalledWith(
         expect.stringMatching(
-          /^\/projects\/proj-1\/tasks\?page=1&page_size=30$/
-        )
+          /^\/projects\/proj-1\/tasks\?page=1&page_size=30$/,
+        ),
       )
       expect(result).toEqual(mockResponse.items)
     })
@@ -238,7 +238,7 @@ describe('projectsAPI', () => {
       await projectsAPI.getTasks('proj-1', { page: 2, pageSize: 50 })
 
       expect(apiClient.get).toHaveBeenCalledWith(
-        expect.stringMatching(/page=2&page_size=50/)
+        expect.stringMatching(/page=2&page_size=50/),
       )
     })
 
@@ -249,7 +249,7 @@ describe('projectsAPI', () => {
       await projectsAPI.getTasks('proj-1', { onlyLabeled: true })
 
       expect(apiClient.get).toHaveBeenCalledWith(
-        expect.stringMatching(/only_labeled=true/)
+        expect.stringMatching(/only_labeled=true/),
       )
     })
 
@@ -260,7 +260,7 @@ describe('projectsAPI', () => {
       await projectsAPI.getTasks('proj-1', { onlyUnlabeled: true })
 
       expect(apiClient.get).toHaveBeenCalledWith(
-        expect.stringMatching(/only_unlabeled=true/)
+        expect.stringMatching(/only_unlabeled=true/),
       )
     })
 
@@ -268,7 +268,7 @@ describe('projectsAPI', () => {
       ;(apiClient.get as jest.Mock).mockResolvedValue({ items: [] })
       await projectsAPI.getTasks('proj-1', { excludeMyAnnotations: true })
       expect(apiClient.get).toHaveBeenCalledWith(
-        expect.stringMatching(/exclude_my_annotations=true/)
+        expect.stringMatching(/exclude_my_annotations=true/),
       )
     })
 
@@ -323,15 +323,19 @@ describe('projectsAPI', () => {
 
       expect(apiClient.get).toHaveBeenCalledWith(
         expect.stringMatching(
-          /^\/projects\/proj-1\/tasks\?page=1&page_size=50$/
-        )
+          /^\/projects\/proj-1\/tasks\?page=1&page_size=50$/,
+        ),
       )
       expect(result).toEqual(mockResponse)
     })
 
     it('should forward all filter options to the API', async () => {
       ;(apiClient.get as jest.Mock).mockResolvedValue({
-        items: [], total: 0, page: 2, page_size: 25, pages: 0,
+        items: [],
+        total: 0,
+        page: 2,
+        page_size: 25,
+        pages: 0,
       })
       await projectsAPI.getTasksPage('proj-1', {
         page: 2,
@@ -384,7 +388,9 @@ describe('projectsAPI', () => {
 
     it('should fill missing envelope fields with caller defaults', async () => {
       // Backend that returns just { items: [...] } without total/page/pages.
-      ;(apiClient.get as jest.Mock).mockResolvedValue({ items: [{ id: 't1' } as Task] })
+      ;(apiClient.get as jest.Mock).mockResolvedValue({
+        items: [{ id: 't1' } as Task],
+      })
       const result = await projectsAPI.getTasksPage('proj-1', { page: 3 })
       expect(result.items).toHaveLength(1)
       expect(result.page).toBe(3)
@@ -404,7 +410,9 @@ describe('projectsAPI', () => {
 
     it('should forward every filter option', async () => {
       ;(apiClient.get as jest.Mock).mockResolvedValue({
-        ids: [], total: 0, truncated: false,
+        ids: [],
+        total: 0,
+        truncated: false,
       })
       await projectsAPI.getTaskIds('proj-1', {
         onlyLabeled: true,
@@ -433,7 +441,9 @@ describe('projectsAPI', () => {
 
     it('should preserve truncated=true on a capped response', async () => {
       ;(apiClient.get as jest.Mock).mockResolvedValue({
-        ids: ['t1'], total: 50000, truncated: true,
+        ids: ['t1'],
+        total: 50000,
+        truncated: true,
       })
       const result = await projectsAPI.getTaskIds('proj-1')
       expect(result.truncated).toBe(true)
@@ -507,12 +517,12 @@ describe('projectsAPI', () => {
 
       const result = await projectsAPI.createAnnotation(
         'task-1',
-        annotationData
+        annotationData,
       )
 
       expect(apiClient.post).toHaveBeenCalledWith(
         '/projects/tasks/task-1/annotations',
-        annotationData
+        annotationData,
       )
       expect(result).toEqual(mockAnnotation)
     })
@@ -530,7 +540,7 @@ describe('projectsAPI', () => {
       const result = await projectsAPI.getTaskAnnotations('task-1')
 
       expect(apiClient.get).toHaveBeenCalledWith(
-        '/projects/tasks/task-1/annotations'
+        '/projects/tasks/task-1/annotations',
       )
       expect(result).toEqual(mockAnnotations)
     })
@@ -554,7 +564,7 @@ describe('projectsAPI', () => {
 
       expect(apiClient.patch).toHaveBeenCalledWith(
         '/projects/annotations/ann-1',
-        updateData
+        updateData,
       )
       expect(result).toEqual(mockAnnotation)
     })
@@ -575,7 +585,7 @@ describe('projectsAPI', () => {
         '/projects/proj-1/tasks/bulk-delete',
         {
           task_ids: ['task-1', 'task-2', 'task-3'],
-        }
+        },
       )
       expect(result).toEqual(mockResponse)
     })
@@ -593,7 +603,7 @@ describe('projectsAPI', () => {
         '/projects/proj-1/tasks/bulk-archive',
         {
           task_ids: ['task-1', 'task-2'],
-        }
+        },
       )
       expect(result).toEqual(mockResponse)
     })
@@ -650,7 +660,7 @@ describe('projectsAPI', () => {
       const result = await projectsAPI.bulkExportProjects(
         ['proj-1', 'proj-2'],
         'json',
-        true
+        true,
       )
 
       expect(apiClient.post).toHaveBeenCalledWith('/projects/bulk-export', {
@@ -674,7 +684,7 @@ describe('projectsAPI', () => {
         '/projects/bulk-export-full',
         {
           project_ids: ['proj-1', 'proj-2'],
-        }
+        },
       )
       expect(result).toEqual(mockBlob)
     })
@@ -696,7 +706,7 @@ describe('projectsAPI', () => {
       const res = await projectsAPI.createImportUploadUrl('proj-1', 'data.json')
 
       expect(apiClient.post).toHaveBeenCalledWith(
-        '/projects/proj-1/imports/upload-url?filename=data.json'
+        '/projects/proj-1/imports/upload-url?filename=data.json',
       )
       expect(res).toEqual(presigned)
     })
@@ -707,7 +717,7 @@ describe('projectsAPI', () => {
       await projectsAPI.createFullImportUploadUrl('data.json')
 
       expect(apiClient.post).toHaveBeenCalledWith(
-        '/projects/project-imports/upload-url?filename=data.json'
+        '/projects/project-imports/upload-url?filename=data.json',
       )
     })
 
@@ -741,7 +751,7 @@ describe('projectsAPI', () => {
       const file = new File(['{}'], 'data.json', { type: 'application/json' })
 
       await expect(
-        projectsAPI.uploadToPresignedUrl(presigned, file)
+        projectsAPI.uploadToPresignedUrl(presigned, file),
       ).rejects.toThrow(/403/)
 
       fetchSpy.mockRestore()
@@ -781,10 +791,14 @@ describe('projectsAPI', () => {
       })
 
       await projectsAPI.getImportJob('proj-1', 'job-1')
-      expect(apiClient.get).toHaveBeenCalledWith('/projects/proj-1/imports/job-1')
+      expect(apiClient.get).toHaveBeenCalledWith(
+        '/projects/proj-1/imports/job-1',
+      )
 
       await projectsAPI.getFullImportJob('job-2')
-      expect(apiClient.get).toHaveBeenCalledWith('/projects/project-imports/job-2')
+      expect(apiClient.get).toHaveBeenCalledWith(
+        '/projects/project-imports/job-2',
+      )
     })
 
     it('runNestedImportJob presigns, uploads, enqueues, then polls to completion', async () => {
@@ -805,7 +819,7 @@ describe('projectsAPI', () => {
       ]
       let poll = 0
       ;(apiClient.get as jest.Mock).mockImplementation(() =>
-        Promise.resolve(statuses[Math.min(poll++, statuses.length - 1)])
+        Promise.resolve(statuses[Math.min(poll++, statuses.length - 1)]),
       )
 
       const file = new File(['{}'], 'data.json', { type: 'application/json' })
@@ -814,11 +828,11 @@ describe('projectsAPI', () => {
         'proj-1',
         file,
         { onStatus },
-        { pollIntervalMs: 1 }
+        { pollIntervalMs: 1 },
       )
 
       expect(apiClient.post).toHaveBeenCalledWith(
-        '/projects/proj-1/imports/upload-url?filename=data.json'
+        '/projects/proj-1/imports/upload-url?filename=data.json',
       )
       expect(fetchSpy).toHaveBeenCalledTimes(1)
       expect(apiClient.post).toHaveBeenCalledWith('/projects/proj-1/imports', {
@@ -857,7 +871,7 @@ describe('projectsAPI', () => {
       })
 
       expect(apiClient.post).toHaveBeenCalledWith(
-        '/projects/project-imports/upload-url?filename=project.json'
+        '/projects/project-imports/upload-url?filename=project.json',
       )
       expect(apiClient.post).toHaveBeenCalledWith('/projects/project-imports', {
         object_key: presigned.file_key,
@@ -887,7 +901,7 @@ describe('projectsAPI', () => {
       await expect(
         projectsAPI.runNestedImportJob('proj-1', file, undefined, {
           pollIntervalMs: 1,
-        })
+        }),
       ).rejects.toThrow('bad payload')
 
       fetchSpy.mockRestore()
@@ -933,14 +947,14 @@ describe('projectsAPI', () => {
       const result = await projectsAPI.updateTaskData(
         'proj-1',
         'task-1',
-        taskData
+        taskData,
       )
 
       expect(apiClient.put).toHaveBeenCalledWith(
         '/projects/proj-1/tasks/task-1',
         {
           data: taskData,
-        }
+        },
       )
       expect(result).toEqual(mockTask)
     })
@@ -963,7 +977,7 @@ describe('projectsAPI', () => {
 
       expect(apiClient.post).toHaveBeenCalledWith(
         '/projects/proj-1/tasks/assign',
-        assignData
+        assignData,
       )
       expect(result).toEqual(mockResponse)
     })
@@ -983,7 +997,7 @@ describe('projectsAPI', () => {
       const result = await projectsAPI.recalculateStats('proj-1')
 
       expect(apiClient.post).toHaveBeenCalledWith(
-        '/projects/proj-1/recalculate-stats'
+        '/projects/proj-1/recalculate-stats',
       )
       expect(result).toEqual(mockResponse)
     })
@@ -1002,7 +1016,7 @@ describe('projectsAPI', () => {
       const result = await projectsAPI.getMyTasks('proj-1')
 
       expect(apiClient.get).toHaveBeenCalledWith(
-        '/projects/proj-1/my-tasks?page=1&page_size=50'
+        '/projects/proj-1/my-tasks?page=1&page_size=50',
       )
       expect(result).toEqual(mockResponse)
     })
@@ -1021,7 +1035,7 @@ describe('projectsAPI', () => {
       await projectsAPI.getMyTasks('proj-1', 1, 50, 'completed')
 
       expect(apiClient.get).toHaveBeenCalledWith(
-        '/projects/proj-1/my-tasks?page=1&page_size=50&status=completed'
+        '/projects/proj-1/my-tasks?page=1&page_size=50&status=completed',
       )
     })
 
@@ -1031,7 +1045,7 @@ describe('projectsAPI', () => {
       await projectsAPI.removeTaskAssignment('proj-1', 'task-1', 'assignment-1')
 
       expect(apiClient.delete).toHaveBeenCalledWith(
-        '/projects/proj-1/tasks/task-1/assignments/assignment-1'
+        '/projects/proj-1/tasks/task-1/assignments/assignment-1',
       )
     })
   })
@@ -1039,7 +1053,7 @@ describe('projectsAPI', () => {
   describe('error handling', () => {
     it('should handle network errors', async () => {
       ;(apiClient.get as jest.Mock).mockRejectedValue(
-        new Error('Network error')
+        new Error('Network error'),
       )
 
       await expect(projectsAPI.list()).rejects.toThrow('Network error')
@@ -1047,21 +1061,21 @@ describe('projectsAPI', () => {
 
     it('should handle API errors', async () => {
       ;(apiClient.post as jest.Mock).mockRejectedValue(
-        new Error('HTTP error! status: 400')
+        new Error('HTTP error! status: 400'),
       )
 
       await expect(projectsAPI.create({ title: 'Test' })).rejects.toThrow(
-        'HTTP error! status: 400'
+        'HTTP error! status: 400',
       )
     })
 
     it('should handle unauthorized errors', async () => {
       ;(apiClient.delete as jest.Mock).mockRejectedValue(
-        new Error('HTTP error! status: 403')
+        new Error('HTTP error! status: 403'),
       )
 
       await expect(projectsAPI.delete('proj-1')).rejects.toThrow(
-        'HTTP error! status: 403'
+        'HTTP error! status: 403',
       )
     })
   })
@@ -1078,7 +1092,7 @@ describe('projectsAPI', () => {
       // No task subset → the body is omitted (whole-project export).
       expect(apiClient.post).toHaveBeenCalledWith(
         '/projects/proj-1/exports?format=csv',
-        undefined
+        undefined,
       )
       expect(res).toEqual({ job_id: 'job-1', status: 'pending' })
     })
@@ -1093,7 +1107,7 @@ describe('projectsAPI', () => {
 
       expect(apiClient.post).toHaveBeenCalledWith(
         '/projects/proj-1/exports?format=json',
-        undefined
+        undefined,
       )
     })
 
@@ -1107,7 +1121,7 @@ describe('projectsAPI', () => {
 
       expect(apiClient.post).toHaveBeenCalledWith(
         '/projects/proj-1/exports?format=json',
-        { task_ids: ['t-1', 't-2'] }
+        { task_ids: ['t-1', 't-2'] },
       )
     })
 
@@ -1120,7 +1134,7 @@ describe('projectsAPI', () => {
       const res = await projectsAPI.getExportJob('proj-1', 'job-1')
 
       expect(apiClient.get).toHaveBeenCalledWith(
-        '/projects/proj-1/exports/job-1'
+        '/projects/proj-1/exports/job-1',
       )
       expect(res.status).toBe('running')
     })
@@ -1134,7 +1148,7 @@ describe('projectsAPI', () => {
       const res = await projectsAPI.getExportDownloadUrl('proj-1', 'job-1')
 
       expect(apiClient.get).toHaveBeenCalledWith(
-        '/projects/proj-1/exports/job-1/download?json=1'
+        '/projects/proj-1/exports/job-1/download?json=1',
       )
       expect(res).toEqual({ url: 'https://storage/presigned', expires_in: 300 })
     })
@@ -1146,8 +1160,18 @@ describe('projectsAPI', () => {
       })
 
       const statuses = [
-        { job_id: 'job-9', project_id: 'proj-1', status: 'pending', progress: 0 },
-        { job_id: 'job-9', project_id: 'proj-1', status: 'running', progress: 50 },
+        {
+          job_id: 'job-9',
+          project_id: 'proj-1',
+          status: 'pending',
+          progress: 0,
+        },
+        {
+          job_id: 'job-9',
+          project_id: 'proj-1',
+          status: 'running',
+          progress: 50,
+        },
         {
           job_id: 'job-9',
           project_id: 'proj-1',
@@ -1164,7 +1188,7 @@ describe('projectsAPI', () => {
           })
         }
         return Promise.resolve(
-          statuses[Math.min(pollCount++, statuses.length - 1)]
+          statuses[Math.min(pollCount++, statuses.length - 1)],
         )
       })
 
@@ -1185,12 +1209,12 @@ describe('projectsAPI', () => {
         'proj-1',
         'json',
         { onStatus },
-        { pollIntervalMs: 1 }
+        { pollIntervalMs: 1 },
       )
 
       expect(apiClient.post).toHaveBeenCalledWith(
         '/projects/proj-1/exports?format=json',
-        undefined
+        undefined,
       )
       // pending → running → completed: three status callbacks.
       expect(onStatus).toHaveBeenCalledTimes(3)
@@ -1219,7 +1243,7 @@ describe('projectsAPI', () => {
       await expect(
         projectsAPI.runProjectExportJob('proj-1', 'json', undefined, {
           pollIntervalMs: 1,
-        })
+        }),
       ).rejects.toThrow('boom in worker')
     })
 
@@ -1234,7 +1258,7 @@ describe('projectsAPI', () => {
       await expect(
         projectsAPI.runProjectExportJob('proj-1', 'json', undefined, {
           signal: controller.signal,
-        })
+        }),
       ).rejects.toThrow(/abort/i)
     })
   })

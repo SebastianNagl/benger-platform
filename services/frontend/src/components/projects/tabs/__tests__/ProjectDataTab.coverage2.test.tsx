@@ -266,17 +266,94 @@ const baseTask = (over: any = {}) => ({
 })
 
 const defaultColumns = [
-  { id: 'select', label: '', visible: true, sortable: false, width: 'w-12', type: 'system' },
-  { id: 'id', label: 'ID', visible: true, sortable: true, width: 'w-20', type: 'system' },
-  { id: 'completed', label: 'Completed', visible: true, sortable: true, width: 'w-24', type: 'system' },
-  { id: 'assigned', label: 'Assigned To', visible: true, sortable: false, width: 'w-32', type: 'system' },
-  { id: 'annotations', label: 'Annotations', visible: true, sortable: true, width: 'w-32', type: 'system' },
-  { id: 'generations', label: 'Generations', visible: true, sortable: true, width: 'w-32', type: 'system' },
-  { id: 'annotators', label: 'Annotators', visible: true, sortable: false, width: 'w-32', type: 'system' },
-  { id: 'graders', label: 'Graders', visible: true, sortable: false, width: 'w-32', type: 'system' },
-  { id: 'reviewers', label: 'Reviewers', visible: true, sortable: false, width: 'w-32', type: 'system' },
-  { id: 'created', label: 'Created', visible: true, sortable: true, width: 'w-36', type: 'system' },
-  { id: 'view_data', label: 'View', visible: true, sortable: false, width: 'w-16', type: 'system' },
+  {
+    id: 'select',
+    label: '',
+    visible: true,
+    sortable: false,
+    width: 'w-12',
+    type: 'system',
+  },
+  {
+    id: 'id',
+    label: 'ID',
+    visible: true,
+    sortable: true,
+    width: 'w-20',
+    type: 'system',
+  },
+  {
+    id: 'completed',
+    label: 'Completed',
+    visible: true,
+    sortable: true,
+    width: 'w-24',
+    type: 'system',
+  },
+  {
+    id: 'assigned',
+    label: 'Assigned To',
+    visible: true,
+    sortable: false,
+    width: 'w-32',
+    type: 'system',
+  },
+  {
+    id: 'annotations',
+    label: 'Annotations',
+    visible: true,
+    sortable: true,
+    width: 'w-32',
+    type: 'system',
+  },
+  {
+    id: 'generations',
+    label: 'Generations',
+    visible: true,
+    sortable: true,
+    width: 'w-32',
+    type: 'system',
+  },
+  {
+    id: 'annotators',
+    label: 'Annotators',
+    visible: true,
+    sortable: false,
+    width: 'w-32',
+    type: 'system',
+  },
+  {
+    id: 'graders',
+    label: 'Graders',
+    visible: true,
+    sortable: false,
+    width: 'w-32',
+    type: 'system',
+  },
+  {
+    id: 'reviewers',
+    label: 'Reviewers',
+    visible: true,
+    sortable: false,
+    width: 'w-32',
+    type: 'system',
+  },
+  {
+    id: 'created',
+    label: 'Created',
+    visible: true,
+    sortable: true,
+    width: 'w-36',
+    type: 'system',
+  },
+  {
+    id: 'view_data',
+    label: 'View',
+    visible: true,
+    sortable: false,
+    width: 'w-16',
+    type: 'system',
+  },
 ]
 
 let mockAddToast: jest.Mock
@@ -305,11 +382,17 @@ beforeEach(() => {
   }
   idsPayload = { ids: ['1'], total: 1, truncated: false }
 
-  ;(projectsAPI.getTasksPage as jest.Mock).mockImplementation(async () => pagePayload)
-  ;(projectsAPI.getTaskIds as jest.Mock).mockImplementation(async () => idsPayload)
+  ;(projectsAPI.getTasksPage as jest.Mock).mockImplementation(
+    async () => pagePayload,
+  )
+  ;(projectsAPI.getTaskIds as jest.Mock).mockImplementation(
+    async () => idsPayload,
+  )
   ;(projectsAPI.removeTaskAssignment as jest.Mock).mockResolvedValue({})
   ;(projectsAPI.getMembers as jest.Mock).mockResolvedValue([])
-  ;(projectsAPI.runProjectExportJob as jest.Mock).mockResolvedValue({ ok: true })
+  ;(projectsAPI.runProjectExportJob as jest.Mock).mockResolvedValue({
+    ok: true,
+  })
 
   mockUseAuth.mockReturnValue({
     user: {
@@ -415,7 +498,7 @@ describe('ProjectDataTab - pagination controls', () => {
       expect(screen.getByText('Page 2 of 3')).toBeInTheDocument()
     })
     expect(
-      screen.getByText('annotationTab.buttons.previous')
+      screen.getByText('annotationTab.buttons.previous'),
     ).not.toBeDisabled()
   })
 
@@ -434,13 +517,13 @@ describe('ProjectDataTab - pagination controls', () => {
     fireEvent.click(screen.getByText('annotationTab.buttons.next'))
     await settle()
     await waitFor(() =>
-      expect(screen.getByText('Page 2 of 3')).toBeInTheDocument()
+      expect(screen.getByText('Page 2 of 3')).toBeInTheDocument(),
     )
 
     fireEvent.click(screen.getByText('annotationTab.buttons.previous'))
     await settle()
     await waitFor(() =>
-      expect(screen.getByText('Page 1 of 3')).toBeInTheDocument()
+      expect(screen.getByText('Page 1 of 3')).toBeInTheDocument(),
     )
   })
 })
@@ -470,7 +553,7 @@ describe('ProjectDataTab - select-all-matching banner', () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText('All 2 tasks on this page are selected.')
+        screen.getByText('All 2 tasks on this page are selected.'),
       ).toBeInTheDocument()
     })
 
@@ -481,7 +564,7 @@ describe('ProjectDataTab - select-all-matching banner', () => {
       expect(projectsAPI.getTaskIds).toHaveBeenCalled()
       // 200 ids now selected -> counter reflects it.
       expect(screen.getByTestId('selected-count')).toHaveTextContent(
-        'Selected: 200'
+        'Selected: 200',
       )
     })
   })
@@ -507,8 +590,8 @@ describe('ProjectDataTab - select-all-matching banner', () => {
     await settle()
     await waitFor(() =>
       expect(
-        screen.getByText(/All 1 tasks on this page are selected\./)
-      ).toBeInTheDocument()
+        screen.getByText(/All 1 tasks on this page are selected\./),
+      ).toBeInTheDocument(),
     )
 
     fireEvent.click(screen.getByText(/Select all 9999 matching tasks/))
@@ -517,7 +600,7 @@ describe('ProjectDataTab - select-all-matching banner', () => {
     await waitFor(() => {
       expect(mockAddToast).toHaveBeenCalledWith(
         expect.stringContaining('capped'),
-        'warning'
+        'warning',
       )
     })
   })
@@ -531,7 +614,7 @@ describe('ProjectDataTab - select-all-matching banner', () => {
       pages: 10,
     }
     ;(projectsAPI.getTaskIds as jest.Mock).mockRejectedValueOnce(
-      new Error('boom')
+      new Error('boom'),
     )
 
     render(<ProjectDataTab projectId="project-1" />)
@@ -541,8 +624,8 @@ describe('ProjectDataTab - select-all-matching banner', () => {
     await settle()
     await waitFor(() =>
       expect(
-        screen.getByText(/Select all 500 matching tasks/)
-      ).toBeInTheDocument()
+        screen.getByText(/Select all 500 matching tasks/),
+      ).toBeInTheDocument(),
     )
 
     fireEvent.click(screen.getByText(/Select all 500 matching tasks/))
@@ -551,7 +634,7 @@ describe('ProjectDataTab - select-all-matching banner', () => {
     await waitFor(() => {
       expect(mockAddToast).toHaveBeenCalledWith(
         'annotationTab.messages.selectAllFailed',
-        'error'
+        'error',
       )
     })
   })
@@ -586,7 +669,7 @@ describe('ProjectDataTab - filtered export', () => {
       expect(projectsAPI.getTaskIds).toHaveBeenCalled()
       expect(mockAddToast).toHaveBeenCalledWith(
         expect.stringContaining('Export capped'),
-        'warning'
+        'warning',
       )
       expect(projectsAPI.runProjectExportJob).toHaveBeenCalled()
     })
@@ -613,7 +696,7 @@ describe('ProjectDataTab - filtered export', () => {
     await waitFor(() => {
       expect(mockAddToast).toHaveBeenCalledWith(
         'annotationTab.empty.noExport',
-        'warning'
+        'warning',
       )
     })
     expect(projectsAPI.runProjectExportJob).not.toHaveBeenCalled()
@@ -696,7 +779,12 @@ describe('ProjectDataTab - unassign edge case', () => {
         baseTask({
           id: '9',
           assignments: [
-            { id: 'a-1', user_id: 'u1', user_name: 'Jane', target_type: 'task' },
+            {
+              id: 'a-1',
+              user_id: 'u1',
+              user_name: 'Jane',
+              target_type: 'task',
+            },
           ],
         }),
       ],
@@ -735,7 +823,7 @@ describe('ProjectDataTab - unassign edge case', () => {
       pages: 1,
     }
     ;(projectsAPI.removeTaskAssignment as jest.Mock).mockRejectedValueOnce(
-      new Error('fail')
+      new Error('fail'),
     )
     render(<ProjectDataTab projectId="project-1" />)
     await settle()
@@ -746,7 +834,7 @@ describe('ProjectDataTab - unassign edge case', () => {
     await waitFor(() => {
       expect(mockAddToast).toHaveBeenCalledWith(
         'errors.assignmentRemoveFailed',
-        'error'
+        'error',
       )
     })
   })
@@ -776,7 +864,7 @@ describe('ProjectDataTab - unassign edge case', () => {
       expect(projectsAPI.removeTaskAssignment).toHaveBeenCalledWith(
         'project-1',
         '10',
-        'a-2'
+        'a-2',
       )
     })
   })
@@ -790,8 +878,22 @@ describe('ProjectDataTab - dynamic data and metadata cells', () => {
 
   const columnsWithDynamic = [
     ...defaultColumns.slice(0, 4),
-    { id: 'meta_category', label: 'meta.category', visible: true, sortable: false, width: 'w-32', type: 'metadata' },
-    { id: 'data_text', label: 'data.text', visible: true, sortable: false, width: 'w-40', type: 'data' },
+    {
+      id: 'meta_category',
+      label: 'meta.category',
+      visible: true,
+      sortable: false,
+      width: 'w-32',
+      type: 'metadata',
+    },
+    {
+      id: 'data_text',
+      label: 'data.text',
+      visible: true,
+      sortable: false,
+      width: 'w-40',
+      type: 'data',
+    },
     ...defaultColumns.slice(4),
   ]
 

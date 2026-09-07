@@ -20,7 +20,7 @@ describe('Table', () => {
             <TableCell>Test Cell</TableCell>
           </TableRow>
         </TableBody>
-      </Table>
+      </Table>,
     )
 
     const wrapper = container.firstChild as HTMLElement
@@ -40,7 +40,7 @@ describe('Table', () => {
             <TableCell>Content</TableCell>
           </TableRow>
         </TableBody>
-      </Table>
+      </Table>,
     )
 
     const table = container.querySelector('table')
@@ -57,7 +57,7 @@ describe('Table', () => {
             <TableCell>Content</TableCell>
           </TableRow>
         </TableBody>
-      </Table>
+      </Table>,
     )
 
     expect(ref.current).toBeInstanceOf(HTMLTableElement)
@@ -73,7 +73,7 @@ describe('TableHeader', () => {
             <TableHead>Header</TableHead>
           </TableRow>
         </TableHeader>
-      </Table>
+      </Table>,
     )
 
     const thead = container.querySelector('thead')
@@ -89,7 +89,7 @@ describe('TableHeader', () => {
             <TableHead>Header</TableHead>
           </TableRow>
         </TableHeader>
-      </Table>
+      </Table>,
     )
 
     const thead = container.querySelector('thead')
@@ -106,7 +106,7 @@ describe('TableBody', () => {
             <TableCell>Body Content</TableCell>
           </TableRow>
         </TableBody>
-      </Table>
+      </Table>,
     )
 
     const tbody = container.querySelector('tbody')
@@ -125,7 +125,7 @@ describe('TableFooter', () => {
             <TableCell>Footer Content</TableCell>
           </TableRow>
         </TableFooter>
-      </Table>
+      </Table>,
     )
 
     const tfoot = container.querySelector('tfoot')
@@ -144,7 +144,7 @@ describe('TableRow', () => {
             <TableCell>Row Content</TableCell>
           </TableRow>
         </TableBody>
-      </Table>
+      </Table>,
     )
 
     const tr = container.querySelector('tr')
@@ -161,7 +161,7 @@ describe('TableRow', () => {
             <TableCell>Selected Row</TableCell>
           </TableRow>
         </TableBody>
-      </Table>
+      </Table>,
     )
 
     const tr = container.querySelector('tr')
@@ -179,7 +179,7 @@ describe('TableHead', () => {
             <TableHead>Column Header</TableHead>
           </TableRow>
         </TableHeader>
-      </Table>
+      </Table>,
     )
 
     const th = container.querySelector('th')
@@ -196,7 +196,7 @@ describe('TableHead', () => {
             <TableHead className="custom-header">Header</TableHead>
           </TableRow>
         </TableHeader>
-      </Table>
+      </Table>,
     )
 
     const th = container.querySelector('th')
@@ -213,7 +213,7 @@ describe('TableCell', () => {
             <TableCell>Cell Content</TableCell>
           </TableRow>
         </TableBody>
-      </Table>
+      </Table>,
     )
 
     const td = container.querySelector('td')
@@ -232,11 +232,11 @@ describe('TableCell', () => {
             </TableCell>
           </TableRow>
         </TableBody>
-      </Table>
+      </Table>,
     )
 
     const td = container.querySelector('td')
-    expect(td).toHaveClass('[&:has([role=checkbox])]:pr-0')
+    expect(td).toHaveClass('has-[[role=checkbox]]:pr-0')
   })
 })
 
@@ -250,7 +250,7 @@ describe('TableCaption', () => {
             <TableCell>Content</TableCell>
           </TableRow>
         </TableBody>
-      </Table>
+      </Table>,
     )
 
     const caption = container.querySelector('caption')
@@ -289,7 +289,7 @@ describe('Full table integration', () => {
             <TableCell colSpan={3}>Total: 2 users</TableCell>
           </TableRow>
         </TableFooter>
-      </Table>
+      </Table>,
     )
 
     // Check caption

@@ -16,7 +16,9 @@ jest.mock('@/lib/api/projects', () => ({
 
 jest.mock('../LoadingSpinner', () => ({
   LoadingSpinner: ({ size }: any) => (
-    <div data-testid="loading-spinner" data-size={size}>Loading...</div>
+    <div data-testid="loading-spinner" data-size={size}>
+      Loading...
+    </div>
   ),
 }))
 
@@ -29,7 +31,10 @@ jest.mock('@headlessui/react', () => {
   )
   // eslint-disable-next-line react/display-name
   Listbox.Button = ({ children, className }: any) => (
-    <button data-testid="listbox-button" className={typeof className === 'function' ? className({}) : className}>
+    <button
+      data-testid="listbox-button"
+      className={typeof className === 'function' ? className({}) : className}
+    >
       {typeof children === 'function' ? children({}) : children}
     </button>
   )
@@ -41,8 +46,18 @@ jest.mock('@headlessui/react', () => {
   )
   // eslint-disable-next-line react/display-name
   Listbox.Option = ({ value, children, className }: any) => (
-    <li data-testid="listbox-option" data-value={value} className={typeof className === 'function' ? className({ active: false }) : className}>
-      {typeof children === 'function' ? children({ selected: false }) : children}
+    <li
+      data-testid="listbox-option"
+      data-value={value}
+      className={
+        typeof className === 'function'
+          ? className({ active: false })
+          : className
+      }
+    >
+      {typeof children === 'function'
+        ? children({ selected: false })
+        : children}
     </li>
   )
   return { Listbox }
@@ -80,7 +95,7 @@ describe('TaskFieldSelector', () => {
     const { projectsAPI } = require('@/lib/api/projects')
     projectsAPI.getTaskFields.mockReturnValue(new Promise(() => {}))
     const { container } = render(
-      <TaskFieldSelector {...defaultProps} className="my-class" />
+      <TaskFieldSelector {...defaultProps} className="my-class" />,
     )
     expect(container.querySelector('.my-class')).toBeInTheDocument()
   })

@@ -31,7 +31,7 @@ class DevelopmentLogger {
 
     // Check if this is an auth-related message
     const isAuthRelated = this.authPatterns.some((pattern) =>
-      pattern.test(message)
+      pattern.test(message),
     )
     const throttleTime = isAuthRelated ? this.authThrottleMs : this.throttleMs
 
@@ -46,7 +46,7 @@ class DevelopmentLogger {
         .replace(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/g, '<timestamp>')
         .replace(
           /[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/gi,
-          '<uuid>'
+          '<uuid>',
         )
         .replace(/\b\d+\b/g, '<number>')
     }
@@ -64,7 +64,7 @@ class DevelopmentLogger {
         if (entry.count > 1) {
           const suffix = isAuthRelated ? ' (auth-related logs throttled)' : ''
           ;(console as any)[level](
-            `${message} (occurred ${entry.count} times)${suffix}`
+            `${message} (occurred ${entry.count} times)${suffix}`,
           )
           entry.count = 0
         }
@@ -97,7 +97,7 @@ class DevelopmentLogger {
   log(...args: any[]) {
     const message = args
       .map((arg) =>
-        typeof arg === 'object' ? JSON.stringify(arg) : String(arg)
+        typeof arg === 'object' ? JSON.stringify(arg) : String(arg),
       )
       .join(' ')
 
@@ -109,7 +109,7 @@ class DevelopmentLogger {
   warn(...args: any[]) {
     const message = args
       .map((arg) =>
-        typeof arg === 'object' ? JSON.stringify(arg) : String(arg)
+        typeof arg === 'object' ? JSON.stringify(arg) : String(arg),
       )
       .join(' ')
 
@@ -121,7 +121,7 @@ class DevelopmentLogger {
   error(...args: any[]) {
     const message = args
       .map((arg) =>
-        typeof arg === 'object' ? JSON.stringify(arg) : String(arg)
+        typeof arg === 'object' ? JSON.stringify(arg) : String(arg),
       )
       .join(' ')
 
@@ -150,7 +150,7 @@ class DevelopmentLogger {
 
     const message = args
       .map((arg) =>
-        typeof arg === 'object' ? JSON.stringify(arg) : String(arg)
+        typeof arg === 'object' ? JSON.stringify(arg) : String(arg),
       )
       .join(' ')
 

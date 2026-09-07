@@ -59,7 +59,9 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     >
       <div className="text-center">
         <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-b-2 border-emerald-500"></div>
-        <p className="text-zinc-600 dark:text-zinc-400">{t('common.redirecting')}</p>
+        <p className="text-zinc-600 dark:text-zinc-400">
+          {t('common.redirecting')}
+        </p>
       </div>
     </div>
   )

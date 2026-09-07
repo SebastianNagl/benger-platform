@@ -12,7 +12,7 @@ describe('Tooltip Component', () => {
       render(
         <Tooltip content="Tooltip text">
           <button>Hover me</button>
-        </Tooltip>
+        </Tooltip>,
       )
 
       expect(screen.getByText('Hover me')).toBeInTheDocument()
@@ -22,7 +22,7 @@ describe('Tooltip Component', () => {
       const { container } = render(
         <Tooltip content="Tooltip text">
           <span>Content</span>
-        </Tooltip>
+        </Tooltip>,
       )
 
       const wrapper = container.querySelector('div')
@@ -34,7 +34,7 @@ describe('Tooltip Component', () => {
         <Tooltip content="Tooltip text">
           <span>First</span>
           <span>Second</span>
-        </Tooltip>
+        </Tooltip>,
       )
 
       expect(screen.getByText('First')).toBeInTheDocument()
@@ -53,7 +53,7 @@ describe('Tooltip Component', () => {
       const { container } = render(
         <Tooltip content="Helpful tooltip">
           <button>Action</button>
-        </Tooltip>
+        </Tooltip>,
       )
 
       const wrapper = container.querySelector('div')
@@ -64,7 +64,7 @@ describe('Tooltip Component', () => {
       const { container } = render(
         <Tooltip content="This is the tooltip">
           <span>Hover target</span>
-        </Tooltip>
+        </Tooltip>,
       )
 
       const wrapper = container.querySelector('div')
@@ -75,7 +75,7 @@ describe('Tooltip Component', () => {
       const { container } = render(
         <Tooltip content="Save">
           <button>💾</button>
-        </Tooltip>
+        </Tooltip>,
       )
 
       const wrapper = container.querySelector('div')
@@ -87,7 +87,7 @@ describe('Tooltip Component', () => {
       const { container } = render(
         <Tooltip content={multiLineText}>
           <span>Info</span>
-        </Tooltip>
+        </Tooltip>,
       )
 
       const wrapper = container.querySelector('div')
@@ -98,7 +98,7 @@ describe('Tooltip Component', () => {
       const { container } = render(
         <Tooltip content="">
           <span>No tooltip</span>
-        </Tooltip>
+        </Tooltip>,
       )
 
       const wrapper = container.querySelector('div')
@@ -112,7 +112,7 @@ describe('Tooltip Component', () => {
       const { container } = render(
         <Tooltip content={complexContent}>
           <button>Action</button>
-        </Tooltip>
+        </Tooltip>,
       )
 
       const wrapper = container.querySelector('div')
@@ -128,7 +128,7 @@ describe('Tooltip Component', () => {
       render(
         <Tooltip content={complexContent}>
           <span>Hover target</span>
-        </Tooltip>
+        </Tooltip>,
       )
 
       expect(screen.getByText('Hover target')).toBeInTheDocument()
@@ -144,7 +144,7 @@ describe('Tooltip Component', () => {
       const { container } = render(
         <Tooltip content={jsxContent}>
           <button>Hover</button>
-        </Tooltip>
+        </Tooltip>,
       )
 
       const wrapper = container.querySelector('div')
@@ -158,7 +158,7 @@ describe('Tooltip Component', () => {
       const { container } = render(
         <Tooltip content="Tooltip" className="custom-class">
           <span>Content</span>
-        </Tooltip>
+        </Tooltip>,
       )
 
       const wrapper = container.querySelector('div')
@@ -169,7 +169,7 @@ describe('Tooltip Component', () => {
       const { container } = render(
         <Tooltip content="Tooltip" className="class-1 class-2 class-3">
           <span>Content</span>
-        </Tooltip>
+        </Tooltip>,
       )
 
       const wrapper = container.querySelector('div')
@@ -180,7 +180,7 @@ describe('Tooltip Component', () => {
       const { container } = render(
         <Tooltip content="Tooltip">
           <span>Content</span>
-        </Tooltip>
+        </Tooltip>,
       )
 
       const wrapper = container.querySelector('div')
@@ -192,7 +192,7 @@ describe('Tooltip Component', () => {
       const { container } = render(
         <Tooltip content="Tooltip" className="">
           <span>Content</span>
-        </Tooltip>
+        </Tooltip>,
       )
 
       const wrapper = container.querySelector('div')
@@ -205,7 +205,7 @@ describe('Tooltip Component', () => {
       render(
         <Tooltip content="Click action">
           <button type="button">Click me</button>
-        </Tooltip>
+        </Tooltip>,
       )
 
       expect(screen.getByRole('button')).toBeInTheDocument()
@@ -215,7 +215,7 @@ describe('Tooltip Component', () => {
       render(
         <Tooltip content="Navigate">
           <a href="/path">Go here</a>
-        </Tooltip>
+        </Tooltip>,
       )
 
       expect(screen.getByRole('link')).toBeInTheDocument()
@@ -227,7 +227,7 @@ describe('Tooltip Component', () => {
           <svg data-testid="settings-icon">
             <path />
           </svg>
-        </Tooltip>
+        </Tooltip>,
       )
 
       expect(screen.getByTestId('settings-icon')).toBeInTheDocument()
@@ -238,7 +238,7 @@ describe('Tooltip Component', () => {
       render(
         <Tooltip content="Info">
           <CustomComponent />
-        </Tooltip>
+        </Tooltip>,
       )
 
       expect(screen.getByText('Custom Component')).toBeInTheDocument()
@@ -251,7 +251,7 @@ describe('Tooltip Component', () => {
             <span>Item 1</span>
             <span>Item 2</span>
           </>
-        </Tooltip>
+        </Tooltip>,
       )
 
       expect(screen.getByText('Item 1')).toBeInTheDocument()
@@ -267,7 +267,7 @@ describe('Tooltip Component', () => {
       render(
         <Tooltip content="Click me">
           <button onClick={handleClick}>Action</button>
-        </Tooltip>
+        </Tooltip>,
       )
 
       const button = screen.getByRole('button')
@@ -290,7 +290,7 @@ describe('Tooltip Component', () => {
           >
             Hover me
           </div>
-        </Tooltip>
+        </Tooltip>,
       )
 
       const target = screen.getByTestId('hover-target')
@@ -305,7 +305,7 @@ describe('Tooltip Component', () => {
       render(
         <Tooltip content="Focus info">
           <input type="text" placeholder="Enter text" />
-        </Tooltip>
+        </Tooltip>,
       )
 
       const input = screen.getByPlaceholderText('Enter text')
@@ -321,7 +321,7 @@ describe('Tooltip Component', () => {
       const { container } = render(
         <Tooltip content={longText}>
           <span>Long tooltip</span>
-        </Tooltip>
+        </Tooltip>,
       )
 
       const wrapper = container.querySelector('div')
@@ -333,7 +333,7 @@ describe('Tooltip Component', () => {
       const { container } = render(
         <Tooltip content={specialChars}>
           <span>Special</span>
-        </Tooltip>
+        </Tooltip>,
       )
 
       const wrapper = container.querySelector('div')
@@ -345,7 +345,7 @@ describe('Tooltip Component', () => {
       const { container } = render(
         <Tooltip content={unicodeText}>
           <span>Unicode</span>
-        </Tooltip>
+        </Tooltip>,
       )
 
       const wrapper = container.querySelector('div')
@@ -357,7 +357,7 @@ describe('Tooltip Component', () => {
       const { container } = render(
         <Tooltip content={whitespaceText}>
           <span>Whitespace</span>
-        </Tooltip>
+        </Tooltip>,
       )
 
       const wrapper = container.querySelector('div')
@@ -368,7 +368,7 @@ describe('Tooltip Component', () => {
       const { container } = render(
         <Tooltip content="123">
           <span>Number tooltip</span>
-        </Tooltip>
+        </Tooltip>,
       )
 
       const wrapper = container.querySelector('div')
@@ -384,7 +384,7 @@ describe('Tooltip Component', () => {
 
     it('handles undefined children gracefully', () => {
       const { container } = render(
-        <Tooltip content="Tooltip">{undefined}</Tooltip>
+        <Tooltip content="Tooltip">{undefined}</Tooltip>,
       )
 
       const wrapper = container.querySelector('div')
@@ -403,7 +403,7 @@ describe('Tooltip Component', () => {
       render(
         <Tooltip content="Conditional">
           {showChild && <span>Visible</span>}
-        </Tooltip>
+        </Tooltip>,
       )
 
       expect(screen.getByText('Visible')).toBeInTheDocument()
@@ -415,7 +415,7 @@ describe('Tooltip Component', () => {
       const { container } = render(
         <Tooltip content="String tooltip">
           <span>Target</span>
-        </Tooltip>
+        </Tooltip>,
       )
 
       const wrapper = container.querySelector('div')
@@ -427,7 +427,7 @@ describe('Tooltip Component', () => {
       const { container } = render(
         <Tooltip content={numberContent}>
           <span>Target</span>
-        </Tooltip>
+        </Tooltip>,
       )
 
       const wrapper = container.querySelector('div')
@@ -439,7 +439,7 @@ describe('Tooltip Component', () => {
       const { container } = render(
         <Tooltip content={boolContent}>
           <span>Target</span>
-        </Tooltip>
+        </Tooltip>,
       )
 
       const wrapper = container.querySelector('div')
@@ -461,7 +461,7 @@ describe('Tooltip Component', () => {
       const { container } = render(
         <Tooltip content={complexContent}>
           <button>Hover</button>
-        </Tooltip>
+        </Tooltip>,
       )
 
       const wrapper = container.querySelector('div')

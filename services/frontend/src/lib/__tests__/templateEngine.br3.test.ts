@@ -20,8 +20,28 @@ describe('templateEngine branch coverage', () => {
     name: 'test',
     version: '1.0',
     fields: [
-      { name: 'text', type: 'text' as const, label: 'Text', required: true, display: { table: 'visible' as const, labeling: 'visible' as const, review: 'visible' as const } },
-      { name: 'hidden', type: 'text' as const, label: 'Hidden', required: true, display: { table: 'hidden' as const, labeling: 'visible' as const, review: 'hidden' as const } },
+      {
+        name: 'text',
+        type: 'text' as const,
+        label: 'Text',
+        required: true,
+        display: {
+          table: 'visible' as const,
+          labeling: 'visible' as const,
+          review: 'visible' as const,
+        },
+      },
+      {
+        name: 'hidden',
+        type: 'text' as const,
+        label: 'Hidden',
+        required: true,
+        display: {
+          table: 'hidden' as const,
+          labeling: 'visible' as const,
+          review: 'hidden' as const,
+        },
+      },
     ],
     display_config: {
       table_columns: ['text'],
@@ -30,7 +50,7 @@ describe('templateEngine branch coverage', () => {
     },
     llm_config: {
       response_format: 'json' as const,
-      field_mapping: { 'response_text': 'text' },
+      field_mapping: { response_text: 'text' },
     },
   }
 
@@ -44,7 +64,7 @@ describe('templateEngine branch coverage', () => {
     const parsed = engine.parseTemplate(baseTemplate)
     const result = engine.parseLLMResponse(
       parsed,
-      JSON.stringify({ response_text: 'hello' })
+      JSON.stringify({ response_text: 'hello' }),
     )
     expect(result.text).toBe('hello')
   })
@@ -76,13 +96,20 @@ describe('templateEngine branch coverage', () => {
   it('validateData respects display context for hidden fields', () => {
     const parsed = engine.parseTemplate(baseTemplate)
     // hidden field is required but hidden in review context - should skip
-    const result = engine.validateData(parsed, { text: 'ok', hidden: '' }, 'review')
+    const result = engine.validateData(
+      parsed,
+      { text: 'ok', hidden: '' },
+      'review',
+    )
     expect(result).toBeDefined()
   })
 
   it('validateData passes with all required fields', () => {
     const parsed = engine.parseTemplate(baseTemplate)
-    const result = engine.validateData(parsed, { text: 'value', hidden: 'also' })
+    const result = engine.validateData(parsed, {
+      text: 'value',
+      hidden: 'also',
+    })
     expect(result.valid).toBe(true)
   })
 
@@ -94,7 +121,10 @@ describe('templateEngine branch coverage', () => {
       },
     }
     const parsed = engine.parseTemplate(noMappingTemplate)
-    const result = engine.parseLLMResponse(parsed, JSON.stringify({ foo: 'bar' }))
+    const result = engine.parseLLMResponse(
+      parsed,
+      JSON.stringify({ foo: 'bar' }),
+    )
     expect(result.foo).toBe('bar')
   })
 })

@@ -51,16 +51,16 @@ describe('extractColumns', () => {
 
   it('extracts keys from the first item of a JSON array', () => {
     expect(
-      extractColumns(JSON.stringify([{ question: 'q', answer: 'a' }]))
+      extractColumns(JSON.stringify([{ question: 'q', answer: 'a' }])),
     ).toEqual(['question', 'answer'])
   })
 
   it('unwraps qa_samples and questions wrappers', () => {
     expect(
-      extractColumns(JSON.stringify({ qa_samples: [{ q: '1', a: '2' }] }))
+      extractColumns(JSON.stringify({ qa_samples: [{ q: '1', a: '2' }] })),
     ).toEqual(['q', 'a'])
     expect(
-      extractColumns(JSON.stringify({ questions: [{ text: 'x' }] }))
+      extractColumns(JSON.stringify({ questions: [{ text: 'x' }] })),
     ).toEqual(['text'])
   })
 
@@ -82,7 +82,7 @@ describe('parseImportData — JSON', () => {
   it('wraps plain-array items in a data field', () => {
     const { rows, extras } = parseImportData(
       JSON.stringify([{ text: 'a' }, { text: 'b' }]),
-      'json'
+      'json',
     )
     expect(rows).toEqual([{ data: { text: 'a' } }, { data: { text: 'b' } }])
     expect(extras).toEqual({})
@@ -94,7 +94,7 @@ describe('parseImportData — JSON', () => {
         { data: { text: 'wrapped' }, annotations: [1] },
         { text: 'bare' },
       ]),
-      'json'
+      'json',
     )
     expect(rows).toEqual([
       { data: { text: 'wrapped' }, annotations: [1] },
@@ -105,7 +105,7 @@ describe('parseImportData — JSON', () => {
   it('unwraps a qa_samples wrapper', () => {
     const { rows } = parseImportData(
       JSON.stringify({ qa_samples: [{ q: '1' }] }),
-      'json'
+      'json',
     )
     expect(rows).toEqual([{ data: { q: '1' } }])
   })
@@ -115,7 +115,7 @@ describe('parseImportData — JSON', () => {
       JSON.stringify({
         questions: [{ question_data: { text: 'inner' } }, { text: 'outer' }],
       }),
-      'json'
+      'json',
     )
     expect(rows).toEqual([
       { data: { text: 'inner' } },
@@ -132,10 +132,7 @@ describe('parseImportData — JSON', () => {
       unrelated_key: [{ id: 'nope' }],
     }
     const { rows, extras } = parseImportData(JSON.stringify(envelope), 'json')
-    expect(rows).toEqual([
-      { data: { text: 't1' } },
-      { data: { plain: 'row' } },
-    ])
+    expect(rows).toEqual([{ data: { text: 't1' } }, { data: { plain: 'row' } }])
     expect(extras).toEqual({
       evaluation_runs: [{ id: 'er1' }],
       korrektur_comments: [{ id: 'kc1' }],
@@ -150,7 +147,7 @@ describe('parseImportData — JSON', () => {
 
   it('throws an Invalid JSON error for malformed JSON', () => {
     expect(() => parseImportData('{invalid', 'json')).toThrow(
-      /Invalid JSON format/
+      /Invalid JSON format/,
     )
   })
 })
@@ -201,7 +198,9 @@ describe('buildImportFile', () => {
 
   it('defaults extras to an empty object', async () => {
     const file = buildImportFile([{ data: { x: 1 } }])
-    expect(JSON.parse(await file.text())).toEqual({ data: [{ data: { x: 1 } }] })
+    expect(JSON.parse(await file.text())).toEqual({
+      data: [{ data: { x: 1 } }],
+    })
   })
 
   it('round-trips parseImportData output through the envelope', async () => {

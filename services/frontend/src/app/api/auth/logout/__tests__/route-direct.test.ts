@@ -51,7 +51,7 @@ describe('/api/auth/logout - Direct Tests', () => {
             'Content-Type': 'application/json',
             Cookie: 'access_token=token123; refresh_token=refresh123',
           }),
-        })
+        }),
       )
     })
 
@@ -73,7 +73,6 @@ describe('/api/auth/logout - Direct Tests', () => {
 
       expect(response.status).toBe(204)
     })
-
   })
 
   describe('Error Handling', () => {
@@ -94,7 +93,7 @@ describe('/api/auth/logout - Direct Tests', () => {
       expect(data).toEqual({ error: 'Internal server error' })
       expect(console.error).toHaveBeenCalledWith(
         '❌ Logout proxy error:',
-        expect.any(Error)
+        expect.any(Error),
       )
     })
 
@@ -133,7 +132,7 @@ describe('/api/auth/logout - Direct Tests', () => {
 
       expect(mockFetch).toHaveBeenCalledWith(
         'http://localhost:8001/api/auth/logout',
-        expect.any(Object)
+        expect.any(Object),
       )
     })
 
@@ -151,14 +150,14 @@ describe('/api/auth/logout - Direct Tests', () => {
           headers: {
             host: 'benger.localhost',
           },
-        }
+        },
       )
 
       await POST(request)
 
       expect(mockFetch).toHaveBeenCalledWith(
         'http://api:8000/api/auth/logout',
-        expect.any(Object)
+        expect.any(Object),
       )
     })
 
@@ -180,14 +179,14 @@ describe('/api/auth/logout - Direct Tests', () => {
             headers: {
               host: 'what-a-benger.net',
             },
-          }
+          },
         )
 
         await POST(request)
 
         expect(mockFetch).toHaveBeenCalledWith(
           'http://custom-api:9000/api/auth/logout',
-          expect.any(Object)
+          expect.any(Object),
         )
       } finally {
         if (originalApiUrl) {
@@ -212,14 +211,14 @@ describe('/api/auth/logout - Direct Tests', () => {
           headers: {
             host: 'staging.what-a-benger.net',
           },
-        }
+        },
       )
 
       await POST(request)
 
       expect(mockFetch).toHaveBeenCalledWith(
         'http://benger-api:8000/api/auth/logout',
-        expect.any(Object)
+        expect.any(Object),
       )
     })
 
@@ -237,14 +236,14 @@ describe('/api/auth/logout - Direct Tests', () => {
           headers: {
             host: 'unknown-host.com',
           },
-        }
+        },
       )
 
       await POST(request)
 
       expect(mockFetch).toHaveBeenCalledWith(
         'http://api:8000/api/auth/logout',
-        expect.any(Object)
+        expect.any(Object),
       )
     })
   })
@@ -274,7 +273,7 @@ describe('/api/auth/logout - Direct Tests', () => {
           headers: expect.objectContaining({
             Cookie: cookieHeader,
           }),
-        })
+        }),
       )
     })
 
@@ -300,7 +299,7 @@ describe('/api/auth/logout - Direct Tests', () => {
           headers: expect.objectContaining({
             Cookie: '',
           }),
-        })
+        }),
       )
     })
 
@@ -328,7 +327,7 @@ describe('/api/auth/logout - Direct Tests', () => {
           headers: expect.objectContaining({
             Cookie: malformedCookie,
           }),
-        })
+        }),
       )
     })
   })
@@ -350,7 +349,7 @@ describe('/api/auth/logout - Direct Tests', () => {
       expect(response.status).toBe(204)
       expect(mockFetch).toHaveBeenCalledWith(
         'http://api:8000/api/auth/logout',
-        expect.any(Object)
+        expect.any(Object),
       )
     })
 

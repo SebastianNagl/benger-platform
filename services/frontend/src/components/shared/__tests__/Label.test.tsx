@@ -49,7 +49,7 @@ describe('Label Component', () => {
         <form>
           <Label htmlFor="required-field">Required Field</Label>
           <input id="required-field" required />
-        </form>
+        </form>,
       )
 
       const input = screen.getByRole('textbox')
@@ -60,7 +60,7 @@ describe('Label Component', () => {
       render(
         <Label>
           Field Name <span className="text-red-500">*</span>
-        </Label>
+        </Label>,
       )
 
       const requiredIndicator = screen.getByText('*')
@@ -139,7 +139,7 @@ describe('Label Component', () => {
       render(
         <Label>
           <span>Nested Content</span>
-        </Label>
+        </Label>,
       )
 
       expect(screen.getByText('Nested Content')).toBeInTheDocument()
@@ -149,7 +149,7 @@ describe('Label Component', () => {
       render(
         <Label>
           First <strong>Bold</strong> Last
-        </Label>
+        </Label>,
       )
 
       expect(screen.getByText('Bold')).toBeInTheDocument()
@@ -162,7 +162,7 @@ describe('Label Component', () => {
             <span>Label Text</span>
             <span className="text-red-500">*</span>
           </span>
-        </Label>
+        </Label>,
       )
 
       expect(screen.getByText('Label Text')).toBeInTheDocument()
@@ -176,7 +176,7 @@ describe('Label Component', () => {
             <svg data-testid="icon" />
             <span>With Icon</span>
           </div>
-        </Label>
+        </Label>,
       )
 
       expect(screen.getByTestId('icon')).toBeInTheDocument()
@@ -216,7 +216,7 @@ describe('Label Component', () => {
         <div>
           <Label htmlFor="my-input">My Input</Label>
           <input id="my-input" />
-        </div>
+        </div>,
       )
 
       const label = screen.getByText('My Input')
@@ -234,7 +234,7 @@ describe('Label Component', () => {
       render(
         <Label htmlFor="test-id" className="test-class">
           Test Label
-        </Label>
+        </Label>,
       )
 
       const label = screen.getByText('Test Label')
@@ -259,7 +259,7 @@ describe('Label Component', () => {
         <div>
           <Label htmlFor="username">Username</Label>
           <input id="username" type="text" />
-        </div>
+        </div>,
       )
 
       const input = screen.getByRole('textbox')
@@ -275,7 +275,7 @@ describe('Label Component', () => {
         <div>
           <Label htmlFor="email">Email</Label>
           <input id="email" type="email" />
-        </div>
+        </div>,
       )
 
       const label = screen.getByText('Email')
@@ -291,7 +291,7 @@ describe('Label Component', () => {
         <div>
           <Label>No Association</Label>
           <input type="text" />
-        </div>
+        </div>,
       )
 
       const label = screen.getByText('No Association')
@@ -306,12 +306,12 @@ describe('Label Component', () => {
         <Label htmlFor="field">
           <span>Visible Text</span>
           <span className="sr-only">Additional screen reader context</span>
-        </Label>
+        </Label>,
       )
 
       expect(screen.getByText('Visible Text')).toBeInTheDocument()
       expect(
-        screen.getByText('Additional screen reader context')
+        screen.getByText('Additional screen reader context'),
       ).toBeInTheDocument()
     })
 
@@ -329,7 +329,7 @@ describe('Label Component', () => {
         <div>
           <Label htmlFor="agree">I agree</Label>
           <input id="agree" type="checkbox" />
-        </div>
+        </div>,
       )
 
       const label = screen.getByText('I agree')
@@ -346,7 +346,7 @@ describe('Label Component', () => {
         <div>
           <Label htmlFor="option1">Option 1</Label>
           <input id="option1" type="radio" name="choice" />
-        </div>
+        </div>,
       )
 
       const label = screen.getByText('Option 1')
@@ -394,7 +394,7 @@ describe('Label Component', () => {
           First Line
           <br />
           Second Line
-        </Label>
+        </Label>,
       )
 
       expect(screen.getByText(/First Line/)).toBeInTheDocument()
@@ -405,7 +405,7 @@ describe('Label Component', () => {
       render(<Label>Multiple Spaces Content</Label>)
 
       expect(
-        screen.getByText(/Multiple\s+Spaces\s+Content/)
+        screen.getByText(/Multiple\s+Spaces\s+Content/),
       ).toBeInTheDocument()
     })
 
@@ -445,7 +445,7 @@ describe('Label Component', () => {
             <span>Fragment</span>
             <span>Content</span>
           </>
-        </Label>
+        </Label>,
       )
 
       expect(screen.getByText('Fragment')).toBeInTheDocument()
@@ -506,7 +506,7 @@ describe('Label Component', () => {
           <Label htmlFor="form-input">Form Label</Label>
           <input id="form-input" type="text" />
           <button type="submit">Submit</button>
-        </form>
+        </form>,
       )
 
       expect(screen.getByText('Form Label')).toBeInTheDocument()
@@ -521,7 +521,7 @@ describe('Label Component', () => {
           <input id="first" />
           <Label htmlFor="second">Second</Label>
           <input id="second" />
-        </form>
+        </form>,
       )
 
       const firstLabel = screen.getByText('First')
@@ -537,7 +537,7 @@ describe('Label Component', () => {
           <Label>Label 1</Label>
           <Label>Label 2</Label>
           <Label>Label 3</Label>
-        </div>
+        </div>,
       )
 
       const labels = screen.getAllByText(/Label \d/)
@@ -553,7 +553,7 @@ describe('Label Component', () => {
           <div className="input-wrapper">
             <input id="custom" type="text" />
           </div>
-        </div>
+        </div>,
       )
 
       expect(screen.getByText('Custom Field')).toBeInTheDocument()

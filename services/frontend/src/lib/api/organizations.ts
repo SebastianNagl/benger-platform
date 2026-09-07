@@ -43,7 +43,7 @@ export class OrganizationsClient extends BaseApiClient {
    */
   async updateOrganization(
     organizationId: string,
-    data: OrganizationUpdate
+    data: OrganizationUpdate,
   ): Promise<Organization> {
     return this.put(`/organizations/${organizationId}`, data)
   }
@@ -52,7 +52,7 @@ export class OrganizationsClient extends BaseApiClient {
    * Delete organization
    */
   async deleteOrganization(
-    organizationId: string
+    organizationId: string,
   ): Promise<{ message: string }> {
     return this.delete(`/organizations/${organizationId}`)
   }
@@ -61,7 +61,7 @@ export class OrganizationsClient extends BaseApiClient {
    * Get organization members
    */
   async getOrganizationMembers(
-    organizationId: string
+    organizationId: string,
   ): Promise<OrganizationMember[]> {
     return this.get(`/organizations/${organizationId}/members`)
   }
@@ -72,7 +72,7 @@ export class OrganizationsClient extends BaseApiClient {
   async updateMemberRole(
     organizationId: string,
     userId: string,
-    role: OrganizationRole
+    role: OrganizationRole,
   ): Promise<{ message: string }> {
     return this.put(`/organizations/${organizationId}/members/${userId}/role`, {
       role,
@@ -84,7 +84,7 @@ export class OrganizationsClient extends BaseApiClient {
    */
   async removeMember(
     organizationId: string,
-    userId: string
+    userId: string,
   ): Promise<{ message: string }> {
     return this.delete(`/organizations/${organizationId}/members/${userId}`)
   }
@@ -94,7 +94,7 @@ export class OrganizationsClient extends BaseApiClient {
    */
   async sendInvitation(
     organizationId: string,
-    data: InvitationCreate
+    data: InvitationCreate,
   ): Promise<Invitation> {
     return this.createInvitation(organizationId, data)
   }
@@ -104,11 +104,11 @@ export class OrganizationsClient extends BaseApiClient {
    */
   async createInvitation(
     organizationId: string,
-    data: InvitationCreate
+    data: InvitationCreate,
   ): Promise<Invitation> {
     return this.post(
       `/invitations/organizations/${organizationId}/invitations`,
-      data
+      data,
     )
   }
 
@@ -118,11 +118,11 @@ export class OrganizationsClient extends BaseApiClient {
    */
   async bulkInvite(
     organizationId: string,
-    data: BulkInvitationCreate
+    data: BulkInvitationCreate,
   ): Promise<BulkInvitationResponse> {
     return this.post(
       `/invitations/organizations/${organizationId}/invitations/bulk`,
-      data
+      data,
     )
   }
 
@@ -131,7 +131,7 @@ export class OrganizationsClient extends BaseApiClient {
    */
   async getOrganizationInvitations(
     organizationId: string,
-    includeExpired = false
+    includeExpired = false,
   ): Promise<Invitation[]> {
     const params = new URLSearchParams()
     if (includeExpired) {
@@ -153,7 +153,7 @@ export class OrganizationsClient extends BaseApiClient {
    * Accept invitation
    */
   async acceptInvitation(
-    token: string
+    token: string,
   ): Promise<{ message: string; organization_id: string; role: string }> {
     return this.post(`/invitations/accept/${token}`)
   }
@@ -170,7 +170,10 @@ export class OrganizationsClient extends BaseApiClient {
    * the server so the admin tab doesn't have to load every user just to
    * filter in JS; the response is bounded by `limit` either way.
    */
-  async getAllUsers(options?: { search?: string; limit?: number }): Promise<User[]> {
+  async getAllUsers(options?: {
+    search?: string
+    limit?: number
+  }): Promise<User[]> {
     const params = new URLSearchParams()
     if (options?.search) params.append('search', options.search)
     if (options?.limit) params.append('limit', String(options.limit))
@@ -183,7 +186,7 @@ export class OrganizationsClient extends BaseApiClient {
    */
   async updateUserGlobalRole(
     userId: string,
-    role: 'superadmin' | 'user'
+    role: 'superadmin' | 'user',
   ): Promise<{ message: string }> {
     const isSuperadmin = role === 'superadmin'
     return this.put(`/organizations/manage/users/${userId}/superadmin`, {
@@ -197,7 +200,7 @@ export class OrganizationsClient extends BaseApiClient {
   async addUserToOrganization(
     organizationId: string,
     userId: string,
-    role: 'ORG_ADMIN' | 'CONTRIBUTOR' | 'ANNOTATOR' = 'ANNOTATOR'
+    role: 'ORG_ADMIN' | 'CONTRIBUTOR' | 'ANNOTATOR' = 'ANNOTATOR',
   ): Promise<{ message: string }> {
     return this.post(`/organizations/${organizationId}/members`, {
       user_id: userId,
@@ -211,7 +214,7 @@ export class OrganizationsClient extends BaseApiClient {
   async verifyMemberEmail(
     organizationId: string,
     userId: string,
-    reason?: string
+    reason?: string,
   ): Promise<{
     message: string
     email: string
@@ -220,7 +223,7 @@ export class OrganizationsClient extends BaseApiClient {
   }> {
     return this.post(
       `/organizations/${organizationId}/members/${userId}/verify-email`,
-      { reason }
+      { reason },
     )
   }
 
@@ -239,7 +242,7 @@ export class OrganizationsClient extends BaseApiClient {
    */
   async createGroup(
     organizationId: string,
-    data: OrganizationGroupCreate
+    data: OrganizationGroupCreate,
   ): Promise<OrganizationGroup> {
     return this.post(`/organizations/${organizationId}/groups`, data)
   }
@@ -250,9 +253,12 @@ export class OrganizationsClient extends BaseApiClient {
   async updateGroup(
     organizationId: string,
     groupId: string,
-    patch: OrganizationGroupUpdate
+    patch: OrganizationGroupUpdate,
   ): Promise<OrganizationGroup> {
-    return this.patch(`/organizations/${organizationId}/groups/${groupId}`, patch)
+    return this.patch(
+      `/organizations/${organizationId}/groups/${groupId}`,
+      patch,
+    )
   }
 
   /**
@@ -261,7 +267,7 @@ export class OrganizationsClient extends BaseApiClient {
    */
   async deleteGroup(
     organizationId: string,
-    groupId: string
+    groupId: string,
   ): Promise<{ message: string }> {
     return this.delete(`/organizations/${organizationId}/groups/${groupId}`)
   }
@@ -271,9 +277,11 @@ export class OrganizationsClient extends BaseApiClient {
    */
   async getGroupMembers(
     organizationId: string,
-    groupId: string
+    groupId: string,
   ): Promise<OrganizationGroupMember[]> {
-    return this.get(`/organizations/${organizationId}/groups/${groupId}/members`)
+    return this.get(
+      `/organizations/${organizationId}/groups/${groupId}/members`,
+    )
   }
 
   /**
@@ -282,11 +290,11 @@ export class OrganizationsClient extends BaseApiClient {
   async addGroupMember(
     organizationId: string,
     groupId: string,
-    data: { user_id: string; is_group_admin: boolean }
+    data: { user_id: string; is_group_admin: boolean },
   ): Promise<OrganizationGroupMember> {
     return this.post(
       `/organizations/${organizationId}/groups/${groupId}/members`,
-      data
+      data,
     )
   }
 
@@ -297,11 +305,11 @@ export class OrganizationsClient extends BaseApiClient {
     organizationId: string,
     groupId: string,
     userId: string,
-    data: { is_group_admin: boolean }
+    data: { is_group_admin: boolean },
   ): Promise<OrganizationGroupMember> {
     return this.patch(
       `/organizations/${organizationId}/groups/${groupId}/members/${userId}`,
-      data
+      data,
     )
   }
 
@@ -311,10 +319,10 @@ export class OrganizationsClient extends BaseApiClient {
   async removeGroupMember(
     organizationId: string,
     groupId: string,
-    userId: string
+    userId: string,
   ): Promise<{ message: string }> {
     return this.delete(
-      `/organizations/${organizationId}/groups/${groupId}/members/${userId}`
+      `/organizations/${organizationId}/groups/${groupId}/members/${userId}`,
     )
   }
 
@@ -324,7 +332,7 @@ export class OrganizationsClient extends BaseApiClient {
   async bulkVerifyMemberEmails(
     organizationId: string,
     userIds: string[],
-    reason?: string
+    reason?: string,
   ): Promise<{
     summary: {
       total: number
@@ -360,13 +368,13 @@ export class OrganizationsClient extends BaseApiClient {
    */
   async getOrgApiKeyStatus(
     orgId: string,
-    groupId?: string
+    groupId?: string,
   ): Promise<{
     api_key_status: Record<string, boolean>
     available_providers: string[]
   }> {
     return this.get(
-      `/organizations/${orgId}/api-keys/status${this.groupScopeQuery(groupId)}`
+      `/organizations/${orgId}/api-keys/status${this.groupScopeQuery(groupId)}`,
     )
   }
 
@@ -377,13 +385,13 @@ export class OrganizationsClient extends BaseApiClient {
     orgId: string,
     provider: string,
     apiKey: string,
-    groupId?: string
+    groupId?: string,
   ): Promise<{ message: string }> {
     return this.post(
       `/organizations/${orgId}/api-keys/${provider}${this.groupScopeQuery(groupId)}`,
       {
         api_key: apiKey,
-      }
+      },
     )
   }
 
@@ -393,10 +401,10 @@ export class OrganizationsClient extends BaseApiClient {
   async removeOrgApiKey(
     orgId: string,
     provider: string,
-    groupId?: string
+    groupId?: string,
   ): Promise<{ message: string }> {
     return this.delete(
-      `/organizations/${orgId}/api-keys/${provider}${this.groupScopeQuery(groupId)}`
+      `/organizations/${orgId}/api-keys/${provider}${this.groupScopeQuery(groupId)}`,
     )
   }
 
@@ -407,13 +415,13 @@ export class OrganizationsClient extends BaseApiClient {
     orgId: string,
     provider: string,
     apiKey: string,
-    groupId?: string
+    groupId?: string,
   ): Promise<{ status: string; message: string; error_type?: string }> {
     return this.post(
       `/organizations/${orgId}/api-keys/${provider}/test${this.groupScopeQuery(groupId)}`,
       {
         api_key: apiKey,
-      }
+      },
     )
   }
 
@@ -423,11 +431,11 @@ export class OrganizationsClient extends BaseApiClient {
   async testSavedOrgApiKey(
     orgId: string,
     provider: string,
-    groupId?: string
+    groupId?: string,
   ): Promise<{ status: string; message: string; error_type?: string }> {
     return this.post(
       `/organizations/${orgId}/api-keys/${provider}/test-saved${this.groupScopeQuery(groupId)}`,
-      {}
+      {},
     )
   }
 
@@ -435,7 +443,7 @@ export class OrganizationsClient extends BaseApiClient {
    * Get API key settings for an organization
    */
   async getOrgApiKeySettings(
-    orgId: string
+    orgId: string,
   ): Promise<{ require_private_keys: boolean }> {
     return this.get(`/organizations/${orgId}/api-keys/settings`)
   }
@@ -445,7 +453,7 @@ export class OrganizationsClient extends BaseApiClient {
    */
   async updateOrgApiKeySettings(
     orgId: string,
-    requirePrivateKeys: boolean
+    requirePrivateKeys: boolean,
   ): Promise<{ message: string; require_private_keys: boolean }> {
     return this.put(`/organizations/${orgId}/api-keys/settings`, {
       require_private_keys: requirePrivateKeys,
@@ -458,9 +466,7 @@ export class OrganizationsClient extends BaseApiClient {
    * List custom (BYOM) models shared with the org, annotated with whether a
    * shared key is set. Admin-only. Never returns key material.
    */
-  async listOrgCustomModels(
-    orgId: string
-  ): Promise<OrgSharedCustomModel[]> {
+  async listOrgCustomModels(orgId: string): Promise<OrgSharedCustomModel[]> {
     return this.get(`/organizations/${orgId}/custom-models`)
   }
 
@@ -469,10 +475,10 @@ export class OrganizationsClient extends BaseApiClient {
    */
   async getOrgCustomModelCredential(
     orgId: string,
-    modelId: string
+    modelId: string,
   ): Promise<{ has_credential: boolean; updated_at?: string | null }> {
     return this.get(
-      `/organizations/${orgId}/custom-models/${modelId}/credential`
+      `/organizations/${orgId}/custom-models/${modelId}/credential`,
     )
   }
 
@@ -482,11 +488,11 @@ export class OrganizationsClient extends BaseApiClient {
   async setOrgCustomModelCredential(
     orgId: string,
     modelId: string,
-    apiKey: string
+    apiKey: string,
   ): Promise<{ has_credential: boolean }> {
     return this.put(
       `/organizations/${orgId}/custom-models/${modelId}/credential`,
-      { api_key: apiKey }
+      { api_key: apiKey },
     )
   }
 
@@ -495,10 +501,10 @@ export class OrganizationsClient extends BaseApiClient {
    */
   async removeOrgCustomModelCredential(
     orgId: string,
-    modelId: string
+    modelId: string,
   ): Promise<{ has_credential: boolean }> {
     return this.delete(
-      `/organizations/${orgId}/custom-models/${modelId}/credential`
+      `/organizations/${orgId}/custom-models/${modelId}/credential`,
     )
   }
 
@@ -508,9 +514,7 @@ export class OrganizationsClient extends BaseApiClient {
    * List the org's storage connections (metadata only — credentials never
    * leave the server; the access key surfaces as a last-4 hint). Any member.
    */
-  async listStorageConnections(
-    orgId: string
-  ): Promise<OrgStorageConnection[]> {
+  async listStorageConnections(orgId: string): Promise<OrgStorageConnection[]> {
     return this.get(`/organizations/${orgId}/storage-connections`)
   }
 
@@ -519,7 +523,7 @@ export class OrganizationsClient extends BaseApiClient {
    */
   async createStorageConnection(
     orgId: string,
-    data: OrgStorageConnectionCreate
+    data: OrgStorageConnectionCreate,
   ): Promise<OrgStorageConnection> {
     return this.post(`/organizations/${orgId}/storage-connections`, data)
   }
@@ -531,11 +535,11 @@ export class OrganizationsClient extends BaseApiClient {
   async updateStorageConnection(
     orgId: string,
     connectionId: string,
-    data: OrgStorageConnectionUpdate
+    data: OrgStorageConnectionUpdate,
   ): Promise<OrgStorageConnection> {
     return this.put(
       `/organizations/${orgId}/storage-connections/${connectionId}`,
-      data
+      data,
     )
   }
 
@@ -544,10 +548,10 @@ export class OrganizationsClient extends BaseApiClient {
    */
   async deleteStorageConnection(
     orgId: string,
-    connectionId: string
+    connectionId: string,
   ): Promise<{ message: string }> {
     return this.delete(
-      `/organizations/${orgId}/storage-connections/${connectionId}`
+      `/organizations/${orgId}/storage-connections/${connectionId}`,
     )
   }
 
@@ -556,7 +560,7 @@ export class OrganizationsClient extends BaseApiClient {
    */
   async testStorageConnection(
     orgId: string,
-    data: OrgStorageConnectionCreate
+    data: OrgStorageConnectionCreate,
   ): Promise<{ status: string; message: string }> {
     return this.post(`/organizations/${orgId}/storage-connections/test`, data)
   }
@@ -566,11 +570,11 @@ export class OrganizationsClient extends BaseApiClient {
    */
   async testSavedStorageConnection(
     orgId: string,
-    connectionId: string
+    connectionId: string,
   ): Promise<{ status: string; message: string }> {
     return this.post(
       `/organizations/${orgId}/storage-connections/${connectionId}/test`,
-      {}
+      {},
     )
   }
 
@@ -585,7 +589,7 @@ export class OrganizationsClient extends BaseApiClient {
       prefix?: string
       continuationToken?: string
       maxResults?: number
-    }
+    },
   ): Promise<OrgStorageObjectPage> {
     const params = new URLSearchParams()
     if (options?.prefix !== undefined) params.append('prefix', options.prefix)
@@ -595,7 +599,7 @@ export class OrganizationsClient extends BaseApiClient {
       params.append('max_results', String(options.maxResults))
     const qs = params.toString()
     return this.get(
-      `/organizations/${orgId}/storage-connections/${connectionId}/objects${qs ? '?' + qs : ''}`
+      `/organizations/${orgId}/storage-connections/${connectionId}/objects${qs ? '?' + qs : ''}`,
     )
   }
 }

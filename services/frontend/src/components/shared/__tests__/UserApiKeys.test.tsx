@@ -13,22 +13,29 @@ const mockTranslate = (key: string, arg2?: any, arg3?: any) => {
     'shared.userApiKeys.descOpenai': 'Access to GPT-4, GPT-3.5 Turbo models',
     'shared.userApiKeys.descAnthropic': 'Access to Claude models',
     'shared.userApiKeys.descGoogle': 'Access to Gemini models',
-    'shared.userApiKeys.descDeepinfra': 'Access to Llama, Qwen, DeepSeek models',
+    'shared.userApiKeys.descDeepinfra':
+      'Access to Llama, Qwen, DeepSeek models',
     'shared.userApiKeys.descGrok': 'Access to Grok-2, Grok-3, Grok-4 models',
-    'shared.userApiKeys.descMistral': 'Access to Mistral Large, Medium, Small, Codestral models',
-    'shared.userApiKeys.descCohere': 'Access to Command A, Command R+, Command R models',
+    'shared.userApiKeys.descMistral':
+      'Access to Mistral Large, Medium, Small, Codestral models',
+    'shared.userApiKeys.descCohere':
+      'Access to Command A, Command R+, Command R models',
     'shared.userApiKeys.configured': 'Configured',
     'shared.userApiKeys.notConfigured': 'Not configured',
-    'shared.userApiKeys.introText': 'Configure your own API keys to access LLM models for evaluation. Your keys are encrypted and only accessible to you.',
+    'shared.userApiKeys.introText':
+      'Configure your own API keys to access LLM models for evaluation. Your keys are encrypted and only accessible to you.',
     'shared.userApiKeys.testConnection': 'Test Connection',
     'shared.userApiKeys.testing': 'Testing...',
     'shared.userApiKeys.removeApiKey': 'Remove API Key',
     'shared.userApiKeys.removing': 'Removing...',
     'shared.userApiKeys.saveApiKey': 'Save API Key',
     'shared.userApiKeys.saving': 'Saving...',
-    'shared.userApiKeys.helpEncrypted': '• API keys are encrypted and stored securely',
-    'shared.userApiKeys.helpProviderAccess': '• You can only access models for providers where you have valid API keys',
-    'shared.userApiKeys.helpNeverShared': '• API keys are never shared with other users',
+    'shared.userApiKeys.helpEncrypted':
+      '• API keys are encrypted and stored securely',
+    'shared.userApiKeys.helpProviderAccess':
+      '• You can only access models for providers where you have valid API keys',
+    'shared.userApiKeys.helpNeverShared':
+      '• API keys are never shared with other users',
     'shared.userApiKeys.invalidProvider': 'Invalid provider',
     'shared.userApiKeys.apiKeyRequired': 'API key is required',
     'shared.userApiKeys.invalidKeyFormat': 'Invalid {provider} API key format',
@@ -38,11 +45,16 @@ const mockTranslate = (key: string, arg2?: any, arg3?: any) => {
     'shared.userApiKeys.failedRemove': 'Failed to remove API key',
     'shared.userApiKeys.failedLoadStatus': 'Failed to load API key status',
     'shared.userApiKeys.connectionTestFailed': 'Connection test failed',
-    'shared.userApiKeys.errorAuth': 'Please verify your {provider} API key is correct and has the required permissions.',
-    'shared.userApiKeys.errorNetwork': 'Please check your internet connection and try again.',
-    'shared.userApiKeys.errorTimeout': 'The request timed out. Please check your connection and try again.',
-    'shared.userApiKeys.errorQuota': 'Your API key is valid but has reached its usage limits or rate limits.',
-    'shared.userApiKeys.errorDefault': 'Please check your API key and try again.',
+    'shared.userApiKeys.errorAuth':
+      'Please verify your {provider} API key is correct and has the required permissions.',
+    'shared.userApiKeys.errorNetwork':
+      'Please check your internet connection and try again.',
+    'shared.userApiKeys.errorTimeout':
+      'The request timed out. Please check your connection and try again.',
+    'shared.userApiKeys.errorQuota':
+      'Your API key is valid but has reached its usage limits or rate limits.',
+    'shared.userApiKeys.errorDefault':
+      'Please check your API key and try again.',
   }
   let result = translations[key] || key
   if (vars) {
@@ -130,14 +142,14 @@ describe('UserApiKeys Component', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('Access to GPT-4, GPT-3.5 Turbo models')
+          screen.getByText('Access to GPT-4, GPT-3.5 Turbo models'),
         ).toBeInTheDocument()
       })
 
       expect(screen.getByText('Access to Claude models')).toBeInTheDocument()
       expect(screen.getByText('Access to Gemini models')).toBeInTheDocument()
       expect(
-        screen.getByText('Access to Llama, Qwen, DeepSeek models')
+        screen.getByText('Access to Llama, Qwen, DeepSeek models'),
       ).toBeInTheDocument()
     })
 
@@ -156,17 +168,17 @@ describe('UserApiKeys Component', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('• API keys are encrypted and stored securely')
+          screen.getByText('• API keys are encrypted and stored securely'),
         ).toBeInTheDocument()
       })
 
       expect(
         screen.getByText(
-          '• You can only access models for providers where you have valid API keys'
-        )
+          '• You can only access models for providers where you have valid API keys',
+        ),
       ).toBeInTheDocument()
       expect(
-        screen.getByText('• API keys are never shared with other users')
+        screen.getByText('• API keys are never shared with other users'),
       ).toBeInTheDocument()
     })
   })
@@ -333,10 +345,10 @@ describe('UserApiKeys Component', () => {
       await waitFor(() => {
         expect(mockApiClient.setUserApiKey).toHaveBeenCalledWith(
           'openai',
-          'sk-test1234567890123456'
+          'sk-test1234567890123456',
         )
         expect(
-          screen.getByText('OpenAI API key saved successfully')
+          screen.getByText('OpenAI API key saved successfully'),
         ).toBeInTheDocument()
       })
     })
@@ -366,7 +378,7 @@ describe('UserApiKeys Component', () => {
       await waitFor(() => {
         expect(mockApiClient.removeUserApiKey).toHaveBeenCalledWith('openai')
         expect(
-          screen.getByText('OpenAI API key removed successfully')
+          screen.getByText('OpenAI API key removed successfully'),
         ).toBeInTheDocument()
       })
     })
@@ -407,17 +419,17 @@ describe('UserApiKeys Component', () => {
         if (card) {
           expect(within(card).getByText('Not configured')).toBeInTheDocument()
           expect(
-            within(card).getByPlaceholderText('sk-...')
+            within(card).getByPlaceholderText('sk-...'),
           ).toBeInTheDocument()
           expect(
-            within(card).queryByText('Remove API Key')
+            within(card).queryByText('Remove API Key'),
           ).not.toBeInTheDocument()
         }
       })
 
       // Verify the success message is still shown
       expect(
-        screen.getByText('OpenAI API key removed successfully')
+        screen.getByText('OpenAI API key removed successfully'),
       ).toBeInTheDocument()
     })
 
@@ -468,7 +480,7 @@ describe('UserApiKeys Component', () => {
       // After removal, the test result should be cleared
       await waitFor(() => {
         expect(
-          screen.queryByText('Connection successful')
+          screen.queryByText('Connection successful'),
         ).not.toBeInTheDocument()
       })
     })
@@ -512,7 +524,7 @@ describe('UserApiKeys Component', () => {
         expect(eventListener).toHaveBeenCalledWith(
           expect.objectContaining({
             detail: { provider: 'openai', action: 'add' },
-          })
+          }),
         )
       })
 
@@ -548,7 +560,7 @@ describe('UserApiKeys Component', () => {
         expect(eventListener).toHaveBeenCalledWith(
           expect.objectContaining({
             detail: { provider: 'openai', action: 'remove' },
-          })
+          }),
         )
       })
 
@@ -762,7 +774,7 @@ describe('UserApiKeys Component', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('Invalid OpenAI API key format')
+          screen.getByText('Invalid OpenAI API key format'),
         ).toBeInTheDocument()
       })
 
@@ -770,7 +782,7 @@ describe('UserApiKeys Component', () => {
       await user.type(input, 'sk-test')
 
       expect(
-        screen.queryByText('Invalid OpenAI API key format')
+        screen.queryByText('Invalid OpenAI API key format'),
       ).not.toBeInTheDocument()
     })
   })
@@ -806,7 +818,7 @@ describe('UserApiKeys Component', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('Invalid OpenAI API key format')
+          screen.getByText('Invalid OpenAI API key format'),
         ).toBeInTheDocument()
       })
 
@@ -842,7 +854,7 @@ describe('UserApiKeys Component', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('Invalid Anthropic API key format')
+          screen.getByText('Invalid Anthropic API key format'),
         ).toBeInTheDocument()
       })
 
@@ -878,7 +890,7 @@ describe('UserApiKeys Component', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('Invalid Google API key format')
+          screen.getByText('Invalid Google API key format'),
         ).toBeInTheDocument()
       })
 
@@ -901,7 +913,7 @@ describe('UserApiKeys Component', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByPlaceholderText('Your DeepInfra API key')
+          screen.getByPlaceholderText('Your DeepInfra API key'),
         ).toBeInTheDocument()
       })
 
@@ -916,7 +928,7 @@ describe('UserApiKeys Component', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('Invalid DeepInfra API key format')
+          screen.getByText('Invalid DeepInfra API key format'),
         ).toBeInTheDocument()
       })
 
@@ -1074,7 +1086,7 @@ describe('UserApiKeys Component', () => {
         expect(mockApiClient.getUserApiKeys).toHaveBeenCalledTimes(1)
       })
 
-      const removeButton = screen.getByText('Remove API Key')
+      const removeButton = await screen.findByText('Remove API Key')
       await user.click(removeButton)
 
       await waitFor(() => {
@@ -1116,7 +1128,7 @@ describe('UserApiKeys Component', () => {
       await waitFor(() => {
         expect(mockApiClient.testUserApiKey).toHaveBeenCalledWith(
           'openai',
-          'sk-test1234567890123456'
+          'sk-test1234567890123456',
         )
         expect(screen.getByText('Connection successful')).toBeInTheDocument()
       })
@@ -1140,11 +1152,13 @@ describe('UserApiKeys Component', () => {
 
       render(<UserApiKeys />)
 
+      // Wait for the card's SAVED state: both states render a "Test Connection"
+      // button (the unsaved one is disabled), so key on the remove button. A
+      // vacuous `if (card)` guard let this proceed too early under React 19.
       await waitFor(() => {
         const card = getProviderCard('OpenAI')
-        if (card) {
-          expect(within(card).getByText('Test Connection')).toBeInTheDocument()
-        }
+        expect(card).toBeTruthy()
+        expect(within(card!).getByText('Remove API Key')).toBeInTheDocument()
       })
 
       const card = getProviderCard('OpenAI')
@@ -1363,7 +1377,7 @@ describe('UserApiKeys Component', () => {
         })
       })
       mockApiClient.setUserApiKey.mockImplementation(
-        () => new Promise((resolve) => setTimeout(resolve, 100))
+        () => new Promise((resolve) => setTimeout(resolve, 100)),
       )
 
       render(<UserApiKeys />)
@@ -1398,7 +1412,7 @@ describe('UserApiKeys Component', () => {
         available_providers: ['openai'],
       })
       mockApiClient.removeUserApiKey.mockImplementation(
-        () => new Promise((resolve) => setTimeout(resolve, 100))
+        () => new Promise((resolve) => setTimeout(resolve, 100)),
       )
 
       render(<UserApiKeys />)
@@ -1427,7 +1441,7 @@ describe('UserApiKeys Component', () => {
         available_providers: ['openai'],
       })
       mockApiClient.testUserApiKey.mockImplementation(
-        () => new Promise((resolve) => setTimeout(resolve, 100))
+        () => new Promise((resolve) => setTimeout(resolve, 100)),
       )
 
       render(<UserApiKeys />)
@@ -1534,7 +1548,7 @@ describe('UserApiKeys Component', () => {
       await waitFor(() => {
         expect(mockApiClient.setUserApiKey).toHaveBeenCalledWith(
           'openai',
-          '  sk-test1234567890123456  '
+          '  sk-test1234567890123456  ',
         )
       })
     })
@@ -1568,7 +1582,7 @@ describe('UserApiKeys Component', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText(/Invalid OpenAI API key format/)
+          screen.getByText(/Invalid OpenAI API key format/),
         ).toBeInTheDocument()
       })
 
@@ -1600,7 +1614,7 @@ describe('UserApiKeys Component', () => {
       expect(input).toHaveClass('dark:text-white')
 
       const darkModeElements = container.querySelectorAll(
-        '[class*="dark:bg"], [class*="dark:text"], [class*="dark:border"]'
+        '[class*="dark:bg"], [class*="dark:text"], [class*="dark:border"]',
       )
       expect(darkModeElements.length).toBeGreaterThan(0)
     })

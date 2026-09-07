@@ -113,7 +113,7 @@ const currentStepId = () =>
     .getAttribute('data-current-step-id')
 
 async function enableDataImportFeature(
-  user: ReturnType<typeof userEvent.setup>
+  user: ReturnType<typeof userEvent.setup>,
 ) {
   const wrapper = screen.getByTestId('wizard-feature-dataImport')
   const checkbox = wrapper.querySelector('input[type="checkbox"]')!
@@ -130,11 +130,11 @@ describe('ProjectCreationWizard — cloud import', () => {
   })
 
   async function walkToDataImportCloudTab(
-    user: ReturnType<typeof userEvent.setup>
+    user: ReturnType<typeof userEvent.setup>,
   ) {
     await user.type(
       screen.getByTestId('project-create-name-input'),
-      'Cloud Project'
+      'Cloud Project',
     )
     await enableDataImportFeature(user)
     await user.click(screen.getByTestId('project-create-next-button'))
@@ -149,7 +149,7 @@ describe('ProjectCreationWizard — cloud import', () => {
     await walkToDataImportCloudTab(user)
     expect(screen.getByTestId('cloud-import-panel-stub')).toHaveAttribute(
       'data-mode',
-      'select'
+      'select',
     )
   })
 
@@ -171,11 +171,13 @@ describe('ProjectCreationWizard — cloud import', () => {
       expect(mockRunCloudImportJobs).toHaveBeenCalledWith('proj-1', {
         connection_id: CLOUD_SELECTION.connectionId,
         object_keys: CLOUD_SELECTION.objectKeys,
-      })
+      }),
     )
     // No upload-based import ran for a pure cloud selection.
     expect(mockRunNestedImportJob).not.toHaveBeenCalled()
-    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/projects/proj-1'))
+    await waitFor(() =>
+      expect(mockPush).toHaveBeenCalledWith('/projects/proj-1'),
+    )
   })
 
   it('does not run any import when nothing was selected', async () => {
@@ -188,14 +190,16 @@ describe('ProjectCreationWizard — cloud import', () => {
     await user.click(screen.getByTestId('project-create-submit-button'))
 
     await waitFor(() => expect(mockCreateProject).toHaveBeenCalled())
-    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/projects/proj-1'))
+    await waitFor(() =>
+      expect(mockPush).toHaveBeenCalledWith('/projects/proj-1'),
+    )
     expect(mockRunCloudImportJobs).not.toHaveBeenCalled()
     expect(mockRunNestedImportJob).not.toHaveBeenCalled()
   })
 
   it('toasts (but still finishes) when the cloud import fails', async () => {
     mockRunCloudImportJobs.mockRejectedValue(
-      new Error('imports/a.json: bad payload')
+      new Error('imports/a.json: bad payload'),
     )
     const user = userEvent.setup()
     render(<ProjectCreationWizard />)
@@ -211,9 +215,11 @@ describe('ProjectCreationWizard — cloud import', () => {
     await waitFor(() =>
       expect(mockAddToast).toHaveBeenCalledWith(
         'projects.wizard.importDataFailed',
-        'error'
-      )
+        'error',
+      ),
     )
-    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/projects/proj-1'))
+    await waitFor(() =>
+      expect(mockPush).toHaveBeenCalledWith('/projects/proj-1'),
+    )
   })
 })

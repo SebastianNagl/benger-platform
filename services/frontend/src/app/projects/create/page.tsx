@@ -23,7 +23,8 @@ export default function CreateProjectPage() {
   const { t } = useI18n()
   const { user, isLoading } = useAuth()
   const router = useRouter()
-  const { isPrivateMode } = typeof window !== 'undefined' ? parseSubdomain() : { isPrivateMode: true }
+  const { isPrivateMode } =
+    typeof window !== 'undefined' ? parseSubdomain() : { isPrivateMode: true }
 
   // Check permissions - redirect if user cannot create projects
   useEffect(() => {
@@ -52,7 +53,7 @@ export default function CreateProjectPage() {
   // Show permission denied if user cannot create projects
   if (!canCreateProjects(user, { isPrivateMode })) {
     return (
-      <ResponsiveContainer size="xl" className="pb-10 pt-8">
+      <ResponsiveContainer size="xl" className="pt-8 pb-10">
         <div className="text-center">
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/20">
             <svg
@@ -90,7 +91,7 @@ export default function CreateProjectPage() {
   }
 
   return (
-    <ResponsiveContainer size="xl" className="pb-10 pt-8">
+    <ResponsiveContainer size="xl" className="pt-8 pb-10">
       {/* Breadcrumb */}
       <div className="mb-4">
         <Breadcrumb

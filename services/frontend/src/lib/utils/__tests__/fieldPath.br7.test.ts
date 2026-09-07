@@ -7,11 +7,11 @@
  */
 
 import {
-  getValueByPath,
-  setValueByPath,
-  hasPath,
-  getAllPaths,
   formatValue,
+  getAllPaths,
+  getValueByPath,
+  hasPath,
+  setValueByPath,
 } from '../fieldPath'
 
 describe('getValueByPath br7', () => {
@@ -48,7 +48,9 @@ describe('getValueByPath br7', () => {
   })
 
   it('accesses nested array with dot notation', () => {
-    expect(getValueByPath({ items: [{ value: 42 }] }, 'items[0].value')).toBe(42)
+    expect(getValueByPath({ items: [{ value: 42 }] }, 'items[0].value')).toBe(
+      42,
+    )
   })
 
   it('returns defaultValue when path does not exist', () => {

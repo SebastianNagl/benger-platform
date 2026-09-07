@@ -54,7 +54,10 @@ const mockT = (key: string) => key
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
     t: (key: string, varsOrDefault?: any) => {
-      const translations: Record<string, any> = require('../../../../../locales/en/common.json')
+      const translations: Record<
+        string,
+        any
+      > = require('../../../../../locales/en/common.json')
       const parts = key.split('.')
       let value: any = translations
       for (const part of parts) {
@@ -221,7 +224,7 @@ describe('LikertEvaluation', () => {
   describe('initialization', () => {
     it('creates new session when project ID is provided', async () => {
       mockSearchParams.get.mockImplementation((key: string) =>
-        key === 'project' ? 'project-456' : null
+        key === 'project' ? 'project-456' : null,
       )
       ;(apiClient.post as jest.Mock).mockResolvedValue({
         data: mockSession,
@@ -260,20 +263,20 @@ describe('LikertEvaluation', () => {
                 description: 'Criterion',
               },
             ],
-          }
+          },
         )
       })
 
       await waitFor(() => {
         expect(mockRouter.replace).toHaveBeenCalledWith(
-          '/evaluations/human/likert?session=session-123'
+          '/evaluations/human/likert?session=session-123',
         )
       })
     })
 
     it('loads existing session when session ID is provided', async () => {
       mockSearchParams.get.mockImplementation((key: string) =>
-        key === 'session' ? 'session-123' : null
+        key === 'session' ? 'session-123' : null,
       )
       ;(apiClient.get as jest.Mock)
         .mockResolvedValueOnce({ data: mockSession })
@@ -283,13 +286,13 @@ describe('LikertEvaluation', () => {
 
       await waitFor(() => {
         expect(apiClient.get).toHaveBeenCalledWith(
-          '/evaluations/human/session/session-123'
+          '/evaluations/human/session/session-123',
         )
       })
 
       await waitFor(() => {
         expect(apiClient.get).toHaveBeenCalledWith(
-          '/evaluations/human/session/session-123/next'
+          '/evaluations/human/session/session-123/next',
         )
       })
     })
@@ -302,7 +305,7 @@ describe('LikertEvaluation', () => {
       await waitFor(() => {
         expect(mockAddToast).toHaveBeenCalledWith(
           'No project or session specified',
-          'error'
+          'error',
         )
         expect(mockRouter.push).toHaveBeenCalledWith('/evaluations')
       })
@@ -310,10 +313,10 @@ describe('LikertEvaluation', () => {
 
     it('handles session creation error', async () => {
       mockSearchParams.get.mockImplementation((key: string) =>
-        key === 'project' ? 'project-456' : null
+        key === 'project' ? 'project-456' : null,
       )
       ;(apiClient.post as jest.Mock).mockRejectedValue(
-        new Error('Network error')
+        new Error('Network error'),
       )
 
       render(<LikertEvaluation />)
@@ -321,7 +324,7 @@ describe('LikertEvaluation', () => {
       await waitFor(() => {
         expect(mockAddToast).toHaveBeenCalledWith(
           'Failed to create evaluation session',
-          'error'
+          'error',
         )
         expect(mockRouter.push).toHaveBeenCalledWith('/evaluations')
       })
@@ -329,10 +332,10 @@ describe('LikertEvaluation', () => {
 
     it('handles session load error', async () => {
       mockSearchParams.get.mockImplementation((key: string) =>
-        key === 'session' ? 'session-123' : null
+        key === 'session' ? 'session-123' : null,
       )
       ;(apiClient.get as jest.Mock).mockRejectedValue(
-        new Error('Session not found')
+        new Error('Session not found'),
       )
 
       render(<LikertEvaluation />)
@@ -340,7 +343,7 @@ describe('LikertEvaluation', () => {
       await waitFor(() => {
         expect(mockAddToast).toHaveBeenCalledWith(
           'Failed to load evaluation session',
-          'error'
+          'error',
         )
         expect(mockRouter.push).toHaveBeenCalledWith('/evaluations')
       })
@@ -350,10 +353,10 @@ describe('LikertEvaluation', () => {
   describe('loading state', () => {
     it('shows loading spinner initially', () => {
       mockSearchParams.get.mockImplementation((key: string) =>
-        key === 'session' ? 'session-123' : null
+        key === 'session' ? 'session-123' : null,
       )
       ;(apiClient.get as jest.Mock).mockImplementation(
-        () => new Promise(() => {}) // Never resolves
+        () => new Promise(() => {}), // Never resolves
       )
 
       render(<LikertEvaluation />)
@@ -363,7 +366,7 @@ describe('LikertEvaluation', () => {
 
     it('hides loading spinner after data loads', async () => {
       mockSearchParams.get.mockImplementation((key: string) =>
-        key === 'session' ? 'session-123' : null
+        key === 'session' ? 'session-123' : null,
       )
       ;(apiClient.get as jest.Mock)
         .mockResolvedValueOnce({ data: mockSession })
@@ -380,7 +383,7 @@ describe('LikertEvaluation', () => {
   describe('page rendering', () => {
     beforeEach(async () => {
       mockSearchParams.get.mockImplementation((key: string) =>
-        key === 'session' ? 'session-123' : null
+        key === 'session' ? 'session-123' : null,
       )
       ;(apiClient.get as jest.Mock)
         .mockResolvedValueOnce({ data: mockSession })
@@ -412,7 +415,7 @@ describe('LikertEvaluation', () => {
         expect(progressText).toBeInTheDocument()
         const progressBar =
           progressText.parentElement?.parentElement?.querySelector(
-            '.bg-blue-600'
+            '.bg-blue-600',
           )
         expect(progressBar).toBeInTheDocument()
       })
@@ -424,7 +427,7 @@ describe('LikertEvaluation', () => {
       await waitFor(() => {
         expect(screen.getByText('Task Data')).toBeInTheDocument()
         expect(
-          screen.getByText(/What is the legal precedent?/)
+          screen.getByText(/What is the legal precedent?/),
         ).toBeInTheDocument()
       })
     })
@@ -436,7 +439,7 @@ describe('LikertEvaluation', () => {
         expect(screen.getByText('Model Response')).toBeInTheDocument()
         expect(screen.getByText('gpt-4')).toBeInTheDocument()
         expect(
-          screen.getByText(/This is a detailed legal response/)
+          screen.getByText(/This is a detailed legal response/),
         ).toBeInTheDocument()
       })
     })
@@ -456,9 +459,7 @@ describe('LikertEvaluation', () => {
       render(<LikertEvaluation />)
 
       await waitFor(() => {
-        const descriptions = screen.getAllByText(
-          'Criterion'
-        )
+        const descriptions = screen.getAllByText('Criterion')
         expect(descriptions.length).toBeGreaterThan(0)
       })
     })
@@ -470,8 +471,8 @@ describe('LikertEvaluation', () => {
         expect(screen.getByText('Rating Guidelines')).toBeInTheDocument()
         expect(
           screen.getByText(
-            /Rate each dimension from 1 \(Poor\) to 5 \(Excellent\)/
-          )
+            /Rate each dimension from 1 \(Poor\) to 5 \(Excellent\)/,
+          ),
         ).toBeInTheDocument()
       })
     })
@@ -488,7 +489,7 @@ describe('LikertEvaluation', () => {
   describe('star rating interaction', () => {
     beforeEach(async () => {
       mockSearchParams.get.mockImplementation((key: string) =>
-        key === 'session' ? 'session-123' : null
+        key === 'session' ? 'session-123' : null,
       )
       ;(apiClient.get as jest.Mock)
         .mockResolvedValueOnce({ data: mockSession })
@@ -579,7 +580,7 @@ describe('LikertEvaluation', () => {
   describe('submit functionality', () => {
     beforeEach(async () => {
       mockSearchParams.get.mockImplementation((key: string) =>
-        key === 'session' ? 'session-123' : null
+        key === 'session' ? 'session-123' : null,
       )
       ;(apiClient.get as jest.Mock)
         .mockResolvedValueOnce({ data: mockSession })
@@ -618,7 +619,7 @@ describe('LikertEvaluation', () => {
       await waitFor(() => {
         expect(mockAddToast).toHaveBeenCalledWith(
           'Please rate all dimensions: Clarity, Relevance, Completeness',
-          'error'
+          'error',
         )
       })
     })
@@ -687,7 +688,7 @@ describe('LikertEvaluation', () => {
               model_id: 'gpt-4',
               response_length: mockItem.response_content.length,
             }),
-          })
+          }),
         )
       })
     })
@@ -695,13 +696,13 @@ describe('LikertEvaluation', () => {
     it('shows loading state while submitting', async () => {
       const user = userEvent.setup()
       mockSearchParams.get.mockImplementation((key: string) =>
-        key === 'session' ? 'session-123' : null
+        key === 'session' ? 'session-123' : null,
       )
       ;(apiClient.get as jest.Mock)
         .mockResolvedValueOnce({ data: mockSession })
         .mockResolvedValueOnce({ data: { item: mockItem } })
       ;(apiClient.post as jest.Mock).mockImplementation(
-        () => new Promise(() => {}) // Never resolves
+        () => new Promise(() => {}), // Never resolves
       )
 
       render(<LikertEvaluation />)
@@ -722,7 +723,7 @@ describe('LikertEvaluation', () => {
       await waitFor(() => {
         expect(submitButton).toBeDisabled()
         expect(
-          within(submitButton).getByTestId('loading-spinner')
+          within(submitButton).getByTestId('loading-spinner'),
         ).toBeInTheDocument()
       })
     })
@@ -754,7 +755,7 @@ describe('LikertEvaluation', () => {
 
       await waitFor(() => {
         expect(apiClient.get).toHaveBeenCalledWith(
-          '/evaluations/human/session/session-123/next'
+          '/evaluations/human/session/session-123/next',
         )
       })
     })
@@ -762,7 +763,7 @@ describe('LikertEvaluation', () => {
     it('updates progress after submission', async () => {
       const user = userEvent.setup()
       mockSearchParams.get.mockImplementation((key: string) =>
-        key === 'session' ? 'session-123' : null
+        key === 'session' ? 'session-123' : null,
       )
       ;(apiClient.post as jest.Mock).mockResolvedValue({
         data: { success: true },
@@ -795,10 +796,10 @@ describe('LikertEvaluation', () => {
     it('shows error toast when submission fails', async () => {
       const user = userEvent.setup()
       mockSearchParams.get.mockImplementation((key: string) =>
-        key === 'session' ? 'session-123' : null
+        key === 'session' ? 'session-123' : null,
       )
       ;(apiClient.post as jest.Mock).mockRejectedValue(
-        new Error('Network error')
+        new Error('Network error'),
       )
       ;(apiClient.get as jest.Mock)
         .mockResolvedValueOnce({ data: mockSession })
@@ -822,7 +823,7 @@ describe('LikertEvaluation', () => {
       await waitFor(() => {
         expect(mockAddToast).toHaveBeenCalledWith(
           'Failed to submit evaluation',
-          'error'
+          'error',
         )
       })
     })
@@ -830,7 +831,7 @@ describe('LikertEvaluation', () => {
     it('resets ratings when loading new item', async () => {
       const user = userEvent.setup()
       mockSearchParams.get.mockImplementation((key: string) =>
-        key === 'session' ? 'session-123' : null
+        key === 'session' ? 'session-123' : null,
       )
       ;(apiClient.post as jest.Mock).mockResolvedValue({
         data: { success: true },
@@ -872,7 +873,7 @@ describe('LikertEvaluation', () => {
   describe('skip functionality', () => {
     beforeEach(async () => {
       mockSearchParams.get.mockImplementation((key: string) =>
-        key === 'session' ? 'session-123' : null
+        key === 'session' ? 'session-123' : null,
       )
       ;(apiClient.get as jest.Mock)
         .mockResolvedValueOnce({ data: mockSession })
@@ -909,13 +910,13 @@ describe('LikertEvaluation', () => {
       await waitFor(() => {
         expect(apiClient.post).toHaveBeenCalledWith(
           '/evaluations/human/session/session-123/skip',
-          { item_id: 'item-1' }
+          { item_id: 'item-1' },
         )
       })
 
       await waitFor(() => {
         expect(apiClient.get).toHaveBeenCalledWith(
-          '/evaluations/human/session/session-123/next'
+          '/evaluations/human/session/session-123/next',
         )
       })
     })
@@ -923,7 +924,7 @@ describe('LikertEvaluation', () => {
     it('shows error when skip fails', async () => {
       const user = userEvent.setup()
       ;(apiClient.post as jest.Mock).mockRejectedValue(
-        new Error('Network error')
+        new Error('Network error'),
       )
       ;(apiClient.get as jest.Mock)
         .mockResolvedValueOnce({ data: mockSession })
@@ -941,7 +942,7 @@ describe('LikertEvaluation', () => {
       await waitFor(() => {
         expect(mockAddToast).toHaveBeenCalledWith(
           'Failed to skip item',
-          'error'
+          'error',
         )
       })
     })
@@ -949,7 +950,7 @@ describe('LikertEvaluation', () => {
     it('disables skip button while submitting', async () => {
       const user = userEvent.setup()
       ;(apiClient.post as jest.Mock).mockImplementation(
-        () => new Promise(() => {}) // Never resolves
+        () => new Promise(() => {}), // Never resolves
       )
       ;(apiClient.get as jest.Mock)
         .mockResolvedValueOnce({ data: mockSession })
@@ -980,7 +981,7 @@ describe('LikertEvaluation', () => {
   describe('completion state', () => {
     beforeEach(() => {
       mockSearchParams.get.mockImplementation((key: string) =>
-        key === 'session' ? 'session-123' : null
+        key === 'session' ? 'session-123' : null,
       )
     })
 
@@ -995,12 +996,10 @@ describe('LikertEvaluation', () => {
         () => {
           expect(screen.getByText('Evaluation Complete')).toBeInTheDocument()
           expect(
-            screen.getByText(
-              /Rate model responses on multiple criteria/
-            )
+            screen.getByText(/Rate model responses on multiple criteria/),
           ).toBeInTheDocument()
         },
-        { timeout: 3000 }
+        { timeout: 3000 },
       )
     })
 
@@ -1014,11 +1013,11 @@ describe('LikertEvaluation', () => {
       await waitFor(
         () => {
           expect(
-            screen.getByText('Legal Document Analysis')
+            screen.getByText('Legal Document Analysis'),
           ).toBeInTheDocument()
           expect(screen.getByText('3')).toBeInTheDocument()
         },
-        { timeout: 3000 }
+        { timeout: 3000 },
       )
     })
 
@@ -1033,7 +1032,7 @@ describe('LikertEvaluation', () => {
         () => {
           expect(screen.getByText('Next Comparison')).toBeInTheDocument()
         },
-        { timeout: 3000 }
+        { timeout: 3000 },
       )
     })
 
@@ -1049,7 +1048,7 @@ describe('LikertEvaluation', () => {
         () => {
           expect(screen.getByText('Next Comparison')).toBeInTheDocument()
         },
-        { timeout: 3000 }
+        { timeout: 3000 },
       )
 
       const returnButton = screen.getByText('Next Comparison')
@@ -1063,7 +1062,7 @@ describe('LikertEvaluation', () => {
     it('redirects to evaluations page on exit', async () => {
       const user = userEvent.setup()
       mockSearchParams.get.mockImplementation((key: string) =>
-        key === 'session' ? 'session-123' : null
+        key === 'session' ? 'session-123' : null,
       )
       ;(apiClient.get as jest.Mock)
         .mockResolvedValueOnce({ data: mockSession })
@@ -1085,7 +1084,7 @@ describe('LikertEvaluation', () => {
   describe('error handling', () => {
     beforeEach(() => {
       mockSearchParams.get.mockImplementation((key: string) =>
-        key === 'session' ? 'session-123' : null
+        key === 'session' ? 'session-123' : null,
       )
     })
 
@@ -1099,7 +1098,7 @@ describe('LikertEvaluation', () => {
       await waitFor(() => {
         expect(mockAddToast).toHaveBeenCalledWith(
           'Failed to load next evaluation item',
-          'error'
+          'error',
         )
       })
     })
@@ -1115,7 +1114,7 @@ describe('LikertEvaluation', () => {
         () => {
           expect(screen.getByText('Evaluation Complete')).toBeInTheDocument()
         },
-        { timeout: 3000 }
+        { timeout: 3000 },
       )
     })
   })
@@ -1123,7 +1122,7 @@ describe('LikertEvaluation', () => {
   describe('5-point scale', () => {
     beforeEach(async () => {
       mockSearchParams.get.mockImplementation((key: string) =>
-        key === 'session' ? 'session-123' : null
+        key === 'session' ? 'session-123' : null,
       )
       ;(apiClient.get as jest.Mock)
         .mockResolvedValueOnce({ data: mockSession })

@@ -124,7 +124,7 @@ export function EditableTaskDescription({
           onKeyDown={handleKeyDown}
           onBlur={handleBlur}
           disabled={isSubmitting}
-          className="min-h-[80px] w-full resize-none rounded-lg border-2 border-emerald-500 bg-transparent px-3 py-2 text-zinc-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:text-zinc-400"
+          className="min-h-[80px] w-full resize-none rounded-lg border-2 border-emerald-500 bg-transparent px-3 py-2 text-zinc-600 focus:ring-2 focus:ring-emerald-500/20 focus:outline-none dark:text-zinc-400"
           placeholder={t('tasks.description.placeholder')}
           rows={3}
           data-testid="description-textarea"
@@ -150,7 +150,7 @@ export function EditableTaskDescription({
               e.stopPropagation()
               handleStartEdit()
             }}
-            className="absolute right-0 top-0 p-1 text-zinc-500 opacity-0 transition-all hover:text-zinc-600 group-hover:opacity-100 dark:text-zinc-400 dark:hover:text-zinc-300"
+            className="absolute top-0 right-0 p-1 text-zinc-500 opacity-0 transition-all group-hover:opacity-100 hover:text-zinc-600 dark:text-zinc-400 dark:hover:text-zinc-300"
             title={t('tasks.description.editDescription')}
             aria-label={t('tasks.description.editDescription')}
           >

@@ -22,7 +22,7 @@ const createRequest = (url: string, options: RequestInit = {}) => {
 const createMockResponse = (
   data: any,
   status: number,
-  cookies: string[] = []
+  cookies: string[] = [],
 ) => {
   const headers = new Headers()
   headers.set('content-type', 'application/json')
@@ -69,7 +69,7 @@ describe('/api/auth/verify-email', () => {
       ;(global.fetch as jest.Mock).mockResolvedValueOnce(
         createMockResponse(mockResponse, 200, [
           'access_token=test_token_123; HttpOnly; Path=/; SameSite=Lax',
-        ])
+        ]),
       )
 
       const verificationData = {
@@ -82,7 +82,7 @@ describe('/api/auth/verify-email', () => {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(verificationData),
-        }
+        },
       )
 
       await POST(request)
@@ -95,7 +95,7 @@ describe('/api/auth/verify-email', () => {
             'Content-Type': 'application/json',
           }),
           body: JSON.stringify(verificationData),
-        })
+        }),
       )
     })
 
@@ -110,7 +110,7 @@ describe('/api/auth/verify-email', () => {
       }
 
       ;(global.fetch as jest.Mock).mockResolvedValueOnce(
-        createMockResponse(mockResponse, 200, [])
+        createMockResponse(mockResponse, 200, []),
       )
 
       const request = createRequest(
@@ -118,7 +118,7 @@ describe('/api/auth/verify-email', () => {
         {
           method: 'POST',
           body: JSON.stringify({ token: 'valid_token' }),
-        }
+        },
       )
 
       const response = await POST(request)
@@ -137,7 +137,7 @@ describe('/api/auth/verify-email', () => {
       }
 
       ;(global.fetch as jest.Mock).mockResolvedValueOnce(
-        createMockResponse(mockError, 400, [])
+        createMockResponse(mockError, 400, []),
       )
 
       const request = createRequest(
@@ -145,7 +145,7 @@ describe('/api/auth/verify-email', () => {
         {
           method: 'POST',
           body: JSON.stringify({ token: 'invalid_token' }),
-        }
+        },
       )
 
       const response = await POST(request)
@@ -161,7 +161,7 @@ describe('/api/auth/verify-email', () => {
       }
 
       ;(global.fetch as jest.Mock).mockResolvedValueOnce(
-        createMockResponse(mockError, 400, [])
+        createMockResponse(mockError, 400, []),
       )
 
       const request = createRequest(
@@ -169,7 +169,7 @@ describe('/api/auth/verify-email', () => {
         {
           method: 'POST',
           body: JSON.stringify({ token: 'expired_token' }),
-        }
+        },
       )
 
       const response = await POST(request)
@@ -185,7 +185,7 @@ describe('/api/auth/verify-email', () => {
       }
 
       ;(global.fetch as jest.Mock).mockResolvedValueOnce(
-        createMockResponse(mockError, 404, [])
+        createMockResponse(mockError, 404, []),
       )
 
       const request = createRequest(
@@ -193,7 +193,7 @@ describe('/api/auth/verify-email', () => {
         {
           method: 'POST',
           body: JSON.stringify({ token: 'valid_token' }),
-        }
+        },
       )
 
       const response = await POST(request)
@@ -205,7 +205,7 @@ describe('/api/auth/verify-email', () => {
   describe('Request Validation', () => {
     it('should handle missing token', async () => {
       ;(global.fetch as jest.Mock).mockResolvedValueOnce(
-        createMockResponse({ detail: 'Token is required' }, 422, [])
+        createMockResponse({ detail: 'Token is required' }, 422, []),
       )
 
       const request = createRequest(
@@ -213,7 +213,7 @@ describe('/api/auth/verify-email', () => {
         {
           method: 'POST',
           body: JSON.stringify({}),
-        }
+        },
       )
 
       const response = await POST(request)
@@ -224,13 +224,13 @@ describe('/api/auth/verify-email', () => {
         expect.objectContaining({
           method: 'POST',
           body: JSON.stringify({}),
-        })
+        }),
       )
     })
 
     it('should handle empty token', async () => {
       ;(global.fetch as jest.Mock).mockResolvedValueOnce(
-        createMockResponse({ detail: 'Token cannot be empty' }, 422, [])
+        createMockResponse({ detail: 'Token cannot be empty' }, 422, []),
       )
 
       const request = createRequest(
@@ -238,7 +238,7 @@ describe('/api/auth/verify-email', () => {
         {
           method: 'POST',
           body: JSON.stringify({ token: '' }),
-        }
+        },
       )
 
       const response = await POST(request)
@@ -252,7 +252,7 @@ describe('/api/auth/verify-email', () => {
         {
           method: 'POST',
           body: 'invalid json',
-        }
+        },
       )
 
       const response = await POST(request)
@@ -270,7 +270,7 @@ describe('/api/auth/verify-email', () => {
       }
 
       ;(global.fetch as jest.Mock).mockResolvedValueOnce(
-        createMockResponse(mockError, 500, [])
+        createMockResponse(mockError, 500, []),
       )
 
       const request = createRequest(
@@ -278,7 +278,7 @@ describe('/api/auth/verify-email', () => {
         {
           method: 'POST',
           body: JSON.stringify({ token: 'valid_token' }),
-        }
+        },
       )
 
       const response = await POST(request)
@@ -292,7 +292,7 @@ describe('/api/auth/verify-email', () => {
       }
 
       ;(global.fetch as jest.Mock).mockResolvedValueOnce(
-        createMockResponse(mockError, 502, [])
+        createMockResponse(mockError, 502, []),
       )
 
       const request = createRequest(
@@ -300,7 +300,7 @@ describe('/api/auth/verify-email', () => {
         {
           method: 'POST',
           body: JSON.stringify({ token: 'valid_token' }),
-        }
+        },
       )
 
       const response = await POST(request)
@@ -314,7 +314,7 @@ describe('/api/auth/verify-email', () => {
       }
 
       ;(global.fetch as jest.Mock).mockResolvedValueOnce(
-        createMockResponse(mockError, 503, [])
+        createMockResponse(mockError, 503, []),
       )
 
       const request = createRequest(
@@ -322,7 +322,7 @@ describe('/api/auth/verify-email', () => {
         {
           method: 'POST',
           body: JSON.stringify({ token: 'valid_token' }),
-        }
+        },
       )
 
       const response = await POST(request)
@@ -334,7 +334,7 @@ describe('/api/auth/verify-email', () => {
   describe('Network Errors', () => {
     it('should handle network timeout', async () => {
       ;(global.fetch as jest.Mock).mockRejectedValueOnce(
-        new Error('Network timeout')
+        new Error('Network timeout'),
       )
 
       const request = createRequest(
@@ -342,7 +342,7 @@ describe('/api/auth/verify-email', () => {
         {
           method: 'POST',
           body: JSON.stringify({ token: 'valid_token' }),
-        }
+        },
       )
 
       const response = await POST(request)
@@ -354,7 +354,7 @@ describe('/api/auth/verify-email', () => {
 
     it('should handle connection refused', async () => {
       ;(global.fetch as jest.Mock).mockRejectedValueOnce(
-        new Error('ECONNREFUSED')
+        new Error('ECONNREFUSED'),
       )
 
       const request = createRequest(
@@ -362,7 +362,7 @@ describe('/api/auth/verify-email', () => {
         {
           method: 'POST',
           body: JSON.stringify({ token: 'valid_token' }),
-        }
+        },
       )
 
       const response = await POST(request)
@@ -372,13 +372,13 @@ describe('/api/auth/verify-email', () => {
       expect(data.error).toBe('Internal server error')
       expect(console.error).toHaveBeenCalledWith(
         '❌ Verify email error:',
-        expect.any(Error)
+        expect.any(Error),
       )
     })
 
     it('should handle DNS resolution failure', async () => {
       ;(global.fetch as jest.Mock).mockRejectedValueOnce(
-        new Error('getaddrinfo ENOTFOUND')
+        new Error('getaddrinfo ENOTFOUND'),
       )
 
       const request = createRequest(
@@ -386,7 +386,7 @@ describe('/api/auth/verify-email', () => {
         {
           method: 'POST',
           body: JSON.stringify({ token: 'valid_token' }),
-        }
+        },
       )
 
       const response = await POST(request)
@@ -398,7 +398,7 @@ describe('/api/auth/verify-email', () => {
   describe('API Base URL Detection', () => {
     it('should use localhost:8001 for localhost:3000', async () => {
       ;(global.fetch as jest.Mock).mockResolvedValueOnce(
-        createMockResponse({ message: 'Success' }, 200, [])
+        createMockResponse({ message: 'Success' }, 200, []),
       )
 
       const request = createRequest(
@@ -406,20 +406,20 @@ describe('/api/auth/verify-email', () => {
         {
           method: 'POST',
           body: JSON.stringify({ token: 'valid_token' }),
-        }
+        },
       )
 
       await POST(request)
 
       expect(global.fetch).toHaveBeenCalledWith(
         'http://localhost:8001/api/auth/verify-email',
-        expect.any(Object)
+        expect.any(Object),
       )
     })
 
     it('should use localhost:8001 for localhost:3001', async () => {
       ;(global.fetch as jest.Mock).mockResolvedValueOnce(
-        createMockResponse({ message: 'Success' }, 200, [])
+        createMockResponse({ message: 'Success' }, 200, []),
       )
 
       const request = createRequest(
@@ -427,20 +427,20 @@ describe('/api/auth/verify-email', () => {
         {
           method: 'POST',
           body: JSON.stringify({ token: 'valid_token' }),
-        }
+        },
       )
 
       await POST(request)
 
       expect(global.fetch).toHaveBeenCalledWith(
         'http://localhost:8001/api/auth/verify-email',
-        expect.any(Object)
+        expect.any(Object),
       )
     })
 
     it('should use Docker API URL for benger.localhost', async () => {
       ;(global.fetch as jest.Mock).mockResolvedValueOnce(
-        createMockResponse({ message: 'Success' }, 200, [])
+        createMockResponse({ message: 'Success' }, 200, []),
       )
 
       const request = createRequest(
@@ -448,14 +448,14 @@ describe('/api/auth/verify-email', () => {
         {
           method: 'POST',
           body: JSON.stringify({ token: 'valid_token' }),
-        }
+        },
       )
 
       await POST(request)
 
       expect(global.fetch).toHaveBeenCalledWith(
         'http://api:8000/api/auth/verify-email',
-        expect.any(Object)
+        expect.any(Object),
       )
     })
 
@@ -463,7 +463,7 @@ describe('/api/auth/verify-email', () => {
       const originalEnv = process.env.API_BASE_URL
       delete process.env.API_BASE_URL
       ;(global.fetch as jest.Mock).mockResolvedValueOnce(
-        createMockResponse({ message: 'Success' }, 200, [])
+        createMockResponse({ message: 'Success' }, 200, []),
       )
 
       const request = createRequest(
@@ -471,14 +471,14 @@ describe('/api/auth/verify-email', () => {
         {
           method: 'POST',
           body: JSON.stringify({ token: 'valid_token' }),
-        }
+        },
       )
 
       await POST(request)
 
       expect(global.fetch).toHaveBeenCalledWith(
         'http://benger-api:8000/api/auth/verify-email',
-        expect.any(Object)
+        expect.any(Object),
       )
 
       if (originalEnv) {
@@ -490,7 +490,7 @@ describe('/api/auth/verify-email', () => {
       const originalEnv = process.env.API_BASE_URL
       delete process.env.API_BASE_URL
       ;(global.fetch as jest.Mock).mockResolvedValueOnce(
-        createMockResponse({ message: 'Success' }, 200, [])
+        createMockResponse({ message: 'Success' }, 200, []),
       )
 
       const request = createRequest(
@@ -498,14 +498,14 @@ describe('/api/auth/verify-email', () => {
         {
           method: 'POST',
           body: JSON.stringify({ token: 'valid_token' }),
-        }
+        },
       )
 
       await POST(request)
 
       expect(global.fetch).toHaveBeenCalledWith(
         'http://benger-api:8000/api/auth/verify-email',
-        expect.any(Object)
+        expect.any(Object),
       )
 
       if (originalEnv) {
@@ -517,7 +517,7 @@ describe('/api/auth/verify-email', () => {
       const originalEnv = process.env.API_BASE_URL
       process.env.API_BASE_URL = 'http://custom-api:9000'
       ;(global.fetch as jest.Mock).mockResolvedValueOnce(
-        createMockResponse({ message: 'Success' }, 200, [])
+        createMockResponse({ message: 'Success' }, 200, []),
       )
 
       const request = createRequest(
@@ -525,14 +525,14 @@ describe('/api/auth/verify-email', () => {
         {
           method: 'POST',
           body: JSON.stringify({ token: 'valid_token' }),
-        }
+        },
       )
 
       await POST(request)
 
       expect(global.fetch).toHaveBeenCalledWith(
         'http://custom-api:9000/api/auth/verify-email',
-        expect.any(Object)
+        expect.any(Object),
       )
 
       if (originalEnv) {
@@ -544,7 +544,7 @@ describe('/api/auth/verify-email', () => {
 
     it('should default to api:8000 for unknown hosts', async () => {
       ;(global.fetch as jest.Mock).mockResolvedValueOnce(
-        createMockResponse({ message: 'Success' }, 200, [])
+        createMockResponse({ message: 'Success' }, 200, []),
       )
 
       const request = createRequest(
@@ -552,14 +552,14 @@ describe('/api/auth/verify-email', () => {
         {
           method: 'POST',
           body: JSON.stringify({ token: 'valid_token' }),
-        }
+        },
       )
 
       await POST(request)
 
       expect(global.fetch).toHaveBeenCalledWith(
         'http://api:8000/api/auth/verify-email',
-        expect.any(Object)
+        expect.any(Object),
       )
     })
   })
@@ -571,7 +571,7 @@ describe('/api/auth/verify-email', () => {
       }
 
       ;(global.fetch as jest.Mock).mockResolvedValueOnce(
-        createMockResponse({ message: 'Success' }, 200, [])
+        createMockResponse({ message: 'Success' }, 200, []),
       )
 
       const request = createRequest(
@@ -579,7 +579,7 @@ describe('/api/auth/verify-email', () => {
         {
           method: 'POST',
           body: JSON.stringify(verificationData),
-        }
+        },
       )
 
       await POST(request)
@@ -592,13 +592,13 @@ describe('/api/auth/verify-email', () => {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify(verificationData),
-        })
+        }),
       )
     })
 
     it('should set correct Content-Type header', async () => {
       ;(global.fetch as jest.Mock).mockResolvedValueOnce(
-        createMockResponse({ message: 'Success' }, 200, [])
+        createMockResponse({ message: 'Success' }, 200, []),
       )
 
       const request = createRequest(
@@ -606,7 +606,7 @@ describe('/api/auth/verify-email', () => {
         {
           method: 'POST',
           body: JSON.stringify({ token: 'valid_token' }),
-        }
+        },
       )
 
       await POST(request)
@@ -617,7 +617,7 @@ describe('/api/auth/verify-email', () => {
           headers: {
             'Content-Type': 'application/json',
           },
-        })
+        }),
       )
     })
   })
@@ -625,7 +625,7 @@ describe('/api/auth/verify-email', () => {
   describe('Error Logging', () => {
     it('should log errors', async () => {
       ;(global.fetch as jest.Mock).mockRejectedValueOnce(
-        new Error('Connection failed')
+        new Error('Connection failed'),
       )
 
       const request = createRequest(
@@ -633,14 +633,14 @@ describe('/api/auth/verify-email', () => {
         {
           method: 'POST',
           body: JSON.stringify({ token: 'valid_token' }),
-        }
+        },
       )
 
       await POST(request)
 
       expect(console.error).toHaveBeenCalledWith(
         '❌ Verify email error:',
-        expect.any(Error)
+        expect.any(Error),
       )
     })
   })

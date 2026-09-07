@@ -33,7 +33,7 @@ describe('POST /api/auth/me/vertretbar-onboarding', () => {
           cookie: 'session=abc',
           authorization: 'Bearer token123',
         },
-      }
+      },
     )
 
     const response = await POST(request)
@@ -48,7 +48,7 @@ describe('POST /api/auth/me/vertretbar-onboarding', () => {
           Cookie: 'session=abc',
           Authorization: 'Bearer token123',
         }),
-      })
+      }),
     )
   })
 
@@ -61,7 +61,7 @@ describe('POST /api/auth/me/vertretbar-onboarding', () => {
 
     const request = new NextRequest(
       'http://vertretbar.localhost/api/auth/me/vertretbar-onboarding',
-      { method: 'POST', headers: { host: 'vertretbar.localhost' } }
+      { method: 'POST', headers: { host: 'vertretbar.localhost' } },
     )
 
     const response = await POST(request)
@@ -76,7 +76,7 @@ describe('POST /api/auth/me/vertretbar-onboarding', () => {
 
     const request = new NextRequest(
       'http://vertretbar.localhost/api/auth/me/vertretbar-onboarding',
-      { method: 'POST', headers: { host: 'vertretbar.localhost' } }
+      { method: 'POST', headers: { host: 'vertretbar.localhost' } },
     )
 
     const response = await POST(request)
@@ -88,14 +88,14 @@ describe('POST /api/auth/me/vertretbar-onboarding', () => {
 
     const request = new NextRequest(
       'http://benger-test.localhost/api/auth/me/vertretbar-onboarding',
-      { method: 'POST', headers: { host: 'benger-test.localhost' } }
+      { method: 'POST', headers: { host: 'benger-test.localhost' } },
     )
 
     await POST(request)
 
     expect(mockFetch).toHaveBeenCalledWith(
       'http://test-api:8000/api/auth/me/vertretbar-onboarding',
-      expect.anything()
+      expect.anything(),
     )
   })
 
@@ -108,7 +108,7 @@ describe('POST /api/auth/me/vertretbar-onboarding', () => {
 
     const request = new NextRequest(
       'http://vertretbar.localhost/api/auth/me/vertretbar-onboarding',
-      { method: 'POST', headers: { host: 'vertretbar.localhost' } }
+      { method: 'POST', headers: { host: 'vertretbar.localhost' } },
     )
 
     const response = await POST(request)

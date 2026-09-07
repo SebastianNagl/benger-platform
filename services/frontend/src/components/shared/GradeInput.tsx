@@ -21,7 +21,7 @@ export function GradeInput({
   placeholder = '0,00 - 18,00',
 }: GradeInputProps) {
   const [rawValue, setRawValue] = useState(() =>
-    value != null ? String(value).replace('.', ',') : ''
+    value != null ? String(value).replace('.', ',') : '',
   )
 
   // Sync from external value changes (e.g. profile load)

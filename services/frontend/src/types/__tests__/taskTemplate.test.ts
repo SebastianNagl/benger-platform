@@ -7,12 +7,12 @@
  */
 
 import {
-  isTextField,
+  FieldType,
   isChoiceField,
   isNumericField,
-  validateFieldValue,
+  isTextField,
   TaskTemplateField,
-  FieldType,
+  validateFieldValue,
 } from '../taskTemplate'
 
 describe('Type Guards', () => {
@@ -83,7 +83,9 @@ describe('Type Guards', () => {
 })
 
 describe('validateFieldValue', () => {
-  const createField = (overrides: Partial<TaskTemplateField> = {}): TaskTemplateField => ({
+  const createField = (
+    overrides: Partial<TaskTemplateField> = {},
+  ): TaskTemplateField => ({
     name: 'testField',
     type: 'text',
     display: {
@@ -251,7 +253,9 @@ describe('validateFieldValue', () => {
     it('should use custom message when provided', () => {
       const field = createField({
         type: 'number',
-        validation: [{ type: 'min', value: 10, message: 'Must be at least 10' }],
+        validation: [
+          { type: 'min', value: 10, message: 'Must be at least 10' },
+        ],
       })
       const result = validateFieldValue(field, 5)
 
@@ -347,7 +351,9 @@ describe('validateFieldValue', () => {
 
     it('should use custom message when provided', () => {
       const field = createField({
-        validation: [{ type: 'pattern', value: '^\\d+$', message: 'Numbers only' }],
+        validation: [
+          { type: 'pattern', value: '^\\d+$', message: 'Numbers only' },
+        ],
       })
       const result = validateFieldValue(field, 'abc')
 

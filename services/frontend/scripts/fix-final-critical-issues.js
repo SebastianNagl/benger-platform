@@ -57,7 +57,7 @@ global.React = require('react');
       // Look for user-related mocks and ensure they return arrays
       content = content.replace(
         /getAllUsers.*jest\.fn\(\)\.mockResolvedValue\([^)]*\)/g,
-        'getAllUsers: jest.fn().mockResolvedValue([])'
+        'getAllUsers: jest.fn().mockResolvedValue([])',
       )
       hasChanges = true
     }
@@ -72,7 +72,7 @@ global.React = require('react');
           if (!match.includes('replace:')) {
             return match.replace(
               /(\{[^}]*)\}/,
-              '$1,\n    replace: jest.fn(),\n    back: jest.fn(),\n    forward: jest.fn(),\n    refresh: jest.fn()\n  }'
+              '$1,\n    replace: jest.fn(),\n    back: jest.fn(),\n    forward: jest.fn(),\n    refresh: jest.fn()\n  }',
             )
           }
           return match
@@ -136,7 +136,7 @@ jest.mock('@/components/auth/AuthGuard', () => {
           return match.replace('waitFor(() => {', 'await waitFor(async () => {')
         }
         return match
-      }
+      },
     )
 
     if (originalContent !== content) {

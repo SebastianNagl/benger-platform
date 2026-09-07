@@ -11,7 +11,6 @@
  * without the platform hardcoding extended metric names.
  */
 
-import { useCallback } from 'react'
 import { useI18n } from '@/contexts/I18nContext'
 import { useModels, type Model } from '@/hooks/useModels'
 import {
@@ -19,6 +18,7 @@ import {
   getRecommendedParam,
   getTemperatureConstraints,
 } from '@/lib/modelConstraints'
+import { useCallback } from 'react'
 
 export type EvalDefaultsMode = 'recommended' | 'minimum' | 'custom'
 
@@ -29,13 +29,17 @@ export interface JudgeModelDefaults {
 }
 
 export interface ModelConstraints {
-  temperature: { min: number; max: number; fixed?: boolean; fixedValue?: number }
+  temperature: {
+    min: number
+    max: number
+    fixed?: boolean
+    fixedValue?: number
+  }
   maxTokens: { min: number; max: number }
 }
 
 export type ThinkingConfig =
-  | { type: 'budget' | 'effort'; default?: number }
-  | undefined
+  { type: 'budget' | 'effort'; default?: number } | undefined
 
 export type TemperatureValidation = {
   type: 'error' | 'warning' | null
@@ -125,10 +129,16 @@ export function useJudgeModelHelpers(): JudgeModelHelpers {
           temperature: tc.fixedValue ?? tc.default,
           max_tokens:
             mode === 'custom'
-              ? customMaxTokens ?? defaultMaxTokens ?? 500
+              ? (customMaxTokens ?? defaultMaxTokens ?? 500)
               : (() => {
-                  const rec = getRecommendedParam(model, 'max_tokens', 'evaluation')
-                  return typeof rec === 'number' ? rec : defaultMaxTokens ?? 500
+                  const rec = getRecommendedParam(
+                    model,
+                    'max_tokens',
+                    'evaluation',
+                  )
+                  return typeof rec === 'number'
+                    ? rec
+                    : (defaultMaxTokens ?? 500)
                 })(),
           temperatureFixed: true,
         }
@@ -147,7 +157,7 @@ export function useJudgeModelHelpers(): JudgeModelHelpers {
       let max_tokens: number
       if (mode === 'recommended') {
         const rec = getRecommendedParam(model, 'max_tokens', 'evaluation')
-        max_tokens = typeof rec === 'number' ? rec : defaultMaxTokens ?? 500
+        max_tokens = typeof rec === 'number' ? rec : (defaultMaxTokens ?? 500)
       } else if (mode === 'minimum') {
         // No documented "minimum" max_tokens recommendation across providers;
         // use each model's catalog default (already a sensible eval budget)
@@ -189,7 +199,8 @@ export function useJudgeModelHelpers(): JudgeModelHelpers {
 
   const getTemperatureValidation = useCallback(
     (modelId: string, value: number | undefined): TemperatureValidation => {
-      if (value === undefined || value === null) return { type: null, message: '' }
+      if (value === undefined || value === null)
+        return { type: null, message: '' }
       const constraints = getModelConstraints(modelId)
       if (constraints.temperature.fixed) {
         if (value !== constraints.temperature.fixedValue) {

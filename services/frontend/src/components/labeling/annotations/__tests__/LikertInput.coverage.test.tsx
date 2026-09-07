@@ -35,7 +35,9 @@ jest.mock('@/components/shared/LikertScale', () => ({
     <div data-testid="likert-scale">
       <span data-testid="likert-label">{label}</span>
       <span data-testid="likert-value">{value ?? 'none'}</span>
-      <span data-testid="likert-range">{min}-{max}</span>
+      <span data-testid="likert-range">
+        {min}-{max}
+      </span>
       {required && <span data-testid="likert-required">required</span>}
       <button data-testid="likert-select-3" onClick={() => onChange(3)}>
         Select 3
@@ -77,7 +79,7 @@ describe('LikertInput - branch coverage', () => {
         value={undefined}
         onChange={mockOnChange}
         onAnnotation={mockOnAnnotation}
-      />
+      />,
     )
 
     expect(screen.getByTestId('likert-label')).toHaveTextContent('Quality')
@@ -92,7 +94,7 @@ describe('LikertInput - branch coverage', () => {
         value={undefined}
         onChange={mockOnChange}
         onAnnotation={mockOnAnnotation}
-      />
+      />,
     )
 
     fireEvent.click(screen.getByTestId('likert-select-3'))
@@ -114,7 +116,7 @@ describe('LikertInput - branch coverage', () => {
         value={undefined}
         onChange={mockOnChange}
         onAnnotation={mockOnAnnotation}
-      />
+      />,
     )
 
     fireEvent.click(screen.getByTestId('likert-select-5'))
@@ -136,7 +138,7 @@ describe('LikertInput - branch coverage', () => {
         value={undefined}
         onChange={mockOnChange}
         onAnnotation={mockOnAnnotation}
-      />
+      />,
     )
 
     expect(screen.getByText('Select your agreement level')).toBeInTheDocument()
@@ -150,10 +152,12 @@ describe('LikertInput - branch coverage', () => {
         value={undefined}
         onChange={mockOnChange}
         onAnnotation={mockOnAnnotation}
-      />
+      />,
     )
 
-    expect(screen.queryByText('Select your agreement level')).not.toBeInTheDocument()
+    expect(
+      screen.queryByText('Select your agreement level'),
+    ).not.toBeInTheDocument()
   })
 
   it('uses config.name as fallback label', () => {
@@ -169,7 +173,7 @@ describe('LikertInput - branch coverage', () => {
         value={undefined}
         onChange={mockOnChange}
         onAnnotation={mockOnAnnotation}
-      />
+      />,
     )
 
     expect(screen.getByTestId('likert-label')).toHaveTextContent('likert')
@@ -188,7 +192,7 @@ describe('LikertInput - branch coverage', () => {
         value={undefined}
         onChange={mockOnChange}
         onAnnotation={mockOnAnnotation}
-      />
+      />,
     )
 
     expect(screen.getByTestId('likert-required')).toBeInTheDocument()
@@ -202,7 +206,7 @@ describe('LikertInput - branch coverage', () => {
         value={4}
         onChange={mockOnChange}
         onAnnotation={mockOnAnnotation}
-      />
+      />,
     )
 
     expect(screen.getByTestId('likert-value')).toHaveTextContent('4')
@@ -221,7 +225,7 @@ describe('LikertInput - branch coverage', () => {
         value={undefined}
         onChange={mockOnChange}
         onAnnotation={mockOnAnnotation}
-      />
+      />,
     )
 
     expect(screen.getByTestId('likert-range')).toHaveTextContent('0-10')

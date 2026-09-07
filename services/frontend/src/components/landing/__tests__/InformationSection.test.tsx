@@ -25,39 +25,53 @@ describe('InformationSection', () => {
     'landing.information.tabs.whatIsIt': 'What is it?',
     'landing.information.tabs.howItWorks': 'How it works',
     'landing.information.tabs.whyNeeded': 'Why this is needed',
-    'landing.information.whatIsIt.description': 'BenGER is a research-grade benchmarking platform.',
+    'landing.information.whatIsIt.description':
+      'BenGER is a research-grade benchmarking platform.',
     'landing.information.whatIsIt.annotation.title': 'Annotation System',
-    'landing.information.whatIsIt.annotation.description': 'A complete native annotation system.',
+    'landing.information.whatIsIt.annotation.description':
+      'A complete native annotation system.',
     'landing.information.whatIsIt.generation.title': 'Generation Pipeline',
     'landing.information.whatIsIt.generation.description': 'Run multiple LLMs.',
     'landing.information.whatIsIt.evaluation.title': 'Evaluation Suite',
-    'landing.information.whatIsIt.evaluation.description': 'A comprehensive academic evaluation suite.',
-    'landing.information.howItWorks.description': 'BenGER guides you through a structured workflow.',
+    'landing.information.whatIsIt.evaluation.description':
+      'A comprehensive academic evaluation suite.',
+    'landing.information.howItWorks.description':
+      'BenGER guides you through a structured workflow.',
     'landing.information.howItWorks.steps.create.number': '1',
     'landing.information.howItWorks.steps.create.title': 'Create a Project',
-    'landing.information.howItWorks.steps.create.description': 'Set up a new project.',
+    'landing.information.howItWorks.steps.create.description':
+      'Set up a new project.',
     'landing.information.howItWorks.steps.import.number': '2',
     'landing.information.howItWorks.steps.import.title': 'Import Data',
-    'landing.information.howItWorks.steps.import.description': 'Upload your documents.',
+    'landing.information.howItWorks.steps.import.description':
+      'Upload your documents.',
     'landing.information.howItWorks.steps.annotate.number': '3',
     'landing.information.howItWorks.steps.annotate.title': 'Annotate',
-    'landing.information.howItWorks.steps.annotate.description': 'Expert annotators label your data.',
+    'landing.information.howItWorks.steps.annotate.description':
+      'Expert annotators label your data.',
     'landing.information.howItWorks.steps.generate.number': '4',
     'landing.information.howItWorks.steps.generate.title': 'Generate',
-    'landing.information.howItWorks.steps.generate.description': 'Run LLM generations.',
+    'landing.information.howItWorks.steps.generate.description':
+      'Run LLM generations.',
     'landing.information.howItWorks.steps.evaluate.number': '5',
     'landing.information.howItWorks.steps.evaluate.title': 'Evaluate',
-    'landing.information.howItWorks.steps.evaluate.description': 'Apply automated metrics.',
+    'landing.information.howItWorks.steps.evaluate.description':
+      'Apply automated metrics.',
     'landing.information.howItWorks.steps.report.number': '6',
     'landing.information.howItWorks.steps.report.title': 'Generate Report',
-    'landing.information.howItWorks.steps.report.description': 'Produce publication-ready reports.',
-    'landing.information.whyNeeded.description': 'The German legal system presents unique challenges.',
+    'landing.information.howItWorks.steps.report.description':
+      'Produce publication-ready reports.',
+    'landing.information.whyNeeded.description':
+      'The German legal system presents unique challenges.',
     'landing.information.whyNeeded.gaps.title': 'No German Legal Benchmarks',
-    'landing.information.whyNeeded.gaps.description': 'Existing NLP benchmarks focus on English.',
+    'landing.information.whyNeeded.gaps.description':
+      'Existing NLP benchmarks focus on English.',
     'landing.information.whyNeeded.rigor.title': 'Scientific Rigor',
-    'landing.information.whyNeeded.rigor.description': 'Legal AI demands highest standards.',
+    'landing.information.whyNeeded.rigor.description':
+      'Legal AI demands highest standards.',
     'landing.information.whyNeeded.reproducibility.title': 'Reproducibility',
-    'landing.information.whyNeeded.reproducibility.description': 'Academic research requires exact reproducibility.',
+    'landing.information.whyNeeded.reproducibility.description':
+      'Academic research requires exact reproducibility.',
   }
 
   const mockT = jest.fn((key: string) => mockTranslations[key] || key)

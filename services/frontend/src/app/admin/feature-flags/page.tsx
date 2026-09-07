@@ -4,7 +4,13 @@ import { Breadcrumb } from '@/components/shared/Breadcrumb'
 import { Button } from '@/components/shared/Button'
 import { FilterToolbar } from '@/components/shared/FilterToolbar'
 import { ResponsiveContainer } from '@/components/shared/ResponsiveContainer'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/shared/Select'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/shared/Select'
 import { useToast } from '@/components/shared/Toast'
 import { ToggleSwitch } from '@/components/shared/ToggleSwitch'
 import { useAuth } from '@/contexts/AuthContext'
@@ -27,7 +33,7 @@ export default function FeatureFlagsAdminPage() {
   const [sortField, setSortField] = useState<'name' | 'created_at'>('name')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
   const [pendingChanges, setPendingChanges] = useState<Map<string, boolean>>(
-    new Map()
+    new Map(),
   )
   const [isSaving, setIsSaving] = useState(false)
 
@@ -59,13 +65,16 @@ export default function FeatureFlagsAdminPage() {
   // Check if user is superadmin
   if (!user?.is_superadmin) {
     return (
-      <ResponsiveContainer size="xl" className="pb-10 pt-8">
+      <ResponsiveContainer size="xl" className="pt-8 pb-10">
         {/* Breadcrumb */}
         <div className="mb-4">
           <Breadcrumb
             items={[
               { label: t('navigation.dashboard'), href: '/dashboard' },
-              { label: t('admin.featureFlagsPage.title'), href: '/admin/feature-flags' },
+              {
+                label: t('admin.featureFlagsPage.title'),
+                href: '/admin/feature-flags',
+              },
             ]}
           />
         </div>
@@ -88,8 +97,8 @@ export default function FeatureFlagsAdminPage() {
     // Update local state
     setFlags((prevFlags) =>
       prevFlags.map((f) =>
-        f.id === flag.id ? { ...f, is_enabled: newEnabled } : f
-      )
+        f.id === flag.id ? { ...f, is_enabled: newEnabled } : f,
+      ),
     )
 
     // Track the pending change
@@ -111,7 +120,7 @@ export default function FeatureFlagsAdminPage() {
       // Apply all pending changes
       const promises = Array.from(pendingChanges.entries()).map(
         ([flagId, enabled]) =>
-          api.updateFeatureFlag(flagId, { is_enabled: enabled })
+          api.updateFeatureFlag(flagId, { is_enabled: enabled }),
       )
 
       await Promise.all(promises)
@@ -128,7 +137,7 @@ export default function FeatureFlagsAdminPage() {
         err instanceof Error
           ? err.message
           : t('admin.featureFlagsPage.applyFailed'),
-        'error'
+        'error',
       )
       // Reload flags to revert to server state
       await loadFlags()
@@ -152,7 +161,7 @@ export default function FeatureFlagsAdminPage() {
     (flag) =>
       flag.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (flag.description?.toLowerCase().includes(searchQuery.toLowerCase()) ??
-        false)
+        false),
   )
 
   const sortedFlags = [...filteredFlags].sort((a, b) => {
@@ -177,13 +186,16 @@ export default function FeatureFlagsAdminPage() {
 
   if (loading) {
     return (
-      <ResponsiveContainer size="xl" className="pb-10 pt-8">
+      <ResponsiveContainer size="xl" className="pt-8 pb-10">
         {/* Breadcrumb */}
         <div className="mb-4">
           <Breadcrumb
             items={[
               { label: t('navigation.dashboard'), href: '/dashboard' },
-              { label: t('admin.featureFlagsPage.title'), href: '/admin/feature-flags' },
+              {
+                label: t('admin.featureFlagsPage.title'),
+                href: '/admin/feature-flags',
+              },
             ]}
           />
         </div>
@@ -201,7 +213,7 @@ export default function FeatureFlagsAdminPage() {
   return (
     <ResponsiveContainer
       size="full"
-      className="px-4 pb-10 pt-8 sm:px-6 lg:px-8"
+      className="px-4 pt-8 pb-10 sm:px-6 lg:px-8"
     >
       {/* Breadcrumb */}
       <div className="mb-4">
@@ -280,8 +292,12 @@ export default function FeatureFlagsAdminPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="name">{t('admin.featureFlagsPage.sortByName')}</SelectItem>
-                  <SelectItem value="created_at">{t('admin.featureFlagsPage.sortByDate')}</SelectItem>
+                  <SelectItem value="name">
+                    {t('admin.featureFlagsPage.sortByName')}
+                  </SelectItem>
+                  <SelectItem value="created_at">
+                    {t('admin.featureFlagsPage.sortByDate')}
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </FilterToolbar.Field>
@@ -295,7 +311,9 @@ export default function FeatureFlagsAdminPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="asc">{t('common.filters.asc')}</SelectItem>
-                  <SelectItem value="desc">{t('common.filters.desc')}</SelectItem>
+                  <SelectItem value="desc">
+                    {t('common.filters.desc')}
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </FilterToolbar.Field>
@@ -303,14 +321,14 @@ export default function FeatureFlagsAdminPage() {
         </div>
 
         {/* Feature Flags Table */}
-        <div className="overflow-hidden bg-white shadow dark:bg-zinc-900 sm:rounded-lg">
+        <div className="overflow-hidden bg-white shadow sm:rounded-lg dark:bg-zinc-900">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-700">
               <thead className="bg-zinc-50 dark:bg-zinc-800">
                 <tr>
                   <th
                     scope="col"
-                    className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400"
+                    className="px-6 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400"
                   >
                     <button
                       onClick={() => handleSort('name')}
@@ -327,19 +345,19 @@ export default function FeatureFlagsAdminPage() {
                   </th>
                   <th
                     scope="col"
-                    className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400"
+                    className="px-6 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400"
                   >
                     Description
                   </th>
                   <th
                     scope="col"
-                    className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400"
+                    className="px-6 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400"
                   >
                     Status
                   </th>
                   <th
                     scope="col"
-                    className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400"
+                    className="px-6 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400"
                   >
                     <button
                       onClick={() => handleSort('created_at')}
@@ -392,7 +410,7 @@ export default function FeatureFlagsAdminPage() {
                             : ''
                         }`}
                       >
-                        <td className="whitespace-nowrap px-6 py-4">
+                        <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center gap-2">
                             <div className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
                               {flag.name}
@@ -409,7 +427,7 @@ export default function FeatureFlagsAdminPage() {
                             {flag.description || '-'}
                           </div>
                         </td>
-                        <td className="whitespace-nowrap px-6 py-4">
+                        <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center space-x-2">
                             <ToggleSwitch
                               enabled={flag.is_enabled}
@@ -424,7 +442,7 @@ export default function FeatureFlagsAdminPage() {
                             </span>
                           </div>
                         </td>
-                        <td className="whitespace-nowrap px-6 py-4 text-sm text-zinc-500 dark:text-zinc-400">
+                        <td className="px-6 py-4 text-sm whitespace-nowrap text-zinc-500 dark:text-zinc-400">
                           {flag.created_at
                             ? new Date(flag.created_at).toLocaleDateString()
                             : '-'}

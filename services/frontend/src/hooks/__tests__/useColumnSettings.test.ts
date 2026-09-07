@@ -66,7 +66,7 @@ describe('useColumnSettings Hook', () => {
   describe('1. Basic Hook Behavior', () => {
     it('should return expected interface', () => {
       const { result } = renderHook(() =>
-        useColumnSettings(mockProjectId, mockUserId, mockDefaultColumns)
+        useColumnSettings(mockProjectId, mockUserId, mockDefaultColumns),
       )
 
       expect(result.current).toHaveProperty('columns')
@@ -83,7 +83,7 @@ describe('useColumnSettings Hook', () => {
 
     it('should initialize with default columns when no saved settings exist', () => {
       const { result } = renderHook(() =>
-        useColumnSettings(mockProjectId, mockUserId, mockDefaultColumns)
+        useColumnSettings(mockProjectId, mockUserId, mockDefaultColumns),
       )
 
       expect(result.current.columns).toHaveLength(4)
@@ -103,7 +103,7 @@ describe('useColumnSettings Hook', () => {
 
     it('should add order property to default columns', () => {
       const { result } = renderHook(() =>
-        useColumnSettings(mockProjectId, mockUserId, mockDefaultColumns)
+        useColumnSettings(mockProjectId, mockUserId, mockDefaultColumns),
       )
 
       result.current.columns.forEach((col, index) => {
@@ -113,7 +113,7 @@ describe('useColumnSettings Hook', () => {
 
     it('should handle undefined userId', () => {
       const { result } = renderHook(() =>
-        useColumnSettings(mockProjectId, undefined, mockDefaultColumns)
+        useColumnSettings(mockProjectId, undefined, mockDefaultColumns),
       )
 
       expect(result.current.columns).toHaveLength(4)
@@ -135,17 +135,27 @@ describe('useColumnSettings Hook', () => {
         JSON.stringify([
           { id: 'name', visible: true, order: 0 },
           { id: 'data_sachverhalt', visible: false, order: 1 },
-        ])
+        ]),
       )
       const { result } = renderHook(() =>
-        useColumnSettings(mockProjectId, mockUserId, mockDefaultColumns)
+        useColumnSettings(mockProjectId, mockUserId, mockDefaultColumns),
       )
 
       act(() => {
         result.current.updateColumns([
           ...mockDefaultColumns,
-          { id: 'data_sachverhalt', label: 'Sachverhalt', visible: true, type: 'data' },
-          { id: 'data_korrekturhinweise', label: 'Korrekturhinweise', visible: true, type: 'data' },
+          {
+            id: 'data_sachverhalt',
+            label: 'Sachverhalt',
+            visible: true,
+            type: 'data',
+          },
+          {
+            id: 'data_korrekturhinweise',
+            label: 'Korrekturhinweise',
+            visible: true,
+            type: 'data',
+          },
         ])
       })
 
@@ -153,16 +163,18 @@ describe('useColumnSettings Hook', () => {
       // Hidden preference survives the reload.
       expect(byId.get('data_sachverhalt')).toMatchObject({ visible: false })
       // A never-seen dynamic column keeps its default visibility.
-      expect(byId.get('data_korrekturhinweise')).toMatchObject({ visible: true })
+      expect(byId.get('data_korrekturhinweise')).toMatchObject({
+        visible: true,
+      })
     })
 
     it('resetColumns also forgets saved dynamic-column settings', () => {
       localStorageMock.setItem(
         storageKey,
-        JSON.stringify([{ id: 'data_sachverhalt', visible: false, order: 9 }])
+        JSON.stringify([{ id: 'data_sachverhalt', visible: false, order: 9 }]),
       )
       const { result } = renderHook(() =>
-        useColumnSettings(mockProjectId, mockUserId, mockDefaultColumns)
+        useColumnSettings(mockProjectId, mockUserId, mockDefaultColumns),
       )
 
       act(() => {
@@ -171,11 +183,18 @@ describe('useColumnSettings Hook', () => {
       act(() => {
         result.current.updateColumns([
           ...mockDefaultColumns,
-          { id: 'data_sachverhalt', label: 'Sachverhalt', visible: true, type: 'data' },
+          {
+            id: 'data_sachverhalt',
+            label: 'Sachverhalt',
+            visible: true,
+            type: 'data',
+          },
         ])
       })
 
-      const col = result.current.columns.find((c: any) => c.id === 'data_sachverhalt')
+      const col = result.current.columns.find(
+        (c: any) => c.id === 'data_sachverhalt',
+      )
       // After a reset the stale hidden preference must NOT come back.
       expect(col).toMatchObject({ visible: true })
     })
@@ -192,11 +211,11 @@ describe('useColumnSettings Hook', () => {
 
       localStorageMock.setItem(
         `column-settings-${mockUserId}-${mockProjectId}`,
-        JSON.stringify(savedSettings)
+        JSON.stringify(savedSettings),
       )
 
       const { result } = renderHook(() =>
-        useColumnSettings(mockProjectId, mockUserId, mockDefaultColumns)
+        useColumnSettings(mockProjectId, mockUserId, mockDefaultColumns),
       )
 
       expect(result.current.columns[0].visible).toBe(false)
@@ -215,11 +234,11 @@ describe('useColumnSettings Hook', () => {
 
       localStorageMock.setItem(
         `column-settings-${mockUserId}-${mockProjectId}`,
-        JSON.stringify(savedSettings)
+        JSON.stringify(savedSettings),
       )
 
       const { result } = renderHook(() =>
-        useColumnSettings(mockProjectId, mockUserId, mockDefaultColumns)
+        useColumnSettings(mockProjectId, mockUserId, mockDefaultColumns),
       )
 
       expect(result.current.columns[0].id).toBe('status')
@@ -236,17 +255,17 @@ describe('useColumnSettings Hook', () => {
 
       localStorageMock.setItem(
         `column-settings-${mockUserId}-${mockProjectId}`,
-        JSON.stringify(savedSettings)
+        JSON.stringify(savedSettings),
       )
 
       const { result } = renderHook(() =>
-        useColumnSettings(mockProjectId, mockUserId, mockDefaultColumns)
+        useColumnSettings(mockProjectId, mockUserId, mockDefaultColumns),
       )
 
       expect(result.current.columns).toHaveLength(4)
       expect(result.current.columns.find((c) => c.id === 'age')).toBeDefined()
       expect(
-        result.current.columns.find((c) => c.id === 'status')
+        result.current.columns.find((c) => c.id === 'status'),
       ).toBeDefined()
     })
 
@@ -258,11 +277,11 @@ describe('useColumnSettings Hook', () => {
 
       localStorageMock.setItem(
         `column-settings-${mockUserId}-${mockProjectId}`,
-        JSON.stringify(savedSettings)
+        JSON.stringify(savedSettings),
       )
 
       const { result } = renderHook(() =>
-        useColumnSettings(mockProjectId, mockUserId, mockDefaultColumns)
+        useColumnSettings(mockProjectId, mockUserId, mockDefaultColumns),
       )
 
       expect(result.current.columns).toHaveLength(4)
@@ -273,7 +292,7 @@ describe('useColumnSettings Hook', () => {
 
     it('should save to localStorage when columns change', async () => {
       const { result } = renderHook(() =>
-        useColumnSettings(mockProjectId, mockUserId, mockDefaultColumns)
+        useColumnSettings(mockProjectId, mockUserId, mockDefaultColumns),
       )
 
       act(() => {
@@ -283,14 +302,14 @@ describe('useColumnSettings Hook', () => {
       await waitFor(() => {
         expect(localStorageMock.setItem).toHaveBeenCalledWith(
           `column-settings-${mockUserId}-${mockProjectId}`,
-          expect.any(String)
+          expect.any(String),
         )
       })
 
       const savedData = JSON.parse(
         localStorageMock.setItem.mock.calls[
           localStorageMock.setItem.mock.calls.length - 1
-        ][1]
+        ][1],
       )
       expect(savedData.find((c: any) => c.id === 'name').visible).toBe(false)
     })
@@ -301,11 +320,11 @@ describe('useColumnSettings Hook', () => {
       const userId1 = 'user-1'
 
       const { result: result1 } = renderHook(() =>
-        useColumnSettings(projectId1, userId1, mockDefaultColumns)
+        useColumnSettings(projectId1, userId1, mockDefaultColumns),
       )
 
       const { result: result2 } = renderHook(() =>
-        useColumnSettings(projectId2, userId1, mockDefaultColumns)
+        useColumnSettings(projectId2, userId1, mockDefaultColumns),
       )
 
       act(() => {
@@ -318,11 +337,11 @@ describe('useColumnSettings Hook', () => {
 
       expect(localStorageMock.setItem).toHaveBeenCalledWith(
         `column-settings-${userId1}-${projectId1}`,
-        expect.any(String)
+        expect.any(String),
       )
       expect(localStorageMock.setItem).toHaveBeenCalledWith(
         `column-settings-${userId1}-${projectId2}`,
-        expect.any(String)
+        expect.any(String),
       )
     })
   })
@@ -330,7 +349,7 @@ describe('useColumnSettings Hook', () => {
   describe('3. Loading States', () => {
     it('should not have explicit loading state', () => {
       const { result } = renderHook(() =>
-        useColumnSettings(mockProjectId, mockUserId, mockDefaultColumns)
+        useColumnSettings(mockProjectId, mockUserId, mockDefaultColumns),
       )
 
       expect(result.current).not.toHaveProperty('loading')
@@ -338,7 +357,7 @@ describe('useColumnSettings Hook', () => {
 
     it('should initialize synchronously', () => {
       const { result } = renderHook(() =>
-        useColumnSettings(mockProjectId, mockUserId, mockDefaultColumns)
+        useColumnSettings(mockProjectId, mockUserId, mockDefaultColumns),
       )
 
       expect(result.current.columns).toBeDefined()
@@ -351,7 +370,7 @@ describe('useColumnSettings Hook', () => {
       localStorageMock.getItem.mockReturnValueOnce('invalid json {{')
 
       const { result } = renderHook(() =>
-        useColumnSettings(mockProjectId, mockUserId, mockDefaultColumns)
+        useColumnSettings(mockProjectId, mockUserId, mockDefaultColumns),
       )
 
       // Should fall back to default columns
@@ -366,7 +385,7 @@ describe('useColumnSettings Hook', () => {
       })
 
       const { result } = renderHook(() =>
-        useColumnSettings(mockProjectId, mockUserId, mockDefaultColumns)
+        useColumnSettings(mockProjectId, mockUserId, mockDefaultColumns),
       )
 
       // Should fall back to default columns
@@ -377,7 +396,7 @@ describe('useColumnSettings Hook', () => {
 
     it('should handle localStorage.setItem throwing error', async () => {
       const { result } = renderHook(() =>
-        useColumnSettings(mockProjectId, mockUserId, mockDefaultColumns)
+        useColumnSettings(mockProjectId, mockUserId, mockDefaultColumns),
       )
 
       localStorageMock.setItem.mockImplementationOnce(() => {
@@ -401,11 +420,11 @@ describe('useColumnSettings Hook', () => {
 
       localStorageMock.setItem(
         `column-settings-${mockUserId}-${mockProjectId}`,
-        JSON.stringify(savedSettings)
+        JSON.stringify(savedSettings),
       )
 
       const { result } = renderHook(() =>
-        useColumnSettings(mockProjectId, mockUserId, mockDefaultColumns)
+        useColumnSettings(mockProjectId, mockUserId, mockDefaultColumns),
       )
 
       expect(result.current.columns).toHaveLength(4)
@@ -415,11 +434,11 @@ describe('useColumnSettings Hook', () => {
     it('should handle empty saved settings array', () => {
       localStorageMock.setItem(
         `column-settings-${mockUserId}-${mockProjectId}`,
-        JSON.stringify([])
+        JSON.stringify([]),
       )
 
       const { result } = renderHook(() =>
-        useColumnSettings(mockProjectId, mockUserId, mockDefaultColumns)
+        useColumnSettings(mockProjectId, mockUserId, mockDefaultColumns),
       )
 
       expect(result.current.columns).toHaveLength(4)
@@ -429,7 +448,7 @@ describe('useColumnSettings Hook', () => {
   describe('5. Data Transformation/Callbacks', () => {
     it('should toggle column visibility', () => {
       const { result } = renderHook(() =>
-        useColumnSettings(mockProjectId, mockUserId, mockDefaultColumns)
+        useColumnSettings(mockProjectId, mockUserId, mockDefaultColumns),
       )
 
       const initialVisibility = result.current.columns[0].visible
@@ -443,7 +462,7 @@ describe('useColumnSettings Hook', () => {
 
     it('should only toggle the specified column', () => {
       const { result } = renderHook(() =>
-        useColumnSettings(mockProjectId, mockUserId, mockDefaultColumns)
+        useColumnSettings(mockProjectId, mockUserId, mockDefaultColumns),
       )
 
       const initialStates = result.current.columns.map((c) => c.visible)
@@ -460,7 +479,7 @@ describe('useColumnSettings Hook', () => {
 
     it('should handle toggling non-existent column gracefully', () => {
       const { result } = renderHook(() =>
-        useColumnSettings(mockProjectId, mockUserId, mockDefaultColumns)
+        useColumnSettings(mockProjectId, mockUserId, mockDefaultColumns),
       )
 
       const initialColumns = [...result.current.columns]
@@ -480,11 +499,11 @@ describe('useColumnSettings Hook', () => {
 
       localStorageMock.setItem(
         `column-settings-${mockUserId}-${mockProjectId}`,
-        JSON.stringify(savedSettings)
+        JSON.stringify(savedSettings),
       )
 
       const { result } = renderHook(() =>
-        useColumnSettings(mockProjectId, mockUserId, mockDefaultColumns)
+        useColumnSettings(mockProjectId, mockUserId, mockDefaultColumns),
       )
 
       expect(result.current.columns[0].visible).toBe(false)
@@ -499,7 +518,7 @@ describe('useColumnSettings Hook', () => {
 
     it('should remove saved settings from localStorage on reset', () => {
       const { result } = renderHook(() =>
-        useColumnSettings(mockProjectId, mockUserId, mockDefaultColumns)
+        useColumnSettings(mockProjectId, mockUserId, mockDefaultColumns),
       )
 
       act(() => {
@@ -507,13 +526,13 @@ describe('useColumnSettings Hook', () => {
       })
 
       expect(localStorageMock.removeItem).toHaveBeenCalledWith(
-        `column-settings-${mockUserId}-${mockProjectId}`
+        `column-settings-${mockUserId}-${mockProjectId}`,
       )
     })
 
     it('should update columns with new column definitions', () => {
       const { result } = renderHook(() =>
-        useColumnSettings(mockProjectId, mockUserId, mockDefaultColumns)
+        useColumnSettings(mockProjectId, mockUserId, mockDefaultColumns),
       )
 
       const newColumns = [
@@ -532,7 +551,7 @@ describe('useColumnSettings Hook', () => {
 
     it('should preserve visibility settings when updating columns', () => {
       const { result } = renderHook(() =>
-        useColumnSettings(mockProjectId, mockUserId, mockDefaultColumns)
+        useColumnSettings(mockProjectId, mockUserId, mockDefaultColumns),
       )
 
       act(() => {
@@ -554,7 +573,7 @@ describe('useColumnSettings Hook', () => {
 
     it('should preserve order when updating columns', () => {
       const { result } = renderHook(() =>
-        useColumnSettings(mockProjectId, mockUserId, mockDefaultColumns)
+        useColumnSettings(mockProjectId, mockUserId, mockDefaultColumns),
       )
 
       act(() => {
@@ -577,7 +596,7 @@ describe('useColumnSettings Hook', () => {
 
     it('should add new columns at the end when updating', () => {
       const { result } = renderHook(() =>
-        useColumnSettings(mockProjectId, mockUserId, mockDefaultColumns)
+        useColumnSettings(mockProjectId, mockUserId, mockDefaultColumns),
       )
 
       const newColumns = [
@@ -592,13 +611,13 @@ describe('useColumnSettings Hook', () => {
       expect(result.current.columns).toHaveLength(5)
       expect(result.current.columns[4].id).toBe('newCol')
       expect(result.current.columns[4].order).toBeGreaterThan(
-        result.current.columns[3].order!
+        result.current.columns[3].order!,
       )
     })
 
     it('should reorder columns correctly', () => {
       const { result } = renderHook(() =>
-        useColumnSettings(mockProjectId, mockUserId, mockDefaultColumns)
+        useColumnSettings(mockProjectId, mockUserId, mockDefaultColumns),
       )
 
       act(() => {
@@ -612,7 +631,7 @@ describe('useColumnSettings Hook', () => {
 
     it('should update order property after reordering', () => {
       const { result } = renderHook(() =>
-        useColumnSettings(mockProjectId, mockUserId, mockDefaultColumns)
+        useColumnSettings(mockProjectId, mockUserId, mockDefaultColumns),
       )
 
       act(() => {
@@ -626,7 +645,7 @@ describe('useColumnSettings Hook', () => {
 
     it('should handle reordering to same position', () => {
       const { result } = renderHook(() =>
-        useColumnSettings(mockProjectId, mockUserId, mockDefaultColumns)
+        useColumnSettings(mockProjectId, mockUserId, mockDefaultColumns),
       )
 
       const initialColumns = [...result.current.columns]
@@ -636,13 +655,13 @@ describe('useColumnSettings Hook', () => {
       })
 
       expect(result.current.columns.map((c) => c.id)).toEqual(
-        initialColumns.map((c) => c.id)
+        initialColumns.map((c) => c.id),
       )
     })
 
     it('should maintain stable callback references', () => {
       const { result, rerender } = renderHook(() =>
-        useColumnSettings(mockProjectId, mockUserId, mockDefaultColumns)
+        useColumnSettings(mockProjectId, mockUserId, mockDefaultColumns),
       )
 
       const callbacks = {
@@ -664,7 +683,7 @@ describe('useColumnSettings Hook', () => {
   describe('6. Refetch/Invalidation', () => {
     it('should not have refetch mechanism as it uses localStorage', () => {
       const { result } = renderHook(() =>
-        useColumnSettings(mockProjectId, mockUserId, mockDefaultColumns)
+        useColumnSettings(mockProjectId, mockUserId, mockDefaultColumns),
       )
 
       expect(result.current).not.toHaveProperty('refetch')
@@ -672,7 +691,7 @@ describe('useColumnSettings Hook', () => {
 
     it('should sync changes to localStorage automatically', async () => {
       const { result } = renderHook(() =>
-        useColumnSettings(mockProjectId, mockUserId, mockDefaultColumns)
+        useColumnSettings(mockProjectId, mockUserId, mockDefaultColumns),
       )
 
       act(() => {
@@ -688,7 +707,7 @@ describe('useColumnSettings Hook', () => {
   describe('7. Edge Cases', () => {
     it('should handle empty default columns array', () => {
       const { result } = renderHook(() =>
-        useColumnSettings(mockProjectId, mockUserId, [])
+        useColumnSettings(mockProjectId, mockUserId, []),
       )
 
       expect(result.current.columns).toEqual([])
@@ -702,7 +721,7 @@ describe('useColumnSettings Hook', () => {
       }))
 
       const { result } = renderHook(() =>
-        useColumnSettings(mockProjectId, mockUserId, largeColumns)
+        useColumnSettings(mockProjectId, mockUserId, largeColumns),
       )
 
       expect(result.current.columns).toHaveLength(1000)
@@ -716,7 +735,7 @@ describe('useColumnSettings Hook', () => {
       ]
 
       const { result } = renderHook(() =>
-        useColumnSettings(mockProjectId, mockUserId, specialColumns)
+        useColumnSettings(mockProjectId, mockUserId, specialColumns),
       )
 
       act(() => {
@@ -728,7 +747,7 @@ describe('useColumnSettings Hook', () => {
 
     it('should handle rapid consecutive state changes', () => {
       const { result } = renderHook(() =>
-        useColumnSettings(mockProjectId, mockUserId, mockDefaultColumns)
+        useColumnSettings(mockProjectId, mockUserId, mockDefaultColumns),
       )
 
       act(() => {
@@ -750,7 +769,7 @@ describe('useColumnSettings Hook', () => {
       ] as any
 
       const { result } = renderHook(() =>
-        useColumnSettings(mockProjectId, mockUserId, columnsWithoutVisible)
+        useColumnSettings(mockProjectId, mockUserId, columnsWithoutVisible),
       )
 
       expect(result.current.columns).toHaveLength(2)
@@ -758,7 +777,7 @@ describe('useColumnSettings Hook', () => {
 
     it('should handle reordering beyond array bounds', () => {
       const { result } = renderHook(() =>
-        useColumnSettings(mockProjectId, mockUserId, mockDefaultColumns)
+        useColumnSettings(mockProjectId, mockUserId, mockDefaultColumns),
       )
 
       const initialColumns = [...result.current.columns]
@@ -772,7 +791,7 @@ describe('useColumnSettings Hook', () => {
 
     it('should handle reordering with negative indices', () => {
       const { result } = renderHook(() =>
-        useColumnSettings(mockProjectId, mockUserId, mockDefaultColumns)
+        useColumnSettings(mockProjectId, mockUserId, mockDefaultColumns),
       )
 
       act(() => {
@@ -792,7 +811,7 @@ describe('useColumnSettings Hook', () => {
       ]
 
       const { result } = renderHook(() =>
-        useColumnSettings(mockProjectId, mockUserId, columnsWithDuplicates)
+        useColumnSettings(mockProjectId, mockUserId, columnsWithDuplicates),
       )
 
       expect(result.current.columns).toHaveLength(3)
@@ -800,13 +819,13 @@ describe('useColumnSettings Hook', () => {
 
     it('should handle project ID changes', () => {
       const { unmount } = renderHook(() =>
-        useColumnSettings('project-1', mockUserId, mockDefaultColumns)
+        useColumnSettings('project-1', mockUserId, mockDefaultColumns),
       )
 
       unmount()
 
       const { result } = renderHook(() =>
-        useColumnSettings('project-2', mockUserId, mockDefaultColumns)
+        useColumnSettings('project-2', mockUserId, mockDefaultColumns),
       )
 
       // New project ID should load fresh state
@@ -815,13 +834,13 @@ describe('useColumnSettings Hook', () => {
 
     it('should handle user ID changes', () => {
       const { unmount } = renderHook(() =>
-        useColumnSettings(mockProjectId, 'user-1', mockDefaultColumns)
+        useColumnSettings(mockProjectId, 'user-1', mockDefaultColumns),
       )
 
       unmount()
 
       const { result } = renderHook(() =>
-        useColumnSettings(mockProjectId, 'user-2', mockDefaultColumns)
+        useColumnSettings(mockProjectId, 'user-2', mockDefaultColumns),
       )
 
       // New user ID should load fresh state
@@ -830,7 +849,7 @@ describe('useColumnSettings Hook', () => {
 
     it('should not save when userId is undefined', async () => {
       const { result } = renderHook(() =>
-        useColumnSettings(mockProjectId, undefined, mockDefaultColumns)
+        useColumnSettings(mockProjectId, undefined, mockDefaultColumns),
       )
 
       const setItemCallsBefore = localStorageMock.setItem.mock.calls.length
@@ -842,13 +861,13 @@ describe('useColumnSettings Hook', () => {
       await new Promise((resolve) => setTimeout(resolve, 100))
 
       expect(localStorageMock.setItem.mock.calls.length).toBe(
-        setItemCallsBefore
+        setItemCallsBefore,
       )
     })
 
     it('should not remove from localStorage on reset when userId is undefined', () => {
       const { result } = renderHook(() =>
-        useColumnSettings(mockProjectId, undefined, mockDefaultColumns)
+        useColumnSettings(mockProjectId, undefined, mockDefaultColumns),
       )
 
       act(() => {
@@ -862,7 +881,7 @@ describe('useColumnSettings Hook', () => {
   describe('8. API Integration/Cleanup', () => {
     it('should clean up properly on unmount', () => {
       const { unmount } = renderHook(() =>
-        useColumnSettings(mockProjectId, mockUserId, mockDefaultColumns)
+        useColumnSettings(mockProjectId, mockUserId, mockDefaultColumns),
       )
 
       unmount()
@@ -873,8 +892,8 @@ describe('useColumnSettings Hook', () => {
     it('should not have memory leaks with multiple instances', () => {
       const instances = Array.from({ length: 10 }, () =>
         renderHook(() =>
-          useColumnSettings(mockProjectId, mockUserId, mockDefaultColumns)
-        )
+          useColumnSettings(mockProjectId, mockUserId, mockDefaultColumns),
+        ),
       )
 
       instances.forEach((instance) => instance.unmount())
@@ -884,7 +903,7 @@ describe('useColumnSettings Hook', () => {
 
     it('should handle localStorage quota exceeded', async () => {
       const { result } = renderHook(() =>
-        useColumnSettings(mockProjectId, mockUserId, mockDefaultColumns)
+        useColumnSettings(mockProjectId, mockUserId, mockDefaultColumns),
       )
 
       const quotaError = new Error('QuotaExceededError')
@@ -904,7 +923,7 @@ describe('useColumnSettings Hook', () => {
 
     it('should persist changes across hook instances', () => {
       const { result: instance1 } = renderHook(() =>
-        useColumnSettings(mockProjectId, mockUserId, mockDefaultColumns)
+        useColumnSettings(mockProjectId, mockUserId, mockDefaultColumns),
       )
 
       act(() => {
@@ -913,7 +932,7 @@ describe('useColumnSettings Hook', () => {
       })
 
       const { result: instance2 } = renderHook(() =>
-        useColumnSettings(mockProjectId, mockUserId, mockDefaultColumns)
+        useColumnSettings(mockProjectId, mockUserId, mockDefaultColumns),
       )
 
       expect(instance2.current.columns[0].visible).toBe(false)
@@ -931,7 +950,7 @@ describe('useTablePreferences Hook', () => {
   describe('1. Basic Hook Behavior', () => {
     it('should return expected interface', () => {
       const { result } = renderHook(() =>
-        useTablePreferences(mockProjectId, mockUserId)
+        useTablePreferences(mockProjectId, mockUserId),
       )
 
       expect(result.current).toHaveProperty('preferences')
@@ -943,7 +962,7 @@ describe('useTablePreferences Hook', () => {
 
     it('should initialize with default preferences', () => {
       const { result } = renderHook(() =>
-        useTablePreferences(mockProjectId, mockUserId)
+        useTablePreferences(mockProjectId, mockUserId),
       )
 
       expect(result.current.preferences).toEqual({
@@ -956,7 +975,7 @@ describe('useTablePreferences Hook', () => {
 
     it('should handle undefined userId', () => {
       const { result } = renderHook(() =>
-        useTablePreferences(mockProjectId, undefined)
+        useTablePreferences(mockProjectId, undefined),
       )
 
       expect(result.current.preferences).toBeDefined()
@@ -977,11 +996,11 @@ describe('useTablePreferences Hook', () => {
 
       localStorageMock.setItem(
         `table-preferences-${mockUserId}-${mockProjectId}`,
-        JSON.stringify(savedPreferences)
+        JSON.stringify(savedPreferences),
       )
 
       const { result } = renderHook(() =>
-        useTablePreferences(mockProjectId, mockUserId)
+        useTablePreferences(mockProjectId, mockUserId),
       )
 
       expect(result.current.preferences).toEqual(savedPreferences)
@@ -989,7 +1008,7 @@ describe('useTablePreferences Hook', () => {
 
     it('should save to localStorage when preferences change', async () => {
       const { result } = renderHook(() =>
-        useTablePreferences(mockProjectId, mockUserId)
+        useTablePreferences(mockProjectId, mockUserId),
       )
 
       act(() => {
@@ -999,18 +1018,18 @@ describe('useTablePreferences Hook', () => {
       await waitFor(() => {
         expect(localStorageMock.setItem).toHaveBeenCalledWith(
           `table-preferences-${mockUserId}-${mockProjectId}`,
-          expect.any(String)
+          expect.any(String),
         )
       })
     })
 
     it('should use unique storage key per user/project combination', () => {
       const { result: result1 } = renderHook(() =>
-        useTablePreferences('project-1', 'user-1')
+        useTablePreferences('project-1', 'user-1'),
       )
 
       const { result: result2 } = renderHook(() =>
-        useTablePreferences('project-2', 'user-1')
+        useTablePreferences('project-2', 'user-1'),
       )
 
       act(() => {
@@ -1023,11 +1042,11 @@ describe('useTablePreferences Hook', () => {
 
       expect(localStorageMock.setItem).toHaveBeenCalledWith(
         'table-preferences-user-1-project-1',
-        expect.stringContaining('name')
+        expect.stringContaining('name'),
       )
       expect(localStorageMock.setItem).toHaveBeenCalledWith(
         'table-preferences-user-1-project-2',
-        expect.stringContaining('email')
+        expect.stringContaining('email'),
       )
     })
   })
@@ -1035,7 +1054,7 @@ describe('useTablePreferences Hook', () => {
   describe('3. Loading States', () => {
     it('should not have explicit loading state', () => {
       const { result } = renderHook(() =>
-        useTablePreferences(mockProjectId, mockUserId)
+        useTablePreferences(mockProjectId, mockUserId),
       )
 
       expect(result.current).not.toHaveProperty('loading')
@@ -1043,7 +1062,7 @@ describe('useTablePreferences Hook', () => {
 
     it('should initialize synchronously', () => {
       const { result } = renderHook(() =>
-        useTablePreferences(mockProjectId, mockUserId)
+        useTablePreferences(mockProjectId, mockUserId),
       )
 
       expect(result.current.preferences).toBeDefined()
@@ -1055,7 +1074,7 @@ describe('useTablePreferences Hook', () => {
       localStorageMock.getItem.mockReturnValueOnce('invalid json {{')
 
       const { result } = renderHook(() =>
-        useTablePreferences(mockProjectId, mockUserId)
+        useTablePreferences(mockProjectId, mockUserId),
       )
 
       // Should fall back to default preferences
@@ -1073,7 +1092,7 @@ describe('useTablePreferences Hook', () => {
       })
 
       const { result } = renderHook(() =>
-        useTablePreferences(mockProjectId, mockUserId)
+        useTablePreferences(mockProjectId, mockUserId),
       )
 
       // Should fall back to default preferences
@@ -1083,7 +1102,7 @@ describe('useTablePreferences Hook', () => {
 
     it('should handle localStorage.setItem throwing error', async () => {
       const { result } = renderHook(() =>
-        useTablePreferences(mockProjectId, mockUserId)
+        useTablePreferences(mockProjectId, mockUserId),
       )
 
       localStorageMock.setItem.mockImplementationOnce(() => {
@@ -1103,7 +1122,7 @@ describe('useTablePreferences Hook', () => {
   describe('5. Data Transformation/Callbacks', () => {
     it('should update individual preference', () => {
       const { result } = renderHook(() =>
-        useTablePreferences(mockProjectId, mockUserId)
+        useTablePreferences(mockProjectId, mockUserId),
       )
 
       act(() => {
@@ -1115,7 +1134,7 @@ describe('useTablePreferences Hook', () => {
 
     it('should update sortOrder preference', () => {
       const { result } = renderHook(() =>
-        useTablePreferences(mockProjectId, mockUserId)
+        useTablePreferences(mockProjectId, mockUserId),
       )
 
       act(() => {
@@ -1127,7 +1146,7 @@ describe('useTablePreferences Hook', () => {
 
     it('should update filterStatus preference', () => {
       const { result } = renderHook(() =>
-        useTablePreferences(mockProjectId, mockUserId)
+        useTablePreferences(mockProjectId, mockUserId),
       )
 
       act(() => {
@@ -1139,7 +1158,7 @@ describe('useTablePreferences Hook', () => {
 
     it('should update showSearch preference', () => {
       const { result } = renderHook(() =>
-        useTablePreferences(mockProjectId, mockUserId)
+        useTablePreferences(mockProjectId, mockUserId),
       )
 
       act(() => {
@@ -1151,7 +1170,7 @@ describe('useTablePreferences Hook', () => {
 
     it('should preserve other preferences when updating one', () => {
       const { result } = renderHook(() =>
-        useTablePreferences(mockProjectId, mockUserId)
+        useTablePreferences(mockProjectId, mockUserId),
       )
 
       act(() => {
@@ -1165,7 +1184,7 @@ describe('useTablePreferences Hook', () => {
 
     it('should reset preferences to defaults', () => {
       const { result } = renderHook(() =>
-        useTablePreferences(mockProjectId, mockUserId)
+        useTablePreferences(mockProjectId, mockUserId),
       )
 
       act(() => {
@@ -1188,7 +1207,7 @@ describe('useTablePreferences Hook', () => {
 
     it('should remove saved preferences from localStorage on reset', () => {
       const { result } = renderHook(() =>
-        useTablePreferences(mockProjectId, mockUserId)
+        useTablePreferences(mockProjectId, mockUserId),
       )
 
       act(() => {
@@ -1196,13 +1215,13 @@ describe('useTablePreferences Hook', () => {
       })
 
       expect(localStorageMock.removeItem).toHaveBeenCalledWith(
-        `table-preferences-${mockUserId}-${mockProjectId}`
+        `table-preferences-${mockUserId}-${mockProjectId}`,
       )
     })
 
     it('should maintain stable callback references', () => {
       const { result, rerender } = renderHook(() =>
-        useTablePreferences(mockProjectId, mockUserId)
+        useTablePreferences(mockProjectId, mockUserId),
       )
 
       const callbacks = {
@@ -1220,7 +1239,7 @@ describe('useTablePreferences Hook', () => {
   describe('6. Refetch/Invalidation', () => {
     it('should not have refetch mechanism', () => {
       const { result } = renderHook(() =>
-        useTablePreferences(mockProjectId, mockUserId)
+        useTablePreferences(mockProjectId, mockUserId),
       )
 
       expect(result.current).not.toHaveProperty('refetch')
@@ -1228,7 +1247,7 @@ describe('useTablePreferences Hook', () => {
 
     it('should sync changes to localStorage automatically', async () => {
       const { result } = renderHook(() =>
-        useTablePreferences(mockProjectId, mockUserId)
+        useTablePreferences(mockProjectId, mockUserId),
       )
 
       act(() => {
@@ -1244,7 +1263,7 @@ describe('useTablePreferences Hook', () => {
   describe('7. Edge Cases', () => {
     it('should handle rapid consecutive updates', () => {
       const { result } = renderHook(() =>
-        useTablePreferences(mockProjectId, mockUserId)
+        useTablePreferences(mockProjectId, mockUserId),
       )
 
       act(() => {
@@ -1264,7 +1283,7 @@ describe('useTablePreferences Hook', () => {
 
     it('should handle updating with same value', () => {
       const { result } = renderHook(() =>
-        useTablePreferences(mockProjectId, mockUserId)
+        useTablePreferences(mockProjectId, mockUserId),
       )
 
       const setItemCallsBefore = localStorageMock.setItem.mock.calls.length
@@ -1275,13 +1294,13 @@ describe('useTablePreferences Hook', () => {
 
       expect(result.current.preferences.sortBy).toBe('id')
       expect(localStorageMock.setItem.mock.calls.length).toBeGreaterThan(
-        setItemCallsBefore
+        setItemCallsBefore,
       )
     })
 
     it('should handle custom preference keys', () => {
       const { result } = renderHook(() =>
-        useTablePreferences(mockProjectId, mockUserId)
+        useTablePreferences(mockProjectId, mockUserId),
       )
 
       act(() => {
@@ -1293,13 +1312,13 @@ describe('useTablePreferences Hook', () => {
 
     it('should handle project ID changes', () => {
       const { unmount } = renderHook(() =>
-        useTablePreferences('project-1', mockUserId)
+        useTablePreferences('project-1', mockUserId),
       )
 
       unmount()
 
       const { result } = renderHook(() =>
-        useTablePreferences('project-2', mockUserId)
+        useTablePreferences('project-2', mockUserId),
       )
 
       // New project ID should load fresh state
@@ -1308,13 +1327,13 @@ describe('useTablePreferences Hook', () => {
 
     it('should handle user ID changes', () => {
       const { unmount } = renderHook(() =>
-        useTablePreferences(mockProjectId, 'user-1')
+        useTablePreferences(mockProjectId, 'user-1'),
       )
 
       unmount()
 
       const { result } = renderHook(() =>
-        useTablePreferences(mockProjectId, 'user-2')
+        useTablePreferences(mockProjectId, 'user-2'),
       )
 
       // New user ID should load fresh state
@@ -1323,7 +1342,7 @@ describe('useTablePreferences Hook', () => {
 
     it('should not save when userId is undefined', async () => {
       const { result } = renderHook(() =>
-        useTablePreferences(mockProjectId, undefined)
+        useTablePreferences(mockProjectId, undefined),
       )
 
       const setItemCallsBefore = localStorageMock.setItem.mock.calls.length
@@ -1335,13 +1354,13 @@ describe('useTablePreferences Hook', () => {
       await new Promise((resolve) => setTimeout(resolve, 100))
 
       expect(localStorageMock.setItem.mock.calls.length).toBe(
-        setItemCallsBefore
+        setItemCallsBefore,
       )
     })
 
     it('should not remove from localStorage on reset when userId is undefined', () => {
       const { result } = renderHook(() =>
-        useTablePreferences(mockProjectId, undefined)
+        useTablePreferences(mockProjectId, undefined),
       )
 
       act(() => {
@@ -1359,11 +1378,11 @@ describe('useTablePreferences Hook', () => {
 
       localStorageMock.setItem(
         `table-preferences-${mockUserId}-${mockProjectId}`,
-        JSON.stringify(partialPreferences)
+        JSON.stringify(partialPreferences),
       )
 
       const { result } = renderHook(() =>
-        useTablePreferences(mockProjectId, mockUserId)
+        useTablePreferences(mockProjectId, mockUserId),
       )
 
       expect(result.current.preferences.sortBy).toBe('name')
@@ -1374,7 +1393,7 @@ describe('useTablePreferences Hook', () => {
   describe('8. API Integration/Cleanup', () => {
     it('should clean up properly on unmount', () => {
       const { unmount } = renderHook(() =>
-        useTablePreferences(mockProjectId, mockUserId)
+        useTablePreferences(mockProjectId, mockUserId),
       )
 
       unmount()
@@ -1384,7 +1403,7 @@ describe('useTablePreferences Hook', () => {
 
     it('should not have memory leaks with multiple instances', () => {
       const instances = Array.from({ length: 10 }, () =>
-        renderHook(() => useTablePreferences(mockProjectId, mockUserId))
+        renderHook(() => useTablePreferences(mockProjectId, mockUserId)),
       )
 
       instances.forEach((instance) => instance.unmount())
@@ -1394,7 +1413,7 @@ describe('useTablePreferences Hook', () => {
 
     it('should handle localStorage quota exceeded', async () => {
       const { result } = renderHook(() =>
-        useTablePreferences(mockProjectId, mockUserId)
+        useTablePreferences(mockProjectId, mockUserId),
       )
 
       const quotaError = new Error('QuotaExceededError')
@@ -1414,7 +1433,7 @@ describe('useTablePreferences Hook', () => {
 
     it('should persist changes across hook instances', () => {
       const { result: instance1 } = renderHook(() =>
-        useTablePreferences(mockProjectId, mockUserId)
+        useTablePreferences(mockProjectId, mockUserId),
       )
 
       act(() => {
@@ -1423,7 +1442,7 @@ describe('useTablePreferences Hook', () => {
       })
 
       const { result: instance2 } = renderHook(() =>
-        useTablePreferences(mockProjectId, mockUserId)
+        useTablePreferences(mockProjectId, mockUserId),
       )
 
       expect(instance2.current.preferences.sortBy).toBe('name')

@@ -29,7 +29,7 @@ const AllProviders = ({ children }: { children: React.ReactNode }) => {
 
 export const renderWithProviders = (
   ui: React.ReactElement,
-  options?: RenderOptions
+  options?: RenderOptions,
 ) => render(ui, { wrapper: AllProviders, ...options })
 
 // Mock implementations for common contexts

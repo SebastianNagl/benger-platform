@@ -6,11 +6,11 @@
 
 import {
   componentRegistry,
-  getComponent,
-  isTagSupported,
-  getSupportedTags,
-  registerComponent,
   createComponentInstance,
+  getComponent,
+  getSupportedTags,
+  isTagSupported,
+  registerComponent,
 } from '../registry'
 
 describe('registry - exported utility functions', () => {
@@ -132,23 +132,28 @@ describe('registry - exported utility functions', () => {
 
   describe('createComponentInstance', () => {
     it('returns null for unknown component type', () => {
-      const config = { type: 'UnknownType', name: 'test', attrs: {}, children: [] }
-      const result = createComponentInstance(
-        config,
-        {},
-        jest.fn(),
-        jest.fn()
-      )
+      const config = {
+        type: 'UnknownType',
+        name: 'test',
+        attrs: {},
+        children: [],
+      }
+      const result = createComponentInstance(config, {}, jest.fn(), jest.fn())
       expect(result).toBeNull()
     })
 
     it('creates element for known component type', () => {
-      const config = { type: 'Text', name: 'test', attrs: { value: '$text' }, children: [] }
+      const config = {
+        type: 'Text',
+        name: 'test',
+        attrs: { value: '$text' },
+        children: [],
+      }
       const result = createComponentInstance(
         config,
         { text: 'Hello' },
         jest.fn(),
-        jest.fn()
+        jest.fn(),
       )
       expect(result).not.toBeNull()
     })

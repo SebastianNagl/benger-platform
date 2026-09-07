@@ -51,13 +51,15 @@ jest.mock('@/contexts/I18nContext', () => {
   const translations: Record<string, string> = {
     'evaluation.modelSelector.loading': 'Loading models...',
     'evaluation.modelSelector.failedToLoad': 'Failed to load models',
-    'evaluation.modelSelector.noModelsAvailable': 'No models available. Configure API keys in your profile settings.',
+    'evaluation.modelSelector.noModelsAvailable':
+      'No models available. Configure API keys in your profile settings.',
     'evaluation.modelSelector.modelSelection': 'Model Selection',
     'evaluation.modelSelector.selectedCount': '{selected} of {max} selected',
     'evaluation.modelSelector.searchPlaceholder': 'Search models...',
     'evaluation.modelSelector.selectAll': 'Select All',
     'evaluation.modelSelector.clear': 'Clear',
-    'evaluation.modelSelector.maxSelectionWarning': 'Maximum {max} models can be selected',
+    'evaluation.modelSelector.maxSelectionWarning':
+      'Maximum {max} models can be selected',
     'evaluation.modelSelector.noSearchResults': 'No models match your search',
     'evaluation.modelSelector.noModels': 'No models available',
   }
@@ -95,7 +97,10 @@ describe('ModelSelector', () => {
   describe('Loading State', () => {
     it('shows loading state while fetching models', async () => {
       mockGetAvailableModels.mockImplementation(
-        () => new Promise((resolve) => setTimeout(() => resolve(mockAvailableModels), 100))
+        () =>
+          new Promise((resolve) =>
+            setTimeout(() => resolve(mockAvailableModels), 100),
+          ),
       )
 
       render(<ModelSelector {...defaultProps} />)
@@ -127,9 +132,7 @@ describe('ModelSelector', () => {
       render(<ModelSelector {...defaultProps} />)
 
       await waitFor(() => {
-        expect(
-          screen.getByText(/No models available/)
-        ).toBeInTheDocument()
+        expect(screen.getByText(/No models available/)).toBeInTheDocument()
       })
     })
   })
@@ -258,7 +261,7 @@ describe('ModelSelector', () => {
           {...defaultProps}
           selectedModels={['gpt-5', 'claude-opus-4-6']}
           maxSelections={2}
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -318,7 +321,9 @@ describe('ModelSelector', () => {
       const searchInput = screen.getByPlaceholderText('Search models...')
       await user.type(searchInput, 'nonexistent')
 
-      expect(screen.getByText('No models match your search')).toBeInTheDocument()
+      expect(
+        screen.getByText('No models match your search'),
+      ).toBeInTheDocument()
     })
   })
 
@@ -340,14 +345,20 @@ describe('ModelSelector', () => {
 
       await user.click(screen.getByText('Select All'))
 
-      expect(mockOnSelectionChange).toHaveBeenCalledWith(['gpt-5', 'claude-opus-4-6'])
+      expect(mockOnSelectionChange).toHaveBeenCalledWith([
+        'gpt-5',
+        'claude-opus-4-6',
+      ])
     })
 
     it('clears all selections', async () => {
       const user = userEvent.setup()
 
       render(
-        <ModelSelector {...defaultProps} selectedModels={['gpt-5', 'claude-opus-4-6']} />
+        <ModelSelector
+          {...defaultProps}
+          selectedModels={['gpt-5', 'claude-opus-4-6']}
+        />,
       )
 
       await waitFor(() => {

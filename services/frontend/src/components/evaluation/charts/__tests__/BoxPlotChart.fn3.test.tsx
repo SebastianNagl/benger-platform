@@ -3,8 +3,8 @@
  * Targets: CustomTooltip, BoxPlotShape internal render functions, calculateBoxPlotStats
  */
 
-import React from 'react'
 import { render, screen } from '@testing-library/react'
+import React from 'react'
 
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
@@ -17,8 +17,14 @@ jest.mock('@/contexts/I18nContext', () => ({
 
 // Mock recharts - simple passthrough that renders children
 jest.mock('recharts', () => {
-  const MockResponsiveContainer = ({ children }: any) => <div data-testid="chart-container">{typeof children === 'function' ? children(100, 100) : children}</div>
-  const MockComposedChart = ({ children }: any) => <div data-testid="composed-chart">{children}</div>
+  const MockResponsiveContainer = ({ children }: any) => (
+    <div data-testid="chart-container">
+      {typeof children === 'function' ? children(100, 100) : children}
+    </div>
+  )
+  const MockComposedChart = ({ children }: any) => (
+    <div data-testid="composed-chart">{children}</div>
+  )
   const MockBar = () => <div data-testid="bar" />
   const MockCartesianGrid = () => null
   const MockCell = () => null
@@ -41,8 +47,26 @@ import { BoxPlotChart, calculateBoxPlotStats } from '../BoxPlotChart'
 
 describe('BoxPlotChart fn3', () => {
   const sampleData = [
-    { name: 'Model A', min: 0.1, q1: 0.3, median: 0.5, q3: 0.7, max: 0.9, mean: 0.5, count: 100 },
-    { name: 'Model B', min: 0.2, q1: 0.4, median: 0.6, q3: 0.8, max: 1.0, mean: 0.6, count: 50 },
+    {
+      name: 'Model A',
+      min: 0.1,
+      q1: 0.3,
+      median: 0.5,
+      q3: 0.7,
+      max: 0.9,
+      mean: 0.5,
+      count: 100,
+    },
+    {
+      name: 'Model B',
+      min: 0.2,
+      q1: 0.4,
+      median: 0.6,
+      q3: 0.8,
+      max: 1.0,
+      mean: 0.6,
+      count: 50,
+    },
   ]
 
   it('renders box plot chart with data', () => {
@@ -63,7 +87,7 @@ describe('BoxPlotChart fn3', () => {
         yAxisLabel="Score"
         showMean={true}
         showOutliers={true}
-      />
+      />,
     )
     expect(screen.getByTestId('chart-container')).toBeInTheDocument()
   })

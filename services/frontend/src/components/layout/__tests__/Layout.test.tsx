@@ -5,8 +5,6 @@ import { render, screen, waitFor } from '@testing-library/react'
 import { Layout } from '../Layout'
 import type { Section } from '../SectionProvider'
 
- 
-
 // Mock framer-motion
 jest.mock('framer-motion', () => ({
   motion: {
@@ -180,10 +178,10 @@ describe('Layout', () => {
       const main = screen.getByRole('main')
 
       const headerIndex = Array.from(container.querySelectorAll('*')).indexOf(
-        header
+        header,
       )
       const mainIndex = Array.from(container.querySelectorAll('*')).indexOf(
-        main
+        main,
       )
 
       expect(headerIndex).toBeLessThan(mainIndex)
@@ -196,10 +194,10 @@ describe('Layout', () => {
       const main = screen.getByRole('main')
 
       const footerIndex = Array.from(container.querySelectorAll('*')).indexOf(
-        footer
+        footer,
       )
       const mainIndex = Array.from(container.querySelectorAll('*')).indexOf(
-        main
+        main,
       )
 
       expect(footerIndex).toBeGreaterThan(mainIndex)
@@ -227,7 +225,7 @@ describe('Layout', () => {
         'lg:fixed',
         'lg:inset-0',
         'lg:z-30',
-        'lg:flex'
+        'lg:flex',
       )
     })
 
@@ -240,7 +238,7 @@ describe('Layout', () => {
 
       const mainContentArea = container.querySelector('.min-w-0.flex-1')
       const innerDiv = mainContentArea?.querySelector(
-        '.relative.flex.h-full.flex-col'
+        '.relative.flex.h-full.flex-col',
       )
 
       expect(innerDiv).toHaveClass('lg:ml-64', 'xl:ml-72', '2xl:ml-80')
@@ -255,7 +253,7 @@ describe('Layout', () => {
 
       const mainContentArea = container.querySelector('.min-w-0.flex-1')
       const innerDiv = mainContentArea?.querySelector(
-        '.relative.flex.h-full.flex-col'
+        '.relative.flex.h-full.flex-col',
       )
 
       expect(innerDiv).not.toHaveClass('lg:ml-64')
@@ -278,7 +276,7 @@ describe('Layout', () => {
         'lg:pointer-events-auto',
         'lg:w-64',
         'xl:w-72',
-        '2xl:w-80'
+        '2xl:w-80',
       )
     })
 
@@ -298,7 +296,7 @@ describe('Layout', () => {
         'lg:border-zinc-900/10',
         'lg:bg-white',
         'lg:dark:border-white/10',
-        'lg:dark:bg-zinc-900'
+        'lg:dark:bg-zinc-900',
       )
     })
 
@@ -313,7 +311,7 @@ describe('Layout', () => {
       // Before hydration, sidebar should be shown to prevent layout shift
       const mainContentArea = container.querySelector('.min-w-0.flex-1')
       const innerDiv = mainContentArea?.querySelector(
-        '.relative.flex.h-full.flex-col'
+        '.relative.flex.h-full.flex-col',
       )
 
       expect(innerDiv).toHaveClass('lg:ml-64', 'xl:ml-72', '2xl:ml-80')
@@ -329,7 +327,7 @@ describe('Layout', () => {
 
       const mainContentArea = container.querySelector('.min-w-0.flex-1')
       const innerDiv = mainContentArea?.querySelector(
-        '.relative.flex.h-full.flex-col'
+        '.relative.flex.h-full.flex-col',
       )
 
       expect(innerDiv).not.toHaveClass('lg:ml-64')
@@ -362,7 +360,7 @@ describe('Layout', () => {
         'flex',
         'h-full',
         'flex-col',
-        'pt-14'
+        'pt-14',
       )
     })
 
@@ -459,7 +457,7 @@ describe('Layout', () => {
 
       const provider = screen.getByTestId('section-provider')
       const sectionsData = JSON.parse(
-        provider.getAttribute('data-sections') || '[]'
+        provider.getAttribute('data-sections') || '[]',
       )
 
       expect(sectionsData).toEqual([{ id: 'section2', title: 'Section 2' }])
@@ -472,7 +470,7 @@ describe('Layout', () => {
 
       const provider = screen.getByTestId('section-provider')
       const sectionsData = JSON.parse(
-        provider.getAttribute('data-sections') || '[]'
+        provider.getAttribute('data-sections') || '[]',
       )
 
       expect(sectionsData).toEqual([])
@@ -485,7 +483,7 @@ describe('Layout', () => {
 
       const provider = screen.getByTestId('section-provider')
       const sectionsData = JSON.parse(
-        provider.getAttribute('data-sections') || '[]'
+        provider.getAttribute('data-sections') || '[]',
       )
 
       // Null pathname defaults to '/' in the component
@@ -499,7 +497,7 @@ describe('Layout', () => {
 
       const provider = screen.getByTestId('section-provider')
       const sectionsData = JSON.parse(
-        provider.getAttribute('data-sections') || '[]'
+        provider.getAttribute('data-sections') || '[]',
       )
 
       expect(sectionsData).toEqual([{ id: 'section1', title: 'Section 1' }])
@@ -512,7 +510,7 @@ describe('Layout', () => {
 
       let provider = screen.getByTestId('section-provider')
       let sectionsData = JSON.parse(
-        provider.getAttribute('data-sections') || '[]'
+        provider.getAttribute('data-sections') || '[]',
       )
       expect(sectionsData).toEqual([{ id: 'section1', title: 'Section 1' }])
 
@@ -547,7 +545,7 @@ describe('Layout', () => {
 
       const allElements = Array.from(container.querySelectorAll('*'))
       const headerIndex = allElements.findIndex(
-        (el) => el.getAttribute('data-testid') === 'header'
+        (el) => el.getAttribute('data-testid') === 'header',
       )
       const mainIndex = allElements.findIndex((el) => el.tagName === 'MAIN')
 
@@ -623,7 +621,7 @@ describe('Layout', () => {
 
       const provider = screen.getByTestId('section-provider')
       const sectionsData = JSON.parse(
-        provider.getAttribute('data-sections') || '[]'
+        provider.getAttribute('data-sections') || '[]',
       )
 
       expect(sectionsData).toEqual([])
@@ -751,7 +749,7 @@ describe('Layout', () => {
       const sidebarInner = container.querySelector('.lg\\:dark\\:bg-zinc-900')
       expect(sidebarInner).toHaveClass(
         'lg:dark:bg-zinc-900',
-        'lg:dark:border-white/10'
+        'lg:dark:border-white/10',
       )
     })
 

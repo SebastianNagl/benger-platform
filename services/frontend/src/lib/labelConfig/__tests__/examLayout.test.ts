@@ -13,7 +13,7 @@ import type { ParsedComponent } from '../parser'
 
 const node = (
   type: string,
-  children: ParsedComponent[] = []
+  children: ParsedComponent[] = [],
 ): ParsedComponent => ({ type, props: {}, children })
 
 describe('CLASSIC_LAYOUT', () => {
@@ -36,7 +36,7 @@ describe('resolveExamLayoutPrefs', () => {
     'resolves non-object input %p to CLASSIC_LAYOUT',
     (raw) => {
       expect(resolveExamLayoutPrefs(raw)).toEqual(CLASSIC_LAYOUT)
-    }
+    },
   )
 
   it('resolves an empty object to classic defaults', () => {
@@ -69,7 +69,7 @@ describe('resolveExamLayoutPrefs', () => {
         case_position: 'top',
         notes_position: 'left',
         outline_position: 'nowhere',
-      })
+      }),
     ).toEqual({
       mode: 'classic',
       case_position: 'left',
@@ -85,7 +85,7 @@ describe('resolveExamLayoutPrefs', () => {
         case_position: 'right',
         notes_position: 'none',
         outline_position: 'left',
-      })
+      }),
     ).toEqual({
       mode: 'classic',
       case_position: 'right',
@@ -97,7 +97,7 @@ describe('resolveExamLayoutPrefs', () => {
   it("rejects 'none' for the case (the exam text is mandatory)", () => {
     expect(
       resolveExamLayoutPrefs({ mode: 'modern', case_position: 'none' })
-        .case_position
+        .case_position,
     ).toBe('left')
   })
 
@@ -117,15 +117,15 @@ describe('resolveExamLayoutPrefs', () => {
   it('passes valid panel widths through and clamps out-of-range ones', () => {
     expect(
       resolveExamLayoutPrefs({ mode: 'modern', left_panel_width: 500 })
-        .left_panel_width
+        .left_panel_width,
     ).toBe(500)
     expect(
       resolveExamLayoutPrefs({ mode: 'modern', left_panel_width: 100 })
-        .left_panel_width
+        .left_panel_width,
     ).toBe(260)
     expect(
       resolveExamLayoutPrefs({ mode: 'modern', right_panel_width: 9999 })
-        .right_panel_width
+        .right_panel_width,
     ).toBe(720)
     // Invalid types are omitted entirely — the key never appears.
     const resolved = resolveExamLayoutPrefs({
@@ -146,13 +146,13 @@ describe('isExamShapedConfig', () => {
 
   it('is true when a Loesung field is a direct child', () => {
     expect(
-      isExamShapedConfig(node('View', [node('Header'), node('Loesung')]))
+      isExamShapedConfig(node('View', [node('Header'), node('Loesung')])),
     ).toBe(true)
   })
 
   it('is true when Loesung is nested deeper in the tree', () => {
     expect(
-      isExamShapedConfig(node('View', [node('View', [node('Loesung')])]))
+      isExamShapedConfig(node('View', [node('View', [node('Loesung')])])),
     ).toBe(true)
   })
 
@@ -163,8 +163,8 @@ describe('isExamShapedConfig', () => {
   it('is false for a generic annotation config', () => {
     expect(
       isExamShapedConfig(
-        node('View', [node('Text'), node('TextArea'), node('Choices')])
-      )
+        node('View', [node('Text'), node('TextArea'), node('Choices')]),
+      ),
     ).toBe(false)
   })
 

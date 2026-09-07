@@ -51,7 +51,7 @@ class TestApiClient extends BaseApiClient {
     endpoint: string,
     options?: RequestInit,
     isRetry?: boolean,
-    retryCount?: number
+    retryCount?: number,
   ): Promise<any> {
     return (this as any).request(endpoint, options, isRetry, retryCount)
   }
@@ -63,7 +63,7 @@ class TestApiClient extends BaseApiClient {
   public async post(
     endpoint: string,
     data?: any,
-    options?: RequestInit
+    options?: RequestInit,
   ): Promise<any> {
     let body: any
     if (data instanceof FormData) {
@@ -100,7 +100,10 @@ function jsonResponse(status: number, payload: unknown, extraHeaders = {}) {
     ok: status >= 200 && status < 300,
     status,
     statusText: 'OK',
-    headers: new Headers({ 'content-type': 'application/json', ...extraHeaders }),
+    headers: new Headers({
+      'content-type': 'application/json',
+      ...extraHeaders,
+    }),
     text: async () => JSON.stringify(payload),
   }
 }
@@ -125,7 +128,9 @@ describe('BaseApiClient - additional uncovered paths', () => {
       }
       ;(global.fetch as jest.Mock).mockResolvedValueOnce(rawResponse)
 
-      const result = await client.requestRaw('/projects/1/exports/job-1/download')
+      const result = await client.requestRaw(
+        '/projects/1/exports/job-1/download',
+      )
 
       // It returns the live Response untouched (no .blob()/.text() call).
       expect(result).toBe(rawResponse)
@@ -136,7 +141,7 @@ describe('BaseApiClient - additional uncovered paths', () => {
           headers: expect.objectContaining({
             'Content-Type': 'application/json',
           }),
-        })
+        }),
       )
     })
 
@@ -157,10 +162,10 @@ describe('BaseApiClient - additional uncovered paths', () => {
 
     it('applies the Bearer token and organization context header', async () => {
       const validToken = `header.${btoa(
-        JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 3600 })
+        JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 3600 }),
       )}.signature`
       localStorageMock.getItem.mockImplementation((key) =>
-        key === 'access_token' ? validToken : null
+        key === 'access_token' ? validToken : null,
       )
       client.setOrganizationContextProvider(() => 'org-77')
       ;(global.fetch as jest.Mock).mockResolvedValueOnce({
@@ -192,7 +197,7 @@ describe('BaseApiClient - additional uncovered paths', () => {
       })
 
       await expect(client.requestRaw('/projects/1/exports')).rejects.toThrow(
-        'email: field required; password: too short'
+        'email: field required; password: too short',
       )
     })
 
@@ -206,7 +211,7 @@ describe('BaseApiClient - additional uncovered paths', () => {
       })
 
       await expect(client.requestRaw('/x')).rejects.toThrow(
-        'HTTP error! status: 500 - boom'
+        'HTTP error! status: 500 - boom',
       )
     })
 
@@ -237,11 +242,11 @@ describe('BaseApiClient - additional uncovered paths', () => {
             { loc: ['body', 'username'], msg: 'field required' },
             { loc: ['query', 'page'], msg: 'must be positive' },
           ],
-        })
+        }),
       )
 
       await expect(client.get('/register')).rejects.toThrow(
-        'username: field required; query.page: must be positive'
+        'username: field required; query.page: must be positive',
       )
     })
 
@@ -249,17 +254,17 @@ describe('BaseApiClient - additional uncovered paths', () => {
       ;(global.fetch as jest.Mock).mockResolvedValueOnce(
         jsonResponse(400, {
           detail: [{ message: 'plain message' }, 'just a string'],
-        })
+        }),
       )
 
       await expect(client.get('/x')).rejects.toThrow(
-        'plain message; just a string'
+        'plain message; just a string',
       )
     })
 
     it('extracts msg from a single object detail', async () => {
       ;(global.fetch as jest.Mock).mockResolvedValueOnce(
-        jsonResponse(409, { detail: { msg: 'conflict happened' } })
+        jsonResponse(409, { detail: { msg: 'conflict happened' } }),
       )
 
       await expect(client.get('/x')).rejects.toThrow('conflict happened')
@@ -267,7 +272,7 @@ describe('BaseApiClient - additional uncovered paths', () => {
 
     it('falls back to the top-level message field when detail is absent', async () => {
       ;(global.fetch as jest.Mock).mockResolvedValueOnce(
-        jsonResponse(400, { message: 'top-level error' })
+        jsonResponse(400, { message: 'top-level error' }),
       )
 
       await expect(client.get('/x')).rejects.toThrow('top-level error')
@@ -327,7 +332,9 @@ describe('BaseApiClient - additional uncovered paths', () => {
       })
 
       expect(client.cacheHas('user1-GET-/organizations/abc')).toBe(false)
-      expect(client.cacheHas('user1-GET-/organizations/abc/members')).toBe(false)
+      expect(client.cacheHas('user1-GET-/organizations/abc/members')).toBe(
+        false,
+      )
       // Unrelated cache entry is preserved.
       expect(client.cacheHas('user1-GET-/projects/other')).toBe(true)
     })
@@ -345,7 +352,7 @@ describe('BaseApiClient - additional uncovered paths', () => {
 
       expect(client.cacheHas('user1-GET-/organizations/abc')).toBe(false)
       expect(client.cacheHas('user1-GET-/organizations/abc/invitations')).toBe(
-        false
+        false,
       )
       expect(client.cacheHas('user1-GET-/invitations')).toBe(false)
     })
@@ -380,7 +387,7 @@ describe('BaseApiClient - additional uncovered paths', () => {
       })
 
       expect(client.cacheHas('user1-GET-/organizations/abc/api-keys')).toBe(
-        false
+        false,
       )
     })
 
@@ -408,7 +415,7 @@ describe('BaseApiClient - additional uncovered paths', () => {
 
       expect(client.cacheHas('user1-GET-/notifications/')).toBe(false)
       expect(client.cacheHas('user1-GET-/notifications/unread-count')).toBe(
-        false
+        false,
       )
     })
 
@@ -424,7 +431,7 @@ describe('BaseApiClient - additional uncovered paths', () => {
 
       expect(client.cacheHas('user1-GET-/notifications/')).toBe(false)
       expect(client.cacheHas('user1-GET-/notifications/unread-count')).toBe(
-        false
+        false,
       )
     })
   })
@@ -435,11 +442,11 @@ describe('BaseApiClient - additional uncovered paths', () => {
       client.seedCache('user1-GET-/projects/proj-1', { stale: true })
       client.seedCache(
         'user1-GET-/evaluations/projects/proj-1/evaluation-config',
-        { stale: true }
+        { stale: true },
       )
       client.seedCache('user1-GET-/projects/other', { keep: true })
       ;(global.fetch as jest.Mock).mockResolvedValueOnce(
-        jsonResponse(200, { id: 'proj-1' })
+        jsonResponse(200, { id: 'proj-1' }),
       )
 
       // PATCH is how updateProject persists; before issue #289 it never
@@ -450,8 +457,8 @@ describe('BaseApiClient - additional uncovered paths', () => {
       expect(client.cacheHas('user1-GET-/projects/proj-1')).toBe(false)
       expect(
         client.cacheHas(
-          'user1-GET-/evaluations/projects/proj-1/evaluation-config'
-        )
+          'user1-GET-/evaluations/projects/proj-1/evaluation-config',
+        ),
       ).toBe(false)
       // Unrelated cache entry is preserved.
       expect(client.cacheHas('user1-GET-/projects/other')).toBe(true)
@@ -467,7 +474,9 @@ describe('BaseApiClient - additional uncovered paths', () => {
       client.callInvalidateCache('/organizations')
 
       expect(client.cacheHas('user1-GET-/organizations/123')).toBe(false)
-      expect(client.cacheHas('user1-GET-/organizations/456/members')).toBe(false)
+      expect(client.cacheHas('user1-GET-/organizations/456/members')).toBe(
+        false,
+      )
       expect(client.cacheHas('user1-GET-/projects/789')).toBe(true)
     })
 
@@ -541,7 +550,7 @@ describe('BaseApiClient - additional uncovered paths', () => {
   describe('FormData request body (no Content-Type override)', () => {
     it('omits Content-Type for FormData and forwards the body to fetch', async () => {
       ;(global.fetch as jest.Mock).mockResolvedValueOnce(
-        jsonResponse(200, { uploaded: true })
+        jsonResponse(200, { uploaded: true }),
       )
 
       const fd = new FormData()

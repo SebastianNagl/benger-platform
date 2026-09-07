@@ -64,7 +64,7 @@ describe('LoginPage', () => {
       expect(screen.getByTestId('auth-login-form')).toBeInTheDocument()
       expect(screen.getByTestId('auth-login-email-input')).toBeInTheDocument()
       expect(
-        screen.getByTestId('auth-login-password-input')
+        screen.getByTestId('auth-login-password-input'),
       ).toBeInTheDocument()
       expect(screen.getByTestId('auth-login-submit-button')).toBeInTheDocument()
     })
@@ -89,7 +89,7 @@ describe('LoginPage', () => {
       render(<LoginPage />)
 
       const forgotPasswordLink = screen.getByTestId(
-        'auth-login-forgot-password-link'
+        'auth-login-forgot-password-link',
       )
       expect(forgotPasswordLink).toBeInTheDocument()
       expect(forgotPasswordLink).toHaveAttribute('href', '/reset-password')
@@ -120,7 +120,7 @@ describe('LoginPage', () => {
       render(<LoginPage />)
 
       const usernameInput = screen.getByTestId(
-        'auth-login-email-input'
+        'auth-login-email-input',
       ) as HTMLInputElement
       await user.type(usernameInput, 'testuser')
 
@@ -132,7 +132,7 @@ describe('LoginPage', () => {
       render(<LoginPage />)
 
       const passwordInput = screen.getByTestId(
-        'auth-login-password-input'
+        'auth-login-password-input',
       ) as HTMLInputElement
       await user.type(passwordInput, 'password123')
 
@@ -173,7 +173,7 @@ describe('LoginPage', () => {
       mockLogin.mockReturnValue(
         new Promise((resolve) => {
           resolveLogin = resolve
-        })
+        }),
       )
 
       render(<LoginPage />)
@@ -277,7 +277,7 @@ describe('LoginPage', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByTestId('auth-login-error-message')
+          screen.getByTestId('auth-login-error-message'),
         ).toBeInTheDocument()
       })
 
@@ -292,7 +292,7 @@ describe('LoginPage', () => {
 
       await waitFor(() => {
         expect(
-          screen.queryByTestId('auth-login-error-message')
+          screen.queryByTestId('auth-login-error-message'),
         ).not.toBeInTheDocument()
       })
     })
@@ -313,7 +313,7 @@ describe('LoginPage', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByTestId('auth-login-error-message')
+          screen.getByTestId('auth-login-error-message'),
         ).toBeInTheDocument()
         expect(submitButton).not.toBeDisabled()
       })

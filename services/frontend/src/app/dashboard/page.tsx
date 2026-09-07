@@ -88,7 +88,7 @@ export default function DashboardPage() {
     projects
       ?.sort(
         (a, b) =>
-          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
       )
       .slice(0, 5) || []
 
@@ -106,7 +106,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <ResponsiveContainer size="xl" className="pb-10 pt-8">
+    <ResponsiveContainer size="xl" className="pt-8 pb-10">
       {/* Breadcrumb */}
       <div className="mb-4">
         <Breadcrumb
@@ -137,7 +137,6 @@ export default function DashboardPage() {
         </Alert>
       )}
 
-
       {error && (
         <div className="mb-8 rounded-md border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-950">
           <div className="flex">
@@ -159,7 +158,7 @@ export default function DashboardPage() {
         <div className="rounded-lg bg-white shadow-sm ring-1 ring-zinc-900/5 dark:bg-zinc-900 dark:ring-white/10">
           <div className="p-6">
             <div className="flex items-center">
-              <div className="flex-shrink-0">
+              <div className="shrink-0">
                 <div className="flex h-8 w-8 items-center justify-center rounded-md bg-emerald-600">
                   <svg
                     className="h-5 w-5 text-white"
@@ -194,7 +193,7 @@ export default function DashboardPage() {
         <div className="rounded-lg bg-white shadow-sm ring-1 ring-zinc-900/5 dark:bg-zinc-900 dark:ring-white/10">
           <div className="p-6">
             <div className="flex items-center">
-              <div className="flex-shrink-0">
+              <div className="shrink-0">
                 <div className="flex h-8 w-8 items-center justify-center rounded-md bg-emerald-600">
                   <svg
                     className="h-5 w-5 text-white"
@@ -229,7 +228,7 @@ export default function DashboardPage() {
         <div className="rounded-lg bg-white shadow-sm ring-1 ring-zinc-900/5 dark:bg-zinc-900 dark:ring-white/10">
           <div className="p-6">
             <div className="flex items-center">
-              <div className="flex-shrink-0">
+              <div className="shrink-0">
                 <div className="flex h-8 w-8 items-center justify-center rounded-md bg-emerald-600">
                   <svg
                     className="h-5 w-5 text-white"
@@ -264,7 +263,7 @@ export default function DashboardPage() {
         <div className="rounded-lg bg-white shadow-sm ring-1 ring-zinc-900/5 dark:bg-zinc-900 dark:ring-white/10">
           <div className="p-6">
             <div className="flex items-center">
-              <div className="flex-shrink-0">
+              <div className="shrink-0">
                 <div className="flex h-8 w-8 items-center justify-center rounded-md bg-emerald-600">
                   <svg
                     className="h-5 w-5 text-white"
@@ -299,7 +298,7 @@ export default function DashboardPage() {
         <div className="rounded-lg bg-white shadow-sm ring-1 ring-zinc-900/5 dark:bg-zinc-900 dark:ring-white/10">
           <div className="p-6">
             <div className="flex items-center">
-              <div className="flex-shrink-0">
+              <div className="shrink-0">
                 <div className="flex h-8 w-8 items-center justify-center rounded-md bg-emerald-600">
                   <svg
                     className="h-5 w-5 text-white"
@@ -372,13 +371,13 @@ export default function DashboardPage() {
                             t('dashboard.recentProjects.noDescription')}
                         </p>
                         <div className="mt-2 flex items-center gap-x-2 text-xs text-zinc-500 dark:text-zinc-400">
-                          <span className="inline-flex items-center rounded-md bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700 ring-1 ring-inset ring-emerald-600/20 dark:bg-emerald-400/10 dark:text-emerald-400 dark:ring-emerald-400/30">
+                          <span className="inline-flex items-center rounded-md bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700 ring-1 ring-emerald-600/20 ring-inset dark:bg-emerald-400/10 dark:text-emerald-400 dark:ring-emerald-400/30">
                             {project.task_count || 0}{' '}
                             {t('dashboard.recentProjects.tasks')}
                           </span>
                           <span>
                             {new Date(project.created_at).toLocaleDateString(
-                              'de-DE'
+                              'de-DE',
                             )}
                           </span>
                         </div>

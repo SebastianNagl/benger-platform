@@ -68,7 +68,7 @@ describe('dataBinding', () => {
         }
         expect(resolveDataBinding('$user.name', taskData)).toBe('John Doe')
         expect(resolveDataBinding('$user.email', taskData)).toBe(
-          'john@example.com'
+          'john@example.com',
         )
       })
 
@@ -83,7 +83,7 @@ describe('dataBinding', () => {
         }
         expect(resolveDataBinding('$user.name', taskData)).toBe('Jane Doe')
         expect(resolveDataBinding('$user.email', taskData)).toBe(
-          'jane@example.com'
+          'jane@example.com',
         )
       })
 
@@ -99,10 +99,10 @@ describe('dataBinding', () => {
           },
         }
         expect(
-          resolveDataBinding('$document.metadata.author.name', taskData)
+          resolveDataBinding('$document.metadata.author.name', taskData),
         ).toBe('Test Author')
         expect(
-          resolveDataBinding('$document.metadata.author.id', taskData)
+          resolveDataBinding('$document.metadata.author.id', taskData),
         ).toBe(123)
       })
 
@@ -112,7 +112,7 @@ describe('dataBinding', () => {
         }
         expect(resolveDataBinding('$user.missing', taskData)).toBeUndefined()
         expect(
-          resolveDataBinding('$user.name.invalid', taskData)
+          resolveDataBinding('$user.name.invalid', taskData),
         ).toBeUndefined()
       })
 
@@ -135,14 +135,14 @@ describe('dataBinding', () => {
       it('should resolve $sachverhalt when task data has Sachverhalt', () => {
         const taskData = { Sachverhalt: 'Legal case text' }
         expect(resolveDataBinding('$sachverhalt', taskData)).toBe(
-          'Legal case text'
+          'Legal case text',
         )
       })
 
       it('should resolve $Sachverhalt when task data has sachverhalt', () => {
         const taskData = { sachverhalt: 'Legal case text' }
         expect(resolveDataBinding('$Sachverhalt', taskData)).toBe(
-          'Legal case text'
+          'Legal case text',
         )
       })
 
@@ -158,15 +158,15 @@ describe('dataBinding', () => {
       it('should resolve case-insensitively in nested data property', () => {
         const taskData = { data: { Sachverhalt: 'nested case text' } }
         expect(resolveDataBinding('$sachverhalt', taskData)).toBe(
-          'nested case text'
+          'nested case text',
         )
       })
 
       it('should resolve nested paths case-insensitively', () => {
         const taskData = { Document: { Metadata: { Author: 'Test' } } }
-        expect(
-          resolveDataBinding('$document.metadata.author', taskData)
-        ).toBe('Test')
+        expect(resolveDataBinding('$document.metadata.author', taskData)).toBe(
+          'Test',
+        )
       })
     })
 
@@ -348,7 +348,7 @@ describe('dataBinding', () => {
           'answer',
           'TextArea',
           'My answer text',
-          'question'
+          'question',
         )
 
         expect(result).toEqual({
@@ -364,7 +364,7 @@ describe('dataBinding', () => {
           'answer',
           'TextArea',
           '',
-          'question'
+          'question',
         )
 
         expect(result).toEqual({
@@ -382,7 +382,7 @@ describe('dataBinding', () => {
           'sentiment',
           'Choices',
           'Positive',
-          'text'
+          'text',
         )
 
         expect(result).toEqual({
@@ -398,7 +398,7 @@ describe('dataBinding', () => {
           'tags',
           'Choices',
           ['Tag1', 'Tag2', 'Tag3'],
-          'text'
+          'text',
         )
 
         expect(result).toEqual({
@@ -438,7 +438,7 @@ describe('dataBinding', () => {
           'entities',
           'Labels',
           { start: 0, end: 5, labels: ['Person'] },
-          'text'
+          'text',
         )
 
         expect(result).toEqual({
@@ -454,7 +454,7 @@ describe('dataBinding', () => {
           'custom',
           'CustomComponent',
           'value',
-          'text'
+          'text',
         )
 
         expect(result).toEqual({
@@ -481,7 +481,7 @@ describe('dataBinding', () => {
             'test',
             componentType,
             'value',
-            'target'
+            'target',
           )
           expect(result.type).toBe(expected)
         })
@@ -592,7 +592,7 @@ describe('dataBinding', () => {
         }
         const result = validateTaskDataFields(
           ['context', 'question', 'answer'],
-          taskData
+          taskData,
         )
 
         expect(result.valid).toBe(true)
@@ -606,7 +606,7 @@ describe('dataBinding', () => {
         }
         const result = validateTaskDataFields(
           ['context', 'question', 'answer'],
-          taskData
+          taskData,
         )
 
         expect(result.valid).toBe(false)
@@ -619,7 +619,7 @@ describe('dataBinding', () => {
         }
         const result = validateTaskDataFields(
           ['context', 'question', 'answer'],
-          taskData
+          taskData,
         )
 
         expect(result.valid).toBe(false)
@@ -719,7 +719,7 @@ describe('dataBinding', () => {
         }
         const result = validateTaskDataFields(
           ['sachverhalt', 'musterloesung'],
-          taskData
+          taskData,
         )
         expect(result.valid).toBe(true)
         expect(result.missingFields).toEqual([])
@@ -784,7 +784,7 @@ describe('dataBinding', () => {
         }
         const result = validateTaskDataFields(
           ['document.metadata.author.name'],
-          taskData
+          taskData,
         )
 
         expect(result.valid).toBe(true)

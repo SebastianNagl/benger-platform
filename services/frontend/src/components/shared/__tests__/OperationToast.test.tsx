@@ -76,7 +76,7 @@ describe('OperationToast', () => {
   describe('Operation Status Display', () => {
     it('displays started status correctly', () => {
       const { container } = render(
-        <OperationToast {...defaultProps} status="started" />
+        <OperationToast {...defaultProps} status="started" />,
       )
       expect(screen.getByText('▶')).toBeInTheDocument()
       expect(container.querySelector('.bg-emerald-500')).toBeInTheDocument()
@@ -84,7 +84,7 @@ describe('OperationToast', () => {
 
     it('displays running status correctly', () => {
       const { container } = render(
-        <OperationToast {...defaultProps} status="running" />
+        <OperationToast {...defaultProps} status="running" />,
       )
       const spinner = container.querySelector('.animate-spin')
       expect(spinner).toBeInTheDocument()
@@ -93,7 +93,7 @@ describe('OperationToast', () => {
 
     it('displays completed status correctly', () => {
       const { container } = render(
-        <OperationToast {...defaultProps} status="completed" />
+        <OperationToast {...defaultProps} status="completed" />,
       )
       expect(screen.getByText('✓')).toBeInTheDocument()
       expect(container.querySelector('.bg-emerald-500')).toBeInTheDocument()
@@ -101,7 +101,7 @@ describe('OperationToast', () => {
 
     it('displays failed status correctly', () => {
       const { container } = render(
-        <OperationToast {...defaultProps} status="failed" />
+        <OperationToast {...defaultProps} status="failed" />,
       )
       expect(screen.getByText('✗')).toBeInTheDocument()
       expect(container.querySelector('.bg-red-500')).toBeInTheDocument()
@@ -109,7 +109,7 @@ describe('OperationToast', () => {
 
     it('applies correct background color for started status', () => {
       const { container } = render(
-        <OperationToast {...defaultProps} status="started" />
+        <OperationToast {...defaultProps} status="started" />,
       )
       const toast = container.querySelector('.bg-emerald-50')
       expect(toast).toBeInTheDocument()
@@ -117,7 +117,7 @@ describe('OperationToast', () => {
 
     it('applies correct background color for running status', () => {
       const { container } = render(
-        <OperationToast {...defaultProps} status="running" />
+        <OperationToast {...defaultProps} status="running" />,
       )
       const toast = container.querySelector('.bg-amber-50')
       expect(toast).toBeInTheDocument()
@@ -125,7 +125,7 @@ describe('OperationToast', () => {
 
     it('applies correct background color for completed status', () => {
       const { container } = render(
-        <OperationToast {...defaultProps} status="completed" />
+        <OperationToast {...defaultProps} status="completed" />,
       )
       const toast = container.querySelector('.bg-emerald-50')
       expect(toast).toBeInTheDocument()
@@ -133,7 +133,7 @@ describe('OperationToast', () => {
 
     it('applies correct background color for failed status', () => {
       const { container } = render(
-        <OperationToast {...defaultProps} status="failed" />
+        <OperationToast {...defaultProps} status="failed" />,
       )
       const toast = container.querySelector('.bg-red-50')
       expect(toast).toBeInTheDocument()
@@ -141,7 +141,7 @@ describe('OperationToast', () => {
 
     it('applies correct text color for started status', () => {
       const { container } = render(
-        <OperationToast {...defaultProps} status="started" />
+        <OperationToast {...defaultProps} status="started" />,
       )
       const textElement = container.querySelector('.text-emerald-800')
       expect(textElement).toBeInTheDocument()
@@ -149,7 +149,7 @@ describe('OperationToast', () => {
 
     it('applies correct text color for running status', () => {
       const { container } = render(
-        <OperationToast {...defaultProps} status="running" />
+        <OperationToast {...defaultProps} status="running" />,
       )
       const textElement = container.querySelector('.text-amber-800')
       expect(textElement).toBeInTheDocument()
@@ -157,7 +157,7 @@ describe('OperationToast', () => {
 
     it('applies correct text color for completed status', () => {
       const { container } = render(
-        <OperationToast {...defaultProps} status="completed" />
+        <OperationToast {...defaultProps} status="completed" />,
       )
       const textElement = container.querySelector('.text-emerald-800')
       expect(textElement).toBeInTheDocument()
@@ -165,7 +165,7 @@ describe('OperationToast', () => {
 
     it('applies correct text color for failed status', () => {
       const { container } = render(
-        <OperationToast {...defaultProps} status="failed" />
+        <OperationToast {...defaultProps} status="failed" />,
       )
       const textElement = container.querySelector('.text-red-800')
       expect(textElement).toBeInTheDocument()
@@ -175,7 +175,7 @@ describe('OperationToast', () => {
   describe('Message Display', () => {
     it('displays custom message', () => {
       render(
-        <OperationToast {...defaultProps} message="Custom operation message" />
+        <OperationToast {...defaultProps} message="Custom operation message" />,
       )
       expect(screen.getByText('Custom operation message')).toBeInTheDocument()
     })
@@ -185,21 +185,21 @@ describe('OperationToast', () => {
         <OperationToast
           {...defaultProps}
           message="Message with special chars: @#$%&*()"
-        />
+        />,
       )
       expect(
-        screen.getByText('Message with special chars: @#$%&*()')
+        screen.getByText('Message with special chars: @#$%&*()'),
       ).toBeInTheDocument()
     })
 
     it('displays message with line breaks', () => {
       const { container } = render(
-        <OperationToast {...defaultProps} message="Line 1\nLine 2\nLine 3" />
+        <OperationToast {...defaultProps} message="Line 1\nLine 2\nLine 3" />,
       )
       // Line breaks are preserved in the DOM but rendered as text
       const paragraphs = container.querySelectorAll('p')
       const messageParagraph = Array.from(paragraphs).find((p) =>
-        p.textContent?.includes('Line 1')
+        p.textContent?.includes('Line 1'),
       )
       expect(messageParagraph?.textContent).toContain('Line 1')
       expect(messageParagraph?.textContent).toContain('Line 2')
@@ -217,7 +217,7 @@ describe('OperationToast', () => {
           {...defaultProps}
           message="Main message"
           details="Detail text"
-        />
+        />,
       )
       expect(screen.getByText('Main message')).toBeInTheDocument()
       expect(screen.getByText('Detail text')).toBeInTheDocument()
@@ -238,7 +238,7 @@ describe('OperationToast', () => {
 
     it('displays spinner for running status', () => {
       const { container } = render(
-        <OperationToast {...defaultProps} status="running" />
+        <OperationToast {...defaultProps} status="running" />,
       )
       const spinner = container.querySelector('.animate-spin')
       expect(spinner).toBeInTheDocument()
@@ -246,7 +246,7 @@ describe('OperationToast', () => {
         'rounded-full',
         'border-2',
         'border-white',
-        'border-t-transparent'
+        'border-t-transparent',
       )
     })
 
@@ -263,7 +263,7 @@ describe('OperationToast', () => {
     it('displays status indicator bar', () => {
       const { container } = render(<OperationToast {...defaultProps} />)
       const statusBar = container.querySelector(
-        '.absolute.left-0.right-0.top-0.h-1'
+        '.absolute.left-0.right-0.top-0.h-1',
       )
       expect(statusBar).toBeInTheDocument()
     })
@@ -277,7 +277,7 @@ describe('OperationToast', () => {
       ]
       statuses.forEach((status) => {
         const { container } = render(
-          <OperationToast {...defaultProps} status={status} />
+          <OperationToast {...defaultProps} status={status} />,
         )
         const statusBar = container.querySelector('.h-1')
         expect(statusBar).toBeInTheDocument()
@@ -297,7 +297,7 @@ describe('OperationToast', () => {
     it('stops propagation when close button is clicked', () => {
       const onDismiss = jest.fn()
       const { container } = render(
-        <OperationToast {...defaultProps} onDismiss={onDismiss} />
+        <OperationToast {...defaultProps} onDismiss={onDismiss} />,
       )
       const closeButton = screen.getByText('×')
       const clickEvent = new MouseEvent('click', { bubbles: true })
@@ -318,7 +318,7 @@ describe('OperationToast', () => {
       expect(closeButton).toHaveClass(
         'rounded-full',
         'p-1',
-        'transition-colors'
+        'transition-colors',
       )
     })
   })
@@ -326,52 +326,56 @@ describe('OperationToast', () => {
   describe('Clickable Behavior', () => {
     it('shows click hint for running status when clickable', () => {
       render(
-        <OperationToast {...defaultProps} status="running" clickable={true} />
+        <OperationToast {...defaultProps} status="running" clickable={true} />,
       )
       expect(
-        screen.getByText('Click to view detailed status →')
+        screen.getByText('Click to view detailed status →'),
       ).toBeInTheDocument()
     })
 
     it('shows click hint for completed status when clickable', () => {
       render(
-        <OperationToast {...defaultProps} status="completed" clickable={true} />
+        <OperationToast
+          {...defaultProps}
+          status="completed"
+          clickable={true}
+        />,
       )
       expect(
-        screen.getByText('Click to view detailed status →')
+        screen.getByText('Click to view detailed status →'),
       ).toBeInTheDocument()
     })
 
     it('shows click hint for failed status when clickable', () => {
       render(
-        <OperationToast {...defaultProps} status="failed" clickable={true} />
+        <OperationToast {...defaultProps} status="failed" clickable={true} />,
       )
       expect(
-        screen.getByText('Click to view detailed status →')
+        screen.getByText('Click to view detailed status →'),
       ).toBeInTheDocument()
     })
 
     it('does not show click hint for started status', () => {
       render(
-        <OperationToast {...defaultProps} status="started" clickable={true} />
+        <OperationToast {...defaultProps} status="started" clickable={true} />,
       )
       expect(
-        screen.queryByText('Click to view detailed status →')
+        screen.queryByText('Click to view detailed status →'),
       ).not.toBeInTheDocument()
     })
 
     it('does not show click hint when not clickable', () => {
       render(
-        <OperationToast {...defaultProps} status="running" clickable={false} />
+        <OperationToast {...defaultProps} status="running" clickable={false} />,
       )
       expect(
-        screen.queryByText('Click to view detailed status →')
+        screen.queryByText('Click to view detailed status →'),
       ).not.toBeInTheDocument()
     })
 
     it('applies cursor-pointer class when clickable and status allows', () => {
       const { container } = render(
-        <OperationToast {...defaultProps} status="running" clickable={true} />
+        <OperationToast {...defaultProps} status="running" clickable={true} />,
       )
       const toast = container.firstChild
       expect(toast).toHaveClass('cursor-pointer')
@@ -379,7 +383,7 @@ describe('OperationToast', () => {
 
     it('does not apply cursor-pointer class when not clickable', () => {
       const { container } = render(
-        <OperationToast {...defaultProps} status="running" clickable={false} />
+        <OperationToast {...defaultProps} status="running" clickable={false} />,
       )
       const toast = container.firstChild
       expect(toast).not.toHaveClass('cursor-pointer')
@@ -387,7 +391,7 @@ describe('OperationToast', () => {
 
     it('applies hover effect when clickable', () => {
       const { container } = render(
-        <OperationToast {...defaultProps} status="running" clickable={true} />
+        <OperationToast {...defaultProps} status="running" clickable={true} />,
       )
       const toast = container.firstChild
       expect(toast).toHaveClass('hover:shadow-xl')
@@ -395,7 +399,7 @@ describe('OperationToast', () => {
 
     it('does not apply hover effect when not clickable', () => {
       const { container } = render(
-        <OperationToast {...defaultProps} status="started" clickable={true} />
+        <OperationToast {...defaultProps} status="started" clickable={true} />,
       )
       const toast = container.firstChild
       expect(toast).not.toHaveClass('cursor-pointer')
@@ -404,13 +408,13 @@ describe('OperationToast', () => {
     it('defaults to clickable=true when not specified', () => {
       render(<OperationToast {...defaultProps} status="running" />)
       expect(
-        screen.getByText('Click to view detailed status →')
+        screen.getByText('Click to view detailed status →'),
       ).toBeInTheDocument()
     })
 
     it('handles click on toast container', () => {
       const { container } = render(
-        <OperationToast {...defaultProps} status="running" clickable={true} />
+        <OperationToast {...defaultProps} status="running" clickable={true} />,
       )
       const toast = container.firstChild as HTMLElement
       fireEvent.click(toast)
@@ -434,7 +438,7 @@ describe('OperationToast', () => {
 
     it('status icon is contained in a visible element', () => {
       const { container } = render(
-        <OperationToast {...defaultProps} status="started" />
+        <OperationToast {...defaultProps} status="started" />,
       )
       const icon = screen.getByText('▶')
       expect(icon).toBeVisible()
@@ -442,7 +446,7 @@ describe('OperationToast', () => {
 
     it('maintains text contrast with background colors', () => {
       const { container } = render(
-        <OperationToast {...defaultProps} status="failed" />
+        <OperationToast {...defaultProps} status="failed" />,
       )
       const message = screen.getByText('Test message')
       expect(message).toHaveClass('text-red-800')
@@ -458,7 +462,7 @@ describe('OperationToast', () => {
   describe('Dark Mode Classes', () => {
     it('includes dark mode background classes for started status', () => {
       const { container } = render(
-        <OperationToast {...defaultProps} status="started" />
+        <OperationToast {...defaultProps} status="started" />,
       )
       const toast = container.querySelector('.dark\\:bg-emerald-900\\/20')
       expect(toast).toBeInTheDocument()
@@ -466,7 +470,7 @@ describe('OperationToast', () => {
 
     it('includes dark mode background classes for running status', () => {
       const { container } = render(
-        <OperationToast {...defaultProps} status="running" />
+        <OperationToast {...defaultProps} status="running" />,
       )
       const toast = container.querySelector('.dark\\:bg-amber-900\\/20')
       expect(toast).toBeInTheDocument()
@@ -474,7 +478,7 @@ describe('OperationToast', () => {
 
     it('includes dark mode background classes for completed status', () => {
       const { container } = render(
-        <OperationToast {...defaultProps} status="completed" />
+        <OperationToast {...defaultProps} status="completed" />,
       )
       const toast = container.querySelector('.dark\\:bg-emerald-900\\/20')
       expect(toast).toBeInTheDocument()
@@ -482,7 +486,7 @@ describe('OperationToast', () => {
 
     it('includes dark mode background classes for failed status', () => {
       const { container } = render(
-        <OperationToast {...defaultProps} status="failed" />
+        <OperationToast {...defaultProps} status="failed" />,
       )
       const toast = container.querySelector('.dark\\:bg-red-900\\/20')
       expect(toast).toBeInTheDocument()
@@ -490,7 +494,7 @@ describe('OperationToast', () => {
 
     it('includes dark mode text classes for started status', () => {
       const { container } = render(
-        <OperationToast {...defaultProps} status="started" />
+        <OperationToast {...defaultProps} status="started" />,
       )
       const textElement = container.querySelector('.dark\\:text-emerald-200')
       expect(textElement).toBeInTheDocument()
@@ -498,7 +502,7 @@ describe('OperationToast', () => {
 
     it('includes dark mode text classes for running status', () => {
       const { container } = render(
-        <OperationToast {...defaultProps} status="running" />
+        <OperationToast {...defaultProps} status="running" />,
       )
       const textElement = container.querySelector('.dark\\:text-amber-200')
       expect(textElement).toBeInTheDocument()
@@ -506,7 +510,7 @@ describe('OperationToast', () => {
 
     it('includes dark mode text classes for completed status', () => {
       const { container } = render(
-        <OperationToast {...defaultProps} status="completed" />
+        <OperationToast {...defaultProps} status="completed" />,
       )
       const textElement = container.querySelector('.dark\\:text-emerald-200')
       expect(textElement).toBeInTheDocument()
@@ -514,7 +518,7 @@ describe('OperationToast', () => {
 
     it('includes dark mode text classes for failed status', () => {
       const { container } = render(
-        <OperationToast {...defaultProps} status="failed" />
+        <OperationToast {...defaultProps} status="failed" />,
       )
       const textElement = container.querySelector('.dark\\:text-red-200')
       expect(textElement).toBeInTheDocument()
@@ -522,7 +526,7 @@ describe('OperationToast', () => {
 
     it('includes dark mode border classes', () => {
       const { container } = render(
-        <OperationToast {...defaultProps} status="started" />
+        <OperationToast {...defaultProps} status="started" />,
       )
       const toast = container.querySelector('.dark\\:border-emerald-700')
       expect(toast).toBeInTheDocument()
@@ -532,7 +536,10 @@ describe('OperationToast', () => {
   describe('Default/Unknown Status', () => {
     it('handles unknown status with default colors', () => {
       const { container } = render(
-        <OperationToast {...defaultProps} status={'unknown' as OperationStatus} />
+        <OperationToast
+          {...defaultProps}
+          status={'unknown' as OperationStatus}
+        />,
       )
       // Default status should use zinc colors
       const toast = container.querySelector('.bg-zinc-50')
@@ -541,14 +548,20 @@ describe('OperationToast', () => {
 
     it('shows circle icon for unknown status', () => {
       render(
-        <OperationToast {...defaultProps} status={'unknown' as OperationStatus} />
+        <OperationToast
+          {...defaultProps}
+          status={'unknown' as OperationStatus}
+        />,
       )
       expect(screen.getByText('○')).toBeInTheDocument()
     })
 
     it('applies default text color for unknown status', () => {
       const { container } = render(
-        <OperationToast {...defaultProps} status={'unknown' as OperationStatus} />
+        <OperationToast
+          {...defaultProps}
+          status={'unknown' as OperationStatus}
+        />,
       )
       const textElement = container.querySelector('.text-zinc-800')
       expect(textElement).toBeInTheDocument()
@@ -556,7 +569,10 @@ describe('OperationToast', () => {
 
     it('applies default status bar color for unknown status', () => {
       const { container } = render(
-        <OperationToast {...defaultProps} status={'unknown' as OperationStatus} />
+        <OperationToast
+          {...defaultProps}
+          status={'unknown' as OperationStatus}
+        />,
       )
       const statusBar = container.querySelector('.bg-zinc-500')
       expect(statusBar).toBeInTheDocument()
@@ -574,12 +590,12 @@ describe('OperationToast', () => {
 
     it('handles empty details gracefully', () => {
       const { container } = render(
-        <OperationToast {...defaultProps} details="" />
+        <OperationToast {...defaultProps} details="" />,
       )
       // Empty string is falsy, so details paragraph should not render
       const paragraphs = container.querySelectorAll('p')
       const detailsParagraph = Array.from(paragraphs).find((p) =>
-        p.className.includes('opacity-75')
+        p.className.includes('opacity-75'),
       )
       expect(detailsParagraph).toBeUndefined()
     })
@@ -603,16 +619,16 @@ describe('OperationToast', () => {
         <OperationToast
           {...defaultProps}
           message="<script>alert('xss')</script>"
-        />
+        />,
       )
       expect(
-        screen.getByText("<script>alert('xss')</script>")
+        screen.getByText("<script>alert('xss')</script>"),
       ).toBeInTheDocument()
     })
 
     it('handles special characters in details', () => {
       render(
-        <OperationToast {...defaultProps} details="Details with <html> tags" />
+        <OperationToast {...defaultProps} details="Details with <html> tags" />,
       )
       expect(screen.getByText('Details with <html> tags')).toBeInTheDocument()
     })
@@ -637,14 +653,14 @@ describe('OperationToast', () => {
           taskId=""
           message=""
           onDismiss={jest.fn()}
-        />
+        />,
       )
       expect(screen.getByText('Response Generation')).toBeInTheDocument()
     })
 
     it('handles rapid status changes', () => {
       const { rerender } = render(
-        <OperationToast {...defaultProps} status="started" />
+        <OperationToast {...defaultProps} status="started" />,
       )
       rerender(<OperationToast {...defaultProps} status="running" />)
       rerender(<OperationToast {...defaultProps} status="completed" />)
@@ -653,7 +669,7 @@ describe('OperationToast', () => {
 
     it('maintains state when props change except status', () => {
       const { rerender } = render(
-        <OperationToast {...defaultProps} message="Initial message" />
+        <OperationToast {...defaultProps} message="Initial message" />,
       )
       rerender(<OperationToast {...defaultProps} message="Updated message" />)
       expect(screen.getByText('Updated message')).toBeInTheDocument()

@@ -120,10 +120,10 @@ describe('EditableTaskDescription', () => {
       render(<EditableTaskDescription task={mockTask} />)
 
       expect(
-        screen.getByText(/This is a test task description/)
+        screen.getByText(/This is a test task description/),
       ).toBeInTheDocument()
       expect(
-        screen.queryByRole('button', { name: /edit description/i })
+        screen.queryByRole('button', { name: /edit description/i }),
       ).not.toBeInTheDocument()
     })
 
@@ -133,10 +133,10 @@ describe('EditableTaskDescription', () => {
       render(<EditableTaskDescription task={mockTask} />)
 
       expect(
-        screen.getByText(/This is a test task description/)
+        screen.getByText(/This is a test task description/),
       ).toBeInTheDocument()
       expect(
-        screen.getByRole('button', { name: /edit description/i })
+        screen.getByRole('button', { name: /edit description/i }),
       ).toBeInTheDocument()
     })
 
@@ -146,10 +146,10 @@ describe('EditableTaskDescription', () => {
       render(<EditableTaskDescription task={mockTask} />)
 
       expect(
-        screen.getByText(/This is a test task description/)
+        screen.getByText(/This is a test task description/),
       ).toBeInTheDocument()
       expect(
-        screen.getByRole('button', { name: /edit description/i })
+        screen.getByRole('button', { name: /edit description/i }),
       ).toBeInTheDocument()
     })
 
@@ -167,7 +167,7 @@ describe('EditableTaskDescription', () => {
       mockUseAuth.mockReturnValue(mockAuthContext(mockAdminUser))
 
       const { container } = render(
-        <EditableTaskDescription task={mockTask} className="custom-class" />
+        <EditableTaskDescription task={mockTask} className="custom-class" />,
       )
 
       expect(container.firstChild).toHaveClass('custom-class')
@@ -186,11 +186,11 @@ describe('EditableTaskDescription', () => {
       await user.click(screen.getByText(/This is a test task description/))
 
       expect(screen.getByTestId('description-textarea')).toHaveValue(
-        mockTask.description
+        mockTask.description,
       )
       // Check that we're now in edit mode by looking for the keyboard shortcuts hint
       expect(
-        screen.getByText(/Press Ctrl\+Enter to save, Escape to cancel/)
+        screen.getByText(/Press Ctrl\+Enter to save, Escape to cancel/),
       ).toBeInTheDocument()
     })
 
@@ -199,11 +199,11 @@ describe('EditableTaskDescription', () => {
       render(<EditableTaskDescription task={mockTask} />)
 
       await user.click(
-        screen.getByRole('button', { name: /edit description/i })
+        screen.getByRole('button', { name: /edit description/i }),
       )
 
       expect(screen.getByTestId('description-textarea')).toHaveValue(
-        mockTask.description
+        mockTask.description,
       )
     })
 
@@ -225,8 +225,8 @@ describe('EditableTaskDescription', () => {
 
       expect(
         screen.getByText(
-          /Press Ctrl\+Enter to save, Escape to cancel, or click outside to save/
-        )
+          /Press Ctrl\+Enter to save, Escape to cancel, or click outside to save/,
+        ),
       ).toBeInTheDocument()
     })
 
@@ -242,7 +242,7 @@ describe('EditableTaskDescription', () => {
       await user.keyboard('{Escape}')
 
       expect(
-        screen.getByText(/This is a test task description/)
+        screen.getByText(/This is a test task description/),
       ).toBeInTheDocument()
       expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
     })
@@ -260,7 +260,7 @@ describe('EditableTaskDescription', () => {
         <EditableTaskDescription
           task={mockTask}
           onTaskUpdated={mockOnTaskUpdated}
-        />
+        />,
       )
 
       await user.click(screen.getByText(/This is a test task description/))
@@ -331,7 +331,7 @@ describe('EditableTaskDescription', () => {
 
       await user.click(screen.getByText(/This is a test task description/))
       const textarea = screen.getByTestId(
-        'description-textarea'
+        'description-textarea',
       ) as HTMLTextAreaElement
 
       // Mock scrollHeight to simulate content growth
@@ -342,7 +342,7 @@ describe('EditableTaskDescription', () => {
 
       await user.type(
         textarea,
-        '\nThis is additional content that should make the textarea grow'
+        '\nThis is additional content that should make the textarea grow',
       )
 
       // The auto-resize functionality sets height to scrollHeight
@@ -395,7 +395,7 @@ describe('EditableTaskDescription', () => {
 
       expect(mockApi.updateTask).not.toHaveBeenCalled()
       expect(
-        screen.getByText(/This is a test task description/)
+        screen.getByText(/This is a test task description/),
       ).toBeInTheDocument() // Should exit edit mode
     })
 
@@ -465,7 +465,7 @@ describe('EditableTaskDescription', () => {
         .closest('div')
       expect(descriptionContainer).toHaveAttribute(
         'title',
-        'Click to edit description'
+        'Click to edit description',
       )
     })
 
@@ -511,10 +511,10 @@ describe('EditableTaskDescription', () => {
       render(<EditableTaskDescription task={mockTask} />)
 
       expect(
-        screen.getByText(/This is a test task description/)
+        screen.getByText(/This is a test task description/),
       ).toBeInTheDocument()
       expect(
-        screen.queryByRole('button', { name: /edit description/i })
+        screen.queryByRole('button', { name: /edit description/i }),
       ).not.toBeInTheDocument()
     })
   })

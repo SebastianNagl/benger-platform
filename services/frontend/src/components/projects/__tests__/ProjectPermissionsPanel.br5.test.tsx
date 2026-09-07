@@ -15,9 +15,9 @@
 
 import { organizationsAPI } from '@/lib/api/organizations'
 import { projectsAPI } from '@/lib/api/projects'
+import { mockToast } from '@/test-utils/setupTests'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { mockToast } from '@/test-utils/setupTests'
 import { ProjectPermissionsPanel } from '../ProjectPermissionsPanel'
 
 const toast = { success: mockToast.success, error: mockToast.error }
@@ -89,7 +89,7 @@ describe('ProjectPermissionsPanel — organization branches', () => {
       <ProjectPermissionsPanel
         projectId="p1"
         initialVisibility="organization"
-      />
+      />,
     )
 
     await waitFor(() => {
@@ -109,13 +109,11 @@ describe('ProjectPermissionsPanel — organization branches', () => {
       <ProjectPermissionsPanel
         projectId="p1"
         initialVisibility="organization"
-      />
+      />,
     )
 
     await waitFor(() => {
-      expect(
-        screen.getByText('No organizations available')
-      ).toBeInTheDocument()
+      expect(screen.getByText('No organizations available')).toBeInTheDocument()
     })
   })
 
@@ -129,11 +127,11 @@ describe('ProjectPermissionsPanel — organization branches', () => {
       <ProjectPermissionsPanel
         projectId="p1"
         initialVisibility="organization"
-      />
+      />,
     )
 
     const checkbox = (await screen.findByTestId(
-      'organization-checkbox-org-a'
+      'organization-checkbox-org-a',
     )) as HTMLInputElement
     expect(checkbox.checked).toBe(false)
 
@@ -156,7 +154,7 @@ describe('ProjectPermissionsPanel — organization branches', () => {
         projectId="p1"
         initialVisibility="organization"
         onSave={onSave}
-      />
+      />,
     )
 
     const checkbox = await screen.findByTestId('organization-checkbox-org-a')
@@ -203,14 +201,14 @@ describe('ProjectPermissionsPanel — organization branches', () => {
       <ProjectPermissionsPanel
         projectId="p1"
         initialVisibility="organization"
-      />
+      />,
     )
 
     const checkbox = await screen.findByTestId('organization-checkbox-org-a')
     await user.click(checkbox)
 
     const groupSelect = await screen.findByTestId(
-      'organization-group-select-org-a'
+      'organization-group-select-org-a',
     )
     await user.selectOptions(groupSelect, 'grp-1')
     await user.click(screen.getByTestId('save-button'))
@@ -235,30 +233,30 @@ describe('ProjectPermissionsPanel — organization branches', () => {
       <ProjectPermissionsPanel
         projectId="p1"
         initialVisibility="organization"
-      />
+      />,
     )
 
     await screen.findByTestId('organization-checkbox-org-a')
     await user.click(screen.getByTestId('save-button'))
 
     await waitFor(() => {
-      expect(
-        screen.getByTestId('project-permissions-error')
-      ).toHaveTextContent('Select at least one organization')
+      expect(screen.getByTestId('project-permissions-error')).toHaveTextContent(
+        'Select at least one organization',
+      )
     })
     expect(projectsAPI.updateVisibility).not.toHaveBeenCalled()
   })
 
   it('surfaces an error toast (string fallback) when the org fetch rejects a non-Error', async () => {
     ;(organizationsAPI.getOrganizations as jest.Mock).mockRejectedValue(
-      'plain string failure'
+      'plain string failure',
     )
 
     render(
       <ProjectPermissionsPanel
         projectId="p1"
         initialVisibility="organization"
-      />
+      />,
     )
 
     await waitFor(() => {
@@ -270,14 +268,14 @@ describe('ProjectPermissionsPanel — organization branches', () => {
 
   it('surfaces the Error message when the org fetch rejects an Error', async () => {
     ;(organizationsAPI.getOrganizations as jest.Mock).mockRejectedValue(
-      new Error('boom fetching orgs')
+      new Error('boom fetching orgs'),
     )
 
     render(
       <ProjectPermissionsPanel
         projectId="p1"
         initialVisibility="organization"
-      />
+      />,
     )
 
     await waitFor(() => {
@@ -302,16 +300,16 @@ describe('ProjectPermissionsPanel — organization branches', () => {
             { id: 'org-a', name: 'Org A' },
             { id: 'org-b', name: 'Org B' },
           ]}
-        />
+        />,
       )
 
       expect(
-        screen.getByText('You can only view these permissions')
+        screen.getByText('You can only view these permissions'),
       ).toBeInTheDocument()
       expect(screen.getByText('Org A')).toBeInTheDocument()
       expect(screen.getByText('Org B')).toBeInTheDocument()
       expect(
-        screen.queryByTestId('project-permissions-panel')
+        screen.queryByTestId('project-permissions-panel'),
       ).not.toBeInTheDocument()
     })
 
@@ -322,7 +320,7 @@ describe('ProjectPermissionsPanel — organization branches', () => {
           projectCreatorId="creator-9"
           initialVisibility="public"
           initialPublicRole="CONTRIBUTOR"
-        />
+        />,
       )
 
       expect(screen.getByText(/Public · Contributor/)).toBeInTheDocument()
@@ -335,7 +333,7 @@ describe('ProjectPermissionsPanel — organization branches', () => {
           projectCreatorId="creator-9"
           initialVisibility="public"
           initialPublicRole="ANNOTATOR"
-        />
+        />,
       )
 
       expect(screen.getByText(/Public · Annotator/)).toBeInTheDocument()
@@ -343,14 +341,11 @@ describe('ProjectPermissionsPanel — organization branches', () => {
 
     it('returns false from canEditPermissions when projectCreatorId is null', () => {
       render(
-        <ProjectPermissionsPanel
-          projectId="p1"
-          initialVisibility="private"
-        />
+        <ProjectPermissionsPanel projectId="p1" initialVisibility="private" />,
       )
 
       expect(
-        screen.getByText('You can only view these permissions')
+        screen.getByText('You can only view these permissions'),
       ).toBeInTheDocument()
     })
   })

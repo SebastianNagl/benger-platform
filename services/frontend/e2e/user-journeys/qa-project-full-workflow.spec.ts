@@ -14,7 +14,7 @@
  * IMPORTANT: This test runs in the ephemeral test environment only.
  * Execute via: make test-e2e
  */
-import { test, expect } from '@playwright/test'
+import { expect, test } from '@playwright/test'
 import { importTasksInBrowser } from '../helpers/api-seeding'
 import { TestHelpers } from '../helpers/test-helpers'
 
@@ -31,11 +31,23 @@ const LABEL_CONFIG = `<View>
 
 // Test tasks with questions
 const TEST_TASKS = [
-  { data: { question: 'What are the requirements to form a GmbH in Germany?' } },
-  { data: { question: 'How does German contract law handle breach of contract?' } },
+  {
+    data: { question: 'What are the requirements to form a GmbH in Germany?' },
+  },
+  {
+    data: {
+      question: 'How does German contract law handle breach of contract?',
+    },
+  },
   { data: { question: 'What is the limitation period for tort claims?' } },
-  { data: { question: 'What rights do employees have under German labor law?' } },
-  { data: { question: 'How are intellectual property rights protected in Germany?' } },
+  {
+    data: { question: 'What rights do employees have under German labor law?' },
+  },
+  {
+    data: {
+      question: 'How are intellectual property rights protected in Germany?',
+    },
+  },
 ]
 
 // Reference answers (annotations)
@@ -82,12 +94,17 @@ const MODEL_RESPONSES: Record<string, string[]> = {
 // and fall back to the lightweight set locally on arm64 — same policy as
 // the workers suite's arch-conditional skips.
 const HEAVY_METRICS = [
-  'bertscore', 'moverscore',                    // embedding-based metrics
-  'semantic_similarity',                        // sentence-transformer-based
-  'factcc', 'qags',                             // factual consistency
+  'bertscore',
+  'moverscore', // embedding-based metrics
+  'semantic_similarity', // sentence-transformer-based
+  'factcc',
+  'qags', // factual consistency
 ]
 const EVAL_METRICS = [
-  'bleu', 'rouge', 'meteor', 'chrf',          // lightweight text metrics
+  'bleu',
+  'rouge',
+  'meteor',
+  'chrf', // lightweight text metrics
   ...(process.arch === 'arm64' ? [] : HEAVY_METRICS),
   // Note: 'coherence' excluded — requires 2+ sentences, test answers are single sentences
 ]
@@ -105,7 +122,9 @@ test.describe('QA Project Full Workflow (Create-to-Verify) @extended', () => {
     await testHelpers.login('admin', 'admin')
   })
 
-  test('Step 1: Create new QA project with TextArea label config', async ({ page }) => {
+  test('Step 1: Create new QA project with TextArea label config', async ({
+    page,
+  }) => {
     // Create project via API
     const createResult = await page.evaluate(
       async ({ name, labelConfig }) => {
@@ -126,7 +145,7 @@ test.describe('QA Project Full Workflow (Create-to-Verify) @extended', () => {
         const data = await response.json()
         return { success: true, projectId: data.id, title: data.title }
       },
-      { name: PROJECT_NAME, labelConfig: LABEL_CONFIG }
+      { name: PROJECT_NAME, labelConfig: LABEL_CONFIG },
     )
 
     console.log(`[Step 1] Create project: ${JSON.stringify(createResult)}`)
@@ -140,10 +159,12 @@ test.describe('QA Project Full Workflow (Create-to-Verify) @extended', () => {
     // Get project ID from previous test or find it
     if (!projectId) {
       projectId = await page.evaluate(async (name) => {
-        const response = await fetch('/api/projects', { credentials: 'include' })
+        const response = await fetch('/api/projects', {
+          credentials: 'include',
+        })
         const data = await response.json()
         const project = (data.items || data || []).find(
-          (p: { title: string }) => p.title.includes('E2E Full Workflow QA')
+          (p: { title: string }) => p.title.includes('E2E Full Workflow QA'),
         )
         return project?.id || null
       }, PROJECT_NAME)
@@ -162,10 +183,14 @@ test.describe('QA Project Full Workflow (Create-to-Verify) @extended', () => {
 
     // Get task IDs
     const tasks = await page.evaluate(async (pid) => {
-      const response = await fetch(`/api/projects/${pid}/tasks`, { credentials: 'include' })
+      const response = await fetch(`/api/projects/${pid}/tasks`, {
+        credentials: 'include',
+      })
       if (!response.ok) return []
       const data = await response.json()
-      return (data.items || data.tasks || data || []).map((t: { id: string }) => t.id)
+      return (data.items || data.tasks || data || []).map(
+        (t: { id: string }) => t.id,
+      )
     }, projectId)
 
     taskIds = tasks
@@ -173,14 +198,18 @@ test.describe('QA Project Full Workflow (Create-to-Verify) @extended', () => {
     expect(taskIds.length).toBe(TEST_TASKS.length)
   })
 
-  test('Step 3: Create annotations by multiple annotators', async ({ page }) => {
+  test('Step 3: Create annotations by multiple annotators', async ({
+    page,
+  }) => {
     // Get project and task IDs
     if (!projectId) {
       projectId = await page.evaluate(async () => {
-        const response = await fetch('/api/projects', { credentials: 'include' })
+        const response = await fetch('/api/projects', {
+          credentials: 'include',
+        })
         const data = await response.json()
         const project = (data.items || data || []).find(
-          (p: { title: string }) => p.title.includes('E2E Full Workflow QA')
+          (p: { title: string }) => p.title.includes('E2E Full Workflow QA'),
         )
         return project?.id || null
       })
@@ -188,10 +217,14 @@ test.describe('QA Project Full Workflow (Create-to-Verify) @extended', () => {
 
     if (taskIds.length === 0) {
       taskIds = await page.evaluate(async (pid) => {
-        const response = await fetch(`/api/projects/${pid}/tasks`, { credentials: 'include' })
+        const response = await fetch(`/api/projects/${pid}/tasks`, {
+          credentials: 'include',
+        })
         if (!response.ok) return []
         const data = await response.json()
-        return (data.items || data.tasks || data || []).map((t: { id: string }) => t.id)
+        return (data.items || data.tasks || data || []).map(
+          (t: { id: string }) => t.id,
+        )
       }, projectId)
     }
 
@@ -199,26 +232,33 @@ test.describe('QA Project Full Workflow (Create-to-Verify) @extended', () => {
 
     // Create annotations from MULTIPLE ANNOTATORS
     // Each task gets annotations from all 3 annotators with slightly varied answers
-    const annotations: Array<{task_id: string; result: object[]; annotator_username: string}> = []
+    const annotations: Array<{
+      task_id: string
+      result: object[]
+      annotator_username: string
+    }> = []
 
     for (let i = 0; i < taskIds.length && i < REFERENCE_ANSWERS.length; i++) {
       // Each annotator provides their answer for this task
       for (let a = 0; a < ANNOTATORS.length; a++) {
         const annotator = ANNOTATORS[a]
         // Vary answers slightly per annotator to simulate real multi-annotator scenario
-        const answerVariant = a === 0
-          ? REFERENCE_ANSWERS[i]
-          : `${REFERENCE_ANSWERS[i]} (${annotator}'s perspective)`
+        const answerVariant =
+          a === 0
+            ? REFERENCE_ANSWERS[i]
+            : `${REFERENCE_ANSWERS[i]} (${annotator}'s perspective)`
 
         annotations.push({
           task_id: taskIds[i],
           annotator_username: annotator,
-          result: [{
-            from_name: 'answer',
-            to_name: 'question',
-            type: 'textarea',
-            value: { text: [answerVariant] },
-          }],
+          result: [
+            {
+              from_name: 'answer',
+              to_name: 'question',
+              type: 'textarea',
+              value: { text: [answerVariant] },
+            },
+          ],
         })
       }
     }
@@ -238,18 +278,24 @@ test.describe('QA Project Full Workflow (Create-to-Verify) @extended', () => {
             })
             if (!response.ok) {
               const error = await response.text()
-              if (attempt < 2) { await new Promise(r => setTimeout(r, 2000)); continue }
+              if (attempt < 2) {
+                await new Promise((r) => setTimeout(r, 2000))
+                continue
+              }
               return { success: false, error: error, created_count: 0 }
             }
             return await response.json()
           } catch (e) {
-            if (attempt < 2) { await new Promise(r => setTimeout(r, 2000)); continue }
+            if (attempt < 2) {
+              await new Promise((r) => setTimeout(r, 2000))
+              continue
+            }
             return { success: false, error: String(e), created_count: 0 }
           }
         }
         return { success: false, error: 'All retries failed', created_count: 0 }
       },
-      { pid: projectId, anns: annotations }
+      { pid: projectId, anns: annotations },
     )
 
     if (!seedResult.success) {
@@ -258,7 +304,9 @@ test.describe('QA Project Full Workflow (Create-to-Verify) @extended', () => {
     const annotationsCreated = seedResult.created_count || 0
     const expectedAnnotations = REFERENCE_ANSWERS.length * ANNOTATORS.length // 5 tasks × 3 annotators
 
-    console.log(`[Step 3] Created ${annotationsCreated} annotations from ${ANNOTATORS.length} annotators`)
+    console.log(
+      `[Step 3] Created ${annotationsCreated} annotations from ${ANNOTATORS.length} annotators`,
+    )
     expect(annotationsCreated).toBe(expectedAnnotations)
   })
 
@@ -266,10 +314,12 @@ test.describe('QA Project Full Workflow (Create-to-Verify) @extended', () => {
     // Get project and task IDs
     if (!projectId) {
       projectId = await page.evaluate(async () => {
-        const response = await fetch('/api/projects', { credentials: 'include' })
+        const response = await fetch('/api/projects', {
+          credentials: 'include',
+        })
         const data = await response.json()
         const project = (data.items || data || []).find(
-          (p: { title: string }) => p.title.includes('E2E Full Workflow QA')
+          (p: { title: string }) => p.title.includes('E2E Full Workflow QA'),
         )
         return project?.id || null
       })
@@ -277,17 +327,25 @@ test.describe('QA Project Full Workflow (Create-to-Verify) @extended', () => {
 
     if (taskIds.length === 0) {
       taskIds = await page.evaluate(async (pid) => {
-        const response = await fetch(`/api/projects/${pid}/tasks`, { credentials: 'include' })
+        const response = await fetch(`/api/projects/${pid}/tasks`, {
+          credentials: 'include',
+        })
         if (!response.ok) return []
         const data = await response.json()
-        return (data.items || data.tasks || data || []).map((t: { id: string }) => t.id)
+        return (data.items || data.tasks || data || []).map(
+          (t: { id: string }) => t.id,
+        )
       }, projectId)
     }
 
     test.skip(!projectId || taskIds.length === 0, 'Project or tasks not found')
 
     // Build generations list for all models
-    const generations: Array<{ task_id: string; model_id: string; output: string }> = []
+    const generations: Array<{
+      task_id: string
+      model_id: string
+      output: string
+    }> = []
     for (const model of MODELS) {
       const responses = MODEL_RESPONSES[model]
       for (let i = 0; i < taskIds.length && i < responses.length; i++) {
@@ -316,7 +374,7 @@ test.describe('QA Project Full Workflow (Create-to-Verify) @extended', () => {
         }
         return response.json()
       },
-      { pid: projectId, gens: generations }
+      { pid: projectId, gens: generations },
     )
 
     console.log(`[Step 4] Seed generations: ${JSON.stringify(seedResult)}`)
@@ -331,10 +389,12 @@ test.describe('QA Project Full Workflow (Create-to-Verify) @extended', () => {
     // Get project ID
     if (!projectId) {
       projectId = await page.evaluate(async () => {
-        const response = await fetch('/api/projects', { credentials: 'include' })
+        const response = await fetch('/api/projects', {
+          credentials: 'include',
+        })
         const data = await response.json()
         const project = (data.items || data || []).find(
-          (p: { title: string }) => p.title.includes('E2E Full Workflow QA')
+          (p: { title: string }) => p.title.includes('E2E Full Workflow QA'),
         )
         return project?.id || null
       })
@@ -344,24 +404,33 @@ test.describe('QA Project Full Workflow (Create-to-Verify) @extended', () => {
 
     // 1. GET auto-generated evaluation config (detects answer types from label config)
     const autoConfig = await page.evaluate(async (pid) => {
-      const response = await fetch(`/api/evaluations/projects/${pid}/evaluation-config`, {
-        credentials: 'include',
-      })
+      const response = await fetch(
+        `/api/evaluations/projects/${pid}/evaluation-config`,
+        {
+          credentials: 'include',
+        },
+      )
       if (!response.ok) return { success: false, error: await response.text() }
       return { success: true, ...(await response.json()) }
     }, projectId)
 
-    console.log(`[Step 5] Auto-detected types: ${JSON.stringify(autoConfig.detected_answer_types?.map((t: any) => t.type))}`)
-    console.log(`[Step 5] Available methods: ${JSON.stringify(Object.keys(autoConfig.available_methods || {}))}`)
+    console.log(
+      `[Step 5] Auto-detected types: ${JSON.stringify(autoConfig.detected_answer_types?.map((t: any) => t.type))}`,
+    )
+    console.log(
+      `[Step 5] Available methods: ${JSON.stringify(Object.keys(autoConfig.available_methods || {}))}`,
+    )
     expect(autoConfig.success).toBeTruthy()
     expect(autoConfig.available_methods).toHaveProperty('answer')
 
     // 2. Build evaluation configs for all metrics (deterministic + LLM judge)
     const allMetrics = [...EVAL_METRICS, ...LLM_JUDGE_METRICS]
-    const evalConfigs = allMetrics.map(metric => ({
+    const evalConfigs = allMetrics.map((metric) => ({
       id: `e2e-qa-${metric}`,
       metric,
-      display_name: metric.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+      display_name: metric
+        .replace(/_/g, ' ')
+        .replace(/\b\w/g, (c) => c.toUpperCase()),
       prediction_fields: ['answer'],
       reference_fields: ['answer'],
       enabled: true,
@@ -369,50 +438,72 @@ test.describe('QA Project Full Workflow (Create-to-Verify) @extended', () => {
 
     // 3. PUT: Save selected evaluation methods
     const { success: _s, ...baseConfig } = autoConfig
-    const saveResult = await page.evaluate(async ({ pid, config, evalCfgs, metrics }) => {
-      const response = await fetch(`/api/evaluations/projects/${pid}/evaluation-config`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          ...config,
-          selected_methods: {
-            answer: {
-              automated: metrics,
-              human: [],
-              field_mapping: {
-                prediction_field: 'answer',
-                reference_field: 'answer',
+    const saveResult = await page.evaluate(
+      async ({ pid, config, evalCfgs, metrics }) => {
+        const response = await fetch(
+          `/api/evaluations/projects/${pid}/evaluation-config`,
+          {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+              ...config,
+              selected_methods: {
+                answer: {
+                  automated: metrics,
+                  human: [],
+                  field_mapping: {
+                    prediction_field: 'answer',
+                    reference_field: 'answer',
+                  },
+                },
               },
-            },
+              evaluation_configs: evalCfgs,
+            }),
           },
-          evaluation_configs: evalCfgs,
-        }),
-      })
-      if (!response.ok) return { success: false, error: await response.text() }
-      return { success: true, ...(await response.json()) }
-    }, { pid: projectId, config: baseConfig, evalCfgs: evalConfigs, metrics: allMetrics })
+        )
+        if (!response.ok)
+          return { success: false, error: await response.text() }
+        return { success: true, ...(await response.json()) }
+      },
+      {
+        pid: projectId,
+        config: baseConfig,
+        evalCfgs: evalConfigs,
+        metrics: allMetrics,
+      },
+    )
 
-    console.log(`[Step 5] Saved evaluation config: ${saveResult.success ? 'OK' : saveResult.error}`)
+    console.log(
+      `[Step 5] Saved evaluation config: ${saveResult.success ? 'OK' : saveResult.error}`,
+    )
     expect(saveResult.success).toBeTruthy()
 
     // 4. POST: Run evaluation using the saved configs
-    const runResult = await page.evaluate(async ({ pid, evalCfgs }) => {
-      const response = await fetch('/api/evaluations/run', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          project_id: pid,
-          evaluation_configs: evalCfgs,
-          batch_size: 100,
-          force_rerun: true,
-        }),
-      })
-      if (!response.ok) return { success: false, error: await response.text() }
-      const data = await response.json()
-      return { success: true, evaluation_id: data.evaluation_id, status: data.status }
-    }, { pid: projectId, evalCfgs: evalConfigs })
+    const runResult = await page.evaluate(
+      async ({ pid, evalCfgs }) => {
+        const response = await fetch('/api/evaluations/run', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            project_id: pid,
+            evaluation_configs: evalCfgs,
+            batch_size: 100,
+            force_rerun: true,
+          }),
+        })
+        if (!response.ok)
+          return { success: false, error: await response.text() }
+        const data = await response.json()
+        return {
+          success: true,
+          evaluation_id: data.evaluation_id,
+          status: data.status,
+        }
+      },
+      { pid: projectId, evalCfgs: evalConfigs },
+    )
 
     console.log(`[Step 5] Started evaluation: ${JSON.stringify(runResult)}`)
     expect(runResult.success).toBeTruthy()
@@ -423,18 +514,35 @@ test.describe('QA Project Full Workflow (Create-to-Verify) @extended', () => {
     const pollResult = await page.evaluate(async (eid: string) => {
       const maxAttempts = 108
       for (let i = 0; i < maxAttempts; i++) {
-        await new Promise(r => setTimeout(r, 5000))
+        await new Promise((r) => setTimeout(r, 5000))
         try {
-          const response = await fetch(`/api/evaluations/evaluation/status/${eid}`, {
-            credentials: 'include',
-          })
+          const response = await fetch(
+            `/api/evaluations/evaluation/status/${eid}`,
+            {
+              credentials: 'include',
+            },
+          )
           if (!response.ok) continue
           const data = await response.json()
-          if (data.status === 'completed') return { success: true, status: 'completed', attempts: i + 1 }
-          if (data.status === 'failed') return { success: false, status: 'failed', error: data.message, attempts: i + 1 }
-        } catch (e) { /* retry */ }
+          if (data.status === 'completed')
+            return { success: true, status: 'completed', attempts: i + 1 }
+          if (data.status === 'failed')
+            return {
+              success: false,
+              status: 'failed',
+              error: data.message,
+              attempts: i + 1,
+            }
+        } catch (e) {
+          /* retry */
+        }
       }
-      return { success: false, status: 'timeout', error: 'Timeout', attempts: maxAttempts }
+      return {
+        success: false,
+        status: 'timeout',
+        error: 'Timeout',
+        attempts: maxAttempts,
+      }
     }, evalId)
 
     console.log(`[Step 5] Poll result: ${JSON.stringify(pollResult)}`)
@@ -443,12 +551,16 @@ test.describe('QA Project Full Workflow (Create-to-Verify) @extended', () => {
 
     // 6. Verify results have real metric values
     const results = await page.evaluate(async (eid: string) => {
-      const response = await fetch(`/api/evaluations/run/results/${eid}`, { credentials: 'include' })
+      const response = await fetch(`/api/evaluations/run/results/${eid}`, {
+        credentials: 'include',
+      })
       if (!response.ok) return { success: false, error: await response.text() }
       return { success: true, ...(await response.json()) }
     }, evalId)
 
-    console.log(`[Step 5] Results: samples=${results.samples_evaluated}, status=${results.status}`)
+    console.log(
+      `[Step 5] Results: samples=${results.samples_evaluated}, status=${results.status}`,
+    )
     const aggMetrics = results.aggregated_metrics || {}
     for (const [key, value] of Object.entries(aggMetrics)) {
       console.log(`[Step 5]   ${key} = ${value}`)
@@ -461,7 +573,7 @@ test.describe('QA Project Full Workflow (Create-to-Verify) @extended', () => {
     // Verify each configured metric produced results
     const metricKeys = Object.keys(aggMetrics)
     for (const metric of allMetrics) {
-      const hasMetric = metricKeys.some(k => k.includes(metric))
+      const hasMetric = metricKeys.some((k) => k.includes(metric))
       console.log(`[Step 5] Has ${metric}: ${hasMetric}`)
       expect(hasMetric).toBeTruthy()
     }
@@ -479,14 +591,18 @@ test.describe('QA Project Full Workflow (Create-to-Verify) @extended', () => {
     }
   })
 
-  test('Step 6: Verify evaluation results and metrics via API', async ({ page }) => {
+  test('Step 6: Verify evaluation results and metrics via API', async ({
+    page,
+  }) => {
     // Get project ID
     if (!projectId) {
       projectId = await page.evaluate(async () => {
-        const response = await fetch('/api/projects', { credentials: 'include' })
+        const response = await fetch('/api/projects', {
+          credentials: 'include',
+        })
         const data = await response.json()
         const project = (data.items || data || []).find(
-          (p: { title: string }) => p.title.includes('E2E Full Workflow QA')
+          (p: { title: string }) => p.title.includes('E2E Full Workflow QA'),
         )
         return project?.id || null
       })
@@ -496,10 +612,14 @@ test.describe('QA Project Full Workflow (Create-to-Verify) @extended', () => {
 
     // Fetch project evaluation results
     const evalData = await page.evaluate(async (pid) => {
-      const resultsRes = await fetch(`/api/evaluations/run/results/project/${pid}`, {
-        credentials: 'include',
-      })
-      if (!resultsRes.ok) return { success: false, error: await resultsRes.text() }
+      const resultsRes = await fetch(
+        `/api/evaluations/run/results/project/${pid}`,
+        {
+          credentials: 'include',
+        },
+      )
+      if (!resultsRes.ok)
+        return { success: false, error: await resultsRes.text() }
 
       const data = await resultsRes.json()
       const latest = (data.evaluations || [])[0]
@@ -507,9 +627,13 @@ test.describe('QA Project Full Workflow (Create-to-Verify) @extended', () => {
       // Extract scores from results_by_config
       const scores: Record<string, number> = {}
       if (latest?.results_by_config) {
-        for (const [configId, configData] of Object.entries(latest.results_by_config as Record<string, any>)) {
-          for (const fieldResult of (configData.field_results || [])) {
-            for (const [metricName, metricValue] of Object.entries(fieldResult.scores || {})) {
+        for (const [configId, configData] of Object.entries(
+          latest.results_by_config as Record<string, any>,
+        )) {
+          for (const fieldResult of configData.field_results || []) {
+            for (const [metricName, metricValue] of Object.entries(
+              fieldResult.scores || {},
+            )) {
               scores[`${configId}:${metricName}`] = Number(metricValue)
             }
           }
@@ -525,7 +649,9 @@ test.describe('QA Project Full Workflow (Create-to-Verify) @extended', () => {
       }
     }, projectId)
 
-    console.log(`[Step 6] Evaluations: ${evalData.evaluationCount}, status: ${evalData.latestStatus}`)
+    console.log(
+      `[Step 6] Evaluations: ${evalData.evaluationCount}, status: ${evalData.latestStatus}`,
+    )
     console.log(`[Step 6] Samples: ${evalData.latestSamplesEvaluated}`)
 
     expect(evalData.success).toBeTruthy()
@@ -547,45 +673,72 @@ test.describe('QA Project Full Workflow (Create-to-Verify) @extended', () => {
     // Verify all configured metrics have scores
     const allMetrics = [...EVAL_METRICS, ...LLM_JUDGE_METRICS]
     for (const metric of allMetrics) {
-      const hasScore = Object.keys(scores).some(k => k.includes(metric))
+      const hasScore = Object.keys(scores).some((k) => k.includes(metric))
       expect(hasScore).toBeTruthy()
     }
   })
 
-  test('Step 7: Verify leaderboards show model and annotator rankings', async ({ page }) => {
+  test('Step 7: Verify leaderboards show model and annotator rankings', async ({
+    page,
+  }) => {
     // Navigate to leaderboards
     await page.goto('/leaderboards')
     await page.waitForTimeout(2000)
 
     // Check for leaderboard table
-    const hasTable = await page.locator('table').first().isVisible({ timeout: 5000 }).catch(() => false)
+    const hasTable = await page
+      .locator('table')
+      .first()
+      .isVisible({ timeout: 5000 })
+      .catch(() => false)
     console.log(`[Step 7] Leaderboard table visible: ${hasTable}`)
 
     // Check for LLM section and model names
-    const llmSection = await page.locator('text=/LLM|Models/i').first().isVisible({ timeout: 3000 }).catch(() => false)
+    const llmSection = await page
+      .locator('text=/LLM|Models/i')
+      .first()
+      .isVisible({ timeout: 3000 })
+      .catch(() => false)
     console.log(`[Step 7] LLM section visible: ${llmSection}`)
 
     // Verify models appear in leaderboard
     let modelsFound = 0
     for (const model of MODELS) {
-      const modelVisible = await page.locator(`text=${model}`).first().isVisible({ timeout: 2000 }).catch(() => false)
+      const modelVisible = await page
+        .locator(`text=${model}`)
+        .first()
+        .isVisible({ timeout: 2000 })
+        .catch(() => false)
       if (modelVisible) modelsFound++
     }
-    console.log(`[Step 7] Models found in leaderboard: ${modelsFound}/${MODELS.length}`)
+    console.log(
+      `[Step 7] Models found in leaderboard: ${modelsFound}/${MODELS.length}`,
+    )
 
     // Check for Human/Annotator section
-    const humanSection = await page.locator('text=/Human|Annotator/i').first().isVisible({ timeout: 3000 }).catch(() => false)
+    const humanSection = await page
+      .locator('text=/Human|Annotator/i')
+      .first()
+      .isVisible({ timeout: 3000 })
+      .catch(() => false)
     console.log(`[Step 7] Human section visible: ${humanSection}`)
 
     // Verify annotators appear in leaderboard (check for usernames or display names)
     let annotatorsFound = 0
     for (const annotator of ANNOTATORS) {
       // Check for username or common display name patterns
-      const annotatorVisible = await page.locator(`text=/${annotator}|System Administrator|contributor|Annotator User/i`)
-        .first().isVisible({ timeout: 2000 }).catch(() => false)
+      const annotatorVisible = await page
+        .locator(
+          `text=/${annotator}|System Administrator|contributor|Annotator User/i`,
+        )
+        .first()
+        .isVisible({ timeout: 2000 })
+        .catch(() => false)
       if (annotatorVisible) annotatorsFound++
     }
-    console.log(`[Step 7] Annotators found in leaderboard: ${annotatorsFound}/${ANNOTATORS.length}`)
+    console.log(
+      `[Step 7] Annotators found in leaderboard: ${annotatorsFound}/${ANNOTATORS.length}`,
+    )
 
     // Leaderboard should show either models or annotators (or both)
     expect(hasTable || llmSection || humanSection).toBeTruthy()
@@ -595,10 +748,12 @@ test.describe('QA Project Full Workflow (Create-to-Verify) @extended', () => {
     // Get project ID
     if (!projectId) {
       projectId = await page.evaluate(async () => {
-        const response = await fetch('/api/projects', { credentials: 'include' })
+        const response = await fetch('/api/projects', {
+          credentials: 'include',
+        })
         const data = await response.json()
         const project = (data.items || data || []).find(
-          (p: { title: string }) => p.title.includes('E2E Full Workflow QA')
+          (p: { title: string }) => p.title.includes('E2E Full Workflow QA'),
         )
         return project?.id || null
       })

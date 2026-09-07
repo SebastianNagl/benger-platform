@@ -47,26 +47,31 @@ describe('signup route br8', () => {
   })
 
   it('routes staging.what-a-benger.net to staging API (L20-22)', async () => {
-    const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue(
-      new Response(JSON.stringify({ ok: true }), { status: 200 })
-    )
+    const fetchSpy = jest
+      .spyOn(global, 'fetch')
+      .mockResolvedValue(
+        new Response(JSON.stringify({ ok: true }), { status: 200 }),
+      )
     const { POST } = require('../route')
     await POST(makeRequest('staging.what-a-benger.net'))
     expect(fetchSpy).toHaveBeenCalledWith(
       expect.stringContaining('benger-api:8000'),
-      expect.anything()
+      expect.anything(),
     )
   })
 
   it('handles OK response with Set-Cookie headers including domain rewrite (L52-92)', async () => {
     const headers = new Headers()
-    headers.append('Set-Cookie', 'access_token=abc; Domain=api.internal; Secure; HttpOnly')
+    headers.append(
+      'Set-Cookie',
+      'access_token=abc; Domain=api.internal; Secure; HttpOnly',
+    )
 
     jest.spyOn(global, 'fetch').mockResolvedValue(
       new Response(JSON.stringify({ user: { id: 1 } }), {
         status: 200,
         headers,
-      })
+      }),
     )
     const { POST } = require('../route')
     const res = await POST(makeRequest('benger.localhost'))
@@ -89,7 +94,7 @@ describe('signup route br8', () => {
       new Response(JSON.stringify({ ok: true }), {
         status: 200,
         headers,
-      })
+      }),
     )
     const { POST } = require('../route')
     const res = await POST(makeRequest('benger.localhost'))
@@ -101,7 +106,9 @@ describe('signup route br8', () => {
 
   it('handles non-ok response (L48-50)', async () => {
     jest.spyOn(global, 'fetch').mockResolvedValue(
-      new Response(JSON.stringify({ detail: 'Bad request' }), { status: 400 })
+      new Response(JSON.stringify({ detail: 'Bad request' }), {
+        status: 400,
+      }),
     )
     const { POST } = require('../route')
     const res = await POST(makeRequest('benger.localhost'))
@@ -124,7 +131,7 @@ describe('signup route br8', () => {
       new Response(JSON.stringify({ ok: true }), {
         status: 200,
         headers,
-      })
+      }),
     )
     const { POST } = require('../route')
     const res = await POST(makeRequest('localhost:3000'))

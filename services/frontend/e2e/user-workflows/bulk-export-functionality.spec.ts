@@ -23,7 +23,7 @@ test.describe('Bulk Export Functionality', () => {
 
     // Wait for projects table to load - look for any project row
     const projectRows = page.locator(
-      'table tbody tr, [data-testid="project-row"]'
+      'table tbody tr, [data-testid="project-row"]',
     )
     const rowCount = await projectRows.count().catch(() => 0)
 
@@ -39,7 +39,7 @@ test.describe('Bulk Export Functionality', () => {
 
     // Navigate to Data tab - check for both German and English labels
     const dataTab = page.locator(
-      'button:has-text("Projektdaten"), button:has-text("Project Data"), [data-testid="data-tab"]'
+      'button:has-text("Projektdaten"), button:has-text("Project Data"), [data-testid="data-tab"]',
     )
     const hasDataTab = await dataTab
       .isVisible({ timeout: 5000 })
@@ -82,7 +82,7 @@ test.describe('Bulk Export Functionality', () => {
     // Find and click the Export button (download icon button)
     const exportButton = page
       .locator(
-        'button[title="Aufgaben exportieren"], button[title="Export tasks"], button:has([data-testid="export-icon"])'
+        'button[title="Aufgaben exportieren"], button[title="Export tasks"], button:has([data-testid="export-icon"])',
       )
       .first()
 
@@ -127,10 +127,10 @@ test.describe('Bulk Export Functionality', () => {
 
       // Count tasks with annotations and generations
       const tasksWithAnnotations = exportData.tasks.filter(
-        (task: any) => task.annotations && task.annotations.length > 0
+        (task: any) => task.annotations && task.annotations.length > 0,
       )
       const tasksWithGenerations = exportData.tasks.filter(
-        (task: any) => task.generations && task.generations.length > 0
+        (task: any) => task.generations && task.generations.length > 0,
       )
 
       console.log('✅ Export validation passed:')
@@ -186,7 +186,7 @@ test.describe('Bulk Export Functionality', () => {
     // Find export button
     const exportButton = page
       .locator(
-        'button[title="Aufgaben exportieren"], button[title="Export tasks"]'
+        'button[title="Aufgaben exportieren"], button[title="Export tasks"]',
       )
       .first()
 
@@ -210,7 +210,7 @@ test.describe('Bulk Export Functionality', () => {
 
     // Verify no createObjectURL errors occurred
     const createObjectURLErrors = consoleErrors.filter((msg) =>
-      msg.includes('createObjectURL')
+      msg.includes('createObjectURL'),
     )
     expect(createObjectURLErrors.length).toBe(0)
     console.log('✅ No createObjectURL errors detected')
@@ -220,7 +220,7 @@ test.describe('Bulk Export Functionality', () => {
       (error) =>
         error.message.includes('export') ||
         error.message.includes('createObjectURL') ||
-        error.message.includes('blob')
+        error.message.includes('blob'),
     )
     expect(exportRelatedErrors.length).toBe(0)
     console.log('✅ No export-related errors detected')
@@ -242,7 +242,7 @@ test.describe('Bulk Export Functionality', () => {
     // Find export button
     const exportButton = page
       .locator(
-        'button[title="Aufgaben exportieren"], button[title="Export tasks"]'
+        'button[title="Aufgaben exportieren"], button[title="Export tasks"]',
       )
       .first()
 

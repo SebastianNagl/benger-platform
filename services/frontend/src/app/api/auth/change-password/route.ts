@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server'
 import { getInternalApiUrl } from '@/lib/utils/apiUrl'
+import { NextRequest, NextResponse } from 'next/server'
 
 export async function POST(request: NextRequest) {
   try {
@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
           Authorization: authorization, // Forward authorization header
         },
         body: JSON.stringify(body),
-      }
+      },
     )
 
     // Get the response data
@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
       const errorData = await backendResponse.text()
       return NextResponse.json(
         { error: errorData || 'Password change failed' },
-        { status: backendResponse.status }
+        { status: backendResponse.status },
       )
     }
 
@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
     console.error('❌ Change password proxy error:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
-      { status: 500 }
+      { status: 500 },
     )
   }
 }

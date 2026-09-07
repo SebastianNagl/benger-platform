@@ -34,13 +34,15 @@ const eslintConfig = [
           paths: [
             {
               name: 'vitest',
-              message: 'Please use Jest instead of Vitest. This project uses Jest for all testing.',
+              message:
+                'Please use Jest instead of Vitest. This project uses Jest for all testing.',
             },
           ],
           patterns: [
             {
               group: ['vitest', 'vitest/*'],
-              message: 'Vitest is not allowed. Use Jest for testing (jest.fn(), jest.mock(), etc.)',
+              message:
+                'Vitest is not allowed. Use Jest for testing (jest.fn(), jest.mock(), etc.)',
             },
           ],
         },

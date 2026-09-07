@@ -6,7 +6,7 @@
  */
 
 import '@testing-library/jest-dom'
-import { fireEvent, render, screen, act } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
 // Mock data binding
@@ -37,8 +37,16 @@ describe('SpanLabelsInput - Coverage', () => {
       choice: 'single',
     },
     children: [
-      { type: 'Label', props: { value: 'PERSON', background: '#FF6B6B' }, children: [] },
-      { type: 'Label', props: { value: 'ORG', background: '#4ECDC4', alias: 'O', hotkey: 'g' }, children: [] },
+      {
+        type: 'Label',
+        props: { value: 'PERSON', background: '#FF6B6B' },
+        children: [],
+      },
+      {
+        type: 'Label',
+        props: { value: 'ORG', background: '#4ECDC4', alias: 'O', hotkey: 'g' },
+        children: [],
+      },
       { type: 'Label', props: { value: 'DATE' }, children: [] },
     ],
   }
@@ -75,7 +83,9 @@ describe('SpanLabelsInput - Coverage', () => {
 
   describe('Source Text Resolution', () => {
     it('uses propSourceText when provided', () => {
-      render(<SpanLabelsInput {...defaultProps} sourceText="Custom source text" />)
+      render(
+        <SpanLabelsInput {...defaultProps} sourceText="Custom source text" />,
+      )
       expect(screen.getByText('Custom source text')).toBeInTheDocument()
     })
 
@@ -142,13 +152,21 @@ describe('SpanLabelsInput - Coverage', () => {
       const propsWithSpans = {
         ...defaultProps,
         value: [
-          { id: 's1', start: 0, end: 10, text: 'John Smith', labels: ['PERSON'] },
+          {
+            id: 's1',
+            start: 0,
+            end: 10,
+            text: 'John Smith',
+            labels: ['PERSON'],
+          },
         ],
       }
       render(<SpanLabelsInput {...propsWithSpans} />)
 
       // The title uses i18n key: "PERSON (labeling.spanLabels.clickToRemove)"
-      const highlightedSpan = screen.getByTitle(/PERSON.*labeling\.spanLabels\.clickToRemove/)
+      const highlightedSpan = screen.getByTitle(
+        /PERSON.*labeling\.spanLabels\.clickToRemove/,
+      )
       expect(highlightedSpan).toHaveStyle({ backgroundColor: '#FF6B6B' })
     })
 
@@ -156,7 +174,13 @@ describe('SpanLabelsInput - Coverage', () => {
       const propsWithSpans = {
         ...defaultProps,
         value: [
-          { id: 's1', start: 0, end: 10, text: 'John Smith', labels: ['PERSON'] },
+          {
+            id: 's1',
+            start: 0,
+            end: 10,
+            text: 'John Smith',
+            labels: ['PERSON'],
+          },
           { id: 's2', start: 20, end: 24, text: 'Acme', labels: ['ORG'] },
         ],
       }
@@ -180,7 +204,9 @@ describe('SpanLabelsInput - Coverage', () => {
       render(<SpanLabelsInput {...propsWithLongSpan} />)
 
       // Should show truncated version in annotation list
-      expect(screen.getByText('"' + 'A'.repeat(30) + '...' + '"')).toBeInTheDocument()
+      expect(
+        screen.getByText('"' + 'A'.repeat(30) + '...' + '"'),
+      ).toBeInTheDocument()
     })
   })
 
@@ -189,41 +215,67 @@ describe('SpanLabelsInput - Coverage', () => {
       const propsWithSpans = {
         ...defaultProps,
         value: [
-          { id: 's1', start: 0, end: 10, text: 'John Smith', labels: ['PERSON'] },
+          {
+            id: 's1',
+            start: 0,
+            end: 10,
+            text: 'John Smith',
+            labels: ['PERSON'],
+          },
         ],
       }
 
       const { rerender } = render(<SpanLabelsInput {...propsWithSpans} />)
-      expect(screen.getByText(/labeling\.spanLabels\.annotations.*1/)).toBeInTheDocument()
+      expect(
+        screen.getByText(/labeling\.spanLabels\.annotations.*1/),
+      ).toBeInTheDocument()
 
       rerender(<SpanLabelsInput {...defaultProps} value={null} />)
-      expect(screen.queryByText(/labeling\.spanLabels\.annotations/)).not.toBeInTheDocument()
+      expect(
+        screen.queryByText(/labeling\.spanLabels\.annotations/),
+      ).not.toBeInTheDocument()
     })
 
     it('resets spans when external value becomes empty array', () => {
       const propsWithSpans = {
         ...defaultProps,
         value: [
-          { id: 's1', start: 0, end: 10, text: 'John Smith', labels: ['PERSON'] },
+          {
+            id: 's1',
+            start: 0,
+            end: 10,
+            text: 'John Smith',
+            labels: ['PERSON'],
+          },
         ],
       }
 
       const { rerender } = render(<SpanLabelsInput {...propsWithSpans} />)
-      expect(screen.getByText(/labeling\.spanLabels\.annotations.*1/)).toBeInTheDocument()
+      expect(
+        screen.getByText(/labeling\.spanLabels\.annotations.*1/),
+      ).toBeInTheDocument()
 
       rerender(<SpanLabelsInput {...defaultProps} value={[]} />)
-      expect(screen.queryByText(/labeling\.spanLabels\.annotations/)).not.toBeInTheDocument()
+      expect(
+        screen.queryByText(/labeling\.spanLabels\.annotations/),
+      ).not.toBeInTheDocument()
     })
 
     it('updates spans when external value has new data', () => {
-      const { rerender } = render(<SpanLabelsInput {...defaultProps} value={null} />)
-      expect(screen.queryByText(/labeling\.spanLabels\.annotations/)).not.toBeInTheDocument()
+      const { rerender } = render(
+        <SpanLabelsInput {...defaultProps} value={null} />,
+      )
+      expect(
+        screen.queryByText(/labeling\.spanLabels\.annotations/),
+      ).not.toBeInTheDocument()
 
       const newValue = [
         { id: 's2', start: 0, end: 4, text: 'John', labels: ['PERSON'] },
       ]
       rerender(<SpanLabelsInput {...defaultProps} value={newValue} />)
-      expect(screen.getByText(/labeling\.spanLabels\.annotations.*1/)).toBeInTheDocument()
+      expect(
+        screen.getByText(/labeling\.spanLabels\.annotations.*1/),
+      ).toBeInTheDocument()
     })
 
     it('parses initial value from Label Studio format with nested value object', () => {
@@ -231,7 +283,9 @@ describe('SpanLabelsInput - Coverage', () => {
         { value: { start: 0, end: 5, text: 'John', labels: ['PERSON'] } },
       ]
       render(<SpanLabelsInput {...defaultProps} value={lsValue} />)
-      expect(screen.getByText(/labeling\.spanLabels\.annotations.*1/)).toBeInTheDocument()
+      expect(
+        screen.getByText(/labeling\.spanLabels\.annotations.*1/),
+      ).toBeInTheDocument()
     })
   })
 
@@ -261,14 +315,22 @@ describe('SpanLabelsInput - Coverage', () => {
       const propsWithSpan = {
         ...defaultProps,
         value: [
-          { id: 'span-1', start: 0, end: 10, text: 'John Smith', labels: ['PERSON'] },
+          {
+            id: 'span-1',
+            start: 0,
+            end: 10,
+            text: 'John Smith',
+            labels: ['PERSON'],
+          },
         ],
       }
 
       render(<SpanLabelsInput {...propsWithSpan} />)
 
       // Click the remove button in the annotation list
-      const removeButton = screen.getByTitle(/labeling\.spanLabels\.removeAnnotation/)
+      const removeButton = screen.getByTitle(
+        /labeling\.spanLabels\.removeAnnotation/,
+      )
       await userEvent.click(removeButton)
 
       expect(mockOnChange).toHaveBeenCalledWith([])
@@ -282,7 +344,9 @@ describe('SpanLabelsInput - Coverage', () => {
         props: { ...defaultConfig.props, choice: 'multiple' },
       }
       render(<SpanLabelsInput {...defaultProps} config={multiConfig} />)
-      expect(screen.getByRole('button', { name: /PERSON/i })).toBeInTheDocument()
+      expect(
+        screen.getByRole('button', { name: /PERSON/i }),
+      ).toBeInTheDocument()
     })
   })
 
@@ -360,7 +424,13 @@ describe('SpanLabelsInput - Coverage', () => {
       const propsWithSpan = {
         ...defaultProps,
         value: [
-          { id: 'span-1', start: 0, end: 10, text: 'John Smith', labels: ['PERSON'] },
+          {
+            id: 'span-1',
+            start: 0,
+            end: 10,
+            text: 'John Smith',
+            labels: ['PERSON'],
+          },
         ],
       }
       render(<SpanLabelsInput {...propsWithSpan} />)
@@ -512,7 +582,11 @@ describe('SpanLabelsInput - Coverage', () => {
       const config = {
         ...defaultConfig,
         children: [
-          { type: 'Label', props: { value: 'TEST', hotkey: 'r' }, children: [] },
+          {
+            type: 'Label',
+            props: { value: 'TEST', hotkey: 'r' },
+            children: [],
+          },
         ],
       }
       render(<SpanLabelsInput {...defaultProps} config={config} />)
@@ -524,7 +598,11 @@ describe('SpanLabelsInput - Coverage', () => {
       const config = {
         ...defaultConfig,
         children: [
-          { type: 'Label', props: { value: 'TEST', hotkey: 'z' }, children: [] },
+          {
+            type: 'Label',
+            props: { value: 'TEST', hotkey: 'z' },
+            children: [],
+          },
         ],
       }
       render(<SpanLabelsInput {...defaultProps} config={config} />)

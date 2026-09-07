@@ -179,7 +179,7 @@ describe('Issue #148: Collapsible Optional Information Section', () => {
       // Content should not be visible initially
       expect(screen.queryByTestId('optional-content')).not.toBeInTheDocument()
       expect(
-        screen.queryByText('Demographic Information')
+        screen.queryByText('Demographic Information'),
       ).not.toBeInTheDocument()
       expect(screen.queryByText('Legal Expertise')).not.toBeInTheDocument()
       expect(screen.queryByText('German State Exams')).not.toBeInTheDocument()
@@ -216,7 +216,7 @@ describe('Issue #148: Collapsible Optional Information Section', () => {
       fireEvent.click(toggleButton)
       expect(screen.queryByTestId('optional-content')).not.toBeInTheDocument()
       expect(
-        screen.queryByText('Demographic Information')
+        screen.queryByText('Demographic Information'),
       ).not.toBeInTheDocument()
     })
   })
@@ -230,21 +230,21 @@ describe('Issue #148: Collapsible Optional Information Section', () => {
       // Initially should show "Show"
       expect(screen.getByText('Show optional settings')).toBeInTheDocument()
       expect(
-        screen.queryByText('Hide optional settings')
+        screen.queryByText('Hide optional settings'),
       ).not.toBeInTheDocument()
 
       // After clicking, should show "Hide"
       fireEvent.click(toggleButton)
       expect(screen.getByText('Hide optional settings')).toBeInTheDocument()
       expect(
-        screen.queryByText('Show optional settings')
+        screen.queryByText('Show optional settings'),
       ).not.toBeInTheDocument()
 
       // After clicking again, should show "Show"
       fireEvent.click(toggleButton)
       expect(screen.getByText('Show optional settings')).toBeInTheDocument()
       expect(
-        screen.queryByText('Hide optional settings')
+        screen.queryByText('Hide optional settings'),
       ).not.toBeInTheDocument()
     })
 
@@ -278,7 +278,7 @@ describe('Issue #148: Collapsible Optional Information Section', () => {
         'justify-between',
         'w-full',
         'text-left',
-        'group'
+        'group',
       )
 
       // Section should have border and padding
@@ -287,7 +287,7 @@ describe('Issue #148: Collapsible Optional Information Section', () => {
         'border-t',
         'border-zinc-200',
         'dark:border-zinc-700',
-        'pt-8'
+        'pt-8',
       )
     })
 
@@ -301,7 +301,7 @@ describe('Issue #148: Collapsible Optional Information Section', () => {
       expect(expandedContent).toHaveClass(
         'transition-all',
         'duration-200',
-        'ease-in-out'
+        'ease-in-out',
       )
     })
   })
@@ -317,13 +317,13 @@ describe('Issue #148: Collapsible Optional Information Section', () => {
       const optionalContent = screen.getByTestId('optional-content')
 
       expect(optionalContent).toContainElement(
-        screen.getByText('Demographic Information')
+        screen.getByText('Demographic Information'),
       )
       expect(optionalContent).toContainElement(
-        screen.getByText('Legal Expertise')
+        screen.getByText('Legal Expertise'),
       )
       expect(optionalContent).toContainElement(
-        screen.getByText('German State Exams')
+        screen.getByText('German State Exams'),
       )
     })
 
@@ -341,7 +341,7 @@ describe('Issue #148: Collapsible Optional Information Section', () => {
         'p-6',
         'border',
         'border-zinc-200',
-        'dark:border-zinc-700'
+        'dark:border-zinc-700',
       )
     })
   })
@@ -487,7 +487,7 @@ describe('Issue #148: Implementation Validation', () => {
       'justify-between',
       'w-full',
       'text-left',
-      'group'
+      'group',
     )
 
     // ✓ Smooth expand/collapse animations work correctly
@@ -496,7 +496,7 @@ describe('Issue #148: Implementation Validation', () => {
     expect(expandedContent).toHaveClass(
       'transition-all',
       'duration-200',
-      'ease-in-out'
+      'ease-in-out',
     )
 
     // ✓ All sections are included: demographic, legal expertise, state exams

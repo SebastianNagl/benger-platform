@@ -3,8 +3,8 @@
  * Targets: handleSubmit with onRunWithMode callback, handleSubmit direct API mode error paths
  */
 
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import React from 'react'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
@@ -32,7 +32,9 @@ jest.mock('@/lib/api/client', () => ({
 jest.mock('@headlessui/react', () => ({
   Dialog: ({ children, ...props }: any) =>
     props.open !== false ? (
-      <div data-testid="dialog" role="dialog">{typeof children === 'function' ? children({}) : children}</div>
+      <div data-testid="dialog" role="dialog">
+        {typeof children === 'function' ? children({}) : children}
+      </div>
     ) : null,
   Transition: {
     Root: ({ children, show }: any) => (show ? <div>{children}</div> : null),
@@ -45,7 +47,9 @@ const HeadlessUI = require('@headlessui/react')
 // eslint-disable-next-line react/display-name
 HeadlessUI.Dialog.Panel = ({ children }: any) => <div>{children}</div>
 // eslint-disable-next-line react/display-name
-HeadlessUI.Dialog.Title = ({ children, ...props }: any) => <h3 {...props}>{children}</h3>
+HeadlessUI.Dialog.Title = ({ children, ...props }: any) => (
+  <h3 {...props}>{children}</h3>
+)
 
 import { EvaluationControlModal } from '../EvaluationControlModal'
 
@@ -66,7 +70,7 @@ describe('EvaluationControlModal fn3', () => {
         onSuccess={onSuccess}
         onRunWithMode={onRunWithMode}
         configCount={3}
-      />
+      />,
     )
 
     // Default mode is 'missing', so forceRerun should be false
@@ -90,11 +94,13 @@ describe('EvaluationControlModal fn3', () => {
         onClose={onClose}
         onRunWithMode={onRunWithMode}
         configCount={2}
-      />
+      />,
     )
 
     // Select 'all' mode
-    const allRadio = screen.getByLabelText('evaluation.controlModal.evaluateAll')
+    const allRadio = screen.getByLabelText(
+      'evaluation.controlModal.evaluateAll',
+    )
     fireEvent.click(allRadio)
 
     const startBtn = screen.getByText('evaluation.controlModal.startEvaluation')
@@ -114,7 +120,7 @@ describe('EvaluationControlModal fn3', () => {
         onClose={jest.fn()}
         onRunWithMode={onRunWithMode}
         configCount={1}
-      />
+      />,
     )
 
     fireEvent.click(screen.getByText('evaluation.controlModal.startEvaluation'))
@@ -131,7 +137,7 @@ describe('EvaluationControlModal fn3', () => {
         onClose={jest.fn()}
         projectId="proj-1"
         evaluationConfigs={[]}
-      />
+      />,
     )
 
     // Button should be disabled because displayConfigCount is 0

@@ -214,21 +214,26 @@ describe('ReportEditorPage - branch coverage', () => {
     it.each([
       ['CONTRIBUTOR', mockContributor],
       ['ORG_ADMIN', mockOrgAdmin],
-    ])('%s gets the superadmin-only notice and no fetch', async (_role, user) => {
-      ;(useAuth as jest.Mock).mockReturnValue({ user, isLoading: false })
+    ])(
+      '%s gets the superadmin-only notice and no fetch',
+      async (_role, user) => {
+        ;(useAuth as jest.Mock).mockReturnValue({ user, isLoading: false })
 
-      render(<ReportEditorPage params={createParams('proj-1')} />)
+        render(<ReportEditorPage params={createParams('proj-1')} />)
 
-      await waitFor(() => {
+        await waitFor(() => {
+          expect(
+            screen.getByText('reports.editor.notSuperadmin'),
+          ).toBeInTheDocument()
+        })
         expect(
-          screen.getByText('reports.editor.notSuperadmin')
+          screen.getByText('reports.editor.notSuperadminHint'),
         ).toBeInTheDocument()
-      })
-      expect(screen.getByText('reports.editor.notSuperadminHint')).toBeInTheDocument()
-      expect(mockGet).not.toHaveBeenCalled()
-      expect(mockRouter.push).not.toHaveBeenCalled()
-      expect(document.querySelector('h1')).not.toBeNull()
-    })
+        expect(mockGet).not.toHaveBeenCalled()
+        expect(mockRouter.push).not.toHaveBeenCalled()
+        expect(document.querySelector('h1')).not.toBeNull()
+      },
+    )
 
     it('shows the notice for an anonymous (null) user once auth settled', async () => {
       ;(useAuth as jest.Mock).mockReturnValue({ user: null, isLoading: false })
@@ -237,7 +242,7 @@ describe('ReportEditorPage - branch coverage', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('reports.editor.notSuperadmin')
+          screen.getByText('reports.editor.notSuperadmin'),
         ).toBeInTheDocument()
       })
       expect(mockGet).not.toHaveBeenCalled()
@@ -249,7 +254,7 @@ describe('ReportEditorPage - branch coverage', () => {
       render(<ReportEditorPage params={createParams('proj-1')} />)
 
       expect(
-        screen.getByText('project.report.editor.loading')
+        screen.getByText('project.report.editor.loading'),
       ).toBeInTheDocument()
     })
   })
@@ -262,12 +267,12 @@ describe('ReportEditorPage - branch coverage', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('project.report.editor.projectInfo.title')
+          screen.getByText('project.report.editor.projectInfo.title'),
         ).toBeInTheDocument()
       })
 
       const titleInput = screen.getByPlaceholderText(
-        'Test Project'
+        'Test Project',
       ) as HTMLInputElement
       expect(titleInput.value).toBe('')
       // Every section switch defaults to visible.
@@ -293,7 +298,7 @@ describe('ReportEditorPage - branch coverage', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('project.report.editor.projectInfo.title')
+          screen.getByText('project.report.editor.projectInfo.title'),
         ).toBeInTheDocument()
       })
 
@@ -304,7 +309,9 @@ describe('ReportEditorPage - branch coverage', () => {
       expect(content.metadata).toEqual({})
       expect(content.sections.project_info.visible).toBe(true)
       expect(content.sections.project_info.custom_title).toBeNull()
-      expect(content.sections.evaluation.charts_config.visible_metrics).toBeUndefined()
+      expect(
+        content.sections.evaluation.charts_config.visible_metrics,
+      ).toBeUndefined()
     })
   })
 
@@ -318,7 +325,7 @@ describe('ReportEditorPage - branch coverage', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('project.report.editor.saveReport')
+          screen.getByText('project.report.editor.saveReport'),
         ).toBeInTheDocument()
       })
 
@@ -326,7 +333,7 @@ describe('ReportEditorPage - branch coverage', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('project.report.editor.saving')
+          screen.getByText('project.report.editor.saving'),
         ).toBeInTheDocument()
       })
     })
@@ -349,7 +356,7 @@ describe('ReportEditorPage - branch coverage', () => {
       const content = mockUpdate.mock.calls[0][1]
       expect(content.sections.project_info.custom_title).toBeNull()
       expect(content.sections.project_info.custom_description).toBe(
-        'My Description'
+        'My Description',
       )
       expect(content.sections.annotations.acknowledgment_text).toBeNull()
       expect(content.sections.annotations.custom_text).toBe('Ann text')
@@ -362,18 +369,20 @@ describe('ReportEditorPage - branch coverage', () => {
       render(<ReportEditorPage params={createParams('proj-1')} />)
 
       await waitFor(() => {
-        expect(screen.getByLabelText('reports.editor.primaryMetric')).toBeInTheDocument()
+        expect(
+          screen.getByLabelText('reports.editor.primaryMetric'),
+        ).toBeInTheDocument()
       })
 
       await user.selectOptions(
         screen.getByLabelText('reports.editor.primaryMetric'),
-        ''
+        '',
       )
       expect(
-        screen.getByText('reports.editor.noConfigsForMetric')
+        screen.getByText('reports.editor.noConfigsForMetric'),
       ).toBeInTheDocument()
       expect(
-        screen.queryByLabelText('reports.editor.primaryConfig')
+        screen.queryByLabelText('reports.editor.primaryConfig'),
       ).not.toBeInTheDocument()
 
       await user.click(screen.getByText('project.report.editor.saveReport'))
@@ -395,7 +404,10 @@ describe('ReportEditorPage - branch coverage', () => {
             ...mockReportFullSections.content.sections,
             evaluation: {
               ...mockReportFullSections.content.sections.evaluation,
-              charts_config: { primary_metric: 'bleu', primary_config_id: 'cfg-bleu' },
+              charts_config: {
+                primary_metric: 'bleu',
+                primary_config_id: 'cfg-bleu',
+              },
             },
           },
         },
@@ -403,7 +415,9 @@ describe('ReportEditorPage - branch coverage', () => {
       const withoutBleu = {
         ...REPORT_SNAPSHOT_FIXTURE,
         methods: REPORT_SNAPSHOT_FIXTURE.methods.filter((m) => m.id !== 'bleu'),
-        configs: REPORT_SNAPSHOT_FIXTURE.configs.filter((c) => c.id !== 'cfg-bleu'),
+        configs: REPORT_SNAPSHOT_FIXTURE.configs.filter(
+          (c) => c.id !== 'cfg-bleu',
+        ),
       }
       mockRefresh.mockResolvedValue({
         ...mockReportFullSections,
@@ -415,7 +429,11 @@ describe('ReportEditorPage - branch coverage', () => {
 
       await waitFor(() => {
         expect(
-          (screen.getByLabelText('reports.editor.primaryMetric') as HTMLSelectElement).value
+          (
+            screen.getByLabelText(
+              'reports.editor.primaryMetric',
+            ) as HTMLSelectElement
+          ).value,
         ).toBe('bleu')
       })
 
@@ -423,14 +441,22 @@ describe('ReportEditorPage - branch coverage', () => {
 
       await waitFor(() => {
         expect(
-          (screen.getByLabelText('reports.editor.primaryMetric') as HTMLSelectElement).value
+          (
+            screen.getByLabelText(
+              'reports.editor.primaryMetric',
+            ) as HTMLSelectElement
+          ).value,
         ).toBe('llm_judge_falloesung')
       })
       expect(
-        (screen.getByLabelText('reports.editor.primaryConfig') as HTMLSelectElement).value
+        (
+          screen.getByLabelText(
+            'reports.editor.primaryConfig',
+          ) as HTMLSelectElement
+        ).value,
       ).toBe('cfg-judge-sonnet')
       expect(
-        within(screen.getByTestId('visible-metrics')).queryByLabelText('BLEU')
+        within(screen.getByTestId('visible-metrics')).queryByLabelText('BLEU'),
       ).not.toBeInTheDocument()
     })
 
@@ -446,19 +472,25 @@ describe('ReportEditorPage - branch coverage', () => {
       render(<ReportEditorPage params={createParams('proj-1')} />)
 
       await waitFor(() => {
-        expect(screen.getByText('reports.editor.noSnapshot')).toBeInTheDocument()
+        expect(
+          screen.getByText('reports.editor.noSnapshot'),
+        ).toBeInTheDocument()
       })
 
       await user.click(screen.getByText('reports.editor.refresh'))
 
       await waitFor(() => {
-        expect(screen.getByLabelText('reports.editor.primaryMetric')).toBeInTheDocument()
+        expect(
+          screen.getByLabelText('reports.editor.primaryMetric'),
+        ).toBeInTheDocument()
       })
       // All metrics of the new snapshot are visible by default.
       within(screen.getByTestId('visible-metrics'))
         .getAllByRole('checkbox')
         .forEach((cb) => expect(cb).toBeChecked())
-      expect(screen.getByText('reports.editor.snapshotGeneratedAt')).toBeInTheDocument()
+      expect(
+        screen.getByText('reports.editor.snapshotGeneratedAt'),
+      ).toBeInTheDocument()
     })
   })
 })

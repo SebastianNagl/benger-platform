@@ -15,10 +15,16 @@
  * the two child modals and FilterToolbar) but adds a `post` mock and asserts
  * on the global Toast mock from setupTests.
  */
-import '@testing-library/jest-dom'
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
 import { mockToast } from '@/test-utils/setupTests'
+import '@testing-library/jest-dom'
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { GenerationTaskList } from '../GenerationTaskList'
 
 // Minimal WebSocket stub (the component opens one on mount).
@@ -57,7 +63,9 @@ const taskStatusPayload = {
       data: { text: 'First task content' },
       created_at: '2025-01-01',
       generation_status: {
-        'model-1': [{ status: 'completed', generation_id: 'gen-1', error_message: null }],
+        'model-1': [
+          { status: 'completed', generation_id: 'gen-1', error_message: null },
+        ],
         'model-2': [],
         'model-3': [
           {
@@ -162,7 +170,9 @@ function cellForModel(model: string): HTMLElement {
   // Locate via the row's tds by index using the header order.
   const headers = screen.getAllByRole('columnheader').map((h) => h.textContent)
   const colIndex = headers.indexOf(model)
-  const row = screen.getByText('First task content').closest('tr') as HTMLElement
+  const row = screen
+    .getByText('First task content')
+    .closest('tr') as HTMLElement
   const tds = within(row).getAllByRole('cell')
   // tds[0] is the task column; model columns follow.
   return tds[colIndex] as HTMLElement
@@ -227,7 +237,7 @@ describe('GenerationTaskList context menu + cell generation', () => {
           model_ids: ['model-2'],
           task_ids: ['task-1aaaaaa'],
           structure_keys: ['gliederung', 'loesung'],
-        })
+        }),
       )
     })
     await waitFor(() => {

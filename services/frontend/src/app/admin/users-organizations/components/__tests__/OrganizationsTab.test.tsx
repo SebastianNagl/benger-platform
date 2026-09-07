@@ -204,17 +204,21 @@ describe('OrganizationsTab', () => {
           'admin.organizations.roleAdmin': 'Admin',
           'admin.organizations.pendingInvitations': 'Pending Invitations',
           'admin.organizations.invitedAs': 'Invited as {role}',
-          'admin.organizations.selectToViewDetails': 'Select an organization to view details',
+          'admin.organizations.selectToViewDetails':
+            'Select an organization to view details',
           'admin.organizations.noOrganizations': 'No organizations available',
-          'admin.organizations.createNewOrganization': 'Create New Organization',
+          'admin.organizations.createNewOrganization':
+            'Create New Organization',
           'admin.organizations.name': 'Name',
           'admin.organizations.slug': 'Slug',
           'admin.organizations.description': 'Description',
           'admin.organizations.creating': 'Creating...',
           'admin.organizations.create': 'Create',
-          'admin.organizations.addExistingUserToOrg': 'Add Existing User to Organization',
+          'admin.organizations.addExistingUserToOrg':
+            'Add Existing User to Organization',
           'admin.organizations.searchUsers': 'Search Users',
-          'admin.organizations.searchByNameOrEmail': 'Search by name or email...',
+          'admin.organizations.searchByNameOrEmail':
+            'Search by name or email...',
           'admin.organizations.selectUser': 'Select User',
           'admin.organizations.selectAUser': 'Select a user...',
           'admin.organizations.role': 'Role',
@@ -226,30 +230,48 @@ describe('OrganizationsTab', () => {
           'admin.organizations.inviteMultiple': 'Invite Multiple',
           'admin.organizations.bulkInviteTitle': 'Invite Multiple Members',
           'admin.organizations.bulkEmailsLabel': 'Email Addresses',
-          'admin.organizations.bulkEmailsPlaceholder': 'anna@example.com, max@example.com',
-          'admin.organizations.bulkEmailsHelp': 'Separate multiple addresses with commas, semicolons, or new lines.',
+          'admin.organizations.bulkEmailsPlaceholder':
+            'anna@example.com, max@example.com',
+          'admin.organizations.bulkEmailsHelp':
+            'Separate multiple addresses with commas, semicolons, or new lines.',
           'admin.organizations.bulkInviteSending': 'Sending invitations...',
           'admin.organizations.bulkInviteSubmit': 'Send Invitations',
-          'admin.organizations.bulkInviteSummary': '{queued} invited, {skipped} skipped',
-          'admin.organizations.bulkInviteNoValidEmails': 'No valid email addresses entered',
+          'admin.organizations.bulkInviteSummary':
+            '{queued} invited, {skipped} skipped',
+          'admin.organizations.bulkInviteNoValidEmails':
+            'No valid email addresses entered',
           'admin.organizations.bulkInviteFailed': 'Failed to send invitations',
           'admin.organizations.errors.errorTitle': 'Error',
-          'admin.organizations.errors.loadFailed': 'Failed to load organization data',
-          'admin.organizations.errors.noPermissionCreate': 'You do not have permission to create organizations',
-          'admin.organizations.errors.createFailed': 'Failed to create organization',
-          'admin.organizations.errors.noPermissionInvite': 'You do not have permission to invite members',
-          'admin.organizations.errors.inviteFailed': 'Failed to send invitation',
-          'admin.organizations.errors.noPermissionRemove': 'You do not have permission to remove this member',
+          'admin.organizations.errors.loadFailed':
+            'Failed to load organization data',
+          'admin.organizations.errors.noPermissionCreate':
+            'You do not have permission to create organizations',
+          'admin.organizations.errors.createFailed':
+            'Failed to create organization',
+          'admin.organizations.errors.noPermissionInvite':
+            'You do not have permission to invite members',
+          'admin.organizations.errors.inviteFailed':
+            'Failed to send invitation',
+          'admin.organizations.errors.noPermissionRemove':
+            'You do not have permission to remove this member',
           'admin.organizations.errors.removeFailed': 'Failed to remove member',
-          'admin.organizations.errors.noPermissionChangeRole': 'You do not have permission to change this role',
-          'admin.organizations.errors.updateRoleFailed': 'Failed to update role',
-          'admin.organizations.errors.noPermissionEdit': 'You do not have permission to edit this organization',
-          'admin.organizations.errors.updateFailed': 'Failed to update organization',
-          'admin.organizations.errors.noPermissionDelete': 'You do not have permission to delete organizations',
-          'admin.organizations.errors.deleteFailed': 'Failed to delete organization',
-          'admin.organizations.errors.cancelInvitationFailed': 'Failed to cancel invitation',
+          'admin.organizations.errors.noPermissionChangeRole':
+            'You do not have permission to change this role',
+          'admin.organizations.errors.updateRoleFailed':
+            'Failed to update role',
+          'admin.organizations.errors.noPermissionEdit':
+            'You do not have permission to edit this organization',
+          'admin.organizations.errors.updateFailed':
+            'Failed to update organization',
+          'admin.organizations.errors.noPermissionDelete':
+            'You do not have permission to delete organizations',
+          'admin.organizations.errors.deleteFailed':
+            'Failed to delete organization',
+          'admin.organizations.errors.cancelInvitationFailed':
+            'Failed to cancel invitation',
           'admin.organizations.errors.loadUsersFailed': 'Failed to load users',
-          'admin.organizations.errors.noPermissionAdd': 'You do not have permission to add members',
+          'admin.organizations.errors.noPermissionAdd':
+            'You do not have permission to add members',
           'admin.organizations.errors.addUserFailed': 'Failed to add user',
         }
         let result = translations[key] || key
@@ -273,7 +295,9 @@ describe('OrganizationsTab', () => {
     mockUseDeleteConfirm.mockReturnValue(mockConfirmDelete)
 
     mockApiClient.getOrganizationMembers.mockResolvedValue(mockMembers)
-    organizationsAPI.getOrganizationInvitations.mockResolvedValue(mockInvitations)
+    organizationsAPI.getOrganizationInvitations.mockResolvedValue(
+      mockInvitations,
+    )
     mockApiClient.createOrganization.mockResolvedValue({
       id: 'new-org',
       name: 'New Org',
@@ -324,10 +348,10 @@ describe('OrganizationsTab', () => {
       render(<OrganizationsTab />)
 
       expect(
-        screen.getByRole('button', { name: /Test Organization/i })
+        screen.getByRole('button', { name: /Test Organization/i }),
       ).toBeInTheDocument()
       expect(
-        screen.getByRole('button', { name: /Create Organization/i })
+        screen.getByRole('button', { name: /Create Organization/i }),
       ).toBeInTheDocument()
     })
 
@@ -353,7 +377,7 @@ describe('OrganizationsTab', () => {
       render(<OrganizationsTab />)
 
       expect(
-        screen.queryByRole('button', { name: /Create Organization/i })
+        screen.queryByRole('button', { name: /Create Organization/i }),
       ).not.toBeInTheDocument()
     })
 
@@ -368,20 +392,20 @@ describe('OrganizationsTab', () => {
       render(<OrganizationsTab />)
 
       expect(
-        screen.getByText(/No organizations available/i)
+        screen.getByText(/No organizations available/i),
       ).toBeInTheDocument()
     })
 
     it('should auto-select organization from URL parameter', async () => {
       mockSearchParams.get.mockImplementation((key) =>
-        key === 'org' ? 'org-2' : null
+        key === 'org' ? 'org-2' : null,
       )
 
       render(<OrganizationsTab />)
 
       await waitFor(() => {
         expect(
-          screen.getByRole('button', { name: /Second Organization/i })
+          screen.getByRole('button', { name: /Second Organization/i }),
         ).toBeInTheDocument()
       })
     })
@@ -436,10 +460,10 @@ describe('OrganizationsTab', () => {
 
       const selects = screen.getAllByRole('combobox')
       const contributorSelect = selects.find(
-        (select) => (select as HTMLSelectElement).value === 'CONTRIBUTOR'
+        (select) => (select as HTMLSelectElement).value === 'CONTRIBUTOR',
       )
       const annotatorSelect = selects.find(
-        (select) => (select as HTMLSelectElement).value === 'ANNOTATOR'
+        (select) => (select as HTMLSelectElement).value === 'ANNOTATOR',
       )
 
       expect(contributorSelect).toBeInTheDocument()
@@ -477,7 +501,7 @@ describe('OrganizationsTab', () => {
         expect(replaceStateSpy).toHaveBeenCalledWith(
           null,
           '',
-          expect.stringContaining('org=org-2')
+          expect.stringContaining('org=org-2'),
         )
       })
 
@@ -562,7 +586,7 @@ describe('OrganizationsTab', () => {
         expect(mockRefreshOrganizations).toHaveBeenCalled()
         expect(mockAddToast).toHaveBeenCalledWith(
           'Organization created successfully',
-          'success'
+          'success',
         )
       })
     })
@@ -581,14 +605,14 @@ describe('OrganizationsTab', () => {
 
       await waitFor(() => {
         expect(
-          screen.queryByText('Create New Organization')
+          screen.queryByText('Create New Organization'),
         ).not.toBeInTheDocument()
       })
     })
 
     it('should handle create organization errors', async () => {
       mockApiClient.createOrganization.mockRejectedValue(
-        new Error('Creation failed')
+        new Error('Creation failed'),
       )
 
       const user = userEvent.setup()
@@ -615,7 +639,7 @@ describe('OrganizationsTab', () => {
       await waitFor(() => {
         expect(mockShowError).toHaveBeenCalledWith(
           'Failed to create organization',
-          'Error'
+          'Error',
         )
       })
     })
@@ -631,7 +655,7 @@ describe('OrganizationsTab', () => {
       render(<OrganizationsTab />)
 
       expect(
-        screen.queryByRole('button', { name: /Create Organization/i })
+        screen.queryByRole('button', { name: /Create Organization/i }),
       ).not.toBeInTheDocument()
     })
   })
@@ -648,7 +672,7 @@ describe('OrganizationsTab', () => {
       const editButton = editButtons.find(
         (btn) =>
           btn.querySelector('svg')?.classList.contains('h-4') &&
-          btn.className.includes('text-indigo-600')
+          btn.className.includes('text-indigo-600'),
       )
 
       if (editButton) {
@@ -674,7 +698,7 @@ describe('OrganizationsTab', () => {
       const editButton = editButtons.find(
         (btn) =>
           btn.querySelector('svg')?.classList.contains('h-4') &&
-          btn.className.includes('text-indigo-600')
+          btn.className.includes('text-indigo-600'),
       )
 
       if (editButton) {
@@ -687,7 +711,7 @@ describe('OrganizationsTab', () => {
 
         const nameInputs = screen.getAllByDisplayValue('Test Organization')
         const nameInput = nameInputs.find(
-          (el) => el.tagName === 'INPUT'
+          (el) => el.tagName === 'INPUT',
         ) as HTMLInputElement
 
         await user.clear(nameInput)
@@ -702,12 +726,12 @@ describe('OrganizationsTab', () => {
             {
               name: 'Updated Organization',
               description: 'Test description',
-            }
+            },
           )
           expect(mockRefreshOrganizations).toHaveBeenCalled()
           expect(mockAddToast).toHaveBeenCalledWith(
             'Organization updated successfully',
-            'success'
+            'success',
           )
         })
       }
@@ -725,7 +749,7 @@ describe('OrganizationsTab', () => {
       const editButton = editButtons.find(
         (btn) =>
           btn.querySelector('svg')?.classList.contains('h-4') &&
-          btn.className.includes('text-indigo-600')
+          btn.className.includes('text-indigo-600'),
       )
       expect(editButton).toBeDefined()
       await user.click(editButton!)
@@ -764,7 +788,7 @@ describe('OrganizationsTab', () => {
       const editButton = editButtons.find(
         (btn) =>
           btn.querySelector('svg')?.classList.contains('h-4') &&
-          btn.className.includes('text-indigo-600')
+          btn.className.includes('text-indigo-600'),
       )
 
       if (editButton) {
@@ -772,7 +796,7 @@ describe('OrganizationsTab', () => {
 
         await waitFor(() => {
           expect(
-            screen.getByRole('button', { name: /Cancel/i })
+            screen.getByRole('button', { name: /Cancel/i }),
           ).toBeInTheDocument()
         })
 
@@ -800,7 +824,7 @@ describe('OrganizationsTab', () => {
 
       const deleteButtons = screen.getAllByRole('button')
       const deleteButton = deleteButtons.find((btn) =>
-        btn.className.includes('text-red-600')
+        btn.className.includes('text-red-600'),
       )
 
       if (deleteButton) {
@@ -808,13 +832,13 @@ describe('OrganizationsTab', () => {
 
         await waitFor(() => {
           expect(mockConfirmDelete).toHaveBeenCalledWith(
-            'organization "Test Organization"'
+            'organization "Test Organization"',
           )
           expect(mockApiClient.deleteOrganization).toHaveBeenCalledWith('org-1')
           expect(mockRefreshOrganizations).toHaveBeenCalled()
           expect(mockAddToast).toHaveBeenCalledWith(
             'Organization deleted successfully',
-            'success'
+            'success',
           )
         })
       }
@@ -831,7 +855,7 @@ describe('OrganizationsTab', () => {
 
       const deleteButtons = screen.getAllByRole('button')
       const deleteButton = deleteButtons.find((btn) =>
-        btn.className.includes('text-red-600')
+        btn.className.includes('text-red-600'),
       )
 
       if (deleteButton) {
@@ -848,7 +872,7 @@ describe('OrganizationsTab', () => {
     it('should handle delete errors', async () => {
       mockConfirmDelete.mockResolvedValue(true)
       mockApiClient.deleteOrganization.mockRejectedValue(
-        new Error('Delete failed')
+        new Error('Delete failed'),
       )
 
       render(<OrganizationsTab />)
@@ -859,7 +883,7 @@ describe('OrganizationsTab', () => {
 
       const deleteButtons = screen.getAllByRole('button')
       const deleteButton = deleteButtons.find((btn) =>
-        btn.className.includes('text-red-600')
+        btn.className.includes('text-red-600'),
       )
 
       if (deleteButton) {
@@ -868,7 +892,7 @@ describe('OrganizationsTab', () => {
         await waitFor(() => {
           expect(mockShowError).toHaveBeenCalledWith(
             'Failed to delete organization',
-            'Error'
+            'Error',
           )
         })
       }
@@ -881,7 +905,7 @@ describe('OrganizationsTab', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByRole('button', { name: /Invite Member/i })
+          screen.getByRole('button', { name: /Invite Member/i }),
         ).toBeInTheDocument()
       })
     })
@@ -895,12 +919,12 @@ describe('OrganizationsTab', () => {
         () => {
           expect(screen.getByText('Member User')).toBeInTheDocument()
         },
-        { timeout: 3000 }
+        { timeout: 3000 },
       )
 
       const allButtons = screen.getAllByRole('button')
       const deleteButtons = allButtons.filter((btn) =>
-        btn.className.includes('text-red-600')
+        btn.className.includes('text-red-600'),
       )
 
       // We have org delete button, then 2 member delete buttons
@@ -916,18 +940,18 @@ describe('OrganizationsTab', () => {
         () => {
           const { organizationsAPI } = require('@/lib/api/organizations')
           expect(mockConfirmDelete).toHaveBeenCalledWith(
-            'Member User from organization'
+            'Member User from organization',
           )
           expect(organizationsAPI.removeMember).toHaveBeenCalledWith(
             'org-1',
-            'user-2'
+            'user-2',
           )
           expect(mockAddToast).toHaveBeenCalledWith(
             'Member removed successfully',
-            'success'
+            'success',
           )
         },
-        { timeout: 3000 }
+        { timeout: 3000 },
       )
     }, 10000)
 
@@ -941,7 +965,7 @@ describe('OrganizationsTab', () => {
       // Find the select element by its role
       const selects = screen.getAllByRole('combobox')
       const contributorSelect = selects.find(
-        (select) => (select as HTMLSelectElement).value === 'CONTRIBUTOR'
+        (select) => (select as HTMLSelectElement).value === 'CONTRIBUTOR',
       ) as HTMLSelectElement
 
       expect(contributorSelect).toBeInTheDocument()
@@ -953,11 +977,11 @@ describe('OrganizationsTab', () => {
         expect(organizationsAPI.updateMemberRole).toHaveBeenCalledWith(
           'org-1',
           'user-2',
-          'ORG_ADMIN'
+          'ORG_ADMIN',
         )
         expect(mockAddToast).toHaveBeenCalledWith(
           'Member role updated successfully',
-          'success'
+          'success',
         )
       })
     })
@@ -976,7 +1000,7 @@ describe('OrganizationsTab', () => {
       ]
 
       mockApiClient.getOrganizationMembers.mockResolvedValue(
-        membersWithCurrentUser
+        membersWithCurrentUser,
       )
 
       render(<OrganizationsTab />)
@@ -1005,7 +1029,7 @@ describe('OrganizationsTab', () => {
         () => {
           expect(screen.getByText('Member User')).toBeInTheDocument()
         },
-        { timeout: 3000 }
+        { timeout: 3000 },
       )
 
       const inviteButtons = screen.getAllByRole('button', {
@@ -1020,12 +1044,12 @@ describe('OrganizationsTab', () => {
           const modalTitle = screen
             .getAllByText('Invite Member')
             .find(
-              (el) => el.tagName === 'H3' || el.parentElement?.tagName === 'H3'
+              (el) => el.tagName === 'H3' || el.parentElement?.tagName === 'H3',
             )
           expect(modalTitle).toBeInTheDocument()
           expect(getInputByLabel('Email')).toBeInTheDocument()
         },
-        { timeout: 3000 }
+        { timeout: 3000 },
       )
 
       const roleSelects = screen.getAllByRole('combobox')
@@ -1038,7 +1062,7 @@ describe('OrganizationsTab', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByRole('button', { name: /Invite Member/i })
+          screen.getByRole('button', { name: /Invite Member/i }),
         ).toBeInTheDocument()
       })
 
@@ -1066,7 +1090,7 @@ describe('OrganizationsTab', () => {
         })
         expect(mockAddToast).toHaveBeenCalledWith(
           'Invitation sent successfully',
-          'success'
+          'success',
         )
       })
     })
@@ -1086,7 +1110,7 @@ describe('OrganizationsTab', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByRole('button', { name: /Invite Member/i })
+          screen.getByRole('button', { name: /Invite Member/i }),
         ).toBeInTheDocument()
       })
 
@@ -1109,7 +1133,7 @@ describe('OrganizationsTab', () => {
       await waitFor(() => {
         expect(mockShowError).toHaveBeenCalledWith(
           'User already invited',
-          'Error'
+          'Error',
         )
       })
     })
@@ -1121,23 +1145,19 @@ describe('OrganizationsTab', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByRole('button', { name: /Invite Member/i })
+          screen.getByRole('button', { name: /Invite Member/i }),
         ).toBeInTheDocument()
       })
 
-      await user.click(
-        screen.getByRole('button', { name: /Invite Member/i })
-      )
+      await user.click(screen.getByRole('button', { name: /Invite Member/i }))
 
       // Open the bulk sub-modal from inside the invite modal.
       await waitFor(() => {
         expect(
-          screen.getByRole('button', { name: /Invite Multiple/i })
+          screen.getByRole('button', { name: /Invite Multiple/i }),
         ).toBeInTheDocument()
       })
-      await user.click(
-        screen.getByRole('button', { name: /Invite Multiple/i })
-      )
+      await user.click(screen.getByRole('button', { name: /Invite Multiple/i }))
 
       await waitFor(() => {
         expect(getInputByLabel('Email Addresses')).toBeInTheDocument()
@@ -1151,9 +1171,7 @@ describe('OrganizationsTab', () => {
       })
 
       // Exact name avoids matching the single-invite "Send Invitation" button.
-      await user.click(
-        screen.getByRole('button', { name: 'Send Invitations' })
-      )
+      await user.click(screen.getByRole('button', { name: 'Send Invitations' }))
 
       await waitFor(() => {
         expect(organizationsAPI.bulkInvite).toHaveBeenCalledWith('org-1', {
@@ -1163,7 +1181,7 @@ describe('OrganizationsTab', () => {
         // Summary toast reflects the server's queued/skipped counts.
         expect(mockAddToast).toHaveBeenCalledWith(
           '2 invited, 1 skipped',
-          'success'
+          'success',
         )
       })
     })
@@ -1175,16 +1193,12 @@ describe('OrganizationsTab', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByRole('button', { name: /Invite Member/i })
+          screen.getByRole('button', { name: /Invite Member/i }),
         ).toBeInTheDocument()
       })
 
-      await user.click(
-        screen.getByRole('button', { name: /Invite Member/i })
-      )
-      await user.click(
-        screen.getByRole('button', { name: /Invite Multiple/i })
-      )
+      await user.click(screen.getByRole('button', { name: /Invite Member/i }))
+      await user.click(screen.getByRole('button', { name: /Invite Multiple/i }))
 
       await waitFor(() => {
         expect(getInputByLabel('Email Addresses')).toBeInTheDocument()
@@ -1193,14 +1207,12 @@ describe('OrganizationsTab', () => {
       fireEvent.change(getInputByLabel('Email Addresses'), {
         target: { value: '  ,  ; \n ' },
       })
-      await user.click(
-        screen.getByRole('button', { name: 'Send Invitations' })
-      )
+      await user.click(screen.getByRole('button', { name: 'Send Invitations' }))
 
       await waitFor(() => {
         expect(mockShowError).toHaveBeenCalledWith(
           'No valid email addresses entered',
-          'Error'
+          'Error',
         )
       })
       expect(organizationsAPI.bulkInvite).not.toHaveBeenCalled()
@@ -1215,7 +1227,7 @@ describe('OrganizationsTab', () => {
 
       const allButtons = screen.getAllByRole('button')
       const redButtons = allButtons.filter((btn) =>
-        btn.className.includes('text-red-600')
+        btn.className.includes('text-red-600'),
       )
 
       // The last red button should be the invitation cancel button
@@ -1226,7 +1238,7 @@ describe('OrganizationsTab', () => {
         expect(mockApiClient.cancelInvitation).toHaveBeenCalledWith('invite-1')
         expect(mockAddToast).toHaveBeenCalledWith(
           'Invitation cancelled',
-          'success'
+          'success',
         )
       })
     })
@@ -1239,7 +1251,7 @@ describe('OrganizationsTab', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByRole('button', { name: /Add Existing User/i })
+          screen.getByRole('button', { name: /Add Existing User/i }),
         ).toBeInTheDocument()
       })
 
@@ -1251,7 +1263,7 @@ describe('OrganizationsTab', () => {
       await waitFor(() => {
         const { organizationsAPI } = require('@/lib/api/organizations')
         expect(
-          screen.getByText('Add Existing User to Organization')
+          screen.getByText('Add Existing User to Organization'),
         ).toBeInTheDocument()
         expect(organizationsAPI.getAllUsers).toHaveBeenCalled()
       })
@@ -1264,7 +1276,7 @@ describe('OrganizationsTab', () => {
       await waitFor(() => {
         expect(screen.getByText('Test description')).toBeInTheDocument()
         expect(
-          screen.getByRole('button', { name: /Add Existing User/i })
+          screen.getByRole('button', { name: /Add Existing User/i }),
         ).toBeInTheDocument()
       })
 
@@ -1276,12 +1288,12 @@ describe('OrganizationsTab', () => {
       await waitFor(
         () => {
           expect(
-            screen.getByText('Add Existing User to Organization')
+            screen.getByText('Add Existing User to Organization'),
           ).toBeInTheDocument()
           const userSelect = getInputByLabel('Select User')
           expect(userSelect).toBeInTheDocument()
         },
-        { timeout: 3000 }
+        { timeout: 3000 },
       )
 
       const userSelect = getInputByLabel('Select User')
@@ -1295,11 +1307,11 @@ describe('OrganizationsTab', () => {
         expect(organizationsAPI.addUserToOrganization).toHaveBeenCalledWith(
           'org-1',
           'user-4',
-          'ANNOTATOR'
+          'ANNOTATOR',
         )
         expect(mockAddToast).toHaveBeenCalledWith(
           'User added successfully',
-          'success'
+          'success',
         )
       })
     })
@@ -1311,7 +1323,7 @@ describe('OrganizationsTab', () => {
       await waitFor(() => {
         expect(screen.getByText('Test description')).toBeInTheDocument()
         expect(
-          screen.getByRole('button', { name: /Add Existing User/i })
+          screen.getByRole('button', { name: /Add Existing User/i }),
         ).toBeInTheDocument()
       })
 
@@ -1325,11 +1337,11 @@ describe('OrganizationsTab', () => {
           const userSelect = getInputByLabel('Select User')
           expect(userSelect).toBeInTheDocument()
         },
-        { timeout: 3000 }
+        { timeout: 3000 },
       )
 
       const searchInput = screen.getByPlaceholderText(
-        /Search by name or email/i
+        /Search by name or email/i,
       )
       await user.type(searchInput, 'nonexistent')
 
@@ -1346,12 +1358,12 @@ describe('OrganizationsTab', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByRole('button', { name: /Add Existing User/i })
+          screen.getByRole('button', { name: /Add Existing User/i }),
         ).toBeInTheDocument()
       })
 
       await user.click(
-        screen.getByRole('button', { name: /Add Existing User/i })
+        screen.getByRole('button', { name: /Add Existing User/i }),
       )
 
       // Initial fetch on open is unfiltered
@@ -1360,7 +1372,7 @@ describe('OrganizationsTab', () => {
       })
 
       const searchInput = screen.getByPlaceholderText(
-        /Search by name or email/i
+        /Search by name or email/i,
       )
       await user.type(searchInput, 'mayrhofer')
 
@@ -1372,7 +1384,7 @@ describe('OrganizationsTab', () => {
             search: 'mayrhofer',
           })
         },
-        { timeout: 3000 }
+        { timeout: 3000 },
       )
     })
   })
@@ -1381,7 +1393,7 @@ describe('OrganizationsTab', () => {
     it('should handle member loading errors', async () => {
       const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation()
       mockApiClient.getOrganizationMembers.mockRejectedValue(
-        new Error('Failed to load members')
+        new Error('Failed to load members'),
       )
 
       render(<OrganizationsTab />)
@@ -1389,11 +1401,11 @@ describe('OrganizationsTab', () => {
       await waitFor(() => {
         expect(consoleErrorSpy).toHaveBeenCalledWith(
           'Failed to load organization data:',
-          expect.any(Error)
+          expect.any(Error),
         )
         expect(mockShowError).toHaveBeenCalledWith(
           'Failed to load organization data',
-          'Error'
+          'Error',
         )
       })
 
@@ -1405,7 +1417,7 @@ describe('OrganizationsTab', () => {
       const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation()
       mockConfirmDelete.mockResolvedValue(true)
       organizationsAPI.removeMember.mockRejectedValue(
-        new Error('Remove failed')
+        new Error('Remove failed'),
       )
 
       render(<OrganizationsTab />)
@@ -1414,12 +1426,12 @@ describe('OrganizationsTab', () => {
         () => {
           expect(screen.getByText('Member User')).toBeInTheDocument()
         },
-        { timeout: 3000 }
+        { timeout: 3000 },
       )
 
       const allButtons = screen.getAllByRole('button')
       const deleteButtons = allButtons.filter((btn) =>
-        btn.className.includes('text-red-600')
+        btn.className.includes('text-red-600'),
       )
 
       // deleteButtons[1] = first member (Member User - user-2)
@@ -1433,10 +1445,10 @@ describe('OrganizationsTab', () => {
           expect(mockConfirmDelete).toHaveBeenCalled()
           expect(mockShowError).toHaveBeenCalledWith(
             'Failed to remove member',
-            'Error'
+            'Error',
           )
         },
-        { timeout: 3000 }
+        { timeout: 3000 },
       )
 
       consoleErrorSpy.mockRestore()
@@ -1446,7 +1458,7 @@ describe('OrganizationsTab', () => {
       const { organizationsAPI } = require('@/lib/api/organizations')
       const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation()
       organizationsAPI.updateMemberRole.mockRejectedValue(
-        new Error('Update failed')
+        new Error('Update failed'),
       )
 
       render(<OrganizationsTab />)
@@ -1457,7 +1469,7 @@ describe('OrganizationsTab', () => {
 
       const selects = screen.getAllByRole('combobox')
       const contributorSelect = selects.find(
-        (select) => (select as HTMLSelectElement).value === 'CONTRIBUTOR'
+        (select) => (select as HTMLSelectElement).value === 'CONTRIBUTOR',
       ) as HTMLSelectElement
 
       fireEvent.change(contributorSelect, { target: { value: 'ORG_ADMIN' } })
@@ -1465,7 +1477,7 @@ describe('OrganizationsTab', () => {
       await waitFor(() => {
         expect(mockShowError).toHaveBeenCalledWith(
           'Failed to update role',
-          'Error'
+          'Error',
         )
       })
 
@@ -1494,10 +1506,10 @@ describe('OrganizationsTab', () => {
       })
 
       expect(
-        screen.queryByRole('button', { name: /Invite Member/i })
+        screen.queryByRole('button', { name: /Invite Member/i }),
       ).not.toBeInTheDocument()
       expect(
-        screen.queryByRole('button', { name: /Add Existing User/i })
+        screen.queryByRole('button', { name: /Add Existing User/i }),
       ).not.toBeInTheDocument()
     })
 
@@ -1521,7 +1533,7 @@ describe('OrganizationsTab', () => {
       })
 
       expect(
-        screen.queryByRole('button', { name: /Invite Member/i })
+        screen.queryByRole('button', { name: /Invite Member/i }),
       ).not.toBeInTheDocument()
     })
 
@@ -1549,7 +1561,7 @@ describe('OrganizationsTab', () => {
       const editButton = editButtons.find(
         (btn) =>
           btn.querySelector('svg')?.classList.contains('h-4') &&
-          btn.className.includes('text-indigo-600')
+          btn.className.includes('text-indigo-600'),
       )
 
       expect(editButton).toBeUndefined()
@@ -1573,7 +1585,7 @@ describe('OrganizationsTab', () => {
       render(<OrganizationsTab />)
 
       expect(
-        screen.getByRole('button', { name: /Test Organization/i })
+        screen.getByRole('button', { name: /Test Organization/i }),
       ).toBeInTheDocument()
     })
 
@@ -1615,7 +1627,7 @@ describe('OrganizationsTab', () => {
         () => {
           expect(screen.getByText(/Your role: ORG_ADMIN/i)).toBeInTheDocument()
         },
-        { timeout: 3000 }
+        { timeout: 3000 },
       )
     })
 
@@ -1631,11 +1643,11 @@ describe('OrganizationsTab', () => {
       await waitFor(
         () => {
           expect(
-            screen.getByText('Create New Organization')
+            screen.getByText('Create New Organization'),
           ).toBeInTheDocument()
           expect(getInputByLabel('Name')).toBeInTheDocument()
         },
-        { timeout: 3000 }
+        { timeout: 3000 },
       )
 
       const nameInput = getInputByLabel('Name') as HTMLInputElement
@@ -1654,10 +1666,10 @@ describe('OrganizationsTab', () => {
       await waitFor(
         () => {
           expect(
-            screen.queryByText('Create New Organization')
+            screen.queryByText('Create New Organization'),
           ).not.toBeInTheDocument()
         },
-        { timeout: 3000 }
+        { timeout: 3000 },
       )
 
       // Reopen modal
@@ -1666,10 +1678,10 @@ describe('OrganizationsTab', () => {
       await waitFor(
         () => {
           expect(
-            screen.getByText('Create New Organization')
+            screen.getByText('Create New Organization'),
           ).toBeInTheDocument()
         },
-        { timeout: 3000 }
+        { timeout: 3000 },
       )
 
       // Form fields should persist (current behavior - form state is not reset on cancel)
@@ -1693,7 +1705,7 @@ describe('OrganizationsTab', () => {
       const editButton = editButtons.find(
         (btn) =>
           btn.querySelector('svg')?.classList.contains('h-4') &&
-          btn.className.includes('text-indigo-600')
+          btn.className.includes('text-indigo-600'),
       )
 
       if (editButton) {
@@ -1708,7 +1720,7 @@ describe('OrganizationsTab', () => {
 
         // Make the API call take time
         mockApiClient.updateOrganization.mockReturnValue(
-          new Promise((resolve) => setTimeout(resolve, 100))
+          new Promise((resolve) => setTimeout(resolve, 100)),
         )
 
         await user.click(saveButton)
@@ -1726,7 +1738,7 @@ describe('OrganizationsTab', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByRole('button', { name: /Invite Member/i })
+          screen.getByRole('button', { name: /Invite Member/i }),
         ).toBeInTheDocument()
       })
 
@@ -1768,7 +1780,7 @@ describe('OrganizationsTab', () => {
         () => {
           expect(screen.getByText('Member User')).toBeInTheDocument()
         },
-        { timeout: 3000 }
+        { timeout: 3000 },
       )
 
       const inviteButtons = screen.getAllByRole('button', {
@@ -1782,11 +1794,11 @@ describe('OrganizationsTab', () => {
           const modalTitle = screen
             .getAllByText('Invite Member')
             .find(
-              (el) => el.tagName === 'H3' || el.parentElement?.tagName === 'H3'
+              (el) => el.tagName === 'H3' || el.parentElement?.tagName === 'H3',
             )
           expect(modalTitle).toBeInTheDocument()
         },
-        { timeout: 3000 }
+        { timeout: 3000 },
       )
 
       const cancelButton = screen.getByRole('button', { name: /Cancel/i })
@@ -1798,11 +1810,11 @@ describe('OrganizationsTab', () => {
           const modalTitles = screen
             .queryAllByText('Invite Member')
             .filter(
-              (el) => el.tagName === 'H3' || el.parentElement?.tagName === 'H3'
+              (el) => el.tagName === 'H3' || el.parentElement?.tagName === 'H3',
             )
           expect(modalTitles.length).toBe(0)
         },
-        { timeout: 3000 }
+        { timeout: 3000 },
       )
     }, 10000)
 
@@ -1833,7 +1845,7 @@ describe('OrganizationsTab', () => {
       await waitFor(() => {
         expect(mockAddToast).toHaveBeenCalledWith(
           'Invitation sent successfully',
-          'success'
+          'success',
         )
       })
 
@@ -1842,7 +1854,7 @@ describe('OrganizationsTab', () => {
         const modalTitles = screen
           .queryAllByText('Invite Member')
           .filter(
-            (el) => el.tagName === 'H3' || el.parentElement?.tagName === 'H3'
+            (el) => el.tagName === 'H3' || el.parentElement?.tagName === 'H3',
           )
         expect(modalTitles.length).toBe(0)
       })
@@ -1856,7 +1868,7 @@ describe('OrganizationsTab', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByRole('button', { name: /Add Existing User/i })
+          screen.getByRole('button', { name: /Add Existing User/i }),
         ).toBeInTheDocument()
       })
 
@@ -1867,7 +1879,7 @@ describe('OrganizationsTab', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('Add Existing User to Organization')
+          screen.getByText('Add Existing User to Organization'),
         ).toBeInTheDocument()
       })
 
@@ -1876,7 +1888,7 @@ describe('OrganizationsTab', () => {
 
       await waitFor(() => {
         expect(
-          screen.queryByText('Add Existing User to Organization')
+          screen.queryByText('Add Existing User to Organization'),
         ).not.toBeInTheDocument()
       })
     })
@@ -1887,7 +1899,7 @@ describe('OrganizationsTab', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByRole('button', { name: /Add Existing User/i })
+          screen.getByRole('button', { name: /Add Existing User/i }),
         ).toBeInTheDocument()
       })
 
@@ -1901,7 +1913,7 @@ describe('OrganizationsTab', () => {
           const userSelect = getInputByLabel('Select User')
           expect(userSelect).toBeInTheDocument()
         },
-        { timeout: 3000 }
+        { timeout: 3000 },
       )
 
       const userSelect = getInputByLabel('Select User')
@@ -1919,7 +1931,7 @@ describe('OrganizationsTab', () => {
         expect(organizationsAPI.addUserToOrganization).toHaveBeenCalledWith(
           'org-1',
           'user-4',
-          'CONTRIBUTOR'
+          'CONTRIBUTOR',
         )
       })
     })
@@ -1939,7 +1951,7 @@ describe('OrganizationsTab', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByRole('button', { name: /Add Existing User/i })
+          screen.getByRole('button', { name: /Add Existing User/i }),
         ).toBeInTheDocument()
       })
 
@@ -1953,7 +1965,7 @@ describe('OrganizationsTab', () => {
           const userSelect = getInputByLabel('Select User')
           expect(userSelect).toBeInTheDocument()
         },
-        { timeout: 3000 }
+        { timeout: 3000 },
       )
 
       const userSelect = getInputByLabel('Select User')
@@ -1965,7 +1977,7 @@ describe('OrganizationsTab', () => {
       await waitFor(() => {
         expect(mockShowError).toHaveBeenCalledWith(
           'User already in organization',
-          'Error'
+          'Error',
         )
       })
     })
@@ -1976,7 +1988,7 @@ describe('OrganizationsTab', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByRole('button', { name: /Add Existing User/i })
+          screen.getByRole('button', { name: /Add Existing User/i }),
         ).toBeInTheDocument()
       })
 
@@ -1987,7 +1999,7 @@ describe('OrganizationsTab', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('Add Existing User to Organization')
+          screen.getByText('Add Existing User to Organization'),
         ).toBeInTheDocument()
       })
 
@@ -2012,7 +2024,7 @@ describe('OrganizationsTab', () => {
       })
 
       expect(
-        screen.queryByRole('button', { name: /Add Existing User/i })
+        screen.queryByRole('button', { name: /Add Existing User/i }),
       ).not.toBeInTheDocument()
     })
 
@@ -2036,7 +2048,7 @@ describe('OrganizationsTab', () => {
       })
 
       expect(
-        screen.queryByRole('button', { name: /Invite Member/i })
+        screen.queryByRole('button', { name: /Invite Member/i }),
       ).not.toBeInTheDocument()
     })
   })
@@ -2045,7 +2057,7 @@ describe('OrganizationsTab', () => {
     it('should handle cancel invitation errors', async () => {
       const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation()
       mockApiClient.cancelInvitation.mockRejectedValue(
-        new Error('Cancel failed')
+        new Error('Cancel failed'),
       )
 
       render(<OrganizationsTab />)
@@ -2056,7 +2068,7 @@ describe('OrganizationsTab', () => {
 
       const allButtons = screen.getAllByRole('button')
       const redButtons = allButtons.filter((btn) =>
-        btn.className.includes('text-red-600')
+        btn.className.includes('text-red-600'),
       )
 
       const cancelButton = redButtons[redButtons.length - 1]
@@ -2065,7 +2077,7 @@ describe('OrganizationsTab', () => {
       await waitFor(() => {
         expect(mockShowError).toHaveBeenCalledWith(
           'Failed to cancel invitation',
-          'Error'
+          'Error',
         )
       })
 
@@ -2074,7 +2086,7 @@ describe('OrganizationsTab', () => {
 
     it('should handle update organization errors', async () => {
       mockApiClient.updateOrganization.mockRejectedValue(
-        new Error('Update failed')
+        new Error('Update failed'),
       )
 
       const user = userEvent.setup()
@@ -2088,7 +2100,7 @@ describe('OrganizationsTab', () => {
       const editButton = editButtons.find(
         (btn) =>
           btn.querySelector('svg')?.classList.contains('h-4') &&
-          btn.className.includes('text-indigo-600')
+          btn.className.includes('text-indigo-600'),
       )
 
       if (editButton) {
@@ -2105,7 +2117,7 @@ describe('OrganizationsTab', () => {
         await waitFor(() => {
           expect(mockShowError).toHaveBeenCalledWith(
             'Failed to update organization',
-            'Error'
+            'Error',
           )
         })
       }
@@ -2115,7 +2127,7 @@ describe('OrganizationsTab', () => {
       const { organizationsAPI } = require('@/lib/api/organizations')
       const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation()
       organizationsAPI.getAllUsers.mockRejectedValue(
-        new Error('Failed to load users')
+        new Error('Failed to load users'),
       )
 
       const user = userEvent.setup()
@@ -2123,7 +2135,7 @@ describe('OrganizationsTab', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByRole('button', { name: /Add Existing User/i })
+          screen.getByRole('button', { name: /Add Existing User/i }),
         ).toBeInTheDocument()
       })
 
@@ -2135,7 +2147,7 @@ describe('OrganizationsTab', () => {
       await waitFor(() => {
         expect(mockShowError).toHaveBeenCalledWith(
           'Failed to load users',
-          'Error'
+          'Error',
         )
       })
 

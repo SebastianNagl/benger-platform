@@ -8,10 +8,14 @@
  */
 
 import '@testing-library/jest-dom'
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 
 jest.mock('@/contexts/I18nContext', () => ({
-  useI18n: () => ({ t: (key: string, params?: any) => params ? `${key}:${JSON.stringify(params)}` : key, locale: 'en' }),
+  useI18n: () => ({
+    t: (key: string, params?: any) =>
+      params ? `${key}:${JSON.stringify(params)}` : key,
+    locale: 'en',
+  }),
 }))
 
 // Mock next/dynamic for Plotly
@@ -29,8 +33,12 @@ jest.mock('next/dynamic', () => {
 
 // Mock heroicons
 jest.mock('@heroicons/react/24/outline', () => ({
-  ArrowDownTrayIcon: ({ className }: any) => <svg data-testid="download-icon" className={className} />,
-  ClipboardDocumentIcon: ({ className }: any) => <svg data-testid="clipboard-icon" className={className} />,
+  ArrowDownTrayIcon: ({ className }: any) => (
+    <svg data-testid="download-icon" className={className} />
+  ),
+  ClipboardDocumentIcon: ({ className }: any) => (
+    <svg data-testid="clipboard-icon" className={className} />
+  ),
 }))
 
 import { EvaluationHeatmap } from '../EvaluationHeatmap'
@@ -40,7 +48,7 @@ describe('EvaluationHeatmap', () => {
   const referenceFields = ['ref_field_x', 'ref_field_y', 'ref_field_z']
   const scores: Record<string, Record<string, number>> = {
     pred_field_a: { ref_field_x: 0.85, ref_field_y: 0.72, ref_field_z: 0.91 },
-    pred_field_b: { ref_field_x: 0.60, ref_field_y: 0.45, ref_field_z: 0.78 },
+    pred_field_b: { ref_field_x: 0.6, ref_field_y: 0.45, ref_field_z: 0.78 },
   }
 
   beforeEach(() => {
@@ -55,7 +63,7 @@ describe('EvaluationHeatmap', () => {
         referenceFields={referenceFields}
         scores={scores}
         metric="BLEU"
-      />
+      />,
     )
     expect(container).toBeTruthy()
   })
@@ -67,7 +75,7 @@ describe('EvaluationHeatmap', () => {
         referenceFields={referenceFields}
         scores={scores}
         metric="BLEU"
-      />
+      />,
     )
     expect(screen.getByTestId('plotly-chart')).toBeInTheDocument()
   })
@@ -79,7 +87,7 @@ describe('EvaluationHeatmap', () => {
         referenceFields={referenceFields}
         scores={scores}
         metric="BLEU"
-      />
+      />,
     )
     const lastProps = mockPlotProps[mockPlotProps.length - 1]
     expect(lastProps.data[0].x).toEqual(referenceFields)
@@ -93,7 +101,7 @@ describe('EvaluationHeatmap', () => {
         referenceFields={referenceFields}
         scores={scores}
         metric="BLEU"
-      />
+      />,
     )
     const lastProps = mockPlotProps[mockPlotProps.length - 1]
     const z = lastProps.data[0].z
@@ -101,7 +109,7 @@ describe('EvaluationHeatmap', () => {
     expect(z[0][0]).toBe(0.85) // pred_field_a x ref_field_x
     expect(z[0][1]).toBe(0.72) // pred_field_a x ref_field_y
     expect(z[0][2]).toBe(0.91) // pred_field_a x ref_field_z
-    expect(z[1][0]).toBe(0.60) // pred_field_b x ref_field_x
+    expect(z[1][0]).toBe(0.6) // pred_field_b x ref_field_x
     expect(z[1][1]).toBe(0.45) // pred_field_b x ref_field_y
     expect(z[1][2]).toBe(0.78) // pred_field_b x ref_field_z
   })
@@ -113,7 +121,7 @@ describe('EvaluationHeatmap', () => {
         referenceFields={referenceFields}
         scores={scores}
         metric="ROUGE-L"
-      />
+      />,
     )
     const lastProps = mockPlotProps[mockPlotProps.length - 1]
     expect(lastProps.layout.title.text).toContain('ROUGE-L')
@@ -126,7 +134,7 @@ describe('EvaluationHeatmap', () => {
         referenceFields={referenceFields}
         scores={scores}
         metric="BLEU"
-      />
+      />,
     )
     const lastProps = mockPlotProps[mockPlotProps.length - 1]
     // width = Math.max(600, 3 * 120) = 600
@@ -142,10 +150,14 @@ describe('EvaluationHeatmap', () => {
         referenceFields={referenceFields}
         scores={scores}
         metric="BLEU"
-      />
+      />,
     )
-    expect(screen.getByText('evaluation.charts.heatmap.exportCsv')).toBeInTheDocument()
-    expect(screen.getByText('evaluation.charts.heatmap.exportLatex')).toBeInTheDocument()
+    expect(
+      screen.getByText('evaluation.charts.heatmap.exportCsv'),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText('evaluation.charts.heatmap.exportLatex'),
+    ).toBeInTheDocument()
   })
 
   it('renders the legend section with color scale', () => {
@@ -155,13 +167,23 @@ describe('EvaluationHeatmap', () => {
         referenceFields={referenceFields}
         scores={scores}
         metric="BLEU"
-      />
+      />,
     )
-    expect(screen.getByText('evaluation.charts.heatmap.legend')).toBeInTheDocument()
-    expect(screen.getByText('evaluation.charts.heatmap.colorScale')).toBeInTheDocument()
-    expect(screen.getByText('evaluation.charts.heatmap.highScore')).toBeInTheDocument()
-    expect(screen.getByText('evaluation.charts.heatmap.mediumScore')).toBeInTheDocument()
-    expect(screen.getByText('evaluation.charts.heatmap.lowScore')).toBeInTheDocument()
+    expect(
+      screen.getByText('evaluation.charts.heatmap.legend'),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText('evaluation.charts.heatmap.colorScale'),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText('evaluation.charts.heatmap.highScore'),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText('evaluation.charts.heatmap.mediumScore'),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText('evaluation.charts.heatmap.lowScore'),
+    ).toBeInTheDocument()
   })
 
   it('displays min and max score values in the legend', () => {
@@ -171,7 +193,7 @@ describe('EvaluationHeatmap', () => {
         referenceFields={referenceFields}
         scores={scores}
         metric="BLEU"
-      />
+      />,
     )
     // minScore = 0.45, maxScore = 0.91
     expect(screen.getByText('0.4500')).toBeInTheDocument()
@@ -187,7 +209,7 @@ describe('EvaluationHeatmap', () => {
         scores={scores}
         metric="BLEU"
         onCellClick={onCellClick}
-      />
+      />,
     )
     const lastProps = mockPlotProps[mockPlotProps.length - 1]
     lastProps.onClick({
@@ -203,7 +225,7 @@ describe('EvaluationHeatmap', () => {
         referenceFields={referenceFields}
         scores={scores}
         metric="BLEU"
-      />
+      />,
     )
     const lastProps = mockPlotProps[mockPlotProps.length - 1]
     expect(() => {
@@ -222,7 +244,7 @@ describe('EvaluationHeatmap', () => {
         referenceFields={referenceFields}
         scores={sparseScores}
         metric="BLEU"
-      />
+      />,
     )
     const lastProps = mockPlotProps[mockPlotProps.length - 1]
     const z = lastProps.data[0].z
@@ -241,7 +263,7 @@ describe('EvaluationHeatmap', () => {
         referenceFields={referenceFields}
         scores={scores}
         metric="BLEU"
-      />
+      />,
     )
 
     fireEvent.click(screen.getByText('evaluation.charts.heatmap.exportCsv'))
@@ -265,7 +287,7 @@ describe('EvaluationHeatmap', () => {
         referenceFields={referenceFields}
         scores={scores}
         metric="BLEU"
-      />
+      />,
     )
 
     await act(async () => {
@@ -288,7 +310,7 @@ describe('EvaluationHeatmap', () => {
         referenceFields={referenceFields}
         scores={scores}
         metric="BLEU"
-      />
+      />,
     )
     const lastProps = mockPlotProps[mockPlotProps.length - 1]
     const annotations = lastProps.layout.annotations
@@ -306,7 +328,7 @@ describe('EvaluationHeatmap', () => {
         referenceFields={referenceFields}
         scores={scores}
         metric="BLEU"
-      />
+      />,
     )
     const lastProps = mockPlotProps[mockPlotProps.length - 1]
     const annotations = lastProps.layout.annotations
@@ -324,7 +346,7 @@ describe('EvaluationHeatmap', () => {
         referenceFields={['b']}
         scores={{}}
         metric="BLEU"
-      />
+      />,
     )
     // minScore defaults to 0, maxScore defaults to 1
     expect(container.textContent).toContain('0.0000')

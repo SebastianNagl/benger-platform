@@ -103,7 +103,9 @@ describe('FeatureFlagContext', () => {
         renderHook(() => useFeatureFlags())
       } catch (error) {
         expect(error).toEqual(
-          new Error('useFeatureFlags must be used within a FeatureFlagProvider')
+          new Error(
+            'useFeatureFlags must be used within a FeatureFlagProvider',
+          ),
         )
       }
 
@@ -206,7 +208,7 @@ describe('FeatureFlagContext', () => {
       })
 
       expect(result.current.lastUpdate).toBeGreaterThanOrEqual(
-        timestampAfterLoad
+        timestampAfterLoad,
       )
     })
   })
@@ -316,7 +318,7 @@ describe('FeatureFlagContext', () => {
         .spyOn(console, 'error')
         .mockImplementation(() => {})
       ;(checkFeatureFlagSpy as jest.Mock).mockRejectedValue(
-        new Error('API error')
+        new Error('API error'),
       )
 
       const wrapper = ({ children }: { children: React.ReactNode }) => (
@@ -408,7 +410,7 @@ describe('FeatureFlagContext', () => {
 
     it('clears error on successful refresh', async () => {
       ;(getFeatureFlagsSpy as jest.Mock).mockRejectedValueOnce(
-        new Error('Initial error')
+        new Error('Initial error'),
       )
 
       const wrapper = ({ children }: { children: React.ReactNode }) => (
@@ -438,7 +440,7 @@ describe('FeatureFlagContext', () => {
         .spyOn(console, 'error')
         .mockImplementation(() => {})
       ;(getFeatureFlagsSpy as jest.Mock).mockRejectedValue(
-        new Error('API error')
+        new Error('API error'),
       )
 
       const wrapper = ({ children }: { children: React.ReactNode }) => (
@@ -462,7 +464,7 @@ describe('FeatureFlagContext', () => {
         .spyOn(console, 'error')
         .mockImplementation(() => {})
       ;(getFeatureFlagsSpy as jest.Mock).mockRejectedValue(
-        new Error('Request failed with status code 401')
+        new Error('Request failed with status code 401'),
       )
 
       const wrapper = ({ children }: { children: React.ReactNode }) => (
@@ -486,7 +488,7 @@ describe('FeatureFlagContext', () => {
         .spyOn(console, 'error')
         .mockImplementation(() => {})
       ;(getFeatureFlagsSpy as jest.Mock).mockRejectedValue(
-        new Error('Server error')
+        new Error('Server error'),
       )
 
       const wrapper = ({ children }: { children: React.ReactNode }) => (
@@ -498,7 +500,7 @@ describe('FeatureFlagContext', () => {
       await waitFor(() => {
         expect(consoleErrorSpy).toHaveBeenCalledWith(
           'Error fetching feature flags:',
-          expect.any(Error)
+          expect.any(Error),
         )
       })
 
@@ -519,7 +521,7 @@ describe('FeatureFlagContext', () => {
       const originalFlags = result.current.flags
 
       ;(getFeatureFlagsSpy as jest.Mock).mockRejectedValue(
-        new Error('Refresh error')
+        new Error('Refresh error'),
       )
 
       await act(async () => {
@@ -620,7 +622,7 @@ describe('FeatureFlagContext', () => {
           context: useFeatureFlags(),
           dataFlag: useFeatureFlag('data'),
         }),
-        { wrapper }
+        { wrapper },
       )
 
       await waitFor(() => {
@@ -863,7 +865,7 @@ describe('FeatureFlagContext', () => {
         .spyOn(console, 'error')
         .mockImplementation(() => {})
       ;(checkFeatureFlagSpy as jest.Mock).mockRejectedValue(
-        new Error('Network error')
+        new Error('Network error'),
       )
 
       const wrapper = ({ children }: { children: React.ReactNode }) => (
@@ -881,7 +883,7 @@ describe('FeatureFlagContext', () => {
       expect(isEnabled).toBe(false)
       expect(consoleErrorSpy).toHaveBeenCalledWith(
         expect.stringContaining("Error checking feature flag 'reports'"),
-        expect.any(Error)
+        expect.any(Error),
       )
 
       consoleErrorSpy.mockRestore()
@@ -945,7 +947,7 @@ describe('FeatureFlagContext', () => {
         () =>
           new Promise((resolve) => {
             setTimeout(() => resolve({ ...mockFlags, newFlag: true }), 100)
-          })
+          }),
       )
 
       act(() => {

@@ -9,9 +9,9 @@
  * - Redirect flash prevention when user is set (showing spinner instead of form)
  * - isLoading ternary on submit button (loading spinner vs button text)
  */
-import '@testing-library/jest-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
+import '@testing-library/jest-dom'
 import { render, screen, waitFor } from '@testing-library/react'
 import { useRouter } from 'next/navigation'
 
@@ -22,7 +22,9 @@ jest.mock('next/navigation', () => ({
 }))
 
 jest.mock('@/components/layout', () => ({
-  LanguageSwitcher: () => <div data-testid="language-switcher">LanguageSwitcher</div>,
+  LanguageSwitcher: () => (
+    <div data-testid="language-switcher">LanguageSwitcher</div>
+  ),
   ThemeToggle: () => <div data-testid="theme-toggle">ThemeToggle</div>,
 }))
 
@@ -61,7 +63,6 @@ describe('LoginPage - branch coverage', () => {
       push: jest.fn(),
       replace: mockRouterReplace,
     })
-
   })
 
   describe('Redirect flash prevention', () => {

@@ -32,7 +32,7 @@ describe('Question Format Fix', () => {
     expect(parsed[0].id).toBe('1')
     expect(parsed[0].question_data.Frage).toBe('What is contract law?')
     expect(parsed[0].question_data.Antwort).toBe(
-      'Contract law is the body of law that governs agreements.'
+      'Contract law is the body of law that governs agreements.',
     )
   })
 
@@ -63,7 +63,7 @@ describe('Question Format Fix', () => {
     expect(parsed[0].question_data.question).toBe('Explain the concept')
     expect(parsed[0].question_data.answer).toBe('The concept is...')
     expect(parsed[0].question_data.reasoning).toBe(
-      'Because of legal precedent...'
+      'Because of legal precedent...',
     )
   })
 

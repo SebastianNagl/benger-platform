@@ -2,9 +2,9 @@
 
 import { useState } from 'react'
 
+import { Button } from '@/components/shared/Button'
 import { Dialog } from '@/components/shared/Dialog'
 import { Input } from '@/components/shared/Input'
-import { Button } from '@/components/shared/Button'
 import { Label } from '@/components/shared/Label'
 import { useI18n } from '@/contexts/I18nContext'
 import { defaultIconForKind } from '@/lib/projectKind'
@@ -26,7 +26,8 @@ export const PROJECT_KIND_OPTIONS: {
     nameKey: 'projects.creation.wizard.step1.kind.generic',
     descriptionKey: 'projects.creation.wizard.step1.kind.genericDescription',
     nameFallback: 'Generisch',
-    descriptionFallback: 'Benchmark-/Annotationsprojekt ohne Klausur- oder Karten-Logik',
+    descriptionFallback:
+      'Benchmark-/Annotationsprojekt ohne Klausur- oder Karten-Logik',
   },
   {
     id: 'exam',
@@ -34,7 +35,8 @@ export const PROJECT_KIND_OPTIONS: {
     nameKey: 'projects.creation.wizard.step1.kind.exam',
     descriptionKey: 'projects.creation.wizard.step1.kind.examDescription',
     nameFallback: 'Klausur',
-    descriptionFallback: 'Falllösung mit Angabe, Musterlösung und KI-Korrektur; für Studierende lösbar',
+    descriptionFallback:
+      'Falllösung mit Angabe, Musterlösung und KI-Korrektur; für Studierende lösbar',
   },
   {
     id: 'flashcard_collection',
@@ -42,13 +44,29 @@ export const PROJECT_KIND_OPTIONS: {
     nameKey: 'projects.creation.wizard.step1.kind.deck',
     descriptionKey: 'projects.creation.wizard.step1.kind.deckDescription',
     nameFallback: 'Kartenstapel',
-    descriptionFallback: 'Karteikarten mit Vorder-/Rückseite und Lernplan (SRS)',
+    descriptionFallback:
+      'Karteikarten mit Vorder-/Rückseite und Lernplan (SRS)',
   },
 ]
 
 /** Curated emoji set for the picker; any other emoji can be typed. */
 export const ICON_CHOICES = [
-  '⚖️', '📚', '🗃️', '📝', '🎓', '🏛️', '📜', '🔍', '🧠', '💡', '🧪', '📊', '🗂️', '🏷️', '🎯', '🧩',
+  '⚖️',
+  '📚',
+  '🗃️',
+  '📝',
+  '🎓',
+  '🏛️',
+  '📜',
+  '🔍',
+  '🧠',
+  '💡',
+  '🧪',
+  '📊',
+  '🗂️',
+  '🏷️',
+  '🎯',
+  '🧩',
 ]
 
 export { defaultIconForKind } from '@/lib/projectKind'
@@ -78,7 +96,10 @@ export function ProjectTypeSelector({
       <div
         className="mt-2 grid grid-cols-3 gap-2"
         role="radiogroup"
-        aria-label={t('projects.creation.wizard.step1.kind.title', 'Projekttyp')}
+        aria-label={t(
+          'projects.creation.wizard.step1.kind.title',
+          'Projekttyp',
+        )}
       >
         {PROJECT_KIND_OPTIONS.map((opt) => {
           const isSelected = projectKind === opt.id
@@ -95,7 +116,7 @@ export function ProjectTypeSelector({
                 'flex items-center justify-center gap-2 rounded-lg border px-3 py-2.5 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500',
                 isSelected
                   ? 'border-emerald-500 bg-emerald-50 text-zinc-900 ring-1 ring-emerald-500 dark:bg-emerald-900/20 dark:text-white'
-                  : 'border-zinc-200 text-zinc-700 hover:border-zinc-300 dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-zinc-600'
+                  : 'border-zinc-200 text-zinc-700 hover:border-zinc-300 dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-zinc-600',
               )}
             >
               <span className="text-lg" aria-hidden>
@@ -107,10 +128,12 @@ export function ProjectTypeSelector({
         })}
       </div>
       <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
-        {selected ? `${t(selected.descriptionKey, selected.descriptionFallback)} · ` : ''}
+        {selected
+          ? `${t(selected.descriptionKey, selected.descriptionFallback)} · `
+          : ''}
         {t(
           'projects.creation.wizard.step1.kind.locked',
-          'Der Projekttyp kann von Bearbeitenden unter „Einstellungen“ geändert werden.'
+          'Der Projekttyp kann von Bearbeitenden unter „Einstellungen“ geändert werden.',
         )}
       </p>
     </div>
@@ -143,7 +166,10 @@ export function IconPickerModal({
       title={t('projects.creation.wizard.step1.icon.title', 'Symbol wählen')}
     >
       <div className="space-y-4" data-testid="icon-picker-modal">
-        <div className="flex flex-wrap gap-2" data-testid="project-icon-choices">
+        <div
+          className="flex flex-wrap gap-2"
+          data-testid="project-icon-choices"
+        >
           {ICON_CHOICES.map((e) => (
             <button
               key={e}
@@ -155,7 +181,7 @@ export function IconPickerModal({
                 'flex h-10 w-10 items-center justify-center rounded-md border text-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500',
                 draft === e
                   ? 'border-emerald-500 bg-emerald-50 ring-1 ring-emerald-500 dark:bg-emerald-900/20'
-                  : 'border-zinc-200 hover:border-zinc-300 dark:border-zinc-700 dark:hover:border-zinc-600'
+                  : 'border-zinc-200 hover:border-zinc-300 dark:border-zinc-700 dark:hover:border-zinc-600',
               )}
             >
               {e}
@@ -168,7 +194,9 @@ export function IconPickerModal({
               value={draft}
               maxLength={8}
               onChange={(e) => setDraft(e.target.value)}
-              placeholder={defaultIconForKind(projectKind === 'generic' ? null : projectKind)}
+              placeholder={defaultIconForKind(
+                projectKind === 'generic' ? null : projectKind,
+              )}
               className="text-center text-xl"
               data-testid="project-icon-input"
             />
@@ -176,7 +204,7 @@ export function IconPickerModal({
           <p className="text-xs text-zinc-500 dark:text-zinc-400">
             {t(
               'projects.creation.wizard.step1.icon.help',
-              'Wird in Listen, im Projektkopf und unter „Entdecken“ angezeigt.'
+              'Wird in Listen, im Projektkopf und unter „Entdecken“ angezeigt.',
             )}
           </p>
         </div>
@@ -190,7 +218,9 @@ export function IconPickerModal({
             onClick={() => {
               onPick(
                 draft.trim() ||
-                  defaultIconForKind(projectKind === 'generic' ? null : projectKind)
+                  defaultIconForKind(
+                    projectKind === 'generic' ? null : projectKind,
+                  ),
               )
               onClose()
             }}

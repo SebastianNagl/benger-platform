@@ -21,14 +21,14 @@
  * @jest-environment jsdom
  */
 
-import { createRef } from 'react'
 import {
   GenerationDefaultsCard,
   type DefaultsMode,
   type RecommendedConsensus,
 } from '@/components/projects/GenerationDefaultsCard'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { createRef } from 'react'
 
 // Identity translator: always returns the i18n key, ignoring the German
 // fallback the component passes as the 2nd arg. This makes every rendered
@@ -49,14 +49,16 @@ const emptyConsensus = (): RecommendedConsensus => ({
 })
 
 function renderCard(
-  overrides: Partial<Parameters<typeof GenerationDefaultsCard>[0]> = {}
+  overrides: Partial<Parameters<typeof GenerationDefaultsCard>[0]> = {},
 ) {
   const setGenDefaultsMode = jest.fn()
   const setGenDefaultTemperature = jest.fn()
   const setGenDefaultMaxTokens = jest.fn()
   const beginEditGeneration = jest.fn()
-  const genDefaultsModeRef = createRef<DefaultsMode>() as React.MutableRefObject<DefaultsMode>
-  genDefaultsModeRef.current = (overrides.genDefaultsMode as DefaultsMode) ?? 'custom'
+  const genDefaultsModeRef =
+    createRef<DefaultsMode>() as React.MutableRefObject<DefaultsMode>
+  genDefaultsModeRef.current =
+    (overrides.genDefaultsMode as DefaultsMode) ?? 'custom'
 
   const props = {
     t,
@@ -89,7 +91,7 @@ function renderCard(
 // SubSection is collapsed by default; click the title to reveal the card body.
 async function expand(user: ReturnType<typeof userEvent.setup>) {
   await user.click(
-    screen.getByRole('button', { name: /project\.generationDefaults\.title/i })
+    screen.getByRole('button', { name: /project\.generationDefaults\.title/i }),
   )
 }
 
@@ -111,11 +113,11 @@ describe('GenerationDefaultsCard', () => {
     it('renders the SubSection title and is collapsed (body hidden) by default', () => {
       renderCard()
       expect(
-        screen.getByText('project.generationDefaults.title')
+        screen.getByText('project.generationDefaults.title'),
       ).toBeInTheDocument()
       // Collapsed: the description and inputs are not mounted.
       expect(
-        screen.queryByText('project.generationDefaults.description')
+        screen.queryByText('project.generationDefaults.description'),
       ).not.toBeInTheDocument()
       expect(screen.queryAllByRole('spinbutton')).toHaveLength(0)
     })
@@ -126,17 +128,17 @@ describe('GenerationDefaultsCard', () => {
       await expand(user)
 
       expect(
-        screen.getByText('project.generationDefaults.description')
+        screen.getByText('project.generationDefaults.description'),
       ).toBeInTheDocument()
       expect(
-        screen.getByText('project.generationDefaults.modeLabel')
+        screen.getByText('project.generationDefaults.modeLabel'),
       ).toBeInTheDocument()
       expect(screen.getAllByRole('spinbutton')).toHaveLength(2)
       expect(
-        screen.getByText('project.generationDefaults.defaultTemperature')
+        screen.getByText('project.generationDefaults.defaultTemperature'),
       ).toBeInTheDocument()
       expect(
-        screen.getByText('project.generationDefaults.defaultMaxTokens')
+        screen.getByText('project.generationDefaults.defaultMaxTokens'),
       ).toBeInTheDocument()
     })
   })
@@ -165,16 +167,16 @@ describe('GenerationDefaultsCard', () => {
       renderCard()
       await expand(user)
       expect(
-        screen.getByText('project.generationDefaults.modeRecommended')
+        screen.getByText('project.generationDefaults.modeRecommended'),
       ).toBeInTheDocument()
       expect(
-        screen.getByText('project.generationDefaults.modeRecommendedDesc')
+        screen.getByText('project.generationDefaults.modeRecommendedDesc'),
       ).toBeInTheDocument()
       expect(
-        screen.getByText('project.generationDefaults.modeMinimum')
+        screen.getByText('project.generationDefaults.modeMinimum'),
       ).toBeInTheDocument()
       expect(
-        screen.getByText('project.generationDefaults.modeCustom')
+        screen.getByText('project.generationDefaults.modeCustom'),
       ).toBeInTheDocument()
     })
 
@@ -236,10 +238,10 @@ describe('GenerationDefaultsCard', () => {
       expect(getTemperatureInput().disabled).toBe(false)
       expect(getMaxTokensInput().disabled).toBe(false)
       expect(
-        screen.getByText('project.generationDefaults.temperatureHelp')
+        screen.getByText('project.generationDefaults.temperatureHelp'),
       ).toBeInTheDocument()
       expect(
-        screen.getByText('project.generationDefaults.maxTokensHelp')
+        screen.getByText('project.generationDefaults.maxTokensHelp'),
       ).toBeInTheDocument()
     })
 
@@ -253,17 +255,19 @@ describe('GenerationDefaultsCard', () => {
         expect(getMaxTokensInput().disabled).toBe(true)
         expect(
           screen.getByText(
-            'project.generationDefaults.temperatureHelpModeOverride'
-          )
+            'project.generationDefaults.temperatureHelpModeOverride',
+          ),
         ).toBeInTheDocument()
         expect(
-          screen.getByText('project.generationDefaults.maxTokensHelpModeOverride')
+          screen.getByText(
+            'project.generationDefaults.maxTokensHelpModeOverride',
+          ),
         ).toBeInTheDocument()
         // The custom help text is NOT shown in override modes.
         expect(
-          screen.queryByText('project.generationDefaults.temperatureHelp')
+          screen.queryByText('project.generationDefaults.temperatureHelp'),
         ).not.toBeInTheDocument()
-      }
+      },
     )
 
     it('temperature onChange parses a float and begins editing', async () => {
@@ -274,7 +278,7 @@ describe('GenerationDefaultsCard', () => {
       await userEvent.setup().click(
         screen.getByRole('button', {
           name: /project\.generationDefaults\.title/i,
-        })
+        }),
       )
       fireEvent.change(getTemperatureInput(), { target: { value: '1.5' } })
       expect(beginEditGeneration).toHaveBeenCalledTimes(1)
@@ -289,7 +293,7 @@ describe('GenerationDefaultsCard', () => {
       await userEvent.setup().click(
         screen.getByRole('button', {
           name: /project\.generationDefaults\.title/i,
-        })
+        }),
       )
       fireEvent.change(getMaxTokensInput(), { target: { value: '12000' } })
       expect(beginEditGeneration).toHaveBeenCalledTimes(1)
@@ -337,13 +341,23 @@ describe('GenerationDefaultsCard', () => {
       renderCard({
         selectedModelIds: [],
         genRecConsensus: {
-          temperature: { value: 0.3, uniform: true, anyRec: true, perModel: [] },
-          max_tokens: { value: 4000, uniform: true, anyRec: true, perModel: [] },
+          temperature: {
+            value: 0.3,
+            uniform: true,
+            anyRec: true,
+            perModel: [],
+          },
+          max_tokens: {
+            value: 4000,
+            uniform: true,
+            anyRec: true,
+            perModel: [],
+          },
         },
       })
       await expand(user)
       expect(
-        screen.queryByText('generation.controlModal.recommended')
+        screen.queryByText('generation.controlModal.recommended'),
       ).not.toBeInTheDocument()
     })
 
@@ -354,8 +368,18 @@ describe('GenerationDefaultsCard', () => {
         genDefaultTemperature: 0.3, // matches -> no reset button
         genDefaultMaxTokens: 4000, // matches -> no reset button
         genRecConsensus: {
-          temperature: { value: 0.3, uniform: true, anyRec: true, perModel: [] },
-          max_tokens: { value: 4000, uniform: true, anyRec: true, perModel: [] },
+          temperature: {
+            value: 0.3,
+            uniform: true,
+            anyRec: true,
+            perModel: [],
+          },
+          max_tokens: {
+            value: 4000,
+            uniform: true,
+            anyRec: true,
+            perModel: [],
+          },
         },
       })
       await expand(user)
@@ -367,7 +391,7 @@ describe('GenerationDefaultsCard', () => {
       expect(screen.getByText(/recommended.*0\.3/)).toBeInTheDocument()
       // Values match defaults -> no reset-to-recommended button.
       expect(
-        screen.queryByText('generation.controlModal.resetToRecommended')
+        screen.queryByText('generation.controlModal.resetToRecommended'),
       ).not.toBeInTheDocument()
     })
 
@@ -378,8 +402,18 @@ describe('GenerationDefaultsCard', () => {
         genDefaultTemperature: 1.0, // differs from rec 0.3 -> reset shows
         genDefaultMaxTokens: 4000, // matches -> no reset on this side
         genRecConsensus: {
-          temperature: { value: 0.3, uniform: true, anyRec: true, perModel: [] },
-          max_tokens: { value: 4000, uniform: true, anyRec: true, perModel: [] },
+          temperature: {
+            value: 0.3,
+            uniform: true,
+            anyRec: true,
+            perModel: [],
+          },
+          max_tokens: {
+            value: 4000,
+            uniform: true,
+            anyRec: true,
+            perModel: [],
+          },
         },
       })
       await expand(user)
@@ -398,7 +432,12 @@ describe('GenerationDefaultsCard', () => {
         genDefaultTemperature: 0, // (0 ?? 0) === 0 rec, no reset
         genRecConsensus: {
           temperature: { value: 0, uniform: true, anyRec: true, perModel: [] },
-          max_tokens: { value: 8000, uniform: true, anyRec: true, perModel: [] },
+          max_tokens: {
+            value: 8000,
+            uniform: true,
+            anyRec: true,
+            perModel: [],
+          },
         },
       })
       await expand(user)
@@ -416,15 +455,25 @@ describe('GenerationDefaultsCard', () => {
         genDefaultTemperature: undefined, // (undefined ?? 0) !== 0.5 -> reset shows
         genDefaultMaxTokens: 4000, // matches -> no reset on this side
         genRecConsensus: {
-          temperature: { value: 0.5, uniform: true, anyRec: true, perModel: [] },
-          max_tokens: { value: 4000, uniform: true, anyRec: true, perModel: [] },
+          temperature: {
+            value: 0.5,
+            uniform: true,
+            anyRec: true,
+            perModel: [],
+          },
+          max_tokens: {
+            value: 4000,
+            uniform: true,
+            anyRec: true,
+            perModel: [],
+          },
         },
       })
       await expand(user)
       await user.click(
         screen.getByRole('button', {
           name: 'generation.controlModal.resetToRecommended',
-        })
+        }),
       )
       expect(setGenDefaultTemperature).toHaveBeenCalledWith(0.5)
     })
@@ -456,7 +505,7 @@ describe('GenerationDefaultsCard', () => {
       })
       await expand(user)
       const divergent = screen.getAllByText(
-        'generation.controlModal.divergentRecommendations'
+        'generation.controlModal.divergentRecommendations',
       )
       expect(divergent).toHaveLength(2)
       // Temperature tooltip lists both models' values.
@@ -473,7 +522,7 @@ describe('GenerationDefaultsCard', () => {
       })
       await expand(user)
       expect(
-        screen.getAllByText('generation.controlModal.noRecommendation')
+        screen.getAllByText('generation.controlModal.noRecommendation'),
       ).toHaveLength(2)
     })
 
@@ -483,13 +532,23 @@ describe('GenerationDefaultsCard', () => {
         selectedModelIds: ['m1'],
         genRecConsensus: {
           // uniform true but value undefined -> first branch fails, anyRec false
-          temperature: { value: undefined, uniform: true, anyRec: false, perModel: [] },
-          max_tokens: { value: undefined, uniform: true, anyRec: false, perModel: [] },
+          temperature: {
+            value: undefined,
+            uniform: true,
+            anyRec: false,
+            perModel: [],
+          },
+          max_tokens: {
+            value: undefined,
+            uniform: true,
+            anyRec: false,
+            perModel: [],
+          },
         },
       })
       await expand(user)
       expect(
-        screen.getAllByText('generation.controlModal.noRecommendation')
+        screen.getAllByText('generation.controlModal.noRecommendation'),
       ).toHaveLength(2)
     })
   })

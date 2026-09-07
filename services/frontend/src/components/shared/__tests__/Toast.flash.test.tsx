@@ -12,18 +12,20 @@
  * so they're worth exercising end-to-end (provider mount → toast renders).
  */
 
-import { act, render, screen, waitFor } from '@testing-library/react'
-import React from 'react'
-import { ToastProvider } from '../Toast'
 import {
   DEFAULT_TOAST_DURATION_MS,
   useNotificationStore,
 } from '@/stores/notificationStore'
+import { act, render, screen, waitFor } from '@testing-library/react'
+import React from 'react'
+import { ToastProvider } from '../Toast'
 
 jest.unmock('@/components/shared/Toast')
 
 jest.mock('framer-motion', () => ({
-  motion: { div: ({ children, ...props }: any) => <div {...props}>{children}</div> },
+  motion: {
+    div: ({ children, ...props }: any) => <div {...props}>{children}</div>,
+  },
   AnimatePresence: ({ children }: any) => <>{children}</>,
 }))
 
@@ -52,13 +54,13 @@ describe('ToastProvider mount-time channels', () => {
       render(
         <ToastProvider>
           <div />
-        </ToastProvider>
+        </ToastProvider>,
       )
 
       expect(screen.getByText('welcome back')).toBeInTheDocument()
       expect(screen.getByTestId('toast-item')).toHaveAttribute(
         'data-toast-type',
-        'success'
+        'success',
       )
       // Flash was consumed — re-mounting shouldn't re-fire it.
       expect(useNotificationStore.getState().pendingFlashes).toHaveLength(0)
@@ -71,7 +73,7 @@ describe('ToastProvider mount-time channels', () => {
       const { unmount } = render(
         <ToastProvider>
           <div />
-        </ToastProvider>
+        </ToastProvider>,
       )
       expect(useNotificationStore.getState().pendingFlashes).toHaveLength(0)
       unmount()
@@ -83,7 +85,7 @@ describe('ToastProvider mount-time channels', () => {
       render(
         <ToastProvider>
           <div />
-        </ToastProvider>
+        </ToastProvider>,
       )
       expect(screen.queryAllByText('only-once')).toHaveLength(0)
     })
@@ -94,40 +96,36 @@ describe('ToastProvider mount-time channels', () => {
       window.history.replaceState(
         {},
         '',
-        '/dashboard?flash_msg=hello&flash_type=success&keep=me'
+        '/dashboard?flash_msg=hello&flash_type=success&keep=me',
       )
 
       render(
         <ToastProvider>
           <div />
-        </ToastProvider>
+        </ToastProvider>,
       )
 
       expect(screen.getByText('hello')).toBeInTheDocument()
       expect(screen.getByTestId('toast-item')).toHaveAttribute(
         'data-toast-type',
-        'success'
+        'success',
       )
       // flash_* params were stripped, unrelated params preserved.
       expect(window.location.search).toBe('?keep=me')
     })
 
     it('falls back to type "info" for an invalid flash_type', () => {
-      window.history.replaceState(
-        {},
-        '',
-        '/?flash_msg=msg&flash_type=bogus'
-      )
+      window.history.replaceState({}, '', '/?flash_msg=msg&flash_type=bogus')
 
       render(
         <ToastProvider>
           <div />
-        </ToastProvider>
+        </ToastProvider>,
       )
 
       expect(screen.getByTestId('toast-item')).toHaveAttribute(
         'data-toast-type',
-        'info'
+        'info',
       )
     })
 
@@ -135,13 +133,13 @@ describe('ToastProvider mount-time channels', () => {
       window.history.replaceState(
         {},
         '',
-        '/?flash_msg=quick&flash_type=info&flash_duration=2000'
+        '/?flash_msg=quick&flash_type=info&flash_duration=2000',
       )
 
       render(
         <ToastProvider>
           <div />
-        </ToastProvider>
+        </ToastProvider>,
       )
 
       expect(screen.getByText('quick')).toBeInTheDocument()
@@ -158,7 +156,7 @@ describe('ToastProvider mount-time channels', () => {
       render(
         <ToastProvider>
           <div />
-        </ToastProvider>
+        </ToastProvider>,
       )
 
       expect(screen.queryByTestId('toast-item')).not.toBeInTheDocument()
@@ -186,7 +184,7 @@ describe('ToastProvider mount-time channels', () => {
       render(
         <ToastProvider>
           <div />
-        </ToastProvider>
+        </ToastProvider>,
       )
 
       expect(screen.getByText('still showing')).toBeInTheDocument()
@@ -222,7 +220,7 @@ describe('ToastProvider mount-time channels', () => {
       render(
         <ToastProvider>
           <div />
-        </ToastProvider>
+        </ToastProvider>,
       )
 
       expect(screen.queryByText('too late')).not.toBeInTheDocument()
@@ -246,7 +244,7 @@ describe('ToastProvider mount-time channels', () => {
       render(
         <ToastProvider>
           <div />
-        </ToastProvider>
+        </ToastProvider>,
       )
 
       expect(screen.getByText('pinned error')).toBeInTheDocument()

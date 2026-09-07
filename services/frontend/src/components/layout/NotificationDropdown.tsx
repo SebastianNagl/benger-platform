@@ -112,7 +112,10 @@ export function NotificationDropdown({
     const data = notification.data || {}
     const evalId = data.evaluation_id || data.eval_run_id
     const genId = data.generation_id || data.response_generation_id
-    if (notification.type === 'evaluation_completed' || notification.type === 'evaluation_failed') {
+    if (
+      notification.type === 'evaluation_completed' ||
+      notification.type === 'evaluation_failed'
+    ) {
       if (evalId) {
         router.push(`/evaluations/${evalId}`)
         onClose()
@@ -139,7 +142,7 @@ export function NotificationDropdown({
   }
 
   return (
-    <div className="w-96 max-w-sm rounded-lg bg-white shadow-lg ring-1 ring-black ring-opacity-5 dark:bg-zinc-900 dark:ring-zinc-700">
+    <div className="w-96 max-w-sm rounded-lg bg-white shadow-lg ring-1 ring-black/5 dark:bg-zinc-900 dark:ring-zinc-700">
       {/* Header */}
       <div className="flex items-center justify-between border-b border-zinc-200 px-4 py-3 dark:border-zinc-700">
         <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
@@ -206,7 +209,7 @@ export function NotificationDropdown({
                 ] || notificationColors.system_alert
               const timeAgo = formatDistanceToNow(
                 new Date(notification.created_at),
-                { addSuffix: true, locale: locale === 'de' ? de : undefined }
+                { addSuffix: true, locale: locale === 'de' ? de : undefined },
               )
               const { title: translatedTitle, message: translatedMessage } =
                 getTranslatedNotification(t, notification)
@@ -217,7 +220,7 @@ export function NotificationDropdown({
                   className={cn(
                     'cursor-pointer px-4 py-3 transition-colors',
                     'hover:bg-zinc-50 dark:hover:bg-zinc-700',
-                    !notification.is_read && 'bg-zinc-50 dark:bg-zinc-800'
+                    !notification.is_read && 'bg-zinc-50 dark:bg-zinc-800',
                   )}
                   onClick={() => handleNotificationClick(notification)}
                 >
@@ -225,8 +228,8 @@ export function NotificationDropdown({
                     {/* Icon */}
                     <div
                       className={cn(
-                        'flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full',
-                        iconColorClass
+                        'flex h-8 w-8 shrink-0 items-center justify-center rounded-full',
+                        iconColorClass,
                       )}
                     >
                       <IconComponent className="h-4 w-4" />
@@ -240,7 +243,7 @@ export function NotificationDropdown({
                             'truncate text-sm font-medium',
                             notification.is_read
                               ? 'text-zinc-700 dark:text-zinc-300'
-                              : 'text-zinc-900 dark:text-zinc-100'
+                              : 'text-zinc-900 dark:text-zinc-100',
                           )}
                         >
                           {translatedTitle}
@@ -248,7 +251,7 @@ export function NotificationDropdown({
 
                         {/* Unread indicator */}
                         {!notification.is_read && (
-                          <div className="ml-2 h-2 w-2 flex-shrink-0 rounded-full bg-emerald-600" />
+                          <div className="ml-2 h-2 w-2 shrink-0 rounded-full bg-emerald-600" />
                         )}
                       </div>
 
@@ -257,7 +260,7 @@ export function NotificationDropdown({
                           'mt-1 text-sm',
                           notification.is_read
                             ? 'text-zinc-500 dark:text-zinc-400'
-                            : 'text-zinc-600 dark:text-zinc-300'
+                            : 'text-zinc-600 dark:text-zinc-300',
                         )}
                       >
                         {translatedMessage}

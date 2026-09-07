@@ -74,9 +74,7 @@ describe('TasksClient', () => {
 
       await client.deleteColumnPreferences('p1')
 
-      expect(mockDelete).toHaveBeenCalledWith(
-        '/projects/p1/column-preferences'
-      )
+      expect(mockDelete).toHaveBeenCalledWith('/projects/p1/column-preferences')
     })
   })
 })

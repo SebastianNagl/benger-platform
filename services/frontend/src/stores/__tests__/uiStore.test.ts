@@ -617,7 +617,7 @@ describe('UIStore', () => {
       })
       expect(result.current.notifications).toHaveLength(2)
       expect(
-        result.current.notifications.find((n) => n.title === 'Short')
+        result.current.notifications.find((n) => n.title === 'Short'),
       ).toBeUndefined()
 
       // After 2000ms more (3000ms total), second notification should be removed
@@ -626,7 +626,7 @@ describe('UIStore', () => {
       })
       expect(result.current.notifications).toHaveLength(1)
       expect(
-        result.current.notifications.find((n) => n.title === 'Medium')
+        result.current.notifications.find((n) => n.title === 'Medium'),
       ).toBeUndefined()
 
       // After 2000ms more (5000ms total), third notification should be removed
@@ -1135,7 +1135,7 @@ describe('UIStore', () => {
       expect(result.current.isSidebarHidden).toBe(initialState.isSidebarHidden)
       expect(result.current.theme).toBe(initialState.theme)
       expect(result.current.isLoginModalOpen).toBe(
-        initialState.isLoginModalOpen
+        initialState.isLoginModalOpen,
       )
     })
   })

@@ -3,7 +3,7 @@ import type { Notification } from '@/components/layout/NotificationDropdown'
 type TFunction = (
   key: string,
   defaultValueOrVariables?: string | Record<string, any>,
-  variables?: Record<string, any>
+  variables?: Record<string, any>,
 ) => any
 
 /**
@@ -12,7 +12,7 @@ type TFunction = (
  */
 export function getTranslatedNotification(
   t: TFunction,
-  notification: Notification
+  notification: Notification,
 ): { title: string; message: string } {
   const { type, data, title: rawTitle, message: rawMessage } = notification
   const d = normalizeData(type, data || {})
@@ -21,7 +21,7 @@ export function getTranslatedNotification(
   const translatedMessage = t(
     `notifications.content.${type}.message`,
     rawMessage,
-    d
+    d,
   )
 
   // If any {variable} placeholders remain unresolved, fall back to the raw
@@ -34,8 +34,7 @@ export function getTranslatedNotification(
         ? translatedTitle
         : rawTitle,
     message:
-      typeof translatedMessage === 'string' &&
-      !hasUnresolved(translatedMessage)
+      typeof translatedMessage === 'string' && !hasUnresolved(translatedMessage)
         ? translatedMessage
         : rawMessage,
   }
@@ -48,7 +47,7 @@ export function getTranslatedNotification(
  */
 function normalizeData(
   type: string,
-  data: Record<string, any>
+  data: Record<string, any>,
 ): Record<string, any> {
   const d = { ...data }
 

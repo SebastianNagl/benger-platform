@@ -62,25 +62,20 @@ describe('AggregationSelector', () => {
         <AggregationSelector
           {...defaultProps}
           levels={['sample', 'model', 'field', 'overall']}
-        />
+        />,
       )
       expect(screen.getByText('All Levels')).toBeInTheDocument()
     })
 
     it('shows multiple labels comma-separated', () => {
       render(
-        <AggregationSelector
-          {...defaultProps}
-          levels={['model', 'field']}
-        />
+        <AggregationSelector {...defaultProps} levels={['model', 'field']} />,
       )
       expect(screen.getByText('Per Model, Per Field')).toBeInTheDocument()
     })
 
     it('shows placeholder when levels is empty', () => {
-      render(
-        <AggregationSelector {...defaultProps} levels={[]} />
-      )
+      render(<AggregationSelector {...defaultProps} levels={[]} />)
       expect(screen.getByText('Select aggregation...')).toBeInTheDocument()
     })
   })
@@ -103,11 +98,9 @@ describe('AggregationSelector', () => {
 
       await user.click(screen.getByText('Per Model'))
 
+      expect(screen.getByText('Aggregate scores per model')).toBeInTheDocument()
       expect(
-        screen.getByText('Aggregate scores per model')
-      ).toBeInTheDocument()
-      expect(
-        screen.getByText('Individual prediction vs ground truth')
+        screen.getByText('Individual prediction vs ground truth'),
       ).toBeInTheDocument()
     })
 
@@ -125,9 +118,7 @@ describe('AggregationSelector', () => {
     it('adds a level when toggled', async () => {
       const user = userEvent.setup()
       const onChange = jest.fn()
-      render(
-        <AggregationSelector levels={['model']} onChange={onChange} />
-      )
+      render(<AggregationSelector levels={['model']} onChange={onChange} />)
 
       await user.click(screen.getByText('Per Model'))
       // Click "Per Sample" option in dropdown
@@ -140,10 +131,7 @@ describe('AggregationSelector', () => {
       const user = userEvent.setup()
       const onChange = jest.fn()
       render(
-        <AggregationSelector
-          levels={['model', 'field']}
-          onChange={onChange}
-        />
+        <AggregationSelector levels={['model', 'field']} onChange={onChange} />,
       )
 
       await user.click(screen.getByText('Per Model, Per Field'))
@@ -158,9 +146,7 @@ describe('AggregationSelector', () => {
     it('does not allow deselecting the last level', async () => {
       const user = userEvent.setup()
       const onChange = jest.fn()
-      render(
-        <AggregationSelector levels={['model']} onChange={onChange} />
-      )
+      render(<AggregationSelector levels={['model']} onChange={onChange} />)
 
       await user.click(screen.getByText('Per Model'))
       // Try to deselect the only selected level
@@ -176,9 +162,7 @@ describe('AggregationSelector', () => {
     it('selects all levels', async () => {
       const user = userEvent.setup()
       const onChange = jest.fn()
-      render(
-        <AggregationSelector levels={['model']} onChange={onChange} />
-      )
+      render(<AggregationSelector levels={['model']} onChange={onChange} />)
 
       await user.click(screen.getByText('Per Model'))
       await user.click(screen.getByText('Select All'))
@@ -198,7 +182,7 @@ describe('AggregationSelector', () => {
         <AggregationSelector
           levels={['sample', 'model', 'field']}
           onChange={onChange}
-        />
+        />,
       )
 
       await user.click(screen.getByText(/Per Sample/))
@@ -215,7 +199,7 @@ describe('AggregationSelector', () => {
         <AggregationSelector
           {...defaultProps}
           availableLevels={['model', 'overall']}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Per Model'))
@@ -233,7 +217,7 @@ describe('AggregationSelector', () => {
         <div>
           <AggregationSelector {...defaultProps} />
           <div data-testid="outside">Outside</div>
-        </div>
+        </div>,
       )
 
       await user.click(screen.getByText('Per Model'))

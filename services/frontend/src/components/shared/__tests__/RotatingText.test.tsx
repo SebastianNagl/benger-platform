@@ -7,7 +7,10 @@ import { RotatingText } from '../RotatingText'
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
     t: (key: string, varsOrDefault?: any) => {
-      const translations: Record<string, any> = require('../../../locales/en/common.json')
+      const translations: Record<
+        string,
+        any
+      > = require('../../../locales/en/common.json')
       const parts = key.split('.')
       let value: any = translations
       for (const part of parts) {
@@ -28,7 +31,6 @@ jest.mock('@/contexts/I18nContext', () => ({
     locale: 'en',
   }),
 }))
-
 
 describe('RotatingText', () => {
   let matchMediaMock: jest.Mock
@@ -125,7 +127,7 @@ describe('RotatingText', () => {
       }))
 
       render(
-        <RotatingText words={['First', 'Second', 'Third']} interval={1000} />
+        <RotatingText words={['First', 'Second', 'Third']} interval={1000} />,
       )
 
       await waitFor(() => {
@@ -141,7 +143,7 @@ describe('RotatingText', () => {
 
     it('should stop rotation when unmounted', async () => {
       const { unmount } = render(
-        <RotatingText words={['First', 'Second', 'Third']} interval={1000} />
+        <RotatingText words={['First', 'Second', 'Third']} interval={1000} />,
       )
 
       await waitFor(() => {
@@ -240,8 +242,8 @@ describe('RotatingText', () => {
       await waitFor(() => {
         expect(
           screen.getByText(
-            'This is a very long text string that should still work'
-          )
+            'This is a very long text string that should still work',
+          ),
         ).toBeInTheDocument()
       })
     })
@@ -412,7 +414,7 @@ describe('RotatingText', () => {
   describe('Edge Cases', () => {
     it('should handle words array change during rotation', async () => {
       const { rerender } = render(
-        <RotatingText words={['First', 'Second']} interval={1000} />
+        <RotatingText words={['First', 'Second']} interval={1000} />,
       )
 
       await waitFor(() => {
@@ -420,7 +422,7 @@ describe('RotatingText', () => {
       })
 
       rerender(
-        <RotatingText words={['New1', 'New2', 'New3']} interval={1000} />
+        <RotatingText words={['New1', 'New2', 'New3']} interval={1000} />,
       )
 
       await waitFor(() => {
@@ -435,7 +437,7 @@ describe('RotatingText', () => {
 
     it('should handle changing from multiple words to single word', async () => {
       const { rerender } = render(
-        <RotatingText words={['First', 'Second']} interval={1000} />
+        <RotatingText words={['First', 'Second']} interval={1000} />,
       )
 
       await waitFor(() => {
@@ -453,7 +455,7 @@ describe('RotatingText', () => {
 
     it('should handle changing from single word to multiple words', async () => {
       const { rerender } = render(
-        <RotatingText words={['OnlyWord']} interval={1000} />
+        <RotatingText words={['OnlyWord']} interval={1000} />,
       )
 
       await waitFor(() => {
@@ -506,7 +508,7 @@ describe('RotatingText', () => {
 
     it('should cleanup interval on unmount', async () => {
       const { unmount } = render(
-        <RotatingText words={['First', 'Second', 'Third']} interval={1000} />
+        <RotatingText words={['First', 'Second', 'Third']} interval={1000} />,
       )
 
       await waitFor(() => {

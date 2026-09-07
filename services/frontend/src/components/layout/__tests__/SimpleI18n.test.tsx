@@ -44,7 +44,7 @@ describe('SimpleI18n Component', () => {
       render(
         <SimpleI18nProvider>
           <div data-testid="child">Test Child</div>
-        </SimpleI18nProvider>
+        </SimpleI18nProvider>,
       )
 
       expect(screen.getByTestId('child')).toBeInTheDocument()
@@ -56,7 +56,7 @@ describe('SimpleI18n Component', () => {
         <SimpleI18nProvider>
           <div data-testid="child1">Child 1</div>
           <div data-testid="child2">Child 2</div>
-        </SimpleI18nProvider>
+        </SimpleI18nProvider>,
       )
 
       expect(screen.getByTestId('child1')).toBeInTheDocument()
@@ -67,7 +67,7 @@ describe('SimpleI18n Component', () => {
       render(
         <SimpleI18nProvider>
           <TestComponent />
-        </SimpleI18nProvider>
+        </SimpleI18nProvider>,
       )
 
       expect(screen.getByTestId('locale')).toHaveTextContent('en')
@@ -80,7 +80,7 @@ describe('SimpleI18n Component', () => {
       render(
         <SimpleI18nProvider>
           <TranslationTestComponent translationKey="navigation.dashboard" />
-        </SimpleI18nProvider>
+        </SimpleI18nProvider>,
       )
 
       expect(screen.getByTestId('translation')).toHaveTextContent('Dashboard')
@@ -90,7 +90,7 @@ describe('SimpleI18n Component', () => {
       render(
         <SimpleI18nProvider>
           <TranslationTestComponent translationKey="navigation.tasks" />
-        </SimpleI18nProvider>
+        </SimpleI18nProvider>,
       )
 
       expect(screen.getByTestId('translation')).toHaveTextContent('Tasks')
@@ -100,7 +100,7 @@ describe('SimpleI18n Component', () => {
       render(
         <SimpleI18nProvider>
           <TranslationTestComponent translationKey="navigation.about" />
-        </SimpleI18nProvider>
+        </SimpleI18nProvider>,
       )
 
       expect(screen.getByTestId('translation')).toHaveTextContent('About')
@@ -110,7 +110,7 @@ describe('SimpleI18n Component', () => {
       render(
         <SimpleI18nProvider>
           <TranslationTestComponent translationKey="common.loading" />
-        </SimpleI18nProvider>
+        </SimpleI18nProvider>,
       )
 
       expect(screen.getByTestId('translation')).toHaveTextContent('Loading...')
@@ -120,7 +120,7 @@ describe('SimpleI18n Component', () => {
       render(
         <SimpleI18nProvider>
           <TranslationTestComponent translationKey="common.save" />
-        </SimpleI18nProvider>
+        </SimpleI18nProvider>,
       )
 
       expect(screen.getByTestId('translation')).toHaveTextContent('Save')
@@ -130,7 +130,7 @@ describe('SimpleI18n Component', () => {
       render(
         <SimpleI18nProvider>
           <TranslationTestComponent translationKey="common.cancel" />
-        </SimpleI18nProvider>
+        </SimpleI18nProvider>,
       )
 
       expect(screen.getByTestId('translation')).toHaveTextContent('Cancel')
@@ -143,7 +143,7 @@ describe('SimpleI18n Component', () => {
       render(
         <SimpleI18nProvider>
           <TestComponent />
-        </SimpleI18nProvider>
+        </SimpleI18nProvider>,
       )
 
       expect(screen.getByTestId('locale')).toHaveTextContent('en')
@@ -171,7 +171,7 @@ describe('SimpleI18n Component', () => {
       render(
         <SimpleI18nProvider>
           <TasksComponent />
-        </SimpleI18nProvider>
+        </SimpleI18nProvider>,
       )
 
       expect(screen.getByTestId('tasks')).toHaveTextContent('Tasks')
@@ -199,7 +199,7 @@ describe('SimpleI18n Component', () => {
       render(
         <SimpleI18nProvider>
           <CommonComponent />
-        </SimpleI18nProvider>
+        </SimpleI18nProvider>,
       )
 
       expect(screen.getByTestId('loading')).toHaveTextContent('Loading...')
@@ -219,7 +219,7 @@ describe('SimpleI18n Component', () => {
       render(
         <SimpleI18nProvider>
           <TestComponent />
-        </SimpleI18nProvider>
+        </SimpleI18nProvider>,
       )
 
       act(() => {
@@ -239,7 +239,7 @@ describe('SimpleI18n Component', () => {
       render(
         <SimpleI18nProvider>
           <TestComponent />
-        </SimpleI18nProvider>
+        </SimpleI18nProvider>,
       )
 
       act(() => {
@@ -253,7 +253,7 @@ describe('SimpleI18n Component', () => {
       render(
         <SimpleI18nProvider>
           <TestComponent />
-        </SimpleI18nProvider>
+        </SimpleI18nProvider>,
       )
 
       act(() => {
@@ -274,7 +274,7 @@ describe('SimpleI18n Component', () => {
       render(
         <SimpleI18nProvider>
           <TestComponent />
-        </SimpleI18nProvider>
+        </SimpleI18nProvider>,
       )
 
       expect(screen.getByTestId('locale')).toBeInTheDocument()
@@ -293,7 +293,7 @@ describe('SimpleI18n Component', () => {
       render(
         <SimpleI18nProvider>
           <TranslationAccessComponent />
-        </SimpleI18nProvider>
+        </SimpleI18nProvider>,
       )
 
       expect(screen.getByTestId('has-t')).toHaveTextContent('function')
@@ -312,7 +312,7 @@ describe('SimpleI18n Component', () => {
       render(
         <SimpleI18nProvider>
           <LocaleChangeComponent />
-        </SimpleI18nProvider>
+        </SimpleI18nProvider>,
       )
 
       expect(screen.getByTestId('has-change')).toHaveTextContent('function')
@@ -338,7 +338,7 @@ describe('SimpleI18n Component', () => {
         <SimpleI18nProvider>
           <Component1 />
           <Component2 />
-        </SimpleI18nProvider>
+        </SimpleI18nProvider>,
       )
 
       expect(screen.getByTestId('comp1')).toHaveTextContent('en')
@@ -381,7 +381,7 @@ describe('SimpleI18n Component', () => {
       render(
         <SimpleI18nProvider>
           <HookTestComponent />
-        </SimpleI18nProvider>
+        </SimpleI18nProvider>,
       )
 
       expect(screen.getByTestId('hook-locale')).toHaveTextContent('en')
@@ -396,7 +396,7 @@ describe('SimpleI18n Component', () => {
       render(
         <SimpleI18nProvider>
           <HookTestComponent />
-        </SimpleI18nProvider>
+        </SimpleI18nProvider>,
       )
 
       expect(screen.getByTestId('hook-t')).toHaveTextContent('Tasks')
@@ -416,7 +416,7 @@ describe('SimpleI18n Component', () => {
       render(
         <SimpleI18nProvider>
           <HookTestComponent />
-        </SimpleI18nProvider>
+        </SimpleI18nProvider>,
       )
 
       expect(screen.getByTestId('hook-locale')).toHaveTextContent('en')
@@ -435,7 +435,7 @@ describe('SimpleI18n Component', () => {
       render(
         <SimpleI18nProvider>
           <div data-testid="single-child">Single</div>
-        </SimpleI18nProvider>
+        </SimpleI18nProvider>,
       )
 
       expect(screen.getByTestId('single-child')).toBeInTheDocument()
@@ -449,7 +449,7 @@ describe('SimpleI18n Component', () => {
             <div data-testid="child-b">B</div>
             <div data-testid="child-c">C</div>
           </>
-        </SimpleI18nProvider>
+        </SimpleI18nProvider>,
       )
 
       expect(screen.getByTestId('child-a')).toBeInTheDocument()
@@ -465,7 +465,7 @@ describe('SimpleI18n Component', () => {
       render(
         <SimpleI18nProvider>
           <NestedComponent />
-        </SimpleI18nProvider>
+        </SimpleI18nProvider>,
       )
 
       expect(screen.getByTestId('nested')).toBeInTheDocument()
@@ -475,11 +475,11 @@ describe('SimpleI18n Component', () => {
       render(
         <SimpleI18nProvider>
           <div data-testid="text-container">Plain text content</div>
-        </SimpleI18nProvider>
+        </SimpleI18nProvider>,
       )
 
       expect(screen.getByTestId('text-container')).toHaveTextContent(
-        'Plain text content'
+        'Plain text content',
       )
     })
   })
@@ -490,11 +490,11 @@ describe('SimpleI18n Component', () => {
       render(
         <SimpleI18nProvider>
           <TranslationTestComponent translationKey="non.existent.key" />
-        </SimpleI18nProvider>
+        </SimpleI18nProvider>,
       )
 
       expect(screen.getByTestId('translation')).toHaveTextContent(
-        'non.existent.key'
+        'non.existent.key',
       )
     })
 
@@ -502,7 +502,7 @@ describe('SimpleI18n Component', () => {
       render(
         <SimpleI18nProvider>
           <TranslationTestComponent translationKey="" />
-        </SimpleI18nProvider>
+        </SimpleI18nProvider>,
       )
 
       expect(screen.getByTestId('translation')).toHaveTextContent('')
@@ -526,7 +526,7 @@ describe('SimpleI18n Component', () => {
       render(
         <SimpleI18nProvider>
           <PartialPathComponent />
-        </SimpleI18nProvider>
+        </SimpleI18nProvider>,
       )
 
       expect(screen.getByTestId('result')).toHaveTextContent('object')
@@ -538,11 +538,11 @@ describe('SimpleI18n Component', () => {
       render(
         <SimpleI18nProvider>
           <TranslationTestComponent translationKey="navigation.tasks.subtask.deep" />
-        </SimpleI18nProvider>
+        </SimpleI18nProvider>,
       )
 
       expect(screen.getByTestId('translation')).toHaveTextContent(
-        'navigation.tasks.subtask.deep'
+        'navigation.tasks.subtask.deep',
       )
     })
 
@@ -550,11 +550,11 @@ describe('SimpleI18n Component', () => {
       render(
         <SimpleI18nProvider>
           <TranslationTestComponent translationKey="special.key.with-dashes_underscores" />
-        </SimpleI18nProvider>
+        </SimpleI18nProvider>,
       )
 
       expect(screen.getByTestId('translation')).toHaveTextContent(
-        'special.key.with-dashes_underscores'
+        'special.key.with-dashes_underscores',
       )
     })
 
@@ -562,7 +562,7 @@ describe('SimpleI18n Component', () => {
       render(
         <SimpleI18nProvider>
           <TranslationTestComponent translationKey="singlekey" />
-        </SimpleI18nProvider>
+        </SimpleI18nProvider>,
       )
 
       expect(screen.getByTestId('translation')).toHaveTextContent('singlekey')
@@ -572,7 +572,7 @@ describe('SimpleI18n Component', () => {
       render(
         <SimpleI18nProvider>
           <TranslationTestComponent translationKey="common.loading" />
-        </SimpleI18nProvider>
+        </SimpleI18nProvider>,
       )
 
       expect(screen.getByTestId('translation')).toHaveTextContent('Loading...')
@@ -592,7 +592,7 @@ describe('SimpleI18n Component', () => {
       render(
         <SimpleI18nProvider>
           <GermanComponent />
-        </SimpleI18nProvider>
+        </SimpleI18nProvider>,
       )
 
       act(() => {
@@ -630,7 +630,7 @@ describe('SimpleI18n Component', () => {
       render(
         <SimpleI18nProvider>
           <RapidSwitchComponent />
-        </SimpleI18nProvider>
+        </SimpleI18nProvider>,
       )
 
       act(() => {
@@ -658,7 +658,7 @@ describe('SimpleI18n Component', () => {
       render(
         <SimpleI18nProvider>
           <NestedComponent />
-        </SimpleI18nProvider>
+        </SimpleI18nProvider>,
       )
 
       expect(screen.getByTestId('nav-dashboard')).toHaveTextContent('Dashboard')
@@ -681,11 +681,11 @@ describe('SimpleI18n Component', () => {
       render(
         <SimpleI18nProvider>
           <NestedComponent />
-        </SimpleI18nProvider>
+        </SimpleI18nProvider>,
       )
 
       expect(screen.getByTestId('common-loading')).toHaveTextContent(
-        'Loading...'
+        'Loading...',
       )
       expect(screen.getByTestId('common-save')).toHaveTextContent('Save')
       expect(screen.getByTestId('common-cancel')).toHaveTextContent('Cancel')
@@ -695,7 +695,7 @@ describe('SimpleI18n Component', () => {
       render(
         <SimpleI18nProvider>
           <TranslationTestComponent translationKey="navigation.dashboard" />
-        </SimpleI18nProvider>
+        </SimpleI18nProvider>,
       )
 
       expect(screen.getByTestId('translation')).toHaveTextContent('Dashboard')
@@ -715,7 +715,7 @@ describe('SimpleI18n Component', () => {
       render(
         <SimpleI18nProvider>
           <GermanNestedComponent />
-        </SimpleI18nProvider>
+        </SimpleI18nProvider>,
       )
 
       act(() => {
@@ -741,7 +741,7 @@ describe('SimpleI18n Component', () => {
       render(
         <SimpleI18nProvider>
           <MultiNestedComponent />
-        </SimpleI18nProvider>
+        </SimpleI18nProvider>,
       )
 
       expect(screen.getByTestId('multi-1')).toHaveTextContent('Dashboard')
@@ -775,7 +775,7 @@ describe('SimpleI18n Component', () => {
       render(
         <SimpleI18nProvider>
           <TraversalComponent />
-        </SimpleI18nProvider>
+        </SimpleI18nProvider>,
       )
 
       expect(screen.getByTestId('key-0')).toHaveTextContent('Dashboard')

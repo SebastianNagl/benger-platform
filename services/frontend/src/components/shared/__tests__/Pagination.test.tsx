@@ -5,7 +5,10 @@ import { Pagination } from '../Pagination'
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
     t: (key: string, varsOrDefault?: any) => {
-      const translations: Record<string, any> = require('../../../locales/en/common.json')
+      const translations: Record<
+        string,
+        any
+      > = require('../../../locales/en/common.json')
       const parts = key.split('.')
       let value: any = translations
       for (const part of parts) {
@@ -46,7 +49,7 @@ describe('Pagination', () => {
       render(<Pagination {...defaultProps} />)
 
       expect(
-        screen.getByText('Showing 1 to 25 of 250 results')
+        screen.getByText('Showing 1 to 25 of 250 results'),
       ).toBeInTheDocument()
       expect(screen.getByLabelText('Pagination')).toBeInTheDocument()
     })
@@ -55,7 +58,7 @@ describe('Pagination', () => {
       render(<Pagination {...defaultProps} currentPage={3} />)
 
       expect(
-        screen.getByText('Showing 51 to 75 of 250 results')
+        screen.getByText('Showing 51 to 75 of 250 results'),
       ).toBeInTheDocument()
     })
 
@@ -63,7 +66,7 @@ describe('Pagination', () => {
       render(<Pagination {...defaultProps} totalItems={0} totalPages={0} />)
 
       expect(
-        screen.getByText('Showing 0 to 0 of 0 results')
+        screen.getByText('Showing 0 to 0 of 0 results'),
       ).toBeInTheDocument()
     })
 
@@ -71,7 +74,7 @@ describe('Pagination', () => {
       render(<Pagination {...defaultProps} currentPage={10} totalItems={235} />)
 
       expect(
-        screen.getByText('Showing 226 to 235 of 235 results')
+        screen.getByText('Showing 226 to 235 of 235 results'),
       ).toBeInTheDocument()
     })
   })
@@ -95,7 +98,7 @@ describe('Pagination', () => {
           {...defaultProps}
           pageSizeOptions={[10, 20, 50]}
           pageSize={20}
-        />
+        />,
       )
 
       const select = screen.getByLabelText('Per page:')
@@ -337,11 +340,11 @@ describe('Pagination', () => {
           totalPages={0}
           totalItems={0}
           currentPage={1}
-        />
+        />,
       )
 
       expect(
-        screen.getByText('Showing 0 to 0 of 0 results')
+        screen.getByText('Showing 0 to 0 of 0 results'),
       ).toBeInTheDocument()
       expect(screen.getByLabelText('Previous page')).toBeDisabled()
       // Next button may not be disabled when totalPages is 0 - verify it exists at least
@@ -355,15 +358,15 @@ describe('Pagination', () => {
           currentPage={1000}
           totalPages={2000}
           totalItems={50000}
-        />
+        />,
       )
 
       expect(
-        screen.getByText('Showing 24976 to 25000 of 50000 results')
+        screen.getByText('Showing 24976 to 25000 of 50000 results'),
       ).toBeInTheDocument()
       expect(screen.getByLabelText('Go to page 1000')).toHaveAttribute(
         'aria-current',
-        'page'
+        'page',
       )
     })
 
@@ -374,11 +377,11 @@ describe('Pagination', () => {
           pageSize={50}
           currentPage={3}
           totalItems={200}
-        />
+        />,
       )
 
       expect(
-        screen.getByText('Showing 101 to 150 of 200 results')
+        screen.getByText('Showing 101 to 150 of 200 results'),
       ).toBeInTheDocument()
     })
   })

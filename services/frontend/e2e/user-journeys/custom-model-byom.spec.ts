@@ -62,9 +62,9 @@ test.describe('Custom Model (BYOM) journey', () => {
 
     // ── 1. Register the model on /models (community section) ───────────
     await page.goto(`${BASE_URL}/models`, { timeout: 30000 })
-    await expect(
-      page.getByTestId('custom-model-register-button')
-    ).toBeVisible({ timeout: 30000 })
+    await expect(page.getByTestId('custom-model-register-button')).toBeVisible({
+      timeout: 30000,
+    })
 
     await page.getByTestId('custom-model-register-button').click()
     await expect(page.getByTestId('custom-model-form-modal')).toBeVisible()
@@ -81,7 +81,7 @@ test.describe('Custom Model (BYOM) journey', () => {
       (res) =>
         new URL(res.url()).pathname.endsWith('/custom-models') &&
         res.request().method() === 'POST' &&
-        res.ok()
+        res.ok(),
     )
     await page.getByTestId('custom-model-form-submit').click()
     const createResponse = await createResponsePromise
@@ -90,22 +90,20 @@ test.describe('Custom Model (BYOM) journey', () => {
     expect(customModelId).toBeTruthy()
 
     // Success step offers a connection test; close instead (endpoint is fake).
-    await expect(
-      page.getByTestId('custom-model-form-success')
-    ).toBeVisible({ timeout: 15000 })
+    await expect(page.getByTestId('custom-model-form-success')).toBeVisible({
+      timeout: 15000,
+    })
     await page.getByTestId('custom-model-form-close-button').click()
 
     // The new model shows up in "Meine Modelle".
     await expect(
-      page.getByTestId(`custom-model-row-${customModelId}`)
+      page.getByTestId(`custom-model-row-${customModelId}`),
     ).toBeVisible({ timeout: 15000 })
 
     // ── 2. Share the model with an organization ────────────────────────
-    await page
-      .getByTestId(`custom-model-visibility-${customModelId}`)
-      .click()
+    await page.getByTestId(`custom-model-visibility-${customModelId}`).click()
     await expect(
-      page.getByTestId(`custom-model-visibility-panel-${customModelId}`)
+      page.getByTestId(`custom-model-visibility-panel-${customModelId}`),
     ).toBeVisible({ timeout: 10000 })
 
     await page.getByTestId('model-visibility-organization-option').click()
@@ -113,7 +111,7 @@ test.describe('Custom Model (BYOM) journey', () => {
     // Pick the first available organization checkbox. If the dev stack has
     // no organizations, fall back to public so the journey still proceeds.
     const orgCheckboxes = page.locator(
-      '[data-testid^="model-permissions-organization-checkbox-"]'
+      '[data-testid^="model-permissions-organization-checkbox-"]',
     )
     if ((await orgCheckboxes.count()) > 0) {
       await orgCheckboxes.first().check()
@@ -126,7 +124,7 @@ test.describe('Custom Model (BYOM) journey', () => {
       (res) =>
         res.url().includes(`/api/custom-models/${customModelId}/visibility`) &&
         res.request().method() === 'PATCH' &&
-        res.ok()
+        res.ok(),
     )
     await page.getByTestId('model-permissions-save-button').click()
     await visibilityResponsePromise
@@ -142,16 +140,14 @@ test.describe('Custom Model (BYOM) journey', () => {
           status: 'success',
           message: 'Connection successful (intercepted)',
         }),
-      })
+      }),
     )
 
     // Expand the row to reveal the credential section (the visibility save
     // collapsed the panel but the row may still be expanded - make sure).
     const detail = page.getByTestId(`custom-model-detail-${customModelId}`)
     if (!(await detail.isVisible().catch(() => false))) {
-      await page
-        .getByTestId(`custom-model-expand-${customModelId}`)
-        .click()
+      await page.getByTestId(`custom-model-expand-${customModelId}`).click()
     }
     await expect(detail).toBeVisible({ timeout: 10000 })
 
@@ -159,21 +155,22 @@ test.describe('Custom Model (BYOM) journey', () => {
     await page.getByTestId('credential-test-button').click()
     await expect(page.getByTestId('credential-test-result')).toContainText(
       'Connection successful',
-      { timeout: 10000 }
+      { timeout: 10000 },
     )
 
     const credentialPutPromise = page.waitForResponse(
       (res) =>
         res.url().includes(`/api/custom-models/${customModelId}/credential`) &&
         res.request().method() === 'PUT' &&
-        res.ok()
+        res.ok(),
     )
     await page.getByTestId('credential-save-button').click()
     await credentialPutPromise
 
-    await expect(
-      page.getByTestId('credential-status-pill')
-    ).toContainText(/Hinterlegt|Configured/, { timeout: 10000 })
+    await expect(page.getByTestId('credential-status-pill')).toContainText(
+      /Hinterlegt|Configured/,
+      { timeout: 10000 },
+    )
 
     await page.unroute(`**/api/custom-models/${customModelId}/test`)
 
@@ -196,7 +193,7 @@ test.describe('Custom Model (BYOM) journey', () => {
           }),
         })
       },
-      { projectId: testProjectId, modelId: customModelId }
+      { projectId: testProjectId, modelId: customModelId },
     )
 
     await page.goto(`${BASE_URL}/projects/${testProjectId}`, {
@@ -222,7 +219,7 @@ test.describe('Custom Model (BYOM) journey', () => {
     // display name (with Custom badge) must be present, and the checkbox
     // must be enabled because the credential was stored in step 3.
     await expect(
-      page.getByText(/Eigene Modelle|Custom models/).first()
+      page.getByText(/Eigene Modelle|Custom models/).first(),
     ).toBeVisible({ timeout: 15000 })
     await expect(page.getByText(modelName).first()).toBeVisible()
 

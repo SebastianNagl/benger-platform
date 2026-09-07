@@ -27,6 +27,17 @@ const languageNames: Record<string, string> = {
   go: 'Go',
 }
 
+/** Props a CodeGroup panel child may carry (React 19 types `ReactElement.props`
+ *  as `unknown`, so `isValidElement<PanelProps>` names them explicitly). */
+type PanelProps = {
+  tag?: string
+  label?: string
+  code?: string
+  title?: string
+  language?: string
+  children?: React.ReactNode
+}
+
 function getPanelTitle({
   title,
   language,
@@ -77,10 +88,10 @@ function CopyButton({ code }: { code: string }) {
     <button
       type="button"
       className={clsx(
-        'group/button absolute right-4 top-3.5 overflow-hidden rounded-full py-1 pl-2 pr-3 text-2xs font-medium opacity-0 backdrop-blur-sm transition focus:opacity-100 group-hover:opacity-100',
+        'group/button absolute top-3.5 right-4 overflow-hidden rounded-full py-1 pr-3 pl-2 text-2xs font-medium opacity-0 backdrop-blur-sm transition group-hover:opacity-100 focus:opacity-100',
         copied
-          ? 'bg-emerald-400/10 ring-1 ring-inset ring-emerald-400/20'
-          : 'hover:bg-white/7.5 dark:bg-white/2.5 bg-white/5 dark:hover:bg-white/5'
+          ? 'bg-emerald-400/10 ring-1 ring-emerald-400/20 ring-inset'
+          : 'bg-white/5 hover:bg-white/7.5 dark:bg-white/2.5 dark:hover:bg-white/5',
       )}
       onClick={() => {
         window.navigator.clipboard.writeText(code).then(() => {
@@ -92,7 +103,7 @@ function CopyButton({ code }: { code: string }) {
         aria-hidden={copied}
         className={clsx(
           'pointer-events-none flex items-center gap-0.5 text-zinc-400 transition duration-300',
-          copied && '-translate-y-1.5 opacity-0'
+          copied && '-translate-y-1.5 opacity-0',
         )}
       >
         <ClipboardIcon className="h-5 w-5 fill-zinc-500/20 stroke-zinc-500 transition-colors group-hover/button:stroke-zinc-400" />
@@ -102,7 +113,7 @@ function CopyButton({ code }: { code: string }) {
         aria-hidden={!copied}
         className={clsx(
           'pointer-events-none absolute inset-0 flex items-center justify-center text-emerald-400 transition duration-300',
-          !copied && 'translate-y-1.5 opacity-0'
+          !copied && 'translate-y-1.5 opacity-0',
         )}
       >
         {t('common.copied')}
@@ -117,7 +128,7 @@ function CodePanelHeader({ tag, label }: { tag?: string; label?: string }) {
   }
 
   return (
-    <div className="border-b-white/7.5 bg-white/2.5 dark:bg-white/1 flex h-9 items-center gap-2 border-y border-t-transparent bg-zinc-900 px-4 dark:border-b-white/5">
+    <div className="flex h-9 items-center gap-2 border-y border-t-transparent border-b-white/7.5 bg-white/2.5 bg-zinc-900 px-4 dark:border-b-white/5 dark:bg-white/1">
       {tag && (
         <div className="dark flex">
           <Tag variant="small">{tag}</Tag>
@@ -146,7 +157,7 @@ function CodePanel({
 }) {
   let child = Children.only(children)
 
-  if (isValidElement(child)) {
+  if (isValidElement<PanelProps>(child)) {
     tag = child.props.tag ?? tag
     label = child.props.label ?? label
     code = child.props.code ?? code
@@ -168,7 +179,10 @@ function CodePanel({
         if (typeof node === 'string') {
           return node
         }
-        if (isValidElement(node) && node.props.children) {
+        if (
+          isValidElement<{ children?: React.ReactNode }>(node) &&
+          node.props.children
+        ) {
           return extractTextFromChildren(node.props.children)
         }
         if (Array.isArray(node)) {
@@ -182,12 +196,12 @@ function CodePanel({
 
   if (!code) {
     throw new Error(
-      '`CodePanel` requires a `code` prop, or a child with a `code` prop.'
+      '`CodePanel` requires a `code` prop, or a child with a `code` prop.',
     )
   }
 
   return (
-    <div className="dark:bg-white/2.5 group">
+    <div className="group dark:bg-white/2.5">
       <CodePanelHeader tag={tag} label={label} />
       <div className="relative">
         <pre className="overflow-x-auto p-4 text-xs text-white">{children}</pre>
@@ -224,13 +238,15 @@ function CodeGroupHeader({
           {Children.map(children, (child, childIndex) => (
             <Tab
               className={clsx(
-                'data-selected:not-data-focus:outline-hidden border-b py-3 transition',
+                'border-b py-3 transition data-selected:not-data-focus:outline-hidden',
                 childIndex === selectedIndex
                   ? 'border-emerald-500 text-emerald-400'
-                  : 'border-transparent text-zinc-400 hover:text-zinc-300'
+                  : 'border-transparent text-zinc-400 hover:text-zinc-300',
               )}
             >
-              {getPanelTitle(isValidElement(child) ? child.props : {})}
+              {getPanelTitle(
+                isValidElement<PanelProps>(child) ? child.props : {},
+              )}
             </Tab>
           ))}
         </TabList>
@@ -262,7 +278,7 @@ function CodeGroupPanels({
 
 function usePreventLayoutShift() {
   let positionRef = useRef<HTMLElement>(null)
-  let rafRef = useRef<number>()
+  let rafRef = useRef<number | undefined>(undefined)
 
   useEffect(() => {
     return () => {
@@ -301,7 +317,7 @@ const usePreferredLanguageStore = create<{
     set((state) => ({
       preferredLanguages: [
         ...state.preferredLanguages.filter(
-          (preferredLanguage) => preferredLanguage !== language
+          (preferredLanguage) => preferredLanguage !== language,
         ),
         language,
       ],
@@ -312,7 +328,7 @@ function useTabGroupProps(availableLanguages: Array<string>) {
   let { preferredLanguages, addPreferredLanguage } = usePreferredLanguageStore()
   let [selectedIndex, setSelectedIndex] = useState(0)
   let activeLanguage = [...availableLanguages].sort(
-    (a, z) => preferredLanguages.indexOf(z) - preferredLanguages.indexOf(a)
+    (a, z) => preferredLanguages.indexOf(z) - preferredLanguages.indexOf(a),
   )[0]
   let languageIndex = availableLanguages.indexOf(activeLanguage)
   let newSelectedIndex = languageIndex === -1 ? selectedIndex : languageIndex
@@ -328,7 +344,7 @@ function useTabGroupProps(availableLanguages: Array<string>) {
     selectedIndex,
     onChange: (newSelectedIndex: number) => {
       preventLayoutShift(() =>
-        addPreferredLanguage(availableLanguages[newSelectedIndex])
+        addPreferredLanguage(availableLanguages[newSelectedIndex]),
       )
     },
   }
@@ -343,7 +359,7 @@ export function CodeGroup({
 }: React.ComponentPropsWithoutRef<typeof CodeGroupPanels> & { title: string }) {
   let languages =
     Children.map(children, (child) =>
-      getPanelTitle(isValidElement(child) ? child.props : {})
+      getPanelTitle(isValidElement<PanelProps>(child) ? child.props : {}),
     ) ?? []
   let tabGroupProps = useTabGroupProps(languages)
   let hasTabs = Children.count(children) > 1
@@ -387,7 +403,7 @@ export function Code({
   if (isGrouped) {
     if (typeof children !== 'string') {
       throw new Error(
-        '`Code` children must be a string when nested inside a `CodeGroup`.'
+        '`Code` children must be a string when nested inside a `CodeGroup`.',
       )
     }
     return <code {...props} dangerouslySetInnerHTML={{ __html: children }} />

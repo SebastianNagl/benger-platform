@@ -21,7 +21,7 @@ describe('GET /api/auth/profile-history', () => {
 
     const request = new NextRequest(
       'http://benger.localhost/api/auth/profile-history',
-      { headers: { host: 'benger.localhost' } }
+      { headers: { host: 'benger.localhost' } },
     )
 
     const response = await GET(request)
@@ -38,14 +38,14 @@ describe('GET /api/auth/profile-history', () => {
 
     const request = new NextRequest(
       'http://benger.localhost/api/auth/profile-history?page=1&limit=10',
-      { headers: { host: 'benger.localhost' } }
+      { headers: { host: 'benger.localhost' } },
     )
 
     await GET(request)
 
     expect(mockFetch).toHaveBeenCalledWith(
       expect.stringContaining('page=1'),
-      expect.anything()
+      expect.anything(),
     )
   })
 
@@ -58,7 +58,7 @@ describe('GET /api/auth/profile-history', () => {
 
     const request = new NextRequest(
       'http://benger.localhost/api/auth/profile-history',
-      { headers: { host: 'benger.localhost' } }
+      { headers: { host: 'benger.localhost' } },
     )
 
     const response = await GET(request)
@@ -70,7 +70,7 @@ describe('GET /api/auth/profile-history', () => {
 
     const request = new NextRequest(
       'http://benger.localhost/api/auth/profile-history',
-      { headers: { host: 'benger.localhost' } }
+      { headers: { host: 'benger.localhost' } },
     )
 
     const response = await GET(request)

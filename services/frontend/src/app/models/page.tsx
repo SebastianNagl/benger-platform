@@ -1,12 +1,18 @@
 'use client'
 
+import { CustomModelsManager } from '@/components/models/CustomModelsManager'
 import { OfficialBadge, VisibilityBadge } from '@/components/models/ModelBadges'
 import { HeroPattern } from '@/components/shared'
 import { FilterToolbar } from '@/components/shared/FilterToolbar'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/shared/Select'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/shared/Select'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
-import { CustomModelsManager } from '@/components/models/CustomModelsManager'
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 
@@ -39,7 +45,11 @@ interface LLMModel {
 interface ProviderCapability {
   display_name: string
   temperature: { min: number; max: number; default: number }
-  structured_output: { method: string; strict_mode: boolean; guaranteed: boolean }
+  structured_output: {
+    method: string
+    strict_mode: boolean
+    guaranteed: boolean
+  }
   determinism: { seed_support: boolean; recommended_seed?: number }
 }
 
@@ -109,7 +119,8 @@ export default function ModelsPage() {
           }
         : null,
       pricing:
-        model.input_cost_per_million != null && model.output_cost_per_million != null
+        model.input_cost_per_million != null &&
+        model.output_cost_per_million != null
           ? {
               input_per_million_tokens: model.input_cost_per_million,
               output_per_million_tokens: model.output_cost_per_million,
@@ -128,9 +139,11 @@ export default function ModelsPage() {
       searchQuery === '' ||
       model.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       model.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (model.description?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false)
+      (model.description?.toLowerCase().includes(searchQuery.toLowerCase()) ??
+        false)
 
-    const matchesProvider = providerFilter === 'all' || model.provider === providerFilter
+    const matchesProvider =
+      providerFilter === 'all' || model.provider === providerFilter
 
     return matchesSearch && matchesProvider
   })
@@ -144,7 +157,7 @@ export default function ModelsPage() {
       acc[model.provider].push(model)
       return acc
     },
-    {} as Record<string, LLMModel[]>
+    {} as Record<string, LLMModel[]>,
   )
 
   // Sort providers alphabetically
@@ -154,7 +167,7 @@ export default function ModelsPage() {
     <>
       <HeroPattern />
 
-      <div className="container mx-auto max-w-6xl px-4 pb-10 pt-16">
+      <div className="container mx-auto max-w-6xl px-4 pt-16 pb-10">
         <div className="mb-8">
           <div className="flex items-center gap-3">
             <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-white">
@@ -175,7 +188,9 @@ export default function ModelsPage() {
             searchPlaceholder={t('models.searchPlaceholder')}
             searchLabel={t('common.filters.search')}
             filtersLabel={t('common.filters.filters')}
-            hasActiveFilters={providerFilter !== 'all' || searchQuery.trim() !== ''}
+            hasActiveFilters={
+              providerFilter !== 'all' || searchQuery.trim() !== ''
+            }
             onClearFilters={() => {
               setProviderFilter('all')
               setSearchQuery('')
@@ -187,7 +202,9 @@ export default function ModelsPage() {
                   <SelectValue placeholder={t('models.allProviders')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">{t('models.allProviders')}</SelectItem>
+                  <SelectItem value="all">
+                    {t('models.allProviders')}
+                  </SelectItem>
                   {providers.map((provider) => (
                     <SelectItem key={provider} value={provider}>
                       {provider}
@@ -207,7 +224,9 @@ export default function ModelsPage() {
         {/* Loading state */}
         {loading && (
           <div className="flex items-center justify-center py-12">
-            <div className="text-zinc-600 dark:text-zinc-400">{t('models.loading')}</div>
+            <div className="text-zinc-600 dark:text-zinc-400">
+              {t('models.loading')}
+            </div>
           </div>
         )}
 
@@ -233,7 +252,9 @@ export default function ModelsPage() {
                       {provider}
                     </h2>
                     <span className="rounded-full bg-zinc-100 px-2.5 py-0.5 text-sm text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
-                      {t('models.modelCount', { count: groupedModels[provider].length })}
+                      {t('models.modelCount', {
+                        count: groupedModels[provider].length,
+                      })}
                     </span>
                   </div>
 
@@ -244,10 +265,10 @@ export default function ModelsPage() {
                           <th className="px-4 py-3 text-left text-sm font-medium text-zinc-600 dark:text-zinc-400">
                             {t('models.columns.model')}
                           </th>
-                          <th className="hidden px-4 py-3 text-left text-sm font-medium text-zinc-600 dark:text-zinc-400 md:table-cell">
+                          <th className="hidden px-4 py-3 text-left text-sm font-medium text-zinc-600 md:table-cell dark:text-zinc-400">
                             {t('models.columns.description')}
                           </th>
-                          <th className="hidden px-4 py-3 text-left text-sm font-medium text-zinc-600 dark:text-zinc-400 lg:table-cell">
+                          <th className="hidden px-4 py-3 text-left text-sm font-medium text-zinc-600 lg:table-cell dark:text-zinc-400">
                             {t('models.columns.capabilities')}
                           </th>
                           <th className="px-4 py-3 text-right text-sm font-medium text-zinc-600 dark:text-zinc-400">
@@ -274,16 +295,31 @@ export default function ModelsPage() {
                                   {t('models.contentPolicyWarning')}
                                 </div>
                               )}
-                              {model.parameter_constraints?.temperature && !model.parameter_constraints.temperature.supported && (
-                                <div className="mt-1 text-xs text-amber-600 dark:text-amber-400">
-                                  Temp: fixed at {model.parameter_constraints.temperature.required_value}
-                                </div>
-                              )}
-                              {model.parameter_constraints?.temperature?.min != null && model.parameter_constraints.temperature.supported && model.parameter_constraints.temperature.min > 0 && (
-                                <div className="mt-1 text-xs text-amber-600 dark:text-amber-400">
-                                  Temp: min {model.parameter_constraints.temperature.min}
-                                </div>
-                              )}
+                              {model.parameter_constraints?.temperature &&
+                                !model.parameter_constraints.temperature
+                                  .supported && (
+                                  <div className="mt-1 text-xs text-amber-600 dark:text-amber-400">
+                                    Temp: fixed at{' '}
+                                    {
+                                      model.parameter_constraints.temperature
+                                        .required_value
+                                    }
+                                  </div>
+                                )}
+                              {model.parameter_constraints?.temperature?.min !=
+                                null &&
+                                model.parameter_constraints.temperature
+                                  .supported &&
+                                model.parameter_constraints.temperature.min >
+                                  0 && (
+                                  <div className="mt-1 text-xs text-amber-600 dark:text-amber-400">
+                                    Temp: min{' '}
+                                    {
+                                      model.parameter_constraints.temperature
+                                        .min
+                                    }
+                                  </div>
+                                )}
                             </td>
                             <td className="hidden px-4 py-3 md:table-cell">
                               <div className="max-w-xs text-sm text-zinc-600 dark:text-zinc-400">
@@ -312,8 +348,8 @@ export default function ModelsPage() {
                               model.output_cost_per_million != null ? (
                                 <div className="text-sm">
                                   <div className="text-zinc-900 dark:text-white">
-                                    ${model.input_cost_per_million.toFixed(2)} / $
-                                    {model.output_cost_per_million.toFixed(2)}
+                                    ${model.input_cost_per_million.toFixed(2)} /
+                                    ${model.output_cost_per_million.toFixed(2)}
                                   </div>
                                   <div className="text-xs text-zinc-500 dark:text-zinc-500">
                                     {t('models.input')} / {t('models.output')}
@@ -371,13 +407,20 @@ export default function ModelsPage() {
                 <h3 className="text-lg font-semibold text-zinc-900 dark:text-white">
                   {selectedModel.name}
                 </h3>
-                <p className="text-sm text-zinc-500 dark:text-zinc-400">{selectedModel.id}</p>
+                <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                  {selectedModel.id}
+                </p>
               </div>
               <button
                 onClick={() => setSelectedModel(null)}
                 className="rounded-lg p-2 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
               >
-                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg
+                  className="h-5 w-5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -396,7 +439,7 @@ export default function ModelsPage() {
               <button
                 onClick={() => {
                   navigator.clipboard.writeText(
-                    JSON.stringify(getModelSettings(selectedModel), null, 2)
+                    JSON.stringify(getModelSettings(selectedModel), null, 2),
                   )
                 }}
                 className="mr-3 rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-600 dark:text-zinc-300 dark:hover:bg-zinc-800"

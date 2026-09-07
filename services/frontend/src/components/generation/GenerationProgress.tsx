@@ -1,12 +1,12 @@
 'use client'
 
 import { Button } from '@/components/shared/Button'
-import { logger } from '@/lib/utils/logger'
 import { Card } from '@/components/shared/Card'
 import { useToast } from '@/components/shared/Toast'
 import { useI18n } from '@/contexts/I18nContext'
 import { apiClient, getApiUrl } from '@/lib/api/client'
 import { redirectToLoginAsExpired } from '@/lib/auth/sessionExpired'
+import { logger } from '@/lib/utils/logger'
 import {
   ArrowPathIcon,
   CheckCircleIcon,
@@ -42,17 +42,19 @@ export function GenerationProgress({
   const { t } = useI18n()
   const { addToast } = useToast()
   // Initialize statuses using lazy initializer
-  const [statuses, setStatuses] = useState<Record<string, GenerationStatus>>(() => {
-    const initialStatuses: Record<string, GenerationStatus> = {}
-    generationIds.forEach((id, index) => {
-      initialStatuses[id] = {
-        id,
-        model_id: models[index],
-        status: 'pending',
-      }
-    })
-    return initialStatuses
-  })
+  const [statuses, setStatuses] = useState<Record<string, GenerationStatus>>(
+    () => {
+      const initialStatuses: Record<string, GenerationStatus> = {}
+      generationIds.forEach((id, index) => {
+        initialStatuses[id] = {
+          id,
+          model_id: models[index],
+          status: 'pending',
+        }
+      })
+      return initialStatuses
+    },
+  )
   const [isConnected, setIsConnected] = useState(false)
   const [connectionError, setConnectionError] = useState<string | null>(null)
   const [overallProgress, setOverallProgress] = useState(0)
@@ -74,7 +76,7 @@ export function GenerationProgress({
     const fetchStatusOnce = async () => {
       try {
         const data = await apiClient.get(
-          `/projects/${projectId}/generation-status`
+          `/projects/${projectId}/generation-status`,
         )
         if (!data || !data.generations) return
         const newStatuses: Record<string, GenerationStatus> = {}
@@ -89,7 +91,7 @@ export function GenerationProgress({
         })
         setStatuses(newStatuses)
         const completed = data.generations.filter((g: any) =>
-          ['completed', 'failed', 'stopped'].includes(g.status)
+          ['completed', 'failed', 'stopped'].includes(g.status),
         ).length
         const total = data.generations.length
         if (total > 0) {
@@ -145,7 +147,7 @@ export function GenerationProgress({
 
               // Calculate overall progress
               const completed = data.generations.filter(
-                (g: any) => g.status === 'completed'
+                (g: any) => g.status === 'completed',
               ).length
               const total = data.generations.length
               setOverallProgress((completed / total) * 100)
@@ -168,10 +170,10 @@ export function GenerationProgress({
               const generations: any[] =
                 data.generations ?? Object.values(statuses)
               const completedCount = generations.filter(
-                (g: any) => g.status === 'completed'
+                (g: any) => g.status === 'completed',
               ).length
               const failedCount = generations.filter(
-                (g: any) => g.status === 'failed'
+                (g: any) => g.status === 'failed',
               ).length
               const totalCount = generations.length
 
@@ -180,12 +182,14 @@ export function GenerationProgress({
                   t('generation.error.allFailed', {
                     failed: failedCount || totalCount,
                   }),
-                  'error'
+                  'error',
                 )
               } else if (failedCount === 0) {
                 addToast(
-                  t('generation.success.allComplete', { count: completedCount }),
-                  'success'
+                  t('generation.success.allComplete', {
+                    count: completedCount,
+                  }),
+                  'success',
                 )
               } else {
                 addToast(
@@ -194,7 +198,7 @@ export function GenerationProgress({
                     failed: failedCount,
                     total: totalCount,
                   }),
-                  'warning'
+                  'warning',
                 )
               }
 
@@ -233,12 +237,12 @@ export function GenerationProgress({
           if (reconnectAttemptsRef.current < 5) {
             const delay = Math.min(
               1000 * Math.pow(2, reconnectAttemptsRef.current),
-              10000
+              10000,
             )
             reconnectAttemptsRef.current++
 
             logger.debug(
-              `Reconnecting in ${delay}ms (attempt ${reconnectAttemptsRef.current})`
+              `Reconnecting in ${delay}ms (attempt ${reconnectAttemptsRef.current})`,
             )
             reconnectTimeoutRef.current = setTimeout(() => {
               connectWebSocket()
@@ -262,7 +266,7 @@ export function GenerationProgress({
       const pollInterval = setInterval(async () => {
         try {
           const data = await apiClient.get(
-            `/projects/${projectId}/generation-status`
+            `/projects/${projectId}/generation-status`,
           )
 
           if (data.generations) {
@@ -280,7 +284,7 @@ export function GenerationProgress({
 
             // Calculate overall progress
             const completed = data.generations.filter((g: any) =>
-              ['completed', 'failed', 'stopped'].includes(g.status)
+              ['completed', 'failed', 'stopped'].includes(g.status),
             ).length
             const total = data.generations.length
             setOverallProgress((completed / total) * 100)
@@ -328,7 +332,7 @@ export function GenerationProgress({
     } catch (error: any) {
       addToast(
         error.response?.data?.detail || t('generation.errors.stopFailed'),
-        'error'
+        'error',
       )
     }
   }
@@ -349,7 +353,7 @@ export function GenerationProgress({
     } catch (error: any) {
       addToast(
         error.response?.data?.detail || t('generation.errors.pauseFailed'),
-        'error'
+        'error',
       )
     }
   }
@@ -370,7 +374,7 @@ export function GenerationProgress({
     } catch (error: any) {
       addToast(
         error.response?.data?.detail || t('generation.errors.resumeFailed'),
-        'error'
+        'error',
       )
     }
   }
@@ -392,7 +396,7 @@ export function GenerationProgress({
     } catch (error: any) {
       addToast(
         error.response?.data?.detail || t('generation.errors.retryFailed'),
-        'error'
+        'error',
       )
     }
   }
@@ -400,7 +404,7 @@ export function GenerationProgress({
   // Bulk actions
   const pauseAll = async () => {
     const runningGenerations = Object.values(statuses).filter(
-      (s) => s.status === 'running'
+      (s) => s.status === 'running',
     )
     for (const gen of runningGenerations) {
       await pauseGeneration(gen.id)
@@ -409,7 +413,7 @@ export function GenerationProgress({
 
   const resumeAll = async () => {
     const pausedGenerations = Object.values(statuses).filter(
-      (s) => s.status === 'paused'
+      (s) => s.status === 'paused',
     )
     for (const gen of pausedGenerations) {
       await resumeGeneration(gen.id)
@@ -418,7 +422,7 @@ export function GenerationProgress({
 
   const retryAllFailed = async () => {
     const failedGenerations = Object.values(statuses).filter(
-      (s) => s.status === 'failed'
+      (s) => s.status === 'failed',
     )
     for (const gen of failedGenerations) {
       await retryGeneration(gen.id)
@@ -491,7 +495,7 @@ export function GenerationProgress({
 
           <div className="h-2 w-full overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-700">
             <div
-              className="h-full bg-gradient-to-r from-emerald-500 to-emerald-600 transition-all duration-500"
+              className="h-full bg-linear-to-r from-emerald-500 to-emerald-600 transition-all duration-500"
               style={{ width: `${overallProgress}%` }}
             />
           </div>
@@ -500,7 +504,7 @@ export function GenerationProgress({
             <span>
               {t('generation.modelsCompleted', {
                 completed: Object.values(statuses).filter(
-                  (s) => s.status === 'completed'
+                  (s) => s.status === 'completed',
                 ).length,
                 total: Object.keys(statuses).length,
               })}

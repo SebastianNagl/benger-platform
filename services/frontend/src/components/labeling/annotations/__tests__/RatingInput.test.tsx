@@ -367,7 +367,7 @@ describe('RatingInput', () => {
         'quality',
         'Rating',
         4,
-        'text'
+        'text',
       )
     })
 
@@ -560,7 +560,7 @@ describe('RatingInput', () => {
         <div>
           <RatingInput {...props1} />
           <RatingInput {...props2} />
-        </div>
+        </div>,
       )
 
       const allStars = screen.getAllByRole('button')
@@ -579,7 +579,7 @@ describe('RatingInput', () => {
     it('maintains internal state when external value not provided', async () => {
       const user = userEvent.setup()
       const { rerender } = render(
-        <RatingInput {...defaultProps} value={undefined} />
+        <RatingInput {...defaultProps} value={undefined} />,
       )
 
       const stars = screen.getAllByRole('button')

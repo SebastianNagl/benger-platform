@@ -117,7 +117,7 @@ export function SignificanceHeatmap({
 
         const key = `${modelB}:${modelA}`
         const entry = significanceData.find(
-          (e) => `${e.model_a}:${e.model_b}` === key
+          (e) => `${e.model_a}:${e.model_b}` === key,
         )
 
         return {
@@ -128,7 +128,7 @@ export function SignificanceHeatmap({
           significant: entry?.significant ?? false,
           stars: entry?.stars ?? '',
         }
-      })
+      }),
     )
 
     return [
@@ -194,7 +194,7 @@ export function SignificanceHeatmap({
       margin: { l: 150, r: 100, t: 100, b: 150 },
       annotations,
     }),
-    [metric, height, annotations, t]
+    [metric, height, annotations, t],
   )
 
   const config = useMemo(
@@ -204,7 +204,7 @@ export function SignificanceHeatmap({
       displaylogo: false,
       modeBarButtonsToRemove: ['lasso2d', 'select2d'] as any[],
     }),
-    []
+    [],
   )
 
   const handleClick = (event: any) => {
@@ -231,7 +231,9 @@ export function SignificanceHeatmap({
       </div>
 
       <div className="rounded-lg border bg-gray-50 p-4">
-        <h4 className="mb-3 font-medium">{t('evaluation.charts.significance.legend')}</h4>
+        <h4 className="mb-3 font-medium">
+          {t('evaluation.charts.significance.legend')}
+        </h4>
         <div className="space-y-3">
           <div>
             <h5 className="mb-2 text-sm font-medium text-gray-700">
@@ -243,7 +245,9 @@ export function SignificanceHeatmap({
                   className="h-4 w-4 rounded"
                   style={{ backgroundColor: '#1e40af' }}
                 />
-                <span>{t('evaluation.charts.significance.positiveEffect')}</span>
+                <span>
+                  {t('evaluation.charts.significance.positiveEffect')}
+                </span>
               </div>
               <div className="flex items-center gap-2">
                 <div
@@ -260,7 +264,9 @@ export function SignificanceHeatmap({
                   className="h-4 w-4 rounded"
                   style={{ backgroundColor: '#dc2626' }}
                 />
-                <span>{t('evaluation.charts.significance.negativeEffect')}</span>
+                <span>
+                  {t('evaluation.charts.significance.negativeEffect')}
+                </span>
               </div>
             </div>
           </div>
@@ -283,7 +289,9 @@ export function SignificanceHeatmap({
                 <span>{t('evaluation.charts.significance.pLt05')}</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="font-mono font-bold">{t('evaluation.charts.significance.empty')}</span>
+                <span className="font-mono font-bold">
+                  {t('evaluation.charts.significance.empty')}
+                </span>
                 <span>{t('evaluation.charts.significance.pGte05')}</span>
               </div>
             </div>
@@ -291,7 +299,8 @@ export function SignificanceHeatmap({
 
           <div className="rounded border-l-4 border-blue-500 bg-blue-50 p-3 text-sm">
             <p className="text-gray-700">
-              <strong>{t('evaluation.charts.significance.noteLabel')}:</strong> {t('evaluation.charts.significance.noteText')}
+              <strong>{t('evaluation.charts.significance.noteLabel')}:</strong>{' '}
+              {t('evaluation.charts.significance.noteText')}
             </p>
           </div>
         </div>

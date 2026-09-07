@@ -3,13 +3,14 @@
  * Targets: plotData useMemo, layout useMemo, per-class metrics table rendering
  */
 
-import React from 'react'
 import { render, screen } from '@testing-library/react'
+import React from 'react'
 
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
     locale: 'en',
-    t: (key: string, vars?: any) => (vars ? `${key}:${JSON.stringify(vars)}` : key),
+    t: (key: string, vars?: any) =>
+      vars ? `${key}:${JSON.stringify(vars)}` : key,
     changeLocale: jest.fn(),
     isReady: true,
   }),

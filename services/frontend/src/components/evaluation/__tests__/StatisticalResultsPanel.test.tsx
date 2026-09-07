@@ -92,9 +92,7 @@ describe('StatisticalResultsPanel', () => {
     it('shows loading spinner and text', () => {
       render(<StatisticalResultsPanel data={null} loading={true} />)
       expect(screen.getByTestId('loading-spinner')).toBeInTheDocument()
-      expect(
-        screen.getByText('Computing statistics...')
-      ).toBeInTheDocument()
+      expect(screen.getByText('Computing statistics...')).toBeInTheDocument()
     })
   })
 
@@ -104,10 +102,10 @@ describe('StatisticalResultsPanel', () => {
         <StatisticalResultsPanel
           data={null}
           error="Failed to compute statistics"
-        />
+        />,
       )
       expect(
-        screen.getByText('Failed to compute statistics')
+        screen.getByText('Failed to compute statistics'),
       ).toBeInTheDocument()
     })
   })
@@ -116,7 +114,7 @@ describe('StatisticalResultsPanel', () => {
     it('shows prompt to select metrics', () => {
       render(<StatisticalResultsPanel data={null} />)
       expect(
-        screen.getByText('Select metrics to see statistical analysis')
+        screen.getByText('Select metrics to see statistical analysis'),
       ).toBeInTheDocument()
     })
   })
@@ -148,7 +146,7 @@ describe('StatisticalResultsPanel', () => {
         <StatisticalResultsPanel
           data={baseStatisticsData}
           selectedStatistics={['ci']}
-        />
+        />,
       )
       expect(screen.getByText('95% CI')).toBeInTheDocument()
       expect(screen.getByText(/83.0%/)).toBeInTheDocument()
@@ -159,7 +157,7 @@ describe('StatisticalResultsPanel', () => {
         <StatisticalResultsPanel
           data={baseStatisticsData}
           selectedStatistics={['se']}
-        />
+        />,
       )
       expect(screen.getByText('SE')).toBeInTheDocument()
     })
@@ -292,11 +290,9 @@ describe('StatisticalResultsPanel', () => {
         <StatisticalResultsPanel
           data={pairwiseData}
           selectedStatistics={['ci', 'se']}
-        />
+        />,
       )
-      expect(
-        screen.queryByText('Pairwise Comparisons')
-      ).not.toBeInTheDocument()
+      expect(screen.queryByText('Pairwise Comparisons')).not.toBeInTheDocument()
     })
 
     it('shows pairwise table when ttest is selected', () => {
@@ -304,7 +300,7 @@ describe('StatisticalResultsPanel', () => {
         <StatisticalResultsPanel
           data={pairwiseData}
           selectedStatistics={['ttest']}
-        />
+        />,
       )
       expect(screen.getByText('Pairwise Comparisons')).toBeInTheDocument()
     })
@@ -314,7 +310,7 @@ describe('StatisticalResultsPanel', () => {
         <StatisticalResultsPanel
           data={pairwiseData}
           selectedStatistics={['ttest', 'cohens_d']}
-        />
+        />,
       )
       expect(screen.getByText('Effect Size')).toBeInTheDocument()
       expect(screen.getByText(/d=0.85/)).toBeInTheDocument()
@@ -367,7 +363,7 @@ describe('StatisticalResultsPanel', () => {
       }
       render(<StatisticalResultsPanel data={data} />)
       expect(
-        screen.getByText(/Consider Bonferroni correction/)
+        screen.getByText(/Consider Bonferroni correction/),
       ).toBeInTheDocument()
     })
 
@@ -390,12 +386,8 @@ describe('StatisticalResultsPanel', () => {
           corrected_alpha: 0.0167,
         },
       }
-      render(
-        <StatisticalResultsPanel data={data} showBonferroniInfo={false} />
-      )
-      expect(
-        screen.queryByText('Bonferroni Corrected')
-      ).not.toBeInTheDocument()
+      render(<StatisticalResultsPanel data={data} showBonferroniInfo={false} />)
+      expect(screen.queryByText('Bonferroni Corrected')).not.toBeInTheDocument()
     })
   })
 
@@ -422,7 +414,7 @@ describe('StatisticalResultsPanel', () => {
         <StatisticalResultsPanel
           data={data}
           selectedStatistics={['correlation']}
-        />
+        />,
       )
       expect(screen.getByText('Correlation Matrix')).toBeInTheDocument()
       // 0.92 appears twice in the symmetric matrix (accuracy->f1 and f1->accuracy)
@@ -438,14 +430,9 @@ describe('StatisticalResultsPanel', () => {
         },
       }
       render(
-        <StatisticalResultsPanel
-          data={data}
-          selectedStatistics={['ci']}
-        />
+        <StatisticalResultsPanel data={data} selectedStatistics={['ci']} />,
       )
-      expect(
-        screen.queryByText('Correlation Matrix')
-      ).not.toBeInTheDocument()
+      expect(screen.queryByText('Correlation Matrix')).not.toBeInTheDocument()
     })
   })
 
@@ -512,7 +499,7 @@ describe('StatisticalResultsPanel', () => {
         <StatisticalResultsPanel
           data={data}
           selectedStatistics={['se', 'ci']}
-        />
+        />,
       )
       // SE should appear as ±value
       expect(screen.getByText('±0.005')).toBeInTheDocument()
@@ -540,10 +527,7 @@ describe('StatisticalResultsPanel', () => {
         },
       }
       render(
-        <StatisticalResultsPanel
-          data={data}
-          selectedStatistics={['ci']}
-        />
+        <StatisticalResultsPanel data={data} selectedStatistics={['ci']} />,
       )
       expect(screen.queryByText('±0.005')).not.toBeInTheDocument()
     })
@@ -608,7 +592,7 @@ describe('StatisticalResultsPanel', () => {
         <StatisticalResultsPanel
           data={data}
           selectedStatistics={['se', 'ci']}
-        />
+        />,
       )
       expect(screen.getByText('±0.008')).toBeInTheDocument()
     })
@@ -629,7 +613,9 @@ describe('StatisticalResultsPanel', () => {
           },
         },
       }
-      render(<StatisticalResultsPanel data={data} selectedStatistics={['se']} />)
+      render(
+        <StatisticalResultsPanel data={data} selectedStatistics={['se']} />,
+      )
       expect(screen.getByText('—')).toBeInTheDocument()
     })
   })
@@ -677,7 +663,7 @@ describe('StatisticalResultsPanel', () => {
         <StatisticalResultsPanel
           data={data}
           selectedStatistics={['correlation']}
-        />
+        />,
       )
       // Null correlations show as '-'
       expect(screen.getAllByText('-').length).toBe(2)
@@ -692,7 +678,7 @@ describe('StatisticalResultsPanel', () => {
       }
       render(<StatisticalResultsPanel data={data} />)
       expect(
-        screen.getByText('Small sample size may affect reliability')
+        screen.getByText('Small sample size may affect reliability'),
       ).toBeInTheDocument()
     })
 

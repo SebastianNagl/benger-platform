@@ -43,8 +43,10 @@ export interface RosterEntry {
   joined_at: string | null
 }
 
-const asList = <T,>(res: unknown): T[] =>
-  Array.isArray(res) ? (res as T[]) : ((res as { items?: T[] } | null)?.items ?? [])
+const asList = <T>(res: unknown): T[] =>
+  Array.isArray(res)
+    ? (res as T[])
+    : ((res as { items?: T[] } | null)?.items ?? [])
 
 export interface Participation {
   tier: 'full' | 'participant'
@@ -71,7 +73,10 @@ export const sharesAPI = {
   listShares: async (projectId: string): Promise<ShareLink[]> =>
     asList<ShareLink>(await apiClient.get(`/projects/${projectId}/shares`)),
 
-  createShare: async (projectId: string, body: ShareCreateRequest): Promise<ShareLink> =>
+  createShare: async (
+    projectId: string,
+    body: ShareCreateRequest,
+  ): Promise<ShareLink> =>
     apiClient.post(`/projects/${projectId}/shares`, body),
 
   /** Rotate the password / adjust expiry, cap or listing — the token stays. */
@@ -79,7 +84,8 @@ export const sharesAPI = {
     projectId: string,
     shareId: string,
     body: ShareUpdateRequest,
-  ): Promise<ShareLink> => apiClient.put(`/projects/${projectId}/shares/${shareId}`, body),
+  ): Promise<ShareLink> =>
+    apiClient.put(`/projects/${projectId}/shares/${shareId}`, body),
 
   /** Revoke: blocks further joins; existing participants keep access. */
   revokeShare: async (projectId: string, shareId: string): Promise<void> => {
@@ -87,7 +93,9 @@ export const sharesAPI = {
   },
 
   getRoster: async (projectId: string): Promise<RosterEntry[]> =>
-    asList<RosterEntry>(await apiClient.get(`/projects/${projectId}/shares/roster`)),
+    asList<RosterEntry>(
+      await apiClient.get(`/projects/${projectId}/shares/roster`),
+    ),
 
   /** Remove a participant (their membership row); attempts are kept. */
   evictMember: async (projectId: string, userId: string): Promise<void> => {
@@ -107,9 +115,13 @@ export const sharesAPI = {
   },
 
   /** Listed share links. scope 'all' = every kind (benger Entdecken). */
-  discover: async (scope: 'student' | 'all' = 'student'): Promise<DiscoverShareItem[]> =>
+  discover: async (
+    scope: 'student' | 'all' = 'student',
+  ): Promise<DiscoverShareItem[]> =>
     asList<DiscoverShareItem>(
-      await apiClient.get(scope === 'all' ? '/shares/discover?scope=all' : '/shares/discover'),
+      await apiClient.get(
+        scope === 'all' ? '/shares/discover?scope=all' : '/shares/discover',
+      ),
     ),
 }
 

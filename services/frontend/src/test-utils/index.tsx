@@ -201,7 +201,7 @@ export const createMockI18nContext = (overrides = {}) => ({
 export const mockUseAuth = (overrides = {}) => {
   const mockAuthContext = createMockAuthContext(overrides)
   ;(require('@/contexts/AuthContext').useAuth as jest.Mock).mockReturnValue(
-    mockAuthContext
+    mockAuthContext,
   )
   return mockAuthContext
 }
@@ -210,7 +210,7 @@ export const mockUseAuth = (overrides = {}) => {
 export const mockUseI18n = (overrides = {}) => {
   const mockI18nContext = createMockI18nContext(overrides)
   ;(require('@/contexts/I18nContext').useI18n as jest.Mock).mockReturnValue(
-    mockI18nContext
+    mockI18nContext,
   )
   return mockI18nContext
 }
@@ -261,7 +261,7 @@ export function renderWithProviders(
     authContextValue = createMockAuthContext(),
     i18nContextValue = createMockI18nContext(),
     ...renderOptions
-  }: Omit<EnhancedRenderOptions, 'includeAllProviders'> = {}
+  }: Omit<EnhancedRenderOptions, 'includeAllProviders'> = {},
 ) {
   function Wrapper({ children }: { children: React.ReactNode }) {
     return (
@@ -286,7 +286,7 @@ export function renderWithAllProviders(
     progressContextValue = createMockProgressContext(),
     toastContextValue = createMockToastContext(),
     ...renderOptions
-  }: EnhancedRenderOptions = {}
+  }: EnhancedRenderOptions = {},
 ) {
   // Mock provider components
   const MockSectionProvider = ({ children }: { children: React.ReactNode }) => (

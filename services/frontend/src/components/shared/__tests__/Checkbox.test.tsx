@@ -92,7 +92,7 @@ describe('Checkbox Component', () => {
           target: expect.objectContaining({
             checked: true,
           }),
-        })
+        }),
       )
     })
 
@@ -177,7 +177,7 @@ describe('Checkbox Component', () => {
       expect(checkbox).toHaveClass(
         'focus:ring-2',
         'focus:ring-blue-500',
-        'focus:ring-offset-0'
+        'focus:ring-offset-0',
       )
     })
 
@@ -237,7 +237,7 @@ describe('Checkbox Component', () => {
           <button>Before</button>
           <Checkbox />
           <button>After</button>
-        </div>
+        </div>,
       )
 
       const beforeButton = screen.getByRole('button', { name: 'Before' })
@@ -371,7 +371,7 @@ describe('Checkbox Component', () => {
       const user = userEvent.setup()
       const handleChange = jest.fn()
       const { rerender } = render(
-        <Checkbox checked={false} onChange={handleChange} />
+        <Checkbox checked={false} onChange={handleChange} />,
       )
 
       const checkbox = screen.getByRole('checkbox')

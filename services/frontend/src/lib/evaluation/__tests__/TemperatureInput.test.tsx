@@ -6,7 +6,7 @@
  * @jest-environment jsdom
  */
 
-import { render, screen, fireEvent } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import React from 'react'
 import { TemperatureInput } from '../TemperatureInput'
 
@@ -76,7 +76,13 @@ describe('TemperatureInput', () => {
 
   it('renders the recommended value when the model has an evaluation-mode rec', () => {
     mockModels = [modelWithEvalRec]
-    render(<TemperatureInput judgeModelId="gpt-4o" value={0.0} onChange={jest.fn()} />)
+    render(
+      <TemperatureInput
+        judgeModelId="gpt-4o"
+        value={0.0}
+        onChange={jest.fn()}
+      />,
+    )
     // matches → no reset link, just the recommendation text
     expect(screen.getByText(/Empfehlung/i).textContent).toContain('0')
     expect(screen.queryByText(/Zurücksetzen/)).not.toBeInTheDocument()
@@ -85,7 +91,13 @@ describe('TemperatureInput', () => {
   it('shows the reset link when the user value diverges from the recommendation', () => {
     mockModels = [modelWithEvalRec]
     const onChange = jest.fn()
-    render(<TemperatureInput judgeModelId="gpt-4o" value={0.5} onChange={onChange} />)
+    render(
+      <TemperatureInput
+        judgeModelId="gpt-4o"
+        value={0.5}
+        onChange={onChange}
+      />,
+    )
     const resetBtn = screen.getByText(/Zurücksetzen/)
     expect(resetBtn).toBeInTheDocument()
     fireEvent.click(resetBtn)
@@ -95,7 +107,13 @@ describe('TemperatureInput', () => {
 
   it('shows "Keine Empfehlung" when the model has no recommendations at all', () => {
     mockModels = [modelWithoutRec]
-    render(<TemperatureInput judgeModelId="community-model" value={0.5} onChange={jest.fn()} />)
+    render(
+      <TemperatureInput
+        judgeModelId="community-model"
+        value={0.5}
+        onChange={jest.fn()}
+      />,
+    )
     expect(screen.getByText(/Keine Empfehlung$/)).toBeInTheDocument()
   })
 
@@ -103,7 +121,13 @@ describe('TemperatureInput', () => {
     // The constraint-fixed branch already locks the input visually; the
     // badge is suppressed so it doesn't double up with the "Fixed at X" pill.
     mockModels = [fixedTempModel]
-    render(<TemperatureInput judgeModelId="gpt-5" value={1.0} onChange={jest.fn()} />)
+    render(
+      <TemperatureInput
+        judgeModelId="gpt-5"
+        value={1.0}
+        onChange={jest.fn()}
+      />,
+    )
     expect(screen.queryByText(/^Empfehlung/)).not.toBeInTheDocument()
   })
 })

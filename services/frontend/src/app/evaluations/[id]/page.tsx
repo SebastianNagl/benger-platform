@@ -13,21 +13,30 @@
 
 'use client'
 
-import { logger } from '@/lib/utils/logger'
 import { ConfusionMatrixChart } from '@/components/evaluation/ConfusionMatrixChart'
 import { JudgeAgreementHeatmap } from '@/components/evaluation/JudgeAgreementHeatmap'
 import { MetricDistributionChart } from '@/components/evaluation/MetricDistributionChart'
-import { PerRunBreakdown, type PerRunRow } from '@/components/evaluation/PerRunBreakdown'
+import {
+  PerRunBreakdown,
+  type PerRunRow,
+} from '@/components/evaluation/PerRunBreakdown'
 import { SampleResultsTable } from '@/components/evaluation/SampleResultsTable'
 import { Badge } from '@/components/shared/Badge'
 import { Breadcrumb } from '@/components/shared/Breadcrumb'
 import { Button } from '@/components/shared/Button'
 import { Card } from '@/components/shared/Card'
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/shared/Select'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/shared/Select'
 import { useToast } from '@/components/shared/Toast'
 import { useI18n } from '@/contexts/I18nContext'
 import { apiClient } from '@/lib/api/client'
+import { logger } from '@/lib/utils/logger'
 import {
   ArrowLeftIcon,
   ArrowPathIcon,
@@ -119,7 +128,7 @@ export default function EvaluationDashboard({
       if (!evaluationId) return
       try {
         const response = await apiClient.get(
-          `/evaluations/${evaluationId}/metrics/${metricName}/distribution`
+          `/evaluations/${evaluationId}/metrics/${metricName}/distribution`,
         )
         setMetricDistribution(response.data)
       } catch (error) {
@@ -127,7 +136,7 @@ export default function EvaluationDashboard({
         addToast(t('evaluation.human.preference.saveFailed'), 'error')
       }
     },
-    [evaluationId, addToast, t]
+    [evaluationId, addToast, t],
   )
 
   const loadEvaluationData = useCallback(async () => {
@@ -141,10 +150,13 @@ export default function EvaluationDashboard({
       setEvaluation(evalData)
 
       if (evalData.has_sample_results) {
-        const samplesData = await apiClient.evaluations.getSamples(evaluationId, {
-          page: 1,
-          page_size: 100,
-        })
+        const samplesData = await apiClient.evaluations.getSamples(
+          evaluationId,
+          {
+            page: 1,
+            page_size: 100,
+          },
+        )
         // The API client types items as Record<string, unknown>[]; the
         // actual response shape matches SampleResult by contract. Two-step
         // cast through `unknown` is the standard TS escape hatch for this
@@ -167,10 +179,12 @@ export default function EvaluationDashboard({
         }
 
         // Try to load confusion matrix for first classification field
-        const classificationField = ((samplesData?.items || []) as unknown as SampleResult[]).find(
+        const classificationField = (
+          (samplesData?.items || []) as unknown as SampleResult[]
+        ).find(
           (s) =>
             s.answer_type.includes('choice') ||
-            s.answer_type.includes('classification')
+            s.answer_type.includes('classification'),
         )
 
         if (classificationField) {
@@ -216,7 +230,7 @@ export default function EvaluationDashboard({
     // evaluation_configs list instead.
     const evalConfigs = (evaluation as any).evaluation_configs || []
     const metricsList: string[] = Array.from(
-      new Set(evalConfigs.map((c: any) => c.metric).filter(Boolean))
+      new Set(evalConfigs.map((c: any) => c.metric).filter(Boolean)),
     )
     if (metricsList.length === 0) return
     setMultiRunStatsLoading(true)
@@ -281,7 +295,9 @@ export default function EvaluationDashboard({
   // First metric for which we have multi-run agreement (drives the heatmap).
   const judgeAgreementForFirstMetric = (() => {
     if (!multiRunStats?.judge_agreement_by_model_metric) return null
-    const entries = Object.entries(multiRunStats.judge_agreement_by_model_metric)
+    const entries = Object.entries(
+      multiRunStats.judge_agreement_by_model_metric,
+    )
     if (entries.length === 0) return null
     const [key, value] = entries[0] as [string, any]
     const [, metric] = key.split('|')
@@ -296,7 +312,8 @@ export default function EvaluationDashboard({
     return { metric, value, distinctJudges }
   })()
 
-  const showJudgesTab = perRunRows.length > 0 || !!evaluation?.eval_metadata?.judges_by_config
+  const showJudgesTab =
+    perRunRows.length > 0 || !!evaluation?.eval_metadata?.judges_by_config
 
   if (loading) {
     return (
@@ -313,7 +330,10 @@ export default function EvaluationDashboard({
           <p className="text-gray-600">
             {t('evaluation.human.results.noResults')}
           </p>
-          <Button className="mt-4" onClick={() => router.push('/runs?type=evaluation')}>
+          <Button
+            className="mt-4"
+            onClick={() => router.push('/runs?type=evaluation')}
+          >
             {t('evaluation.human.preference.next')}
           </Button>
         </div>
@@ -343,311 +363,356 @@ export default function EvaluationDashboard({
 
   return (
     <div className="container mx-auto px-4 py-8">
-        {/* Breadcrumb — root is /runs (the per-run inventory), not the
+      {/* Breadcrumb — root is /runs (the per-run inventory), not the
             cross-run /evaluations dashboard, so the user can hop back to
             sibling runs without losing the multi-run context. */}
-        <div className="mb-4">
-          <Breadcrumb
-            items={[
-              { label: 'Home', href: '/dashboard' },
-              { label: t('runs.title', 'Läufe'), href: '/runs?type=evaluation' },
-              { label: t('evaluation.human.results.title') },
-            ]}
-          />
-        </div>
-        {/* Header */}
-        <div className="mb-6 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button variant="text" onClick={() => router.push('/runs?type=evaluation')}>
-              <ArrowLeftIcon className="mr-2 h-4 w-4" />
-              {t('evaluations.detail.back')}
-            </Button>
-            <div>
-              <h1 className="text-2xl font-bold">
-                {t('evaluation.human.results.title')}
-              </h1>
-              <div className="mt-1 flex items-center gap-2 text-sm text-gray-600">
-                <span>{t('evaluations.detail.model')}: {evaluation.model_id}</span>
-                <span>•</span>
-                <span>{t('evaluations.detail.project')}: {evaluation.project_id}</span>
-              </div>
+      <div className="mb-4">
+        <Breadcrumb
+          items={[
+            { label: 'Home', href: '/dashboard' },
+            { label: t('runs.title', 'Läufe'), href: '/runs?type=evaluation' },
+            { label: t('evaluation.human.results.title') },
+          ]}
+        />
+      </div>
+      {/* Header */}
+      <div className="mb-6 flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <Button
+            variant="text"
+            onClick={() => router.push('/runs?type=evaluation')}
+          >
+            <ArrowLeftIcon className="mr-2 h-4 w-4" />
+            {t('evaluations.detail.back')}
+          </Button>
+          <div>
+            <h1 className="text-2xl font-bold">
+              {t('evaluation.human.results.title')}
+            </h1>
+            <div className="mt-1 flex items-center gap-2 text-sm text-gray-600">
+              <span>
+                {t('evaluations.detail.model')}: {evaluation.model_id}
+              </span>
+              <span>•</span>
+              <span>
+                {t('evaluations.detail.project')}: {evaluation.project_id}
+              </span>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Badge
-              variant={
-                evaluation.status === 'completed' ? 'default' : 'secondary'
-              }
-            >
-              {evaluation.status}
-            </Badge>
-            <Button variant="outline" onClick={loadEvaluationData}>
-              <ArrowPathIcon className="h-4 w-4" />
-            </Button>
-          </div>
         </div>
-
-        {/* Tabs */}
-        <div className="mb-6 border-b border-gray-200">
-          <nav className="-mb-px flex space-x-8">
-            {[
-              { id: 'overview', label: t('evaluation.human.results.summary') },
-              { id: 'samples', label: t('evaluation.human.results.detailed') },
-              {
-                id: 'confusion',
-                label: t('evaluations.detail.confusionMatrix'),
-                hidden: !confusionMatrix,
-              },
-              {
-                id: 'distributions',
-                label: t('evaluation.human.results.distribution'),
-              },
-              {
-                id: 'judges',
-                label: t('evaluations.detail.judges', 'Judges & Läufe'),
-                hidden: !showJudgesTab,
-              },
-            ].map(
-              (tab) =>
-                !tab.hidden && (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id as any)}
-                    className={`${
-                      activeTab === tab.id
-                        ? 'border-blue-500 text-blue-600'
-                        : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
-                    } whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium`}
-                  >
-                    {tab.label}
-                  </button>
-                )
-            )}
-          </nav>
+        <div className="flex items-center gap-2">
+          <Badge
+            variant={
+              evaluation.status === 'completed' ? 'default' : 'secondary'
+            }
+          >
+            {evaluation.status}
+          </Badge>
+          <Button variant="outline" onClick={loadEvaluationData}>
+            <ArrowPathIcon className="h-4 w-4" />
+          </Button>
         </div>
+      </div>
 
-        {/* Overview Tab */}
-        {activeTab === 'overview' && (
-          <div className="space-y-6">
-            {/* Summary Cards */}
-            {evaluation.scope && (
-              <div className="mb-4 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-900 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-200">
-                <span className="font-medium">
-                  {t('evaluations.detail.scopedTo', 'Eingeschränkt auf:')}
-                </span>{' '}
-                {[
-                  evaluation.scope.model_ids.length > 0 &&
-                    t('evaluations.detail.scopeModelsCount', '{count} Modell(e)').replace(
-                      '{count}',
-                      String(evaluation.scope.model_ids.length),
-                    ),
-                  evaluation.scope.annotators.length > 0 &&
-                    `${evaluation.scope.annotators.length === 1
-                      ? t('evaluations.detail.scopeOneAnnotator', '1 Annotator:in')
-                      : t('evaluations.detail.scopeAnnotatorsCount', '{count} Annotator:innen').replace(
+      {/* Tabs */}
+      <div className="mb-6 border-b border-gray-200">
+        <nav className="-mb-px flex space-x-8">
+          {[
+            { id: 'overview', label: t('evaluation.human.results.summary') },
+            { id: 'samples', label: t('evaluation.human.results.detailed') },
+            {
+              id: 'confusion',
+              label: t('evaluations.detail.confusionMatrix'),
+              hidden: !confusionMatrix,
+            },
+            {
+              id: 'distributions',
+              label: t('evaluation.human.results.distribution'),
+            },
+            {
+              id: 'judges',
+              label: t('evaluations.detail.judges', 'Judges & Läufe'),
+              hidden: !showJudgesTab,
+            },
+          ].map(
+            (tab) =>
+              !tab.hidden && (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id as any)}
+                  className={`${
+                    activeTab === tab.id
+                      ? 'border-blue-500 text-blue-600'
+                      : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                  } border-b-2 px-1 py-4 text-sm font-medium whitespace-nowrap`}
+                >
+                  {tab.label}
+                </button>
+              ),
+          )}
+        </nav>
+      </div>
+
+      {/* Overview Tab */}
+      {activeTab === 'overview' && (
+        <div className="space-y-6">
+          {/* Summary Cards */}
+          {evaluation.scope && (
+            <div className="mb-4 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-900 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-200">
+              <span className="font-medium">
+                {t('evaluations.detail.scopedTo', 'Eingeschränkt auf:')}
+              </span>{' '}
+              {[
+                evaluation.scope.model_ids.length > 0 &&
+                  t(
+                    'evaluations.detail.scopeModelsCount',
+                    '{count} Modell(e)',
+                  ).replace(
+                    '{count}',
+                    String(evaluation.scope.model_ids.length),
+                  ),
+                evaluation.scope.annotators.length > 0 &&
+                  `${
+                    evaluation.scope.annotators.length === 1
+                      ? t(
+                          'evaluations.detail.scopeOneAnnotator',
+                          '1 Annotator:in',
+                        )
+                      : t(
+                          'evaluations.detail.scopeAnnotatorsCount',
+                          '{count} Annotator:innen',
+                        ).replace(
                           '{count}',
                           String(evaluation.scope.annotators.length),
-                        )} (${evaluation.scope.annotators.map((a) => a.display).join(', ')})`,
-                  evaluation.scope.task_ids.length > 0 &&
-                    t('evaluations.detail.scopeTasksCount', '{count} Task(s)').replace(
-                      '{count}',
-                      String(evaluation.scope.task_ids.length),
-                    ),
-                ]
-                  .filter(Boolean)
-                  .join(' · ')}
-              </div>
-            )}
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-              <Card className="p-4">
-                <div className="text-sm text-gray-600">{t('evaluations.detail.totalSamples')}</div>
-                <div className="mt-1 text-3xl font-bold">
-                  {evaluation.samples_evaluated}
-                </div>
-              </Card>
-              <Card className="p-4">
-                <div className="text-sm text-gray-600">{t('evaluations.detail.passRate')}</div>
-                <div className="mt-1 text-3xl font-bold text-green-600">
-                  {((evaluation.eval_metadata?.pass_rate || 0) * 100).toFixed(
-                    1
-                  )}
-                  %
-                </div>
-              </Card>
-              <Card className="p-4">
-                <div className="text-sm text-gray-600">{t('evaluations.detail.passed')}</div>
-                <div className="mt-1 text-3xl font-bold text-green-600">
-                  {evaluation.eval_metadata?.samples_passed || 0}
-                </div>
-              </Card>
-              <Card className="p-4">
-                <div className="text-sm text-gray-600">{t('evaluations.detail.failed')}</div>
-                <div className="mt-1 text-3xl font-bold text-red-600">
-                  {evaluation.eval_metadata?.samples_failed || 0}
-                </div>
-              </Card>
+                        )
+                  } (${evaluation.scope.annotators.map((a) => a.display).join(', ')})`,
+                evaluation.scope.task_ids.length > 0 &&
+                  t(
+                    'evaluations.detail.scopeTasksCount',
+                    '{count} Task(s)',
+                  ).replace(
+                    '{count}',
+                    String(evaluation.scope.task_ids.length),
+                  ),
+              ]
+                .filter(Boolean)
+                .join(' · ')}
             </div>
-
-            {/* Aggregate Metrics */}
-            <Card className="p-6">
-              <h2 className="mb-4 flex items-center gap-2 text-lg font-medium">
-                <ChartBarIcon className="h-5 w-5" />
-                {t('evaluations.detail.aggregateMetrics')}
-              </h2>
-              <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
-                {metricKeys.map((metric) => {
-                  // metric here is the bare metric name; values live under
-                  // the composite key. Look up via the bare→composite map.
-                  // When the value isn't numeric (judge-error placeholders
-                  // store dicts), fall back to "—" instead of crashing
-                  // .toFixed.
-                  const compositeKey = _bareToComposite.get(metric) || metric
-                  const v = (evaluation.metrics as Record<string, unknown>)?.[compositeKey]
-                  const display = typeof v === 'number' ? v.toFixed(3) : '—'
-                  return (
-                    <div key={metric} className="rounded-lg border bg-gray-50 p-4">
-                      <div className="text-sm text-gray-600">{metric}</div>
-                      <div className="mt-1 text-2xl font-bold text-blue-600">{display}</div>
-                    </div>
-                  )
-                })}
+          )}
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <Card className="p-4">
+              <div className="text-sm text-gray-600">
+                {t('evaluations.detail.totalSamples')}
+              </div>
+              <div className="mt-1 text-3xl font-bold">
+                {evaluation.samples_evaluated}
+              </div>
+            </Card>
+            <Card className="p-4">
+              <div className="text-sm text-gray-600">
+                {t('evaluations.detail.passRate')}
+              </div>
+              <div className="mt-1 text-3xl font-bold text-green-600">
+                {((evaluation.eval_metadata?.pass_rate || 0) * 100).toFixed(1)}%
+              </div>
+            </Card>
+            <Card className="p-4">
+              <div className="text-sm text-gray-600">
+                {t('evaluations.detail.passed')}
+              </div>
+              <div className="mt-1 text-3xl font-bold text-green-600">
+                {evaluation.eval_metadata?.samples_passed || 0}
+              </div>
+            </Card>
+            <Card className="p-4">
+              <div className="text-sm text-gray-600">
+                {t('evaluations.detail.failed')}
+              </div>
+              <div className="mt-1 text-3xl font-bold text-red-600">
+                {evaluation.eval_metadata?.samples_failed || 0}
               </div>
             </Card>
           </div>
-        )}
 
-        {/* Sample Results Tab */}
-        {activeTab === 'samples' && (
-          <div>
-            <Card className="p-6">
-              <h2 className="mb-4 text-lg font-medium">{t('evaluations.detail.perSampleResults')}</h2>
-              <SampleResultsTable
-                data={samples}
-                consistencyByTaskId={(() => {
-                  // Multi-run consistency lookup (migration 042). Flatten the
-                  // task_consistency_by_model_metric block (keyed by
-                  // "model|metric" → list of TaskConsistency) into a flat
-                  // task_id → entry map. The first non-empty bucket wins
-                  // when one task is rated by multiple metrics; that's a
-                  // simplification (the table only has one task_id per row,
-                  // so showing variance from any metric is more useful than
-                  // showing nothing).
-                  const map: Record<string, any> = {}
-                  const block = multiRunStats?.task_consistency_by_model_metric || {}
-                  for (const list of Object.values(block) as any[]) {
-                    if (!Array.isArray(list)) continue
-                    for (const entry of list) {
-                      if (!entry?.task_id) continue
-                      if (!map[entry.task_id]) {
-                        map[entry.task_id] = {
-                          n_runs: entry.n_runs,
-                          variance: entry.variance,
-                          fleiss_kappa: entry.fleiss_kappa,
-                          percent_agreement: entry.percent_agreement,
-                        }
+          {/* Aggregate Metrics */}
+          <Card className="p-6">
+            <h2 className="mb-4 flex items-center gap-2 text-lg font-medium">
+              <ChartBarIcon className="h-5 w-5" />
+              {t('evaluations.detail.aggregateMetrics')}
+            </h2>
+            <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
+              {metricKeys.map((metric) => {
+                // metric here is the bare metric name; values live under
+                // the composite key. Look up via the bare→composite map.
+                // When the value isn't numeric (judge-error placeholders
+                // store dicts), fall back to "—" instead of crashing
+                // .toFixed.
+                const compositeKey = _bareToComposite.get(metric) || metric
+                const v = (evaluation.metrics as Record<string, unknown>)?.[
+                  compositeKey
+                ]
+                const display = typeof v === 'number' ? v.toFixed(3) : '—'
+                return (
+                  <div
+                    key={metric}
+                    className="rounded-lg border bg-gray-50 p-4"
+                  >
+                    <div className="text-sm text-gray-600">{metric}</div>
+                    <div className="mt-1 text-2xl font-bold text-blue-600">
+                      {display}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* Sample Results Tab */}
+      {activeTab === 'samples' && (
+        <div>
+          <Card className="p-6">
+            <h2 className="mb-4 text-lg font-medium">
+              {t('evaluations.detail.perSampleResults')}
+            </h2>
+            <SampleResultsTable
+              data={samples}
+              consistencyByTaskId={(() => {
+                // Multi-run consistency lookup (migration 042). Flatten the
+                // task_consistency_by_model_metric block (keyed by
+                // "model|metric" → list of TaskConsistency) into a flat
+                // task_id → entry map. The first non-empty bucket wins
+                // when one task is rated by multiple metrics; that's a
+                // simplification (the table only has one task_id per row,
+                // so showing variance from any metric is more useful than
+                // showing nothing).
+                const map: Record<string, any> = {}
+                const block =
+                  multiRunStats?.task_consistency_by_model_metric || {}
+                for (const list of Object.values(block) as any[]) {
+                  if (!Array.isArray(list)) continue
+                  for (const entry of list) {
+                    if (!entry?.task_id) continue
+                    if (!map[entry.task_id]) {
+                      map[entry.task_id] = {
+                        n_runs: entry.n_runs,
+                        variance: entry.variance,
+                        fleiss_kappa: entry.fleiss_kappa,
+                        percent_agreement: entry.percent_agreement,
                       }
                     }
                   }
-                  return map
-                })()}
-              />
-            </Card>
-          </div>
-        )}
+                }
+                return map
+              })()}
+            />
+          </Card>
+        </div>
+      )}
 
-        {/* Confusion Matrix Tab */}
-        {activeTab === 'confusion' && confusionMatrix && (
-          <div>
-            <Card className="p-6">
-              <ConfusionMatrixChart data={confusionMatrix} />
-            </Card>
-          </div>
-        )}
+      {/* Confusion Matrix Tab */}
+      {activeTab === 'confusion' && confusionMatrix && (
+        <div>
+          <Card className="p-6">
+            <ConfusionMatrixChart data={confusionMatrix} />
+          </Card>
+        </div>
+      )}
 
-        {/* Judges & Runs Tab — multi-run feature.
+      {/* Judges & Runs Tab — multi-run feature.
              Shows the configured judge ensemble per (judge, run) row plus
              the inter-judge agreement heatmap when ≥2 distinct judges
              produced data for at least one metric. */}
-        {activeTab === 'judges' && (
-          <div className="space-y-6">
-            <Card className="p-6">
-              <h2 className="mb-4 text-lg font-medium">
-                {t('evaluations.detail.perJudgeRun', 'Per Judge & Lauf')}
-              </h2>
-              {evaluation?.eval_metadata?.any_judge_failed && (
-                <div className="mb-3 rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
-                  {t(
-                    'evaluations.detail.someJudgesFailed',
-                    'Mindestens ein Judge-Lauf ist fehlgeschlagen. Die Statistiken unten beruhen nur auf den erfolgreichen Läufen.',
-                  )}
-                </div>
-              )}
-              <PerRunBreakdown
-                rows={perRunRows}
-                metric={metricKeys[0] || ''}
-                showTargetModel={false}
-              />
-            </Card>
-
-            {multiRunStatsLoading && (
-              <div className="flex items-center justify-center py-6">
-                <LoadingSpinner />
+      {activeTab === 'judges' && (
+        <div className="space-y-6">
+          <Card className="p-6">
+            <h2 className="mb-4 text-lg font-medium">
+              {t('evaluations.detail.perJudgeRun', 'Per Judge & Lauf')}
+            </h2>
+            {evaluation?.eval_metadata?.any_judge_failed && (
+              <div className="mb-3 rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
+                {t(
+                  'evaluations.detail.someJudgesFailed',
+                  'Mindestens ein Judge-Lauf ist fehlgeschlagen. Die Statistiken unten beruhen nur auf den erfolgreichen Läufen.',
+                )}
               </div>
             )}
+            <PerRunBreakdown
+              rows={perRunRows}
+              metric={metricKeys[0] || ''}
+              showTargetModel={false}
+            />
+          </Card>
 
-            {judgeAgreementForFirstMetric &&
-              judgeAgreementForFirstMetric.distinctJudges.length >= 2 && (
-                <JudgeAgreementHeatmap
-                  judgeModelIds={judgeAgreementForFirstMetric.distinctJudges}
-                  metric={judgeAgreementForFirstMetric.metric}
-                  pairwise={
-                    judgeAgreementForFirstMetric.value.pearson_r_pairwise &&
-                    Object.keys(judgeAgreementForFirstMetric.value.pearson_r_pairwise).length > 0
-                      ? judgeAgreementForFirstMetric.value.pearson_r_pairwise
-                      : judgeAgreementForFirstMetric.value.cohens_kappa_pairwise || {}
-                  }
-                  scoreType={
-                    judgeAgreementForFirstMetric.value.pearson_r_pairwise &&
-                    Object.keys(judgeAgreementForFirstMetric.value.pearson_r_pairwise).length > 0
-                      ? 'pearson'
-                      : 'kappa'
-                  }
-                  fleissKappa={judgeAgreementForFirstMetric.value.fleiss_kappa ?? null}
-                />
-              )}
-          </div>
-        )}
+          {multiRunStatsLoading && (
+            <div className="flex items-center justify-center py-6">
+              <LoadingSpinner />
+            </div>
+          )}
 
-        {/* Distributions Tab */}
-        {activeTab === 'distributions' && (
-          <div className="space-y-6">
-            {/* Metric Selector */}
-            <Card className="p-4">
-              <label className="mb-2 block text-sm font-medium text-gray-700">
-                {t('evaluations.detail.selectMetric')}
-              </label>
-              <Select value={selectedMetric} onValueChange={handleMetricChange}>
-                <SelectTrigger>
-                  <SelectValue placeholder={t('evaluations.detail.selectMetric')} />
-                </SelectTrigger>
-                <SelectContent>
-                  {metricKeys.map((metric) => (
-                    <SelectItem key={metric} value={metric}>
-                      {metric}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Card>
-
-            {/* Distribution Chart */}
-            {metricDistribution && (
-              <Card className="p-6">
-                <MetricDistributionChart data={metricDistribution} />
-              </Card>
+          {judgeAgreementForFirstMetric &&
+            judgeAgreementForFirstMetric.distinctJudges.length >= 2 && (
+              <JudgeAgreementHeatmap
+                judgeModelIds={judgeAgreementForFirstMetric.distinctJudges}
+                metric={judgeAgreementForFirstMetric.metric}
+                pairwise={
+                  judgeAgreementForFirstMetric.value.pearson_r_pairwise &&
+                  Object.keys(
+                    judgeAgreementForFirstMetric.value.pearson_r_pairwise,
+                  ).length > 0
+                    ? judgeAgreementForFirstMetric.value.pearson_r_pairwise
+                    : judgeAgreementForFirstMetric.value
+                        .cohens_kappa_pairwise || {}
+                }
+                scoreType={
+                  judgeAgreementForFirstMetric.value.pearson_r_pairwise &&
+                  Object.keys(
+                    judgeAgreementForFirstMetric.value.pearson_r_pairwise,
+                  ).length > 0
+                    ? 'pearson'
+                    : 'kappa'
+                }
+                fleissKappa={
+                  judgeAgreementForFirstMetric.value.fleiss_kappa ?? null
+                }
+              />
             )}
-          </div>
-        )}
+        </div>
+      )}
+
+      {/* Distributions Tab */}
+      {activeTab === 'distributions' && (
+        <div className="space-y-6">
+          {/* Metric Selector */}
+          <Card className="p-4">
+            <label className="mb-2 block text-sm font-medium text-gray-700">
+              {t('evaluations.detail.selectMetric')}
+            </label>
+            <Select value={selectedMetric} onValueChange={handleMetricChange}>
+              <SelectTrigger>
+                <SelectValue
+                  placeholder={t('evaluations.detail.selectMetric')}
+                />
+              </SelectTrigger>
+              <SelectContent>
+                {metricKeys.map((metric) => (
+                  <SelectItem key={metric} value={metric}>
+                    {metric}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Card>
+
+          {/* Distribution Chart */}
+          {metricDistribution && (
+            <Card className="p-6">
+              <MetricDistributionChart data={metricDistribution} />
+            </Card>
+          )}
+        </div>
+      )}
     </div>
   )
 }

@@ -33,26 +33,26 @@
 import fc from 'fast-check'
 
 import {
-  isHumanField,
-  isModelField,
+  FIELD_SPECIFIERS,
+  generateEvaluationId,
   getBaseFieldName,
   getDimensionDisplayName,
   getFieldDisplayName,
-  isSpecialFieldValue,
-  generateEvaluationId,
-  registerMetric,
-  registerMetricGroup,
+  getGroupedMetrics,
   getMetricDefinitions,
   getMetricScale,
   getMetricSummable,
-  isMetricImmediateEligible,
-  getGroupedMetrics,
-  FIELD_SPECIFIERS,
-  MODEL_FIELD_PREFIX,
-  HUMAN_FIELD_PREFIX,
-  METRIC_DEFINITIONS,
   GROUPED_METRICS,
+  HUMAN_FIELD_PREFIX,
+  isHumanField,
+  isMetricImmediateEligible,
+  isModelField,
+  isSpecialFieldValue,
+  METRIC_DEFINITIONS,
   METRIC_ORDER,
+  MODEL_FIELD_PREFIX,
+  registerMetric,
+  registerMetricGroup,
   TYPE_SPECIFIC_DIMENSIONS,
   type AvailableMetric,
   type MetricDisplayScale,
@@ -163,9 +163,9 @@ describe('field-source classification — properties', () => {
   it('only one prefix is stripped (model:human:x -> human:x)', () => {
     // getBaseFieldName strips at most the leading prefix; a nested-looking
     // string keeps its inner prefix. Pins the "substring once" branch.
-    expect(getBaseFieldName(`${MODEL_FIELD_PREFIX}${HUMAN_FIELD_PREFIX}x`)).toBe(
-      `${HUMAN_FIELD_PREFIX}x`,
-    )
+    expect(
+      getBaseFieldName(`${MODEL_FIELD_PREFIX}${HUMAN_FIELD_PREFIX}x`),
+    ).toBe(`${HUMAN_FIELD_PREFIX}x`)
   })
 })
 
@@ -177,9 +177,15 @@ describe('display-scale resolution — properties', () => {
     // outside the union. The leaderboard formatter switches on these exact
     // four strings; an out-of-set token would fall through to the raw branch.
     fc.assert(
-      fc.property(fc.oneof(fc.string(), fc.constantFrom(...Object.keys(METRIC_DEFINITIONS))), (key) => {
-        expect(VALID_SCALES).toContain(getMetricScale(key))
-      }),
+      fc.property(
+        fc.oneof(
+          fc.string(),
+          fc.constantFrom(...Object.keys(METRIC_DEFINITIONS)),
+        ),
+        (key) => {
+          expect(VALID_SCALES).toContain(getMetricScale(key))
+        },
+      ),
     )
   })
 
@@ -231,20 +237,24 @@ describe('display-scale resolution — properties', () => {
     // Pins the "=== false" comparison: undefined / true / missing all stay
     // eligible; a mutant changing this to truthiness would break the default.
     fc.assert(
-      fc.property(fc.uuid(), fc.option(fc.boolean(), { nil: undefined }), (id, flag) => {
-        const key = `prop_elig_${id}`
-        const def: AvailableMetric = {
-          name: key,
-          display_name: '',
-          description: '',
-          category: 'Extended Category',
-          status: 'stable',
-          supports_parameters: false,
-          immediate_eligible: flag as boolean | undefined,
-        }
-        registerMetric(key, def)
-        expect(isMetricImmediateEligible(key)).toBe(flag !== false)
-      }),
+      fc.property(
+        fc.uuid(),
+        fc.option(fc.boolean(), { nil: undefined }),
+        (id, flag) => {
+          const key = `prop_elig_${id}`
+          const def: AvailableMetric = {
+            name: key,
+            display_name: '',
+            description: '',
+            category: 'Extended Category',
+            status: 'stable',
+            supports_parameters: false,
+            immediate_eligible: flag as boolean | undefined,
+          }
+          registerMetric(key, def)
+          expect(isMetricImmediateEligible(key)).toBe(flag !== false)
+        },
+      ),
     )
   })
 
@@ -324,7 +334,14 @@ describe('display-scale resolution — properties', () => {
         .map(([k]) => k)
         .sort()
       expect(heavy).toEqual(
-        ['bertscore', 'coherence', 'factcc', 'moverscore', 'qags', 'semantic_similarity'].sort(),
+        [
+          'bertscore',
+          'coherence',
+          'factcc',
+          'moverscore',
+          'qags',
+          'semantic_similarity',
+        ].sort(),
       )
     })
 
@@ -345,8 +362,16 @@ describe('metric registry — idempotence & union', () => {
     fc.assert(
       fc.property(fc.uuid(), metricDefArb('placeholder'), (id, _def) => {
         const key = `prop_idem_${id}`
-        const first: AvailableMetric = { ..._def, name: key, display_scale: '0-1' }
-        const second: AvailableMetric = { ..._def, name: key, display_scale: '0-18' }
+        const first: AvailableMetric = {
+          ..._def,
+          name: key,
+          display_scale: '0-1',
+        }
+        const second: AvailableMetric = {
+          ..._def,
+          name: key,
+          display_scale: '0-18',
+        }
         registerMetric(key, first)
         registerMetric(key, second)
         const all = getMetricDefinitions()
@@ -417,29 +442,33 @@ describe('getGroupedMetrics — merge algebra', () => {
 
   it('merging an extended group into a core group is a union (no dup, core desc wins)', () => {
     fc.assert(
-      fc.property(fc.uuid(), fc.array(fc.uuid(), { maxLength: 4 }), (id, extraIds) => {
-        const core = GROUPED_METRICS[0] // 'Lexical Metrics'
-        const before = getGroupedMetrics().find((g) => g.name === core.name)!
-        const beforeMetrics = [...before.metrics]
-        const newKeys = extraIds.map((x) => `ext_${id}_${x}`)
-        // Include one already-present core metric to exercise the dedup branch.
-        const overlap = core.metrics[0]
-        registerMetricGroup({
-          name: core.name,
-          description: 'should-be-ignored-on-merge',
-          metrics: [overlap, ...newKeys],
-        })
-        const after = getGroupedMetrics().find((g) => g.name === core.name)!
-        // Core description is preserved, never overwritten by the merge.
-        expect(after.description).toBe(core.description)
-        // Result is the union: all prior metrics + the new keys, deduped.
-        const expectedUnion = new Set([...beforeMetrics, ...newKeys])
-        expect(new Set(after.metrics)).toEqual(expectedUnion)
-        // No duplicates introduced.
-        expect(new Set(after.metrics).size).toBe(after.metrics.length)
-        // The overlapping core metric still appears exactly once.
-        expect(after.metrics.filter((m) => m === overlap)).toHaveLength(1)
-      }),
+      fc.property(
+        fc.uuid(),
+        fc.array(fc.uuid(), { maxLength: 4 }),
+        (id, extraIds) => {
+          const core = GROUPED_METRICS[0] // 'Lexical Metrics'
+          const before = getGroupedMetrics().find((g) => g.name === core.name)!
+          const beforeMetrics = [...before.metrics]
+          const newKeys = extraIds.map((x) => `ext_${id}_${x}`)
+          // Include one already-present core metric to exercise the dedup branch.
+          const overlap = core.metrics[0]
+          registerMetricGroup({
+            name: core.name,
+            description: 'should-be-ignored-on-merge',
+            metrics: [overlap, ...newKeys],
+          })
+          const after = getGroupedMetrics().find((g) => g.name === core.name)!
+          // Core description is preserved, never overwritten by the merge.
+          expect(after.description).toBe(core.description)
+          // Result is the union: all prior metrics + the new keys, deduped.
+          const expectedUnion = new Set([...beforeMetrics, ...newKeys])
+          expect(new Set(after.metrics)).toEqual(expectedUnion)
+          // No duplicates introduced.
+          expect(new Set(after.metrics).size).toBe(after.metrics.length)
+          // The overlapping core metric still appears exactly once.
+          expect(after.metrics.filter((m) => m === overlap)).toHaveLength(1)
+        },
+      ),
     )
   })
 
@@ -469,9 +498,9 @@ describe('getGroupedMetrics — merge algebra', () => {
         expect(found.metrics).toEqual(metrics)
         // Copied, not aliased — mutating the result must not touch our input.
         found.metrics.push('mutated')
-        expect(getGroupedMetrics().find((g) => g.name === name)!.metrics).toEqual(
-          metrics,
-        )
+        expect(
+          getGroupedMetrics().find((g) => g.name === name)!.metrics,
+        ).toEqual(metrics)
       }),
     )
   })
@@ -507,7 +536,9 @@ describe('getDimensionDisplayName — total label lookup', () => {
   it('fixed points: boundary_accuracy / accuracy collision resolves to the type-specific label', () => {
     // `accuracy` exists as a type-specific key (-> 'Selection Accuracy'); the
     // type-specific branch must win over the capitalize fallback ('Accuracy').
-    expect(getDimensionDisplayName('boundary_accuracy')).toBe('Boundary Accuracy')
+    expect(getDimensionDisplayName('boundary_accuracy')).toBe(
+      'Boundary Accuracy',
+    )
     expect(getDimensionDisplayName('accuracy')).toBe('Selection Accuracy')
     // Pure fallback example with no underscore.
     expect(getDimensionDisplayName('helpfulness')).toBe('Helpfulness')
@@ -529,21 +560,31 @@ describe('field specifier classification — total & consistent', () => {
   })
 
   it('getFieldDisplayName: specifiers map to their label; bare fields are identity', () => {
-    expect(getFieldDisplayName(FIELD_SPECIFIERS.ALL_MODEL)).toBe('All model responses')
-    expect(getFieldDisplayName(FIELD_SPECIFIERS.ALL_HUMAN)).toBe('All human annotations')
+    expect(getFieldDisplayName(FIELD_SPECIFIERS.ALL_MODEL)).toBe(
+      'All model responses',
+    )
+    expect(getFieldDisplayName(FIELD_SPECIFIERS.ALL_HUMAN)).toBe(
+      'All human annotations',
+    )
     // The two unstructured-response aliases.
-    expect(getFieldDisplayName('model:__response__')).toBe('Model Response (unstructured)')
-    expect(getFieldDisplayName('__response__')).toBe('Model Response (unstructured)')
+    expect(getFieldDisplayName('model:__response__')).toBe(
+      'Model Response (unstructured)',
+    )
+    expect(getFieldDisplayName('__response__')).toBe(
+      'Model Response (unstructured)',
+    )
     // Any other field is returned verbatim.
     fc.assert(
       fc.property(
-        fc.string().filter(
-          (s) =>
-            s !== FIELD_SPECIFIERS.ALL_MODEL &&
-            s !== FIELD_SPECIFIERS.ALL_HUMAN &&
-            s !== 'model:__response__' &&
-            s !== '__response__',
-        ),
+        fc
+          .string()
+          .filter(
+            (s) =>
+              s !== FIELD_SPECIFIERS.ALL_MODEL &&
+              s !== FIELD_SPECIFIERS.ALL_HUMAN &&
+              s !== 'model:__response__' &&
+              s !== '__response__',
+          ),
         (field) => {
           expect(getFieldDisplayName(field)).toBe(field)
         },

@@ -57,7 +57,15 @@ const mockApiClient = {
   updateOrganization: jest.fn(),
 } as unknown as ApiClient
 
-const mockOrg = { id: 'org-1', name: 'TUM', display_name: 'TUM', slug: 'tum', description: '', created_at: '2024-01-01', updated_at: '2024-01-01' }
+const mockOrg = {
+  id: 'org-1',
+  name: 'TUM',
+  display_name: 'TUM',
+  slug: 'tum',
+  description: '',
+  created_at: '2024-01-01',
+  updated_at: '2024-01-01',
+}
 
 function setupMocks(overrides: Record<string, any> = {}) {
   ;(useFeatureFlags as jest.Mock).mockReturnValue({
@@ -75,7 +83,9 @@ function setupMocks(overrides: Record<string, any> = {}) {
     changeLocale: jest.fn(),
   })
   ;(useErrorAlert as jest.Mock).mockReturnValue(jest.fn())
-  ;(useDeleteConfirm as jest.Mock).mockReturnValue(jest.fn().mockResolvedValue(true))
+  ;(useDeleteConfirm as jest.Mock).mockReturnValue(
+    jest.fn().mockResolvedValue(true),
+  )
 
   const mockApi = api as jest.Mocked<typeof api>
   mockApi.getAllUsers = jest.fn().mockResolvedValue(overrides.users ?? [])
@@ -171,7 +181,9 @@ describe('AdminUsersPage Branch Coverage', () => {
     it('handles error when fetching users fails', async () => {
       setupMocks()
       const mockApi = api as jest.Mocked<typeof api>
-      mockApi.getAllUsers = jest.fn().mockRejectedValue(new Error('Network error'))
+      mockApi.getAllUsers = jest
+        .fn()
+        .mockRejectedValue(new Error('Network error'))
       render(<AdminUsersPage />)
       // Should show error state after load fails
       await waitFor(() => {

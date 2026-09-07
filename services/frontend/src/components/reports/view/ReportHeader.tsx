@@ -1,6 +1,6 @@
-import Link from 'next/link'
 import { Badge } from '@/components/shared/Badge'
 import { formatDate, formatDateTime } from '@/lib/reports/format'
+import Link from 'next/link'
 import type { TranslateFn } from './chartTheme'
 
 interface ReportHeaderProps {
@@ -42,7 +42,7 @@ export function ReportHeader({
             )}
           </div>
           {description && (
-            <p className="mt-3 max-w-3xl whitespace-pre-line text-base leading-7 text-zinc-600 dark:text-zinc-300">
+            <p className="mt-3 max-w-3xl text-base leading-7 whitespace-pre-line text-zinc-600 dark:text-zinc-300">
               {description}
             </p>
           )}
@@ -58,11 +58,17 @@ export function ReportHeader({
       </div>
       <div className="mt-3 flex flex-wrap gap-x-6 gap-y-1 text-sm text-zinc-500 dark:text-zinc-400">
         {published && (
-          <span>{t('reports.view.publishedOn', 'Veröffentlicht am {date}', { date: published })}</span>
+          <span>
+            {t('reports.view.publishedOn', 'Veröffentlicht am {date}', {
+              date: published,
+            })}
+          </span>
         )}
         {generated && (
           <span data-testid="data-as-of">
-            {t('reports.view.dataAsOf', 'Datenstand: {date}', { date: generated })}
+            {t('reports.view.dataAsOf', 'Datenstand: {date}', {
+              date: generated,
+            })}
           </span>
         )}
       </div>

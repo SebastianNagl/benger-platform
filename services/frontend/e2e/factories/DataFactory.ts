@@ -106,7 +106,7 @@ export class TestDataFactory {
    */
   static generateCSV(
     rowCount: number,
-    includeAnnotations: boolean = false
+    includeAnnotations: boolean = false,
   ): string {
     const headers = ['text', 'document_id', 'category', 'priority']
     if (includeAnnotations) {
@@ -126,7 +126,7 @@ export class TestDataFactory {
       if (includeAnnotations) {
         row.push(
           `"${faker.lorem.words(3).replace(/"/g, '""')}"`,
-          faker.number.float({ min: 0.5, max: 1, precision: 0.01 }).toString()
+          faker.number.float({ min: 0.5, max: 1, precision: 0.01 }).toString(),
         )
       }
 
@@ -141,7 +141,7 @@ export class TestDataFactory {
    */
   static generateJSON(
     taskCount: number,
-    includeAnnotations: boolean = false
+    includeAnnotations: boolean = false,
   ): string {
     const tasks = []
 
@@ -233,7 +233,7 @@ export class TestDataFactory {
   static async importCSV(
     page: Page,
     csvContent: string,
-    fileName: string = 'test-data.csv'
+    fileName: string = 'test-data.csv',
   ): Promise<void> {
     const buffer = Buffer.from(csvContent)
 
@@ -244,12 +244,12 @@ export class TestDataFactory {
         name: fileName,
         mimeType: 'text/csv',
         buffer: buffer,
-      }
+      },
     )
 
     // Click import button
     const importButton = page.locator(
-      '[data-testid="import-button"], button:has-text("Import")'
+      '[data-testid="import-button"], button:has-text("Import")',
     )
     await importButton.click()
 
@@ -267,7 +267,7 @@ export class TestDataFactory {
   static async importJSON(
     page: Page,
     jsonContent: string,
-    fileName: string = 'test-data.json'
+    fileName: string = 'test-data.json',
   ): Promise<void> {
     const buffer = Buffer.from(jsonContent)
 
@@ -277,11 +277,11 @@ export class TestDataFactory {
         name: fileName,
         mimeType: 'application/json',
         buffer: buffer,
-      }
+      },
     )
 
     const importButton = page.locator(
-      '[data-testid="import-button"], button:has-text("Import")'
+      '[data-testid="import-button"], button:has-text("Import")',
     )
     await importButton.click()
 
@@ -297,7 +297,7 @@ export class TestDataFactory {
    */
   static createAnnotation(
     taskId: string,
-    annotationType: string = 'text'
+    annotationType: string = 'text',
   ): AnnotationData {
     const annotationTypes: Record<string, any> = {
       text: {
@@ -407,7 +407,7 @@ export class TestDataFactory {
    * Generate realistic legal document text
    */
   static generateLegalText(
-    type: 'contract' | 'court_decision' | 'legislation' | 'brief' = 'contract'
+    type: 'contract' | 'court_decision' | 'legislation' | 'brief' = 'contract',
   ): string {
     const templates = {
       contract: [

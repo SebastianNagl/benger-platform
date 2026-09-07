@@ -20,7 +20,12 @@ import { useUIStore } from '@/stores'
 import { useProjectStore } from '@/stores/projectStore'
 import '@testing-library/jest-dom'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { useRouter, useParams, useSearchParams, usePathname } from 'next/navigation'
+import {
+  useParams,
+  usePathname,
+  useRouter,
+  useSearchParams,
+} from 'next/navigation'
 
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
@@ -108,10 +113,14 @@ jest.mock('@/components/projects/LabelConfigEditor', () => {
   }
 })
 jest.mock('@/components/projects/PromptStructuresManager', () => ({
-  PromptStructuresManager: () => <div data-testid="prompt-structures-manager" />,
+  PromptStructuresManager: () => (
+    <div data-testid="prompt-structures-manager" />
+  ),
 }))
 jest.mock('@/components/projects/GenerationStructureEditor', () => ({
-  GenerationStructureEditor: () => <div data-testid="generation-structure-editor" />,
+  GenerationStructureEditor: () => (
+    <div data-testid="generation-structure-editor" />
+  ),
 }))
 jest.mock('@/components/evaluation/EvaluationBuilder', () => ({
   EvaluationBuilder: () => <div data-testid="evaluation-builder" />,
@@ -188,7 +197,12 @@ beforeAll(async () => {
 })
 
 describe('ProjectDetailPage — participant tier', () => {
-  const annotatorUser = { ...mockUser, id: 'member-1', role: 'ANNOTATOR', is_superadmin: false }
+  const annotatorUser = {
+    ...mockUser,
+    id: 'member-1',
+    role: 'ANNOTATOR',
+    is_superadmin: false,
+  }
   const setup = (projectOverrides: any, user: any = annotatorUser) => {
     ;(useRouter as jest.Mock).mockReturnValue(mockRouter)
     ;(useAuth as jest.Mock).mockReturnValue({ user, currentOrganization: null })
@@ -196,7 +210,12 @@ describe('ProjectDetailPage — participant tier', () => {
     ;(useFeatureFlag as jest.Mock).mockReturnValue(true)
     ;(useUIStore as jest.Mock).mockReturnValue({ isSidebarHidden: false })
     ;(useModels as jest.Mock).mockReturnValue({
-      models: [], loading: false, error: null, refetch: jest.fn(), hasApiKeys: true, apiKeyStatus: {},
+      models: [],
+      loading: false,
+      error: null,
+      refetch: jest.fn(),
+      hasApiKeys: true,
+      apiKeyStatus: {},
     })
     ;(useProjectStore as jest.Mock).mockReturnValue({
       currentProject: { ...mockProject, ...projectOverrides },
@@ -225,16 +244,22 @@ describe('ProjectDetailPage — participant tier', () => {
     registerSlot('project-sharing', () => <div data-testid="sharing-stub" />)
     const params = Promise.resolve({ id: 'test-project-123' })
     render(<ProjectDetailPage params={params} />)
-    expect(await screen.findByTestId('project-participant-badge')).toBeInTheDocument()
+    expect(
+      await screen.findByTestId('project-participant-badge'),
+    ).toBeInTheDocument()
     const card = screen.getByTestId('participant-card-stub')
     expect(card).toHaveAttribute('data-via', 'share')
     expect(card).toHaveTextContent('test-project-123')
     // No settings / sharing for participants; quick actions reduced.
     expect(screen.queryByText('project.settings.title')).not.toBeInTheDocument()
     expect(screen.queryByTestId('sharing-stub')).not.toBeInTheDocument()
-    expect(screen.queryByText('project.quickActions.projectData')).not.toBeInTheDocument()
+    expect(
+      screen.queryByText('project.quickActions.projectData'),
+    ).not.toBeInTheDocument()
     // No evaluation-config / report fetches (they would 403).
-    const calledUrls = (apiClient.get as jest.Mock).mock.calls.map((c) => String(c[0]))
+    const calledUrls = (apiClient.get as jest.Mock).mock.calls.map((c) =>
+      String(c[0]),
+    )
     expect(calledUrls.some((u) => u.includes('evaluation-config'))).toBe(false)
     expect(calledUrls.some((u) => u.includes('/report'))).toBe(false)
     fireEvent.click(screen.getByText('leave'))
@@ -247,8 +272,12 @@ describe('ProjectDetailPage — participant tier', () => {
     const params = Promise.resolve({ id: 'test-project-123' })
     render(<ProjectDetailPage params={params} />)
     await screen.findAllByText('Test Project')
-    expect(screen.queryByTestId('participant-card-stub')).not.toBeInTheDocument()
-    expect(screen.queryByTestId('project-participant-badge')).not.toBeInTheDocument()
+    expect(
+      screen.queryByTestId('participant-card-stub'),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByTestId('project-participant-badge'),
+    ).not.toBeInTheDocument()
     // Config cards stay (contents are gated per card), no title edit button.
     expect(screen.getByText('project.settings.title')).toBeInTheDocument()
   })
@@ -256,17 +285,22 @@ describe('ProjectDetailPage — participant tier', () => {
   it('mounts the deck workspace slot with canEdit for editors', async () => {
     // Org project + CONTRIBUTOR context role (edit rights are membership
     // based; the API's effective_role is display-only on this page).
-    setup({ access_tier: 'full', effective_role: 'CONTRIBUTOR' }, {
-      ...annotatorUser,
-      role: 'CONTRIBUTOR',
-    })
+    setup(
+      { access_tier: 'full', effective_role: 'CONTRIBUTOR' },
+      {
+        ...annotatorUser,
+        role: 'CONTRIBUTOR',
+      },
+    )
     ;(useAuth as jest.Mock).mockReturnValue({
       user: { ...annotatorUser, role: 'CONTRIBUTOR' },
       currentOrganization: { id: 'org-1', name: 'TUM' },
     })
     const { registerSlot } = jest.requireActual('@/lib/extensions/slots')
     const Stub = jest.fn(({ project, canEdit }: any) => (
-      <div data-testid="deck-stub" data-can-edit={String(canEdit)}>{project.id}</div>
+      <div data-testid="deck-stub" data-can-edit={String(canEdit)}>
+        {project.id}
+      </div>
     ))
     registerSlot('project-deck-workspace', Stub)
     const params = Promise.resolve({ id: 'test-project-123' })
@@ -282,11 +316,18 @@ describe('ProjectDetailPage — header icon editing', () => {
   const setup = (projectOverrides: any, user: any) => {
     ;(useRouter as jest.Mock).mockReturnValue(mockRouter)
     ;(useAuth as jest.Mock).mockReturnValue({ user, currentOrganization: null })
-    ;(useI18n as jest.Mock).mockReturnValue({ t: (k: string, d?: any) => (typeof d === 'string' ? d : k) })
+    ;(useI18n as jest.Mock).mockReturnValue({
+      t: (k: string, d?: any) => (typeof d === 'string' ? d : k),
+    })
     ;(useFeatureFlag as jest.Mock).mockReturnValue(true)
     ;(useUIStore as jest.Mock).mockReturnValue({ isSidebarHidden: false })
     ;(useModels as jest.Mock).mockReturnValue({
-      models: [], loading: false, error: null, refetch: jest.fn(), hasApiKeys: true, apiKeyStatus: {},
+      models: [],
+      loading: false,
+      error: null,
+      refetch: jest.fn(),
+      hasApiKeys: true,
+      apiKeyStatus: {},
     })
     const updateProject = jest.fn().mockResolvedValue({})
     ;(useProjectStore as jest.Mock).mockReturnValue({
@@ -317,12 +358,17 @@ describe('ProjectDetailPage — header icon editing', () => {
     fireEvent.click(await screen.findByTestId('project-icon-🎓'))
     fireEvent.click(screen.getByTestId('project-icon-save'))
     await waitFor(() =>
-      expect(updateProject).toHaveBeenCalledWith('test-project-123', { icon: '🎓' }),
+      expect(updateProject).toHaveBeenCalledWith('test-project-123', {
+        icon: '🎓',
+      }),
     )
   })
 
   it('non-creator annotator: icon is plain text', async () => {
-    setup({ icon: '📚', created_by: 'someone-else' }, { ...mockUser, id: 'member-1', is_superadmin: false, role: 'ANNOTATOR' })
+    setup(
+      { icon: '📚', created_by: 'someone-else' },
+      { ...mockUser, id: 'member-1', is_superadmin: false, role: 'ANNOTATOR' },
+    )
     const params = Promise.resolve({ id: 'test-project-123' })
     render(<ProjectDetailPage params={params} />)
     const icon = await screen.findByTestId('project-header-icon')

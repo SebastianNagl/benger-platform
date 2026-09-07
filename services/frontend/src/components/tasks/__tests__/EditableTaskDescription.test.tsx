@@ -122,7 +122,7 @@ describe('EditableTaskDescription', () => {
       render(<EditableTaskDescription task={baseTask} />)
 
       expect(
-        screen.getByText('This is a test task description with some content.')
+        screen.getByText('This is a test task description with some content.'),
       ).toBeInTheDocument()
     })
 
@@ -134,13 +134,13 @@ describe('EditableTaskDescription', () => {
       mockUseAuth.mockReturnValue({ user: regularUser })
 
       const { container } = render(
-        <EditableTaskDescription task={taskWithWhitespace} />
+        <EditableTaskDescription task={taskWithWhitespace} />,
       )
 
       const descriptionElement = container.querySelector('.whitespace-pre-wrap')
       expect(descriptionElement).toBeInTheDocument()
       expect(descriptionElement?.textContent).toBe(
-        'Line 1\n\nLine 3\n    Indented line'
+        'Line 1\n\nLine 3\n    Indented line',
       )
       expect(descriptionElement).toHaveClass('whitespace-pre-wrap')
     })
@@ -148,7 +148,7 @@ describe('EditableTaskDescription', () => {
     it('applies custom className', () => {
       mockUseAuth.mockReturnValue({ user: regularUser })
       const { container } = render(
-        <EditableTaskDescription task={baseTask} className="custom-class" />
+        <EditableTaskDescription task={baseTask} className="custom-class" />,
       )
 
       const component = container.querySelector('.custom-class')
@@ -161,7 +161,7 @@ describe('EditableTaskDescription', () => {
       render(<EditableTaskDescription task={baseTask} />)
 
       const descriptionElement = screen.getByText(
-        'This is a test task description with some content.'
+        'This is a test task description with some content.',
       )
       expect(descriptionElement).toHaveClass('whitespace-pre-wrap')
     })
@@ -193,7 +193,7 @@ describe('EditableTaskDescription', () => {
       const descriptionArea = screen.getByTitle('Click to edit description')
       expect(descriptionArea).toHaveClass(
         'hover:text-zinc-800',
-        'dark:hover:text-zinc-200'
+        'dark:hover:text-zinc-200',
       )
     })
 
@@ -207,8 +207,8 @@ describe('EditableTaskDescription', () => {
       expect(screen.getByTestId('description-textarea')).toBeInTheDocument()
       expect(
         screen.getByDisplayValue(
-          'This is a test task description with some content.'
-        )
+          'This is a test task description with some content.',
+        ),
       ).toBeInTheDocument()
     })
 
@@ -262,7 +262,7 @@ describe('EditableTaskDescription', () => {
       render(<EditableTaskDescription task={baseTask} />)
 
       const descriptionElement = screen.getByText(
-        'This is a test task description with some content.'
+        'This is a test task description with some content.',
       )
       const parentDiv = descriptionElement.closest('div')
       expect(parentDiv).not.toHaveClass('cursor-pointer')
@@ -272,7 +272,7 @@ describe('EditableTaskDescription', () => {
       render(<EditableTaskDescription task={baseTask} />)
 
       expect(
-        screen.queryByTitle('Click to edit description')
+        screen.queryByTitle('Click to edit description'),
       ).not.toBeInTheDocument()
     })
 
@@ -281,12 +281,12 @@ describe('EditableTaskDescription', () => {
       render(<EditableTaskDescription task={baseTask} />)
 
       const descriptionElement = screen.getByText(
-        'This is a test task description with some content.'
+        'This is a test task description with some content.',
       )
       await user.click(descriptionElement)
 
       expect(
-        screen.queryByTestId('description-textarea')
+        screen.queryByTestId('description-textarea'),
       ).not.toBeInTheDocument()
     })
   })
@@ -307,7 +307,7 @@ describe('EditableTaskDescription', () => {
       render(<EditableTaskDescription task={baseTask} />)
 
       expect(
-        screen.getByText('This is a test task description with some content.')
+        screen.getByText('This is a test task description with some content.'),
       ).toBeInTheDocument()
     })
   })
@@ -326,7 +326,7 @@ describe('EditableTaskDescription', () => {
 
       const textarea = screen.getByTestId('description-textarea')
       expect(textarea).toHaveValue(
-        'This is a test task description with some content.'
+        'This is a test task description with some content.',
       )
     })
 
@@ -349,7 +349,7 @@ describe('EditableTaskDescription', () => {
       await user.click(editButton)
 
       const textarea = screen.getByTestId(
-        'description-textarea'
+        'description-textarea',
       ) as HTMLTextAreaElement
       expect(textarea.selectionStart).toBe(textarea.value.length)
       expect(textarea.selectionEnd).toBe(textarea.value.length)
@@ -364,8 +364,8 @@ describe('EditableTaskDescription', () => {
 
       expect(
         screen.getByText(
-          'Press Ctrl+Enter to save, Escape to cancel, or click outside to save'
-        )
+          'Press Ctrl+Enter to save, Escape to cancel, or click outside to save',
+        ),
       ).toBeInTheDocument()
     })
 
@@ -377,7 +377,7 @@ describe('EditableTaskDescription', () => {
       await user.click(editButton)
 
       const textarea = screen.getByTestId(
-        'description-textarea'
+        'description-textarea',
       ) as HTMLTextAreaElement
       const initialHeight = textarea.style.height
 
@@ -425,7 +425,7 @@ describe('EditableTaskDescription', () => {
         'focus:ring-2',
         'focus:ring-emerald-500/20',
         'resize-none',
-        'min-h-[80px]'
+        'min-h-[80px]',
       )
     })
   })
@@ -441,7 +441,7 @@ describe('EditableTaskDescription', () => {
         <EditableTaskDescription
           task={baseTask}
           onTaskUpdated={mockOnTaskUpdated}
-        />
+        />,
       )
 
       const editButton = screen.getByTitle('Edit description')
@@ -495,10 +495,10 @@ describe('EditableTaskDescription', () => {
 
       // Should exit edit mode without saving
       expect(
-        screen.queryByTestId('description-textarea')
+        screen.queryByTestId('description-textarea'),
       ).not.toBeInTheDocument()
       expect(
-        screen.getByText('This is a test task description with some content.')
+        screen.getByText('This is a test task description with some content.'),
       ).toBeInTheDocument()
       expect(mockApi.updateTask).not.toHaveBeenCalled()
     })
@@ -554,7 +554,7 @@ describe('EditableTaskDescription', () => {
 
       // Mock a slow API call
       mockApi.updateTask.mockImplementation(
-        () => new Promise((resolve) => setTimeout(resolve, 1000))
+        () => new Promise((resolve) => setTimeout(resolve, 1000)),
       )
 
       render(<EditableTaskDescription task={baseTask} />)
@@ -590,7 +590,7 @@ describe('EditableTaskDescription', () => {
         <EditableTaskDescription
           task={baseTask}
           onTaskUpdated={mockOnTaskUpdated}
-        />
+        />,
       )
 
       const editButton = screen.getByTitle('Edit description')
@@ -610,7 +610,7 @@ describe('EditableTaskDescription', () => {
 
       await waitFor(() => {
         expect(
-          screen.queryByTestId('description-textarea')
+          screen.queryByTestId('description-textarea'),
         ).not.toBeInTheDocument()
       })
     })
@@ -631,7 +631,7 @@ describe('EditableTaskDescription', () => {
       await waitFor(() => {
         expect(mockAddToast).toHaveBeenCalledWith(
           'Description updated successfully',
-          'success'
+          'success',
         )
       })
     })
@@ -645,7 +645,7 @@ describe('EditableTaskDescription', () => {
         <EditableTaskDescription
           task={baseTask}
           onTaskUpdated={mockOnTaskUpdated}
-        />
+        />,
       )
 
       const editButton = screen.getByTitle('Edit description')
@@ -695,7 +695,7 @@ describe('EditableTaskDescription', () => {
       // Should exit edit mode without calling API
       await waitFor(() => {
         expect(
-          screen.queryByTestId('description-textarea')
+          screen.queryByTestId('description-textarea'),
         ).not.toBeInTheDocument()
       })
       expect(mockApi.updateTask).not.toHaveBeenCalled()
@@ -740,7 +740,7 @@ describe('EditableTaskDescription', () => {
 
       expect(mockAddToast).toHaveBeenCalledWith(
         'Task description cannot be empty',
-        'error'
+        'error',
       )
       expect(mockApi.updateTask).not.toHaveBeenCalled()
 
@@ -763,7 +763,7 @@ describe('EditableTaskDescription', () => {
 
       expect(mockAddToast).toHaveBeenCalledWith(
         'Task description cannot be empty',
-        'error'
+        'error',
       )
       expect(mockApi.updateTask).not.toHaveBeenCalled()
     })
@@ -792,7 +792,7 @@ describe('EditableTaskDescription', () => {
       await waitFor(() => {
         expect(mockAddToast).toHaveBeenCalledWith(
           'Failed to update description: API Error',
-          'error'
+          'error',
         )
       })
     })
@@ -818,7 +818,7 @@ describe('EditableTaskDescription', () => {
       await waitFor(() => {
         expect(consoleSpy).toHaveBeenCalledWith(
           'Error updating description:',
-          expect.any(Error)
+          expect.any(Error),
         )
       })
 
@@ -843,7 +843,7 @@ describe('EditableTaskDescription', () => {
       await waitFor(() => {
         expect(mockAddToast).toHaveBeenCalledWith(
           'Failed to update description: Failed to update description',
-          'error'
+          'error',
         )
       })
     })
@@ -882,7 +882,7 @@ describe('EditableTaskDescription', () => {
 
       // Mock a slow API call
       mockApi.updateTask.mockImplementation(
-        () => new Promise((resolve) => setTimeout(resolve, 1000))
+        () => new Promise((resolve) => setTimeout(resolve, 1000)),
       )
 
       render(<EditableTaskDescription task={baseTask} />)
@@ -915,7 +915,7 @@ describe('EditableTaskDescription', () => {
 
       await waitFor(() => {
         expect(
-          screen.queryByTestId('description-textarea')
+          screen.queryByTestId('description-textarea'),
         ).not.toBeInTheDocument()
       })
     })
@@ -979,11 +979,11 @@ describe('EditableTaskDescription', () => {
       render(<EditableTaskDescription task={baseTask} />)
 
       const descriptionText = screen.getByText(
-        'This is a test task description with some content.'
+        'This is a test task description with some content.',
       )
       expect(descriptionText.closest('div')).toHaveClass(
         'text-zinc-600',
-        'dark:text-zinc-400'
+        'dark:text-zinc-400',
       )
     })
 
@@ -1001,7 +1001,7 @@ describe('EditableTaskDescription', () => {
         'text-zinc-500',
         'hover:text-zinc-600',
         'dark:text-zinc-400',
-        'dark:hover:text-zinc-300'
+        'dark:hover:text-zinc-300',
       )
     })
   })
@@ -1026,7 +1026,7 @@ describe('EditableTaskDescription', () => {
       const descriptionArea = screen.getByTitle('Click to edit description')
       expect(descriptionArea).toHaveClass(
         'hover:text-zinc-800',
-        'dark:hover:text-zinc-200'
+        'dark:hover:text-zinc-200',
       )
     })
 
@@ -1038,7 +1038,7 @@ describe('EditableTaskDescription', () => {
       const editButton = screen.getByTitle('Edit description')
       expect(editButton).toHaveClass(
         'dark:text-zinc-400',
-        'dark:hover:text-zinc-300'
+        'dark:hover:text-zinc-300',
       )
     })
 
@@ -1079,7 +1079,7 @@ describe('EditableTaskDescription', () => {
       const textarea = screen.getByTestId('description-textarea')
       expect(textarea).toHaveAttribute(
         'placeholder',
-        'Enter task description...'
+        'Enter task description...',
       )
       expect(textarea).toHaveAttribute('rows', '3')
     })
@@ -1107,7 +1107,7 @@ describe('EditableTaskDescription', () => {
       render(<EditableTaskDescription task={longDescriptionTask} />)
 
       expect(
-        screen.getByText(longDescriptionTask.description)
+        screen.getByText(longDescriptionTask.description),
       ).toBeInTheDocument()
     })
 
@@ -1129,7 +1129,7 @@ describe('EditableTaskDescription', () => {
       render(<EditableTaskDescription task={specialTask} />)
 
       expect(
-        screen.getByText('Description with <>&"\' special chars & symbols')
+        screen.getByText('Description with <>&"\' special chars & symbols'),
       ).toBeInTheDocument()
     })
 
@@ -1154,7 +1154,7 @@ describe('EditableTaskDescription', () => {
       render(
         <div onClick={mockParentClick}>
           <EditableTaskDescription task={baseTask} />
-        </div>
+        </div>,
       )
 
       const editButton = screen.getByTitle('Edit description')

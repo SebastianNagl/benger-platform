@@ -69,17 +69,21 @@ jest.mock('@/contexts/I18nContext', () => ({
         'dataImport.tabs.paste': 'Paste Data',
         'dataImport.tabs.cloud': 'Cloud Storage',
         'projects.creation.wizard.step2.upload.dropzone': 'Drop files here',
-        'projects.creation.wizard.step2.upload.supportedFormats': 'JSON, CSV, TSV, TXT',
+        'projects.creation.wizard.step2.upload.supportedFormats':
+          'JSON, CSV, TSV, TXT',
         'projects.creation.wizard.step2.upload.chooseFiles': 'Choose Files',
         'projects.creation.wizard.step2.upload.removeFile': 'Remove File',
-        'projects.creation.wizard.step2.upload.selectedFile': 'Selected: {filename}',
+        'projects.creation.wizard.step2.upload.selectedFile':
+          'Selected: {filename}',
         'projects.creation.wizard.step2.paste.label': 'Paste your data',
-        'projects.creation.wizard.step2.paste.placeholder': 'Paste data here...',
+        'projects.creation.wizard.step2.paste.placeholder':
+          'Paste data here...',
         'projects.creation.wizard.step2.paste.lines': '{count} lines',
         'projects.creation.wizard.step2.paste.noData': 'No data',
         'projects.creation.wizard.step2.paste.clear': 'Clear',
         'projects.creation.wizard.step2.paste.validate': 'Validate',
-        'projects.creation.wizard.step2.paste.formatDetected': '{format} detected',
+        'projects.creation.wizard.step2.paste.formatDetected':
+          '{format} detected',
         'projects.creation.wizard.step2.paste.invalidFormat': 'Invalid format',
         'tasks.importModal.validationError': 'Validation Error',
         'tasks.importModal.validationErrorDescription': 'Fields do not match',
@@ -102,7 +106,9 @@ jest.mock('@/contexts/I18nContext', () => ({
 jest.mock('@/components/tasks/ImportPreviewWithMapping', () => ({
   ImportPreviewWithMapping: ({ onImport, onCancel }: any) => (
     <div data-testid="import-preview">
-      <button onClick={() => onImport([{ data: { text: 'mapped' } }])}>Import Mapped</button>
+      <button onClick={() => onImport([{ data: { text: 'mapped' } }])}>
+        Import Mapped
+      </button>
       <button onClick={onCancel}>Cancel Mapping</button>
     </div>
   ),
@@ -142,8 +148,14 @@ describe('ImportDataModal - branch2 coverage', () => {
       updateProgress: mockUpdateProgress,
       completeProgress: mockCompleteProgress,
     })
-    ;(useProjectStore as jest.Mock).mockReturnValue({ fetchProject: mockFetchProject })
-    ;(projectsAPI.runNestedImportJob as jest.Mock).mockResolvedValue({ job_id: 'job-1', status: 'completed', result: { created_tasks: 5 } })
+    ;(useProjectStore as jest.Mock).mockReturnValue({
+      fetchProject: mockFetchProject,
+    })
+    ;(projectsAPI.runNestedImportJob as jest.Mock).mockResolvedValue({
+      job_id: 'job-1',
+      status: 'completed',
+      result: { created_tasks: 5 },
+    })
   })
 
   describe('parseData branches', () => {
@@ -169,7 +181,7 @@ describe('ImportDataModal - branch2 coverage', () => {
       expect(await uploadedImportEnvelope()).toEqual(
         expect.objectContaining({
           data: [{ data: { text: 'single item' } }],
-        })
+        }),
       )
     })
 
@@ -201,13 +213,19 @@ describe('ImportDataModal - branch2 coverage', () => {
       render(<ImportDataModal {...defaultProps} />)
 
       const tsvContent = 'name\tvalue\nAlice\t100\nBob\t200'
-      const file = new File([tsvContent], 'data.tsv', { type: 'text/tab-separated-values' })
-      const input = document.querySelector('input[type="file"]') as HTMLInputElement
+      const file = new File([tsvContent], 'data.tsv', {
+        type: 'text/tab-separated-values',
+      })
+      const input = document.querySelector(
+        'input[type="file"]',
+      ) as HTMLInputElement
       await userEvent.upload(input, file)
 
       await waitFor(() => screen.getByText('Selected: data.tsv'))
 
-      await userEvent.click(screen.getByRole('button', { name: /Import Data/i }))
+      await userEvent.click(
+        screen.getByRole('button', { name: /Import Data/i }),
+      )
 
       await waitFor(() => {
         expect(projectsAPI.runNestedImportJob).toHaveBeenCalled()
@@ -215,9 +233,11 @@ describe('ImportDataModal - branch2 coverage', () => {
       expect(await uploadedImportEnvelope()).toEqual(
         expect.objectContaining({
           data: expect.arrayContaining([
-            expect.objectContaining({ data: expect.objectContaining({ name: 'Alice' }) }),
+            expect.objectContaining({
+              data: expect.objectContaining({ name: 'Alice' }),
+            }),
           ]),
-        })
+        }),
       )
     })
   })
@@ -225,7 +245,10 @@ describe('ImportDataModal - branch2 coverage', () => {
   describe('error handling branches', () => {
     it('handles error with response.data.detail', async () => {
       ;(projectsAPI.runNestedImportJob as jest.Mock).mockRejectedValue({
-        response: { status: 500, data: { detail: 'Server-specific error message' } },
+        response: {
+          status: 500,
+          data: { detail: 'Server-specific error message' },
+        },
       })
 
       const user = userEvent.setup()
@@ -233,22 +256,32 @@ describe('ImportDataModal - branch2 coverage', () => {
 
       render(<ImportDataModal {...defaultProps} />)
 
-      const file = new File(['[{"data":{"text":"test"}}]'], 'test.json', { type: 'application/json' })
-      const input = document.querySelector('input[type="file"]') as HTMLInputElement
+      const file = new File(['[{"data":{"text":"test"}}]'], 'test.json', {
+        type: 'application/json',
+      })
+      const input = document.querySelector(
+        'input[type="file"]',
+      ) as HTMLInputElement
       await userEvent.upload(input, file)
       await waitFor(() => screen.getByText('Selected: test.json'))
 
       await user.click(screen.getByRole('button', { name: /Import Data/i }))
 
       await waitFor(() => {
-        expect(mockAddToast).toHaveBeenCalledWith('Failed to import data', 'error')
-        expect(mockCompleteProgress).toHaveBeenCalledWith(expect.any(String), 'error')
+        expect(mockAddToast).toHaveBeenCalledWith(
+          'Failed to import data',
+          'error',
+        )
+        expect(mockCompleteProgress).toHaveBeenCalledWith(
+          expect.any(String),
+          'error',
+        )
       })
     })
 
     it('handles error with message containing "Failed to parse"', async () => {
       ;(projectsAPI.runNestedImportJob as jest.Mock).mockRejectedValue(
-        new Error('Failed to parse CSV data: invalid format')
+        new Error('Failed to parse CSV data: invalid format'),
       )
 
       const user = userEvent.setup()
@@ -256,15 +289,22 @@ describe('ImportDataModal - branch2 coverage', () => {
 
       render(<ImportDataModal {...defaultProps} />)
 
-      const file = new File(['[{"data":{"text":"test"}}]'], 'test.json', { type: 'application/json' })
-      const input = document.querySelector('input[type="file"]') as HTMLInputElement
+      const file = new File(['[{"data":{"text":"test"}}]'], 'test.json', {
+        type: 'application/json',
+      })
+      const input = document.querySelector(
+        'input[type="file"]',
+      ) as HTMLInputElement
       await userEvent.upload(input, file)
       await waitFor(() => screen.getByText('Selected: test.json'))
 
       await user.click(screen.getByRole('button', { name: /Import Data/i }))
 
       await waitFor(() => {
-        expect(mockAddToast).toHaveBeenCalledWith('Failed to import data', 'error')
+        expect(mockAddToast).toHaveBeenCalledWith(
+          'Failed to import data',
+          'error',
+        )
       })
     })
   })
@@ -292,7 +332,7 @@ describe('ImportDataModal - branch2 coverage', () => {
     it('does nothing when button clicked during loading', async () => {
       // Make import hang
       ;(projectsAPI.runNestedImportJob as jest.Mock).mockImplementation(
-        () => new Promise(() => {})
+        () => new Promise(() => {}),
       )
 
       const user = userEvent.setup()
@@ -300,8 +340,12 @@ describe('ImportDataModal - branch2 coverage', () => {
 
       render(<ImportDataModal {...defaultProps} />)
 
-      const file = new File(['[{"data":{"text":"test"}}]'], 'test.json', { type: 'application/json' })
-      const input = document.querySelector('input[type="file"]') as HTMLInputElement
+      const file = new File(['[{"data":{"text":"test"}}]'], 'test.json', {
+        type: 'application/json',
+      })
+      const input = document.querySelector(
+        'input[type="file"]',
+      ) as HTMLInputElement
       await userEvent.upload(input, file)
       await waitFor(() => screen.getByText('Selected: test.json'))
 
@@ -346,8 +390,12 @@ describe('ImportDataModal - branch2 coverage', () => {
         expect(mockFetchProject).toHaveBeenCalled()
       })
 
-      const file = new File(['[{"data":{"wrong":"test"}}]'], 'test.json', { type: 'application/json' })
-      const input = document.querySelector('input[type="file"]') as HTMLInputElement
+      const file = new File(['[{"data":{"wrong":"test"}}]'], 'test.json', {
+        type: 'application/json',
+      })
+      const input = document.querySelector(
+        'input[type="file"]',
+      ) as HTMLInputElement
       await userEvent.upload(input, file)
       await waitFor(() => screen.getByText('Selected: test.json'))
 

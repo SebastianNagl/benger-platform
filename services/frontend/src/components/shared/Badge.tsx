@@ -39,7 +39,7 @@ export function Badge({
             variant === 'outline',
         },
         interactiveClasses,
-        className
+        className,
       )}
       {...props}
     >

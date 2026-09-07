@@ -62,7 +62,7 @@ export function Dialog({
           leaveFrom="opacity-100"
           leaveTo="opacity-0"
         >
-          <div className="fixed inset-0 bg-black bg-opacity-25" />
+          <div className="fixed inset-0 bg-black/25" />
         </Transition.Child>
 
         <div className="fixed inset-0 overflow-y-auto">
@@ -82,20 +82,20 @@ export function Dialog({
                   // Default width unless the caller sets its own max-w-* (clsx
                   // cannot resolve the Tailwind conflict, so guard it here).
                   !/(^|\s)([a-z]+:)?max-w-/.test(className ?? '') && 'max-w-md',
-                  className
+                  className,
                 )}
               >
                 {title && (
                   <div className="mb-4">
                     <HeadlessDialog.Title
                       as="h3"
-                      className="text-lg font-medium leading-6 text-gray-900 dark:text-white"
+                      className="text-lg leading-6 font-medium text-gray-900 dark:text-white"
                     >
                       {title}
                     </HeadlessDialog.Title>
                     <button
                       onClick={handleClose}
-                      className="absolute right-4 top-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                      className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                     >
                       <XMarkIcon className="h-5 w-5" />
                     </button>
@@ -116,7 +116,7 @@ export function DialogContent({ children, className }: DialogContentProps) {
     <HeadlessDialog.Panel
       className={clsx(
         'w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all dark:bg-gray-800',
-        className
+        className,
       )}
     >
       {children}
@@ -133,8 +133,8 @@ export function DialogTitle({ children, className }: DialogTitleProps) {
     <HeadlessDialog.Title
       as="h3"
       className={clsx(
-        'text-lg font-medium leading-6 text-gray-900 dark:text-white',
-        className
+        'text-lg leading-6 font-medium text-gray-900 dark:text-white',
+        className,
       )}
     >
       {children}

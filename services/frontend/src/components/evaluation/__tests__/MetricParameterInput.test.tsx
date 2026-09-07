@@ -16,9 +16,11 @@ jest.mock('@/contexts/I18nContext', () => ({
         'evaluation.metricParams.configure': `Configure ${params?.metric}`,
         'evaluation.metricParams.resetToDefaults': 'Reset to Defaults',
         'evaluation.metricParams.bleu.maxNgramOrder': 'Max N-gram Order',
-        'evaluation.metricParams.bleu.maxNgramOrderHelp': 'Highest n-gram order',
+        'evaluation.metricParams.bleu.maxNgramOrderHelp':
+          'Highest n-gram order',
         'evaluation.metricParams.bleu.smoothingMethod': 'Smoothing Method',
-        'evaluation.metricParams.bleu.smoothingMethodHelp': 'Method for smoothing',
+        'evaluation.metricParams.bleu.smoothingMethodHelp':
+          'Method for smoothing',
         'evaluation.metricParams.bleu.ngram1': 'Unigrams (1)',
         'evaluation.metricParams.bleu.ngram2': 'Bigrams (2)',
         'evaluation.metricParams.bleu.ngram3': 'Trigrams (3)',
@@ -98,7 +100,7 @@ describe('MetricParameterInput', () => {
           metric="accuracy"
           parameters={{}}
           onChange={jest.fn()}
-        />
+        />,
       )
       expect(container.firstChild).toBeNull()
     })
@@ -109,7 +111,7 @@ describe('MetricParameterInput', () => {
           metric="custom_metric"
           parameters={{}}
           onChange={jest.fn()}
-        />
+        />,
       )
       expect(container.firstChild).toBeNull()
     })
@@ -170,19 +172,21 @@ describe('MetricParameterInput', () => {
           metric="bleu"
           parameters={{}}
           onChange={onChange}
-        />
+        />,
       )
 
       await user.click(screen.getByText(/Show/))
 
       // Find the n-gram order select near its label
       const label = screen.getByText('Max N-gram Order')
-      const select = label.closest('div')?.parentElement?.querySelector('select') as HTMLSelectElement
+      const select = label
+        .closest('div')
+        ?.parentElement?.querySelector('select') as HTMLSelectElement
       expect(select).toBeTruthy()
       await user.selectOptions(select, '2')
 
       expect(onChange).toHaveBeenCalledWith(
-        expect.objectContaining({ max_order: 2 })
+        expect.objectContaining({ max_order: 2 }),
       )
     })
   })
@@ -195,7 +199,7 @@ describe('MetricParameterInput', () => {
           metric="rouge"
           parameters={{}}
           onChange={jest.fn()}
-        />
+        />,
       )
 
       await user.click(screen.getByText(/Show/))
@@ -210,7 +214,7 @@ describe('MetricParameterInput', () => {
           metric="rouge"
           parameters={{}}
           onChange={jest.fn()}
-        />
+        />,
       )
 
       await user.click(screen.getByText(/Show/))
@@ -227,7 +231,7 @@ describe('MetricParameterInput', () => {
           metric="meteor"
           parameters={{}}
           onChange={jest.fn()}
-        />
+        />,
       )
 
       await user.click(screen.getByText(/Show/))
@@ -246,7 +250,7 @@ describe('MetricParameterInput', () => {
           metric="chrf"
           parameters={{}}
           onChange={jest.fn()}
-        />
+        />,
       )
 
       await user.click(screen.getByText(/Show/))
@@ -265,7 +269,7 @@ describe('MetricParameterInput', () => {
           metric="bleu"
           parameters={{ max_order: 2, smoothing: 'method3' }}
           onChange={onChange}
-        />
+        />,
       )
 
       await user.click(screen.getByText(/Show/))

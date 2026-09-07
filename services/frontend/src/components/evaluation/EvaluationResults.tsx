@@ -9,20 +9,39 @@
 
 'use client'
 
+import { InflightRunsBanner } from '@/components/evaluation/InflightRunsBanner'
+import { ResultDetailsModal } from '@/components/evaluation/results/ResultsModal'
+import type {
+  ChartData,
+  SampleEvaluationResult,
+  StatisticalMethod,
+  StatisticsData,
+} from '@/components/evaluation/results/types'
+import {
+  useResultsData,
+  useTaskModelData,
+} from '@/components/evaluation/results/useResultsData'
 import { Badge } from '@/components/shared/Badge'
 import { Button } from '@/components/shared/Button'
 import { Card } from '@/components/shared/Card'
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/shared/Select'
 import { useToast } from '@/components/shared/Toast'
-import { InflightRunsBanner } from '@/components/evaluation/InflightRunsBanner'
+import { TaskDataViewModal } from '@/components/tasks/TaskDataViewModal'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
-import { TaskDataViewModal } from '@/components/tasks/TaskDataViewModal'
-import { canStartGeneration } from '@/utils/permissions'
 import { apiClient } from '@/lib/api/client'
+import { METRIC_ORDER } from '@/lib/api/evaluation-types'
 import { projectsAPI } from '@/lib/api/projects'
-import { Task as LabelStudioTask } from '@/types/labelStudio'
 import { Task } from '@/lib/api/types'
+import { Task as LabelStudioTask } from '@/types/labelStudio'
+import { canStartGeneration } from '@/utils/permissions'
 import {
   ArrowDownTrayIcon,
   ArrowPathIcon,
@@ -35,16 +54,6 @@ import {
   XCircleIcon,
 } from '@heroicons/react/24/outline'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { METRIC_ORDER } from '@/lib/api/evaluation-types'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/shared/Select'
-import { ResultDetailsModal } from '@/components/evaluation/results/ResultsModal'
-import { useResultsData, useTaskModelData } from '@/components/evaluation/results/useResultsData'
-import type {
-  ChartData,
-  SampleEvaluationResult,
-  StatisticalMethod,
-  StatisticsData,
-} from '@/components/evaluation/results/types'
 
 // Re-exported so existing consumers (`@/app/evaluations/page.tsx`,
 // tests) that import `ChartData` from this module keep working after
@@ -131,7 +140,9 @@ export function EvaluationResults({
     showHistory,
     failedLoadMessage: t('evaluation.multiFieldResults.failedLoadResults'),
   })
-  const [selectedMetricRunId, setSelectedMetricRunId] = useState<string | null>(null)
+  const [selectedMetricRunId, setSelectedMetricRunId] = useState<string | null>(
+    null,
+  )
   const [exportDropdownOpen, setExportDropdownOpen] = useState(false)
   // Multi-run "By run" chart toggle (migration 042). When on, the chart data
   // splits each model into one entry per (judge_run) so the user can compare
@@ -153,12 +164,12 @@ export function EvaluationResults({
   // metric group together).
   const availableMetricRuns = useMemo(() => {
     type ConfigEntry = {
-      id: string             // evaluation_config.id — primary key + fetch scope
-      metric: string         // raw metric name, kept for METRIC_ORDER sort + score extraction
-      configId: string       // same as id (kept for backward-compat reading sites)
+      id: string // evaluation_config.id — primary key + fetch scope
+      metric: string // raw metric name, kept for METRIC_ORDER sort + score extraction
+      configId: string // same as id (kept for backward-compat reading sites)
       displayName: string
       samplesEvaluated: number
-      running: boolean       // any run for this method is in-flight (cosmetic)
+      running: boolean // any run for this method is in-flight (cosmetic)
     }
 
     const byConfig = new Map<string, ConfigEntry>()
@@ -205,12 +216,16 @@ export function EvaluationResults({
         e.status === 'completed' ||
         e.status === 'running' ||
         e.status === 'pending' ||
-        e.status === 'paused'
+        e.status === 'paused',
     )
     for (const e of visible) {
       const inflight =
-        e.status === 'running' || e.status === 'pending' || e.status === 'paused'
-      const cfgs = Array.isArray(e.evaluation_configs) ? e.evaluation_configs : []
+        e.status === 'running' ||
+        e.status === 'pending' ||
+        e.status === 'paused'
+      const cfgs = Array.isArray(e.evaluation_configs)
+        ? e.evaluation_configs
+        : []
       for (const cfg of cfgs) {
         const rawId = cfg?.id || ''
         const metric = cfg?.metric || 'unknown'
@@ -267,12 +282,17 @@ export function EvaluationResults({
     if (availableMetricRuns.length === 0) return
 
     // If current selection is still valid, keep it
-    if (selectedMetricRunId && availableMetricRuns.some((r) => r.id === selectedMetricRunId)) {
+    if (
+      selectedMetricRunId &&
+      availableMetricRuns.some((r) => r.id === selectedMetricRunId)
+    ) {
       return
     }
 
     // Try to restore from localStorage by config_id
-    const savedConfigId = localStorage.getItem(`eval-selected-config-${projectId}`)
+    const savedConfigId = localStorage.getItem(
+      `eval-selected-config-${projectId}`,
+    )
     if (savedConfigId) {
       const match = availableMetricRuns.find((r) => r.id === savedConfigId)
       if (match) {
@@ -292,8 +312,12 @@ export function EvaluationResults({
 
   // Modal state for generation and evaluation result view
   const [resultModalOpen, setResultModalOpen] = useState(false)
-  const [resultModalTaskId, setResultModalTaskId] = useState<string | null>(null)
-  const [resultModalModelId, setResultModalModelId] = useState<string | null>(null)
+  const [resultModalTaskId, setResultModalTaskId] = useState<string | null>(
+    null,
+  )
+  const [resultModalModelId, setResultModalModelId] = useState<string | null>(
+    null,
+  )
   // Generation results - array of results (one per structure key)
   const [generationData, setGenerationData] = useState<Array<{
     task_id: string
@@ -342,7 +366,13 @@ export function EvaluationResults({
     id: string
     task_id: number
     completed_by: string
-    result: Array<{ value: any; from_name: string; to_name: string; type: string; [key: string]: any }>
+    result: Array<{
+      value: any
+      from_name: string
+      to_name: string
+      type: string
+      [key: string]: any
+    }>
     was_cancelled: boolean
     ground_truth: boolean
     lead_time?: number
@@ -403,14 +433,19 @@ export function EvaluationResults({
   // would surface only one of them in the result-card list.
   const displayEvaluations = useMemo(() => {
     if (showHistory) return filteredEvaluations
-    const latestByConfig = new Map<string, typeof filteredEvaluations[0]>()
+    const latestByConfig = new Map<string, (typeof filteredEvaluations)[0]>()
     for (const evaluation of filteredEvaluations) {
       const cfgId =
         evaluation.evaluation_configs?.[0]?.id ||
         evaluation.evaluation_configs?.[0]?.metric ||
         'unknown'
       const existing = latestByConfig.get(cfgId)
-      if (!existing || (evaluation.created_at && existing.created_at && evaluation.created_at > existing.created_at)) {
+      if (
+        !existing ||
+        (evaluation.created_at &&
+          existing.created_at &&
+          evaluation.created_at > existing.created_at)
+      ) {
         latestByConfig.set(cfgId, evaluation)
       }
     }
@@ -420,7 +455,10 @@ export function EvaluationResults({
   // Close export dropdown on click outside
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
-      if (exportDropdownRef.current && !exportDropdownRef.current.contains(e.target as Node)) {
+      if (
+        exportDropdownRef.current &&
+        !exportDropdownRef.current.contains(e.target as Node)
+      ) {
         setExportDropdownOpen(false)
       }
     }
@@ -445,7 +483,9 @@ export function EvaluationResults({
   // created_at DESC) collapses overlapping runs to the latest score per cell),
   // so a method's full result set is always shown regardless of which run
   // produced each cell — no run-id pinning, no n/a for data that exists.
-  const selectedEntry = availableMetricRuns.find((r) => r.id === selectedMetricRunId)
+  const selectedEntry = availableMetricRuns.find(
+    (r) => r.id === selectedMetricRunId,
+  )
   const selectedConfigId = selectedEntry?.id ?? ''
 
   // The metric name is also sent so the backend can pick the primary score
@@ -475,7 +515,7 @@ export function EvaluationResults({
 
     // Get the latest completed evaluation to extract metric names
     const latestEval = results?.evaluations?.find(
-      (e) => e.status === 'completed'
+      (e) => e.status === 'completed',
     )
 
     // Determine the primary metric name from evaluation configs
@@ -483,7 +523,7 @@ export function EvaluationResults({
     let primaryMetricName = 'score'
     if (latestEval?.evaluation_configs) {
       const llmJudgeConfig = latestEval.evaluation_configs.find(
-        (c) => c.metric === 'llm_judge_custom'
+        (c) => c.metric === 'llm_judge_custom',
       )
       if (llmJudgeConfig) {
         primaryMetricName = 'llm_judge_custom'
@@ -494,7 +534,10 @@ export function EvaluationResults({
     }
 
     // If we have taskModelData with summary, use it for chart data (preferred - has real model names)
-    if (taskModelData?.summary && Object.keys(taskModelData.summary).length > 0) {
+    if (
+      taskModelData?.summary &&
+      Object.keys(taskModelData.summary).length > 0
+    ) {
       // "By run" toggle (migration 042 + issue #111): split each model
       // into one entry per judge_run when
       // statisticsData.per_run_means_by_model_metric has data for it.
@@ -508,10 +551,18 @@ export function EvaluationResults({
       const perRunBlock = (statisticsData as any)?.per_run_means_by_model_metric
       if (byRunChart && perRunBlock) {
         const chartData: ChartData[] = []
-        for (const [modelId, summaryData] of Object.entries(taskModelData.summary)) {
+        for (const [modelId, summaryData] of Object.entries(
+          taskModelData.summary,
+        )) {
           const matchedRuns: Array<{
             cfgId: string
-            run: { judge_run_id: string; judge_model_id: string | null; run_index: number; mean: number; n_tasks: number }
+            run: {
+              judge_run_id: string
+              judge_model_id: string | null
+              run_index: number
+              mean: number
+              n_tasks: number
+            }
           }> = []
           const prefix = `${modelId}|`
           const suffix = `|${primaryMetricName}`
@@ -519,7 +570,8 @@ export function EvaluationResults({
             if (k.startsWith(prefix) && k.endsWith(suffix)) {
               // k === "model_id|config_id|metric"
               const parts = k.split('|')
-              const cfgId = parts.length >= 3 ? parts.slice(1, -1).join('|') : 'unknown'
+              const cfgId =
+                parts.length >= 3 ? parts.slice(1, -1).join('|') : 'unknown'
               for (const run of (v as any[]) || []) {
                 matchedRuns.push({ cfgId, run })
               }
@@ -555,7 +607,7 @@ export function EvaluationResults({
           model_name: summaryData.model_name || modelId,
           metrics: { [primaryMetricName]: summaryData.avg },
           samples_evaluated: summaryData.count,
-        })
+        }),
       )
       onDataLoaded(chartData)
       return
@@ -568,10 +620,10 @@ export function EvaluationResults({
         const chartData: ChartData[] = []
         const metrics: Record<string, number> = {}
         for (const [configId, configResult] of Object.entries(
-          latestEval.results_by_config || {}
+          latestEval.results_by_config || {},
         )) {
           const config = latestEval.evaluation_configs?.find(
-            (c) => c.id === configId
+            (c) => c.id === configId,
           )
           if (config && configResult.aggregate_score !== null) {
             metrics[config.metric] = configResult.aggregate_score
@@ -579,7 +631,10 @@ export function EvaluationResults({
         }
         if (Object.keys(metrics).length > 0) {
           chartData.push({
-            model_id: latestEval.model_id && latestEval.model_id !== 'unknown' ? latestEval.model_id : 'All Models',
+            model_id:
+              latestEval.model_id && latestEval.model_id !== 'unknown'
+                ? latestEval.model_id
+                : 'All Models',
             metrics,
             samples_evaluated: latestEval.samples_evaluated || 0,
           })
@@ -587,7 +642,14 @@ export function EvaluationResults({
         onDataLoaded(chartData)
       }
     }
-  }, [loading, results, taskModelData, onDataLoaded, byRunChart, statisticsData])
+  }, [
+    loading,
+    results,
+    taskModelData,
+    onDataLoaded,
+    byRunChart,
+    statisticsData,
+  ])
 
   const handleRefresh = () => {
     setLoading(true)
@@ -659,11 +721,16 @@ export function EvaluationResults({
       setGenerationLoading(false)
     } else {
       try {
-        const params = new URLSearchParams({ task_id: taskId, model_id: modelId })
+        const params = new URLSearchParams({
+          task_id: taskId,
+          model_id: modelId,
+        })
         if (showHistory) {
           params.append('include_history', 'true')
         }
-        const result = await apiClient.get(`/generation-tasks/generation-result?${params}`)
+        const result = await apiClient.get(
+          `/generation-tasks/generation-result?${params}`,
+        )
         const gens = result.results || []
         setGenerationData(gens)
         // The endpoint returns latest first when include_history=false; with
@@ -701,7 +768,7 @@ export function EvaluationResults({
     if (resultModalOpen && resultModalTaskId && resultModalModelId) {
       handleScoreClick(resultModalTaskId, resultModalModelId)
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showHistory])
 
   // Handle re-evaluate for a specific task x model cell
@@ -710,7 +777,7 @@ export function EvaluationResults({
       if (!projectId || evaluationConfigs.length === 0) return
 
       const selectedConfigs = evaluationConfigs.filter(
-        (c) => selectedConfigIds.includes(c.id) && c.enabled !== false
+        (c) => selectedConfigIds.includes(c.id) && c.enabled !== false,
       )
       if (selectedConfigs.length === 0) {
         addToast(t('evaluation.multiFieldResults.reEvaluateFailed'), 'error')
@@ -736,11 +803,11 @@ export function EvaluationResults({
       } catch (error: any) {
         addToast(
           error.message || t('evaluation.multiFieldResults.reEvaluateFailed'),
-          'error'
+          'error',
         )
       }
     },
-    [projectId, evaluationConfigs, addToast, t, fetchResults]
+    [projectId, evaluationConfigs, addToast, t, fetchResults],
   )
 
   const getStatusIcon = (status: string) => {
@@ -785,9 +852,11 @@ export function EvaluationResults({
     const diffMins = Math.floor(diffMs / 60000)
 
     if (diffMins < 1) return t('evaluation.multiFieldResults.justNow')
-    if (diffMins < 60) return t('evaluation.multiFieldResults.minutesAgo', { count: diffMins })
+    if (diffMins < 60)
+      return t('evaluation.multiFieldResults.minutesAgo', { count: diffMins })
     const diffHours = Math.floor(diffMins / 60)
-    if (diffHours < 24) return t('evaluation.multiFieldResults.hoursAgo', { count: diffHours })
+    if (diffHours < 24)
+      return t('evaluation.multiFieldResults.hoursAgo', { count: diffHours })
     const diffDays = Math.floor(diffHours / 24)
     return t('evaluation.multiFieldResults.daysAgo', { count: diffDays })
   }
@@ -804,7 +873,7 @@ export function EvaluationResults({
   // Format inline statistics based on selected methods
   const formatInlineStats = (
     modelId: string,
-    metricName: string
+    metricName: string,
   ): string | null => {
     if (!statisticsData?.by_model || selectedStatistics.length === 0) {
       return null
@@ -829,8 +898,14 @@ export function EvaluationResults({
     }
 
     // 95% Confidence Interval
-    if (selectedStatistics.includes('ci') && stats.ci_lower !== undefined && stats.ci_upper !== undefined) {
-      parts.push(`[${(stats.ci_lower * 100).toFixed(1)}%, ${(stats.ci_upper * 100).toFixed(1)}%]`)
+    if (
+      selectedStatistics.includes('ci') &&
+      stats.ci_lower !== undefined &&
+      stats.ci_upper !== undefined
+    ) {
+      parts.push(
+        `[${(stats.ci_lower * 100).toFixed(1)}%, ${(stats.ci_upper * 100).toFixed(1)}%]`,
+      )
     }
 
     return parts.length > 0 ? parts.join(' ') : null
@@ -855,7 +930,7 @@ export function EvaluationResults({
    */
   const formatRunsAggregate = (
     modelId: string,
-    metricName: string
+    metricName: string,
   ): string | null => {
     const block = (statisticsData as any)?.runs_by_model_metric
     if (!block) return null
@@ -876,7 +951,8 @@ export function EvaluationResults({
       }
     }
     if (!entry || !entry.n_runs || entry.n_runs < 2) return null
-    const std = typeof entry.std_of_means === 'number' ? entry.std_of_means : null
+    const std =
+      typeof entry.std_of_means === 'number' ? entry.std_of_means : null
     return std !== null
       ? `± ${std.toFixed(3)} (${entry.n_runs} runs)`
       : `(${entry.n_runs} runs)`
@@ -899,7 +975,7 @@ export function EvaluationResults({
 
   const getMetricDisplayName = (
     configId: string,
-    configs: SampleEvaluationResult['evaluation_configs']
+    configs: SampleEvaluationResult['evaluation_configs'],
   ) => {
     const config = configs.find((c) => c.id === configId)
     if (!config) return configId
@@ -1006,42 +1082,50 @@ export function EvaluationResults({
             {t('evaluation.multiFieldResults.title')}
           </h3>
           {/* Metric selector dropdown */}
-          {availableMetricRuns.length > 0 && selectedMetricRunId && (() => {
-            const selectedRun = availableMetricRuns.find((r) => r.id === selectedMetricRunId)
-            // The previous label had `(${selectedRun.samplesEvaluated})` — but
-            // that field is the run-level total samples_evaluated, which is
-            // shared across every metric in a bundled multi-metric run. Every
-            // metric ended up showing the same number (the run total),
-            // misleading users into thinking each metric had been computed for
-            // that many cells. Drop the count rather than show a wrong one.
-            const displayText = selectedRun
-              ? selectedRun.displayName
-              : t('evaluation.multiFieldResults.selectMetric')
-            return (
-              <Select
-                value={selectedMetricRunId}
-                onValueChange={(v) => {
-                  setSelectedMetricRunId(v)
-                  // Issue #111: persist by evaluation_config.id so two
-                  // configs of the same metric type round-trip
-                  // independently across page reloads.
-                  localStorage.setItem(`eval-selected-config-${projectId}`, v)
-                }}
-                displayValue={displayText}
-              >
-                <SelectTrigger className="w-auto min-w-[200px]">
-                  <SelectValue placeholder={t('evaluation.multiFieldResults.selectMetric')} />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableMetricRuns.map((run) => (
-                    <SelectItem key={run.id} value={run.id}>
-                      {run.displayName}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )
-          })()}
+          {availableMetricRuns.length > 0 &&
+            selectedMetricRunId &&
+            (() => {
+              const selectedRun = availableMetricRuns.find(
+                (r) => r.id === selectedMetricRunId,
+              )
+              // The previous label had `(${selectedRun.samplesEvaluated})` — but
+              // that field is the run-level total samples_evaluated, which is
+              // shared across every metric in a bundled multi-metric run. Every
+              // metric ended up showing the same number (the run total),
+              // misleading users into thinking each metric had been computed for
+              // that many cells. Drop the count rather than show a wrong one.
+              const displayText = selectedRun
+                ? selectedRun.displayName
+                : t('evaluation.multiFieldResults.selectMetric')
+              return (
+                <Select
+                  value={selectedMetricRunId}
+                  onValueChange={(v) => {
+                    setSelectedMetricRunId(v)
+                    // Issue #111: persist by evaluation_config.id so two
+                    // configs of the same metric type round-trip
+                    // independently across page reloads.
+                    localStorage.setItem(`eval-selected-config-${projectId}`, v)
+                  }}
+                  displayValue={displayText}
+                >
+                  <SelectTrigger className="w-auto min-w-[200px]">
+                    <SelectValue
+                      placeholder={t(
+                        'evaluation.multiFieldResults.selectMetric',
+                      )}
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableMetricRuns.map((run) => (
+                      <SelectItem key={run.id} value={run.id}>
+                        {run.displayName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )
+            })()}
           {/* Include history toggle */}
           <label className="flex cursor-pointer items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
             <input
@@ -1063,96 +1147,115 @@ export function EvaluationResults({
                 onChange={(e) => setByRunChart(e.target.checked)}
                 className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
               />
-              {t('evaluation.multiFieldResults.byRunChart', 'Diagramm pro Lauf splitten')}
+              {t(
+                'evaluation.multiFieldResults.byRunChart',
+                'Diagramm pro Lauf splitten',
+              )}
             </label>
           )}
         </div>
         <div className="flex items-center gap-2">
           {/* Export dropdown */}
-          {taskModelData && taskModelData.tasks.length > 0 && (() => {
-            const doExport = (format: 'json' | 'csv') => {
-              const displayModels = selectedModels?.length
-                ? selectedModels
-                : taskModelData.models
-              const metricName = availableMetricRuns.find(r => r.id === selectedMetricRunId)?.displayName || 'evaluation'
-              const fileName = `evaluation-${metricName.toLowerCase().replace(/\s+/g, '-')}`
+          {taskModelData &&
+            taskModelData.tasks.length > 0 &&
+            (() => {
+              const doExport = (format: 'json' | 'csv') => {
+                const displayModels = selectedModels?.length
+                  ? selectedModels
+                  : taskModelData.models
+                const metricName =
+                  availableMetricRuns.find((r) => r.id === selectedMetricRunId)
+                    ?.displayName || 'evaluation'
+                const fileName = `evaluation-${metricName.toLowerCase().replace(/\s+/g, '-')}`
 
-              if (format === 'json') {
-                const exportData = {
-                  metric: metricName,
-                  models: displayModels.map(mid => ({
-                    id: mid,
-                    name: taskModelData.model_names[mid] || mid,
-                  })),
-                  tasks: taskModelData.tasks.map(task => ({
-                    task_id: task.task_id,
-                    preview: task.task_preview,
-                    scores: Object.fromEntries(
-                      displayModels.map(mid => [
-                        taskModelData.model_names[mid] || mid,
-                        task.scores[mid] ?? null,
-                      ])
-                    ),
-                  })),
+                if (format === 'json') {
+                  const exportData = {
+                    metric: metricName,
+                    models: displayModels.map((mid) => ({
+                      id: mid,
+                      name: taskModelData.model_names[mid] || mid,
+                    })),
+                    tasks: taskModelData.tasks.map((task) => ({
+                      task_id: task.task_id,
+                      preview: task.task_preview,
+                      scores: Object.fromEntries(
+                        displayModels.map((mid) => [
+                          taskModelData.model_names[mid] || mid,
+                          task.scores[mid] ?? null,
+                        ]),
+                      ),
+                    })),
+                  }
+                  const blob = new Blob([JSON.stringify(exportData, null, 2)], {
+                    type: 'application/json',
+                  })
+                  const url = URL.createObjectURL(blob)
+                  const a = document.createElement('a')
+                  a.href = url
+                  a.download = `${fileName}.json`
+                  a.click()
+                  URL.revokeObjectURL(url)
+                } else {
+                  const modelHeaders = displayModels.map(
+                    (mid) => taskModelData.model_names[mid] || mid,
+                  )
+                  const header = ['task_id', 'preview', ...modelHeaders].join(
+                    ',',
+                  )
+                  const rows = taskModelData.tasks.map((task) => {
+                    const scores = displayModels.map(
+                      (mid) => task.scores[mid] ?? '',
+                    )
+                    return [
+                      task.task_id,
+                      `"${(task.task_preview || '').replace(/"/g, '""')}"`,
+                      ...scores,
+                    ].join(',')
+                  })
+                  const csv = [header, ...rows].join('\n')
+                  const blob = new Blob([csv], { type: 'text/csv' })
+                  const url = URL.createObjectURL(blob)
+                  const a = document.createElement('a')
+                  a.href = url
+                  a.download = `${fileName}.csv`
+                  a.click()
+                  URL.revokeObjectURL(url)
                 }
-                const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' })
-                const url = URL.createObjectURL(blob)
-                const a = document.createElement('a')
-                a.href = url
-                a.download = `${fileName}.json`
-                a.click()
-                URL.revokeObjectURL(url)
-              } else {
-                const modelHeaders = displayModels.map(mid => taskModelData.model_names[mid] || mid)
-                const header = ['task_id', 'preview', ...modelHeaders].join(',')
-                const rows = taskModelData.tasks.map(task => {
-                  const scores = displayModels.map(mid => task.scores[mid] ?? '')
-                  return [task.task_id, `"${(task.task_preview || '').replace(/"/g, '""')}"`, ...scores].join(',')
-                })
-                const csv = [header, ...rows].join('\n')
-                const blob = new Blob([csv], { type: 'text/csv' })
-                const url = URL.createObjectURL(blob)
-                const a = document.createElement('a')
-                a.href = url
-                a.download = `${fileName}.csv`
-                a.click()
-                URL.revokeObjectURL(url)
+                setExportDropdownOpen(false)
               }
-              setExportDropdownOpen(false)
-            }
 
-            return (
-              <div className="relative" ref={exportDropdownRef}>
-                <Button
-                  variant="outline"
-                  onClick={() => setExportDropdownOpen(!exportDropdownOpen)}
-                >
-                  <ArrowDownTrayIcon className="h-4 w-4" />
-                  {t('common.export') || 'Export'}
-                </Button>
-                {exportDropdownOpen && (
-                  <div className="absolute right-0 z-50 mt-1 w-32 rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-700 dark:bg-gray-800">
-                    <button
-                      type="button"
-                      onClick={() => doExport('json')}
-                      className="flex w-full items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-gray-700"
-                    >
-                      <ArrowDownTrayIcon className="h-4 w-4" />
-                      JSON
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => doExport('csv')}
-                      className="flex w-full items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-gray-700"
-                    >
-                      <ArrowDownTrayIcon className="h-4 w-4" />
-                      CSV
-                    </button>
-                  </div>
-                )}
-              </div>
-            )
-          })()}
+              return (
+                <div className="relative" ref={exportDropdownRef}>
+                  <Button
+                    variant="outline"
+                    onClick={() => setExportDropdownOpen(!exportDropdownOpen)}
+                  >
+                    <ArrowDownTrayIcon className="h-4 w-4" />
+                    {t('common.export') || 'Export'}
+                  </Button>
+                  {exportDropdownOpen && (
+                    <div className="absolute right-0 z-50 mt-1 w-32 rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-700 dark:bg-gray-800">
+                      <button
+                        type="button"
+                        onClick={() => doExport('json')}
+                        className="flex w-full items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-gray-700"
+                      >
+                        <ArrowDownTrayIcon className="h-4 w-4" />
+                        JSON
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => doExport('csv')}
+                        className="flex w-full items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-gray-700"
+                      >
+                        <ArrowDownTrayIcon className="h-4 w-4" />
+                        CSV
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
           {onRunEvaluation && (
             <Button
               variant="filled"
@@ -1172,11 +1275,7 @@ export function EvaluationResults({
               )}
             </Button>
           )}
-          <Button
-            variant="outline"
-            onClick={handleRefresh}
-            disabled={loading}
-          >
+          <Button variant="outline" onClick={handleRefresh} disabled={loading}>
             <ArrowPathIcon
               className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`}
             />
@@ -1187,187 +1286,236 @@ export function EvaluationResults({
 
       {/* Per-Task/Model Data Table */}
       {viewType === 'data' &&
-       taskModelData &&
-       taskModelData.tasks.length > 0 &&
-       // Hide table when user has explicitly deselected all metrics
-       (selectedConfigIds === undefined || selectedConfigIds.length > 0) &&
-       (() => {
-        // Show selected models as columns, even if they have no results yet (will show "—")
-        // Fall back to models from evaluation data if no filter is active
-        const displayModels = selectedModels?.length
-          ? selectedModels
-          : taskModelData.models
+        taskModelData &&
+        taskModelData.tasks.length > 0 &&
+        // Hide table when user has explicitly deselected all metrics
+        (selectedConfigIds === undefined || selectedConfigIds.length > 0) &&
+        (() => {
+          // Show selected models as columns, even if they have no results yet (will show "—")
+          // Fall back to models from evaluation data if no filter is active
+          const displayModels = selectedModels?.length
+            ? selectedModels
+            : taskModelData.models
 
-        return (
-        <Card className="overflow-hidden">
-          <div className="border-b border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-700 dark:bg-gray-800">
-            <h4 className="font-medium text-gray-900 dark:text-white">
-              {t('evaluation.multiFieldResults.perTaskResults')}
-            </h4>
-            <p className="text-xs text-gray-500 dark:text-gray-400">
-              {taskModelData.tasks.length} {t('common.tasks')} • {displayModels.length} {displayModels.length !== 1 ? t('common.models') : t('common.model')}
-              {taskModelData.models.length > 0 && selectedModels?.length > 0 && taskModelData.models.length !== displayModels.length && ` (${taskModelData.models.length} ${t('evaluation.multiFieldResults.withResults')})`}
-            </p>
-          </div>
-          {taskModelLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <LoadingSpinner />
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800/50">
-                    <th className="sticky left-0 min-w-[200px] bg-gray-50 px-4 py-2 text-left font-medium text-gray-600 dark:bg-gray-800/50 dark:text-gray-300">
-                      {t('evaluation.multiFieldResults.task')}
-                    </th>
-                    {displayModels.map((modelId) => {
-                      const isAnnotator = modelId.startsWith('annotator:')
-                      // For annotators, show just the username (strip "Annotator: " prefix and "annotator:" id prefix)
-                      const displayName = isAnnotator
-                        ? modelId.replace(/^annotator:/, '')
-                        : (taskModelData.model_names[modelId] || externalModelNames[modelId] || modelId)
-                      return (
-                      <th
-                        key={modelId}
-                        className="min-w-[100px] px-4 py-2 text-right font-medium text-gray-600 dark:text-gray-300"
-                      >
-                        <div className="flex flex-col items-end">
-                          <span className={`rounded px-2 py-0.5 text-xs ${
-                            isAnnotator
-                              ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
-                              : 'bg-gray-200 dark:bg-gray-700'
-                          }`}>
-                            {displayName}
-                          </span>
-                        </div>
-                      </th>
-                      )
-                    })}
-                  </tr>
-                </thead>
-                <tbody>
-                  {taskModelData.tasks.map((task, idx) => {
-                    // Find best score for this task (only among displayed models)
-                    const displayedScores = displayModels
-                      .map((m) => task.scores[m])
-                      .filter((s) => s !== undefined && s !== null)
-                    const maxScore = displayedScores.length > 0 ? Math.max(...displayedScores) : null
+          return (
+            <Card className="overflow-hidden">
+              <div className="border-b border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-700 dark:bg-gray-800">
+                <h4 className="font-medium text-gray-900 dark:text-white">
+                  {t('evaluation.multiFieldResults.perTaskResults')}
+                </h4>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  {taskModelData.tasks.length} {t('common.tasks')} •{' '}
+                  {displayModels.length}{' '}
+                  {displayModels.length !== 1
+                    ? t('common.models')
+                    : t('common.model')}
+                  {taskModelData.models.length > 0 &&
+                    selectedModels?.length > 0 &&
+                    taskModelData.models.length !== displayModels.length &&
+                    ` (${taskModelData.models.length} ${t('evaluation.multiFieldResults.withResults')})`}
+                </p>
+              </div>
+              {taskModelLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <LoadingSpinner />
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800/50">
+                        <th className="sticky left-0 min-w-[200px] bg-gray-50 px-4 py-2 text-left font-medium text-gray-600 dark:bg-gray-800/50 dark:text-gray-300">
+                          {t('evaluation.multiFieldResults.task')}
+                        </th>
+                        {displayModels.map((modelId) => {
+                          const isAnnotator = modelId.startsWith('annotator:')
+                          // For annotators, show just the username (strip "Annotator: " prefix and "annotator:" id prefix)
+                          const displayName = isAnnotator
+                            ? modelId.replace(/^annotator:/, '')
+                            : taskModelData.model_names[modelId] ||
+                              externalModelNames[modelId] ||
+                              modelId
+                          return (
+                            <th
+                              key={modelId}
+                              className="min-w-[100px] px-4 py-2 text-right font-medium text-gray-600 dark:text-gray-300"
+                            >
+                              <div className="flex flex-col items-end">
+                                <span
+                                  className={`rounded px-2 py-0.5 text-xs ${
+                                    isAnnotator
+                                      ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+                                      : 'bg-gray-200 dark:bg-gray-700'
+                                  }`}
+                                >
+                                  {displayName}
+                                </span>
+                              </div>
+                            </th>
+                          )
+                        })}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {taskModelData.tasks.map((task, idx) => {
+                        // Find best score for this task (only among displayed models)
+                        const displayedScores = displayModels
+                          .map((m) => task.scores[m])
+                          .filter((s) => s !== undefined && s !== null)
+                        const maxScore =
+                          displayedScores.length > 0
+                            ? Math.max(...displayedScores)
+                            : null
 
-                    return (
-                      <tr
-                        key={task.task_id}
-                        className={`border-b border-gray-100 dark:border-gray-700 ${idx % 2 === 0 ? 'bg-white dark:bg-gray-900' : 'bg-gray-50 dark:bg-gray-800/30'}`}
-                      >
-                        <td className="sticky left-0 bg-inherit px-4 py-2 text-gray-700 dark:text-gray-300">
-                          <div
-                            className="max-w-[250px] truncate cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 hover:underline"
-                            title={`${task.task_preview} - ${t('evaluation.multiFieldResults.clickToViewTaskData')}`}
-                            onClick={() => handleTaskClick(task.task_id)}
+                        return (
+                          <tr
+                            key={task.task_id}
+                            className={`border-b border-gray-100 dark:border-gray-700 ${idx % 2 === 0 ? 'bg-white dark:bg-gray-900' : 'bg-gray-50 dark:bg-gray-800/30'}`}
                           >
-                            {task.task_preview || `${t('common.task')} ${task.task_id.slice(0, 8)}`}
-                          </div>
+                            <td className="sticky left-0 bg-inherit px-4 py-2 text-gray-700 dark:text-gray-300">
+                              <div
+                                className="max-w-[250px] cursor-pointer truncate hover:text-blue-600 hover:underline dark:hover:text-blue-400"
+                                title={`${task.task_preview} - ${t('evaluation.multiFieldResults.clickToViewTaskData')}`}
+                                onClick={() => handleTaskClick(task.task_id)}
+                              >
+                                {task.task_preview ||
+                                  `${t('common.task')} ${task.task_id.slice(0, 8)}`}
+                              </div>
+                            </td>
+                            {displayModels.map((modelId) => {
+                              const score = task.scores[modelId]
+                              const hasScore =
+                                score !== undefined && score !== null
+                              const isBest =
+                                hasScore &&
+                                score === maxScore &&
+                                displayedScores.length > 1
+                              const isAnnotatorModel =
+                                modelId.startsWith('annotator:')
+                              // n/a is clickable when the underlying source data
+                              // exists, even though no score is yet recorded:
+                              //  - LLM model column: a generation by that model exists
+                              //  - Annotator column: an annotation by that user exists
+                              //    (case: human Korrektur metric where the answer
+                              //     is present but not yet graded)
+                              const hasClickableData = isAnnotatorModel
+                                ? task.annotator_columns?.includes(modelId)
+                                : task.generation_models?.includes(modelId)
+
+                              return (
+                                <td
+                                  key={modelId}
+                                  className="px-4 py-2 text-right"
+                                >
+                                  {hasScore ? (
+                                    <span
+                                      className={`cursor-pointer font-mono font-medium hover:underline ${isBest ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-900 dark:text-white'}`}
+                                      title={t(
+                                        'evaluation.multiFieldResults.clickToViewResponse',
+                                      )}
+                                      onClick={() =>
+                                        handleScoreClick(task.task_id, modelId)
+                                      }
+                                    >
+                                      {formatScore(score)}
+                                    </span>
+                                  ) : hasClickableData ? (
+                                    <span
+                                      className="cursor-pointer text-blue-600 underline dark:text-blue-400"
+                                      onClick={() =>
+                                        handleScoreClick(task.task_id, modelId)
+                                      }
+                                    >
+                                      n/a
+                                    </span>
+                                  ) : (
+                                    <span className="text-gray-400 dark:text-gray-500">
+                                      n/a
+                                    </span>
+                                  )}
+                                </td>
+                              )
+                            })}
+                          </tr>
+                        )
+                      })}
+                      {/* Summary row */}
+                      <tr className="border-t-2 border-gray-300 bg-gray-100 font-medium dark:border-gray-600 dark:bg-gray-800">
+                        <td className="sticky left-0 bg-gray-100 px-4 py-2 text-gray-900 dark:bg-gray-800 dark:text-white">
+                          {t('evaluation.multiFieldResults.average')}
                         </td>
                         {displayModels.map((modelId) => {
-                          const score = task.scores[modelId]
-                          const hasScore = score !== undefined && score !== null
-                          const isBest = hasScore && score === maxScore && displayedScores.length > 1
-                          const isAnnotatorModel = modelId.startsWith('annotator:')
-                          // n/a is clickable when the underlying source data
-                          // exists, even though no score is yet recorded:
-                          //  - LLM model column: a generation by that model exists
-                          //  - Annotator column: an annotation by that user exists
-                          //    (case: human Korrektur metric where the answer
-                          //     is present but not yet graded)
-                          const hasClickableData = isAnnotatorModel
-                            ? task.annotator_columns?.includes(modelId)
-                            : task.generation_models?.includes(modelId)
+                          const summary = taskModelData.summary[modelId]
+                          const hasAvg =
+                            summary?.avg !== undefined && summary?.avg !== null
+
+                          // Find best average (only among displayed models)
+                          const displayedAvgs = displayModels
+                            .map((m) => taskModelData.summary[m]?.avg)
+                            .filter((a) => a !== undefined && a !== null)
+                          const maxAvg =
+                            displayedAvgs.length > 0
+                              ? Math.max(...displayedAvgs)
+                              : null
+                          const isBest =
+                            hasAvg &&
+                            summary.avg === maxAvg &&
+                            displayedAvgs.length > 1
+
+                          // Get inline stats for the first available metric (Average is per-model aggregate)
+                          const modelStats = statisticsData?.by_model?.[modelId]
+                          const firstMetric = modelStats?.metrics
+                            ? Object.keys(modelStats.metrics)[0]
+                            : null
+                          const inlineStats = firstMetric
+                            ? formatInlineStats(modelId, firstMetric)
+                            : null
+                          const runsLine = firstMetric
+                            ? formatRunsAggregate(modelId, firstMetric)
+                            : null
 
                           return (
                             <td key={modelId} className="px-4 py-2 text-right">
-                              {hasScore ? (
-                                <span
-                                  className={`font-mono font-medium cursor-pointer hover:underline ${isBest ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-900 dark:text-white'}`}
-                                  title={t('evaluation.multiFieldResults.clickToViewResponse')}
-                                  onClick={() => handleScoreClick(task.task_id, modelId)}
-                                >
-                                  {formatScore(score)}
-                                </span>
-                              ) : hasClickableData ? (
-                                <span
-                                  className="cursor-pointer text-blue-600 underline dark:text-blue-400"
-                                  onClick={() => handleScoreClick(task.task_id, modelId)}
-                                >
+                              {hasAvg ? (
+                                <div className="flex flex-col items-end">
+                                  <span
+                                    className={`font-mono font-semibold ${isBest ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-900 dark:text-white'}`}
+                                  >
+                                    {formatScore(summary.avg)}
+                                  </span>
+                                  {inlineStats && (
+                                    <span className="text-xs font-normal text-gray-500 dark:text-gray-400">
+                                      {inlineStats}
+                                    </span>
+                                  )}
+                                  {runsLine && (
+                                    <span
+                                      className="text-xs font-normal text-blue-600 dark:text-blue-400"
+                                      title={t(
+                                        'evaluation.multiFieldResults.runsAggregateTooltip',
+                                        'Standard deviation across distinct evaluation runs (multi-run feature)',
+                                      )}
+                                    >
+                                      {runsLine}
+                                    </span>
+                                  )}
+                                </div>
+                              ) : (
+                                <span className="text-gray-400 dark:text-gray-500">
                                   n/a
                                 </span>
-                              ) : (
-                                <span className="text-gray-400 dark:text-gray-500">n/a</span>
                               )}
                             </td>
                           )
                         })}
                       </tr>
-                    )
-                  })}
-                  {/* Summary row */}
-                  <tr className="border-t-2 border-gray-300 bg-gray-100 font-medium dark:border-gray-600 dark:bg-gray-800">
-                    <td className="sticky left-0 bg-gray-100 px-4 py-2 text-gray-900 dark:bg-gray-800 dark:text-white">
-                      {t('evaluation.multiFieldResults.average')}
-                    </td>
-                    {displayModels.map((modelId) => {
-                      const summary = taskModelData.summary[modelId]
-                      const hasAvg = summary?.avg !== undefined && summary?.avg !== null
-
-                      // Find best average (only among displayed models)
-                      const displayedAvgs = displayModels
-                        .map((m) => taskModelData.summary[m]?.avg)
-                        .filter((a) => a !== undefined && a !== null)
-                      const maxAvg = displayedAvgs.length > 0 ? Math.max(...displayedAvgs) : null
-                      const isBest = hasAvg && summary.avg === maxAvg && displayedAvgs.length > 1
-
-                      // Get inline stats for the first available metric (Average is per-model aggregate)
-                      const modelStats = statisticsData?.by_model?.[modelId]
-                      const firstMetric = modelStats?.metrics ? Object.keys(modelStats.metrics)[0] : null
-                      const inlineStats = firstMetric ? formatInlineStats(modelId, firstMetric) : null
-                      const runsLine = firstMetric ? formatRunsAggregate(modelId, firstMetric) : null
-
-                      return (
-                        <td key={modelId} className="px-4 py-2 text-right">
-                          {hasAvg ? (
-                            <div className="flex flex-col items-end">
-                              <span
-                                className={`font-mono font-semibold ${isBest ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-900 dark:text-white'}`}
-                              >
-                                {formatScore(summary.avg)}
-                              </span>
-                              {inlineStats && (
-                                <span className="text-xs font-normal text-gray-500 dark:text-gray-400">
-                                  {inlineStats}
-                                </span>
-                              )}
-                              {runsLine && (
-                                <span
-                                  className="text-xs font-normal text-blue-600 dark:text-blue-400"
-                                  title={t('evaluation.multiFieldResults.runsAggregateTooltip', 'Standard deviation across distinct evaluation runs (multi-run feature)')}
-                                >
-                                  {runsLine}
-                                </span>
-                              )}
-                            </div>
-                          ) : (
-                            <span className="text-gray-400 dark:text-gray-500">n/a</span>
-                          )}
-                        </td>
-                      )
-                    })}
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          )}
-        </Card>
-        )
-      })()}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </Card>
+          )
+        })()}
 
       {/* Evaluation cards - show in chart view */}
       {viewType !== 'data' &&
@@ -1387,22 +1535,29 @@ export function EvaluationResults({
                     >
                       {evaluation.status}
                     </Badge>
-                    {evaluation.model_id && evaluation.model_id !== 'unknown' && (
-                      <span className="rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-500 dark:bg-gray-700 dark:text-gray-400">
-                        {evaluation.model_id}
-                      </span>
-                    )}
+                    {evaluation.model_id &&
+                      evaluation.model_id !== 'unknown' && (
+                        <span className="rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-500 dark:bg-gray-700 dark:text-gray-400">
+                          {evaluation.model_id}
+                        </span>
+                      )}
                   </div>
                   <p className="text-xs text-gray-500 dark:text-gray-400">
                     {evaluation.completed_at
-                      ? t('evaluation.multiFieldResults.completedAgo', { time: formatTimeAgo(evaluation.completed_at) })
-                      : t('evaluation.multiFieldResults.startedAgo', { time: formatTimeAgo(evaluation.created_at) })}
+                      ? t('evaluation.multiFieldResults.completedAgo', {
+                          time: formatTimeAgo(evaluation.completed_at),
+                        })
+                      : t('evaluation.multiFieldResults.startedAgo', {
+                          time: formatTimeAgo(evaluation.created_at),
+                        })}
                   </p>
                 </div>
               </div>
               <div className="text-right text-sm">
                 <p className="text-gray-600 dark:text-gray-300">
-                  {t('evaluation.multiFieldResults.samplesEvaluated', { count: evaluation.samples_evaluated })}
+                  {t('evaluation.multiFieldResults.samplesEvaluated', {
+                    count: evaluation.samples_evaluated,
+                  })}
                 </p>
                 {evaluation.status === 'running' && (
                   <p className="text-xs text-blue-600 dark:text-blue-400">
@@ -1428,7 +1583,12 @@ export function EvaluationResults({
                   />
                 </div>
                 <p className="mt-1 text-center text-xs text-gray-500 dark:text-gray-400">
-                  {t('evaluation.multiFieldResults.samplesProcessed', { processed: evaluation.progress.samples_passed + evaluation.progress.samples_failed, total: evaluation.samples_evaluated })}
+                  {t('evaluation.multiFieldResults.samplesProcessed', {
+                    processed:
+                      evaluation.progress.samples_passed +
+                      evaluation.progress.samples_failed,
+                    total: evaluation.samples_evaluated,
+                  })}
                 </p>
               </div>
             )}
@@ -1453,7 +1613,7 @@ export function EvaluationResults({
                       <h4 className="font-medium text-gray-900 dark:text-white">
                         {getMetricDisplayName(
                           config.id,
-                          evaluation.evaluation_configs
+                          evaluation.evaluation_configs,
                         )}
                       </h4>
                       {configResults?.aggregate_score != null && (
@@ -1498,8 +1658,7 @@ export function EvaluationResults({
                                         <div
                                           className="h-2 rounded-full bg-emerald-500 transition-all"
                                           style={{
-                                            width:
-                                              getScoreBarWidth(scoreValue),
+                                            width: getScoreBarWidth(scoreValue),
                                           }}
                                         />
                                       </div>
@@ -1508,7 +1667,7 @@ export function EvaluationResults({
                                       {formatScore(scoreValue)}
                                     </span>
                                   </div>
-                                )
+                                ),
                               )}
                             </div>
                           </div>
@@ -1541,14 +1700,20 @@ export function EvaluationResults({
               <div className="flex items-center justify-between border-t border-gray-200 bg-gray-50 px-4 py-2 text-xs dark:border-gray-700 dark:bg-gray-800">
                 <div className="flex items-center gap-4">
                   <span className="text-green-600 dark:text-green-400">
-                    {t('evaluation.multiFieldResults.passedCount', { count: evaluation.progress.samples_passed })}
+                    {t('evaluation.multiFieldResults.passedCount', {
+                      count: evaluation.progress.samples_passed,
+                    })}
                   </span>
                   <span className="text-red-600 dark:text-red-400">
-                    {t('evaluation.multiFieldResults.failedCount', { count: evaluation.progress.samples_failed })}
+                    {t('evaluation.multiFieldResults.failedCount', {
+                      count: evaluation.progress.samples_failed,
+                    })}
                   </span>
                   {evaluation.progress.samples_skipped > 0 && (
                     <span className="text-gray-500 dark:text-gray-400">
-                      {t('evaluation.multiFieldResults.skippedCount', { count: evaluation.progress.samples_skipped })}
+                      {t('evaluation.multiFieldResults.skippedCount', {
+                        count: evaluation.progress.samples_skipped,
+                      })}
                     </span>
                   )}
                 </div>
@@ -1594,7 +1759,8 @@ export function EvaluationResults({
         }
         evaluationConfigs={evaluationConfigs}
         selectedMetricName={
-          availableMetricRuns.find((r) => r.id === selectedMetricRunId)?.metric ?? null
+          availableMetricRuns.find((r) => r.id === selectedMetricRunId)
+            ?.metric ?? null
         }
       />
     </div>

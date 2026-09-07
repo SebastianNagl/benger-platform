@@ -38,7 +38,7 @@ test.describe('Data Import Wizard Step', () => {
     // Advance to step 2 (dataImport)
     await page.locator('[data-testid="project-create-next-button"]').click()
     await expect(
-      page.locator('[data-testid="project-create-step-indicator"]')
+      page.locator('[data-testid="project-create-step-indicator"]'),
     ).toHaveAttribute('data-step', '2')
 
     // Switch to the paste tab
@@ -59,12 +59,12 @@ test.describe('Data Import Wizard Step', () => {
     // the page can't false-match.
     const expectedLineCount = pasted.split('\n').length
     await expect(
-      page.locator('[data-testid="project-create-paste-line-count"]')
+      page.locator('[data-testid="project-create-paste-line-count"]'),
     ).toHaveAttribute('data-line-count', String(expectedLineCount))
 
     // Validate button should now be enabled (was disabled with no data)
     const validate = page.locator(
-      '[data-testid="project-create-validate-data-button"]'
+      '[data-testid="project-create-validate-data-button"]',
     )
     await expect(validate).toBeEnabled()
     await validate.click()
@@ -73,7 +73,7 @@ test.describe('Data Import Wizard Step', () => {
     // format. Scope to the app's Toast container testid so unrelated
     // page text containing "JSON" can't false-match.
     const toast = page.locator(
-      '[data-testid="toast-item"][data-toast-type="success"]'
+      '[data-testid="toast-item"][data-toast-type="success"]',
     )
     await expect(toast).toBeVisible({ timeout: 5000 })
     await expect(toast).toContainText(/JSON/i)
@@ -95,12 +95,12 @@ test.describe('Data Import Wizard Step', () => {
     await page.locator('[data-testid="project-create-paste-tab"]').click()
 
     const textarea = page.locator(
-      '[data-testid="project-create-paste-data-textarea"]'
+      '[data-testid="project-create-paste-data-textarea"]',
     )
     await textarea.fill('one\ntwo\nthree')
 
     const clear = page.locator(
-      '[data-testid="project-create-clear-data-button"]'
+      '[data-testid="project-create-clear-data-button"]',
     )
     await expect(clear).toBeEnabled()
     await clear.click()
@@ -108,7 +108,7 @@ test.describe('Data Import Wizard Step', () => {
     await expect(textarea).toHaveValue('')
     await expect(clear).toBeDisabled()
     await expect(
-      page.locator('[data-testid="project-create-validate-data-button"]')
+      page.locator('[data-testid="project-create-validate-data-button"]'),
     ).toBeDisabled()
   })
 

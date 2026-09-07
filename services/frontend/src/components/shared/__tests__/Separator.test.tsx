@@ -72,13 +72,13 @@ describe('Separator', () => {
         'bg-gray-200',
         'dark:bg-gray-700',
         'h-px',
-        'w-full'
+        'w-full',
       )
     })
 
     it('combines custom className with vertical orientation', () => {
       const { container } = render(
-        <Separator orientation="vertical" className="custom-vertical" />
+        <Separator orientation="vertical" className="custom-vertical" />,
       )
 
       const separator = container.querySelector('div')
@@ -87,7 +87,7 @@ describe('Separator', () => {
         'bg-gray-200',
         'dark:bg-gray-700',
         'w-px',
-        'h-full'
+        'h-full',
       )
     })
 
@@ -156,7 +156,7 @@ describe('Separator', () => {
           <div>Content above</div>
           <Separator />
           <div>Content below</div>
-        </div>
+        </div>,
       )
 
       const separator = container.querySelector('.h-px.w-full')
@@ -169,7 +169,7 @@ describe('Separator', () => {
           <div>Left content</div>
           <Separator orientation="vertical" />
           <div>Right content</div>
-        </div>
+        </div>,
       )
 
       const separator = container.querySelector('.w-px.h-full')
@@ -180,7 +180,7 @@ describe('Separator', () => {
       const { container } = render(
         <div style={{ width: '200px' }}>
           <Separator />
-        </div>
+        </div>,
       )
 
       const separator = container.querySelector('.w-full')
@@ -191,7 +191,7 @@ describe('Separator', () => {
       const { container } = render(
         <div style={{ height: '200px' }}>
           <Separator orientation="vertical" />
-        </div>
+        </div>,
       )
 
       const separator = container.querySelector('.h-full')
@@ -241,7 +241,7 @@ describe('Separator', () => {
 
     it('handles multiple custom classes', () => {
       const { container } = render(
-        <Separator className="class1 class2 class3" />
+        <Separator className="class1 class2 class3" />,
       )
 
       const separator = container.querySelector('div')
@@ -256,7 +256,7 @@ describe('Separator', () => {
           <section>First section</section>
           <Separator />
           <section>Second section</section>
-        </div>
+        </div>,
       )
 
       const separator = container.querySelector('.h-px')
@@ -269,7 +269,7 @@ describe('Separator', () => {
           <a href="#">Home</a>
           <Separator orientation="vertical" />
           <a href="#">About</a>
-        </nav>
+        </nav>,
       )
 
       const separator = container.querySelector('.w-px')
@@ -284,7 +284,7 @@ describe('Separator', () => {
             <Separator />
           </li>
           <li>Item 2</li>
-        </ul>
+        </ul>,
       )
 
       const separator = container.querySelector('.h-px')

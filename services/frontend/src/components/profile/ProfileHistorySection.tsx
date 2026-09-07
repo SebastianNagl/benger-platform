@@ -58,8 +58,7 @@ export function ProfileHistorySection({
                 </span>
               </div>
               <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-                {t('profile.changedFields')}:{' '}
-                {entry.changed_fields.join(', ')}
+                {t('profile.changedFields')}: {entry.changed_fields.join(', ')}
               </p>
             </div>
           ))}

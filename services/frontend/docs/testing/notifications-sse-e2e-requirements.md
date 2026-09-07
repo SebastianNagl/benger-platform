@@ -94,7 +94,7 @@ test('receives notification messages in real-time', async () => {
 
   // Wait for proxy_connected message
   await page.waitForFunction(() =>
-    window.receivedMessages?.some((m) => m.type === 'proxy_connected')
+    window.receivedMessages?.some((m) => m.type === 'proxy_connected'),
   )
 
   // Trigger a notification via API
@@ -109,9 +109,9 @@ test('receives notification messages in real-time', async () => {
     () =>
       window.receivedMessages?.some(
         (m) =>
-          m.type === 'new_notification' && m.notification.title === 'Test Task'
+          m.type === 'new_notification' && m.notification.title === 'Test Task',
       ),
-    { timeout: 5000 }
+    { timeout: 5000 },
   )
 
   const messages = await page.evaluate(() => window.receivedMessages)
@@ -149,7 +149,7 @@ test('handles token expiry during active SSE connection', async () => {
 
   // Wait for initial connection
   await page.waitForFunction(
-    () => window.eventSource?.readyState === EventSource.OPEN
+    () => window.eventSource?.readyState === EventSource.OPEN,
   )
 
   // Wait for token to expire (e.g., 30 seconds)
@@ -162,9 +162,9 @@ test('handles token expiry during active SSE connection', async () => {
   await page.waitForFunction(
     () =>
       window.receivedMessages?.some(
-        (m) => m.notification?.title === 'Post-Expiry Test'
+        (m) => m.notification?.title === 'Post-Expiry Test',
       ),
-    { timeout: 10000 }
+    { timeout: 10000 },
   )
 })
 ```
@@ -194,7 +194,7 @@ test('SSE connection works with CORS credentials', async () => {
       // EventSource automatically includes credentials
       const eventSource = new EventSource(
         'http://benger.localhost/api/notifications/stream',
-        { withCredentials: true }
+        { withCredentials: true },
       )
       eventSource.onopen = () => resolve(true)
       eventSource.onerror = () => resolve(false)
@@ -301,13 +301,13 @@ test('messages arrive without buffering delays', async () => {
 
   await page.waitForFunction(() =>
     window.messageTimestamps?.some(
-      (m) => m.data.notification?.title === 'Latency Test'
-    )
+      (m) => m.data.notification?.title === 'Latency Test',
+    ),
   )
 
   const timestamps = await page.evaluate(() => window.messageTimestamps)
   const latencyTestMsg = timestamps.find(
-    (m) => m.data.notification?.title === 'Latency Test'
+    (m) => m.data.notification?.title === 'Latency Test',
   )
 
   const latency = latencyTestMsg.received - sendTime
@@ -388,7 +388,7 @@ test('properly cleans up on EventSource close', async () => {
   await page.waitForTimeout(3000)
 
   const afterCloseMessages = await page.evaluate(
-    () => window.afterCloseMessages?.length || 0
+    () => window.afterCloseMessages?.length || 0,
   )
   expect(afterCloseMessages).toBe(0)
 })

@@ -21,7 +21,7 @@ beforeAll(() => {
     if (
       typeof args[0] === 'string' &&
       args[0].includes(
-        'Warning: An update to TransitionRootFn inside a test was not wrapped in act'
+        'Warning: An update to TransitionRootFn inside a test was not wrapped in act',
       )
     ) {
       return
@@ -62,12 +62,12 @@ describe('LoginModal', () => {
 
       expect(screen.getByText('Sign in to BenGER')).toBeInTheDocument()
       expect(
-        screen.getByText('Access your annotation and evaluation workspace')
+        screen.getByText('Access your annotation and evaluation workspace'),
       ).toBeInTheDocument()
       expect(screen.getByLabelText('Username or Email')).toBeInTheDocument()
       expect(screen.getByLabelText('Password')).toBeInTheDocument()
       expect(
-        screen.getByRole('button', { name: 'Sign in' })
+        screen.getByRole('button', { name: 'Sign in' }),
       ).toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument()
     })
@@ -149,7 +149,7 @@ describe('LoginModal', () => {
 
       expect(mockLogin).toHaveBeenCalledWith(
         'testuser@example.com',
-        'password123'
+        'password123',
       )
     })
 
@@ -244,7 +244,7 @@ describe('LoginModal', () => {
     it('clears form when modal is closed and reopened', async () => {
       const user = userEvent.setup()
       const { rerender } = render(
-        <LoginModal isOpen={true} onClose={mockOnClose} />
+        <LoginModal isOpen={true} onClose={mockOnClose} />,
       )
 
       const usernameInput = screen.getByLabelText('Username or Email')
@@ -354,7 +354,7 @@ describe('LoginModal', () => {
       // Wait for successful login (error should be cleared)
       await waitFor(() => {
         expect(
-          screen.queryByText('Invalid credentials')
+          screen.queryByText('Invalid credentials'),
         ).not.toBeInTheDocument()
       })
     })
@@ -441,7 +441,8 @@ jest.mock('@/contexts/I18nContext', () => ({
     t: (key: string) => {
       const translations: Record<string, string> = {
         'loginModal.title': 'Sign in to BenGER',
-        'loginModal.subtitle': 'Access your annotation and evaluation workspace',
+        'loginModal.subtitle':
+          'Access your annotation and evaluation workspace',
         'loginModal.usernameLabel': 'Username or Email',
         'loginModal.usernamePlaceholder': 'Enter username or email',
         'loginModal.passwordLabel': 'Password',

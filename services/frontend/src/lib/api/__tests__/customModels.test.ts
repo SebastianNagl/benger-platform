@@ -100,7 +100,7 @@ describe('customModelsAPI', () => {
 
       expect(apiClient.patch).toHaveBeenCalledWith(
         '/custom-models/custom-123',
-        { name: 'Renamed' }
+        { name: 'Renamed' },
       )
     })
   })
@@ -111,9 +111,7 @@ describe('customModelsAPI', () => {
 
       await customModelsAPI.remove('custom-123')
 
-      expect(apiClient.delete).toHaveBeenCalledWith(
-        '/custom-models/custom-123'
-      )
+      expect(apiClient.delete).toHaveBeenCalledWith('/custom-models/custom-123')
     })
   })
 
@@ -127,7 +125,7 @@ describe('customModelsAPI', () => {
 
       expect(apiClient.patch).toHaveBeenCalledWith(
         '/custom-models/custom-123/visibility',
-        { is_private: true }
+        { is_private: true },
       )
     })
 
@@ -141,7 +139,7 @@ describe('customModelsAPI', () => {
 
       expect(apiClient.patch).toHaveBeenCalledWith(
         '/custom-models/custom-123/visibility',
-        { is_private: false, organization_ids: ['org-1', 'org-2'] }
+        { is_private: false, organization_ids: ['org-1', 'org-2'] },
       )
     })
 
@@ -154,7 +152,7 @@ describe('customModelsAPI', () => {
 
       expect(apiClient.patch).toHaveBeenCalledWith(
         '/custom-models/custom-123/visibility',
-        { is_public: true }
+        { is_public: true },
       )
     })
   })
@@ -169,7 +167,7 @@ describe('customModelsAPI', () => {
 
       expect(apiClient.put).toHaveBeenCalledWith(
         '/custom-models/custom-123/credential',
-        { api_key: 'sk-secret' }
+        { api_key: 'sk-secret' },
       )
     })
 
@@ -179,7 +177,7 @@ describe('customModelsAPI', () => {
       await customModelsAPI.deleteCredential('custom-123')
 
       expect(apiClient.delete).toHaveBeenCalledWith(
-        '/custom-models/custom-123/credential'
+        '/custom-models/custom-123/credential',
       )
     })
 
@@ -192,7 +190,7 @@ describe('customModelsAPI', () => {
       const result = await customModelsAPI.getCredentialStatus('custom-123')
 
       expect(apiClient.get).toHaveBeenCalledWith(
-        '/custom-models/custom-123/credential'
+        '/custom-models/custom-123/credential',
       )
       expect(result).toEqual({
         has_credential: true,
@@ -212,7 +210,7 @@ describe('customModelsAPI', () => {
 
       expect(apiClient.post).toHaveBeenCalledWith(
         '/custom-models/custom-123/test',
-        {}
+        {},
       )
       expect(result).toEqual({ status: 'success', message: 'ok' })
     })
@@ -231,7 +229,7 @@ describe('customModelsAPI', () => {
 
       expect(apiClient.post).toHaveBeenCalledWith(
         '/custom-models/custom-123/test',
-        { api_key: 'sk-secret', chat_ping: true }
+        { api_key: 'sk-secret', chat_ping: true },
       )
     })
 

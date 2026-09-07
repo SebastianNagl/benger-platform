@@ -4,9 +4,14 @@
  * Branch coverage tests for LLMLeaderboardTable - round 5.
  * Follows the exact pattern of LLMLeaderboardTable.branches.test.tsx which passes.
  */
-import '@testing-library/jest-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { act, render as rtlRender, screen, waitFor } from '@testing-library/react'
+import '@testing-library/jest-dom'
+import {
+  act,
+  render as rtlRender,
+  screen,
+  waitFor,
+} from '@testing-library/react'
 import React from 'react'
 
 // PR after #117 wrapped LLMLeaderboardTable's data fetching in TanStack
@@ -18,7 +23,7 @@ const render: typeof rtlRender = (ui, options) => {
   })
   return rtlRender(
     <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>,
-    options
+    options,
   )
 }
 
@@ -83,9 +88,14 @@ describe('LLMLeaderboardTable - br5 branch coverage', () => {
     // The first call rejects, subsequent calls succeed.
     // Error state may or may not persist depending on timing.
     // Just verify the API was called with the error path
-    await waitFor(() => {
-      expect(mockGetLLMLeaderboard.mock.calls.length).toBeGreaterThanOrEqual(1)
-    }, { timeout: 5000 })
+    await waitFor(
+      () => {
+        expect(mockGetLLMLeaderboard.mock.calls.length).toBeGreaterThanOrEqual(
+          1,
+        )
+      },
+      { timeout: 5000 },
+    )
   })
 
   // Note: The empty state and error state are covered by LLMLeaderboardTable.test.tsx.
@@ -175,7 +185,7 @@ describe('LLMLeaderboardTable - br5 branch coverage', () => {
         const rows = container.querySelectorAll('tbody tr')
         expect(rows.length).toBe(4)
       },
-      { timeout: 5000 }
+      { timeout: 5000 },
     )
   })
 })

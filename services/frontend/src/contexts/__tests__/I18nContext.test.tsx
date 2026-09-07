@@ -498,7 +498,7 @@ describe('I18nContext', () => {
       render(
         <I18nProvider>
           <TestComponent />
-        </I18nProvider>
+        </I18nProvider>,
       )
 
       testFn(capturedContext)
@@ -715,7 +715,7 @@ describe('I18nContext', () => {
       })
 
       const translation = result.current.t(
-        'common.welcome.message.deeply.nested'
+        'common.welcome.message.deeply.nested',
       )
       expect(typeof translation).toBe('string')
     })
@@ -864,7 +864,7 @@ describe('I18nContext', () => {
       render(
         <I18nProvider>
           <TestComponent />
-        </I18nProvider>
+        </I18nProvider>,
       )
 
       testFn(context)

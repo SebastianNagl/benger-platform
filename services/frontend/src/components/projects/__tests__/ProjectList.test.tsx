@@ -81,7 +81,8 @@ jest.mock('@/contexts/I18nContext', () => ({
       const vars = typeof arg2 === 'object' ? arg2 : arg3
       const translations: Record<string, string> = {
         'projects.list.title': 'Projects',
-        'projects.list.subtitle': 'Manage your annotation projects and track progress',
+        'projects.list.subtitle':
+          'Manage your annotation projects and track progress',
         'projects.list.newProject': 'New Project',
         'projects.list.searchPlaceholder': 'Search projects...',
         'projects.list.activeProjects': 'Active Projects',
@@ -133,21 +134,21 @@ describe('ProjectList', () => {
       render(<ProjectList />)
       expect(screen.getByText('Projects')).toBeInTheDocument()
       expect(
-        screen.getByText('Manage your annotation projects and track progress')
+        screen.getByText('Manage your annotation projects and track progress'),
       ).toBeInTheDocument()
     })
 
     it('should render New Project button', () => {
       render(<ProjectList />)
       expect(
-        screen.getByRole('button', { name: /new project/i })
+        screen.getByRole('button', { name: /new project/i }),
       ).toBeInTheDocument()
     })
 
     it('should render search input', () => {
       render(<ProjectList />)
       expect(
-        screen.getByPlaceholderText('Search projects...')
+        screen.getByPlaceholderText('Search projects...'),
       ).toBeInTheDocument()
     })
 
@@ -190,7 +191,7 @@ describe('ProjectList', () => {
 
       render(<ProjectList />)
       expect(
-        screen.queryByRole('status', { hidden: true })
+        screen.queryByRole('status', { hidden: true }),
       ).not.toBeInTheDocument()
     })
   })
@@ -340,7 +341,7 @@ describe('ProjectList', () => {
       await waitFor(() => {
         expect(screen.getByText('No archived projects')).toBeInTheDocument()
         expect(
-          screen.getByText('Archived projects will appear here')
+          screen.getByText('Archived projects will appear here'),
         ).toBeInTheDocument()
       })
     })
@@ -409,7 +410,7 @@ describe('ProjectList', () => {
       render(<ProjectList />)
       expect(screen.getByText('No projects found')).toBeInTheDocument()
       expect(
-        screen.getByText('Try adjusting your search criteria')
+        screen.getByText('Try adjusting your search criteria'),
       ).toBeInTheDocument()
     })
   })
@@ -427,7 +428,7 @@ describe('ProjectList', () => {
       render(<ProjectList />)
       expect(screen.getByText('No active projects')).toBeInTheDocument()
       expect(
-        screen.getByText('Create your first project to get started')
+        screen.getByText('Create your first project to get started'),
       ).toBeInTheDocument()
     })
 
@@ -617,7 +618,7 @@ describe('ProjectList', () => {
     it('should have descriptive button labels', () => {
       render(<ProjectList />)
       expect(
-        screen.getByRole('button', { name: /new project/i })
+        screen.getByRole('button', { name: /new project/i }),
       ).toBeInTheDocument()
     })
 

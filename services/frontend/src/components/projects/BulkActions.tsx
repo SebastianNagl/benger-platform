@@ -82,12 +82,14 @@ export function BulkActions({
       </Button>
 
       {dropdownOpen && (
-        <div className="absolute left-0 z-10 mt-2 w-56 origin-top-left rounded-lg bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none dark:bg-zinc-900">
+        <div className="absolute left-0 z-10 mt-2 w-56 origin-top-left rounded-lg bg-white shadow-lg ring-1 ring-black/5 focus:outline-none dark:bg-zinc-900">
           <div className="p-1">
             {selectedCount > 0 ? (
               <>
                 <div className="px-3 py-2 text-xs font-medium text-zinc-500 dark:text-zinc-400">
-                  {t('projects.bulkActions.tasksSelected', { count: selectedCount })}
+                  {t('projects.bulkActions.tasksSelected', {
+                    count: selectedCount,
+                  })}
                 </div>
 
                 {canAssign && onAssign && (
@@ -171,7 +173,7 @@ export function BulkActions({
 
       {/* Metadata Editor Modal */}
       {showMetadataEditor && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <BulkMetadataEditor
             taskIds={selectedTaskIds.map((id) => parseInt(id))}
             onClose={() => setShowMetadataEditor(false)}

@@ -127,7 +127,7 @@ describe('NumberInput', () => {
       render(<NumberInput {...defaultProps} config={configWithHint} />)
 
       expect(
-        screen.getByText('Enter a value between 0 and 100')
+        screen.getByText('Enter a value between 0 and 100'),
       ).toBeInTheDocument()
     })
 
@@ -438,7 +438,7 @@ describe('NumberInput', () => {
       }
 
       render(
-        <NumberInput {...defaultProps} config={configWithCustomPlaceholder} />
+        <NumberInput {...defaultProps} config={configWithCustomPlaceholder} />,
       )
 
       const input = screen.getByTestId('number-input')
@@ -455,7 +455,7 @@ describe('NumberInput', () => {
       }
 
       render(
-        <NumberInput {...defaultProps} config={configWithoutPlaceholder} />
+        <NumberInput {...defaultProps} config={configWithoutPlaceholder} />,
       )
 
       const input = screen.getByTestId('number-input')
@@ -536,7 +536,7 @@ describe('NumberInput', () => {
           'score',
           'Number',
           88,
-          'text'
+          'text',
         )
       })
     })
@@ -729,7 +729,7 @@ describe('NumberInput', () => {
         <div>
           <NumberInput {...props1} />
           <NumberInput {...props2} />
-        </div>
+        </div>,
       )
 
       const inputs = screen.getAllByTestId('number-input')
@@ -764,7 +764,7 @@ describe('NumberInput', () => {
 
     it('maintains internal state independent of external value changes', () => {
       const { rerender } = render(
-        <NumberInput {...defaultProps} value={undefined} />
+        <NumberInput {...defaultProps} value={undefined} />,
       )
 
       const input = screen.getByTestId('number-input')

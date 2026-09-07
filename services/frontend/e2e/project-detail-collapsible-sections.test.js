@@ -67,7 +67,7 @@ class ProjectDetailTester {
       console.log(
         '❌ Request Failed:',
         request.url(),
-        request.failure().errorText
+        request.failure().errorText,
       )
     })
   }
@@ -90,11 +90,11 @@ class ProjectDetailTester {
       // Fill credentials
       await this.page.type(
         '[data-testid="auth-login-email-input"]',
-        TEST_CONFIG.username
+        TEST_CONFIG.username,
       )
       await this.page.type(
         '[data-testid="auth-login-password-input"]',
-        TEST_CONFIG.password
+        TEST_CONFIG.password,
       )
 
       // Submit and wait for navigation
@@ -201,7 +201,7 @@ class ProjectDetailTester {
       return sections
     } catch (error) {
       throw new Error(
-        `Failed to identify collapsible sections: ${error.message}`
+        `Failed to identify collapsible sections: ${error.message}`,
       )
     }
   }
@@ -231,7 +231,8 @@ class ProjectDetailTester {
             const elements = Array.from(document.querySelectorAll('*'))
             const found = elements.find(
               (el) =>
-                el.textContent && el.textContent.toLowerCase().includes('model')
+                el.textContent &&
+                el.textContent.toLowerCase().includes('model'),
             )
             if (found) return { found: true, selector, element: found.tagName }
           } else {
@@ -265,13 +266,13 @@ class ProjectDetailTester {
       }
 
       console.log(
-        `✅ Found Model Selection section: ${modelSectionExists.selector}`
+        `✅ Found Model Selection section: ${modelSectionExists.selector}`,
       )
 
       // Try to interact with the model selection section
       const interactionResult = await this.testSectionInteraction(
         'Model Selection',
-        modelSectionExists.selector
+        modelSectionExists.selector,
       )
 
       if (interactionResult) {
@@ -353,7 +354,7 @@ class ProjectDetailTester {
 
         const elements = []
         const inputs = section.querySelectorAll(
-          'input, select, textarea, button[type="submit"]'
+          'input, select, textarea, button[type="submit"]',
         )
 
         inputs.forEach((input) => {
@@ -368,7 +369,7 @@ class ProjectDetailTester {
         })
 
         const saveButtons = section.querySelectorAll(
-          'button:contains("Save"), button:contains("Update"), input[type="submit"]'
+          'button:contains("Save"), button:contains("Update"), input[type="submit"]',
         )
         saveButtons.forEach((btn) => {
           elements.push({
@@ -381,10 +382,10 @@ class ProjectDetailTester {
       }, selector)
 
       console.log(
-        `📝 Found ${formElements.length} form elements in ${sectionName}:`
+        `📝 Found ${formElements.length} form elements in ${sectionName}:`,
       )
       formElements.forEach((el) =>
-        console.log(`  - ${el.type}: ${el.name || el.text}`)
+        console.log(`  - ${el.type}: ${el.name || el.text}`),
       )
 
       // Try to make a change and save
@@ -397,7 +398,7 @@ class ProjectDetailTester {
             // Check if section auto-collapsed
             const autoCollapsed = await this.checkAutoCollapse(
               selector,
-              sectionName
+              sectionName,
             )
             return autoCollapsed
           }
@@ -422,7 +423,7 @@ class ProjectDetailTester {
         if (element.type === 'checkbox') {
           // Toggle checkbox
           const checkbox = await this.page.$(
-            `${sectionSelector} input[name="${element.name}"]`
+            `${sectionSelector} input[name="${element.name}"]`,
           )
           if (checkbox) {
             await checkbox.click()
@@ -433,13 +434,13 @@ class ProjectDetailTester {
         } else if (element.type === 'select') {
           // Change select option
           const select = await this.page.$(
-            `${sectionSelector} select[name="${element.name}"]`
+            `${sectionSelector} select[name="${element.name}"]`,
           )
           if (select) {
             await select.click()
             // Try to select a different option
             const options = await this.page.$$(
-              `${sectionSelector} select[name="${element.name}"] option`
+              `${sectionSelector} select[name="${element.name}"] option`,
             )
             if (options.length > 1) {
               await options[1].click()
@@ -451,7 +452,7 @@ class ProjectDetailTester {
         } else if (element.type === 'text' || element.type === 'textarea') {
           // Change text input
           const input = await this.page.$(
-            `${sectionSelector} input[name="${element.name}"], ${sectionSelector} textarea[name="${element.name}"]`
+            `${sectionSelector} input[name="${element.name}"], ${sectionSelector} textarea[name="${element.name}"]`,
           )
           if (input) {
             await input.click({ clickCount: 3 }) // Select all text
@@ -552,7 +553,7 @@ class ProjectDetailTester {
         // Check if badge numbers updated
         const badgeResult = await this.checkBadgeUpdate(
           sectionSelector,
-          sectionName
+          sectionName,
         )
         return badgeResult
       } else {
@@ -574,7 +575,7 @@ class ProjectDetailTester {
       }
     } catch (error) {
       console.log(
-        `❌ Error checking auto-collapse for ${sectionName}: ${error.message}`
+        `❌ Error checking auto-collapse for ${sectionName}: ${error.message}`,
       )
       return false
     }
@@ -630,7 +631,7 @@ class ProjectDetailTester {
           return { found: false }
         },
         sectionSelector,
-        sectionName
+        sectionName,
       )
 
       if (badgeInfo && badgeInfo.found) {
@@ -667,14 +668,14 @@ class ProjectDetailTester {
         test.patterns.some(
           (pattern) =>
             section.text.toLowerCase().includes(pattern) ||
-            section.selector.toLowerCase().includes(pattern)
-        )
+            section.selector.toLowerCase().includes(pattern),
+        ),
       )
 
       if (matchingSection) {
         const result = await this.testSectionInteraction(
           test.name,
-          matchingSection.selector
+          matchingSection.selector,
         )
         if (result) {
           testResults.passed++
@@ -683,7 +684,7 @@ class ProjectDetailTester {
         }
       } else {
         console.log(
-          `⚠️ ${test.name} section not found - may not be present on this project type`
+          `⚠️ ${test.name} section not found - may not be present on this project type`,
         )
         testResults.total-- // Don't count as test if section doesn't exist
       }
@@ -798,7 +799,7 @@ class ProjectDetailTester {
     if (testResults.passed > 0) {
       console.log(
         '✅ Model Selection Persistence: ' +
-          (testResults.passed > 0 ? 'PASSED' : 'FAILED')
+          (testResults.passed > 0 ? 'PASSED' : 'FAILED'),
       )
       console.log('✅ Collapsible Sections Auto-Collapse: TESTED')
       console.log('✅ Persistence After Refresh: TESTED')
@@ -812,7 +813,7 @@ class ProjectDetailTester {
       console.log('- Review and fix identified issues')
       console.log('- Implement additional error handling for edge cases')
       console.log(
-        '- Consider adding more specific test IDs for better automation'
+        '- Consider adding more specific test IDs for better automation',
       )
     }
 

@@ -2,16 +2,16 @@
 
 import { useSyncExternalStore } from 'react'
 
-import { PLATFORM_CHANGELOG } from '@/data/changelog'
 import { LegalPageWrapper } from '@/components/layout/LegalPageWrapper'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
+import { PLATFORM_CHANGELOG } from '@/data/changelog'
+import { useResolvedUiMode } from '@/hooks/useResolvedUiMode'
 import {
   type ChangelogAudience,
   useChangelogEntries,
 } from '@/lib/extensions/changelog'
 import { filterAndGroup } from '@/lib/utils/changelog'
-import { useResolvedUiMode } from '@/hooks/useResolvedUiMode'
 import { isStudentLockedHost } from '@/lib/utils/subdomain'
 
 // isStudentLockedHost reads window.location, which does not exist during SSR.

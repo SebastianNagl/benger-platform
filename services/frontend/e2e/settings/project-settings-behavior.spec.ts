@@ -21,7 +21,7 @@ const BASE_URL = process.env.PLAYWRIGHT_BASE_URL || 'http://benger.localhost'
 async function updateProjectSettings(
   page: Page,
   projectId: string,
-  settings: Record<string, unknown>
+  settings: Record<string, unknown>,
 ): Promise<void> {
   const result = await page.evaluate(
     async ({ projectId, settings }) => {
@@ -33,7 +33,7 @@ async function updateProjectSettings(
       })
       return { ok: response.ok, status: response.status }
     },
-    { projectId, settings }
+    { projectId, settings },
   )
 
   if (!result.ok) {
@@ -45,14 +45,15 @@ async function updateProjectSettings(
  * Helper: Wait for annotation UI to be ready
  */
 async function waitForAnnotationUI(page: Page): Promise<void> {
-
   // Wait for textarea to appear (annotation interface uses TextArea component)
   await page
     .locator('textarea')
     .first()
     .waitFor({ state: 'visible', timeout: 20000 })
     .catch(() => {
-      console.log('Textarea wait timed out, checking for other annotation elements...')
+      console.log(
+        'Textarea wait timed out, checking for other annotation elements...',
+      )
     })
 
   // Also wait for submit button as a secondary indicator
@@ -99,7 +100,7 @@ test.describe('Project Settings Behavior', () => {
 
     // Create project
     testProjectId = await helpers.createTestProject(
-      `Settings Instruction Test ${Date.now()}`
+      `Settings Instruction Test ${Date.now()}`,
     )
     expect(testProjectId).toBeTruthy()
     await fixtures.setLabelConfig(testProjectId!, SIMPLE_TEXT_CONFIG)
@@ -123,7 +124,9 @@ test.describe('Project Settings Behavior', () => {
     console.log('Instructions panel visible with show_instruction=true')
 
     // Disable show_instruction
-    await updateProjectSettings(page, testProjectId!, { show_instruction: false })
+    await updateProjectSettings(page, testProjectId!, {
+      show_instruction: false,
+    })
 
     // Reload and verify hidden
     await page.reload()
@@ -131,7 +134,7 @@ test.describe('Project Settings Behavior', () => {
 
     // Verify instruction panel is NOT visible
     const instructionText = page.locator(
-      'text=Test instructions for annotators'
+      'text=Test instructions for annotators',
     )
     await expect(instructionText).not.toBeVisible({ timeout: 5000 })
     console.log('Instructions panel hidden with show_instruction=false')
@@ -141,14 +144,16 @@ test.describe('Project Settings Behavior', () => {
     test.setTimeout(90000)
 
     testProjectId = await helpers.createTestProject(
-      `Skip Button Test ${Date.now()}`
+      `Skip Button Test ${Date.now()}`,
     )
     expect(testProjectId).toBeTruthy()
     await fixtures.setLabelConfig(testProjectId!, SIMPLE_TEXT_CONFIG)
     await fixtures.createTasks(testProjectId!, 3)
 
     // Enable skip button (default is true, but explicitly set)
-    await updateProjectSettings(page, testProjectId!, { show_skip_button: true })
+    await updateProjectSettings(page, testProjectId!, {
+      show_skip_button: true,
+    })
 
     await page.goto(`${BASE_URL}/projects/${testProjectId}/label`)
     await waitForAnnotationUI(page)
@@ -161,7 +166,9 @@ test.describe('Project Settings Behavior', () => {
     console.log('Skip button visible with show_skip_button=true')
 
     // Disable skip button
-    await updateProjectSettings(page, testProjectId!, { show_skip_button: false })
+    await updateProjectSettings(page, testProjectId!, {
+      show_skip_button: false,
+    })
     await page.reload()
     await waitForAnnotationUI(page)
 
@@ -174,7 +181,7 @@ test.describe('Project Settings Behavior', () => {
     test.setTimeout(90000)
 
     testProjectId = await helpers.createTestProject(
-      `Skip Comment Test ${Date.now()}`
+      `Skip Comment Test ${Date.now()}`,
     )
     expect(testProjectId).toBeTruthy()
     await fixtures.setLabelConfig(testProjectId!, SIMPLE_TEXT_CONFIG)
@@ -199,7 +206,9 @@ test.describe('Project Settings Behavior', () => {
 
     // Verify comment modal appears
     await page.waitForTimeout(500)
-    const modalTitle = page.locator('h3').filter({ hasText: /skip|überspringen/i })
+    const modalTitle = page
+      .locator('h3')
+      .filter({ hasText: /skip|überspringen/i })
     await expect(modalTitle).toBeVisible({ timeout: 5000 })
     console.log('Skip comment modal appeared')
 
@@ -287,7 +296,9 @@ test.describe('Project Settings Behavior', () => {
     // the skip_queue=requeue_for_others test below).
 
     // Admin context
-    const adminContext = await browser.newContext({ viewport: { width: 1920, height: 1080 } })
+    const adminContext = await browser.newContext({
+      viewport: { width: 1920, height: 1080 },
+    })
     const adminPage = await adminContext.newPage()
     const adminHelpers = new TestHelpers(adminPage)
     await adminHelpers.login('admin', 'admin')
@@ -299,7 +310,7 @@ test.describe('Project Settings Behavior', () => {
       const data = await resp.json()
       const orgs = data.organizations || data.items || data
       const tum = (Array.isArray(orgs) ? orgs : []).find(
-        (o: any) => o.name === 'TUM' || o.slug === 'tum'
+        (o: any) => o.name === 'TUM' || o.slug === 'tum',
       )
       return tum?.id || null
     })
@@ -308,7 +319,9 @@ test.describe('Project Settings Behavior', () => {
     // Create project via API in the TUM org so the contributor has access.
     testProjectId = await adminPage.evaluate(
       async ({ name, orgId, labelConfig }) => {
-        const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+        const headers: Record<string, string> = {
+          'Content-Type': 'application/json',
+        }
         if (orgId) headers['X-Organization-Context'] = orgId
         const resp = await fetch('/api/projects', {
           method: 'POST',
@@ -328,7 +341,7 @@ test.describe('Project Settings Behavior', () => {
         name: `Min Annotations Test ${Date.now()}`,
         orgId,
         labelConfig: SIMPLE_TEXT_CONFIG,
-      }
+      },
     )
     expect(testProjectId).toBeTruthy()
 
@@ -354,24 +367,31 @@ test.describe('Project Settings Behavior', () => {
     const annotate = async (actorPage: Page, text: string) =>
       actorPage.evaluate(
         async ({ taskId, orgId, text }) => {
-          const resp = await fetch(`/api/projects/tasks/${taskId}/annotations`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'X-Organization-Context': orgId,
+          const resp = await fetch(
+            `/api/projects/tasks/${taskId}/annotations`,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-Organization-Context': orgId,
+              },
+              credentials: 'include',
+              body: JSON.stringify({
+                result: [
+                  {
+                    from_name: 'answer',
+                    to_name: 'text',
+                    type: 'textarea',
+                    value: { text: [text] },
+                  },
+                ],
+                was_cancelled: false,
+              }),
             },
-            credentials: 'include',
-            body: JSON.stringify({
-              result: [
-                { from_name: 'answer', to_name: 'text', type: 'textarea',
-                  value: { text: [text] } },
-              ],
-              was_cancelled: false,
-            }),
-          })
+          )
           return { ok: resp.ok, status: resp.status }
         },
-        { taskId, orgId, text }
+        { taskId, orgId, text },
       )
 
     const readStatus = async () =>
@@ -383,13 +403,19 @@ test.describe('Project Settings Behavior', () => {
           })
           if (!response.ok) return { error: response.status }
           const data = await response.json()
-          return { is_labeled: data.is_labeled, annotation_count: data.total_annotations || 0 }
+          return {
+            is_labeled: data.is_labeled,
+            annotation_count: data.total_annotations || 0,
+          }
         },
-        { taskId, orgId }
+        { taskId, orgId },
       )
 
     // First annotation — admin.
-    const first = await annotate(adminPage, 'First annotation - testing min annotations requirement')
+    const first = await annotate(
+      adminPage,
+      'First annotation - testing min annotations requirement',
+    )
     expect(first.ok).toBe(true)
 
     // After 1 of 2 annotations: counted but NOT completed.
@@ -402,7 +428,10 @@ test.describe('Project Settings Behavior', () => {
 
     // Regression pin for migration 064: a SECOND submit by the SAME user
     // updates in place — the count must stay 1, not grow.
-    const sameUserResubmit = await annotate(adminPage, 'Same-user resubmit - must update in place')
+    const sameUserResubmit = await annotate(
+      adminPage,
+      'Same-user resubmit - must update in place',
+    )
     expect(sameUserResubmit.ok).toBe(true)
     const afterResubmit = await readStatus()
     expect(afterResubmit.annotation_count).toBe(1)
@@ -411,13 +440,18 @@ test.describe('Project Settings Behavior', () => {
     // Second annotation — CONTRIBUTOR in their own browser context (own
     // cookie jar; Bearer headers inside page.evaluate would be overridden
     // by the admin cookies, so a real second session is required).
-    const contribContext = await browser.newContext({ viewport: { width: 1920, height: 1080 } })
+    const contribContext = await browser.newContext({
+      viewport: { width: 1920, height: 1080 },
+    })
     const contribPage = await contribContext.newPage()
     const contribHelpers = new TestHelpers(contribPage)
     await contribHelpers.login('contributor', 'admin')
     await contribPage.goto(`${BASE_URL}/dashboard`)
 
-    const second = await annotate(contribPage, 'Second annotation from second user - should trigger completion')
+    const second = await annotate(
+      contribPage,
+      'Second annotation from second user - should trigger completion',
+    )
     expect(second.ok).toBe(true)
 
     // After 2 annotations from 2 users: count 2 and completion reached.
@@ -426,7 +460,9 @@ test.describe('Project Settings Behavior', () => {
     console.log(`After second annotation: ${JSON.stringify(taskStatus2)}`)
     expect(taskStatus2.annotation_count).toBeGreaterThanOrEqual(2)
     expect(taskStatus2.is_labeled).toBe(true)
-    console.log('Task has 2+ annotations from distinct users (min requirement met)')
+    console.log(
+      'Task has 2+ annotations from distinct users (min requirement met)',
+    )
 
     await adminContext.close()
     await contribContext.close()
@@ -436,7 +472,7 @@ test.describe('Project Settings Behavior', () => {
     test.setTimeout(90000)
 
     testProjectId = await helpers.createTestProject(
-      `Skip Queue Ignore Test ${Date.now()}`
+      `Skip Queue Ignore Test ${Date.now()}`,
     )
     expect(testProjectId).toBeTruthy()
     await fixtures.setLabelConfig(testProjectId!, SIMPLE_TEXT_CONFIG)
@@ -477,7 +513,7 @@ test.describe('Project Settings Behavior', () => {
     test.setTimeout(90000)
 
     testProjectId = await helpers.createTestProject(
-      `Skip Queue Requeue Test ${Date.now()}`
+      `Skip Queue Requeue Test ${Date.now()}`,
     )
     expect(testProjectId).toBeTruthy()
     await fixtures.setLabelConfig(testProjectId!, SIMPLE_TEXT_CONFIG)
@@ -516,7 +552,7 @@ test.describe('Project Settings Behavior', () => {
     test.setTimeout(90000)
 
     testProjectId = await helpers.createTestProject(
-      `Skip Instructions Test ${Date.now()}`
+      `Skip Instructions Test ${Date.now()}`,
     )
     expect(testProjectId).toBeTruthy()
     await fixtures.setLabelConfig(testProjectId!, SIMPLE_TEXT_CONFIG)
@@ -534,7 +570,9 @@ test.describe('Project Settings Behavior', () => {
     await page.goto(`${BASE_URL}/projects/${testProjectId}/label`)
 
     // Instructions modal should appear on first task
-    const instructionsModal = page.locator('text=Read these instructions carefully')
+    const instructionsModal = page.locator(
+      'text=Read these instructions carefully',
+    )
     await expect(instructionsModal).toBeVisible({ timeout: 15000 })
     console.log('Instructions modal visible on first task')
 
@@ -566,7 +604,9 @@ test.describe('Project Settings Behavior', () => {
     test.setTimeout(120000)
 
     // Admin context
-    const adminContext = await browser.newContext({ viewport: { width: 1920, height: 1080 } })
+    const adminContext = await browser.newContext({
+      viewport: { width: 1920, height: 1080 },
+    })
     const adminPage = await adminContext.newPage()
     const adminHelpers = new TestHelpers(adminPage)
     await adminHelpers.login('admin', 'admin')
@@ -578,7 +618,7 @@ test.describe('Project Settings Behavior', () => {
       const data = await resp.json()
       const orgs = data.organizations || data.items || data
       const tum = (Array.isArray(orgs) ? orgs : []).find(
-        (o: any) => o.name === 'TUM' || o.slug === 'tum'
+        (o: any) => o.name === 'TUM' || o.slug === 'tum',
       )
       return tum?.id || null
     })
@@ -588,7 +628,9 @@ test.describe('Project Settings Behavior', () => {
     const projectName = `Skip Requeue Others Test ${Date.now()}`
     testProjectId = await adminPage.evaluate(
       async ({ name, orgId, labelConfig }) => {
-        const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+        const headers: Record<string, string> = {
+          'Content-Type': 'application/json',
+        }
         if (orgId) headers['X-Organization-Context'] = orgId
         const resp = await fetch('/api/projects', {
           method: 'POST',
@@ -606,7 +648,7 @@ test.describe('Project Settings Behavior', () => {
         const data = await resp.json()
         return data.id
       },
-      { name: projectName, orgId, labelConfig: SIMPLE_TEXT_CONFIG }
+      { name: projectName, orgId, labelConfig: SIMPLE_TEXT_CONFIG },
     )
     expect(testProjectId).toBeTruthy()
 
@@ -635,11 +677,11 @@ test.describe('Project Settings Behavior', () => {
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
             body: JSON.stringify({ comment: null }),
-          }
+          },
         )
         return { ok: skipResp.ok, taskId: firstTaskId }
       },
-      { projectId: testProjectId }
+      { projectId: testProjectId },
     )
     expect(skipResult.ok).toBe(true)
     console.log(`Admin skipped task ${skipResult.taskId}`)
@@ -649,19 +691,24 @@ test.describe('Project Settings Behavior', () => {
       async ({ projectId }) => {
         const resp = await fetch(
           `/api/projects/${projectId}/tasks?exclude_my_annotations=true`,
-          { credentials: 'include' }
+          { credentials: 'include' },
         )
         const data = await resp.json()
-        return { count: data.items?.length || 0, ids: data.items?.map((t: any) => t.id) || [] }
+        return {
+          count: data.items?.length || 0,
+          ids: data.items?.map((t: any) => t.id) || [],
+        }
       },
-      { projectId: testProjectId }
+      { projectId: testProjectId },
     )
     expect(adminTasks.count).toBe(2)
     expect(adminTasks.ids).not.toContain(skipResult.taskId)
     console.log(`Admin sees ${adminTasks.count} tasks (skipped task excluded)`)
 
     // Contributor context — separate browser context with own cookies
-    const contribContext = await browser.newContext({ viewport: { width: 1920, height: 1080 } })
+    const contribContext = await browser.newContext({
+      viewport: { width: 1920, height: 1080 },
+    })
     const contribPage = await contribContext.newPage()
     const contribHelpers = new TestHelpers(contribPage)
     await contribHelpers.login('contributor', 'admin')
@@ -675,16 +722,20 @@ test.describe('Project Settings Behavior', () => {
       async ({ projectId }) => {
         const resp = await fetch(
           `/api/projects/${projectId}/tasks?exclude_my_annotations=true`,
-          { credentials: 'include' }
+          { credentials: 'include' },
         )
         const data = await resp.json()
         return { count: data.items?.length || 0, status: resp.status }
       },
-      { projectId: testProjectId }
+      { projectId: testProjectId },
     )
-    console.log(`Contributor sees ${contribTasks.count} tasks (status=${contribTasks.status})`)
+    console.log(
+      `Contributor sees ${contribTasks.count} tasks (status=${contribTasks.status})`,
+    )
     expect(contribTasks.count).toBe(3)
-    console.log('Contributor sees all 3 tasks — admin skip does not affect them')
+    console.log(
+      'Contributor sees all 3 tasks — admin skip does not affect them',
+    )
 
     await adminContext.close()
     await contribContext.close()

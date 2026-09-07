@@ -43,7 +43,7 @@ export class UserOrganizationPermissions {
    */
   static canManageOrganization(
     user: UserWithOrganizations | null,
-    orgId: string
+    orgId: string,
   ): boolean {
     if (!user) return false
 
@@ -63,21 +63,19 @@ export class UserOrganizationPermissions {
   static canManageGroup(
     user: UserWithOrganizations | null,
     organizationId: string,
-    groupId: string
+    groupId: string,
   ): boolean {
     if (!user) return false
 
     if (user.is_superadmin === true) return true
 
-    const userOrg = user.organizations?.find(
-      (org) => org.id === organizationId
-    )
+    const userOrg = user.organizations?.find((org) => org.id === organizationId)
     if (!userOrg) return false
     if (userOrg.role === 'ORG_ADMIN') return true
 
     return (
       userOrg.groups?.some(
-        (group) => group.id === groupId && group.is_group_admin
+        (group) => group.id === groupId && group.is_group_admin,
       ) ?? false
     )
   }
@@ -88,15 +86,13 @@ export class UserOrganizationPermissions {
    */
   static canManageAnyGroup(
     user: UserWithOrganizations | null,
-    organizationId: string
+    organizationId: string,
   ): boolean {
     if (!user) return false
 
     if (this.canManageOrganization(user, organizationId)) return true
 
-    const userOrg = user.organizations?.find(
-      (org) => org.id === organizationId
-    )
+    const userOrg = user.organizations?.find((org) => org.id === organizationId)
     return userOrg?.groups?.some((group) => group.is_group_admin) ?? false
   }
 
@@ -107,7 +103,7 @@ export class UserOrganizationPermissions {
    */
   static canInviteToOrganization(
     user: UserWithOrganizations | null,
-    orgId: string
+    orgId: string,
   ): boolean {
     return (
       this.canManageOrganization(user, orgId) ||
@@ -124,7 +120,7 @@ export class UserOrganizationPermissions {
     user: UserWithOrganizations | null,
     targetUserId: string,
     orgId: string,
-    targetUserRole?: string
+    targetUserRole?: string,
   ): boolean {
     if (!user) return false
 
@@ -153,7 +149,7 @@ export class UserOrganizationPermissions {
     user: UserWithOrganizations | null,
     targetUserId: string,
     orgId: string,
-    targetUserRole?: string
+    targetUserRole?: string,
   ): boolean {
     if (!user) return false
 
@@ -197,7 +193,7 @@ export class UserOrganizationPermissions {
    */
   static canEditOrganization(
     user: UserWithOrganizations | null,
-    orgId: string
+    orgId: string,
   ): boolean {
     return this.canManageOrganization(user, orgId)
   }
@@ -210,7 +206,7 @@ export class UserOrganizationPermissions {
    */
   static canViewOrganizationMembers(
     user: UserWithOrganizations | null,
-    orgId: string
+    orgId: string,
   ): boolean {
     if (!user) return false
 
@@ -237,7 +233,7 @@ export class UserOrganizationPermissions {
    * Others return specific org IDs
    */
   static getManageableOrganizations(
-    user: UserWithOrganizations | null
+    user: UserWithOrganizations | null,
   ): string[] | null {
     if (!user) return []
 

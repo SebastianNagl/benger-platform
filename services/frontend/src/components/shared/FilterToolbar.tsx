@@ -21,14 +21,13 @@
 'use client'
 
 import { Button } from '@/components/shared/Button'
-import { FunnelIcon, MagnifyingGlassIcon, XMarkIcon } from '@heroicons/react/24/outline'
-import clsx from 'clsx'
 import {
-  Children,
-  ReactNode,
-  useState,
-  useEffect,
-} from 'react'
+  FunnelIcon,
+  MagnifyingGlassIcon,
+  XMarkIcon,
+} from '@heroicons/react/24/outline'
+import clsx from 'clsx'
+import { Children, ReactNode, useEffect, useState } from 'react'
 
 interface FilterToolbarProps {
   searchValue?: string
@@ -103,7 +102,7 @@ export function FilterToolbar({
   }, [defaultShowSearch])
 
   const hasFilterFields = Children.toArray(children).some(
-    (c) => c !== null && c !== undefined && c !== ''
+    (c) => c !== null && c !== undefined && c !== '',
   )
   const filterDotVisible = hasActiveFilters || (showFilters && hasFilterFields)
   const searchDotVisible = Boolean(searchValue)
@@ -119,7 +118,7 @@ export function FilterToolbar({
         className={clsx(
           'space-y-3',
           !isBare &&
-            'rounded-lg border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900'
+            'rounded-lg border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900',
         )}
       >
         <div className="flex flex-col space-y-3 lg:flex-row lg:items-center lg:justify-between lg:space-y-0">
@@ -130,7 +129,7 @@ export function FilterToolbar({
                 onClick={() => setShowSearch(!showSearch)}
                 className={clsx(
                   'h-8 py-0',
-                  showSearch && 'bg-emerald-50 dark:bg-emerald-900/20'
+                  showSearch && 'bg-emerald-50 dark:bg-emerald-900/20',
                 )}
                 title={searchLabel}
               >
@@ -150,7 +149,7 @@ export function FilterToolbar({
                 onClick={() => setShowFilters(!showFilters)}
                 className={clsx(
                   'h-8 py-0',
-                  showFilters && 'bg-emerald-50 dark:bg-emerald-900/20'
+                  showFilters && 'bg-emerald-50 dark:bg-emerald-900/20',
                 )}
                 title={filtersLabel}
               >
@@ -172,7 +171,7 @@ export function FilterToolbar({
                 className={clsx(
                   'h-8 py-0',
                   hasActiveFilters &&
-                    'bg-emerald-50 text-emerald-700 ring-emerald-300 hover:bg-emerald-100 dark:bg-emerald-900/20 dark:text-emerald-300 dark:ring-emerald-700'
+                    'bg-emerald-50 text-emerald-700 ring-emerald-300 hover:bg-emerald-100 dark:bg-emerald-900/20 dark:text-emerald-300 dark:ring-emerald-700',
                 )}
               >
                 <XMarkIcon className="h-4 w-4" />
@@ -186,7 +185,7 @@ export function FilterToolbar({
         </div>
 
         {searchVisible && (
-          <div className="relative flex h-8 items-center rounded-full bg-white pl-2 pr-3 ring-1 ring-zinc-900/10 transition hover:ring-zinc-900/20 dark:bg-white/5 dark:ring-inset dark:ring-white/10 dark:hover:ring-white/20">
+          <div className="relative flex h-8 items-center rounded-full bg-white pr-3 pl-2 ring-1 ring-zinc-900/10 transition hover:ring-zinc-900/20 dark:bg-white/5 dark:ring-white/10 dark:ring-inset dark:hover:ring-white/20">
             <MagnifyingGlassIcon className="pointer-events-none h-5 w-5 stroke-current text-zinc-500 dark:text-zinc-400" />
             <input
               type="text"

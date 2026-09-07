@@ -14,7 +14,11 @@ import { Checkbox } from '@/components/shared/Checkbox'
 import { SearchInput } from '@/components/shared/SearchInput'
 import { useI18n } from '@/contexts/I18nContext'
 import { api } from '@/lib/api'
-import { ChevronDownIcon, ChevronUpIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline'
+import {
+  ChevronDownIcon,
+  ChevronUpIcon,
+  ExclamationTriangleIcon,
+} from '@heroicons/react/24/outline'
 import { useCallback, useEffect, useState } from 'react'
 
 interface AvailableModel {
@@ -93,9 +97,10 @@ export function ModelSelector({
     fetchModels()
   }, [fetchModels])
 
-  const filteredModels = models.filter((model) =>
-    model.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    model.id.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredModels = models.filter(
+    (model) =>
+      model.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      model.id.toLowerCase().includes(searchQuery.toLowerCase()),
   )
 
   const handleToggleModel = (modelId: string) => {
@@ -110,9 +115,7 @@ export function ModelSelector({
   }
 
   const handleSelectAll = () => {
-    const allModelIds = filteredModels
-      .slice(0, maxSelections)
-      .map((m) => m.id)
+    const allModelIds = filteredModels.slice(0, maxSelections).map((m) => m.id)
     onSelectionChange(allModelIds)
   }
 
@@ -146,7 +149,10 @@ export function ModelSelector({
         <div className="flex items-center space-x-2 py-8">
           <ExclamationTriangleIcon className="h-5 w-5 text-amber-500" />
           <p className="text-sm text-amber-700 dark:text-amber-400">
-            {t('evaluation.modelSelector.noModelsAvailable', 'No models available. Configure API keys in your profile settings.')}
+            {t(
+              'evaluation.modelSelector.noModelsAvailable',
+              'No models available. Configure API keys in your profile settings.',
+            )}
           </p>
         </div>
       </Card>
@@ -167,7 +173,10 @@ export function ModelSelector({
             {t('evaluation.modelSelector.modelSelection')}
           </h4>
           <span className="text-sm text-gray-500 dark:text-gray-400">
-            {t('evaluation.modelSelector.selectedCount', { selected: selectedCount, max: maxSelections })}
+            {t('evaluation.modelSelector.selectedCount', {
+              selected: selectedCount,
+              max: maxSelections,
+            })}
           </span>
         </div>
         {isOpen ? (
@@ -207,7 +216,9 @@ export function ModelSelector({
           {!canSelectMore && (
             <div className="mb-4 rounded-md bg-yellow-50 p-3 dark:bg-yellow-900/20">
               <p className="text-sm text-yellow-800 dark:text-yellow-200">
-                {t('evaluation.modelSelector.maxSelectionWarning', { max: maxSelections })}
+                {t('evaluation.modelSelector.maxSelectionWarning', {
+                  max: maxSelections,
+                })}
               </p>
             </div>
           )}

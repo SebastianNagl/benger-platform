@@ -216,7 +216,7 @@ describe('EvaluationDashboard', () => {
       apiClient.evaluations.getConfiguredMethods as jest.Mock
     ).mockResolvedValue({ fields: [] })
     ;(apiClient.evaluations.getEvaluatedModels as jest.Mock).mockResolvedValue(
-      []
+      [],
     )
     ;(
       apiClient.evaluations.getProjectAnnotators as jest.Mock
@@ -230,7 +230,7 @@ describe('EvaluationDashboard', () => {
 
       expect(screen.getByText('evaluation.viewer.title')).toBeInTheDocument()
       expect(
-        screen.getByText('evaluation.viewer.selectProjectDescription')
+        screen.getByText('evaluation.viewer.selectProjectDescription'),
       ).toBeInTheDocument()
     })
 
@@ -245,14 +245,20 @@ describe('EvaluationDashboard', () => {
       render(<EvaluationDashboard />)
 
       // The filter bar contains a Project dropdown label and selector
-      expect(screen.getByText('evaluation.viewer.filters.project')).toBeInTheDocument()
-      expect(screen.getByText('evaluation.viewer.filters.selectProject')).toBeInTheDocument()
+      expect(
+        screen.getByText('evaluation.viewer.filters.project'),
+      ).toBeInTheDocument()
+      expect(
+        screen.getByText('evaluation.viewer.filters.selectProject'),
+      ).toBeInTheDocument()
     })
 
     it('should show no project selected state', () => {
       render(<EvaluationDashboard />)
 
-      expect(screen.getByText('evaluation.viewer.filters.selectProject')).toBeInTheDocument()
+      expect(
+        screen.getByText('evaluation.viewer.filters.selectProject'),
+      ).toBeInTheDocument()
     })
   })
 
@@ -283,10 +289,14 @@ describe('EvaluationDashboard', () => {
       render(<EvaluationDashboard />)
 
       await waitFor(() => {
-        expect(screen.getByText('evaluation.viewer.filters.selectProject')).toBeInTheDocument()
+        expect(
+          screen.getByText('evaluation.viewer.filters.selectProject'),
+        ).toBeInTheDocument()
       })
 
-      const projectButton = screen.getByText('evaluation.viewer.filters.selectProject')
+      const projectButton = screen.getByText(
+        'evaluation.viewer.filters.selectProject',
+      )
       await user.click(projectButton)
 
       await waitFor(() => {
@@ -307,11 +317,13 @@ describe('EvaluationDashboard', () => {
     it('should show select project message when no project selected', () => {
       render(<EvaluationDashboard />)
 
-      expect(screen.getByText('evaluation.viewer.emptyStates.selectProject.title')).toBeInTheDocument()
+      expect(
+        screen.getByText('evaluation.viewer.emptyStates.selectProject.title'),
+      ).toBeInTheDocument()
       expect(
         screen.getByText(
-          'evaluation.viewer.emptyStates.selectProject.description'
-        )
+          'evaluation.viewer.emptyStates.selectProject.description',
+        ),
       ).toBeInTheDocument()
     })
   })
@@ -348,24 +360,36 @@ describe('EvaluationDashboard', () => {
       ;(projectsAPI.list as jest.Mock).mockResolvedValue({
         items: [mockProject],
       })
-      ;(apiClient.evaluations.getConfiguredMethods as jest.Mock).mockResolvedValue({
+      ;(
+        apiClient.evaluations.getConfiguredMethods as jest.Mock
+      ).mockResolvedValue({
         fields: [],
       })
-      ;(apiClient.evaluations.getEvaluatedModels as jest.Mock).mockResolvedValue([])
-      ;(apiClient.evaluations.getProjectAnnotators as jest.Mock).mockResolvedValue({
+      ;(
+        apiClient.evaluations.getEvaluatedModels as jest.Mock
+      ).mockResolvedValue([])
+      ;(
+        apiClient.evaluations.getProjectAnnotators as jest.Mock
+      ).mockResolvedValue({
         annotators: [],
       })
-      ;(apiClient.evaluations.getProjectEvaluationConfig as jest.Mock).mockResolvedValue({})
+      ;(
+        apiClient.evaluations.getProjectEvaluationConfig as jest.Mock
+      ).mockResolvedValue({})
 
       const user = userEvent.setup()
       render(<EvaluationDashboard />)
 
       await waitFor(() => {
-        expect(screen.getByText('evaluation.viewer.filters.selectProject')).toBeInTheDocument()
+        expect(
+          screen.getByText('evaluation.viewer.filters.selectProject'),
+        ).toBeInTheDocument()
       })
 
       // Open dropdown and select project
-      await user.click(screen.getByText('evaluation.viewer.filters.selectProject'))
+      await user.click(
+        screen.getByText('evaluation.viewer.filters.selectProject'),
+      )
       await waitFor(() => {
         expect(screen.getByText('Test Project')).toBeInTheDocument()
       })
@@ -379,7 +403,9 @@ describe('EvaluationDashboard', () => {
     })
 
     it('should handle projects list fetch error gracefully', async () => {
-      ;(projectsAPI.list as jest.Mock).mockRejectedValue(new Error('Network error'))
+      ;(projectsAPI.list as jest.Mock).mockRejectedValue(
+        new Error('Network error'),
+      )
 
       render(<EvaluationDashboard />)
 
@@ -393,7 +419,9 @@ describe('EvaluationDashboard', () => {
       render(<EvaluationDashboard />)
 
       // The filter bar should be visible
-      expect(screen.getByText('evaluation.viewer.filters.project')).toBeInTheDocument()
+      expect(
+        screen.getByText('evaluation.viewer.filters.project'),
+      ).toBeInTheDocument()
     })
   })
 
@@ -536,9 +564,9 @@ describe('EvaluationDashboard', () => {
       ;(
         apiClient.evaluations.getSignificanceTests as jest.Mock
       ).mockResolvedValue({ comparisons: [] })
-      ;(
-        apiClient.evaluations.computeStatistics as jest.Mock
-      ).mockResolvedValue({})
+      ;(apiClient.evaluations.computeStatistics as jest.Mock).mockResolvedValue(
+        {},
+      )
     })
 
     it('should load evaluation config when project selected', async () => {
@@ -547,13 +575,13 @@ describe('EvaluationDashboard', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('evaluation.viewer.filters.selectProject')
+          screen.getByText('evaluation.viewer.filters.selectProject'),
         ).toBeInTheDocument()
       })
 
       // Open dropdown and select project
       await user.click(
-        screen.getByText('evaluation.viewer.filters.selectProject')
+        screen.getByText('evaluation.viewer.filters.selectProject'),
       )
       await waitFor(() => {
         expect(screen.getByText('Test Project')).toBeInTheDocument()
@@ -563,11 +591,12 @@ describe('EvaluationDashboard', () => {
       // Verify API calls
       await waitFor(() => {
         expect(
-          apiClient.evaluations.getProjectEvaluationConfig
+          apiClient.evaluations.getProjectEvaluationConfig,
         ).toHaveBeenCalledWith('1')
-        expect(
-          apiClient.evaluations.getEvaluatedModels
-        ).toHaveBeenCalledWith('1', true)
+        expect(apiClient.evaluations.getEvaluatedModels).toHaveBeenCalledWith(
+          '1',
+          true,
+        )
       })
     })
 
@@ -592,12 +621,12 @@ describe('EvaluationDashboard', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('evaluation.viewer.filters.selectProject')
+          screen.getByText('evaluation.viewer.filters.selectProject'),
         ).toBeInTheDocument()
       })
 
       await user.click(
-        screen.getByText('evaluation.viewer.filters.selectProject')
+        screen.getByText('evaluation.viewer.filters.selectProject'),
       )
       await waitFor(() => {
         expect(screen.getByText('Test Project')).toBeInTheDocument()
@@ -606,7 +635,7 @@ describe('EvaluationDashboard', () => {
 
       await waitFor(() => {
         expect(
-          apiClient.evaluations.getProjectEvaluationConfig
+          apiClient.evaluations.getProjectEvaluationConfig,
         ).toHaveBeenCalled()
       })
     })
@@ -625,12 +654,12 @@ describe('EvaluationDashboard', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('evaluation.viewer.filters.selectProject')
+          screen.getByText('evaluation.viewer.filters.selectProject'),
         ).toBeInTheDocument()
       })
 
       await user.click(
-        screen.getByText('evaluation.viewer.filters.selectProject')
+        screen.getByText('evaluation.viewer.filters.selectProject'),
       )
       await waitFor(() => {
         expect(screen.getByText('Test Project')).toBeInTheDocument()
@@ -639,7 +668,7 @@ describe('EvaluationDashboard', () => {
 
       await waitFor(() => {
         expect(
-          apiClient.evaluations.getProjectEvaluationConfig
+          apiClient.evaluations.getProjectEvaluationConfig,
         ).toHaveBeenCalled()
       })
     })
@@ -654,12 +683,12 @@ describe('EvaluationDashboard', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('evaluation.viewer.filters.selectProject')
+          screen.getByText('evaluation.viewer.filters.selectProject'),
         ).toBeInTheDocument()
       })
 
       await user.click(
-        screen.getByText('evaluation.viewer.filters.selectProject')
+        screen.getByText('evaluation.viewer.filters.selectProject'),
       )
       await waitFor(() => {
         expect(screen.getByText('Test Project')).toBeInTheDocument()
@@ -669,7 +698,7 @@ describe('EvaluationDashboard', () => {
       // Should not crash
       await waitFor(() => {
         expect(
-          apiClient.evaluations.getProjectEvaluationConfig
+          apiClient.evaluations.getProjectEvaluationConfig,
         ).toHaveBeenCalled()
       })
     })
@@ -684,12 +713,12 @@ describe('EvaluationDashboard', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('evaluation.viewer.filters.selectProject')
+          screen.getByText('evaluation.viewer.filters.selectProject'),
         ).toBeInTheDocument()
       })
 
       await user.click(
-        screen.getByText('evaluation.viewer.filters.selectProject')
+        screen.getByText('evaluation.viewer.filters.selectProject'),
       )
       await waitFor(() => {
         expect(screen.getByText('Test Project')).toBeInTheDocument()
@@ -697,15 +726,13 @@ describe('EvaluationDashboard', () => {
       await user.click(screen.getByText('Test Project'))
 
       await waitFor(() => {
-        expect(
-          apiClient.evaluations.getEvaluatedModels
-        ).toHaveBeenCalled()
+        expect(apiClient.evaluations.getEvaluatedModels).toHaveBeenCalled()
       })
     })
 
     it('should handle results fetch error', async () => {
       ;(apiClient.get as jest.Mock).mockRejectedValue(
-        new Error('Results error')
+        new Error('Results error'),
       )
 
       const user = userEvent.setup()
@@ -713,12 +740,12 @@ describe('EvaluationDashboard', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('evaluation.viewer.filters.selectProject')
+          screen.getByText('evaluation.viewer.filters.selectProject'),
         ).toBeInTheDocument()
       })
 
       await user.click(
-        screen.getByText('evaluation.viewer.filters.selectProject')
+        screen.getByText('evaluation.viewer.filters.selectProject'),
       )
       await waitFor(() => {
         expect(screen.getByText('Test Project')).toBeInTheDocument()
@@ -752,7 +779,7 @@ describe('EvaluationDashboard', () => {
 
       await waitFor(() => {
         expect(
-          apiClient.evaluations.getProjectEvaluationConfig
+          apiClient.evaluations.getProjectEvaluationConfig,
         ).toHaveBeenCalledWith('1')
       })
     })
@@ -764,9 +791,7 @@ describe('EvaluationDashboard', () => {
       render(<EvaluationDashboard />)
 
       // Should render without crashing
-      expect(
-        screen.getByText('evaluation.viewer.title')
-      ).toBeInTheDocument()
+      expect(screen.getByText('evaluation.viewer.title')).toBeInTheDocument()
     })
 
     it('should restore aggregation from URL', async () => {
@@ -775,9 +800,7 @@ describe('EvaluationDashboard', () => {
 
       render(<EvaluationDashboard />)
 
-      expect(
-        screen.getByText('evaluation.viewer.title')
-      ).toBeInTheDocument()
+      expect(screen.getByText('evaluation.viewer.title')).toBeInTheDocument()
     })
 
     it('should restore stats from URL', async () => {
@@ -786,9 +809,7 @@ describe('EvaluationDashboard', () => {
 
       render(<EvaluationDashboard />)
 
-      expect(
-        screen.getByText('evaluation.viewer.title')
-      ).toBeInTheDocument()
+      expect(screen.getByText('evaluation.viewer.title')).toBeInTheDocument()
     })
   })
 
@@ -801,7 +822,7 @@ describe('EvaluationDashboard', () => {
 
       await waitFor(() => {
         expect(mockRouter.replace).toHaveBeenCalledWith(
-          '/projects?error=no-permission'
+          '/projects?error=no-permission',
         )
       })
 
@@ -856,9 +877,9 @@ describe('EvaluationDashboard', () => {
         },
       ])
       ;(apiClient.get as jest.Mock).mockResolvedValue({ data: [] })
-      ;(
-        apiClient.evaluations.computeStatistics as jest.Mock
-      ).mockResolvedValue({})
+      ;(apiClient.evaluations.computeStatistics as jest.Mock).mockResolvedValue(
+        {},
+      )
       ;(
         apiClient.evaluations.getEvaluationHistory as jest.Mock
       ).mockResolvedValue({ series: [] })
@@ -871,12 +892,12 @@ describe('EvaluationDashboard', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('evaluation.viewer.filters.selectProject')
+          screen.getByText('evaluation.viewer.filters.selectProject'),
         ).toBeInTheDocument()
       })
 
       await user.click(
-        screen.getByText('evaluation.viewer.filters.selectProject')
+        screen.getByText('evaluation.viewer.filters.selectProject'),
       )
       await waitFor(() => {
         expect(screen.getByText('Test')).toBeInTheDocument()
@@ -885,7 +906,7 @@ describe('EvaluationDashboard', () => {
 
       await waitFor(() => {
         expect(
-          apiClient.evaluations.getProjectEvaluationConfig
+          apiClient.evaluations.getProjectEvaluationConfig,
         ).toHaveBeenCalledWith('1')
       })
     })
@@ -947,34 +968,48 @@ describe('EvaluationDashboard', () => {
       ;(projectsAPI.list as jest.Mock).mockResolvedValue({
         items: [mockProject],
       })
-      ;(apiClient.evaluations.getProjectEvaluationConfig as jest.Mock).mockResolvedValue(
-        twoConfigEvalConfig
-      )
-      ;(apiClient.evaluations.getConfiguredMethods as jest.Mock).mockResolvedValue({
+      ;(
+        apiClient.evaluations.getProjectEvaluationConfig as jest.Mock
+      ).mockResolvedValue(twoConfigEvalConfig)
+      ;(
+        apiClient.evaluations.getConfiguredMethods as jest.Mock
+      ).mockResolvedValue({
         fields: [
           {
             field_name: 'model_answer',
             automated_methods: [
-              { method_name: 'llm_judge_falloesung', has_results: true, result_count: 10 },
+              {
+                method_name: 'llm_judge_falloesung',
+                has_results: true,
+                result_count: 10,
+              },
             ],
             human_methods: [],
           },
         ],
       })
-      ;(apiClient.evaluations.getEvaluatedModels as jest.Mock).mockResolvedValue(
-        twoConfigModels
-      )
-      ;(apiClient.evaluations.getProjectAnnotators as jest.Mock).mockResolvedValue({
+      ;(
+        apiClient.evaluations.getEvaluatedModels as jest.Mock
+      ).mockResolvedValue(twoConfigModels)
+      ;(
+        apiClient.evaluations.getProjectAnnotators as jest.Mock
+      ).mockResolvedValue({
         annotators: [],
       })
       ;(apiClient.get as jest.Mock).mockResolvedValue({ data: [] })
-      ;(apiClient.evaluations.getEvaluationHistory as jest.Mock).mockResolvedValue({
+      ;(
+        apiClient.evaluations.getEvaluationHistory as jest.Mock
+      ).mockResolvedValue({
         series: [],
       })
-      ;(apiClient.evaluations.getSignificanceTests as jest.Mock).mockResolvedValue({
+      ;(
+        apiClient.evaluations.getSignificanceTests as jest.Mock
+      ).mockResolvedValue({
         comparisons: [],
       })
-      ;(apiClient.evaluations.computeStatistics as jest.Mock).mockResolvedValue({})
+      ;(apiClient.evaluations.computeStatistics as jest.Mock).mockResolvedValue(
+        {},
+      )
     }
 
     it('renders two selector entries with distinct display_name labels', async () => {
@@ -986,7 +1021,7 @@ describe('EvaluationDashboard', () => {
       // Wait until projects + config load.
       await waitFor(() => {
         expect(
-          apiClient.evaluations.getProjectEvaluationConfig
+          apiClient.evaluations.getProjectEvaluationConfig,
         ).toHaveBeenCalledWith('7')
       })
 
@@ -994,17 +1029,17 @@ describe('EvaluationDashboard', () => {
       // The button label is "evaluation.viewer.filters.allMetrics" when
       // all entries are selected (the default after load).
       const dropdownTrigger = await screen.findByText(
-        'evaluation.viewer.filters.allMetrics'
+        'evaluation.viewer.filters.allMetrics',
       )
       await user.click(dropdownTrigger)
 
       // Both display_name labels must appear as checkbox rows.
       await waitFor(() => {
         expect(
-          screen.getByText('Judge lineup A (Anne+Sebastian)')
+          screen.getByText('Judge lineup A (Anne+Sebastian)'),
         ).toBeInTheDocument()
         expect(
-          screen.getByText('Judge lineup B (Aleyna+Anne+Sebastian)')
+          screen.getByText('Judge lineup B (Aleyna+Anne+Sebastian)'),
         ).toBeInTheDocument()
       })
     })
@@ -1022,16 +1057,16 @@ describe('EvaluationDashboard', () => {
         () => {
           expect(computeMock).toHaveBeenCalled()
         },
-        { timeout: 3000 }
+        { timeout: 3000 },
       )
 
       // Open dropdown and uncheck "Judge lineup B" so only "A" remains.
       const dropdownTrigger = await screen.findByText(
-        'evaluation.viewer.filters.allMetrics'
+        'evaluation.viewer.filters.allMetrics',
       )
       await user.click(dropdownTrigger)
       const labelB = await screen.findByText(
-        'Judge lineup B (Aleyna+Anne+Sebastian)'
+        'Judge lineup B (Aleyna+Anne+Sebastian)',
       )
       await user.click(labelB)
 
@@ -1041,11 +1076,10 @@ describe('EvaluationDashboard', () => {
         () => {
           const calls = computeMock.mock.calls
           const last = calls[calls.length - 1]?.[0] as
-            | { evaluationConfigIds?: string[] }
-            | undefined
+            { evaluationConfigIds?: string[] } | undefined
           expect(last?.evaluationConfigIds).toEqual(['cfg-judges-a'])
         },
-        { timeout: 3000 }
+        { timeout: 3000 },
       )
     })
 
@@ -1053,37 +1087,39 @@ describe('EvaluationDashboard', () => {
       // Seed statisticsData with raw_scores from BOTH configs (same metric
       // string) — selecting one config must drop the other config's scores
       // from the per-model distribution.
-      setupTwoConfigMocks(new URLSearchParams('projectId=7&configs=cfg-judges-a'))
-      ;(apiClient.evaluations.computeStatistics as jest.Mock).mockResolvedValue({
-        aggregation: 'sample',
-        metrics: {},
-        raw_scores: [
-          {
-            task_id: 't1',
-            model_id: 'gpt-4',
-            metric: 'llm_judge_falloesung',
-            evaluation_config_id: 'cfg-judges-a',
-            value: 0.42,
-          },
-          {
-            task_id: 't2',
-            model_id: 'gpt-4',
-            metric: 'llm_judge_falloesung',
-            evaluation_config_id: 'cfg-judges-b',
-            value: 0.91,
-          },
-        ],
-      })
+      setupTwoConfigMocks(
+        new URLSearchParams('projectId=7&configs=cfg-judges-a'),
+      )
+      ;(apiClient.evaluations.computeStatistics as jest.Mock).mockResolvedValue(
+        {
+          aggregation: 'sample',
+          metrics: {},
+          raw_scores: [
+            {
+              task_id: 't1',
+              model_id: 'gpt-4',
+              metric: 'llm_judge_falloesung',
+              evaluation_config_id: 'cfg-judges-a',
+              value: 0.42,
+            },
+            {
+              task_id: 't2',
+              model_id: 'gpt-4',
+              metric: 'llm_judge_falloesung',
+              evaluation_config_id: 'cfg-judges-b',
+              value: 0.91,
+            },
+          ],
+        },
+      )
 
       render(<EvaluationDashboard />)
 
       await waitFor(
         () => {
-          expect(
-            apiClient.evaluations.computeStatistics
-          ).toHaveBeenCalled()
+          expect(apiClient.evaluations.computeStatistics).toHaveBeenCalled()
         },
-        { timeout: 3000 }
+        { timeout: 3000 },
       )
       // The chart-data `modelsWithScores` memo filters raw_scores by
       // `selectedConfigIds.includes(score.evaluation_config_id)`. Pinning
@@ -1103,17 +1139,17 @@ describe('EvaluationDashboard', () => {
 
       await waitFor(() => {
         expect(
-          apiClient.evaluations.getProjectEvaluationConfig
+          apiClient.evaluations.getProjectEvaluationConfig,
         ).toHaveBeenCalledWith('7')
       })
 
       // Toggle one entry off so the URL stops being "all selected".
       const dropdownTrigger = await screen.findByText(
-        'evaluation.viewer.filters.allMetrics'
+        'evaluation.viewer.filters.allMetrics',
       )
       await user.click(dropdownTrigger)
       const labelB = await screen.findByText(
-        'Judge lineup B (Aleyna+Anne+Sebastian)'
+        'Judge lineup B (Aleyna+Anne+Sebastian)',
       )
       await user.click(labelB)
 
@@ -1123,13 +1159,14 @@ describe('EvaluationDashboard', () => {
           // Find any router.replace call that carries the filter — the
           // page debounces filter syncs so multiple calls may queue.
           const matchingCall = calls.find(
-            ([url]: any[]) => typeof url === 'string' && url.includes('configs=')
+            ([url]: any[]) =>
+              typeof url === 'string' && url.includes('configs='),
           )
           expect(matchingCall).toBeTruthy()
           expect(matchingCall![0]).toContain('configs=cfg-judges-a')
           expect(matchingCall![0]).not.toMatch(/[?&]metrics=/)
         },
-        { timeout: 3000 }
+        { timeout: 3000 },
       )
     })
   })

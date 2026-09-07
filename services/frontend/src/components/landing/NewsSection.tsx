@@ -21,11 +21,11 @@ export function NewsSection() {
   return (
     <section
       id="news"
-      className="flex min-h-screen items-center bg-zinc-50 py-16 dark:bg-zinc-800/50 sm:py-24"
+      className="flex min-h-screen items-center bg-zinc-50 py-16 sm:py-24 dark:bg-zinc-800/50"
     >
       <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="text-center">
-          <h2 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-white sm:text-4xl">
+          <h2 className="text-3xl font-bold tracking-tight text-zinc-900 sm:text-4xl dark:text-white">
             {t('landing.news.title')}
           </h2>
           <p className="mx-auto mt-4 max-w-2xl text-lg text-zinc-600 dark:text-zinc-400">
@@ -38,7 +38,7 @@ export function NewsSection() {
             const content = (
               <Card
                 key={i}
-                className={`flex flex-col p-6${item.url ? ' transition-shadow hover:shadow-lg' : ''}`}
+                className={`flex flex-col p-6${item.url ? 'transition-shadow hover:shadow-lg' : ''}`}
               >
                 <div className="mb-3">
                   <Badge

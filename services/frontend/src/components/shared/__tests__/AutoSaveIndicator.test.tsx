@@ -37,7 +37,7 @@ describe('AutoSaveIndicator', () => {
 
   it('renders nothing when no state to display', () => {
     const { container } = render(
-      <AutoSaveIndicator isSaving={false} lastSaved={null} error={null} />
+      <AutoSaveIndicator isSaving={false} lastSaved={null} error={null} />,
     )
     expect(container.firstChild).toBeNull()
   })
@@ -48,7 +48,7 @@ describe('AutoSaveIndicator', () => {
         isSaving={false}
         lastSaved={null}
         error="Connection lost"
-      />
+      />,
     )
     expect(screen.getByText('Save failed')).toBeInTheDocument()
   })
@@ -59,16 +59,14 @@ describe('AutoSaveIndicator', () => {
         isSaving={false}
         lastSaved={null}
         error="Connection lost"
-      />
+      />,
     )
     const errorDiv = container.querySelector('[title="Connection lost"]')
     expect(errorDiv).toBeInTheDocument()
   })
 
   it('renders saving state', () => {
-    render(
-      <AutoSaveIndicator isSaving={true} lastSaved={null} error={null} />
-    )
+    render(<AutoSaveIndicator isSaving={true} lastSaved={null} error={null} />)
     expect(screen.getByText('Saving...')).toBeInTheDocument()
   })
 
@@ -79,7 +77,7 @@ describe('AutoSaveIndicator', () => {
         isSaving={false}
         lastSaved={recentDate}
         error={null}
-      />
+      />,
     )
     expect(screen.getByText(/Saved/)).toBeInTheDocument()
   })
@@ -91,7 +89,7 @@ describe('AutoSaveIndicator', () => {
         lastSaved={null}
         error={null}
         className="my-custom-class"
-      />
+      />,
     )
     const div = container.firstChild as HTMLElement
     expect(div.className).toContain('my-custom-class')
@@ -99,11 +97,7 @@ describe('AutoSaveIndicator', () => {
 
   it('error state takes priority over saving state', () => {
     render(
-      <AutoSaveIndicator
-        isSaving={true}
-        lastSaved={null}
-        error="Some error"
-      />
+      <AutoSaveIndicator isSaving={true} lastSaved={null} error="Some error" />,
     )
     expect(screen.getByText('Save failed')).toBeInTheDocument()
     expect(screen.queryByText('Saving...')).not.toBeInTheDocument()
@@ -111,9 +105,7 @@ describe('AutoSaveIndicator', () => {
 
   it('formats relative time as "Just now" for very recent saves', () => {
     const now = new Date()
-    render(
-      <AutoSaveIndicator isSaving={false} lastSaved={now} error={null} />
-    )
+    render(<AutoSaveIndicator isSaving={false} lastSaved={now} error={null} />)
     expect(screen.getByText('Saved Just now')).toBeInTheDocument()
   })
 
@@ -124,7 +116,7 @@ describe('AutoSaveIndicator', () => {
         isSaving={false}
         lastSaved={thirtySecondsAgo}
         error={null}
-      />
+      />,
     )
     expect(screen.getByText(/Saved.*s ago/)).toBeInTheDocument()
   })
@@ -136,7 +128,7 @@ describe('AutoSaveIndicator', () => {
         isSaving={false}
         lastSaved={fiveMinutesAgo}
         error={null}
-      />
+      />,
     )
     expect(screen.getByText(/Saved.*m ago/)).toBeInTheDocument()
   })
@@ -148,7 +140,7 @@ describe('AutoSaveIndicator', () => {
         isSaving={false}
         lastSaved={twoHoursAgo}
         error={null}
-      />
+      />,
     )
     expect(screen.getByText(/Saved.*h ago/)).toBeInTheDocument()
   })
@@ -160,7 +152,7 @@ describe('AutoSaveIndicator', () => {
         isSaving={false}
         lastSaved={twoDaysAgo}
         error={null}
-      />
+      />,
     )
     // Should show time string instead of relative time
     expect(screen.getByText(/Saved/)).toBeInTheDocument()
@@ -169,7 +161,7 @@ describe('AutoSaveIndicator', () => {
   it('shows title with full date on saved state', () => {
     const date = new Date()
     const { container } = render(
-      <AutoSaveIndicator isSaving={false} lastSaved={date} error={null} />
+      <AutoSaveIndicator isSaving={false} lastSaved={date} error={null} />,
     )
     const div = container.querySelector('[title]')
     expect(div).toBeInTheDocument()
@@ -183,7 +175,7 @@ describe('AutoSaveIndicator', () => {
         isSaving={false}
         lastSaved={recentDate}
         error={null}
-      />
+      />,
     )
 
     // Advance past the 10-second update interval
@@ -201,7 +193,7 @@ describe('AutoSaveIndicator', () => {
         isSaving={false}
         lastSaved={new Date()}
         error={null}
-      />
+      />,
     )
     unmount()
     // Should not throw after unmount
@@ -212,11 +204,7 @@ describe('AutoSaveIndicator', () => {
 
   it('renders error state with correct styling', () => {
     const { container } = render(
-      <AutoSaveIndicator
-        isSaving={false}
-        lastSaved={null}
-        error="Error"
-      />
+      <AutoSaveIndicator isSaving={false} lastSaved={null} error="Error" />,
     )
     const div = container.firstChild as HTMLElement
     expect(div.className).toContain('text-red-600')
@@ -224,7 +212,7 @@ describe('AutoSaveIndicator', () => {
 
   it('renders saving state with correct styling', () => {
     const { container } = render(
-      <AutoSaveIndicator isSaving={true} lastSaved={null} error={null} />
+      <AutoSaveIndicator isSaving={true} lastSaved={null} error={null} />,
     )
     const div = container.firstChild as HTMLElement
     expect(div.className).toContain('text-zinc-500')

@@ -160,13 +160,13 @@ jest.mock('@/components/shared', () => {
       React.createElement(
         'div',
         { 'data-testid': 'hero-pattern' },
-        'Hero Pattern'
+        'Hero Pattern',
       ),
     GridPattern: () =>
       React.createElement(
         'div',
         { 'data-testid': 'grid-pattern' },
-        'Grid Pattern'
+        'Grid Pattern',
       ),
     Button: ({ children, ...props }) =>
       React.createElement('button', props, children),
@@ -176,7 +176,7 @@ jest.mock('@/components/shared', () => {
       React.createElement(
         'div',
         { 'data-testid': 'loading-spinner' },
-        'Loading...'
+        'Loading...',
       ),
     EmptyState: ({ message }) => React.createElement('div', null, message),
     Spinner: () => React.createElement('div', null, 'Loading...'),
@@ -225,7 +225,6 @@ jest.mock('@/components/shared/FilterToolbar', () => {
   FilterToolbar.Field = ({ children }: any) => <div>{children}</div>
   return { FilterToolbar }
 })
-
 
 // Mock fetch for API calls
 global.fetch = jest.fn()
@@ -295,7 +294,7 @@ describe('MyTasksPage', () => {
     await waitFor(() => {
       expect(screen.getByText('My Assigned Tasks')).toBeInTheDocument()
       expect(
-        screen.getByText('Tasks assigned to you in Test Project')
+        screen.getByText('Tasks assigned to you in Test Project'),
       ).toBeInTheDocument()
     })
   })
@@ -398,9 +397,7 @@ describe('MyTasksPage', () => {
     await user.click(taskCard!)
 
     // Component navigates to the labeling interface
-    expect(mockRouter.push).toHaveBeenCalledWith(
-      '/projects/project-123/label'
-    )
+    expect(mockRouter.push).toHaveBeenCalledWith('/projects/project-123/label')
   })
 
   it('displays task status information', async () => {

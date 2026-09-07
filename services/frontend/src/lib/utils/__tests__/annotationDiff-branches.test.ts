@@ -9,30 +9,60 @@
 
 import {
   computeAnnotationDiff,
+  computeCommentDiff,
   computeHighlightDiff,
   computeLineDiff,
-  computeCommentDiff,
 } from '../annotationDiff'
 
 describe('computeAnnotationDiff', () => {
   it('should mark fields as unchanged when values match', () => {
-    const original = [{ from_name: 'a', to_name: 'q', type: 'textarea', value: { text: ['hello'] } }]
-    const review = [{ from_name: 'a', to_name: 'q', type: 'textarea', value: { text: ['hello'] } }]
+    const original = [
+      {
+        from_name: 'a',
+        to_name: 'q',
+        type: 'textarea',
+        value: { text: ['hello'] },
+      },
+    ]
+    const review = [
+      {
+        from_name: 'a',
+        to_name: 'q',
+        type: 'textarea',
+        value: { text: ['hello'] },
+      },
+    ]
     const result = computeAnnotationDiff(original, review)
     expect(result.summary.unchanged).toBe(1)
     expect(result.fields[0].status).toBe('unchanged')
   })
 
   it('should mark fields as modified when values differ', () => {
-    const original = [{ from_name: 'a', to_name: 'q', type: 'textarea', value: { text: ['old'] } }]
-    const review = [{ from_name: 'a', to_name: 'q', type: 'textarea', value: { text: ['new'] } }]
+    const original = [
+      {
+        from_name: 'a',
+        to_name: 'q',
+        type: 'textarea',
+        value: { text: ['old'] },
+      },
+    ]
+    const review = [
+      {
+        from_name: 'a',
+        to_name: 'q',
+        type: 'textarea',
+        value: { text: ['new'] },
+      },
+    ]
     const result = computeAnnotationDiff(original, review)
     expect(result.summary.modified).toBe(1)
     expect(result.fields[0].status).toBe('modified')
   })
 
   it('should mark fields as removed when in original but not review', () => {
-    const original = [{ from_name: 'a', to_name: 'q', type: 'textarea', value: 'val' }]
+    const original = [
+      { from_name: 'a', to_name: 'q', type: 'textarea', value: 'val' },
+    ]
     const result = computeAnnotationDiff(original, [])
     expect(result.summary.removed).toBe(1)
     expect(result.fields[0].status).toBe('removed')
@@ -40,7 +70,9 @@ describe('computeAnnotationDiff', () => {
   })
 
   it('should mark fields as added when in review but not original', () => {
-    const review = [{ from_name: 'b', to_name: 'q', type: 'textarea', value: 'val' }]
+    const review = [
+      { from_name: 'b', to_name: 'q', type: 'textarea', value: 'val' },
+    ]
     const result = computeAnnotationDiff([], review)
     expect(result.summary.added).toBe(1)
     expect(result.fields[0].status).toBe('added')
@@ -69,26 +101,34 @@ describe('computeAnnotationDiff', () => {
 
 describe('computeHighlightDiff', () => {
   it('should detect common spans', () => {
-    const origSpans = [{ id: 's1', start: 0, end: 5, text: 'hi', labels: ['A'] }]
+    const origSpans = [
+      { id: 's1', start: 0, end: 5, text: 'hi', labels: ['A'] },
+    ]
     const revSpans = [{ id: 's1', start: 0, end: 5, text: 'hi', labels: ['A'] }]
     const result = computeHighlightDiff(origSpans, revSpans)
     expect(result.some((r) => r.status === 'common')).toBe(true)
   })
 
   it('should detect removed spans', () => {
-    const origSpans = [{ id: 's1', start: 0, end: 5, text: 'hi', labels: ['A'] }]
+    const origSpans = [
+      { id: 's1', start: 0, end: 5, text: 'hi', labels: ['A'] },
+    ]
     const result = computeHighlightDiff(origSpans, [])
     expect(result[0].status).toBe('removed')
   })
 
   it('should detect added spans', () => {
-    const revSpans = [{ id: 's2', start: 10, end: 15, text: 'new', labels: ['B'] }]
+    const revSpans = [
+      { id: 's2', start: 10, end: 15, text: 'new', labels: ['B'] },
+    ]
     const result = computeHighlightDiff([], revSpans)
     expect(result[0].status).toBe('added')
   })
 
   it('should sort by start position', () => {
-    const origSpans = [{ id: 's1', start: 10, end: 15, text: 'b', labels: ['A'] }]
+    const origSpans = [
+      { id: 's1', start: 10, end: 15, text: 'b', labels: ['A'] },
+    ]
     const revSpans = [{ id: 's2', start: 0, end: 5, text: 'a', labels: ['B'] }]
     const result = computeHighlightDiff(origSpans, revSpans)
     expect(result[0].span.start).toBeLessThan(result[1].span.start)

@@ -47,26 +47,31 @@ describe('verify-email route br8', () => {
   })
 
   it('routes benger-test.localhost to test-api (L20-22)', async () => {
-    const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue(
-      new Response(JSON.stringify({ ok: true }), { status: 200 })
-    )
+    const fetchSpy = jest
+      .spyOn(global, 'fetch')
+      .mockResolvedValue(
+        new Response(JSON.stringify({ ok: true }), { status: 200 }),
+      )
     const { POST } = require('../route')
     await POST(makeRequest('benger-test.localhost'))
     expect(fetchSpy).toHaveBeenCalledWith(
       expect.stringContaining('test-api:8000'),
-      expect.anything()
+      expect.anything(),
     )
   })
 
   it('handles response with Set-Cookie, domain rewrite and SameSite (L72-95)', async () => {
     const headers = new Headers()
-    headers.append('Set-Cookie', 'access_token=xyz; Domain=old.domain; HttpOnly')
+    headers.append(
+      'Set-Cookie',
+      'access_token=xyz; Domain=old.domain; HttpOnly',
+    )
 
     jest.spyOn(global, 'fetch').mockResolvedValue(
       new Response(JSON.stringify({ verified: true }), {
         status: 200,
         headers,
-      })
+      }),
     )
     const { POST } = require('../route')
     const res = await POST(makeRequest('benger.localhost'))
@@ -84,7 +89,7 @@ describe('verify-email route br8', () => {
       new Response(JSON.stringify({ ok: true }), {
         status: 200,
         headers,
-      })
+      }),
     )
     const { POST } = require('../route')
     const res = await POST(makeRequest('benger.localhost'))
@@ -95,9 +100,11 @@ describe('verify-email route br8', () => {
   })
 
   it('handles response without Set-Cookie headers (L72 empty)', async () => {
-    jest.spyOn(global, 'fetch').mockResolvedValue(
-      new Response(JSON.stringify({ ok: true }), { status: 200 })
-    )
+    jest
+      .spyOn(global, 'fetch')
+      .mockResolvedValue(
+        new Response(JSON.stringify({ ok: true }), { status: 200 }),
+      )
     const { POST } = require('../route')
     const res = await POST(makeRequest('benger.localhost'))
     expect(res.status).toBe(200)
@@ -111,7 +118,7 @@ describe('verify-email route br8', () => {
       new Response(JSON.stringify({ ok: true }), {
         status: 200,
         headers,
-      })
+      }),
     )
     const { POST } = require('../route')
     const res = await POST(makeRequest('localhost:3000'))
@@ -121,14 +128,16 @@ describe('verify-email route br8', () => {
   })
 
   it('handles staging what-a-benger.net (L30-31)', async () => {
-    const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue(
-      new Response(JSON.stringify({ ok: true }), { status: 200 })
-    )
+    const fetchSpy = jest
+      .spyOn(global, 'fetch')
+      .mockResolvedValue(
+        new Response(JSON.stringify({ ok: true }), { status: 200 }),
+      )
     const { POST } = require('../route')
     await POST(makeRequest('staging.what-a-benger.net'))
     expect(fetchSpy).toHaveBeenCalledWith(
       expect.stringContaining('benger-api:8000'),
-      expect.anything()
+      expect.anything(),
     )
   })
 

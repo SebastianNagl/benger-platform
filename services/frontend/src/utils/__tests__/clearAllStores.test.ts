@@ -119,7 +119,7 @@ describe('clearAllStores', () => {
     it('removes annotation store from localStorage', () => {
       localStorage.setItem(
         'annotation-store',
-        JSON.stringify({ taskId: '123' })
+        JSON.stringify({ taskId: '123' }),
       )
 
       clearAllStores()
@@ -485,7 +485,7 @@ describe('clearAllStores', () => {
     it('handles full logout scenario', () => {
       localStorage.setItem(
         'annotation-store',
-        JSON.stringify({ taskId: '123' })
+        JSON.stringify({ taskId: '123' }),
       )
       localStorage.setItem('auth-token', 'token')
       localStorage.setItem('user-data', 'user')

@@ -93,7 +93,7 @@ describe('usePermissions', () => {
       const { result } = renderHook(() => usePermissions())
       // user is null → even isPrivateMode cannot grant create
       expect(result.current.canCreateProjects({ isPrivateMode: true })).toBe(
-        false
+        false,
       )
     })
 
@@ -131,7 +131,7 @@ describe('usePermissions', () => {
     it('resolves effective project role to ORG_ADMIN', () => {
       const { result } = renderHook(() => usePermissions())
       expect(result.current.getEffectiveProjectRole(project())).toBe(
-        'ORG_ADMIN'
+        'ORG_ADMIN',
       )
     })
 
@@ -235,12 +235,12 @@ describe('usePermissions', () => {
 
     it('private-mode lets an annotator create + access their own data', () => {
       const { result } = renderHook(() => usePermissions())
-      expect(
-        result.current.canCreateProjects({ isPrivateMode: true })
-      ).toBe(true)
-      expect(
-        result.current.canAccessProjectData({ isPrivateMode: true })
-      ).toBe(true)
+      expect(result.current.canCreateProjects({ isPrivateMode: true })).toBe(
+        true,
+      )
+      expect(result.current.canAccessProjectData({ isPrivateMode: true })).toBe(
+        true,
+      )
     })
 
     it('summary marks annotator-only', () => {
@@ -259,7 +259,7 @@ describe('usePermissions', () => {
       const { result } = renderHook(() => usePermissions())
       // created_by matches the user id → effective role ORG_ADMIN → can edit
       expect(
-        result.current.canEditTaskData(project({ created_by: 'owner-id' }))
+        result.current.canEditTaskData(project({ created_by: 'owner-id' })),
       ).toBe(true)
     })
 
@@ -267,7 +267,7 @@ describe('usePermissions', () => {
       setUser(makeUser({ id: 'someone-else', role: 'CONTRIBUTOR' }))
       const { result } = renderHook(() => usePermissions())
       expect(
-        result.current.canEditTaskData(project({ created_by: 'owner-id' }))
+        result.current.canEditTaskData(project({ created_by: 'owner-id' })),
       ).toBe(false)
     })
 
@@ -281,7 +281,7 @@ describe('usePermissions', () => {
             is_public: true,
             public_role: 'CONTRIBUTOR',
           }),
-        })
+        }),
       ).toBe(true)
     })
 
@@ -294,8 +294,8 @@ describe('usePermissions', () => {
             created_by: 'owner-id',
             is_public: true,
             public_role: 'CONTRIBUTOR',
-          })
-        )
+          }),
+        ),
       ).toBe(true)
     })
 
@@ -303,10 +303,10 @@ describe('usePermissions', () => {
       setUser(makeUser({ id: 'owner-id' }))
       const { result } = renderHook(() => usePermissions())
       expect(
-        result.current.canMakeProjectPublic({ created_by: 'owner-id' })
+        result.current.canMakeProjectPublic({ created_by: 'owner-id' }),
       ).toBe(true)
       expect(
-        result.current.canMakeProjectPublic({ created_by: 'somebody' })
+        result.current.canMakeProjectPublic({ created_by: 'somebody' }),
       ).toBe(false)
     })
 
@@ -316,8 +316,8 @@ describe('usePermissions', () => {
       expect(
         result.current.getEffectiveProjectRole(
           project({ is_public: true, public_role: 'CONTRIBUTOR' }),
-          'ANNOTATOR'
-        )
+          'ANNOTATOR',
+        ),
       ).toBe('ANNOTATOR')
     })
 
@@ -326,8 +326,8 @@ describe('usePermissions', () => {
       const { result } = renderHook(() => usePermissions())
       expect(
         result.current.getEffectiveProjectRole(
-          project({ created_by: 'owner-id', is_public: false })
-        )
+          project({ created_by: 'owner-id', is_public: false }),
+        ),
       ).toBeNull()
     })
   })

@@ -21,7 +21,10 @@ jest.mock('@heroicons/react/24/outline', () => ({
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
     t: (key: string, varsOrDefault?: any) => {
-      const translations: Record<string, any> = require('../../../locales/en/common.json')
+      const translations: Record<
+        string,
+        any
+      > = require('../../../locales/en/common.json')
       const parts = key.split('.')
       let value: any = translations
       for (const part of parts) {
@@ -104,7 +107,7 @@ describe('NumberField Component', () => {
       expect(description).toHaveClass(
         'text-sm',
         'text-gray-500',
-        'dark:text-gray-400'
+        'dark:text-gray-400',
       )
     })
 
@@ -148,7 +151,7 @@ describe('NumberField Component', () => {
 
     it('handles null/undefined values as empty string', () => {
       const { rerender } = render(
-        <NumberField {...defaultProps} value={null} />
+        <NumberField {...defaultProps} value={null} />,
       )
       expect(screen.getByRole('spinbutton')).toHaveValue(null)
 
@@ -332,7 +335,7 @@ describe('NumberField Component', () => {
       const label = screen.getByText('Score (Optional)')
       expect(label).toBeInTheDocument()
       expect(
-        screen.queryByText('Score (Optional) (Optional)')
+        screen.queryByText('Score (Optional) (Optional)'),
       ).not.toBeInTheDocument()
     })
   })
@@ -346,7 +349,7 @@ describe('NumberField Component', () => {
       expect(input).toHaveClass(
         'bg-gray-50',
         'dark:bg-gray-800',
-        'cursor-not-allowed'
+        'cursor-not-allowed',
       )
     })
 
@@ -367,7 +370,7 @@ describe('NumberField Component', () => {
       expect(input).toHaveClass(
         'bg-gray-50',
         'dark:bg-gray-800',
-        'cursor-not-allowed'
+        'cursor-not-allowed',
       )
     })
 
@@ -435,7 +438,7 @@ describe('NumberField Component', () => {
         'rounded-md',
         'shadow-sm',
         'sm:text-sm',
-        'transition-colors'
+        'transition-colors',
       )
     })
 
@@ -447,7 +450,7 @@ describe('NumberField Component', () => {
         'border-gray-300',
         'dark:border-gray-600',
         'bg-white',
-        'dark:bg-gray-700'
+        'dark:bg-gray-700',
       )
     })
 
@@ -658,7 +661,7 @@ describe('NumberField Component', () => {
           <button>Before</button>
           <NumberField {...defaultProps} />
           <button>After</button>
-        </div>
+        </div>,
       )
 
       const beforeButton = screen.getByRole('button', { name: 'Before' })

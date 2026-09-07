@@ -114,7 +114,7 @@ describe('OrganizationManager', () => {
 
     it('should handle fetch error gracefully', async () => {
       mockApiClient.getOrganizations.mockRejectedValue(
-        new Error('Network error')
+        new Error('Network error'),
       )
 
       const result = await orgManager.fetchOrganizations(mockApiClient)

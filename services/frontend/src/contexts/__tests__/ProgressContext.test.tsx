@@ -2,10 +2,10 @@
  * @jest-environment jsdom
  */
 
+import { useNotificationStore } from '@/stores/notificationStore'
 import { act, renderHook } from '@testing-library/react'
 import React from 'react'
 import { ProgressProvider, useProgress } from '../ProgressContext'
-import { useNotificationStore } from '@/stores/notificationStore'
 
 describe('ProgressContext', () => {
   beforeEach(() => {
@@ -33,7 +33,7 @@ describe('ProgressContext', () => {
         renderHook(() => useProgress())
       } catch (error) {
         expect(error).toEqual(
-          new Error('useProgress must be used within a ProgressProvider')
+          new Error('useProgress must be used within a ProgressProvider'),
         )
       }
 
@@ -70,7 +70,7 @@ describe('ProgressContext', () => {
     it('renders children correctly', () => {
       const testChild = <div data-testid="test-child">Test</div>
       const { container } = require('@testing-library/react').render(
-        <ProgressProvider>{testChild}</ProgressProvider>
+        <ProgressProvider>{testChild}</ProgressProvider>,
       )
 
       expect(container.querySelector('[data-testid="test-child"]')).toBeTruthy()
@@ -112,7 +112,7 @@ describe('ProgressContext', () => {
       })
 
       expect(result.current.progressItems[0].sublabel).toBe(
-        'Processing file 1 of 10'
+        'Processing file 1 of 10',
       )
     })
 
@@ -601,13 +601,13 @@ describe('ProgressContext', () => {
 
       expect(result.current.progressItems).toHaveLength(2)
       expect(
-        result.current.progressItems.find((p) => p.id === 'test-1')
+        result.current.progressItems.find((p) => p.id === 'test-1'),
       ).toBeTruthy()
       expect(
-        result.current.progressItems.find((p) => p.id === 'test-3')
+        result.current.progressItems.find((p) => p.id === 'test-3'),
       ).toBeTruthy()
       expect(
-        result.current.progressItems.find((p) => p.id === 'test-2')
+        result.current.progressItems.find((p) => p.id === 'test-2'),
       ).toBeFalsy()
     })
 
@@ -696,13 +696,13 @@ describe('ProgressContext', () => {
 
       expect(result.current.progressItems).toHaveLength(3)
       expect(
-        result.current.progressItems.find((p) => p.id === 'upload')?.status
+        result.current.progressItems.find((p) => p.id === 'upload')?.status,
       ).toBe('success')
       expect(
-        result.current.progressItems.find((p) => p.id === 'process')?.progress
+        result.current.progressItems.find((p) => p.id === 'process')?.progress,
       ).toBe(50)
       expect(
-        result.current.progressItems.find((p) => p.id === 'analyze')?.status
+        result.current.progressItems.find((p) => p.id === 'analyze')?.status,
       ).toBe('running')
     })
 

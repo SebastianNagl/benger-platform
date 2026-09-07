@@ -17,6 +17,7 @@ import { Card } from '@/components/shared/Card'
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
 import { useI18n } from '@/contexts/I18nContext'
 import apiClient from '@/lib/api/client'
+import type { HistorySeries } from '@/lib/api/evaluation-types'
 import { Project } from '@/types/labelStudio'
 import { useCallback, useEffect, useState } from 'react'
 import { HistoricalTrendChart } from './charts/HistoricalTrendChart'
@@ -25,7 +26,6 @@ import { MetricSelector } from './MetricSelector'
 import { ModelComparisonChart } from './ModelComparisonChart'
 import { ModelSelector } from './ModelSelector'
 import { ScoreCard } from './ScoreCard'
-import type { HistorySeries } from '@/lib/api/evaluation-types'
 
 interface EvaluationDashboardProps {
   initialProjectId?: string
@@ -70,9 +70,11 @@ export function EvaluationDashboard({
   const [availableMetrics, setAvailableMetrics] = useState<string[]>([])
   const [evaluatedModels, setEvaluatedModels] = useState<EvaluatedModel[]>([])
   const [summaryStats, setSummaryStats] = useState<SummaryStats | null>(null)
-  const [historicalData, setHistoricalData] = useState<{ series: HistorySeries[] } | null>(null)
+  const [historicalData, setHistoricalData] = useState<{
+    series: HistorySeries[]
+  } | null>(null)
   const [significanceData, setSignificanceData] = useState<SignificanceTest[]>(
-    []
+    [],
   )
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -83,7 +85,7 @@ export function EvaluationDashboard({
         .getProject(parseInt(initialProjectId))
         .then((project: Project) => setSelectedProject(project))
         .catch((err: Error) =>
-          setError(`Failed to load project: ${err.message}`)
+          setError(`Failed to load project: ${err.message}`),
         )
     }
   }, [initialProjectId])
@@ -107,20 +109,20 @@ export function EvaluationDashboard({
       const stats: SummaryStats = {
         totalEvaluations: models.reduce(
           (sum, m) => sum + m.evaluation_count,
-          0
+          0,
         ),
         modelsEvaluated: models.length,
         bestModel:
           modelsWithScores.length > 0
             ? modelsWithScores.sort(
-                (a, b) => (b.average_score ?? 0) - (a.average_score ?? 0)
+                (a, b) => (b.average_score ?? 0) - (a.average_score ?? 0),
               )[0].model_name
             : null,
         avgScore:
           modelsWithScores.length > 0
             ? modelsWithScores.reduce(
                 (sum, m) => sum + (m.average_score ?? 0),
-                0
+                0,
               ) / modelsWithScores.length
             : 0,
       }
@@ -209,7 +211,7 @@ export function EvaluationDashboard({
         }
         return acc
       },
-      {} as Record<string, any>
+      {} as Record<string, any>,
     ),
   }))
 
@@ -228,7 +230,7 @@ export function EvaluationDashboard({
           }
           return acc
         },
-        {} as Record<string, any>
+        {} as Record<string, any>,
       ),
     }))
 
@@ -307,7 +309,8 @@ export function EvaluationDashboard({
                     metric={t('evaluation.dashboard.bestModel')}
                     value={summaryStats.bestModel ? 1 : 0}
                     description={
-                      summaryStats.bestModel || t('evaluation.dashboard.noModelsEvaluated')
+                      summaryStats.bestModel ||
+                      t('evaluation.dashboard.noModelsEvaluated')
                     }
                     formatAs="raw"
                     valueRange={{ min: 0, max: 1 }}
@@ -387,22 +390,22 @@ export function EvaluationDashboard({
                     <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                       <thead className="bg-gray-50 dark:bg-gray-800">
                         <tr>
-                          <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-gray-300">
+                          <th className="px-4 py-3 text-left text-xs font-semibold tracking-wider text-gray-700 uppercase dark:text-gray-300">
                             {t('evaluation.dashboard.modelA')}
                           </th>
-                          <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-gray-300">
+                          <th className="px-4 py-3 text-left text-xs font-semibold tracking-wider text-gray-700 uppercase dark:text-gray-300">
                             {t('evaluation.dashboard.modelB')}
                           </th>
-                          <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-gray-300">
+                          <th className="px-4 py-3 text-left text-xs font-semibold tracking-wider text-gray-700 uppercase dark:text-gray-300">
                             {t('evaluation.dashboard.metric')}
                           </th>
-                          <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-gray-300">
+                          <th className="px-4 py-3 text-center text-xs font-semibold tracking-wider text-gray-700 uppercase dark:text-gray-300">
                             {t('evaluation.dashboard.pValue')}
                           </th>
-                          <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-gray-300">
+                          <th className="px-4 py-3 text-center text-xs font-semibold tracking-wider text-gray-700 uppercase dark:text-gray-300">
                             {t('evaluation.dashboard.significance')}
                           </th>
-                          <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-gray-300">
+                          <th className="px-4 py-3 text-center text-xs font-semibold tracking-wider text-gray-700 uppercase dark:text-gray-300">
                             {t('evaluation.dashboard.effectSize')}
                           </th>
                         </tr>
@@ -413,19 +416,19 @@ export function EvaluationDashboard({
                             key={idx}
                             className="hover:bg-gray-50 dark:hover:bg-gray-800"
                           >
-                            <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
+                            <td className="px-4 py-3 text-sm whitespace-nowrap text-gray-900 dark:text-gray-100">
                               {test.model_a}
                             </td>
-                            <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
+                            <td className="px-4 py-3 text-sm whitespace-nowrap text-gray-900 dark:text-gray-100">
                               {test.model_b}
                             </td>
-                            <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
+                            <td className="px-4 py-3 text-sm whitespace-nowrap text-gray-500 dark:text-gray-400">
                               {test.metric}
                             </td>
-                            <td className="whitespace-nowrap px-4 py-3 text-center text-sm tabular-nums text-gray-900 dark:text-gray-100">
+                            <td className="px-4 py-3 text-center text-sm whitespace-nowrap text-gray-900 tabular-nums dark:text-gray-100">
                               {test.p_value.toFixed(4)}
                             </td>
-                            <td className="whitespace-nowrap px-4 py-3 text-center">
+                            <td className="px-4 py-3 text-center whitespace-nowrap">
                               <span
                                 className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
                                   test.significant
@@ -436,7 +439,7 @@ export function EvaluationDashboard({
                                 {test.stars || 'ns'}
                               </span>
                             </td>
-                            <td className="whitespace-nowrap px-4 py-3 text-center text-sm tabular-nums text-gray-900 dark:text-gray-100">
+                            <td className="px-4 py-3 text-center text-sm whitespace-nowrap text-gray-900 tabular-nums dark:text-gray-100">
                               {test.effect_size.toFixed(3)}
                             </td>
                           </tr>

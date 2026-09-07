@@ -30,7 +30,7 @@ test.describe('LLM Judge Thinking Configuration', () => {
     projectId = await seeder.createProject(`LLM Judge Config ${Date.now()}`)
     await seeder.setLabelConfig(
       projectId,
-      '<View><Text name="text" value="$text"/><TextArea name="answer" toName="text" required="true"/></View>'
+      '<View><Text name="text" value="$text"/><TextArea name="answer" toName="text" required="true"/></View>',
     )
     await seeder.importTasks(projectId, [
       { data: { text: 'Test question 1' } },
@@ -117,7 +117,7 @@ test.describe('LLM Judge Thinking Configuration', () => {
         !e.includes('Warning:') &&
         !e.includes('DevTools') &&
         !e.includes('Failed to load resource') &&
-        !e.includes('Notification stream error')
+        !e.includes('Notification stream error'),
     )
 
     expect(criticalErrors).toHaveLength(0)

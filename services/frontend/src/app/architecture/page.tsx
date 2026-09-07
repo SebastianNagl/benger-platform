@@ -15,11 +15,14 @@ export default function ArchitecturePage() {
   const { t, locale } = useI18n()
 
   return (
-    <ResponsiveContainer size="xl" className="pb-16 pt-8">
+    <ResponsiveContainer size="xl" className="pt-8 pb-16">
       <div className="mb-4">
         <Breadcrumb
           items={[
-            { label: t('navigation.dashboard', 'Dashboard'), href: '/dashboard' },
+            {
+              label: t('navigation.dashboard', 'Dashboard'),
+              href: '/dashboard',
+            },
             { label: t('navigation.architecture', 'Architektur') },
           ]}
         />
@@ -30,7 +33,11 @@ export default function ArchitecturePage() {
       </h1>
 
       <div className="mt-8 lg:grid lg:grid-cols-[15rem_minmax(0,1fr)] lg:gap-10">
-        <nav aria-label={t('howTo.toc', 'Themen')} className="hidden lg:block" data-testid="architecture-toc">
+        <nav
+          aria-label={t('howTo.toc', 'Themen')}
+          className="hidden lg:block"
+          data-testid="architecture-toc"
+        >
           <ul className="sticky top-24 space-y-1.5 border-l border-zinc-200 pl-3 text-sm dark:border-zinc-800">
             {ARCHITECTURE_SECTIONS.map((s) => (
               <li key={s.id}>
@@ -47,7 +54,12 @@ export default function ArchitecturePage() {
 
         <div className="min-w-0 space-y-14">
           {ARCHITECTURE_SECTIONS.map((s) => (
-            <section key={s.id} id={s.id} className="scroll-mt-24" data-testid={`architecture-${s.id}`}>
+            <section
+              key={s.id}
+              id={s.id}
+              className="scroll-mt-24"
+              data-testid={`architecture-${s.id}`}
+            >
               <h2 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-white">
                 {pick(s.title, locale)}
               </h2>
@@ -56,7 +68,9 @@ export default function ArchitecturePage() {
               </p>
               {s.diagram && (
                 <div className="mt-5 overflow-x-auto rounded-lg border border-zinc-200 bg-zinc-50 p-5 dark:border-zinc-800 dark:bg-zinc-900">
-                  <pre className="font-mono text-xs leading-relaxed text-zinc-800 dark:text-zinc-200">{s.diagram}</pre>
+                  <pre className="font-mono text-xs leading-relaxed text-zinc-800 dark:text-zinc-200">
+                    {s.diagram}
+                  </pre>
                 </div>
               )}
               <ul className="mt-4 list-disc space-y-2 pl-5 text-sm text-zinc-700 dark:text-zinc-300">

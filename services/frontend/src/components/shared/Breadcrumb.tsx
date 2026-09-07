@@ -1,6 +1,6 @@
+import { useI18n } from '@/contexts/I18nContext'
 import { HomeIcon } from '@heroicons/react/24/outline'
 import Link from 'next/link'
-import { useI18n } from '@/contexts/I18nContext'
 
 interface BreadcrumbItem {
   label: string
@@ -19,7 +19,10 @@ export function Breadcrumb({ items }: BreadcrumbProps) {
     <nav className="flex" aria-label={t('shared.breadcrumb.ariaLabel')}>
       <ol className="flex items-center space-x-1 text-sm">
         {allItems.map((item, index) => (
-          <li key={item.href || `breadcrumb-${index}`} className="flex items-center">
+          <li
+            key={item.href || `breadcrumb-${index}`}
+            className="flex items-center"
+          >
             {index > 0 && (
               <span className="mx-2 text-zinc-400 dark:text-zinc-600">/</span>
             )}

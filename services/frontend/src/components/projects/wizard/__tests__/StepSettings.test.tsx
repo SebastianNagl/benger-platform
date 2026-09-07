@@ -28,7 +28,9 @@ jest.mock('@/contexts/I18nContext', () => ({
 import { StepSettings } from '../StepSettings'
 import type { ProjectSettings } from '../types'
 
-const baseSettings = (overrides: Partial<ProjectSettings> = {}): ProjectSettings => ({
+const baseSettings = (
+  overrides: Partial<ProjectSettings> = {},
+): ProjectSettings => ({
   assignment_mode: 'open',
   maximum_annotations: 3,
   min_annotations_per_task: 1,
@@ -44,7 +46,7 @@ const renderStep = (overrides: Partial<ProjectSettings> = {}) => {
   const onSettingsChange = jest.fn()
   const settings = baseSettings(overrides)
   const utils = render(
-    <StepSettings settings={settings} onSettingsChange={onSettingsChange} />
+    <StepSettings settings={settings} onSettingsChange={onSettingsChange} />,
   )
   return { onSettingsChange, settings, ...utils }
 }
@@ -56,7 +58,7 @@ describe('StepSettings — Select handlers', () => {
       target: { value: 'manual' },
     })
     expect(onSettingsChange).toHaveBeenCalledWith(
-      expect.objectContaining({ assignment_mode: 'manual' })
+      expect.objectContaining({ assignment_mode: 'manual' }),
     )
   })
 
@@ -66,7 +68,7 @@ describe('StepSettings — Select handlers', () => {
       target: { value: '5' },
     })
     expect(onSettingsChange).toHaveBeenCalledWith(
-      expect.objectContaining({ maximum_annotations: 5 })
+      expect.objectContaining({ maximum_annotations: 5 }),
     )
   })
 
@@ -76,7 +78,7 @@ describe('StepSettings — Select handlers', () => {
       target: { value: '0' },
     })
     expect(onSettingsChange).toHaveBeenCalledWith(
-      expect.objectContaining({ maximum_annotations: 0 })
+      expect.objectContaining({ maximum_annotations: 0 }),
     )
   })
 
@@ -85,11 +87,11 @@ describe('StepSettings — Select handlers', () => {
     // is selected. Just assert the component renders without error in that branch.
     renderStep({ maximum_annotations: 0 })
     expect(
-      screen.getByTestId('wizard-setting-max-annotations')
+      screen.getByTestId('wizard-setting-max-annotations'),
     ).toBeInTheDocument()
     // The Unlimited option label is present
     expect(
-      screen.getByText('projects.creation.wizard.stepSettings.unlimited')
+      screen.getByText('projects.creation.wizard.stepSettings.unlimited'),
     ).toBeInTheDocument()
   })
 
@@ -99,7 +101,7 @@ describe('StepSettings — Select handlers', () => {
       target: { value: '3' },
     })
     expect(onSettingsChange).toHaveBeenCalledWith(
-      expect.objectContaining({ min_annotations_per_task: 3 })
+      expect.objectContaining({ min_annotations_per_task: 3 }),
     )
   })
 })
@@ -109,7 +111,7 @@ describe('StepSettings — toggle handlers', () => {
     const { onSettingsChange } = renderStep()
     fireEvent.click(screen.getByTestId('wizard-setting-require-confirm'))
     expect(onSettingsChange).toHaveBeenCalledWith(
-      expect.objectContaining({ require_confirm_before_submit: true })
+      expect.objectContaining({ require_confirm_before_submit: true }),
     )
   })
 
@@ -117,7 +119,7 @@ describe('StepSettings — toggle handlers', () => {
     const { onSettingsChange } = renderStep()
     fireEvent.click(screen.getByTestId('wizard-setting-reveal-solution'))
     expect(onSettingsChange).toHaveBeenCalledWith(
-      expect.objectContaining({ annotator_full_visibility_after_submit: true })
+      expect.objectContaining({ annotator_full_visibility_after_submit: true }),
     )
   })
 
@@ -125,7 +127,7 @@ describe('StepSettings — toggle handlers', () => {
     const { onSettingsChange } = renderStep()
     fireEvent.click(screen.getByTestId('wizard-setting-randomize'))
     expect(onSettingsChange).toHaveBeenCalledWith(
-      expect.objectContaining({ randomize_task_order: true })
+      expect.objectContaining({ randomize_task_order: true }),
     )
   })
 })
@@ -134,10 +136,10 @@ describe('StepSettings — time-limit section', () => {
   it('does not render the minutes input or strict-timer toggle while the limit is off', () => {
     renderStep({ annotation_time_limit_enabled: false })
     expect(
-      screen.queryByText('projects.creation.wizard.stepSettings.minutes')
+      screen.queryByText('projects.creation.wizard.stepSettings.minutes'),
     ).not.toBeInTheDocument()
     expect(
-      screen.queryByText('projects.creation.wizard.stepSettings.strictTimer')
+      screen.queryByText('projects.creation.wizard.stepSettings.strictTimer'),
     ).not.toBeInTheDocument()
   })
 
@@ -148,18 +150,20 @@ describe('StepSettings — time-limit section', () => {
     // The time-limit master checkbox is the one without a data-testid in the
     // timer section; locate it via its label.
     const timeLimitLabel = screen.getByText(
-      'projects.creation.wizard.stepSettings.timeLimit'
+      'projects.creation.wizard.stepSettings.timeLimit',
     )
     const checkbox = timeLimitLabel
       .closest('div')!
-      .parentElement!.querySelector('input[type="checkbox"]') as HTMLInputElement
+      .parentElement!.querySelector(
+        'input[type="checkbox"]',
+      ) as HTMLInputElement
     fireEvent.click(checkbox)
     expect(onSettingsChange).toHaveBeenCalledWith(
       expect.objectContaining({
         annotation_time_limit_enabled: true,
         annotation_time_limit_seconds: 1800,
         strict_timer_enabled: false,
-      })
+      }),
     )
   })
 
@@ -169,10 +173,10 @@ describe('StepSettings — time-limit section', () => {
       annotation_time_limit_seconds: 1800,
     })
     expect(
-      screen.getByText('projects.creation.wizard.stepSettings.minutes')
+      screen.getByText('projects.creation.wizard.stepSettings.minutes'),
     ).toBeInTheDocument()
     expect(
-      screen.getByText('projects.creation.wizard.stepSettings.strictTimer')
+      screen.getByText('projects.creation.wizard.stepSettings.strictTimer'),
     ).toBeInTheDocument()
     // 1800s → 30 minutes shown in the number input
     expect(screen.getByDisplayValue('30')).toBeInTheDocument()
@@ -187,7 +191,7 @@ describe('StepSettings — time-limit section', () => {
       target: { value: '10' },
     })
     expect(onSettingsChange).toHaveBeenCalledWith(
-      expect.objectContaining({ annotation_time_limit_seconds: 600 })
+      expect.objectContaining({ annotation_time_limit_seconds: 600 }),
     )
   })
 
@@ -200,7 +204,7 @@ describe('StepSettings — time-limit section', () => {
       target: { value: '' },
     })
     expect(onSettingsChange).toHaveBeenCalledWith(
-      expect.objectContaining({ annotation_time_limit_seconds: 1800 })
+      expect.objectContaining({ annotation_time_limit_seconds: 1800 }),
     )
   })
 
@@ -218,14 +222,16 @@ describe('StepSettings — time-limit section', () => {
       annotation_time_limit_seconds: 1800,
     })
     const strictLabel = screen.getByText(
-      'projects.creation.wizard.stepSettings.strictTimer'
+      'projects.creation.wizard.stepSettings.strictTimer',
     )
     const strictCheckbox = strictLabel
       .closest('div')!
-      .parentElement!.querySelector('input[type="checkbox"]') as HTMLInputElement
+      .parentElement!.querySelector(
+        'input[type="checkbox"]',
+      ) as HTMLInputElement
     fireEvent.click(strictCheckbox)
     expect(onSettingsChange).toHaveBeenCalledWith(
-      expect.objectContaining({ strict_timer_enabled: true })
+      expect.objectContaining({ strict_timer_enabled: true }),
     )
   })
 })

@@ -26,7 +26,7 @@ describe('UrlField br3', () => {
         field={field}
         value="https://example.com"
         onChange={jest.fn()}
-      />
+      />,
     )
     const input = container.querySelector('input')
     expect(input).toBeInTheDocument()

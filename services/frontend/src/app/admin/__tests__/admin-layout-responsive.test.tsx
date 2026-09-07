@@ -22,7 +22,7 @@ describe('AdminLayout Responsive Behavior', () => {
     render(
       <AdminLayout>
         <div>User Management Content</div>
-      </AdminLayout>
+      </AdminLayout>,
     )
 
     // Admin content should be rendered
@@ -35,7 +35,7 @@ describe('AdminLayout Responsive Behavior', () => {
     render(
       <AdminLayout>
         <div>Feature Flags Content</div>
-      </AdminLayout>
+      </AdminLayout>,
     )
 
     // Admin content should be rendered
@@ -48,7 +48,7 @@ describe('AdminLayout Responsive Behavior', () => {
     render(
       <AdminLayout>
         <div>Edit User Management</div>
-      </AdminLayout>
+      </AdminLayout>,
     )
 
     // Admin subroute content should be rendered
@@ -61,7 +61,7 @@ describe('AdminLayout Responsive Behavior', () => {
     render(
       <AdminLayout>
         <div>Login Content</div>
-      </AdminLayout>
+      </AdminLayout>,
     )
 
     // Content should be rendered regardless of route
@@ -82,7 +82,7 @@ describe('AdminLayout Responsive Behavior', () => {
       const { unmount } = render(
         <AdminLayout>
           <div>Content for {route}</div>
-        </AdminLayout>
+        </AdminLayout>,
       )
 
       // Verify content is rendered for each admin route

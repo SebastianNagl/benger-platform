@@ -18,14 +18,14 @@ jest.mock('@/lib/api/client', () => ({
 const getByTaskModel = apiClient.getProjectResultsByTaskModel as jest.Mock
 
 const summary = (
-  entries: Record<string, { avg: number; count?: number; name?: string }>
+  entries: Record<string, { avg: number; count?: number; name?: string }>,
 ): PerConfigSummary => ({
   models: Object.keys(entries),
   summary: Object.fromEntries(
     Object.entries(entries).map(([id, v]) => [
       id,
       { avg: v.avg, count: v.count ?? 1, model_name: v.name ?? id },
-    ])
+    ]),
   ),
 })
 
@@ -33,7 +33,11 @@ describe('mergeConfigChartData', () => {
   it('two configs of the SAME metric produce two series keyed by display_name', () => {
     const configs: ChartConfigInput[] = [
       { id: 'cfg-a', displayName: 'Judge GPT', metric: 'llm_judge_falloesung' },
-      { id: 'cfg-b', displayName: 'Judge Claude', metric: 'llm_judge_falloesung' },
+      {
+        id: 'cfg-b',
+        displayName: 'Judge Claude',
+        metric: 'llm_judge_falloesung',
+      },
     ]
     const perConfig = [
       summary({ 'model-1': { avg: 0.8 }, 'model-2': { avg: 0.6 } }),
@@ -160,7 +164,7 @@ describe('useMultiConfigChartData', () => {
         projectId: 'p1',
         configs: [{ id: 'cfg-a', displayName: 'A', metric: 'm' }],
         enabled: false,
-      })
+      }),
     )
     expect(getByTaskModel).not.toHaveBeenCalled()
     expect(result.current.models).toEqual([])
@@ -170,10 +174,10 @@ describe('useMultiConfigChartData', () => {
   it('fetches one request per config and merges into two series', async () => {
     getByTaskModel
       .mockResolvedValueOnce(
-        summary({ 'model-1': { avg: 0.8 }, 'model-2': { avg: 0.6 } })
+        summary({ 'model-1': { avg: 0.8 }, 'model-2': { avg: 0.6 } }),
       )
       .mockResolvedValueOnce(
-        summary({ 'model-1': { avg: 0.5 }, 'model-2': { avg: 0.9 } })
+        summary({ 'model-1': { avg: 0.5 }, 'model-2': { avg: 0.9 } }),
       )
 
     const configs: ChartConfigInput[] = [
@@ -182,7 +186,7 @@ describe('useMultiConfigChartData', () => {
     ]
 
     const { result } = renderHook(() =>
-      useMultiConfigChartData({ projectId: 'p1', configs, enabled: true })
+      useMultiConfigChartData({ projectId: 'p1', configs, enabled: true }),
     )
 
     await waitFor(() => expect(result.current.loading).toBe(false))
@@ -194,7 +198,7 @@ describe('useMultiConfigChartData', () => {
       undefined,
       false,
       'llm_judge_falloesung',
-      'cfg-a'
+      'cfg-a',
     )
     expect(result.current.seriesNames).toEqual(['Judge A', 'Judge B'])
     const m1 = result.current.models.find((m) => m.model_id === 'model-1')!
@@ -212,7 +216,7 @@ describe('useMultiConfigChartData', () => {
     ]
 
     const { result } = renderHook(() =>
-      useMultiConfigChartData({ projectId: 'p1', configs, enabled: true })
+      useMultiConfigChartData({ projectId: 'p1', configs, enabled: true }),
     )
 
     await waitFor(() => expect(result.current.loading).toBe(false))

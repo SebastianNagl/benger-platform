@@ -5,16 +5,16 @@
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { api } from '@/lib/api'
+import { mockToast as __mockToast } from '@/test-utils/setupTests'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { mockToast as __mockToast } from '@/test-utils/setupTests'
+import TestNotificationsPage from '../page'
 const toast = Object.assign(__mockToast.addToast, {
   success: __mockToast.success,
   error: __mockToast.error,
   loading: jest.fn(),
   dismiss: jest.fn(),
 })
-import TestNotificationsPage from '../page'
 
 jest.mock('@/contexts/AuthContext')
 jest.mock('@/contexts/I18nContext')
@@ -35,7 +35,7 @@ describe('TestNotificationsPage', () => {
     if (params) {
       return Object.entries(params).reduce(
         (str, [k, v]) => str.replace(`{${k}}`, String(v)),
-        key
+        key,
       )
     }
     return key
@@ -130,10 +130,10 @@ describe('TestNotificationsPage', () => {
       render(<TestNotificationsPage />)
 
       expect(
-        screen.getByText('admin.testNotifications.title')
+        screen.getByText('admin.testNotifications.title'),
       ).toBeInTheDocument()
       expect(
-        screen.getByText('admin.testNotifications.description')
+        screen.getByText('admin.testNotifications.description'),
       ).toBeInTheDocument()
     })
   })
@@ -144,53 +144,85 @@ describe('TestNotificationsPage', () => {
 
       // Category headers use t('admin.testNotifications.categoryHeader', { category })
       // With mockT, this returns the key with {category} replaced by the category key value
-      const categoryHeaders = screen.getAllByText('admin.testNotifications.categoryHeader')
+      const categoryHeaders = screen.getAllByText(
+        'admin.testNotifications.categoryHeader',
+      )
       expect(categoryHeaders.length).toBeGreaterThan(0)
     })
 
     it('should display project notification types', () => {
       render(<TestNotificationsPage />)
 
-      expect(screen.getByText('admin.testNotifications.types.projectCreated.title')).toBeInTheDocument()
-      expect(screen.getByText('admin.testNotifications.types.projectCompleted.title')).toBeInTheDocument()
+      expect(
+        screen.getByText('admin.testNotifications.types.projectCreated.title'),
+      ).toBeInTheDocument()
+      expect(
+        screen.getByText(
+          'admin.testNotifications.types.projectCompleted.title',
+        ),
+      ).toBeInTheDocument()
     })
 
     it('should display generation notification types', () => {
       render(<TestNotificationsPage />)
 
-      expect(screen.getByText('admin.testNotifications.types.generationCompleted.title')).toBeInTheDocument()
+      expect(
+        screen.getByText(
+          'admin.testNotifications.types.generationCompleted.title',
+        ),
+      ).toBeInTheDocument()
     })
 
     it('should display evaluation notification types', () => {
       render(<TestNotificationsPage />)
 
-      expect(screen.getByText('admin.testNotifications.types.evaluationCompleted.title')).toBeInTheDocument()
-      expect(screen.getByText('admin.testNotifications.types.evaluationFailed.title')).toBeInTheDocument()
+      expect(
+        screen.getByText(
+          'admin.testNotifications.types.evaluationCompleted.title',
+        ),
+      ).toBeInTheDocument()
+      expect(
+        screen.getByText(
+          'admin.testNotifications.types.evaluationFailed.title',
+        ),
+      ).toBeInTheDocument()
     })
 
     it('should display annotation notification types', () => {
       render(<TestNotificationsPage />)
 
-      expect(screen.getByText('admin.testNotifications.types.annotationCompleted.title')).toBeInTheDocument()
+      expect(
+        screen.getByText(
+          'admin.testNotifications.types.annotationCompleted.title',
+        ),
+      ).toBeInTheDocument()
     })
 
     it('should display organization notification types', () => {
       render(<TestNotificationsPage />)
 
-      expect(screen.getByText('admin.testNotifications.types.memberJoined.title')).toBeInTheDocument()
+      expect(
+        screen.getByText('admin.testNotifications.types.memberJoined.title'),
+      ).toBeInTheDocument()
     })
 
     it('should display system notification types', () => {
       render(<TestNotificationsPage />)
 
-      expect(screen.getByText('admin.testNotifications.types.systemAlert.title')).toBeInTheDocument()
-      expect(screen.getByText('admin.testNotifications.types.errorOccurred.title')).toBeInTheDocument()
+      expect(
+        screen.getByText('admin.testNotifications.types.systemAlert.title'),
+      ).toBeInTheDocument()
+      expect(
+        screen.getByText('admin.testNotifications.types.errorOccurred.title'),
+      ).toBeInTheDocument()
     })
 
     it('should display generate button for each notification type', () => {
       render(<TestNotificationsPage />)
 
-      const generateButtons = screen.getAllByText('admin.testNotifications.generate')
+      const generateButtons = screen.getAllByText(
+        'admin.testNotifications.generate',
+      )
       expect(generateButtons.length).toBe(9)
     })
   })
@@ -200,12 +232,14 @@ describe('TestNotificationsPage', () => {
       const user = userEvent.setup()
       render(<TestNotificationsPage />)
 
-      const generateButtons = screen.getAllByText('admin.testNotifications.generate')
+      const generateButtons = screen.getAllByText(
+        'admin.testNotifications.generate',
+      )
       await user.click(generateButtons[0])
 
       await waitFor(() => {
         expect(
-          mockApiNotifications.createTestNotification
+          mockApiNotifications.createTestNotification,
         ).toHaveBeenCalledWith({
           type: 'project_created',
           title: 'admin.testNotifications.types.projectCreated.title',
@@ -222,33 +256,39 @@ describe('TestNotificationsPage', () => {
       const user = userEvent.setup()
       render(<TestNotificationsPage />)
 
-      const generateButtons = screen.getAllByText('admin.testNotifications.generate')
+      const generateButtons = screen.getAllByText(
+        'admin.testNotifications.generate',
+      )
       await user.click(generateButtons[0])
 
       await waitFor(() => {
         expect(toast.success).toHaveBeenCalledWith(
-          'admin.testNotifications.sent'
+          'admin.testNotifications.sent',
         )
       })
     })
 
     it('should show error toast on failed notification generation', async () => {
       // Suppress expected console.error from error handling path
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
+      const consoleSpy = jest
+        .spyOn(console, 'error')
+        .mockImplementation(() => {})
 
       mockApiNotifications.createTestNotification.mockRejectedValue(
-        new Error('API Error')
+        new Error('API Error'),
       )
 
       const user = userEvent.setup()
       render(<TestNotificationsPage />)
 
-      const generateButtons = screen.getAllByText('admin.testNotifications.generate')
+      const generateButtons = screen.getAllByText(
+        'admin.testNotifications.generate',
+      )
       await user.click(generateButtons[0])
 
       await waitFor(() => {
         expect(toast.error).toHaveBeenCalledWith(
-          'admin.testNotifications.sendFailed'
+          'admin.testNotifications.sendFailed',
         )
       })
 
@@ -257,17 +297,21 @@ describe('TestNotificationsPage', () => {
 
     it('should disable buttons while generating', async () => {
       mockApiNotifications.createTestNotification.mockImplementation(
-        () => new Promise((resolve) => setTimeout(resolve, 100))
+        () => new Promise((resolve) => setTimeout(resolve, 100)),
       )
 
       const user = userEvent.setup()
       render(<TestNotificationsPage />)
 
-      const generateButtons = screen.getAllByText('admin.testNotifications.generate')
+      const generateButtons = screen.getAllByText(
+        'admin.testNotifications.generate',
+      )
       await user.click(generateButtons[0])
 
       await waitFor(() => {
-        expect(screen.getByText('admin.testNotifications.generating')).toBeInTheDocument()
+        expect(
+          screen.getByText('admin.testNotifications.generating'),
+        ).toBeInTheDocument()
       })
 
       generateButtons.slice(1).forEach((button) => {
@@ -279,17 +323,19 @@ describe('TestNotificationsPage', () => {
       const user = userEvent.setup()
       render(<TestNotificationsPage />)
 
-      const generateButtons = screen.getAllByText('admin.testNotifications.generate')
+      const generateButtons = screen.getAllByText(
+        'admin.testNotifications.generate',
+      )
 
       await user.click(generateButtons[2])
 
       await waitFor(() => {
         expect(
-          mockApiNotifications.createTestNotification
+          mockApiNotifications.createTestNotification,
         ).toHaveBeenCalledWith(
           expect.objectContaining({
             type: 'llm_generation_completed',
-          })
+          }),
         )
       })
     })
@@ -299,21 +345,29 @@ describe('TestNotificationsPage', () => {
     it('should display bulk actions section', () => {
       render(<TestNotificationsPage />)
 
-      expect(screen.getByText('admin.testNotifications.bulkActions')).toBeInTheDocument()
-      expect(screen.getByText('admin.testNotifications.generateAll')).toBeInTheDocument()
-      expect(screen.getByText('admin.testNotifications.clearAll')).toBeInTheDocument()
+      expect(
+        screen.getByText('admin.testNotifications.bulkActions'),
+      ).toBeInTheDocument()
+      expect(
+        screen.getByText('admin.testNotifications.generateAll'),
+      ).toBeInTheDocument()
+      expect(
+        screen.getByText('admin.testNotifications.clearAll'),
+      ).toBeInTheDocument()
     })
 
     it('should generate all notification types with bulk endpoint', async () => {
       const user = userEvent.setup()
       render(<TestNotificationsPage />)
 
-      const generateAllButton = screen.getByText('admin.testNotifications.generateAll')
+      const generateAllButton = screen.getByText(
+        'admin.testNotifications.generateAll',
+      )
       await user.click(generateAllButton)
 
       await waitFor(() => {
         expect(
-          mockApiNotifications.generateTestNotifications
+          mockApiNotifications.generateTestNotifications,
         ).toHaveBeenCalled()
       })
     })
@@ -322,25 +376,29 @@ describe('TestNotificationsPage', () => {
       const user = userEvent.setup()
       render(<TestNotificationsPage />)
 
-      const generateAllButton = screen.getByText('admin.testNotifications.generateAll')
+      const generateAllButton = screen.getByText(
+        'admin.testNotifications.generateAll',
+      )
       await user.click(generateAllButton)
 
       await waitFor(() => {
         expect(toast.success).toHaveBeenCalledWith(
-          'Generated 9 test notifications!'
+          'Generated 9 test notifications!',
         )
       })
     })
 
     it('should fallback to individual calls if bulk endpoint fails', async () => {
       mockApiNotifications.generateTestNotifications.mockRejectedValue(
-        new Error('Bulk endpoint not available')
+        new Error('Bulk endpoint not available'),
       )
 
       const user = userEvent.setup()
       render(<TestNotificationsPage />)
 
-      const generateAllButton = screen.getByText('admin.testNotifications.generateAll')
+      const generateAllButton = screen.getByText(
+        'admin.testNotifications.generateAll',
+      )
       await user.click(generateAllButton)
 
       // Await the terminal toast, not just the first call — otherwise the
@@ -349,70 +407,78 @@ describe('TestNotificationsPage', () => {
       await waitFor(
         () => {
           expect(toast.success).toHaveBeenCalledWith(
-            'admin.testNotifications.sent'
+            'admin.testNotifications.sent',
           )
         },
-        { timeout: 5000 }
+        { timeout: 5000 },
       )
       expect(mockApiNotifications.createTestNotification).toHaveBeenCalled()
     })
 
     it('should show success toast after fallback generation', async () => {
       mockApiNotifications.generateTestNotifications.mockRejectedValue(
-        new Error('Bulk endpoint not available')
+        new Error('Bulk endpoint not available'),
       )
 
       const user = userEvent.setup()
       render(<TestNotificationsPage />)
 
-      const generateAllButton = screen.getByText('admin.testNotifications.generateAll')
+      const generateAllButton = screen.getByText(
+        'admin.testNotifications.generateAll',
+      )
       await user.click(generateAllButton)
 
       // Fallback loop iterates per notification type with delays
       await waitFor(
         () => {
           expect(toast.success).toHaveBeenCalledWith(
-            'admin.testNotifications.sent'
+            'admin.testNotifications.sent',
           )
         },
-        { timeout: 5000 }
+        { timeout: 5000 },
       )
     })
 
     it('should handle fallback failure gracefully', async () => {
       mockApiNotifications.generateTestNotifications.mockRejectedValue(
-        new Error('Bulk error')
+        new Error('Bulk error'),
       )
       mockApiNotifications.createTestNotification.mockRejectedValue(
-        new Error('Individual error')
+        new Error('Individual error'),
       )
 
       const user = userEvent.setup()
       render(<TestNotificationsPage />)
 
-      const generateAllButton = screen.getByText('admin.testNotifications.generateAll')
+      const generateAllButton = screen.getByText(
+        'admin.testNotifications.generateAll',
+      )
       await user.click(generateAllButton)
 
       await waitFor(() => {
         expect(toast.error).toHaveBeenCalledWith(
-          'admin.testNotifications.sendFailed'
+          'admin.testNotifications.sendFailed',
         )
       })
     })
 
     it('should disable buttons during bulk generation', async () => {
       mockApiNotifications.generateTestNotifications.mockImplementation(
-        () => new Promise((resolve) => setTimeout(resolve, 100))
+        () => new Promise((resolve) => setTimeout(resolve, 100)),
       )
 
       const user = userEvent.setup()
       render(<TestNotificationsPage />)
 
-      const generateAllButton = screen.getByText('admin.testNotifications.generateAll')
+      const generateAllButton = screen.getByText(
+        'admin.testNotifications.generateAll',
+      )
       await user.click(generateAllButton)
 
       await waitFor(() => {
-        expect(screen.getByText('admin.testNotifications.generating')).toBeInTheDocument()
+        expect(
+          screen.getByText('admin.testNotifications.generating'),
+        ).toBeInTheDocument()
       })
 
       const clearButton = screen.getByText('admin.testNotifications.clearAll')
@@ -431,7 +497,7 @@ describe('TestNotificationsPage', () => {
       await user.click(clearButton)
 
       expect(window.confirm).toHaveBeenCalledWith(
-        'admin.testNotifications.clearConfirm'
+        'admin.testNotifications.clearConfirm',
       )
       expect(mockApi.markAllNotificationsAsRead).not.toHaveBeenCalled()
     })
@@ -461,7 +527,7 @@ describe('TestNotificationsPage', () => {
 
       await waitFor(() => {
         expect(toast.success).toHaveBeenCalledWith(
-          'admin.testNotifications.cleared'
+          'admin.testNotifications.cleared',
         )
       })
     })
@@ -469,7 +535,7 @@ describe('TestNotificationsPage', () => {
     it('should handle clear failure', async () => {
       window.confirm = jest.fn(() => true)
       mockApi.markAllNotificationsAsRead.mockRejectedValue(
-        new Error('Clear failed')
+        new Error('Clear failed'),
       )
 
       const user = userEvent.setup()
@@ -480,7 +546,7 @@ describe('TestNotificationsPage', () => {
 
       await waitFor(() => {
         expect(toast.error).toHaveBeenCalledWith(
-          'admin.testNotifications.clearFailed'
+          'admin.testNotifications.clearFailed',
         )
       })
     })
@@ -488,7 +554,7 @@ describe('TestNotificationsPage', () => {
     it('should disable buttons during clear operation', async () => {
       window.confirm = jest.fn(() => true)
       mockApi.markAllNotificationsAsRead.mockImplementation(
-        () => new Promise((resolve) => setTimeout(resolve, 100))
+        () => new Promise((resolve) => setTimeout(resolve, 100)),
       )
 
       const user = userEvent.setup()
@@ -498,10 +564,14 @@ describe('TestNotificationsPage', () => {
       await user.click(clearButton)
 
       await waitFor(() => {
-        expect(screen.getByText('admin.testNotifications.clearing')).toBeInTheDocument()
+        expect(
+          screen.getByText('admin.testNotifications.clearing'),
+        ).toBeInTheDocument()
       })
 
-      const generateAllButton = screen.getByText('admin.testNotifications.generateAll')
+      const generateAllButton = screen.getByText(
+        'admin.testNotifications.generateAll',
+      )
       expect(generateAllButton).toBeDisabled()
     })
   })
@@ -510,20 +580,22 @@ describe('TestNotificationsPage', () => {
     it('should display implementation status', () => {
       render(<TestNotificationsPage />)
 
-      expect(screen.getByText('admin.testNotifications.status.title')).toBeInTheDocument()
+      expect(
+        screen.getByText('admin.testNotifications.status.title'),
+      ).toBeInTheDocument()
     })
 
     it('should show completed frontend tasks', () => {
       render(<TestNotificationsPage />)
 
       expect(
-        screen.getByText('admin.testNotifications.status.item1')
+        screen.getByText('admin.testNotifications.status.item1'),
       ).toBeInTheDocument()
       expect(
-        screen.getByText('admin.testNotifications.status.item2')
+        screen.getByText('admin.testNotifications.status.item2'),
       ).toBeInTheDocument()
       expect(
-        screen.getByText('admin.testNotifications.status.item3')
+        screen.getByText('admin.testNotifications.status.item3'),
       ).toBeInTheDocument()
     })
 
@@ -531,10 +603,10 @@ describe('TestNotificationsPage', () => {
       render(<TestNotificationsPage />)
 
       expect(
-        screen.getByText('admin.testNotifications.status.item6')
+        screen.getByText('admin.testNotifications.status.item6'),
       ).toBeInTheDocument()
       expect(
-        screen.getByText('admin.testNotifications.status.note')
+        screen.getByText('admin.testNotifications.status.note'),
       ).toBeInTheDocument()
     })
   })
@@ -544,7 +616,9 @@ describe('TestNotificationsPage', () => {
       render(<TestNotificationsPage />)
 
       // Dashboard renders as HomeIcon, not text
-      expect(screen.getByText('admin.testNotifications.breadcrumb')).toBeInTheDocument()
+      expect(
+        screen.getByText('admin.testNotifications.breadcrumb'),
+      ).toBeInTheDocument()
     })
   })
 
@@ -553,10 +627,14 @@ describe('TestNotificationsPage', () => {
       render(<TestNotificationsPage />)
 
       expect(
-        screen.getByText('admin.testNotifications.types.projectCreated.description')
+        screen.getByText(
+          'admin.testNotifications.types.projectCreated.description',
+        ),
       ).toBeInTheDocument()
       expect(
-        screen.getByText('admin.testNotifications.types.projectCompleted.description')
+        screen.getByText(
+          'admin.testNotifications.types.projectCompleted.description',
+        ),
       ).toBeInTheDocument()
     })
 
@@ -564,10 +642,14 @@ describe('TestNotificationsPage', () => {
       render(<TestNotificationsPage />)
 
       expect(
-        screen.getByText('admin.testNotifications.types.projectCreated.message')
+        screen.getByText(
+          'admin.testNotifications.types.projectCreated.message',
+        ),
       ).toBeInTheDocument()
       expect(
-        screen.getByText('admin.testNotifications.types.projectCompleted.message')
+        screen.getByText(
+          'admin.testNotifications.types.projectCompleted.message',
+        ),
       ).toBeInTheDocument()
     })
 
@@ -593,17 +675,21 @@ describe('TestNotificationsPage', () => {
   describe('Loading States', () => {
     it('should show individual loading state for specific notification', async () => {
       mockApiNotifications.createTestNotification.mockImplementation(
-        () => new Promise((resolve) => setTimeout(resolve, 100))
+        () => new Promise((resolve) => setTimeout(resolve, 100)),
       )
 
       const user = userEvent.setup()
       render(<TestNotificationsPage />)
 
-      const generateButtons = screen.getAllByText('admin.testNotifications.generate')
+      const generateButtons = screen.getAllByText(
+        'admin.testNotifications.generate',
+      )
       await user.click(generateButtons[0])
 
       await waitFor(() => {
-        expect(screen.getByText('admin.testNotifications.generating')).toBeInTheDocument()
+        expect(
+          screen.getByText('admin.testNotifications.generating'),
+        ).toBeInTheDocument()
       })
 
       const otherButtons = generateButtons.slice(1)
@@ -616,7 +702,9 @@ describe('TestNotificationsPage', () => {
       const user = userEvent.setup()
       render(<TestNotificationsPage />)
 
-      const generateButtons = screen.getAllByText('admin.testNotifications.generate')
+      const generateButtons = screen.getAllByText(
+        'admin.testNotifications.generate',
+      )
       await user.click(generateButtons[0])
 
       await waitFor(() => {
@@ -633,68 +721,87 @@ describe('TestNotificationsPage', () => {
     it('should log errors to console on failure', async () => {
       const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation()
       mockApiNotifications.createTestNotification.mockRejectedValue(
-        new Error('Test error')
+        new Error('Test error'),
       )
 
       const user = userEvent.setup()
       render(<TestNotificationsPage />)
 
-      const generateButtons = screen.getAllByText('admin.testNotifications.generate')
+      const generateButtons = screen.getAllByText(
+        'admin.testNotifications.generate',
+      )
       await user.click(generateButtons[0])
 
-      await waitFor(() => {
-        expect(consoleErrorSpy).toHaveBeenCalledWith(
-          'Failed to generate test notification:',
-          expect.any(Error)
-        )
-      }, { timeout: 5000 })
+      await waitFor(
+        () => {
+          expect(consoleErrorSpy).toHaveBeenCalledWith(
+            'Failed to generate test notification:',
+            expect.any(Error),
+          )
+        },
+        { timeout: 5000 },
+      )
 
       consoleErrorSpy.mockRestore()
     })
 
     it('should handle network errors gracefully', async () => {
       mockApiNotifications.createTestNotification.mockRejectedValue(
-        new Error('Network error')
+        new Error('Network error'),
       )
 
       const user = userEvent.setup()
       render(<TestNotificationsPage />)
 
-      const generateButtons = screen.getAllByText('admin.testNotifications.generate')
+      const generateButtons = screen.getAllByText(
+        'admin.testNotifications.generate',
+      )
       await user.click(generateButtons[0])
 
       // 15s ceiling: full-suite CPU contention blew through 5s on clean main
       // (known flake). waitFor returns as soon as the toast fires, so the
       // larger ceiling costs nothing on the happy path.
-      await waitFor(() => {
-        expect(toast.error).toHaveBeenCalledWith(
-          'admin.testNotifications.sendFailed'
-        )
-      }, { timeout: 15000 })
+      await waitFor(
+        () => {
+          expect(toast.error).toHaveBeenCalledWith(
+            'admin.testNotifications.sendFailed',
+          )
+        },
+        { timeout: 15000 },
+      )
     })
 
     it('should continue working after an error', async () => {
-      mockApiNotifications.createTestNotification
-        .mockRejectedValueOnce(new Error('First error'))
+      mockApiNotifications.createTestNotification.mockRejectedValueOnce(
+        new Error('First error'),
+      )
 
       const user = userEvent.setup()
       render(<TestNotificationsPage />)
 
-      const generateButtons = screen.getAllByText('admin.testNotifications.generate')
+      const generateButtons = screen.getAllByText(
+        'admin.testNotifications.generate',
+      )
 
       await user.click(generateButtons[0])
-      await waitFor(() => {
-        expect(toast.error).toHaveBeenCalledWith(
-          'admin.testNotifications.sendFailed'
-        )
-      }, { timeout: 5000 })
+      await waitFor(
+        () => {
+          expect(toast.error).toHaveBeenCalledWith(
+            'admin.testNotifications.sendFailed',
+          )
+        },
+        { timeout: 5000 },
+      )
 
       await user.click(generateButtons[1])
-      await waitFor(() => {
-        expect(toast.success).toHaveBeenCalledWith(
-          'admin.testNotifications.sent'
-        )
-      }, { timeout: 5000 })
+      await waitFor(
+        () => {
+          expect(toast.success).toHaveBeenCalledWith(
+            'admin.testNotifications.sent',
+          )
+        },
+        { timeout: 5000 },
+      )
     })
   })
 })

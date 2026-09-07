@@ -77,7 +77,7 @@ export function ResponsiveContainer({
         'transition-all duration-300',
         getSizeClasses(),
         getPaddingClasses(),
-        className
+        className,
       )}
     >
       {children}
@@ -96,8 +96,8 @@ export function LegacyContainer({
   return (
     <div
       className={clsx(
-        'mx-auto max-w-2xl pb-10 pt-16 lg:mx-[calc(50%-min(50%,theme(container.lg)))] lg:max-w-3xl 3xl:max-w-4xl 4xl:max-w-5xl 5xl:max-w-6xl',
-        className
+        'mx-auto max-w-2xl pt-16 pb-10 3xl:max-w-4xl 4xl:max-w-5xl 5xl:max-w-6xl lg:mx-[calc(50%-min(50%,theme(container.lg)))] lg:max-w-3xl',
+        className,
       )}
     >
       {children}

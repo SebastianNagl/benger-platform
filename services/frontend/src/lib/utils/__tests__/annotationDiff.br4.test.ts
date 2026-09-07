@@ -11,7 +11,12 @@ import { computeAnnotationDiff } from '../annotationDiff'
 describe('annotationDiff br4 - uncovered branches', () => {
   it('detects removed fields (line 66-74, orig && !rev)', () => {
     const original = [
-      { from_name: 'field1', to_name: 'text', type: 'choices', value: { choices: ['A'] } },
+      {
+        from_name: 'field1',
+        to_name: 'text',
+        type: 'choices',
+        value: { choices: ['A'] },
+      },
     ]
     const review: any[] = []
 
@@ -24,7 +29,12 @@ describe('annotationDiff br4 - uncovered branches', () => {
   it('detects added fields (line 75-82, !orig && rev)', () => {
     const original: any[] = []
     const review = [
-      { from_name: 'newField', to_name: 'text', type: 'choices', value: { choices: ['B'] } },
+      {
+        from_name: 'newField',
+        to_name: 'text',
+        type: 'choices',
+        value: { choices: ['B'] },
+      },
     ]
 
     const result = computeAnnotationDiff(original, review as any)
@@ -35,10 +45,20 @@ describe('annotationDiff br4 - uncovered branches', () => {
 
   it('detects modified fields (line 56-65)', () => {
     const original = [
-      { from_name: 'field1', to_name: 'text', type: 'choices', value: { choices: ['A'] } },
+      {
+        from_name: 'field1',
+        to_name: 'text',
+        type: 'choices',
+        value: { choices: ['A'] },
+      },
     ]
     const review = [
-      { from_name: 'field1', to_name: 'text', type: 'choices', value: { choices: ['B'] } },
+      {
+        from_name: 'field1',
+        to_name: 'text',
+        type: 'choices',
+        value: { choices: ['B'] },
+      },
     ]
 
     const result = computeAnnotationDiff(original as any, review as any)
@@ -49,10 +69,20 @@ describe('annotationDiff br4 - uncovered branches', () => {
 
   it('detects unchanged fields', () => {
     const original = [
-      { from_name: 'field1', to_name: 'text', type: 'choices', value: { choices: ['A'] } },
+      {
+        from_name: 'field1',
+        to_name: 'text',
+        type: 'choices',
+        value: { choices: ['A'] },
+      },
     ]
     const review = [
-      { from_name: 'field1', to_name: 'text', type: 'choices', value: { choices: ['A'] } },
+      {
+        from_name: 'field1',
+        to_name: 'text',
+        type: 'choices',
+        value: { choices: ['A'] },
+      },
     ]
 
     const result = computeAnnotationDiff(original as any, review as any)
@@ -66,7 +96,12 @@ describe('annotationDiff br4 - uncovered branches', () => {
       { from_name: 'field1', to_name: '', type: '', value: 'orig' },
     ]
     const review = [
-      { from_name: 'field1', to_name: 'fallback_name', type: 'fallback_type', value: 'rev' },
+      {
+        from_name: 'field1',
+        to_name: 'fallback_name',
+        type: 'fallback_type',
+        value: 'rev',
+      },
     ]
 
     const result = computeAnnotationDiff(original as any, review as any)
@@ -77,11 +112,21 @@ describe('annotationDiff br4 - uncovered branches', () => {
   it('summary counts are correct', () => {
     const original = [
       { from_name: 'kept', to_name: 'text', type: 'choices', value: 'same' },
-      { from_name: 'removed_field', to_name: 'text', type: 'choices', value: 'gone' },
+      {
+        from_name: 'removed_field',
+        to_name: 'text',
+        type: 'choices',
+        value: 'gone',
+      },
     ]
     const review = [
       { from_name: 'kept', to_name: 'text', type: 'choices', value: 'same' },
-      { from_name: 'new_field', to_name: 'text', type: 'choices', value: 'new' },
+      {
+        from_name: 'new_field',
+        to_name: 'text',
+        type: 'choices',
+        value: 'new',
+      },
     ]
 
     const result = computeAnnotationDiff(original as any, review as any)

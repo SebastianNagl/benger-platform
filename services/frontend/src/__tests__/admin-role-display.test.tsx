@@ -14,7 +14,7 @@ import { render, screen } from '@testing-library/react'
 const MockRoleSystemExplanation = () => (
   <div className="border-l-4 border-blue-400 bg-blue-50 px-6 py-4 dark:border-blue-500 dark:bg-blue-950/50">
     <div className="flex">
-      <div className="flex-shrink-0">
+      <div className="shrink-0">
         <svg
           className="h-5 w-5 text-blue-400"
           viewBox="0 0 20 20"
@@ -69,7 +69,7 @@ describe('Admin Role Display', () => {
       expect(screen.getByText(/Superadmin:/)).toBeInTheDocument()
       expect(screen.getByText(/User:/)).toBeInTheDocument()
       expect(
-        screen.getByText(/Organization roles.*managed per-organization/)
+        screen.getByText(/Organization roles.*managed per-organization/),
       ).toBeInTheDocument()
     })
 
@@ -77,10 +77,10 @@ describe('Admin Role Display', () => {
       render(<MockRoleSystemExplanation />)
 
       expect(
-        screen.getByText(/Full system access and user management/)
+        screen.getByText(/Full system access and user management/),
       ).toBeInTheDocument()
       expect(
-        screen.getByText(/Basic access with organization-specific permissions/)
+        screen.getByText(/Basic access with organization-specific permissions/),
       ).toBeInTheDocument()
       expect(screen.getByText(/Organization Roles tab/)).toBeInTheDocument()
     })
@@ -135,10 +135,10 @@ describe('Admin Role Display', () => {
       expect(screen.getByText('Global User Roles')).toBeInTheDocument()
       expect(screen.getByText('Global Role')).toBeInTheDocument()
       expect(
-        screen.getByText(/system-wide user permissions/)
+        screen.getByText(/system-wide user permissions/),
       ).toBeInTheDocument()
       expect(
-        screen.getByText(/Organization-specific roles/)
+        screen.getByText(/Organization-specific roles/),
       ).toBeInTheDocument()
     })
   })
@@ -147,7 +147,7 @@ describe('Admin Role Display', () => {
     // Helper function to simulate role access checking
     const hasAccessToRoute = (
       userRole: 'superadmin' | 'user',
-      route: string
+      route: string,
     ): boolean => {
       if (userRole !== 'superadmin') return false
 

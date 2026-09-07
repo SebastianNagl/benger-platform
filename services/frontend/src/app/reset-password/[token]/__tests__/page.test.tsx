@@ -53,10 +53,10 @@ describe('ResetPasswordConfirmPage', () => {
 
       expect(screen.getByText('passwordReset.title')).toBeInTheDocument()
       expect(
-        screen.getByLabelText('passwordReset.newPassword')
+        screen.getByLabelText('passwordReset.newPassword'),
       ).toBeInTheDocument()
       expect(
-        screen.getByLabelText('passwordReset.confirmPassword')
+        screen.getByLabelText('passwordReset.confirmPassword'),
       ).toBeInTheDocument()
     })
 
@@ -87,10 +87,10 @@ describe('ResetPasswordConfirmPage', () => {
       render(<ResetPasswordConfirmPage />)
 
       const newPasswordInput = screen.getByLabelText(
-        'passwordReset.newPassword'
+        'passwordReset.newPassword',
       )
       const confirmPasswordInput = screen.getByLabelText(
-        'passwordReset.confirmPassword'
+        'passwordReset.confirmPassword',
       )
 
       expect(newPasswordInput).toHaveAttribute('required')
@@ -101,10 +101,10 @@ describe('ResetPasswordConfirmPage', () => {
       render(<ResetPasswordConfirmPage />)
 
       const newPasswordInput = screen.getByLabelText(
-        'passwordReset.newPassword'
+        'passwordReset.newPassword',
       )
       const confirmPasswordInput = screen.getByLabelText(
-        'passwordReset.confirmPassword'
+        'passwordReset.confirmPassword',
       )
 
       expect(newPasswordInput).toHaveAttribute('type', 'password')
@@ -116,10 +116,10 @@ describe('ResetPasswordConfirmPage', () => {
       render(<ResetPasswordConfirmPage />)
 
       const newPasswordInput = screen.getByLabelText(
-        'passwordReset.newPassword'
+        'passwordReset.newPassword',
       ) as HTMLInputElement
       const confirmPasswordInput = screen.getByLabelText(
-        'passwordReset.confirmPassword'
+        'passwordReset.confirmPassword',
       ) as HTMLInputElement
 
       await user.type(newPasswordInput, 'newpassword123')
@@ -135,11 +135,11 @@ describe('ResetPasswordConfirmPage', () => {
 
       await user.type(
         screen.getByLabelText('passwordReset.newPassword'),
-        'password123'
+        'password123',
       )
       await user.type(
         screen.getByLabelText('passwordReset.confirmPassword'),
-        'different123'
+        'different123',
       )
 
       const submitButton = screen.getByText('passwordReset.reset')
@@ -158,11 +158,11 @@ describe('ResetPasswordConfirmPage', () => {
 
       await user.type(
         screen.getByLabelText('passwordReset.newPassword'),
-        '12345'
+        '12345',
       )
       await user.type(
         screen.getByLabelText('passwordReset.confirmPassword'),
-        '12345'
+        '12345',
       )
 
       const submitButton = screen.getByText('passwordReset.reset')
@@ -188,11 +188,11 @@ describe('ResetPasswordConfirmPage', () => {
 
       await user.type(
         screen.getByLabelText('passwordReset.newPassword'),
-        'newpassword123'
+        'newpassword123',
       )
       await user.type(
         screen.getByLabelText('passwordReset.confirmPassword'),
-        'newpassword123'
+        'newpassword123',
       )
 
       const submitButton = screen.getByText('passwordReset.reset')
@@ -219,18 +219,18 @@ describe('ResetPasswordConfirmPage', () => {
       ;(global.fetch as jest.Mock).mockReturnValue(
         new Promise((resolve) => {
           resolveFetch = resolve
-        })
+        }),
       )
 
       render(<ResetPasswordConfirmPage />)
 
       await user.type(
         screen.getByLabelText('passwordReset.newPassword'),
-        'newpassword123'
+        'newpassword123',
       )
       await user.type(
         screen.getByLabelText('passwordReset.confirmPassword'),
-        'newpassword123'
+        'newpassword123',
       )
 
       const submitButton = screen.getByText('passwordReset.reset')
@@ -255,11 +255,11 @@ describe('ResetPasswordConfirmPage', () => {
 
       await user.type(
         screen.getByLabelText('passwordReset.newPassword'),
-        'newpassword123'
+        'newpassword123',
       )
       await user.type(
         screen.getByLabelText('passwordReset.confirmPassword'),
-        'newpassword123'
+        'newpassword123',
       )
 
       const submitButton = screen.getByText('passwordReset.reset')
@@ -285,18 +285,18 @@ describe('ResetPasswordConfirmPage', () => {
 
       await user.type(
         screen.getByLabelText('passwordReset.newPassword'),
-        'newpassword123'
+        'newpassword123',
       )
       await user.type(
         screen.getByLabelText('passwordReset.confirmPassword'),
-        'newpassword123'
+        'newpassword123',
       )
       await user.click(screen.getByText('passwordReset.reset'))
 
       await waitFor(() => {
         expect(screen.getByText('passwordReset.success')).toBeInTheDocument()
         expect(
-          screen.getByText('passwordReset.successDescription')
+          screen.getByText('passwordReset.successDescription'),
         ).toBeInTheDocument()
       })
     })
@@ -312,17 +312,17 @@ describe('ResetPasswordConfirmPage', () => {
 
       await user.type(
         screen.getByLabelText('passwordReset.newPassword'),
-        'newpassword123'
+        'newpassword123',
       )
       await user.type(
         screen.getByLabelText('passwordReset.confirmPassword'),
-        'newpassword123'
+        'newpassword123',
       )
       await user.click(screen.getByText('passwordReset.reset'))
 
       await waitFor(() => {
         expect(
-          screen.queryByLabelText('passwordReset.newPassword')
+          screen.queryByLabelText('passwordReset.newPassword'),
         ).not.toBeInTheDocument()
         expect(screen.getByText('passwordReset.success')).toBeInTheDocument()
       })
@@ -339,11 +339,11 @@ describe('ResetPasswordConfirmPage', () => {
 
       await user.type(
         screen.getByLabelText('passwordReset.newPassword'),
-        'newpassword123'
+        'newpassword123',
       )
       await user.type(
         screen.getByLabelText('passwordReset.confirmPassword'),
-        'newpassword123'
+        'newpassword123',
       )
       await user.click(screen.getByText('passwordReset.reset'))
 
@@ -365,11 +365,11 @@ describe('ResetPasswordConfirmPage', () => {
 
       await user.type(
         screen.getByLabelText('passwordReset.newPassword'),
-        'newpassword123'
+        'newpassword123',
       )
       await user.type(
         screen.getByLabelText('passwordReset.confirmPassword'),
-        'newpassword123'
+        'newpassword123',
       )
       await user.click(screen.getByText('passwordReset.reset'))
 
@@ -399,11 +399,11 @@ describe('ResetPasswordConfirmPage', () => {
 
       await user.type(
         screen.getByLabelText('passwordReset.newPassword'),
-        'newpassword123'
+        'newpassword123',
       )
       await user.type(
         screen.getByLabelText('passwordReset.confirmPassword'),
-        'newpassword123'
+        'newpassword123',
       )
       await user.click(screen.getByText('passwordReset.reset'))
 
@@ -423,17 +423,17 @@ describe('ResetPasswordConfirmPage', () => {
 
       await user.type(
         screen.getByLabelText('passwordReset.newPassword'),
-        'newpassword123'
+        'newpassword123',
       )
       await user.type(
         screen.getByLabelText('passwordReset.confirmPassword'),
-        'newpassword123'
+        'newpassword123',
       )
       await user.click(screen.getByText('passwordReset.reset'))
 
       await waitFor(() => {
         expect(
-          screen.getByText('passwordReset.expiredDescription')
+          screen.getByText('passwordReset.expiredDescription'),
         ).toBeInTheDocument()
       })
     })
@@ -444,30 +444,30 @@ describe('ResetPasswordConfirmPage', () => {
         .spyOn(console, 'error')
         .mockImplementation(() => {})
       ;(global.fetch as jest.Mock).mockRejectedValueOnce(
-        new Error('Network error')
+        new Error('Network error'),
       )
 
       render(<ResetPasswordConfirmPage />)
 
       await user.type(
         screen.getByLabelText('passwordReset.newPassword'),
-        'newpassword123'
+        'newpassword123',
       )
       await user.type(
         screen.getByLabelText('passwordReset.confirmPassword'),
-        'newpassword123'
+        'newpassword123',
       )
       await user.click(screen.getByText('passwordReset.reset'))
 
       await waitFor(() => {
         expect(
-          screen.getByText('passwordReset.invalidDescription')
+          screen.getByText('passwordReset.invalidDescription'),
         ).toBeInTheDocument()
       })
 
       expect(consoleErrorSpy).toHaveBeenCalledWith(
         'Error resetting password:',
-        expect.any(Error)
+        expect.any(Error),
       )
       consoleErrorSpy.mockRestore()
     })
@@ -483,11 +483,11 @@ describe('ResetPasswordConfirmPage', () => {
 
       await user.type(
         screen.getByLabelText('passwordReset.newPassword'),
-        'newpassword123'
+        'newpassword123',
       )
       await user.type(
         screen.getByLabelText('passwordReset.confirmPassword'),
-        'newpassword123'
+        'newpassword123',
       )
       await user.click(screen.getByText('passwordReset.reset'))
 
@@ -514,11 +514,11 @@ describe('ResetPasswordConfirmPage', () => {
       // First submission with error
       await user.type(
         screen.getByLabelText('passwordReset.newPassword'),
-        'password123'
+        'password123',
       )
       await user.type(
         screen.getByLabelText('passwordReset.confirmPassword'),
-        'password123'
+        'password123',
       )
       await user.click(screen.getByText('passwordReset.reset'))
 
@@ -528,10 +528,10 @@ describe('ResetPasswordConfirmPage', () => {
 
       // Clear and retry
       const newPasswordInput = screen.getByLabelText(
-        'passwordReset.newPassword'
+        'passwordReset.newPassword',
       ) as HTMLInputElement
       const confirmPasswordInput = screen.getByLabelText(
-        'passwordReset.confirmPassword'
+        'passwordReset.confirmPassword',
       ) as HTMLInputElement
 
       await user.clear(newPasswordInput)
@@ -561,11 +561,11 @@ describe('ResetPasswordConfirmPage', () => {
 
       await user.type(
         screen.getByLabelText('passwordReset.newPassword'),
-        'newpassword123'
+        'newpassword123',
       )
       await user.type(
         screen.getByLabelText('passwordReset.confirmPassword'),
-        'newpassword123'
+        'newpassword123',
       )
       await user.click(screen.getByText('passwordReset.reset'))
 
@@ -574,7 +574,7 @@ describe('ResetPasswordConfirmPage', () => {
           '/api/auth/reset-password',
           expect.objectContaining({
             body: expect.stringContaining('custom-token-123'),
-          })
+          }),
         )
       })
     })
@@ -610,11 +610,11 @@ describe('ResetPasswordConfirmPage', () => {
 
       await user.type(
         screen.getByLabelText('passwordReset.newPassword'),
-        'newpassword123'
+        'newpassword123',
       )
       await user.type(
         screen.getByLabelText('passwordReset.confirmPassword'),
-        'newpassword123'
+        'newpassword123',
       )
       await user.click(screen.getByText('passwordReset.reset'))
 
@@ -630,10 +630,10 @@ describe('ResetPasswordConfirmPage', () => {
       render(<ResetPasswordConfirmPage />)
 
       expect(
-        screen.getByLabelText('passwordReset.newPassword')
+        screen.getByLabelText('passwordReset.newPassword'),
       ).toBeInTheDocument()
       expect(
-        screen.getByLabelText('passwordReset.confirmPassword')
+        screen.getByLabelText('passwordReset.confirmPassword'),
       ).toBeInTheDocument()
     })
 
@@ -641,16 +641,16 @@ describe('ResetPasswordConfirmPage', () => {
       render(<ResetPasswordConfirmPage />)
 
       const newPasswordInput = screen.getByLabelText(
-        'passwordReset.newPassword'
+        'passwordReset.newPassword',
       )
       const confirmPasswordInput = screen.getByLabelText(
-        'passwordReset.confirmPassword'
+        'passwordReset.confirmPassword',
       )
 
       expect(newPasswordInput).toHaveAttribute('autocomplete', 'new-password')
       expect(confirmPasswordInput).toHaveAttribute(
         'autocomplete',
-        'new-password'
+        'new-password',
       )
     })
 
@@ -665,10 +665,10 @@ describe('ResetPasswordConfirmPage', () => {
       render(<ResetPasswordConfirmPage />)
 
       expect(
-        screen.getByLabelText('passwordReset.newPassword')
+        screen.getByLabelText('passwordReset.newPassword'),
       ).toHaveAttribute('id', 'new-password')
       expect(
-        screen.getByLabelText('passwordReset.confirmPassword')
+        screen.getByLabelText('passwordReset.confirmPassword'),
       ).toHaveAttribute('id', 'confirm-password')
     })
   })
@@ -691,11 +691,11 @@ describe('ResetPasswordConfirmPage', () => {
 
       await user.type(
         screen.getByLabelText('passwordReset.newPassword'),
-        'password123'
+        'password123',
       )
       await user.type(
         screen.getByLabelText('passwordReset.confirmPassword'),
-        'different'
+        'different',
       )
       await user.click(screen.getByText('passwordReset.reset'))
 
@@ -715,11 +715,11 @@ describe('ResetPasswordConfirmPage', () => {
 
       await user.type(
         screen.getByLabelText('passwordReset.newPassword'),
-        'newpassword123'
+        'newpassword123',
       )
       await user.type(
         screen.getByLabelText('passwordReset.confirmPassword'),
-        'newpassword123'
+        'newpassword123',
       )
       await user.click(screen.getByText('passwordReset.reset'))
 
@@ -735,7 +735,7 @@ describe('ResetPasswordConfirmPage', () => {
       render(<ResetPasswordConfirmPage />)
 
       expect(
-        screen.getByLabelText('passwordReset.newPassword')
+        screen.getByLabelText('passwordReset.newPassword'),
       ).toBeInTheDocument()
       expect(screen.getByText('passwordReset.reset')).toBeInTheDocument()
     })
@@ -744,7 +744,7 @@ describe('ResetPasswordConfirmPage', () => {
       render(<ResetPasswordConfirmPage />)
 
       expect(
-        screen.queryByText('passwordReset.success')
+        screen.queryByText('passwordReset.success'),
       ).not.toBeInTheDocument()
     })
   })

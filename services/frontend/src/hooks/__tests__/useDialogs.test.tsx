@@ -17,8 +17,6 @@ import {
 import userEvent from '@testing-library/user-event'
 import React, { ReactNode } from 'react'
 
- 
-
 // UNMOCK the global useDialogs mock from setupTests.ts
 jest.unmock('@/hooks/useDialogs')
 
@@ -89,7 +87,7 @@ describe('useDialogs', () => {
         expect(true).toBe(false)
       } catch (error: any) {
         expect(error.message).toBe(
-          'useAlert must be used within a DialogProvider'
+          'useAlert must be used within a DialogProvider',
         )
       }
 
@@ -104,7 +102,7 @@ describe('useDialogs', () => {
         expect(true).toBe(false)
       } catch (error: any) {
         expect(error.message).toBe(
-          'useConfirm must be used within a DialogProvider'
+          'useConfirm must be used within a DialogProvider',
         )
       }
 
@@ -136,10 +134,10 @@ describe('useDialogs', () => {
 
       await waitFor(() => {
         expect(screen.getByTestId('alert-title')).toHaveTextContent(
-          'Test Alert'
+          'Test Alert',
         )
         expect(screen.getByTestId('alert-message')).toHaveTextContent(
-          'This is a test message'
+          'This is a test message',
         )
       })
     })
@@ -158,7 +156,7 @@ describe('useDialogs', () => {
       await waitFor(() => {
         expect(screen.getByTestId('alert-title')).toHaveTextContent('Success')
         expect(screen.getByTestId('alert-message')).toHaveTextContent(
-          'Operation completed'
+          'Operation completed',
         )
       })
     })
@@ -177,7 +175,7 @@ describe('useDialogs', () => {
       await waitFor(() => {
         expect(screen.getByTestId('alert-title')).toHaveTextContent('Error')
         expect(screen.getByTestId('alert-message')).toHaveTextContent(
-          'Something went wrong'
+          'Something went wrong',
         )
       })
     })
@@ -196,7 +194,7 @@ describe('useDialogs', () => {
       await waitFor(() => {
         expect(screen.getByTestId('alert-title')).toHaveTextContent('Warning')
         expect(screen.getByTestId('alert-message')).toHaveTextContent(
-          'Please be careful'
+          'Please be careful',
         )
       })
     })
@@ -231,10 +229,10 @@ describe('useDialogs', () => {
 
       await waitFor(() => {
         expect(screen.getByTestId('confirm-title')).toHaveTextContent(
-          'Confirm Action'
+          'Confirm Action',
         )
         expect(screen.getByTestId('confirm-message')).toHaveTextContent(
-          'Are you sure?'
+          'Are you sure?',
         )
       })
     })
@@ -252,10 +250,10 @@ describe('useDialogs', () => {
 
       await waitFor(() => {
         expect(screen.getByTestId('confirm-title')).toHaveTextContent(
-          'Delete Item'
+          'Delete Item',
         )
         expect(screen.getByTestId('confirm-message')).toHaveTextContent(
-          'This cannot be undone'
+          'This cannot be undone',
         )
       })
     })
@@ -325,7 +323,7 @@ describe('useDialogs', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByRole('button', { name: /cancel/i })
+          screen.getByRole('button', { name: /cancel/i }),
         ).toBeInTheDocument()
       })
 
@@ -354,7 +352,7 @@ describe('useDialogs', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByRole('button', { name: /confirm/i })
+          screen.getByRole('button', { name: /confirm/i }),
         ).toBeInTheDocument()
       })
 
@@ -378,7 +376,7 @@ describe('useDialogs', () => {
         await waitFor(() => {
           expect(screen.getByTestId('alert-title')).toHaveTextContent('Error')
           expect(screen.getByTestId('alert-message')).toHaveTextContent(
-            'Something went wrong'
+            'Something went wrong',
           )
         })
       })
@@ -392,7 +390,7 @@ describe('useDialogs', () => {
 
         await waitFor(() => {
           expect(screen.getByTestId('alert-title')).toHaveTextContent(
-            'Custom Error'
+            'Custom Error',
           )
         })
       })
@@ -409,7 +407,7 @@ describe('useDialogs', () => {
         await waitFor(() => {
           expect(screen.getByTestId('alert-title')).toHaveTextContent('Success')
           expect(screen.getByTestId('alert-message')).toHaveTextContent(
-            'Operation completed'
+            'Operation completed',
           )
         })
       })
@@ -423,7 +421,7 @@ describe('useDialogs', () => {
 
         await waitFor(() => {
           expect(screen.getByTestId('alert-title')).toHaveTextContent(
-            'All Done'
+            'All Done',
           )
         })
       })
@@ -440,7 +438,7 @@ describe('useDialogs', () => {
         await waitFor(() => {
           expect(screen.getByTestId('alert-title')).toHaveTextContent('Warning')
           expect(screen.getByTestId('alert-message')).toHaveTextContent(
-            'Please be careful'
+            'Please be careful',
           )
         })
       })
@@ -454,7 +452,7 @@ describe('useDialogs', () => {
 
         await waitFor(() => {
           expect(screen.getByTestId('alert-title')).toHaveTextContent(
-            'Attention Required'
+            'Attention Required',
           )
         })
       })
@@ -470,10 +468,10 @@ describe('useDialogs', () => {
 
         await waitFor(() => {
           expect(screen.getByTestId('confirm-title')).toHaveTextContent(
-            'Confirm Deletion'
+            'Confirm Deletion',
           )
           expect(screen.getByTestId('confirm-message')).toHaveTextContent(
-            /this item/i
+            /this item/i,
           )
           expect(screen.getByText('Delete')).toBeInTheDocument()
         })
@@ -488,7 +486,7 @@ describe('useDialogs', () => {
 
         await waitFor(() => {
           expect(screen.getByTestId('confirm-message')).toHaveTextContent(
-            /user account/i
+            /user account/i,
           )
         })
       })
@@ -528,7 +526,7 @@ describe('useDialogs', () => {
 
         await waitFor(() => {
           expect(
-            screen.getByRole('button', { name: /cancel/i })
+            screen.getByRole('button', { name: /cancel/i }),
           ).toBeInTheDocument()
         })
 
@@ -587,7 +585,7 @@ describe('useDialogs', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByRole('button', { name: /cancel/i })
+          screen.getByRole('button', { name: /cancel/i }),
         ).toBeInTheDocument()
       })
     })
@@ -607,7 +605,7 @@ describe('useDialogs', () => {
       await waitFor(() => {
         expect(screen.getByTestId('alert-title')).toHaveTextContent(longTitle)
         expect(screen.getByTestId('alert-message')).toHaveTextContent(
-          longMessage
+          longMessage,
         )
       })
     })
@@ -626,10 +624,10 @@ describe('useDialogs', () => {
 
       await waitFor(() => {
         expect(screen.getByTestId('alert-title')).toHaveTextContent(
-          specialTitle
+          specialTitle,
         )
         expect(screen.getByTestId('alert-message')).toHaveTextContent(
-          specialMessage
+          specialMessage,
         )
       })
     })
@@ -648,7 +646,7 @@ describe('useDialogs', () => {
       const { unmount } = render(
         <DialogProvider>
           <TestComponent />
-        </DialogProvider>
+        </DialogProvider>,
       )
 
       await waitFor(() => {
@@ -672,7 +670,7 @@ describe('useDialogs', () => {
       const { unmount } = render(
         <DialogProvider>
           <TestComponent />
-        </DialogProvider>
+        </DialogProvider>,
       )
 
       await waitFor(() => {
@@ -696,7 +694,7 @@ describe('useDialogs', () => {
 
       await waitFor(() => {
         expect(screen.getByTestId('alert-title')).toHaveTextContent(
-          'First Alert'
+          'First Alert',
         )
       })
 
@@ -712,7 +710,7 @@ describe('useDialogs', () => {
 
       await waitFor(() => {
         expect(screen.getByTestId('alert-title')).toHaveTextContent(
-          'Second Alert'
+          'Second Alert',
         )
       })
     })
@@ -741,12 +739,12 @@ describe('useDialogs', () => {
       render(
         <DialogProvider>
           <TestComponent />
-        </DialogProvider>
+        </DialogProvider>,
       )
 
       await waitFor(() => {
         expect(screen.getByTestId('alert-title')).toHaveTextContent(
-          'Alert First'
+          'Alert First',
         )
       })
 
@@ -754,7 +752,7 @@ describe('useDialogs', () => {
 
       await waitFor(() => {
         expect(screen.getByTestId('confirm-title')).toHaveTextContent(
-          'Confirm Second'
+          'Confirm Second',
         )
       })
     })

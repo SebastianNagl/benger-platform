@@ -10,7 +10,10 @@ import { AnnotationGuidelinesModal } from '../AnnotationGuidelinesModal'
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
     t: (key: string, varsOrDefault?: any) => {
-      const translations: Record<string, any> = require('../../../locales/en/common.json')
+      const translations: Record<
+        string,
+        any
+      > = require('../../../locales/en/common.json')
       const parts = key.split('.')
       let value: any = translations
       for (const part of parts) {
@@ -57,7 +60,7 @@ jest.mock('@headlessui/react', () => {
           <div {...props}>{children}</div>
         ),
         Title: ({ children, ...props }: any) => <h2 {...props}>{children}</h2>,
-      }
+      },
     ),
     Transition: Object.assign(
       ({ show, appear, children, ...props }: any) =>
@@ -86,7 +89,7 @@ jest.mock('@headlessui/react', () => {
             </div>
           )
         },
-      }
+      },
     ),
     Fragment: mockFragment,
   }
@@ -119,7 +122,7 @@ describe('AnnotationGuidelinesModal', () => {
     it('renders modal title', () => {
       render(<AnnotationGuidelinesModal {...defaultProps} />)
       expect(
-        screen.getByRole('heading', { name: 'Annotation Guidelines' })
+        screen.getByRole('heading', { name: 'Annotation Guidelines' }),
       ).toBeInTheDocument()
     })
 
@@ -127,8 +130,8 @@ describe('AnnotationGuidelinesModal', () => {
       render(<AnnotationGuidelinesModal {...defaultProps} />)
       expect(
         screen.getByText(
-          /Provide instructions to guide annotators on how to complete this task effectively/i
-        )
+          /Provide instructions to guide annotators on how to complete this task effectively/i,
+        ),
       ).toBeInTheDocument()
     })
 
@@ -142,12 +145,12 @@ describe('AnnotationGuidelinesModal', () => {
     it('renders textarea with label', () => {
       render(<AnnotationGuidelinesModal {...defaultProps} />)
       expect(
-        screen.getByLabelText('Guidelines for Annotators')
+        screen.getByLabelText('Guidelines for Annotators'),
       ).toBeInTheDocument()
       expect(
         screen.getByPlaceholderText(
-          'Provide clear instructions for annotators...'
-        )
+          'Provide clear instructions for annotators...',
+        ),
       ).toBeInTheDocument()
     })
 
@@ -159,17 +162,17 @@ describe('AnnotationGuidelinesModal', () => {
     it('renders save button', () => {
       render(<AnnotationGuidelinesModal {...defaultProps} />)
       expect(
-        screen.getByRole('button', { name: 'Save Guidelines' })
+        screen.getByRole('button', { name: 'Save Guidelines' }),
       ).toBeInTheDocument()
     })
 
     it('renders guidelines help section', () => {
       render(<AnnotationGuidelinesModal {...defaultProps} />)
       expect(
-        screen.getByText('Guidelines help annotators understand:')
+        screen.getByText('Guidelines help annotators understand:'),
       ).toBeInTheDocument()
       expect(
-        screen.getByText('What constitutes a good vs. poor annotation')
+        screen.getByText('What constitutes a good vs. poor annotation'),
       ).toBeInTheDocument()
     })
 
@@ -178,8 +181,8 @@ describe('AnnotationGuidelinesModal', () => {
       expect(screen.getByText(/Pro tip:/i)).toBeInTheDocument()
       expect(
         screen.getByText(
-          /Clear guidelines improve annotation quality and reduce the need for revisions/i
-        )
+          /Clear guidelines improve annotation quality and reduce the need for revisions/i,
+        ),
       ).toBeInTheDocument()
     })
   })
@@ -197,7 +200,7 @@ describe('AnnotationGuidelinesModal', () => {
         <AnnotationGuidelinesModal
           {...defaultProps}
           initialValue={initialValue}
-        />
+        />,
       )
       const textarea = screen.getByLabelText('Guidelines for Annotators')
       expect(textarea).toHaveValue(initialValue)
@@ -205,13 +208,13 @@ describe('AnnotationGuidelinesModal', () => {
 
     it('updates textarea when initialValue changes', () => {
       const { rerender } = render(
-        <AnnotationGuidelinesModal {...defaultProps} initialValue="Initial" />
+        <AnnotationGuidelinesModal {...defaultProps} initialValue="Initial" />,
       )
       let textarea = screen.getByLabelText('Guidelines for Annotators')
       expect(textarea).toHaveValue('Initial')
 
       rerender(
-        <AnnotationGuidelinesModal {...defaultProps} initialValue="Updated" />
+        <AnnotationGuidelinesModal {...defaultProps} initialValue="Updated" />,
       )
       textarea = screen.getByLabelText('Guidelines for Annotators')
       expect(textarea).toHaveValue('Updated')
@@ -223,7 +226,7 @@ describe('AnnotationGuidelinesModal', () => {
         <AnnotationGuidelinesModal
           {...defaultProps}
           initialValue={multilineValue}
-        />
+        />,
       )
       const textarea = screen.getByLabelText('Guidelines for Annotators')
       expect(textarea).toHaveValue(multilineValue)
@@ -246,7 +249,7 @@ describe('AnnotationGuidelinesModal', () => {
         <AnnotationGuidelinesModal
           {...defaultProps}
           initialValue="Initial text"
-        />
+        />,
       )
       const textarea = screen.getByLabelText('Guidelines for Annotators')
 
@@ -257,7 +260,7 @@ describe('AnnotationGuidelinesModal', () => {
     it('allows editing existing text', async () => {
       const user = userEvent.setup()
       render(
-        <AnnotationGuidelinesModal {...defaultProps} initialValue="Initial" />
+        <AnnotationGuidelinesModal {...defaultProps} initialValue="Initial" />,
       )
       const textarea = screen.getByLabelText('Guidelines for Annotators')
 
@@ -358,7 +361,7 @@ describe('AnnotationGuidelinesModal', () => {
       await user.click(saveButton)
 
       expect(defaultProps.onSave).toHaveBeenCalledWith(
-        'Text with  multiple  spaces'
+        'Text with  multiple  spaces',
       )
     })
 
@@ -408,7 +411,7 @@ describe('AnnotationGuidelinesModal', () => {
         <AnnotationGuidelinesModal
           {...defaultProps}
           initialValue={initialValue}
-        />
+        />,
       )
       const textarea = screen.getByLabelText('Guidelines for Annotators')
       const cancelButton = screen.getByRole('button', { name: 'Cancel' })
@@ -439,7 +442,7 @@ describe('AnnotationGuidelinesModal', () => {
         <AnnotationGuidelinesModal
           {...defaultProps}
           initialValue={initialValue}
-        />
+        />,
       )
       const textarea = screen.getByLabelText('Guidelines for Annotators')
       const closeButton = screen.getByRole('button', { name: /close/i })
@@ -455,7 +458,7 @@ describe('AnnotationGuidelinesModal', () => {
   describe('Modal Behavior', () => {
     it('maintains state when reopened without closing', () => {
       const { rerender } = render(
-        <AnnotationGuidelinesModal {...defaultProps} isOpen={true} />
+        <AnnotationGuidelinesModal {...defaultProps} isOpen={true} />,
       )
       const textarea = screen.getByLabelText('Guidelines for Annotators')
       fireEvent.change(textarea, { target: { value: 'Test text' } })
@@ -467,7 +470,7 @@ describe('AnnotationGuidelinesModal', () => {
 
     it('handles rapid open/close transitions', () => {
       const { rerender } = render(
-        <AnnotationGuidelinesModal {...defaultProps} isOpen={false} />
+        <AnnotationGuidelinesModal {...defaultProps} isOpen={false} />,
       )
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
 
@@ -483,7 +486,7 @@ describe('AnnotationGuidelinesModal', () => {
 
     it('handles backdrop click to close', async () => {
       const { container } = render(
-        <AnnotationGuidelinesModal {...defaultProps} />
+        <AnnotationGuidelinesModal {...defaultProps} />,
       )
 
       const backdrop = container.querySelector('.fixed.inset-0.bg-black')
@@ -499,7 +502,7 @@ describe('AnnotationGuidelinesModal', () => {
   describe('Form State Management', () => {
     it('preserves state across re-renders when modal stays open', () => {
       const { rerender } = render(
-        <AnnotationGuidelinesModal {...defaultProps} />
+        <AnnotationGuidelinesModal {...defaultProps} />,
       )
       const textarea = screen.getByLabelText('Guidelines for Annotators')
       fireEvent.change(textarea, { target: { value: 'Persistent text' } })
@@ -511,13 +514,13 @@ describe('AnnotationGuidelinesModal', () => {
 
     it('updates when initialValue prop changes while open', () => {
       const { rerender } = render(
-        <AnnotationGuidelinesModal {...defaultProps} initialValue="First" />
+        <AnnotationGuidelinesModal {...defaultProps} initialValue="First" />,
       )
       let textarea = screen.getByLabelText('Guidelines for Annotators')
       expect(textarea).toHaveValue('First')
 
       rerender(
-        <AnnotationGuidelinesModal {...defaultProps} initialValue="Second" />
+        <AnnotationGuidelinesModal {...defaultProps} initialValue="Second" />,
       )
       textarea = screen.getByLabelText('Guidelines for Annotators')
       expect(textarea).toHaveValue('Second')
@@ -533,9 +536,7 @@ describe('AnnotationGuidelinesModal', () => {
   describe('Accessibility', () => {
     it('has proper ARIA label for close button', () => {
       render(<AnnotationGuidelinesModal {...defaultProps} />)
-      expect(
-        screen.getByRole('button', { name: /close/i })
-      ).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /close/i })).toBeInTheDocument()
     })
 
     it('has proper ID for textarea', () => {
@@ -549,7 +550,7 @@ describe('AnnotationGuidelinesModal', () => {
       const textarea = screen.getByLabelText('Guidelines for Annotators')
       expect(textarea).toHaveAttribute(
         'placeholder',
-        'Provide clear instructions for annotators...'
+        'Provide clear instructions for annotators...',
       )
     })
 
@@ -580,7 +581,10 @@ describe('AnnotationGuidelinesModal', () => {
   describe('Edge Cases', () => {
     it('handles undefined initialValue', () => {
       render(
-        <AnnotationGuidelinesModal {...defaultProps} initialValue={undefined} />
+        <AnnotationGuidelinesModal
+          {...defaultProps}
+          initialValue={undefined}
+        />,
       )
       const textarea = screen.getByLabelText('Guidelines for Annotators')
       expect(textarea).toHaveValue('')
@@ -589,7 +593,7 @@ describe('AnnotationGuidelinesModal', () => {
     it('handles very long initialValue', () => {
       const longText = 'A'.repeat(10000)
       render(
-        <AnnotationGuidelinesModal {...defaultProps} initialValue={longText} />
+        <AnnotationGuidelinesModal {...defaultProps} initialValue={longText} />,
       )
       const textarea = screen.getByLabelText('Guidelines for Annotators')
       expect(textarea).toHaveValue(longText)
@@ -601,7 +605,7 @@ describe('AnnotationGuidelinesModal', () => {
         <AnnotationGuidelinesModal
           {...defaultProps}
           initialValue={specialText}
-        />
+        />,
       )
       const textarea = screen.getByLabelText('Guidelines for Annotators')
       expect(textarea).toHaveValue(specialText)
@@ -613,7 +617,7 @@ describe('AnnotationGuidelinesModal', () => {
         <AnnotationGuidelinesModal
           {...defaultProps}
           initialValue={unicodeText}
-        />
+        />,
       )
       const textarea = screen.getByLabelText('Guidelines for Annotators')
       expect(textarea).toHaveValue(unicodeText)

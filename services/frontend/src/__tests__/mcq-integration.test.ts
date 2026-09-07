@@ -296,7 +296,7 @@ describe('MCQ Data Processing Performance and Integrity', () => {
         choice_c: `Option C${i}`,
         choice_d: `Option D${i}`,
         correct_answer: ['a', 'b', 'c', 'd'][i % 4] as 'a' | 'b' | 'c' | 'd',
-      })
+      }),
     )
 
     const startTime = performance.now()

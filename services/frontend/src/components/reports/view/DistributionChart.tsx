@@ -1,5 +1,8 @@
 'use client'
 
+import { formatCount, formatNumber } from '@/lib/reports/format'
+import { toPercentSeries, type PercentBin } from '@/lib/reports/select'
+import type { ReportDistribution } from '@/types/report'
 import clsx from 'clsx'
 import { useMemo, useState } from 'react'
 import {
@@ -11,9 +14,6 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
-import { formatCount, formatNumber } from '@/lib/reports/format'
-import { toPercentSeries, type PercentBin } from '@/lib/reports/select'
-import type { ReportDistribution } from '@/types/report'
 import {
   AXIS_LINE,
   AXIS_TICK,
@@ -51,7 +51,13 @@ export function DistributionTooltip({
   t,
   valueLabel,
   showHumans = true,
-}: TooltipPayload & { mode: DistributionMode; locale: string; t: TranslateFn; valueLabel: string; showHumans?: boolean }) {
+}: TooltipPayload & {
+  mode: DistributionMode
+  locale: string
+  t: TranslateFn
+  valueLabel: string
+  showHumans?: boolean
+}) {
   if (!active || !payload || payload.length === 0) return null
   const bin = payload[0].payload
   const fmt = (count: number, pct: number) =>
@@ -62,9 +68,19 @@ export function DistributionTooltip({
     <ChartTooltipBox
       title={`${valueLabel} ${bin.label}`}
       lines={[
-        { label: t('reports.view.models', 'Modelle'), value: fmt(bin.model, bin.modelPct), swatchClass: LEGEND_SWATCH_CLASS.model },
+        {
+          label: t('reports.view.models', 'Modelle'),
+          value: fmt(bin.model, bin.modelPct),
+          swatchClass: LEGEND_SWATCH_CLASS.model,
+        },
         ...(showHumans
-          ? [{ label: t('reports.view.humans', 'Menschen'), value: fmt(bin.human, bin.humanPct), swatchClass: LEGEND_SWATCH_CLASS.human }]
+          ? [
+              {
+                label: t('reports.view.humans', 'Menschen'),
+                value: fmt(bin.human, bin.humanPct),
+                swatchClass: LEGEND_SWATCH_CLASS.human,
+              },
+            ]
           : []),
       ]}
     />
@@ -86,7 +102,10 @@ export function DistributionChart({
   const hasModels = data.some((d) => d.model > 0)
   const modelKey = mode === 'share' ? 'modelPct' : 'model'
   const humanKey = mode === 'share' ? 'humanPct' : 'human'
-  const yLabel = mode === 'share' ? t('reports.view.share', 'Anteil (%)') : t('reports.view.count', 'Anzahl')
+  const yLabel =
+    mode === 'share'
+      ? t('reports.view.share', 'Anteil (%)')
+      : t('reports.view.count', 'Anzahl')
 
   return (
     <div className="mb-8" data-testid="distribution-chart" data-mode={mode}>
@@ -111,33 +130,64 @@ export function DistributionChart({
                   : 'bg-white text-zinc-600 hover:bg-zinc-50 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800',
               )}
             >
-              {m === 'count' ? t('reports.view.count', 'Anzahl') : t('reports.view.shareShort', 'Anteil')}
+              {m === 'count'
+                ? t('reports.view.count', 'Anzahl')
+                : t('reports.view.shareShort', 'Anteil')}
             </button>
           ))}
         </div>
       </div>
       <div className={CHART_WRAPPER_CLASS}>
         <ResponsiveContainer width="100%" height={280}>
-          <BarChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 8 }} barGap={2} barCategoryGap="20%">
-            <CartesianGrid vertical={false} stroke="currentColor" strokeOpacity={GRID_STROKE_OPACITY} />
+          <BarChart
+            data={data}
+            margin={{ top: 8, right: 8, left: 0, bottom: 8 }}
+            barGap={2}
+            barCategoryGap="20%"
+          >
+            <CartesianGrid
+              vertical={false}
+              stroke="currentColor"
+              strokeOpacity={GRID_STROKE_OPACITY}
+            />
             <XAxis
               dataKey="label"
               tick={AXIS_TICK}
               axisLine={AXIS_LINE}
               tickLine={false}
               interval="preserveStartEnd"
-              label={{ value: valueLabel, position: 'insideBottom', offset: -4, fill: 'currentColor', fontSize: 12 }}
+              label={{
+                value: valueLabel,
+                position: 'insideBottom',
+                offset: -4,
+                fill: 'currentColor',
+                fontSize: 12,
+              }}
             />
             <YAxis
               tick={AXIS_TICK}
               axisLine={false}
               tickLine={false}
               width={44}
-              label={{ value: yLabel, angle: -90, position: 'insideLeft', fill: 'currentColor', fontSize: 12 }}
+              label={{
+                value: yLabel,
+                angle: -90,
+                position: 'insideLeft',
+                fill: 'currentColor',
+                fontSize: 12,
+              }}
             />
             <Tooltip
               cursor={{ fill: 'currentColor', fillOpacity: 0.06 }}
-              content={<DistributionTooltip mode={mode} locale={locale} t={t} valueLabel={valueLabel} showHumans={hasHumans} />}
+              content={
+                <DistributionTooltip
+                  mode={mode}
+                  locale={locale}
+                  t={t}
+                  valueLabel={valueLabel}
+                  showHumans={hasHumans}
+                />
+              }
             />
             <Bar
               dataKey={modelKey}
@@ -160,13 +210,26 @@ export function DistributionChart({
       </div>
       <ChartLegend
         items={[
-          { label: t('reports.view.models', 'Modelle'), swatchClass: LEGEND_SWATCH_CLASS.model },
-          ...(hasHumans ? [{ label: t('reports.view.humans', 'Menschen'), swatchClass: LEGEND_SWATCH_CLASS.human }] : []),
+          {
+            label: t('reports.view.models', 'Modelle'),
+            swatchClass: LEGEND_SWATCH_CLASS.model,
+          },
+          ...(hasHumans
+            ? [
+                {
+                  label: t('reports.view.humans', 'Menschen'),
+                  swatchClass: LEGEND_SWATCH_CLASS.human,
+                },
+              ]
+            : []),
         ]}
       />
       {!hasHumans && hasModels && (
         <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
-          {t('reports.view.noHumanSamples', 'Keine menschlichen Abgaben in dieser Auswertung.')}
+          {t(
+            'reports.view.noHumanSamples',
+            'Keine menschlichen Abgaben in dieser Auswertung.',
+          )}
         </p>
       )}
     </div>

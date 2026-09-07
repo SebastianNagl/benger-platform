@@ -45,45 +45,45 @@ describe('logout route br8', () => {
 
   it('uses API_BASE_URL when set (L10)', async () => {
     process.env.API_BASE_URL = 'http://custom:8888'
-    const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue(
-      new Response(null, { status: 204 })
-    )
+    const fetchSpy = jest
+      .spyOn(global, 'fetch')
+      .mockResolvedValue(new Response(null, { status: 204 }))
     const { POST } = require('../route')
     await POST(makeRequest('anything'))
     expect(fetchSpy).toHaveBeenCalledWith(
       expect.stringContaining('custom:8888'),
-      expect.anything()
+      expect.anything(),
     )
   })
 
   it('routes benger-test.localhost (L14-15)', async () => {
-    const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue(
-      new Response(null, { status: 204 })
-    )
+    const fetchSpy = jest
+      .spyOn(global, 'fetch')
+      .mockResolvedValue(new Response(null, { status: 204 }))
     const { POST } = require('../route')
     await POST(makeRequest('benger-test.localhost'))
     expect(fetchSpy).toHaveBeenCalledWith(
       expect.stringContaining('test-api:8000'),
-      expect.anything()
+      expect.anything(),
     )
   })
 
   it('routes staging.what-a-benger.net to staging API (L20-22)', async () => {
-    const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue(
-      new Response(null, { status: 204 })
-    )
+    const fetchSpy = jest
+      .spyOn(global, 'fetch')
+      .mockResolvedValue(new Response(null, { status: 204 }))
     const { POST } = require('../route')
     await POST(makeRequest('staging.what-a-benger.net'))
     expect(fetchSpy).toHaveBeenCalledWith(
       expect.stringContaining('benger-api:8000'),
-      expect.anything()
+      expect.anything(),
     )
   })
 
   it('clears cookies with domain attribute (L49-60)', async () => {
-    jest.spyOn(global, 'fetch').mockResolvedValue(
-      new Response(null, { status: 204 })
-    )
+    jest
+      .spyOn(global, 'fetch')
+      .mockResolvedValue(new Response(null, { status: 204 }))
     const { POST } = require('../route')
     const res = await POST(makeRequest('benger.localhost'))
     expect(res.status).toBe(204)
@@ -97,9 +97,9 @@ describe('logout route br8', () => {
   })
 
   it('clears cookies without domain for localhost (L52 empty domain)', async () => {
-    jest.spyOn(global, 'fetch').mockResolvedValue(
-      new Response(null, { status: 204 })
-    )
+    jest
+      .spyOn(global, 'fetch')
+      .mockResolvedValue(new Response(null, { status: 204 }))
     const { POST } = require('../route')
     const res = await POST(makeRequest('localhost:3000'))
     const cookies = res.headers.getSetCookie()

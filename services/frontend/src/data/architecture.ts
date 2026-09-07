@@ -43,7 +43,10 @@ extended plugs into API hooks, frontend slots and worker metric mappings.`
 export const ARCHITECTURE_SECTIONS: ArchSection[] = [
   {
     id: 'overview',
-    title: { de: 'Überblick: Open Core, zwei Oberflächen, ein System', en: 'Overview: open core, two interfaces, one system' },
+    title: {
+      de: 'Überblick: Open Core, zwei Oberflächen, ein System',
+      en: 'Overview: open core, two interfaces, one system',
+    },
     intro: {
       de: 'BenGER ist als **Open-Core-System** gebaut. Das öffentliche Repository `benger-platform` (Apache-2.0) enthält Annotationssystem, Generierung, Evaluation, Berichte und Organisationsverwaltung. Das private Paket `benger-extended` liefert die proprietären Erweiterungen (Klausurlösung, KI-Korrektur, Korrektur- und Review-Workflows, Timer, Bestenlisten für Menschen, LTI, die Studierendenplattform Vertretbar) und wird beim Build in dieselben Images eingebettet. In Produktion läuft ein Satz Container, der beide Oberflächen bedient: die Expertenplattform auf what-a-benger.net und Vertretbar auf vertretbar.net.',
       en: 'BenGER is built as an **open-core system**. The public repository `benger-platform` (Apache-2.0) contains the annotation system, generation, evaluation, reports and organization management. The private package `benger-extended` supplies the proprietary extensions (exam solving, AI grading, grading and review workflows, timers, human leaderboards, LTI, the student platform Vertretbar) and is embedded into the same images at build time. Production runs one set of containers serving both interfaces: the expert platform on what-a-benger.net and Vertretbar on vertretbar.net.',
@@ -174,7 +177,10 @@ export const ARCHITECTURE_SECTIONS: ArchSection[] = [
   },
   {
     id: 'organizations',
-    title: { de: 'Organisationen, Gruppen und Zugriff', en: 'Organizations, groups and access' },
+    title: {
+      de: 'Organisationen, Gruppen und Zugriff',
+      en: 'Organizations, groups and access',
+    },
     intro: {
       de: 'Nutzer:innen können mehreren **Organisationen** angehören; jede Organisation hat eine eigene Subdomain (`{slug}.what-a-benger.net`) und die Rollen Admin, Mitwirkender und Annotator. **Gruppen** (z.B. Lehrstühle) teilen eine Organisation weiter auf: Projektzuordnungen und API-Schlüssel können auf eine Gruppe beschränkt werden, Gruppen-Admins verwalten ihre Gruppe ohne organisationsweite Rechte.',
       en: 'Users can belong to several **organizations**; each organization has its own subdomain (`{slug}.what-a-benger.net`) and the roles admin, contributor and annotator. **Groups** (e.g. chairs) split an organization further: project attachments and API keys can be restricted to a group, and group admins manage their group without organization-wide rights.',
@@ -216,7 +222,10 @@ export const ARCHITECTURE_SECTIONS: ArchSection[] = [
   },
   {
     id: 'deployment',
-    title: { de: 'Betrieb, Deployment und CI', en: 'Operations, deployment and CI' },
+    title: {
+      de: 'Betrieb, Deployment und CI',
+      en: 'Operations, deployment and CI',
+    },
     intro: {
       de: 'Produktion läuft auf **Kubernetes (K3s)** mit Helm, in zwei Namespaces: `benger` (Produktion) und `benger-staging`. Traefik terminiert TLS mit Wildcard-Zertifikaten für what-a-benger.net und vertretbar.net und leitet Organisations-Subdomains an dieselbe Frontend-Instanz.',
       en: 'Production runs on **Kubernetes (K3s)** with Helm, in two namespaces: `benger` (production) and `benger-staging`. Traefik terminates TLS with wildcard certificates for what-a-benger.net and vertretbar.net and routes organization subdomains to the same frontend instance.',

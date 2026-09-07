@@ -1,7 +1,7 @@
 # Frontend Development Dockerfile
 # Optimized for hot reloading and development workflow
 
-FROM node:18-alpine
+FROM node:24-alpine
 
 # Set working directory
 WORKDIR /app

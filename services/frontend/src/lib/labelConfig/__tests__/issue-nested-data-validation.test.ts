@@ -65,7 +65,7 @@ describe('Issue: Nested data structure validation', () => {
     const requiredFields = ['context', 'question']
     const validation = validateTaskDataFields(
       requiredFields,
-      taskDataWithMissingFields
+      taskDataWithMissingFields,
     )
 
     expect(validation.valid).toBe(false)
@@ -75,7 +75,7 @@ describe('Issue: Nested data structure validation', () => {
     // "Configuration Error: Missing required data fields: question"
     const errorMessage = `Configuration Error: Missing required data fields: ${validation.missingFields.join(', ')}`
     expect(errorMessage).toBe(
-      'Configuration Error: Missing required data fields: question'
+      'Configuration Error: Missing required data fields: question',
     )
   })
 
@@ -102,7 +102,7 @@ describe('Issue: Nested data structure validation', () => {
     const flatValidation = validateTaskDataFields(requiredFields, flatTaskData)
     const nestedValidation = validateTaskDataFields(
       requiredFields,
-      nestedTaskData
+      nestedTaskData,
     )
 
     expect(flatValidation.valid).toBe(true)

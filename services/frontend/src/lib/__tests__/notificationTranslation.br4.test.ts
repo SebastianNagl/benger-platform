@@ -9,7 +9,11 @@
 import { getTranslatedNotification } from '../notificationTranslation'
 
 describe('notificationTranslation br4 - uncovered branches', () => {
-  const mockT = (key: string, defaultValue?: string, vars?: Record<string, any>) => {
+  const mockT = (
+    key: string,
+    defaultValue?: string,
+    vars?: Record<string, any>,
+  ) => {
     // Return the translated key with variables substituted
     if (vars) {
       let result = key
@@ -88,7 +92,11 @@ describe('notificationTranslation br4 - uncovered branches', () => {
   })
 
   it('uses translated title when no unresolved placeholders', () => {
-    const tClean = (key: string, defaultValue?: string, vars?: Record<string, any>) => {
+    const tClean = (
+      key: string,
+      defaultValue?: string,
+      vars?: Record<string, any>,
+    ) => {
       return 'Clean translated text'
     }
 
@@ -122,7 +130,10 @@ describe('notificationTranslation br4 - uncovered branches', () => {
       created_at: '2026-01-01',
     }
 
-    const result = getTranslatedNotification(tReturnsObject as any, notification)
+    const result = getTranslatedNotification(
+      tReturnsObject as any,
+      notification,
+    )
     expect(result.title).toBe('Raw title')
     expect(result.message).toBe('Raw message')
   })

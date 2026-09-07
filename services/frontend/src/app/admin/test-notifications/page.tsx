@@ -3,6 +3,7 @@
 import { Breadcrumb } from '@/components/shared/Breadcrumb'
 import { Button } from '@/components/shared/Button'
 import { ResponsiveContainer } from '@/components/shared/ResponsiveContainer'
+import { useToast } from '@/components/shared/Toast'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { api } from '@/lib/api'
@@ -14,7 +15,6 @@ import {
   UserPlusIcon,
 } from '@heroicons/react/24/outline'
 import { useEffect, useRef, useState } from 'react'
-import { useToast } from '@/components/shared/Toast'
 
 interface TestNotificationType {
   type: string
@@ -43,7 +43,7 @@ export default function TestNotificationsPage() {
 
   if (!user?.is_superadmin) {
     return (
-      <ResponsiveContainer size="xl" className="pb-10 pt-8">
+      <ResponsiveContainer size="xl" className="pt-8 pb-10">
         <div className="mb-4">
           <Breadcrumb
             items={[
@@ -73,7 +73,9 @@ export default function TestNotificationsPage() {
       type: 'project_created',
       title: t('admin.testNotifications.types.projectCreated.title'),
       message: t('admin.testNotifications.types.projectCreated.message'),
-      description: t('admin.testNotifications.types.projectCreated.description'),
+      description: t(
+        'admin.testNotifications.types.projectCreated.description',
+      ),
       icon: InformationCircleIcon,
       color: 'text-blue-600 bg-blue-100 dark:text-blue-400 dark:bg-blue-900',
       category: t('admin.testNotifications.types.projectCreated.category'),
@@ -82,7 +84,9 @@ export default function TestNotificationsPage() {
       type: 'project_completed',
       title: t('admin.testNotifications.types.projectCompleted.title'),
       message: t('admin.testNotifications.types.projectCompleted.message'),
-      description: t('admin.testNotifications.types.projectCompleted.description'),
+      description: t(
+        'admin.testNotifications.types.projectCompleted.description',
+      ),
       icon: CheckCircleIcon,
       color:
         'text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900',
@@ -92,7 +96,9 @@ export default function TestNotificationsPage() {
       type: 'llm_generation_completed',
       title: t('admin.testNotifications.types.generationCompleted.title'),
       message: t('admin.testNotifications.types.generationCompleted.message'),
-      description: t('admin.testNotifications.types.generationCompleted.description'),
+      description: t(
+        'admin.testNotifications.types.generationCompleted.description',
+      ),
       icon: CheckCircleIcon,
       color:
         'text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900',
@@ -102,7 +108,9 @@ export default function TestNotificationsPage() {
       type: 'evaluation_completed',
       title: t('admin.testNotifications.types.evaluationCompleted.title'),
       message: t('admin.testNotifications.types.evaluationCompleted.message'),
-      description: t('admin.testNotifications.types.evaluationCompleted.description'),
+      description: t(
+        'admin.testNotifications.types.evaluationCompleted.description',
+      ),
       icon: CheckCircleIcon,
       color:
         'text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900',
@@ -112,7 +120,9 @@ export default function TestNotificationsPage() {
       type: 'evaluation_failed',
       title: t('admin.testNotifications.types.evaluationFailed.title'),
       message: t('admin.testNotifications.types.evaluationFailed.message'),
-      description: t('admin.testNotifications.types.evaluationFailed.description'),
+      description: t(
+        'admin.testNotifications.types.evaluationFailed.description',
+      ),
       icon: ExclamationTriangleIcon,
       color: 'text-red-600 bg-red-100 dark:text-red-400 dark:bg-red-900',
       category: t('admin.testNotifications.types.evaluationFailed.category'),
@@ -121,7 +131,9 @@ export default function TestNotificationsPage() {
       type: 'annotation_completed',
       title: t('admin.testNotifications.types.annotationCompleted.title'),
       message: t('admin.testNotifications.types.annotationCompleted.message'),
-      description: t('admin.testNotifications.types.annotationCompleted.description'),
+      description: t(
+        'admin.testNotifications.types.annotationCompleted.description',
+      ),
       icon: CheckCircleIcon,
       color:
         'text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900',
@@ -159,7 +171,7 @@ export default function TestNotificationsPage() {
   ]
 
   const handleGenerateTestNotification = async (
-    notificationType: TestNotificationType
+    notificationType: TestNotificationType,
   ) => {
     setLoading(notificationType.type)
     try {
@@ -191,7 +203,7 @@ export default function TestNotificationsPage() {
         const result = await api.notifications.generateTestNotifications()
         addToast(
           result.message || `Generated ${result.count} test notifications!`,
-          'success'
+          'success',
         )
       } catch (bulkError) {
         // Fallback: Generate one of each type with a small delay between them
@@ -214,7 +226,7 @@ export default function TestNotificationsPage() {
           } catch (individualError) {
             console.warn(
               `Failed to create ${notificationType.type}:`,
-              individualError
+              individualError,
             )
           }
         }
@@ -259,16 +271,19 @@ export default function TestNotificationsPage() {
       acc[notification.category].push(notification)
       return acc
     },
-    {} as Record<string, TestNotificationType[]>
+    {} as Record<string, TestNotificationType[]>,
   )
 
   return (
-    <ResponsiveContainer size="xl" className="pb-10 pt-8">
+    <ResponsiveContainer size="xl" className="pt-8 pb-10">
       <div className="mb-4">
         <Breadcrumb
           items={[
             { label: t('navigation.dashboard'), href: '/dashboard' },
-            { label: t('admin.testNotifications.breadcrumb'), href: '/admin/test-notifications' },
+            {
+              label: t('admin.testNotifications.breadcrumb'),
+              href: '/admin/test-notifications',
+            },
           ]}
         />
       </div>
@@ -345,7 +360,7 @@ export default function TestNotificationsPage() {
                       className="flex items-start gap-4 rounded-lg border border-zinc-200 p-4 dark:border-zinc-700"
                     >
                       <div
-                        className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full ${notification.color}`}
+                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${notification.color}`}
                       >
                         <IconComponent className="h-5 w-5" />
                       </div>
@@ -384,7 +399,7 @@ export default function TestNotificationsPage() {
                 })}
               </div>
             </div>
-          )
+          ),
         )}
       </div>
 

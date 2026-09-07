@@ -261,7 +261,7 @@ describe('ChoicesInput', () => {
           {...defaultProps}
           config={multipleConfig}
           value={['option1', 'option2']}
-        />
+        />,
       )
 
       const option1 = getChoiceInput(1)
@@ -363,7 +363,7 @@ describe('ChoicesInput', () => {
 
     it('syncs with external value changes', () => {
       const { rerender } = render(
-        <ChoicesInput {...defaultProps} value="option1" />
+        <ChoicesInput {...defaultProps} value="option1" />,
       )
 
       const option1 = getChoiceInput(1)
@@ -387,7 +387,7 @@ describe('ChoicesInput', () => {
           {...defaultProps}
           config={multipleConfig}
           value={['option1', 'option3']}
-        />
+        />,
       )
 
       const option1 = getChoiceInput(1)
@@ -535,7 +535,7 @@ describe('ChoicesInput', () => {
         'category',
         'Choices',
         'option1',
-        'text'
+        'text',
       )
     })
   })

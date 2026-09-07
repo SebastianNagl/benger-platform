@@ -16,7 +16,7 @@
 import { projectsAPI } from '@/lib/api/projects'
 import { UsersClient } from '@/lib/api/users'
 import '@testing-library/jest-dom'
-import { fireEvent, render, screen, waitFor, act } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { TaskAnnotationComparisonModal } from '../TaskAnnotationComparisonModal'
 
@@ -38,21 +38,26 @@ jest.mock('@/contexts/AuthContext', () => ({
 const translations: Record<string, string> = {
   'annotation.comparison.modal.title': 'Annotations',
   'annotation.comparison.modal.taskId': 'Task {{taskId}}',
-  'annotation.comparison.description': 'Compare annotations from different annotators',
+  'annotation.comparison.description':
+    'Compare annotations from different annotators',
   'annotation.comparison.modal.close': 'Close',
   'annotation.comparison.modal.retry': 'Retry',
   'annotation.comparison.tabs.createNew': 'Create New Annotation',
   'annotation.comparison.tabs.addYourAnnotation': 'Add Your Annotation',
   'annotation.comparison.tabs.editYourAnnotation': 'Edit Your Annotation',
-  'annotation.comparison.tabs.updateExisting': 'Update your existing annotation',
+  'annotation.comparison.tabs.updateExisting':
+    'Update your existing annotation',
   'annotation.comparison.tabs.addNew': 'Add a new annotation to this task',
-  'annotation.comparison.empty.noAnnotationsYet': 'This task has no annotations yet.',
-  'annotation.comparison.empty.noAnnotationsAvailable': 'No annotations available',
+  'annotation.comparison.empty.noAnnotationsYet':
+    'This task has no annotations yet.',
+  'annotation.comparison.empty.noAnnotationsAvailable':
+    'No annotations available',
   'annotation.comparison.messages.projectLoadFailed': 'Failed to load project',
   'annotation.comparison.messages.loadFailed': 'Failed to load annotations',
   'annotation.comparison.messages.annotationSubmitted': 'Annotation submitted!',
   'annotation.comparison.messages.annotationUpdated': 'Annotation updated!',
-  'annotation.comparison.messages.loadingUserAnnotation': 'Loading your annotation...',
+  'annotation.comparison.messages.loadingUserAnnotation':
+    'Loading your annotation...',
   'annotation.comparison.messages.waitingForAnnotation': 'Please wait',
   'annotation.comparison.messages.noData': 'No annotation data',
   'annotation.comparison.result.notAnswered': 'Not answered',
@@ -70,7 +75,8 @@ const translations: Record<string, string> = {
   'annotation.comparison.info.versionLabel': 'Version {{version}} - {{date}}',
   'annotation.comparison.info.annotatorNotes': 'Annotator Notes',
   'annotation.comparison.info.annotatorCount': '{{count}} annotator{{plural}}',
-  'annotation.comparison.info.totalAnnotations': '{{count}} total annotation{{plural}}',
+  'annotation.comparison.info.totalAnnotations':
+    '{{count}} total annotation{{plural}}',
   'annotation.comparison.buttons.addMyAnnotation': 'Add My Annotation',
   'annotation.comparison.buttons.editMyAnnotation': 'Edit My Annotation',
   'annotation.comparison.buttons.loadMore': 'Load {{count}} more',
@@ -96,28 +102,44 @@ let mockOnSubmit: jest.Mock
 let mockOnCancel: jest.Mock
 
 jest.mock('@/components/labeling/AnnotationCreator', () => ({
-  AnnotationCreator: ({ onSubmit, onCancel, task, projectId, labelConfig }: any) => {
+  AnnotationCreator: ({
+    onSubmit,
+    onCancel,
+    task,
+    projectId,
+    labelConfig,
+  }: any) => {
     mockOnSubmit = onSubmit
     mockOnCancel = onCancel
     return (
       <div data-testid="annotation-creator">
-        <button data-testid="creator-submit" onClick={() => onSubmit({ result: [] })}>Submit</button>
-        <button data-testid="creator-cancel" onClick={() => onCancel()}>Cancel</button>
+        <button
+          data-testid="creator-submit"
+          onClick={() => onSubmit({ result: [] })}
+        >
+          Submit
+        </button>
+        <button data-testid="creator-cancel" onClick={() => onCancel()}>
+          Cancel
+        </button>
       </div>
     )
   },
 }))
 
 jest.mock('@/lib/utils/logger', () => ({
-  logger: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn() },
+  logger: {
+    debug: jest.fn(),
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+  },
 }))
 
 const makeAnnotation = (overrides: any = {}) => ({
   id: `ann-${Math.random().toString(36).slice(2, 8)}`,
   completed_by: 'other-user-456',
-  result: [
-    { from_name: 'field1', type: 'choices', value: { choices: ['A'] } },
-  ],
+  result: [{ from_name: 'field1', type: 'choices', value: { choices: ['A'] } }],
   was_cancelled: false,
   ground_truth: false,
   created_at: '2025-06-01T10:00:00Z',
@@ -139,7 +161,8 @@ const mockTask = {
 const mockProject = {
   id: 'proj-1',
   title: 'Test Project',
-  label_config: '<View><Choices name="field1"><Choice value="A"/></Choices></View>',
+  label_config:
+    '<View><Choices name="field1"><Choice value="A"/></Choices></View>',
 }
 
 describe('TaskAnnotationComparisonModal - Surgical Coverage', () => {
@@ -162,8 +185,16 @@ describe('TaskAnnotationComparisonModal - Surgical Coverage', () => {
         completed_by: 'other-user-456',
         result: [
           { from_name: 'bool_field', type: 'choices', value: true },
-          { from_name: 'array_field', type: 'labels', value: ['item1', 'item2'] },
-          { from_name: 'object_field', type: 'rating', value: { score: 5, label: 'good' } },
+          {
+            from_name: 'array_field',
+            type: 'labels',
+            value: ['item1', 'item2'],
+          },
+          {
+            from_name: 'object_field',
+            type: 'rating',
+            value: { score: 5, label: 'good' },
+          },
           { from_name: 'number_field', type: 'number', value: 42 },
           { from_name: 'long_text', type: 'textarea', value: 'x'.repeat(250) },
           { from_name: 'null_field', type: 'text', value: null },
@@ -171,7 +202,9 @@ describe('TaskAnnotationComparisonModal - Surgical Coverage', () => {
       }),
     ]
     ;(projectsAPI.get as jest.Mock).mockResolvedValue(mockProject)
-    ;(projectsAPI.getTaskAnnotations as jest.Mock).mockResolvedValue(annotations)
+    ;(projectsAPI.getTaskAnnotations as jest.Mock).mockResolvedValue(
+      annotations,
+    )
 
     render(
       <TaskAnnotationComparisonModal
@@ -179,7 +212,7 @@ describe('TaskAnnotationComparisonModal - Surgical Coverage', () => {
         isOpen={true}
         onClose={jest.fn()}
         projectId="proj-1"
-      />
+      />,
     )
 
     await waitFor(() => {
@@ -211,7 +244,7 @@ describe('TaskAnnotationComparisonModal - Surgical Coverage', () => {
         isOpen={true}
         onClose={onClose}
         projectId="proj-1"
-      />
+      />,
     )
 
     await waitFor(() => {
@@ -236,7 +269,7 @@ describe('TaskAnnotationComparisonModal - Surgical Coverage', () => {
         isOpen={true}
         onClose={jest.fn()}
         projectId="proj-1"
-      />
+      />,
     )
 
     await waitFor(() => {
@@ -263,7 +296,7 @@ describe('TaskAnnotationComparisonModal - Surgical Coverage', () => {
         isOpen={true}
         onClose={jest.fn()}
         projectId="proj-1"
-      />
+      />,
     )
 
     await waitFor(() => {
@@ -290,7 +323,7 @@ describe('TaskAnnotationComparisonModal - Surgical Coverage', () => {
         isOpen={true}
         onClose={jest.fn()}
         projectId="proj-1"
-      />
+      />,
     )
 
     await waitFor(() => {
@@ -316,7 +349,7 @@ describe('TaskAnnotationComparisonModal - Surgical Coverage', () => {
         isOpen={true}
         onClose={jest.fn()}
         projectId="proj-1"
-      />
+      />,
     )
 
     await waitFor(() => {
@@ -347,10 +380,12 @@ describe('TaskAnnotationComparisonModal - Surgical Coverage', () => {
         completed_by: 'other-user-456',
         created_at: `2025-06-0${i + 1}T10:00:00Z`,
         updated_at: `2025-06-0${i + 1}T10:00:00Z`,
-      })
+      }),
     )
     ;(projectsAPI.get as jest.Mock).mockResolvedValue(mockProject)
-    ;(projectsAPI.getTaskAnnotations as jest.Mock).mockResolvedValue(manyAnnotations)
+    ;(projectsAPI.getTaskAnnotations as jest.Mock).mockResolvedValue(
+      manyAnnotations,
+    )
 
     render(
       <TaskAnnotationComparisonModal
@@ -358,7 +393,7 @@ describe('TaskAnnotationComparisonModal - Surgical Coverage', () => {
         isOpen={true}
         onClose={jest.fn()}
         projectId="proj-1"
-      />
+      />,
     )
 
     await waitFor(() => {
@@ -384,7 +419,7 @@ describe('TaskAnnotationComparisonModal - Surgical Coverage', () => {
         isOpen={true}
         onClose={jest.fn()}
         projectId="proj-1"
-      />
+      />,
     )
 
     await waitFor(() => {

@@ -19,7 +19,9 @@ describe('translate · variable interpolation', () => {
 
   it('interpolates a provided variable into a resolved string', () => {
     const { translate } = require('../translate')
-    const result = translate('projects.bulkActions.archiveSuccess', { count: 3 })
+    const result = translate('projects.bulkActions.archiveSuccess', {
+      count: 3,
+    })
     expect(result).toBe('Archived 3 projects successfully')
   })
 
@@ -37,7 +39,7 @@ describe('translate · variable interpolation', () => {
     const { translate } = require('../translate')
     const result = translate(
       'projects.creation.wizard.step2.upload.selectedFile',
-      { filename: 'cases.csv' }
+      { filename: 'cases.csv' },
     )
     expect(result).toBe('Selected: cases.csv')
   })

@@ -7,7 +7,7 @@
  * and saveToLocal with no data.
  */
 
-import { renderHook, act } from '@testing-library/react'
+import { act, renderHook } from '@testing-library/react'
 import { useAutoSave } from '../useAutoSave'
 
 describe('useAutoSave - branch coverage extensions', () => {
@@ -28,12 +28,23 @@ describe('useAutoSave - branch coverage extensions', () => {
 
   describe('localStorage error handling', () => {
     it('should handle localStorage.setItem throwing during save', () => {
-      const annotations = new Map([['comp1', { id: 'a1', value: 'test', from_name: 'a', to_name: 'b', type: 'text' }]])
+      const annotations = new Map([
+        [
+          'comp1',
+          {
+            id: 'a1',
+            value: 'test',
+            from_name: 'a',
+            to_name: 'b',
+            type: 'text',
+          },
+        ],
+      ])
       const consoleSpy = jest.spyOn(console, 'warn').mockImplementation()
       const originalSetItem = Storage.prototype.setItem
 
       const { result } = renderHook(() =>
-        useAutoSave('task-err-1', annotations, emptyValues, startTime)
+        useAutoSave('task-err-1', annotations, emptyValues, startTime),
       )
 
       // Let the auto-trigger fire, then mock setItem to throw
@@ -48,7 +59,7 @@ describe('useAutoSave - branch coverage extensions', () => {
       // Should handle error gracefully
       expect(consoleSpy).toHaveBeenCalledWith(
         'Failed to save draft to localStorage:',
-        expect.any(Error)
+        expect.any(Error),
       )
 
       Storage.prototype.setItem = originalSetItem
@@ -59,13 +70,16 @@ describe('useAutoSave - branch coverage extensions', () => {
       const consoleSpy = jest.spyOn(console, 'warn').mockImplementation()
 
       // Set up valid data first
-      localStorage.setItem('benger_draft_task-err-2', JSON.stringify({
-        taskId: 'task-err-2',
-        annotations: [{ id: 'a1', value: 'test' }],
-        componentValues: {},
-        savedAt: Date.now(),
-        leadTime: 0,
-      }))
+      localStorage.setItem(
+        'benger_draft_task-err-2',
+        JSON.stringify({
+          taskId: 'task-err-2',
+          annotations: [{ id: 'a1', value: 'test' }],
+          componentValues: {},
+          savedAt: Date.now(),
+          leadTime: 0,
+        }),
+      )
 
       // Mock getItem to throw
       const originalGetItem = Storage.prototype.getItem
@@ -74,7 +88,7 @@ describe('useAutoSave - branch coverage extensions', () => {
       })
 
       const { result } = renderHook(() =>
-        useAutoSave('task-err-2', emptyAnnotations, emptyValues, startTime)
+        useAutoSave('task-err-2', emptyAnnotations, emptyValues, startTime),
       )
 
       // loadDraft should return null and not throw
@@ -88,16 +102,19 @@ describe('useAutoSave - branch coverage extensions', () => {
     it('should handle localStorage.removeItem throwing during clear', async () => {
       const consoleSpy = jest.spyOn(console, 'warn').mockImplementation()
 
-      localStorage.setItem('benger_draft_task-err-3', JSON.stringify({
-        taskId: 'task-err-3',
-        annotations: [{ id: 'a1' }],
-        componentValues: {},
-        savedAt: Date.now(),
-        leadTime: 0,
-      }))
+      localStorage.setItem(
+        'benger_draft_task-err-3',
+        JSON.stringify({
+          taskId: 'task-err-3',
+          annotations: [{ id: 'a1' }],
+          componentValues: {},
+          savedAt: Date.now(),
+          leadTime: 0,
+        }),
+      )
 
       const { result } = renderHook(() =>
-        useAutoSave('task-err-3', emptyAnnotations, emptyValues, startTime)
+        useAutoSave('task-err-3', emptyAnnotations, emptyValues, startTime),
       )
 
       // Mock removeItem to throw
@@ -113,7 +130,7 @@ describe('useAutoSave - branch coverage extensions', () => {
 
       expect(consoleSpy).toHaveBeenCalledWith(
         'Failed to clear draft from localStorage:',
-        expect.any(Error)
+        expect.any(Error),
       )
 
       Storage.prototype.removeItem = originalRemoveItem
@@ -123,10 +140,21 @@ describe('useAutoSave - branch coverage extensions', () => {
 
   describe('null/empty edge cases', () => {
     it('should not save when serializeData returns null (no taskId)', async () => {
-      const annotations = new Map([['comp1', { id: 'a1', value: 'test', from_name: 'a', to_name: 'b', type: 'text' }]])
+      const annotations = new Map([
+        [
+          'comp1',
+          {
+            id: 'a1',
+            value: 'test',
+            from_name: 'a',
+            to_name: 'b',
+            type: 'text',
+          },
+        ],
+      ])
 
       const { result } = renderHook(() =>
-        useAutoSave(null, annotations, emptyValues, startTime)
+        useAutoSave(null, annotations, emptyValues, startTime),
       )
 
       // Force save should be a no-op
@@ -141,7 +169,7 @@ describe('useAutoSave - branch coverage extensions', () => {
     it('should not save when annotations array is empty', () => {
       // serializeData will produce empty annotations array
       const { result } = renderHook(() =>
-        useAutoSave('task-empty', emptyAnnotations, emptyValues, startTime)
+        useAutoSave('task-empty', emptyAnnotations, emptyValues, startTime),
       )
 
       act(() => {
@@ -155,7 +183,7 @@ describe('useAutoSave - branch coverage extensions', () => {
 
     it('should not clear draft when taskId is null', async () => {
       const { result } = renderHook(() =>
-        useAutoSave(null, emptyAnnotations, emptyValues, startTime)
+        useAutoSave(null, emptyAnnotations, emptyValues, startTime),
       )
 
       await act(async () => {
@@ -168,7 +196,7 @@ describe('useAutoSave - branch coverage extensions', () => {
 
     it('should initialize with hasDraft=false when taskId is null', () => {
       const { result } = renderHook(() =>
-        useAutoSave(null, emptyAnnotations, emptyValues, startTime)
+        useAutoSave(null, emptyAnnotations, emptyValues, startTime),
       )
 
       expect(result.current.hasDraft).toBe(false)
@@ -178,11 +206,24 @@ describe('useAutoSave - branch coverage extensions', () => {
 
   describe('saveNow with directValues', () => {
     it('should merge directValues into componentValues before saving', async () => {
-      const annotations = new Map([['comp1', { id: 'a1', value: 'test', from_name: 'a', to_name: 'b', type: 'text' }]])
-      const values = new Map<string, unknown>([['existingField', 'existingValue']])
+      const annotations = new Map([
+        [
+          'comp1',
+          {
+            id: 'a1',
+            value: 'test',
+            from_name: 'a',
+            to_name: 'b',
+            type: 'text',
+          },
+        ],
+      ])
+      const values = new Map<string, unknown>([
+        ['existingField', 'existingValue'],
+      ])
 
       const { result } = renderHook(() =>
-        useAutoSave('task-direct', annotations, values, startTime)
+        useAutoSave('task-direct', annotations, values, startTime),
       )
 
       await act(async () => {
@@ -192,16 +233,29 @@ describe('useAutoSave - branch coverage extensions', () => {
         })
       })
 
-      const saved = JSON.parse(localStorage.getItem('benger_draft_task-direct')!)
+      const saved = JSON.parse(
+        localStorage.getItem('benger_draft_task-direct')!,
+      )
       expect(saved.componentValues.newField).toBe('newValue')
       expect(saved.componentValues.existingField).toBe('existingValue')
     })
 
     it('should save without directValues when not provided', async () => {
-      const annotations = new Map([['comp1', { id: 'a1', value: 'test', from_name: 'a', to_name: 'b', type: 'text' }]])
+      const annotations = new Map([
+        [
+          'comp1',
+          {
+            id: 'a1',
+            value: 'test',
+            from_name: 'a',
+            to_name: 'b',
+            type: 'text',
+          },
+        ],
+      ])
 
       const { result } = renderHook(() =>
-        useAutoSave('task-no-direct', annotations, emptyValues, startTime)
+        useAutoSave('task-no-direct', annotations, emptyValues, startTime),
       )
 
       await act(async () => {
@@ -214,10 +268,21 @@ describe('useAutoSave - branch coverage extensions', () => {
 
   describe('triggerSave debouncing', () => {
     it('should reset debounce timer on subsequent calls', () => {
-      const annotations = new Map([['comp1', { id: 'a1', value: 'test', from_name: 'a', to_name: 'b', type: 'text' }]])
+      const annotations = new Map([
+        [
+          'comp1',
+          {
+            id: 'a1',
+            value: 'test',
+            from_name: 'a',
+            to_name: 'b',
+            type: 'text',
+          },
+        ],
+      ])
 
       const { result } = renderHook(() =>
-        useAutoSave('task-debounce', annotations, emptyValues, startTime)
+        useAutoSave('task-debounce', annotations, emptyValues, startTime),
       )
 
       // Trigger first save

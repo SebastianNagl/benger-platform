@@ -28,7 +28,6 @@ export function ConditionalLayout({
   useEffect(() => {
     let timer: NodeJS.Timeout
     if (isLoading) {
-       
       timer = setTimeout(() => setShowLoadingDelay(true), 200) // 200ms delay
     } else {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- Intentional: sync loading state
@@ -79,7 +78,7 @@ export function ConditionalLayout({
 
   // /reports and /reports/<id> (but not e.g. /reportsfoo)
   const isPublicContentPage = publicContentPrefixes.some(
-    (prefix) => pathname === prefix || pathname?.startsWith(`${prefix}/`)
+    (prefix) => pathname === prefix || pathname?.startsWith(`${prefix}/`),
   )
 
   // Legal + public content pages use the minimal layout for unauthenticated users

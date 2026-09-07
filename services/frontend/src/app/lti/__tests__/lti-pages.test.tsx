@@ -38,7 +38,7 @@ describe('LTI link host route', () => {
     render(<LtiLinkPage />)
     expect(mockUseSlot).toHaveBeenCalledWith('LtiLinkPicker')
     expect(
-      screen.getByText('LTI content linking requires the extended edition.')
+      screen.getByText('LTI content linking requires the extended edition.'),
     ).toBeInTheDocument()
   })
 
@@ -47,7 +47,7 @@ describe('LTI link host route', () => {
     render(<LtiLinkPage />)
     expect(screen.getByText('extended link picker')).toBeInTheDocument()
     expect(
-      screen.queryByText('LTI content linking requires the extended edition.')
+      screen.queryByText('LTI content linking requires the extended edition.'),
     ).not.toBeInTheDocument()
   })
 })
@@ -57,7 +57,7 @@ describe('LTI consent host route', () => {
     render(<LtiConsentPage />)
     expect(mockUseSlot).toHaveBeenCalledWith('LtiConsentGate')
     expect(
-      screen.getByText('LTI account linking requires the extended edition.')
+      screen.getByText('LTI account linking requires the extended edition.'),
     ).toBeInTheDocument()
   })
 
@@ -86,8 +86,8 @@ describe('LTI error host route', () => {
     expect(screen.getByText('Launch failed')).toBeInTheDocument()
     expect(
       screen.getByText(
-        'Your instructor has not connected this activity to an exam yet.'
-      )
+        'Your instructor has not connected this activity to an exam yet.',
+      ),
     ).toBeInTheDocument()
     expect(screen.getByText('Error code: not_linked')).toBeInTheDocument()
   })
@@ -99,11 +99,11 @@ describe('LTI error host route', () => {
       render(<LtiErrorPage />)
       expect(
         screen.getByText(
-          'This launch link has expired or was already used – go back to your learning platform and click the activity again.'
-        )
+          'This launch link has expired or was already used – go back to your learning platform and click the activity again.',
+        ),
       ).toBeInTheDocument()
       expect(screen.getByText(`Error code: ${code}`)).toBeInTheDocument()
-    }
+    },
   )
 
   it.each([

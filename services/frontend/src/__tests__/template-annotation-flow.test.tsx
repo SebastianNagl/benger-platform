@@ -102,7 +102,7 @@ describe('Template Annotation Flow', () => {
         itemId="test-item-456"
         onSave={onSave}
         onSubmit={onSubmit}
-      />
+      />,
     )
 
     // Submit annotation
@@ -113,7 +113,7 @@ describe('Template Annotation Flow', () => {
       expect(onSave).toHaveBeenCalledWith(
         expect.objectContaining({
           answer: 'test answer',
-        })
+        }),
       )
     })
   })
@@ -133,7 +133,7 @@ describe('Template Annotation Flow', () => {
         initialData={initialData}
         onSave={jest.fn()}
         onSubmit={jest.fn()}
-      />
+      />,
     )
 
     // Check that component renders with task info
@@ -154,7 +154,7 @@ describe('Template Annotation Flow', () => {
         onSave={onSave}
         onSubmit={jest.fn()}
         enableAutoSave={true}
-      />
+      />,
     )
 
     // Type in the answer field
@@ -169,7 +169,7 @@ describe('Template Annotation Flow', () => {
       expect(onSave).toHaveBeenCalledWith(
         expect.objectContaining({
           answer: 'test answer',
-        })
+        }),
       )
     })
   })
@@ -185,7 +185,7 @@ describe('Template Annotation Flow', () => {
         onSave={jest.fn()}
         onSubmit={jest.fn()}
         readonly={true}
-      />
+      />,
     )
 
     // Check that fields are disabled
@@ -224,13 +224,13 @@ jest.mock('@/components/shared', () => {
       React.createElement(
         'div',
         { 'data-testid': 'hero-pattern' },
-        'Hero Pattern'
+        'Hero Pattern',
       ),
     GridPattern: () =>
       React.createElement(
         'div',
         { 'data-testid': 'grid-pattern' },
-        'Grid Pattern'
+        'Grid Pattern',
       ),
     Button: ({ children, ...props }) =>
       React.createElement('button', props, children),
@@ -240,7 +240,7 @@ jest.mock('@/components/shared', () => {
       React.createElement(
         'div',
         { 'data-testid': 'loading-spinner' },
-        'Loading...'
+        'Loading...',
       ),
     EmptyState: ({ message }) => React.createElement('div', null, message),
     Spinner: () => React.createElement('div', null, 'Loading...'),

@@ -29,10 +29,7 @@ import {
 } from '@heroicons/react/24/outline'
 
 export type AssignmentDistribution =
-  | 'manual'
-  | 'round_robin'
-  | 'random'
-  | 'load_balanced'
+  'manual' | 'round_robin' | 'random' | 'load_balanced'
 
 export interface AssignmentMember {
   id?: string
@@ -149,7 +146,9 @@ export function AssignmentFormBody({
           <Label>{t('projects.taskAssignment.distributionMethod')}</Label>
           <Select
             value={value.distribution}
-            onValueChange={(v) => onChange({ ...value, distribution: v as AssignmentDistribution })}
+            onValueChange={(v) =>
+              onChange({ ...value, distribution: v as AssignmentDistribution })
+            }
           >
             <SelectTrigger>
               <div className="flex items-center gap-2">
@@ -158,13 +157,23 @@ export function AssignmentFormBody({
               </div>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="manual">{t('projects.taskAssignment.manual')}</SelectItem>
-              <SelectItem value="round_robin">{t('projects.taskAssignment.roundRobin')}</SelectItem>
-              <SelectItem value="random">{t('projects.taskAssignment.random')}</SelectItem>
-              <SelectItem value="load_balanced">{t('projects.taskAssignment.loadBalanced')}</SelectItem>
+              <SelectItem value="manual">
+                {t('projects.taskAssignment.manual')}
+              </SelectItem>
+              <SelectItem value="round_robin">
+                {t('projects.taskAssignment.roundRobin')}
+              </SelectItem>
+              <SelectItem value="random">
+                {t('projects.taskAssignment.random')}
+              </SelectItem>
+              <SelectItem value="load_balanced">
+                {t('projects.taskAssignment.loadBalanced')}
+              </SelectItem>
             </SelectContent>
           </Select>
-          <p className="mt-1 text-xs text-zinc-500">{distributionDescription}</p>
+          <p className="mt-1 text-xs text-zinc-500">
+            {distributionDescription}
+          </p>
         </div>
       )}
 
@@ -210,7 +219,9 @@ export function AssignmentFormBody({
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <Label htmlFor="priority">{t('projects.taskAssignment.priority')}</Label>
+          <Label htmlFor="priority">
+            {t('projects.taskAssignment.priority')}
+          </Label>
           <Select
             value={value.priority.toString()}
             onValueChange={(v) => onChange({ ...value, priority: parseInt(v) })}
@@ -219,11 +230,21 @@ export function AssignmentFormBody({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="0">{t('projects.taskAssignment.priorityNormal')}</SelectItem>
-              <SelectItem value="1">{t('projects.taskAssignment.priorityLow')}</SelectItem>
-              <SelectItem value="2">{t('projects.taskAssignment.priorityMedium')}</SelectItem>
-              <SelectItem value="3">{t('projects.taskAssignment.priorityHigh')}</SelectItem>
-              <SelectItem value="4">{t('projects.taskAssignment.priorityUrgent')}</SelectItem>
+              <SelectItem value="0">
+                {t('projects.taskAssignment.priorityNormal')}
+              </SelectItem>
+              <SelectItem value="1">
+                {t('projects.taskAssignment.priorityLow')}
+              </SelectItem>
+              <SelectItem value="2">
+                {t('projects.taskAssignment.priorityMedium')}
+              </SelectItem>
+              <SelectItem value="3">
+                {t('projects.taskAssignment.priorityHigh')}
+              </SelectItem>
+              <SelectItem value="4">
+                {t('projects.taskAssignment.priorityUrgent')}
+              </SelectItem>
             </SelectContent>
           </Select>
         </div>

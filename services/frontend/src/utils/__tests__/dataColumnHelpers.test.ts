@@ -410,7 +410,7 @@ describe('extractDataColumns', () => {
 
     // Should only see fields from first 5 tasks
     const uniqueFields = columns.filter((c) =>
-      c.key.startsWith('unique_field_')
+      c.key.startsWith('unique_field_'),
     )
     expect(uniqueFields.length).toBeLessThanOrEqual(5)
   })
@@ -430,7 +430,7 @@ describe('extractDataColumns', () => {
     const columns = extractDataColumns(tasks)
 
     expect(columns.find((c) => c.key === 'first_name')?.label).toBe(
-      'First Name'
+      'First Name',
     )
     expect(columns.find((c) => c.key === 'user_id')?.label).toBe('User Id')
   })
@@ -816,7 +816,7 @@ describe('extractMetadataColumns', () => {
 
     // Should only see fields from first 10 tasks
     const uniqueFields = columns.filter((c) =>
-      c.key.startsWith('unique_field_')
+      c.key.startsWith('unique_field_'),
     )
     expect(uniqueFields.length).toBeLessThanOrEqual(10)
   })
@@ -1043,7 +1043,7 @@ describe('Edge Cases', () => {
     const columns = extractDataColumns(tasks)
     expect(columns.find((c) => c.key === longFieldName)).toBeTruthy()
     expect(
-      columns.find((c) => c.key === longFieldName)?.label.length
+      columns.find((c) => c.key === longFieldName)?.label.length,
     ).toBeGreaterThan(0)
   })
 

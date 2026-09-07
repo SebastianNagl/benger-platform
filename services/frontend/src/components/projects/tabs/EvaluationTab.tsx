@@ -7,10 +7,17 @@
 import { Badge } from '@/components/shared/Badge'
 import { Button } from '@/components/shared/Button'
 import { Input } from '@/components/shared/Input'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/shared/Select'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/shared/Select'
 import { useToast } from '@/components/shared/Toast'
 import { useI18n } from '@/contexts/I18nContext'
 import { useProgress } from '@/contexts/ProgressContext'
+import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import { useProjectStore } from '@/stores/projectStore'
 import { Task as LabelStudioTask } from '@/types/labelStudio'
 import {
@@ -25,7 +32,6 @@ import {
 import { formatDistanceToNow } from 'date-fns'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 
 interface EvaluationTabProps {
   projectId: string
@@ -76,7 +82,7 @@ export function EvaluationTab({ projectId }: EvaluationTabProps) {
           (task) =>
             (task as any).llm_evaluations ||
             (task as any).llm_responses ||
-            task.total_generations > 0
+            task.total_generations > 0,
         )
         setTasks(tasksForEvaluation)
         setFilteredTasks(tasksForEvaluation)
@@ -180,7 +186,7 @@ export function EvaluationTab({ projectId }: EvaluationTabProps) {
   // Get evaluation score from task
   const getEvaluationScore = (
     task: LabelStudioTask,
-    metric: string
+    metric: string,
   ): number => {
     if (!task.llm_evaluations) return 0
     const evaluations = Object.values(task.llm_evaluations)
@@ -192,7 +198,7 @@ export function EvaluationTab({ projectId }: EvaluationTabProps) {
 
   // Get evaluation metrics for display
   const getEvaluationMetrics = (
-    task: LabelStudioTask
+    task: LabelStudioTask,
   ): EvaluationMetrics | null => {
     if (
       !task.llm_evaluations ||
@@ -271,7 +277,7 @@ export function EvaluationTab({ projectId }: EvaluationTabProps) {
       completeProgress(progressId, 'error')
       addToast(
         `Export failed: ${error.message || 'Failed to export evaluations'}`,
-        'error'
+        'error',
       )
     }
   }
@@ -290,7 +296,7 @@ export function EvaluationTab({ projectId }: EvaluationTabProps) {
         (task) =>
           (task as any).llm_evaluations ||
           (task as any).llm_responses ||
-          task.total_generations > 0
+          task.total_generations > 0,
       )
       setTasks(tasksForEvaluation)
 
@@ -309,7 +315,7 @@ export function EvaluationTab({ projectId }: EvaluationTabProps) {
     if ((task as any).data.prompt) return (task as any).data.prompt
 
     const firstStringValue = Object.values((task as any).data).find(
-      (v) => typeof v === 'string'
+      (v) => typeof v === 'string',
     )
     if (firstStringValue) return firstStringValue as string
 
@@ -324,7 +330,7 @@ export function EvaluationTab({ projectId }: EvaluationTabProps) {
 
   // Get status badge variant
   const getStatusVariant = (
-    metrics: EvaluationMetrics | null
+    metrics: EvaluationMetrics | null,
   ): 'default' | 'secondary' | 'outline' | 'destructive' => {
     if (!metrics) return 'default'
     const score = metrics.accuracy || metrics.f1_score || 0
@@ -349,8 +355,8 @@ export function EvaluationTab({ projectId }: EvaluationTabProps) {
                     count: tasks.filter(
                       (tk) =>
                         (tk as any).llm_evaluations &&
-                        Object.keys((tk as any).llm_evaluations).length > 0
-                    ).length
+                        Object.keys((tk as any).llm_evaluations).length > 0,
+                    ).length,
                   })}
                 </span>
               </div>
@@ -361,9 +367,9 @@ export function EvaluationTab({ projectId }: EvaluationTabProps) {
                     count: tasks.filter(
                       (tk) =>
                         !(tk as any).llm_evaluations ||
-                        Object.keys((tk as any).llm_evaluations || {}).length ===
-                          0
-                    ).length
+                        Object.keys((tk as any).llm_evaluations || {})
+                          .length === 0,
+                    ).length,
                   })}
                 </span>
               </div>
@@ -372,14 +378,25 @@ export function EvaluationTab({ projectId }: EvaluationTabProps) {
             {/* Actions */}
             <div className="flex items-center space-x-2">
               {/* Status Filter */}
-              <Select value={filterStatus} onValueChange={(v) => setFilterStatus(v as any)}>
+              <Select
+                value={filterStatus}
+                onValueChange={(v) => setFilterStatus(v as any)}
+              >
                 <SelectTrigger>
-                  <SelectValue placeholder={t('projects.evaluationTab.allTasks')} />
+                  <SelectValue
+                    placeholder={t('projects.evaluationTab.allTasks')}
+                  />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">{t('projects.evaluationTab.allTasks')}</SelectItem>
-                  <SelectItem value="evaluated">{t('projects.evaluationTab.evaluated')}</SelectItem>
-                  <SelectItem value="pending">{t('projects.evaluationTab.pending')}</SelectItem>
+                  <SelectItem value="all">
+                    {t('projects.evaluationTab.allTasks')}
+                  </SelectItem>
+                  <SelectItem value="evaluated">
+                    {t('projects.evaluationTab.evaluated')}
+                  </SelectItem>
+                  <SelectItem value="pending">
+                    {t('projects.evaluationTab.pending')}
+                  </SelectItem>
                 </SelectContent>
               </Select>
 
@@ -413,7 +430,7 @@ export function EvaluationTab({ projectId }: EvaluationTabProps) {
         {/* Search Bar */}
         <div className="mb-4 sm:mb-6">
           <div className="relative">
-            <MagnifyingGlassIcon className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 transform text-zinc-400" />
+            <MagnifyingGlassIcon className="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 transform text-zinc-400" />
             <Input
               placeholder={t('projects.evaluationTab.searchPlaceholder')}
               value={searchQuery}
@@ -425,7 +442,10 @@ export function EvaluationTab({ projectId }: EvaluationTabProps) {
 
         {/* Results count */}
         <div className="mb-4 text-sm text-zinc-600 dark:text-zinc-400">
-          {t('projects.evaluationTab.showingTasks', { showing: filteredTasks.length, total: tasks.length })}
+          {t('projects.evaluationTab.showingTasks', {
+            showing: filteredTasks.length,
+            total: tasks.length,
+          })}
         </div>
 
         {/* Data Table */}
@@ -440,7 +460,7 @@ export function EvaluationTab({ projectId }: EvaluationTabProps) {
                 <thead className="border-b border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800">
                   <tr>
                     <th
-                      className="cursor-pointer px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
+                      className="cursor-pointer px-4 py-3 text-left text-xs font-medium tracking-wider text-zinc-600 uppercase hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
                       onClick={() => handleSort('id')}
                     >
                       <div className="flex items-center space-x-1">
@@ -452,11 +472,11 @@ export function EvaluationTab({ projectId }: EvaluationTabProps) {
                         )}
                       </div>
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-600 dark:text-zinc-400">
+                    <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-zinc-600 uppercase dark:text-zinc-400">
                       {t('projects.evaluationTab.taskData')}
                     </th>
                     <th
-                      className="cursor-pointer px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
+                      className="cursor-pointer px-4 py-3 text-left text-xs font-medium tracking-wider text-zinc-600 uppercase hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
                       onClick={() => handleSort('status')}
                     >
                       <div className="flex items-center space-x-1">
@@ -469,7 +489,7 @@ export function EvaluationTab({ projectId }: EvaluationTabProps) {
                       </div>
                     </th>
                     <th
-                      className="cursor-pointer px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
+                      className="cursor-pointer px-4 py-3 text-left text-xs font-medium tracking-wider text-zinc-600 uppercase hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
                       onClick={() => handleSort('accuracy')}
                     >
                       <div className="flex items-center space-x-1">
@@ -481,11 +501,11 @@ export function EvaluationTab({ projectId }: EvaluationTabProps) {
                         )}
                       </div>
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-600 dark:text-zinc-400">
+                    <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-zinc-600 uppercase dark:text-zinc-400">
                       {t('projects.evaluationTab.f1Score')}
                     </th>
                     <th
-                      className="cursor-pointer px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
+                      className="cursor-pointer px-4 py-3 text-left text-xs font-medium tracking-wider text-zinc-600 uppercase hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
                       onClick={() => handleSort('confidence')}
                     >
                       <div className="flex items-center space-x-1">
@@ -497,15 +517,17 @@ export function EvaluationTab({ projectId }: EvaluationTabProps) {
                         )}
                       </div>
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-600 dark:text-zinc-400">
+                    <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-zinc-600 uppercase dark:text-zinc-400">
                       {t('projects.evaluationTab.model')}
                     </th>
                     <th
-                      className="cursor-pointer px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
+                      className="cursor-pointer px-4 py-3 text-left text-xs font-medium tracking-wider text-zinc-600 uppercase hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
                       onClick={() => handleSort('created')}
                     >
                       <div className="flex items-center space-x-1">
-                        <span>{t('projects.evaluationTab.evaluatedColumn')}</span>
+                        <span>
+                          {t('projects.evaluationTab.evaluatedColumn')}
+                        </span>
                         {sortBy === 'created' && (
                           <ChevronDownIcon
                             className={`h-3 w-3 transition-transform ${sortOrder === 'asc' ? 'rotate-180' : ''}`}
@@ -541,12 +563,16 @@ export function EvaluationTab({ projectId }: EvaluationTabProps) {
                             {isEvaluated ? (
                               <div className="flex items-center space-x-1">
                                 <CheckCircleIcon className="h-3 w-3" />
-                                <span>{t('projects.evaluationTab.evaluated')}</span>
+                                <span>
+                                  {t('projects.evaluationTab.evaluated')}
+                                </span>
                               </div>
                             ) : (
                               <div className="flex items-center space-x-1">
                                 <ClockIcon className="h-3 w-3" />
-                                <span>{t('projects.evaluationTab.pending')}</span>
+                                <span>
+                                  {t('projects.evaluationTab.pending')}
+                                </span>
                               </div>
                             )}
                           </Badge>
@@ -586,7 +612,7 @@ export function EvaluationTab({ projectId }: EvaluationTabProps) {
                             {metrics?.evaluated_at
                               ? formatDistanceToNow(
                                   new Date(metrics.evaluated_at),
-                                  { addSuffix: true }
+                                  { addSuffix: true },
                                 )
                               : '—'}
                           </span>
@@ -612,7 +638,6 @@ export function EvaluationTab({ projectId }: EvaluationTabProps) {
           </div>
         )}
       </div>
-
     </>
   )
 }

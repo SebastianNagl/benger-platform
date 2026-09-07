@@ -9,7 +9,6 @@ Fixtures are organized in tests/fixtures/:
   - mocks.py:      mock_celery, mock_redis (autouse), mock_redis_async
 """
 
-import asyncio
 import os
 import sys
 from typing import Generator
@@ -39,9 +38,34 @@ if os.path.exists(services_path) and services_path not in sys.path:
 _pg_test_url = os.environ.get("DATABASE_URI") or os.environ.get("DATABASE_URL")
 if not _pg_test_url or "sqlite" in _pg_test_url:
     _pg_test_url = "postgresql://postgres:postgres_test@localhost:5433/test_benger"
+
+# pytest-xdist (`pytest -n auto`): every worker gets its own EMPTY database
+# (the session-scoped `_create_tables` fixture builds the schema per worker)
+# and its own Redis logical DB, so workers never see each other's rows,
+# SAVEPOINT state or rate-limiter counters. Single-process runs are untouched.
+_xdist_worker = os.environ.get("PYTEST_XDIST_WORKER")
+if _xdist_worker:
+    from urllib.parse import urlsplit, urlunsplit
+
+    import psycopg2
+
+    _parts = urlsplit(_pg_test_url)
+    _worker_db = f"{_parts.path.lstrip('/')}_{_xdist_worker}"
+    _admin = psycopg2.connect(urlunsplit(_parts._replace(path="/postgres")))
+    _admin.autocommit = True
+    with _admin.cursor() as _cur:
+        _cur.execute("SELECT 1 FROM pg_database WHERE datname = %s", (_worker_db,))
+        if not _cur.fetchone():
+            _cur.execute(f'CREATE DATABASE "{_worker_db}"')
+    _admin.close()
+    _pg_test_url = urlunsplit(_parts._replace(path=f"/{_worker_db}"))
+    _redis_db = 1 + int(_xdist_worker[2:]) if _xdist_worker.startswith("gw") else 1
+else:
+    _redis_db = 1
+
 os.environ["DATABASE_URL"] = _pg_test_url
 os.environ["ASYNC_DATABASE_URL"] = _pg_test_url.replace("postgresql://", "postgresql+asyncpg://", 1)
-os.environ["REDIS_URL"] = "redis://localhost:6379/1"
+os.environ["REDIS_URL"] = f"redis://localhost:6379/{_redis_db}"
 os.environ["JWT_SECRET_KEY"] = "test-secret-key-for-testing-only"
 os.environ["SECRET_KEY"] = "test-secret-key-for-testing-only"
 # Celery: default to in-process transports so HOST runs (no broker) neither
@@ -68,12 +92,3 @@ pytest_plugins = [
     "tests.fixtures.evaluation",
     "tests.fixtures.mocks",
 ]
-
-
-@pytest.fixture(scope="session")
-def event_loop() -> Generator[asyncio.AbstractEventLoop, None, None]:
-    """Create an instance of the default event loop for the test session."""
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    yield loop
-    loop.close()

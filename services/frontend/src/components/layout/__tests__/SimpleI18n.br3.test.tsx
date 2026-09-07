@@ -28,7 +28,7 @@ describe('SimpleI18n br3', () => {
     const { getByText } = render(
       <SimpleI18nProvider>
         <TestConsumer />
-      </SimpleI18nProvider>
+      </SimpleI18nProvider>,
     )
 
     act(() => {

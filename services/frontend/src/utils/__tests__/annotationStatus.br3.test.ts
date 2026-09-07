@@ -35,9 +35,7 @@ describe('annotationStatus branch coverage', () => {
 
   it('findNextUnannotatedItem returns null when all completed', () => {
     const items = [{ id: 1 }]
-    const annotations: any[] = [
-      { id: 'a1', item_id: '1', status: 'submitted' },
-    ]
+    const annotations: any[] = [{ id: 'a1', item_id: '1', status: 'submitted' }]
     expect(findNextUnannotatedItem(items, annotations)).toBeNull()
   })
 })

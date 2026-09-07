@@ -94,7 +94,7 @@ function wrapRow(item: any): any {
  */
 export function parseImportData(
   content: string,
-  format: ImportFormat
+  format: ImportFormat,
 ): { rows: any[]; extras: Record<string, unknown> } {
   try {
     if (format === 'json') {
@@ -161,7 +161,7 @@ export function parseImportData(
       throw error
     }
     throw new Error(
-      `Failed to parse ${format.toUpperCase()} data: ${error.message || error}`
+      `Failed to parse ${format.toUpperCase()} data: ${error.message || error}`,
     )
   }
 }
@@ -172,11 +172,11 @@ export function parseImportData(
  */
 export function buildImportFile(
   rows: any[],
-  extras: Record<string, unknown> = {}
+  extras: Record<string, unknown> = {},
 ): File {
   return new File(
     [JSON.stringify({ data: rows, ...extras })],
     `import-${Date.now()}.json`,
-    { type: 'application/json' }
+    { type: 'application/json' },
   )
 }

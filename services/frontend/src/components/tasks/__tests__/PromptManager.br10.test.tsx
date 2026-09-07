@@ -6,8 +6,8 @@
  */
 
 import '@testing-library/jest-dom'
-import { render, screen, fireEvent } from '@testing-library/react'
-import { PromptManager, PromptData } from '../PromptManager'
+import { fireEvent, render, screen } from '@testing-library/react'
+import { PromptData, PromptManager } from '../PromptManager'
 
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
@@ -21,7 +21,9 @@ jest.mock('@/components/shared/Toast', () => ({
 
 jest.mock('@/components/shared/Button', () => ({
   Button: ({ children, onClick, disabled, ...props }: any) => (
-    <button onClick={onClick} disabled={disabled} {...props}>{children}</button>
+    <button onClick={onClick} disabled={disabled} {...props}>
+      {children}
+    </button>
   ),
 }))
 
@@ -49,22 +51,14 @@ describe('PromptManager', () => {
 
   it('renders with existing prompts', () => {
     render(
-      <PromptManager
-        prompts={defaultPrompts}
-        onPromptsChange={jest.fn()}
-      />
+      <PromptManager prompts={defaultPrompts} onPromptsChange={jest.fn()} />,
     )
     expect(screen.getByText('Test prompt 1')).toBeInTheDocument()
     expect(screen.getByText('Test prompt 2')).toBeInTheDocument()
   })
 
   it('renders with empty prompts', () => {
-    render(
-      <PromptManager
-        prompts={[]}
-        onPromptsChange={jest.fn()}
-      />
-    )
+    render(<PromptManager prompts={[]} onPromptsChange={jest.fn()} />)
     // Should render without errors
   })
 
@@ -74,7 +68,7 @@ describe('PromptManager', () => {
         prompts={[]}
         onPromptsChange={jest.fn()}
         taskType="evaluation"
-      />
+      />,
     )
     // Should render without errors
   })
@@ -85,7 +79,7 @@ describe('PromptManager', () => {
         prompts={[]}
         onPromptsChange={jest.fn()}
         taskId="task-123"
-      />
+      />,
     )
     // Should render without errors
   })
@@ -94,25 +88,22 @@ describe('PromptManager', () => {
     const prompts: PromptData[] = [
       {
         prompt: 'System prompt',
-        metadata: { prompt_type: 'system', max_tokens: 1000, temperature: 0.5, context: 'legal' },
+        metadata: {
+          prompt_type: 'system',
+          max_tokens: 1000,
+          temperature: 0.5,
+          context: 'legal',
+        },
       },
     ]
-    render(
-      <PromptManager
-        prompts={prompts}
-        onPromptsChange={jest.fn()}
-      />
-    )
+    render(<PromptManager prompts={prompts} onPromptsChange={jest.fn()} />)
     expect(screen.getByText('System prompt')).toBeInTheDocument()
   })
 
   it('calls onPromptsChange when removing a prompt', () => {
     const onChange = jest.fn()
     render(
-      <PromptManager
-        prompts={defaultPrompts}
-        onPromptsChange={onChange}
-      />
+      <PromptManager prompts={defaultPrompts} onPromptsChange={onChange} />,
     )
     // Find and click a delete button
     const deleteButtons = screen.getAllByTestId('trash-icon')

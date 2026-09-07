@@ -26,7 +26,9 @@ test.describe('Rating Annotation', () => {
       })
       if (!resp.ok) return null
       const data = await resp.json()
-      const project = data.items?.find((p: any) => p.title === 'E2E Rating Project')
+      const project = data.items?.find(
+        (p: any) => p.title === 'E2E Rating Project',
+      )
       return project?.id || null
     })
 
@@ -43,16 +45,21 @@ test.describe('Rating Annotation', () => {
 
     // Navigate to annotation if possible
     const annotateButton = page.locator(
-      'button:has-text("Annotate"), a:has-text("Start Annotating"), a:has-text("Annotation"), button:has-text("Annotieren")'
+      'button:has-text("Annotate"), a:has-text("Start Annotating"), a:has-text("Annotation"), button:has-text("Annotieren")',
     )
-    if (await annotateButton.first().isVisible({ timeout: 5000 }).catch(() => false)) {
+    if (
+      await annotateButton
+        .first()
+        .isVisible({ timeout: 5000 })
+        .catch(() => false)
+    ) {
       await annotateButton.first().click()
       await page.waitForTimeout(2000)
     }
 
     // Verify rating interface is visible
     const ratingElements = page.locator(
-      '[data-testid="rating-input"], [role="slider"], .rating-stars, svg[data-rating], button[aria-label*="star"], input[type="range"]'
+      '[data-testid="rating-input"], [role="slider"], .rating-stars, svg[data-rating], button[aria-label*="star"], input[type="range"]',
     )
 
     if ((await ratingElements.count()) > 0) {
@@ -62,7 +69,9 @@ test.describe('Rating Annotation', () => {
       // Project page loaded but no rating elements — verify page itself works
       const projectTitle = page.locator('h1, h2').first()
       await expect(projectTitle).toBeVisible()
-      console.log('Project page loaded, no rating elements visible (project may lack rating tasks)')
+      console.log(
+        'Project page loaded, no rating elements visible (project may lack rating tasks)',
+      )
     }
   })
 
@@ -77,7 +86,7 @@ test.describe('Rating Annotation', () => {
 
       // Check for tasks or data tab
       const dataTab = page.locator(
-        'a:has-text("Data"), button:has-text("Data"), a:has-text("Tasks")'
+        'a:has-text("Data"), button:has-text("Data"), a:has-text("Tasks")',
       )
       if (await dataTab.isVisible({ timeout: 3000 })) {
         await dataTab.click()
@@ -86,7 +95,7 @@ test.describe('Rating Annotation', () => {
 
       // Verify tasks are visible
       const taskRows = page.locator(
-        'table tbody tr, [data-testid="task-row"], .task-item'
+        'table tbody tr, [data-testid="task-row"], .task-item',
       )
       const taskCount = await taskRows.count()
       console.log(`Found ${taskCount} tasks in rating project`)

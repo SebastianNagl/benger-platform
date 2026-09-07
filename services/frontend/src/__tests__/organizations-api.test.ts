@@ -256,7 +256,7 @@ describe('OrganizationsClient', () => {
 
       const invitation = await client.createInvitation(
         'org-123',
-        invitationData
+        invitationData,
       )
 
       expect(invitation).toMatchObject({
@@ -275,7 +275,7 @@ describe('OrganizationsClient', () => {
   describe('getInvitationByToken', () => {
     it('should fetch invitation by token', async () => {
       const invitation = await client.getInvitationByToken(
-        'invitation-token-123'
+        'invitation-token-123',
       )
 
       expect(invitation).toMatchObject({
@@ -308,7 +308,7 @@ describe('OrganizationsClient', () => {
       const result = await client.updateMemberRole(
         'org-123',
         'user-123',
-        'org_contributor'
+        'org_contributor',
       )
 
       expect(result).toEqual({ message: 'Success' })

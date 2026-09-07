@@ -74,7 +74,7 @@ describe('ScoreCard', () => {
     it('inverts colors when higherIsBetter is false', () => {
       // Value 0.2 with higherIsBetter=false -> inverted score = 0.8 -> green
       const { container } = render(
-        <ScoreCard metric="error" value={0.2} higherIsBetter={false} />
+        <ScoreCard metric="error" value={0.2} higherIsBetter={false} />,
       )
       const card = container.firstChild as HTMLElement
       expect(card).toHaveClass('bg-green-50')
@@ -88,7 +88,7 @@ describe('ScoreCard', () => {
           value={80}
           valueRange={{ min: 0, max: 100 }}
           formatAs="raw"
-        />
+        />,
       )
       const card = container.firstChild as HTMLElement
       expect(card).toHaveClass('bg-green-50')
@@ -108,9 +108,7 @@ describe('ScoreCard', () => {
     })
 
     it('shows cluster count when provided', () => {
-      render(
-        <ScoreCard {...defaultProps} sampleSize={100} clusterCount={50} />
-      )
+      render(<ScoreCard {...defaultProps} sampleSize={100} clusterCount={50} />)
       expect(screen.getByText(/50 clusters/)).toBeInTheDocument()
     })
   })
@@ -121,7 +119,7 @@ describe('ScoreCard', () => {
         <ScoreCard
           {...defaultProps}
           confidenceInterval={{ lower: 0.8, upper: 0.9, level: 95 }}
-        />
+        />,
       )
       expect(screen.getByText(/95% CI/)).toBeInTheDocument()
       expect(screen.getByText(/0.800/)).toBeInTheDocument()
@@ -134,7 +132,7 @@ describe('ScoreCard', () => {
           {...defaultProps}
           compact
           confidenceInterval={{ lower: 0.8, upper: 0.9 }}
-        />
+        />,
       )
       expect(screen.getByText(/CI/)).toBeInTheDocument()
     })
@@ -145,7 +143,7 @@ describe('ScoreCard', () => {
           {...defaultProps}
           compact
           confidenceInterval={{ lower: 0.8, upper: 0.9 }}
-        />
+        />,
       )
       // In compact mode, no relative-positioned CI bar container
       const ciBarContainer = container.querySelector('.relative.h-2')
@@ -157,7 +155,7 @@ describe('ScoreCard', () => {
         <ScoreCard
           {...defaultProps}
           confidenceInterval={{ lower: 0.8, upper: 0.9 }}
-        />
+        />,
       )
       expect(screen.getByText(/95% CI/)).toBeInTheDocument()
     })
@@ -166,25 +164,19 @@ describe('ScoreCard', () => {
   describe('Tooltip', () => {
     it('shows info icon when description is provided', () => {
       render(
-        <ScoreCard {...defaultProps} description="A test metric description" />
+        <ScoreCard {...defaultProps} description="A test metric description" />,
       )
-      expect(
-        screen.getByLabelText('Info about Accuracy')
-      ).toBeInTheDocument()
+      expect(screen.getByLabelText('Info about Accuracy')).toBeInTheDocument()
     })
 
     it('does not show info icon when no description', () => {
       render(<ScoreCard {...defaultProps} />)
-      expect(
-        screen.queryByLabelText(/Info about/)
-      ).not.toBeInTheDocument()
+      expect(screen.queryByLabelText(/Info about/)).not.toBeInTheDocument()
     })
 
     it('shows tooltip on hover', async () => {
       const user = userEvent.setup()
-      render(
-        <ScoreCard {...defaultProps} description="Detailed metric info" />
-      )
+      render(<ScoreCard {...defaultProps} description="Detailed metric info" />)
 
       const infoButton = screen.getByLabelText('Info about Accuracy')
       await user.hover(infoButton)
@@ -195,17 +187,13 @@ describe('ScoreCard', () => {
 
   describe('Compact mode', () => {
     it('uses smaller text in compact mode', () => {
-      const { container } = render(
-        <ScoreCard {...defaultProps} compact />
-      )
+      const { container } = render(<ScoreCard {...defaultProps} compact />)
       const valueEl = container.querySelector('.text-2xl')
       expect(valueEl).toBeInTheDocument()
     })
 
     it('uses larger text in normal mode', () => {
-      const { container } = render(
-        <ScoreCard {...defaultProps} />
-      )
+      const { container } = render(<ScoreCard {...defaultProps} />)
       const valueEl = container.querySelector('.text-3xl')
       expect(valueEl).toBeInTheDocument()
     })
@@ -214,7 +202,7 @@ describe('ScoreCard', () => {
   describe('Custom className', () => {
     it('applies custom className to root element', () => {
       const { container } = render(
-        <ScoreCard {...defaultProps} className="my-custom-class" />
+        <ScoreCard {...defaultProps} className="my-custom-class" />,
       )
       expect(container.firstChild).toHaveClass('my-custom-class')
     })

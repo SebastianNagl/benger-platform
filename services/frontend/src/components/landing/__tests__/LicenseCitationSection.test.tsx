@@ -4,7 +4,10 @@ import { LicenseCitationSection } from '../LicenseCitationSection'
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
     t: (key: string) => {
-      const translations: Record<string, any> = require('../../../locales/en/common.json')
+      const translations: Record<
+        string,
+        any
+      > = require('../../../locales/en/common.json')
       const parts = key.split('.')
       let value: any = translations
       for (const part of parts) {
@@ -51,7 +54,9 @@ describe('LicenseCitationSection', () => {
   it('flags the benchmark paper as a preprint accepted at EMNLP 2026', () => {
     render(<LicenseCitationSection />)
     // The status is a line of the BibTeX body itself, not a separate label.
-    expect(screen.getByText(/note=\{Preprint, accepted at EMNLP 2026\}/)).toBeInTheDocument()
+    expect(
+      screen.getByText(/note=\{Preprint, accepted at EMNLP 2026\}/),
+    ).toBeInTheDocument()
   })
 
   it('renders citation cards from locale data', () => {

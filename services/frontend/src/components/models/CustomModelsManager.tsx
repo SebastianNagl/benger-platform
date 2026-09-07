@@ -86,7 +86,7 @@ export function CustomModelsManager({
           m.endpoint_model_name,
           m.created_by_username ?? '',
           m.description ?? '',
-        ].some((field) => field.toLowerCase().includes(q))
+        ].some((field) => field.toLowerCase().includes(q)),
       )
     : models
 
@@ -96,7 +96,7 @@ export function CustomModelsManager({
   const ownModels = visibleModels.filter((m) =>
     m.created_by != null && user
       ? String(m.created_by) === String(user.id)
-      : m.can_edit
+      : m.can_edit,
   )
   const sharedModels = visibleModels.filter((m) => !ownModels.includes(m))
 
@@ -153,7 +153,7 @@ export function CustomModelsManager({
             <h3 className="text-lg font-semibold text-zinc-900 dark:text-white">
               {t('customModels.page.myModels')}
             </h3>
-            <p className="mb-4 mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+            <p className="mt-1 mb-4 text-sm text-zinc-600 dark:text-zinc-400">
               {t('customModels.page.myModelsDescription')}
             </p>
             <CustomModelList
@@ -169,7 +169,7 @@ export function CustomModelsManager({
             <h3 className="text-lg font-semibold text-zinc-900 dark:text-white">
               {t('customModels.page.sharedModels')}
             </h3>
-            <p className="mb-4 mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+            <p className="mt-1 mb-4 text-sm text-zinc-600 dark:text-zinc-400">
               {t('customModels.page.sharedModelsDescription')}
             </p>
             <CustomModelList

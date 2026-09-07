@@ -81,10 +81,7 @@ export const templatesByFeature = {
   'question-answer': [qaTemplate, qarTemplate],
   'multiple-choice': [multipleChoiceTemplate],
   'text-generation': [generationTemplate],
-  'text-highlighting': [
-    textAnalysisTemplate,
-    multiModalAnalysisTemplate,
-  ],
+  'text-highlighting': [textAnalysisTemplate, multiModalAnalysisTemplate],
   'file-upload': [multiModalAnalysisTemplate],
   'rich-text': [multiModalAnalysisTemplate, generationTemplate],
   'real-time-collaboration': [collaborativeResearchTemplate],
@@ -110,7 +107,7 @@ export function getTemplatesByCategory(category: string): TaskTemplate[] {
  * Get templates that demonstrate a specific feature
  */
 export function getTemplatesByFeature(
-  feature: keyof typeof templatesByFeature
+  feature: keyof typeof templatesByFeature,
 ): TaskTemplate[] {
   return templatesByFeature[feature] || []
 }

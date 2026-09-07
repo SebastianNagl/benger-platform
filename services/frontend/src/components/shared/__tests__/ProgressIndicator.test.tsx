@@ -34,7 +34,7 @@ describe('ProgressIndicator', () => {
         'w-full',
         'dark:bg-zinc-700',
         'rounded-full',
-        'overflow-hidden'
+        'overflow-hidden',
       )
     })
 
@@ -59,7 +59,7 @@ describe('ProgressIndicator', () => {
           const progressBar = container.querySelector('.bg-emerald-500')
           expect(progressBar).toHaveStyle('width: 100%')
         },
-        { timeout: 200 }
+        { timeout: 200 },
       )
     })
 
@@ -103,7 +103,7 @@ describe('ProgressIndicator', () => {
           progress={50}
           label="Uploading files"
           sublabel="3 of 10 files uploaded"
-        />
+        />,
       )
 
       expect(screen.getByText('Uploading files')).toBeInTheDocument()
@@ -128,7 +128,7 @@ describe('ProgressIndicator', () => {
   describe('size variants', () => {
     it('applies small size classes', () => {
       const { container } = render(
-        <ProgressIndicator progress={50} size="sm" />
+        <ProgressIndicator progress={50} size="sm" />,
       )
 
       const progressContainer = container.querySelector('.h-1')
@@ -144,7 +144,7 @@ describe('ProgressIndicator', () => {
 
     it('applies large size classes', () => {
       const { container } = render(
-        <ProgressIndicator progress={50} size="lg" />
+        <ProgressIndicator progress={50} size="lg" />,
       )
 
       const progressContainer = container.querySelector('.h-3')
@@ -153,7 +153,7 @@ describe('ProgressIndicator', () => {
 
     it('applies correct text size for small variant', () => {
       render(
-        <ProgressIndicator progress={50} size="sm" label="Small progress" />
+        <ProgressIndicator progress={50} size="sm" label="Small progress" />,
       )
 
       const label = screen.getByText('Small progress')
@@ -162,7 +162,7 @@ describe('ProgressIndicator', () => {
 
     it('applies correct text size for large variant', () => {
       render(
-        <ProgressIndicator progress={50} size="lg" label="Large progress" />
+        <ProgressIndicator progress={50} size="lg" label="Large progress" />,
       )
 
       const label = screen.getByText('Large progress')
@@ -180,7 +180,7 @@ describe('ProgressIndicator', () => {
 
     it('applies success status color', () => {
       const { container } = render(
-        <ProgressIndicator progress={100} status="success" />
+        <ProgressIndicator progress={100} status="success" />,
       )
 
       const progressBar = container.querySelector('.bg-green-500')
@@ -189,7 +189,7 @@ describe('ProgressIndicator', () => {
 
     it('applies error status color', () => {
       const { container } = render(
-        <ProgressIndicator progress={50} status="error" />
+        <ProgressIndicator progress={50} status="error" />,
       )
 
       const progressBar = container.querySelector('.bg-red-500')
@@ -198,7 +198,7 @@ describe('ProgressIndicator', () => {
 
     it('applies idle status color', () => {
       const { container } = render(
-        <ProgressIndicator progress={0} status="idle" />
+        <ProgressIndicator progress={0} status="idle" />,
       )
 
       const progressBar = container.querySelector('.bg-zinc-400')
@@ -228,7 +228,7 @@ describe('ProgressIndicator', () => {
   describe('indeterminate mode', () => {
     it('enables indeterminate animation when specified', () => {
       const { container } = render(
-        <ProgressIndicator progress={50} indeterminate />
+        <ProgressIndicator progress={50} indeterminate />,
       )
 
       const progressBar = container.querySelector('.animate-indeterminate')
@@ -248,7 +248,7 @@ describe('ProgressIndicator', () => {
           indeterminate
           label="Processing..."
           sublabel="Please wait"
-        />
+        />,
       )
 
       expect(screen.getByText('Processing...')).toBeInTheDocument()
@@ -257,7 +257,7 @@ describe('ProgressIndicator', () => {
 
     it('applies correct animation classes', () => {
       const { container } = render(
-        <ProgressIndicator progress={50} indeterminate />
+        <ProgressIndicator progress={50} indeterminate />,
       )
 
       const animatedBar = container.querySelector('.animate-indeterminate')
@@ -268,7 +268,7 @@ describe('ProgressIndicator', () => {
   describe('custom styling', () => {
     it('applies custom className', () => {
       const { container } = render(
-        <ProgressIndicator progress={50} className="custom-progress" />
+        <ProgressIndicator progress={50} className="custom-progress" />,
       )
 
       const wrapper = container.querySelector('.custom-progress')
@@ -277,7 +277,7 @@ describe('ProgressIndicator', () => {
 
     it('combines custom className with default classes', () => {
       const { container } = render(
-        <ProgressIndicator progress={50} className="my-4" />
+        <ProgressIndicator progress={50} className="my-4" />,
       )
 
       const wrapper = container.querySelector('.my-4.space-y-2')
@@ -334,7 +334,7 @@ describe('ProgressIndicator', () => {
           progress={60}
           label="Processing documents"
           sublabel="5 of 8 complete"
-        />
+        />,
       )
 
       expect(screen.getByText('Processing documents')).toBeInTheDocument()
@@ -352,11 +352,11 @@ describe('ProgressIndicator', () => {
           progress={50}
           label="Main label"
           sublabel="Sub label"
-        />
+        />,
       )
 
       const flexContainer = container.querySelector(
-        '.flex.items-center.justify-between'
+        '.flex.items-center.justify-between',
       )
       expect(flexContainer).toBeInTheDocument()
     })
@@ -367,7 +367,7 @@ describe('ProgressIndicator', () => {
           progress={50}
           label="Main label"
           sublabel="Sub label"
-        />
+        />,
       )
 
       // Labels should be in same container but sublabel should come after label
@@ -379,7 +379,7 @@ describe('ProgressIndicator', () => {
 
     it('positions percentage and status icons together', () => {
       const { container } = render(
-        <ProgressIndicator progress={100} status="success" />
+        <ProgressIndicator progress={100} status="success" />,
       )
 
       const rightSection = container.querySelector('.flex.items-center.gap-2')

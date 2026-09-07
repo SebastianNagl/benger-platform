@@ -31,8 +31,9 @@ function formatErrorDetail(detail: unknown): string | null {
     return parts.length ? parts.join('; ') : null
   }
   if (detail && typeof detail === 'object') {
-    const m = (detail as { msg?: string; message?: string }).msg
-      || (detail as { msg?: string; message?: string }).message
+    const m =
+      (detail as { msg?: string; message?: string }).msg ||
+      (detail as { msg?: string; message?: string }).message
     return m || JSON.stringify(detail)
   }
   return null
@@ -43,7 +44,10 @@ function getApiBaseUrl(): string {
   // Server-side (SSR) - use direct API container URL
   if (typeof window === 'undefined') {
     // Use environment variable if available (for E2E tests), otherwise default
-    const apiBaseUrl = process.env.INTERNAL_API_URL || process.env.API_BASE_URL || 'http://api:8000'
+    const apiBaseUrl =
+      process.env.INTERNAL_API_URL ||
+      process.env.API_BASE_URL ||
+      'http://api:8000'
     return `${apiBaseUrl}/api`
   }
 
@@ -97,7 +101,7 @@ export class BaseApiClient {
     })
     keysToDelete.forEach((key) => this.responseCache.delete(key))
     logger.debug(
-      `Cleared cache for user ${userId}: ${keysToDelete.length} entries removed`
+      `Cleared cache for user ${userId}: ${keysToDelete.length} entries removed`,
     )
   }
 
@@ -132,7 +136,7 @@ export class BaseApiClient {
 
     keysToDelete.forEach((key) => this.responseCache.delete(key))
     logger.debug(
-      `Invalidated cache for pattern ${pattern}: ${keysToDelete.length} entries removed`
+      `Invalidated cache for pattern ${pattern}: ${keysToDelete.length} entries removed`,
     )
   }
 
@@ -232,7 +236,7 @@ export class BaseApiClient {
    */
   private validateCacheEntry(
     entry: CacheEntry,
-    currentUserId: string | null
+    currentUserId: string | null,
   ): boolean {
     // If entry has no user ID (old cache), invalidate it for safety
     if (entry.userId === undefined) {
@@ -243,7 +247,7 @@ export class BaseApiClient {
     // Check if the cache entry belongs to the current user
     if (entry.userId !== currentUserId) {
       logger.warn(
-        `Cache entry user mismatch: expected ${currentUserId}, got ${entry.userId} - clearing entire cache`
+        `Cache entry user mismatch: expected ${currentUserId}, got ${entry.userId} - clearing entire cache`,
       )
       // Clear entire cache on user mismatch to prevent any pollution
       this.clearCache()
@@ -319,7 +323,7 @@ export class BaseApiClient {
    */
   protected async authCheckRequest(
     endpoint: string,
-    options: RequestInit = {}
+    options: RequestInit = {},
   ): Promise<any> {
     const url = `${getApiBaseUrl()}${endpoint}`
     const isFormData = options.body instanceof FormData
@@ -378,7 +382,7 @@ export class BaseApiClient {
         if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
           this.invalidateRelatedCache(endpoint)
           logger.debug(
-            `Cache invalidated after ${method} to ${endpoint} (204 response)`
+            `Cache invalidated after ${method} to ${endpoint} (204 response)`,
           )
         }
         return undefined
@@ -445,7 +449,7 @@ export class BaseApiClient {
     endpoint: string,
     options: RequestInit = {},
     isRetry: boolean = false,
-    retryCount: number = 0
+    retryCount: number = 0,
   ): Promise<any> {
     const apiBaseUrl = getApiBaseUrl()
     const url = `${apiBaseUrl}${endpoint}`
@@ -465,7 +469,7 @@ export class BaseApiClient {
     // Detect user change and clear cache if needed
     if (this.lastKnownUserId !== null && this.lastKnownUserId !== userId) {
       logger.warn(
-        `User changed from ${this.lastKnownUserId} to ${userId} - clearing cache`
+        `User changed from ${this.lastKnownUserId} to ${userId} - clearing cache`,
       )
       this.clearCache()
     }
@@ -484,7 +488,7 @@ export class BaseApiClient {
         } else {
           // Cache entry is invalid or belongs to different user, remove it
           logger.debug(
-            `Cache invalidated for ${cacheKey}, removing stale entry`
+            `Cache invalidated for ${cacheKey}, removing stale entry`,
           )
           this.responseCache.delete(cacheKey)
         }
@@ -602,7 +606,7 @@ export class BaseApiClient {
         ]
 
         const shouldSkipAuthFailure = skipAuthFailureEndpoints.some((path) =>
-          endpoint.includes(path)
+          endpoint.includes(path),
         )
 
         if (response.status === 401 && !isRetry && !shouldSkipAuthFailure) {
@@ -645,7 +649,7 @@ export class BaseApiClient {
         if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
           this.invalidateRelatedCache(endpoint)
           logger.debug(
-            `Cache invalidated after ${method} to ${endpoint} (204 response)`
+            `Cache invalidated after ${method} to ${endpoint} (204 response)`,
           )
         }
         return undefined
@@ -671,7 +675,7 @@ export class BaseApiClient {
       ) {
         const blob = await response.blob()
         logger.debug(
-          `Returning blob response with content-type: ${contentType}, content-disposition: ${contentDisposition}`
+          `Returning blob response with content-type: ${contentType}, content-disposition: ${contentDisposition}`,
         )
         return blob
       }
@@ -698,12 +702,15 @@ export class BaseApiClient {
               userId: currentUserId,
             })
             logger.debug(
-              `Cached JSON response for ${cacheKey} (user: ${currentUserId})`
+              `Cached JSON response for ${cacheKey} (user: ${currentUserId})`,
             )
           }
 
           // Invalidate related cache after successful mutations
-          if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method) && response.ok) {
+          if (
+            ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method) &&
+            response.ok
+          ) {
             this.invalidateRelatedCache(endpoint)
             logger.debug(`Cache invalidated after ${method} to ${endpoint}`)
           }
@@ -783,7 +790,7 @@ export class BaseApiClient {
    */
   async requestRaw(
     endpoint: string,
-    options: RequestInit = {}
+    options: RequestInit = {},
   ): Promise<Response> {
     const url = `${getApiBaseUrl()}${endpoint}`
     const isFormData = options.body instanceof FormData
@@ -858,7 +865,7 @@ export class BaseApiClient {
   async post(
     endpoint: string,
     data?: any,
-    options: RequestInit = {}
+    options: RequestInit = {},
   ): Promise<any> {
     // Handle FormData specially - don't JSON.stringify it
     let body: any
@@ -880,7 +887,7 @@ export class BaseApiClient {
   async put(
     endpoint: string,
     data?: any,
-    options: RequestInit = {}
+    options: RequestInit = {},
   ): Promise<any> {
     return this.request(endpoint, {
       ...options,
@@ -892,7 +899,7 @@ export class BaseApiClient {
   async patch(
     endpoint: string,
     data?: any,
-    options: RequestInit = {}
+    options: RequestInit = {},
   ): Promise<any> {
     return this.request(endpoint, {
       ...options,

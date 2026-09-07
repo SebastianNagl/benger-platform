@@ -184,7 +184,7 @@ describe('Header', () => {
         'h-14',
         'items-center',
         'gap-2',
-        'transition'
+        'transition',
       )
     })
 
@@ -200,7 +200,7 @@ describe('Header', () => {
       expect(header).toHaveClass(
         'border-b',
         'border-zinc-900/10',
-        'dark:border-white/10'
+        'dark:border-white/10',
       )
     })
   })
@@ -301,7 +301,7 @@ describe('Header', () => {
             'language-switcher',
             'theme-toggle',
             'notification-bell',
-          ].includes(id || '')
+          ].includes(id || ''),
         )
 
       expect(testIds).toEqual([
@@ -317,7 +317,7 @@ describe('Header', () => {
     it('desktop elements have correct visibility classes', () => {
       const { container } = render(<Header />)
       const desktopContainer = container.querySelector(
-        '.hidden.items-center.gap-3'
+        '.hidden.items-center.gap-3',
       )
       expect(desktopContainer).toHaveClass('lg:flex')
     })
@@ -325,7 +325,7 @@ describe('Header', () => {
     it('mobile elements have correct visibility classes', () => {
       const { container } = render(<Header />)
       const mobileContainer = container.querySelector(
-        '.flex.items-center.gap-5.lg\\:hidden'
+        '.flex.items-center.gap-5.lg\\:hidden',
       )
       expect(mobileContainer).toBeInTheDocument()
     })
@@ -351,7 +351,7 @@ describe('Header', () => {
     it('auth button hidden on small screens', () => {
       const { container } = render(<Header />)
       const authContainer = container.querySelector(
-        '.hidden.min-\\[416px\\]\\:contents'
+        '.hidden.min-\\[416px\\]\\:contents',
       )
       expect(authContainer).toBeInTheDocument()
     })
@@ -378,7 +378,7 @@ describe('Header', () => {
 
     it('forwards motion.div props', () => {
       const { container } = render(
-        <Header data-testid="custom-header" id="header-id" />
+        <Header data-testid="custom-header" id="header-id" />,
       )
       const header = container.firstChild as HTMLElement
       expect(header).toHaveAttribute('data-testid', 'custom-header')
@@ -387,7 +387,7 @@ describe('Header', () => {
 
     it('applies custom styles', () => {
       const { container } = render(
-        <Header style={{ backgroundColor: 'red' }} />
+        <Header style={{ backgroundColor: 'red' }} />,
       )
       const header = container.firstChild as HTMLElement
       expect(header).toHaveAttribute('style')
@@ -502,7 +502,7 @@ describe('Header', () => {
 
       const { rerender } = render(<Header />)
       expect(
-        screen.getByRole('button', { name: 'Hide sidebar' })
+        screen.getByRole('button', { name: 'Hide sidebar' }),
       ).toBeInTheDocument()
 
       mockUseUIStore.mockReturnValue({
@@ -512,7 +512,7 @@ describe('Header', () => {
 
       rerender(<Header />)
       expect(
-        screen.getByRole('button', { name: 'Show sidebar' })
+        screen.getByRole('button', { name: 'Show sidebar' }),
       ).toBeInTheDocument()
     })
 
@@ -527,7 +527,7 @@ describe('Header', () => {
         'justify-center',
         'rounded-md',
         'text-zinc-600',
-        'transition-colors'
+        'transition-colors',
       )
     })
 
@@ -539,7 +539,7 @@ describe('Header', () => {
         'hover:text-zinc-900',
         'dark:text-zinc-400',
         'dark:hover:bg-zinc-800',
-        'dark:hover:text-white'
+        'dark:hover:text-white',
       )
     })
   })
@@ -548,7 +548,7 @@ describe('Header', () => {
     it('desktop section contains logo, hamburger, and search', () => {
       const { container } = render(<Header />)
       const desktopSection = container.querySelector(
-        '.hidden.items-center.gap-3.lg\\:flex'
+        '.hidden.items-center.gap-3.lg\\:flex',
       )
       expect(desktopSection).toBeInTheDocument()
     })
@@ -572,7 +572,7 @@ describe('Header', () => {
     it('desktop search has correct container classes', () => {
       const { container } = render(<Header />)
       const searchContainer = container.querySelector(
-        '.hidden.flex-1.lg\\:ml-16.lg\\:block'
+        '.hidden.flex-1.lg\\:ml-16.lg\\:block',
       )
       expect(searchContainer).toBeInTheDocument()
     })
@@ -586,7 +586,7 @@ describe('Header', () => {
     it('right section has proper margin and gap classes', () => {
       const { container } = render(<Header />)
       const rightSection = container.querySelector(
-        '.ml-auto.flex.items-center.gap-5'
+        '.ml-auto.flex.items-center.gap-5',
       )
       expect(rightSection).toHaveClass('lg:ml-0')
     })
@@ -616,7 +616,7 @@ describe('Header', () => {
       const hamburger = screen.getByRole('button', { name: /sidebar/i })
       expect(hamburger).toHaveClass(
         'dark:hover:bg-zinc-800',
-        'dark:hover:text-white'
+        'dark:hover:text-white',
       )
     })
   })

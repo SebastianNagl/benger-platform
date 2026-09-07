@@ -93,7 +93,7 @@ describe('SimpleFeatureFlags', () => {
       render(
         <SimpleFeatureFlagProvider>
           <div data-testid="child">Child Component</div>
-        </SimpleFeatureFlagProvider>
+        </SimpleFeatureFlagProvider>,
       )
 
       expect(screen.getByTestId('child')).toBeInTheDocument()
@@ -105,7 +105,7 @@ describe('SimpleFeatureFlags', () => {
       const { container } = render(
         <SimpleFeatureFlagProvider>
           <TestComponent />
-        </SimpleFeatureFlagProvider>
+        </SimpleFeatureFlagProvider>,
       )
 
       expect(container).toBeInTheDocument()
@@ -118,7 +118,7 @@ describe('SimpleFeatureFlags', () => {
         <SimpleFeatureFlagProvider>
           <div data-testid="first-child">First</div>
           <div data-testid="second-child">Second</div>
-        </SimpleFeatureFlagProvider>
+        </SimpleFeatureFlagProvider>,
       )
 
       expect(screen.getByTestId('first-child')).toBeInTheDocument()
@@ -135,7 +135,7 @@ describe('SimpleFeatureFlags', () => {
             <TestComponent />
             <p>Footer</p>
           </div>
-        </SimpleFeatureFlagProvider>
+        </SimpleFeatureFlagProvider>,
       )
 
       expect(screen.getByText('Title')).toBeInTheDocument()
@@ -151,7 +151,7 @@ describe('SimpleFeatureFlags', () => {
       render(
         <SimpleFeatureFlagProvider>
           <TestComponent />
-        </SimpleFeatureFlagProvider>
+        </SimpleFeatureFlagProvider>,
       )
 
       expect(screen.getByTestId('flags-count')).toHaveTextContent('Flags: 4')
@@ -163,11 +163,11 @@ describe('SimpleFeatureFlags', () => {
       render(
         <SimpleFeatureFlagProvider>
           <TestComponent />
-        </SimpleFeatureFlagProvider>
+        </SimpleFeatureFlagProvider>,
       )
 
       expect(screen.getByTestId('new-ui-flag')).toHaveTextContent(
-        'new_ui: enabled'
+        'new_ui: enabled',
       )
     })
 
@@ -177,11 +177,11 @@ describe('SimpleFeatureFlags', () => {
       render(
         <SimpleFeatureFlagProvider>
           <TestComponent />
-        </SimpleFeatureFlagProvider>
+        </SimpleFeatureFlagProvider>,
       )
 
       expect(screen.getByTestId('beta-features-flag')).toHaveTextContent(
-        'beta_features: disabled'
+        'beta_features: disabled',
       )
     })
 
@@ -191,11 +191,11 @@ describe('SimpleFeatureFlags', () => {
       render(
         <SimpleFeatureFlagProvider>
           <TestComponent />
-        </SimpleFeatureFlagProvider>
+        </SimpleFeatureFlagProvider>,
       )
 
       expect(
-        screen.getByTestId('experimental-features-flag')
+        screen.getByTestId('experimental-features-flag'),
       ).toHaveTextContent('experimental_features: disabled')
     })
 
@@ -205,11 +205,11 @@ describe('SimpleFeatureFlags', () => {
       render(
         <SimpleFeatureFlagProvider>
           <TestComponent />
-        </SimpleFeatureFlagProvider>
+        </SimpleFeatureFlagProvider>,
       )
 
       expect(screen.getByTestId('unknown-flag')).toHaveTextContent(
-        'unknown_flag: disabled'
+        'unknown_flag: disabled',
       )
     })
 
@@ -226,7 +226,7 @@ describe('SimpleFeatureFlags', () => {
       render(
         <SimpleFeatureFlagProvider>
           <ContextConsumer />
-        </SimpleFeatureFlagProvider>
+        </SimpleFeatureFlagProvider>,
       )
 
       expect(contextValue.isEnabled('new_ui')).toBe(true)
@@ -258,7 +258,7 @@ describe('SimpleFeatureFlags', () => {
       render(
         <SimpleFeatureFlagProvider>
           <ConditionalContent />
-        </SimpleFeatureFlagProvider>
+        </SimpleFeatureFlagProvider>,
       )
 
       expect(screen.getByTestId('new-ui-content')).toBeInTheDocument()
@@ -286,12 +286,12 @@ describe('SimpleFeatureFlags', () => {
       render(
         <SimpleFeatureFlagProvider>
           <ConditionalContent />
-        </SimpleFeatureFlagProvider>
+        </SimpleFeatureFlagProvider>,
       )
 
       expect(screen.queryByTestId('beta-content')).not.toBeInTheDocument()
       expect(
-        screen.queryByTestId('experimental-content')
+        screen.queryByTestId('experimental-content'),
       ).not.toBeInTheDocument()
       expect(screen.getByTestId('always-visible')).toBeInTheDocument()
     })
@@ -311,7 +311,7 @@ describe('SimpleFeatureFlags', () => {
       render(
         <SimpleFeatureFlagProvider>
           <FeatureComponent />
-        </SimpleFeatureFlagProvider>
+        </SimpleFeatureFlagProvider>,
       )
 
       expect(screen.getByTestId('feature-component')).toBeInTheDocument()
@@ -336,7 +336,7 @@ describe('SimpleFeatureFlags', () => {
       render(
         <SimpleFeatureFlagProvider>
           <StyledFeature />
-        </SimpleFeatureFlagProvider>
+        </SimpleFeatureFlagProvider>,
       )
 
       const button = screen.getByTestId('styled-button')
@@ -361,7 +361,7 @@ describe('SimpleFeatureFlags', () => {
       render(
         <SimpleFeatureFlagProvider>
           <FallbackExample />
-        </SimpleFeatureFlagProvider>
+        </SimpleFeatureFlagProvider>,
       )
 
       expect(screen.getByTestId('fallback-content')).toBeInTheDocument()
@@ -383,7 +383,7 @@ describe('SimpleFeatureFlags', () => {
       render(
         <SimpleFeatureFlagProvider>
           <FallbackExample />
-        </SimpleFeatureFlagProvider>
+        </SimpleFeatureFlagProvider>,
       )
 
       expect(screen.getByTestId('main-content')).toBeInTheDocument()
@@ -408,14 +408,14 @@ describe('SimpleFeatureFlags', () => {
       render(
         <SimpleFeatureFlagProvider>
           <ComplexFallback />
-        </SimpleFeatureFlagProvider>
+        </SimpleFeatureFlagProvider>,
       )
 
       expect(screen.getByTestId('fallback-title')).toHaveTextContent(
-        'Feature Unavailable'
+        'Feature Unavailable',
       )
       expect(screen.getByTestId('fallback-message')).toHaveTextContent(
-        'Coming Soon'
+        'Coming Soon',
       )
     })
 
@@ -430,7 +430,7 @@ describe('SimpleFeatureFlags', () => {
       const { container } = render(
         <SimpleFeatureFlagProvider>
           <NullFallback />
-        </SimpleFeatureFlagProvider>
+        </SimpleFeatureFlagProvider>,
       )
 
       expect(screen.queryByTestId('content')).not.toBeInTheDocument()
@@ -453,7 +453,7 @@ describe('SimpleFeatureFlags', () => {
       render(
         <SimpleFeatureFlagProvider>
           <FlagsConsumer />
-        </SimpleFeatureFlagProvider>
+        </SimpleFeatureFlagProvider>,
       )
 
       expect(flagsObject).toHaveProperty('new_ui', true)
@@ -468,11 +468,11 @@ describe('SimpleFeatureFlags', () => {
       render(
         <SimpleFeatureFlagProvider>
           <TestComponent />
-        </SimpleFeatureFlagProvider>
+        </SimpleFeatureFlagProvider>,
       )
 
       expect(screen.getByTestId('loading-status')).toHaveTextContent(
-        'Not Loading'
+        'Not Loading',
       )
     })
 
@@ -490,7 +490,7 @@ describe('SimpleFeatureFlags', () => {
       render(
         <SimpleFeatureFlagProvider>
           <FunctionConsumer />
-        </SimpleFeatureFlagProvider>
+        </SimpleFeatureFlagProvider>,
       )
 
       expect(typeof isEnabledFn).toBe('function')
@@ -512,7 +512,7 @@ describe('SimpleFeatureFlags', () => {
       render(
         <SimpleFeatureFlagProvider>
           <FunctionConsumer />
-        </SimpleFeatureFlagProvider>
+        </SimpleFeatureFlagProvider>,
       )
 
       expect(typeof toggleFlagFn).toBe('function')
@@ -526,11 +526,11 @@ describe('SimpleFeatureFlags', () => {
       render(
         <SimpleFeatureFlagProvider>
           <TestComponent />
-        </SimpleFeatureFlagProvider>
+        </SimpleFeatureFlagProvider>,
       )
 
       expect(screen.getByTestId('advanced-analytics-flag')).toHaveTextContent(
-        'advanced_analytics: enabled'
+        'advanced_analytics: enabled',
       )
     })
 
@@ -540,11 +540,11 @@ describe('SimpleFeatureFlags', () => {
       render(
         <SimpleFeatureFlagProvider>
           <TestComponent />
-        </SimpleFeatureFlagProvider>
+        </SimpleFeatureFlagProvider>,
       )
 
       expect(screen.getByTestId('advanced-analytics-flag')).toHaveTextContent(
-        'advanced_analytics: disabled'
+        'advanced_analytics: disabled',
       )
     })
 
@@ -554,11 +554,11 @@ describe('SimpleFeatureFlags', () => {
       render(
         <SimpleFeatureFlagProvider>
           <TestComponent />
-        </SimpleFeatureFlagProvider>
+        </SimpleFeatureFlagProvider>,
       )
 
       expect(screen.getByTestId('advanced-analytics-flag')).toHaveTextContent(
-        'advanced_analytics: disabled'
+        'advanced_analytics: disabled',
       )
     })
 
@@ -568,11 +568,11 @@ describe('SimpleFeatureFlags', () => {
       const { rerender } = render(
         <SimpleFeatureFlagProvider>
           <TestComponent />
-        </SimpleFeatureFlagProvider>
+        </SimpleFeatureFlagProvider>,
       )
 
       expect(screen.getByTestId('advanced-analytics-flag')).toHaveTextContent(
-        'advanced_analytics: disabled'
+        'advanced_analytics: disabled',
       )
 
       mockUseAuth.mockReturnValue({ user: { role: 'admin' } })
@@ -580,12 +580,12 @@ describe('SimpleFeatureFlags', () => {
       rerender(
         <SimpleFeatureFlagProvider>
           <TestComponent />
-        </SimpleFeatureFlagProvider>
+        </SimpleFeatureFlagProvider>,
       )
 
       waitFor(() => {
         expect(screen.getByTestId('advanced-analytics-flag')).toHaveTextContent(
-          'advanced_analytics: enabled'
+          'advanced_analytics: enabled',
         )
       })
     })
@@ -596,11 +596,11 @@ describe('SimpleFeatureFlags', () => {
       const { rerender } = render(
         <SimpleFeatureFlagProvider>
           <TestComponent />
-        </SimpleFeatureFlagProvider>
+        </SimpleFeatureFlagProvider>,
       )
 
       expect(screen.getByTestId('advanced-analytics-flag')).toHaveTextContent(
-        'advanced_analytics: disabled'
+        'advanced_analytics: disabled',
       )
 
       mockUseAuth.mockReturnValue({ user: { role: 'admin' } })
@@ -608,7 +608,7 @@ describe('SimpleFeatureFlags', () => {
       rerender(
         <SimpleFeatureFlagProvider>
           <TestComponent />
-        </SimpleFeatureFlagProvider>
+        </SimpleFeatureFlagProvider>,
       )
 
       mockUseAuth.mockReturnValue({ user: { role: 'user' } })
@@ -616,7 +616,7 @@ describe('SimpleFeatureFlags', () => {
       rerender(
         <SimpleFeatureFlagProvider>
           <TestComponent />
-        </SimpleFeatureFlagProvider>
+        </SimpleFeatureFlagProvider>,
       )
 
       mockUseAuth.mockReturnValue({ user: { role: 'admin' } })
@@ -624,7 +624,7 @@ describe('SimpleFeatureFlags', () => {
       rerender(
         <SimpleFeatureFlagProvider>
           <TestComponent />
-        </SimpleFeatureFlagProvider>
+        </SimpleFeatureFlagProvider>,
       )
     })
   })
@@ -648,14 +648,14 @@ describe('SimpleFeatureFlags', () => {
       render(
         <SimpleFeatureFlagProvider>
           <AccessibleComponent />
-        </SimpleFeatureFlagProvider>
+        </SimpleFeatureFlagProvider>,
       )
 
       expect(
-        screen.getByRole('heading', { name: 'Dashboard' })
+        screen.getByRole('heading', { name: 'Dashboard' }),
       ).toBeInTheDocument()
       expect(
-        screen.getByRole('button', { name: 'New Feature' })
+        screen.getByRole('button', { name: 'New Feature' }),
       ).toBeInTheDocument()
     })
 
@@ -678,7 +678,7 @@ describe('SimpleFeatureFlags', () => {
       render(
         <SimpleFeatureFlagProvider>
           <AriaComponent />
-        </SimpleFeatureFlagProvider>
+        </SimpleFeatureFlagProvider>,
       )
 
       const region = screen.getByTestId('feature-region')
@@ -703,7 +703,7 @@ describe('SimpleFeatureFlags', () => {
       render(
         <SimpleFeatureFlagProvider>
           <FocusComponent />
-        </SimpleFeatureFlagProvider>
+        </SimpleFeatureFlagProvider>,
       )
 
       const primaryButton = screen.getByTestId('primary-button')
@@ -735,7 +735,7 @@ describe('SimpleFeatureFlags', () => {
       render(
         <SimpleFeatureFlagProvider>
           <SemanticComponent />
-        </SimpleFeatureFlagProvider>
+        </SimpleFeatureFlagProvider>,
       )
 
       expect(screen.getByRole('main')).toBeInTheDocument()
@@ -751,7 +751,7 @@ describe('SimpleFeatureFlags', () => {
       render(
         <SimpleFeatureFlagProvider>
           <FeatureFlagHookComponent flagName="" />
-        </SimpleFeatureFlagProvider>
+        </SimpleFeatureFlagProvider>,
       )
 
       expect(screen.getByTestId('hook-result')).toHaveTextContent('disabled')
@@ -763,7 +763,7 @@ describe('SimpleFeatureFlags', () => {
       render(
         <SimpleFeatureFlagProvider>
           <FeatureFlagHookComponent flagName="feature-with-dashes_and_underscores" />
-        </SimpleFeatureFlagProvider>
+        </SimpleFeatureFlagProvider>,
       )
 
       expect(screen.getByTestId('hook-result')).toHaveTextContent('disabled')
@@ -794,7 +794,7 @@ describe('SimpleFeatureFlags', () => {
       render(
         <SimpleFeatureFlagProvider>
           <ToggleUnknownComponent />
-        </SimpleFeatureFlagProvider>
+        </SimpleFeatureFlagProvider>,
       )
 
       expect(screen.getByTestId('unknown-status')).toHaveTextContent('disabled')
@@ -804,7 +804,7 @@ describe('SimpleFeatureFlags', () => {
 
       await waitFor(() => {
         expect(screen.getByTestId('unknown-status')).toHaveTextContent(
-          'enabled'
+          'enabled',
         )
       })
     })
@@ -816,33 +816,33 @@ describe('SimpleFeatureFlags', () => {
       render(
         <SimpleFeatureFlagProvider>
           <TestComponent />
-        </SimpleFeatureFlagProvider>
+        </SimpleFeatureFlagProvider>,
       )
 
       const toggleBtn = screen.getByTestId('toggle-new-ui-btn')
 
       expect(screen.getByTestId('new-ui-flag')).toHaveTextContent(
-        'new_ui: enabled'
+        'new_ui: enabled',
       )
 
       await user.click(toggleBtn)
       await waitFor(() => {
         expect(screen.getByTestId('new-ui-flag')).toHaveTextContent(
-          'new_ui: disabled'
+          'new_ui: disabled',
         )
       })
 
       await user.click(toggleBtn)
       await waitFor(() => {
         expect(screen.getByTestId('new-ui-flag')).toHaveTextContent(
-          'new_ui: enabled'
+          'new_ui: enabled',
         )
       })
 
       await user.click(toggleBtn)
       await waitFor(() => {
         expect(screen.getByTestId('new-ui-flag')).toHaveTextContent(
-          'new_ui: disabled'
+          'new_ui: disabled',
         )
       })
     })
@@ -851,7 +851,7 @@ describe('SimpleFeatureFlags', () => {
       mockUseAuth.mockReturnValue({ user: null })
 
       const { container } = render(
-        <SimpleFeatureFlagProvider>{null}</SimpleFeatureFlagProvider>
+        <SimpleFeatureFlagProvider>{null}</SimpleFeatureFlagProvider>,
       )
 
       expect(container.textContent).toBe('')
@@ -863,11 +863,11 @@ describe('SimpleFeatureFlags', () => {
       render(
         <SimpleFeatureFlagProvider>
           <TestComponent />
-        </SimpleFeatureFlagProvider>
+        </SimpleFeatureFlagProvider>,
       )
 
       expect(screen.getByTestId('advanced-analytics-flag')).toHaveTextContent(
-        'advanced_analytics: disabled'
+        'advanced_analytics: disabled',
       )
     })
 
@@ -877,11 +877,11 @@ describe('SimpleFeatureFlags', () => {
       render(
         <SimpleFeatureFlagProvider>
           <TestComponent />
-        </SimpleFeatureFlagProvider>
+        </SimpleFeatureFlagProvider>,
       )
 
       expect(screen.getByTestId('advanced-analytics-flag')).toHaveTextContent(
-        'advanced_analytics: disabled'
+        'advanced_analytics: disabled',
       )
     })
 
@@ -892,37 +892,37 @@ describe('SimpleFeatureFlags', () => {
       render(
         <SimpleFeatureFlagProvider>
           <TestComponent />
-        </SimpleFeatureFlagProvider>
+        </SimpleFeatureFlagProvider>,
       )
 
       const toggleBetaBtn = screen.getByTestId('toggle-beta-btn')
       const toggleExperimentalBtn = screen.getByTestId(
-        'toggle-experimental-btn'
+        'toggle-experimental-btn',
       )
 
       expect(screen.getByTestId('beta-features-flag')).toHaveTextContent(
-        'beta_features: disabled'
+        'beta_features: disabled',
       )
       expect(
-        screen.getByTestId('experimental-features-flag')
+        screen.getByTestId('experimental-features-flag'),
       ).toHaveTextContent('experimental_features: disabled')
 
       await user.click(toggleBetaBtn)
       await waitFor(() => {
         expect(screen.getByTestId('beta-features-flag')).toHaveTextContent(
-          'beta_features: enabled'
+          'beta_features: enabled',
         )
       })
 
       await user.click(toggleExperimentalBtn)
       await waitFor(() => {
         expect(
-          screen.getByTestId('experimental-features-flag')
+          screen.getByTestId('experimental-features-flag'),
         ).toHaveTextContent('experimental_features: enabled')
       })
 
       expect(screen.getByTestId('beta-features-flag')).toHaveTextContent(
-        'beta_features: enabled'
+        'beta_features: enabled',
       )
     })
   })
@@ -934,11 +934,11 @@ describe('SimpleFeatureFlags', () => {
       render(
         <SimpleFeatureFlagProvider>
           <FeatureFlagHookComponent flagName="new_ui" />
-        </SimpleFeatureFlagProvider>
+        </SimpleFeatureFlagProvider>,
       )
 
       expect(screen.getByTestId('hook-result')).toHaveTextContent(
-        'new_ui enabled'
+        'new_ui enabled',
       )
     })
 
@@ -948,11 +948,11 @@ describe('SimpleFeatureFlags', () => {
       render(
         <SimpleFeatureFlagProvider>
           <FeatureFlagHookComponent flagName="beta_features" />
-        </SimpleFeatureFlagProvider>
+        </SimpleFeatureFlagProvider>,
       )
 
       expect(screen.getByTestId('hook-result')).toHaveTextContent(
-        'beta_features disabled'
+        'beta_features disabled',
       )
     })
 
@@ -962,11 +962,11 @@ describe('SimpleFeatureFlags', () => {
       render(
         <SimpleFeatureFlagProvider>
           <FeatureFlagHookComponent flagName="unknown_flag" />
-        </SimpleFeatureFlagProvider>
+        </SimpleFeatureFlagProvider>,
       )
 
       expect(screen.getByTestId('hook-result')).toHaveTextContent(
-        'unknown_flag disabled'
+        'unknown_flag disabled',
       )
     })
 
@@ -1007,7 +1007,7 @@ describe('SimpleFeatureFlags', () => {
       render(
         <SimpleFeatureFlagProvider>
           <TogglableComponent />
-        </SimpleFeatureFlagProvider>
+        </SimpleFeatureFlagProvider>,
       )
 
       expect(screen.getByTestId('flag-status')).toHaveTextContent('disabled')
@@ -1032,7 +1032,7 @@ describe('SimpleFeatureFlags', () => {
       }
 
       expect(() => render(<ComponentWithoutProvider />)).toThrow(
-        'useFeatureFlags must be used within a FeatureFlagProvider'
+        'useFeatureFlags must be used within a FeatureFlagProvider',
       )
 
       consoleError.mockRestore()
@@ -1051,7 +1051,7 @@ describe('SimpleFeatureFlags', () => {
       render(
         <SimpleFeatureFlagProvider>
           <ContextConsumer />
-        </SimpleFeatureFlagProvider>
+        </SimpleFeatureFlagProvider>,
       )
 
       expect(contextValue).toHaveProperty('flags')
@@ -1073,7 +1073,7 @@ describe('SimpleFeatureFlags', () => {
       render(
         <SimpleFeatureFlagProvider>
           <ContextConsumer />
-        </SimpleFeatureFlagProvider>
+        </SimpleFeatureFlagProvider>,
       )
 
       expect(contextValue.isEnabled('new_ui')).toBe(true)
@@ -1098,7 +1098,7 @@ describe('SimpleFeatureFlags', () => {
       render(
         <SimpleFeatureFlagProvider>
           <ContextConsumer />
-        </SimpleFeatureFlagProvider>
+        </SimpleFeatureFlagProvider>,
       )
 
       expect(screen.getByTestId('beta-status')).toHaveTextContent('off')
@@ -1121,18 +1121,18 @@ describe('SimpleFeatureFlags', () => {
       render(
         <SimpleFeatureFlagProvider>
           <TestComponent />
-        </SimpleFeatureFlagProvider>
+        </SimpleFeatureFlagProvider>,
       )
 
       expect(screen.getByTestId('new-ui-flag')).toHaveTextContent(
-        'new_ui: enabled'
+        'new_ui: enabled',
       )
 
       await user.click(screen.getByTestId('toggle-new-ui-btn'))
 
       await waitFor(() => {
         expect(screen.getByTestId('new-ui-flag')).toHaveTextContent(
-          'new_ui: disabled'
+          'new_ui: disabled',
         )
       })
     })
@@ -1144,18 +1144,18 @@ describe('SimpleFeatureFlags', () => {
       render(
         <SimpleFeatureFlagProvider>
           <TestComponent />
-        </SimpleFeatureFlagProvider>
+        </SimpleFeatureFlagProvider>,
       )
 
       expect(screen.getByTestId('beta-features-flag')).toHaveTextContent(
-        'beta_features: disabled'
+        'beta_features: disabled',
       )
 
       await user.click(screen.getByTestId('toggle-beta-btn'))
 
       await waitFor(() => {
         expect(screen.getByTestId('beta-features-flag')).toHaveTextContent(
-          'beta_features: enabled'
+          'beta_features: enabled',
         )
       })
     })
@@ -1167,7 +1167,7 @@ describe('SimpleFeatureFlags', () => {
       render(
         <SimpleFeatureFlagProvider>
           <TestComponent />
-        </SimpleFeatureFlagProvider>
+        </SimpleFeatureFlagProvider>,
       )
 
       await user.click(screen.getByTestId('toggle-new-ui-btn'))
@@ -1175,10 +1175,10 @@ describe('SimpleFeatureFlags', () => {
 
       await waitFor(() => {
         expect(screen.getByTestId('new-ui-flag')).toHaveTextContent(
-          'new_ui: disabled'
+          'new_ui: disabled',
         )
         expect(screen.getByTestId('beta-features-flag')).toHaveTextContent(
-          'beta_features: enabled'
+          'beta_features: enabled',
         )
       })
     })
@@ -1190,26 +1190,26 @@ describe('SimpleFeatureFlags', () => {
       const { rerender } = render(
         <SimpleFeatureFlagProvider>
           <TestComponent />
-        </SimpleFeatureFlagProvider>
+        </SimpleFeatureFlagProvider>,
       )
 
       await user.click(screen.getByTestId('toggle-beta-btn'))
 
       await waitFor(() => {
         expect(screen.getByTestId('beta-features-flag')).toHaveTextContent(
-          'beta_features: enabled'
+          'beta_features: enabled',
         )
       })
 
       rerender(
         <SimpleFeatureFlagProvider>
           <TestComponent />
-        </SimpleFeatureFlagProvider>
+        </SimpleFeatureFlagProvider>,
       )
 
       await waitFor(() => {
         expect(screen.getByTestId('beta-features-flag')).toHaveTextContent(
-          'beta_features: enabled'
+          'beta_features: enabled',
         )
       })
     })
@@ -1238,7 +1238,7 @@ describe('SimpleFeatureFlags', () => {
       render(
         <SimpleFeatureFlagProvider>
           <ComplexComponent />
-        </SimpleFeatureFlagProvider>
+        </SimpleFeatureFlagProvider>,
       )
 
       expect(screen.getByTestId('combined-feature')).toBeInTheDocument()
@@ -1268,7 +1268,7 @@ describe('SimpleFeatureFlags', () => {
       render(
         <SimpleFeatureFlagProvider>
           <Dashboard />
-        </SimpleFeatureFlagProvider>
+        </SimpleFeatureFlagProvider>,
       )
 
       expect(screen.getByTestId('dashboard-title')).toBeInTheDocument()
@@ -1283,7 +1283,7 @@ describe('SimpleFeatureFlags', () => {
       render(
         <SimpleFeatureFlagProvider>
           <TestComponent />
-        </SimpleFeatureFlagProvider>
+        </SimpleFeatureFlagProvider>,
       )
 
       expect(screen.getByTestId('flags-count')).toHaveTextContent('Flags: 4')
@@ -1309,7 +1309,7 @@ describe('SimpleFeatureFlags', () => {
       render(
         <SimpleFeatureFlagProvider>
           <OuterComponent />
-        </SimpleFeatureFlagProvider>
+        </SimpleFeatureFlagProvider>,
       )
 
       expect(screen.getByTestId('outer')).toHaveTextContent('outer')

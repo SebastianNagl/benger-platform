@@ -282,7 +282,7 @@ describe('PuppeteerAuthHelper Integration Tests', () => {
 
       // Should not throw error even when switcher is not available
       await expect(
-        authHelper.recoverFromLanguageSwitch()
+        authHelper.recoverFromLanguageSwitch(),
       ).resolves.not.toThrow()
     })
   })

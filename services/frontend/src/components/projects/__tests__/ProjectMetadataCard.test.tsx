@@ -36,17 +36,29 @@ describe('ProjectMetadataCard — kind display', () => {
 
   it('marks student-origin projects with the locked tooltip', () => {
     render(
-      <ProjectMetadataCard project={project({ kind: 'exam', origin: 'student' })} t={t} />,
+      <ProjectMetadataCard
+        project={project({ kind: 'exam', origin: 'student' })}
+        t={t}
+      />,
     )
     expect(
-      screen.getByTitle('Der Typ studentischer Projekte kann nicht geändert werden.'),
+      screen.getByTitle(
+        'Der Typ studentischer Projekte kann nicht geändert werden.',
+      ),
     ).toBeInTheDocument()
   })
 
   it('shows no lock on expert projects (editable elsewhere)', () => {
-    render(<ProjectMetadataCard project={project({ kind: 'flashcard_collection' })} t={t} />)
+    render(
+      <ProjectMetadataCard
+        project={project({ kind: 'flashcard_collection' })}
+        t={t}
+      />,
+    )
     expect(
-      screen.queryByTitle('Der Typ studentischer Projekte kann nicht geändert werden.'),
+      screen.queryByTitle(
+        'Der Typ studentischer Projekte kann nicht geändert werden.',
+      ),
     ).not.toBeInTheDocument()
   })
 })

@@ -24,7 +24,7 @@ describe('Pagination br3', () => {
         totalPages={0}
         onPageChange={jest.fn()}
         onPageSizeChange={jest.fn()}
-      />
+      />,
     )
     expect(container).toBeTruthy()
   })
@@ -39,7 +39,7 @@ describe('Pagination br3', () => {
         totalPages={10}
         onPageChange={jest.fn()}
         onPageSizeChange={jest.fn()}
-      />
+      />,
     )
     expect(container).toBeTruthy()
   })
@@ -53,7 +53,7 @@ describe('Pagination br3', () => {
         totalPages={20}
         onPageChange={jest.fn()}
         onPageSizeChange={jest.fn()}
-      />
+      />,
     )
     // Uses ellipsis character in rendering
     expect(container.textContent).toContain('\u2026') // unicode ellipsis

@@ -125,7 +125,7 @@ describe('ProjectCreationWizard — rubric step (extended)', () => {
 
     await user.type(
       screen.getByTestId('project-create-name-input'),
-      'Rubric Demo'
+      'Rubric Demo',
     )
     await user.click(screen.getByTestId('wizard-rubric-checkbox'))
     await user.click(screen.getByTestId('project-create-next-button'))
@@ -153,7 +153,7 @@ describe('ProjectCreationWizard — rubric step (extended)', () => {
     await user.click(
       screen
         .getByTestId('wizard-feature-evaluation')
-        .querySelector('input[type="checkbox"]') as HTMLElement
+        .querySelector('input[type="checkbox"]') as HTMLElement,
     )
     await user.click(screen.getByTestId('wizard-rubric-checkbox'))
 
@@ -168,7 +168,9 @@ describe('ProjectCreationWizard — rubric step (extended)', () => {
   it('renders nothing rubric-related in the community edition (no slots)', () => {
     mockSlotsRegistered = false
     render(<ProjectCreationWizard />)
-    expect(screen.queryByTestId('wizard-feature-rubric')).not.toBeInTheDocument()
+    expect(
+      screen.queryByTestId('wizard-feature-rubric'),
+    ).not.toBeInTheDocument()
     expect(screen.queryByTestId('rubric-step-stub')).not.toBeInTheDocument()
   })
 })

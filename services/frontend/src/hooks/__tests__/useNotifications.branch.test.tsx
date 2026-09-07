@@ -65,7 +65,7 @@ class MockEventSource {
   simulateMessage(data: any) {
     if (this.onmessage) {
       this.onmessage(
-        new MessageEvent('message', { data: JSON.stringify(data) })
+        new MessageEvent('message', { data: JSON.stringify(data) }),
       )
     }
   }
@@ -113,7 +113,7 @@ describe('useNotifications - Branch Coverage', () => {
     mockApiClient.getUnreadNotificationCount.mockResolvedValue({ count: 0 })
     mockApiClient.getNotificationPreferences.mockResolvedValue({})
     mockApiClient.createNotificationStream.mockImplementation(
-      () => new MockEventSource('/api/notifications/stream')
+      () => new MockEventSource('/api/notifications/stream'),
     )
   })
 
@@ -148,7 +148,14 @@ describe('useNotifications - Branch Coverage', () => {
 
     it('passes unreadOnly as read_status param when true', async () => {
       mockApiClient.getNotifications.mockResolvedValue([
-        { id: '1', type: 'info', title: 'N', message: 'M', is_read: false, created_at: '2025-01-01' },
+        {
+          id: '1',
+          type: 'info',
+          title: 'N',
+          message: 'M',
+          is_read: false,
+          created_at: '2025-01-01',
+        },
       ])
 
       const { result } = renderHook(() => useNotifications(), { wrapper })
@@ -170,7 +177,9 @@ describe('useNotifications - Branch Coverage', () => {
 
     it('returns empty array when API call fails', async () => {
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation()
-      mockApiClient.getNotifications.mockRejectedValueOnce(new Error('API Error'))
+      mockApiClient.getNotifications.mockRejectedValueOnce(
+        new Error('API Error'),
+      )
 
       const { result } = renderHook(() => useNotifications(), { wrapper })
 
@@ -179,7 +188,9 @@ describe('useNotifications - Branch Coverage', () => {
       })
 
       // Manually call with fresh mock that will reject
-      mockApiClient.getNotifications.mockRejectedValueOnce(new Error('Network failure'))
+      mockApiClient.getNotifications.mockRejectedValueOnce(
+        new Error('Network failure'),
+      )
       const data = await act(async () => {
         return await result.current.fetchNotifications()
       })
@@ -247,7 +258,9 @@ describe('useNotifications - Branch Coverage', () => {
 
     it('returns 0 when API call fails', async () => {
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation()
-      mockApiClient.getUnreadNotificationCount.mockRejectedValueOnce(new Error('Fail'))
+      mockApiClient.getUnreadNotificationCount.mockRejectedValueOnce(
+        new Error('Fail'),
+      )
 
       const { result } = renderHook(() => useNotifications(), { wrapper })
 
@@ -255,7 +268,9 @@ describe('useNotifications - Branch Coverage', () => {
         await Promise.resolve()
       })
 
-      mockApiClient.getUnreadNotificationCount.mockRejectedValueOnce(new Error('Fail'))
+      mockApiClient.getUnreadNotificationCount.mockRejectedValueOnce(
+        new Error('Fail'),
+      )
       const count = await act(async () => {
         return await result.current.fetchUnreadCount()
       })
@@ -347,7 +362,9 @@ describe('useNotifications - Branch Coverage', () => {
       })
 
       const toast = __mockToastSetup
-      expect(toast.success).toHaveBeenCalledWith('notifications.markAllReadSuccess')
+      expect(toast.success).toHaveBeenCalledWith(
+        'notifications.markAllReadSuccess',
+      )
     })
 
     it('uses the singular success key when exactly one notification is marked', async () => {
@@ -370,7 +387,7 @@ describe('useNotifications - Branch Coverage', () => {
 
       const toast = __mockToastSetup
       expect(toast.success).toHaveBeenCalledWith(
-        'notifications.markAllReadSuccessOne'
+        'notifications.markAllReadSuccessOne',
       )
     })
 
@@ -393,12 +410,16 @@ describe('useNotifications - Branch Coverage', () => {
       })
 
       const toast = __mockToastSetup
-      expect(toast.success).toHaveBeenCalledWith('notifications.markAllReadSuccess')
+      expect(toast.success).toHaveBeenCalledWith(
+        'notifications.markAllReadSuccess',
+      )
     })
 
     it('shows error toast when markAllAsRead API fails', async () => {
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation()
-      mockApiClient.markAllNotificationsAsRead.mockRejectedValue(new Error('Fail'))
+      mockApiClient.markAllNotificationsAsRead.mockRejectedValue(
+        new Error('Fail'),
+      )
 
       const { result } = renderHook(() => useNotifications(), { wrapper })
 
@@ -486,12 +507,16 @@ describe('useNotifications - Branch Coverage', () => {
 
       expect(success).toBe(true)
       const toast = __mockToastSetup
-      expect(toast.success).toHaveBeenCalledWith('notifications.preferencesUpdated')
+      expect(toast.success).toHaveBeenCalledWith(
+        'notifications.preferencesUpdated',
+      )
     })
 
     it('returns false and shows error toast on failure', async () => {
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation()
-      mockApiClient.updateNotificationPreferences.mockRejectedValue(new Error('Fail'))
+      mockApiClient.updateNotificationPreferences.mockRejectedValue(
+        new Error('Fail'),
+      )
 
       const { result } = renderHook(() => useNotifications(), { wrapper })
 
@@ -505,7 +530,9 @@ describe('useNotifications - Branch Coverage', () => {
 
       expect(success).toBe(false)
       const toast = __mockToastSetup
-      expect(toast.error).toHaveBeenCalledWith('notifications.preferencesUpdateFailed')
+      expect(toast.error).toHaveBeenCalledWith(
+        'notifications.preferencesUpdateFailed',
+      )
       consoleSpy.mockRestore()
     })
   })
@@ -538,7 +565,9 @@ describe('useNotifications - Branch Coverage', () => {
 
       // Make next calls fail
       mockApiClient.getNotifications.mockRejectedValue(new Error('Fail'))
-      mockApiClient.getUnreadNotificationCount.mockRejectedValue(new Error('Fail'))
+      mockApiClient.getUnreadNotificationCount.mockRejectedValue(
+        new Error('Fail'),
+      )
 
       await act(async () => {
         await result.current.refreshNotifications()
@@ -557,7 +586,8 @@ describe('useNotifications - Branch Coverage', () => {
         expect(mockApiClient.createNotificationStream).toHaveBeenCalled()
       })
 
-      const es = mockApiClient.createNotificationStream.mock.results[0].value as MockEventSource
+      const es = mockApiClient.createNotificationStream.mock.results[0]
+        .value as MockEventSource
 
       await act(async () => {
         await Promise.resolve()
@@ -578,7 +608,8 @@ describe('useNotifications - Branch Coverage', () => {
         expect(mockApiClient.createNotificationStream).toHaveBeenCalled()
       })
 
-      const es = mockApiClient.createNotificationStream.mock.results[0].value as MockEventSource
+      const es = mockApiClient.createNotificationStream.mock.results[0]
+        .value as MockEventSource
 
       await act(async () => {
         await Promise.resolve()
@@ -598,7 +629,8 @@ describe('useNotifications - Branch Coverage', () => {
         expect(mockApiClient.createNotificationStream).toHaveBeenCalled()
       })
 
-      const es = mockApiClient.createNotificationStream.mock.results[0].value as MockEventSource
+      const es = mockApiClient.createNotificationStream.mock.results[0]
+        .value as MockEventSource
 
       await act(async () => {
         await Promise.resolve()
@@ -624,7 +656,8 @@ describe('useNotifications - Branch Coverage', () => {
         expect(mockApiClient.createNotificationStream).toHaveBeenCalled()
       })
 
-      const es = mockApiClient.createNotificationStream.mock.results[0].value as MockEventSource
+      const es = mockApiClient.createNotificationStream.mock.results[0]
+        .value as MockEventSource
 
       await act(async () => {
         await Promise.resolve()
@@ -637,7 +670,10 @@ describe('useNotifications - Branch Coverage', () => {
         })
       })
 
-      expect(consoleSpy).toHaveBeenCalledWith('Notification stream error:', 'Some other error')
+      expect(consoleSpy).toHaveBeenCalledWith(
+        'Notification stream error:',
+        'Some other error',
+      )
       consoleSpy.mockRestore()
     })
 
@@ -650,7 +686,8 @@ describe('useNotifications - Branch Coverage', () => {
         expect(mockApiClient.createNotificationStream).toHaveBeenCalled()
       })
 
-      const es = mockApiClient.createNotificationStream.mock.results[0].value as MockEventSource
+      const es = mockApiClient.createNotificationStream.mock.results[0]
+        .value as MockEventSource
 
       await act(async () => {
         await Promise.resolve()
@@ -663,7 +700,10 @@ describe('useNotifications - Branch Coverage', () => {
         }
       })
 
-      expect(consoleSpy).toHaveBeenCalledWith('Error parsing SSE data:', expect.any(Error))
+      expect(consoleSpy).toHaveBeenCalledWith(
+        'Error parsing SSE data:',
+        expect.any(Error),
+      )
       consoleSpy.mockRestore()
     })
   })
@@ -704,7 +744,10 @@ describe('useNotifications - Branch Coverage', () => {
         await Promise.resolve()
       })
 
-      expect(consoleSpy).toHaveBeenCalledWith('Error creating SSE connection:', expect.any(Error))
+      expect(consoleSpy).toHaveBeenCalledWith(
+        'Error creating SSE connection:',
+        expect.any(Error),
+      )
       consoleSpy.mockRestore()
     })
   })
@@ -719,7 +762,8 @@ describe('useNotifications - Branch Coverage', () => {
         expect(mockApiClient.createNotificationStream).toHaveBeenCalled()
       })
 
-      const es = mockApiClient.createNotificationStream.mock.results[0].value as MockEventSource
+      const es = mockApiClient.createNotificationStream.mock.results[0]
+        .value as MockEventSource
 
       await act(async () => {
         await Promise.resolve()
@@ -733,7 +777,10 @@ describe('useNotifications - Branch Coverage', () => {
       })
 
       // null?.includes returns undefined which is falsy, so goes to else branch
-      expect(consoleSpy).toHaveBeenCalledWith('Notification stream error:', null)
+      expect(consoleSpy).toHaveBeenCalledWith(
+        'Notification stream error:',
+        null,
+      )
       consoleSpy.mockRestore()
     })
   })

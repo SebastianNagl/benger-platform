@@ -123,7 +123,7 @@ describe('DevModeIndicator', () => {
         const badge = screen.getByRole('button')
         expect(badge).toHaveAttribute(
           'title',
-          'Development mode with auto-authentication enabled'
+          'Development mode with auto-authentication enabled',
         )
       })
     })
@@ -149,7 +149,7 @@ describe('DevModeIndicator', () => {
           'rounded-full',
           'border',
           'border-amber-300',
-          'bg-amber-100'
+          'bg-amber-100',
         )
       })
     })
@@ -162,7 +162,7 @@ describe('DevModeIndicator', () => {
         expect(badge).toHaveClass(
           'dark:border-amber-700',
           'dark:bg-amber-900/80',
-          'dark:text-amber-200'
+          'dark:text-amber-200',
         )
       })
     })
@@ -208,7 +208,7 @@ describe('DevModeIndicator', () => {
       })
 
       expect(
-        screen.queryByText('Development Mode Active')
+        screen.queryByText('Development Mode Active'),
       ).not.toBeInTheDocument()
     })
 
@@ -240,7 +240,7 @@ describe('DevModeIndicator', () => {
 
       await user.click(badge)
       expect(
-        screen.queryByText('Development Mode Active')
+        screen.queryByText('Development Mode Active'),
       ).not.toBeInTheDocument()
     })
 
@@ -354,7 +354,7 @@ describe('DevModeIndicator', () => {
       await user.click(closeButton)
 
       expect(
-        screen.queryByText('Development Mode Active')
+        screen.queryByText('Development Mode Active'),
       ).not.toBeInTheDocument()
     })
 
@@ -439,7 +439,7 @@ describe('DevModeIndicator', () => {
       await user.click(badge)
 
       expect(
-        screen.getByText(/very.long.email.address@subdomain.example.com/)
+        screen.getByText(/very.long.email.address@subdomain.example.com/),
       ).toBeInTheDocument()
     })
 
@@ -619,7 +619,7 @@ describe('DevModeIndicator', () => {
         const badge = screen.getByRole('button')
         expect(badge).toHaveAttribute(
           'title',
-          'Development mode with auto-authentication enabled'
+          'Development mode with auto-authentication enabled',
         )
       })
     })

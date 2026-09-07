@@ -17,6 +17,8 @@ describe('translate (SSR / no window)', () => {
   })
 
   it('returns the key unchanged for an unknown key under SSR', () => {
-    expect(translate('definitely.not.a.real.key')).toBe('definitely.not.a.real.key')
+    expect(translate('definitely.not.a.real.key')).toBe(
+      'definitely.not.a.real.key',
+    )
   })
 })

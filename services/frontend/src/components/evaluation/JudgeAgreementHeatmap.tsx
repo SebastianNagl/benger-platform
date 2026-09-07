@@ -117,13 +117,20 @@ export function JudgeAgreementHeatmap({
       <div className="mb-2 flex items-baseline justify-between">
         <h4 className="text-sm font-semibold text-zinc-900 dark:text-white">
           {scoreType === 'pearson'
-            ? t('eval.judgeAgreement.titlePearson', 'Inter-Judge-Korrelation (Pearson)')
-            : t('eval.judgeAgreement.titleKappa', 'Inter-Judge-Übereinstimmung (κ)')}
+            ? t(
+                'eval.judgeAgreement.titlePearson',
+                'Inter-Judge-Korrelation (Pearson)',
+              )
+            : t(
+                'eval.judgeAgreement.titleKappa',
+                'Inter-Judge-Übereinstimmung (κ)',
+              )}
           <span className="ml-2 font-mono text-xs text-zinc-500">{metric}</span>
         </h4>
         {fleissKappa !== null && fleissKappa !== undefined && (
           <span className="text-xs text-zinc-500 dark:text-zinc-400">
-            Fleiss κ = <span className="font-mono">{fleissKappa.toFixed(3)}</span>
+            Fleiss κ ={' '}
+            <span className="font-mono">{fleissKappa.toFixed(3)}</span>
           </span>
         )}
       </div>

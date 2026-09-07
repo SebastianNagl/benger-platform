@@ -118,7 +118,7 @@ export function PublicationToggle({
   const run = async (
     action: () => Promise<ReportResponse>,
     fallbackMessageKey: string,
-    fallbackMessage: string
+    fallbackMessage: string,
   ) => {
     setDialog(null)
     setLoading(true)
@@ -138,21 +138,21 @@ export function PublicationToggle({
     run(
       () => publishReport(projectId, { is_public: publishPublic }),
       'project.report.publication.errorToggle',
-      'Fehler beim Ändern des Veröffentlichungsstatus'
+      'Fehler beim Ändern des Veröffentlichungsstatus',
     )
 
   const handleUnpublish = () =>
     run(
       () => unpublishReport(projectId),
       'project.report.publication.errorToggle',
-      'Fehler beim Ändern des Veröffentlichungsstatus'
+      'Fehler beim Ändern des Veröffentlichungsstatus',
     )
 
   const handleVisibility = (nextPublic: boolean) =>
     run(
       () => setReportVisibility(projectId, { is_public: nextPublic }),
       'reports.publication.errorVisibility',
-      'Sichtbarkeit konnte nicht geändert werden'
+      'Sichtbarkeit konnte nicht geändert werden',
     )
 
   const handleCopy = async () => {
@@ -190,7 +190,7 @@ export function PublicationToggle({
     : isPublished
       ? t(
           'reports.publication.visibleToOrgs',
-          'Sichtbar für Projektorganisationen'
+          'Sichtbar für Projektorganisationen',
         )
       : t('project.report.publication.draft')
 
@@ -339,13 +339,13 @@ export function PublicationToggle({
                   <span className="block font-medium text-zinc-900 dark:text-white">
                     {t(
                       'reports.publication.visibilityOrgs',
-                      'Nur Projektorganisationen'
+                      'Nur Projektorganisationen',
                     )}
                   </span>
                   <span className="block text-xs text-zinc-500 dark:text-zinc-400">
                     {t(
                       'reports.publication.visibilityOrgsHint',
-                      'Nur angemeldete Mitglieder der Projektorganisationen können den Bericht lesen.'
+                      'Nur angemeldete Mitglieder der Projektorganisationen können den Bericht lesen.',
                     )}
                   </span>
                 </span>
@@ -363,13 +363,13 @@ export function PublicationToggle({
                   <span className="block font-medium text-zinc-900 dark:text-white">
                     {t(
                       'reports.publication.visibilityPublic',
-                      'Öffentlich (auch ohne Anmeldung)'
+                      'Öffentlich (auch ohne Anmeldung)',
                     )}
                   </span>
                   <span className="block text-xs text-zinc-500 dark:text-zinc-400">
                     {t(
                       'reports.publication.visibilityPublicHint',
-                      'Jeder mit dem Link kann den Bericht lesen.'
+                      'Jeder mit dem Link kann den Bericht lesen.',
                     )}
                   </span>
                 </span>

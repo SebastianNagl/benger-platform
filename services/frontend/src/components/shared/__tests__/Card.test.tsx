@@ -6,7 +6,7 @@ describe('Card', () => {
     render(
       <Card>
         <p>Card content</p>
-      </Card>
+      </Card>,
     )
     expect(screen.getByText('Card content')).toBeInTheDocument()
   })
@@ -32,7 +32,7 @@ describe('Card', () => {
   it('handles onClick event', () => {
     const handleClick = jest.fn()
     const { container } = render(
-      <Card onClick={handleClick}>Clickable card</Card>
+      <Card onClick={handleClick}>Clickable card</Card>,
     )
 
     const card = container.firstChild as HTMLElement
@@ -54,7 +54,7 @@ describe('Card', () => {
         <h2>Card Title</h2>
         <p>Card description</p>
         <button>Action</button>
-      </Card>
+      </Card>,
     )
     expect(screen.getByText('Card Title')).toBeInTheDocument()
     expect(screen.getByText('Card description')).toBeInTheDocument()
@@ -69,7 +69,7 @@ describe('Card', () => {
       <>
         <Card onClick={handleClick1}>Card 1</Card>
         <Card onClick={handleClick2}>Card 2</Card>
-      </>
+      </>,
     )
 
     const cards = container.querySelectorAll('.rounded-lg')
@@ -86,13 +86,13 @@ describe('Card', () => {
     const { container } = render(
       <Card className="test-card">
         <span data-testid="child-element">Test</span>
-      </Card>
+      </Card>,
     )
 
     const cardElement = container.firstChild as HTMLElement
     expect(cardElement.tagName).toBe('DIV')
     expect(
-      cardElement.querySelector('[data-testid="child-element"]')
+      cardElement.querySelector('[data-testid="child-element"]'),
     ).toBeInTheDocument()
   })
 })

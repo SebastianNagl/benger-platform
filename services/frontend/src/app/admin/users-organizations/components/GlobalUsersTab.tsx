@@ -2,9 +2,16 @@
 
 import { EmailVerificationModal } from '@/components/admin/EmailVerificationModal'
 import { FilterToolbar } from '@/components/shared/FilterToolbar'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/shared/Select'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/shared/Select'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
+import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import { useDeleteConfirm, useErrorAlert } from '@/hooks/useDialogs'
 import { api, User } from '@/lib/api'
 import { UserOrganizationPermissions } from '@/lib/permissions/userOrganizationPermissions'
@@ -15,7 +22,6 @@ import {
   XCircleIcon,
 } from '@heroicons/react/24/outline'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 
 type VerificationFilter = 'all' | 'verified' | 'unverified'
 type SuperadminFilter = 'all' | 'superadmin' | 'regular'
@@ -34,7 +40,7 @@ export function GlobalUsersTab() {
   const [deletingUser, setDeletingUser] = useState<string | null>(null)
   const [selectedUsers, setSelectedUsers] = useState<string[]>([])
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(
-    null
+    null,
   )
 
   // Filter/sort state
@@ -71,7 +77,8 @@ export function GlobalUsersTab() {
     const direction = sortOrder === 'asc' ? 1 : -1
     return [...users]
       .filter(
-        (u) => matchesSearch(u) && matchesVerification(u) && matchesSuperadmin(u)
+        (u) =>
+          matchesSearch(u) && matchesVerification(u) && matchesSuperadmin(u),
       )
       .sort((a, b) => {
         const aVal = (a[sortBy] ?? '').toString().toLowerCase()
@@ -80,7 +87,14 @@ export function GlobalUsersTab() {
         if (aVal > bVal) return 1 * direction
         return 0
       })
-  }, [users, searchQuery, verificationFilter, superadminFilter, sortBy, sortOrder])
+  }, [
+    users,
+    searchQuery,
+    verificationFilter,
+    superadminFilter,
+    sortBy,
+    sortOrder,
+  ])
 
   const hasActiveFilters =
     verificationFilter !== 'all' ||
@@ -120,7 +134,7 @@ export function GlobalUsersTab() {
   })
 
   const canManageUsers = UserOrganizationPermissions.canManageGlobalUsers(
-    userWithOrganizations
+    userWithOrganizations,
   )
 
   // Push the search to the server so we don't reload every user just to
@@ -160,10 +174,13 @@ export function GlobalUsersTab() {
                 email_verified: true,
                 email_verification_method: 'admin' as const,
               }
-            : u
-        )
+            : u,
+        ),
       )
-      showError(t('admin.users.emailVerifiedSuccess'), t('admin.users.successTitle'))
+      showError(
+        t('admin.users.emailVerifiedSuccess'),
+        t('admin.users.successTitle'),
+      )
     } catch (error) {
       showError(t('admin.users.emailVerifyFailed'), t('admin.users.errorTitle'))
     }
@@ -171,17 +188,20 @@ export function GlobalUsersTab() {
 
   const handleBulkVerifyEmails = async () => {
     const unverifiedUsers = users.filter(
-      (u) => selectedUsers.includes(u.id) && !u.email_verified
+      (u) => selectedUsers.includes(u.id) && !u.email_verified,
     )
 
     if (unverifiedUsers.length === 0) {
-      showError(t('admin.users.noUnverifiedSelected'), t('admin.users.infoTitle'))
+      showError(
+        t('admin.users.noUnverifiedSelected'),
+        t('admin.users.infoTitle'),
+      )
       return
     }
 
     try {
       await Promise.all(
-        unverifiedUsers.map((user) => api.verifyUserEmail(user.id))
+        unverifiedUsers.map((user) => api.verifyUserEmail(user.id)),
       )
 
       setUsers(
@@ -192,16 +212,20 @@ export function GlobalUsersTab() {
                 email_verified: true,
                 email_verification_method: 'admin' as const,
               }
-            : u
-        )
+            : u,
+        ),
       )
 
       setSelectedUsers([])
       showError(
         unverifiedUsers.length > 1
-          ? t('admin.users.bulkVerifySuccessPlural', { count: unverifiedUsers.length })
-          : t('admin.users.bulkVerifySuccess', { count: unverifiedUsers.length }),
-        t('admin.users.successTitle')
+          ? t('admin.users.bulkVerifySuccessPlural', {
+              count: unverifiedUsers.length,
+            })
+          : t('admin.users.bulkVerifySuccess', {
+              count: unverifiedUsers.length,
+            }),
+        t('admin.users.successTitle'),
       )
     } catch (error) {
       showError(t('admin.users.bulkVerifyFailed'), t('admin.users.errorTitle'))
@@ -210,18 +234,20 @@ export function GlobalUsersTab() {
 
   const handleSuperadminChange = async (
     userId: string,
-    isSuperadmin: boolean
+    isSuperadmin: boolean,
   ) => {
     setUpdatingUser(userId)
     try {
       const updatedUser = await api.updateUserSuperadminStatus(
         userId,
-        isSuperadmin
+        isSuperadmin,
       )
 
       if (updatedUser && updatedUser.id) {
         setUsers((prevUsers) =>
-          prevUsers.map((u) => (u.id === userId ? { ...u, ...updatedUser } : u))
+          prevUsers.map((u) =>
+            u.id === userId ? { ...u, ...updatedUser } : u,
+          ),
         )
       } else {
         // Refresh the user list if the response is invalid
@@ -300,14 +326,18 @@ export function GlobalUsersTab() {
         clearLabel={t('common.filters.clearAll', 'Clear filters')}
         rightExtras={
           <span className="text-sm text-zinc-600 dark:text-zinc-400">
-            {t('admin.users.filters.totalUsers', { count: filteredUsers.length })}
+            {t('admin.users.filters.totalUsers', {
+              count: filteredUsers.length,
+            })}
           </span>
         }
       >
         <FilterToolbar.Field label={t('admin.users.filters.verification')}>
           <Select
             value={verificationFilter}
-            onValueChange={(v) => setVerificationFilter(v as VerificationFilter)}
+            onValueChange={(v) =>
+              setVerificationFilter(v as VerificationFilter)
+            }
             displayValue={
               verificationFilter === 'all'
                 ? t('common.filters.all')
@@ -321,8 +351,12 @@ export function GlobalUsersTab() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">{t('common.filters.all')}</SelectItem>
-              <SelectItem value="verified">{t('admin.users.filters.verified')}</SelectItem>
-              <SelectItem value="unverified">{t('admin.users.filters.unverified')}</SelectItem>
+              <SelectItem value="verified">
+                {t('admin.users.filters.verified')}
+              </SelectItem>
+              <SelectItem value="unverified">
+                {t('admin.users.filters.unverified')}
+              </SelectItem>
             </SelectContent>
           </Select>
         </FilterToolbar.Field>
@@ -344,8 +378,12 @@ export function GlobalUsersTab() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">{t('common.filters.all')}</SelectItem>
-              <SelectItem value="superadmin">{t('admin.users.filters.superadmin')}</SelectItem>
-              <SelectItem value="regular">{t('admin.users.filters.regularUser')}</SelectItem>
+              <SelectItem value="superadmin">
+                {t('admin.users.filters.superadmin')}
+              </SelectItem>
+              <SelectItem value="regular">
+                {t('admin.users.filters.regularUser')}
+              </SelectItem>
             </SelectContent>
           </Select>
         </FilterToolbar.Field>
@@ -367,16 +405,24 @@ export function GlobalUsersTab() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="name">{t('admin.users.filters.sortName')}</SelectItem>
-                <SelectItem value="email">{t('admin.users.filters.sortEmail')}</SelectItem>
-                <SelectItem value="created_at">{t('admin.users.filters.sortCreated')}</SelectItem>
+                <SelectItem value="name">
+                  {t('admin.users.filters.sortName')}
+                </SelectItem>
+                <SelectItem value="email">
+                  {t('admin.users.filters.sortEmail')}
+                </SelectItem>
+                <SelectItem value="created_at">
+                  {t('admin.users.filters.sortCreated')}
+                </SelectItem>
               </SelectContent>
             </Select>
             <Select
               value={sortOrder}
               onValueChange={(v) => setSortOrder(v as SortOrder)}
               displayValue={
-                sortOrder === 'asc' ? t('common.filters.asc') : t('common.filters.desc')
+                sortOrder === 'asc'
+                  ? t('common.filters.asc')
+                  : t('common.filters.desc')
               }
             >
               <SelectTrigger>
@@ -397,8 +443,12 @@ export function GlobalUsersTab() {
           <div className="flex items-center justify-between bg-indigo-50 px-6 py-3 dark:bg-indigo-900/20">
             <span className="text-sm text-indigo-700 dark:text-indigo-300">
               {selectedUsers.length > 1
-                ? t('admin.users.usersSelected', { count: selectedUsers.length })
-                : t('admin.users.userSelected', { count: selectedUsers.length })}
+                ? t('admin.users.usersSelected', {
+                    count: selectedUsers.length,
+                  })
+                : t('admin.users.userSelected', {
+                    count: selectedUsers.length,
+                  })}
             </span>
             <div className="flex gap-2">
               <button
@@ -431,9 +481,7 @@ export function GlobalUsersTab() {
                       type="checkbox"
                       checked={
                         filteredUsers.length > 0 &&
-                        filteredUsers.every((u) =>
-                          selectedUsers.includes(u.id)
-                        )
+                        filteredUsers.every((u) => selectedUsers.includes(u.id))
                       }
                       onChange={(e) => {
                         if (e.target.checked) {
@@ -445,19 +493,19 @@ export function GlobalUsersTab() {
                       className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
                     />
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                  <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                     {t('admin.users.columnUser')}
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                  <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                     {t('admin.users.columnEmail')}
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                  <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                     {t('admin.users.columnEmailVerification')}
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                  <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                     {t('admin.users.columnSuperadminStatus')}
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                  <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                     {t('admin.users.columnActions')}
                   </th>
                 </tr>
@@ -474,137 +522,142 @@ export function GlobalUsersTab() {
                   </tr>
                 )}
                 {filteredUsers.map((user) => (
-                    <tr key={`user-row-${user.id}`}>
-                      <td className="px-6 py-4">
-                        <input
-                          type="checkbox"
-                          checked={selectedUsers.includes(user.id)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setSelectedUsers([...selectedUsers, user.id])
-                            } else {
-                              setSelectedUsers(
-                                selectedUsers.filter((id) => id !== user.id)
-                              )
-                            }
-                          }}
-                          className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                        />
-                      </td>
-                      <td className="whitespace-nowrap px-6 py-4">
-                        <div className="flex items-center">
-                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-300 dark:bg-zinc-600">
-                            <span className="text-sm font-medium text-zinc-700 dark:text-zinc-200">
-                              {user.name?.charAt(0).toUpperCase()}
+                  <tr key={`user-row-${user.id}`}>
+                    <td className="px-6 py-4">
+                      <input
+                        type="checkbox"
+                        checked={selectedUsers.includes(user.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedUsers([...selectedUsers, user.id])
+                          } else {
+                            setSelectedUsers(
+                              selectedUsers.filter((id) => id !== user.id),
+                            )
+                          }
+                        }}
+                        className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                      />
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-300 dark:bg-zinc-600">
+                          <span className="text-sm font-medium text-zinc-700 dark:text-zinc-200">
+                            {user.name?.charAt(0).toUpperCase()}
+                          </span>
+                        </div>
+                        <div className="ml-3">
+                          <div className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                            {user.name}
+                          </div>
+                          <div className="text-sm text-zinc-500 dark:text-zinc-400">
+                            {user.username}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-sm whitespace-nowrap text-zinc-900 dark:text-zinc-100">
+                      {user.email}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center gap-2">
+                        {user.email_verified ? (
+                          <div className="flex items-center gap-1">
+                            <CheckCircleIcon className="h-5 w-5 text-green-500" />
+                            <span className="text-sm text-green-600 dark:text-green-400">
+                              {t('admin.users.verified')}
+                              {user.email_verification_method === 'admin' && (
+                                <span className="ml-1 text-xs text-zinc-500 dark:text-zinc-400">
+                                  ({t('admin.users.adminMethod')})
+                                </span>
+                              )}
                             </span>
                           </div>
-                          <div className="ml-3">
-                            <div className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
-                              {user.name}
-                            </div>
-                            <div className="text-sm text-zinc-500 dark:text-zinc-400">
-                              {user.username}
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="whitespace-nowrap px-6 py-4 text-sm text-zinc-900 dark:text-zinc-100">
-                        {user.email}
-                      </td>
-                      <td className="whitespace-nowrap px-6 py-4">
-                        <div className="flex items-center gap-2">
-                          {user.email_verified ? (
-                            <div className="flex items-center gap-1">
-                              <CheckCircleIcon className="h-5 w-5 text-green-500" />
-                              <span className="text-sm text-green-600 dark:text-green-400">
-                                {t('admin.users.verified')}
-                                {user.email_verification_method === 'admin' && (
-                                  <span className="ml-1 text-xs text-zinc-500 dark:text-zinc-400">
-                                    ({t('admin.users.adminMethod')})
-                                  </span>
-                                )}
-                              </span>
-                            </div>
-                          ) : (
-                            <div className="flex items-center gap-1">
-                              <XCircleIcon className="h-5 w-5 text-red-500" />
-                              <span className="text-sm text-red-600 dark:text-red-400">
-                                {t('admin.users.unverified')}
-                              </span>
-                            </div>
-                          )}
-
-                          {/* Verification actions */}
-                          {!user.email_verified && (
-                            <button
-                              onClick={() => {
-                                setEmailVerificationModal({
-                                  isOpen: true,
-                                  user: user,
-                                  action: 'verify',
-                                })
-                              }}
-                              className="text-green-600 hover:text-green-800 dark:text-green-400 dark:hover:text-green-300"
-                              title={t('admin.users.verifyEmail')}
-                            >
-                              <CheckIcon className="h-4 w-4" />
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                      <td className="whitespace-nowrap px-6 py-4">
-                        {user.id === currentUser?.id ||
-                        updatingUser === user.id ? (
-                          <span className="text-sm text-zinc-600 dark:text-zinc-400">
-                            {updatingUser === user.id
-                              ? t('admin.users.updating')
-                              : user.is_superadmin
-                                ? t('admin.users.superadmin')
-                                : t('admin.users.regularUser')}
-                          </span>
                         ) : (
-                          <Select
-                            value={user.is_superadmin ? 'superadmin' : 'user'}
-                            onValueChange={(v) =>
-                              handleSuperadminChange(
-                                user.id,
-                                v === 'superadmin'
-                              )
-                            }
-                            disabled={updatingUser === user.id}
-                            displayValue={user.is_superadmin ? t('admin.users.superadmin') : t('admin.users.regularUser')}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder={t('admin.users.regularUser')} />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="user">
-                                {t('admin.users.regularUser')}
-                              </SelectItem>
-                              <SelectItem value="superadmin">{t('admin.users.superadmin')}</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        )}
-                      </td>
-                      <td className="whitespace-nowrap px-6 py-4 text-sm font-medium">
-                        {user.id !== currentUser?.id && (
-                          <div className="flex space-x-2">
-                            <button
-                              onClick={() => setShowDeleteConfirm(user.id)}
-                              disabled={deletingUser === user.id}
-                              className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
-                            >
-                              {deletingUser === user.id ? (
-                                t('admin.users.deleting')
-                              ) : (
-                                <TrashIcon className="h-4 w-4" />
-                              )}
-                            </button>
+                          <div className="flex items-center gap-1">
+                            <XCircleIcon className="h-5 w-5 text-red-500" />
+                            <span className="text-sm text-red-600 dark:text-red-400">
+                              {t('admin.users.unverified')}
+                            </span>
                           </div>
                         )}
-                      </td>
-                    </tr>
-                  ))}
+
+                        {/* Verification actions */}
+                        {!user.email_verified && (
+                          <button
+                            onClick={() => {
+                              setEmailVerificationModal({
+                                isOpen: true,
+                                user: user,
+                                action: 'verify',
+                              })
+                            }}
+                            className="text-green-600 hover:text-green-800 dark:text-green-400 dark:hover:text-green-300"
+                            title={t('admin.users.verifyEmail')}
+                          >
+                            <CheckIcon className="h-4 w-4" />
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {user.id === currentUser?.id ||
+                      updatingUser === user.id ? (
+                        <span className="text-sm text-zinc-600 dark:text-zinc-400">
+                          {updatingUser === user.id
+                            ? t('admin.users.updating')
+                            : user.is_superadmin
+                              ? t('admin.users.superadmin')
+                              : t('admin.users.regularUser')}
+                        </span>
+                      ) : (
+                        <Select
+                          value={user.is_superadmin ? 'superadmin' : 'user'}
+                          onValueChange={(v) =>
+                            handleSuperadminChange(user.id, v === 'superadmin')
+                          }
+                          disabled={updatingUser === user.id}
+                          displayValue={
+                            user.is_superadmin
+                              ? t('admin.users.superadmin')
+                              : t('admin.users.regularUser')
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue
+                              placeholder={t('admin.users.regularUser')}
+                            />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="user">
+                              {t('admin.users.regularUser')}
+                            </SelectItem>
+                            <SelectItem value="superadmin">
+                              {t('admin.users.superadmin')}
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 text-sm font-medium whitespace-nowrap">
+                      {user.id !== currentUser?.id && (
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => setShowDeleteConfirm(user.id)}
+                            disabled={deletingUser === user.id}
+                            className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
+                          >
+                            {deletingUser === user.id ? (
+                              t('admin.users.deleting')
+                            ) : (
+                              <TrashIcon className="h-4 w-4" />
+                            )}
+                          </button>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>

@@ -28,7 +28,7 @@ test.describe('Annotation Workflow', () => {
     projectId = await seeder.createProject(`Annotation Workflow ${Date.now()}`)
     await seeder.setLabelConfig(
       projectId,
-      '<View><Text name="text" value="$text"/><Choices name="sentiment" toName="text"><Choice value="positive"/><Choice value="negative"/><Choice value="neutral"/></Choices></View>'
+      '<View><Text name="text" value="$text"/><Choices name="sentiment" toName="text"><Choice value="positive"/><Choice value="negative"/><Choice value="neutral"/></Choices></View>',
     )
     await seeder.importTasks(projectId, [
       { data: { text: 'This is a positive review about the product.' } },
@@ -52,7 +52,7 @@ test.describe('Annotation Workflow', () => {
 
     // Check for initialization error (no tasks available) - valid state
     const initError = page.locator(
-      'text=/No tasks are available|Initialization Error/i'
+      'text=/No tasks are available|Initialization Error/i',
     )
     const hasInitError = await initError
       .isVisible({ timeout: 5000 })
@@ -113,7 +113,7 @@ test.describe('Annotation Workflow', () => {
         !e.includes('Warning:') &&
         !e.includes('DevTools') &&
         !e.includes('Failed to load resource') &&
-        !e.includes('Notification stream error')
+        !e.includes('Notification stream error'),
     )
 
     expect(criticalErrors).toHaveLength(0)

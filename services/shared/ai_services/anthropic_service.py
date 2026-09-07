@@ -162,7 +162,11 @@ class AnthropicService(BaseAIService):
             api_params = {
                 "model": model_name,
                 "max_tokens": max_tokens,
-                "temperature": temperature,
+                # anthropic>=1.0 dropped `temperature` from the typed
+                # messages.create() signature; it is still accepted by the
+                # API, so send it through extra_body (temperature 0 is what
+                # makes benchmark generations reproducible).
+                "extra_body": {"temperature": temperature},
                 "system": system_prompt,
                 "messages": [{"role": "user", "content": prompt}],
             }
@@ -346,7 +350,8 @@ class AnthropicService(BaseAIService):
             response = self.client.messages.create(
                 model=model_name,
                 max_tokens=max_tokens,
-                temperature=temperature,
+                # See generate(): temperature rides in extra_body since anthropic 1.0.
+                extra_body={"temperature": temperature},
                 system=enhanced_system,
                 messages=[{"role": "user", "content": prompt}],
             )

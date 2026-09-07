@@ -18,7 +18,8 @@ jest.mock('@/contexts/I18nContext', () => ({
       const translations: Record<string, string> = {
         'errors.network.title': 'Network Error',
         'errors.global.title': 'Something went wrong',
-        'errors.network.connectionTrouble': "We're having trouble connecting to our servers",
+        'errors.network.connectionTrouble':
+          "We're having trouble connecting to our servers",
         'errors.global.description': 'An unexpected error occurred',
         'errors.network.networkIssue': 'Network connectivity issues',
         'errors.network.serverLoad': 'High server load',
@@ -50,7 +51,7 @@ describe('NetworkErrorBoundary', () => {
     render(
       <NetworkErrorBoundary>
         <GoodComponent />
-      </NetworkErrorBoundary>
+      </NetworkErrorBoundary>,
     )
 
     expect(screen.getByText('Working component')).toBeInTheDocument()
@@ -62,17 +63,17 @@ describe('NetworkErrorBoundary', () => {
     render(
       <NetworkErrorBoundary>
         <ThrowError error={error} />
-      </NetworkErrorBoundary>
+      </NetworkErrorBoundary>,
     )
 
     expect(screen.getByText('Network Error')).toBeInTheDocument()
     expect(
-      screen.getByText(/We're having trouble connecting to our servers/)
+      screen.getByText(/We're having trouble connecting to our servers/),
     ).toBeInTheDocument()
     expect(screen.getByText('Network connectivity issues')).toBeInTheDocument()
     expect(screen.getByText('High server load')).toBeInTheDocument()
     expect(
-      screen.getByText('Too many simultaneous requests')
+      screen.getByText('Too many simultaneous requests'),
     ).toBeInTheDocument()
   })
 
@@ -82,7 +83,7 @@ describe('NetworkErrorBoundary', () => {
     render(
       <NetworkErrorBoundary>
         <ThrowError error={error} />
-      </NetworkErrorBoundary>
+      </NetworkErrorBoundary>,
     )
 
     expect(screen.getByText('Network Error')).toBeInTheDocument()
@@ -94,7 +95,7 @@ describe('NetworkErrorBoundary', () => {
     render(
       <NetworkErrorBoundary>
         <ThrowError error={error} />
-      </NetworkErrorBoundary>
+      </NetworkErrorBoundary>,
     )
 
     expect(screen.getByText('Something went wrong')).toBeInTheDocument()
@@ -113,7 +114,7 @@ describe('NetworkErrorBoundary', () => {
     const { rerender } = render(
       <NetworkErrorBoundary>
         <TestComponent />
-      </NetworkErrorBoundary>
+      </NetworkErrorBoundary>,
     )
 
     expect(screen.getByText('Try Again')).toBeInTheDocument()
@@ -132,7 +133,7 @@ describe('NetworkErrorBoundary', () => {
     rerender(
       <NetworkErrorBoundary>
         <TestComponent />
-      </NetworkErrorBoundary>
+      </NetworkErrorBoundary>,
     )
 
     expect(screen.getByText('Try Again (1)')).toBeInTheDocument()
@@ -153,7 +154,7 @@ describe('NetworkErrorBoundary', () => {
     render(
       <NetworkErrorBoundary fallback={customFallback}>
         <ThrowError error={error} />
-      </NetworkErrorBoundary>
+      </NetworkErrorBoundary>,
     )
 
     expect(screen.getByText('Custom error: Custom error')).toBeInTheDocument()
@@ -167,7 +168,7 @@ describe('NetworkErrorBoundary', () => {
     render(
       <NetworkErrorBoundary onError={onError}>
         <ThrowError error={error} />
-      </NetworkErrorBoundary>
+      </NetworkErrorBoundary>,
     )
 
     expect(onError).toHaveBeenCalledWith(error, expect.any(Object))
@@ -183,7 +184,7 @@ describe('NetworkErrorBoundary', () => {
     render(
       <NetworkErrorBoundary>
         <ThrowError error={error} />
-      </NetworkErrorBoundary>
+      </NetworkErrorBoundary>,
     )
 
     // Find the details element
@@ -212,7 +213,7 @@ describe('NetworkErrorBoundary', () => {
       const { unmount } = render(
         <NetworkErrorBoundary>
           <ThrowError error={new Error(pattern)} />
-        </NetworkErrorBoundary>
+        </NetworkErrorBoundary>,
       )
 
       expect(screen.getByText('Network Error')).toBeInTheDocument()

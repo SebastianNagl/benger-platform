@@ -46,7 +46,7 @@ const renderSSR = () => {
   render(
     <I18nProvider>
       <Probe />
-    </I18nProvider>
+    </I18nProvider>,
   )
   return () => captured as ReturnType<typeof useI18n>
 }

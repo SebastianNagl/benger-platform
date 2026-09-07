@@ -52,7 +52,8 @@ jest.mock('@/contexts/I18nContext', () => ({
         'projects.generationTab.viewTaskDetails': 'View Details',
         'projects.generationTab.noMatchingGenerations': 'No matching results',
         'projects.generationTab.noGenerationsFound': 'No generations found',
-        'projects.generationTab.generateResponsesToSee': 'Generate responses first',
+        'projects.generationTab.generateResponsesToSee':
+          'Generate responses first',
       }
       let result = translations[key] || key
       if (params) {
@@ -195,7 +196,9 @@ describe('GenerationTab - branch coverage', () => {
       })
 
       // Click to expand
-      const taskHeader = screen.getByText('Test text').closest('[class*="cursor-pointer"]')
+      const taskHeader = screen
+        .getByText('Test text')
+        .closest('[class*="cursor-pointer"]')
       await user.click(taskHeader!)
 
       await waitFor(() => {
@@ -223,7 +226,9 @@ describe('GenerationTab - branch coverage', () => {
         expect(screen.getByText('Object response')).toBeInTheDocument()
       })
 
-      const taskHeader = screen.getByText('Object response').closest('[class*="cursor-pointer"]')
+      const taskHeader = screen
+        .getByText('Object response')
+        .closest('[class*="cursor-pointer"]')
       await user.click(taskHeader!)
 
       await waitFor(() => {
@@ -249,7 +254,9 @@ describe('GenerationTab - branch coverage', () => {
         expect(screen.getByText('No responses')).toBeInTheDocument()
       })
 
-      const taskHeader = screen.getByText('No responses').closest('[class*="cursor-pointer"]')
+      const taskHeader = screen
+        .getByText('No responses')
+        .closest('[class*="cursor-pointer"]')
       await user.click(taskHeader!)
 
       await waitFor(() => {
@@ -279,11 +286,15 @@ describe('GenerationTab - branch coverage', () => {
         expect(screen.getByText('Legal question?')).toBeInTheDocument()
       })
 
-      const taskHeader = screen.getByText('Legal question?').closest('[class*="cursor-pointer"]')
+      const taskHeader = screen
+        .getByText('Legal question?')
+        .closest('[class*="cursor-pointer"]')
       await user.click(taskHeader!)
 
       await waitFor(() => {
-        expect(screen.getByText('Question: Legal question?')).toBeInTheDocument()
+        expect(
+          screen.getByText('Question: Legal question?'),
+        ).toBeInTheDocument()
       })
     })
   })
@@ -379,15 +390,20 @@ describe('GenerationTab - branch coverage', () => {
 
       // Find and click refresh button
       const buttons = screen.getAllByRole('button')
-      const refreshButton = buttons.find((btn) =>
-        btn.querySelector('[class*="h-4 w-4"]') && !btn.textContent?.includes('Export')
+      const refreshButton = buttons.find(
+        (btn) =>
+          btn.querySelector('[class*="h-4 w-4"]') &&
+          !btn.textContent?.includes('Export'),
       )
 
       if (refreshButton) {
         fireEvent.click(refreshButton)
 
         await waitFor(() => {
-          expect(mockCompleteProgress).toHaveBeenCalledWith(expect.any(String), 'error')
+          expect(mockCompleteProgress).toHaveBeenCalledWith(
+            expect.any(String),
+            'error',
+          )
           expect(mockAddToast).toHaveBeenCalledWith('Refresh failed', 'error')
         })
       }
@@ -419,7 +435,10 @@ describe('GenerationTab - branch coverage', () => {
       fireEvent.click(screen.getByText('Export'))
 
       await waitFor(() => {
-        expect(mockCompleteProgress).toHaveBeenCalledWith(expect.any(String), 'error')
+        expect(mockCompleteProgress).toHaveBeenCalledWith(
+          expect.any(String),
+          'error',
+        )
       })
     })
   })
@@ -444,7 +463,9 @@ describe('GenerationTab - branch coverage', () => {
       })
 
       // Expand task
-      const taskHeader = screen.getByText('Detail task').closest('[class*="cursor-pointer"]')
+      const taskHeader = screen
+        .getByText('Detail task')
+        .closest('[class*="cursor-pointer"]')
       await user.click(taskHeader!)
 
       await waitFor(() => {

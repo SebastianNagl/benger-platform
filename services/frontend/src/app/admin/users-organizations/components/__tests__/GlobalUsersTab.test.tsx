@@ -18,7 +18,11 @@ jest.mock('@/hooks/useDialogs', () => ({
 }))
 
 // Create stable mock functions outside the mock to prevent recreation on each call
-const mockT = (key: string, _defaultVal?: string | Record<string, any>, vars?: Record<string, any>) => {
+const mockT = (
+  key: string,
+  _defaultVal?: string | Record<string, any>,
+  vars?: Record<string, any>,
+) => {
   const translations: Record<string, string> = {
     'admin.users.loading': 'Loading users...',
     'admin.users.updating': 'Updating...',
@@ -48,13 +52,15 @@ const mockT = (key: string, _defaultVal?: string | Record<string, any>, vars?: R
     'admin.users.infoTitle': 'Info',
     'admin.users.noUnverifiedSelected': 'No unverified users selected',
     'admin.users.bulkVerifySuccess': 'Successfully verified {count} email',
-    'admin.users.bulkVerifySuccessPlural': 'Successfully verified {count} emails',
+    'admin.users.bulkVerifySuccessPlural':
+      'Successfully verified {count} emails',
     'admin.users.bulkVerifyFailed': 'Failed to verify some emails',
     'admin.users.deleteSuccess': 'User deleted successfully',
   }
   let result = translations[key] || key
   // Handle vars from second or third argument
-  const actualVars = vars || (typeof _defaultVal === 'object' ? _defaultVal : undefined)
+  const actualVars =
+    vars || (typeof _defaultVal === 'object' ? _defaultVal : undefined)
   if (actualVars) {
     Object.entries(actualVars).forEach(([k, v]) => {
       result = result.replace(`{${k}}`, String(v))
@@ -134,7 +140,6 @@ jest.mock('@/components/shared/FilterToolbar', () => {
   return { FilterToolbar }
 })
 
-
 describe('GlobalUsersTab', () => {
   const mockShowError = jest.fn()
   const mockConfirmDelete = jest.fn()
@@ -212,7 +217,7 @@ describe('GlobalUsersTab', () => {
       render(<GlobalUsersTab />)
 
       expect(
-        screen.getByText('You do not have permission to manage users.')
+        screen.getByText('You do not have permission to manage users.'),
       ).toBeInTheDocument()
     })
 
@@ -223,7 +228,7 @@ describe('GlobalUsersTab', () => {
         expect(api.getAllUsers).toHaveBeenCalled()
       })
 
-      expect(screen.getByText('Test User 1')).toBeInTheDocument()
+      expect(await screen.findByText('Test User 1')).toBeInTheDocument()
       expect(screen.getByText('Test User 2')).toBeInTheDocument()
       expect(screen.getByText('Admin User')).toBeInTheDocument()
     })
@@ -325,7 +330,7 @@ describe('GlobalUsersTab', () => {
           user: mockUsers[1],
           action: 'verify',
         }),
-        {}
+        undefined,
       )
     })
 
@@ -355,7 +360,7 @@ describe('GlobalUsersTab', () => {
         expect(api.getAllUsers).toHaveBeenCalled()
       })
 
-      const verifyButtons = screen.getAllByTestId('check-icon')
+      const verifyButtons = await screen.findAllByTestId('check-icon')
       await user.click(verifyButtons[0])
 
       // Simulate modal confirmation
@@ -365,7 +370,7 @@ describe('GlobalUsersTab', () => {
         expect(api.verifyUserEmail).toHaveBeenCalledWith('user-2')
         expect(mockShowError).toHaveBeenCalledWith(
           'Email verified successfully',
-          'Success'
+          'Success',
         )
       })
     })
@@ -378,7 +383,7 @@ describe('GlobalUsersTab', () => {
         return null
       })
       ;(api.verifyUserEmail as jest.Mock).mockRejectedValue(
-        new Error('Verification failed')
+        new Error('Verification failed'),
       )
 
       render(<GlobalUsersTab />)
@@ -395,7 +400,7 @@ describe('GlobalUsersTab', () => {
       await waitFor(() => {
         expect(mockShowError).toHaveBeenCalledWith(
           'Failed to verify email',
-          'Error'
+          'Error',
         )
       })
     })
@@ -469,7 +474,7 @@ describe('GlobalUsersTab', () => {
         expect(api.verifyUserEmail).toHaveBeenCalledWith('user-2')
         expect(mockShowError).toHaveBeenCalledWith(
           'Successfully verified 1 email',
-          'Success'
+          'Success',
         )
       })
     })
@@ -490,7 +495,7 @@ describe('GlobalUsersTab', () => {
 
       expect(mockShowError).toHaveBeenCalledWith(
         'No unverified users selected',
-        'Info'
+        'Info',
       )
     })
 
@@ -528,7 +533,7 @@ describe('GlobalUsersTab', () => {
         expect(api.verifyUserEmail).toHaveBeenCalledTimes(2) // user-2 and user-4
         expect(mockShowError).toHaveBeenCalledWith(
           'Successfully verified 2 emails',
-          'Success'
+          'Success',
         )
       })
     })
@@ -573,7 +578,7 @@ describe('GlobalUsersTab', () => {
       await waitFor(() => {
         expect(api.updateUserSuperadminStatus).toHaveBeenCalledWith(
           'user-1',
-          true
+          true,
         )
       })
     })
@@ -581,7 +586,7 @@ describe('GlobalUsersTab', () => {
     it('shows updating state while changing superadmin status', async () => {
       const user = userEvent.setup()
       ;(api.updateUserSuperadminStatus as jest.Mock).mockImplementation(
-        () => new Promise((resolve) => setTimeout(() => resolve({}), 100))
+        () => new Promise((resolve) => setTimeout(() => resolve({}), 100)),
       )
 
       render(<GlobalUsersTab />)
@@ -600,7 +605,7 @@ describe('GlobalUsersTab', () => {
     it('handles superadmin status update error', async () => {
       const user = userEvent.setup()
       ;(api.updateUserSuperadminStatus as jest.Mock).mockRejectedValue(
-        new Error('Update failed')
+        new Error('Update failed'),
       )
 
       render(<GlobalUsersTab />)
@@ -635,7 +640,9 @@ describe('GlobalUsersTab', () => {
       await waitFor(() => {
         // Called at least twice: once on mount, once to refresh after update
         // (React StrictMode or re-renders may cause additional calls)
-        expect((api.getAllUsers as jest.Mock).mock.calls.length).toBeGreaterThanOrEqual(2)
+        expect(
+          (api.getAllUsers as jest.Mock).mock.calls.length,
+        ).toBeGreaterThanOrEqual(2)
       })
     })
   })
@@ -699,7 +706,7 @@ describe('GlobalUsersTab', () => {
         expect(api.deleteUser).toHaveBeenCalledWith('user-1')
         expect(mockShowError).toHaveBeenCalledWith(
           'User deleted successfully',
-          'Success'
+          'Success',
         )
       })
     })
@@ -728,7 +735,7 @@ describe('GlobalUsersTab', () => {
       const user = userEvent.setup()
       mockConfirmDelete.mockResolvedValue(true)
       ;(api.deleteUser as jest.Mock).mockRejectedValue(
-        new Error('Delete failed')
+        new Error('Delete failed'),
       )
 
       render(<GlobalUsersTab />)
@@ -749,7 +756,7 @@ describe('GlobalUsersTab', () => {
       const user = userEvent.setup()
       mockConfirmDelete.mockResolvedValue(true)
       ;(api.deleteUser as jest.Mock).mockImplementation(
-        () => new Promise((resolve) => setTimeout(() => resolve({}), 100))
+        () => new Promise((resolve) => setTimeout(() => resolve({}), 100)),
       )
 
       render(<GlobalUsersTab />)
@@ -791,7 +798,7 @@ describe('GlobalUsersTab', () => {
           expect.objectContaining({
             isOpen: true,
           }),
-          {}
+          undefined,
         )
       })
 
@@ -827,7 +834,7 @@ describe('GlobalUsersTab', () => {
           expect.objectContaining({
             user: mockUsers[1],
           }),
-          {}
+          undefined,
         )
       })
     })

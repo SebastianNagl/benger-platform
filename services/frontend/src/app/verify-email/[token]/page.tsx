@@ -95,7 +95,7 @@ export default function VerifyTokenPage({ params }: VerifyTokenPageProps) {
           setMessage(
             data.detail ||
               data.message ||
-              t('emailVerification.invalidDescription')
+              t('emailVerification.invalidDescription'),
           )
         }
       } catch (error) {
@@ -195,7 +195,7 @@ export default function VerifyTokenPage({ params }: VerifyTokenPageProps) {
               <Button
                 onClick={() =>
                   router.push(
-                    '/login?message=Email verified! You can now log in.'
+                    '/login?message=Email verified! You can now log in.',
                   )
                 }
                 className="w-full"

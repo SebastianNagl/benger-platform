@@ -204,7 +204,8 @@ const translations: Record<string, string> = {
   'tasks.detail.noAnnotationsAvailable': 'No annotations available',
   'tasks.detail.taskIdNotAvailable': 'Task ID not available',
   'tasks.detail.loadAnnotationsFailed': 'Failed to load annotations',
-  'tasks.detail.projectOrTaskIdNotAvailable': 'Project or task ID not available',
+  'tasks.detail.projectOrTaskIdNotAvailable':
+    'Project or task ID not available',
   'navigation.projects': 'Projects',
 }
 
@@ -241,7 +242,7 @@ describe('TaskDetailPage', () => {
     // Mock API calls
     ;(projectsAPI.getTask as jest.Mock).mockResolvedValue(mockTask)
     ;(projectsAPI.getTaskAnnotations as jest.Mock).mockResolvedValue(
-      mockAnnotations
+      mockAnnotations,
     )
     ;(projectsAPI.updateTaskData as jest.Mock).mockResolvedValue(mockTask)
   })
@@ -298,7 +299,7 @@ describe('TaskDetailPage', () => {
 
     it('displays labeled status for labeled tasks', async () => {
       ;(projectsAPI.getTask as jest.Mock).mockResolvedValue(
-        mockTaskWithAnnotations
+        mockTaskWithAnnotations,
       )
 
       const params = Promise.resolve({ id: 'project-123', taskId: 'task-456' })
@@ -311,7 +312,7 @@ describe('TaskDetailPage', () => {
 
     it('displays annotation counts', async () => {
       ;(projectsAPI.getTask as jest.Mock).mockResolvedValue(
-        mockTaskWithAnnotations
+        mockTaskWithAnnotations,
       )
 
       const params = Promise.resolve({ id: 'project-123', taskId: 'task-456' })
@@ -369,7 +370,7 @@ describe('TaskDetailPage', () => {
   describe('Error Handling', () => {
     it('shows error message when task fails to load', async () => {
       ;(projectsAPI.getTask as jest.Mock).mockRejectedValue(
-        new Error('Task not found')
+        new Error('Task not found'),
       )
 
       const params = Promise.resolve({ id: 'project-123', taskId: 'task-456' })
@@ -379,11 +380,11 @@ describe('TaskDetailPage', () => {
         () => {
           expect(screen.getByText('Task not found')).toBeInTheDocument()
         },
-        { timeout: 3000 }
+        { timeout: 3000 },
       )
 
       expect(
-        screen.getByText("The task you're looking for doesn't exist.")
+        screen.getByText("The task you're looking for doesn't exist."),
       ).toBeInTheDocument()
     })
 
@@ -397,13 +398,13 @@ describe('TaskDetailPage', () => {
         () => {
           expect(screen.getByText('Task not found')).toBeInTheDocument()
         },
-        { timeout: 3000 }
+        { timeout: 3000 },
       )
     })
 
     it('shows back to data manager button on error', async () => {
       ;(projectsAPI.getTask as jest.Mock).mockRejectedValue(
-        new Error('Task not found')
+        new Error('Task not found'),
       )
 
       const params = Promise.resolve({ id: 'project-123', taskId: 'task-456' })
@@ -413,7 +414,7 @@ describe('TaskDetailPage', () => {
         () => {
           expect(screen.getByText('Back to Data Manager')).toBeInTheDocument()
         },
-        { timeout: 3000 }
+        { timeout: 3000 },
       )
     })
 
@@ -431,7 +432,7 @@ describe('TaskDetailPage', () => {
     it('navigates back to data manager from not found page', async () => {
       const user = userEvent.setup()
       ;(projectsAPI.getTask as jest.Mock).mockRejectedValue(
-        new Error('Task not found')
+        new Error('Task not found'),
       )
 
       const params = Promise.resolve({ id: 'project-123', taskId: 'task-456' })
@@ -441,7 +442,7 @@ describe('TaskDetailPage', () => {
         () => {
           expect(screen.getByText('Back to Data Manager')).toBeInTheDocument()
         },
-        { timeout: 3000 }
+        { timeout: 3000 },
       )
 
       const backButton = screen.getByText('Back to Data Manager')
@@ -459,14 +460,14 @@ describe('TaskDetailPage', () => {
         () => {
           expect(screen.getByText('Start Labeling')).toBeInTheDocument()
         },
-        { timeout: 3000 }
+        { timeout: 3000 },
       )
 
       const labelButton = screen.getByText('Start Labeling')
       await user.click(labelButton)
 
       expect(mockRouter.push).toHaveBeenCalledWith(
-        '/projects/project-123/label'
+        '/projects/project-123/label',
       )
     })
   })
@@ -474,7 +475,7 @@ describe('TaskDetailPage', () => {
   describe('Annotations', () => {
     it('displays existing annotations section when task has annotations', async () => {
       ;(projectsAPI.getTask as jest.Mock).mockResolvedValue(
-        mockTaskWithAnnotations
+        mockTaskWithAnnotations,
       )
 
       const params = Promise.resolve({ id: 'project-123', taskId: 'task-456' })
@@ -484,11 +485,11 @@ describe('TaskDetailPage', () => {
         () => {
           expect(screen.getByText('Existing Annotations')).toBeInTheDocument()
         },
-        { timeout: 3000 }
+        { timeout: 3000 },
       )
 
       expect(
-        screen.getByText(/This task has 2 annotations/)
+        screen.getByText(/This task has 2 annotations/),
       ).toBeInTheDocument()
     })
 
@@ -500,7 +501,7 @@ describe('TaskDetailPage', () => {
         () => {
           expect(screen.getByText('Task Data')).toBeInTheDocument()
         },
-        { timeout: 3000 }
+        { timeout: 3000 },
       )
 
       expect(screen.queryByText('Existing Annotations')).not.toBeInTheDocument()
@@ -509,7 +510,7 @@ describe('TaskDetailPage', () => {
     it('loads annotations when clicking View Annotations', async () => {
       const user = userEvent.setup()
       ;(projectsAPI.getTask as jest.Mock).mockResolvedValue(
-        mockTaskWithAnnotations
+        mockTaskWithAnnotations,
       )
 
       const params = Promise.resolve({ id: 'project-123', taskId: 'task-456' })
@@ -519,7 +520,7 @@ describe('TaskDetailPage', () => {
         () => {
           expect(screen.getByText('View Annotations')).toBeInTheDocument()
         },
-        { timeout: 3000 }
+        { timeout: 3000 },
       )
 
       const viewButton = screen.getByText('View Annotations')
@@ -539,20 +540,20 @@ describe('TaskDetailPage', () => {
           const viewButton = screen.getByText('View Annotations')
           expect(viewButton).toBeDisabled()
         },
-        { timeout: 3000 }
+        { timeout: 3000 },
       )
     })
 
     it('shows loading state while fetching annotations', async () => {
       const user = userEvent.setup()
       ;(projectsAPI.getTask as jest.Mock).mockResolvedValue(
-        mockTaskWithAnnotations
+        mockTaskWithAnnotations,
       )
       ;(projectsAPI.getTaskAnnotations as jest.Mock).mockImplementation(
         () =>
           new Promise((resolve) =>
-            setTimeout(() => resolve(mockAnnotations), 100)
-          )
+            setTimeout(() => resolve(mockAnnotations), 100),
+          ),
       )
 
       const params = Promise.resolve({ id: 'project-123', taskId: 'task-456' })
@@ -606,7 +607,9 @@ describe('TaskDetailPage', () => {
       expect(stub).toHaveAttribute('data-can-edit', 'true')
       expect(Stub.mock.calls[0][0].projectId).toBe('project-123')
       fireEvent.click(stub)
-      await waitFor(() => expect(screen.getByText(/"sachverhalt": "neu"/)).toBeInTheDocument())
+      await waitFor(() =>
+        expect(screen.getByText(/"sachverhalt": "neu"/)).toBeInTheDocument(),
+      )
       registerSlot('TaskStructuredEditor', null as any)
     })
 
@@ -677,14 +680,14 @@ describe('TaskDetailPage', () => {
         () => {
           expect(screen.getByText('Edit')).toBeInTheDocument()
         },
-        { timeout: 3000 }
+        { timeout: 3000 },
       )
 
       const editButton = screen.getByText('Edit')
       await user.click(editButton)
 
       const textarea = await screen.findByPlaceholderText(
-        'Enter valid JSON data...'
+        'Enter valid JSON data...',
       )
       await user.clear(textarea)
       await user.paste('{"modified": "data"}')
@@ -695,7 +698,7 @@ describe('TaskDetailPage', () => {
       await waitFor(() => {
         expect(screen.getByText('Edit')).toBeInTheDocument()
         expect(
-          screen.queryByPlaceholderText('Enter valid JSON data...')
+          screen.queryByPlaceholderText('Enter valid JSON data...'),
         ).not.toBeInTheDocument()
       })
     })
@@ -713,14 +716,14 @@ describe('TaskDetailPage', () => {
         () => {
           expect(screen.getByText('Edit')).toBeInTheDocument()
         },
-        { timeout: 3000 }
+        { timeout: 3000 },
       )
 
       const editButton = screen.getByText('Edit')
       await user.click(editButton)
 
       const textarea = await screen.findByPlaceholderText(
-        'Enter valid JSON data...'
+        'Enter valid JSON data...',
       )
       const newData = { text: 'Updated text', newField: 'New value' }
       await user.clear(textarea)
@@ -733,7 +736,7 @@ describe('TaskDetailPage', () => {
         expect(projectsAPI.updateTaskData).toHaveBeenCalledWith(
           'project-123',
           'task-456',
-          newData
+          newData,
         )
       })
     })
@@ -751,14 +754,14 @@ describe('TaskDetailPage', () => {
         () => {
           expect(screen.getByText('Edit')).toBeInTheDocument()
         },
-        { timeout: 3000 }
+        { timeout: 3000 },
       )
 
       const editButton = screen.getByText('Edit')
       await user.click(editButton)
 
       const textarea = await screen.findByPlaceholderText(
-        'Enter valid JSON data...'
+        'Enter valid JSON data...',
       )
       await user.clear(textarea)
       await user.paste('{invalid json}')
@@ -775,7 +778,8 @@ describe('TaskDetailPage', () => {
         user: mockSuperadmin,
       })
       ;(projectsAPI.updateTaskData as jest.Mock).mockImplementation(
-        () => new Promise((resolve) => setTimeout(() => resolve(mockTask), 100))
+        () =>
+          new Promise((resolve) => setTimeout(() => resolve(mockTask), 100)),
       )
 
       const params = Promise.resolve({ id: 'project-123', taskId: 'task-456' })
@@ -785,14 +789,14 @@ describe('TaskDetailPage', () => {
         () => {
           expect(screen.getByText('Edit')).toBeInTheDocument()
         },
-        { timeout: 3000 }
+        { timeout: 3000 },
       )
 
       const editButton = screen.getByText('Edit')
       await user.click(editButton)
 
       const textarea = await screen.findByPlaceholderText(
-        'Enter valid JSON data...'
+        'Enter valid JSON data...',
       )
       await user.clear(textarea)
       await user.paste('{"test": "data"}')
@@ -813,7 +817,8 @@ describe('TaskDetailPage', () => {
         user: mockSuperadmin,
       })
       ;(projectsAPI.updateTaskData as jest.Mock).mockImplementation(
-        () => new Promise((resolve) => setTimeout(() => resolve(mockTask), 100))
+        () =>
+          new Promise((resolve) => setTimeout(() => resolve(mockTask), 100)),
       )
 
       const params = Promise.resolve({ id: 'project-123', taskId: 'task-456' })
@@ -823,14 +828,14 @@ describe('TaskDetailPage', () => {
         () => {
           expect(screen.getByText('Edit')).toBeInTheDocument()
         },
-        { timeout: 3000 }
+        { timeout: 3000 },
       )
 
       const editButton = screen.getByText('Edit')
       await user.click(editButton)
 
       const textarea = await screen.findByPlaceholderText(
-        'Enter valid JSON data...'
+        'Enter valid JSON data...',
       )
       await user.clear(textarea)
       await user.paste('{"test": "data"}')
@@ -906,7 +911,7 @@ describe('TaskDetailPage', () => {
       await waitFor(() => {
         expect(consoleErrorSpy).toHaveBeenCalledWith(
           'Error resolving params:',
-          expect.any(Error)
+          expect.any(Error),
         )
       })
 
@@ -931,14 +936,14 @@ describe('TaskDetailPage', () => {
         () => {
           expect(screen.getByText('Edit')).toBeInTheDocument()
         },
-        { timeout: 3000 }
+        { timeout: 3000 },
       )
 
       const editButton = screen.getByText('Edit')
       await user.click(editButton)
 
       const textarea = await screen.findByPlaceholderText(
-        'Enter valid JSON data...'
+        'Enter valid JSON data...',
       )
       await user.clear(textarea)
       await user.paste('{"test": "data"}')
@@ -954,10 +959,10 @@ describe('TaskDetailPage', () => {
     it('handles getTaskAnnotations API errors', async () => {
       const user = userEvent.setup()
       ;(projectsAPI.getTask as jest.Mock).mockResolvedValue(
-        mockTaskWithAnnotations
+        mockTaskWithAnnotations,
       )
       ;(projectsAPI.getTaskAnnotations as jest.Mock).mockRejectedValue(
-        new Error('Failed to load annotations')
+        new Error('Failed to load annotations'),
       )
 
       const params = Promise.resolve({ id: 'project-123', taskId: 'task-456' })
@@ -967,7 +972,7 @@ describe('TaskDetailPage', () => {
         () => {
           expect(screen.getByText('View Annotations')).toBeInTheDocument()
         },
-        { timeout: 3000 }
+        { timeout: 3000 },
       )
 
       const viewButton = screen.getByText('View Annotations')
@@ -989,7 +994,7 @@ describe('TaskDetailPage', () => {
           const breadcrumb = screen.getByTestId('breadcrumb')
           expect(breadcrumb).toHaveTextContent('Test Project')
         },
-        { timeout: 3000 }
+        { timeout: 3000 },
       )
     })
 
@@ -1007,7 +1012,7 @@ describe('TaskDetailPage', () => {
           const breadcrumb = screen.getByTestId('breadcrumb')
           expect(breadcrumb).toHaveTextContent('Project')
         },
-        { timeout: 3000 }
+        { timeout: 3000 },
       )
     })
   })
@@ -1024,7 +1029,7 @@ describe('TaskDetailPage', () => {
           })
           expect(heading).toBeInTheDocument()
         },
-        { timeout: 3000 }
+        { timeout: 3000 },
       )
     })
 
@@ -1037,7 +1042,7 @@ describe('TaskDetailPage', () => {
           expect(screen.getByText('Start Labeling')).toBeInTheDocument()
           expect(screen.getByText('View Annotations')).toBeInTheDocument()
         },
-        { timeout: 3000 }
+        { timeout: 3000 },
       )
     })
   })
@@ -1070,7 +1075,7 @@ describe('TaskDetailPage', () => {
       // Component should not crash without IDs
       expect(mockAddToast).not.toHaveBeenCalledWith(
         'Project ID or Task ID not available',
-        'error'
+        'error',
       )
     })
 
@@ -1087,7 +1092,7 @@ describe('TaskDetailPage', () => {
         () => {
           expect(screen.getByText('Edit')).toBeInTheDocument()
         },
-        { timeout: 3000 }
+        { timeout: 3000 },
       )
 
       const editButton = screen.getByText('Edit')
@@ -1095,7 +1100,7 @@ describe('TaskDetailPage', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByPlaceholderText('Enter valid JSON data...')
+          screen.getByPlaceholderText('Enter valid JSON data...'),
         ).toBeInTheDocument()
       })
 
@@ -1104,7 +1109,7 @@ describe('TaskDetailPage', () => {
 
       await waitFor(() => {
         expect(
-          screen.queryByPlaceholderText('Enter valid JSON data...')
+          screen.queryByPlaceholderText('Enter valid JSON data...'),
         ).not.toBeInTheDocument()
       })
     })
@@ -1123,14 +1128,14 @@ describe('TaskDetailPage', () => {
         () => {
           expect(screen.getByText('Edit')).toBeInTheDocument()
         },
-        { timeout: 3000 }
+        { timeout: 3000 },
       )
 
       const editButton = screen.getByText('Edit')
       await user.click(editButton)
 
       const textarea = await screen.findByPlaceholderText(
-        'Enter valid JSON data...'
+        'Enter valid JSON data...',
       )
       const newData = { updated: 'content' }
       await user.clear(textarea)
@@ -1143,7 +1148,7 @@ describe('TaskDetailPage', () => {
         expect(projectsAPI.updateTaskData).toHaveBeenCalled()
         expect(mockAddToast).toHaveBeenCalledWith(
           'Task data updated successfully',
-          'success'
+          'success',
         )
       })
     })
@@ -1162,14 +1167,14 @@ describe('TaskDetailPage', () => {
         () => {
           expect(screen.getByText('Edit')).toBeInTheDocument()
         },
-        { timeout: 3000 }
+        { timeout: 3000 },
       )
 
       const editButton = screen.getByText('Edit')
       await user.click(editButton)
 
       const textarea = await screen.findByPlaceholderText(
-        'Enter valid JSON data...'
+        'Enter valid JSON data...',
       )
       await user.clear(textarea)
       await user.paste('{invalid json')
@@ -1180,7 +1185,7 @@ describe('TaskDetailPage', () => {
       await waitFor(() => {
         expect(mockAddToast).toHaveBeenCalledWith(
           'Invalid JSON format. Please check your syntax.',
-          'error'
+          'error',
         )
       })
     })
@@ -1202,14 +1207,14 @@ describe('TaskDetailPage', () => {
         () => {
           expect(screen.getByText('Edit')).toBeInTheDocument()
         },
-        { timeout: 3000 }
+        { timeout: 3000 },
       )
 
       const editButton = screen.getByText('Edit')
       await user.click(editButton)
 
       const textarea = await screen.findByPlaceholderText(
-        'Enter valid JSON data...'
+        'Enter valid JSON data...',
       )
       await user.clear(textarea)
       await user.paste('{"valid": "json"}')
@@ -1239,14 +1244,14 @@ describe('TaskDetailPage', () => {
         () => {
           expect(screen.getByText('Edit')).toBeInTheDocument()
         },
-        { timeout: 3000 }
+        { timeout: 3000 },
       )
 
       const editButton = screen.getByText('Edit')
       await user.click(editButton)
 
       const textarea = await screen.findByPlaceholderText(
-        'Enter valid JSON data...'
+        'Enter valid JSON data...',
       )
       await user.clear(textarea)
       await user.paste('{"valid": "json"}')
@@ -1258,7 +1263,7 @@ describe('TaskDetailPage', () => {
         // No message property, so fallback message is used
         expect(mockAddToast).toHaveBeenCalledWith(
           'Failed to update task data',
-          'error'
+          'error',
         )
       })
     })
@@ -1277,7 +1282,7 @@ describe('TaskDetailPage', () => {
         () => {
           expect(screen.getByText('Task not found')).toBeInTheDocument()
         },
-        { timeout: 3000 }
+        { timeout: 3000 },
       )
 
       // Edit button should not be present when task is null

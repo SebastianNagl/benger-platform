@@ -1,7 +1,13 @@
 'use client'
 
 import { useHydration } from '@/contexts/HydrationContext'
-import React, { createContext, useContext, useEffect, useRef, useState } from 'react'
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from 'react'
 
 // Load translations with fallback
 let deTranslations: any = {}
@@ -27,7 +33,11 @@ type Locale = 'de' | 'en'
 
 interface I18nContextType {
   locale: Locale
-  t: (key: string, defaultValueOrVariables?: string | Record<string, any>, variables?: Record<string, any>) => any
+  t: (
+    key: string,
+    defaultValueOrVariables?: string | Record<string, any>,
+    variables?: Record<string, any>,
+  ) => any
   changeLocale: (locale: Locale) => void
   isReady: boolean
 }
@@ -56,7 +66,11 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
     }
   }, [mounted])
 
-  const t = (key: string, defaultValueOrVariables?: string | Record<string, any>, variables?: Record<string, any>): any => {
+  const t = (
+    key: string,
+    defaultValueOrVariables?: string | Record<string, any>,
+    variables?: Record<string, any>,
+  ): any => {
     // Determine if second arg is default value (string) or variables (object)
     let defaultValue: string | undefined
     let vars: Record<string, any> | undefined
@@ -83,7 +97,9 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
         // counts/values instead of rendering a literal "{count}".
         if (typeof defaultValue === 'string' && vars) {
           return defaultValue.replace(/\{(\w+)\}/g, (match, variableName) =>
-            vars[variableName] !== undefined ? String(vars[variableName]) : match,
+            vars[variableName] !== undefined
+              ? String(vars[variableName])
+              : match,
           )
         }
         return defaultValue ?? key
@@ -92,7 +108,11 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
       // Guard: if the resolved value is a plain object (branch node, not a leaf),
       // return the key string to prevent React error #31 (object as child).
       // Arrays are allowed since some translations are intentionally arrays.
-      if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+      if (
+        typeof value === 'object' &&
+        value !== null &&
+        !Array.isArray(value)
+      ) {
         return defaultValue ?? key
       }
 
@@ -124,7 +144,11 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
 
   // Return default translations during SSR/hydration
   if (!mounted) {
-    const defaultT = (key: string, defaultValueOrVariables?: string | Record<string, any>, variables?: Record<string, any>): any => {
+    const defaultT = (
+      key: string,
+      defaultValueOrVariables?: string | Record<string, any>,
+      variables?: Record<string, any>,
+    ): any => {
       // Determine if second arg is default value (string) or variables (object)
       let defaultValue: string | undefined
       let vars: Record<string, any> | undefined
@@ -148,7 +172,9 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
           // Same fallback interpolation as the mounted path (see note above).
           if (typeof defaultValue === 'string' && vars) {
             return defaultValue.replace(/\{(\w+)\}/g, (match, variableName) =>
-              vars[variableName] !== undefined ? String(vars[variableName]) : match,
+              vars[variableName] !== undefined
+                ? String(vars[variableName])
+                : match,
             )
           }
           return defaultValue ?? key
@@ -198,8 +224,13 @@ export function useI18n() {
     // useI18n called outside of I18nProvider, using fallback
     return {
       locale: 'de' as Locale,
-      t: (key: string, defaultValueOrVariables?: string | Record<string, any>) =>
-        typeof defaultValueOrVariables === 'string' ? defaultValueOrVariables : key,
+      t: (
+        key: string,
+        defaultValueOrVariables?: string | Record<string, any>,
+      ) =>
+        typeof defaultValueOrVariables === 'string'
+          ? defaultValueOrVariables
+          : key,
       changeLocale: () => {},
       isReady: false,
     }

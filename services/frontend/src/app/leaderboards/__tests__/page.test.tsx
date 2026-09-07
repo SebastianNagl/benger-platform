@@ -79,7 +79,7 @@ describe('LeaderboardsPage — community edition (no slots)', () => {
   it('renders the page heading and refresh hint', () => {
     render(<LeaderboardsPage />)
     expect(
-      screen.getByRole('heading', { name: 'Leaderboards' })
+      screen.getByRole('heading', { name: 'Leaderboards' }),
     ).toBeInTheDocument()
     expect(screen.getByText('Updated daily')).toBeInTheDocument()
   })
@@ -88,10 +88,10 @@ describe('LeaderboardsPage — community edition (no slots)', () => {
     render(<LeaderboardsPage />)
     expect(screen.getByRole('button', { name: 'LLMs' })).toBeInTheDocument()
     expect(
-      screen.queryByRole('button', { name: 'Human Annotators' })
+      screen.queryByRole('button', { name: 'Human Annotators' }),
     ).not.toBeInTheDocument()
     expect(
-      screen.queryByRole('button', { name: 'Co-Creation' })
+      screen.queryByRole('button', { name: 'Co-Creation' }),
     ).not.toBeInTheDocument()
   })
 
@@ -123,17 +123,17 @@ describe('LeaderboardsPage — extended edition (slots present)', () => {
     render(<LeaderboardsPage />)
     expect(screen.getByTestId('human-tab')).toBeInTheDocument()
     expect(
-      screen.queryByTestId('llm-leaderboard-table')
+      screen.queryByTestId('llm-leaderboard-table'),
     ).not.toBeInTheDocument()
   })
 
   it('renders all three tab buttons when both slots are present', () => {
     render(<LeaderboardsPage />)
     expect(
-      screen.getByRole('button', { name: 'Human Annotators' })
+      screen.getByRole('button', { name: 'Human Annotators' }),
     ).toBeInTheDocument()
     expect(
-      screen.getByRole('button', { name: 'Co-Creation' })
+      screen.getByRole('button', { name: 'Co-Creation' }),
     ).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'LLMs' })).toBeInTheDocument()
   })

@@ -4,7 +4,13 @@
  */
 
 import { Button } from '@/components/shared/Button'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/shared/Select'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/shared/Select'
 import { useToast } from '@/components/shared/Toast'
 import { useI18n } from '@/contexts/I18nContext'
 import { useDefaultConfig } from '@/hooks/useDefaultConfig'
@@ -84,7 +90,7 @@ export function PromptManager({
   const handleUpdatePrompt = (
     index: number,
     field: keyof PromptData,
-    value: any
+    value: any,
   ) => {
     const updatedPrompts = [...prompts]
     if (field === 'metadata' && updatedPrompts[index].metadata) {
@@ -99,7 +105,7 @@ export function PromptManager({
   }
 
   const handleFileUpload = async (
-    event: React.ChangeEvent<HTMLInputElement>
+    event: React.ChangeEvent<HTMLInputElement>,
   ) => {
     const file = event.target.files?.[0]
     if (!file || !taskId) return
@@ -115,7 +121,7 @@ export function PromptManager({
       // For now, we'll show a success message and let the parent component handle refresh
       addToast(
         t('tasks.prompts.uploadSuccess', { count: result.uploaded_items }),
-        'success'
+        'success',
       )
 
       // Clear the file input
@@ -163,7 +169,7 @@ export function PromptManager({
                     handleUpdatePrompt(index, 'prompt', e.target.value)
                   }
                   rows={3}
-                  className="block w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-zinc-900 transition-colors focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 dark:border-zinc-600 dark:bg-zinc-900 dark:text-white dark:focus:border-emerald-400 dark:focus:ring-emerald-400/20 sm:text-sm"
+                  className="block w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-zinc-900 transition-colors focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 sm:text-sm dark:border-zinc-600 dark:bg-zinc-900 dark:text-white dark:focus:border-emerald-400 dark:focus:ring-emerald-400/20"
                   placeholder={t('tasks.prompts.promptPlaceholder')}
                 />
               </div>
@@ -178,7 +184,7 @@ export function PromptManager({
                     handleUpdatePrompt(index, 'expected_output', e.target.value)
                   }
                   rows={3}
-                  className="block w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-zinc-900 transition-colors focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 dark:border-zinc-600 dark:bg-zinc-900 dark:text-white dark:focus:border-emerald-400 dark:focus:ring-emerald-400/20 sm:text-sm"
+                  className="block w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-zinc-900 transition-colors focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 sm:text-sm dark:border-zinc-600 dark:bg-zinc-900 dark:text-white dark:focus:border-emerald-400 dark:focus:ring-emerald-400/20"
                   placeholder={t('tasks.prompts.expectedOutputPlaceholder')}
                 />
               </div>
@@ -191,23 +197,25 @@ export function PromptManager({
                   value={prompt.metadata?.prompt_type || 'instruction'}
                   onValueChange={(v) =>
                     handleUpdatePrompt(index, 'metadata', {
-                      prompt_type: v as
-                        | 'system'
-                        | 'instruction'
-                        | 'evaluation',
+                      prompt_type: v as 'system' | 'instruction' | 'evaluation',
                     })
                   }
                   displayValue={
-                    (prompt.metadata?.prompt_type || 'instruction') === 'system' ? t('tasks.prompts.system') :
-                    (prompt.metadata?.prompt_type || 'instruction') === 'instruction' ? t('tasks.prompts.instruction') :
-                    t('tasks.prompts.evaluation')
+                    (prompt.metadata?.prompt_type || 'instruction') === 'system'
+                      ? t('tasks.prompts.system')
+                      : (prompt.metadata?.prompt_type || 'instruction') ===
+                          'instruction'
+                        ? t('tasks.prompts.instruction')
+                        : t('tasks.prompts.evaluation')
                   }
                 >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="system">{t('tasks.prompts.system')}</SelectItem>
+                    <SelectItem value="system">
+                      {t('tasks.prompts.system')}
+                    </SelectItem>
                     <SelectItem value="instruction">
                       {t('tasks.prompts.instruction')}
                     </SelectItem>
@@ -231,7 +239,7 @@ export function PromptManager({
                         max_tokens: parseInt(e.target.value),
                       })
                     }
-                    className="block w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-zinc-900 transition-colors focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 dark:border-zinc-600 dark:bg-zinc-900 dark:text-white dark:focus:border-emerald-400 dark:focus:ring-emerald-400/20 sm:text-sm"
+                    className="block w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-zinc-900 transition-colors focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 sm:text-sm dark:border-zinc-600 dark:bg-zinc-900 dark:text-white dark:focus:border-emerald-400 dark:focus:ring-emerald-400/20"
                   />
                 </div>
                 <div>
@@ -251,7 +259,7 @@ export function PromptManager({
                         temperature: parseFloat(e.target.value),
                       })
                     }
-                    className="block w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-zinc-900 transition-colors focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 dark:border-zinc-600 dark:bg-zinc-900 dark:text-white dark:focus:border-emerald-400 dark:focus:ring-emerald-400/20 sm:text-sm"
+                    className="block w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-zinc-900 transition-colors focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 sm:text-sm dark:border-zinc-600 dark:bg-zinc-900 dark:text-white dark:focus:border-emerald-400 dark:focus:ring-emerald-400/20"
                   />
                 </div>
               </div>
@@ -268,7 +276,7 @@ export function PromptManager({
                       context: e.target.value,
                     })
                   }
-                  className="block w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-zinc-900 transition-colors focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 dark:border-zinc-600 dark:bg-zinc-900 dark:text-white dark:focus:border-emerald-400 dark:focus:ring-emerald-400/20 sm:text-sm"
+                  className="block w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-zinc-900 transition-colors focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 sm:text-sm dark:border-zinc-600 dark:bg-zinc-900 dark:text-white dark:focus:border-emerald-400 dark:focus:ring-emerald-400/20"
                   placeholder={t('tasks.prompts.contextPlaceholder')}
                 />
               </div>
@@ -294,7 +302,7 @@ export function PromptManager({
                 setNewPrompt({ ...newPrompt, prompt: e.target.value })
               }
               rows={3}
-              className="block w-full rounded-lg border border-emerald-300 bg-white px-3 py-2 text-emerald-900 transition-colors focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 dark:border-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-100 dark:focus:border-emerald-400 dark:focus:ring-emerald-400/20 sm:text-sm"
+              className="block w-full rounded-lg border border-emerald-300 bg-white px-3 py-2 text-emerald-900 transition-colors focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 sm:text-sm dark:border-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-100 dark:focus:border-emerald-400 dark:focus:ring-emerald-400/20"
               placeholder={t('tasks.prompts.promptPlaceholder')}
             />
           </div>
@@ -309,7 +317,7 @@ export function PromptManager({
                 setNewPrompt({ ...newPrompt, expected_output: e.target.value })
               }
               rows={3}
-              className="block w-full rounded-lg border border-emerald-300 bg-white px-3 py-2 text-emerald-900 transition-colors focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 dark:border-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-100 dark:focus:border-emerald-400 dark:focus:ring-emerald-400/20 sm:text-sm"
+              className="block w-full rounded-lg border border-emerald-300 bg-white px-3 py-2 text-emerald-900 transition-colors focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 sm:text-sm dark:border-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-100 dark:focus:border-emerald-400 dark:focus:ring-emerald-400/20"
               placeholder={t('tasks.prompts.expectedOutputPlaceholder')}
             />
           </div>
@@ -325,24 +333,26 @@ export function PromptManager({
                   ...newPrompt,
                   metadata: {
                     ...newPrompt.metadata,
-                    prompt_type: v as
-                      | 'system'
-                      | 'instruction'
-                      | 'evaluation',
+                    prompt_type: v as 'system' | 'instruction' | 'evaluation',
                   },
                 })
               }
               displayValue={
-                (newPrompt.metadata?.prompt_type || 'instruction') === 'system' ? t('tasks.prompts.system') :
-                (newPrompt.metadata?.prompt_type || 'instruction') === 'instruction' ? t('tasks.prompts.instruction') :
-                t('tasks.prompts.evaluation')
+                (newPrompt.metadata?.prompt_type || 'instruction') === 'system'
+                  ? t('tasks.prompts.system')
+                  : (newPrompt.metadata?.prompt_type || 'instruction') ===
+                      'instruction'
+                    ? t('tasks.prompts.instruction')
+                    : t('tasks.prompts.evaluation')
               }
             >
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="system">{t('tasks.prompts.system')}</SelectItem>
+                <SelectItem value="system">
+                  {t('tasks.prompts.system')}
+                </SelectItem>
                 <SelectItem value="instruction">
                   {t('tasks.prompts.instruction')}
                 </SelectItem>

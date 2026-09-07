@@ -84,7 +84,7 @@ export function PerRunBreakdown({
   return (
     <div className="overflow-hidden rounded border border-zinc-200 dark:border-zinc-800">
       <table className="min-w-full divide-y divide-zinc-200 text-sm dark:divide-zinc-800">
-        <thead className="bg-zinc-50 text-xs uppercase text-zinc-500 dark:bg-zinc-800/50 dark:text-zinc-400">
+        <thead className="bg-zinc-50 text-xs text-zinc-500 uppercase dark:bg-zinc-800/50 dark:text-zinc-400">
           <tr>
             {showTargetModel && (
               <th className="px-3 py-2 text-left font-medium">
@@ -112,18 +112,26 @@ export function PerRunBreakdown({
           {sortedRows.map((row) => (
             <tr key={row.judge_run_id}>
               {showTargetModel && (
-                <td className="px-3 py-2 font-mono text-xs">{row.target_model_id}</td>
+                <td className="px-3 py-2 font-mono text-xs">
+                  {row.target_model_id}
+                </td>
               )}
               <td className="px-3 py-2 font-mono text-xs">
                 {row.judge_model_id ?? (
-                  <span className="text-zinc-400">{t('eval.perRun.deterministic', '(deterministic)')}</span>
+                  <span className="text-zinc-400">
+                    {t('eval.perRun.deterministic', '(deterministic)')}
+                  </span>
                 )}
               </td>
-              <td className="px-3 py-2 text-right tabular-nums">{row.run_index}</td>
+              <td className="px-3 py-2 text-right tabular-nums">
+                {row.run_index}
+              </td>
               <td className="px-3 py-2 text-right tabular-nums">
                 {row.samples_evaluated ?? '—'}
               </td>
-              <td className="px-3 py-2 text-right tabular-nums">{formatScore(row.mean_score)}</td>
+              <td className="px-3 py-2 text-right tabular-nums">
+                {formatScore(row.mean_score)}
+              </td>
               <td className="px-3 py-2">
                 <span
                   className={`inline-block rounded px-2 py-0.5 text-xs font-medium ${statusBadgeClass(row.status)}`}

@@ -18,12 +18,12 @@
 
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
-import { render, screen, waitFor, act, fireEvent } from '@testing-library/react'
+import { mockToast as __mockToast } from '@/test-utils/setupTests'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useRouter } from 'next/navigation'
-import { mockToast as __mockToast } from '@/test-utils/setupTests'
-const toast = { success: __mockToast.success, error: __mockToast.error }
 import ProfilePage from '../page'
+const toast = { success: __mockToast.success, error: __mockToast.error }
 
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
@@ -177,7 +177,8 @@ const mockT = (key: string) => {
     'profile.profileConfirmed': 'Profile confirmed',
     'profile.confirmFailed': 'Confirmation failed',
     'profile.mandatoryIncomplete': 'Mandatory profile incomplete',
-    'profile.mandatoryIncompleteDescription': 'Please complete mandatory fields',
+    'profile.mandatoryIncompleteDescription':
+      'Please complete mandatory fields',
     'profile.profileHistory': 'Profile History',
     'profile.hideProfileHistory': 'Hide history',
     'profile.showProfileHistory': 'Show history',
@@ -352,7 +353,9 @@ describe('ProfilePage - coverage extensions', () => {
       })
 
       // Expand the history section
-      const toggleButton = screen.getByText('Profile History').closest('button')!
+      const toggleButton = screen
+        .getByText('Profile History')
+        .closest('button')!
       await user.click(toggleButton)
 
       await waitFor(() => {
@@ -365,7 +368,9 @@ describe('ProfilePage - coverage extensions', () => {
       render(<ProfilePage />)
 
       await waitFor(() => {
-        expect(screen.getByRole('heading', { name: 'Profile' })).toBeInTheDocument()
+        expect(
+          screen.getByRole('heading', { name: 'Profile' }),
+        ).toBeInTheDocument()
       })
 
       expect(screen.queryByText('Profile History')).not.toBeInTheDocument()
@@ -398,7 +403,9 @@ describe('ProfilePage - coverage extensions', () => {
       })
 
       // Collapse the section
-      const toggleButton = screen.getByText('Research Profile').closest('button')!
+      const toggleButton = screen
+        .getByText('Research Profile')
+        .closest('button')!
       await user.click(toggleButton)
 
       await waitFor(() => {
@@ -560,7 +567,9 @@ describe('ProfilePage - coverage extensions', () => {
       render(<ProfilePage />)
 
       await waitFor(() => {
-        expect(screen.getByRole('heading', { name: 'Profile' })).toBeInTheDocument()
+        expect(
+          screen.getByRole('heading', { name: 'Profile' }),
+        ).toBeInTheDocument()
       })
 
       // History section should not show
@@ -584,9 +593,10 @@ describe('ProfilePage - coverage extensions', () => {
       })
 
       // Grade input should show the value formatted with comma
-      const gradeInput = screen.getByLabelText('Zwischenpruefung') as HTMLInputElement
+      const gradeInput = screen.getByLabelText(
+        'Zwischenpruefung',
+      ) as HTMLInputElement
       expect(gradeInput).toBeInTheDocument()
     })
   })
-
 })

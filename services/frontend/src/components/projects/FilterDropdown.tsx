@@ -6,8 +6,8 @@
 
 import { Button } from '@/components/shared/Button'
 import { Input } from '@/components/shared/Input'
-import { useI18n } from '@/contexts/I18nContext'
 import { useOptionalApiClient } from '@/contexts/ApiClientContext'
+import { useI18n } from '@/contexts/I18nContext'
 import apiClientSingleton from '@/lib/api'
 import { Menu } from '@headlessui/react'
 import {
@@ -58,13 +58,13 @@ export function FilterDropdown({
     { value: 'incomplete' as const, label: t('projects.filter.incomplete') },
   ]
   const currentFilter = filterOptions.find(
-    (option) => option.value === filterStatus
+    (option) => option.value === filterStatus,
   )
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [annotatorFilter, setAnnotatorFilter] = useState('')
   const [availableMetadata, setAvailableMetadata] = useState<MetadataField[]>(
-    []
+    [],
   )
   const [localMetadataFilters, setLocalMetadataFilters] =
     useState<Record<string, any>>(metadataFilters)
@@ -75,7 +75,7 @@ export function FilterDropdown({
     try {
       // Fetch tasks to analyze metadata fields
       const response = await apiClient.get(
-        `/projects/${projectId}/tasks?limit=100`
+        `/projects/${projectId}/tasks?limit=100`,
       )
       const tasks = response.tasks || []
 
@@ -118,11 +118,10 @@ export function FilterDropdown({
         })
       })
 
-       
       setAvailableMetadata(fields)
     } catch (error) {
       // Silently fail - metadata is optional
-       
+
       setAvailableMetadata([])
     }
   }, [projectId, apiClient])
@@ -185,7 +184,7 @@ export function FilterDropdown({
         </Menu.Button>
       </div>
 
-      <Menu.Items className="absolute left-0 z-10 mt-2 max-h-96 w-80 origin-top-left overflow-y-auto rounded-lg bg-white shadow-lg ring-1 ring-black ring-opacity-5 transition duration-100 ease-out focus:outline-none data-[closed]:scale-95 data-[closed]:transform data-[closed]:opacity-0 dark:bg-zinc-900">
+      <Menu.Items className="absolute left-0 z-10 mt-2 max-h-96 w-80 origin-top-left overflow-y-auto rounded-lg bg-white shadow-lg ring-1 ring-black/5 transition duration-100 ease-out focus:outline-none data-closed:scale-95 data-closed:transform data-closed:opacity-0 dark:bg-zinc-900">
         <div className="p-1">
           <div className="px-3 py-2 text-xs font-medium text-zinc-500 dark:text-zinc-400">
             {t('projects.filter.status')}
@@ -312,7 +311,7 @@ export function FilterDropdown({
                         <span className="font-medium text-zinc-700 dark:text-zinc-300">
                           {field}:
                         </span>
-                        <div className="ml-2 mt-1 flex flex-wrap gap-1">
+                        <div className="mt-1 ml-2 flex flex-wrap gap-1">
                           {(Array.isArray(values) ? values : [values]).map(
                             (value, idx) => (
                               <span
@@ -325,16 +324,19 @@ export function FilterDropdown({
                                     toggleMetadataFilter(field, value)
                                   }
                                   className="hover:text-emerald-600 dark:hover:text-emerald-400"
-                                  aria-label={t('projects.filter.removeFilter', { field, value: String(value) })}
+                                  aria-label={t(
+                                    'projects.filter.removeFilter',
+                                    { field, value: String(value) },
+                                  )}
                                 >
                                   <XMarkIcon className="h-3 w-3" />
                                 </button>
                               </span>
-                            )
+                            ),
                           )}
                         </div>
                       </div>
-                    )
+                    ),
                   )}
                 </div>
               </div>
@@ -358,10 +360,10 @@ export function FilterDropdown({
                       <div className="flex flex-wrap gap-1">
                         {field.values.map((item, idx) => {
                           const isSelected = Array.isArray(
-                            localMetadataFilters[field.name]
+                            localMetadataFilters[field.name],
                           )
                             ? localMetadataFilters[field.name].includes(
-                                item.value
+                                item.value,
                               )
                             : localMetadataFilters[field.name] === item.value
 

@@ -90,7 +90,8 @@ describe('DataManagementPage', () => {
         'navigation.dataManagement': 'Data Management',
         'dataManagement.title': 'Data Management',
         'dataManagement.accessDenied': 'Access Denied',
-        'dataManagement.accessDeniedDescription': 'Only superadmins, organization admins, and contributors can access project data.',
+        'dataManagement.accessDeniedDescription':
+          'Only superadmins, organization admins, and contributors can access project data.',
         'common.loading': 'Loading...',
         'common.backToProjects': 'Back to Projects',
       }
@@ -188,7 +189,7 @@ describe('DataManagementPage', () => {
       expect(screen.getByTestId('breadcrumb')).toBeInTheDocument()
       expect(screen.getByTestId('breadcrumb-item-0')).toHaveTextContent('Home')
       expect(screen.getByTestId('breadcrumb-item-1')).toHaveTextContent(
-        'Data Management'
+        'Data Management',
       )
     })
 
@@ -303,7 +304,7 @@ describe('DataManagementPage', () => {
       render(<DataManagementPage />)
 
       expect(screen.getByTestId('breadcrumb-item-1')).toHaveTextContent(
-        'Data Management'
+        'Data Management',
       )
     })
   })
@@ -393,7 +394,7 @@ describe('DataManagementPage', () => {
 
       expect(screen.getByTestId('breadcrumb-item-0')).toHaveTextContent('Home')
       expect(screen.getByTestId('breadcrumb-item-1')).toHaveTextContent(
-        'Data Management'
+        'Data Management',
       )
     })
 
@@ -406,13 +407,13 @@ describe('DataManagementPage', () => {
 
       // Check rendering order in DOM
       const breadcrumbIndex = Array.from(
-        container.querySelectorAll('*')
+        container.querySelectorAll('*'),
       ).indexOf(breadcrumb)
       const titleIndex = Array.from(container.querySelectorAll('*')).indexOf(
-        title
+        title,
       )
       const dataTabIndex = Array.from(container.querySelectorAll('*')).indexOf(
-        dataTab
+        dataTab,
       )
 
       expect(breadcrumbIndex).toBeLessThan(titleIndex)
@@ -466,7 +467,7 @@ describe('DataManagementPage', () => {
 
       await waitFor(() => {
         expect(mockRouter.replace).toHaveBeenCalledWith(
-          '/projects?error=no-permission'
+          '/projects?error=no-permission',
         )
       })
     })
@@ -569,7 +570,7 @@ describe('DataManagementPage', () => {
         'font-bold',
         'tracking-tight',
         'text-zinc-900',
-        'dark:text-white'
+        'dark:text-white',
       )
     })
 

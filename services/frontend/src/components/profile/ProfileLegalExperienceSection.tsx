@@ -108,17 +108,34 @@ export function ProfileLegalExperienceSection({
                         })
                       }
                       displayValue={
-                        profileForm.legal_expertise_level === 'layperson' ? t('register.expertiseLevel.layperson') :
-                        profileForm.legal_expertise_level === 'law_student' ? t('register.expertiseLevel.lawStudent') :
-                        profileForm.legal_expertise_level === 'referendar' ? t('register.expertiseLevel.referendar') :
-                        profileForm.legal_expertise_level === 'graduated_no_practice' ? t('register.expertiseLevel.graduatedNoPractice') :
-                        profileForm.legal_expertise_level === 'practicing_lawyer' ? t('register.expertiseLevel.practicingLawyer') :
-                        profileForm.legal_expertise_level === 'judge_professor' ? t('register.expertiseLevel.judgeProfessor') :
-                        undefined
+                        profileForm.legal_expertise_level === 'layperson'
+                          ? t('register.expertiseLevel.layperson')
+                          : profileForm.legal_expertise_level === 'law_student'
+                            ? t('register.expertiseLevel.lawStudent')
+                            : profileForm.legal_expertise_level === 'referendar'
+                              ? t('register.expertiseLevel.referendar')
+                              : profileForm.legal_expertise_level ===
+                                  'graduated_no_practice'
+                                ? t(
+                                    'register.expertiseLevel.graduatedNoPractice',
+                                  )
+                                : profileForm.legal_expertise_level ===
+                                    'practicing_lawyer'
+                                  ? t(
+                                      'register.expertiseLevel.practicingLawyer',
+                                    )
+                                  : profileForm.legal_expertise_level ===
+                                      'judge_professor'
+                                    ? t(
+                                        'register.expertiseLevel.judgeProfessor',
+                                      )
+                                    : undefined
                       }
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder={t('profile.selectExpertiseLevel')} />
+                        <SelectValue
+                          placeholder={t('profile.selectExpertiseLevel')}
+                        />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="layperson">
@@ -145,53 +162,62 @@ export function ProfileLegalExperienceSection({
 
                   {/* Degree Program Type (shown for law students only) */}
                   {profileForm.legal_expertise_level === 'law_student' && (
-                      <div>
-                        <label
-                          htmlFor="degree_program_type"
-                          className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300"
-                        >
-                          {t('profile.degreeProgramType')}
-                        </label>
-                        <Select
-                          value={profileForm.degree_program_type ?? ''}
-                          onValueChange={(v) =>
-                            setProfileForm({
-                              ...profileForm,
-                              degree_program_type: v || undefined,
-                            })
-                          }
-                          displayValue={
-                            profileForm.degree_program_type === 'staatsexamen' ? t('register.degreeProgram.staatsexamen') :
-                            profileForm.degree_program_type === 'llb' ? t('register.degreeProgram.llb') :
-                            profileForm.degree_program_type === 'llm' ? t('register.degreeProgram.llm') :
-                            profileForm.degree_program_type === 'promotion' ? t('register.degreeProgram.promotion') :
-                            profileForm.degree_program_type === 'not_applicable' ? t('register.degreeProgram.notApplicable') :
-                            undefined
-                          }
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder={t('profile.selectDegreeProgram')} />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="staatsexamen">
-                              {t('register.degreeProgram.staatsexamen')}
-                            </SelectItem>
-                            <SelectItem value="llb">
-                              {t('register.degreeProgram.llb')}
-                            </SelectItem>
-                            <SelectItem value="llm">
-                              {t('register.degreeProgram.llm')}
-                            </SelectItem>
-                            <SelectItem value="promotion">
-                              {t('register.degreeProgram.promotion')}
-                            </SelectItem>
-                            <SelectItem value="not_applicable">
-                              {t('register.degreeProgram.notApplicable')}
-                            </SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    )}
+                    <div>
+                      <label
+                        htmlFor="degree_program_type"
+                        className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300"
+                      >
+                        {t('profile.degreeProgramType')}
+                      </label>
+                      <Select
+                        value={profileForm.degree_program_type ?? ''}
+                        onValueChange={(v) =>
+                          setProfileForm({
+                            ...profileForm,
+                            degree_program_type: v || undefined,
+                          })
+                        }
+                        displayValue={
+                          profileForm.degree_program_type === 'staatsexamen'
+                            ? t('register.degreeProgram.staatsexamen')
+                            : profileForm.degree_program_type === 'llb'
+                              ? t('register.degreeProgram.llb')
+                              : profileForm.degree_program_type === 'llm'
+                                ? t('register.degreeProgram.llm')
+                                : profileForm.degree_program_type ===
+                                    'promotion'
+                                  ? t('register.degreeProgram.promotion')
+                                  : profileForm.degree_program_type ===
+                                      'not_applicable'
+                                    ? t('register.degreeProgram.notApplicable')
+                                    : undefined
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue
+                            placeholder={t('profile.selectDegreeProgram')}
+                          />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="staatsexamen">
+                            {t('register.degreeProgram.staatsexamen')}
+                          </SelectItem>
+                          <SelectItem value="llb">
+                            {t('register.degreeProgram.llb')}
+                          </SelectItem>
+                          <SelectItem value="llm">
+                            {t('register.degreeProgram.llm')}
+                          </SelectItem>
+                          <SelectItem value="promotion">
+                            {t('register.degreeProgram.promotion')}
+                          </SelectItem>
+                          <SelectItem value="not_applicable">
+                            {t('register.degreeProgram.notApplicable')}
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
 
                   {/* Current Semester (only for law students) */}
                   {profileForm.legal_expertise_level === 'law_student' && (
@@ -213,78 +239,75 @@ export function ProfileLegalExperienceSection({
                         onWheel={(e) => e.currentTarget.blur()}
                         onChange={(e) => {
                           const val = e.target.value
-                          const parsed = val
-                            ? parseInt(val, 10)
-                            : undefined
+                          const parsed = val ? parseInt(val, 10) : undefined
                           setProfileForm((prev) => ({
                             ...prev,
                             current_semester: parsed,
                           }))
                         }}
                         placeholder={t('profile.currentSemesterPlaceholder')}
-                        className="w-full rounded-full bg-white px-4 py-2 text-sm text-zinc-900 ring-1 ring-zinc-900/10 transition placeholder:text-zinc-500 hover:ring-zinc-900/20 focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:bg-white/5 dark:text-white dark:ring-inset dark:ring-white/10 dark:placeholder:text-zinc-400 dark:hover:ring-white/20 dark:focus:ring-emerald-400"
+                        className="w-full rounded-full bg-white px-4 py-2 text-sm text-zinc-900 ring-1 ring-zinc-900/10 transition placeholder:text-zinc-500 hover:ring-zinc-900/20 focus:ring-2 focus:ring-emerald-500 focus:outline-none dark:bg-white/5 dark:text-white dark:ring-white/10 dark:ring-inset dark:placeholder:text-zinc-400 dark:hover:ring-white/20 dark:focus:ring-emerald-400"
                       />
                     </div>
                   )}
 
                   {/* Job & Years of Experience (graduated or above) */}
                   {profileForm.legal_expertise_level &&
-                    JOB_FIELDS_LEVELS.includes(profileForm.legal_expertise_level) && (
-                    <>
-                      <div>
-                        <label
-                          htmlFor="job"
-                          className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300"
-                        >
-                          {t('profile.job')}
-                        </label>
-                        <input
-                          type="text"
-                          id="job"
-                          name="job"
-                          value={profileForm.job}
-                          onChange={(e) =>
-                            setProfileForm({
-                              ...profileForm,
-                              job: e.target.value,
-                            })
-                          }
-                          className="w-full rounded-full bg-white px-4 py-2 text-sm text-zinc-900 ring-1 ring-zinc-900/10 transition placeholder:text-zinc-500 hover:ring-zinc-900/20 focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:bg-white/5 dark:text-white dark:ring-inset dark:ring-white/10 dark:placeholder:text-zinc-400 dark:hover:ring-white/20 dark:focus:ring-emerald-400"
-                        />
-                      </div>
+                    JOB_FIELDS_LEVELS.includes(
+                      profileForm.legal_expertise_level,
+                    ) && (
+                      <>
+                        <div>
+                          <label
+                            htmlFor="job"
+                            className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300"
+                          >
+                            {t('profile.job')}
+                          </label>
+                          <input
+                            type="text"
+                            id="job"
+                            name="job"
+                            value={profileForm.job}
+                            onChange={(e) =>
+                              setProfileForm({
+                                ...profileForm,
+                                job: e.target.value,
+                              })
+                            }
+                            className="w-full rounded-full bg-white px-4 py-2 text-sm text-zinc-900 ring-1 ring-zinc-900/10 transition placeholder:text-zinc-500 hover:ring-zinc-900/20 focus:ring-2 focus:ring-emerald-500 focus:outline-none dark:bg-white/5 dark:text-white dark:ring-white/10 dark:ring-inset dark:placeholder:text-zinc-400 dark:hover:ring-white/20 dark:focus:ring-emerald-400"
+                          />
+                        </div>
 
-                      <div>
-                        <label
-                          htmlFor="years_of_experience"
-                          className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300"
-                        >
-                          {t('profile.yearsOfExperience')}
-                        </label>
-                        <input
-                          type="number"
-                          id="years_of_experience"
-                          name="years_of_experience"
-                          value={profileForm.years_of_experience ?? ''}
-                          onFocus={(e) => e.target.select()}
-                          onWheel={(e) => e.currentTarget.blur()}
-                          onChange={(e) => {
-                            const val = e.target.value
-                            const parsed = val
-                              ? parseInt(val, 10)
-                              : undefined
-                            setProfileForm((prev) => ({
-                              ...prev,
-                              years_of_experience: parsed,
-                            }))
-                          }}
-                          min="0"
-                          max="100"
-                          className="w-full rounded-full bg-white px-4 py-2 text-sm text-zinc-900 ring-1 ring-zinc-900/10 transition placeholder:text-zinc-500 hover:ring-zinc-900/20 focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:bg-white/5 dark:text-white dark:ring-inset dark:ring-white/10 dark:placeholder:text-zinc-400 dark:hover:ring-white/20 dark:focus:ring-emerald-400"
-                        />
-                      </div>
-                    </>
-                  )}
-
+                        <div>
+                          <label
+                            htmlFor="years_of_experience"
+                            className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300"
+                          >
+                            {t('profile.yearsOfExperience')}
+                          </label>
+                          <input
+                            type="number"
+                            id="years_of_experience"
+                            name="years_of_experience"
+                            value={profileForm.years_of_experience ?? ''}
+                            onFocus={(e) => e.target.select()}
+                            onWheel={(e) => e.currentTarget.blur()}
+                            onChange={(e) => {
+                              const val = e.target.value
+                              const parsed = val ? parseInt(val, 10) : undefined
+                              setProfileForm((prev) => ({
+                                ...prev,
+                                years_of_experience: parsed,
+                              }))
+                            }}
+                            min="0"
+                            max="100"
+                            className="w-full rounded-full bg-white px-4 py-2 text-sm text-zinc-900 ring-1 ring-zinc-900/10 transition placeholder:text-zinc-500 hover:ring-zinc-900/20 focus:ring-2 focus:ring-emerald-500 focus:outline-none dark:bg-white/5 dark:text-white dark:ring-white/10 dark:ring-inset dark:placeholder:text-zinc-400 dark:hover:ring-white/20 dark:focus:ring-emerald-400"
+                          />
+                        </div>
+                      </>
+                    )}
                 </div>
               </div>
             </div>
@@ -292,7 +315,7 @@ export function ProfileLegalExperienceSection({
             {/* Grades (Issue #1206 - conditional based on expertise level, hidden for LLB/LLM) */}
             {profileForm.legal_expertise_level &&
               GRADE_ZWISCHENPRUEFUNG_LEVELS.includes(
-                profileForm.legal_expertise_level
+                profileForm.legal_expertise_level,
               ) &&
               profileForm.degree_program_type !== 'llb' &&
               profileForm.degree_program_type !== 'llm' && (
@@ -304,7 +327,7 @@ export function ProfileLegalExperienceSection({
                     <div className="space-y-4">
                       {/* Zwischenpruefung */}
                       {GRADE_ZWISCHENPRUEFUNG_LEVELS.includes(
-                        profileForm.legal_expertise_level!
+                        profileForm.legal_expertise_level!,
                       ) && (
                         <div>
                           <label
@@ -323,14 +346,14 @@ export function ProfileLegalExperienceSection({
                                 grade_zwischenpruefung: v,
                               })
                             }
-                            className="w-full rounded-full bg-white px-4 py-2 text-sm text-zinc-900 ring-1 ring-zinc-900/10 transition placeholder:text-zinc-500 hover:ring-zinc-900/20 focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:bg-white/5 dark:text-white dark:ring-inset dark:ring-white/10 dark:placeholder:text-zinc-400 dark:hover:ring-white/20 dark:focus:ring-emerald-400"
+                            className="w-full rounded-full bg-white px-4 py-2 text-sm text-zinc-900 ring-1 ring-zinc-900/10 transition placeholder:text-zinc-500 hover:ring-zinc-900/20 focus:ring-2 focus:ring-emerald-500 focus:outline-none dark:bg-white/5 dark:text-white dark:ring-white/10 dark:ring-inset dark:placeholder:text-zinc-400 dark:hover:ring-white/20 dark:focus:ring-emerald-400"
                           />
                         </div>
                       )}
 
                       {/* Vorgeruecktenubung */}
                       {GRADE_ZWISCHENPRUEFUNG_LEVELS.includes(
-                        profileForm.legal_expertise_level!
+                        profileForm.legal_expertise_level!,
                       ) && (
                         <div>
                           <label
@@ -349,14 +372,14 @@ export function ProfileLegalExperienceSection({
                                 grade_vorgeruecktenubung: v,
                               })
                             }
-                            className="w-full rounded-full bg-white px-4 py-2 text-sm text-zinc-900 ring-1 ring-zinc-900/10 transition placeholder:text-zinc-500 hover:ring-zinc-900/20 focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:bg-white/5 dark:text-white dark:ring-inset dark:ring-white/10 dark:placeholder:text-zinc-400 dark:hover:ring-white/20 dark:focus:ring-emerald-400"
+                            className="w-full rounded-full bg-white px-4 py-2 text-sm text-zinc-900 ring-1 ring-zinc-900/10 transition placeholder:text-zinc-500 hover:ring-zinc-900/20 focus:ring-2 focus:ring-emerald-500 focus:outline-none dark:bg-white/5 dark:text-white dark:ring-white/10 dark:ring-inset dark:placeholder:text-zinc-400 dark:hover:ring-white/20 dark:focus:ring-emerald-400"
                           />
                         </div>
                       )}
 
                       {/* First Staatsexamen */}
                       {GRADE_FIRST_STAATSEXAMEN_LEVELS.includes(
-                        profileForm.legal_expertise_level!
+                        profileForm.legal_expertise_level!,
                       ) && (
                         <div>
                           <label
@@ -375,14 +398,14 @@ export function ProfileLegalExperienceSection({
                                 grade_first_staatsexamen: v,
                               })
                             }
-                            className="w-full rounded-full bg-white px-4 py-2 text-sm text-zinc-900 ring-1 ring-zinc-900/10 transition placeholder:text-zinc-500 hover:ring-zinc-900/20 focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:bg-white/5 dark:text-white dark:ring-inset dark:ring-white/10 dark:placeholder:text-zinc-400 dark:hover:ring-white/20 dark:focus:ring-emerald-400"
+                            className="w-full rounded-full bg-white px-4 py-2 text-sm text-zinc-900 ring-1 ring-zinc-900/10 transition placeholder:text-zinc-500 hover:ring-zinc-900/20 focus:ring-2 focus:ring-emerald-500 focus:outline-none dark:bg-white/5 dark:text-white dark:ring-white/10 dark:ring-inset dark:placeholder:text-zinc-400 dark:hover:ring-white/20 dark:focus:ring-emerald-400"
                           />
                         </div>
                       )}
 
                       {/* Second Staatsexamen */}
                       {GRADE_SECOND_STAATSEXAMEN_LEVELS.includes(
-                        profileForm.legal_expertise_level!
+                        profileForm.legal_expertise_level!,
                       ) && (
                         <div>
                           <label
@@ -401,7 +424,7 @@ export function ProfileLegalExperienceSection({
                                 grade_second_staatsexamen: v,
                               })
                             }
-                            className="w-full rounded-full bg-white px-4 py-2 text-sm text-zinc-900 ring-1 ring-zinc-900/10 transition placeholder:text-zinc-500 hover:ring-zinc-900/20 focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:bg-white/5 dark:text-white dark:ring-inset dark:ring-white/10 dark:placeholder:text-zinc-400 dark:hover:ring-white/20 dark:focus:ring-emerald-400"
+                            className="w-full rounded-full bg-white px-4 py-2 text-sm text-zinc-900 ring-1 ring-zinc-900/10 transition placeholder:text-zinc-500 hover:ring-zinc-900/20 focus:ring-2 focus:ring-emerald-500 focus:outline-none dark:bg-white/5 dark:text-white dark:ring-white/10 dark:ring-inset dark:placeholder:text-zinc-400 dark:hover:ring-white/20 dark:focus:ring-emerald-400"
                           />
                         </div>
                       )}
@@ -455,7 +478,6 @@ export function ProfileLegalExperienceSection({
               />
             </div>
           </div>
-
         </div>
       )}
     </div>

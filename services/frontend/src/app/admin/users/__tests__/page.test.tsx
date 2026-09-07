@@ -274,12 +274,14 @@ describe('AdminUsersPage', () => {
       'admin.usersPage.selectUser': 'Select User',
       'admin.usersPage.chooseUser': 'Choose a user...',
       'admin.usersPage.deleteUser': 'Delete User',
-      'admin.usersPage.deleteUserConfirm': 'Are you sure you want to delete this user? This action cannot be undone.',
+      'admin.usersPage.deleteUserConfirm':
+        'Are you sure you want to delete this user? This action cannot be undone.',
       'admin.usersPage.pendingInvitations': 'Pending Invitations',
       'admin.usersPage.noPendingInvitations': 'No pending invitations',
       'admin.usersPage.expires': 'Expires',
       'admin.usersPage.noOrgSelected': 'No Organization Selected',
-      'admin.usersPage.noOrgSelectedDesc': 'Select an organization to manage its members and settings.',
+      'admin.usersPage.noOrgSelectedDesc':
+        'Select an organization to manage its members and settings.',
       'admin.usersPage.roles.annotator': 'Annotator',
       'admin.usersPage.roles.contributor': 'Contributor',
       'admin.usersPage.roles.admin': 'Admin',
@@ -287,7 +289,8 @@ describe('AdminUsersPage', () => {
       'admin.usersPage.successTitle': 'Success',
       'admin.usersPage.emailVerifyFailed': 'Failed to verify email',
       'admin.usersPage.errorTitle': 'Error',
-      'admin.usersPage.bulkVerifyResult': 'Verified: {success}, Skipped: {skipped}, Errors: {errors}',
+      'admin.usersPage.bulkVerifyResult':
+        'Verified: {success}, Skipped: {skipped}, Errors: {errors}',
       'admin.usersPage.bulkVerifyComplete': 'Bulk Verification Complete',
       'admin.usersPage.bulkVerifyFailed': 'Failed to bulk verify emails',
       'admin.usersPage.bulkVerifyError': 'Bulk Verification Error',
@@ -301,7 +304,8 @@ describe('AdminUsersPage', () => {
       'admin.usersPage.orgCreationFailed': 'Organization Creation Failed',
       'admin.usersPage.invitationFailed': 'Invitation Failed',
       'admin.usersPage.failedToLoadUsers': 'Failed to load users',
-      'admin.usersPage.updateSuperadminFailed': 'Failed to update superadmin status',
+      'admin.usersPage.updateSuperadminFailed':
+        'Failed to update superadmin status',
       'admin.usersPage.failedToDeleteUser': 'Failed to delete user',
       'admin.usersPage.pleaseSelectOrg': 'Please select an organization',
       'admin.usersPage.noOrgSelected': 'No Organization Selected',
@@ -319,7 +323,10 @@ describe('AdminUsersPage', () => {
         let translation = adminUsersPageTranslations[key] || key
         if (params) {
           Object.entries(params).forEach(([k, v]) => {
-            translation = translation.replace(new RegExp(`\\{${k}\\}`, 'g'), String(v))
+            translation = translation.replace(
+              new RegExp(`\\{${k}\\}`, 'g'),
+              String(v),
+            )
           })
         }
         return translation
@@ -345,7 +352,7 @@ describe('AdminUsersPage', () => {
     mockApi.updateUserSuperadminStatus = jest
       .fn()
       .mockImplementation((userId, isSuperadmin) =>
-        Promise.resolve(mockUsers.find((u) => u.id === userId) || mockUsers[0])
+        Promise.resolve(mockUsers.find((u) => u.id === userId) || mockUsers[0]),
       )
     mockApi.deleteUser = jest.fn().mockResolvedValue(undefined)
 
@@ -461,7 +468,7 @@ describe('AdminUsersPage', () => {
         .fn()
         .mockImplementation(
           () =>
-            new Promise((resolve) => setTimeout(() => resolve(mockUsers), 100))
+            new Promise((resolve) => setTimeout(() => resolve(mockUsers), 100)),
         )
 
       render(<AdminUsersPage />)
@@ -485,7 +492,7 @@ describe('AdminUsersPage', () => {
 
       const checkboxes = screen.getAllByRole('checkbox')
       const firstUserCheckbox = checkboxes.find((cb) =>
-        cb.closest('tr')?.textContent?.includes('Test User 1')
+        cb.closest('tr')?.textContent?.includes('Test User 1'),
       )
 
       if (firstUserCheckbox) {
@@ -520,7 +527,7 @@ describe('AdminUsersPage', () => {
 
       const checkboxes = screen.getAllByRole('checkbox')
       const firstUserCheckbox = checkboxes.find((cb) =>
-        cb.closest('tr')?.textContent?.includes('Test User 1')
+        cb.closest('tr')?.textContent?.includes('Test User 1'),
       )
 
       if (firstUserCheckbox) {
@@ -541,7 +548,7 @@ describe('AdminUsersPage', () => {
 
       const checkboxes = screen.getAllByRole('checkbox')
       const firstUserCheckbox = checkboxes.find((cb) =>
-        cb.closest('tr')?.textContent?.includes('Test User 1')
+        cb.closest('tr')?.textContent?.includes('Test User 1'),
       )
 
       if (firstUserCheckbox) {
@@ -623,7 +630,7 @@ describe('AdminUsersPage', () => {
         expect(mockOrganizationsAPI.bulkVerifyMemberEmails).toHaveBeenCalled()
         expect(mockShowError).toHaveBeenCalledWith(
           expect.stringContaining('Verified: 2'),
-          'Bulk Verification Complete'
+          'Bulk Verification Complete',
         )
       })
     })
@@ -652,7 +659,7 @@ describe('AdminUsersPage', () => {
       await waitFor(() => {
         expect(mockShowError).toHaveBeenCalledWith(
           'Failed to bulk verify emails',
-          'Bulk Verification Error'
+          'Bulk Verification Error',
         )
       })
     })
@@ -717,7 +724,7 @@ describe('AdminUsersPage', () => {
       // in Test User 1's row and pick the "Superadmin" option.
       const dropdowns = screen.getAllByRole('combobox')
       const userDropdown = dropdowns.find((dropdown) =>
-        dropdown.closest('tr')?.textContent?.includes('Test User 1')
+        dropdown.closest('tr')?.textContent?.includes('Test User 1'),
       )
       expect(userDropdown).toBeDefined()
 
@@ -726,7 +733,7 @@ describe('AdminUsersPage', () => {
       await waitFor(() => {
         expect(mockApi.updateUserSuperadminStatus).toHaveBeenCalledWith(
           'user-1',
-          true
+          true,
         )
       })
     })
@@ -746,7 +753,7 @@ describe('AdminUsersPage', () => {
 
       const dropdowns = screen.getAllByRole('combobox')
       const userDropdown = dropdowns.find((dropdown) =>
-        dropdown.closest('tr')?.textContent?.includes('Test User 1')
+        dropdown.closest('tr')?.textContent?.includes('Test User 1'),
       )
 
       if (userDropdown) {
@@ -781,7 +788,7 @@ describe('AdminUsersPage', () => {
 
       const rows = screen.getAllByRole('row')
       const userRow = rows.find((row) =>
-        row.textContent?.includes('Test User 1')
+        row.textContent?.includes('Test User 1'),
       )
       const deleteButton = userRow?.querySelector('button[class*="text-red"]')
 
@@ -791,7 +798,7 @@ describe('AdminUsersPage', () => {
         await waitFor(() => {
           expect(screen.getByText('Delete User')).toBeInTheDocument()
           expect(
-            screen.getByText(/Are you sure you want to delete this user/)
+            screen.getByText(/Are you sure you want to delete this user/),
           ).toBeInTheDocument()
         })
       }
@@ -807,7 +814,7 @@ describe('AdminUsersPage', () => {
 
       const rows = screen.getAllByRole('row')
       const userRow = rows.find((row) =>
-        row.textContent?.includes('Test User 1')
+        row.textContent?.includes('Test User 1'),
       )
       const deleteButton = userRow?.querySelector('button[class*="text-red"]')
 
@@ -839,7 +846,7 @@ describe('AdminUsersPage', () => {
 
       const rows = screen.getAllByRole('row')
       const userRow = rows.find((row) =>
-        row.textContent?.includes('Test User 1')
+        row.textContent?.includes('Test User 1'),
       )
       const deleteButton = userRow?.querySelector('button[class*="text-red"]')
 
@@ -874,7 +881,7 @@ describe('AdminUsersPage', () => {
 
       const rows = screen.getAllByRole('row')
       const userRow = rows.find((row) =>
-        row.textContent?.includes('Test User 1')
+        row.textContent?.includes('Test User 1'),
       )
       const deleteButton = userRow?.querySelector('button[class*="text-red"]')
 
@@ -898,7 +905,7 @@ describe('AdminUsersPage', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByTestId('admin-organizations-tab')
+          screen.getByTestId('admin-organizations-tab'),
         ).toBeInTheDocument()
       })
 
@@ -919,7 +926,7 @@ describe('AdminUsersPage', () => {
 
       await waitFor(() => {
         expect(mockApiClient.getOrganizationMembers).toHaveBeenCalledWith(
-          'org-1'
+          'org-1',
         )
         expect(mockApiClient.listInvitations).toHaveBeenCalledWith('org-1')
       })
@@ -1102,7 +1109,7 @@ describe('AdminUsersPage', () => {
 
       const roleDropdowns = screen.getAllByRole('combobox')
       const memberRoleDropdown = roleDropdowns.find((dropdown) =>
-        dropdown.closest('div')?.textContent?.includes('Test User 2')
+        dropdown.closest('div')?.textContent?.includes('Test User 2'),
       )
 
       if (memberRoleDropdown) {
@@ -1112,7 +1119,7 @@ describe('AdminUsersPage', () => {
           expect(mockApiClient.updateMemberRole).toHaveBeenCalledWith(
             'org-1',
             'user-2',
-            'ORG_ADMIN'
+            'ORG_ADMIN',
           )
         })
       }
@@ -1144,7 +1151,7 @@ describe('AdminUsersPage', () => {
 
       const cancelButtons = screen.getAllByText('Cancel')
       const invitationCancelButton = cancelButtons.find((btn) =>
-        btn.closest('div')?.textContent?.includes('invited@example.com')
+        btn.closest('div')?.textContent?.includes('invited@example.com'),
       )
 
       if (invitationCancelButton) {
@@ -1152,7 +1159,7 @@ describe('AdminUsersPage', () => {
 
         await waitFor(() => {
           expect(mockApiClient.cancelInvitation).toHaveBeenCalledWith(
-            'invite-1'
+            'invite-1',
           )
         })
       }
@@ -1178,7 +1185,7 @@ describe('AdminUsersPage', () => {
       })
 
       const nameInput = screen.getAllByDisplayValue(
-        'Test Organization'
+        'Test Organization',
       )[0] as HTMLInputElement
       await user.clear(nameInput)
       await user.type(nameInput, 'Updated Organization')
@@ -1225,7 +1232,7 @@ describe('AdminUsersPage', () => {
       await waitFor(() => {
         expect(consoleErrorSpy).toHaveBeenCalledWith(
           'Failed to load organization data:',
-          expect.any(Error)
+          expect.any(Error),
         )
       })
 
@@ -1251,7 +1258,7 @@ describe('AdminUsersPage', () => {
 
       const dropdowns = screen.getAllByRole('combobox')
       const memberDropdown = dropdowns.find((dropdown) =>
-        dropdown.closest('div')?.textContent?.includes('Test User 2')
+        dropdown.closest('div')?.textContent?.includes('Test User 2'),
       )
 
       if (memberDropdown) {
@@ -1260,7 +1267,7 @@ describe('AdminUsersPage', () => {
         await waitFor(() => {
           expect(mockShowError).toHaveBeenCalledWith(
             'admin.users.members.updateFailed',
-            'Update Failed'
+            'Update Failed',
           )
         })
       }
@@ -1287,7 +1294,7 @@ describe('AdminUsersPage', () => {
 
       const cancelButtons = screen.getAllByText('Cancel')
       const invitationCancelButton = cancelButtons.find((btn) =>
-        btn.closest('div')?.textContent?.includes('invited@example.com')
+        btn.closest('div')?.textContent?.includes('invited@example.com'),
       )
 
       if (invitationCancelButton) {
@@ -1296,7 +1303,7 @@ describe('AdminUsersPage', () => {
         await waitFor(() => {
           expect(mockShowError).toHaveBeenCalledWith(
             'admin.users.invitations.cancelFailed',
-            'Cancel Invitation Failed'
+            'Cancel Invitation Failed',
           )
         })
       }
@@ -1331,7 +1338,7 @@ describe('AdminUsersPage', () => {
       await waitFor(() => {
         expect(mockShowError).toHaveBeenCalledWith(
           'admin.users.orgDetails.updateFailed',
-          'Organization Update Failed'
+          'Organization Update Failed',
         )
       })
 
@@ -1488,7 +1495,7 @@ describe('AdminUsersPage', () => {
       await waitFor(() => {
         expect(mockShowError).toHaveBeenCalledWith(
           'No organizations available',
-          'Organization Required'
+          'Organization Required',
         )
       })
     })
@@ -1549,7 +1556,7 @@ describe('AdminUsersPage', () => {
 
       const checkboxes = screen.getAllByRole('checkbox')
       const firstUserCheckbox = checkboxes.find((cb) =>
-        cb.closest('tr')?.textContent?.includes('Test User 1')
+        cb.closest('tr')?.textContent?.includes('Test User 1'),
       )
 
       if (firstUserCheckbox) {
@@ -1564,11 +1571,11 @@ describe('AdminUsersPage', () => {
 
         await waitFor(() => {
           expect(
-            mockOrganizationsAPI.bulkVerifyMemberEmails
+            mockOrganizationsAPI.bulkVerifyMemberEmails,
           ).toHaveBeenCalledWith(
             'tum-org',
             expect.arrayContaining(['user-1']),
-            'Bulk verification by admin'
+            'Bulk verification by admin',
           )
         })
       }
@@ -1611,7 +1618,7 @@ describe('AdminUsersPage', () => {
 
       const cancelButtons = screen.getAllByRole('button', { name: 'Cancel' })
       const modalCancelButton = cancelButtons.find((btn) =>
-        btn.closest('div')?.textContent?.includes('Create New Organization')
+        btn.closest('div')?.textContent?.includes('Create New Organization'),
       )
 
       if (modalCancelButton) {
@@ -1619,7 +1626,7 @@ describe('AdminUsersPage', () => {
 
         await waitFor(() => {
           expect(
-            screen.queryByText('Create New Organization')
+            screen.queryByText('Create New Organization'),
           ).not.toBeInTheDocument()
         })
       }
@@ -1662,7 +1669,7 @@ describe('AdminUsersPage', () => {
 
       const cancelButtons = screen.getAllByRole('button', { name: 'Cancel' })
       const modalCancelButton = cancelButtons.find((btn) =>
-        btn.closest('div')?.textContent?.includes('Invite New Member')
+        btn.closest('div')?.textContent?.includes('Invite New Member'),
       )
 
       if (modalCancelButton) {
@@ -1670,7 +1677,7 @@ describe('AdminUsersPage', () => {
 
         await waitFor(() => {
           expect(
-            screen.queryByText('Invite New Member')
+            screen.queryByText('Invite New Member'),
           ).not.toBeInTheDocument()
         })
       }
@@ -1713,7 +1720,7 @@ describe('AdminUsersPage', () => {
 
       const cancelButtons = screen.getAllByRole('button', { name: 'Cancel' })
       const modalCancelButton = cancelButtons.find((btn) =>
-        btn.closest('div')?.textContent?.includes('Add User to Organization')
+        btn.closest('div')?.textContent?.includes('Add User to Organization'),
       )
 
       if (modalCancelButton) {
@@ -1721,7 +1728,7 @@ describe('AdminUsersPage', () => {
 
         await waitFor(() => {
           expect(
-            screen.queryByText('Add User to Organization')
+            screen.queryByText('Add User to Organization'),
           ).not.toBeInTheDocument()
         })
       }
@@ -1749,7 +1756,7 @@ describe('AdminUsersPage', () => {
           expect(mockConfirmDelete).toHaveBeenCalledWith('this member')
           expect(mockApiClient.removeMember).toHaveBeenCalledWith(
             'org-1',
-            'user-2'
+            'user-2',
           )
         })
       }
@@ -1810,7 +1817,7 @@ describe('AdminUsersPage', () => {
         await waitFor(() => {
           expect(mockShowError).toHaveBeenCalledWith(
             'admin.users.members.removeFailed',
-            'Remove Member Failed'
+            'Remove Member Failed',
           )
         })
       }
@@ -1837,7 +1844,7 @@ describe('AdminUsersPage', () => {
 
       const dropdowns = screen.getAllByRole('combobox')
       const memberDropdown = dropdowns.find((dropdown) =>
-        dropdown.closest('div')?.textContent?.includes('Test User 2')
+        dropdown.closest('div')?.textContent?.includes('Test User 2'),
       )
 
       if (memberDropdown) {
@@ -1846,7 +1853,7 @@ describe('AdminUsersPage', () => {
         await waitFor(() => {
           expect(mockShowError).toHaveBeenCalledWith(
             'admin.users.members.updateFailed',
-            'Update Failed'
+            'Update Failed',
           )
         })
       }
@@ -1900,14 +1907,14 @@ describe('AdminUsersPage', () => {
       await waitFor(() => {
         const buttons = screen.getAllByRole('button')
         const orgSwitcherButton = buttons.find((btn) =>
-          btn.textContent?.includes('Test Organization')
+          btn.textContent?.includes('Test Organization'),
         )
         expect(orgSwitcherButton).toBeInTheDocument()
       })
 
       const buttons = screen.getAllByRole('button')
       const orgSwitcherButton = buttons.find((btn) =>
-        btn.textContent?.includes('Test Organization')
+        btn.textContent?.includes('Test Organization'),
       )
 
       if (orgSwitcherButton) {
@@ -1922,7 +1929,7 @@ describe('AdminUsersPage', () => {
 
         await waitFor(() => {
           expect(mockApiClient.getOrganizationMembers).toHaveBeenCalledWith(
-            'org-2'
+            'org-2',
           )
         })
       }
@@ -1992,7 +1999,7 @@ describe('AdminUsersPage', () => {
 
       const cancelButtons = screen.getAllByRole('button', { name: 'Cancel' })
       const editCancelButton = cancelButtons.find((btn) =>
-        btn.previousSibling?.textContent?.includes('Save')
+        btn.previousSibling?.textContent?.includes('Save'),
       )
 
       if (editCancelButton) {
@@ -2019,7 +2026,7 @@ describe('AdminUsersPage', () => {
 
       const dropdowns = screen.getAllByRole('combobox')
       const userDropdown = dropdowns.find((dropdown) =>
-        dropdown.closest('tr')?.textContent?.includes('Test User 1')
+        dropdown.closest('tr')?.textContent?.includes('Test User 1'),
       )
 
       if (userDropdown) {
@@ -2105,7 +2112,7 @@ describe('AdminUsersPage', () => {
 
       await waitFor(() => {
         expect(mockApiClient.getOrganizationMembers).toHaveBeenCalledWith(
-          'org-1'
+          'org-1',
         )
       })
     })
@@ -2171,10 +2178,10 @@ describe('AdminUsersPage', () => {
 
       const checkboxes = screen.getAllByRole('checkbox')
       const firstUserCheckbox = checkboxes.find((cb) =>
-        cb.closest('tr')?.textContent?.includes('Test User 1')
+        cb.closest('tr')?.textContent?.includes('Test User 1'),
       )
       const secondUserCheckbox = checkboxes.find((cb) =>
-        cb.closest('tr')?.textContent?.includes('Test User 2')
+        cb.closest('tr')?.textContent?.includes('Test User 2'),
       )
 
       if (firstUserCheckbox && secondUserCheckbox) {
@@ -2320,7 +2327,7 @@ describe('AdminUsersPage', () => {
         await waitFor(() => {
           expect(mockShowError).toHaveBeenCalledWith(
             'admin.users.createOrg.failed',
-            'Organization Creation Failed'
+            'Organization Creation Failed',
           )
         })
       }
@@ -2369,7 +2376,7 @@ describe('AdminUsersPage', () => {
 
       const modal = screen.getByText('Invite New Member').closest('div')
       const emailInput = modal?.querySelector(
-        'input[type="email"]'
+        'input[type="email"]',
       ) as HTMLInputElement
 
       if (emailInput) {
@@ -2406,7 +2413,7 @@ describe('AdminUsersPage', () => {
 
       const modal = screen.getByText('Invite New Member').closest('div')
       const emailInput = modal?.querySelector(
-        'input[type="email"]'
+        'input[type="email"]',
       ) as HTMLInputElement
 
       if (emailInput) {
@@ -2419,7 +2426,7 @@ describe('AdminUsersPage', () => {
       await waitFor(() => {
         expect(mockShowError).toHaveBeenCalledWith(
           'admin.users.invite.failed',
-          'Invitation Failed'
+          'Invitation Failed',
         )
       })
 
@@ -2478,7 +2485,7 @@ describe('AdminUsersPage', () => {
       const userSelect = userSelects.find((select) =>
         select
           .closest('form')
-          ?.textContent?.includes('Add User to Organization')
+          ?.textContent?.includes('Add User to Organization'),
       )
 
       if (userSelect) {
@@ -2491,7 +2498,7 @@ describe('AdminUsersPage', () => {
           expect(mockApiClient.addUserToOrganization).toHaveBeenCalledWith(
             'org-1',
             'user-1',
-            'ANNOTATOR'
+            'ANNOTATOR',
           )
         })
       }
@@ -2520,7 +2527,7 @@ describe('AdminUsersPage', () => {
       const userSelect = userSelects.find((select) =>
         select
           .closest('form')
-          ?.textContent?.includes('Add User to Organization')
+          ?.textContent?.includes('Add User to Organization'),
       )
 
       if (userSelect) {
@@ -2532,7 +2539,7 @@ describe('AdminUsersPage', () => {
         await waitFor(() => {
           expect(mockShowError).toHaveBeenCalledWith(
             'admin.users.addUser.alreadyMember',
-            'Add User Failed'
+            'Add User Failed',
           )
         })
       }
@@ -2563,7 +2570,7 @@ describe('AdminUsersPage', () => {
       const userSelect = userSelects.find((select) =>
         select
           .closest('form')
-          ?.textContent?.includes('Add User to Organization')
+          ?.textContent?.includes('Add User to Organization'),
       )
 
       if (userSelect) {
@@ -2575,7 +2582,7 @@ describe('AdminUsersPage', () => {
         await waitFor(() => {
           expect(mockShowError).toHaveBeenCalledWith(
             'admin.users.addUser.noPermission',
-            'Add User Failed'
+            'Add User Failed',
           )
         })
       }
@@ -2606,7 +2613,7 @@ describe('AdminUsersPage', () => {
       const userSelect = userSelects.find((select) =>
         select
           .closest('form')
-          ?.textContent?.includes('Add User to Organization')
+          ?.textContent?.includes('Add User to Organization'),
       )
 
       if (userSelect) {
@@ -2618,7 +2625,7 @@ describe('AdminUsersPage', () => {
         await waitFor(() => {
           expect(mockShowError).toHaveBeenCalledWith(
             'admin.users.addUser.notFound',
-            'Add User Failed'
+            'Add User Failed',
           )
         })
       }
@@ -2649,7 +2656,7 @@ describe('AdminUsersPage', () => {
       const userSelect = userSelects.find((select) =>
         select
           .closest('form')
-          ?.textContent?.includes('Add User to Organization')
+          ?.textContent?.includes('Add User to Organization'),
       )
 
       if (userSelect) {
@@ -2661,7 +2668,7 @@ describe('AdminUsersPage', () => {
         await waitFor(() => {
           expect(mockShowError).toHaveBeenCalledWith(
             expect.stringContaining('admin.users.addUser.invalidRequest'),
-            'Add User Failed'
+            'Add User Failed',
           )
         })
       }
@@ -2689,7 +2696,7 @@ describe('AdminUsersPage', () => {
 
       // user-1 is not a member, should be in dropdown
       expect(
-        screen.getByText('Test User 1 (test1@example.com)')
+        screen.getByText('Test User 1 (test1@example.com)'),
       ).toBeInTheDocument()
     })
   })
@@ -2704,7 +2711,7 @@ describe('AdminUsersPage', () => {
 
       const buttons = screen.getAllByRole('button')
       const orgSwitcherButton = buttons.find((btn) =>
-        btn.textContent?.includes('Test Organization')
+        btn.textContent?.includes('Test Organization'),
       )
 
       if (orgSwitcherButton) {
@@ -2727,7 +2734,7 @@ describe('AdminUsersPage', () => {
       await waitFor(() => {
         const buttons = screen.getAllByRole('button')
         const orgSwitcherButton = buttons.find((btn) =>
-          btn.textContent?.includes('Test Organization')
+          btn.textContent?.includes('Test Organization'),
         )
         expect(orgSwitcherButton).toBeInTheDocument()
       })
@@ -2792,10 +2799,10 @@ describe('AdminUsersPage', () => {
 
       expect(getRoleDisplayName('ORG_ADMIN')).toBe('admin.users.roles.orgAdmin')
       expect(getRoleDisplayName('CONTRIBUTOR')).toBe(
-        'admin.users.roles.contributor'
+        'admin.users.roles.contributor',
       )
       expect(getRoleDisplayName('ANNOTATOR')).toBe(
-        'admin.users.roles.annotator'
+        'admin.users.roles.annotator',
       )
       expect(getRoleDisplayName('UNKNOWN')).toBe('UNKNOWN')
     })
@@ -2818,7 +2825,7 @@ describe('AdminUsersPage', () => {
       })
 
       const descInputs = screen.getAllByDisplayValue(
-        'Test Description'
+        'Test Description',
       ) as HTMLTextAreaElement[]
       const descInput = descInputs[0]
 
@@ -2947,10 +2954,10 @@ describe('AdminUsersPage', () => {
       // Current user row should not have delete button
       const rows = screen.getAllByRole('row')
       const currentUserRow = rows.find((row) =>
-        row.textContent?.includes('testuser1')
+        row.textContent?.includes('testuser1'),
       )
       const deleteButton = currentUserRow?.querySelector(
-        'button[class*="text-red"]'
+        'button[class*="text-red"]',
       )
 
       expect(deleteButton).not.toBeInTheDocument()
@@ -2981,7 +2988,7 @@ describe('AdminUsersPage', () => {
       await waitFor(() => {
         const buttons = screen.getAllByRole('button')
         const orgSwitcherButton = buttons.find((btn) =>
-          btn.textContent?.includes('Test Organization')
+          btn.textContent?.includes('Test Organization'),
         )
         expect(orgSwitcherButton).toBeInTheDocument()
       })
@@ -2994,7 +3001,7 @@ describe('AdminUsersPage', () => {
       await waitFor(() => {
         const buttons = screen.getAllByRole('button')
         const orgSwitcherButton = buttons.find((btn) =>
-          btn.textContent?.includes('Test Organization')
+          btn.textContent?.includes('Test Organization'),
         )
         expect(orgSwitcherButton).toBeInTheDocument()
       })
@@ -3111,7 +3118,7 @@ describe('AdminUsersPage', () => {
       await waitFor(() => {
         expect(mockShowError).toHaveBeenCalledWith(
           'No organizations available',
-          'Organization Required'
+          'Organization Required',
         )
       })
     })
@@ -3173,7 +3180,7 @@ describe('AdminUsersPage', () => {
       // Select first user
       const checkboxes = screen.getAllByRole('checkbox')
       const firstUserCheckbox = checkboxes.find((cb) =>
-        cb.closest('tr')?.textContent?.includes('Test User 1')
+        cb.closest('tr')?.textContent?.includes('Test User 1'),
       )
 
       if (firstUserCheckbox) {
@@ -3188,11 +3195,11 @@ describe('AdminUsersPage', () => {
 
         await waitFor(() => {
           expect(
-            mockOrganizationsAPI.bulkVerifyMemberEmails
+            mockOrganizationsAPI.bulkVerifyMemberEmails,
           ).toHaveBeenCalledWith(
             'tum-org',
             ['user-1'],
-            'Bulk verification by admin'
+            'Bulk verification by admin',
           )
         })
       }
@@ -3227,7 +3234,7 @@ describe('AdminUsersPage', () => {
 
       const roleDropdowns = screen.getAllByRole('combobox')
       const memberRoleDropdown = roleDropdowns.find((dropdown) =>
-        dropdown.closest('div')?.textContent?.includes('Test User 2')
+        dropdown.closest('div')?.textContent?.includes('Test User 2'),
       )
 
       if (memberRoleDropdown) {
@@ -3237,7 +3244,7 @@ describe('AdminUsersPage', () => {
           expect(mockApiClient.updateMemberRole).toHaveBeenCalledWith(
             'org-1',
             'user-2',
-            'ANNOTATOR'
+            'ANNOTATOR',
           )
         })
       }
@@ -3450,7 +3457,7 @@ describe('AdminUsersPage', () => {
 
       const cancelButtons = screen.getAllByText('Cancel')
       const modalCancelButton = cancelButtons.find((btn) =>
-        btn.closest('div')?.textContent?.includes('Organization Name')
+        btn.closest('div')?.textContent?.includes('Organization Name'),
       )
 
       if (modalCancelButton) {
@@ -3458,7 +3465,7 @@ describe('AdminUsersPage', () => {
 
         await waitFor(() => {
           expect(
-            screen.queryByText('Create New Organization')
+            screen.queryByText('Create New Organization'),
           ).not.toBeInTheDocument()
         })
       }
@@ -3485,7 +3492,7 @@ describe('AdminUsersPage', () => {
 
       const cancelButtons = screen.getAllByText('Cancel')
       const modalCancelButton = cancelButtons.find((btn) =>
-        btn.closest('div')?.textContent?.includes('Email Address')
+        btn.closest('div')?.textContent?.includes('Email Address'),
       )
 
       if (modalCancelButton) {
@@ -3493,7 +3500,7 @@ describe('AdminUsersPage', () => {
 
         await waitFor(() => {
           expect(
-            screen.queryByText('Invite New Member')
+            screen.queryByText('Invite New Member'),
           ).not.toBeInTheDocument()
         })
       }
@@ -3520,7 +3527,7 @@ describe('AdminUsersPage', () => {
 
       const cancelButtons = screen.getAllByText('Cancel')
       const modalCancelButton = cancelButtons.find((btn) =>
-        btn.closest('div')?.textContent?.includes('Select User')
+        btn.closest('div')?.textContent?.includes('Select User'),
       )
 
       if (modalCancelButton) {
@@ -3528,7 +3535,7 @@ describe('AdminUsersPage', () => {
 
         await waitFor(() => {
           expect(
-            screen.queryByText('Add User to Organization')
+            screen.queryByText('Add User to Organization'),
           ).not.toBeInTheDocument()
         })
       }
@@ -3547,7 +3554,7 @@ describe('AdminUsersPage', () => {
       await waitFor(() => {
         const buttons = screen.getAllByRole('button')
         const orgSwitcherButton = buttons.find((btn) =>
-          btn.textContent?.includes('Test Organization')
+          btn.textContent?.includes('Test Organization'),
         )
         expect(orgSwitcherButton).toBeInTheDocument()
       })
@@ -3597,7 +3604,7 @@ describe('AdminUsersPage', () => {
       await waitFor(() => {
         const buttons = screen.getAllByRole('button')
         const orgSwitcherButton = buttons.find((btn) =>
-          btn.textContent?.includes('Test Organization')
+          btn.textContent?.includes('Test Organization'),
         )
         expect(orgSwitcherButton).toBeInTheDocument()
       })
@@ -3667,7 +3674,7 @@ describe('AdminUsersPage', () => {
 
       const checkboxes = screen.getAllByRole('checkbox')
       const firstUserCheckbox = checkboxes.find((cb) =>
-        cb.closest('tr')?.textContent?.includes('Test User 1')
+        cb.closest('tr')?.textContent?.includes('Test User 1'),
       )
 
       if (firstUserCheckbox) {
@@ -3691,10 +3698,10 @@ describe('AdminUsersPage', () => {
 
       const checkboxes = screen.getAllByRole('checkbox')
       const firstUserCheckbox = checkboxes.find((cb) =>
-        cb.closest('tr')?.textContent?.includes('Test User 1')
+        cb.closest('tr')?.textContent?.includes('Test User 1'),
       )
       const secondUserCheckbox = checkboxes.find((cb) =>
-        cb.closest('tr')?.textContent?.includes('Test User 2')
+        cb.closest('tr')?.textContent?.includes('Test User 2'),
       )
 
       if (firstUserCheckbox && secondUserCheckbox) {
@@ -3766,7 +3773,7 @@ describe('AdminUsersPage', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByTestId('admin-organizations-tab')
+          screen.getByTestId('admin-organizations-tab'),
         ).toBeInTheDocument()
       })
     })
@@ -3809,7 +3816,7 @@ describe('AdminUsersPage', () => {
       await waitFor(() => {
         expect(mockShowError).not.toHaveBeenCalledWith(
           expect.stringContaining('Failed'),
-          'Error'
+          'Error',
         )
       })
     })
@@ -3912,13 +3919,13 @@ describe('AdminUsersPage', () => {
         input
           .closest('div')
           ?.querySelector('label')
-          ?.textContent?.includes('Organization Name')
+          ?.textContent?.includes('Organization Name'),
       )
       const slugInput = inputs.find((input) =>
         input
           .closest('div')
           ?.querySelector('label')
-          ?.textContent?.includes('URL Slug')
+          ?.textContent?.includes('URL Slug'),
       )
 
       if (nameInput && slugInput) {
@@ -3931,7 +3938,7 @@ describe('AdminUsersPage', () => {
         await waitFor(() => {
           expect(mockApiClient.createOrganization).toHaveBeenCalled()
           expect(
-            screen.queryByText('Create New Organization')
+            screen.queryByText('Create New Organization'),
           ).not.toBeInTheDocument()
         })
       }
@@ -3960,7 +3967,7 @@ describe('AdminUsersPage', () => {
         input
           .closest('div')
           ?.querySelector('label')
-          ?.textContent?.includes('Email Address')
+          ?.textContent?.includes('Email Address'),
       )
 
       if (emailInput) {
@@ -3974,7 +3981,7 @@ describe('AdminUsersPage', () => {
         await waitFor(() => {
           expect(mockApiClient.createInvitation).toHaveBeenCalled()
           expect(
-            screen.queryByText('Invite New Member')
+            screen.queryByText('Invite New Member'),
           ).not.toBeInTheDocument()
         })
       }
@@ -4003,7 +4010,7 @@ describe('AdminUsersPage', () => {
         select
           .closest('div')
           ?.querySelector('label')
-          ?.textContent?.includes('Select User')
+          ?.textContent?.includes('Select User'),
       )
 
       if (userSelect) {
@@ -4018,7 +4025,7 @@ describe('AdminUsersPage', () => {
         await waitFor(() => {
           expect(mockApiClient.addUserToOrganization).toHaveBeenCalled()
           expect(
-            screen.queryByText('Add User to Organization')
+            screen.queryByText('Add User to Organization'),
           ).not.toBeInTheDocument()
         })
       }
@@ -4071,7 +4078,7 @@ describe('AdminUsersPage', () => {
 
       const roleDropdowns = screen.getAllByRole('combobox')
       const memberRoleDropdown = roleDropdowns.find((dropdown) =>
-        dropdown.closest('div')?.textContent?.includes('Test User 2')
+        dropdown.closest('div')?.textContent?.includes('Test User 2'),
       )
 
       if (memberRoleDropdown) {
@@ -4101,14 +4108,14 @@ describe('AdminUsersPage', () => {
         select
           .closest('div')
           ?.querySelector('label')
-          ?.textContent?.includes('Select User')
+          ?.textContent?.includes('Select User'),
       )
 
       if (userSelect) {
         const options = within(userSelect).getAllByRole('option')
         const optionTexts = options.map((opt) => opt.textContent)
         expect(optionTexts.some((text) => text?.includes('Test User 1'))).toBe(
-          true
+          true,
         )
       }
     })
@@ -4148,7 +4155,7 @@ describe('AdminUsersPage', () => {
         input
           .closest('div')
           ?.querySelector('label')
-          ?.textContent?.includes('URL Slug')
+          ?.textContent?.includes('URL Slug'),
       )
 
       if (slugInput) {

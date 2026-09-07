@@ -19,7 +19,7 @@ function LeaderboardsContent() {
   // Default to 'human' to match the old monolith. Falls back to 'llm' in
   // community edition where the human/co-creation slots aren't registered.
   const [activeTab, setActiveTab] = useState<LeaderboardTab>(
-    AnnotatorLeaderboardTab ? 'human' : 'llm'
+    AnnotatorLeaderboardTab ? 'human' : 'llm',
   )
 
   const tabClass = (tab: LeaderboardTab) =>
@@ -30,7 +30,7 @@ function LeaderboardsContent() {
     }`
 
   return (
-    <ResponsiveContainer size="xl" className="pb-10 pt-8">
+    <ResponsiveContainer size="xl" className="pt-8 pb-10">
       <div className="mb-4">
         <Breadcrumb
           items={[
@@ -54,16 +54,25 @@ function LeaderboardsContent() {
         <div className="mb-6 flex items-end justify-between border-b border-zinc-200 dark:border-zinc-700">
           <nav className="-mb-px flex space-x-8">
             {AnnotatorLeaderboardTab && (
-              <button onClick={() => setActiveTab('human')} className={tabClass('human')}>
+              <button
+                onClick={() => setActiveTab('human')}
+                className={tabClass('human')}
+              >
                 {t('leaderboards.humanAnnotators') || 'Human Annotators'}
               </button>
             )}
             {CoCreationLeaderboardTab && (
-              <button onClick={() => setActiveTab('co-creation')} className={tabClass('co-creation')}>
+              <button
+                onClick={() => setActiveTab('co-creation')}
+                className={tabClass('co-creation')}
+              >
                 {t('leaderboards.coCreation') || 'Co-Creation'}
               </button>
             )}
-            <button onClick={() => setActiveTab('llm')} className={tabClass('llm')}>
+            <button
+              onClick={() => setActiveTab('llm')}
+              className={tabClass('llm')}
+            >
               {t('leaderboards.llms') || 'LLMs'}
             </button>
           </nav>
@@ -93,11 +102,11 @@ function LeaderboardsContent() {
 
 function LoadingSkeleton() {
   return (
-    <ResponsiveContainer size="xl" className="pb-10 pt-8">
+    <ResponsiveContainer size="xl" className="pt-8 pb-10">
       <div className="mb-4">
         <div className="h-6 w-48 animate-pulse rounded bg-zinc-200 dark:bg-zinc-700" />
       </div>
-      <div className="h-10 w-64 animate-pulse rounded bg-zinc-200 dark:bg-zinc-700 mb-6" />
+      <div className="mb-6 h-10 w-64 animate-pulse rounded bg-zinc-200 dark:bg-zinc-700" />
       <div className="h-12 w-full animate-pulse rounded bg-zinc-200 dark:bg-zinc-700" />
     </ResponsiveContainer>
   )

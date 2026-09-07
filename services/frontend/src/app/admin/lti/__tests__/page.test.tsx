@@ -36,7 +36,7 @@ describe('Admin LTI host route', () => {
     // The global I18n test mock echoes unknown keys back.
     expect(screen.getByText('admin.accessDenied')).toBeInTheDocument()
     expect(
-      screen.queryByText('LTI administration requires the extended edition.')
+      screen.queryByText('LTI administration requires the extended edition.'),
     ).not.toBeInTheDocument()
   })
 
@@ -50,7 +50,7 @@ describe('Admin LTI host route', () => {
     render(<AdminLtiPage />)
     expect(mockUseSlot).toHaveBeenCalledWith('LtiRegistrationsAdmin')
     expect(
-      screen.getByText('LTI administration requires the extended edition.')
+      screen.getByText('LTI administration requires the extended edition.'),
     ).toBeInTheDocument()
     expect(screen.queryByText('admin.accessDenied')).not.toBeInTheDocument()
   })
@@ -60,7 +60,7 @@ describe('Admin LTI host route', () => {
     render(<AdminLtiPage />)
     expect(screen.getByText('extended lti admin')).toBeInTheDocument()
     expect(
-      screen.queryByText('LTI administration requires the extended edition.')
+      screen.queryByText('LTI administration requires the extended edition.'),
     ).not.toBeInTheDocument()
   })
 })

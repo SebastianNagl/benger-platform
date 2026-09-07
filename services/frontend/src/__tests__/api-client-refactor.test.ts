@@ -168,7 +168,7 @@ jest.mock('@/lib/api', () => {
 // Helper function to create properly mocked Response objects
 const createMockResponse = (
   data: any,
-  options: { ok?: boolean; status?: number; statusText?: string } = {}
+  options: { ok?: boolean; status?: number; statusText?: string } = {},
 ) => {
   const headers = new Headers()
 
@@ -218,7 +218,7 @@ describe('API Client Refactoring', () => {
       const { BaseApiClient } = await import('@/lib/api/base')
 
       ;(fetch as jest.MockedFunction<typeof fetch>).mockResolvedValueOnce(
-        createMockResponse({ success: true })
+        createMockResponse({ success: true }),
       )
 
       const client = new BaseApiClient()
@@ -230,7 +230,7 @@ describe('API Client Refactoring', () => {
         expect.any(String),
         expect.objectContaining({
           credentials: 'include',
-        })
+        }),
       )
     })
 
@@ -240,14 +240,14 @@ describe('API Client Refactoring', () => {
       ;(fetch as jest.MockedFunction<typeof fetch>).mockResolvedValueOnce(
         createMockResponse(
           { error: 'Unauthorized' },
-          { ok: false, status: 401, statusText: 'Unauthorized' }
-        )
+          { ok: false, status: 401, statusText: 'Unauthorized' },
+        ),
       )
 
       const client = new BaseApiClient()
 
       await expect(client.get('/test')).rejects.toThrow(
-        'HTTP error! status: 401'
+        'HTTP error! status: 401',
       )
     })
   })
@@ -273,7 +273,7 @@ describe('API Client Refactoring', () => {
       }
 
       ;(fetch as jest.MockedFunction<typeof fetch>).mockResolvedValueOnce(
-        createMockResponse(mockResponse)
+        createMockResponse(mockResponse),
       )
 
       const authClient = new AuthClient()
@@ -291,7 +291,7 @@ describe('API Client Refactoring', () => {
             username: 'test@example.com',
             password: 'password',
           }),
-        })
+        }),
       )
 
       expect(result).toEqual(mockResponse)
@@ -301,7 +301,7 @@ describe('API Client Refactoring', () => {
       const { AuthClient } = await import('@/lib/api/auth')
 
       ;(fetch as jest.MockedFunction<typeof fetch>).mockResolvedValueOnce(
-        createMockResponse({ message: 'Logged out successfully' })
+        createMockResponse({ message: 'Logged out successfully' }),
       )
 
       const authClient = new AuthClient()
@@ -312,7 +312,7 @@ describe('API Client Refactoring', () => {
         expect.objectContaining({
           method: 'POST',
           credentials: 'include',
-        })
+        }),
       )
     })
 
@@ -327,7 +327,7 @@ describe('API Client Refactoring', () => {
       }
 
       ;(fetch as jest.MockedFunction<typeof fetch>).mockResolvedValueOnce(
-        createMockResponse(mockUser)
+        createMockResponse(mockUser),
       )
 
       const authClient = new AuthClient()
@@ -337,7 +337,7 @@ describe('API Client Refactoring', () => {
         expect.stringContaining('/auth/me'),
         expect.objectContaining({
           credentials: 'include',
-        })
+        }),
       )
 
       expect(result).toEqual(mockUser)
@@ -371,7 +371,7 @@ describe('API Client Refactoring', () => {
       }
 
       ;(fetch as jest.MockedFunction<typeof fetch>).mockResolvedValueOnce(
-        createMockResponse(mockResponse)
+        createMockResponse(mockResponse),
       )
 
       const tasksClient = new TasksClient()
@@ -386,7 +386,7 @@ describe('API Client Refactoring', () => {
           }),
           credentials: 'include',
           body: JSON.stringify(taskData),
-        })
+        }),
       )
 
       expect(result).toEqual(mockResponse)
@@ -413,7 +413,7 @@ describe('API Client Refactoring', () => {
       ]
 
       ;(fetch as jest.MockedFunction<typeof fetch>).mockResolvedValueOnce(
-        createMockResponse(mockTasks)
+        createMockResponse(mockTasks),
       )
 
       const tasksClient = new TasksClient()
@@ -423,7 +423,7 @@ describe('API Client Refactoring', () => {
         expect.stringContaining('/tasks'),
         expect.objectContaining({
           credentials: 'include',
-        })
+        }),
       )
 
       expect(result).toEqual(mockTasks)
@@ -457,7 +457,7 @@ describe('API Client Refactoring', () => {
       ]
 
       ;(fetch as jest.MockedFunction<typeof fetch>).mockResolvedValueOnce(
-        createMockResponse(mockUsers)
+        createMockResponse(mockUsers),
       )
 
       const usersClient = new UsersClient()
@@ -467,7 +467,7 @@ describe('API Client Refactoring', () => {
         expect.stringContaining('/users'),
         expect.objectContaining({
           credentials: 'include',
-        })
+        }),
       )
 
       expect(result).toEqual(mockUsers)
@@ -491,7 +491,7 @@ describe('API Client Refactoring', () => {
       ]
 
       ;(fetch as jest.MockedFunction<typeof fetch>).mockResolvedValueOnce(
-        createMockResponse(mockResponse)
+        createMockResponse(mockResponse),
       )
 
       const evaluationsClient = new EvaluationsClient()
@@ -501,7 +501,7 @@ describe('API Client Refactoring', () => {
         expect.stringContaining('/evaluations'),
         expect.objectContaining({
           method: 'GET',
-        })
+        }),
       )
 
       expect(result).toEqual(mockResponse)
@@ -523,7 +523,7 @@ describe('API Client Refactoring', () => {
           access_token: 'test-token',
           token_type: 'bearer',
           user: { id: '1', username: 'test@example.com' },
-        })
+        }),
       )
 
       const apiClient = new ApiClient()
@@ -538,7 +538,7 @@ describe('API Client Refactoring', () => {
       const { ApiClient } = await import('@/lib/api')
 
       ;(fetch as jest.MockedFunction<typeof fetch>).mockResolvedValueOnce(
-        createMockResponse({ id: '1', username: 'test@example.com' })
+        createMockResponse({ id: '1', username: 'test@example.com' }),
       )
 
       const apiClient = new ApiClient()
@@ -549,7 +549,7 @@ describe('API Client Refactoring', () => {
         expect.any(String),
         expect.objectContaining({
           credentials: 'include',
-        })
+        }),
       )
     })
   })
@@ -568,7 +568,7 @@ describe('API Client Refactoring', () => {
       const { BaseApiClient } = await import('@/lib/api/base')
 
       ;(fetch as jest.MockedFunction<typeof fetch>).mockResolvedValue(
-        createMockResponse({ success: true })
+        createMockResponse({ success: true }),
       )
 
       const client = new BaseApiClient()
@@ -587,7 +587,7 @@ describe('API Client Refactoring', () => {
         expect(call[1]).toEqual(
           expect.objectContaining({
             credentials: 'include',
-          })
+          }),
         )
       })
     })
@@ -600,21 +600,21 @@ describe('API Client Refactoring', () => {
         .mockResolvedValueOnce(
           createMockResponse(
             { error: 'Invalid credentials' },
-            { ok: false, status: 401, statusText: 'Unauthorized' }
-          )
+            { ok: false, status: 401, statusText: 'Unauthorized' },
+          ),
         )
         // Mock the refresh request to also fail (to prevent retry success)
         .mockResolvedValueOnce(
           createMockResponse(
             { error: 'Invalid refresh token' },
-            { ok: false, status: 401, statusText: 'Unauthorized' }
-          )
+            { ok: false, status: 401, statusText: 'Unauthorized' },
+          ),
         )
 
       const authClient = new AuthClient()
 
       await expect(
-        authClient.login('invalid@example.com', 'wrongpassword')
+        authClient.login('invalid@example.com', 'wrongpassword'),
       ).rejects.toThrow('HTTP error! status: 401')
     })
   })

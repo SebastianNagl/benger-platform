@@ -141,7 +141,7 @@ describe('Skeleton Component', () => {
 
     it('custom width and height override defaults', () => {
       const { container } = render(
-        <Skeleton variant="text" className="h-8 w-32" />
+        <Skeleton variant="text" className="h-8 w-32" />,
       )
 
       const skeleton = container.firstChild as HTMLElement
@@ -150,7 +150,7 @@ describe('Skeleton Component', () => {
 
     it('supports multiple custom classes', () => {
       const { container } = render(
-        <Skeleton className="m-4 p-2 opacity-75 shadow-lg" />
+        <Skeleton className="m-4 p-2 opacity-75 shadow-lg" />,
       )
 
       const skeleton = container.firstChild as HTMLElement
@@ -175,10 +175,10 @@ describe('Skeleton Component', () => {
 
     it('dark mode class present in all variants', () => {
       const { container: rectContainer } = render(
-        <Skeleton variant="rectangular" />
+        <Skeleton variant="rectangular" />,
       )
       const { container: circContainer } = render(
-        <Skeleton variant="circular" />
+        <Skeleton variant="circular" />,
       )
       const { container: textContainer } = render(<Skeleton variant="text" />)
 
@@ -191,7 +191,7 @@ describe('Skeleton Component', () => {
   describe('Common Use Cases', () => {
     it('renders avatar skeleton', () => {
       const { container } = render(
-        <Skeleton variant="circular" className="h-12 w-12" />
+        <Skeleton variant="circular" className="h-12 w-12" />,
       )
 
       const skeleton = container.firstChild as HTMLElement
@@ -221,7 +221,7 @@ describe('Skeleton Component', () => {
 
     it('renders image skeleton', () => {
       const { container } = render(
-        <Skeleton variant="rectangular" className="aspect-video w-full" />
+        <Skeleton variant="rectangular" className="aspect-video w-full" />,
       )
 
       const skeleton = container.firstChild as HTMLElement
@@ -236,7 +236,7 @@ describe('Skeleton Component', () => {
           <Skeleton variant="text" />
           <Skeleton variant="text" />
           <Skeleton variant="text" />
-        </div>
+        </div>,
       )
 
       const skeletons = container.querySelectorAll('.animate-pulse')
@@ -249,7 +249,7 @@ describe('Skeleton Component', () => {
           {[1, 2, 3, 4, 5].map((i) => (
             <Skeleton key={i} className="mb-2" />
           ))}
-        </div>
+        </div>,
       )
 
       const skeletons = container.querySelectorAll('.animate-pulse')
@@ -262,7 +262,7 @@ describe('Skeleton Component', () => {
           <Skeleton variant="circular" className="h-12 w-12" />
           <Skeleton variant="text" />
           <Skeleton variant="rectangular" className="h-32" />
-        </div>
+        </div>,
       )
 
       const skeletons = container.querySelectorAll('.animate-pulse')
@@ -306,7 +306,7 @@ describe('Skeleton Component', () => {
 
     it('handles custom aspect ratios', () => {
       const { container } = render(
-        <Skeleton className="aspect-square w-full" />
+        <Skeleton className="aspect-square w-full" />,
       )
 
       const skeleton = container.firstChild as HTMLElement
@@ -329,7 +329,7 @@ describe('Skeleton Component', () => {
 
     it('renders without crashing with all props', () => {
       const { container } = render(
-        <Skeleton variant="circular" className="h-20 w-20 shadow-xl" />
+        <Skeleton variant="circular" className="h-20 w-20 shadow-xl" />,
       )
 
       expect(container.firstChild).toBeInTheDocument()
@@ -350,7 +350,7 @@ describe('Skeleton Component', () => {
           <button>Before</button>
           <Skeleton />
           <button>After</button>
-        </div>
+        </div>,
       )
 
       const skeleton = container.querySelector('.animate-pulse')
@@ -374,7 +374,7 @@ describe('Skeleton Component', () => {
           <Skeleton variant="rectangular" className="h-48 w-full" />
           <Skeleton variant="text" />
           <Skeleton variant="text" className="w-3/4" />
-        </div>
+        </div>,
       )
 
       const skeletons = container.querySelectorAll('.animate-pulse')
@@ -389,7 +389,7 @@ describe('Skeleton Component', () => {
             <Skeleton variant="text" className="w-1/2" />
             <Skeleton variant="text" className="w-1/4" />
           </div>
-        </div>
+        </div>,
       )
 
       const skeletons = container.querySelectorAll('.animate-pulse')
@@ -407,7 +407,7 @@ describe('Skeleton Component', () => {
               </div>
             </div>
           ))}
-        </div>
+        </div>,
       )
 
       const skeletons = container.querySelectorAll('.animate-pulse')

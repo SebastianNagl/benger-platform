@@ -7,7 +7,7 @@
  * Tests the evaluation results display functionality including
  * API data availability and UI rendering.
  */
-import { test, expect, Page } from '@playwright/test'
+import { expect, Page, test } from '@playwright/test'
 import { APISeedingHelper, SeededTask } from '../helpers/api-seeding'
 import { TestHelpers } from '../helpers/test-helpers'
 
@@ -27,7 +27,9 @@ test.describe('Evaluation Results Display', () => {
 
   test.beforeAll(async ({ browser }) => {
     // Use a single browser context for all tests in this describe block
-    const context = await browser.newContext({ viewport: { width: 1920, height: 1080 } })
+    const context = await browser.newContext({
+      viewport: { width: 1920, height: 1080 },
+    })
     page = await context.newPage()
     helpers = new TestHelpers(page)
     seeder = new APISeedingHelper(page)
@@ -65,7 +67,7 @@ test.describe('Evaluation Results Display', () => {
         task_id: task.id,
         model_id: model,
         output: `Generated answer from ${model} for task ${task.id}`,
-      }))
+      })),
     )
     generationIds = await seeder.seedGenerations(projectId, genData)
 
@@ -93,7 +95,7 @@ test.describe('Evaluation Results Display', () => {
     const evalResult = await page.evaluate(async (pid) => {
       const response = await fetch(
         `/api/evaluations/projects/${pid}/results/by-task-model`,
-        { credentials: 'include' }
+        { credentials: 'include' },
       )
       if (!response.ok) return { hasData: false, status: response.status }
       const data = await response.json()
@@ -134,7 +136,7 @@ test.describe('Evaluation Results Display', () => {
     const taskModelResult = await page.evaluate(async (pid) => {
       const response = await fetch(
         `/api/evaluations/projects/${pid}/results/by-task-model`,
-        { credentials: 'include' }
+        { credentials: 'include' },
       )
       if (!response.ok) return { ok: false, status: response.status }
       const data = await response.json()

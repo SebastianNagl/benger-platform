@@ -137,8 +137,7 @@ export function ErrorState({
               data-testid="error-message"
               className="mb-6 text-sm text-zinc-600 dark:text-zinc-400"
             >
-              {error.details ||
-                t('errors.states.serverError.defaultMessage')}
+              {error.details || t('errors.states.serverError.defaultMessage')}
             </p>
             {onRetry && (
               <Button
@@ -215,8 +214,7 @@ export function ErrorState({
               data-testid="error-message"
               className="mb-6 text-sm text-zinc-600 dark:text-zinc-400"
             >
-              {error.details ||
-                t('errors.states.taskNotFound.defaultMessage')}
+              {error.details || t('errors.states.taskNotFound.defaultMessage')}
             </p>
             <Link href="/projects">
               <Button variant="filled" className="mx-auto">
@@ -251,8 +249,7 @@ export function ErrorState({
               data-testid="error-message"
               className="mb-6 text-sm text-zinc-600 dark:text-zinc-400"
             >
-              {error.details ||
-                t('errors.states.accessDenied.defaultMessage')}
+              {error.details || t('errors.states.accessDenied.defaultMessage')}
             </p>
             <Link href="/projects">
               <Button variant="filled" className="mx-auto">

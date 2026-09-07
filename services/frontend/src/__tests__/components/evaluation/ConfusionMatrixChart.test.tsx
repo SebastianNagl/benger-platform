@@ -29,7 +29,10 @@ jest.mock('next/dynamic', () => ({
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
     t: (key: string, varsOrDefault?: any) => {
-      const translations: Record<string, any> = require('../../../locales/en/common.json')
+      const translations: Record<
+        string,
+        any
+      > = require('../../../locales/en/common.json')
       const parts = key.split('.')
       let value: any = translations
       for (const part of parts) {
@@ -50,7 +53,6 @@ jest.mock('@/contexts/I18nContext', () => ({
     locale: 'en',
   }),
 }))
-
 
 describe('ConfusionMatrixChart', () => {
   const mockData = {
@@ -117,7 +119,7 @@ describe('ConfusionMatrixChart', () => {
 
     it('should render with custom title', () => {
       render(
-        <ConfusionMatrixChart data={mockData} title="Custom Matrix Title" />
+        <ConfusionMatrixChart data={mockData} title="Custom Matrix Title" />,
       )
 
       const chart = screen.getByTestId('plotly-chart')
@@ -131,7 +133,7 @@ describe('ConfusionMatrixChart', () => {
 
       const chart = screen.getByTestId('plotly-chart')
       const chartData = JSON.parse(
-        chart.getAttribute('data-chart-data') || '[]'
+        chart.getAttribute('data-chart-data') || '[]',
       )
 
       expect(chartData[0].type).toBe('heatmap')
@@ -142,7 +144,7 @@ describe('ConfusionMatrixChart', () => {
 
       const chart = screen.getByTestId('plotly-chart')
       const chartData = JSON.parse(
-        chart.getAttribute('data-chart-data') || '[]'
+        chart.getAttribute('data-chart-data') || '[]',
       )
 
       expect(chartData[0].colorscale).toBe('Viridis')
@@ -153,7 +155,7 @@ describe('ConfusionMatrixChart', () => {
 
       const chart = screen.getByTestId('plotly-chart')
       const chartData = JSON.parse(
-        chart.getAttribute('data-chart-data') || '[]'
+        chart.getAttribute('data-chart-data') || '[]',
       )
 
       expect(chartData[0].colorbar.title.text).toBe('Count')
@@ -194,7 +196,7 @@ describe('ConfusionMatrixChart', () => {
 
       const chart = screen.getByTestId('plotly-chart')
       const chartData = JSON.parse(
-        chart.getAttribute('data-chart-data') || '[]'
+        chart.getAttribute('data-chart-data') || '[]',
       )
 
       expect(chartData[0].z).toEqual(mockData.matrix)
@@ -205,7 +207,7 @@ describe('ConfusionMatrixChart', () => {
 
       const chart = screen.getByTestId('plotly-chart')
       const chartData = JSON.parse(
-        chart.getAttribute('data-chart-data') || '[]'
+        chart.getAttribute('data-chart-data') || '[]',
       )
 
       expect(chartData[0].x).toEqual(mockData.labels)
@@ -217,7 +219,7 @@ describe('ConfusionMatrixChart', () => {
 
       const chart = screen.getByTestId('plotly-chart')
       const chartData = JSON.parse(
-        chart.getAttribute('data-chart-data') || '[]'
+        chart.getAttribute('data-chart-data') || '[]',
       )
 
       expect(chartData[0].annotations).toHaveLength(9)
@@ -228,7 +230,7 @@ describe('ConfusionMatrixChart', () => {
 
       const chart = screen.getByTestId('plotly-chart')
       const chartData = JSON.parse(
-        chart.getAttribute('data-chart-data') || '[]'
+        chart.getAttribute('data-chart-data') || '[]',
       )
       const firstAnnotation = chartData[0].annotations[0]
 
@@ -242,7 +244,7 @@ describe('ConfusionMatrixChart', () => {
 
       const chart = screen.getByTestId('plotly-chart')
       const chartData = JSON.parse(
-        chart.getAttribute('data-chart-data') || '[]'
+        chart.getAttribute('data-chart-data') || '[]',
       )
       const highValueAnnotation = chartData[0].annotations[0]
 
@@ -254,7 +256,7 @@ describe('ConfusionMatrixChart', () => {
 
       const chart = screen.getByTestId('plotly-chart')
       const chartData = JSON.parse(
-        chart.getAttribute('data-chart-data') || '[]'
+        chart.getAttribute('data-chart-data') || '[]',
       )
       const lowValueAnnotation = chartData[0].annotations[1]
 
@@ -266,7 +268,7 @@ describe('ConfusionMatrixChart', () => {
 
       const chart = screen.getByTestId('plotly-chart')
       const chartData = JSON.parse(
-        chart.getAttribute('data-chart-data') || '[]'
+        chart.getAttribute('data-chart-data') || '[]',
       )
       const annotations = chartData[0].annotations
 
@@ -438,7 +440,7 @@ describe('ConfusionMatrixChart', () => {
 
       const chart = screen.getByTestId('plotly-chart')
       const chartData = JSON.parse(
-        chart.getAttribute('data-chart-data') || '[]'
+        chart.getAttribute('data-chart-data') || '[]',
       )
 
       expect(chartData[0].z).toHaveLength(2)
@@ -465,7 +467,7 @@ describe('ConfusionMatrixChart', () => {
 
       const chart = screen.getByTestId('plotly-chart')
       const chartData = JSON.parse(
-        chart.getAttribute('data-chart-data') || '[]'
+        chart.getAttribute('data-chart-data') || '[]',
       )
 
       expect(chartData[0].z).toHaveLength(4)
@@ -486,7 +488,7 @@ describe('ConfusionMatrixChart', () => {
 
       const chart = screen.getByTestId('plotly-chart')
       const chartData = JSON.parse(
-        chart.getAttribute('data-chart-data') || '[]'
+        chart.getAttribute('data-chart-data') || '[]',
       )
 
       expect(chartData[0].annotations[0].text).toBe('0')
@@ -506,7 +508,7 @@ describe('ConfusionMatrixChart', () => {
 
       const chart = screen.getByTestId('plotly-chart')
       const chartData = JSON.parse(
-        chart.getAttribute('data-chart-data') || '[]'
+        chart.getAttribute('data-chart-data') || '[]',
       )
 
       expect(chartData[0].annotations[0].text).toBe('1000')
@@ -564,7 +566,7 @@ describe('ConfusionMatrixChart', () => {
 
       const chart = screen.getByTestId('plotly-chart')
       const chartData = JSON.parse(
-        chart.getAttribute('data-chart-data') || '[]'
+        chart.getAttribute('data-chart-data') || '[]',
       )
 
       expect(chartData[0].z).toHaveLength(1)
@@ -584,7 +586,7 @@ describe('ConfusionMatrixChart', () => {
       const { container } = render(<ConfusionMatrixChart data={mockData} />)
 
       const summary = container.querySelector(
-        '.rounded-lg.border.bg-gray-50.p-4'
+        '.rounded-lg.border.bg-gray-50.p-4',
       )
       expect(summary).toBeInTheDocument()
     })
@@ -597,7 +599,7 @@ describe('ConfusionMatrixChart', () => {
         'grid-cols-1',
         'gap-3',
         'md:grid-cols-2',
-        'lg:grid-cols-3'
+        'lg:grid-cols-3',
       )
     })
 
@@ -605,7 +607,7 @@ describe('ConfusionMatrixChart', () => {
       const { container } = render(<ConfusionMatrixChart data={mockData} />)
 
       const cards = container.querySelectorAll(
-        '.rounded.border.bg-white.p-3.shadow-sm'
+        '.rounded.border.bg-white.p-3.shadow-sm',
       )
       expect(cards).toHaveLength(3)
     })
@@ -614,7 +616,7 @@ describe('ConfusionMatrixChart', () => {
       const { container } = render(<ConfusionMatrixChart data={mockData} />)
 
       const chartContainer = container.querySelector(
-        '.flex.flex-col.items-center'
+        '.flex.flex-col.items-center',
       )
       expect(chartContainer).toBeInTheDocument()
     })

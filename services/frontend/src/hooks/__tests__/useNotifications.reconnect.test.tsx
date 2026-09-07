@@ -66,7 +66,9 @@ class MockEventSource {
 
   simulateMessage(data: any) {
     if (this.onmessage) {
-      this.onmessage(new MessageEvent('message', { data: JSON.stringify(data) }))
+      this.onmessage(
+        new MessageEvent('message', { data: JSON.stringify(data) }),
+      )
     }
   }
 
@@ -118,7 +120,7 @@ beforeEach(() => {
   mockApiClient.getUnreadNotificationCount.mockResolvedValue({ count: 0 })
   mockApiClient.getNotificationPreferences.mockResolvedValue({})
   mockApiClient.createNotificationStream.mockImplementation(
-    () => new MockEventSource('/api/notifications/stream')
+    () => new MockEventSource('/api/notifications/stream'),
   )
 })
 
@@ -265,7 +267,7 @@ describe('useNotifications - remaining guard branches', () => {
   it('fetchPreferences returns {} when the API rejects', async () => {
     const errSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
     mockApiClient.getNotificationPreferences.mockRejectedValue(
-      new Error('prefs boom')
+      new Error('prefs boom'),
     )
 
     const { result } = renderHook(() => useNotifications(), { wrapper })
@@ -281,7 +283,7 @@ describe('useNotifications - remaining guard branches', () => {
     expect(result.current.preferences).toEqual({})
     expect(errSpy).toHaveBeenCalledWith(
       'Error fetching notification preferences:',
-      expect.any(Error)
+      expect.any(Error),
     )
     errSpy.mockRestore()
   })

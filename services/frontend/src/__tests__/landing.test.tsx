@@ -51,7 +51,9 @@ jest.mock('@/components/landing/HeroSection', () => ({
 }))
 
 jest.mock('@/components/landing/InformationSection', () => ({
-  InformationSection: () => <div data-testid="information-section">Information Section</div>,
+  InformationSection: () => (
+    <div data-testid="information-section">Information Section</div>
+  ),
 }))
 
 jest.mock('@/components/landing/NewsSection', () => ({
@@ -63,7 +65,9 @@ jest.mock('@/components/landing/PeopleSection', () => ({
 }))
 
 jest.mock('@/components/landing/LicenseCitationSection', () => ({
-  LicenseCitationSection: () => <div data-testid="license-citation-section">License Citation Section</div>,
+  LicenseCitationSection: () => (
+    <div data-testid="license-citation-section">License Citation Section</div>
+  ),
 }))
 
 // Mock i18n context
@@ -115,9 +119,7 @@ describe('Landing Page', () => {
     })
 
     // Should show loading state for authenticated users
-    expect(
-      screen.getByText('Redirecting to dashboard...')
-    ).toBeInTheDocument()
+    expect(screen.getByText('Redirecting to dashboard...')).toBeInTheDocument()
   })
 
   it('shows loading state while redirecting authenticated users', () => {
@@ -127,9 +129,7 @@ describe('Landing Page', () => {
 
     render(<LandingPage />)
 
-    expect(
-      screen.getByText('Redirecting to dashboard...')
-    ).toBeInTheDocument()
+    expect(screen.getByText('Redirecting to dashboard...')).toBeInTheDocument()
     expect(screen.queryByTestId('landing-layout')).not.toBeInTheDocument()
   })
 })

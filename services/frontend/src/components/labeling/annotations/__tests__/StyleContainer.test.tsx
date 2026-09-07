@@ -30,7 +30,7 @@ describe('StyleContainer', () => {
     render(
       <StyleContainer {...defaultProps}>
         <div data-testid="child">Child Content</div>
-      </StyleContainer>
+      </StyleContainer>,
     )
     expect(screen.getByTestId('child')).toBeInTheDocument()
     expect(screen.getByText('Child Content')).toBeInTheDocument()
@@ -41,7 +41,7 @@ describe('StyleContainer', () => {
       <StyleContainer {...defaultProps}>
         <div data-testid="child-1">First</div>
         <div data-testid="child-2">Second</div>
-      </StyleContainer>
+      </StyleContainer>,
     )
     expect(screen.getByTestId('child-1')).toBeInTheDocument()
     expect(screen.getByTestId('child-2')).toBeInTheDocument()

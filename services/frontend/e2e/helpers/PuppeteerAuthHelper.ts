@@ -113,7 +113,7 @@ export class PuppeteerAuthHelper {
         // Step 4: Perform login with error recovery
         await this.performLoginWithRetry(
           credentials.username,
-          credentials.password
+          credentials.password,
         )
 
         // Step 5: Verify authentication success
@@ -127,7 +127,7 @@ export class PuppeteerAuthHelper {
         if (attempt === this.config.maxRetries) {
           await this.handleAuthFailure()
           throw new Error(
-            `Login failed after ${this.config.maxRetries} attempts: ${error}`
+            `Login failed after ${this.config.maxRetries} attempts: ${error}`,
           )
         }
 
@@ -185,7 +185,7 @@ export class PuppeteerAuthHelper {
         const authIndicators = await this.page.evaluate(() => {
           // Look for logout button or user menu
           const logoutBtn = document.querySelector(
-            '[data-testid="logout-button"]'
+            '[data-testid="logout-button"]',
           )
           const userMenu = document.querySelector('[data-testid="user-menu"]')
           const adminText = document.querySelector('text=admin (TUM)')
@@ -225,7 +225,7 @@ export class PuppeteerAuthHelper {
         '127.0.0.1',
       ].includes(hostname)
       this.log(
-        `Environment check - hostname: ${hostname}, isProduction: ${!isLocalHost}`
+        `Environment check - hostname: ${hostname}, isProduction: ${!isLocalHost}`,
       )
       return !isLocalHost
     } catch (error) {
@@ -276,12 +276,12 @@ export class PuppeteerAuthHelper {
 
       if (pageLanguage !== 'en') {
         this.log(
-          `Detected non-English page (${pageLanguage}), attempting recovery`
+          `Detected non-English page (${pageLanguage}), attempting recovery`,
         )
 
         // Try to find and click language switcher to get back to English
         const languageSwitcher = await this.page.$(
-          '[data-testid="language-switcher"]'
+          '[data-testid="language-switcher"]',
         )
         if (languageSwitcher) {
           await languageSwitcher.click()
@@ -351,7 +351,7 @@ export class PuppeteerAuthHelper {
         {
           visible: true,
           timeout: 5000,
-        }
+        },
       )
 
       await this.page.waitForSelector(
@@ -359,7 +359,7 @@ export class PuppeteerAuthHelper {
         {
           visible: true,
           timeout: 5000,
-        }
+        },
       )
 
       await this.page.waitForSelector(
@@ -367,7 +367,7 @@ export class PuppeteerAuthHelper {
         {
           visible: true,
           timeout: 5000,
-        }
+        },
       )
 
       // Additional wait to ensure page is fully interactive
@@ -385,7 +385,7 @@ export class PuppeteerAuthHelper {
    */
   private async performLoginWithRetry(
     username: string,
-    password: string
+    password: string,
   ): Promise<void> {
     this.log(`Performing login for user: ${username}`)
 
@@ -393,10 +393,10 @@ export class PuppeteerAuthHelper {
       // Clear any existing values first
       await this.page.evaluate(() => {
         const emailInput = document.querySelector(
-          '[data-testid="auth-login-email-input"]'
+          '[data-testid="auth-login-email-input"]',
         ) as HTMLInputElement
         const passwordInput = document.querySelector(
-          '[data-testid="auth-login-password-input"]'
+          '[data-testid="auth-login-password-input"]',
         ) as HTMLInputElement
 
         if (emailInput) emailInput.value = ''
@@ -405,7 +405,7 @@ export class PuppeteerAuthHelper {
 
       // Fill username/email field
       const emailInput = await this.page.waitForSelector(
-        '[data-testid="auth-login-email-input"]'
+        '[data-testid="auth-login-email-input"]',
       )
       await emailInput.click()
       await this.page.waitForTimeout(100)
@@ -413,18 +413,18 @@ export class PuppeteerAuthHelper {
 
       // Fill password field
       const passwordInput = await this.page.waitForSelector(
-        '[data-testid="auth-login-password-input"]'
+        '[data-testid="auth-login-password-input"]',
       )
       await passwordInput.click()
       await this.page.waitForTimeout(100)
       await this.page.type(
         '[data-testid="auth-login-password-input"]',
-        password
+        password,
       )
 
       // Submit form by clicking login button
       const loginButton = await this.page.waitForSelector(
-        '[data-testid="auth-login-submit-button"]'
+        '[data-testid="auth-login-submit-button"]',
       )
 
       // Wait for navigation after clicking login
@@ -460,12 +460,12 @@ export class PuppeteerAuthHelper {
       if (currentUrl.includes('/login')) {
         // Check for error messages
         const errorElement = await this.page.$(
-          '[data-testid="auth-login-error-message"]'
+          '[data-testid="auth-login-error-message"]',
         )
         if (errorElement) {
           const errorText = await this.page.evaluate(
             (el) => el.textContent,
-            errorElement
+            errorElement,
           )
           throw new Error(`Login failed with error: ${errorText}`)
         }
@@ -477,7 +477,7 @@ export class PuppeteerAuthHelper {
       const authState = await this.detectAuthState()
       if (authState !== 'logged_in') {
         throw new Error(
-          `Authentication verification failed, state: ${authState}`
+          `Authentication verification failed, state: ${authState}`,
         )
       }
 

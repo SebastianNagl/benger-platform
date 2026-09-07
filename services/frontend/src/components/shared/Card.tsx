@@ -12,7 +12,7 @@ export function Card({ children, className, onClick, ...props }: CardProps) {
     <div
       className={clsx(
         'rounded-lg border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900',
-        className
+        className,
       )}
       onClick={onClick}
       {...props}

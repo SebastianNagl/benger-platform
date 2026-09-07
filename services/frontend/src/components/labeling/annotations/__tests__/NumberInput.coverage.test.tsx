@@ -65,7 +65,7 @@ describe('NumberInput - branch coverage', () => {
         value=""
         onChange={mockOnChange}
         onAnnotation={mockOnAnnotation}
-      />
+      />,
     )
 
     const input = screen.getByRole('spinbutton')
@@ -83,7 +83,7 @@ describe('NumberInput - branch coverage', () => {
         value=""
         onChange={mockOnChange}
         onAnnotation={mockOnAnnotation}
-      />
+      />,
     )
 
     const input = screen.getByRole('spinbutton')
@@ -106,7 +106,7 @@ describe('NumberInput - branch coverage', () => {
         value=""
         onChange={mockOnChange}
         onAnnotation={mockOnAnnotation}
-      />
+      />,
     )
 
     const input = screen.getByRole('spinbutton')
@@ -129,7 +129,7 @@ describe('NumberInput - branch coverage', () => {
         value=""
         onChange={mockOnChange}
         onAnnotation={mockOnAnnotation}
-      />
+      />,
     )
 
     expect(screen.getByText('*')).toBeInTheDocument()
@@ -148,7 +148,7 @@ describe('NumberInput - branch coverage', () => {
         value=""
         onChange={mockOnChange}
         onAnnotation={mockOnAnnotation}
-      />
+      />,
     )
 
     expect(screen.getByText('Enter between 0 and 100')).toBeInTheDocument()
@@ -167,7 +167,7 @@ describe('NumberInput - branch coverage', () => {
         value=""
         onChange={mockOnChange}
         onAnnotation={mockOnAnnotation}
-      />
+      />,
     )
 
     expect(screen.getByText('Custom Label')).toBeInTheDocument()
@@ -186,7 +186,7 @@ describe('NumberInput - branch coverage', () => {
         value=""
         onChange={mockOnChange}
         onAnnotation={mockOnAnnotation}
-      />
+      />,
     )
 
     expect(screen.getByLabelText('number')).toBeInTheDocument()
@@ -207,7 +207,7 @@ describe('NumberInput - branch coverage', () => {
         value=""
         onChange={mockOnChange}
         onAnnotation={mockOnAnnotation}
-      />
+      />,
     )
 
     expect(screen.getByLabelText('number')).toBeInTheDocument()
@@ -221,7 +221,7 @@ describe('NumberInput - branch coverage', () => {
         value={7}
         onChange={mockOnChange}
         onAnnotation={mockOnAnnotation}
-      />
+      />,
     )
 
     const input = screen.getByRole('spinbutton') as HTMLInputElement
@@ -241,10 +241,12 @@ describe('NumberInput - branch coverage', () => {
         value=""
         onChange={mockOnChange}
         onAnnotation={mockOnAnnotation}
-      />
+      />,
     )
 
     // Placeholder is the i18n key
-    expect(screen.getByPlaceholderText('annotation.numberPlaceholder')).toBeInTheDocument()
+    expect(
+      screen.getByPlaceholderText('annotation.numberPlaceholder'),
+    ).toBeInTheDocument()
   })
 })

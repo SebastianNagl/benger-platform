@@ -32,7 +32,12 @@ export interface Project {
   expert_instruction?: string
   show_instruction: boolean
   instructions_always_visible: boolean
-  conditional_instructions?: Array<{ id: string; content: string; weight: number; ai_allowed?: boolean }> | null
+  conditional_instructions?: Array<{
+    id: string
+    content: string
+    weight: number
+    ai_allowed?: boolean
+  }> | null
   show_skip_button: boolean
   show_submit_button: boolean
   require_comment_on_skip: boolean
@@ -170,7 +175,12 @@ export interface ProjectUpdate extends Partial<ProjectCreate> {
   public_role?: 'ANNOTATOR' | 'CONTRIBUTOR' | null
   organization_ids?: string[]
   instructions_always_visible?: boolean
-  conditional_instructions?: Array<{ id: string; content: string; weight: number; ai_allowed?: boolean }> | null
+  conditional_instructions?: Array<{
+    id: string
+    content: string
+    weight: number
+    ai_allowed?: boolean
+  }> | null
   review_enabled?: boolean
   review_mode?: 'in_place' | 'independent' | 'both'
   allow_self_review?: boolean

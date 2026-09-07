@@ -33,7 +33,9 @@ describe('detectFileFormat', () => {
   })
 
   it('detects json from content when no extension match', () => {
-    expect(detectFileFormat(makeFile('data.unknown'), '{"key": "value"}')).toBe('json')
+    expect(detectFileFormat(makeFile('data.unknown'), '{"key": "value"}')).toBe(
+      'json',
+    )
   })
 
   it('returns unknown for unrecognized format', () => {

@@ -30,14 +30,16 @@ test.describe('Info Pages', () => {
     await expect(heading).toBeVisible({ timeout: 30000 })
     await expect(async () => {
       const text = await heading.textContent()
-      const hasTitle =
-        text?.includes('Imprint') || text?.includes('Impressum')
+      const hasTitle = text?.includes('Imprint') || text?.includes('Impressum')
       expect(hasTitle).toBe(true)
     }).toPass({ timeout: 15000 })
 
     // Verify legal content sections exist (provider info, contact, etc.)
     await expect(async () => {
-      const bodyText = await page.locator('main, article, body').first().textContent()
+      const bodyText = await page
+        .locator('main, article, body')
+        .first()
+        .textContent()
       const hasLegalContent =
         bodyText?.includes('Contact') ||
         bodyText?.includes('Kontakt') ||
@@ -68,7 +70,10 @@ test.describe('Info Pages', () => {
 
     // Verify privacy-related content sections
     await expect(async () => {
-      const bodyText = await page.locator('main, article, body').first().textContent()
+      const bodyText = await page
+        .locator('main, article, body')
+        .first()
+        .textContent()
       const hasPrivacyContent =
         bodyText?.includes('Data') ||
         bodyText?.includes('Daten') ||
@@ -145,8 +150,7 @@ test.describe('Info Pages', () => {
     await expect(async () => {
       const text = await heading.textContent()
       const hasTitle =
-        text?.includes('Architecture') ||
-        text?.includes('Architektur')
+        text?.includes('Architecture') || text?.includes('Architektur')
       expect(hasTitle).toBe(true)
     }).toPass({ timeout: 15000 })
 

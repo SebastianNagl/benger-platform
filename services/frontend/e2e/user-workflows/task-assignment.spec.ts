@@ -16,7 +16,9 @@ test.describe('Task Assignment Workflow', () => {
     test.setTimeout(120000)
 
     // --- Admin context: create project, import tasks, assign ---
-    const adminContext = await browser.newContext({ viewport: { width: 1920, height: 1080 } })
+    const adminContext = await browser.newContext({
+      viewport: { width: 1920, height: 1080 },
+    })
     const adminPage = await adminContext.newPage()
     const adminHelpers = new TestHelpers(adminPage)
     await adminHelpers.login('admin', 'admin')
@@ -29,7 +31,7 @@ test.describe('Task Assignment Workflow', () => {
       const data = await resp.json()
       const orgs = data.organizations || data.items || data
       const tum = (Array.isArray(orgs) ? orgs : []).find(
-        (o: any) => o.name === 'TUM' || o.slug === 'tum'
+        (o: any) => o.name === 'TUM' || o.slug === 'tum',
       )
       return tum?.id || null
     })
@@ -37,7 +39,9 @@ test.describe('Task Assignment Workflow', () => {
     // Create project in TUM org so annotator has access
     const projectId = await adminPage.evaluate(
       async ({ name, description, orgId }) => {
-        const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+        const headers: Record<string, string> = {
+          'Content-Type': 'application/json',
+        }
         if (orgId) headers['X-Organization-Context'] = orgId
         const resp = await fetch('/api/projects', {
           method: 'POST',
@@ -49,11 +53,15 @@ test.describe('Task Assignment Workflow', () => {
         const data = await resp.json()
         return data.id
       },
-      { name: 'Assignment E2E Test', description: 'Testing task assignment workflow', orgId }
+      {
+        name: 'Assignment E2E Test',
+        description: 'Testing task assignment workflow',
+        orgId,
+      },
     )
     await seeder.setLabelConfig(
       projectId,
-      '<View><Text name="text" value="$text"/><Choices name="label" toName="text"><Choice value="Positive"/><Choice value="Negative"/></Choices></View>'
+      '<View><Text name="text" value="$text"/><Choices name="label" toName="text"><Choice value="Positive"/><Choice value="Negative"/></Choices></View>',
     )
 
     // Set project to manual assignment mode
@@ -65,9 +73,10 @@ test.describe('Task Assignment Workflow', () => {
           credentials: 'include',
           body: JSON.stringify({ assignment_mode: 'manual' }),
         })
-        if (!resp.ok) throw new Error(`Set assignment_mode failed: ${resp.status}`)
+        if (!resp.ok)
+          throw new Error(`Set assignment_mode failed: ${resp.status}`)
       },
-      { projectId }
+      { projectId },
     )
 
     // Import tasks
@@ -82,7 +91,9 @@ test.describe('Task Assignment Workflow', () => {
     // --- Annotator context: get real user ID ---
     // Must use separate context to get the annotator's actual session user ID,
     // because the test DB may have duplicate users with the same username
-    const annotatorContext = await browser.newContext({ viewport: { width: 1920, height: 1080 } })
+    const annotatorContext = await browser.newContext({
+      viewport: { width: 1920, height: 1080 },
+    })
     const annotatorPage = await annotatorContext.newPage()
     const annotatorHelpers = new TestHelpers(annotatorPage)
     await annotatorHelpers.login('annotator', 'admin')
@@ -105,7 +116,7 @@ test.describe('Task Assignment Workflow', () => {
           body: JSON.stringify({ role: 'ANNOTATOR' }),
         })
       },
-      { projectId, userId: annotatorUserId }
+      { projectId, userId: annotatorUserId },
     )
 
     // Assign tasks to annotator (from admin context)
@@ -113,7 +124,7 @@ test.describe('Task Assignment Workflow', () => {
       projectId,
       taskIds,
       [annotatorUserId],
-      'manual'
+      'manual',
     )
     expect(assignResult.assignments_created).toBe(3)
 
@@ -128,7 +139,7 @@ test.describe('Task Assignment Workflow', () => {
         const data = await resp.json()
         return { count: data.tasks?.length || 0, status: resp.status }
       },
-      { projectId, orgId }
+      { projectId, orgId },
     )
     expect(myTasks.count).toBe(3)
     console.log(`Annotator sees ${myTasks.count} assigned tasks`)
@@ -145,7 +156,9 @@ test.describe('Task Assignment Workflow', () => {
     test.setTimeout(120000)
 
     // --- Admin context ---
-    const adminContext = await browser.newContext({ viewport: { width: 1920, height: 1080 } })
+    const adminContext = await browser.newContext({
+      viewport: { width: 1920, height: 1080 },
+    })
     const adminPage = await adminContext.newPage()
     const adminHelpers = new TestHelpers(adminPage)
     await adminHelpers.login('admin', 'admin')
@@ -158,7 +171,7 @@ test.describe('Task Assignment Workflow', () => {
       const data = await resp.json()
       const orgs = data.organizations || data.items || data
       const tum = (Array.isArray(orgs) ? orgs : []).find(
-        (o: any) => o.name === 'TUM' || o.slug === 'tum'
+        (o: any) => o.name === 'TUM' || o.slug === 'tum',
       )
       return tum?.id || null
     })
@@ -166,7 +179,9 @@ test.describe('Task Assignment Workflow', () => {
     // Create project with manual assignment mode
     const projectId = await adminPage.evaluate(
       async ({ name, description, orgId }) => {
-        const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+        const headers: Record<string, string> = {
+          'Content-Type': 'application/json',
+        }
         if (orgId) headers['X-Organization-Context'] = orgId
         const resp = await fetch('/api/projects', {
           method: 'POST',
@@ -178,12 +193,16 @@ test.describe('Task Assignment Workflow', () => {
         const data = await resp.json()
         return data.id
       },
-      { name: 'Assignment Enforcement E2E', description: 'Testing manual assignment enforcement', orgId }
+      {
+        name: 'Assignment Enforcement E2E',
+        description: 'Testing manual assignment enforcement',
+        orgId,
+      },
     )
 
     await seeder.setLabelConfig(
       projectId,
-      '<View><Text name="text" value="$text"/><Choices name="label" toName="text"><Choice value="Positive"/><Choice value="Negative"/></Choices></View>'
+      '<View><Text name="text" value="$text"/><Choices name="label" toName="text"><Choice value="Positive"/><Choice value="Negative"/></Choices></View>',
     )
 
     // Set manual assignment mode
@@ -195,9 +214,10 @@ test.describe('Task Assignment Workflow', () => {
           credentials: 'include',
           body: JSON.stringify({ assignment_mode: 'manual' }),
         })
-        if (!resp.ok) throw new Error(`Set assignment_mode failed: ${resp.status}`)
+        if (!resp.ok)
+          throw new Error(`Set assignment_mode failed: ${resp.status}`)
       },
-      { projectId }
+      { projectId },
     )
 
     // Import 5 tasks
@@ -211,7 +231,9 @@ test.describe('Task Assignment Workflow', () => {
     expect(tasks.length).toBe(5)
 
     // --- Annotator context ---
-    const annotatorContext = await browser.newContext({ viewport: { width: 1920, height: 1080 } })
+    const annotatorContext = await browser.newContext({
+      viewport: { width: 1920, height: 1080 },
+    })
     const annotatorPage = await annotatorContext.newPage()
     const annotatorHelpers = new TestHelpers(annotatorPage)
     await annotatorHelpers.login('annotator', 'admin')
@@ -234,7 +256,7 @@ test.describe('Task Assignment Workflow', () => {
           body: JSON.stringify({ role: 'ANNOTATOR' }),
         })
       },
-      { projectId, userId: annotatorUserId }
+      { projectId, userId: annotatorUserId },
     )
 
     // Assign only first 3 tasks to annotator (tasks 4-5 remain unassigned)
@@ -245,7 +267,7 @@ test.describe('Task Assignment Workflow', () => {
       projectId,
       assignedTaskIds,
       [annotatorUserId],
-      'manual'
+      'manual',
     )
     expect(assignResult.assignments_created).toBe(3)
 
@@ -264,7 +286,7 @@ test.describe('Task Assignment Workflow', () => {
         const data = await resp.json()
         return { total: data.total, status: resp.status }
       },
-      { projectId, orgId }
+      { projectId, orgId },
     )
     expect(taskListResult.total).toBe(3)
     console.log(`Task listing shows ${taskListResult.total} tasks (expected 3)`)
@@ -280,15 +302,19 @@ test.describe('Task Assignment Workflow', () => {
         })
         return { status: resp.status }
       },
-      { taskId: unassignedTaskIds[0], orgId }
+      { taskId: unassignedTaskIds[0], orgId },
     )
     expect(getUnassignedResult.status).toBe(404)
-    console.log(`GET unassigned task: ${getUnassignedResult.status} (expected 404)`)
+    console.log(
+      `GET unassigned task: ${getUnassignedResult.status} (expected 404)`,
+    )
 
     // 3. POST annotation on unassigned task returns 404 (Label Studio aligned: invisible)
     const annotateUnassignedResult = await annotatorPage.evaluate(
       async ({ taskId, orgId }) => {
-        const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+        const headers: Record<string, string> = {
+          'Content-Type': 'application/json',
+        }
         if (orgId) headers['X-Organization-Context'] = orgId
         const resp = await fetch(`/api/projects/tasks/${taskId}/annotations`, {
           method: 'POST',
@@ -300,10 +326,12 @@ test.describe('Task Assignment Workflow', () => {
         })
         return { status: resp.status }
       },
-      { taskId: unassignedTaskIds[0], orgId }
+      { taskId: unassignedTaskIds[0], orgId },
     )
     expect(annotateUnassignedResult.status).toBe(404)
-    console.log(`POST annotation on unassigned task: ${annotateUnassignedResult.status} (expected 404)`)
+    console.log(
+      `POST annotation on unassigned task: ${annotateUnassignedResult.status} (expected 404)`,
+    )
 
     // 4. GET assigned task works
     const getAssignedResult = await annotatorPage.evaluate(
@@ -316,14 +344,16 @@ test.describe('Task Assignment Workflow', () => {
         })
         return { status: resp.status }
       },
-      { taskId: assignedTaskIds[0], orgId }
+      { taskId: assignedTaskIds[0], orgId },
     )
     expect(getAssignedResult.status).toBe(200)
 
     // 5. POST annotation on assigned task works
     const annotateAssignedResult = await annotatorPage.evaluate(
       async ({ taskId, orgId }) => {
-        const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+        const headers: Record<string, string> = {
+          'Content-Type': 'application/json',
+        }
         if (orgId) headers['X-Organization-Context'] = orgId
         const resp = await fetch(`/api/projects/tasks/${taskId}/annotations`, {
           method: 'POST',
@@ -335,7 +365,7 @@ test.describe('Task Assignment Workflow', () => {
         })
         return { status: resp.status }
       },
-      { taskId: assignedTaskIds[0], orgId }
+      { taskId: assignedTaskIds[0], orgId },
     )
     expect(annotateAssignedResult.status).toBe(200)
     console.log('Annotator can annotate assigned task: 200')
@@ -356,7 +386,7 @@ test.describe('Task Assignment Workflow', () => {
           status: resp.status,
         }
       },
-      { projectId, orgId, assignedIds: assignedTaskIds }
+      { projectId, orgId, assignedIds: assignedTaskIds },
     )
     expect(nextTaskResult.taskId).toBeTruthy()
     expect(nextTaskResult.isAssigned).toBe(true)

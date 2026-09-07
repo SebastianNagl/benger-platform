@@ -3,11 +3,11 @@
  * Comprehensive testing for notification toast system with context provider
  */
 
+import { useNotificationStore } from '@/stores/notificationStore'
 import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import React from 'react'
 import { ToastProvider, useToast } from '../Toast'
-import { useNotificationStore } from '@/stores/notificationStore'
 
 // Toast.tsx now reads from the Zustand notificationStore (module-level state),
 // which means toasts leak across tests inside the same test file. Reset the
@@ -27,7 +27,10 @@ jest.mock('framer-motion', () => ({
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
     t: (key: string, varsOrDefault?: any) => {
-      const translations: Record<string, any> = require('../../../locales/en/common.json')
+      const translations: Record<
+        string,
+        any
+      > = require('../../../locales/en/common.json')
       const parts = key.split('.')
       let value: any = translations
       for (const part of parts) {
@@ -48,7 +51,6 @@ jest.mock('@/contexts/I18nContext', () => ({
     locale: 'en',
   }),
 }))
-
 
 // Test component that uses the toast hook
 const TestComponent = ({
@@ -88,7 +90,7 @@ describe('Toast Component', () => {
       render(
         <ToastProvider>
           <div data-testid="child">Child content</div>
-        </ToastProvider>
+        </ToastProvider>,
       )
 
       expect(screen.getByTestId('child')).toBeInTheDocument()
@@ -100,18 +102,18 @@ describe('Toast Component', () => {
       render(
         <ToastProvider>
           <TestComponent />
-        </ToastProvider>
+        </ToastProvider>,
       )
 
       await user.click(screen.getByText('Add Toast'))
 
-      // ToastContainer was bumped to z-[60] so toasts stack above
+      // ToastContainer was bumped to z-60 so toasts stack above
       // HeadlessUI Dialogs (z-50). Selector dropped the z-class so it
       // tracks future ordering tweaks; class assertion enforces the
       // current value.
       const toastContainer = document.querySelector('.fixed.right-4.top-4')
       expect(toastContainer).toBeInTheDocument()
-      expect(toastContainer).toHaveClass('z-[60]')
+      expect(toastContainer).toHaveClass('z-60')
       expect(toastContainer).toHaveClass('pointer-events-none')
       expect(toastContainer).toHaveClass('max-w-sm')
       expect(toastContainer).toHaveClass('space-y-2')
@@ -123,7 +125,7 @@ describe('Toast Component', () => {
       render(
         <ToastProvider>
           <TestComponent />
-        </ToastProvider>
+        </ToastProvider>,
       )
 
       await user.click(screen.getByText('Add Toast'))
@@ -140,7 +142,7 @@ describe('Toast Component', () => {
       render(
         <ToastProvider>
           <TestComponent />
-        </ToastProvider>
+        </ToastProvider>,
       )
 
       expect(screen.getByText('Add Toast')).toBeInTheDocument()
@@ -155,7 +157,7 @@ describe('Toast Component', () => {
       render(
         <ToastProvider>
           <TestComponent type="success" />
-        </ToastProvider>
+        </ToastProvider>,
       )
 
       await user.click(screen.getByText('Add Toast'))
@@ -172,7 +174,7 @@ describe('Toast Component', () => {
       render(
         <ToastProvider>
           <TestComponent type="error" />
-        </ToastProvider>
+        </ToastProvider>,
       )
 
       await user.click(screen.getByText('Add Toast'))
@@ -189,7 +191,7 @@ describe('Toast Component', () => {
       render(
         <ToastProvider>
           <TestComponent type="warning" />
-        </ToastProvider>
+        </ToastProvider>,
       )
 
       await user.click(screen.getByText('Add Toast'))
@@ -206,7 +208,7 @@ describe('Toast Component', () => {
       render(
         <ToastProvider>
           <TestComponent type="info" />
-        </ToastProvider>
+        </ToastProvider>,
       )
 
       await user.click(screen.getByText('Add Toast'))
@@ -223,7 +225,7 @@ describe('Toast Component', () => {
       render(
         <ToastProvider>
           <TestComponent type="success" />
-        </ToastProvider>
+        </ToastProvider>,
       )
 
       await user.click(screen.getByText('Add Toast'))
@@ -237,7 +239,7 @@ describe('Toast Component', () => {
       render(
         <ToastProvider>
           <TestComponent type="error" />
-        </ToastProvider>
+        </ToastProvider>,
       )
 
       await user.click(screen.getByText('Add Toast'))
@@ -251,7 +253,7 @@ describe('Toast Component', () => {
       render(
         <ToastProvider>
           <TestComponent type="warning" />
-        </ToastProvider>
+        </ToastProvider>,
       )
 
       await user.click(screen.getByText('Add Toast'))
@@ -265,7 +267,7 @@ describe('Toast Component', () => {
       render(
         <ToastProvider>
           <TestComponent type="info" />
-        </ToastProvider>
+        </ToastProvider>,
       )
 
       await user.click(screen.getByText('Add Toast'))
@@ -281,7 +283,7 @@ describe('Toast Component', () => {
       render(
         <ToastProvider>
           <TestComponent message="Custom test message" />
-        </ToastProvider>
+        </ToastProvider>,
       )
 
       await user.click(screen.getByText('Add Toast'))
@@ -297,7 +299,7 @@ describe('Toast Component', () => {
       render(
         <ToastProvider>
           <TestComponent message={longMessage} />
-        </ToastProvider>
+        </ToastProvider>,
       )
 
       await user.click(screen.getByText('Add Toast'))
@@ -320,7 +322,7 @@ describe('Toast Component', () => {
       render(
         <ToastProvider>
           <TestComponent message="" />
-        </ToastProvider>
+        </ToastProvider>,
       )
 
       await user.click(screen.getByText('Add Toast'))
@@ -336,7 +338,7 @@ describe('Toast Component', () => {
       render(
         <ToastProvider>
           <TestComponent message={specialMessage} />
-        </ToastProvider>
+        </ToastProvider>,
       )
 
       await user.click(screen.getByText('Add Toast'))
@@ -352,7 +354,7 @@ describe('Toast Component', () => {
       render(
         <ToastProvider>
           <TestComponent />
-        </ToastProvider>
+        </ToastProvider>,
       )
 
       await user.click(screen.getByText('Add Toast'))
@@ -367,7 +369,7 @@ describe('Toast Component', () => {
       render(
         <ToastProvider>
           <TestComponent duration={0} />
-        </ToastProvider>
+        </ToastProvider>,
       )
 
       await user.click(screen.getByText('Add Toast'))
@@ -386,7 +388,7 @@ describe('Toast Component', () => {
         () => {
           expect(screen.queryByText('Test message')).not.toBeInTheDocument()
         },
-        { timeout: 1000 }
+        { timeout: 1000 },
       )
     })
 
@@ -420,7 +422,7 @@ describe('Toast Component', () => {
       render(
         <ToastProvider>
           <MultiToastComponent />
-        </ToastProvider>
+        </ToastProvider>,
       )
 
       await user.click(screen.getByText('Add First'))
@@ -439,7 +441,7 @@ describe('Toast Component', () => {
         () => {
           expect(screen.queryByText('First message')).not.toBeInTheDocument()
         },
-        { timeout: 1000 }
+        { timeout: 1000 },
       )
       expect(screen.getByText('Second message')).toBeInTheDocument()
     })
@@ -450,13 +452,13 @@ describe('Toast Component', () => {
       render(
         <ToastProvider>
           <TestComponent />
-        </ToastProvider>
+        </ToastProvider>,
       )
 
       await user.click(screen.getByText('Add Toast'))
 
       const closeButton = screen.getByRole('button', { name: /close/i })
-      expect(closeButton).toHaveClass('flex-shrink-0')
+      expect(closeButton).toHaveClass('shrink-0')
       expect(closeButton).toHaveClass('text-current')
       expect(closeButton).toHaveClass('transition-opacity')
       expect(closeButton).toHaveClass('hover:opacity-70')
@@ -468,7 +470,7 @@ describe('Toast Component', () => {
       render(
         <ToastProvider>
           <TestComponent />
-        </ToastProvider>
+        </ToastProvider>,
       )
 
       await user.click(screen.getByText('Add Toast'))
@@ -488,7 +490,7 @@ describe('Toast Component', () => {
       render(
         <ToastProvider>
           <TestComponent />
-        </ToastProvider>
+        </ToastProvider>,
       )
 
       await user.click(screen.getByText('Add Toast'))
@@ -509,7 +511,7 @@ describe('Toast Component', () => {
       render(
         <ToastProvider>
           <TestComponent duration={2000} />
-        </ToastProvider>
+        </ToastProvider>,
       )
 
       await user.click(screen.getByText('Add Toast'))
@@ -530,7 +532,7 @@ describe('Toast Component', () => {
       render(
         <ToastProvider>
           <TestComponent duration={0} />
-        </ToastProvider>
+        </ToastProvider>,
       )
 
       await user.click(screen.getByText('Add Toast'))
@@ -549,7 +551,7 @@ describe('Toast Component', () => {
       render(
         <ToastProvider>
           <TestComponent duration={-1} />
-        </ToastProvider>
+        </ToastProvider>,
       )
 
       await user.click(screen.getByText('Add Toast'))
@@ -568,7 +570,7 @@ describe('Toast Component', () => {
       render(
         <ToastProvider>
           <TestComponent duration={5000} />
-        </ToastProvider>
+        </ToastProvider>,
       )
 
       await user.click(screen.getByText('Add Toast'))
@@ -593,7 +595,7 @@ describe('Toast Component', () => {
       const { unmount } = render(
         <ToastProvider>
           <TestComponent duration={5000} />
-        </ToastProvider>
+        </ToastProvider>,
       )
 
       await user.click(screen.getByText('Add Toast'))
@@ -615,7 +617,7 @@ describe('Toast Component', () => {
       render(
         <ToastProvider>
           <TestComponent />
-        </ToastProvider>
+        </ToastProvider>,
       )
 
       await user.click(screen.getByText('Add Toast'))
@@ -636,13 +638,13 @@ describe('Toast Component', () => {
       render(
         <ToastProvider>
           <TestComponent />
-        </ToastProvider>
+        </ToastProvider>,
       )
 
       await user.click(screen.getByText('Add Toast'))
 
       const icon = screen.getByText('ℹ')
-      expect(icon).toHaveClass('flex-shrink-0')
+      expect(icon).toHaveClass('shrink-0')
       expect(icon).toHaveClass('text-lg')
     })
 
@@ -652,7 +654,7 @@ describe('Toast Component', () => {
       render(
         <ToastProvider>
           <TestComponent type="success" />
-        </ToastProvider>
+        </ToastProvider>,
       )
 
       await user.click(screen.getByText('Add Toast'))
@@ -671,7 +673,7 @@ describe('Toast Component', () => {
       render(
         <ToastProvider>
           <TestComponent />
-        </ToastProvider>
+        </ToastProvider>,
       )
 
       await user.click(screen.getByText('Add Toast'))
@@ -690,7 +692,7 @@ describe('Toast Component', () => {
       render(
         <ToastProvider>
           <TestComponent duration={0} />
-        </ToastProvider>
+        </ToastProvider>,
       )
 
       await user.click(screen.getByText('Add Toast'))
@@ -709,7 +711,7 @@ describe('Toast Component', () => {
         () => {
           expect(screen.queryByText('Test message')).not.toBeInTheDocument()
         },
-        { timeout: 1000 }
+        { timeout: 1000 },
       )
     })
 
@@ -719,7 +721,7 @@ describe('Toast Component', () => {
       render(
         <ToastProvider>
           <TestComponent />
-        </ToastProvider>
+        </ToastProvider>,
       )
 
       await user.click(screen.getByText('Add Toast'))
@@ -755,7 +757,7 @@ describe('Toast Component', () => {
       render(
         <ToastProvider>
           <MultiToastComponent />
-        </ToastProvider>
+        </ToastProvider>,
       )
 
       await user.click(screen.getByText('Add Success'))
@@ -789,7 +791,7 @@ describe('Toast Component', () => {
       render(
         <ToastProvider>
           <ManyToastsComponent />
-        </ToastProvider>
+        </ToastProvider>,
       )
 
       await user.click(screen.getByText('Add Many Toasts'))
@@ -811,7 +813,7 @@ describe('Toast Component', () => {
       render(
         <ToastProvider>
           <TestComponent message="Duplicate message" duration={0} />
-        </ToastProvider>
+        </ToastProvider>,
       )
 
       await user.click(screen.getByText('Add Toast'))
@@ -828,7 +830,7 @@ describe('Toast Component', () => {
       render(
         <ToastProvider>
           <TestComponent />
-        </ToastProvider>
+        </ToastProvider>,
       )
 
       await user.click(screen.getByText('Add Toast'))
@@ -864,7 +866,7 @@ describe('Toast Component', () => {
       render(
         <ToastProvider>
           <IdTestComponent />
-        </ToastProvider>
+        </ToastProvider>,
       )
 
       await user.click(screen.getByText('Add Toast'))
@@ -890,7 +892,7 @@ describe('Toast Component', () => {
       render(
         <ToastProvider>
           <ShowToastComponent />
-        </ToastProvider>
+        </ToastProvider>,
       )
 
       await user.click(screen.getByText('Show Toast'))
@@ -924,7 +926,7 @@ describe('Toast Component', () => {
       render(
         <ToastProvider>
           <IdTrackingComponent />
-        </ToastProvider>
+        </ToastProvider>,
       )
 
       await user.click(screen.getByText('Add Two Toasts'))
@@ -955,7 +957,7 @@ describe('Toast Component', () => {
       render(
         <ToastProvider>
           <TestComponent />
-        </ToastProvider>
+        </ToastProvider>,
       )
 
       expect(screen.getByText('Add Toast')).toBeInTheDocument()
@@ -965,7 +967,7 @@ describe('Toast Component', () => {
       render(
         <ToastProvider>
           <TestComponent />
-        </ToastProvider>
+        </ToastProvider>,
       )
 
       expect(screen.getByText('Remove Toast')).toBeInTheDocument()
@@ -981,7 +983,7 @@ describe('Toast Component', () => {
       render(
         <ToastProvider>
           <ShowToastTestComponent />
-        </ToastProvider>
+        </ToastProvider>,
       )
 
       expect(screen.getByText('Show Toast')).toBeInTheDocument()

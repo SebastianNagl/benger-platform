@@ -39,7 +39,9 @@ export function ProjectBillingCard({ project }: Props) {
   const orgName = org?.name ?? ''
   // No org attached: the answer is static, so derive it instead of setting
   // state from the effect (the async org lookup below is the only setter).
-  const message: BillingMessage | null = orgId ? fetched : { kind: 'personalKey' }
+  const message: BillingMessage | null = orgId
+    ? fetched
+    : { kind: 'personalKey' }
 
   useEffect(() => {
     if (!orgId) return

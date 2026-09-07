@@ -17,7 +17,7 @@ describe('Next.js Configuration Security', () => {
     const configFiles = ['next.config.js', 'next.config.mjs', 'next.config.ts']
 
     const activeConfigs = configFiles.filter((file) =>
-      existsSync(join(configDir, file))
+      existsSync(join(configDir, file)),
     )
 
     // Should have exactly one config file

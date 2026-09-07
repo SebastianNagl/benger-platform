@@ -51,10 +51,16 @@ jest.mock('@/lib/api/projects', () => ({
     getMembers: jest.fn(),
     removeTaskAssignment: jest.fn(),
     getTasksPage: jest.fn(() =>
-      Promise.resolve({ items: [], total: 0, page: 1, page_size: 50, pages: 0 })
+      Promise.resolve({
+        items: [],
+        total: 0,
+        page: 1,
+        page_size: 50,
+        pages: 0,
+      }),
     ),
     getTaskIds: jest.fn(() =>
-      Promise.resolve({ ids: [], total: 0, truncated: false })
+      Promise.resolve({ ids: [], total: 0, truncated: false }),
     ),
   },
 }))
@@ -257,7 +263,15 @@ jest.mock('@/components/projects/UserAvatar', () => ({
 }))
 
 jest.mock('@/components/shared/Button', () => ({
-  Button: ({ children, onClick, variant, disabled, className, title, ...rest }: any) => (
+  Button: ({
+    children,
+    onClick,
+    variant,
+    disabled,
+    className,
+    title,
+    ...rest
+  }: any) => (
     <button
       onClick={onClick}
       disabled={disabled}
@@ -278,9 +292,15 @@ jest.mock('@/components/shared/Input', () => ({
 const mockUseAuth = useAuth as jest.MockedFunction<typeof useAuth>
 const mockUseProgress = useProgress as jest.MockedFunction<typeof useProgress>
 const mockUseToast = useToast as jest.MockedFunction<typeof useToast>
-const mockUseProjectStore = useProjectStore as jest.MockedFunction<typeof useProjectStore>
-const mockUseColumnSettings = useColumnSettings as jest.MockedFunction<typeof useColumnSettings>
-const mockUseTablePreferences = useTablePreferences as jest.MockedFunction<typeof useTablePreferences>
+const mockUseProjectStore = useProjectStore as jest.MockedFunction<
+  typeof useProjectStore
+>
+const mockUseColumnSettings = useColumnSettings as jest.MockedFunction<
+  typeof useColumnSettings
+>
+const mockUseTablePreferences = useTablePreferences as jest.MockedFunction<
+  typeof useTablePreferences
+>
 
 const mockTasksWithMeta = [
   {
@@ -329,17 +349,94 @@ const mockTasksWithMeta = [
 ]
 
 const defaultColumns = [
-  { id: 'select', label: '', visible: true, sortable: false, width: 'w-12', type: 'system' },
-  { id: 'id', label: 'ID', visible: true, sortable: true, width: 'w-20', type: 'system' },
-  { id: 'completed', label: 'Completed', visible: true, sortable: true, width: 'w-24', type: 'system' },
-  { id: 'assigned', label: 'Assigned To', visible: true, sortable: false, width: 'w-32', type: 'system' },
-  { id: 'annotations', label: 'Annotations', visible: true, sortable: true, width: 'w-32', type: 'system' },
-  { id: 'generations', label: 'Generations', visible: true, sortable: true, width: 'w-32', type: 'system' },
-  { id: 'annotators', label: 'Annotators', visible: true, sortable: false, width: 'w-32', type: 'system' },
-  { id: 'graders', label: 'Graders', visible: true, sortable: false, width: 'w-32', type: 'system' },
-  { id: 'reviewers', label: 'Reviewers', visible: true, sortable: false, width: 'w-32', type: 'system' },
-  { id: 'created', label: 'Created', visible: true, sortable: true, width: 'w-36', type: 'system' },
-  { id: 'view_data', label: 'View', visible: true, sortable: false, width: 'w-16', type: 'system' },
+  {
+    id: 'select',
+    label: '',
+    visible: true,
+    sortable: false,
+    width: 'w-12',
+    type: 'system',
+  },
+  {
+    id: 'id',
+    label: 'ID',
+    visible: true,
+    sortable: true,
+    width: 'w-20',
+    type: 'system',
+  },
+  {
+    id: 'completed',
+    label: 'Completed',
+    visible: true,
+    sortable: true,
+    width: 'w-24',
+    type: 'system',
+  },
+  {
+    id: 'assigned',
+    label: 'Assigned To',
+    visible: true,
+    sortable: false,
+    width: 'w-32',
+    type: 'system',
+  },
+  {
+    id: 'annotations',
+    label: 'Annotations',
+    visible: true,
+    sortable: true,
+    width: 'w-32',
+    type: 'system',
+  },
+  {
+    id: 'generations',
+    label: 'Generations',
+    visible: true,
+    sortable: true,
+    width: 'w-32',
+    type: 'system',
+  },
+  {
+    id: 'annotators',
+    label: 'Annotators',
+    visible: true,
+    sortable: false,
+    width: 'w-32',
+    type: 'system',
+  },
+  {
+    id: 'graders',
+    label: 'Graders',
+    visible: true,
+    sortable: false,
+    width: 'w-32',
+    type: 'system',
+  },
+  {
+    id: 'reviewers',
+    label: 'Reviewers',
+    visible: true,
+    sortable: false,
+    width: 'w-32',
+    type: 'system',
+  },
+  {
+    id: 'created',
+    label: 'Created',
+    visible: true,
+    sortable: true,
+    width: 'w-36',
+    type: 'system',
+  },
+  {
+    id: 'view_data',
+    label: 'View',
+    visible: true,
+    sortable: false,
+    width: 'w-16',
+    type: 'system',
+  },
 ]
 
 describe('ProjectDataTab - Surgical Branch Coverage 2', () => {
@@ -397,18 +494,20 @@ describe('ProjectDataTab - Surgical Branch Coverage 2', () => {
           page_size: 50,
           pages: Array.isArray(items) && items.length > 0 ? 1 : 0,
         }
-      }
+      },
     )
-    mockedProjectsAPI.getTaskIds.mockImplementation(async (projectId: string) => {
-      const impl = mockFetchProjectTasks.getMockImplementation()
-      const items: any[] = impl ? await (impl as any)(projectId) : []
-      mockFetchProjectTasks(projectId)
-      return {
-        ids: Array.isArray(items) ? items.map((t: any) => t.id) : [],
-        total: Array.isArray(items) ? items.length : 0,
-        truncated: false,
-      }
-    })
+    mockedProjectsAPI.getTaskIds.mockImplementation(
+      async (projectId: string) => {
+        const impl = mockFetchProjectTasks.getMockImplementation()
+        const items: any[] = impl ? await (impl as any)(projectId) : []
+        mockFetchProjectTasks(projectId)
+        return {
+          ids: Array.isArray(items) ? items.map((t: any) => t.id) : [],
+          total: Array.isArray(items) ? items.length : 0,
+          truncated: false,
+        }
+      },
+    )
 
     mockUseAuth.mockReturnValue({
       user: {
@@ -602,7 +701,9 @@ describe('ProjectDataTab - Surgical Branch Coverage 2', () => {
       })
 
       // Set metadata filter with single value 'urgent' against task.tags which is an array
-      const singleVsArrayBtn = screen.getByTestId('set-metadata-filter-single-vs-array')
+      const singleVsArrayBtn = screen.getByTestId(
+        'set-metadata-filter-single-vs-array',
+      )
       await act(async () => {
         fireEvent.click(singleVsArrayBtn)
       })
@@ -635,8 +736,10 @@ describe('ProjectDataTab - Surgical Branch Coverage 2', () => {
       // ColumnSelector also has these texts so we need the table header one
       const idHeaders = screen.getAllByText('annotationTab.columns.id')
       // The second one is in the actual table header (first is in ColumnSelector)
-      const tableHeader = idHeaders.find(el => el.closest('th'))
-      fireEvent.click(tableHeader?.closest('th') || idHeaders[idHeaders.length - 1])
+      const tableHeader = idHeaders.find((el) => el.closest('th'))
+      fireEvent.click(
+        tableHeader?.closest('th') || idHeaders[idHeaders.length - 1],
+      )
 
       // Since sortBy was already 'id', it should toggle to 'asc'
       expect(mockUpdatePreference).toHaveBeenCalledWith('sortOrder', 'asc')
@@ -661,9 +764,14 @@ describe('ProjectDataTab - Surgical Branch Coverage 2', () => {
       })
 
       // Click the Completed column header (different from current 'id')
-      const completedHeaders = screen.getAllByText('annotationTab.columns.completed')
-      const tableHeader = completedHeaders.find(el => el.closest('th'))
-      fireEvent.click(tableHeader?.closest('th') || completedHeaders[completedHeaders.length - 1])
+      const completedHeaders = screen.getAllByText(
+        'annotationTab.columns.completed',
+      )
+      const tableHeader = completedHeaders.find((el) => el.closest('th'))
+      fireEvent.click(
+        tableHeader?.closest('th') ||
+          completedHeaders[completedHeaders.length - 1],
+      )
 
       expect(mockUpdatePreference).toHaveBeenCalledWith('sortBy', 'completed')
       expect(mockUpdatePreference).toHaveBeenCalledWith('sortOrder', 'desc')
@@ -733,7 +841,7 @@ describe('ProjectDataTab - Surgical Branch Coverage 2', () => {
   describe('Export failure handling', () => {
     it('shows error toast when handleExportTasks fails', async () => {
       ;(projectsAPI.runProjectExportJob as jest.Mock).mockRejectedValueOnce(
-        new Error('Export failed')
+        new Error('Export failed'),
       )
 
       render(<ProjectDataTab projectId="project-1" />)
@@ -750,7 +858,7 @@ describe('ProjectDataTab - Surgical Branch Coverage 2', () => {
       await waitFor(() => {
         expect(mockCompleteProgress).toHaveBeenCalledWith(
           expect.any(String),
-          'error'
+          'error',
         )
       })
     })
@@ -777,14 +885,19 @@ describe('ProjectDataTab - Surgical Branch Coverage 2', () => {
       })
 
       // Click on 'assigned' column which is not sortable
-      const assignedHeaders = screen.getAllByText('annotationTab.columns.assignedTo')
-      const tableHeader = assignedHeaders.find(el => el.closest('th'))
+      const assignedHeaders = screen.getAllByText(
+        'annotationTab.columns.assignedTo',
+      )
+      const tableHeader = assignedHeaders.find((el) => el.closest('th'))
       if (tableHeader) {
         fireEvent.click(tableHeader.closest('th')!)
       }
 
       // Should NOT have updated sort preferences
-      expect(mockUpdatePreference).not.toHaveBeenCalledWith('sortBy', expect.anything())
+      expect(mockUpdatePreference).not.toHaveBeenCalledWith(
+        'sortBy',
+        expect.anything(),
+      )
     })
   })
 
@@ -809,8 +922,10 @@ describe('ProjectDataTab - Surgical Branch Coverage 2', () => {
       })
 
       const idHeaders = screen.getAllByText('annotationTab.columns.id')
-      const tableHeader = idHeaders.find(el => el.closest('th'))
-      fireEvent.click(tableHeader?.closest('th') || idHeaders[idHeaders.length - 1])
+      const tableHeader = idHeaders.find((el) => el.closest('th'))
+      fireEvent.click(
+        tableHeader?.closest('th') || idHeaders[idHeaders.length - 1],
+      )
 
       // Since sortOrder was 'asc', it should toggle to 'desc'
       expect(mockUpdatePreference).toHaveBeenCalledWith('sortOrder', 'desc')

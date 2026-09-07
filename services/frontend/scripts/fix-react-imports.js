@@ -155,5 +155,5 @@ for (const file of testFiles) {
 }
 
 console.log(
-  `\n✨ Fixed ${fixedCount} files with React import and environment issues`
+  `\n✨ Fixed ${fixedCount} files with React import and environment issues`,
 )

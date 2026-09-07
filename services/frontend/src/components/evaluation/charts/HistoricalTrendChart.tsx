@@ -134,7 +134,7 @@ export function HistoricalTrendChart({
     })
 
     const sortedData = Object.values(dateMap).sort(
-      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
     )
 
     const uniqueDates = sortedData.map((d) => d.date)

@@ -65,7 +65,7 @@ describe('RatingInput - branch coverage', () => {
         value={0}
         onChange={mockOnChange}
         onAnnotation={mockOnAnnotation}
-      />
+      />,
     )
 
     const buttons = screen.getAllByRole('button')
@@ -85,7 +85,7 @@ describe('RatingInput - branch coverage', () => {
         value={0}
         onChange={mockOnChange}
         onAnnotation={mockOnAnnotation}
-      />
+      />,
     )
 
     const buttons = screen.getAllByRole('button')
@@ -100,7 +100,7 @@ describe('RatingInput - branch coverage', () => {
         value={0}
         onChange={mockOnChange}
         onAnnotation={mockOnAnnotation}
-      />
+      />,
     )
 
     const buttons = screen.getAllByRole('button')
@@ -118,7 +118,7 @@ describe('RatingInput - branch coverage', () => {
         value={3}
         onChange={mockOnChange}
         onAnnotation={mockOnAnnotation}
-      />
+      />,
     )
 
     const buttons = screen.getAllByRole('button')
@@ -140,7 +140,7 @@ describe('RatingInput - branch coverage', () => {
         value={0}
         onChange={mockOnChange}
         onAnnotation={mockOnAnnotation}
-      />
+      />,
     )
 
     const buttons = screen.getAllByRole('button')
@@ -163,7 +163,7 @@ describe('RatingInput - branch coverage', () => {
         value={0}
         onChange={mockOnChange}
         onAnnotation={mockOnAnnotation}
-      />
+      />,
     )
 
     expect(screen.getByText('*')).toBeInTheDocument()
@@ -182,7 +182,7 @@ describe('RatingInput - branch coverage', () => {
         value={0}
         onChange={mockOnChange}
         onAnnotation={mockOnAnnotation}
-      />
+      />,
     )
 
     expect(screen.getByText('Rate from 1 to 5')).toBeInTheDocument()
@@ -196,7 +196,7 @@ describe('RatingInput - branch coverage', () => {
         value={0}
         onChange={mockOnChange}
         onAnnotation={mockOnAnnotation}
-      />
+      />,
     )
 
     const buttons = screen.getAllByRole('button')
@@ -229,7 +229,7 @@ describe('RatingInput - branch coverage', () => {
         value={0}
         onChange={mockOnChange}
         onAnnotation={mockOnAnnotation}
-      />
+      />,
     )
 
     expect(screen.getByText('Quality Rating')).toBeInTheDocument()
@@ -248,7 +248,7 @@ describe('RatingInput - branch coverage', () => {
         value={0}
         onChange={mockOnChange}
         onAnnotation={mockOnAnnotation}
-      />
+      />,
     )
 
     expect(screen.getByText('rating')).toBeInTheDocument()
@@ -262,7 +262,7 @@ describe('RatingInput - branch coverage', () => {
         value={4}
         onChange={mockOnChange}
         onAnnotation={mockOnAnnotation}
-      />
+      />,
     )
 
     // 4 solid stars should be shown

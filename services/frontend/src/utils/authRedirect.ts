@@ -101,7 +101,7 @@ export const authRedirect = {
   getRedirectForAuthState: (
     isAuthenticated: boolean,
     currentPath: string,
-    router: AppRouterInstance
+    router: AppRouterInstance,
   ) => {
     const isPublic = authRedirect.isPublicRoute(currentPath)
 

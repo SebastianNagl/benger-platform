@@ -54,7 +54,10 @@ const mockT = (key: string) => key
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
     t: (key: string, varsOrDefault?: any) => {
-      const translations: Record<string, any> = require('../../../../../locales/en/common.json')
+      const translations: Record<
+        string,
+        any
+      > = require('../../../../../locales/en/common.json')
       const parts = key.split('.')
       let value: any = translations
       for (const part of parts) {
@@ -202,7 +205,7 @@ describe('PreferenceEvaluation', () => {
   describe('initialization', () => {
     it('creates new session when project ID is provided', async () => {
       mockSearchParams.get.mockImplementation((key: string) =>
-        key === 'project' ? 'project-456' : null
+        key === 'project' ? 'project-456' : null,
       )
       ;(apiClient.post as jest.Mock).mockResolvedValue({
         data: mockSession,
@@ -223,20 +226,20 @@ describe('PreferenceEvaluation', () => {
               allow_ties: true,
               anonymize_sources: true,
             },
-          }
+          },
         )
       })
 
       await waitFor(() => {
         expect(mockRouter.replace).toHaveBeenCalledWith(
-          '/evaluations/human/preference?session=session-123'
+          '/evaluations/human/preference?session=session-123',
         )
       })
     })
 
     it('loads existing session when session ID is provided', async () => {
       mockSearchParams.get.mockImplementation((key: string) =>
-        key === 'session' ? 'session-123' : null
+        key === 'session' ? 'session-123' : null,
       )
       ;(apiClient.get as jest.Mock)
         .mockResolvedValueOnce({ data: mockSession })
@@ -246,13 +249,13 @@ describe('PreferenceEvaluation', () => {
 
       await waitFor(() => {
         expect(apiClient.get).toHaveBeenCalledWith(
-          '/evaluations/human/session/session-123'
+          '/evaluations/human/session/session-123',
         )
       })
 
       await waitFor(() => {
         expect(apiClient.get).toHaveBeenCalledWith(
-          '/evaluations/human/session/session-123/next'
+          '/evaluations/human/session/session-123/next',
         )
       })
     })
@@ -265,7 +268,7 @@ describe('PreferenceEvaluation', () => {
       await waitFor(() => {
         expect(mockAddToast).toHaveBeenCalledWith(
           'No project or session specified',
-          'error'
+          'error',
         )
         expect(mockRouter.push).toHaveBeenCalledWith('/evaluations')
       })
@@ -273,10 +276,10 @@ describe('PreferenceEvaluation', () => {
 
     it('handles session creation error', async () => {
       mockSearchParams.get.mockImplementation((key: string) =>
-        key === 'project' ? 'project-456' : null
+        key === 'project' ? 'project-456' : null,
       )
       ;(apiClient.post as jest.Mock).mockRejectedValue(
-        new Error('Network error')
+        new Error('Network error'),
       )
 
       render(<PreferenceEvaluation />)
@@ -284,7 +287,7 @@ describe('PreferenceEvaluation', () => {
       await waitFor(() => {
         expect(mockAddToast).toHaveBeenCalledWith(
           'Failed to create evaluation session',
-          'error'
+          'error',
         )
         expect(mockRouter.push).toHaveBeenCalledWith('/evaluations')
       })
@@ -292,10 +295,10 @@ describe('PreferenceEvaluation', () => {
 
     it('handles session load error', async () => {
       mockSearchParams.get.mockImplementation((key: string) =>
-        key === 'session' ? 'session-123' : null
+        key === 'session' ? 'session-123' : null,
       )
       ;(apiClient.get as jest.Mock).mockRejectedValue(
-        new Error('Session not found')
+        new Error('Session not found'),
       )
 
       render(<PreferenceEvaluation />)
@@ -303,7 +306,7 @@ describe('PreferenceEvaluation', () => {
       await waitFor(() => {
         expect(mockAddToast).toHaveBeenCalledWith(
           'Failed to load evaluation session',
-          'error'
+          'error',
         )
         expect(mockRouter.push).toHaveBeenCalledWith('/evaluations')
       })
@@ -313,10 +316,10 @@ describe('PreferenceEvaluation', () => {
   describe('loading state', () => {
     it('shows loading spinner initially', () => {
       mockSearchParams.get.mockImplementation((key: string) =>
-        key === 'session' ? 'session-123' : null
+        key === 'session' ? 'session-123' : null,
       )
       ;(apiClient.get as jest.Mock).mockImplementation(
-        () => new Promise(() => {}) // Never resolves
+        () => new Promise(() => {}), // Never resolves
       )
 
       render(<PreferenceEvaluation />)
@@ -326,7 +329,7 @@ describe('PreferenceEvaluation', () => {
 
     it('hides loading spinner after data loads', async () => {
       mockSearchParams.get.mockImplementation((key: string) =>
-        key === 'session' ? 'session-123' : null
+        key === 'session' ? 'session-123' : null,
       )
       ;(apiClient.get as jest.Mock)
         .mockResolvedValueOnce({ data: mockSession })
@@ -343,7 +346,7 @@ describe('PreferenceEvaluation', () => {
   describe('page rendering', () => {
     beforeEach(async () => {
       mockSearchParams.get.mockImplementation((key: string) =>
-        key === 'session' ? 'session-123' : null
+        key === 'session' ? 'session-123' : null,
       )
       ;(apiClient.get as jest.Mock)
         .mockResolvedValueOnce({ data: mockSession })
@@ -354,9 +357,11 @@ describe('PreferenceEvaluation', () => {
       render(<PreferenceEvaluation />)
 
       await waitFor(() => {
-        expect(screen.getByText('Human Preference Evaluation')).toBeInTheDocument()
         expect(
-          screen.getByText(/Compare and rate model responses/)
+          screen.getByText('Human Preference Evaluation'),
+        ).toBeInTheDocument()
+        expect(
+          screen.getByText(/Compare and rate model responses/),
         ).toBeInTheDocument()
       })
     })
@@ -378,7 +383,7 @@ describe('PreferenceEvaluation', () => {
         expect(progressText).toBeInTheDocument()
         const progressBar =
           progressText.parentElement?.nextElementSibling?.querySelector(
-            '.bg-blue-600'
+            '.bg-blue-600',
           )
         expect(progressBar).toBeInTheDocument()
       })
@@ -401,10 +406,10 @@ describe('PreferenceEvaluation', () => {
         expect(screen.getByText('Response A')).toBeInTheDocument()
         expect(screen.getByText('Response B')).toBeInTheDocument()
         expect(
-          screen.getByText(/Response A content with detailed legal analysis/)
+          screen.getByText(/Response A content with detailed legal analysis/),
         ).toBeInTheDocument()
         expect(
-          screen.getByText(/Response B content with alternative perspective/)
+          screen.getByText(/Response B content with alternative perspective/),
         ).toBeInTheDocument()
       })
     })
@@ -415,7 +420,7 @@ describe('PreferenceEvaluation', () => {
       await waitFor(() => {
         expect(screen.getByText('Evaluation Guidelines')).toBeInTheDocument()
         expect(
-          screen.getByText(/Responses are anonymized to prevent bias/)
+          screen.getByText(/Responses are anonymized to prevent bias/),
         ).toBeInTheDocument()
       })
     })
@@ -432,7 +437,7 @@ describe('PreferenceEvaluation', () => {
   describe('selection handling', () => {
     beforeEach(async () => {
       mockSearchParams.get.mockImplementation((key: string) =>
-        key === 'session' ? 'session-123' : null
+        key === 'session' ? 'session-123' : null,
       )
       ;(apiClient.get as jest.Mock)
         .mockResolvedValueOnce({ data: mockSession })
@@ -500,7 +505,7 @@ describe('PreferenceEvaluation', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText(/equally good, mark them as a tie/)
+          screen.getByText(/equally good, mark them as a tie/),
         ).toBeInTheDocument()
       })
     })
@@ -526,7 +531,7 @@ describe('PreferenceEvaluation', () => {
       await waitFor(() => {
         expect(screen.queryByText(/Prefer:/)).not.toBeInTheDocument()
         expect(
-          screen.getByText(/equally good, mark them as a tie/)
+          screen.getByText(/equally good, mark them as a tie/),
         ).toBeInTheDocument()
       })
     })
@@ -544,14 +549,14 @@ describe('PreferenceEvaluation', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText(/equally good, mark them as a tie/)
+          screen.getByText(/equally good, mark them as a tie/),
         ).toBeInTheDocument()
       })
 
       // Click response card - should NOT clear tie (component guards with !isTie)
       const responseCards = screen.getAllByTestId('card')
       const firstResponseCard = responseCards.find((card) =>
-        card.textContent?.includes('Response A content')
+        card.textContent?.includes('Response A content'),
       )
       if (firstResponseCard) {
         await user.click(firstResponseCard)
@@ -560,7 +565,7 @@ describe('PreferenceEvaluation', () => {
       // Tie selection should still be active
       await waitFor(() => {
         expect(
-          screen.getByText(/equally good, mark them as a tie/)
+          screen.getByText(/equally good, mark them as a tie/),
         ).toBeInTheDocument()
       })
     })
@@ -570,7 +575,7 @@ describe('PreferenceEvaluation', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText(/Select which response you prefer/)
+          screen.getByText(/Select which response you prefer/),
         ).toBeInTheDocument()
       })
     })
@@ -579,7 +584,7 @@ describe('PreferenceEvaluation', () => {
   describe('submit functionality', () => {
     beforeEach(async () => {
       mockSearchParams.get.mockImplementation((key: string) =>
-        key === 'session' ? 'session-123' : null
+        key === 'session' ? 'session-123' : null,
       )
       ;(apiClient.get as jest.Mock)
         .mockResolvedValueOnce({ data: mockSession })
@@ -663,7 +668,7 @@ describe('PreferenceEvaluation', () => {
               ranking: ['response-a', 'response-b'],
               response_ids: ['response-a', 'response-b'],
             }),
-          })
+          }),
         )
       })
     })
@@ -702,7 +707,7 @@ describe('PreferenceEvaluation', () => {
               ranking: ['response-a', 'response-b'],
               response_ids: ['response-a', 'response-b'],
             }),
-          })
+          }),
         )
       })
     })
@@ -710,7 +715,7 @@ describe('PreferenceEvaluation', () => {
     it('shows loading state while submitting', async () => {
       const user = userEvent.setup()
       ;(apiClient.post as jest.Mock).mockImplementation(
-        () => new Promise(() => {}) // Never resolves
+        () => new Promise(() => {}), // Never resolves
       )
       ;(apiClient.get as jest.Mock)
         .mockResolvedValueOnce({ data: mockSession })
@@ -731,7 +736,7 @@ describe('PreferenceEvaluation', () => {
       await waitFor(() => {
         expect(submitButton).toBeDisabled()
         expect(
-          within(submitButton).getByTestId('loading-spinner')
+          within(submitButton).getByTestId('loading-spinner'),
         ).toBeInTheDocument()
       })
     })
@@ -760,7 +765,7 @@ describe('PreferenceEvaluation', () => {
 
       await waitFor(() => {
         expect(apiClient.get).toHaveBeenCalledWith(
-          '/evaluations/human/session/session-123/next'
+          '/evaluations/human/session/session-123/next',
         )
       })
     })
@@ -795,7 +800,7 @@ describe('PreferenceEvaluation', () => {
     it('shows error toast when submission fails', async () => {
       const user = userEvent.setup()
       ;(apiClient.post as jest.Mock).mockRejectedValue(
-        new Error('Network error')
+        new Error('Network error'),
       )
       ;(apiClient.get as jest.Mock)
         .mockResolvedValueOnce({ data: mockSession })
@@ -816,7 +821,7 @@ describe('PreferenceEvaluation', () => {
       await waitFor(() => {
         expect(mockAddToast).toHaveBeenCalledWith(
           'Failed to submit evaluation',
-          'error'
+          'error',
         )
       })
     })
@@ -825,7 +830,7 @@ describe('PreferenceEvaluation', () => {
   describe('skip functionality', () => {
     beforeEach(async () => {
       mockSearchParams.get.mockImplementation((key: string) =>
-        key === 'session' ? 'session-123' : null
+        key === 'session' ? 'session-123' : null,
       )
       ;(apiClient.get as jest.Mock)
         .mockResolvedValueOnce({ data: mockSession })
@@ -862,13 +867,13 @@ describe('PreferenceEvaluation', () => {
       await waitFor(() => {
         expect(apiClient.post).toHaveBeenCalledWith(
           '/evaluations/human/session/session-123/skip',
-          { item_id: 'item-1' }
+          { item_id: 'item-1' },
         )
       })
 
       await waitFor(() => {
         expect(apiClient.get).toHaveBeenCalledWith(
-          '/evaluations/human/session/session-123/next'
+          '/evaluations/human/session/session-123/next',
         )
       })
     })
@@ -876,7 +881,7 @@ describe('PreferenceEvaluation', () => {
     it('shows error when skip fails', async () => {
       const user = userEvent.setup()
       ;(apiClient.post as jest.Mock).mockRejectedValue(
-        new Error('Network error')
+        new Error('Network error'),
       )
       ;(apiClient.get as jest.Mock)
         .mockResolvedValueOnce({ data: mockSession })
@@ -894,7 +899,7 @@ describe('PreferenceEvaluation', () => {
       await waitFor(() => {
         expect(mockAddToast).toHaveBeenCalledWith(
           'Failed to skip item',
-          'error'
+          'error',
         )
       })
     })
@@ -902,7 +907,7 @@ describe('PreferenceEvaluation', () => {
     it('disables skip button while submitting', async () => {
       const user = userEvent.setup()
       ;(apiClient.post as jest.Mock).mockImplementation(
-        () => new Promise(() => {}) // Never resolves
+        () => new Promise(() => {}), // Never resolves
       )
       ;(apiClient.get as jest.Mock)
         .mockResolvedValueOnce({ data: mockSession })
@@ -930,7 +935,7 @@ describe('PreferenceEvaluation', () => {
   describe('completion state', () => {
     beforeEach(() => {
       mockSearchParams.get.mockImplementation((key: string) =>
-        key === 'session' ? 'session-123' : null
+        key === 'session' ? 'session-123' : null,
       )
     })
 
@@ -945,10 +950,10 @@ describe('PreferenceEvaluation', () => {
         () => {
           expect(screen.getByText('Evaluation Complete')).toBeInTheDocument()
           expect(
-            screen.getByText(/Thank you for evaluating all items/)
+            screen.getByText(/Thank you for evaluating all items/),
           ).toBeInTheDocument()
         },
-        { timeout: 3000 }
+        { timeout: 3000 },
       )
     })
 
@@ -962,11 +967,11 @@ describe('PreferenceEvaluation', () => {
       await waitFor(
         () => {
           expect(
-            screen.getByText('Legal Document Analysis')
+            screen.getByText('Legal Document Analysis'),
           ).toBeInTheDocument()
           expect(screen.getByText('3')).toBeInTheDocument()
         },
-        { timeout: 3000 }
+        { timeout: 3000 },
       )
     })
 
@@ -981,7 +986,7 @@ describe('PreferenceEvaluation', () => {
         () => {
           expect(screen.getByText('Next Comparison')).toBeInTheDocument()
         },
-        { timeout: 3000 }
+        { timeout: 3000 },
       )
     })
 
@@ -997,7 +1002,7 @@ describe('PreferenceEvaluation', () => {
         () => {
           expect(screen.getByText('Next Comparison')).toBeInTheDocument()
         },
-        { timeout: 3000 }
+        { timeout: 3000 },
       )
 
       const returnButton = screen.getByText('Next Comparison')
@@ -1010,7 +1015,7 @@ describe('PreferenceEvaluation', () => {
   describe('reveal identities functionality', () => {
     beforeEach(async () => {
       mockSearchParams.get.mockImplementation((key: string) =>
-        key === 'session' ? 'session-123' : null
+        key === 'session' ? 'session-123' : null,
       )
       ;(apiClient.get as jest.Mock)
         .mockResolvedValueOnce({ data: mockSession })
@@ -1098,7 +1103,7 @@ describe('PreferenceEvaluation', () => {
             metadata: expect.objectContaining({
               revealed_identities: true,
             }),
-          })
+          }),
         )
       })
     })
@@ -1107,7 +1112,7 @@ describe('PreferenceEvaluation', () => {
   describe('exit functionality', () => {
     beforeEach(async () => {
       mockSearchParams.get.mockImplementation((key: string) =>
-        key === 'session' ? 'session-123' : null
+        key === 'session' ? 'session-123' : null,
       )
       ;(apiClient.get as jest.Mock)
         .mockResolvedValueOnce({ data: mockSession })
@@ -1132,7 +1137,7 @@ describe('PreferenceEvaluation', () => {
   describe('error handling', () => {
     beforeEach(() => {
       mockSearchParams.get.mockImplementation((key: string) =>
-        key === 'session' ? 'session-123' : null
+        key === 'session' ? 'session-123' : null,
       )
     })
 
@@ -1146,7 +1151,7 @@ describe('PreferenceEvaluation', () => {
       await waitFor(() => {
         expect(mockAddToast).toHaveBeenCalledWith(
           'Failed to load next evaluation item',
-          'error'
+          'error',
         )
       })
     })
@@ -1182,7 +1187,7 @@ describe('PreferenceEvaluation', () => {
       // Wait for next item to load
       await waitFor(() => {
         expect(
-          screen.getByText(/Select which response you prefer/)
+          screen.getByText(/Select which response you prefer/),
         ).toBeInTheDocument()
       })
     })

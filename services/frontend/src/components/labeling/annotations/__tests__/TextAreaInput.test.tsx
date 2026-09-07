@@ -35,7 +35,7 @@ jest.mock('@/lib/labelConfig/dataBinding', () => ({
     name: string,
     type: string,
     value: any,
-    toName: string
+    toName: string,
   ) => ({
     from_name: name,
     to_name: toName,
@@ -107,7 +107,7 @@ describe('TextAreaInput', () => {
       }
 
       render(
-        <TextAreaInput {...propsWithNoSubmitButton} hideSubmitButton={false} />
+        <TextAreaInput {...propsWithNoSubmitButton} hideSubmitButton={false} />,
       )
 
       const submitButton = screen.queryByRole('button', { name: /submit/i })
@@ -127,7 +127,7 @@ describe('TextAreaInput', () => {
       }
 
       render(
-        <TextAreaInput {...propsWithSubmitButton} hideSubmitButton={true} />
+        <TextAreaInput {...propsWithSubmitButton} hideSubmitButton={true} />,
       )
 
       const submitButton = screen.queryByRole('button', { name: /submit/i })
@@ -323,7 +323,7 @@ describe('TextAreaInput', () => {
 
     it('should clear value when external value becomes undefined', () => {
       const { rerender } = render(
-        <TextAreaInput {...defaultProps} value="Initial" />
+        <TextAreaInput {...defaultProps} value="Initial" />,
       )
 
       const textarea = screen.getByTestId('textarea')
@@ -335,7 +335,7 @@ describe('TextAreaInput', () => {
 
     it('should handle external value changes while user is typing', () => {
       const { rerender } = render(
-        <TextAreaInput {...defaultProps} value="Initial" />
+        <TextAreaInput {...defaultProps} value="Initial" />,
       )
 
       const textarea = screen.getByTestId('textarea')
@@ -351,7 +351,7 @@ describe('TextAreaInput', () => {
       const mockOnAnnotation = jest.fn()
 
       render(
-        <TextAreaInput {...defaultProps} onAnnotation={mockOnAnnotation} />
+        <TextAreaInput {...defaultProps} onAnnotation={mockOnAnnotation} />,
       )
 
       const textarea = screen.getByTestId('textarea')
@@ -388,7 +388,7 @@ describe('TextAreaInput', () => {
       const mockOnAnnotation = jest.fn()
 
       render(
-        <TextAreaInput {...defaultProps} onAnnotation={mockOnAnnotation} />
+        <TextAreaInput {...defaultProps} onAnnotation={mockOnAnnotation} />,
       )
 
       const textarea = screen.getByTestId('textarea')
@@ -412,7 +412,7 @@ describe('TextAreaInput', () => {
       const mockOnAnnotation = jest.fn()
 
       render(
-        <TextAreaInput {...defaultProps} onAnnotation={mockOnAnnotation} />
+        <TextAreaInput {...defaultProps} onAnnotation={mockOnAnnotation} />,
       )
 
       const textarea = screen.getByTestId('textarea')
@@ -429,7 +429,7 @@ describe('TextAreaInput', () => {
       const mockOnAnnotation = jest.fn()
 
       render(
-        <TextAreaInput {...defaultProps} onAnnotation={mockOnAnnotation} />
+        <TextAreaInput {...defaultProps} onAnnotation={mockOnAnnotation} />,
       )
 
       const textarea = screen.getByTestId('textarea')
@@ -564,7 +564,7 @@ describe('TextAreaInput', () => {
         <div>
           <TextAreaInput {...props1} />
           <TextAreaInput {...props2} />
-        </div>
+        </div>,
       )
 
       const textareas = container.querySelectorAll('textarea')

@@ -179,7 +179,9 @@ function main() {
     const scoreStr = r.score.toFixed(2)
     const floorStr = r.floor === null ? '—' : String(r.floor)
     const deltaStr =
-      r.floor === null ? '—' : (r.score - r.floor >= 0 ? '+' : '') + (r.score - r.floor).toFixed(2)
+      r.floor === null
+        ? '—'
+        : (r.score - r.floor >= 0 ? '+' : '') + (r.score - r.floor).toFixed(2)
     const bump = String(Math.floor(r.score)) // suggested ratchet target
     const mark = r.floor !== null && !r.ok ? ' ✗' : ''
     console.log(

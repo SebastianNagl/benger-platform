@@ -16,7 +16,7 @@
  */
 export function resolveDataBinding(
   value: string | any,
-  taskData: Record<string, any>
+  taskData: Record<string, any>,
 ): any {
   // Only process strings that start with $
   if (typeof value !== 'string' || !value.startsWith('$')) {
@@ -47,7 +47,7 @@ export function resolveDataBinding(
  */
 function findKeyInsensitive(
   obj: Record<string, any>,
-  key: string
+  key: string,
 ): string | undefined {
   if (key in obj) return key
   const lowerKey = key.toLowerCase()
@@ -78,7 +78,7 @@ function getNestedValue(obj: any, path: string): any {
  */
 export function resolvePropsDataBindings(
   props: Record<string, any>,
-  taskData: Record<string, any>
+  taskData: Record<string, any>,
 ): Record<string, any> {
   const resolved: Record<string, any> = {}
 
@@ -108,7 +108,7 @@ export function buildAnnotationResult(
   componentName: string,
   componentType: string,
   value: any,
-  toName: string
+  toName: string,
 ): AnnotationResult {
   // Map component types to annotation types
   const annotationTypeMap: Record<string, string> = {
@@ -144,7 +144,7 @@ export function buildAnnotationResult(
  */
 export function mapLegacyAnnotation(
   fieldName: string,
-  value: any
+  value: any,
 ): AnnotationResult | null {
   // Map legacy field names to new format
   const legacyFieldMap: Record<string, { type: string; toName: string }> = {
@@ -160,7 +160,7 @@ export function mapLegacyAnnotation(
     fieldName,
     mapping.type === 'textarea' ? 'TextArea' : 'Choices',
     value,
-    mapping.toName
+    mapping.toName,
   )
 }
 
@@ -181,7 +181,7 @@ export interface SpanValue {
 export function buildSpanAnnotationResult(
   fromName: string,
   toName: string,
-  spans: SpanValue[]
+  spans: SpanValue[],
 ): AnnotationResult {
   // Store all spans in a single annotation result
   // This matches how DynamicAnnotationInterface stores one result per from_name
@@ -207,7 +207,7 @@ export function buildSpanAnnotationResult(
  * Converts stored format back to SpanValue array
  */
 export function parseSpanAnnotations(
-  result: AnnotationResult | null
+  result: AnnotationResult | null,
 ): SpanValue[] {
   if (!result || !result.value) return []
 
@@ -248,7 +248,7 @@ export function parseSpanAnnotations(
  */
 export function validateTaskDataFields(
   requiredFields: string[],
-  taskData: Record<string, any>
+  taskData: Record<string, any>,
 ): { valid: boolean; missingFields: string[] } {
   const missingFields = requiredFields.filter((field) => {
     // First try to find the field at the root level
@@ -307,7 +307,7 @@ export function validateTaskDataFields(
  * Flattens span annotations: one result with spans array -> multiple results.
  */
 export function convertToLabelStudioFormat(
-  annotations: AnnotationResult[]
+  annotations: AnnotationResult[],
 ): AnnotationResult[] {
   const result: AnnotationResult[] = []
 
@@ -343,7 +343,7 @@ export function convertToLabelStudioFormat(
  * Consolidates span annotations: multiple results -> one result with spans array.
  */
 export function convertFromLabelStudioFormat(
-  annotations: AnnotationResult[]
+  annotations: AnnotationResult[],
 ): AnnotationResult[] {
   const result: AnnotationResult[] = []
   const spanGroups: Map<

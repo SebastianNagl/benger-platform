@@ -103,10 +103,7 @@ const METRIC_CATEGORIES = [
   {
     name: 'LLM-as-Judge',
     description: 'AI model-based evaluation (requires API key)',
-    metrics: [
-      'llm_judge_classic',
-      'llm_judge_custom',
-    ],
+    metrics: ['llm_judge_classic', 'llm_judge_custom'],
   },
 ]
 
@@ -126,7 +123,7 @@ export function MetricSelector({
   const { t } = useI18n()
   const [searchQuery, setSearchQuery] = useState('')
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
-    new Set()
+    new Set(),
   )
 
   const toggleCategory = (categoryName: string) => {
@@ -158,7 +155,7 @@ export function MetricSelector({
       metricsToSelect = availableMetrics
     } else {
       metricsToSelect = metricsToSelect.filter((m) =>
-        availableMetrics.includes(m)
+        availableMetrics.includes(m),
       )
     }
 
@@ -174,13 +171,13 @@ export function MetricSelector({
       (metric) =>
         availableMetrics.includes(metric) &&
         (searchQuery === '' ||
-          metric.toLowerCase().includes(searchQuery.toLowerCase()))
+          metric.toLowerCase().includes(searchQuery.toLowerCase())),
     )
     return { ...category, metrics: filteredMetrics }
   }).filter((category) => category.metrics.length > 0)
 
   const allFilteredMetrics = filteredCategories.flatMap(
-    (category) => category.metrics
+    (category) => category.metrics,
   )
 
   return (
@@ -193,7 +190,10 @@ export function MetricSelector({
               {t('evaluation.metricSelector.selectMetrics')}
             </h3>
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              {t('evaluation.metricSelector.selectedCount', { selected: selectedMetrics.length, total: availableMetrics.length })}
+              {t('evaluation.metricSelector.selectedCount', {
+                selected: selectedMetrics.length,
+                total: availableMetrics.length,
+              })}
             </p>
           </div>
           <Button variant="text" onClick={clearSelection}>
@@ -203,13 +203,13 @@ export function MetricSelector({
 
         {/* Search Input */}
         <div className="relative">
-          <MagnifyingGlassIcon className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+          <MagnifyingGlassIcon className="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-gray-400" />
           <input
             type="text"
             placeholder={t('evaluation.metricSelector.searchPlaceholder')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full rounded-md border border-gray-300 bg-white py-2 pl-10 pr-4 text-sm text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-500"
+            className="w-full rounded-md border border-gray-300 bg-white py-2 pr-4 pl-10 text-sm text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-500"
           />
         </div>
 
@@ -238,7 +238,7 @@ export function MetricSelector({
             {filteredCategories.map((category) => {
               const isExpanded = expandedCategories.has(category.name)
               const selectedInCategory = category.metrics.filter((m) =>
-                selectedMetrics.includes(m)
+                selectedMetrics.includes(m),
               ).length
 
               return (

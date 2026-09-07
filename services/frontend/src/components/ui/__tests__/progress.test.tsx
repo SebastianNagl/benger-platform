@@ -17,14 +17,14 @@ describe('Progress', () => {
       'h-4',
       'w-full',
       'overflow-hidden',
-      'rounded-full'
+      'rounded-full',
     )
     expect(progressBar).toBeTruthy()
     expect(progressBar).toHaveClass(
       'h-full',
       'w-full',
       'flex-1',
-      'transition-all'
+      'transition-all',
     )
   })
 
@@ -50,7 +50,7 @@ describe('Progress', () => {
         data-testid="progress"
         role="progressbar"
         aria-label="Loading"
-      />
+      />,
     )
     const progress = screen.getByTestId('progress')
     expect(progress).toHaveAttribute('role', 'progressbar')

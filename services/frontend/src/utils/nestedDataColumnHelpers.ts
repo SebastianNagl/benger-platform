@@ -106,7 +106,7 @@ export function formatNestedFieldLabel(fieldPath: string): string {
 export function extractNestedDataColumns(
   tasks: Task[],
   maxColumns = 20,
-  includeNested = true
+  includeNested = true,
 ): NestedDataColumn[] {
   if (!tasks || tasks.length === 0) return []
 
@@ -188,7 +188,7 @@ export function getTaskNestedValue(task: Task, path: string): any {
 export function formatNestedCellValue(
   value: any,
   type: NestedDataColumn['type'],
-  maxLength = 100
+  maxLength = 100,
 ): { display: string; full: string; truncated: boolean } {
   if (value === null || value === undefined) {
     return { display: '-', full: '-', truncated: false }
@@ -284,7 +284,7 @@ export function getTaskDisplayValueNested(task: Task): string {
   // Fall back to first string value
   const flattened = flattenJson(data, '', 2)
   const firstString = Object.values(flattened).find(
-    (v) => typeof v === 'string' && v.length > 0
+    (v) => typeof v === 'string' && v.length > 0,
   )
 
   if (firstString) {
@@ -319,7 +319,7 @@ export function hasConsistentNestedStructure(tasks: Task[]): boolean {
 
     // Check if at least 60% of paths match
     const intersection = new Set(
-      [...firstTaskPaths].filter((x) => taskPaths.has(x))
+      [...firstTaskPaths].filter((x) => taskPaths.has(x)),
     )
     return intersection.size >= firstTaskPaths.size * 0.6
   })

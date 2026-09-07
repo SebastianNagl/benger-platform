@@ -61,7 +61,7 @@ describe('SimpleAuth Provider', () => {
       render(
         <SimpleAuthProvider>
           <div data-testid="child">Child Component</div>
-        </SimpleAuthProvider>
+        </SimpleAuthProvider>,
       )
 
       expect(screen.getByTestId('child')).toBeInTheDocument()
@@ -71,11 +71,11 @@ describe('SimpleAuth Provider', () => {
       render(
         <SimpleAuthProvider>
           <TestComponent />
-        </SimpleAuthProvider>
+        </SimpleAuthProvider>,
       )
 
       expect(screen.getByTestId('user-status')).toHaveTextContent(
-        'Not logged in'
+        'Not logged in',
       )
       expect(screen.getByTestId('user-email')).toHaveTextContent('No email')
       expect(screen.getByTestId('user-role')).toHaveTextContent('No role')
@@ -85,7 +85,7 @@ describe('SimpleAuth Provider', () => {
       render(
         <SimpleAuthProvider>
           <TestComponent />
-        </SimpleAuthProvider>
+        </SimpleAuthProvider>,
       )
 
       expect(screen.getByTestId('org-count')).toHaveTextContent('Orgs: 2')
@@ -111,7 +111,7 @@ describe('SimpleAuth Provider', () => {
       render(
         <SimpleAuthProvider>
           <OrgListComponent />
-        </SimpleAuthProvider>
+        </SimpleAuthProvider>,
       )
 
       expect(screen.getByTestId('org-tum')).toHaveTextContent('TUM')
@@ -129,7 +129,7 @@ describe('SimpleAuth Provider', () => {
       render(
         <SimpleAuthProvider>
           <TestComponent />
-        </SimpleAuthProvider>
+        </SimpleAuthProvider>,
       )
 
       expect(screen.getByTestId('current-org')).toHaveTextContent('No org')
@@ -139,14 +139,14 @@ describe('SimpleAuth Provider', () => {
       render(
         <SimpleAuthProvider>
           <TestComponent />
-        </SimpleAuthProvider>
+        </SimpleAuthProvider>,
       )
 
       expect(screen.getByTestId('user-status')).toHaveTextContent(
-        'Not logged in'
+        'Not logged in',
       )
       expect(screen.getByTestId('user-status')).not.toHaveTextContent(
-        'Loading...'
+        'Loading...',
       )
     })
   })
@@ -158,7 +158,7 @@ describe('SimpleAuth Provider', () => {
       render(
         <SimpleAuthProvider>
           <TestComponent />
-        </SimpleAuthProvider>
+        </SimpleAuthProvider>,
       )
 
       const loginBtn = screen.getByTestId('login-btn')
@@ -167,10 +167,10 @@ describe('SimpleAuth Provider', () => {
       await waitFor(
         () => {
           expect(screen.getByTestId('user-status')).toHaveTextContent(
-            'User: testuser'
+            'User: testuser',
           )
         },
-        { timeout: 3000 }
+        { timeout: 3000 },
       )
     })
 
@@ -180,7 +180,7 @@ describe('SimpleAuth Provider', () => {
       render(
         <SimpleAuthProvider>
           <TestComponent />
-        </SimpleAuthProvider>
+        </SimpleAuthProvider>,
       )
 
       const loginBtn = screen.getByTestId('login-btn')
@@ -189,10 +189,10 @@ describe('SimpleAuth Provider', () => {
       await waitFor(
         () => {
           expect(screen.getByTestId('user-email')).toHaveTextContent(
-            'testuser@example.com'
+            'testuser@example.com',
           )
         },
-        { timeout: 3000 }
+        { timeout: 3000 },
       )
     })
 
@@ -202,7 +202,7 @@ describe('SimpleAuth Provider', () => {
       render(
         <SimpleAuthProvider>
           <TestComponent />
-        </SimpleAuthProvider>
+        </SimpleAuthProvider>,
       )
 
       const loginBtn = screen.getByTestId('login-btn')
@@ -212,7 +212,7 @@ describe('SimpleAuth Provider', () => {
         () => {
           expect(screen.getByTestId('user-role')).toHaveTextContent('user')
         },
-        { timeout: 3000 }
+        { timeout: 3000 },
       )
     })
 
@@ -222,7 +222,7 @@ describe('SimpleAuth Provider', () => {
       render(
         <SimpleAuthProvider>
           <TestComponent />
-        </SimpleAuthProvider>
+        </SimpleAuthProvider>,
       )
 
       const loginBtn = screen.getByTestId('login-btn')
@@ -232,7 +232,7 @@ describe('SimpleAuth Provider', () => {
         () => {
           expect(screen.getByTestId('current-org')).toHaveTextContent('TUM')
         },
-        { timeout: 3000 }
+        { timeout: 3000 },
       )
     })
 
@@ -242,7 +242,7 @@ describe('SimpleAuth Provider', () => {
       render(
         <SimpleAuthProvider>
           <TestComponent />
-        </SimpleAuthProvider>
+        </SimpleAuthProvider>,
       )
 
       const loginBtn = screen.getByTestId('login-btn')
@@ -252,11 +252,11 @@ describe('SimpleAuth Provider', () => {
       await waitFor(
         () => {
           expect(screen.getByTestId('user-status')).not.toHaveTextContent(
-            'Loading...'
+            'Loading...',
           )
           expect(screen.getByTestId('user-status')).toHaveTextContent('User:')
         },
-        { timeout: 3000 }
+        { timeout: 3000 },
       )
     })
   })
@@ -268,7 +268,7 @@ describe('SimpleAuth Provider', () => {
       render(
         <SimpleAuthProvider>
           <TestComponent />
-        </SimpleAuthProvider>
+        </SimpleAuthProvider>,
       )
 
       const loginBtn = screen.getByTestId('login-btn')
@@ -281,7 +281,7 @@ describe('SimpleAuth Provider', () => {
         () => {
           expect(screen.getByTestId('user-status')).toHaveTextContent('User:')
         },
-        { timeout: 3000 }
+        { timeout: 3000 },
       )
 
       // Logout
@@ -290,10 +290,10 @@ describe('SimpleAuth Provider', () => {
       await waitFor(
         () => {
           expect(screen.getByTestId('user-status')).toHaveTextContent(
-            'Not logged in'
+            'Not logged in',
           )
         },
-        { timeout: 3000 }
+        { timeout: 3000 },
       )
     })
 
@@ -303,7 +303,7 @@ describe('SimpleAuth Provider', () => {
       render(
         <SimpleAuthProvider>
           <TestComponent />
-        </SimpleAuthProvider>
+        </SimpleAuthProvider>,
       )
 
       const loginBtn = screen.getByTestId('login-btn')
@@ -316,7 +316,7 @@ describe('SimpleAuth Provider', () => {
         () => {
           expect(screen.getByTestId('current-org')).toHaveTextContent('TUM')
         },
-        { timeout: 3000 }
+        { timeout: 3000 },
       )
 
       // Logout
@@ -326,7 +326,7 @@ describe('SimpleAuth Provider', () => {
         () => {
           expect(screen.getByTestId('current-org')).toHaveTextContent('No org')
         },
-        { timeout: 3000 }
+        { timeout: 3000 },
       )
     })
   })
@@ -338,7 +338,7 @@ describe('SimpleAuth Provider', () => {
       render(
         <SimpleAuthProvider>
           <TestComponent />
-        </SimpleAuthProvider>
+        </SimpleAuthProvider>,
       )
 
       const switchOrgBtn = screen.getByTestId('switch-org-btn')
@@ -347,10 +347,10 @@ describe('SimpleAuth Provider', () => {
       await waitFor(
         () => {
           expect(screen.getByTestId('current-org')).toHaveTextContent(
-            'Test Org'
+            'Test Org',
           )
         },
-        { timeout: 3000 }
+        { timeout: 3000 },
       )
     })
 
@@ -360,7 +360,7 @@ describe('SimpleAuth Provider', () => {
       render(
         <SimpleAuthProvider>
           <TestComponent />
-        </SimpleAuthProvider>
+        </SimpleAuthProvider>,
       )
 
       const loginBtn = screen.getByTestId('login-btn')
@@ -375,7 +375,7 @@ describe('SimpleAuth Provider', () => {
         () => {
           expect(screen.getByTestId('user-status')).toHaveTextContent('User:')
         },
-        { timeout: 3000 }
+        { timeout: 3000 },
       )
 
       expect(screen.getByTestId('org-count')).toHaveTextContent('Orgs: 2')
@@ -386,10 +386,10 @@ describe('SimpleAuth Provider', () => {
       await waitFor(
         () => {
           expect(screen.getByTestId('user-status')).toHaveTextContent(
-            'Not logged in'
+            'Not logged in',
           )
         },
-        { timeout: 3000 }
+        { timeout: 3000 },
       )
 
       expect(screen.getByTestId('org-count')).toHaveTextContent('Orgs: 2')
@@ -409,7 +409,7 @@ describe('SimpleAuth Provider', () => {
       }
 
       expect(() => render(<ComponentWithoutProvider />)).toThrow(
-        'useAuth must be used within an AuthProvider'
+        'useAuth must be used within an AuthProvider',
       )
 
       consoleError.mockRestore()
@@ -426,7 +426,7 @@ describe('SimpleAuth Provider', () => {
       render(
         <SimpleAuthProvider>
           <ContextConsumer />
-        </SimpleAuthProvider>
+        </SimpleAuthProvider>,
       )
 
       expect(contextValue).toHaveProperty('user')
@@ -446,7 +446,7 @@ describe('SimpleAuth Provider', () => {
       render(
         <SimpleAuthProvider>
           <TestComponent />
-        </SimpleAuthProvider>
+        </SimpleAuthProvider>,
       )
 
       const loginBtn = screen.getByTestId('login-btn')
@@ -458,7 +458,7 @@ describe('SimpleAuth Provider', () => {
         () => {
           expect(screen.getByTestId('user-status')).toHaveTextContent('User:')
         },
-        { timeout: 3000 }
+        { timeout: 3000 },
       )
     })
 
@@ -468,7 +468,7 @@ describe('SimpleAuth Provider', () => {
       render(
         <SimpleAuthProvider>
           <TestComponent />
-        </SimpleAuthProvider>
+        </SimpleAuthProvider>,
       )
 
       const loginBtn = screen.getByTestId('login-btn')
@@ -481,7 +481,7 @@ describe('SimpleAuth Provider', () => {
         () => {
           expect(screen.getByTestId('user-status')).toHaveTextContent('User:')
         },
-        { timeout: 3000 }
+        { timeout: 3000 },
       )
 
       // Logout
@@ -490,10 +490,10 @@ describe('SimpleAuth Provider', () => {
       await waitFor(
         () => {
           expect(screen.getByTestId('user-status')).toHaveTextContent(
-            'Not logged in'
+            'Not logged in',
           )
         },
-        { timeout: 3000 }
+        { timeout: 3000 },
       )
     })
 
@@ -521,7 +521,7 @@ describe('SimpleAuth Provider', () => {
       render(
         <SimpleAuthProvider>
           <OrgSetterComponent />
-        </SimpleAuthProvider>
+        </SimpleAuthProvider>,
       )
 
       const clearOrgBtn = screen.getByTestId('clear-org-btn')
@@ -531,7 +531,7 @@ describe('SimpleAuth Provider', () => {
         () => {
           expect(screen.getByTestId('current-org')).toHaveTextContent('No org')
         },
-        { timeout: 3000 }
+        { timeout: 3000 },
       )
     })
   })

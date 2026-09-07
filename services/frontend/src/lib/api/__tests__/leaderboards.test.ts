@@ -267,15 +267,13 @@ describe('LeaderboardsClient', () => {
   describe('getLLMModelDetails', () => {
     it('should call the correct URL with just modelId', async () => {
       const result = await client.getLLMModelDetails('gpt-4')
-      expect((result as any)._url).toBe(
-        '/leaderboards/llm-models/gpt-4?'
-      )
+      expect((result as any)._url).toBe('/leaderboards/llm-models/gpt-4?')
     })
 
     it('should encode special characters in modelId', async () => {
       const result = await client.getLLMModelDetails('model/with spaces')
       expect((result as any)._url).toContain(
-        '/leaderboards/llm-models/model%2Fwith%20spaces?'
+        '/leaderboards/llm-models/model%2Fwith%20spaces?',
       )
     })
 
@@ -316,17 +314,12 @@ describe('LeaderboardsClient', () => {
 
     it('should handle empty params object', async () => {
       const result = await client.getLLMModelDetails('gpt-4', {})
-      expect((result as any)._url).toBe(
-        '/leaderboards/llm-models/gpt-4?'
-      )
+      expect((result as any)._url).toBe('/leaderboards/llm-models/gpt-4?')
     })
 
     it('should handle undefined params', async () => {
       const result = await client.getLLMModelDetails('gpt-4', undefined)
-      expect((result as any)._url).toBe(
-        '/leaderboards/llm-models/gpt-4?'
-      )
+      expect((result as any)._url).toBe('/leaderboards/llm-models/gpt-4?')
     })
   })
-
 })

@@ -191,23 +191,27 @@ const mockTranslations = {
   'settings.notifications.help.title': 'About Notifications',
   'settings.notifications.help.inAppTitle': 'In-app notifications',
   'settings.notifications.help.inAppDesc':
-    'appear in the notification bell and on the notifications page. You\'ll see them in real-time while using BenGER.',
+    "appear in the notification bell and on the notifications page. You'll see them in real-time while using BenGER.",
   'settings.notifications.help.emailTitle': 'Email notifications',
   'settings.notifications.help.emailDescBefore': 'are sent to',
   'settings.notifications.help.emailDescAfter':
     'You can send a test email to verify your settings are working.',
   'settings.notifications.help.roleBasedDesc':
-    'Notifications are sent based on your role and organization membership. You\'ll only receive notifications for tasks and organizations you have access to.',
+    "Notifications are sent based on your role and organization membership. You'll only receive notifications for tasks and organizations you have access to.",
   'settings.notifications.help.preferencesDesc':
     'Changes to your notification preferences are saved immediately and apply to all future notifications.',
   'settings.notifications.timezone.utc': 'UTC',
 }
 
 const mockT = (key: string, params?: Record<string, any>) => {
-  let translation = mockTranslations[key as keyof typeof mockTranslations] || key
+  let translation =
+    mockTranslations[key as keyof typeof mockTranslations] || key
   if (params) {
     Object.entries(params).forEach(([k, v]) => {
-      translation = translation.replace(new RegExp(`\\{${k}\\}`, 'g'), String(v))
+      translation = translation.replace(
+        new RegExp(`\\{${k}\\}`, 'g'),
+        String(v),
+      )
     })
   }
   return translation
@@ -286,10 +290,10 @@ describe('NotificationSettingsPage', () => {
 
     // Mock API responses
     ;(api.getNotificationPreferences as jest.Mock).mockResolvedValue(
-      mockPreferences
+      mockPreferences,
     )
     ;(api.notifications.getEmailStatus as jest.Mock).mockResolvedValue(
-      mockEmailStatus
+      mockEmailStatus,
     )
     ;(api.updateNotificationPreferences as jest.Mock).mockResolvedValue({})
     ;(api.notifications.sendTestEmail as jest.Mock).mockResolvedValue({
@@ -304,7 +308,7 @@ describe('NotificationSettingsPage', () => {
       await waitFor(() => {
         expect(screen.getByText('Notification Settings')).toBeInTheDocument()
         expect(
-          screen.getByText('Manage your notification preferences')
+          screen.getByText('Manage your notification preferences'),
         ).toBeInTheDocument()
       })
     })
@@ -317,7 +321,7 @@ describe('NotificationSettingsPage', () => {
         expect(breadcrumb).toBeInTheDocument()
         expect(within(breadcrumb).getByText('Settings')).toBeInTheDocument()
         expect(
-          within(breadcrumb).getByText('Notifications')
+          within(breadcrumb).getByText('Notifications'),
         ).toBeInTheDocument()
       })
     })
@@ -347,7 +351,7 @@ describe('NotificationSettingsPage', () => {
       await waitFor(() => {
         expect(screen.getByText('Authentication Required')).toBeInTheDocument()
         expect(
-          screen.getByText('Please log in to access notification settings')
+          screen.getByText('Please log in to access notification settings'),
         ).toBeInTheDocument()
       })
     })
@@ -385,11 +389,11 @@ describe('NotificationSettingsPage', () => {
       await waitFor(() => {
         expect(
           screen.getByText(
-            'Receive notifications when new projects are created'
-          )
+            'Receive notifications when new projects are created',
+          ),
         ).toBeInTheDocument()
         expect(
-          screen.getByText('Receive notifications when projects are updated')
+          screen.getByText('Receive notifications when projects are updated'),
         ).toBeInTheDocument()
       })
     })
@@ -410,7 +414,7 @@ describe('NotificationSettingsPage', () => {
 
       await waitFor(() => {
         const projectCreatedToggle = screen.getByTestId(
-          'settings-notification-toggle-project_created'
+          'settings-notification-toggle-project_created',
         )
         expect(projectCreatedToggle).toHaveClass('bg-emerald-600')
       })
@@ -421,7 +425,7 @@ describe('NotificationSettingsPage', () => {
 
       await waitFor(() => {
         const projectSharedToggle = screen.getByTestId(
-          'settings-notification-toggle-project_shared'
+          'settings-notification-toggle-project_shared',
         )
         expect(projectSharedToggle).not.toHaveClass('bg-emerald-600')
       })
@@ -438,7 +442,7 @@ describe('NotificationSettingsPage', () => {
       })
 
       const emailToggle = screen.getByTestId(
-        'settings-notification-email-project_created'
+        'settings-notification-email-project_created',
       )
       await user.click(emailToggle)
 
@@ -456,7 +460,7 @@ describe('NotificationSettingsPage', () => {
       })
 
       const emailToggle = screen.getByTestId(
-        'settings-notification-email-project_updated'
+        'settings-notification-email-project_updated',
       )
       await user.click(emailToggle)
 
@@ -476,7 +480,7 @@ describe('NotificationSettingsPage', () => {
 
       await waitFor(() => {
         const emailToggle = screen.getByTestId(
-          'settings-notification-email-project_created'
+          'settings-notification-email-project_created',
         )
         expect(emailToggle).toBeDisabled()
       })
@@ -487,7 +491,7 @@ describe('NotificationSettingsPage', () => {
 
       await waitFor(() => {
         const emailToggle = screen.getByTestId(
-          'settings-notification-email-project_shared'
+          'settings-notification-email-project_shared',
         )
         expect(emailToggle).toBeDisabled()
       })
@@ -505,7 +509,7 @@ describe('NotificationSettingsPage', () => {
 
       // Toggle in-app off first
       const inAppToggle = screen.getByTestId(
-        'settings-notification-inapp-project_created'
+        'settings-notification-inapp-project_created',
       )
       await user.click(inAppToggle)
 
@@ -530,7 +534,7 @@ describe('NotificationSettingsPage', () => {
       })
 
       const inAppToggle = screen.getByTestId(
-        'settings-notification-inapp-project_created'
+        'settings-notification-inapp-project_created',
       )
       await user.click(inAppToggle)
 
@@ -544,7 +548,7 @@ describe('NotificationSettingsPage', () => {
 
       await waitFor(() => {
         const inAppToggle = screen.getByTestId(
-          'settings-notification-inapp-project_shared'
+          'settings-notification-inapp-project_shared',
         )
         expect(inAppToggle).toBeDisabled()
       })
@@ -561,7 +565,7 @@ describe('NotificationSettingsPage', () => {
       })
 
       const mainToggle = screen.getByTestId(
-        'settings-notification-toggle-project_shared'
+        'settings-notification-toggle-project_shared',
       )
 
       // Verify it starts disabled
@@ -582,7 +586,7 @@ describe('NotificationSettingsPage', () => {
       })
 
       const mainToggle = screen.getByTestId(
-        'settings-notification-toggle-project_created'
+        'settings-notification-toggle-project_created',
       )
 
       // Verify it starts enabled
@@ -603,16 +607,16 @@ describe('NotificationSettingsPage', () => {
       })
 
       const mainToggle = screen.getByTestId(
-        'settings-notification-toggle-project_created'
+        'settings-notification-toggle-project_created',
       )
       await user.click(mainToggle)
 
       await waitFor(() => {
         const inAppToggle = screen.getByTestId(
-          'settings-notification-inapp-project_created'
+          'settings-notification-inapp-project_created',
         )
         const emailToggle = screen.getByTestId(
-          'settings-notification-email-project_created'
+          'settings-notification-email-project_created',
         )
         expect(inAppToggle).toBeDisabled()
         expect(emailToggle).toBeDisabled()
@@ -627,19 +631,19 @@ describe('NotificationSettingsPage', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByTestId('settings-save-notifications-button')
+          screen.getByTestId('settings-save-notifications-button'),
         ).toBeInTheDocument()
       })
 
       const saveButton = screen.getByTestId(
-        'settings-save-notifications-button'
+        'settings-save-notifications-button',
       )
       await user.click(saveButton)
 
       await waitFor(() => {
         expect(api.updateNotificationPreferences).toHaveBeenCalled()
         expect(
-          screen.getByText('Notification preferences saved successfully!')
+          screen.getByText('Notification preferences saved successfully!'),
         ).toBeInTheDocument()
       })
     })
@@ -647,19 +651,19 @@ describe('NotificationSettingsPage', () => {
     it('shows saving state during save', async () => {
       const user = userEvent.setup()
       ;(api.updateNotificationPreferences as jest.Mock).mockImplementation(
-        () => new Promise((resolve) => setTimeout(resolve, 100))
+        () => new Promise((resolve) => setTimeout(resolve, 100)),
       )
 
       render(<NotificationSettingsPage />)
 
       await waitFor(() => {
         expect(
-          screen.getByTestId('settings-save-notifications-button')
+          screen.getByTestId('settings-save-notifications-button'),
         ).toBeInTheDocument()
       })
 
       const saveButton = screen.getByTestId(
-        'settings-save-notifications-button'
+        'settings-save-notifications-button',
       )
       await user.click(saveButton)
 
@@ -670,25 +674,25 @@ describe('NotificationSettingsPage', () => {
     it('handles save error', async () => {
       const user = userEvent.setup()
       ;(api.updateNotificationPreferences as jest.Mock).mockRejectedValue(
-        new Error('Failed to save')
+        new Error('Failed to save'),
       )
 
       render(<NotificationSettingsPage />)
 
       await waitFor(() => {
         expect(
-          screen.getByTestId('settings-save-notifications-button')
+          screen.getByTestId('settings-save-notifications-button'),
         ).toBeInTheDocument()
       })
 
       const saveButton = screen.getByTestId(
-        'settings-save-notifications-button'
+        'settings-save-notifications-button',
       )
       await user.click(saveButton)
 
       await waitFor(() => {
         expect(
-          screen.getByText('Failed to save notification preferences')
+          screen.getByText('Failed to save notification preferences'),
         ).toBeInTheDocument()
       })
     })
@@ -699,12 +703,12 @@ describe('NotificationSettingsPage', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByTestId('settings-save-notifications-button')
+          screen.getByTestId('settings-save-notifications-button'),
         ).toBeInTheDocument()
       })
 
       const saveButton = screen.getByTestId(
-        'settings-save-notifications-button'
+        'settings-save-notifications-button',
       )
       await user.click(saveButton)
 
@@ -714,7 +718,7 @@ describe('NotificationSettingsPage', () => {
             project_created: { enabled: true, in_app: true, email: false },
             project_updated: { enabled: true, in_app: true, email: true },
             project_shared: { enabled: false, in_app: false, email: false },
-          })
+          }),
         )
       })
     })
@@ -727,18 +731,18 @@ describe('NotificationSettingsPage', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByTestId('settings-disable-all-notifications-button')
+          screen.getByTestId('settings-disable-all-notifications-button'),
         ).toBeInTheDocument()
       })
 
       const disableAllButton = screen.getByTestId(
-        'settings-disable-all-notifications-button'
+        'settings-disable-all-notifications-button',
       )
       await user.click(disableAllButton)
 
       await waitFor(() => {
         const projectCreatedToggle = screen.getByTestId(
-          'settings-notification-toggle-project_created'
+          'settings-notification-toggle-project_created',
         )
         expect(projectCreatedToggle).not.toHaveClass('bg-emerald-600')
       })
@@ -750,18 +754,18 @@ describe('NotificationSettingsPage', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByTestId('settings-enable-all-notifications-button')
+          screen.getByTestId('settings-enable-all-notifications-button'),
         ).toBeInTheDocument()
       })
 
       const enableAllButton = screen.getByTestId(
-        'settings-enable-all-notifications-button'
+        'settings-enable-all-notifications-button',
       )
       await user.click(enableAllButton)
 
       await waitFor(() => {
         const projectSharedToggle = screen.getByTestId(
-          'settings-notification-toggle-project_shared'
+          'settings-notification-toggle-project_shared',
         )
         expect(projectSharedToggle).toHaveClass('bg-emerald-600')
       })
@@ -772,7 +776,7 @@ describe('NotificationSettingsPage', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText(/of.*notification types enabled/)
+          screen.getByText(/of.*notification types enabled/),
         ).toBeInTheDocument()
       })
     })
@@ -781,14 +785,14 @@ describe('NotificationSettingsPage', () => {
   describe('Error Handling', () => {
     it('handles API error when loading preferences', async () => {
       ;(api.getNotificationPreferences as jest.Mock).mockRejectedValue(
-        new Error('Failed to load preferences')
+        new Error('Failed to load preferences'),
       )
 
       render(<NotificationSettingsPage />)
 
       await waitFor(() => {
         expect(
-          screen.getByText('Failed to load notification preferences')
+          screen.getByText('Failed to load notification preferences'),
         ).toBeInTheDocument()
       })
     })
@@ -806,7 +810,7 @@ describe('NotificationSettingsPage', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('Error loading notification settings')
+          screen.getByText('Error loading notification settings'),
         ).toBeInTheDocument()
       })
     })
@@ -825,7 +829,7 @@ describe('NotificationSettingsPage', () => {
       await waitFor(() => {
         expect(screen.getByText('Reload Page')).toBeInTheDocument()
         expect(
-          screen.getByText('Error loading notification settings')
+          screen.getByText('Error loading notification settings'),
         ).toBeInTheDocument()
       })
 
@@ -836,7 +840,7 @@ describe('NotificationSettingsPage', () => {
 
     it('handles email status loading failure gracefully', async () => {
       ;(api.notifications.getEmailStatus as jest.Mock).mockRejectedValue(
-        new Error('Failed to load email status')
+        new Error('Failed to load email status'),
       )
 
       render(<NotificationSettingsPage />)
@@ -855,18 +859,18 @@ describe('NotificationSettingsPage', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByTestId('settings-save-notifications-button')
+          screen.getByTestId('settings-save-notifications-button'),
         ).toBeInTheDocument()
       })
 
       const saveButton = screen.getByTestId(
-        'settings-save-notifications-button'
+        'settings-save-notifications-button',
       )
       await user.click(saveButton)
 
       await waitFor(() => {
         expect(
-          screen.getByText('Notification preferences saved successfully!')
+          screen.getByText('Notification preferences saved successfully!'),
         ).toBeInTheDocument()
       })
 
@@ -874,7 +878,7 @@ describe('NotificationSettingsPage', () => {
 
       await waitFor(() => {
         expect(
-          screen.queryByText('Notification preferences saved successfully!')
+          screen.queryByText('Notification preferences saved successfully!'),
         ).not.toBeInTheDocument()
       })
 
@@ -896,9 +900,7 @@ describe('NotificationSettingsPage', () => {
       render(<NotificationSettingsPage />)
 
       await waitFor(() => {
-        expect(
-          screen.getByText('LLM Generation Completed')
-        ).toBeInTheDocument()
+        expect(screen.getByText('LLM Generation Completed')).toBeInTheDocument()
       })
     })
 
@@ -933,10 +935,10 @@ describe('NotificationSettingsPage', () => {
 
       await waitFor(() => {
         const projectCreatedToggle = screen.getByTestId(
-          'settings-notification-toggle-project_created'
+          'settings-notification-toggle-project_created',
         )
         const projectUpdatedToggle = screen.getByTestId(
-          'settings-notification-toggle-project_updated'
+          'settings-notification-toggle-project_updated',
         )
 
         expect(projectCreatedToggle).toHaveClass('bg-emerald-600')
@@ -974,7 +976,7 @@ describe('NotificationSettingsPage', () => {
 
       await waitFor(() => {
         expect(
-          screen.queryByText(/Email notifications are sent to/)
+          screen.queryByText(/Email notifications are sent to/),
         ).not.toBeInTheDocument()
       })
     })

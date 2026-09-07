@@ -28,11 +28,11 @@ export function HighlightField({
 }: BaseFieldProps) {
   const { t } = useI18n()
   const [sourceText] = useState(
-    field.metadata?.source_text || t('fields.noTextForHighlighting')
+    field.metadata?.source_text || t('fields.noTextForHighlighting'),
   )
   const highlights = useMemo<Highlight[]>(
     () => (Array.isArray(value) ? value : []),
-    [value]
+    [value],
   )
 
   const handleTextSelection = useCallback(() => {
@@ -85,7 +85,7 @@ export function HighlightField({
         elements.push(
           <span key={`text-${lastEnd}`}>
             {sourceText.substring(lastEnd, highlight.start)}
-          </span>
+          </span>,
         )
       }
 
@@ -102,7 +102,7 @@ export function HighlightField({
               {t('fields.clickToRemove')}
             </span>
           )}
-        </span>
+        </span>,
       )
 
       lastEnd = highlight.end
@@ -111,7 +111,7 @@ export function HighlightField({
     // Add remaining text
     if (lastEnd < sourceText.length) {
       elements.push(
-        <span key={`text-${lastEnd}`}>{sourceText.substring(lastEnd)}</span>
+        <span key={`text-${lastEnd}`}>{sourceText.substring(lastEnd)}</span>,
       )
     }
 

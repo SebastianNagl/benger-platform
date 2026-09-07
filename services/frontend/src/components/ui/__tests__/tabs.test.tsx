@@ -113,7 +113,7 @@ describe('Tabs', () => {
           <TabsTrigger value="tab1">Tab 1</TabsTrigger>
         </TabsList>
         <TabsContent value="tab1">Content</TabsContent>
-      </Tabs>
+      </Tabs>,
     )
 
     const container = screen.getByText('Tab 1').closest('.custom-tabs')
@@ -127,7 +127,7 @@ describe('Tabs', () => {
           <TabsTrigger value="tab1">Tab 1</TabsTrigger>
         </TabsList>
         <TabsContent value="tab1">Content</TabsContent>
-      </Tabs>
+      </Tabs>,
     )
 
     const list = screen.getByText('Tab 1').parentElement
@@ -144,7 +144,7 @@ describe('Tabs', () => {
           </TabsTrigger>
         </TabsList>
         <TabsContent value="tab1">Content</TabsContent>
-      </Tabs>
+      </Tabs>,
     )
 
     const trigger = screen.getByText('Tab 1')
@@ -160,7 +160,7 @@ describe('Tabs', () => {
         <TabsContent value="tab1" className="custom-content">
           Content
         </TabsContent>
-      </Tabs>
+      </Tabs>,
     )
 
     const content = screen.getByText('Content')
@@ -199,7 +199,7 @@ describe('Tabs', () => {
         </TabsList>
         <TabsContent value="tab1">Content 1</TabsContent>
         <TabsContent value="tab2">Content 2</TabsContent>
-      </Tabs>
+      </Tabs>,
     )
 
     // No content should be visible with empty default value

@@ -36,12 +36,16 @@ jest.mock('@/contexts/I18nContext', () => ({
         'generation.resultModal.copied': 'Copied',
         'generation.resultModal.generatedText': 'Generated Text',
         'generation.resultModal.error': 'Error:',
-        'generation.resultModal.runningMessage': 'Generation is currently running. Please check back later.',
-        'generation.resultModal.pendingMessage': 'Generation is queued and will start soon.',
-        'generation.resultModal.noResultMessage': 'No result available for this generation.',
+        'generation.resultModal.runningMessage':
+          'Generation is currently running. Please check back later.',
+        'generation.resultModal.pendingMessage':
+          'Generation is queued and will start soon.',
+        'generation.resultModal.noResultMessage':
+          'No result available for this generation.',
         'generation.resultModal.noResultsFound': 'No generation results found',
         'generation.resultModal.viewPrompt': 'View Prompt Used',
-        'generation.resultModal.noPromptStored': 'No prompt data stored for this generation. Re-run to capture prompt.',
+        'generation.resultModal.noPromptStored':
+          'No prompt data stored for this generation. Re-run to capture prompt.',
         'generation.resultModal.viewParameters': 'View Generation Parameters',
         'generation.resultModal.close': 'Close',
         'generation.resultModal.default': 'default',
@@ -130,7 +134,7 @@ describe('GenerationResultModal Component', () => {
           modelId="gpt-4"
           onClose={mockOnClose}
           result={mockCompletedResult}
-        />
+        />,
       )
 
       expect(screen.getByText('Generation Result')).toBeInTheDocument()
@@ -144,7 +148,7 @@ describe('GenerationResultModal Component', () => {
           modelId="gpt-4"
           onClose={mockOnClose}
           result={mockCompletedResult}
-        />
+        />,
       )
 
       expect(screen.queryByText('Generation Result')).not.toBeInTheDocument()
@@ -159,7 +163,7 @@ describe('GenerationResultModal Component', () => {
           modelId="gpt-4"
           onClose={mockOnClose}
           result={mockCompletedResult}
-        />
+        />,
       )
 
       const closeButtons = screen.getAllByRole('button', { name: /close/i })
@@ -177,7 +181,7 @@ describe('GenerationResultModal Component', () => {
           modelId="gpt-4"
           onClose={mockOnClose}
           result={mockCompletedResult}
-        />
+        />,
       )
 
       const closeButtons = screen.getAllByRole('button', { name: /close/i })
@@ -198,7 +202,7 @@ describe('GenerationResultModal Component', () => {
           taskId="task-123"
           modelId="gpt-4"
           onClose={mockOnClose}
-        />
+        />,
       )
 
       expect(screen.getByText('Loading...')).toBeInTheDocument()
@@ -217,12 +221,12 @@ describe('GenerationResultModal Component', () => {
           taskId="task-123"
           modelId="gpt-4"
           onClose={mockOnClose}
-        />
+        />,
       )
 
       await waitFor(() => {
         expect(mockApiClient.get).toHaveBeenCalledWith(
-          '/generation-tasks/generation-result?task_id=task-123&model_id=gpt-4'
+          '/generation-tasks/generation-result?task_id=task-123&model_id=gpt-4',
         )
       })
     })
@@ -235,12 +239,12 @@ describe('GenerationResultModal Component', () => {
           modelId="gpt-4"
           onClose={mockOnClose}
           result={mockCompletedResult}
-        />
+        />,
       )
 
       expect(mockApiClient.get).not.toHaveBeenCalled()
       expect(
-        screen.getByText('This is the generated text response.')
+        screen.getByText('This is the generated text response.'),
       ).toBeInTheDocument()
     })
 
@@ -254,13 +258,13 @@ describe('GenerationResultModal Component', () => {
           taskId="task-123"
           modelId="gpt-4"
           onClose={mockOnClose}
-        />
+        />,
       )
 
       await waitFor(() => {
         expect(consoleError).toHaveBeenCalledWith(
           'Failed to fetch generation results:',
-          expect.any(Error)
+          expect.any(Error),
         )
       })
 
@@ -277,7 +281,7 @@ describe('GenerationResultModal Component', () => {
           modelId="gpt-4"
           onClose={mockOnClose}
           result={mockCompletedResult}
-        />
+        />,
       )
 
       expect(screen.getByText('Generation Result')).toBeInTheDocument()
@@ -291,7 +295,7 @@ describe('GenerationResultModal Component', () => {
           modelId="gpt-4"
           onClose={mockOnClose}
           result={mockCompletedResult}
-        />
+        />,
       )
 
       expect(screen.getByText('gpt-4')).toBeInTheDocument()
@@ -306,7 +310,7 @@ describe('GenerationResultModal Component', () => {
           modelId="gpt-4"
           onClose={mockOnClose}
           result={mockCompletedResult}
-        />
+        />,
       )
 
       expect(screen.getByText(/task-123/)).toBeInTheDocument()
@@ -325,7 +329,7 @@ describe('GenerationResultModal Component', () => {
           modelId="gpt-4"
           onClose={mockOnClose}
           result={result1}
-        />
+        />,
       )
 
       // When only one result is provided, structure tabs are not shown
@@ -346,7 +350,7 @@ describe('GenerationResultModal Component', () => {
           modelId="gpt-4"
           onClose={mockOnClose}
           result={resultWithoutStructure}
-        />
+        />,
       )
 
       expect(screen.queryByText('Structure:')).not.toBeInTheDocument()
@@ -362,7 +366,7 @@ describe('GenerationResultModal Component', () => {
           modelId="gpt-4"
           onClose={mockOnClose}
           result={mockCompletedResult}
-        />
+        />,
       )
 
       const statusBadge = screen.getByText('completed')
@@ -377,7 +381,7 @@ describe('GenerationResultModal Component', () => {
           modelId="gpt-4"
           onClose={mockOnClose}
           result={mockFailedResult}
-        />
+        />,
       )
 
       const statusBadge = screen.getByText('failed')
@@ -392,7 +396,7 @@ describe('GenerationResultModal Component', () => {
           modelId="gpt-4"
           onClose={mockOnClose}
           result={mockRunningResult}
-        />
+        />,
       )
 
       const statusBadge = screen.getByText('running')
@@ -407,7 +411,7 @@ describe('GenerationResultModal Component', () => {
           modelId="gpt-4"
           onClose={mockOnClose}
           result={mockPendingResult}
-        />
+        />,
       )
 
       const statusBadge = screen.getByText('pending')
@@ -424,7 +428,7 @@ describe('GenerationResultModal Component', () => {
           modelId="gpt-4"
           onClose={mockOnClose}
           result={mockCompletedResult}
-        />
+        />,
       )
 
       expect(screen.getByText('Generated at:')).toBeInTheDocument()
@@ -439,7 +443,7 @@ describe('GenerationResultModal Component', () => {
           modelId="gpt-4"
           onClose={mockOnClose}
           result={mockCompletedResult}
-        />
+        />,
       )
 
       expect(screen.getByText('Generation time:')).toBeInTheDocument()
@@ -458,7 +462,7 @@ describe('GenerationResultModal Component', () => {
           modelId="gpt-4"
           onClose={mockOnClose}
           result={resultWithPreciseTime}
-        />
+        />,
       )
 
       expect(screen.getByText('1.23 seconds')).toBeInTheDocument()
@@ -476,7 +480,7 @@ describe('GenerationResultModal Component', () => {
           modelId="gpt-4"
           onClose={mockOnClose}
           result={resultWithoutTimestamp}
-        />
+        />,
       )
 
       expect(screen.queryByText('Generated at:')).not.toBeInTheDocument()
@@ -494,7 +498,7 @@ describe('GenerationResultModal Component', () => {
           modelId="gpt-4"
           onClose={mockOnClose}
           result={resultWithoutTime}
-        />
+        />,
       )
 
       expect(screen.queryByText('Generation time:')).not.toBeInTheDocument()
@@ -510,7 +514,7 @@ describe('GenerationResultModal Component', () => {
           modelId="gpt-4"
           onClose={mockOnClose}
           result={mockCompletedResult}
-        />
+        />,
       )
 
       expect(screen.getByText('Formatted')).toBeInTheDocument()
@@ -525,7 +529,7 @@ describe('GenerationResultModal Component', () => {
           modelId="gpt-4"
           onClose={mockOnClose}
           result={mockCompletedResult}
-        />
+        />,
       )
 
       const formattedButton = screen.getByText('Formatted')
@@ -541,7 +545,7 @@ describe('GenerationResultModal Component', () => {
           modelId="gpt-4"
           onClose={mockOnClose}
           result={mockCompletedResult}
-        />
+        />,
       )
 
       const rawButton = screen.getByText('Raw JSON')
@@ -560,11 +564,11 @@ describe('GenerationResultModal Component', () => {
           modelId="gpt-4"
           onClose={mockOnClose}
           result={mockCompletedResult}
-        />
+        />,
       )
 
       expect(
-        screen.getByText('This is the generated text response.')
+        screen.getByText('This is the generated text response.'),
       ).toBeInTheDocument()
     })
 
@@ -577,7 +581,7 @@ describe('GenerationResultModal Component', () => {
           modelId="gpt-4"
           onClose={mockOnClose}
           result={mockCompletedResult}
-        />
+        />,
       )
 
       const rawButton = screen.getByText('Raw JSON')
@@ -598,7 +602,7 @@ describe('GenerationResultModal Component', () => {
           modelId="gpt-4"
           onClose={mockOnClose}
           result={mockCompletedResult}
-        />
+        />,
       )
 
       expect(screen.getByText('Copy')).toBeInTheDocument()
@@ -612,7 +616,7 @@ describe('GenerationResultModal Component', () => {
           modelId="gpt-4"
           onClose={mockOnClose}
           result={mockCompletedResult}
-        />
+        />,
       )
 
       // Find the copy button by its icon and text structure
@@ -620,7 +624,7 @@ describe('GenerationResultModal Component', () => {
       const copyButton = copyButtons.find(
         (btn) =>
           btn.textContent?.includes('Copy') &&
-          !btn.textContent.includes('Copied')
+          !btn.textContent.includes('Copied'),
       )
       expect(copyButton).toBeDefined()
 
@@ -628,7 +632,7 @@ describe('GenerationResultModal Component', () => {
 
       await waitFor(() => {
         expect(mockWriteText).toHaveBeenCalledWith(
-          'This is the generated text response.'
+          'This is the generated text response.',
         )
       })
     })
@@ -641,7 +645,7 @@ describe('GenerationResultModal Component', () => {
           modelId="gpt-4"
           onClose={mockOnClose}
           result={mockCompletedResult}
-        />
+        />,
       )
 
       const rawButton = screen.getByText('Raw JSON')
@@ -652,7 +656,7 @@ describe('GenerationResultModal Component', () => {
       const copyButton = copyButtons.find(
         (btn) =>
           btn.textContent?.includes('Copy') &&
-          !btn.textContent.includes('Copied')
+          !btn.textContent.includes('Copied'),
       )
       expect(copyButton).toBeDefined()
 
@@ -660,7 +664,7 @@ describe('GenerationResultModal Component', () => {
 
       await waitFor(() => {
         expect(mockWriteText).toHaveBeenCalledWith(
-          expect.stringContaining('"generated_text"')
+          expect.stringContaining('"generated_text"'),
         )
       })
     })
@@ -674,7 +678,7 @@ describe('GenerationResultModal Component', () => {
           modelId="gpt-4"
           onClose={mockOnClose}
           result={mockCompletedResult}
-        />
+        />,
       )
 
       const copyButton = screen.getByText('Copy')
@@ -696,7 +700,7 @@ describe('GenerationResultModal Component', () => {
           modelId="gpt-4"
           onClose={mockOnClose}
           result={mockCompletedResult}
-        />
+        />,
       )
 
       const copyButton = screen.getByText('Copy')
@@ -736,7 +740,7 @@ describe('GenerationResultModal Component', () => {
           modelId="gpt-4"
           onClose={mockOnClose}
           result={mockCompletedResult}
-        />
+        />,
       )
 
       const copyButton = screen.getByText('Copy')
@@ -745,7 +749,7 @@ describe('GenerationResultModal Component', () => {
       await waitFor(() => {
         expect(consoleError).toHaveBeenCalledWith(
           'Failed to copy to clipboard:',
-          expect.any(Error)
+          expect.any(Error),
         )
       })
 
@@ -762,12 +766,12 @@ describe('GenerationResultModal Component', () => {
           modelId="gpt-4"
           onClose={mockOnClose}
           result={mockCompletedResult}
-        />
+        />,
       )
 
       expect(screen.getByText('Generated Text')).toBeInTheDocument()
       expect(
-        screen.getByText('This is the generated text response.')
+        screen.getByText('This is the generated text response.'),
       ).toBeInTheDocument()
     })
 
@@ -787,7 +791,7 @@ describe('GenerationResultModal Component', () => {
           modelId="gpt-4"
           onClose={mockOnClose}
           result={resultWithGeneratedText}
-        />
+        />,
       )
 
       expect(screen.getByText('Special generated text')).toBeInTheDocument()
@@ -806,7 +810,7 @@ describe('GenerationResultModal Component', () => {
           modelId="gpt-4"
           onClose={mockOnClose}
           result={stringResult}
-        />
+        />,
       )
 
       expect(screen.getByText('Simple string result')).toBeInTheDocument()
@@ -825,7 +829,7 @@ describe('GenerationResultModal Component', () => {
           modelId="gpt-4"
           onClose={mockOnClose}
           result={numberResult}
-        />
+        />,
       )
 
       expect(screen.getByText('42')).toBeInTheDocument()
@@ -844,7 +848,7 @@ describe('GenerationResultModal Component', () => {
           modelId="gpt-4"
           onClose={mockOnClose}
           result={booleanResult}
-        />
+        />,
       )
 
       expect(screen.getByText('true')).toBeInTheDocument()
@@ -863,7 +867,7 @@ describe('GenerationResultModal Component', () => {
           modelId="gpt-4"
           onClose={mockOnClose}
           result={arrayResult}
-        />
+        />,
       )
 
       expect(screen.getByText(/item1/)).toBeInTheDocument()
@@ -885,7 +889,7 @@ describe('GenerationResultModal Component', () => {
           modelId="gpt-4"
           onClose={mockOnClose}
           result={objectResult}
-        />
+        />,
       )
 
       expect(screen.getByText(/key1: value1/)).toBeInTheDocument()
@@ -901,7 +905,7 @@ describe('GenerationResultModal Component', () => {
           modelId="gpt-4"
           onClose={mockOnClose}
           result={mockFailedResult}
-        />
+        />,
       )
 
       expect(screen.getByText('Error:')).toBeInTheDocument()
@@ -916,7 +920,7 @@ describe('GenerationResultModal Component', () => {
           modelId="gpt-4"
           onClose={mockOnClose}
           result={mockFailedResult}
-        />
+        />,
       )
 
       const errorText = screen.getByText('API rate limit exceeded')
@@ -933,11 +937,11 @@ describe('GenerationResultModal Component', () => {
           modelId="gpt-4"
           onClose={mockOnClose}
           result={mockRunningResult}
-        />
+        />,
       )
 
       expect(
-        screen.getByText(/Generation is currently running/)
+        screen.getByText(/Generation is currently running/),
       ).toBeInTheDocument()
     })
 
@@ -949,7 +953,7 @@ describe('GenerationResultModal Component', () => {
           modelId="gpt-4"
           onClose={mockOnClose}
           result={mockRunningResult}
-        />
+        />,
       )
 
       const runningText = screen.getByText(/Generation is currently running/)
@@ -966,7 +970,7 @@ describe('GenerationResultModal Component', () => {
           modelId="gpt-4"
           onClose={mockOnClose}
           result={mockPendingResult}
-        />
+        />,
       )
 
       expect(screen.getByText(/Generation is queued/)).toBeInTheDocument()
@@ -980,7 +984,7 @@ describe('GenerationResultModal Component', () => {
           modelId="gpt-4"
           onClose={mockOnClose}
           result={mockPendingResult}
-        />
+        />,
       )
 
       const pendingText = screen.getByText(/Generation is queued/)
@@ -997,7 +1001,7 @@ describe('GenerationResultModal Component', () => {
           modelId="gpt-4"
           onClose={mockOnClose}
           result={mockCompletedResult}
-        />
+        />,
       )
 
       expect(screen.getByText('View Prompt Used')).toBeInTheDocument()
@@ -1012,7 +1016,7 @@ describe('GenerationResultModal Component', () => {
           modelId="gpt-4"
           onClose={mockOnClose}
           result={mockCompletedResult}
-        />
+        />,
       )
 
       const promptSummary = screen.getByText('View Prompt Used')
@@ -1020,7 +1024,7 @@ describe('GenerationResultModal Component', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('Generate a response for this prompt')
+          screen.getByText('Generate a response for this prompt'),
         ).toBeInTheDocument()
       })
     })
@@ -1037,11 +1041,13 @@ describe('GenerationResultModal Component', () => {
           modelId="gpt-4"
           onClose={mockOnClose}
           result={resultWithoutPrompt}
-        />
+        />,
       )
 
       expect(screen.getByText('View Prompt Used')).toBeInTheDocument()
-      expect(screen.getByText(/No prompt data stored|Keine Prompt-Daten/)).toBeInTheDocument()
+      expect(
+        screen.getByText(/No prompt data stored|Keine Prompt-Daten/),
+      ).toBeInTheDocument()
     })
   })
 
@@ -1054,7 +1060,7 @@ describe('GenerationResultModal Component', () => {
           modelId="gpt-4"
           onClose={mockOnClose}
           result={mockCompletedResult}
-        />
+        />,
       )
 
       expect(screen.getByText('View Generation Parameters')).toBeInTheDocument()
@@ -1069,7 +1075,7 @@ describe('GenerationResultModal Component', () => {
           modelId="gpt-4"
           onClose={mockOnClose}
           result={mockCompletedResult}
-        />
+        />,
       )
 
       const paramsSummary = screen.getByText('View Generation Parameters')
@@ -1089,11 +1095,11 @@ describe('GenerationResultModal Component', () => {
           modelId="gpt-4"
           onClose={mockOnClose}
           result={resultWithoutParams}
-        />
+        />,
       )
 
       expect(
-        screen.queryByText('View Generation Parameters')
+        screen.queryByText('View Generation Parameters'),
       ).not.toBeInTheDocument()
     })
 
@@ -1109,11 +1115,11 @@ describe('GenerationResultModal Component', () => {
           modelId="gpt-4"
           onClose={mockOnClose}
           result={resultWithoutParams}
-        />
+        />,
       )
 
       expect(
-        screen.queryByText('View Generation Parameters')
+        screen.queryByText('View Generation Parameters'),
       ).not.toBeInTheDocument()
     })
   })
@@ -1132,12 +1138,12 @@ describe('GenerationResultModal Component', () => {
           taskId="task-123"
           modelId="gpt-4"
           onClose={mockOnClose}
-        />
+        />,
       )
 
       await waitFor(() => {
         expect(
-          screen.getByText('No generation results found')
+          screen.getByText('No generation results found'),
         ).toBeInTheDocument()
       })
     })
@@ -1152,7 +1158,7 @@ describe('GenerationResultModal Component', () => {
           modelId="gpt-4"
           onClose={mockOnClose}
           result={mockCompletedResult}
-        />
+        />,
       )
 
       expect(screen.getByRole('dialog')).toBeInTheDocument()
@@ -1166,7 +1172,7 @@ describe('GenerationResultModal Component', () => {
           modelId="gpt-4"
           onClose={mockOnClose}
           result={mockCompletedResult}
-        />
+        />,
       )
 
       const closeButtons = screen.getAllByRole('button', { name: /close/i })
@@ -1181,11 +1187,11 @@ describe('GenerationResultModal Component', () => {
           modelId="gpt-4"
           onClose={mockOnClose}
           result={mockCompletedResult}
-        />
+        />,
       )
 
       expect(
-        screen.getByRole('heading', { name: 'Generation Result' })
+        screen.getByRole('heading', { name: 'Generation Result' }),
       ).toBeInTheDocument()
     })
   })
@@ -1242,7 +1248,7 @@ describe('GenerationResultModal Component', () => {
           modelId="gpt-4"
           onClose={mockOnClose}
           result={mockCompletedResult}
-        />
+        />,
       )
 
       expect(screen.getByText('Current')).toBeInTheDocument()
@@ -1262,11 +1268,13 @@ describe('GenerationResultModal Component', () => {
           taskId="task-123"
           modelId="gpt-4"
           onClose={mockOnClose}
-        />
+        />,
       )
 
       await waitFor(() => {
-        expect(screen.getByText('No generation results found')).toBeInTheDocument()
+        expect(
+          screen.getByText('No generation results found'),
+        ).toBeInTheDocument()
       })
 
       expect(screen.queryByText('Current')).not.toBeInTheDocument()
@@ -1288,7 +1296,7 @@ describe('GenerationResultModal Component', () => {
           taskId="task-123"
           modelId="gpt-4"
           onClose={mockOnClose}
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -1321,7 +1329,7 @@ describe('GenerationResultModal Component', () => {
           taskId="task-123"
           modelId="gpt-4"
           onClose={mockOnClose}
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -1332,7 +1340,9 @@ describe('GenerationResultModal Component', () => {
 
       await waitFor(() => {
         // Status badges visible (multiple "completed" entries, so use getAllByText)
-        expect(screen.getAllByText('completed').length).toBeGreaterThanOrEqual(1)
+        expect(screen.getAllByText('completed').length).toBeGreaterThanOrEqual(
+          1,
+        )
         expect(screen.getAllByText('failed').length).toBeGreaterThanOrEqual(1)
       })
 
@@ -1356,7 +1366,7 @@ describe('GenerationResultModal Component', () => {
           taskId="task-123"
           modelId="gpt-4"
           onClose={mockOnClose}
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -1387,7 +1397,7 @@ describe('GenerationResultModal Component', () => {
           taskId="task-123"
           modelId="gpt-4"
           onClose={mockOnClose}
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -1402,9 +1412,9 @@ describe('GenerationResultModal Component', () => {
       })
 
       // Click the first disclosure button (contains "(current)" label) to expand it
-      const disclosureButtons = screen.getAllByRole('button').filter(
-        (btn) => btn.textContent?.includes('(current)')
-      )
+      const disclosureButtons = screen
+        .getAllByRole('button')
+        .filter((btn) => btn.textContent?.includes('(current)'))
       expect(disclosureButtons.length).toBeGreaterThan(0)
 
       await user.click(disclosureButtons[0])
@@ -1434,7 +1444,7 @@ describe('GenerationResultModal Component', () => {
           taskId="task-123"
           modelId="gpt-4"
           onClose={mockOnClose}
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -1444,7 +1454,9 @@ describe('GenerationResultModal Component', () => {
       fireEvent.click(screen.getByText('History'))
 
       await waitFor(() => {
-        expect(screen.getByText('No generation history available')).toBeInTheDocument()
+        expect(
+          screen.getByText('No generation history available'),
+        ).toBeInTheDocument()
       })
     })
   })

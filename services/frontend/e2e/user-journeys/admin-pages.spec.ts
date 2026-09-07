@@ -188,9 +188,7 @@ test.describe('Admin Pages', () => {
       if (filteredCount > 0) {
         const rowText = await page.locator('table tbody').textContent()
         const hasMatch =
-          rowText
-            ?.toLowerCase()
-            .includes(searchTerm.toLowerCase()) ||
+          rowText?.toLowerCase().includes(searchTerm.toLowerCase()) ||
           rowText?.includes('No feature flags found')
         expect(hasMatch).toBe(true)
       }
@@ -320,7 +318,7 @@ test.describe('Admin Pages', () => {
       // The redirect strips /admin prefix
       expect(
         url.includes('/users-organizations') &&
-          !url.includes('/admin/users-organizations')
+          !url.includes('/admin/users-organizations'),
       ).toBe(true)
     }).toPass({ timeout: 15000 })
   })

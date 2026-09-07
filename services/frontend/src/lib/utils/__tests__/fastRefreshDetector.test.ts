@@ -41,7 +41,7 @@ describe('FastRefreshDetector', () => {
       })
 
       expect(
-        (window as any).__REACT_REFRESH_RUNTIME__.performReactRefresh
+        (window as any).__REACT_REFRESH_RUNTIME__.performReactRefresh,
       ).toBe(mockPerformRefresh)
     })
 
@@ -58,10 +58,10 @@ describe('FastRefreshDetector', () => {
       })
 
       expect(
-        (window as any).__REACT_REFRESH_RUNTIME__.performReactRefresh
+        (window as any).__REACT_REFRESH_RUNTIME__.performReactRefresh,
       ).not.toBe(mockPerformRefresh)
       expect(
-        typeof (window as any).__REACT_REFRESH_RUNTIME__.performReactRefresh
+        typeof (window as any).__REACT_REFRESH_RUNTIME__.performReactRefresh,
       ).toBe('function')
     })
 
@@ -177,7 +177,7 @@ describe('FastRefreshDetector', () => {
       const afterTime = Date.now()
 
       const handledTime = sessionStorage.getItem(
-        'fast_refresh_handled_TestComponent'
+        'fast_refresh_handled_TestComponent',
       )
       expect(handledTime).toBeTruthy()
 
@@ -191,10 +191,10 @@ describe('FastRefreshDetector', () => {
       fastRefreshDetector.markHandled('Component2')
 
       expect(
-        sessionStorage.getItem('fast_refresh_handled_Component1')
+        sessionStorage.getItem('fast_refresh_handled_Component1'),
       ).toBeTruthy()
       expect(
-        sessionStorage.getItem('fast_refresh_handled_Component2')
+        sessionStorage.getItem('fast_refresh_handled_Component2'),
       ).toBeTruthy()
     })
 
@@ -212,7 +212,7 @@ describe('FastRefreshDetector', () => {
       const recentTime = Date.now() - 1000
       sessionStorage.setItem(
         'fast_refresh_handled_TestComponent',
-        String(recentTime)
+        String(recentTime),
       )
 
       expect(fastRefreshDetector.hasBeenHandled('TestComponent')).toBe(true)
@@ -222,7 +222,7 @@ describe('FastRefreshDetector', () => {
       const oldTime = Date.now() - 3000
       sessionStorage.setItem(
         'fast_refresh_handled_TestComponent',
-        String(oldTime)
+        String(oldTime),
       )
 
       expect(fastRefreshDetector.hasBeenHandled('TestComponent')).toBe(false)
@@ -232,7 +232,7 @@ describe('FastRefreshDetector', () => {
       const recentTime = Date.now() - 1000
       sessionStorage.setItem(
         'fast_refresh_handled_Component1',
-        String(recentTime)
+        String(recentTime),
       )
 
       expect(fastRefreshDetector.hasBeenHandled('Component1')).toBe(true)

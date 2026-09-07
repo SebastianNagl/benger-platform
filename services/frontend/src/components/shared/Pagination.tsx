@@ -5,9 +5,15 @@
  * previous/next buttons, and page size selector
  */
 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/shared/Select'
 import { useI18n } from '@/contexts/I18nContext'
 import { cn } from '@/lib/utils'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/shared/Select'
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline'
 
 interface PaginationProps {
@@ -71,14 +77,18 @@ export function Pagination({
     totalItems === 0 ? 0 : ((currentPage || 1) - 1) * (pageSize || 10) + 1
   const endItem = Math.min(
     (currentPage || 1) * (pageSize || 10),
-    totalItems || 0
+    totalItems || 0,
   )
 
   return (
     <div className={cn('flex items-center justify-between', className)}>
       {/* Results info */}
       <div className="text-sm text-zinc-600 dark:text-zinc-400">
-        {t('common.pagination.showingResults', { start: String(startItem), end: String(endItem), total: String(totalItems) })}
+        {t('common.pagination.showingResults', {
+          start: String(startItem),
+          end: String(endItem),
+          total: String(totalItems),
+        })}
       </div>
 
       <div className="flex items-center gap-4">
@@ -91,7 +101,10 @@ export function Pagination({
             value={pageSize.toString()}
             onValueChange={(v) => onPageSizeChange(Number(v))}
           >
-            <SelectTrigger className="w-20" aria-label={t('common.pagination.perPage')}>
+            <SelectTrigger
+              className="w-20"
+              aria-label={t('common.pagination.perPage')}
+            >
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -114,7 +127,7 @@ export function Pagination({
               'inline-flex items-center rounded-md px-2 py-2 text-sm font-medium',
               currentPage === 1
                 ? 'cursor-not-allowed text-zinc-400 dark:text-zinc-600'
-                : 'text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800'
+                : 'text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800',
             )}
             aria-label={t('common.pagination.previousPage')}
           >
@@ -145,9 +158,11 @@ export function Pagination({
                   'inline-flex items-center rounded-md px-3 py-2 text-sm font-medium',
                   isActive
                     ? 'bg-emerald-600 text-white'
-                    : 'text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800'
+                    : 'text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800',
                 )}
-                aria-label={t('shared.pagination.goToPage', { page: String(pageNumber) })}
+                aria-label={t('shared.pagination.goToPage', {
+                  page: String(pageNumber),
+                })}
                 aria-current={isActive ? 'page' : undefined}
               >
                 {pageNumber}
@@ -163,7 +178,7 @@ export function Pagination({
               'inline-flex items-center rounded-md px-2 py-2 text-sm font-medium',
               currentPage === totalPages
                 ? 'cursor-not-allowed text-zinc-400 dark:text-zinc-600'
-                : 'text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800'
+                : 'text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800',
             )}
             aria-label={t('common.pagination.nextPage')}
           >

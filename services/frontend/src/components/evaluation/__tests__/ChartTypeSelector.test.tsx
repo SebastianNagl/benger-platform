@@ -120,9 +120,7 @@ describe('ChartTypeSelector', () => {
     it('calls onChange when chart type is selected', async () => {
       const user = userEvent.setup()
       const onChange = jest.fn()
-      render(
-        <ChartTypeSelector selectedType="bar" onChange={onChange} />
-      )
+      render(<ChartTypeSelector selectedType="bar" onChange={onChange} />)
 
       await user.click(screen.getByText('Bar Chart'))
       await user.click(screen.getByText('Radar Chart'))
@@ -150,7 +148,7 @@ describe('ChartTypeSelector', () => {
 
       expect(localStorageMock.setItem).toHaveBeenCalledWith(
         'benger-preferred-chart-type',
-        'radar'
+        'radar',
       )
     })
   })
@@ -162,7 +160,7 @@ describe('ChartTypeSelector', () => {
         <ChartTypeSelector
           {...defaultProps}
           availableTypes={['bar', 'data']}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Bar Chart'))
@@ -180,16 +178,13 @@ describe('ChartTypeSelector', () => {
           {...defaultProps}
           disabledTypes={['heatmap']}
           disabledReasons={{ heatmap: 'Requires multiple models' }}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Bar Chart'))
 
       const heatmapButton = screen.getByText('Heatmap').closest('button')
-      expect(heatmapButton).toHaveAttribute(
-        'title',
-        'Requires multiple models'
-      )
+      expect(heatmapButton).toHaveAttribute('title', 'Requires multiple models')
       expect(heatmapButton).toBeDisabled()
     })
 
@@ -201,7 +196,7 @@ describe('ChartTypeSelector', () => {
           selectedType="bar"
           onChange={onChange}
           disabledTypes={['heatmap']}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Bar Chart'))
@@ -219,7 +214,7 @@ describe('ChartTypeSelector', () => {
         <div>
           <ChartTypeSelector {...defaultProps} />
           <div data-testid="outside">Outside</div>
-        </div>
+        </div>,
       )
 
       await user.click(screen.getByText('Bar Chart'))

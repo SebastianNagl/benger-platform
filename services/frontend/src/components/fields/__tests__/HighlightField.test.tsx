@@ -15,7 +15,10 @@ import { HighlightField } from '../HighlightField'
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
     t: (key: string, varsOrDefault?: any) => {
-      const translations: Record<string, any> = require('../../../locales/en/common.json')
+      const translations: Record<
+        string,
+        any
+      > = require('../../../locales/en/common.json')
       const parts = key.split('.')
       let value: any = translations
       for (const part of parts) {
@@ -92,7 +95,7 @@ describe('HighlightField', () => {
       render(<HighlightField {...defaultProps} />)
 
       expect(
-        screen.getByText('This is a sample text for highlighting purposes.')
+        screen.getByText('This is a sample text for highlighting purposes.'),
       ).toBeInTheDocument()
     })
 
@@ -109,8 +112,8 @@ describe('HighlightField', () => {
 
       expect(
         screen.getByText(
-          'Select text to highlight. Click highlighted text to remove.'
-        )
+          'Select text to highlight. Click highlighted text to remove.',
+        ),
       ).toBeInTheDocument()
     })
 
@@ -119,8 +122,8 @@ describe('HighlightField', () => {
 
       expect(
         screen.queryByText(
-          'Select text to highlight. Click highlighted text to remove.'
-        )
+          'Select text to highlight. Click highlighted text to remove.',
+        ),
       ).not.toBeInTheDocument()
     })
 
@@ -133,7 +136,7 @@ describe('HighlightField', () => {
       render(<HighlightField {...defaultProps} field={fieldWithoutText} />)
 
       expect(
-        screen.getByText('No text provided for highlighting')
+        screen.getByText('No text provided for highlighting'),
       ).toBeInTheDocument()
     })
   })
@@ -147,7 +150,7 @@ describe('HighlightField', () => {
         <div>
           <p id="outside">Outside text</p>
           <HighlightField {...defaultProps} />
-        </div>
+        </div>,
       )
 
       const outsideElement = document.getElementById('outside')
@@ -226,7 +229,7 @@ describe('HighlightField', () => {
       // Container should include the remaining text
       const container = document.getElementById('highlight-highlights')
       expect(container?.textContent).toContain(
-        'sample text for highlighting purposes'
+        'sample text for highlighting purposes',
       )
     })
   })
@@ -254,7 +257,7 @@ describe('HighlightField', () => {
       ]
 
       render(
-        <HighlightField {...defaultProps} value={highlights} readonly={true} />
+        <HighlightField {...defaultProps} value={highlights} readonly={true} />,
       )
 
       const highlight = screen.getByText('This')
@@ -285,7 +288,7 @@ describe('HighlightField', () => {
       ]
 
       render(
-        <HighlightField {...defaultProps} value={highlights} readonly={true} />
+        <HighlightField {...defaultProps} value={highlights} readonly={true} />,
       )
 
       const removeButtons = screen.queryAllByRole('button', { name: /remove/i })
@@ -359,7 +362,7 @@ describe('HighlightField', () => {
       ]
 
       render(
-        <HighlightField {...defaultProps} value={highlights} readonly={true} />
+        <HighlightField {...defaultProps} value={highlights} readonly={true} />,
       )
 
       const highlight = screen.getByText('This')
@@ -392,7 +395,7 @@ describe('HighlightField', () => {
       render(<HighlightField {...defaultProps} value={[]} />)
 
       expect(
-        screen.getByText('This is a sample text for highlighting purposes.')
+        screen.getByText('This is a sample text for highlighting purposes.'),
       ).toBeInTheDocument()
     })
 
@@ -400,7 +403,7 @@ describe('HighlightField', () => {
       render(<HighlightField {...defaultProps} value={null as any} />)
 
       expect(
-        screen.getByText('This is a sample text for highlighting purposes.')
+        screen.getByText('This is a sample text for highlighting purposes.'),
       ).toBeInTheDocument()
     })
 
@@ -408,7 +411,7 @@ describe('HighlightField', () => {
       render(<HighlightField {...defaultProps} value={undefined as any} />)
 
       expect(
-        screen.getByText('This is a sample text for highlighting purposes.')
+        screen.getByText('This is a sample text for highlighting purposes.'),
       ).toBeInTheDocument()
     })
 
@@ -416,7 +419,7 @@ describe('HighlightField', () => {
       render(<HighlightField {...defaultProps} value={'invalid' as any} />)
 
       expect(
-        screen.getByText('This is a sample text for highlighting purposes.')
+        screen.getByText('This is a sample text for highlighting purposes.'),
       ).toBeInTheDocument()
     })
 
@@ -520,7 +523,7 @@ describe('HighlightField', () => {
   describe('Custom Class Name', () => {
     it('applies custom className to field wrapper', () => {
       render(
-        <HighlightField {...defaultProps} className="custom-highlight-class" />
+        <HighlightField {...defaultProps} className="custom-highlight-class" />,
       )
 
       const wrapper = screen.getByTestId('field-wrapper')

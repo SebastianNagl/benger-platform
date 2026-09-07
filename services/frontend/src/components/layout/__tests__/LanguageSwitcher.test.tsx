@@ -27,7 +27,7 @@ describe('LanguageSwitcher', () => {
 
       // After mounting, should render interactive button (this tests the actual behavior)
       const button = container.querySelector(
-        'button[data-testid="language-switcher"]'
+        'button[data-testid="language-switcher"]',
       )
       expect(button).toBeInTheDocument()
 
@@ -66,7 +66,7 @@ describe('LanguageSwitcher', () => {
       expect(button).toHaveTextContent('🇩🇪')
       expect(button).toHaveAttribute(
         'aria-label',
-        'Language: Deutsch → English'
+        'Language: Deutsch → English',
       )
     })
 
@@ -82,7 +82,7 @@ describe('LanguageSwitcher', () => {
       expect(button).toHaveTextContent('🇺🇸')
       expect(button).toHaveAttribute(
         'aria-label',
-        'Language: English → Deutsch'
+        'Language: English → Deutsch',
       )
     })
 
@@ -158,7 +158,7 @@ describe('LanguageSwitcher', () => {
         'rounded-md',
         'transition',
         'hover:bg-zinc-900/5',
-        'dark:hover:bg-white/5'
+        'dark:hover:bg-white/5',
       )
     })
 
@@ -171,13 +171,13 @@ describe('LanguageSwitcher', () => {
       const { container } = render(<LanguageSwitcher />)
 
       const touchTarget = container.querySelector(
-        '.size-12.pointer-fine\\:hidden'
+        '.size-12.pointer-fine\\:hidden',
       )
       expect(touchTarget).toBeInTheDocument()
       expect(touchTarget).toHaveClass(
         'absolute',
         'size-12',
-        'pointer-fine:hidden'
+        'pointer-fine:hidden',
       )
     })
 
@@ -207,7 +207,7 @@ describe('LanguageSwitcher', () => {
       const button = screen.getByRole('button')
       expect(button).toHaveAttribute(
         'aria-label',
-        'Language: Deutsch → English'
+        'Language: Deutsch → English',
       )
     })
 
@@ -222,7 +222,7 @@ describe('LanguageSwitcher', () => {
       const button = screen.getByRole('button')
       expect(button).toHaveAttribute(
         'aria-label',
-        'Language: English → Deutsch'
+        'Language: English → Deutsch',
       )
     })
 
@@ -288,7 +288,7 @@ describe('LanguageSwitcher', () => {
       expect(button).toHaveTextContent('🇩🇪') // Falls back to German
       expect(button).toHaveAttribute(
         'aria-label',
-        'Language: Deutsch → English'
+        'Language: Deutsch → English',
       )
     })
 
@@ -352,7 +352,7 @@ describe('LanguageSwitcher', () => {
       const button = screen.getByRole('button')
       expect(button).toHaveAttribute(
         'aria-label',
-        'Language: Deutsch → English'
+        'Language: Deutsch → English',
       )
     })
   })
@@ -437,7 +437,7 @@ describe('LanguageSwitcher', () => {
       let button = screen.getByRole('button')
       expect(button).toHaveAttribute(
         'aria-label',
-        'Language: Deutsch → English'
+        'Language: Deutsch → English',
       )
 
       // Change to English
@@ -451,7 +451,7 @@ describe('LanguageSwitcher', () => {
       button = screen.getByRole('button')
       expect(button).toHaveAttribute(
         'aria-label',
-        'Language: English → Deutsch'
+        'Language: English → Deutsch',
       )
     })
   })

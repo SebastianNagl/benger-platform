@@ -40,7 +40,11 @@ interface ResultDetailsModalProps {
   annotationLoading: boolean
   generationLoading: boolean
   evaluationLoading: boolean
-  onReEvaluate?: (taskId: string, modelId: string, selectedConfigIds: string[]) => void
+  onReEvaluate?: (
+    taskId: string,
+    modelId: string,
+    selectedConfigIds: string[],
+  ) => void
   evaluationConfigs?: Array<{
     id: string
     metric: string
@@ -73,10 +77,14 @@ export function ResultDetailsModal({
 }: ResultDetailsModalProps) {
   const { t } = useI18n()
   const isAnnotatorCell = modelId?.startsWith('annotator:') ?? false
-  const [activeTab, setActiveTab] = useState<'annotation' | 'generation' | 'evaluation'>('annotation')
+  const [activeTab, setActiveTab] = useState<
+    'annotation' | 'generation' | 'evaluation'
+  >('annotation')
   const [copySuccess, setCopySuccess] = useState(false)
   const [selectedStructureIndex, setSelectedStructureIndex] = useState(0)
-  const [selectedEvalConfigIds, setSelectedEvalConfigIds] = useState<Set<string>>(new Set())
+  const [selectedEvalConfigIds, setSelectedEvalConfigIds] = useState<
+    Set<string>
+  >(new Set())
   const [showMetricSelection, setShowMetricSelection] = useState(false)
 
   // Reset structure index, metric selection, and default tab when modal opens
@@ -95,7 +103,12 @@ export function ResultDetailsModal({
   }, [isOpen, generationData, evaluationConfigs, isAnnotatorCell])
 
   const handleCopyToClipboard = async () => {
-    const dataToCopy = activeTab === 'annotation' ? annotationData : activeTab === 'generation' ? generationData : evaluationData
+    const dataToCopy =
+      activeTab === 'annotation'
+        ? annotationData
+        : activeTab === 'generation'
+          ? generationData
+          : evaluationData
     if (!dataToCopy) return
     try {
       await navigator.clipboard.writeText(JSON.stringify(dataToCopy, null, 2))
@@ -129,13 +142,27 @@ export function ResultDetailsModal({
                    * for two different generations of the same (task,
                    * model) — the cell that was about to lie. */}
                   {!isAnnotatorCell && generationData && generationData[0] && (
-                    <> · {t('evaluation.multiFieldResults.generation') ?? 'Generation'}: {
-                      generationData[0].generated_at
-                        ? new Date(generationData[0].generated_at).toLocaleString()
-                        : (generationData[0].generation_id || '').slice(0, 8) + '…'
-                    }</>
+                    <>
+                      {' '}
+                      ·{' '}
+                      {t('evaluation.multiFieldResults.generation') ??
+                        'Generation'}
+                      :{' '}
+                      {generationData[0].generated_at
+                        ? new Date(
+                            generationData[0].generated_at,
+                          ).toLocaleString()
+                        : (generationData[0].generation_id || '').slice(0, 8) +
+                          '…'}
+                    </>
                   )}
-                  {taskId && <> · {t('evaluation.multiFieldResults.task')}: {taskId.slice(0, 8)}…</>}
+                  {taskId && (
+                    <>
+                      {' '}
+                      · {t('evaluation.multiFieldResults.task')}:{' '}
+                      {taskId.slice(0, 8)}…
+                    </>
+                  )}
                 </p>
               )}
             </div>
@@ -144,7 +171,13 @@ export function ResultDetailsModal({
               {/* Copy button */}
               <button
                 onClick={handleCopyToClipboard}
-                disabled={activeTab === 'annotation' ? !annotationData : activeTab === 'generation' ? !generationData : !evaluationData}
+                disabled={
+                  activeTab === 'annotation'
+                    ? !annotationData
+                    : activeTab === 'generation'
+                      ? !generationData
+                      : !evaluationData
+                }
                 className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
                   copySuccess
                     ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
@@ -152,7 +185,9 @@ export function ResultDetailsModal({
                 } disabled:opacity-50`}
               >
                 <ClipboardDocumentIcon className="h-4 w-4" />
-                {copySuccess ? t('evaluation.multiFieldResults.copied') : t('evaluation.multiFieldResults.copyJson')}
+                {copySuccess
+                  ? t('evaluation.multiFieldResults.copied')
+                  : t('evaluation.multiFieldResults.copyJson')}
               </button>
 
               {/* Close button */}
@@ -177,9 +212,12 @@ export function ResultDetailsModal({
                       : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white'
                   }`}
                 >
-                  {t('evaluation.multiFieldResults.annotationResult', 'Annotation Result')}
+                  {t(
+                    'evaluation.multiFieldResults.annotationResult',
+                    'Annotation Result',
+                  )}
                   {activeTab === 'annotation' && (
-                    <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-emerald-600 dark:bg-emerald-400" />
+                    <span className="absolute right-0 bottom-0 left-0 h-0.5 bg-emerald-600 dark:bg-emerald-400" />
                   )}
                 </button>
               )}
@@ -194,7 +232,7 @@ export function ResultDetailsModal({
                 >
                   {t('evaluation.multiFieldResults.generationResults')}
                   {activeTab === 'generation' && (
-                    <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-emerald-600 dark:bg-emerald-400" />
+                    <span className="absolute right-0 bottom-0 left-0 h-0.5 bg-emerald-600 dark:bg-emerald-400" />
                   )}
                 </button>
               )}
@@ -208,7 +246,7 @@ export function ResultDetailsModal({
               >
                 {t('evaluation.multiFieldResults.evaluationResults')}
                 {activeTab === 'evaluation' && (
-                  <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-emerald-600 dark:bg-emerald-400" />
+                  <span className="absolute right-0 bottom-0 left-0 h-0.5 bg-emerald-600 dark:bg-emerald-400" />
                 )}
               </button>
             </nav>
@@ -233,63 +271,72 @@ export function ResultDetailsModal({
           {/* Footer */}
           <div className="flex items-center justify-between border-t border-zinc-200 p-4 dark:border-zinc-700">
             <div className="flex items-center gap-3">
-              {onReEvaluate && taskId && modelId && evaluationConfigs.length > 0 && (
-                <>
-                  {showMetricSelection && (
-                    <div className="flex flex-wrap items-center gap-2">
-                      {evaluationConfigs
-                        .filter((c) => c.enabled !== false)
-                        .map((config) => (
-                          <label
-                            key={config.id}
-                            className="flex items-center gap-1.5 rounded-md bg-zinc-50 px-2 py-1 text-xs dark:bg-zinc-800"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={selectedEvalConfigIds.has(config.id)}
-                              onChange={(e) => {
-                                setSelectedEvalConfigIds((prev) => {
-                                  const next = new Set(prev)
-                                  if (e.target.checked) {
-                                    next.add(config.id)
-                                  } else {
-                                    next.delete(config.id)
-                                  }
-                                  return next
-                                })
-                              }}
-                              className="h-3.5 w-3.5 rounded border-zinc-300 text-blue-600 focus:ring-blue-500 dark:border-zinc-600"
-                            />
-                            <span className="text-zinc-700 dark:text-zinc-300">
-                              {config.display_name || config.metric.replace(/_/g, ' ')}
-                            </span>
-                          </label>
-                        ))}
-                    </div>
-                  )}
-                  <div className="flex items-center gap-2">
-                    {evaluationConfigs.filter((c) => c.enabled !== false).length > 1 && (
-                      <button
-                        onClick={() => setShowMetricSelection(!showMetricSelection)}
-                        className="text-xs text-zinc-500 underline hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
-                      >
-                        {t('evaluation.multiFieldResults.selectMetrics')}
-                      </button>
+              {onReEvaluate &&
+                taskId &&
+                modelId &&
+                evaluationConfigs.length > 0 && (
+                  <>
+                    {showMetricSelection && (
+                      <div className="flex flex-wrap items-center gap-2">
+                        {evaluationConfigs
+                          .filter((c) => c.enabled !== false)
+                          .map((config) => (
+                            <label
+                              key={config.id}
+                              className="flex items-center gap-1.5 rounded-md bg-zinc-50 px-2 py-1 text-xs dark:bg-zinc-800"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={selectedEvalConfigIds.has(config.id)}
+                                onChange={(e) => {
+                                  setSelectedEvalConfigIds((prev) => {
+                                    const next = new Set(prev)
+                                    if (e.target.checked) {
+                                      next.add(config.id)
+                                    } else {
+                                      next.delete(config.id)
+                                    }
+                                    return next
+                                  })
+                                }}
+                                className="h-3.5 w-3.5 rounded border-zinc-300 text-blue-600 focus:ring-blue-500 dark:border-zinc-600"
+                              />
+                              <span className="text-zinc-700 dark:text-zinc-300">
+                                {config.display_name ||
+                                  config.metric.replace(/_/g, ' ')}
+                              </span>
+                            </label>
+                          ))}
+                      </div>
                     )}
-                    <button
-                      onClick={() => {
-                        onReEvaluate(taskId, modelId, [...selectedEvalConfigIds])
-                        onClose()
-                      }}
-                      disabled={selectedEvalConfigIds.size === 0}
-                      className="flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-blue-500 dark:hover:bg-blue-600"
-                    >
-                      <ArrowPathIcon className="h-4 w-4" />
-                      {t('evaluation.multiFieldResults.reEvaluate')}
-                    </button>
-                  </div>
-                </>
-              )}
+                    <div className="flex items-center gap-2">
+                      {evaluationConfigs.filter((c) => c.enabled !== false)
+                        .length > 1 && (
+                        <button
+                          onClick={() =>
+                            setShowMetricSelection(!showMetricSelection)
+                          }
+                          className="text-xs text-zinc-500 underline hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
+                        >
+                          {t('evaluation.multiFieldResults.selectMetrics')}
+                        </button>
+                      )}
+                      <button
+                        onClick={() => {
+                          onReEvaluate(taskId, modelId, [
+                            ...selectedEvalConfigIds,
+                          ])
+                          onClose()
+                        }}
+                        disabled={selectedEvalConfigIds.size === 0}
+                        className="flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-blue-500 dark:hover:bg-blue-600"
+                      >
+                        <ArrowPathIcon className="h-4 w-4" />
+                        {t('evaluation.multiFieldResults.reEvaluate')}
+                      </button>
+                    </div>
+                  </>
+                )}
             </div>
             <button
               onClick={onClose}

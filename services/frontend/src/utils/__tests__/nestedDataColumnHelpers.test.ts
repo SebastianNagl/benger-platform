@@ -80,20 +80,20 @@ describe('formatNestedFieldLabel', () => {
   it('should format nested fields with separator', () => {
     expect(formatNestedFieldLabel('parent.child')).toBe('Parent › Child')
     expect(formatNestedFieldLabel('level1.level2.level3')).toBe(
-      'Level1 › Level2 › Level3'
+      'Level1 › Level2 › Level3',
     )
   })
 
   it('should handle array indices', () => {
     expect(formatNestedFieldLabel('items[0]')).toBe('Items [0]')
     expect(formatNestedFieldLabel('data.items[2].name')).toBe(
-      'Data › Items [2] Name' // No separator after array index
+      'Data › Items [2] Name', // No separator after array index
     )
   })
 
   it('should handle complex field names', () => {
     expect(formatNestedFieldLabel('prompts.prompt_clean')).toBe(
-      'Prompts › Prompt Clean'
+      'Prompts › Prompt Clean',
     )
     expect(formatNestedFieldLabel('number/name')).toBe('Number/name')
   })
@@ -186,13 +186,13 @@ describe('extractNestedDataColumns', () => {
 
     // Priority fields should come first
     const promptCleanIndex = columns.findIndex(
-      (c) => c.key === 'prompts.prompt_clean'
+      (c) => c.key === 'prompts.prompt_clean',
     )
     const binarySolutionIndex = columns.findIndex(
-      (c) => c.key === 'binary_solution'
+      (c) => c.key === 'binary_solution',
     )
     const promptEnhancedIndex = columns.findIndex(
-      (c) => c.key === 'prompts.prompt_enhanced'
+      (c) => c.key === 'prompts.prompt_enhanced',
     )
 
     // prompt_clean should come before prompt_enhanced (due to priority)
@@ -413,7 +413,7 @@ describe('Column configuration persistence', () => {
     const columns = ['col1', 'col2', 'col3']
     localStorageMock.setItem(
       'benger_task_columns_config',
-      JSON.stringify({ project123: columns })
+      JSON.stringify({ project123: columns }),
     )
 
     const loaded = loadColumnConfig('project123')
@@ -423,7 +423,7 @@ describe('Column configuration persistence', () => {
   it('should return null for non-existent project', () => {
     localStorageMock.setItem(
       'benger_task_columns_config',
-      JSON.stringify({ other: ['col1'] })
+      JSON.stringify({ other: ['col1'] }),
     )
 
     const loaded = loadColumnConfig('project123')

@@ -117,7 +117,8 @@ export function QuestionCard({
 
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  {t('tasks.questionCard.question')} <span className="text-red-500">*</span>
+                  {t('tasks.questionCard.question')}{' '}
+                  <span className="text-red-500">*</span>
                 </label>
                 <textarea
                   value={localQuestion.question}
@@ -132,7 +133,8 @@ export function QuestionCard({
 
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  {t('tasks.questionCard.referenceAnswer')} <span className="text-red-500">*</span>
+                  {t('tasks.questionCard.referenceAnswer')}{' '}
+                  <span className="text-red-500">*</span>
                 </label>
                 <textarea
                   value={localQuestion.reference_answer || ''}
@@ -141,7 +143,9 @@ export function QuestionCard({
                   }
                   rows={4}
                   className="block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
-                  placeholder={t('tasks.questionCard.placeholderExpectedAnswer')}
+                  placeholder={t(
+                    'tasks.questionCard.placeholderExpectedAnswer',
+                  )}
                 />
               </div>
 
@@ -170,7 +174,7 @@ export function QuestionCard({
                   <p className="mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
                     {t('tasks.questionCard.caseLabel')}
                   </p>
-                  <p className="rounded bg-gray-50 p-2 text-sm italic text-gray-600 dark:bg-gray-700 dark:text-gray-400">
+                  <p className="rounded bg-gray-50 p-2 text-sm text-gray-600 italic dark:bg-gray-700 dark:text-gray-400">
                     {question.case}
                   </p>
                 </div>
@@ -190,7 +194,8 @@ export function QuestionCard({
                   {t('tasks.questionCard.referenceAnswerLabel')}
                 </p>
                 <p className="rounded bg-gray-50 p-2 text-sm text-gray-900 dark:bg-gray-700 dark:text-gray-100">
-                  {question.reference_answer || t('tasks.questionCard.noReferenceAnswer')}
+                  {question.reference_answer ||
+                    t('tasks.questionCard.noReferenceAnswer')}
                 </p>
               </div>
             </div>
@@ -240,7 +245,8 @@ export function QuestionCard({
             <div className="space-y-4">
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  {t('tasks.questionCard.question')} <span className="text-red-500">*</span>
+                  {t('tasks.questionCard.question')}{' '}
+                  <span className="text-red-500">*</span>
                 </label>
                 <textarea
                   value={localQuestion.question || ''}
@@ -269,7 +275,8 @@ export function QuestionCard({
               <div className="space-y-3">
                 <div className="flex items-center space-x-2">
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    {t('tasks.questionCard.answerOptions')} <span className="text-red-500">*</span>
+                    {t('tasks.questionCard.answerOptions')}{' '}
+                    <span className="text-red-500">*</span>
                   </label>
                   <div className="group relative">
                     <svg
@@ -286,10 +293,10 @@ export function QuestionCard({
                       />
                     </svg>
                     <div className="absolute bottom-full left-1/2 z-10 mb-2 hidden -translate-x-1/2 transform group-hover:block">
-                      <div className="whitespace-nowrap rounded bg-gray-900 px-3 py-2 text-xs text-white">
+                      <div className="rounded bg-gray-900 px-3 py-2 text-xs whitespace-nowrap text-white">
                         {t('tasks.questionCard.selectCorrectTooltip')}
                       </div>
-                      <div className="absolute left-1/2 top-full -translate-x-1/2 transform border-4 border-transparent border-t-gray-900"></div>
+                      <div className="absolute top-full left-1/2 -translate-x-1/2 transform border-4 border-transparent border-t-gray-900"></div>
                     </div>
                   </div>
                 </div>
@@ -323,13 +330,15 @@ export function QuestionCard({
                         value={String(
                           localQuestion[
                             `choice_${option}` as keyof QuestionData
-                          ] || ''
+                          ] || '',
                         )}
                         onChange={(e) =>
                           handleFieldChange(`choice_${option}`, e.target.value)
                         }
                         className="block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 transition-colors focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
-                        placeholder={t('tasks.questionCard.optionPlaceholder', { option: option.toUpperCase() })}
+                        placeholder={t('tasks.questionCard.optionPlaceholder', {
+                          option: option.toUpperCase(),
+                        })}
                       />
                     </div>
                   </div>
@@ -370,7 +379,7 @@ export function QuestionCard({
                   <p className="mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
                     {t('tasks.questionCard.contextLabel')}
                   </p>
-                  <p className="rounded bg-gray-50 p-2 text-sm italic text-gray-600 dark:bg-gray-700 dark:text-gray-400">
+                  <p className="rounded bg-gray-50 p-2 text-sm text-gray-600 italic dark:bg-gray-700 dark:text-gray-400">
                     {localQuestion.case}
                   </p>
                 </div>
@@ -397,7 +406,10 @@ export function QuestionCard({
                         {String(
                           localQuestion[
                             `choice_${option}` as keyof QuestionData
-                          ] || t('tasks.questionCard.noOption', { option: option.toUpperCase() })
+                          ] ||
+                            t('tasks.questionCard.noOption', {
+                              option: option.toUpperCase(),
+                            }),
                         )}
                       </span>
                       {localQuestion.correct_answer === option && (
@@ -438,7 +450,9 @@ export function QuestionCard({
                   variant="outline"
                   className="border-emerald-300 px-2 py-1 text-xs text-emerald-700 hover:bg-emerald-100"
                 >
-                  {isExpanded ? t('tasks.questionCard.collapse') : t('tasks.questionCard.expand')}
+                  {isExpanded
+                    ? t('tasks.questionCard.collapse')
+                    : t('tasks.questionCard.expand')}
                 </Button>
                 <Button
                   type="button"
@@ -478,7 +492,8 @@ export function QuestionCard({
 
             <div>
               <label className="mb-1 block text-sm font-medium text-emerald-700 dark:text-emerald-300">
-                {t('tasks.questionCard.question')} <span className="text-red-500">*</span>
+                {t('tasks.questionCard.question')}{' '}
+                <span className="text-red-500">*</span>
               </label>
               <textarea
                 value={localQuestion.question || ''}
@@ -491,7 +506,8 @@ export function QuestionCard({
 
             <div>
               <label className="mb-1 block text-sm font-medium text-emerald-700 dark:text-emerald-300">
-                {t('tasks.questionCard.answer')} <span className="text-red-500">*</span>
+                {t('tasks.questionCard.answer')}{' '}
+                <span className="text-red-500">*</span>
               </label>
 
               {/* QAR tasks always use text input (no radio buttons) */}
@@ -506,13 +522,15 @@ export function QuestionCard({
               />
 
               <div className="mt-2 rounded bg-emerald-50 p-2 text-xs text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400">
-                <strong>{t('tasks.questionCard.answerConfiguration')}</strong> {t('tasks.questionCard.answerConfigHelp')}
+                <strong>{t('tasks.questionCard.answerConfiguration')}</strong>{' '}
+                {t('tasks.questionCard.answerConfigHelp')}
               </div>
             </div>
 
             <div>
               <label className="mb-1 block text-sm font-medium text-emerald-700 dark:text-emerald-300">
-                {t('tasks.questionCard.reasoning')} <span className="text-red-500">*</span>
+                {t('tasks.questionCard.reasoning')}{' '}
+                <span className="text-red-500">*</span>
               </label>
               <textarea
                 value={localQuestion.reasoning || ''}
@@ -585,7 +603,7 @@ export function QuestionCard({
                     <p className="mb-1 text-sm font-medium text-emerald-700 dark:text-emerald-300">
                       {t('tasks.questionCard.caseLabel')}
                     </p>
-                    <p className="whitespace-pre-wrap rounded bg-emerald-50 p-2 text-sm italic text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400">
+                    <p className="rounded bg-emerald-50 p-2 text-sm whitespace-pre-wrap text-emerald-600 italic dark:bg-emerald-900/30 dark:text-emerald-400">
                       {question.case}
                     </p>
                   </div>
@@ -595,8 +613,9 @@ export function QuestionCard({
                   <p className="mb-1 text-sm font-medium text-emerald-700 dark:text-emerald-300">
                     {t('tasks.questionCard.questionLabel')}
                   </p>
-                  <p className="whitespace-pre-wrap rounded bg-emerald-50 p-2 text-sm text-emerald-900 dark:bg-emerald-900/30 dark:text-emerald-100">
-                    {question.question || t('tasks.questionCard.noQuestionText')}
+                  <p className="rounded bg-emerald-50 p-2 text-sm whitespace-pre-wrap text-emerald-900 dark:bg-emerald-900/30 dark:text-emerald-100">
+                    {question.question ||
+                      t('tasks.questionCard.noQuestionText')}
                   </p>
                 </div>
 
@@ -604,8 +623,9 @@ export function QuestionCard({
                   <p className="mb-1 text-sm font-medium text-emerald-700 dark:text-emerald-300">
                     {t('tasks.questionCard.answerLabel')}
                   </p>
-                  <p className="whitespace-pre-wrap rounded bg-emerald-50 p-2 text-sm text-emerald-900 dark:bg-emerald-900/30 dark:text-emerald-100">
-                    {question.reference_answer || t('tasks.questionCard.noAnswerProvided')}
+                  <p className="rounded bg-emerald-50 p-2 text-sm whitespace-pre-wrap text-emerald-900 dark:bg-emerald-900/30 dark:text-emerald-100">
+                    {question.reference_answer ||
+                      t('tasks.questionCard.noAnswerProvided')}
                   </p>
                 </div>
 
@@ -613,8 +633,9 @@ export function QuestionCard({
                   <p className="mb-1 text-sm font-medium text-emerald-700 dark:text-emerald-300">
                     {t('tasks.questionCard.reasoningLabel')}
                   </p>
-                  <p className="whitespace-pre-wrap rounded bg-emerald-50 p-2 text-sm text-emerald-900 dark:bg-emerald-900/30 dark:text-emerald-100">
-                    {question.reasoning || t('tasks.questionCard.noReasoningProvided')}
+                  <p className="rounded bg-emerald-50 p-2 text-sm whitespace-pre-wrap text-emerald-900 dark:bg-emerald-900/30 dark:text-emerald-100">
+                    {question.reasoning ||
+                      t('tasks.questionCard.noReasoningProvided')}
                   </p>
                 </div>
               </div>

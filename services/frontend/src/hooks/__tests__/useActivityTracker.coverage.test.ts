@@ -6,7 +6,7 @@
  * and edge cases (idle start, not running, hidden tab).
  */
 
-import { renderHook, act } from '@testing-library/react'
+import { act, renderHook } from '@testing-library/react'
 import { useActivityTracker } from '../useActivityTracker'
 
 describe('useActivityTracker - branch coverage', () => {
@@ -23,12 +23,19 @@ describe('useActivityTracker - branch coverage', () => {
 
     // Capture visibility change handlers
     const originalAddEventListener = document.addEventListener
-    jest.spyOn(document, 'addEventListener').mockImplementation((event, handler, options) => {
-      if (event === 'visibilitychange') {
-        visibilityChangeHandlers.push(handler as () => void)
-      }
-      return originalAddEventListener.call(document, event, handler as any, options)
-    })
+    jest
+      .spyOn(document, 'addEventListener')
+      .mockImplementation((event, handler, options) => {
+        if (event === 'visibilitychange') {
+          visibilityChangeHandlers.push(handler as () => void)
+        }
+        return originalAddEventListener.call(
+          document,
+          event,
+          handler as any,
+          options,
+        )
+      })
 
     // Mock performance.now with controllable time
     let mockTime = 0
@@ -118,7 +125,7 @@ describe('useActivityTracker - branch coverage', () => {
     setTime(2000)
     setHidden(true)
     act(() => {
-      visibilityChangeHandlers.forEach(h => h())
+      visibilityChangeHandlers.forEach((h) => h())
     })
 
     const data = result.current.getData()
@@ -161,7 +168,7 @@ describe('useActivityTracker - branch coverage', () => {
     setTime(2000)
     setHidden(true)
     act(() => {
-      visibilityChangeHandlers.forEach(h => h())
+      visibilityChangeHandlers.forEach((h) => h())
     })
 
     // Time passes while hidden
@@ -170,7 +177,7 @@ describe('useActivityTracker - branch coverage', () => {
     // Tab visible again
     setHidden(false)
     act(() => {
-      visibilityChangeHandlers.forEach(h => h())
+      visibilityChangeHandlers.forEach((h) => h())
     })
 
     // Active for 1 more second
@@ -190,7 +197,7 @@ describe('useActivityTracker - branch coverage', () => {
     // Don't call start(), just trigger visibility change
     setHidden(true)
     act(() => {
-      visibilityChangeHandlers.forEach(h => h())
+      visibilityChangeHandlers.forEach((h) => h())
     })
 
     // Should not crash and tabSwitches should stay 0
@@ -228,7 +235,7 @@ describe('useActivityTracker - branch coverage', () => {
     setTime(3000)
     setHidden(true)
     act(() => {
-      visibilityChangeHandlers.forEach(h => h())
+      visibilityChangeHandlers.forEach((h) => h())
     })
 
     setTime(5000)
@@ -251,22 +258,30 @@ describe('useActivityTracker - branch coverage', () => {
     // First switch away
     setTime(1000)
     setHidden(true)
-    act(() => { visibilityChangeHandlers.forEach(h => h()) })
+    act(() => {
+      visibilityChangeHandlers.forEach((h) => h())
+    })
 
     // Come back
     setTime(2000)
     setHidden(false)
-    act(() => { visibilityChangeHandlers.forEach(h => h()) })
+    act(() => {
+      visibilityChangeHandlers.forEach((h) => h())
+    })
 
     // Second switch away
     setTime(3000)
     setHidden(true)
-    act(() => { visibilityChangeHandlers.forEach(h => h()) })
+    act(() => {
+      visibilityChangeHandlers.forEach((h) => h())
+    })
 
     // Come back
     setTime(4000)
     setHidden(false)
-    act(() => { visibilityChangeHandlers.forEach(h => h()) })
+    act(() => {
+      visibilityChangeHandlers.forEach((h) => h())
+    })
 
     setTime(5000)
 

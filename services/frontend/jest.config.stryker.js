@@ -66,8 +66,7 @@ module.exports = {
     // 'jest-environment-jsdom' package, which does NOT report per-test
     // coverage to Stryker ("Missing coverage results for ..."). Redirect that
     // env to Stryker's jsdom mixin so docblock-pinned files still report.
-    '^jest-environment-jsdom$':
-      '@stryker-mutator/jest-runner/jest-env/jsdom',
+    '^jest-environment-jsdom$': '@stryker-mutator/jest-runner/jest-env/jsdom',
     ...clientProject.moduleNameMapper,
   },
   moduleFileExtensions: clientProject.moduleFileExtensions,

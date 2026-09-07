@@ -9,7 +9,10 @@ import { FieldWrapper, getInputClasses } from '../BaseField'
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
     t: (key: string, varsOrDefault?: any) => {
-      const translations: Record<string, any> = require('../../../locales/en/common.json')
+      const translations: Record<
+        string,
+        any
+      > = require('../../../locales/en/common.json')
       const parts = key.split('.')
       let value: any = translations
       for (const part of parts) {
@@ -60,7 +63,7 @@ describe('BaseField Utilities', () => {
       render(
         <FieldWrapper field={defaultField}>
           <input data-testid="test-input" />
-        </FieldWrapper>
+        </FieldWrapper>,
       )
 
       expect(screen.getByTestId('test-input')).toBeInTheDocument()
@@ -70,7 +73,7 @@ describe('BaseField Utilities', () => {
       render(
         <FieldWrapper field={defaultField}>
           <div>Content</div>
-        </FieldWrapper>
+        </FieldWrapper>,
       )
 
       expect(screen.getByText('Test Field (Optional)')).toBeInTheDocument()
@@ -80,7 +83,7 @@ describe('BaseField Utilities', () => {
       render(
         <FieldWrapper field={defaultField}>
           <div>Content</div>
-        </FieldWrapper>
+        </FieldWrapper>,
       )
 
       expect(screen.getByText('Test field description')).toBeInTheDocument()
@@ -91,7 +94,7 @@ describe('BaseField Utilities', () => {
       render(
         <FieldWrapper field={requiredField}>
           <div>Content</div>
-        </FieldWrapper>
+        </FieldWrapper>,
       )
 
       const asterisk = screen.getByText('*')
@@ -103,7 +106,7 @@ describe('BaseField Utilities', () => {
       render(
         <FieldWrapper field={defaultField}>
           <div>Content</div>
-        </FieldWrapper>
+        </FieldWrapper>,
       )
 
       expect(screen.queryByText('*')).not.toBeInTheDocument()
@@ -113,7 +116,7 @@ describe('BaseField Utilities', () => {
       render(
         <FieldWrapper field={defaultField}>
           <div>Content</div>
-        </FieldWrapper>
+        </FieldWrapper>,
       )
 
       expect(screen.getByText('Test Field (Optional)')).toBeInTheDocument()
@@ -127,14 +130,14 @@ describe('BaseField Utilities', () => {
       render(
         <FieldWrapper field={fieldWithOptional}>
           <div>Content</div>
-        </FieldWrapper>
+        </FieldWrapper>,
       )
 
       const label = screen.getByText('Test Field (Optional)')
       expect(label).toBeInTheDocument()
       // Should not have double (Optional)
       expect(
-        screen.queryByText('Test Field (Optional) (Optional)')
+        screen.queryByText('Test Field (Optional) (Optional)'),
       ).not.toBeInTheDocument()
     })
 
@@ -143,7 +146,7 @@ describe('BaseField Utilities', () => {
       render(
         <FieldWrapper field={defaultField} errors={errors}>
           <div>Content</div>
-        </FieldWrapper>
+        </FieldWrapper>,
       )
 
       expect(screen.getByText('This field is required')).toBeInTheDocument()
@@ -155,7 +158,7 @@ describe('BaseField Utilities', () => {
       render(
         <FieldWrapper field={defaultField} errors={errors}>
           <div>Content</div>
-        </FieldWrapper>
+        </FieldWrapper>,
       )
 
       expect(screen.getByText('Error 1')).toBeInTheDocument()
@@ -170,7 +173,7 @@ describe('BaseField Utilities', () => {
       render(
         <FieldWrapper field={defaultField} errors={[]}>
           <div>Content</div>
-        </FieldWrapper>
+        </FieldWrapper>,
       )
 
       expect(screen.queryByTestId('exclamation-icon')).not.toBeInTheDocument()
@@ -180,7 +183,7 @@ describe('BaseField Utilities', () => {
       render(
         <FieldWrapper field={defaultField}>
           <div>Content</div>
-        </FieldWrapper>
+        </FieldWrapper>,
       )
 
       expect(screen.queryByTestId('exclamation-icon')).not.toBeInTheDocument()
@@ -191,7 +194,7 @@ describe('BaseField Utilities', () => {
       const { container } = render(
         <FieldWrapper field={defaultField} errors={errors}>
           <div>Content</div>
-        </FieldWrapper>
+        </FieldWrapper>,
       )
 
       const errorDiv = container.querySelector('.text-red-600')
@@ -203,7 +206,7 @@ describe('BaseField Utilities', () => {
       const { container } = render(
         <FieldWrapper field={defaultField} className="custom-wrapper-class">
           <div>Content</div>
-        </FieldWrapper>
+        </FieldWrapper>,
       )
 
       const wrapper = container.querySelector('.field-wrapper')
@@ -214,7 +217,7 @@ describe('BaseField Utilities', () => {
       const { container } = render(
         <FieldWrapper field={defaultField}>
           <div>Content</div>
-        </FieldWrapper>
+        </FieldWrapper>,
       )
 
       const label = container.querySelector('label')
@@ -227,7 +230,7 @@ describe('BaseField Utilities', () => {
       render(
         <FieldWrapper field={fieldWithoutLabel}>
           <div>Content</div>
-        </FieldWrapper>
+        </FieldWrapper>,
       )
 
       const label = screen.queryByRole('label')
@@ -242,11 +245,11 @@ describe('BaseField Utilities', () => {
       render(
         <FieldWrapper field={fieldWithoutDescription}>
           <div>Content</div>
-        </FieldWrapper>
+        </FieldWrapper>,
       )
 
       expect(
-        screen.queryByText('Test field description')
+        screen.queryByText('Test field description'),
       ).not.toBeInTheDocument()
     })
 
@@ -254,7 +257,7 @@ describe('BaseField Utilities', () => {
       const { container } = render(
         <FieldWrapper field={defaultField}>
           <div>Content</div>
-        </FieldWrapper>
+        </FieldWrapper>,
       )
 
       const label = container.querySelector('label')
@@ -264,7 +267,7 @@ describe('BaseField Utilities', () => {
         'text-sm',
         'font-medium',
         'text-gray-700',
-        'dark:text-gray-300'
+        'dark:text-gray-300',
       )
     })
 
@@ -272,7 +275,7 @@ describe('BaseField Utilities', () => {
       const { container } = render(
         <FieldWrapper field={defaultField}>
           <div>Content</div>
-        </FieldWrapper>
+        </FieldWrapper>,
       )
 
       const description = screen.getByText('Test field description')
@@ -280,7 +283,7 @@ describe('BaseField Utilities', () => {
         'mb-2',
         'text-sm',
         'text-gray-500',
-        'dark:text-gray-400'
+        'dark:text-gray-400',
       )
     })
   })

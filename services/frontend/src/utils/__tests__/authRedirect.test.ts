@@ -99,7 +99,7 @@ describe('authRedirect', () => {
     it('preserves a safe returnTo as ?next=', () => {
       authRedirect.toLogin(mockRouter, '/student/exams/1')
       expect(mockRouter.replace).toHaveBeenCalledWith(
-        '/login?next=%2Fstudent%2Fexams%2F1'
+        '/login?next=%2Fstudent%2Fexams%2F1',
       )
     })
 
@@ -120,7 +120,9 @@ describe('authRedirect', () => {
     })
 
     it('returns a safe internal path unchanged', () => {
-      expect(authRedirect.sanitizeNext('/student/exams/1')).toBe('/student/exams/1')
+      expect(authRedirect.sanitizeNext('/student/exams/1')).toBe(
+        '/student/exams/1',
+      )
     })
   })
 
@@ -214,13 +216,13 @@ describe('authRedirect', () => {
 
     it('should handle paths with query parameters and fragments', () => {
       expect(authRedirect.isProtectedRoute('/dashboard?tab=analytics')).toBe(
-        true
+        true,
       )
       expect(authRedirect.isProtectedRoute('/login?redirect=/dashboard')).toBe(
-        false
+        false,
       ) // login page is public, even with query params
       expect(authRedirect.isProtectedRoute('/about/imprint#section1')).toBe(
-        false
+        false,
       ) // starts with '/about'
     })
   })
@@ -282,7 +284,7 @@ describe('authRedirect', () => {
 
       testPaths.forEach((path) => {
         expect(authRedirect.isPublicRoute(path)).toBe(
-          !authRedirect.isProtectedRoute(path)
+          !authRedirect.isProtectedRoute(path),
         )
       })
     })
@@ -381,7 +383,7 @@ describe('authRedirect', () => {
         authRedirect.getRedirectForAuthState(
           false,
           '/login?redirect=/dashboard',
-          mockRouter
+          mockRouter,
         )
         expect(mockRouter.replace).not.toHaveBeenCalled()
 
@@ -390,7 +392,7 @@ describe('authRedirect', () => {
         authRedirect.getRedirectForAuthState(
           false,
           '/dashboard?tab=analytics',
-          mockRouter
+          mockRouter,
         )
         expect(mockRouter.replace).toHaveBeenCalledWith('/login')
       })
@@ -568,10 +570,10 @@ describe('authRedirect', () => {
         expect(() => authRedirect.isPublicRoute(path)).not.toThrow()
         expect(() => authRedirect.isProtectedRoute(path)).not.toThrow()
         expect(() =>
-          authRedirect.getRedirectForAuthState(false, path, mockRouter)
+          authRedirect.getRedirectForAuthState(false, path, mockRouter),
         ).not.toThrow()
         expect(() =>
-          authRedirect.getRedirectForAuthState(true, path, mockRouter)
+          authRedirect.getRedirectForAuthState(true, path, mockRouter),
         ).not.toThrow()
       })
     })

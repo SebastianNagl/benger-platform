@@ -8,7 +8,6 @@
 
 'use client'
 
-import { useI18n } from '@/contexts/I18nContext'
 import { Button } from '@/components/shared/Button'
 import { Card } from '@/components/shared/Card'
 import { Checkbox } from '@/components/shared/Checkbox'
@@ -19,6 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/shared/Select'
+import { useI18n } from '@/contexts/I18nContext'
 import { cn } from '@/lib/utils'
 import { DocumentArrowDownIcon } from '@heroicons/react/24/outline'
 import html2canvas from 'html2canvas'
@@ -92,8 +92,8 @@ export function PDFReportGenerator({
     selectedModels: evaluationData.models.map((m) => m.model_id),
     selectedMetrics: Array.from(
       new Set(
-        evaluationData.models.flatMap((m) => Object.keys(m.metrics || {}))
-      )
+        evaluationData.models.flatMap((m) => Object.keys(m.metrics || {})),
+      ),
     ),
     format: 'academic',
   })
@@ -107,11 +107,11 @@ export function PDFReportGenerator({
   }))
 
   const availableMetrics = Array.from(
-    new Set(evaluationData.models.flatMap((m) => Object.keys(m.metrics)))
+    new Set(evaluationData.models.flatMap((m) => Object.keys(m.metrics))),
   ).sort()
 
   const filteredModels = evaluationData.models.filter((m) =>
-    options.selectedModels.includes(m.model_id)
+    options.selectedModels.includes(m.model_id),
   )
 
   const filteredMetrics = options.selectedMetrics
@@ -338,7 +338,9 @@ export function PDFReportGenerator({
               }
             >
               <DocumentArrowDownIcon className="h-5 w-5" />
-              {isGenerating ? t('evaluation.pdfReport.generating') : t('evaluation.pdfReport.generatePdf')}
+              {isGenerating
+                ? t('evaluation.pdfReport.generating')
+                : t('evaluation.pdfReport.generatePdf')}
             </Button>
           </div>
         </div>
@@ -441,9 +443,7 @@ export function PDFReportGenerator({
                   <h3 className="mb-2 font-semibold text-gray-800 dark:text-gray-200">
                     {t('evaluation.pdfReport.statisticalAnalysisSection')}
                   </h3>
-                  <p>
-                    {t('evaluation.pdfReport.statisticalMethodology')}
-                  </p>
+                  <p>{t('evaluation.pdfReport.statisticalMethodology')}</p>
                 </div>
               </div>
             </div>
@@ -486,7 +486,7 @@ export function PDFReportGenerator({
                           'border-b border-gray-200 dark:border-gray-700',
                           idx % 2 === 0
                             ? 'bg-gray-50 dark:bg-gray-800'
-                            : 'bg-white dark:bg-gray-900'
+                            : 'bg-white dark:bg-gray-900',
                         )}
                       >
                         <td className="px-4 py-3 font-medium text-gray-900 dark:text-gray-100">
@@ -503,7 +503,7 @@ export function PDFReportGenerator({
                           return (
                             <td
                               key={metric}
-                              className="px-4 py-3 text-center tabular-nums text-gray-700 dark:text-gray-300"
+                              className="px-4 py-3 text-center text-gray-700 tabular-nums dark:text-gray-300"
                             >
                               {value !== undefined
                                 ? formatMetricValue(value)
@@ -511,7 +511,7 @@ export function PDFReportGenerator({
                             </td>
                           )
                         })}
-                        <td className="px-4 py-3 text-center font-bold tabular-nums text-gray-900 dark:text-gray-100">
+                        <td className="px-4 py-3 text-center font-bold text-gray-900 tabular-nums dark:text-gray-100">
                           {formatMetricValue(item.avgScore)}
                         </td>
                       </tr>
@@ -556,13 +556,13 @@ export function PDFReportGenerator({
                             'border-b border-gray-200 dark:border-gray-700',
                             idx % 2 === 0
                               ? 'bg-gray-50 dark:bg-gray-800'
-                              : 'bg-white dark:bg-gray-900'
+                              : 'bg-white dark:bg-gray-900',
                           )}
                         >
                           <td className="px-4 py-3 text-gray-700 dark:text-gray-300">
                             {test.model_a} vs {test.model_b}
                           </td>
-                          <td className="px-4 py-3 text-center tabular-nums text-gray-700 dark:text-gray-300">
+                          <td className="px-4 py-3 text-center text-gray-700 tabular-nums dark:text-gray-300">
                             {test.p_value.toFixed(4)}
                           </td>
                           <td className="px-4 py-3 text-center">
@@ -571,13 +571,15 @@ export function PDFReportGenerator({
                                 'inline-flex rounded-full px-2 py-1 text-xs font-medium',
                                 test.significant
                                   ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-200'
-                                  : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
+                                  : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200',
                               )}
                             >
-                              {test.significant ? t('common.yes') : t('common.no')}
+                              {test.significant
+                                ? t('common.yes')
+                                : t('common.no')}
                             </span>
                           </td>
-                          <td className="px-4 py-3 text-center tabular-nums text-gray-700 dark:text-gray-300">
+                          <td className="px-4 py-3 text-center text-gray-700 tabular-nums dark:text-gray-300">
                             {test.effect_size.toFixed(3)}
                           </td>
                         </tr>
@@ -627,8 +629,8 @@ export function PDFReportGenerator({
                       ? formatMetricValue(
                           rankedModels.reduce(
                             (sum, item) => sum + item.avgScore,
-                            0
-                          ) / rankedModels.length
+                            0,
+                          ) / rankedModels.length,
                         )
                       : 'N/A'}
                   </div>

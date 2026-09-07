@@ -13,9 +13,9 @@
 
 'use client'
 
-import { type MutableRefObject } from 'react'
 import { DefaultParamInput } from '@/components/projects/DefaultParamInput'
 import { SubSection } from '@/components/projects/SubSection'
+import { type MutableRefObject } from 'react'
 
 export type DefaultsMode = 'recommended' | 'minimum' | 'custom'
 
@@ -74,15 +74,47 @@ export function GenerationDefaultsCard({
             {t('project.generationDefaults.modeLabel', 'Standard-Strategie')}
           </div>
           <div className="space-y-2">
-            {([
-              ['recommended', t('project.generationDefaults.modeRecommended', 'Empfohlene Werte (pro Modell)'),
-                t('project.generationDefaults.modeRecommendedDesc', 'Verwende die vom Anbieter empfohlenen Werte für jedes neu hinzugefügte Modell.')],
-              ['minimum', t('project.generationDefaults.modeMinimum', 'Minimal-Werte (pro Modell)'),
-                t('project.generationDefaults.modeMinimumDesc', 'Verwende die niedrigste vom Anbieter zulässige Temperatur für jedes neu hinzugefügte Modell.')],
-              ['custom', t('project.generationDefaults.modeCustom', 'Benutzerdefiniert'),
-                t('project.generationDefaults.modeCustomDesc', 'Verwende die unten eingegebenen Werte einheitlich für alle neu hinzugefügten Modelle (Min/Max-Constraints werden weiterhin durchgesetzt).')],
-            ] as const).map(([modeKey, label, desc]) => (
-              <label key={modeKey} className="flex items-start gap-2 cursor-pointer">
+            {(
+              [
+                [
+                  'recommended',
+                  t(
+                    'project.generationDefaults.modeRecommended',
+                    'Empfohlene Werte (pro Modell)',
+                  ),
+                  t(
+                    'project.generationDefaults.modeRecommendedDesc',
+                    'Verwende die vom Anbieter empfohlenen Werte für jedes neu hinzugefügte Modell.',
+                  ),
+                ],
+                [
+                  'minimum',
+                  t(
+                    'project.generationDefaults.modeMinimum',
+                    'Minimal-Werte (pro Modell)',
+                  ),
+                  t(
+                    'project.generationDefaults.modeMinimumDesc',
+                    'Verwende die niedrigste vom Anbieter zulässige Temperatur für jedes neu hinzugefügte Modell.',
+                  ),
+                ],
+                [
+                  'custom',
+                  t(
+                    'project.generationDefaults.modeCustom',
+                    'Benutzerdefiniert',
+                  ),
+                  t(
+                    'project.generationDefaults.modeCustomDesc',
+                    'Verwende die unten eingegebenen Werte einheitlich für alle neu hinzugefügten Modelle (Min/Max-Constraints werden weiterhin durchgesetzt).',
+                  ),
+                ],
+              ] as const
+            ).map(([modeKey, label, desc]) => (
+              <label
+                key={modeKey}
+                className="flex cursor-pointer items-start gap-2"
+              >
                 <input
                   type="radio"
                   name="gen-defaults-mode"
@@ -100,8 +132,12 @@ export function GenerationDefaultsCard({
                   className="mt-0.5"
                 />
                 <span className="flex-1">
-                  <span className="block text-xs font-medium text-zinc-900 dark:text-zinc-100">{label}</span>
-                  <span className="block text-xs text-zinc-500 dark:text-zinc-400">{desc}</span>
+                  <span className="block text-xs font-medium text-zinc-900 dark:text-zinc-100">
+                    {label}
+                  </span>
+                  <span className="block text-xs text-zinc-500 dark:text-zinc-400">
+                    {desc}
+                  </span>
                 </span>
               </label>
             ))}
@@ -123,15 +159,17 @@ export function GenerationDefaultsCard({
               onChange={(e) => {
                 if (!cardEditingGeneration) beginEditGeneration()
                 setGenDefaultTemperature(
-                  e.target.value ? parseFloat(e.target.value) : undefined
+                  e.target.value ? parseFloat(e.target.value) : undefined,
                 )
               }}
             />
             <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
               {genDefaultsMode === 'custom'
                 ? t('project.generationDefaults.temperatureHelp')
-                : t('project.generationDefaults.temperatureHelpModeOverride',
-                    'Wird ignoriert: aktive Strategie befüllt Temperatur pro Modell.')}
+                : t(
+                    'project.generationDefaults.temperatureHelpModeOverride',
+                    'Wird ignoriert: aktive Strategie befüllt Temperatur pro Modell.',
+                  )}
             </p>
             {/* Recommended-value badge for the project Generation
                 Defaults — consensus across the project's selected
@@ -142,14 +180,23 @@ export function GenerationDefaultsCard({
                 {genRecConsensus.temperature.uniform &&
                 genRecConsensus.temperature.value !== undefined ? (
                   <span className="text-zinc-600 dark:text-zinc-400">
-                    {t('generation.controlModal.recommended', 'Empfehlung')}: {genRecConsensus.temperature.value}
-                    {(genDefaultTemperature ?? 0) !== genRecConsensus.temperature.value && (
+                    {t('generation.controlModal.recommended', 'Empfehlung')}:{' '}
+                    {genRecConsensus.temperature.value}
+                    {(genDefaultTemperature ?? 0) !==
+                      genRecConsensus.temperature.value && (
                       <button
                         type="button"
-                        onClick={() => setGenDefaultTemperature(genRecConsensus.temperature.value)}
+                        onClick={() =>
+                          setGenDefaultTemperature(
+                            genRecConsensus.temperature.value,
+                          )
+                        }
                         className="ml-2 text-blue-600 hover:underline"
                       >
-                        {t('generation.controlModal.resetToRecommended', 'Zurücksetzen auf Empfohlen')}
+                        {t(
+                          'generation.controlModal.resetToRecommended',
+                          'Zurücksetzen auf Empfohlen',
+                        )}
                       </button>
                     )}
                   </span>
@@ -160,11 +207,17 @@ export function GenerationDefaultsCard({
                       .map((m) => `${m.model}: ${m.value ?? '—'}`)
                       .join('\n')}
                   >
-                    {t('generation.controlModal.divergentRecommendations', 'Verschiedene Empfehlungen pro Modell')}
+                    {t(
+                      'generation.controlModal.divergentRecommendations',
+                      'Verschiedene Empfehlungen pro Modell',
+                    )}
                   </span>
                 ) : (
                   <span className="text-zinc-400 dark:text-zinc-500">
-                    {t('generation.controlModal.noRecommendation', 'Keine Empfehlung')}
+                    {t(
+                      'generation.controlModal.noRecommendation',
+                      'Keine Empfehlung',
+                    )}
                   </span>
                 )}
               </div>
@@ -185,29 +238,40 @@ export function GenerationDefaultsCard({
               onChange={(e) => {
                 if (!cardEditingGeneration) beginEditGeneration()
                 setGenDefaultMaxTokens(
-                  e.target.value ? parseInt(e.target.value) : undefined
+                  e.target.value ? parseInt(e.target.value) : undefined,
                 )
               }}
             />
             <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
               {genDefaultsMode === 'custom'
                 ? t('project.generationDefaults.maxTokensHelp')
-                : t('project.generationDefaults.maxTokensHelpModeOverride',
-                    'Wird ignoriert: aktive Strategie befüllt Max Tokens pro Modell.')}
+                : t(
+                    'project.generationDefaults.maxTokensHelpModeOverride',
+                    'Wird ignoriert: aktive Strategie befüllt Max Tokens pro Modell.',
+                  )}
             </p>
             {selectedModelIds.length > 0 && (
               <div className="mt-1 text-xs">
                 {genRecConsensus.max_tokens.uniform &&
                 genRecConsensus.max_tokens.value !== undefined ? (
                   <span className="text-zinc-600 dark:text-zinc-400">
-                    {t('generation.controlModal.recommended', 'Empfehlung')}: {genRecConsensus.max_tokens.value}
-                    {(genDefaultMaxTokens ?? 4000) !== genRecConsensus.max_tokens.value && (
+                    {t('generation.controlModal.recommended', 'Empfehlung')}:{' '}
+                    {genRecConsensus.max_tokens.value}
+                    {(genDefaultMaxTokens ?? 4000) !==
+                      genRecConsensus.max_tokens.value && (
                       <button
                         type="button"
-                        onClick={() => setGenDefaultMaxTokens(genRecConsensus.max_tokens.value)}
+                        onClick={() =>
+                          setGenDefaultMaxTokens(
+                            genRecConsensus.max_tokens.value,
+                          )
+                        }
                         className="ml-2 text-blue-600 hover:underline"
                       >
-                        {t('generation.controlModal.resetToRecommended', 'Zurücksetzen auf Empfohlen')}
+                        {t(
+                          'generation.controlModal.resetToRecommended',
+                          'Zurücksetzen auf Empfohlen',
+                        )}
                       </button>
                     )}
                   </span>
@@ -218,11 +282,17 @@ export function GenerationDefaultsCard({
                       .map((m) => `${m.model}: ${m.value ?? '—'}`)
                       .join('\n')}
                   >
-                    {t('generation.controlModal.divergentRecommendations', 'Verschiedene Empfehlungen pro Modell')}
+                    {t(
+                      'generation.controlModal.divergentRecommendations',
+                      'Verschiedene Empfehlungen pro Modell',
+                    )}
                   </span>
                 ) : (
                   <span className="text-zinc-400 dark:text-zinc-500">
-                    {t('generation.controlModal.noRecommendation', 'Keine Empfehlung')}
+                    {t(
+                      'generation.controlModal.noRecommendation',
+                      'Keine Empfehlung',
+                    )}
                   </span>
                 )}
               </div>

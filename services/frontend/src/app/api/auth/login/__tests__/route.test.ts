@@ -70,7 +70,7 @@ describe('/api/auth/login', () => {
           headers: expect.objectContaining({
             'x-forwarded-host': 'vertretbar.net',
           }),
-        })
+        }),
       )
     })
 
@@ -90,7 +90,7 @@ describe('/api/auth/login', () => {
           headers: expect.objectContaining({
             'x-forwarded-host': 'benger.localhost',
           }),
-        })
+        }),
       )
     })
   })
@@ -183,7 +183,7 @@ describe('/api/auth/login', () => {
         expect.objectContaining({
           method: 'POST',
           body: JSON.stringify({ password: 'password123' }),
-        })
+        }),
       )
     })
 
@@ -335,7 +335,7 @@ describe('/api/auth/login', () => {
   describe('Network Errors', () => {
     it('should handle network timeout', async () => {
       ;(global.fetch as jest.Mock).mockRejectedValueOnce(
-        new Error('Network timeout')
+        new Error('Network timeout'),
       )
 
       const request = createRequest('http://localhost:3000/api/auth/login', {
@@ -355,7 +355,7 @@ describe('/api/auth/login', () => {
 
     it('should handle connection refused', async () => {
       ;(global.fetch as jest.Mock).mockRejectedValueOnce(
-        new Error('ECONNREFUSED')
+        new Error('ECONNREFUSED'),
       )
 
       const request = createRequest('http://localhost:3000/api/auth/login', {
@@ -373,13 +373,13 @@ describe('/api/auth/login', () => {
       expect(data.error).toBe('Internal server error')
       expect(console.error).toHaveBeenCalledWith(
         '❌ Login proxy error:',
-        expect.any(Error)
+        expect.any(Error),
       )
     })
 
     it('should handle DNS resolution failure', async () => {
       ;(global.fetch as jest.Mock).mockRejectedValueOnce(
-        new Error('getaddrinfo ENOTFOUND')
+        new Error('getaddrinfo ENOTFOUND'),
       )
 
       const request = createRequest('http://localhost:3000/api/auth/login', {
@@ -419,7 +419,7 @@ describe('/api/auth/login', () => {
 
       expect(global.fetch).toHaveBeenCalledWith(
         'http://api:8000/api/auth/login',
-        expect.any(Object)
+        expect.any(Object),
       )
     })
 
@@ -445,7 +445,7 @@ describe('/api/auth/login', () => {
 
       expect(global.fetch).toHaveBeenCalledWith(
         'http://localhost:8001/api/auth/login',
-        expect.any(Object)
+        expect.any(Object),
       )
     })
 
@@ -467,14 +467,14 @@ describe('/api/auth/login', () => {
             email: 'test@example.com',
             password: 'password123',
           }),
-        }
+        },
       )
 
       await POST(request)
 
       expect(global.fetch).toHaveBeenCalledWith(
         'http://benger-api:8000/api/auth/login',
-        expect.any(Object)
+        expect.any(Object),
       )
     })
 
@@ -496,7 +496,7 @@ describe('/api/auth/login', () => {
             email: 'test@example.com',
             password: 'password123',
           }),
-        }
+        },
       )
 
       await POST(request)
@@ -505,7 +505,7 @@ describe('/api/auth/login', () => {
       // In real K8s, DOCKER_INTERNAL_API_URL is always set to the correct service
       expect(global.fetch).toHaveBeenCalledWith(
         'http://benger-api:8000/api/auth/login',
-        expect.any(Object)
+        expect.any(Object),
       )
     })
 
@@ -529,14 +529,14 @@ describe('/api/auth/login', () => {
             email: 'test@example.com',
             password: 'password123',
           }),
-        }
+        },
       )
 
       await POST(request)
 
       expect(global.fetch).toHaveBeenCalledWith(
         'http://custom-api:9000/api/auth/login',
-        expect.any(Object)
+        expect.any(Object),
       )
 
       // Restore original
@@ -569,7 +569,7 @@ describe('/api/auth/login', () => {
 
       expect(global.fetch).toHaveBeenCalledWith(
         'http://api:8000/api/auth/login',
-        expect.any(Object)
+        expect.any(Object),
       )
     })
   })
@@ -607,7 +607,7 @@ describe('/api/auth/login', () => {
             'Content-Type': 'application/json',
           }),
           body: JSON.stringify(credentials),
-        })
+        }),
       )
     })
 
@@ -637,7 +637,7 @@ describe('/api/auth/login', () => {
           headers: expect.objectContaining({
             'Content-Type': 'application/json',
           }),
-        })
+        }),
       )
     })
   })
@@ -683,9 +683,7 @@ describe('/api/auth/login', () => {
         status: 200,
         json: async () => ({ access_token: 'tok' }),
         headers: {
-          getSetCookie: () => [
-            'access_token=tok; Path=/; HttpOnly',
-          ],
+          getSetCookie: () => ['access_token=tok; Path=/; HttpOnly'],
         },
       })
 
@@ -706,9 +704,7 @@ describe('/api/auth/login', () => {
         status: 200,
         json: async () => ({ access_token: 'tok' }),
         headers: {
-          getSetCookie: () => [
-            'access_token=tok; Path=/; HttpOnly; Secure',
-          ],
+          getSetCookie: () => ['access_token=tok; Path=/; HttpOnly; Secure'],
         },
       })
 
@@ -720,7 +716,9 @@ describe('/api/auth/login', () => {
       const response = await POST(request)
       const cookies = response.headers.getSetCookie()
       // The access_token cookie should NOT have Secure flag
-      const accessCookie = cookies.find((c: string) => c.startsWith('access_token='))
+      const accessCookie = cookies.find((c: string) =>
+        c.startsWith('access_token='),
+      )
       if (accessCookie) {
         expect(accessCookie).not.toMatch(/;\s*Secure/i)
       }
@@ -732,9 +730,7 @@ describe('/api/auth/login', () => {
         status: 200,
         json: async () => ({ access_token: 'tok' }),
         headers: {
-          getSetCookie: () => [
-            'access_token=tok; HttpOnly',
-          ],
+          getSetCookie: () => ['access_token=tok; HttpOnly'],
         },
       })
 
@@ -745,7 +741,9 @@ describe('/api/auth/login', () => {
 
       const response = await POST(request)
       const cookies = response.headers.getSetCookie()
-      const accessCookie = cookies.find((c: string) => c.startsWith('access_token='))
+      const accessCookie = cookies.find((c: string) =>
+        c.startsWith('access_token='),
+      )
       if (accessCookie) {
         expect(accessCookie).toContain('Path=/')
       }
@@ -768,7 +766,9 @@ describe('/api/auth/login', () => {
 
       const response = await POST(request)
       const cookies = response.headers.getSetCookie()
-      const testCookie = cookies.find((c: string) => c.startsWith('test_cookie='))
+      const testCookie = cookies.find((c: string) =>
+        c.startsWith('test_cookie='),
+      )
       expect(testCookie).toBeDefined()
       expect(testCookie).toContain('working')
     })
@@ -793,7 +793,7 @@ describe('/api/auth/login', () => {
 
       expect(global.fetch).toHaveBeenCalledWith(
         'http://custom-api:9999/api/auth/login',
-        expect.any(Object)
+        expect.any(Object),
       )
 
       if (orig) process.env.API_BASE_URL = orig
@@ -808,16 +808,19 @@ describe('/api/auth/login', () => {
         headers: { getSetCookie: () => [] },
       })
 
-      const request = createRequest('http://benger-test.localhost/api/auth/login', {
-        method: 'POST',
-        body: JSON.stringify({ email: 'test@ex.com', password: 'pw' }),
-      })
+      const request = createRequest(
+        'http://benger-test.localhost/api/auth/login',
+        {
+          method: 'POST',
+          body: JSON.stringify({ email: 'test@ex.com', password: 'pw' }),
+        },
+      )
 
       await POST(request)
 
       expect(global.fetch).toHaveBeenCalledWith(
         'http://test-api:8000/api/auth/login',
-        expect.any(Object)
+        expect.any(Object),
       )
     })
   })
@@ -825,7 +828,7 @@ describe('/api/auth/login', () => {
   describe('Error Logging', () => {
     it('should log errors', async () => {
       ;(global.fetch as jest.Mock).mockRejectedValueOnce(
-        new Error('Connection failed')
+        new Error('Connection failed'),
       )
 
       const request = createRequest('http://localhost:3000/api/auth/login', {
@@ -840,7 +843,7 @@ describe('/api/auth/login', () => {
 
       expect(console.error).toHaveBeenCalledWith(
         '❌ Login proxy error:',
-        expect.any(Error)
+        expect.any(Error),
       )
     })
   })

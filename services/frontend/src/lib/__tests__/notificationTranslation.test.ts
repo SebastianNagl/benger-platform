@@ -4,7 +4,11 @@
 
 import { getTranslatedNotification } from '../notificationTranslation'
 
-const mockT = (key: string, defaultValue?: string, vars?: Record<string, any>) => {
+const mockT = (
+  key: string,
+  defaultValue?: string,
+  vars?: Record<string, any>,
+) => {
   if (vars && defaultValue) {
     // Simulate i18next behavior: replace variables in the default string
     let result = defaultValue

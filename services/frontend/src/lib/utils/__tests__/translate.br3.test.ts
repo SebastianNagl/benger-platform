@@ -42,7 +42,9 @@ describe('translate branch coverage', () => {
 
   it('handles localStorage access throwing', () => {
     const origGetItem = Storage.prototype.getItem
-    Storage.prototype.getItem = () => { throw new Error('blocked') }
+    Storage.prototype.getItem = () => {
+      throw new Error('blocked')
+    }
     const { translate } = require('../../utils/translate')
     // Falls back to 'de' locale
     const result = translate('nonexistent')

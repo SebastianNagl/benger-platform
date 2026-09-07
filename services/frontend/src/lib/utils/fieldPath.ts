@@ -19,7 +19,7 @@
 export function getValueByPath(
   data: any,
   path: string | undefined,
-  defaultValue: any = undefined
+  defaultValue: any = undefined,
 ): any {
   if (!data || !path) return defaultValue
 

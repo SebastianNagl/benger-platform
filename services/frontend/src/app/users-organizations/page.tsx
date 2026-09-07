@@ -35,7 +35,7 @@ export default function UsersOrganizationsPage() {
             })),
           }
         : null,
-    [user, organizations]
+    [user, organizations],
   )
 
   useEffect(() => {
@@ -67,7 +67,7 @@ export default function UsersOrganizationsPage() {
   }
 
   const canAccessGlobalUsers = UserOrganizationPermissions.canManageGlobalUsers(
-    userWithOrganizations
+    userWithOrganizations,
   )
 
   const breadcrumbItems = [
@@ -79,7 +79,10 @@ export default function UsersOrganizationsPage() {
   ]
 
   return (
-    <ResponsiveContainer size="full" className="px-4 pb-10 pt-8 sm:px-6 lg:px-8">
+    <ResponsiveContainer
+      size="full"
+      className="px-4 pt-8 pb-10 sm:px-6 lg:px-8"
+    >
       <div className="mb-4">
         <Breadcrumb items={breadcrumbItems} />
       </div>

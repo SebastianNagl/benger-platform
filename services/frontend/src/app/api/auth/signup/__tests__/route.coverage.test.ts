@@ -81,9 +81,7 @@ describe('/api/auth/signup - cookie forwarding coverage', () => {
       ok: true,
       status: 201,
       headers: {
-        getSetCookie: () => [
-          'session=abc123; HttpOnly',
-        ],
+        getSetCookie: () => ['session=abc123; HttpOnly'],
       },
       json: async () => ({
         id: 1,
@@ -115,9 +113,7 @@ describe('/api/auth/signup - cookie forwarding coverage', () => {
       ok: true,
       status: 201,
       headers: {
-        getSetCookie: () => [
-          'session=abc; Path=/api; HttpOnly',
-        ],
+        getSetCookie: () => ['session=abc; Path=/api; HttpOnly'],
       },
       json: async () => ({ id: 1 }),
     })
@@ -128,7 +124,11 @@ describe('/api/auth/signup - cookie forwarding coverage', () => {
         'Content-Type': 'application/json',
         host: 'benger.localhost',
       },
-      body: JSON.stringify({ email: 'u@e.com', password: 'Pass123!', username: 'u' }),
+      body: JSON.stringify({
+        email: 'u@e.com',
+        password: 'Pass123!',
+        username: 'u',
+      }),
     })
 
     const response = await POST(request)
@@ -145,20 +145,27 @@ describe('/api/auth/signup - cookie forwarding coverage', () => {
       json: async () => ({ id: 1 }),
     })
 
-    const request = new NextRequest('http://staging.what-a-benger.net/api/auth/signup', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        host: 'staging.what-a-benger.net',
+    const request = new NextRequest(
+      'http://staging.what-a-benger.net/api/auth/signup',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          host: 'staging.what-a-benger.net',
+        },
+        body: JSON.stringify({
+          email: 'u@e.com',
+          password: 'Pass123!',
+          username: 'u',
+        }),
       },
-      body: JSON.stringify({ email: 'u@e.com', password: 'Pass123!', username: 'u' }),
-    })
+    )
 
     await POST(request)
 
     expect(global.fetch).toHaveBeenCalledWith(
       'http://benger-api:8000/api/auth/signup',
-      expect.any(Object)
+      expect.any(Object),
     )
   })
 
@@ -179,14 +186,18 @@ describe('/api/auth/signup - cookie forwarding coverage', () => {
         'Content-Type': 'application/json',
         host: 'localhost:3000',
       },
-      body: JSON.stringify({ email: 'u@e.com', password: 'Pass123!', username: 'u' }),
+      body: JSON.stringify({
+        email: 'u@e.com',
+        password: 'Pass123!',
+        username: 'u',
+      }),
     })
 
     await POST(request)
 
     expect(global.fetch).toHaveBeenCalledWith(
       'http://custom:9000/api/auth/signup',
-      expect.any(Object)
+      expect.any(Object),
     )
 
     if (orig) {
@@ -204,20 +215,27 @@ describe('/api/auth/signup - cookie forwarding coverage', () => {
       json: async () => ({ id: 1 }),
     })
 
-    const request = new NextRequest('http://benger-test.localhost/api/auth/signup', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        host: 'benger-test.localhost',
+    const request = new NextRequest(
+      'http://benger-test.localhost/api/auth/signup',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          host: 'benger-test.localhost',
+        },
+        body: JSON.stringify({
+          email: 'u@e.com',
+          password: 'Pass123!',
+          username: 'u',
+        }),
       },
-      body: JSON.stringify({ email: 'u@e.com', password: 'Pass123!', username: 'u' }),
-    })
+    )
 
     await POST(request)
 
     expect(global.fetch).toHaveBeenCalledWith(
       'http://test-api:8000/api/auth/signup',
-      expect.any(Object)
+      expect.any(Object),
     )
   })
 
@@ -235,14 +253,18 @@ describe('/api/auth/signup - cookie forwarding coverage', () => {
         'Content-Type': 'application/json',
         host: 'unknown-host',
       },
-      body: JSON.stringify({ email: 'u@e.com', password: 'Pass123!', username: 'u' }),
+      body: JSON.stringify({
+        email: 'u@e.com',
+        password: 'Pass123!',
+        username: 'u',
+      }),
     })
 
     await POST(request)
 
     expect(global.fetch).toHaveBeenCalledWith(
       'http://api:8000/api/auth/signup',
-      expect.any(Object)
+      expect.any(Object),
     )
   })
 })

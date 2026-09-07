@@ -124,7 +124,7 @@ describe('Button Component', () => {
     render(
       <form onSubmit={mockSubmit}>
         <Button type="submit">Submit</Button>
-      </form>
+      </form>,
     )
 
     const button = screen.getByRole('button', { name: /submit/i })
@@ -139,7 +139,7 @@ describe('Button Component', () => {
         {...defaultProps}
         aria-label="Custom accessible label"
         aria-describedby="description"
-      />
+      />,
     )
 
     const button = screen.getByRole('button')
@@ -148,7 +148,11 @@ describe('Button Component', () => {
   })
 
   it('renders disabled Link as a button element', () => {
-    render(<Button href="/test" disabled>Disabled Link</Button>)
+    render(
+      <Button href="/test" disabled>
+        Disabled Link
+      </Button>,
+    )
 
     // When a Link is disabled, it renders as a button instead
     const button = screen.getByRole('button')
@@ -190,7 +194,9 @@ describe('Button Component', () => {
 
   it('renders text variant arrow with relative class', () => {
     const { container } = render(
-      <Button variant="text" arrow="right">Text Arrow</Button>
+      <Button variant="text" arrow="right">
+        Text Arrow
+      </Button>,
     )
     const svg = container.querySelector('svg')
     expect(svg).toHaveClass('relative', 'top-px')

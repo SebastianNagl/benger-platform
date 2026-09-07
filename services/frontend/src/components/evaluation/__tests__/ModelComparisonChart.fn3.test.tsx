@@ -3,8 +3,8 @@
  * Targets: getMetricValue, getErrorValue, MissingDataWarning, bar visualization
  */
 
-import React from 'react'
 import { render, screen } from '@testing-library/react'
+import React from 'react'
 
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
@@ -20,9 +20,15 @@ jest.mock('@/contexts/I18nContext', () => ({
 
 // Mock recharts to render simple divs
 jest.mock('recharts', () => ({
-  ResponsiveContainer: ({ children }: any) => <div data-testid="responsive-container">{children}</div>,
-  RadarChart: ({ children }: any) => <div data-testid="radar-chart">{children}</div>,
-  BarChart: ({ children }: any) => <div data-testid="bar-chart">{children}</div>,
+  ResponsiveContainer: ({ children }: any) => (
+    <div data-testid="responsive-container">{children}</div>
+  ),
+  RadarChart: ({ children }: any) => (
+    <div data-testid="radar-chart">{children}</div>
+  ),
+  BarChart: ({ children }: any) => (
+    <div data-testid="bar-chart">{children}</div>
+  ),
   Radar: () => <div data-testid="radar" />,
   Bar: () => <div data-testid="bar" />,
   CartesianGrid: () => null,
@@ -44,7 +50,11 @@ describe('ModelComparisonChart fn3', () => {
       model_id: 'gpt-4',
       metrics: {
         accuracy: 0.95,
-        f1: { value: 0.9, error: 0.02, confidenceInterval: { lower: 0.88, upper: 0.92 } },
+        f1: {
+          value: 0.9,
+          error: 0.02,
+          confidenceInterval: { lower: 0.88, upper: 0.92 },
+        },
       },
     },
     {
@@ -61,7 +71,7 @@ describe('ModelComparisonChart fn3', () => {
       <ModelComparisonChart
         models={sampleModels}
         metrics={['accuracy', 'f1']}
-      />
+      />,
     )
     expect(screen.getByTestId('radar-chart')).toBeInTheDocument()
   })
@@ -72,7 +82,7 @@ describe('ModelComparisonChart fn3', () => {
         models={sampleModels}
         metrics={['accuracy', 'f1']}
         visualizationType="bar"
-      />
+      />,
     )
     expect(screen.getByTestId('bar-chart')).toBeInTheDocument()
   })
@@ -83,7 +93,7 @@ describe('ModelComparisonChart fn3', () => {
         models={sampleModels}
         metrics={['accuracy']}
         title="Model Comparison"
-      />
+      />,
     )
     expect(screen.getByText('Model Comparison')).toBeInTheDocument()
   })
@@ -98,7 +108,7 @@ describe('ModelComparisonChart fn3', () => {
         models={modelsWithMissing}
         metrics={['accuracy', 'nonexistent']}
         visualizationType="bar"
-      />
+      />,
     )
     // Both models are missing 'nonexistent' → the (now collapsible) missing-data
     // warning renders, with the incomplete model listed in its expandable body.
@@ -122,7 +132,7 @@ describe('ModelComparisonChart fn3', () => {
         metrics={['bleu']}
         visualizationType="bar"
         showErrorBars={true}
-      />
+      />,
     )
     expect(screen.getByTestId('bar-chart')).toBeInTheDocument()
   })

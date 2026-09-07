@@ -1,7 +1,7 @@
 'use client'
 
-import clsx from 'clsx'
 import { useHydration } from '@/contexts/HydrationContext'
+import clsx from 'clsx'
 import {
   ButtonHTMLAttributes,
   HTMLAttributes,
@@ -18,8 +18,10 @@ interface TabsContextType {
 
 const TabsContext = createContext<TabsContextType | null>(null)
 
-interface TabsProps
-  extends Omit<HTMLAttributes<HTMLDivElement>, 'defaultValue' | 'children' | 'className'> {
+interface TabsProps extends Omit<
+  HTMLAttributes<HTMLDivElement>,
+  'defaultValue' | 'children' | 'className'
+> {
   defaultValue: string
   /** Controlled mode: when set, the active tab is owned by the parent. */
   value?: string
@@ -34,18 +36,19 @@ interface TabsListProps {
   className?: string
 }
 
-interface TabsTriggerProps
-  extends Omit<
-    ButtonHTMLAttributes<HTMLButtonElement>,
-    'onClick' | 'value' | 'children' | 'className' | 'type'
-  > {
+interface TabsTriggerProps extends Omit<
+  ButtonHTMLAttributes<HTMLButtonElement>,
+  'onClick' | 'value' | 'children' | 'className' | 'type'
+> {
   value: string
   children: ReactNode
   className?: string
 }
 
-interface TabsContentProps
-  extends Omit<HTMLAttributes<HTMLDivElement>, 'children' | 'className'> {
+interface TabsContentProps extends Omit<
+  HTMLAttributes<HTMLDivElement>,
+  'children' | 'className'
+> {
   value: string
   children: ReactNode
   className?: string
@@ -104,7 +107,7 @@ export function TabsList({ children, className }: TabsListProps) {
     <div
       className={clsx(
         'inline-flex h-10 items-center justify-center rounded-md bg-zinc-100 p-1 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400',
-        className
+        className,
       )}
     >
       {children}
@@ -128,9 +131,9 @@ export function TabsTrigger({
         type="button"
         disabled
         className={clsx(
-          'inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-white transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50',
+          'inline-flex items-center justify-center rounded-sm px-3 py-1.5 text-sm font-medium whitespace-nowrap ring-offset-white transition-all focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50',
           'hover:bg-zinc-200 hover:text-zinc-900 dark:hover:bg-zinc-700 dark:hover:text-white',
-          className
+          className,
         )}
         {...rest}
       >
@@ -147,11 +150,11 @@ export function TabsTrigger({
       type="button"
       onClick={() => setActiveTab(value)}
       className={clsx(
-        'inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-white transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50',
+        'inline-flex items-center justify-center rounded-sm px-3 py-1.5 text-sm font-medium whitespace-nowrap ring-offset-white transition-all focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50',
         isActive
           ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-white'
           : 'hover:bg-zinc-200 hover:text-zinc-900 dark:hover:bg-zinc-700 dark:hover:text-white',
-        className
+        className,
       )}
       {...rest}
     >
@@ -186,8 +189,8 @@ export function TabsContent({
     return (
       <div
         className={clsx(
-          'mt-2 ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2',
-          className
+          'mt-2 ring-offset-white focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 focus-visible:outline-none',
+          className,
         )}
         style={{ display: isActive ? 'block' : 'none' }}
         {...rest}
@@ -201,8 +204,8 @@ export function TabsContent({
   return (
     <div
       className={clsx(
-        'mt-2 ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2',
-        className
+        'mt-2 ring-offset-white focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 focus-visible:outline-none',
+        className,
       )}
       {...rest}
     >

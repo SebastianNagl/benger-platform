@@ -36,57 +36,65 @@ describe('confirm-profile route br8', () => {
 
   it('uses API_BASE_URL when set (L6)', async () => {
     process.env.API_BASE_URL = 'http://custom:9000'
-    const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue(
-      new Response(JSON.stringify({ ok: true }), { status: 200 })
-    )
+    const fetchSpy = jest
+      .spyOn(global, 'fetch')
+      .mockResolvedValue(
+        new Response(JSON.stringify({ ok: true }), { status: 200 }),
+      )
     const { POST } = require('../route')
     await POST(makeRequest('anything.com'))
     expect(fetchSpy).toHaveBeenCalledWith(
       expect.stringContaining('custom:9000'),
-      expect.anything()
+      expect.anything(),
     )
   })
 
   it('routes benger-test.localhost to test-api (L10-11)', async () => {
-    const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue(
-      new Response(JSON.stringify({ ok: true }), { status: 200 })
-    )
+    const fetchSpy = jest
+      .spyOn(global, 'fetch')
+      .mockResolvedValue(
+        new Response(JSON.stringify({ ok: true }), { status: 200 }),
+      )
     const { POST } = require('../route')
     await POST(makeRequest('benger-test.localhost'))
     expect(fetchSpy).toHaveBeenCalledWith(
       expect.stringContaining('test-api:8000'),
-      expect.anything()
+      expect.anything(),
     )
   })
 
   it('routes benger.localhost to api:8000 (L12-13)', async () => {
-    const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue(
-      new Response(JSON.stringify({ ok: true }), { status: 200 })
-    )
+    const fetchSpy = jest
+      .spyOn(global, 'fetch')
+      .mockResolvedValue(
+        new Response(JSON.stringify({ ok: true }), { status: 200 }),
+      )
     const { POST } = require('../route')
     await POST(makeRequest('benger.localhost'))
     expect(fetchSpy).toHaveBeenCalledWith(
       expect.stringContaining('api:8000'),
-      expect.anything()
+      expect.anything(),
     )
   })
 
   it('routes what-a-benger.net to production API (L16-21)', async () => {
-    const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue(
-      new Response(JSON.stringify({ ok: true }), { status: 200 })
-    )
+    const fetchSpy = jest
+      .spyOn(global, 'fetch')
+      .mockResolvedValue(
+        new Response(JSON.stringify({ ok: true }), { status: 200 }),
+      )
     const { POST } = require('../route')
     await POST(makeRequest('what-a-benger.net'))
     expect(fetchSpy).toHaveBeenCalledWith(
       expect.stringContaining('benger-api:8000'),
-      expect.anything()
+      expect.anything(),
     )
   })
 
   it('handles non-ok response with empty error text (L48 fallback)', async () => {
-    jest.spyOn(global, 'fetch').mockResolvedValue(
-      new Response('', { status: 400 })
-    )
+    jest
+      .spyOn(global, 'fetch')
+      .mockResolvedValue(new Response('', { status: 400 }))
     const { POST } = require('../route')
     const res = await POST(makeRequest('benger.localhost'))
     const body = await res.json()
@@ -95,9 +103,9 @@ describe('confirm-profile route br8', () => {
   })
 
   it('handles non-ok response with error text', async () => {
-    jest.spyOn(global, 'fetch').mockResolvedValue(
-      new Response('Custom error', { status: 422 })
-    )
+    jest
+      .spyOn(global, 'fetch')
+      .mockResolvedValue(new Response('Custom error', { status: 422 }))
     const { POST } = require('../route')
     const res = await POST(makeRequest('benger.localhost'))
     const body = await res.json()

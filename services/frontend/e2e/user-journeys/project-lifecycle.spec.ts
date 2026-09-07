@@ -54,9 +54,7 @@ test.describe('Project Lifecycle', () => {
     await createButton.click()
     await page.waitForURL(/\/projects\/create/, { timeout: 15000 })
 
-    const nameInput = page.locator(
-      '[data-testid="project-create-name-input"]'
-    )
+    const nameInput = page.locator('[data-testid="project-create-name-input"]')
     await expect(nameInput).toBeVisible({ timeout: 10000 })
 
     const projectName = `E2E Lifecycle ${Date.now()}`
@@ -74,7 +72,7 @@ test.describe('Project Lifecycle', () => {
 
     // Verify the step indicator shows we're starting on step 1.
     const stepIndicator = page.locator(
-      '[data-testid="project-create-step-indicator"]'
+      '[data-testid="project-create-step-indicator"]',
     )
     await expect(stepIndicator).toHaveAttribute('data-step', '1')
 
@@ -95,7 +93,7 @@ test.describe('Project Lifecycle', () => {
     seededProjectId = await seeder.createProject('Lifecycle Sections Test')
     await seeder.setLabelConfig(
       seededProjectId,
-      '<View><Text name="text" value="$text"/><Choices name="label" toName="text"><Choice value="A"/><Choice value="B"/></Choices></View>'
+      '<View><Text name="text" value="$text"/><Choices name="label" toName="text"><Choice value="A"/><Choice value="B"/></Choices></View>',
     )
 
     await page.goto(`${BASE_URL}/projects/${seededProjectId}`)
@@ -165,7 +163,7 @@ test.describe('Project Lifecycle', () => {
 
     // Wait for filter to take effect
     await expect(
-      page.locator('tr').filter({ hasText: uniqueName }).first()
+      page.locator('tr').filter({ hasText: uniqueName }).first(),
     ).toBeVisible({ timeout: 10000 })
   })
 
@@ -173,7 +171,7 @@ test.describe('Project Lifecycle', () => {
     seededProjectId = await seeder.createProject('Lifecycle Data Nav Test')
     await seeder.setLabelConfig(
       seededProjectId,
-      '<View><Text name="text" value="$text"/><Choices name="label" toName="text"><Choice value="A"/><Choice value="B"/></Choices></View>'
+      '<View><Text name="text" value="$text"/><Choices name="label" toName="text"><Choice value="A"/><Choice value="B"/></Choices></View>',
     )
     await seeder.importTasks(seededProjectId, [
       { data: { text: 'Navigation test task' } },
@@ -189,7 +187,9 @@ test.describe('Project Lifecycle', () => {
 
     await expect(dataLink).toBeVisible({ timeout: 15000 })
     await dataLink.click()
-    await page.waitForURL(`**/projects/${seededProjectId}/data`, { timeout: 15000 })
+    await page.waitForURL(`**/projects/${seededProjectId}/data`, {
+      timeout: 15000,
+    })
 
     expect(page.url()).toContain(`/projects/${seededProjectId}/data`)
   })

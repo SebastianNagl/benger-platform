@@ -99,7 +99,7 @@ describe('JudgeEnsembleControl — BYOM credential gating', () => {
 
     // Amber hint below the locked entry, linking to the key settings page.
     expect(
-      screen.getByText('customModels.picker.missingKey')
+      screen.getByText('customModels.picker.missingKey'),
     ).toBeInTheDocument()
     const link = screen
       .getByText('customModels.picker.configureKey')
@@ -117,7 +117,7 @@ describe('JudgeEnsembleControl — BYOM credential gating', () => {
     // Both customs carry the Custom badge under the custom section header.
     expect(screen.getAllByTestId('custom-badge')).toHaveLength(2)
     expect(
-      screen.getByText('customModels.picker.customSection')
+      screen.getByText('customModels.picker.customSection'),
     ).toBeInTheDocument()
   })
 
@@ -195,7 +195,7 @@ describe('JudgeEnsembleControl — stale saved judges (#274 item 6)', () => {
     expect(savedCb).not.toBeDisabled()
     // The amber missing-key hint still shows.
     expect(
-      screen.getByText('customModels.picker.missingKey')
+      screen.getByText('customModels.picker.missingKey'),
     ).toBeInTheDocument()
 
     // Unchecking removes it from the saved config.
@@ -258,7 +258,7 @@ describe('JudgeEnsembleControl — stale saved judges (#274 item 6)', () => {
       },
     })
     expect(
-      screen.queryByTestId(/judge-ensemble-orphan-/)
+      screen.queryByTestId(/judge-ensemble-orphan-/),
     ).not.toBeInTheDocument()
   })
 })

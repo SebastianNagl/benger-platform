@@ -325,7 +325,7 @@ describe('Permission Utilities', () => {
 
   describe('hasOrganization', () => {
     const createMockOrganization = (
-      overrides: Partial<Organization> = {}
+      overrides: Partial<Organization> = {},
     ): Organization => ({
       id: 'test-org-id',
       name: 'Test Organization',
@@ -414,7 +414,7 @@ describe('Public visibility helpers', () => {
 
     it('returns ORG_ADMIN for superadmins', () => {
       expect(
-        getEffectiveProjectRole(mkUser({ is_superadmin: true }), mkProject())
+        getEffectiveProjectRole(mkUser({ is_superadmin: true }), mkProject()),
       ).toBe('ORG_ADMIN')
     })
 
@@ -422,14 +422,14 @@ describe('Public visibility helpers', () => {
       expect(
         getEffectiveProjectRole(
           mkUser({ id: 'creator-1' }),
-          mkProject({ created_by: 'creator-1' })
-        )
+          mkProject({ created_by: 'creator-1' }),
+        ),
       ).toBe('ORG_ADMIN')
     })
 
     it('returns the explicit org role when provided', () => {
       expect(
-        getEffectiveProjectRole(mkUser(), mkProject(), 'CONTRIBUTOR')
+        getEffectiveProjectRole(mkUser(), mkProject(), 'CONTRIBUTOR'),
       ).toBe('CONTRIBUTOR')
     })
 
@@ -437,8 +437,8 @@ describe('Public visibility helpers', () => {
       expect(
         getEffectiveProjectRole(
           mkUser(),
-          mkProject({ is_public: true, public_role: 'CONTRIBUTOR' })
-        )
+          mkProject({ is_public: true, public_role: 'CONTRIBUTOR' }),
+        ),
       ).toBe('CONTRIBUTOR')
     })
 
@@ -446,8 +446,8 @@ describe('Public visibility helpers', () => {
       expect(
         getEffectiveProjectRole(
           mkUser(),
-          mkProject({ is_public: false, public_role: 'CONTRIBUTOR' })
-        )
+          mkProject({ is_public: false, public_role: 'CONTRIBUTOR' }),
+        ),
       ).toBeNull()
     })
 
@@ -456,8 +456,8 @@ describe('Public visibility helpers', () => {
         getEffectiveProjectRole(
           mkUser(),
           mkProject({ is_public: true, public_role: 'CONTRIBUTOR' }),
-          'ANNOTATOR'
-        )
+          'ANNOTATOR',
+        ),
       ).toBe('ANNOTATOR')
     })
   })
@@ -470,7 +470,7 @@ describe('Public visibility helpers', () => {
 
     it('true for superadmins', () => {
       expect(
-        canMakeProjectPublic(mkUser({ is_superadmin: true }), mkProject())
+        canMakeProjectPublic(mkUser({ is_superadmin: true }), mkProject()),
       ).toBe(true)
     })
 
@@ -478,8 +478,8 @@ describe('Public visibility helpers', () => {
       expect(
         canMakeProjectPublic(
           mkUser({ id: 'me' }),
-          mkProject({ created_by: 'me' })
-        )
+          mkProject({ created_by: 'me' }),
+        ),
       ).toBe(true)
     })
 
@@ -487,8 +487,8 @@ describe('Public visibility helpers', () => {
       expect(
         canMakeProjectPublic(
           mkUser({ id: 'stranger' }),
-          mkProject({ created_by: 'creator-1' })
-        )
+          mkProject({ created_by: 'creator-1' }),
+        ),
       ).toBe(false)
     })
   })
@@ -502,7 +502,7 @@ describe('Public visibility helpers', () => {
             is_public: true,
             public_role: 'CONTRIBUTOR',
           }),
-        })
+        }),
       ).toBe(true)
     })
 
@@ -514,7 +514,7 @@ describe('Public visibility helpers', () => {
             is_public: true,
             public_role: 'ANNOTATOR',
           }),
-        })
+        }),
       ).toBe(false)
     })
 
@@ -522,7 +522,7 @@ describe('Public visibility helpers', () => {
       expect(
         canAccessProjectData(mkUser({ id: 'visitor' }), {
           project: mkProject({ created_by: 'someone' }),
-        })
+        }),
       ).toBe(false)
     })
 
@@ -541,8 +541,8 @@ describe('Public visibility helpers', () => {
             created_by: 'someone',
             is_public: true,
             public_role: 'CONTRIBUTOR',
-          })
-        )
+          }),
+        ),
       ).toBe(true)
     })
 
@@ -554,8 +554,8 @@ describe('Public visibility helpers', () => {
             created_by: 'someone',
             is_public: true,
             public_role: 'ANNOTATOR',
-          })
-        )
+          }),
+        ),
       ).toBe(false)
     })
 
@@ -574,7 +574,7 @@ describe('Public visibility helpers', () => {
     it('true for superadmins regardless of project', () => {
       expect(canEditTaskData(mkUser({ is_superadmin: true }))).toBe(true)
       expect(
-        canEditTaskData(mkUser({ is_superadmin: true }), mkProject())
+        canEditTaskData(mkUser({ is_superadmin: true }), mkProject()),
       ).toBe(true)
     })
 
@@ -583,8 +583,8 @@ describe('Public visibility helpers', () => {
         expect(
           canEditTaskData(
             mkUser({ id: 'creator-1' }),
-            mkProject({ created_by: 'creator-1' })
-          )
+            mkProject({ created_by: 'creator-1' }),
+          ),
         ).toBe(true)
       })
 
@@ -592,8 +592,8 @@ describe('Public visibility helpers', () => {
         expect(
           canEditTaskData(
             mkUser({ id: 'stranger', role: 'CONTRIBUTOR' }),
-            mkProject({ created_by: 'creator-1' })
-          )
+            mkProject({ created_by: 'creator-1' }),
+          ),
         ).toBe(false)
       })
 
@@ -605,8 +605,8 @@ describe('Public visibility helpers', () => {
               created_by: 'someone',
               is_public: true,
               public_role: 'CONTRIBUTOR',
-            })
-          )
+            }),
+          ),
         ).toBe(false)
       })
     })
@@ -627,7 +627,7 @@ describe('Public visibility helpers', () => {
     const org = (
       slug: string,
       role: Organization['role'],
-      overrides: Partial<Organization> = {}
+      overrides: Partial<Organization> = {},
     ): Organization => ({
       id: `org-${slug}`,
       name: slug,
@@ -640,9 +640,7 @@ describe('Public visibility helpers', () => {
     })
 
     it('returns false for an unauthenticated user', () => {
-      expect(
-        canUseExpertView(null, [], { isPrivateMode: true })
-      ).toBe(false)
+      expect(canUseExpertView(null, [], { isPrivateMode: true })).toBe(false)
     })
 
     it('allows superadmins regardless of org context or role', () => {
@@ -652,12 +650,12 @@ describe('Public visibility helpers', () => {
         canUseExpertView(superadmin, [org('a', 'ANNOTATOR')], {
           isPrivateMode: false,
           orgSlug: 'a',
-        })
+        }),
       ).toBe(true)
       // In private mode with no qualifying memberships.
-      expect(
-        canUseExpertView(superadmin, [], { isPrivateMode: true })
-      ).toBe(true)
+      expect(canUseExpertView(superadmin, [], { isPrivateMode: true })).toBe(
+        true,
+      )
     })
 
     describe('on an org subdomain (gated by role in THAT org)', () => {
@@ -667,29 +665,28 @@ describe('Public visibility helpers', () => {
 
       it('shows the toggle on org A where the user is a contributor', () => {
         expect(
-          canUseExpertView(user, orgs, { isPrivateMode: false, orgSlug: 'a' })
+          canUseExpertView(user, orgs, { isPrivateMode: false, orgSlug: 'a' }),
         ).toBe(true)
       })
 
       it('hides the toggle on org B where the user is only an annotator', () => {
         expect(
-          canUseExpertView(user, orgs, { isPrivateMode: false, orgSlug: 'b' })
+          canUseExpertView(user, orgs, { isPrivateMode: false, orgSlug: 'b' }),
         ).toBe(false)
       })
 
       it('allows ORG_ADMIN in the active org', () => {
         expect(
-          canUseExpertView(
-            createMockUser(),
-            [org('a', 'ORG_ADMIN')],
-            { isPrivateMode: false, orgSlug: 'a' }
-          )
+          canUseExpertView(createMockUser(), [org('a', 'ORG_ADMIN')], {
+            isPrivateMode: false,
+            orgSlug: 'a',
+          }),
         ).toBe(true)
       })
 
       it('hides the toggle when the user is not a member of the active org', () => {
         expect(
-          canUseExpertView(user, orgs, { isPrivateMode: false, orgSlug: 'c' })
+          canUseExpertView(user, orgs, { isPrivateMode: false, orgSlug: 'c' }),
         ).toBe(false)
       })
     })
@@ -700,8 +697,8 @@ describe('Public visibility helpers', () => {
           canUseExpertView(
             createMockUser(),
             [org('a', 'ANNOTATOR'), org('b', 'CONTRIBUTOR')],
-            { isPrivateMode: true }
-          )
+            { isPrivateMode: true },
+          ),
         ).toBe(true)
       })
 
@@ -710,14 +707,14 @@ describe('Public visibility helpers', () => {
           canUseExpertView(
             createMockUser(),
             [org('a', 'ANNOTATOR'), org('b', 'ANNOTATOR')],
-            { isPrivateMode: true }
-          )
+            { isPrivateMode: true },
+          ),
         ).toBe(false)
       })
 
       it('denies a user with no organizations', () => {
         expect(
-          canUseExpertView(createMockUser(), [], { isPrivateMode: true })
+          canUseExpertView(createMockUser(), [], { isPrivateMode: true }),
         ).toBe(false)
       })
     })
@@ -727,7 +724,7 @@ describe('Public visibility helpers', () => {
         canUseExpertView(createMockUser(), [], {
           isPrivateMode: false,
           orgSlug: null,
-        })
+        }),
       ).toBe(false)
     })
   })

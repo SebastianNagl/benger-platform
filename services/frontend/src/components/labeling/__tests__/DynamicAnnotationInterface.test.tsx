@@ -96,7 +96,7 @@ jest.mock('@/components/shared/Skeleton', () => ({
         )}
       </div>
     )
-  }
+  },
 )
 ;(global as any).__mockViewComponent = jest.fn(({ children, config }) => (
   <div data-testid="mock-view" className="view-component">
@@ -243,7 +243,7 @@ describe('DynamicAnnotationInterface', () => {
       // So when showSubmitButton=true (default), hideSubmitButton=true
       // This means component-level submit buttons are HIDDEN (centralized submit button shown instead)
       const componentSubmitButton = screen.queryByTestId(
-        'component-submit-button'
+        'component-submit-button',
       )
       expect(componentSubmitButton).not.toBeInTheDocument()
 
@@ -264,7 +264,7 @@ describe('DynamicAnnotationInterface', () => {
         expect.objectContaining({
           hideSubmitButton: true,
         }),
-        expect.any(Object)
+        undefined,
       )
     })
   })
@@ -284,7 +284,7 @@ describe('DynamicAnnotationInterface', () => {
         name: /submit/i,
       })
       const submitButton = allSubmitButtons.find((btn) =>
-        btn.classList.contains('bg-emerald-600')
+        btn.classList.contains('bg-emerald-600'),
       )
 
       // Fill in some text
@@ -310,7 +310,10 @@ describe('DynamicAnnotationInterface', () => {
       // autosaved draft. Submit must now merge componentValues so nothing is lost.
       const mockOnSubmit = jest.fn()
       render(
-        <DynamicAnnotationInterface {...defaultProps} onSubmit={mockOnSubmit} />
+        <DynamicAnnotationInterface
+          {...defaultProps}
+          onSubmit={mockOnSubmit}
+        />,
       )
 
       // Type into the field. The mock component fires onChange (-> componentValues)
@@ -330,8 +333,11 @@ describe('DynamicAnnotationInterface', () => {
       await waitFor(() => expect(mockOnSubmit).toHaveBeenCalledTimes(1))
       expect(mockOnSubmit).toHaveBeenCalledWith(
         expect.arrayContaining([
-          expect.objectContaining({ from_name: 'answer', value: 'letzter Absatz' }),
-        ])
+          expect.objectContaining({
+            from_name: 'answer',
+            value: 'letzter Absatz',
+          }),
+        ]),
       )
     })
 
@@ -342,7 +348,7 @@ describe('DynamicAnnotationInterface', () => {
         name: /submit/i,
       })
       const submitButton = allSubmitButtons.find((btn) =>
-        btn.classList.contains('bg-emerald-600')
+        btn.classList.contains('bg-emerald-600'),
       )
 
       // Try to submit without any annotations
@@ -416,14 +422,14 @@ describe('DynamicAnnotationInterface', () => {
         <DynamicAnnotationInterface
           {...defaultProps}
           taskId="9eda2dca-838f-4766-a19e-be7c734a0839"
-        />
+        />,
       )
 
       expect(mockTextAreaComponent()).toHaveBeenCalledWith(
         expect.objectContaining({
           taskId: '9eda2dca-838f-4766-a19e-be7c734a0839',
         }),
-        expect.any(Object)
+        undefined,
       )
     })
   })
@@ -438,7 +444,7 @@ describe('DynamicAnnotationInterface', () => {
           toName: 'context',
           placeholder: 'Enter your answer...',
         }),
-        { context: 'Test question' }
+        { context: 'Test question' },
       )
     })
 
@@ -494,7 +500,7 @@ describe('DynamicAnnotationInterface', () => {
             type: 'TextArea',
           }),
         }),
-        expect.any(Object)
+        undefined,
       )
     })
   })
@@ -505,7 +511,10 @@ describe('DynamicAnnotationInterface', () => {
       const user = userEvent.setup()
 
       render(
-        <DynamicAnnotationInterface {...defaultProps} onSubmit={mockOnSubmit} />
+        <DynamicAnnotationInterface
+          {...defaultProps}
+          onSubmit={mockOnSubmit}
+        />,
       )
 
       const textarea = screen.getByTestId('textarea')
@@ -523,7 +532,10 @@ describe('DynamicAnnotationInterface', () => {
       const user = userEvent.setup()
 
       render(
-        <DynamicAnnotationInterface {...defaultProps} onSubmit={mockOnSubmit} />
+        <DynamicAnnotationInterface
+          {...defaultProps}
+          onSubmit={mockOnSubmit}
+        />,
       )
 
       const textarea = screen.getByTestId('textarea')
@@ -540,7 +552,7 @@ describe('DynamicAnnotationInterface', () => {
       const mockOnSkip = jest.fn()
 
       render(
-        <DynamicAnnotationInterface {...defaultProps} onSkip={mockOnSkip} />
+        <DynamicAnnotationInterface {...defaultProps} onSkip={mockOnSkip} />,
       )
 
       fireEvent.keyDown(window, { key: 'Escape', ctrlKey: true })
@@ -552,7 +564,7 @@ describe('DynamicAnnotationInterface', () => {
       const mockOnSkip = jest.fn()
 
       render(
-        <DynamicAnnotationInterface {...defaultProps} onSkip={mockOnSkip} />
+        <DynamicAnnotationInterface {...defaultProps} onSkip={mockOnSkip} />,
       )
 
       fireEvent.keyDown(window, { key: 'Escape' })
@@ -564,7 +576,7 @@ describe('DynamicAnnotationInterface', () => {
       const mockOnSkip = jest.fn()
 
       render(
-        <DynamicAnnotationInterface {...defaultProps} onSkip={undefined} />
+        <DynamicAnnotationInterface {...defaultProps} onSkip={undefined} />,
       )
 
       fireEvent.keyDown(window, { key: 'Escape', ctrlKey: true })
@@ -576,7 +588,7 @@ describe('DynamicAnnotationInterface', () => {
   describe('Task State Management', () => {
     it('should clear form state when taskId changes', () => {
       const { rerender } = render(
-        <DynamicAnnotationInterface {...defaultProps} taskId="task-1" />
+        <DynamicAnnotationInterface {...defaultProps} taskId="task-1" />,
       )
 
       let submitButton = getMainSubmitButton()
@@ -591,7 +603,7 @@ describe('DynamicAnnotationInterface', () => {
     it('should maintain state when taskId does not change', async () => {
       const user = userEvent.setup()
       const { rerender } = render(
-        <DynamicAnnotationInterface {...defaultProps} taskId="task-1" />
+        <DynamicAnnotationInterface {...defaultProps} taskId="task-1" />,
       )
 
       const textarea = screen.getByTestId('textarea')
@@ -602,7 +614,7 @@ describe('DynamicAnnotationInterface', () => {
           {...defaultProps}
           taskId="task-1"
           taskData={{ context: 'Updated context' }}
-        />
+        />,
       )
 
       expect(textarea).toHaveValue('Test')
@@ -646,7 +658,7 @@ describe('DynamicAnnotationInterface', () => {
 
       expect(screen.getByTestId('alert')).toBeInTheDocument()
       expect(
-        screen.getByText(/Missing required fields: text/i)
+        screen.getByText(/Missing required fields: text/i),
       ).toBeInTheDocument()
     })
 
@@ -659,7 +671,7 @@ describe('DynamicAnnotationInterface', () => {
 
       expect(screen.getByText('Task Data')).toBeInTheDocument()
       expect(
-        screen.getByText(/"context": "Test question"/, { exact: false })
+        screen.getByText(/"context": "Test question"/, { exact: false }),
       ).toBeInTheDocument()
     })
   })
@@ -679,7 +691,7 @@ describe('DynamicAnnotationInterface', () => {
         <DynamicAnnotationInterface
           {...defaultProps}
           initialValues={initialValues}
-        />
+        />,
       )
 
       const textarea = screen.getByTestId('textarea')
@@ -700,7 +712,7 @@ describe('DynamicAnnotationInterface', () => {
         <DynamicAnnotationInterface
           {...defaultProps}
           initialValues={initialValues}
-        />
+        />,
       )
 
       const textarea = screen.getByTestId('textarea')
@@ -714,7 +726,10 @@ describe('DynamicAnnotationInterface', () => {
       const user = userEvent.setup()
 
       render(
-        <DynamicAnnotationInterface {...defaultProps} onChange={mockOnChange} />
+        <DynamicAnnotationInterface
+          {...defaultProps}
+          onChange={mockOnChange}
+        />,
       )
 
       const textarea = screen.getByTestId('textarea')
@@ -730,7 +745,10 @@ describe('DynamicAnnotationInterface', () => {
       const user = userEvent.setup()
 
       render(
-        <DynamicAnnotationInterface {...defaultProps} onChange={mockOnChange} />
+        <DynamicAnnotationInterface
+          {...defaultProps}
+          onChange={mockOnChange}
+        />,
       )
 
       const textarea = screen.getByTestId('textarea')
@@ -743,7 +761,7 @@ describe('DynamicAnnotationInterface', () => {
               from_name: 'answer',
               type: 'textarea',
             }),
-          ])
+          ]),
         )
       })
     })
@@ -771,7 +789,10 @@ describe('DynamicAnnotationInterface', () => {
       const user = userEvent.setup()
 
       render(
-        <DynamicAnnotationInterface {...defaultProps} onSubmit={mockOnSubmit} />
+        <DynamicAnnotationInterface
+          {...defaultProps}
+          onSubmit={mockOnSubmit}
+        />,
       )
 
       const textarea = screen.getByTestId('textarea')
@@ -816,7 +837,7 @@ describe('DynamicAnnotationInterface', () => {
     it('should maintain component values during re-renders', async () => {
       const user = userEvent.setup()
       const { rerender } = render(
-        <DynamicAnnotationInterface {...defaultProps} taskId="task-1" />
+        <DynamicAnnotationInterface {...defaultProps} taskId="task-1" />,
       )
 
       const textarea = screen.getByTestId('textarea')
@@ -827,7 +848,7 @@ describe('DynamicAnnotationInterface', () => {
           {...defaultProps}
           taskId="task-1"
           taskData={{ context: 'Updated context' }}
-        />
+        />,
       )
 
       expect(textarea).toHaveValue('Test value')
@@ -840,7 +861,10 @@ describe('DynamicAnnotationInterface', () => {
       const user = userEvent.setup()
 
       render(
-        <DynamicAnnotationInterface {...defaultProps} onChange={mockOnChange} />
+        <DynamicAnnotationInterface
+          {...defaultProps}
+          onChange={mockOnChange}
+        />,
       )
 
       const textarea = screen.getByTestId('textarea')
@@ -854,7 +878,7 @@ describe('DynamicAnnotationInterface', () => {
               type: 'textarea',
               value: expect.any(String),
             }),
-          ])
+          ]),
         )
       })
     })
@@ -863,7 +887,10 @@ describe('DynamicAnnotationInterface', () => {
       const mockOnSubmit = jest.fn()
 
       render(
-        <DynamicAnnotationInterface {...defaultProps} onSubmit={mockOnSubmit} />
+        <DynamicAnnotationInterface
+          {...defaultProps}
+          onSubmit={mockOnSubmit}
+        />,
       )
 
       const submitButton = getMainSubmitButton()
@@ -889,7 +916,10 @@ describe('DynamicAnnotationInterface', () => {
       const mockOnSubmit = jest.fn()
 
       render(
-        <DynamicAnnotationInterface {...defaultProps} onSubmit={mockOnSubmit} />
+        <DynamicAnnotationInterface
+          {...defaultProps}
+          onSubmit={mockOnSubmit}
+        />,
       )
 
       const submitButton = getMainSubmitButton()
@@ -911,7 +941,10 @@ describe('DynamicAnnotationInterface', () => {
       const user = userEvent.setup()
 
       render(
-        <DynamicAnnotationInterface {...defaultProps} onSubmit={mockOnSubmit} />
+        <DynamicAnnotationInterface
+          {...defaultProps}
+          onSubmit={mockOnSubmit}
+        />,
       )
 
       const textarea = screen.getByTestId('textarea')
@@ -942,7 +975,7 @@ describe('DynamicAnnotationInterface', () => {
             props: expect.any(Object),
           }),
         }),
-        expect.any(Object)
+        undefined,
       )
     })
 
@@ -951,12 +984,12 @@ describe('DynamicAnnotationInterface', () => {
         <DynamicAnnotationInterface
           {...defaultProps}
           taskData={{ context: 'Test context' }}
-        />
+        />,
       )
 
       expect(mockResolvePropsDataBindings).toHaveBeenCalledWith(
         expect.anything(),
-        { context: 'Test context' }
+        { context: 'Test context' },
       )
     })
   })
@@ -1018,7 +1051,10 @@ describe('DynamicAnnotationInterface', () => {
       const user = userEvent.setup()
 
       render(
-        <DynamicAnnotationInterface {...defaultProps} onSubmit={mockOnSubmit} />
+        <DynamicAnnotationInterface
+          {...defaultProps}
+          onSubmit={mockOnSubmit}
+        />,
       )
 
       const textarea = screen.getByTestId('textarea')
@@ -1033,7 +1069,7 @@ describe('DynamicAnnotationInterface', () => {
       const mockOnSkip = jest.fn()
 
       render(
-        <DynamicAnnotationInterface {...defaultProps} onSkip={mockOnSkip} />
+        <DynamicAnnotationInterface {...defaultProps} onSkip={mockOnSkip} />,
       )
 
       fireEvent.keyDown(window, { key: 'Enter' })
@@ -1046,7 +1082,10 @@ describe('DynamicAnnotationInterface', () => {
     it('should handle keyboard shortcuts after component unmount', () => {
       const mockOnSubmit = jest.fn()
       const { unmount } = render(
-        <DynamicAnnotationInterface {...defaultProps} onSubmit={mockOnSubmit} />
+        <DynamicAnnotationInterface
+          {...defaultProps}
+          onSubmit={mockOnSubmit}
+        />,
       )
 
       unmount()
@@ -1078,7 +1117,7 @@ describe('DynamicAnnotationInterface', () => {
         <DynamicAnnotationInterface
           {...defaultProps}
           initialValues={initialValues}
-        />
+        />,
       )
 
       const textarea = screen.getByTestId('textarea')
@@ -1099,7 +1138,7 @@ describe('DynamicAnnotationInterface', () => {
         <DynamicAnnotationInterface
           {...defaultProps}
           initialValues={initialValues}
-        />
+        />,
       )
 
       const textarea = screen.getByTestId('textarea')
@@ -1108,7 +1147,7 @@ describe('DynamicAnnotationInterface', () => {
 
     it('should handle empty initial values array', () => {
       render(
-        <DynamicAnnotationInterface {...defaultProps} initialValues={[]} />
+        <DynamicAnnotationInterface {...defaultProps} initialValues={[]} />,
       )
 
       const submitButton = getMainSubmitButton()
@@ -1121,7 +1160,7 @@ describe('DynamicAnnotationInterface', () => {
       mockParseLabelConfig.mockReturnValue({ message: 'Error' } as any)
 
       const { rerender } = render(
-        <DynamicAnnotationInterface {...defaultProps} taskId="task-1" />
+        <DynamicAnnotationInterface {...defaultProps} taskId="task-1" />,
       )
 
       expect(screen.getByTestId('alert')).toBeInTheDocument()
@@ -1153,7 +1192,10 @@ describe('DynamicAnnotationInterface', () => {
       const user = userEvent.setup()
 
       render(
-        <DynamicAnnotationInterface {...defaultProps} onSubmit={mockOnSubmit} />
+        <DynamicAnnotationInterface
+          {...defaultProps}
+          onSubmit={mockOnSubmit}
+        />,
       )
 
       const textarea = screen.getByTestId('textarea')
@@ -1176,7 +1218,7 @@ describe('DynamicAnnotationInterface', () => {
         expect.objectContaining({
           taskData: defaultProps.taskData,
         }),
-        expect.any(Object)
+        undefined,
       )
     })
 
@@ -1187,7 +1229,7 @@ describe('DynamicAnnotationInterface', () => {
         expect.objectContaining({
           onChange: expect.any(Function),
         }),
-        expect.any(Object)
+        undefined,
       )
     })
 
@@ -1198,7 +1240,7 @@ describe('DynamicAnnotationInterface', () => {
         expect.objectContaining({
           onAnnotation: expect.any(Function),
         }),
-        expect.any(Object)
+        undefined,
       )
     })
 
@@ -1215,7 +1257,7 @@ describe('DynamicAnnotationInterface', () => {
           expect.objectContaining({
             value: expect.any(String),
           }),
-          expect.any(Object)
+          undefined,
         )
       })
     })
@@ -1241,7 +1283,7 @@ describe('DynamicAnnotationInterface', () => {
 
       expect(mockValidateTaskDataFields).toHaveBeenCalledWith(
         ['context'],
-        defaultProps.taskData
+        defaultProps.taskData,
       )
     })
 
@@ -1259,7 +1301,10 @@ describe('DynamicAnnotationInterface', () => {
       const mockOnChange = jest.fn()
 
       render(
-        <DynamicAnnotationInterface {...defaultProps} onChange={mockOnChange} />
+        <DynamicAnnotationInterface
+          {...defaultProps}
+          onChange={mockOnChange}
+        />,
       )
 
       const textarea = screen.getByTestId('textarea')
@@ -1285,7 +1330,10 @@ describe('DynamicAnnotationInterface', () => {
       const user = userEvent.setup()
 
       render(
-        <DynamicAnnotationInterface {...defaultProps} onChange={mockOnChange} />
+        <DynamicAnnotationInterface
+          {...defaultProps}
+          onChange={mockOnChange}
+        />,
       )
 
       const textarea = screen.getByTestId('textarea')
@@ -1305,7 +1353,7 @@ describe('DynamicAnnotationInterface', () => {
       const user = userEvent.setup()
 
       render(
-        <DynamicAnnotationInterface {...defaultProps} onSkip={mockOnSkip} />
+        <DynamicAnnotationInterface {...defaultProps} onSkip={mockOnSkip} />,
       )
 
       const skipButton = screen.getByRole('button', { name: /skip/i })
@@ -1316,7 +1364,7 @@ describe('DynamicAnnotationInterface', () => {
 
     it('should not show skip shortcut when onSkip not provided', () => {
       render(
-        <DynamicAnnotationInterface {...defaultProps} onSkip={undefined} />
+        <DynamicAnnotationInterface {...defaultProps} onSkip={undefined} />,
       )
 
       const skipText = screen.queryByText(/ESC/i)
@@ -1343,7 +1391,7 @@ describe('DynamicAnnotationInterface', () => {
       render(<DynamicAnnotationInterface {...defaultProps} />)
 
       expect(
-        screen.getByText(/Use keyboard shortcuts for faster annotation/i)
+        screen.getByText(/Use keyboard shortcuts for faster annotation/i),
       ).toBeInTheDocument()
     })
 
@@ -1365,13 +1413,13 @@ jest.mock('@/components/shared', () => {
       React.createElement(
         'div',
         { 'data-testid': 'hero-pattern' },
-        'Hero Pattern'
+        'Hero Pattern',
       ),
     GridPattern: () =>
       React.createElement(
         'div',
         { 'data-testid': 'grid-pattern' },
-        'Grid Pattern'
+        'Grid Pattern',
       ),
     Button: ({ children, ...props }) =>
       React.createElement('button', props, children),
@@ -1381,7 +1429,7 @@ jest.mock('@/components/shared', () => {
       React.createElement(
         'div',
         { 'data-testid': 'loading-spinner' },
-        'Loading...'
+        'Loading...',
       ),
     EmptyState: ({ message }) => React.createElement('div', null, message),
     Spinner: () => React.createElement('div', null, 'Loading...'),

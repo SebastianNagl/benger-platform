@@ -180,7 +180,7 @@ describe('LegalPageWrapper Component', () => {
     it('does not render ResponsiveContainer for unauthenticated users', () => {
       render(<LegalPageWrapper {...defaultProps} />)
       expect(
-        screen.queryByTestId('responsive-container')
+        screen.queryByTestId('responsive-container'),
       ).not.toBeInTheDocument()
     })
 
@@ -194,7 +194,7 @@ describe('LegalPageWrapper Component', () => {
 
       expect(screen.getByText('Legal content')).toBeInTheDocument()
       expect(
-        screen.queryByTestId('responsive-container')
+        screen.queryByTestId('responsive-container'),
       ).not.toBeInTheDocument()
     })
 
@@ -254,7 +254,10 @@ describe('LegalPageWrapper Component', () => {
       expect(screen.getByText('Imprint')).toBeInTheDocument()
 
       rerender(
-        <LegalPageWrapper {...defaultProps} breadcrumbLabel="Data Protection" />
+        <LegalPageWrapper
+          {...defaultProps}
+          breadcrumbLabel="Data Protection"
+        />,
       )
       expect(screen.getByText('Data Protection')).toBeInTheDocument()
     })
@@ -264,7 +267,7 @@ describe('LegalPageWrapper Component', () => {
       expect(screen.getByTestId('breadcrumb')).toBeInTheDocument()
 
       rerender(
-        <LegalPageWrapper {...defaultProps} href="/about/data-protection" />
+        <LegalPageWrapper {...defaultProps} href="/about/data-protection" />,
       )
       expect(screen.getByTestId('breadcrumb')).toBeInTheDocument()
     })
@@ -285,7 +288,7 @@ describe('LegalPageWrapper Component', () => {
       render(
         <LegalPageWrapper {...defaultProps}>
           <p>Simple text content</p>
-        </LegalPageWrapper>
+        </LegalPageWrapper>,
       )
 
       expect(screen.getByText('Simple text content')).toBeInTheDocument()
@@ -299,7 +302,7 @@ describe('LegalPageWrapper Component', () => {
             <p>Paragraph 1</p>
             <p>Paragraph 2</p>
           </div>
-        </LegalPageWrapper>
+        </LegalPageWrapper>,
       )
 
       expect(screen.getByText('Title')).toBeInTheDocument()
@@ -316,7 +319,7 @@ describe('LegalPageWrapper Component', () => {
             <li>Item 1</li>
             <li>Item 2</li>
           </ul>
-        </LegalPageWrapper>
+        </LegalPageWrapper>,
       )
 
       expect(screen.getByText('Heading')).toBeInTheDocument()
@@ -333,7 +336,7 @@ describe('LegalPageWrapper Component', () => {
           <div>
             <NestedComponent />
           </div>
-        </LegalPageWrapper>
+        </LegalPageWrapper>,
       )
 
       expect(screen.getByText('Nested content')).toBeInTheDocument()
@@ -420,7 +423,7 @@ describe('LegalPageWrapper Component', () => {
         <LegalPageWrapper {...defaultProps}>
           <h1>Main Title</h1>
           <h2>Subtitle</h2>
-        </LegalPageWrapper>
+        </LegalPageWrapper>,
       )
 
       const h1 = container.querySelector('h1')
@@ -445,7 +448,7 @@ describe('LegalPageWrapper Component', () => {
             <h1>Article Title</h1>
             <p>Article content</p>
           </article>
-        </LegalPageWrapper>
+        </LegalPageWrapper>,
       )
 
       const article = container.querySelector('article')
@@ -464,7 +467,7 @@ describe('LegalPageWrapper Component', () => {
       render(
         <LegalPageWrapper {...defaultProps}>
           <button aria-label="Close dialog">Close</button>
-        </LegalPageWrapper>
+        </LegalPageWrapper>,
       )
 
       const button = screen.getByLabelText('Close dialog')
@@ -538,7 +541,7 @@ describe('LegalPageWrapper Component', () => {
 
       const specialLabel = '< > & " \' @ # § ü ö ä'
       render(
-        <LegalPageWrapper {...defaultProps} breadcrumbLabel={specialLabel} />
+        <LegalPageWrapper {...defaultProps} breadcrumbLabel={specialLabel} />,
       )
 
       expect(screen.getByText(specialLabel)).toBeInTheDocument()
@@ -555,7 +558,7 @@ describe('LegalPageWrapper Component', () => {
 
       const unicodeLabel = '你好 世界 🌍 Datenschutzerklärung'
       render(
-        <LegalPageWrapper {...defaultProps} breadcrumbLabel={unicodeLabel} />
+        <LegalPageWrapper {...defaultProps} breadcrumbLabel={unicodeLabel} />,
       )
 
       expect(screen.getByText(unicodeLabel)).toBeInTheDocument()
@@ -571,7 +574,7 @@ describe('LegalPageWrapper Component', () => {
       } as any)
 
       render(
-        <LegalPageWrapper {...defaultProps} href="/about/imprint?lang=de" />
+        <LegalPageWrapper {...defaultProps} href="/about/imprint?lang=de" />,
       )
 
       expect(screen.getByTestId('breadcrumb')).toBeInTheDocument()
@@ -587,7 +590,7 @@ describe('LegalPageWrapper Component', () => {
       } as any)
 
       render(
-        <LegalPageWrapper {...defaultProps} href="/about/imprint#section" />
+        <LegalPageWrapper {...defaultProps} href="/about/imprint#section" />,
       )
 
       expect(screen.getByTestId('breadcrumb')).toBeInTheDocument()
@@ -663,7 +666,7 @@ describe('LegalPageWrapper Component', () => {
               </div>
             </div>
           </div>
-        </LegalPageWrapper>
+        </LegalPageWrapper>,
       )
 
       expect(screen.getByText('Deeply nested content')).toBeInTheDocument()
@@ -717,7 +720,7 @@ describe('LegalPageWrapper Component', () => {
       render(
         <LegalPageWrapper {...defaultProps}>
           <p>Version: {123}</p>
-        </LegalPageWrapper>
+        </LegalPageWrapper>,
       )
 
       expect(screen.getByText(/Version: 123/)).toBeInTheDocument()
@@ -735,7 +738,7 @@ describe('LegalPageWrapper Component', () => {
       render(
         <LegalPageWrapper {...defaultProps}>
           {true && <p>Conditional content</p>}
-        </LegalPageWrapper>
+        </LegalPageWrapper>,
       )
 
       expect(screen.getByText('Conditional content')).toBeInTheDocument()
@@ -768,7 +771,8 @@ describe('LegalPageWrapper Component', () => {
 
     it('displays translated breadcrumb home label', () => {
       mockUseI18n.mockReturnValue({
-        t: (key: string) => (key === 'navigation.dashboard' ? 'Startseite' : key),
+        t: (key: string) =>
+          key === 'navigation.dashboard' ? 'Startseite' : key,
         locale: 'de',
         setLocale: jest.fn(),
       } as any)
@@ -787,7 +791,9 @@ describe('LegalPageWrapper Component', () => {
 
       render(<LegalPageWrapper {...defaultProps} />)
 
-      expect(screen.getByText('[Missing: navigation.dashboard]')).toBeInTheDocument()
+      expect(
+        screen.getByText('[Missing: navigation.dashboard]'),
+      ).toBeInTheDocument()
     })
   })
 })

@@ -30,7 +30,7 @@ export interface ImportOptions {
  */
 export function detectFileFormat(
   file: File,
-  content?: string
+  content?: string,
 ): 'json' | 'csv' | 'tsv' | 'unknown' {
   const extension = file.name.split('.').pop()?.toLowerCase()
 
@@ -110,7 +110,7 @@ export function parseJSON(content: string): ImportResult {
  */
 export async function parseCSV(
   content: string,
-  options: ImportOptions = {}
+  options: ImportOptions = {},
 ): Promise<ImportResult> {
   return new Promise((resolve) => {
     Papa.parse(content, {
@@ -157,7 +157,7 @@ export async function parseCSV(
  */
 export async function importFile(
   file: File,
-  options: ImportOptions = {}
+  options: ImportOptions = {},
 ): Promise<ImportResult> {
   const format = detectFileFormat(file)
 
@@ -215,7 +215,7 @@ function transformHeaderName(header: string): string {
 export async function exportData(
   data: any[],
   format: 'json' | 'csv',
-  filename: string
+  filename: string,
 ): Promise<void> {
   switch (format) {
     case 'json':

@@ -13,7 +13,7 @@ export function flattenJson(
   obj: any,
   prefix = '',
   maxDepth = 5,
-  currentDepth = 0
+  currentDepth = 0,
 ): Record<string, any> {
   const flattened: Record<string, any> = {}
 
@@ -54,7 +54,7 @@ export function flattenJson(
         const newKey = prefix ? `${prefix}[${index}]` : `[${index}]`
         Object.assign(
           flattened,
-          flattenJson(item, newKey, maxDepth, currentDepth + 1)
+          flattenJson(item, newKey, maxDepth, currentDepth + 1),
         )
       })
     }
@@ -84,14 +84,14 @@ export function flattenJson(
           // Complex array - flatten
           Object.assign(
             flattened,
-            flattenJson(value, newKey, maxDepth, currentDepth + 1)
+            flattenJson(value, newKey, maxDepth, currentDepth + 1),
           )
         }
       } else {
         // Nested object - recurse
         Object.assign(
           flattened,
-          flattenJson(value, newKey, maxDepth, currentDepth + 1)
+          flattenJson(value, newKey, maxDepth, currentDepth + 1),
         )
       }
     }
@@ -188,6 +188,6 @@ export function searchInNestedObject(obj: any, query: string): boolean {
 
   const flattened = flattenJson(obj)
   return Object.values(flattened).some((value) =>
-    valueMatchesQuery(value, query)
+    valueMatchesQuery(value, query),
   )
 }

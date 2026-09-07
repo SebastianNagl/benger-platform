@@ -87,13 +87,13 @@ describe('ColumnSelector', () => {
     it('should render the Columns button', () => {
       render(<ColumnSelector columns={mockColumns} onToggle={mockOnToggle} />)
       expect(
-        screen.getByRole('button', { name: /columns/i })
+        screen.getByRole('button', { name: /columns/i }),
       ).toBeInTheDocument()
     })
 
     it('should display column icon', () => {
       const { container } = render(
-        <ColumnSelector columns={mockColumns} onToggle={mockOnToggle} />
+        <ColumnSelector columns={mockColumns} onToggle={mockOnToggle} />,
       )
       const icon = container.querySelector('svg')
       expect(icon).toBeInTheDocument()
@@ -101,7 +101,7 @@ describe('ColumnSelector', () => {
 
     it('should display chevron down icon', () => {
       const { container } = render(
-        <ColumnSelector columns={mockColumns} onToggle={mockOnToggle} />
+        <ColumnSelector columns={mockColumns} onToggle={mockOnToggle} />,
       )
       const icons = container.querySelectorAll('svg')
       expect(icons.length).toBeGreaterThan(1)
@@ -126,7 +126,7 @@ describe('ColumnSelector', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('Show/Hide & Reorder Columns')
+          screen.getByText('Show/Hide & Reorder Columns'),
         ).toBeInTheDocument()
       })
     })
@@ -140,7 +140,7 @@ describe('ColumnSelector', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('Show/Hide & Reorder Columns')
+          screen.getByText('Show/Hide & Reorder Columns'),
         ).toBeInTheDocument()
       })
     })
@@ -148,7 +148,7 @@ describe('ColumnSelector', () => {
     it('should display drag icon in header', async () => {
       const user = userEvent.setup()
       const { container } = render(
-        <ColumnSelector columns={mockColumns} onToggle={mockOnToggle} />
+        <ColumnSelector columns={mockColumns} onToggle={mockOnToggle} />,
       )
 
       const button = screen.getByRole('button', { name: /columns/i })
@@ -195,7 +195,7 @@ describe('ColumnSelector', () => {
     it('should display column types in labels', async () => {
       const user = userEvent.setup()
       const { container } = render(
-        <ColumnSelector columns={mockColumns} onToggle={mockOnToggle} />
+        <ColumnSelector columns={mockColumns} onToggle={mockOnToggle} />,
       )
 
       const button = screen.getByRole('button', { name: /columns/i })
@@ -217,7 +217,7 @@ describe('ColumnSelector', () => {
     it('should show checkboxes for all columns', async () => {
       const user = userEvent.setup()
       const { container } = render(
-        <ColumnSelector columns={mockColumns} onToggle={mockOnToggle} />
+        <ColumnSelector columns={mockColumns} onToggle={mockOnToggle} />,
       )
 
       const button = screen.getByRole('button', { name: /columns/i })
@@ -232,7 +232,7 @@ describe('ColumnSelector', () => {
     it('should show checked state for visible columns', async () => {
       const user = userEvent.setup()
       const { container } = render(
-        <ColumnSelector columns={mockColumns} onToggle={mockOnToggle} />
+        <ColumnSelector columns={mockColumns} onToggle={mockOnToggle} />,
       )
 
       const button = screen.getByRole('button', { name: /columns/i })
@@ -241,7 +241,7 @@ describe('ColumnSelector', () => {
       await waitFor(() => {
         const checkboxes = container.querySelectorAll('input[type="checkbox"]')
         const checkedBoxes = Array.from(checkboxes).filter(
-          (cb) => (cb as HTMLInputElement).checked
+          (cb) => (cb as HTMLInputElement).checked,
         )
         expect(checkedBoxes.length).toBe(3) // id, title, author
       })
@@ -250,7 +250,7 @@ describe('ColumnSelector', () => {
     it('should show unchecked state for hidden columns', async () => {
       const user = userEvent.setup()
       const { container } = render(
-        <ColumnSelector columns={mockColumns} onToggle={mockOnToggle} />
+        <ColumnSelector columns={mockColumns} onToggle={mockOnToggle} />,
       )
 
       const button = screen.getByRole('button', { name: /columns/i })
@@ -259,7 +259,7 @@ describe('ColumnSelector', () => {
       await waitFor(() => {
         const checkboxes = container.querySelectorAll('input[type="checkbox"]')
         const uncheckedBoxes = Array.from(checkboxes).filter(
-          (cb) => !(cb as HTMLInputElement).checked
+          (cb) => !(cb as HTMLInputElement).checked,
         )
         expect(uncheckedBoxes.length).toBe(2) // description, created_at
       })
@@ -268,7 +268,7 @@ describe('ColumnSelector', () => {
     it('should display drag handles for all columns', async () => {
       const user = userEvent.setup()
       const { container } = render(
-        <ColumnSelector columns={mockColumns} onToggle={mockOnToggle} />
+        <ColumnSelector columns={mockColumns} onToggle={mockOnToggle} />,
       )
 
       const button = screen.getByRole('button', { name: /columns/i })
@@ -349,7 +349,7 @@ describe('ColumnSelector', () => {
           columns={mockColumns}
           onToggle={mockOnToggle}
           onReorder={mockOnReorder}
-        />
+        />,
       )
 
       const button = screen.getByRole('button', { name: /columns/i })
@@ -368,7 +368,7 @@ describe('ColumnSelector', () => {
           columns={mockColumns}
           onToggle={mockOnToggle}
           onReorder={mockOnReorder}
-        />
+        />,
       )
 
       const button = screen.getByRole('button', { name: /columns/i })
@@ -387,7 +387,7 @@ describe('ColumnSelector', () => {
           columns={mockColumns}
           onToggle={mockOnToggle}
           onReorder={mockOnReorder}
-        />
+        />,
       )
 
       const button = screen.getByRole('button', { name: /columns/i })
@@ -421,7 +421,7 @@ describe('ColumnSelector', () => {
           columns={mockColumns}
           onToggle={mockOnToggle}
           onReset={mockOnReset}
-        />
+        />,
       )
 
       const button = screen.getByRole('button', { name: /columns/i })
@@ -441,7 +441,7 @@ describe('ColumnSelector', () => {
 
       await waitFor(() => {
         expect(
-          screen.queryByRole('button', { name: /reset to default/i })
+          screen.queryByRole('button', { name: /reset to default/i }),
         ).not.toBeInTheDocument()
       })
     })
@@ -453,7 +453,7 @@ describe('ColumnSelector', () => {
           columns={mockColumns}
           onToggle={mockOnToggle}
           onReset={mockOnReset}
-        />
+        />,
       )
 
       const button = screen.getByRole('button', { name: /columns/i })
@@ -476,7 +476,7 @@ describe('ColumnSelector', () => {
           columns={mockColumns}
           onToggle={mockOnToggle}
           onReset={mockOnReset}
-        />
+        />,
       )
 
       const button = screen.getByRole('button', { name: /columns/i })
@@ -494,7 +494,7 @@ describe('ColumnSelector', () => {
     it('should have proper menu styling', async () => {
       const user = userEvent.setup()
       const { container } = render(
-        <ColumnSelector columns={mockColumns} onToggle={mockOnToggle} />
+        <ColumnSelector columns={mockColumns} onToggle={mockOnToggle} />,
       )
 
       const button = screen.getByRole('button', { name: /columns/i })
@@ -509,7 +509,7 @@ describe('ColumnSelector', () => {
     it('should have scrollable area for columns', async () => {
       const user = userEvent.setup()
       const { container } = render(
-        <ColumnSelector columns={mockColumns} onToggle={mockOnToggle} />
+        <ColumnSelector columns={mockColumns} onToggle={mockOnToggle} />,
       )
 
       const button = screen.getByRole('button', { name: /columns/i })
@@ -525,7 +525,7 @@ describe('ColumnSelector', () => {
     it('should have custom scrollbar classes', async () => {
       const user = userEvent.setup()
       const { container } = render(
-        <ColumnSelector columns={mockColumns} onToggle={mockOnToggle} />
+        <ColumnSelector columns={mockColumns} onToggle={mockOnToggle} />,
       )
 
       const button = screen.getByRole('button', { name: /columns/i })
@@ -540,7 +540,7 @@ describe('ColumnSelector', () => {
     it('should have proper dark mode classes', async () => {
       const user = userEvent.setup()
       const { container } = render(
-        <ColumnSelector columns={mockColumns} onToggle={mockOnToggle} />
+        <ColumnSelector columns={mockColumns} onToggle={mockOnToggle} />,
       )
 
       const button = screen.getByRole('button', { name: /columns/i })
@@ -555,7 +555,7 @@ describe('ColumnSelector', () => {
     it('should have proper row hover effects', async () => {
       const user = userEvent.setup()
       const { container } = render(
-        <ColumnSelector columns={mockColumns} onToggle={mockOnToggle} />
+        <ColumnSelector columns={mockColumns} onToggle={mockOnToggle} />,
       )
 
       const button = screen.getByRole('button', { name: /columns/i })
@@ -571,7 +571,7 @@ describe('ColumnSelector', () => {
     it('should have border between header and content', async () => {
       const user = userEvent.setup()
       const { container } = render(
-        <ColumnSelector columns={mockColumns} onToggle={mockOnToggle} />
+        <ColumnSelector columns={mockColumns} onToggle={mockOnToggle} />,
       )
 
       const button = screen.getByRole('button', { name: /columns/i })
@@ -590,14 +590,14 @@ describe('ColumnSelector', () => {
     it('should have proper button role', () => {
       render(<ColumnSelector columns={mockColumns} onToggle={mockOnToggle} />)
       expect(
-        screen.getByRole('button', { name: /columns/i })
+        screen.getByRole('button', { name: /columns/i }),
       ).toBeInTheDocument()
     })
 
     it('should have checkboxes with proper role', async () => {
       const user = userEvent.setup()
       const { container } = render(
-        <ColumnSelector columns={mockColumns} onToggle={mockOnToggle} />
+        <ColumnSelector columns={mockColumns} onToggle={mockOnToggle} />,
       )
 
       const button = screen.getByRole('button', { name: /columns/i })
@@ -612,7 +612,7 @@ describe('ColumnSelector', () => {
     it('should have readonly checkboxes', async () => {
       const user = userEvent.setup()
       const { container } = render(
-        <ColumnSelector columns={mockColumns} onToggle={mockOnToggle} />
+        <ColumnSelector columns={mockColumns} onToggle={mockOnToggle} />,
       )
 
       const button = screen.getByRole('button', { name: /columns/i })
@@ -627,7 +627,7 @@ describe('ColumnSelector', () => {
     it('should have pointer-events-none on checkboxes', async () => {
       const user = userEvent.setup()
       const { container } = render(
-        <ColumnSelector columns={mockColumns} onToggle={mockOnToggle} />
+        <ColumnSelector columns={mockColumns} onToggle={mockOnToggle} />,
       )
 
       const button = screen.getByRole('button', { name: /columns/i })
@@ -650,7 +650,7 @@ describe('ColumnSelector', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('Show/Hide & Reorder Columns')
+          screen.getByText('Show/Hide & Reorder Columns'),
         ).toBeInTheDocument()
       })
     })
@@ -665,7 +665,7 @@ describe('ColumnSelector', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('Show/Hide & Reorder Columns')
+          screen.getByText('Show/Hide & Reorder Columns'),
         ).toBeInTheDocument()
       })
     })
@@ -676,7 +676,7 @@ describe('ColumnSelector', () => {
         { id: 'test', label: 'Test', visible: true, sortable: true },
       ]
       render(
-        <ColumnSelector columns={columnsWithoutType} onToggle={mockOnToggle} />
+        <ColumnSelector columns={columnsWithoutType} onToggle={mockOnToggle} />,
       )
 
       const button = screen.getByRole('button', { name: /columns/i })
@@ -699,7 +699,7 @@ describe('ColumnSelector', () => {
         },
       ]
       render(
-        <ColumnSelector columns={longLabelColumns} onToggle={mockOnToggle} />
+        <ColumnSelector columns={longLabelColumns} onToggle={mockOnToggle} />,
       )
 
       const button = screen.getByRole('button', { name: /columns/i })
@@ -718,7 +718,7 @@ describe('ColumnSelector', () => {
         visible: true,
       }))
       const { container } = render(
-        <ColumnSelector columns={visibleColumns} onToggle={mockOnToggle} />
+        <ColumnSelector columns={visibleColumns} onToggle={mockOnToggle} />,
       )
 
       const button = screen.getByRole('button', { name: /columns/i })
@@ -750,7 +750,7 @@ describe('ColumnSelector', () => {
     it('should have absolute positioning', async () => {
       const user = userEvent.setup()
       const { container } = render(
-        <ColumnSelector columns={mockColumns} onToggle={mockOnToggle} />
+        <ColumnSelector columns={mockColumns} onToggle={mockOnToggle} />,
       )
 
       const button = screen.getByRole('button', { name: /columns/i })
@@ -765,7 +765,7 @@ describe('ColumnSelector', () => {
     it('should have proper z-index', async () => {
       const user = userEvent.setup()
       const { container } = render(
-        <ColumnSelector columns={mockColumns} onToggle={mockOnToggle} />
+        <ColumnSelector columns={mockColumns} onToggle={mockOnToggle} />,
       )
 
       const button = screen.getByRole('button', { name: /columns/i })
@@ -780,7 +780,7 @@ describe('ColumnSelector', () => {
     it('should be positioned left aligned', async () => {
       const user = userEvent.setup()
       const { container } = render(
-        <ColumnSelector columns={mockColumns} onToggle={mockOnToggle} />
+        <ColumnSelector columns={mockColumns} onToggle={mockOnToggle} />,
       )
 
       const button = screen.getByRole('button', { name: /columns/i })
@@ -795,7 +795,7 @@ describe('ColumnSelector', () => {
     it('should have origin-top-left for transforms', async () => {
       const user = userEvent.setup()
       const { container } = render(
-        <ColumnSelector columns={mockColumns} onToggle={mockOnToggle} />
+        <ColumnSelector columns={mockColumns} onToggle={mockOnToggle} />,
       )
 
       const button = screen.getByRole('button', { name: /columns/i })

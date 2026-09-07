@@ -10,7 +10,13 @@
 
 import { Badge } from '@/components/shared/Badge'
 import { Button } from '@/components/shared/Button'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/shared/Select'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/shared/Select'
 import { useI18n } from '@/contexts/I18nContext'
 import { getMetricCell } from '@/lib/extensions/metricRenderers'
 import {
@@ -20,15 +26,46 @@ import {
   XCircleIcon,
 } from '@heroicons/react/24/outline'
 import {
-  ColumnDef,
+  type ColumnDef,
+  columnFilteringFeature,
+  columnSizingFeature,
+  columnVisibilityFeature,
+  createFilteredRowModel,
+  createPaginatedRowModel,
+  createSortedRowModel,
+  filterFn_equals,
+  filterFn_includesString,
+  filterFn_weakEquals,
   flexRender,
-  getCoreRowModel,
-  getFilteredRowModel,
-  getPaginationRowModel,
-  getSortedRowModel,
-  useReactTable,
+  rowPaginationFeature,
+  rowSortingFeature,
+  sortFn_alphanumeric,
+  sortFn_basic,
+  tableFeatures,
+  useTable,
 } from '@tanstack/react-table'
 import { useMemo, useState } from 'react'
+
+// TanStack Table v9 is feature-sliced: declare once, statically, which
+// features and row models this table uses (sorting, per-column filtering for
+// the text + status filters, client-side pagination).
+const features = tableFeatures({
+  columnFilteringFeature,
+  columnSizingFeature, // header.getSize()
+  columnVisibilityFeature, // row.getVisibleCells()
+  rowSortingFeature,
+  rowPaginationFeature,
+  filteredRowModel: createFilteredRowModel(),
+  sortedRowModel: createSortedRowModel(),
+  paginatedRowModel: createPaginatedRowModel(),
+  filterFns: {
+    includesString: filterFn_includesString,
+    equals: filterFn_equals,
+    weakEquals: filterFn_weakEquals,
+  },
+  sortFns: { alphanumeric: sortFn_alphanumeric, basic: sortFn_basic },
+})
+type SampleTableFeatures = typeof features
 
 interface SampleResult {
   id: string
@@ -80,7 +117,7 @@ export function SampleResultsTable({
     return Object.values(consistencyByTaskId).some((c) => (c?.n_runs ?? 0) > 1)
   }, [consistencyByTaskId])
 
-  const columns = useMemo<ColumnDef<SampleResult>[]>(
+  const columns = useMemo<ColumnDef<SampleTableFeatures, SampleResult>[]>(
     () => [
       {
         accessorKey: 'passed',
@@ -154,7 +191,9 @@ export function SampleResultsTable({
               })}
               {metricNames.length > 2 && (
                 <span className="text-xs text-gray-500">
-                  {t('evaluation.sampleResultsTable.moreMetrics', { count: metricNames.length - 2 })}
+                  {t('evaluation.sampleResultsTable.moreMetrics', {
+                    count: metricNames.length - 2,
+                  })}
                 </span>
               )}
             </div>
@@ -200,7 +239,10 @@ export function SampleResultsTable({
         ? [
             {
               id: 'consistency',
-              header: t('evaluation.sampleResultsTable.consistency', 'Konsistenz'),
+              header: t(
+                'evaluation.sampleResultsTable.consistency',
+                'Konsistenz',
+              ),
               cell: ({ row }: { row: { original: SampleResult } }) => {
                 const c = consistencyByTaskId?.[row.original.task_id]
                 if (!c || (c.n_runs ?? 0) < 2) {
@@ -208,14 +250,20 @@ export function SampleResultsTable({
                 }
                 if (c.variance !== null && c.variance !== undefined) {
                   return (
-                    <span className="font-mono text-xs" title={`n_runs=${c.n_runs}`}>
+                    <span
+                      className="font-mono text-xs"
+                      title={`n_runs=${c.n_runs}`}
+                    >
                       σ²={c.variance.toFixed(4)}
                     </span>
                   )
                 }
                 if (c.fleiss_kappa !== null && c.fleiss_kappa !== undefined) {
                   return (
-                    <span className="font-mono text-xs" title={`Fleiss κ across ${c.n_runs} runs`}>
+                    <span
+                      className="font-mono text-xs"
+                      title={`Fleiss κ across ${c.n_runs} runs`}
+                    >
                       κ={c.fleiss_kappa.toFixed(3)}
                     </span>
                   )
@@ -223,7 +271,7 @@ export function SampleResultsTable({
                 return <span className="text-gray-400">—</span>
               },
               size: 110,
-            } as ColumnDef<SampleResult>,
+            } as ColumnDef<SampleTableFeatures, SampleResult>,
           ]
         : []),
       {
@@ -246,18 +294,16 @@ export function SampleResultsTable({
         size: 80,
       },
     ],
-    [expandedRow, t, showConsistencyColumn, consistencyByTaskId]
+    [expandedRow, t, showConsistencyColumn, consistencyByTaskId],
   )
 
-  const table = useReactTable({
+  const table = useTable<SampleTableFeatures, SampleResult>({
+    features,
     data,
     columns,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
     initialState: {
       pagination: {
+        pageIndex: 0,
         pageSize: 25,
       },
     },
@@ -285,17 +331,25 @@ export function SampleResultsTable({
               table
                 .getColumn('passed')
                 ?.setFilterValue(
-                  value === 'all' ? undefined : value === 'passed'
+                  value === 'all' ? undefined : value === 'passed',
                 )
             }}
           >
             <SelectTrigger>
-              <SelectValue placeholder={t('evaluation.sampleResultsTable.allStatus')} />
+              <SelectValue
+                placeholder={t('evaluation.sampleResultsTable.allStatus')}
+              />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">{t('evaluation.sampleResultsTable.allStatus')}</SelectItem>
-              <SelectItem value="passed">{t('evaluation.sampleResultsTable.passedOnly')}</SelectItem>
-              <SelectItem value="failed">{t('evaluation.sampleResultsTable.failedOnly')}</SelectItem>
+              <SelectItem value="all">
+                {t('evaluation.sampleResultsTable.allStatus')}
+              </SelectItem>
+              <SelectItem value="passed">
+                {t('evaluation.sampleResultsTable.passedOnly')}
+              </SelectItem>
+              <SelectItem value="failed">
+                {t('evaluation.sampleResultsTable.failedOnly')}
+              </SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -310,7 +364,7 @@ export function SampleResultsTable({
                 {headerGroup.headers.map((header) => (
                   <th
                     key={header.id}
-                    className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-700"
+                    className="px-4 py-3 text-left text-xs font-medium tracking-wider text-gray-700 uppercase"
                     style={{ width: header.getSize() }}
                   >
                     {header.isPlaceholder ? null : (
@@ -324,7 +378,7 @@ export function SampleResultsTable({
                       >
                         {flexRender(
                           header.column.columnDef.header,
-                          header.getContext()
+                          header.getContext(),
                         )}
                         {{
                           asc: ' 🔼',
@@ -349,7 +403,7 @@ export function SampleResultsTable({
                     <td key={cell.id} className="px-4 py-3 text-sm">
                       {flexRender(
                         cell.column.columnDef.cell,
-                        cell.getContext()
+                        cell.getContext(),
                       )}
                     </td>
                   ))}
@@ -369,7 +423,7 @@ export function SampleResultsTable({
                               {JSON.stringify(
                                 row.original.ground_truth,
                                 null,
-                                2
+                                2,
                               )}
                             </pre>
                           </div>
@@ -398,7 +452,7 @@ export function SampleResultsTable({
                                     {value?.toFixed(3) ?? 'N/A'}
                                   </div>
                                 </div>
-                              )
+                              ),
                             )}
                           </div>
                         </div>
@@ -427,16 +481,17 @@ export function SampleResultsTable({
       <div className="flex items-center justify-between">
         <div className="text-sm text-gray-600">
           {t('evaluation.sampleResultsTable.showing')}{' '}
-          {table.getState().pagination.pageIndex *
-            table.getState().pagination.pageSize +
+          {table.state.pagination.pageIndex * table.state.pagination.pageSize +
             1}{' '}
           {t('evaluation.sampleResultsTable.to')}{' '}
           {Math.min(
-            (table.getState().pagination.pageIndex + 1) *
-              table.getState().pagination.pageSize,
-            table.getFilteredRowModel().rows.length
+            (table.state.pagination.pageIndex + 1) *
+              table.state.pagination.pageSize,
+            table.getFilteredRowModel().rows.length,
           )}{' '}
-          {t('evaluation.sampleResultsTable.of')} {table.getFilteredRowModel().rows.length} {t('evaluation.sampleResultsTable.results')}
+          {t('evaluation.sampleResultsTable.of')}{' '}
+          {table.getFilteredRowModel().rows.length}{' '}
+          {t('evaluation.sampleResultsTable.results')}
         </div>
         <div className="flex gap-2">
           <Button

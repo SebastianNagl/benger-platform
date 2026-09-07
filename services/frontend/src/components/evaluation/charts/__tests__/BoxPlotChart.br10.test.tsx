@@ -13,7 +13,11 @@
 
 import '@testing-library/jest-dom'
 import { render, screen } from '@testing-library/react'
-import { BoxPlotChart, calculateBoxPlotStats, BoxPlotData } from '../BoxPlotChart'
+import {
+  BoxPlotChart,
+  BoxPlotData,
+  calculateBoxPlotStats,
+} from '../BoxPlotChart'
 
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
@@ -41,11 +45,17 @@ jest.mock('recharts', () => {
   const OriginalModule = jest.requireActual('recharts')
   return {
     ...OriginalModule,
-    ResponsiveContainer: ({ children }: any) => <div data-testid="responsive-container">{children}</div>,
-    ComposedChart: ({ children, data }: any) => <div data-testid="composed-chart">{children}</div>,
+    ResponsiveContainer: ({ children }: any) => (
+      <div data-testid="responsive-container">{children}</div>
+    ),
+    ComposedChart: ({ children, data }: any) => (
+      <div data-testid="composed-chart">{children}</div>
+    ),
     CartesianGrid: () => <div data-testid="cartesian-grid" />,
     XAxis: () => <div data-testid="x-axis" />,
-    YAxis: (props: any) => <div data-testid="y-axis" data-label={props.label?.value || ''} />,
+    YAxis: (props: any) => (
+      <div data-testid="y-axis" data-label={props.label?.value || ''} />
+    ),
     Tooltip: () => <div data-testid="tooltip" />,
     Bar: ({ children, shape }: any) => <div data-testid="bar">{children}</div>,
     Cell: () => <div data-testid="cell" />,
@@ -54,8 +64,26 @@ jest.mock('recharts', () => {
 
 describe('BoxPlotChart', () => {
   const sampleData: BoxPlotData[] = [
-    { name: 'Model A', min: 0.1, q1: 0.3, median: 0.5, q3: 0.7, max: 0.9, mean: 0.5, count: 100 },
-    { name: 'Model B', min: 0.2, q1: 0.4, median: 0.6, q3: 0.8, max: 1.0, mean: 0.6, count: 50 },
+    {
+      name: 'Model A',
+      min: 0.1,
+      q1: 0.3,
+      median: 0.5,
+      q3: 0.7,
+      max: 0.9,
+      mean: 0.5,
+      count: 100,
+    },
+    {
+      name: 'Model B',
+      min: 0.2,
+      q1: 0.4,
+      median: 0.6,
+      q3: 0.8,
+      max: 1.0,
+      mean: 0.6,
+      count: 50,
+    },
   ]
 
   it('renders chart with data', () => {
@@ -87,13 +115,23 @@ describe('BoxPlotChart', () => {
   })
 
   it('renders with custom className', () => {
-    const { container } = render(<BoxPlotChart data={sampleData} className="custom-class" />)
+    const { container } = render(
+      <BoxPlotChart data={sampleData} className="custom-class" />,
+    )
     expect(container.firstChild).toHaveClass('custom-class')
   })
 
   it('renders with data that has outliers', () => {
     const dataWithOutliers: BoxPlotData[] = [
-      { name: 'Model A', min: 0.1, q1: 0.3, median: 0.5, q3: 0.7, max: 0.9, outliers: [0.01, 0.99] },
+      {
+        name: 'Model A',
+        min: 0.1,
+        q1: 0.3,
+        median: 0.5,
+        q3: 0.7,
+        max: 0.9,
+        outliers: [0.01, 0.99],
+      },
     ]
     render(<BoxPlotChart data={dataWithOutliers} />)
     expect(screen.getByTestId('responsive-container')).toBeInTheDocument()

@@ -7,7 +7,7 @@ describe('Alert Components', () => {
       render(
         <Alert>
           <div data-testid="alert-child">Alert content</div>
-        </Alert>
+        </Alert>,
       )
 
       const alert = screen.getByTestId('alert-child').parentElement
@@ -19,7 +19,7 @@ describe('Alert Components', () => {
       render(
         <Alert data-testid="alert">
           <div>Default alert</div>
-        </Alert>
+        </Alert>,
       )
 
       const alert = screen.getByTestId('alert')
@@ -29,7 +29,7 @@ describe('Alert Components', () => {
         'text-blue-900',
         'dark:bg-blue-900/20',
         'dark:border-blue-800',
-        'dark:text-blue-200'
+        'dark:text-blue-200',
       )
     })
 
@@ -37,7 +37,7 @@ describe('Alert Components', () => {
       render(
         <Alert variant="destructive" data-testid="alert">
           <div>Destructive alert</div>
-        </Alert>
+        </Alert>,
       )
 
       const alert = screen.getByTestId('alert')
@@ -47,7 +47,7 @@ describe('Alert Components', () => {
         'text-red-900',
         'dark:bg-red-900/20',
         'dark:border-red-800',
-        'dark:text-red-200'
+        'dark:text-red-200',
       )
     })
 
@@ -55,7 +55,7 @@ describe('Alert Components', () => {
       render(
         <Alert data-testid="alert">
           <div>Base styles</div>
-        </Alert>
+        </Alert>,
       )
 
       const alert = screen.getByTestId('alert')
@@ -66,7 +66,7 @@ describe('Alert Components', () => {
       render(
         <Alert className="custom-class" data-testid="alert">
           <div>Custom alert</div>
-        </Alert>
+        </Alert>,
       )
 
       const alert = screen.getByTestId('alert')
@@ -85,7 +85,7 @@ describe('Alert Components', () => {
           onClick={jest.fn()}
         >
           <div>Alert with attributes</div>
-        </Alert>
+        </Alert>,
       )
 
       const alert = screen.getByTestId('alert')
@@ -109,7 +109,7 @@ describe('Alert Components', () => {
       render(
         <AlertDescription data-testid="description">
           Description
-        </AlertDescription>
+        </AlertDescription>,
       )
 
       const description = screen.getByTestId('description')
@@ -123,7 +123,7 @@ describe('Alert Components', () => {
           data-testid="description"
         >
           Custom description
-        </AlertDescription>
+        </AlertDescription>,
       )
 
       const description = screen.getByTestId('description')
@@ -139,7 +139,7 @@ describe('Alert Components', () => {
           aria-label="Alert description"
         >
           Description with attributes
-        </AlertDescription>
+        </AlertDescription>,
       )
 
       const description = screen.getByTestId('description')
@@ -155,13 +155,13 @@ describe('Alert Components', () => {
           <AlertDescription data-testid="complete-description">
             This is an alert with a description
           </AlertDescription>
-        </Alert>
+        </Alert>,
       )
 
       expect(screen.getByTestId('complete-alert')).toBeInTheDocument()
       expect(screen.getByTestId('complete-description')).toBeInTheDocument()
       expect(
-        screen.getByText('This is an alert with a description')
+        screen.getByText('This is an alert with a description'),
       ).toBeInTheDocument()
     })
 
@@ -171,7 +171,7 @@ describe('Alert Components', () => {
           <h4>Alert Title</h4>
           <AlertDescription>Alert description</AlertDescription>
           <div>Additional content</div>
-        </Alert>
+        </Alert>,
       )
 
       const alert = screen.getByTestId('multi-child-alert')
@@ -186,7 +186,7 @@ describe('Alert Components', () => {
         <Alert>
           <AlertDescription>First description</AlertDescription>
           <AlertDescription>Second description</AlertDescription>
-        </Alert>
+        </Alert>,
       )
 
       expect(screen.getByText('First description')).toBeInTheDocument()
@@ -199,7 +199,7 @@ describe('Alert Components', () => {
       render(
         <Alert variant="default" data-testid="default-alert">
           <AlertDescription>Default alert description</AlertDescription>
-        </Alert>
+        </Alert>,
       )
 
       const alert = screen.getByTestId('default-alert')
@@ -211,7 +211,7 @@ describe('Alert Components', () => {
       render(
         <Alert variant="destructive" data-testid="destructive-alert">
           <AlertDescription>Error occurred!</AlertDescription>
-        </Alert>
+        </Alert>,
       )
 
       const alert = screen.getByTestId('destructive-alert')
@@ -225,7 +225,7 @@ describe('Alert Components', () => {
       render(
         <Alert role="alert">
           <AlertDescription>Important message</AlertDescription>
-        </Alert>
+        </Alert>,
       )
 
       const alert = screen.getByRole('alert')
@@ -237,7 +237,7 @@ describe('Alert Components', () => {
       render(
         <Alert aria-live="assertive" data-testid="live-alert">
           <AlertDescription>Urgent notification</AlertDescription>
-        </Alert>
+        </Alert>,
       )
 
       const alert = screen.getByTestId('live-alert')
@@ -248,7 +248,7 @@ describe('Alert Components', () => {
       render(
         <Alert>
           <AlertDescription>Semantic alert content</AlertDescription>
-        </Alert>
+        </Alert>,
       )
 
       const description = screen.getByText('Semantic alert content')
@@ -261,14 +261,14 @@ describe('Alert Components', () => {
       render(
         <Alert data-testid="dark-default" className="dark">
           <AlertDescription>Dark mode default</AlertDescription>
-        </Alert>
+        </Alert>,
       )
 
       const alert = screen.getByTestId('dark-default')
       expect(alert).toHaveClass(
         'dark:bg-blue-900/20',
         'dark:border-blue-800',
-        'dark:text-blue-200'
+        'dark:text-blue-200',
       )
     })
 
@@ -280,14 +280,14 @@ describe('Alert Components', () => {
           className="dark"
         >
           <AlertDescription>Dark mode error</AlertDescription>
-        </Alert>
+        </Alert>,
       )
 
       const alert = screen.getByTestId('dark-destructive')
       expect(alert).toHaveClass(
         'dark:bg-red-900/20',
         'dark:border-red-800',
-        'dark:text-red-200'
+        'dark:text-red-200',
       )
     })
   })
@@ -299,7 +299,7 @@ describe('Alert Components', () => {
       render(
         <Alert onClick={handleClick} data-testid="clickable-alert">
           <AlertDescription>Clickable alert</AlertDescription>
-        </Alert>
+        </Alert>,
       )
 
       const alert = screen.getByTestId('clickable-alert')
@@ -319,7 +319,7 @@ describe('Alert Components', () => {
           >
             Clickable description
           </AlertDescription>
-        </Alert>
+        </Alert>,
       )
 
       const description = screen.getByTestId('clickable-description')
@@ -340,7 +340,7 @@ describe('Alert Components', () => {
 
     it('handles empty children in AlertDescription', () => {
       render(
-        <AlertDescription data-testid="empty-description"></AlertDescription>
+        <AlertDescription data-testid="empty-description"></AlertDescription>,
       )
 
       const description = screen.getByTestId('empty-description')
@@ -356,7 +356,7 @@ describe('Alert Components', () => {
             <strong>content</strong>
             <em>works</em>
           </AlertDescription>
-        </Alert>
+        </Alert>,
       )
 
       expect(screen.getByText('Nested')).toBeInTheDocument()
@@ -373,7 +373,7 @@ describe('Alert Components', () => {
           <Alert variant="destructive" data-testid="alert-2">
             <AlertDescription>Second alert</AlertDescription>
           </Alert>
-        </div>
+        </div>,
       )
 
       expect(screen.getByTestId('alert-1')).toBeInTheDocument()
@@ -389,7 +389,7 @@ describe('Alert Components', () => {
       render(
         <Alert>
           <AlertDescription>{longText}</AlertDescription>
-        </Alert>
+        </Alert>,
       )
 
       expect(screen.getByText(longText)).toBeInTheDocument()
@@ -403,7 +403,7 @@ describe('Alert Components', () => {
         <div>
           <Alert variant="default">Default</Alert>
           <Alert variant="destructive">Destructive</Alert>
-        </div>
+        </div>,
       )
 
       expect(screen.getByText('Default')).toBeInTheDocument()
@@ -415,7 +415,7 @@ describe('Alert Components', () => {
       render(
         <Alert>
           <AlertDescription>Required children</AlertDescription>
-        </Alert>
+        </Alert>,
       )
 
       expect(screen.getByText('Required children')).toBeInTheDocument()

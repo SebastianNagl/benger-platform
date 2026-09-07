@@ -12,8 +12,13 @@ import { apiClient } from '@/lib/api/client'
 import { useUIStore } from '@/stores'
 import { useProjectStore } from '@/stores/projectStore'
 import '@testing-library/jest-dom'
-import { render, screen, waitFor, act, fireEvent } from '@testing-library/react'
-import { useRouter, useParams, useSearchParams, usePathname } from 'next/navigation'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import {
+  useParams,
+  usePathname,
+  useRouter,
+  useSearchParams,
+} from 'next/navigation'
 
 // Mock Next.js navigation
 jest.mock('next/navigation', () => ({
@@ -285,7 +290,11 @@ describe('ProjectDetailPage - Surgical Branch Coverage 2', () => {
       // Models without parameter_constraints fall back to provider defaults
       ;(useModels as jest.Mock).mockReturnValue({
         models: [
-          { id: 'gpt-4o-2025-custom', name: 'GPT-4o Custom', provider: 'OpenAI' },
+          {
+            id: 'gpt-4o-2025-custom',
+            name: 'GPT-4o Custom',
+            provider: 'OpenAI',
+          },
         ],
         loading: false,
         error: null,
@@ -532,7 +541,7 @@ describe('ProjectDetailPage - Surgical Branch Coverage 2', () => {
       await waitFor(() => {
         expect(global.fetch).toHaveBeenCalledWith(
           expect.stringContaining('/report'),
-          expect.any(Object)
+          expect.any(Object),
         )
       })
     })
@@ -609,7 +618,7 @@ describe('ProjectDetailPage - Surgical Branch Coverage 2', () => {
       await waitFor(() => {
         expect(global.fetch).toHaveBeenCalledWith(
           expect.stringContaining('/report'),
-          expect.any(Object)
+          expect.any(Object),
         )
       })
     })
@@ -670,7 +679,9 @@ describe('ProjectDetailPage - Surgical Branch Coverage 2', () => {
         questionnaire_config: 'some config',
         skip_queue: 'skip_permanently',
         instructions_always_visible: true,
-        conditional_instructions: [{ condition: 'test', instruction: 'do this' }],
+        conditional_instructions: [
+          { condition: 'test', instruction: 'do this' },
+        ],
         llm_model_ids: null,
       }
 
@@ -688,7 +699,9 @@ describe('ProjectDetailPage - Surgical Branch Coverage 2', () => {
       render(<ProjectDetailPage params={params} />)
 
       await waitFor(() => {
-        expect(screen.getAllByText('Settings Edge Cases').length).toBeGreaterThan(0)
+        expect(
+          screen.getAllByText('Settings Edge Cases').length,
+        ).toBeGreaterThan(0)
       })
     })
 
@@ -747,7 +760,9 @@ describe('ProjectDetailPage - Surgical Branch Coverage 2', () => {
       render(<ProjectDetailPage params={params} />)
 
       await waitFor(() => {
-        expect(screen.getAllByText('Null Max Annotations').length).toBeGreaterThan(0)
+        expect(
+          screen.getAllByText('Null Max Annotations').length,
+        ).toBeGreaterThan(0)
       })
     })
   })
@@ -757,8 +772,12 @@ describe('ProjectDetailPage - Surgical Branch Coverage 2', () => {
     it('triggers fetchProject on popstate when on project page', async () => {
       const addEventListenerSpy = jest.fn()
       const removeEventListenerSpy = jest.fn()
-      jest.spyOn(window, 'addEventListener').mockImplementation(addEventListenerSpy)
-      jest.spyOn(window, 'removeEventListener').mockImplementation(removeEventListenerSpy)
+      jest
+        .spyOn(window, 'addEventListener')
+        .mockImplementation(addEventListenerSpy)
+      jest
+        .spyOn(window, 'removeEventListener')
+        .mockImplementation(removeEventListenerSpy)
 
       const mockFetchProject = jest.fn()
 
@@ -819,7 +838,7 @@ describe('ProjectDetailPage - Surgical Branch Coverage 2', () => {
 
       // Find and call the popstate handler
       const popstateCalls = addEventListenerSpy.mock.calls.filter(
-        (call: any[]) => call[0] === 'popstate'
+        (call: any[]) => call[0] === 'popstate',
       )
       if (popstateCalls.length > 0) {
         const handler = popstateCalls[0][1]
@@ -831,7 +850,7 @@ describe('ProjectDetailPage - Surgical Branch Coverage 2', () => {
       // The handler should have been registered
       expect(addEventListenerSpy).toHaveBeenCalledWith(
         'popstate',
-        expect.any(Function)
+        expect.any(Function),
       )
     })
   })

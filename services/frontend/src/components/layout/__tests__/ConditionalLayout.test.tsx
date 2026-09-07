@@ -35,7 +35,11 @@ describe('ConditionalLayout', () => {
 
   describe('Legal pages layout behavior', () => {
     // Keep in sync with ConditionalLayout's legalPages.
-    const legalPages = ['/about/imprint', '/about/data-protection', '/changelog']
+    const legalPages = [
+      '/about/imprint',
+      '/about/data-protection',
+      '/changelog',
+    ]
 
     describe('when user is not authenticated', () => {
       beforeEach(() => {
@@ -54,7 +58,7 @@ describe('ConditionalLayout', () => {
         render(
           <ConditionalLayout allSections={{}}>
             <div>Legal content</div>
-          </ConditionalLayout>
+          </ConditionalLayout>,
         )
 
         expect(screen.getByTestId('minimal-layout')).toBeInTheDocument()
@@ -80,7 +84,7 @@ describe('ConditionalLayout', () => {
         render(
           <ConditionalLayout allSections={{}}>
             <div>Legal content</div>
-          </ConditionalLayout>
+          </ConditionalLayout>,
         )
 
         expect(screen.getByTestId('full-layout')).toBeInTheDocument()
@@ -108,14 +112,14 @@ describe('ConditionalLayout', () => {
           const { container } = render(
             <ConditionalLayout allSections={{}}>
               <div>Legal content</div>
-            </ConditionalLayout>
+            </ConditionalLayout>,
           )
 
           // Legal pages show minimal layout when user is null (even during loading)
           expect(screen.queryByTestId('full-layout')).not.toBeInTheDocument()
           expect(screen.getByTestId('minimal-layout')).toBeInTheDocument()
           expect(screen.getByText('Legal content')).toBeInTheDocument()
-        }
+        },
       )
     })
   })
@@ -138,13 +142,13 @@ describe('ConditionalLayout', () => {
         render(
           <ConditionalLayout allSections={{}}>
             <div>Report content</div>
-          </ConditionalLayout>
+          </ConditionalLayout>,
         )
 
         expect(screen.getByTestId('minimal-layout')).toBeInTheDocument()
         expect(screen.queryByTestId('full-layout')).not.toBeInTheDocument()
         expect(screen.getByText('Report content')).toBeInTheDocument()
-      }
+      },
     )
 
     it.each(reportPaths)(
@@ -162,12 +166,12 @@ describe('ConditionalLayout', () => {
         render(
           <ConditionalLayout allSections={{}}>
             <div>Report content</div>
-          </ConditionalLayout>
+          </ConditionalLayout>,
         )
 
         expect(screen.getByTestId('full-layout')).toBeInTheDocument()
         expect(screen.queryByTestId('minimal-layout')).not.toBeInTheDocument()
-      }
+      },
     )
 
     it('does not treat a look-alike prefix (/reportsfoo) as public content', () => {
@@ -183,7 +187,7 @@ describe('ConditionalLayout', () => {
       render(
         <ConditionalLayout allSections={{}}>
           <div>Other content</div>
-        </ConditionalLayout>
+        </ConditionalLayout>,
       )
 
       expect(screen.getByTestId('full-layout')).toBeInTheDocument()
@@ -209,7 +213,7 @@ describe('ConditionalLayout', () => {
         render(
           <ConditionalLayout allSections={{}}>
             <div>Dashboard content</div>
-          </ConditionalLayout>
+          </ConditionalLayout>,
         )
 
         expect(screen.getByTestId('full-layout')).toBeInTheDocument()
@@ -235,7 +239,7 @@ describe('ConditionalLayout', () => {
           const { container } = render(
             <ConditionalLayout allSections={{}}>
               <div>Standalone content</div>
-            </ConditionalLayout>
+            </ConditionalLayout>,
           )
 
           expect(screen.queryByTestId('full-layout')).not.toBeInTheDocument()
@@ -245,7 +249,7 @@ describe('ConditionalLayout', () => {
           // Should be wrapped in a simple div with w-full class
           const wrapper = container.querySelector('.w-full')
           expect(wrapper).toBeInTheDocument()
-        }
+        },
       )
     })
   })

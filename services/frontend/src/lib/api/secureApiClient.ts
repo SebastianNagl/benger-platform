@@ -9,8 +9,8 @@
  * - Request/response validation
  */
 
-import { logger } from '@/lib/utils/logger'
 import { COOKIE_NAMES, getSecurityHeaders } from '@/lib/security/cookieConfig'
+import { logger } from '@/lib/utils/logger'
 
 interface RequestConfig extends RequestInit {
   skipCSRF?: boolean
@@ -54,7 +54,7 @@ export class SecureApiClient {
     // Try to get from cookie first
     const cookies = document.cookie.split(';')
     const csrfCookie = cookies.find((c) =>
-      c.trim().startsWith(COOKIE_NAMES.CSRF_TOKEN)
+      c.trim().startsWith(COOKIE_NAMES.CSRF_TOKEN),
     )
 
     if (csrfCookie) {
@@ -78,7 +78,7 @@ export class SecureApiClient {
    */
   private async secureRequest<T>(
     endpoint: string,
-    config: RequestConfig = {}
+    config: RequestConfig = {},
   ): Promise<T> {
     const {
       skipCSRF = false,
@@ -130,7 +130,7 @@ export class SecureApiClient {
         signal: controller.signal,
       },
       retries,
-      requestId
+      requestId,
     ).finally(() => {
       clearTimeout(timeoutId)
       this.requestQueue.delete(requestKey)
@@ -147,7 +147,7 @@ export class SecureApiClient {
     url: string,
     config: RequestInit,
     retriesLeft: number,
-    requestId: string
+    requestId: string,
   ): Promise<T> {
     try {
       const response = await fetch(url, config)
@@ -182,7 +182,7 @@ export class SecureApiClient {
               url,
               { ...config, headers },
               retriesLeft - 1,
-              requestId
+              requestId,
             )
           }
         }
@@ -194,7 +194,7 @@ export class SecureApiClient {
           .json()
           .catch(() => ({ message: response.statusText }))
         throw new Error(
-          errorData.message || `Request failed: ${response.status}`
+          errorData.message || `Request failed: ${response.status}`,
         )
       }
 
@@ -241,7 +241,7 @@ export class SecureApiClient {
   async post<T>(
     endpoint: string,
     body?: any,
-    config?: RequestConfig
+    config?: RequestConfig,
   ): Promise<T> {
     return this.secureRequest<T>(endpoint, {
       ...config,
@@ -257,7 +257,7 @@ export class SecureApiClient {
   async put<T>(
     endpoint: string,
     body?: any,
-    config?: RequestConfig
+    config?: RequestConfig,
   ): Promise<T> {
     return this.secureRequest<T>(endpoint, {
       ...config,
@@ -273,7 +273,7 @@ export class SecureApiClient {
   async patch<T>(
     endpoint: string,
     body?: any,
-    config?: RequestConfig
+    config?: RequestConfig,
   ): Promise<T> {
     return this.secureRequest<T>(endpoint, {
       ...config,

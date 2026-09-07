@@ -14,16 +14,26 @@ export interface TemperatureConstraints {
  * Falls back to provider-level ranges if no model-specific constraints exist.
  */
 export function getTemperatureConstraints(
-  model: { parameter_constraints?: ParameterConstraints | null; provider?: string } | undefined,
-  providerRanges?: Record<string, { min: number; max: number }>
+  model:
+    | { parameter_constraints?: ParameterConstraints | null; provider?: string }
+    | undefined,
+  providerRanges?: Record<string, { min: number; max: number }>,
 ): TemperatureConstraints {
   const pc = model?.parameter_constraints?.temperature
   if (pc && !pc.supported) {
     const v = pc.required_value ?? 1.0
-    return { min: v, max: v, default: v, fixed: true, fixedValue: v, reason: pc.reason }
+    return {
+      min: v,
+      max: v,
+      default: v,
+      fixed: true,
+      fixedValue: v,
+      reason: pc.reason,
+    }
   }
   if (pc) {
-    const providerDefault = providerRanges?.[model?.provider?.toLowerCase() ?? '']
+    const providerDefault =
+      providerRanges?.[model?.provider?.toLowerCase() ?? '']
     return {
       min: pc.min ?? providerDefault?.min ?? 0,
       max: pc.max ?? providerDefault?.max ?? 2,
@@ -33,7 +43,10 @@ export function getTemperatureConstraints(
     }
   }
   // Fallback to provider range
-  const pr = providerRanges?.[model?.provider?.toLowerCase() ?? ''] ?? { min: 0, max: 2 }
+  const pr = providerRanges?.[model?.provider?.toLowerCase() ?? ''] ?? {
+    min: 0,
+    max: 2,
+  }
   return { min: pr.min, max: pr.max, default: 0, fixed: false }
 }
 
@@ -41,11 +54,10 @@ export function getTemperatureConstraints(
  * Get the model-specific default max_tokens, if defined.
  */
 export function getDefaultMaxTokens(
-  model: { parameter_constraints?: ParameterConstraints | null } | undefined
+  model: { parameter_constraints?: ParameterConstraints | null } | undefined,
 ): number | undefined {
   return model?.parameter_constraints?.max_tokens?.default
 }
-
 
 // ────────────────────────────────────────────────────────────────────────
 // Recommended-parameters helpers (migration 046)
@@ -72,9 +84,11 @@ export interface RecommendedParameters {
 }
 
 type ParamMode = 'generation' | 'evaluation'
-type ModelLike = {
-  recommended_parameters?: RecommendedParameters | null
-} | undefined
+type ModelLike =
+  | {
+      recommended_parameters?: RecommendedParameters | null
+    }
+  | undefined
 
 /**
  * Look up the recommended value for one parameter key on a model, scoped
@@ -89,9 +103,15 @@ export function getRecommendedParam(
 ): number | string | boolean | undefined {
   const rec = model?.recommended_parameters
   if (!rec) return undefined
-  const modeBlock = (rec[mode] || {}) as Record<string, number | string | boolean>
+  const modeBlock = (rec[mode] || {}) as Record<
+    string,
+    number | string | boolean
+  >
   if (key in modeBlock) return modeBlock[key]
-  const defaultBlock = (rec.default || {}) as Record<string, number | string | boolean>
+  const defaultBlock = (rec.default || {}) as Record<
+    string,
+    number | string | boolean
+  >
   if (key in defaultBlock) return defaultBlock[key]
   return undefined
 }

@@ -81,7 +81,7 @@ describe('CustomModelList', () => {
     render(<CustomModelList models={[]} emptyMessage="Nothing here" />)
 
     expect(screen.getByTestId('custom-model-list-empty')).toHaveTextContent(
-      'Nothing here'
+      'Nothing here',
     )
   })
 
@@ -89,23 +89,23 @@ describe('CustomModelList', () => {
     render(<CustomModelList models={[ownModel, foreignModel]} />)
 
     expect(
-      screen.getByTestId('custom-model-edit-custom-own')
+      screen.getByTestId('custom-model-edit-custom-own'),
     ).toBeInTheDocument()
     expect(
-      screen.getByTestId('custom-model-visibility-custom-own')
+      screen.getByTestId('custom-model-visibility-custom-own'),
     ).toBeInTheDocument()
     expect(
-      screen.getByTestId('custom-model-delete-custom-own')
+      screen.getByTestId('custom-model-delete-custom-own'),
     ).toBeInTheDocument()
 
     expect(
-      screen.queryByTestId('custom-model-edit-custom-foreign')
+      screen.queryByTestId('custom-model-edit-custom-foreign'),
     ).not.toBeInTheDocument()
     expect(
-      screen.queryByTestId('custom-model-visibility-custom-foreign')
+      screen.queryByTestId('custom-model-visibility-custom-foreign'),
     ).not.toBeInTheDocument()
     expect(
-      screen.queryByTestId('custom-model-delete-custom-foreign')
+      screen.queryByTestId('custom-model-delete-custom-foreign'),
     ).not.toBeInTheDocument()
   })
 
@@ -118,32 +118,30 @@ describe('CustomModelList', () => {
     expect(customBadges).toHaveLength(2)
     expect(
       customBadges.some((el) =>
-        el.textContent?.includes('customModels.badges.customBy')
-      )
+        el.textContent?.includes('customModels.badges.customBy'),
+      ),
     ).toBe(true)
     expect(
       customBadges.some(
-        (el) => el.textContent === 'customModels.badges.custom'
-      )
+        (el) => el.textContent === 'customModels.badges.custom',
+      ),
     ).toBe(true)
 
     // Official badge never appears in this list.
     expect(screen.queryByTestId('official-badge')).not.toBeInTheDocument()
 
     // Visibility badges: own model private, foreign model org-shared.
+    expect(screen.getByTestId('visibility-badge-private')).toBeInTheDocument()
     expect(
-      screen.getByTestId('visibility-badge-private')
-    ).toBeInTheDocument()
-    expect(
-      screen.getByTestId('visibility-badge-organization')
+      screen.getByTestId('visibility-badge-organization'),
     ).toBeInTheDocument()
 
     // Credential pills reflect has_credential.
+    expect(screen.getByTestId('credential-pill-custom-own')).toHaveTextContent(
+      'customModels.badges.keyConfigured',
+    )
     expect(
-      screen.getByTestId('credential-pill-custom-own')
-    ).toHaveTextContent('customModels.badges.keyConfigured')
-    expect(
-      screen.getByTestId('credential-pill-custom-foreign')
+      screen.getByTestId('credential-pill-custom-foreign'),
     ).toHaveTextContent('customModels.badges.keyMissing')
   })
 
@@ -152,22 +150,20 @@ describe('CustomModelList', () => {
     render(<CustomModelList models={[foreignModel]} />)
 
     expect(
-      screen.queryByTestId('custom-model-detail-custom-foreign')
+      screen.queryByTestId('custom-model-detail-custom-foreign'),
     ).not.toBeInTheDocument()
 
-    await user.click(
-      screen.getByTestId('custom-model-expand-custom-foreign')
-    )
+    await user.click(screen.getByTestId('custom-model-expand-custom-foreign'))
 
     expect(
-      screen.getByTestId('custom-model-detail-custom-foreign')
+      screen.getByTestId('custom-model-detail-custom-foreign'),
     ).toBeInTheDocument()
     expect(
-      screen.getByTestId('custom-model-credential-row-custom-foreign')
+      screen.getByTestId('custom-model-credential-row-custom-foreign'),
     ).toBeInTheDocument()
     // No permissions panel for non-owners.
     expect(
-      screen.queryByTestId('custom-model-visibility-panel-custom-foreign')
+      screen.queryByTestId('custom-model-visibility-panel-custom-foreign'),
     ).not.toBeInTheDocument()
   })
 
@@ -179,12 +175,10 @@ describe('CustomModelList', () => {
 
     await waitFor(() => {
       expect(
-        screen.getByTestId('custom-model-visibility-panel-custom-own')
+        screen.getByTestId('custom-model-visibility-panel-custom-own'),
       ).toBeInTheDocument()
     })
-    expect(
-      screen.getByTestId('model-permissions-panel')
-    ).toBeInTheDocument()
+    expect(screen.getByTestId('model-permissions-panel')).toBeInTheDocument()
   })
 
   it('calls onEdit with the model', async () => {
@@ -208,7 +202,7 @@ describe('CustomModelList', () => {
       // Confirmation dialog appears; nothing deleted yet.
       await waitFor(() => {
         expect(
-          screen.getByTestId('confirm-dialog-confirm-button')
+          screen.getByTestId('confirm-dialog-confirm-button'),
         ).toBeInTheDocument()
       })
       expect(customModelsAPI.remove).not.toHaveBeenCalled()
@@ -229,7 +223,7 @@ describe('CustomModelList', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByTestId('confirm-dialog-cancel-button')
+          screen.getByTestId('confirm-dialog-cancel-button'),
         ).toBeInTheDocument()
       })
 
@@ -248,18 +242,18 @@ describe('CustomModelList', () => {
       await user.click(screen.getByTestId('custom-model-delete-custom-own'))
       await waitFor(() => {
         expect(
-          screen.getByTestId('confirm-dialog-confirm-button')
+          screen.getByTestId('confirm-dialog-confirm-button'),
         ).toBeInTheDocument()
       })
       await user.click(screen.getByTestId('confirm-dialog-confirm-button'))
 
       await waitFor(() => {
         expect(mockToast.success).toHaveBeenCalledWith(
-          'customModels.list.deactivateSuccess'
+          'customModels.list.deactivateSuccess',
         )
       })
       expect(mockToast.success).not.toHaveBeenCalledWith(
-        'customModels.list.deleteSuccess'
+        'customModels.list.deleteSuccess',
       )
     })
 
@@ -273,14 +267,14 @@ describe('CustomModelList', () => {
       await user.click(screen.getByTestId('custom-model-delete-custom-own'))
       await waitFor(() => {
         expect(
-          screen.getByTestId('confirm-dialog-confirm-button')
+          screen.getByTestId('confirm-dialog-confirm-button'),
         ).toBeInTheDocument()
       })
       await user.click(screen.getByTestId('confirm-dialog-confirm-button'))
 
       await waitFor(() => {
         expect(mockToast.success).toHaveBeenCalledWith(
-          'customModels.list.deleteSuccess'
+          'customModels.list.deleteSuccess',
         )
       })
     })
@@ -288,18 +282,16 @@ describe('CustomModelList', () => {
 
   describe('inactive models', () => {
     it('renders an Inactive badge for a soft-deleted (is_active=false) row', () => {
-      render(
-        <CustomModelList models={[{ ...ownModel, is_active: false }]} />
-      )
+      render(<CustomModelList models={[{ ...ownModel, is_active: false }]} />)
       expect(
-        screen.getByTestId('custom-model-inactive-badge')
+        screen.getByTestId('custom-model-inactive-badge'),
       ).toBeInTheDocument()
     })
 
     it('does not render the Inactive badge for an active row', () => {
       render(<CustomModelList models={[ownModel]} />)
       expect(
-        screen.queryByTestId('custom-model-inactive-badge')
+        screen.queryByTestId('custom-model-inactive-badge'),
       ).not.toBeInTheDocument()
     })
   })

@@ -4,7 +4,10 @@ export const PROJECT_GUIDES: HowToGuide[] = [
   {
     id: 'create-project',
     category: 'projects',
-    title: { de: 'Wie lege ich ein neues Projekt an?', en: 'How do I create a new project?' },
+    title: {
+      de: 'Wie lege ich ein neues Projekt an?',
+      en: 'How do I create a new project?',
+    },
     summary: {
       de: 'Über **Projekte → Neues Projekt** startet der Projekt-Assistent. Sie geben Name und Projekttyp an, wählen die Funktionen, die das Projekt braucht, und der Assistent zeigt nur die dazu passenden Schritte.',
       en: 'Go to **Projects → New project** to start the project wizard. Give the project a name and type, tick the functions it needs, and the wizard shows only the matching steps.',
@@ -50,15 +53,27 @@ export const PROJECT_GUIDES: HowToGuide[] = [
       ],
     },
     links: [
-      { label: { de: 'Neues Projekt', en: 'New project' }, href: '/projects/create' },
-      { label: { de: 'Projekttyp wählen', en: 'Choosing the project type' }, href: '/how-to#project-kind' },
+      {
+        label: { de: 'Neues Projekt', en: 'New project' },
+        href: '/projects/create',
+      },
+      {
+        label: { de: 'Projekttyp wählen', en: 'Choosing the project type' },
+        href: '/how-to#project-kind',
+      },
     ],
-    keywords: { de: ['Assistent', 'Wizard', 'anlegen', 'erstellen', 'Neues Projekt'], en: ['wizard', 'setup'] },
+    keywords: {
+      de: ['Assistent', 'Wizard', 'anlegen', 'erstellen', 'Neues Projekt'],
+      en: ['wizard', 'setup'],
+    },
   },
   {
     id: 'project-kind',
     category: 'projects',
-    title: { de: 'Welchen Projekttyp wähle ich: Generisch, Klausur oder Kartenstapel?', en: 'Which project type should I pick: Generic, Exam or Flashcard deck?' },
+    title: {
+      de: 'Welchen Projekttyp wähle ich: Generisch, Klausur oder Kartenstapel?',
+      en: 'Which project type should I pick: Generic, Exam or Flashcard deck?',
+    },
     summary: {
       de: 'Der Projekttyp steuert, was das Projekt automatisch mitbringt und ob Studierende es finden können. *Klausur* für Falllösungen mit KI-Korrektur, *Kartenstapel* für Karteikarten mit Lernplan, *Generisch* für alles andere (Benchmarks, Annotationsstudien).',
       en: 'The project type decides what the project brings along automatically and whether students can find it. *Exam* for case solutions with AI grading, *Flashcard deck* for flashcards with a learning schedule, *Generic* for everything else (benchmarks, annotation studies).',
@@ -87,13 +102,27 @@ export const PROJECT_GUIDES: HowToGuide[] = [
         'Picking the *Karteikarten (leer)* template in the labeling step sets the type to *Flashcard deck* automatically.',
       ],
     },
-    links: [{ label: { de: 'Klausur für Studierende freigeben', en: 'Sharing an exam with students' }, href: '/how-to#share-with-students' }],
-    keywords: { de: ['Projekttyp', 'Kind', 'Klausur', 'Kartenstapel', 'Generisch'], en: ['project type', 'exam', 'deck', 'generic'] },
+    links: [
+      {
+        label: {
+          de: 'Klausur für Studierende freigeben',
+          en: 'Sharing an exam with students',
+        },
+        href: '/how-to#share-with-students',
+      },
+    ],
+    keywords: {
+      de: ['Projekttyp', 'Kind', 'Klausur', 'Kartenstapel', 'Generisch'],
+      en: ['project type', 'exam', 'deck', 'generic'],
+    },
   },
   {
     id: 'exam-project-quick',
     category: 'projects',
-    title: { de: 'Wie erfasse ich eine Klausur mit Sachverhalt und Musterlösung am schnellsten?', en: 'What is the fastest way to enter an exam with case facts and model solution?' },
+    title: {
+      de: 'Wie erfasse ich eine Klausur mit Sachverhalt und Musterlösung am schnellsten?',
+      en: 'What is the fastest way to enter an exam with case facts and model solution?',
+    },
     summary: {
       de: 'Über den Tab **Klausur erfassen** im Schritt *Datenimport*. Sie füllen Angabe und Musterlösung als Text aus, optional Gliederung, Bewertungskriterien, Bearbeitervermerk, Zusatzmaterial und Korrekturhinweise. Kein JSON nötig.',
       en: 'Use the **Klausur erfassen** tab in the *Data import* step. Fill in the case facts and model solution as text, optionally an outline, grading criteria, examiner notes, additional material and grading notes. No JSON needed.',
@@ -126,13 +155,33 @@ export const PROJECT_GUIDES: HowToGuide[] = [
         'The **KI-Generator** can produce synthetic exams from a lecture script. It is marked highly experimental and only visible to selected accounts.',
       ],
     },
-    links: [{ label: { de: 'Felder einer Klausur-Datei', en: 'Fields of an exam file' }, href: '/how-to#exam-file-fields' }],
-    keywords: { de: ['Sachverhalt', 'Musterlösung', 'Rubrik', 'Klausur erfassen', 'strukturiert'], en: ['case', 'model solution', 'rubric', 'structured entry'] },
+    links: [
+      {
+        label: {
+          de: 'Felder einer Klausur-Datei',
+          en: 'Fields of an exam file',
+        },
+        href: '/how-to#exam-file-fields',
+      },
+    ],
+    keywords: {
+      de: [
+        'Sachverhalt',
+        'Musterlösung',
+        'Rubrik',
+        'Klausur erfassen',
+        'strukturiert',
+      ],
+      en: ['case', 'model solution', 'rubric', 'structured entry'],
+    },
   },
   {
     id: 'project-page',
     category: 'projects',
-    title: { de: 'Wie ist die Projektseite aufgebaut und wo finde ich was?', en: 'How is the project page organized and where do I find what?' },
+    title: {
+      de: 'Wie ist die Projektseite aufgebaut und wo finde ich was?',
+      en: 'How is the project page organized and where do I find what?',
+    },
     summary: {
       de: 'Die Projektseite besteht aus aufklappbaren Karten. Links die Konfiguration (Projektdetails, Annotationskonfiguration, Generierung, Evaluation, Einstellungen, Freigabe), rechts Schnellaktionen, Abrechnung, Statistiken und der Projektbericht. Daten, Meine Aufgaben, Korrektur und Review sind eigene Seiten.',
       en: 'The project page is made of collapsible cards. Configuration on the left (project details, annotation, generation, evaluation, settings, sharing), quick actions, billing, statistics and the project report on the right. Data, My tasks, Korrektur and Review are separate pages.',
@@ -165,12 +214,24 @@ export const PROJECT_GUIDES: HowToGuide[] = [
         'Configuration cards save automatically when you leave a field. A failed save keeps the card in edit mode.',
       ],
     },
-    keywords: { de: ['Projektseite', 'Karten', 'Schnellaktionen', 'Statistiken', 'Übersicht'], en: ['project page', 'cards', 'quick actions', 'overview'] },
+    keywords: {
+      de: [
+        'Projektseite',
+        'Karten',
+        'Schnellaktionen',
+        'Statistiken',
+        'Übersicht',
+      ],
+      en: ['project page', 'cards', 'quick actions', 'overview'],
+    },
   },
   {
     id: 'assignment-and-limits',
     category: 'projects',
-    title: { de: 'Wie verteile ich Aufgaben an Annotierende und begrenze Annotationen?', en: 'How do I distribute tasks to annotators and limit annotations?' },
+    title: {
+      de: 'Wie verteile ich Aufgaben an Annotierende und begrenze Annotationen?',
+      en: 'How do I distribute tasks to annotators and limit annotations?',
+    },
     summary: {
       de: 'Über den **Zuweisungsmodus** in *Annotationsablauf & -verhalten*: *Offen* (alle sehen alle Aufgaben), *Manuell* (Sie weisen zu) oder *Automatisch*. Dazu *Max. Annotationen pro Aufgabe* und *Min. Annotationen für Abschluss*.',
       en: 'Via the **assignment mode** in *Annotation workflow & behavior*: *Open* (everyone sees every task), *Manual* (you assign) or *Automatic*. Plus *Max annotations per task* and *Min annotations for completion*.',
@@ -201,12 +262,18 @@ export const PROJECT_GUIDES: HowToGuide[] = [
         'An unassigned task is invisible to annotators (no error, it is simply missing). Exams that students should solve via *Entdecken* need the *Open* mode.',
       ],
     },
-    keywords: { de: ['Zuweisung', 'zuweisen', 'Annotatoren', 'Limit', 'Fortschritt'], en: ['assign', 'assignment', 'annotators', 'limit', 'progress'] },
+    keywords: {
+      de: ['Zuweisung', 'zuweisen', 'Annotatoren', 'Limit', 'Fortschritt'],
+      en: ['assign', 'assignment', 'annotators', 'limit', 'progress'],
+    },
   },
   {
     id: 'timer-and-window',
     category: 'projects',
-    title: { de: 'Wie setze ich ein Zeitlimit oder ein Zugriffsfenster?', en: 'How do I set a time limit or an access window?' },
+    title: {
+      de: 'Wie setze ich ein Zeitlimit oder ein Zugriffsfenster?',
+      en: 'How do I set a time limit or an access window?',
+    },
     summary: {
       de: '**Zeitlimit für Annotation** begrenzt die Bearbeitungszeit pro Aufgabe, der **strikte Timer** gibt bei Ablauf automatisch ab. Das **Zeitfenster für den Zugriff** öffnet das Projekt nur zwischen zwei Zeitpunkten.',
       en: '**Time limit for annotation** caps the working time per task, the **strict timer** submits automatically when it runs out. The **access window** opens the project only between two points in time.',
@@ -237,12 +304,18 @@ export const PROJECT_GUIDES: HowToGuide[] = [
         'When the strict timer submits automatically, the confirmation before submit is skipped.',
       ],
     },
-    keywords: { de: ['Timer', 'Zeitlimit', 'Zeitfenster', 'Öffnet', 'Schließt', 'Frist'], en: ['timer', 'time limit', 'window', 'deadline'] },
+    keywords: {
+      de: ['Timer', 'Zeitlimit', 'Zeitfenster', 'Öffnet', 'Schließt', 'Frist'],
+      en: ['timer', 'time limit', 'window', 'deadline'],
+    },
   },
   {
     id: 'archive-delete-restore',
     category: 'projects',
-    title: { de: 'Wie archiviere, lösche oder stelle ich ein Projekt wieder her?', en: 'How do I archive, delete or restore a project?' },
+    title: {
+      de: 'Wie archiviere, lösche oder stelle ich ein Projekt wieder her?',
+      en: 'How do I archive, delete or restore a project?',
+    },
     summary: {
       de: 'Archivieren geht in der Projektliste als Massenaktion. Löschen blendet das Projekt für alle aus, die Daten bleiben erhalten. Nur Superadmins können gelöschte Projekte unter **Mehr → Gelöschte Projekte** wiederherstellen oder endgültig löschen.',
       en: 'Archiving is a bulk action in the project list. Deleting hides the project for everyone, the data is kept. Only superadmins can restore or permanently delete projects under **More → Deleted projects**.',
@@ -260,9 +333,22 @@ export const PROJECT_GUIDES: HowToGuide[] = [
       ],
     },
     tips: {
-      de: ['Sichern Sie vor dem endgültigen Löschen einen Export: Projekte ankreuzen → **Aktionen → Ausgewählte Projekte exportieren**.'],
-      en: ['Before deleting permanently, keep an export: tick projects → **Actions → Export selected projects**.'],
+      de: [
+        'Sichern Sie vor dem endgültigen Löschen einen Export: Projekte ankreuzen → **Aktionen → Ausgewählte Projekte exportieren**.',
+      ],
+      en: [
+        'Before deleting permanently, keep an export: tick projects → **Actions → Export selected projects**.',
+      ],
     },
-    keywords: { de: ['archivieren', 'löschen', 'wiederherstellen', 'Papierkorb', 'endgültig'], en: ['archive', 'delete', 'restore', 'trash', 'permanent'] },
+    keywords: {
+      de: [
+        'archivieren',
+        'löschen',
+        'wiederherstellen',
+        'Papierkorb',
+        'endgültig',
+      ],
+      en: ['archive', 'delete', 'restore', 'trash', 'permanent'],
+    },
   },
 ]

@@ -71,7 +71,11 @@ describe('LikertScale', () => {
   it('highlights the selected value', () => {
     render(<LikertScale {...defaultProps} value={3} />)
     const selectedLabel = screen.getByText('3').closest('label')
-    expect(selectedLabel).toHaveClass('border-emerald-600', 'bg-emerald-600', 'text-white')
+    expect(selectedLabel).toHaveClass(
+      'border-emerald-600',
+      'bg-emerald-600',
+      'text-white',
+    )
   })
 
   it('does not highlight unselected values', () => {

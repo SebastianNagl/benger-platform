@@ -33,7 +33,10 @@ jest.mock('@heroicons/react/24/outline', () => ({
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
     t: (key: string, varsOrDefault?: any) => {
-      const translations: Record<string, any> = require('../../../locales/en/common.json')
+      const translations: Record<
+        string,
+        any
+      > = require('../../../locales/en/common.json')
       const parts = key.split('.')
       let value: any = translations
       for (const part of parts) {
@@ -54,7 +57,6 @@ jest.mock('@/contexts/I18nContext', () => ({
     locale: 'en',
   }),
 }))
-
 
 describe('FileUploadField Component', () => {
   const mockOnChange = jest.fn()
@@ -238,7 +240,7 @@ describe('FileUploadField Component', () => {
 
       expect(screen.queryByText('Upload a file')).not.toBeInTheDocument()
       expect(
-        screen.queryByTestId('cloud-arrow-up-icon')
+        screen.queryByTestId('cloud-arrow-up-icon'),
       ).not.toBeInTheDocument()
     })
   })
@@ -329,7 +331,7 @@ describe('FileUploadField Component', () => {
         <FileUploadField
           {...defaultProps}
           value={{ name: 'test.pdf', size: 7, type: 'application/pdf' }}
-        />
+        />,
       )
 
       // Remove the file
@@ -340,7 +342,7 @@ describe('FileUploadField Component', () => {
       rerender(<FileUploadField {...defaultProps} value={null} />)
 
       const newInput = screen.getByLabelText(
-        'Upload a file'
+        'Upload a file',
       ) as HTMLInputElement
       expect(newInput.value).toBe('')
     })
@@ -372,7 +374,7 @@ describe('FileUploadField Component', () => {
           {...defaultProps}
           value={mockFileValue}
           readonly={true}
-        />
+        />,
       )
 
       expect(screen.queryByTestId('x-mark-icon')).not.toBeInTheDocument()
@@ -389,7 +391,7 @@ describe('FileUploadField Component', () => {
           {...defaultProps}
           value={mockFileValue}
           readonly={true}
-        />
+        />,
       )
 
       expect(screen.getByText('document.pdf')).toBeInTheDocument()
@@ -522,7 +524,7 @@ describe('FileUploadField Component', () => {
       render(<FileUploadField {...defaultProps} value={file} />)
 
       expect(
-        screen.getByText('file (1) - copy [special].pdf')
+        screen.getByText('file (1) - copy [special].pdf'),
       ).toBeInTheDocument()
     })
 

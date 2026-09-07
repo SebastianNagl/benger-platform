@@ -18,7 +18,7 @@ const render: typeof rtlRender = (ui, options) => {
   })
   return rtlRender(
     <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>,
-    options
+    options,
   )
 }
 
@@ -130,8 +130,8 @@ describe('Dashboard Annotations Stat Box', () => {
     const allDtElements = document.querySelectorAll('dt')
     const statLabels = Array.from(allDtElements).filter((dt) =>
       /Projects|Tasks|Annotations|Generations|Evaluations/.test(
-        dt.textContent || ''
-      )
+        dt.textContent || '',
+      ),
     )
 
     // Verify the order: Projects, Tasks, Annotations, Generations, Evaluations
@@ -180,7 +180,7 @@ describe('Dashboard Annotations Stat Box', () => {
     // Check that the SVG path for the pencil icon is present
     // This is the path for the pencil icon used in the annotations stat box
     const pencilPath = document.querySelector(
-      'path[d*="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414"]'
+      'path[d*="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414"]',
     )
     expect(pencilPath).toBeInTheDocument()
   })

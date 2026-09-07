@@ -45,7 +45,7 @@ export function Button({
         variants[variant],
         sizes[size],
         loading && 'cursor-wait',
-        className
+        className,
       )}
       disabled={disabled || loading}
       {...props}

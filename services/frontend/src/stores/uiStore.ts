@@ -113,7 +113,7 @@ export const useUIStore = create<UIStore>()(
           set(
             (state) => ({ isSidebarHidden: !state.isSidebarHidden }),
             false,
-            'toggleSidebar'
+            'toggleSidebar',
           ),
 
         hideSidebar: () => set({ isSidebarHidden: true }, false, 'hideSidebar'),
@@ -128,7 +128,7 @@ export const useUIStore = create<UIStore>()(
           set(
             { isLoginModalOpen: true, isSignupModalOpen: false },
             false,
-            'openLoginModal'
+            'openLoginModal',
           ),
 
         closeLoginModal: () =>
@@ -138,7 +138,7 @@ export const useUIStore = create<UIStore>()(
           set(
             { isSignupModalOpen: true, isLoginModalOpen: false },
             false,
-            'openSignupModal'
+            'openSignupModal',
           ),
 
         closeSignupModal: () =>
@@ -148,14 +148,14 @@ export const useUIStore = create<UIStore>()(
           set(
             { isTaskCreationModalOpen: true },
             false,
-            'openTaskCreationModal'
+            'openTaskCreationModal',
           ),
 
         closeTaskCreationModal: () =>
           set(
             { isTaskCreationModalOpen: false },
             false,
-            'closeTaskCreationModal'
+            'closeTaskCreationModal',
           ),
 
         // Loading actions
@@ -166,7 +166,7 @@ export const useUIStore = create<UIStore>()(
               loadingMessage: loading ? message || null : null,
             },
             false,
-            'setGlobalLoading'
+            'setGlobalLoading',
           ),
 
         // Notification actions
@@ -179,7 +179,7 @@ export const useUIStore = create<UIStore>()(
               notifications: [...state.notifications, newNotification],
             }),
             false,
-            'addNotification'
+            'addNotification',
           )
 
           // Auto-remove notification after duration
@@ -196,7 +196,7 @@ export const useUIStore = create<UIStore>()(
               notifications: state.notifications.filter((n) => n.id !== id),
             }),
             false,
-            'removeNotification'
+            'removeNotification',
           ),
 
         clearNotifications: () =>
@@ -211,7 +211,7 @@ export const useUIStore = create<UIStore>()(
           set(
             (state) => ({ isMobileMenuOpen: !state.isMobileMenuOpen }),
             false,
-            'toggleMobileMenu'
+            'toggleMobileMenu',
           ),
 
         closeMobileMenu: () =>
@@ -229,10 +229,10 @@ export const useUIStore = create<UIStore>()(
           isSidebarHidden: state.isSidebarHidden,
           uiMode: state.uiMode,
         }),
-      }
+      },
     ),
     {
       name: 'ui-store',
-    }
-  )
+    },
+  ),
 )

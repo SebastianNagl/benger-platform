@@ -87,7 +87,7 @@ export function TaskGenerationComparisonModal({
           include_history: 'true',
         })
         const data: MultipleGenerationResults = await apiClient.get(
-          `/generation-tasks/generation-result?${params}`
+          `/generation-tasks/generation-result?${params}`,
         )
         setResultsByModel((prev) => {
           const next = new Map(prev)
@@ -101,7 +101,7 @@ export function TaskGenerationComparisonModal({
         setLoadingModel(null)
       }
     },
-    [task, t]
+    [task, t],
   )
 
   // Lazy-load the selected model's results the first time its tab is shown.
@@ -186,7 +186,7 @@ export function TaskGenerationComparisonModal({
 
       {result.status === 'completed' && result.result ? (
         <div className="max-h-80 overflow-y-auto rounded-lg bg-gray-50 p-3 dark:bg-gray-800">
-          <pre className="whitespace-pre-wrap font-mono text-sm text-gray-800 dark:text-gray-100">
+          <pre className="font-mono text-sm whitespace-pre-wrap text-gray-800 dark:text-gray-100">
             {viewMode === 'raw'
               ? JSON.stringify(result.result, null, 2)
               : formatResult(result.result)}
@@ -213,24 +213,25 @@ export function TaskGenerationComparisonModal({
       <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
 
       <div className="fixed inset-0 flex w-screen items-center justify-center p-2 sm:p-4">
-        <DialogPanel className="flex max-h-[95vh] w-full max-w-5xl flex-col rounded-lg bg-white shadow-xl dark:bg-zinc-900 sm:max-h-[90vh]">
+        <DialogPanel className="flex max-h-[95vh] w-full max-w-5xl flex-col rounded-lg bg-white shadow-xl sm:max-h-[90vh] dark:bg-zinc-900">
           {/* Header */}
-          <div className="flex items-start justify-between border-b border-gray-200 p-4 dark:border-gray-700 sm:items-center sm:p-6">
+          <div className="flex items-start justify-between border-b border-gray-200 p-4 sm:items-center sm:p-6 dark:border-gray-700">
             <div className="mr-2 min-w-0 flex-1">
-              <DialogTitle className="truncate text-base font-semibold text-gray-900 dark:text-white sm:text-lg">
+              <DialogTitle className="truncate text-base font-semibold text-gray-900 sm:text-lg dark:text-white">
                 {t('generation.comparison.modal.title')}
                 <span className="hidden sm:inline">
                   {' '}
-                  - {t('generation.comparison.modal.taskId', { taskId: task.id })}
+                  -{' '}
+                  {t('generation.comparison.modal.taskId', { taskId: task.id })}
                 </span>
               </DialogTitle>
-              <p className="mt-1 text-xs text-gray-600 dark:text-gray-400 sm:text-sm">
+              <p className="mt-1 text-xs text-gray-600 sm:text-sm dark:text-gray-400">
                 {t('generation.comparison.modal.description')}
               </p>
             </div>
             <button
               onClick={onClose}
-              className="rounded-lg p-1.5 text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white sm:p-2"
+              className="rounded-lg p-1.5 text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900 sm:p-2 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white"
             >
               <XMarkIcon className="h-4 w-4 sm:h-5 sm:w-5" />
             </button>
@@ -249,19 +250,21 @@ export function TaskGenerationComparisonModal({
               <Tab.Group selectedIndex={selectedTab} onChange={setSelectedTab}>
                 {/* Per-model tabs */}
                 <div className="border-b border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800">
-                  <Tab.List className="scrollbar-thin flex space-x-1 overflow-x-auto px-4 py-2 sm:px-6">
+                  <Tab.List className="flex scrollbar-thin space-x-1 overflow-x-auto px-4 py-2 sm:px-6">
                     {models.map((modelId) => (
                       <Tab
                         key={modelId}
                         className={({ selected }) =>
-                          `flex flex-shrink-0 items-center gap-2 whitespace-nowrap rounded-t-lg px-3 py-2 text-xs font-medium transition-colors sm:px-4 sm:text-sm ${
+                          `flex shrink-0 items-center gap-2 rounded-t-lg px-3 py-2 text-xs font-medium whitespace-nowrap transition-colors sm:px-4 sm:text-sm ${
                             selected
                               ? 'border-b-2 border-blue-600 bg-white text-blue-600 dark:bg-zinc-900 dark:text-blue-400'
                               : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white'
                           }`
                         }
                       >
-                        <span className="max-w-[200px] truncate">{modelId}</span>
+                        <span className="max-w-[200px] truncate">
+                          {modelId}
+                        </span>
                       </Tab>
                     ))}
                   </Tab.List>
@@ -298,7 +301,8 @@ export function TaskGenerationComparisonModal({
                             <ExclamationTriangleIcon className="mb-4 h-12 w-12 text-red-500" />
                             <p className="text-red-600">{error}</p>
                           </div>
-                        ) : loadingModel === modelId || results === undefined ? (
+                        ) : loadingModel === modelId ||
+                          results === undefined ? (
                           <div className="flex items-center justify-center py-12">
                             <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-blue-600" />
                           </div>

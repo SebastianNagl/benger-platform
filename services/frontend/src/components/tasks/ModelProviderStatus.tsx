@@ -30,8 +30,12 @@ export function ModelProviderStatus({
           </span>
           <span className="text-xs text-emerald-600 dark:text-emerald-500">
             {modelCount === 1
-              ? t('tasks.modelProvider.modelAvailableSingular', { count: modelCount })
-              : t('tasks.modelProvider.modelAvailablePlural', { count: modelCount })}
+              ? t('tasks.modelProvider.modelAvailableSingular', {
+                  count: modelCount,
+                })
+              : t('tasks.modelProvider.modelAvailablePlural', {
+                  count: modelCount,
+                })}
           </span>
         </div>
       </div>

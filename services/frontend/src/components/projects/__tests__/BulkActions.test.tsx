@@ -23,7 +23,10 @@ jest.mock('@/components/shared/MetadataField', () => ({
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
     t: (key: string, varsOrDefault?: any) => {
-      const translations: Record<string, any> = require('../../../locales/en/common.json')
+      const translations: Record<
+        string,
+        any
+      > = require('../../../locales/en/common.json')
       const parts = key.split('.')
       let value: any = translations
       for (const part of parts) {
@@ -44,7 +47,6 @@ jest.mock('@/contexts/I18nContext', () => ({
     locale: 'en',
   }),
 }))
-
 
 describe('BulkActions', () => {
   const defaultProps = {
@@ -90,7 +92,7 @@ describe('BulkActions', () => {
 
     it('updates count badge when selection changes', () => {
       const { rerender } = render(
-        <BulkActions {...defaultProps} selectedCount={2} />
+        <BulkActions {...defaultProps} selectedCount={2} />,
       )
 
       expect(screen.getByText('2')).toBeInTheDocument()
@@ -123,7 +125,7 @@ describe('BulkActions', () => {
           selectedCount={3}
           canAssign={true}
           onAssign={jest.fn()}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Actions'))
@@ -152,7 +154,7 @@ describe('BulkActions', () => {
       const user = userEvent.setup()
 
       const { rerender } = render(
-        <BulkActions {...defaultProps} selectedCount={1} />
+        <BulkActions {...defaultProps} selectedCount={1} />,
       )
 
       await user.click(screen.getByText('Actions'))
@@ -170,7 +172,7 @@ describe('BulkActions', () => {
       const user = userEvent.setup()
 
       render(
-        <BulkActions {...defaultProps} selectedCount={2} canAssign={false} />
+        <BulkActions {...defaultProps} selectedCount={2} canAssign={false} />,
       )
 
       await user.click(screen.getByText('Actions'))
@@ -187,7 +189,7 @@ describe('BulkActions', () => {
           selectedCount={2}
           canAssign={true}
           onAssign={jest.fn()}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Actions'))
@@ -215,7 +217,7 @@ describe('BulkActions', () => {
           {...defaultProps}
           selectedCount={2}
           onDelete={mockOnDelete}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Actions'))
@@ -233,7 +235,7 @@ describe('BulkActions', () => {
           {...defaultProps}
           selectedCount={3}
           onExport={mockOnExport}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Actions'))
@@ -251,7 +253,7 @@ describe('BulkActions', () => {
           {...defaultProps}
           selectedCount={1}
           onArchive={mockOnArchive}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Actions'))
@@ -270,7 +272,7 @@ describe('BulkActions', () => {
           selectedCount={5}
           canAssign={true}
           onAssign={mockOnAssign}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Actions'))
@@ -289,7 +291,7 @@ describe('BulkActions', () => {
       await user.click(screen.getByText('Duplicate Selected'))
 
       expect(alertSpy).toHaveBeenCalledWith(
-        'Duplicate functionality coming soon'
+        'Duplicate functionality coming soon',
       )
 
       alertSpy.mockRestore()
@@ -305,7 +307,7 @@ describe('BulkActions', () => {
           {...defaultProps}
           selectedCount={3}
           selectedTaskIds={['1', '2', '3']}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Actions'))
@@ -322,7 +324,7 @@ describe('BulkActions', () => {
           {...defaultProps}
           selectedCount={2}
           selectedTaskIds={['42', '99']}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Actions'))
@@ -339,7 +341,7 @@ describe('BulkActions', () => {
           {...defaultProps}
           selectedCount={2}
           selectedTaskIds={['1', '2']}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Actions'))
@@ -350,7 +352,7 @@ describe('BulkActions', () => {
       await user.click(screen.getByTestId('close-editor'))
 
       expect(
-        screen.queryByTestId('bulk-metadata-editor')
+        screen.queryByTestId('bulk-metadata-editor'),
       ).not.toBeInTheDocument()
     })
 
@@ -364,7 +366,7 @@ describe('BulkActions', () => {
           selectedCount={2}
           selectedTaskIds={['1', '2']}
           onTagsUpdated={mockOnTagsUpdated}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Actions'))
@@ -386,7 +388,7 @@ describe('BulkActions', () => {
           selectedCount={2}
           selectedTaskIds={['1', '2']}
           onTagsUpdated={jest.fn()}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Actions'))
@@ -398,7 +400,7 @@ describe('BulkActions', () => {
 
       await waitFor(() => {
         expect(
-          screen.queryByTestId('bulk-metadata-editor')
+          screen.queryByTestId('bulk-metadata-editor'),
         ).not.toBeInTheDocument()
       })
     })
@@ -427,7 +429,7 @@ describe('BulkActions', () => {
         <div>
           <div data-testid="outside">Outside element</div>
           <BulkActions {...defaultProps} selectedCount={2} />
-        </div>
+        </div>,
       )
 
       await user.click(screen.getByText('Actions'))
@@ -473,7 +475,7 @@ describe('BulkActions', () => {
           selectedCount={2}
           selectedTaskIds={['1', '2']}
           // onTagsUpdated not provided
-        />
+        />,
       )
 
       await user.click(screen.getByText('Actions'))
@@ -483,7 +485,7 @@ describe('BulkActions', () => {
       // Should not throw error
       await waitFor(() => {
         expect(
-          screen.queryByTestId('bulk-metadata-editor')
+          screen.queryByTestId('bulk-metadata-editor'),
         ).not.toBeInTheDocument()
       })
     })
@@ -496,7 +498,7 @@ describe('BulkActions', () => {
           {...defaultProps}
           selectedCount={2}
           selectedTaskIds={['123', '456']}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Actions'))
@@ -510,7 +512,11 @@ describe('BulkActions', () => {
       const user = userEvent.setup()
 
       render(
-        <BulkActions {...defaultProps} selectedCount={0} selectedTaskIds={[]} />
+        <BulkActions
+          {...defaultProps}
+          selectedCount={0}
+          selectedTaskIds={[]}
+        />,
       )
 
       const button = screen.getByText('Actions').closest('button')
@@ -525,7 +531,7 @@ describe('BulkActions', () => {
           {...defaultProps}
           selectedCount={1}
           // selectedTaskIds not provided (defaults to [])
-        />
+        />,
       )
 
       await user.click(screen.getByText('Actions'))
@@ -542,7 +548,7 @@ describe('BulkActions', () => {
           {...defaultProps}
           projectId={undefined}
           selectedCount={2}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Actions'))
@@ -585,7 +591,7 @@ describe('BulkActions', () => {
           {...defaultProps}
           selectedCount={5}
           onExport={mockOnExport}
-        />
+        />,
       )
 
       // Open dropdown
@@ -612,7 +618,7 @@ describe('BulkActions', () => {
           selectedCount={3}
           selectedTaskIds={['10', '20', '30']}
           onTagsUpdated={mockOnTagsUpdated}
-        />
+        />,
       )
 
       // Open dropdown
@@ -628,7 +634,7 @@ describe('BulkActions', () => {
       // Should close and trigger callback
       await waitFor(() => {
         expect(
-          screen.queryByTestId('bulk-metadata-editor')
+          screen.queryByTestId('bulk-metadata-editor'),
         ).not.toBeInTheDocument()
         expect(mockOnTagsUpdated).toHaveBeenCalledTimes(1)
       })
@@ -650,7 +656,7 @@ describe('BulkActions', () => {
           onExport={mockOnExport}
           onArchive={mockOnArchive}
           onDelete={mockOnDelete}
-        />
+        />,
       )
 
       // Test assign

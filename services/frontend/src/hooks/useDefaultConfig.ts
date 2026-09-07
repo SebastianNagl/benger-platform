@@ -34,7 +34,7 @@ export function useDefaultConfig(taskType: string): UseDefaultConfigReturn {
     } catch (err) {
       console.error('Failed to fetch default config:', err)
       setError(
-        err instanceof Error ? err.message : 'Failed to fetch default config'
+        err instanceof Error ? err.message : 'Failed to fetch default config',
       )
       // Provide fallback values
       setConfig({
@@ -86,7 +86,7 @@ export function useAllDefaultConfigs(): UseAllDefaultConfigsReturn {
     } catch (err) {
       console.error('Failed to fetch all default configs:', err)
       setError(
-        err instanceof Error ? err.message : 'Failed to fetch default configs'
+        err instanceof Error ? err.message : 'Failed to fetch default configs',
       )
       // Provide fallback values
       setConfigs({

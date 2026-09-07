@@ -21,7 +21,10 @@ jest.mock('@heroicons/react/24/outline', () => ({
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
     t: (key: string, varsOrDefault?: any) => {
-      const translations: Record<string, any> = require('../../../locales/en/common.json')
+      const translations: Record<
+        string,
+        any
+      > = require('../../../locales/en/common.json')
       const parts = key.split('.')
       let value: any = translations
       for (const part of parts) {
@@ -85,7 +88,7 @@ describe('TextAreaField Component', () => {
       expect(textarea).toHaveAttribute('name', 'description_field')
       expect(textarea).toHaveAttribute(
         'placeholder',
-        'Type your description here...'
+        'Type your description here...',
       )
       expect(textarea).toHaveValue('')
     })
@@ -106,7 +109,7 @@ describe('TextAreaField Component', () => {
       expect(description).toHaveClass(
         'text-sm',
         'text-gray-500',
-        'dark:text-gray-400'
+        'dark:text-gray-400',
       )
     })
 
@@ -167,7 +170,7 @@ describe('TextAreaField Component', () => {
 
     it('handles null/undefined values gracefully', () => {
       const { rerender } = render(
-        <TextAreaField {...defaultProps} value={null} />
+        <TextAreaField {...defaultProps} value={null} />,
       )
       expect(screen.getByRole('textbox')).toHaveValue('')
 
@@ -254,7 +257,7 @@ describe('TextAreaField Component', () => {
       const label = screen.getByText('Description (Optional)')
       expect(label).toBeInTheDocument()
       expect(
-        screen.queryByText('Description (Optional) (Optional)')
+        screen.queryByText('Description (Optional) (Optional)'),
       ).not.toBeInTheDocument()
     })
   })
@@ -268,7 +271,7 @@ describe('TextAreaField Component', () => {
       expect(textarea).toHaveClass(
         'bg-gray-50',
         'dark:bg-gray-800',
-        'cursor-not-allowed'
+        'cursor-not-allowed',
       )
     })
 
@@ -289,7 +292,7 @@ describe('TextAreaField Component', () => {
       expect(textarea).toHaveClass(
         'bg-gray-50',
         'dark:bg-gray-800',
-        'cursor-not-allowed'
+        'cursor-not-allowed',
       )
     })
   })
@@ -349,7 +352,7 @@ describe('TextAreaField Component', () => {
           {...defaultProps}
           field={fieldWithMaxLength}
           value="Hello"
-        />
+        />,
       )
 
       const counter = screen.getByText('5 / 100')
@@ -358,7 +361,7 @@ describe('TextAreaField Component', () => {
         'text-xs',
         'text-gray-500',
         'dark:text-gray-400',
-        'text-right'
+        'text-right',
       )
     })
 
@@ -406,7 +409,7 @@ describe('TextAreaField Component', () => {
         validation: [{ type: 'maxLength' as const, value: 100 }],
       }
       render(
-        <TextAreaField {...defaultProps} field={fieldWithMaxLength} value="" />
+        <TextAreaField {...defaultProps} field={fieldWithMaxLength} value="" />,
       )
 
       const counter = screen.getByText('0 / 100')
@@ -423,7 +426,7 @@ describe('TextAreaField Component', () => {
           {...defaultProps}
           field={fieldWithMaxLength}
           value={null}
-        />
+        />,
       )
 
       const counter = screen.getByText('0 / 100')
@@ -450,7 +453,7 @@ describe('TextAreaField Component', () => {
           {...defaultProps}
           field={fieldWithMixedValidation}
           value="Test"
-        />
+        />,
       )
 
       const textarea = screen.getByRole('textbox')
@@ -473,7 +476,7 @@ describe('TextAreaField Component', () => {
         'shadow-sm',
         'sm:text-sm',
         'transition-colors',
-        'resize-y'
+        'resize-y',
       )
     })
 
@@ -485,13 +488,13 @@ describe('TextAreaField Component', () => {
         'border-gray-300',
         'dark:border-gray-600',
         'bg-white',
-        'dark:bg-gray-700'
+        'dark:bg-gray-700',
       )
     })
 
     it('applies custom className to wrapper', () => {
       render(
-        <TextAreaField {...defaultProps} className="custom-textarea-class" />
+        <TextAreaField {...defaultProps} className="custom-textarea-class" />,
       )
 
       const wrapper = screen.getByRole('textbox').closest('.field-wrapper')
@@ -508,7 +511,7 @@ describe('TextAreaField Component', () => {
       expect(textarea).toHaveFocus()
       expect(textarea).toHaveClass(
         'focus:border-blue-500',
-        'focus:ring-blue-500'
+        'focus:ring-blue-500',
       )
     })
   })
@@ -560,7 +563,7 @@ describe('TextAreaField Component', () => {
         placeholder: undefined,
       }
       render(
-        <TextAreaField {...defaultProps} field={fieldWithoutPlaceholder} />
+        <TextAreaField {...defaultProps} field={fieldWithoutPlaceholder} />,
       )
 
       const textarea = screen.getByRole('textbox')
@@ -663,7 +666,7 @@ describe('TextAreaField Component', () => {
           <button>Before</button>
           <TextAreaField {...defaultProps} />
           <button>After</button>
-        </div>
+        </div>,
       )
 
       const beforeButton = screen.getByRole('button', { name: 'Before' })
@@ -697,7 +700,7 @@ describe('TextAreaField Component', () => {
           {...defaultProps}
           field={fieldWithMaxLength}
           value="Test"
-        />
+        />,
       )
 
       const counter = screen.getByText('4 / 100')

@@ -100,7 +100,7 @@ export function PeopleSection() {
     >
       <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="text-center">
-          <h2 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-white sm:text-4xl">
+          <h2 className="text-3xl font-bold tracking-tight text-zinc-900 sm:text-4xl dark:text-white">
             {t('landing.people.title')}
           </h2>
           <p className="mx-auto mt-4 max-w-2xl text-lg text-zinc-600 dark:text-zinc-400">
@@ -115,7 +115,7 @@ export function PeopleSection() {
 
         {/* Network partners — same block, logo cards below the people. */}
         <div className="mt-12">
-          <h3 className="text-sm font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+          <h3 className="text-sm font-medium tracking-wide text-zinc-500 uppercase dark:text-zinc-400">
             {t('landing.people.networkTitle')}
           </h3>
           <div className="mt-4 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">

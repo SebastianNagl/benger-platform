@@ -43,30 +43,39 @@ jest.mock('@/contexts/I18nContext', () => ({
       const vars = typeof arg2 === 'object' ? arg2 : arg3
       const translations: Record<string, string> = {
         'toasts.generation.selectModel': 'Please select at least one model',
-        'toasts.generation.selectStructure': 'Please select at least one structure',
+        'toasts.generation.selectStructure':
+          'Please select at least one structure',
         'generation.controlModal.title': 'Start Bulk Generation',
         'generation.controlModal.generationOptions': 'Generation Options',
         'generation.controlModal.generationMode': 'Generation Mode',
         'generation.controlModal.generateMissingOnly': 'Generate Missing Only',
-        'generation.controlModal.generateMissingOnlyDesc': "Only generate for task-model combinations that haven't been generated yet",
+        'generation.controlModal.generateMissingOnlyDesc':
+          "Only generate for task-model combinations that haven't been generated yet",
         'generation.controlModal.generateAll': 'Generate All',
-        'generation.controlModal.generateAllDesc': 'Regenerate all task-model combinations (overwrites existing)',
+        'generation.controlModal.generateAllDesc':
+          'Regenerate all task-model combinations (overwrites existing)',
         'generation.controlModal.selectModels': 'Select Models',
         'generation.controlModal.selectAll': 'Select All',
         'generation.controlModal.clearAll': 'Clear All',
         'generation.controlModal.oneModelSelected': '1 model selected',
         'generation.controlModal.modelsSelected': '{count} models selected',
-        'generation.controlModal.selectPromptStructures': 'Select Prompt Structures',
+        'generation.controlModal.selectPromptStructures':
+          'Select Prompt Structures',
         'generation.controlModal.oneStructureSelected': '1 structure selected',
-        'generation.controlModal.structuresSelected': '{count} structures selected',
+        'generation.controlModal.structuresSelected':
+          '{count} structures selected',
         'generation.controlModal.advancedSettings': 'Advanced Settings',
         'generation.controlModal.temperature': 'Temperature',
-        'generation.controlModal.temperatureDesc': '0 = deterministic, higher = more creative',
+        'generation.controlModal.temperatureDesc':
+          '0 = deterministic, higher = more creative',
         'generation.controlModal.defaultMaxTokens': 'Default Max Tokens',
-        'generation.controlModal.defaultMaxTokensDesc': 'Default response length (100-16000)',
+        'generation.controlModal.defaultMaxTokensDesc':
+          'Default response length (100-16000)',
         'generation.controlModal.perModelTokenLimits': 'Per-Model Token Limits',
-        'generation.controlModal.perModelTokenLimitsDesc': 'Leave blank to use the default. Set a custom value to override for specific models.',
-        'generation.controlModal.totalGenerationsPerTask': 'Total Generations Per Task:',
+        'generation.controlModal.perModelTokenLimitsDesc':
+          'Leave blank to use the default. Set a custom value to override for specific models.',
+        'generation.controlModal.totalGenerationsPerTask':
+          'Total Generations Per Task:',
         'generation.controlModal.model': 'model',
         'generation.controlModal.models': 'models',
         'generation.controlModal.structure': 'structure',
@@ -76,7 +85,8 @@ jest.mock('@/contexts/I18nContext', () => ({
         'generation.controlModal.starting': 'Starting...',
         'generation.controlModal.startGeneration': 'Start Generation',
         'generation.controlModal.cancel': 'Cancel',
-        'generation.controlModal.queuedJobs': 'Queued {tasks} generation jobs for {models} models. Estimated time: {minutes} minutes',
+        'generation.controlModal.queuedJobs':
+          'Queued {tasks} generation jobs for {models} models. Estimated time: {minutes} minutes',
         'generation.controlModal.failedToStart': 'Failed to start generation',
         'customModels.picker.officialSection': 'Official models',
         'customModels.picker.customSection': 'Custom models',
@@ -120,7 +130,7 @@ describe('GenerationControlModal', () => {
         onClose={mockOnClose}
         models={mockModels}
         onGenerate={mockOnGenerate}
-      />
+      />,
     )
 
     expect(screen.getByText('Start Bulk Generation')).toBeInTheDocument()
@@ -134,7 +144,7 @@ describe('GenerationControlModal', () => {
         onClose={mockOnClose}
         models={mockModels}
         onGenerate={mockOnGenerate}
-      />
+      />,
     )
 
     expect(screen.queryByText('Start Bulk Generation')).not.toBeInTheDocument()
@@ -147,7 +157,7 @@ describe('GenerationControlModal', () => {
         onClose={mockOnClose}
         models={mockModels}
         onGenerate={mockOnGenerate}
-      />
+      />,
     )
 
     mockModels.forEach((model) => {
@@ -163,7 +173,7 @@ describe('GenerationControlModal', () => {
         onClose={mockOnClose}
         models={mockModels}
         onGenerate={mockOnGenerate}
-      />
+      />,
     )
 
     const firstCheckbox = screen.getByLabelText(mockModels[0])
@@ -180,7 +190,7 @@ describe('GenerationControlModal', () => {
         onClose={mockOnClose}
         models={mockModels}
         onGenerate={mockOnGenerate}
-      />
+      />,
     )
 
     const selectAllButton = screen.getByText('Select All')
@@ -199,7 +209,7 @@ describe('GenerationControlModal', () => {
         onClose={mockOnClose}
         models={mockModels}
         onGenerate={mockOnGenerate}
-      />
+      />,
     )
 
     // First select all
@@ -223,7 +233,7 @@ describe('GenerationControlModal', () => {
         onClose={mockOnClose}
         models={mockModels}
         onGenerate={mockOnGenerate}
-      />
+      />,
     )
 
     const missingOnlyRadio = screen.getByLabelText('Generate Missing Only')
@@ -246,7 +256,7 @@ describe('GenerationControlModal', () => {
         onClose={mockOnClose}
         models={mockModels}
         onGenerate={mockOnGenerate}
-      />
+      />,
     )
 
     // Select first two models
@@ -263,7 +273,7 @@ describe('GenerationControlModal', () => {
     expect(mockOnGenerate).toHaveBeenCalledWith(
       [mockModels[0], mockModels[1]],
       false, // generate_missing_only = false
-      undefined // no structures for this project
+      undefined, // no structures for this project
     )
   })
 
@@ -274,7 +284,7 @@ describe('GenerationControlModal', () => {
         onClose={mockOnClose}
         models={mockModels}
         onGenerate={mockOnGenerate}
-      />
+      />,
     )
 
     const startButton = screen.getByText('Start Generation')
@@ -289,7 +299,7 @@ describe('GenerationControlModal', () => {
         onClose={mockOnClose}
         models={mockModels}
         onGenerate={mockOnGenerate}
-      />
+      />,
     )
 
     const startButton = screen.getByText('Start Generation')
@@ -308,7 +318,7 @@ describe('GenerationControlModal', () => {
         onClose={mockOnClose}
         models={mockModels}
         onGenerate={mockOnGenerate}
-      />
+      />,
     )
 
     const cancelButton = screen.getByText('Cancel')
@@ -325,7 +335,7 @@ describe('GenerationControlModal', () => {
         onClose={mockOnClose}
         models={mockModels}
         onGenerate={mockOnGenerate}
-      />
+      />,
     )
 
     expect(screen.getByText('0 models selected')).toBeInTheDocument()
@@ -345,7 +355,7 @@ describe('GenerationControlModal', () => {
         onClose={mockOnClose}
         models={mockModels}
         onGenerate={mockOnGenerate}
-      />
+      />,
     )
 
     // Select a model
@@ -359,7 +369,7 @@ describe('GenerationControlModal', () => {
         onClose={mockOnClose}
         models={mockModels}
         onGenerate={mockOnGenerate}
-      />
+      />,
     )
 
     // Reopen modal
@@ -369,7 +379,7 @@ describe('GenerationControlModal', () => {
         onClose={mockOnClose}
         models={mockModels}
         onGenerate={mockOnGenerate}
-      />
+      />,
     )
 
     // Check that state was reset
@@ -404,7 +414,7 @@ describe('GenerationControlModal', () => {
           models={mockModels}
           project={mockProject}
           onGenerate={mockOnGenerate}
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -423,7 +433,7 @@ describe('GenerationControlModal', () => {
           models={mockModels}
           project={mockProject}
           onGenerate={mockOnGenerate}
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -442,7 +452,7 @@ describe('GenerationControlModal', () => {
           models={mockModels}
           project={mockProject}
           onGenerate={mockOnGenerate}
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -450,7 +460,7 @@ describe('GenerationControlModal', () => {
       })
 
       const structure1Checkbox = document.getElementById(
-        'structure-structure1'
+        'structure-structure1',
       ) as HTMLInputElement
       await user.click(structure1Checkbox)
 
@@ -466,7 +476,7 @@ describe('GenerationControlModal', () => {
           models={mockModels}
           project={mockProject}
           onGenerate={mockOnGenerate}
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -478,10 +488,10 @@ describe('GenerationControlModal', () => {
       await user.click(structureSelectAll)
 
       const struct1 = document.getElementById(
-        'structure-structure1'
+        'structure-structure1',
       ) as HTMLInputElement
       const struct2 = document.getElementById(
-        'structure-structure2'
+        'structure-structure2',
       ) as HTMLInputElement
       expect(struct1).toBeChecked()
       expect(struct2).toBeChecked()
@@ -496,7 +506,7 @@ describe('GenerationControlModal', () => {
           models={mockModels}
           project={mockProject}
           onGenerate={mockOnGenerate}
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -510,10 +520,10 @@ describe('GenerationControlModal', () => {
       await user.click(clearAllButtons[1])
 
       const struct1 = document.getElementById(
-        'structure-structure1'
+        'structure-structure1',
       ) as HTMLInputElement
       const struct2 = document.getElementById(
-        'structure-structure2'
+        'structure-structure2',
       ) as HTMLInputElement
       expect(struct1).not.toBeChecked()
       expect(struct2).not.toBeChecked()
@@ -528,7 +538,7 @@ describe('GenerationControlModal', () => {
           models={mockModels}
           project={mockProject}
           onGenerate={mockOnGenerate}
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -536,13 +546,13 @@ describe('GenerationControlModal', () => {
       })
 
       const struct1 = document.getElementById(
-        'structure-structure1'
+        'structure-structure1',
       ) as HTMLInputElement
       await user.click(struct1)
       expect(screen.getByText('1 structure selected')).toBeInTheDocument()
 
       const struct2 = document.getElementById(
-        'structure-structure2'
+        'structure-structure2',
       ) as HTMLInputElement
       await user.click(struct2)
       expect(screen.getByText('2 structures selected')).toBeInTheDocument()
@@ -557,7 +567,7 @@ describe('GenerationControlModal', () => {
           models={mockModels}
           project={mockProject}
           onGenerate={mockOnGenerate}
-        />
+        />,
       )
 
       await user.click(screen.getByLabelText(mockModels[0]))
@@ -575,7 +585,7 @@ describe('GenerationControlModal', () => {
           models={mockModels}
           project={mockProject}
           onGenerate={mockOnGenerate}
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -584,7 +594,7 @@ describe('GenerationControlModal', () => {
 
       await user.click(screen.getByLabelText(mockModels[0]))
       const struct1 = document.getElementById(
-        'structure-structure1'
+        'structure-structure1',
       ) as HTMLInputElement
       await user.click(struct1)
 
@@ -602,7 +612,7 @@ describe('GenerationControlModal', () => {
           models={mockModels}
           project={mockProject}
           onGenerate={mockOnGenerate}
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -624,7 +634,7 @@ describe('GenerationControlModal', () => {
           models={mockModels}
           project={mockProject}
           onGenerate={mockOnGenerate}
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -633,7 +643,7 @@ describe('GenerationControlModal', () => {
 
       await user.click(screen.getByLabelText(mockModels[0]))
       const struct1 = document.getElementById(
-        'structure-structure1'
+        'structure-structure1',
       ) as HTMLInputElement
       await user.click(struct1)
 
@@ -654,7 +664,7 @@ describe('GenerationControlModal', () => {
           models={mockModels}
           project={mockProject}
           onGenerate={mockOnGenerate}
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -664,16 +674,16 @@ describe('GenerationControlModal', () => {
       await user.click(screen.getByLabelText(mockModels[0]))
       await user.click(screen.getByLabelText(mockModels[1]))
       const struct1 = document.getElementById(
-        'structure-structure1'
+        'structure-structure1',
       ) as HTMLInputElement
       const struct2 = document.getElementById(
-        'structure-structure2'
+        'structure-structure2',
       ) as HTMLInputElement
       await user.click(struct1)
       await user.click(struct2)
 
       expect(
-        screen.getByText(/2 models × 2 structures = 4 generations/)
+        screen.getByText(/2 models × 2 structures = 4 generations/),
       ).toBeInTheDocument()
     })
   })
@@ -695,7 +705,7 @@ describe('GenerationControlModal', () => {
           onClose={mockOnClose}
           models={mockModels}
           onSuccess={mockOnSuccess}
-        />
+        />,
       )
 
       await user.click(screen.getByLabelText(mockModels[0]))
@@ -715,7 +725,7 @@ describe('GenerationControlModal', () => {
               max_tokens: 4000,
               seed: 42,
             },
-          }
+          },
         )
       })
     })
@@ -745,7 +755,7 @@ describe('GenerationControlModal', () => {
           models={mockModels}
           project={mockProject}
           onSuccess={mockOnSuccess}
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -754,7 +764,7 @@ describe('GenerationControlModal', () => {
 
       await user.click(screen.getByLabelText(mockModels[0]))
       const struct1 = document.getElementById(
-        'structure-struct1'
+        'structure-struct1',
       ) as HTMLInputElement
       await user.click(struct1)
 
@@ -773,7 +783,7 @@ describe('GenerationControlModal', () => {
               max_tokens: 4000,
               seed: 42,
             },
-          }
+          },
         )
       })
     })
@@ -798,7 +808,7 @@ describe('GenerationControlModal', () => {
           onClose={mockOnClose}
           models={mockModels}
           onSuccess={mockOnSuccess}
-        />
+        />,
       )
 
       await user.click(screen.getByLabelText(mockModels[0]))
@@ -809,7 +819,7 @@ describe('GenerationControlModal', () => {
       await waitFor(() => {
         expect(mockAddToast).toHaveBeenCalledWith(
           'Queued 10 generation jobs for 2 models. Estimated time: 2 minutes',
-          'success'
+          'success',
         )
       })
     })
@@ -830,7 +840,7 @@ describe('GenerationControlModal', () => {
           onClose={mockOnClose}
           models={mockModels}
           onSuccess={mockOnSuccess}
-        />
+        />,
       )
 
       await user.click(screen.getByLabelText(mockModels[0]))
@@ -863,7 +873,7 @@ describe('GenerationControlModal', () => {
           onClose={mockOnClose}
           models={mockModels}
           onSuccess={mockOnSuccess}
-        />
+        />,
       )
 
       await user.click(screen.getByLabelText(mockModels[0]))
@@ -874,7 +884,7 @@ describe('GenerationControlModal', () => {
       await waitFor(() => {
         expect(mockAddToast).toHaveBeenCalledWith(
           'API rate limit exceeded',
-          'error'
+          'error',
         )
       })
     })
@@ -895,7 +905,7 @@ describe('GenerationControlModal', () => {
           onClose={mockOnClose}
           models={mockModels}
           onSuccess={mockOnSuccess}
-        />
+        />,
       )
 
       await user.click(screen.getByLabelText(mockModels[0]))
@@ -906,7 +916,7 @@ describe('GenerationControlModal', () => {
       await waitFor(() => {
         expect(mockAddToast).toHaveBeenCalledWith(
           'Failed to start generation',
-          'error'
+          'error',
         )
       })
     })
@@ -915,7 +925,7 @@ describe('GenerationControlModal', () => {
       const user = userEvent.setup()
       const { apiClient } = require('@/lib/api/client')
       apiClient.post.mockImplementation(
-        () => new Promise((resolve) => setTimeout(resolve, 100))
+        () => new Promise((resolve) => setTimeout(resolve, 100)),
       )
 
       render(
@@ -925,7 +935,7 @@ describe('GenerationControlModal', () => {
           onClose={mockOnClose}
           models={mockModels}
           onSuccess={mockOnSuccess}
-        />
+        />,
       )
 
       await user.click(screen.getByLabelText(mockModels[0]))
@@ -945,7 +955,7 @@ describe('GenerationControlModal', () => {
           onClose={mockOnClose}
           models={mockModels}
           onGenerate={mockOnGenerate}
-        />
+        />,
       )
 
       const closeButton = screen.getByRole('button', { name: /close/i })
@@ -960,7 +970,7 @@ describe('GenerationControlModal', () => {
           onClose={mockOnClose}
           models={mockModels}
           onGenerate={mockOnGenerate}
-        />
+        />,
       )
 
       const closeButton = screen.getByRole('button', { name: /close/i })
@@ -976,14 +986,14 @@ describe('GenerationControlModal', () => {
           onClose={mockOnClose}
           models={mockModels}
           onGenerate={mockOnGenerate}
-        />
+        />,
       )
 
       expect(
-        screen.getByText(/Only generate for task-model combinations/)
+        screen.getByText(/Only generate for task-model combinations/),
       ).toBeInTheDocument()
       expect(
-        screen.getByText(/Regenerate all task-model combinations/)
+        screen.getByText(/Regenerate all task-model combinations/),
       ).toBeInTheDocument()
     })
 
@@ -995,14 +1005,14 @@ describe('GenerationControlModal', () => {
           onClose={mockOnClose}
           models={mockModels}
           onGenerate={mockOnGenerate}
-        />
+        />,
       )
 
       await user.click(screen.getByLabelText(mockModels[0]))
       await user.click(screen.getByLabelText(mockModels[1]))
 
       expect(
-        screen.getByText('Total Generations Per Task:')
+        screen.getByText('Total Generations Per Task:'),
       ).toBeInTheDocument()
       expect(screen.getByText(/2 models = 2 generations/)).toBeInTheDocument()
     })
@@ -1018,7 +1028,7 @@ describe('GenerationControlModal', () => {
           onClose={mockOnClose}
           models={mockModels}
           onGenerate={mockOnGenerate}
-        />
+        />,
       )
 
       const startButton = screen.getByText('Start Generation')
@@ -1034,7 +1044,7 @@ describe('GenerationControlModal', () => {
           onClose={mockOnClose}
           models={mockModels}
           onGenerate={mockOnGenerate}
-        />
+        />,
       )
 
       const missingRadio = screen.getByLabelText('Generate Missing Only')
@@ -1049,7 +1059,7 @@ describe('GenerationControlModal', () => {
           onClose={mockOnClose}
           models={mockModels}
           onGenerate={mockOnGenerate}
-        />
+        />,
       )
 
       const allRadio = screen.getByLabelText('Generate All')
@@ -1074,7 +1084,7 @@ describe('GenerationControlModal', () => {
           onClose={mockOnClose}
           models={mockModels}
           onSuccess={mockOnSuccess}
-        />
+        />,
       )
 
       await user.click(screen.getByLabelText(mockModels[0]))
@@ -1094,7 +1104,7 @@ describe('GenerationControlModal', () => {
               max_tokens: 4000,
               seed: 42,
             },
-          }
+          },
         )
       })
     })
@@ -1108,7 +1118,7 @@ describe('GenerationControlModal', () => {
           onClose={mockOnClose}
           models={[]}
           onGenerate={mockOnGenerate}
-        />
+        />,
       )
 
       expect(screen.getByText('Start Bulk Generation')).toBeInTheDocument()
@@ -1128,11 +1138,11 @@ describe('GenerationControlModal', () => {
           models={mockModels}
           project={projectWithoutConfig}
           onGenerate={mockOnGenerate}
-        />
+        />,
       )
 
       expect(
-        screen.queryByText('Select Prompt Structures')
+        screen.queryByText('Select Prompt Structures'),
       ).not.toBeInTheDocument()
     })
 
@@ -1152,11 +1162,11 @@ describe('GenerationControlModal', () => {
           models={mockModels}
           project={projectWithEmptyStructures}
           onGenerate={mockOnGenerate}
-        />
+        />,
       )
 
       expect(
-        screen.queryByText('Select Prompt Structures')
+        screen.queryByText('Select Prompt Structures'),
       ).not.toBeInTheDocument()
     })
 
@@ -1176,7 +1186,7 @@ describe('GenerationControlModal', () => {
           models={mockModels}
           project={projectWithStructureNoDesc}
           onGenerate={mockOnGenerate}
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -1195,7 +1205,7 @@ describe('GenerationControlModal', () => {
           onClose={mockOnClose}
           models={mockModels}
           onGenerate={mockOnGenerate}
-        />
+        />,
       )
 
       await user.click(screen.getByLabelText('Generate All'))
@@ -1207,7 +1217,7 @@ describe('GenerationControlModal', () => {
           onClose={mockOnClose}
           models={mockModels}
           onGenerate={mockOnGenerate}
-        />
+        />,
       )
 
       rerender(
@@ -1216,7 +1226,7 @@ describe('GenerationControlModal', () => {
           onClose={mockOnClose}
           models={mockModels}
           onGenerate={mockOnGenerate}
-        />
+        />,
       )
 
       expect(screen.getByLabelText('Generate Missing Only')).toBeChecked()
@@ -1230,7 +1240,7 @@ describe('GenerationControlModal', () => {
         () =>
           new Promise((resolve) => {
             resolvePromise = resolve
-          })
+          }),
       )
 
       const { rerender } = render(
@@ -1240,7 +1250,7 @@ describe('GenerationControlModal', () => {
           onClose={mockOnClose}
           models={mockModels}
           onSuccess={mockOnSuccess}
-        />
+        />,
       )
 
       await user.click(screen.getByLabelText(mockModels[0]))
@@ -1255,7 +1265,7 @@ describe('GenerationControlModal', () => {
           onClose={mockOnClose}
           models={mockModels}
           onSuccess={mockOnSuccess}
-        />
+        />,
       )
 
       rerender(
@@ -1265,7 +1275,7 @@ describe('GenerationControlModal', () => {
           onClose={mockOnClose}
           models={mockModels}
           onSuccess={mockOnSuccess}
-        />
+        />,
       )
 
       expect(screen.queryByText('Starting...')).not.toBeInTheDocument()
@@ -1282,7 +1292,7 @@ describe('GenerationControlModal', () => {
           onClose={mockOnClose}
           models={mockModels}
           onGenerate={mockOnGenerate}
-        />
+        />,
       )
 
       const firstCheckbox = screen.getByLabelText(mockModels[0])
@@ -1301,7 +1311,7 @@ describe('GenerationControlModal', () => {
           onClose={mockOnClose}
           models={mockModels}
           onGenerate={mockOnGenerate}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Select All'))
@@ -1332,7 +1342,7 @@ describe('GenerationControlModal', () => {
           models={mockModels}
           project={mockProject}
           onGenerate={mockOnGenerate}
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -1340,7 +1350,7 @@ describe('GenerationControlModal', () => {
       })
 
       const struct1 = document.getElementById(
-        'structure-struct1'
+        'structure-struct1',
       ) as HTMLInputElement
       await user.click(struct1)
       expect(struct1).toBeChecked()
@@ -1358,7 +1368,7 @@ describe('GenerationControlModal', () => {
           models={mockModels}
           project={mockProject}
           onGenerate={mockOnGenerate}
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -1370,7 +1380,7 @@ describe('GenerationControlModal', () => {
       expect(screen.getByText('2 structures selected')).toBeInTheDocument()
 
       const struct1 = document.getElementById(
-        'structure-struct1'
+        'structure-struct1',
       ) as HTMLInputElement
       await user.click(struct1)
       expect(screen.getByText('1 structure selected')).toBeInTheDocument()
@@ -1385,7 +1395,7 @@ describe('GenerationControlModal', () => {
           onClose={mockOnClose}
           models={mockModels}
           onGenerate={mockOnGenerate}
-        />
+        />,
       )
 
       const panel = screen
@@ -1401,12 +1411,12 @@ describe('GenerationControlModal', () => {
           onClose={mockOnClose}
           models={mockModels}
           onGenerate={mockOnGenerate}
-        />
+        />,
       )
 
       // Overlay is rendered in a portal, so we need to search in document.body
-      const overlay = document.body.querySelector('.bg-gray-500')
-      expect(overlay).toHaveClass('bg-opacity-75', 'fixed', 'inset-0')
+      const overlay = document.body.querySelector('.bg-gray-500\\/75')
+      expect(overlay).toHaveClass('bg-gray-500/75', 'fixed', 'inset-0')
     })
   })
 
@@ -1419,7 +1429,7 @@ describe('GenerationControlModal', () => {
           onClose={mockOnClose}
           models={mockModels}
           onGenerate={mockOnGenerate}
-        />
+        />,
       )
 
       await user.click(screen.getByLabelText(mockModels[0]))
@@ -1437,7 +1447,7 @@ describe('GenerationControlModal', () => {
           onClose={mockOnClose}
           models={mockModels}
           onGenerate={mockOnGenerate}
-        />
+        />,
       )
 
       const startButton = screen.getByText('Start Generation')
@@ -1452,15 +1462,12 @@ describe('GenerationControlModal', () => {
           onClose={mockOnClose}
           models={mockModels}
           onGenerate={mockOnGenerate}
-        />
+        />,
       )
 
       const cancelButton = screen.getByText('Cancel')
       // Button now uses the shared Button component with outline variant styling
-      expect(cancelButton).toHaveClass(
-        'ring-1',
-        'ring-inset'
-      )
+      expect(cancelButton).toHaveClass('ring-1', 'ring-inset')
     })
   })
 
@@ -1473,7 +1480,7 @@ describe('GenerationControlModal', () => {
           onClose={mockOnClose}
           models={mockModels}
           onGenerate={mockOnGenerate}
-        />
+        />,
       )
 
       const missingRadio = screen.getByLabelText('Generate Missing Only')
@@ -1500,7 +1507,7 @@ describe('GenerationControlModal', () => {
           onClose={mockOnClose}
           models={mockModels}
           onGenerate={mockOnGenerate}
-        />
+        />,
       )
 
       expect(document.getElementById('mode-missing')).toBeInTheDocument()
@@ -1516,7 +1523,7 @@ describe('GenerationControlModal', () => {
           onClose={mockOnClose}
           models={mockModels}
           onGenerate={mockOnGenerate}
-        />
+        />,
       )
 
       mockModels.forEach((model) => {
@@ -1540,7 +1547,7 @@ describe('GenerationControlModal', () => {
           models={mockModels}
           project={mockProject}
           onGenerate={mockOnGenerate}
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -1557,7 +1564,7 @@ describe('GenerationControlModal', () => {
           onClose={mockOnClose}
           models={mockModels}
           onGenerate={mockOnGenerate}
-        />
+        />,
       )
 
       // Dialog is rendered in a portal, so we need to search in document.body
@@ -1574,7 +1581,7 @@ describe('GenerationControlModal', () => {
           onClose={mockOnClose}
           models={mockModels}
           onGenerate={mockOnGenerate}
-        />
+        />,
       )
 
       await user.click(screen.getByLabelText(mockModels[0]))
@@ -1590,7 +1597,7 @@ describe('GenerationControlModal', () => {
           onClose={mockOnClose}
           models={mockModels}
           onGenerate={mockOnGenerate}
-        />
+        />,
       )
 
       await user.click(screen.getByLabelText(mockModels[0]))
@@ -1617,7 +1624,7 @@ describe('GenerationControlModal', () => {
           models={mockModels}
           project={mockProject}
           onGenerate={mockOnGenerate}
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -1626,16 +1633,15 @@ describe('GenerationControlModal', () => {
 
       await user.click(screen.getByLabelText(mockModels[0]))
       const struct1 = document.getElementById(
-        'structure-struct1'
+        'structure-struct1',
       ) as HTMLInputElement
       await user.click(struct1)
 
       expect(
-        screen.getByText(/1 model × 1 structure = 1 generation/)
+        screen.getByText(/1 model × 1 structure = 1 generation/),
       ).toBeInTheDocument()
     })
   })
-
 
   describe('Toast Integration', () => {
     it('shows toast when no models selected on submit attempt', async () => {
@@ -1650,7 +1656,7 @@ describe('GenerationControlModal', () => {
           onClose={mockOnClose}
           models={mockModels}
           onGenerate={mockOnGenerate}
-        />
+        />,
       )
 
       const startButton = screen.getByText('Start Generation')
@@ -1667,7 +1673,7 @@ describe('GenerationControlModal', () => {
           onClose={mockOnClose}
           models={mockModels}
           onGenerate={mockOnGenerate}
-        />
+        />,
       )
 
       const closeButton = screen.getByRole('button', { name: /close/i })
@@ -1684,7 +1690,7 @@ describe('GenerationControlModal', () => {
           onClose={mockOnClose}
           models={mockModels}
           onGenerate={mockOnGenerate}
-        />
+        />,
       )
 
       await user.click(screen.getByLabelText(mockModels[0]))
@@ -1715,7 +1721,7 @@ describe('GenerationControlModal', () => {
           onClose={mockOnClose}
           models={mockModels}
           onSuccess={mockOnSuccess}
-        />
+        />,
       )
 
       await user.click(screen.getByLabelText(mockModels[0]))
@@ -1724,7 +1730,7 @@ describe('GenerationControlModal', () => {
       await waitFor(() => {
         expect(mockAddToast).toHaveBeenCalledWith(
           'Custom error message',
-          'error'
+          'error',
         )
       })
     })
@@ -1802,7 +1808,7 @@ describe('GenerationControlModal', () => {
           onClose={mockOnClose}
           models={byomModelIds}
           onGenerate={mockOnGenerate}
-        />
+        />,
       )
 
       expect(screen.getByText('Official models')).toBeInTheDocument()
@@ -1819,7 +1825,7 @@ describe('GenerationControlModal', () => {
           onClose={mockOnClose}
           models={['openai-gpt-4']}
           onGenerate={mockOnGenerate}
-        />
+        />,
       )
 
       expect(screen.queryByText('Official models')).not.toBeInTheDocument()
@@ -1833,11 +1839,11 @@ describe('GenerationControlModal', () => {
           onClose={mockOnClose}
           models={byomModelIds}
           onGenerate={mockOnGenerate}
-        />
+        />,
       )
 
       const disabledCheckbox = document.getElementById(
-        'model-custom-nokey'
+        'model-custom-nokey',
       ) as HTMLInputElement
       expect(disabledCheckbox).toBeDisabled()
 
@@ -1853,11 +1859,11 @@ describe('GenerationControlModal', () => {
           onClose={mockOnClose}
           models={byomModelIds}
           onGenerate={mockOnGenerate}
-        />
+        />,
       )
 
       const checkbox = document.getElementById(
-        'model-custom-ready'
+        'model-custom-ready',
       ) as HTMLInputElement
       await user.click(checkbox)
 
@@ -1872,19 +1878,19 @@ describe('GenerationControlModal', () => {
           onClose={mockOnClose}
           models={byomModelIds}
           onGenerate={mockOnGenerate}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Select All'))
 
       expect(
-        (document.getElementById('model-openai-gpt-4') as HTMLInputElement)
+        document.getElementById('model-openai-gpt-4') as HTMLInputElement,
       ).toBeChecked()
       expect(
-        (document.getElementById('model-custom-ready') as HTMLInputElement)
+        document.getElementById('model-custom-ready') as HTMLInputElement,
       ).toBeChecked()
       expect(
-        (document.getElementById('model-custom-nokey') as HTMLInputElement)
+        document.getElementById('model-custom-nokey') as HTMLInputElement,
       ).not.toBeChecked()
     })
   })
@@ -1967,7 +1973,7 @@ describe('GenerationControlModal', () => {
           models={gatingIds}
           defaultSelectedModels={gatingIds}
           onGenerate={mockOnGenerate}
-        />
+        />,
       )
 
       // The saved selection contained all three ids, but the locked model
@@ -1993,7 +1999,7 @@ describe('GenerationControlModal', () => {
           models={gatingIds}
           defaultSelectedModels={gatingIds}
           onGenerate={mockOnGenerate}
-        />
+        />,
       )
 
       expect(checkbox('custom-nokey')).toBeChecked()
@@ -2013,7 +2019,7 @@ describe('GenerationControlModal', () => {
           models={gatingIds}
           defaultSelectedModels={gatingIds}
           onGenerate={mockOnGenerate}
-        />
+        />,
       )
 
       expect(checkbox('custom-nokey')).not.toBeChecked()
@@ -2032,7 +2038,7 @@ describe('GenerationControlModal', () => {
           models={gatingIds}
           defaultSelectedModels={gatingIds}
           onGenerate={mockOnGenerate}
-        />
+        />,
       )
 
       // No structures on this project → models alone enable the button.
@@ -2043,7 +2049,7 @@ describe('GenerationControlModal', () => {
       expect(mockOnGenerate).toHaveBeenCalledWith(
         ['gpt-4o-mini', 'custom-haskey'],
         true, // default mode stays 'missing'
-        undefined
+        undefined,
       )
     })
 
@@ -2055,7 +2061,7 @@ describe('GenerationControlModal', () => {
           models={gatingIds}
           defaultSelectedModels={gatingIds}
           onGenerate={mockOnGenerate}
-        />
+        />,
       )
 
       // Only the locked row renders the hint.

@@ -112,13 +112,13 @@ describe('Role System Types', () => {
 
       // Verify types are properly constrained
       expect(['org_admin', 'org_contributor', 'org_user']).toContain(
-        orgAdmin.role
+        orgAdmin.role,
       )
       expect(['org_admin', 'org_contributor', 'org_user']).toContain(
-        orgContributor.role
+        orgContributor.role,
       )
       expect(['org_admin', 'org_contributor', 'org_user']).toContain(
-        orgUser.role
+        orgUser.role,
       )
     })
   })

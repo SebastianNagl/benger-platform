@@ -26,7 +26,11 @@ jest.mock('@/components/shared/Toast', () => ({
   useToast: () => ({ addToast: jest.fn(), removeToast: jest.fn() }),
 }))
 jest.mock('@/contexts/ProgressContext', () => ({
-  useProgress: () => ({ startProgress: jest.fn(), updateProgress: jest.fn(), completeProgress: jest.fn() }),
+  useProgress: () => ({
+    startProgress: jest.fn(),
+    updateProgress: jest.fn(),
+    completeProgress: jest.fn(),
+  }),
 }))
 jest.mock('@/contexts/AuthContext', () => ({
   useAuth: () => ({
@@ -36,7 +40,10 @@ jest.mock('@/contexts/AuthContext', () => ({
   }),
 }))
 jest.mock('@/contexts/I18nContext', () => ({
-  useI18n: () => ({ t: (key: string, def?: any) => (typeof def === 'string' ? def : key), locale: 'de' }),
+  useI18n: () => ({
+    t: (key: string, def?: any) => (typeof def === 'string' ? def : key),
+    locale: 'de',
+  }),
 }))
 
 const project = (o: any = {}) => ({
@@ -76,7 +83,9 @@ describe('ProjectListTable — discover + participant', () => {
   it('has no Entdecken button without the slot', () => {
     ;(useProjectStore as unknown as jest.Mock).mockReturnValue(store([]))
     render(<ProjectListTable />)
-    expect(screen.queryByTestId('projects-discover-button')).not.toBeInTheDocument()
+    expect(
+      screen.queryByTestId('projects-discover-button'),
+    ).not.toBeInTheDocument()
   })
 
   it('opens the discover modal and on join refetches + navigates', async () => {
@@ -106,18 +115,32 @@ describe('ProjectListTable — discover + participant', () => {
   it('renders the participant badge, hides the checkbox, and a deck badge with Lernen', () => {
     ;(useProjectStore as unknown as jest.Mock).mockReturnValue(
       store([
-        project({ id: 'p1', access_tier: 'participant', participant_via: 'share' }),
-        project({ id: 'd1', kind: 'flashcard_collection', access_tier: 'full' }),
+        project({
+          id: 'p1',
+          access_tier: 'participant',
+          participant_via: 'share',
+        }),
+        project({
+          id: 'd1',
+          kind: 'flashcard_collection',
+          access_tier: 'full',
+        }),
       ]),
     )
     render(<ProjectListTable />)
-    expect(screen.getByTestId('project-participant-badge-p1')).toHaveTextContent('Teilnehmer')
+    expect(
+      screen.getByTestId('project-participant-badge-p1'),
+    ).toHaveTextContent('Teilnehmer')
     expect(screen.getByTestId('project-participant-badge-p1')).toHaveAttribute(
       'title',
       'Beigetreten',
     )
-    expect(screen.queryByTestId('projects-table-checkbox-p1')).not.toBeInTheDocument()
-    expect(screen.getByTestId('project-kind-badge-d1')).toHaveTextContent('Kartenstapel')
+    expect(
+      screen.queryByTestId('projects-table-checkbox-p1'),
+    ).not.toBeInTheDocument()
+    expect(screen.getByTestId('project-kind-badge-d1')).toHaveTextContent(
+      'Kartenstapel',
+    )
     fireEvent.click(screen.getByTestId('project-study-d1'))
     expect(push).toHaveBeenCalledWith('/projects/d1')
   })
@@ -130,7 +153,11 @@ describe('ProjectListTable — discover + participant', () => {
       ]),
     )
     render(<ProjectListTable />)
-    expect(screen.getByTestId('project-kind-badge-e1')).toHaveTextContent('Klausur')
-    expect(screen.queryByTestId('project-kind-badge-g1')).not.toBeInTheDocument()
+    expect(screen.getByTestId('project-kind-badge-e1')).toHaveTextContent(
+      'Klausur',
+    )
+    expect(
+      screen.queryByTestId('project-kind-badge-g1'),
+    ).not.toBeInTheDocument()
   })
 })

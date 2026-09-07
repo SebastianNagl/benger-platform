@@ -10,7 +10,13 @@
 import { Button } from '@/components/shared/Button'
 import { Input } from '@/components/shared/Input'
 import { Label } from '@/components/shared/Label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/shared/Select'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/shared/Select'
 import { Tooltip } from '@/components/shared/Tooltip'
 import { useI18n } from '@/contexts/I18nContext'
 import {
@@ -131,14 +137,19 @@ export function MetricParameterInput({
         className="flex items-center gap-1 p-0 text-xs text-blue-600 hover:text-blue-700"
       >
         <AdjustmentsHorizontalIcon className="h-3 w-3" />
-        {showAdvanced ? t('evaluation.metricParams.hide') : t('evaluation.metricParams.show')} {t('evaluation.metricParams.advancedParameters')}
+        {showAdvanced
+          ? t('evaluation.metricParams.hide')
+          : t('evaluation.metricParams.show')}{' '}
+        {t('evaluation.metricParams.advancedParameters')}
       </Button>
 
       {showAdvanced && (
         <div className="mt-3 space-y-3 rounded-md bg-gray-50 p-3">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-gray-700">
-              {t('evaluation.metricParams.configure', { metric: metric.toUpperCase() })}
+              {t('evaluation.metricParams.configure', {
+                metric: metric.toUpperCase(),
+              })}
             </span>
             <Button
               variant="text"
@@ -157,22 +168,39 @@ export function MetricParameterInput({
                   <Label htmlFor="max_order" className="text-xs">
                     {t('evaluation.metricParams.bleu.maxNgramOrder')}
                   </Label>
-                  <Tooltip content={t('evaluation.metricParams.bleu.maxNgramOrderHelp')}>
+                  <Tooltip
+                    content={t(
+                      'evaluation.metricParams.bleu.maxNgramOrderHelp',
+                    )}
+                  >
                     <InformationCircleIcon className="h-3 w-3 text-gray-400" />
                   </Tooltip>
                 </div>
                 <Select
-                  value={(parameters.max_order || defaults.max_order)?.toString() ?? '4'}
-                  onValueChange={(v) => handleParameterChange('max_order', parseInt(v))}
+                  value={
+                    (parameters.max_order || defaults.max_order)?.toString() ??
+                    '4'
+                  }
+                  onValueChange={(v) =>
+                    handleParameterChange('max_order', parseInt(v))
+                  }
                 >
                   <SelectTrigger className="mt-1">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="1">{t('evaluation.metricParams.bleu.ngram1')}</SelectItem>
-                    <SelectItem value="2">{t('evaluation.metricParams.bleu.ngram2')}</SelectItem>
-                    <SelectItem value="3">{t('evaluation.metricParams.bleu.ngram3')}</SelectItem>
-                    <SelectItem value="4">{t('evaluation.metricParams.bleu.ngram4')}</SelectItem>
+                    <SelectItem value="1">
+                      {t('evaluation.metricParams.bleu.ngram1')}
+                    </SelectItem>
+                    <SelectItem value="2">
+                      {t('evaluation.metricParams.bleu.ngram2')}
+                    </SelectItem>
+                    <SelectItem value="3">
+                      {t('evaluation.metricParams.bleu.ngram3')}
+                    </SelectItem>
+                    <SelectItem value="4">
+                      {t('evaluation.metricParams.bleu.ngram4')}
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -182,22 +210,36 @@ export function MetricParameterInput({
                   <Label htmlFor="smoothing" className="text-xs">
                     {t('evaluation.metricParams.bleu.smoothingMethod')}
                   </Label>
-                  <Tooltip content={t('evaluation.metricParams.bleu.smoothingMethodHelp')}>
+                  <Tooltip
+                    content={t(
+                      'evaluation.metricParams.bleu.smoothingMethodHelp',
+                    )}
+                  >
                     <InformationCircleIcon className="h-3 w-3 text-gray-400" />
                   </Tooltip>
                 </div>
                 <Select
-                  value={(parameters.smoothing || defaults.smoothing) ?? 'method1'}
+                  value={
+                    (parameters.smoothing || defaults.smoothing) ?? 'method1'
+                  }
                   onValueChange={(v) => handleParameterChange('smoothing', v)}
                 >
                   <SelectTrigger className="mt-1">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="method1">{t('evaluation.metricParams.bleu.smoothing1')}</SelectItem>
-                    <SelectItem value="method2">{t('evaluation.metricParams.bleu.smoothing2')}</SelectItem>
-                    <SelectItem value="method3">{t('evaluation.metricParams.bleu.smoothing3')}</SelectItem>
-                    <SelectItem value="method4">{t('evaluation.metricParams.bleu.smoothing4')}</SelectItem>
+                    <SelectItem value="method1">
+                      {t('evaluation.metricParams.bleu.smoothing1')}
+                    </SelectItem>
+                    <SelectItem value="method2">
+                      {t('evaluation.metricParams.bleu.smoothing2')}
+                    </SelectItem>
+                    <SelectItem value="method3">
+                      {t('evaluation.metricParams.bleu.smoothing3')}
+                    </SelectItem>
+                    <SelectItem value="method4">
+                      {t('evaluation.metricParams.bleu.smoothing4')}
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -212,7 +254,9 @@ export function MetricParameterInput({
                   <Label htmlFor="variant" className="text-xs">
                     {t('evaluation.metricParams.rouge.variant')}
                   </Label>
-                  <Tooltip content={t('evaluation.metricParams.rouge.variantHelp')}>
+                  <Tooltip
+                    content={t('evaluation.metricParams.rouge.variantHelp')}
+                  >
                     <InformationCircleIcon className="h-3 w-3 text-gray-400" />
                   </Tooltip>
                 </div>
@@ -224,9 +268,15 @@ export function MetricParameterInput({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="rouge1">{t('evaluation.metricParams.rouge.rouge1')}</SelectItem>
-                    <SelectItem value="rouge2">{t('evaluation.metricParams.rouge.rouge2')}</SelectItem>
-                    <SelectItem value="rougeL">{t('evaluation.metricParams.rouge.rougeL')}</SelectItem>
+                    <SelectItem value="rouge1">
+                      {t('evaluation.metricParams.rouge.rouge1')}
+                    </SelectItem>
+                    <SelectItem value="rouge2">
+                      {t('evaluation.metricParams.rouge.rouge2')}
+                    </SelectItem>
+                    <SelectItem value="rougeL">
+                      {t('evaluation.metricParams.rouge.rougeL')}
+                    </SelectItem>
                     <SelectItem value="rougeLsum">
                       {t('evaluation.metricParams.rouge.rougeLsum')}
                     </SelectItem>
@@ -246,8 +296,14 @@ export function MetricParameterInput({
                     }
                     className="rounded border-gray-300"
                   />
-                  <span className="text-xs">{t('evaluation.metricParams.rouge.enableStemming')}</span>
-                  <Tooltip content={t('evaluation.metricParams.rouge.enableStemmingHelp')}>
+                  <span className="text-xs">
+                    {t('evaluation.metricParams.rouge.enableStemming')}
+                  </span>
+                  <Tooltip
+                    content={t(
+                      'evaluation.metricParams.rouge.enableStemmingHelp',
+                    )}
+                  >
                     <InformationCircleIcon className="h-3 w-3 text-gray-400" />
                   </Tooltip>
                 </label>
@@ -263,7 +319,9 @@ export function MetricParameterInput({
                   <Label htmlFor="alpha" className="text-xs">
                     {t('evaluation.metricParams.meteor.alpha')}
                   </Label>
-                  <Tooltip content={t('evaluation.metricParams.meteor.alphaHelp')}>
+                  <Tooltip
+                    content={t('evaluation.metricParams.meteor.alphaHelp')}
+                  >
                     <InformationCircleIcon className="h-3 w-3 text-gray-400" />
                   </Tooltip>
                 </div>
@@ -286,7 +344,9 @@ export function MetricParameterInput({
                   <Label htmlFor="beta" className="text-xs">
                     {t('evaluation.metricParams.meteor.beta')}
                   </Label>
-                  <Tooltip content={t('evaluation.metricParams.meteor.betaHelp')}>
+                  <Tooltip
+                    content={t('evaluation.metricParams.meteor.betaHelp')}
+                  >
                     <InformationCircleIcon className="h-3 w-3 text-gray-400" />
                   </Tooltip>
                 </div>
@@ -308,7 +368,9 @@ export function MetricParameterInput({
                   <Label htmlFor="gamma" className="text-xs">
                     {t('evaluation.metricParams.meteor.gamma')}
                   </Label>
-                  <Tooltip content={t('evaluation.metricParams.meteor.gammaHelp')}>
+                  <Tooltip
+                    content={t('evaluation.metricParams.meteor.gammaHelp')}
+                  >
                     <InformationCircleIcon className="h-3 w-3 text-gray-400" />
                   </Tooltip>
                 </div>
@@ -335,13 +397,21 @@ export function MetricParameterInput({
                   <Label htmlFor="char_order" className="text-xs">
                     {t('evaluation.metricParams.chrf.charOrder')}
                   </Label>
-                  <Tooltip content={t('evaluation.metricParams.chrf.charOrderHelp')}>
+                  <Tooltip
+                    content={t('evaluation.metricParams.chrf.charOrderHelp')}
+                  >
                     <InformationCircleIcon className="h-3 w-3 text-gray-400" />
                   </Tooltip>
                 </div>
                 <Select
-                  value={(parameters.char_order || defaults.char_order)?.toString() ?? '6'}
-                  onValueChange={(v) => handleParameterChange('char_order', parseInt(v))}
+                  value={
+                    (
+                      parameters.char_order || defaults.char_order
+                    )?.toString() ?? '6'
+                  }
+                  onValueChange={(v) =>
+                    handleParameterChange('char_order', parseInt(v))
+                  }
                 >
                   <SelectTrigger className="mt-1">
                     <SelectValue />
@@ -352,7 +422,9 @@ export function MetricParameterInput({
                     <SelectItem value="3">3</SelectItem>
                     <SelectItem value="4">4</SelectItem>
                     <SelectItem value="5">5</SelectItem>
-                    <SelectItem value="6">{t('evaluation.metricParams.chrf.charOrder6')}</SelectItem>
+                    <SelectItem value="6">
+                      {t('evaluation.metricParams.chrf.charOrder6')}
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -362,21 +434,35 @@ export function MetricParameterInput({
                   <Label htmlFor="word_order" className="text-xs">
                     {t('evaluation.metricParams.chrf.wordOrder')}
                   </Label>
-                  <Tooltip content={t('evaluation.metricParams.chrf.wordOrderHelp')}>
+                  <Tooltip
+                    content={t('evaluation.metricParams.chrf.wordOrderHelp')}
+                  >
                     <InformationCircleIcon className="h-3 w-3 text-gray-400" />
                   </Tooltip>
                 </div>
                 <Select
-                  value={(parameters.word_order ?? defaults.word_order)?.toString() ?? '0'}
-                  onValueChange={(v) => handleParameterChange('word_order', parseInt(v))}
+                  value={
+                    (
+                      parameters.word_order ?? defaults.word_order
+                    )?.toString() ?? '0'
+                  }
+                  onValueChange={(v) =>
+                    handleParameterChange('word_order', parseInt(v))
+                  }
                 >
                   <SelectTrigger className="mt-1">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="0">{t('evaluation.metricParams.chrf.wordOrder0')}</SelectItem>
-                    <SelectItem value="1">{t('evaluation.metricParams.chrf.wordOrder1')}</SelectItem>
-                    <SelectItem value="2">{t('evaluation.metricParams.chrf.wordOrder2')}</SelectItem>
+                    <SelectItem value="0">
+                      {t('evaluation.metricParams.chrf.wordOrder0')}
+                    </SelectItem>
+                    <SelectItem value="1">
+                      {t('evaluation.metricParams.chrf.wordOrder1')}
+                    </SelectItem>
+                    <SelectItem value="2">
+                      {t('evaluation.metricParams.chrf.wordOrder2')}
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -392,17 +478,23 @@ export function MetricParameterInput({
                 </div>
                 <Select
                   value={(parameters.beta || defaults.beta)?.toString() ?? '2'}
-                  onValueChange={(v) => handleParameterChange('beta', parseInt(v))}
+                  onValueChange={(v) =>
+                    handleParameterChange('beta', parseInt(v))
+                  }
                 >
                   <SelectTrigger className="mt-1">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="1">{t('evaluation.metricParams.chrf.beta1')}</SelectItem>
+                    <SelectItem value="1">
+                      {t('evaluation.metricParams.chrf.beta1')}
+                    </SelectItem>
                     <SelectItem value="2">
                       {t('evaluation.metricParams.chrf.beta2')}
                     </SelectItem>
-                    <SelectItem value="3">{t('evaluation.metricParams.chrf.beta3')}</SelectItem>
+                    <SelectItem value="3">
+                      {t('evaluation.metricParams.chrf.beta3')}
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>

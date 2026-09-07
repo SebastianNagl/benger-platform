@@ -133,7 +133,7 @@ describe('TemplateEngine', () => {
       }
 
       expect(() => engine.parseTemplate(template)).toThrow(
-        "Display column 'nonexistent' not found in template fields"
+        "Display column 'nonexistent' not found in template fields",
       )
     })
 
@@ -272,7 +272,7 @@ describe('TemplateEngine', () => {
         parsedTemplate,
         { question: 'What is 2+2?', hidden_field: 'secret' },
         { answer: '4' },
-        mockOnChange
+        mockOnChange,
       )
 
       expect(elements).toHaveLength(2)
@@ -285,7 +285,7 @@ describe('TemplateEngine', () => {
         parsedTemplate,
         { question: 'What is 2+2?' },
         { answer: '4' },
-        mockOnChange
+        mockOnChange,
       )
 
       const questionElement = elements[0]
@@ -305,7 +305,7 @@ describe('TemplateEngine', () => {
         parsedTemplate,
         { question: 'What is 2+2?' },
         { answer: '4' },
-        mockOnChange
+        mockOnChange,
       )
 
       const answerElement = elements[1]
@@ -324,7 +324,7 @@ describe('TemplateEngine', () => {
         { question: 'What is 2+2?' },
         {},
         mockOnChange,
-        errors
+        errors,
       )
 
       const answerElement = elements[1]
@@ -338,7 +338,7 @@ describe('TemplateEngine', () => {
         {},
         mockOnChange,
         {},
-        'creation'
+        'creation',
       )
 
       // In creation context, hidden_field has 'editable' display mode, so it's visible
@@ -389,7 +389,7 @@ describe('TemplateEngine', () => {
         parsed,
         {},
         { show_extra: false },
-        mockOnChange
+        mockOnChange,
       )
       expect(elementsWithoutCondition).toHaveLength(1)
 
@@ -397,7 +397,7 @@ describe('TemplateEngine', () => {
         parsed,
         {},
         { show_extra: true },
-        mockOnChange
+        mockOnChange,
       )
       expect(elementsWithCondition).toHaveLength(2)
     })
@@ -407,7 +407,7 @@ describe('TemplateEngine', () => {
         parsedTemplate,
         { question: 'From task data' },
         { answer: 'From annotation' },
-        mockOnChange
+        mockOnChange,
       )
 
       expect(elements[0].props.value).toBe('From task data')
@@ -451,7 +451,7 @@ describe('TemplateEngine', () => {
         parsed,
         { valid_field: 'test', unknown_field: 'test' },
         {},
-        mockOnChange
+        mockOnChange,
       )
 
       expect(elements).toHaveLength(1)
@@ -557,7 +557,7 @@ describe('TemplateEngine', () => {
 
     it('uses custom renderers when provided', () => {
       const customRenderer = jest.fn(() =>
-        React.createElement('div', {}, 'Custom')
+        React.createElement('div', {}, 'Custom'),
       )
       const columns = engine.getTableColumns(parsedTemplate, {
         customRenderers: {
@@ -736,7 +736,7 @@ describe('TemplateEngine', () => {
       const parsed = engine.parseTemplate(template)
 
       expect(() => engine.generatePrompt(parsed, {})).toThrow(
-        'Template does not have LLM configuration'
+        'Template does not have LLM configuration',
       )
     })
 
@@ -780,7 +780,7 @@ describe('TemplateEngine', () => {
       const parsed = engine.parseTemplate(template)
       const result = engine.parseLLMResponse(
         parsed,
-        '{"answer": "42", "confidence": 0.95}'
+        '{"answer": "42", "confidence": 0.95}',
       )
 
       expect(result).toEqual({
@@ -810,7 +810,7 @@ describe('TemplateEngine', () => {
       const parsed = engine.parseTemplate(template)
       const result = engine.parseLLMResponse(
         parsed,
-        '{"llm_answer": "42", "llm_confidence": 0.95, "extra": "ignored"}'
+        '{"llm_answer": "42", "llm_confidence": 0.95, "extra": "ignored"}',
       )
 
       expect(result).toEqual({
@@ -917,7 +917,7 @@ describe('TemplateEngine', () => {
       const parsed = engine.parseTemplate(template)
 
       expect(() => engine.parseLLMResponse(parsed, 'response')).toThrow(
-        'Template does not have LLM configuration'
+        'Template does not have LLM configuration',
       )
     })
   })
@@ -1031,7 +1031,7 @@ describe('TemplateEngine', () => {
 
       expect(result.valid).toBe(false)
       expect(result.errors.required_field).toContain(
-        'Required Field is required'
+        'Required Field is required',
       )
     })
 
@@ -1063,7 +1063,7 @@ describe('TemplateEngine', () => {
 
       expect(resultTooLarge.valid).toBe(false)
       expect(resultTooLarge.errors.number_field).toContain(
-        'Must be less than 100'
+        'Must be less than 100',
       )
 
       const resultValid = engine.validateData(parsedTemplate, {
@@ -1109,7 +1109,7 @@ describe('TemplateEngine', () => {
         {
           required_field: 'test',
         },
-        'annotation'
+        'annotation',
       )
 
       expect(result.valid).toBe(true)
@@ -1224,7 +1224,7 @@ describe('TemplateEngine', () => {
         parsed,
         {},
         {},
-        mockOnChange
+        mockOnChange,
       )
       expect(elementsWithoutBase).toHaveLength(1)
 
@@ -1232,7 +1232,7 @@ describe('TemplateEngine', () => {
         parsed,
         { base_field: 'exists' },
         {},
-        mockOnChange
+        mockOnChange,
       )
       expect(elementsWithBase).toHaveLength(2)
     })
@@ -1282,7 +1282,7 @@ describe('TemplateEngine', () => {
         parsed,
         { type: 'type_a' },
         {},
-        mockOnChange
+        mockOnChange,
       )
       expect(elementsTypeA).toHaveLength(2)
 
@@ -1290,7 +1290,7 @@ describe('TemplateEngine', () => {
         parsed,
         { type: 'type_b' },
         {},
-        mockOnChange
+        mockOnChange,
       )
       expect(elementsTypeB).toHaveLength(1)
     })
@@ -1340,7 +1340,7 @@ describe('TemplateEngine', () => {
         parsed,
         { status: 'draft' },
         {},
-        mockOnChange
+        mockOnChange,
       )
       expect(elementsDraft).toHaveLength(2)
 
@@ -1348,7 +1348,7 @@ describe('TemplateEngine', () => {
         parsed,
         { status: 'final' },
         {},
-        mockOnChange
+        mockOnChange,
       )
       expect(elementsFinal).toHaveLength(1)
     })
@@ -1397,7 +1397,7 @@ describe('TemplateEngine', () => {
         parsed,
         { tags: 'special,important' },
         {},
-        mockOnChange
+        mockOnChange,
       )
       expect(elementsWithSpecial).toHaveLength(2)
 
@@ -1405,7 +1405,7 @@ describe('TemplateEngine', () => {
         parsed,
         { tags: 'important,other' },
         {},
-        mockOnChange
+        mockOnChange,
       )
       expect(elementsWithoutSpecial).toHaveLength(1)
     })
@@ -1440,7 +1440,7 @@ describe('TemplateEngine', () => {
         parsed,
         {},
         {},
-        mockOnChange
+        mockOnChange,
       )
       expect(elementsWithoutValue).toHaveLength(0)
 
@@ -1448,7 +1448,7 @@ describe('TemplateEngine', () => {
         parsed,
         {},
         { conditional_field: 'test' },
-        mockOnChange
+        mockOnChange,
       )
       expect(elementsWithValue).toHaveLength(1)
     })
@@ -2097,7 +2097,7 @@ describe('TemplateEngine', () => {
 
       const parsed = engine.parseTemplate(template)
       const customRenderer = jest.fn(() =>
-        React.createElement('div', {}, 'Custom Content')
+        React.createElement('div', {}, 'Custom Content'),
       )
 
       const columns = engine.getTableColumns(parsed, {
@@ -2573,7 +2573,7 @@ describe('TemplateEngine', () => {
         parsed,
         {},
         { field_a: 'test' },
-        mockOnChange
+        mockOnChange,
       )
 
       expect(elements.length).toBeGreaterThanOrEqual(0)

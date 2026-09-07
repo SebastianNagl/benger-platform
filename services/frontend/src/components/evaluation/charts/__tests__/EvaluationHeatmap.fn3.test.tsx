@@ -3,8 +3,8 @@
  * Targets: handleExportCSV, handleCopyTable, onCellClick handler
  */
 
-import React from 'react'
 import { render, screen } from '@testing-library/react'
+import React from 'react'
 
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
@@ -19,7 +19,10 @@ jest.mock('@/contexts/I18nContext', () => ({
 jest.mock('next/dynamic', () => {
   return () => {
     const MockPlot = (props: any) => (
-      <div data-testid="heatmap-plot" onClick={() => props.onClick?.({ points: [{ x: 'ref1', y: 'pred1' }] })} />
+      <div
+        data-testid="heatmap-plot"
+        onClick={() => props.onClick?.({ points: [{ x: 'ref1', y: 'pred1' }] })}
+      />
     )
     MockPlot.displayName = 'MockPlot'
     return MockPlot
@@ -57,7 +60,7 @@ describe('EvaluationHeatmap fn3', () => {
         referenceFields={['ref1']}
         scores={{ pred1: {} }}
         metric="rouge"
-      />
+      />,
     )
     expect(screen.getByTestId('heatmap-plot')).toBeInTheDocument()
   })

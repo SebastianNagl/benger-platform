@@ -7,21 +7,22 @@ import { AnnotationCreator } from '../AnnotationCreator'
 jest.mock('@/lib/api/projects')
 
 const mockTranslate = (key: string, arg2?: any, arg3?: any) => {
-  const vars = typeof arg2 === 'object' ? arg2 : arg3;
+  const vars = typeof arg2 === 'object' ? arg2 : arg3
   const translations: Record<string, string> = {
     'labeling.annotationCreator.submitFailed': 'Failed to submit annotation',
     'labeling.annotationCreator.taskLabel': 'Task',
     'labeling.annotationCreator.saving': 'Saving...',
-    'labeling.annotationCreator.autoSaveInfo': 'Your work is automatically saved locally in your browser.',
-  };
-  let result = translations[key] || key;
+    'labeling.annotationCreator.autoSaveInfo':
+      'Your work is automatically saved locally in your browser.',
+  }
+  let result = translations[key] || key
   if (vars) {
     Object.entries(vars).forEach(([k, v]) => {
-      result = result.replace(`{${k}}`, String(v));
-    });
+      result = result.replace(`{${k}}`, String(v))
+    })
   }
-  return result;
-};
+  return result
+}
 
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({ t: mockTranslate, locale: 'en', setLocale: jest.fn() }),
@@ -92,7 +93,7 @@ describe('AnnotationCreator', () => {
       render(<AnnotationCreator {...defaultProps} />)
 
       expect(
-        screen.getByTestId('dynamic-annotation-interface')
+        screen.getByTestId('dynamic-annotation-interface'),
       ).toBeInTheDocument()
       expect(screen.getByText(`Task #${mockTask.id}`)).toBeInTheDocument()
     })
@@ -101,7 +102,9 @@ describe('AnnotationCreator', () => {
       render(<AnnotationCreator {...defaultProps} />)
 
       expect(
-        screen.getByText('Your work is automatically saved locally in your browser.')
+        screen.getByText(
+          'Your work is automatically saved locally in your browser.',
+        ),
       ).toBeInTheDocument()
     })
   })
@@ -126,13 +129,13 @@ describe('AnnotationCreator', () => {
           expect.objectContaining({
             result: [{ from_name: 'test', value: 'test value' }],
             was_cancelled: false,
-          })
+          }),
         )
         expect(onSubmit).toHaveBeenCalledWith(
           expect.objectContaining({
             id: 'new-ann',
             was_cancelled: false,
-          })
+          }),
         )
       })
     })
@@ -150,7 +153,7 @@ describe('AnnotationCreator', () => {
           {...defaultProps}
           initialAnnotation={mockAnnotation}
           onSubmit={onSubmit}
-        />
+        />,
       )
 
       const submitButton = screen.getByText('Submit')
@@ -162,7 +165,7 @@ describe('AnnotationCreator', () => {
           expect.objectContaining({
             result: [{ from_name: 'test', value: 'test value' }],
             was_cancelled: false,
-          })
+          }),
         )
         expect(onSubmit).toHaveBeenCalled()
       })
@@ -170,7 +173,7 @@ describe('AnnotationCreator', () => {
 
     it('should handle submission errors gracefully', async () => {
       ;(projectsAPI.createAnnotation as jest.Mock).mockRejectedValue(
-        new Error('Network error')
+        new Error('Network error'),
       )
 
       render(<AnnotationCreator {...defaultProps} />)
@@ -180,7 +183,7 @@ describe('AnnotationCreator', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('Failed to submit annotation')
+          screen.getByText('Failed to submit annotation'),
         ).toBeInTheDocument()
       })
     })
@@ -196,9 +199,9 @@ describe('AnnotationCreator', () => {
                   was_cancelled: false,
                   result: [],
                 }),
-              100
-            )
-          )
+              100,
+            ),
+          ),
       )
 
       render(<AnnotationCreator {...defaultProps} />)
@@ -228,11 +231,11 @@ describe('AnnotationCreator', () => {
         <AnnotationCreator
           {...defaultProps}
           initialAnnotation={mockAnnotation}
-        />
+        />,
       )
 
       expect(screen.getByTestId('initial-values')).toHaveTextContent(
-        JSON.stringify(mockAnnotation.result)
+        JSON.stringify(mockAnnotation.result),
       )
     })
   })

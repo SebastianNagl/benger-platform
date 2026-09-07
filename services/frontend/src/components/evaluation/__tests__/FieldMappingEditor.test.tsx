@@ -12,8 +12,10 @@ jest.mock('@/contexts/I18nContext', () => ({
       const translations: Record<string, string> = {
         'fieldMapping.title': 'Custom Field Mappings',
         'fieldMapping.addMapping': 'Add Mapping',
-        'fieldMapping.helpText': 'Map custom template variables to task data fields.',
-        'fieldMapping.noMappings': 'No field mappings defined. Click "Add Mapping" to create one.',
+        'fieldMapping.helpText':
+          'Map custom template variables to task data fields.',
+        'fieldMapping.noMappings':
+          'No field mappings defined. Click "Add Mapping" to create one.',
         'fieldMapping.variableName': 'Variable Name',
         'fieldMapping.taskField': 'Task Data Field',
         'fieldMapping.variablePlaceholder': 'domain',
@@ -52,7 +54,9 @@ jest.mock('@/components/shared/TaskFieldSelector', () => ({
 }))
 
 jest.mock('@/components/shared/LoadingSpinner', () => ({
-  LoadingSpinner: ({ size }: any) => <div data-testid="loading-spinner" data-size={size} />,
+  LoadingSpinner: ({ size }: any) => (
+    <div data-testid="loading-spinner" data-size={size} />
+  ),
 }))
 
 describe('FieldMappingEditor', () => {
@@ -85,7 +89,9 @@ describe('FieldMappingEditor', () => {
 
     it('shows help text', () => {
       render(<FieldMappingEditor {...defaultProps} />)
-      expect(screen.getByText('Map custom template variables to task data fields.')).toBeInTheDocument()
+      expect(
+        screen.getByText('Map custom template variables to task data fields.'),
+      ).toBeInTheDocument()
     })
 
     it('shows empty state message when no mappings exist', () => {
@@ -100,7 +106,7 @@ describe('FieldMappingEditor', () => {
         <FieldMappingEditor
           {...defaultProps}
           value={{ my_variable: 'data.text' }}
-        />
+        />,
       )
       // Variable name input should have the value
       const inputs = screen.getAllByRole('textbox')
@@ -112,7 +118,7 @@ describe('FieldMappingEditor', () => {
         <FieldMappingEditor
           {...defaultProps}
           value={{ var1: 'data.text', var2: 'data.label' }}
-        />
+        />,
       )
       const inputs = screen.getAllByRole('textbox')
       expect(inputs).toHaveLength(2)
@@ -180,7 +186,7 @@ describe('FieldMappingEditor', () => {
         <FieldMappingEditor
           {...defaultProps}
           value={{ domain: 'data.text' }}
-        />
+        />,
       )
 
       // Should show {{domain}} preview
@@ -194,7 +200,7 @@ describe('FieldMappingEditor', () => {
         <FieldMappingEditor
           {...defaultProps}
           value={{ context: 'data.text' }}
-        />
+        />,
       )
       expect(screen.getByText('Reserved variable name')).toBeInTheDocument()
     })
@@ -204,7 +210,7 @@ describe('FieldMappingEditor', () => {
         <FieldMappingEditor
           {...defaultProps}
           value={{ ground_truth: 'data.label' }}
-        />
+        />,
       )
       expect(screen.getByText('Reserved variable name')).toBeInTheDocument()
     })
@@ -219,7 +225,7 @@ describe('FieldMappingEditor', () => {
           {...defaultProps}
           value={{ my_var: 'data.text' }}
           onChange={onChange}
-        />
+        />,
       )
 
       // Find and click the delete button
@@ -244,7 +250,9 @@ describe('FieldMappingEditor', () => {
       render(<FieldMappingEditor {...defaultProps} />)
 
       await waitFor(() => {
-        expect(screen.getByText('Available fields in your tasks:')).toBeInTheDocument()
+        expect(
+          screen.getByText('Available fields in your tasks:'),
+        ).toBeInTheDocument()
         expect(screen.getByText('data.text')).toBeInTheDocument()
         expect(screen.getByText('data.label')).toBeInTheDocument()
       })
@@ -257,7 +265,10 @@ describe('FieldMappingEditor', () => {
       render(<FieldMappingEditor {...defaultProps} />)
 
       await waitFor(() => {
-        expect(consoleSpy).toHaveBeenCalledWith('Failed to fetch task fields:', expect.any(Error))
+        expect(consoleSpy).toHaveBeenCalledWith(
+          'Failed to fetch task fields:',
+          expect.any(Error),
+        )
       })
       consoleSpy.mockRestore()
     })
@@ -308,7 +319,9 @@ describe('FieldMappingEditor', () => {
     // first keystroke — making it impossible to ever complete a mapping
     // through the wizard.
     function ControlledParent() {
-      const [mappings, setMappings] = (require('react') as typeof import('react')).useState<Record<string, string>>({})
+      const [mappings, setMappings] = (
+        require('react') as typeof import('react')
+      ).useState<Record<string, string>>({})
       return (
         <FieldMappingEditor
           projectId="project-1"
@@ -334,17 +347,27 @@ describe('FieldMappingEditor', () => {
       await user.selectOptions(selector, 'data.text')
       await waitFor(() => {
         expect(screen.getByRole('textbox')).toHaveValue('question')
-        expect(screen.getByTestId('task-field-selector')).toHaveValue('data.text')
+        expect(screen.getByTestId('task-field-selector')).toHaveValue(
+          'data.text',
+        )
       })
     })
 
     it('still resyncs rows when the parent changes value externally', async () => {
       const { rerender } = render(
-        <FieldMappingEditor projectId="project-1" value={{ a: '$x' }} onChange={jest.fn()} />
+        <FieldMappingEditor
+          projectId="project-1"
+          value={{ a: '$x' }}
+          onChange={jest.fn()}
+        />,
       )
       expect(screen.getByRole('textbox')).toHaveValue('a')
       rerender(
-        <FieldMappingEditor projectId="project-1" value={{ b: '$y' }} onChange={jest.fn()} />
+        <FieldMappingEditor
+          projectId="project-1"
+          value={{ b: '$y' }}
+          onChange={jest.fn()}
+        />,
       )
       await waitFor(() => expect(screen.getByRole('textbox')).toHaveValue('b'))
     })

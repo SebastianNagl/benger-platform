@@ -97,7 +97,7 @@ function main() {
 
   if (dryRun) {
     console.log(
-      `${colors.yellow}DRY RUN MODE - No files will be modified${colors.reset}\n`
+      `${colors.yellow}DRY RUN MODE - No files will be modified${colors.reset}\n`,
     )
   }
 
@@ -115,14 +115,14 @@ function main() {
         const matches = content.match(fix.pattern)
         if (matches) {
           console.log(
-            `  Would fix: ${path.relative(process.cwd(), file)} (${matches.length} occurrences)`
+            `  Would fix: ${path.relative(process.cwd(), file)} (${matches.length} occurrences)`,
           )
           fixedCount += matches.length
         }
       } else {
         if (processFile(file, fix)) {
           console.log(
-            `  ${colors.green}✓${colors.reset} Fixed: ${path.relative(process.cwd(), file)}`
+            `  ${colors.green}✓${colors.reset} Fixed: ${path.relative(process.cwd(), file)}`,
           )
           fixedCount++
         }
@@ -131,7 +131,7 @@ function main() {
 
     if (fixedCount > 0) {
       console.log(
-        `  ${colors.green}Fixed ${fixedCount} occurrences${colors.reset}\n`
+        `  ${colors.green}Fixed ${fixedCount} occurrences${colors.reset}\n`,
       )
       totalFixed += fixedCount
     } else {
@@ -141,12 +141,12 @@ function main() {
 
   console.log(`${colors.blue}${'='.repeat(60)}${colors.reset}`)
   console.log(
-    `${colors.green}✅ Total fixes applied: ${totalFixed}${colors.reset}`
+    `${colors.green}✅ Total fixes applied: ${totalFixed}${colors.reset}`,
   )
 
   if (!dryRun) {
     console.log(
-      `\n${colors.yellow}💡 Now run 'npm run type-check' to verify the fixes${colors.reset}`
+      `\n${colors.yellow}💡 Now run 'npm run type-check' to verify the fixes${colors.reset}`,
     )
   }
 }

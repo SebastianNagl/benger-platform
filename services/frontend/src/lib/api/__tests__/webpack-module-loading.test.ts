@@ -257,7 +257,7 @@ describe('Issue #123: Webpack Module Loading Fixes', () => {
 
         // Both should have same interface
         expect(typeof devClient.getCurrentUser).toBe(
-          typeof prodClient.getCurrentUser
+          typeof prodClient.getCurrentUser,
         )
         expect(typeof devClient.getTasks).toBe(typeof prodClient.getTasks)
       } finally {
@@ -270,7 +270,7 @@ describe('Issue #123: Webpack Module Loading Fixes', () => {
     test('should provide helpful error messages for common issues', () => {
       // Mock a common webpack error scenario
       const mockError = new Error(
-        "Cannot read properties of undefined (reading 'call')"
+        "Cannot read properties of undefined (reading 'call')",
       )
 
       // Error should be descriptive
@@ -294,9 +294,9 @@ describe('Issue #123: Webpack Module Loading Fixes', () => {
           'Webpack module loading error detected:',
           expect.objectContaining({
             message: expect.stringContaining(
-              'Cannot read properties of undefined'
+              'Cannot read properties of undefined',
             ),
-          })
+          }),
         )
       } finally {
         console.error = originalConsoleError

@@ -28,7 +28,10 @@ jest.mock('@heroicons/react/24/outline', () => ({
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
     t: (key: string, varsOrDefault?: any) => {
-      const translations: Record<string, any> = require('../../../locales/en/common.json')
+      const translations: Record<
+        string,
+        any
+      > = require('../../../locales/en/common.json')
       const parts = key.split('.')
       let value: any = translations
       for (const part of parts) {
@@ -49,7 +52,6 @@ jest.mock('@/contexts/I18nContext', () => ({
     locale: 'en',
   }),
 }))
-
 
 describe('TextHighlightField Component', () => {
   const mockOnChange = jest.fn()
@@ -100,10 +102,10 @@ describe('TextHighlightField Component', () => {
       render(<TextHighlightField {...defaultProps} />)
 
       expect(
-        screen.getByText('Text Highlight Field (Optional)')
+        screen.getByText('Text Highlight Field (Optional)'),
       ).toBeInTheDocument()
       expect(
-        screen.getByText('Highlight and label text passages')
+        screen.getByText('Highlight and label text passages'),
       ).toBeInTheDocument()
     })
 
@@ -111,7 +113,7 @@ describe('TextHighlightField Component', () => {
       render(<TextHighlightField {...defaultProps} />)
 
       expect(
-        screen.getByText(/This is a sample text for highlighting/)
+        screen.getByText(/This is a sample text for highlighting/),
       ).toBeInTheDocument()
     })
 
@@ -121,13 +123,13 @@ describe('TextHighlightField Component', () => {
       expect(screen.getByRole('button', { name: /Entity/ })).toBeInTheDocument()
       expect(screen.getByRole('button', { name: /Claim/ })).toBeInTheDocument()
       expect(
-        screen.getByRole('button', { name: /Evidence/ })
+        screen.getByRole('button', { name: /Evidence/ }),
       ).toBeInTheDocument()
       expect(
-        screen.getByRole('button', { name: /Reasoning/ })
+        screen.getByRole('button', { name: /Reasoning/ }),
       ).toBeInTheDocument()
       expect(
-        screen.getByRole('button', { name: /Conclusion/ })
+        screen.getByRole('button', { name: /Conclusion/ }),
       ).toBeInTheDocument()
     })
 
@@ -149,7 +151,7 @@ describe('TextHighlightField Component', () => {
 
       expect(screen.queryByText('Highlight with:')).not.toBeInTheDocument()
       expect(
-        screen.queryByRole('button', { name: /Entity/ })
+        screen.queryByRole('button', { name: /Entity/ }),
       ).not.toBeInTheDocument()
     })
 
@@ -157,7 +159,7 @@ describe('TextHighlightField Component', () => {
       render(<TextHighlightField {...defaultProps} readonly={true} />)
 
       expect(
-        screen.queryByText(/Select text to highlight/)
+        screen.queryByText(/Select text to highlight/),
       ).not.toBeInTheDocument()
     })
   })
@@ -211,17 +213,17 @@ describe('TextHighlightField Component', () => {
       }
 
       render(
-        <TextHighlightField {...defaultProps} field={fieldWithCustomLabels} />
+        <TextHighlightField {...defaultProps} field={fieldWithCustomLabels} />,
       )
 
       expect(
-        screen.getByRole('button', { name: /Custom Label 1/ })
+        screen.getByRole('button', { name: /Custom Label 1/ }),
       ).toBeInTheDocument()
       expect(
-        screen.getByRole('button', { name: /Custom Label 2/ })
+        screen.getByRole('button', { name: /Custom Label 2/ }),
       ).toBeInTheDocument()
       expect(
-        screen.queryByRole('button', { name: /Entity/ })
+        screen.queryByRole('button', { name: /Entity/ }),
       ).not.toBeInTheDocument()
     })
   })
@@ -258,7 +260,7 @@ describe('TextHighlightField Component', () => {
               color: '#60A5FA',
             }),
           ]),
-        })
+        }),
       )
     })
 
@@ -267,7 +269,7 @@ describe('TextHighlightField Component', () => {
       mockSelection.rangeCount = 1
 
       const { container } = render(
-        <TextHighlightField {...defaultProps} readonly={true} />
+        <TextHighlightField {...defaultProps} readonly={true} />,
       )
       const textDisplay = container.querySelector('.text-display-area')
 
@@ -347,7 +349,7 @@ describe('TextHighlightField Component', () => {
 
     it('displays highlighted text segments', () => {
       render(
-        <TextHighlightField {...defaultProps} value={valueWithHighlights} />
+        <TextHighlightField {...defaultProps} value={valueWithHighlights} />,
       )
 
       const highlightedElements = document.querySelectorAll('.highlighted-text')
@@ -356,7 +358,7 @@ describe('TextHighlightField Component', () => {
 
     it('shows correct highlight count', () => {
       render(
-        <TextHighlightField {...defaultProps} value={valueWithHighlights} />
+        <TextHighlightField {...defaultProps} value={valueWithHighlights} />,
       )
 
       expect(screen.getByText('2 highlights')).toBeInTheDocument()
@@ -364,7 +366,7 @@ describe('TextHighlightField Component', () => {
 
     it('displays highlights list section', () => {
       render(
-        <TextHighlightField {...defaultProps} value={valueWithHighlights} />
+        <TextHighlightField {...defaultProps} value={valueWithHighlights} />,
       )
 
       expect(screen.getByText('Highlights')).toBeInTheDocument()
@@ -374,7 +376,7 @@ describe('TextHighlightField Component', () => {
 
     it('shows highlight labels in list', () => {
       render(
-        <TextHighlightField {...defaultProps} value={valueWithHighlights} />
+        <TextHighlightField {...defaultProps} value={valueWithHighlights} />,
       )
 
       const highlightsList = screen.getByText('Highlights').closest('div')
@@ -384,7 +386,7 @@ describe('TextHighlightField Component', () => {
 
     it('displays highlight position ranges', () => {
       render(
-        <TextHighlightField {...defaultProps} value={valueWithHighlights} />
+        <TextHighlightField {...defaultProps} value={valueWithHighlights} />,
       )
 
       expect(screen.getByText('(10-16)')).toBeInTheDocument()
@@ -393,7 +395,7 @@ describe('TextHighlightField Component', () => {
 
     it('applies correct background colors to highlights', () => {
       render(
-        <TextHighlightField {...defaultProps} value={valueWithHighlights} />
+        <TextHighlightField {...defaultProps} value={valueWithHighlights} />,
       )
 
       const highlightedElements = document.querySelectorAll('.highlighted-text')
@@ -401,7 +403,7 @@ describe('TextHighlightField Component', () => {
 
       // Check that style attribute contains background color
       const hasBackgroundColor = Array.from(highlightedElements).some((el) =>
-        el.getAttribute('style')?.includes('background-color')
+        el.getAttribute('style')?.includes('background-color'),
       )
       expect(hasBackgroundColor).toBe(true)
     })
@@ -421,7 +423,7 @@ describe('TextHighlightField Component', () => {
 
       expect(screen.getByTestId('chat-icon')).toBeInTheDocument()
       expect(
-        screen.getByText('This is an important entity')
+        screen.getByText('This is an important entity'),
       ).toBeInTheDocument()
     })
 
@@ -449,7 +451,7 @@ describe('TextHighlightField Component', () => {
 
     it('shows delete button for each highlight', () => {
       render(
-        <TextHighlightField {...defaultProps} value={valueWithHighlights} />
+        <TextHighlightField {...defaultProps} value={valueWithHighlights} />,
       )
 
       expect(screen.getByTestId('trash-icon')).toBeInTheDocument()
@@ -458,7 +460,7 @@ describe('TextHighlightField Component', () => {
     it('removes highlight when delete button clicked', async () => {
       const user = userEvent.setup()
       render(
-        <TextHighlightField {...defaultProps} value={valueWithHighlights} />
+        <TextHighlightField {...defaultProps} value={valueWithHighlights} />,
       )
 
       const deleteButton = screen.getByTestId('trash-icon').closest('button')
@@ -476,7 +478,7 @@ describe('TextHighlightField Component', () => {
           {...defaultProps}
           value={valueWithHighlights}
           readonly={true}
-        />
+        />,
       )
 
       expect(screen.queryByTestId('trash-icon')).not.toBeInTheDocument()
@@ -489,7 +491,7 @@ describe('TextHighlightField Component', () => {
           {...defaultProps}
           value={valueWithHighlights}
           readonly={true}
-        />
+        />,
       )
 
       expect(screen.queryByTestId('trash-icon')).not.toBeInTheDocument()
@@ -503,7 +505,7 @@ describe('TextHighlightField Component', () => {
       const { container } = render(
         <div onClick={parentClickHandler}>
           <TextHighlightField {...defaultProps} value={valueWithHighlights} />
-        </div>
+        </div>,
       )
 
       const deleteButton = screen.getByTestId('trash-icon').closest('button')
@@ -534,7 +536,7 @@ describe('TextHighlightField Component', () => {
     it('selects highlight when clicked in text', async () => {
       const user = userEvent.setup()
       render(
-        <TextHighlightField {...defaultProps} value={valueWithHighlights} />
+        <TextHighlightField {...defaultProps} value={valueWithHighlights} />,
       )
 
       const highlightedText = document.querySelector('.highlighted-text')
@@ -551,7 +553,7 @@ describe('TextHighlightField Component', () => {
     it('selects highlight when clicked in list', async () => {
       const user = userEvent.setup()
       render(
-        <TextHighlightField {...defaultProps} value={valueWithHighlights} />
+        <TextHighlightField {...defaultProps} value={valueWithHighlights} />,
       )
 
       const highlightList = screen.getByText('Highlights').closest('div')
@@ -594,7 +596,7 @@ describe('TextHighlightField Component', () => {
       }
 
       const { rerender } = render(
-        <TextHighlightField {...defaultProps} value={valueWithHighlights} />
+        <TextHighlightField {...defaultProps} value={valueWithHighlights} />,
       )
 
       // First select a highlight
@@ -603,7 +605,7 @@ describe('TextHighlightField Component', () => {
 
       // Rerender to apply selection state
       rerender(
-        <TextHighlightField {...defaultProps} value={valueWithHighlights} />
+        <TextHighlightField {...defaultProps} value={valueWithHighlights} />,
       )
 
       // Then press Delete
@@ -672,7 +674,7 @@ describe('TextHighlightField Component', () => {
         <TextHighlightField
           {...defaultProps}
           value={valueWithOverlappingHighlights}
-        />
+        />,
       )
 
       const highlightedElements = document.querySelectorAll('.highlighted-text')
@@ -684,7 +686,7 @@ describe('TextHighlightField Component', () => {
         <TextHighlightField
           {...defaultProps}
           value={valueWithOverlappingHighlights}
-        />
+        />,
       )
 
       // Look for the overlap indicator (badge showing count)
@@ -697,7 +699,7 @@ describe('TextHighlightField Component', () => {
         <TextHighlightField
           {...defaultProps}
           value={valueWithOverlappingHighlights}
-        />
+        />,
       )
 
       const highlightedText = document.querySelector('.highlighted-text')
@@ -711,12 +713,12 @@ describe('TextHighlightField Component', () => {
         <TextHighlightField
           {...defaultProps}
           value={valueWithOverlappingHighlights}
-        />
+        />,
       )
 
       const highlightedElements = document.querySelectorAll('.highlighted-text')
       const hasOverlapStyling = Array.from(highlightedElements).some((el) =>
-        el.getAttribute('style')?.includes('border-bottom')
+        el.getAttribute('style')?.includes('border-bottom'),
       )
 
       expect(hasOverlapStyling).toBe(true)
@@ -872,7 +874,7 @@ describe('TextHighlightField Component', () => {
       render(<TextHighlightField {...defaultProps} />)
 
       expect(
-        screen.getByText('Text Highlight Field (Optional)')
+        screen.getByText('Text Highlight Field (Optional)'),
       ).toBeInTheDocument()
     })
   })
@@ -887,7 +889,7 @@ describe('TextHighlightField Component', () => {
 
     it('applies correct cursor style based on readonly', () => {
       const { rerender } = render(
-        <TextHighlightField {...defaultProps} readonly={false} />
+        <TextHighlightField {...defaultProps} readonly={false} />,
       )
 
       let textDisplay = document.querySelector('.text-display-area')
@@ -921,7 +923,7 @@ describe('TextHighlightField Component', () => {
 
       contexts.forEach((context) => {
         const { unmount } = render(
-          <TextHighlightField {...defaultProps} context={context} />
+          <TextHighlightField {...defaultProps} context={context} />,
         )
         expect(screen.getByText(/This is a sample text/)).toBeInTheDocument()
         unmount()
@@ -965,7 +967,7 @@ describe('TextHighlightField Component', () => {
               color: '#34D399',
             }),
           ]),
-        })
+        }),
       )
     })
 
@@ -985,13 +987,13 @@ describe('TextHighlightField Component', () => {
       }
 
       const { rerender } = render(
-        <TextHighlightField {...defaultProps} value={valueWithHighlight} />
+        <TextHighlightField {...defaultProps} value={valueWithHighlight} />,
       )
 
       expect(screen.getByText('"Sample"')).toBeInTheDocument()
 
       rerender(
-        <TextHighlightField {...defaultProps} value={valueWithHighlight} />
+        <TextHighlightField {...defaultProps} value={valueWithHighlight} />,
       )
 
       expect(screen.getByText('"Sample"')).toBeInTheDocument()
@@ -1015,7 +1017,7 @@ describe('TextHighlightField Component', () => {
       }
 
       render(
-        <TextHighlightField {...defaultProps} value={valueWithHighlight} />
+        <TextHighlightField {...defaultProps} value={valueWithHighlight} />,
       )
 
       const highlightedText = document.querySelector('.highlighted-text')
@@ -1045,7 +1047,7 @@ describe('TextHighlightField Component', () => {
       }
 
       render(
-        <TextHighlightField {...defaultProps} value={valueWithHighlight} />
+        <TextHighlightField {...defaultProps} value={valueWithHighlight} />,
       )
 
       const deleteButton = screen.getByTestId('trash-icon').closest('button')

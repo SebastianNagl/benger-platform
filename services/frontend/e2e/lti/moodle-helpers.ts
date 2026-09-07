@@ -21,7 +21,8 @@ import { expect, Page } from '@playwright/test'
 
 export const APP_BASE =
   process.env.PLAYWRIGHT_BASE_URL || 'http://vertretbar.localhost'
-export const MOODLE_BASE = process.env.LTI_E2E_MOODLE_URL || 'http://moodle:8081'
+export const MOODLE_BASE =
+  process.env.LTI_E2E_MOODLE_URL || 'http://moodle:8081'
 export const MOODLE_HOST = new URL(MOODLE_BASE).host
 
 const MOODLE_CONTAINER =
@@ -31,7 +32,10 @@ const MOODLE_COURSE_ID = 2
 /** Moodle tool type id of the seeded BenGER external tool (lti-dev harness). */
 const MOODLE_TOOL_TYPE_ID = 1
 
-export const MOODLE_TEACHER = { username: 'teacher1', password: 'Spike-Teacher-1' }
+export const MOODLE_TEACHER = {
+  username: 'teacher1',
+  password: 'Spike-Teacher-1',
+}
 
 function dockerExec(args: string[], input?: string): string {
   return execFileSync('docker', ['exec', ...args], {
@@ -45,7 +49,7 @@ function dockerExec(args: string[], input?: string): string {
 function moodlePhp(script: string): string {
   return dockerExec(
     ['-i', MOODLE_CONTAINER, 'php'],
-    `<?php\ndefine('CLI_SCRIPT', true);\nrequire '/var/www/html/config.php';\n${script}`
+    `<?php\ndefine('CLI_SCRIPT', true);\nrequire '/var/www/html/config.php';\n${script}`,
   )
 }
 
@@ -108,7 +112,9 @@ export function createLtiActivity(name: string): number {
   `)
   const cmid = Number((fixed.match(/CMID=(\d+)/) || [])[1])
   if (!Number.isInteger(cmid) || cmid <= 0) {
-    throw new Error(`could not resolve cmid for lti instance ${instanceId}: ${fixed}`)
+    throw new Error(
+      `could not resolve cmid for lti instance ${instanceId}: ${fixed}`,
+    )
   }
   return cmid
 }
@@ -136,7 +142,9 @@ export function createMoodleStudent(username: string, password: string): void {
     echo $ok ? "ENROLLED=$userid" : "ENROL_FAILED";
   `)
   if (!/ENROLLED=\d+/.test(out)) {
-    throw new Error(`could not enrol ${username} into course ${MOODLE_COURSE_ID}: ${out}`)
+    throw new Error(
+      `could not enrol ${username} into course ${MOODLE_COURSE_ID}: ${out}`,
+    )
   }
 }
 
@@ -144,7 +152,7 @@ export function createMoodleStudent(username: string, password: string): void {
 export async function moodleLogin(
   page: Page,
   username: string,
-  password: string
+  password: string,
 ): Promise<void> {
   await page.goto(`${MOODLE_BASE}/login/index.php`, {
     waitUntil: 'domcontentloaded',
@@ -154,7 +162,7 @@ export async function moodleLogin(
   await page.click('#loginbtn')
   await page.waitForURL(
     (url) => url.host === MOODLE_HOST && !url.pathname.startsWith('/login'),
-    { timeout: 30_000 }
+    { timeout: 30_000 },
   )
 }
 
@@ -175,7 +183,7 @@ export async function launchActivity(page: Page, cmid: number): Promise<void> {
     .catch(() => {})
   await page.waitForURL(
     (url) => url.host !== MOODLE_HOST && !url.pathname.startsWith('/api/'),
-    { timeout: 45_000 }
+    { timeout: 45_000 },
   )
   await page.waitForLoadState('domcontentloaded')
 }
@@ -188,7 +196,7 @@ export async function launchActivity(page: Page, cmid: number): Promise<void> {
 export async function gotoWithRetry(
   page: Page,
   url: string,
-  attempts = 5
+  attempts = 5,
 ): Promise<void> {
   let lastStatus: number | undefined
   for (let attempt = 1; attempt <= attempts; attempt++) {
@@ -204,7 +212,9 @@ export async function gotoWithRetry(
     }
     await page.waitForTimeout(500 * attempt)
   }
-  throw new Error(`navigation to ${url} kept failing (last status ${lastStatus})`)
+  throw new Error(
+    `navigation to ${url} kept failing (last status ${lastStatus})`,
+  )
 }
 
 /**
@@ -215,7 +225,7 @@ export async function gotoWithRetry(
 export async function warmAppRoutes(
   page: Page,
   base: string,
-  paths: string[]
+  paths: string[],
 ): Promise<void> {
   for (const path of paths) {
     await expect
@@ -226,7 +236,7 @@ export async function warmAppRoutes(
             .catch(() => null)
           return response ? response.status() : 0
         },
-        { timeout: 60_000, message: `warm-up of ${base}${path}` }
+        { timeout: 60_000, message: `warm-up of ${base}${path}` },
       )
       .toBeLessThan(500)
   }

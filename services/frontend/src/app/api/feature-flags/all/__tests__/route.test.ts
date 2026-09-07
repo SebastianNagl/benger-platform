@@ -34,7 +34,7 @@ describe('GET /api/feature-flags/all', () => {
 
     const request = new NextRequest(
       'http://benger.localhost/api/feature-flags/all',
-      { headers: { host: 'benger.localhost' } }
+      { headers: { host: 'benger.localhost' } },
     )
 
     const response = await GET(request)
@@ -42,7 +42,7 @@ describe('GET /api/feature-flags/all', () => {
 
     expect(mockFetch).toHaveBeenCalledWith(
       'http://api:8000/api/feature-flags/all',
-      expect.objectContaining({ method: 'GET' })
+      expect.objectContaining({ method: 'GET' }),
     )
     expect(data).toHaveLength(2)
   })
@@ -56,14 +56,14 @@ describe('GET /api/feature-flags/all', () => {
 
     const request = new NextRequest(
       'http://benger.localhost/api/feature-flags/all?org_id=org-1',
-      { headers: { host: 'benger.localhost' } }
+      { headers: { host: 'benger.localhost' } },
     )
 
     await GET(request)
 
     expect(mockFetch).toHaveBeenCalledWith(
       'http://api:8000/api/feature-flags/all?org_id=org-1',
-      expect.any(Object)
+      expect.any(Object),
     )
   })
 
@@ -72,7 +72,7 @@ describe('GET /api/feature-flags/all', () => {
 
     const request = new NextRequest(
       'http://benger.localhost/api/feature-flags/all',
-      { headers: { host: 'benger.localhost' } }
+      { headers: { host: 'benger.localhost' } },
     )
 
     const response = await GET(request)
@@ -91,14 +91,14 @@ describe('GET /api/feature-flags/all', () => {
 
     const request = new NextRequest(
       'http://benger-test.localhost/api/feature-flags/all',
-      { headers: { host: 'benger-test.localhost' } }
+      { headers: { host: 'benger-test.localhost' } },
     )
 
     await GET(request)
 
     expect(mockFetch).toHaveBeenCalledWith(
       'http://test-api:8000/api/feature-flags/all',
-      expect.any(Object)
+      expect.any(Object),
     )
   })
 
@@ -111,14 +111,14 @@ describe('GET /api/feature-flags/all', () => {
 
     const request = new NextRequest(
       'http://staging.what-a-benger.net/api/feature-flags/all',
-      { headers: { host: 'staging.what-a-benger.net' } }
+      { headers: { host: 'staging.what-a-benger.net' } },
     )
 
     await GET(request)
 
     expect(mockFetch).toHaveBeenCalledWith(
       'http://benger-api:8000/api/feature-flags/all',
-      expect.any(Object)
+      expect.any(Object),
     )
   })
 
@@ -132,14 +132,14 @@ describe('GET /api/feature-flags/all', () => {
 
     const request = new NextRequest(
       'http://benger.localhost/api/feature-flags/all',
-      { headers: { host: 'benger.localhost' } }
+      { headers: { host: 'benger.localhost' } },
     )
 
     await GET(request)
 
     expect(mockFetch).toHaveBeenCalledWith(
       'http://custom:9000/api/feature-flags/all',
-      expect.any(Object)
+      expect.any(Object),
     )
   })
 
@@ -152,7 +152,7 @@ describe('GET /api/feature-flags/all', () => {
 
     const request = new NextRequest(
       'http://benger.localhost/api/feature-flags/all',
-      { headers: { host: 'benger.localhost' } }
+      { headers: { host: 'benger.localhost' } },
     )
 
     const response = await GET(request)
@@ -168,14 +168,14 @@ describe('GET /api/feature-flags/all', () => {
 
     const request = new NextRequest(
       'http://what-a-benger.net/api/feature-flags/all',
-      { headers: { host: 'what-a-benger.net' } }
+      { headers: { host: 'what-a-benger.net' } },
     )
 
     await GET(request)
 
     expect(mockFetch).toHaveBeenCalledWith(
       'http://benger-api:8000/api/feature-flags/all',
-      expect.any(Object)
+      expect.any(Object),
     )
   })
 
@@ -188,14 +188,14 @@ describe('GET /api/feature-flags/all', () => {
 
     const request = new NextRequest(
       'http://localhost:3000/api/feature-flags/all',
-      { headers: { host: 'localhost:3000' } }
+      { headers: { host: 'localhost:3000' } },
     )
 
     await GET(request)
 
     expect(mockFetch).toHaveBeenCalledWith(
       'http://localhost:8001/api/feature-flags/all',
-      expect.any(Object)
+      expect.any(Object),
     )
   })
 })

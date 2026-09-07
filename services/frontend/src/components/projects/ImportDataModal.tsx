@@ -12,7 +12,6 @@
 
 'use client'
 
-import { logger } from '@/lib/utils/logger'
 import { CloudImportPanel } from '@/components/projects/import/CloudImportPanel'
 import { ImportSourceTabs } from '@/components/projects/import/ImportSourceTabs'
 import { Dialog } from '@/components/shared/Dialog'
@@ -27,6 +26,7 @@ import {
   detectFormat,
   parseImportData,
 } from '@/lib/import/parseImportData'
+import { logger } from '@/lib/utils/logger'
 import { useProjectStore } from '@/stores/projectStore'
 import { ExclamationTriangleIcon } from '@heroicons/react/24/outline'
 import React, { useCallback, useEffect, useState } from 'react'
@@ -111,13 +111,13 @@ export function ImportDataModal({
     })
 
     const missingFields = templateFields.filter(
-      (field) => !allDataFields.has(field)
+      (field) => !allDataFields.has(field),
     )
 
     if (missingFields.length > 0) {
       // Use Label Studio's exact error format
       errors.push(
-        `Validation error - These fields are not present in the data: ${missingFields.join(', ')}`
+        `Validation error - These fields are not present in the data: ${missingFields.join(', ')}`,
       )
     }
 
@@ -162,7 +162,7 @@ export function ImportDataModal({
 
           const parsed = parseImportData(
             content,
-            detectFormat(content, selectedFile.name)
+            detectFormat(content, selectedFile.name),
           )
           data = parsed.rows
           extras = parsed.extras
@@ -189,7 +189,7 @@ export function ImportDataModal({
         // Show field mapping as an option, not a blocker
         addToast(
           `Some fields don't match your template. You can import as-is or use field mapping.`,
-          'error'
+          'error',
         )
         setValidationErrors(validation.errors)
         setParsedData(data)
@@ -290,7 +290,7 @@ export function ImportDataModal({
           {validationErrors.length > 0 && (
             <div className="rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/20">
               <div className="flex items-start space-x-2">
-                <ExclamationTriangleIcon className="mt-0.5 h-5 w-5 flex-shrink-0 text-red-600 dark:text-red-400" />
+                <ExclamationTriangleIcon className="mt-0.5 h-5 w-5 shrink-0 text-red-600 dark:text-red-400" />
                 <div className="flex-1">
                   <h4 className="text-sm font-medium text-red-900 dark:text-red-100">
                     {t('tasks.importModal.validationError')}
@@ -353,7 +353,7 @@ export function ImportDataModal({
         {templateFields.length > 0 && (
           <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-900/20">
             <div className="flex items-start space-x-2">
-              <ExclamationTriangleIcon className="mt-0.5 h-5 w-5 flex-shrink-0 text-amber-600 dark:text-amber-400" />
+              <ExclamationTriangleIcon className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
               <div className="flex-1">
                 <h4 className="text-sm font-medium text-amber-900 dark:text-amber-100">
                   {t('tasks.importModal.fieldRequirements')}

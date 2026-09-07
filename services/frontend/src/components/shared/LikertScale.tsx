@@ -1,7 +1,7 @@
 'use client'
 
-import clsx from 'clsx'
 import { useI18n } from '@/contexts/I18nContext'
+import clsx from 'clsx'
 
 interface LikertScaleProps {
   name: string
@@ -34,7 +34,7 @@ export function LikertScale({
         {required && <span className="ml-1 text-red-500">*</span>}
       </legend>
       <div className="flex items-center justify-between gap-1">
-        <span className="hidden text-xs text-zinc-500 dark:text-zinc-400 sm:block">
+        <span className="hidden text-xs text-zinc-500 sm:block dark:text-zinc-400">
           {t('likertScale.stronglyDisagree')}
         </span>
         <div className="flex items-center justify-center gap-1 sm:gap-2">
@@ -45,7 +45,7 @@ export function LikertScale({
                 'flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border-2 text-sm font-medium transition-colors',
                 value === point
                   ? 'border-emerald-600 bg-emerald-600 text-white dark:border-emerald-500 dark:bg-emerald-500'
-                  : 'border-zinc-300 text-zinc-700 hover:border-emerald-400 hover:bg-emerald-50 dark:border-zinc-600 dark:text-zinc-300 dark:hover:border-emerald-500 dark:hover:bg-emerald-900/30'
+                  : 'border-zinc-300 text-zinc-700 hover:border-emerald-400 hover:bg-emerald-50 dark:border-zinc-600 dark:text-zinc-300 dark:hover:border-emerald-500 dark:hover:bg-emerald-900/30',
               )}
             >
               <input
@@ -61,12 +61,12 @@ export function LikertScale({
             </label>
           ))}
         </div>
-        <span className="hidden text-xs text-zinc-500 dark:text-zinc-400 sm:block">
+        <span className="hidden text-xs text-zinc-500 sm:block dark:text-zinc-400">
           {t('likertScale.stronglyAgree')}
         </span>
       </div>
       {/* Mobile labels */}
-      <div className="flex justify-between text-xs text-zinc-500 dark:text-zinc-400 sm:hidden">
+      <div className="flex justify-between text-xs text-zinc-500 sm:hidden dark:text-zinc-400">
         <span>{t('likertScale.stronglyDisagree')}</span>
         <span>{t('likertScale.stronglyAgree')}</span>
       </div>

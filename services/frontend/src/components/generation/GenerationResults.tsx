@@ -4,7 +4,13 @@ import { Button } from '@/components/shared/Button'
 import { Card } from '@/components/shared/Card'
 import { Input } from '@/components/shared/Input'
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/shared/Select'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/shared/Select'
 import { useToast } from '@/components/shared/Toast'
 import { useI18n } from '@/contexts/I18nContext'
 import { useProjectStore } from '@/stores/projectStore'
@@ -173,7 +179,7 @@ export function GenerationResults({
               model: model,
               response: response.response_content,
               created_at: response.created_at,
-            })
+            }),
           ),
         })),
       }
@@ -190,7 +196,10 @@ export function GenerationResults({
       document.body.removeChild(link)
       window.URL.revokeObjectURL(url)
 
-      addToast(t('toasts.generation.exported', { count: filteredResults.length }), 'success')
+      addToast(
+        t('toasts.generation.exported', { count: filteredResults.length }),
+        'success',
+      )
     } catch (error) {
       addToast(t('toasts.generation.exportFailed'), 'error')
     }
@@ -202,7 +211,7 @@ export function GenerationResults({
     if (taskData.prompt) return taskData.prompt
 
     const firstString = Object.values(taskData).find(
-      (v) => typeof v === 'string'
+      (v) => typeof v === 'string',
     )
     return (firstString as string) || `Task ${taskData.id || ''}`
   }
@@ -224,7 +233,7 @@ export function GenerationResults({
             <div className="flex flex-1 items-center space-x-4">
               {/* Search */}
               <div className="relative max-w-md flex-1">
-                <MagnifyingGlassIcon className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 transform text-zinc-400" />
+                <MagnifyingGlassIcon className="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 transform text-zinc-400" />
                 <Input
                   type="text"
                   placeholder={t('generation.results.searchPlaceholder')}
@@ -237,10 +246,14 @@ export function GenerationResults({
               {/* Model Filter */}
               <Select value={selectedModel} onValueChange={setSelectedModel}>
                 <SelectTrigger>
-                  <SelectValue placeholder={t('generation.results.allModels')} />
+                  <SelectValue
+                    placeholder={t('generation.results.allModels')}
+                  />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">{t('generation.results.allModels')}</SelectItem>
+                  <SelectItem value="all">
+                    {t('generation.results.allModels')}
+                  </SelectItem>
                   {availableModels.map((model) => (
                     <SelectItem key={model} value={model}>
                       {model}
@@ -265,11 +278,16 @@ export function GenerationResults({
           <div className="mt-4 flex items-center space-x-6 text-sm text-zinc-600 dark:text-zinc-400">
             <div className="flex items-center space-x-2">
               <DocumentTextIcon className="h-4 w-4" />
-              <span>{filteredResults.length} {t('generation.results.tasksWithResponses')}</span>
+              <span>
+                {filteredResults.length}{' '}
+                {t('generation.results.tasksWithResponses')}
+              </span>
             </div>
             <div className="flex items-center space-x-2">
               <CpuChipIcon className="h-4 w-4" />
-              <span>{availableModels.length} {t('generation.results.modelsUsed')}</span>
+              <span>
+                {availableModels.length} {t('generation.results.modelsUsed')}
+              </span>
             </div>
           </div>
         </div>
@@ -301,11 +319,14 @@ export function GenerationResults({
                       <div>
                         <div className="flex items-center space-x-2">
                           <span className="font-mono text-xs text-zinc-500">
-                            {t('generation.results.taskPrefix')} #{result.task_id}
+                            {t('generation.results.taskPrefix')} #
+                            {result.task_id}
                           </span>
                           <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
                             {modelCount}{' '}
-                            {modelCount === 1 ? t('generation.results.response') : t('generation.results.responses')}
+                            {modelCount === 1
+                              ? t('generation.results.response')
+                              : t('generation.results.responses')}
                           </span>
                         </div>
                         <p className="mt-1 line-clamp-2 text-sm text-zinc-700 dark:text-zinc-300">
@@ -331,7 +352,7 @@ export function GenerationResults({
                           onClick={(e) => {
                             e.stopPropagation()
                             copyToClipboard(
-                              JSON.stringify(result.task_data, null, 2)
+                              JSON.stringify(result.task_data, null, 2),
                             )
                           }}
                         >
@@ -375,7 +396,7 @@ export function GenerationResults({
                                 </Button>
                               </div>
                               <div className="rounded-md bg-zinc-50 p-3 dark:bg-zinc-800/50">
-                                <pre className="whitespace-pre-wrap text-sm text-zinc-700 dark:text-zinc-300">
+                                <pre className="text-sm whitespace-pre-wrap text-zinc-700 dark:text-zinc-300">
                                   {response.response_content}
                                 </pre>
                               </div>
@@ -385,11 +406,11 @@ export function GenerationResults({
                                   new Date(response.created_at),
                                   {
                                     addSuffix: true,
-                                  }
+                                  },
                                 )}
                               </div>
                             </div>
-                          )
+                          ),
                         )}
                       </div>
                     </div>

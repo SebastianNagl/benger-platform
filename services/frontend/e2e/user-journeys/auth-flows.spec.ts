@@ -46,9 +46,7 @@ test.describe('Auth Flow Pages', () => {
     await page.goto(`${BASE_URL}/reset-password`, { timeout: 30000 })
 
     // Verify the submit button is present
-    const submitButton = page
-      .locator('button[type="submit"]')
-      .first()
+    const submitButton = page.locator('button[type="submit"]').first()
     await expect(submitButton).toBeVisible({ timeout: 15000 })
   })
 
@@ -123,7 +121,9 @@ test.describe('Auth Flow Pages', () => {
 
     // The page should show password input fields
     await expect(async () => {
-      const passwordInputs = await page.locator('input[type="password"]').count()
+      const passwordInputs = await page
+        .locator('input[type="password"]')
+        .count()
       // Should have at least one password field (new password)
       // or the page shows the heading
       const bodyText = await page.locator('body').textContent()

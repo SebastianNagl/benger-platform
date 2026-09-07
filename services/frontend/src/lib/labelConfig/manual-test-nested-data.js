@@ -29,7 +29,7 @@ console.log('Result:', result1)
 console.log('Expected: { valid: true, missingFields: [] }')
 console.log(
   '✓ Test 1 PASSED:',
-  result1.valid === true && result1.missingFields.length === 0
+  result1.valid === true && result1.missingFields.length === 0,
 )
 console.log('')
 
@@ -44,7 +44,7 @@ console.log(
   '✓ Test 2 PASSED:',
   contextValue ===
     'Das Bürgerliche Gesetzbuch (BGB) ist die zentrale Kodifikation...' &&
-    questionValue === 'Wann trat das BGB in Kraft?'
+    questionValue === 'Wann trat das BGB in Kraft?',
 )
 console.log('')
 
@@ -64,7 +64,7 @@ console.log(
   '✓ Test 3 PASSED:',
   result3.valid === true &&
     result3.missingFields.length === 0 &&
-    flatContextValue === 'Flat context'
+    flatContextValue === 'Flat context',
 )
 console.log('')
 

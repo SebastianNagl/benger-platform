@@ -1,12 +1,18 @@
 'use client'
 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/shared/Select'
 import { useI18n } from '@/contexts/I18nContext'
 import api from '@/lib/api'
 import {
   NotificationGroupsResponse,
   NotificationSummaryResponse,
 } from '@/lib/api/notifications'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/shared/Select'
 import {
   BellIcon,
   ChartBarIcon,
@@ -50,7 +56,15 @@ const typeColors: Record<string, string> = {
   error_occurred: '#ef4444',
 }
 
-function SimpleBarChart({ data, title, noDataText }: { data: ChartData[]; title: string; noDataText: string }) {
+function SimpleBarChart({
+  data,
+  title,
+  noDataText,
+}: {
+  data: ChartData[]
+  title: string
+  noDataText: string
+}) {
   const maxValue = Math.max(...data.map((item) => item.value))
 
   return (
@@ -82,9 +96,7 @@ function SimpleBarChart({ data, title, noDataText }: { data: ChartData[]; title:
           </div>
         ))}
         {data.length === 0 && (
-          <div className="py-4 text-center text-gray-500">
-            {noDataText}
-          </div>
+          <div className="py-4 text-center text-gray-500">{noDataText}</div>
         )}
       </div>
     </div>
@@ -131,20 +143,29 @@ export default function NotificationAnalyticsPage() {
   ]
 
   const groupByOptions = [
-    { value: 'type' as const, label: t('notifications.analytics.groupBy.byType') },
-    { value: 'date' as const, label: t('notifications.analytics.groupBy.byDate') },
-    { value: 'organization' as const, label: t('notifications.analytics.groupBy.byOrganization') },
+    {
+      value: 'type' as const,
+      label: t('notifications.analytics.groupBy.byType'),
+    },
+    {
+      value: 'date' as const,
+      label: t('notifications.analytics.groupBy.byDate'),
+    },
+    {
+      value: 'organization' as const,
+      label: t('notifications.analytics.groupBy.byOrganization'),
+    },
   ]
 
   const [summary, setSummary] = useState<NotificationSummaryResponse | null>(
-    null
+    null,
   )
   const [groups, setGroups] = useState<NotificationGroupsResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [timeRange, setTimeRange] = useState(7)
   const [groupBy, setGroupBy] = useState<'type' | 'date' | 'organization'>(
-    'type'
+    'type',
   )
 
   const loadAnalytics = useCallback(async () => {
@@ -205,7 +226,7 @@ export default function NotificationAnalyticsPage() {
   const getReadRate = (): number => {
     if (!summary || summary.total_notifications === 0) return 0
     return Math.round(
-      (summary.read_notifications / summary.total_notifications) * 100
+      (summary.read_notifications / summary.total_notifications) * 100,
     )
   }
 
@@ -242,7 +263,13 @@ export default function NotificationAnalyticsPage() {
         </div>
 
         <div className="flex space-x-4">
-          <Select value={timeRange.toString()} onValueChange={(v) => setTimeRange(Number(v))} displayValue={timeRangeOptions.find(o => o.value === timeRange)?.label}>
+          <Select
+            value={timeRange.toString()}
+            onValueChange={(v) => setTimeRange(Number(v))}
+            displayValue={
+              timeRangeOptions.find((o) => o.value === timeRange)?.label
+            }
+          >
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
@@ -255,7 +282,15 @@ export default function NotificationAnalyticsPage() {
             </SelectContent>
           </Select>
 
-          <Select value={groupBy} onValueChange={(v) => setGroupBy(v as 'type' | 'date' | 'organization')} displayValue={groupByOptions.find(o => o.value === groupBy)?.label}>
+          <Select
+            value={groupBy}
+            onValueChange={(v) =>
+              setGroupBy(v as 'type' | 'date' | 'organization')
+            }
+            displayValue={
+              groupByOptions.find((o) => o.value === groupBy)?.label
+            }
+          >
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
@@ -286,7 +321,9 @@ export default function NotificationAnalyticsPage() {
             <StatCard
               title={t('notifications.totalNotifications')}
               value={summary.total_notifications}
-              subtitle={t('notifications.analytics.lastNDays', { days: summary.period_days })}
+              subtitle={t('notifications.analytics.lastNDays', {
+                days: summary.period_days,
+              })}
               icon={BellIcon}
               color="bg-blue-500"
             />
@@ -294,7 +331,16 @@ export default function NotificationAnalyticsPage() {
             <StatCard
               title={t('notifications.unreadCount')}
               value={summary.unread_notifications}
-              subtitle={t('notifications.analytics.percentOfTotal', { percent: summary.total_notifications > 0 ? Math.round((summary.unread_notifications / summary.total_notifications) * 100) : 0 })}
+              subtitle={t('notifications.analytics.percentOfTotal', {
+                percent:
+                  summary.total_notifications > 0
+                    ? Math.round(
+                        (summary.unread_notifications /
+                          summary.total_notifications) *
+                          100,
+                      )
+                    : 0,
+              })}
               icon={ExclamationTriangleIcon}
               color="bg-orange-500"
             />
@@ -302,7 +348,9 @@ export default function NotificationAnalyticsPage() {
             <StatCard
               title={t('notifications.readCount')}
               value={summary.read_notifications}
-              subtitle={t('notifications.analytics.readRate', { percent: getReadRate() })}
+              subtitle={t('notifications.analytics.readRate', {
+                percent: getReadRate(),
+              })}
               icon={CheckCircleIcon}
               color="bg-green-500"
             />
@@ -326,7 +374,10 @@ export default function NotificationAnalyticsPage() {
 
             <SimpleBarChart
               data={getGroupChartData()}
-              title={t('notifications.analytics.chartTitle', { groupBy: groupByOptions.find((opt) => opt.value === groupBy)?.label })}
+              title={t('notifications.analytics.chartTitle', {
+                groupBy: groupByOptions.find((opt) => opt.value === groupBy)
+                  ?.label,
+              })}
               noDataText={t('notifications.analytics.noData')}
             />
           </div>
@@ -341,7 +392,9 @@ export default function NotificationAnalyticsPage() {
               <div className="py-8 text-center text-gray-500">
                 <BellIcon className="mx-auto mb-3 h-12 w-12 text-gray-400" />
                 <p>{t('notifications.analytics.noNotifications')}</p>
-                <p className="text-sm">{t('notifications.analytics.tryLongerRange')}</p>
+                <p className="text-sm">
+                  {t('notifications.analytics.tryLongerRange')}
+                </p>
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -367,7 +420,9 @@ export default function NotificationAnalyticsPage() {
                             {formatTypeLabel(type)}
                           </p>
                           <p className="text-sm text-gray-600">
-                            {t('notifications.analytics.notificationCount', { count })}
+                            {t('notifications.analytics.notificationCount', {
+                              count,
+                            })}
                           </p>
                         </div>
                       </div>
@@ -382,7 +437,10 @@ export default function NotificationAnalyticsPage() {
             <div className="flex items-center text-sm text-gray-600">
               <ClockIcon className="mr-2 h-4 w-4" />
               <span>
-                {t('notifications.analytics.generatedAt', { date: new Date(summary.summary_generated_at).toLocaleString(), days: summary.period_days })}
+                {t('notifications.analytics.generatedAt', {
+                  date: new Date(summary.summary_generated_at).toLocaleString(),
+                  days: summary.period_days,
+                })}
               </span>
             </div>
           </div>

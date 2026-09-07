@@ -26,7 +26,7 @@ export default function TextDisplay({
   // Handle missing data
   if (value === undefined || value === null) {
     return (
-      <div className="italic text-zinc-500 dark:text-zinc-400">
+      <div className="text-zinc-500 italic dark:text-zinc-400">
         {t('labeling.display.noData', { field: valueExpression })}
       </div>
     )

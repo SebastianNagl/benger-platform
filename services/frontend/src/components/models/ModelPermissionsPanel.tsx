@@ -14,11 +14,11 @@
 
 import { Button } from '@/components/shared/Button'
 import { Label } from '@/components/shared/Label'
+import { useToast } from '@/components/shared/Toast'
 import { useI18n } from '@/contexts/I18nContext'
 import { customModelsAPI } from '@/lib/api/customModels'
 import { organizationsAPI } from '@/lib/api/organizations'
 import { useEffect, useState } from 'react'
-import { useToast } from '@/components/shared/Toast'
 
 interface Organization {
   id: string
@@ -54,7 +54,7 @@ export function ModelPermissionsPanel({
   const [visibility, setVisibility] =
     useState<ModelVisibility>(initialVisibility)
   const [selectedOrgIds, setSelectedOrgIds] = useState<string[]>(
-    initialOrganizationIds
+    initialOrganizationIds,
   )
   const [availableOrganizations, setAvailableOrganizations] = useState<
     Organization[]
@@ -75,9 +75,7 @@ export function ModelPermissionsPanel({
       } catch (err) {
         if (!cancelled) {
           const msg =
-            err instanceof Error
-              ? err.message
-              : 'Failed to load organizations'
+            err instanceof Error ? err.message : 'Failed to load organizations'
           addToast(msg, 'error')
         }
       } finally {
@@ -94,7 +92,7 @@ export function ModelPermissionsPanel({
     setSelectedOrgIds((prev) =>
       prev.includes(orgId)
         ? prev.filter((id) => id !== orgId)
-        : [...prev, orgId]
+        : [...prev, orgId],
     )
   }
 
@@ -153,7 +151,7 @@ export function ModelPermissionsPanel({
 
   if (!canEdit) {
     const initialOrgNames = initialOrganizationIds.map(
-      (id) => availableOrganizations.find((o) => o.id === id)?.name ?? id
+      (id) => availableOrganizations.find((o) => o.id === id)?.name ?? id,
     )
     return (
       <div

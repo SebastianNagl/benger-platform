@@ -22,41 +22,51 @@ jest.mock('@/contexts/I18nContext', () => ({
         'evaluation.metricParams.configure': 'Configure {metric} Parameters',
         'evaluation.metricParams.resetToDefaults': 'Reset to Defaults',
         'evaluation.metricParams.bleu.maxNgramOrder': 'Max N-gram Order',
-        'evaluation.metricParams.bleu.maxNgramOrderHelp': 'Highest n-gram order for BLEU computation',
+        'evaluation.metricParams.bleu.maxNgramOrderHelp':
+          'Highest n-gram order for BLEU computation',
         'evaluation.metricParams.bleu.ngram1': 'Unigrams (1)',
         'evaluation.metricParams.bleu.ngram2': 'Bigrams (2)',
         'evaluation.metricParams.bleu.ngram3': 'Trigrams (3)',
         'evaluation.metricParams.bleu.ngram4': '4-grams (4)',
         'evaluation.metricParams.bleu.smoothingMethod': 'Smoothing Method',
-        'evaluation.metricParams.bleu.smoothingMethodHelp': 'Smoothing method used for BLEU computation',
+        'evaluation.metricParams.bleu.smoothingMethodHelp':
+          'Smoothing method used for BLEU computation',
         'evaluation.metricParams.bleu.smoothing1': 'Method 1 (Add epsilon)',
         'evaluation.metricParams.bleu.smoothing2': 'Method 2 (Add 1)',
         'evaluation.metricParams.bleu.smoothing3': 'Method 3 (NIST geometric)',
         'evaluation.metricParams.bleu.smoothing4': 'Method 4 (Exponential)',
         'evaluation.metricParams.rouge.variant': 'ROUGE Variant',
-        'evaluation.metricParams.rouge.variantHelp': 'Which ROUGE variant to use',
+        'evaluation.metricParams.rouge.variantHelp':
+          'Which ROUGE variant to use',
         'evaluation.metricParams.rouge.rouge1': 'ROUGE-1 (Unigrams)',
         'evaluation.metricParams.rouge.rouge2': 'ROUGE-2 (Bigrams)',
         'evaluation.metricParams.rouge.rougeL': 'ROUGE-L (LCS)',
         'evaluation.metricParams.rouge.rougeLsum': 'ROUGE-Lsum (Summary)',
         'evaluation.metricParams.rouge.enableStemming': 'Enable Stemming',
-        'evaluation.metricParams.rouge.enableStemmingHelp': 'Enable stemming before computing ROUGE scores',
+        'evaluation.metricParams.rouge.enableStemmingHelp':
+          'Enable stemming before computing ROUGE scores',
         'evaluation.metricParams.meteor.alpha': 'Alpha (Precision Weight)',
-        'evaluation.metricParams.meteor.alphaHelp': 'Precision weight for METEOR computation',
+        'evaluation.metricParams.meteor.alphaHelp':
+          'Precision weight for METEOR computation',
         'evaluation.metricParams.meteor.beta': 'Beta (Recall Preference)',
-        'evaluation.metricParams.meteor.betaHelp': 'Recall preference weight for METEOR',
+        'evaluation.metricParams.meteor.betaHelp':
+          'Recall preference weight for METEOR',
         'evaluation.metricParams.meteor.gamma': 'Gamma (Fragmentation Penalty)',
-        'evaluation.metricParams.meteor.gammaHelp': 'Fragmentation penalty weight for METEOR',
+        'evaluation.metricParams.meteor.gammaHelp':
+          'Fragmentation penalty weight for METEOR',
         'evaluation.metricParams.chrf.charOrder': 'Character N-gram Order',
-        'evaluation.metricParams.chrf.charOrderHelp': 'The character n-gram order for chrF computation',
+        'evaluation.metricParams.chrf.charOrderHelp':
+          'The character n-gram order for chrF computation',
         'evaluation.metricParams.chrf.charOrder6': '6 (Default)',
         'evaluation.metricParams.chrf.wordOrder': 'Word N-gram Order',
-        'evaluation.metricParams.chrf.wordOrderHelp': 'The word n-gram order for chrF computation',
+        'evaluation.metricParams.chrf.wordOrderHelp':
+          'The word n-gram order for chrF computation',
         'evaluation.metricParams.chrf.wordOrder0': '0 (chrF, no words)',
         'evaluation.metricParams.chrf.wordOrder1': '1 (chrF+)',
         'evaluation.metricParams.chrf.wordOrder2': '2 (chrF++)',
         'evaluation.metricParams.chrf.beta': 'Beta (F-score Weight)',
-        'evaluation.metricParams.chrf.betaHelp': 'F-beta score weight for chrF computation',
+        'evaluation.metricParams.chrf.betaHelp':
+          'F-beta score weight for chrF computation',
         'evaluation.metricParams.chrf.beta1': '1 (F1, balanced)',
         'evaluation.metricParams.chrf.beta2': '2 (F2, recall-weighted)',
         'evaluation.metricParams.chrf.beta3': '3 (F3, recall-heavy)',
@@ -92,11 +102,14 @@ jest.mock('@/components/shared/Button', () => ({
 
 jest.mock('@/components/shared/Input', () => {
   const React = require('react')
-  const Input = React.forwardRef(
-    function Input({ id, value, onChange, ...props }: any, ref: any) {
-      return <input ref={ref} id={id} value={value} onChange={onChange} {...props} />
-    }
-  )
+  const Input = React.forwardRef(function Input(
+    { id, value, onChange, ...props }: any,
+    ref: any,
+  ) {
+    return (
+      <input ref={ref} id={id} value={value} onChange={onChange} {...props} />
+    )
+  })
   Input.displayName = 'Input'
   return { Input }
 })
@@ -129,8 +142,11 @@ function getFieldByLabel(labelText: string): HTMLElement {
   const label = screen.getByText(labelText)
   // Walk up to the wrapper div that contains both the label row and the input/select
   const wrapper = label.closest('div')?.parentElement
-  const el = wrapper?.querySelector('select, input[type="text"], input[type="number"], input[type="range"]')
-  if (!el) throw new Error(`Could not find field element for label "${labelText}"`)
+  const el = wrapper?.querySelector(
+    'select, input[type="text"], input[type="number"], input[type="range"]',
+  )
+  if (!el)
+    throw new Error(`Could not find field element for label "${labelText}"`)
   return el as HTMLElement
 }
 
@@ -148,7 +164,7 @@ describe('MetricParameterInput', () => {
           metric="unsupported"
           parameters={{}}
           onChange={mockOnChange}
-        />
+        />,
       )
 
       expect(container.firstChild).toBeNull()
@@ -160,7 +176,7 @@ describe('MetricParameterInput', () => {
           metric="bleu"
           parameters={{}}
           onChange={mockOnChange}
-        />
+        />,
       )
 
       expect(screen.getByText('Show Advanced Parameters')).toBeInTheDocument()
@@ -172,7 +188,7 @@ describe('MetricParameterInput', () => {
           metric="rouge"
           parameters={{}}
           onChange={mockOnChange}
-        />
+        />,
       )
 
       expect(screen.getByText('Show Advanced Parameters')).toBeInTheDocument()
@@ -184,7 +200,7 @@ describe('MetricParameterInput', () => {
           metric="meteor"
           parameters={{}}
           onChange={mockOnChange}
-        />
+        />,
       )
 
       expect(screen.getByText('Show Advanced Parameters')).toBeInTheDocument()
@@ -196,7 +212,7 @@ describe('MetricParameterInput', () => {
           metric="chrf"
           parameters={{}}
           onChange={mockOnChange}
-        />
+        />,
       )
 
       expect(screen.getByText('Show Advanced Parameters')).toBeInTheDocument()
@@ -208,11 +224,11 @@ describe('MetricParameterInput', () => {
           metric="bleu"
           parameters={{}}
           onChange={mockOnChange}
-        />
+        />,
       )
 
       expect(
-        screen.queryByText('Configure BLEU Parameters')
+        screen.queryByText('Configure BLEU Parameters'),
       ).not.toBeInTheDocument()
     })
 
@@ -223,7 +239,7 @@ describe('MetricParameterInput', () => {
           metric="bleu"
           parameters={{}}
           onChange={mockOnChange}
-        />
+        />,
       )
 
       const button = screen.getByText('Show Advanced Parameters')
@@ -239,7 +255,7 @@ describe('MetricParameterInput', () => {
           metric="bleu"
           parameters={{}}
           onChange={mockOnChange}
-        />
+        />,
       )
 
       const button = screen.getByText('Show Advanced Parameters')
@@ -255,7 +271,7 @@ describe('MetricParameterInput', () => {
           metric="bleu"
           parameters={{}}
           onChange={mockOnChange}
-        />
+        />,
       )
 
       const button = screen.getByText('Show Advanced Parameters')
@@ -263,7 +279,7 @@ describe('MetricParameterInput', () => {
       await user.click(screen.getByText('Hide Advanced Parameters'))
 
       expect(
-        screen.queryByText('Configure BLEU Parameters')
+        screen.queryByText('Configure BLEU Parameters'),
       ).not.toBeInTheDocument()
     })
   })
@@ -276,7 +292,7 @@ describe('MetricParameterInput', () => {
           metric="bleu"
           parameters={{}}
           onChange={mockOnChange}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Show Advanced Parameters'))
@@ -291,7 +307,7 @@ describe('MetricParameterInput', () => {
           metric="bleu"
           parameters={{}}
           onChange={mockOnChange}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Show Advanced Parameters'))
@@ -306,14 +322,12 @@ describe('MetricParameterInput', () => {
           metric="bleu"
           parameters={{}}
           onChange={mockOnChange}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Show Advanced Parameters'))
 
-      const select = getFieldByLabel(
-        'Max N-gram Order'
-      ) as HTMLSelectElement
+      const select = getFieldByLabel('Max N-gram Order') as HTMLSelectElement
       expect(select.value).toBe('4')
     })
 
@@ -324,14 +338,12 @@ describe('MetricParameterInput', () => {
           metric="bleu"
           parameters={{ max_order: 2 }}
           onChange={mockOnChange}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Show Advanced Parameters'))
 
-      const select = getFieldByLabel(
-        'Max N-gram Order'
-      ) as HTMLSelectElement
+      const select = getFieldByLabel('Max N-gram Order') as HTMLSelectElement
       expect(select.value).toBe('2')
     })
 
@@ -342,7 +354,7 @@ describe('MetricParameterInput', () => {
           metric="bleu"
           parameters={{}}
           onChange={mockOnChange}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Show Advanced Parameters'))
@@ -360,14 +372,12 @@ describe('MetricParameterInput', () => {
           metric="bleu"
           parameters={{}}
           onChange={mockOnChange}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Show Advanced Parameters'))
 
-      const select = getFieldByLabel(
-        'Smoothing Method'
-      ) as HTMLSelectElement
+      const select = getFieldByLabel('Smoothing Method') as HTMLSelectElement
       expect(select.value).toBe('method1')
     })
 
@@ -378,7 +388,7 @@ describe('MetricParameterInput', () => {
           metric="bleu"
           parameters={{}}
           onChange={mockOnChange}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Show Advanced Parameters'))
@@ -396,13 +406,13 @@ describe('MetricParameterInput', () => {
           metric="bleu"
           parameters={{}}
           onChange={mockOnChange}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Show Advanced Parameters'))
 
       const tooltip = container.querySelector(
-        '[data-tooltip*="Highest n-gram"]'
+        '[data-tooltip*="Highest n-gram"]',
       )
       expect(tooltip).toBeInTheDocument()
     })
@@ -414,13 +424,13 @@ describe('MetricParameterInput', () => {
           metric="bleu"
           parameters={{}}
           onChange={mockOnChange}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Show Advanced Parameters'))
 
       const tooltip = container.querySelector(
-        '[data-tooltip*="Smoothing method"]'
+        '[data-tooltip*="Smoothing method"]',
       )
       expect(tooltip).toBeInTheDocument()
     })
@@ -434,7 +444,7 @@ describe('MetricParameterInput', () => {
           metric="rouge"
           parameters={{}}
           onChange={mockOnChange}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Show Advanced Parameters'))
@@ -449,7 +459,7 @@ describe('MetricParameterInput', () => {
           metric="rouge"
           parameters={{}}
           onChange={mockOnChange}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Show Advanced Parameters'))
@@ -464,7 +474,7 @@ describe('MetricParameterInput', () => {
           metric="rouge"
           parameters={{}}
           onChange={mockOnChange}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Show Advanced Parameters'))
@@ -480,7 +490,7 @@ describe('MetricParameterInput', () => {
           metric="rouge"
           parameters={{}}
           onChange={mockOnChange}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Show Advanced Parameters'))
@@ -498,7 +508,7 @@ describe('MetricParameterInput', () => {
           metric="rouge"
           parameters={{}}
           onChange={mockOnChange}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Show Advanced Parameters'))
@@ -514,7 +524,7 @@ describe('MetricParameterInput', () => {
           metric="rouge"
           parameters={{}}
           onChange={mockOnChange}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Show Advanced Parameters'))
@@ -532,7 +542,7 @@ describe('MetricParameterInput', () => {
           metric="rouge"
           parameters={{ use_stemmer: false }}
           onChange={mockOnChange}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Show Advanced Parameters'))
@@ -548,7 +558,7 @@ describe('MetricParameterInput', () => {
           metric="rouge"
           parameters={{}}
           onChange={mockOnChange}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Show Advanced Parameters'))
@@ -564,13 +574,13 @@ describe('MetricParameterInput', () => {
           metric="rouge"
           parameters={{}}
           onChange={mockOnChange}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Show Advanced Parameters'))
 
       const tooltip = container.querySelector(
-        '[data-tooltip*="Enable stemming"]'
+        '[data-tooltip*="Enable stemming"]',
       )
       expect(tooltip).toBeInTheDocument()
     })
@@ -584,14 +594,12 @@ describe('MetricParameterInput', () => {
           metric="meteor"
           parameters={{}}
           onChange={mockOnChange}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Show Advanced Parameters'))
 
-      expect(
-        getFieldByLabel('Alpha (Precision Weight)')
-      ).toBeInTheDocument()
+      expect(getFieldByLabel('Alpha (Precision Weight)')).toBeInTheDocument()
     })
 
     it('should render beta input', async () => {
@@ -601,14 +609,12 @@ describe('MetricParameterInput', () => {
           metric="meteor"
           parameters={{}}
           onChange={mockOnChange}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Show Advanced Parameters'))
 
-      expect(
-        getFieldByLabel('Beta (Recall Preference)')
-      ).toBeInTheDocument()
+      expect(getFieldByLabel('Beta (Recall Preference)')).toBeInTheDocument()
     })
 
     it('should render gamma input', async () => {
@@ -618,13 +624,13 @@ describe('MetricParameterInput', () => {
           metric="meteor"
           parameters={{}}
           onChange={mockOnChange}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Show Advanced Parameters'))
 
       expect(
-        getFieldByLabel('Gamma (Fragmentation Penalty)')
+        getFieldByLabel('Gamma (Fragmentation Penalty)'),
       ).toBeInTheDocument()
     })
 
@@ -635,13 +641,13 @@ describe('MetricParameterInput', () => {
           metric="meteor"
           parameters={{}}
           onChange={mockOnChange}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Show Advanced Parameters'))
 
       const input = getFieldByLabel(
-        'Alpha (Precision Weight)'
+        'Alpha (Precision Weight)',
       ) as HTMLInputElement
       expect(input.value).toBe('0.9')
     })
@@ -653,13 +659,13 @@ describe('MetricParameterInput', () => {
           metric="meteor"
           parameters={{}}
           onChange={mockOnChange}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Show Advanced Parameters'))
 
       const input = getFieldByLabel(
-        'Beta (Recall Preference)'
+        'Beta (Recall Preference)',
       ) as HTMLInputElement
       expect(input.value).toBe('3')
     })
@@ -671,13 +677,13 @@ describe('MetricParameterInput', () => {
           metric="meteor"
           parameters={{}}
           onChange={mockOnChange}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Show Advanced Parameters'))
 
       const input = getFieldByLabel(
-        'Gamma (Fragmentation Penalty)'
+        'Gamma (Fragmentation Penalty)',
       ) as HTMLInputElement
       expect(input.value).toBe('0.5')
     })
@@ -688,14 +694,14 @@ describe('MetricParameterInput', () => {
           metric="meteor"
           parameters={{}}
           onChange={mockOnChange}
-        />
+        />,
       )
 
       const user = userEvent.setup()
       await user.click(screen.getByText('Show Advanced Parameters'))
 
       const input = getFieldByLabel(
-        'Alpha (Precision Weight)'
+        'Alpha (Precision Weight)',
       ) as HTMLInputElement
 
       fireEvent.change(input, { target: { value: '0.8' } })
@@ -712,14 +718,14 @@ describe('MetricParameterInput', () => {
           metric="meteor"
           parameters={{}}
           onChange={mockOnChange}
-        />
+        />,
       )
 
       const user = userEvent.setup()
       await user.click(screen.getByText('Show Advanced Parameters'))
 
       const input = getFieldByLabel(
-        'Beta (Recall Preference)'
+        'Beta (Recall Preference)',
       ) as HTMLInputElement
 
       fireEvent.change(input, { target: { value: '2.5' } })
@@ -736,14 +742,14 @@ describe('MetricParameterInput', () => {
           metric="meteor"
           parameters={{}}
           onChange={mockOnChange}
-        />
+        />,
       )
 
       const user = userEvent.setup()
       await user.click(screen.getByText('Show Advanced Parameters'))
 
       const input = getFieldByLabel(
-        'Gamma (Fragmentation Penalty)'
+        'Gamma (Fragmentation Penalty)',
       ) as HTMLInputElement
 
       fireEvent.change(input, { target: { value: '0.7' } })
@@ -761,13 +767,13 @@ describe('MetricParameterInput', () => {
           metric="meteor"
           parameters={{}}
           onChange={mockOnChange}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Show Advanced Parameters'))
 
       const tooltip = container.querySelector(
-        '[data-tooltip*="Precision weight"]'
+        '[data-tooltip*="Precision weight"]',
       )
       expect(tooltip).toBeInTheDocument()
     })
@@ -779,13 +785,13 @@ describe('MetricParameterInput', () => {
           metric="meteor"
           parameters={{}}
           onChange={mockOnChange}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Show Advanced Parameters'))
 
       const tooltip = container.querySelector(
-        '[data-tooltip*="Recall preference"]'
+        '[data-tooltip*="Recall preference"]',
       )
       expect(tooltip).toBeInTheDocument()
     })
@@ -797,13 +803,13 @@ describe('MetricParameterInput', () => {
           metric="meteor"
           parameters={{}}
           onChange={mockOnChange}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Show Advanced Parameters'))
 
       const tooltip = container.querySelector(
-        '[data-tooltip*="Fragmentation penalty"]'
+        '[data-tooltip*="Fragmentation penalty"]',
       )
       expect(tooltip).toBeInTheDocument()
     })
@@ -815,19 +821,19 @@ describe('MetricParameterInput', () => {
           metric="meteor"
           parameters={{ alpha: 0.7, beta: 2.0, gamma: 0.3 }}
           onChange={mockOnChange}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Show Advanced Parameters'))
 
       const alphaInput = getFieldByLabel(
-        'Alpha (Precision Weight)'
+        'Alpha (Precision Weight)',
       ) as HTMLInputElement
       const betaInput = getFieldByLabel(
-        'Beta (Recall Preference)'
+        'Beta (Recall Preference)',
       ) as HTMLInputElement
       const gammaInput = getFieldByLabel(
-        'Gamma (Fragmentation Penalty)'
+        'Gamma (Fragmentation Penalty)',
       ) as HTMLInputElement
 
       expect(alphaInput.value).toBe('0.7')
@@ -844,14 +850,12 @@ describe('MetricParameterInput', () => {
           metric="chrf"
           parameters={{}}
           onChange={mockOnChange}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Show Advanced Parameters'))
 
-      expect(
-        getFieldByLabel('Character N-gram Order')
-      ).toBeInTheDocument()
+      expect(getFieldByLabel('Character N-gram Order')).toBeInTheDocument()
     })
 
     it('should render word_order selector', async () => {
@@ -861,7 +865,7 @@ describe('MetricParameterInput', () => {
           metric="chrf"
           parameters={{}}
           onChange={mockOnChange}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Show Advanced Parameters'))
@@ -876,7 +880,7 @@ describe('MetricParameterInput', () => {
           metric="chrf"
           parameters={{}}
           onChange={mockOnChange}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Show Advanced Parameters'))
@@ -891,13 +895,13 @@ describe('MetricParameterInput', () => {
           metric="chrf"
           parameters={{}}
           onChange={mockOnChange}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Show Advanced Parameters'))
 
       const select = getFieldByLabel(
-        'Character N-gram Order'
+        'Character N-gram Order',
       ) as HTMLSelectElement
       expect(select.value).toBe('6')
     })
@@ -909,14 +913,12 @@ describe('MetricParameterInput', () => {
           metric="chrf"
           parameters={{}}
           onChange={mockOnChange}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Show Advanced Parameters'))
 
-      const select = getFieldByLabel(
-        'Word N-gram Order'
-      ) as HTMLSelectElement
+      const select = getFieldByLabel('Word N-gram Order') as HTMLSelectElement
       expect(select.value).toBe('0')
     })
 
@@ -927,13 +929,13 @@ describe('MetricParameterInput', () => {
           metric="chrf"
           parameters={{}}
           onChange={mockOnChange}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Show Advanced Parameters'))
 
       const select = getFieldByLabel(
-        'Beta (F-score Weight)'
+        'Beta (F-score Weight)',
       ) as HTMLSelectElement
       expect(select.value).toBe('2')
     })
@@ -945,7 +947,7 @@ describe('MetricParameterInput', () => {
           metric="chrf"
           parameters={{}}
           onChange={mockOnChange}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Show Advanced Parameters'))
@@ -963,7 +965,7 @@ describe('MetricParameterInput', () => {
           metric="chrf"
           parameters={{}}
           onChange={mockOnChange}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Show Advanced Parameters'))
@@ -981,7 +983,7 @@ describe('MetricParameterInput', () => {
           metric="chrf"
           parameters={{}}
           onChange={mockOnChange}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Show Advanced Parameters'))
@@ -999,13 +1001,13 @@ describe('MetricParameterInput', () => {
           metric="chrf"
           parameters={{}}
           onChange={mockOnChange}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Show Advanced Parameters'))
 
       const tooltip = container.querySelector(
-        '[data-tooltip*="character n-gram"]'
+        '[data-tooltip*="character n-gram"]',
       )
       expect(tooltip).toBeInTheDocument()
     })
@@ -1017,7 +1019,7 @@ describe('MetricParameterInput', () => {
           metric="chrf"
           parameters={{}}
           onChange={mockOnChange}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Show Advanced Parameters'))
@@ -1033,7 +1035,7 @@ describe('MetricParameterInput', () => {
           metric="chrf"
           parameters={{}}
           onChange={mockOnChange}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Show Advanced Parameters'))
@@ -1049,19 +1051,19 @@ describe('MetricParameterInput', () => {
           metric="chrf"
           parameters={{ char_order: 4, word_order: 1, beta: 3 }}
           onChange={mockOnChange}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Show Advanced Parameters'))
 
       const charOrderSelect = getFieldByLabel(
-        'Character N-gram Order'
+        'Character N-gram Order',
       ) as HTMLSelectElement
       const wordOrderSelect = getFieldByLabel(
-        'Word N-gram Order'
+        'Word N-gram Order',
       ) as HTMLSelectElement
       const betaSelect = getFieldByLabel(
-        'Beta (F-score Weight)'
+        'Beta (F-score Weight)',
       ) as HTMLSelectElement
 
       expect(charOrderSelect.value).toBe('4')
@@ -1078,7 +1080,7 @@ describe('MetricParameterInput', () => {
           metric="bleu"
           parameters={{}}
           onChange={mockOnChange}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Show Advanced Parameters'))
@@ -1093,7 +1095,7 @@ describe('MetricParameterInput', () => {
           metric="bleu"
           parameters={{ max_order: 2, smoothing: 'method3' }}
           onChange={mockOnChange}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Show Advanced Parameters'))
@@ -1113,7 +1115,7 @@ describe('MetricParameterInput', () => {
           metric="rouge"
           parameters={{ variant: 'rouge2', use_stemmer: false }}
           onChange={mockOnChange}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Show Advanced Parameters'))
@@ -1132,7 +1134,7 @@ describe('MetricParameterInput', () => {
           metric="meteor"
           parameters={{ alpha: 0.5, beta: 1.0, gamma: 0.2 }}
           onChange={mockOnChange}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Show Advanced Parameters'))
@@ -1152,7 +1154,7 @@ describe('MetricParameterInput', () => {
           metric="chrf"
           parameters={{ char_order: 3, word_order: 2, beta: 1 }}
           onChange={mockOnChange}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Show Advanced Parameters'))
@@ -1173,7 +1175,7 @@ describe('MetricParameterInput', () => {
           metric="bleu"
           parameters={{}}
           onChange={mockOnChange}
-        />
+        />,
       )
 
       const wrapper = container.querySelector('.border-t.border-gray-200')
@@ -1186,7 +1188,7 @@ describe('MetricParameterInput', () => {
           metric="bleu"
           parameters={{}}
           onChange={mockOnChange}
-        />
+        />,
       )
 
       const button = screen.getByText('Show Advanced Parameters')
@@ -1200,7 +1202,7 @@ describe('MetricParameterInput', () => {
           metric="bleu"
           parameters={{}}
           onChange={mockOnChange}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Show Advanced Parameters'))
@@ -1216,7 +1218,7 @@ describe('MetricParameterInput', () => {
           metric="bleu"
           parameters={{}}
           onChange={mockOnChange}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Show Advanced Parameters'))
@@ -1232,7 +1234,7 @@ describe('MetricParameterInput', () => {
           metric="bleu"
           parameters={{}}
           onChange={mockOnChange}
-        />
+        />,
       )
 
       expect(screen.getByText('Show Advanced Parameters')).toBeInTheDocument()
@@ -1245,7 +1247,7 @@ describe('MetricParameterInput', () => {
           metric="rouge"
           parameters={{ use_stemmer: undefined }}
           onChange={mockOnChange}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Show Advanced Parameters'))
@@ -1260,11 +1262,11 @@ describe('MetricParameterInput', () => {
           metric="BLEU"
           parameters={{}}
           onChange={mockOnChange}
-        />
+        />,
       )
 
       expect(
-        screen.queryByText('Show Advanced Parameters')
+        screen.queryByText('Show Advanced Parameters'),
       ).not.toBeInTheDocument()
     })
 
@@ -1275,7 +1277,7 @@ describe('MetricParameterInput', () => {
           metric="bleu"
           parameters={{ max_order: 3, smoothing: 'method2' }}
           onChange={mockOnChange}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Show Advanced Parameters'))
@@ -1295,14 +1297,14 @@ describe('MetricParameterInput', () => {
           metric="meteor"
           parameters={{}}
           onChange={mockOnChange}
-        />
+        />,
       )
 
       const user = userEvent.setup()
       await user.click(screen.getByText('Show Advanced Parameters'))
 
       const input = getFieldByLabel(
-        'Alpha (Precision Weight)'
+        'Alpha (Precision Weight)',
       ) as HTMLInputElement
 
       fireEvent.change(input, { target: { value: '0.75' } })
@@ -1322,7 +1324,7 @@ describe('MetricParameterInput', () => {
           metric="bleu"
           parameters={{}}
           onChange={mockOnChange}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Show Advanced Parameters'))
@@ -1338,7 +1340,7 @@ describe('MetricParameterInput', () => {
           metric="bleu"
           parameters={{}}
           onChange={mockOnChange}
-        />
+        />,
       )
 
       const button = screen.getByText('Show Advanced Parameters')
@@ -1352,7 +1354,7 @@ describe('MetricParameterInput', () => {
           metric="bleu"
           parameters={{}}
           onChange={mockOnChange}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Show Advanced Parameters'))
@@ -1369,7 +1371,7 @@ describe('MetricParameterInput', () => {
           metric="rouge"
           parameters={{}}
           onChange={mockOnChange}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Show Advanced Parameters'))
@@ -1385,7 +1387,7 @@ describe('MetricParameterInput', () => {
           metric="bleu"
           parameters={{}}
           onChange={mockOnChange}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Show Advanced Parameters'))

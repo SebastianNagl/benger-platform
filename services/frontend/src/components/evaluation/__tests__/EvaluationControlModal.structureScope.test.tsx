@@ -17,14 +17,18 @@
  * sections; this file targets the structure additions exclusively.
  */
 import '@testing-library/jest-dom'
-import { render, screen, waitFor, fireEvent } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { EvaluationControlModal } from '../EvaluationControlModal'
 
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
     t: (key: string, paramOrFallback?: any) => {
       if (typeof paramOrFallback === 'string') return paramOrFallback
-      if (paramOrFallback && typeof paramOrFallback === 'object' && 'count' in paramOrFallback) {
+      if (
+        paramOrFallback &&
+        typeof paramOrFallback === 'object' &&
+        'count' in paramOrFallback
+      ) {
         return `${paramOrFallback.count}`
       }
       const translations: Record<string, string> = {
@@ -61,20 +65,30 @@ jest.mock('@/lib/api/client', () => ({
 }))
 
 jest.mock('@headlessui/react', () => {
-  const Dialog = ({ children }: any) => <div data-testid="dialog">{children}</div>
+  const Dialog = ({ children }: any) => (
+    <div data-testid="dialog">{children}</div>
+  )
   // eslint-disable-next-line react/display-name
   Dialog.Title = ({ children, as }: any) => {
     const Tag = as || 'h3'
     return <Tag>{children}</Tag>
   }
   // eslint-disable-next-line react/display-name
-  Dialog.Panel = ({ children }: any) => <div data-testid="dialog-panel">{children}</div>
-  const Transition: any = ({ children, show }: any) => (show !== false ? <>{children}</> : null)
+  Dialog.Panel = ({ children }: any) => (
+    <div data-testid="dialog-panel">{children}</div>
+  )
+  const Transition: any = ({ children, show }: any) =>
+    show !== false ? <>{children}</> : null
   // eslint-disable-next-line react/display-name
-  Transition.Root = ({ children, show }: any) => (show !== false ? <>{children}</> : null)
+  Transition.Root = ({ children, show }: any) =>
+    show !== false ? <>{children}</> : null
   // eslint-disable-next-line react/display-name
   Transition.Child = ({ children }: any) => <>{children}</>
-  return { Dialog, Transition, Fragment: ({ children }: any) => <>{children}</> }
+  return {
+    Dialog,
+    Transition,
+    Fragment: ({ children }: any) => <>{children}</>,
+  }
 })
 
 const defaultProps = {

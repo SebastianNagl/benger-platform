@@ -63,7 +63,7 @@ describe('SessionManager (SSR)', () => {
 
   it('handleUserSwitch does not throw when window is undefined', () => {
     expect(() =>
-      manager.handleUserSwitch(mockApiClient, '123', '456')
+      manager.handleUserSwitch(mockApiClient, '123', '456'),
     ).not.toThrow()
   })
 

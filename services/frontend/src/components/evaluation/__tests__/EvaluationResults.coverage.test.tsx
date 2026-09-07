@@ -22,7 +22,14 @@
  */
 
 import '@testing-library/jest-dom'
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react'
 import { EvaluationResults } from '../EvaluationResults'
 
 // ---- shared mocks ----
@@ -43,17 +50,28 @@ jest.mock('@/contexts/I18nContext', () => ({
 }))
 
 jest.mock('@/components/shared/Badge', () => ({
-  Badge: ({ children, className }: any) => <span className={className}>{children}</span>,
+  Badge: ({ children, className }: any) => (
+    <span className={className}>{children}</span>
+  ),
 }))
 
 jest.mock('@/components/shared/Button', () => ({
   Button: ({ children, onClick, disabled, className, ...props }: any) => (
-    <button onClick={onClick} disabled={disabled} className={className} {...props}>{children}</button>
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className={className}
+      {...props}
+    >
+      {children}
+    </button>
   ),
 }))
 
 jest.mock('@/components/shared/Card', () => ({
-  Card: ({ children, className }: any) => <div className={className}>{children}</div>,
+  Card: ({ children, className }: any) => (
+    <div className={className}>{children}</div>
+  ),
 }))
 
 jest.mock('@/components/shared/LoadingSpinner', () => ({
@@ -64,7 +82,9 @@ jest.mock('@/components/tasks/TaskDataViewModal', () => ({
   TaskDataViewModal: ({ task, isOpen, onClose }: any) =>
     isOpen ? (
       <div data-testid="task-data-view-modal">
-        <button onClick={onClose} data-testid="close-task-modal">Close</button>
+        <button onClick={onClose} data-testid="close-task-modal">
+          Close
+        </button>
       </div>
     ) : null,
 }))
@@ -89,15 +109,24 @@ jest.mock('@heroicons/react/24/outline', () => ({
 jest.mock('@headlessui/react', () => ({
   Dialog: ({ children, open, onClose }: any) =>
     open ? (
-      <div data-testid="dialog" onClick={(e: any) => { if (e.target === e.currentTarget) onClose?.() }}>
+      <div
+        data-testid="dialog"
+        onClick={(e: any) => {
+          if (e.target === e.currentTarget) onClose?.()
+        }}
+      >
         {typeof children === 'function' ? children({ open }) : children}
       </div>
     ) : null,
   DialogPanel: ({ children, className }: any) => (
-    <div data-testid="dialog-panel" className={className}>{children}</div>
+    <div data-testid="dialog-panel" className={className}>
+      {children}
+    </div>
   ),
   DialogTitle: ({ children, className }: any) => (
-    <h2 data-testid="dialog-title" className={className}>{children}</h2>
+    <h2 data-testid="dialog-title" className={className}>
+      {children}
+    </h2>
   ),
 }))
 
@@ -122,8 +151,10 @@ jest.mock('@/contexts/AuthContext', () => ({
 
 jest.mock('@/lib/api/client', () => ({
   apiClient: {
-    getProjectEvaluationResults: (...a: any[]) => mockGetProjectEvaluationResults(...a),
-    getProjectResultsByTaskModel: (...a: any[]) => mockGetProjectResultsByTaskModel(...a),
+    getProjectEvaluationResults: (...a: any[]) =>
+      mockGetProjectEvaluationResults(...a),
+    getProjectResultsByTaskModel: (...a: any[]) =>
+      mockGetProjectResultsByTaskModel(...a),
     getTaskEvaluation: (...a: any[]) => mockGetTaskEvaluation(...a),
     get: (...a: any[]) => mockApiClientGet(...a),
     evaluations: {
@@ -169,7 +200,12 @@ function makeEvaluation(overrides: Partial<any> = {}) {
     results_by_config: {
       'cfg-1': {
         field_results: [
-          { combo_key: 'a_vs_b', prediction_field: 'answer', reference_field: 'gold_answer', scores: { exact_match: 0.85 } },
+          {
+            combo_key: 'a_vs_b',
+            prediction_field: 'answer',
+            reference_field: 'gold_answer',
+            scores: { exact_match: 0.85 },
+          },
         ],
         aggregate_score: 0.85,
       },
@@ -220,7 +256,9 @@ const DATA_VIEW_PROPS = {
 
 function setup(taskModelOverrides: Partial<any> = {}) {
   mockGetProjectEvaluationResults.mockResolvedValue(makeProjectResults())
-  mockGetProjectResultsByTaskModel.mockResolvedValue(makeTaskModelData(taskModelOverrides))
+  mockGetProjectResultsByTaskModel.mockResolvedValue(
+    makeTaskModelData(taskModelOverrides),
+  )
   mockGetTask.mockResolvedValue({ id: 'task-111', data: {} })
   mockGetTaskAnnotations.mockResolvedValue([])
   mockApiClientGet.mockResolvedValue({ results: [] })
@@ -229,14 +267,21 @@ function setup(taskModelOverrides: Partial<any> = {}) {
 }
 
 async function renderDataView(extraProps: Record<string, any> = {}) {
-  render(<EvaluationResults projectId="p1" {...DATA_VIEW_PROPS} {...extraProps} />)
-  await waitFor(() => expect(mockGetProjectEvaluationResults).toHaveBeenCalled())
+  render(
+    <EvaluationResults projectId="p1" {...DATA_VIEW_PROPS} {...extraProps} />,
+  )
+  await waitFor(() =>
+    expect(mockGetProjectEvaluationResults).toHaveBeenCalled(),
+  )
   await waitFor(() => {
     expect(
-      screen.queryAllByTitle('evaluation.multiFieldResults.clickToViewResponse').length
+      screen.queryAllByTitle('evaluation.multiFieldResults.clickToViewResponse')
+        .length,
     ).toBeGreaterThan(0)
   })
-  await act(async () => { await new Promise((r) => setTimeout(r, 30)) })
+  await act(async () => {
+    await new Promise((r) => setTimeout(r, 30))
+  })
 }
 
 beforeEach(() => {
@@ -271,7 +316,9 @@ describe('selected-config localStorage round-trip', () => {
         'cfg-2': { field_results: [], aggregate_score: 0.7 },
       },
     })
-    mockGetProjectEvaluationResults.mockResolvedValue(makeProjectResults([e1, e2]))
+    mockGetProjectEvaluationResults.mockResolvedValue(
+      makeProjectResults([e1, e2]),
+    )
     mockGetProjectResultsByTaskModel.mockResolvedValue(makeTaskModelData())
     localStorage.setItem('eval-selected-config-p1', 'cfg-2')
 
@@ -301,9 +348,13 @@ describe('selected-config localStorage round-trip', () => {
           enabled: true,
         },
       ],
-      results_by_config: { 'cfg-2': { field_results: [], aggregate_score: 0.7 } },
+      results_by_config: {
+        'cfg-2': { field_results: [], aggregate_score: 0.7 },
+      },
     })
-    mockGetProjectEvaluationResults.mockResolvedValue(makeProjectResults([e1, e2]))
+    mockGetProjectEvaluationResults.mockResolvedValue(
+      makeProjectResults([e1, e2]),
+    )
     mockGetProjectResultsByTaskModel.mockResolvedValue(makeTaskModelData())
 
     render(<EvaluationResults projectId="p1" />)
@@ -314,10 +365,12 @@ describe('selected-config localStorage round-trip', () => {
       return s
     })
 
-    await act(async () => { fireEvent.change(select, { target: { value: 'cfg-2' } }) })
+    await act(async () => {
+      fireEvent.change(select, { target: { value: 'cfg-2' } })
+    })
 
     await waitFor(() =>
-      expect(localStorage.getItem('eval-selected-config-p1')).toBe('cfg-2')
+      expect(localStorage.getItem('eval-selected-config-p1')).toBe('cfg-2'),
     )
   })
 })
@@ -331,7 +384,11 @@ describe('Export dropdown', () => {
     // The export trigger is the outline Button containing the export label.
     const btn = screen
       .getAllByRole('button')
-      .find((b) => b.textContent?.includes('common.export') || b.textContent === 'Export')
+      .find(
+        (b) =>
+          b.textContent?.includes('common.export') ||
+          b.textContent === 'Export',
+      )
     if (!btn) throw new Error('export button not found')
     return btn
   }
@@ -351,20 +408,30 @@ describe('Export dropdown', () => {
     await renderDataView()
 
     // Open the dropdown.
-    await act(async () => { fireEvent.click(findExportButton()) })
+    await act(async () => {
+      fireEvent.click(findExportButton())
+    })
     expect(screen.getByText('JSON')).toBeInTheDocument()
     expect(screen.getByText('CSV')).toBeInTheDocument()
 
     // JSON download.
-    await act(async () => { fireEvent.click(screen.getByText('JSON')) })
+    await act(async () => {
+      fireEvent.click(screen.getByText('JSON'))
+    })
     expect(createObjectURL).toHaveBeenCalledTimes(1)
     expect(clickSpy).toHaveBeenCalledTimes(1)
     expect(revokeObjectURL).toHaveBeenCalledTimes(1)
 
     // Dropdown closed after a download; re-open for CSV.
-    await waitFor(() => expect(screen.queryByText('JSON')).not.toBeInTheDocument())
-    await act(async () => { fireEvent.click(findExportButton()) })
-    await act(async () => { fireEvent.click(screen.getByText('CSV')) })
+    await waitFor(() =>
+      expect(screen.queryByText('JSON')).not.toBeInTheDocument(),
+    )
+    await act(async () => {
+      fireEvent.click(findExportButton())
+    })
+    await act(async () => {
+      fireEvent.click(screen.getByText('CSV'))
+    })
     expect(createObjectURL).toHaveBeenCalledTimes(2)
     expect(clickSpy).toHaveBeenCalledTimes(2)
 
@@ -375,14 +442,18 @@ describe('Export dropdown', () => {
     setup()
     await renderDataView()
 
-    await act(async () => { fireEvent.click(findExportButton()) })
+    await act(async () => {
+      fireEvent.click(findExportButton())
+    })
     expect(screen.getByText('JSON')).toBeInTheDocument()
 
     // mousedown outside the dropdown ref closes it.
     await act(async () => {
       fireEvent.mouseDown(document.body)
     })
-    await waitFor(() => expect(screen.queryByText('JSON')).not.toBeInTheDocument())
+    await waitFor(() =>
+      expect(screen.queryByText('JSON')).not.toBeInTheDocument(),
+    )
   })
 })
 
@@ -395,15 +466,36 @@ describe('By-run chart toggle', () => {
     by_model: {
       'gpt-4': {
         model_name: 'GPT-4',
-        metrics: { exact_match: { mean: 0.85, std: 0.04, se: 0.01, ci_lower: 0.8, ci_upper: 0.9, n: 10 } },
+        metrics: {
+          exact_match: {
+            mean: 0.85,
+            std: 0.04,
+            se: 0.01,
+            ci_lower: 0.8,
+            ci_upper: 0.9,
+            n: 10,
+          },
+        },
         sample_count: 10,
       },
     },
     // 3-part composite key: model_id|config_id|metric
     per_run_means_by_model_metric: {
       'gpt-4|cfg-1|exact_match': [
-        { judge_run_id: 'r1', judge_model_id: 'gpt-4o', run_index: 1, mean: 0.8, n_tasks: 10 },
-        { judge_run_id: 'r2', judge_model_id: 'gpt-4o', run_index: 2, mean: 0.9, n_tasks: 10 },
+        {
+          judge_run_id: 'r1',
+          judge_model_id: 'gpt-4o',
+          run_index: 1,
+          mean: 0.8,
+          n_tasks: 10,
+        },
+        {
+          judge_run_id: 'r2',
+          judge_model_id: 'gpt-4o',
+          run_index: 2,
+          mean: 0.9,
+          n_tasks: 10,
+        },
       ],
     },
   }
@@ -412,11 +504,13 @@ describe('By-run chart toggle', () => {
     setup()
     // No per-run data → toggle hidden.
     const { rerender } = render(
-      <EvaluationResults projectId="p1" {...DATA_VIEW_PROPS} />
+      <EvaluationResults projectId="p1" {...DATA_VIEW_PROPS} />,
     )
-    await waitFor(() => expect(mockGetProjectEvaluationResults).toHaveBeenCalled())
+    await waitFor(() =>
+      expect(mockGetProjectEvaluationResults).toHaveBeenCalled(),
+    )
     expect(
-      screen.queryByText('Diagramm pro Lauf splitten')
+      screen.queryByText('Diagramm pro Lauf splitten'),
     ).not.toBeInTheDocument()
 
     // With per-run data → toggle visible.
@@ -425,10 +519,12 @@ describe('By-run chart toggle', () => {
         projectId="p1"
         {...DATA_VIEW_PROPS}
         statisticsData={statisticsWithPerRun as any}
-      />
+      />,
     )
     await waitFor(() =>
-      expect(screen.getByText('Diagramm pro Lauf splitten')).toBeInTheDocument()
+      expect(
+        screen.getByText('Diagramm pro Lauf splitten'),
+      ).toBeInTheDocument(),
     )
   })
 
@@ -442,11 +538,13 @@ describe('By-run chart toggle', () => {
         {...DATA_VIEW_PROPS}
         statisticsData={statisticsWithPerRun as any}
         onDataLoaded={onDataLoaded}
-      />
+      />,
     )
 
     await waitFor(() =>
-      expect(screen.getByText('Diagramm pro Lauf splitten')).toBeInTheDocument()
+      expect(
+        screen.getByText('Diagramm pro Lauf splitten'),
+      ).toBeInTheDocument(),
     )
 
     // Toggle the by-run checkbox on.
@@ -454,14 +552,17 @@ describe('By-run chart toggle', () => {
       .getByText('Diagramm pro Lauf splitten')
       .closest('label')!
       .querySelector('input[type="checkbox"]') as HTMLInputElement
-    await act(async () => { fireEvent.click(toggle) })
+    await act(async () => {
+      fireEvent.click(toggle)
+    })
 
     // onDataLoaded should now receive one entry per run (run 1 and run 2).
     await waitFor(() => {
-      const lastCall = onDataLoaded.mock.calls[onDataLoaded.mock.calls.length - 1]?.[0]
+      const lastCall =
+        onDataLoaded.mock.calls[onDataLoaded.mock.calls.length - 1]?.[0]
       expect(Array.isArray(lastCall)).toBe(true)
       const runEntries = (lastCall as any[]).filter((d) =>
-        String(d.model_id).includes('__r')
+        String(d.model_id).includes('__r'),
       )
       expect(runEntries.length).toBe(2)
     })
@@ -477,19 +578,24 @@ describe('By-run chart toggle', () => {
         {...DATA_VIEW_PROPS}
         statisticsData={statisticsWithPerRun as any}
         onDataLoaded={onDataLoaded}
-      />
+      />,
     )
     await waitFor(() =>
-      expect(screen.getByText('Diagramm pro Lauf splitten')).toBeInTheDocument()
+      expect(
+        screen.getByText('Diagramm pro Lauf splitten'),
+      ).toBeInTheDocument(),
     )
     const toggle = screen
       .getByText('Diagramm pro Lauf splitten')
       .closest('label')!
       .querySelector('input[type="checkbox"]') as HTMLInputElement
-    await act(async () => { fireEvent.click(toggle) })
+    await act(async () => {
+      fireEvent.click(toggle)
+    })
 
     await waitFor(() => {
-      const lastCall = onDataLoaded.mock.calls[onDataLoaded.mock.calls.length - 1]?.[0]
+      const lastCall =
+        onDataLoaded.mock.calls[onDataLoaded.mock.calls.length - 1]?.[0]
       // claude-3 carries no per-run entry → appears as a plain single bar.
       const single = (lastCall as any[]).find((d) => d.model_id === 'claude-3')
       expect(single).toBeTruthy()
@@ -525,14 +631,14 @@ describe('onDataLoaded fall-back from results_by_config', () => {
             model_id: 'gpt-4',
             metrics: expect.objectContaining({ exact_match: 0.85 }),
           }),
-        ])
+        ]),
       )
     })
   })
 
   it('labels the fall-back entry "All Models" when model_id is unknown', async () => {
     mockGetProjectEvaluationResults.mockResolvedValue(
-      makeProjectResults([makeEvaluation({ model_id: 'unknown' })])
+      makeProjectResults([makeEvaluation({ model_id: 'unknown' })]),
     )
     mockGetProjectResultsByTaskModel.mockResolvedValue(emptyTaskModelData)
     const onDataLoaded = jest.fn()
@@ -540,11 +646,12 @@ describe('onDataLoaded fall-back from results_by_config', () => {
     render(<EvaluationResults projectId="p1" onDataLoaded={onDataLoaded} />)
 
     await waitFor(() => expect(onDataLoaded).toHaveBeenCalled())
-    const chartData = onDataLoaded.mock.calls[onDataLoaded.mock.calls.length - 1][0]
+    const chartData =
+      onDataLoaded.mock.calls[onDataLoaded.mock.calls.length - 1][0]
     expect(chartData).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ model_id: 'All Models' }),
-      ])
+      ]),
     )
   })
 })
@@ -560,7 +667,16 @@ describe('formatRunsAggregate summary line', () => {
       by_model: {
         'gpt-4': {
           model_name: 'GPT-4',
-          metrics: { exact_match: { mean: 0.85, std: 0.04, se: 0.01, ci_lower: 0.8, ci_upper: 0.9, n: 10 } },
+          metrics: {
+            exact_match: {
+              mean: 0.85,
+              std: 0.04,
+              se: 0.01,
+              ci_lower: 0.8,
+              ci_upper: 0.9,
+              n: 10,
+            },
+          },
           sample_count: 10,
         },
       },
@@ -575,7 +691,7 @@ describe('formatRunsAggregate summary line', () => {
         {...DATA_VIEW_PROPS}
         selectedConfigIds={['cfg-1']}
         statisticsData={statisticsData as any}
-      />
+      />,
     )
 
     await waitFor(() => {
@@ -589,7 +705,16 @@ describe('formatRunsAggregate summary line', () => {
       by_model: {
         'gpt-4': {
           model_name: 'GPT-4',
-          metrics: { exact_match: { mean: 0.85, std: 0.04, se: 0.01, ci_lower: 0.8, ci_upper: 0.9, n: 10 } },
+          metrics: {
+            exact_match: {
+              mean: 0.85,
+              std: 0.04,
+              se: 0.01,
+              ci_lower: 0.8,
+              ci_upper: 0.9,
+              n: 10,
+            },
+          },
           sample_count: 10,
         },
       },
@@ -604,10 +729,14 @@ describe('formatRunsAggregate summary line', () => {
         {...DATA_VIEW_PROPS}
         selectedConfigIds={['cfg-1']}
         statisticsData={statisticsData as any}
-      />
+      />,
     )
 
-    await waitFor(() => expect(screen.getByText('evaluation.multiFieldResults.average')).toBeInTheDocument())
+    await waitFor(() =>
+      expect(
+        screen.getByText('evaluation.multiFieldResults.average'),
+      ).toBeInTheDocument(),
+    )
     expect(screen.queryByText(/runs\)/)).not.toBeInTheDocument()
   })
 
@@ -617,7 +746,16 @@ describe('formatRunsAggregate summary line', () => {
       by_model: {
         'gpt-4': {
           model_name: 'GPT-4',
-          metrics: { exact_match: { mean: 0.85, std: 0.04, se: 0.01, ci_lower: 0.8, ci_upper: 0.9, n: 10 } },
+          metrics: {
+            exact_match: {
+              mean: 0.85,
+              std: 0.04,
+              se: 0.01,
+              ci_lower: 0.8,
+              ci_upper: 0.9,
+              n: 10,
+            },
+          },
           sample_count: 10,
         },
       },
@@ -635,7 +773,7 @@ describe('formatRunsAggregate summary line', () => {
         {...DATA_VIEW_PROPS}
         selectedConfigIds={['cfg-a', 'cfg-b']}
         statisticsData={statisticsData as any}
-      />
+      />,
     )
 
     await waitFor(() => {
@@ -662,16 +800,26 @@ describe('Cell re-evaluation', () => {
   ]
 
   async function openModalAndReEvaluate() {
-    const scoreCells = screen.queryAllByTitle('evaluation.multiFieldResults.clickToViewResponse')
-    await act(async () => { fireEvent.click(scoreCells[0]) })
-    await waitFor(() => expect(screen.getByTestId('dialog')).toBeInTheDocument())
+    const scoreCells = screen.queryAllByTitle(
+      'evaluation.multiFieldResults.clickToViewResponse',
+    )
+    await act(async () => {
+      fireEvent.click(scoreCells[0])
+    })
+    await waitFor(() =>
+      expect(screen.getByTestId('dialog')).toBeInTheDocument(),
+    )
     // The re-evaluate button carries the reEvaluate label.
     const reBtn = await waitFor(() => {
-      const b = screen.getByText('evaluation.multiFieldResults.reEvaluate').closest('button')
+      const b = screen
+        .getByText('evaluation.multiFieldResults.reEvaluate')
+        .closest('button')
       expect(b).toBeTruthy()
       return b as HTMLButtonElement
     })
-    await act(async () => { fireEvent.click(reBtn) })
+    await act(async () => {
+      fireEvent.click(reBtn)
+    })
   }
 
   it('dispatches runEvaluation and toasts success', async () => {
@@ -691,12 +839,12 @@ describe('Cell re-evaluation', () => {
           evaluation_configs: expect.arrayContaining([
             expect.objectContaining({ id: 'cfg-1' }),
           ]),
-        })
-      )
+        }),
+      ),
     )
     expect(mockAddToast).toHaveBeenCalledWith(
       'evaluation.multiFieldResults.reEvaluateQueued',
-      'success'
+      'success',
     )
   })
 
@@ -709,7 +857,7 @@ describe('Cell re-evaluation', () => {
     await openModalAndReEvaluate()
 
     await waitFor(() =>
-      expect(mockAddToast).toHaveBeenCalledWith('Queue is full', 'error')
+      expect(mockAddToast).toHaveBeenCalledWith('Queue is full', 'error'),
     )
   })
 
@@ -718,12 +866,18 @@ describe('Cell re-evaluation', () => {
     setup()
     await renderDataView({ evaluationConfigs })
 
-    const scoreCells = screen.queryAllByTitle('evaluation.multiFieldResults.clickToViewResponse')
-    await act(async () => { fireEvent.click(scoreCells[0]) })
-    await waitFor(() => expect(screen.getByTestId('dialog')).toBeInTheDocument())
+    const scoreCells = screen.queryAllByTitle(
+      'evaluation.multiFieldResults.clickToViewResponse',
+    )
+    await act(async () => {
+      fireEvent.click(scoreCells[0])
+    })
+    await waitFor(() =>
+      expect(screen.getByTestId('dialog')).toBeInTheDocument(),
+    )
 
     expect(
-      screen.queryByText('evaluation.multiFieldResults.reEvaluate')
+      screen.queryByText('evaluation.multiFieldResults.reEvaluate'),
     ).not.toBeInTheDocument()
   })
 })

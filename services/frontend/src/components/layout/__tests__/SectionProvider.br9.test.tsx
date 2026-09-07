@@ -11,12 +11,12 @@
  * - useSectionStore
  */
 
-import React, { createRef, useEffect } from 'react'
-import { render, act } from '@testing-library/react'
 import '@testing-library/jest-dom'
+import { act, render } from '@testing-library/react'
+import React, { createRef, useEffect } from 'react'
 
-import { SectionProvider, useSectionStore } from '../SectionProvider'
 import type { Section } from '../SectionProvider'
+import { SectionProvider, useSectionStore } from '../SectionProvider'
 
 // Helper component to access store
 function StoreReader({ onRead }: { onRead: (data: any) => void }) {
@@ -29,7 +29,11 @@ function StoreReader({ onRead }: { onRead: (data: any) => void }) {
     onRead({ sections, visibleSections, setVisibleSections, registerHeading })
   })
 
-  return <div data-testid="store-reader">{JSON.stringify({ sections: sections.length, visibleSections })}</div>
+  return (
+    <div data-testid="store-reader">
+      {JSON.stringify({ sections: sections.length, visibleSections })}
+    </div>
+  )
 }
 
 describe('SectionProvider br9', () => {
@@ -41,11 +45,15 @@ describe('SectionProvider br9', () => {
   beforeEach(() => {
     addEventListenerSpy = jest.spyOn(window, 'addEventListener')
     removeEventListenerSpy = jest.spyOn(window, 'removeEventListener')
-    requestAnimationFrameSpy = jest.spyOn(window, 'requestAnimationFrame').mockImplementation((cb) => {
-      cb(0)
-      return 1
-    })
-    cancelAnimationFrameSpy = jest.spyOn(window, 'cancelAnimationFrame').mockImplementation(() => {})
+    requestAnimationFrameSpy = jest
+      .spyOn(window, 'requestAnimationFrame')
+      .mockImplementation((cb) => {
+        cb(0)
+        return 1
+      })
+    cancelAnimationFrameSpy = jest
+      .spyOn(window, 'cancelAnimationFrame')
+      .mockImplementation(() => {})
   })
 
   afterEach(() => {
@@ -61,8 +69,12 @@ describe('SectionProvider br9', () => {
     let storeData: any = null
     render(
       <SectionProvider sections={sections}>
-        <StoreReader onRead={(data) => { storeData = data }} />
-      </SectionProvider>
+        <StoreReader
+          onRead={(data) => {
+            storeData = data
+          }}
+        />
+      </SectionProvider>,
     )
 
     expect(storeData).not.toBeNull()
@@ -78,8 +90,12 @@ describe('SectionProvider br9', () => {
     let storeData: any = null
     render(
       <SectionProvider sections={sections}>
-        <StoreReader onRead={(data) => { storeData = data }} />
-      </SectionProvider>
+        <StoreReader
+          onRead={(data) => {
+            storeData = data
+          }}
+        />
+      </SectionProvider>,
     )
 
     // Call registerHeading
@@ -90,15 +106,17 @@ describe('SectionProvider br9', () => {
   })
 
   it('setVisibleSections only updates when array changes', () => {
-    const sections: Section[] = [
-      { id: 'section-1', title: 'Section One' },
-    ]
+    const sections: Section[] = [{ id: 'section-1', title: 'Section One' }]
 
     let storeData: any = null
     render(
       <SectionProvider sections={sections}>
-        <StoreReader onRead={(data) => { storeData = data }} />
-      </SectionProvider>
+        <StoreReader
+          onRead={(data) => {
+            storeData = data
+          }}
+        />
+      </SectionProvider>,
     )
 
     // Set visible sections
@@ -119,19 +137,24 @@ describe('SectionProvider br9', () => {
 
   it('handles sections without headingRef in visibility check', () => {
     // Sections without refs should be skipped by checkVisibleSections (continue branch)
-    const sections: Section[] = [
-      { id: 'no-ref', title: 'No Ref Section' },
-    ]
+    const sections: Section[] = [{ id: 'no-ref', title: 'No Ref Section' }]
 
     render(
       <SectionProvider sections={sections}>
         <div>Content</div>
-      </SectionProvider>
+      </SectionProvider>,
     )
 
     // The useEffect should have run checkVisibleSections, skipping sections without headingRef
-    expect(addEventListenerSpy).toHaveBeenCalledWith('scroll', expect.any(Function), { passive: true })
-    expect(addEventListenerSpy).toHaveBeenCalledWith('resize', expect.any(Function))
+    expect(addEventListenerSpy).toHaveBeenCalledWith(
+      'scroll',
+      expect.any(Function),
+      { passive: true },
+    )
+    expect(addEventListenerSpy).toHaveBeenCalledWith(
+      'resize',
+      expect.any(Function),
+    )
   })
 
   it('handles sections with headingRef and detects visibility', () => {
@@ -148,24 +171,50 @@ describe('SectionProvider br9', () => {
 
     // Mock getBoundingClientRect
     heading1.getBoundingClientRect = jest.fn(() => ({
-      top: 100, bottom: 200, left: 0, right: 100, width: 100, height: 100, x: 0, y: 100, toJSON: () => {},
+      top: 100,
+      bottom: 200,
+      left: 0,
+      right: 100,
+      width: 100,
+      height: 100,
+      x: 0,
+      y: 100,
+      toJSON: () => {},
     }))
     heading2.getBoundingClientRect = jest.fn(() => ({
-      top: 300, bottom: 400, left: 0, right: 100, width: 100, height: 100, x: 0, y: 300, toJSON: () => {},
+      top: 300,
+      bottom: 400,
+      left: 0,
+      right: 100,
+      width: 100,
+      height: 100,
+      x: 0,
+      y: 300,
+      toJSON: () => {},
     }))
 
     const ref1 = { current: heading1 }
     const ref2 = { current: heading2 }
 
     const sectionsWithRefs: Section[] = [
-      { id: 'section-1', title: 'Section One', offsetRem: 0, headingRef: ref1 as any },
-      { id: 'section-2', title: 'Section Two', offsetRem: 0, headingRef: ref2 as any },
+      {
+        id: 'section-1',
+        title: 'Section One',
+        offsetRem: 0,
+        headingRef: ref1 as any,
+      },
+      {
+        id: 'section-2',
+        title: 'Section Two',
+        offsetRem: 0,
+        headingRef: ref2 as any,
+      },
     ]
 
     render(
       <SectionProvider sections={sectionsWithRefs}>
         <div>Content</div>
-      </SectionProvider>
+      </SectionProvider>,
     )
 
     document.body.removeChild(heading1)
@@ -177,13 +226,19 @@ describe('SectionProvider br9', () => {
     const { unmount } = render(
       <SectionProvider sections={sections}>
         <div>Content</div>
-      </SectionProvider>
+      </SectionProvider>,
     )
 
     unmount()
 
     expect(cancelAnimationFrameSpy).toHaveBeenCalled()
-    expect(removeEventListenerSpy).toHaveBeenCalledWith('scroll', expect.any(Function))
-    expect(removeEventListenerSpy).toHaveBeenCalledWith('resize', expect.any(Function))
+    expect(removeEventListenerSpy).toHaveBeenCalledWith(
+      'scroll',
+      expect.any(Function),
+    )
+    expect(removeEventListenerSpy).toHaveBeenCalledWith(
+      'resize',
+      expect.any(Function),
+    )
   })
 })

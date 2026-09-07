@@ -69,13 +69,13 @@ jest.mock('@/components/shared', () => {
       React.createElement(
         'div',
         { 'data-testid': 'hero-pattern' },
-        'Hero Pattern'
+        'Hero Pattern',
       ),
     GridPattern: () =>
       React.createElement(
         'div',
         { 'data-testid': 'grid-pattern' },
-        'Grid Pattern'
+        'Grid Pattern',
       ),
     Button: ({ children, ...props }) =>
       React.createElement('button', props, children),
@@ -85,7 +85,7 @@ jest.mock('@/components/shared', () => {
       React.createElement(
         'div',
         { 'data-testid': 'loading-spinner' },
-        'Loading...'
+        'Loading...',
       ),
     EmptyState: ({ message }) => React.createElement('div', null, message),
     Spinner: () => React.createElement('div', null, 'Loading...'),

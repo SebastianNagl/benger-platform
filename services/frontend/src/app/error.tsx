@@ -7,8 +7,8 @@ const subscribeNoop = () => () => {}
 import { VertretbarMarkIcon } from '@/components/brand/VertretbarMark'
 import { Button } from '@/components/shared/Button'
 import { useI18n } from '@/contexts/I18nContext'
-import { isStudentLockedHost } from '@/lib/utils/subdomain'
 import { logger } from '@/lib/utils/logger'
+import { isStudentLockedHost } from '@/lib/utils/subdomain'
 
 export default function GlobalError({
   error,
@@ -23,7 +23,11 @@ export default function GlobalError({
   const { t } = useI18n()
   // Host resolved on the client only: the server snapshot stays neutral so
   // the first paint never hydration-mismatches (no state, no effect needed).
-  const isVtr = useSyncExternalStore(subscribeNoop, isStudentLockedHost, () => false)
+  const isVtr = useSyncExternalStore(
+    subscribeNoop,
+    isStudentLockedHost,
+    () => false,
+  )
   // Safely log error to prevent any undefined access
   if (error) {
     try {
@@ -38,7 +42,10 @@ export default function GlobalError({
     <div className="flex min-h-screen items-center justify-center bg-zinc-50 p-4 dark:bg-zinc-900">
       <div className="w-full max-w-2xl rounded-lg border border-zinc-200 bg-white p-6 shadow-lg dark:border-zinc-700 dark:bg-zinc-800">
         {isVtr && (
-          <div className="mb-4 flex items-center gap-2" data-testid="error-brand-vertretbar">
+          <div
+            className="mb-4 flex items-center gap-2"
+            data-testid="error-brand-vertretbar"
+          >
             <VertretbarMarkIcon className="h-6 w-6 text-emerald-500" />
             <span className="text-lg font-semibold text-zinc-900 dark:text-white">
               Vertretbar
@@ -69,7 +76,7 @@ export default function GlobalError({
         <p className="mb-4 text-zinc-600 dark:text-zinc-300">
           {t(
             'errors.global.description',
-            'Beim Laden dieses Inhalts ist ein unerwarteter Fehler aufgetreten.'
+            'Beim Laden dieses Inhalts ist ein unerwarteter Fehler aufgetreten.',
           )}
         </p>
 

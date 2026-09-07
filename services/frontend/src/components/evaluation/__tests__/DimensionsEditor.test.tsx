@@ -2,11 +2,11 @@
  * @jest-environment jsdom
  */
 
+import type { CustomCriteriaDefinition } from '@/lib/api/evaluation-types'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { DimensionsEditor } from '../DimensionsEditor'
-import type { CustomCriteriaDefinition } from '@/lib/api/evaluation-types'
 
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
@@ -22,23 +22,38 @@ function Harness(props: {
 }
 
 const GRUNDPRINZIPIEN: Record<string, CustomCriteriaDefinition> = {
-  result_correctness: { name: 'Ergebnisrichtigkeit', description: '', rubric: '', max_score: 40 },
-  legal_knowledge: { name: 'Rechtskenntnis', description: '', rubric: '', max_score: 25 },
-  subsumption: { name: 'Subsumtion', description: '', rubric: '', max_score: 25 },
+  result_correctness: {
+    name: 'Ergebnisrichtigkeit',
+    description: '',
+    rubric: '',
+    max_score: 40,
+  },
+  legal_knowledge: {
+    name: 'Rechtskenntnis',
+    description: '',
+    rubric: '',
+    max_score: 25,
+  },
+  subsumption: {
+    name: 'Subsumtion',
+    description: '',
+    rubric: '',
+    max_score: 25,
+  },
   clarity: { name: 'Klarheit', description: '', rubric: '', max_score: 10 },
 }
 
 describe('DimensionsEditor', () => {
   it('shows empty state when no dimensions defined', () => {
     render(<Harness />)
-    expect(
-      screen.getByText(/No dimensions defined/i)
-    ).toBeInTheDocument()
+    expect(screen.getByText(/No dimensions defined/i)).toBeInTheDocument()
   })
 
   it('renders one row per dimension when value is provided', () => {
     render(<Harness initial={GRUNDPRINZIPIEN} />)
-    expect(screen.getAllByPlaceholderText('result_correctness').length).toBeGreaterThanOrEqual(1)
+    expect(
+      screen.getAllByPlaceholderText('result_correctness').length,
+    ).toBeGreaterThanOrEqual(1)
     // 4 max_score number inputs (one per row)
     const maxInputs = screen.getAllByRole('spinbutton')
     expect(maxInputs).toHaveLength(4)
@@ -73,7 +88,9 @@ describe('DimensionsEditor', () => {
     render(<Harness initial={{}} />)
     await user.click(screen.getByRole('button', { name: /Add dimension/i }))
     await user.click(screen.getByRole('button', { name: /Add dimension/i }))
-    const keyInputs = screen.getAllByPlaceholderText('result_correctness') as HTMLInputElement[]
+    const keyInputs = screen.getAllByPlaceholderText(
+      'result_correctness',
+    ) as HTMLInputElement[]
     await user.type(keyInputs[0], 'foo')
     await user.type(keyInputs[1], 'foo')
     expect(screen.getByText(/Duplicate keys/i)).toBeInTheDocument()
@@ -83,7 +100,9 @@ describe('DimensionsEditor', () => {
     const user = userEvent.setup()
     render(<Harness initial={{}} />)
     await user.click(screen.getByRole('button', { name: /Add dimension/i }))
-    const keyInput = screen.getByPlaceholderText('result_correctness') as HTMLInputElement
+    const keyInput = screen.getByPlaceholderText(
+      'result_correctness',
+    ) as HTMLInputElement
     await user.type(keyInput, 'BadKey-1')
     expect(screen.getByText(/snake_case/i)).toBeInTheDocument()
   })

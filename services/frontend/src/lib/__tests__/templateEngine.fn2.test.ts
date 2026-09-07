@@ -66,7 +66,9 @@ describe('TemplateEngine - additional function coverage', () => {
     it('throws when no llm_config', () => {
       const template = makeTemplate()
       const parsed = engine.parseTemplate(template as any)
-      expect(() => engine.generatePrompt(parsed, {})).toThrow('does not have LLM configuration')
+      expect(() => engine.generatePrompt(parsed, {})).toThrow(
+        'does not have LLM configuration',
+      )
     })
 
     it('handles simple variable replacement', () => {
@@ -84,7 +86,8 @@ describe('TemplateEngine - additional function coverage', () => {
     it('handles conditional blocks', () => {
       const template = makeTemplate({
         llm_config: {
-          prompt_template: 'Base prompt{{#if context}} Context: {{context}}{{/if}}',
+          prompt_template:
+            'Base prompt{{#if context}} Context: {{context}}{{/if}}',
           response_format: 'text',
         },
       })
@@ -102,12 +105,15 @@ describe('TemplateEngine - additional function coverage', () => {
     it('handles each loops', () => {
       const template = makeTemplate({
         llm_config: {
-          prompt_template: 'Items:{{#each items}}\n{{@index}}. {{this}}{{/each}}',
+          prompt_template:
+            'Items:{{#each items}}\n{{@index}}. {{this}}{{/each}}',
           response_format: 'text',
         },
       })
       const parsed = engine.parseTemplate(template as any)
-      const result = engine.generatePrompt(parsed, { items: ['Apple', 'Banana', 'Cherry'] })
+      const result = engine.generatePrompt(parsed, {
+        items: ['Apple', 'Banana', 'Cherry'],
+      })
       expect(result).toContain('0. Apple')
       expect(result).toContain('1. Banana')
       expect(result).toContain('2. Cherry')
@@ -130,7 +136,9 @@ describe('TemplateEngine - additional function coverage', () => {
     it('throws when no llm_config', () => {
       const template = makeTemplate()
       const parsed = engine.parseTemplate(template as any)
-      expect(() => engine.parseLLMResponse(parsed, '{}')).toThrow('does not have LLM configuration')
+      expect(() => engine.parseLLMResponse(parsed, '{}')).toThrow(
+        'does not have LLM configuration',
+      )
     })
 
     it('parses JSON response without field mapping', () => {
@@ -141,7 +149,10 @@ describe('TemplateEngine - additional function coverage', () => {
         },
       })
       const parsed = engine.parseTemplate(template as any)
-      const result = engine.parseLLMResponse(parsed, '{"answer": "42", "confidence": 0.9}')
+      const result = engine.parseLLMResponse(
+        parsed,
+        '{"answer": "42", "confidence": 0.9}',
+      )
       expect(result).toEqual({ answer: '42', confidence: 0.9 })
     })
 
@@ -154,7 +165,10 @@ describe('TemplateEngine - additional function coverage', () => {
         },
       })
       const parsed = engine.parseTemplate(template as any)
-      const result = engine.parseLLMResponse(parsed, '{"response_answer": "yes", "response_score": 0.8}')
+      const result = engine.parseLLMResponse(
+        parsed,
+        '{"response_answer": "yes", "response_score": 0.8}',
+      )
       expect(result).toEqual({ answer: 'yes', score: 0.8 })
     })
 
@@ -163,7 +177,9 @@ describe('TemplateEngine - additional function coverage', () => {
         llm_config: { prompt_template: '', response_format: 'json' },
       })
       const parsed = engine.parseTemplate(template as any)
-      expect(() => engine.parseLLMResponse(parsed, 'not json')).toThrow('Failed to parse JSON')
+      expect(() => engine.parseLLMResponse(parsed, 'not json')).toThrow(
+        'Failed to parse JSON',
+      )
     })
 
     it('parses text response', () => {
@@ -219,7 +235,11 @@ describe('TemplateEngine - additional function coverage', () => {
       const template = makeTemplate()
       const parsed = engine.parseTemplate(template as any)
       // optional_note display.review is 'hidden', so should be skipped in review context
-      const result = engine.validateData(parsed, { question: 'Q', answer: 'A' }, 'review')
+      const result = engine.validateData(
+        parsed,
+        { question: 'Q', answer: 'A' },
+        'review',
+      )
       expect(result.valid).toBe(true)
     })
   })
@@ -235,7 +255,7 @@ describe('TemplateEngine - additional function coverage', () => {
         { answer: 'Yes' },
         onChange,
         {},
-        'annotation'
+        'annotation',
       )
       // Should have some rendered elements (question read-only + answer editable)
       expect(elements.length).toBeGreaterThanOrEqual(1)
@@ -250,7 +270,7 @@ describe('TemplateEngine - additional function coverage', () => {
         {},
         jest.fn(),
         {},
-        'review'
+        'review',
       )
       // optional_note is hidden in review, so won't be rendered
       // Only question and answer should be rendered

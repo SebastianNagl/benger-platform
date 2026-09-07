@@ -14,12 +14,7 @@
  * "deaktiviert" → re-enable. The panel has no delete (by design), so
  * afterAll removes the E2E rows via psql (cascade covers deployments).
  */
-import {
-  BrowserContext,
-  expect,
-  Page,
-  test,
-} from '@playwright/test'
+import { BrowserContext, expect, Page, test } from '@playwright/test'
 
 import { TestHelpers } from '../helpers/test-helpers'
 import { bengerDbSql, gotoWithRetry, warmAppRoutes } from './moodle-helpers'
@@ -47,10 +42,15 @@ test.describe('Org LTI panel @extended', () => {
 
   /** Open the organizations tab with our org selected via the ?org= param. */
   const gotoOrgTab = async () => {
-    await gotoWithRetry(page, `${ADMIN_BASE}/users-organizations?org=${organizationId}`)
+    await gotoWithRetry(
+      page,
+      `${ADMIN_BASE}/users-organizations?org=${organizationId}`,
+    )
     // Superadmins land on the Global Users tab by default; the ?org= param
     // only takes effect inside the Organizations tab.
-    await page.getByRole('tab', { name: /Organisationen|Organizations/ }).click()
+    await page
+      .getByRole('tab', { name: /Organisationen|Organizations/ })
+      .click()
   }
 
   const openPanel = async () => {
@@ -97,7 +97,7 @@ test.describe('Org LTI panel @extended', () => {
     // directly; ON DELETE CASCADE removes the deployments. The fixed fake
     // issuer also sweeps strays left by earlier aborted runs.
     bengerDbSql(
-      `DELETE FROM lti_platform_registrations WHERE issuer = '${E2E_ISSUER}'`
+      `DELETE FROM lti_platform_registrations WHERE issuer = '${E2E_ISSUER}'`,
     )
     if (organizationId) {
       await page.request
@@ -113,7 +113,7 @@ test.describe('Org LTI panel @extended', () => {
     const trigger = page.getByTestId('lti-org-open')
     await expect(trigger).toBeVisible({ timeout: 20_000 })
     await expect(page.getByTestId('lti-org-status')).toContainText(
-      'nicht verbunden'
+      'nicht verbunden',
     )
   })
 
@@ -133,25 +133,27 @@ test.describe('Org LTI panel @extended', () => {
     // The prefill helper derives Moodle's three endpoints from the issuer.
     await page.getByTestId('lti-form-moodle-defaults').click()
     await expect(page.getByTestId('lti-form-auth_login_url')).toHaveValue(
-      `${E2E_ISSUER}/mod/lti/auth.php`
+      `${E2E_ISSUER}/mod/lti/auth.php`,
     )
 
     await page.getByTestId('lti-form-submit').click()
 
     // The new registration appears as a card in the panel...
     await expect(
-      page.locator('[data-testid^="lti-org-reg-"]').filter({ hasText: clientId })
+      page
+        .locator('[data-testid^="lti-org-reg-"]')
+        .filter({ hasText: clientId }),
     ).toBeVisible({ timeout: 20_000 })
 
     // ...bound to OUR org (API cross-check), and the badge flips to aktiv.
     const registrations = await (
       await page.request.get(
-        `${ADMIN_BASE}/api/admin/lti/registrations?organization_id=${organizationId}`
+        `${ADMIN_BASE}/api/admin/lti/registrations?organization_id=${organizationId}`,
       )
     ).json()
     const mine = registrations.find(
       (registration: { client_id: string }) =>
-        registration.client_id === clientId
+        registration.client_id === clientId,
     )
     expect(mine, 'registration listed under the panel org').toBeTruthy()
     expect(mine.organization_id).toBe(organizationId)
@@ -175,17 +177,17 @@ test.describe('Org LTI panel @extended', () => {
     await page.getByTestId(`lti-org-confirm-yes-${registrationId}`).click()
     await expect(page.getByTestId('lti-org-status')).toContainText(
       'deaktiviert',
-      { timeout: 10_000 }
+      { timeout: 10_000 },
     )
 
     const after = await (
       await page.request.get(
-        `${ADMIN_BASE}/api/admin/lti/registrations?organization_id=${organizationId}`
+        `${ADMIN_BASE}/api/admin/lti/registrations?organization_id=${organizationId}`,
       )
     ).json()
-    expect(after.find((r: { id: string }) => r.id === registrationId)?.status).toBe(
-      'disabled'
-    )
+    expect(
+      after.find((r: { id: string }) => r.id === registrationId)?.status,
+    ).toBe('disabled')
   })
 
   test('re-enable restores the connection', async () => {

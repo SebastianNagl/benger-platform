@@ -14,6 +14,7 @@ import {
 } from '@/components/shared/Select'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
+import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import { useNotifications } from '@/hooks/useNotifications'
 import { api } from '@/lib/api'
 import { getTranslatedNotification } from '@/lib/notificationTranslation'
@@ -33,7 +34,6 @@ import { de } from 'date-fns/locale'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useState } from 'react'
-import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 
 const notificationIcons = {
   task_created: InformationCircleIcon,
@@ -120,7 +120,11 @@ function NotificationsPageContent() {
       const now = new Date()
       const created = new Date(n.created_at)
       if (dateFilter === 'today') {
-        const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+        const startOfDay = new Date(
+          now.getFullYear(),
+          now.getMonth(),
+          now.getDate(),
+        )
         if (created < startOfDay) return false
       } else if (dateFilter === 'week') {
         const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
@@ -177,7 +181,7 @@ function NotificationsPageContent() {
               fromDate = new Date(
                 now.getFullYear(),
                 now.getMonth(),
-                now.getDate()
+                now.getDate(),
               )
               break
             case 'week':
@@ -216,7 +220,7 @@ function NotificationsPageContent() {
         setLoading(false)
       }
     },
-    [filter, typeFilter, dateFilter, searchTerm, refreshNotifications]
+    [filter, typeFilter, dateFilter, searchTerm, refreshNotifications],
   )
 
   useEffect(() => {
@@ -240,7 +244,7 @@ function NotificationsPageContent() {
       await markAsRead(id)
       // Update additional notifications if needed
       setAdditionalNotifications((prev) =>
-        prev.map((n: any) => (n.id === id ? { ...n, is_read: true } : n))
+        prev.map((n: any) => (n.id === id ? { ...n, is_read: true } : n)),
       )
     } catch (err) {
       console.error('Failed to mark notification as read:', err)
@@ -256,7 +260,7 @@ function NotificationsPageContent() {
       await markAllAsRead()
       // Update additional notifications if needed
       setAdditionalNotifications((prev) =>
-        prev.map((n: any) => ({ ...n, is_read: true }))
+        prev.map((n: any) => ({ ...n, is_read: true })),
       )
     } catch (err) {
       console.error('Failed to mark all notifications as read:', err)
@@ -313,8 +317,8 @@ function NotificationsPageContent() {
       // Mark notifications as read in the additional list
       setAdditionalNotifications((prev) =>
         prev.map((n: any) =>
-          selectedNotifications.has(n.id) ? { ...n, is_read: true } : n
-        )
+          selectedNotifications.has(n.id) ? { ...n, is_read: true } : n,
+        ),
       )
       // Refresh hook notifications to get updated read status
       await refreshNotifications()
@@ -334,7 +338,7 @@ function NotificationsPageContent() {
       await api.deleteNotificationsBulk(Array.from(selectedNotifications))
       // Remove deleted notifications from additional list
       setAdditionalNotifications((prev) =>
-        prev.filter((n) => !selectedNotifications.has(n.id))
+        prev.filter((n) => !selectedNotifications.has(n.id)),
       )
       // Refresh hook notifications to reflect deletions
       await refreshNotifications()
@@ -367,11 +371,14 @@ function NotificationsPageContent() {
       type
         .split('_')
         .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-        .join(' ')
+        .join(' '),
     )
     // Strip variable placeholders for the label display
     return typeof translatedTitle === 'string'
-      ? translatedTitle.replace(/[:{]\w+}/g, '').replace(/\s+/g, ' ').trim()
+      ? translatedTitle
+          .replace(/[:{]\w+}/g, '')
+          .replace(/\s+/g, ' ')
+          .trim()
       : translatedTitle
   }
 
@@ -474,7 +481,9 @@ function NotificationsPageContent() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">{t('notifications.all')}</SelectItem>
-              <SelectItem value="unread">{t('notifications.unread')}</SelectItem>
+              <SelectItem value="unread">
+                {t('notifications.unread')}
+              </SelectItem>
               <SelectItem value="read">{t('notifications.read')}</SelectItem>
             </SelectContent>
           </Select>
@@ -510,8 +519,12 @@ function NotificationsPageContent() {
             <SelectContent>
               <SelectItem value="all">{t('notifications.allTime')}</SelectItem>
               <SelectItem value="today">{t('notifications.today')}</SelectItem>
-              <SelectItem value="week">{t('notifications.pastWeek')}</SelectItem>
-              <SelectItem value="month">{t('notifications.pastMonth')}</SelectItem>
+              <SelectItem value="week">
+                {t('notifications.pastWeek')}
+              </SelectItem>
+              <SelectItem value="month">
+                {t('notifications.pastMonth')}
+              </SelectItem>
             </SelectContent>
           </Select>
         </FilterToolbar.Field>
@@ -555,7 +568,6 @@ function NotificationsPageContent() {
         </div>
       )}
 
-
       {/* Notifications Display */}
       {hookLoading || loading ? (
         <div className="flex min-h-[200px] items-center justify-center">
@@ -567,12 +579,14 @@ function NotificationsPageContent() {
       ) : error ? (
         <div className="rounded-md border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-950">
           <div className="flex">
-            <ExclamationTriangleIcon className="h-5 w-5 flex-shrink-0 text-red-600 dark:text-red-400" />
+            <ExclamationTriangleIcon className="h-5 w-5 shrink-0 text-red-600 dark:text-red-400" />
             <div className="ml-3">
               <h3 className="text-sm font-medium text-red-800 dark:text-red-200">
                 {t('notifications.errorTitle')}
               </h3>
-              <p className="mt-1 text-sm text-red-700 dark:text-red-300">{error}</p>
+              <p className="mt-1 text-sm text-red-700 dark:text-red-300">
+                {error}
+              </p>
               <button
                 onClick={handleRefresh}
                 className="mt-2 text-sm font-medium text-red-800 underline hover:text-red-900 dark:text-red-200 dark:hover:text-red-100"
@@ -604,13 +618,13 @@ function NotificationsPageContent() {
             <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-700">
               <thead className="bg-zinc-50 dark:bg-zinc-800">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">
+                  <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase">
                     {t('notifications.columnNotification', 'Notification')}
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">
+                  <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase">
                     {t('notifications.columnTime', 'Time')}
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">
+                  <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase">
                     {t('notifications.columnStatus', 'Status')}
                   </th>
                 </tr>
@@ -638,7 +652,7 @@ function NotificationsPageContent() {
                       <td className="px-6 py-4">
                         <div className="flex items-start gap-3">
                           <div
-                            className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full ${colorClass}`}
+                            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${colorClass}`}
                           >
                             <IconComponent className="h-4 w-4" />
                           </div>
@@ -656,10 +670,10 @@ function NotificationsPageContent() {
                           </div>
                         </div>
                       </td>
-                      <td className="whitespace-nowrap px-6 py-4 text-sm text-zinc-500 dark:text-zinc-400">
+                      <td className="px-6 py-4 text-sm whitespace-nowrap text-zinc-500 dark:text-zinc-400">
                         {formatDistanceToNow(
                           new Date(notification.created_at),
-                          { addSuffix: true, locale: dateFnsLocale }
+                          { addSuffix: true, locale: dateFnsLocale },
                         )}
                       </td>
                       <td className="px-6 py-4">
@@ -710,7 +724,7 @@ export default function NotificationsPage() {
   return (
     <ResponsiveContainer
       size="full"
-      className="px-4 pb-10 pt-8 sm:px-6 lg:px-8"
+      className="px-4 pt-8 pb-10 sm:px-6 lg:px-8"
     >
       <NotificationsPageContent />
     </ResponsiveContainer>

@@ -14,7 +14,7 @@
  * IMPORTANT: This test runs in the ephemeral test environment only.
  * Execute via: make test-e2e
  */
-import { test, expect } from '@playwright/test'
+import { expect, test } from '@playwright/test'
 import { importTasksInBrowser } from '../helpers/api-seeding'
 import { TestHelpers } from '../helpers/test-helpers'
 
@@ -34,11 +34,29 @@ const LEGAL_TEXTS = [
 
 // NER annotations for each text (character offsets)
 const NER_ANNOTATIONS = [
-  [{ start: 4, end: 15, text: 'Hans Müller', label: 'PERSON' }, { start: 47, end: 66, text: 'Landgericht München', label: 'ORG' }],
-  [{ start: 4, end: 10, text: 'BMW AG', label: 'ORG' }, { start: 18, end: 31, text: '15. März 2023', label: 'DATE' }, { start: 35, end: 42, text: 'München', label: 'LOC' }],
-  [{ start: 6, end: 18, text: 'Maria Schmidt', label: 'PERSON' }, { start: 32, end: 55, text: 'Universität Heidelberg', label: 'ORG' }],
-  [{ start: 4, end: 21, text: 'Bundesgerichtshof', label: 'ORG' }, { start: 25, end: 34, text: 'Karlsruhe', label: 'LOC' }, { start: 43, end: 58, text: '1. Januar 2024', label: 'DATE' }],
-  [{ start: 0, end: 12, text: 'Thomas Weber', label: 'PERSON' }, { start: 21, end: 40, text: 'Deutschen Bank AG', label: 'ORG' }, { start: 56, end: 82, text: 'Oberlandesgericht Frankfurt', label: 'ORG' }],
+  [
+    { start: 4, end: 15, text: 'Hans Müller', label: 'PERSON' },
+    { start: 47, end: 66, text: 'Landgericht München', label: 'ORG' },
+  ],
+  [
+    { start: 4, end: 10, text: 'BMW AG', label: 'ORG' },
+    { start: 18, end: 31, text: '15. März 2023', label: 'DATE' },
+    { start: 35, end: 42, text: 'München', label: 'LOC' },
+  ],
+  [
+    { start: 6, end: 18, text: 'Maria Schmidt', label: 'PERSON' },
+    { start: 32, end: 55, text: 'Universität Heidelberg', label: 'ORG' },
+  ],
+  [
+    { start: 4, end: 21, text: 'Bundesgerichtshof', label: 'ORG' },
+    { start: 25, end: 34, text: 'Karlsruhe', label: 'LOC' },
+    { start: 43, end: 58, text: '1. Januar 2024', label: 'DATE' },
+  ],
+  [
+    { start: 0, end: 12, text: 'Thomas Weber', label: 'PERSON' },
+    { start: 21, end: 40, text: 'Deutschen Bank AG', label: 'ORG' },
+    { start: 56, end: 82, text: 'Oberlandesgericht Frankfurt', label: 'ORG' },
+  ],
 ]
 
 // Mock LLM NER outputs (JSON format)
@@ -77,7 +95,9 @@ test.describe('Span/NER Project Full Workflow (Create-to-Verify) @extended', () 
     await testHelpers.login('admin', 'admin')
   })
 
-  test('Step 1: Create new NER project with Labels config', async ({ page }) => {
+  test('Step 1: Create new NER project with Labels config', async ({
+    page,
+  }) => {
     const labelConfig = `<View>
   <Labels name="label" toName="text">
     <Label value="PERSON" background="#FF6B6B"/>
@@ -123,10 +143,12 @@ test.describe('Span/NER Project Full Workflow (Create-to-Verify) @extended', () 
     // Get project ID if not available
     if (!projectId) {
       projectId = await page.evaluate(async () => {
-        const response = await fetch('/api/projects', { credentials: 'include' })
+        const response = await fetch('/api/projects', {
+          credentials: 'include',
+        })
         const data = await response.json()
         const project = (data.items || data || []).find(
-          (p: { title: string }) => p.title.includes('E2E Full Workflow NER')
+          (p: { title: string }) => p.title.includes('E2E Full Workflow NER'),
         )
         return project?.id || null
       })
@@ -150,24 +172,32 @@ test.describe('Span/NER Project Full Workflow (Create-to-Verify) @extended', () 
 
     // Get task IDs
     taskIds = await page.evaluate(async (pid) => {
-      const response = await fetch(`/api/projects/${pid}/tasks`, { credentials: 'include' })
+      const response = await fetch(`/api/projects/${pid}/tasks`, {
+        credentials: 'include',
+      })
       if (!response.ok) return []
       const data = await response.json()
-      return (data.items || data.tasks || data || []).map((t: { id: string }) => t.id)
+      return (data.items || data.tasks || data || []).map(
+        (t: { id: string }) => t.id,
+      )
     }, projectId)
 
     console.log(`[Step 2] Got ${taskIds.length} task IDs`)
     expect(taskIds.length).toBe(EXPECTED_TASK_COUNT)
   })
 
-  test('Step 3: Create span annotations by multiple annotators', async ({ page }) => {
+  test('Step 3: Create span annotations by multiple annotators', async ({
+    page,
+  }) => {
     // Get project and task IDs
     if (!projectId) {
       projectId = await page.evaluate(async () => {
-        const response = await fetch('/api/projects', { credentials: 'include' })
+        const response = await fetch('/api/projects', {
+          credentials: 'include',
+        })
         const data = await response.json()
         const project = (data.items || data || []).find(
-          (p: { title: string }) => p.title.includes('E2E Full Workflow NER')
+          (p: { title: string }) => p.title.includes('E2E Full Workflow NER'),
         )
         return project?.id || null
       })
@@ -175,10 +205,14 @@ test.describe('Span/NER Project Full Workflow (Create-to-Verify) @extended', () 
 
     if (taskIds.length === 0) {
       taskIds = await page.evaluate(async (pid) => {
-        const response = await fetch(`/api/projects/${pid}/tasks`, { credentials: 'include' })
+        const response = await fetch(`/api/projects/${pid}/tasks`, {
+          credentials: 'include',
+        })
         if (!response.ok) return []
         const data = await response.json()
-        return (data.items || data.tasks || data || []).map((t: { id: string }) => t.id)
+        return (data.items || data.tasks || data || []).map(
+          (t: { id: string }) => t.id,
+        )
       }, projectId)
     }
 
@@ -186,7 +220,11 @@ test.describe('Span/NER Project Full Workflow (Create-to-Verify) @extended', () 
 
     // Create span annotations from MULTIPLE ANNOTATORS
     // Each task gets annotations from all 3 annotators
-    const annotations: Array<{task_id: string; result: object[]; annotator_username: string}> = []
+    const annotations: Array<{
+      task_id: string
+      result: object[]
+      annotator_username: string
+    }> = []
 
     for (let i = 0; i < taskIds.length && i < NER_ANNOTATIONS.length; i++) {
       // Each annotator provides their NER annotations for this task
@@ -196,19 +234,22 @@ test.describe('Span/NER Project Full Workflow (Create-to-Verify) @extended', () 
         annotations.push({
           task_id: taskIds[i],
           annotator_username: annotator,
-          result: [{
-            from_name: 'label',
-            to_name: 'text',
-            type: 'labels',
-            value: {
-              spans: NER_ANNOTATIONS[i]?.map(entity => ({
-                start: entity.start,
-                end: entity.end,
-                text: entity.text,
-                labels: [entity.label],
-              })) || [],
+          result: [
+            {
+              from_name: 'label',
+              to_name: 'text',
+              type: 'labels',
+              value: {
+                spans:
+                  NER_ANNOTATIONS[i]?.map((entity) => ({
+                    start: entity.start,
+                    end: entity.end,
+                    text: entity.text,
+                    labels: [entity.label],
+                  })) || [],
+              },
             },
-          }],
+          ],
         })
       }
     }
@@ -234,7 +275,7 @@ test.describe('Span/NER Project Full Workflow (Create-to-Verify) @extended', () 
           return { success: false, error: String(e), created_count: 0 }
         }
       },
-      { pid: projectId, anns: annotations }
+      { pid: projectId, anns: annotations },
     )
 
     if (!seedResult.success) {
@@ -243,18 +284,24 @@ test.describe('Span/NER Project Full Workflow (Create-to-Verify) @extended', () 
     const annotationsCreated = seedResult.created_count || 0
     const expectedAnnotations = EXPECTED_TASK_COUNT * ANNOTATORS.length // 5 tasks × 3 annotators
 
-    console.log(`[Step 3] Created ${annotationsCreated} annotations from ${ANNOTATORS.length} annotators`)
+    console.log(
+      `[Step 3] Created ${annotationsCreated} annotations from ${ANNOTATORS.length} annotators`,
+    )
     expect(annotationsCreated).toBe(expectedAnnotations)
   })
 
-  test('Step 4: Seed mock LLM NER generations for 3 models', async ({ page }) => {
+  test('Step 4: Seed mock LLM NER generations for 3 models', async ({
+    page,
+  }) => {
     // Get project and task IDs
     if (!projectId) {
       projectId = await page.evaluate(async () => {
-        const response = await fetch('/api/projects', { credentials: 'include' })
+        const response = await fetch('/api/projects', {
+          credentials: 'include',
+        })
         const data = await response.json()
         const project = (data.items || data || []).find(
-          (p: { title: string }) => p.title.includes('E2E Full Workflow NER')
+          (p: { title: string }) => p.title.includes('E2E Full Workflow NER'),
         )
         return project?.id || null
       })
@@ -262,17 +309,25 @@ test.describe('Span/NER Project Full Workflow (Create-to-Verify) @extended', () 
 
     if (taskIds.length === 0) {
       taskIds = await page.evaluate(async (pid) => {
-        const response = await fetch(`/api/projects/${pid}/tasks`, { credentials: 'include' })
+        const response = await fetch(`/api/projects/${pid}/tasks`, {
+          credentials: 'include',
+        })
         if (!response.ok) return []
         const data = await response.json()
-        return (data.items || data.tasks || data || []).map((t: { id: string }) => t.id)
+        return (data.items || data.tasks || data || []).map(
+          (t: { id: string }) => t.id,
+        )
       }, projectId)
     }
 
     test.skip(!projectId || taskIds.length === 0, 'Project or tasks not found')
 
     // Build generations list for all models
-    const generations: Array<{ task_id: string; model_id: string; output: string }> = []
+    const generations: Array<{
+      task_id: string
+      model_id: string
+      output: string
+    }> = []
     for (const model of MODELS) {
       const responses = MODEL_RESPONSES[model]
       for (let i = 0; i < taskIds.length && i < responses.length; i++) {
@@ -301,7 +356,7 @@ test.describe('Span/NER Project Full Workflow (Create-to-Verify) @extended', () 
         }
         return response.json()
       },
-      { pid: projectId, gens: generations }
+      { pid: projectId, gens: generations },
     )
 
     console.log(`[Step 4] Seed generations: ${JSON.stringify(seedResult)}`)
@@ -316,10 +371,12 @@ test.describe('Span/NER Project Full Workflow (Create-to-Verify) @extended', () 
     // Get project ID
     if (!projectId) {
       projectId = await page.evaluate(async () => {
-        const response = await fetch('/api/projects', { credentials: 'include' })
+        const response = await fetch('/api/projects', {
+          credentials: 'include',
+        })
         const data = await response.json()
         const project = (data.items || data || []).find(
-          (p: { title: string }) => p.title.includes('E2E Full Workflow NER')
+          (p: { title: string }) => p.title.includes('E2E Full Workflow NER'),
         )
         return project?.id || null
       })
@@ -329,15 +386,22 @@ test.describe('Span/NER Project Full Workflow (Create-to-Verify) @extended', () 
 
     // 1. GET auto-generated evaluation config (detects span answer types)
     const autoConfig = await page.evaluate(async (pid) => {
-      const response = await fetch(`/api/evaluations/projects/${pid}/evaluation-config`, {
-        credentials: 'include',
-      })
+      const response = await fetch(
+        `/api/evaluations/projects/${pid}/evaluation-config`,
+        {
+          credentials: 'include',
+        },
+      )
       if (!response.ok) return { success: false, error: await response.text() }
       return { success: true, ...(await response.json()) }
     }, projectId)
 
-    console.log(`[Step 5] Auto-detected config: detected_types=${JSON.stringify(autoConfig.detected_answer_types?.map((t: any) => t.type))}`)
-    console.log(`[Step 5] Available methods: ${JSON.stringify(Object.keys(autoConfig.available_methods || {}))}`)
+    console.log(
+      `[Step 5] Auto-detected config: detected_types=${JSON.stringify(autoConfig.detected_answer_types?.map((t: any) => t.type))}`,
+    )
+    console.log(
+      `[Step 5] Available methods: ${JSON.stringify(Object.keys(autoConfig.available_methods || {}))}`,
+    )
     expect(autoConfig.success).toBeTruthy()
     expect(autoConfig.detected_answer_types?.length).toBeGreaterThan(0)
     expect(autoConfig.available_methods).toHaveProperty('label')
@@ -364,52 +428,68 @@ test.describe('Span/NER Project Full Workflow (Create-to-Verify) @extended', () 
 
     // Build the config body from auto-detected config, adding user selections
     const { success: _s, ...baseConfig } = autoConfig
-    const saveResult = await page.evaluate(async ({ pid, config, evalCfgs }) => {
-      const response = await fetch(`/api/evaluations/projects/${pid}/evaluation-config`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          ...config,
-          selected_methods: {
-            label: {
-              automated: ['span_exact_match', 'iou'],
-              human: [],
-              field_mapping: {
-                prediction_field: 'label',
-                reference_field: 'label',
+    const saveResult = await page.evaluate(
+      async ({ pid, config, evalCfgs }) => {
+        const response = await fetch(
+          `/api/evaluations/projects/${pid}/evaluation-config`,
+          {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+              ...config,
+              selected_methods: {
+                label: {
+                  automated: ['span_exact_match', 'iou'],
+                  human: [],
+                  field_mapping: {
+                    prediction_field: 'label',
+                    reference_field: 'label',
+                  },
+                },
               },
-            },
+              evaluation_configs: evalCfgs,
+            }),
           },
-          evaluation_configs: evalCfgs,
-        }),
-      })
-      if (!response.ok) return { success: false, error: await response.text() }
-      return { success: true, ...(await response.json()) }
-    }, { pid: projectId, config: baseConfig, evalCfgs: evalConfigs })
+        )
+        if (!response.ok)
+          return { success: false, error: await response.text() }
+        return { success: true, ...(await response.json()) }
+      },
+      { pid: projectId, config: baseConfig, evalCfgs: evalConfigs },
+    )
 
-    console.log(`[Step 5] Saved evaluation config: ${saveResult.success ? 'OK' : saveResult.error}`)
+    console.log(
+      `[Step 5] Saved evaluation config: ${saveResult.success ? 'OK' : saveResult.error}`,
+    )
     expect(saveResult.success).toBeTruthy()
 
     // 3. POST: Run evaluation using the saved configs
-    const runResult = await page.evaluate(async ({ pid, evalCfgs }) => {
-      const response = await fetch('/api/evaluations/run', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          project_id: pid,
-          evaluation_configs: evalCfgs,
-          batch_size: 100,
-          force_rerun: true,
-        }),
-      })
-      if (!response.ok) {
-        return { success: false, error: await response.text() }
-      }
-      const data = await response.json()
-      return { success: true, evaluation_id: data.evaluation_id, status: data.status }
-    }, { pid: projectId, evalCfgs: evalConfigs })
+    const runResult = await page.evaluate(
+      async ({ pid, evalCfgs }) => {
+        const response = await fetch('/api/evaluations/run', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            project_id: pid,
+            evaluation_configs: evalCfgs,
+            batch_size: 100,
+            force_rerun: true,
+          }),
+        })
+        if (!response.ok) {
+          return { success: false, error: await response.text() }
+        }
+        const data = await response.json()
+        return {
+          success: true,
+          evaluation_id: data.evaluation_id,
+          status: data.status,
+        }
+      },
+      { pid: projectId, evalCfgs: evalConfigs },
+    )
 
     console.log(`[Step 5] Started evaluation: ${JSON.stringify(runResult)}`)
     expect(runResult.success).toBeTruthy()
@@ -420,11 +500,14 @@ test.describe('Span/NER Project Full Workflow (Create-to-Verify) @extended', () 
     const pollResult = await page.evaluate(async (eid: string) => {
       const maxAttempts = 40
       for (let i = 0; i < maxAttempts; i++) {
-        await new Promise(r => setTimeout(r, 3000))
+        await new Promise((r) => setTimeout(r, 3000))
         try {
-          const response = await fetch(`/api/evaluations/evaluation/status/${eid}`, {
-            credentials: 'include',
-          })
+          const response = await fetch(
+            `/api/evaluations/evaluation/status/${eid}`,
+            {
+              credentials: 'include',
+            },
+          )
           if (!response.ok) {
             console.log(`Poll attempt ${i + 1}: HTTP ${response.status}`)
             continue
@@ -435,16 +518,28 @@ test.describe('Span/NER Project Full Workflow (Create-to-Verify) @extended', () 
             return { success: true, status: data.status, attempts: i + 1 }
           }
           if (data.status === 'failed') {
-            return { success: false, status: 'failed', error: data.message || 'Evaluation failed', attempts: i + 1 }
+            return {
+              success: false,
+              status: 'failed',
+              error: data.message || 'Evaluation failed',
+              attempts: i + 1,
+            }
           }
         } catch (e) {
           console.log(`Poll attempt ${i + 1}: error ${e}`)
         }
       }
-      return { success: false, status: 'timeout', error: 'Timeout waiting for evaluation', attempts: 40 }
+      return {
+        success: false,
+        status: 'timeout',
+        error: 'Timeout waiting for evaluation',
+        attempts: 40,
+      }
     }, evalId)
 
-    console.log(`[Step 5] Evaluation poll result: ${JSON.stringify(pollResult)}`)
+    console.log(
+      `[Step 5] Evaluation poll result: ${JSON.stringify(pollResult)}`,
+    )
     expect(pollResult.success).toBeTruthy()
     expect(pollResult.status).toBe('completed')
 
@@ -457,9 +552,13 @@ test.describe('Span/NER Project Full Workflow (Create-to-Verify) @extended', () 
       return { success: true, ...(await response.json()) }
     }, evalId)
 
-    console.log(`[Step 5] Evaluation results: samples_evaluated=${results.samples_evaluated}, status=${results.status}`)
+    console.log(
+      `[Step 5] Evaluation results: samples_evaluated=${results.samples_evaluated}, status=${results.status}`,
+    )
     const aggMetrics = results.aggregated_metrics || {}
-    console.log(`[Step 5] Aggregated metrics keys: ${Object.keys(aggMetrics).join(', ') || 'none'}`)
+    console.log(
+      `[Step 5] Aggregated metrics keys: ${Object.keys(aggMetrics).join(', ') || 'none'}`,
+    )
     for (const [key, value] of Object.entries(aggMetrics)) {
       console.log(`[Step 5]   ${key} = ${value}`)
     }
@@ -470,9 +569,13 @@ test.describe('Span/NER Project Full Workflow (Create-to-Verify) @extended', () 
 
     // Verify metric keys contain span metrics
     const metricKeys = Object.keys(aggMetrics)
-    const hasSpanExactMatch = metricKeys.some(k => k.includes('span_exact_match'))
-    const hasIoU = metricKeys.some(k => k.includes('iou'))
-    console.log(`[Step 5] Has span_exact_match: ${hasSpanExactMatch}, Has iou: ${hasIoU}`)
+    const hasSpanExactMatch = metricKeys.some((k) =>
+      k.includes('span_exact_match'),
+    )
+    const hasIoU = metricKeys.some((k) => k.includes('iou'))
+    console.log(
+      `[Step 5] Has span_exact_match: ${hasSpanExactMatch}, Has iou: ${hasIoU}`,
+    )
     expect(hasSpanExactMatch).toBeTruthy()
     expect(hasIoU).toBeTruthy()
 
@@ -486,14 +589,18 @@ test.describe('Span/NER Project Full Workflow (Create-to-Verify) @extended', () 
     }
   })
 
-  test('Step 6: Verify evaluation results and metrics via API', async ({ page }) => {
+  test('Step 6: Verify evaluation results and metrics via API', async ({
+    page,
+  }) => {
     // Get project ID
     if (!projectId) {
       projectId = await page.evaluate(async () => {
-        const response = await fetch('/api/projects', { credentials: 'include' })
+        const response = await fetch('/api/projects', {
+          credentials: 'include',
+        })
         const data = await response.json()
         const project = (data.items || data || []).find(
-          (p: { title: string }) => p.title.includes('E2E Full Workflow NER')
+          (p: { title: string }) => p.title.includes('E2E Full Workflow NER'),
         )
         return project?.id || null
       })
@@ -503,9 +610,12 @@ test.describe('Span/NER Project Full Workflow (Create-to-Verify) @extended', () 
 
     // Fetch project evaluation results
     const evalData = await page.evaluate(async (pid) => {
-      const resultsRes = await fetch(`/api/evaluations/run/results/project/${pid}`, {
-        credentials: 'include',
-      })
+      const resultsRes = await fetch(
+        `/api/evaluations/run/results/project/${pid}`,
+        {
+          credentials: 'include',
+        },
+      )
 
       if (!resultsRes.ok) {
         return { success: false, error: await resultsRes.text() }
@@ -518,9 +628,13 @@ test.describe('Span/NER Project Full Workflow (Create-to-Verify) @extended', () 
       // Extract scores from results_by_config structure
       const scores: Record<string, number> = {}
       if (latest?.results_by_config) {
-        for (const [configId, configData] of Object.entries(latest.results_by_config as Record<string, any>)) {
-          for (const fieldResult of (configData.field_results || [])) {
-            for (const [metricName, metricValue] of Object.entries(fieldResult.scores || {})) {
+        for (const [configId, configData] of Object.entries(
+          latest.results_by_config as Record<string, any>,
+        )) {
+          for (const fieldResult of configData.field_results || []) {
+            for (const [metricName, metricValue] of Object.entries(
+              fieldResult.scores || {},
+            )) {
               scores[`${configId}:${metricName}`] = Number(metricValue)
             }
           }
@@ -539,7 +653,9 @@ test.describe('Span/NER Project Full Workflow (Create-to-Verify) @extended', () 
 
     console.log(`[Step 6] Evaluation count: ${evalData.evaluationCount}`)
     console.log(`[Step 6] Latest status: ${evalData.latestStatus}`)
-    console.log(`[Step 6] Samples evaluated: ${evalData.latestSamplesEvaluated}`)
+    console.log(
+      `[Step 6] Samples evaluated: ${evalData.latestSamplesEvaluated}`,
+    )
     console.log(`[Step 6] Model: ${evalData.latestModelId}`)
 
     expect(evalData.success).toBeTruthy()
@@ -552,8 +668,8 @@ test.describe('Span/NER Project Full Workflow (Create-to-Verify) @extended', () 
     const scoreKeys = Object.keys(scores)
     console.log(`[Step 6] Score keys: ${scoreKeys.join(', ')}`)
 
-    const hasSpanExact = scoreKeys.some(k => k.includes('span_exact_match'))
-    const hasIoU = scoreKeys.some(k => k.includes('iou'))
+    const hasSpanExact = scoreKeys.some((k) => k.includes('span_exact_match'))
+    const hasIoU = scoreKeys.some((k) => k.includes('iou'))
     expect(hasSpanExact).toBeTruthy()
     expect(hasIoU).toBeTruthy()
 
@@ -571,7 +687,8 @@ test.describe('Span/NER Project Full Workflow (Create-to-Verify) @extended', () 
     await page.waitForTimeout(2000)
 
     // Verify leaderboard page loads
-    const hasTable = await page.locator('table')
+    const hasTable = await page
+      .locator('table')
       .first()
       .isVisible({ timeout: 5000 })
       .catch(() => false)
@@ -579,7 +696,8 @@ test.describe('Span/NER Project Full Workflow (Create-to-Verify) @extended', () 
     console.log(`[Step 7] Leaderboard table visible: ${hasTable}`)
 
     // Check for LLM section and model names
-    const hasLLMSection = await page.locator('text=/LLM|Model/i')
+    const hasLLMSection = await page
+      .locator('text=/LLM|Model/i')
       .first()
       .isVisible({ timeout: 3000 })
       .catch(() => false)
@@ -588,13 +706,20 @@ test.describe('Span/NER Project Full Workflow (Create-to-Verify) @extended', () 
     // Verify models appear in leaderboard
     let modelsFound = 0
     for (const model of MODELS) {
-      const modelVisible = await page.locator(`text=${model}`).first().isVisible({ timeout: 2000 }).catch(() => false)
+      const modelVisible = await page
+        .locator(`text=${model}`)
+        .first()
+        .isVisible({ timeout: 2000 })
+        .catch(() => false)
       if (modelVisible) modelsFound++
     }
-    console.log(`[Step 7] Models found in leaderboard: ${modelsFound}/${MODELS.length}`)
+    console.log(
+      `[Step 7] Models found in leaderboard: ${modelsFound}/${MODELS.length}`,
+    )
 
     // Check for Human/Annotator section
-    const hasHumanSection = await page.locator('text=/Human|Annotator/i')
+    const hasHumanSection = await page
+      .locator('text=/Human|Annotator/i')
       .first()
       .isVisible({ timeout: 3000 })
       .catch(() => false)
@@ -603,11 +728,18 @@ test.describe('Span/NER Project Full Workflow (Create-to-Verify) @extended', () 
     // Verify annotators appear in leaderboard
     let annotatorsFound = 0
     for (const annotator of ANNOTATORS) {
-      const annotatorVisible = await page.locator(`text=/${annotator}|System Administrator|contributor|Annotator User/i`)
-        .first().isVisible({ timeout: 2000 }).catch(() => false)
+      const annotatorVisible = await page
+        .locator(
+          `text=/${annotator}|System Administrator|contributor|Annotator User/i`,
+        )
+        .first()
+        .isVisible({ timeout: 2000 })
+        .catch(() => false)
       if (annotatorVisible) annotatorsFound++
     }
-    console.log(`[Step 7] Annotators found in leaderboard: ${annotatorsFound}/${ANNOTATORS.length}`)
+    console.log(
+      `[Step 7] Annotators found in leaderboard: ${annotatorsFound}/${ANNOTATORS.length}`,
+    )
 
     expect(hasTable || hasLLMSection || hasHumanSection).toBeTruthy()
   })
@@ -616,10 +748,12 @@ test.describe('Span/NER Project Full Workflow (Create-to-Verify) @extended', () 
     // Get project ID
     if (!projectId) {
       projectId = await page.evaluate(async () => {
-        const response = await fetch('/api/projects', { credentials: 'include' })
+        const response = await fetch('/api/projects', {
+          credentials: 'include',
+        })
         const data = await response.json()
         const project = (data.items || data || []).find(
-          (p: { title: string }) => p.title.includes('E2E Full Workflow NER')
+          (p: { title: string }) => p.title.includes('E2E Full Workflow NER'),
         )
         return project?.id || null
       })

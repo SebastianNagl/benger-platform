@@ -23,7 +23,7 @@
  * IMPORTANT: Runs only in the ephemeral test environment. Execute via:
  *   make test-e2e
  */
-import { test, expect } from '@playwright/test'
+import { expect, test } from '@playwright/test'
 import { importTasksInBrowser } from '../helpers/api-seeding'
 import { TestHelpers } from '../helpers/test-helpers'
 
@@ -39,8 +39,14 @@ const LABEL_CONFIG = `<View>
 </View>`
 
 const TEST_TASKS = [
-  { data: { question: 'What are the requirements to form a GmbH in Germany?' } },
-  { data: { question: 'How does German contract law handle breach of contract?' } },
+  {
+    data: { question: 'What are the requirements to form a GmbH in Germany?' },
+  },
+  {
+    data: {
+      question: 'How does German contract law handle breach of contract?',
+    },
+  },
   { data: { question: 'What is the limitation period for tort claims?' } },
 ]
 
@@ -90,13 +96,15 @@ test.describe('Evaluation Dispatch → Leaderboard @extended', () => {
 
     // Resolve the TUM org id so the project lands in the LLM leaderboard trust scope.
     tumOrgId = await page.evaluate(async () => {
-      const response = await fetch('/api/organizations', { credentials: 'include' })
+      const response = await fetch('/api/organizations', {
+        credentials: 'include',
+      })
       if (!response.ok) return null
       const data = await response.json()
       const orgs = data.items || data.organizations || data || []
       const tum = orgs.find(
         (o: { name?: string; slug?: string }) =>
-          o.name === 'TUM' || o.slug === 'tum'
+          o.name === 'TUM' || o.slug === 'tum',
       )
       return tum?.id || null
     })
@@ -119,12 +127,16 @@ test.describe('Evaluation Dispatch → Leaderboard @extended', () => {
           }),
         })
         if (!response.ok) {
-          return { success: false, error: await response.text(), status: response.status }
+          return {
+            success: false,
+            error: await response.text(),
+            status: response.status,
+          }
         }
         const data = await response.json()
         return { success: true, projectId: data.id }
       },
-      { name: PROJECT_NAME, labelConfig: LABEL_CONFIG, orgId: tumOrgId }
+      { name: PROJECT_NAME, labelConfig: LABEL_CONFIG, orgId: tumOrgId },
     )
 
     console.log(`[Step 1] Create project: ${JSON.stringify(createResult)}`)
@@ -133,7 +145,9 @@ test.describe('Evaluation Dispatch → Leaderboard @extended', () => {
     expect(projectId).toBeTruthy()
   })
 
-  test('Step 2: Import tasks + seed annotations + generations', async ({ page }) => {
+  test('Step 2: Import tasks + seed annotations + generations', async ({
+    page,
+  }) => {
     test.setTimeout(120000)
     test.skip(!projectId, 'Project not created in Step 1')
 
@@ -146,10 +160,14 @@ test.describe('Evaluation Dispatch → Leaderboard @extended', () => {
     expect(importResult.success).toBeTruthy()
 
     taskIds = await page.evaluate(async (pid) => {
-      const response = await fetch(`/api/projects/${pid}/tasks`, { credentials: 'include' })
+      const response = await fetch(`/api/projects/${pid}/tasks`, {
+        credentials: 'include',
+      })
       if (!response.ok) return []
       const data = await response.json()
-      return (data.items || data.tasks || data || []).map((t: { id: string }) => t.id)
+      return (data.items || data.tasks || data || []).map(
+        (t: { id: string }) => t.id,
+      )
     }, projectId)
     expect(taskIds.length).toBe(TEST_TASKS.length)
 
@@ -174,20 +192,29 @@ test.describe('Evaluation Dispatch → Leaderboard @extended', () => {
           credentials: 'include',
           body: JSON.stringify({ project_id: pid, annotations: anns }),
         })
-        if (!response.ok) return { success: false, error: await response.text() }
+        if (!response.ok)
+          return { success: false, error: await response.text() }
         return response.json()
       },
-      { pid: projectId, anns: annotations }
+      { pid: projectId, anns: annotations },
     )
     console.log(`[Step 2] Seed annotations: ${JSON.stringify(annResult)}`)
     expect(annResult.created_count || 0).toBe(taskIds.length)
 
     // 2c. Seed mock LLM generations: 3 models × 3 tasks = 9 generations.
-    const generations: Array<{ task_id: string; model_id: string; output: string }> = []
+    const generations: Array<{
+      task_id: string
+      model_id: string
+      output: string
+    }> = []
     for (const model of MODELS) {
       const responses = MODEL_RESPONSES[model]
       for (let i = 0; i < taskIds.length && i < responses.length; i++) {
-        generations.push({ task_id: taskIds[i], model_id: model, output: responses[i] })
+        generations.push({
+          task_id: taskIds[i],
+          model_id: model,
+          output: responses[i],
+        })
       }
     }
     const genResult = await page.evaluate(
@@ -198,17 +225,20 @@ test.describe('Evaluation Dispatch → Leaderboard @extended', () => {
           credentials: 'include',
           body: JSON.stringify({ project_id: pid, generations: gens }),
         })
-        if (!response.ok) return { success: false, error: await response.text() }
+        if (!response.ok)
+          return { success: false, error: await response.text() }
         return response.json()
       },
-      { pid: projectId, gens: generations }
+      { pid: projectId, gens: generations },
     )
     console.log(`[Step 2] Seed generations: ${JSON.stringify(genResult)}`)
     expect(genResult.success).toBeTruthy()
     expect((genResult.ids || []).length).toBe(MODELS.length * taskIds.length)
   })
 
-  test('Step 3: Dispatch real evaluation and poll to completion', async ({ page }) => {
+  test('Step 3: Dispatch real evaluation and poll to completion', async ({
+    page,
+  }) => {
     test.setTimeout(240000) // real evaluation via Celery worker
     test.skip(!projectId, 'Project not created in Step 1')
 
@@ -235,11 +265,16 @@ test.describe('Evaluation Dispatch → Leaderboard @extended', () => {
             force_rerun: true,
           }),
         })
-        if (!response.ok) return { success: false, error: await response.text() }
+        if (!response.ok)
+          return { success: false, error: await response.text() }
         const data = await response.json()
-        return { success: true, evaluation_id: data.evaluation_id, status: data.status }
+        return {
+          success: true,
+          evaluation_id: data.evaluation_id,
+          status: data.status,
+        }
       },
-      { pid: projectId, evalCfgs: evaluationConfigs }
+      { pid: projectId, evalCfgs: evaluationConfigs },
     )
     console.log(`[Step 3] Dispatch evaluation: ${JSON.stringify(runResult)}`)
     expect(runResult.success).toBeTruthy()
@@ -250,14 +285,23 @@ test.describe('Evaluation Dispatch → Leaderboard @extended', () => {
       for (let i = 0; i < 60; i++) {
         await new Promise((r) => setTimeout(r, 3000))
         try {
-          const response = await fetch(`/api/evaluations/evaluation/status/${evalId}`, {
-            credentials: 'include',
-          })
+          const response = await fetch(
+            `/api/evaluations/evaluation/status/${evalId}`,
+            {
+              credentials: 'include',
+            },
+          )
           if (!response.ok) continue
           const data = await response.json()
-          if (data.status === 'completed') return { success: true, status: data.status, attempts: i + 1 }
+          if (data.status === 'completed')
+            return { success: true, status: data.status, attempts: i + 1 }
           if (data.status === 'failed') {
-            return { success: false, status: 'failed', error: data.message || 'failed', attempts: i + 1 }
+            return {
+              success: false,
+              status: 'failed',
+              error: data.message || 'failed',
+              attempts: i + 1,
+            }
           }
         } catch {
           /* keep polling */
@@ -279,7 +323,7 @@ test.describe('Evaluation Dispatch → Leaderboard @extended', () => {
     const byTaskModel = await page.evaluate(async (pid) => {
       const response = await fetch(
         `/api/evaluations/projects/${pid}/results/by-task-model`,
-        { credentials: 'include' }
+        { credentials: 'include' },
       )
       if (!response.ok) return { ok: false, status: response.status }
       const data = await response.json()
@@ -298,9 +342,12 @@ test.describe('Evaluation Dispatch → Leaderboard @extended', () => {
 
     // 4b. Evaluation results aggregate to completed with real metric values.
     const projectResults = await page.evaluate(async (pid) => {
-      const response = await fetch(`/api/evaluations/run/results/project/${pid}`, {
-        credentials: 'include',
-      })
+      const response = await fetch(
+        `/api/evaluations/run/results/project/${pid}`,
+        {
+          credentials: 'include',
+        },
+      )
       if (!response.ok) return { ok: false, status: response.status }
       const data = await response.json()
       const evaluations = data.evaluations || []
@@ -334,7 +381,9 @@ test.describe('Evaluation Dispatch → Leaderboard @extended', () => {
     }).toPass({ timeout: 15000 })
   })
 
-  test('Step 5: Evaluated models appear on the LLM leaderboard', async ({ page }) => {
+  test('Step 5: Evaluated models appear on the LLM leaderboard', async ({
+    page,
+  }) => {
     test.setTimeout(60000)
     test.skip(!projectId, 'Project not created in Step 1')
 
@@ -349,11 +398,19 @@ test.describe('Evaluation Dispatch → Leaderboard @extended', () => {
         })
         const headers: Record<string, string> = {}
         if (orgId) headers['X-Organization-Context'] = orgId
-        const response = await fetch(`/api/leaderboards/llm-models?${params.toString()}`, {
-          credentials: 'include',
-          headers,
-        })
-        if (!response.ok) return { ok: false, status: response.status, error: await response.text() }
+        const response = await fetch(
+          `/api/leaderboards/llm-models?${params.toString()}`,
+          {
+            credentials: 'include',
+            headers,
+          },
+        )
+        if (!response.ok)
+          return {
+            ok: false,
+            status: response.status,
+            error: await response.text(),
+          }
         const data = await response.json()
         const board = data.leaderboard || []
         return {
@@ -362,13 +419,15 @@ test.describe('Evaluation Dispatch → Leaderboard @extended', () => {
           totalModels: data.total_models ?? board.length,
         }
       },
-      { pid: projectId, orgId: tumOrgId }
+      { pid: projectId, orgId: tumOrgId },
     )
 
     console.log(`[Step 5] LLM leaderboard models: ${JSON.stringify(lbResult)}`)
     expect(lbResult.ok).toBe(true)
     // At least one of the evaluated models must rank on the board for this project.
-    const foundModels = MODELS.filter((m) => (lbResult.modelIds || []).includes(m))
+    const foundModels = MODELS.filter((m) =>
+      (lbResult.modelIds || []).includes(m),
+    )
     console.log(`[Step 5] Seeded models on board: ${foundModels.join(', ')}`)
     expect(foundModels.length).toBeGreaterThan(0)
 

@@ -17,11 +17,7 @@ import {
   type OrgStorageConnectionUpdate,
 } from '@/lib/api/organizations'
 import { Dialog } from '@headlessui/react'
-import {
-  EyeIcon,
-  EyeSlashIcon,
-  XMarkIcon,
-} from '@heroicons/react/24/outline'
+import { EyeIcon, EyeSlashIcon, XMarkIcon } from '@heroicons/react/24/outline'
 import { useCallback, useEffect, useState } from 'react'
 
 interface OrgStorageConnectionsProps {
@@ -150,7 +146,7 @@ export function OrgStorageConnections({
 
   const setField = <K extends keyof ConnectionForm>(
     field: K,
-    value: ConnectionForm[K]
+    value: ConnectionForm[K],
   ) => {
     setForm((prev) => ({ ...prev, [field]: value }))
   }
@@ -184,7 +180,7 @@ export function OrgStorageConnections({
       if (isCreate) {
         await organizationsAPI.createStorageConnection(
           organizationId,
-          buildCreateBody()
+          buildCreateBody(),
         )
         setMessage({
           type: 'success',
@@ -207,7 +203,7 @@ export function OrgStorageConnections({
         await organizationsAPI.updateStorageConnection(
           organizationId,
           editingId,
-          body
+          body,
         )
         setMessage({
           type: 'success',
@@ -236,7 +232,7 @@ export function OrgStorageConnections({
     try {
       const result = await organizationsAPI.testStorageConnection(
         organizationId,
-        buildCreateBody()
+        buildCreateBody(),
       )
       setTestResults((prev) => ({
         ...prev,
@@ -266,7 +262,7 @@ export function OrgStorageConnections({
     try {
       const result = await organizationsAPI.testSavedStorageConnection(
         organizationId,
-        connId
+        connId,
       )
       setTestResults((prev) => ({
         ...prev,
@@ -419,7 +415,7 @@ export function OrgStorageConnections({
                             <p className="text-xs text-zinc-500 dark:text-zinc-400">
                               {conn.endpoint_url ||
                                 t(
-                                  'organizations.storageConnections.awsDefaultEndpoint'
+                                  'organizations.storageConnections.awsDefaultEndpoint',
                                 )}
                             </p>
                             <p className="text-xs text-zinc-500 dark:text-zinc-400">
@@ -431,7 +427,7 @@ export function OrgStorageConnections({
                             <span className="inline-flex items-center rounded-full bg-zinc-100 px-2 py-1 font-mono text-xs text-zinc-600 dark:bg-zinc-700 dark:text-zinc-400">
                               {t(
                                 'organizations.storageConnections.accessKeyHint',
-                                { hint: conn.access_key_hint }
+                                { hint: conn.access_key_hint },
                               )}
                             </span>
                           )}
@@ -445,7 +441,7 @@ export function OrgStorageConnections({
                               <>
                                 <span className="self-center text-sm text-red-600 dark:text-red-400">
                                   {t(
-                                    'organizations.storageConnections.deleteConfirm'
+                                    'organizations.storageConnections.deleteConfirm',
                                   )}
                                 </span>
                                 <Button
@@ -456,10 +452,10 @@ export function OrgStorageConnections({
                                 >
                                   {isDeleting
                                     ? t(
-                                        'organizations.storageConnections.deleting'
+                                        'organizations.storageConnections.deleting',
                                       )
                                     : t(
-                                        'organizations.storageConnections.deleteConfirmYes'
+                                        'organizations.storageConnections.deleteConfirmYes',
                                       )}
                                 </Button>
                                 <Button
@@ -480,10 +476,10 @@ export function OrgStorageConnections({
                                 >
                                   {isTestLoading
                                     ? t(
-                                        'organizations.storageConnections.testing'
+                                        'organizations.storageConnections.testing',
                                       )
                                     : t(
-                                        'organizations.storageConnections.testConnection'
+                                        'organizations.storageConnections.testConnection',
                                       )}
                                 </Button>
                                 <Button
@@ -524,7 +520,7 @@ export function OrgStorageConnections({
                     <input
                       type="text"
                       placeholder={t(
-                        'organizations.storageConnections.namePlaceholder'
+                        'organizations.storageConnections.namePlaceholder',
                       )}
                       value={form.name}
                       onChange={(e) => setField('name', e.target.value)}
@@ -534,38 +530,38 @@ export function OrgStorageConnections({
                     <input
                       type="text"
                       placeholder={t(
-                        'organizations.storageConnections.endpointPlaceholder'
+                        'organizations.storageConnections.endpointPlaceholder',
                       )}
                       value={form.endpoint_url}
                       onChange={(e) => setField('endpoint_url', e.target.value)}
                       className={inputClass}
                       aria-label={t(
-                        'organizations.storageConnections.endpoint'
+                        'organizations.storageConnections.endpoint',
                       )}
                     />
                     <div className="grid grid-cols-2 gap-3">
                       <input
                         type="text"
                         placeholder={t(
-                          'organizations.storageConnections.bucketPlaceholder'
+                          'organizations.storageConnections.bucketPlaceholder',
                         )}
                         value={form.bucket}
                         onChange={(e) => setField('bucket', e.target.value)}
                         className={inputClass}
                         aria-label={t(
-                          'organizations.storageConnections.bucket'
+                          'organizations.storageConnections.bucket',
                         )}
                       />
                       <input
                         type="text"
                         placeholder={t(
-                          'organizations.storageConnections.prefixPlaceholder'
+                          'organizations.storageConnections.prefixPlaceholder',
                         )}
                         value={form.prefix}
                         onChange={(e) => setField('prefix', e.target.value)}
                         className={inputClass}
                         aria-label={t(
-                          'organizations.storageConnections.prefix'
+                          'organizations.storageConnections.prefix',
                         )}
                       />
                     </div>
@@ -573,13 +569,13 @@ export function OrgStorageConnections({
                       <input
                         type="text"
                         placeholder={t(
-                          'organizations.storageConnections.regionPlaceholder'
+                          'organizations.storageConnections.regionPlaceholder',
                         )}
                         value={form.region}
                         onChange={(e) => setField('region', e.target.value)}
                         className={inputClass}
                         aria-label={t(
-                          'organizations.storageConnections.region'
+                          'organizations.storageConnections.region',
                         )}
                       />
                       <label className="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300">
@@ -600,19 +596,17 @@ export function OrgStorageConnections({
                         placeholder={
                           isCreate
                             ? t(
-                                'organizations.storageConnections.accessKeyPlaceholder'
+                                'organizations.storageConnections.accessKeyPlaceholder',
                               )
                             : t(
-                                'organizations.storageConnections.accessKeyKeepPlaceholder'
+                                'organizations.storageConnections.accessKeyKeepPlaceholder',
                               )
                         }
                         value={form.access_key}
-                        onChange={(e) =>
-                          setField('access_key', e.target.value)
-                        }
+                        onChange={(e) => setField('access_key', e.target.value)}
                         className={`${inputClass} pr-10`}
                         aria-label={t(
-                          'organizations.storageConnections.accessKey'
+                          'organizations.storageConnections.accessKey',
                         )}
                       />
                       <button
@@ -620,7 +614,7 @@ export function OrgStorageConnections({
                         onClick={() => setShowAccessKey((v) => !v)}
                         className="absolute inset-y-0 right-0 flex items-center pr-3 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
                         aria-label={t(
-                          'organizations.storageConnections.toggleAccessKey'
+                          'organizations.storageConnections.toggleAccessKey',
                         )}
                       >
                         {showAccessKey ? (
@@ -636,19 +630,17 @@ export function OrgStorageConnections({
                         placeholder={
                           isCreate
                             ? t(
-                                'organizations.storageConnections.secretKeyPlaceholder'
+                                'organizations.storageConnections.secretKeyPlaceholder',
                               )
                             : t(
-                                'organizations.storageConnections.secretKeyKeepPlaceholder'
+                                'organizations.storageConnections.secretKeyKeepPlaceholder',
                               )
                         }
                         value={form.secret_key}
-                        onChange={(e) =>
-                          setField('secret_key', e.target.value)
-                        }
+                        onChange={(e) => setField('secret_key', e.target.value)}
                         className={`${inputClass} pr-10`}
                         aria-label={t(
-                          'organizations.storageConnections.secretKey'
+                          'organizations.storageConnections.secretKey',
                         )}
                       />
                       <button
@@ -656,7 +648,7 @@ export function OrgStorageConnections({
                         onClick={() => setShowSecretKey((v) => !v)}
                         className="absolute inset-y-0 right-0 flex items-center pr-3 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
                         aria-label={t(
-                          'organizations.storageConnections.toggleSecretKey'
+                          'organizations.storageConnections.toggleSecretKey',
                         )}
                       >
                         {showSecretKey ? (
@@ -686,7 +678,7 @@ export function OrgStorageConnections({
                         {testLoading.form
                           ? t('organizations.storageConnections.testing')
                           : t(
-                              'organizations.storageConnections.testConnection'
+                              'organizations.storageConnections.testConnection',
                             )}
                       </Button>
                       <Button

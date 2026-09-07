@@ -2,11 +2,13 @@
  * Additional coverage tests for BaseField - validateFieldValue function
  */
 
-import { validateFieldValue } from '../BaseField'
 import type { TaskTemplateField } from '@/types/taskTemplate'
+import { validateFieldValue } from '../BaseField'
 
 describe('validateFieldValue', () => {
-  const makeField = (overrides: Partial<TaskTemplateField> = {}): TaskTemplateField => ({
+  const makeField = (
+    overrides: Partial<TaskTemplateField> = {},
+  ): TaskTemplateField => ({
     name: 'test_field',
     type: 'text',
     source: 'task_data',

@@ -47,7 +47,7 @@ describe('/api/auth/me route', () => {
           headers: {
             Cookie: 'access_token=valid-token',
           },
-        })
+        }),
       )
 
       const data = await response.json()
@@ -152,7 +152,7 @@ describe('/api/auth/me route', () => {
           headers: {
             Cookie: 'access_token=token123; refresh_token=refresh123',
           },
-        })
+        }),
       )
     })
 
@@ -176,7 +176,7 @@ describe('/api/auth/me route', () => {
 
       expect(mockFetch).toHaveBeenCalledWith(
         'http://api:8000/api/auth/me',
-        expect.any(Object)
+        expect.any(Object),
       )
     })
 
@@ -200,7 +200,7 @@ describe('/api/auth/me route', () => {
 
       expect(mockFetch).toHaveBeenCalledWith(
         'http://localhost:8001/api/auth/me',
-        expect.any(Object)
+        expect.any(Object),
       )
     })
   })

@@ -21,11 +21,18 @@
  * @jest-environment jsdom
  */
 
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { registerMetric, registerMetricGroup } from '@/lib/api/evaluation-types'
+import { registerMetricEditor } from '@/lib/extensions/metricEditors'
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { EvaluationBuilder } from '../EvaluationBuilder'
-import { registerMetricEditor } from '@/lib/extensions/metricEditors'
-import { registerMetric, registerMetricGroup } from '@/lib/api/evaluation-types'
 
 // ---------- i18n: key passthrough, fallback string honored ----------
 jest.mock('@/contexts/I18nContext', () => ({
@@ -57,9 +64,24 @@ jest.mock('@/components/shared/Toast', () => ({
 jest.mock('@/hooks/useModels', () => ({
   useModels: () => ({
     models: [
-      { id: 'gpt-4o', name: 'GPT-4o', provider: 'openai', default_config: { temperature: 0 } },
-      { id: 'claude-sonnet-4', name: 'Claude Sonnet 4', provider: 'anthropic', default_config: { temperature: 0 } },
-      { id: 'gemini-3-pro', name: 'Gemini 3 Pro', provider: 'google', default_config: { temperature: 0 } },
+      {
+        id: 'gpt-4o',
+        name: 'GPT-4o',
+        provider: 'openai',
+        default_config: { temperature: 0 },
+      },
+      {
+        id: 'claude-sonnet-4',
+        name: 'Claude Sonnet 4',
+        provider: 'anthropic',
+        default_config: { temperature: 0 },
+      },
+      {
+        id: 'gemini-3-pro',
+        name: 'Gemini 3 Pro',
+        provider: 'google',
+        default_config: { temperature: 0 },
+      },
       {
         id: 'custom-haskey',
         name: 'Keyed Llama',
@@ -100,7 +122,7 @@ jest.mock('@/components/shared/Select', () => {
           disabled: !!disabled,
           'aria-disabled': disabled ? 'true' : undefined,
         },
-        children
+        children,
       ),
   }
 })
@@ -122,13 +144,17 @@ jest.mock('@/lib/api', () => ({
 
 jest.mock('@/components/shared/Badge', () => ({
   Badge: ({ children, className }: any) => (
-    <span data-testid="badge" className={className}>{children}</span>
+    <span data-testid="badge" className={className}>
+      {children}
+    </span>
   ),
 }))
 
 jest.mock('@/components/shared/Button', () => ({
   Button: ({ children, onClick, disabled, ...props }: any) => (
-    <button onClick={onClick} disabled={disabled} {...props}>{children}</button>
+    <button onClick={onClick} disabled={disabled} {...props}>
+      {children}
+    </button>
   ),
 }))
 
@@ -181,7 +207,14 @@ jest.mock('../DimensionsEditor', () => ({
       <button
         data-testid="add-dimension"
         onClick={() =>
-          onChange({ accuracy: { name: 'Accuracy', max_score: 5, description: '', rubric: '' } })
+          onChange({
+            accuracy: {
+              name: 'Accuracy',
+              max_score: 5,
+              description: '',
+              rubric: '',
+            },
+          })
         }
       >
         Add Dimension
@@ -226,11 +259,14 @@ const defaultProps = {
   saving: false,
 }
 
-async function openWizard(user: ReturnType<typeof userEvent.setup>, props = defaultProps) {
+async function openWizard(
+  user: ReturnType<typeof userEvent.setup>,
+  props = defaultProps,
+) {
   render(<EvaluationBuilder {...props} />)
   await user.click(screen.getByTestId('add-evaluation-button'))
   await waitFor(() =>
-    expect(screen.getByTestId('evaluation-wizard-header')).toBeInTheDocument()
+    expect(screen.getByTestId('evaluation-wizard-header')).toBeInTheDocument(),
   )
 }
 
@@ -238,7 +274,7 @@ async function openWizard(user: ReturnType<typeof userEvent.setup>, props = defa
 async function gotoParameters(
   user: ReturnType<typeof userEvent.setup>,
   metric: string,
-  props = defaultProps
+  props = defaultProps,
 ) {
   await openWizard(user, props)
   const btn = screen.getByTestId(`metric-button-${metric}`)
@@ -253,7 +289,9 @@ async function gotoParameters(
   await user.click(refCbs[0])
   await user.click(screen.getByTestId('wizard-next-button'))
   await waitFor(() =>
-    expect(screen.getByText('evaluationBuilder.steps.parameters.title')).toBeInTheDocument()
+    expect(
+      screen.getByText('evaluationBuilder.steps.parameters.title'),
+    ).toBeInTheDocument(),
   )
 }
 
@@ -293,11 +331,13 @@ describe('Judge ensemble + runs control', () => {
     // Section header — t() returns the fallback string ('Ensemble & Läufe').
     expect(screen.getByText('Ensemble & Läufe')).toBeInTheDocument()
     expect(screen.getByText('Läufe pro Judge')).toBeInTheDocument()
-    expect(screen.getByText('Zusätzliche Judges (Ensemble)')).toBeInTheDocument()
+    expect(
+      screen.getByText('Zusätzliche Judges (Ensemble)'),
+    ).toBeInTheDocument()
 
     // runs-per-judge number input defaults to 1 (min=1/max=25).
     const runsInput = document.querySelector(
-      'input[type="number"][min="1"][max="25"]'
+      'input[type="number"][min="1"][max="25"]',
     ) as HTMLInputElement
     expect(runsInput).toBeTruthy()
     expect(runsInput.value).toBe('1')
@@ -313,7 +353,7 @@ describe('Judge ensemble + runs control', () => {
     await gotoParameters(user, 'llm_judge_classic')
 
     const runsInput = document.querySelector(
-      'input[type="number"][min="1"][max="25"]'
+      'input[type="number"][min="1"][max="25"]',
     ) as HTMLInputElement
     expect(runsInput.value).toBe('1')
 
@@ -338,12 +378,20 @@ describe('Judge ensemble + runs control', () => {
     expect(claudeCb.checked).toBe(false)
 
     // Check it → writeJudges([claude], runs).
-    await act(async () => { fireEvent.click(claudeCb) })
-    await waitFor(() => expect(ensembleCheckbox(/Claude Sonnet 4/).checked).toBe(true))
+    await act(async () => {
+      fireEvent.click(claudeCb)
+    })
+    await waitFor(() =>
+      expect(ensembleCheckbox(/Claude Sonnet 4/).checked).toBe(true),
+    )
 
     // Uncheck it again → writeJudges([], runs).
-    await act(async () => { fireEvent.click(ensembleCheckbox(/Claude Sonnet 4/)) })
-    await waitFor(() => expect(ensembleCheckbox(/Claude Sonnet 4/).checked).toBe(false))
+    await act(async () => {
+      fireEvent.click(ensembleCheckbox(/Claude Sonnet 4/))
+    })
+    await waitFor(() =>
+      expect(ensembleCheckbox(/Claude Sonnet 4/).checked).toBe(false),
+    )
   })
 })
 
@@ -359,14 +407,14 @@ describe('BYOM judge gating (credential-less custom judges)', () => {
     // Grouped section headers render inside the judge select (the
     // customSection header also appears once in the ensemble grid).
     expect(
-      screen.getByText('customModels.picker.officialSection')
+      screen.getByText('customModels.picker.officialSection'),
     ).toBeInTheDocument()
     expect(
-      screen.getAllByText('customModels.picker.customSection').length
+      screen.getAllByText('customModels.picker.customSection').length,
     ).toBeGreaterThanOrEqual(1)
 
     const locked = document.querySelector(
-      'option[value="custom-nokey"]'
+      'option[value="custom-nokey"]',
     ) as HTMLOptionElement
     expect(locked).toBeTruthy()
     expect(locked.disabled).toBe(true)
@@ -375,7 +423,7 @@ describe('BYOM judge gating (credential-less custom judges)', () => {
 
     // The credentialed custom stays a normal, selectable option.
     const keyed = document.querySelector(
-      'option[value="custom-haskey"]'
+      'option[value="custom-haskey"]',
     ) as HTMLOptionElement
     expect(keyed).toBeTruthy()
     expect(keyed.disabled).toBe(false)
@@ -445,31 +493,37 @@ describe('LLM-Judge prediction-field auto-detect', () => {
       .find((b) => b.querySelector('[data-testid="pencil-icon"]'))!
     await user.click(editBtn)
     await waitFor(() =>
-      expect(screen.getByText('evaluationBuilder.editEvaluation')).toBeInTheDocument()
+      expect(
+        screen.getByText('evaluationBuilder.editEvaluation'),
+      ).toBeInTheDocument(),
     )
 
     // Advance to prediction fields.
     await user.click(screen.getByTestId('wizard-next-button'))
     await waitFor(() =>
       expect(
-        screen.getByText('evaluationBuilder.steps.predictionFields.title')
-      ).toBeInTheDocument()
+        screen.getByText('evaluationBuilder.steps.predictionFields.title'),
+      ).toBeInTheDocument(),
     )
 
     // Wait for the field-types fetch to populate fieldTypes state.
-    await act(async () => { await new Promise((r) => setTimeout(r, 0)) })
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 0))
+    })
 
     // Toggle the model_answer (model:model_answer) checkbox → fieldTypes[
     // 'model_answer'].type === 'single_choice' → template found → toast.
     // Checkbox order: 2 bulk selectors, then model-response fields, so
     // index 2 is the first model field (model:model_answer).
     const checkboxes = screen.getAllByRole('checkbox')
-    await act(async () => { await user.click(checkboxes[2]) })
+    await act(async () => {
+      await user.click(checkboxes[2])
+    })
 
     await waitFor(() => {
       expect(mockAddToast).toHaveBeenCalledWith(
         expect.stringContaining('Detected'),
-        'info'
+        'info',
       )
     })
   })
@@ -488,15 +542,19 @@ describe('canProceed gating on the parameters step', () => {
     expect(screen.getByTestId('wizard-next-button')).toBeDisabled()
 
     // Provide a custom prompt via the (mocked) editor → Next enabled.
-    await act(async () => { fireEvent.click(screen.getByTestId('set-prompt')) })
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('set-prompt'))
+    })
     await waitFor(() =>
-      expect(screen.getByTestId('wizard-next-button')).not.toBeDisabled()
+      expect(screen.getByTestId('wizard-next-button')).not.toBeDisabled(),
     )
 
     // Clearing the prompt drops it back to disabled (no criteria yet).
-    await act(async () => { fireEvent.click(screen.getByTestId('clear-prompt')) })
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('clear-prompt'))
+    })
     await waitFor(() =>
-      expect(screen.getByTestId('wizard-next-button')).toBeDisabled()
+      expect(screen.getByTestId('wizard-next-button')).toBeDisabled(),
     )
   })
 
@@ -507,9 +565,11 @@ describe('canProceed gating on the parameters step', () => {
     expect(screen.getByTestId('wizard-next-button')).toBeDisabled()
 
     // Add a dimension → custom_criteria populated → Next enabled.
-    await act(async () => { fireEvent.click(screen.getByTestId('add-dimension')) })
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('add-dimension'))
+    })
     await waitFor(() =>
-      expect(screen.getByTestId('wizard-next-button')).not.toBeDisabled()
+      expect(screen.getByTestId('wizard-next-button')).not.toBeDisabled(),
     )
   })
 
@@ -533,15 +593,17 @@ describe('llm_judge_custom parameter wiring', () => {
 
     // Score-scale select is present while no dimension has max_score.
     expect(
-      screen.getByText('evaluationBuilder.parameters.scoreScale')
+      screen.getByText('evaluationBuilder.parameters.scoreScale'),
     ).toBeInTheDocument()
 
     // Add a dimension with max_score=5 → score-scale section disappears.
-    await act(async () => { fireEvent.click(screen.getByTestId('add-dimension')) })
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('add-dimension'))
+    })
     await waitFor(() =>
       expect(
-        screen.queryByText('evaluationBuilder.parameters.scoreScale')
-      ).not.toBeInTheDocument()
+        screen.queryByText('evaluationBuilder.parameters.scoreScale'),
+      ).not.toBeInTheDocument(),
     )
   })
 
@@ -563,8 +625,12 @@ describe('llm_judge_custom parameter wiring', () => {
 
     // Add a mapping then clear it — exercises both onChange branches
     // (object-with-keys vs empty → undefined).
-    await act(async () => { fireEvent.click(screen.getByTestId('add-mapping')) })
-    await act(async () => { fireEvent.click(screen.getByTestId('clear-mapping')) })
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('add-mapping'))
+    })
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('clear-mapping'))
+    })
     expect(screen.getByTestId('field-mapping-editor')).toBeInTheDocument()
   })
 
@@ -577,22 +643,26 @@ describe('llm_judge_custom parameter wiring', () => {
     })
 
     // Configure a prompt so canProceed passes.
-    await act(async () => { fireEvent.click(screen.getByTestId('set-prompt')) })
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('set-prompt'))
+    })
     await waitFor(() =>
-      expect(screen.getByTestId('wizard-next-button')).not.toBeDisabled()
+      expect(screen.getByTestId('wizard-next-button')).not.toBeDisabled(),
     )
 
     // Advance to review, then Add.
     await user.click(screen.getByTestId('wizard-next-button'))
     await waitFor(() =>
-      expect(screen.getByText('evaluationBuilder.steps.review.title')).toBeInTheDocument()
+      expect(
+        screen.getByText('evaluationBuilder.steps.review.title'),
+      ).toBeInTheDocument(),
     )
     const addBtn = screen
       .getAllByRole('button')
       .find(
         (b) =>
           b.querySelector('[data-testid="check-icon"]') &&
-          b.textContent?.includes('evaluationBuilder.addEvaluation')
+          b.textContent?.includes('evaluationBuilder.addEvaluation'),
       )!
     await user.click(addBtn)
 
@@ -604,9 +674,12 @@ describe('llm_judge_custom parameter wiring', () => {
             custom_prompt_template: 'Rate {{prediction}} vs {{ground_truth}}',
           }),
         }),
-      ])
+      ]),
     )
-    expect(mockAddToast).toHaveBeenCalledWith('evaluationBuilder.toast.added', 'success')
+    expect(mockAddToast).toHaveBeenCalledWith(
+      'evaluationBuilder.toast.added',
+      'success',
+    )
   })
 })
 
@@ -665,7 +738,9 @@ describe('extended metric editor fallback', () => {
     expect(screen.getByTestId('ext-editor')).toBeInTheDocument()
 
     // Patch merges into metric_parameters without crashing.
-    await act(async () => { fireEvent.click(screen.getByTestId('ext-patch')) })
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('ext-patch'))
+    })
     expect(screen.getByTestId('ext-editor')).toBeInTheDocument()
   })
 
@@ -676,7 +751,7 @@ describe('extended metric editor fallback', () => {
     await gotoParameters(user, 'coverage_unknown_metric')
 
     expect(
-      screen.getByText('evaluationBuilder.parameters.defaultParameters')
+      screen.getByText('evaluationBuilder.parameters.defaultParameters'),
     ).toBeInTheDocument()
   })
 })

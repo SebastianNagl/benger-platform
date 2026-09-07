@@ -29,7 +29,7 @@ export async function importTasksInBrowser({
     // 1. Presign
     const presignRes = await fetch(
       `/api/projects/${projectId}/imports/upload-url?filename=e2e-import.json`,
-      { method: 'POST', credentials: 'include' }
+      { method: 'POST', credentials: 'include' },
     )
     if (!presignRes.ok) {
       return {
@@ -48,7 +48,7 @@ export async function importTasksInBrowser({
     formData.append(
       'file',
       new Blob([JSON.stringify({ data: tasks })], { type: 'application/json' }),
-      'e2e-import.json'
+      'e2e-import.json',
     )
     const uploadRes = await fetch(presign.upload_url, {
       method: presign.method || 'POST',
@@ -80,7 +80,7 @@ export async function importTasksInBrowser({
     for (let attempt = 0; attempt < 60; attempt++) {
       const pollRes = await fetch(
         `/api/projects/${projectId}/imports/${job.job_id}`,
-        { credentials: 'include' }
+        { credentials: 'include' },
       )
       if (pollRes.ok) {
         const status = await pollRes.json()
@@ -181,12 +181,16 @@ export class APISeedingHelper {
               }
             }
             const data = await response.json()
-            return { success: true, status: response.status, projectId: data.id }
+            return {
+              success: true,
+              status: response.status,
+              projectId: data.id,
+            }
           } catch (e) {
             return { success: false, status: 0, error: String(e) }
           }
         },
-        { name, description }
+        { name, description },
       )
 
     let result = await attempt()
@@ -198,7 +202,7 @@ export class APISeedingHelper {
         result.status === 504)
     if (transient) {
       console.warn(
-        `[APISeedingHelper.createProject] transient failure (${result.error}), retrying once`
+        `[APISeedingHelper.createProject] transient failure (${result.error}), retrying once`,
       )
       await new Promise((r) => setTimeout(r, 500))
       result = await attempt()
@@ -233,7 +237,7 @@ export class APISeedingHelper {
           return { success: false, error: String(e) }
         }
       },
-      { projectId, labelConfig }
+      { projectId, labelConfig },
     )
 
     if (!result.success) {
@@ -249,7 +253,7 @@ export class APISeedingHelper {
    */
   async importTasks(
     projectId: string,
-    tasks: Array<{ data: Record<string, unknown> }>
+    tasks: Array<{ data: Record<string, unknown> }>,
   ): Promise<SeededTask[]> {
     const importResult = await this.page.evaluate(importTasksInBrowser, {
       projectId,
@@ -299,7 +303,8 @@ export class APISeedingHelper {
     projectId: string,
     taskIds: string[],
     userIds: string[],
-    distribution: 'manual' | 'round_robin' | 'random' | 'load_balanced' = 'manual'
+    distribution:
+      'manual' | 'round_robin' | 'random' | 'load_balanced' = 'manual',
   ): Promise<{ assignments_created: number }> {
     const result = await this.page.evaluate(
       async ({ projectId, taskIds, userIds, distribution }) => {
@@ -315,7 +320,7 @@ export class APISeedingHelper {
                 user_ids: userIds,
                 distribution,
               }),
-            }
+            },
           )
           if (!response.ok) {
             const errorText = await response.text()
@@ -330,7 +335,7 @@ export class APISeedingHelper {
           return { success: false, error: String(e) }
         }
       },
-      { projectId, taskIds, userIds, distribution }
+      { projectId, taskIds, userIds, distribution },
     )
 
     if (!result.success) {
@@ -344,20 +349,23 @@ export class APISeedingHelper {
    * Get tasks assigned to current user via API
    */
   async getMyTasks(
-    projectId: string
+    projectId: string,
   ): Promise<{ tasks: SeededTask[]; total: number }> {
     const result = await this.page.evaluate(async (projectId) => {
       try {
-        const response = await fetch(
-          `/api/projects/${projectId}/my-tasks`,
-          { credentials: 'include' }
-        )
+        const response = await fetch(`/api/projects/${projectId}/my-tasks`, {
+          credentials: 'include',
+        })
         if (!response.ok) {
           const errorText = await response.text()
           return { success: false, error: `${response.status}: ${errorText}` }
         }
         const data = await response.json()
-        return { success: true, tasks: data.tasks || [], total: data.total || 0 }
+        return {
+          success: true,
+          tasks: data.tasks || [],
+          total: data.total || 0,
+        }
       } catch (e) {
         return { success: false, error: String(e) }
       }
@@ -380,7 +388,7 @@ export class APISeedingHelper {
       to_name: string
       type: string
       value: Record<string, unknown>
-    }>
+    }>,
   ): Promise<string> {
     const apiResult = await this.page.evaluate(
       async ({ taskId, result }) => {
@@ -392,7 +400,7 @@ export class APISeedingHelper {
               headers: { 'Content-Type': 'application/json' },
               credentials: 'include',
               body: JSON.stringify({ result }),
-            }
+            },
           )
           if (!response.ok) {
             const errorText = await response.text()
@@ -404,7 +412,7 @@ export class APISeedingHelper {
           return { success: false, error: String(e) }
         }
       },
-      { taskId, result }
+      { taskId, result },
     )
 
     if (!apiResult.success || !apiResult.annotationId) {
@@ -422,7 +430,7 @@ export class APISeedingHelper {
     projectId: string,
     taskId: string,
     modelId: string,
-    output: Record<string, unknown>
+    output: Record<string, unknown>,
   ): Promise<string> {
     const result = await this.page.evaluate(
       async ({ projectId, taskId, modelId, output }) => {
@@ -449,7 +457,7 @@ export class APISeedingHelper {
           return { success: false, error: String(e) }
         }
       },
-      { projectId, taskId, modelId, output }
+      { projectId, taskId, modelId, output },
     )
 
     if (!result.success || !result.generationId) {
@@ -464,7 +472,7 @@ export class APISeedingHelper {
    */
   async createEvaluation(
     projectId: string,
-    evaluationType: string = 'multi_field'
+    evaluationType: string = 'multi_field',
   ): Promise<string> {
     const result = await this.page.evaluate(
       async ({ projectId, evaluationType }) => {
@@ -489,7 +497,7 @@ export class APISeedingHelper {
           return { success: false, error: String(e) }
         }
       },
-      { projectId, evaluationType }
+      { projectId, evaluationType },
     )
 
     if (!result.success || !result.evaluationId) {
@@ -509,7 +517,7 @@ export class APISeedingHelper {
       generation_id: string
       task_id: string
       metrics: Record<string, number>
-    }>
+    }>,
   ): Promise<void> {
     const result = await this.page.evaluate(
       async ({ evaluationId, results }) => {
@@ -521,7 +529,7 @@ export class APISeedingHelper {
               headers: { 'Content-Type': 'application/json' },
               credentials: 'include',
               body: JSON.stringify({ results }),
-            }
+            },
           )
           if (!response.ok) {
             const errorText = await response.text()
@@ -532,7 +540,7 @@ export class APISeedingHelper {
           return { success: false, error: String(e) }
         }
       },
-      { evaluationId, results }
+      { evaluationId, results },
     )
 
     if (!result.success) {
@@ -545,7 +553,7 @@ export class APISeedingHelper {
    */
   async updateEvaluationStatus(
     evaluationId: string,
-    status: string
+    status: string,
   ): Promise<void> {
     const result = await this.page.evaluate(
       async ({ evaluationId, status }) => {
@@ -565,7 +573,7 @@ export class APISeedingHelper {
           return { success: false, error: String(e) }
         }
       },
-      { evaluationId, status }
+      { evaluationId, status },
     )
 
     if (!result.success) {
@@ -579,7 +587,7 @@ export class APISeedingHelper {
    */
   async seedGenerations(
     projectId: string,
-    generations: Array<{ task_id: string; model_id: string; output: string }>
+    generations: Array<{ task_id: string; model_id: string; output: string }>,
   ): Promise<string[]> {
     const result = await this.page.evaluate(
       async ({ projectId, generations }) => {
@@ -600,7 +608,7 @@ export class APISeedingHelper {
           return { success: false, error: String(e) }
         }
       },
-      { projectId, generations }
+      { projectId, generations },
     )
 
     if (!result.success) {
@@ -617,7 +625,7 @@ export class APISeedingHelper {
   async seedEvaluation(
     projectId: string,
     results: Array<{ generation_id: string; metric: string; score: number }>,
-    evaluationName?: string
+    evaluationName?: string,
   ): Promise<string[]> {
     const result = await this.page.evaluate(
       async ({ projectId, results, evaluationName }) => {
@@ -642,7 +650,7 @@ export class APISeedingHelper {
           return { success: false, error: String(e) }
         }
       },
-      { projectId, results, evaluationName }
+      { projectId, results, evaluationName },
     )
 
     if (!result.success) {
@@ -697,7 +705,7 @@ export class APISeedingHelper {
   async waitFor(
     condition: () => Promise<boolean>,
     timeout: number = 10000,
-    interval: number = 500
+    interval: number = 500,
   ): Promise<boolean> {
     const startTime = Date.now()
     while (Date.now() - startTime < timeout) {

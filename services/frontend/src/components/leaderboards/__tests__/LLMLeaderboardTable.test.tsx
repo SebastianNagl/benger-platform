@@ -1,8 +1,8 @@
 /**
  * @jest-environment jsdom
  */
-import '@testing-library/jest-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import '@testing-library/jest-dom'
 import { render as rtlRender, screen, waitFor } from '@testing-library/react'
 import React from 'react'
 
@@ -16,7 +16,7 @@ const render: typeof rtlRender = (ui, options) => {
   })
   return rtlRender(
     <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>,
-    options
+    options,
   )
 }
 
@@ -34,7 +34,11 @@ jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({ t: (key: string) => key, locale: 'en' }),
 }))
 jest.mock('@/hooks/useProjects', () => ({
-  useProjects: () => ({ projects: [], loading: false, fetchProjects: jest.fn() }),
+  useProjects: () => ({
+    projects: [],
+    loading: false,
+    fetchProjects: jest.fn(),
+  }),
 }))
 jest.mock('next/navigation', () => ({
   useRouter: () => ({ push: jest.fn() }),
@@ -98,10 +102,13 @@ describe('LLMLeaderboardTable', () => {
   it('renders model data when API returns results', async () => {
     mockGetLLMLeaderboard.mockResolvedValue(dataResponse)
     const { container } = render(<LLMLeaderboardTable />)
-    await waitFor(() => {
-      expect(container.textContent).toContain('GPT-4o')
-      expect(container.textContent).toContain('openai')
-    }, { timeout: 5000 })
+    await waitFor(
+      () => {
+        expect(container.textContent).toContain('GPT-4o')
+        expect(container.textContent).toContain('openai')
+      },
+      { timeout: 5000 },
+    )
   })
 
   it('handles empty leaderboard without crash', async () => {

@@ -13,9 +13,11 @@ jest.mock('@/contexts/I18nContext', () => ({
     t: (key: string) => {
       const translations: Record<string, string> = {
         'admin.emailVerificationModal.title': 'Verify Email Address',
-        'admin.emailVerificationModal.confirmMessage': 'Are you sure you want to manually verify the email address for',
+        'admin.emailVerificationModal.confirmMessage':
+          'Are you sure you want to manually verify the email address for',
         'admin.emailVerificationModal.reasonLabel': 'Reason (optional)',
-        'admin.emailVerificationModal.reasonPlaceholder': 'Optionally provide a reason for verification...',
+        'admin.emailVerificationModal.reasonPlaceholder':
+          'Optionally provide a reason for verification...',
         'admin.emailVerificationModal.cancel': 'Cancel',
         'admin.emailVerificationModal.verifyEmail': 'Verify Email',
         'admin.emailVerificationModal.processing': 'Processing...',
@@ -53,7 +55,7 @@ jest.mock('@headlessui/react', () => {
           <div {...props}>{children}</div>
         ),
         Title: ({ children, ...props }: any) => <h3 {...props}>{children}</h3>,
-      }
+      },
     ),
     Transition: Object.assign(
       ({ show, appear, children, ...props }: any) =>
@@ -82,7 +84,7 @@ jest.mock('@headlessui/react', () => {
             </div>
           )
         },
-      }
+      },
     ),
     Fragment: mockFragment,
   }
@@ -128,7 +130,7 @@ describe('EmailVerificationModal', () => {
     it('renders modal title', () => {
       render(<EmailVerificationModal {...defaultProps} />)
       expect(
-        screen.getByRole('heading', { name: 'Verify Email Address' })
+        screen.getByRole('heading', { name: 'Verify Email Address' }),
       ).toBeInTheDocument()
     })
 
@@ -140,10 +142,10 @@ describe('EmailVerificationModal', () => {
     it('displays user name and email in confirmation message', () => {
       render(<EmailVerificationModal {...defaultProps} />)
       expect(
-        screen.getByText('Test User', { exact: false })
+        screen.getByText('Test User', { exact: false }),
       ).toBeInTheDocument()
       expect(
-        screen.getByText('test@example.com', { exact: false })
+        screen.getByText('test@example.com', { exact: false }),
       ).toBeInTheDocument()
     })
 
@@ -151,8 +153,8 @@ describe('EmailVerificationModal', () => {
       render(<EmailVerificationModal {...defaultProps} />)
       expect(
         screen.getByText(
-          /Are you sure you want to manually verify the email address/i
-        )
+          /Are you sure you want to manually verify the email address/i,
+        ),
       ).toBeInTheDocument()
     })
 
@@ -166,7 +168,7 @@ describe('EmailVerificationModal', () => {
       const textarea = screen.getByLabelText('Reason (optional)')
       expect(textarea).toHaveAttribute(
         'placeholder',
-        'Optionally provide a reason for verification...'
+        'Optionally provide a reason for verification...',
       )
     })
 
@@ -178,7 +180,7 @@ describe('EmailVerificationModal', () => {
     it('renders verify button', () => {
       render(<EmailVerificationModal {...defaultProps} />)
       expect(
-        screen.getByRole('button', { name: 'Verify Email' })
+        screen.getByRole('button', { name: 'Verify Email' }),
       ).toBeInTheDocument()
     })
 
@@ -199,7 +201,7 @@ describe('EmailVerificationModal', () => {
       const customUser = { ...mockUser, email: 'john@example.com' }
       render(<EmailVerificationModal {...defaultProps} user={customUser} />)
       expect(
-        screen.getByText('john@example.com', { exact: false })
+        screen.getByText('john@example.com', { exact: false }),
       ).toBeInTheDocument()
     })
 
@@ -302,7 +304,7 @@ describe('EmailVerificationModal', () => {
 
       await waitFor(() => {
         expect(defaultProps.onConfirm).toHaveBeenCalledWith(
-          'Manual verification requested'
+          'Manual verification requested',
         )
       })
     })
@@ -421,7 +423,7 @@ describe('EmailVerificationModal', () => {
       await waitFor(() => {
         expect(consoleErrorSpy).toHaveBeenCalledWith(
           'Failed to verify email:',
-          expect.any(Error)
+          expect.any(Error),
         )
       })
 
@@ -471,7 +473,7 @@ describe('EmailVerificationModal', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByRole('button', { name: 'Verify Email' })
+          screen.getByRole('button', { name: 'Verify Email' }),
         ).toBeInTheDocument()
       })
 
@@ -594,7 +596,7 @@ describe('EmailVerificationModal', () => {
 
     it('handles rapid open/close transitions', () => {
       const { rerender } = render(
-        <EmailVerificationModal {...defaultProps} isOpen={false} />
+        <EmailVerificationModal {...defaultProps} isOpen={false} />,
       )
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
 
@@ -618,7 +620,7 @@ describe('EmailVerificationModal', () => {
     it('preserves reason state across modal close/open cycles', async () => {
       const user = userEvent.setup()
       const { rerender } = render(
-        <EmailVerificationModal {...defaultProps} isOpen={true} />
+        <EmailVerificationModal {...defaultProps} isOpen={true} />,
       )
       const textarea = screen.getByLabelText('Reason (optional)')
       await user.type(textarea, 'Test reason')
@@ -627,7 +629,7 @@ describe('EmailVerificationModal', () => {
       rerender(<EmailVerificationModal {...defaultProps} isOpen={true} />)
 
       expect(screen.getByLabelText('Reason (optional)')).toHaveValue(
-        'Test reason'
+        'Test reason',
       )
     })
   })
@@ -641,7 +643,7 @@ describe('EmailVerificationModal', () => {
     it('has proper heading', () => {
       render(<EmailVerificationModal {...defaultProps} />)
       expect(
-        screen.getByRole('heading', { name: 'Verify Email Address' })
+        screen.getByRole('heading', { name: 'Verify Email Address' }),
       ).toBeInTheDocument()
     })
 
@@ -663,7 +665,7 @@ describe('EmailVerificationModal', () => {
       render(<EmailVerificationModal {...defaultProps} />)
       expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument()
       expect(
-        screen.getByRole('button', { name: 'Verify Email' })
+        screen.getByRole('button', { name: 'Verify Email' }),
       ).toBeInTheDocument()
     })
   })
@@ -672,7 +674,7 @@ describe('EmailVerificationModal', () => {
     it('handles user with empty name', () => {
       const userWithEmptyName = { ...mockUser, name: '' }
       render(
-        <EmailVerificationModal {...defaultProps} user={userWithEmptyName} />
+        <EmailVerificationModal {...defaultProps} user={userWithEmptyName} />,
       )
       expect(screen.getByRole('dialog')).toBeInTheDocument()
     })
@@ -680,20 +682,20 @@ describe('EmailVerificationModal', () => {
     it('handles user with long name', () => {
       const userWithLongName = { ...mockUser, name: 'A'.repeat(100) }
       render(
-        <EmailVerificationModal {...defaultProps} user={userWithLongName} />
+        <EmailVerificationModal {...defaultProps} user={userWithLongName} />,
       )
       expect(
-        screen.getByText('A'.repeat(100), { exact: false })
+        screen.getByText('A'.repeat(100), { exact: false }),
       ).toBeInTheDocument()
     })
 
     it('handles user with special characters in name', () => {
       const userWithSpecialName = { ...mockUser, name: "O'Brien-Smith" }
       render(
-        <EmailVerificationModal {...defaultProps} user={userWithSpecialName} />
+        <EmailVerificationModal {...defaultProps} user={userWithSpecialName} />,
       )
       expect(
-        screen.getByText("O'Brien-Smith", { exact: false })
+        screen.getByText("O'Brien-Smith", { exact: false }),
       ).toBeInTheDocument()
     })
 
@@ -735,10 +737,10 @@ describe('EmailVerificationModal', () => {
 
     it('handles different user props', () => {
       const { rerender } = render(
-        <EmailVerificationModal {...defaultProps} user={mockUser} />
+        <EmailVerificationModal {...defaultProps} user={mockUser} />,
       )
       expect(
-        screen.getByText('Test User', { exact: false })
+        screen.getByText('Test User', { exact: false }),
       ).toBeInTheDocument()
 
       const newUser = {
@@ -749,7 +751,7 @@ describe('EmailVerificationModal', () => {
       rerender(<EmailVerificationModal {...defaultProps} user={newUser} />)
       expect(screen.getByText('Jane Doe', { exact: false })).toBeInTheDocument()
       expect(
-        screen.getByText('jane@example.com', { exact: false })
+        screen.getByText('jane@example.com', { exact: false }),
       ).toBeInTheDocument()
     })
 

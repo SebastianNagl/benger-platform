@@ -26,7 +26,7 @@ function fixImplicitAnyInSetState(content, filePath) {
     const matches = content.match(pattern)
     if (matches && matches.length > 0) {
       console.log(
-        `  Fixing ${matches.length} implicit any in setState in ${path.basename(filePath)}`
+        `  Fixing ${matches.length} implicit any in setState in ${path.basename(filePath)}`,
       )
       content = content.replace(pattern, replacement)
       fixed = true
@@ -51,7 +51,7 @@ function fixTaskDataReferences(content, filePath) {
 
   if (matches && matches.length > 0) {
     console.log(
-      `  Fixing ${matches.length} task.data references in ${path.basename(filePath)}`
+      `  Fixing ${matches.length} task.data references in ${path.basename(filePath)}`,
     )
     content = content.replace(pattern, '(task as any).data')
     fixed = true
@@ -88,7 +88,7 @@ function fixParameterTypes(content, filePath) {
       if (!check || check(match[0], match[1])) {
         content = content.replace(
           match[0],
-          match[0].replace(pattern, replacement)
+          match[0].replace(pattern, replacement),
         )
         replacements++
       }
@@ -96,7 +96,7 @@ function fixParameterTypes(content, filePath) {
 
     if (replacements > 0) {
       console.log(
-        `  Fixed ${replacements} parameter types in ${path.basename(filePath)}`
+        `  Fixed ${replacements} parameter types in ${path.basename(filePath)}`,
       )
       fixed = true
     }
@@ -123,7 +123,7 @@ function fixButtonVariants(content, filePath) {
 
     if (matches && matches.length > 0) {
       console.log(
-        `  Fixing ${matches.length} '${oldVariant}' variant(s) to '${newVariant}' in ${path.basename(filePath)}`
+        `  Fixing ${matches.length} '${oldVariant}' variant(s) to '${newVariant}' in ${path.basename(filePath)}`,
       )
       content = content.replace(pattern, `variant="${newVariant}"`)
       fixed = true
@@ -143,7 +143,7 @@ function fixParamsNullChecks(content, filePath) {
 
   if (matches && matches.length > 0) {
     console.log(
-      `  Adding ${matches.length} null checks for params in ${path.basename(filePath)}`
+      `  Adding ${matches.length} null checks for params in ${path.basename(filePath)}`,
     )
     content = content.replace(pattern, 'params?.$1')
     fixed = true
@@ -155,7 +155,7 @@ function fixParamsNullChecks(content, filePath) {
 
   if (searchMatches && searchMatches.length > 0) {
     console.log(
-      `  Adding ${searchMatches.length} null checks for searchParams in ${path.basename(filePath)}`
+      `  Adding ${searchMatches.length} null checks for searchParams in ${path.basename(filePath)}`,
     )
     content = content.replace(searchPattern, 'searchParams?.$1')
     fixed = true

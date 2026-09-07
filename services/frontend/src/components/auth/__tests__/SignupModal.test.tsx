@@ -18,7 +18,8 @@ jest.mock('@/contexts/I18nContext', () => ({
     t: (key: string) => {
       const translations: Record<string, string> = {
         'signupModal.title': 'Create your BenGER account',
-        'signupModal.subtitle': 'Join as an annotator and help improve AI models',
+        'signupModal.subtitle':
+          'Join as an annotator and help improve AI models',
         'signupModal.fullName': 'Full Name',
         'signupModal.fullNamePlaceholder': 'Enter your full name',
         'signupModal.emailAddress': 'Email Address',
@@ -32,9 +33,11 @@ jest.mock('@/contexts/I18nContext', () => ({
         'signupModal.cancel': 'Cancel',
         'signupModal.creating': 'Creating account...',
         'signupModal.createAccount': 'Create account',
-        'signupModal.defaultRole': 'New users are created with annotator role by default',
+        'signupModal.defaultRole':
+          'New users are created with annotator role by default',
         'signupModal.passwordMismatch': 'Passwords do not match',
-        'signupModal.passwordLength': 'Password must be at least 6 characters long',
+        'signupModal.passwordLength':
+          'Password must be at least 6 characters long',
         'signupModal.signupFailed': 'Signup failed',
       }
       return translations[key] || key
@@ -113,15 +116,15 @@ describe('SignupModal Component', () => {
     it('has correct input types', () => {
       expect(screen.getByLabelText('Email Address')).toHaveAttribute(
         'type',
-        'email'
+        'email',
       )
       expect(screen.getByLabelText('Password')).toHaveAttribute(
         'type',
-        'password'
+        'password',
       )
       expect(screen.getByLabelText('Confirm Password')).toHaveAttribute(
         'type',
-        'password'
+        'password',
       )
     })
 
@@ -136,32 +139,34 @@ describe('SignupModal Component', () => {
     it('has correct autocomplete attributes', () => {
       expect(screen.getByLabelText('Full Name')).toHaveAttribute(
         'autocomplete',
-        'name'
+        'name',
       )
       expect(screen.getByLabelText('Email Address')).toHaveAttribute(
         'autocomplete',
-        'email'
+        'email',
       )
       expect(screen.getByLabelText('Username')).toHaveAttribute(
         'autocomplete',
-        'username'
+        'username',
       )
       expect(screen.getByLabelText('Password')).toHaveAttribute(
         'autocomplete',
-        'new-password'
+        'new-password',
       )
     })
 
     it('renders Cancel and Create account buttons', () => {
       expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument()
       expect(
-        screen.getByRole('button', { name: 'Create account' })
+        screen.getByRole('button', { name: 'Create account' }),
       ).toBeInTheDocument()
     })
 
     it('shows helper text about annotator role', () => {
       expect(
-        screen.getByText('New users are created with annotator role by default')
+        screen.getByText(
+          'New users are created with annotator role by default',
+        ),
       ).toBeInTheDocument()
     })
   })
@@ -176,7 +181,7 @@ describe('SignupModal Component', () => {
       await user.type(screen.getByLabelText('Full Name'), 'Test User')
       await user.type(
         screen.getByLabelText('Email Address'),
-        'test@example.com'
+        'test@example.com',
       )
       await user.type(screen.getByLabelText('Username'), 'testuser')
       await user.type(screen.getByLabelText('Password'), 'password123')
@@ -189,7 +194,7 @@ describe('SignupModal Component', () => {
           'testuser',
           'test@example.com',
           'Test User',
-          'password123'
+          'password123',
         )
       })
     })
@@ -203,7 +208,7 @@ describe('SignupModal Component', () => {
       await user.type(screen.getByLabelText('Full Name'), 'Test User')
       await user.type(
         screen.getByLabelText('Email Address'),
-        'test@example.com'
+        'test@example.com',
       )
       await user.type(screen.getByLabelText('Username'), 'testuser')
       await user.type(screen.getByLabelText('Password'), 'password123')
@@ -244,7 +249,7 @@ describe('SignupModal Component', () => {
     it('shows loading state during submission', async () => {
       const user = userEvent.setup()
       mockSignup.mockImplementation(
-        () => new Promise((resolve) => setTimeout(resolve, 1000))
+        () => new Promise((resolve) => setTimeout(resolve, 1000)),
       )
 
       render(<SignupModal isOpen={true} onClose={mockOnClose} />)
@@ -252,7 +257,7 @@ describe('SignupModal Component', () => {
       await user.type(screen.getByLabelText('Full Name'), 'Test User')
       await user.type(
         screen.getByLabelText('Email Address'),
-        'test@example.com'
+        'test@example.com',
       )
       await user.type(screen.getByLabelText('Username'), 'testuser')
       await user.type(screen.getByLabelText('Password'), 'password123')
@@ -261,14 +266,14 @@ describe('SignupModal Component', () => {
       await user.click(screen.getByRole('button', { name: 'Create account' }))
 
       expect(
-        screen.getByRole('button', { name: 'Creating account...' })
+        screen.getByRole('button', { name: 'Creating account...' }),
       ).toBeInTheDocument()
     })
 
     it('disables form inputs during submission', async () => {
       const user = userEvent.setup()
       mockSignup.mockImplementation(
-        () => new Promise((resolve) => setTimeout(resolve, 1000))
+        () => new Promise((resolve) => setTimeout(resolve, 1000)),
       )
 
       render(<SignupModal isOpen={true} onClose={mockOnClose} />)
@@ -276,7 +281,7 @@ describe('SignupModal Component', () => {
       await user.type(screen.getByLabelText('Full Name'), 'Test User')
       await user.type(
         screen.getByLabelText('Email Address'),
-        'test@example.com'
+        'test@example.com',
       )
       await user.type(screen.getByLabelText('Username'), 'testuser')
       await user.type(screen.getByLabelText('Password'), 'password123')
@@ -300,13 +305,13 @@ describe('SignupModal Component', () => {
       await user.type(screen.getByLabelText('Full Name'), 'Test User')
       await user.type(
         screen.getByLabelText('Email Address'),
-        'test@example.com'
+        'test@example.com',
       )
       await user.type(screen.getByLabelText('Username'), 'testuser')
       await user.type(screen.getByLabelText('Password'), 'password123')
       await user.type(
         screen.getByLabelText('Confirm Password'),
-        'differentpassword'
+        'differentpassword',
       )
 
       await user.click(screen.getByRole('button', { name: 'Create account' }))
@@ -322,7 +327,7 @@ describe('SignupModal Component', () => {
       await user.type(screen.getByLabelText('Full Name'), 'Test User')
       await user.type(
         screen.getByLabelText('Email Address'),
-        'test@example.com'
+        'test@example.com',
       )
       await user.type(screen.getByLabelText('Username'), 'testuser')
       await user.type(screen.getByLabelText('Password'), '12345')
@@ -331,7 +336,7 @@ describe('SignupModal Component', () => {
       await user.click(screen.getByRole('button', { name: 'Create account' }))
 
       expect(
-        screen.getByText('Password must be at least 6 characters long')
+        screen.getByText('Password must be at least 6 characters long'),
       ).toBeInTheDocument()
       expect(mockSignup).not.toHaveBeenCalled()
     })
@@ -343,7 +348,7 @@ describe('SignupModal Component', () => {
       await user.type(screen.getByLabelText('Full Name'), 'Test User')
       await user.type(
         screen.getByLabelText('Email Address'),
-        'test@example.com'
+        'test@example.com',
       )
       await user.type(screen.getByLabelText('Username'), 'testuser')
       await user.type(screen.getByLabelText('Password'), '12345')
@@ -362,7 +367,7 @@ describe('SignupModal Component', () => {
       await user.click(screen.getByRole('button', { name: 'Create account' }))
 
       expect(
-        screen.queryByText(/Password must be at least/)
+        screen.queryByText(/Password must be at least/),
       ).not.toBeInTheDocument()
     })
 
@@ -382,7 +387,7 @@ describe('SignupModal Component', () => {
       await user.type(screen.getByLabelText('Full Name'), 'Test User')
       await user.type(
         screen.getByLabelText('Email Address'),
-        'test@example.com'
+        'test@example.com',
       )
       await user.type(screen.getByLabelText('Username'), 'testuser')
       await user.type(screen.getByLabelText('Password'), 'password123')
@@ -405,7 +410,7 @@ describe('SignupModal Component', () => {
       await user.type(screen.getByLabelText('Full Name'), 'Test User')
       await user.type(
         screen.getByLabelText('Email Address'),
-        'test@example.com'
+        'test@example.com',
       )
       await user.type(screen.getByLabelText('Username'), 'testuser')
       await user.type(screen.getByLabelText('Password'), 'password123')
@@ -427,7 +432,7 @@ describe('SignupModal Component', () => {
       await user.type(screen.getByLabelText('Full Name'), 'Test User')
       await user.type(
         screen.getByLabelText('Email Address'),
-        'test@example.com'
+        'test@example.com',
       )
       await user.type(screen.getByLabelText('Username'), 'testuser')
       await user.type(screen.getByLabelText('Password'), 'password123')
@@ -450,7 +455,7 @@ describe('SignupModal Component', () => {
       await user.type(screen.getByLabelText('Full Name'), 'Test User')
       await user.type(
         screen.getByLabelText('Email Address'),
-        'test@example.com'
+        'test@example.com',
       )
       await user.type(screen.getByLabelText('Username'), 'testuser')
       await user.type(screen.getByLabelText('Password'), 'password123')
@@ -474,7 +479,7 @@ describe('SignupModal Component', () => {
       await user.type(screen.getByLabelText('Full Name'), 'Test User')
       await user.type(
         screen.getByLabelText('Email Address'),
-        'test@example.com'
+        'test@example.com',
       )
       await user.type(screen.getByLabelText('Username'), 'testuser')
       await user.type(screen.getByLabelText('Password'), 'password123')
@@ -488,7 +493,7 @@ describe('SignupModal Component', () => {
 
       expect(screen.getByLabelText('Full Name')).not.toBeDisabled()
       expect(
-        screen.getByRole('button', { name: 'Create account' })
+        screen.getByRole('button', { name: 'Create account' }),
       ).not.toBeDisabled()
     })
   })
@@ -522,7 +527,7 @@ describe('SignupModal Component', () => {
       await user.type(screen.getByLabelText('Full Name'), 'Test User')
       await user.type(
         screen.getByLabelText('Email Address'),
-        'test@example.com'
+        'test@example.com',
       )
       await user.type(screen.getByLabelText('Username'), 'testuser')
       await user.type(screen.getByLabelText('Password'), '12345')
@@ -541,7 +546,7 @@ describe('SignupModal Component', () => {
       const user = userEvent.setup()
       const localOnClose = jest.fn()
       mockSignup.mockImplementation(
-        () => new Promise((resolve) => setTimeout(resolve, 1000))
+        () => new Promise((resolve) => setTimeout(resolve, 1000)),
       )
 
       render(<SignupModal isOpen={true} onClose={localOnClose} />)
@@ -549,7 +554,7 @@ describe('SignupModal Component', () => {
       await user.type(screen.getByLabelText('Full Name'), 'Test User')
       await user.type(
         screen.getByLabelText('Email Address'),
-        'test@example.com'
+        'test@example.com',
       )
       await user.type(screen.getByLabelText('Username'), 'testuser')
       await user.type(screen.getByLabelText('Password'), 'password123')
@@ -567,7 +572,7 @@ describe('SignupModal Component', () => {
   describe('Dark Mode Support', () => {
     it('applies dark mode classes to dialog', () => {
       const { container } = render(
-        <SignupModal isOpen={true} onClose={mockOnClose} />
+        <SignupModal isOpen={true} onClose={mockOnClose} />,
       )
 
       const dialogPanel = screen.getByTestId('dialog-panel')
@@ -588,7 +593,7 @@ describe('SignupModal Component', () => {
       await user.type(screen.getByLabelText('Full Name'), 'Test User')
       await user.type(
         screen.getByLabelText('Email Address'),
-        'test@example.com'
+        'test@example.com',
       )
       await user.type(screen.getByLabelText('Username'), 'testuser')
       await user.type(screen.getByLabelText('Password'), '123')
@@ -601,7 +606,7 @@ describe('SignupModal Component', () => {
         .closest('div')
       expect(errorContainer).toHaveClass(
         'dark:border-red-800',
-        'dark:bg-red-950/50'
+        'dark:bg-red-950/50',
       )
     })
   })

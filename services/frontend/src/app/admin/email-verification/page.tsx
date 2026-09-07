@@ -68,7 +68,7 @@ export default function EmailVerificationManagement() {
   const { t } = useI18n()
   const { user } = useAuth()
   const [statistics, setStatistics] = useState<VerificationStatistics | null>(
-    null
+    null,
   )
   const [unverifiedUsers, setUnverifiedUsers] = useState<UnverifiedUser[]>([])
   const [statisticsReport, setStatisticsReport] =
@@ -127,7 +127,7 @@ export default function EmailVerificationManagement() {
       `${apiBase}/monitoring/email-verification/statistics`,
       {
         credentials: 'include',
-      }
+      },
     )
 
     if (!response.ok) {
@@ -143,7 +143,7 @@ export default function EmailVerificationManagement() {
       `${apiBase}/monitoring/email-verification/unverified-users?limit=20`,
       {
         credentials: 'include',
-      }
+      },
     )
 
     if (!response.ok) {
@@ -159,7 +159,7 @@ export default function EmailVerificationManagement() {
       `${apiBase}/monitoring/email-verification/statistics-report`,
       {
         credentials: 'include',
-      }
+      },
     )
 
     if (!response.ok) {
@@ -181,7 +181,7 @@ export default function EmailVerificationManagement() {
         {
           method: 'POST',
           credentials: 'include',
-        }
+        },
       )
 
       if (!response.ok) {
@@ -192,8 +192,8 @@ export default function EmailVerificationManagement() {
       setSuccess(
         t('emailVerification.admin.alerts.cleanupSuccess').replace(
           '{{count}}',
-          String(result.tokens_cleaned || 0)
-        )
+          String(result.tokens_cleaned || 0),
+        ),
       )
 
       // Refresh data
@@ -217,7 +217,7 @@ export default function EmailVerificationManagement() {
         {
           method: 'POST',
           credentials: 'include',
-        }
+        },
       )
 
       if (!response.ok) {
@@ -228,8 +228,8 @@ export default function EmailVerificationManagement() {
       setSuccess(
         t('emailVerification.admin.alerts.remindersSuccess').replace(
           '{{count}}',
-          String(result.reminders_sent || 0)
-        )
+          String(result.reminders_sent || 0),
+        ),
       )
 
       // Refresh data
@@ -253,7 +253,7 @@ export default function EmailVerificationManagement() {
         {
           method: 'POST',
           credentials: 'include',
-        }
+        },
       )
 
       if (!response.ok) {
@@ -265,12 +265,12 @@ export default function EmailVerificationManagement() {
         setSuccess(
           t('emailVerification.admin.alerts.resendSuccess').replace(
             '{{email}}',
-            result.user_email
-          )
+            result.user_email,
+          ),
         )
       } else {
         setError(
-          result.message || t('emailVerification.admin.alerts.resendFailed')
+          result.message || t('emailVerification.admin.alerts.resendFailed'),
         )
       }
 
@@ -452,7 +452,7 @@ export default function EmailVerificationManagement() {
             <Users className="mr-2 h-5 w-5" />
             {t('emailVerification.admin.users.unverifiedCount').replace(
               '{{count}}',
-              String(unverifiedUsers.length)
+              String(unverifiedUsers.length),
             )}
           </CardTitle>
           <CardDescription>
@@ -492,19 +492,19 @@ export default function EmailVerificationManagement() {
                       <span>
                         {t('emailVerification.admin.users.registered').replace(
                           '{{date}}',
-                          formatDate(user.created_at)
+                          formatDate(user.created_at),
                         )}
                       </span>
                       <span>
                         {t('emailVerification.admin.users.lastEmail').replace(
                           '{{date}}',
-                          formatDate(user.email_verification_sent_at)
+                          formatDate(user.email_verification_sent_at),
                         )}
                       </span>
                       <span>
                         {t('emailVerification.admin.users.daysAgo').replace(
                           '{{days}}',
-                          String(user.days_since_registration)
+                          String(user.days_since_registration),
                         )}
                       </span>
                     </div>

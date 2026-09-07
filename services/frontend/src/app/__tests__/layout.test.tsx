@@ -13,7 +13,8 @@ import RootLayout, { generateMetadata } from '../layout'
 let mockHost = ''
 jest.mock('next/headers', () => ({
   headers: jest.fn(async () => ({
-    get: (key: string) => (key === 'x-forwarded-host' ? mockHost || null : null),
+    get: (key: string) =>
+      key === 'x-forwarded-host' ? mockHost || null : null,
   })),
 }))
 
@@ -55,22 +56,28 @@ describe('RootLayout', () => {
 
     it('exports correct default title', async () => {
       const metadata = await generateMetadata()
-      const titleConfig = metadata.title as { template: string; default: string }
+      const titleConfig = metadata.title as {
+        template: string
+        default: string
+      }
       expect(titleConfig.default).toBe(
-        'BenGER - Vertrauensvolle KI-Bewertung für deutsches Recht'
+        'BenGER - Vertrauensvolle KI-Bewertung für deutsches Recht',
       )
     })
 
     it('exports correct title template', async () => {
       const metadata = await generateMetadata()
-      const titleConfig = metadata.title as { template: string; default: string }
+      const titleConfig = metadata.title as {
+        template: string
+        default: string
+      }
       expect(titleConfig.template).toBe('%s - BenGER')
     })
 
     it('exports correct description', async () => {
       const metadata = await generateMetadata()
       expect(metadata.description).toBe(
-        'Die führende Plattform für wissenschaftlich fundierte Evaluation von Large Language Models im deutschen Rechtskontext. Entwickelt an der TUM.'
+        'Die führende Plattform für wissenschaftlich fundierte Evaluation von Large Language Models im deutschen Rechtskontext. Entwickelt an der TUM.',
       )
     })
 
@@ -92,7 +99,7 @@ describe('RootLayout', () => {
     it('exports correct Open Graph configuration', async () => {
       const metadata = await generateMetadata()
       expect(metadata.openGraph?.title).toBe(
-        'BenGER - Vertrauensvolle KI-Bewertung für deutsches Recht'
+        'BenGER - Vertrauensvolle KI-Bewertung für deutsches Recht',
       )
       expect(metadata.openGraph?.url).toBe('https://what-a-benger.net')
       expect(metadata.openGraph?.siteName).toBe('BenGER')
@@ -104,16 +111,19 @@ describe('RootLayout', () => {
       const metadata = await generateMetadata()
       expect(metadata.twitter?.card).toBe('summary_large_image')
       expect(metadata.twitter?.title).toBe(
-        'BenGER - Vertrauensvolle KI-Bewertung für deutsches Recht'
+        'BenGER - Vertrauensvolle KI-Bewertung für deutsches Recht',
       )
     })
 
     it('uses Vertretbar branding + favicon on a vertretbar host', async () => {
       mockHost = 'vertretbar.net'
       const metadata = await generateMetadata()
-      const titleConfig = metadata.title as { template: string; default: string }
+      const titleConfig = metadata.title as {
+        template: string
+        default: string
+      }
       expect(titleConfig.default).toBe(
-        'Vertretbar – Klausuren üben mit sofortiger KI-Korrektur'
+        'Vertretbar – Klausuren üben mit sofortiger KI-Korrektur',
       )
       expect(titleConfig.template).toBe('%s · Vertretbar')
       expect(metadata.icons).toHaveProperty('icon', '/vertretbar-icon.svg')
@@ -127,10 +137,10 @@ describe('RootLayout', () => {
       const { container } = render(
         <RootLayout>
           <div>Test content</div>
-        </RootLayout>
+        </RootLayout>,
       )
 
-      const html = container.querySelector('html')
+      const html = document.documentElement
       expect(html).toBeInTheDocument()
       expect(html).toHaveAttribute('lang', 'de')
     })
@@ -139,10 +149,10 @@ describe('RootLayout', () => {
       const { container } = render(
         <RootLayout>
           <div>Test content</div>
-        </RootLayout>
+        </RootLayout>,
       )
 
-      const html = container.querySelector('html')
+      const html = document.documentElement
       expect(html).toHaveClass('h-full')
     })
 
@@ -150,10 +160,10 @@ describe('RootLayout', () => {
       const { container } = render(
         <RootLayout>
           <div>Test content</div>
-        </RootLayout>
+        </RootLayout>,
       )
 
-      const html = container.querySelector('html')
+      const html = document.documentElement
       // suppressHydrationWarning is a React prop that doesn't appear in DOM
       expect(html).toBeInTheDocument()
     })
@@ -162,10 +172,10 @@ describe('RootLayout', () => {
       const { container } = render(
         <RootLayout>
           <div>Test content</div>
-        </RootLayout>
+        </RootLayout>,
       )
 
-      const body = container.querySelector('body')
+      const body = document.body
       expect(body).toBeInTheDocument()
       expect(body).toHaveClass(
         'flex',
@@ -173,7 +183,7 @@ describe('RootLayout', () => {
         'w-full',
         'bg-white',
         'antialiased',
-        'dark:bg-zinc-900'
+        'dark:bg-zinc-900',
       )
     })
 
@@ -181,10 +191,10 @@ describe('RootLayout', () => {
       const { container } = render(
         <RootLayout>
           <div>Test content</div>
-        </RootLayout>
+        </RootLayout>,
       )
 
-      const body = container.querySelector('body')
+      const body = document.body
       // suppressHydrationWarning is a React prop that doesn't appear in DOM
       expect(body).toBeInTheDocument()
     })
@@ -195,7 +205,7 @@ describe('RootLayout', () => {
       const { getByTestId } = render(
         <RootLayout>
           <div data-testid="child-content">Test content</div>
-        </RootLayout>
+        </RootLayout>,
       )
 
       expect(getByTestId('providers')).toBeInTheDocument()
@@ -205,7 +215,7 @@ describe('RootLayout', () => {
       const { getByTestId } = render(
         <RootLayout>
           <div data-testid="child-content">Test content</div>
-        </RootLayout>
+        </RootLayout>,
       )
 
       expect(getByTestId('conditional-layout')).toBeInTheDocument()
@@ -215,7 +225,7 @@ describe('RootLayout', () => {
       const { getByTestId } = render(
         <RootLayout>
           <div data-testid="child-content">Test content</div>
-        </RootLayout>
+        </RootLayout>,
       )
 
       const conditionalLayout = getByTestId('conditional-layout')
@@ -232,7 +242,7 @@ describe('RootLayout', () => {
       const { getByTestId } = render(
         <RootLayout>
           <div data-testid="child-content">Test content</div>
-        </RootLayout>
+        </RootLayout>,
       )
 
       expect(getByTestId('dev-mode-indicator')).toBeInTheDocument()
@@ -242,15 +252,15 @@ describe('RootLayout', () => {
       const { container } = render(
         <RootLayout>
           <div data-testid="child-content">Test content</div>
-        </RootLayout>
+        </RootLayout>,
       )
 
       const providers = container.querySelector('[data-testid="providers"]')
       const conditionalLayout = container.querySelector(
-        '[data-testid="conditional-layout"]'
+        '[data-testid="conditional-layout"]',
       )
       const devIndicator = container.querySelector(
-        '[data-testid="dev-mode-indicator"]'
+        '[data-testid="dev-mode-indicator"]',
       )
 
       expect(providers).toContainElement(conditionalLayout)
@@ -263,7 +273,7 @@ describe('RootLayout', () => {
       const { getByTestId } = render(
         <RootLayout>
           <div data-testid="child-content">Test content</div>
-        </RootLayout>
+        </RootLayout>,
       )
 
       expect(getByTestId('child-content')).toBeInTheDocument()
@@ -276,7 +286,7 @@ describe('RootLayout', () => {
           <div data-testid="child-1">Child 1</div>
           <div data-testid="child-2">Child 2</div>
           <div data-testid="child-3">Child 3</div>
-        </RootLayout>
+        </RootLayout>,
       )
 
       expect(getByTestId('child-1')).toBeInTheDocument()
@@ -301,7 +311,7 @@ describe('RootLayout', () => {
             </main>
             <footer data-testid="footer">Footer</footer>
           </div>
-        </RootLayout>
+        </RootLayout>,
       )
 
       expect(getByTestId('header')).toBeInTheDocument()
@@ -316,7 +326,7 @@ describe('RootLayout', () => {
       const { getByTestId } = render(
         <RootLayout>
           <div>Test</div>
-        </RootLayout>
+        </RootLayout>,
       )
 
       const conditionalLayout = getByTestId('conditional-layout')
@@ -333,10 +343,10 @@ describe('RootLayout', () => {
       const { container } = render(
         <RootLayout>
           <div>Test</div>
-        </RootLayout>
+        </RootLayout>,
       )
 
-      const body = container.querySelector('body')
+      const body = document.body
       expect(body).toHaveClass('dark:bg-zinc-900')
     })
 
@@ -344,10 +354,10 @@ describe('RootLayout', () => {
       const { container } = render(
         <RootLayout>
           <div>Test</div>
-        </RootLayout>
+        </RootLayout>,
       )
 
-      const html = container.querySelector('html')
+      const html = document.documentElement
       expect(html).toBeInTheDocument()
     })
   })
@@ -357,10 +367,10 @@ describe('RootLayout', () => {
       const { container } = render(
         <RootLayout>
           <div>Test</div>
-        </RootLayout>
+        </RootLayout>,
       )
 
-      const html = container.querySelector('html')
+      const html = document.documentElement
       expect(html).toHaveAttribute('lang', 'de')
     })
 
@@ -368,21 +378,21 @@ describe('RootLayout', () => {
       const { container } = render(
         <RootLayout>
           <div>Test</div>
-        </RootLayout>
+        </RootLayout>,
       )
 
-      expect(container.querySelector('html')).toBeInTheDocument()
-      expect(container.querySelector('body')).toBeInTheDocument()
+      expect(document.documentElement).toBeInTheDocument()
+      expect(document.body).toBeInTheDocument()
     })
 
     it('enables text anti-aliasing for better readability', () => {
       const { container } = render(
         <RootLayout>
           <div>Test</div>
-        </RootLayout>
+        </RootLayout>,
       )
 
-      const body = container.querySelector('body')
+      const body = document.body
       expect(body).toHaveClass('antialiased')
     })
   })
@@ -392,13 +402,13 @@ describe('RootLayout', () => {
       const { container } = render(
         <RootLayout>
           <div>Test</div>
-        </RootLayout>
+        </RootLayout>,
       )
 
-      const html = container.querySelector('html')
+      const html = document.documentElement
       expect(html).toHaveClass('h-full')
 
-      const body = container.querySelector('body')
+      const body = document.body
       expect(body).toHaveClass('min-h-full')
     })
 
@@ -406,10 +416,10 @@ describe('RootLayout', () => {
       const { container } = render(
         <RootLayout>
           <div>Test</div>
-        </RootLayout>
+        </RootLayout>,
       )
 
-      const body = container.querySelector('body')
+      const body = document.body
       expect(body).toHaveClass('w-full')
     })
 
@@ -417,10 +427,10 @@ describe('RootLayout', () => {
       const { container } = render(
         <RootLayout>
           <div>Test</div>
-        </RootLayout>
+        </RootLayout>,
       )
 
-      const body = container.querySelector('body')
+      const body = document.body
       expect(body).toHaveClass('flex')
     })
   })
@@ -430,10 +440,10 @@ describe('RootLayout', () => {
       const { container } = render(
         <RootLayout>
           <div>Test</div>
-        </RootLayout>
+        </RootLayout>,
       )
 
-      const body = container.querySelector('body')
+      const body = document.body
       expect(body).toHaveClass('bg-white')
     })
 
@@ -441,10 +451,10 @@ describe('RootLayout', () => {
       const { container } = render(
         <RootLayout>
           <div>Test</div>
-        </RootLayout>
+        </RootLayout>,
       )
 
-      const body = container.querySelector('body')
+      const body = document.body
       expect(body).toHaveClass('dark:bg-zinc-900')
     })
 
@@ -452,10 +462,10 @@ describe('RootLayout', () => {
       const { container } = render(
         <RootLayout>
           <div>Test</div>
-        </RootLayout>
+        </RootLayout>,
       )
 
-      const body = container.querySelector('body')
+      const body = document.body
       expect(body).toHaveClass('antialiased')
     })
   })
@@ -474,7 +484,7 @@ describe('RootLayout', () => {
             <div data-testid="fragment-child-1">Child 1</div>
             <div data-testid="fragment-child-2">Child 2</div>
           </>
-        </RootLayout>
+        </RootLayout>,
       )
 
       expect(getByTestId('fragment-child-1')).toBeInTheDocument()
@@ -494,7 +504,7 @@ describe('RootLayout', () => {
           {shouldRender && (
             <div data-testid="conditional-child">Conditional</div>
           )}
-        </RootLayout>
+        </RootLayout>,
       )
 
       expect(getByTestId('conditional-child')).toBeInTheDocument()
@@ -502,7 +512,7 @@ describe('RootLayout', () => {
       const { queryByTestId } = render(
         <RootLayout>
           {false && <div data-testid="conditional-child-2">Conditional</div>}
-        </RootLayout>
+        </RootLayout>,
       )
 
       expect(queryByTestId('conditional-child-2')).not.toBeInTheDocument()
@@ -514,13 +524,13 @@ describe('RootLayout', () => {
       const { container } = render(
         <RootLayout>
           <div>Test</div>
-        </RootLayout>
+        </RootLayout>,
       )
 
-      const body = container.querySelector('body')
+      const body = document.body
       const providers = container.querySelector('[data-testid="providers"]')
       const conditionalLayout = container.querySelector(
-        '[data-testid="conditional-layout"]'
+        '[data-testid="conditional-layout"]',
       )
 
       expect(body).toContainElement(providers)
@@ -531,7 +541,7 @@ describe('RootLayout', () => {
       const { getByTestId } = render(
         <RootLayout>
           <div data-testid="test-child">Test child</div>
-        </RootLayout>
+        </RootLayout>,
       )
 
       const conditionalLayout = getByTestId('conditional-layout')

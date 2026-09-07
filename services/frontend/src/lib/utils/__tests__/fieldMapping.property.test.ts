@@ -28,10 +28,13 @@ import {
 // present as a target) actually occur during a run — that's where exact /
 // synonym / fuzzy precedence and target-reuse guards live.
 const fieldTokenArb = fc
-  .stringOf(
-    fc.constantFrom(..."abcdefghijklmnopqrstuvwxyz0123456789_- ".split('')),
-    { minLength: 1, maxLength: 8 },
-  )
+  .string({
+    unit: fc.constantFrom(
+      ...'abcdefghijklmnopqrstuvwxyz0123456789_- '.split(''),
+    ),
+    minLength: 1,
+    maxLength: 8,
+  })
   .filter((s) => s.trim().length > 0)
 
 // A set of DISTINCT field names. Totality of the source/unmapped partition is
@@ -47,12 +50,11 @@ const distinctFieldsArb = fc
 const wildStringArb = fc.oneof(
   fc.string(),
   fc.constantFrom('', '   ', '___', '---', '  _-  ', 'ä', 'ß', '日本語', '🚀'),
-  fc.stringOf(
-    fc.constantFrom(
-      ...'abcDEF123_- äöüß日'.split(''),
-    ),
-    { minLength: 0, maxLength: 12 },
-  ),
+  fc.string({
+    unit: fc.constantFrom(...'abcDEF123_- äöüß日'.split('')),
+    minLength: 0,
+    maxLength: 12,
+  }),
 )
 const wildFieldsArb = fc.array(wildStringArb, { maxLength: 8 })
 
@@ -236,10 +238,11 @@ describe('suggestFieldMappings — confidence scoring fixed points', () => {
   it('generalized monotonicity over random targets: nearer source ⇒ confidence ≥ farther source', () => {
     fc.assert(
       fc.property(
-        fc.stringOf(
-          fc.constantFrom(..."abcdefghijklmnopqrstuvwxyz".split('')),
-          { minLength: 4, maxLength: 8 },
-        ),
+        fc.string({
+          unit: fc.constantFrom(...'abcdefghijklmnopqrstuvwxyz'.split('')),
+          minLength: 4,
+          maxLength: 8,
+        }),
         (base) => {
           // Build two single-token sources from `base`: one identical-but-for-
           // one-trailing-char (distance ~1) and one differing in two trailing
@@ -331,7 +334,10 @@ describe('suggestFieldMappings — synonym (semantic) resolution', () => {
 describe('applyFieldMappings — properties', () => {
   // Rows whose keys come from a small pool, with arbitrary JSON-ish values.
   const keyArb = fc.constantFrom('a', 'b', 'c', 'd', 'e')
-  const rowArb = fc.dictionary(keyArb, fc.oneof(fc.string(), fc.integer(), fc.boolean(), fc.constant(null)))
+  const rowArb = fc.dictionary(
+    keyArb,
+    fc.oneof(fc.string(), fc.integer(), fc.boolean(), fc.constant(null)),
+  )
   const dataArb = fc.array(rowArb, { maxLength: 6 })
   const mappingArb: fc.Arbitrary<FieldMapping> = fc.record({
     source: keyArb,
@@ -342,61 +348,79 @@ describe('applyFieldMappings — properties', () => {
 
   it('preserves row count', () => {
     fc.assert(
-      fc.property(dataArb, fc.array(mappingArb, { maxLength: 4 }), (data, mappings) => {
-        expect(applyFieldMappings(data, mappings)).toHaveLength(data.length)
-      }),
+      fc.property(
+        dataArb,
+        fc.array(mappingArb, { maxLength: 4 }),
+        (data, mappings) => {
+          expect(applyFieldMappings(data, mappings)).toHaveLength(data.length)
+        },
+      ),
     )
   })
 
   it('every output key is either a mapping target or an _unmapped_-prefixed source key; no original value is dropped', () => {
     fc.assert(
-      fc.property(dataArb, fc.array(mappingArb, { maxLength: 4 }), (data, mappings) => {
-        const mappedSources = new Set(mappings.map((m) => m.source))
-        const out = applyFieldMappings(data, mappings)
-        out.forEach((mappedRow, i) => {
-          const row = data[i]
-          // Unmapped original keys are carried over verbatim under the prefix.
-          for (const key of Object.keys(row)) {
-            if (!mappedSources.has(key)) {
-              expect(mappedRow[`_unmapped_${key}`]).toBe(row[key])
+      fc.property(
+        dataArb,
+        fc.array(mappingArb, { maxLength: 4 }),
+        (data, mappings) => {
+          const mappedSources = new Set(mappings.map((m) => m.source))
+          const out = applyFieldMappings(data, mappings)
+          out.forEach((mappedRow, i) => {
+            const row = data[i]
+            // Unmapped original keys are carried over verbatim under the prefix.
+            for (const key of Object.keys(row)) {
+              if (!mappedSources.has(key)) {
+                expect(mappedRow[`_unmapped_${key}`]).toBe(row[key])
+              }
             }
-          }
-          // Every produced key is justified.
-          for (const outKey of Object.keys(mappedRow)) {
-            const isTarget = mappings.some((m) => m.target === outKey)
-            const isUnmapped = outKey.startsWith('_unmapped_')
-            expect(isTarget || isUnmapped).toBe(true)
-          }
-        })
-      }),
+            // Every produced key is justified.
+            for (const outKey of Object.keys(mappedRow)) {
+              const isTarget = mappings.some((m) => m.target === outKey)
+              const isUnmapped = outKey.startsWith('_unmapped_')
+              expect(isTarget || isUnmapped).toBe(true)
+            }
+          })
+        },
+      ),
     )
   })
 
   it('round-trips values for a present mapped source onto its target', () => {
     fc.assert(
-      fc.property(dataArb, fc.array(mappingArb, { maxLength: 4 }), (data, mappings) => {
-        const out = applyFieldMappings(data, mappings)
-        out.forEach((mappedRow, i) => {
-          const row = data[i]
-          for (const m of mappings) {
-            if (m.source in row) {
-              // Last mapping wins for a shared target; assert the value came
-              // from *some* mapping whose source key is present.
-              expect(Object.prototype.hasOwnProperty.call(mappedRow, m.target)).toBe(true)
+      fc.property(
+        dataArb,
+        fc.array(mappingArb, { maxLength: 4 }),
+        (data, mappings) => {
+          const out = applyFieldMappings(data, mappings)
+          out.forEach((mappedRow, i) => {
+            const row = data[i]
+            for (const m of mappings) {
+              if (m.source in row) {
+                // Last mapping wins for a shared target; assert the value came
+                // from *some* mapping whose source key is present.
+                expect(
+                  Object.prototype.hasOwnProperty.call(mappedRow, m.target),
+                ).toBe(true)
+              }
             }
-          }
-        })
-      }),
+          })
+        },
+      ),
     )
   })
 
   it('does not mutate the input rows', () => {
     fc.assert(
-      fc.property(dataArb, fc.array(mappingArb, { maxLength: 4 }), (data, mappings) => {
-        const snapshot = JSON.parse(JSON.stringify(data))
-        applyFieldMappings(data, mappings)
-        expect(data).toEqual(snapshot)
-      }),
+      fc.property(
+        dataArb,
+        fc.array(mappingArb, { maxLength: 4 }),
+        (data, mappings) => {
+          const snapshot = JSON.parse(JSON.stringify(data))
+          applyFieldMappings(data, mappings)
+          expect(data).toEqual(snapshot)
+        },
+      ),
     )
   })
 
@@ -406,7 +430,9 @@ describe('applyFieldMappings — properties', () => {
         fc.array(fc.dictionary(fc.string(), fc.anything()), { maxLength: 5 }),
         fc.array(mappingArb, { maxLength: 4 }),
         (data, mappings) => {
-          expect(() => applyFieldMappings(data as any[], mappings)).not.toThrow()
+          expect(() =>
+            applyFieldMappings(data as any[], mappings),
+          ).not.toThrow()
         },
       ),
     )

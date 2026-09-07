@@ -16,7 +16,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { api } from '@/lib/api'
 import '@testing-library/jest-dom'
-import { render, screen, waitFor, act } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import NotificationSettingsPage from '../page'
 
@@ -42,8 +42,21 @@ jest.mock('@/components/shared/Breadcrumb', () => ({
 }))
 
 jest.mock('@/components/shared/Button', () => ({
-  Button: ({ children, onClick, disabled, className, variant, ...props }: any) => (
-    <button onClick={onClick} disabled={disabled} className={className} data-variant={variant} {...props}>
+  Button: ({
+    children,
+    onClick,
+    disabled,
+    className,
+    variant,
+    ...props
+  }: any) => (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className={className}
+      data-variant={variant}
+      {...props}
+    >
       {children}
     </button>
   ),
@@ -54,15 +67,29 @@ jest.mock('@/components/shared/ResponsiveContainer', () => ({
 }))
 
 jest.mock('@heroicons/react/24/outline', () => ({
-  ArrowPathIcon: ({ className }: any) => <div className={className}>ArrowPathIcon</div>,
+  ArrowPathIcon: ({ className }: any) => (
+    <div className={className}>ArrowPathIcon</div>
+  ),
   BellIcon: ({ className }: any) => <div className={className}>BellIcon</div>,
-  CheckCircleIcon: ({ className }: any) => <div className={className}>CheckCircleIcon</div>,
+  CheckCircleIcon: ({ className }: any) => (
+    <div className={className}>CheckCircleIcon</div>
+  ),
   ClockIcon: ({ className }: any) => <div className={className}>ClockIcon</div>,
-  EnvelopeIcon: ({ className }: any) => <div className={className}>EnvelopeIcon</div>,
-  ExclamationTriangleIcon: ({ className }: any) => <div className={className}>ExclamationTriangleIcon</div>,
-  GlobeAltIcon: ({ className }: any) => <div className={className}>GlobeAltIcon</div>,
-  InformationCircleIcon: ({ className }: any) => <div className={className}>InformationCircleIcon</div>,
-  UserPlusIcon: ({ className }: any) => <div className={className}>UserPlusIcon</div>,
+  EnvelopeIcon: ({ className }: any) => (
+    <div className={className}>EnvelopeIcon</div>
+  ),
+  ExclamationTriangleIcon: ({ className }: any) => (
+    <div className={className}>ExclamationTriangleIcon</div>
+  ),
+  GlobeAltIcon: ({ className }: any) => (
+    <div className={className}>GlobeAltIcon</div>
+  ),
+  InformationCircleIcon: ({ className }: any) => (
+    <div className={className}>InformationCircleIcon</div>
+  ),
+  UserPlusIcon: ({ className }: any) => (
+    <div className={className}>UserPlusIcon</div>
+  ),
 }))
 
 const mockT = (key: string, vars?: any) => {
@@ -72,27 +99,40 @@ const mockT = (key: string, vars?: any) => {
     'settings.notifications.breadcrumb.settings': 'Settings',
     'settings.notifications.breadcrumb.notifications': 'Notifications',
     'settings.notifications.types.projectCreated': 'Project Created',
-    'settings.notifications.types.projectCreatedDesc': 'When a project is created',
+    'settings.notifications.types.projectCreatedDesc':
+      'When a project is created',
     'settings.notifications.types.projectUpdated': 'Project Updated',
-    'settings.notifications.types.projectUpdatedDesc': 'When a project is updated',
+    'settings.notifications.types.projectUpdatedDesc':
+      'When a project is updated',
     'settings.notifications.types.projectShared': 'Project Shared',
-    'settings.notifications.types.projectSharedDesc': 'When a project is shared',
+    'settings.notifications.types.projectSharedDesc':
+      'When a project is shared',
     'settings.notifications.types.evaluationCompleted': 'Evaluation Completed',
-    'settings.notifications.types.evaluationCompletedDesc': 'When evaluation completes',
+    'settings.notifications.types.evaluationCompletedDesc':
+      'When evaluation completes',
     'settings.notifications.types.evaluationFailed': 'Evaluation Failed',
-    'settings.notifications.types.evaluationFailedDesc': 'When evaluation fails',
+    'settings.notifications.types.evaluationFailedDesc':
+      'When evaluation fails',
     'settings.notifications.types.dataUploadCompleted': 'Data Upload Completed',
-    'settings.notifications.types.dataUploadCompletedDesc': 'When data upload completes',
-    'settings.notifications.types.llmGenerationCompleted': 'LLM Generation Completed',
-    'settings.notifications.types.llmGenerationCompletedDesc': 'When LLM generation completes',
+    'settings.notifications.types.dataUploadCompletedDesc':
+      'When data upload completes',
+    'settings.notifications.types.llmGenerationCompleted':
+      'LLM Generation Completed',
+    'settings.notifications.types.llmGenerationCompletedDesc':
+      'When LLM generation completes',
     'settings.notifications.types.annotationCompleted': 'Annotation Completed',
-    'settings.notifications.types.annotationCompletedDesc': 'When annotation completes',
+    'settings.notifications.types.annotationCompletedDesc':
+      'When annotation completes',
     'settings.notifications.types.annotationAssigned': 'Annotation Assigned',
-    'settings.notifications.types.annotationAssignedDesc': 'When annotation is assigned',
+    'settings.notifications.types.annotationAssignedDesc':
+      'When annotation is assigned',
     'settings.notifications.types.orgInvitationSent': 'Org Invitation Sent',
-    'settings.notifications.types.orgInvitationSentDesc': 'When org invitation is sent',
-    'settings.notifications.types.orgInvitationAccepted': 'Org Invitation Accepted',
-    'settings.notifications.types.orgInvitationAcceptedDesc': 'When org invitation is accepted',
+    'settings.notifications.types.orgInvitationSentDesc':
+      'When org invitation is sent',
+    'settings.notifications.types.orgInvitationAccepted':
+      'Org Invitation Accepted',
+    'settings.notifications.types.orgInvitationAcceptedDesc':
+      'When org invitation is accepted',
     'settings.notifications.types.memberJoined': 'Member Joined',
     'settings.notifications.types.memberJoinedDesc': 'When a member joins',
     'settings.notifications.types.systemAlert': 'System Alert',
@@ -120,11 +160,13 @@ const mockT = (key: string, vars?: any) => {
     'settings.notifications.ui.sending': 'Sending...',
     'settings.notifications.ui.testEmailSent': 'Test email sent',
     'settings.notifications.ui.testEmailFailed': 'Test email failed',
-    'settings.notifications.ui.enabledCount': '{{enabled}} of {{total}} enabled',
+    'settings.notifications.ui.enabledCount':
+      '{{enabled}} of {{total}} enabled',
     'settings.notifications.ui.disableAll': 'Disable All',
     'settings.notifications.ui.enableAll': 'Enable All',
     'settings.notifications.ui.authRequired': 'Auth Required',
-    'settings.notifications.ui.authRequiredDesc': 'Login to manage notifications',
+    'settings.notifications.ui.authRequiredDesc':
+      'Login to manage notifications',
     'settings.notifications.email.available': 'Email Available',
     'settings.notifications.email.notConfigured': 'Email Not Configured',
     'settings.notifications.email.configuredDesc': 'Email is configured',
@@ -135,7 +177,8 @@ const mockT = (key: string, vars?: any) => {
     'settings.notifications.help.emailTitle': 'Email Notifications',
     'settings.notifications.help.emailDescBefore': 'Sent to',
     'settings.notifications.help.emailDescAfter': 'Check spam folder',
-    'settings.notifications.help.roleBasedDesc': 'Role-based notification filtering',
+    'settings.notifications.help.roleBasedDesc':
+      'Role-based notification filtering',
     'settings.notifications.help.preferencesDesc': 'Preferences are global',
     'settings.notifications.timezone.utc': 'UTC',
   }
@@ -183,11 +226,15 @@ describe('NotificationSettings - Surgical Coverage', () => {
     render(<NotificationSettingsPage />)
 
     await waitFor(() => {
-      expect(screen.getByTestId('settings-notification-toggle-project_created')).toBeInTheDocument()
+      expect(
+        screen.getByTestId('settings-notification-toggle-project_created'),
+      ).toBeInTheDocument()
     })
 
     // Click the enabled toggle for project_created (currently enabled -> disable)
-    const enabledToggle = screen.getByTestId('settings-notification-toggle-project_created')
+    const enabledToggle = screen.getByTestId(
+      'settings-notification-toggle-project_created',
+    )
     await user.click(enabledToggle)
 
     // After disabling, in_app and email should also disable
@@ -199,10 +246,14 @@ describe('NotificationSettings - Surgical Coverage', () => {
     render(<NotificationSettingsPage />)
 
     await waitFor(() => {
-      expect(screen.getByTestId('settings-notification-inapp-project_created')).toBeInTheDocument()
+      expect(
+        screen.getByTestId('settings-notification-inapp-project_created'),
+      ).toBeInTheDocument()
     })
 
-    const inAppToggle = screen.getByTestId('settings-notification-inapp-project_created')
+    const inAppToggle = screen.getByTestId(
+      'settings-notification-inapp-project_created',
+    )
     await user.click(inAppToggle)
   })
 
@@ -210,10 +261,14 @@ describe('NotificationSettings - Surgical Coverage', () => {
     render(<NotificationSettingsPage />)
 
     await waitFor(() => {
-      expect(screen.getByTestId('settings-notification-email-project_created')).toBeInTheDocument()
+      expect(
+        screen.getByTestId('settings-notification-email-project_created'),
+      ).toBeInTheDocument()
     })
 
-    const emailToggle = screen.getByTestId('settings-notification-email-project_created')
+    const emailToggle = screen.getByTestId(
+      'settings-notification-email-project_created',
+    )
     await user.click(emailToggle)
   })
 
@@ -221,13 +276,19 @@ describe('NotificationSettings - Surgical Coverage', () => {
     render(<NotificationSettingsPage />)
 
     await waitFor(() => {
-      expect(screen.getByTestId('settings-disable-all-notifications-button')).toBeInTheDocument()
+      expect(
+        screen.getByTestId('settings-disable-all-notifications-button'),
+      ).toBeInTheDocument()
     })
 
-    await user.click(screen.getByTestId('settings-disable-all-notifications-button'))
+    await user.click(
+      screen.getByTestId('settings-disable-all-notifications-button'),
+    )
 
     // All toggles should now be off
-    const enabledToggle = screen.getByTestId('settings-notification-toggle-project_created')
+    const enabledToggle = screen.getByTestId(
+      'settings-notification-toggle-project_created',
+    )
     expect(enabledToggle.className).toContain('bg-zinc-200')
   })
 
@@ -235,13 +296,19 @@ describe('NotificationSettings - Surgical Coverage', () => {
     render(<NotificationSettingsPage />)
 
     await waitFor(() => {
-      expect(screen.getByTestId('settings-enable-all-notifications-button')).toBeInTheDocument()
+      expect(
+        screen.getByTestId('settings-enable-all-notifications-button'),
+      ).toBeInTheDocument()
     })
 
-    await user.click(screen.getByTestId('settings-enable-all-notifications-button'))
+    await user.click(
+      screen.getByTestId('settings-enable-all-notifications-button'),
+    )
 
     // All toggles should now be on
-    const enabledToggle = screen.getByTestId('settings-notification-toggle-project_updated')
+    const enabledToggle = screen.getByTestId(
+      'settings-notification-toggle-project_updated',
+    )
     expect(enabledToggle.className).toContain('bg-emerald-600')
   })
 
@@ -251,7 +318,9 @@ describe('NotificationSettings - Surgical Coverage', () => {
     render(<NotificationSettingsPage />)
 
     await waitFor(() => {
-      expect(screen.getByTestId('settings-save-notifications-button')).toBeInTheDocument()
+      expect(
+        screen.getByTestId('settings-save-notifications-button'),
+      ).toBeInTheDocument()
     })
 
     await user.click(screen.getByTestId('settings-save-notifications-button'))
@@ -262,12 +331,16 @@ describe('NotificationSettings - Surgical Coverage', () => {
   })
 
   it('shows error when save fails', async () => {
-    ;(api.updateNotificationPreferences as jest.Mock).mockRejectedValue(new Error('Save failed'))
+    ;(api.updateNotificationPreferences as jest.Mock).mockRejectedValue(
+      new Error('Save failed'),
+    )
 
     render(<NotificationSettingsPage />)
 
     await waitFor(() => {
-      expect(screen.getByTestId('settings-save-notifications-button')).toBeInTheDocument()
+      expect(
+        screen.getByTestId('settings-save-notifications-button'),
+      ).toBeInTheDocument()
     })
 
     await user.click(screen.getByTestId('settings-save-notifications-button'))
@@ -279,18 +352,22 @@ describe('NotificationSettings - Surgical Coverage', () => {
 
   it('handles legacy boolean preferences by converting them', async () => {
     ;(api.getNotificationPreferences as jest.Mock).mockResolvedValue({
-      project_created: true,  // Legacy boolean format
+      project_created: true, // Legacy boolean format
       project_updated: false,
     })
 
     render(<NotificationSettingsPage />)
 
     await waitFor(() => {
-      expect(screen.getByTestId('settings-notification-toggle-project_created')).toBeInTheDocument()
+      expect(
+        screen.getByTestId('settings-notification-toggle-project_created'),
+      ).toBeInTheDocument()
     })
 
     // project_created should be converted to enabled=true
-    const toggle = screen.getByTestId('settings-notification-toggle-project_created')
+    const toggle = screen.getByTestId(
+      'settings-notification-toggle-project_created',
+    )
     expect(toggle.className).toContain('bg-emerald-600')
   })
 })

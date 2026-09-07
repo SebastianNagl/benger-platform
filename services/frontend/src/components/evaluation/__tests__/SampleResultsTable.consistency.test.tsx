@@ -19,7 +19,10 @@ jest.mock('@/contexts/I18nContext', () => ({
     t: (key: string, varsOrDefault?: any) => {
       // Mirror the base suite: resolve from the en bundle, else return the
       // provided string fallback (2nd arg), else the key.
-      const translations: Record<string, any> = require('../../../locales/en/common.json')
+      const translations: Record<
+        string,
+        any
+      > = require('../../../locales/en/common.json')
       const parts = key.split('.')
       let value: any = translations
       for (const part of parts) {
@@ -48,9 +51,7 @@ jest.mock('@/contexts/I18nContext', () => ({
 // metric so we exercise both the custom-cell branch and the generic fallback.
 jest.mock('@/lib/extensions/metricRenderers', () => ({
   getMetricCell: (key: string) =>
-    key === 'korrektur'
-      ? (value: any) => `★${value?.value ?? value}`
-      : null,
+    key === 'korrektur' ? (value: any) => `★${value?.value ?? value}` : null,
 }))
 
 const baseSample = {

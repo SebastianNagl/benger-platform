@@ -75,7 +75,7 @@ export function useApiClient(): ApiClient {
     throw new Error(
       'useApiClient must be used within an ApiClientContextProvider ' +
         '(mounted by AuthProvider). For un-authenticated/standalone usage, ' +
-        'import the singleton from "@/lib/api" instead.'
+        'import the singleton from "@/lib/api" instead.',
     )
   }
   return client

@@ -70,7 +70,7 @@ describe('AuthFailureHandler Component', () => {
 
       expect(mockSetAuthFailureHandler).toHaveBeenCalledTimes(1)
       expect(mockSetAuthFailureHandler).toHaveBeenCalledWith(
-        expect.any(Function)
+        expect.any(Function),
       )
     })
 
@@ -231,7 +231,7 @@ describe('AuthFailureHandler Component', () => {
 
       expect(mockAddToast).toHaveBeenCalledWith(
         'Your session has expired. Please log in again.',
-        'warning'
+        'warning',
       )
     })
 

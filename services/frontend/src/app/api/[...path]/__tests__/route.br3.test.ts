@@ -44,39 +44,40 @@ describe('[...path] route branch coverage', () => {
   })
 
   it('rejects auth endpoints not in the public allowlist', async () => {
-    const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue(
-      new Response('{}', { status: 200 })
-    )
+    const fetchSpy = jest
+      .spyOn(global, 'fetch')
+      .mockResolvedValue(new Response('{}', { status: 200 }))
     const { GET } = require('../route')
-    const res = await GET(
-      makeRequest('benger.localhost', 'auth/login'),
-      { params: Promise.resolve({ path: ['auth', 'login'] }) }
-    )
+    const res = await GET(makeRequest('benger.localhost', 'auth/login'), {
+      params: Promise.resolve({ path: ['auth', 'login'] }),
+    })
     expect(res.status).toBe(400)
     fetchSpy.mockRestore()
   })
 
   it('allows auth/verify-email endpoints', async () => {
-    const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue(
-      new Response('{}', { status: 200 })
-    )
+    const fetchSpy = jest
+      .spyOn(global, 'fetch')
+      .mockResolvedValue(new Response('{}', { status: 200 }))
     const { GET } = require('../route')
     const res = await GET(
       makeRequest('benger.localhost', 'auth/verify-email/token123'),
-      { params: Promise.resolve({ path: ['auth', 'verify-email', 'token123'] }) }
+      {
+        params: Promise.resolve({ path: ['auth', 'verify-email', 'token123'] }),
+      },
     )
     expect(res.status).toBe(200)
     fetchSpy.mockRestore()
   })
 
   it('allows auth/request-password-reset', async () => {
-    const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue(
-      new Response('{"message":"ok"}', { status: 200 })
-    )
+    const fetchSpy = jest
+      .spyOn(global, 'fetch')
+      .mockResolvedValue(new Response('{"message":"ok"}', { status: 200 }))
     const { POST } = require('../route')
     const res = await POST(
       makeRequest('benger.localhost', 'auth/request-password-reset', 'POST'),
-      { params: Promise.resolve({ path: ['auth', 'request-password-reset'] }) }
+      { params: Promise.resolve({ path: ['auth', 'request-password-reset'] }) },
     )
     expect(res.status).toBe(200)
     expect(fetchSpy).toHaveBeenCalled()
@@ -84,13 +85,13 @@ describe('[...path] route branch coverage', () => {
   })
 
   it('allows auth/reset-password', async () => {
-    const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue(
-      new Response('{"message":"ok"}', { status: 200 })
-    )
+    const fetchSpy = jest
+      .spyOn(global, 'fetch')
+      .mockResolvedValue(new Response('{"message":"ok"}', { status: 200 }))
     const { POST } = require('../route')
     const res = await POST(
       makeRequest('benger.localhost', 'auth/reset-password', 'POST'),
-      { params: Promise.resolve({ path: ['auth', 'reset-password'] }) }
+      { params: Promise.resolve({ path: ['auth', 'reset-password'] }) },
     )
     expect(res.status).toBe(200)
     expect(fetchSpy).toHaveBeenCalled()
@@ -98,14 +99,13 @@ describe('[...path] route branch coverage', () => {
   })
 
   it('handles 204 No Content response', async () => {
-    const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue(
-      new Response(null, { status: 204 })
-    )
+    const fetchSpy = jest
+      .spyOn(global, 'fetch')
+      .mockResolvedValue(new Response(null, { status: 204 }))
     const { DELETE } = require('../route')
-    const res = await DELETE(
-      makeRequest('benger.localhost', 'projects/1'),
-      { params: Promise.resolve({ path: ['projects', '1'] }) }
-    )
+    const res = await DELETE(makeRequest('benger.localhost', 'projects/1'), {
+      params: Promise.resolve({ path: ['projects', '1'] }),
+    })
     expect(res.status).toBe(204)
     fetchSpy.mockRestore()
   })
@@ -113,14 +113,13 @@ describe('[...path] route branch coverage', () => {
   it('forwards Set-Cookie with domain rewriting', async () => {
     const headers = new Headers()
     headers.append('Set-Cookie', 'token=xyz; Domain=old.test; Path=/')
-    const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue(
-      new Response('{"ok":true}', { status: 200, headers })
-    )
+    const fetchSpy = jest
+      .spyOn(global, 'fetch')
+      .mockResolvedValue(new Response('{"ok":true}', { status: 200, headers }))
     const { GET } = require('../route')
-    const res = await GET(
-      makeRequest('benger.localhost', 'projects'),
-      { params: Promise.resolve({ path: ['projects'] }) }
-    )
+    const res = await GET(makeRequest('benger.localhost', 'projects'), {
+      params: Promise.resolve({ path: ['projects'] }),
+    })
     const setCookies = res.headers.getSetCookie()
     expect(setCookies.length).toBeGreaterThan(0)
     expect(setCookies[0]).toContain('.benger.localhost')
@@ -130,55 +129,52 @@ describe('[...path] route branch coverage', () => {
   it('adds SameSite=Lax when not present', async () => {
     const headers = new Headers()
     headers.append('Set-Cookie', 'token=xyz; Path=/')
-    const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue(
-      new Response('{"ok":true}', { status: 200, headers })
-    )
+    const fetchSpy = jest
+      .spyOn(global, 'fetch')
+      .mockResolvedValue(new Response('{"ok":true}', { status: 200, headers }))
     const { GET } = require('../route')
-    const res = await GET(
-      makeRequest('benger.localhost', 'projects'),
-      { params: Promise.resolve({ path: ['projects'] }) }
-    )
+    const res = await GET(makeRequest('benger.localhost', 'projects'), {
+      params: Promise.resolve({ path: ['projects'] }),
+    })
     const setCookies = res.headers.getSetCookie()
     expect(setCookies[0]).toContain('SameSite=Lax')
     fetchSpy.mockRestore()
   })
 
   it('routes staging.what-a-benger.net', async () => {
-    const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue(
-      new Response('{}', { status: 200 })
-    )
+    const fetchSpy = jest
+      .spyOn(global, 'fetch')
+      .mockResolvedValue(new Response('{}', { status: 200 }))
     const { GET } = require('../route')
-    await GET(
-      makeRequest('staging.what-a-benger.net', 'projects'),
-      { params: Promise.resolve({ path: ['projects'] }) }
-    )
+    await GET(makeRequest('staging.what-a-benger.net', 'projects'), {
+      params: Promise.resolve({ path: ['projects'] }),
+    })
     expect(fetchSpy).toHaveBeenCalledWith(
       expect.stringContaining('benger-api'),
-      expect.anything()
+      expect.anything(),
     )
     fetchSpy.mockRestore()
   })
 
   it('routes localhost:3001', async () => {
-    const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue(
-      new Response('{}', { status: 200 })
-    )
+    const fetchSpy = jest
+      .spyOn(global, 'fetch')
+      .mockResolvedValue(new Response('{}', { status: 200 }))
     const { GET } = require('../route')
-    await GET(
-      makeRequest('localhost:3001', 'projects'),
-      { params: Promise.resolve({ path: ['projects'] }) }
-    )
+    await GET(makeRequest('localhost:3001', 'projects'), {
+      params: Promise.resolve({ path: ['projects'] }),
+    })
     expect(fetchSpy).toHaveBeenCalledWith(
       expect.stringContaining('localhost:8001'),
-      expect.anything()
+      expect.anything(),
     )
     fetchSpy.mockRestore()
   })
 
   it('POST forwards body', async () => {
-    const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue(
-      new Response('{"created":true}', { status: 201 })
-    )
+    const fetchSpy = jest
+      .spyOn(global, 'fetch')
+      .mockResolvedValue(new Response('{"created":true}', { status: 201 }))
     const { POST } = require('../route')
     const req = new NextRequest(new URL('http://localhost/api/projects'), {
       method: 'POST',
@@ -189,52 +185,54 @@ describe('[...path] route branch coverage', () => {
       },
       body: JSON.stringify({ name: 'test' }),
     })
-    const res = await POST(req, { params: Promise.resolve({ path: ['projects'] }) })
+    const res = await POST(req, {
+      params: Promise.resolve({ path: ['projects'] }),
+    })
     expect(res.status).toBe(201)
     fetchSpy.mockRestore()
   })
 
   it('handles fetch error with 500', async () => {
-    const fetchSpy = jest.spyOn(global, 'fetch').mockRejectedValue(new Error('Network'))
+    const fetchSpy = jest
+      .spyOn(global, 'fetch')
+      .mockRejectedValue(new Error('Network'))
     const { GET } = require('../route')
-    const res = await GET(
-      makeRequest('benger.localhost', 'projects'),
-      { params: Promise.resolve({ path: ['projects'] }) }
-    )
+    const res = await GET(makeRequest('benger.localhost', 'projects'), {
+      params: Promise.resolve({ path: ['projects'] }),
+    })
     expect(res.status).toBe(500)
     fetchSpy.mockRestore()
   })
 
   it('uses production URL with DOCKER_INTERNAL_API_URL', async () => {
     process.env.DOCKER_INTERNAL_API_URL = 'http://docker-api:9000'
-    const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue(
-      new Response('{}', { status: 200 })
-    )
+    const fetchSpy = jest
+      .spyOn(global, 'fetch')
+      .mockResolvedValue(new Response('{}', { status: 200 }))
     const { GET } = require('../route')
-    await GET(
-      makeRequest('what-a-benger.net', 'projects'),
-      { params: Promise.resolve({ path: ['projects'] }) }
-    )
+    await GET(makeRequest('what-a-benger.net', 'projects'), {
+      params: Promise.resolve({ path: ['projects'] }),
+    })
     expect(fetchSpy).toHaveBeenCalledWith(
       expect.stringContaining('docker-api:9000'),
-      expect.anything()
+      expect.anything(),
     )
     fetchSpy.mockRestore()
   })
 
   it('includes query params in forwarded URL', async () => {
-    const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue(
-      new Response('{}', { status: 200 })
-    )
+    const fetchSpy = jest
+      .spyOn(global, 'fetch')
+      .mockResolvedValue(new Response('{}', { status: 200 }))
     const { GET } = require('../route')
     const req = new NextRequest(
       new URL('http://localhost/api/projects?page=1&limit=10'),
-      { headers: { host: 'benger.localhost' } }
+      { headers: { host: 'benger.localhost' } },
     )
     await GET(req, { params: Promise.resolve({ path: ['projects'] }) })
     expect(fetchSpy).toHaveBeenCalledWith(
       expect.stringContaining('page=1&limit=10'),
-      expect.anything()
+      expect.anything(),
     )
     fetchSpy.mockRestore()
   })

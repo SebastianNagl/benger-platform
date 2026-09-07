@@ -1,8 +1,8 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { ArrowUturnLeftIcon, TrashIcon } from '@heroicons/react/24/outline'
+import { useRouter } from 'next/navigation'
+import { useCallback, useEffect, useState } from 'react'
 
 import { Breadcrumb } from '@/components/shared/Breadcrumb'
 import { Button } from '@/components/shared/Button'
@@ -33,7 +33,14 @@ export default function DeletedProjectsPage() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await projectsAPI.list(1, 200, undefined, undefined, undefined, true)
+      const res = await projectsAPI.list(
+        1,
+        200,
+        undefined,
+        undefined,
+        undefined,
+        true,
+      )
       setProjects(res.items ?? [])
     } catch {
       setProjects([])
@@ -56,7 +63,10 @@ export default function DeletedProjectsPage() {
     setBusyId(project.id)
     try {
       await projectsAPI.restoreProject(project.id)
-      addToast(t('projects.deleted.restored', 'Projekt wiederhergestellt.'), 'success')
+      addToast(
+        t('projects.deleted.restored', 'Projekt wiederhergestellt.'),
+        'success',
+      )
       await load()
     } catch (err: any) {
       addToast(err?.message || t('common.error', 'Fehler'), 'error')
@@ -71,7 +81,7 @@ export default function DeletedProjectsPage() {
       message: t(
         'projects.deleted.purgeConfirm',
         '„{title}“ und ALLE zugehörigen Daten (Aufgaben, Abgaben, Bewertungen, Lernverläufe) endgültig löschen? Das kann nicht rückgängig gemacht werden.',
-        { title: project.title }
+        { title: project.title },
       ),
       variant: 'danger',
       confirmText: t('projects.deleted.purge', 'Endgültig löschen'),
@@ -81,7 +91,10 @@ export default function DeletedProjectsPage() {
     setBusyId(project.id)
     try {
       await projectsAPI.purgeProject(project.id)
-      addToast(t('projects.deleted.purged', 'Projekt endgültig gelöscht.'), 'success')
+      addToast(
+        t('projects.deleted.purged', 'Projekt endgültig gelöscht.'),
+        'success',
+      )
       await load()
     } catch (err: any) {
       addToast(err?.message || t('common.error', 'Fehler'), 'error')
@@ -106,7 +119,7 @@ export default function DeletedProjectsPage() {
       <p className="mb-6 text-sm text-zinc-500 dark:text-zinc-400">
         {t(
           'projects.deleted.subtitle',
-          'Gelöschte Projekte sind für alle ausgeblendet, ihre Daten bleiben erhalten. Nur hier können sie wiederhergestellt oder endgültig gelöscht werden.'
+          'Gelöschte Projekte sind für alle ausgeblendet, ihre Daten bleiben erhalten. Nur hier können sie wiederhergestellt oder endgültig gelöscht werden.',
         )}
       </p>
 
@@ -115,7 +128,10 @@ export default function DeletedProjectsPage() {
           <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-emerald-500" />
         </div>
       ) : projects.length === 0 ? (
-        <p className="text-sm text-zinc-500 dark:text-zinc-400" data-testid="deleted-empty">
+        <p
+          className="text-sm text-zinc-500 dark:text-zinc-400"
+          data-testid="deleted-empty"
+        >
           {t('projects.deleted.empty', 'Keine gelöschten Projekte.')}
         </p>
       ) : (
@@ -123,13 +139,13 @@ export default function DeletedProjectsPage() {
           <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-700">
             <thead className="bg-zinc-50 dark:bg-zinc-800/50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                   {t('projects.deleted.project', 'Projekt')}
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                   {t('projects.deleted.deletedAt', 'Gelöscht am')}
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                <th className="px-6 py-3 text-right text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                   {t('projects.deleted.actions', 'Aktionen')}
                 </th>
               </tr>
@@ -146,10 +162,12 @@ export default function DeletedProjectsPage() {
                       {t('projects.deleted.badge', 'Gelöscht')}
                     </span>
                   </td>
-                  <td className="whitespace-nowrap px-6 py-4 text-sm text-zinc-500 dark:text-zinc-400">
-                    {p.deleted_at ? new Date(p.deleted_at).toLocaleString('de-DE') : '—'}
+                  <td className="px-6 py-4 text-sm whitespace-nowrap text-zinc-500 dark:text-zinc-400">
+                    {p.deleted_at
+                      ? new Date(p.deleted_at).toLocaleString('de-DE')
+                      : '—'}
                   </td>
-                  <td className="whitespace-nowrap px-6 py-4 text-right text-sm">
+                  <td className="px-6 py-4 text-right text-sm whitespace-nowrap">
                     <Button
                       variant="outline"
                       className="mr-2 gap-1.5"

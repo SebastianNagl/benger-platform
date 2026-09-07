@@ -57,14 +57,14 @@ jobs:
             module: ml_evaluation/llm_judge_evaluator.py
             tests: tests/test_llm_judge_evaluator.py tests/test_llm_judge_evaluator_branches.py tests/test_llm_judge_evaluator_more.py tests/test_llm_judge_pure_kills.py tests/test_llm_judge_aggregation_kills.py tests/test_llm_judge_orchestration_kills.py
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Free disk space
         run: |
           sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /usr/local/share/powershell /usr/local/share/chromium || true
 
       - name: Build worker test image
-        uses: nick-fields/retry@v3
+        uses: nick-fields/retry@v4
         with:
           timeout_minutes: 30
           max_attempts: 2
@@ -101,7 +101,7 @@ jobs:
 
       - name: Upload mutmut report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: mutmut-${{ matrix.name }}
           path: services/workers/mutmut.xml
@@ -118,17 +118,17 @@ jobs:
     # +evaluation-types (1160 LOC) — more mutants, so raise from 60.
     timeout-minutes: 120
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: '18'
+          node-version: '24'
           cache: 'npm'
           cache-dependency-path: services/frontend/package-lock.json
 
       - name: Install frontend dependencies
-        uses: nick-fields/retry@v3
+        uses: nick-fields/retry@v4
         with:
           timeout_minutes: 10
           max_attempts: 2
@@ -143,7 +143,7 @@ jobs:
 
       - name: Upload Stryker report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: stryker-annotationDiff
           path: services/frontend/reports/mutation/

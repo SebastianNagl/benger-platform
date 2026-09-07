@@ -58,7 +58,10 @@ export function EditableAnnotationGuidelines({
         error instanceof Error
           ? error.message
           : t('tasks.guidelines.updateFailed')
-      addToast(t('tasks.guidelines.updateFailedWithMessage', { message }), 'error')
+      addToast(
+        t('tasks.guidelines.updateFailedWithMessage', { message }),
+        'error',
+      )
       console.error('Error updating annotation guidelines:', error)
     } finally {
       setIsSubmitting(false)
@@ -79,7 +82,7 @@ export function EditableAnnotationGuidelines({
           {canEdit && (
             <button
               onClick={handleOpenModal}
-              className="p-1 text-zinc-500 opacity-0 transition-all hover:text-zinc-600 group-hover:opacity-100 dark:text-zinc-400 dark:hover:text-zinc-300"
+              className="p-1 text-zinc-500 opacity-0 transition-all group-hover:opacity-100 hover:text-zinc-600 dark:text-zinc-400 dark:hover:text-zinc-300"
               title={t('tasks.guidelines.editTooltip')}
             >
               <PencilIcon className="h-4 w-4" />
@@ -94,7 +97,7 @@ export function EditableAnnotationGuidelines({
         >
           {hasGuidelines ? (
             <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-900/20">
-              <p className="whitespace-pre-wrap text-sm leading-relaxed text-zinc-700 dark:text-zinc-300">
+              <p className="text-sm leading-relaxed whitespace-pre-wrap text-zinc-700 dark:text-zinc-300">
                 {task.annotation_guidelines}
               </p>
             </div>

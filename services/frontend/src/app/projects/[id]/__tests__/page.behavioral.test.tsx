@@ -25,11 +25,11 @@ import { useUIStore } from '@/stores'
 import { useProjectStore } from '@/stores/projectStore'
 import '@testing-library/jest-dom'
 import {
+  act,
+  fireEvent,
   render,
   screen,
   waitFor,
-  act,
-  fireEvent,
   within,
 } from '@testing-library/react'
 import { useRouter } from 'next/navigation'
@@ -112,7 +112,9 @@ jest.mock('@/components/shared/Button', () => ({
     ),
 }))
 jest.mock('@/components/shared/Card', () => ({
-  Card: ({ children, className }: any) => <div className={className}>{children}</div>,
+  Card: ({ children, className }: any) => (
+    <div className={className}>{children}</div>
+  ),
 }))
 jest.mock('@/components/shared/Input', () => ({
   Input: (props: any) => <input {...props} />,
@@ -129,18 +131,20 @@ jest.mock('@/components/shared/Tooltip', () => ({
 jest.mock('@/components/projects/LabelConfigEditor', () => {
   const React = require('react')
   const LabelConfigEditor = React.forwardRef((_props: any, ref: any) => {
-      React.useImperativeHandle(ref, () => ({
-        save: jest.fn().mockResolvedValue(undefined),
-        isDirty: () => false,
-        hasErrors: () => false,
-      }))
-      return <div data-testid="label-config-editor" />
+    React.useImperativeHandle(ref, () => ({
+      save: jest.fn().mockResolvedValue(undefined),
+      isDirty: () => false,
+      hasErrors: () => false,
+    }))
+    return <div data-testid="label-config-editor" />
   })
   LabelConfigEditor.displayName = 'LabelConfigEditorMock'
   return { LabelConfigEditor }
 })
 jest.mock('@/components/projects/PromptStructuresManager', () => ({
-  PromptStructuresManager: () => <div data-testid="prompt-structures-manager" />,
+  PromptStructuresManager: () => (
+    <div data-testid="prompt-structures-manager" />
+  ),
 }))
 jest.mock('@/components/projects/ProjectPermissionsPanel', () => ({
   ProjectPermissionsPanel: (props: any) => (
@@ -258,9 +262,14 @@ beforeEach(() => {
   })
   setStore()
   ;(apiClient.get as jest.Mock).mockResolvedValue({ task: null, remaining: 0 })
-  ;(apiClient.evaluations.getAvailableEvaluationFields as jest.Mock).mockResolvedValue(
-    { model_response_fields: [], human_annotation_fields: [], reference_fields: [], all_fields: [] },
-  )
+  ;(
+    apiClient.evaluations.getAvailableEvaluationFields as jest.Mock
+  ).mockResolvedValue({
+    model_response_fields: [],
+    human_annotation_fields: [],
+    reference_fields: [],
+    all_fields: [],
+  })
   global.fetch = jest.fn().mockResolvedValue({
     ok: false,
     status: 404,
@@ -321,9 +330,7 @@ describe('ProjectDetailPage — inline title editing', () => {
     // edit mode swaps the h1 for an <input> seeded with the current title.
     const editButtons = screen.getAllByRole('button')
     // Title edit pencil sits right after the <h1>; click the first pencil.
-    const pencil = editButtons.find((b) =>
-      b.querySelector('svg'),
-    )
+    const pencil = editButtons.find((b) => b.querySelector('svg'))
     fireEvent.click(pencil!)
 
     const input = await screen.findByDisplayValue('Legal Benchmark')
@@ -335,7 +342,10 @@ describe('ProjectDetailPage — inline title editing', () => {
         title: 'Renamed Project',
       })
     })
-    expect(mockAddToast).toHaveBeenCalledWith('toasts.project.titleUpdated', 'success')
+    expect(mockAddToast).toHaveBeenCalledWith(
+      'toasts.project.titleUpdated',
+      'success',
+    )
   })
 
   it('warns and does not call updateProject when the title is blank', async () => {
@@ -343,14 +353,19 @@ describe('ProjectDetailPage — inline title editing', () => {
     render(<ProjectDetailPage params={params()} />)
     await screen.findByText('proj-1')
 
-    const pencil = screen.getAllByRole('button').find((b) => b.querySelector('svg'))
+    const pencil = screen
+      .getAllByRole('button')
+      .find((b) => b.querySelector('svg'))
     fireEvent.click(pencil!)
     const input = await screen.findByDisplayValue('Legal Benchmark')
     fireEvent.change(input, { target: { value: '   ' } })
     fireEvent.click(screen.getByText('project.editing.save'))
 
     await waitFor(() => {
-      expect(mockAddToast).toHaveBeenCalledWith('toasts.project.titleEmpty', 'warning')
+      expect(mockAddToast).toHaveBeenCalledWith(
+        'toasts.project.titleEmpty',
+        'warning',
+      )
     })
     expect(store.updateProject).not.toHaveBeenCalled()
   })
@@ -360,7 +375,9 @@ describe('ProjectDetailPage — inline title editing', () => {
     render(<ProjectDetailPage params={params()} />)
     await screen.findByText('proj-1')
 
-    const pencil = screen.getAllByRole('button').find((b) => b.querySelector('svg'))
+    const pencil = screen
+      .getAllByRole('button')
+      .find((b) => b.querySelector('svg'))
     fireEvent.click(pencil!)
     const input = await screen.findByDisplayValue('Legal Benchmark')
     fireEvent.change(input, { target: { value: 'Throwaway' } })
@@ -380,7 +397,9 @@ describe('ProjectDetailPage — inline title editing', () => {
     render(<ProjectDetailPage params={params()} />)
     await screen.findByText('proj-1')
 
-    const pencil = screen.getAllByRole('button').find((b) => b.querySelector('svg'))
+    const pencil = screen
+      .getAllByRole('button')
+      .find((b) => b.querySelector('svg'))
     fireEvent.click(pencil!)
     const input = await screen.findByDisplayValue('Legal Benchmark')
     fireEvent.change(input, { target: { value: 'New' } })
@@ -406,7 +425,9 @@ describe('ProjectDetailPage — delete flow', () => {
 
     fireEvent.click(screen.getByText('project.deleteProject'))
     // Modal headline includes the project title.
-    const headline = screen.getByText('project.deleteConfirmTitle: Legal Benchmark')
+    const headline = screen.getByText(
+      'project.deleteConfirmTitle: Legal Benchmark',
+    )
     expect(headline).toBeInTheDocument()
 
     // The modal confirm button is the red one inside the modal subtree;
@@ -419,7 +440,10 @@ describe('ProjectDetailPage — delete flow', () => {
       expect(store.deleteProject).toHaveBeenCalledWith('proj-1')
     })
     expect(mockPush).toHaveBeenCalledWith('/projects')
-    expect(mockAddToast).toHaveBeenCalledWith('toasts.project.deleted', 'success')
+    expect(mockAddToast).toHaveBeenCalledWith(
+      'toasts.project.deleted',
+      'success',
+    )
   })
 
   it('keeps the modal data and toasts an error when delete rejects', async () => {
@@ -430,7 +454,9 @@ describe('ProjectDetailPage — delete flow', () => {
     await screen.findByText('proj-1')
 
     fireEvent.click(screen.getByText('project.deleteProject'))
-    const headline = screen.getByText('project.deleteConfirmTitle: Legal Benchmark')
+    const headline = screen.getByText(
+      'project.deleteConfirmTitle: Legal Benchmark',
+    )
     const modal = headline.closest('div.fixed') as HTMLElement
     fireEvent.click(within(modal).getByText('project.deleteProject'))
 
@@ -459,7 +485,9 @@ describe('ProjectDetailPage — sidebar quick actions', () => {
     setStore({ currentProject: { ...baseProject, task_count: 0 } })
     render(<ProjectDetailPage params={params()} />)
     await screen.findByText('proj-1')
-    const btn = screen.getByText('project.quickActions.startLabeling').closest('button')
+    const btn = screen
+      .getByText('project.quickActions.startLabeling')
+      .closest('button')
     expect(btn).toBeDisabled()
   })
 
@@ -479,7 +507,10 @@ describe('ProjectDetailPage — sidebar quick actions', () => {
 
   it('shows the "all tasks annotated" banner when the user finished every task', async () => {
     // /next returns no task + 0 remaining → userCompletedAllTasks true.
-    ;(apiClient.get as jest.Mock).mockResolvedValue({ task: null, remaining: 0 })
+    ;(apiClient.get as jest.Mock).mockResolvedValue({
+      task: null,
+      remaining: 0,
+    })
     render(<ProjectDetailPage params={params()} />)
     await waitFor(() => {
       expect(
@@ -489,7 +520,10 @@ describe('ProjectDetailPage — sidebar quick actions', () => {
   })
 
   it('hides the "all tasks annotated" banner when tasks remain', async () => {
-    ;(apiClient.get as jest.Mock).mockResolvedValue({ task: { id: 't1' }, remaining: 3 })
+    ;(apiClient.get as jest.Mock).mockResolvedValue({
+      task: { id: 't1' },
+      remaining: 3,
+    })
     render(<ProjectDetailPage params={params()} />)
     await screen.findByText('proj-1')
     await waitFor(() => {
@@ -518,7 +552,9 @@ describe('ProjectDetailPage — sidebar quick actions', () => {
     })
     render(<ProjectDetailPage params={params()} />)
     await screen.findByText('proj-1')
-    expect(screen.queryByText('project.quickActions.myTasks')).not.toBeInTheDocument()
+    expect(
+      screen.queryByText('project.quickActions.myTasks'),
+    ).not.toBeInTheDocument()
   })
 })
 
@@ -633,7 +669,9 @@ describe('ProjectDetailPage — superadmin report card', () => {
       )
     })
     await waitFor(() => {
-      expect(screen.getByText('project.report.autoGenerated')).toBeInTheDocument()
+      expect(
+        screen.getByText('project.report.autoGenerated'),
+      ).toBeInTheDocument()
     })
   })
 

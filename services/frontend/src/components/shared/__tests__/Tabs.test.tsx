@@ -90,7 +90,7 @@ describe('Tabs', () => {
           <TabsTrigger value="tab1">Tab 1</TabsTrigger>
         </TabsList>
         <TabsContent value="tab1">Content 1</TabsContent>
-      </Tabs>
+      </Tabs>,
     )
 
     const tabsContainer = screen.getByText('Tab 1').closest('.custom-tabs')
@@ -104,7 +104,7 @@ describe('Tabs', () => {
           <TabsTrigger value="tab1">Tab 1</TabsTrigger>
         </TabsList>
         <TabsContent value="tab1">Content 1</TabsContent>
-      </Tabs>
+      </Tabs>,
     )
 
     const listContainer = screen.getByText('Tab 1').parentElement
@@ -120,7 +120,7 @@ describe('Tabs', () => {
           </TabsTrigger>
         </TabsList>
         <TabsContent value="tab1">Content 1</TabsContent>
-      </Tabs>
+      </Tabs>,
     )
 
     const trigger = screen.getByText('Tab 1')
@@ -136,7 +136,7 @@ describe('Tabs', () => {
         <TabsContent value="tab1" className="custom-content">
           Content 1
         </TabsContent>
-      </Tabs>
+      </Tabs>,
     )
 
     await waitFor(() => {
@@ -157,7 +157,7 @@ describe('Tabs', () => {
         <TabsContent value="tab2" forceMount>
           Content 2
         </TabsContent>
-      </Tabs>
+      </Tabs>,
     )
 
     // Wait for initial mount
@@ -183,7 +183,7 @@ describe('Tabs', () => {
         <TabsContent value="tab2" forceMount>
           Content 2
         </TabsContent>
-      </Tabs>
+      </Tabs>,
     )
 
     await waitFor(() => {
@@ -221,7 +221,7 @@ describe('Tabs', () => {
   it('returns null when TabsContent is used outside Tabs', () => {
     // No longer throws error, returns null instead
     const { container } = render(
-      <TabsContent value="tab1">Content 1</TabsContent>
+      <TabsContent value="tab1">Content 1</TabsContent>,
     )
 
     expect(container.firstChild).toBeNull()
@@ -354,7 +354,7 @@ describe('Tabs — controlled mode', () => {
     render(
       <Tabs defaultValue="tab1" data-testid="my-tabs">
         <TabsContent value="tab1">Content 1</TabsContent>
-      </Tabs>
+      </Tabs>,
     )
     expect(screen.getByTestId('my-tabs')).toBeInTheDocument()
   })

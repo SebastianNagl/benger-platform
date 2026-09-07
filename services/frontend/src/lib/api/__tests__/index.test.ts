@@ -301,7 +301,7 @@ describe('ApiClient', () => {
 
     it('should have listInvitations as alias', () => {
       expect(apiClient.listInvitations).toBe(
-        apiClient.getOrganizationInvitations
+        apiClient.getOrganizationInvitations,
       )
     })
   })
@@ -384,7 +384,7 @@ describe('ApiClient', () => {
       const { createApiClient } = await import('../index')
       const spy = jest.spyOn(
         ApiClient.prototype,
-        'setOrganizationContextProvider'
+        'setOrganizationContextProvider',
       )
       const orgContextProvider = () => 'org-123'
       createApiClient({ orgContextProvider })
@@ -405,7 +405,7 @@ describe('ApiClient', () => {
       const { createApiClient } = await import('../index')
       const orgSpy = jest.spyOn(
         ApiClient.prototype,
-        'setOrganizationContextProvider'
+        'setOrganizationContextProvider',
       )
       const authSpy = jest.spyOn(ApiClient.prototype, 'setAuthFailureHandler')
       createApiClient()

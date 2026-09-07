@@ -17,17 +17,14 @@
 import { EvaluationBuilder } from '@/components/evaluation/EvaluationBuilder'
 import { EvaluationControlModal } from '@/components/evaluation/EvaluationControlModal'
 import { GenerationControlModal } from '@/components/generation/GenerationControlModal'
-import { useSlot } from '@/lib/extensions/slots'
-import { projectIcon } from '@/lib/projectKind'
-import { IconPickerModal } from '@/components/projects/wizard/ProjectTypeAndIcon'
+import { AdvancedSettingsCard } from '@/components/projects/AdvancedSettingsCard'
+import { ConfigCard } from '@/components/projects/ConfigCard'
+import { EvaluationDefaultsCard } from '@/components/projects/EvaluationDefaultsCard'
+import { GenerationDefaultsCard } from '@/components/projects/GenerationDefaultsCard'
 import {
   LabelConfigEditor,
   type LabelConfigEditorHandle,
 } from '@/components/projects/LabelConfigEditor'
-import { logger } from '@/lib/utils/logger'
-import { AdvancedSettingsCard } from '@/components/projects/AdvancedSettingsCard'
-import { EvaluationDefaultsCard } from '@/components/projects/EvaluationDefaultsCard'
-import { GenerationDefaultsCard } from '@/components/projects/GenerationDefaultsCard'
 import {
   ModelSelectionSection,
   providerColors,
@@ -39,12 +36,12 @@ import { ProjectKindSection } from '@/components/projects/ProjectKindSection'
 import { ProjectMetadataCard } from '@/components/projects/ProjectMetadataCard'
 import { ProjectPermissionsPanel } from '@/components/projects/ProjectPermissionsPanel'
 import { PromptStructuresManager } from '@/components/projects/PromptStructuresManager'
+import { SubSection } from '@/components/projects/SubSection'
+import { IconPickerModal } from '@/components/projects/wizard/ProjectTypeAndIcon'
 import { PublicationToggle } from '@/components/reports/PublicationToggle'
 import { Breadcrumb } from '@/components/shared/Breadcrumb'
 import { Button } from '@/components/shared/Button'
 import { Card } from '@/components/shared/Card'
-import { ConfigCard } from '@/components/projects/ConfigCard'
-import { SubSection } from '@/components/projects/SubSection'
 import { Input } from '@/components/shared/Input'
 import { Label } from '@/components/shared/Label'
 import { Textarea } from '@/components/shared/Textarea'
@@ -53,16 +50,19 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { useModels } from '@/hooks/useModels'
 import { apiClient } from '@/lib/api/client'
-import {
-  getTemperatureConstraints,
-  getDefaultMaxTokens,
-  getRecommendedParam,
-  hasRecommendations,
-} from '@/lib/modelConstraints'
 import type {
   AvailableEvaluationFields,
   EvaluationConfig,
 } from '@/lib/api/evaluation-types'
+import { useSlot } from '@/lib/extensions/slots'
+import {
+  getDefaultMaxTokens,
+  getRecommendedParam,
+  getTemperatureConstraints,
+  hasRecommendations,
+} from '@/lib/modelConstraints'
+import { projectIcon } from '@/lib/projectKind'
+import { logger } from '@/lib/utils/logger'
 import { useUIStore } from '@/stores'
 import { useProjectStore } from '@/stores/projectStore'
 import {
@@ -150,7 +150,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   const isOrgProject = !!(
     currentOrganization &&
     currentProject?.organizations?.some(
-      (org) => String(org.id) === String(currentOrganization.id)
+      (org) => String(org.id) === String(currentOrganization.id),
     )
   )
   // Narrow tier: joined via share link / discovery enrollment / org exam.
@@ -189,8 +189,10 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   // modal is intentional — the deep one stays for power users editing the
   // metric list, the surface one is the always-visible CTA when the card
   // is open.
-  const [showGenerationStartModal, setShowGenerationStartModal] = useState(false)
-  const [showEvaluationStartModal, setShowEvaluationStartModal] = useState(false)
+  const [showGenerationStartModal, setShowGenerationStartModal] =
+    useState(false)
+  const [showEvaluationStartModal, setShowEvaluationStartModal] =
+    useState(false)
 
   // Evaluation configs (Phase 8: N:M Field Mapping)
   const [evaluationConfigs, setEvaluationConfigs] = useState<
@@ -211,33 +213,47 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   const [skipModelReset, setSkipModelReset] = useState(false)
 
   // Evaluation defaults
-  const [evalDefaultTemperature, setEvalDefaultTemperature] = useState<number | undefined>(undefined)
-  const [evalDefaultMaxTokens, setEvalDefaultMaxTokens] = useState<number | undefined>(undefined)
+  const [evalDefaultTemperature, setEvalDefaultTemperature] = useState<
+    number | undefined
+  >(undefined)
+  const [evalDefaultMaxTokens, setEvalDefaultMaxTokens] = useState<
+    number | undefined
+  >(undefined)
   // Multi-run default for evaluation (migration 042). Used when no judge
   // ensemble is configured (i.e. metric_parameters.judges is empty); when an
   // ensemble exists, judge_runs are driven by the per-judge `runs` entries
   // instead. Bounded server-side at 1..25.
-  const [evalDefaultRunsPerTask, setEvalDefaultRunsPerTask] = useState<number | undefined>(undefined)
+  const [evalDefaultRunsPerTask, setEvalDefaultRunsPerTask] = useState<
+    number | undefined
+  >(undefined)
   const [isUpdatingEvalDefaults, setIsUpdatingEvalDefaults] = useState(false)
 
   // Defaults mode for evaluation: drives the per-judge pre-fill when a new
   // judge metric is configured. Mirrors the generation-side mode below.
   type DefaultsMode = 'recommended' | 'minimum' | 'custom'
-  const [evalDefaultsMode, setEvalDefaultsMode] = useState<DefaultsMode>('recommended')
+  const [evalDefaultsMode, setEvalDefaultsMode] =
+    useState<DefaultsMode>('recommended')
 
   // Generation defaults
-  const [genDefaultTemperature, setGenDefaultTemperature] = useState<number | undefined>(undefined)
-  const [genDefaultMaxTokens, setGenDefaultMaxTokens] = useState<number | undefined>(undefined)
+  const [genDefaultTemperature, setGenDefaultTemperature] = useState<
+    number | undefined
+  >(undefined)
+  const [genDefaultMaxTokens, setGenDefaultMaxTokens] = useState<
+    number | undefined
+  >(undefined)
   // Multi-run default for generation (migration 041). Number of trials per
   // (task, model, structure). Per-trigger override is allowed in the
   // GenerationControlModal. Bounded server-side at 1..25.
-  const [genDefaultRunsPerTask, setGenDefaultRunsPerTask] = useState<number | undefined>(undefined)
+  const [genDefaultRunsPerTask, setGenDefaultRunsPerTask] = useState<
+    number | undefined
+  >(undefined)
   // Defaults mode for generation: drives per-model pre-fill when a model is
   // toggled in. `recommended` reads model.recommended_parameters,
   // `minimum` uses parameter_constraints.temperature.min (lowest stable
   // value the provider allows), `custom` uses the values entered above.
   // Constraint clamping (e.g. GPT-5 forces temp=1.0) always wins.
-  const [genDefaultsMode, setGenDefaultsMode] = useState<DefaultsMode>('recommended')
+  const [genDefaultsMode, setGenDefaultsMode] =
+    useState<DefaultsMode>('recommended')
   // Ref mirror of the mode + custom values so handleModelToggle reads the
   // LATEST values regardless of React render timing. Without these refs a
   // user pattern of "switch mode, then immediately toggle a model" can read
@@ -349,7 +365,8 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     show_submit_button: true,
     require_comment_on_skip: false,
     require_confirm_before_submit: false,
-    skip_queue: 'requeue_for_others' as 'requeue_for_me' | 'requeue_for_others' | 'ignore_skipped',
+    skip_queue: 'requeue_for_others' as
+      'requeue_for_me' | 'requeue_for_others' | 'ignore_skipped',
     questionnaire_enabled: false,
     questionnaire_config: '' as string,
     maximum_annotations: 1,
@@ -385,13 +402,15 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   const [korrekturBlindToPeers, setKorrekturBlindToPeers] = useState(true)
   const [korrekturBlindToLlm, setKorrekturBlindToLlm] = useState(true)
   const [korrekturBlindToNonJudge, setKorrekturBlindToNonJudge] = useState(true)
-  const [korrekturKeepBlindAfterSubmit, setKorrekturKeepBlindAfterSubmit] = useState(false)
+  const [korrekturKeepBlindAfterSubmit, setKorrekturKeepBlindAfterSubmit] =
+    useState(false)
 
   // Conditional instructions state
   const [conditionalInstructions, setConditionalInstructions] = useState<
     { id: string; content: string; weight: number; ai_allowed?: boolean }[]
   >([])
-  const [editingConditionalInstructions, setEditingConditionalInstructions] = useState(false)
+  const [editingConditionalInstructions, setEditingConditionalInstructions] =
+    useState(false)
 
   // Report state (Issue #770)
   const [reportStatus, setReportStatus] = useState<{
@@ -459,7 +478,6 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchProject is stable, only re-run when projectId changes
   }, [projectId])
-   
 
   // Check if current user has completed all tasks (per-user, not global)
   useEffect(() => {
@@ -485,7 +503,6 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchReportStatus is stable, only re-run when projectId or user changes
   }, [projectId, user, accessTierKnown, isParticipant])
-   
 
   // Fetch existing multi-field evaluations on page load (for badge display)
   useEffect(() => {
@@ -497,10 +514,13 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
       try {
         // Fetch existing evaluation config to load evaluation configs
         const configResponse = await apiClient.get(
-          `/evaluations/projects/${projectId}/evaluation-config`
+          `/evaluations/projects/${projectId}/evaluation-config`,
         )
         // Support current key (evaluation_configs) and legacy key (multi_field_evaluations)
-        const existingConfigs = configResponse?.evaluation_configs || configResponse?.multi_field_evaluations || []
+        const existingConfigs =
+          configResponse?.evaluation_configs ||
+          configResponse?.multi_field_evaluations ||
+          []
         if (existingConfigs.length > 0) {
           setEvaluationConfigs(existingConfigs)
         }
@@ -546,21 +566,23 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   // read-modify-write here (issue #289: the old GET→PUT round-trip re-sent
   // a 30s-cached snapshot of the whole doc and clobbered concurrent saves).
   const saveEvaluationConfigsToProject = async (
-    evaluations: EvaluationConfig[]
+    evaluations: EvaluationConfig[],
   ) => {
     if (!projectId) return
 
     try {
       await apiClient.put(
         `/evaluations/projects/${projectId}/evaluation-config`,
-        { evaluation_configs: evaluations }
+        { evaluation_configs: evaluations },
       )
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : t('toasts.error.saveFailed')
       addToast(
-        t('toasts.project.evaluationConfigsSaveFailed', { error: errorMessage }),
-        'error'
+        t('toasts.project.evaluationConfigsSaveFailed', {
+          error: errorMessage,
+        }),
+        'error',
       )
       throw error
     }
@@ -568,9 +590,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
 
   // Local state, flushed by the eval card's debounced auto-save
   // (saveEvaluationCard).
-  const handleEvaluationConfigsChange = (
-    evaluations: EvaluationConfig[]
-  ) => {
+  const handleEvaluationConfigsChange = (evaluations: EvaluationConfig[]) => {
     markEvaluationDirty()
     setEvaluationConfigs(evaluations)
   }
@@ -602,7 +622,6 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchProject is stable, only re-run when projectId changes
   }, [projectId])
-   
 
   // Initialize values when project loads
   useEffect(() => {
@@ -636,27 +655,34 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
       // Load model configs (thinking/reasoning budgets) - only if not in the middle of a save
       if (!skipModelReset) {
         const projectModelConfigs =
-          currentProject.generation_config?.selected_configuration?.model_configs || {}
+          currentProject.generation_config?.selected_configuration
+            ?.model_configs || {}
         setModelConfigs(projectModelConfigs)
       }
 
       // Load evaluation defaults
-      const projectEvalTemp = currentProject.evaluation_config?.default_temperature
-      const projectEvalMaxTokens = currentProject.evaluation_config?.default_max_tokens
+      const projectEvalTemp =
+        currentProject.evaluation_config?.default_temperature
+      const projectEvalMaxTokens =
+        currentProject.evaluation_config?.default_max_tokens
       setEvalDefaultTemperature(projectEvalTemp)
       setEvalDefaultMaxTokens(projectEvalMaxTokens)
       setEvalDefaultRunsPerTask(currentProject.evaluation_config?.runs_per_task)
       setEvalDefaultsMode(
-        (currentProject.evaluation_config?.defaults_mode as DefaultsMode) || 'recommended',
+        (currentProject.evaluation_config?.defaults_mode as DefaultsMode) ||
+          'recommended',
       )
 
       // Load generation defaults
-      const genParams = currentProject.generation_config?.selected_configuration?.parameters || {}
+      const genParams =
+        currentProject.generation_config?.selected_configuration?.parameters ||
+        {}
       setGenDefaultTemperature(genParams.temperature)
       setGenDefaultMaxTokens(genParams.max_tokens)
       setGenDefaultRunsPerTask(currentProject.generation_config?.runs_per_task)
       setGenDefaultsMode(
-        (currentProject.generation_config?.defaults_mode as DefaultsMode) || 'recommended',
+        (currentProject.generation_config?.defaults_mode as DefaultsMode) ||
+          'recommended',
       )
 
       setInstructions(currentProject.instructions || '')
@@ -666,7 +692,8 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
 
       setAdvancedSettings({
         show_instruction: currentProject.show_instruction !== false,
-        instructions_always_visible: currentProject.instructions_always_visible || false,
+        instructions_always_visible:
+          currentProject.instructions_always_visible || false,
         show_skip_button: currentProject.show_skip_button !== false,
         show_submit_button: currentProject.show_submit_button !== false,
         require_comment_on_skip:
@@ -674,16 +701,15 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
         require_confirm_before_submit:
           currentProject.require_confirm_before_submit || false,
         skip_queue: currentProject.skip_queue || 'requeue_for_others',
-        questionnaire_enabled:
-          currentProject.questionnaire_enabled || false,
-        questionnaire_config:
-          currentProject.questionnaire_config || '',
+        questionnaire_enabled: currentProject.questionnaire_enabled || false,
+        questionnaire_config: currentProject.questionnaire_config || '',
         maximum_annotations: currentProject.maximum_annotations ?? 1,
         min_annotations_per_task: currentProject.min_annotations_per_task || 1,
         assignment_mode: currentProject.assignment_mode || 'open',
         randomize_task_order: currentProject.randomize_task_order || false,
         annotator_full_visibility_after_submit:
-          (currentProject as any).annotator_full_visibility_after_submit || false,
+          (currentProject as any).annotator_full_visibility_after_submit ||
+          false,
         review_enabled: currentProject.review_enabled || false,
         review_mode: currentProject.review_mode || 'in_place',
         allow_self_review: currentProject.allow_self_review || false,
@@ -716,7 +742,8 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     // resolves it to public_role for any logged-in visitor of a public
     // project, but public visitors have no write access
     // (check_user_can_edit_project is membership/creator based).
-    if (isOrgProject) return user.role === 'ORG_ADMIN' || user.role === 'CONTRIBUTOR'
+    if (isOrgProject)
+      return user.role === 'ORG_ADMIN' || user.role === 'CONTRIBUTOR'
     return currentProject.created_by === user.id
   }
 
@@ -734,7 +761,10 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     try {
       await updateProject(projectId, { icon })
     } catch {
-      addToast(t('project.icon.saveFailed', 'Symbol konnte nicht gespeichert werden.'), 'error')
+      addToast(
+        t('project.icon.saveFailed', 'Symbol konnte nicht gespeichert werden.'),
+        'error',
+      )
     }
   }
 
@@ -748,8 +778,11 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
       await updateProject(projectId, { kind })
     } catch {
       addToast(
-        t('project.details.kindSaveFailed', 'Projekttyp konnte nicht gespeichert werden.'),
-        'error'
+        t(
+          'project.details.kindSaveFailed',
+          'Projekttyp konnte nicht gespeichert werden.',
+        ),
+        'error',
       )
     }
   }
@@ -828,7 +861,10 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : t('toasts.error.deleteFailed')
-      addToast(t('toasts.project.deleteFailed', { error: errorMessage }), 'error')
+      addToast(
+        t('toasts.project.deleteFailed', { error: errorMessage }),
+        'error',
+      )
       setDeleting(false)
     }
     setShowDeleteConfirm(false)
@@ -861,7 +897,10 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : t('toasts.error.updateFailed')
-      addToast(t('toasts.project.titleUpdateFailed', { error: errorMessage }), 'error')
+      addToast(
+        t('toasts.project.titleUpdateFailed', { error: errorMessage }),
+        'error',
+      )
     } finally {
       setIsUpdating(false)
     }
@@ -891,7 +930,10 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : t('toasts.error.updateFailed')
-      addToast(t('toasts.project.descriptionUpdateFailed', { error: errorMessage }), 'error')
+      addToast(
+        t('toasts.project.descriptionUpdateFailed', { error: errorMessage }),
+        'error',
+      )
     } finally {
       setIsUpdating(false)
     }
@@ -909,7 +951,10 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : t('toasts.error.updateFailed')
-      addToast(t('toasts.project.instructionsUpdateFailed', { error: errorMessage }), 'error')
+      addToast(
+        t('toasts.project.instructionsUpdateFailed', { error: errorMessage }),
+        'error',
+      )
       // Rethrow so saveAnnotationCard keeps the card in edit mode.
       throw error
     } finally {
@@ -941,11 +986,19 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     customTemp: number | undefined,
     customMaxTokens: number | undefined,
     rpMode: 'generation' | 'evaluation',
-  ): { temperature?: number; max_tokens?: number; temperatureFixed?: boolean } => {
+  ): {
+    temperature?: number
+    max_tokens?: number
+    temperatureFixed?: boolean
+  } => {
     const model = availableModels?.find((m) => m.id === modelId)
     const tempConstraints = getTemperatureConstraints(model)
     const constraintMaxTokens = getDefaultMaxTokens(model)
-    const out: { temperature?: number; max_tokens?: number; temperatureFixed?: boolean } = {}
+    const out: {
+      temperature?: number
+      max_tokens?: number
+      temperatureFixed?: boolean
+    } = {}
 
     // Always honor a fixed temperature constraint (e.g. GPT-5 → 1.0). The
     // mode controls the SOFT default, but a hard model requirement wins.
@@ -1003,9 +1056,11 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
           genDefaultMaxTokensRef.current,
           'generation',
         )
-        if (prefill.temperature !== undefined) newConfig.temperature = prefill.temperature
+        if (prefill.temperature !== undefined)
+          newConfig.temperature = prefill.temperature
         if (prefill.temperatureFixed) newConfig.temperatureFixed = true
-        if (prefill.max_tokens !== undefined) newConfig.max_tokens = prefill.max_tokens
+        if (prefill.max_tokens !== undefined)
+          newConfig.max_tokens = prefill.max_tokens
 
         // Reasoning defaults from backend default_config (orthogonal to
         // the temperature/max_tokens mode logic).
@@ -1026,7 +1081,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
 
   // Get reasoning config from backend default_config
   const getReasoningConfig = (modelId: string): ReasoningConfig | undefined => {
-    const model = availableModels?.find(m => m.id === modelId)
+    const model = availableModels?.find((m) => m.id === modelId)
     const rc = model?.default_config?.reasoning_config
     if (!rc) return undefined
     return rc as ReasoningConfig
@@ -1046,13 +1101,10 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   const handleSaveModels = async () => {
     if (!currentProject || !projectId) return
 
-    logger.debug(
-      '[SAVE START] Selected models before save:',
-      selectedModelIds
-    )
+    logger.debug('[SAVE START] Selected models before save:', selectedModelIds)
     logger.debug(
       '[SAVE START] Current project generation_config:',
-      currentProject.generation_config
+      currentProject.generation_config,
     )
     logger.debug('[SAVE START] skipModelReset flag:', skipModelReset)
 
@@ -1079,7 +1131,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
         },
       })
       logger.debug(
-        '[API SUCCESS] Model IDs and configs saved successfully to generation_config'
+        '[API SUCCESS] Model IDs and configs saved successfully to generation_config',
       )
 
       // Refetch project to get the latest state with updated generation_config
@@ -1093,7 +1145,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
       ) {
         logger.debug(
           '[PROJECT STATE] Current model IDs in generation_config:',
-          currentProject.generation_config.selected_configuration.models
+          currentProject.generation_config.selected_configuration.models,
         )
       } else {
         console.warn('[API RESPONSE] No models in generation_config!')
@@ -1108,17 +1160,18 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
       setTimeout(() => {
         logger.debug(
           '[POST-SAVE] Selected models after API call:',
-          selectedModelIds
+          selectedModelIds,
         )
         logger.debug('[POST-SAVE] skipModelReset flag:', skipModelReset)
       }, 100)
     } catch (error) {
       console.error('[ERROR] Error saving models:', error)
       const errorMessage =
-        error instanceof Error
-          ? error.message
-          : t('toasts.error.saveFailed')
-      addToast(t('toasts.project.modelsSaveFailed', { error: errorMessage }), 'error')
+        error instanceof Error ? error.message : t('toasts.error.saveFailed')
+      addToast(
+        t('toasts.project.modelsSaveFailed', { error: errorMessage }),
+        'error',
+      )
       // Rethrow so saveGenerationCard skips the defaults PATCH and keeps
       // the card in edit mode.
       throw error
@@ -1133,7 +1186,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
         setTimeout(() => {
           logger.debug(
             '[FINAL STATE] Selected models after cleanup:',
-            selectedModelIds
+            selectedModelIds,
           )
         }, 100)
       }, 1000) // Increased from 500ms to 1000ms
@@ -1169,10 +1222,13 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     } catch (error) {
       console.error('[ERROR] Error saving evaluation defaults:', error)
       const errorMessage =
-        error instanceof Error
-          ? error.message
-          : t('toasts.error.saveFailed')
-      addToast(t('toasts.project.evaluationDefaultsSaveFailed', { error: errorMessage }), 'error')
+        error instanceof Error ? error.message : t('toasts.error.saveFailed')
+      addToast(
+        t('toasts.project.evaluationDefaultsSaveFailed', {
+          error: errorMessage,
+        }),
+        'error',
+      )
       // Rethrow so saveEvaluationCard aborts the sequence and keeps the
       // card in edit mode.
       throw error
@@ -1216,10 +1272,13 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     } catch (error) {
       console.error('[ERROR] Error saving generation defaults:', error)
       const errorMessage =
-        error instanceof Error
-          ? error.message
-          : t('toasts.error.saveFailed')
-      addToast(t('toasts.project.generationDefaultsSaveFailed', { error: errorMessage }), 'error')
+        error instanceof Error ? error.message : t('toasts.error.saveFailed')
+      addToast(
+        t('toasts.project.generationDefaultsSaveFailed', {
+          error: errorMessage,
+        }),
+        'error',
+      )
       // Rethrow so saveGenerationCard keeps the card in edit mode.
       throw error
     } finally {
@@ -1237,15 +1296,20 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
       // project's evaluation_config (after_eval_config_save hook). Stripping
       // them from the PATCH avoids clobbering server-side derivation with
       // stale local-buffer values.
-      const { korrektur_enabled: _ke, korrektur_config: _kc, ...payload } = advancedSettings
+      const {
+        korrektur_enabled: _ke,
+        korrektur_config: _kc,
+        ...payload
+      } = advancedSettings
       await updateProject(projectId, payload)
       addToast(t('toasts.project.settingsSaved'), 'success')
     } catch (error) {
       const errorMessage =
-        error instanceof Error
-          ? error.message
-          : t('toasts.error.saveFailed')
-      addToast(t('toasts.project.settingsSaveFailed', { error: errorMessage }), 'error')
+        error instanceof Error ? error.message : t('toasts.error.saveFailed')
+      addToast(
+        t('toasts.project.settingsSaveFailed', { error: errorMessage }),
+        'error',
+      )
       // Rethrow so saveAnnotationCard keeps the card in edit mode.
       throw error
     } finally {
@@ -1436,7 +1500,10 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
       } catch (error) {
         const errorMessage =
           error instanceof Error ? error.message : t('toasts.error.saveFailed')
-        addToast(t('toasts.project.settingsSaveFailed', { error: errorMessage }), 'error')
+        addToast(
+          t('toasts.project.settingsSaveFailed', { error: errorMessage }),
+          'error',
+        )
         throw error
       }
       await handleSaveEvalDefaults()
@@ -1525,7 +1592,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   })()
 
   return (
-    <div className="mx-auto max-w-7xl px-4 pb-10 pt-16 sm:px-6 lg:px-8">
+    <div className="mx-auto max-w-7xl px-4 pt-16 pb-10 sm:px-6 lg:px-8">
       {/* Header */}
       <div className="mb-8">
         <div className="flex items-start justify-between">
@@ -1583,14 +1650,21 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                       <button
                         type="button"
                         className="mr-2 rounded-md px-1 transition-colors hover:bg-zinc-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:hover:bg-zinc-800"
-                        title={t('projects.creation.wizard.step1.icon.clickToEdit', 'Klicken zum Bearbeiten')}
+                        title={t(
+                          'projects.creation.wizard.step1.icon.clickToEdit',
+                          'Klicken zum Bearbeiten',
+                        )}
                         onClick={() => setIconPickerOpen(true)}
                         data-testid="project-header-icon"
                       >
                         {projectIcon(currentProject)}
                       </button>
                     ) : (
-                      <span className="mr-2" aria-hidden data-testid="project-header-icon">
+                      <span
+                        className="mr-2"
+                        aria-hidden
+                        data-testid="project-header-icon"
+                      >
                         {projectIcon(currentProject)}
                       </span>
                     )}
@@ -1668,7 +1742,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                     <Button
                       onClick={handleStartEditDescription}
                       variant="outline"
-                      className="flex-shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
+                      className="shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
                     >
                       <PencilIcon className="h-4 w-4" />
                     </Button>
@@ -1682,7 +1756,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
 
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl dark:bg-zinc-900">
             <h3 className="mb-4 text-lg font-semibold text-zinc-900 dark:text-white">
               {t('project.deleteConfirmTitle')}: {currentProject.title}
@@ -1756,535 +1830,562 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
               tier) get the metadata, deck workspace and quick actions. */}
           {!isParticipant && (
             <>
-          {currentProject.enable_annotation && (
-          <ConfigCard
-            title={t('project.annotationConfiguration.title')}
-            defaultExpanded={false}
-            dirty={cardDirty.annotation}
-            saving={cardSaving.annotation}
-          >
-          {/* Annotation Instructions Section */}
-          <div className="bg-white dark:bg-zinc-900">
-            {canEditProject() ? (
-            <>
-            <div className="mb-6 flex items-center justify-between">
-              <button
-                onClick={() => setExpandedInstructions(!expandedInstructions)}
-                className="flex items-center space-x-3 text-left"
-              >
-                <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">
-                  {t('project.annotationInstructions.title')}
-                </h2>
-                {!expandedInstructions && (
-                  <span className="rounded-md bg-zinc-100 px-2 py-1 text-sm leading-tight text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
-                    {instructions || (conditionalInstructions && conditionalInstructions.length > 0)
-                      ? t('project.annotationInstructions.configured')
-                      : t('project.annotationInstructions.notConfigured')}
-                  </span>
-                )}
-                <svg
-                  className={`h-5 w-5 flex-shrink-0 text-zinc-400 transition-transform ${expandedInstructions ? 'rotate-90 transform' : ''}`}
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
+              {currentProject.enable_annotation && (
+                <ConfigCard
+                  title={t('project.annotationConfiguration.title')}
+                  defaultExpanded={false}
+                  dirty={cardDirty.annotation}
+                  saving={cardSaving.annotation}
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 5l7 7-7 7"
-                  />
-                </svg>
-              </button>
-              {/* Per-section edit button removed — card-level Bearbeiten is
-                  the sole entry point. */}
-            </div>
-
-            {expandedInstructions && (
-              <div className="space-y-4">
-                <Textarea
-                  value={instructionsValue}
-                  onChange={(e) => {
-                    markAnnotationDirty()
-                    setInstructionsValue(e.target.value)
-                  }}
-                  placeholder={t(
-                    'project.annotationInstructions.placeholder'
-                  )}
-                  rows={6}
-                  className="w-full resize-none"
-                />
-              </div>
-            )}
-
-            {/* Conditional Instructions Editor */}
-            {expandedInstructions && canEditProject() && (
-              <div className="mt-6 border-t border-zinc-200 pt-4 dark:border-zinc-700">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h4 className="text-sm font-medium text-zinc-900 dark:text-white">
-                      {t('project.conditionalInstructions.title', { defaultValue: 'Conditional Instructions' })}
-                    </h4>
-                    <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                      {t('project.conditionalInstructions.description', { defaultValue: 'Show different instructions to annotators based on randomized assignment per task' })}
-                    </p>
-                  </div>
-                  <Button
-                    onClick={() => setEditingConditionalInstructions(!editingConditionalInstructions)}
-                    variant="outline"
-                    className="text-sm"
-                  >
-                    {editingConditionalInstructions
-                      ? t('project.editing.cancel')
-                      : conditionalInstructions.length > 0
-                        ? t('project.conditionalInstructions.edit', { defaultValue: 'Edit Variants' })
-                        : t('project.conditionalInstructions.add', { defaultValue: 'Add Variants' })}
-                  </Button>
-                </div>
-
-                {!editingConditionalInstructions && conditionalInstructions.length > 0 && (
-                  <div className="mt-3 space-y-2">
-                    {conditionalInstructions.map((variant) => (
-                      <div key={variant.id} className="rounded-md bg-zinc-50 p-3 dark:bg-zinc-800">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                              {variant.id}
-                            </span>
-                            {variant.ai_allowed && (
-                              <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
-                                {t('project.conditionalInstructions.aiAllowed', { defaultValue: 'AI Allowed' })}
+                  {/* Annotation Instructions Section */}
+                  <div className="bg-white dark:bg-zinc-900">
+                    {canEditProject() ? (
+                      <>
+                        <div className="mb-6 flex items-center justify-between">
+                          <button
+                            onClick={() =>
+                              setExpandedInstructions(!expandedInstructions)
+                            }
+                            className="flex items-center space-x-3 text-left"
+                          >
+                            <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">
+                              {t('project.annotationInstructions.title')}
+                            </h2>
+                            {!expandedInstructions && (
+                              <span className="rounded-md bg-zinc-100 px-2 py-1 text-sm leading-tight text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
+                                {instructions ||
+                                (conditionalInstructions &&
+                                  conditionalInstructions.length > 0)
+                                  ? t(
+                                      'project.annotationInstructions.configured',
+                                    )
+                                  : t(
+                                      'project.annotationInstructions.notConfigured',
+                                    )}
                               </span>
                             )}
-                          </div>
-                          <span className="inline-flex items-center rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-700 dark:bg-zinc-700 dark:text-zinc-300">{variant.weight}%</span>
-                        </div>
-                        <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400 line-clamp-2">
-                          {variant.content}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {editingConditionalInstructions && (
-                  <div className="mt-3 space-y-3">
-                    {conditionalInstructions.map((variant, index) => (
-                      <div key={index} className="rounded-md border border-zinc-200 p-3 dark:border-zinc-700">
-                        <div className="flex items-center gap-2">
-                          <div className="flex-1">
-                            <label className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
-                              {t('project.conditionalInstructions.variantId', { defaultValue: 'Variant ID' })}
-                            </label>
-                            <input
-                              type="text"
-                              value={variant.id}
-                              onChange={(e) => {
-                                const updated = [...conditionalInstructions]
-                                updated[index] = { ...updated[index], id: e.target.value }
-                                setConditionalInstructions(updated)
-                              }}
-                              placeholder="e.g. ai, no_ai"
-                              className="mt-1 block w-full rounded-md border border-zinc-300 bg-white px-2 py-1 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 dark:border-zinc-600 dark:bg-zinc-800 dark:text-white"
-                            />
-                          </div>
-                          <div className="w-24">
-                            <label className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
-                              {t('project.conditionalInstructions.weight', { defaultValue: 'Weight (%)' })}
-                            </label>
-                            <input
-                              type="number"
-                              min="1"
-                              max="100"
-                              value={variant.weight}
-                              onChange={(e) => {
-                                const updated = [...conditionalInstructions]
-                                updated[index] = { ...updated[index], weight: parseInt(e.target.value) || 0 }
-                                setConditionalInstructions(updated)
-                              }}
-                              className="mt-1 block w-full rounded-md border border-zinc-300 bg-white px-2 py-1 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 dark:border-zinc-600 dark:bg-zinc-800 dark:text-white"
-                            />
-                          </div>
-                          <div className="flex items-center gap-1 mt-5">
-                            <input
-                              type="checkbox"
-                              id={`ai-allowed-${index}`}
-                              checked={variant.ai_allowed || false}
-                              onChange={(e) => {
-                                const updated = [...conditionalInstructions]
-                                updated[index] = { ...updated[index], ai_allowed: e.target.checked }
-                                setConditionalInstructions(updated)
-                              }}
-                              className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500"
-                            />
-                            <label htmlFor={`ai-allowed-${index}`} className="text-xs font-medium text-zinc-500 dark:text-zinc-400 whitespace-nowrap">
-                              {t('project.conditionalInstructions.aiAllowed', { defaultValue: 'AI' })}
-                            </label>
-                          </div>
-                          <button
-                            onClick={() => {
-                              setConditionalInstructions(conditionalInstructions.filter((_, i) => i !== index))
-                            }}
-                            className="mt-5 text-red-500 hover:text-red-700"
-                          >
-                            &times;
+                            <svg
+                              className={`h-5 w-5 shrink-0 text-zinc-400 transition-transform ${expandedInstructions ? 'rotate-90 transform' : ''}`}
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M9 5l7 7-7 7"
+                              />
+                            </svg>
                           </button>
+                          {/* Per-section edit button removed — card-level Bearbeiten is
+                  the sole entry point. */}
                         </div>
-                        <div className="mt-2">
-                          <label className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
-                            {t('project.conditionalInstructions.content', { defaultValue: 'Instruction Content' })}
-                          </label>
-                          <textarea
-                            value={variant.content}
-                            onChange={(e) => {
-                              const updated = [...conditionalInstructions]
-                              updated[index] = { ...updated[index], content: e.target.value }
-                              setConditionalInstructions(updated)
-                            }}
-                            rows={2}
-                            className="mt-1 block w-full resize-none rounded-md border border-zinc-300 bg-white px-2 py-1 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 dark:border-zinc-600 dark:bg-zinc-800 dark:text-white"
-                          />
-                        </div>
-                      </div>
-                    ))}
 
-                    <div className="flex items-center gap-3">
-                      <Button
-                        onClick={() => {
-                          setConditionalInstructions([
-                            ...conditionalInstructions,
-                            { id: '', content: '', weight: 50, ai_allowed: false },
-                          ])
-                        }}
-                        variant="outline"
-                        className="text-sm"
-                      >
-                        {t('project.conditionalInstructions.addVariant', { defaultValue: '+ Add Variant' })}
-                      </Button>
-                      <Button
-                        onClick={async () => {
-                          const totalWeight = conditionalInstructions.reduce((s, v) => s + v.weight, 0)
-                          if (conditionalInstructions.length > 0 && totalWeight !== 100) {
-                            addToast(t('project.conditionalInstructions.weightError', { defaultValue: 'Weights must sum to 100%' }), 'error')
-                            return
-                          }
-                          try {
-                            await updateProject(projectId, {
-                              conditional_instructions: conditionalInstructions.length > 0 ? conditionalInstructions : null,
-                            })
-                            setEditingConditionalInstructions(false)
-                            addToast(t('project.conditionalInstructions.saved', { defaultValue: 'Conditional instructions saved' }), 'success')
-                          } catch {
-                            addToast(t('project.conditionalInstructions.saveFailed', { defaultValue: 'Failed to save' }), 'error')
-                          }
-                        }}
-                        disabled={isUpdating}
-                        className="text-sm"
-                      >
-                        {t('project.conditionalInstructions.save', { defaultValue: 'Save Variants' })}
-                      </Button>
-                    </div>
+                        {expandedInstructions && (
+                          <div className="space-y-4">
+                            <Textarea
+                              value={instructionsValue}
+                              onChange={(e) => {
+                                markAnnotationDirty()
+                                setInstructionsValue(e.target.value)
+                              }}
+                              placeholder={t(
+                                'project.annotationInstructions.placeholder',
+                              )}
+                              rows={6}
+                              className="w-full resize-none"
+                            />
+                          </div>
+                        )}
 
-                    {conditionalInstructions.length > 0 && (() => {
-                      const totalWeight = conditionalInstructions.reduce((s, v) => s + v.weight, 0)
-                      return totalWeight !== 100 ? (
-                        <p className="text-xs text-red-500">
-                          {t('project.conditionalInstructions.weightWarning', { defaultValue: `Weights sum to ${totalWeight}%, must be 100%`, total: totalWeight })}
+                        {/* Conditional Instructions Editor */}
+                        {expandedInstructions && canEditProject() && (
+                          <div className="mt-6 border-t border-zinc-200 pt-4 dark:border-zinc-700">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <h4 className="text-sm font-medium text-zinc-900 dark:text-white">
+                                  {t('project.conditionalInstructions.title', {
+                                    defaultValue: 'Conditional Instructions',
+                                  })}
+                                </h4>
+                                <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                                  {t(
+                                    'project.conditionalInstructions.description',
+                                    {
+                                      defaultValue:
+                                        'Show different instructions to annotators based on randomized assignment per task',
+                                    },
+                                  )}
+                                </p>
+                              </div>
+                              <Button
+                                onClick={() =>
+                                  setEditingConditionalInstructions(
+                                    !editingConditionalInstructions,
+                                  )
+                                }
+                                variant="outline"
+                                className="text-sm"
+                              >
+                                {editingConditionalInstructions
+                                  ? t('project.editing.cancel')
+                                  : conditionalInstructions.length > 0
+                                    ? t(
+                                        'project.conditionalInstructions.edit',
+                                        { defaultValue: 'Edit Variants' },
+                                      )
+                                    : t('project.conditionalInstructions.add', {
+                                        defaultValue: 'Add Variants',
+                                      })}
+                              </Button>
+                            </div>
+
+                            {!editingConditionalInstructions &&
+                              conditionalInstructions.length > 0 && (
+                                <div className="mt-3 space-y-2">
+                                  {conditionalInstructions.map((variant) => (
+                                    <div
+                                      key={variant.id}
+                                      className="rounded-md bg-zinc-50 p-3 dark:bg-zinc-800"
+                                    >
+                                      <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2">
+                                          <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                                            {variant.id}
+                                          </span>
+                                          {variant.ai_allowed && (
+                                            <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
+                                              {t(
+                                                'project.conditionalInstructions.aiAllowed',
+                                                { defaultValue: 'AI Allowed' },
+                                              )}
+                                            </span>
+                                          )}
+                                        </div>
+                                        <span className="inline-flex items-center rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-700 dark:bg-zinc-700 dark:text-zinc-300">
+                                          {variant.weight}%
+                                        </span>
+                                      </div>
+                                      <p className="mt-1 line-clamp-2 text-xs text-zinc-500 dark:text-zinc-400">
+                                        {variant.content}
+                                      </p>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+
+                            {editingConditionalInstructions && (
+                              <div className="mt-3 space-y-3">
+                                {conditionalInstructions.map(
+                                  (variant, index) => (
+                                    <div
+                                      key={index}
+                                      className="rounded-md border border-zinc-200 p-3 dark:border-zinc-700"
+                                    >
+                                      <div className="flex items-center gap-2">
+                                        <div className="flex-1">
+                                          <label className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                                            {t(
+                                              'project.conditionalInstructions.variantId',
+                                              { defaultValue: 'Variant ID' },
+                                            )}
+                                          </label>
+                                          <input
+                                            type="text"
+                                            value={variant.id}
+                                            onChange={(e) => {
+                                              const updated = [
+                                                ...conditionalInstructions,
+                                              ]
+                                              updated[index] = {
+                                                ...updated[index],
+                                                id: e.target.value,
+                                              }
+                                              setConditionalInstructions(
+                                                updated,
+                                              )
+                                            }}
+                                            placeholder="e.g. ai, no_ai"
+                                            className="mt-1 block w-full rounded-md border border-zinc-300 bg-white px-2 py-1 text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 focus:outline-none dark:border-zinc-600 dark:bg-zinc-800 dark:text-white"
+                                          />
+                                        </div>
+                                        <div className="w-24">
+                                          <label className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                                            {t(
+                                              'project.conditionalInstructions.weight',
+                                              { defaultValue: 'Weight (%)' },
+                                            )}
+                                          </label>
+                                          <input
+                                            type="number"
+                                            min="1"
+                                            max="100"
+                                            value={variant.weight}
+                                            onChange={(e) => {
+                                              const updated = [
+                                                ...conditionalInstructions,
+                                              ]
+                                              updated[index] = {
+                                                ...updated[index],
+                                                weight:
+                                                  parseInt(e.target.value) || 0,
+                                              }
+                                              setConditionalInstructions(
+                                                updated,
+                                              )
+                                            }}
+                                            className="mt-1 block w-full rounded-md border border-zinc-300 bg-white px-2 py-1 text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 focus:outline-none dark:border-zinc-600 dark:bg-zinc-800 dark:text-white"
+                                          />
+                                        </div>
+                                        <div className="mt-5 flex items-center gap-1">
+                                          <input
+                                            type="checkbox"
+                                            id={`ai-allowed-${index}`}
+                                            checked={
+                                              variant.ai_allowed || false
+                                            }
+                                            onChange={(e) => {
+                                              const updated = [
+                                                ...conditionalInstructions,
+                                              ]
+                                              updated[index] = {
+                                                ...updated[index],
+                                                ai_allowed: e.target.checked,
+                                              }
+                                              setConditionalInstructions(
+                                                updated,
+                                              )
+                                            }}
+                                            className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500"
+                                          />
+                                          <label
+                                            htmlFor={`ai-allowed-${index}`}
+                                            className="text-xs font-medium whitespace-nowrap text-zinc-500 dark:text-zinc-400"
+                                          >
+                                            {t(
+                                              'project.conditionalInstructions.aiAllowed',
+                                              { defaultValue: 'AI' },
+                                            )}
+                                          </label>
+                                        </div>
+                                        <button
+                                          onClick={() => {
+                                            setConditionalInstructions(
+                                              conditionalInstructions.filter(
+                                                (_, i) => i !== index,
+                                              ),
+                                            )
+                                          }}
+                                          className="mt-5 text-red-500 hover:text-red-700"
+                                        >
+                                          &times;
+                                        </button>
+                                      </div>
+                                      <div className="mt-2">
+                                        <label className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                                          {t(
+                                            'project.conditionalInstructions.content',
+                                            {
+                                              defaultValue:
+                                                'Instruction Content',
+                                            },
+                                          )}
+                                        </label>
+                                        <textarea
+                                          value={variant.content}
+                                          onChange={(e) => {
+                                            const updated = [
+                                              ...conditionalInstructions,
+                                            ]
+                                            updated[index] = {
+                                              ...updated[index],
+                                              content: e.target.value,
+                                            }
+                                            setConditionalInstructions(updated)
+                                          }}
+                                          rows={2}
+                                          className="mt-1 block w-full resize-none rounded-md border border-zinc-300 bg-white px-2 py-1 text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 focus:outline-none dark:border-zinc-600 dark:bg-zinc-800 dark:text-white"
+                                        />
+                                      </div>
+                                    </div>
+                                  ),
+                                )}
+
+                                <div className="flex items-center gap-3">
+                                  <Button
+                                    onClick={() => {
+                                      setConditionalInstructions([
+                                        ...conditionalInstructions,
+                                        {
+                                          id: '',
+                                          content: '',
+                                          weight: 50,
+                                          ai_allowed: false,
+                                        },
+                                      ])
+                                    }}
+                                    variant="outline"
+                                    className="text-sm"
+                                  >
+                                    {t(
+                                      'project.conditionalInstructions.addVariant',
+                                      { defaultValue: '+ Add Variant' },
+                                    )}
+                                  </Button>
+                                  <Button
+                                    onClick={async () => {
+                                      const totalWeight =
+                                        conditionalInstructions.reduce(
+                                          (s, v) => s + v.weight,
+                                          0,
+                                        )
+                                      if (
+                                        conditionalInstructions.length > 0 &&
+                                        totalWeight !== 100
+                                      ) {
+                                        addToast(
+                                          t(
+                                            'project.conditionalInstructions.weightError',
+                                            {
+                                              defaultValue:
+                                                'Weights must sum to 100%',
+                                            },
+                                          ),
+                                          'error',
+                                        )
+                                        return
+                                      }
+                                      try {
+                                        await updateProject(projectId, {
+                                          conditional_instructions:
+                                            conditionalInstructions.length > 0
+                                              ? conditionalInstructions
+                                              : null,
+                                        })
+                                        setEditingConditionalInstructions(false)
+                                        addToast(
+                                          t(
+                                            'project.conditionalInstructions.saved',
+                                            {
+                                              defaultValue:
+                                                'Conditional instructions saved',
+                                            },
+                                          ),
+                                          'success',
+                                        )
+                                      } catch {
+                                        addToast(
+                                          t(
+                                            'project.conditionalInstructions.saveFailed',
+                                            { defaultValue: 'Failed to save' },
+                                          ),
+                                          'error',
+                                        )
+                                      }
+                                    }}
+                                    disabled={isUpdating}
+                                    className="text-sm"
+                                  >
+                                    {t('project.conditionalInstructions.save', {
+                                      defaultValue: 'Save Variants',
+                                    })}
+                                  </Button>
+                                </div>
+
+                                {conditionalInstructions.length > 0 &&
+                                  (() => {
+                                    const totalWeight =
+                                      conditionalInstructions.reduce(
+                                        (s, v) => s + v.weight,
+                                        0,
+                                      )
+                                    return totalWeight !== 100 ? (
+                                      <p className="text-xs text-red-500">
+                                        {t(
+                                          'project.conditionalInstructions.weightWarning',
+                                          {
+                                            defaultValue: `Weights sum to ${totalWeight}%, must be 100%`,
+                                            total: totalWeight,
+                                          },
+                                        )}
+                                      </p>
+                                    ) : null
+                                  })()}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <div className="py-6 text-center">
+                        <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                          {getReadOnlyMessage(
+                            t('project.annotationInstructions.title'),
+                          )}
                         </p>
-                      ) : null
-                    })()}
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-            )}
-            </>
-            ) : (
-              <div className="py-6 text-center">
-                <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                  {getReadOnlyMessage(t('project.annotationInstructions.title'))}
-                </p>
-              </div>
-            )}
-          </div>
 
-          {/* Label Configuration Section */}
-          <div className="bg-white dark:bg-zinc-900">
-            {canEditProject() ? (
-            <>
-            <div className="mb-6 flex items-center justify-between">
-              <button
-                onClick={() => setExpandedConfig(!expandedConfig)}
-                className="flex items-center space-x-3 text-left"
-              >
-                <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">
-                  {t('project.labelConfiguration.title')}
-                </h2>
-                {!expandedConfig && (
-                  <span className="rounded-md bg-zinc-100 px-2 py-1 text-sm leading-tight text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
-                    {currentProject.label_config
-                      ? t('project.labelConfiguration.configured')
-                      : t('project.labelConfiguration.notConfigured')}
-                  </span>
-                )}
-                <svg
-                  className={`h-5 w-5 flex-shrink-0 text-zinc-400 transition-transform ${expandedConfig ? 'rotate-90 transform' : ''}`}
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 5l7 7-7 7"
-                  />
-                </svg>
-              </button>
-              {/* Label-Konfiguration folds into the card-level auto-save:
+                  {/* Label Configuration Section */}
+                  <div className="bg-white dark:bg-zinc-900">
+                    {canEditProject() ? (
+                      <>
+                        <div className="mb-6 flex items-center justify-between">
+                          <button
+                            onClick={() => setExpandedConfig(!expandedConfig)}
+                            className="flex items-center space-x-3 text-left"
+                          >
+                            <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">
+                              {t('project.labelConfiguration.title')}
+                            </h2>
+                            {!expandedConfig && (
+                              <span className="rounded-md bg-zinc-100 px-2 py-1 text-sm leading-tight text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
+                                {currentProject.label_config
+                                  ? t('project.labelConfiguration.configured')
+                                  : t(
+                                      'project.labelConfiguration.notConfigured',
+                                    )}
+                              </span>
+                            )}
+                            <svg
+                              className={`h-5 w-5 shrink-0 text-zinc-400 transition-transform ${expandedConfig ? 'rotate-90 transform' : ''}`}
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M9 5l7 7-7 7"
+                              />
+                            </svg>
+                          </button>
+                          {/* Label-Konfiguration folds into the card-level auto-save:
                   saveAnnotationCard awaits labelConfigRef.current.save() in
                   Promise.all alongside the other sub-section saves. */}
-            </div>
+                        </div>
 
-            {expandedConfig && (
-              <LabelConfigEditor
-                ref={labelConfigRef}
-                initialConfig={currentProject.label_config || ''}
-                onSave={handleSaveLabelConfig}
-                onConfigChange={markAnnotationDirty}
-                projectId={currentProject.id}
-                hideInternalControls
-              />
-            )}
-            </>
-            ) : (
-              <div className="py-6 text-center">
-                <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                  {getReadOnlyMessage(t('project.labelConfiguration.title'))}
-                </p>
-              </div>
-            )}
-          </div>
-          <SubSection
-            title={t('project.settings.annotationSettingsTitle')}
-            badge={`${t('project.settings.mode', { mode: advancedSettings.assignment_mode })}, ${t('project.settings.minAnnotations', { count: advancedSettings.min_annotations_per_task })}`}
-          >
-          {/*  Settings Section */}
-          <AdvancedSettingsCard
-            t={t}
-            canEditProject={canEditProject}
-            getReadOnlyMessage={getReadOnlyMessage}
-            advancedSettings={advancedSettings}
-            setAdvancedSettings={handleAdvancedSettingsChange}
-            editing={canEditProject()}
-            ProjectSettingsExtended={ProjectSettingsExtended}
-          />
-          </SubSection>
+                        {expandedConfig && (
+                          <LabelConfigEditor
+                            ref={labelConfigRef}
+                            initialConfig={currentProject.label_config || ''}
+                            onSave={handleSaveLabelConfig}
+                            onConfigChange={markAnnotationDirty}
+                            projectId={currentProject.id}
+                            hideInternalControls
+                          />
+                        )}
+                      </>
+                    ) : (
+                      <div className="py-6 text-center">
+                        <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                          {getReadOnlyMessage(
+                            t('project.labelConfiguration.title'),
+                          )}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                  <SubSection
+                    title={t('project.settings.annotationSettingsTitle')}
+                    badge={`${t('project.settings.mode', { mode: advancedSettings.assignment_mode })}, ${t('project.settings.minAnnotations', { count: advancedSettings.min_annotations_per_task })}`}
+                  >
+                    {/*  Settings Section */}
+                    <AdvancedSettingsCard
+                      t={t}
+                      canEditProject={canEditProject}
+                      getReadOnlyMessage={getReadOnlyMessage}
+                      advancedSettings={advancedSettings}
+                      setAdvancedSettings={handleAdvancedSettingsChange}
+                      editing={canEditProject()}
+                      ProjectSettingsExtended={ProjectSettingsExtended}
+                    />
+                  </SubSection>
+                </ConfigCard>
+              )}
 
-          </ConfigCard>
-          )}
-
-          {currentProject.enable_generation && (
-          <ConfigCard
-            title={t('project.generationConfiguration.title')}
-            defaultExpanded={false}
-            dirty={cardDirty.generation}
-            saving={cardSaving.generation}
-          >
-          {/* Generation Defaults — peer of Model Selection (was nested inside
+              {currentProject.enable_generation && (
+                <ConfigCard
+                  title={t('project.generationConfiguration.title')}
+                  defaultExpanded={false}
+                  dirty={cardDirty.generation}
+                  saving={cardSaving.generation}
+                >
+                  {/* Generation Defaults — peer of Model Selection (was nested inside
               expandedModels until the multi-run feature; pulled out so the new
               "Default number of runs" knob is discoverable without expanding
               Model Selection first). Uses the shared SubSection wrapper so it
               matches the visual style of Modellauswahl / Prompt-Strukturen
               instead of looking like a one-off styled box. */}
-          {canEditProject() && (
-            <GenerationDefaultsCard
-              t={t}
-              genDefaultsMode={genDefaultsMode}
-              setGenDefaultsMode={setGenDefaultsMode}
-              genDefaultsModeRef={genDefaultsModeRef}
-              genDefaultTemperature={genDefaultTemperature}
-              setGenDefaultTemperature={setGenDefaultTemperature}
-              genDefaultMaxTokens={genDefaultMaxTokens}
-              setGenDefaultMaxTokens={setGenDefaultMaxTokens}
-              selectedModelIds={selectedModelIds}
-              genRecConsensus={genRecConsensus}
-              // Always false so every change re-marks the card dirty and
-              // extends the auto-save debounce (the marker is idempotent).
-              cardEditingGeneration={false}
-              beginEditGeneration={markGenerationDirty}
-            />
-          )}
+                  {canEditProject() && (
+                    <GenerationDefaultsCard
+                      t={t}
+                      genDefaultsMode={genDefaultsMode}
+                      setGenDefaultsMode={setGenDefaultsMode}
+                      genDefaultsModeRef={genDefaultsModeRef}
+                      genDefaultTemperature={genDefaultTemperature}
+                      setGenDefaultTemperature={setGenDefaultTemperature}
+                      genDefaultMaxTokens={genDefaultMaxTokens}
+                      setGenDefaultMaxTokens={setGenDefaultMaxTokens}
+                      selectedModelIds={selectedModelIds}
+                      genRecConsensus={genRecConsensus}
+                      // Always false so every change re-marks the card dirty and
+                      // extends the auto-save debounce (the marker is idempotent).
+                      cardEditingGeneration={false}
+                      beginEditGeneration={markGenerationDirty}
+                    />
+                  )}
 
-          {/* runs_per_task lives in its own SubSection because it's a
+                  {/* runs_per_task lives in its own SubSection because it's a
               scheduling/budget knob — orthogonal to LLM parameters and
               not affected by the recommended/minimum/custom mode picker
               above. Splitting it makes the mode picker apply only to
               actual model parameters (temperature/max_tokens). */}
-          {canEditProject() && (
-            <div className="mb-6">
-              <SubSection title={t('project.generationDefaults.runsTitle', 'Multi-Run')}>
-                <p className="-mt-2 mb-3 text-xs text-zinc-500 dark:text-zinc-400">
-                  {t('project.generationDefaults.runsDescription',
-                     'Wie oft jede Task-Modell-Kombination generiert werden soll. Multipliziert die Kosten entsprechend.')}
-                </p>
-                <div className="max-w-xs">
-                  <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400">
-                    {t('project.generationDefaults.defaultRunsPerTask', 'Standard-Anzahl Läufe pro Task')}
-                  </label>
-                  <input
-                    type="number"
-                    min={1}
-                    max={25}
-                    step={1}
-                    value={genDefaultRunsPerTask ?? 1}
-                    placeholder="1"
-                    onChange={(e) => {
-                      markGenerationDirty()
-                      setGenDefaultRunsPerTask(
-                        e.target.value ? parseInt(e.target.value) : undefined
-                      )
-                    }}
-                    className="mt-1 h-8 w-full rounded-md border border-zinc-300 px-2 text-sm dark:border-zinc-700 dark:bg-zinc-800"
-                  />
-                  <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
-                    {t(
-                      'project.generationDefaults.runsPerTaskHelp',
-                      'Standardwert 1. Werte > 1 erzeugen mehrere Trials für Varianzanalyse. Cap 25.',
-                    )}
-                  </p>
-                </div>
-              </SubSection>
-            </div>
-          )}
-
-          {/* Model Selection Section */}
-          <ModelSelectionSection
-            t={t}
-            canEditProject={canEditProject}
-            getReadOnlyMessage={getReadOnlyMessage}
-            expandedModels={expandedModels}
-            setExpandedModels={setExpandedModels}
-            modelsLoading={modelsLoading}
-            modelsError={modelsError}
-            sortedModels={sortedModels}
-            availableModels={availableModels}
-            selectedModelIds={selectedModelIds}
-            modelConfigs={modelConfigs}
-            handleModelToggle={handleModelToggle}
-            updateModelConfig={updateModelConfig}
-            getReasoningConfig={getReasoningConfig}
-            onNavigateToProfile={() => router.push('/profile')}
-          />
-
-          {/* Prompt Structures Section - Issue #762 */}
-          <div className="bg-white dark:bg-zinc-900">
-            {canEditProject() ? (
-              <PromptStructuresManager
-                projectId={projectId || ''}
-                onStructuresChange={() => {
-                  // Refetch project to update UI
-                  if (projectId) {
-                    fetchProject(projectId)
-                  }
-                }}
-              />
-            ) : (
-              <div className="py-6 text-center">
-                <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                  {getReadOnlyMessage(t('project.promptStructures.title'))}
-                </p>
-              </div>
-            )}
-          </div>
-
-          {/* Always-visible "Generierung starten" CTA at the card footer.
-              Mirrors the eval card's start button so both ConfigCards have
-              parallel placement, and stays visible regardless of which
-              sub-collapsibles inside are open. The modal itself handles
-              the empty-models case ("Keine Modelle für die Generierung
-              konfiguriert") so the button stays a discoverable entry
-              point even when the user hasn't picked models yet. */}
-          {canEditProject() && (
-            <div className="flex justify-end gap-2 border-t pt-4 dark:border-zinc-700">
-              <Button
-                onClick={() => setShowGenerationStartModal(true)}
-                className="flex items-center gap-2 text-sm"
-              >
-                <PlayIcon className="h-4 w-4" />
-                {t('project.generation.runCta', 'Generierung starten')}
-              </Button>
-            </div>
-          )}
-
-          </ConfigCard>
-          )}
-
-          {currentProject.enable_evaluation && (
-          <ConfigCard
-            title={t('project.evaluation.title')}
-            defaultExpanded={false}
-            dirty={cardDirty.evaluation}
-            saving={cardSaving.evaluation}
-          >
-          {/* Evaluation Configuration Section — flat sub-sections (no redundant
-              middle collapsible). Direct children of the ConfigCard. */}
-          {canEditProject() ? (
-            <>
-                  {/* Evaluation Defaults — placed at the top of the eval card
-                      to mirror Generation Defaults' position in the gen card.
-                      Owns the wizard-level temperature / max_tokens / runs
-                      defaults that propagate into newly added eval configs. */}
-                  {canEditProject() && (
-                    <EvaluationDefaultsCard
-                      t={t}
-                      evalDefaultsMode={evalDefaultsMode}
-                      setEvalDefaultsMode={setEvalDefaultsMode}
-                      evalDefaultTemperature={evalDefaultTemperature}
-                      setEvalDefaultTemperature={setEvalDefaultTemperature}
-                      evalDefaultMaxTokens={evalDefaultMaxTokens}
-                      setEvalDefaultMaxTokens={setEvalDefaultMaxTokens}
-                      selectedModelIds={selectedModelIds}
-                      evalRecConsensus={evalRecConsensus}
-                      // Always false so every change re-marks the card dirty
-                      // and extends the auto-save debounce (idempotent).
-                      cardEditingEvaluation={false}
-                      beginEditEvaluation={markEvaluationDirty}
-                    />
-                  )}
-
-                  {/* runs_per_task lives in its own SubSection — it's a
-                      scheduling/budget knob orthogonal to the parameter
-                      strategy picker above. Same split as the gen side. */}
                   {canEditProject() && (
                     <div className="mb-6">
-                      <SubSection title={t('project.evaluationDefaults.runsTitle', 'Multi-Run')}>
+                      <SubSection
+                        title={t(
+                          'project.generationDefaults.runsTitle',
+                          'Multi-Run',
+                        )}
+                      >
                         <p className="-mt-2 mb-3 text-xs text-zinc-500 dark:text-zinc-400">
-                          {t('project.evaluationDefaults.runsDescription',
-                             'Wie oft jede Task vom Judge bewertet werden soll. Greift, wenn kein Judge-Ensemble konfiguriert ist.')}
+                          {t(
+                            'project.generationDefaults.runsDescription',
+                            'Wie oft jede Task-Modell-Kombination generiert werden soll. Multipliziert die Kosten entsprechend.',
+                          )}
                         </p>
                         <div className="max-w-xs">
                           <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400">
-                            {t('project.evaluationDefaults.defaultRunsPerTask', 'Standard-Anzahl Judge-Läufe')}
+                            {t(
+                              'project.generationDefaults.defaultRunsPerTask',
+                              'Standard-Anzahl Läufe pro Task',
+                            )}
                           </label>
                           <input
                             type="number"
                             min={1}
                             max={25}
                             step={1}
-                            value={evalDefaultRunsPerTask ?? 1}
+                            value={genDefaultRunsPerTask ?? 1}
                             placeholder="1"
                             onChange={(e) => {
-                              markEvaluationDirty()
-                              setEvalDefaultRunsPerTask(
-                                e.target.value ? parseInt(e.target.value) : undefined
+                              markGenerationDirty()
+                              setGenDefaultRunsPerTask(
+                                e.target.value
+                                  ? parseInt(e.target.value)
+                                  : undefined,
                               )
                             }}
                             className="mt-1 h-8 w-full rounded-md border border-zinc-300 px-2 text-sm dark:border-zinc-700 dark:bg-zinc-800"
                           />
                           <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
                             {t(
-                              'project.evaluationDefaults.runsPerTaskHelp',
-                              'Standardwert 1. Werte > 1 erzeugen mehrere Bewertungen für Varianz-/Konsistenzanalyse. Cap 25.',
+                              'project.generationDefaults.runsPerTaskHelp',
+                              'Standardwert 1. Werte > 1 erzeugen mehrere Trials für Varianzanalyse. Cap 25.',
                             )}
                           </p>
                         </div>
@@ -2292,315 +2393,506 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                     </div>
                   )}
 
-                  {/* Evaluation settings sub-section — owns its own state buffer,
-                      flushed by the Eval card's single Speichern. */}
-                  {canEditProject() && (
-                    <SubSection title={t('project.evaluationSettings.title', 'Evaluierungseinstellungen')}>
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <Label>
-                            {t(
-                              'projects.creation.wizard.step7.immediateEvaluation',
-                              'Immediate evaluation',
-                            )}
-                          </Label>
-                          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                            {t(
-                              'projects.creation.wizard.step7.immediateEvaluationHint',
-                              'Run the configured evaluations as soon as an annotation is submitted',
-                            )}
-                          </p>
-                        </div>
-                        <input
-                          type="checkbox"
-                          checked={evaluationSettings.immediate_evaluation_enabled}
-                          onChange={(e) => {
-                            markEvaluationDirty()
-                            setEvaluationSettings((prev) => ({
-                              ...prev,
-                              immediate_evaluation_enabled: e.target.checked,
-                            }))
-                          }}
-                          className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
-                        />
-                      </div>
-                      {evaluationConfigs.some(
-                        (c: any) => c.metric === 'korrektur_falloesung',
-                      ) && (
-                        <>
-                          <div className="mt-4 flex items-center justify-between">
-                            <div>
-                              <Label>
-                                {t(
-                                  'project.evaluationSettings.korrekturBlindToPeers',
-                                  'Blinde Korrektur (andere Korrektoren)',
-                                )}
-                              </Label>
-                              <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                                {t(
-                                  'project.evaluationSettings.korrekturBlindToPeersHint',
-                                  'Bewertungen anderer Korrektoren bleiben verborgen, bis du selbst eingereicht hast',
-                                )}
-                              </p>
-                            </div>
-                            <input
-                              type="checkbox"
-                              checked={korrekturBlindToPeers}
-                              onChange={(e) => {
-                                markEvaluationDirty()
-                                setKorrekturBlindToPeers(e.target.checked)
-                              }}
-                              className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
-                            />
-                          </div>
-                          <div className="mt-4 flex items-center justify-between">
-                            <div>
-                              <Label>
-                                {t(
-                                  'project.evaluationSettings.korrekturBlindToLlm',
-                                  'Blinde Korrektur (LLM-Vorbewertung)',
-                                )}
-                              </Label>
-                              <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                                {t(
-                                  'project.evaluationSettings.korrekturBlindToLlmHint',
-                                  'LLM-Vorbewertungen bleiben verborgen, bis du selbst eingereicht hast',
-                                )}
-                              </p>
-                            </div>
-                            <input
-                              type="checkbox"
-                              checked={korrekturBlindToLlm}
-                              onChange={(e) => {
-                                markEvaluationDirty()
-                                setKorrekturBlindToLlm(e.target.checked)
-                              }}
-                              className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
-                            />
-                          </div>
-                          <div className="mt-4 flex items-center justify-between">
-                            <div>
-                              <Label>
-                                {t(
-                                  'project.evaluationSettings.korrekturBlindToNonJudge',
-                                  'Blinde Korrektur (klassische Metriken)',
-                                )}
-                              </Label>
-                              <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                                {t(
-                                  'project.evaluationSettings.korrekturBlindToNonJudgeHint',
-                                  'Klassische automatische Bewertungen (BLEU, ROUGE, BERTScore …) bleiben verborgen, bis du selbst eingereicht hast',
-                                )}
-                              </p>
-                            </div>
-                            <input
-                              type="checkbox"
-                              checked={korrekturBlindToNonJudge}
-                              onChange={(e) => {
-                                markEvaluationDirty()
-                                setKorrekturBlindToNonJudge(e.target.checked)
-                              }}
-                              className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
-                            />
-                          </div>
-                          <div className="mt-4 flex items-center justify-between">
-                            <div>
-                              <Label>
-                                {t(
-                                  'project.evaluationSettings.korrekturKeepBlindAfterSubmit',
-                                  'Blind auch nach eigener Bewertung',
-                                )}
-                              </Label>
-                              <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                                {t(
-                                  'project.evaluationSettings.korrekturKeepBlindAfterSubmitHint',
-                                  'Wenn aktiv, bleiben die obigen Bewertungen verborgen — auch nachdem du deine eigene Bewertung eingereicht hast',
-                                )}
-                              </p>
-                            </div>
-                            <input
-                              type="checkbox"
-                              checked={korrekturKeepBlindAfterSubmit}
-                              onChange={(e) => {
-                                markEvaluationDirty()
-                                setKorrekturKeepBlindAfterSubmit(e.target.checked)
-                              }}
-                              className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
-                            />
-                          </div>
-                        </>
-                      )}
-                    </SubSection>
-                  )}
+                  {/* Model Selection Section */}
+                  <ModelSelectionSection
+                    t={t}
+                    canEditProject={canEditProject}
+                    getReadOnlyMessage={getReadOnlyMessage}
+                    expandedModels={expandedModels}
+                    setExpandedModels={setExpandedModels}
+                    modelsLoading={modelsLoading}
+                    modelsError={modelsError}
+                    sortedModels={sortedModels}
+                    availableModels={availableModels}
+                    selectedModelIds={selectedModelIds}
+                    modelConfigs={modelConfigs}
+                    handleModelToggle={handleModelToggle}
+                    updateModelConfig={updateModelConfig}
+                    getReasoningConfig={getReasoningConfig}
+                    onNavigateToProfile={() => router.push('/profile')}
+                  />
 
-                  {/* Evaluation methods sub-section — wraps the EvaluationBuilder.
+                  {/* Prompt Structures Section - Issue #762 */}
+                  <div className="bg-white dark:bg-zinc-900">
+                    {canEditProject() ? (
+                      <PromptStructuresManager
+                        projectId={projectId || ''}
+                        onStructuresChange={() => {
+                          // Refetch project to update UI
+                          if (projectId) {
+                            fetchProject(projectId)
+                          }
+                        }}
+                      />
+                    ) : (
+                      <div className="py-6 text-center">
+                        <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                          {getReadOnlyMessage(
+                            t('project.promptStructures.title'),
+                          )}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Always-visible "Generierung starten" CTA at the card footer.
+              Mirrors the eval card's start button so both ConfigCards have
+              parallel placement, and stays visible regardless of which
+              sub-collapsibles inside are open. The modal itself handles
+              the empty-models case ("Keine Modelle für die Generierung
+              konfiguriert") so the button stays a discoverable entry
+              point even when the user hasn't picked models yet. */}
+                  {canEditProject() && (
+                    <div className="flex justify-end gap-2 border-t pt-4 dark:border-zinc-700">
+                      <Button
+                        onClick={() => setShowGenerationStartModal(true)}
+                        className="flex items-center gap-2 text-sm"
+                      >
+                        <PlayIcon className="h-4 w-4" />
+                        {t('project.generation.runCta', 'Generierung starten')}
+                      </Button>
+                    </div>
+                  )}
+                </ConfigCard>
+              )}
+
+              {currentProject.enable_evaluation && (
+                <ConfigCard
+                  title={t('project.evaluation.title')}
+                  defaultExpanded={false}
+                  dirty={cardDirty.evaluation}
+                  saving={cardSaving.evaluation}
+                >
+                  {/* Evaluation Configuration Section — flat sub-sections (no redundant
+              middle collapsible). Direct children of the ConfigCard. */}
+                  {canEditProject() ? (
+                    <>
+                      {/* Evaluation Defaults — placed at the top of the eval card
+                      to mirror Generation Defaults' position in the gen card.
+                      Owns the wizard-level temperature / max_tokens / runs
+                      defaults that propagate into newly added eval configs. */}
+                      {canEditProject() && (
+                        <EvaluationDefaultsCard
+                          t={t}
+                          evalDefaultsMode={evalDefaultsMode}
+                          setEvalDefaultsMode={setEvalDefaultsMode}
+                          evalDefaultTemperature={evalDefaultTemperature}
+                          setEvalDefaultTemperature={setEvalDefaultTemperature}
+                          evalDefaultMaxTokens={evalDefaultMaxTokens}
+                          setEvalDefaultMaxTokens={setEvalDefaultMaxTokens}
+                          selectedModelIds={selectedModelIds}
+                          evalRecConsensus={evalRecConsensus}
+                          // Always false so every change re-marks the card dirty
+                          // and extends the auto-save debounce (idempotent).
+                          cardEditingEvaluation={false}
+                          beginEditEvaluation={markEvaluationDirty}
+                        />
+                      )}
+
+                      {/* runs_per_task lives in its own SubSection — it's a
+                      scheduling/budget knob orthogonal to the parameter
+                      strategy picker above. Same split as the gen side. */}
+                      {canEditProject() && (
+                        <div className="mb-6">
+                          <SubSection
+                            title={t(
+                              'project.evaluationDefaults.runsTitle',
+                              'Multi-Run',
+                            )}
+                          >
+                            <p className="-mt-2 mb-3 text-xs text-zinc-500 dark:text-zinc-400">
+                              {t(
+                                'project.evaluationDefaults.runsDescription',
+                                'Wie oft jede Task vom Judge bewertet werden soll. Greift, wenn kein Judge-Ensemble konfiguriert ist.',
+                              )}
+                            </p>
+                            <div className="max-w-xs">
+                              <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400">
+                                {t(
+                                  'project.evaluationDefaults.defaultRunsPerTask',
+                                  'Standard-Anzahl Judge-Läufe',
+                                )}
+                              </label>
+                              <input
+                                type="number"
+                                min={1}
+                                max={25}
+                                step={1}
+                                value={evalDefaultRunsPerTask ?? 1}
+                                placeholder="1"
+                                onChange={(e) => {
+                                  markEvaluationDirty()
+                                  setEvalDefaultRunsPerTask(
+                                    e.target.value
+                                      ? parseInt(e.target.value)
+                                      : undefined,
+                                  )
+                                }}
+                                className="mt-1 h-8 w-full rounded-md border border-zinc-300 px-2 text-sm dark:border-zinc-700 dark:bg-zinc-800"
+                              />
+                              <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
+                                {t(
+                                  'project.evaluationDefaults.runsPerTaskHelp',
+                                  'Standardwert 1. Werte > 1 erzeugen mehrere Bewertungen für Varianz-/Konsistenzanalyse. Cap 25.',
+                                )}
+                              </p>
+                            </div>
+                          </SubSection>
+                        </div>
+                      )}
+
+                      {/* Evaluation settings sub-section — owns its own state buffer,
+                      flushed by the Eval card's single Speichern. */}
+                      {canEditProject() && (
+                        <SubSection
+                          title={t(
+                            'project.evaluationSettings.title',
+                            'Evaluierungseinstellungen',
+                          )}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <Label>
+                                {t(
+                                  'projects.creation.wizard.step7.immediateEvaluation',
+                                  'Immediate evaluation',
+                                )}
+                              </Label>
+                              <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                                {t(
+                                  'projects.creation.wizard.step7.immediateEvaluationHint',
+                                  'Run the configured evaluations as soon as an annotation is submitted',
+                                )}
+                              </p>
+                            </div>
+                            <input
+                              type="checkbox"
+                              checked={
+                                evaluationSettings.immediate_evaluation_enabled
+                              }
+                              onChange={(e) => {
+                                markEvaluationDirty()
+                                setEvaluationSettings((prev) => ({
+                                  ...prev,
+                                  immediate_evaluation_enabled:
+                                    e.target.checked,
+                                }))
+                              }}
+                              className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
+                            />
+                          </div>
+                          {evaluationConfigs.some(
+                            (c: any) => c.metric === 'korrektur_falloesung',
+                          ) && (
+                            <>
+                              <div className="mt-4 flex items-center justify-between">
+                                <div>
+                                  <Label>
+                                    {t(
+                                      'project.evaluationSettings.korrekturBlindToPeers',
+                                      'Blinde Korrektur (andere Korrektoren)',
+                                    )}
+                                  </Label>
+                                  <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                                    {t(
+                                      'project.evaluationSettings.korrekturBlindToPeersHint',
+                                      'Bewertungen anderer Korrektoren bleiben verborgen, bis du selbst eingereicht hast',
+                                    )}
+                                  </p>
+                                </div>
+                                <input
+                                  type="checkbox"
+                                  checked={korrekturBlindToPeers}
+                                  onChange={(e) => {
+                                    markEvaluationDirty()
+                                    setKorrekturBlindToPeers(e.target.checked)
+                                  }}
+                                  className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
+                                />
+                              </div>
+                              <div className="mt-4 flex items-center justify-between">
+                                <div>
+                                  <Label>
+                                    {t(
+                                      'project.evaluationSettings.korrekturBlindToLlm',
+                                      'Blinde Korrektur (LLM-Vorbewertung)',
+                                    )}
+                                  </Label>
+                                  <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                                    {t(
+                                      'project.evaluationSettings.korrekturBlindToLlmHint',
+                                      'LLM-Vorbewertungen bleiben verborgen, bis du selbst eingereicht hast',
+                                    )}
+                                  </p>
+                                </div>
+                                <input
+                                  type="checkbox"
+                                  checked={korrekturBlindToLlm}
+                                  onChange={(e) => {
+                                    markEvaluationDirty()
+                                    setKorrekturBlindToLlm(e.target.checked)
+                                  }}
+                                  className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
+                                />
+                              </div>
+                              <div className="mt-4 flex items-center justify-between">
+                                <div>
+                                  <Label>
+                                    {t(
+                                      'project.evaluationSettings.korrekturBlindToNonJudge',
+                                      'Blinde Korrektur (klassische Metriken)',
+                                    )}
+                                  </Label>
+                                  <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                                    {t(
+                                      'project.evaluationSettings.korrekturBlindToNonJudgeHint',
+                                      'Klassische automatische Bewertungen (BLEU, ROUGE, BERTScore …) bleiben verborgen, bis du selbst eingereicht hast',
+                                    )}
+                                  </p>
+                                </div>
+                                <input
+                                  type="checkbox"
+                                  checked={korrekturBlindToNonJudge}
+                                  onChange={(e) => {
+                                    markEvaluationDirty()
+                                    setKorrekturBlindToNonJudge(
+                                      e.target.checked,
+                                    )
+                                  }}
+                                  className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
+                                />
+                              </div>
+                              <div className="mt-4 flex items-center justify-between">
+                                <div>
+                                  <Label>
+                                    {t(
+                                      'project.evaluationSettings.korrekturKeepBlindAfterSubmit',
+                                      'Blind auch nach eigener Bewertung',
+                                    )}
+                                  </Label>
+                                  <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                                    {t(
+                                      'project.evaluationSettings.korrekturKeepBlindAfterSubmitHint',
+                                      'Wenn aktiv, bleiben die obigen Bewertungen verborgen — auch nachdem du deine eigene Bewertung eingereicht hast',
+                                    )}
+                                  </p>
+                                </div>
+                                <input
+                                  type="checkbox"
+                                  checked={korrekturKeepBlindAfterSubmit}
+                                  onChange={(e) => {
+                                    markEvaluationDirty()
+                                    setKorrekturKeepBlindAfterSubmit(
+                                      e.target.checked,
+                                    )
+                                  }}
+                                  className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
+                                />
+                              </div>
+                            </>
+                          )}
+                        </SubSection>
+                      )}
+
+                      {/* Evaluation methods sub-section — wraps the EvaluationBuilder.
                       Collapsed badge mirrors Modellauswahl / Prompt-Strukturen
                       style: grey pill with the configured-method count. */}
-                  <SubSection
-                    title={t('project.evaluationMethods.title', 'Evaluierungsmethoden')}
-                    badge={
-                      evaluationConfigs.length > 0
-                        ? evaluationConfigs.length === 1
-                          ? t('project.evaluation.evaluationConfigSingular', { count: evaluationConfigs.length })
-                          : t('project.evaluation.evaluationConfigPlural', { count: evaluationConfigs.length })
-                        : t('project.evaluation.notConfigured')
-                    }
-                  >
-                  {/* Multi-Field Evaluation Builder (Phase 8: N:M Field Mapping) */}
-                  <div className="mb-6">
-                    <EvaluationBuilder
-                      projectId={projectId || ''}
-                      availableFields={availableEvaluationFields}
-                      evaluations={evaluationConfigs}
-                      onEvaluationsChange={handleEvaluationConfigsChange}
-                      onSave={handleEvaluationStarted}
-                      defaultsMode={evalDefaultsMode}
-                      customTemp={evalDefaultTemperature}
-                      customMaxTokens={evalDefaultMaxTokens}
-                    />
-                  </div>
-                  </SubSection>
-            </>
-          ) : (
-            <div className="py-6 text-center">
-              <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                {getReadOnlyMessage(t('project.evaluation.title'))}
-              </p>
-            </div>
-          )}
+                      <SubSection
+                        title={t(
+                          'project.evaluationMethods.title',
+                          'Evaluierungsmethoden',
+                        )}
+                        badge={
+                          evaluationConfigs.length > 0
+                            ? evaluationConfigs.length === 1
+                              ? t(
+                                  'project.evaluation.evaluationConfigSingular',
+                                  { count: evaluationConfigs.length },
+                                )
+                              : t('project.evaluation.evaluationConfigPlural', {
+                                  count: evaluationConfigs.length,
+                                })
+                            : t('project.evaluation.notConfigured')
+                        }
+                      >
+                        {/* Multi-Field Evaluation Builder (Phase 8: N:M Field Mapping) */}
+                        <div className="mb-6">
+                          <EvaluationBuilder
+                            projectId={projectId || ''}
+                            availableFields={availableEvaluationFields}
+                            evaluations={evaluationConfigs}
+                            onEvaluationsChange={handleEvaluationConfigsChange}
+                            onSave={handleEvaluationStarted}
+                            defaultsMode={evalDefaultsMode}
+                            customTemp={evalDefaultTemperature}
+                            customMaxTokens={evalDefaultMaxTokens}
+                          />
+                        </div>
+                      </SubSection>
+                    </>
+                  ) : (
+                    <div className="py-6 text-center">
+                      <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                        {getReadOnlyMessage(t('project.evaluation.title'))}
+                      </p>
+                    </div>
+                  )}
 
-          {/* Always-visible "Evaluierung starten" CTA at the card footer.
+                  {/* Always-visible "Evaluierung starten" CTA at the card footer.
               EvaluationBuilder also renders an internal trigger inside its
               Methoden sub-section (only visible when expanded); this footer
               one stays visible whenever the eval ConfigCard is open. Both
               open the same EvaluationControlModal — two paths to the same
               flow is fine. */}
-          {canEditProject() && evaluationConfigs.filter((e: any) => e.enabled).length > 0 && (
-            <div className="flex justify-end gap-2 border-t pt-4 dark:border-zinc-700">
-              <Button
-                onClick={() => setShowEvaluationStartModal(true)}
-                className="flex items-center gap-2 text-sm"
+                  {canEditProject() &&
+                    evaluationConfigs.filter((e: any) => e.enabled).length >
+                      0 && (
+                      <div className="flex justify-end gap-2 border-t pt-4 dark:border-zinc-700">
+                        <Button
+                          onClick={() => setShowEvaluationStartModal(true)}
+                          className="flex items-center gap-2 text-sm"
+                        >
+                          <PlayIcon className="h-4 w-4" />
+                          {t(
+                            'project.evaluation.runCta',
+                            'Evaluierung starten',
+                          )}
+                        </Button>
+                      </div>
+                    )}
+                </ConfigCard>
+              )}
+
+              <ConfigCard
+                title={t('project.settings.title')}
+                defaultExpanded={false}
               >
-                <PlayIcon className="h-4 w-4" />
-                {t('project.evaluation.runCta', 'Evaluierung starten')}
-              </Button>
-            </div>
-          )}
-
-          </ConfigCard>
-          )}
-
-          <ConfigCard title={t('project.settings.title')} defaultExpanded={false}>
-          {/* Project type (exam / deck / generic) — the flag the student
+                {/* Project type (exam / deck / generic) — the flag the student
               surfaces key discovery off. Student-created projects keep it
               locked (server-enforced too). */}
-          {canEditProject() && currentProject.origin !== 'student' && (
-            <div className="mb-6">
-              <ProjectKindSection
-                project={currentProject}
-                onKindChange={handleKindChange}
-              />
-            </div>
-          )}
-
-          {/* Feature visibility — its own collapsed-by-default sub-section. */}
-          {canEditProject() && (
-            <SubSection title={t('project.settings.featureVisibility.title')}>
-              <p className="mb-3 text-xs text-zinc-500 dark:text-zinc-400">
-                {t('project.settings.featureVisibility.help')}
-              </p>
-              <div className="space-y-2">
-                {([
-                  ['enable_annotation', t('project.annotationConfiguration.title')],
-                  ['enable_generation', t('project.generationConfiguration.title')],
-                  ['enable_evaluation', t('project.evaluation.title')],
-                ] as const).map(([key, label]) => (
-                  <label
-                    key={key}
-                    className="flex items-center space-x-2 text-sm text-zinc-700 dark:text-zinc-300"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={(currentProject as any)[key] !== false}
-                      onChange={async (e) => {
-                        if (!projectId) return
-                        try {
-                          await updateProject(projectId, { [key]: e.target.checked })
-                        } catch (err) {
-                          addToast(
-                            t('toasts.project.settingsSaveFailed', {
-                              error: err instanceof Error ? err.message : '',
-                            }),
-                            'error',
-                          )
-                        }
-                      }}
-                      className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500"
-                    />
-                    <span>{label}</span>
-                  </label>
-                ))}
-              </div>
-            </SubSection>
-          )}
-
-          {/* Visibility — collapsible sub-section, danger-zone styled
-              because flipping to public exposes the project platform-wide. */}
-          {currentProject &&
-            (user?.is_superadmin ||
-              String(user?.id) === String(currentProject.created_by)) && (
-              <div
-                className="mt-6"
-                data-testid="project-visibility-danger-zone"
-              >
-                <SubSection
-                  title={t('project.settings.visibilityDangerZone.title')}
-                  badge={
-                    currentProject.is_public
-                      ? t('project.permissions.public')
-                      : currentProject.is_private
-                        ? t('project.permissions.private')
-                        : t('project.permissions.organization')
-                  }
-                >
-                  <p className="mb-3 text-xs text-red-700 dark:text-red-300">
-                    {t('project.settings.visibilityDangerZone.help')}
-                  </p>
-                  <div className="rounded-md border border-red-500/40 bg-red-50/40 p-4 dark:border-red-500/40 dark:bg-red-900/10">
-                    <ProjectPermissionsPanel
-                      projectId={projectId}
-                      projectCreatorId={currentProject.created_by}
-                      initialVisibility={
-                        currentProject.is_public
-                          ? 'public'
-                          : currentProject.is_private
-                            ? 'private'
-                            : 'organization'
-                      }
-                      initialPublicRole={
-                        currentProject.public_role === 'CONTRIBUTOR'
-                          ? 'CONTRIBUTOR'
-                          : 'ANNOTATOR'
-                      }
-                      initialOrganizations={
-                        currentProject.organizations ?? []
-                      }
-                      onSave={() => fetchProject(projectId)}
+                {canEditProject() && currentProject.origin !== 'student' && (
+                  <div className="mb-6">
+                    <ProjectKindSection
+                      project={currentProject}
+                      onKindChange={handleKindChange}
                     />
                   </div>
-                </SubSection>
-              </div>
-            )}
-          </ConfigCard>
+                )}
 
-          {/* Sharing (extended): share links, participants and whether
+                {/* Feature visibility — its own collapsed-by-default sub-section. */}
+                {canEditProject() && (
+                  <SubSection
+                    title={t('project.settings.featureVisibility.title')}
+                  >
+                    <p className="mb-3 text-xs text-zinc-500 dark:text-zinc-400">
+                      {t('project.settings.featureVisibility.help')}
+                    </p>
+                    <div className="space-y-2">
+                      {(
+                        [
+                          [
+                            'enable_annotation',
+                            t('project.annotationConfiguration.title'),
+                          ],
+                          [
+                            'enable_generation',
+                            t('project.generationConfiguration.title'),
+                          ],
+                          ['enable_evaluation', t('project.evaluation.title')],
+                        ] as const
+                      ).map(([key, label]) => (
+                        <label
+                          key={key}
+                          className="flex items-center space-x-2 text-sm text-zinc-700 dark:text-zinc-300"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={(currentProject as any)[key] !== false}
+                            onChange={async (e) => {
+                              if (!projectId) return
+                              try {
+                                await updateProject(projectId, {
+                                  [key]: e.target.checked,
+                                })
+                              } catch (err) {
+                                addToast(
+                                  t('toasts.project.settingsSaveFailed', {
+                                    error:
+                                      err instanceof Error ? err.message : '',
+                                  }),
+                                  'error',
+                                )
+                              }
+                            }}
+                            className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500"
+                          />
+                          <span>{label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </SubSection>
+                )}
+
+                {/* Visibility — collapsible sub-section, danger-zone styled
+              because flipping to public exposes the project platform-wide. */}
+                {currentProject &&
+                  (user?.is_superadmin ||
+                    String(user?.id) === String(currentProject.created_by)) && (
+                    <div
+                      className="mt-6"
+                      data-testid="project-visibility-danger-zone"
+                    >
+                      <SubSection
+                        title={t('project.settings.visibilityDangerZone.title')}
+                        badge={
+                          currentProject.is_public
+                            ? t('project.permissions.public')
+                            : currentProject.is_private
+                              ? t('project.permissions.private')
+                              : t('project.permissions.organization')
+                        }
+                      >
+                        <p className="mb-3 text-xs text-red-700 dark:text-red-300">
+                          {t('project.settings.visibilityDangerZone.help')}
+                        </p>
+                        <div className="rounded-md border border-red-500/40 bg-red-50/40 p-4 dark:border-red-500/40 dark:bg-red-900/10">
+                          <ProjectPermissionsPanel
+                            projectId={projectId}
+                            projectCreatorId={currentProject.created_by}
+                            initialVisibility={
+                              currentProject.is_public
+                                ? 'public'
+                                : currentProject.is_private
+                                  ? 'private'
+                                  : 'organization'
+                            }
+                            initialPublicRole={
+                              currentProject.public_role === 'CONTRIBUTOR'
+                                ? 'CONTRIBUTOR'
+                                : 'ANNOTATOR'
+                            }
+                            initialOrganizations={
+                              currentProject.organizations ?? []
+                            }
+                            onSave={() => fetchProject(projectId)}
+                          />
+                        </div>
+                      </SubSection>
+                    </div>
+                  )}
+              </ConfigCard>
+
+              {/* Sharing (extended): share links, participants and whether
               students can find the project. Own collapsible; not gated on
               enable_annotation so flashcard decks get it too. */}
-          {ProjectSharing && currentProject && canEditProject() && (
-            <div data-testid="project-sharing">
-              <ProjectSharing project={currentProject} onRefresh={() => fetchProject(projectId)} />
-            </div>
-          )}
+              {ProjectSharing && currentProject && canEditProject() && (
+                <div data-testid="project-sharing">
+                  <ProjectSharing
+                    project={currentProject}
+                    onRefresh={() => fetchProject(projectId)}
+                  />
+                </div>
+              )}
             </>
           )}
         </div>
@@ -2694,29 +2986,33 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                 </Button>
               )}
 
-              {canSeeQuickAction('review') && currentProject?.review_enabled && (
-                <Button
-                  href={
-                    projectId ? `/projects/${projectId}/review` : '/projects'
-                  }
-                  variant="outline"
-                  className="w-full"
-                >
-                  {t('project.quickActions.reviewWorkflow') || 'Review'}
-                </Button>
-              )}
+              {canSeeQuickAction('review') &&
+                currentProject?.review_enabled && (
+                  <Button
+                    href={
+                      projectId ? `/projects/${projectId}/review` : '/projects'
+                    }
+                    variant="outline"
+                    className="w-full"
+                  >
+                    {t('project.quickActions.reviewWorkflow') || 'Review'}
+                  </Button>
+                )}
 
-              {canSeeQuickAction('feedback') && currentProject?.korrektur_enabled && (
-                <Button
-                  href={
-                    projectId ? `/projects/${projectId}/korrektur` : '/projects'
-                  }
-                  variant="outline"
-                  className="w-full"
-                >
-                  {t('project.quickActions.korrektur') || 'Correction'}
-                </Button>
-              )}
+              {canSeeQuickAction('feedback') &&
+                currentProject?.korrektur_enabled && (
+                  <Button
+                    href={
+                      projectId
+                        ? `/projects/${projectId}/korrektur`
+                        : '/projects'
+                    }
+                    variant="outline"
+                    className="w-full"
+                  >
+                    {t('project.quickActions.korrektur') || 'Correction'}
+                  </Button>
+                )}
 
               {canSeeQuickAction('deleteProject') && (
                 <Button
@@ -2827,7 +3123,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
             ) : (
               <div className="space-y-3">
                 <div className="flex items-center space-x-3">
-                  <div className="flex-shrink-0">
+                  <div className="shrink-0">
                     <DocumentTextIcon className="h-5 w-5 text-zinc-400" />
                   </div>
                   <div className="min-w-0 flex-1">
@@ -2842,14 +3138,14 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                         {
                           addSuffix: true,
                           locale: de,
-                        }
+                        },
                       )}
                     </p>
                   </div>
                 </div>
                 {(currentProject.annotation_count ?? 0) > 0 && (
                   <div className="flex items-center space-x-3">
-                    <div className="flex-shrink-0">
+                    <div className="shrink-0">
                       <CheckCircleIcon className="h-5 w-5 text-emerald-500" />
                     </div>
                     <div className="min-w-0 flex-1">
@@ -2869,8 +3165,13 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
           </div>
 
           {/* Project Report - Issue #770 */}
-          {(isOrgProject ? (user?.is_superadmin || user?.role === 'ORG_ADMIN' || user?.role === 'CONTRIBUTOR') : user?.is_superadmin) && reportStatus && (
-            <div className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm ring-1 ring-zinc-900/5 dark:border-zinc-700 dark:bg-zinc-900 dark:ring-white/10">
+          {(isOrgProject
+            ? user?.is_superadmin ||
+              user?.role === 'ORG_ADMIN' ||
+              user?.role === 'CONTRIBUTOR'
+            : user?.is_superadmin) &&
+            reportStatus && (
+              <div className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm ring-1 ring-zinc-900/5 dark:border-zinc-700 dark:bg-zinc-900 dark:ring-white/10">
                 <div className="mb-4 flex items-center justify-between">
                   <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">
                     {t('project.report.title')}
@@ -2889,13 +3190,13 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                       canPublishReason={reportStatus.canPublishReason}
                       onToggle={(published) => {
                         setReportStatus((prev) =>
-                          prev ? { ...prev, isPublished: published } : null
+                          prev ? { ...prev, isPublished: published } : null,
                         )
                         addToast(
                           published
                             ? t('project.report.publishedSuccessfully')
                             : t('project.report.unpublishedSuccessfully'),
-                          'success'
+                          'success',
                         )
                       }}
                       onChange={(next) => {
@@ -2906,7 +3207,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                                 isPublished: next.is_published,
                                 isPublic: next.is_public,
                               }
-                            : null
+                            : null,
                         )
                       }}
                     />
@@ -2931,8 +3232,8 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                     </p>
                   </div>
                 )}
-            </div>
-          )}
+              </div>
+            )}
         </div>
       </div>
 
@@ -2942,12 +3243,14 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
         isOpen={showGenerationStartModal}
         projectId={projectId || undefined}
         models={
-          (currentProject as any)?.generation_config?.selected_configuration?.models ||
+          (currentProject as any)?.generation_config?.selected_configuration
+            ?.models ||
           (currentProject as any)?.llm_model_ids ||
           []
         }
         defaultSelectedModels={
-          (currentProject as any)?.generation_config?.selected_configuration?.models ||
+          (currentProject as any)?.generation_config?.selected_configuration
+            ?.models ||
           (currentProject as any)?.llm_model_ids ||
           []
         }

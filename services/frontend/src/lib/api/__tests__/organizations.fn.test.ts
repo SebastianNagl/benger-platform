@@ -28,7 +28,10 @@ jest.mock('../base', () => ({
 
     private mockRequest(method: string, endpoint: string, data?: any): any {
       // API Key Status
-      if (endpoint.match(/\/organizations\/[\w-]+\/api-keys\/status$/) && method === 'GET') {
+      if (
+        endpoint.match(/\/organizations\/[\w-]+\/api-keys\/status$/) &&
+        method === 'GET'
+      ) {
         return {
           api_key_status: { openai: true, anthropic: false },
           available_providers: ['openai', 'anthropic', 'google'],
@@ -36,43 +39,71 @@ jest.mock('../base', () => ({
       }
 
       // Set API Key
-      if (endpoint.match(/\/organizations\/[\w-]+\/api-keys\/\w+$/) && method === 'POST') {
+      if (
+        endpoint.match(/\/organizations\/[\w-]+\/api-keys\/\w+$/) &&
+        method === 'POST'
+      ) {
         return { message: 'API key saved successfully' }
       }
 
       // Remove API Key
-      if (endpoint.match(/\/organizations\/[\w-]+\/api-keys\/\w+$/) && method === 'DELETE') {
+      if (
+        endpoint.match(/\/organizations\/[\w-]+\/api-keys\/\w+$/) &&
+        method === 'DELETE'
+      ) {
         return { message: 'API key removed successfully' }
       }
 
       // Test unsaved API Key
-      if (endpoint.match(/\/organizations\/[\w-]+\/api-keys\/\w+\/test$/) && method === 'POST') {
+      if (
+        endpoint.match(/\/organizations\/[\w-]+\/api-keys\/\w+\/test$/) &&
+        method === 'POST'
+      ) {
         return { status: 'success', message: 'API key is valid' }
       }
 
       // Test saved API Key
-      if (endpoint.match(/\/organizations\/[\w-]+\/api-keys\/\w+\/test-saved$/) && method === 'POST') {
+      if (
+        endpoint.match(/\/organizations\/[\w-]+\/api-keys\/\w+\/test-saved$/) &&
+        method === 'POST'
+      ) {
         return { status: 'success', message: 'Saved API key is valid' }
       }
 
       // Get API Key Settings
-      if (endpoint.match(/\/organizations\/[\w-]+\/api-keys\/settings$/) && method === 'GET') {
+      if (
+        endpoint.match(/\/organizations\/[\w-]+\/api-keys\/settings$/) &&
+        method === 'GET'
+      ) {
         return { require_private_keys: true }
       }
 
       // Update API Key Settings
-      if (endpoint.match(/\/organizations\/[\w-]+\/api-keys\/settings$/) && method === 'PUT') {
-        return { message: 'Settings updated', require_private_keys: data.require_private_keys }
+      if (
+        endpoint.match(/\/organizations\/[\w-]+\/api-keys\/settings$/) &&
+        method === 'PUT'
+      ) {
+        return {
+          message: 'Settings updated',
+          require_private_keys: data.require_private_keys,
+        }
       }
 
       // List org shared custom models
-      if (endpoint.match(/\/organizations\/[\w-]+\/custom-models$/) && method === 'GET') {
-        return [{ id: 'custom-1', name: 'Shared vLLM', has_org_credential: false }]
+      if (
+        endpoint.match(/\/organizations\/[\w-]+\/custom-models$/) &&
+        method === 'GET'
+      ) {
+        return [
+          { id: 'custom-1', name: 'Shared vLLM', has_org_credential: false },
+        ]
       }
 
       // Get org custom-model shared-credential status
       if (
-        endpoint.match(/\/organizations\/[\w-]+\/custom-models\/[\w-]+\/credential$/) &&
+        endpoint.match(
+          /\/organizations\/[\w-]+\/custom-models\/[\w-]+\/credential$/,
+        ) &&
         method === 'GET'
       ) {
         return { has_credential: true, updated_at: '2026-07-15T00:00:00Z' }
@@ -80,7 +111,9 @@ jest.mock('../base', () => ({
 
       // Set org custom-model shared credential
       if (
-        endpoint.match(/\/organizations\/[\w-]+\/custom-models\/[\w-]+\/credential$/) &&
+        endpoint.match(
+          /\/organizations\/[\w-]+\/custom-models\/[\w-]+\/credential$/,
+        ) &&
         method === 'PUT'
       ) {
         return { has_credential: true }
@@ -88,7 +121,9 @@ jest.mock('../base', () => ({
 
       // Remove org custom-model shared credential
       if (
-        endpoint.match(/\/organizations\/[\w-]+\/custom-models\/[\w-]+\/credential$/) &&
+        endpoint.match(
+          /\/organizations\/[\w-]+\/custom-models\/[\w-]+\/credential$/,
+        ) &&
         method === 'DELETE'
       ) {
         return { has_credential: false }
@@ -118,7 +153,9 @@ describe('OrganizationsClient - API Key methods', () => {
     it('calls correct endpoint', async () => {
       const getSpy = jest.spyOn(client as any, 'get')
       await client.getOrgApiKeyStatus('org-1')
-      expect(getSpy).toHaveBeenCalledWith('/organizations/org-1/api-keys/status')
+      expect(getSpy).toHaveBeenCalledWith(
+        '/organizations/org-1/api-keys/status',
+      )
     })
   })
 
@@ -133,7 +170,7 @@ describe('OrganizationsClient - API Key methods', () => {
       await client.setOrgApiKey('org-1', 'anthropic', 'sk-ant-123')
       expect(postSpy).toHaveBeenCalledWith(
         '/organizations/org-1/api-keys/anthropic',
-        { api_key: 'sk-ant-123' }
+        { api_key: 'sk-ant-123' },
       )
     })
   })
@@ -147,13 +184,19 @@ describe('OrganizationsClient - API Key methods', () => {
     it('calls correct endpoint', async () => {
       const deleteSpy = jest.spyOn(client as any, 'delete')
       await client.removeOrgApiKey('org-1', 'google')
-      expect(deleteSpy).toHaveBeenCalledWith('/organizations/org-1/api-keys/google')
+      expect(deleteSpy).toHaveBeenCalledWith(
+        '/organizations/org-1/api-keys/google',
+      )
     })
   })
 
   describe('testOrgApiKey', () => {
     it('tests an unsaved API key', async () => {
-      const result = await client.testOrgApiKey('org-1', 'openai', 'sk-test-key')
+      const result = await client.testOrgApiKey(
+        'org-1',
+        'openai',
+        'sk-test-key',
+      )
       expect(result.status).toBe('success')
       expect(result.message).toBe('API key is valid')
     })
@@ -163,7 +206,7 @@ describe('OrganizationsClient - API Key methods', () => {
       await client.testOrgApiKey('org-1', 'anthropic', 'sk-ant-test')
       expect(postSpy).toHaveBeenCalledWith(
         '/organizations/org-1/api-keys/anthropic/test',
-        { api_key: 'sk-ant-test' }
+        { api_key: 'sk-ant-test' },
       )
     })
   })
@@ -180,7 +223,7 @@ describe('OrganizationsClient - API Key methods', () => {
       await client.testSavedOrgApiKey('org-1', 'google')
       expect(postSpy).toHaveBeenCalledWith(
         '/organizations/org-1/api-keys/google/test-saved',
-        {}
+        {},
       )
     })
   })
@@ -194,7 +237,9 @@ describe('OrganizationsClient - API Key methods', () => {
     it('calls correct endpoint', async () => {
       const getSpy = jest.spyOn(client as any, 'get')
       await client.getOrgApiKeySettings('org-1')
-      expect(getSpy).toHaveBeenCalledWith('/organizations/org-1/api-keys/settings')
+      expect(getSpy).toHaveBeenCalledWith(
+        '/organizations/org-1/api-keys/settings',
+      )
     })
   })
 
@@ -214,7 +259,7 @@ describe('OrganizationsClient - API Key methods', () => {
       await client.updateOrgApiKeySettings('org-1', true)
       expect(putSpy).toHaveBeenCalledWith(
         '/organizations/org-1/api-keys/settings',
-        { require_private_keys: true }
+        { require_private_keys: true },
       )
     })
   })
@@ -231,29 +276,39 @@ describe('OrganizationsClient - API Key methods', () => {
 
     it('getOrgCustomModelCredential returns status and calls the right endpoint', async () => {
       const getSpy = jest.spyOn(client as any, 'get')
-      const result = await client.getOrgCustomModelCredential('org-1', 'custom-1')
+      const result = await client.getOrgCustomModelCredential(
+        'org-1',
+        'custom-1',
+      )
       expect(result.has_credential).toBe(true)
       expect(getSpy).toHaveBeenCalledWith(
-        '/organizations/org-1/custom-models/custom-1/credential'
+        '/organizations/org-1/custom-models/custom-1/credential',
       )
     })
 
     it('setOrgCustomModelCredential PUTs the key to the right endpoint', async () => {
       const putSpy = jest.spyOn(client as any, 'put')
-      const result = await client.setOrgCustomModelCredential('org-1', 'custom-1', 'sk-shared')
+      const result = await client.setOrgCustomModelCredential(
+        'org-1',
+        'custom-1',
+        'sk-shared',
+      )
       expect(result.has_credential).toBe(true)
       expect(putSpy).toHaveBeenCalledWith(
         '/organizations/org-1/custom-models/custom-1/credential',
-        { api_key: 'sk-shared' }
+        { api_key: 'sk-shared' },
       )
     })
 
     it('removeOrgCustomModelCredential DELETEs the right endpoint', async () => {
       const deleteSpy = jest.spyOn(client as any, 'delete')
-      const result = await client.removeOrgCustomModelCredential('org-1', 'custom-1')
+      const result = await client.removeOrgCustomModelCredential(
+        'org-1',
+        'custom-1',
+      )
       expect(result.has_credential).toBe(false)
       expect(deleteSpy).toHaveBeenCalledWith(
-        '/organizations/org-1/custom-models/custom-1/credential'
+        '/organizations/org-1/custom-models/custom-1/credential',
       )
     })
   })

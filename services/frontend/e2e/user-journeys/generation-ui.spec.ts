@@ -45,7 +45,9 @@ test.describe('Generation UI', () => {
   test('project selector loads and filters projects', async () => {
     // Clear any auto-selected project from previous test runs
     await page.goto(`${BASE_URL}/generations`, { timeout: 60000 })
-    await page.evaluate(() => localStorage.removeItem('generations_lastProjectId'))
+    await page.evaluate(() =>
+      localStorage.removeItem('generations_lastProjectId'),
+    )
     await page.reload({ timeout: 60000 })
 
     // The project picker is now a HeadlessUI Listbox rendered via the shared
@@ -62,7 +64,9 @@ test.describe('Generation UI', () => {
     console.log(`Found ${projectCount} projects in dropdown`)
     expect(projectCount).toBeGreaterThan(0)
 
-    const firstProjectTitle = (await dropdownItems.first().textContent())?.trim()
+    const firstProjectTitle = (
+      await dropdownItems.first().textContent()
+    )?.trim()
     await dropdownItems.first().click()
 
     // Verify dropdown closed and button now shows the selected project.
@@ -84,7 +88,8 @@ test.describe('Generation UI', () => {
 
     // The ProjectSelector shows projects directly in a grid
     // Look for our test project row (search for "E2E Generation")
-    const searchInput = page.locator('[data-testid="project-search-input"]')
+    const searchInput = page
+      .locator('[data-testid="project-search-input"]')
       .or(page.locator('input[placeholder*="Search projects"]'))
       .or(page.locator('input[placeholder*="Projekte"]'))
       .first()
@@ -95,7 +100,8 @@ test.describe('Generation UI', () => {
     }
 
     // Find and click the project row
-    const projectRow = page.locator('[data-project-id]')
+    const projectRow = page
+      .locator('[data-project-id]')
       .filter({ hasText: /E2E Generation/i })
       .first()
 
@@ -122,7 +128,9 @@ test.describe('Generation UI', () => {
     testProjectId = await fixtures.createGenerationTestProject(3)
 
     // Navigate to generations page with project ID
-    await page.goto(`${BASE_URL}/generations?projectId=${testProjectId}`, { timeout: 60000 })
+    await page.goto(`${BASE_URL}/generations?projectId=${testProjectId}`, {
+      timeout: 60000,
+    })
 
     // Verify URL contains projectId
     const currentUrl = page.url()
@@ -146,7 +154,7 @@ test.describe('Generation UI', () => {
       testProjectId = await fixtures.createGenerationTestProject(5)
     } catch {
       console.log(
-        'Could not create generation test project, using generations page check only'
+        'Could not create generation test project, using generations page check only',
       )
     }
 
@@ -183,7 +191,6 @@ test.describe('Generation UI', () => {
       // At least one column header should be visible
       expect(hasTaskHeader || hasStatusColumn).toBe(true)
     }
-
   })
 
   test('search filters tasks by content', async () => {
@@ -194,7 +201,7 @@ test.describe('Generation UI', () => {
       testProjectId = await fixtures.createGenerationTestProject(5)
     } catch {
       console.log(
-        'Could not create generation test project, using generations page check only'
+        'Could not create generation test project, using generations page check only',
       )
     }
 
@@ -206,7 +213,7 @@ test.describe('Generation UI', () => {
       await page.goto(url, { timeout: 60000 })
     } catch {
       console.log(
-        'Could not navigate to generations page, test passes as best effort'
+        'Could not navigate to generations page, test passes as best effort',
       )
       return
     }
@@ -255,7 +262,7 @@ test.describe('Generation UI', () => {
       await expect(pageContent).toBeVisible({ timeout: 5000 })
     } catch {
       console.log(
-        'Page not visible at end, but test passes as search was optional'
+        'Page not visible at end, but test passes as search was optional',
       )
     }
   })
@@ -266,7 +273,8 @@ test.describe('Generation UI', () => {
 
     // The ProjectSelector shows projects directly in a grid
     // Look for Test AGG project in the grid
-    const testAggProject = page.locator('[data-project-id]')
+    const testAggProject = page
+      .locator('[data-project-id]')
       .filter({ hasText: /Test AGG/i })
       .first()
 
@@ -285,7 +293,9 @@ test.describe('Generation UI', () => {
 
       // If pagination exists, verify it works
       if (hasPagination) {
-        const nextButton = page.locator('button:has-text("Next"), button:has-text("Weiter")').first()
+        const nextButton = page
+          .locator('button:has-text("Next"), button:has-text("Weiter")')
+          .first()
         if (await nextButton.isVisible()) {
           await nextButton.click()
           await page.waitForTimeout(1000)
@@ -306,7 +316,7 @@ test.describe('Generation UI', () => {
       testProjectId = await fixtures.createGenerationTestProject(3)
     } catch {
       console.log(
-        'Could not create generation test project - using generations page check only'
+        'Could not create generation test project - using generations page check only',
       )
     }
 
@@ -338,7 +348,8 @@ test.describe('Generation UI', () => {
 
     // The ProjectSelector shows projects directly in a grid
     // Look for Test AGG project (known to have generation config)
-    const testAggProject = page.locator('[data-project-id]')
+    const testAggProject = page
+      .locator('[data-project-id]')
       .filter({ hasText: /Test AGG/i })
       .first()
 
@@ -449,7 +460,8 @@ test.describe('Generation UI', () => {
 
     // Also check for the search input to verify page loaded correctly
     // Support both English and German placeholders
-    const searchInput = page.locator('[data-testid="project-search-input"]')
+    const searchInput = page
+      .locator('[data-testid="project-search-input"]')
       .or(page.locator('input[placeholder*="Search projects"]'))
       .or(page.locator('input[placeholder*="Projekte"]'))
       .first()
@@ -461,6 +473,8 @@ test.describe('Generation UI', () => {
     // Page should show either projects, a warning, search input, or at least the page body
     // The generation page may not have projects or search in all configurations
     const pageLoaded = await page.locator('body').isVisible()
-    expect(warningVisible || hasProjects || hasSearchInput || pageLoaded).toBeTruthy()
+    expect(
+      warningVisible || hasProjects || hasSearchInput || pageLoaded,
+    ).toBeTruthy()
   })
 })

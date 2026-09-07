@@ -41,12 +41,6 @@ const nextConfig = {
     ignoreBuildErrors: true,
   },
 
-  eslint: {
-    // Allow builds to continue in development for faster iteration
-    // Temporarily ignore during builds to fix production issue
-    ignoreDuringBuilds: true,
-  },
-
   // Environment-specific optimizations
   ...(isDevelopment && {
     // Development optimizations
@@ -80,110 +74,28 @@ const nextConfig = {
     },
   }),
 
-  // Turbopack configuration (Next.js 13+ with --turbo flag)
+  // Turbopack is the only bundler since Next 16 (a custom `webpack()` makes
+  // `next build` refuse to run). The @benger/extended alias lives here for
+  // both editions:
+  //   extended, Docker build:  /app/benger-extended-frontend (copied into the
+  //                            build context by CI)
+  //   extended, dev:           the same path, bind-mounted so Turbopack
+  //                            watches it for HMR
+  //   community:               a no-op stub — the import in
+  //                            src/lib/extensions/index.ts must still resolve
+  //                            at build time even though it is never called
+  // Paths are relative to next.config.js (which lives at /app in Docker).
   turbopack: {
     resolveExtensions: ['.tsx', '.ts', '.jsx', '.js', '.json'],
-    // Extended edition dev: alias @benger/extended to the in-project-root mount
-    // so Turbopack watches it for HMR. Without this, Turbopack resolves via
-    // node_modules/@benger/extended (a sibling Docker mount that lives outside
-    // its watched scope), and edits never trigger a rebuild.
-    // Mirror of the webpack `config.resolve.alias` below.
-    ...(isExtended &&
-    require('fs').existsSync('/app/benger-extended-frontend/index.ts')
-      ? {
-          // Path is relative to next.config.js (which lives at /app).
-          // Turbopack's resolveAlias treats values starting with "/" as
-          // relative imports (prepends "./") — so use the project-root
-          // relative form instead.
-          resolveAlias: {
-            '@benger/extended': './benger-extended-frontend',
-          },
-        }
-      : {}),
-  },
-
-  // Webpack configuration (legacy fallback when not using --turbo)
-  webpack: (config, { dev, isServer }) => {
-    // Extended edition: resolve @benger/extended
-    // Docker build: /app/benger-extended-frontend (copied into build context)
-    // Dev (Turbopack): /app/node_modules/@benger/extended (Docker volume mount)
-    // Community edition: ignore the import entirely (it's in a try/catch)
-    if (isExtended) {
-      const fs = require('fs')
-      if (fs.existsSync('/app/benger-extended-frontend/index.ts')) {
-        config.resolve.alias['@benger/extended'] = '/app/benger-extended-frontend'
-      } else {
-        config.resolve.alias['@benger/extended'] = '/app/node_modules/@benger/extended'
-      }
-    } else {
-      config.resolve.alias['@benger/extended'] = false
-    }
-
-    // Disable MDX processing (not used in BenGER)
-    config.module.rules = config.module.rules.filter(
-      (rule) => !rule.test?.toString().includes('mdx')
-    )
-
-    // Optimization settings based on environment
-    config.optimization = {
-      ...config.optimization,
-      // Disable concatenation in development for faster builds
-      concatenateModules: isProduction,
-    }
-
-    // Development-specific webpack optimizations
-    if (dev) {
-      config.watchOptions = {
-        ...config.watchOptions,
-        ignored: [
-          '**/node_modules/**',
-          '**/.git/**',
-          '**/.next/**',
-          '**/.eslintcache',
-          '**/.DS_Store',
-        ],
-        poll: process.env.WATCHPACK_POLLING === 'true' ? 1000 : false,
-        aggregateTimeout: 300,
-      }
-
-      // Disable minimization in development for faster builds
-      config.optimization.minimize = false
-      config.optimization.minimizer = []
-
-      // Development build performance monitoring
-      if (process.env.DEBUG === 'true') {
-        config.plugins.push({
-          apply: (compiler) => {
-            let lastBuildTime = Date.now()
-            compiler.hooks.beforeCompile.tap('BuildTimer', () => {
-              const now = Date.now()
-              const timeSinceLastBuild = now - lastBuildTime
-              if (timeSinceLastBuild < 1000) {
-                console.warn(
-                  `[Build Monitor] Rapid rebuild detected: ${timeSinceLastBuild}ms since last build`
-                )
-              }
-              lastBuildTime = now
-            })
-          },
-        })
-      }
-    }
-
-    // Production-specific optimizations
-    if (isProduction) {
-      // Additional production optimizations can be added here
-      config.optimization.minimize = true
-    }
-
-    // Testing-specific optimizations
-    if (isTesting) {
-      // Faster compilation for tests
-      config.optimization.minimize = false
-      config.optimization.minimizer = []
-    }
-
-    return config
+    resolveAlias: {
+      '@benger/extended':
+        isExtended &&
+        require('fs').existsSync('./benger-extended-frontend/index.ts')
+          ? './benger-extended-frontend'
+          : isExtended
+            ? './node_modules/@benger/extended'
+            : './src/lib/extensions/community-stub.ts',
+    },
   },
 
   // Redirects and rewrites (environment-aware)

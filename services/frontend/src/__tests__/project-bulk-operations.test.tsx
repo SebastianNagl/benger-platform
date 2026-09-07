@@ -129,7 +129,7 @@ describe('ProjectBulkActions', () => {
         onExport={mockOnExport}
         onArchive={mockOnArchive}
         onDuplicate={mockOnDuplicate}
-      />
+      />,
     )
 
     expect(screen.getByText('2')).toBeInTheDocument()
@@ -144,7 +144,7 @@ describe('ProjectBulkActions', () => {
         onExport={mockOnExport}
         onArchive={mockOnArchive}
         onDuplicate={mockOnDuplicate}
-      />
+      />,
     )
 
     const button = screen.getByText('Actions')
@@ -161,7 +161,7 @@ describe('ProjectBulkActions', () => {
         onExport={mockOnExport}
         onArchive={mockOnArchive}
         onDuplicate={mockOnDuplicate}
-      />
+      />,
     )
 
     // Open dropdown
@@ -183,7 +183,7 @@ describe('ProjectBulkActions', () => {
         onFullExport={mockOnExport}
         onArchive={mockOnArchive}
         onDuplicate={mockOnDuplicate}
-      />
+      />,
     )
 
     await user.click(screen.getByText('Actions'))
@@ -202,7 +202,7 @@ describe('ProjectBulkActions', () => {
         onExport={mockOnExport}
         onArchive={mockOnArchive}
         onDuplicate={mockOnDuplicate}
-      />
+      />,
     )
 
     await user.click(screen.getByText('Actions'))
@@ -225,7 +225,11 @@ describe('TableCheckbox Component', () => {
   it('renders indeterminate state correctly', async () => {
     const onChange = jest.fn()
     const { container } = render(
-      <TableCheckbox checked={false} indeterminate={true} onChange={onChange} />
+      <TableCheckbox
+        checked={false}
+        indeterminate={true}
+        onChange={onChange}
+      />,
     )
 
     const checkbox = container.querySelector('input[type="checkbox"]')
@@ -248,7 +252,7 @@ describe('TableCheckbox Component', () => {
     const onChange = jest.fn()
 
     render(
-      <TableCheckbox checked={false} onChange={onChange} disabled={true} />
+      <TableCheckbox checked={false} onChange={onChange} disabled={true} />,
     )
 
     const checkbox = screen.getByRole('checkbox')
@@ -264,7 +268,7 @@ jest.mock('@/components/shared', () => {
       React.createElement(
         'div',
         { 'data-testid': 'hero-pattern' },
-        'Hero Pattern'
+        'Hero Pattern',
       ),
   }
 })
@@ -273,7 +277,10 @@ jest.mock('@/components/shared', () => {
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
     t: (key: string, varsOrDefault?: any) => {
-      const translations: Record<string, any> = require('../locales/en/common.json')
+      const translations: Record<
+        string,
+        any
+      > = require('../locales/en/common.json')
       const parts = key.split('.')
       let value: any = translations
       for (const part of parts) {

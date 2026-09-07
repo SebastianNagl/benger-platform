@@ -9,13 +9,13 @@ jest.mock('@/components/shared', () => {
       React.createElement(
         'div',
         { 'data-testid': 'hero-pattern' },
-        'Hero Pattern'
+        'Hero Pattern',
       ),
     GridPattern: () =>
       React.createElement(
         'div',
         { 'data-testid': 'grid-pattern' },
-        'Grid Pattern'
+        'Grid Pattern',
       ),
     Button: ({ children, ...props }) =>
       React.createElement('button', props, children),
@@ -25,7 +25,7 @@ jest.mock('@/components/shared', () => {
       React.createElement(
         'div',
         { 'data-testid': 'loading-spinner' },
-        'Loading...'
+        'Loading...',
       ),
     EmptyState: ({ message }) => React.createElement('div', null, message),
     Spinner: () => React.createElement('div', null, 'Loading...'),
@@ -74,7 +74,7 @@ describe('Issue #186: Button Text Alignment Fix', () => {
       render(
         <Button variant="outline" className="w-full text-center">
           Annotation Guidelines
-        </Button>
+        </Button>,
       )
 
       const button = screen.getByRole('button', {
@@ -93,7 +93,7 @@ describe('Issue #186: Button Text Alignment Fix', () => {
       render(
         <Button variant="outline" className="w-full text-center">
           Annotation Guidelines
-        </Button>
+        </Button>,
       )
 
       const button = screen.getByRole('button', {
@@ -112,7 +112,7 @@ describe('Issue #186: Button Text Alignment Fix', () => {
       const { rerender } = render(
         <Button variant="outline" className="w-full text-center">
           Task Data
-        </Button>
+        </Button>,
       )
 
       const taskDataButton = screen.getByRole('button', { name: 'Task Data' })
@@ -121,7 +121,7 @@ describe('Issue #186: Button Text Alignment Fix', () => {
       rerender(
         <Button variant="outline" className="w-full text-center">
           Annotation Guidelines
-        </Button>
+        </Button>,
       )
 
       const guidelinesButton = screen.getByRole('button', {
@@ -141,7 +141,7 @@ describe('Issue #186: Button Text Alignment Fix', () => {
           className="w-full text-center"
         >
           Annotation Guidelines
-        </Button>
+        </Button>,
       )
 
       const link = screen.getByRole('link', { name: 'Annotation Guidelines' })
@@ -161,7 +161,7 @@ describe('Issue #186: Button Text Alignment Fix', () => {
       render(
         <Button variant="outline" className="w-full text-center">
           Annotation Guidelines
-        </Button>
+        </Button>,
       )
 
       const button = screen.getByRole('button')
@@ -181,7 +181,7 @@ describe('Issue #186: Button Text Alignment Fix', () => {
         const { unmount } = render(
           <Button variant={variant} className="w-full text-center">
             Annotation Guidelines
-          </Button>
+          </Button>,
         )
 
         // All variants render as button when no href is provided
@@ -197,7 +197,7 @@ describe('Issue #186: Button Text Alignment Fix', () => {
       render(
         <Button variant="outline" className="w-full text-center">
           Annotation Guidelines
-        </Button>
+        </Button>,
       )
 
       const button = screen.getByRole('button')
@@ -247,7 +247,7 @@ describe('Issue #186: Button Text Alignment Fix', () => {
           >
             View Evaluations
           </Button>
-        </div>
+        </div>,
       )
 
       const buttons = screen.getAllByRole('link')

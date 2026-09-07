@@ -10,7 +10,11 @@
 'use client'
 
 import { useI18n } from '@/contexts/I18nContext'
-import { CheckCircleIcon, CloudArrowUpIcon, ExclamationCircleIcon } from '@heroicons/react/24/outline'
+import {
+  CheckCircleIcon,
+  CloudArrowUpIcon,
+  ExclamationCircleIcon,
+} from '@heroicons/react/24/outline'
 import { useCallback, useEffect, useState } from 'react'
 
 interface AutoSaveIndicatorProps {
@@ -32,27 +36,33 @@ export function AutoSaveIndicator({
   /**
    * Format relative time (e.g., "2m ago", "just now")
    */
-  const formatRelativeTime = useCallback((date: Date): string => {
-    const now = new Date()
-    const diffMs = now.getTime() - date.getTime()
-    const diffSeconds = Math.floor(diffMs / 1000)
-    const diffMinutes = Math.floor(diffSeconds / 60)
-    const diffHours = Math.floor(diffMinutes / 60)
+  const formatRelativeTime = useCallback(
+    (date: Date): string => {
+      const now = new Date()
+      const diffMs = now.getTime() - date.getTime()
+      const diffSeconds = Math.floor(diffMs / 1000)
+      const diffMinutes = Math.floor(diffSeconds / 60)
+      const diffHours = Math.floor(diffMinutes / 60)
 
-    if (diffSeconds < 10) {
-      return t('common.autoSave.justNow')
-    }
-    if (diffSeconds < 60) {
-      return t('common.autoSave.secondsAgo', { seconds: diffSeconds })
-    }
-    if (diffMinutes < 60) {
-      return t('common.autoSave.minutesAgo', { minutes: diffMinutes })
-    }
-    if (diffHours < 24) {
-      return t('common.autoSave.hoursAgo', { hours: diffHours })
-    }
-    return date.toLocaleTimeString(locale === 'de' ? 'de-DE' : 'en-US', { hour: '2-digit', minute: '2-digit' })
-  }, [t, locale])
+      if (diffSeconds < 10) {
+        return t('common.autoSave.justNow')
+      }
+      if (diffSeconds < 60) {
+        return t('common.autoSave.secondsAgo', { seconds: diffSeconds })
+      }
+      if (diffMinutes < 60) {
+        return t('common.autoSave.minutesAgo', { minutes: diffMinutes })
+      }
+      if (diffHours < 24) {
+        return t('common.autoSave.hoursAgo', { hours: diffHours })
+      }
+      return date.toLocaleTimeString(locale === 'de' ? 'de-DE' : 'en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    },
+    [t, locale],
+  )
 
   // Update relative time every 10 seconds
   useEffect(() => {

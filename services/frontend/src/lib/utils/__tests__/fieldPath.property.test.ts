@@ -29,10 +29,10 @@
 import fc from 'fast-check'
 
 import {
-  getValueByPath,
-  setValueByPath,
-  hasPath,
   getAllPaths,
+  getValueByPath,
+  hasPath,
+  setValueByPath,
 } from '../fieldPath'
 
 // --- Arbitraries ---------------------------------------------------------
@@ -43,7 +43,8 @@ import {
 // "a.0" address arr[0] rather than the string key "0" — a legitimate ambiguity
 // of the grammar, not something the round-trip law should have to dodge.
 const safeKeyArb = fc
-  .stringOf(fc.constantFrom(...'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOP_$'), {
+  .string({
+    unit: fc.constantFrom(...'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOP_$'),
     minLength: 1,
     maxLength: 6,
   })
@@ -90,11 +91,16 @@ describe('fieldPath — round-trip law: get(set(o, p, v), p) === v', () => {
     // write must win regardless of what was there before.
     const seedObjArb = fc.dictionary(safeKeyArb, safeLeafArb, { maxKeys: 5 })
     fc.assert(
-      fc.property(seedObjArb, objectPathArb, safeLeafArb, (seed, path, value) => {
-        const o: any = { ...seed }
-        setValueByPath(o, path, value)
-        expect(getValueByPath(o, path)).toBe(value)
-      }),
+      fc.property(
+        seedObjArb,
+        objectPathArb,
+        safeLeafArb,
+        (seed, path, value) => {
+          const o: any = { ...seed }
+          setValueByPath(o, path, value)
+          expect(getValueByPath(o, path)).toBe(value)
+        },
+      ),
     )
   })
 

@@ -1,5 +1,6 @@
 'use client'
 
+import { useI18n } from '@/contexts/I18nContext'
 import { Dialog, Transition } from '@headlessui/react'
 import {
   CheckCircleIcon,
@@ -10,7 +11,6 @@ import {
 } from '@heroicons/react/24/outline'
 import clsx from 'clsx'
 import { Fragment } from 'react'
-import { useI18n } from '@/contexts/I18nContext'
 import { Button } from './Button'
 
 interface AlertDialogProps {
@@ -73,7 +73,7 @@ export function AlertDialog({
           leaveFrom="opacity-100"
           leaveTo="opacity-0"
         >
-          <div className="fixed inset-0 bg-black bg-opacity-25 dark:bg-opacity-40" />
+          <div className="fixed inset-0 bg-black/25 dark:bg-black/40" />
         </Transition.Child>
 
         <div className="fixed inset-0 overflow-y-auto">
@@ -88,13 +88,15 @@ export function AlertDialog({
               leaveTo="opacity-0 scale-95"
             >
               <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl border border-zinc-200 bg-white p-6 text-left align-middle shadow-xl transition-all dark:border-zinc-700 dark:bg-zinc-800">
-                <div className="absolute right-4 top-4">
+                <div className="absolute top-4 right-4">
                   <button
                     type="button"
-                    className="rounded-md text-zinc-400 hover:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:hover:text-zinc-200"
+                    className="rounded-md text-zinc-400 hover:text-zinc-600 focus:ring-2 focus:ring-emerald-500 focus:outline-none dark:hover:text-zinc-200"
                     onClick={onClose}
                   >
-                    <span className="sr-only">{t('shared.alertDialog.close')}</span>
+                    <span className="sr-only">
+                      {t('shared.alertDialog.close')}
+                    </span>
                     <XMarkIcon className="h-5 w-5" aria-hidden="true" />
                   </button>
                 </div>
@@ -102,8 +104,8 @@ export function AlertDialog({
                 <div className="flex items-start">
                   <div
                     className={clsx(
-                      'mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full sm:mx-0 sm:h-10 sm:w-10',
-                      variantStyle.iconBg
+                      'mx-auto flex h-12 w-12 shrink-0 items-center justify-center rounded-full sm:mx-0 sm:h-10 sm:w-10',
+                      variantStyle.iconBg,
                     )}
                   >
                     <IconComponent
@@ -111,10 +113,10 @@ export function AlertDialog({
                       aria-hidden="true"
                     />
                   </div>
-                  <div className="ml-4 mt-0 w-full pr-8 text-left">
+                  <div className="mt-0 ml-4 w-full pr-8 text-left">
                     <Dialog.Title
                       as="h3"
-                      className="text-lg font-semibold leading-6 text-zinc-900 dark:text-white"
+                      className="text-lg leading-6 font-semibold text-zinc-900 dark:text-white"
                     >
                       {title}
                     </Dialog.Title>

@@ -11,7 +11,7 @@
  * persist.
  */
 
-import { renderHook, act, waitFor } from '@testing-library/react'
+import { act, renderHook, waitFor } from '@testing-library/react'
 
 const EDITION_KEY = 'NEXT_PUBLIC_BENGER_EDITION'
 const originalEdition = process.env[EDITION_KEY]
@@ -36,7 +36,9 @@ jest.mock('@/stores', () => ({
   useUIStore: (selector: any) => selector({ setUiMode: mockSetUiMode }),
 }))
 jest.mock('@/contexts/AuthContext', () => ({ useAuth: () => mockAuth }))
-jest.mock('@/contexts/HydrationContext', () => ({ useHydration: () => mockHydrated }))
+jest.mock('@/contexts/HydrationContext', () => ({
+  useHydration: () => mockHydrated,
+}))
 
 // Hoist-safe: the api-client mock fn is created INSIDE the factory (jest.mock is
 // hoisted above the module-under-test's require, so a top-level const would TDZ),
@@ -51,10 +53,13 @@ jest.mock('@/contexts/ApiClientContext', () => {
 })
 jest.mock('@/lib/api', () => ({
   __esModule: true,
-  default: { setUiMode: jest.fn().mockResolvedValue({ preferred_ui_mode: 'expert' }) },
+  default: {
+    setUiMode: jest.fn().mockResolvedValue({ preferred_ui_mode: 'expert' }),
+  },
 }))
 jest.mock('@/hooks/useResolvedUiMode', () => ({
-  isExtendedEdition: () => process.env.NEXT_PUBLIC_BENGER_EDITION === 'extended',
+  isExtendedEdition: () =>
+    process.env.NEXT_PUBLIC_BENGER_EDITION === 'extended',
   useResolvedUiMode: () => mockResolved,
 }))
 

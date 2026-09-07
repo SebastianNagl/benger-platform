@@ -1,18 +1,14 @@
 'use client'
 
+import { useI18n } from '@/contexts/I18nContext'
 import { api } from '@/lib/api'
 import { ParameterConstraints } from '@/lib/api/types'
 import type { RecommendedParameters } from '@/lib/modelConstraints'
-import { useI18n } from '@/contexts/I18nContext'
 import { useCallback, useEffect, useState } from 'react'
 
 export interface ModelError {
   type:
-    | 'NO_API_KEYS'
-    | 'AUTH_FAILED'
-    | 'SERVER_ERROR'
-    | 'NETWORK_ERROR'
-    | 'UNKNOWN'
+    'NO_API_KEYS' | 'AUTH_FAILED' | 'SERVER_ERROR' | 'NETWORK_ERROR' | 'UNKNOWN'
   message: string
   details?: string
 }

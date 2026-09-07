@@ -9,7 +9,7 @@ function fixGhostVariant(content, filePath) {
   const count = (content.match(/variant="ghost"/g) || []).length
   if (count > 0) {
     console.log(
-      `  Fixing ${count} 'ghost' variant(s) in ${path.basename(filePath)}`
+      `  Fixing ${count} 'ghost' variant(s) in ${path.basename(filePath)}`,
     )
     content = content.replace(/variant="ghost"/g, 'variant="text"')
   }
@@ -21,7 +21,7 @@ function fixSelectItemDefaultValue(content, filePath) {
   const matches = content.match(pattern)
   if (matches && matches.length > 0) {
     console.log(
-      `  Fixing ${matches.length} SelectItem defaultValue(s) in ${path.basename(filePath)}`
+      `  Fixing ${matches.length} SelectItem defaultValue(s) in ${path.basename(filePath)}`,
     )
     content = content.replace(pattern, '<SelectItem$1 value="$2"$3>')
   }
@@ -34,7 +34,7 @@ function fixImplicitAnyInCallbacks(content, filePath) {
   const matches = content.match(pattern)
   if (matches && matches.length > 0) {
     console.log(
-      `  Fixing ${matches.length} implicit any in onValueChange callbacks in ${path.basename(filePath)}`
+      `  Fixing ${matches.length} implicit any in onValueChange callbacks in ${path.basename(filePath)}`,
     )
     content = content.replace(pattern, 'onValueChange={(value: string) =>')
   }
@@ -44,7 +44,7 @@ function fixImplicitAnyInCallbacks(content, filePath) {
   const setStateMatches = content.match(setStatePattern)
   if (setStateMatches && setStateMatches.length > 0) {
     console.log(
-      `  Fixing ${setStateMatches.length} implicit any in setState callbacks in ${path.basename(filePath)}`
+      `  Fixing ${setStateMatches.length} implicit any in setState callbacks in ${path.basename(filePath)}`,
     )
     content = content.replace(setStatePattern, '(prev: any) => ({')
   }
@@ -61,7 +61,7 @@ function addMissingApiExports(content, filePath) {
       content = content.replace(
         /export type \{/,
         `export type {
-  EvaluationResult,`
+  EvaluationResult,`,
       )
     }
 
@@ -69,7 +69,7 @@ function addMissingApiExports(content, filePath) {
       content = content.replace(
         /export type \{/,
         `export type {
-  LLMModelResponse,`
+  LLMModelResponse,`,
       )
     }
 
@@ -77,7 +77,7 @@ function addMissingApiExports(content, filePath) {
       content = content.replace(
         /export type \{/,
         `export type {
-  EvaluationType,`
+  EvaluationType,`,
       )
     }
 
@@ -97,7 +97,7 @@ function fixTaskDataProperty(content, filePath) {
     const count = (content.match(/(?<!as any\))\.data/g) || []).length
     if (count > 0) {
       console.log(
-        `  Fixing ${count} task.data references in ${path.basename(filePath)}`
+        `  Fixing ${count} task.data references in ${path.basename(filePath)}`,
       )
       // Be careful not to replace all .data, only task.data
       content = content.replace(/task\.data/g, '(task as any).data')
@@ -111,7 +111,7 @@ function fixTabsTriggerDefaultValue(content, filePath) {
   const matches = content.match(pattern)
   if (matches && matches.length > 0) {
     console.log(
-      `  Fixing ${matches.length} TabsTrigger defaultValue(s) in ${path.basename(filePath)}`
+      `  Fixing ${matches.length} TabsTrigger defaultValue(s) in ${path.basename(filePath)}`,
     )
     content = content.replace(pattern, '<TabsTrigger$1 value="$2"$3>')
   }
@@ -167,7 +167,7 @@ async function fixTypeScriptErrors() {
       !apiTypesContent.includes('export type EvaluationResult')
     ) {
       console.log(
-        '\n⚠️  Note: EvaluationResult type may need to be defined in src/lib/api/types.ts'
+        '\n⚠️  Note: EvaluationResult type may need to be defined in src/lib/api/types.ts',
       )
     }
   }

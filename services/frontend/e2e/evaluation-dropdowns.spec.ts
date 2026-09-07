@@ -39,13 +39,19 @@ test.describe('Evaluation Page Dropdowns', () => {
       await page.goto(`${BASE_URL}/evaluations`)
 
       // Select a project (if available)
-      const projectDropdown = page.locator('button').filter({ hasText: /select project/i }).first()
+      const projectDropdown = page
+        .locator('button')
+        .filter({ hasText: /select project/i })
+        .first()
       if (await projectDropdown.isVisible({ timeout: 5000 })) {
         await projectDropdown.click()
         await page.waitForTimeout(500)
 
         // Click first available project
-        const firstProject = page.locator('button').filter({ hasText: /tasks/i }).first()
+        const firstProject = page
+          .locator('button')
+          .filter({ hasText: /tasks/i })
+          .first()
         if (await firstProject.isVisible({ timeout: 2000 })) {
           await firstProject.click()
           await page.waitForTimeout(1000)
@@ -53,7 +59,10 @@ test.describe('Evaluation Page Dropdowns', () => {
       }
 
       // Find the View dropdown
-      const viewDropdown = page.locator('button').filter({ hasText: /data view|bar chart|radar|heatmap/i }).first()
+      const viewDropdown = page
+        .locator('button')
+        .filter({ hasText: /data view|bar chart|radar|heatmap/i })
+        .first()
 
       if (await viewDropdown.isVisible({ timeout: 5000 })) {
         // Click to open dropdown
@@ -61,16 +70,24 @@ test.describe('Evaluation Page Dropdowns', () => {
         await page.waitForTimeout(300)
 
         // Verify chart type options are visible
-        const barChartOption = page.locator('button').filter({ hasText: /bar chart/i })
+        const barChartOption = page
+          .locator('button')
+          .filter({ hasText: /bar chart/i })
         await expect(barChartOption).toBeVisible({ timeout: 3000 })
 
-        const radarOption = page.locator('button').filter({ hasText: /radar chart/i })
+        const radarOption = page
+          .locator('button')
+          .filter({ hasText: /radar chart/i })
         await expect(radarOption).toBeVisible()
 
-        const boxPlotOption = page.locator('button').filter({ hasText: /box plot/i })
+        const boxPlotOption = page
+          .locator('button')
+          .filter({ hasText: /box plot/i })
         await expect(boxPlotOption).toBeVisible()
 
-        const heatmapOption = page.locator('button').filter({ hasText: /heatmap/i })
+        const heatmapOption = page
+          .locator('button')
+          .filter({ hasText: /heatmap/i })
         await expect(heatmapOption).toBeVisible()
 
         // Select Bar Chart
@@ -86,12 +103,18 @@ test.describe('Evaluation Page Dropdowns', () => {
       await page.goto(`${BASE_URL}/evaluations`)
 
       // Select a project
-      const projectDropdown = page.locator('button').filter({ hasText: /select project/i }).first()
+      const projectDropdown = page
+        .locator('button')
+        .filter({ hasText: /select project/i })
+        .first()
       if (await projectDropdown.isVisible({ timeout: 5000 })) {
         await projectDropdown.click()
         await page.waitForTimeout(500)
 
-        const firstProject = page.locator('button').filter({ hasText: /tasks/i }).first()
+        const firstProject = page
+          .locator('button')
+          .filter({ hasText: /tasks/i })
+          .first()
         if (await firstProject.isVisible({ timeout: 2000 })) {
           await firstProject.click()
           await page.waitForTimeout(1000)
@@ -99,20 +122,26 @@ test.describe('Evaluation Page Dropdowns', () => {
       }
 
       // Find and open View dropdown
-      const viewDropdown = page.locator('button').filter({ hasText: /data view|bar chart/i }).first()
+      const viewDropdown = page
+        .locator('button')
+        .filter({ hasText: /data view|bar chart/i })
+        .first()
       if (await viewDropdown.isVisible({ timeout: 5000 })) {
         await viewDropdown.click()
         await page.waitForTimeout(300)
 
         // Find Box Plot option - should be disabled
-        const boxPlotOption = page.locator('button').filter({ hasText: /box plot/i })
+        const boxPlotOption = page
+          .locator('button')
+          .filter({ hasText: /box plot/i })
         await expect(boxPlotOption).toBeVisible()
 
         // Check if disabled (has disabled styling or cursor-not-allowed)
-        const isDisabled = await boxPlotOption.evaluate((el) =>
-          el.classList.contains('cursor-not-allowed') ||
-          el.hasAttribute('disabled') ||
-          el.classList.contains('text-gray-400')
+        const isDisabled = await boxPlotOption.evaluate(
+          (el) =>
+            el.classList.contains('cursor-not-allowed') ||
+            el.hasAttribute('disabled') ||
+            el.classList.contains('text-gray-400'),
         )
 
         // If disabled, verify the title attribute has the correct message
@@ -129,12 +158,18 @@ test.describe('Evaluation Page Dropdowns', () => {
       await page.goto(`${BASE_URL}/evaluations`)
 
       // Select a project
-      const projectDropdown = page.locator('button').filter({ hasText: /select project/i }).first()
+      const projectDropdown = page
+        .locator('button')
+        .filter({ hasText: /select project/i })
+        .first()
       if (await projectDropdown.isVisible({ timeout: 5000 })) {
         await projectDropdown.click()
         await page.waitForTimeout(500)
 
-        const firstProject = page.locator('button').filter({ hasText: /tasks/i }).first()
+        const firstProject = page
+          .locator('button')
+          .filter({ hasText: /tasks/i })
+          .first()
         if (await firstProject.isVisible({ timeout: 2000 })) {
           await firstProject.click()
           await page.waitForTimeout(1000)
@@ -142,17 +177,24 @@ test.describe('Evaluation Page Dropdowns', () => {
       }
 
       // Find Aggregation dropdown
-      const aggDropdown = page.locator('button').filter({ hasText: /per model|per sample|aggregation/i }).first()
+      const aggDropdown = page
+        .locator('button')
+        .filter({ hasText: /per model|per sample|aggregation/i })
+        .first()
 
       if (await aggDropdown.isVisible({ timeout: 5000 })) {
         await aggDropdown.click()
         await page.waitForTimeout(300)
 
         // Verify aggregation options
-        const perModelOption = page.locator('button').filter({ hasText: /per.*model/i })
+        const perModelOption = page
+          .locator('button')
+          .filter({ hasText: /per.*model/i })
         await expect(perModelOption).toBeVisible()
 
-        const perSampleOption = page.locator('button').filter({ hasText: /per.*sample/i })
+        const perSampleOption = page
+          .locator('button')
+          .filter({ hasText: /per.*sample/i })
         await expect(perSampleOption).toBeVisible()
 
         // Select Sample to enable multi-select
@@ -173,12 +215,18 @@ test.describe('Evaluation Page Dropdowns', () => {
       await page.goto(`${BASE_URL}/evaluations`)
 
       // Select a project
-      const projectDropdown = page.locator('button').filter({ hasText: /select project/i }).first()
+      const projectDropdown = page
+        .locator('button')
+        .filter({ hasText: /select project/i })
+        .first()
       if (await projectDropdown.isVisible({ timeout: 5000 })) {
         await projectDropdown.click()
         await page.waitForTimeout(500)
 
-        const firstProject = page.locator('button').filter({ hasText: /tasks/i }).first()
+        const firstProject = page
+          .locator('button')
+          .filter({ hasText: /tasks/i })
+          .first()
         if (await firstProject.isVisible({ timeout: 2000 })) {
           await firstProject.click()
           await page.waitForTimeout(2000) // Wait for data to load
@@ -186,14 +234,19 @@ test.describe('Evaluation Page Dropdowns', () => {
       }
 
       // Find Statistics dropdown
-      const statsDropdown = page.locator('button').filter({ hasText: /95% ci|statistics/i }).first()
+      const statsDropdown = page
+        .locator('button')
+        .filter({ hasText: /95% ci|statistics/i })
+        .first()
 
       if (await statsDropdown.isVisible({ timeout: 5000 })) {
         await statsDropdown.click()
         await page.waitForTimeout(300)
 
         // Find and click SE option
-        const seOption = page.locator('button').filter({ hasText: /standard error/i })
+        const seOption = page
+          .locator('button')
+          .filter({ hasText: /standard error/i })
         if (await seOption.isVisible({ timeout: 2000 })) {
           await seOption.click()
           await page.waitForTimeout(1000)
@@ -221,12 +274,18 @@ test.describe('Evaluation Page Dropdowns', () => {
       await page.goto(`${BASE_URL}/evaluations`)
 
       // Select a project
-      const projectDropdown = page.locator('button').filter({ hasText: /select project/i }).first()
+      const projectDropdown = page
+        .locator('button')
+        .filter({ hasText: /select project/i })
+        .first()
       if (await projectDropdown.isVisible({ timeout: 5000 })) {
         await projectDropdown.click()
         await page.waitForTimeout(500)
 
-        const firstProject = page.locator('button').filter({ hasText: /tasks/i }).first()
+        const firstProject = page
+          .locator('button')
+          .filter({ hasText: /tasks/i })
+          .first()
         if (await firstProject.isVisible({ timeout: 2000 })) {
           await firstProject.click()
           await page.waitForTimeout(1000)
@@ -234,17 +293,23 @@ test.describe('Evaluation Page Dropdowns', () => {
       }
 
       // Switch to heatmap view
-      const viewDropdown = page.locator('button').filter({ hasText: /data view|bar chart/i }).first()
+      const viewDropdown = page
+        .locator('button')
+        .filter({ hasText: /data view|bar chart/i })
+        .first()
       if (await viewDropdown.isVisible({ timeout: 5000 })) {
         await viewDropdown.click()
         await page.waitForTimeout(300)
 
-        const heatmapOption = page.locator('button').filter({ hasText: /heatmap/i })
+        const heatmapOption = page
+          .locator('button')
+          .filter({ hasText: /heatmap/i })
         if (await heatmapOption.isVisible({ timeout: 2000 })) {
           // Check if heatmap is disabled - if so, it should have a reason
-          const isDisabled = await heatmapOption.evaluate((el) =>
-            el.classList.contains('cursor-not-allowed') ||
-            el.hasAttribute('disabled')
+          const isDisabled = await heatmapOption.evaluate(
+            (el) =>
+              el.classList.contains('cursor-not-allowed') ||
+              el.hasAttribute('disabled'),
           )
 
           if (isDisabled) {
@@ -261,7 +326,9 @@ test.describe('Evaluation Page Dropdowns', () => {
             await page.waitForTimeout(500)
 
             // Look for either the heatmap or an error/empty message
-            const significanceSection = page.locator('text=/statistical significance|no significance/i')
+            const significanceSection = page.locator(
+              'text=/statistical significance|no significance/i',
+            )
             if (await significanceSection.isVisible({ timeout: 3000 })) {
               await expect(significanceSection).toBeVisible()
             }

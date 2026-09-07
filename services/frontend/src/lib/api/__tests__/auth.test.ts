@@ -75,7 +75,7 @@ jest.mock('../base', () => ({
 
     protected async authCheckRequest<T>(
       url: string,
-      options?: RequestInit
+      options?: RequestInit,
     ): Promise<T> {
       // Get current user
       if (url === '/auth/me') {
@@ -143,7 +143,7 @@ describe('AuthClient', () => {
 
     it('should throw error with invalid credentials', async () => {
       await expect(client.login('testuser', 'wrongpassword')).rejects.toThrow(
-        'Invalid credentials'
+        'Invalid credentials',
       )
     })
 
@@ -164,7 +164,7 @@ describe('AuthClient', () => {
         'newuser',
         'new@example.com',
         'New User',
-        'password123'
+        'password123',
       )
 
       expect(user).toEqual({
@@ -184,7 +184,7 @@ describe('AuthClient', () => {
         'newuser',
         'new@example.com',
         'New User',
-        'password123'
+        'password123',
       )
 
       expect(mockRequest).toHaveBeenCalledWith('/auth/signup', {
@@ -455,7 +455,7 @@ describe('AuthClient', () => {
           current_password: 'wrongpass',
           new_password: 'newpass123',
           confirm_password: 'newpass123',
-        })
+        }),
       ).rejects.toThrow('Invalid current password')
     })
   })
@@ -467,7 +467,7 @@ describe('AuthClient', () => {
         .mockRejectedValue(new Error('Network error'))
 
       await expect(client.login('testuser', 'password123')).rejects.toThrow(
-        'Network error'
+        'Network error',
       )
     })
 
@@ -477,7 +477,7 @@ describe('AuthClient', () => {
         .mockRejectedValue(new Error('HTTP error! status: 500'))
 
       await expect(client.verifyToken()).rejects.toThrow(
-        'HTTP error! status: 500'
+        'HTTP error! status: 500',
       )
     })
   })

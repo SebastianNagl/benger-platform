@@ -129,9 +129,11 @@ export function ModelComparisonChart({
       <details className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-700 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-400">
         <summary className="cursor-pointer">
           <strong>{t('evaluation.modelComparison.missingData')}:</strong>{' '}
-          {t('evaluation.modelComparison.missingDataSummary', { count: modelsWithMissingData.size })}
+          {t('evaluation.modelComparison.missingDataSummary', {
+            count: modelsWithMissingData.size,
+          })}
         </summary>
-        <div className="mt-2 break-words">
+        <div className="mt-2 wrap-break-word">
           {Array.from(modelsWithMissingData).join(', ')}
         </div>
       </details>
@@ -269,7 +271,7 @@ export function ModelComparisonChart({
           <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-900">
             {models.map((model, index) => {
               const metricValues = metrics.map((m) =>
-                getMetricValue(model.metrics[m] || 0)
+                getMetricValue(model.metrics[m] || 0),
               )
               const avg =
                 metricValues.reduce((a, b) => a + b, 0) / metricValues.length
@@ -325,7 +327,7 @@ export function ModelComparisonChart({
                       </td>
                     )
                   })}
-                  <td className="px-4 py-3 text-right font-bold tabular-nums text-gray-900 dark:text-gray-100">
+                  <td className="px-4 py-3 text-right font-bold text-gray-900 tabular-nums dark:text-gray-100">
                     {avg.toFixed(3)}
                   </td>
                 </tr>

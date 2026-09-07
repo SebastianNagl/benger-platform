@@ -26,7 +26,7 @@ describe('Logo', () => {
         'text-lg',
         'font-bold',
         'text-zinc-900',
-        'dark:text-white'
+        'dark:text-white',
       )
     })
   })
@@ -112,7 +112,7 @@ describe('Logo', () => {
           data-testid="custom-logo"
           role="banner"
           onClick={() => {}}
-        />
+        />,
       )
 
       const logoContainer = container.firstChild as HTMLElement
@@ -141,14 +141,14 @@ describe('Logo', () => {
 
     it('supports aria attributes', () => {
       const { container } = render(
-        <Logo aria-label="BenGER Logo" aria-describedby="logo-description" />
+        <Logo aria-label="BenGER Logo" aria-describedby="logo-description" />,
       )
 
       const logoContainer = container.firstChild as HTMLElement
       expect(logoContainer).toHaveAttribute('aria-label', 'BenGER Logo')
       expect(logoContainer).toHaveAttribute(
         'aria-describedby',
-        'logo-description'
+        'logo-description',
       )
     })
   })

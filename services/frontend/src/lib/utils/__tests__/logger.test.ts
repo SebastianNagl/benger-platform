@@ -79,7 +79,7 @@ describe('DevelopmentLogger', () => {
 
       expect(consoleLogSpy).toHaveBeenCalledTimes(2)
       expect(consoleLogSpy).toHaveBeenLastCalledWith(
-        'Repeated message (occurred 4 times)'
+        'Repeated message (occurred 4 times)',
       )
     })
 
@@ -114,7 +114,7 @@ describe('DevelopmentLogger', () => {
         true,
         null,
         undefined,
-        { obj: 'value' }
+        { obj: 'value' },
       )
     })
   })
@@ -162,7 +162,7 @@ describe('DevelopmentLogger', () => {
 
       expect(consoleWarnSpy).toHaveBeenCalledTimes(2)
       expect(consoleWarnSpy).toHaveBeenLastCalledWith(
-        'Repeated warning (occurred 3 times)'
+        'Repeated warning (occurred 3 times)',
       )
     })
   })
@@ -233,7 +233,7 @@ describe('DevelopmentLogger', () => {
       logger.error('Request failed: 401 Unauthorized')
 
       expect(consoleErrorSpy).toHaveBeenCalledWith(
-        'Request failed: 401 Unauthorized (occurred 3 times) (auth-related logs throttled)'
+        'Request failed: 401 Unauthorized (occurred 3 times) (auth-related logs throttled)',
       )
     })
 
@@ -244,7 +244,7 @@ describe('DevelopmentLogger', () => {
       logger.error('Authentication failed for user')
 
       expect(consoleErrorSpy).toHaveBeenCalledWith(
-        'Authentication failed for user'
+        'Authentication failed for user',
       )
     })
 
@@ -264,7 +264,7 @@ describe('DevelopmentLogger', () => {
       logger.error('Request to /api/auth/me failed')
 
       expect(consoleErrorSpy).toHaveBeenCalledWith(
-        'Request to /api/auth/me failed'
+        'Request to /api/auth/me failed',
       )
     })
 
@@ -275,7 +275,7 @@ describe('DevelopmentLogger', () => {
       logger.error('Triggering logout due to auth failure')
 
       expect(consoleErrorSpy).toHaveBeenCalledWith(
-        'Triggering logout due to auth failure'
+        'Triggering logout due to auth failure',
       )
     })
 
@@ -286,7 +286,7 @@ describe('DevelopmentLogger', () => {
       logger.error('Session expired, please log in again')
 
       expect(consoleErrorSpy).toHaveBeenCalledWith(
-        'Session expired, please log in again'
+        'Session expired, please log in again',
       )
     })
 
@@ -348,7 +348,7 @@ describe('DevelopmentLogger', () => {
 
       expect(consoleErrorSpy).toHaveBeenCalledTimes(2)
       expect(consoleErrorSpy).toHaveBeenLastCalledWith(
-        'Error at /api/auth/me (occurred 4 times) (auth-related logs throttled)'
+        'Error at /api/auth/me (occurred 4 times) (auth-related logs throttled)',
       )
     })
 
@@ -368,10 +368,10 @@ describe('DevelopmentLogger', () => {
       const { logger } = require('@/lib/utils/logger')
 
       logger.error(
-        '401 Unauthorized for request a1b2c3d4-e5f6-7890-abcd-ef1234567890'
+        '401 Unauthorized for request a1b2c3d4-e5f6-7890-abcd-ef1234567890',
       )
       logger.error(
-        '401 Unauthorized for request b2c3d4e5-f6a7-8901-bcde-f12345678901'
+        '401 Unauthorized for request b2c3d4e5-f6a7-8901-bcde-f12345678901',
       )
 
       expect(consoleErrorSpy).toHaveBeenCalledTimes(1)
@@ -430,7 +430,7 @@ describe('DevelopmentLogger', () => {
       logger.log('Recent message')
 
       expect(consoleLogSpy).toHaveBeenCalledWith(
-        'Recent message (occurred 2 times)'
+        'Recent message (occurred 2 times)',
       )
     })
   })
@@ -509,7 +509,7 @@ describe('DevelopmentLogger', () => {
 
       // JSON.stringify will throw on circular references
       expect(() => logger.log('Circular:', circular)).toThrow(
-        'Converting circular structure to JSON'
+        'Converting circular structure to JSON',
       )
     })
 
@@ -586,7 +586,7 @@ describe('DevelopmentLogger', () => {
       logger.log('Count reset message')
 
       expect(consoleLogSpy).toHaveBeenLastCalledWith(
-        'Count reset message (occurred 4 times)'
+        'Count reset message (occurred 4 times)',
       )
 
       // After count reset, count is 0. Next call makes it 1.
@@ -599,7 +599,7 @@ describe('DevelopmentLogger', () => {
 
       // Count is now 2, so it logs with count
       expect(consoleLogSpy).toHaveBeenLastCalledWith(
-        'Count reset message (occurred 2 times)'
+        'Count reset message (occurred 2 times)',
       )
     })
   })

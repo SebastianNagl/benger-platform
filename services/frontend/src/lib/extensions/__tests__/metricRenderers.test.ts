@@ -1,10 +1,10 @@
 import {
-  registerMetricCell,
-  registerMetricDetail,
   getMetricCell,
   getMetricDetail,
   hasMetricCell,
   hasMetricDetail,
+  registerMetricCell,
+  registerMetricDetail,
 } from '../metricRenderers'
 
 describe('Metric Cell Renderer Registry', () => {

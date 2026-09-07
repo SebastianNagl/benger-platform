@@ -66,12 +66,11 @@ jest.mock('@/contexts/I18nContext', () => ({
       }
       let result = translations[key]
       if (!result) {
-        return typeof defaultValueOrVars === 'string'
-          ? defaultValueOrVars
-          : key
+        return typeof defaultValueOrVars === 'string' ? defaultValueOrVars : key
       }
       const variables =
-        vars || (typeof defaultValueOrVars === 'object' ? defaultValueOrVars : null)
+        vars ||
+        (typeof defaultValueOrVars === 'object' ? defaultValueOrVars : null)
       if (variables) {
         Object.entries(variables).forEach(([k, v]) => {
           result = result.replace(`{${k}}`, String(v))
@@ -101,8 +100,12 @@ jest.mock('@heroicons/react/24/outline', () => ({
   ArrowPathIcon: (props: any) => <svg data-testid="refresh-icon" {...props} />,
   CheckCircleIcon: (props: any) => <svg data-testid="cc-icon" {...props} />,
   CheckIcon: (props: any) => <svg data-testid="check-icon" {...props} />,
-  ExclamationTriangleIcon: (props: any) => <svg data-testid="warn-icon" {...props} />,
-  InformationCircleIcon: (props: any) => <svg data-testid="info-icon" {...props} />,
+  ExclamationTriangleIcon: (props: any) => (
+    <svg data-testid="warn-icon" {...props} />
+  ),
+  InformationCircleIcon: (props: any) => (
+    <svg data-testid="info-icon" {...props} />
+  ),
   UserPlusIcon: (props: any) => <svg data-testid="up-icon" {...props} />,
   XMarkIcon: (props: any) => <svg data-testid="x-icon" {...props} />,
   ChartBarIcon: (props: any) => <svg data-testid="chart-icon" {...props} />,
@@ -121,7 +124,9 @@ jest.mock('next/link', () => ({
 jest.mock('@/components/shared/Breadcrumb', () => ({
   Breadcrumb: ({ items }: any) => (
     <nav data-testid="breadcrumb">
-      {items?.map((item: any, i: number) => <span key={i}>{item.label}</span>)}
+      {items?.map((item: any, i: number) => (
+        <span key={i}>{item.label}</span>
+      ))}
     </nav>
   ),
 }))
@@ -151,7 +156,9 @@ jest.mock('@/components/shared/Select', () => ({
   SelectTrigger: () => null,
   SelectValue: () => null,
   SelectContent: ({ children }: any) => <>{children}</>,
-  SelectItem: ({ value, children }: any) => <option value={value}>{children}</option>,
+  SelectItem: ({ value, children }: any) => (
+    <option value={value}>{children}</option>
+  ),
 }))
 
 jest.mock('@/components/shared/FilterToolbar', () => {
@@ -307,7 +314,7 @@ describe('NotificationsPage - pagination param construction', () => {
 
     // The debounced filter eventually narrows to the matching row.
     await waitFor(() =>
-      expect(screen.getByText('Findable Task')).toBeInTheDocument()
+      expect(screen.getByText('Findable Task')).toBeInTheDocument(),
     )
 
     await user.click(screen.getByText('Load More'))
@@ -319,7 +326,7 @@ describe('NotificationsPage - pagination param construction', () => {
   it('keeps hasMore true and appends results when a full page (20) returns', async () => {
     const user = userEvent.setup()
     const page2 = Array.from({ length: 20 }, (_, i) =>
-      createNotification({ id: `p2-${i}`, title: `Page2 ${i}` })
+      createNotification({ id: `p2-${i}`, title: `Page2 ${i}` }),
     )
     ;(api.getNotifications as jest.Mock).mockResolvedValue(page2)
 
@@ -328,9 +335,7 @@ describe('NotificationsPage - pagination param construction', () => {
     await user.click(screen.getByText('Load More'))
 
     // The appended page-2 rows show up in the table.
-    await waitFor(() =>
-      expect(screen.getByText('Page2 0')).toBeInTheDocument()
-    )
+    await waitFor(() => expect(screen.getByText('Page2 0')).toBeInTheDocument())
     // Load More is still offered because a full page came back.
     expect(screen.getByText('Load More')).toBeInTheDocument()
   })
@@ -345,7 +350,9 @@ describe('NotificationsPage - pagination param construction', () => {
     await user.click(screen.getByText('Load More'))
 
     await waitFor(() =>
-      expect(screen.getByText('Failed to load notifications')).toBeInTheDocument()
+      expect(
+        screen.getByText('Failed to load notifications'),
+      ).toBeInTheDocument(),
     )
     errSpy.mockRestore()
   })

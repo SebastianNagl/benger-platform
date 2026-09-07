@@ -141,7 +141,7 @@ const App = () => {
             data-testid="submit-button"
             onClick={() => {
               const input = document.querySelector(
-                '[data-testid="annotation-input"]'
+                '[data-testid="annotation-input"]',
               ) as HTMLTextAreaElement
               handleAnnotationSubmit(input.value)
             }}
@@ -155,7 +155,7 @@ const App = () => {
             data-testid="next-button"
             onClick={() => {
               const input = document.querySelector(
-                '[data-testid="annotation-input"]'
+                '[data-testid="annotation-input"]',
               ) as HTMLTextAreaElement
               handleAnnotationSubmit(input.value)
             }}
@@ -224,7 +224,7 @@ describe('Complete Annotation Flow', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('What is the legal basis for this claim?')
+          screen.getByText('What is the legal basis for this claim?'),
         ).toBeInTheDocument()
         expect(screen.getByText('Contract law context...')).toBeInTheDocument()
         expect(screen.getByText('Legal document text...')).toBeInTheDocument()
@@ -260,13 +260,13 @@ describe('Complete Annotation Flow', () => {
       // Verify auto-save
       await waitFor(() => {
         expect(screen.getByTestId('auto-save-indicator')).toHaveTextContent(
-          'Auto-saved'
+          'Auto-saved',
         )
         expect(mockApiClient.createAnnotation).toHaveBeenCalledWith(
           expect.objectContaining({
             value: 'This is based on Section 433 BGB',
             taskId: 'task-1',
-          })
+          }),
         )
       })
     })
@@ -395,7 +395,7 @@ describe('Complete Annotation Flow', () => {
 
       await waitFor(() => {
         expect(screen.getByTestId('auto-save-indicator')).toHaveTextContent(
-          'Auto-saved'
+          'Auto-saved',
         )
         expect(mockApiClient.createAnnotation).toHaveBeenCalled()
       })
@@ -403,7 +403,7 @@ describe('Complete Annotation Flow', () => {
 
     it('handles auto-save errors gracefully', async () => {
       mockApiClient.createAnnotation.mockRejectedValueOnce(
-        new Error('Network error')
+        new Error('Network error'),
       )
 
       const user = userEvent.setup()
@@ -469,7 +469,7 @@ describe('Complete Annotation Flow', () => {
 
       for (const text of annotations) {
         expect(mockApiClient.createAnnotation).toHaveBeenCalledWith(
-          expect.objectContaining({ value: text })
+          expect.objectContaining({ value: text }),
         )
       }
     })

@@ -32,7 +32,7 @@ export default function AdminLtiPage() {
 
   if (!user?.is_superadmin) {
     return (
-      <ResponsiveContainer size="xl" className="pb-10 pt-8">
+      <ResponsiveContainer size="xl" className="pt-8 pb-10">
         {breadcrumb}
         <div className="text-center">
           <h1 className="text-2xl font-bold text-red-600">
@@ -48,7 +48,7 @@ export default function AdminLtiPage() {
 
   if (!LtiRegistrationsAdmin) {
     return (
-      <ResponsiveContainer size="xl" className="pb-10 pt-8">
+      <ResponsiveContainer size="xl" className="pt-8 pb-10">
         {breadcrumb}
         <div className="flex min-h-[400px] items-center justify-center">
           <p className="text-zinc-500 dark:text-zinc-400">

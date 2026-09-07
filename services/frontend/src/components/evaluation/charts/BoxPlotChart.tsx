@@ -14,8 +14,8 @@ import { useMemo } from 'react'
 import {
   Bar,
   CartesianGrid,
-  ComposedChart,
   Cell,
+  ComposedChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -66,36 +66,50 @@ function CustomTooltip({ active, payload, t }: any) {
       </p>
       <div className="space-y-1 text-sm">
         <div className="flex justify-between gap-4">
-          <span className="text-gray-500">{t('evaluation.charts.boxPlot.max')}:</span>
+          <span className="text-gray-500">
+            {t('evaluation.charts.boxPlot.max')}:
+          </span>
           <span className="font-mono">{item.max?.toFixed(3)}</span>
         </div>
         <div className="flex justify-between gap-4">
-          <span className="text-gray-500">{t('evaluation.charts.boxPlot.q3')}:</span>
+          <span className="text-gray-500">
+            {t('evaluation.charts.boxPlot.q3')}:
+          </span>
           <span className="font-mono">{item.q3?.toFixed(3)}</span>
         </div>
         <div className="flex justify-between gap-4">
-          <span className="font-medium text-gray-500">{t('evaluation.charts.boxPlot.median')}:</span>
+          <span className="font-medium text-gray-500">
+            {t('evaluation.charts.boxPlot.median')}:
+          </span>
           <span className="font-mono font-medium">
             {item.median?.toFixed(3)}
           </span>
         </div>
         <div className="flex justify-between gap-4">
-          <span className="text-gray-500">{t('evaluation.charts.boxPlot.q1')}:</span>
+          <span className="text-gray-500">
+            {t('evaluation.charts.boxPlot.q1')}:
+          </span>
           <span className="font-mono">{item.q1?.toFixed(3)}</span>
         </div>
         <div className="flex justify-between gap-4">
-          <span className="text-gray-500">{t('evaluation.charts.boxPlot.min')}:</span>
+          <span className="text-gray-500">
+            {t('evaluation.charts.boxPlot.min')}:
+          </span>
           <span className="font-mono">{item.min?.toFixed(3)}</span>
         </div>
         {item.mean !== undefined && (
           <div className="mt-1 flex justify-between gap-4 border-t border-gray-200 pt-1 dark:border-gray-700">
-            <span className="text-gray-500">{t('evaluation.charts.boxPlot.mean')}:</span>
+            <span className="text-gray-500">
+              {t('evaluation.charts.boxPlot.mean')}:
+            </span>
             <span className="font-mono">{item.mean?.toFixed(3)}</span>
           </div>
         )}
         {item.count !== undefined && (
           <div className="flex justify-between gap-4">
-            <span className="text-gray-500">{t('evaluation.charts.boxPlot.n')}:</span>
+            <span className="text-gray-500">
+              {t('evaluation.charts.boxPlot.n')}:
+            </span>
             <span className="font-mono">{item.count?.toLocaleString()}</span>
           </div>
         )}
@@ -345,7 +359,7 @@ export function BoxPlotChart({
  */
 export function calculateBoxPlotStats(
   scores: number[],
-  name: string
+  name: string,
 ): BoxPlotData | null {
   if (scores.length === 0) return null
 

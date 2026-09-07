@@ -141,7 +141,7 @@ describe('AuthClient - uncovered branches', () => {
         method: 'POST',
       })
       expect(invalidateSpy).toHaveBeenCalledWith(
-        '/auth/mandatory-profile-status'
+        '/auth/mandatory-profile-status',
       )
       expect(result).toEqual({ confirmed: true })
     })
@@ -174,7 +174,7 @@ describe('AuthClient - uncovered branches', () => {
         body: JSON.stringify({ name: 'New' }),
       })
       expect(invalidateSpy).toHaveBeenCalledWith(
-        '/auth/mandatory-profile-status'
+        '/auth/mandatory-profile-status',
       )
       expect(result).toEqual({ id: 'u1', name: 'New' })
     })

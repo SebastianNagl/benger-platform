@@ -42,14 +42,11 @@ export function RotatingText({
   const prefersReducedMotion = useSyncExternalStore(
     subscribeToReducedMotion,
     getReducedMotionSnapshot,
-    getReducedMotionServerSnapshot
+    getReducedMotionServerSnapshot,
   )
 
   // Ensure words is always an array
-  const safeWords = useMemo(
-    () => (Array.isArray(words) ? words : []),
-    [words]
-  )
+  const safeWords = useMemo(() => (Array.isArray(words) ? words : []), [words])
 
   // Handle word rotation
   useEffect(() => {
@@ -71,7 +68,9 @@ export function RotatingText({
   }, [safeWords, interval, prefersReducedMotion, mounted])
 
   if (!safeWords || safeWords.length === 0) {
-    return <span className={className}>{t('landing.rotatingText.loading')}</span>
+    return (
+      <span className={className}>{t('landing.rotatingText.loading')}</span>
+    )
   }
 
   // Don't use aria-live if there's only one word or reduced motion is preferred

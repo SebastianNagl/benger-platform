@@ -46,7 +46,9 @@ export default function ReportsPage() {
       setReports(Array.isArray(data) ? data : [])
     } catch (err: any) {
       console.error('Failed to load reports:', err)
-      setError({ detail: typeof err?.message === 'string' ? err.message : null })
+      setError({
+        detail: typeof err?.message === 'string' ? err.message : null,
+      })
     } finally {
       setLoading(false)
     }
@@ -63,7 +65,7 @@ export default function ReportsPage() {
   const showLoading = authLoading || loading
 
   return (
-    <ResponsiveContainer size="xl" className="pb-10 pt-8">
+    <ResponsiveContainer size="xl" className="pt-8 pb-10">
       {user && (
         <div className="mb-4">
           <Breadcrumb
@@ -87,14 +89,14 @@ export default function ReportsPage() {
       <p className="mt-2 text-zinc-600 dark:text-zinc-400">
         {t(
           'reports.intro',
-          'Veröffentlichte Evaluationsberichte: wie gut Sprachmodelle und Teilnehmende bei den Aufgaben eines Projekts abgeschnitten haben.'
+          'Veröffentlichte Evaluationsberichte: wie gut Sprachmodelle und Teilnehmende bei den Aufgaben eines Projekts abgeschnitten haben.',
         )}
       </p>
       {!authLoading && !user && (
         <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-500">
           {t(
             'reports.anonymousHint',
-            'Sie sehen öffentliche Berichte. Nach der Anmeldung erscheinen zusätzlich die Berichte Ihrer Organisationen.'
+            'Sie sehen öffentliche Berichte. Nach der Anmeldung erscheinen zusätzlich die Berichte Ihrer Organisationen.',
           )}{' '}
           <Link
             href="/login?next=%2Freports"
@@ -127,7 +129,7 @@ export default function ReportsPage() {
           <p className="mx-auto mt-2 max-w-xl text-sm text-zinc-600 dark:text-zinc-400">
             {t(
               'reports.loadFailedHint',
-              'Bitte versuchen Sie es erneut. Bleibt das Problem bestehen, wenden Sie sich an das BenGER-Team.'
+              'Bitte versuchen Sie es erneut. Bleibt das Problem bestehen, wenden Sie sich an das BenGER-Team.',
             )}
           </p>
           {error.detail && (
@@ -138,7 +140,7 @@ export default function ReportsPage() {
           <button
             type="button"
             onClick={loadReports}
-            className="mt-6 inline-flex items-center rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 dark:focus:ring-offset-zinc-900"
+            className="mt-6 inline-flex items-center rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:outline-none dark:focus:ring-offset-zinc-900"
           >
             {t('reports.reload', 'Erneut laden')}
           </button>
@@ -156,7 +158,7 @@ export default function ReportsPage() {
               ? t('reports.noReportsDescription')
               : t(
                   'reports.noPublicReportsDescription',
-                  'Derzeit ist kein Bericht öffentlich freigegeben.'
+                  'Derzeit ist kein Bericht öffentlich freigegeben.',
                 )}
           </p>
         </Card>

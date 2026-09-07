@@ -180,7 +180,8 @@ describe('AdminUsersPage - Organization Data Loading', () => {
     'admin.usersPage.tabs.organizationRoles': 'Organization Roles',
     'admin.usersPage.loadingUsers': 'Loading users...',
     'admin.usersPage.noOrgSelected': 'No Organization Selected',
-    'admin.usersPage.noOrgSelectedDesc': 'Select an organization to manage members and invitations',
+    'admin.usersPage.noOrgSelectedDesc':
+      'Select an organization to manage members and invitations',
     'admin.usersPage.selectOrganization': 'Select Organization',
     'admin.usersPage.members': 'Members',
     'admin.usersPage.created': 'Created',
@@ -212,7 +213,8 @@ describe('AdminUsersPage - Organization Data Loading', () => {
     'admin.usersPage.roles.admin': 'Org Admin',
     'admin.usersPage.createOrganization': 'Create Organization',
     'admin.accessDenied': 'Access Denied',
-    'admin.accessDeniedDesc': 'You need superadmin privileges to access this page',
+    'admin.accessDeniedDesc':
+      'You need superadmin privileges to access this page',
   }
 
   const mockI18nContext = {
@@ -239,19 +241,19 @@ describe('AdminUsersPage - Organization Data Loading', () => {
     ;(api.getOrganizationMembers as jest.Mock).mockResolvedValue(mockMembers)
     ;(api.listInvitations as jest.Mock).mockResolvedValue(mockInvitations)
     ;(api.getOrganizationInvitations as jest.Mock).mockResolvedValue(
-      mockInvitations
+      mockInvitations,
     )
 
     // Setup ApiClient instance methods
     ;(mockApiClient.getAllUsers as jest.Mock).mockResolvedValue([mockUser])
     ;(mockApiClient.getOrganizationMembers as jest.Mock).mockResolvedValue(
-      mockMembers
+      mockMembers,
     )
     ;(mockApiClient.listInvitations as jest.Mock).mockResolvedValue(
-      mockInvitations
+      mockInvitations,
     )
     ;(mockApiClient.getOrganizationInvitations as jest.Mock).mockResolvedValue(
-      mockInvitations
+      mockInvitations,
     )
   })
 
@@ -274,7 +276,7 @@ describe('AdminUsersPage - Organization Data Loading', () => {
       // Wait for initial render
       await waitFor(() => {
         expect(
-          screen.getByRole('heading', { level: 1, name: 'User Management' })
+          screen.getByRole('heading', { level: 1, name: 'User Management' }),
         ).toBeInTheDocument()
       })
 
@@ -285,7 +287,7 @@ describe('AdminUsersPage - Organization Data Loading', () => {
       // Wait for organization data to load
       await waitFor(() => {
         expect(mockApiClient.getOrganizationMembers).toHaveBeenCalledWith(
-          'org-1'
+          'org-1',
         )
       })
 
@@ -337,10 +339,10 @@ describe('AdminUsersPage - Organization Data Loading', () => {
 
       // Make the API calls fail
       ;(mockApiClient.getOrganizationMembers as jest.Mock).mockRejectedValue(
-        new Error('Failed to load members')
+        new Error('Failed to load members'),
       )
       ;(mockApiClient.listInvitations as jest.Mock).mockRejectedValue(
-        new Error('Failed to load invitations')
+        new Error('Failed to load invitations'),
       )
 
       renderComponent()
@@ -353,13 +355,13 @@ describe('AdminUsersPage - Organization Data Loading', () => {
       await waitFor(() => {
         expect(consoleErrorSpy).toHaveBeenCalledWith(
           'Failed to load organization data:',
-          expect.any(Error)
+          expect.any(Error),
         )
       })
 
       // The page should still render without crashing
       expect(
-        screen.getByRole('heading', { level: 1, name: 'User Management' })
+        screen.getByRole('heading', { level: 1, name: 'User Management' }),
       ).toBeInTheDocument()
 
       consoleErrorSpy.mockRestore()
@@ -407,13 +409,13 @@ describe('AdminUsersPage - Organization Data Loading', () => {
         mockApiClient.getOrganizationInvitations as jest.Mock
       ).mockImplementation(() => {
         throw new Error(
-          'getOrganizationInvitations is not a function or has wrong signature'
+          'getOrganizationInvitations is not a function or has wrong signature',
         )
       })
 
       // listInvitations should still work
       ;(mockApiClient.listInvitations as jest.Mock).mockResolvedValue(
-        mockInvitations
+        mockInvitations,
       )
 
       renderComponent()

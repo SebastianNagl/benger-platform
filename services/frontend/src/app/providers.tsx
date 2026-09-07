@@ -1,6 +1,5 @@
 'use client'
 
-import { useEffect, useState } from 'react'
 import { SessionValidator } from '@/components/auth/SessionValidator'
 import { GlobalErrorBoundary } from '@/components/shared/GlobalErrorBoundary'
 import { ToastProvider } from '@/components/shared/Toast'
@@ -13,6 +12,7 @@ import { DialogProvider } from '@/hooks/useDialogs'
 import { loadExtended } from '@/lib/extensions'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ThemeProvider } from 'next-themes'
+import { useEffect, useState } from 'react'
 
 export function Providers({ children }: { children: React.ReactNode }) {
   // One QueryClient per mount. Defaults tuned for the dashboard pattern:
@@ -31,7 +31,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
             retry: 1,
           },
         },
-      })
+      }),
   )
 
   useEffect(() => {

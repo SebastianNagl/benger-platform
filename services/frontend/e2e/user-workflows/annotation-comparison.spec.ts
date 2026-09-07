@@ -29,7 +29,7 @@ test.describe('Data Page Task Interaction', () => {
     projectId = await seeder.createProject(`Data Page ${Date.now()}`)
     await seeder.setLabelConfig(
       projectId,
-      '<View><Text name="text" value="$text"/><Choices name="sentiment" toName="text"><Choice value="positive"/><Choice value="negative"/><Choice value="neutral"/></Choices></View>'
+      '<View><Text name="text" value="$text"/><Choices name="sentiment" toName="text"><Choice value="positive"/><Choice value="negative"/><Choice value="neutral"/></Choices></View>',
     )
     const tasks = await seeder.importTasks(projectId, [
       { data: { text: 'This product is excellent and well-made.' } },

@@ -86,7 +86,7 @@ module.exports = {
             '--tw-prose-invert-links': theme('colors.emerald.400'),
             '--tw-prose-invert-links-hover': theme('colors.emerald.500'),
             '--tw-prose-invert-links-underline': theme(
-              'colors.emerald.500 / 0.3'
+              'colors.emerald.500 / 0.3',
             ),
             '--tw-prose-invert-bold': theme('colors.white'),
             '--tw-prose-invert-counters': theme('colors.zinc.300'),
@@ -175,7 +175,7 @@ module.exports = {
               fontSize: '1.125em',
             },
             'h2 small, h3 small, h4 small': {
-              fontFamily: theme('fontFamily.mono').join(', '),
+              fontFamily: [].concat(theme('fontFamily.mono')).join(', '),
               color: theme('colors.zinc.500'),
               fontWeight: 500,
             },

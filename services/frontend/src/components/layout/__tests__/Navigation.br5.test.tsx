@@ -106,14 +106,8 @@ jest.mock('@/components/shared/Tag', () => ({
 jest.mock('@headlessui/react', () => {
   const React = require('react')
   const CloseButton = React.forwardRef(function CloseButton(
-    {
-      children,
-      href,
-      className,
-      as: Component = 'button',
-      ...props
-    }: any,
-    ref: any
+    { children, href, className, as: Component = 'button', ...props }: any,
+    ref: any,
   ) {
     return (
       <Component ref={ref} href={href} className={className} {...props}>

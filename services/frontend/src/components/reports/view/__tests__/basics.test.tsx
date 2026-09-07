@@ -1,16 +1,16 @@
-import React from 'react'
-import { fireEvent, render, screen } from '@testing-library/react'
 import { REPORT_SNAPSHOT_FIXTURE as FIX } from '@/lib/reports/fixture'
+import { fireEvent, render, screen } from '@testing-library/react'
+import React from 'react'
 import { t } from '../__mocks__/testUtils'
+import { ChartLegend, ChartTooltipBox } from '../ChartTooltip'
 import { ConfigSelector, configOptionLabel } from '../ConfigSelector'
 import { MethodsList } from '../MethodsList'
 import { ModelChips } from '../ModelChips'
 import { ParticipantsList } from '../ParticipantsList'
 import { ReportHeader } from '../ReportHeader'
+import { Prose, QuietNote, ReportSection, SubHeading } from '../ReportSection'
 import { StatTiles } from '../StatTiles'
 import { StatusCard } from '../StatusCard'
-import { ChartLegend, ChartTooltipBox } from '../ChartTooltip'
-import { Prose, QuietNote, ReportSection, SubHeading } from '../ReportSection'
 
 jest.mock('next/link', () => ({
   __esModule: true,
@@ -35,12 +35,19 @@ describe('ReportHeader', () => {
         t={t}
       />,
     )
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Benchathon 2026')
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
+      'Benchathon 2026',
+    )
     expect(screen.getByText('Beschreibung')).toBeInTheDocument()
     expect(screen.getByTestId('draft-badge')).toHaveTextContent('Entwurf')
     expect(screen.getByText(/Veröffentlicht am/)).toBeInTheDocument()
-    expect(screen.getByTestId('data-as-of')).toHaveTextContent(/Datenstand: .*2026/)
-    expect(screen.getByRole('link', { name: 'Bearbeiten' })).toHaveAttribute('href', '/projects/p1/report/edit')
+    expect(screen.getByTestId('data-as-of')).toHaveTextContent(
+      /Datenstand: .*2026/,
+    )
+    expect(screen.getByRole('link', { name: 'Bearbeiten' })).toHaveAttribute(
+      'href',
+      '/projects/p1/report/edit',
+    )
   })
 
   it('omits optional parts', () => {
@@ -75,7 +82,13 @@ describe('ModelChips', () => {
       <ModelChips
         models={[
           ...FIX.models,
-          { id: 'byom-1', kind: 'model', label: 'Mein Modell', provider: 'custom', is_custom: true },
+          {
+            id: 'byom-1',
+            kind: 'model',
+            label: 'Mein Modell',
+            provider: 'custom',
+            is_custom: true,
+          },
         ]}
         t={t}
       />,
@@ -90,7 +103,9 @@ describe('ModelChips', () => {
   it('renders nothing without models and no custom group without custom ones', () => {
     const { container, rerender } = render(<ModelChips models={[]} t={t} />)
     expect(container).toBeEmptyDOMElement()
-    rerender(<ModelChips models={[{ id: 'm', kind: 'model', label: 'M' }]} t={t} />)
+    rerender(
+      <ModelChips models={[{ id: 'm', kind: 'model', label: 'M' }]} t={t} />,
+    )
     expect(screen.queryByText('Eigene Modelle')).not.toBeInTheDocument()
     expect(screen.getByTestId('model-chip')).toHaveAttribute('title', 'm')
   })
@@ -98,7 +113,9 @@ describe('ModelChips', () => {
 
 describe('ParticipantsList', () => {
   it('lists pseudonyms with counts inside a collapsible', () => {
-    render(<ParticipantsList participants={FIX.participants} locale="de" t={t} />)
+    render(
+      <ParticipantsList participants={FIX.participants} locale="de" t={t} />,
+    )
     expect(screen.getByTestId('participants-list')).toBeInTheDocument()
     expect(screen.getByText('KindAlly')).toBeInTheDocument()
     expect(screen.getByText('8 Abgaben')).toBeInTheDocument()
@@ -106,7 +123,9 @@ describe('ParticipantsList', () => {
   })
 
   it('renders nothing for an empty list', () => {
-    const { container } = render(<ParticipantsList participants={[]} locale="de" t={t} />)
+    const { container } = render(
+      <ParticipantsList participants={[]} locale="de" t={t} />,
+    )
     expect(container).toBeEmptyDOMElement()
   })
 })
@@ -134,14 +153,40 @@ describe('MethodsList', () => {
   })
 
   it('maps remaining categories and renders nothing when empty', () => {
-    const { container, rerender } = render(<MethodsList methods={[]} configs={[]} labelFor={(x) => x} locale="de" t={t} />)
+    const { container, rerender } = render(
+      <MethodsList
+        methods={[]}
+        configs={[]}
+        labelFor={(x) => x}
+        locale="de"
+        t={t}
+      />,
+    )
     expect(container).toBeEmptyDOMElement()
     rerender(
       <MethodsList
         methods={[
-          { id: 'a', name: 'A', category: 'semantic', scale: '0-1', higher_is_better: true },
-          { id: 'b', name: 'B', category: 'classification', scale: 'raw', higher_is_better: true },
-          { id: 'c', name: 'C', category: 'other', scale: 'raw', higher_is_better: true },
+          {
+            id: 'a',
+            name: 'A',
+            category: 'semantic',
+            scale: '0-1',
+            higher_is_better: true,
+          },
+          {
+            id: 'b',
+            name: 'B',
+            category: 'classification',
+            scale: 'raw',
+            higher_is_better: true,
+          },
+          {
+            id: 'c',
+            name: 'C',
+            category: 'other',
+            scale: 'raw',
+            higher_is_better: true,
+          },
         ]}
         configs={[]}
         labelFor={(x) => x}
@@ -160,7 +205,14 @@ describe('ConfigSelector', () => {
 
   it('renders a radiogroup and reports changes', () => {
     const onChange = jest.fn()
-    render(<ConfigSelector options={options} value="cfg-judge-sonnet" onChange={onChange} t={t} />)
+    render(
+      <ConfigSelector
+        options={options}
+        value="cfg-judge-sonnet"
+        onChange={onChange}
+        t={t}
+      />,
+    )
     const radios = screen.getAllByRole('radio')
     expect(radios).toHaveLength(2)
     expect(radios[0]).toHaveAttribute('aria-checked', 'true')
@@ -170,51 +222,128 @@ describe('ConfigSelector', () => {
   })
 
   it('hides itself with fewer than two options', () => {
-    const { container } = render(<ConfigSelector options={[options[0]]} value={null} onChange={jest.fn()} t={t} />)
+    const { container } = render(
+      <ConfigSelector
+        options={[options[0]]}
+        value={null}
+        onChange={jest.fn()}
+        t={t}
+      />,
+    )
     expect(container).toBeEmptyDOMElement()
   })
 
   it('falls back from judge label to name to id to metric', () => {
-    expect(configOptionLabel({ id: 'x', metric: 'm', judge_model: null, judge_label: null, name: 'Name', n: 1 })).toBe('Name')
-    expect(configOptionLabel({ id: 'x', metric: 'm', judge_model: null, judge_label: null, name: null, n: 1 })).toBe('x')
+    expect(
+      configOptionLabel({
+        id: 'x',
+        metric: 'm',
+        judge_model: null,
+        judge_label: null,
+        name: 'Name',
+        n: 1,
+      }),
+    ).toBe('Name')
+    expect(
+      configOptionLabel({
+        id: 'x',
+        metric: 'm',
+        judge_model: null,
+        judge_label: null,
+        name: null,
+        n: 1,
+      }),
+    ).toBe('x')
     // Two configs on the same judge model: the bare judge name would repeat,
     // so each falls back to its configuration name.
-    const a = { id: 'a', metric: 'm', judge_model: 'gpt-5-mini', judge_label: 'GPT-5 Mini', name: 'Judge (×3)', n: 3 }
-    const b = { id: 'b', metric: 'm', judge_model: 'gpt-5-mini', judge_label: 'GPT-5 Mini', name: 'Judge (single)', n: 1 }
-    const c = { id: 'c', metric: 'm', judge_model: 'gpt-5.4-mini', judge_label: 'GPT-5.4 Mini', name: 'Other', n: 1 }
+    const a = {
+      id: 'a',
+      metric: 'm',
+      judge_model: 'gpt-5-mini',
+      judge_label: 'GPT-5 Mini',
+      name: 'Judge (×3)',
+      n: 3,
+    }
+    const b = {
+      id: 'b',
+      metric: 'm',
+      judge_model: 'gpt-5-mini',
+      judge_label: 'GPT-5 Mini',
+      name: 'Judge (single)',
+      n: 1,
+    }
+    const c = {
+      id: 'c',
+      metric: 'm',
+      judge_model: 'gpt-5.4-mini',
+      judge_label: 'GPT-5.4 Mini',
+      name: 'Other',
+      n: 1,
+    }
     expect(configOptionLabel(a, [a, b, c])).toBe('Judge (×3)')
     expect(configOptionLabel(b, [a, b, c])).toBe('Judge (single)')
     expect(configOptionLabel(c, [a, b, c])).toBe('GPT-5.4 Mini')
-    expect(configOptionLabel({ id: '', metric: 'm', judge_model: null, judge_label: null, name: null, n: 1 })).toBe('m')
+    expect(
+      configOptionLabel({
+        id: '',
+        metric: 'm',
+        judge_model: null,
+        judge_label: null,
+        name: null,
+        n: 1,
+      }),
+    ).toBe('m')
   })
 })
 
 describe('StatusCard', () => {
   it('renders the loading card', () => {
     render(<StatusCard kind="loading" t={t} />)
-    expect(screen.getByTestId('report-loading')).toHaveTextContent('Bericht wird geladen')
+    expect(screen.getByTestId('report-loading')).toHaveTextContent(
+      'Bericht wird geladen',
+    )
   })
 
   it('renders the error card with optional retry and message fallback', () => {
     const onRetry = jest.fn()
-    const { rerender } = render(<StatusCard kind="error" message="Kaputt" onRetry={onRetry} t={t} />)
+    const { rerender } = render(
+      <StatusCard kind="error" message="Kaputt" onRetry={onRetry} t={t} />,
+    )
     const card = screen.getByRole('alert')
     expect(card).toHaveTextContent('Der Bericht konnte nicht geladen werden.')
     expect(card).toHaveTextContent('Kaputt')
     fireEvent.click(screen.getByRole('button', { name: 'Erneut laden' }))
     expect(onRetry).toHaveBeenCalled()
-    expect(screen.getByRole('link', { name: 'Zurück zu den Berichten' })).toHaveAttribute('href', '/reports')
+    expect(
+      screen.getByRole('link', { name: 'Zurück zu den Berichten' }),
+    ).toHaveAttribute('href', '/reports')
     rerender(<StatusCard kind="error" t={t} />)
     expect(screen.queryByRole('button')).not.toBeInTheDocument()
-    expect(screen.getByRole('alert')).toHaveTextContent('Bitte versuchen Sie es in einem Moment erneut.')
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Bitte versuchen Sie es in einem Moment erneut.',
+    )
   })
 
   it('renders the not-public card with login link (default and custom href)', () => {
     const { rerender } = render(<StatusCard kind="forbidden" t={t} />)
-    expect(screen.getByTestId('report-forbidden')).toHaveTextContent('Dieser Bericht ist nicht öffentlich.')
-    expect(screen.getByRole('link', { name: 'Anmelden' })).toHaveAttribute('href', '/login')
-    rerender(<StatusCard kind="forbidden" loginHref="/login?next=%2Freports%2F1" t={t} />)
-    expect(screen.getByRole('link', { name: 'Anmelden' })).toHaveAttribute('href', '/login?next=%2Freports%2F1')
+    expect(screen.getByTestId('report-forbidden')).toHaveTextContent(
+      'Dieser Bericht ist nicht öffentlich.',
+    )
+    expect(screen.getByRole('link', { name: 'Anmelden' })).toHaveAttribute(
+      'href',
+      '/login',
+    )
+    rerender(
+      <StatusCard
+        kind="forbidden"
+        loginHref="/login?next=%2Freports%2F1"
+        t={t}
+      />,
+    )
+    expect(screen.getByRole('link', { name: 'Anmelden' })).toHaveAttribute(
+      'href',
+      '/login?next=%2Freports%2F1',
+    )
   })
 })
 
@@ -225,7 +354,13 @@ describe('layout primitives', () => {
         <SubHeading>Sub</SubHeading>
         <Prose>Text</Prose>
         <QuietNote>Note</QuietNote>
-        <ChartTooltipBox title="Bin 13" lines={[{ label: 'Modelle', value: '12', swatchClass: 'bg-x' }, { label: 'n', value: '1' }]} />
+        <ChartTooltipBox
+          title="Bin 13"
+          lines={[
+            { label: 'Modelle', value: '12', swatchClass: 'bg-x' },
+            { label: 'n', value: '1' },
+          ]}
+        />
         <ChartLegend items={[{ label: 'Modelle', swatchClass: 'bg-x' }]} />
       </ReportSection>,
     )

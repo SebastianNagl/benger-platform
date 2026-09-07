@@ -82,7 +82,7 @@ export function isApiTask(task: any): task is ApiTask {
  * Safe task conversion that checks type before converting
  */
 export function ensureLabelStudioTask(
-  task: ApiTask | LabelStudioTask
+  task: ApiTask | LabelStudioTask,
 ): LabelStudioTask {
   if (isLabelStudioTask(task)) {
     return task

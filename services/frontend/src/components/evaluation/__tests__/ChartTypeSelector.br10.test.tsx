@@ -10,7 +10,7 @@
  */
 
 import '@testing-library/jest-dom'
-import { render, screen, fireEvent, act } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import { ChartTypeSelector } from '../ChartTypeSelector'
 
 jest.mock('@/contexts/I18nContext', () => ({
@@ -49,8 +49,12 @@ jest.mock('@/contexts/HydrationContext', () => ({
 jest.mock('@heroicons/react/24/outline', () => ({
   ChartBarIcon: (props: any) => <svg {...props} data-testid="bar-icon" />,
   ChartPieIcon: (props: any) => <svg {...props} data-testid="pie-icon" />,
-  ChevronDownIcon: (props: any) => <svg {...props} data-testid="chevron-icon" />,
-  Square3Stack3DIcon: (props: any) => <svg {...props} data-testid="stack-icon" />,
+  ChevronDownIcon: (props: any) => (
+    <svg {...props} data-testid="chevron-icon" />
+  ),
+  Square3Stack3DIcon: (props: any) => (
+    <svg {...props} data-testid="stack-icon" />
+  ),
   Squares2X2Icon: (props: any) => <svg {...props} data-testid="squares-icon" />,
   TableCellsIcon: (props: any) => <svg {...props} data-testid="table-icon" />,
 }))
@@ -59,10 +63,18 @@ const mockLocalStorage = (() => {
   let store: Record<string, string> = {}
   return {
     getItem: jest.fn((key: string) => store[key] || null),
-    setItem: jest.fn((key: string, value: string) => { store[key] = value }),
-    removeItem: jest.fn((key: string) => { delete store[key] }),
-    clear: () => { store = {} },
-    reset: () => { store = {} },
+    setItem: jest.fn((key: string, value: string) => {
+      store[key] = value
+    }),
+    removeItem: jest.fn((key: string) => {
+      delete store[key]
+    }),
+    clear: () => {
+      store = {}
+    },
+    reset: () => {
+      store = {}
+    },
   }
 })()
 
@@ -79,9 +91,7 @@ describe('ChartTypeSelector branch coverage', () => {
   it('loads saved preference from localStorage on mount', () => {
     mockLocalStorage.getItem.mockReturnValueOnce('radar')
     const onChange = jest.fn()
-    render(
-      <ChartTypeSelector selectedType="data" onChange={onChange} />
-    )
+    render(<ChartTypeSelector selectedType="data" onChange={onChange} />)
     expect(onChange).toHaveBeenCalledWith('radar')
   })
 
@@ -93,7 +103,7 @@ describe('ChartTypeSelector branch coverage', () => {
         selectedType="bar"
         onChange={onChange}
         disabledTypes={['box']}
-      />
+      />,
     )
     expect(onChange).not.toHaveBeenCalledWith('box')
   })
@@ -106,15 +116,13 @@ describe('ChartTypeSelector branch coverage', () => {
         selectedType="bar"
         onChange={onChange}
         availableTypes={['data', 'bar', 'table']}
-      />
+      />,
     )
     expect(onChange).not.toHaveBeenCalledWith('heatmap')
   })
 
   it('opens dropdown and shows all types', () => {
-    render(
-      <ChartTypeSelector selectedType="bar" onChange={jest.fn()} />
-    )
+    render(<ChartTypeSelector selectedType="bar" onChange={jest.fn()} />)
     fireEvent.click(screen.getByText('Bar Chart'))
     expect(screen.getByText('Data')).toBeInTheDocument()
     expect(screen.getByText('Radar')).toBeInTheDocument()
@@ -127,13 +135,13 @@ describe('ChartTypeSelector branch coverage', () => {
         selectedType="data"
         onChange={jest.fn()}
         availableTypes={['data', 'bar']}
-      />
+      />,
     )
     fireEvent.click(screen.getByText('Data'))
     expect(screen.getByText('Bar Chart')).toBeInTheDocument()
     // Radar should not be in dropdown items (only in the dropdown, not as a filtered type)
     const items = screen.getAllByRole('button')
-    const labels = items.map(i => i.textContent)
+    const labels = items.map((i) => i.textContent)
     expect(labels.join('')).not.toContain('Radar')
   })
 
@@ -144,7 +152,7 @@ describe('ChartTypeSelector branch coverage', () => {
         onChange={jest.fn()}
         disabledTypes={['heatmap']}
         disabledReasons={{ heatmap: 'Requires 2+ models' }}
-      />
+      />,
     )
     fireEvent.click(screen.getByText('Bar Chart'))
     const heatmapBtn = screen.getByText('Heatmap').closest('button')
@@ -159,7 +167,7 @@ describe('ChartTypeSelector branch coverage', () => {
         selectedType="bar"
         onChange={onChange}
         disabledTypes={['heatmap']}
-      />
+      />,
     )
     fireEvent.click(screen.getByText('Bar Chart'))
     onChange.mockClear()
@@ -171,20 +179,19 @@ describe('ChartTypeSelector branch coverage', () => {
     const onChange = jest.fn()
     // Prevent saved pref from interfering
     mockLocalStorage.getItem.mockReturnValue(null)
-    render(
-      <ChartTypeSelector selectedType="bar" onChange={onChange} />
-    )
+    render(<ChartTypeSelector selectedType="bar" onChange={onChange} />)
     fireEvent.click(screen.getByText('Bar Chart'))
     onChange.mockClear()
     fireEvent.click(screen.getByText('Radar'))
     expect(onChange).toHaveBeenCalledWith('radar')
-    expect(mockLocalStorage.setItem).toHaveBeenCalledWith('benger-preferred-chart-type', 'radar')
+    expect(mockLocalStorage.setItem).toHaveBeenCalledWith(
+      'benger-preferred-chart-type',
+      'radar',
+    )
   })
 
   it('closes dropdown on outside click', () => {
-    render(
-      <ChartTypeSelector selectedType="bar" onChange={jest.fn()} />
-    )
+    render(<ChartTypeSelector selectedType="bar" onChange={jest.fn()} />)
     fireEvent.click(screen.getByText('Bar Chart'))
     expect(screen.getByText('Data')).toBeInTheDocument()
     // Simulate outside click
@@ -195,7 +202,7 @@ describe('ChartTypeSelector branch coverage', () => {
   it('renders with size sm', () => {
     mockLocalStorage.getItem.mockReturnValue(null)
     render(
-      <ChartTypeSelector selectedType="bar" onChange={jest.fn()} size="sm" />
+      <ChartTypeSelector selectedType="bar" onChange={jest.fn()} size="sm" />,
     )
     expect(screen.getByText('Bar Chart')).toBeInTheDocument()
   })
@@ -203,7 +210,10 @@ describe('ChartTypeSelector branch coverage', () => {
   it('shows Select View when selectedType is unknown', () => {
     mockLocalStorage.getItem.mockReturnValue(null)
     render(
-      <ChartTypeSelector selectedType={'unknown' as any} onChange={jest.fn()} />
+      <ChartTypeSelector
+        selectedType={'unknown' as any}
+        onChange={jest.fn()}
+      />,
     )
     expect(screen.getByText('Select View')).toBeInTheDocument()
   })

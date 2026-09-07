@@ -81,7 +81,7 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
                 required
                 disabled={isLoading}
                 autoComplete="username"
-                className="mt-1 block w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-zinc-900 placeholder-zinc-400 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-emerald-500 disabled:opacity-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-white"
+                className="mt-1 block w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-zinc-900 placeholder-zinc-400 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 focus:outline-none disabled:opacity-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-white"
                 placeholder={t('loginModal.usernamePlaceholder')}
               />
             </div>
@@ -101,7 +101,7 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
                 required
                 disabled={isLoading}
                 autoComplete="current-password"
-                className="mt-1 block w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-zinc-900 placeholder-zinc-400 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-emerald-500 disabled:opacity-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-white"
+                className="mt-1 block w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-zinc-900 placeholder-zinc-400 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 focus:outline-none disabled:opacity-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-white"
                 placeholder={t('loginModal.passwordPlaceholder')}
               />
             </div>

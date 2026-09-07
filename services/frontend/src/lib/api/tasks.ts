@@ -35,7 +35,7 @@ export class TasksClient extends BaseApiClient {
       visibility?: Record<string, boolean>
       order?: string[]
       pinning?: { left?: string[]; right?: string[] }
-    }
+    },
   ): Promise<void> {
     await this.post(`/projects/${taskId}/column-preferences`, {
       column_settings: preferences,

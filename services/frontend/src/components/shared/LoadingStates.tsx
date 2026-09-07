@@ -29,10 +29,7 @@ interface LoadingStateProps {
   className?: string
 }
 
-export function LoadingState({
-  message,
-  className = '',
-}: LoadingStateProps) {
+export function LoadingState({ message, className = '' }: LoadingStateProps) {
   const { t } = useI18n()
 
   const displayMessage = message ?? t('common.loading')
@@ -41,7 +38,9 @@ export function LoadingState({
     <div className={`flex items-center justify-center py-8 ${className}`}>
       <div className="text-center">
         <LoadingSpinner size="lg" className="mx-auto mb-4" />
-        <p className="text-sm text-zinc-600 dark:text-zinc-400">{displayMessage}</p>
+        <p className="text-sm text-zinc-600 dark:text-zinc-400">
+          {displayMessage}
+        </p>
       </div>
     </div>
   )

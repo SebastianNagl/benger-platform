@@ -48,7 +48,11 @@ const sampleRows: PerRunRow[] = [
 describe('PerRunBreakdown', () => {
   it('renders one row per (judge_model, run_index)', () => {
     render(
-      <PerRunBreakdown rows={sampleRows} metric="llm_judge_falloesung" showTargetModel={false} />,
+      <PerRunBreakdown
+        rows={sampleRows}
+        metric="llm_judge_falloesung"
+        showTargetModel={false}
+      />,
     )
     // Three judge_run rows
     const dataRows = document.querySelectorAll('tbody tr')
@@ -57,7 +61,11 @@ describe('PerRunBreakdown', () => {
 
   it('shows judge model id and run_index in correct columns', () => {
     render(
-      <PerRunBreakdown rows={sampleRows} metric="llm_judge_falloesung" showTargetModel={false} />,
+      <PerRunBreakdown
+        rows={sampleRows}
+        metric="llm_judge_falloesung"
+        showTargetModel={false}
+      />,
     )
     expect(screen.getAllByText(/gpt-4o-mini/).length).toBe(2)
     expect(screen.getByText('gpt-4o')).toBeInTheDocument()
@@ -65,7 +73,11 @@ describe('PerRunBreakdown', () => {
 
   it('renders status badges with correct text', () => {
     render(
-      <PerRunBreakdown rows={sampleRows} metric="llm_judge_falloesung" showTargetModel={false} />,
+      <PerRunBreakdown
+        rows={sampleRows}
+        metric="llm_judge_falloesung"
+        showTargetModel={false}
+      />,
     )
     const completed = screen.getAllByText('completed')
     expect(completed.length).toBe(2)
@@ -74,34 +86,50 @@ describe('PerRunBreakdown', () => {
 
   it('shows sample counts when available', () => {
     render(
-      <PerRunBreakdown rows={sampleRows} metric="llm_judge_falloesung" showTargetModel={false} />,
+      <PerRunBreakdown
+        rows={sampleRows}
+        metric="llm_judge_falloesung"
+        showTargetModel={false}
+      />,
     )
     expect(screen.getAllByText('13').length).toBeGreaterThanOrEqual(2)
   })
 
   it('shows em-dash placeholder when mean_score is null', () => {
     render(
-      <PerRunBreakdown rows={sampleRows} metric="llm_judge_falloesung" showTargetModel={false} />,
+      <PerRunBreakdown
+        rows={sampleRows}
+        metric="llm_judge_falloesung"
+        showTargetModel={false}
+      />,
     )
     // mean_score is null on every row → 3 em-dashes for that column
     const cells = document.querySelectorAll('td')
-    const dashCount = Array.from(cells).filter((c) => c.textContent?.trim() === '—').length
+    const dashCount = Array.from(cells).filter(
+      (c) => c.textContent?.trim() === '—',
+    ).length
     expect(dashCount).toBeGreaterThanOrEqual(3)
   })
 
   it('shows empty-state hint when rows is empty', () => {
     render(
-      <PerRunBreakdown rows={[]} metric="llm_judge_falloesung" showTargetModel={false} />,
+      <PerRunBreakdown
+        rows={[]}
+        metric="llm_judge_falloesung"
+        showTargetModel={false}
+      />,
     )
-    expect(
-      screen.getByText(/Keine Lauf-Daten/i),
-    ).toBeInTheDocument()
+    expect(screen.getByText(/Keine Lauf-Daten/i)).toBeInTheDocument()
   })
 
   it('renders deterministic ordering by judge_model then run_index', () => {
     const shuffled = [...sampleRows].reverse()
     render(
-      <PerRunBreakdown rows={shuffled} metric="llm_judge_falloesung" showTargetModel={false} />,
+      <PerRunBreakdown
+        rows={shuffled}
+        metric="llm_judge_falloesung"
+        showTargetModel={false}
+      />,
     )
     const rows = document.querySelectorAll('tbody tr')
     // First row should be gpt-4o (alphabetically before gpt-4o-mini)
@@ -111,10 +139,14 @@ describe('PerRunBreakdown', () => {
 
   it('shows target_model column when showTargetModel=true', () => {
     render(
-      <PerRunBreakdown rows={sampleRows} metric="llm_judge_falloesung" showTargetModel={true} />,
+      <PerRunBreakdown
+        rows={sampleRows}
+        metric="llm_judge_falloesung"
+        showTargetModel={true}
+      />,
     )
-    const headers = Array.from(document.querySelectorAll('thead th')).map((th) =>
-      th.textContent?.trim(),
+    const headers = Array.from(document.querySelectorAll('thead th')).map(
+      (th) => th.textContent?.trim(),
     )
     // 6 columns: target, judge, run#, samples, mean, status
     expect(headers.length).toBe(6)

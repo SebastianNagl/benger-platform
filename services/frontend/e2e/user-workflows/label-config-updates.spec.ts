@@ -50,7 +50,7 @@ test.describe('Label Config Updates - Contributor Workflows', () => {
     await nameInput.fill(projectName)
 
     const descriptionInput = page.locator(
-      '[data-testid="project-create-description-textarea"]'
+      '[data-testid="project-create-description-textarea"]',
     )
     await descriptionInput.fill('Testing label config updates')
     await enableWizardFeatures(page, ['annotation'])
@@ -61,7 +61,7 @@ test.describe('Label Config Updates - Contributor Workflows', () => {
 
     // Skip data import
     const skipButton = page.locator(
-      '[data-testid="project-create-skip-data-button"]'
+      '[data-testid="project-create-skip-data-button"]',
     )
     if (await skipButton.isVisible()) {
       await skipButton.click()
@@ -72,7 +72,7 @@ test.describe('Label Config Updates - Contributor Workflows', () => {
 
     // Step 3: Select Question Answering template
     const qaTemplateButton = page.locator(
-      '[data-testid="project-create-template-question-answering"]'
+      '[data-testid="project-create-template-question-answering"]',
     )
     if ((await qaTemplateButton.count()) > 0) {
       await qaTemplateButton.click()
@@ -120,7 +120,7 @@ test.describe('Label Config Updates - Contributor Workflows', () => {
     <Choice value="Medium"/>
     <Choice value="Low"/>
   </Choices>
-</View>`
+</View>`,
       )
 
       await configTextarea.fill(updatedConfig)
@@ -132,7 +132,7 @@ test.describe('Label Config Updates - Contributor Workflows', () => {
 
       // Wait for success message
       await expect(
-        page.locator('text=/configuration saved|saved/i')
+        page.locator('text=/configuration saved|saved/i'),
       ).toBeVisible({ timeout: 10000 })
 
       console.log('✅ Label config updated successfully')
@@ -146,7 +146,7 @@ test.describe('Label Config Updates - Contributor Workflows', () => {
   }) => {
     test.setTimeout(150000)
     console.log(
-      '📝 Testing: Add new field to config and verify annotation preservation'
+      '📝 Testing: Add new field to config and verify annotation preservation',
     )
 
     // User journey: Contributor creates project with QA template → Annotate 5 tasks →
@@ -189,7 +189,7 @@ test.describe('Label Config Updates - Contributor Workflows', () => {
             { context: 'Sample context 5', question: 'Question 5?' },
           ],
           null,
-          2
+          2,
         )
         await jsonTextarea.fill(sampleData)
         console.log('✅ Added 5 sample tasks')
@@ -201,7 +201,7 @@ test.describe('Label Config Updates - Contributor Workflows', () => {
 
     // Select QA template
     const qaTemplateButton = page.locator(
-      '[data-testid="project-create-template-question-answering"]'
+      '[data-testid="project-create-template-question-answering"]',
     )
     if ((await qaTemplateButton.count()) > 0) {
       await qaTemplateButton.click()
@@ -247,7 +247,7 @@ test.describe('Label Config Updates - Contributor Workflows', () => {
     <Choice value="Technical"/>
     <Choice value="General"/>
   </Choices>
-</View>`
+</View>`,
       )
 
       await configTextarea.fill(updatedConfig)
@@ -257,7 +257,7 @@ test.describe('Label Config Updates - Contributor Workflows', () => {
       await saveButton.click()
 
       await expect(
-        page.locator('text=/configuration saved|saved/i')
+        page.locator('text=/configuration saved|saved/i'),
       ).toBeVisible({ timeout: 10000 })
 
       console.log('✅ Added new "category" field to config')
@@ -339,7 +339,7 @@ test.describe('Label Config Updates - Contributor Workflows', () => {
       // Remove Rating field
       const updatedConfig = currentConfig.replace(
         /<Rating name="quality" toName="text"\/>/,
-        ''
+        '',
       )
 
       await configTextarea.fill(updatedConfig)
@@ -349,7 +349,7 @@ test.describe('Label Config Updates - Contributor Workflows', () => {
       await saveButton.click()
 
       await expect(
-        page.locator('text=/configuration saved|saved/i')
+        page.locator('text=/configuration saved|saved/i'),
       ).toBeVisible({ timeout: 10000 })
 
       console.log('✅ Removed Rating field from config')
@@ -420,7 +420,7 @@ test.describe('Label Config Updates - Contributor Workflows', () => {
       await saveButton.click()
 
       await expect(
-        page.locator('text=/configuration saved|saved/i')
+        page.locator('text=/configuration saved|saved/i'),
       ).toBeVisible({ timeout: 10000 })
 
       console.log('✅ Changed field type successfully')
@@ -514,7 +514,7 @@ test.describe('Label Config Updates - Validation Tests', () => {
 
       // Check for validation error message about missing View element
       const errorMessage = page.locator(
-        'text=/must contain.*View|View.*element/i'
+        'text=/must contain.*View|View.*element/i',
       )
       await expect(errorMessage).toBeVisible({ timeout: 5000 })
       console.log('✅ Validation error for missing View element')
@@ -576,7 +576,7 @@ test.describe('Label Config Updates - Complex Schemas', () => {
   }) => {
     test.setTimeout(90000)
     console.log(
-      '🏗️ Testing: Complex schema with nested fields and multiple types'
+      '🏗️ Testing: Complex schema with nested fields and multiple types',
     )
 
     await page.goto(`${TEST_URL}/projects/create`)
@@ -693,7 +693,7 @@ test.describe('Label Config Updates - Complex Schemas', () => {
 
     // Select QA template
     const qaTemplateButton = page.locator(
-      '[data-testid="project-create-template-question-answering"]'
+      '[data-testid="project-create-template-question-answering"]',
     )
     if ((await qaTemplateButton.count()) > 0) {
       await qaTemplateButton.click()
@@ -736,7 +736,7 @@ test.describe('Label Config Updates - Complex Schemas', () => {
       await saveButton.click()
 
       await expect(
-        page.locator('text=/configuration saved|saved/i')
+        page.locator('text=/configuration saved|saved/i'),
       ).toBeVisible({ timeout: 10000 })
 
       console.log('✅ Template switched from QA to Text Classification')
@@ -809,7 +809,7 @@ test.describe('Label Config Updates - Permission Boundaries', () => {
     <Choice value="Approved"/>
     <Choice value="Rejected"/>
   </Choices>
-</View>`
+</View>`,
         )
 
         await configTextarea.fill(updatedConfig)
@@ -819,21 +819,20 @@ test.describe('Label Config Updates - Permission Boundaries', () => {
         await saveButton.click()
 
         await expect(
-          page.locator('text=/configuration saved|saved/i')
+          page.locator('text=/configuration saved|saved/i'),
         ).toBeVisible({ timeout: 10000 })
 
         console.log('✅ Superadmin successfully updated label config')
       } else {
         console.log(
-          '⚠️ Config textarea not visible - label config editing may not be on this page'
+          '⚠️ Config textarea not visible - label config editing may not be on this page',
         )
       }
     } else {
       console.log(
-        '⚠️ Edit button not found - label config may be in settings page'
+        '⚠️ Edit button not found - label config may be in settings page',
       )
     }
-
   })
 
   test('Annotator cannot update label config', async ({ page }) => {
@@ -873,7 +872,7 @@ test.describe('Label Config Updates - Permission Boundaries', () => {
 
         // Check for access denied or permission error
         const errorMessage = page.locator(
-          'text=/access.*denied|permission|not.*authorized/i'
+          'text=/access.*denied|permission|not.*authorized/i',
         )
         if ((await errorMessage.count()) > 0) {
           console.log('✅ Annotator blocked from editing (correct behavior)')
@@ -882,7 +881,6 @@ test.describe('Label Config Updates - Permission Boundaries', () => {
     } else {
       console.log('⚠️ No projects available for annotator to test')
     }
-
   })
 })
 
@@ -969,7 +967,7 @@ test.describe('Label Config Updates - Advanced Features', () => {
       await saveButton.click()
 
       await expect(
-        page.locator('text=/configuration saved|saved/i')
+        page.locator('text=/configuration saved|saved/i'),
       ).toBeVisible({ timeout: 10000 })
 
       console.log('✅ Multiple simultaneous changes applied successfully')

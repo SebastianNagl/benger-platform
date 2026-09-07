@@ -13,10 +13,8 @@
 import '@testing-library/jest-dom'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 
+import type { ModernExamLayoutProps } from '@/lib/labelConfig/examLayout'
 import { registerComponent } from '@/lib/labelConfig/registry'
-import type {
-  ModernExamLayoutProps,
-} from '@/lib/labelConfig/examLayout'
 
 const EDITION_KEY = 'NEXT_PUBLIC_BENGER_EDITION'
 const originalEdition = process.env[EDITION_KEY]
@@ -98,7 +96,10 @@ const INITIAL_VALUES = [
 
 /** Shell that deliberately renders ONLY the Loesung node — the worst case a
  *  layout can do to the other fields. */
-const SubsetShell = ({ parsedConfig, renderComponent }: ModernExamLayoutProps) => (
+const SubsetShell = ({
+  parsedConfig,
+  renderComponent,
+}: ModernExamLayoutProps) => (
   <div data-testid="modern-shell">
     {parsedConfig.children
       .filter((child) => child.type === 'Loesung')
@@ -108,7 +109,9 @@ const SubsetShell = ({ parsedConfig, renderComponent }: ModernExamLayoutProps) =
 
 const recordShell = jest.fn<void, [ModernExamLayoutProps]>()
 const lastSlotProps = (): ModernExamLayoutProps | null =>
-  recordShell.mock.calls.length ? recordShell.mock.calls[recordShell.mock.calls.length - 1][0] : null
+  recordShell.mock.calls.length
+    ? recordShell.mock.calls[recordShell.mock.calls.length - 1][0]
+    : null
 const RecordingShell = (props: ModernExamLayoutProps) => {
   recordShell(props)
   return <div data-testid="modern-shell" />
@@ -124,7 +127,7 @@ function renderInterface(overrides: Record<string, unknown> = {}) {
       initialValues={INITIAL_VALUES as any}
       onSubmit={onSubmit}
       {...overrides}
-    />
+    />,
   )
   return { onSubmit, ...utils }
 }
@@ -136,7 +139,8 @@ describe('DynamicAnnotationInterface modern layout seam', () => {
     mockUser = { id: 'u1', exam_layout_prefs: MODERN_PREFS }
     recordShell.mockClear()
     localStorage.clear()
-    for (const key of Object.keys(fieldRenderCounts)) delete fieldRenderCounts[key]
+    for (const key of Object.keys(fieldRenderCounts))
+      delete fieldRenderCounts[key]
   })
   afterEach(() => {
     if (originalEdition === undefined) {
@@ -161,7 +165,10 @@ describe('DynamicAnnotationInterface modern layout seam', () => {
     first.unmount()
 
     mockSlots = { ModernExamLayout: RecordingShell }
-    mockUser = { id: 'u1', exam_layout_prefs: { ...MODERN_PREFS, mode: 'classic' } }
+    mockUser = {
+      id: 'u1',
+      exam_layout_prefs: { ...MODERN_PREFS, mode: 'classic' },
+    }
     const second = renderInterface({ allowModernLayout: true })
     expect(await second.findByTestId('field-loesung')).toBeInTheDocument()
     expect(second.queryByTestId('modern-shell')).not.toBeInTheDocument()
@@ -227,7 +234,7 @@ describe('DynamicAnnotationInterface modern layout seam', () => {
         componentValues: { notizen: { markdown: 'draft-only notes' } },
         savedAt: 1700000000000,
         leadTime: 5,
-      })
+      }),
     )
     mockSlots = { ModernExamLayout: SubsetShell }
     const { onSubmit } = renderInterface({
@@ -238,7 +245,9 @@ describe('DynamicAnnotationInterface modern layout seam', () => {
 
     await screen.findByTestId('field-loesung')
     await waitFor(() =>
-      expect(screen.getByText('annotation.interface.submit')).not.toBeDisabled()
+      expect(
+        screen.getByText('annotation.interface.submit'),
+      ).not.toBeDisabled(),
     )
     fireEvent.click(screen.getByText('annotation.interface.submit'))
 

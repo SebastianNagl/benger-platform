@@ -7,7 +7,7 @@
  */
 
 import '@testing-library/jest-dom'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { AuthButton } from '../AuthButton'
 
 const mockUseAuth = jest.fn()
@@ -48,23 +48,37 @@ jest.mock('@/contexts/I18nContext', () => ({
 
 jest.mock('@/components/auth/LoginModal', () => ({
   LoginModal: ({ isOpen, onClose }: any) =>
-    isOpen ? <div data-testid="login-modal"><button onClick={onClose}>Close</button></div> : null,
+    isOpen ? (
+      <div data-testid="login-modal">
+        <button onClick={onClose}>Close</button>
+      </div>
+    ) : null,
 }))
 
 jest.mock('@/components/auth/SignupModal', () => ({
   SignupModal: ({ isOpen, onClose }: any) =>
-    isOpen ? <div data-testid="signup-modal"><button onClick={onClose}>Close</button></div> : null,
+    isOpen ? (
+      <div data-testid="signup-modal">
+        <button onClick={onClose}>Close</button>
+      </div>
+    ) : null,
 }))
 
 jest.mock('@/components/shared/Button', () => ({
   Button: ({ children, onClick, disabled, ...props }: any) => (
-    <button onClick={onClick} disabled={disabled}>{children}</button>
+    <button onClick={onClick} disabled={disabled}>
+      {children}
+    </button>
   ),
 }))
 
 jest.mock('next/link', () => {
   // eslint-disable-next-line react/display-name
-  return ({ children, href, onClick }: any) => <a href={href} onClick={onClick}>{children}</a>
+  return ({ children, href, onClick }: any) => (
+    <a href={href} onClick={onClick}>
+      {children}
+    </a>
+  )
 })
 
 jest.mock('@/hooks/useViewModeSwitch', () => ({

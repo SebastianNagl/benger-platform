@@ -61,16 +61,16 @@ describe('QuestionManager', () => {
           taskType="qa"
           questions={[]}
           onQuestionsChange={mockOnQuestionsChange}
-        />
+        />,
       )
 
       expect(screen.getByText('Questions (0)')).toBeInTheDocument()
       expect(
-        screen.getByText('Add simple question-answer pairs')
+        screen.getByText('Add simple question-answer pairs'),
       ).toBeInTheDocument()
       expect(screen.getByText('No questions yet')).toBeInTheDocument()
       expect(
-        screen.getByText('Add your first question-answer pair to get started.')
+        screen.getByText('Add your first question-answer pair to get started.'),
       ).toBeInTheDocument()
     })
 
@@ -89,7 +89,7 @@ describe('QuestionManager', () => {
           taskType="qa"
           questions={questions}
           onQuestionsChange={mockOnQuestionsChange}
-        />
+        />,
       )
 
       expect(screen.getByText('Questions (1)')).toBeInTheDocument()
@@ -106,7 +106,7 @@ describe('QuestionManager', () => {
           taskType="qa"
           questions={questions}
           onQuestionsChange={mockOnQuestionsChange}
-        />
+        />,
       )
 
       expect(screen.queryByText('Expand All')).not.toBeInTheDocument()
@@ -121,11 +121,11 @@ describe('QuestionManager', () => {
           taskType="qa_reasoning"
           questions={[]}
           onQuestionsChange={mockOnQuestionsChange}
-        />
+        />,
       )
 
       expect(
-        screen.getByText('Add questions with reasoning')
+        screen.getByText('Add questions with reasoning'),
       ).toBeInTheDocument()
     })
 
@@ -145,7 +145,7 @@ describe('QuestionManager', () => {
           taskType="qa_reasoning"
           questions={questions}
           onQuestionsChange={mockOnQuestionsChange}
-        />
+        />,
       )
 
       expect(screen.getByTestId('question-card-1')).toBeInTheDocument()
@@ -167,7 +167,7 @@ describe('QuestionManager', () => {
           taskType="qa_reasoning"
           questions={questions}
           onQuestionsChange={mockOnQuestionsChange}
-        />
+        />,
       )
 
       expect(screen.getByText('Expand All')).toBeInTheDocument()
@@ -180,7 +180,7 @@ describe('QuestionManager', () => {
           taskType="qa_reasoning"
           questions={[]}
           onQuestionsChange={mockOnQuestionsChange}
-        />
+        />,
       )
 
       expect(screen.queryByText('Expand All')).not.toBeInTheDocument()
@@ -195,11 +195,11 @@ describe('QuestionManager', () => {
           taskType="multiple_choice"
           questions={[]}
           onQuestionsChange={mockOnQuestionsChange}
-        />
+        />,
       )
 
       expect(
-        screen.getByText('Add multiple choice questions with 4 options')
+        screen.getByText('Add multiple choice questions with 4 options'),
       ).toBeInTheDocument()
     })
 
@@ -222,7 +222,7 @@ describe('QuestionManager', () => {
           taskType="multiple_choice"
           questions={questions}
           onQuestionsChange={mockOnQuestionsChange}
-        />
+        />,
       )
 
       expect(screen.getByTestId('question-card-1')).toBeInTheDocument()
@@ -237,7 +237,7 @@ describe('QuestionManager', () => {
           taskType="qa"
           questions={[]}
           onQuestionsChange={mockOnQuestionsChange}
-        />
+        />,
       )
 
       const addButton = screen.getByText('+ Add Question')
@@ -260,7 +260,7 @@ describe('QuestionManager', () => {
           taskType="qa_reasoning"
           questions={[]}
           onQuestionsChange={mockOnQuestionsChange}
-        />
+        />,
       )
 
       const addButton = screen.getByText('+ Add Question')
@@ -288,7 +288,7 @@ describe('QuestionManager', () => {
           taskType="multiple_choice"
           questions={[]}
           onQuestionsChange={mockOnQuestionsChange}
-        />
+        />,
       )
 
       const addButton = screen.getByText('+ Add Question')
@@ -315,7 +315,7 @@ describe('QuestionManager', () => {
           taskType="qa"
           questions={[]}
           onQuestionsChange={mockOnQuestionsChange}
-        />
+        />,
       )
 
       const addButton = screen.getByText('+ Add Question')
@@ -339,7 +339,7 @@ describe('QuestionManager', () => {
           taskType="qa"
           questions={[]}
           onQuestionsChange={mockOnQuestionsChange}
-        />
+        />,
       )
 
       const addButton = screen.getByText('Add Question')
@@ -366,7 +366,7 @@ describe('QuestionManager', () => {
           taskType="qa"
           questions={questions}
           onQuestionsChange={mockOnQuestionsChange}
-        />
+        />,
       )
 
       const updateButton = screen.getByText('Update')
@@ -402,7 +402,7 @@ describe('QuestionManager', () => {
           taskType="qa"
           questions={questions}
           onQuestionsChange={mockOnQuestionsChange}
-        />
+        />,
       )
 
       const updateButtons = screen.getAllByText('Update')
@@ -432,7 +432,7 @@ describe('QuestionManager', () => {
           taskType="qa"
           questions={questions}
           onQuestionsChange={mockOnQuestionsChange}
-        />
+        />,
       )
 
       const deleteButton = screen.getByText('Delete')
@@ -469,7 +469,7 @@ describe('QuestionManager', () => {
           taskType="qa"
           questions={questions}
           onQuestionsChange={mockOnQuestionsChange}
-        />
+        />,
       )
 
       const deleteButtons = screen.getAllByText('Delete')
@@ -498,7 +498,7 @@ describe('QuestionManager', () => {
           taskType="qa_reasoning"
           questions={questions}
           onQuestionsChange={mockOnQuestionsChange}
-        />
+        />,
       )
 
       // Expand the question
@@ -538,7 +538,7 @@ describe('QuestionManager', () => {
           taskType="qa_reasoning"
           questions={questions}
           onQuestionsChange={mockOnQuestionsChange}
-        />
+        />,
       )
 
       const expandAllButton = screen.getByText('Expand All')
@@ -573,7 +573,7 @@ describe('QuestionManager', () => {
           taskType="qa_reasoning"
           questions={questions}
           onQuestionsChange={mockOnQuestionsChange}
-        />
+        />,
       )
 
       // Expand all first
@@ -606,7 +606,7 @@ describe('QuestionManager', () => {
           taskType="qa_reasoning"
           questions={questions}
           onQuestionsChange={mockOnQuestionsChange}
-        />
+        />,
       )
 
       const expandButton = screen.getByText('Expand')
@@ -627,7 +627,7 @@ describe('QuestionManager', () => {
           taskType="qa"
           questions={[]}
           onQuestionsChange={mockOnQuestionsChange}
-        />
+        />,
       )
 
       expect(screen.getByText('Questions (0)')).toBeInTheDocument()
@@ -643,7 +643,7 @@ describe('QuestionManager', () => {
           taskType="qa"
           questions={questions}
           onQuestionsChange={mockOnQuestionsChange}
-        />
+        />,
       )
 
       expect(screen.getByText('Questions (1)')).toBeInTheDocument()
@@ -661,7 +661,7 @@ describe('QuestionManager', () => {
           taskType="qa"
           questions={questions}
           onQuestionsChange={mockOnQuestionsChange}
-        />
+        />,
       )
 
       expect(screen.getByText('Questions (3)')).toBeInTheDocument()
@@ -828,7 +828,7 @@ describe('QuestionManager', () => {
           questions={[]}
           onQuestionsChange={mockOnQuestionsChange}
           answerConfig={answerConfig}
-        />
+        />,
       )
 
       const addButton = screen.getByText('+ Add Question')

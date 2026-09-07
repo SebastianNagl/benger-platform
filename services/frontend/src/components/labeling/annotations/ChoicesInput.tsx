@@ -61,7 +61,7 @@ export default function ChoicesInput({
   useEffect(() => {
     if (externalValue !== undefined && externalValue !== null) {
       setSelectedValues(
-        Array.isArray(externalValue) ? externalValue : [externalValue]
+        Array.isArray(externalValue) ? externalValue : [externalValue],
       )
     } else if (externalValue === null) {
       setSelectedValues([])

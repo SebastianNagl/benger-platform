@@ -22,34 +22,88 @@ permissions:
 
 jobs:
   frontend-tests:
-    name: Frontend Tests
+    # 777 suites / ~17k tests take ~12 min on one runner; three shards bring
+    # the job to ~5 min. Jest's --shard splits by suite, deterministically.
+    name: Frontend Tests (${{ matrix.shard }}/3)
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: '18'
+          node-version: '24'
           cache: 'npm'
           cache-dependency-path: services/frontend/package-lock.json
 
       - name: Install dependencies
         run: cd services/frontend && npm ci --no-audit
 
+      # The tree was reformatted in one commit (see .git-blame-ignore-revs);
+      # this keeps it that way. `npx prettier --write .` fixes a red run.
+      - name: Prettier format check
+        if: matrix.shard == 1
+        run: cd services/frontend && npx prettier --check .
+
+      # Thresholds are evaluated per shard by Jest, which cannot work for a
+      # global floor; disable them here and enforce them once on the merged
+      # map in frontend-coverage-gate (scripts/coverage-gate.mjs).
       - name: Run Jest tests
-        run: cd services/frontend && npm test -- --ci --passWithNoTests
+        run: |
+          cd services/frontend && npm test -- --ci --passWithNoTests \
+            --shard=${{ matrix.shard }}/3 \
+            --coverageReporters=json --coverageThreshold='{}'
+
+      - name: Upload shard coverage
+        uses: actions/upload-artifact@v7
+        with:
+          name: jest-coverage-${{ matrix.shard }}
+          path: services/frontend/coverage/coverage-final.json
+          if-no-files-found: error
+          retention-days: 3
+
+  frontend-coverage-gate:
+    name: Frontend coverage gate
+    needs: frontend-tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: services/frontend/package-lock.json
+
+      - name: Install dependencies
+        run: cd services/frontend && npm ci --no-audit
+
+      - name: Download shard coverage
+        uses: actions/download-artifact@v8
+        with:
+          pattern: jest-coverage-*
+          path: services/frontend/coverage-shards
+
+      - name: Enforce jest.config.js coverageThreshold on the merged map
+        run: |
+          cd services/frontend && node scripts/coverage-gate.mjs coverage-shards/*/coverage-final.json
 
   python-checks:
     name: Python Lint
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: '3.13'
 
@@ -112,21 +166,21 @@ jobs:
             cmd: make test-workers
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Free disk space
         run: |
           sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /usr/local/share/powershell /usr/local/share/chromium || true
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: '18'
+          node-version: '24'
           cache: 'npm'
           cache-dependency-path: services/frontend/package-lock.json
 
       - name: Install frontend dependencies
-        uses: nick-fields/retry@v3
+        uses: nick-fields/retry@v4
         with:
           timeout_minutes: 10
           max_attempts: 2
@@ -137,7 +191,7 @@ jobs:
         # `make test-build` swallows docker-build failures (it pipes the
         # output through `grep -v ... || true`), so wrap with retry to
         # absorb transient build crashes and re-verify health below.
-        uses: nick-fields/retry@v3
+        uses: nick-fields/retry@v4
         with:
           timeout_minutes: 30
           max_attempts: 2
@@ -193,7 +247,7 @@ jobs:
   # passes CI.
   notify-extended:
     name: Trigger downstream rebuild
-    needs: [frontend-tests, python-checks, integration-tests]
+    needs: [frontend-tests, frontend-coverage-gate, python-checks, integration-tests]
     if: >-
       always() && github.event_name == 'push' &&
       !contains(needs.*.result, 'failure') &&
@@ -216,7 +270,7 @@ jobs:
       - name: Generate token
         if: steps.gate.outputs.configured == 'true'
         id: app-token
-        uses: actions/create-github-app-token@v1
+        uses: actions/create-github-app-token@v3
         with:
           app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
@@ -224,7 +278,7 @@ jobs:
 
       - name: Dispatch rebuild
         if: steps.gate.outputs.configured == 'true'
-        uses: peter-evans/repository-dispatch@v3
+        uses: peter-evans/repository-dispatch@v4
         with:
           token: ${{ steps.app-token.outputs.token }}
           repository: ${{ secrets.EXTENDED_REPO }}

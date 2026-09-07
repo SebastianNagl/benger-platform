@@ -110,7 +110,9 @@ export class TestOrchestrator {
       try {
         if (navAttempt > 1) {
           const delay = 500 * navAttempt
-          console.log(`⏳ Navigation retry ${navAttempt}/5 for /login after ${delay}ms delay...`)
+          console.log(
+            `⏳ Navigation retry ${navAttempt}/5 for /login after ${delay}ms delay...`,
+          )
           await page.waitForTimeout(delay)
         }
 
@@ -121,7 +123,9 @@ export class TestOrchestrator {
 
         // Check for 404 or other error response
         if (response && response.status() >= 400) {
-          console.log(`⚠️  Navigation returned ${response.status()}, retrying...`)
+          console.log(
+            `⚠️  Navigation returned ${response.status()}, retrying...`,
+          )
           continue
         }
 
@@ -129,7 +133,9 @@ export class TestOrchestrator {
         break
       } catch (error) {
         if (navAttempt === 5) {
-          throw new Error(`Navigation to /login failed after 5 attempts: ${error}`)
+          throw new Error(
+            `Navigation to /login failed after 5 attempts: ${error}`,
+          )
         }
         console.log(`⚠️  Navigation error, retrying: ${error}`)
       }
@@ -150,15 +156,21 @@ export class TestOrchestrator {
 
     // Wait for login form using data-testid selectors with retry logic
     const emailInput = page.locator('[data-testid="auth-login-email-input"]')
-    const passwordInput = page.locator('[data-testid="auth-login-password-input"]')
-    const submitButton = page.locator('[data-testid="auth-login-submit-button"]')
+    const passwordInput = page.locator(
+      '[data-testid="auth-login-password-input"]',
+    )
+    const submitButton = page.locator(
+      '[data-testid="auth-login-submit-button"]',
+    )
 
     // Wait for form to be visible with retry logic for slow page rendering
     let formVisible = false
     for (let formAttempt = 1; formAttempt <= 5; formAttempt++) {
       try {
         if (formAttempt > 1) {
-          console.log(`⏳ Form load retry ${formAttempt}/5 for ${user.email}...`)
+          console.log(
+            `⏳ Form load retry ${formAttempt}/5 for ${user.email}...`,
+          )
           await page.waitForTimeout(1000)
         }
         await emailInput.waitFor({ state: 'visible', timeout: 5000 })
@@ -166,7 +178,9 @@ export class TestOrchestrator {
         break
       } catch (error) {
         if (formAttempt === 5) {
-          throw new Error(`Login form not visible after 5 attempts for ${user.email}`)
+          throw new Error(
+            `Login form not visible after 5 attempts for ${user.email}`,
+          )
         }
       }
     }
@@ -176,7 +190,9 @@ export class TestOrchestrator {
     }
 
     // Fill login form
-    const username = user.email.includes('@') ? user.email.split('@')[0] : user.email
+    const username = user.email.includes('@')
+      ? user.email.split('@')[0]
+      : user.email
     await emailInput.fill(username)
     await passwordInput.fill(user.password || 'admin')
     await submitButton.click()
@@ -184,7 +200,9 @@ export class TestOrchestrator {
     // Wait for successful login - either redirect or user indicator appearing
     await Promise.race([
       page.waitForURL(/\/(dashboard|tasks|projects)/, { timeout: 30000 }),
-      page.waitForSelector(`button:has-text("${username}")`, { timeout: 30000 }),
+      page.waitForSelector(`button:has-text("${username}")`, {
+        timeout: 30000,
+      }),
       page.waitForSelector('[class*="sidebar"]', { timeout: 30000 }),
     ]).catch(() => {
       console.log(`Login wait completed for ${user.email}`)
@@ -193,7 +211,9 @@ export class TestOrchestrator {
     // Final check - ensure not on login page
     await page.waitForTimeout(1000)
     if (page.url().includes('/login')) {
-      throw new Error(`Login failed for user ${user.email} - still on login page`)
+      throw new Error(
+        `Login failed for user ${user.email} - still on login page`,
+      )
     }
 
     console.log(`User ${user.email} logged in successfully`)
@@ -215,7 +235,7 @@ export class TestOrchestrator {
    */
   async executeForUser(
     userEmail: string,
-    action: (page: Page) => Promise<any>
+    action: (page: Page) => Promise<any>,
   ): Promise<any> {
     const page = this.getPage(userEmail)
     return await action(page)
@@ -225,7 +245,7 @@ export class TestOrchestrator {
    * Execute actions in parallel across multiple users
    */
   async executeParallel(
-    actions: Array<{ user: string; action: (page: Page) => Promise<any> }>
+    actions: Array<{ user: string; action: (page: Page) => Promise<any> }>,
   ): Promise<any[]> {
     const promises = actions.map(async ({ user, action }) => {
       const page = this.getPage(user)
@@ -299,7 +319,7 @@ export class TestOrchestrator {
       if (reference.data.appState && current.data.appState) {
         const stateDiff = this.compareObjects(
           reference.data.appState,
-          current.data.appState
+          current.data.appState,
         )
         if (stateDiff.length > 0) {
           differences.push({
@@ -369,7 +389,7 @@ export class TestOrchestrator {
         const nestedDiff = this.compareObjects(
           obj1[key],
           obj2[key],
-          currentPath
+          currentPath,
         )
         differences.push(...nestedDiff)
       } else if (obj1[key] !== obj2[key]) {
@@ -411,7 +431,7 @@ export class TestOrchestrator {
    */
   async simulateNetworkCondition(
     userEmail: string,
-    condition: 'offline' | 'slow' | 'fast'
+    condition: 'offline' | 'slow' | 'fast',
   ): Promise<void> {
     const context = this.contexts.get(userEmail)
     if (!context) {
@@ -491,13 +511,13 @@ export class TestOrchestrator {
    */
   async waitForAllUsers(
     condition: (page: Page) => Promise<boolean>,
-    timeout: number = 30000
+    timeout: number = 30000,
   ): Promise<boolean> {
     const startTime = Date.now()
 
     while (Date.now() - startTime < timeout) {
       const results = await Promise.all(
-        Array.from(this.pages.values()).map((page) => condition(page))
+        Array.from(this.pages.values()).map((page) => condition(page)),
       )
 
       if (results.every((result) => result === true)) {

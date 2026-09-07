@@ -89,7 +89,7 @@ describe('fieldMapping kills · fuzzy best-match selection (L126 && / || / score
     // lower-scoring first candidate could stick.
     const out = suggestFieldMappings(
       ['abcdefghij'],
-      ['abcdefghxy', 'abcdefghiX']
+      ['abcdefghxy', 'abcdefghiX'],
     )
     const m = out.mappings.find((x) => x.source === 'abcdefghij')
     expect(m).toBeTruthy()
@@ -177,7 +177,7 @@ describe('fieldMapping kills · exact match equality + target-reuse guard (L70)'
     // false) and stays unmapped. Removing the guard would double-assign 'dup'.
     const out = suggestFieldMappings(['dup', 'dup'], ['dup'])
     const exactCount = out.mappings.filter(
-      (m) => m.target === 'dup' && m.type === 'exact'
+      (m) => m.target === 'dup' && m.type === 'exact',
     ).length
     expect(exactCount).toBe(1)
   })
@@ -218,7 +218,11 @@ describe('fieldMapping kills · content step is gated on existingData.length > 0
     const out = suggestFieldMappings(
       ['col_x'],
       ['event_date'],
-      [{ col_x: '2024-01-01' }, { col_x: '2024-02-02' }, { col_x: '2024-03-03' }]
+      [
+        { col_x: '2024-01-01' },
+        { col_x: '2024-02-02' },
+        { col_x: '2024-03-03' },
+      ],
     )
     const m = out.mappings.find((x) => x.source === 'col_x')
     expect(m?.target).toBe('event_date')
@@ -239,7 +243,7 @@ describe('fieldMapping kills · per-source sample filtering (L151, L154)', () =>
     const out = suggestFieldMappings(
       ['col_x'],
       ['event_date'],
-      [{ col_x: null }, { col_x: undefined }, { col_x: null }]
+      [{ col_x: null }, { col_x: undefined }, { col_x: null }],
     )
     expect(out.mappings.find((m) => m.source === 'col_x')).toBeUndefined()
     expect(out.unmappedSource).toContain('col_x')
@@ -253,7 +257,7 @@ describe('fieldMapping kills · per-source sample filtering (L151, L154)', () =>
     const out = suggestFieldMappings(
       ['col_x'],
       ['event_date'],
-      [{ col_x: null }, { col_x: '2024-01-01' }, { col_x: undefined }]
+      [{ col_x: null }, { col_x: '2024-01-01' }, { col_x: undefined }],
     )
     const m = out.mappings.find((x) => x.source === 'col_x')
     expect(m?.target).toBe('event_date')
@@ -276,7 +280,7 @@ describe('fieldMapping kills · value-pattern thresholds count > len * 0.7 (L330
     const out = suggestFieldMappings(
       ['col_x'],
       ['event_date'],
-      [{ col_x: '2024-01-01' }, { col_x: '2024-02-02' }, { col_x: 'hello' }]
+      [{ col_x: '2024-01-01' }, { col_x: '2024-02-02' }, { col_x: 'hello' }],
     )
     expect(out.mappings.find((m) => m.source === 'col_x')).toBeUndefined()
   })
@@ -285,7 +289,11 @@ describe('fieldMapping kills · value-pattern thresholds count > len * 0.7 (L330
     const out = suggestFieldMappings(
       ['col_x'],
       ['event_date'],
-      [{ col_x: '2024-01-01' }, { col_x: '2024-02-02' }, { col_x: '2024-03-03' }]
+      [
+        { col_x: '2024-01-01' },
+        { col_x: '2024-02-02' },
+        { col_x: '2024-03-03' },
+      ],
     )
     expect(out.mappings.find((m) => m.source === 'col_x')?.confidence).toBe(0.8)
   })
@@ -294,7 +302,7 @@ describe('fieldMapping kills · value-pattern thresholds count > len * 0.7 (L330
     const out = suggestFieldMappings(
       ['col_x'],
       ['row_number'],
-      [{ col_x: 42 }, { col_x: 7 }, { col_x: 100 }]
+      [{ col_x: 42 }, { col_x: 7 }, { col_x: 100 }],
     )
     const m = out.mappings.find((x) => x.source === 'col_x')
     expect(m?.target).toBe('row_number')
@@ -307,7 +315,7 @@ describe('fieldMapping kills · value-pattern thresholds count > len * 0.7 (L330
     const out = suggestFieldMappings(
       ['col_x'],
       ['body_text'],
-      [{ col_x: 'x'.repeat(100) }]
+      [{ col_x: 'x'.repeat(100) }],
     )
     expect(out.mappings.find((m) => m.source === 'col_x')).toBeUndefined()
   })
@@ -316,7 +324,7 @@ describe('fieldMapping kills · value-pattern thresholds count > len * 0.7 (L330
     const out = suggestFieldMappings(
       ['col_x'],
       ['body_text'],
-      [{ col_x: 'x'.repeat(101) }]
+      [{ col_x: 'x'.repeat(101) }],
     )
     const m = out.mappings.find((x) => x.source === 'col_x')
     expect(m?.target).toBe('body_text')
@@ -336,9 +344,11 @@ describe('fieldMapping kills · numeric detection OR-branch (L315)', () => {
     const out = suggestFieldMappings(
       ['col_x'],
       ['row_number'],
-      [{ col_x: '42' }, { col_x: '7' }, { col_x: '100' }]
+      [{ col_x: '42' }, { col_x: '7' }, { col_x: '100' }],
     )
-    expect(out.mappings.find((m) => m.source === 'col_x')?.confidence).toBe(0.75)
+    expect(out.mappings.find((m) => m.source === 'col_x')?.confidence).toBe(
+      0.75,
+    )
   })
 })
 
@@ -351,7 +361,11 @@ describe('fieldMapping kills · date REGEX classification (L302)', () => {
     const out = suggestFieldMappings(
       ['col_x'],
       ['event_date'],
-      [{ col_x: '2024-12-31' }, { col_x: '2023-06-15' }, { col_x: '2022-01-01' }]
+      [
+        { col_x: '2024-12-31' },
+        { col_x: '2023-06-15' },
+        { col_x: '2022-01-01' },
+      ],
     )
     expect(out.mappings.find((m) => m.source === 'col_x')?.confidence).toBe(0.8)
   })
@@ -360,7 +374,11 @@ describe('fieldMapping kills · date REGEX classification (L302)', () => {
     const out = suggestFieldMappings(
       ['col_x'],
       ['event_date'],
-      [{ col_x: '31.12.2024' }, { col_x: '15.06.2023' }, { col_x: '01.01.2022' }]
+      [
+        { col_x: '31.12.2024' },
+        { col_x: '15.06.2023' },
+        { col_x: '01.01.2022' },
+      ],
     )
     expect(out.mappings.find((m) => m.source === 'col_x')?.confidence).toBe(0.8)
   })
@@ -373,7 +391,7 @@ describe('fieldMapping kills · date REGEX classification (L302)', () => {
     const out = suggestFieldMappings(
       ['col_x'],
       ['event_date'],
-      [{ col_x: 'hello world' }, { col_x: 'foobar' }, { col_x: 'value here' }]
+      [{ col_x: 'hello world' }, { col_x: 'foobar' }, { col_x: 'value here' }],
     )
     expect(out.mappings.find((m) => m.source === 'col_x')).toBeUndefined()
   })
@@ -385,7 +403,7 @@ describe('fieldMapping kills · date REGEX classification (L302)', () => {
     const out = suggestFieldMappings(
       ['col_x'],
       ['event_date'],
-      [{ col_x: '1-2-3' }, { col_x: '4-5-6' }, { col_x: '7-8-9' }]
+      [{ col_x: '1-2-3' }, { col_x: '4-5-6' }, { col_x: '7-8-9' }],
     )
     expect(out.mappings.find((m) => m.source === 'col_x')).toBeUndefined()
   })
@@ -403,7 +421,7 @@ describe('fieldMapping kills · boolean/text TARGET-name regexes (L277, L284)', 
     const out = suggestFieldMappings(
       ['col_x'],
       ['is_active'],
-      [{ col_x: 'ja' }, { col_x: 'nein' }, { col_x: 'false' }]
+      [{ col_x: 'ja' }, { col_x: 'nein' }, { col_x: 'false' }],
     )
     const m = out.mappings.find((x) => x.source === 'col_x')
     expect(m?.target).toBe('is_active')
@@ -416,7 +434,7 @@ describe('fieldMapping kills · boolean/text TARGET-name regexes (L277, L284)', 
     const out = suggestFieldMappings(
       ['col_x'],
       ['flag_column'],
-      [{ col_x: 'ja' }, { col_x: 'nein' }, { col_x: 'ja' }]
+      [{ col_x: 'ja' }, { col_x: 'nein' }, { col_x: 'ja' }],
     )
     expect(out.mappings.find((m) => m.source === 'col_x')).toBeUndefined()
   })
@@ -426,7 +444,7 @@ describe('fieldMapping kills · boolean/text TARGET-name regexes (L277, L284)', 
     const out = suggestFieldMappings(
       ['col_x'],
       ['content_field'],
-      [{ col_x: longText }, { col_x: longText }]
+      [{ col_x: longText }, { col_x: longText }],
     )
     expect(out.mappings.find((m) => m.source === 'col_x')?.confidence).toBe(0.7)
   })
@@ -436,7 +454,7 @@ describe('fieldMapping kills · boolean/text TARGET-name regexes (L277, L284)', 
     const out = suggestFieldMappings(
       ['col_x'],
       ['summary_blob'],
-      [{ col_x: longText }, { col_x: longText }]
+      [{ col_x: longText }, { col_x: longText }],
     )
     expect(out.mappings.find((m) => m.source === 'col_x')).toBeUndefined()
   })
@@ -506,7 +524,7 @@ describe('fieldMapping kills · quality classification arithmetic + thresholds (
     // (normalized distance 3 over length 3 -> 0).
     const out = suggestFieldMappings(
       ['aa', 'bb', 'cc', 'dd', 'zzz'],
-      ['aa', 'bb', 'cc', 'dd', 'yyy']
+      ['aa', 'bb', 'cc', 'dd', 'yyy'],
     )
     expect(out.mappings).toHaveLength(4)
     expect(out.quality).toBe('medium')
@@ -530,7 +548,7 @@ describe('fieldMapping kills · quality classification arithmetic + thresholds (
     // kills the logical-operator mutation.
     const out = suggestFieldMappings(
       ['abcdefghij'],
-      ['abcdefghxy', 'unrelated_one', 'unrelated_two']
+      ['abcdefghxy', 'unrelated_one', 'unrelated_two'],
     )
     expect(out.mappings).toHaveLength(1)
     expect(out.quality).toBe('medium')
@@ -560,8 +578,13 @@ describe('fieldMapping kills · applyFieldMappings membership/equality (L350, L3
       [{ present: 'v' }],
       [
         { source: 'present', target: 'mapped', confidence: 1, type: 'exact' },
-        { source: 'absent', target: 'missing_target', confidence: 1, type: 'exact' },
-      ]
+        {
+          source: 'absent',
+          target: 'missing_target',
+          confidence: 1,
+          type: 'exact',
+        },
+      ],
     )
     expect(out[0]).toEqual({ mapped: 'v' })
     expect('missing_target' in out[0]).toBe(false)
@@ -574,7 +597,7 @@ describe('fieldMapping kills · applyFieldMappings membership/equality (L350, L3
     // key would look unmapped and 'k1' would also be prefixed.
     const out = applyFieldMappings(
       [{ k1: 'a', k2: 'b' }],
-      [{ source: 'k1', target: 'T', confidence: 1, type: 'exact' }]
+      [{ source: 'k1', target: 'T', confidence: 1, type: 'exact' }],
     )
     expect(out[0]).toEqual({ T: 'a', _unmapped_k2: 'b' })
     expect('_unmapped_k1' in out[0]).toBe(false)
@@ -631,7 +654,7 @@ describe('fieldMapping kills · already-mapped skip guards (L87, L118, L147)', (
     const out = suggestFieldMappings(
       ['question'],
       ['question', 'description'],
-      [{ question: 'x'.repeat(200) }]
+      [{ question: 'x'.repeat(200) }],
     )
     const qMappings = out.mappings.filter((m) => m.source === 'question')
     expect(qMappings).toHaveLength(1)

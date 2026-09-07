@@ -65,10 +65,16 @@ jest.mock('@/lib/api/projects', () => ({
     // page at a time via getTasksPage; the new ids_only endpoint backs
     // the "select all matching" affordance.
     getTasksPage: jest.fn(() =>
-      Promise.resolve({ items: [], total: 0, page: 1, page_size: 50, pages: 0 })
+      Promise.resolve({
+        items: [],
+        total: 0,
+        page: 1,
+        page_size: 50,
+        pages: 0,
+      }),
     ),
     getTaskIds: jest.fn(() =>
-      Promise.resolve({ ids: [], total: 0, truncated: false })
+      Promise.resolve({ ids: [], total: 0, truncated: false }),
     ),
   },
 }))
@@ -431,9 +437,11 @@ describe('ProjectDataTab', () => {
         // (search, status) see the same shape as prod.
         if (Array.isArray(items) && options?.search) {
           const q = String(options.search).toLowerCase()
-          items = items.filter((t: any) =>
-            JSON.stringify(t.data || {}).toLowerCase().includes(q) ||
-            String(t.id).toLowerCase().includes(q)
+          items = items.filter(
+            (t: any) =>
+              JSON.stringify(t.data || {})
+                .toLowerCase()
+                .includes(q) || String(t.id).toLowerCase().includes(q),
           )
         }
         if (Array.isArray(items) && options?.onlyLabeled === true) {
@@ -481,18 +489,20 @@ describe('ProjectDataTab', () => {
           page_size: 50,
           pages: Array.isArray(items) && items.length > 0 ? 1 : 0,
         }
-      }
+      },
     )
-    mockedProjectsAPI.getTaskIds.mockImplementation(async (projectId: string) => {
-      const impl = mockFetchProjectTasks.getMockImplementation()
-      const items: any[] = impl ? await (impl as any)(projectId) : []
-      mockFetchProjectTasks(projectId)
-      return {
-        ids: Array.isArray(items) ? items.map((t: any) => t.id) : [],
-        total: Array.isArray(items) ? items.length : 0,
-        truncated: false,
-      }
-    })
+    mockedProjectsAPI.getTaskIds.mockImplementation(
+      async (projectId: string) => {
+        const impl = mockFetchProjectTasks.getMockImplementation()
+        const items: any[] = impl ? await (impl as any)(projectId) : []
+        mockFetchProjectTasks(projectId)
+        return {
+          ids: Array.isArray(items) ? items.map((t: any) => t.id) : [],
+          total: Array.isArray(items) ? items.length : 0,
+          truncated: false,
+        }
+      },
+    )
 
     // Configure useAuth mock
     mockUseAuth.mockReturnValue({
@@ -615,7 +625,7 @@ describe('ProjectDataTab', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText(/annotationTab\.display\.showing/i)
+          screen.getByText(/annotationTab\.display\.showing/i),
         ).toBeInTheDocument()
       })
     })
@@ -627,7 +637,7 @@ describe('ProjectDataTab', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText(/annotationTab\.empty\.noTasks/i)
+          screen.getByText(/annotationTab\.empty\.noTasks/i),
         ).toBeInTheDocument()
       })
     })
@@ -642,13 +652,13 @@ describe('ProjectDataTab', () => {
       })
 
       const searchButton = screen.getByTitle(
-        /annotationTab\.filters\.showSearch/i
+        /annotationTab\.filters\.showSearch/i,
       )
       fireEvent.click(searchButton)
 
       await waitFor(() => {
         expect(
-          screen.getByPlaceholderText(/search\.placeholder/i)
+          screen.getByPlaceholderText(/search\.placeholder/i),
         ).toBeInTheDocument()
       })
     })
@@ -661,7 +671,7 @@ describe('ProjectDataTab', () => {
       })
 
       const searchButton = screen.getByTitle(
-        /annotationTab\.filters\.showSearch/i
+        /annotationTab\.filters\.showSearch/i,
       )
       fireEvent.click(searchButton)
 
@@ -670,7 +680,7 @@ describe('ProjectDataTab', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText(/annotationTab\.display\.showing/i)
+          screen.getByText(/annotationTab\.display\.showing/i),
         ).toBeInTheDocument()
       })
     })
@@ -689,7 +699,7 @@ describe('ProjectDataTab', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText(/annotationTab\.display\.showing/i)
+          screen.getByText(/annotationTab\.display\.showing/i),
         ).toBeInTheDocument()
       })
     })
@@ -706,7 +716,7 @@ describe('ProjectDataTab', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText(/annotationTab\.display\.showing/i)
+          screen.getByText(/annotationTab\.display\.showing/i),
         ).toBeInTheDocument()
       })
     })
@@ -727,7 +737,7 @@ describe('ProjectDataTab', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText(/annotationTab\.display\.selected/i)
+          screen.getByText(/annotationTab\.display\.selected/i),
         ).toBeInTheDocument()
       })
     })
@@ -744,7 +754,7 @@ describe('ProjectDataTab', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText(/annotationTab\.display\.selected/i)
+          screen.getByText(/annotationTab\.display\.selected/i),
         ).toBeInTheDocument()
       })
     })
@@ -804,7 +814,7 @@ describe('ProjectDataTab', () => {
           'project-1',
           'json',
           expect.objectContaining({ onStatus: expect.any(Function) }),
-          { taskIds: ['2'] }
+          { taskIds: ['2'] },
         )
       })
       // Selected-subset export uses object storage, never the sync path.
@@ -831,7 +841,7 @@ describe('ProjectDataTab', () => {
           'project-1',
           'json',
           expect.objectContaining({ onStatus: expect.any(Function) }),
-          { taskIds: undefined }
+          { taskIds: undefined },
         )
       })
       // The async path must NOT touch the synchronous streaming export.
@@ -855,7 +865,7 @@ describe('ProjectDataTab', () => {
   describe('Error Handling', () => {
     it('should handle export errors', async () => {
       ;(projectsAPI.runProjectExportJob as jest.Mock).mockRejectedValueOnce(
-        new Error('Export failed')
+        new Error('Export failed'),
       )
 
       render(<ProjectDataTab projectId="project-1" />)
@@ -870,14 +880,14 @@ describe('ProjectDataTab', () => {
       await waitFor(() => {
         expect(mockAddToast).toHaveBeenCalledWith(
           expect.stringContaining('annotationTab.messages.exportFailed'),
-          'error'
+          'error',
         )
       })
     })
 
     it('should handle delete errors', async () => {
       ;(projectsAPI.bulkDeleteTasks as jest.Mock).mockRejectedValue(
-        new Error('Delete failed')
+        new Error('Delete failed'),
       )
 
       render(<ProjectDataTab projectId="project-1" />)
@@ -895,7 +905,7 @@ describe('ProjectDataTab', () => {
       await waitFor(() => {
         expect(mockAddToast).toHaveBeenCalledWith(
           expect.stringContaining('annotationTab.messages.deleteFailed'),
-          'error'
+          'error',
         )
       })
     })
@@ -940,7 +950,7 @@ describe('ProjectDataTab', () => {
         expect(mockStartProgress).toHaveBeenCalled()
         expect(mockCompleteProgress).toHaveBeenCalledWith(
           expect.any(String),
-          'success'
+          'success',
         )
       })
       // Export no longer fires fake 30 %/70 % `updateProgress` calls; the
@@ -966,7 +976,7 @@ describe('ProjectDataTab', () => {
         expect(mockStartProgress).toHaveBeenCalled()
         expect(mockCompleteProgress).toHaveBeenCalledWith(
           expect.any(String),
-          'success'
+          'success',
         )
       })
     })
@@ -985,7 +995,7 @@ describe('ProjectDataTab', () => {
       expect(tableBody).toBeDefined()
       // Just verify the table renders with tasks
       expect(
-        screen.getByText(/annotationTab\.display\.showing/i)
+        screen.getByText(/annotationTab\.display\.showing/i),
       ).toBeInTheDocument()
     })
 
@@ -1087,7 +1097,7 @@ describe('ProjectDataTab', () => {
       await waitFor(() => {
         expect(mockAddToast).toHaveBeenCalledWith(
           expect.stringContaining('annotationTab.confirmations.selectTasks'),
-          'warning'
+          'warning',
         )
       })
     })
@@ -1112,7 +1122,7 @@ describe('ProjectDataTab', () => {
         expect(mockFetchProjectTasks).toHaveBeenCalledTimes(2)
         expect(mockAddToast).toHaveBeenCalledWith(
           expect.stringContaining('annotationTab.messages.tasksAssigned'),
-          'success'
+          'success',
         )
       })
     })
@@ -1180,14 +1190,14 @@ describe('ProjectDataTab', () => {
       await waitFor(() => {
         expect(projectsAPI.bulkArchiveTasks).toHaveBeenCalledWith(
           'project-1',
-          expect.arrayContaining([expect.any(String)])
+          expect.arrayContaining([expect.any(String)]),
         )
       })
     })
 
     it('should handle archive errors', async () => {
       ;(projectsAPI.bulkArchiveTasks as jest.Mock).mockRejectedValue(
-        new Error('Archive failed')
+        new Error('Archive failed'),
       )
 
       render(<ProjectDataTab projectId="project-1" />)
@@ -1205,7 +1215,7 @@ describe('ProjectDataTab', () => {
       await waitFor(() => {
         expect(mockAddToast).toHaveBeenCalledWith(
           expect.stringContaining('annotationTab.messages.archiveFailed'),
-          'error'
+          'error',
         )
       })
     })
@@ -1226,7 +1236,7 @@ describe('ProjectDataTab', () => {
       // them on a page payload. The visible statistic remains
       // `tasksCount` (showing N of M).
       expect(
-        screen.getByText(/annotationTab\.display\.tasksCount/i)
+        screen.getByText(/annotationTab\.display\.tasksCount/i),
       ).toBeInTheDocument()
     })
   })
@@ -1258,14 +1268,14 @@ describe('ProjectDataTab', () => {
         expect(projectsAPI.removeTaskAssignment).toHaveBeenCalledWith(
           'project-1',
           '2',
-          'assign-1'
+          'assign-1',
         )
       })
     })
 
     it('should handle unassignment errors', async () => {
       ;(projectsAPI.removeTaskAssignment as jest.Mock).mockRejectedValue(
-        new Error('Failed to remove')
+        new Error('Failed to remove'),
       )
 
       render(<ProjectDataTab projectId="project-1" />)
@@ -1280,7 +1290,7 @@ describe('ProjectDataTab', () => {
       await waitFor(() => {
         expect(mockAddToast).toHaveBeenCalledWith(
           expect.stringContaining('errors.assignmentRemoveFailed'),
-          'error'
+          'error',
         )
       })
     })
@@ -1370,9 +1380,9 @@ describe('ProjectDataTab', () => {
 
         // Anchor: both task rows rendered (view button is ungated)
         await waitFor(() => {
-          expect(
-            screen.getAllByTitle('View complete task data')
-          ).toHaveLength(2)
+          expect(screen.getAllByTitle('View complete task data')).toHaveLength(
+            2,
+          )
         })
 
         // Edit column header + one pencil per row
@@ -1390,9 +1400,9 @@ describe('ProjectDataTab', () => {
         })
 
         await waitFor(() => {
-          expect(
-            screen.getAllByTitle('View complete task data')
-          ).toHaveLength(2)
+          expect(screen.getAllByTitle('View complete task data')).toHaveLength(
+            2,
+          )
         })
 
         expect(editColumnHeaderRendered()).toBe(true)
@@ -1410,9 +1420,9 @@ describe('ProjectDataTab', () => {
 
         // Rows did render — the absence below is the gating, not an empty table
         await waitFor(() => {
-          expect(
-            screen.getAllByTitle('View complete task data')
-          ).toHaveLength(2)
+          expect(screen.getAllByTitle('View complete task data')).toHaveLength(
+            2,
+          )
         })
 
         expect(editColumnHeaderRendered()).toBe(false)
@@ -1443,7 +1453,7 @@ describe('ProjectDataTab', () => {
       })
 
       expect(
-        screen.getByText(/annotationTab\.display\.showing/i)
+        screen.getByText(/annotationTab\.display\.showing/i),
       ).toBeInTheDocument()
     })
   })
@@ -1470,7 +1480,7 @@ describe('ProjectDataTab', () => {
       })
 
       expect(
-        screen.getByText(/annotationTab\.display\.showing/i)
+        screen.getByText(/annotationTab\.display\.showing/i),
       ).toBeInTheDocument()
     })
 
@@ -1483,7 +1493,7 @@ describe('ProjectDataTab', () => {
 
       // Date range filtering is handled internally
       expect(
-        screen.getByText(/annotationTab\.display\.showing/i)
+        screen.getByText(/annotationTab\.display\.showing/i),
       ).toBeInTheDocument()
     })
 
@@ -1522,7 +1532,7 @@ describe('ProjectDataTab', () => {
       })
 
       expect(
-        screen.getByText(/annotationTab\.display\.showing/i)
+        screen.getByText(/annotationTab\.display\.showing/i),
       ).toBeInTheDocument()
     })
 
@@ -1550,7 +1560,7 @@ describe('ProjectDataTab', () => {
       })
 
       expect(
-        screen.getByText(/annotationTab\.display\.showing/i)
+        screen.getByText(/annotationTab\.display\.showing/i),
       ).toBeInTheDocument()
     })
 
@@ -1575,7 +1585,7 @@ describe('ProjectDataTab', () => {
       })
 
       expect(
-        screen.getByText(/annotationTab\.display\.showing/i)
+        screen.getByText(/annotationTab\.display\.showing/i),
       ).toBeInTheDocument()
     })
 
@@ -1588,7 +1598,7 @@ describe('ProjectDataTab', () => {
 
       // Click on "Completed" header to sort by completion
       const completedHeaders = screen.getAllByText(
-        /annotationTab\.columns\.completed/i
+        /annotationTab\.columns\.completed/i,
       )
       const completedHeader = completedHeaders[0].closest('th')
       if (completedHeader) {
@@ -1596,21 +1606,21 @@ describe('ProjectDataTab', () => {
         await waitFor(() => {
           // Should still show both tasks
           expect(
-            screen.getByText(/annotationTab\.display\.showing/i)
+            screen.getByText(/annotationTab\.display\.showing/i),
           ).toBeInTheDocument()
         })
       }
 
       // Click on "Annotations" header to sort by annotations
       const annotationsHeaders = screen.getAllByText(
-        /annotationTab\.columns\.annotations/i
+        /annotationTab\.columns\.annotations/i,
       )
       const annotationsHeader = annotationsHeaders[0].closest('th')
       if (annotationsHeader) {
         fireEvent.click(annotationsHeader)
         await waitFor(() => {
           expect(
-            screen.getByText(/annotationTab\.display\.showing/i)
+            screen.getByText(/annotationTab\.display\.showing/i),
           ).toBeInTheDocument()
         })
       }
@@ -1625,7 +1635,7 @@ describe('ProjectDataTab', () => {
 
       // The annotator filter is applied but doesn't affect the results when empty
       expect(
-        screen.getByText(/annotationTab\.display\.showing/i)
+        screen.getByText(/annotationTab\.display\.showing/i),
       ).toBeInTheDocument()
     })
 
@@ -1638,13 +1648,13 @@ describe('ProjectDataTab', () => {
 
       // Show search
       const searchButton = screen.getByTitle(
-        /annotationTab\.filters\.showSearch/i
+        /annotationTab\.filters\.showSearch/i,
       )
       fireEvent.click(searchButton)
 
       await waitFor(() => {
         expect(
-          screen.getByPlaceholderText(/search\.placeholder/i)
+          screen.getByPlaceholderText(/search\.placeholder/i),
         ).toBeInTheDocument()
       })
 
@@ -1654,13 +1664,13 @@ describe('ProjectDataTab', () => {
 
       // Hide search (should clear query)
       const hideSearchButton = screen.getByTitle(
-        /annotationTab\.filters\.hideSearch/i
+        /annotationTab\.filters\.hideSearch/i,
       )
       fireEvent.click(hideSearchButton)
 
       await waitFor(() => {
         expect(
-          screen.getByText(/annotationTab\.display\.showing/i)
+          screen.getByText(/annotationTab\.display\.showing/i),
         ).toBeInTheDocument()
       })
     })
@@ -1673,14 +1683,14 @@ describe('ProjectDataTab', () => {
       })
 
       const createdHeaders = screen.getAllByText(
-        /annotationTab\.columns\.created/i
+        /annotationTab\.columns\.created/i,
       )
       const createdHeader = createdHeaders[0].closest('th')
       if (createdHeader) {
         fireEvent.click(createdHeader)
         await waitFor(() => {
           expect(
-            screen.getByText(/annotationTab\.display\.showing/i)
+            screen.getByText(/annotationTab\.display\.showing/i),
           ).toBeInTheDocument()
         })
       }
@@ -1740,7 +1750,7 @@ describe('ProjectDataTab', () => {
       })
 
       expect(
-        screen.getByText(/annotationTab\.display\.showing/i)
+        screen.getByText(/annotationTab\.display\.showing/i),
       ).toBeInTheDocument()
     })
 
@@ -1783,7 +1793,7 @@ describe('ProjectDataTab', () => {
       // The component should render with assignment capability
       // This tests that the assignment badge is rendered correctly
       expect(
-        screen.getByText(/annotationTab\.display\.showing/i)
+        screen.getByText(/annotationTab\.display\.showing/i),
       ).toBeInTheDocument()
     })
 
@@ -1797,7 +1807,7 @@ describe('ProjectDataTab', () => {
       // The component internally supports CSV and TSV formats
       // This test ensures the export function can be called
       expect(
-        screen.getByText(/annotationTab\.display\.showing/i)
+        screen.getByText(/annotationTab\.display\.showing/i),
       ).toBeInTheDocument()
     })
 
@@ -1830,7 +1840,7 @@ describe('ProjectDataTab', () => {
       })
 
       expect(
-        screen.getByText(/annotationTab\.display\.showing/i)
+        screen.getByText(/annotationTab\.display\.showing/i),
       ).toBeInTheDocument()
     })
 
@@ -1855,7 +1865,7 @@ describe('ProjectDataTab', () => {
       })
 
       expect(
-        screen.getByText(/annotationTab\.display\.showing/i)
+        screen.getByText(/annotationTab\.display\.showing/i),
       ).toBeInTheDocument()
     })
 
@@ -1872,7 +1882,7 @@ describe('ProjectDataTab', () => {
 
       // Search for non-existent task
       const searchButton = screen.getByTitle(
-        /annotationTab\.filters\.showSearch/i
+        /annotationTab\.filters\.showSearch/i,
       )
       fireEvent.click(searchButton)
 
@@ -1881,7 +1891,7 @@ describe('ProjectDataTab', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText(/annotationTab\.empty\.noMatch/i)
+          screen.getByText(/annotationTab\.empty\.noMatch/i),
         ).toBeInTheDocument()
       })
     })
@@ -1951,7 +1961,7 @@ describe('ProjectDataTab', () => {
 
       // The component should render metadata columns
       expect(
-        screen.getByText(/annotationTab\.display\.showing/i)
+        screen.getByText(/annotationTab\.display\.showing/i),
       ).toBeInTheDocument()
     })
 
@@ -1964,7 +1974,7 @@ describe('ProjectDataTab', () => {
 
       // Graders replaced the removed Agreement column.
       const gradersColumn = screen.getAllByText(
-        /annotationTab\.columns\.graders/i
+        /annotationTab\.columns\.graders/i,
       )
       expect(gradersColumn.length).toBeGreaterThan(0)
     })
@@ -1978,10 +1988,10 @@ describe('ProjectDataTab', () => {
 
       // Agreement was removed; reviewers/annotators are the people columns.
       expect(
-        screen.queryByText(/annotationTab\.columns\.agreement/i)
+        screen.queryByText(/annotationTab\.columns\.agreement/i),
       ).not.toBeInTheDocument()
       expect(
-        screen.getAllByText(/annotationTab\.columns\.reviewers/i).length
+        screen.getAllByText(/annotationTab\.columns\.reviewers/i).length,
       ).toBeGreaterThan(0)
     })
 
@@ -2004,7 +2014,7 @@ describe('ProjectDataTab', () => {
 
     it('should handle fetching project members error', async () => {
       ;(projectsAPI.getMembers as jest.Mock).mockRejectedValue(
-        new Error('Failed to fetch members')
+        new Error('Failed to fetch members'),
       )
 
       render(<ProjectDataTab projectId="project-1" />)
@@ -2048,7 +2058,7 @@ describe('ProjectDataTab', () => {
       })
 
       expect(
-        screen.getByText(/annotationTab\.display\.showing/i)
+        screen.getByText(/annotationTab\.display\.showing/i),
       ).toBeInTheDocument()
     })
 
@@ -2084,7 +2094,7 @@ describe('ProjectDataTab', () => {
 
       // Toggle search should update preferences
       const searchButton = screen.getByTitle(
-        /annotationTab\.filters\.showSearch/i
+        /annotationTab\.filters\.showSearch/i,
       )
       fireEvent.click(searchButton)
 
@@ -2208,7 +2218,7 @@ describe('ProjectDataTab', () => {
       })
 
       expect(
-        screen.getByText(/annotationTab\.display\.showing/i)
+        screen.getByText(/annotationTab\.display\.showing/i),
       ).toBeInTheDocument()
     })
 
@@ -2221,7 +2231,7 @@ describe('ProjectDataTab', () => {
 
       // Component has date range filtering logic that filters tasks between start and end dates
       expect(
-        screen.getByText(/annotationTab\.display\.showing/i)
+        screen.getByText(/annotationTab\.display\.showing/i),
       ).toBeInTheDocument()
     })
 
@@ -2249,7 +2259,7 @@ describe('ProjectDataTab', () => {
       })
 
       expect(
-        screen.getByText(/annotationTab\.display\.showing/i)
+        screen.getByText(/annotationTab\.display\.showing/i),
       ).toBeInTheDocument()
     })
 
@@ -2274,7 +2284,7 @@ describe('ProjectDataTab', () => {
 
       // Metadata columns should be clickable
       expect(
-        screen.getByText(/annotationTab\.display\.showing/i)
+        screen.getByText(/annotationTab\.display\.showing/i),
       ).toBeInTheDocument()
     })
 
@@ -2324,7 +2334,7 @@ describe('ProjectDataTab', () => {
 
         await waitFor(() => {
           expect(
-            screen.queryByTestId('comparison-modal')
+            screen.queryByTestId('comparison-modal'),
           ).not.toBeInTheDocument()
         })
       }
@@ -2349,7 +2359,7 @@ describe('ProjectDataTab', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText(/annotationTab\.display\.showing/i)
+          screen.getByText(/annotationTab\.display\.showing/i),
         ).toBeInTheDocument()
       })
     })
@@ -2370,7 +2380,7 @@ describe('ProjectDataTab', () => {
 
         await waitFor(() => {
           expect(
-            screen.getByText(/annotationTab\.display\.showing/i)
+            screen.getByText(/annotationTab\.display\.showing/i),
           ).toBeInTheDocument()
         })
 
@@ -2379,7 +2389,7 @@ describe('ProjectDataTab', () => {
 
         await waitFor(() => {
           expect(
-            screen.getByText(/annotationTab\.display\.showing/i)
+            screen.getByText(/annotationTab\.display\.showing/i),
           ).toBeInTheDocument()
         })
       }
@@ -2433,7 +2443,7 @@ describe('ProjectDataTab', () => {
 
       // Component should handle multiple metadata filters
       expect(
-        screen.getByText(/annotationTab\.display\.showing/i)
+        screen.getByText(/annotationTab\.display\.showing/i),
       ).toBeInTheDocument()
     })
 
@@ -2450,7 +2460,7 @@ describe('ProjectDataTab', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText(/annotationTab\.display\.selected/i)
+          screen.getByText(/annotationTab\.display\.selected/i),
         ).toBeInTheDocument()
       })
 
@@ -2459,7 +2469,7 @@ describe('ProjectDataTab', () => {
 
       await waitFor(() => {
         expect(
-          screen.queryByText(/annotationTab\.display\.selected/i)
+          screen.queryByText(/annotationTab\.display\.selected/i),
         ).not.toBeInTheDocument()
       })
     })
@@ -2470,7 +2480,7 @@ describe('ProjectDataTab', () => {
           id: '1',
           data: {
             text: 'This is a very long text that should be truncated in the table cell when displayed to avoid making the table too wide and difficult to read for users'.repeat(
-              5
+              5,
             ),
           },
           is_labeled: false,
@@ -2492,7 +2502,7 @@ describe('ProjectDataTab', () => {
       })
 
       expect(
-        screen.getByText(/annotationTab\.display\.showing/i)
+        screen.getByText(/annotationTab\.display\.showing/i),
       ).toBeInTheDocument()
     })
 
@@ -2524,7 +2534,7 @@ describe('ProjectDataTab', () => {
       })
 
       expect(
-        screen.getByText(/annotationTab\.display\.showing/i)
+        screen.getByText(/annotationTab\.display\.showing/i),
       ).toBeInTheDocument()
     })
 
@@ -2561,7 +2571,7 @@ describe('ProjectDataTab', () => {
       })
 
       expect(
-        screen.getByText(/annotationTab\.display\.showing/i)
+        screen.getByText(/annotationTab\.display\.showing/i),
       ).toBeInTheDocument()
     })
 
@@ -2605,7 +2615,7 @@ describe('ProjectDataTab', () => {
       })
 
       expect(
-        screen.getByText(/annotationTab\.display\.showing/i)
+        screen.getByText(/annotationTab\.display\.showing/i),
       ).toBeInTheDocument()
     })
 
@@ -2683,7 +2693,7 @@ describe('ProjectDataTab', () => {
       })
 
       expect(
-        screen.getByText(/annotationTab\.display\.showing/i)
+        screen.getByText(/annotationTab\.display\.showing/i),
       ).toBeInTheDocument()
     })
 
@@ -2729,7 +2739,7 @@ describe('ProjectDataTab', () => {
       })
 
       expect(
-        screen.getByText(/annotationTab\.display\.showing/i)
+        screen.getByText(/annotationTab\.display\.showing/i),
       ).toBeInTheDocument()
     })
 
@@ -2742,7 +2752,7 @@ describe('ProjectDataTab', () => {
 
       // Try to click on a non-sortable column (assigned)
       const assignedHeaders = screen.getAllByText(
-        /annotationTab\.columns\.assignedTo/i
+        /annotationTab\.columns\.assignedTo/i,
       )
       const assignedHeader = assignedHeaders[0].closest('th')
       if (assignedHeader) {
@@ -2750,7 +2760,7 @@ describe('ProjectDataTab', () => {
 
         // Should not update preferences since column is not sortable
         expect(
-          screen.getByText(/annotationTab\.display\.showing/i)
+          screen.getByText(/annotationTab\.display\.showing/i),
         ).toBeInTheDocument()
       }
     })
@@ -2763,7 +2773,7 @@ describe('ProjectDataTab', () => {
       })
 
       const assignedHeaders = screen.getAllByText(
-        /annotationTab\.columns\.assignedTo/i
+        /annotationTab\.columns\.assignedTo/i,
       )
       const assignedHeader = assignedHeaders[0].closest('th')
       if (assignedHeader) {
@@ -2771,7 +2781,7 @@ describe('ProjectDataTab', () => {
 
         // Should not trigger any sorting
         expect(
-          screen.getByText(/annotationTab\.display\.showing/i)
+          screen.getByText(/annotationTab\.display\.showing/i),
         ).toBeInTheDocument()
       }
     })
@@ -2807,7 +2817,7 @@ describe('ProjectDataTab', () => {
       })
 
       const searchButton = screen.getByTitle(
-        /annotationTab\.filters\.showSearch/i
+        /annotationTab\.filters\.showSearch/i,
       )
       fireEvent.click(searchButton)
 
@@ -2816,7 +2826,7 @@ describe('ProjectDataTab', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText(/annotationTab\.display\.showing/i)
+          screen.getByText(/annotationTab\.display\.showing/i),
         ).toBeInTheDocument()
       })
     })
@@ -2852,7 +2862,7 @@ describe('ProjectDataTab', () => {
       // Should select task without opening comparison modal
       await waitFor(() => {
         expect(
-          screen.getByText(/annotationTab\.display\.selected/i)
+          screen.getByText(/annotationTab\.display\.selected/i),
         ).toBeInTheDocument()
       })
 
@@ -2874,7 +2884,7 @@ describe('ProjectDataTab', () => {
         // Should not open comparison modal when clicking assign button
         await waitFor(() => {
           expect(
-            screen.queryByTestId('comparison-modal')
+            screen.queryByTestId('comparison-modal'),
           ).not.toBeInTheDocument()
         })
       }
@@ -2908,7 +2918,7 @@ describe('ProjectDataTab', () => {
       // Annotator filter logic is present but returns true (not yet implemented)
       // This test ensures the code path is executed
       expect(
-        screen.getByText(/annotationTab\.display\.showing/i)
+        screen.getByText(/annotationTab\.display\.showing/i),
       ).toBeInTheDocument()
     })
 
@@ -2921,7 +2931,7 @@ describe('ProjectDataTab', () => {
 
       // Reviewers column should show empty state
       expect(
-        screen.getByText(/annotationTab\.display\.showing/i)
+        screen.getByText(/annotationTab\.display\.showing/i),
       ).toBeInTheDocument()
     })
 
@@ -2933,7 +2943,7 @@ describe('ProjectDataTab', () => {
       })
 
       expect(
-        screen.getAllByText(/annotationTab\.columns\.graders/i).length
+        screen.getAllByText(/annotationTab\.columns\.graders/i).length,
       ).toBeGreaterThan(0)
     })
 
@@ -2946,7 +2956,7 @@ describe('ProjectDataTab', () => {
 
       // Annotators column should be rendered
       expect(
-        screen.getByText(/annotationTab\.display\.showing/i)
+        screen.getByText(/annotationTab\.display\.showing/i),
       ).toBeInTheDocument()
     })
 
@@ -2988,7 +2998,7 @@ describe('ProjectDataTab', () => {
       // The FilterDropdown component would trigger onDateRangeChange
       // This tests that the date filtering logic works
       expect(
-        screen.getByText(/annotationTab\.display\.showing/i)
+        screen.getByText(/annotationTab\.display\.showing/i),
       ).toBeInTheDocument()
     })
 
@@ -3013,7 +3023,7 @@ describe('ProjectDataTab', () => {
       })
 
       expect(
-        screen.getByText(/annotationTab\.display\.showing/i)
+        screen.getByText(/annotationTab\.display\.showing/i),
       ).toBeInTheDocument()
     })
 
@@ -3038,7 +3048,7 @@ describe('ProjectDataTab', () => {
       })
 
       expect(
-        screen.getByText(/annotationTab\.display\.showing/i)
+        screen.getByText(/annotationTab\.display\.showing/i),
       ).toBeInTheDocument()
     })
 
@@ -3057,7 +3067,7 @@ describe('ProjectDataTab', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText(/annotationTab\.display\.selected/i)
+          screen.getByText(/annotationTab\.display\.selected/i),
         ).toBeInTheDocument()
       })
 
@@ -3066,7 +3076,7 @@ describe('ProjectDataTab', () => {
 
       await waitFor(() => {
         expect(
-          screen.queryByText(/annotationTab\.display\.selected/i)
+          screen.queryByText(/annotationTab\.display\.selected/i),
         ).not.toBeInTheDocument()
       })
     })
@@ -3091,7 +3101,7 @@ describe('ProjectDataTab', () => {
 
       // Click on a different sortable column
       const completedHeaders = screen.getAllByText(
-        /annotationTab\.columns\.completed/i
+        /annotationTab\.columns\.completed/i,
       )
       const completedHeader = completedHeaders[0].closest('th')
       if (completedHeader) {
@@ -3100,7 +3110,7 @@ describe('ProjectDataTab', () => {
         await waitFor(() => {
           expect(mockUpdatePreference).toHaveBeenCalledWith(
             'sortBy',
-            'completed'
+            'completed',
           )
           expect(mockUpdatePreference).toHaveBeenCalledWith('sortOrder', 'desc')
         })
@@ -3146,7 +3156,7 @@ describe('ProjectDataTab', () => {
       })
 
       expect(
-        screen.getByText(/annotationTab\.display\.showing/i)
+        screen.getByText(/annotationTab\.display\.showing/i),
       ).toBeInTheDocument()
     })
 
@@ -3174,7 +3184,7 @@ describe('ProjectDataTab', () => {
       })
 
       expect(
-        screen.getByText(/annotationTab\.display\.showing/i)
+        screen.getByText(/annotationTab\.display\.showing/i),
       ).toBeInTheDocument()
     })
 
@@ -3202,7 +3212,7 @@ describe('ProjectDataTab', () => {
       })
 
       expect(
-        screen.getByText(/annotationTab\.display\.showing/i)
+        screen.getByText(/annotationTab\.display\.showing/i),
       ).toBeInTheDocument()
     })
 
@@ -3238,7 +3248,7 @@ describe('ProjectDataTab', () => {
 
       // For non-admin users, assignment capabilities should be different
       expect(
-        screen.getByText(/annotationTab\.display\.showing/i)
+        screen.getByText(/annotationTab\.display\.showing/i),
       ).toBeInTheDocument()
 
       // Reset to admin user

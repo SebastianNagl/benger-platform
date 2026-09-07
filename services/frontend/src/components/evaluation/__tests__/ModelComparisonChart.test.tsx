@@ -73,7 +73,7 @@ describe('ModelComparisonChart', () => {
         <ModelComparisonChart
           models={defaultModels}
           metrics={defaultMetrics}
-        />
+        />,
       )
       expect(screen.getByTestId('radar-chart')).toBeInTheDocument()
     })
@@ -83,7 +83,7 @@ describe('ModelComparisonChart', () => {
         <ModelComparisonChart
           models={defaultModels}
           metrics={defaultMetrics}
-        />
+        />,
       )
       expect(screen.getByTestId('radar-gpt-4')).toBeInTheDocument()
       expect(screen.getByTestId('radar-claude-3')).toBeInTheDocument()
@@ -95,7 +95,7 @@ describe('ModelComparisonChart', () => {
           models={defaultModels}
           metrics={defaultMetrics}
           title="Model Comparison"
-        />
+        />,
       )
       expect(screen.getByText('Model Comparison')).toBeInTheDocument()
     })
@@ -105,7 +105,7 @@ describe('ModelComparisonChart', () => {
         <ModelComparisonChart
           models={defaultModels}
           metrics={defaultMetrics}
-        />
+        />,
       )
       expect(screen.queryByText('Model Comparison')).not.toBeInTheDocument()
     })
@@ -118,7 +118,7 @@ describe('ModelComparisonChart', () => {
           models={defaultModels}
           metrics={defaultMetrics}
           visualizationType="bar"
-        />
+        />,
       )
       expect(screen.getByTestId('bar-chart')).toBeInTheDocument()
     })
@@ -129,7 +129,7 @@ describe('ModelComparisonChart', () => {
           models={defaultModels}
           metrics={defaultMetrics}
           visualizationType="bar"
-        />
+        />,
       )
       expect(screen.getByTestId('bar-accuracy')).toBeInTheDocument()
       expect(screen.getByTestId('bar-f1')).toBeInTheDocument()
@@ -141,7 +141,7 @@ describe('ModelComparisonChart', () => {
           models={defaultModels}
           metrics={defaultMetrics}
           visualizationType="bar"
-        />
+        />,
       )
       expect(screen.getByText('gpt-4')).toBeInTheDocument()
       expect(screen.getByText('claude-3')).toBeInTheDocument()
@@ -153,7 +153,7 @@ describe('ModelComparisonChart', () => {
           models={defaultModels}
           metrics={defaultMetrics}
           visualizationType="bar"
-        />
+        />,
       )
       // Metric names appear both as Bar dataKey and table headers
       const accuracyElements = screen.getAllByText('accuracy')
@@ -166,7 +166,7 @@ describe('ModelComparisonChart', () => {
           models={defaultModels}
           metrics={defaultMetrics}
           visualizationType="bar"
-        />
+        />,
       )
       expect(screen.getByText('Average')).toBeInTheDocument()
     })
@@ -177,7 +177,7 @@ describe('ModelComparisonChart', () => {
           models={defaultModels}
           metrics={defaultMetrics}
           visualizationType="bar"
-        />
+        />,
       )
       // gpt-4: (0.9 + 0.85) / 2 = 0.875
       expect(screen.getByText('0.875')).toBeInTheDocument()
@@ -202,7 +202,7 @@ describe('ModelComparisonChart', () => {
           models={models}
           metrics={['accuracy']}
           visualizationType="bar"
-        />
+        />,
       )
       expect(screen.getByText('[0.850, 0.950]')).toBeInTheDocument()
     })
@@ -220,7 +220,7 @@ describe('ModelComparisonChart', () => {
           models={missingModels}
           metrics={['accuracy', 'f1']}
           visualizationType="bar"
-        />
+        />,
       )
 
       const details = container.querySelector('details')
@@ -242,7 +242,7 @@ describe('ModelComparisonChart', () => {
           models={missingModels}
           metrics={['accuracy', 'f1']}
           visualizationType="bar"
-        />
+        />,
       )
 
       const details = container.querySelector('details')
@@ -258,7 +258,7 @@ describe('ModelComparisonChart', () => {
           models={defaultModels}
           metrics={defaultMetrics}
           visualizationType="bar"
-        />
+        />,
       )
       expect(container.querySelector('details')).not.toBeInTheDocument()
       expect(screen.queryByText(/Missing Data/)).not.toBeInTheDocument()
@@ -271,7 +271,10 @@ describe('ModelComparisonChart', () => {
         {
           model_id: 'test',
           metrics: {
-            accuracy: { value: 0.9, confidenceInterval: { lower: 0.85, upper: 0.95 } },
+            accuracy: {
+              value: 0.9,
+              confidenceInterval: { lower: 0.85, upper: 0.95 },
+            },
           },
         },
       ]
@@ -280,7 +283,7 @@ describe('ModelComparisonChart', () => {
           models={models}
           metrics={['accuracy']}
           visualizationType="bar"
-        />
+        />,
       )
       // 0.900 appears for both the metric value and the average (since only 1 metric)
       expect(screen.getAllByText('0.900').length).toBeGreaterThanOrEqual(1)

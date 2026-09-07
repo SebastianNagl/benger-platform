@@ -21,7 +21,9 @@ jest.mock('@/contexts/I18nContext', () => ({
 }))
 
 const mockPush = jest.fn()
-const mockSearchParams = new URLSearchParams({ messageKey: 'registrationSuccess' })
+const mockSearchParams = new URLSearchParams({
+  messageKey: 'registrationSuccess',
+})
 jest.mock('next/navigation', () => ({
   useRouter: () => ({ push: mockPush, replace: jest.fn() }),
   useSearchParams: () => mockSearchParams,

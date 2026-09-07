@@ -5,13 +5,13 @@
  */
 
 import {
-  getDimensionDisplayName,
-  isSpecialFieldValue,
-  getFieldDisplayName,
-  generateEvaluationId,
   FIELD_SPECIFIERS,
-  METRIC_DEFINITIONS,
+  generateEvaluationId,
+  getDimensionDisplayName,
+  getFieldDisplayName,
   GROUPED_METRICS,
+  isSpecialFieldValue,
+  METRIC_DEFINITIONS,
 } from '../evaluation-types'
 
 describe('evaluation-types fn3', () => {

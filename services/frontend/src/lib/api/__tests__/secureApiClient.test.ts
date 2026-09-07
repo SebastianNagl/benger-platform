@@ -85,7 +85,7 @@ describe('SecureApiClient', () => {
 
       expect(mockFetch).toHaveBeenCalledWith(
         expect.stringContaining('/api/auth/csrf'),
-        expect.objectContaining({ credentials: 'include' })
+        expect.objectContaining({ credentials: 'include' }),
       )
     })
 
@@ -98,7 +98,7 @@ describe('SecureApiClient', () => {
 
       expect(consoleWarn).toHaveBeenCalledWith(
         'Failed to fetch CSRF token:',
-        expect.any(Error)
+        expect.any(Error),
       )
       consoleWarn.mockRestore()
     })
@@ -120,7 +120,7 @@ describe('SecureApiClient', () => {
         expect.objectContaining({
           method: 'GET',
           credentials: 'include',
-        })
+        }),
       )
       expect(result).toEqual({ data: 'test' })
     })
@@ -156,7 +156,7 @@ describe('SecureApiClient', () => {
       // Just verify the header exists and is a valid UUID format
       expect(requestId).toBeTruthy()
       expect(requestId).toMatch(
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
       )
     })
 
@@ -190,7 +190,7 @@ describe('SecureApiClient', () => {
         expect.objectContaining({
           method: 'POST',
           body: JSON.stringify({ name: 'test' }),
-        })
+        }),
       )
       expect(result).toEqual({ created: true })
     })
@@ -239,7 +239,7 @@ describe('SecureApiClient', () => {
         expect.objectContaining({
           method: 'POST',
           body: undefined,
-        })
+        }),
       )
     })
   })
@@ -259,7 +259,7 @@ describe('SecureApiClient', () => {
         expect.objectContaining({
           method: 'PUT',
           body: JSON.stringify({ name: 'updated' }),
-        })
+        }),
       )
       expect(result).toEqual({ updated: true })
     })
@@ -296,7 +296,7 @@ describe('SecureApiClient', () => {
         expect.stringContaining('/test/1'),
         expect.objectContaining({
           method: 'PATCH',
-        })
+        }),
       )
       expect(result).toEqual({ patched: true })
     })
@@ -316,7 +316,7 @@ describe('SecureApiClient', () => {
         expect.stringContaining('/test/1'),
         expect.objectContaining({
           method: 'DELETE',
-        })
+        }),
       )
       expect(result).toEqual({ deleted: true })
     })
@@ -389,7 +389,7 @@ describe('SecureApiClient', () => {
       })
 
       await expect(client.get('/test', { timeout: 50 })).rejects.toThrow(
-        'Request timeout'
+        'Request timeout',
       )
     })
   })
@@ -426,7 +426,7 @@ describe('SecureApiClient', () => {
       })
 
       await expect(client.get('/test', { retries: 0 })).rejects.toThrow(
-        'Rate limit exceeded'
+        'Rate limit exceeded',
       )
     })
   })
@@ -528,7 +528,7 @@ describe('SecureApiClient', () => {
       mockFetch.mockRejectedValueOnce(new TypeError('Failed to fetch'))
 
       await expect(client.get('/test', { retries: 0 })).rejects.toThrow(
-        'Failed to fetch'
+        'Failed to fetch',
       )
       expect(mockFetch).toHaveBeenCalledTimes(1)
     })
@@ -611,7 +611,7 @@ describe('SecureApiClient', () => {
       const requestId = headers.get('X-Request-ID')
       expect(requestId).toBeTruthy()
       expect(requestId).toMatch(
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
       )
     })
   })

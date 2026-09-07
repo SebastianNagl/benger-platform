@@ -26,7 +26,9 @@ export function isoToLocalInput(iso: string | null | undefined): string {
   if (!iso) return ''
   const d = new Date(iso)
   if (isNaN(d.getTime())) return ''
-  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16)
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000)
+    .toISOString()
+    .slice(0, 16)
 }
 export function localInputToIso(local: string): string | null {
   if (!local) return null

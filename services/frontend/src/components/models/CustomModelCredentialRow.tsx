@@ -69,7 +69,7 @@ export function CustomModelCredentialRow({
     window.dispatchEvent(
       new CustomEvent('apiKeysChanged', {
         detail: { provider: 'custom', modelId, action },
-      })
+      }),
     )
   }
 
@@ -98,8 +98,7 @@ export function CustomModelCredentialRow({
       onChanged?.()
     } catch (error: any) {
       const errorMessage =
-        error.response?.data?.detail ||
-        t('customModels.credential.saveFailed')
+        error.response?.data?.detail || t('customModels.credential.saveFailed')
       setMessage({ type: 'error', message: errorMessage })
     } finally {
       setLoading(false)
@@ -143,13 +142,12 @@ export function CustomModelCredentialRow({
       const key = newApiKey.trim()
       const result = await customModelsAPI.testConnection(
         modelId,
-        key ? { api_key: key } : {}
+        key ? { api_key: key } : {},
       )
       setTestResult({ type: result.status, message: result.message })
     } catch (error: any) {
       const errorMessage =
-        error.response?.data?.detail ||
-        t('customModels.credential.testFailed')
+        error.response?.data?.detail || t('customModels.credential.testFailed')
       setTestResult({ type: 'error', message: errorMessage })
     } finally {
       setTestLoading(false)
@@ -268,7 +266,7 @@ export function CustomModelCredentialRow({
                 setNewApiKey(e.target.value)
                 if (validationError) setValidationError('')
               }}
-              className="w-full rounded-full bg-white px-4 py-2 pr-10 text-sm text-zinc-900 ring-1 ring-zinc-900/10 transition placeholder:text-zinc-500 hover:ring-zinc-900/20 focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:bg-white/5 dark:text-white dark:ring-inset dark:ring-white/10 dark:placeholder:text-zinc-400 dark:hover:ring-white/20 dark:focus:ring-emerald-400"
+              className="w-full rounded-full bg-white px-4 py-2 pr-10 text-sm text-zinc-900 ring-1 ring-zinc-900/10 transition placeholder:text-zinc-500 hover:ring-zinc-900/20 focus:ring-2 focus:ring-emerald-500 focus:outline-none dark:bg-white/5 dark:text-white dark:ring-white/10 dark:ring-inset dark:placeholder:text-zinc-400 dark:hover:ring-white/20 dark:focus:ring-emerald-400"
               data-testid="credential-key-input"
             />
             <button

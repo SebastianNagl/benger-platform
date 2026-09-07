@@ -1,13 +1,19 @@
 'use client'
 
+import { VertretbarMarkIcon } from '@/components/brand/VertretbarMark'
 import { LanguageSwitcher, ThemeToggle } from '@/components/layout'
 import { Button } from '@/components/shared/Button'
 import { LikertScale } from '@/components/shared/LikertScale'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/shared/Select'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/shared/Select'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { hasSlot, useSlot } from '@/lib/extensions/slots'
-import { VertretbarMarkIcon } from '@/components/brand/VertretbarMark'
 import { getHostBrandName, isStudentLockedHost } from '@/lib/utils/subdomain'
 import { authRedirect } from '@/utils/authRedirect'
 import Link from 'next/link'
@@ -36,7 +42,7 @@ const PSYCHOMETRIC_ITEM_KEYS = ['item_1', 'item_2', 'item_3', 'item_4']
 // (it requires exactly item_1..item_4), and these scales are optional now, so
 // an incomplete one is omitted entirely (stored as NULL).
 function completeScaleOrUndefined(
-  scores: Record<string, number>
+  scores: Record<string, number>,
 ): Record<string, number> | undefined {
   return PSYCHOMETRIC_ITEM_KEYS.every((k) => scores[k] !== undefined)
     ? scores
@@ -90,7 +96,10 @@ export default function RegisterPage() {
   const [brandName, setBrandName] = useState('BenGER')
   const [isVtr, setIsVtr] = useState(false)
 
-  useEffect(() => { setBrandName(getHostBrandName()); setIsVtr(isStudentLockedHost()) }, [])
+  useEffect(() => {
+    setBrandName(getHostBrandName())
+    setIsVtr(isStudentLockedHost())
+  }, [])
   const ResearchConsentSlot = useSlot('signup-step5-consent')
 
   // Options
@@ -146,11 +155,16 @@ export default function RegisterPage() {
 
   // Grade visibility based on expertise hierarchy
   const expertiseIdx = getExpertiseIndex(formData.legalExpertiseLevel)
-  const isIncomparableGradingProgram = formData.degreeProgramType === 'llb' || formData.degreeProgramType === 'llm'
-  const showGradeZwischenpruefung = expertiseIdx >= 1 && !isIncomparableGradingProgram // law_student and above, not LLB/LLM
-  const showGradeVorgeruecktenubung = expertiseIdx >= 1 && !isIncomparableGradingProgram // law_student and above, not LLB/LLM
-  const showGradeFirstStaatsexamen = expertiseIdx >= 2 && !isIncomparableGradingProgram // referendar and above, not LLB/LLM
-  const showGradeSecondStaatsexamen = expertiseIdx >= 3 && !isIncomparableGradingProgram // graduated_no_practice and above, not LLB/LLM
+  const isIncomparableGradingProgram =
+    formData.degreeProgramType === 'llb' || formData.degreeProgramType === 'llm'
+  const showGradeZwischenpruefung =
+    expertiseIdx >= 1 && !isIncomparableGradingProgram // law_student and above, not LLB/LLM
+  const showGradeVorgeruecktenubung =
+    expertiseIdx >= 1 && !isIncomparableGradingProgram // law_student and above, not LLB/LLM
+  const showGradeFirstStaatsexamen =
+    expertiseIdx >= 2 && !isIncomparableGradingProgram // referendar and above, not LLB/LLM
+  const showGradeSecondStaatsexamen =
+    expertiseIdx >= 3 && !isIncomparableGradingProgram // graduated_no_practice and above, not LLB/LLM
 
   // Step labels
   const stepLabels = [
@@ -205,7 +219,7 @@ export default function RegisterPage() {
   }
 
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
   ) => {
     setFormData((prev) => ({
       ...prev,
@@ -224,7 +238,7 @@ export default function RegisterPage() {
   const handleScoreChange = (
     scaleKey: 'atiSScores' | 'pttAScores' | 'kiExperienceScores',
     itemKey: string,
-    value: number
+    value: number,
   ) => {
     setFormData((prev) => ({
       ...prev,
@@ -330,16 +344,18 @@ export default function RegisterPage() {
           ati_s_scores: completeScaleOrUndefined(formData.atiSScores),
           ptt_a_scores: completeScaleOrUndefined(formData.pttAScores),
           ki_experience_scores: completeScaleOrUndefined(
-            formData.kiExperienceScores
+            formData.kiExperienceScores,
           ),
           research_data_consent_accepted: hasSlot('signup-step5-consent')
             ? formData.researchDataConsent
             : undefined,
         },
-        invitationToken || undefined
+        invitationToken || undefined,
       )
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('register.registrationFailed'))
+      setError(
+        err instanceof Error ? err.message : t('register.registrationFailed'),
+      )
     } finally {
       setIsLoading(false)
     }
@@ -421,7 +437,7 @@ export default function RegisterPage() {
             value={formData.email}
             onChange={handleChange}
             disabled={isInvitedUser}
-            className={`${inputClassName}${isInvitedUser ? ' bg-zinc-100 dark:bg-zinc-700 cursor-not-allowed' : ''}`}
+            className={`${inputClassName}${isInvitedUser ? 'cursor-not-allowed bg-zinc-100 dark:bg-zinc-700' : ''}`}
             placeholder={t('register.emailPlaceholder')}
             data-testid="auth-register-email-input"
           />
@@ -504,11 +520,20 @@ export default function RegisterPage() {
         <label htmlFor="legalExpertiseLevel" className={labelClassName}>
           {t('register.legalExpertiseLevel')}
         </label>
-        <div className="mt-1" data-testid="auth-register-legal-expertise-select">
+        <div
+          className="mt-1"
+          data-testid="auth-register-legal-expertise-select"
+        >
           <Select
             value={formData.legalExpertiseLevel}
-            onValueChange={(v) => setFormData(prev => ({ ...prev, legalExpertiseLevel: v }))}
-            displayValue={legalExpertiseLevels.find(l => l.value === formData.legalExpertiseLevel)?.label}
+            onValueChange={(v) =>
+              setFormData((prev) => ({ ...prev, legalExpertiseLevel: v }))
+            }
+            displayValue={
+              legalExpertiseLevels.find(
+                (l) => l.value === formData.legalExpertiseLevel,
+              )?.label
+            }
           >
             <SelectTrigger>
               <SelectValue placeholder={t('register.selectOption')} />
@@ -528,11 +553,20 @@ export default function RegisterPage() {
         <label htmlFor="germanProficiency" className={labelClassName}>
           {t('register.germanProficiencyLabel')}
         </label>
-        <div className="mt-1" data-testid="auth-register-german-proficiency-select">
+        <div
+          className="mt-1"
+          data-testid="auth-register-german-proficiency-select"
+        >
           <Select
             value={formData.germanProficiency}
-            onValueChange={(v) => setFormData(prev => ({ ...prev, germanProficiency: v }))}
-            displayValue={germanProficiencyLevels.find(l => l.value === formData.germanProficiency)?.label}
+            onValueChange={(v) =>
+              setFormData((prev) => ({ ...prev, germanProficiency: v }))
+            }
+            displayValue={
+              germanProficiencyLevels.find(
+                (l) => l.value === formData.germanProficiency,
+              )?.label
+            }
           >
             <SelectTrigger>
               <SelectValue placeholder={t('register.selectOption')} />
@@ -553,11 +587,20 @@ export default function RegisterPage() {
           <label htmlFor="degreeProgramType" className={labelClassName}>
             {t('register.degreeProgramType')}
           </label>
-          <div className="mt-1" data-testid="auth-register-degree-program-select">
+          <div
+            className="mt-1"
+            data-testid="auth-register-degree-program-select"
+          >
             <Select
               value={formData.degreeProgramType}
-              onValueChange={(v) => setFormData(prev => ({ ...prev, degreeProgramType: v }))}
-              displayValue={degreeProgramTypes.find(dt => dt.value === formData.degreeProgramType)?.label}
+              onValueChange={(v) =>
+                setFormData((prev) => ({ ...prev, degreeProgramType: v }))
+              }
+              displayValue={
+                degreeProgramTypes.find(
+                  (dt) => dt.value === formData.degreeProgramType,
+                )?.label
+              }
             >
               <SelectTrigger>
                 <SelectValue placeholder={t('register.selectOption')} />
@@ -616,7 +659,7 @@ export default function RegisterPage() {
           {genderOptions.map((option) => (
             <label
               key={option.value}
-              className="flex items-center space-x-3 cursor-pointer"
+              className="flex cursor-pointer items-center space-x-3"
             >
               <input
                 type="radio"
@@ -748,10 +791,7 @@ export default function RegisterPage() {
 
           {showGradeZwischenpruefung && (
             <div>
-              <label
-                htmlFor="gradeZwischenpruefung"
-                className={labelClassName}
-              >
+              <label htmlFor="gradeZwischenpruefung" className={labelClassName}>
                 {t('register.grades.zwischenpruefung')}
               </label>
               <div className="mt-1">
@@ -1099,11 +1139,11 @@ export default function RegisterPage() {
                       </span>
                     </button>
                   )
-                }
+                },
               )}
             </div>
             {/* Mobile step label */}
-            <p className="mt-2 text-center text-xs text-zinc-500 dark:text-zinc-400 sm:hidden">
+            <p className="mt-2 text-center text-xs text-zinc-500 sm:hidden dark:text-zinc-400">
               {t('register.stepOf', {
                 current: String(currentStep),
                 total: String(TOTAL_STEPS),
@@ -1150,7 +1190,7 @@ export default function RegisterPage() {
                 <Button
                   type="button"
                   onClick={handleNext}
-                  className="bg-emerald-600 px-6 py-2 text-white shadow-sm hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 dark:focus:ring-offset-zinc-900"
+                  className="bg-emerald-600 px-6 py-2 text-white shadow-sm hover:bg-emerald-700 focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:outline-none dark:focus:ring-offset-zinc-900"
                   data-testid="register-next-button"
                 >
                   {t('register.stepNext')}
@@ -1159,7 +1199,7 @@ export default function RegisterPage() {
                 <Button
                   type="submit"
                   disabled={isLoading}
-                  className="bg-emerald-600 px-6 py-2 text-white shadow-sm hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 dark:focus:ring-offset-zinc-900"
+                  className="bg-emerald-600 px-6 py-2 text-white shadow-sm hover:bg-emerald-700 focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:outline-none dark:focus:ring-offset-zinc-900"
                   data-testid="auth-register-submit-button"
                 >
                   {isLoading ? (

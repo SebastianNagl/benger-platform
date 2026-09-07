@@ -94,7 +94,13 @@ const defaultProps = {
   availableFields: {
     model_response_fields: ['model_answer', 'gpt4_response'],
     human_annotation_fields: ['answer', 'rating'],
-    all_fields: ['model_answer', 'gpt4_response', 'answer', 'rating', 'reference'],
+    all_fields: [
+      'model_answer',
+      'gpt4_response',
+      'answer',
+      'rating',
+      'reference',
+    ],
     reference_fields: ['reference'],
   },
   evaluations: [],
@@ -135,12 +141,7 @@ describe('EvaluationBuilder', () => {
       },
     ]
 
-    render(
-      <EvaluationBuilder
-        {...defaultProps}
-        evaluations={evaluations}
-      />
-    )
+    render(<EvaluationBuilder {...defaultProps} evaluations={evaluations} />)
 
     expect(document.body).toBeTruthy()
   })
@@ -175,7 +176,7 @@ describe('EvaluationBuilder', () => {
           all_fields: [],
           reference_fields: [],
         }}
-      />
+      />,
     )
 
     expect(document.body).toBeTruthy()
@@ -205,9 +206,7 @@ describe('EvaluationBuilder', () => {
       },
     ]
 
-    render(
-      <EvaluationBuilder {...defaultProps} evaluations={evaluations} />
-    )
+    render(<EvaluationBuilder {...defaultProps} evaluations={evaluations} />)
 
     expect(document.body).toBeTruthy()
   })
@@ -229,9 +228,7 @@ describe('EvaluationBuilder', () => {
       },
     ]
 
-    render(
-      <EvaluationBuilder {...defaultProps} evaluations={evaluations} />
-    )
+    render(<EvaluationBuilder {...defaultProps} evaluations={evaluations} />)
 
     expect(document.body).toBeTruthy()
   })
@@ -290,9 +287,7 @@ describe('EvaluationBuilder', () => {
       },
     ]
 
-    render(
-      <EvaluationBuilder {...defaultProps} evaluations={evaluations} />
-    )
+    render(<EvaluationBuilder {...defaultProps} evaluations={evaluations} />)
 
     expect(document.body).toBeTruthy()
   })
@@ -317,9 +312,7 @@ describe('EvaluationBuilder', () => {
       },
     ]
 
-    render(
-      <EvaluationBuilder {...defaultProps} evaluations={evaluations} />
-    )
+    render(<EvaluationBuilder {...defaultProps} evaluations={evaluations} />)
 
     expect(document.body).toBeTruthy()
   })
@@ -344,7 +337,7 @@ describe('EvaluationBuilder', () => {
         {...defaultProps}
         evaluations={evaluations}
         onEvaluationsChange={mockOnChange}
-      />
+      />,
     )
 
     // The component should render with evaluation cards
@@ -361,7 +354,7 @@ describe('EvaluationBuilder', () => {
       (b) =>
         b.textContent?.includes('evaluation.builder.addEvaluation') ||
         b.textContent?.includes('Add') ||
-        b.querySelector('[data-testid="plus-icon"]')
+        b.querySelector('[data-testid="plus-icon"]'),
     )
     if (addButton) {
       await user.click(addButton)
@@ -392,7 +385,7 @@ describe('EvaluationBuilder', () => {
         {...defaultProps}
         evaluations={evaluations}
         onEvaluationsChange={mockOnChange}
-      />
+      />,
     )
 
     // Find checkbox or toggle
@@ -425,7 +418,7 @@ describe('EvaluationBuilder', () => {
         {...defaultProps}
         evaluations={evaluations}
         onSave={mockSave}
-      />
+      />,
     )
 
     // Find save button
@@ -433,7 +426,7 @@ describe('EvaluationBuilder', () => {
     const saveButton = buttons.find(
       (b) =>
         b.textContent?.includes('evaluation.builder.save') ||
-        b.textContent?.includes('Save')
+        b.textContent?.includes('Save'),
     )
     if (saveButton) {
       await user.click(saveButton)
@@ -455,9 +448,7 @@ describe('EvaluationBuilder', () => {
       },
     ]
 
-    render(
-      <EvaluationBuilder {...defaultProps} evaluations={evaluations} />
-    )
+    render(<EvaluationBuilder {...defaultProps} evaluations={evaluations} />)
 
     expect(document.body).toBeTruthy()
   })
@@ -468,19 +459,21 @@ describe('EvaluationBuilder', () => {
       render(<EvaluationBuilder {...defaultProps} />)
 
       // Find and click the add evaluation button (contains PlusIcon or add text)
-      const addButton = screen.getAllByRole('button').find(
-        (b) =>
-          b.textContent?.includes('evaluationBuilder.addNew') ||
-          b.textContent?.includes('evaluation.builder.addEvaluation') ||
-          b.querySelector('[data-testid="plus-icon"]')
-      )
+      const addButton = screen
+        .getAllByRole('button')
+        .find(
+          (b) =>
+            b.textContent?.includes('evaluationBuilder.addNew') ||
+            b.textContent?.includes('evaluation.builder.addEvaluation') ||
+            b.querySelector('[data-testid="plus-icon"]'),
+        )
       if (addButton) {
         await user.click(addButton)
         // Wizard should show metric step title
         await waitFor(() => {
           expect(
             screen.queryByText('evaluationBuilder.steps.metric.title') ||
-              screen.queryByText(/metric/i)
+              screen.queryByText(/metric/i),
           ).toBeTruthy()
         })
       }
@@ -493,15 +486,17 @@ describe('EvaluationBuilder', () => {
         <EvaluationBuilder
           {...defaultProps}
           onEvaluationsChange={mockOnChange}
-        />
+        />,
       )
 
       // Open wizard
-      const addButton = screen.getAllByRole('button').find(
-        (b) =>
-          b.textContent?.includes('evaluationBuilder.addNew') ||
-          b.querySelector('[data-testid="plus-icon"]')
-      )
+      const addButton = screen
+        .getAllByRole('button')
+        .find(
+          (b) =>
+            b.textContent?.includes('evaluationBuilder.addNew') ||
+            b.querySelector('[data-testid="plus-icon"]'),
+        )
       if (!addButton) return
       await user.click(addButton)
 
@@ -511,11 +506,13 @@ describe('EvaluationBuilder', () => {
         await user.click(bleuButton)
 
         // Click Next
-        const nextButtons = screen.getAllByRole('button').filter(
-          (b) =>
-            b.textContent?.includes('evaluationBuilder.wizard.next') ||
-            b.textContent?.includes('Next')
-        )
+        const nextButtons = screen
+          .getAllByRole('button')
+          .filter(
+            (b) =>
+              b.textContent?.includes('evaluationBuilder.wizard.next') ||
+              b.textContent?.includes('Next'),
+          )
         if (nextButtons.length > 0) {
           await user.click(nextButtons[0])
 
@@ -523,9 +520,8 @@ describe('EvaluationBuilder', () => {
           await waitFor(() => {
             const heading =
               screen.queryByText(
-                'evaluationBuilder.steps.predictionFields.title'
-              ) ||
-              screen.queryByText(/prediction/i)
+                'evaluationBuilder.steps.predictionFields.title',
+              ) || screen.queryByText(/prediction/i)
             expect(heading).toBeTruthy()
           })
         }
@@ -536,17 +532,19 @@ describe('EvaluationBuilder', () => {
       const user = userEvent.setup()
       render(<EvaluationBuilder {...defaultProps} />)
 
-      const addButton = screen.getAllByRole('button').find(
-        (b) =>
-          b.textContent?.includes('evaluationBuilder.addNew') ||
-          b.querySelector('[data-testid="plus-icon"]')
-      )
+      const addButton = screen
+        .getAllByRole('button')
+        .find(
+          (b) =>
+            b.textContent?.includes('evaluationBuilder.addNew') ||
+            b.querySelector('[data-testid="plus-icon"]'),
+        )
       if (!addButton) return
       await user.click(addButton)
 
       // Select llm_judge_classic metric
       const classicButton = screen.queryByTestId(
-        'metric-button-llm_judge_classic'
+        'metric-button-llm_judge_classic',
       )
       if (classicButton) {
         await user.click(classicButton)
@@ -558,23 +556,24 @@ describe('EvaluationBuilder', () => {
       const user = userEvent.setup()
       render(<EvaluationBuilder {...defaultProps} />)
 
-      const addButton = screen.getAllByRole('button').find(
-        (b) =>
-          b.textContent?.includes('evaluationBuilder.addNew') ||
-          b.querySelector('[data-testid="plus-icon"]')
-      )
+      const addButton = screen
+        .getAllByRole('button')
+        .find(
+          (b) =>
+            b.textContent?.includes('evaluationBuilder.addNew') ||
+            b.querySelector('[data-testid="plus-icon"]'),
+        )
       if (!addButton) return
       await user.click(addButton)
 
       const customButton = screen.queryByTestId(
-        'metric-button-llm_judge_custom'
+        'metric-button-llm_judge_custom',
       )
       if (customButton) {
         await user.click(customButton)
         expect(customButton.className).toContain('emerald')
       }
     })
-
   })
 
   describe('Evaluation Card Actions', () => {
@@ -609,19 +608,17 @@ describe('EvaluationBuilder', () => {
           {...defaultProps}
           evaluations={evaluations}
           onEvaluationsChange={mockOnChange}
-        />
+        />,
       )
 
       // Find delete buttons
-      const deleteButtons = screen.getAllByRole('button').filter(
-        (b) => b.querySelector('[data-testid="trash-icon"]')
-      )
+      const deleteButtons = screen
+        .getAllByRole('button')
+        .filter((b) => b.querySelector('[data-testid="trash-icon"]'))
       if (deleteButtons.length > 0) {
         await user.click(deleteButtons[0])
         expect(mockOnChange).toHaveBeenCalledWith(
-          expect.arrayContaining([
-            expect.objectContaining({ id: 'eval-2' }),
-          ])
+          expect.arrayContaining([expect.objectContaining({ id: 'eval-2' })]),
         )
       }
     })
@@ -634,7 +631,7 @@ describe('EvaluationBuilder', () => {
           {...defaultProps}
           evaluations={evaluations}
           onEvaluationsChange={mockOnChange}
-        />
+        />,
       )
 
       // Find checkboxes (toggle enabled state)
@@ -647,35 +644,31 @@ describe('EvaluationBuilder', () => {
 
     it('should edit an evaluation by clicking edit icon', async () => {
       const user = userEvent.setup()
-      render(
-        <EvaluationBuilder {...defaultProps} evaluations={evaluations} />
-      )
+      render(<EvaluationBuilder {...defaultProps} evaluations={evaluations} />)
 
       // Find edit buttons
-      const editButtons = screen.getAllByRole('button').filter(
-        (b) => b.querySelector('[data-testid="pencil-icon"]')
-      )
+      const editButtons = screen
+        .getAllByRole('button')
+        .filter((b) => b.querySelector('[data-testid="pencil-icon"]'))
       if (editButtons.length > 0) {
         await user.click(editButtons[0])
         // Should open the wizard in edit mode
         await waitFor(() => {
           expect(
             screen.queryByText('evaluationBuilder.steps.metric.title') ||
-              screen.queryByText(/metric/i)
+              screen.queryByText(/metric/i),
           ).toBeTruthy()
         })
       }
     })
 
     it('should show disabled state for disabled evaluations', () => {
-      render(
-        <EvaluationBuilder {...defaultProps} evaluations={evaluations} />
-      )
+      render(<EvaluationBuilder {...defaultProps} evaluations={evaluations} />)
 
       // The disabled evaluation should render with some visual distinction
       const checkboxes = screen.getAllByRole('checkbox')
       const disabledCheckbox = checkboxes.find(
-        (cb) => !(cb as HTMLInputElement).checked
+        (cb) => !(cb as HTMLInputElement).checked,
       )
       expect(disabledCheckbox).toBeTruthy()
     })
@@ -696,14 +689,12 @@ describe('EvaluationBuilder', () => {
         },
       ]
 
-      render(
-        <EvaluationBuilder {...defaultProps} evaluations={evaluations} />
-      )
+      render(<EvaluationBuilder {...defaultProps} evaluations={evaluations} />)
 
       // Run button should be present (has PlayIcon)
-      const runButtons = screen.getAllByRole('button').filter(
-        (b) => b.querySelector('[data-testid="play-icon"]')
-      )
+      const runButtons = screen
+        .getAllByRole('button')
+        .filter((b) => b.querySelector('[data-testid="play-icon"]'))
       expect(runButtons.length).toBeGreaterThanOrEqual(0)
     })
   })
@@ -716,7 +707,7 @@ describe('EvaluationBuilder', () => {
         <EvaluationBuilder
           {...defaultProps}
           onEvaluationsChange={mockOnChange}
-        />
+        />,
       )
 
       // Step 1: Click add button
@@ -725,7 +716,9 @@ describe('EvaluationBuilder', () => {
 
       // Wizard should open
       await waitFor(() => {
-        expect(screen.getByTestId('evaluation-wizard-header')).toBeInTheDocument()
+        expect(
+          screen.getByTestId('evaluation-wizard-header'),
+        ).toBeInTheDocument()
       })
 
       // Select BLEU metric
@@ -734,9 +727,11 @@ describe('EvaluationBuilder', () => {
         await user.click(bleuBtn)
 
         // Click Next to go to prediction fields
-        const nextBtns = screen.getAllByRole('button').filter(
-          (b) => b.textContent?.includes('evaluationBuilder.wizard.next')
-        )
+        const nextBtns = screen
+          .getAllByRole('button')
+          .filter((b) =>
+            b.textContent?.includes('evaluationBuilder.wizard.next'),
+          )
         if (nextBtns.length > 0) {
           await user.click(nextBtns[0])
 
@@ -752,9 +747,11 @@ describe('EvaluationBuilder', () => {
             await user.click(checkboxes[0])
 
             // Click Next to go to reference fields
-            const nextBtns2 = screen.getAllByRole('button').filter(
-              (b) => b.textContent?.includes('evaluationBuilder.wizard.next')
-            )
+            const nextBtns2 = screen
+              .getAllByRole('button')
+              .filter((b) =>
+                b.textContent?.includes('evaluationBuilder.wizard.next'),
+              )
             if (nextBtns2.length > 0) {
               await user.click(nextBtns2[0])
 
@@ -777,19 +774,23 @@ describe('EvaluationBuilder', () => {
       await user.click(screen.getByTestId('add-evaluation-button'))
 
       await waitFor(() => {
-        expect(screen.getByTestId('evaluation-wizard-header')).toBeInTheDocument()
+        expect(
+          screen.getByTestId('evaluation-wizard-header'),
+        ).toBeInTheDocument()
       })
 
       // Find close button (XMarkIcon)
-      const closeBtn = screen.getAllByRole('button').find(
-        (b) => b.querySelector('[data-testid="x-icon"]')
-      )
+      const closeBtn = screen
+        .getAllByRole('button')
+        .find((b) => b.querySelector('[data-testid="x-icon"]'))
       if (closeBtn) {
         await user.click(closeBtn)
 
         // Wizard should close
         await waitFor(() => {
-          expect(screen.queryByTestId('evaluation-wizard-header')).not.toBeInTheDocument()
+          expect(
+            screen.queryByTestId('evaluation-wizard-header'),
+          ).not.toBeInTheDocument()
         })
       }
     })
@@ -801,7 +802,9 @@ describe('EvaluationBuilder', () => {
       await user.click(screen.getByTestId('add-evaluation-button'))
 
       await waitFor(() => {
-        expect(screen.getByTestId('evaluation-wizard-header')).toBeInTheDocument()
+        expect(
+          screen.getByTestId('evaluation-wizard-header'),
+        ).toBeInTheDocument()
       })
 
       // Select llm_judge_classic
@@ -850,9 +853,7 @@ describe('EvaluationBuilder', () => {
         },
       ]
 
-      render(
-        <EvaluationBuilder {...defaultProps} evaluations={evaluations} />
-      )
+      render(<EvaluationBuilder {...defaultProps} evaluations={evaluations} />)
 
       // All evaluation cards should render
       const checkboxes = screen.getAllByRole('checkbox')
@@ -860,7 +861,7 @@ describe('EvaluationBuilder', () => {
 
       // Enabled and disabled states should be reflected
       const enabledCheckboxes = checkboxes.filter(
-        (cb) => (cb as HTMLInputElement).checked
+        (cb) => (cb as HTMLInputElement).checked,
       )
       expect(enabledCheckboxes.length).toBe(2)
     })
@@ -888,15 +889,17 @@ describe('EvaluationBuilder', () => {
           {...defaultProps}
           evaluations={evaluations}
           onSave={mockSave}
-        />
+        />,
       )
 
       // Find the save button
-      const saveButton = screen.getAllByRole('button').find(
-        (b) =>
-          b.textContent?.includes('evaluationBuilder.save') ||
-          b.textContent?.includes('Save')
-      )
+      const saveButton = screen
+        .getAllByRole('button')
+        .find(
+          (b) =>
+            b.textContent?.includes('evaluationBuilder.save') ||
+            b.textContent?.includes('Save'),
+        )
       if (saveButton) {
         await user.click(saveButton)
         expect(mockSave).toHaveBeenCalled()
@@ -923,15 +926,17 @@ describe('EvaluationBuilder', () => {
           evaluations={evaluations}
           saving={true}
           onSave={jest.fn()}
-        />
+        />,
       )
 
       // Save button should show saving state or be disabled
-      const saveButton = screen.getAllByRole('button').find(
-        (b) =>
-          b.textContent?.includes('evaluationBuilder.saving') ||
-          b.textContent?.includes('Saving')
-      )
+      const saveButton = screen
+        .getAllByRole('button')
+        .find(
+          (b) =>
+            b.textContent?.includes('evaluationBuilder.saving') ||
+            b.textContent?.includes('Saving'),
+        )
       if (saveButton) {
         expect(saveButton).toBeDisabled()
       }

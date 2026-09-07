@@ -11,7 +11,7 @@ export class LoginPage {
     this.page = page
     this.emailInput = page.locator('[data-testid="auth-login-email-input"]')
     this.passwordInput = page.locator(
-      '[data-testid="auth-login-password-input"]'
+      '[data-testid="auth-login-password-input"]',
     )
     this.loginButton = page.locator('[data-testid="auth-login-submit-button"]')
     this.authForm = page.locator('[data-testid="auth-login-form"]')

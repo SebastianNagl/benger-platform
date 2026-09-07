@@ -32,7 +32,7 @@ describe('JsonViewer Component', () => {
         'overflow-auto',
         'rounded-lg',
         'bg-gray-50',
-        'dark:bg-gray-900'
+        'dark:bg-gray-900',
       )
     })
 
@@ -393,7 +393,7 @@ describe('JsonViewer Component', () => {
     it('handles objects with many keys', async () => {
       const user = userEvent.setup()
       const data = Object.fromEntries(
-        Array.from({ length: 50 }, (_, i) => [`key${i}`, i])
+        Array.from({ length: 50 }, (_, i) => [`key${i}`, i]),
       )
       render(<JsonViewer data={data} />)
 

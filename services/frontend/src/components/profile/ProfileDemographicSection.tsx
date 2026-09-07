@@ -52,7 +52,7 @@ export function ProfileDemographicSection({
             }}
             min="1"
             max="150"
-            className="w-full rounded-full bg-white px-4 py-2 text-sm text-zinc-900 ring-1 ring-zinc-900/10 transition placeholder:text-zinc-500 hover:ring-zinc-900/20 focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:bg-white/5 dark:text-white dark:ring-inset dark:ring-white/10 dark:placeholder:text-zinc-400 dark:hover:ring-white/20 dark:focus:ring-emerald-400"
+            className="w-full rounded-full bg-white px-4 py-2 text-sm text-zinc-900 ring-1 ring-zinc-900/10 transition placeholder:text-zinc-500 hover:ring-zinc-900/20 focus:ring-2 focus:ring-emerald-500 focus:outline-none dark:bg-white/5 dark:text-white dark:ring-white/10 dark:ring-inset dark:placeholder:text-zinc-400 dark:hover:ring-white/20 dark:focus:ring-emerald-400"
           />
         </div>
 
@@ -73,11 +73,15 @@ export function ProfileDemographicSection({
               })
             }
             displayValue={
-              profileForm.gender === 'maennlich' ? t('profile.genderOptions.male') :
-              profileForm.gender === 'weiblich' ? t('profile.genderOptions.female') :
-              profileForm.gender === 'divers' ? t('profile.genderOptions.diverse') :
-              profileForm.gender === 'keine_angabe' ? t('profile.genderOptions.preferNotToSay') :
-              undefined
+              profileForm.gender === 'maennlich'
+                ? t('profile.genderOptions.male')
+                : profileForm.gender === 'weiblich'
+                  ? t('profile.genderOptions.female')
+                  : profileForm.gender === 'divers'
+                    ? t('profile.genderOptions.diverse')
+                    : profileForm.gender === 'keine_angabe'
+                      ? t('profile.genderOptions.preferNotToSay')
+                      : undefined
             }
           >
             <SelectTrigger>
@@ -117,12 +121,17 @@ export function ProfileDemographicSection({
               })
             }
             displayValue={
-              profileForm.german_proficiency === 'native' ? t('register.germanProficiency.native') :
-              profileForm.german_proficiency === 'c2' ? t('register.germanProficiency.c2') :
-              profileForm.german_proficiency === 'c1' ? t('register.germanProficiency.c1') :
-              profileForm.german_proficiency === 'b2' ? t('register.germanProficiency.b2') :
-              profileForm.german_proficiency === 'below_b2' ? t('register.germanProficiency.belowB2') :
-              undefined
+              profileForm.german_proficiency === 'native'
+                ? t('register.germanProficiency.native')
+                : profileForm.german_proficiency === 'c2'
+                  ? t('register.germanProficiency.c2')
+                  : profileForm.german_proficiency === 'c1'
+                    ? t('register.germanProficiency.c1')
+                    : profileForm.german_proficiency === 'b2'
+                      ? t('register.germanProficiency.b2')
+                      : profileForm.german_proficiency === 'below_b2'
+                        ? t('register.germanProficiency.belowB2')
+                        : undefined
             }
           >
             <SelectTrigger>
@@ -147,7 +156,6 @@ export function ProfileDemographicSection({
             </SelectContent>
           </Select>
         </div>
-
       </div>
     </div>
   )

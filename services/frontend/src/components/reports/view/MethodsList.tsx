@@ -13,18 +13,28 @@ interface MethodsListProps {
 }
 
 /** Explains how the numbers were produced: metrics + scales, and judge configs. */
-export function MethodsList({ methods, configs, labelFor, locale, t }: MethodsListProps) {
+export function MethodsList({
+  methods,
+  configs,
+  labelFor,
+  locale,
+  t,
+}: MethodsListProps) {
   if (methods.length === 0 && configs.length === 0) return null
   return (
     <div className="mb-6" data-testid="methods-list">
-      <SubHeading>{t('reports.view.methods', 'Bewertungsverfahren')}</SubHeading>
+      <SubHeading>
+        {t('reports.view.methods', 'Bewertungsverfahren')}
+      </SubHeading>
       <ul className="grid gap-2 sm:grid-cols-2">
         {methods.map((m) => (
           <li
             key={m.id}
             className="rounded-md border border-zinc-200 px-3 py-2 text-sm dark:border-zinc-700"
           >
-            <div className="font-medium text-zinc-900 dark:text-white">{labelFor(m.id)}</div>
+            <div className="font-medium text-zinc-900 dark:text-white">
+              {labelFor(m.id)}
+            </div>
             <div className="text-xs text-zinc-500 dark:text-zinc-400">
               {t('reports.view.scale', 'Skala')}: {scaleLabel(m.scale)}
               {' · '}
@@ -42,10 +52,14 @@ export function MethodsList({ methods, configs, labelFor, locale, t }: MethodsLi
               data-testid="config-chip"
             >
               {c.judge_label
-                ? t('reports.view.judgeConfig', 'Judge: {judge}', { judge: c.judge_label })
+                ? t('reports.view.judgeConfig', 'Judge: {judge}', {
+                    judge: c.judge_label,
+                  })
                 : c.name || labelFor(c.metric)}
               {' · '}
-              {t('reports.view.samples', 'n = {n}', { n: formatCount(c.n, locale) })}
+              {t('reports.view.samples', 'n = {n}', {
+                n: formatCount(c.n, locale),
+              })}
             </li>
           ))}
         </ul>

@@ -149,7 +149,6 @@ jest.mock('@/components/shared/FilterToolbar', () => {
   return { FilterToolbar }
 })
 
-
 describe('GlobalDataTab', () => {
   const mockTasks = [
     {
@@ -243,7 +242,8 @@ describe('GlobalDataTab', () => {
           'common.pagination.perPage': 'Per page:',
           'common.pagination.previousPage': 'Previous page',
           'common.pagination.nextPage': 'Next page',
-          'common.pagination.showingResults': 'Showing {start} to {end} of {total} results',
+          'common.pagination.showingResults':
+            'Showing {start} to {end} of {total} results',
           'data.management.loadingTasks': 'Loading tasks...',
           'data.management.search': 'Search',
           'data.management.actions': 'Actions',
@@ -300,7 +300,7 @@ describe('GlobalDataTab', () => {
   describe('Component Rendering', () => {
     it('renders loading state initially', () => {
       mockGet.mockImplementation(
-        () => new Promise(() => {}) // Never resolves
+        () => new Promise(() => {}), // Never resolves
       )
 
       render(<GlobalDataTab />)
@@ -374,13 +374,12 @@ describe('GlobalDataTab', () => {
       await waitFor(
         () => {
           expect(mockGet).toHaveBeenCalledWith(
-            expect.stringContaining('search=test+query')
+            expect.stringContaining('search=test+query'),
           )
         },
-        { timeout: 2000 }
+        { timeout: 2000 },
       )
     })
-
   })
 
   describe('Filtering', () => {
@@ -403,7 +402,7 @@ describe('GlobalDataTab', () => {
 
       await waitFor(() => {
         expect(apiClient.get).toHaveBeenCalledWith(
-          expect.stringContaining('status=completed')
+          expect.stringContaining('status=completed'),
         )
       })
     })
@@ -477,7 +476,7 @@ describe('GlobalDataTab', () => {
 
       await waitFor(() => {
         expect(apiClient.get).toHaveBeenCalledWith(
-          expect.stringContaining('sort_by=updated_at')
+          expect.stringContaining('sort_by=updated_at'),
         )
       })
     })
@@ -500,7 +499,7 @@ describe('GlobalDataTab', () => {
 
       await waitFor(() => {
         expect(apiClient.get).toHaveBeenCalledWith(
-          expect.stringContaining('sort_order=asc')
+          expect.stringContaining('sort_order=asc'),
         )
       })
     })
@@ -672,7 +671,7 @@ describe('GlobalDataTab', () => {
       await waitFor(() => {
         expect(mockShowToast).toHaveBeenCalledWith(
           'Tasks marked as completed',
-          'success'
+          'success',
         )
       })
     })
@@ -710,7 +709,7 @@ describe('GlobalDataTab', () => {
       await waitFor(() => {
         expect(mockShowToast).toHaveBeenCalledWith(
           'Tasks marked as incomplete',
-          'success'
+          'success',
         )
       })
     })
@@ -765,7 +764,7 @@ describe('GlobalDataTab', () => {
       await waitFor(() => {
         expect(global.fetch).toHaveBeenCalledWith(
           expect.stringContaining('/api/data/export?format=json'),
-          expect.any(Object)
+          expect.any(Object),
         )
       })
 
@@ -795,7 +794,7 @@ describe('GlobalDataTab', () => {
       await waitFor(() => {
         expect(global.fetch).toHaveBeenCalledWith(
           expect.stringContaining('/api/data/export?format=csv'),
-          expect.any(Object)
+          expect.any(Object),
         )
       })
     })
@@ -824,7 +823,7 @@ describe('GlobalDataTab', () => {
       await waitFor(() => {
         expect(mockShowToast).toHaveBeenCalledWith(
           'Failed to export tasks',
-          'error'
+          'error',
         )
       })
     })
@@ -862,7 +861,7 @@ describe('GlobalDataTab', () => {
 
       await waitFor(() => {
         expect(apiClient.get).toHaveBeenCalledWith(
-          expect.stringContaining('page=2')
+          expect.stringContaining('page=2'),
         )
       })
     })
@@ -959,7 +958,7 @@ describe('GlobalDataTab', () => {
 
       await waitFor(() => {
         expect(mockPush).toHaveBeenCalledWith(
-          '/projects/project-1/tasks/task-1'
+          '/projects/project-1/tasks/task-1',
         )
       })
     })
@@ -974,7 +973,7 @@ describe('GlobalDataTab', () => {
       await waitFor(() => {
         expect(mockShowToast).toHaveBeenCalledWith(
           'Failed to load tasks',
-          'error'
+          'error',
         )
       })
     })
@@ -1002,7 +1001,7 @@ describe('GlobalDataTab', () => {
       await waitFor(() => {
         expect(mockShowToast).toHaveBeenCalledWith(
           'Failed to update tasks',
-          'error'
+          'error',
         )
       })
     })
@@ -1123,10 +1122,10 @@ describe('GlobalDataTab', () => {
       })
 
       expect(
-        screen.getByRole('button', { name: /Actions/i })
+        screen.getByRole('button', { name: /Actions/i }),
       ).toBeInTheDocument()
       expect(
-        screen.getByRole('button', { name: /Columns/i })
+        screen.getByRole('button', { name: /Columns/i }),
       ).toBeInTheDocument()
     })
   })
@@ -1262,7 +1261,7 @@ describe('GlobalDataTab', () => {
       await waitFor(() => {
         expect(mockShowToast).toHaveBeenCalledWith(
           'Failed to update tasks',
-          'error'
+          'error',
         )
       })
     })
@@ -1311,7 +1310,7 @@ describe('GlobalDataTab', () => {
       await waitFor(() => {
         expect(global.fetch).toHaveBeenCalledWith(
           expect.stringContaining('/api/data/export?format=json'),
-          expect.any(Object)
+          expect.any(Object),
         )
       })
     })
@@ -1460,7 +1459,7 @@ describe('GlobalDataTab', () => {
             headers: {
               Authorization: 'Bearer test-token-123',
             },
-          })
+          }),
         )
       })
 
@@ -1615,7 +1614,7 @@ describe('GlobalDataTab', () => {
       await waitFor(() => {
         expect(global.fetch).toHaveBeenCalledWith(
           expect.stringContaining('format=csv'),
-          expect.any(Object)
+          expect.any(Object),
         )
       })
     })
@@ -1750,7 +1749,7 @@ describe('GlobalDataTab', () => {
 
       const checkboxes = screen.getAllByRole('checkbox')
       const editOption = checkboxes.find(
-        (cb) => cb.closest('label')?.textContent?.trim() === 'edit'
+        (cb) => cb.closest('label')?.textContent?.trim() === 'edit',
       )
       expect(editOption).toBeUndefined()
     })

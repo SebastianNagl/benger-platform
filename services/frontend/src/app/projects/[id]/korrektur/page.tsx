@@ -10,7 +10,7 @@ export default function KorrekturPage() {
 
   if (!KorrekturComponent) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
+      <div className="flex min-h-[400px] items-center justify-center">
         <p className="text-zinc-500 dark:text-zinc-400">
           Korrektur feature is not available in the community edition.
         </p>

@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
 import { UserGroupIcon } from '@heroicons/react/24/outline'
+import { useEffect, useState } from 'react'
 
 import { Button } from '@/components/shared/Button'
 import { useToast } from '@/components/shared/Toast'
@@ -55,7 +55,7 @@ export function ParticipantCard({ projectId, via, onLeft }: Props) {
       title: t('project.participant.leave', 'Projekt verlassen'),
       message: t(
         'project.participant.leaveConfirm',
-        'Sie verlieren den Zugang zu diesem Projekt. Ihre bisherigen Abgaben bleiben erhalten.'
+        'Sie verlieren den Zugang zu diesem Projekt. Ihre bisherigen Abgaben bleiben erhalten.',
       ),
       variant: 'warning',
       confirmText: t('project.participant.leave', 'Projekt verlassen'),
@@ -64,7 +64,10 @@ export function ParticipantCard({ projectId, via, onLeft }: Props) {
     setLeaving(true)
     try {
       await sharesAPI.leaveProject(projectId)
-      addToast(t('project.participant.left', 'Sie haben das Projekt verlassen.'), 'success')
+      addToast(
+        t('project.participant.left', 'Sie haben das Projekt verlassen.'),
+        'success',
+      )
       onLeft()
     } catch (err: any) {
       addToast(err?.message || t('common.error', 'Fehler'), 'error')
@@ -82,7 +85,10 @@ export function ParticipantCard({ projectId, via, onLeft }: Props) {
         <UserGroupIcon className="h-5 w-5 text-sky-500 dark:text-sky-400" />
         {t('project.participant.title', 'Teilnahme')}
       </h2>
-      <p className="mb-4 text-sm text-zinc-600 dark:text-zinc-400" data-testid="participant-via">
+      <p
+        className="mb-4 text-sm text-zinc-600 dark:text-zinc-400"
+        data-testid="participant-via"
+      >
         {t(`projects.list.participantVia.${effectiveVia}`, 'Beigetreten')}
       </p>
       {canLeave ? (
@@ -96,15 +102,18 @@ export function ParticipantCard({ projectId, via, onLeft }: Props) {
           {t('project.participant.leave', 'Projekt verlassen')}
         </Button>
       ) : participation ? (
-        <p className="text-xs text-zinc-500 dark:text-zinc-400" data-testid="participant-cannot-leave">
+        <p
+          className="text-xs text-zinc-500 dark:text-zinc-400"
+          data-testid="participant-cannot-leave"
+        >
           {blockedReason === 'entitlement_not_leavable'
             ? t(
                 'project.participant.cannotLeavePurchase',
-                'Gekaufter Zugang kann nicht verlassen werden.'
+                'Gekaufter Zugang kann nicht verlassen werden.',
               )
             : t(
                 'project.participant.cannotLeaveOrg',
-                'Der Zugang kommt über Ihre Organisation und wird dort verwaltet.'
+                'Der Zugang kommt über Ihre Organisation und wird dort verwaltet.',
               )}
         </p>
       ) : null}

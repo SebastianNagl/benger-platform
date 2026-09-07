@@ -51,7 +51,8 @@ jest.mock('@/components/shared/Toast', () => ({
 // Prevent actual fetch calls
 global.fetch = jest.fn().mockResolvedValue({
   ok: true,
-  json: () => Promise.resolve({ tasks: [], total: 0, page: 1, page_size: 20, pages: 1 }),
+  json: () =>
+    Promise.resolve({ tasks: [], total: 0, page: 1, page_size: 20, pages: 1 }),
 })
 
 describe('MyTasksPage Branch Coverage', () => {

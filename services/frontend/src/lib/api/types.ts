@@ -3,17 +3,17 @@
  */
 
 // Re-export defaults types
-export type { DefaultConfig, DefaultPrompts } from './admin-defaults'
-
-// Exam layout preference lives in the labelConfig contract module; re-exported
-// here so API-client consumers can import it alongside User.
-import type { ExamLayoutPrefs } from '@/lib/labelConfig/examLayout'
 export type {
   ExamLayoutMode,
   ExamLayoutPrefs,
   ExamPanelPosition,
   ExamPanelSide,
 } from '@/lib/labelConfig/examLayout'
+export type { DefaultConfig, DefaultPrompts } from './admin-defaults'
+
+// Exam layout preference lives in the labelConfig contract module; re-exported
+// here so API-client consumers can import it alongside User.
+import type { ExamLayoutPrefs } from '@/lib/labelConfig/examLayout'
 
 // Role type definitions for clarity
 export type OrganizationRole = 'ORG_ADMIN' | 'CONTRIBUTOR' | 'ANNOTATOR'
@@ -746,17 +746,9 @@ export interface OrganizationResponse {
 
 // Annotation Status Types
 export type AnnotationStatus =
-  | 'pending'
-  | 'in_progress'
-  | 'completed'
-  | 'rejected'
-  | 'skipped'
+  'pending' | 'in_progress' | 'completed' | 'rejected' | 'skipped'
 export type NativeAnnotationStatus =
-  | 'pending'
-  | 'in_progress'
-  | 'completed'
-  | 'rejected'
-  | 'skipped'
+  'pending' | 'in_progress' | 'completed' | 'rejected' | 'skipped'
 
 // Annotation Data Types
 export interface AnnotationData {

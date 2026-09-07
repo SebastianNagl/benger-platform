@@ -1,3 +1,4 @@
+import { REPORT_SNAPSHOT_FIXTURE } from '../fixture'
 import {
   formatAxisValue,
   formatCount,
@@ -14,7 +15,6 @@ import {
   scaleLabel,
   scaleMax,
 } from '../format'
-import { REPORT_SNAPSHOT_FIXTURE } from '../fixture'
 
 describe('format helpers', () => {
   it('maps app locales to BCP-47 tags', () => {
@@ -61,7 +61,9 @@ describe('format helpers', () => {
   })
 
   it('humanizes metric ids', () => {
-    expect(humanizeMetricId('llm_judge_falloesung_grade_points')).toBe('Llm Judge Falloesung Grade Points')
+    expect(humanizeMetricId('llm_judge_falloesung_grade_points')).toBe(
+      'Llm Judge Falloesung Grade Points',
+    )
     expect(humanizeMetricId('bleu')).toBe('Bleu')
     expect(humanizeMetricId('__x')).toBe('X')
   })
@@ -70,16 +72,28 @@ describe('format helpers', () => {
     const methods = REPORT_SNAPSHOT_FIXTURE.methods
 
     it('prefers the registry, then the snapshot, then a humanized id', () => {
-      const registry = { llm_judge_falloesung: { display_name: 'Falllösung LLM Judge (Registry)' } }
-      expect(metricLabel('llm_judge_falloesung', methods, registry)).toBe('Falllösung LLM Judge (Registry)')
-      expect(metricLabel('llm_judge_falloesung', methods)).toBe('Falllösung LLM Judge')
+      const registry = {
+        llm_judge_falloesung: {
+          display_name: 'Falllösung LLM Judge (Registry)',
+        },
+      }
+      expect(metricLabel('llm_judge_falloesung', methods, registry)).toBe(
+        'Falllösung LLM Judge (Registry)',
+      )
+      expect(metricLabel('llm_judge_falloesung', methods)).toBe(
+        'Falllösung LLM Judge',
+      )
       expect(metricLabel('rouge_l', methods, registry)).toBe('Rouge L')
       expect(metricLabel('rouge_l', undefined)).toBe('Rouge L')
     })
 
     it('resolves scales from the snapshot first, then the registry, then raw', () => {
-      expect(metricScale('llm_judge_falloesung_grade_points', methods)).toBe('0-18')
-      expect(metricScale('rouge_l', methods, { rouge_l: { display_scale: '0-1' } })).toBe('0-1')
+      expect(metricScale('llm_judge_falloesung_grade_points', methods)).toBe(
+        '0-18',
+      )
+      expect(
+        metricScale('rouge_l', methods, { rouge_l: { display_scale: '0-1' } }),
+      ).toBe('0-1')
       expect(metricScale('unknown', methods)).toBe('raw')
       expect(metricScale('unknown', undefined, {})).toBe('raw')
     })

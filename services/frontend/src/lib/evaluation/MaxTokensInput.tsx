@@ -57,24 +57,34 @@ export function MaxTokensInput({
       <div className="mt-1 text-xs">
         {recNumber !== undefined ? (
           <span className="text-zinc-600 dark:text-zinc-400">
-            {t('evaluationBuilder.parameters.recommended', 'Empfehlung')}: {recNumber}
+            {t('evaluationBuilder.parameters.recommended', 'Empfehlung')}:{' '}
+            {recNumber}
             {current !== recNumber && (
               <button
                 type="button"
                 onClick={() => onChange(recNumber)}
                 className="ml-2 text-blue-600 hover:underline"
               >
-                {t('evaluationBuilder.parameters.resetToRecommended', 'Zurücksetzen auf Empfohlen')}
+                {t(
+                  'evaluationBuilder.parameters.resetToRecommended',
+                  'Zurücksetzen auf Empfohlen',
+                )}
               </button>
             )}
           </span>
         ) : modelHasRec ? (
           <span className="text-zinc-400 dark:text-zinc-500">
-            {t('evaluationBuilder.parameters.noRecommendationForKey', 'Keine Empfehlung für max_tokens')}
+            {t(
+              'evaluationBuilder.parameters.noRecommendationForKey',
+              'Keine Empfehlung für max_tokens',
+            )}
           </span>
         ) : (
           <span className="text-zinc-400 dark:text-zinc-500">
-            {t('evaluationBuilder.parameters.noRecommendation', 'Keine Empfehlung')}
+            {t(
+              'evaluationBuilder.parameters.noRecommendation',
+              'Keine Empfehlung',
+            )}
           </span>
         )}
       </div>

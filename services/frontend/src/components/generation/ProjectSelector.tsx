@@ -67,7 +67,7 @@ export function ProjectSelector({
 
   // Sort projects alphabetically
   const sortedProjects = [...filteredProjects].sort((a, b) =>
-    a.title.toLowerCase().localeCompare(b.title.toLowerCase())
+    a.title.toLowerCase().localeCompare(b.title.toLowerCase()),
   )
 
   return (
@@ -95,7 +95,7 @@ export function ProjectSelector({
       {sortedProjects.length > 0 && (
         <div className="mb-2 overflow-x-auto rounded-lg border border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800/50">
           <div className="min-w-[640px]">
-            <div className="grid grid-cols-[32px_1fr_80px_80px_80px_80px_120px] items-center gap-2 px-4 py-3 text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400 md:grid-cols-[32px_1fr_96px_96px_96px_96px_140px] md:gap-3 lg:grid-cols-[32px_1fr_96px_128px_128px_128px_160px] lg:gap-4">
+            <div className="grid grid-cols-[32px_1fr_80px_80px_80px_80px_120px] items-center gap-2 px-4 py-3 text-xs font-medium tracking-wider text-zinc-500 uppercase md:grid-cols-[32px_1fr_96px_96px_96px_96px_140px] md:gap-3 lg:grid-cols-[32px_1fr_96px_128px_128px_128px_160px] lg:gap-4 dark:text-zinc-400">
               <div>{/* Checkbox */}</div>
               <div>{t('generation.projectSelector.tableHeaders.project')}</div>
               <div className="text-center">
@@ -220,11 +220,11 @@ export function ProjectSelector({
                             e.stopPropagation()
                             handleStatusPillNavigation(project.id)
                           }}
-                          className="inline-flex cursor-pointer items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800 transition-colors hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 dark:bg-blue-900/50 dark:text-blue-200 dark:hover:bg-blue-900/70"
+                          className="inline-flex cursor-pointer items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800 transition-colors hover:bg-blue-200 focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 focus:outline-none dark:bg-blue-900/50 dark:text-blue-200 dark:hover:bg-blue-900/70"
                           aria-label={`Navigate to ${project.title} settings`}
                         >
                           {t(
-                            'generation.projectSelector.statusLabels.complete'
+                            'generation.projectSelector.statusLabels.complete',
                           )}
                         </button>
                       ) : project.generation_prompts_ready &&
@@ -234,7 +234,7 @@ export function ProjectSelector({
                             e.stopPropagation()
                             handleStatusPillNavigation(project.id)
                           }}
-                          className="inline-flex cursor-pointer items-center rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-800 transition-colors hover:bg-emerald-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-1 dark:bg-emerald-900/50 dark:text-emerald-200 dark:hover:bg-emerald-900/70"
+                          className="inline-flex cursor-pointer items-center rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-800 transition-colors hover:bg-emerald-200 focus:ring-2 focus:ring-emerald-500 focus:ring-offset-1 focus:outline-none dark:bg-emerald-900/50 dark:text-emerald-200 dark:hover:bg-emerald-900/70"
                           aria-label={`Navigate to ${project.title} settings`}
                         >
                           {t('generation.projectSelector.statusLabels.ready')}
@@ -245,11 +245,11 @@ export function ProjectSelector({
                             e.stopPropagation()
                             handleStatusPillNavigation(project.id)
                           }}
-                          className="inline-flex cursor-pointer items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800 transition-colors hover:bg-amber-200 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-1 dark:bg-amber-900/50 dark:text-amber-200 dark:hover:bg-amber-900/70"
+                          className="inline-flex cursor-pointer items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800 transition-colors hover:bg-amber-200 focus:ring-2 focus:ring-amber-500 focus:ring-offset-1 focus:outline-none dark:bg-amber-900/50 dark:text-amber-200 dark:hover:bg-amber-900/70"
                           aria-label={`Navigate to ${project.title} settings`}
                         >
                           {t(
-                            'generation.projectSelector.statusLabels.setupNeeded'
+                            'generation.projectSelector.statusLabels.setupNeeded',
                           )}
                         </button>
                       )}

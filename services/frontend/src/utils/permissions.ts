@@ -20,7 +20,7 @@ import { Project } from '@/types/labelStudio'
 export const getEffectiveProjectRole = (
   user: User | null,
   project: Pick<Project, 'created_by' | 'is_public' | 'public_role'> | null,
-  orgRole?: 'ORG_ADMIN' | 'CONTRIBUTOR' | 'ANNOTATOR' | null
+  orgRole?: 'ORG_ADMIN' | 'CONTRIBUTOR' | 'ANNOTATOR' | null,
 ): 'ORG_ADMIN' | 'CONTRIBUTOR' | 'ANNOTATOR' | null => {
   if (!user || !project) return null
   if (user.is_superadmin) return 'ORG_ADMIN'
@@ -36,7 +36,7 @@ export const getEffectiveProjectRole = (
  */
 export const canMakeProjectPublic = (
   user: User | null,
-  project: Pick<Project, 'created_by'> | null
+  project: Pick<Project, 'created_by'> | null,
 ): boolean => {
   if (!user || !project) return false
   if (user.is_superadmin) return true
@@ -48,7 +48,10 @@ export const canMakeProjectPublic = (
  * In org mode: superadmins, ORG_ADMIN, and CONTRIBUTOR can create projects.
  * In private mode: any authenticated user can create private projects.
  */
-export const canCreateProjects = (user: User | null, options?: { isPrivateMode?: boolean }): boolean => {
+export const canCreateProjects = (
+  user: User | null,
+  options?: { isPrivateMode?: boolean },
+): boolean => {
   if (!user) return false
   if (user.is_superadmin) return true
   if (options?.isPrivateMode) return true
@@ -68,7 +71,7 @@ export const canAccessProjectData = (
   options?: {
     isPrivateMode?: boolean
     project?: Pick<Project, 'created_by' | 'is_public' | 'public_role'> | null
-  }
+  },
 ): boolean => {
   if (!user) return false
   if (user.is_superadmin) return true
@@ -93,7 +96,7 @@ export const canAccessProjectData = (
  */
 export const canEditTaskData = (
   user: User | null,
-  project?: Pick<Project, 'created_by' | 'is_public' | 'public_role'> | null
+  project?: Pick<Project, 'created_by' | 'is_public' | 'public_role'> | null,
 ): boolean => {
   if (!user) return false
   if (user.is_superadmin) return true
@@ -134,7 +137,7 @@ export const isAnnotatorOnly = (user: User | null): boolean => {
  */
 export const canStartGeneration = (
   user: User | null,
-  project?: Pick<Project, 'created_by' | 'is_public' | 'public_role'> | null
+  project?: Pick<Project, 'created_by' | 'is_public' | 'public_role'> | null,
 ): boolean => {
   if (!user) return false
   if (user.is_superadmin) return true
@@ -217,7 +220,7 @@ export const hasOrganization = (organizations: Organization[]): boolean => {
 export const canUseExpertView = (
   user: User | null,
   organizations: Organization[],
-  opts: { isPrivateMode: boolean; orgSlug?: string | null }
+  opts: { isPrivateMode: boolean; orgSlug?: string | null },
 ): boolean => {
   if (!user) return false
   if (user.is_superadmin) return true

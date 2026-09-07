@@ -93,10 +93,10 @@ describe('ViewModeToggle', () => {
     fireEvent.click(screen.getByTestId('view-mode-toggle'))
     await screen.findByText('student.view.expert')
     const studentOption = document.querySelector(
-      '[data-ui-mode-option="student"]'
+      '[data-ui-mode-option="student"]',
     ) as HTMLElement
     const expertOption = document.querySelector(
-      '[data-ui-mode-option="expert"]'
+      '[data-ui-mode-option="expert"]',
     ) as HTMLElement
     expect(studentOption).toBeInTheDocument()
     expect(expertOption).toBeInTheDocument()

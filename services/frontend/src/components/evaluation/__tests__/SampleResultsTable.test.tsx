@@ -12,7 +12,10 @@ import { SampleResultsTable } from '../SampleResultsTable'
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
     t: (key: string, varsOrDefault?: any) => {
-      const translations: Record<string, any> = require('../../../locales/en/common.json')
+      const translations: Record<
+        string,
+        any
+      > = require('../../../locales/en/common.json')
       const parts = key.split('.')
       let value: any = translations
       for (const part of parts) {
@@ -33,7 +36,6 @@ jest.mock('@/contexts/I18nContext', () => ({
     locale: 'en',
   }),
 }))
-
 
 const mockSampleResults = [
   {
@@ -89,8 +91,7 @@ const mockSampleResults = [
 ]
 
 describe('SampleResultsTable Component', () => {
-  beforeEach(() => {
-  })
+  beforeEach(() => {})
 
   describe('basic rendering', () => {
     it('renders table with sample data', () => {
@@ -131,7 +132,7 @@ describe('SampleResultsTable Component', () => {
   describe('status column', () => {
     it('shows check icon for passed samples', () => {
       const { container } = render(
-        <SampleResultsTable data={mockSampleResults} />
+        <SampleResultsTable data={mockSampleResults} />,
       )
 
       const passedIcon = container.querySelector('svg.text-green-500')
@@ -140,7 +141,7 @@ describe('SampleResultsTable Component', () => {
 
     it('shows X icon for failed samples', () => {
       const { container } = render(
-        <SampleResultsTable data={mockSampleResults} />
+        <SampleResultsTable data={mockSampleResults} />,
       )
 
       const failedIcon = container.querySelector('svg.text-red-500')
@@ -411,7 +412,7 @@ describe('SampleResultsTable Component', () => {
 
     it('changes chevron icon direction when expanded', async () => {
       const { container } = render(
-        <SampleResultsTable data={mockSampleResults} />
+        <SampleResultsTable data={mockSampleResults} />,
       )
 
       const detailsButtons = screen.getAllByRole('button')
@@ -437,7 +438,7 @@ describe('SampleResultsTable Component', () => {
       render(<SampleResultsTable data={mockSampleResults} />)
 
       const fieldNameInput = screen.getByPlaceholderText(
-        'Filter by field name...'
+        'Filter by field name...',
       )
       await user.type(fieldNameInput, 'classification')
 
@@ -452,7 +453,7 @@ describe('SampleResultsTable Component', () => {
       render(<SampleResultsTable data={mockSampleResults} />)
 
       const fieldNameInput = screen.getByPlaceholderText(
-        'Filter by field name...'
+        'Filter by field name...',
       )
       await user.type(fieldNameInput, 'xyz')
       await user.clear(fieldNameInput)
@@ -641,7 +642,7 @@ describe('SampleResultsTable Component', () => {
       const user = userEvent.setup()
       const onRowClick = jest.fn()
       render(
-        <SampleResultsTable data={mockSampleResults} onRowClick={onRowClick} />
+        <SampleResultsTable data={mockSampleResults} onRowClick={onRowClick} />,
       )
 
       const rows = screen.getAllByRole('row')
@@ -677,7 +678,7 @@ describe('SampleResultsTable Component', () => {
       render(<SampleResultsTable data={longFieldSample} />)
 
       expect(
-        screen.getByText('very_long_field_name_that_might_break_layout')
+        screen.getByText('very_long_field_name_that_might_break_layout'),
       ).toBeInTheDocument()
     })
 

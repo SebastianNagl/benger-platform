@@ -111,7 +111,6 @@ jest.mock('@/components/shared/FilterToolbar', () => {
   return { FilterToolbar }
 })
 
-
 describe('ProjectListTable Search Functionality', () => {
   const mockFetchProjects = jest.fn()
   const mockSetSearchQuery = jest.fn()
@@ -143,13 +142,13 @@ describe('ProjectListTable Search Functionality', () => {
           React.createElement(
             'div',
             { 'data-testid': 'hero-pattern' },
-            'Hero Pattern'
+            'Hero Pattern',
           )('div', { 'data-testid': 'hero-pattern' }, 'Hero Pattern'),
         GridPattern: () =>
           React.createElement(
             'div',
             { 'data-testid': 'grid-pattern' },
-            'Grid Pattern'
+            'Grid Pattern',
           )('div', { 'data-testid': 'grid-pattern' }, 'Grid Pattern'),
         Button: ({ children, ...props }) =>
           React.createElement('button', props, children),
@@ -159,7 +158,7 @@ describe('ProjectListTable Search Functionality', () => {
           React.createElement(
             'div',
             { 'data-testid': 'loading-spinner' },
-            'Loading...'
+            'Loading...',
           )('div', null, 'Loading...'),
         EmptyState: ({ message }) => React.createElement('div', null, message),
         Spinner: () => React.createElement('div', null, 'Loading...'),
@@ -170,7 +169,7 @@ describe('ProjectListTable Search Functionality', () => {
       push: jest.fn(),
     })
     ;(useProjectStore as unknown as jest.Mock).mockReturnValue(
-      defaultStoreState
+      defaultStoreState,
     )
   })
 
@@ -298,7 +297,7 @@ describe('ProjectListTable Search Functionality', () => {
         undefined,
         undefined,
         false,
-        false
+        false,
       )
 
       // Clear mock to track new calls
@@ -317,7 +316,7 @@ describe('ProjectListTable Search Functionality', () => {
         undefined,
         undefined,
         false,
-        false
+        false,
       )
 
       jest.useRealTimers()
@@ -442,7 +441,7 @@ describe('ProjectListTable Search Functionality', () => {
         undefined,
         undefined,
         false,
-        false
+        false,
       )
     })
 
@@ -452,7 +451,7 @@ describe('ProjectListTable Search Functionality', () => {
         undefined,
         undefined,
         true,
-        false
+        false,
       )
     })
   })

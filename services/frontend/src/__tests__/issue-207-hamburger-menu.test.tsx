@@ -44,7 +44,10 @@ jest.mock('next/navigation', () => ({
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
     t: (key: string, varsOrDefault?: any) => {
-      const translations: Record<string, any> = require('../locales/en/common.json')
+      const translations: Record<
+        string,
+        any
+      > = require('../locales/en/common.json')
       const parts = key.split('.')
       let value: any = translations
       for (const part of parts) {
@@ -65,7 +68,6 @@ jest.mock('@/contexts/I18nContext', () => ({
     locale: 'en',
   }),
 }))
-
 
 // Mock framer-motion
 jest.mock('framer-motion', () => ({
@@ -132,7 +134,7 @@ describe('Issue #207: Hamburger Menu with Persistent State', () => {
       render(<Header />)
 
       const hamburgerButton = screen.getByLabelText(
-        /hide sidebar|show sidebar/i
+        /hide sidebar|show sidebar/i,
       )
       expect(hamburgerButton).toBeInTheDocument()
       expect(hamburgerButton).toHaveAttribute('type', 'button')
@@ -174,7 +176,7 @@ describe('Issue #207: Hamburger Menu with Persistent State', () => {
       render(<Header />)
 
       const hamburgerButton = screen.getByLabelText(
-        /hide sidebar|show sidebar/i
+        /hide sidebar|show sidebar/i,
       )
       expect(hamburgerButton).toHaveClass(
         'flex',
@@ -189,7 +191,7 @@ describe('Issue #207: Hamburger Menu with Persistent State', () => {
         'dark:text-zinc-400',
         'dark:hover:text-white',
         'dark:hover:bg-zinc-800',
-        'transition-colors'
+        'transition-colors',
       )
     })
 
@@ -214,7 +216,7 @@ describe('Issue #207: Hamburger Menu with Persistent State', () => {
       expect(header).toHaveClass(
         'border-b',
         'border-zinc-900/10',
-        'dark:border-white/10'
+        'dark:border-white/10',
       )
     })
   })
@@ -256,7 +258,7 @@ describe('Issue #207: Hamburger Menu with Persistent State', () => {
       render(<Header />)
 
       const hamburgerButton = screen.getByLabelText(
-        /hide sidebar|show sidebar/i
+        /hide sidebar|show sidebar/i,
       )
 
       // Focus the button
@@ -276,7 +278,7 @@ describe('Issue #207: Hamburger Menu with Persistent State', () => {
       render(<Header />)
 
       const hamburgerButton = screen.getByLabelText(
-        /hide sidebar|show sidebar/i
+        /hide sidebar|show sidebar/i,
       )
       expect(hamburgerButton.tagName).toBe('BUTTON')
       expect(hamburgerButton).toHaveAttribute('type', 'button')
@@ -289,7 +291,7 @@ describe('Issue #207: Hamburger Menu with Persistent State', () => {
       render(<Header />)
 
       const hamburgerButton = screen.getByLabelText(
-        /hide sidebar|show sidebar/i
+        /hide sidebar|show sidebar/i,
       )
 
       // Should be visible (flex) but parent container should be hidden on mobile
@@ -308,7 +310,7 @@ describe('Issue #207: Hamburger Menu with Persistent State', () => {
       // Check that hamburger menu is positioned correctly
       const logos = screen.getAllByTestId('logo')
       const hamburgerButton = screen.getByLabelText(
-        /hide sidebar|show sidebar/i
+        /hide sidebar|show sidebar/i,
       )
 
       expect(logos.length).toBeGreaterThanOrEqual(1) // At least one logo (desktop or mobile)
@@ -337,7 +339,7 @@ describe('Issue #207: Hamburger Menu with Persistent State', () => {
       render(<Header />)
 
       const hamburgerButton = screen.getByLabelText(
-        /hide sidebar|show sidebar/i
+        /hide sidebar|show sidebar/i,
       )
 
       // Click to toggle sidebar
@@ -360,7 +362,7 @@ describe('Issue #207: Hamburger Menu with Persistent State', () => {
       render(<Header />)
 
       const hamburgerButton = screen.getByLabelText(
-        /hide sidebar|show sidebar/i
+        /hide sidebar|show sidebar/i,
       )
 
       // During SSR, should show sidebar by default
@@ -386,7 +388,7 @@ describe('Issue #207: Hamburger Menu with Persistent State', () => {
       render(<Header />)
 
       const hamburgerButton = screen.getByLabelText(
-        /hide sidebar|show sidebar/i
+        /hide sidebar|show sidebar/i,
       )
       expect(hamburgerButton).toHaveClass('transition-colors')
 
@@ -429,7 +431,7 @@ describe('Issue #207: Hamburger Menu with Persistent State', () => {
         render(<Header />)
 
         const hamburgerButton = screen.getByLabelText(
-          /hide sidebar|show sidebar/i
+          /hide sidebar|show sidebar/i,
         )
         expect(hamburgerButton).toBeInTheDocument()
       } catch (error) {
@@ -446,7 +448,7 @@ describe('Issue #207: Hamburger Menu with Persistent State', () => {
       render(<Header />)
 
       const hamburgerButton = screen.getByLabelText(
-        /hide sidebar|show sidebar/i
+        /hide sidebar|show sidebar/i,
       )
 
       // Rapid clicks
@@ -468,13 +470,13 @@ jest.mock('@/components/shared', () => {
       React.createElement(
         'div',
         { 'data-testid': 'hero-pattern' },
-        'Hero Pattern'
+        'Hero Pattern',
       )('div', { 'data-testid': 'hero-pattern' }, 'Hero Pattern'),
     GridPattern: () =>
       React.createElement(
         'div',
         { 'data-testid': 'grid-pattern' },
-        'Grid Pattern'
+        'Grid Pattern',
       )('div', { 'data-testid': 'grid-pattern' }, 'Grid Pattern'),
     Button: ({ children, ...props }) =>
       React.createElement('button', props, children),
@@ -484,7 +486,7 @@ jest.mock('@/components/shared', () => {
       React.createElement(
         'div',
         { 'data-testid': 'loading-spinner' },
-        'Loading...'
+        'Loading...',
       )('div', null, 'Loading...'),
     EmptyState: ({ message }) => React.createElement('div', null, message),
     Spinner: () => React.createElement('div', null, 'Loading...'),

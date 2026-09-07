@@ -23,15 +23,15 @@ export function ToggleSwitch({
         onChange={onChange}
         disabled={disabled}
         className={clsx(
-          'relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2',
+          'relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:outline-none',
           enabled ? 'bg-emerald-600' : 'bg-zinc-200 dark:bg-zinc-700',
-          disabled && 'cursor-not-allowed opacity-50'
+          disabled && 'cursor-not-allowed opacity-50',
         )}
       >
         <span
           className={clsx(
             'inline-block h-4 w-4 transform rounded-full bg-white transition-transform',
-            enabled ? 'translate-x-6' : 'translate-x-1'
+            enabled ? 'translate-x-6' : 'translate-x-1',
           )}
         />
       </Switch>

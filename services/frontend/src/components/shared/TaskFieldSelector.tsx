@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
 import { useI18n } from '@/contexts/I18nContext'
+import { projectsAPI } from '@/lib/api/projects'
 import { Listbox } from '@headlessui/react'
 import {
   CheckIcon,
@@ -9,7 +9,7 @@ import {
   ExclamationCircleIcon,
 } from '@heroicons/react/24/outline'
 import clsx from 'clsx'
-import { projectsAPI } from '@/lib/api/projects'
+import { useEffect, useState } from 'react'
 import { LoadingSpinner } from './LoadingSpinner'
 
 export interface TaskFieldInfo {
@@ -87,7 +87,7 @@ export function TaskFieldSelector({
       <div
         className={clsx(
           'flex h-10 items-center gap-2 rounded-md border border-zinc-300 bg-white px-3 dark:border-zinc-700 dark:bg-zinc-800',
-          className
+          className,
         )}
       >
         <LoadingSpinner size="small" />
@@ -103,7 +103,7 @@ export function TaskFieldSelector({
       <div
         className={clsx(
           'flex h-10 items-center gap-2 rounded-md border border-red-300 bg-red-50 px-3 dark:border-red-700 dark:bg-red-900/20',
-          className
+          className,
         )}
       >
         <ExclamationCircleIcon className="h-5 w-5 text-red-500" />
@@ -127,8 +127,11 @@ export function TaskFieldSelector({
               setManualValue('')
             }
           }}
-          placeholder={t('taskFields.manualPlaceholder', 'e.g., $context.field')}
-          className="flex-1 rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 dark:border-zinc-700 dark:bg-zinc-800"
+          placeholder={t(
+            'taskFields.manualPlaceholder',
+            'e.g., $context.field',
+          )}
+          className="flex-1 rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-800"
           autoFocus
         />
         <button
@@ -156,8 +159,8 @@ export function TaskFieldSelector({
         <div className="relative">
           <Listbox.Button
             className={clsx(
-              'relative w-full cursor-default rounded-md border border-zinc-300 bg-white py-2 pl-3 pr-10 text-left shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 dark:border-zinc-700 dark:bg-zinc-800 sm:text-sm',
-              'disabled:cursor-not-allowed disabled:bg-zinc-50 disabled:text-zinc-500 dark:disabled:bg-zinc-900'
+              'relative w-full cursor-default rounded-md border border-zinc-300 bg-white py-2 pr-10 pl-3 text-left shadow-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 focus:outline-none sm:text-sm dark:border-zinc-700 dark:bg-zinc-800',
+              'disabled:cursor-not-allowed disabled:bg-zinc-50 disabled:text-zinc-500 dark:disabled:bg-zinc-900',
             )}
           >
             <span
@@ -165,7 +168,7 @@ export function TaskFieldSelector({
                 'block truncate',
                 value
                   ? 'text-zinc-900 dark:text-white'
-                  : 'text-zinc-500 dark:text-zinc-400'
+                  : 'text-zinc-500 dark:text-zinc-400',
               )}
             >
               {selectedField ? (
@@ -193,7 +196,7 @@ export function TaskFieldSelector({
             </span>
           </Listbox.Button>
 
-          <Listbox.Options className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none dark:bg-zinc-800 sm:text-sm">
+          <Listbox.Options className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black/5 focus:outline-none sm:text-sm dark:bg-zinc-800">
             {fields.length === 0 ? (
               <div className="px-4 py-2 text-sm text-zinc-500">
                 {t('taskFields.noFields', 'No fields found in task data')}
@@ -202,7 +205,7 @@ export function TaskFieldSelector({
               <>
                 {topLevelFields.length > 0 && (
                   <div>
-                    <div className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                    <div className="px-3 py-1.5 text-xs font-semibold tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                       {t('taskFields.topLevelFields', 'Top-level Fields')}
                     </div>
                     {topLevelFields.map((field) => (
@@ -213,7 +216,7 @@ export function TaskFieldSelector({
 
                 {nestedFields.length > 0 && (
                   <div>
-                    <div className="mt-2 border-t border-zinc-200 px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
+                    <div className="mt-2 border-t border-zinc-200 px-3 py-1.5 text-xs font-semibold tracking-wider text-zinc-500 uppercase dark:border-zinc-700 dark:text-zinc-400">
                       {t('taskFields.nestedFields', 'Nested Fields')}
                     </div>
                     {nestedFields.map((field) => (
@@ -254,10 +257,10 @@ function FieldOption({ field }: FieldOptionProps) {
       value={field.path}
       className={({ active }) =>
         clsx(
-          'relative cursor-default select-none py-2 pl-10 pr-4',
+          'relative cursor-default py-2 pr-4 pl-10 select-none',
           active
             ? 'bg-emerald-100 text-emerald-900 dark:bg-emerald-900 dark:text-emerald-100'
-            : 'text-zinc-900 dark:text-zinc-100'
+            : 'text-zinc-900 dark:text-zinc-100',
         )
       }
     >

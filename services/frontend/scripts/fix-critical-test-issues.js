@@ -40,7 +40,7 @@ function fixCriticalIssues(filePath) {
   usePathname: jest.fn(() => '/'),
   notFound: jest.fn(),
   redirect: jest.fn()
-}))`
+}))`,
         )
         hasChanges = true
       }

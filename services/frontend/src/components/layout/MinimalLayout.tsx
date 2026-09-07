@@ -1,11 +1,11 @@
 'use client'
 
 import { Footer } from '@/components/layout/Footer'
-import { SiteHeader } from '@/components/layout/SiteHeader'
 import {
   SectionProvider,
   type Section,
 } from '@/components/layout/SectionProvider'
+import { SiteHeader } from '@/components/layout/SiteHeader'
 
 interface MinimalLayoutProps {
   children: React.ReactNode
@@ -19,7 +19,11 @@ interface MinimalLayoutProps {
   prose?: boolean
 }
 
-export function MinimalLayout({ children, sections = [], prose = true }: MinimalLayoutProps) {
+export function MinimalLayout({
+  children,
+  sections = [],
+  prose = true,
+}: MinimalLayoutProps) {
   return (
     <SectionProvider sections={sections}>
       <div className="flex min-h-screen w-full flex-col bg-white dark:bg-zinc-900">
@@ -32,7 +36,7 @@ export function MinimalLayout({ children, sections = [], prose = true }: Minimal
           }
         >
           {prose ? (
-            <div className="prose prose-zinc max-w-none dark:prose-invert">
+            <div className="prose max-w-none prose-zinc dark:prose-invert">
               {children}
             </div>
           ) : (

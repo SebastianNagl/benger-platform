@@ -244,7 +244,7 @@ async function renderLoaded(report: any = baseReport) {
   render(<ReportEditorPage params={createParams('proj-1')} />)
   await waitFor(() => {
     expect(
-      screen.getByText('project.report.editor.saveReport')
+      screen.getByText('project.report.editor.saveReport'),
     ).toBeInTheDocument()
   })
   return user
@@ -278,7 +278,7 @@ describe('ReportEditorPage', () => {
     render(<ReportEditorPage params={createParams('proj-1')} />)
 
     expect(
-      screen.getByText('project.report.editor.loading')
+      screen.getByText('project.report.editor.loading'),
     ).toBeInTheDocument()
   })
 
@@ -288,7 +288,7 @@ describe('ReportEditorPage', () => {
     render(<ReportEditorPage params={createParams('proj-1')} />)
 
     expect(
-      screen.getByText('project.report.editor.loading')
+      screen.getByText('project.report.editor.loading'),
     ).toBeInTheDocument()
     expect(mockGet).not.toHaveBeenCalled()
   })
@@ -298,34 +298,34 @@ describe('ReportEditorPage', () => {
 
     expect(mockGet).toHaveBeenCalledWith('proj-1')
     expect(
-      screen.getByText('project.report.editor.projectInfo.title')
+      screen.getByText('project.report.editor.projectInfo.title'),
     ).toBeInTheDocument()
     expect(
-      screen.getByText('project.report.editor.dataSection.title')
+      screen.getByText('project.report.editor.dataSection.title'),
     ).toBeInTheDocument()
     expect(
-      screen.getByText('project.report.editor.annotationsSection.title')
+      screen.getByText('project.report.editor.annotationsSection.title'),
     ).toBeInTheDocument()
     expect(
-      screen.getByText('project.report.editor.generationSection.title')
+      screen.getByText('project.report.editor.generationSection.title'),
     ).toBeInTheDocument()
     expect(
-      screen.getByText('project.report.editor.evaluationSection.title')
+      screen.getByText('project.report.editor.evaluationSection.title'),
     ).toBeInTheDocument()
 
     const titleInput = screen.getByPlaceholderText(
-      'Test Project'
+      'Test Project',
     ) as HTMLInputElement
     expect(titleInput.value).toBe('Custom Title')
     expect(screen.getByTestId('textarea-customDescription')).toHaveValue(
-      'Custom Description'
+      'Custom Description',
     )
     expect(screen.getByTestId('textarea-dataText')).toHaveValue('Data text')
     expect(screen.getByTestId('textarea-acknowledgment')).toHaveValue(
-      'Thanks everyone'
+      'Thanks everyone',
     )
     expect(screen.getByTestId('textarea-conclusions')).toHaveValue(
-      'Conclusion text'
+      'Conclusion text',
     )
     expect(screen.getByTestId('breadcrumb')).toHaveTextContent('Test Project')
   })
@@ -341,7 +341,7 @@ describe('ReportEditorPage', () => {
 
       await waitFor(() => {
         expect(screen.getByRole('alert')).toHaveTextContent(
-          'reports.editor.notSuperadmin'
+          'reports.editor.notSuperadmin',
         )
       })
       expect(mockGet).not.toHaveBeenCalled()
@@ -358,7 +358,7 @@ describe('ReportEditorPage', () => {
       render(<ReportEditorPage params={createParams('proj-1')} />)
 
       await user.click(
-        await screen.findByText('project.report.editor.backToProject')
+        await screen.findByText('project.report.editor.backToProject'),
       )
       expect(mockRouter.push).toHaveBeenCalledWith('/projects/proj-1')
     })
@@ -372,7 +372,7 @@ describe('ReportEditorPage', () => {
     await waitFor(() => {
       expect(mockAddToast).toHaveBeenCalledWith(
         'project.report.editor.failedToLoad',
-        'error'
+        'error',
       )
     })
     expect(mockRouter.push).toHaveBeenCalledWith('/projects/proj-1')
@@ -383,7 +383,7 @@ describe('ReportEditorPage', () => {
       await renderLoaded()
 
       const select = screen.getByLabelText(
-        'reports.editor.primaryMetric'
+        'reports.editor.primaryMetric',
       ) as HTMLSelectElement
       expect(select.value).toBe('llm_judge_falloesung')
       const values = Array.from(select.options).map((o) => o.value)
@@ -395,7 +395,7 @@ describe('ReportEditorPage', () => {
       ])
       // Registry display name wins over the snapshot name.
       expect(
-        Array.from(select.options).find((o) => o.value === 'bleu')?.textContent
+        Array.from(select.options).find((o) => o.value === 'bleu')?.textContent,
       ).toBe('BLEU Score')
     })
 
@@ -403,7 +403,7 @@ describe('ReportEditorPage', () => {
       await renderLoaded()
 
       const select = screen.getByLabelText(
-        'reports.editor.primaryConfig'
+        'reports.editor.primaryConfig',
       ) as HTMLSelectElement
       expect(select.value).toBe('cfg-judge-sonnet')
       const labels = Array.from(select.options).map((o) => o.textContent)
@@ -418,11 +418,11 @@ describe('ReportEditorPage', () => {
 
       await user.selectOptions(
         screen.getByLabelText('reports.editor.primaryMetric'),
-        'korrektur_falloesung'
+        'korrektur_falloesung',
       )
 
       const cfgSelect = screen.getByLabelText(
-        'reports.editor.primaryConfig'
+        'reports.editor.primaryConfig',
       ) as HTMLSelectElement
       expect(cfgSelect.value).toBe('cfg-korrektur')
       expect(Array.from(cfgSelect.options).map((o) => o.textContent)).toEqual([
@@ -481,16 +481,22 @@ describe('ReportEditorPage', () => {
           hidden_subjects: ['annotator:KindAlly'],
           show_distribution: false,
           show_humans: false,
-        })
+        }),
       )
 
       expect(
-        (screen.getByLabelText('reports.editor.primaryMetric') as HTMLSelectElement)
-          .value
+        (
+          screen.getByLabelText(
+            'reports.editor.primaryMetric',
+          ) as HTMLSelectElement
+        ).value,
       ).toBe('bleu')
       expect(
-        (screen.getByLabelText('reports.editor.primaryConfig') as HTMLSelectElement)
-          .value
+        (
+          screen.getByLabelText(
+            'reports.editor.primaryConfig',
+          ) as HTMLSelectElement
+        ).value,
       ).toBe('cfg-bleu')
       const metrics = within(screen.getByTestId('visible-metrics'))
       expect(metrics.getByLabelText('BLEU Score')).toBeChecked()
@@ -499,13 +505,15 @@ describe('ReportEditorPage', () => {
       expect(configs.getByLabelText('bleu (n=300)')).toBeChecked()
       expect(configs.getByLabelText('Korrektur (n=184)')).not.toBeChecked()
       expect(
-        within(screen.getByTestId('hidden-subjects')).getByLabelText('KindAlly')
+        within(screen.getByTestId('hidden-subjects')).getByLabelText(
+          'KindAlly',
+        ),
       ).toBeChecked()
       expect(
-        screen.getByRole('switch', { name: 'reports.editor.showDistribution' })
+        screen.getByRole('switch', { name: 'reports.editor.showDistribution' }),
       ).toHaveAttribute('aria-checked', 'false')
       expect(
-        screen.getByRole('switch', { name: 'reports.editor.showHumans' })
+        screen.getByRole('switch', { name: 'reports.editor.showHumans' }),
       ).toHaveAttribute('aria-checked', 'false')
     })
 
@@ -517,12 +525,12 @@ describe('ReportEditorPage', () => {
 
       expect(
         screen.getByText(
-          'project.report.editor.evaluationSection.noMetricsAvailable'
-        )
+          'project.report.editor.evaluationSection.noMetricsAvailable',
+        ),
       ).toBeInTheDocument()
       expect(screen.getByText('reports.editor.noSnapshot')).toBeInTheDocument()
       expect(
-        screen.queryByLabelText('reports.editor.primaryMetric')
+        screen.queryByLabelText('reports.editor.primaryMetric'),
       ).not.toBeInTheDocument()
     })
   })
@@ -533,32 +541,39 @@ describe('ReportEditorPage', () => {
 
       // Edit a text, hide a section, flip flags, adjust presentation.
       await user.clear(screen.getByTestId('textarea-conclusions'))
-      await user.type(screen.getByTestId('textarea-conclusions'), 'New conclusions')
+      await user.type(
+        screen.getByTestId('textarea-conclusions'),
+        'New conclusions',
+      )
       await user.click(
         within(screen.getByTestId('section-data')).getByRole('switch', {
           name: 'reports.editor.showSection',
-        })
+        }),
       )
       await user.click(
-        screen.getByRole('switch', { name: 'reports.editor.showParticipants' })
+        screen.getByRole('switch', { name: 'reports.editor.showParticipants' }),
       )
       await user.click(
-        screen.getByRole('switch', { name: 'reports.editor.showDistribution' })
+        screen.getByRole('switch', { name: 'reports.editor.showDistribution' }),
       )
       await user.click(
-        within(screen.getByTestId('visible-metrics')).getByLabelText('BLEU Score')
+        within(screen.getByTestId('visible-metrics')).getByLabelText(
+          'BLEU Score',
+        ),
       )
       await user.click(
-        within(screen.getByTestId('visible-configs')).getByLabelText('bleu (n=300)')
+        within(screen.getByTestId('visible-configs')).getByLabelText(
+          'bleu (n=300)',
+        ),
       )
       await user.click(
         within(screen.getByTestId('hidden-subjects')).getByLabelText(
-          'Llama 4 Maverick'
-        )
+          'Llama 4 Maverick',
+        ),
       )
       await user.selectOptions(
         screen.getByLabelText('reports.editor.primaryConfig'),
-        'cfg-judge-mini'
+        'cfg-judge-mini',
       )
 
       await user.click(screen.getByText('project.report.editor.saveReport'))
@@ -612,7 +627,7 @@ describe('ReportEditorPage', () => {
 
       expect(mockAddToast).toHaveBeenCalledWith(
         'project.report.editor.savedSuccessfully',
-        'success'
+        'success',
       )
       // Stays on the editor (preview/iterate) instead of bouncing away.
       expect(mockRouter.push).not.toHaveBeenCalled()
@@ -620,7 +635,7 @@ describe('ReportEditorPage', () => {
 
     it('preserves unknown charts_config keys stored by older editors', async () => {
       const user = await renderLoaded(
-        reportWith({ available_views: ['data', 'bar'], default_view: 'bar' })
+        reportWith({ available_views: ['data', 'bar'], default_view: 'bar' }),
       )
 
       await user.click(screen.getByText('project.report.editor.saveReport'))
@@ -635,14 +650,14 @@ describe('ReportEditorPage', () => {
       const user = await renderLoaded()
 
       await user.click(
-        screen.getByText('project.report.editor.evaluationSection.clearAll')
+        screen.getByText('project.report.editor.evaluationSection.clearAll'),
       )
       await user.click(screen.getByText('project.report.editor.saveReport'))
 
       await waitFor(() => {
         expect(mockAddToast).toHaveBeenCalledWith(
           'reports.editor.noMetricsVisible',
-          'warning'
+          'warning',
         )
       })
       expect(mockUpdate).not.toHaveBeenCalled()
@@ -652,7 +667,7 @@ describe('ReportEditorPage', () => {
       const user = await renderLoaded(reportWith({ visible_metrics: ['bleu'] }))
 
       await user.click(
-        screen.getByText('project.report.editor.evaluationSection.selectAll')
+        screen.getByText('project.report.editor.evaluationSection.selectAll'),
       )
       await user.click(screen.getByText('project.report.editor.saveReport'))
 
@@ -665,8 +680,8 @@ describe('ReportEditorPage', () => {
       const user = await renderLoaded(
         reportWith(
           { visible_metrics: ['bleu'], visible_configs: ['cfg-bleu'] },
-          { content: { snapshot: null } }
-        )
+          { content: { snapshot: null } },
+        ),
       )
 
       await user.click(screen.getByText('project.report.editor.saveReport'))
@@ -679,7 +694,7 @@ describe('ReportEditorPage', () => {
       expect(cfg.visible_configs).toEqual(['cfg-bleu'])
       expect(mockAddToast).toHaveBeenCalledWith(
         'project.report.editor.savedSuccessfully',
-        'success'
+        'success',
       )
     })
 
@@ -692,7 +707,7 @@ describe('ReportEditorPage', () => {
       await waitFor(() => {
         expect(mockAddToast).toHaveBeenCalledWith(
           'project.report.editor.failedToSave',
-          'error'
+          'error',
         )
       })
     })
@@ -723,7 +738,9 @@ describe('ReportEditorPage', () => {
       await user.clear(screen.getByTestId('textarea-dataText'))
       await user.type(screen.getByTestId('textarea-dataText'), 'Kept edit')
       await user.click(
-        within(screen.getByTestId('visible-metrics')).getByLabelText('BLEU Score')
+        within(screen.getByTestId('visible-metrics')).getByLabelText(
+          'BLEU Score',
+        ),
       )
 
       await user.click(screen.getByText('reports.editor.refresh'))
@@ -733,7 +750,7 @@ describe('ReportEditorPage', () => {
       })
       expect(mockAddToast).toHaveBeenCalledWith(
         'reports.editor.refreshed',
-        'success'
+        'success',
       )
       // Edit survived, previously unchecked metric stays unchecked, new one visible.
       expect(screen.getByTestId('textarea-dataText')).toHaveValue('Kept edit')
@@ -751,7 +768,7 @@ describe('ReportEditorPage', () => {
       await waitFor(() => {
         expect(mockAddToast).toHaveBeenCalledWith(
           'reports.editor.refreshFailed',
-          'error'
+          'error',
         )
       })
     })

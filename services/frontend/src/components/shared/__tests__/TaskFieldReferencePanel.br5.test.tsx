@@ -53,12 +53,7 @@ describe('TaskFieldReferencePanel - br5 branch coverage', () => {
   })
 
   it('renders with custom title', () => {
-    render(
-      <TaskFieldReferencePanel
-        {...defaultProps}
-        title="Custom Title"
-      />
-    )
+    render(<TaskFieldReferencePanel {...defaultProps} title="Custom Title" />)
     expect(screen.getByText('Custom Title')).toBeInTheDocument()
   })
 
@@ -68,7 +63,7 @@ describe('TaskFieldReferencePanel - br5 branch coverage', () => {
         {...defaultProps}
         description="Custom description"
         defaultExpanded={true}
-      />
+      />,
     )
     expect(screen.getByText('Custom description')).toBeInTheDocument()
   })
@@ -87,7 +82,7 @@ describe('TaskFieldReferencePanel - br5 branch coverage', () => {
 
   it('applies className prop', () => {
     const { container } = render(
-      <TaskFieldReferencePanel {...defaultProps} className="my-custom-class" />
+      <TaskFieldReferencePanel {...defaultProps} className="my-custom-class" />,
     )
     expect(container.querySelector('.my-custom-class')).toBeInTheDocument()
   })
@@ -98,7 +93,9 @@ describe('TaskFieldReferencePanel - br5 branch coverage', () => {
     expect(screen.getByTestId('loading-spinner')).toBeInTheDocument()
 
     // Click header to collapse
-    const headerBtn = screen.getByText('Available Task Fields').closest('button')!
+    const headerBtn = screen
+      .getByText('Available Task Fields')
+      .closest('button')!
     fireEvent.click(headerBtn)
 
     // Loading spinner should be gone after collapse

@@ -127,7 +127,7 @@ export function DynamicField({ field, value, className }: DynamicFieldProps) {
             {field.label && (
               <p className="text-sm font-medium">{field.label}</p>
             )}
-            <p className="text-muted-foreground whitespace-pre-wrap text-sm">
+            <p className="text-muted-foreground text-sm whitespace-pre-wrap">
               {displayValue}
             </p>
           </div>

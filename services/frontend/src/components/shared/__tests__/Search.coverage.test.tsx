@@ -38,7 +38,12 @@ jest.mock('next/navigation', () => {
   }
 })
 
-let mockUser: any = { id: '1', username: 'u', email: 'u@e.com', is_superadmin: true }
+let mockUser: any = {
+  id: '1',
+  username: 'u',
+  email: 'u@e.com',
+  is_superadmin: true,
+}
 const mockOrganizations = [{ id: '1', name: 'Org', role: 'ORG_ADMIN' }]
 
 jest.mock('@/contexts/AuthContext', () => ({
@@ -105,14 +110,14 @@ jest.mock('@headlessui/react', () => {
       ? React.createElement(
           'div',
           { 'data-testid': 'dialog', className },
-          children
+          children,
         )
       : null
   const DialogPanel = ({ children, className }: any) =>
     React.createElement(
       'div',
       { 'data-testid': 'dialog-panel', className },
-      children
+      children,
     )
   const DialogBackdrop = ({ className }: any) =>
     React.createElement('div', { 'data-testid': 'dialog-backdrop', className })
@@ -212,7 +217,7 @@ describe('Search onStateChange -> searchProjects debounce', () => {
     expect(mockProjectsList).toHaveBeenCalled()
     expect(errSpy).toHaveBeenCalledWith(
       'Project search failed:',
-      expect.any(Error)
+      expect.any(Error),
     )
     errSpy.mockRestore()
     jest.useRealTimers()

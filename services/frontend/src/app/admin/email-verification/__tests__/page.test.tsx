@@ -222,15 +222,15 @@ describe('EmailVerificationManagement', () => {
       await waitFor(() => {
         expect(global.fetch).toHaveBeenCalledWith(
           expect.stringContaining('/statistics'),
-          expect.any(Object)
+          expect.any(Object),
         )
         expect(global.fetch).toHaveBeenCalledWith(
           expect.stringContaining('/unverified-users'),
-          expect.any(Object)
+          expect.any(Object),
         )
         expect(global.fetch).toHaveBeenCalledWith(
           expect.stringContaining('/statistics-report'),
-          expect.any(Object)
+          expect.any(Object),
         )
       })
     })
@@ -242,7 +242,7 @@ describe('EmailVerificationManagement', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('Failed to load email verification data')
+          screen.getByText('Failed to load email verification data'),
         ).toBeInTheDocument()
       })
     })
@@ -291,7 +291,7 @@ describe('EmailVerificationManagement', () => {
       await waitFor(() => {
         expect(screen.getByText('System Alerts')).toBeInTheDocument()
         expect(
-          screen.getByText('High number of unverified users detected')
+          screen.getByText('High number of unverified users detected'),
         ).toBeInTheDocument()
       })
     })
@@ -508,7 +508,7 @@ describe('EmailVerificationManagement', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('All users have verified their emails!')
+          screen.getByText('All users have verified their emails!'),
         ).toBeInTheDocument()
       })
     })
@@ -578,7 +578,7 @@ describe('EmailVerificationManagement', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('Verification email resent to test1@example.com')
+          screen.getByText('Verification email resent to test1@example.com'),
         ).toBeInTheDocument()
       })
     })
@@ -631,7 +631,7 @@ describe('EmailVerificationManagement', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('Email service unavailable')
+          screen.getByText('Email service unavailable'),
         ).toBeInTheDocument()
       })
     })
@@ -682,7 +682,7 @@ describe('EmailVerificationManagement', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('Failed to resend verification email')
+          screen.getByText('Failed to resend verification email'),
         ).toBeInTheDocument()
       })
 
@@ -741,7 +741,7 @@ describe('EmailVerificationManagement', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('Verification email resent to test1@example.com')
+          screen.getByText('Verification email resent to test1@example.com'),
         ).toBeInTheDocument()
       })
     })
@@ -920,7 +920,7 @@ describe('EmailVerificationManagement', () => {
             ok: true,
             json: async () => ({ report: mockStatisticsReport }),
           })
-        }
+        },
       )
 
       render(<EmailVerificationManagement />)
@@ -941,7 +941,7 @@ describe('EmailVerificationManagement', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('Cleanup completed! 5 expired tokens removed.')
+          screen.getByText('Cleanup completed! 5 expired tokens removed.'),
         ).toBeInTheDocument()
       })
     })
@@ -967,7 +967,7 @@ describe('EmailVerificationManagement', () => {
             ok: true,
             json: async () => ({ report: mockStatisticsReport }),
           })
-        }
+        },
       )
 
       render(<EmailVerificationManagement />)
@@ -988,7 +988,7 @@ describe('EmailVerificationManagement', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('Failed to run token cleanup')
+          screen.getByText('Failed to run token cleanup'),
         ).toBeInTheDocument()
       })
 
@@ -1021,7 +1021,7 @@ describe('EmailVerificationManagement', () => {
             ok: true,
             json: async () => ({ report: mockStatisticsReport }),
           })
-        }
+        },
       )
 
       render(<EmailVerificationManagement />)
@@ -1042,7 +1042,7 @@ describe('EmailVerificationManagement', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('Reminder emails sent! 8 emails sent successfully.')
+          screen.getByText('Reminder emails sent! 8 emails sent successfully.'),
         ).toBeInTheDocument()
       })
     })
@@ -1068,7 +1068,7 @@ describe('EmailVerificationManagement', () => {
             ok: true,
             json: async () => ({ report: mockStatisticsReport }),
           })
-        }
+        },
       )
 
       render(<EmailVerificationManagement />)
@@ -1089,7 +1089,7 @@ describe('EmailVerificationManagement', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('Failed to send reminder emails')
+          screen.getByText('Failed to send reminder emails'),
         ).toBeInTheDocument()
       })
 
@@ -1119,7 +1119,7 @@ describe('EmailVerificationManagement', () => {
       await waitFor(() => {
         expect(global.fetch).toHaveBeenCalledWith(
           expect.stringContaining('/statistics'),
-          expect.any(Object)
+          expect.any(Object),
         )
       })
     })
@@ -1156,7 +1156,7 @@ describe('EmailVerificationManagement', () => {
             ok: true,
             json: async () => ({ report: mockStatisticsReport }),
           })
-        }
+        },
       )
 
       render(<EmailVerificationManagement />)
@@ -1179,7 +1179,7 @@ describe('EmailVerificationManagement', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('Cleanup completed! 5 expired tokens removed.')
+          screen.getByText('Cleanup completed! 5 expired tokens removed.'),
         ).toBeInTheDocument()
       })
     })
@@ -1302,7 +1302,7 @@ describe('EmailVerificationManagement', () => {
       await waitFor(() => {
         expect(global.fetch).toHaveBeenCalledWith(
           expect.stringMatching(/^\/api\//),
-          expect.any(Object)
+          expect.any(Object),
         )
       })
 
@@ -1318,7 +1318,7 @@ describe('EmailVerificationManagement', () => {
       await waitFor(() => {
         expect(global.fetch).toHaveBeenCalledWith(
           expect.stringMatching(/^http:\/\/localhost:8000/),
-          expect.any(Object)
+          expect.any(Object),
         )
       })
 
@@ -1355,7 +1355,7 @@ describe('EmailVerificationManagement', () => {
             ok: true,
             json: async () => ({ report: mockStatisticsReport }),
           })
-        }
+        },
       )
 
       render(<EmailVerificationManagement />)
@@ -1376,7 +1376,7 @@ describe('EmailVerificationManagement', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('Failed to run token cleanup')
+          screen.getByText('Failed to run token cleanup'),
         ).toBeInTheDocument()
       })
 
@@ -1415,7 +1415,7 @@ describe('EmailVerificationManagement', () => {
             ok: true,
             json: async () => ({ report: mockStatisticsReport }),
           })
-        }
+        },
       )
 
       render(<EmailVerificationManagement />)
@@ -1436,7 +1436,7 @@ describe('EmailVerificationManagement', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('Cleanup completed! 5 expired tokens removed.')
+          screen.getByText('Cleanup completed! 5 expired tokens removed.'),
         ).toBeInTheDocument()
       })
 
@@ -1445,10 +1445,10 @@ describe('EmailVerificationManagement', () => {
 
       await waitFor(() => {
         expect(
-          screen.queryByText('Cleanup completed! 5 expired tokens removed.')
+          screen.queryByText('Cleanup completed! 5 expired tokens removed.'),
         ).not.toBeInTheDocument()
         expect(
-          screen.getByText('Reminder emails sent! 8 emails sent successfully.')
+          screen.getByText('Reminder emails sent! 8 emails sent successfully.'),
         ).toBeInTheDocument()
       })
     })
@@ -1518,7 +1518,7 @@ describe('EmailVerificationManagement', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('All users have verified their emails!')
+          screen.getByText('All users have verified their emails!'),
         ).toBeInTheDocument()
       })
     })
@@ -1549,7 +1549,7 @@ describe('EmailVerificationManagement', () => {
             ok: true,
             json: async () => ({ report: mockStatisticsReport }),
           })
-        }
+        },
       )
 
       render(<EmailVerificationManagement />)
@@ -1566,7 +1566,7 @@ describe('EmailVerificationManagement', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('Cleanup completed! 0 expired tokens removed.')
+          screen.getByText('Cleanup completed! 0 expired tokens removed.'),
         ).toBeInTheDocument()
       })
     })
@@ -1601,7 +1601,7 @@ describe('EmailVerificationManagement', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('Failed to load email verification data')
+          screen.getByText('Failed to load email verification data'),
         ).toBeInTheDocument()
       })
 
@@ -1633,7 +1633,7 @@ describe('EmailVerificationManagement', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('Failed to load email verification data')
+          screen.getByText('Failed to load email verification data'),
         ).toBeInTheDocument()
       })
 
@@ -1665,7 +1665,7 @@ describe('EmailVerificationManagement', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('Failed to load email verification data')
+          screen.getByText('Failed to load email verification data'),
         ).toBeInTheDocument()
       })
 
@@ -1698,7 +1698,7 @@ describe('EmailVerificationManagement', () => {
             ok: true,
             json: async () => ({ report: mockStatisticsReport }),
           })
-        }
+        },
       )
 
       render(<EmailVerificationManagement />)
@@ -1719,7 +1719,7 @@ describe('EmailVerificationManagement', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('Failed to run token cleanup')
+          screen.getByText('Failed to run token cleanup'),
         ).toBeInTheDocument()
       })
 
@@ -1752,7 +1752,7 @@ describe('EmailVerificationManagement', () => {
             ok: true,
             json: async () => ({ report: mockStatisticsReport }),
           })
-        }
+        },
       )
 
       render(<EmailVerificationManagement />)
@@ -1773,7 +1773,7 @@ describe('EmailVerificationManagement', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('Failed to send reminder emails')
+          screen.getByText('Failed to send reminder emails'),
         ).toBeInTheDocument()
       })
 
@@ -1809,7 +1809,7 @@ describe('EmailVerificationManagement', () => {
             ok: true,
             json: async () => ({ report: mockStatisticsReport }),
           })
-        }
+        },
       )
 
       render(<EmailVerificationManagement />)
@@ -1830,7 +1830,7 @@ describe('EmailVerificationManagement', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('Failed to resend verification email')
+          screen.getByText('Failed to resend verification email'),
         ).toBeInTheDocument()
       })
 
@@ -1848,14 +1848,14 @@ describe('EmailVerificationManagement', () => {
 
       // Check that all tabs are rendered with their labels
       expect(
-        screen.getByRole('button', { name: /Overview/ })
+        screen.getByRole('button', { name: /Overview/ }),
       ).toBeInTheDocument()
       expect(screen.getByRole('button', { name: /Users/ })).toBeInTheDocument()
       expect(
-        screen.getByRole('button', { name: /Analytics/ })
+        screen.getByRole('button', { name: /Analytics/ }),
       ).toBeInTheDocument()
       expect(
-        screen.getByRole('button', { name: /Maintenance/ })
+        screen.getByRole('button', { name: /Maintenance/ }),
       ).toBeInTheDocument()
     })
 
@@ -1924,7 +1924,7 @@ describe('EmailVerificationManagement', () => {
             ok: true,
             json: async () => ({ report: mockStatisticsReport }),
           })
-        }
+        },
       )
 
       render(<EmailVerificationManagement />)
@@ -1941,7 +1941,7 @@ describe('EmailVerificationManagement', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('Cleanup completed! 3 expired tokens removed.')
+          screen.getByText('Cleanup completed! 3 expired tokens removed.'),
         ).toBeInTheDocument()
       })
     })
@@ -1972,7 +1972,7 @@ describe('EmailVerificationManagement', () => {
             ok: true,
             json: async () => ({ report: mockStatisticsReport }),
           })
-        }
+        },
       )
 
       render(<EmailVerificationManagement />)
@@ -1989,7 +1989,7 @@ describe('EmailVerificationManagement', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('Reminder emails sent! 5 emails sent successfully.')
+          screen.getByText('Reminder emails sent! 5 emails sent successfully.'),
         ).toBeInTheDocument()
       })
     })
@@ -2026,7 +2026,7 @@ describe('EmailVerificationManagement', () => {
             ok: true,
             json: async () => ({ report: mockStatisticsReport }),
           })
-        }
+        },
       )
 
       render(<EmailVerificationManagement />)
@@ -2047,7 +2047,7 @@ describe('EmailVerificationManagement', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('Verification email resent to test1@example.com')
+          screen.getByText('Verification email resent to test1@example.com'),
         ).toBeInTheDocument()
       })
     })
@@ -2080,7 +2080,7 @@ describe('EmailVerificationManagement', () => {
             ok: true,
             json: async () => ({ report: mockStatisticsReport }),
           })
-        }
+        },
       )
 
       render(<EmailVerificationManagement />)
@@ -2099,7 +2099,7 @@ describe('EmailVerificationManagement', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('Cleanup completed! 3 expired tokens removed.')
+          screen.getByText('Cleanup completed! 3 expired tokens removed.'),
         ).toBeInTheDocument()
       })
 
@@ -2107,15 +2107,15 @@ describe('EmailVerificationManagement', () => {
       await waitFor(() => {
         expect(global.fetch).toHaveBeenCalledWith(
           expect.stringContaining('/statistics'),
-          expect.any(Object)
+          expect.any(Object),
         )
         expect(global.fetch).toHaveBeenCalledWith(
           expect.stringContaining('/unverified-users'),
-          expect.any(Object)
+          expect.any(Object),
         )
         expect(global.fetch).toHaveBeenCalledWith(
           expect.stringContaining('/statistics-report'),
-          expect.any(Object)
+          expect.any(Object),
         )
       })
     })
@@ -2146,7 +2146,7 @@ describe('EmailVerificationManagement', () => {
             ok: true,
             json: async () => ({ report: mockStatisticsReport }),
           })
-        }
+        },
       )
 
       render(<EmailVerificationManagement />)
@@ -2165,7 +2165,7 @@ describe('EmailVerificationManagement', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('Reminder emails sent! 7 emails sent successfully.')
+          screen.getByText('Reminder emails sent! 7 emails sent successfully.'),
         ).toBeInTheDocument()
       })
 
@@ -2173,7 +2173,7 @@ describe('EmailVerificationManagement', () => {
       await waitFor(() => {
         expect(global.fetch).toHaveBeenCalledWith(
           expect.stringContaining('/statistics'),
-          expect.any(Object)
+          expect.any(Object),
         )
       })
     })
@@ -2210,7 +2210,7 @@ describe('EmailVerificationManagement', () => {
             ok: true,
             json: async () => ({ report: mockStatisticsReport }),
           })
-        }
+        },
       )
 
       render(<EmailVerificationManagement />)
@@ -2233,7 +2233,7 @@ describe('EmailVerificationManagement', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('Verification email resent to test1@example.com')
+          screen.getByText('Verification email resent to test1@example.com'),
         ).toBeInTheDocument()
       })
 
@@ -2241,7 +2241,7 @@ describe('EmailVerificationManagement', () => {
       await waitFor(() => {
         expect(global.fetch).toHaveBeenCalledWith(
           expect.stringContaining('/unverified-users'),
-          expect.any(Object)
+          expect.any(Object),
         )
       })
     })

@@ -17,7 +17,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { apiClient } from '@/lib/api/client'
 import { projectsAPI } from '@/lib/api/projects'
-import { render, screen, waitFor, act, fireEvent } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useRouter, useSearchParams } from 'next/navigation'
 import EvaluationDashboard from '../page'
@@ -106,7 +106,12 @@ jest.mock('@/components/shared/ResponsiveContainer', () => ({
 
 jest.mock('@/components/shared/Button', () => ({
   Button: ({ children, onClick, disabled, className, ...props }: any) => (
-    <button onClick={onClick} disabled={disabled} className={className} {...props}>
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className={className}
+      {...props}
+    >
       {children}
     </button>
   ),
@@ -151,7 +156,18 @@ jest.mock('@/components/evaluation/FieldPairSelector', () => ({
 jest.mock('@/components/evaluation/EvaluationResults', () => ({
   EvaluationResults: ({ onResultsLoaded, onDataLoaded }: any) => {
     if (onResultsLoaded) setTimeout(() => onResultsLoaded(true), 0)
-    if (onDataLoaded) setTimeout(() => onDataLoaded([{ model_id: 'gpt-4', metrics: { bleu: 0.85 }, samples_evaluated: 10 }]), 0)
+    if (onDataLoaded)
+      setTimeout(
+        () =>
+          onDataLoaded([
+            {
+              model_id: 'gpt-4',
+              metrics: { bleu: 0.85 },
+              samples_evaluated: 10,
+            },
+          ]),
+        0,
+      )
     return <div data-testid="evaluation-results" />
   },
 }))
@@ -161,7 +177,9 @@ jest.mock('@/components/evaluation/ScoreCard', () => ({
 }))
 
 jest.mock('@/components/evaluation/StatisticalResultsPanel', () => ({
-  StatisticalResultsPanel: () => <div data-testid="statistical-results-panel" />,
+  StatisticalResultsPanel: () => (
+    <div data-testid="statistical-results-panel" />
+  ),
 }))
 
 jest.mock('@/components/evaluation/StatisticsSelector', () => ({
@@ -190,20 +208,61 @@ jest.mock('@/components/evaluation/EvaluationBuilder', () => ({
 }))
 
 const mockRouter = { push: jest.fn(), replace: jest.fn() }
-const mockUser = { id: 'user-1', name: 'Test', email: 'test@test.com', is_superadmin: true, is_active: true, created_at: '2024-01-01', updated_at: '2024-01-01' }
+const mockUser = {
+  id: 'user-1',
+  name: 'Test',
+  email: 'test@test.com',
+  is_superadmin: true,
+  is_active: true,
+  created_at: '2024-01-01',
+  updated_at: '2024-01-01',
+}
 const mockAddToast = jest.fn()
-const mockT = (key: string, fallback?: any) => typeof fallback === 'string' ? fallback : key
+const mockT = (key: string, fallback?: any) =>
+  typeof fallback === 'string' ? fallback : key
 
 const mockProject = { id: 1, title: 'Test Project', task_count: 10 }
 const mockEvalConfig = {
   evaluation_configs: [
-    { id: 'cfg1', metric: 'bleu', display_name: 'BLEU', prediction_fields: ['model_answer'], reference_fields: ['reference'], enabled: true },
-    { id: 'cfg2', metric: 'llm_judge_classic', display_name: 'LLM Judge', prediction_fields: ['model_answer'], reference_fields: ['reference'], enabled: true },
+    {
+      id: 'cfg1',
+      metric: 'bleu',
+      display_name: 'BLEU',
+      prediction_fields: ['model_answer'],
+      reference_fields: ['reference'],
+      enabled: true,
+    },
+    {
+      id: 'cfg2',
+      metric: 'llm_judge_classic',
+      display_name: 'LLM Judge',
+      prediction_fields: ['model_answer'],
+      reference_fields: ['reference'],
+      enabled: true,
+    },
   ],
 }
 const mockModels = [
-  { model_id: 'gpt-4', model_name: 'GPT-4', provider: 'openai', is_configured: true, has_generations: true, has_results: true, evaluation_count: 5, total_samples: 100 },
-  { model_id: 'claude-3', model_name: 'Claude 3', provider: 'anthropic', is_configured: true, has_generations: true, has_results: true, evaluation_count: 3, total_samples: 80 },
+  {
+    model_id: 'gpt-4',
+    model_name: 'GPT-4',
+    provider: 'openai',
+    is_configured: true,
+    has_generations: true,
+    has_results: true,
+    evaluation_count: 5,
+    total_samples: 100,
+  },
+  {
+    model_id: 'claude-3',
+    model_name: 'Claude 3',
+    provider: 'anthropic',
+    is_configured: true,
+    has_generations: true,
+    has_results: true,
+    evaluation_count: 3,
+    total_samples: 80,
+  },
 ]
 
 async function setupAndSelectProject() {
@@ -214,21 +273,29 @@ async function setupAndSelectProject() {
   render(<EvaluationDashboard />)
 
   await waitFor(() => {
-    expect(screen.getByText('evaluation.viewer.filters.selectProject')).toBeInTheDocument()
+    expect(
+      screen.getByText('evaluation.viewer.filters.selectProject'),
+    ).toBeInTheDocument()
   })
 
   // Select project
   await user.click(screen.getByText('evaluation.viewer.filters.selectProject'))
-  await waitFor(() => expect(screen.getByText('Test Project')).toBeInTheDocument())
+  await waitFor(() =>
+    expect(screen.getByText('Test Project')).toBeInTheDocument(),
+  )
   await user.click(screen.getByText('Test Project'))
 
   // Wait for project data to load
   await waitFor(() => {
-    expect(apiClient.evaluations.getProjectEvaluationConfig).toHaveBeenCalledWith('1')
+    expect(
+      apiClient.evaluations.getProjectEvaluationConfig,
+    ).toHaveBeenCalledWith('1')
   })
 
   // Wait for filters to render
-  await act(async () => { await new Promise(r => setTimeout(r, 100)) })
+  await act(async () => {
+    await new Promise((r) => setTimeout(r, 100))
+  })
 
   return user
 }
@@ -238,34 +305,64 @@ describe('EvaluationDashboard - filter dropdown coverage', () => {
     jest.clearAllMocks()
     localStorage.clear()
     ;(useRouter as jest.Mock).mockReturnValue(mockRouter)
-    ;(useAuth as jest.Mock).mockReturnValue({ user: mockUser, isLoading: false })
+    ;(useAuth as jest.Mock).mockReturnValue({
+      user: mockUser,
+      isLoading: false,
+    })
     ;(useI18n as jest.Mock).mockReturnValue({ t: mockT })
     ;(useToast as jest.Mock).mockReturnValue({ addToast: mockAddToast })
     ;(projectsAPI.list as jest.Mock).mockResolvedValue({ items: [mockProject] })
-    ;(apiClient.evaluations.getProjectEvaluationConfig as jest.Mock).mockResolvedValue(mockEvalConfig)
-    ;(apiClient.evaluations.getConfiguredMethods as jest.Mock).mockResolvedValue({
-      fields: [{ field_name: 'model_answer', automated_methods: [{ method_name: 'bleu', has_results: true, result_count: 5 }] }],
+    ;(
+      apiClient.evaluations.getProjectEvaluationConfig as jest.Mock
+    ).mockResolvedValue(mockEvalConfig)
+    ;(
+      apiClient.evaluations.getConfiguredMethods as jest.Mock
+    ).mockResolvedValue({
+      fields: [
+        {
+          field_name: 'model_answer',
+          automated_methods: [
+            { method_name: 'bleu', has_results: true, result_count: 5 },
+          ],
+        },
+      ],
     })
-    ;(apiClient.evaluations.getEvaluatedModels as jest.Mock).mockResolvedValue(mockModels)
-    ;(apiClient.evaluations.getProjectAnnotators as jest.Mock).mockResolvedValue({ annotators: [] })
+    ;(apiClient.evaluations.getEvaluatedModels as jest.Mock).mockResolvedValue(
+      mockModels,
+    )
+    ;(
+      apiClient.evaluations.getProjectAnnotators as jest.Mock
+    ).mockResolvedValue({ annotators: [] })
     ;(apiClient.get as jest.Mock).mockResolvedValue({ data: [] })
-    ;(apiClient.evaluations.getEvaluationHistory as jest.Mock).mockResolvedValue({ series: [] })
-    ;(apiClient.evaluations.getSignificanceTests as jest.Mock).mockResolvedValue({ comparisons: [] })
-    ;(apiClient.evaluations.computeStatistics as jest.Mock).mockResolvedValue({})
+    ;(
+      apiClient.evaluations.getEvaluationHistory as jest.Mock
+    ).mockResolvedValue({ series: [] })
+    ;(
+      apiClient.evaluations.getSignificanceTests as jest.Mock
+    ).mockResolvedValue({ comparisons: [] })
+    ;(apiClient.evaluations.computeStatistics as jest.Mock).mockResolvedValue(
+      {},
+    )
   })
 
   it('renders model filter dropdown with select all and clear all', async () => {
     const user = await setupAndSelectProject()
 
     // Find model filter dropdown button
-    const modelFilterBtn = screen.queryByText('evaluation.viewer.filters.allModels')
+    const modelFilterBtn = screen.queryByText(
+      'evaluation.viewer.filters.allModels',
+    )
     if (modelFilterBtn) {
       await user.click(modelFilterBtn)
 
       // Should show select all and clear all buttons
       await waitFor(() => {
-        expect(screen.getByText('evaluation.viewer.filters.selectAll')).toBeInTheDocument()
-        expect(screen.getByText('evaluation.viewer.filters.clearAll')).toBeInTheDocument()
+        expect(
+          screen.getByText('evaluation.viewer.filters.selectAll'),
+        ).toBeInTheDocument()
+        expect(
+          screen.getByText('evaluation.viewer.filters.clearAll'),
+        ).toBeInTheDocument()
       })
 
       // Click clear all
@@ -279,7 +376,9 @@ describe('EvaluationDashboard - filter dropdown coverage', () => {
   it('toggles individual model in model filter', async () => {
     const user = await setupAndSelectProject()
 
-    const modelFilterBtn = screen.queryByText('evaluation.viewer.filters.allModels')
+    const modelFilterBtn = screen.queryByText(
+      'evaluation.viewer.filters.allModels',
+    )
     if (modelFilterBtn) {
       await user.click(modelFilterBtn)
 
@@ -295,7 +394,9 @@ describe('EvaluationDashboard - filter dropdown coverage', () => {
     const user = await setupAndSelectProject()
 
     // Find metrics filter button
-    const metricsFilterBtn = screen.queryByText('evaluation.viewer.filters.allMetrics')
+    const metricsFilterBtn = screen.queryByText(
+      'evaluation.viewer.filters.allMetrics',
+    )
     if (metricsFilterBtn) {
       await user.click(metricsFilterBtn)
 
@@ -334,7 +435,9 @@ describe('EvaluationDashboard - filter dropdown coverage', () => {
 
     // Find view toggle buttons
     const buttons = screen.queryAllByRole('button')
-    const dataViewBtn = buttons.find(b => b.textContent?.includes('evaluation.viewer.viewType.data'))
+    const dataViewBtn = buttons.find((b) =>
+      b.textContent?.includes('evaluation.viewer.viewType.data'),
+    )
     if (dataViewBtn) {
       await user.click(dataViewBtn)
     }
@@ -356,6 +459,8 @@ describe('EvaluationDashboard - filter dropdown coverage', () => {
     })
 
     // EvaluationResults mock calls onDataLoaded, which should trigger score cards
-    await act(async () => { await new Promise(r => setTimeout(r, 100)) })
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 100))
+    })
   })
 })

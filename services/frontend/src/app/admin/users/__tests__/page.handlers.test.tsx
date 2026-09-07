@@ -167,9 +167,11 @@ function setupMocks(overrides: Record<string, any> = {}) {
     t: (key: string) => key,
     changeLocale: jest.fn(),
   })
-  ;(useErrorAlert as jest.Mock).mockReturnValue(overrides.showError ?? jest.fn())
+  ;(useErrorAlert as jest.Mock).mockReturnValue(
+    overrides.showError ?? jest.fn(),
+  )
   ;(useDeleteConfirm as jest.Mock).mockReturnValue(
-    overrides.confirmDelete ?? jest.fn().mockResolvedValue(true)
+    overrides.confirmDelete ?? jest.fn().mockResolvedValue(true),
   )
 
   const mockApi = api as jest.Mocked<typeof api>
@@ -180,11 +182,12 @@ function setupMocks(overrides: Record<string, any> = {}) {
   mockApi.updateUserSuperadminStatus = jest.fn().mockResolvedValue({})
   mockApi.deleteUser = jest.fn().mockResolvedValue(undefined)
 
-  ;(organizationsAPI as jest.Mocked<typeof organizationsAPI>).bulkVerifyMemberEmails =
-    jest.fn().mockResolvedValue({
-      summary: { total: 1, success: 1, skipped: 0, errors: 0 },
-      results: [{ user_id: 'user-2', status: 'success', message: 'ok' }],
-    })
+  ;(
+    organizationsAPI as jest.Mocked<typeof organizationsAPI>
+  ).bulkVerifyMemberEmails = jest.fn().mockResolvedValue({
+    summary: { total: 1, success: 1, skipped: 0, errors: 0 },
+    results: [{ user_id: 'user-2', status: 'success', message: 'ok' }],
+  })
 
   ;(useAuth as jest.Mock).mockReturnValue({
     user: overrides.user ?? currentUserFixture,
@@ -238,7 +241,7 @@ describe('AdminUsersPage handler coverage', () => {
       await waitFor(() => {
         expect(api.updateUserSuperadminStatus).toHaveBeenCalledWith(
           'user-2',
-          true
+          true,
         )
       })
     })
@@ -255,7 +258,7 @@ describe('AdminUsersPage handler coverage', () => {
       const row = rowFor('John Doe')
       await userEvent.selectOptions(
         within(row).getByRole('combobox'),
-        'superadmin'
+        'superadmin',
       )
 
       await waitFor(() => {
@@ -267,7 +270,7 @@ describe('AdminUsersPage handler coverage', () => {
     it('sets error and refetches on rejection', async () => {
       setupMocks()
       ;(api.updateUserSuperadminStatus as jest.Mock).mockRejectedValue(
-        new Error('boom')
+        new Error('boom'),
       )
       render(<AdminUsersPage />)
       await waitForUserRow('John Doe')
@@ -277,7 +280,7 @@ describe('AdminUsersPage handler coverage', () => {
       const row = rowFor('John Doe')
       await userEvent.selectOptions(
         within(row).getByRole('combobox'),
-        'superadmin'
+        'superadmin',
       )
 
       // Error message surfaces in the error banner and a refetch fires.
@@ -319,7 +322,7 @@ describe('AdminUsersPage handler coverage', () => {
     it('shows an error and keeps the row when delete rejects', async () => {
       setupMocks()
       ;(api.deleteUser as jest.Mock).mockRejectedValue(
-        new Error('cannot delete')
+        new Error('cannot delete'),
       )
       render(<AdminUsersPage />)
       await waitForUserRow('John Doe')
@@ -356,7 +359,7 @@ describe('AdminUsersPage handler coverage', () => {
 
       // Bulk bar appears; click bulkVerifyEmails.
       const bulkBtn = await screen.findByText(
-        'admin.usersPage.bulkVerifyEmails'
+        'admin.usersPage.bulkVerifyEmails',
       )
       await userEvent.click(bulkBtn)
 
@@ -364,14 +367,14 @@ describe('AdminUsersPage handler coverage', () => {
         expect(organizationsAPI.bulkVerifyMemberEmails).toHaveBeenCalledWith(
           'org-1', // resolved selected org id
           expect.arrayContaining(['admin-1', 'user-2']),
-          'admin.usersPage.bulkVerifyReason'
+          'admin.usersPage.bulkVerifyReason',
         )
       })
       // Success summary toast.
       await waitFor(() => {
         expect(showError).toHaveBeenCalledWith(
           'admin.usersPage.bulkVerifyResult',
-          'admin.usersPage.bulkVerifyComplete'
+          'admin.usersPage.bulkVerifyComplete',
         )
       })
     })
@@ -380,20 +383,20 @@ describe('AdminUsersPage handler coverage', () => {
       const showError = jest.fn()
       setupMocks({ showError, currentOrganization: null })
       ;(organizationsAPI.bulkVerifyMemberEmails as jest.Mock).mockRejectedValue(
-        new Error('bulk failed')
+        new Error('bulk failed'),
       )
       render(<AdminUsersPage />)
       await waitForUserRow('John Doe')
 
       await userEvent.click(screen.getAllByRole('checkbox')[0])
       await userEvent.click(
-        await screen.findByText('admin.usersPage.bulkVerifyEmails')
+        await screen.findByText('admin.usersPage.bulkVerifyEmails'),
       )
 
       await waitFor(() => {
         expect(showError).toHaveBeenCalledWith(
           'admin.usersPage.bulkVerifyFailed',
-          'admin.usersPage.bulkVerifyError'
+          'admin.usersPage.bulkVerifyError',
         )
       })
     })
@@ -406,13 +409,13 @@ describe('AdminUsersPage handler coverage', () => {
 
       await userEvent.click(screen.getAllByRole('checkbox')[0])
       await userEvent.click(
-        await screen.findByText('admin.usersPage.bulkVerifyEmails')
+        await screen.findByText('admin.usersPage.bulkVerifyEmails'),
       )
 
       await waitFor(() => {
         expect(showError).toHaveBeenCalledWith(
           'admin.usersPage.noOrgsAvailable',
-          'admin.usersPage.orgRequired'
+          'admin.usersPage.orgRequired',
         )
       })
       expect(organizationsAPI.bulkVerifyMemberEmails).not.toHaveBeenCalled()
@@ -440,7 +443,7 @@ describe('AdminUsersPage handler coverage', () => {
         expect(api.verifyUserEmail).toHaveBeenCalledWith('user-2')
         expect(showError).toHaveBeenCalledWith(
           'admin.usersPage.emailVerifiedSuccess',
-          'admin.usersPage.successTitle'
+          'admin.usersPage.successTitle',
         )
       })
     })
@@ -449,21 +452,21 @@ describe('AdminUsersPage handler coverage', () => {
       const showError = jest.fn()
       setupMocks({ showError })
       ;(api.verifyUserEmail as jest.Mock).mockRejectedValue(
-        new Error('verify failed')
+        new Error('verify failed'),
       )
       render(<AdminUsersPage />)
       await waitForUserRow('John Doe')
 
       const row = rowFor('John Doe')
       await userEvent.click(
-        within(row).getByTitle('admin.usersPage.verifyEmail')
+        within(row).getByTitle('admin.usersPage.verifyEmail'),
       )
       await userEvent.click(await screen.findByTestId('evm-confirm'))
 
       await waitFor(() => {
         expect(showError).toHaveBeenCalledWith(
           'admin.usersPage.emailVerifyFailed',
-          'admin.usersPage.errorTitle'
+          'admin.usersPage.errorTitle',
         )
       })
     })
@@ -472,10 +475,10 @@ describe('AdminUsersPage handler coverage', () => {
   describe('Organizations tab handlers', () => {
     async function renderOrgTab(overrides: Record<string, any> = {}) {
       ;(mockApiClient.getOrganizationMembers as jest.Mock).mockResolvedValue(
-        mockMembers
+        mockMembers,
       )
       ;(mockApiClient.listInvitations as jest.Mock).mockResolvedValue(
-        mockInvitations
+        mockInvitations,
       )
       setupMocks(overrides)
       render(<AdminUsersPage />)
@@ -515,7 +518,7 @@ describe('AdminUsersPage handler coverage', () => {
       await waitFor(() => {
         expect(mockApiClient.removeMember).toHaveBeenCalledWith(
           'org-1',
-          'user-2'
+          'user-2',
         )
       })
     })
@@ -533,7 +536,7 @@ describe('AdminUsersPage handler coverage', () => {
         expect(mockApiClient.updateMemberRole).toHaveBeenCalledWith(
           'org-1',
           'user-2',
-          'ORG_ADMIN'
+          'ORG_ADMIN',
         )
       })
     })
@@ -570,7 +573,7 @@ describe('AdminUsersPage handler coverage', () => {
       await waitFor(() => {
         expect(mockApiClient.updateOrganization).toHaveBeenCalledWith(
           'org-1',
-          expect.objectContaining({ name: expect.any(String) })
+          expect.objectContaining({ name: expect.any(String) }),
         )
         expect(refreshOrganizations).toHaveBeenCalled()
       })
@@ -579,7 +582,7 @@ describe('AdminUsersPage handler coverage', () => {
     it('handleEditOrgSave: shows error toast when update rejects', async () => {
       const showError = jest.fn()
       ;(mockApiClient.updateOrganization as jest.Mock).mockRejectedValue(
-        new Error('update org failed')
+        new Error('update org failed'),
       )
       await renderOrgTab({ showError })
 
@@ -589,7 +592,7 @@ describe('AdminUsersPage handler coverage', () => {
       await waitFor(() => {
         expect(showError).toHaveBeenCalledWith(
           'admin.users.orgDetails.updateFailed',
-          'admin.usersPage.orgUpdateFailed'
+          'admin.usersPage.orgUpdateFailed',
         )
       })
     })
@@ -613,7 +616,7 @@ describe('AdminUsersPage handler coverage', () => {
       await waitFor(() => {
         expect(showError).toHaveBeenCalledWith(
           'admin.users.addUser.alreadyMember',
-          'admin.usersPage.addUserFailed'
+          'admin.usersPage.addUserFailed',
         )
       })
     })
@@ -632,7 +635,7 @@ describe('AdminUsersPage handler coverage', () => {
       await waitFor(() => {
         expect(showError).toHaveBeenCalledWith(
           'admin.users.addUser.noPermission',
-          'admin.usersPage.addUserFailed'
+          'admin.usersPage.addUserFailed',
         )
       })
     })
@@ -651,7 +654,7 @@ describe('AdminUsersPage handler coverage', () => {
       await waitFor(() => {
         expect(showError).toHaveBeenCalledWith(
           'admin.users.addUser.notFound',
-          'admin.usersPage.addUserFailed'
+          'admin.usersPage.addUserFailed',
         )
       })
     })

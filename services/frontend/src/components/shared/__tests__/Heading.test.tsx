@@ -71,7 +71,7 @@ describe('Heading Component', () => {
       render(
         <Heading id="heading-2">
           <span>Complex</span> <strong>Content</strong>
-        </Heading>
+        </Heading>,
       )
       expect(screen.getByText('Complex')).toBeInTheDocument()
       expect(screen.getByText('Content')).toBeInTheDocument()
@@ -89,7 +89,7 @@ describe('Heading Component', () => {
   describe('Level/Hierarchy', () => {
     it('renders as h2 by default', () => {
       const { container } = render(
-        <Heading id="default-level">Default</Heading>
+        <Heading id="default-level">Default</Heading>,
       )
       const h2 = container.querySelector('h2')
       expect(h2).toBeInTheDocument()
@@ -100,7 +100,7 @@ describe('Heading Component', () => {
       const { container } = render(
         <Heading id="h2-heading" level={2}>
           H2 Heading
-        </Heading>
+        </Heading>,
       )
       const h2 = container.querySelector('h2')
       expect(h2).toBeInTheDocument()
@@ -111,7 +111,7 @@ describe('Heading Component', () => {
       const { container } = render(
         <Heading id="h3-heading" level={3}>
           H3 Heading
-        </Heading>
+        </Heading>,
       )
       const h3 = container.querySelector('h3')
       expect(h3).toBeInTheDocument()
@@ -124,14 +124,14 @@ describe('Heading Component', () => {
       const { container: container2 } = render(
         <Heading id="test-2" level={2}>
           Level 2
-        </Heading>
+        </Heading>,
       )
       expect(container2.querySelector('h2')).toBeInTheDocument()
 
       const { container: container3 } = render(
         <Heading id="test-3" level={3}>
           Level 3
-        </Heading>
+        </Heading>,
       )
       expect(container3.querySelector('h3')).toBeInTheDocument()
     })
@@ -140,7 +140,7 @@ describe('Heading Component', () => {
       render(
         <Heading id="register-test" level={2}>
           Register Test
-        </Heading>
+        </Heading>,
       )
 
       expect(mockRegisterHeading).toHaveBeenCalled()
@@ -154,7 +154,7 @@ describe('Heading Component', () => {
       render(
         <Heading id="no-register" level={3}>
           No Register
-        </Heading>
+        </Heading>,
       )
 
       expect(mockRegisterHeading).not.toHaveBeenCalled()
@@ -165,7 +165,7 @@ describe('Heading Component', () => {
   describe('Styling/Variants', () => {
     it('applies scroll-mt-24 class when no tag or label', () => {
       const { container } = render(
-        <Heading id="no-eyebrow">No Eyebrow</Heading>
+        <Heading id="no-eyebrow">No Eyebrow</Heading>,
       )
       const heading = container.querySelector('h2')
       expect(heading).toHaveClass('scroll-mt-24')
@@ -175,7 +175,7 @@ describe('Heading Component', () => {
       const { container } = render(
         <Heading id="with-tag" tag="GET">
           With Tag
-        </Heading>
+        </Heading>,
       )
       const heading = container.querySelector('h2')
       expect(heading).toHaveClass('scroll-mt-32', 'mt-2')
@@ -185,7 +185,7 @@ describe('Heading Component', () => {
       const { container } = render(
         <Heading id="with-label" label="v1.0">
           With Label
-        </Heading>
+        </Heading>,
       )
       const heading = container.querySelector('h2')
       expect(heading).toHaveClass('scroll-mt-32', 'mt-2')
@@ -195,7 +195,7 @@ describe('Heading Component', () => {
       const { container } = render(
         <Heading id="with-both" tag="POST" label="v2.0">
           With Both
-        </Heading>
+        </Heading>,
       )
       const heading = container.querySelector('h2')
       expect(heading).toHaveClass('scroll-mt-32', 'mt-2')
@@ -205,7 +205,7 @@ describe('Heading Component', () => {
       render(
         <Heading id="offset-tag" level={2} tag="PUT">
           Offset Tag
-        </Heading>
+        </Heading>,
       )
 
       const callArgs = mockRegisterHeading.mock.calls[0][0]
@@ -216,7 +216,7 @@ describe('Heading Component', () => {
       render(
         <Heading id="offset-label" level={2} label="beta">
           Offset Label
-        </Heading>
+        </Heading>,
       )
 
       const callArgs = mockRegisterHeading.mock.calls[0][0]
@@ -235,7 +235,7 @@ describe('Heading Component', () => {
       render(
         <Heading id="jsx">
           <span data-testid="child">JSX Child</span>
-        </Heading>
+        </Heading>,
       )
       expect(screen.getByTestId('child')).toBeInTheDocument()
     })
@@ -246,7 +246,7 @@ describe('Heading Component', () => {
           <span>First</span>
           <span>Second</span>
           <span>Third</span>
-        </Heading>
+        </Heading>,
       )
       expect(screen.getByText('First')).toBeInTheDocument()
       expect(screen.getByText('Second')).toBeInTheDocument()
@@ -264,7 +264,7 @@ describe('Heading Component', () => {
       render(
         <Heading id="no-anchor" anchor={false}>
           No Anchor
-        </Heading>
+        </Heading>,
       )
       const links = screen.queryAllByRole('link')
       expect(links).toHaveLength(0)
@@ -277,7 +277,7 @@ describe('Heading Component', () => {
       const { container } = render(
         <Heading id="custom-class" className="custom-heading-class">
           Custom Class
-        </Heading>
+        </Heading>,
       )
       const heading = container.querySelector('h2')
       expect(heading).toHaveClass('custom-heading-class')
@@ -287,7 +287,7 @@ describe('Heading Component', () => {
       const { container } = render(
         <Heading id="data-attr" data-testid="custom-heading">
           Data Attribute
-        </Heading>
+        </Heading>,
       )
       const heading = container.querySelector('h2')
       expect(heading).toHaveAttribute('data-testid', 'custom-heading')
@@ -297,7 +297,7 @@ describe('Heading Component', () => {
       const { container } = render(
         <Heading id="aria-attr" aria-label="Custom ARIA Label">
           ARIA Heading
-        </Heading>
+        </Heading>,
       )
       const heading = container.querySelector('h2')
       expect(heading).toHaveAttribute('aria-label', 'Custom ARIA Label')
@@ -307,7 +307,7 @@ describe('Heading Component', () => {
       const { container } = render(
         <Heading id="merge-class" className="extra-class">
           Merge Class
-        </Heading>
+        </Heading>,
       )
       const heading = container.querySelector('h2')
       // Component overwrites className rather than merging
@@ -324,7 +324,7 @@ describe('Heading Component', () => {
           data-custom="value"
         >
           Extra Attrs
-        </Heading>
+        </Heading>,
       )
       const heading = container.querySelector('h2')
       expect(heading).toHaveAttribute('title', 'Tooltip')
@@ -338,7 +338,7 @@ describe('Heading Component', () => {
       const { container } = render(
         <Heading id="semantic" level={2}>
           Semantic
-        </Heading>
+        </Heading>,
       )
       expect(container.querySelector('h2')).toBeInTheDocument()
     })
@@ -347,12 +347,12 @@ describe('Heading Component', () => {
       const { container: c2 } = render(
         <Heading id="h2" level={2}>
           H2
-        </Heading>
+        </Heading>,
       )
       const { container: c3 } = render(
         <Heading id="h3" level={3}>
           H3
-        </Heading>
+        </Heading>,
       )
 
       expect(c2.querySelector('h2')).toBeInTheDocument()
@@ -387,7 +387,7 @@ describe('Heading Component', () => {
       const { container } = render(
         <Heading id="custom-aria" aria-label="Custom Label">
           Content
-        </Heading>
+        </Heading>,
       )
       const heading = container.querySelector('h2')
       expect(heading).toHaveAttribute('aria-label', 'Custom Label')
@@ -412,7 +412,7 @@ describe('Heading Component', () => {
       render(
         <Heading id="undefined-props" tag={undefined} label={undefined}>
           Undefined Props
-        </Heading>
+        </Heading>,
       )
       expect(screen.getByText('Undefined Props')).toBeInTheDocument()
       expect(screen.queryByTestId('tag')).not.toBeInTheDocument()
@@ -422,7 +422,7 @@ describe('Heading Component', () => {
       render(
         <Heading id="only-tag" tag="DELETE">
           Only Tag
-        </Heading>
+        </Heading>,
       )
       expect(screen.getByTestId('tag')).toBeInTheDocument()
       expect(screen.getByText('DELETE')).toBeInTheDocument()
@@ -432,7 +432,7 @@ describe('Heading Component', () => {
       const { container } = render(
         <Heading id="only-label" label="alpha">
           Only Label
-        </Heading>
+        </Heading>,
       )
       expect(screen.getByText('alpha')).toBeInTheDocument()
       expect(container.querySelector('.font-mono')).toBeInTheDocument()
@@ -442,7 +442,7 @@ describe('Heading Component', () => {
       const { container } = render(
         <Heading id="tag-and-label" tag="GET" label="v1.0">
           Tag and Label
-        </Heading>
+        </Heading>,
       )
       expect(screen.getByTestId('tag')).toBeInTheDocument()
       expect(screen.getByText('GET')).toBeInTheDocument()
@@ -456,7 +456,7 @@ describe('Heading Component', () => {
       render(
         <Heading id="no-anchor-inview" anchor={false}>
           No Anchor In View
-        </Heading>
+        </Heading>,
       )
       const links = screen.queryAllByRole('link')
       expect(links).toHaveLength(0)
@@ -478,7 +478,7 @@ describe('Heading Component', () => {
       const { container } = render(
         <Heading id="empty-strings" tag="" label="">
           Empty Strings
-        </Heading>
+        </Heading>,
       )
       expect(screen.queryByTestId('tag')).not.toBeInTheDocument()
       const eyebrow = container.querySelector('.flex.items-center')
@@ -491,7 +491,7 @@ describe('Heading Component', () => {
     it('applies dark mode classes to anchor icon background', () => {
       mockUseInView.mockReturnValue(true)
       const { container } = render(
-        <Heading id="dark-anchor">Dark Anchor</Heading>
+        <Heading id="dark-anchor">Dark Anchor</Heading>,
       )
       const anchorBg = container.querySelector('.dark\\:bg-zinc-800')
       expect(anchorBg).toBeInTheDocument()
@@ -508,7 +508,7 @@ describe('Heading Component', () => {
       const { container } = render(
         <Heading id="dark-separator" tag="GET" label="v1">
           Dark Separator
-        </Heading>
+        </Heading>,
       )
       const separator = container.querySelector('.dark\\:bg-zinc-600')
       expect(separator).toBeInTheDocument()
@@ -518,7 +518,7 @@ describe('Heading Component', () => {
       const { container } = render(
         <Heading id="dark-label" label="v1.0">
           Dark Label
-        </Heading>
+        </Heading>,
       )
       const label = container.querySelector('.text-zinc-400')
       expect(label).toBeInTheDocument()
@@ -535,10 +535,10 @@ describe('Heading Component', () => {
     it('anchor hover state has dark mode classes', () => {
       mockUseInView.mockReturnValue(true)
       const { container } = render(
-        <Heading id="dark-hover">Dark Hover</Heading>
+        <Heading id="dark-hover">Dark Hover</Heading>,
       )
       const hoverElement = container.querySelector(
-        '.dark\\:hover\\:bg-zinc-700'
+        '.dark\\:hover\\:bg-zinc-700',
       )
       expect(hoverElement).toBeInTheDocument()
     })
@@ -549,7 +549,7 @@ describe('Heading Component', () => {
     it('shows anchor icon when inView is true', () => {
       mockUseInView.mockReturnValue(true)
       const { container } = render(
-        <Heading id="visible-anchor">Visible Anchor</Heading>
+        <Heading id="visible-anchor">Visible Anchor</Heading>,
       )
       const anchorIcon = container.querySelector('.absolute')
       expect(anchorIcon).toBeInTheDocument()
@@ -558,7 +558,7 @@ describe('Heading Component', () => {
     it('does not show anchor icon when inView is false', () => {
       mockUseInView.mockReturnValue(false)
       const { container } = render(
-        <Heading id="hidden-anchor">Hidden Anchor</Heading>
+        <Heading id="hidden-anchor">Hidden Anchor</Heading>,
       )
       const anchorIcon = container.querySelector('.absolute')
       expect(anchorIcon).not.toBeInTheDocument()

@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { getExternalHost, getInternalApiUrl } from '@/lib/utils/apiUrl'
 import { logger } from '@/lib/utils/logger'
-import { getInternalApiUrl, getExternalHost } from '@/lib/utils/apiUrl'
 import { getCookieDomainFromHost } from '@/lib/utils/subdomain'
+import { NextRequest, NextResponse } from 'next/server'
 
 export async function POST(request: NextRequest) {
   try {
@@ -28,11 +28,11 @@ export async function POST(request: NextRequest) {
     const domainAttr = cookieDomain ? `; Domain=${cookieDomain}` : ''
     response.headers.append(
       'Set-Cookie',
-      `access_token=; Path=/; Max-Age=0; HttpOnly${domainAttr}`
+      `access_token=; Path=/; Max-Age=0; HttpOnly${domainAttr}`,
     )
     response.headers.append(
       'Set-Cookie',
-      `refresh_token=; Path=/; Max-Age=0; HttpOnly${domainAttr}`
+      `refresh_token=; Path=/; Max-Age=0; HttpOnly${domainAttr}`,
     )
 
     logger.debug('🍪 Cookies cleared')
@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
     console.error('❌ Logout proxy error:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
-      { status: 500 }
+      { status: 500 },
     )
   }
 }

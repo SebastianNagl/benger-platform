@@ -26,7 +26,7 @@ import type {
   DefaultsMode,
   RecommendedConsensus,
 } from '@/components/projects/GenerationDefaultsCard'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
 // Identity translator: always returns the i18n key, ignoring the German
@@ -46,7 +46,7 @@ const emptyConsensus = (): RecommendedConsensus => ({
 })
 
 function renderCard(
-  overrides: Partial<Parameters<typeof EvaluationDefaultsCard>[0]> = {}
+  overrides: Partial<Parameters<typeof EvaluationDefaultsCard>[0]> = {},
 ) {
   const setEvalDefaultsMode = jest.fn()
   const setEvalDefaultTemperature = jest.fn()
@@ -82,7 +82,7 @@ function renderCard(
 // SubSection is collapsed by default; click the title to reveal the body.
 async function expand(user: ReturnType<typeof userEvent.setup>) {
   await user.click(
-    screen.getByRole('button', { name: /project\.evaluationDefaults\.title/i })
+    screen.getByRole('button', { name: /project\.evaluationDefaults\.title/i }),
   )
 }
 
@@ -104,10 +104,10 @@ describe('EvaluationDefaultsCard', () => {
     it('renders the SubSection title and is collapsed (body hidden) by default', () => {
       renderCard()
       expect(
-        screen.getByText('project.evaluationDefaults.title')
+        screen.getByText('project.evaluationDefaults.title'),
       ).toBeInTheDocument()
       expect(
-        screen.queryByText('project.evaluationDefaults.description')
+        screen.queryByText('project.evaluationDefaults.description'),
       ).not.toBeInTheDocument()
       expect(screen.queryAllByRole('spinbutton')).toHaveLength(0)
     })
@@ -118,17 +118,17 @@ describe('EvaluationDefaultsCard', () => {
       await expand(user)
 
       expect(
-        screen.getByText('project.evaluationDefaults.description')
+        screen.getByText('project.evaluationDefaults.description'),
       ).toBeInTheDocument()
       expect(
-        screen.getByText('project.evaluationDefaults.modeLabel')
+        screen.getByText('project.evaluationDefaults.modeLabel'),
       ).toBeInTheDocument()
       expect(screen.getAllByRole('spinbutton')).toHaveLength(2)
       expect(
-        screen.getByText('project.evaluationDefaults.defaultTemperature')
+        screen.getByText('project.evaluationDefaults.defaultTemperature'),
       ).toBeInTheDocument()
       expect(
-        screen.getByText('project.evaluationDefaults.defaultMaxTokens')
+        screen.getByText('project.evaluationDefaults.defaultMaxTokens'),
       ).toBeInTheDocument()
     })
 
@@ -170,16 +170,16 @@ describe('EvaluationDefaultsCard', () => {
       renderCard()
       await expand(user)
       expect(
-        screen.getByText('project.evaluationDefaults.modeRecommended')
+        screen.getByText('project.evaluationDefaults.modeRecommended'),
       ).toBeInTheDocument()
       expect(
-        screen.getByText('project.evaluationDefaults.modeMinimum')
+        screen.getByText('project.evaluationDefaults.modeMinimum'),
       ).toBeInTheDocument()
       expect(
-        screen.getByText('project.evaluationDefaults.modeCustom')
+        screen.getByText('project.evaluationDefaults.modeCustom'),
       ).toBeInTheDocument()
       expect(
-        screen.getByText('project.evaluationDefaults.modeRecommendedDesc')
+        screen.getByText('project.evaluationDefaults.modeRecommendedDesc'),
       ).toBeInTheDocument()
     })
 
@@ -237,10 +237,10 @@ describe('EvaluationDefaultsCard', () => {
       expect(getTemperatureInput().disabled).toBe(false)
       expect(getMaxTokensInput().disabled).toBe(false)
       expect(
-        screen.getByText('project.evaluationDefaults.temperatureHelp')
+        screen.getByText('project.evaluationDefaults.temperatureHelp'),
       ).toBeInTheDocument()
       expect(
-        screen.getByText('project.evaluationDefaults.maxTokensHelp')
+        screen.getByText('project.evaluationDefaults.maxTokensHelp'),
       ).toBeInTheDocument()
     })
 
@@ -254,16 +254,18 @@ describe('EvaluationDefaultsCard', () => {
         expect(getMaxTokensInput().disabled).toBe(true)
         expect(
           screen.getByText(
-            'project.evaluationDefaults.temperatureHelpModeOverride'
-          )
+            'project.evaluationDefaults.temperatureHelpModeOverride',
+          ),
         ).toBeInTheDocument()
         expect(
-          screen.getByText('project.evaluationDefaults.maxTokensHelpModeOverride')
+          screen.getByText(
+            'project.evaluationDefaults.maxTokensHelpModeOverride',
+          ),
         ).toBeInTheDocument()
         expect(
-          screen.queryByText('project.evaluationDefaults.temperatureHelp')
+          screen.queryByText('project.evaluationDefaults.temperatureHelp'),
         ).not.toBeInTheDocument()
-      }
+      },
     )
 
     it('temperature onChange parses a float and begins editing', async () => {
@@ -274,7 +276,7 @@ describe('EvaluationDefaultsCard', () => {
       await userEvent.setup().click(
         screen.getByRole('button', {
           name: /project\.evaluationDefaults\.title/i,
-        })
+        }),
       )
       fireEvent.change(getTemperatureInput(), { target: { value: '1.3' } })
       expect(beginEditEvaluation).toHaveBeenCalledTimes(1)
@@ -289,7 +291,7 @@ describe('EvaluationDefaultsCard', () => {
       await userEvent.setup().click(
         screen.getByRole('button', {
           name: /project\.evaluationDefaults\.title/i,
-        })
+        }),
       )
       fireEvent.change(getMaxTokensInput(), { target: { value: '2500' } })
       expect(beginEditEvaluation).toHaveBeenCalledTimes(1)
@@ -337,13 +339,18 @@ describe('EvaluationDefaultsCard', () => {
       renderCard({
         selectedModelIds: [],
         evalRecConsensus: {
-          temperature: { value: 0.1, uniform: true, anyRec: true, perModel: [] },
+          temperature: {
+            value: 0.1,
+            uniform: true,
+            anyRec: true,
+            perModel: [],
+          },
           max_tokens: { value: 500, uniform: true, anyRec: true, perModel: [] },
         },
       })
       await expand(user)
       expect(
-        screen.queryByText('generation.controlModal.recommended')
+        screen.queryByText('generation.controlModal.recommended'),
       ).not.toBeInTheDocument()
     })
 
@@ -354,7 +361,12 @@ describe('EvaluationDefaultsCard', () => {
         evalDefaultTemperature: 0.1,
         evalDefaultMaxTokens: 500,
         evalRecConsensus: {
-          temperature: { value: 0.1, uniform: true, anyRec: true, perModel: [] },
+          temperature: {
+            value: 0.1,
+            uniform: true,
+            anyRec: true,
+            perModel: [],
+          },
           max_tokens: { value: 500, uniform: true, anyRec: true, perModel: [] },
         },
       })
@@ -362,12 +374,12 @@ describe('EvaluationDefaultsCard', () => {
       // The label + value share one text node ("…recommended: 0.1"), so match
       // by substring.
       expect(
-        screen.getAllByText(/generation\.controlModal\.recommended/).length
+        screen.getAllByText(/generation\.controlModal\.recommended/).length,
       ).toBeGreaterThanOrEqual(2)
       expect(screen.getByText(/recommended.*0\.1/)).toBeInTheDocument()
       // Values match defaults -> no reset button.
       expect(
-        screen.queryByText('generation.controlModal.resetToRecommended')
+        screen.queryByText('generation.controlModal.resetToRecommended'),
       ).not.toBeInTheDocument()
     })
 
@@ -378,7 +390,12 @@ describe('EvaluationDefaultsCard', () => {
         evalDefaultTemperature: 1.0, // differs from rec 0.1 -> reset shows
         evalDefaultMaxTokens: 500, // matches
         evalRecConsensus: {
-          temperature: { value: 0.1, uniform: true, anyRec: true, perModel: [] },
+          temperature: {
+            value: 0.1,
+            uniform: true,
+            anyRec: true,
+            perModel: [],
+          },
           max_tokens: { value: 500, uniform: true, anyRec: true, perModel: [] },
         },
       })
@@ -386,7 +403,7 @@ describe('EvaluationDefaultsCard', () => {
       await user.click(
         screen.getByRole('button', {
           name: 'generation.controlModal.resetToRecommended',
-        })
+        }),
       )
       expect(setEvalDefaultTemperature).toHaveBeenCalledWith(0.1)
     })
@@ -406,7 +423,7 @@ describe('EvaluationDefaultsCard', () => {
       await user.click(
         screen.getByRole('button', {
           name: 'generation.controlModal.resetToRecommended',
-        })
+        }),
       )
       expect(setEvalDefaultMaxTokens).toHaveBeenCalledWith(800)
     })
@@ -418,7 +435,12 @@ describe('EvaluationDefaultsCard', () => {
         evalDefaultTemperature: undefined, // (undefined ?? 0) !== 0.5 -> reset shows
         evalDefaultMaxTokens: 500, // matches -> no reset on this side
         evalRecConsensus: {
-          temperature: { value: 0.5, uniform: true, anyRec: true, perModel: [] },
+          temperature: {
+            value: 0.5,
+            uniform: true,
+            anyRec: true,
+            perModel: [],
+          },
           max_tokens: { value: 500, uniform: true, anyRec: true, perModel: [] },
         },
       })
@@ -426,7 +448,7 @@ describe('EvaluationDefaultsCard', () => {
       await user.click(
         screen.getByRole('button', {
           name: 'generation.controlModal.resetToRecommended',
-        })
+        }),
       )
       expect(setEvalDefaultTemperature).toHaveBeenCalledWith(0.5)
     })
@@ -458,7 +480,7 @@ describe('EvaluationDefaultsCard', () => {
       })
       await expand(user)
       const divergent = screen.getAllByText(
-        'generation.controlModal.divergentRecommendations'
+        'generation.controlModal.divergentRecommendations',
       )
       expect(divergent).toHaveLength(2)
       expect(divergent[0]).toHaveAttribute('title', 'm1: 0\nm2: 0.5')
@@ -473,7 +495,7 @@ describe('EvaluationDefaultsCard', () => {
       })
       await expand(user)
       expect(
-        screen.getAllByText('generation.controlModal.noRecommendation')
+        screen.getAllByText('generation.controlModal.noRecommendation'),
       ).toHaveLength(2)
     })
 
@@ -482,13 +504,23 @@ describe('EvaluationDefaultsCard', () => {
       renderCard({
         selectedModelIds: ['m1'],
         evalRecConsensus: {
-          temperature: { value: undefined, uniform: true, anyRec: false, perModel: [] },
-          max_tokens: { value: undefined, uniform: true, anyRec: false, perModel: [] },
+          temperature: {
+            value: undefined,
+            uniform: true,
+            anyRec: false,
+            perModel: [],
+          },
+          max_tokens: {
+            value: undefined,
+            uniform: true,
+            anyRec: false,
+            perModel: [],
+          },
         },
       })
       await expand(user)
       expect(
-        screen.getAllByText('generation.controlModal.noRecommendation')
+        screen.getAllByText('generation.controlModal.noRecommendation'),
       ).toHaveLength(2)
     })
   })

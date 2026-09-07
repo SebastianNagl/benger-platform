@@ -15,7 +15,10 @@ jest.mock('next/navigation', () => ({
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
     t: (key: string, varsOrDefault?: any) => {
-      const translations: Record<string, any> = require('../../../locales/en/common.json')
+      const translations: Record<
+        string,
+        any
+      > = require('../../../locales/en/common.json')
       const parts = key.split('.')
       let value: any = translations
       for (const part of parts) {
@@ -36,7 +39,6 @@ jest.mock('@/contexts/I18nContext', () => ({
     locale: 'en',
   }),
 }))
-
 
 // Mock AuthContext
 jest.mock('@/contexts/AuthContext', () => ({
@@ -124,7 +126,7 @@ describe('AuthGuard Component', () => {
       render(
         <AuthGuard>
           <TestComponent />
-        </AuthGuard>
+        </AuthGuard>,
       )
 
       expect(screen.getByText('Loading...')).toBeInTheDocument()
@@ -141,7 +143,7 @@ describe('AuthGuard Component', () => {
       render(
         <AuthGuard>
           <TestComponent />
-        </AuthGuard>
+        </AuthGuard>,
       )
 
       const loadingContainer = screen.getByTestId('loading-container')
@@ -151,7 +153,7 @@ describe('AuthGuard Component', () => {
         'items-center',
         'justify-center',
         'bg-white',
-        'dark:bg-zinc-900'
+        'dark:bg-zinc-900',
       )
 
       const spinner = loadingContainer?.querySelector('.animate-spin')
@@ -161,7 +163,7 @@ describe('AuthGuard Component', () => {
         'h-8',
         'w-8',
         'border-b-2',
-        'border-emerald-500'
+        'border-emerald-500',
       )
     })
   })
@@ -176,7 +178,7 @@ describe('AuthGuard Component', () => {
       render(
         <AuthGuard>
           <TestComponent />
-        </AuthGuard>
+        </AuthGuard>,
       )
 
       expect(screen.getByTestId('auth-guard')).toBeInTheDocument()
@@ -195,12 +197,12 @@ describe('AuthGuard Component', () => {
       render(
         <AuthGuard requireAuth={true}>
           <TestComponent />
-        </AuthGuard>
+        </AuthGuard>,
       )
 
       expect(screen.getByTestId('protected-content')).toBeInTheDocument()
       expect(
-        screen.queryByText('Authentication Required')
+        screen.queryByText('Authentication Required'),
       ).not.toBeInTheDocument()
     })
   })
@@ -217,14 +219,14 @@ describe('AuthGuard Component', () => {
       render(
         <AuthGuard requireAuth={true}>
           <TestComponent />
-        </AuthGuard>
+        </AuthGuard>,
       )
 
       expect(screen.getByText('Authentication Required')).toBeInTheDocument()
       expect(
         screen.getByText(
-          'You need to be signed in to access this feature. Please sign in and try again.'
-        )
+          'You need to be signed in to access this feature. Please sign in and try again.',
+        ),
       ).toBeInTheDocument()
       expect(screen.getByTestId('auth-dialog')).toBeInTheDocument()
     })
@@ -233,18 +235,18 @@ describe('AuthGuard Component', () => {
       const { container } = render(
         <AuthGuard requireAuth={true}>
           <TestComponent />
-        </AuthGuard>
+        </AuthGuard>,
       )
 
       const backgroundContent = screen.getByTestId('protected-content')
       const backgroundContainer = container.querySelector(
-        '.pointer-events-none'
+        '.pointer-events-none',
       )
 
       expect(backgroundContainer).toHaveClass(
         'pointer-events-none',
         'opacity-50',
-        'blur-sm'
+        'blur-sm',
       )
       expect(backgroundContent).toBeInTheDocument()
     })
@@ -253,7 +255,7 @@ describe('AuthGuard Component', () => {
       render(
         <AuthGuard requireAuth={true}>
           <TestComponent />
-        </AuthGuard>
+        </AuthGuard>,
       )
 
       expect(screen.getByText('Authentication Required')).toBeInTheDocument()
@@ -265,7 +267,7 @@ describe('AuthGuard Component', () => {
       render(
         <AuthGuard requireAuth={true}>
           <TestComponent />
-        </AuthGuard>
+        </AuthGuard>,
       )
 
       const dialog = screen.getByTestId('auth-dialog')
@@ -282,7 +284,7 @@ describe('AuthGuard Component', () => {
         'shadow-xl',
         'border',
         'border-zinc-200',
-        'dark:border-zinc-700'
+        'dark:border-zinc-700',
       )
     })
 
@@ -290,7 +292,7 @@ describe('AuthGuard Component', () => {
       render(
         <AuthGuard requireAuth={true}>
           <TestComponent />
-        </AuthGuard>
+        </AuthGuard>,
       )
 
       const lockIcon = document.querySelector('svg.text-emerald-600')
@@ -299,7 +301,7 @@ describe('AuthGuard Component', () => {
         'h-6',
         'w-6',
         'text-emerald-600',
-        'dark:text-emerald-400'
+        'dark:text-emerald-400',
       )
     })
   })
@@ -317,7 +319,7 @@ describe('AuthGuard Component', () => {
       render(
         <AuthGuard requireAuth={true}>
           <TestComponent />
-        </AuthGuard>
+        </AuthGuard>,
       )
 
       const cancelButton = screen.getByTestId('button-cancel')
@@ -331,7 +333,7 @@ describe('AuthGuard Component', () => {
       render(
         <AuthGuard requireAuth={true}>
           <TestComponent />
-        </AuthGuard>
+        </AuthGuard>,
       )
 
       const signInButton = screen.getByTestId('button-go-to-sign-in')
@@ -347,7 +349,7 @@ describe('AuthGuard Component', () => {
       render(
         <AuthGuard requireAuth={true}>
           <TestComponent />
-        </AuthGuard>
+        </AuthGuard>,
       )
 
       expect(screen.getByTestId('auth-dialog')).toBeInTheDocument()
@@ -364,7 +366,7 @@ describe('AuthGuard Component', () => {
       render(
         <AuthGuard requireAuth={true}>
           <TestComponent />
-        </AuthGuard>
+        </AuthGuard>,
       )
 
       // Open login modal
@@ -391,14 +393,14 @@ describe('AuthGuard Component', () => {
       render(
         <AuthGuard requireAuth={false}>
           <TestComponent />
-        </AuthGuard>
+        </AuthGuard>,
       )
 
       expect(screen.getByTestId('auth-guard')).toBeInTheDocument()
       expect(screen.getByTestId('protected-content')).toBeInTheDocument()
       expect(screen.queryByTestId('auth-dialog')).not.toBeInTheDocument()
       expect(
-        screen.queryByText('Authentication Required')
+        screen.queryByText('Authentication Required'),
       ).not.toBeInTheDocument()
     })
 
@@ -411,7 +413,7 @@ describe('AuthGuard Component', () => {
       render(
         <AuthGuard requireAuth={false}>
           <TestComponent />
-        </AuthGuard>
+        </AuthGuard>,
       )
 
       expect(screen.getByTestId('auth-guard')).toBeInTheDocument()
@@ -430,7 +432,7 @@ describe('AuthGuard Component', () => {
       render(
         <AuthGuard>
           <TestComponent />
-        </AuthGuard>
+        </AuthGuard>,
       )
 
       // Should show auth dialog because requireAuth defaults to true
@@ -450,7 +452,7 @@ describe('AuthGuard Component', () => {
       const { rerender } = render(
         <AuthGuard>
           <TestComponent />
-        </AuthGuard>
+        </AuthGuard>,
       )
 
       expect(screen.getByTestId('auth-dialog')).toBeInTheDocument()
@@ -464,7 +466,7 @@ describe('AuthGuard Component', () => {
       rerender(
         <AuthGuard>
           <TestComponent />
-        </AuthGuard>
+        </AuthGuard>,
       )
 
       expect(screen.queryByTestId('auth-dialog')).not.toBeInTheDocument()
@@ -482,7 +484,7 @@ describe('AuthGuard Component', () => {
       const { rerender } = render(
         <AuthGuard>
           <TestComponent />
-        </AuthGuard>
+        </AuthGuard>,
       )
 
       expect(screen.getByTestId('auth-guard')).toBeInTheDocument()
@@ -497,7 +499,7 @@ describe('AuthGuard Component', () => {
       rerender(
         <AuthGuard>
           <TestComponent />
-        </AuthGuard>
+        </AuthGuard>,
       )
 
       expect(screen.getByTestId('auth-dialog')).toBeInTheDocument()
@@ -514,7 +516,7 @@ describe('AuthGuard Component', () => {
       const { rerender } = render(
         <AuthGuard>
           <TestComponent />
-        </AuthGuard>
+        </AuthGuard>,
       )
 
       expect(screen.getByText('Loading...')).toBeInTheDocument()
@@ -528,7 +530,7 @@ describe('AuthGuard Component', () => {
       rerender(
         <AuthGuard>
           <TestComponent />
-        </AuthGuard>
+        </AuthGuard>,
       )
 
       expect(screen.queryByText('Loading...')).not.toBeInTheDocument()
@@ -546,7 +548,7 @@ describe('AuthGuard Component', () => {
       const { rerender } = render(
         <AuthGuard>
           <TestComponent />
-        </AuthGuard>
+        </AuthGuard>,
       )
 
       expect(screen.getByText('Loading...')).toBeInTheDocument()
@@ -560,7 +562,7 @@ describe('AuthGuard Component', () => {
       rerender(
         <AuthGuard>
           <TestComponent />
-        </AuthGuard>
+        </AuthGuard>,
       )
 
       expect(screen.queryByText('Loading...')).not.toBeInTheDocument()
@@ -578,7 +580,7 @@ describe('AuthGuard Component', () => {
       render(
         <AuthGuard>
           <TestComponent />
-        </AuthGuard>
+        </AuthGuard>,
       )
 
       expect(screen.getByTestId('auth-dialog')).toBeInTheDocument()
@@ -599,7 +601,7 @@ describe('AuthGuard Component', () => {
       render(
         <AuthGuard>
           <TestComponent />
-        </AuthGuard>
+        </AuthGuard>,
       )
 
       const cancelButton = screen.getByTestId('button-cancel')
@@ -618,7 +620,7 @@ describe('AuthGuard Component', () => {
       const { rerender } = render(
         <AuthGuard>
           <TestComponent />
-        </AuthGuard>
+        </AuthGuard>,
       )
 
       // Rapidly change states
@@ -630,7 +632,7 @@ describe('AuthGuard Component', () => {
       rerender(
         <AuthGuard>
           <TestComponent />
-        </AuthGuard>
+        </AuthGuard>,
       )
 
       mockUseAuth.mockReturnValue({
@@ -641,7 +643,7 @@ describe('AuthGuard Component', () => {
       rerender(
         <AuthGuard>
           <TestComponent />
-        </AuthGuard>
+        </AuthGuard>,
       )
 
       expect(screen.getByTestId('auth-dialog')).toBeInTheDocument()
@@ -669,7 +671,7 @@ describe('AuthGuard Component', () => {
           <div data-testid="child-1">Child 1</div>
           <div data-testid="child-2">Child 2</div>
           <div data-testid="child-3">Child 3</div>
-        </AuthGuard>
+        </AuthGuard>,
       )
 
       expect(screen.getByTestId('auth-guard')).toBeInTheDocument()
@@ -691,7 +693,7 @@ describe('AuthGuard Component', () => {
       render(
         <AuthGuard>
           <TestComponent />
-        </AuthGuard>
+        </AuthGuard>,
       )
 
       const dialog = screen.getByRole('dialog')
@@ -703,7 +705,7 @@ describe('AuthGuard Component', () => {
       render(
         <AuthGuard>
           <TestComponent />
-        </AuthGuard>
+        </AuthGuard>,
       )
 
       const heading = screen.getByRole('heading', { level: 3 })
@@ -714,7 +716,7 @@ describe('AuthGuard Component', () => {
       render(
         <AuthGuard>
           <TestComponent />
-        </AuthGuard>
+        </AuthGuard>,
       )
 
       const signInButton = screen.getByRole('button', { name: 'Go to Sign In' })
@@ -733,7 +735,7 @@ describe('AuthGuard Component', () => {
       render(
         <AuthGuard>
           <TestComponent />
-        </AuthGuard>
+        </AuthGuard>,
       )
 
       expect(screen.getByText('Loading...')).toBeInTheDocument()
@@ -743,7 +745,7 @@ describe('AuthGuard Component', () => {
       render(
         <AuthGuard>
           <TestComponent />
-        </AuthGuard>
+        </AuthGuard>,
       )
 
       // Dialog should be present and focusable
@@ -769,7 +771,7 @@ describe('AuthGuard Component', () => {
       const { rerender } = render(
         <AuthGuard>
           <TestComponentWithSpy />
-        </AuthGuard>
+        </AuthGuard>,
       )
 
       expect(renderSpy).toHaveBeenCalledTimes(1)
@@ -778,7 +780,7 @@ describe('AuthGuard Component', () => {
       rerender(
         <AuthGuard>
           <TestComponentWithSpy />
-        </AuthGuard>
+        </AuthGuard>,
       )
 
       expect(renderSpy).toHaveBeenCalledTimes(2) // Component will re-render, but AuthGuard behavior stays the same

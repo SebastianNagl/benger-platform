@@ -11,7 +11,7 @@
  * - Filtering by models, metrics, and eval types
  */
 import '@testing-library/jest-dom'
-import { render, screen, waitFor, act } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { EvaluationResults } from '../EvaluationResults'
 
@@ -28,7 +28,8 @@ jest.mock('@/contexts/I18nContext', () => ({
     t: (key: string, params?: Record<string, any>) => {
       const translations: Record<string, string> = {
         'evaluation.multiFieldResults.title': 'Evaluation Results',
-        'evaluation.multiFieldResults.noResultsYet': 'No evaluation results yet',
+        'evaluation.multiFieldResults.noResultsYet':
+          'No evaluation results yet',
         'evaluation.multiFieldResults.noResultsYetDesc':
           'Run an evaluation to see results here.',
         'evaluation.multiFieldResults.runEvaluationNow': 'Run Evaluation Now',
@@ -53,9 +54,12 @@ jest.mock('@/contexts/I18nContext', () => ({
         'evaluation.multiFieldResults.perTaskResults': 'Per-Task Results',
         'evaluation.multiFieldResults.task': 'Task',
         'evaluation.multiFieldResults.average': 'Average',
-        'evaluation.multiFieldResults.clickToViewTaskData': 'Click to view task data',
-        'evaluation.multiFieldResults.clickToViewResponse': 'Click to view response',
-        'evaluation.multiFieldResults.failedLoadTaskData': 'Failed to load task data',
+        'evaluation.multiFieldResults.clickToViewTaskData':
+          'Click to view task data',
+        'evaluation.multiFieldResults.clickToViewResponse':
+          'Click to view response',
+        'evaluation.multiFieldResults.failedLoadTaskData':
+          'Failed to load task data',
         'evaluation.multiFieldResults.taskDetails': 'Task Details',
         'evaluation.multiFieldResults.model': 'Model',
         'evaluation.multiFieldResults.close': 'Close',
@@ -64,9 +68,12 @@ jest.mock('@/contexts/I18nContext', () => ({
         'evaluation.multiFieldResults.annotationResult': 'Annotation Result',
         'evaluation.multiFieldResults.generationResults': 'Generation Results',
         'evaluation.multiFieldResults.evaluationResults': 'Evaluation Results',
-        'evaluation.multiFieldResults.noAnnotationData': 'No annotation data available',
-        'evaluation.multiFieldResults.noGenerationData': 'No generation data available',
-        'evaluation.multiFieldResults.noEvalResults': 'No evaluation results available',
+        'evaluation.multiFieldResults.noAnnotationData':
+          'No annotation data available',
+        'evaluation.multiFieldResults.noGenerationData':
+          'No generation data available',
+        'evaluation.multiFieldResults.noEvalResults':
+          'No evaluation results available',
         'evaluation.multiFieldResults.passedCount': `${params?.count ?? 0} passed`,
         'evaluation.multiFieldResults.failedCount': `${params?.count ?? 0} failed`,
         'evaluation.multiFieldResults.skippedCount': `${params?.count ?? 0} skipped`,
@@ -96,7 +103,8 @@ jest.mock('@/contexts/I18nContext', () => ({
         'evaluation.multiFieldResults.llmJudgeResponse': 'LLM Judge Response',
         'evaluation.multiFieldResults.annotation': 'Annotation',
         'evaluation.multiFieldResults.annotator': 'Annotator',
-        'evaluation.multiFieldResults.noAnnotationResults': 'No annotation results',
+        'evaluation.multiFieldResults.noAnnotationResults':
+          'No annotation results',
         'evaluation.multiFieldResults.cancelled': 'Cancelled',
         'evaluation.multiFieldResults.default': 'Default',
         'common.tasks': 'tasks',
@@ -125,8 +133,10 @@ jest.mock('@/utils/permissions', () => ({
 
 jest.mock('@/lib/api/client', () => ({
   apiClient: {
-    getProjectEvaluationResults: (...args: any[]) => mockGetProjectEvaluationResults(...args),
-    getProjectResultsByTaskModel: (...args: any[]) => mockGetProjectResultsByTaskModel(...args),
+    getProjectEvaluationResults: (...args: any[]) =>
+      mockGetProjectEvaluationResults(...args),
+    getProjectResultsByTaskModel: (...args: any[]) =>
+      mockGetProjectResultsByTaskModel(...args),
     getTaskEvaluation: (...args: any[]) => mockGetTaskEvaluation(...args),
     get: (...args: any[]) => mockApiClientGet(...args),
     evaluations: { computeStatistics: jest.fn() },
@@ -146,15 +156,24 @@ jest.mock('@/lib/api/projects', () => ({
 jest.mock('@headlessui/react', () => ({
   Dialog: ({ children, open, onClose }: any) =>
     open ? (
-      <div data-testid="dialog" onClick={(e: any) => { if (e.target === e.currentTarget) onClose?.() }}>
+      <div
+        data-testid="dialog"
+        onClick={(e: any) => {
+          if (e.target === e.currentTarget) onClose?.()
+        }}
+      >
         {typeof children === 'function' ? children({ open }) : children}
       </div>
     ) : null,
   DialogPanel: ({ children, className }: any) => (
-    <div data-testid="dialog-panel" className={className}>{children}</div>
+    <div data-testid="dialog-panel" className={className}>
+      {children}
+    </div>
   ),
   DialogTitle: ({ children, className }: any) => (
-    <h2 data-testid="dialog-title" className={className}>{children}</h2>
+    <h2 data-testid="dialog-title" className={className}>
+      {children}
+    </h2>
   ),
 }))
 
@@ -178,14 +197,26 @@ jest.mock('@/components/evaluation/InflightRunsBanner', () => ({
 }))
 
 jest.mock('@heroicons/react/24/outline', () => ({
-  ArrowDownTrayIcon: (props: any) => <span data-testid="arrow-down-tray-icon" {...props} />,
-  ArrowPathIcon: (props: any) => <span data-testid="arrow-path-icon" {...props} />,
-  CheckCircleIcon: (props: any) => <span data-testid="check-circle-icon" {...props} />,
+  ArrowDownTrayIcon: (props: any) => (
+    <span data-testid="arrow-down-tray-icon" {...props} />
+  ),
+  ArrowPathIcon: (props: any) => (
+    <span data-testid="arrow-path-icon" {...props} />
+  ),
+  CheckCircleIcon: (props: any) => (
+    <span data-testid="check-circle-icon" {...props} />
+  ),
   ClockIcon: (props: any) => <span data-testid="clock-icon" {...props} />,
-  ClipboardDocumentIcon: (props: any) => <span data-testid="clipboard-icon" {...props} />,
-  ExclamationCircleIcon: (props: any) => <span data-testid="exclamation-icon" {...props} />,
+  ClipboardDocumentIcon: (props: any) => (
+    <span data-testid="clipboard-icon" {...props} />
+  ),
+  ExclamationCircleIcon: (props: any) => (
+    <span data-testid="exclamation-icon" {...props} />
+  ),
   PlayIcon: (props: any) => <span data-testid="play-icon" {...props} />,
-  QueueListIcon: (props: any) => <span data-testid="queue-list-icon" {...props} />,
+  QueueListIcon: (props: any) => (
+    <span data-testid="queue-list-icon" {...props} />
+  ),
   XCircleIcon: (props: any) => <span data-testid="x-circle-icon" {...props} />,
   XMarkIcon: (props: any) => <span data-testid="x-mark-icon" {...props} />,
 }))
@@ -236,7 +267,10 @@ function makeEvaluationResult(overrides: Partial<any> = {}) {
   }
 }
 
-function makeProjectResults(evaluations: any[] = [], overrides: Partial<any> = {}) {
+function makeProjectResults(
+  evaluations: any[] = [],
+  overrides: Partial<any> = {},
+) {
   return {
     project_id: 'project-123',
     evaluations,
@@ -284,13 +318,16 @@ const emptyTaskModelData = {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function setupCompletedEvaluation(evalOverrides: Partial<any> = {}, taskModelOverrides: Partial<any> = {}) {
+function setupCompletedEvaluation(
+  evalOverrides: Partial<any> = {},
+  taskModelOverrides: Partial<any> = {},
+) {
   const evaluation = makeEvaluationResult(evalOverrides)
   mockGetProjectEvaluationResults.mockResolvedValue(
-    makeProjectResults([evaluation])
+    makeProjectResults([evaluation]),
   )
   mockGetProjectResultsByTaskModel.mockResolvedValue(
-    makeTaskModelData(taskModelOverrides)
+    makeTaskModelData(taskModelOverrides),
   )
 }
 
@@ -374,7 +411,7 @@ describe('EvaluationResults', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('Failed to load evaluation results')
+          screen.getByText('Failed to load evaluation results'),
         ).toBeInTheDocument()
       })
     })
@@ -387,7 +424,7 @@ describe('EvaluationResults', () => {
       setupEmptyResults()
 
       const { container } = render(
-        <EvaluationResults projectId="project-123" hasConfiguration={false} />
+        <EvaluationResults projectId="project-123" hasConfiguration={false} />,
       )
 
       await waitFor(() => {
@@ -405,10 +442,12 @@ describe('EvaluationResults', () => {
       render(<EvaluationResults projectId="project-123" />)
 
       await waitFor(() => {
-        expect(screen.getByText('No evaluation results yet')).toBeInTheDocument()
+        expect(
+          screen.getByText('No evaluation results yet'),
+        ).toBeInTheDocument()
       })
       expect(
-        screen.getByText('Run an evaluation to see results here.')
+        screen.getByText('Run an evaluation to see results here.'),
       ).toBeInTheDocument()
     })
 
@@ -417,7 +456,7 @@ describe('EvaluationResults', () => {
       const mockRun = jest.fn()
 
       render(
-        <EvaluationResults projectId="project-123" onRunEvaluation={mockRun} />
+        <EvaluationResults projectId="project-123" onRunEvaluation={mockRun} />,
       )
 
       await waitFor(() => {
@@ -433,7 +472,7 @@ describe('EvaluationResults', () => {
           projectId="project-123"
           onRunEvaluation={jest.fn()}
           isRunningEvaluation={true}
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -449,7 +488,7 @@ describe('EvaluationResults', () => {
           projectId="project-123"
           onRunEvaluation={jest.fn()}
           isRunningEvaluation={true}
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -504,7 +543,9 @@ describe('EvaluationResults', () => {
 
       // The component conditionally renders model chip: model_id && model_id !== 'unknown'
       const chips = document.querySelectorAll('.bg-gray-100')
-      const unknownChip = Array.from(chips).find(el => el.textContent === 'unknown')
+      const unknownChip = Array.from(chips).find(
+        (el) => el.textContent === 'unknown',
+      )
       expect(unknownChip).toBeUndefined()
     })
 
@@ -634,7 +675,11 @@ describe('EvaluationResults', () => {
         status: 'running',
         completed_at: null,
         samples_evaluated: 100,
-        progress: { samples_passed: 30, samples_failed: 10, samples_skipped: 0 },
+        progress: {
+          samples_passed: 30,
+          samples_failed: 10,
+          samples_skipped: 0,
+        },
       })
 
       render(<EvaluationResults projectId="project-123" />)
@@ -691,7 +736,7 @@ describe('EvaluationResults', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('Metric computation failed: division by zero')
+          screen.getByText('Metric computation failed: division by zero'),
         ).toBeInTheDocument()
       })
     })
@@ -715,9 +760,7 @@ describe('EvaluationResults', () => {
     it('renders per-task table with model columns in data view', async () => {
       setupCompletedEvaluation()
 
-      render(
-        <EvaluationResults projectId="project-123" {...DATA_VIEW_PROPS} />
-      )
+      render(<EvaluationResults projectId="project-123" {...DATA_VIEW_PROPS} />)
 
       await waitFor(() => {
         expect(screen.getByText('Per-Task Results')).toBeInTheDocument()
@@ -733,10 +776,10 @@ describe('EvaluationResults', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('What is the legal basis for...')
+          screen.getByText('What is the legal basis for...'),
         ).toBeInTheDocument()
         expect(
-          screen.getByText('Summarize the ruling in...')
+          screen.getByText('Summarize the ruling in...'),
         ).toBeInTheDocument()
       })
     })
@@ -791,7 +834,11 @@ describe('EvaluationResults', () => {
         {},
         {
           models: ['gpt-4', 'claude-3', 'llama-2'],
-          model_names: { 'gpt-4': 'GPT-4', 'claude-3': 'Claude 3', 'llama-2': 'Llama 2' },
+          model_names: {
+            'gpt-4': 'GPT-4',
+            'claude-3': 'Claude 3',
+            'llama-2': 'Llama 2',
+          },
           tasks: [
             {
               task_id: 'task-aaa',
@@ -806,7 +853,7 @@ describe('EvaluationResults', () => {
             'claude-3': { avg: null, count: 0, model_name: 'Claude 3' },
             'llama-2': { avg: null, count: 0, model_name: 'Llama 2' },
           },
-        }
+        },
       )
 
       render(<EvaluationResults projectId="project-123" {...DATA_VIEW_PROPS} />)
@@ -822,15 +869,24 @@ describe('EvaluationResults', () => {
 
   describe('Filtering evaluations', () => {
     it('filters evaluations by selectedModels in chart view', async () => {
-      const eval1 = makeEvaluationResult({ evaluation_id: 'eval-1', model_id: 'gpt-4' })
-      const eval2 = makeEvaluationResult({ evaluation_id: 'eval-2', model_id: 'claude-3' })
+      const eval1 = makeEvaluationResult({
+        evaluation_id: 'eval-1',
+        model_id: 'gpt-4',
+      })
+      const eval2 = makeEvaluationResult({
+        evaluation_id: 'eval-2',
+        model_id: 'claude-3',
+      })
       mockGetProjectEvaluationResults.mockResolvedValue(
-        makeProjectResults([eval1, eval2])
+        makeProjectResults([eval1, eval2]),
       )
       mockGetProjectResultsByTaskModel.mockResolvedValue(makeTaskModelData())
 
       render(
-        <EvaluationResults projectId="project-123" selectedModels={['gpt-4']} />
+        <EvaluationResults
+          projectId="project-123"
+          selectedModels={['gpt-4']}
+        />,
       )
 
       await waitFor(() => {
@@ -846,18 +902,32 @@ describe('EvaluationResults', () => {
         evaluation_id: 'eval-auto',
         model_id: 'gpt-4',
         evaluation_configs: [
-          { id: 'c1', metric: 'exact_match', metric_type: 'automated', prediction_fields: ['a'], reference_fields: ['b'], enabled: true },
+          {
+            id: 'c1',
+            metric: 'exact_match',
+            metric_type: 'automated',
+            prediction_fields: ['a'],
+            reference_fields: ['b'],
+            enabled: true,
+          },
         ],
       })
       const llmEval = makeEvaluationResult({
         evaluation_id: 'eval-llm',
         model_id: 'claude-3',
         evaluation_configs: [
-          { id: 'c2', metric: 'llm_judge', metric_type: 'llm-judge', prediction_fields: ['a'], reference_fields: ['b'], enabled: true },
+          {
+            id: 'c2',
+            metric: 'llm_judge',
+            metric_type: 'llm-judge',
+            prediction_fields: ['a'],
+            reference_fields: ['b'],
+            enabled: true,
+          },
         ],
       })
       mockGetProjectEvaluationResults.mockResolvedValue(
-        makeProjectResults([automatedEval, llmEval])
+        makeProjectResults([automatedEval, llmEval]),
       )
       mockGetProjectResultsByTaskModel.mockResolvedValue(makeTaskModelData())
 
@@ -865,7 +935,7 @@ describe('EvaluationResults', () => {
         <EvaluationResults
           projectId="project-123"
           selectedEvalTypes={['llm-judge']}
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -884,7 +954,10 @@ describe('EvaluationResults', () => {
       const onResultsLoaded = jest.fn()
 
       render(
-        <EvaluationResults projectId="project-123" onResultsLoaded={onResultsLoaded} />
+        <EvaluationResults
+          projectId="project-123"
+          onResultsLoaded={onResultsLoaded}
+        />,
       )
 
       await waitFor(() => {
@@ -897,7 +970,10 @@ describe('EvaluationResults', () => {
       const onResultsLoaded = jest.fn()
 
       render(
-        <EvaluationResults projectId="project-123" onResultsLoaded={onResultsLoaded} />
+        <EvaluationResults
+          projectId="project-123"
+          onResultsLoaded={onResultsLoaded}
+        />,
       )
 
       await waitFor(() => {
@@ -910,7 +986,7 @@ describe('EvaluationResults', () => {
       const onRefresh = jest.fn()
 
       render(
-        <EvaluationResults projectId="project-123" onRefresh={onRefresh} />
+        <EvaluationResults projectId="project-123" onRefresh={onRefresh} />,
       )
 
       await waitFor(() => {
@@ -927,7 +1003,10 @@ describe('EvaluationResults', () => {
       const onRunEvaluation = jest.fn()
 
       render(
-        <EvaluationResults projectId="project-123" onRunEvaluation={onRunEvaluation} />
+        <EvaluationResults
+          projectId="project-123"
+          onRunEvaluation={onRunEvaluation}
+        />,
       )
 
       await waitFor(() => {
@@ -944,19 +1023,26 @@ describe('EvaluationResults', () => {
       const onDataLoaded = jest.fn()
 
       render(
-        <EvaluationResults projectId="project-123" onDataLoaded={onDataLoaded} />
+        <EvaluationResults
+          projectId="project-123"
+          onDataLoaded={onDataLoaded}
+        />,
       )
 
       await waitFor(() => {
         expect(onDataLoaded).toHaveBeenCalled()
       })
 
-      const lastCall = onDataLoaded.mock.calls[onDataLoaded.mock.calls.length - 1][0]
+      const lastCall =
+        onDataLoaded.mock.calls[onDataLoaded.mock.calls.length - 1][0]
       expect(lastCall).toEqual(
         expect.arrayContaining([
           expect.objectContaining({ model_id: 'gpt-4', model_name: 'GPT-4' }),
-          expect.objectContaining({ model_id: 'claude-3', model_name: 'Claude 3' }),
-        ])
+          expect.objectContaining({
+            model_id: 'claude-3',
+            model_name: 'Claude 3',
+          }),
+        ]),
       )
     })
   })
@@ -992,7 +1078,7 @@ describe('EvaluationResults', () => {
           {...DATA_VIEW_PROPS}
           statisticsData={statisticsData}
           selectedStatistics={['se']}
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -1009,7 +1095,7 @@ describe('EvaluationResults', () => {
           {...DATA_VIEW_PROPS}
           statisticsData={statisticsData}
           selectedStatistics={['std']}
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -1026,7 +1112,7 @@ describe('EvaluationResults', () => {
           {...DATA_VIEW_PROPS}
           statisticsData={statisticsData}
           selectedStatistics={['ci']}
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -1043,7 +1129,7 @@ describe('EvaluationResults', () => {
           {...DATA_VIEW_PROPS}
           statisticsData={statisticsData}
           selectedStatistics={[]}
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -1107,7 +1193,9 @@ describe('EvaluationResults', () => {
       render(<EvaluationResults projectId="project-123" />)
 
       await waitFor(() => {
-        expect(screen.getAllByText('F1 Score (Macro)').length).toBeGreaterThan(0)
+        expect(screen.getAllByText('F1 Score (Macro)').length).toBeGreaterThan(
+          0,
+        )
       })
     })
 
@@ -1172,7 +1260,7 @@ describe('EvaluationResults', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('No evaluation configs found.')
+          screen.getByText('No evaluation configs found.'),
         ).toBeInTheDocument()
       })
     })
@@ -1195,7 +1283,7 @@ describe('EvaluationResults', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('No results for this configuration.')
+          screen.getByText('No results for this configuration.'),
         ).toBeInTheDocument()
       })
     })
@@ -1208,7 +1296,7 @@ describe('EvaluationResults', () => {
       setupCompletedEvaluation()
 
       const { rerender } = render(
-        <EvaluationResults projectId="project-123" refreshKey={1} />
+        <EvaluationResults projectId="project-123" refreshKey={1} />,
       )
 
       await waitFor(() => {
@@ -1242,10 +1330,14 @@ describe('EvaluationResults', () => {
             },
           ],
           summary: {
-            'annotator:john_doe': { avg: 0.95, count: 1, model_name: 'john_doe' },
+            'annotator:john_doe': {
+              avg: 0.95,
+              count: 1,
+              model_name: 'john_doe',
+            },
             'gpt-4': { avg: 0.82, count: 1, model_name: 'GPT-4' },
           },
-        }
+        },
       )
 
       render(<EvaluationResults projectId="project-123" {...DATA_VIEW_PROPS} />)
@@ -1271,9 +1363,13 @@ describe('EvaluationResults', () => {
             },
           ],
           summary: {
-            'annotator:reviewer1': { avg: 0.9, count: 1, model_name: 'reviewer1' },
+            'annotator:reviewer1': {
+              avg: 0.9,
+              count: 1,
+              model_name: 'reviewer1',
+            },
           },
-        }
+        },
       )
 
       render(<EvaluationResults projectId="project-123" {...DATA_VIEW_PROPS} />)
@@ -1289,7 +1385,10 @@ describe('EvaluationResults', () => {
 
   describe('Multiple evaluations', () => {
     it('renders multiple evaluation cards in chart view', async () => {
-      const eval1 = makeEvaluationResult({ evaluation_id: 'eval-1', model_id: 'gpt-4' })
+      const eval1 = makeEvaluationResult({
+        evaluation_id: 'eval-1',
+        model_id: 'gpt-4',
+      })
       const eval2 = makeEvaluationResult({
         evaluation_id: 'eval-2',
         model_id: 'claude-3',
@@ -1320,7 +1419,7 @@ describe('EvaluationResults', () => {
         },
       })
       mockGetProjectEvaluationResults.mockResolvedValue(
-        makeProjectResults([eval1, eval2])
+        makeProjectResults([eval1, eval2]),
       )
       mockGetProjectResultsByTaskModel.mockResolvedValue(makeTaskModelData())
 
@@ -1356,9 +1455,13 @@ describe('EvaluationResults', () => {
             },
           ],
           summary: {
-            'custom-model-1': { avg: 0.77, count: 1, model_name: 'custom-model-1' },
+            'custom-model-1': {
+              avg: 0.77,
+              count: 1,
+              model_name: 'custom-model-1',
+            },
           },
-        }
+        },
       )
 
       render(
@@ -1366,7 +1469,7 @@ describe('EvaluationResults', () => {
           projectId="project-123"
           {...DATA_VIEW_PROPS}
           modelNames={{ 'custom-model-1': 'Custom Model v1' }}
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -1390,7 +1493,8 @@ describe('EvaluationResults', () => {
         await jest.advanceTimersByTimeAsync(100)
       })
 
-      const callCountAfterRender = mockGetProjectEvaluationResults.mock.calls.length
+      const callCountAfterRender =
+        mockGetProjectEvaluationResults.mock.calls.length
 
       // Advance by the 5000ms polling interval
       await act(async () => {
@@ -1398,7 +1502,7 @@ describe('EvaluationResults', () => {
       })
 
       expect(mockGetProjectEvaluationResults.mock.calls.length).toBeGreaterThan(
-        callCountAfterRender
+        callCountAfterRender,
       )
 
       jest.useRealTimers()
@@ -1412,7 +1516,10 @@ describe('EvaluationResults', () => {
       setupCompletedEvaluation()
 
       render(
-        <EvaluationResults projectId="project-123" onRunEvaluation={jest.fn()} />
+        <EvaluationResults
+          projectId="project-123"
+          onRunEvaluation={jest.fn()}
+        />,
       )
 
       await waitFor(() => {
@@ -1428,7 +1535,7 @@ describe('EvaluationResults', () => {
           projectId="project-123"
           onRunEvaluation={jest.fn()}
           isRunningEvaluation={true}
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -1546,24 +1653,27 @@ describe('EvaluationResults', () => {
         <EvaluationResults
           projectId="project-123"
           onDataLoaded={onDataLoaded}
-        />
+        />,
       )
 
       await waitFor(() => {
         expect(onDataLoaded).toHaveBeenCalled()
       })
 
-      const chartData = onDataLoaded.mock.calls[onDataLoaded.mock.calls.length - 1][0]
-      expect(chartData).toEqual(expect.arrayContaining([
-        expect.objectContaining({
-          model_id: 'gpt-4',
-          model_name: 'GPT-4',
-        }),
-        expect.objectContaining({
-          model_id: 'claude-3',
-          model_name: 'Claude 3',
-        }),
-      ]))
+      const chartData =
+        onDataLoaded.mock.calls[onDataLoaded.mock.calls.length - 1][0]
+      expect(chartData).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            model_id: 'gpt-4',
+            model_name: 'GPT-4',
+          }),
+          expect.objectContaining({
+            model_id: 'claude-3',
+            model_name: 'Claude 3',
+          }),
+        ]),
+      )
     })
   })
 
@@ -1591,7 +1701,7 @@ describe('EvaluationResults', () => {
       })
 
       mockGetProjectEvaluationResults.mockResolvedValue(
-        makeProjectResults([llmJudgeEval])
+        makeProjectResults([llmJudgeEval]),
       )
       mockGetProjectResultsByTaskModel.mockResolvedValue(makeTaskModelData())
 
@@ -1599,7 +1709,7 @@ describe('EvaluationResults', () => {
         <EvaluationResults
           projectId="project-123"
           selectedEvalTypes={['llm-judge']}
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -1630,7 +1740,7 @@ describe('EvaluationResults', () => {
       })
 
       mockGetProjectEvaluationResults.mockResolvedValue(
-        makeProjectResults([humanEval])
+        makeProjectResults([humanEval]),
       )
       mockGetProjectResultsByTaskModel.mockResolvedValue(makeTaskModelData())
 
@@ -1638,7 +1748,7 @@ describe('EvaluationResults', () => {
         <EvaluationResults
           projectId="project-123"
           selectedEvalTypes={['human']}
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -1648,5 +1758,4 @@ describe('EvaluationResults', () => {
       })
     })
   })
-
 })

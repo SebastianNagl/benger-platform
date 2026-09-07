@@ -51,7 +51,7 @@ describe('NotificationStore', () => {
       expect(state.toasts).toHaveLength(MAX_TOASTS)
       expect(state.toasts[0].message).toBe(`toast-2`)
       expect(state.toasts[MAX_TOASTS - 1].message).toBe(
-        `toast-${MAX_TOASTS + 1}`
+        `toast-${MAX_TOASTS + 1}`,
       )
     })
 
@@ -137,7 +137,11 @@ describe('NotificationStore', () => {
     it('encodes message and type as URL parameters', () => {
       const url = useNotificationStore
         .getState()
-        .flashRedirect('https://app.example.com/dashboard', 'welcome', 'success')
+        .flashRedirect(
+          'https://app.example.com/dashboard',
+          'welcome',
+          'success',
+        )
 
       const u = new URL(url)
       expect(u.origin + u.pathname).toBe('https://app.example.com/dashboard')
@@ -150,23 +154,14 @@ describe('NotificationStore', () => {
     it('encodes a non-default duration explicitly', () => {
       const url = useNotificationStore
         .getState()
-        .flashRedirect(
-          'https://app.example.com/x',
-          'pinned',
-          'warning',
-          0
-        )
+        .flashRedirect('https://app.example.com/x', 'pinned', 'warning', 0)
       expect(new URL(url).searchParams.get('flash_duration')).toBe('0')
     })
 
     it('preserves existing query parameters on the target URL', () => {
       const url = useNotificationStore
         .getState()
-        .flashRedirect(
-          'https://app.example.com/x?ref=email',
-          'hi',
-          'info'
-        )
+        .flashRedirect('https://app.example.com/x?ref=email', 'hi', 'info')
       const u = new URL(url)
       expect(u.searchParams.get('ref')).toBe('email')
       expect(u.searchParams.get('flash_msg')).toBe('hi')
@@ -188,9 +183,7 @@ describe('NotificationStore', () => {
       expect(raw).toBeTruthy()
       const persisted = JSON.parse(raw as string)
       expect(persisted.state.pendingFlashes).toHaveLength(1)
-      expect(persisted.state.pendingFlashes[0].message).toBe(
-        'persistent-flash'
-      )
+      expect(persisted.state.pendingFlashes[0].message).toBe('persistent-flash')
       // Live toasts ARE persisted (with createdAt) so F5 keeps them on
       // screen for the remainder of their duration. ToastProvider re-arms
       // the auto-dismiss timer based on `duration - (now - createdAt)`.

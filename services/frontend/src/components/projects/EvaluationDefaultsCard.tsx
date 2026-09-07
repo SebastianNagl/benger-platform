@@ -15,11 +15,11 @@
 'use client'
 
 import { DefaultParamInput } from '@/components/projects/DefaultParamInput'
-import { SubSection } from '@/components/projects/SubSection'
 import type {
   DefaultsMode,
   RecommendedConsensus,
 } from '@/components/projects/GenerationDefaultsCard'
+import { SubSection } from '@/components/projects/SubSection'
 
 interface EvaluationDefaultsCardProps {
   t: (key: string, params?: any) => string
@@ -62,15 +62,47 @@ export function EvaluationDefaultsCard({
             {t('project.evaluationDefaults.modeLabel', 'Standard-Strategie')}
           </div>
           <div className="space-y-2">
-            {([
-              ['recommended', t('project.evaluationDefaults.modeRecommended', 'Empfohlene Werte (pro Judge-Modell)'),
-                t('project.evaluationDefaults.modeRecommendedDesc', 'Verwende die vom Anbieter empfohlenen Eval-Werte für jedes neu hinzugefügte Judge-Modell.')],
-              ['minimum', t('project.evaluationDefaults.modeMinimum', 'Minimal-Werte (pro Judge-Modell)'),
-                t('project.evaluationDefaults.modeMinimumDesc', 'Verwende die niedrigste vom Anbieter zulässige Temperatur für jedes neu hinzugefügte Judge-Modell.')],
-              ['custom', t('project.evaluationDefaults.modeCustom', 'Benutzerdefiniert'),
-                t('project.evaluationDefaults.modeCustomDesc', 'Verwende die unten eingegebenen Werte einheitlich für alle neu hinzugefügten Judge-Konfigurationen (Min/Max-Constraints werden weiterhin durchgesetzt).')],
-            ] as const).map(([modeKey, label, desc]) => (
-              <label key={modeKey} className="flex items-start gap-2 cursor-pointer">
+            {(
+              [
+                [
+                  'recommended',
+                  t(
+                    'project.evaluationDefaults.modeRecommended',
+                    'Empfohlene Werte (pro Judge-Modell)',
+                  ),
+                  t(
+                    'project.evaluationDefaults.modeRecommendedDesc',
+                    'Verwende die vom Anbieter empfohlenen Eval-Werte für jedes neu hinzugefügte Judge-Modell.',
+                  ),
+                ],
+                [
+                  'minimum',
+                  t(
+                    'project.evaluationDefaults.modeMinimum',
+                    'Minimal-Werte (pro Judge-Modell)',
+                  ),
+                  t(
+                    'project.evaluationDefaults.modeMinimumDesc',
+                    'Verwende die niedrigste vom Anbieter zulässige Temperatur für jedes neu hinzugefügte Judge-Modell.',
+                  ),
+                ],
+                [
+                  'custom',
+                  t(
+                    'project.evaluationDefaults.modeCustom',
+                    'Benutzerdefiniert',
+                  ),
+                  t(
+                    'project.evaluationDefaults.modeCustomDesc',
+                    'Verwende die unten eingegebenen Werte einheitlich für alle neu hinzugefügten Judge-Konfigurationen (Min/Max-Constraints werden weiterhin durchgesetzt).',
+                  ),
+                ],
+              ] as const
+            ).map(([modeKey, label, desc]) => (
+              <label
+                key={modeKey}
+                className="flex cursor-pointer items-start gap-2"
+              >
                 <input
                   type="radio"
                   name="eval-defaults-mode"
@@ -83,8 +115,12 @@ export function EvaluationDefaultsCard({
                   className="mt-0.5"
                 />
                 <span className="flex-1">
-                  <span className="block text-xs font-medium text-zinc-900 dark:text-zinc-100">{label}</span>
-                  <span className="block text-xs text-zinc-500 dark:text-zinc-400">{desc}</span>
+                  <span className="block text-xs font-medium text-zinc-900 dark:text-zinc-100">
+                    {label}
+                  </span>
+                  <span className="block text-xs text-zinc-500 dark:text-zinc-400">
+                    {desc}
+                  </span>
                 </span>
               </label>
             ))}
@@ -106,29 +142,40 @@ export function EvaluationDefaultsCard({
               onChange={(e) => {
                 if (!cardEditingEvaluation) beginEditEvaluation()
                 setEvalDefaultTemperature(
-                  e.target.value ? parseFloat(e.target.value) : undefined
+                  e.target.value ? parseFloat(e.target.value) : undefined,
                 )
               }}
             />
             <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
               {evalDefaultsMode === 'custom'
                 ? t('project.evaluationDefaults.temperatureHelp')
-                : t('project.evaluationDefaults.temperatureHelpModeOverride',
-                    'Wird ignoriert: aktive Strategie befüllt Temperatur pro Judge-Modell.')}
+                : t(
+                    'project.evaluationDefaults.temperatureHelpModeOverride',
+                    'Wird ignoriert: aktive Strategie befüllt Temperatur pro Judge-Modell.',
+                  )}
             </p>
             {selectedModelIds.length > 0 && (
               <div className="mt-1 text-xs">
                 {evalRecConsensus.temperature.uniform &&
                 evalRecConsensus.temperature.value !== undefined ? (
                   <span className="text-zinc-600 dark:text-zinc-400">
-                    {t('generation.controlModal.recommended', 'Empfehlung')}: {evalRecConsensus.temperature.value}
-                    {(evalDefaultTemperature ?? 0) !== evalRecConsensus.temperature.value && (
+                    {t('generation.controlModal.recommended', 'Empfehlung')}:{' '}
+                    {evalRecConsensus.temperature.value}
+                    {(evalDefaultTemperature ?? 0) !==
+                      evalRecConsensus.temperature.value && (
                       <button
                         type="button"
-                        onClick={() => setEvalDefaultTemperature(evalRecConsensus.temperature.value)}
+                        onClick={() =>
+                          setEvalDefaultTemperature(
+                            evalRecConsensus.temperature.value,
+                          )
+                        }
                         className="ml-2 text-blue-600 hover:underline"
                       >
-                        {t('generation.controlModal.resetToRecommended', 'Zurücksetzen auf Empfohlen')}
+                        {t(
+                          'generation.controlModal.resetToRecommended',
+                          'Zurücksetzen auf Empfohlen',
+                        )}
                       </button>
                     )}
                   </span>
@@ -139,11 +186,17 @@ export function EvaluationDefaultsCard({
                       .map((m) => `${m.model}: ${m.value ?? '—'}`)
                       .join('\n')}
                   >
-                    {t('generation.controlModal.divergentRecommendations', 'Verschiedene Empfehlungen pro Modell')}
+                    {t(
+                      'generation.controlModal.divergentRecommendations',
+                      'Verschiedene Empfehlungen pro Modell',
+                    )}
                   </span>
                 ) : (
                   <span className="text-zinc-400 dark:text-zinc-500">
-                    {t('generation.controlModal.noRecommendation', 'Keine Empfehlung')}
+                    {t(
+                      'generation.controlModal.noRecommendation',
+                      'Keine Empfehlung',
+                    )}
                   </span>
                 )}
               </div>
@@ -164,29 +217,40 @@ export function EvaluationDefaultsCard({
               onChange={(e) => {
                 if (!cardEditingEvaluation) beginEditEvaluation()
                 setEvalDefaultMaxTokens(
-                  e.target.value ? parseInt(e.target.value) : undefined
+                  e.target.value ? parseInt(e.target.value) : undefined,
                 )
               }}
             />
             <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
               {evalDefaultsMode === 'custom'
                 ? t('project.evaluationDefaults.maxTokensHelp')
-                : t('project.evaluationDefaults.maxTokensHelpModeOverride',
-                    'Wird ignoriert: aktive Strategie befüllt Max Tokens pro Judge-Modell.')}
+                : t(
+                    'project.evaluationDefaults.maxTokensHelpModeOverride',
+                    'Wird ignoriert: aktive Strategie befüllt Max Tokens pro Judge-Modell.',
+                  )}
             </p>
             {selectedModelIds.length > 0 && (
               <div className="mt-1 text-xs">
                 {evalRecConsensus.max_tokens.uniform &&
                 evalRecConsensus.max_tokens.value !== undefined ? (
                   <span className="text-zinc-600 dark:text-zinc-400">
-                    {t('generation.controlModal.recommended', 'Empfehlung')}: {evalRecConsensus.max_tokens.value}
-                    {(evalDefaultMaxTokens ?? 500) !== evalRecConsensus.max_tokens.value && (
+                    {t('generation.controlModal.recommended', 'Empfehlung')}:{' '}
+                    {evalRecConsensus.max_tokens.value}
+                    {(evalDefaultMaxTokens ?? 500) !==
+                      evalRecConsensus.max_tokens.value && (
                       <button
                         type="button"
-                        onClick={() => setEvalDefaultMaxTokens(evalRecConsensus.max_tokens.value)}
+                        onClick={() =>
+                          setEvalDefaultMaxTokens(
+                            evalRecConsensus.max_tokens.value,
+                          )
+                        }
                         className="ml-2 text-blue-600 hover:underline"
                       >
-                        {t('generation.controlModal.resetToRecommended', 'Zurücksetzen auf Empfohlen')}
+                        {t(
+                          'generation.controlModal.resetToRecommended',
+                          'Zurücksetzen auf Empfohlen',
+                        )}
                       </button>
                     )}
                   </span>
@@ -197,11 +261,17 @@ export function EvaluationDefaultsCard({
                       .map((m) => `${m.model}: ${m.value ?? '—'}`)
                       .join('\n')}
                   >
-                    {t('generation.controlModal.divergentRecommendations', 'Verschiedene Empfehlungen pro Modell')}
+                    {t(
+                      'generation.controlModal.divergentRecommendations',
+                      'Verschiedene Empfehlungen pro Modell',
+                    )}
                   </span>
                 ) : (
                   <span className="text-zinc-400 dark:text-zinc-500">
-                    {t('generation.controlModal.noRecommendation', 'Keine Empfehlung')}
+                    {t(
+                      'generation.controlModal.noRecommendation',
+                      'Keine Empfehlung',
+                    )}
                   </span>
                 )}
               </div>

@@ -13,7 +13,7 @@
  * surface; this file targets the scope-picker additions exclusively.
  */
 import '@testing-library/jest-dom'
-import { render, screen, waitFor, fireEvent } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { EvaluationControlModal } from '../EvaluationControlModal'
 
 jest.mock('@/contexts/I18nContext', () => ({
@@ -28,18 +28,26 @@ jest.mock('@/contexts/I18nContext', () => ({
     //       the fallback through.
     t: (key: string, paramOrFallback?: any) => {
       if (typeof paramOrFallback === 'string') return paramOrFallback
-      if (paramOrFallback && typeof paramOrFallback === 'object' && 'count' in paramOrFallback) {
+      if (
+        paramOrFallback &&
+        typeof paramOrFallback === 'object' &&
+        'count' in paramOrFallback
+      ) {
         return `${paramOrFallback.count}`
       }
       const translations: Record<string, string> = {
         'evaluation.controlModal.title': 'Run Evaluation',
         'evaluation.controlModal.evaluationMode': 'Evaluation Mode',
         'evaluation.controlModal.evaluateMissingOnly': 'Missing Only',
-        'evaluation.controlModal.evaluateMissingOnlyDesc': 'Only evaluate samples without results',
+        'evaluation.controlModal.evaluateMissingOnlyDesc':
+          'Only evaluate samples without results',
         'evaluation.controlModal.evaluateAll': 'All Samples',
-        'evaluation.controlModal.evaluateAllDesc': 'Re-evaluate all samples, overwriting existing results',
-        'evaluation.controlModal.evaluationConfigurations': 'Evaluation Configurations',
-        'evaluation.controlModal.oneConfigWillBeRun': '1 configuration will be run',
+        'evaluation.controlModal.evaluateAllDesc':
+          'Re-evaluate all samples, overwriting existing results',
+        'evaluation.controlModal.evaluationConfigurations':
+          'Evaluation Configurations',
+        'evaluation.controlModal.oneConfigWillBeRun':
+          '1 configuration will be run',
         'evaluation.controlModal.starting': 'Starting...',
         'evaluation.controlModal.startEvaluation': 'Start Evaluation',
         'evaluation.controlModal.cancel': 'Cancel',
@@ -74,20 +82,30 @@ jest.mock('@/lib/api/client', () => ({
 
 // Stub HeadlessUI portal components so the dialog children render in-place.
 jest.mock('@headlessui/react', () => {
-  const Dialog = ({ children }: any) => <div data-testid="dialog">{children}</div>
+  const Dialog = ({ children }: any) => (
+    <div data-testid="dialog">{children}</div>
+  )
   // eslint-disable-next-line react/display-name
   Dialog.Title = ({ children, as }: any) => {
     const Tag = as || 'h3'
     return <Tag>{children}</Tag>
   }
   // eslint-disable-next-line react/display-name
-  Dialog.Panel = ({ children }: any) => <div data-testid="dialog-panel">{children}</div>
-  const Transition: any = ({ children, show }: any) => (show !== false ? <>{children}</> : null)
+  Dialog.Panel = ({ children }: any) => (
+    <div data-testid="dialog-panel">{children}</div>
+  )
+  const Transition: any = ({ children, show }: any) =>
+    show !== false ? <>{children}</> : null
   // eslint-disable-next-line react/display-name
-  Transition.Root = ({ children, show }: any) => (show !== false ? <>{children}</> : null)
+  Transition.Root = ({ children, show }: any) =>
+    show !== false ? <>{children}</> : null
   // eslint-disable-next-line react/display-name
   Transition.Child = ({ children }: any) => <>{children}</>
-  return { Dialog, Transition, Fragment: ({ children }: any) => <>{children}</> }
+  return {
+    Dialog,
+    Transition,
+    Fragment: ({ children }: any) => <>{children}</>,
+  }
 })
 
 const defaultProps = {

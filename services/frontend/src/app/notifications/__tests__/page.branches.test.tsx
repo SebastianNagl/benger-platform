@@ -100,7 +100,9 @@ jest.mock('@/contexts/I18nContext', () => ({
       if (!result) {
         return typeof defaultValueOrVars === 'string' ? defaultValueOrVars : key
       }
-      const variables = vars || (typeof defaultValueOrVars === 'object' ? defaultValueOrVars : null)
+      const variables =
+        vars ||
+        (typeof defaultValueOrVars === 'object' ? defaultValueOrVars : null)
       if (variables) {
         Object.entries(variables).forEach(([k, v]) => {
           result = result!.replace(`{${k}}`, String(v))
@@ -127,18 +129,30 @@ jest.mock('date-fns', () => ({
 
 jest.mock('@heroicons/react/24/outline', () => ({
   ArrowPathIcon: (props: any) => <svg data-testid="refresh-icon" {...props} />,
-  CheckCircleIcon: (props: any) => <svg data-testid="check-circle-icon" {...props} />,
+  CheckCircleIcon: (props: any) => (
+    <svg data-testid="check-circle-icon" {...props} />
+  ),
   CheckIcon: (props: any) => <svg data-testid="check-icon" {...props} />,
-  ChevronDownIcon: (props: any) => <svg data-testid="chevron-down-icon" {...props} />,
-  ChevronUpDownIcon: (props: any) => <svg data-testid="chevron-up-down-icon" {...props} />,
+  ChevronDownIcon: (props: any) => (
+    <svg data-testid="chevron-down-icon" {...props} />
+  ),
+  ChevronUpDownIcon: (props: any) => (
+    <svg data-testid="chevron-up-down-icon" {...props} />
+  ),
   ClockIcon: (props: any) => <svg data-testid="clock-icon" {...props} />,
-  ExclamationTriangleIcon: (props: any) => <svg data-testid="exclamation-icon" {...props} />,
+  ExclamationTriangleIcon: (props: any) => (
+    <svg data-testid="exclamation-icon" {...props} />
+  ),
   FunnelIcon: (props: any) => <svg data-testid="funnel-icon" {...props} />,
-  InformationCircleIcon: (props: any) => <svg data-testid="info-icon" {...props} />,
+  InformationCircleIcon: (props: any) => (
+    <svg data-testid="info-icon" {...props} />
+  ),
   UserPlusIcon: (props: any) => <svg data-testid="user-plus-icon" {...props} />,
   XMarkIcon: (props: any) => <svg data-testid="x-mark-icon" {...props} />,
   ChartBarIcon: (props: any) => <svg data-testid="chart-bar-icon" {...props} />,
-  MagnifyingGlassIcon: (props: any) => <svg data-testid="magnifying-glass-icon" {...props} />,
+  MagnifyingGlassIcon: (props: any) => (
+    <svg data-testid="magnifying-glass-icon" {...props} />
+  ),
   TrashIcon: (props: any) => <svg data-testid="trash-icon" {...props} />,
 }))
 
@@ -150,14 +164,18 @@ jest.mock('next/link', () => ({
 jest.mock('@/components/shared/Breadcrumb', () => ({
   Breadcrumb: ({ items }: any) => (
     <nav data-testid="breadcrumb">
-      {items?.map((item: any, i: number) => <span key={i}>{item.label}</span>)}
+      {items?.map((item: any, i: number) => (
+        <span key={i}>{item.label}</span>
+      ))}
     </nav>
   ),
 }))
 
 jest.mock('@/components/shared/Button', () => ({
   Button: ({ children, onClick, disabled, ...props }: any) => (
-    <button onClick={onClick} disabled={disabled} {...props}>{children}</button>
+    <button onClick={onClick} disabled={disabled} {...props}>
+      {children}
+    </button>
   ),
 }))
 
@@ -225,7 +243,6 @@ jest.mock('@/components/shared/FilterToolbar', () => {
   return { FilterToolbar }
 })
 
-
 describe('NotificationsPage - branch coverage', () => {
   const mockPush = jest.fn()
   const mockMarkAsRead = jest.fn().mockResolvedValue(undefined)
@@ -259,8 +276,12 @@ describe('NotificationsPage - branch coverage', () => {
       fetchNotifications: mockFetchNotifications,
     })
     ;(api.getNotifications as jest.Mock).mockResolvedValue([])
-    ;(api.markNotificationsBulkAsRead as jest.Mock).mockResolvedValue({ message: 'OK' })
-    ;(api.deleteNotificationsBulk as jest.Mock).mockResolvedValue({ message: 'OK' })
+    ;(api.markNotificationsBulkAsRead as jest.Mock).mockResolvedValue({
+      message: 'OK',
+    })
+    ;(api.deleteNotificationsBulk as jest.Mock).mockResolvedValue({
+      message: 'OK',
+    })
   })
 
   describe('No user state', () => {

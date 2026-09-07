@@ -111,7 +111,7 @@ jest.mock('../MobileNavigation', () => {
               aria-label="Toggle navigation"
               onClick={mockStore.toggle}
             >
-              <span className="pointer-fine:hidden absolute size-12" />
+              <span className="absolute size-12 pointer-fine:hidden" />
               <svg
                 className="w-2.5 stroke-zinc-900 dark:stroke-white"
                 aria-hidden="true"
@@ -132,7 +132,7 @@ jest.mock('../MobileNavigation', () => {
               >
                 <div
                   data-testid="dialog-backdrop"
-                  className="backdrop-blur-xs data-closed:opacity-0 data-enter:duration-300 data-enter:ease-out data-leave:duration-200 data-leave:ease-in fixed inset-0 top-14 bg-zinc-400/20 dark:bg-black/40"
+                  className="fixed inset-0 top-14 bg-zinc-400/20 backdrop-blur-xs data-closed:opacity-0 data-enter:duration-300 data-enter:ease-out data-leave:duration-200 data-leave:ease-in dark:bg-black/40"
                 />
                 <div data-testid="dialog-panel">
                   <div data-testid="transition-child">
@@ -146,7 +146,7 @@ jest.mock('../MobileNavigation', () => {
                   <div data-testid="transition-child">
                     <div
                       data-testid="motion-div"
-                      className="data-closed:-translate-x-full fixed bottom-0 left-0 top-14 w-full overflow-y-auto bg-white/95 px-4 pb-4 pt-6 shadow-xl backdrop-blur-sm duration-300 ease-in-out dark:bg-zinc-900/95 dark:ring-zinc-800 min-[416px]:max-w-sm sm:px-6 sm:pb-10"
+                      className="fixed top-14 bottom-0 left-0 w-full overflow-y-auto bg-white/95 px-4 pt-6 pb-4 shadow-xl backdrop-blur-sm duration-300 ease-in-out data-closed:-translate-x-full min-[416px]:max-w-sm sm:px-6 sm:pb-10 dark:bg-zinc-900/95 dark:ring-zinc-800"
                       data-layout-scroll="true"
                       data-suppress-hydration="true"
                     >
@@ -236,7 +236,7 @@ describe('MobileNavigation', () => {
         'rounded-md',
         'transition',
         'hover:bg-zinc-900/5',
-        'dark:hover:bg-white/5'
+        'dark:hover:bg-white/5',
       )
     })
 
@@ -367,7 +367,7 @@ describe('MobileNavigation', () => {
         'top-14',
         'bg-zinc-400/20',
         'backdrop-blur-xs',
-        'dark:bg-black/40'
+        'dark:bg-black/40',
       )
     })
 
@@ -434,7 +434,7 @@ describe('MobileNavigation', () => {
         'px-4',
         'pt-6',
         'pb-4',
-        'shadow-xl'
+        'shadow-xl',
       )
     })
   })
@@ -453,7 +453,7 @@ describe('MobileNavigation', () => {
       render(
         <MobileNavigation>
           <TestComponent />
-        </MobileNavigation>
+        </MobileNavigation>,
       )
 
       expect(screen.getByTestId('context-value')).toHaveTextContent('true')
@@ -479,7 +479,7 @@ describe('MobileNavigation', () => {
       render(
         <MobileNavigation>
           <NestedMobileNav />
-        </MobileNavigation>
+        </MobileNavigation>,
       )
 
       expect(screen.queryByTestId('would-show-dialog')).not.toBeInTheDocument()
@@ -522,7 +522,7 @@ describe('MobileNavigation', () => {
       expect(motionDiv).toHaveClass(
         'min-[416px]:max-w-sm',
         'sm:px-6',
-        'sm:pb-10'
+        'sm:pb-10',
       )
     })
 
@@ -627,7 +627,7 @@ describe('MobileNavigation', () => {
         'data-enter:duration-300',
         'data-enter:ease-out',
         'data-leave:duration-200',
-        'data-leave:ease-in'
+        'data-leave:ease-in',
       )
     })
 
@@ -641,7 +641,7 @@ describe('MobileNavigation', () => {
         'data-enter:duration-300',
         'data-enter:ease-out',
         'data-leave:duration-200',
-        'data-leave:ease-in'
+        'data-leave:ease-in',
       )
     })
 
@@ -653,7 +653,7 @@ describe('MobileNavigation', () => {
       expect(motionDiv).toHaveClass(
         'duration-300',
         'ease-in-out',
-        'data-closed:-translate-x-full'
+        'data-closed:-translate-x-full',
       )
     })
   })
@@ -704,7 +704,7 @@ describe('MobileNavigation', () => {
       const { rerender } = render(
         <MobileNavigation>
           <TestComponent />
-        </MobileNavigation>
+        </MobileNavigation>,
       )
 
       expect(screen.getByTestId('context-value')).toHaveTextContent('true')
@@ -712,7 +712,7 @@ describe('MobileNavigation', () => {
       rerender(
         <MobileNavigation>
           <TestComponent />
-        </MobileNavigation>
+        </MobileNavigation>,
       )
 
       expect(screen.getByTestId('context-value')).toHaveTextContent('true')

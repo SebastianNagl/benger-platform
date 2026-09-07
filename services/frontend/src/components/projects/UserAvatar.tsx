@@ -79,12 +79,12 @@ export function UserAvatar({
   return (
     <div className="group relative">
       {avatar}
-      <div className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 -translate-x-1/2 transform whitespace-nowrap rounded bg-zinc-900 px-2 py-1 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100 dark:bg-zinc-700">
+      <div className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 -translate-x-1/2 transform rounded bg-zinc-900 px-2 py-1 text-xs whitespace-nowrap text-white opacity-0 transition-opacity group-hover:opacity-100 dark:bg-zinc-700">
         {name}
         {email && (
           <div className="text-zinc-300 dark:text-zinc-400">{email}</div>
         )}
-        <div className="absolute left-1/2 top-full -translate-x-1/2 transform border-4 border-transparent border-t-zinc-900 dark:border-t-zinc-700"></div>
+        <div className="absolute top-full left-1/2 -translate-x-1/2 transform border-4 border-transparent border-t-zinc-900 dark:border-t-zinc-700"></div>
       </div>
     </div>
   )

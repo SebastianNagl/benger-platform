@@ -15,9 +15,9 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { Textarea } from '@/components/ui/textarea'
+import { useI18n } from '@/contexts/I18nContext'
 import { CheckIcon, EyeIcon, XMarkIcon } from '@heroicons/react/24/outline'
 import { useMemo, useState } from 'react'
-import { useI18n } from '@/contexts/I18nContext'
 
 interface GenerationStructureEditorProps {
   initialConfig?: string
@@ -115,9 +115,15 @@ export function GenerationStructureEditor({
   const [showPreview, setShowPreview] = useState(false)
 
   // Derive error and previewData from config using useMemo (pure validation)
-  const { error, previewData } = useMemo<{ error: string | null; previewData: any }>(() => {
+  const { error, previewData } = useMemo<{
+    error: string | null
+    previewData: any
+  }>(() => {
     if (!config.trim()) {
-      return { error: t('projects.generationStructure.errorEmpty'), previewData: null }
+      return {
+        error: t('projects.generationStructure.errorEmpty'),
+        previewData: null,
+      }
     }
 
     try {
@@ -136,13 +142,19 @@ export function GenerationStructureEditor({
       // Validate prompt structures if they're objects
       if (parsed.system_prompt && typeof parsed.system_prompt === 'object') {
         if (!parsed.system_prompt.template) {
-          return { error: t('projects.generationStructure.errorSystemPromptTemplate'), previewData: null }
+          return {
+            error: t('projects.generationStructure.errorSystemPromptTemplate'),
+            previewData: null,
+          }
         }
         if (
           parsed.system_prompt.fields &&
           typeof parsed.system_prompt.fields !== 'object'
         ) {
-          return { error: t('projects.generationStructure.errorSystemPromptFields'), previewData: null }
+          return {
+            error: t('projects.generationStructure.errorSystemPromptFields'),
+            previewData: null,
+          }
         }
       }
 
@@ -151,29 +163,50 @@ export function GenerationStructureEditor({
         typeof parsed.instruction_prompt === 'object'
       ) {
         if (!parsed.instruction_prompt.template) {
-          return { error: t('projects.generationStructure.errorInstructionPromptTemplate'), previewData: null }
+          return {
+            error: t(
+              'projects.generationStructure.errorInstructionPromptTemplate',
+            ),
+            previewData: null,
+          }
         }
         if (
           parsed.instruction_prompt.fields &&
           typeof parsed.instruction_prompt.fields !== 'object'
         ) {
-          return { error: t('projects.generationStructure.errorInstructionPromptFields'), previewData: null }
+          return {
+            error: t(
+              'projects.generationStructure.errorInstructionPromptFields',
+            ),
+            previewData: null,
+          }
         }
       }
 
       // Validate exclude_fields if present
       if (parsed.exclude_fields && !Array.isArray(parsed.exclude_fields)) {
-        return { error: t('projects.generationStructure.errorExcludeFieldsArray'), previewData: null }
+        return {
+          error: t('projects.generationStructure.errorExcludeFieldsArray'),
+          previewData: null,
+        }
       }
 
       // Validate parameters if present
       if (parsed.parameters && typeof parsed.parameters !== 'object') {
-        return { error: t('projects.generationStructure.errorParametersObject'), previewData: null }
+        return {
+          error: t('projects.generationStructure.errorParametersObject'),
+          previewData: null,
+        }
       }
 
       return { error: null, previewData: parsed }
     } catch (e) {
-      return { error: t('projects.generationStructure.errorInvalidJson') + (e as Error).message, previewData: null }
+      return {
+        error:
+          t('projects.generationStructure.errorInvalidJson') +
+          (e as Error).message,
+        previewData: null,
+      }
     }
   }, [config, t])
 
@@ -223,16 +256,22 @@ export function GenerationStructureEditor({
     return (
       <Card className="mt-4">
         <CardHeader>
-          <CardTitle className="text-sm">{t('projects.generationStructure.previewTitle')}</CardTitle>
+          <CardTitle className="text-sm">
+            {t('projects.generationStructure.previewTitle')}
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3 text-sm">
           {previewData.system_prompt && (
             <div>
-              <strong>{t('projects.generationStructure.systemPromptLabel')}</strong>
+              <strong>
+                {t('projects.generationStructure.systemPromptLabel')}
+              </strong>
               <div className="mt-1 rounded bg-zinc-100 p-2 dark:bg-zinc-800">
                 {typeof previewData.system_prompt === 'string'
                   ? previewData.system_prompt.startsWith('$')
-                    ? t('projects.generationStructure.willUseField', { field: previewData.system_prompt.substring(1) })
+                    ? t('projects.generationStructure.willUseField', {
+                        field: previewData.system_prompt.substring(1),
+                      })
                     : previewData.system_prompt
                   : t('projects.generationStructure.templateWithPlaceholders') +
                     (
@@ -245,16 +284,20 @@ export function GenerationStructureEditor({
 
           {previewData.instruction_prompt && (
             <div>
-              <strong>{t('projects.generationStructure.instructionPromptLabel')}</strong>
+              <strong>
+                {t('projects.generationStructure.instructionPromptLabel')}
+              </strong>
               <div className="mt-1 rounded bg-zinc-100 p-2 dark:bg-zinc-800">
                 {typeof previewData.instruction_prompt === 'string'
                   ? previewData.instruction_prompt.startsWith('$')
-                    ? t('projects.generationStructure.willUseField', { field: previewData.instruction_prompt.substring(1) })
+                    ? t('projects.generationStructure.willUseField', {
+                        field: previewData.instruction_prompt.substring(1),
+                      })
                     : previewData.instruction_prompt
                   : t('projects.generationStructure.templateWithPlaceholders') +
                     (
                       previewData.instruction_prompt.template?.match(
-                        /{{(\w+)}}/g
+                        /{{(\w+)}}/g,
                       ) || []
                     ).join(', ')}
               </div>
@@ -263,7 +306,9 @@ export function GenerationStructureEditor({
 
           {usedFields.length > 0 && (
             <div>
-              <strong>{t('projects.generationStructure.referencedFields')}</strong>
+              <strong>
+                {t('projects.generationStructure.referencedFields')}
+              </strong>
               <div className="mt-1 flex flex-wrap gap-1">
                 {usedFields.map((field, i) => (
                   <span
@@ -279,7 +324,9 @@ export function GenerationStructureEditor({
 
           {previewData.exclude_fields && (
             <div>
-              <strong>{t('projects.generationStructure.excludedFields')}</strong>
+              <strong>
+                {t('projects.generationStructure.excludedFields')}
+              </strong>
               <div className="mt-1 flex flex-wrap gap-1">
                 {previewData.exclude_fields.map((field: string, i: number) => (
                   <span
@@ -302,7 +349,9 @@ export function GenerationStructureEditor({
       {/* Template Selection */}
       <Card>
         <CardHeader>
-          <CardTitle>{t('projects.generationStructure.templatesTitle')}</CardTitle>
+          <CardTitle>
+            {t('projects.generationStructure.templatesTitle')}
+          </CardTitle>
           <CardDescription>
             {t('projects.generationStructure.templatesDescription')}
           </CardDescription>
@@ -316,7 +365,9 @@ export function GenerationStructureEditor({
             >
               <div>
                 <div>{t('projects.generationStructure.templateSimpleQA')}</div>
-                <div className="text-xs opacity-70">{t('projects.generationStructure.templateSimpleQADesc')}</div>
+                <div className="text-xs opacity-70">
+                  {t('projects.generationStructure.templateSimpleQADesc')}
+                </div>
               </div>
             </Button>
             <Button
@@ -327,7 +378,9 @@ export function GenerationStructureEditor({
               className="justify-start text-left"
             >
               <div>
-                <div>{t('projects.generationStructure.templateTemplateQA')}</div>
+                <div>
+                  {t('projects.generationStructure.templateTemplateQA')}
+                </div>
                 <div className="text-xs opacity-70">
                   {t('projects.generationStructure.templateTemplateQADesc')}
                 </div>
@@ -341,8 +394,12 @@ export function GenerationStructureEditor({
               className="justify-start text-left"
             >
               <div>
-                <div>{t('projects.generationStructure.templateLegalAnalysis')}</div>
-                <div className="text-xs opacity-70">{t('projects.generationStructure.templateLegalAnalysisDesc')}</div>
+                <div>
+                  {t('projects.generationStructure.templateLegalAnalysis')}
+                </div>
+                <div className="text-xs opacity-70">
+                  {t('projects.generationStructure.templateLegalAnalysisDesc')}
+                </div>
               </div>
             </Button>
             <Button
@@ -353,8 +410,12 @@ export function GenerationStructureEditor({
               className="justify-start text-left"
             >
               <div>
-                <div>{t('projects.generationStructure.templateClassification')}</div>
-                <div className="text-xs opacity-70">{t('projects.generationStructure.templateClassificationDesc')}</div>
+                <div>
+                  {t('projects.generationStructure.templateClassification')}
+                </div>
+                <div className="text-xs opacity-70">
+                  {t('projects.generationStructure.templateClassificationDesc')}
+                </div>
               </div>
             </Button>
             <Button
@@ -365,8 +426,12 @@ export function GenerationStructureEditor({
               className="justify-start text-left"
             >
               <div>
-                <div>{t('projects.generationStructure.templateNestedData')}</div>
-                <div className="text-xs opacity-70">{t('projects.generationStructure.templateNestedDataDesc')}</div>
+                <div>
+                  {t('projects.generationStructure.templateNestedData')}
+                </div>
+                <div className="text-xs opacity-70">
+                  {t('projects.generationStructure.templateNestedDataDesc')}
+                </div>
               </div>
             </Button>
             <Button
@@ -377,9 +442,13 @@ export function GenerationStructureEditor({
               className="justify-start text-left"
             >
               <div>
-                <div>{t('projects.generationStructure.templateMultiFieldCombo')}</div>
+                <div>
+                  {t('projects.generationStructure.templateMultiFieldCombo')}
+                </div>
                 <div className="text-xs opacity-70">
-                  {t('projects.generationStructure.templateMultiFieldComboDesc')}
+                  {t(
+                    'projects.generationStructure.templateMultiFieldComboDesc',
+                  )}
                 </div>
               </div>
             </Button>
@@ -406,7 +475,9 @@ export function GenerationStructureEditor({
               onClick={() => setShowPreview(!showPreview)}
             >
               <EyeIcon className="mr-2 h-4 w-4" />
-              {showPreview ? t('projects.generationStructure.hidePreview') : t('projects.generationStructure.showPreview')}
+              {showPreview
+                ? t('projects.generationStructure.hidePreview')
+                : t('projects.generationStructure.showPreview')}
             </Button>
           </div>
 
@@ -434,7 +505,9 @@ export function GenerationStructureEditor({
           {!error && config && (
             <Alert>
               <CheckIcon className="h-4 w-4" />
-              <AlertDescription>{t('projects.generationStructure.valid')}</AlertDescription>
+              <AlertDescription>
+                {t('projects.generationStructure.valid')}
+              </AlertDescription>
             </Alert>
           )}
 
@@ -463,73 +536,86 @@ export function GenerationStructureEditor({
         <CardContent className="space-y-3">
           <div className="text-sm text-zinc-600 dark:text-zinc-400">
             <p className="mb-2">
-              <strong>{t('projects.generationStructure.docPromptFields')}</strong>
+              <strong>
+                {t('projects.generationStructure.docPromptFields')}
+              </strong>
             </p>
             <ul className="ml-4 space-y-2">
               <li>
-                <code>system_prompt</code>: {t('projects.generationStructure.docSystemPromptDesc')}
-                <ul className="ml-4 mt-1 text-xs">
+                <code>system_prompt</code>:{' '}
+                {t('projects.generationStructure.docSystemPromptDesc')}
+                <ul className="mt-1 ml-4 text-xs">
                   <li>{t('projects.generationStructure.docStringOption')}</li>
-                  <li>
-                    {t('projects.generationStructure.docObjectOption')}
-                  </li>
+                  <li>{t('projects.generationStructure.docObjectOption')}</li>
                 </ul>
               </li>
               <li>
-                <code>instruction_prompt</code>: {t('projects.generationStructure.docInstructionPromptDesc')}
-                <ul className="ml-4 mt-1 text-xs">
+                <code>instruction_prompt</code>:{' '}
+                {t('projects.generationStructure.docInstructionPromptDesc')}
+                <ul className="mt-1 ml-4 text-xs">
                   <li>{t('projects.generationStructure.docStringOption')}</li>
-                  <li>
-                    {t('projects.generationStructure.docObjectOption')}
-                  </li>
+                  <li>{t('projects.generationStructure.docObjectOption')}</li>
                 </ul>
               </li>
             </ul>
 
-            <p className="mb-2 mt-4">
-              <strong>{t('projects.generationStructure.docFieldReferences')}</strong>
+            <p className="mt-4 mb-2">
+              <strong>
+                {t('projects.generationStructure.docFieldReferences')}
+              </strong>
             </p>
             <ul className="ml-4 space-y-1">
               <li>
-                <code>$field</code>: {t('projects.generationStructure.docSimpleFieldRef')}
+                <code>$field</code>:{' '}
+                {t('projects.generationStructure.docSimpleFieldRef')}
               </li>
               <li>
-                <code>$parent.child</code>: {t('projects.generationStructure.docNestedFieldRef')}
+                <code>$parent.child</code>:{' '}
+                {t('projects.generationStructure.docNestedFieldRef')}
               </li>
               <li>
-                <code>$items[0].name</code>: {t('projects.generationStructure.docArrayAccessRef')}
+                <code>$items[0].name</code>:{' '}
+                {t('projects.generationStructure.docArrayAccessRef')}
               </li>
             </ul>
 
-            <p className="mb-2 mt-4">
-              <strong>{t('projects.generationStructure.docTemplateSyntax')}</strong>
+            <p className="mt-4 mb-2">
+              <strong>
+                {t('projects.generationStructure.docTemplateSyntax')}
+              </strong>
             </p>
             <ul className="ml-4 space-y-1">
               <li>
-                <code>{'{{placeholder}}'}</code>: {t('projects.generationStructure.docTemplateVariable')}
+                <code>{'{{placeholder}}'}</code>:{' '}
+                {t('projects.generationStructure.docTemplateVariable')}
               </li>
-              <li>
-                {t('projects.generationStructure.docFieldsMapping')}
-              </li>
+              <li>{t('projects.generationStructure.docFieldsMapping')}</li>
             </ul>
 
-            <p className="mb-2 mt-4">
-              <strong>{t('projects.generationStructure.docOptionalFields')}</strong>
+            <p className="mt-4 mb-2">
+              <strong>
+                {t('projects.generationStructure.docOptionalFields')}
+              </strong>
             </p>
             <ul className="ml-4 space-y-1">
               <li>
-                <code>context_fields</code>: {t('projects.generationStructure.docContextFields')}
+                <code>context_fields</code>:{' '}
+                {t('projects.generationStructure.docContextFields')}
               </li>
               <li>
-                <code>exclude_fields</code>: {t('projects.generationStructure.docExcludeFields')}
+                <code>exclude_fields</code>:{' '}
+                {t('projects.generationStructure.docExcludeFields')}
               </li>
               <li>
-                <code>parameters</code>: {t('projects.generationStructure.docParameters')}
+                <code>parameters</code>:{' '}
+                {t('projects.generationStructure.docParameters')}
               </li>
             </ul>
 
-            <p className="mb-2 mt-4">
-              <strong>{t('projects.generationStructure.docSecurityNote')}</strong>
+            <p className="mt-4 mb-2">
+              <strong>
+                {t('projects.generationStructure.docSecurityNote')}
+              </strong>
             </p>
             <p className="ml-4 text-xs">
               {t('projects.generationStructure.docSecurityNoteText')}

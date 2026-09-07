@@ -77,14 +77,16 @@ export function AnnotationGuidelinesModal({
                   value={guidelines}
                   onChange={(e) => setGuidelines(e.target.value)}
                   rows={8}
-                  className="block w-full resize-none rounded-lg border border-zinc-300 bg-white px-3 py-2.5 text-zinc-900 transition-colors placeholder:text-zinc-500 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 dark:border-zinc-600 dark:bg-zinc-800 dark:text-white dark:placeholder:text-zinc-400 dark:focus:border-emerald-400 dark:focus:ring-emerald-400/20 sm:text-sm"
-                  placeholder={t('modals.annotationGuidelines.textareaPlaceholder')}
+                  className="block w-full resize-none rounded-lg border border-zinc-300 bg-white px-3 py-2.5 text-zinc-900 transition-colors placeholder:text-zinc-500 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 sm:text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-white dark:placeholder:text-zinc-400 dark:focus:border-emerald-400 dark:focus:ring-emerald-400/20"
+                  placeholder={t(
+                    'modals.annotationGuidelines.textareaPlaceholder',
+                  )}
                 />
               </div>
 
               <div className="rounded-lg bg-amber-50 p-4 dark:bg-amber-900/20">
                 <div className="flex">
-                  <div className="flex-shrink-0">
+                  <div className="shrink-0">
                     <svg
                       className="h-5 w-5 text-amber-400"
                       viewBox="0 0 20 20"
@@ -99,7 +101,9 @@ export function AnnotationGuidelinesModal({
                   </div>
                   <div className="ml-3">
                     <p className="text-sm text-amber-800 dark:text-amber-200">
-                      <strong>{t('modals.annotationGuidelines.helpTitle')}</strong>
+                      <strong>
+                        {t('modals.annotationGuidelines.helpTitle')}
+                      </strong>
                     </p>
                     <ul className="mt-2 list-inside list-disc space-y-1 text-sm text-amber-700 dark:text-amber-300">
                       <li>{t('modals.annotationGuidelines.helpItem1')}</li>
@@ -114,7 +118,7 @@ export function AnnotationGuidelinesModal({
 
               <div className="rounded-lg bg-emerald-50 p-4 dark:bg-emerald-900/20">
                 <div className="flex">
-                  <div className="flex-shrink-0">
+                  <div className="shrink-0">
                     <svg
                       className="h-5 w-5 text-emerald-400"
                       viewBox="0 0 20 20"

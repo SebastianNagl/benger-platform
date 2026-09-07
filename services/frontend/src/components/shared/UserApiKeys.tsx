@@ -1,7 +1,7 @@
 'use client'
 
-import apiClient from '@/lib/api'
 import { useI18n } from '@/contexts/I18nContext'
+import apiClient from '@/lib/api'
 import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline'
 import { useEffect, useState } from 'react'
 import { Button } from './Button'
@@ -86,12 +86,15 @@ const providers: Provider[] = [
   },
 ]
 
-export default function UserApiKeys({ disabled = false, disabledMessage }: UserApiKeysProps = {}) {
+export default function UserApiKeys({
+  disabled = false,
+  disabledMessage,
+}: UserApiKeysProps = {}) {
   const { t } = useI18n()
 
   const getErrorHelpText = (
     errorType: string | undefined,
-    provider: string
+    provider: string,
   ): string => {
     switch (errorType) {
       case 'auth':
@@ -151,7 +154,10 @@ export default function UserApiKeys({ disabled = false, disabledMessage }: UserA
       setApiKeyStatus(status)
     } catch (error) {
       console.error('Error fetching API key status:', error)
-      setMessage({ type: 'error', text: t('shared.userApiKeys.failedLoadStatus') })
+      setMessage({
+        type: 'error',
+        text: t('shared.userApiKeys.failedLoadStatus'),
+      })
     }
   }
 
@@ -162,7 +168,9 @@ export default function UserApiKeys({ disabled = false, disabledMessage }: UserA
     if (!apiKey.trim()) return t('shared.userApiKeys.apiKeyRequired')
 
     if (!providerConfig.validation.test(apiKey.trim())) {
-      return t('shared.userApiKeys.invalidKeyFormat', { provider: providerConfig.name })
+      return t('shared.userApiKeys.invalidKeyFormat', {
+        provider: providerConfig.name,
+      })
     }
 
     return null
@@ -187,7 +195,9 @@ export default function UserApiKeys({ disabled = false, disabledMessage }: UserA
       await apiClient.setUserApiKey(provider, apiKey)
       setMessage({
         type: 'success',
-        text: t('shared.userApiKeys.keySaved', { provider: providers.find((p) => p.id === provider)?.name }),
+        text: t('shared.userApiKeys.keySaved', {
+          provider: providers.find((p) => p.id === provider)?.name,
+        }),
       })
       setNewApiKeys((prev) => ({ ...prev, [provider]: '' }))
       setShowApiKeys((prev) => ({ ...prev, [provider]: false }))
@@ -198,7 +208,7 @@ export default function UserApiKeys({ disabled = false, disabledMessage }: UserA
       window.dispatchEvent(
         new CustomEvent('apiKeysChanged', {
           detail: { provider, action: 'add' },
-        })
+        }),
       )
     } catch (error: any) {
       const errorMessage =
@@ -217,7 +227,9 @@ export default function UserApiKeys({ disabled = false, disabledMessage }: UserA
       await apiClient.removeUserApiKey(provider)
       setMessage({
         type: 'success',
-        text: t('shared.userApiKeys.keyRemoved', { provider: providers.find((p) => p.id === provider)?.name }),
+        text: t('shared.userApiKeys.keyRemoved', {
+          provider: providers.find((p) => p.id === provider)?.name,
+        }),
       })
       await fetchApiKeyStatus()
       setTestResults((prev) => ({ ...prev, [provider]: null }))
@@ -226,7 +238,7 @@ export default function UserApiKeys({ disabled = false, disabledMessage }: UserA
       window.dispatchEvent(
         new CustomEvent('apiKeysChanged', {
           detail: { provider, action: 'remove' },
-        })
+        }),
       )
     } catch (error: any) {
       const errorMessage =
@@ -285,7 +297,8 @@ export default function UserApiKeys({ disabled = false, disabledMessage }: UserA
       }))
     } catch (error: any) {
       const errorMessage =
-        error.response?.data?.detail || t('shared.userApiKeys.connectionTestFailed')
+        error.response?.data?.detail ||
+        t('shared.userApiKeys.connectionTestFailed')
       setTestResults((prev) => ({
         ...prev,
         [provider]: {
@@ -318,7 +331,8 @@ export default function UserApiKeys({ disabled = false, disabledMessage }: UserA
       }))
     } catch (error: any) {
       const errorMessage =
-        error.response?.data?.detail || t('shared.userApiKeys.connectionTestFailed')
+        error.response?.data?.detail ||
+        t('shared.userApiKeys.connectionTestFailed')
       setTestResults((prev) => ({
         ...prev,
         [provider]: {
@@ -341,9 +355,7 @@ export default function UserApiKeys({ disabled = false, disabledMessage }: UserA
         </div>
       ) : (
         <div className="text-sm text-zinc-600 dark:text-zinc-400">
-          <p>
-            {t('shared.userApiKeys.introText')}
-          </p>
+          <p>{t('shared.userApiKeys.introText')}</p>
         </div>
       )}
 
@@ -359,7 +371,8 @@ export default function UserApiKeys({ disabled = false, disabledMessage }: UserA
         </div>
       )}
 
-      <div className={`grid grid-cols-1 gap-6 ${disabled ? 'pointer-events-none opacity-60' : ''}`}
+      <div
+        className={`grid grid-cols-1 gap-6 ${disabled ? 'pointer-events-none opacity-60' : ''}`}
         title={disabled ? disabledMessage : undefined}
       >
         {providers.map((provider) => (
@@ -431,7 +444,9 @@ export default function UserApiKeys({ disabled = false, disabledMessage }: UserA
                     disabled={loading[provider.id] || testLoading[provider.id]}
                     className="text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/50"
                   >
-                    {loading[provider.id] ? t('shared.userApiKeys.removing') : t('shared.userApiKeys.removeApiKey')}
+                    {loading[provider.id]
+                      ? t('shared.userApiKeys.removing')
+                      : t('shared.userApiKeys.removeApiKey')}
                   </Button>
                 </div>
               </div>
@@ -445,7 +460,7 @@ export default function UserApiKeys({ disabled = false, disabledMessage }: UserA
                     onChange={(e) =>
                       handleApiKeyChange(provider.id, e.target.value)
                     }
-                    className="w-full rounded-full bg-white px-4 py-2 pr-10 text-sm text-zinc-900 ring-1 ring-zinc-900/10 transition placeholder:text-zinc-500 hover:ring-zinc-900/20 focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:bg-white/5 dark:text-white dark:ring-inset dark:ring-white/10 dark:placeholder:text-zinc-400 dark:hover:ring-white/20 dark:focus:ring-emerald-400"
+                    className="w-full rounded-full bg-white px-4 py-2 pr-10 text-sm text-zinc-900 ring-1 ring-zinc-900/10 transition placeholder:text-zinc-500 hover:ring-zinc-900/20 focus:ring-2 focus:ring-emerald-500 focus:outline-none dark:bg-white/5 dark:text-white dark:ring-white/10 dark:ring-inset dark:placeholder:text-zinc-400 dark:hover:ring-white/20 dark:focus:ring-emerald-400"
                   />
                   <button
                     type="button"
@@ -504,7 +519,9 @@ export default function UserApiKeys({ disabled = false, disabledMessage }: UserA
                       !newApiKeys[provider.id]
                     }
                   >
-                    {loading[provider.id] ? t('shared.userApiKeys.saving') : t('shared.userApiKeys.saveApiKey')}
+                    {loading[provider.id]
+                      ? t('shared.userApiKeys.saving')
+                      : t('shared.userApiKeys.saveApiKey')}
                   </Button>
                 </div>
               </div>
@@ -515,9 +532,7 @@ export default function UserApiKeys({ disabled = false, disabledMessage }: UserA
 
       <div className="space-y-1 text-xs text-zinc-500 dark:text-zinc-400">
         <p>{t('shared.userApiKeys.helpEncrypted')}</p>
-        <p>
-          {t('shared.userApiKeys.helpProviderAccess')}
-        </p>
+        <p>{t('shared.userApiKeys.helpProviderAccess')}</p>
         <p>{t('shared.userApiKeys.helpNeverShared')}</p>
       </div>
     </div>

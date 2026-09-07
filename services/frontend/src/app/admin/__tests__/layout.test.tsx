@@ -16,7 +16,7 @@ describe('AdminLayout', () => {
     render(
       <AdminLayout>
         <div>{testContent}</div>
-      </AdminLayout>
+      </AdminLayout>,
     )
 
     // Verify content is rendered
@@ -35,7 +35,7 @@ describe('AdminLayout', () => {
     render(
       <AdminLayout>
         <ComplexChild />
-      </AdminLayout>
+      </AdminLayout>,
     )
 
     // Verify all child elements are rendered
@@ -50,7 +50,7 @@ describe('AdminLayout', () => {
         <div>First child</div>
         <div>Second child</div>
         <span>Third child</span>
-      </AdminLayout>
+      </AdminLayout>,
     )
 
     // Verify all children are rendered

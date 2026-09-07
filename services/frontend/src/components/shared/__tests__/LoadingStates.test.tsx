@@ -39,7 +39,7 @@ describe('LoadingStates Components', () => {
 
       it('applies custom className', () => {
         const { container } = render(
-          <LoadingSpinner className="custom-spinner" />
+          <LoadingSpinner className="custom-spinner" />,
         )
 
         const spinner = container.firstChild as HTMLElement
@@ -80,7 +80,7 @@ describe('LoadingStates Components', () => {
           'rounded-full',
           'border-2',
           'border-zinc-300',
-          'border-t-blue-600'
+          'border-t-blue-600',
         )
       })
 
@@ -90,13 +90,13 @@ describe('LoadingStates Components', () => {
         const spinner = container.firstChild as HTMLElement
         expect(spinner).toHaveClass(
           'dark:border-zinc-600',
-          'dark:border-t-blue-400'
+          'dark:border-t-blue-400',
         )
       })
 
       it('combines size and custom className correctly', () => {
         const { container } = render(
-          <LoadingSpinner size="lg" className="my-custom-class" />
+          <LoadingSpinner size="lg" className="my-custom-class" />,
         )
 
         const spinner = container.firstChild as HTMLElement
@@ -122,7 +122,7 @@ describe('LoadingStates Components', () => {
 
       it('applies custom className', () => {
         const { container } = render(
-          <LoadingState className="custom-loading" />
+          <LoadingState className="custom-loading" />,
         )
 
         const loadingContainer = container.firstChild as HTMLElement
@@ -139,7 +139,7 @@ describe('LoadingStates Components', () => {
           'flex',
           'items-center',
           'justify-center',
-          'py-8'
+          'py-8',
         )
 
         const innerContainer = mainContainer.querySelector('.text-center')
@@ -162,7 +162,7 @@ describe('LoadingStates Components', () => {
         expect(message).toHaveClass(
           'text-sm',
           'text-zinc-600',
-          'dark:text-zinc-400'
+          'dark:text-zinc-400',
         )
       })
     })
@@ -235,7 +235,7 @@ describe('LoadingStates Components', () => {
           'bg-zinc-200',
           'rounded',
           'h-4',
-          'w-full'
+          'w-full',
         )
       })
     })
@@ -292,7 +292,7 @@ describe('LoadingStates Components', () => {
           'border',
           'border-zinc-200',
           'dark:border-zinc-700',
-          'rounded-lg'
+          'rounded-lg',
         )
       })
 
@@ -401,7 +401,7 @@ describe('LoadingStates Components', () => {
           'border-zinc-200',
           'dark:border-zinc-700',
           'rounded-lg',
-          'p-4'
+          'p-4',
         )
       })
 
@@ -409,7 +409,7 @@ describe('LoadingStates Components', () => {
         const { container } = render(<PromptListSkeleton count={1} />)
 
         const header = container.querySelector(
-          '.flex.items-center.justify-between.mb-3'
+          '.flex.items-center.justify-between.mb-3',
         )
         expect(header).toBeInTheDocument()
 
@@ -469,7 +469,7 @@ describe('LoadingStates Components', () => {
           expect(item).toHaveClass('rounded-lg', 'p-4')
 
           const header = item.querySelector(
-            '.flex.items-center.justify-between.mb-3'
+            '.flex.items-center.justify-between.mb-3',
           )
           expect(header).toBeInTheDocument()
 
@@ -490,7 +490,7 @@ describe('LoadingStates Components', () => {
       const spinner = container.firstChild as HTMLElement
       expect(spinner).toHaveClass(
         'dark:border-zinc-600',
-        'dark:border-t-blue-400'
+        'dark:border-t-blue-400',
       )
     })
 

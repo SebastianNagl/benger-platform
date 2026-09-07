@@ -1,31 +1,29 @@
 'use client'
 
-import { AnimatePresence, motion } from 'framer-motion'
-import React, { createContext, useCallback, useContext, useEffect, useRef } from 'react'
-import { useI18n } from '@/contexts/I18nContext'
 import { ProgressIndicator } from '@/components/shared/ProgressIndicator'
-import { XMarkIcon } from '@heroicons/react/24/outline'
+import { useI18n } from '@/contexts/I18nContext'
 import {
   DEFAULT_TOAST_DURATION_MS,
   ToastItem,
   ToastType,
   useNotificationStore,
 } from '@/stores/notificationStore'
+import { XMarkIcon } from '@heroicons/react/24/outline'
+import { AnimatePresence, motion } from 'framer-motion'
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+} from 'react'
 
 // Re-export the type for callers historically importing it from here.
 export type Toast = ToastItem
 
 interface ToastContextType {
-  addToast: (
-    message: string,
-    type?: ToastType,
-    duration?: number
-  ) => string
-  showToast: (
-    message: string,
-    type?: ToastType,
-    duration?: number
-  ) => string
+  addToast: (message: string, type?: ToastType, duration?: number) => string
+  showToast: (message: string, type?: ToastType, duration?: number) => string
   removeToast: (id: string) => void
 }
 
@@ -44,23 +42,18 @@ export function useToast() {
 // the dispatcher on mount; calls before mount log a warning and no-op.
 let dispatcher: ToastContextType['addToast'] | null = null
 
-export function setToastDispatcher(
-  fn: ToastContextType['addToast'] | null
-) {
+export function setToastDispatcher(fn: ToastContextType['addToast'] | null) {
   dispatcher = fn
 }
 
 export function toast(
   message: string,
   type?: ToastType,
-  duration?: number
+  duration?: number,
 ): string {
   if (!dispatcher) {
     if (typeof console !== 'undefined') {
-      console.warn(
-        'Toast dispatched before ToastProvider mounted:',
-        message
-      )
+      console.warn('Toast dispatched before ToastProvider mounted:', message)
     }
     return ''
   }
@@ -80,7 +73,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   const storeRemove = useNotificationStore((s) => s.removeToast)
   const consumeFlashes = useNotificationStore((s) => s.consumeFlashes)
   const timeoutsRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(
-    new Map()
+    new Map(),
   )
 
   // Wrap the store's addToast to also schedule the auto-dismiss timer.
@@ -101,7 +94,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       }
       return id
     },
-    [storeAdd, storeRemove]
+    [storeAdd, storeRemove],
   )
 
   const removeToast = useCallback(
@@ -113,7 +106,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
         timeoutsRef.current.delete(id)
       }
     },
-    [storeRemove]
+    [storeRemove],
   )
 
   // Mount: register the module dispatcher and drain any pending flashes
@@ -209,9 +202,9 @@ function ToastContainer({
 }) {
   return (
     <div
-      // z-[60] keeps toasts above HeadlessUI Dialogs (which render at z-50);
+      // z-60 keeps toasts above HeadlessUI Dialogs (which render at z-50);
       // same-z + later DOM order let the dialog occlude toasts otherwise.
-      className="pointer-events-none fixed right-4 top-4 z-[60] max-w-sm space-y-2"
+      className="pointer-events-none fixed top-4 right-4 z-60 max-w-sm space-y-2"
       data-testid="toast-container"
     >
       <AnimatePresence mode="popLayout">
@@ -275,7 +268,7 @@ function ToastItemView({
       data-toast-type={toast.type}
     >
       {!progress && (
-        <span className="flex-shrink-0 text-lg">{getIcon(toast.type)}</span>
+        <span className="shrink-0 text-lg">{getIcon(toast.type)}</span>
       )}
       <div className="min-w-0 flex-1">
         {progress ? (
@@ -291,7 +284,7 @@ function ToastItemView({
           <p className="text-sm font-medium">{toast.message}</p>
         )}
       </div>
-      <div className="flex flex-shrink-0 items-center gap-1">
+      <div className="flex shrink-0 items-center gap-1">
         {showCancel && (
           <button
             onClick={() => progress!.onCancel!()}
@@ -304,7 +297,7 @@ function ToastItemView({
         )}
         <button
           onClick={() => onRemove(toast.id)}
-          className="flex-shrink-0 rounded p-1 text-current transition-opacity hover:opacity-70"
+          className="shrink-0 rounded p-1 text-current transition-opacity hover:opacity-70"
           aria-label={t('shared.toast.close')}
         >
           <span className="sr-only">{t('shared.toast.close')}</span>

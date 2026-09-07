@@ -33,7 +33,7 @@ test.describe('Mobile Annotation Workflow', () => {
 
     // Check for mobile menu if it exists
     const mobileMenu = page.locator(
-      '[data-testid="mobile-menu"], .mobile-menu-toggle, button[aria-label*="menu"]'
+      '[data-testid="mobile-menu"], .mobile-menu-toggle, button[aria-label*="menu"]',
     )
     const hasMobileMenu = await mobileMenu
       .isVisible({ timeout: 2000 })
@@ -44,7 +44,7 @@ test.describe('Mobile Annotation Workflow', () => {
 
       // Look for login link in mobile menu
       const loginLink = page.locator(
-        'a:has-text("Login"), a:has-text("Anmelden")'
+        'a:has-text("Login"), a:has-text("Anmelden")',
       )
       if (await loginLink.isVisible()) {
         await loginLink.tap()
@@ -54,7 +54,7 @@ test.describe('Mobile Annotation Workflow', () => {
     // Standard login process
     await page.fill(
       'input[type="text"], input[type="email"], input[placeholder*="Benutzername"]',
-      'admin'
+      'admin',
     )
     await page.fill('input[type="password"]', 'admin')
     await page.tap('button[type="submit"], button:has-text("Anmelden")')
@@ -68,7 +68,7 @@ test.describe('Mobile Annotation Workflow', () => {
     if (hasMobileMenu) {
       await mobileMenu.tap()
       const projectsLink = page.locator(
-        'a:has-text("Projects"), a:has-text("Projekte")'
+        'a:has-text("Projects"), a:has-text("Projekte")',
       )
       if (await projectsLink.isVisible()) {
         await projectsLink.tap()
@@ -80,7 +80,7 @@ test.describe('Mobile Annotation Workflow', () => {
 
     // Create a test project
     const createButton = page.locator(
-      'button:has-text("Neues Projekt"), button:has-text("New Project")'
+      'button:has-text("Neues Projekt"), button:has-text("New Project")',
     )
     if (await createButton.isVisible()) {
       await createButton.tap()
@@ -88,18 +88,18 @@ test.describe('Mobile Annotation Workflow', () => {
       const projectName = 'Mobile Test ' + Date.now()
       await page.fill(
         '[data-testid="project-name-input"], input[placeholder*="Rechts-QA"], input[placeholder*="German Legal"]',
-        projectName
+        projectName,
       )
       await page.fill(
         '[data-testid="project-description-input"], textarea[placeholder*="Beschreiben"], textarea[placeholder*="Describe"]',
-        'Mobile annotation test'
+        'Mobile annotation test',
       )
       await page.tap('button:has-text("Next"), button:has-text("Weiter")')
 
       // Skip data import
       await page.waitForTimeout(1000)
       const skipButton = page.locator(
-        'button:has-text("Skip Data Import"), button:has-text("Skip")'
+        'button:has-text("Skip Data Import"), button:has-text("Skip")',
       )
       if (await skipButton.isVisible()) {
         await skipButton.tap()
@@ -108,7 +108,7 @@ test.describe('Mobile Annotation Workflow', () => {
       // Create project
       await page.waitForTimeout(1000)
       await page.tap(
-        'button:has-text("Create Project"), button:has-text("Projekt erstellen")'
+        'button:has-text("Create Project"), button:has-text("Projekt erstellen")',
       )
 
       // Get project ID
@@ -119,7 +119,7 @@ test.describe('Mobile Annotation Workflow', () => {
       // Import test data for mobile annotation
       await page.goto(`/projects/${projectId}/data`)
       const importButton = page.locator(
-        'button:has-text("Import"), button:has-text("Importieren")'
+        'button:has-text("Import"), button:has-text("Importieren")',
       )
       if (await importButton.isVisible()) {
         await importButton.tap()
@@ -133,7 +133,7 @@ test.describe('Mobile Annotation Workflow', () => {
 
       // Test touch gestures for navigation
       const annotationInput = page.locator(
-        'textarea[name="answer"], [data-testid="annotation-input"]'
+        'textarea[name="answer"], [data-testid="annotation-input"]',
       )
       if (await annotationInput.isVisible({ timeout: 5000 })) {
         // Test tap to focus
@@ -141,12 +141,12 @@ test.describe('Mobile Annotation Workflow', () => {
 
         // Test mobile keyboard input
         await annotationInput.type(
-          'Mobile annotation: Legal analysis on touch device'
+          'Mobile annotation: Legal analysis on touch device',
         )
 
         // Test swipe to navigate if supported
         const taskArea = page.locator(
-          '[data-testid="task-area"], .task-content, main'
+          '[data-testid="task-area"], .task-content, main',
         )
         if (await taskArea.isVisible()) {
           // Get bounding box for swipe
@@ -155,18 +155,18 @@ test.describe('Mobile Annotation Workflow', () => {
             // Swipe left (next task) if swipe navigation exists
             await page.touchscreen.tap(
               box.x + box.width * 0.8,
-              box.y + box.height * 0.5
+              box.y + box.height * 0.5,
             )
             await page.touchscreen.tap(
               box.x + box.width * 0.2,
-              box.y + box.height * 0.5
+              box.y + box.height * 0.5,
             )
           }
         }
 
         // Test pinch to zoom if document viewer exists
         const documentViewer = page.locator(
-          '[data-testid="document-viewer"], .document-content'
+          '[data-testid="document-viewer"], .document-content',
         )
         if (await documentViewer.isVisible()) {
           const docBox = await documentViewer.boundingBox()
@@ -183,7 +183,7 @@ test.describe('Mobile Annotation Workflow', () => {
 
         // Submit annotation
         const submitButton = page.locator(
-          'button:has-text("Submit"), button:has-text("Next"), button:has-text("Weiter")'
+          'button:has-text("Submit"), button:has-text("Next"), button:has-text("Weiter")',
         )
         if (await submitButton.isVisible()) {
           await submitButton.tap()
@@ -236,7 +236,7 @@ test.describe('Mobile Annotation Workflow', () => {
 
     // Test mobile menu functionality
     const mobileMenu = page.locator(
-      '[data-testid="mobile-menu"], .mobile-menu-toggle, .hamburger-menu'
+      '[data-testid="mobile-menu"], .mobile-menu-toggle, .hamburger-menu',
     )
 
     if (await mobileMenu.isVisible()) {
@@ -245,7 +245,7 @@ test.describe('Mobile Annotation Workflow', () => {
 
       // Check if menu opened
       const menuContent = page.locator(
-        '[data-testid="mobile-nav"], .mobile-menu-content, nav'
+        '[data-testid="mobile-nav"], .mobile-menu-content, nav',
       )
       await expect(menuContent).toBeVisible({ timeout: 3000 })
 
@@ -277,7 +277,7 @@ test.describe('Mobile Annotation Workflow', () => {
 
       // Close menu
       const closeButton = page.locator(
-        '[data-testid="close-menu"], .menu-close'
+        '[data-testid="close-menu"], .menu-close',
       )
       if (await closeButton.isVisible()) {
         await closeButton.tap()
@@ -312,7 +312,9 @@ test.describe('Mobile Annotation Workflow', () => {
       await page.waitForURL(/\/projects\/[0-9a-f-]+/, { timeout: 10000 })
 
       // Navigate to data tab
-      const dataTab = page.locator('a[href*="/data"], button:has-text("Data"), button:has-text("Daten")')
+      const dataTab = page.locator(
+        'a[href*="/data"], button:has-text("Data"), button:has-text("Daten")',
+      )
       if (await dataTab.isVisible({ timeout: 5000 }).catch(() => false)) {
         await dataTab.tap()
         await page.waitForTimeout(2000)
@@ -320,7 +322,7 @@ test.describe('Mobile Annotation Workflow', () => {
 
       // Test scroll gestures on the data table
       const dataTable = page.locator(
-        'table, [data-testid="data-table"], .data-container'
+        'table, [data-testid="data-table"], .data-container',
       )
       if (await dataTable.isVisible({ timeout: 5000 }).catch(() => false)) {
         const box = await dataTable.boundingBox()
@@ -328,7 +330,7 @@ test.describe('Mobile Annotation Workflow', () => {
           // Scroll down
           await page.touchscreen.tap(
             box.x + box.width / 2,
-            box.y + box.height - 50
+            box.y + box.height - 50,
           )
           await page.touchscreen.tap(box.x + box.width / 2, box.y + 50)
 
@@ -336,7 +338,7 @@ test.describe('Mobile Annotation Workflow', () => {
           await page.touchscreen.tap(box.x + box.width / 2, box.y + 50)
           await page.touchscreen.tap(
             box.x + box.width / 2,
-            box.y + box.height - 50
+            box.y + box.height - 50,
           )
           console.log('Scroll gestures tested')
         }
@@ -355,7 +357,7 @@ test.describe('Mobile Annotation Workflow', () => {
 
         // Test long press (if supported)
         const contextMenuItem = page.locator(
-          '[data-testid="context-menu"], .context-menu'
+          '[data-testid="context-menu"], .context-menu',
         )
         await firstRow.tap({ delay: 500 }) // Long press
 
@@ -420,7 +422,7 @@ test.describe('Mobile-Specific Features', () => {
 
     // Verify responsive elements
     const responsiveElements = page.locator(
-      '.responsive, [data-responsive="true"], [class*="mobile-"]'
+      '.responsive, [data-responsive="true"], [class*="mobile-"]',
     )
     const elementCount = await responsiveElements.count()
     console.log(`Found ${elementCount} responsive elements`)
@@ -433,7 +435,7 @@ test.describe('Mobile-Specific Features', () => {
     page.on('load', async () => {
       const timing = await page.evaluate(() => {
         const navigation = performance.getEntriesByType(
-          'navigation'
+          'navigation',
         )[0] as PerformanceNavigationTiming
         return {
           domContentLoaded:

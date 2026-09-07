@@ -38,7 +38,7 @@ function coerceErrorDetail(detail: unknown): string | null {
           ? String((d as { msg: unknown }).msg)
           : typeof d === 'string'
             ? d
-            : null
+            : null,
       )
       .filter(Boolean)
     return msgs.length ? msgs.join('; ') : null
@@ -186,7 +186,7 @@ const REASONING_CONFIG_TEMPLATES: Record<string, Record<string, unknown>> = {
  */
 function buildDefaultConfig(
   original: Record<string, unknown> | null | undefined,
-  reasoningParam: string
+  reasoningParam: string,
 ): Record<string, unknown> | undefined {
   const base: Record<string, unknown> = { ...(original ?? {}) }
   if (reasoningParam === 'none') {
@@ -217,9 +217,9 @@ export function CustomModelFormModal({
   const isEdit = !!model
 
   const [form, setForm] = useState<FormState>(emptyForm)
-  const [errors, setErrors] = useState<Partial<Record<keyof FormState, string>>>(
-    {}
-  )
+  const [errors, setErrors] = useState<
+    Partial<Record<keyof FormState, string>>
+  >({})
   const [showApiKey, setShowApiKey] = useState(false)
   const [saving, setSaving] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
@@ -286,14 +286,12 @@ export function CustomModelFormModal({
 
     if (!form.endpoint_model_name.trim()) {
       next.endpoint_model_name = t(
-        'customModels.form.endpointModelNameRequired'
+        'customModels.form.endpointModelNameRequired',
       )
     } else if (form.endpoint_model_name.trim().length > 255) {
       // Backend caps endpoint_model_name at 255 (CustomModelCreate); catch
       // it here so an over-long value is a field error, not a 422.
-      next.endpoint_model_name = t(
-        'customModels.form.endpointModelNameTooLong'
-      )
+      next.endpoint_model_name = t('customModels.form.endpointModelNameTooLong')
     }
 
     const inputCost = form.input_cost.trim()
@@ -410,7 +408,7 @@ export function CustomModelFormModal({
         detail ||
           (isEdit
             ? t('customModels.form.updateFailed')
-            : t('customModels.form.createFailed'))
+            : t('customModels.form.createFailed')),
       )
     } finally {
       setSaving(false)
@@ -482,7 +480,10 @@ export function CustomModelFormModal({
           <div className="max-h-[70vh] overflow-y-auto px-6 py-4">
             {createdModel ? (
               /* Success step after create: offer an immediate connection test. */
-              <div className="space-y-4" data-testid="custom-model-form-success">
+              <div
+                className="space-y-4"
+                data-testid="custom-model-form-success"
+              >
                 <div className="rounded-md border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-400">
                   {t('customModels.form.successMessage', {
                     name: createdModel.name,
@@ -660,7 +661,9 @@ export function CustomModelFormModal({
                   </label>
                   <select
                     value={form.reasoning_param}
-                    onChange={(e) => setField('reasoning_param', e.target.value)}
+                    onChange={(e) =>
+                      setField('reasoning_param', e.target.value)
+                    }
                     className={inputClass}
                     data-testid="custom-model-reasoning-select"
                   >

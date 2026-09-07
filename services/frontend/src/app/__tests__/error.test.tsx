@@ -49,8 +49,8 @@ describe('GlobalError', () => {
       expect(screen.getByText('Something went wrong')).toBeInTheDocument()
       expect(
         screen.getByText(
-          'An unexpected error occurred while loading this content.'
-        )
+          'An unexpected error occurred while loading this content.',
+        ),
       ).toBeInTheDocument()
     })
 
@@ -58,7 +58,7 @@ describe('GlobalError', () => {
       render(<GlobalError error={mockError} reset={mockReset} />)
 
       expect(
-        screen.getByRole('button', { name: 'Try Again' })
+        screen.getByRole('button', { name: 'Try Again' }),
       ).toBeInTheDocument()
     })
 
@@ -66,13 +66,13 @@ describe('GlobalError', () => {
       render(<GlobalError error={mockError} reset={mockReset} />)
 
       expect(
-        screen.getByRole('button', { name: 'Reload Page' })
+        screen.getByRole('button', { name: 'Reload Page' }),
       ).toBeInTheDocument()
     })
 
     it('renders error icon', () => {
       const { container } = render(
-        <GlobalError error={mockError} reset={mockReset} />
+        <GlobalError error={mockError} reset={mockReset} />,
       )
 
       const icon = container.querySelector('svg.text-red-600')
@@ -81,7 +81,7 @@ describe('GlobalError', () => {
         'h-6',
         'w-6',
         'text-red-600',
-        'dark:text-red-400'
+        'dark:text-red-400',
       )
     })
   })
@@ -98,7 +98,7 @@ describe('GlobalError', () => {
 
       expect(console.error).toHaveBeenCalledWith(
         'Global error:',
-        mockErrorWithDigest
+        mockErrorWithDigest,
       )
     })
 
@@ -161,11 +161,11 @@ describe('GlobalError', () => {
   describe('Styling', () => {
     it('applies correct container styles', () => {
       const { container } = render(
-        <GlobalError error={mockError} reset={mockReset} />
+        <GlobalError error={mockError} reset={mockReset} />,
       )
 
       const mainContainer = container.querySelector(
-        '.flex.min-h-screen.items-center.justify-center'
+        '.flex.min-h-screen.items-center.justify-center',
       )
       expect(mainContainer).toBeInTheDocument()
       expect(mainContainer).toHaveClass('bg-zinc-50', 'dark:bg-zinc-900', 'p-4')
@@ -173,7 +173,7 @@ describe('GlobalError', () => {
 
     it('applies correct card styles', () => {
       const { container } = render(
-        <GlobalError error={mockError} reset={mockReset} />
+        <GlobalError error={mockError} reset={mockReset} />,
       )
 
       const card = container.querySelector('.rounded-lg.bg-white')
@@ -188,7 +188,7 @@ describe('GlobalError', () => {
         'p-6',
         'shadow-lg',
         'dark:border-zinc-700',
-        'dark:bg-zinc-800'
+        'dark:bg-zinc-800',
       )
     })
 
@@ -196,7 +196,11 @@ describe('GlobalError', () => {
       render(<GlobalError error={mockError} reset={mockReset} />)
 
       const tryAgainButton = screen.getByRole('button', { name: 'Try Again' })
-      expect(tryAgainButton).toHaveClass('inline-flex', 'text-sm', 'font-medium')
+      expect(tryAgainButton).toHaveClass(
+        'inline-flex',
+        'text-sm',
+        'font-medium',
+      )
     })
 
     it('applies Button component styles for Reload Page', () => {
@@ -208,7 +212,7 @@ describe('GlobalError', () => {
 
     it('applies correct icon container styles', () => {
       const { container } = render(
-        <GlobalError error={mockError} reset={mockReset} />
+        <GlobalError error={mockError} reset={mockReset} />,
       )
 
       const iconContainer = container.querySelector('.bg-red-100')
@@ -221,13 +225,13 @@ describe('GlobalError', () => {
         'items-center',
         'justify-center',
         'rounded-full',
-        'bg-red-100'
+        'bg-red-100',
       )
     })
 
     it('applies gap between buttons', () => {
       const { container } = render(
-        <GlobalError error={mockError} reset={mockReset} />
+        <GlobalError error={mockError} reset={mockReset} />,
       )
 
       const buttonContainer = container.querySelector('.flex.gap-3')
@@ -340,7 +344,7 @@ describe('GlobalError', () => {
   describe('Dark Mode Support', () => {
     it('includes dark mode classes for container', () => {
       const { container } = render(
-        <GlobalError error={mockError} reset={mockReset} />
+        <GlobalError error={mockError} reset={mockReset} />,
       )
 
       const mainContainer = container.querySelector('.flex.min-h-screen')
@@ -349,7 +353,7 @@ describe('GlobalError', () => {
 
     it('includes dark mode classes for card', () => {
       const { container } = render(
-        <GlobalError error={mockError} reset={mockReset} />
+        <GlobalError error={mockError} reset={mockReset} />,
       )
 
       const card = container.querySelector('.rounded-lg.bg-white')
@@ -358,7 +362,7 @@ describe('GlobalError', () => {
 
     it('includes dark mode classes for icon', () => {
       const { container } = render(
-        <GlobalError error={mockError} reset={mockReset} />
+        <GlobalError error={mockError} reset={mockReset} />,
       )
 
       const icon = container.querySelector('svg')
@@ -367,7 +371,7 @@ describe('GlobalError', () => {
 
     it('includes dark mode classes for icon container', () => {
       const { container } = render(
-        <GlobalError error={mockError} reset={mockReset} />
+        <GlobalError error={mockError} reset={mockReset} />,
       )
 
       const iconContainer = container.querySelector('.bg-red-100')
@@ -383,7 +387,7 @@ describe('GlobalError', () => {
       expect(heading).toHaveClass('text-zinc-900', 'dark:text-white')
 
       const description = screen.getByText(
-        'An unexpected error occurred while loading this content.'
+        'An unexpected error occurred while loading this content.',
       )
       expect(description).toHaveClass('text-zinc-600', 'dark:text-zinc-300')
     })
@@ -410,10 +414,10 @@ describe('GlobalError', () => {
       render(<GlobalError error={mockError} reset={mockReset} />)
 
       expect(
-        screen.getByRole('button', { name: 'Try Again' })
+        screen.getByRole('button', { name: 'Try Again' }),
       ).toBeInTheDocument()
       expect(
-        screen.getByRole('button', { name: 'Reload Page' })
+        screen.getByRole('button', { name: 'Reload Page' }),
       ).toBeInTheDocument()
     })
 
@@ -430,7 +434,7 @@ describe('GlobalError', () => {
     it('uses summary element for details toggle', () => {
       process.env.NODE_ENV = 'development'
       const { container } = render(
-        <GlobalError error={mockError} reset={mockReset} />
+        <GlobalError error={mockError} reset={mockReset} />,
       )
 
       const summary = container.querySelector('summary')
@@ -463,7 +467,7 @@ describe('GlobalError', () => {
 
       process.env.NODE_ENV = 'development'
       const { container } = render(
-        <GlobalError error={longError} reset={mockReset} />
+        <GlobalError error={longError} reset={mockReset} />,
       )
 
       const details = screen.getByText('Technical Details')
@@ -483,7 +487,7 @@ describe('GlobalError', () => {
 
     it('renders both buttons in a flex container', () => {
       const { container } = render(
-        <GlobalError error={mockError} reset={mockReset} />
+        <GlobalError error={mockError} reset={mockReset} />,
       )
 
       const buttonContainer = container.querySelector('.flex.gap-3')
@@ -495,12 +499,12 @@ describe('GlobalError', () => {
   describe('Component Structure', () => {
     it('renders elements in correct DOM hierarchy', () => {
       const { container } = render(
-        <GlobalError error={mockError} reset={mockReset} />
+        <GlobalError error={mockError} reset={mockReset} />,
       )
 
       const heading = screen.getByText('Something went wrong')
       const description = screen.getByText(
-        'An unexpected error occurred while loading this content.'
+        'An unexpected error occurred while loading this content.',
       )
       const tryAgainButton = screen.getByRole('button', { name: 'Try Again' })
 
@@ -511,7 +515,7 @@ describe('GlobalError', () => {
 
     it('groups buttons together', () => {
       const { container } = render(
-        <GlobalError error={mockError} reset={mockReset} />
+        <GlobalError error={mockError} reset={mockReset} />,
       )
 
       const buttonContainer = container.querySelector('.flex.gap-3')

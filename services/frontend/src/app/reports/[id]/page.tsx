@@ -9,10 +9,6 @@
 
 'use client'
 
-import Link from 'next/link'
-import { use, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
-import { Breadcrumb } from '@/components/shared/Breadcrumb'
-import { ResponsiveContainer } from '@/components/shared/ResponsiveContainer'
 import {
   EvaluationSection,
   ModelChips,
@@ -24,12 +20,23 @@ import {
   StatusCard,
   type StatTile,
 } from '@/components/reports/view'
+import { Breadcrumb } from '@/components/shared/Breadcrumb'
+import { ResponsiveContainer } from '@/components/shared/ResponsiveContainer'
 import { useOptionalAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { getMetricDefinitions } from '@/lib/api/evaluation-types'
 import { getReportData, type ReportResponse } from '@/lib/api/reports'
 import { formatCount, type MetricRegistry } from '@/lib/reports/format'
 import type { ReportChartsConfig, ReportSnapshot } from '@/types/report'
+import Link from 'next/link'
+import {
+  use,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react'
 
 /** Shape of `GET /api/reports/{id}/data` (snapshot-based contract). */
 export interface ReportViewData {
@@ -45,17 +52,29 @@ interface LoadError {
 
 /** Classify a thrown API error: the client attaches `response.status`; older paths only carry text. */
 export function classifyLoadError(err: unknown): LoadError {
-  const anyErr = err as { response?: { status?: number }; status?: number; message?: string } | null
+  const anyErr = err as {
+    response?: { status?: number }
+    status?: number
+    message?: string
+  } | null
   const status = anyErr?.response?.status ?? anyErr?.status
   const message = err instanceof Error && err.message ? err.message : null
   const forbidden =
     status === 401 ||
     status === 403 ||
-    (status === undefined && !!message && /status: 40[13]\b|unauthenticated|not authenticated|forbidden/i.test(message))
+    (status === undefined &&
+      !!message &&
+      /status: 40[13]\b|unauthenticated|not authenticated|forbidden/i.test(
+        message,
+      ))
   return { forbidden, message: forbidden ? null : message }
 }
 
-export default function ReportViewerPage({ params }: { params: Promise<{ id: string }> }) {
+export default function ReportViewerPage({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}) {
   const { t, locale } = useI18n()
   const auth = useOptionalAuth()
   const { id } = use(params)
@@ -84,7 +103,10 @@ export default function ReportViewerPage({ params }: { params: Promise<{ id: str
     const defs = getMetricDefinitions()
     const out: MetricRegistry = {}
     for (const [key, def] of Object.entries(defs)) {
-      out[key] = { display_name: def.display_name, display_scale: def.display_scale }
+      out[key] = {
+        display_name: def.display_name,
+        display_scale: def.display_scale,
+      }
     }
     return out
   }, [])
@@ -92,14 +114,20 @@ export default function ReportViewerPage({ params }: { params: Promise<{ id: str
   const report = data?.report ?? null
   const snapshot = data?.snapshot ?? null
   const sections = report?.content.sections
-  const title = sections?.project_info.custom_title || report?.project_title || t('reports.view.reportFallbackTitle', 'Bericht')
+  const title =
+    sections?.project_info.custom_title ||
+    report?.project_title ||
+    t('reports.view.reportFallbackTitle', 'Bericht')
 
   const frame = (children: ReactNode) => (
-    <ResponsiveContainer size="xl" className="pb-16 pt-8">
+    <ResponsiveContainer size="xl" className="pt-8 pb-16">
       <div className="mb-6">
         <Breadcrumb
           items={[
-            { label: t('navigation.dashboard', 'Dashboard'), href: '/dashboard' },
+            {
+              label: t('navigation.dashboard', 'Dashboard'),
+              href: '/dashboard',
+            },
             { label: t('navigation.reports', 'Berichte'), href: '/reports' },
             { label: title, href: `/reports/${id}` },
           ]}
@@ -108,7 +136,10 @@ export default function ReportViewerPage({ params }: { params: Promise<{ id: str
       {children}
       <footer className="mt-12 border-t border-zinc-200 pt-6 text-center text-sm text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
         {t('reports.view.madeWith', 'Erstellt mit')}{' '}
-        <Link href="/" className="font-medium text-emerald-700 hover:underline dark:text-emerald-400">
+        <Link
+          href="/"
+          className="font-medium text-emerald-700 hover:underline dark:text-emerald-400"
+        >
           BenGER
         </Link>
       </footer>
@@ -118,7 +149,9 @@ export default function ReportViewerPage({ params }: { params: Promise<{ id: str
   if (loading) {
     return frame(
       <>
-        <h1 className="mb-6 text-3xl font-bold tracking-tight text-zinc-900 dark:text-white">{title}</h1>
+        <h1 className="mb-6 text-3xl font-bold tracking-tight text-zinc-900 dark:text-white">
+          {title}
+        </h1>
         <StatusCard kind="loading" t={t} />
       </>,
     )
@@ -128,13 +161,19 @@ export default function ReportViewerPage({ params }: { params: Promise<{ id: str
     const loginHref = `/login?next=${encodeURIComponent(`/reports/${id}`)}`
     return frame(
       <>
-        <h1 className="mb-6 text-3xl font-bold tracking-tight text-zinc-900 dark:text-white">{title}</h1>
+        <h1 className="mb-6 text-3xl font-bold tracking-tight text-zinc-900 dark:text-white">
+          {title}
+        </h1>
         {error?.forbidden ? (
           <StatusCard kind="forbidden" loginHref={loginHref} t={t} />
         ) : (
           <StatusCard
             kind="error"
-            message={error ? error.message : t('reports.view.notFound', 'Bericht nicht gefunden.')}
+            message={
+              error
+                ? error.message
+                : t('reports.view.notFound', 'Bericht nicht gefunden.')
+            }
             onRetry={load}
             t={t}
           />
@@ -144,27 +183,53 @@ export default function ReportViewerPage({ params }: { params: Promise<{ id: str
   }
 
   const stats = snapshot?.statistics
-  const chartsConfig = (sections.evaluation.charts_config ?? null) as ReportChartsConfig | null
+  const chartsConfig = (sections.evaluation.charts_config ??
+    null) as ReportChartsConfig | null
   const showParticipants = sections.annotations.show_participants !== false
-  const description = sections.project_info.custom_description || sections.project_info.description
-  const editHref = auth?.user?.is_superadmin ? `/projects/${report.project_id}/report/edit` : null
+  const description =
+    sections.project_info.custom_description ||
+    sections.project_info.description
+  const editHref = auth?.user?.is_superadmin
+    ? `/projects/${report.project_id}/report/edit`
+    : null
 
   const tiles: StatTile[] = []
   if (stats) {
-    tiles.push({ id: 'tasks', label: t('reports.view.tasks', 'Aufgaben'), value: formatCount(stats.task_count, locale) })
+    tiles.push({
+      id: 'tasks',
+      label: t('reports.view.tasks', 'Aufgaben'),
+      value: formatCount(stats.task_count, locale),
+    })
     if (stats.annotation_count > 0) {
-      tiles.push({ id: 'annotations', label: t('reports.view.submissionsTile', 'Abgaben'), value: formatCount(stats.annotation_count, locale) })
+      tiles.push({
+        id: 'annotations',
+        label: t('reports.view.submissionsTile', 'Abgaben'),
+        value: formatCount(stats.annotation_count, locale),
+      })
     }
     if (stats.participant_count > 0 && showParticipants) {
-      tiles.push({ id: 'participants', label: t('reports.view.participants', 'Teilnehmende'), value: formatCount(stats.participant_count, locale) })
+      tiles.push({
+        id: 'participants',
+        label: t('reports.view.participants', 'Teilnehmende'),
+        value: formatCount(stats.participant_count, locale),
+      })
     }
-    tiles.push({ id: 'models', label: t('reports.view.modelsEvaluated', 'Evaluierte Modelle'), value: formatCount(stats.model_count, locale) })
-    tiles.push({ id: 'evaluations', label: t('reports.view.evaluations', 'Bewertungen'), value: formatCount(stats.evaluation_count, locale) })
+    tiles.push({
+      id: 'models',
+      label: t('reports.view.modelsEvaluated', 'Evaluierte Modelle'),
+      value: formatCount(stats.model_count, locale),
+    })
+    tiles.push({
+      id: 'evaluations',
+      label: t('reports.view.evaluations', 'Bewertungen'),
+      value: formatCount(stats.evaluation_count, locale),
+    })
   }
 
   const annotationCount = stats?.annotation_count ?? 0
   const showAnnotations =
-    sections.annotations.visible !== false && (annotationCount > 0 || Boolean(sections.annotations.custom_text))
+    sections.annotations.visible !== false &&
+    (annotationCount > 0 || Boolean(sections.annotations.custom_text))
   const models = snapshot?.models ?? []
 
   return frame(
@@ -187,15 +252,22 @@ export default function ReportViewerPage({ params }: { params: Promise<{ id: str
           <ReportSection title={t('reports.view.data', 'Daten')} id="data">
             <Prose>
               {sections.data.custom_text ||
-                t('reports.view.defaultDataText', 'Der Datensatz umfasst {count} Aufgaben.', {
-                  count: formatCount(stats?.task_count ?? 0, locale),
-                })}
+                t(
+                  'reports.view.defaultDataText',
+                  'Der Datensatz umfasst {count} Aufgaben.',
+                  {
+                    count: formatCount(stats?.task_count ?? 0, locale),
+                  },
+                )}
             </Prose>
           </ReportSection>
         )}
 
         {showAnnotations && (
-          <ReportSection title={t('reports.view.annotations', 'Abgaben')} id="annotations">
+          <ReportSection
+            title={t('reports.view.annotations', 'Abgaben')}
+            id="annotations"
+          >
             <Prose>
               {sections.annotations.custom_text ||
                 t(
@@ -203,12 +275,15 @@ export default function ReportViewerPage({ params }: { params: Promise<{ id: str
                   '{annotations} Abgaben von {participants} Teilnehmenden wurden erfasst.',
                   {
                     annotations: formatCount(annotationCount, locale),
-                    participants: formatCount(stats?.participant_count ?? 0, locale),
+                    participants: formatCount(
+                      stats?.participant_count ?? 0,
+                      locale,
+                    ),
                   },
                 )}
             </Prose>
             {sections.annotations.acknowledgment_text && (
-              <p className="mt-4 rounded-md bg-zinc-50 p-3 text-sm italic text-zinc-600 dark:bg-zinc-800/60 dark:text-zinc-300">
+              <p className="mt-4 rounded-md bg-zinc-50 p-3 text-sm text-zinc-600 italic dark:bg-zinc-800/60 dark:text-zinc-300">
                 {sections.annotations.acknowledgment_text}
               </p>
             )}
@@ -216,12 +291,22 @@ export default function ReportViewerPage({ params }: { params: Promise<{ id: str
         )}
 
         {sections.generation.visible !== false && (
-          <ReportSection title={t('reports.view.generation', 'Modelle')} id="generation">
+          <ReportSection
+            title={t('reports.view.generation', 'Modelle')}
+            id="generation"
+          >
             <Prose>
               {sections.generation.custom_text ||
-                t('reports.view.defaultGenerationText', 'Die Antworten wurden von {count} Sprachmodellen erzeugt.', {
-                  count: formatCount(stats?.model_count ?? models.length, locale),
-                })}
+                t(
+                  'reports.view.defaultGenerationText',
+                  'Die Antworten wurden von {count} Sprachmodellen erzeugt.',
+                  {
+                    count: formatCount(
+                      stats?.model_count ?? models.length,
+                      locale,
+                    ),
+                  },
+                )}
             </Prose>
             {sections.generation.show_models !== false && models.length > 0 && (
               <div className="mt-4">
@@ -244,7 +329,11 @@ export default function ReportViewerPage({ params }: { params: Promise<{ id: str
         )}
 
         {showParticipants && snapshot && (
-          <ParticipantsList participants={snapshot.participants} locale={locale} t={t} />
+          <ParticipantsList
+            participants={snapshot.participants}
+            locale={locale}
+            t={t}
+          />
         )}
       </div>
     </>,

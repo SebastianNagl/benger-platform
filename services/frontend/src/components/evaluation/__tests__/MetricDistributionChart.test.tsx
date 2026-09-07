@@ -54,7 +54,10 @@ jest.mock('recharts', () => ({
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
     t: (key: string, varsOrDefault?: any) => {
-      const translations: Record<string, any> = require('../../../locales/en/common.json')
+      const translations: Record<
+        string,
+        any
+      > = require('../../../locales/en/common.json')
       const parts = key.split('.')
       let value: any = translations
       for (const part of parts) {
@@ -75,7 +78,6 @@ jest.mock('@/contexts/I18nContext', () => ({
     locale: 'en',
   }),
 }))
-
 
 describe('MetricDistributionChart', () => {
   beforeEach(() => {
@@ -120,7 +122,7 @@ describe('MetricDistributionChart', () => {
         <MetricDistributionChart
           data={mockDistributionData}
           title="Custom Metric Analysis"
-        />
+        />,
       )
 
       expect(screen.getByText('Custom Metric Analysis')).toBeInTheDocument()
@@ -214,7 +216,7 @@ describe('MetricDistributionChart', () => {
 
       const barChart = screen.getByTestId('bar-chart')
       const chartData = JSON.parse(
-        barChart.getAttribute('data-chart-data') || '[]'
+        barChart.getAttribute('data-chart-data') || '[]',
       )
 
       expect(chartData).toHaveLength(6)
@@ -227,7 +229,7 @@ describe('MetricDistributionChart', () => {
 
       const barChart = screen.getByTestId('bar-chart')
       const chartData = JSON.parse(
-        barChart.getAttribute('data-chart-data') || '[]'
+        barChart.getAttribute('data-chart-data') || '[]',
       )
 
       expect(chartData).toEqual([
@@ -313,7 +315,7 @@ describe('MetricDistributionChart', () => {
 
     it('positions Q1 marker correctly', () => {
       const { container } = render(
-        <MetricDistributionChart data={mockDistributionData} />
+        <MetricDistributionChart data={mockDistributionData} />,
       )
 
       const q1Marker = container.querySelector('[title="Q1: 0.750"]')
@@ -326,7 +328,7 @@ describe('MetricDistributionChart', () => {
 
     it('positions median marker correctly', () => {
       const { container } = render(
-        <MetricDistributionChart data={mockDistributionData} />
+        <MetricDistributionChart data={mockDistributionData} />,
       )
 
       const medianMarker = container.querySelector('[title="Median: 0.850"]')
@@ -339,7 +341,7 @@ describe('MetricDistributionChart', () => {
 
     it('positions Q3 marker correctly', () => {
       const { container } = render(
-        <MetricDistributionChart data={mockDistributionData} />
+        <MetricDistributionChart data={mockDistributionData} />,
       )
 
       const q3Marker = container.querySelector('[title="Q3: 0.920"]')
@@ -359,7 +361,7 @@ describe('MetricDistributionChart', () => {
 
     it('applies correct color classes to quartile markers', () => {
       const { container } = render(
-        <MetricDistributionChart data={mockDistributionData} />
+        <MetricDistributionChart data={mockDistributionData} />,
       )
 
       const q1Marker = container.querySelector('.bg-red-600')
@@ -383,7 +385,7 @@ describe('MetricDistributionChart', () => {
 
     it('applies custom height when provided', () => {
       render(
-        <MetricDistributionChart data={mockDistributionData} height={600} />
+        <MetricDistributionChart data={mockDistributionData} height={600} />,
       )
 
       const container = screen.getByTestId('responsive-container')
@@ -402,12 +404,12 @@ describe('MetricDistributionChart', () => {
         <MetricDistributionChart
           data={mockDistributionData}
           title="Performance Analysis"
-        />
+        />,
       )
 
       expect(screen.getByText('Performance Analysis')).toBeInTheDocument()
       expect(
-        screen.queryByText('accuracy Distribution')
+        screen.queryByText('accuracy Distribution'),
       ).not.toBeInTheDocument()
     })
   })
@@ -422,7 +424,7 @@ describe('MetricDistributionChart', () => {
 
       const barChart = screen.getByTestId('bar-chart')
       const chartData = JSON.parse(
-        barChart.getAttribute('data-chart-data') || '[]'
+        barChart.getAttribute('data-chart-data') || '[]',
       )
 
       expect(chartData).toHaveLength(1)
@@ -527,7 +529,7 @@ describe('MetricDistributionChart', () => {
 
       const barChart = screen.getByTestId('bar-chart')
       const chartData = JSON.parse(
-        barChart.getAttribute('data-chart-data') || '[]'
+        barChart.getAttribute('data-chart-data') || '[]',
       )
 
       expect(chartData).toHaveLength(0)
@@ -546,7 +548,7 @@ describe('MetricDistributionChart', () => {
 
       const barChart = screen.getByTestId('bar-chart')
       const chartData = JSON.parse(
-        barChart.getAttribute('data-chart-data') || '[]'
+        barChart.getAttribute('data-chart-data') || '[]',
       )
 
       expect(chartData).toEqual([
@@ -566,7 +568,7 @@ describe('MetricDistributionChart', () => {
         },
       }
       const { container } = render(
-        <MetricDistributionChart data={boundaryQuartilesData} />
+        <MetricDistributionChart data={boundaryQuartilesData} />,
       )
 
       const q1Marker = container.querySelector('[title="Q1: 0.450"]')
@@ -610,7 +612,7 @@ describe('MetricDistributionChart', () => {
   describe('Layout and Styling', () => {
     it('applies correct container classes', () => {
       const { container } = render(
-        <MetricDistributionChart data={mockDistributionData} />
+        <MetricDistributionChart data={mockDistributionData} />,
       )
 
       const outerDiv = container.firstChild as HTMLElement
@@ -619,22 +621,22 @@ describe('MetricDistributionChart', () => {
 
     it('applies rounded border and padding to chart container', () => {
       const { container } = render(
-        <MetricDistributionChart data={mockDistributionData} />
+        <MetricDistributionChart data={mockDistributionData} />,
       )
 
       const chartContainer = container.querySelector(
-        '.rounded-lg.border.bg-white.p-4'
+        '.rounded-lg.border.bg-white.p-4',
       )
       expect(chartContainer).toBeInTheDocument()
     })
 
     it('applies grid layout to statistics', () => {
       const { container } = render(
-        <MetricDistributionChart data={mockDistributionData} />
+        <MetricDistributionChart data={mockDistributionData} />,
       )
 
       const statsContainer = container.querySelector(
-        '.bg-gray-50.p-4.rounded-lg'
+        '.bg-gray-50.p-4.rounded-lg',
       )
       expect(statsContainer).toBeInTheDocument()
       expect(statsContainer).toHaveClass('grid')
@@ -642,11 +644,11 @@ describe('MetricDistributionChart', () => {
 
     it('applies gradient background to quartile visualization', () => {
       const { container } = render(
-        <MetricDistributionChart data={mockDistributionData} />
+        <MetricDistributionChart data={mockDistributionData} />,
       )
 
       const quartileBar = container.querySelector(
-        '.bg-gradient-to-r.from-red-200.via-yellow-200.to-green-200'
+        '.bg-linear-to-r.from-red-200.via-yellow-200.to-green-200',
       )
       expect(quartileBar).toBeInTheDocument()
       expect(quartileBar).toHaveClass('relative', 'h-8', 'w-full', 'rounded')
@@ -693,7 +695,7 @@ describe('MetricDistributionChart', () => {
 
       const barChart = screen.getByTestId('bar-chart')
       const chartData = JSON.parse(
-        barChart.getAttribute('data-chart-data') || '[]'
+        barChart.getAttribute('data-chart-data') || '[]',
       )
 
       expect(chartData.map((d: any) => d.range)).toEqual([

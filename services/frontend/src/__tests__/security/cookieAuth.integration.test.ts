@@ -308,7 +308,7 @@ describe('Cookie Authentication Integration', () => {
           credentials: 'include',
           mode: 'cors',
           headers: { 'Content-Type': 'application/json' },
-        }
+        },
       )
     })
   })

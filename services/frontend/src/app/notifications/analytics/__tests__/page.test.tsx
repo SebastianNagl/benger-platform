@@ -51,16 +51,22 @@ describe('NotificationAnalyticsPage', () => {
       'notifications.analytics.typesTitle': 'Notification Types',
       'notifications.analytics.typesSubtitle': 'Different types received',
       'notifications.analytics.chartTitle': 'Notifications {groupBy}',
-      'notifications.analytics.loadFailed': 'Failed to load notification analytics',
-      'notifications.analytics.subtitle': 'Insights into your notification patterns and activity',
+      'notifications.analytics.loadFailed':
+        'Failed to load notification analytics',
+      'notifications.analytics.subtitle':
+        'Insights into your notification patterns and activity',
       'notifications.analytics.noData': 'No data available',
       'notifications.analytics.lastNDays': 'Last {days} days',
       'notifications.analytics.percentOfTotal': '{percent}% of total',
       'notifications.analytics.readRate': '{percent}% read rate',
-      'notifications.analytics.recentActivityDetails': 'Recent Activity Details',
-      'notifications.analytics.noNotifications': 'No notifications in the selected time period',
-      'notifications.analytics.tryLongerRange': 'Try selecting a longer time range',
-      'notifications.analytics.generatedAt': 'Analytics generated on {date} for the period of {days} days',
+      'notifications.analytics.recentActivityDetails':
+        'Recent Activity Details',
+      'notifications.analytics.noNotifications':
+        'No notifications in the selected time period',
+      'notifications.analytics.tryLongerRange':
+        'Try selecting a longer time range',
+      'notifications.analytics.generatedAt':
+        'Analytics generated on {date} for the period of {days} days',
       'notifications.analytics.timeRange.last7Days': 'Last 7 days',
       'notifications.analytics.timeRange.last2Weeks': 'Last 2 weeks',
       'notifications.analytics.timeRange.last30Days': 'Last 30 days',
@@ -127,7 +133,7 @@ describe('NotificationAnalyticsPage', () => {
       t: mockT,
     })
     ;(api.getNotificationSummary as jest.Mock).mockResolvedValue(
-      mockSummaryData
+      mockSummaryData,
     )
     ;(api.getNotificationGroups as jest.Mock).mockResolvedValue(mockGroupsData)
   })
@@ -135,10 +141,10 @@ describe('NotificationAnalyticsPage', () => {
   describe('Loading State', () => {
     it('renders loading skeleton initially', () => {
       ;(api.getNotificationSummary as jest.Mock).mockImplementation(
-        () => new Promise(() => {})
+        () => new Promise(() => {}),
       )
       ;(api.getNotificationGroups as jest.Mock).mockImplementation(
-        () => new Promise(() => {})
+        () => new Promise(() => {}),
       )
 
       render(<NotificationAnalyticsPage />)
@@ -149,10 +155,10 @@ describe('NotificationAnalyticsPage', () => {
 
     it('shows loading skeleton with correct structure', () => {
       ;(api.getNotificationSummary as jest.Mock).mockImplementation(
-        () => new Promise(() => {})
+        () => new Promise(() => {}),
       )
       ;(api.getNotificationGroups as jest.Mock).mockImplementation(
-        () => new Promise(() => {})
+        () => new Promise(() => {}),
       )
 
       render(<NotificationAnalyticsPage />)
@@ -176,7 +182,7 @@ describe('NotificationAnalyticsPage', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText(/insights into your notification patterns/i)
+          screen.getByText(/insights into your notification patterns/i),
         ).toBeInTheDocument()
       })
     })
@@ -246,13 +252,13 @@ describe('NotificationAnalyticsPage', () => {
       await waitFor(() => {
         expect(screen.getAllByTestId('bell-icon').length).toBeGreaterThan(0)
         expect(
-          screen.getAllByTestId('exclamation-icon').length
+          screen.getAllByTestId('exclamation-icon').length,
         ).toBeGreaterThan(0)
         expect(
-          screen.getAllByTestId('check-circle-icon').length
+          screen.getAllByTestId('check-circle-icon').length,
         ).toBeGreaterThan(0)
         expect(screen.getAllByTestId('chart-bar-icon').length).toBeGreaterThan(
-          0
+          0,
         )
       })
     })
@@ -296,13 +302,13 @@ describe('NotificationAnalyticsPage', () => {
       await waitFor(() => {
         expect(screen.getAllByText('Task Created').length).toBeGreaterThan(0)
         expect(
-          screen.getAllByText('Evaluation Completed').length
+          screen.getAllByText('Evaluation Completed').length,
         ).toBeGreaterThan(0)
         expect(screen.getAllByText('Evaluation Failed').length).toBeGreaterThan(
-          0
+          0,
         )
         expect(
-          screen.getAllByText('Data Upload Completed').length
+          screen.getAllByText('Data Upload Completed').length,
         ).toBeGreaterThan(0)
       })
     })
@@ -396,10 +402,10 @@ describe('NotificationAnalyticsPage', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('No notifications in the selected time period')
+          screen.getByText('No notifications in the selected time period'),
         ).toBeInTheDocument()
         expect(
-          screen.getByText('Try selecting a longer time range')
+          screen.getByText('Try selecting a longer time range'),
         ).toBeInTheDocument()
       })
     })
@@ -435,7 +441,7 @@ describe('NotificationAnalyticsPage', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText(/for the period of 7 days/i)
+          screen.getByText(/for the period of 7 days/i),
         ).toBeInTheDocument()
       })
     })
@@ -554,7 +560,7 @@ describe('NotificationAnalyticsPage', () => {
       await waitFor(() => {
         expect(api.getNotificationGroups).toHaveBeenCalledWith(
           'organization',
-          50
+          50,
         )
       })
     })
@@ -603,14 +609,14 @@ describe('NotificationAnalyticsPage', () => {
   describe('Error Handling', () => {
     it('displays error message when API fails', async () => {
       ;(api.getNotificationSummary as jest.Mock).mockRejectedValue(
-        new Error('API Error')
+        new Error('API Error'),
       )
 
       render(<NotificationAnalyticsPage />)
 
       await waitFor(() => {
         expect(
-          screen.getByText('Failed to load notification analytics')
+          screen.getByText('Failed to load notification analytics'),
         ).toBeInTheDocument()
       })
     })
@@ -620,7 +626,7 @@ describe('NotificationAnalyticsPage', () => {
         .spyOn(console, 'error')
         .mockImplementation(() => {})
       ;(api.getNotificationSummary as jest.Mock).mockRejectedValue(
-        new Error('API Error')
+        new Error('API Error'),
       )
 
       render(<NotificationAnalyticsPage />)
@@ -628,7 +634,7 @@ describe('NotificationAnalyticsPage', () => {
       await waitFor(() => {
         expect(consoleErrorSpy).toHaveBeenCalledWith(
           'Error loading notification analytics:',
-          expect.any(Error)
+          expect.any(Error),
         )
       })
 
@@ -637,7 +643,7 @@ describe('NotificationAnalyticsPage', () => {
 
     it('shows error icon in error message', async () => {
       ;(api.getNotificationSummary as jest.Mock).mockRejectedValue(
-        new Error('API Error')
+        new Error('API Error'),
       )
 
       render(<NotificationAnalyticsPage />)
@@ -649,14 +655,14 @@ describe('NotificationAnalyticsPage', () => {
 
     it('hides summary section when error occurs', async () => {
       ;(api.getNotificationSummary as jest.Mock).mockRejectedValue(
-        new Error('API Error')
+        new Error('API Error'),
       )
 
       render(<NotificationAnalyticsPage />)
 
       await waitFor(() => {
         expect(
-          screen.queryByText('Total Notifications')
+          screen.queryByText('Total Notifications'),
         ).not.toBeInTheDocument()
       })
     })
@@ -669,10 +675,10 @@ describe('NotificationAnalyticsPage', () => {
       await waitFor(() => {
         expect(screen.getAllByText('Task Created').length).toBeGreaterThan(0)
         expect(
-          screen.getAllByText('Evaluation Completed').length
+          screen.getAllByText('Evaluation Completed').length,
         ).toBeGreaterThan(0)
         expect(
-          screen.getAllByText('Data Upload Completed').length
+          screen.getAllByText('Data Upload Completed').length,
         ).toBeGreaterThan(0)
       })
     })
@@ -744,17 +750,17 @@ describe('NotificationAnalyticsPage', () => {
 
     it('handles partial API failure gracefully', async () => {
       ;(api.getNotificationSummary as jest.Mock).mockResolvedValue(
-        mockSummaryData
+        mockSummaryData,
       )
       ;(api.getNotificationGroups as jest.Mock).mockRejectedValue(
-        new Error('Groups API Error')
+        new Error('Groups API Error'),
       )
 
       render(<NotificationAnalyticsPage />)
 
       await waitFor(() => {
         expect(
-          screen.getByText('Failed to load notification analytics')
+          screen.getByText('Failed to load notification analytics'),
         ).toBeInTheDocument()
       })
     })
@@ -771,7 +777,7 @@ describe('NotificationAnalyticsPage', () => {
         expect(section).toBeInTheDocument()
 
         const coloredElements = document.querySelectorAll(
-          '[style*="background"]'
+          '[style*="background"]',
         )
         expect(coloredElements.length).toBeGreaterThan(0)
       })

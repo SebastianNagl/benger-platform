@@ -37,7 +37,9 @@ jest.mock('next/link', () => {
 })
 
 jest.mock('@/components/layout/Logo', () => ({
-  Logo: ({ className }: any) => <div data-testid="logo" className={className} />,
+  Logo: ({ className }: any) => (
+    <div data-testid="logo" className={className} />
+  ),
 }))
 
 jest.mock('@/components/layout/ThemeToggle', () => ({
@@ -59,7 +61,7 @@ describe('LandingLayout', () => {
     render(
       <LandingLayout>
         <TestContent />
-      </LandingLayout>
+      </LandingLayout>,
     )
 
     expect(screen.getByRole('banner')).toBeInTheDocument()
@@ -72,7 +74,7 @@ describe('LandingLayout', () => {
     render(
       <LandingLayout>
         <TestContent />
-      </LandingLayout>
+      </LandingLayout>,
     )
 
     expect(screen.getByTestId('logo')).toBeInTheDocument()
@@ -82,7 +84,7 @@ describe('LandingLayout', () => {
     expect(screen.getByText('License & Citation')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Login' })).toHaveAttribute(
       'href',
-      '/login'
+      '/login',
     )
     expect(screen.getByTestId('theme-toggle')).toBeInTheDocument()
     expect(screen.getByTestId('language-switcher')).toBeInTheDocument()
@@ -92,22 +94,22 @@ describe('LandingLayout', () => {
     render(
       <LandingLayout>
         <TestContent />
-      </LandingLayout>
+      </LandingLayout>,
     )
 
     expect(screen.getByRole('link', { name: 'Impressum' })).toHaveAttribute(
       'href',
-      '/about/imprint'
+      '/about/imprint',
     )
     expect(screen.getByRole('link', { name: 'Datenschutz' })).toHaveAttribute(
       'href',
-      '/about/data-protection'
+      '/about/data-protection',
     )
     expect(
-      screen.getByRole('link', { name: /Follow us on GitHub/ })
+      screen.getByRole('link', { name: /Follow us on GitHub/ }),
     ).toHaveAttribute(
       'href',
-      'https://github.com/SebastianNagl/benger-platform'
+      'https://github.com/SebastianNagl/benger-platform',
     )
   })
 
@@ -115,11 +117,11 @@ describe('LandingLayout', () => {
     render(
       <LandingLayout>
         <TestContent />
-      </LandingLayout>
+      </LandingLayout>,
     )
 
     expect(
-      screen.queryByRole('link', { name: /Notion/ })
+      screen.queryByRole('link', { name: /Notion/ }),
     ).not.toBeInTheDocument()
     expect(screen.queryByText(/legaltechcolab/)).not.toBeInTheDocument()
   })

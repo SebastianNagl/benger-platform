@@ -143,7 +143,7 @@ export function generateClassificationTasks(count: number) {
 
 export async function createTestUser(
   page: Page,
-  userData: typeof testUsers.admin
+  userData: typeof testUsers.admin,
 ) {
   const apiUrl = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:3000'
 
@@ -194,7 +194,7 @@ export async function seedE2EDatabase() {
 
 export function generateImportFile(
   format: 'json' | 'csv' | 'xml',
-  tasks: any[]
+  tasks: any[],
 ) {
   switch (format) {
     case 'json':
@@ -205,7 +205,7 @@ export function generateImportFile(
       const rows = tasks.map((task) =>
         Object.values(task)
           .map((v) => (typeof v === 'string' ? `"${v}"` : v))
-          .join(',')
+          .join(','),
       )
       return [headers, ...rows].join('\n')
 

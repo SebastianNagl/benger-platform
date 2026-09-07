@@ -5,11 +5,11 @@
  * while maintaining BenGER's LLM capabilities.
  */
 
+import { toast } from '@/components/shared/Toast'
 import { projectsAPI } from '@/lib/api/projects'
 import { logger } from '@/lib/utils/logger'
 import { translate as t } from '@/lib/utils/translate'
 import { Annotation, Project, Task } from '@/types/labelStudio'
-import { toast } from '@/components/shared/Toast'
 import { create } from 'zustand'
 import { devtools } from 'zustand/middleware'
 
@@ -55,7 +55,7 @@ interface ProjectStore {
     pageSize?: number,
     isArchived?: boolean,
     includeAllPrivate?: boolean,
-    onlyDeleted?: boolean
+    onlyDeleted?: boolean,
   ) => Promise<void>
   fetchProject: (projectId: string) => Promise<void>
   createProject: (data: {
@@ -78,7 +78,7 @@ interface ProjectStore {
       dateTo?: string
       sortBy?: 'id' | 'created' | 'completed' | 'annotations' | 'generations'
       sortOrder?: 'asc' | 'desc'
-    }
+    },
   ) => Promise<Task[]>
   getNextTask: (projectId: string) => Promise<Task | null>
   setTaskByIndex: (index: number) => void
@@ -95,7 +95,7 @@ interface ProjectStore {
       preference_rankings?: any[]
       likert_scale_evaluations?: any[]
       korrektur_comments?: any[]
-    }
+    },
   ) => Promise<void>
 
   // Annotation actions
@@ -104,7 +104,7 @@ interface ProjectStore {
   createAnnotationInternal: (
     taskId: string,
     data: any,
-    skipAdvance?: boolean
+    skipAdvance?: boolean,
   ) => Promise<Annotation>
 
   evaluateLLMResponses: (projectId: string) => Promise<void>
@@ -149,7 +149,7 @@ export const useProjectStore = create<ProjectStore>()(
         pageSize?: number,
         isArchived?: boolean,
         includeAllPrivate?: boolean,
-        onlyDeleted?: boolean
+        onlyDeleted?: boolean,
       ) => {
         const currentPageToUse = page ?? get().currentPage
         const pageSizeToUse = pageSize ?? get().pageSize
@@ -178,7 +178,7 @@ export const useProjectStore = create<ProjectStore>()(
             search,
             isArchivedToUse,
             includeAllPrivateToUse,
-            onlyDeletedToUse
+            onlyDeletedToUse,
           )
 
           // Ensure response has the expected structure
@@ -196,7 +196,9 @@ export const useProjectStore = create<ProjectStore>()(
           })
         } catch (error) {
           const message =
-            error instanceof Error ? error.message : t('store.project.fetchFailed')
+            error instanceof Error
+              ? error.message
+              : t('store.project.fetchFailed')
           set({ error: message, loading: false, projects: [] })
           toast(message, 'error')
         }
@@ -209,14 +211,14 @@ export const useProjectStore = create<ProjectStore>()(
           set((state) => {
             // Check if project exists in the list, if not add it
             const existingIndex = state.projects.findIndex(
-              (p) => p.id === projectId
+              (p) => p.id === projectId,
             )
             let updatedProjects = state.projects
 
             if (existingIndex >= 0) {
               // Update existing project
               updatedProjects = state.projects.map((p) =>
-                p.id === projectId ? project : p
+                p.id === projectId ? project : p,
               )
             } else {
               // Add new project to the list
@@ -234,7 +236,9 @@ export const useProjectStore = create<ProjectStore>()(
           })
         } catch (error) {
           const message =
-            error instanceof Error ? error.message : t('store.project.fetchOneFailed')
+            error instanceof Error
+              ? error.message
+              : t('store.project.fetchOneFailed')
           set({ error: message, loading: false })
           toast(message, 'error')
         }
@@ -257,7 +261,9 @@ export const useProjectStore = create<ProjectStore>()(
           return project
         } catch (error) {
           const message =
-            error instanceof Error ? error.message : t('store.project.createFailed')
+            error instanceof Error
+              ? error.message
+              : t('store.project.createFailed')
           set({ error: message, loading: false })
           toast(message, 'error')
           throw error
@@ -270,7 +276,7 @@ export const useProjectStore = create<ProjectStore>()(
           const updatedProject = await projectsAPI.update(projectId, updates)
           set((state) => ({
             projects: state.projects.map((p) =>
-              p.id === projectId ? updatedProject : p
+              p.id === projectId ? updatedProject : p,
             ),
             currentProject:
               state.currentProject?.id === projectId
@@ -286,7 +292,9 @@ export const useProjectStore = create<ProjectStore>()(
           toast(t('store.project.updated'), 'success')
         } catch (error) {
           const message =
-            error instanceof Error ? error.message : t('store.project.updateFailed')
+            error instanceof Error
+              ? error.message
+              : t('store.project.updateFailed')
           set({ error: message, loading: false })
           // No toast here — callers own the specific error message. Rethrow so
           // card savers can keep their edit state on failure (issue #289);
@@ -333,7 +341,9 @@ export const useProjectStore = create<ProjectStore>()(
           toast(t('store.project.deleted'), 'success')
         } catch (error) {
           const message =
-            error instanceof Error ? error.message : t('store.project.deleteFailed')
+            error instanceof Error
+              ? error.message
+              : t('store.project.deleteFailed')
           set({ error: message, loading: false })
           toast(message, 'error')
         }
@@ -347,9 +357,10 @@ export const useProjectStore = create<ProjectStore>()(
           search?: string
           dateFrom?: string
           dateTo?: string
-          sortBy?: 'id' | 'created' | 'completed' | 'annotations' | 'generations'
+          sortBy?:
+            'id' | 'created' | 'completed' | 'annotations' | 'generations'
           sortOrder?: 'asc' | 'desc'
-        }
+        },
       ) => {
         set({ loading: true, error: null })
         try {
@@ -391,7 +402,9 @@ export const useProjectStore = create<ProjectStore>()(
           return allTasks
         } catch (error) {
           const message =
-            error instanceof Error ? error.message : t('store.project.fetchTasksFailed')
+            error instanceof Error
+              ? error.message
+              : t('store.project.fetchTasksFailed')
           set({ error: message, loading: false })
           toast(message, 'error')
           return []
@@ -465,7 +478,9 @@ export const useProjectStore = create<ProjectStore>()(
           }
         } catch (error) {
           const message =
-            error instanceof Error ? error.message : t('store.project.nextTaskFailed')
+            error instanceof Error
+              ? error.message
+              : t('store.project.nextTaskFailed')
           set({ error: message, loading: false })
           toast(message, 'error')
           return null
@@ -489,7 +504,7 @@ export const useProjectStore = create<ProjectStore>()(
           logger.debug(`Set current task to index ${index} (${task?.id})`)
         } else {
           console.warn(
-            `Invalid task index ${index} for task cycle of length ${taskCycle.length}`
+            `Invalid task index ${index} for task cycle of length ${taskCycle.length}`,
           )
         }
       },
@@ -570,7 +585,7 @@ export const useProjectStore = create<ProjectStore>()(
       importData: async (
         projectId: string,
         data: any[],
-        extras?: Record<string, unknown>
+        extras?: Record<string, unknown>,
       ) => {
         set({ loading: true, error: null })
         try {
@@ -580,7 +595,7 @@ export const useProjectStore = create<ProjectStore>()(
           const file = new File(
             [JSON.stringify({ data, ...(extras || {}) })],
             `import-${Date.now()}.json`,
-            { type: 'application/json' }
+            { type: 'application/json' },
           )
           const job = await projectsAPI.runNestedImportJob(projectId, file)
           const created =
@@ -599,7 +614,9 @@ export const useProjectStore = create<ProjectStore>()(
           }
         } catch (error) {
           const message =
-            error instanceof Error ? error.message : t('store.project.importFailed')
+            error instanceof Error
+              ? error.message
+              : t('store.project.importFailed')
           set({ error: message, loading: false })
           toast(message, 'error')
         }
@@ -609,7 +626,7 @@ export const useProjectStore = create<ProjectStore>()(
       createAnnotationInternal: async (
         taskId: string,
         data: any,
-        skipAdvance: boolean = false
+        skipAdvance: boolean = false,
       ) => {
         logger.debug('createAnnotationInternal called', { taskId, skipAdvance })
         try {
@@ -636,7 +653,7 @@ export const useProjectStore = create<ProjectStore>()(
 
               // Remove the annotated task from the cycle
               const updatedCycle = taskCycle.filter(
-                (_, i) => i !== currentTaskIndex
+                (_, i) => i !== currentTaskIndex,
               )
 
               if (updatedCycle.length === 0) {
@@ -693,7 +710,9 @@ export const useProjectStore = create<ProjectStore>()(
           return annotation
         } catch (error) {
           const message =
-            error instanceof Error ? error.message : t('store.project.annotationFailed')
+            error instanceof Error
+              ? error.message
+              : t('store.project.annotationFailed')
 
           // Handle "Maximum annotations limit reached" gracefully
           // This means the task is fully annotated - advance to next task
@@ -718,7 +737,7 @@ export const useProjectStore = create<ProjectStore>()(
 
               // Remove the fully-annotated task from the cycle
               const updatedCycle = taskCycle.filter(
-                (_, i) => i !== currentTaskIndex
+                (_, i) => i !== currentTaskIndex,
               )
 
               if (updatedCycle.length === 0) {
@@ -776,7 +795,7 @@ export const useProjectStore = create<ProjectStore>()(
                 'Content-Type': 'application/json',
               },
               body: JSON.stringify({ comment: comment || null }),
-            }
+            },
           )
 
           if (!response.ok) {
@@ -801,7 +820,9 @@ export const useProjectStore = create<ProjectStore>()(
           } else {
             // requeue_for_others or ignore_skipped: remove from this user's cycle
             const { taskCycle, currentTaskIndex } = get()
-            const updatedCycle = taskCycle.filter((_, i) => i !== currentTaskIndex)
+            const updatedCycle = taskCycle.filter(
+              (_, i) => i !== currentTaskIndex,
+            )
 
             if (updatedCycle.length === 0) {
               set({
@@ -812,7 +833,8 @@ export const useProjectStore = create<ProjectStore>()(
                 allTasksCompleted: true,
               })
             } else {
-              const nextIndex = currentTaskIndex >= updatedCycle.length ? 0 : currentTaskIndex
+              const nextIndex =
+                currentTaskIndex >= updatedCycle.length ? 0 : currentTaskIndex
               set({
                 taskCycle: updatedCycle,
                 currentTaskIndex: nextIndex,
@@ -826,7 +848,9 @@ export const useProjectStore = create<ProjectStore>()(
         } catch (error) {
           console.error('Skip task error:', error)
           const errorMessage =
-            error instanceof Error ? error.message : t('store.project.skipFailed')
+            error instanceof Error
+              ? error.message
+              : t('store.project.skipFailed')
           toast(errorMessage, 'error')
           throw error
         }
@@ -862,6 +886,6 @@ export const useProjectStore = create<ProjectStore>()(
     }),
     {
       name: 'project-store',
-    }
-  )
+    },
+  ),
 )

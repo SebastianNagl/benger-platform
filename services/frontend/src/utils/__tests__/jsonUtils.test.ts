@@ -310,7 +310,7 @@ describe('searchInNestedObject', () => {
       },
     }
     expect(searchInNestedObject(complexObj, 'Gesellschafterbeschluss')).toBe(
-      true
+      true,
     )
     expect(searchInNestedObject(complexObj, 'GmbH')).toBe(true)
     expect(searchInNestedObject(complexObj, 'Rechtsfrage')).toBe(true)

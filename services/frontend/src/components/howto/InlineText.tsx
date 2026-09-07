@@ -27,7 +27,10 @@ export function InlineText({ text }: { text: string }) {
         }
         if (part.startsWith('**') && part.endsWith('**')) {
           return (
-            <strong key={i} className="font-semibold text-zinc-900 dark:text-white">
+            <strong
+              key={i}
+              className="font-semibold text-zinc-900 dark:text-white"
+            >
               {part.slice(2, -2)}
             </strong>
           )
@@ -45,7 +48,13 @@ export function InlineText({ text }: { text: string }) {
               {label}
             </Link>
           ) : (
-            <a key={i} href={href} className={cls} target="_blank" rel="noopener noreferrer">
+            <a
+              key={i}
+              href={href}
+              className={cls}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
               {label}
             </a>
           )

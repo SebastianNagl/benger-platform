@@ -37,7 +37,7 @@ describe('SimpleToast', () => {
       render(
         <SimpleToastProvider>
           <div data-testid="child">Child content</div>
-        </SimpleToastProvider>
+        </SimpleToastProvider>,
       )
 
       expect(screen.getByTestId('child')).toBeInTheDocument()
@@ -47,7 +47,7 @@ describe('SimpleToast', () => {
       render(
         <SimpleToastProvider>
           <TestComponent />
-        </SimpleToastProvider>
+        </SimpleToastProvider>,
       )
 
       expect(screen.getByText('Add Toast')).toBeInTheDocument()
@@ -75,14 +75,14 @@ describe('SimpleToast', () => {
       render(
         <SimpleToastProvider>
           <TestComponent />
-        </SimpleToastProvider>
+        </SimpleToastProvider>,
       )
 
       await user.click(screen.getByText('Add Toast'))
 
       expect(screen.getByText('Test message')).toBeInTheDocument()
       expect(
-        screen.getByText('Test message').closest('.bg-blue-500')
+        screen.getByText('Test message').closest('.bg-blue-500'),
       ).toBeInTheDocument()
     })
 
@@ -92,14 +92,14 @@ describe('SimpleToast', () => {
       render(
         <SimpleToastProvider>
           <TestComponent type="success" />
-        </SimpleToastProvider>
+        </SimpleToastProvider>,
       )
 
       await user.click(screen.getByText('Add Toast'))
 
       expect(screen.getByText('Test message')).toBeInTheDocument()
       expect(
-        screen.getByText('Test message').closest('.bg-green-500')
+        screen.getByText('Test message').closest('.bg-green-500'),
       ).toBeInTheDocument()
     })
 
@@ -109,14 +109,14 @@ describe('SimpleToast', () => {
       render(
         <SimpleToastProvider>
           <TestComponent type="error" />
-        </SimpleToastProvider>
+        </SimpleToastProvider>,
       )
 
       await user.click(screen.getByText('Add Toast'))
 
       expect(screen.getByText('Test message')).toBeInTheDocument()
       expect(
-        screen.getByText('Test message').closest('.bg-red-500')
+        screen.getByText('Test message').closest('.bg-red-500'),
       ).toBeInTheDocument()
     })
 
@@ -126,14 +126,14 @@ describe('SimpleToast', () => {
       render(
         <SimpleToastProvider>
           <TestComponent type="warning" />
-        </SimpleToastProvider>
+        </SimpleToastProvider>,
       )
 
       await user.click(screen.getByText('Add Toast'))
 
       expect(screen.getByText('Test message')).toBeInTheDocument()
       expect(
-        screen.getByText('Test message').closest('.bg-yellow-500')
+        screen.getByText('Test message').closest('.bg-yellow-500'),
       ).toBeInTheDocument()
     })
 
@@ -143,7 +143,7 @@ describe('SimpleToast', () => {
       render(
         <SimpleToastProvider>
           <TestComponent />
-        </SimpleToastProvider>
+        </SimpleToastProvider>,
       )
 
       await user.click(screen.getByText('Add Toast'))
@@ -159,7 +159,7 @@ describe('SimpleToast', () => {
       render(
         <SimpleToastProvider>
           <TestComponent duration={3000} />
-        </SimpleToastProvider>
+        </SimpleToastProvider>,
       )
 
       await user.click(screen.getByText('Add Toast'))
@@ -180,7 +180,7 @@ describe('SimpleToast', () => {
       render(
         <SimpleToastProvider>
           <TestComponent duration={0} />
-        </SimpleToastProvider>
+        </SimpleToastProvider>,
       )
 
       await user.click(screen.getByText('Add Toast'))
@@ -214,7 +214,7 @@ describe('SimpleToast', () => {
       render(
         <SimpleToastProvider>
           <MultiToastComponent />
-        </SimpleToastProvider>
+        </SimpleToastProvider>,
       )
 
       await user.click(screen.getByText('Add Success'))
@@ -223,10 +223,10 @@ describe('SimpleToast', () => {
       expect(screen.getByText('First message')).toBeInTheDocument()
       expect(screen.getByText('Second message')).toBeInTheDocument()
       expect(
-        screen.getByText('First message').closest('.bg-green-500')
+        screen.getByText('First message').closest('.bg-green-500'),
       ).toBeInTheDocument()
       expect(
-        screen.getByText('Second message').closest('.bg-red-500')
+        screen.getByText('Second message').closest('.bg-red-500'),
       ).toBeInTheDocument()
     })
 
@@ -236,13 +236,13 @@ describe('SimpleToast', () => {
       render(
         <SimpleToastProvider>
           <TestComponent />
-        </SimpleToastProvider>
+        </SimpleToastProvider>,
       )
 
       await user.click(screen.getByText('Add Toast'))
 
       const toastContainer = document.querySelector(
-        '.fixed.top-4.right-4.z-50.space-y-2'
+        '.fixed.top-4.right-4.z-50.space-y-2',
       )
       expect(toastContainer).toBeInTheDocument()
     })
@@ -253,7 +253,7 @@ describe('SimpleToast', () => {
       render(
         <SimpleToastProvider>
           <TestComponent />
-        </SimpleToastProvider>
+        </SimpleToastProvider>,
       )
 
       await user.click(screen.getByText('Add Toast'))
@@ -263,7 +263,7 @@ describe('SimpleToast', () => {
       expect(closeButton).toHaveClass(
         'ml-4',
         'text-white',
-        'hover:text-gray-200'
+        'hover:text-gray-200',
       )
     })
   })
@@ -275,7 +275,7 @@ describe('SimpleToast', () => {
       render(
         <SimpleToastProvider>
           <TestComponent />
-        </SimpleToastProvider>
+        </SimpleToastProvider>,
       )
 
       // Add multiple toasts quickly
@@ -299,7 +299,7 @@ describe('SimpleToast', () => {
       render(
         <SimpleToastProvider>
           <EmptyMessageComponent />
-        </SimpleToastProvider>
+        </SimpleToastProvider>,
       )
 
       await user.click(screen.getByText('Add Empty Toast'))
@@ -315,7 +315,7 @@ describe('SimpleToast', () => {
       render(
         <SimpleToastProvider>
           <TestComponent />
-        </SimpleToastProvider>
+        </SimpleToastProvider>,
       )
 
       await user.click(screen.getByText('Add Toast'))
@@ -326,7 +326,7 @@ describe('SimpleToast', () => {
 
       // Each should have unique keys (though we can't directly test React keys)
       expect(toastElements[0].closest('div')).not.toBe(
-        toastElements[1].closest('div')
+        toastElements[1].closest('div'),
       )
     })
   })

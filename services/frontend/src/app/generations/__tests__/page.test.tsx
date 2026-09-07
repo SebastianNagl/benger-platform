@@ -70,7 +70,8 @@ jest.mock('@/contexts/I18nContext', () => ({
         'generation.selectProject': 'Select project',
         'common.loading': 'Loading...',
         'dataManagement.accessDenied': 'Access Denied',
-        'dataManagement.accessDeniedDescription': 'Only superadmins, organization admins, and contributors can access project data.',
+        'dataManagement.accessDeniedDescription':
+          'Only superadmins, organization admins, and contributors can access project data.',
         'common.backToProjects': 'Back to Projects',
       }
       let result = translations[key] || key
@@ -143,7 +144,12 @@ jest.mock('@/components/shared/Button', () => ({
     className?: string
     disabled?: boolean
   }) => (
-    <button onClick={onClick} data-variant={variant} className={className} disabled={disabled}>
+    <button
+      onClick={onClick}
+      data-variant={variant}
+      className={className}
+      disabled={disabled}
+    >
       {children}
     </button>
   ),
@@ -254,7 +260,7 @@ describe('GenerationPage', () => {
       await waitFor(() => {
         expect(mockReplace).toHaveBeenCalledWith(
           expect.stringContaining('projectId=project-1'),
-          { scroll: false }
+          { scroll: false },
         )
       })
     })
@@ -269,7 +275,9 @@ describe('GenerationPage', () => {
 
       await user.click(screen.getByTestId('gtl-pick-project-2'))
 
-      expect(localStorage.getItem('generations_lastProjectId')).toBe('project-2')
+      expect(localStorage.getItem('generations_lastProjectId')).toBe(
+        'project-2',
+      )
     })
 
     it('reflects the selected project in props passed to GenerationTaskList', async () => {
@@ -285,7 +293,7 @@ describe('GenerationPage', () => {
       await waitFor(() => {
         expect(screen.getByText('Project: project-1')).toBeInTheDocument()
         expect(screen.getByTestId('gtl-selected')).toHaveTextContent(
-          'Test Project'
+          'Test Project',
         )
       })
     })
@@ -322,19 +330,20 @@ describe('GenerationPage', () => {
   describe('Error Handling', () => {
     it('handles project list fetch error gracefully', async () => {
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation()
-      ;(projectsAPI.list as jest.Mock).mockRejectedValue(new Error('Fetch failed'))
+      ;(projectsAPI.list as jest.Mock).mockRejectedValue(
+        new Error('Fetch failed'),
+      )
 
       render(<GenerationPage />)
 
       await waitFor(() => {
         expect(consoleSpy).toHaveBeenCalledWith(
           'Failed to load projects:',
-          expect.any(Error)
+          expect.any(Error),
         )
       })
 
       consoleSpy.mockRestore()
     })
   })
-
 })

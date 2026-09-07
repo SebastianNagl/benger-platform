@@ -17,8 +17,8 @@ export async function GET(request: NextRequest) {
         limit:
           parseInt(
             process.env.NODE_OPTIONS?.match(
-              /--max-old-space-size=(\d+)/
-            )?.[1] || '0'
+              /--max-old-space-size=(\d+)/,
+            )?.[1] || '0',
           ) || 2048,
         unit: 'MB',
       },
@@ -70,7 +70,7 @@ export async function GET(request: NextRequest) {
         error: error instanceof Error ? error.message : 'Unknown error',
         timestamp: new Date().toISOString(),
       },
-      { status: 503 }
+      { status: 503 },
     )
   }
 }

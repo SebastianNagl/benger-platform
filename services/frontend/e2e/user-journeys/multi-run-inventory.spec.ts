@@ -33,9 +33,11 @@ test.describe('Multi-run inventory + detail pages', () => {
     await page.goto(`${BASE_URL}/runs?type=evaluation`, {
       waitUntil: 'domcontentloaded',
     })
-    await expect(page.getByRole('heading', { name: /Läufe|Runs/ })).toBeVisible({
-      timeout: 30000,
-    })
+    await expect(page.getByRole('heading', { name: /Läufe|Runs/ })).toBeVisible(
+      {
+        timeout: 30000,
+      },
+    )
     // The table renders within ~10s after the API returns.
     const rowLocator = page.locator('tbody tr')
     await expect(rowLocator.first()).toBeVisible({ timeout: 30000 })
@@ -47,15 +49,22 @@ test.describe('Multi-run inventory + detail pages', () => {
     await page.goto(`${BASE_URL}/runs?type=evaluation`, {
       waitUntil: 'domcontentloaded',
     })
-    await expect(page.locator('tbody tr').first()).toBeVisible({ timeout: 30000 })
+    await expect(page.locator('tbody tr').first()).toBeVisible({
+      timeout: 30000,
+    })
 
     // Click the Generation tab (German UI ships by default).
-    await page.getByRole('button', { name: /Generierungen|Generations/ }).click()
+    await page
+      .getByRole('button', { name: /Generierungen|Generations/ })
+      .click()
     await page.waitForURL(/type=generation/, { timeout: 15000 })
     // Generation tab columns include "Läufe" / "Runs" — distinct from
     // evaluation columns, so its presence proves the tab swapped.
     await expect(
-      page.locator('thead').getByText(/Läufe|Runs/i).first(),
+      page
+        .locator('thead')
+        .getByText(/Läufe|Runs/i)
+        .first(),
     ).toBeVisible({ timeout: 10000 })
   })
 
@@ -63,7 +72,9 @@ test.describe('Multi-run inventory + detail pages', () => {
     await page.goto(`${BASE_URL}/runs?type=evaluation`, {
       waitUntil: 'domcontentloaded',
     })
-    await expect(page.locator('tbody tr').first()).toBeVisible({ timeout: 30000 })
+    await expect(page.locator('tbody tr').first()).toBeVisible({
+      timeout: 30000,
+    })
 
     // The table streams in after the first row is visible, so an immediate
     // count() undershoots (nightly saw baseline 1 vs 3 rows post-filter).
@@ -99,7 +110,10 @@ test.describe('Multi-run inventory + detail pages', () => {
       .locator('option')
       .nth(1)
       .getAttribute('value')
-    expect(targetValue, 'second project option should carry a project id').toBeTruthy()
+    expect(
+      targetValue,
+      'second project option should carry a project id',
+    ).toBeTruthy()
     await projectSelect.selectOption(targetValue!)
 
     await expect(page).toHaveURL(/project_id=/, { timeout: 10000 })

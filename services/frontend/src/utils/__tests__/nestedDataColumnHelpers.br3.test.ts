@@ -138,10 +138,7 @@ describe('nestedDataColumnHelpers branch coverage', () => {
   })
 
   it('hasConsistentNestedStructure with tasks missing data', () => {
-    const tasks = [
-      { id: '1', data: { a: 1 } },
-      { id: '2' },
-    ] as any[]
+    const tasks = [{ id: '1', data: { a: 1 } }, { id: '2' }] as any[]
     const result = hasConsistentNestedStructure(tasks)
     expect(typeof result).toBe('boolean')
   })

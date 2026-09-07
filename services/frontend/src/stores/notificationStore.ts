@@ -60,11 +60,7 @@ interface NotificationState {
 }
 
 interface NotificationActions {
-  addToast: (
-    message: string,
-    type?: ToastType,
-    duration?: number
-  ) => string
+  addToast: (message: string, type?: ToastType, duration?: number) => string
   removeToast: (id: string) => void
   clearToasts: () => void
   // Create or replace a progress toast keyed by `id` (so the progress system
@@ -74,7 +70,7 @@ interface NotificationActions {
     id: string,
     message: string,
     progress: ToastProgress,
-    options?: { type?: ToastType; duration?: number }
+    options?: { type?: ToastType; duration?: number },
   ) => void
   flash: (message: string, type?: ToastType, duration?: number) => void
   consumeFlashes: () => ToastItem[]
@@ -82,7 +78,7 @@ interface NotificationActions {
     targetUrl: string,
     message: string,
     type?: ToastType,
-    duration?: number
+    duration?: number,
   ) => string
 }
 
@@ -103,7 +99,7 @@ export const useNotificationStore = create<NotificationStore>()(
         addToast: (
           message: string,
           type: ToastType = 'info',
-          duration: number = DEFAULT_TOAST_DURATION_MS
+          duration: number = DEFAULT_TOAST_DURATION_MS,
         ) => {
           const id = makeId()
           const newToast: ToastItem = {
@@ -117,13 +113,11 @@ export const useNotificationStore = create<NotificationStore>()(
             (state) => {
               // Dedup by message — reissuing the same string replaces the
               // old toast (e.g. progressively-updated loading messages).
-              const filtered = state.toasts.filter(
-                (t) => t.message !== message
-              )
+              const filtered = state.toasts.filter((t) => t.message !== message)
               return { toasts: [...filtered, newToast].slice(-MAX_TOASTS) }
             },
             false,
-            'addToast'
+            'addToast',
           )
           return id
         },
@@ -134,7 +128,7 @@ export const useNotificationStore = create<NotificationStore>()(
               toasts: state.toasts.filter((t) => t.id !== id),
             }),
             false,
-            'removeToast'
+            'removeToast',
           )
         },
 
@@ -142,7 +136,7 @@ export const useNotificationStore = create<NotificationStore>()(
           id: string,
           message: string,
           progress: ToastProgress,
-          options?: { type?: ToastType; duration?: number }
+          options?: { type?: ToastType; duration?: number },
         ) => {
           const isRunning = progress.status === 'running'
           set(
@@ -153,11 +147,10 @@ export const useNotificationStore = create<NotificationStore>()(
                 (progress.status === 'error'
                   ? 'error'
                   : progress.status === 'success'
-                  ? 'success'
-                  : 'info')
+                    ? 'success'
+                    : 'info')
               const duration =
-                options?.duration ??
-                (isRunning ? 0 : DEFAULT_TOAST_DURATION_MS)
+                options?.duration ?? (isRunning ? 0 : DEFAULT_TOAST_DURATION_MS)
               const next: ToastItem = {
                 id,
                 type,
@@ -175,7 +168,7 @@ export const useNotificationStore = create<NotificationStore>()(
               return { toasts: reinserted }
             },
             false,
-            'upsertProgressToast'
+            'upsertProgressToast',
           )
         },
 
@@ -186,7 +179,7 @@ export const useNotificationStore = create<NotificationStore>()(
         flash: (
           message: string,
           type: ToastType = 'info',
-          duration: number = DEFAULT_TOAST_DURATION_MS
+          duration: number = DEFAULT_TOAST_DURATION_MS,
         ) => {
           const newFlash: ToastItem = {
             id: makeId(),
@@ -200,7 +193,7 @@ export const useNotificationStore = create<NotificationStore>()(
               pendingFlashes: [...state.pendingFlashes, newFlash],
             }),
             false,
-            'flash'
+            'flash',
           )
         },
 
@@ -215,7 +208,7 @@ export const useNotificationStore = create<NotificationStore>()(
           targetUrl: string,
           message: string,
           type: ToastType = 'info',
-          duration: number = DEFAULT_TOAST_DURATION_MS
+          duration: number = DEFAULT_TOAST_DURATION_MS,
         ) => {
           // Cross-origin redirects can't read sessionStorage from the source
           // host — encode the flash as URL parameters instead.
@@ -235,7 +228,7 @@ export const useNotificationStore = create<NotificationStore>()(
       {
         name: 'benger-notifications',
         storage: createJSONStorage(() =>
-          typeof window !== 'undefined' ? sessionStorage : (undefined as any)
+          typeof window !== 'undefined' ? sessionStorage : (undefined as any),
         ),
         // Persist live toasts AND pending flashes. Each ToastItem carries a
         // createdAt timestamp; on rehydrate, ToastProvider computes the
@@ -251,7 +244,7 @@ export const useNotificationStore = create<NotificationStore>()(
           toasts: state.toasts.filter((t) => t.progress === undefined),
           pendingFlashes: state.pendingFlashes,
         }),
-      }
-    )
-  )
+      },
+    ),
+  ),
 )

@@ -116,7 +116,7 @@ describe('Reports Listing Page', () => {
 
       expect(screen.getByTestId('reports-loading')).toBeInTheDocument()
       expect(
-        screen.getByRole('heading', { level: 1, name: 'Reports' })
+        screen.getByRole('heading', { level: 1, name: 'Reports' }),
       ).toBeInTheDocument()
       expect(mockList).not.toHaveBeenCalled()
     })
@@ -176,7 +176,7 @@ describe('Reports Listing Page', () => {
         expect(screen.getByTestId('reports-empty')).toBeInTheDocument()
       })
       expect(
-        screen.getByText('Derzeit ist kein Bericht öffentlich freigegeben.')
+        screen.getByText('Derzeit ist kein Bericht öffentlich freigegeben.'),
       ).toBeInTheDocument()
     })
   })
@@ -191,11 +191,11 @@ describe('Reports Listing Page', () => {
         expect(screen.getByText(/no published reports/i)).toBeInTheDocument()
       })
       expect(
-        screen.getByRole('heading', { level: 1, name: 'Reports' })
+        screen.getByRole('heading', { level: 1, name: 'Reports' }),
       ).toBeInTheDocument()
       expect(screen.getByTestId('breadcrumb')).toBeInTheDocument()
       expect(
-        screen.getByText('No reports have been published yet.')
+        screen.getByText('No reports have been published yet.'),
       ).toBeInTheDocument()
     })
   })
@@ -228,13 +228,13 @@ describe('Reports Listing Page', () => {
       })
       expect(
         within(screen.getByTestId('report-card-report-1')).getByTestId(
-          'report-visibility'
-        )
+          'report-visibility',
+        ),
       ).toHaveTextContent('Öffentlich')
       expect(
         within(screen.getByTestId('report-card-report-2')).getByTestId(
-          'report-visibility'
-        )
+          'report-visibility',
+        ),
       ).toHaveTextContent('Organisation')
     })
 
@@ -247,7 +247,7 @@ describe('Reports Listing Page', () => {
 
       await waitFor(() => {
         expect(screen.getByTestId('report-visibility')).toHaveTextContent(
-          'Öffentlich'
+          'Öffentlich',
         )
       })
     })
@@ -256,7 +256,9 @@ describe('Reports Listing Page', () => {
       render(<ReportsPage />)
 
       await waitFor(() => {
-        expect(screen.getByText(/Veröffentlichte Evaluationsberichte/)).toBeInTheDocument()
+        expect(
+          screen.getByText(/Veröffentlichte Evaluationsberichte/),
+        ).toBeInTheDocument()
       })
     })
   })
@@ -272,11 +274,11 @@ describe('Reports Listing Page', () => {
       })
       expect(screen.getByTestId('report-card-report-1')).toHaveAttribute(
         'href',
-        '/reports/report-1'
+        '/reports/report-1',
       )
       expect(screen.getByTestId('report-card-report-2')).toHaveAttribute(
         'href',
-        '/reports/report-2'
+        '/reports/report-2',
       )
     })
   })
@@ -291,15 +293,15 @@ describe('Reports Listing Page', () => {
         expect(screen.getByTestId('reports-error')).toBeInTheDocument()
       })
       expect(screen.getByRole('alert')).toHaveTextContent(
-        'Failed to load reports'
+        'Failed to load reports',
       )
       expect(screen.getByText('Internal Server Error')).toBeInTheDocument()
       expect(
-        screen.getByRole('button', { name: 'Erneut laden' })
+        screen.getByRole('button', { name: 'Erneut laden' }),
       ).toBeInTheDocument()
       // Chrome stays
       expect(
-        screen.getByRole('heading', { level: 1, name: 'Reports' })
+        screen.getByRole('heading', { level: 1, name: 'Reports' }),
       ).toBeInTheDocument()
       expect(screen.getByTestId('breadcrumb')).toBeInTheDocument()
     })
@@ -324,11 +326,13 @@ describe('Reports Listing Page', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByRole('button', { name: 'Erneut laden' })
+          screen.getByRole('button', { name: 'Erneut laden' }),
         ).toBeInTheDocument()
       })
 
-      await userEvent.click(screen.getByRole('button', { name: 'Erneut laden' }))
+      await userEvent.click(
+        screen.getByRole('button', { name: 'Erneut laden' }),
+      )
 
       await waitFor(() => {
         expect(mockList).toHaveBeenCalledTimes(2)

@@ -4,7 +4,10 @@ export const DATA_GUIDES: HowToGuide[] = [
   {
     id: 'upload-data',
     category: 'data',
-    title: { de: 'Wie lade ich Daten hoch und welche Formate gehen?', en: 'How do I upload data and which formats work?' },
+    title: {
+      de: 'Wie lade ich Daten hoch und welche Formate gehen?',
+      en: 'How do I upload data and which formats work?',
+    },
     summary: {
       de: 'Als **JSON, CSV, TSV oder TXT**, entweder im Projekt-Assistenten (Schritt *Datenimport*) oder später auf der Seite **Projektdaten** über das Import-Symbol. Jede Zeile bzw. jedes Objekt wird eine Aufgabe. Die Feldnamen müssen zu den `$feld`-Platzhaltern der Annotationsvorlage passen.',
       en: 'As **JSON, CSV, TSV or TXT**, either in the project wizard (step *Data import*) or later on the **Project data** page via the import icon. Every row or object becomes a task. Field names must match the `$field` placeholders of the labeling template.',
@@ -51,13 +54,47 @@ export const DATA_GUIDES: HowToGuide[] = [
         'The import creates new tasks, it does not update existing ones. Importing the same file twice doubles the tasks.',
       ],
     },
-    links: [{ label: { de: 'Felder einer Klausur-Datei', en: 'Fields of an exam file' }, href: '/how-to#exam-file-fields' }],
-    keywords: { de: ['hochladen', 'Upload', 'Import', 'CSV', 'JSON', 'TSV', 'TXT', 'Datei', 'Feldzuordnung', 'Spalten', 'Datenimport'], en: ['upload', 'import', 'csv', 'json', 'file', 'field mapping', 'columns'] },
+    links: [
+      {
+        label: {
+          de: 'Felder einer Klausur-Datei',
+          en: 'Fields of an exam file',
+        },
+        href: '/how-to#exam-file-fields',
+      },
+    ],
+    keywords: {
+      de: [
+        'hochladen',
+        'Upload',
+        'Import',
+        'CSV',
+        'JSON',
+        'TSV',
+        'TXT',
+        'Datei',
+        'Feldzuordnung',
+        'Spalten',
+        'Datenimport',
+      ],
+      en: [
+        'upload',
+        'import',
+        'csv',
+        'json',
+        'file',
+        'field mapping',
+        'columns',
+      ],
+    },
   },
   {
     id: 'exam-file-fields',
     category: 'data',
-    title: { de: 'Welche Felder braucht eine Klausur-Datei (Klausurensammlung)?', en: 'Which fields does an exam file need (exam collection)?' },
+    title: {
+      de: 'Welche Felder braucht eine Klausur-Datei (Klausurensammlung)?',
+      en: 'Which fields does an exam file need (exam collection)?',
+    },
     summary: {
       de: 'Pro Klausur ein JSON-Objekt mit `sachverhalt` und `musterloesung`. Optional `muster_gliederung`, `bearbeitervermerk`, `zusatzmaterial` und `korrekturhinweise`. Mehrere Objekte in einem Array ergeben eine Klausurensammlung, die Studierende nacheinander lösen.',
       en: 'One JSON object per exam with `sachverhalt` and `musterloesung`. Optionally `muster_gliederung`, `bearbeitervermerk`, `zusatzmaterial` and `korrekturhinweise`. Several objects in one array form an exam collection students solve one after another.',
@@ -81,15 +118,32 @@ export const DATA_GUIDES: HowToGuide[] = [
       ],
     },
     tips: {
-      de: ['Die Hinweise unter **Freigabe** auf der Projektseite prüfen genau diese Felder und melden z.B. *Die Aufgaben enthalten keine Musterlösung.*'],
-      en: ['The hints under **Sharing** on the project page check exactly these fields and report e.g. *The tasks contain no model solution.*'],
+      de: [
+        'Die Hinweise unter **Freigabe** auf der Projektseite prüfen genau diese Felder und melden z.B. *Die Aufgaben enthalten keine Musterlösung.*',
+      ],
+      en: [
+        'The hints under **Sharing** on the project page check exactly these fields and report e.g. *The tasks contain no model solution.*',
+      ],
     },
-    keywords: { de: ['Klausurensammlung', 'sachverhalt', 'musterloesung', 'Felder', 'JSON-Struktur', 'mehrere Klausuren'], en: ['exam collection', 'fields', 'json structure', 'multiple exams'] },
+    keywords: {
+      de: [
+        'Klausurensammlung',
+        'sachverhalt',
+        'musterloesung',
+        'Felder',
+        'JSON-Struktur',
+        'mehrere Klausuren',
+      ],
+      en: ['exam collection', 'fields', 'json structure', 'multiple exams'],
+    },
   },
   {
     id: 'export-import-project',
     category: 'data',
-    title: { de: 'Wie exportiere ich Aufgaben oder ein ganzes Projekt und importiere es wieder?', en: 'How do I export tasks or a whole project and import it again?' },
+    title: {
+      de: 'Wie exportiere ich Aufgaben oder ein ganzes Projekt und importiere es wieder?',
+      en: 'How do I export tasks or a whole project and import it again?',
+    },
     summary: {
       de: '**Aufgaben** eines Projekts: Seite *Projektdaten* → Export-Symbol, liefert JSON. **Ganze Projekte** inklusive Konfiguration, Annotationen und Bewertungen: in der Projektliste ankreuzen → **Aktionen → Ausgewählte Projekte exportieren** (ZIP). Wieder einspielen über **Mehr → Projekt importieren**.',
       en: '**Tasks** of a project: *Project data* page → export icon, gives JSON. **Whole projects** including configuration, annotations and evaluations: tick them in the project list → **Actions → Export selected projects** (ZIP). Bring them back via **More → Import project**.',
@@ -118,6 +172,17 @@ export const DATA_GUIDES: HowToGuide[] = [
         'Very large filtered task exports are capped. Narrow the filter or export without filters.',
       ],
     },
-    keywords: { de: ['Export', 'exportieren', 'ZIP', 'Backup', 'Sicherung', 'Projekt importieren', 'Anki'], en: ['export', 'zip', 'backup', 'import project', 'anki'] },
+    keywords: {
+      de: [
+        'Export',
+        'exportieren',
+        'ZIP',
+        'Backup',
+        'Sicherung',
+        'Projekt importieren',
+        'Anki',
+      ],
+      en: ['export', 'zip', 'backup', 'import project', 'anki'],
+    },
   },
 ]

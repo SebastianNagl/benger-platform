@@ -74,7 +74,7 @@ export function StepLabelingSetup({
                   className={cn(
                     'cursor-pointer transition-colors hover:border-emerald-600',
                     labelingConfig?.id === template.id &&
-                      'border-emerald-600 bg-emerald-50 dark:bg-emerald-900/20'
+                      'border-emerald-600 bg-emerald-50 dark:bg-emerald-900/20',
                   )}
                   onClick={() => onChange(template)}
                   data-testid={`project-create-template-${template.id}`}
@@ -95,7 +95,7 @@ export function StepLabelingSetup({
                       <div className="border-t border-emerald-200 pt-2 dark:border-emerald-800">
                         <Badge variant="default" className="text-xs">
                           {t(
-                            'projects.creation.wizard.step3.templates.selected'
+                            'projects.creation.wizard.step3.templates.selected',
                           )}
                         </Badge>
                       </div>

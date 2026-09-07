@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 import '@testing-library/jest-dom'
-import { render, screen, waitFor, act } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { EvaluationDashboard } from '../EvaluationDashboard'
 
@@ -23,8 +23,10 @@ jest.mock('@/contexts/I18nContext', () => ({
         'evaluation.dashboard.modelLeaderboard': 'Model Leaderboard',
         'evaluation.dashboard.modelComparisonRadar': 'Model Comparison (Radar)',
         'evaluation.dashboard.modelComparisonBar': 'Model Comparison (Bar)',
-        'evaluation.dashboard.statisticalSignificance': 'Statistical Significance',
-        'evaluation.dashboard.significanceDescription': 'Pairwise significance tests',
+        'evaluation.dashboard.statisticalSignificance':
+          'Statistical Significance',
+        'evaluation.dashboard.significanceDescription':
+          'Pairwise significance tests',
         'evaluation.dashboard.modelA': 'Model A',
         'evaluation.dashboard.modelB': 'Model B',
         'evaluation.dashboard.metric': 'Metric',
@@ -51,8 +53,10 @@ jest.mock('@/lib/api/client', () => ({
     getSupportedMetrics: (...args: any[]) => mockGetSupportedMetrics(...args),
     evaluations: {
       getEvaluatedModels: (...args: any[]) => mockGetEvaluatedModels(...args),
-      getEvaluationHistory: (...args: any[]) => mockGetEvaluationHistory(...args),
-      getSignificanceTests: (...args: any[]) => mockGetSignificanceTests(...args),
+      getEvaluationHistory: (...args: any[]) =>
+        mockGetEvaluationHistory(...args),
+      getSignificanceTests: (...args: any[]) =>
+        mockGetSignificanceTests(...args),
     },
   },
 }))
@@ -74,12 +78,16 @@ jest.mock('@/components/generation/ProjectSelector', () => ({
 
 jest.mock('@/components/shared/Card', () => ({
   Card: ({ children, className }: any) => (
-    <div className={className} data-testid="card">{children}</div>
+    <div className={className} data-testid="card">
+      {children}
+    </div>
   ),
 }))
 
 jest.mock('@/components/shared/LoadingSpinner', () => ({
-  LoadingSpinner: ({ size }: any) => <div data-testid="loading-spinner" data-size={size} />,
+  LoadingSpinner: ({ size }: any) => (
+    <div data-testid="loading-spinner" data-size={size} />
+  ),
 }))
 
 jest.mock('../EvaluationResultsTable', () => ({
@@ -95,10 +103,18 @@ jest.mock('../EvaluationResultsTable', () => ({
 }))
 
 jest.mock('../MetricSelector', () => ({
-  MetricSelector: ({ availableMetrics, selectedMetrics, onSelectionChange }: any) => (
+  MetricSelector: ({
+    availableMetrics,
+    selectedMetrics,
+    onSelectionChange,
+  }: any) => (
     <div data-testid="metric-selector">
       {availableMetrics?.map((m: string) => (
-        <button key={m} data-testid={`metric-${m}`} onClick={() => onSelectionChange([m])}>
+        <button
+          key={m}
+          data-testid={`metric-${m}`}
+          onClick={() => onSelectionChange([m])}
+        >
           {m}
         </button>
       ))}
@@ -245,10 +261,16 @@ describe('EvaluationDashboard', () => {
       await user.click(screen.getByTestId('select-project-btn'))
 
       await waitFor(() => {
-        expect(screen.getByTestId('score-card-Total Evaluations')).toBeInTheDocument()
-        expect(screen.getByTestId('score-card-Models Evaluated')).toBeInTheDocument()
+        expect(
+          screen.getByTestId('score-card-Total Evaluations'),
+        ).toBeInTheDocument()
+        expect(
+          screen.getByTestId('score-card-Models Evaluated'),
+        ).toBeInTheDocument()
         expect(screen.getByTestId('score-card-Best Model')).toBeInTheDocument()
-        expect(screen.getByTestId('score-card-Average Score')).toBeInTheDocument()
+        expect(
+          screen.getByTestId('score-card-Average Score'),
+        ).toBeInTheDocument()
       })
     })
 
@@ -303,7 +325,9 @@ describe('EvaluationDashboard', () => {
       await user.click(screen.getByTestId('select-project-btn'))
 
       await waitFor(() => {
-        expect(screen.getByText(/Failed to load project data/)).toBeInTheDocument()
+        expect(
+          screen.getByText(/Failed to load project data/),
+        ).toBeInTheDocument()
       })
     })
   })
@@ -419,7 +443,9 @@ describe('EvaluationDashboard', () => {
     it('silently handles comparison data fetch errors', async () => {
       const user = userEvent.setup()
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation()
-      mockGetEvaluationHistory.mockRejectedValue(new Error('History fetch failed'))
+      mockGetEvaluationHistory.mockRejectedValue(
+        new Error('History fetch failed'),
+      )
 
       render(<EvaluationDashboard />)
 
@@ -428,7 +454,7 @@ describe('EvaluationDashboard', () => {
       await waitFor(() => {
         expect(consoleSpy).toHaveBeenCalledWith(
           'Failed to load comparison data:',
-          expect.any(Error)
+          expect.any(Error),
         )
       })
       consoleSpy.mockRestore()

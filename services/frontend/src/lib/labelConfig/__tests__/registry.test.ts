@@ -191,7 +191,7 @@ describe('registry', () => {
       const visualTags = getSupportedTags('visual')
 
       expect(allTags.length).toBe(
-        objectTags.length + controlTags.length + visualTags.length
+        objectTags.length + controlTags.length + visualTags.length,
       )
     })
 
@@ -308,7 +308,7 @@ describe('registry', () => {
         mockConfig,
         mockTaskData,
         mockOnChange,
-        mockOnAnnotation
+        mockOnAnnotation,
       )
 
       expect(instance).not.toBeNull()
@@ -326,7 +326,7 @@ describe('registry', () => {
         invalidConfig,
         mockTaskData,
         mockOnChange,
-        mockOnAnnotation
+        mockOnAnnotation,
       )
 
       expect(instance).toBeNull()
@@ -337,7 +337,7 @@ describe('registry', () => {
         mockConfig,
         mockTaskData,
         mockOnChange,
-        mockOnAnnotation
+        mockOnAnnotation,
       )
 
       expect(instance).not.toBeNull()
@@ -378,7 +378,7 @@ describe('registry', () => {
           config,
           mockTaskData,
           mockOnChange,
-          mockOnAnnotation
+          mockOnAnnotation,
         )
 
         expect(instance).not.toBeNull()
@@ -391,7 +391,7 @@ describe('registry', () => {
         mockConfig,
         mockTaskData,
         mockOnChange,
-        mockOnAnnotation
+        mockOnAnnotation,
       )
 
       expect(instance).not.toBeNull()
@@ -414,7 +414,7 @@ describe('registry', () => {
         config,
         mockTaskData,
         mockOnChange,
-        mockOnAnnotation
+        mockOnAnnotation,
       )
 
       expect(instance).not.toBeNull()
@@ -603,7 +603,7 @@ describe('registry', () => {
         config,
         { question: 'What is the answer?' },
         jest.fn(),
-        jest.fn()
+        jest.fn(),
       )
 
       expect(instance).not.toBeNull()
@@ -748,7 +748,7 @@ describe('registry', () => {
         config,
         {},
         mockOnChange,
-        mockOnAnnotation
+        mockOnAnnotation,
       )
 
       expect(instance).not.toBeNull()
@@ -766,7 +766,7 @@ describe('registry', () => {
         config,
         {},
         mockOnChange,
-        mockOnAnnotation
+        mockOnAnnotation,
       )
 
       expect(instance).not.toBeNull()
@@ -792,7 +792,7 @@ describe('registry', () => {
         config,
         {},
         mockOnChange,
-        mockOnAnnotation
+        mockOnAnnotation,
       )
 
       expect(instance).not.toBeNull()
@@ -812,7 +812,7 @@ describe('registry', () => {
         config,
         {},
         mockOnChange,
-        mockOnAnnotation
+        mockOnAnnotation,
       )
 
       expect(instance).not.toBeNull()
@@ -829,7 +829,7 @@ describe('registry', () => {
     afterEach(() => {
       // Clean up test components
       const testKeys = Object.keys(componentRegistry).filter((key) =>
-        key.startsWith('Test')
+        key.startsWith('Test'),
       )
       testKeys.forEach((key) => delete componentRegistry[key])
     })
@@ -933,7 +933,7 @@ describe('registry', () => {
         config,
         taskData,
         onChange,
-        onAnnotation
+        onAnnotation,
       )
 
       expect(instance).not.toBeNull()

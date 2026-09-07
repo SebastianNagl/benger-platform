@@ -53,7 +53,7 @@ export function ProjectBulkActions({
           <EllipsisHorizontalIcon className="h-4 w-4" />
           {t('projects.projectBulkActions.actions')}
           {selectedCount > 0 && (
-            <span className="ml-1 inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium leading-none text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200">
+            <span className="ml-1 inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-xs leading-none font-medium text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200">
               {selectedCount}
             </span>
           )}
@@ -63,14 +63,16 @@ export function ProjectBulkActions({
 
       <Menu.Items
         anchor="bottom end"
-        className="z-10 w-64 rounded-lg bg-white shadow-lg ring-1 ring-black ring-opacity-5 transition duration-100 ease-out focus:outline-none data-[closed]:scale-95 data-[closed]:transform data-[closed]:opacity-0 dark:bg-zinc-900"
+        className="z-10 w-64 rounded-lg bg-white shadow-lg ring-1 ring-black/5 transition duration-100 ease-out focus:outline-none data-closed:scale-95 data-closed:transform data-closed:opacity-0 dark:bg-zinc-900"
         data-testid="projects-bulk-actions-menu"
       >
         <div className="p-1">
           {selectedCount > 0 ? (
             <>
               <div className="px-3 py-2 text-xs font-medium text-zinc-500 dark:text-zinc-400">
-                {t('projects.projectBulkActions.projectsSelected', { count: selectedCount })}
+                {t('projects.projectBulkActions.projectsSelected', {
+                  count: selectedCount,
+                })}
               </div>
 
               {onFullExport && (

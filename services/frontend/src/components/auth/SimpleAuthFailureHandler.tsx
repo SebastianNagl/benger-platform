@@ -1,8 +1,8 @@
 'use client'
 
 import { useAuth } from '@/components/auth/SimpleAuth'
-import { logger } from '@/lib/utils/logger'
 import { useToast } from '@/components/shared/SimpleToast'
+import { logger } from '@/lib/utils/logger'
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect } from 'react'
 
@@ -24,7 +24,7 @@ export function SimpleAuthFailureHandler() {
       // 3. User was never authenticated in this session
       if (isPublicPage || isLoading || !user) {
         logger.debug(
-          'Auth failure on public page or during loading - skipping session expired message'
+          'Auth failure on public page or during loading - skipping session expired message',
         )
         return
       }

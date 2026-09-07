@@ -17,7 +17,7 @@ export default function LabelsInput({
   onAnnotation,
 }: AnnotationComponentProps) {
   const [selectedLabels, setSelectedLabels] = useState<string[]>(
-    externalValue || []
+    externalValue || [],
   )
 
   // Get configuration
@@ -67,7 +67,7 @@ export default function LabelsInput({
               'rounded-full px-3 py-1 text-sm font-medium transition-colors',
               selectedLabels.includes(label.value)
                 ? 'bg-emerald-600 text-white'
-                : 'bg-zinc-200 text-zinc-700 hover:bg-zinc-300 dark:bg-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-600'
+                : 'bg-zinc-200 text-zinc-700 hover:bg-zinc-300 dark:bg-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-600',
             )}
             style={{
               backgroundColor: selectedLabels.includes(label.value)

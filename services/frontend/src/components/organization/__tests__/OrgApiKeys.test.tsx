@@ -9,12 +9,20 @@ import { OrgApiKeys } from '../OrgApiKeys'
 jest.mock('@headlessui/react', () => {
   const Dialog = ({ children, open, onClose, className }: any) => {
     if (!open) return null
-    return <div className={className} data-testid="dialog">{children}</div>
+    return (
+      <div className={className} data-testid="dialog">
+        {children}
+      </div>
+    )
   }
   // eslint-disable-next-line react/display-name
-  Dialog.Panel = ({ children, className }: any) => <div className={className}>{children}</div>
+  Dialog.Panel = ({ children, className }: any) => (
+    <div className={className}>{children}</div>
+  )
   // eslint-disable-next-line react/display-name
-  Dialog.Title = ({ children, className }: any) => <h2 className={className}>{children}</h2>
+  Dialog.Title = ({ children, className }: any) => (
+    <h2 className={className}>{children}</h2>
+  )
   return { Dialog }
 })
 
@@ -25,9 +33,15 @@ jest.mock('@heroicons/react/24/outline', () => ({
   EyeSlashIcon: (props: any) => <svg {...props} data-testid="eye-slash-icon" />,
   TrashIcon: (props: any) => <svg {...props} data-testid="trash-icon" />,
   XMarkIcon: (props: any) => <svg {...props} data-testid="x-mark-icon" />,
-  CheckCircleIcon: (props: any) => <svg {...props} data-testid="check-circle-icon" />,
-  ExclamationTriangleIcon: (props: any) => <svg {...props} data-testid="exclamation-icon" />,
-  ArrowPathIcon: (props: any) => <svg {...props} data-testid="arrow-path-icon" />,
+  CheckCircleIcon: (props: any) => (
+    <svg {...props} data-testid="check-circle-icon" />
+  ),
+  ExclamationTriangleIcon: (props: any) => (
+    <svg {...props} data-testid="exclamation-icon" />
+  ),
+  ArrowPathIcon: (props: any) => (
+    <svg {...props} data-testid="arrow-path-icon" />
+  ),
 }))
 
 // Mock I18n context
@@ -36,18 +50,29 @@ jest.mock('@/contexts/I18nContext', () => ({
     t: (key: string, vars?: Record<string, any>) => {
       const translations: Record<string, string> = {
         'organization.apiKeys.dialogTitle': 'Organization API Keys',
-        'organization.apiKeys.dialogDescription': 'Configure how API keys are managed for this organization.',
-        'organization.apiKeys.orgProvidesToggle': 'Organization provides API keys',
-        'organization.apiKeys.sharedKeysActive': 'Shared API keys are active. Members do not need personal keys.',
-        'organization.apiKeys.enableSharedKeys': 'Enable to share organization API keys with all members.',
-        'organization.apiKeys.membersConfigureOwn': 'Members must configure their own API keys in their profile settings.',
-        'organization.apiKeys.orgProvidesSharedKeys': 'This organization provides shared API keys. You do not need to configure personal keys for organization projects.',
-        'organization.apiKeys.configuredCount': 'Configure organization API keys for LLM providers ({configured}/{total} configured). These keys are shared across all members and encrypted securely.',
-        'organization.apiKeys.membersPersonalNote': 'Note: Members currently use personal keys. Toggle above to share these keys with all members.',
-        'organization.apiKeys.membersUseOwnKeys': 'Members now use their own API keys',
-        'organization.apiKeys.orgProvidesKeys': 'Organization now provides API keys for all members',
+        'organization.apiKeys.dialogDescription':
+          'Configure how API keys are managed for this organization.',
+        'organization.apiKeys.orgProvidesToggle':
+          'Organization provides API keys',
+        'organization.apiKeys.sharedKeysActive':
+          'Shared API keys are active. Members do not need personal keys.',
+        'organization.apiKeys.enableSharedKeys':
+          'Enable to share organization API keys with all members.',
+        'organization.apiKeys.membersConfigureOwn':
+          'Members must configure their own API keys in their profile settings.',
+        'organization.apiKeys.orgProvidesSharedKeys':
+          'This organization provides shared API keys. You do not need to configure personal keys for organization projects.',
+        'organization.apiKeys.configuredCount':
+          'Configure organization API keys for LLM providers ({configured}/{total} configured). These keys are shared across all members and encrypted securely.',
+        'organization.apiKeys.membersPersonalNote':
+          'Note: Members currently use personal keys. Toggle above to share these keys with all members.',
+        'organization.apiKeys.membersUseOwnKeys':
+          'Members now use their own API keys',
+        'organization.apiKeys.orgProvidesKeys':
+          'Organization now provides API keys for all members',
         'organization.apiKeys.updateFailed': 'Failed to update settings',
-        'organization.apiKeys.invalidKeyFormat': 'Invalid {provider} API key format',
+        'organization.apiKeys.invalidKeyFormat':
+          'Invalid {provider} API key format',
         'organization.apiKeys.keySaved': '{provider} API key saved',
         'organization.apiKeys.saveFailed': 'Failed to save API key',
         'organization.apiKeys.keyRemoved': '{provider} API key removed',
@@ -61,28 +86,40 @@ jest.mock('@/contexts/I18nContext', () => ({
         'organization.apiKeys.removeKey': 'Remove API Key',
         'organization.apiKeys.saving': 'Saving...',
         'organization.apiKeys.saveKey': 'Save API Key',
-        'organization.apiKeys.encryptedInfo': 'API keys are encrypted and stored securely.',
-        'organization.apiKeys.sharedInfo': 'These keys are shared across all organization members.',
-        'organization.apiKeys.adminOnlyInfo': 'Only organization admins can view and manage these keys.',
+        'organization.apiKeys.encryptedInfo':
+          'API keys are encrypted and stored securely.',
+        'organization.apiKeys.sharedInfo':
+          'These keys are shared across all organization members.',
+        'organization.apiKeys.adminOnlyInfo':
+          'Only organization admins can view and manage these keys.',
         'organization.apiKeys.providerSection': 'Provider keys',
         'organization.apiKeys.customModelSection': 'Custom model keys',
-        'organization.customModelKeys.dialogDescription': 'Provision one shared key per custom model shared with this organization.',
-        'organization.customModelKeys.sharedModeActive': 'Shared billing is active — org keys are used.',
-        'organization.customModelKeys.sharedModeInactive': 'Shared billing is off — org keys are stored but not used.',
-        'organization.customModelKeys.configuredCount': '{configured} of {total} shared models have a key.',
+        'organization.customModelKeys.dialogDescription':
+          'Provision one shared key per custom model shared with this organization.',
+        'organization.customModelKeys.sharedModeActive':
+          'Shared billing is active — org keys are used.',
+        'organization.customModelKeys.sharedModeInactive':
+          'Shared billing is off — org keys are stored but not used.',
+        'organization.customModelKeys.configuredCount':
+          '{configured} of {total} shared models have a key.',
         'organization.customModelKeys.loading': 'Loading custom models...',
-        'organization.customModelKeys.noModels': 'No custom models are shared with this organization yet.',
+        'organization.customModelKeys.noModels':
+          'No custom models are shared with this organization yet.',
         'organization.customModelKeys.configured': 'Configured',
         'organization.customModelKeys.notConfigured': 'Not configured',
-        'organization.customModelKeys.keyPlaceholder': 'Enter the shared API key',
+        'organization.customModelKeys.keyPlaceholder':
+          'Enter the shared API key',
         'organization.customModelKeys.saveKey': 'Save Key',
         'organization.customModelKeys.saving': 'Saving...',
         'organization.customModelKeys.removeKey': 'Remove Key',
         'organization.customModelKeys.removing': 'Removing...',
         'organization.customModelKeys.keySaved': 'Shared key saved for {model}',
-        'organization.customModelKeys.saveFailed': 'Failed to save the shared key',
-        'organization.customModelKeys.keyRemoved': 'Shared key removed for {model}',
-        'organization.customModelKeys.removeFailed': 'Failed to remove the shared key',
+        'organization.customModelKeys.saveFailed':
+          'Failed to save the shared key',
+        'organization.customModelKeys.keyRemoved':
+          'Shared key removed for {model}',
+        'organization.customModelKeys.removeFailed':
+          'Failed to remove the shared key',
         'common.done': 'Done',
       }
       let result = translations[key] || key
@@ -99,13 +136,7 @@ jest.mock('@/contexts/I18nContext', () => ({
 
 // Mock shared Button
 jest.mock('@/components/shared/Button', () => ({
-  Button: ({
-    children,
-    onClick,
-    disabled,
-    variant,
-    ...props
-  }: any) => (
+  Button: ({ children, onClick, disabled, variant, ...props }: any) => (
     <button
       onClick={onClick}
       disabled={disabled}
@@ -168,24 +199,38 @@ describe('OrgApiKeys', () => {
 
   describe('Members-pay mode (default)', () => {
     it('renders heading and description', async () => {
-      render(<OrgApiKeys organizationId="org-1" isAdmin={true} open={true} onOpenChange={jest.fn()} />)
+      render(
+        <OrgApiKeys
+          organizationId="org-1"
+          isAdmin={true}
+          open={true}
+          onOpenChange={jest.fn()}
+        />,
+      )
 
       await waitFor(() => {
         expect(screen.getByText('Organization API Keys')).toBeInTheDocument()
       })
       expect(
         screen.getByText(
-          'Configure how API keys are managed for this organization.'
-        )
+          'Configure how API keys are managed for this organization.',
+        ),
       ).toBeInTheDocument()
     })
 
     it('shows toggle label for admin in members-pay mode', async () => {
-      render(<OrgApiKeys organizationId="org-1" isAdmin={true} open={true} onOpenChange={jest.fn()} />)
+      render(
+        <OrgApiKeys
+          organizationId="org-1"
+          isAdmin={true}
+          open={true}
+          onOpenChange={jest.fn()}
+        />,
+      )
 
       await waitFor(() => {
         expect(
-          screen.getByText('Organization provides API keys')
+          screen.getByText('Organization provides API keys'),
         ).toBeInTheDocument()
       })
       // In members-pay mode, toggle is OFF
@@ -194,11 +239,18 @@ describe('OrgApiKeys', () => {
     })
 
     it('shows provider cards with warning when members-pay', async () => {
-      render(<OrgApiKeys organizationId="org-1" isAdmin={true} open={true} onOpenChange={jest.fn()} />)
+      render(
+        <OrgApiKeys
+          organizationId="org-1"
+          isAdmin={true}
+          open={true}
+          onOpenChange={jest.fn()}
+        />,
+      )
 
       await waitFor(() => {
         expect(
-          screen.getByText('Organization provides API keys')
+          screen.getByText('Organization provides API keys'),
         ).toBeInTheDocument()
       })
 
@@ -209,25 +261,39 @@ describe('OrgApiKeys', () => {
     })
 
     it('shows info message for non-admin in members-pay mode', async () => {
-      render(<OrgApiKeys organizationId="org-1" isAdmin={false} open={true} onOpenChange={jest.fn()} />)
+      render(
+        <OrgApiKeys
+          organizationId="org-1"
+          isAdmin={false}
+          open={true}
+          onOpenChange={jest.fn()}
+        />,
+      )
 
       await waitFor(() => {
         expect(
           screen.getByText(
-            'Members must configure their own API keys in their profile settings.'
-          )
+            'Members must configure their own API keys in their profile settings.',
+          ),
         ).toBeInTheDocument()
       })
     })
 
     it('does not show toggle for non-admin', async () => {
-      render(<OrgApiKeys organizationId="org-1" isAdmin={false} open={true} onOpenChange={jest.fn()} />)
+      render(
+        <OrgApiKeys
+          organizationId="org-1"
+          isAdmin={false}
+          open={true}
+          onOpenChange={jest.fn()}
+        />,
+      )
 
       await waitFor(() => {
         expect(
           screen.getByText(
-            'Members must configure their own API keys in their profile settings.'
-          )
+            'Members must configure their own API keys in their profile settings.',
+          ),
         ).toBeInTheDocument()
       })
 
@@ -243,17 +309,31 @@ describe('OrgApiKeys', () => {
     })
 
     it('shows org-pays label for admin', async () => {
-      render(<OrgApiKeys organizationId="org-1" isAdmin={true} open={true} onOpenChange={jest.fn()} />)
+      render(
+        <OrgApiKeys
+          organizationId="org-1"
+          isAdmin={true}
+          open={true}
+          onOpenChange={jest.fn()}
+        />,
+      )
 
       await waitFor(() => {
         expect(
-          screen.getByText('Organization provides API keys')
+          screen.getByText('Organization provides API keys'),
         ).toBeInTheDocument()
       })
     })
 
     it('shows provider cards in org-pays mode', async () => {
-      render(<OrgApiKeys organizationId="org-1" isAdmin={true} open={true} onOpenChange={jest.fn()} />)
+      render(
+        <OrgApiKeys
+          organizationId="org-1"
+          isAdmin={true}
+          open={true}
+          onOpenChange={jest.fn()}
+        />,
+      )
 
       await waitFor(() => {
         expect(screen.getByText('OpenAI')).toBeInTheDocument()
@@ -264,7 +344,14 @@ describe('OrgApiKeys', () => {
     })
 
     it('shows "Not configured" badge for unconfigured providers', async () => {
-      render(<OrgApiKeys organizationId="org-1" isAdmin={true} open={true} onOpenChange={jest.fn()} />)
+      render(
+        <OrgApiKeys
+          organizationId="org-1"
+          isAdmin={true}
+          open={true}
+          onOpenChange={jest.fn()}
+        />,
+      )
 
       await waitFor(() => {
         const badges = screen.getAllByText('Not configured')
@@ -286,7 +373,14 @@ describe('OrgApiKeys', () => {
         available_providers: ['OpenAI'],
       })
 
-      render(<OrgApiKeys organizationId="org-1" isAdmin={true} open={true} onOpenChange={jest.fn()} />)
+      render(
+        <OrgApiKeys
+          organizationId="org-1"
+          isAdmin={true}
+          open={true}
+          onOpenChange={jest.fn()}
+        />,
+      )
 
       await waitFor(() => {
         expect(screen.getByText('Configured')).toBeInTheDocument()
@@ -296,23 +390,35 @@ describe('OrgApiKeys', () => {
     })
 
     it('shows info message for non-admin in org-pays mode', async () => {
-      render(<OrgApiKeys organizationId="org-1" isAdmin={false} open={true} onOpenChange={jest.fn()} />)
+      render(
+        <OrgApiKeys
+          organizationId="org-1"
+          isAdmin={false}
+          open={true}
+          onOpenChange={jest.fn()}
+        />,
+      )
 
       await waitFor(() => {
         expect(
-          screen.getByText(
-            /This organization provides shared API keys/
-          )
+          screen.getByText(/This organization provides shared API keys/),
         ).toBeInTheDocument()
       })
     })
 
     it('does not show provider cards for non-admin', async () => {
-      render(<OrgApiKeys organizationId="org-1" isAdmin={false} open={true} onOpenChange={jest.fn()} />)
+      render(
+        <OrgApiKeys
+          organizationId="org-1"
+          isAdmin={false}
+          open={true}
+          onOpenChange={jest.fn()}
+        />,
+      )
 
       await waitFor(() => {
         expect(
-          screen.getByText(/This organization provides shared API keys/)
+          screen.getByText(/This organization provides shared API keys/),
         ).toBeInTheDocument()
       })
 
@@ -327,7 +433,14 @@ describe('OrgApiKeys', () => {
         require_private_keys: false,
       })
 
-      render(<OrgApiKeys organizationId="org-1" isAdmin={true} open={true} onOpenChange={jest.fn()} />)
+      render(
+        <OrgApiKeys
+          organizationId="org-1"
+          isAdmin={true}
+          open={true}
+          onOpenChange={jest.fn()}
+        />,
+      )
 
       await waitFor(() => {
         expect(screen.getByRole('switch')).toBeInTheDocument()
@@ -336,17 +449,14 @@ describe('OrgApiKeys', () => {
       fireEvent.click(screen.getByRole('switch'))
 
       await waitFor(() => {
-        expect(mockUpdateOrgApiKeySettings).toHaveBeenCalledWith(
-          'org-1',
-          false
-        )
+        expect(mockUpdateOrgApiKeySettings).toHaveBeenCalledWith('org-1', false)
       })
 
       await waitFor(() => {
         expect(
           screen.getByText(
-            'Organization now provides API keys for all members'
-          )
+            'Organization now provides API keys for all members',
+          ),
         ).toBeInTheDocument()
       })
     })
@@ -356,7 +466,14 @@ describe('OrgApiKeys', () => {
         response: { data: { detail: 'Permission denied' } },
       })
 
-      render(<OrgApiKeys organizationId="org-1" isAdmin={true} open={true} onOpenChange={jest.fn()} />)
+      render(
+        <OrgApiKeys
+          organizationId="org-1"
+          isAdmin={true}
+          open={true}
+          onOpenChange={jest.fn()}
+        />,
+      )
 
       await waitFor(() => {
         expect(screen.getByRole('switch')).toBeInTheDocument()
@@ -376,25 +493,46 @@ describe('OrgApiKeys', () => {
       mockGetOrgApiKeySettings.mockReturnValue(new Promise(() => {}))
       mockGetOrgApiKeyStatus.mockReturnValue(new Promise(() => {}))
 
-      render(<OrgApiKeys organizationId="org-1" isAdmin={true} open={true} onOpenChange={jest.fn()} />)
+      render(
+        <OrgApiKeys
+          organizationId="org-1"
+          isAdmin={true}
+          open={true}
+          onOpenChange={jest.fn()}
+        />,
+      )
 
       // Component renders dialog structure immediately
-      expect(
-        screen.getByText('Organization API Keys')
-      ).toBeInTheDocument()
+      expect(screen.getByText('Organization API Keys')).toBeInTheDocument()
     })
   })
 
   describe('Dialog open/close', () => {
     it('does not render when open is false', () => {
-      render(<OrgApiKeys organizationId="org-1" isAdmin={true} open={false} onOpenChange={jest.fn()} />)
+      render(
+        <OrgApiKeys
+          organizationId="org-1"
+          isAdmin={true}
+          open={false}
+          onOpenChange={jest.fn()}
+        />,
+      )
 
-      expect(screen.queryByText('Organization API Keys')).not.toBeInTheDocument()
+      expect(
+        screen.queryByText('Organization API Keys'),
+      ).not.toBeInTheDocument()
     })
 
     it('calls onOpenChange(false) when close button is clicked', async () => {
       const onOpenChange = jest.fn()
-      render(<OrgApiKeys organizationId="org-1" isAdmin={true} open={true} onOpenChange={onOpenChange} />)
+      render(
+        <OrgApiKeys
+          organizationId="org-1"
+          isAdmin={true}
+          open={true}
+          onOpenChange={onOpenChange}
+        />,
+      )
 
       await waitFor(() => {
         expect(screen.getByText('Organization API Keys')).toBeInTheDocument()
@@ -407,7 +545,14 @@ describe('OrgApiKeys', () => {
 
     it('calls onOpenChange(false) when Done button is clicked', async () => {
       const onOpenChange = jest.fn()
-      render(<OrgApiKeys organizationId="org-1" isAdmin={true} open={true} onOpenChange={onOpenChange} />)
+      render(
+        <OrgApiKeys
+          organizationId="org-1"
+          isAdmin={true}
+          open={true}
+          onOpenChange={onOpenChange}
+        />,
+      )
 
       await waitFor(() => {
         expect(screen.getByText('Done')).toBeInTheDocument()
@@ -421,7 +566,14 @@ describe('OrgApiKeys', () => {
 
   describe('API key input', () => {
     it('shows password input for unconfigured provider', async () => {
-      render(<OrgApiKeys organizationId="org-1" isAdmin={true} open={true} onOpenChange={jest.fn()} />)
+      render(
+        <OrgApiKeys
+          organizationId="org-1"
+          isAdmin={true}
+          open={true}
+          onOpenChange={jest.fn()}
+        />,
+      )
 
       await waitFor(() => {
         expect(screen.getByText('OpenAI')).toBeInTheDocument()
@@ -433,7 +585,14 @@ describe('OrgApiKeys', () => {
     })
 
     it('toggles API key visibility when eye icon is clicked', async () => {
-      render(<OrgApiKeys organizationId="org-1" isAdmin={true} open={true} onOpenChange={jest.fn()} />)
+      render(
+        <OrgApiKeys
+          organizationId="org-1"
+          isAdmin={true}
+          open={true}
+          onOpenChange={jest.fn()}
+        />,
+      )
 
       await waitFor(() => {
         expect(screen.getByText('OpenAI')).toBeInTheDocument()
@@ -451,7 +610,14 @@ describe('OrgApiKeys', () => {
     })
 
     it('disables Save button when input is empty', async () => {
-      render(<OrgApiKeys organizationId="org-1" isAdmin={true} open={true} onOpenChange={jest.fn()} />)
+      render(
+        <OrgApiKeys
+          organizationId="org-1"
+          isAdmin={true}
+          open={true}
+          onOpenChange={jest.fn()}
+        />,
+      )
 
       await waitFor(() => {
         expect(screen.getByText('OpenAI')).toBeInTheDocument()
@@ -462,14 +628,23 @@ describe('OrgApiKeys', () => {
     })
 
     it('enables Save button when input has a value', async () => {
-      render(<OrgApiKeys organizationId="org-1" isAdmin={true} open={true} onOpenChange={jest.fn()} />)
+      render(
+        <OrgApiKeys
+          organizationId="org-1"
+          isAdmin={true}
+          open={true}
+          onOpenChange={jest.fn()}
+        />,
+      )
 
       await waitFor(() => {
         expect(screen.getByText('OpenAI')).toBeInTheDocument()
       })
 
       const input = screen.getAllByPlaceholderText('sk-...')[0]
-      fireEvent.change(input, { target: { value: 'sk-abc123456789012345678901' } })
+      fireEvent.change(input, {
+        target: { value: 'sk-abc123456789012345678901' },
+      })
 
       const saveButtons = screen.getAllByText('Save API Key')
       expect(saveButtons[0]).not.toBeDisabled()
@@ -480,14 +655,23 @@ describe('OrgApiKeys', () => {
     it('calls setOrgApiKey with correct params on save', async () => {
       mockSetOrgApiKey.mockResolvedValue({ message: 'Saved' })
 
-      render(<OrgApiKeys organizationId="org-1" isAdmin={true} open={true} onOpenChange={jest.fn()} />)
+      render(
+        <OrgApiKeys
+          organizationId="org-1"
+          isAdmin={true}
+          open={true}
+          onOpenChange={jest.fn()}
+        />,
+      )
 
       await waitFor(() => {
         expect(screen.getByText('OpenAI')).toBeInTheDocument()
       })
 
       const input = screen.getAllByPlaceholderText('sk-...')[0]
-      fireEvent.change(input, { target: { value: 'sk-abc123456789012345678901' } })
+      fireEvent.change(input, {
+        target: { value: 'sk-abc123456789012345678901' },
+      })
 
       const saveButtons = screen.getAllByText('Save API Key')
       fireEvent.click(saveButtons[0])
@@ -496,13 +680,20 @@ describe('OrgApiKeys', () => {
         expect(mockSetOrgApiKey).toHaveBeenCalledWith(
           'org-1',
           'openai',
-          'sk-abc123456789012345678901'
+          'sk-abc123456789012345678901',
         )
       })
     })
 
     it('shows validation error for invalid key format', async () => {
-      render(<OrgApiKeys organizationId="org-1" isAdmin={true} open={true} onOpenChange={jest.fn()} />)
+      render(
+        <OrgApiKeys
+          organizationId="org-1"
+          isAdmin={true}
+          open={true}
+          onOpenChange={jest.fn()}
+        />,
+      )
 
       await waitFor(() => {
         expect(screen.getByText('OpenAI')).toBeInTheDocument()
@@ -522,14 +713,23 @@ describe('OrgApiKeys', () => {
     it('shows success message after saving key', async () => {
       mockSetOrgApiKey.mockResolvedValue({ message: 'Saved' })
 
-      render(<OrgApiKeys organizationId="org-1" isAdmin={true} open={true} onOpenChange={jest.fn()} />)
+      render(
+        <OrgApiKeys
+          organizationId="org-1"
+          isAdmin={true}
+          open={true}
+          onOpenChange={jest.fn()}
+        />,
+      )
 
       await waitFor(() => {
         expect(screen.getByText('OpenAI')).toBeInTheDocument()
       })
 
       const input = screen.getAllByPlaceholderText('sk-...')[0]
-      fireEvent.change(input, { target: { value: 'sk-abc123456789012345678901' } })
+      fireEvent.change(input, {
+        target: { value: 'sk-abc123456789012345678901' },
+      })
 
       const saveButtons = screen.getAllByText('Save API Key')
       fireEvent.click(saveButtons[0])
@@ -557,7 +757,14 @@ describe('OrgApiKeys', () => {
     })
 
     it('shows remove button for configured provider', async () => {
-      render(<OrgApiKeys organizationId="org-1" isAdmin={true} open={true} onOpenChange={jest.fn()} />)
+      render(
+        <OrgApiKeys
+          organizationId="org-1"
+          isAdmin={true}
+          open={true}
+          onOpenChange={jest.fn()}
+        />,
+      )
 
       await waitFor(() => {
         expect(screen.getByText('Configured')).toBeInTheDocument()
@@ -569,7 +776,14 @@ describe('OrgApiKeys', () => {
     it('calls removeOrgApiKey when remove is clicked', async () => {
       mockRemoveOrgApiKey.mockResolvedValue({ message: 'Removed' })
 
-      render(<OrgApiKeys organizationId="org-1" isAdmin={true} open={true} onOpenChange={jest.fn()} />)
+      render(
+        <OrgApiKeys
+          organizationId="org-1"
+          isAdmin={true}
+          open={true}
+          onOpenChange={jest.fn()}
+        />,
+      )
 
       await waitFor(() => {
         expect(screen.getByText('Remove API Key')).toBeInTheDocument()
@@ -585,7 +799,14 @@ describe('OrgApiKeys', () => {
     it('shows success message after removing key', async () => {
       mockRemoveOrgApiKey.mockResolvedValue({ message: 'Removed' })
 
-      render(<OrgApiKeys organizationId="org-1" isAdmin={true} open={true} onOpenChange={jest.fn()} />)
+      render(
+        <OrgApiKeys
+          organizationId="org-1"
+          isAdmin={true}
+          open={true}
+          onOpenChange={jest.fn()}
+        />,
+      )
 
       await waitFor(() => {
         expect(screen.getByText('Remove API Key')).toBeInTheDocument()
@@ -601,7 +822,14 @@ describe('OrgApiKeys', () => {
 
   describe('Testing API keys', () => {
     it('disables Test button when input is empty for unconfigured provider', async () => {
-      render(<OrgApiKeys organizationId="org-1" isAdmin={true} open={true} onOpenChange={jest.fn()} />)
+      render(
+        <OrgApiKeys
+          organizationId="org-1"
+          isAdmin={true}
+          open={true}
+          onOpenChange={jest.fn()}
+        />,
+      )
 
       await waitFor(() => {
         expect(screen.getByText('OpenAI')).toBeInTheDocument()
@@ -625,7 +853,14 @@ describe('OrgApiKeys', () => {
         available_providers: ['OpenAI'],
       })
 
-      render(<OrgApiKeys organizationId="org-1" isAdmin={true} open={true} onOpenChange={jest.fn()} />)
+      render(
+        <OrgApiKeys
+          organizationId="org-1"
+          isAdmin={true}
+          open={true}
+          onOpenChange={jest.fn()}
+        />,
+      )
 
       await waitFor(() => {
         expect(screen.getByText('Configured')).toBeInTheDocument()
@@ -649,9 +884,19 @@ describe('OrgApiKeys', () => {
         },
         available_providers: ['OpenAI'],
       })
-      mockTestSavedOrgApiKey.mockResolvedValue({ status: 'success', message: 'Connection OK' })
+      mockTestSavedOrgApiKey.mockResolvedValue({
+        status: 'success',
+        message: 'Connection OK',
+      })
 
-      render(<OrgApiKeys organizationId="org-1" isAdmin={true} open={true} onOpenChange={jest.fn()} />)
+      render(
+        <OrgApiKeys
+          organizationId="org-1"
+          isAdmin={true}
+          open={true}
+          onOpenChange={jest.fn()}
+        />,
+      )
 
       await waitFor(() => {
         expect(screen.getByText('Configured')).toBeInTheDocument()
@@ -660,7 +905,9 @@ describe('OrgApiKeys', () => {
       // The first Test Connection button is for OpenAI (configured)
       const testButtons = screen.getAllByText('Test Connection')
       // Find the enabled one (configured provider's test button is not disabled)
-      const enabledTestBtn = testButtons.find((btn) => !btn.closest('button')?.hasAttribute('disabled'))
+      const enabledTestBtn = testButtons.find(
+        (btn) => !btn.closest('button')?.hasAttribute('disabled'),
+      )
       expect(enabledTestBtn).toBeTruthy()
       fireEvent.click(enabledTestBtn!)
 
@@ -674,16 +921,28 @@ describe('OrgApiKeys', () => {
     })
 
     it('calls testOrgApiKey for unconfigured provider with input', async () => {
-      mockTestOrgApiKey.mockResolvedValue({ status: 'success', message: 'Key valid' })
+      mockTestOrgApiKey.mockResolvedValue({
+        status: 'success',
+        message: 'Key valid',
+      })
 
-      render(<OrgApiKeys organizationId="org-1" isAdmin={true} open={true} onOpenChange={jest.fn()} />)
+      render(
+        <OrgApiKeys
+          organizationId="org-1"
+          isAdmin={true}
+          open={true}
+          onOpenChange={jest.fn()}
+        />,
+      )
 
       await waitFor(() => {
         expect(screen.getByText('OpenAI')).toBeInTheDocument()
       })
 
       const input = screen.getAllByPlaceholderText('sk-...')[0]
-      fireEvent.change(input, { target: { value: 'sk-testapikey1234567890abc' } })
+      fireEvent.change(input, {
+        target: { value: 'sk-testapikey1234567890abc' },
+      })
 
       const testButtons = screen.getAllByText('Test Connection')
       fireEvent.click(testButtons[0])
@@ -692,7 +951,7 @@ describe('OrgApiKeys', () => {
         expect(mockTestOrgApiKey).toHaveBeenCalledWith(
           'org-1',
           'openai',
-          'sk-testapikey1234567890abc'
+          'sk-testapikey1234567890abc',
         )
       })
 
@@ -702,16 +961,28 @@ describe('OrgApiKeys', () => {
     })
 
     it('shows error test result', async () => {
-      mockTestOrgApiKey.mockResolvedValue({ status: 'error', message: 'Invalid API key' })
+      mockTestOrgApiKey.mockResolvedValue({
+        status: 'error',
+        message: 'Invalid API key',
+      })
 
-      render(<OrgApiKeys organizationId="org-1" isAdmin={true} open={true} onOpenChange={jest.fn()} />)
+      render(
+        <OrgApiKeys
+          organizationId="org-1"
+          isAdmin={true}
+          open={true}
+          onOpenChange={jest.fn()}
+        />,
+      )
 
       await waitFor(() => {
         expect(screen.getByText('OpenAI')).toBeInTheDocument()
       })
 
       const input = screen.getAllByPlaceholderText('sk-...')[0]
-      fireEvent.change(input, { target: { value: 'sk-testapikey1234567890abc' } })
+      fireEvent.change(input, {
+        target: { value: 'sk-testapikey1234567890abc' },
+      })
 
       const testButtons = screen.getAllByText('Test Connection')
       fireEvent.click(testButtons[0])
@@ -724,7 +995,14 @@ describe('OrgApiKeys', () => {
 
   describe('Provider list', () => {
     it('renders all 7 providers for admin', async () => {
-      render(<OrgApiKeys organizationId="org-1" isAdmin={true} open={true} onOpenChange={jest.fn()} />)
+      render(
+        <OrgApiKeys
+          organizationId="org-1"
+          isAdmin={true}
+          open={true}
+          onOpenChange={jest.fn()}
+        />,
+      )
 
       await waitFor(() => {
         expect(screen.getByText('OpenAI')).toBeInTheDocument()
@@ -739,13 +1017,30 @@ describe('OrgApiKeys', () => {
     })
 
     it('shows encrypted info text for admin', async () => {
-      render(<OrgApiKeys organizationId="org-1" isAdmin={true} open={true} onOpenChange={jest.fn()} />)
+      render(
+        <OrgApiKeys
+          organizationId="org-1"
+          isAdmin={true}
+          open={true}
+          onOpenChange={jest.fn()}
+        />,
+      )
 
       await waitFor(() => {
-        expect(screen.getByText('API keys are encrypted and stored securely.')).toBeInTheDocument()
+        expect(
+          screen.getByText('API keys are encrypted and stored securely.'),
+        ).toBeInTheDocument()
       })
-      expect(screen.getByText('These keys are shared across all organization members.')).toBeInTheDocument()
-      expect(screen.getByText('Only organization admins can view and manage these keys.')).toBeInTheDocument()
+      expect(
+        screen.getByText(
+          'These keys are shared across all organization members.',
+        ),
+      ).toBeInTheDocument()
+      expect(
+        screen.getByText(
+          'Only organization admins can view and manage these keys.',
+        ),
+      ).toBeInTheDocument()
     })
 
     it('shows configured count summary', async () => {
@@ -762,7 +1057,14 @@ describe('OrgApiKeys', () => {
         available_providers: ['OpenAI', 'Anthropic'],
       })
 
-      render(<OrgApiKeys organizationId="org-1" isAdmin={true} open={true} onOpenChange={jest.fn()} />)
+      render(
+        <OrgApiKeys
+          organizationId="org-1"
+          isAdmin={true}
+          open={true}
+          onOpenChange={jest.fn()}
+        />,
+      )
 
       await waitFor(() => {
         expect(screen.getByText(/2\/7 configured/)).toBeInTheDocument()
@@ -774,14 +1076,23 @@ describe('OrgApiKeys', () => {
     it('shows fallback error on save failure without detail', async () => {
       mockSetOrgApiKey.mockRejectedValue(new Error('Network error'))
 
-      render(<OrgApiKeys organizationId="org-1" isAdmin={true} open={true} onOpenChange={jest.fn()} />)
+      render(
+        <OrgApiKeys
+          organizationId="org-1"
+          isAdmin={true}
+          open={true}
+          onOpenChange={jest.fn()}
+        />,
+      )
 
       await waitFor(() => {
         expect(screen.getByText('OpenAI')).toBeInTheDocument()
       })
 
       const input = screen.getAllByPlaceholderText('sk-...')[0]
-      fireEvent.change(input, { target: { value: 'sk-validkey12345678901234567' } })
+      fireEvent.change(input, {
+        target: { value: 'sk-validkey12345678901234567' },
+      })
 
       const saveButtons = screen.getAllByText('Save API Key')
       fireEvent.click(saveButtons[0])
@@ -794,14 +1105,26 @@ describe('OrgApiKeys', () => {
     it('shows fallback error on remove failure without detail', async () => {
       mockGetOrgApiKeyStatus.mockResolvedValue({
         api_key_status: {
-          openai: true, anthropic: false, google: false,
-          deepinfra: false, grok: false, mistral: false, cohere: false,
+          openai: true,
+          anthropic: false,
+          google: false,
+          deepinfra: false,
+          grok: false,
+          mistral: false,
+          cohere: false,
         },
         available_providers: ['OpenAI'],
       })
       mockRemoveOrgApiKey.mockRejectedValue(new Error('Server error'))
 
-      render(<OrgApiKeys organizationId="org-1" isAdmin={true} open={true} onOpenChange={jest.fn()} />)
+      render(
+        <OrgApiKeys
+          organizationId="org-1"
+          isAdmin={true}
+          open={true}
+          onOpenChange={jest.fn()}
+        />,
+      )
 
       await waitFor(() => {
         expect(screen.getByText('Remove API Key')).toBeInTheDocument()
@@ -817,7 +1140,14 @@ describe('OrgApiKeys', () => {
     it('falls back to default on settings fetch failure', async () => {
       mockGetOrgApiKeySettings.mockRejectedValue(new Error('Fetch failed'))
 
-      render(<OrgApiKeys organizationId="org-1" isAdmin={true} open={true} onOpenChange={jest.fn()} />)
+      render(
+        <OrgApiKeys
+          organizationId="org-1"
+          isAdmin={true}
+          open={true}
+          onOpenChange={jest.fn()}
+        />,
+      )
 
       // Should default to requirePrivateKeys=true, so toggle is off
       await waitFor(() => {
@@ -829,14 +1159,23 @@ describe('OrgApiKeys', () => {
     it('shows fallback error on test failure', async () => {
       mockTestOrgApiKey.mockRejectedValue(new Error('timeout'))
 
-      render(<OrgApiKeys organizationId="org-1" isAdmin={true} open={true} onOpenChange={jest.fn()} />)
+      render(
+        <OrgApiKeys
+          organizationId="org-1"
+          isAdmin={true}
+          open={true}
+          onOpenChange={jest.fn()}
+        />,
+      )
 
       await waitFor(() => {
         expect(screen.getByText('OpenAI')).toBeInTheDocument()
       })
 
       const input = screen.getAllByPlaceholderText('sk-...')[0]
-      fireEvent.change(input, { target: { value: 'sk-testkey1234567890abcdefg' } })
+      fireEvent.change(input, {
+        target: { value: 'sk-testkey1234567890abcdefg' },
+      })
 
       const testButtons = screen.getAllByText('Test Connection')
       fireEvent.click(testButtons[0])
@@ -871,7 +1210,14 @@ describe('OrgApiKeys', () => {
 
     it('renders the custom-model section heading for an admin', async () => {
       mockListOrgCustomModels.mockResolvedValue([MODEL_UNCONFIGURED])
-      render(<OrgApiKeys organizationId="org-1" isAdmin={true} open={true} onOpenChange={jest.fn()} />)
+      render(
+        <OrgApiKeys
+          organizationId="org-1"
+          isAdmin={true}
+          open={true}
+          onOpenChange={jest.fn()}
+        />,
+      )
       await waitFor(() => {
         expect(screen.getByText('Custom model keys')).toBeInTheDocument()
         expect(screen.getByText('My vLLM')).toBeInTheDocument()
@@ -880,20 +1226,38 @@ describe('OrgApiKeys', () => {
 
     it('shows the empty state when no custom models are shared', async () => {
       mockListOrgCustomModels.mockResolvedValue([])
-      render(<OrgApiKeys organizationId="org-1" isAdmin={true} open={true} onOpenChange={jest.fn()} />)
+      render(
+        <OrgApiKeys
+          organizationId="org-1"
+          isAdmin={true}
+          open={true}
+          onOpenChange={jest.fn()}
+        />,
+      )
       await waitFor(() => {
         expect(
-          screen.getByText('No custom models are shared with this organization yet.')
+          screen.getByText(
+            'No custom models are shared with this organization yet.',
+          ),
         ).toBeInTheDocument()
       })
     })
 
     it('shares the top toggle: shows shared-mode-inactive note in members-pay mode', async () => {
       mockListOrgCustomModels.mockResolvedValue([MODEL_UNCONFIGURED])
-      render(<OrgApiKeys organizationId="org-1" isAdmin={true} open={true} onOpenChange={jest.fn()} />)
+      render(
+        <OrgApiKeys
+          organizationId="org-1"
+          isAdmin={true}
+          open={true}
+          onOpenChange={jest.fn()}
+        />,
+      )
       await waitFor(() => {
         expect(
-          screen.getByText('Shared billing is off — org keys are stored but not used.')
+          screen.getByText(
+            'Shared billing is off — org keys are stored but not used.',
+          ),
         ).toBeInTheDocument()
       })
     })
@@ -904,10 +1268,21 @@ describe('OrgApiKeys', () => {
         .mockResolvedValueOnce([
           { ...MODEL_UNCONFIGURED, has_org_credential: true },
         ])
-      mockSetOrgCustomModelCredential.mockResolvedValue({ has_credential: true })
-      render(<OrgApiKeys organizationId="org-1" isAdmin={true} open={true} onOpenChange={jest.fn()} />)
+      mockSetOrgCustomModelCredential.mockResolvedValue({
+        has_credential: true,
+      })
+      render(
+        <OrgApiKeys
+          organizationId="org-1"
+          isAdmin={true}
+          open={true}
+          onOpenChange={jest.fn()}
+        />,
+      )
 
-      await waitFor(() => expect(screen.getByText('My vLLM')).toBeInTheDocument())
+      await waitFor(() =>
+        expect(screen.getByText('My vLLM')).toBeInTheDocument(),
+      )
       const input = screen.getByPlaceholderText('Enter the shared API key')
       fireEvent.change(input, { target: { value: 'shared-secret-key' } })
       fireEvent.click(screen.getByText('Save Key'))
@@ -916,33 +1291,51 @@ describe('OrgApiKeys', () => {
         expect(mockSetOrgCustomModelCredential).toHaveBeenCalledWith(
           'org-1',
           'custom-abc',
-          'shared-secret-key'
-        )
+          'shared-secret-key',
+        ),
       )
     })
 
     it('removes a configured shared key via removeOrgCustomModelCredential', async () => {
       mockListOrgCustomModels.mockResolvedValue([MODEL_CONFIGURED])
-      mockRemoveOrgCustomModelCredential.mockResolvedValue({ has_credential: false })
-      render(<OrgApiKeys organizationId="org-1" isAdmin={true} open={true} onOpenChange={jest.fn()} />)
+      mockRemoveOrgCustomModelCredential.mockResolvedValue({
+        has_credential: false,
+      })
+      render(
+        <OrgApiKeys
+          organizationId="org-1"
+          isAdmin={true}
+          open={true}
+          onOpenChange={jest.fn()}
+        />,
+      )
 
       await waitFor(() =>
-        expect(screen.getByText('Shared GPU Model')).toBeInTheDocument()
+        expect(screen.getByText('Shared GPU Model')).toBeInTheDocument(),
       )
       fireEvent.click(screen.getByText('Remove Key'))
       await waitFor(() =>
         expect(mockRemoveOrgCustomModelCredential).toHaveBeenCalledWith(
           'org-1',
-          'custom-def'
-        )
+          'custom-def',
+        ),
       )
     })
 
     it('does not fetch custom models for a non-admin', async () => {
-      render(<OrgApiKeys organizationId="org-1" isAdmin={false} open={true} onOpenChange={jest.fn()} />)
+      render(
+        <OrgApiKeys
+          organizationId="org-1"
+          isAdmin={false}
+          open={true}
+          onOpenChange={jest.fn()}
+        />,
+      )
       await waitFor(() => {
         expect(
-          screen.getByText('Members must configure their own API keys in their profile settings.')
+          screen.getByText(
+            'Members must configure their own API keys in their profile settings.',
+          ),
         ).toBeInTheDocument()
       })
       expect(mockListOrgCustomModels).not.toHaveBeenCalled()

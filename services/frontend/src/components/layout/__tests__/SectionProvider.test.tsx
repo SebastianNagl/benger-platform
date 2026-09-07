@@ -65,7 +65,7 @@ describe('SectionProvider', () => {
       render(
         <SectionProvider sections={sections}>
           <div data-testid="test-child">Test Content</div>
-        </SectionProvider>
+        </SectionProvider>,
       )
 
       expect(screen.getByTestId('test-child')).toBeInTheDocument()
@@ -76,7 +76,7 @@ describe('SectionProvider', () => {
       render(
         <SectionProvider sections={[]}>
           <div data-testid="empty-child">Empty Content</div>
-        </SectionProvider>
+        </SectionProvider>,
       )
 
       expect(screen.getByTestId('empty-child')).toBeInTheDocument()
@@ -90,7 +90,7 @@ describe('SectionProvider', () => {
           <div data-testid="child-1">Child 1</div>
           <div data-testid="child-2">Child 2</div>
           <div data-testid="child-3">Child 3</div>
-        </SectionProvider>
+        </SectionProvider>,
       )
 
       expect(screen.getByTestId('child-1')).toBeInTheDocument()
@@ -106,7 +106,7 @@ describe('SectionProvider', () => {
           <div data-testid="parent">
             <div data-testid="nested-child">Nested</div>
           </div>
-        </SectionProvider>
+        </SectionProvider>,
       )
 
       expect(screen.getByTestId('parent')).toBeInTheDocument()
@@ -127,7 +127,7 @@ describe('SectionProvider', () => {
       render(
         <SectionProvider sections={sections}>
           <TestConsumer />
-        </SectionProvider>
+        </SectionProvider>,
       )
 
       expect(contextValue).toEqual(sections)
@@ -145,7 +145,7 @@ describe('SectionProvider', () => {
       render(
         <SectionProvider sections={sections}>
           <TestConsumer />
-        </SectionProvider>
+        </SectionProvider>,
       )
 
       expect(visibleSections).toEqual([])
@@ -157,7 +157,7 @@ describe('SectionProvider', () => {
 
       function TestConsumer() {
         setVisibleSections = useSectionStore(
-          (state) => state.setVisibleSections
+          (state) => state.setVisibleSections,
         )
         return <div>Test</div>
       }
@@ -165,7 +165,7 @@ describe('SectionProvider', () => {
       render(
         <SectionProvider sections={sections}>
           <TestConsumer />
-        </SectionProvider>
+        </SectionProvider>,
       )
 
       expect(typeof setVisibleSections).toBe('function')
@@ -183,7 +183,7 @@ describe('SectionProvider', () => {
       render(
         <SectionProvider sections={sections}>
           <TestConsumer />
-        </SectionProvider>
+        </SectionProvider>,
       )
 
       expect(typeof registerHeading).toBe('function')
@@ -198,7 +198,7 @@ describe('SectionProvider', () => {
 
       function TestConsumer() {
         const registerHeading = useSectionStore(
-          (state) => state.registerHeading
+          (state) => state.registerHeading,
         )
         registeredSections = useSectionStore((state) => state.sections)
 
@@ -212,7 +212,7 @@ describe('SectionProvider', () => {
       render(
         <SectionProvider sections={sections}>
           <TestConsumer />
-        </SectionProvider>
+        </SectionProvider>,
       )
 
       expect(registeredSections[0].headingRef).toBe(headingRef)
@@ -232,7 +232,7 @@ describe('SectionProvider', () => {
 
       function TestConsumer() {
         const registerHeading = useSectionStore(
-          (state) => state.registerHeading
+          (state) => state.registerHeading,
         )
         registeredSections = useSectionStore((state) => state.sections)
 
@@ -248,7 +248,7 @@ describe('SectionProvider', () => {
       render(
         <SectionProvider sections={sections}>
           <TestConsumer />
-        </SectionProvider>
+        </SectionProvider>,
       )
 
       expect(registeredSections[0].headingRef).toBe(ref1)
@@ -266,7 +266,7 @@ describe('SectionProvider', () => {
 
       function TestConsumer() {
         const registerHeading = useSectionStore(
-          (state) => state.registerHeading
+          (state) => state.registerHeading,
         )
         registeredSections = useSectionStore((state) => state.sections)
 
@@ -280,7 +280,7 @@ describe('SectionProvider', () => {
       render(
         <SectionProvider sections={sections}>
           <TestConsumer />
-        </SectionProvider>
+        </SectionProvider>,
       )
 
       expect(registeredSections[0].id).toBe('test')
@@ -299,7 +299,7 @@ describe('SectionProvider', () => {
 
       function TestConsumer() {
         const registerHeading = useSectionStore(
-          (state) => state.registerHeading
+          (state) => state.registerHeading,
         )
         registeredSections = useSectionStore((state) => state.sections)
 
@@ -313,7 +313,7 @@ describe('SectionProvider', () => {
       render(
         <SectionProvider sections={sections}>
           <TestConsumer />
-        </SectionProvider>
+        </SectionProvider>,
       )
 
       expect(registeredSections[0].headingRef).toBe(ref1)
@@ -336,7 +336,7 @@ describe('SectionProvider', () => {
       const { rerender } = render(
         <SectionProvider sections={initialSections}>
           <TestConsumer />
-        </SectionProvider>
+        </SectionProvider>,
       )
 
       expect(currentSections).toEqual(initialSections)
@@ -349,7 +349,7 @@ describe('SectionProvider', () => {
       rerender(
         <SectionProvider sections={newSections}>
           <TestConsumer />
-        </SectionProvider>
+        </SectionProvider>,
       )
 
       expect(currentSections).toEqual(newSections)
@@ -363,7 +363,7 @@ describe('SectionProvider', () => {
       function TestConsumer() {
         visibleSections = useSectionStore((state) => state.visibleSections)
         setVisibleSections = useSectionStore(
-          (state) => state.setVisibleSections
+          (state) => state.setVisibleSections,
         )
         return <div>Test</div>
       }
@@ -371,7 +371,7 @@ describe('SectionProvider', () => {
       render(
         <SectionProvider sections={sections}>
           <TestConsumer />
-        </SectionProvider>
+        </SectionProvider>,
       )
 
       expect(visibleSections).toEqual([])
@@ -391,7 +391,7 @@ describe('SectionProvider', () => {
       function TestConsumer() {
         renderCount++
         setVisibleSections = useSectionStore(
-          (state) => state.setVisibleSections
+          (state) => state.setVisibleSections,
         )
         return <div>Test</div>
       }
@@ -399,7 +399,7 @@ describe('SectionProvider', () => {
       render(
         <SectionProvider sections={sections}>
           <TestConsumer />
-        </SectionProvider>
+        </SectionProvider>,
       )
 
       const initialRenderCount = renderCount
@@ -429,7 +429,7 @@ describe('SectionProvider', () => {
       function TestConsumer() {
         visibleSections = useSectionStore((state) => state.visibleSections)
         setVisibleSections = useSectionStore(
-          (state) => state.setVisibleSections
+          (state) => state.setVisibleSections,
         )
         return <div>Test</div>
       }
@@ -437,7 +437,7 @@ describe('SectionProvider', () => {
       render(
         <SectionProvider sections={sections}>
           <TestConsumer />
-        </SectionProvider>
+        </SectionProvider>,
       )
 
       act(() => {
@@ -458,7 +458,7 @@ describe('SectionProvider', () => {
           wrapper: ({ children }) => (
             <SectionProvider sections={sections}>{children}</SectionProvider>
           ),
-        }
+        },
       )
 
       expect(result.current).toEqual(sections)
@@ -473,7 +473,7 @@ describe('SectionProvider', () => {
           wrapper: ({ children }) => (
             <SectionProvider sections={sections}>{children}</SectionProvider>
           ),
-        }
+        },
       )
 
       expect(result.current).toEqual([])
@@ -488,7 +488,7 @@ describe('SectionProvider', () => {
           wrapper: ({ children }) => (
             <SectionProvider sections={sections}>{children}</SectionProvider>
           ),
-        }
+        },
       )
 
       expect(typeof result.current).toBe('function')
@@ -503,7 +503,7 @@ describe('SectionProvider', () => {
           wrapper: ({ children }) => (
             <SectionProvider sections={sections}>{children}</SectionProvider>
           ),
-        }
+        },
       )
 
       expect(typeof result.current).toBe('function')
@@ -521,7 +521,7 @@ describe('SectionProvider', () => {
           wrapper: ({ children }) => (
             <SectionProvider sections={sections}>{children}</SectionProvider>
           ),
-        }
+        },
       )
 
       expect(result.current).toBe(2)
@@ -549,7 +549,7 @@ describe('SectionProvider', () => {
 
       const { result, rerender } = renderHook(
         () => useSectionStore((state) => state.sections),
-        { wrapper: Wrapper }
+        { wrapper: Wrapper },
       )
 
       expect(result.current).toEqual(initialSections)
@@ -577,7 +577,7 @@ describe('SectionProvider', () => {
       render(
         <SectionProvider sections={sections}>
           <TestConsumer />
-        </SectionProvider>
+        </SectionProvider>,
       )
 
       expect(receivedSections).toEqual(sections)
@@ -604,7 +604,7 @@ describe('SectionProvider', () => {
       render(
         <SectionProvider sections={sections}>
           <TestConsumer />
-        </SectionProvider>
+        </SectionProvider>,
       )
 
       expect(receivedSections[0].id).toBe('complex-section')
@@ -626,7 +626,7 @@ describe('SectionProvider', () => {
       render(
         <SectionProvider sections={sections}>
           <TestConsumer />
-        </SectionProvider>
+        </SectionProvider>,
       )
 
       expect(receivedSections[0].id).toBe('minimal')
@@ -639,7 +639,7 @@ describe('SectionProvider', () => {
       render(
         <SectionProvider sections={[]}>
           <div data-testid="child">Child</div>
-        </SectionProvider>
+        </SectionProvider>,
       )
 
       expect(screen.getByTestId('child')).toBeInTheDocument()
@@ -652,7 +652,7 @@ describe('SectionProvider', () => {
             <div data-testid="fragment-1">Fragment 1</div>
             <div data-testid="fragment-2">Fragment 2</div>
           </>
-        </SectionProvider>
+        </SectionProvider>,
       )
 
       expect(screen.getByTestId('fragment-1')).toBeInTheDocument()
@@ -672,7 +672,7 @@ describe('SectionProvider', () => {
       render(
         <SectionProvider sections={[]}>
           <TestConsumer />
-        </SectionProvider>
+        </SectionProvider>,
       )
 
       expect(sections).toEqual([])
@@ -685,7 +685,7 @@ describe('SectionProvider', () => {
 
       function TestConsumer() {
         const registerHeading = useSectionStore(
-          (state) => state.registerHeading
+          (state) => state.registerHeading,
         )
         registeredSections = useSectionStore((state) => state.sections)
 
@@ -699,7 +699,7 @@ describe('SectionProvider', () => {
       render(
         <SectionProvider sections={sections}>
           <TestConsumer />
-        </SectionProvider>
+        </SectionProvider>,
       )
 
       expect(registeredSections.length).toBe(1)
@@ -732,7 +732,7 @@ describe('SectionProvider', () => {
       render(
         <SectionProvider sections={sections}>
           <TestConsumer />
-        </SectionProvider>
+        </SectionProvider>,
       )
 
       expect(receivedSections.length).toBe(2)
@@ -755,7 +755,7 @@ describe('SectionProvider', () => {
       render(
         <SectionProvider sections={sections}>
           <TestConsumer />
-        </SectionProvider>
+        </SectionProvider>,
       )
 
       expect(receivedSections.length).toBe(1000)
@@ -777,7 +777,7 @@ describe('SectionProvider', () => {
       render(
         <SectionProvider sections={sections}>
           <TestConsumer />
-        </SectionProvider>
+        </SectionProvider>,
       )
 
       expect(receivedSections[0].id).toBe('section-with-dashes')
@@ -799,19 +799,19 @@ describe('SectionProvider', () => {
       const { rerender } = render(
         <SectionProvider sections={sections1}>
           <TestConsumer />
-        </SectionProvider>
+        </SectionProvider>,
       )
 
       rerender(
         <SectionProvider sections={sections2}>
           <TestConsumer />
-        </SectionProvider>
+        </SectionProvider>,
       )
 
       rerender(
         <SectionProvider sections={sections3}>
           <TestConsumer />
-        </SectionProvider>
+        </SectionProvider>,
       )
 
       expect(receivedSections).toEqual(sections3)
@@ -838,7 +838,7 @@ describe('SectionProvider', () => {
         <SectionProvider sections={sections}>
           <Consumer1 />
           <Consumer2 />
-        </SectionProvider>
+        </SectionProvider>,
       )
 
       expect(consumer1Sections).toEqual(sections)
@@ -855,7 +855,7 @@ describe('SectionProvider', () => {
       function Consumer1() {
         consumer1Visible = useSectionStore((state) => state.visibleSections)
         setVisibleSections = useSectionStore(
-          (state) => state.setVisibleSections
+          (state) => state.setVisibleSections,
         )
         return <div>Consumer 1</div>
       }
@@ -869,7 +869,7 @@ describe('SectionProvider', () => {
         <SectionProvider sections={sections}>
           <Consumer1 />
           <Consumer2 />
-        </SectionProvider>
+        </SectionProvider>,
       )
 
       act(() => {
@@ -895,7 +895,7 @@ describe('SectionProvider', () => {
 
       function Consumer2() {
         consumer2SectionCount = useSectionStore(
-          (state) => state.sections.length
+          (state) => state.sections.length,
         )
         return <div>Consumer 2</div>
       }
@@ -904,7 +904,7 @@ describe('SectionProvider', () => {
         <SectionProvider sections={sections}>
           <Consumer1 />
           <Consumer2 />
-        </SectionProvider>
+        </SectionProvider>,
       )
 
       expect(consumer1Sections).toEqual(sections)
@@ -929,7 +929,7 @@ describe('SectionProvider', () => {
               </div>
             </div>
           </div>
-        </SectionProvider>
+        </SectionProvider>,
       )
 
       expect(screen.getByTestId('deep')).toBeInTheDocument()
@@ -955,7 +955,7 @@ describe('SectionProvider', () => {
       const { rerender } = render(
         <SectionProvider sections={sections}>
           <Consumer1 />
-        </SectionProvider>
+        </SectionProvider>,
       )
 
       expect(screen.getByTestId('consumer-1')).toBeInTheDocument()
@@ -963,7 +963,7 @@ describe('SectionProvider', () => {
       rerender(
         <SectionProvider sections={sections}>
           <Consumer2 />
-        </SectionProvider>
+        </SectionProvider>,
       )
 
       expect(screen.queryByTestId('consumer-1')).not.toBeInTheDocument()
@@ -978,7 +978,7 @@ describe('SectionProvider', () => {
 
       function Consumer1() {
         consumer1RegisterHeading = useSectionStore(
-          (state) => state.registerHeading
+          (state) => state.registerHeading,
         )
 
         useEffect(() => {
@@ -997,7 +997,7 @@ describe('SectionProvider', () => {
         <SectionProvider sections={sections}>
           <Consumer1 />
           <Consumer2 />
-        </SectionProvider>
+        </SectionProvider>,
       )
 
       expect(consumer2Sections[0].headingRef).toBe(ref)
@@ -1014,7 +1014,7 @@ describe('SectionProvider', () => {
         consumer1RenderCount++
         useSectionStore((state) => state.visibleSections)
         setVisibleSections = useSectionStore(
-          (state) => state.setVisibleSections
+          (state) => state.setVisibleSections,
         )
         return <div>Consumer 1</div>
       }
@@ -1029,7 +1029,7 @@ describe('SectionProvider', () => {
         <SectionProvider sections={sections}>
           <Consumer1 />
           <Consumer2 />
-        </SectionProvider>
+        </SectionProvider>,
       )
 
       const consumer1InitialCount = consumer1RenderCount
@@ -1051,13 +1051,13 @@ describe('SectionProvider', () => {
       render(
         <SectionProvider sections={sections}>
           <div>Test</div>
-        </SectionProvider>
+        </SectionProvider>,
       )
 
       expect(window.addEventListener).toHaveBeenCalledWith(
         'scroll',
         expect.any(Function),
-        { passive: true }
+        { passive: true },
       )
     })
 
@@ -1067,12 +1067,12 @@ describe('SectionProvider', () => {
       render(
         <SectionProvider sections={sections}>
           <div>Test</div>
-        </SectionProvider>
+        </SectionProvider>,
       )
 
       expect(window.addEventListener).toHaveBeenCalledWith(
         'resize',
-        expect.any(Function)
+        expect.any(Function),
       )
     })
 
@@ -1082,11 +1082,11 @@ describe('SectionProvider', () => {
       render(
         <SectionProvider sections={sections}>
           <div>Test</div>
-        </SectionProvider>
+        </SectionProvider>,
       )
 
       expect(window.requestAnimationFrame).toHaveBeenCalledWith(
-        expect.any(Function)
+        expect.any(Function),
       )
     })
 
@@ -1096,18 +1096,18 @@ describe('SectionProvider', () => {
       const { unmount } = render(
         <SectionProvider sections={sections}>
           <div>Test</div>
-        </SectionProvider>
+        </SectionProvider>,
       )
 
       unmount()
 
       expect(window.removeEventListener).toHaveBeenCalledWith(
         'scroll',
-        expect.any(Function)
+        expect.any(Function),
       )
       expect(window.removeEventListener).toHaveBeenCalledWith(
         'resize',
-        expect.any(Function)
+        expect.any(Function),
       )
     })
 
@@ -1117,7 +1117,7 @@ describe('SectionProvider', () => {
       const { unmount } = render(
         <SectionProvider sections={sections}>
           <div>Test</div>
-        </SectionProvider>
+        </SectionProvider>,
       )
 
       unmount()
