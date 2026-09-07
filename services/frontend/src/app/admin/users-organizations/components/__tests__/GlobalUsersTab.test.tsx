@@ -223,7 +223,7 @@ describe('GlobalUsersTab', () => {
         expect(api.getAllUsers).toHaveBeenCalled()
       })
 
-      expect(screen.getByText('Test User 1')).toBeInTheDocument()
+      expect(await screen.findByText('Test User 1')).toBeInTheDocument()
       expect(screen.getByText('Test User 2')).toBeInTheDocument()
       expect(screen.getByText('Admin User')).toBeInTheDocument()
     })
@@ -325,7 +325,7 @@ describe('GlobalUsersTab', () => {
           user: mockUsers[1],
           action: 'verify',
         }),
-        {}
+        undefined
       )
     })
 
@@ -355,7 +355,7 @@ describe('GlobalUsersTab', () => {
         expect(api.getAllUsers).toHaveBeenCalled()
       })
 
-      const verifyButtons = screen.getAllByTestId('check-icon')
+      const verifyButtons = await screen.findAllByTestId('check-icon')
       await user.click(verifyButtons[0])
 
       // Simulate modal confirmation
@@ -791,7 +791,7 @@ describe('GlobalUsersTab', () => {
           expect.objectContaining({
             isOpen: true,
           }),
-          {}
+          undefined
         )
       })
 
@@ -827,7 +827,7 @@ describe('GlobalUsersTab', () => {
           expect.objectContaining({
             user: mockUsers[1],
           }),
-          {}
+          undefined
         )
       })
     })

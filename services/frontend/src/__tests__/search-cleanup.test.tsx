@@ -11,12 +11,16 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { Search } from '../components/shared/Search'
 
 // Mock next/navigation
+// One stable instance: SearchDialog closes itself whenever `useSearchParams()`
+// changes identity (navigation), so a fresh object per render would close the
+// dialog right after it opens.
+const mockStableSearchParams = new URLSearchParams()
 jest.mock('next/navigation', () => ({
   usePathname: () => '/',
   useRouter: () => ({
     push: jest.fn(),
   }),
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => mockStableSearchParams,
 }))
 
 // Mock the AuthContext

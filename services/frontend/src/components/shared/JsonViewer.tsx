@@ -2,6 +2,7 @@
  * JsonViewer component for displaying JSON data in a tree-like structure
  */
 
+import type { JSX } from 'react'
 import { ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline'
 import { useState } from 'react'
 

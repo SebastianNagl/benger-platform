@@ -513,7 +513,10 @@ describe('useModels', () => {
         expect(mockGetAvailableModels).toHaveBeenCalledTimes(2)
       })
 
-      expect(result.current.models).toEqual(mockModels)
+      // React 19 flushes the post-await setState asynchronously; poll for it.
+      await waitFor(() => {
+        expect(result.current.models).toEqual(mockModels)
+      })
     })
 
     it('should set loading state during refetch', async () => {

@@ -42,7 +42,10 @@ jest.mock('@/contexts/I18nContext', () => ({
   }),
 }))
 
-// Mock Next.js navigation
+// Mock Next.js navigation. One stable URLSearchParams instance: SearchDialog
+// closes itself whenever `useSearchParams()` changes identity (navigation), so
+// a fresh object per render would close the dialog right after it opens.
+const mockStableSearchParams = new URLSearchParams()
 jest.mock('next/navigation', () => ({
   useRouter: () => ({
     push: jest.fn(),
@@ -52,7 +55,7 @@ jest.mock('next/navigation', () => ({
   }),
   usePathname: () => '/',
   useParams: () => ({}),
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => mockStableSearchParams,
 }))
 
 describe('Search Component - Issue #150 Validation', () => {

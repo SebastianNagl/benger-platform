@@ -264,7 +264,7 @@ describe('DynamicAnnotationInterface', () => {
         expect.objectContaining({
           hideSubmitButton: true,
         }),
-        expect.any(Object)
+        undefined
       )
     })
   })
@@ -423,7 +423,7 @@ describe('DynamicAnnotationInterface', () => {
         expect.objectContaining({
           taskId: '9eda2dca-838f-4766-a19e-be7c734a0839',
         }),
-        expect.any(Object)
+        undefined
       )
     })
   })
@@ -494,7 +494,7 @@ describe('DynamicAnnotationInterface', () => {
             type: 'TextArea',
           }),
         }),
-        expect.any(Object)
+        undefined
       )
     })
   })
@@ -942,7 +942,7 @@ describe('DynamicAnnotationInterface', () => {
             props: expect.any(Object),
           }),
         }),
-        expect.any(Object)
+        undefined
       )
     })
 
@@ -1176,7 +1176,7 @@ describe('DynamicAnnotationInterface', () => {
         expect.objectContaining({
           taskData: defaultProps.taskData,
         }),
-        expect.any(Object)
+        undefined
       )
     })
 
@@ -1187,7 +1187,7 @@ describe('DynamicAnnotationInterface', () => {
         expect.objectContaining({
           onChange: expect.any(Function),
         }),
-        expect.any(Object)
+        undefined
       )
     })
 
@@ -1198,7 +1198,7 @@ describe('DynamicAnnotationInterface', () => {
         expect.objectContaining({
           onAnnotation: expect.any(Function),
         }),
-        expect.any(Object)
+        undefined
       )
     })
 
@@ -1215,7 +1215,7 @@ describe('DynamicAnnotationInterface', () => {
           expect.objectContaining({
             value: expect.any(String),
           }),
-          expect.any(Object)
+          undefined
         )
       })
     })

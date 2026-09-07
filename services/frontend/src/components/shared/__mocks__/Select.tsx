@@ -3,34 +3,27 @@
  *
  * Headless UI's Listbox doesn't render properly in JSDOM, so we provide
  * a native <select> implementation that preserves the same API and allows
- * existing test queries (getByRole('combobox'), fireEvent.change, etc.)
- * to keep working.
+ * existing test queries (getByRole('combobox'), fireEvent.change,
+ * userEvent.selectOptions, ...) to keep working.
  *
- * The mock collects <option> elements from SelectContent/SelectItem children
- * and renders them inside the native <select> produced by SelectTrigger, so
- * that userEvent.selectOptions() works correctly.
+ * The <option> elements are derived from the Select's element tree at render
+ * time: SelectTrigger walks the children the Select received (exposed via
+ * context) and renders every SelectItem it finds inside the native <select>.
+ * Earlier versions handed the options over through an effect + state pair,
+ * which React 19 re-runs on every render (children identity changes), so the
+ * <select> was empty at the moment tests queried it.
  */
-import React, { createContext, ReactNode, useContext, useRef, useEffect, useState } from 'react'
+import React, { createContext, ReactNode, useContext } from 'react'
 
 interface SelectContextType {
   value: string
   onValueChange: (value: string) => void
   disabled?: boolean
   displayValue?: string
+  childrenForLookup: ReactNode
 }
 
 const SelectContext = createContext<SelectContextType | null>(null)
-
-/**
- * Shared ref so SelectContent can push its rendered children into the
- * <select> rendered by SelectTrigger.  Because React renders children
- * depth-first, SelectTrigger renders first; SelectContent collects the
- * <option> nodes and triggers a re-render via the items state.
- */
-const ItemsContext = createContext<{
-  items: React.ReactElement[]
-  setItems: (items: React.ReactElement[]) => void
-}>({ items: [], setItems: () => {} })
 
 export function Select({
   value,
@@ -45,15 +38,42 @@ export function Select({
   displayValue?: string
   children: ReactNode
 }) {
-  const [items, setItems] = useState<React.ReactElement[]>([])
-
   return (
-    <SelectContext.Provider value={{ value, onValueChange, disabled, displayValue }}>
-      <ItemsContext.Provider value={{ items, setItems }}>
-        {children}
-      </ItemsContext.Provider>
+    <SelectContext.Provider
+      value={{ value, onValueChange, disabled, displayValue, childrenForLookup: children }}
+    >
+      {children}
     </SelectContext.Provider>
   )
+}
+
+/** Flatten arrays/fragments into the list of element children. */
+function flattenElements(node: ReactNode, out: React.ReactElement[]): void {
+  React.Children.forEach(node, (child) => {
+    if (!React.isValidElement(child)) return
+    if (child.type === React.Fragment) {
+      flattenElements((child.props as { children?: ReactNode }).children, out)
+      return
+    }
+    out.push(child)
+  })
+}
+
+/**
+ * Collect the option elements: everything rendered inside a SelectContent.
+ * Matching on the SelectContent wrapper (not on SelectItem's identity) keeps
+ * this working for suites that override SelectItem with their own element.
+ */
+function collectItems(node: ReactNode, out: React.ReactElement[]): void {
+  React.Children.forEach(node, (child) => {
+    if (!React.isValidElement(child)) return
+    const props = child.props as { children?: ReactNode }
+    if (child.type === SelectContent) {
+      flattenElements(props.children, out)
+      return
+    }
+    if (props.children) collectItems(props.children, out)
+  })
 }
 
 export function SelectTrigger({
@@ -67,7 +87,8 @@ export function SelectTrigger({
 }) {
   const context = useContext(SelectContext)
   if (!context) throw new Error('SelectTrigger must be used within Select')
-  const { items } = useContext(ItemsContext)
+  const items: React.ReactElement[] = []
+  collectItems(context.childrenForLookup, items)
 
   return (
     <select
@@ -78,33 +99,13 @@ export function SelectTrigger({
       {...props}
     >
       {children}
-      {items}
+      {items.map((item, i) => React.cloneElement(item, { key: item.key ?? i }))}
     </select>
   )
 }
 
-export function SelectContent({
-  children,
-}: {
-  children: ReactNode
-  className?: string
-}) {
-  const { setItems } = useContext(ItemsContext)
-
-  // Collect option elements from children and push them into the shared
-  // items list so SelectTrigger can render them inside the <select>.
-  useEffect(() => {
-    const options: React.ReactElement[] = []
-    React.Children.forEach(children, (child) => {
-      if (React.isValidElement(child)) {
-        options.push(child)
-      }
-    })
-    setItems(options)
-    return () => setItems([])
-  }, [children, setItems])
-
-  // Don't render anything here – the options are rendered by SelectTrigger
+export function SelectContent(_props: { children: ReactNode; className?: string }) {
+  // The options are rendered by SelectTrigger inside the native <select>.
   return null
 }
 

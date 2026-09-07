@@ -1074,7 +1074,7 @@ describe('UserApiKeys Component', () => {
         expect(mockApiClient.getUserApiKeys).toHaveBeenCalledTimes(1)
       })
 
-      const removeButton = screen.getByText('Remove API Key')
+      const removeButton = await screen.findByText('Remove API Key')
       await user.click(removeButton)
 
       await waitFor(() => {
@@ -1140,11 +1140,13 @@ describe('UserApiKeys Component', () => {
 
       render(<UserApiKeys />)
 
+      // Wait for the card's SAVED state: both states render a "Test Connection"
+      // button (the unsaved one is disabled), so key on the remove button. A
+      // vacuous `if (card)` guard let this proceed too early under React 19.
       await waitFor(() => {
         const card = getProviderCard('OpenAI')
-        if (card) {
-          expect(within(card).getByText('Test Connection')).toBeInTheDocument()
-        }
+        expect(card).toBeTruthy()
+        expect(within(card!).getByText('Remove API Key')).toBeInTheDocument()
       })
 
       const card = getProviderCard('OpenAI')

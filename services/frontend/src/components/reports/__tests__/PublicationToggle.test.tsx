@@ -373,7 +373,9 @@ describe('PublicationToggle', () => {
           'http://localhost/reports/report-1'
         )
       })
-      expect(screen.getByText(T.copied)).toBeInTheDocument()
+      await waitFor(() => {
+        expect(screen.getByText(T.copied)).toBeInTheDocument()
+      })
     })
 
     it('switches back to organizations only', async () => {

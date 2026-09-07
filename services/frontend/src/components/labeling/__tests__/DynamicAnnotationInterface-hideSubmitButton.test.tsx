@@ -165,7 +165,7 @@ describe('DynamicAnnotationInterface hideSubmitButton Integration', () => {
       expect.objectContaining({
         hideSubmitButton: true,
       }),
-      expect.any(Object)
+      undefined
     )
   })
 
@@ -197,7 +197,7 @@ describe('DynamicAnnotationInterface hideSubmitButton Integration', () => {
       expect.objectContaining({
         hideSubmitButton: false,
       }),
-      expect.any(Object)
+      undefined
     )
   })
 

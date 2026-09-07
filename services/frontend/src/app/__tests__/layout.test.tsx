@@ -130,7 +130,7 @@ describe('RootLayout', () => {
         </RootLayout>
       )
 
-      const html = container.querySelector('html')
+      const html = document.documentElement
       expect(html).toBeInTheDocument()
       expect(html).toHaveAttribute('lang', 'de')
     })
@@ -142,7 +142,7 @@ describe('RootLayout', () => {
         </RootLayout>
       )
 
-      const html = container.querySelector('html')
+      const html = document.documentElement
       expect(html).toHaveClass('h-full')
     })
 
@@ -153,7 +153,7 @@ describe('RootLayout', () => {
         </RootLayout>
       )
 
-      const html = container.querySelector('html')
+      const html = document.documentElement
       // suppressHydrationWarning is a React prop that doesn't appear in DOM
       expect(html).toBeInTheDocument()
     })
@@ -165,7 +165,7 @@ describe('RootLayout', () => {
         </RootLayout>
       )
 
-      const body = container.querySelector('body')
+      const body = document.body
       expect(body).toBeInTheDocument()
       expect(body).toHaveClass(
         'flex',
@@ -184,7 +184,7 @@ describe('RootLayout', () => {
         </RootLayout>
       )
 
-      const body = container.querySelector('body')
+      const body = document.body
       // suppressHydrationWarning is a React prop that doesn't appear in DOM
       expect(body).toBeInTheDocument()
     })
@@ -336,7 +336,7 @@ describe('RootLayout', () => {
         </RootLayout>
       )
 
-      const body = container.querySelector('body')
+      const body = document.body
       expect(body).toHaveClass('dark:bg-zinc-900')
     })
 
@@ -347,7 +347,7 @@ describe('RootLayout', () => {
         </RootLayout>
       )
 
-      const html = container.querySelector('html')
+      const html = document.documentElement
       expect(html).toBeInTheDocument()
     })
   })
@@ -360,7 +360,7 @@ describe('RootLayout', () => {
         </RootLayout>
       )
 
-      const html = container.querySelector('html')
+      const html = document.documentElement
       expect(html).toHaveAttribute('lang', 'de')
     })
 
@@ -371,8 +371,8 @@ describe('RootLayout', () => {
         </RootLayout>
       )
 
-      expect(container.querySelector('html')).toBeInTheDocument()
-      expect(container.querySelector('body')).toBeInTheDocument()
+      expect(document.documentElement).toBeInTheDocument()
+      expect(document.body).toBeInTheDocument()
     })
 
     it('enables text anti-aliasing for better readability', () => {
@@ -382,7 +382,7 @@ describe('RootLayout', () => {
         </RootLayout>
       )
 
-      const body = container.querySelector('body')
+      const body = document.body
       expect(body).toHaveClass('antialiased')
     })
   })
@@ -395,10 +395,10 @@ describe('RootLayout', () => {
         </RootLayout>
       )
 
-      const html = container.querySelector('html')
+      const html = document.documentElement
       expect(html).toHaveClass('h-full')
 
-      const body = container.querySelector('body')
+      const body = document.body
       expect(body).toHaveClass('min-h-full')
     })
 
@@ -409,7 +409,7 @@ describe('RootLayout', () => {
         </RootLayout>
       )
 
-      const body = container.querySelector('body')
+      const body = document.body
       expect(body).toHaveClass('w-full')
     })
 
@@ -420,7 +420,7 @@ describe('RootLayout', () => {
         </RootLayout>
       )
 
-      const body = container.querySelector('body')
+      const body = document.body
       expect(body).toHaveClass('flex')
     })
   })
@@ -433,7 +433,7 @@ describe('RootLayout', () => {
         </RootLayout>
       )
 
-      const body = container.querySelector('body')
+      const body = document.body
       expect(body).toHaveClass('bg-white')
     })
 
@@ -444,7 +444,7 @@ describe('RootLayout', () => {
         </RootLayout>
       )
 
-      const body = container.querySelector('body')
+      const body = document.body
       expect(body).toHaveClass('dark:bg-zinc-900')
     })
 
@@ -455,7 +455,7 @@ describe('RootLayout', () => {
         </RootLayout>
       )
 
-      const body = container.querySelector('body')
+      const body = document.body
       expect(body).toHaveClass('antialiased')
     })
   })
@@ -517,7 +517,7 @@ describe('RootLayout', () => {
         </RootLayout>
       )
 
-      const body = container.querySelector('body')
+      const body = document.body
       const providers = container.querySelector('[data-testid="providers"]')
       const conditionalLayout = container.querySelector(
         '[data-testid="conditional-layout"]'

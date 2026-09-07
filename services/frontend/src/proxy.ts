@@ -2,7 +2,7 @@ import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
 import { BASE_DOMAINS, isStudentLockedHost } from '@/lib/utils/subdomain'
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const hostname =
     request.headers.get('x-forwarded-host') || request.headers.get('host') || ''
 

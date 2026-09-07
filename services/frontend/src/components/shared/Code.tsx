@@ -27,6 +27,17 @@ const languageNames: Record<string, string> = {
   go: 'Go',
 }
 
+/** Props a CodeGroup panel child may carry (React 19 types `ReactElement.props`
+ *  as `unknown`, so `isValidElement<PanelProps>` names them explicitly). */
+type PanelProps = {
+  tag?: string
+  label?: string
+  code?: string
+  title?: string
+  language?: string
+  children?: React.ReactNode
+}
+
 function getPanelTitle({
   title,
   language,
@@ -146,7 +157,7 @@ function CodePanel({
 }) {
   let child = Children.only(children)
 
-  if (isValidElement(child)) {
+  if (isValidElement<PanelProps>(child)) {
     tag = child.props.tag ?? tag
     label = child.props.label ?? label
     code = child.props.code ?? code
@@ -168,7 +179,7 @@ function CodePanel({
         if (typeof node === 'string') {
           return node
         }
-        if (isValidElement(node) && node.props.children) {
+        if (isValidElement<{ children?: React.ReactNode }>(node) && node.props.children) {
           return extractTextFromChildren(node.props.children)
         }
         if (Array.isArray(node)) {
@@ -230,7 +241,7 @@ function CodeGroupHeader({
                   : 'border-transparent text-zinc-400 hover:text-zinc-300'
               )}
             >
-              {getPanelTitle(isValidElement(child) ? child.props : {})}
+              {getPanelTitle(isValidElement<PanelProps>(child) ? child.props : {})}
             </Tab>
           ))}
         </TabList>
@@ -262,7 +273,7 @@ function CodeGroupPanels({
 
 function usePreventLayoutShift() {
   let positionRef = useRef<HTMLElement>(null)
-  let rafRef = useRef<number>()
+  let rafRef = useRef<number | undefined>(undefined)
 
   useEffect(() => {
     return () => {
@@ -343,7 +354,7 @@ export function CodeGroup({
 }: React.ComponentPropsWithoutRef<typeof CodeGroupPanels> & { title: string }) {
   let languages =
     Children.map(children, (child) =>
-      getPanelTitle(isValidElement(child) ? child.props : {})
+      getPanelTitle(isValidElement<PanelProps>(child) ? child.props : {})
     ) ?? []
   let tabGroupProps = useTabGroupProps(languages)
   let hasTabs = Children.count(children) > 1
