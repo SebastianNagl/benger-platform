@@ -39,21 +39,21 @@ jobs:
           - shard: api-rest
             glob: tests/ --ignore=tests/unit --ignore=tests/integration
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Free disk space
         run: |
           sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /usr/local/share/powershell /usr/local/share/chromium || true
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: '18'
+          node-version: '24'
           cache: 'npm'
           cache-dependency-path: services/frontend/package-lock.json
 
       - name: Install frontend dependencies
-        uses: nick-fields/retry@v3
+        uses: nick-fields/retry@v4
         with:
           timeout_minutes: 10
           max_attempts: 2
@@ -61,7 +61,7 @@ jobs:
           command: cd services/frontend && npm ci
 
       - name: Build test infrastructure
-        uses: nick-fields/retry@v3
+        uses: nick-fields/retry@v4
         with:
           timeout_minutes: 30
           max_attempts: 2
@@ -89,7 +89,7 @@ jobs:
           fi
 
       - name: Upload coverage data
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: apicov-${{ matrix.shard }}
           path: services/api/.coverage.${{ matrix.shard }}
@@ -107,10 +107,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: '3.13'
 
@@ -118,7 +118,7 @@ jobs:
         run: pip install coverage
 
       - name: Download per-shard coverage
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: services/api
           pattern: apicov-*
