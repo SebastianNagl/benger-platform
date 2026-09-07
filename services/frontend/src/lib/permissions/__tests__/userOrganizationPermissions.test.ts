@@ -84,19 +84,19 @@ describe('UserOrganizationPermissions', () => {
   describe('canManageGlobalUsers', () => {
     it('returns true for superadmin', () => {
       expect(
-        UserOrganizationPermissions.canManageGlobalUsers(mockSuperadmin)
+        UserOrganizationPermissions.canManageGlobalUsers(mockSuperadmin),
       ).toBe(true)
     })
 
     it('returns false for org admin', () => {
       expect(
-        UserOrganizationPermissions.canManageGlobalUsers(mockOrgAdmin)
+        UserOrganizationPermissions.canManageGlobalUsers(mockOrgAdmin),
       ).toBe(false)
     })
 
     it('returns false for contributor', () => {
       expect(
-        UserOrganizationPermissions.canManageGlobalUsers(mockContributor)
+        UserOrganizationPermissions.canManageGlobalUsers(mockContributor),
       ).toBe(false)
     })
 
@@ -110,26 +110,32 @@ describe('UserOrganizationPermissions', () => {
       expect(
         UserOrganizationPermissions.canManageOrganization(
           mockSuperadmin,
-          'org-1'
-        )
+          'org-1',
+        ),
       ).toBe(true)
       expect(
         UserOrganizationPermissions.canManageOrganization(
           mockSuperadmin,
-          'org-999'
-        )
+          'org-999',
+        ),
       ).toBe(true)
     })
 
     it('returns true for org admin on their organization', () => {
       expect(
-        UserOrganizationPermissions.canManageOrganization(mockOrgAdmin, 'org-1')
+        UserOrganizationPermissions.canManageOrganization(
+          mockOrgAdmin,
+          'org-1',
+        ),
       ).toBe(true)
     })
 
     it('returns false for org admin on different organization', () => {
       expect(
-        UserOrganizationPermissions.canManageOrganization(mockOrgAdmin, 'org-3')
+        UserOrganizationPermissions.canManageOrganization(
+          mockOrgAdmin,
+          'org-3',
+        ),
       ).toBe(false)
     })
 
@@ -137,8 +143,8 @@ describe('UserOrganizationPermissions', () => {
       expect(
         UserOrganizationPermissions.canManageOrganization(
           mockContributor,
-          'org-1'
-        )
+          'org-1',
+        ),
       ).toBe(false)
     })
 
@@ -146,14 +152,14 @@ describe('UserOrganizationPermissions', () => {
       expect(
         UserOrganizationPermissions.canManageOrganization(
           mockAnnotator,
-          'org-1'
-        )
+          'org-1',
+        ),
       ).toBe(false)
     })
 
     it('returns false for null user', () => {
       expect(
-        UserOrganizationPermissions.canManageOrganization(null, 'org-1')
+        UserOrganizationPermissions.canManageOrganization(null, 'org-1'),
       ).toBe(false)
     })
 
@@ -161,8 +167,8 @@ describe('UserOrganizationPermissions', () => {
       expect(
         UserOrganizationPermissions.canManageOrganization(
           mockOrgAdmin,
-          'org-not-member'
-        )
+          'org-not-member',
+        ),
       ).toBe(false)
     })
   })
@@ -172,8 +178,8 @@ describe('UserOrganizationPermissions', () => {
       expect(
         UserOrganizationPermissions.canInviteToOrganization(
           mockSuperadmin,
-          'org-1'
-        )
+          'org-1',
+        ),
       ).toBe(true)
     })
 
@@ -181,8 +187,8 @@ describe('UserOrganizationPermissions', () => {
       expect(
         UserOrganizationPermissions.canInviteToOrganization(
           mockOrgAdmin,
-          'org-1'
-        )
+          'org-1',
+        ),
       ).toBe(true)
     })
 
@@ -190,8 +196,8 @@ describe('UserOrganizationPermissions', () => {
       expect(
         UserOrganizationPermissions.canInviteToOrganization(
           mockContributor,
-          'org-1'
-        )
+          'org-1',
+        ),
       ).toBe(false)
     })
 
@@ -199,8 +205,8 @@ describe('UserOrganizationPermissions', () => {
       expect(
         UserOrganizationPermissions.canInviteToOrganization(
           mockGroupAdmin,
-          'org-1'
-        )
+          'org-1',
+        ),
       ).toBe(true)
     })
 
@@ -208,14 +214,14 @@ describe('UserOrganizationPermissions', () => {
       expect(
         UserOrganizationPermissions.canInviteToOrganization(
           mockGroupAdmin,
-          'org-2'
-        )
+          'org-2',
+        ),
       ).toBe(false)
     })
 
     it('returns false for null user', () => {
       expect(
-        UserOrganizationPermissions.canInviteToOrganization(null, 'org-1')
+        UserOrganizationPermissions.canInviteToOrganization(null, 'org-1'),
       ).toBe(false)
     })
   })
@@ -226,8 +232,8 @@ describe('UserOrganizationPermissions', () => {
         UserOrganizationPermissions.canManageGroup(
           mockSuperadmin,
           'org-1',
-          'grp-999'
-        )
+          'grp-999',
+        ),
       ).toBe(true)
     })
 
@@ -236,8 +242,8 @@ describe('UserOrganizationPermissions', () => {
         UserOrganizationPermissions.canManageGroup(
           mockOrgAdmin,
           'org-1',
-          'grp-999'
-        )
+          'grp-999',
+        ),
       ).toBe(true)
     })
 
@@ -246,8 +252,8 @@ describe('UserOrganizationPermissions', () => {
         UserOrganizationPermissions.canManageGroup(
           mockOrgAdmin,
           'org-3',
-          'grp-1'
-        )
+          'grp-1',
+        ),
       ).toBe(false)
     })
 
@@ -256,8 +262,8 @@ describe('UserOrganizationPermissions', () => {
         UserOrganizationPermissions.canManageGroup(
           mockGroupAdmin,
           'org-1',
-          'grp-1'
-        )
+          'grp-1',
+        ),
       ).toBe(true)
     })
 
@@ -266,8 +272,8 @@ describe('UserOrganizationPermissions', () => {
         UserOrganizationPermissions.canManageGroup(
           mockGroupAdmin,
           'org-1',
-          'grp-2'
-        )
+          'grp-2',
+        ),
       ).toBe(false)
     })
 
@@ -276,14 +282,14 @@ describe('UserOrganizationPermissions', () => {
         UserOrganizationPermissions.canManageGroup(
           mockContributor,
           'org-1',
-          'grp-1'
-        )
+          'grp-1',
+        ),
       ).toBe(false)
     })
 
     it('returns false for null user', () => {
       expect(
-        UserOrganizationPermissions.canManageGroup(null, 'org-1', 'grp-1')
+        UserOrganizationPermissions.canManageGroup(null, 'org-1', 'grp-1'),
       ).toBe(false)
     })
   })
@@ -291,31 +297,31 @@ describe('UserOrganizationPermissions', () => {
   describe('canManageAnyGroup', () => {
     it('returns true for superadmin', () => {
       expect(
-        UserOrganizationPermissions.canManageAnyGroup(mockSuperadmin, 'org-1')
+        UserOrganizationPermissions.canManageAnyGroup(mockSuperadmin, 'org-1'),
       ).toBe(true)
     })
 
     it('returns true for org admin of the org', () => {
       expect(
-        UserOrganizationPermissions.canManageAnyGroup(mockOrgAdmin, 'org-1')
+        UserOrganizationPermissions.canManageAnyGroup(mockOrgAdmin, 'org-1'),
       ).toBe(true)
     })
 
     it('returns true for a group admin of one group', () => {
       expect(
-        UserOrganizationPermissions.canManageAnyGroup(mockGroupAdmin, 'org-1')
+        UserOrganizationPermissions.canManageAnyGroup(mockGroupAdmin, 'org-1'),
       ).toBe(true)
     })
 
     it('returns false for the same group admin in another org', () => {
       expect(
-        UserOrganizationPermissions.canManageAnyGroup(mockGroupAdmin, 'org-2')
+        UserOrganizationPermissions.canManageAnyGroup(mockGroupAdmin, 'org-2'),
       ).toBe(false)
     })
 
     it('returns false for a contributor without group-admin flags', () => {
       expect(
-        UserOrganizationPermissions.canManageAnyGroup(mockContributor, 'org-1')
+        UserOrganizationPermissions.canManageAnyGroup(mockContributor, 'org-1'),
       ).toBe(false)
     })
 
@@ -338,14 +344,14 @@ describe('UserOrganizationPermissions', () => {
         ],
       }
       expect(
-        UserOrganizationPermissions.canManageAnyGroup(memberOnly, 'org-1')
+        UserOrganizationPermissions.canManageAnyGroup(memberOnly, 'org-1'),
       ).toBe(false)
     })
 
     it('returns false for null user', () => {
-      expect(
-        UserOrganizationPermissions.canManageAnyGroup(null, 'org-1')
-      ).toBe(false)
+      expect(UserOrganizationPermissions.canManageAnyGroup(null, 'org-1')).toBe(
+        false,
+      )
     })
   })
 
@@ -356,8 +362,8 @@ describe('UserOrganizationPermissions', () => {
           mockSuperadmin,
           'user-2',
           'org-1',
-          'ORG_ADMIN'
-        )
+          'ORG_ADMIN',
+        ),
       ).toBe(true)
     })
 
@@ -367,8 +373,8 @@ describe('UserOrganizationPermissions', () => {
           mockOrgAdmin,
           'user-1',
           'org-1',
-          'CONTRIBUTOR'
-        )
+          'CONTRIBUTOR',
+        ),
       ).toBe(false)
     })
 
@@ -378,8 +384,8 @@ describe('UserOrganizationPermissions', () => {
           mockOrgAdmin,
           'user-2',
           'org-1',
-          'CONTRIBUTOR'
-        )
+          'CONTRIBUTOR',
+        ),
       ).toBe(true)
     })
 
@@ -389,8 +395,8 @@ describe('UserOrganizationPermissions', () => {
           mockOrgAdmin,
           'user-3',
           'org-1',
-          'ANNOTATOR'
-        )
+          'ANNOTATOR',
+        ),
       ).toBe(true)
     })
 
@@ -400,8 +406,8 @@ describe('UserOrganizationPermissions', () => {
           mockOrgAdmin,
           'user-5',
           'org-1',
-          'ORG_ADMIN'
-        )
+          'ORG_ADMIN',
+        ),
       ).toBe(false)
     })
 
@@ -411,8 +417,8 @@ describe('UserOrganizationPermissions', () => {
           mockOrgAdmin,
           'user-2',
           'org-2',
-          'CONTRIBUTOR'
-        )
+          'CONTRIBUTOR',
+        ),
       ).toBe(false)
     })
 
@@ -422,8 +428,8 @@ describe('UserOrganizationPermissions', () => {
           mockContributor,
           'user-2',
           'org-1',
-          'ANNOTATOR'
-        )
+          'ANNOTATOR',
+        ),
       ).toBe(false)
     })
 
@@ -433,8 +439,8 @@ describe('UserOrganizationPermissions', () => {
           null,
           'user-2',
           'org-1',
-          'CONTRIBUTOR'
-        )
+          'CONTRIBUTOR',
+        ),
       ).toBe(false)
     })
 
@@ -443,8 +449,8 @@ describe('UserOrganizationPermissions', () => {
         UserOrganizationPermissions.canChangeUserRole(
           mockOrgAdmin,
           'user-2',
-          'org-1'
-        )
+          'org-1',
+        ),
       ).toBe(true)
     })
   })
@@ -456,8 +462,8 @@ describe('UserOrganizationPermissions', () => {
           mockSuperadmin,
           'user-2',
           'org-1',
-          'ORG_ADMIN'
-        )
+          'ORG_ADMIN',
+        ),
       ).toBe(true)
     })
 
@@ -467,8 +473,8 @@ describe('UserOrganizationPermissions', () => {
           mockOrgAdmin,
           'user-1',
           'org-1',
-          'ORG_ADMIN'
-        )
+          'ORG_ADMIN',
+        ),
       ).toBe(false)
     })
 
@@ -478,8 +484,8 @@ describe('UserOrganizationPermissions', () => {
           mockOrgAdmin,
           'user-2',
           'org-1',
-          'CONTRIBUTOR'
-        )
+          'CONTRIBUTOR',
+        ),
       ).toBe(true)
     })
 
@@ -489,8 +495,8 @@ describe('UserOrganizationPermissions', () => {
           mockOrgAdmin,
           'user-3',
           'org-1',
-          'ANNOTATOR'
-        )
+          'ANNOTATOR',
+        ),
       ).toBe(true)
     })
 
@@ -500,8 +506,8 @@ describe('UserOrganizationPermissions', () => {
           mockOrgAdmin,
           'user-5',
           'org-1',
-          'ORG_ADMIN'
-        )
+          'ORG_ADMIN',
+        ),
       ).toBe(false)
     })
 
@@ -511,8 +517,8 @@ describe('UserOrganizationPermissions', () => {
           mockOrgAdmin,
           'user-2',
           'org-2',
-          'CONTRIBUTOR'
-        )
+          'CONTRIBUTOR',
+        ),
       ).toBe(false)
     })
 
@@ -522,8 +528,8 @@ describe('UserOrganizationPermissions', () => {
           mockContributor,
           'user-2',
           'org-1',
-          'ANNOTATOR'
-        )
+          'ANNOTATOR',
+        ),
       ).toBe(false)
     })
 
@@ -533,8 +539,8 @@ describe('UserOrganizationPermissions', () => {
           null,
           'user-2',
           'org-1',
-          'CONTRIBUTOR'
-        )
+          'CONTRIBUTOR',
+        ),
       ).toBe(false)
     })
 
@@ -543,8 +549,8 @@ describe('UserOrganizationPermissions', () => {
         UserOrganizationPermissions.canRemoveMember(
           mockOrgAdmin,
           'user-2',
-          'org-1'
-        )
+          'org-1',
+        ),
       ).toBe(true)
     })
   })
@@ -552,25 +558,25 @@ describe('UserOrganizationPermissions', () => {
   describe('canDeleteOrganization', () => {
     it('returns true for superadmin', () => {
       expect(
-        UserOrganizationPermissions.canDeleteOrganization(mockSuperadmin)
+        UserOrganizationPermissions.canDeleteOrganization(mockSuperadmin),
       ).toBe(true)
     })
 
     it('returns false for org admin', () => {
       expect(
-        UserOrganizationPermissions.canDeleteOrganization(mockOrgAdmin)
+        UserOrganizationPermissions.canDeleteOrganization(mockOrgAdmin),
       ).toBe(false)
     })
 
     it('returns false for contributor', () => {
       expect(
-        UserOrganizationPermissions.canDeleteOrganization(mockContributor)
+        UserOrganizationPermissions.canDeleteOrganization(mockContributor),
       ).toBe(false)
     })
 
     it('returns false for null user', () => {
       expect(UserOrganizationPermissions.canDeleteOrganization(null)).toBe(
-        false
+        false,
       )
     })
   })
@@ -578,25 +584,25 @@ describe('UserOrganizationPermissions', () => {
   describe('canCreateOrganization', () => {
     it('returns true for superadmin', () => {
       expect(
-        UserOrganizationPermissions.canCreateOrganization(mockSuperadmin)
+        UserOrganizationPermissions.canCreateOrganization(mockSuperadmin),
       ).toBe(true)
     })
 
     it('returns false for org admin', () => {
       expect(
-        UserOrganizationPermissions.canCreateOrganization(mockOrgAdmin)
+        UserOrganizationPermissions.canCreateOrganization(mockOrgAdmin),
       ).toBe(false)
     })
 
     it('returns false for contributor', () => {
       expect(
-        UserOrganizationPermissions.canCreateOrganization(mockContributor)
+        UserOrganizationPermissions.canCreateOrganization(mockContributor),
       ).toBe(false)
     })
 
     it('returns false for null user', () => {
       expect(UserOrganizationPermissions.canCreateOrganization(null)).toBe(
-        false
+        false,
       )
     })
   })
@@ -604,19 +610,22 @@ describe('UserOrganizationPermissions', () => {
   describe('canEditOrganization', () => {
     it('returns true for superadmin', () => {
       expect(
-        UserOrganizationPermissions.canEditOrganization(mockSuperadmin, 'org-1')
+        UserOrganizationPermissions.canEditOrganization(
+          mockSuperadmin,
+          'org-1',
+        ),
       ).toBe(true)
     })
 
     it('returns true for org admin on their organization', () => {
       expect(
-        UserOrganizationPermissions.canEditOrganization(mockOrgAdmin, 'org-1')
+        UserOrganizationPermissions.canEditOrganization(mockOrgAdmin, 'org-1'),
       ).toBe(true)
     })
 
     it('returns false for org admin on different organization', () => {
       expect(
-        UserOrganizationPermissions.canEditOrganization(mockOrgAdmin, 'org-3')
+        UserOrganizationPermissions.canEditOrganization(mockOrgAdmin, 'org-3'),
       ).toBe(false)
     })
 
@@ -624,14 +633,14 @@ describe('UserOrganizationPermissions', () => {
       expect(
         UserOrganizationPermissions.canEditOrganization(
           mockContributor,
-          'org-1'
-        )
+          'org-1',
+        ),
       ).toBe(false)
     })
 
     it('returns false for null user', () => {
       expect(
-        UserOrganizationPermissions.canEditOrganization(null, 'org-1')
+        UserOrganizationPermissions.canEditOrganization(null, 'org-1'),
       ).toBe(false)
     })
   })
@@ -641,14 +650,14 @@ describe('UserOrganizationPermissions', () => {
       expect(
         UserOrganizationPermissions.canViewOrganizationMembers(
           mockSuperadmin,
-          'org-1'
-        )
+          'org-1',
+        ),
       ).toBe(true)
       expect(
         UserOrganizationPermissions.canViewOrganizationMembers(
           mockSuperadmin,
-          'org-999'
-        )
+          'org-999',
+        ),
       ).toBe(true)
     })
 
@@ -656,8 +665,8 @@ describe('UserOrganizationPermissions', () => {
       expect(
         UserOrganizationPermissions.canViewOrganizationMembers(
           mockOrgAdmin,
-          'org-1'
-        )
+          'org-1',
+        ),
       ).toBe(true)
     })
 
@@ -665,8 +674,8 @@ describe('UserOrganizationPermissions', () => {
       expect(
         UserOrganizationPermissions.canViewOrganizationMembers(
           mockContributor,
-          'org-1'
-        )
+          'org-1',
+        ),
       ).toBe(true)
     })
 
@@ -674,8 +683,8 @@ describe('UserOrganizationPermissions', () => {
       expect(
         UserOrganizationPermissions.canViewOrganizationMembers(
           mockAnnotator,
-          'org-1'
-        )
+          'org-1',
+        ),
       ).toBe(false)
     })
 
@@ -683,14 +692,14 @@ describe('UserOrganizationPermissions', () => {
       expect(
         UserOrganizationPermissions.canViewOrganizationMembers(
           mockOrgAdmin,
-          'org-3'
-        )
+          'org-3',
+        ),
       ).toBe(false)
     })
 
     it('returns false for null user', () => {
       expect(
-        UserOrganizationPermissions.canViewOrganizationMembers(null, 'org-1')
+        UserOrganizationPermissions.canViewOrganizationMembers(null, 'org-1'),
       ).toBe(false)
     })
 
@@ -698,8 +707,8 @@ describe('UserOrganizationPermissions', () => {
       expect(
         UserOrganizationPermissions.canViewOrganizationMembers(
           mockUserNoOrgs,
-          'org-1'
-        )
+          'org-1',
+        ),
       ).toBe(false)
     })
 
@@ -708,8 +717,8 @@ describe('UserOrganizationPermissions', () => {
       expect(
         UserOrganizationPermissions.canViewOrganizationMembers(
           userUndefinedOrgs,
-          'org-1'
-        )
+          'org-1',
+        ),
       ).toBe(false)
     })
   })
@@ -717,44 +726,44 @@ describe('UserOrganizationPermissions', () => {
   describe('canAccessAdminInterface', () => {
     it('returns true for superadmin', () => {
       expect(
-        UserOrganizationPermissions.canAccessAdminInterface(mockSuperadmin)
+        UserOrganizationPermissions.canAccessAdminInterface(mockSuperadmin),
       ).toBe(true)
     })
 
     it('returns true for org admin', () => {
       expect(
-        UserOrganizationPermissions.canAccessAdminInterface(mockOrgAdmin)
+        UserOrganizationPermissions.canAccessAdminInterface(mockOrgAdmin),
       ).toBe(true)
     })
 
     it('returns true for contributor', () => {
       expect(
-        UserOrganizationPermissions.canAccessAdminInterface(mockContributor)
+        UserOrganizationPermissions.canAccessAdminInterface(mockContributor),
       ).toBe(true)
     })
 
     it('returns true for annotator', () => {
       expect(
-        UserOrganizationPermissions.canAccessAdminInterface(mockAnnotator)
+        UserOrganizationPermissions.canAccessAdminInterface(mockAnnotator),
       ).toBe(true)
     })
 
     it('returns true for user with no organizations', () => {
       expect(
-        UserOrganizationPermissions.canAccessAdminInterface(mockUserNoOrgs)
+        UserOrganizationPermissions.canAccessAdminInterface(mockUserNoOrgs),
       ).toBe(true)
     })
 
     it('returns false for null user', () => {
       expect(UserOrganizationPermissions.canAccessAdminInterface(null)).toBe(
-        false
+        false,
       )
     })
 
     it('returns true for user with undefined organizations', () => {
       const userUndefinedOrgs = { ...mockUserNoOrgs, organizations: undefined }
       expect(
-        UserOrganizationPermissions.canAccessAdminInterface(userUndefinedOrgs)
+        UserOrganizationPermissions.canAccessAdminInterface(userUndefinedOrgs),
       ).toBe(true)
     })
   })
@@ -762,7 +771,7 @@ describe('UserOrganizationPermissions', () => {
   describe('getManageableOrganizations', () => {
     it('returns null for superadmin (can manage all)', () => {
       expect(
-        UserOrganizationPermissions.getManageableOrganizations(mockSuperadmin)
+        UserOrganizationPermissions.getManageableOrganizations(mockSuperadmin),
       ).toBeNull()
     })
 
@@ -774,25 +783,25 @@ describe('UserOrganizationPermissions', () => {
 
     it('returns empty array for contributor', () => {
       expect(
-        UserOrganizationPermissions.getManageableOrganizations(mockContributor)
+        UserOrganizationPermissions.getManageableOrganizations(mockContributor),
       ).toEqual([])
     })
 
     it('returns empty array for annotator', () => {
       expect(
-        UserOrganizationPermissions.getManageableOrganizations(mockAnnotator)
+        UserOrganizationPermissions.getManageableOrganizations(mockAnnotator),
       ).toEqual([])
     })
 
     it('returns empty array for user with no organizations', () => {
       expect(
-        UserOrganizationPermissions.getManageableOrganizations(mockUserNoOrgs)
+        UserOrganizationPermissions.getManageableOrganizations(mockUserNoOrgs),
       ).toEqual([])
     })
 
     it('returns empty array for null user', () => {
       expect(
-        UserOrganizationPermissions.getManageableOrganizations(null)
+        UserOrganizationPermissions.getManageableOrganizations(null),
       ).toEqual([])
     })
 
@@ -800,8 +809,8 @@ describe('UserOrganizationPermissions', () => {
       const userUndefinedOrgs = { ...mockUserNoOrgs, organizations: undefined }
       expect(
         UserOrganizationPermissions.getManageableOrganizations(
-          userUndefinedOrgs
-        )
+          userUndefinedOrgs,
+        ),
       ).toEqual([])
     })
 
@@ -823,25 +832,25 @@ describe('UserOrganizationPermissions', () => {
   describe('canPerformBulkOperations', () => {
     it('returns true for superadmin', () => {
       expect(
-        UserOrganizationPermissions.canPerformBulkOperations(mockSuperadmin)
+        UserOrganizationPermissions.canPerformBulkOperations(mockSuperadmin),
       ).toBe(true)
     })
 
     it('returns false for org admin', () => {
       expect(
-        UserOrganizationPermissions.canPerformBulkOperations(mockOrgAdmin)
+        UserOrganizationPermissions.canPerformBulkOperations(mockOrgAdmin),
       ).toBe(false)
     })
 
     it('returns false for contributor', () => {
       expect(
-        UserOrganizationPermissions.canPerformBulkOperations(mockContributor)
+        UserOrganizationPermissions.canPerformBulkOperations(mockContributor),
       ).toBe(false)
     })
 
     it('returns false for null user', () => {
       expect(UserOrganizationPermissions.canPerformBulkOperations(null)).toBe(
-        false
+        false,
       )
     })
   })
@@ -849,19 +858,19 @@ describe('UserOrganizationPermissions', () => {
   describe('canVerifyEmails', () => {
     it('returns true for superadmin', () => {
       expect(UserOrganizationPermissions.canVerifyEmails(mockSuperadmin)).toBe(
-        true
+        true,
       )
     })
 
     it('returns false for org admin', () => {
       expect(UserOrganizationPermissions.canVerifyEmails(mockOrgAdmin)).toBe(
-        false
+        false,
       )
     })
 
     it('returns false for contributor', () => {
       expect(UserOrganizationPermissions.canVerifyEmails(mockContributor)).toBe(
-        false
+        false,
       )
     })
 
@@ -873,19 +882,19 @@ describe('UserOrganizationPermissions', () => {
   describe('canDeleteUsers', () => {
     it('returns true for superadmin', () => {
       expect(UserOrganizationPermissions.canDeleteUsers(mockSuperadmin)).toBe(
-        true
+        true,
       )
     })
 
     it('returns false for org admin', () => {
       expect(UserOrganizationPermissions.canDeleteUsers(mockOrgAdmin)).toBe(
-        false
+        false,
       )
     })
 
     it('returns false for contributor', () => {
       expect(UserOrganizationPermissions.canDeleteUsers(mockContributor)).toBe(
-        false
+        false,
       )
     })
 

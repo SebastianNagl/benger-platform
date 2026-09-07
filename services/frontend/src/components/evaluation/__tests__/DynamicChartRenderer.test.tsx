@@ -2,16 +2,21 @@
  * @jest-environment jsdom
  */
 import '@testing-library/jest-dom'
-import { render, screen, act } from '@testing-library/react'
-import { DynamicChartRenderer, getSmartChartDefault } from '../DynamicChartRenderer'
+import { act, render, screen } from '@testing-library/react'
+import {
+  DynamicChartRenderer,
+  getSmartChartDefault,
+} from '../DynamicChartRenderer'
 
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
     t: (key: string, params?: Record<string, any>) => {
       const translations: Record<string, string> = {
         'evaluation.charts.noData': 'No data available',
-        'evaluation.charts.noDistributionData': 'No distribution data available',
-        'evaluation.charts.heatmapRequiresMultipleModels': 'Heatmap requires multiple models',
+        'evaluation.charts.noDistributionData':
+          'No distribution data available',
+        'evaluation.charts.heatmapRequiresMultipleModels':
+          'Heatmap requires multiple models',
         'evaluation.charts.unknownChartType': `Unknown chart type: ${params?.type}`,
         'evaluation.charts.model': 'Model',
       }
@@ -35,7 +40,9 @@ jest.mock('../ModelComparisonChart', () => ({
 jest.mock('../EvaluationResultsTable', () => ({
   EvaluationResultsTable: ({ results }: any) => (
     <div data-testid="results-table">
-      {results?.map((r: any) => <div key={r.modelId}>{r.modelName}</div>)}
+      {results?.map((r: any) => (
+        <div key={r.modelId}>{r.modelName}</div>
+      ))}
     </div>
   ),
 }))
@@ -65,8 +72,16 @@ jest.mock('../charts/SignificanceHeatmap', () => ({
 }))
 
 const defaultModels = [
-  { model_id: 'gpt-4', model_name: 'GPT-4', metrics: { rouge: 0.85, bleu: 0.72 } },
-  { model_id: 'claude-3', model_name: 'Claude 3', metrics: { rouge: 0.88, bleu: 0.75 } },
+  {
+    model_id: 'gpt-4',
+    model_name: 'GPT-4',
+    metrics: { rouge: 0.85, bleu: 0.72 },
+  },
+  {
+    model_id: 'claude-3',
+    model_name: 'Claude 3',
+    metrics: { rouge: 0.88, bleu: 0.75 },
+  },
 ]
 
 const defaultMetrics = ['rouge', 'bleu']
@@ -80,7 +95,7 @@ describe('DynamicChartRenderer', () => {
           models={defaultModels}
           metrics={defaultMetrics}
           isLoading={true}
-        />
+        />,
       )
       expect(screen.getByTestId('loading-spinner')).toBeInTheDocument()
     })
@@ -93,7 +108,7 @@ describe('DynamicChartRenderer', () => {
           chartType="bar"
           models={[]}
           metrics={defaultMetrics}
-        />
+        />,
       )
       expect(screen.getByText('No data available')).toBeInTheDocument()
     })
@@ -104,7 +119,7 @@ describe('DynamicChartRenderer', () => {
           chartType="bar"
           models={defaultModels}
           metrics={[]}
-        />
+        />,
       )
       expect(screen.getByText('No data available')).toBeInTheDocument()
     })
@@ -116,7 +131,7 @@ describe('DynamicChartRenderer', () => {
           models={[]}
           metrics={[]}
           emptyMessage="Custom empty"
-        />
+        />,
       )
       expect(screen.getByText('Custom empty')).toBeInTheDocument()
     })
@@ -129,7 +144,7 @@ describe('DynamicChartRenderer', () => {
           chartType="bar"
           models={defaultModels}
           metrics={defaultMetrics}
-        />
+        />,
       )
       expect(screen.getByTestId('model-chart-bar')).toBeInTheDocument()
     })
@@ -140,7 +155,7 @@ describe('DynamicChartRenderer', () => {
           chartType="radar"
           models={defaultModels}
           metrics={defaultMetrics}
-        />
+        />,
       )
       expect(screen.getByTestId('model-chart-radar')).toBeInTheDocument()
     })
@@ -151,7 +166,7 @@ describe('DynamicChartRenderer', () => {
           chartType="table"
           models={defaultModels}
           metrics={defaultMetrics}
-        />
+        />,
       )
       expect(screen.getByTestId('results-table')).toBeInTheDocument()
       expect(screen.getByText('GPT-4')).toBeInTheDocument()
@@ -159,14 +174,19 @@ describe('DynamicChartRenderer', () => {
 
     it('renders box plot when scores are available', () => {
       const modelsWithScores = [
-        { model_id: 'gpt-4', model_name: 'GPT-4', metrics: { rouge: 0.85 }, scores: [0.8, 0.85, 0.9] },
+        {
+          model_id: 'gpt-4',
+          model_name: 'GPT-4',
+          metrics: { rouge: 0.85 },
+          scores: [0.8, 0.85, 0.9],
+        },
       ]
       render(
         <DynamicChartRenderer
           chartType="box"
           models={modelsWithScores}
           metrics={['rouge']}
-        />
+        />,
       )
       expect(screen.getByTestId('box-plot-chart')).toBeInTheDocument()
     })
@@ -177,9 +197,11 @@ describe('DynamicChartRenderer', () => {
           chartType="box"
           models={defaultModels}
           metrics={defaultMetrics}
-        />
+        />,
       )
-      expect(screen.getByText('No distribution data available')).toBeInTheDocument()
+      expect(
+        screen.getByText('No distribution data available'),
+      ).toBeInTheDocument()
     })
 
     it('shows heatmap requires multiple models message for single model', () => {
@@ -188,9 +210,11 @@ describe('DynamicChartRenderer', () => {
           chartType="heatmap"
           models={[defaultModels[0]]}
           metrics={defaultMetrics}
-        />
+        />,
       )
-      expect(screen.getByText('Heatmap requires multiple models')).toBeInTheDocument()
+      expect(
+        screen.getByText('Heatmap requires multiple models'),
+      ).toBeInTheDocument()
     })
 
     it('renders significance heatmap when significance data is provided', () => {
@@ -200,9 +224,16 @@ describe('DynamicChartRenderer', () => {
           models={defaultModels}
           metrics={defaultMetrics}
           significanceData={[
-            { model_a: 'gpt-4', model_b: 'claude-3', p_value: 0.01, significant: true, effect_size: 0.5, stars: '**' },
+            {
+              model_a: 'gpt-4',
+              model_b: 'claude-3',
+              p_value: 0.01,
+              significant: true,
+              effect_size: 0.5,
+              stars: '**',
+            },
           ]}
-        />
+        />,
       )
       expect(screen.getByTestId('significance-heatmap')).toBeInTheDocument()
     })
@@ -213,7 +244,7 @@ describe('DynamicChartRenderer', () => {
           chartType="heatmap"
           models={defaultModels}
           metrics={defaultMetrics}
-        />
+        />,
       )
       // Should render ScoreHeatmap (the table-based heatmap)
       expect(screen.getByText('GPT-4')).toBeInTheDocument()
@@ -226,7 +257,7 @@ describe('DynamicChartRenderer', () => {
           chartType={'unknown_chart' as any}
           models={defaultModels}
           metrics={defaultMetrics}
-        />
+        />,
       )
       expect(screen.getByText(/Unknown chart type/)).toBeInTheDocument()
     })
@@ -240,7 +271,7 @@ describe('DynamicChartRenderer', () => {
           chartType="bar"
           models={defaultModels}
           metrics={defaultMetrics}
-        />
+        />,
       )
 
       // Change chart type
@@ -249,7 +280,7 @@ describe('DynamicChartRenderer', () => {
           chartType="radar"
           models={defaultModels}
           metrics={defaultMetrics}
-        />
+        />,
       )
 
       // During transition, opacity should be 0
@@ -274,7 +305,7 @@ describe('DynamicChartRenderer', () => {
           chartType="heatmap"
           models={defaultModels}
           metrics={defaultMetrics}
-        />
+        />,
       )
       // High score (0.85) should use green with default scheme
       expect(container.querySelector('.bg-green-500')).toBeInTheDocument()
@@ -287,7 +318,7 @@ describe('DynamicChartRenderer', () => {
           models={defaultModels}
           metrics={defaultMetrics}
           colorScheme="accessible"
-        />
+        />,
       )
       // High score (0.85) should use blue with accessible scheme
       expect(container.querySelector('.bg-blue-500')).toBeInTheDocument()
@@ -303,7 +334,7 @@ describe('DynamicChartRenderer', () => {
           chartType="heatmap"
           models={models}
           metrics={['rouge']}
-        />
+        />,
       )
       expect(screen.getByText('—')).toBeInTheDocument()
     })
@@ -321,7 +352,9 @@ describe('getSmartChartDefault', () => {
       { model_id: 'a', metrics: { rouge: 0.8, bleu: 0.7, bertscore: 0.9 } },
       { model_id: 'b', metrics: { rouge: 0.7, bleu: 0.8, bertscore: 0.85 } },
     ]
-    expect(getSmartChartDefault(models, ['rouge', 'bleu', 'bertscore'], false)).toBe('radar')
+    expect(
+      getSmartChartDefault(models, ['rouge', 'bleu', 'bertscore'], false),
+    ).toBe('radar')
   })
 
   it('returns heatmap for many models with significance data', () => {

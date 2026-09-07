@@ -319,7 +319,9 @@ describe('Select Component', () => {
       render(<DefaultSelect value="option1" />)
 
       const trigger = screen.getByRole('button')
-      expect(within(trigger).queryByText('Select an option')).not.toBeInTheDocument()
+      expect(
+        within(trigger).queryByText('Select an option'),
+      ).not.toBeInTheDocument()
     })
 
     it('handles missing placeholder gracefully', () => {
@@ -331,7 +333,7 @@ describe('Select Component', () => {
           <SelectContent>
             <SelectItem value="test">Test</SelectItem>
           </SelectContent>
-        </Select>
+        </Select>,
       )
 
       const button = screen.getByRole('button')
@@ -347,7 +349,7 @@ describe('Select Component', () => {
           <SelectContent>
             <SelectItem value="test">Test</SelectItem>
           </SelectContent>
-        </Select>
+        </Select>,
       )
 
       expect(screen.getByText('Choose wisely...')).toBeInTheDocument()
@@ -363,7 +365,7 @@ describe('Select Component', () => {
         'relative',
         'w-full',
         'rounded-full',
-        'bg-white'
+        'bg-white',
       )
     })
 
@@ -376,7 +378,7 @@ describe('Select Component', () => {
           <SelectContent>
             <SelectItem value="test">Test</SelectItem>
           </SelectContent>
-        </Select>
+        </Select>,
       )
 
       const button = screen.getByRole('button')
@@ -393,7 +395,7 @@ describe('Select Component', () => {
           <SelectContent className="custom-content-class">
             <SelectItem value="test">Test</SelectItem>
           </SelectContent>
-        </Select>
+        </Select>,
       )
 
       const button = screen.getByRole('button')
@@ -415,7 +417,7 @@ describe('Select Component', () => {
               Test
             </SelectItem>
           </SelectContent>
-        </Select>
+        </Select>,
       )
 
       const button = screen.getByRole('button')
@@ -432,7 +434,7 @@ describe('Select Component', () => {
       expect(button).toHaveClass(
         'focus:outline-none',
         'focus:ring-2',
-        'focus:ring-emerald-500'
+        'focus:ring-emerald-500',
       )
     })
 
@@ -536,7 +538,7 @@ describe('Select Component', () => {
         render(
           <SelectTrigger>
             <span>Trigger</span>
-          </SelectTrigger>
+          </SelectTrigger>,
         )
       }).toThrow('SelectTrigger must be used within Select')
 
@@ -570,7 +572,7 @@ describe('Select Component', () => {
               </SelectItem>
             ))}
           </SelectContent>
-        </Select>
+        </Select>,
       )
 
       const button = screen.getByRole('button')
@@ -592,7 +594,7 @@ describe('Select Component', () => {
           <SelectContent>
             <SelectItem value="special">{specialText}</SelectItem>
           </SelectContent>
-        </Select>
+        </Select>,
       )
 
       const button = screen.getByRole('button')
@@ -613,7 +615,7 @@ describe('Select Component', () => {
           <SelectContent>
             <SelectItem value="long">{longText}</SelectItem>
           </SelectContent>
-        </Select>
+        </Select>,
       )
 
       const button = screen.getByRole('button')
@@ -634,7 +636,7 @@ describe('Select Component', () => {
           <SelectContent>
             <SelectItem value="long">{longText}</SelectItem>
           </SelectContent>
-        </Select>
+        </Select>,
       )
 
       const button = screen.getByRole('button')
@@ -656,7 +658,7 @@ describe('Select Component', () => {
           <SelectContent>
             <SelectItem value="unicode">{unicodeText}</SelectItem>
           </SelectContent>
-        </Select>
+        </Select>,
       )
 
       const button = screen.getByRole('button')
@@ -676,7 +678,7 @@ describe('Select Component', () => {
             <SelectItem value="">None</SelectItem>
             <SelectItem value="option1">Option 1</SelectItem>
           </SelectContent>
-        </Select>
+        </Select>,
       )
 
       const button = screen.getByRole('button')

@@ -30,7 +30,7 @@ function readSavedSettings(storageKey: string): Map<string, ColumnSetting> {
 export function useColumnSettings(
   projectId: string,
   userId: string | undefined,
-  defaultColumns: any[]
+  defaultColumns: any[],
 ) {
   // Create a unique storage key for this user/project combination
   const storageKey = `column-settings-${userId}-${projectId}`
@@ -42,7 +42,9 @@ export function useColumnSettings(
   // silently reverted to visible on every reload.
   const savedSettingsRef = useRef<Map<string, ColumnSetting> | null>(null)
   if (savedSettingsRef.current === null) {
-    savedSettingsRef.current = userId ? readSavedSettings(storageKey) : new Map()
+    savedSettingsRef.current = userId
+      ? readSavedSettings(storageKey)
+      : new Map()
   }
 
   // Initialize columns from localStorage or use defaults
@@ -89,7 +91,7 @@ export function useColumnSettings(
 
         logger.debug(
           'Restored column order:',
-          orderedColumns.map((c) => c.id)
+          orderedColumns.map((c) => c.id),
         )
         return orderedColumns
       }
@@ -120,8 +122,8 @@ export function useColumnSettings(
   const toggleColumn = useCallback((columnId: string) => {
     setColumns((prev) =>
       prev.map((col) =>
-        col.id === columnId ? { ...col, visible: !col.visible } : col
-      )
+        col.id === columnId ? { ...col, visible: !col.visible } : col,
+      ),
     )
   }, [])
 
@@ -198,12 +200,12 @@ export function useColumnSettings(
         }))
         logger.debug(
           'New column order:',
-          reordered.map((c) => c.id)
+          reordered.map((c) => c.id),
         )
         return reordered
       })
     },
-    []
+    [],
   )
 
   return {
@@ -222,7 +224,7 @@ export function useColumnSettings(
  */
 export function useTablePreferences(
   projectId: string,
-  userId: string | undefined
+  userId: string | undefined,
 ) {
   const storageKey = `table-preferences-${userId}-${projectId}`
 

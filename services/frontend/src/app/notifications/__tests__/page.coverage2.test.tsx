@@ -83,7 +83,8 @@ jest.mock('@/contexts/I18nContext', () => ({
         return typeof defaultValueOrVars === 'string' ? defaultValueOrVars : key
       }
       const variables =
-        vars || (typeof defaultValueOrVars === 'object' ? defaultValueOrVars : null)
+        vars ||
+        (typeof defaultValueOrVars === 'object' ? defaultValueOrVars : null)
       if (variables) {
         Object.entries(variables).forEach(([k, v]) => {
           result = result.replace(`{${k}}`, String(v))
@@ -112,8 +113,12 @@ jest.mock('@heroicons/react/24/outline', () => ({
   ArrowPathIcon: (props: any) => <svg data-testid="refresh-icon" {...props} />,
   CheckCircleIcon: (props: any) => <svg data-testid="cc-icon" {...props} />,
   CheckIcon: (props: any) => <svg data-testid="check-icon" {...props} />,
-  ExclamationTriangleIcon: (props: any) => <svg data-testid="warn-icon" {...props} />,
-  InformationCircleIcon: (props: any) => <svg data-testid="info-icon" {...props} />,
+  ExclamationTriangleIcon: (props: any) => (
+    <svg data-testid="warn-icon" {...props} />
+  ),
+  InformationCircleIcon: (props: any) => (
+    <svg data-testid="info-icon" {...props} />
+  ),
   UserPlusIcon: (props: any) => <svg data-testid="up-icon" {...props} />,
   XMarkIcon: (props: any) => <svg data-testid="x-icon" {...props} />,
   ChartBarIcon: (props: any) => <svg data-testid="chart-icon" {...props} />,
@@ -132,7 +137,9 @@ jest.mock('next/link', () => ({
 jest.mock('@/components/shared/Breadcrumb', () => ({
   Breadcrumb: ({ items }: any) => (
     <nav data-testid="breadcrumb">
-      {items?.map((item: any, i: number) => <span key={i}>{item.label}</span>)}
+      {items?.map((item: any, i: number) => (
+        <span key={i}>{item.label}</span>
+      ))}
     </nav>
   ),
 }))
@@ -162,7 +169,9 @@ jest.mock('@/components/shared/Select', () => ({
   SelectTrigger: () => null,
   SelectValue: () => null,
   SelectContent: ({ children }: any) => <>{children}</>,
-  SelectItem: ({ value, children }: any) => <option value={value}>{children}</option>,
+  SelectItem: ({ value, children }: any) => (
+    <option value={value}>{children}</option>
+  ),
 }))
 
 jest.mock('@/components/shared/FilterToolbar', () => {
@@ -237,10 +246,20 @@ describe('NotificationsPage - reachable partial-branch complement', () => {
   describe('client-side date filter excludes older rows (line 128 false-arm)', () => {
     it('hides a notification created before today when the "today" filter is active', async () => {
       const user = userEvent.setup()
-      const twoDaysAgo = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString()
+      const twoDaysAgo = new Date(
+        Date.now() - 2 * 24 * 60 * 60 * 1000,
+      ).toISOString()
       renderWith([
-        createNotification({ id: 'old', title: 'Old Task', created_at: twoDaysAgo }),
-        createNotification({ id: 'new', title: 'New Task', created_at: new Date().toISOString() }),
+        createNotification({
+          id: 'old',
+          title: 'Old Task',
+          created_at: twoDaysAgo,
+        }),
+        createNotification({
+          id: 'new',
+          title: 'New Task',
+          created_at: new Date().toISOString(),
+        }),
       ])
 
       // Both visible before filtering.
@@ -261,8 +280,16 @@ describe('NotificationsPage - reachable partial-branch complement', () => {
     it('keeps a row whose MESSAGE matches the query even when its title does not', async () => {
       const user = userEvent.setup()
       renderWith([
-        createNotification({ id: 'a', title: 'Alpha', message: 'contains keyword needle' }),
-        createNotification({ id: 'b', title: 'Beta', message: 'unrelated body' }),
+        createNotification({
+          id: 'a',
+          title: 'Alpha',
+          message: 'contains keyword needle',
+        }),
+        createNotification({
+          id: 'b',
+          title: 'Beta',
+          message: 'unrelated body',
+        }),
       ])
 
       const input = screen.getByPlaceholderText('Search notifications...')
@@ -316,7 +343,7 @@ describe('NotificationsPage - reachable partial-branch complement', () => {
         () =>
           new Promise((resolve) => {
             resolveFetch = resolve
-          })
+          }),
       )
 
       renderWith([createNotification({ id: 'p1', title: 'Page1 Item' })])

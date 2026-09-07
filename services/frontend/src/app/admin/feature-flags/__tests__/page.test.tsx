@@ -66,7 +66,6 @@ jest.mock('@/components/shared/FilterToolbar', () => {
   return { FilterToolbar }
 })
 
-
 describe('FeatureFlagsAdminPage', () => {
   const mockAddToast = jest.fn()
   const mockRefreshFlags = jest.fn()
@@ -217,7 +216,7 @@ describe('FeatureFlagsAdminPage', () => {
 
       expect(screen.getByText('Access Denied')).toBeInTheDocument()
       expect(
-        screen.getByText('You need superadmin privileges to access this page.')
+        screen.getByText('You need superadmin privileges to access this page.'),
       ).toBeInTheDocument()
     })
 
@@ -247,7 +246,7 @@ describe('FeatureFlagsAdminPage', () => {
         () =>
           new Promise((resolve) => {
             resolvePromise = resolve
-          })
+          }),
       )
 
       render(<FeatureFlagsAdminPage />)
@@ -265,7 +264,7 @@ describe('FeatureFlagsAdminPage', () => {
 
       await waitFor(() => {
         expect(
-          screen.queryByText('Loading feature flags...')
+          screen.queryByText('Loading feature flags...'),
         ).not.toBeInTheDocument()
       })
     })
@@ -278,7 +277,7 @@ describe('FeatureFlagsAdminPage', () => {
         () =>
           new Promise((resolve) => {
             resolvePromise = resolve
-          })
+          }),
       )
 
       render(<FeatureFlagsAdminPage />)
@@ -317,7 +316,7 @@ describe('FeatureFlagsAdminPage', () => {
       await waitFor(() => {
         const rows = screen.getAllByRole('row')
         const evaluationsRow = rows.find((row) =>
-          row.textContent?.includes('evaluations')
+          row.textContent?.includes('evaluations'),
         )
         expect(evaluationsRow).toBeTruthy()
       })
@@ -340,10 +339,10 @@ describe('FeatureFlagsAdminPage', () => {
       await waitFor(() => {
         const rows = screen.getAllByRole('row')
         const hasReportsDate = rows.some((row) =>
-          row.textContent?.match(/2024/)
+          row.textContent?.match(/2024/),
         )
         const hasEvaluationsDate = rows.some((row) =>
-          row.textContent?.match(/2023/)
+          row.textContent?.match(/2023/),
         )
         expect(hasReportsDate).toBe(true)
         expect(hasEvaluationsDate).toBe(true)
@@ -469,7 +468,7 @@ describe('FeatureFlagsAdminPage', () => {
         () =>
           new Promise((resolve) => {
             resolvePromise = resolve
-          })
+          }),
       )
 
       render(<FeatureFlagsAdminPage />)
@@ -510,7 +509,7 @@ describe('FeatureFlagsAdminPage', () => {
       await waitFor(() => {
         expect(mockAddToast).toHaveBeenCalledWith(
           'All changes applied successfully',
-          'success'
+          'success',
         )
       })
 
@@ -592,10 +591,10 @@ describe('FeatureFlagsAdminPage', () => {
           expect(screen.getByText('Failed to load')).toBeInTheDocument()
           expect(mockAddToast).toHaveBeenCalledWith(
             'Failed to apply changes',
-            'error'
+            'error',
           )
         },
-        { timeout: 500 }
+        { timeout: 500 },
       )
     })
 
@@ -610,10 +609,10 @@ describe('FeatureFlagsAdminPage', () => {
       await waitFor(
         () => {
           expect(
-            screen.getByText('Failed to apply changes')
+            screen.getByText('Failed to apply changes'),
           ).toBeInTheDocument()
         },
-        { timeout: 500 }
+        { timeout: 500 },
       )
     })
 
@@ -685,7 +684,7 @@ describe('FeatureFlagsAdminPage', () => {
       await waitFor(() => {
         expect(mockAddToast).toHaveBeenCalledWith(
           'Failed to apply changes',
-          'error'
+          'error',
         )
       })
     })
@@ -779,7 +778,7 @@ describe('FeatureFlagsAdminPage', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText(/No feature flags found matching "nonexistent"/)
+          screen.getByText(/No feature flags found matching "nonexistent"/),
         ).toBeInTheDocument()
       })
     })
@@ -836,10 +835,10 @@ describe('FeatureFlagsAdminPage', () => {
       const rows = screen.getAllByRole('row')
       const rowTexts = rows.map((row) => row.textContent)
       const evalIndex = rowTexts.findIndex((text) =>
-        text?.includes('evaluations')
+        text?.includes('evaluations'),
       )
       const genIndex = rowTexts.findIndex((text) =>
-        text?.includes('generations')
+        text?.includes('generations'),
       )
 
       expect(evalIndex).toBeLessThan(genIndex)
@@ -861,7 +860,7 @@ describe('FeatureFlagsAdminPage', () => {
         const rowTexts = rows.map((row) => row.textContent)
         const repIndex = rowTexts.findIndex((text) => text?.includes('reports'))
         const genIndex = rowTexts.findIndex((text) =>
-          text?.includes('generations')
+          text?.includes('generations'),
         )
 
         expect(repIndex).toBeLessThan(genIndex)
@@ -883,7 +882,7 @@ describe('FeatureFlagsAdminPage', () => {
         const rows = screen.getAllByRole('row')
         const rowTexts = rows.map((row) => row.textContent)
         const evalIndex = rowTexts.findIndex((text) =>
-          text?.includes('evaluations')
+          text?.includes('evaluations'),
         )
         const repIndex = rowTexts.findIndex((text) => text?.includes('reports'))
 
@@ -919,10 +918,10 @@ describe('FeatureFlagsAdminPage', () => {
         const rows = screen.getAllByRole('row')
         const rowTexts = rows.map((row) => row.textContent)
         const evalIndex = rowTexts.findIndex((text) =>
-          text?.includes('evaluations')
+          text?.includes('evaluations'),
         )
         const genIndex = rowTexts.findIndex((text) =>
-          text?.includes('generations')
+          text?.includes('generations'),
         )
 
         expect(evalIndex).toBeLessThan(genIndex)
@@ -940,7 +939,7 @@ describe('FeatureFlagsAdminPage', () => {
         () =>
           new Promise((resolve) => {
             resolvePromise = resolve
-          })
+          }),
       )
 
       render(<FeatureFlagsAdminPage />)
@@ -992,7 +991,7 @@ describe('FeatureFlagsAdminPage', () => {
       const headers = ['Name', 'Description', 'Status', 'Created']
       headers.forEach((header) => {
         expect(
-          screen.getByRole('columnheader', { name: new RegExp(header, 'i') })
+          screen.getByRole('columnheader', { name: new RegExp(header, 'i') }),
         ).toBeInTheDocument()
       })
     })
@@ -1023,7 +1022,7 @@ describe('FeatureFlagsAdminPage', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText(/No feature flags found matching "xyz"/)
+          screen.getByText(/No feature flags found matching "xyz"/),
         ).toBeInTheDocument()
       })
     })

@@ -53,9 +53,7 @@ export function Alert({ variant = 'info', className, children }: AlertProps) {
   return (
     <div className={cn('rounded-lg border p-4', styles.container, className)}>
       <div className="flex items-start gap-3">
-        <Icon
-          className={cn('mt-0.5 h-5 w-5 shrink-0', styles.iconColor)}
-        />
+        <Icon className={cn('mt-0.5 h-5 w-5 shrink-0', styles.iconColor)} />
         <div className="flex-1">{children}</div>
       </div>
     </div>

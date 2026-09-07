@@ -7,9 +7,9 @@
  *          custom fallback, network vs non-network error display
  */
 
-import React from 'react'
-import { render, screen, fireEvent } from '@testing-library/react'
 import '@testing-library/jest-dom'
+import { fireEvent, render, screen } from '@testing-library/react'
+import React from 'react'
 
 // Mock I18n
 jest.mock('@/contexts/I18nContext', () => ({
@@ -39,7 +39,7 @@ describe('NetworkErrorBoundary br7', () => {
     render(
       <NetworkErrorBoundary>
         <div>Safe content</div>
-      </NetworkErrorBoundary>
+      </NetworkErrorBoundary>,
     )
     expect(screen.getByText('Safe content')).toBeInTheDocument()
   })
@@ -49,20 +49,22 @@ describe('NetworkErrorBoundary br7', () => {
     render(
       <NetworkErrorBoundary>
         <ThrowingComponent error={error} />
-      </NetworkErrorBoundary>
+      </NetworkErrorBoundary>,
     )
     expect(screen.getByText('errors.network.title')).toBeInTheDocument()
     // Should show network-specific troubleshooting list
     expect(screen.getByText('errors.network.networkIssue')).toBeInTheDocument()
     expect(screen.getByText('errors.network.serverLoad')).toBeInTheDocument()
-    expect(screen.getByText('errors.network.tooManyRequests')).toBeInTheDocument()
+    expect(
+      screen.getByText('errors.network.tooManyRequests'),
+    ).toBeInTheDocument()
   })
 
   it('detects "Network" keyword as network error', () => {
     render(
       <NetworkErrorBoundary>
         <ThrowingComponent error={new Error('Network request failed')} />
-      </NetworkErrorBoundary>
+      </NetworkErrorBoundary>,
     )
     expect(screen.getByText('errors.network.title')).toBeInTheDocument()
   })
@@ -71,7 +73,7 @@ describe('NetworkErrorBoundary br7', () => {
     render(
       <NetworkErrorBoundary>
         <ThrowingComponent error={new Error('Failed to fetch')} />
-      </NetworkErrorBoundary>
+      </NetworkErrorBoundary>,
     )
     expect(screen.getByText('errors.network.title')).toBeInTheDocument()
   })
@@ -79,8 +81,10 @@ describe('NetworkErrorBoundary br7', () => {
   it('detects "NetworkError" as network error', () => {
     render(
       <NetworkErrorBoundary>
-        <ThrowingComponent error={new Error('NetworkError when attempting to fetch')} />
-      </NetworkErrorBoundary>
+        <ThrowingComponent
+          error={new Error('NetworkError when attempting to fetch')}
+        />
+      </NetworkErrorBoundary>,
     )
     expect(screen.getByText('errors.network.title')).toBeInTheDocument()
   })
@@ -88,8 +92,10 @@ describe('NetworkErrorBoundary br7', () => {
   it('detects "TypeError: Failed to fetch" as network error', () => {
     render(
       <NetworkErrorBoundary>
-        <ThrowingComponent error={new Error('TypeError: Failed to fetch something')} />
-      </NetworkErrorBoundary>
+        <ThrowingComponent
+          error={new Error('TypeError: Failed to fetch something')}
+        />
+      </NetworkErrorBoundary>,
     )
     expect(screen.getByText('errors.network.title')).toBeInTheDocument()
   })
@@ -97,8 +103,10 @@ describe('NetworkErrorBoundary br7', () => {
   it('detects "AbortError" as network error', () => {
     render(
       <NetworkErrorBoundary>
-        <ThrowingComponent error={new Error('AbortError: The operation was aborted')} />
-      </NetworkErrorBoundary>
+        <ThrowingComponent
+          error={new Error('AbortError: The operation was aborted')}
+        />
+      </NetworkErrorBoundary>,
     )
     expect(screen.getByText('errors.network.title')).toBeInTheDocument()
   })
@@ -107,7 +115,7 @@ describe('NetworkErrorBoundary br7', () => {
     render(
       <NetworkErrorBoundary>
         <ThrowingComponent error={new Error('Could not fetch resource')} />
-      </NetworkErrorBoundary>
+      </NetworkErrorBoundary>,
     )
     expect(screen.getByText('errors.network.title')).toBeInTheDocument()
   })
@@ -116,11 +124,13 @@ describe('NetworkErrorBoundary br7', () => {
     render(
       <NetworkErrorBoundary>
         <ThrowingComponent error={new Error('Unexpected token in JSON')} />
-      </NetworkErrorBoundary>
+      </NetworkErrorBoundary>,
     )
     expect(screen.getByText('errors.global.title')).toBeInTheDocument()
     // Should NOT show network-specific troubleshooting
-    expect(screen.queryByText('errors.network.networkIssue')).not.toBeInTheDocument()
+    expect(
+      screen.queryByText('errors.network.networkIssue'),
+    ).not.toBeInTheDocument()
   })
 
   it('calls onError callback in componentDidCatch', () => {
@@ -128,11 +138,11 @@ describe('NetworkErrorBoundary br7', () => {
     render(
       <NetworkErrorBoundary onError={onError}>
         <ThrowingComponent error={new Error('Test error')} />
-      </NetworkErrorBoundary>
+      </NetworkErrorBoundary>,
     )
     expect(onError).toHaveBeenCalledWith(
       expect.any(Error),
-      expect.objectContaining({ componentStack: expect.any(String) })
+      expect.objectContaining({ componentStack: expect.any(String) }),
     )
   })
 
@@ -148,7 +158,7 @@ describe('NetworkErrorBoundary br7', () => {
     render(
       <NetworkErrorBoundary>
         <ConditionalThrower />
-      </NetworkErrorBoundary>
+      </NetworkErrorBoundary>,
     )
 
     expect(screen.getByText('errors.global.title')).toBeInTheDocument()
@@ -170,7 +180,7 @@ describe('NetworkErrorBoundary br7', () => {
     render(
       <NetworkErrorBoundary>
         <AlwaysThrows />
-      </NetworkErrorBoundary>
+      </NetworkErrorBoundary>,
     )
 
     // First attempt - no count
@@ -192,7 +202,7 @@ describe('NetworkErrorBoundary br7', () => {
     render(
       <NetworkErrorBoundary fallback={customFallback}>
         <ThrowingComponent error={new Error('Custom test')} />
-      </NetworkErrorBoundary>
+      </NetworkErrorBoundary>,
     )
 
     expect(screen.getByText('Custom error: Custom test')).toBeInTheDocument()
@@ -203,7 +213,7 @@ describe('NetworkErrorBoundary br7', () => {
     render(
       <NetworkErrorBoundary>
         <ThrowingComponent error={new Error('Reload test')} />
-      </NetworkErrorBoundary>
+      </NetworkErrorBoundary>,
     )
 
     const reloadButton = screen.getByText('errors.global.reloadPage')
@@ -214,7 +224,10 @@ describe('NetworkErrorBoundary br7', () => {
 
   it('shows technical details in development mode', () => {
     const originalEnv = process.env.NODE_ENV
-    Object.defineProperty(process.env, 'NODE_ENV', { value: 'development', configurable: true })
+    Object.defineProperty(process.env, 'NODE_ENV', {
+      value: 'development',
+      configurable: true,
+    })
 
     const error = new Error('Debug error')
     error.stack = 'Error: Debug error\n    at Component'
@@ -222,11 +235,16 @@ describe('NetworkErrorBoundary br7', () => {
     render(
       <NetworkErrorBoundary>
         <ThrowingComponent error={error} />
-      </NetworkErrorBoundary>
+      </NetworkErrorBoundary>,
     )
 
-    expect(screen.getByText('errors.global.technicalDetails')).toBeInTheDocument()
+    expect(
+      screen.getByText('errors.global.technicalDetails'),
+    ).toBeInTheDocument()
 
-    Object.defineProperty(process.env, 'NODE_ENV', { value: originalEnv, configurable: true })
+    Object.defineProperty(process.env, 'NODE_ENV', {
+      value: originalEnv,
+      configurable: true,
+    })
   })
 })

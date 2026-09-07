@@ -33,7 +33,7 @@ test.describe('LLM Judge Workflow', () => {
     projectId = await seeder.createProject(`LLM Judge ${Date.now()}`)
     await seeder.setLabelConfig(
       projectId,
-      '<View><Text name="text" value="$text"/><TextArea name="answer" toName="text" required="true"/></View>'
+      '<View><Text name="text" value="$text"/><TextArea name="answer" toName="text" required="true"/></View>',
     )
     await seeder.importTasks(projectId, [
       { data: { text: 'Test question for LLM evaluation' } },

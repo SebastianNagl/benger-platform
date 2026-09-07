@@ -169,9 +169,11 @@ export function ChartTypeSelector({
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className={`flex h-8 items-center justify-between gap-2 whitespace-nowrap rounded-full bg-white ${buttonPadding} ${textSize} font-medium text-zinc-900 ring-1 ring-zinc-900/10 transition hover:ring-zinc-900/20 focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:bg-white/5 dark:text-white dark:ring-inset dark:ring-white/10 dark:hover:ring-white/20`}
+        className={`flex h-8 items-center justify-between gap-2 rounded-full bg-white whitespace-nowrap ${buttonPadding} ${textSize} font-medium text-zinc-900 ring-1 ring-zinc-900/10 transition hover:ring-zinc-900/20 focus:ring-2 focus:ring-emerald-500 focus:outline-none dark:bg-white/5 dark:text-white dark:ring-white/10 dark:ring-inset dark:hover:ring-white/20`}
       >
-        <span>{selectedConfig?.label || t('evaluation.chartType.selectView')}</span>
+        <span>
+          {selectedConfig?.label || t('evaluation.chartType.selectView')}
+        </span>
         <ChevronDownIcon
           className={`h-4 w-4 shrink-0 opacity-70 transition-transform ${isOpen ? 'rotate-180' : ''}`}
         />

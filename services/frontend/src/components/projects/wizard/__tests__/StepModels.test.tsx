@@ -61,7 +61,7 @@ const MODELS = [
 ]
 
 function setModels(
-  overrides: Partial<ReturnType<typeof useModels>> = {}
+  overrides: Partial<ReturnType<typeof useModels>> = {},
 ): void {
   mockUseModels.mockReturnValue({
     models: MODELS as any,
@@ -101,7 +101,7 @@ function renderStep({
       onSelectedModelsChange={onSelectedModelsChange}
       onModelConfigsChange={onModelConfigsChange}
       onGenerationParametersChange={onGenerationParametersChange}
-    />
+    />,
   )
   return {
     onSelectedModelsChange,
@@ -122,7 +122,7 @@ describe('StepModels', () => {
       setModels({ models: [] as any, loading: true })
       renderStep()
       expect(
-        screen.getByText('projects.creation.wizard.step5.loading')
+        screen.getByText('projects.creation.wizard.step5.loading'),
       ).toBeInTheDocument()
     })
 
@@ -134,7 +134,7 @@ describe('StepModels', () => {
       })
       renderStep()
       expect(
-        screen.getByText('projects.creation.wizard.step5.noApiKeys')
+        screen.getByText('projects.creation.wizard.step5.noApiKeys'),
       ).toBeInTheDocument()
     })
 
@@ -179,7 +179,7 @@ describe('StepModels', () => {
     const checkbox = screen.getByTestId(`wizard-model-${modelId}`)
     const controls = checkbox.closest('div')! // flex items-center gap-2
     const expandBtn = controls.querySelector(
-      'button[type="button"]'
+      'button[type="button"]',
     ) as HTMLButtonElement
     fireEvent.click(expandBtn)
   }
@@ -195,10 +195,10 @@ describe('StepModels', () => {
 
       // Temperature input now visible
       const tempLabel = screen.getByText(
-        'projects.creation.wizard.step5.temperature'
+        'projects.creation.wizard.step5.temperature',
       )
       const tempInput = tempLabel.parentElement!.querySelector(
-        'input[type="number"]'
+        'input[type="number"]',
       ) as HTMLInputElement
       fireEvent.change(tempInput, { target: { value: '0.9' } })
 
@@ -216,10 +216,10 @@ describe('StepModels', () => {
       expandModel('gpt-4')
 
       const tempLabel = screen.getByText(
-        'projects.creation.wizard.step5.temperature'
+        'projects.creation.wizard.step5.temperature',
       )
       const tempInput = tempLabel.parentElement!.querySelector(
-        'input[type="number"]'
+        'input[type="number"]',
       ) as HTMLInputElement
       fireEvent.change(tempInput, { target: { value: '' } })
 
@@ -237,57 +237,61 @@ describe('StepModels', () => {
 
       // The default-params section is collapsed initially; expand it
       fireEvent.click(
-        screen.getByText('projects.creation.wizard.step5.defaultParams')
+        screen.getByText('projects.creation.wizard.step5.defaultParams'),
       )
 
       // max_tokens
-      const maxTokensInput = screen.getByDisplayValue('4096') as HTMLInputElement
+      const maxTokensInput = screen.getByDisplayValue(
+        '4096',
+      ) as HTMLInputElement
       fireEvent.change(maxTokensInput, { target: { value: '8192' } })
       expect(onGenerationParametersChange).toHaveBeenCalledWith(
-        expect.objectContaining({ max_tokens: 8192 })
+        expect.objectContaining({ max_tokens: 8192 }),
       )
 
       // batch size
       const batchInput = screen.getByDisplayValue('10') as HTMLInputElement
       fireEvent.change(batchInput, { target: { value: '25' } })
       expect(onGenerationParametersChange).toHaveBeenCalledWith(
-        expect.objectContaining({ batch_size: 25 })
+        expect.objectContaining({ batch_size: 25 }),
       )
 
       // seed
       const seedInput = screen.getByDisplayValue('42') as HTMLInputElement
       fireEvent.change(seedInput, { target: { value: '7' } })
       expect(onGenerationParametersChange).toHaveBeenCalledWith(
-        expect.objectContaining({ seed: 7 })
+        expect.objectContaining({ seed: 7 }),
       )
     })
 
     it('falls back to defaults when numeric inputs are cleared', () => {
       const { onGenerationParametersChange } = renderStep()
       fireEvent.click(
-        screen.getByText('projects.creation.wizard.step5.defaultParams')
+        screen.getByText('projects.creation.wizard.step5.defaultParams'),
       )
 
-      const maxTokensInput = screen.getByDisplayValue('4096') as HTMLInputElement
+      const maxTokensInput = screen.getByDisplayValue(
+        '4096',
+      ) as HTMLInputElement
       fireEvent.change(maxTokensInput, { target: { value: '' } })
       // parseInt('') || 4096 -> 4096
       expect(onGenerationParametersChange).toHaveBeenCalledWith(
-        expect.objectContaining({ max_tokens: 4096 })
+        expect.objectContaining({ max_tokens: 4096 }),
       )
     })
 
     it('updates temperature via the range slider', () => {
       const { onGenerationParametersChange } = renderStep()
       fireEvent.click(
-        screen.getByText('projects.creation.wizard.step5.defaultParams')
+        screen.getByText('projects.creation.wizard.step5.defaultParams'),
       )
 
       const slider = document.querySelector(
-        'input[type="range"]'
+        'input[type="range"]',
       ) as HTMLInputElement
       fireEvent.change(slider, { target: { value: '1.5' } })
       expect(onGenerationParametersChange).toHaveBeenCalledWith(
-        expect.objectContaining({ temperature: 1.5 })
+        expect.objectContaining({ temperature: 1.5 }),
       )
     })
   })
@@ -348,7 +352,7 @@ describe('StepModels', () => {
           onSelectedModelsChange={onSelectedModelsChange}
           onModelConfigsChange={jest.fn()}
           onGenerationParametersChange={jest.fn()}
-        />
+        />,
       )
       expect(onSelectedModelsChange).toHaveBeenCalledTimes(1)
     })

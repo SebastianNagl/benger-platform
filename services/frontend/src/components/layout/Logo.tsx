@@ -10,7 +10,8 @@ export function Logo({ subtitle, ...props }: LogoProps) {
     >
       <span className="text-xl">🤘</span>
       <span className="whitespace-nowrap">
-        BenGER{subtitle && <span className="hidden sm:inline"> - {subtitle}</span>}
+        BenGER
+        {subtitle && <span className="hidden sm:inline"> - {subtitle}</span>}
       </span>
     </div>
   )

@@ -31,7 +31,10 @@ import SpanLabelsInput from '../SpanLabelsInput'
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
     t: (key: string, varsOrDefault?: any) => {
-      const translations: Record<string, any> = require('../../../../locales/en/common.json')
+      const translations: Record<
+        string,
+        any
+      > = require('../../../../locales/en/common.json')
       const parts = key.split('.')
       let value: any = translations
       for (const part of parts) {
@@ -52,7 +55,6 @@ jest.mock('@/contexts/I18nContext', () => ({
     locale: 'en',
   }),
 }))
-
 
 describe('SpanLabelsInput', () => {
   const mockOnChange = jest.fn()
@@ -121,10 +123,10 @@ describe('SpanLabelsInput', () => {
       render(<SpanLabelsInput {...defaultProps} />)
 
       expect(
-        screen.getByRole('button', { name: /PERSON/i })
+        screen.getByRole('button', { name: /PERSON/i }),
       ).toBeInTheDocument()
       expect(
-        screen.getByRole('button', { name: /ORGANIZATION/i })
+        screen.getByRole('button', { name: /ORGANIZATION/i }),
       ).toBeInTheDocument()
       expect(screen.getByRole('button', { name: /DATE/i })).toBeInTheDocument()
     })
@@ -133,7 +135,7 @@ describe('SpanLabelsInput', () => {
       render(<SpanLabelsInput {...defaultProps} />)
 
       expect(
-        screen.getByText(/John Smith works at Acme Corporation/)
+        screen.getByText(/John Smith works at Acme Corporation/),
       ).toBeInTheDocument()
     })
 
@@ -161,7 +163,7 @@ describe('SpanLabelsInput', () => {
       render(<SpanLabelsInput {...propsWithoutText} />)
 
       expect(
-        screen.getByText(/No text provided for annotation/)
+        screen.getByText(/No text provided for annotation/),
       ).toBeInTheDocument()
     })
 

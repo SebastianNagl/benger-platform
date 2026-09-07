@@ -118,14 +118,23 @@ jest.mock('@/components/shared/ResponsiveContainer', () => ({
 
 jest.mock('@/components/shared/Button', () => ({
   Button: ({ children, onClick, disabled, variant, className }: any) => (
-    <button onClick={onClick} disabled={disabled} data-variant={variant} className={className}>
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      data-variant={variant}
+      className={className}
+    >
       {children}
     </button>
   ),
 }))
 
 jest.mock('@/components/shared/Card', () => ({
-  Card: ({ children, className }: any) => <div data-testid="card" className={className}>{children}</div>,
+  Card: ({ children, className }: any) => (
+    <div data-testid="card" className={className}>
+      {children}
+    </div>
+  ),
 }))
 
 jest.mock('@/components/shared/LoadingSpinner', () => ({
@@ -145,11 +154,25 @@ jest.mock('@/components/evaluation/AggregationSelector', () => ({
 
 jest.mock('@/components/evaluation/ChartTypeSelector', () => ({
   ChartTypeSelector: ({ value, onChange, disabledTypes }: any) => (
-    <div data-testid="chart-type-selector" data-disabled={JSON.stringify(disabledTypes)}>
-      <button data-testid="set-chart-bar" onClick={() => onChange('bar')}>Bar</button>
-      <button data-testid="set-chart-table" onClick={() => onChange('table')}>Table</button>
-      <button data-testid="set-chart-heatmap" onClick={() => onChange('heatmap')}>Heatmap</button>
-      <button data-testid="set-chart-box" onClick={() => onChange('box')}>Box</button>
+    <div
+      data-testid="chart-type-selector"
+      data-disabled={JSON.stringify(disabledTypes)}
+    >
+      <button data-testid="set-chart-bar" onClick={() => onChange('bar')}>
+        Bar
+      </button>
+      <button data-testid="set-chart-table" onClick={() => onChange('table')}>
+        Table
+      </button>
+      <button
+        data-testid="set-chart-heatmap"
+        onClick={() => onChange('heatmap')}
+      >
+        Heatmap
+      </button>
+      <button data-testid="set-chart-box" onClick={() => onChange('box')}>
+        Box
+      </button>
     </div>
   ),
 }))
@@ -169,10 +192,16 @@ jest.mock('@/components/evaluation/FieldPairSelector', () => ({
 jest.mock('@/components/evaluation/EvaluationResults', () => ({
   EvaluationResults: ({ onDataLoaded, onHasResults }: any) => (
     <div data-testid="evaluation-results">
-      <button data-testid="trigger-data-loaded" onClick={() => onDataLoaded?.([])}>
+      <button
+        data-testid="trigger-data-loaded"
+        onClick={() => onDataLoaded?.([])}
+      >
         Load Data
       </button>
-      <button data-testid="trigger-has-results" onClick={() => onHasResults?.(true)}>
+      <button
+        data-testid="trigger-has-results"
+        onClick={() => onHasResults?.(true)}
+      >
         Has Results
       </button>
     </div>
@@ -181,18 +210,24 @@ jest.mock('@/components/evaluation/EvaluationResults', () => ({
 
 jest.mock('@/components/evaluation/ScoreCard', () => ({
   ScoreCard: ({ title, value }: any) => (
-    <div data-testid="score-card">{title}: {value}</div>
+    <div data-testid="score-card">
+      {title}: {value}
+    </div>
   ),
 }))
 
 jest.mock('@/components/evaluation/StatisticalResultsPanel', () => ({
-  StatisticalResultsPanel: () => <div data-testid="statistical-results-panel" />,
+  StatisticalResultsPanel: () => (
+    <div data-testid="statistical-results-panel" />
+  ),
 }))
 
 jest.mock('@/components/evaluation/StatisticsSelector', () => ({
   StatisticsSelector: ({ value, onChange }: any) => (
     <div data-testid="statistics-selector">
-      <button data-testid="set-stats-ci" onClick={() => onChange(['ci'])}>CI</button>
+      <button data-testid="set-stats-ci" onClick={() => onChange(['ci'])}>
+        CI
+      </button>
     </div>
   ),
 }))
@@ -281,13 +316,15 @@ const mockEvalConfig = {
   ],
 }
 
-function setupBasicMocks(overrides: {
-  searchParams?: URLSearchParams
-  user?: any
-  isLoading?: boolean
-  canAccess?: boolean
-  projects?: any[]
-} = {}) {
+function setupBasicMocks(
+  overrides: {
+    searchParams?: URLSearchParams
+    user?: any
+    isLoading?: boolean
+    canAccess?: boolean
+    projects?: any[]
+  } = {},
+) {
   ;(useRouter as jest.Mock).mockReturnValue(mockRouter)
 
   const sp = overrides.searchParams || new URLSearchParams()
@@ -305,20 +342,34 @@ function setupBasicMocks(overrides: {
     },
   })
 
-  ;(canAccessProjectData as jest.Mock).mockReturnValue(overrides.canAccess ?? true)
+  ;(canAccessProjectData as jest.Mock).mockReturnValue(
+    overrides.canAccess ?? true,
+  )
 
   ;(projectsAPI.list as jest.Mock).mockResolvedValue({
     items: overrides.projects ?? mockProjects,
   })
 
   // Default API mocks
-  ;(apiClient.evaluations.getProjectEvaluationConfig as jest.Mock).mockResolvedValue(mockEvalConfig)
-  ;(apiClient.evaluations.getConfiguredMethods as jest.Mock).mockResolvedValue({ fields: [] })
-  ;(apiClient.evaluations.getEvaluatedModels as jest.Mock).mockResolvedValue(mockEvaluatedModels)
-  ;(apiClient.evaluations.getEvaluationHistory as jest.Mock).mockResolvedValue({ series: [] })
-  ;(apiClient.evaluations.getSignificanceTests as jest.Mock).mockResolvedValue({ comparisons: [] })
+  ;(
+    apiClient.evaluations.getProjectEvaluationConfig as jest.Mock
+  ).mockResolvedValue(mockEvalConfig)
+  ;(apiClient.evaluations.getConfiguredMethods as jest.Mock).mockResolvedValue({
+    fields: [],
+  })
+  ;(apiClient.evaluations.getEvaluatedModels as jest.Mock).mockResolvedValue(
+    mockEvaluatedModels,
+  )
+  ;(apiClient.evaluations.getEvaluationHistory as jest.Mock).mockResolvedValue({
+    series: [],
+  })
+  ;(apiClient.evaluations.getSignificanceTests as jest.Mock).mockResolvedValue({
+    comparisons: [],
+  })
   ;(apiClient.evaluations.computeStatistics as jest.Mock).mockResolvedValue({})
-  ;(apiClient.evaluations.runEvaluation as jest.Mock).mockResolvedValue({ evaluation_id: 'eval-run-1' })
+  ;(apiClient.evaluations.runEvaluation as jest.Mock).mockResolvedValue({
+    evaluation_id: 'eval-run-1',
+  })
   ;(apiClient.get as jest.Mock).mockResolvedValue({ data: [] })
 
   // Clear localStorage
@@ -354,7 +405,9 @@ describe('EvaluationDashboard - Mega Branch Coverage', () => {
     render(<EvaluationDashboard />)
 
     await waitFor(() => {
-      expect(mockRouter.replace).toHaveBeenCalledWith('/projects?error=no-permission')
+      expect(mockRouter.replace).toHaveBeenCalledWith(
+        '/projects?error=no-permission',
+      )
     })
   })
 
@@ -378,7 +431,9 @@ describe('EvaluationDashboard - Mega Branch Coverage', () => {
 
     await waitFor(() => {
       // Should auto-select Project One
-      expect(apiClient.evaluations.getProjectEvaluationConfig).toHaveBeenCalled()
+      expect(
+        apiClient.evaluations.getProjectEvaluationConfig,
+      ).toHaveBeenCalled()
     })
   })
 
@@ -438,9 +493,9 @@ describe('EvaluationDashboard - Mega Branch Coverage', () => {
   it('handles evaluation config fetch failure gracefully', async () => {
     const sp = new URLSearchParams('projectId=p1')
     setupBasicMocks({ searchParams: sp })
-    ;(apiClient.evaluations.getProjectEvaluationConfig as jest.Mock).mockRejectedValue(
-      new Error('Config not found')
-    )
+    ;(
+      apiClient.evaluations.getProjectEvaluationConfig as jest.Mock
+    ).mockRejectedValue(new Error('Config not found'))
 
     render(<EvaluationDashboard />)
 
@@ -454,7 +509,9 @@ describe('EvaluationDashboard - Mega Branch Coverage', () => {
   it('shows empty state when project has no evaluation config', async () => {
     const sp = new URLSearchParams('projectId=p1')
     setupBasicMocks({ searchParams: sp })
-    ;(apiClient.evaluations.getProjectEvaluationConfig as jest.Mock).mockResolvedValue({
+    ;(
+      apiClient.evaluations.getProjectEvaluationConfig as jest.Mock
+    ).mockResolvedValue({
       evaluation_configs: [],
       selected_methods: {},
     })
@@ -471,11 +528,16 @@ describe('EvaluationDashboard - Mega Branch Coverage', () => {
   it('bridges legacy selected_methods to evaluation_configs', async () => {
     const sp = new URLSearchParams('projectId=p1')
     setupBasicMocks({ searchParams: sp })
-    ;(apiClient.evaluations.getProjectEvaluationConfig as jest.Mock).mockResolvedValue({
+    ;(
+      apiClient.evaluations.getProjectEvaluationConfig as jest.Mock
+    ).mockResolvedValue({
       evaluation_configs: [],
       selected_methods: {
         text: {
-          automated: ['bleu', { name: 'rouge', parameters: { variant: 'rougeL' } }],
+          automated: [
+            'bleu',
+            { name: 'rouge', parameters: { variant: 'rougeL' } },
+          ],
           human: ['accuracy'],
           field_mapping: {
             prediction_field: 'model_answer',
@@ -497,10 +559,24 @@ describe('EvaluationDashboard - Mega Branch Coverage', () => {
   it('detects llm_judge metrics in evaluation config', async () => {
     const sp = new URLSearchParams('projectId=p1')
     setupBasicMocks({ searchParams: sp })
-    ;(apiClient.evaluations.getProjectEvaluationConfig as jest.Mock).mockResolvedValue({
+    ;(
+      apiClient.evaluations.getProjectEvaluationConfig as jest.Mock
+    ).mockResolvedValue({
       evaluation_configs: [
-        { id: 'e1', metric: 'llm_judge_classic', prediction_fields: ['f1'], reference_fields: ['f2'], enabled: true },
-        { id: 'e2', metric: 'bleu', prediction_fields: ['f1'], reference_fields: ['f2'], enabled: true },
+        {
+          id: 'e1',
+          metric: 'llm_judge_classic',
+          prediction_fields: ['f1'],
+          reference_fields: ['f2'],
+          enabled: true,
+        },
+        {
+          id: 'e2',
+          metric: 'bleu',
+          prediction_fields: ['f1'],
+          reference_fields: ['f2'],
+          enabled: true,
+        },
       ],
     })
 
@@ -517,7 +593,7 @@ describe('EvaluationDashboard - Mega Branch Coverage', () => {
     const sp = new URLSearchParams('projectId=p1')
     setupBasicMocks({ searchParams: sp })
     ;(apiClient.evaluations.getEvaluatedModels as jest.Mock).mockRejectedValue(
-      new Error('Models unavailable')
+      new Error('Models unavailable'),
     )
 
     render(<EvaluationDashboard />)
@@ -532,7 +608,9 @@ describe('EvaluationDashboard - Mega Branch Coverage', () => {
   it('handles evaluation results fetch error gracefully', async () => {
     const sp = new URLSearchParams('projectId=p1')
     setupBasicMocks({ searchParams: sp })
-    ;(apiClient.get as jest.Mock).mockRejectedValue(new Error('Results unavailable'))
+    ;(apiClient.get as jest.Mock).mockRejectedValue(
+      new Error('Results unavailable'),
+    )
 
     render(<EvaluationDashboard />)
 
@@ -549,10 +627,14 @@ describe('EvaluationDashboard - Mega Branch Coverage', () => {
 
     // Click the project dropdown button
     await waitFor(() => {
-      expect(screen.getByText('evaluation.viewer.filters.selectProject')).toBeInTheDocument()
+      expect(
+        screen.getByText('evaluation.viewer.filters.selectProject'),
+      ).toBeInTheDocument()
     })
 
-    await userEvent.click(screen.getByText('evaluation.viewer.filters.selectProject'))
+    await userEvent.click(
+      screen.getByText('evaluation.viewer.filters.selectProject'),
+    )
 
     // Projects should appear
     await waitFor(() => {
@@ -562,7 +644,9 @@ describe('EvaluationDashboard - Mega Branch Coverage', () => {
     await userEvent.click(screen.getByText('Project One'))
 
     await waitFor(() => {
-      expect(apiClient.evaluations.getProjectEvaluationConfig).toHaveBeenCalled()
+      expect(
+        apiClient.evaluations.getProjectEvaluationConfig,
+      ).toHaveBeenCalled()
     })
   })
 
@@ -661,9 +745,9 @@ describe('EvaluationDashboard - Mega Branch Coverage', () => {
   it('handles significance test error gracefully', async () => {
     const sp = new URLSearchParams('projectId=p1')
     setupBasicMocks({ searchParams: sp })
-    ;(apiClient.evaluations.getSignificanceTests as jest.Mock).mockRejectedValue(
-      new Error('Significance test failed')
-    )
+    ;(
+      apiClient.evaluations.getSignificanceTests as jest.Mock
+    ).mockRejectedValue(new Error('Significance test failed'))
 
     render(<EvaluationDashboard />)
 
@@ -678,7 +762,7 @@ describe('EvaluationDashboard - Mega Branch Coverage', () => {
     const sp = new URLSearchParams('projectId=p1')
     setupBasicMocks({ searchParams: sp })
     ;(apiClient.evaluations.computeStatistics as jest.Mock).mockRejectedValue(
-      new Error('Statistics computation failed')
+      new Error('Statistics computation failed'),
     )
 
     render(<EvaluationDashboard />)
@@ -694,9 +778,7 @@ describe('EvaluationDashboard - Mega Branch Coverage', () => {
     const sp = new URLSearchParams('projectId=p1&aggregation=model,sample')
     setupBasicMocks({ searchParams: sp })
     ;(apiClient.evaluations.computeStatistics as jest.Mock).mockResolvedValue({
-      raw_scores: [
-        { model_id: 'gpt-4', metric: 'bleu', value: 0.75 },
-      ],
+      raw_scores: [{ model_id: 'gpt-4', metric: 'bleu', value: 0.75 }],
     })
 
     render(<EvaluationDashboard />)
@@ -718,9 +800,11 @@ describe('EvaluationDashboard - Mega Branch Coverage', () => {
     // eventually select it and call the config API.
     await waitFor(
       () => {
-        expect(apiClient.evaluations.getProjectEvaluationConfig).toHaveBeenCalled()
+        expect(
+          apiClient.evaluations.getProjectEvaluationConfig,
+        ).toHaveBeenCalled()
       },
-      { timeout: 5000 }
+      { timeout: 5000 },
     )
   })
 
@@ -729,12 +813,22 @@ describe('EvaluationDashboard - Mega Branch Coverage', () => {
   it('shows error when running evaluation with no enabled configs', async () => {
     const sp = new URLSearchParams('projectId=p1')
     setupBasicMocks({ searchParams: sp })
-    ;(apiClient.evaluations.getProjectEvaluationConfig as jest.Mock).mockResolvedValue({
+    ;(
+      apiClient.evaluations.getProjectEvaluationConfig as jest.Mock
+    ).mockResolvedValue({
       evaluation_configs: [
-        { id: 'e1', metric: 'bleu', prediction_fields: ['f1'], reference_fields: ['f2'], enabled: false },
+        {
+          id: 'e1',
+          metric: 'bleu',
+          prediction_fields: ['f1'],
+          reference_fields: ['f2'],
+          enabled: false,
+        },
       ],
     })
-    ;(apiClient.evaluations.getEvaluatedModels as jest.Mock).mockResolvedValue([])
+    ;(apiClient.evaluations.getEvaluatedModels as jest.Mock).mockResolvedValue(
+      [],
+    )
 
     render(<EvaluationDashboard />)
 
@@ -764,9 +858,9 @@ describe('EvaluationDashboard - Mega Branch Coverage', () => {
   it('handles configuredMethods fetch error', async () => {
     const sp = new URLSearchParams('projectId=p1')
     setupBasicMocks({ searchParams: sp })
-    ;(apiClient.evaluations.getConfiguredMethods as jest.Mock).mockRejectedValue(
-      new Error('Methods unavailable')
-    )
+    ;(
+      apiClient.evaluations.getConfiguredMethods as jest.Mock
+    ).mockRejectedValue(new Error('Methods unavailable'))
 
     render(<EvaluationDashboard />)
 
@@ -793,9 +887,17 @@ describe('EvaluationDashboard - Mega Branch Coverage', () => {
   it('supports legacy multi_field_evaluations key in config', async () => {
     const sp = new URLSearchParams('projectId=p1')
     setupBasicMocks({ searchParams: sp })
-    ;(apiClient.evaluations.getProjectEvaluationConfig as jest.Mock).mockResolvedValue({
+    ;(
+      apiClient.evaluations.getProjectEvaluationConfig as jest.Mock
+    ).mockResolvedValue({
       multi_field_evaluations: [
-        { id: 'e1', metric: 'bleu', prediction_fields: ['f1'], reference_fields: ['f2'], enabled: true },
+        {
+          id: 'e1',
+          metric: 'bleu',
+          prediction_fields: ['f1'],
+          reference_fields: ['f2'],
+          enabled: true,
+        },
       ],
     })
 
@@ -811,14 +913,14 @@ describe('EvaluationDashboard - Mega Branch Coverage', () => {
   it('shows toast on full data loading failure', async () => {
     const sp = new URLSearchParams('projectId=p1')
     setupBasicMocks({ searchParams: sp })
-    ;(apiClient.evaluations.getProjectEvaluationConfig as jest.Mock).mockRejectedValue(
-      new Error('Config error')
-    )
-    ;(apiClient.evaluations.getConfiguredMethods as jest.Mock).mockRejectedValue(
-      new Error('Methods error')
-    )
+    ;(
+      apiClient.evaluations.getProjectEvaluationConfig as jest.Mock
+    ).mockRejectedValue(new Error('Config error'))
+    ;(
+      apiClient.evaluations.getConfiguredMethods as jest.Mock
+    ).mockRejectedValue(new Error('Methods error'))
     ;(apiClient.evaluations.getEvaluatedModels as jest.Mock).mockRejectedValue(
-      new Error('Models error')
+      new Error('Models error'),
     )
     ;(apiClient.get as jest.Mock).mockRejectedValue(new Error('Results error'))
 

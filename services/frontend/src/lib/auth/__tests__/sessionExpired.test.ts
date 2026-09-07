@@ -9,7 +9,7 @@ import { useNotificationStore } from '@/stores/notificationStore'
 // directly is the cleanest route.
 const mockFlashRedirect = jest.fn(
   (target: string, msg: string) =>
-    `${target}?flash_msg=${encodeURIComponent(msg)}&flash_type=error`
+    `${target}?flash_msg=${encodeURIComponent(msg)}&flash_type=error`,
 )
 
 jest.mock('@/stores/notificationStore', () => ({

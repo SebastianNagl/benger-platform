@@ -70,5 +70,5 @@ console.log(
     failedTests.length +
     ' failures in ' +
     Object.keys(byFile).length +
-    ' files'
+    ' files',
 )

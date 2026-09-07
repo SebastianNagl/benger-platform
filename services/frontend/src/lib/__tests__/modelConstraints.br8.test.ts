@@ -23,7 +23,11 @@ describe('getTemperatureConstraints', () => {
     const model = {
       provider: 'openai',
       parameter_constraints: {
-        temperature: { supported: false, required_value: 1.0, reason: 'GPT-5 family' },
+        temperature: {
+          supported: false,
+          required_value: 1.0,
+          reason: 'GPT-5 family',
+        },
       },
     }
     const c = getTemperatureConstraints(model, PROVIDER_RANGES)
@@ -53,7 +57,13 @@ describe('getTemperatureConstraints', () => {
     const model = {
       provider: 'anthropic',
       parameter_constraints: {
-        temperature: { supported: true, min: 0.1, max: 0.9, default: 0.4, reason: 'docs' },
+        temperature: {
+          supported: true,
+          min: 0.1,
+          max: 0.9,
+          default: 0.4,
+          reason: 'docs',
+        },
       },
     }
     const c = getTemperatureConstraints(model, PROVIDER_RANGES)

@@ -24,9 +24,7 @@ describe('Changelog registry', () => {
     registerChangelogEntries('test-idempotent', [entry('2026-08-01', 'v1')])
     registerChangelogEntries('test-idempotent', [entry('2026-08-01', 'v1')])
 
-    const matching = getChangelogEntries().filter(
-      (e) => e.text.de === 'v1',
-    )
+    const matching = getChangelogEntries().filter((e) => e.text.de === 'v1')
     expect(matching).toHaveLength(1)
   })
 
@@ -40,9 +38,9 @@ describe('Changelog registry', () => {
 
   test('useChangelogEntries re-renders when entries register late', () => {
     const { result } = renderHook(() => useChangelogEntries())
-    expect(
-      result.current.some((e) => e.text.de === 'später registriert'),
-    ).toBe(false)
+    expect(result.current.some((e) => e.text.de === 'später registriert')).toBe(
+      false,
+    )
 
     act(() => {
       registerChangelogEntries('test-late', [
@@ -50,8 +48,8 @@ describe('Changelog registry', () => {
       ])
     })
 
-    expect(
-      result.current.some((e) => e.text.de === 'später registriert'),
-    ).toBe(true)
+    expect(result.current.some((e) => e.text.de === 'später registriert')).toBe(
+      true,
+    )
   })
 })

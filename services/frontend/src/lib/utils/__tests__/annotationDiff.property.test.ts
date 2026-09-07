@@ -12,8 +12,8 @@
 
 import fc from 'fast-check'
 
-import { computeAnnotationDiff } from '../annotationDiff'
 import { AnnotationResult } from '@/types/labelStudio'
+import { computeAnnotationDiff } from '../annotationDiff'
 
 // --- Arbitraries ---------------------------------------------------------
 
@@ -103,7 +103,10 @@ describe('computeAnnotationDiff — properties', () => {
 
         // The four status buckets partition the field list exactly.
         expect(
-          summary.added + summary.removed + summary.modified + summary.unchanged,
+          summary.added +
+            summary.removed +
+            summary.modified +
+            summary.unchanged,
         ).toBe(summary.total)
 
         // Each summary count matches the actual number of fields with that
@@ -147,7 +150,10 @@ describe('computeAnnotationDiff — properties', () => {
     fc.assert(
       fc.property(looseArrayArb, looseArrayArb, (a, b) => {
         expect(() =>
-          computeAnnotationDiff(a as AnnotationResult[], b as AnnotationResult[]),
+          computeAnnotationDiff(
+            a as AnnotationResult[],
+            b as AnnotationResult[],
+          ),
         ).not.toThrow()
       }),
     )

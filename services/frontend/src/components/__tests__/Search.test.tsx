@@ -113,7 +113,7 @@ describe('Search Component - Issue #150 Validation', () => {
       // Should not find "API Documentation" or "Documentation" entries
       expect(screen.queryByText('API Documentation')).not.toBeInTheDocument()
       expect(
-        screen.queryByText(/Complete documentation for BenGER platform/)
+        screen.queryByText(/Complete documentation for BenGER platform/),
       ).not.toBeInTheDocument()
     })
   })
@@ -129,7 +129,7 @@ describe('Search Component - Issue #150 Validation', () => {
     await waitFor(() => {
       // Should not find invalid admin entries
       expect(
-        screen.queryByText('Administrative dashboard and controls')
+        screen.queryByText('Administrative dashboard and controls'),
       ).not.toBeInTheDocument()
       expect(screen.queryByText('Task Administration')).not.toBeInTheDocument()
       expect(screen.queryByText('System Settings')).not.toBeInTheDocument()
@@ -146,7 +146,7 @@ describe('Search Component - Issue #150 Validation', () => {
 
     await waitFor(() => {
       expect(
-        screen.queryByText('Application settings and preferences')
+        screen.queryByText('Application settings and preferences'),
       ).not.toBeInTheDocument()
     })
 
@@ -155,7 +155,7 @@ describe('Search Component - Issue #150 Validation', () => {
 
     await waitFor(() => {
       expect(
-        screen.queryByText('Browse evaluation results and performance metrics')
+        screen.queryByText('Browse evaluation results and performance metrics'),
       ).not.toBeInTheDocument()
     })
   })

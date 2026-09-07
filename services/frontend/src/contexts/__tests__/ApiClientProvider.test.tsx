@@ -29,7 +29,7 @@ describe('ApiClientProvider', () => {
       const { getByText } = render(
         <ApiClientProvider>
           <div>Test Child</div>
-        </ApiClientProvider>
+        </ApiClientProvider>,
       )
 
       expect(getByText('Test Child')).toBeInTheDocument()
@@ -41,7 +41,7 @@ describe('ApiClientProvider', () => {
           <div>Child 1</div>
           <div>Child 2</div>
           <div>Child 3</div>
-        </ApiClientProvider>
+        </ApiClientProvider>,
       )
 
       expect(getByText('Child 1')).toBeInTheDocument()
@@ -61,7 +61,7 @@ describe('ApiClientProvider', () => {
       const { getByText } = render(
         <ApiClientProvider>
           <ParentComponent />
-        </ApiClientProvider>
+        </ApiClientProvider>,
       )
 
       expect(getByText('Parent')).toBeInTheDocument()
@@ -70,7 +70,7 @@ describe('ApiClientProvider', () => {
 
     it('should handle null children gracefully', () => {
       const { container } = render(
-        <ApiClientProvider>{null}</ApiClientProvider>
+        <ApiClientProvider>{null}</ApiClientProvider>,
       )
 
       expect(container).toBeInTheDocument()
@@ -78,7 +78,7 @@ describe('ApiClientProvider', () => {
 
     it('should handle undefined children gracefully', () => {
       const { container } = render(
-        <ApiClientProvider>{undefined}</ApiClientProvider>
+        <ApiClientProvider>{undefined}</ApiClientProvider>,
       )
 
       expect(container).toBeInTheDocument()
@@ -88,7 +88,7 @@ describe('ApiClientProvider', () => {
       const { container } = render(
         <ApiClientProvider>
           <></>
-        </ApiClientProvider>
+        </ApiClientProvider>,
       )
 
       expect(container).toBeInTheDocument()
@@ -108,7 +108,7 @@ describe('ApiClientProvider', () => {
       const { getByText } = render(
         <ApiClientProvider>
           <TestComponent />
-        </ApiClientProvider>
+        </ApiClientProvider>,
       )
 
       expect(getByText('Same Instance')).toBeInTheDocument()
@@ -149,7 +149,7 @@ describe('ApiClientProvider', () => {
       render(
         <ApiClientProvider>
           <TestComponent />
-        </ApiClientProvider>
+        </ApiClientProvider>,
       )
 
       expect(client1).toBe(client2)
@@ -167,19 +167,19 @@ describe('ApiClientProvider', () => {
       const { rerender } = render(
         <ApiClientProvider>
           <TestComponent count={1} />
-        </ApiClientProvider>
+        </ApiClientProvider>,
       )
 
       rerender(
         <ApiClientProvider>
           <TestComponent count={2} />
-        </ApiClientProvider>
+        </ApiClientProvider>,
       )
 
       rerender(
         <ApiClientProvider>
           <TestComponent count={3} />
-        </ApiClientProvider>
+        </ApiClientProvider>,
       )
 
       expect(instances.length).toBe(3)
@@ -218,7 +218,7 @@ describe('ApiClientProvider', () => {
       const { getByText } = render(
         <ApiClientProvider>
           <MiddleComponent />
-        </ApiClientProvider>
+        </ApiClientProvider>,
       )
 
       expect(getByText('Has Client')).toBeInTheDocument()
@@ -239,7 +239,7 @@ describe('ApiClientProvider', () => {
         <ApiClientProvider>
           <Sibling1 />
           <Sibling2 />
-        </ApiClientProvider>
+        </ApiClientProvider>,
       )
 
       expect(getByText('Sibling1 Has Client')).toBeInTheDocument()
@@ -267,7 +267,7 @@ describe('ApiClientProvider', () => {
       const { getByText } = render(
         <ApiClientProvider>
           <OuterComponent />
-        </ApiClientProvider>
+        </ApiClientProvider>,
       )
 
       expect(getByText(/Outer: Has Client/)).toBeInTheDocument()
@@ -282,7 +282,7 @@ describe('ApiClientProvider', () => {
       render(
         <ApiClientProvider>
           <div>Test</div>
-        </ApiClientProvider>
+        </ApiClientProvider>,
       )
 
       expect(ApiClient).toHaveBeenCalled()
@@ -302,7 +302,7 @@ describe('ApiClientProvider', () => {
       render(
         <ApiClientProvider>
           <TestComponent />
-        </ApiClientProvider>
+        </ApiClientProvider>,
       )
 
       expect(ApiClient).toHaveBeenCalledTimes(1)
@@ -324,7 +324,7 @@ describe('ApiClientProvider', () => {
       const { rerender } = render(
         <ApiClientProvider>
           <TestComponent update={1} />
-        </ApiClientProvider>
+        </ApiClientProvider>,
       )
 
       const initialRenderCount = renderCount
@@ -332,13 +332,13 @@ describe('ApiClientProvider', () => {
       rerender(
         <ApiClientProvider>
           <TestComponent update={2} />
-        </ApiClientProvider>
+        </ApiClientProvider>,
       )
 
       rerender(
         <ApiClientProvider>
           <TestComponent update={3} />
-        </ApiClientProvider>
+        </ApiClientProvider>,
       )
 
       expect(renderCount).toBeGreaterThan(initialRenderCount)
@@ -367,7 +367,7 @@ describe('ApiClientProvider', () => {
         render(
           <ApiClientProvider>
             <BrokenComponent />
-          </ApiClientProvider>
+          </ApiClientProvider>,
         )
       }).toThrow('Component error')
 
@@ -385,7 +385,7 @@ describe('ApiClientProvider', () => {
       const { getByText } = render(
         <ApiClientProvider>
           <WorkingComponent />
-        </ApiClientProvider>
+        </ApiClientProvider>,
       )
 
       expect(getByText('Working')).toBeInTheDocument()
@@ -406,7 +406,7 @@ describe('ApiClientProvider', () => {
       const { getByText, rerender } = render(
         <ApiClientProvider>
           <ConditionalComponent show={false} />
-        </ApiClientProvider>
+        </ApiClientProvider>,
       )
 
       expect(() => getByText(/Shown/)).toThrow()
@@ -414,7 +414,7 @@ describe('ApiClientProvider', () => {
       rerender(
         <ApiClientProvider>
           <ConditionalComponent show={true} />
-        </ApiClientProvider>
+        </ApiClientProvider>,
       )
 
       expect(getByText('Shown: Has Client')).toBeInTheDocument()
@@ -435,7 +435,7 @@ describe('ApiClientProvider', () => {
           {[1, 2, 3].map((id) => (
             <ListItem key={id} id={id} />
           ))}
-        </ApiClientProvider>
+        </ApiClientProvider>,
       )
 
       expect(getByText('Item 1: Connected')).toBeInTheDocument()
@@ -455,7 +455,7 @@ describe('ApiClientProvider', () => {
                 },
               })
             }, 0)
-          })
+          }),
       )
 
       const { findByText } = render(
@@ -463,7 +463,7 @@ describe('ApiClientProvider', () => {
           <React.Suspense fallback={<div>Loading...</div>}>
             <LazyComponent />
           </React.Suspense>
-        </ApiClientProvider>
+        </ApiClientProvider>,
       )
 
       expect(await findByText('Lazy: Loaded')).toBeInTheDocument()
@@ -488,7 +488,7 @@ describe('ApiClientProvider', () => {
           <ApiClientProvider>
             <Component2 />
           </ApiClientProvider>
-        </>
+        </>,
       )
 
       expect(getByText('Provider 1: Active')).toBeInTheDocument()
@@ -533,14 +533,14 @@ describe('ApiClientProvider', () => {
       const { rerender } = render(
         <ApiClientProvider>
           <TestComponent value={1} />
-        </ApiClientProvider>
+        </ApiClientProvider>,
       )
 
       for (let i = 2; i <= 100; i++) {
         rerender(
           <ApiClientProvider>
             <TestComponent value={i} />
-          </ApiClientProvider>
+          </ApiClientProvider>,
         )
       }
 

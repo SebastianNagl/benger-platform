@@ -28,7 +28,7 @@ describe('templateEngine br6 - uncovered branches', () => {
   const mkField = (
     name: string,
     type: string,
-    overrides: Record<string, any> = {}
+    overrides: Record<string, any> = {},
   ) => ({
     name,
     type: type as any,
@@ -44,7 +44,10 @@ describe('templateEngine br6 - uncovered branches', () => {
     ...overrides,
   })
 
-  const mkTemplate = (fields: any[], displayOverrides: Record<string, any> = {}) => ({
+  const mkTemplate = (
+    fields: any[],
+    displayOverrides: Record<string, any> = {},
+  ) => ({
     id: 'test-tmpl',
     name: 'test',
     version: '1.0',
@@ -61,7 +64,13 @@ describe('templateEngine br6 - uncovered branches', () => {
     it('skips field with display.table === hidden (L207)', () => {
       const fields = [
         mkField('visible', 'text'),
-        mkField('hidden_field', 'text', { display: { table: 'hidden', annotation: 'editable', creation: 'editable' } }),
+        mkField('hidden_field', 'text', {
+          display: {
+            table: 'hidden',
+            annotation: 'editable',
+            creation: 'editable',
+          },
+        }),
       ]
       const template = mkTemplate(fields)
       const parsed = engine.parseTemplate(template)
@@ -89,7 +98,9 @@ describe('templateEngine br6 - uncovered branches', () => {
       // Click the rendered element to trigger onCellClick
       const rendered = result as React.ReactElement
       rendered.props.onClick()
-      expect(onCellClick).toHaveBeenCalledWith('text', 'test-value', { text: 'test-value' })
+      expect(onCellClick).toHaveBeenCalledWith('text', 'test-value', {
+        text: 'test-value',
+      })
     })
 
     it('renders cell without onCellClick (L455 else branch)', () => {
@@ -114,7 +125,8 @@ describe('templateEngine br6 - uncovered branches', () => {
       const template = mkTemplate(fields)
       const parsed = engine.parseTemplate(template)
       const customRenderers = {
-        text: (value: any, rowData: any) => React.createElement('span', null, `custom: ${value}`),
+        text: (value: any, rowData: any) =>
+          React.createElement('span', null, `custom: ${value}`),
       }
       const cols = engine.getTableColumns(parsed, { customRenderers })
 
@@ -130,7 +142,13 @@ describe('templateEngine br6 - uncovered branches', () => {
     it('returns null for in_answer_cell display mode', () => {
       const fields = [
         mkField('main', 'text'),
-        mkField('sub', 'text', { display: { table: 'in_answer_cell', annotation: 'editable', creation: 'editable' } }),
+        mkField('sub', 'text', {
+          display: {
+            table: 'in_answer_cell',
+            annotation: 'editable',
+            creation: 'editable',
+          },
+        }),
       ]
       const template = mkTemplate(fields)
       const parsed = engine.parseTemplate(template)
@@ -308,7 +326,7 @@ describe('templateEngine br6 - uncovered branches', () => {
         parsed,
         { text: 'hello world' },
         { text: 'hello world' },
-        jest.fn()
+        jest.fn(),
       )
       expect(elements.length).toBe(1)
     })
@@ -326,7 +344,7 @@ describe('templateEngine br6 - uncovered branches', () => {
         parsed,
         { text: 'hello world' },
         { text: 'hello world' },
-        jest.fn()
+        jest.fn(),
       )
       expect(elements.length).toBe(0)
     })
@@ -344,7 +362,7 @@ describe('templateEngine br6 - uncovered branches', () => {
         parsed,
         {},
         { text: 'val' },
-        jest.fn()
+        jest.fn(),
       )
       expect(elements.length).toBe(1)
     })
@@ -362,7 +380,7 @@ describe('templateEngine br6 - uncovered branches', () => {
         parsed,
         {},
         { text: 'val' },
-        jest.fn()
+        jest.fn(),
       )
       expect(elements.length).toBe(1)
     })
@@ -380,7 +398,7 @@ describe('templateEngine br6 - uncovered branches', () => {
         parsed,
         {},
         { text: 'val' },
-        jest.fn()
+        jest.fn(),
       )
       expect(elements.length).toBe(0)
     })
@@ -393,12 +411,7 @@ describe('templateEngine br6 - uncovered branches', () => {
       ]
       const template = mkTemplate(fields)
       const parsed = engine.parseTemplate(template)
-      const elements = engine.renderAnnotationForm(
-        parsed,
-        {},
-        {},
-        jest.fn()
-      )
+      const elements = engine.renderAnnotationForm(parsed, {}, {}, jest.fn())
       expect(elements.length).toBe(1)
     })
 
@@ -410,12 +423,7 @@ describe('templateEngine br6 - uncovered branches', () => {
       ]
       const template = mkTemplate(fields)
       const parsed = engine.parseTemplate(template)
-      const elements = engine.renderAnnotationForm(
-        parsed,
-        {},
-        {},
-        jest.fn()
-      )
+      const elements = engine.renderAnnotationForm(parsed, {}, {}, jest.fn())
       expect(elements.length).toBe(1)
     })
 
@@ -429,7 +437,7 @@ describe('templateEngine br6 - uncovered branches', () => {
         parsed,
         { unk: 'data' },
         {},
-        jest.fn()
+        jest.fn(),
       )
       // pdf_viewer not registered, so skipped
       expect(elements.length).toBe(0)
@@ -441,7 +449,10 @@ describe('templateEngine br6 - uncovered branches', () => {
       const fields = [mkField('known', 'text')]
       const template = mkTemplate(fields)
       const parsed = engine.parseTemplate(template)
-      const result = engine.validateData(parsed, { known: 'v', unknown_field: 'x' })
+      const result = engine.validateData(parsed, {
+        known: 'v',
+        unknown_field: 'x',
+      })
       expect(result.valid).toBe(true)
     })
 
@@ -462,7 +473,10 @@ describe('templateEngine br6 - uncovered branches', () => {
     it('handles structured response format (L350-352)', () => {
       const template = {
         ...mkTemplate([mkField('text', 'text')]),
-        llm_config: { response_format: 'structured' as const, prompt_template: '' },
+        llm_config: {
+          response_format: 'structured' as const,
+          prompt_template: '',
+        },
       }
       const parsed = engine.parseTemplate(template)
       const result = engine.parseLLMResponse(parsed, 'structured output')
@@ -500,7 +514,7 @@ describe('templateEngine br6 - uncovered branches', () => {
       const template = mkTemplate([mkField('text', 'text')])
       const parsed = engine.parseTemplate(template)
       expect(() => engine.parseLLMResponse(parsed, 'text')).toThrow(
-        'Template does not have LLM configuration'
+        'Template does not have LLM configuration',
       )
     })
   })
@@ -517,7 +531,9 @@ describe('templateEngine br6 - uncovered branches', () => {
       const parsed = engine.parseTemplate(template)
 
       // With context present
-      const promptWith = engine.generatePrompt(parsed, { context: 'legal case' })
+      const promptWith = engine.generatePrompt(parsed, {
+        context: 'legal case',
+      })
       expect(promptWith).toContain('Context: legal case')
 
       // Without context (falsy)
@@ -530,11 +546,14 @@ describe('templateEngine br6 - uncovered branches', () => {
         ...mkTemplate([mkField('items', 'text')]),
         llm_config: {
           response_format: 'text' as const,
-          prompt_template: 'Items: {{#each items}}{{@index}}: {{this}}\n{{/each}}',
+          prompt_template:
+            'Items: {{#each items}}{{@index}}: {{this}}\n{{/each}}',
         },
       }
       const parsed = engine.parseTemplate(template)
-      const prompt = engine.generatePrompt(parsed, { items: ['apple', 'banana'] })
+      const prompt = engine.generatePrompt(parsed, {
+        items: ['apple', 'banana'],
+      })
       expect(prompt).toContain('0: apple')
       expect(prompt).toContain('1: banana')
     })
@@ -556,7 +575,7 @@ describe('templateEngine br6 - uncovered branches', () => {
       const template = mkTemplate([mkField('text', 'text')])
       const parsed = engine.parseTemplate(template)
       expect(() => engine.generatePrompt(parsed, {})).toThrow(
-        'Template does not have LLM configuration'
+        'Template does not have LLM configuration',
       )
     })
   })
@@ -575,14 +594,28 @@ describe('templateEngine br6 - uncovered branches', () => {
         },
       }
       expect(() => engine.parseTemplate(template)).toThrow(
-        "Display column 'ghost' not found in template fields"
+        "Display column 'ghost' not found in template fields",
       )
     })
 
     it('tracks editable and required fields', () => {
       const fields = [
-        mkField('edit', 'text', { required: true, display: { annotation: 'editable', table: 'column', creation: 'editable' } }),
-        mkField('ro', 'text', { required: false, display: { annotation: 'readonly', table: 'column', creation: 'editable' } }),
+        mkField('edit', 'text', {
+          required: true,
+          display: {
+            annotation: 'editable',
+            table: 'column',
+            creation: 'editable',
+          },
+        }),
+        mkField('ro', 'text', {
+          required: false,
+          display: {
+            annotation: 'readonly',
+            table: 'column',
+            creation: 'editable',
+          },
+        }),
       ]
       const template = mkTemplate(fields)
       const parsed = engine.parseTemplate(template)

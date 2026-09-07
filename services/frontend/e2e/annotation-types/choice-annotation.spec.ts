@@ -31,7 +31,7 @@ test.describe('Choice Annotation', () => {
 
       // Look for annotation interface or tasks
       const annotateButton = page.locator(
-        'button:has-text("Annotate"), a:has-text("Start Annotating"), a:has-text("Annotation")'
+        'button:has-text("Annotate"), a:has-text("Start Annotating"), a:has-text("Annotation")',
       )
       if (await annotateButton.isVisible({ timeout: 3000 })) {
         await annotateButton.click()
@@ -40,7 +40,7 @@ test.describe('Choice Annotation', () => {
 
       // Verify choice options are visible
       const choiceOptions = page.locator(
-        '[data-testid="choice-option"], .choice-item, input[type="radio"], button:has-text("positive"), button:has-text("negative"), button:has-text("neutral")'
+        '[data-testid="choice-option"], .choice-item, input[type="radio"], button:has-text("positive"), button:has-text("negative"), button:has-text("neutral")',
       )
       const hasChoices = (await choiceOptions.count()) > 0
 
@@ -53,7 +53,7 @@ test.describe('Choice Annotation', () => {
         const projectTitle = page.locator('h1, h2').first()
         await expect(projectTitle).toBeVisible()
         console.log(
-          'Project page loaded, annotation interface may require task navigation'
+          'Project page loaded, annotation interface may require task navigation',
         )
       }
     } else {
@@ -78,7 +78,7 @@ test.describe('Choice Annotation', () => {
 
       // Navigate to annotation if possible
       const annotateButton = page.locator(
-        'button:has-text("Annotate"), a:has-text("Start Annotating"), a:has-text("Annotation")'
+        'button:has-text("Annotate"), a:has-text("Start Annotating"), a:has-text("Annotation")',
       )
       if (await annotateButton.isVisible({ timeout: 3000 })) {
         await annotateButton.click()
@@ -87,7 +87,7 @@ test.describe('Choice Annotation', () => {
 
       // Verify multi-choice options are visible (checkboxes for multiple selection)
       const checkboxOptions = page.locator(
-        'input[type="checkbox"], [role="checkbox"], button:has-text("Legal"), button:has-text("Technical")'
+        'input[type="checkbox"], [role="checkbox"], button:has-text("Legal"), button:has-text("Technical")',
       )
 
       if ((await checkboxOptions.count()) > 0) {

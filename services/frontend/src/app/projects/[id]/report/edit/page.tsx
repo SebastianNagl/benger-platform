@@ -20,8 +20,8 @@ import { Breadcrumb } from '@/components/shared/Breadcrumb'
 import { Button } from '@/components/shared/Button'
 import { Label } from '@/components/shared/Label'
 import { Textarea } from '@/components/shared/Textarea'
-import { ToggleSwitch } from '@/components/shared/ToggleSwitch'
 import { useToast } from '@/components/shared/Toast'
+import { ToggleSwitch } from '@/components/shared/ToggleSwitch'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { getMetricDefinitions } from '@/lib/api/evaluation-types'
@@ -54,11 +54,7 @@ interface ReportEditorPageProps {
 }
 
 type SectionKey =
-  | 'project_info'
-  | 'data'
-  | 'annotations'
-  | 'generation'
-  | 'evaluation'
+  'project_info' | 'data' | 'annotations' | 'generation' | 'evaluation'
 
 const SECTION_KEYS: SectionKey[] = [
   'project_info',
@@ -111,12 +107,8 @@ function getChartsConfig(report: ReportResponse | null): ReportChartsConfig {
 }
 
 /** Report metrics (non-internal), in snapshot order. */
-function listReportMetrics(
-  snapshot: ReportSnapshot | null
-): ReportMethod[] {
-  return (snapshot?.methods ?? []).filter(
-    (m) => !isInternalMetricKey(m.id)
-  )
+function listReportMetrics(snapshot: ReportSnapshot | null): ReportMethod[] {
+  return (snapshot?.methods ?? []).filter((m) => !isInternalMetricKey(m.id))
 }
 
 /** Display name: metric registry first, then the snapshot's name, then the id. */
@@ -132,9 +124,7 @@ function configLabel(config: ReportConfigRef): string {
 }
 
 /** Subjects across all series + snapshot models, de-duplicated, models first. */
-function listReportSubjects(
-  snapshot: ReportSnapshot | null
-): ReportSubject[] {
+function listReportSubjects(snapshot: ReportSnapshot | null): ReportSubject[] {
   if (!snapshot) return []
   const byId = new Map<string, ReportSubject>()
   for (const model of snapshot.models ?? []) {
@@ -154,7 +144,7 @@ function listReportSubjects(
 /** The config with the most samples for a metric (the snapshot's default rule). */
 function defaultConfigFor(
   configs: ReportConfigRef[],
-  metric: string | null
+  metric: string | null,
 ): string | null {
   if (!metric) return null
   const candidates = configs.filter((c) => c.metric === metric)
@@ -197,12 +187,12 @@ function deriveEditorState(report: ReportResponse): EditorState {
     primaryMetric,
     primaryConfigId,
     visibleConfigs: new Set(
-      Array.isArray(cfg.visible_configs) ? cfg.visible_configs : configIds
+      Array.isArray(cfg.visible_configs) ? cfg.visible_configs : configIds,
     ),
     visibleMetrics: new Set(
       Array.isArray(cfg.visible_metrics)
         ? cfg.visible_metrics.filter((m) => !isInternalMetricKey(m))
-        : metricIds
+        : metricIds,
     ),
     hiddenSubjects: new Set(cfg.hidden_subjects ?? []),
     showDistribution: cfg.show_distribution !== false,
@@ -218,7 +208,7 @@ function deriveEditorState(report: ReportResponse): EditorState {
 function reconcileWithSnapshot(
   state: EditorState,
   previous: ReportSnapshot | null,
-  next: ReportSnapshot | null
+  next: ReportSnapshot | null,
 ): EditorState {
   const prevMetricIds = new Set(listReportMetrics(previous).map((m) => m.id))
   const prevConfigIds = new Set((previous?.configs ?? []).map((c) => c.id))
@@ -242,10 +232,11 @@ function reconcileWithSnapshot(
   const primaryConfigId =
     state.primaryConfigId &&
     nextConfigs.some(
-      (c) => c.id === state.primaryConfigId && c.metric === primaryMetric
+      (c) => c.id === state.primaryConfigId && c.metric === primaryMetric,
     )
       ? state.primaryConfigId
-      : (next?.primary_config_id ?? defaultConfigFor(nextConfigs, primaryMetric))
+      : (next?.primary_config_id ??
+        defaultConfigFor(nextConfigs, primaryMetric))
 
   return {
     ...state,
@@ -325,12 +316,12 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
   const metrics = useMemo(() => listReportMetrics(snapshot), [snapshot])
   const primaryMetricOptions = useMemo(
     () => metrics.filter((m) => !m.derived),
-    [metrics]
+    [metrics],
   )
   const configs = useMemo(() => snapshot?.configs ?? [], [snapshot])
   const configsForPrimary = useMemo(
     () => configs.filter((c) => c.metric === state?.primaryMetric),
-    [configs, state?.primaryMetric]
+    [configs, state?.primaryMetric],
   )
   const subjects = useMemo(() => listReportSubjects(snapshot), [snapshot])
   const modelSubjects = subjects.filter((s) => s.kind === 'model')
@@ -346,7 +337,7 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
       const keepConfig =
         prev.primaryConfigId &&
         configs.some(
-          (c) => c.id === prev.primaryConfigId && c.metric === nextMetric
+          (c) => c.id === prev.primaryConfigId && c.metric === nextMetric,
         )
       return {
         ...prev,
@@ -434,9 +425,9 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
       addToast(
         t(
           'reports.editor.noMetricsVisible',
-          'Mindestens eine Metrik muss sichtbar bleiben.'
+          'Mindestens eine Metrik muss sichtbar bleiben.',
         ),
-        'warning'
+        'warning',
       )
       return
     }
@@ -467,7 +458,7 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
       setState((prev) =>
         prev
           ? reconcileWithSnapshot(prev, previous, getSnapshot(refreshed))
-          : deriveEditorState(refreshed)
+          : deriveEditorState(refreshed),
       )
       addToast(t('reports.editor.refreshed', 'Daten aktualisiert'), 'success')
     } catch (error) {
@@ -475,9 +466,9 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
       addToast(
         t(
           'reports.editor.refreshFailed',
-          'Daten konnten nicht aktualisiert werden'
+          'Daten konnten nicht aktualisiert werden',
         ),
-        'error'
+        'error',
       )
     } finally {
       setRefreshing(false)
@@ -501,7 +492,7 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
   // Clear dead-end instead of a blank page
   if (!isSuperadmin) {
     return (
-      <div className="mx-auto max-w-2xl px-4 pb-10 pt-16 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-2xl px-4 pt-16 pb-10 sm:px-6 lg:px-8">
         <div
           className="rounded-lg border border-amber-200 bg-amber-50 p-6 dark:border-amber-800 dark:bg-amber-900/20"
           role="alert"
@@ -509,13 +500,13 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
           <h1 className="text-lg font-semibold text-amber-900 dark:text-amber-200">
             {t(
               'reports.editor.notSuperadmin',
-              'Nur Superadmins können Berichte bearbeiten'
+              'Nur Superadmins können Berichte bearbeiten',
             )}
           </h1>
           <p className="mt-2 text-sm text-amber-800 dark:text-amber-300">
             {t(
               'reports.editor.notSuperadminHint',
-              'Veröffentlichte Berichte finden Sie unter „Berichte“.'
+              'Veröffentlichte Berichte finden Sie unter „Berichte“.',
             )}
           </p>
           <div className="mt-4 flex gap-3">
@@ -572,7 +563,7 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
     : null
 
   return (
-    <div className="mx-auto max-w-5xl px-4 pb-10 pt-16 sm:px-6 lg:px-8">
+    <div className="mx-auto max-w-5xl px-4 pt-16 pb-10 sm:px-6 lg:px-8">
       {/* Header */}
       <div className="mb-8">
         <Breadcrumb
@@ -603,12 +594,16 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
             </p>
             <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-500">
               {snapshotDate
-                ? t('reports.editor.snapshotGeneratedAt', 'Datenstand: {date}', {
-                    date: snapshotDate,
-                  })
+                ? t(
+                    'reports.editor.snapshotGeneratedAt',
+                    'Datenstand: {date}',
+                    {
+                      date: snapshotDate,
+                    },
+                  )
                 : t(
                     'reports.editor.noSnapshot',
-                    'Noch keine Daten berechnet. Klicken Sie auf „Daten aktualisieren“.'
+                    'Noch keine Daten berechnet. Klicken Sie auf „Daten aktualisieren“.',
                   )}
             </p>
           </div>
@@ -651,7 +646,7 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
         <div className={cardClass} data-testid="section-project_info">
           {sectionHeader(
             'project_info',
-            t('project.report.editor.projectInfo.title')
+            t('project.report.editor.projectInfo.title'),
           )}
           <div className="space-y-4">
             <div>
@@ -664,7 +659,7 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
                 value={state.customTitle}
                 onChange={(e) => update({ customTitle: e.target.value })}
                 placeholder={report.project_title}
-                className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 dark:border-zinc-600 dark:bg-zinc-800 dark:text-white"
+                className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 focus:outline-none dark:border-zinc-600 dark:bg-zinc-800 dark:text-white"
               />
               <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
                 {t('project.report.editor.projectInfo.useDefaultTitle', {
@@ -681,7 +676,7 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
                 value={state.customDescription}
                 onChange={(e) => update({ customDescription: e.target.value })}
                 placeholder={t(
-                  'project.report.editor.projectInfo.customDescriptionPlaceholder'
+                  'project.report.editor.projectInfo.customDescriptionPlaceholder',
                 )}
                 rows={3}
               />
@@ -702,7 +697,7 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
                 value={state.dataText}
                 onChange={(e) => update({ dataText: e.target.value })}
                 placeholder={t(
-                  'project.report.editor.dataSection.customTextPlaceholder'
+                  'project.report.editor.dataSection.customTextPlaceholder',
                 )}
                 rows={4}
               />
@@ -712,7 +707,7 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
               onChange={(enabled) => update({ showDataCount: enabled })}
               label={t(
                 'reports.editor.showDataCount',
-                'Anzahl der Aufgaben anzeigen'
+                'Anzahl der Aufgaben anzeigen',
               )}
             />
           </div>
@@ -722,7 +717,7 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
         <div className={cardClass} data-testid="section-annotations">
           {sectionHeader(
             'annotations',
-            t('project.report.editor.annotationsSection.title')
+            t('project.report.editor.annotationsSection.title'),
           )}
           <div className="space-y-4">
             <div>
@@ -734,7 +729,7 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
                 value={state.annotationsText}
                 onChange={(e) => update({ annotationsText: e.target.value })}
                 placeholder={t(
-                  'project.report.editor.annotationsSection.customTextPlaceholder'
+                  'project.report.editor.annotationsSection.customTextPlaceholder',
                 )}
                 rows={4}
               />
@@ -748,7 +743,7 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
                 value={state.acknowledgment}
                 onChange={(e) => update({ acknowledgment: e.target.value })}
                 placeholder={t(
-                  'project.report.editor.annotationsSection.acknowledgmentPlaceholder'
+                  'project.report.editor.annotationsSection.acknowledgmentPlaceholder',
                 )}
                 rows={3}
               />
@@ -758,7 +753,7 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
               onChange={(enabled) => update({ showParticipants: enabled })}
               label={t(
                 'reports.editor.showParticipants',
-                'Teilnehmende anzeigen'
+                'Teilnehmende anzeigen',
               )}
             />
           </div>
@@ -768,7 +763,7 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
         <div className={cardClass} data-testid="section-generation">
           {sectionHeader(
             'generation',
-            t('project.report.editor.generationSection.title')
+            t('project.report.editor.generationSection.title'),
           )}
           <div className="space-y-4">
             <div>
@@ -780,7 +775,7 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
                 value={state.generationText}
                 onChange={(e) => update({ generationText: e.target.value })}
                 placeholder={t(
-                  'project.report.editor.generationSection.customTextPlaceholder'
+                  'project.report.editor.generationSection.customTextPlaceholder',
                 )}
                 rows={4}
               />
@@ -797,7 +792,7 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
         <div className={cardClass} data-testid="section-evaluation">
           {sectionHeader(
             'evaluation',
-            t('project.report.editor.evaluationSection.title')
+            t('project.report.editor.evaluationSection.title'),
           )}
           <div className="space-y-6">
             <div>
@@ -809,7 +804,7 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
                 value={state.interpretation}
                 onChange={(e) => update({ interpretation: e.target.value })}
                 placeholder={t(
-                  'project.report.editor.evaluationSection.interpretationPlaceholder'
+                  'project.report.editor.evaluationSection.interpretationPlaceholder',
                 )}
                 rows={5}
               />
@@ -823,7 +818,7 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
                 value={state.conclusions}
                 onChange={(e) => update({ conclusions: e.target.value })}
                 placeholder={t(
-                  'project.report.editor.evaluationSection.conclusionsPlaceholder'
+                  'project.report.editor.evaluationSection.conclusionsPlaceholder',
                 )}
                 rows={4}
               />
@@ -837,7 +832,7 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
               {!snapshot || metrics.length === 0 ? (
                 <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
                   {t(
-                    'project.report.editor.evaluationSection.noMetricsAvailable'
+                    'project.report.editor.evaluationSection.noMetricsAvailable',
                   )}
                 </p>
               ) : (
@@ -850,7 +845,7 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
                     <p className="text-xs text-zinc-500 dark:text-zinc-400">
                       {t(
                         'reports.editor.primaryMetricHint',
-                        'Metrik, nach der die Rangliste sortiert wird und die das Hauptdiagramm zeigt.'
+                        'Metrik, nach der die Rangliste sortiert wird und die das Hauptdiagramm zeigt.',
                       )}
                     </p>
                     <select
@@ -880,14 +875,14 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
                     <p className="text-xs text-zinc-500 dark:text-zinc-400">
                       {t(
                         'reports.editor.primaryConfigHint',
-                        'Welche Bewertungskonfiguration die Rangliste und das Hauptdiagramm liefert.'
+                        'Welche Bewertungskonfiguration die Rangliste und das Hauptdiagramm liefert.',
                       )}
                     </p>
                     {configsForPrimary.length === 0 ? (
                       <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
                         {t(
                           'reports.editor.noConfigsForMetric',
-                          'Keine Konfiguration für diese Metrik.'
+                          'Keine Konfiguration für diese Metrik.',
                         )}
                       </p>
                     ) : (
@@ -914,7 +909,7 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
                       <Label>
                         {t(
                           'reports.editor.visibleConfigs',
-                          'Sichtbare Judge-Konfigurationen'
+                          'Sichtbare Judge-Konfigurationen',
                         )}
                       </Label>
                       <div
@@ -930,7 +925,7 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
                                 update({
                                   visibleConfigs: toggleInSet(
                                     state.visibleConfigs,
-                                    c.id
+                                    c.id,
                                   ),
                                 })
                               }
@@ -947,7 +942,10 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
                   <div>
                     <div className="mb-1 flex items-center justify-between">
                       <Label>
-                        {t('reports.editor.visibleMetrics', 'Sichtbare Metriken')}
+                        {t(
+                          'reports.editor.visibleMetrics',
+                          'Sichtbare Metriken',
+                        )}
                       </Label>
                       <div className="flex gap-3 text-xs">
                         <button
@@ -959,20 +957,24 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
                           }
                           className="text-emerald-700 hover:underline dark:text-emerald-400"
                         >
-                          {t('project.report.editor.evaluationSection.selectAll')}
+                          {t(
+                            'project.report.editor.evaluationSection.selectAll',
+                          )}
                         </button>
                         <button
                           type="button"
                           onClick={() => update({ visibleMetrics: new Set() })}
                           className="text-zinc-600 hover:underline dark:text-zinc-300"
                         >
-                          {t('project.report.editor.evaluationSection.clearAll')}
+                          {t(
+                            'project.report.editor.evaluationSection.clearAll',
+                          )}
                         </button>
                       </div>
                     </div>
                     <p className="mb-2 text-xs text-zinc-500 dark:text-zinc-400">
                       {t(
-                        'project.report.editor.evaluationSection.visibleMetricsHint'
+                        'project.report.editor.evaluationSection.visibleMetricsHint',
                       )}
                     </p>
                     <div
@@ -988,7 +990,7 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
                               update({
                                 visibleMetrics: toggleInSet(
                                   state.visibleMetrics,
-                                  m.id
+                                  m.id,
                                 ),
                               })
                             }
@@ -1006,13 +1008,13 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
                       <Label>
                         {t(
                           'reports.editor.hiddenSubjects',
-                          'Ausgeblendete Modelle/Teilnehmende'
+                          'Ausgeblendete Modelle/Teilnehmende',
                         )}
                       </Label>
                       <p className="mb-2 text-xs text-zinc-500 dark:text-zinc-400">
                         {t(
                           'reports.editor.hiddenSubjectsHint',
-                          'Angehakte Einträge erscheinen nicht im Bericht.'
+                          'Angehakte Einträge erscheinen nicht im Bericht.',
                         )}
                       </p>
                       <div className="space-y-3" data-testid="hidden-subjects">
@@ -1031,12 +1033,15 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
                           .filter((group) => group.items.length > 0)
                           .map((group) => (
                             <div key={group.key}>
-                              <p className="mb-1 text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                              <p className="mb-1 text-xs font-medium tracking-wide text-zinc-500 uppercase dark:text-zinc-400">
                                 {group.title}
                               </p>
                               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
                                 {group.items.map((s) => (
-                                  <label key={s.id} className={checkboxLabelClass}>
+                                  <label
+                                    key={s.id}
+                                    className={checkboxLabelClass}
+                                  >
                                     <input
                                       type="checkbox"
                                       checked={state.hiddenSubjects.has(s.id)}
@@ -1044,7 +1049,7 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
                                         update({
                                           hiddenSubjects: toggleInSet(
                                             state.hiddenSubjects,
-                                            s.id
+                                            s.id,
                                           ),
                                         })
                                       }
@@ -1057,7 +1062,7 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
                                           (
                                           {t(
                                             'reports.editor.customModel',
-                                            'custom'
+                                            'custom',
                                           )}
                                           )
                                         </span>
@@ -1080,7 +1085,7 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
                       }
                       label={t(
                         'reports.editor.showDistribution',
-                        'Verteilung anzeigen'
+                        'Verteilung anzeigen',
                       )}
                     />
                     <ToggleSwitch
@@ -1088,7 +1093,7 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
                       onChange={(enabled) => update({ showHumans: enabled })}
                       label={t(
                         'reports.editor.showHumans',
-                        'Menschliche Teilnehmende anzeigen'
+                        'Menschliche Teilnehmende anzeigen',
                       )}
                     />
                   </div>

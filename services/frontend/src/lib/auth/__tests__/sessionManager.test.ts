@@ -75,7 +75,7 @@ describe('SessionManager', () => {
 
       expect(localStorage.getItem('benger_last_session_user')).toBe('999')
       expect(typeof localStorage.getItem('benger_last_session_user')).toBe(
-        'string'
+        'string',
       )
     })
 
@@ -496,7 +496,7 @@ describe('SessionManager', () => {
       manager.trackUserSession(user)
 
       expect(localStorage.getItem('benger_last_session_user')).toBe(
-        'user-123-abc'
+        'user-123-abc',
       )
     })
 
@@ -507,7 +507,7 @@ describe('SessionManager', () => {
       manager.trackUserSession(user)
 
       expect(localStorage.getItem('benger_last_session_user')).toBe(
-        String(largeId)
+        String(largeId),
       )
     })
 

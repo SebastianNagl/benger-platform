@@ -7,8 +7,6 @@
 
 'use client'
 
-import { METRIC_ORDER } from '@/lib/api/evaluation-types'
-import { sortModelsByScoreAsc } from '@/lib/evaluation/sortModelsByScoreAsc'
 import {
   AggregationLevel,
   AggregationSelector,
@@ -18,8 +16,6 @@ import {
   type ChartType,
 } from '@/components/evaluation/ChartTypeSelector'
 import { DynamicChartRenderer } from '@/components/evaluation/DynamicChartRenderer'
-import { useMultiConfigChartData } from '@/components/evaluation/results/useMultiConfigChartData'
-import { EvaluationResultsTable } from '@/components/evaluation/EvaluationResultsTable'
 import {
   EvaluationControlModal,
   type EvaluationRunScope,
@@ -28,6 +24,7 @@ import {
   ChartData,
   EvaluationResults,
 } from '@/components/evaluation/EvaluationResults'
+import { EvaluationResultsTable } from '@/components/evaluation/EvaluationResultsTable'
 import { ScoreCard } from '@/components/evaluation/ScoreCard'
 import { StatisticalResultsPanel } from '@/components/evaluation/StatisticalResultsPanel'
 import {
@@ -36,21 +33,30 @@ import {
 } from '@/components/evaluation/StatisticsSelector'
 import { HistoricalTrendChart } from '@/components/evaluation/charts/HistoricalTrendChart'
 import { SignificanceHeatmap } from '@/components/evaluation/charts/SignificanceHeatmap'
+import { useMultiConfigChartData } from '@/components/evaluation/results/useMultiConfigChartData'
 import { Breadcrumb } from '@/components/shared/Breadcrumb'
 import { Button } from '@/components/shared/Button'
 import { Card } from '@/components/shared/Card'
 import { FeatureFlag } from '@/components/shared/FeatureFlag'
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
 import { ResponsiveContainer } from '@/components/shared/ResponsiveContainer'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/shared/Select'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/shared/Select'
 import { useToast } from '@/components/shared/Toast'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { useOperationToasts } from '@/hooks/useOperationToasts'
 import { apiClient } from '@/lib/api/client'
+import { METRIC_ORDER } from '@/lib/api/evaluation-types'
 import { projectsAPI } from '@/lib/api/projects'
-import { Project } from '@/types/labelStudio'
+import { sortModelsByScoreAsc } from '@/lib/evaluation/sortModelsByScoreAsc'
 import { parseSubdomain } from '@/lib/utils/subdomain'
+import { Project } from '@/types/labelStudio'
 import { canAccessProjectData } from '@/utils/permissions'
 import {
   ChartBarIcon,
@@ -112,29 +118,37 @@ interface ProjectEvaluationResult {
  * Handles current format (evaluation_configs) and legacy format (selected_methods).
  */
 function deriveEvaluationConfigs(evalConfig: any): any[] {
-  let configs = evalConfig?.evaluation_configs || evalConfig?.multi_field_evaluations || []
+  let configs =
+    evalConfig?.evaluation_configs || evalConfig?.multi_field_evaluations || []
 
   if (configs.length === 0) {
     const selectedMethods = evalConfig?.selected_methods || {}
     const hasSelectedMethods = Object.values(selectedMethods).some(
-      (m: any) => m.automated?.length > 0 || m.human?.length > 0
+      (m: any) => m.automated?.length > 0 || m.human?.length > 0,
     )
     if (hasSelectedMethods) {
-      configs = Object.entries(selectedMethods)
-        .flatMap(([fieldName, selections]: [string, any]) =>
+      configs = Object.entries(selectedMethods).flatMap(
+        ([fieldName, selections]: [string, any]) =>
           (selections.automated || []).map((metric: any) => {
             const metricName = typeof metric === 'string' ? metric : metric.name
             return {
               id: `${fieldName}_${metricName}`,
               metric: metricName,
-              display_name: metricName.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
-              prediction_fields: [selections.field_mapping?.prediction_field || fieldName].filter(Boolean),
-              reference_fields: [selections.field_mapping?.reference_field || fieldName].filter(Boolean),
+              display_name: metricName
+                .replace(/_/g, ' ')
+                .replace(/\b\w/g, (c: string) => c.toUpperCase()),
+              prediction_fields: [
+                selections.field_mapping?.prediction_field || fieldName,
+              ].filter(Boolean),
+              reference_fields: [
+                selections.field_mapping?.reference_field || fieldName,
+              ].filter(Boolean),
               enabled: true,
-              metric_parameters: typeof metric === 'object' ? metric.parameters : undefined,
+              metric_parameters:
+                typeof metric === 'object' ? metric.parameters : undefined,
             }
-          })
-        )
+          }),
+      )
     }
   }
 
@@ -149,7 +163,8 @@ export default function EvaluationDashboard() {
   const { t } = useI18n()
   const searchParams = useSearchParams()
   const { user, isLoading: authLoading } = useAuth()
-  const { isPrivateMode } = typeof window !== 'undefined' ? parseSubdomain() : { isPrivateMode: true }
+  const { isPrivateMode } =
+    typeof window !== 'undefined' ? parseSubdomain() : { isPrivateMode: true }
 
   // Parse URL filters synchronously on first render. Without this, the page
   // briefly renders with defaults, then `fetchProjectData` populates the
@@ -165,9 +180,20 @@ export default function EvaluationDashboard() {
     const models = searchParams?.get('models')?.split(',').filter(Boolean)
     const configs = searchParams?.get('configs')?.split(',').filter(Boolean)
     const chart = searchParams?.get('chartType') as ChartType | null
-    const validCharts: ChartType[] = ['data', 'bar', 'radar', 'box', 'heatmap', 'table']
-    const aggregation = searchParams?.get('aggregation')?.split(',').filter(Boolean) as AggregationLevel[] | undefined
-    const stats = searchParams?.get('stats')?.split(',').filter(Boolean) as StatisticalMethod[] | undefined
+    const validCharts: ChartType[] = [
+      'data',
+      'bar',
+      'radar',
+      'box',
+      'heatmap',
+      'table',
+    ]
+    const aggregation = searchParams
+      ?.get('aggregation')
+      ?.split(',')
+      .filter(Boolean) as AggregationLevel[] | undefined
+    const stats = searchParams?.get('stats')?.split(',').filter(Boolean) as
+      StatisticalMethod[] | undefined
     return {
       models: models && models.length > 0 ? models : null,
       configs: configs && configs.length > 0 ? configs : null,
@@ -183,14 +209,14 @@ export default function EvaluationDashboard() {
   const [projects, setProjects] = useState<Project[]>([])
   const [projectDropdownOpen, setProjectDropdownOpen] = useState(false)
   const [selectedModels, setSelectedModels] = useState<string[]>(
-    initialUrlFilters.models ?? []
+    initialUrlFilters.models ?? [],
   )
   // Issue #111: selection state moved from metric_name to
   // evaluation_config_id. Two configs of the same metric type now have
   // separate, independently-selectable entries with distinct
   // `display_name` labels (the metric_name string alone collapsed them).
   const [selectedConfigIds, setSelectedConfigIds] = useState<string[]>(
-    initialUrlFilters.configs ?? []
+    initialUrlFilters.configs ?? [],
   )
   const [availableConfigIds, setAvailableConfigIds] = useState<string[]>([])
   const [selectedEvalTypes, setSelectedEvalTypes] = useState<EvalType[]>([
@@ -207,7 +233,7 @@ export default function EvaluationDashboard() {
   >(initialUrlFilters.stats ?? [])
 
   const [chartType, setChartType] = useState<ChartType>(
-    initialUrlFilters.chartType ?? 'data'
+    initialUrlFilters.chartType ?? 'data',
   )
   const [showEvaluationModal, setShowEvaluationModal] = useState(false)
 
@@ -242,7 +268,7 @@ export default function EvaluationDashboard() {
   const [hasAnyConfiguration, setHasAnyConfiguration] = useState(false)
   // Track which metrics have actual results
   const [metricsWithStatus, setMetricsWithStatus] = useState<ItemWithStatus[]>(
-    []
+    [],
   )
   const [metricsDropdownOpen, setMetricsDropdownOpen] = useState(false)
   const metricsDropdownRef = useRef<HTMLDivElement>(null)
@@ -253,7 +279,7 @@ export default function EvaluationDashboard() {
   // Track if auto-run has been attempted for current project (prevents duplicate runs)
   // Chart data from evaluation results
   const [evaluationChartData, setEvaluationChartData] = useState<ChartData[]>(
-    []
+    [],
   )
   // Key to trigger EvaluationResults refresh when evaluation completes
   const [resultsRefreshKey, setResultsRefreshKey] = useState(0)
@@ -266,7 +292,9 @@ export default function EvaluationDashboard() {
   const [evaluatedModels, setEvaluatedModels] = useState<any[]>([])
   const [historicalData, setHistoricalData] = useState<any>(null)
   const [significanceData, setSignificanceData] = useState<any[]>([])
-  const [significanceError, setSignificanceError] = useState<string | null>(null)
+  const [significanceError, setSignificanceError] = useState<string | null>(
+    null,
+  )
   const [statisticsData, setStatisticsData] = useState<any>(null)
   const [statisticsLoading, setStatisticsLoading] = useState(false)
   const [statisticsError, setStatisticsError] = useState<string | null>(null)
@@ -322,7 +350,9 @@ export default function EvaluationDashboard() {
   // The non-project URL params (chartType, aggregation, stats, models, metrics) are
   // already captured in initial state via `initialUrlFilters` above — no async re-apply.
   useEffect(() => {
-    const projectId = searchParams?.get('projectId') || localStorage.getItem('evaluations_lastProjectId')
+    const projectId =
+      searchParams?.get('projectId') ||
+      localStorage.getItem('evaluations_lastProjectId')
     if (projectId && projects.length > 0 && !selectedProject) {
       const project = projects.find((p) => p.id.toString() === projectId)
       if (project) {
@@ -335,7 +365,10 @@ export default function EvaluationDashboard() {
   useEffect(() => {
     if (selectedProject) {
       // Persist last selected project for next visit
-      localStorage.setItem('evaluations_lastProjectId', selectedProject.id.toString())
+      localStorage.setItem(
+        'evaluations_lastProjectId',
+        selectedProject.id.toString(),
+      )
       fetchProjectData(selectedProject.id.toString())
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchProjectData is stable, only re-run when selectedProject changes
@@ -353,12 +386,18 @@ export default function EvaluationDashboard() {
     params.set('projectId', selectedProject.id.toString())
 
     // Only save models to URL if not all models are selected (avoid long URLs)
-    if (selectedModels.length > 0 && selectedModels.length < evaluatedModels.length) {
+    if (
+      selectedModels.length > 0 &&
+      selectedModels.length < evaluatedModels.length
+    ) {
       params.set('models', selectedModels.join(','))
     }
     // Issue #111: persist selection by evaluation_config_id under
     // `?configs=`. Old `?metrics=` URLs no longer apply (clean break).
-    if (selectedConfigIds.length > 0 && selectedConfigIds.length < availableConfigIds.length) {
+    if (
+      selectedConfigIds.length > 0 &&
+      selectedConfigIds.length < availableConfigIds.length
+    ) {
       params.set('configs', selectedConfigIds.join(','))
     }
     if (chartType !== 'data') {
@@ -367,13 +406,25 @@ export default function EvaluationDashboard() {
     if (aggregationLevels.length > 0 && aggregationLevels[0] !== 'model') {
       params.set('aggregation', aggregationLevels.join(','))
     }
-    if (statisticalMethods.length > 0 && !(statisticalMethods.length === 1 && statisticalMethods[0] === 'ci')) {
+    if (
+      statisticalMethods.length > 0 &&
+      !(statisticalMethods.length === 1 && statisticalMethods[0] === 'ci')
+    ) {
       params.set('stats', statisticalMethods.join(','))
     }
 
     router.replace(`/evaluations?${params.toString()}`, { scroll: false })
     // eslint-disable-next-line react-hooks/exhaustive-deps -- Only sync when filter values change
-  }, [selectedProject, selectedModels, selectedConfigIds, chartType, aggregationLevels, statisticalMethods, evaluatedModels.length, availableConfigIds.length])
+  }, [
+    selectedProject,
+    selectedModels,
+    selectedConfigIds,
+    chartType,
+    aggregationLevels,
+    statisticalMethods,
+    evaluatedModels.length,
+    availableConfigIds.length,
+  ])
 
   // Fetch comparison data when models/configs change (instant reactive)
   // Debounced comparison data fetch — prevents API bursts when toggling filters
@@ -406,7 +457,13 @@ export default function EvaluationDashboard() {
       return () => clearTimeout(timer)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- computeStatistics is stable, only re-run when filter selections change
-  }, [aggregationLevels, statisticalMethods, selectedConfigIds, selectedModels, selectedProject])
+  }, [
+    aggregationLevels,
+    statisticalMethods,
+    selectedConfigIds,
+    selectedModels,
+    selectedProject,
+  ])
 
   const fetchProjectData = async (projectId: string) => {
     setLoading(true)
@@ -448,17 +505,17 @@ export default function EvaluationDashboard() {
         setMetricsWithStatus([])
       } else {
         const enabledEvalConfigs = evaluationConfigs.filter(
-          (e: any) => e.enabled !== false
+          (e: any) => e.enabled !== false,
         )
         const hasAutomatedConfig = enabledEvalConfigs.some(
-          (e: any) => !e.metric?.startsWith('llm_judge')
+          (e: any) => !e.metric?.startsWith('llm_judge'),
         )
-        const hasLlmJudgeConfig = enabledEvalConfigs.some(
-          (e: any) => e.metric?.startsWith('llm_judge')
+        const hasLlmJudgeConfig = enabledEvalConfigs.some((e: any) =>
+          e.metric?.startsWith('llm_judge'),
         )
-        const hasHumanConfig = Object.values(evalConfig?.selected_methods || {}).some(
-          (m: any) => m.human?.length > 0
-        )
+        const hasHumanConfig = Object.values(
+          evalConfig?.selected_methods || {},
+        ).some((m: any) => m.human?.length > 0)
 
         // Build eval types from config
         const derivedEvalTypes: EvalType[] = []
@@ -484,13 +541,16 @@ export default function EvaluationDashboard() {
         // `metric_parameters.judges` now render as two distinct
         // checkboxes labeled by `display_name`.
         const allMethods = (configuredMethods?.fields || []).flatMap(
-          (f: any) => [...(f.automated_methods || []), ...(f.human_methods || [])]
+          (f: any) => [
+            ...(f.automated_methods || []),
+            ...(f.human_methods || []),
+          ],
         )
 
-        const configsStatus: Array<ItemWithStatus & { metric: string }> = enabledEvalConfigs.map(
-          (cfg: any) => {
+        const configsStatus: Array<ItemWithStatus & { metric: string }> =
+          enabledEvalConfigs.map((cfg: any) => {
             const methodInfo = allMethods.find(
-              (m: any) => m.method_name === cfg.metric
+              (m: any) => m.method_name === cfg.metric,
             )
             const label =
               cfg.display_name && String(cfg.display_name).trim().length > 0
@@ -506,15 +566,14 @@ export default function EvaluationDashboard() {
               hasResults: methodInfo?.has_results || false,
               resultCount: methodInfo?.result_count || 0,
             }
-          }
-        )
+          })
 
         // Sort by GROUPED_METRICS order (same as wizard) using cfg.metric
         // since the wizard groups by metric type, not config id.
         const orderMap = new Map(METRIC_ORDER.map((m, i) => [m, i]))
         configsStatus.sort(
           (a, b) =>
-            (orderMap.get(a.metric) ?? 999) - (orderMap.get(b.metric) ?? 999)
+            (orderMap.get(a.metric) ?? 999) - (orderMap.get(b.metric) ?? 999),
         )
         const sortedConfigIds = configsStatus.map((c) => c.id)
 
@@ -547,17 +606,16 @@ export default function EvaluationDashboard() {
         setEvaluatedModels(modelsResponse)
         if (modelsResponse.length > 0) {
           const allIds = modelsResponse.map((m: any) => m.model_id)
-          setSelectedModels(prev => {
+          setSelectedModels((prev) => {
             if (prev.length === 0) return allIds
             const validIds = new Set<string>(allIds)
-            const valid = prev.filter(m => validIds.has(m))
+            const valid = prev.filter((m) => validIds.has(m))
             return valid.length > 0 ? valid : allIds
           })
         }
       } else {
         setEvaluatedModels([])
       }
-
     } catch (error) {
       console.error('Failed to fetch project data:', error)
       addToast(t('toasts.evaluation.dataFailed'), 'error')
@@ -608,13 +666,15 @@ export default function EvaluationDashboard() {
               modelIds: selectedModels,
               metrics: selectedMetricNames,
               evaluationConfigIds: selectedConfigIds,
-            }
+            },
           )
           setSignificanceData(significance.comparisons || [])
           setSignificanceError(null)
         } catch (err: any) {
           setSignificanceData([])
-          setSignificanceError(err?.message || 'Failed to load significance data')
+          setSignificanceError(
+            err?.message || 'Failed to load significance data',
+          )
         }
       } else {
         setSignificanceError(null)
@@ -646,20 +706,24 @@ export default function EvaluationDashboard() {
             metrics: selectedMetricNames,
             aggregation: aggregation,
             methods: statisticalMethods,
-            compareModels: selectedModels.length > 1 ? selectedModels : undefined,
+            compareModels:
+              selectedModels.length > 1 ? selectedModels : undefined,
             evaluationConfigIds: selectedConfigIds,
           })
           results[aggregation] = result
         } catch (err: any) {
           // Capture error message for this aggregation level
-          const errorMsg = err?.message || err?.detail || `Failed to compute ${aggregation} statistics`
+          const errorMsg =
+            err?.message ||
+            err?.detail ||
+            `Failed to compute ${aggregation} statistics`
           errors.push(errorMsg)
           results[aggregation] = null
         }
       }
 
       // If all aggregations failed, show error
-      const successfulResults = Object.values(results).filter(r => r !== null)
+      const successfulResults = Object.values(results).filter((r) => r !== null)
       if (successfulResults.length === 0 && errors.length > 0) {
         setStatisticsError(errors[0]) // Show first error
         setStatisticsData(null)
@@ -673,7 +737,7 @@ export default function EvaluationDashboard() {
         // Multiple aggregations: store as object keyed by level
         // For display, use the first non-null result as the primary
         const primaryResult = aggregationLevels.find(
-          (level) => results[level] !== null
+          (level) => results[level] !== null,
         )
         setStatisticsData({
           ...results[primaryResult || aggregationLevels[0]],
@@ -695,7 +759,7 @@ export default function EvaluationDashboard() {
       // Use same-origin proxy route to avoid CORS issues with EventSource
       // The proxy forwards cookies to the backend API
       const eventSource = new EventSource(
-        `/api/evaluations/stream/${evaluationId}`
+        `/api/evaluations/stream/${evaluationId}`,
       )
 
       eventSource.addEventListener('status', (event) => {
@@ -705,14 +769,14 @@ export default function EvaluationDashboard() {
             evaluationId,
             'running',
             t('evaluation.viewer.status.processing'),
-            `${data.samples_evaluated || 0} ${t('evaluation.viewer.status.samplesEvaluated')}`
+            `${data.samples_evaluated || 0} ${t('evaluation.viewer.status.samplesEvaluated')}`,
           )
         } else if (data.status === 'pending') {
           updateEvaluation(
             evaluationId,
             'started',
             t('evaluation.viewer.status.queued'),
-            t('evaluation.viewer.status.waitingWorker')
+            t('evaluation.viewer.status.waitingWorker'),
           )
         }
       })
@@ -724,12 +788,14 @@ export default function EvaluationDashboard() {
             evaluationId,
             'completed',
             t('evaluation.viewer.status.complete'),
-            `${data.samples_evaluated} ${t('evaluation.viewer.status.samplesEvaluated')}`
+            `${data.samples_evaluated} ${t('evaluation.viewer.status.samplesEvaluated')}`,
           )
           // Summary toast for completion
           addToast(
-            t('toasts.evaluation.complete', { count: data.samples_evaluated || 0 }),
-            'success'
+            t('toasts.evaluation.complete', {
+              count: data.samples_evaluated || 0,
+            }),
+            'success',
           )
           // Refresh data after completion
           if (selectedProject) {
@@ -742,7 +808,7 @@ export default function EvaluationDashboard() {
             evaluationId,
             'failed',
             t('evaluation.viewer.status.failed'),
-            data.error_message || t('evaluation.viewer.status.unknownError')
+            data.error_message || t('evaluation.viewer.status.unknownError'),
           )
           // Summary toast for failure
           addToast(t('toasts.evaluation.failed'), 'error')
@@ -762,7 +828,7 @@ export default function EvaluationDashboard() {
             evaluationId,
             'running',
             t('evaluation.viewer.status.reconnecting'),
-            `${t('evaluation.viewer.status.attempt')} ${retryCount}/${maxRetries}`
+            `${t('evaluation.viewer.status.attempt')} ${retryCount}/${maxRetries}`,
           )
           eventSource.close()
           setTimeout(() => {
@@ -773,7 +839,7 @@ export default function EvaluationDashboard() {
             evaluationId,
             'failed',
             t('evaluation.viewer.status.connectionLost'),
-            t('evaluation.viewer.status.unableToTrack')
+            t('evaluation.viewer.status.unableToTrack'),
           )
           setRunningEvaluation(false)
           eventSource.close()
@@ -783,7 +849,7 @@ export default function EvaluationDashboard() {
       return eventSource
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchProjectData is stable
-    [updateEvaluation, selectedProject]
+    [updateEvaluation, selectedProject],
   )
 
   // Handler to run evaluation on the spot. Honours the user-narrowed scope
@@ -808,10 +874,7 @@ export default function EvaluationDashboard() {
             )
 
       if (configs.length === 0) {
-        addToast(
-          t('evaluation.noMethodsConfigured'),
-          'error'
-        )
+        addToast(t('evaluation.noMethodsConfigured'), 'error')
         setRunningEvaluation(false)
         return
       }
@@ -885,12 +948,13 @@ export default function EvaluationDashboard() {
     }
   }
 
-
   // Compute disabled chart types dynamically based on actual data availability
   const chartDisabledInfo = useMemo(() => {
     const modelCount = Math.max(
       evaluatedModels.length,
-      filteredResults.length > 0 ? filteredResults.length : evaluationChartData.length
+      filteredResults.length > 0
+        ? filteredResults.length
+        : evaluationChartData.length,
     )
 
     // Check if we have raw_scores for box plot (requires sample aggregation)
@@ -904,7 +968,9 @@ export default function EvaluationDashboard() {
     // Heatmap requires 2+ models
     if (modelCount < 2) {
       disabledTypes.push('heatmap')
-      disabledReasons.heatmap = t('evaluation.viewer.chart.disabledReasons.heatmapNeedsModels')
+      disabledReasons.heatmap = t(
+        'evaluation.viewer.chart.disabledReasons.heatmapNeedsModels',
+      )
     }
 
     // Box plot requires distribution data (raw scores from sample aggregation)
@@ -912,35 +978,51 @@ export default function EvaluationDashboard() {
       disabledTypes.push('box')
       // Provide clear, actionable messaging based on current state
       if (!aggregationLevels.includes('sample')) {
-        disabledReasons.box = t('evaluation.viewer.chart.disabledReasons.boxNeedsSampleAggregation')
+        disabledReasons.box = t(
+          'evaluation.viewer.chart.disabledReasons.boxNeedsSampleAggregation',
+        )
       } else if (statisticsError) {
         disabledReasons.box = `Error: ${statisticsError}`
       } else if (statisticsLoading) {
-        disabledReasons.box = t('evaluation.viewer.chart.disabledReasons.boxComputingScores')
+        disabledReasons.box = t(
+          'evaluation.viewer.chart.disabledReasons.boxComputingScores',
+        )
       } else {
-        disabledReasons.box = t('evaluation.viewer.chart.disabledReasons.boxNoSampleData')
+        disabledReasons.box = t(
+          'evaluation.viewer.chart.disabledReasons.boxNoSampleData',
+        )
       }
     }
 
     return { disabledTypes, disabledReasons }
-  }, [evaluatedModels, filteredResults, evaluationChartData, statisticsData, aggregationLevels, statisticsError, statisticsLoading, t])
+  }, [
+    evaluatedModels,
+    filteredResults,
+    evaluationChartData,
+    statisticsData,
+    aggregationLevels,
+    statisticsError,
+    statisticsLoading,
+    t,
+  ])
 
   // Prepare model data with scores for box plots
   const modelsWithScores = useMemo(() => {
     // Get base model data
-    const baseModels = filteredResults.length > 0
-      ? filteredResults.map((r) => ({
-          model_id: r.model_id,
-          model_name: r.model_id,
-          metrics: r.metrics || {},
-          scores: [] as number[],
-        }))
-      : evaluationChartData.map((r) => ({
-          model_id: r.model_id,
-          model_name: r.model_name || r.model_id,
-          metrics: r.metrics || {},
-          scores: [] as number[],
-        }))
+    const baseModels =
+      filteredResults.length > 0
+        ? filteredResults.map((r) => ({
+            model_id: r.model_id,
+            model_name: r.model_id,
+            metrics: r.metrics || {},
+            scores: [] as number[],
+          }))
+        : evaluationChartData.map((r) => ({
+            model_id: r.model_id,
+            model_name: r.model_name || r.model_id,
+            metrics: r.metrics || {},
+            scores: [] as number[],
+          }))
 
     // If we have raw_scores, add them to the models
     const rawScores =
@@ -975,7 +1057,13 @@ export default function EvaluationDashboard() {
     // selected metrics (backend returns them DESCENDING by score). Also keeps
     // box plots consistent (lowest -> highest).
     return sortModelsByScoreAsc(baseModels, selectedMetricNames)
-  }, [filteredResults, evaluationChartData, statisticsData, selectedConfigIds, selectedMetricNames])
+  }, [
+    filteredResults,
+    evaluationChartData,
+    statisticsData,
+    selectedConfigIds,
+    selectedMetricNames,
+  ])
 
   // One chart series per SELECTED evaluation config (not per metric name), so
   // two configs of the same metric type (e.g. two llm_judge_falloesung
@@ -1011,7 +1099,7 @@ export default function EvaluationDashboard() {
       (m) =>
         selectedModels.length === 0 ||
         selectedModels.includes(m.model_id) ||
-        selectedModels.some((sm) => m.model_id === `llm-judge:${sm}`)
+        selectedModels.some((sm) => m.model_id === `llm-judge:${sm}`),
     )
     return sortModelsByScoreAsc(filtered, multiConfigChart.seriesNames)
   }, [multiConfigChart.models, multiConfigChart.seriesNames, selectedModels])
@@ -1021,8 +1109,7 @@ export default function EvaluationDashboard() {
   // needs raw per-sample distributions (`scores[]`) that the by-task-model
   // summary doesn't carry, so it keeps the raw-scores path (`modelsWithScores`)
   // — unchanged behavior, no box-plot regression.
-  const chartModels =
-    chartType === 'box' ? modelsWithScores : multiConfigModels
+  const chartModels = chartType === 'box' ? modelsWithScores : multiConfigModels
   const chartMetrics =
     chartType === 'box' ? selectedMetricNames : multiConfigChart.seriesNames
 
@@ -1036,7 +1123,7 @@ export default function EvaluationDashboard() {
       fallback={
         <ResponsiveContainer
           size="full"
-          className="px-4 pb-10 pt-8 sm:px-6 lg:px-8"
+          className="px-4 pt-8 pb-10 sm:px-6 lg:px-8"
         >
           <div className="py-12 text-center">
             <h1 className="mb-4 text-2xl font-semibold text-gray-600">
@@ -1049,7 +1136,7 @@ export default function EvaluationDashboard() {
     >
       <ResponsiveContainer
         size="full"
-        className="px-4 pb-10 pt-8 sm:px-6 lg:px-8"
+        className="px-4 pt-8 pb-10 sm:px-6 lg:px-8"
       >
         {/* Breadcrumb */}
         <div className="mb-4">
@@ -1066,9 +1153,7 @@ export default function EvaluationDashboard() {
 
         {/* Header */}
         <div className="mb-6">
-          <h1 className="text-3xl font-bold">
-            {t('evaluation.viewer.title')}
-          </h1>
+          <h1 className="text-3xl font-bold">{t('evaluation.viewer.title')}</h1>
           {!selectedProject && (
             <p className="mt-1 text-gray-600 dark:text-gray-400">
               {t('evaluation.viewer.selectProjectDescription')}
@@ -1090,7 +1175,8 @@ export default function EvaluationDashboard() {
                 className="w-40 justify-between"
               >
                 <span className="truncate">
-                  {selectedProject?.title || t('evaluation.viewer.filters.selectProject')}
+                  {selectedProject?.title ||
+                    t('evaluation.viewer.filters.selectProject')}
                 </span>
                 <ChevronDownIcon
                   className={`ml-2 h-4 w-4 opacity-70 transition-transform ${projectDropdownOpen ? 'rotate-180' : ''}`}
@@ -1113,7 +1199,8 @@ export default function EvaluationDashboard() {
                     >
                       <div className="font-medium">{project.title}</div>
                       <div className="text-xs text-gray-500">
-                        {project.task_count || 0} {t('evaluation.viewer.filters.tasks')}
+                        {project.task_count || 0}{' '}
+                        {t('evaluation.viewer.filters.tasks')}
                       </div>
                     </button>
                   ))}
@@ -1151,7 +1238,7 @@ export default function EvaluationDashboard() {
                         setSelectedModels(
                           evaluatedModels
                             .filter((m) => m.has_results !== false)
-                            .map((m) => m.model_id)
+                            .map((m) => m.model_id),
                         )
                       }
                       className="mb-1 w-full px-2 py-1 text-left text-xs text-emerald-600 hover:text-emerald-700 dark:text-emerald-400"
@@ -1180,19 +1267,21 @@ export default function EvaluationDashboard() {
                           onChange={() => toggleModel(model.model_id)}
                           className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
                         />
-                        <span className={`flex-1 truncate text-sm ${model.model_id.startsWith('annotator:') ? 'text-blue-700 dark:text-blue-300' : ''}`}>
+                        <span
+                          className={`flex-1 truncate text-sm ${model.model_id.startsWith('annotator:') ? 'text-blue-700 dark:text-blue-300' : ''}`}
+                        >
                           {model.model_id.startsWith('annotator:')
                             ? model.model_id.replace(/^annotator:/, '')
-                            : (model.model_name || model.model_id)}
+                            : model.model_name || model.model_id}
                         </span>
                         {model.has_results === false && (
-                          <span className="flex items-center gap-0.5 whitespace-nowrap text-xs text-amber-600 dark:text-amber-400">
+                          <span className="flex items-center gap-0.5 text-xs whitespace-nowrap text-amber-600 dark:text-amber-400">
                             <ExclamationTriangleIcon className="h-3 w-3" />
                             {t('evaluation.viewer.filters.noResults')}
                           </span>
                         )}
                         {model.is_configured && !model.has_generations && (
-                          <span className="flex items-center gap-0.5 whitespace-nowrap text-xs text-gray-400">
+                          <span className="flex items-center gap-0.5 text-xs whitespace-nowrap text-gray-400">
                             <ExclamationTriangleIcon className="h-3 w-3" />
                             {t('evaluation.viewer.filters.notRun')}
                           </span>
@@ -1257,7 +1346,9 @@ export default function EvaluationDashboard() {
                           onChange={() => {
                             if (selectedConfigIds.includes(metric.id)) {
                               setSelectedConfigIds(
-                                selectedConfigIds.filter((m) => m !== metric.id)
+                                selectedConfigIds.filter(
+                                  (m) => m !== metric.id,
+                                ),
                               )
                             } else {
                               setSelectedConfigIds([
@@ -1325,35 +1416,39 @@ export default function EvaluationDashboard() {
               </div>
             )}
 
-            {selectedProject && (() => {
-              const anyFilterSet =
-                selectedModels.length !== evaluatedModels.length ||
-                selectedConfigIds.length !== availableConfigIds.length ||
-                aggregationLevels.length !== 1 ||
-                aggregationLevels[0] !== 'model' ||
-                statisticalMethods.length > 0 ||
-                chartType !== 'data'
-              return (
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setChartType('data')
-                    setAggregationLevels(['model'])
-                    setStatisticalMethods([])
-                    setSelectedModels(evaluatedModels.map((m) => m.model_id))
-                    setSelectedConfigIds(availableConfigIds)
-                    setSelectedEvalTypes(['automated', 'llm-judge', 'human'])
-                  }}
-                  disabled={!anyFilterSet}
-                  aria-label={t('evaluation.viewer.filters.clearAllFilters')}
-                  title={t('evaluation.viewer.filters.clearAllFilters')}
-                  className={anyFilterSet ? 'bg-emerald-50 text-emerald-700 ring-emerald-300 hover:bg-emerald-100 dark:bg-emerald-900/20 dark:text-emerald-300 dark:ring-emerald-700' : ''}
-                >
-                  <XMarkIcon className="h-4 w-4" />
-                </Button>
-              )
-            })()}
-
+            {selectedProject &&
+              (() => {
+                const anyFilterSet =
+                  selectedModels.length !== evaluatedModels.length ||
+                  selectedConfigIds.length !== availableConfigIds.length ||
+                  aggregationLevels.length !== 1 ||
+                  aggregationLevels[0] !== 'model' ||
+                  statisticalMethods.length > 0 ||
+                  chartType !== 'data'
+                return (
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setChartType('data')
+                      setAggregationLevels(['model'])
+                      setStatisticalMethods([])
+                      setSelectedModels(evaluatedModels.map((m) => m.model_id))
+                      setSelectedConfigIds(availableConfigIds)
+                      setSelectedEvalTypes(['automated', 'llm-judge', 'human'])
+                    }}
+                    disabled={!anyFilterSet}
+                    aria-label={t('evaluation.viewer.filters.clearAllFilters')}
+                    title={t('evaluation.viewer.filters.clearAllFilters')}
+                    className={
+                      anyFilterSet
+                        ? 'bg-emerald-50 text-emerald-700 ring-emerald-300 hover:bg-emerald-100 dark:bg-emerald-900/20 dark:text-emerald-300 dark:ring-emerald-700'
+                        : ''
+                    }
+                  >
+                    <XMarkIcon className="h-4 w-4" />
+                  </Button>
+                )
+              })()}
           </div>
         </Card>
 
@@ -1368,23 +1463,32 @@ export default function EvaluationDashboard() {
         {selectedProject && !loading && (
           <div className="space-y-6">
             {/* Score Cards — issue #111: render one card per selected
-              * (config × metric) pair so multiple configs of the same metric
-              * type stay distinct. The card's value comes from the per-
-              * (model, config, metric) aggregate in `runs_by_model_metric`
-              * (3-part key) when available; otherwise we fall back to the
-              * legacy per-result metric value (which collapses configs of
-              * the same type — acceptable when statistics haven't loaded
-              * yet). Card label uses the config's display_name. */}
+             * (config × metric) pair so multiple configs of the same metric
+             * type stay distinct. The card's value comes from the per-
+             * (model, config, metric) aggregate in `runs_by_model_metric`
+             * (3-part key) when available; otherwise we fall back to the
+             * legacy per-result metric value (which collapses configs of
+             * the same type — acceptable when statistics haven't loaded
+             * yet). Card label uses the config's display_name. */}
             {filteredResults.length > 0 && (
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
                 {(() => {
                   const result = filteredResults[0]
-                  const block = (statisticsData as any)?.runs_by_model_metric as
-                    | Record<string, { n_runs: number; mean_of_means?: number; std_of_means?: number }>
+                  const block = (statisticsData as any)
+                    ?.runs_by_model_metric as
+                    | Record<
+                        string,
+                        {
+                          n_runs: number
+                          mean_of_means?: number
+                          std_of_means?: number
+                        }
+                      >
                     | undefined
-                  const configs = projectEvalConfig?.evaluation_configs?.filter(
-                    (c) => selectedConfigIds.includes(c.id)
-                  ) ?? []
+                  const configs =
+                    projectEvalConfig?.evaluation_configs?.filter((c) =>
+                      selectedConfigIds.includes(c.id),
+                    ) ?? []
                   // Stable ordering: same as the metric selector dropdown.
                   // Cap at 4 cards to keep the grid tidy.
                   const pairs = configs.slice(0, 4).map((cfg) => {
@@ -1417,7 +1521,7 @@ export default function EvaluationDashboard() {
                         sampleSize={result.samples_evaluated}
                         runsAggregate={runsAggregate}
                       />
-                    )
+                    ),
                   )
                 })()}
               </div>
@@ -1472,14 +1576,14 @@ export default function EvaluationDashboard() {
             {/* Statistical Results Panel - hidden in data view (stats shown inline there) */}
             {chartType !== 'data' &&
               (statisticsData || statisticsLoading || statisticsError) && (
-              <StatisticalResultsPanel
-                data={statisticsData}
-                loading={statisticsLoading}
-                error={statisticsError}
-                showBonferroniInfo={true}
-                selectedStatistics={statisticalMethods}
-              />
-            )}
+                <StatisticalResultsPanel
+                  data={statisticsData}
+                  loading={statisticsLoading}
+                  error={statisticsError}
+                  showBonferroniInfo={true}
+                  selectedStatistics={statisticalMethods}
+                />
+              )}
 
             {/* Historical Trend Chart - hidden in data view.
                 Issue #111: the endpoint now returns `{ series: [...] }`
@@ -1495,7 +1599,9 @@ export default function EvaluationDashboard() {
                   </h3>
                   <div className="space-y-6">
                     {historicalData.series.map((s: any) => (
-                      <div key={`${s.metric}|${s.evaluation_config_id ?? 'none'}`}>
+                      <div
+                        key={`${s.metric}|${s.evaluation_config_id ?? 'none'}`}
+                      >
                         <h4 className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
                           {s.display_name}
                         </h4>
@@ -1520,13 +1626,19 @@ export default function EvaluationDashboard() {
                 </h3>
                 {significanceError && (
                   <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-amber-700 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-400">
-                    <strong>{t('evaluation.viewer.results.significanceError')}</strong> {significanceError}
+                    <strong>
+                      {t('evaluation.viewer.results.significanceError')}
+                    </strong>{' '}
+                    {significanceError}
                   </div>
                 )}
                 {significanceData.length > 0 ? (
                   <SignificanceHeatmap
                     modelIds={selectedModels}
-                    metric={selectedMetricNames[0] || t('evaluation.viewer.results.score')}
+                    metric={
+                      selectedMetricNames[0] ||
+                      t('evaluation.viewer.results.score')
+                    }
                     significanceData={significanceData}
                     height={500}
                   />
@@ -1559,34 +1671,43 @@ export default function EvaluationDashboard() {
                   selectedStatistics={statisticalMethods}
                   refreshKey={resultsRefreshKey}
                   modelNames={Object.fromEntries(
-                    evaluatedModels.map((m: any) => [m.model_id, m.model_name || m.model_id])
+                    evaluatedModels.map((m: any) => [
+                      m.model_id,
+                      m.model_name || m.model_id,
+                    ]),
                   )}
-                  evaluationConfigs={projectEvalConfig?.evaluation_configs || []}
+                  evaluationConfigs={
+                    projectEvalConfig?.evaluation_configs || []
+                  }
                 />
               </Card>
             )}
 
             {/* Empty State - only show when no config exists (EvaluationResults handles its own empty state when configured) */}
-            {filteredResults.length === 0 && !hasEvaluationResults && !hasAnyConfiguration && (
-              <Card className="p-12 text-center">
-                <ChartBarIcon className="mx-auto h-12 w-12 text-gray-400" />
-                <h3 className="mt-4 text-lg font-medium text-gray-900 dark:text-white">
-                  {t('evaluation.viewer.emptyStates.notConfigured.title')}
-                </h3>
-                <p className="mt-2 text-gray-500 dark:text-gray-400">
-                  {t('evaluation.viewer.emptyStates.notConfigured.description')}
-                </p>
-                <Button
-                  variant="outline"
-                  onClick={() =>
-                    router.push(`/projects/${selectedProject?.id}`)
-                  }
-                  className="mt-4"
-                >
-                  {t('evaluation.viewer.emptyStates.notConfigured.action')}
-                </Button>
-              </Card>
-            )}
+            {filteredResults.length === 0 &&
+              !hasEvaluationResults &&
+              !hasAnyConfiguration && (
+                <Card className="p-12 text-center">
+                  <ChartBarIcon className="mx-auto h-12 w-12 text-gray-400" />
+                  <h3 className="mt-4 text-lg font-medium text-gray-900 dark:text-white">
+                    {t('evaluation.viewer.emptyStates.notConfigured.title')}
+                  </h3>
+                  <p className="mt-2 text-gray-500 dark:text-gray-400">
+                    {t(
+                      'evaluation.viewer.emptyStates.notConfigured.description',
+                    )}
+                  </p>
+                  <Button
+                    variant="outline"
+                    onClick={() =>
+                      router.push(`/projects/${selectedProject?.id}`)
+                    }
+                    className="mt-4"
+                  >
+                    {t('evaluation.viewer.emptyStates.notConfigured.action')}
+                  </Button>
+                </Card>
+              )}
           </div>
         )}
 

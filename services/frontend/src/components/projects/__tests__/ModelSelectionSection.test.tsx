@@ -140,18 +140,18 @@ describe('ModelSelectionSection', () => {
     it('renders only the read-only message when the user cannot edit', () => {
       renderSection({ canEditProject: () => false })
       expect(
-        screen.getByText('read-only: project.modelSelection.title')
+        screen.getByText('read-only: project.modelSelection.title'),
       ).toBeInTheDocument()
       // The editable header button is absent.
       expect(
-        screen.queryByText('project.modelSelection.title')
+        screen.queryByText('project.modelSelection.title'),
       ).not.toBeInTheDocument()
     })
 
     it('renders the editable header when the user can edit', () => {
       renderSection()
       expect(
-        screen.getByText('project.modelSelection.title')
+        screen.getByText('project.modelSelection.title'),
       ).toBeInTheDocument()
     })
   })
@@ -160,7 +160,7 @@ describe('ModelSelectionSection', () => {
     it('shows the loading label when collapsed + loading', () => {
       renderSection({ expandedModels: false, modelsLoading: true })
       expect(
-        screen.getByText('project.modelSelection.loading')
+        screen.getByText('project.modelSelection.loading'),
       ).toBeInTheDocument()
     })
 
@@ -170,7 +170,7 @@ describe('ModelSelectionSection', () => {
         modelsError: { type: 'OTHER', message: 'boom' } as ModelError,
       })
       expect(
-        screen.getByText('project.modelSelection.errorLoading')
+        screen.getByText('project.modelSelection.errorLoading'),
       ).toBeInTheDocument()
     })
 
@@ -186,14 +186,14 @@ describe('ModelSelectionSection', () => {
     it('shows the no-models label when collapsed + sortedModels is null', () => {
       renderSection({ expandedModels: false, sortedModels: null })
       expect(
-        screen.getByText('project.modelSelection.noModelsAvailable')
+        screen.getByText('project.modelSelection.noModelsAvailable'),
       ).toBeInTheDocument()
     })
 
     it('hides the badge entirely when expanded', () => {
       renderSection({ expandedModels: true, sortedModels: null })
       expect(
-        screen.queryByText('project.modelSelection.noModelsAvailable')
+        screen.queryByText('project.modelSelection.noModelsAvailable'),
       ).not.toBeInTheDocument()
     })
   })
@@ -206,7 +206,7 @@ describe('ModelSelectionSection', () => {
       await user.click(
         screen.getByRole('button', {
           name: /project\.modelSelection\.title/i,
-        })
+        }),
       )
       expect(setExpandedModels).toHaveBeenCalledWith(true)
     })
@@ -218,7 +218,7 @@ describe('ModelSelectionSection', () => {
       await user.click(
         screen.getByRole('button', {
           name: /project\.modelSelection\.title/i,
-        })
+        }),
       )
       expect(setExpandedModels).toHaveBeenCalledWith(false)
     })
@@ -228,7 +228,7 @@ describe('ModelSelectionSection', () => {
     it('shows the loadingModels copy', () => {
       renderSection({ modelsLoading: true })
       expect(
-        screen.getByText('project.modelSelection.loadingModels')
+        screen.getByText('project.modelSelection.loadingModels'),
       ).toBeInTheDocument()
     })
   })
@@ -242,12 +242,12 @@ describe('ModelSelectionSection', () => {
         onNavigateToProfile,
       })
       expect(
-        screen.getByText('project.modelSelection.noApiKeys')
+        screen.getByText('project.modelSelection.noApiKeys'),
       ).toBeInTheDocument()
       await user.click(
         screen.getByRole('button', {
           name: 'project.modelSelection.configureApiKeys',
-        })
+        }),
       )
       expect(onNavigateToProfile).toHaveBeenCalledTimes(1)
     })
@@ -260,7 +260,7 @@ describe('ModelSelectionSection', () => {
       expect(
         screen.queryByRole('button', {
           name: 'project.modelSelection.configureApiKeys',
-        })
+        }),
       ).not.toBeInTheDocument()
     })
 
@@ -269,7 +269,7 @@ describe('ModelSelectionSection', () => {
         modelsError: { type: 'OTHER' } as ModelError,
       })
       expect(
-        screen.getByText('project.modelSelection.failedToLoad')
+        screen.getByText('project.modelSelection.failedToLoad'),
       ).toBeInTheDocument()
     })
   })
@@ -286,7 +286,7 @@ describe('ModelSelectionSection', () => {
       }
       renderSection({ canEditProject })
       expect(
-        screen.getByText('read-only: project.modelSelection.title')
+        screen.getByText('read-only: project.modelSelection.title'),
       ).toBeInTheDocument()
     })
   })
@@ -297,12 +297,12 @@ describe('ModelSelectionSection', () => {
       const onNavigateToProfile = jest.fn()
       renderSection({ sortedModels: [], onNavigateToProfile })
       expect(
-        screen.getByText('project.modelSelection.noModelsForProfile')
+        screen.getByText('project.modelSelection.noModelsForProfile'),
       ).toBeInTheDocument()
       await user.click(
         screen.getByRole('button', {
           name: 'project.modelSelection.configureApiKeys',
-        })
+        }),
       )
       expect(onNavigateToProfile).toHaveBeenCalledTimes(1)
     })
@@ -310,7 +310,7 @@ describe('ModelSelectionSection', () => {
     it('also shows the empty branch when sortedModels is null', () => {
       renderSection({ sortedModels: null })
       expect(
-        screen.getByText('project.modelSelection.noModelsForProfile')
+        screen.getByText('project.modelSelection.noModelsForProfile'),
       ).toBeInTheDocument()
     })
   })
@@ -352,7 +352,7 @@ describe('ModelSelectionSection', () => {
         selectedModelIds: ['m1'],
       })
       expect((screen.getByRole('checkbox') as HTMLInputElement).checked).toBe(
-        true
+        true,
       )
     })
 
@@ -441,7 +441,7 @@ describe('ModelSelectionSection', () => {
       expect(updateModelConfig).toHaveBeenLastCalledWith(
         'm1',
         'temperature',
-        undefined
+        undefined,
       )
     })
 
@@ -476,7 +476,7 @@ describe('ModelSelectionSection', () => {
       expect(updateModelConfig).toHaveBeenLastCalledWith(
         'm1',
         'max_tokens',
-        undefined
+        undefined,
       )
     })
 
@@ -524,7 +524,7 @@ describe('ModelSelectionSection', () => {
       expect(tempInput).toBeDisabled()
       // The fixed tooltip copy is supplied via fallback string
       expect(
-        screen.getByTitle(/This model requires temperature=1/)
+        screen.getByTitle(/This model requires temperature=1/),
       ).toBeInTheDocument()
     })
 
@@ -573,9 +573,8 @@ describe('ModelSelectionSection', () => {
       expect(
         screen.getByText(
           (_content, el) =>
-            el?.tagName === 'SPAN' &&
-            el.textContent === '(Default: medium)'
-        )
+            el?.tagName === 'SPAN' && el.textContent === '(Default: medium)',
+        ),
       ).toBeInTheDocument()
       // options rendered capitalised by the SelectItem children
       expect(screen.getByTestId('select-item-low')).toHaveTextContent('Low')
@@ -607,7 +606,7 @@ describe('ModelSelectionSection', () => {
       expect(updateModelConfig).toHaveBeenCalledWith(
         'm1',
         'reasoning_effort',
-        'low'
+        'low',
       )
     })
   })
@@ -640,7 +639,7 @@ describe('ModelSelectionSection', () => {
       // range span (numbers locale-formatted)
       expect(screen.getByText(/512.*16,000|512.*16.000/)).toBeInTheDocument()
       expect(screen.getByTestId('select-item-1024')).toHaveTextContent(
-        /Low \(1,024 tokens\)|Low \(1.024 tokens\)/
+        /Low \(1,024 tokens\)|Low \(1.024 tokens\)/,
       )
       expect(screen.getByTestId('select-item-custom')).toBeInTheDocument()
     })
@@ -648,7 +647,7 @@ describe('ModelSelectionSection', () => {
     it('shows the matching preset label as the display value', () => {
       renderBudget({ thinking_budget: 8192 })
       expect(screen.getByTestId('select-display')).toHaveTextContent(
-        /High \(8,192 tokens\)|High \(8.192 tokens\)/
+        /High \(8,192 tokens\)|High \(8.192 tokens\)/,
       )
     })
 
@@ -667,12 +666,12 @@ describe('ModelSelectionSection', () => {
       expect(updateModelConfig).toHaveBeenCalledWith(
         'm1',
         'thinking_budget',
-        8192
+        8192,
       )
       expect(updateModelConfig).toHaveBeenCalledWith(
         'm1',
         'thinking_budget_custom',
-        false
+        false,
       )
     })
 
@@ -692,12 +691,12 @@ describe('ModelSelectionSection', () => {
       expect(updateModelConfig).toHaveBeenCalledWith(
         'm1',
         'thinking_budget',
-        1024
+        1024,
       )
       expect(updateModelConfig).toHaveBeenCalledWith(
         'm1',
         'thinking_budget_custom',
-        true
+        true,
       )
     })
 
@@ -733,7 +732,9 @@ describe('ModelSelectionSection', () => {
         sortedModels: [makeModel({ id: 'm1' })],
         availableModels: [makeModel({ id: 'm1' })],
         selectedModelIds: ['m1'],
-        modelConfigs: { m1: { thinking_budget: 3000, thinking_budget_custom: true } },
+        modelConfigs: {
+          m1: { thinking_budget: 3000, thinking_budget_custom: true },
+        },
         getReasoningConfig: () => budgetReasoning,
         updateModelConfig,
       })
@@ -743,7 +744,7 @@ describe('ModelSelectionSection', () => {
       expect(updateModelConfig).toHaveBeenLastCalledWith(
         'm1',
         'thinking_budget',
-        30001
+        30001,
       )
     })
 
@@ -754,7 +755,9 @@ describe('ModelSelectionSection', () => {
         sortedModels: [makeModel({ id: 'm1' })],
         availableModels: [makeModel({ id: 'm1' })],
         selectedModelIds: ['m1'],
-        modelConfigs: { m1: { thinking_budget: 3000, thinking_budget_custom: true } },
+        modelConfigs: {
+          m1: { thinking_budget: 3000, thinking_budget_custom: true },
+        },
         getReasoningConfig: () => budgetReasoning,
         updateModelConfig,
       })
@@ -763,7 +766,7 @@ describe('ModelSelectionSection', () => {
       expect(updateModelConfig).toHaveBeenLastCalledWith(
         'm1',
         'thinking_budget',
-        undefined
+        undefined,
       )
     })
 

@@ -34,7 +34,7 @@ class TestApiClient extends BaseApiClient {
   public async post(
     endpoint: string,
     body?: any,
-    options?: RequestInit
+    options?: RequestInit,
   ): Promise<any> {
     const bodyStr = typeof body === 'string' ? body : JSON.stringify(body)
     return this.request(endpoint, {
@@ -50,7 +50,7 @@ class TestApiClient extends BaseApiClient {
 
   public async testRequest(
     endpoint: string,
-    options?: RequestInit
+    options?: RequestInit,
   ): Promise<any> {
     return this.request(endpoint, options)
   }
@@ -110,7 +110,7 @@ describe('BaseApiClient - Enhanced Error Handling', () => {
         }
         // Should have axios-like error structure
         expect(error.message).toBe(
-          'An active invitation already exists for this email'
+          'An active invitation already exists for this email',
         )
         expect(error.response).toBeDefined()
         expect(error.response.status).toBe(400)
@@ -142,7 +142,7 @@ describe('BaseApiClient - Enhanced Error Handling', () => {
           throw error
         }
         expect(error.message).toBe(
-          'You do not have permission to perform this action'
+          'You do not have permission to perform this action',
         )
         expect(error.response.status).toBe(403)
         expect(error.response.data.code).toBe('PERMISSION_DENIED')
@@ -166,7 +166,7 @@ describe('BaseApiClient - Enhanced Error Handling', () => {
           throw error
         }
         expect(error.message).toBe(
-          'HTTP error! status: 500 - Internal server error occurred'
+          'HTTP error! status: 500 - Internal server error occurred',
         )
         expect(error.response.status).toBe(500)
         expect(error.response.data).toBeNull()

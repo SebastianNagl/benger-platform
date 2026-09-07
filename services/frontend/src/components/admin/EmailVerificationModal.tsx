@@ -67,7 +67,7 @@ export function EmailVerificationModal({
               <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all dark:bg-zinc-800">
                 <Dialog.Title
                   as="h3"
-                  className="flex items-center gap-2 text-lg font-medium leading-6 text-gray-900 dark:text-gray-100"
+                  className="flex items-center gap-2 text-lg leading-6 font-medium text-gray-900 dark:text-gray-100"
                 >
                   <CheckCircleIcon className="h-5 w-5 text-green-500" />
                   {t('admin.emailVerificationModal.title')}
@@ -90,8 +90,10 @@ export function EmailVerificationModal({
                     <textarea
                       id="reason"
                       rows={3}
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-600 dark:bg-zinc-700 dark:text-gray-100 sm:text-sm"
-                      placeholder={t('admin.emailVerificationModal.reasonPlaceholder')}
+                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm dark:border-gray-600 dark:bg-zinc-700 dark:text-gray-100"
+                      placeholder={t(
+                        'admin.emailVerificationModal.reasonPlaceholder',
+                      )}
                       value={reason}
                       onChange={(e) => setReason(e.target.value)}
                     />
@@ -113,7 +115,9 @@ export function EmailVerificationModal({
                     onClick={handleConfirm}
                     disabled={loading}
                   >
-                    {loading ? t('admin.emailVerificationModal.processing') : t('admin.emailVerificationModal.verifyEmail')}
+                    {loading
+                      ? t('admin.emailVerificationModal.processing')
+                      : t('admin.emailVerificationModal.verifyEmail')}
                   </button>
                 </div>
               </Dialog.Panel>

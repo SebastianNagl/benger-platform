@@ -20,15 +20,15 @@ jest.mock('next/navigation', () => ({
 jest.unmock('@/contexts/I18nContext')
 
 import { I18nProvider } from '@/contexts/I18nContext'
-import StudentDashboardPage from '../page'
-import StudentExamsListPage from '../exams/page'
-import StudentExamDetailPage from '../exams/[id]/page'
-import StudentBuilderPage from '../builder/page'
-import StudentDecksPage from '../decks/page'
-import StudentDeckDetailPage from '../decks/[id]/page'
-import StudentLeaderboardPage from '../leaderboard/page'
-import StudentDiscoverPage from '../discover/page'
 import ShareJoinPage from '../../shares/[token]/page'
+import StudentBuilderPage from '../builder/page'
+import StudentDeckDetailPage from '../decks/[id]/page'
+import StudentDecksPage from '../decks/page'
+import StudentDiscoverPage from '../discover/page'
+import StudentExamDetailPage from '../exams/[id]/page'
+import StudentExamsListPage from '../exams/page'
+import StudentLeaderboardPage from '../leaderboard/page'
+import StudentDashboardPage from '../page'
 
 const FALLBACK = 'Diese Funktion ist in der Community-Edition nicht verfügbar.'
 
@@ -51,8 +51,8 @@ describe('student host routes (community edition fallback)', () => {
     async (_name, Page) => {
       wrap(<Page />)
       await waitFor(() =>
-        expect(screen.getByText(FALLBACK)).toBeInTheDocument()
+        expect(screen.getByText(FALLBACK)).toBeInTheDocument(),
       )
-    }
+    },
   )
 })

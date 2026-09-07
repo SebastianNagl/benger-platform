@@ -21,7 +21,7 @@ describe('GET /api/auth/mandatory-profile-status', () => {
 
     const request = new NextRequest(
       'http://benger.localhost/api/auth/mandatory-profile-status',
-      { headers: { host: 'benger.localhost', cookie: 'session=abc' } }
+      { headers: { host: 'benger.localhost', cookie: 'session=abc' } },
     )
 
     const response = await GET(request)
@@ -39,7 +39,7 @@ describe('GET /api/auth/mandatory-profile-status', () => {
 
     const request = new NextRequest(
       'http://benger.localhost/api/auth/mandatory-profile-status',
-      { headers: { host: 'benger.localhost' } }
+      { headers: { host: 'benger.localhost' } },
     )
 
     const response = await GET(request)
@@ -51,7 +51,7 @@ describe('GET /api/auth/mandatory-profile-status', () => {
 
     const request = new NextRequest(
       'http://benger.localhost/api/auth/mandatory-profile-status',
-      { headers: { host: 'benger.localhost' } }
+      { headers: { host: 'benger.localhost' } },
     )
 
     const response = await GET(request)

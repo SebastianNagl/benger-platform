@@ -43,7 +43,7 @@ describe('projectsAPI — cloud imports', () => {
       {
         connection_id: 'conn-1',
         object_keys: ['imports/a.json', 'imports/b.csv'],
-      }
+      },
     )
     expect(res).toEqual(response)
   })
@@ -92,9 +92,12 @@ describe('projectsAPI — cloud imports', () => {
     const onStatus = jest.fn()
     const finals = await projectsAPI.runCloudImportJobs(
       'proj-1',
-      { connection_id: 'conn-1', object_keys: ['imports/a.json', 'imports/b.csv'] },
+      {
+        connection_id: 'conn-1',
+        object_keys: ['imports/a.json', 'imports/b.csv'],
+      },
       { onStatus },
-      { pollIntervalMs: 1 }
+      { pollIntervalMs: 1 },
     )
 
     expect(apiClient.get).toHaveBeenCalledWith('/projects/proj-1/imports/job-1')
@@ -104,11 +107,11 @@ describe('projectsAPI — cloud imports', () => {
     // onStatus reports per object key.
     expect(onStatus).toHaveBeenCalledWith(
       'imports/a.json',
-      expect.objectContaining({ job_id: 'job-1' })
+      expect.objectContaining({ job_id: 'job-1' }),
     )
     expect(onStatus).toHaveBeenCalledWith(
       'imports/b.csv',
-      expect.objectContaining({ job_id: 'job-2' })
+      expect.objectContaining({ job_id: 'job-2' }),
     )
   })
 
@@ -138,10 +141,13 @@ describe('projectsAPI — cloud imports', () => {
     await expect(
       projectsAPI.runCloudImportJobs(
         'proj-1',
-        { connection_id: 'conn-1', object_keys: ['imports/a.json', 'imports/b.csv'] },
+        {
+          connection_id: 'conn-1',
+          object_keys: ['imports/a.json', 'imports/b.csv'],
+        },
         undefined,
-        { pollIntervalMs: 1 }
-      )
+        { pollIntervalMs: 1 },
+      ),
     ).rejects.toThrow('imports/b.csv: bad payload')
   })
 
@@ -163,8 +169,8 @@ describe('projectsAPI — cloud imports', () => {
         'proj-1',
         { connection_id: 'conn-1', object_keys: ['imports/a.json'] },
         undefined,
-        { pollIntervalMs: 1 }
-      )
+        { pollIntervalMs: 1 },
+      ),
     ).rejects.toThrow('imports/a.json: Import job failed')
   })
 
@@ -184,7 +190,7 @@ describe('projectsAPI — cloud imports', () => {
       'proj-1',
       { connection_id: 'conn-1', object_keys: ['imports/a.json'] },
       undefined,
-      { pollIntervalMs: 1, signal: controller.signal }
+      { pollIntervalMs: 1, signal: controller.signal },
     )
     controller.abort()
 

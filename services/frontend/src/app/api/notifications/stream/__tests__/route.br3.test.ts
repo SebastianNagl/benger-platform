@@ -8,13 +8,18 @@
 
 import { NextRequest } from 'next/server'
 
-function makeRequest(host: string, opts: { cookie?: string; auth?: string; ua?: string; referer?: string } = {}) {
+function makeRequest(
+  host: string,
+  opts: { cookie?: string; auth?: string; ua?: string; referer?: string } = {},
+) {
   const headers: Record<string, string> = { host }
   if (opts.cookie) headers.cookie = opts.cookie
   if (opts.auth) headers.authorization = opts.auth
   if (opts.ua) headers['user-agent'] = opts.ua
   if (opts.referer) headers.referer = opts.referer
-  return new NextRequest(new URL('http://localhost/api/notifications/stream'), { headers })
+  return new NextRequest(new URL('http://localhost/api/notifications/stream'), {
+    headers,
+  })
 }
 
 describe('notifications/stream route', () => {
@@ -36,42 +41,46 @@ describe('notifications/stream route', () => {
       new Response('data: test\n\n', {
         status: 200,
         headers: { 'content-type': 'text/event-stream' },
-      })
+      }),
     )
     const { GET } = require('../route')
-    const res = await GET(makeRequest('benger.localhost', {
-      cookie: 'access_token=abc',
-      auth: 'Bearer token',
-      ua: 'TestAgent',
-      referer: 'http://test.com',
-    }))
+    const res = await GET(
+      makeRequest('benger.localhost', {
+        cookie: 'access_token=abc',
+        auth: 'Bearer token',
+        ua: 'TestAgent',
+        referer: 'http://test.com',
+      }),
+    )
     expect(res).toBeTruthy()
     fetchSpy.mockRestore()
   })
 
   it('routes staging to staging API', async () => {
-    const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue(
-      new Response('data: test\n\n', { status: 200 })
-    )
+    const fetchSpy = jest
+      .spyOn(global, 'fetch')
+      .mockResolvedValue(new Response('data: test\n\n', { status: 200 }))
     const { GET } = require('../route')
-    await GET(makeRequest('staging.what-a-benger.net', { cookie: 'access_token=abc' }))
+    await GET(
+      makeRequest('staging.what-a-benger.net', { cookie: 'access_token=abc' }),
+    )
     expect(fetchSpy).toHaveBeenCalledWith(
       expect.stringContaining('benger-api'),
-      expect.anything()
+      expect.anything(),
     )
     fetchSpy.mockRestore()
   })
 
   it('routes what-a-benger.net with API_URL', async () => {
     process.env.API_URL = 'http://custom:9000'
-    const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue(
-      new Response('data: test\n\n', { status: 200 })
-    )
+    const fetchSpy = jest
+      .spyOn(global, 'fetch')
+      .mockResolvedValue(new Response('data: test\n\n', { status: 200 }))
     const { GET } = require('../route')
     await GET(makeRequest('what-a-benger.net', { cookie: 'access_token=abc' }))
     expect(fetchSpy).toHaveBeenCalledWith(
       expect.stringContaining('custom:9000'),
-      expect.anything()
+      expect.anything(),
     )
     fetchSpy.mockRestore()
   })
@@ -82,11 +91,10 @@ describe('notifications/stream route', () => {
       headers: new Headers(),
     })
     // First call = refresh, second call = backend stream
-    const fetchSpy = jest.spyOn(global, 'fetch')
+    const fetchSpy = jest
+      .spyOn(global, 'fetch')
       .mockResolvedValueOnce(refreshResponse)
-      .mockResolvedValueOnce(
-        new Response('data: test\n\n', { status: 200 })
-      )
+      .mockResolvedValueOnce(new Response('data: test\n\n', { status: 200 }))
     const { GET } = require('../route')
     await GET(makeRequest('benger.localhost', { cookie: 'refresh_token=xyz' }))
     // Should have called refresh endpoint
@@ -101,11 +109,10 @@ describe('notifications/stream route', () => {
       status: 200,
       headers: refreshHeaders,
     })
-    const fetchSpy = jest.spyOn(global, 'fetch')
+    const fetchSpy = jest
+      .spyOn(global, 'fetch')
       .mockResolvedValueOnce(refreshResponse)
-      .mockResolvedValueOnce(
-        new Response('data: ok\n\n', { status: 200 })
-      )
+      .mockResolvedValueOnce(new Response('data: ok\n\n', { status: 200 }))
     const { GET } = require('../route')
     await GET(makeRequest('benger.localhost', { cookie: 'refresh_token=xyz' }))
     expect(fetchSpy).toHaveBeenCalledTimes(2)
@@ -113,34 +120,42 @@ describe('notifications/stream route', () => {
   })
 
   it('handles refresh failure', async () => {
-    const fetchSpy = jest.spyOn(global, 'fetch')
+    const fetchSpy = jest
+      .spyOn(global, 'fetch')
       .mockResolvedValueOnce(new Response('', { status: 401 })) // refresh fails
-      .mockResolvedValueOnce(
-        new Response('data: ok\n\n', { status: 200 })
-      )
+      .mockResolvedValueOnce(new Response('data: ok\n\n', { status: 200 }))
     const { GET } = require('../route')
-    const res = await GET(makeRequest('benger.localhost', { cookie: 'refresh_token=xyz' }))
+    const res = await GET(
+      makeRequest('benger.localhost', { cookie: 'refresh_token=xyz' }),
+    )
     expect(res).toBeTruthy()
     fetchSpy.mockRestore()
   })
 
   it('handles fetch error with SSE error response', async () => {
-    const fetchSpy = jest.spyOn(global, 'fetch').mockRejectedValue(new Error('Network'))
+    const fetchSpy = jest
+      .spyOn(global, 'fetch')
+      .mockRejectedValue(new Error('Network'))
     const { GET } = require('../route')
-    const res = await GET(makeRequest('benger.localhost', { cookie: 'access_token=abc' }))
+    const res = await GET(
+      makeRequest('benger.localhost', { cookie: 'access_token=abc' }),
+    )
     // Should return an SSE error response
     expect(res).toBeTruthy()
     fetchSpy.mockRestore()
   })
 
   it('handles no cookies', async () => {
-    const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue(
-      new Response('data: ok\n\n', { status: 200 })
-    )
+    const fetchSpy = jest
+      .spyOn(global, 'fetch')
+      .mockResolvedValue(new Response('data: ok\n\n', { status: 200 }))
     const { GET } = require('../route')
-    const req = new NextRequest(new URL('http://localhost/api/notifications/stream'), {
-      headers: { host: 'benger.localhost' },
-    })
+    const req = new NextRequest(
+      new URL('http://localhost/api/notifications/stream'),
+      {
+        headers: { host: 'benger.localhost' },
+      },
+    )
     const res = await GET(req)
     expect(res).toBeTruthy()
     fetchSpy.mockRestore()
@@ -183,7 +198,9 @@ describe('notifications/stream route — reader-loop error classification', () =
     const timeout = Object.assign(new TypeError('terminated'), {
       cause: { code: 'UND_ERR_BODY_TIMEOUT' },
     })
-    jest.spyOn(global, 'fetch').mockResolvedValue(streamingResponseThatFails(timeout))
+    jest
+      .spyOn(global, 'fetch')
+      .mockResolvedValue(streamingResponseThatFails(timeout))
     const errSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
 
     const { GET } = await import('../route')
@@ -194,7 +211,9 @@ describe('notifications/stream route — reader-loop error classification', () =
 
   it('still logs a genuine stream failure', async () => {
     const boom = new Error('backend exploded')
-    jest.spyOn(global, 'fetch').mockResolvedValue(streamingResponseThatFails(boom))
+    jest
+      .spyOn(global, 'fetch')
+      .mockResolvedValue(streamingResponseThatFails(boom))
     const errSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
 
     const { GET } = await import('../route')

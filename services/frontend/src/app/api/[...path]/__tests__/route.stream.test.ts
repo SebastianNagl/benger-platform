@@ -10,8 +10,8 @@
  */
 
 import { NextRequest } from 'next/server'
-import { GET, POST } from '../route'
 import { fetch as undiciFetch } from 'undici'
+import { GET, POST } from '../route'
 
 // Export/download paths in the proxy fetch through undici's own `fetch` (with a
 // no-body-timeout dispatcher), not Node's global fetch. Mock it and delegate to
@@ -26,7 +26,7 @@ global.fetch = jest.fn()
 
 function makeChunkStream(
   totalBytes: number,
-  chunkBytes: number
+  chunkBytes: number,
 ): { stream: ReadableStream<Uint8Array>; chunkCount: number } {
   let emitted = 0
   const chunkCount = Math.ceil(totalBytes / chunkBytes)
@@ -46,7 +46,9 @@ function makeChunkStream(
   return { stream, chunkCount }
 }
 
-async function readAllBytes(body: ReadableStream<Uint8Array> | null): Promise<number> {
+async function readAllBytes(
+  body: ReadableStream<Uint8Array> | null,
+): Promise<number> {
   if (!body) return 0
   const reader = body.getReader()
   let total = 0
@@ -67,7 +69,7 @@ describe('catch-all proxy: streaming attachment responses (GH #68)', () => {
     const mockUndiciFetch = undiciFetch as unknown as jest.Mock
     mockUndiciFetch.mockReset()
     mockUndiciFetch.mockImplementation((...args: unknown[]) =>
-      (mockFetch as unknown as (...a: unknown[]) => unknown)(...args)
+      (mockFetch as unknown as (...a: unknown[]) => unknown)(...args),
     )
     jest.spyOn(console, 'error').mockImplementation()
   })
@@ -100,17 +102,19 @@ describe('catch-all proxy: streaming attachment responses (GH #68)', () => {
 
     const request = new NextRequest(
       'http://localhost:3000/api/projects/p1/tasks/bulk-export',
-      { method: 'POST', body: JSON.stringify({ task_ids: ['t1'] }) }
+      { method: 'POST', body: JSON.stringify({ task_ids: ['t1'] }) },
     )
 
     const response = await POST(request, {
-      params: Promise.resolve({ path: ['projects', 'p1', 'tasks', 'bulk-export'] }),
+      params: Promise.resolve({
+        path: ['projects', 'p1', 'tasks', 'bulk-export'],
+      }),
     })
 
     expect(textSpy).not.toHaveBeenCalled()
     expect(response.status).toBe(200)
     expect(response.headers.get('content-disposition')).toBe(
-      'attachment; filename="tasks_export.json"'
+      'attachment; filename="tasks_export.json"',
     )
     // content-length must be dropped: we're emitting chunked transfer encoding.
     expect(response.headers.get('content-length')).toBeNull()
@@ -135,7 +139,7 @@ describe('catch-all proxy: streaming attachment responses (GH #68)', () => {
 
     const request = new NextRequest(
       'http://localhost:3000/api/projects/bulk-export-full',
-      { method: 'POST' }
+      { method: 'POST' },
     )
 
     const response = await POST(request, {
@@ -158,7 +162,9 @@ describe('catch-all proxy: streaming attachment responses (GH #68)', () => {
       text: textSpy,
     } as unknown as Response)
 
-    const request = new NextRequest('http://localhost:3000/api/projects/p1/export')
+    const request = new NextRequest(
+      'http://localhost:3000/api/projects/p1/export',
+    )
     const response = await GET(request, {
       params: Promise.resolve({ path: ['projects', 'p1', 'export'] }),
     })
@@ -272,7 +278,7 @@ describe('catch-all proxy: streaming attachment responses (GH #68)', () => {
     })
 
     expect(response.headers.get('content-disposition')).toBe(
-      'attachment; filename="r.json"'
+      'attachment; filename="r.json"',
     )
     expect(response.headers.get('x-custom-header')).toBe('preserved')
     expect(response.headers.get('cache-control')).toBe('no-store')

@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 
-import { renderHook, act } from '@testing-library/react'
+import { act, renderHook } from '@testing-library/react'
 import { useActivityTracker } from '../useActivityTracker'
 
 describe('useActivityTracker', () => {
@@ -83,7 +83,10 @@ describe('useActivityTracker', () => {
 
     // Simulate tab becoming visible again
     act(() => {
-      Object.defineProperty(document, 'hidden', { value: false, writable: true })
+      Object.defineProperty(document, 'hidden', {
+        value: false,
+        writable: true,
+      })
       document.dispatchEvent(new Event('visibilitychange'))
     })
 
@@ -144,7 +147,7 @@ describe('useActivityTracker', () => {
 
     expect(removeEventSpy).toHaveBeenCalledWith(
       'visibilitychange',
-      expect.any(Function)
+      expect.any(Function),
     )
     removeEventSpy.mockRestore()
   })
@@ -165,7 +168,10 @@ describe('useActivityTracker', () => {
 
     // Start again - should reset
     act(() => {
-      Object.defineProperty(document, 'hidden', { value: false, writable: true })
+      Object.defineProperty(document, 'hidden', {
+        value: false,
+        writable: true,
+      })
       result.current.start()
     })
 

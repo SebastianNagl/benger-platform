@@ -23,11 +23,11 @@ export function LicenseCitationSection() {
   return (
     <section
       id="license"
-      className="flex min-h-screen items-center bg-zinc-50 py-16 dark:bg-zinc-800/50 sm:py-24"
+      className="flex min-h-screen items-center bg-zinc-50 py-16 sm:py-24 dark:bg-zinc-800/50"
     >
       <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="text-center">
-          <h2 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-white sm:text-4xl">
+          <h2 className="text-3xl font-bold tracking-tight text-zinc-900 sm:text-4xl dark:text-white">
             {t('landing.license.title')}
           </h2>
           <p className="mx-auto mt-4 max-w-2xl text-lg text-zinc-600 dark:text-zinc-400">
@@ -56,7 +56,7 @@ export function LicenseCitationSection() {
                   </svg>
                 </div>
                 <div>
-                  <p className="text-xs font-medium uppercase tracking-wide text-emerald-700 dark:text-emerald-400">
+                  <p className="text-xs font-medium tracking-wide text-emerald-700 uppercase dark:text-emerald-400">
                     {item.label}
                   </p>
                   <h3 className="mt-1 text-lg font-semibold text-zinc-900 dark:text-white">
@@ -86,7 +86,7 @@ export function LicenseCitationSection() {
                   {item.label}
                 </h4>
                 {item.tba || !item.bibtex ? (
-                  <p className="text-sm italic text-zinc-500 dark:text-zinc-400">
+                  <p className="text-sm text-zinc-500 italic dark:text-zinc-400">
                     t.b.a.
                   </p>
                 ) : (

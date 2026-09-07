@@ -9,63 +9,94 @@ import { GenerationStructureEditor } from '../GenerationStructureEditor'
 const mockTranslate = (key: string, arg2?: any, arg3?: any) => {
   const vars = typeof arg2 === 'object' ? arg2 : arg3
   const translations: Record<string, string> = {
-    'projects.generationStructure.templatesTitle': 'Generation Structure Templates',
-    'projects.generationStructure.templatesDescription': 'Select a template for common generation patterns with the new prompt structure',
+    'projects.generationStructure.templatesTitle':
+      'Generation Structure Templates',
+    'projects.generationStructure.templatesDescription':
+      'Select a template for common generation patterns with the new prompt structure',
     'projects.generationStructure.templateSimpleQA': 'Simple Q&A',
-    'projects.generationStructure.templateSimpleQADesc': 'Direct field reference',
+    'projects.generationStructure.templateSimpleQADesc':
+      'Direct field reference',
     'projects.generationStructure.templateTemplateQA': 'Template Q&A',
-    'projects.generationStructure.templateTemplateQADesc': 'With {{placeholders}}',
+    'projects.generationStructure.templateTemplateQADesc':
+      'With {{placeholders}}',
     'projects.generationStructure.templateLegalAnalysis': 'Legal Analysis',
-    'projects.generationStructure.templateLegalAnalysisDesc': 'Complex template',
+    'projects.generationStructure.templateLegalAnalysisDesc':
+      'Complex template',
     'projects.generationStructure.templateClassification': 'Classification',
     'projects.generationStructure.templateClassificationDesc': 'Category-based',
     'projects.generationStructure.templateNestedData': 'Nested Data',
     'projects.generationStructure.templateNestedDataDesc': 'Dot notation paths',
     'projects.generationStructure.templateMultiFieldCombo': 'Multi-Field Combo',
-    'projects.generationStructure.templateMultiFieldComboDesc': 'Combine multiple fields',
-    'projects.generationStructure.configTitle': 'Generation Structure Configuration',
-    'projects.generationStructure.configDescription': 'Define system and instruction prompts with field mappings and templates',
-    'projects.generationStructure.editorHint': 'Use $field.path for field references and {{placeholder}} for template variables',
+    'projects.generationStructure.templateMultiFieldComboDesc':
+      'Combine multiple fields',
+    'projects.generationStructure.configTitle':
+      'Generation Structure Configuration',
+    'projects.generationStructure.configDescription':
+      'Define system and instruction prompts with field mappings and templates',
+    'projects.generationStructure.editorHint':
+      'Use $field.path for field references and {{placeholder}} for template variables',
     'projects.generationStructure.showPreview': 'Show Preview',
     'projects.generationStructure.hidePreview': 'Hide Preview',
-    'projects.generationStructure.placeholder': 'Enter your JSON generation structure configuration...',
+    'projects.generationStructure.placeholder':
+      'Enter your JSON generation structure configuration...',
     'projects.generationStructure.valid': 'Configuration is valid',
     'projects.generationStructure.saveButton': 'Save Configuration',
     'projects.generationStructure.errorEmpty': 'Configuration cannot be empty',
-    'projects.generationStructure.errorMissingPrompt': 'Configuration must define at least one of: system_prompt, instruction_prompt, or fields',
-    'projects.generationStructure.errorSystemPromptTemplate': 'system_prompt object must have a "template" field',
-    'projects.generationStructure.errorSystemPromptFields': 'system_prompt.fields must be an object',
-    'projects.generationStructure.errorInstructionPromptTemplate': 'instruction_prompt object must have a "template" field',
-    'projects.generationStructure.errorInstructionPromptFields': 'instruction_prompt.fields must be an object',
-    'projects.generationStructure.errorExcludeFieldsArray': 'exclude_fields must be an array',
-    'projects.generationStructure.errorParametersObject': 'parameters must be an object',
+    'projects.generationStructure.errorMissingPrompt':
+      'Configuration must define at least one of: system_prompt, instruction_prompt, or fields',
+    'projects.generationStructure.errorSystemPromptTemplate':
+      'system_prompt object must have a "template" field',
+    'projects.generationStructure.errorSystemPromptFields':
+      'system_prompt.fields must be an object',
+    'projects.generationStructure.errorInstructionPromptTemplate':
+      'instruction_prompt object must have a "template" field',
+    'projects.generationStructure.errorInstructionPromptFields':
+      'instruction_prompt.fields must be an object',
+    'projects.generationStructure.errorExcludeFieldsArray':
+      'exclude_fields must be an array',
+    'projects.generationStructure.errorParametersObject':
+      'parameters must be an object',
     'projects.generationStructure.errorInvalidJson': 'Invalid JSON format: ',
     'projects.generationStructure.previewTitle': 'Structure Preview',
     'projects.generationStructure.systemPromptLabel': 'System Prompt:',
-    'projects.generationStructure.instructionPromptLabel': 'Instruction Prompt:',
+    'projects.generationStructure.instructionPromptLabel':
+      'Instruction Prompt:',
     'projects.generationStructure.willUseField': 'Will use field: {field}',
-    'projects.generationStructure.templateWithPlaceholders': 'Template with placeholders: ',
+    'projects.generationStructure.templateWithPlaceholders':
+      'Template with placeholders: ',
     'projects.generationStructure.referencedFields': 'Referenced Data Fields:',
-    'projects.generationStructure.excludedFields': 'Excluded Fields (Security):',
+    'projects.generationStructure.excludedFields':
+      'Excluded Fields (Security):',
     'projects.generationStructure.docTitle': 'Configuration Structure',
     'projects.generationStructure.docPromptFields': 'Prompt Fields:',
     'projects.generationStructure.docFieldReferences': 'Field References:',
     'projects.generationStructure.docTemplateSyntax': 'Template Syntax:',
     'projects.generationStructure.docOptionalFields': 'Optional Fields:',
     'projects.generationStructure.docSecurityNote': 'Security Note:',
-    'projects.generationStructure.docSecurityNoteText': "Sensitive fields like 'annotations', 'ground_truth', 'reference_answer' are automatically filtered and will never be sent to LLMs.",
-    'projects.generationStructure.docSystemPromptDesc': 'System-level instructions',
-    'projects.generationStructure.docInstructionPromptDesc': 'Task-specific instructions',
-    'projects.generationStructure.docStringOption': '• String: Direct text or $field reference',
-    'projects.generationStructure.docObjectOption': '• Object: Template with {{placeholders}} and field mappings',
+    'projects.generationStructure.docSecurityNoteText':
+      "Sensitive fields like 'annotations', 'ground_truth', 'reference_answer' are automatically filtered and will never be sent to LLMs.",
+    'projects.generationStructure.docSystemPromptDesc':
+      'System-level instructions',
+    'projects.generationStructure.docInstructionPromptDesc':
+      'Task-specific instructions',
+    'projects.generationStructure.docStringOption':
+      '• String: Direct text or $field reference',
+    'projects.generationStructure.docObjectOption':
+      '• Object: Template with {{placeholders}} and field mappings',
     'projects.generationStructure.docSimpleFieldRef': 'Simple field reference',
-    'projects.generationStructure.docNestedFieldRef': 'Nested field with dot notation',
+    'projects.generationStructure.docNestedFieldRef':
+      'Nested field with dot notation',
     'projects.generationStructure.docArrayAccessRef': 'Array access with index',
-    'projects.generationStructure.docTemplateVariable': 'Template variable to be replaced',
-    'projects.generationStructure.docFieldsMapping': 'Defined in fields object mapping placeholders to $references',
-    'projects.generationStructure.docContextFields': 'Array of additional context field references',
-    'projects.generationStructure.docExcludeFields': 'Fields to exclude for security (e.g., annotations)',
-    'projects.generationStructure.docParameters': 'Generation parameters (temperature, max_tokens)',
+    'projects.generationStructure.docTemplateVariable':
+      'Template variable to be replaced',
+    'projects.generationStructure.docFieldsMapping':
+      'Defined in fields object mapping placeholders to $references',
+    'projects.generationStructure.docContextFields':
+      'Array of additional context field references',
+    'projects.generationStructure.docExcludeFields':
+      'Fields to exclude for security (e.g., annotations)',
+    'projects.generationStructure.docParameters':
+      'Generation parameters (temperature, max_tokens)',
     'common.cancel': 'Cancel',
   }
   let result = translations[key] || key
@@ -99,15 +130,15 @@ describe('GenerationStructureEditor', () => {
       render(<GenerationStructureEditor onSave={mockOnSave} />)
 
       expect(
-        screen.getByText('Generation Structure Templates')
+        screen.getByText('Generation Structure Templates'),
       ).toBeInTheDocument()
       expect(
-        screen.getByText('Generation Structure Configuration')
+        screen.getByText('Generation Structure Configuration'),
       ).toBeInTheDocument()
       expect(
         screen.getByPlaceholderText(
-          'Enter your JSON generation structure configuration...'
-        )
+          'Enter your JSON generation structure configuration...',
+        ),
       ).toBeInTheDocument()
     })
 
@@ -119,7 +150,7 @@ describe('GenerationStructureEditor', () => {
         <GenerationStructureEditor
           initialConfig={initialConfig}
           onSave={mockOnSave}
-        />
+        />,
       )
 
       expect(screen.getByDisplayValue(initialConfig)).toBeInTheDocument()
@@ -140,11 +171,11 @@ describe('GenerationStructureEditor', () => {
         <GenerationStructureEditor
           onSave={mockOnSave}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       expect(
-        screen.getByRole('button', { name: 'Save Configuration' })
+        screen.getByRole('button', { name: 'Save Configuration' }),
       ).toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument()
     })
@@ -155,14 +186,14 @@ describe('GenerationStructureEditor', () => {
           onSave={mockOnSave}
           onCancel={mockOnCancel}
           showActionButtons={false}
-        />
+        />,
       )
 
       expect(
-        screen.queryByRole('button', { name: 'Save Configuration' })
+        screen.queryByRole('button', { name: 'Save Configuration' }),
       ).not.toBeInTheDocument()
       expect(
-        screen.queryByRole('button', { name: 'Cancel' })
+        screen.queryByRole('button', { name: 'Cancel' }),
       ).not.toBeInTheDocument()
     })
 
@@ -170,7 +201,7 @@ describe('GenerationStructureEditor', () => {
       render(<GenerationStructureEditor onSave={mockOnSave} />)
 
       expect(
-        screen.queryByRole('button', { name: 'Cancel' })
+        screen.queryByRole('button', { name: 'Cancel' }),
       ).not.toBeInTheDocument()
     })
 
@@ -190,7 +221,7 @@ describe('GenerationStructureEditor', () => {
         <GenerationStructureEditor
           onSave={mockOnSave}
           onChange={mockOnChange}
-        />
+        />,
       )
 
       const simpleQaButton = screen.getByText('Simple Q&A').closest('button')!
@@ -210,7 +241,7 @@ describe('GenerationStructureEditor', () => {
         <GenerationStructureEditor
           onSave={mockOnSave}
           onChange={mockOnChange}
-        />
+        />,
       )
 
       const templateQaButton = screen
@@ -233,7 +264,7 @@ describe('GenerationStructureEditor', () => {
         <GenerationStructureEditor
           onSave={mockOnSave}
           onChange={mockOnChange}
-        />
+        />,
       )
 
       const legalAnalysisButton = screen
@@ -255,7 +286,7 @@ describe('GenerationStructureEditor', () => {
         <GenerationStructureEditor
           onSave={mockOnSave}
           onChange={mockOnChange}
-        />
+        />,
       )
 
       const classificationButton = screen
@@ -277,7 +308,7 @@ describe('GenerationStructureEditor', () => {
         <GenerationStructureEditor
           onSave={mockOnSave}
           onChange={mockOnChange}
-        />
+        />,
       )
 
       const nestedDataButton = screen
@@ -300,7 +331,7 @@ describe('GenerationStructureEditor', () => {
         <GenerationStructureEditor
           onSave={mockOnSave}
           onChange={mockOnChange}
-        />
+        />,
       )
 
       const simpleQaButton = screen.getByText('Simple Q&A').closest('button')!
@@ -319,7 +350,7 @@ describe('GenerationStructureEditor', () => {
         <GenerationStructureEditor
           onSave={mockOnSave}
           onChange={mockOnChange}
-        />
+        />,
       )
 
       const simpleQaButton = screen.getByText('Simple Q&A').closest('button')!
@@ -327,7 +358,7 @@ describe('GenerationStructureEditor', () => {
 
       await waitFor(() => {
         expect(mockOnChange).toHaveBeenCalledWith(
-          expect.stringContaining('helpful assistant')
+          expect.stringContaining('helpful assistant'),
         )
       })
 
@@ -336,7 +367,7 @@ describe('GenerationStructureEditor', () => {
 
       await waitFor(() => {
         expect(mockOnChange).toHaveBeenCalledWith(
-          expect.stringContaining('legal expert')
+          expect.stringContaining('legal expert'),
         )
       })
     })
@@ -348,11 +379,11 @@ describe('GenerationStructureEditor', () => {
         <GenerationStructureEditor
           onSave={mockOnSave}
           onChange={mockOnChange}
-        />
+        />,
       )
 
       const textarea = screen.getByPlaceholderText(
-        'Enter your JSON generation structure configuration...'
+        'Enter your JSON generation structure configuration...',
       )
 
       await userEvent.click(textarea)
@@ -365,7 +396,7 @@ describe('GenerationStructureEditor', () => {
       render(<GenerationStructureEditor onSave={mockOnSave} />)
 
       const textarea = screen.getByPlaceholderText(
-        'Enter your JSON generation structure configuration...'
+        'Enter your JSON generation structure configuration...',
       )
 
       await userEvent.click(textarea)
@@ -380,12 +411,12 @@ describe('GenerationStructureEditor', () => {
       render(<GenerationStructureEditor onSave={mockOnSave} />)
 
       const textarea = screen.getByPlaceholderText(
-        'Enter your JSON generation structure configuration...'
+        'Enter your JSON generation structure configuration...',
       )
 
       await userEvent.click(textarea)
       await userEvent.paste(
-        '{"system_prompt": "test", "instruction_prompt": "test"}'
+        '{"system_prompt": "test", "instruction_prompt": "test"}',
       )
 
       await waitFor(() => {
@@ -400,11 +431,11 @@ describe('GenerationStructureEditor', () => {
           initialConfig={initialConfig}
           onSave={mockOnSave}
           onChange={mockOnChange}
-        />
+        />,
       )
 
       const textarea = screen.getByPlaceholderText(
-        'Enter your JSON generation structure configuration...'
+        'Enter your JSON generation structure configuration...',
       )
 
       await userEvent.clear(textarea)
@@ -420,7 +451,7 @@ describe('GenerationStructureEditor', () => {
       render(<GenerationStructureEditor onSave={mockOnSave} />)
 
       const textarea = screen.getByPlaceholderText(
-        'Enter your JSON generation structure configuration...'
+        'Enter your JSON generation structure configuration...',
       )
 
       await userEvent.click(textarea)
@@ -429,8 +460,8 @@ describe('GenerationStructureEditor', () => {
       await waitFor(() => {
         expect(
           screen.getByText(
-            /must define at least one of: system_prompt, instruction_prompt, or fields/i
-          )
+            /must define at least one of: system_prompt, instruction_prompt, or fields/i,
+          ),
         ).toBeInTheDocument()
       })
     })
@@ -439,7 +470,7 @@ describe('GenerationStructureEditor', () => {
       render(<GenerationStructureEditor onSave={mockOnSave} />)
 
       const textarea = screen.getByPlaceholderText(
-        'Enter your JSON generation structure configuration...'
+        'Enter your JSON generation structure configuration...',
       )
 
       await userEvent.click(textarea)
@@ -447,7 +478,7 @@ describe('GenerationStructureEditor', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('system_prompt object must have a "template" field')
+          screen.getByText('system_prompt object must have a "template" field'),
         ).toBeInTheDocument()
       })
     })
@@ -456,7 +487,7 @@ describe('GenerationStructureEditor', () => {
       render(<GenerationStructureEditor onSave={mockOnSave} />)
 
       const textarea = screen.getByPlaceholderText(
-        'Enter your JSON generation structure configuration...'
+        'Enter your JSON generation structure configuration...',
       )
 
       await userEvent.click(textarea)
@@ -465,8 +496,8 @@ describe('GenerationStructureEditor', () => {
       await waitFor(() => {
         expect(
           screen.getByText(
-            'instruction_prompt object must have a "template" field'
-          )
+            'instruction_prompt object must have a "template" field',
+          ),
         ).toBeInTheDocument()
       })
     })
@@ -475,17 +506,17 @@ describe('GenerationStructureEditor', () => {
       render(<GenerationStructureEditor onSave={mockOnSave} />)
 
       const textarea = screen.getByPlaceholderText(
-        'Enter your JSON generation structure configuration...'
+        'Enter your JSON generation structure configuration...',
       )
 
       await userEvent.click(textarea)
       await userEvent.paste(
-        '{"system_prompt": "test", "exclude_fields": "invalid"}'
+        '{"system_prompt": "test", "exclude_fields": "invalid"}',
       )
 
       await waitFor(() => {
         expect(
-          screen.getByText('exclude_fields must be an array')
+          screen.getByText('exclude_fields must be an array'),
         ).toBeInTheDocument()
       })
     })
@@ -494,17 +525,17 @@ describe('GenerationStructureEditor', () => {
       render(<GenerationStructureEditor onSave={mockOnSave} />)
 
       const textarea = screen.getByPlaceholderText(
-        'Enter your JSON generation structure configuration...'
+        'Enter your JSON generation structure configuration...',
       )
 
       await userEvent.click(textarea)
       await userEvent.paste(
-        '{"system_prompt": "test", "parameters": "invalid"}'
+        '{"system_prompt": "test", "parameters": "invalid"}',
       )
 
       await waitFor(() => {
         expect(
-          screen.getByText('parameters must be an object')
+          screen.getByText('parameters must be an object'),
         ).toBeInTheDocument()
       })
     })
@@ -513,7 +544,7 @@ describe('GenerationStructureEditor', () => {
       render(<GenerationStructureEditor onSave={mockOnSave} />)
 
       const textarea = screen.getByPlaceholderText(
-        'Enter your JSON generation structure configuration...'
+        'Enter your JSON generation structure configuration...',
       )
 
       await userEvent.click(textarea)
@@ -521,7 +552,7 @@ describe('GenerationStructureEditor', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('Configuration cannot be empty')
+          screen.getByText('Configuration cannot be empty'),
         ).toBeInTheDocument()
       })
     })
@@ -530,17 +561,17 @@ describe('GenerationStructureEditor', () => {
       render(<GenerationStructureEditor onSave={mockOnSave} />)
 
       const textarea = screen.getByPlaceholderText(
-        'Enter your JSON generation structure configuration...'
+        'Enter your JSON generation structure configuration...',
       )
 
       await userEvent.click(textarea)
       await userEvent.paste(
-        '{"system_prompt": {"template": "test", "fields": "invalid"}}'
+        '{"system_prompt": {"template": "test", "fields": "invalid"}}',
       )
 
       await waitFor(() => {
         expect(
-          screen.getByText('system_prompt.fields must be an object')
+          screen.getByText('system_prompt.fields must be an object'),
         ).toBeInTheDocument()
       })
     })
@@ -549,17 +580,17 @@ describe('GenerationStructureEditor', () => {
       render(<GenerationStructureEditor onSave={mockOnSave} />)
 
       const textarea = screen.getByPlaceholderText(
-        'Enter your JSON generation structure configuration...'
+        'Enter your JSON generation structure configuration...',
       )
 
       await userEvent.click(textarea)
       await userEvent.paste(
-        '{"instruction_prompt": {"template": "test", "fields": "invalid"}}'
+        '{"instruction_prompt": {"template": "test", "fields": "invalid"}}',
       )
 
       await waitFor(() => {
         expect(
-          screen.getByText('instruction_prompt.fields must be an object')
+          screen.getByText('instruction_prompt.fields must be an object'),
         ).toBeInTheDocument()
       })
     })
@@ -568,12 +599,12 @@ describe('GenerationStructureEditor', () => {
       render(<GenerationStructureEditor onSave={mockOnSave} />)
 
       const textarea = screen.getByPlaceholderText(
-        'Enter your JSON generation structure configuration...'
+        'Enter your JSON generation structure configuration...',
       )
 
       await userEvent.click(textarea)
       await userEvent.paste(
-        '{"system_prompt": "You are a helpful assistant", "instruction_prompt": "$question"}'
+        '{"system_prompt": "You are a helpful assistant", "instruction_prompt": "$question"}',
       )
 
       await waitFor(() => {
@@ -585,12 +616,12 @@ describe('GenerationStructureEditor', () => {
       render(<GenerationStructureEditor onSave={mockOnSave} />)
 
       const textarea = screen.getByPlaceholderText(
-        'Enter your JSON generation structure configuration...'
+        'Enter your JSON generation structure configuration...',
       )
 
       await userEvent.click(textarea)
       await userEvent.paste(
-        '{"system_prompt": {"template": "Test {{var}}", "fields": {"var": "$data"}}, "instruction_prompt": "test"}'
+        '{"system_prompt": {"template": "Test {{var}}", "fields": {"var": "$data"}}, "instruction_prompt": "test"}',
       )
 
       await waitFor(() => {
@@ -613,7 +644,7 @@ describe('GenerationStructureEditor', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByRole('button', { name: /Hide Preview/i })
+          screen.getByRole('button', { name: /Hide Preview/i }),
         ).toBeInTheDocument()
       })
     })
@@ -622,11 +653,11 @@ describe('GenerationStructureEditor', () => {
       render(<GenerationStructureEditor onSave={mockOnSave} />)
 
       const textarea = screen.getByPlaceholderText(
-        'Enter your JSON generation structure configuration...'
+        'Enter your JSON generation structure configuration...',
       )
       await userEvent.click(textarea)
       await userEvent.paste(
-        '{"system_prompt": "You are helpful", "instruction_prompt": "test"}'
+        '{"system_prompt": "You are helpful", "instruction_prompt": "test"}',
       )
 
       const previewButton = screen.getByRole('button', {
@@ -644,11 +675,11 @@ describe('GenerationStructureEditor', () => {
       render(<GenerationStructureEditor onSave={mockOnSave} />)
 
       const textarea = screen.getByPlaceholderText(
-        'Enter your JSON generation structure configuration...'
+        'Enter your JSON generation structure configuration...',
       )
       await userEvent.click(textarea)
       await userEvent.paste(
-        '{"system_prompt": "test", "instruction_prompt": "Answer this"}'
+        '{"system_prompt": "test", "instruction_prompt": "Answer this"}',
       )
 
       const previewButton = screen.getByRole('button', {
@@ -666,11 +697,11 @@ describe('GenerationStructureEditor', () => {
       render(<GenerationStructureEditor onSave={mockOnSave} />)
 
       const textarea = screen.getByPlaceholderText(
-        'Enter your JSON generation structure configuration...'
+        'Enter your JSON generation structure configuration...',
       )
       await userEvent.click(textarea)
       await userEvent.paste(
-        '{"system_prompt": "$prompts.system", "instruction_prompt": "$question"}'
+        '{"system_prompt": "$prompts.system", "instruction_prompt": "$question"}',
       )
 
       const previewButton = screen.getByRole('button', {
@@ -689,11 +720,11 @@ describe('GenerationStructureEditor', () => {
       render(<GenerationStructureEditor onSave={mockOnSave} />)
 
       const textarea = screen.getByPlaceholderText(
-        'Enter your JSON generation structure configuration...'
+        'Enter your JSON generation structure configuration...',
       )
       await userEvent.click(textarea)
       await userEvent.paste(
-        '{"system_prompt": {"template": "Expert in {{domain}}", "fields": {"domain": "$area"}}, "instruction_prompt": "test"}'
+        '{"system_prompt": {"template": "Expert in {{domain}}", "fields": {"domain": "$area"}}, "instruction_prompt": "test"}',
       )
 
       const previewButton = screen.getByRole('button', {
@@ -703,7 +734,7 @@ describe('GenerationStructureEditor', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText(/Template with placeholders/i)
+          screen.getByText(/Template with placeholders/i),
         ).toBeInTheDocument()
       })
     })
@@ -712,11 +743,11 @@ describe('GenerationStructureEditor', () => {
       render(<GenerationStructureEditor onSave={mockOnSave} />)
 
       const textarea = screen.getByPlaceholderText(
-        'Enter your JSON generation structure configuration...'
+        'Enter your JSON generation structure configuration...',
       )
       await userEvent.click(textarea)
       await userEvent.paste(
-        '{"system_prompt": "test", "instruction_prompt": "test", "exclude_fields": ["annotations", "ground_truth"]}'
+        '{"system_prompt": "test", "instruction_prompt": "test", "exclude_fields": ["annotations", "ground_truth"]}',
       )
 
       const previewButton = screen.getByRole('button', {
@@ -726,7 +757,7 @@ describe('GenerationStructureEditor', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('Excluded Fields (Security):')
+          screen.getByText('Excluded Fields (Security):'),
         ).toBeInTheDocument()
         expect(screen.getByText('annotations')).toBeInTheDocument()
         expect(screen.getByText('ground_truth')).toBeInTheDocument()
@@ -737,11 +768,11 @@ describe('GenerationStructureEditor', () => {
       render(<GenerationStructureEditor onSave={mockOnSave} />)
 
       const textarea = screen.getByPlaceholderText(
-        'Enter your JSON generation structure configuration...'
+        'Enter your JSON generation structure configuration...',
       )
       await userEvent.click(textarea)
       await userEvent.paste(
-        '{"system_prompt": "test", "instruction_prompt": "test"}'
+        '{"system_prompt": "test", "instruction_prompt": "test"}',
       )
 
       const showButton = screen.getByRole('button', { name: /Show Preview/i })
@@ -763,11 +794,11 @@ describe('GenerationStructureEditor', () => {
       render(<GenerationStructureEditor onSave={mockOnSave} />)
 
       const textarea = screen.getByPlaceholderText(
-        'Enter your JSON generation structure configuration...'
+        'Enter your JSON generation structure configuration...',
       )
       await userEvent.click(textarea)
       await userEvent.paste(
-        '{"system_prompt": "$prompts.system", "instruction_prompt": "test"}'
+        '{"system_prompt": "$prompts.system", "instruction_prompt": "test"}',
       )
 
       const previewButton = screen.getByRole('button', {
@@ -777,7 +808,7 @@ describe('GenerationStructureEditor', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText(/Will use field: prompts.system/)
+          screen.getByText(/Will use field: prompts.system/),
         ).toBeInTheDocument()
       })
     })
@@ -788,11 +819,11 @@ describe('GenerationStructureEditor', () => {
       render(<GenerationStructureEditor onSave={mockOnSave} />)
 
       const textarea = screen.getByPlaceholderText(
-        'Enter your JSON generation structure configuration...'
+        'Enter your JSON generation structure configuration...',
       )
       await userEvent.click(textarea)
       await userEvent.paste(
-        '{"system_prompt": "test", "instruction_prompt": "test"}'
+        '{"system_prompt": "test", "instruction_prompt": "test"}',
       )
 
       await waitFor(() => {
@@ -805,7 +836,7 @@ describe('GenerationStructureEditor', () => {
       await userEvent.click(saveButton)
 
       expect(mockOnSave).toHaveBeenCalledWith(
-        '{"system_prompt": "test", "instruction_prompt": "test"}'
+        '{"system_prompt": "test", "instruction_prompt": "test"}',
       )
     })
 
@@ -813,7 +844,7 @@ describe('GenerationStructureEditor', () => {
       render(<GenerationStructureEditor onSave={mockOnSave} />)
 
       const textarea = screen.getByPlaceholderText(
-        'Enter your JSON generation structure configuration...'
+        'Enter your JSON generation structure configuration...',
       )
       await userEvent.click(textarea)
       await userEvent.paste('invalid json')
@@ -843,7 +874,7 @@ describe('GenerationStructureEditor', () => {
       render(<GenerationStructureEditor onSave={mockOnSave} />)
 
       const textarea = screen.getByPlaceholderText(
-        'Enter your JSON generation structure configuration...'
+        'Enter your JSON generation structure configuration...',
       )
       await userEvent.click(textarea)
       await userEvent.paste('invalid json')
@@ -860,11 +891,11 @@ describe('GenerationStructureEditor', () => {
       render(<GenerationStructureEditor onSave={mockOnSave} />)
 
       const textarea = screen.getByPlaceholderText(
-        'Enter your JSON generation structure configuration...'
+        'Enter your JSON generation structure configuration...',
       )
       await userEvent.click(textarea)
       await userEvent.paste(
-        '{"system_prompt": "test", "instruction_prompt": "test"}'
+        '{"system_prompt": "test", "instruction_prompt": "test"}',
       )
 
       await waitFor(() => {
@@ -880,7 +911,7 @@ describe('GenerationStructureEditor', () => {
         <GenerationStructureEditor
           onSave={mockOnSave}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       const cancelButton = screen.getByRole('button', { name: 'Cancel' })
@@ -895,11 +926,11 @@ describe('GenerationStructureEditor', () => {
       render(<GenerationStructureEditor onSave={mockOnSave} />)
 
       const textarea = screen.getByPlaceholderText(
-        'Enter your JSON generation structure configuration...'
+        'Enter your JSON generation structure configuration...',
       )
       await userEvent.click(textarea)
       await userEvent.paste(
-        '{"system_prompt": "$question", "instruction_prompt": "$context"}'
+        '{"system_prompt": "$question", "instruction_prompt": "$context"}',
       )
 
       const previewButton = screen.getByRole('button', {
@@ -917,11 +948,11 @@ describe('GenerationStructureEditor', () => {
       render(<GenerationStructureEditor onSave={mockOnSave} />)
 
       const textarea = screen.getByPlaceholderText(
-        'Enter your JSON generation structure configuration...'
+        'Enter your JSON generation structure configuration...',
       )
       await userEvent.click(textarea)
       await userEvent.paste(
-        '{"system_prompt": "$prompts.system", "instruction_prompt": "$metadata.domain"}'
+        '{"system_prompt": "$prompts.system", "instruction_prompt": "$metadata.domain"}',
       )
 
       const previewButton = screen.getByRole('button', {
@@ -939,11 +970,11 @@ describe('GenerationStructureEditor', () => {
       render(<GenerationStructureEditor onSave={mockOnSave} />)
 
       const textarea = screen.getByPlaceholderText(
-        'Enter your JSON generation structure configuration...'
+        'Enter your JSON generation structure configuration...',
       )
       await userEvent.click(textarea)
       await userEvent.paste(
-        '{"system_prompt": {"template": "test", "fields": {"var": "$data.field"}}, "instruction_prompt": "test"}'
+        '{"system_prompt": {"template": "test", "fields": {"var": "$data.field"}}, "instruction_prompt": "test"}',
       )
 
       const previewButton = screen.getByRole('button', {
@@ -960,11 +991,11 @@ describe('GenerationStructureEditor', () => {
       render(<GenerationStructureEditor onSave={mockOnSave} />)
 
       const textarea = screen.getByPlaceholderText(
-        'Enter your JSON generation structure configuration...'
+        'Enter your JSON generation structure configuration...',
       )
       await userEvent.click(textarea)
       await userEvent.paste(
-        '{"system_prompt": "test", "instruction_prompt": "test", "context_fields": ["$field1", "$field2"]}'
+        '{"system_prompt": "test", "instruction_prompt": "test", "context_fields": ["$field1", "$field2"]}',
       )
 
       const previewButton = screen.getByRole('button', {
@@ -995,11 +1026,11 @@ describe('GenerationStructureEditor', () => {
       render(<GenerationStructureEditor onSave={mockOnSave} />)
 
       const textarea = screen.getByPlaceholderText(
-        'Enter your JSON generation structure configuration...'
+        'Enter your JSON generation structure configuration...',
       )
       await userEvent.click(textarea)
       await userEvent.paste(
-        '{"system_prompt": "test", "instruction_prompt": "test", "parameters": {"temperature": 0.7, "max_tokens": 1000}}'
+        '{"system_prompt": "test", "instruction_prompt": "test", "parameters": {"temperature": 0.7, "max_tokens": 1000}}',
       )
 
       await waitFor(() => {
@@ -1011,11 +1042,11 @@ describe('GenerationStructureEditor', () => {
       render(<GenerationStructureEditor onSave={mockOnSave} />)
 
       const textarea = screen.getByPlaceholderText(
-        'Enter your JSON generation structure configuration...'
+        'Enter your JSON generation structure configuration...',
       )
       await userEvent.click(textarea)
       await userEvent.paste(
-        '{"system_prompt": "test", "instruction_prompt": "test", "context_fields": ["$context.jurisdiction", "$context.legal_system"]}'
+        '{"system_prompt": "test", "instruction_prompt": "test", "context_fields": ["$context.jurisdiction", "$context.legal_system"]}',
       )
 
       await waitFor(() => {
@@ -1027,7 +1058,7 @@ describe('GenerationStructureEditor', () => {
       render(<GenerationStructureEditor onSave={mockOnSave} />)
 
       const textarea = screen.getByPlaceholderText(
-        'Enter your JSON generation structure configuration...'
+        'Enter your JSON generation structure configuration...',
       )
       await userEvent.click(textarea)
       await userEvent.paste('{"fields": {"var": "$data"}}')
@@ -1043,7 +1074,7 @@ describe('GenerationStructureEditor', () => {
       render(<GenerationStructureEditor onSave={mockOnSave} />)
 
       const textarea = screen.getByPlaceholderText(
-        'Enter your JSON generation structure configuration...'
+        'Enter your JSON generation structure configuration...',
       )
       await userEvent.click(textarea)
       await userEvent.paste('{"system_prompt": "test"}')
@@ -1066,7 +1097,7 @@ describe('GenerationStructureEditor', () => {
       render(<GenerationStructureEditor onSave={mockOnSave} />)
 
       const textarea = screen.getByPlaceholderText(
-        'Enter your JSON generation structure configuration...'
+        'Enter your JSON generation structure configuration...',
       )
 
       await userEvent.click(textarea)
@@ -1079,12 +1110,12 @@ describe('GenerationStructureEditor', () => {
       await userEvent.clear(textarea)
       await userEvent.click(textarea)
       await userEvent.paste(
-        '{"system_prompt": "test", "instruction_prompt": "test"}'
+        '{"system_prompt": "test", "instruction_prompt": "test"}',
       )
 
       await waitFor(() => {
         expect(
-          screen.queryByText(/Invalid JSON format/i)
+          screen.queryByText(/Invalid JSON format/i),
         ).not.toBeInTheDocument()
         expect(screen.getByText('Configuration is valid')).toBeInTheDocument()
       })
@@ -1094,7 +1125,7 @@ describe('GenerationStructureEditor', () => {
       render(<GenerationStructureEditor onSave={mockOnSave} />)
 
       const textarea = screen.getByPlaceholderText(
-        'Enter your JSON generation structure configuration...'
+        'Enter your JSON generation structure configuration...',
       )
       await userEvent.click(textarea)
       await userEvent.paste('invalid json')
@@ -1116,7 +1147,7 @@ describe('GenerationStructureEditor', () => {
         <GenerationStructureEditor
           initialConfig={initialConfig}
           onSave={mockOnSave}
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -1130,7 +1161,7 @@ describe('GenerationStructureEditor', () => {
         <GenerationStructureEditor
           initialConfig={initialConfig}
           onSave={mockOnSave}
-        />
+        />,
       )
 
       await waitFor(() => {

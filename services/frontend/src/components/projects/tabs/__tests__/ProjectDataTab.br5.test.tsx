@@ -70,17 +70,23 @@ jest.mock('@/lib/api/projects', () => ({
     // Default: async export unavailable (object storage OFF) → 409, so
     // handleExportTasks transparently falls back to streamExportTasks.
     runProjectExportJob: jest.fn(() =>
-      Promise.reject({ response: { status: 409 } })
+      Promise.reject({ response: { status: 409 } }),
     ),
     bulkDeleteTasks: jest.fn(),
     bulkArchiveTasks: jest.fn(),
     getMembers: jest.fn(),
     removeTaskAssignment: jest.fn(),
     getTasksPage: jest.fn(() =>
-      Promise.resolve({ items: [], total: 0, page: 1, page_size: 50, pages: 0 })
+      Promise.resolve({
+        items: [],
+        total: 0,
+        page: 1,
+        page_size: 50,
+        pages: 0,
+      }),
     ),
     getTaskIds: jest.fn(() =>
-      Promise.resolve({ ids: [], total: 0, truncated: false })
+      Promise.resolve({ ids: [], total: 0, truncated: false }),
     ),
   },
 }))
@@ -315,17 +321,94 @@ const mockTasks = [
 ]
 
 const defaultColumns = [
-  { id: 'select', label: '', visible: true, sortable: false, width: 'w-12', type: 'system' },
-  { id: 'id', label: 'ID', visible: true, sortable: true, width: 'w-20', type: 'system' },
-  { id: 'completed', label: 'Completed', visible: true, sortable: true, width: 'w-24', type: 'system' },
-  { id: 'assigned', label: 'Assigned To', visible: true, sortable: false, width: 'w-32', type: 'system' },
-  { id: 'annotations', label: 'Annotations', visible: true, sortable: true, width: 'w-32', type: 'system' },
-  { id: 'generations', label: 'Generations', visible: true, sortable: true, width: 'w-24', type: 'system' },
-  { id: 'annotators', label: 'Annotators', visible: true, sortable: false, width: 'w-32', type: 'system' },
-  { id: 'graders', label: 'Graders', visible: true, sortable: false, width: 'w-32', type: 'system' },
-  { id: 'reviewers', label: 'Reviewers', visible: true, sortable: false, width: 'w-32', type: 'system' },
-  { id: 'created', label: 'Created', visible: true, sortable: true, width: 'w-36', type: 'system' },
-  { id: 'view_data', label: 'View', visible: true, sortable: false, width: 'w-16', type: 'system' },
+  {
+    id: 'select',
+    label: '',
+    visible: true,
+    sortable: false,
+    width: 'w-12',
+    type: 'system',
+  },
+  {
+    id: 'id',
+    label: 'ID',
+    visible: true,
+    sortable: true,
+    width: 'w-20',
+    type: 'system',
+  },
+  {
+    id: 'completed',
+    label: 'Completed',
+    visible: true,
+    sortable: true,
+    width: 'w-24',
+    type: 'system',
+  },
+  {
+    id: 'assigned',
+    label: 'Assigned To',
+    visible: true,
+    sortable: false,
+    width: 'w-32',
+    type: 'system',
+  },
+  {
+    id: 'annotations',
+    label: 'Annotations',
+    visible: true,
+    sortable: true,
+    width: 'w-32',
+    type: 'system',
+  },
+  {
+    id: 'generations',
+    label: 'Generations',
+    visible: true,
+    sortable: true,
+    width: 'w-24',
+    type: 'system',
+  },
+  {
+    id: 'annotators',
+    label: 'Annotators',
+    visible: true,
+    sortable: false,
+    width: 'w-32',
+    type: 'system',
+  },
+  {
+    id: 'graders',
+    label: 'Graders',
+    visible: true,
+    sortable: false,
+    width: 'w-32',
+    type: 'system',
+  },
+  {
+    id: 'reviewers',
+    label: 'Reviewers',
+    visible: true,
+    sortable: false,
+    width: 'w-32',
+    type: 'system',
+  },
+  {
+    id: 'created',
+    label: 'Created',
+    visible: true,
+    sortable: true,
+    width: 'w-36',
+    type: 'system',
+  },
+  {
+    id: 'view_data',
+    label: 'View',
+    visible: true,
+    sortable: false,
+    width: 'w-16',
+    type: 'system',
+  },
 ]
 
 describe('ProjectDataTab - br5 branch coverage', () => {
@@ -388,18 +471,20 @@ describe('ProjectDataTab - br5 branch coverage', () => {
           page_size: 50,
           pages: Array.isArray(items) && items.length > 0 ? 1 : 0,
         }
-      }
+      },
     )
-    mockedProjectsAPI.getTaskIds.mockImplementation(async (projectId: string) => {
-      const impl = mockFetchProjectTasks.getMockImplementation()
-      const items: any[] = impl ? await (impl as any)(projectId) : []
-      mockFetchProjectTasks(projectId)
-      return {
-        ids: Array.isArray(items) ? items.map((t: any) => t.id) : [],
-        total: Array.isArray(items) ? items.length : 0,
-        truncated: false,
-      }
-    })
+    mockedProjectsAPI.getTaskIds.mockImplementation(
+      async (projectId: string) => {
+        const impl = mockFetchProjectTasks.getMockImplementation()
+        const items: any[] = impl ? await (impl as any)(projectId) : []
+        mockFetchProjectTasks(projectId)
+        return {
+          ids: Array.isArray(items) ? items.map((t: any) => t.id) : [],
+          total: Array.isArray(items) ? items.length : 0,
+          truncated: false,
+        }
+      },
+    )
 
     mockUseAuth.mockReturnValue({
       user: {
@@ -466,16 +551,16 @@ describe('ProjectDataTab - br5 branch coverage', () => {
     })
 
     ;(projectsAPI.export as jest.Mock).mockResolvedValue(
-      new Blob(['test data'])
+      new Blob(['test data']),
     )
     ;(projectsAPI.bulkExportTasks as jest.Mock).mockResolvedValue(
-      new Blob(['test data'])
+      new Blob(['test data']),
     )
     ;(projectsAPI.streamExportTasks as jest.Mock).mockImplementation(
       (_projectId, _taskIds, _name, callbacks) => {
         callbacks?.onStart?.()
         return Promise.resolve({ bytesWritten: 9, savedVia: 'blob' })
-      }
+      },
     )
     ;(projectsAPI.bulkDeleteTasks as jest.Mock).mockResolvedValue({
       deleted: 2,
@@ -740,7 +825,7 @@ describe('ProjectDataTab - br5 branch coverage', () => {
 
   it('handles export error gracefully', async () => {
     ;(projectsAPI.streamExportTasks as jest.Mock).mockRejectedValue(
-      new Error('Export failed')
+      new Error('Export failed'),
     )
 
     render(<ProjectDataTab projectId="project-1" />)

@@ -41,14 +41,14 @@ export const componentRegistry: Record<string, AnnotationComponent> = {
   // Object tags (display data)
   Text: {
     component: React.lazy(
-      () => import('@/components/labeling/annotations/TextDisplay')
+      () => import('@/components/labeling/annotations/TextDisplay'),
     ),
     category: 'object',
   },
 
   Image: {
     component: React.lazy(
-      () => import('@/components/labeling/annotations/ImageDisplay')
+      () => import('@/components/labeling/annotations/ImageDisplay'),
     ),
     category: 'object',
   },
@@ -56,7 +56,7 @@ export const componentRegistry: Record<string, AnnotationComponent> = {
   // Control tags (annotation tools)
   TextArea: {
     component: React.lazy(
-      () => import('@/components/labeling/annotations/TextAreaInput')
+      () => import('@/components/labeling/annotations/TextAreaInput'),
     ),
     extractValue: (value: string) => ({ text: [value] }),
     category: 'control',
@@ -64,7 +64,7 @@ export const componentRegistry: Record<string, AnnotationComponent> = {
 
   Choices: {
     component: React.lazy(
-      () => import('@/components/labeling/annotations/ChoicesInput')
+      () => import('@/components/labeling/annotations/ChoicesInput'),
     ),
     extractValue: (value: string | string[]) => ({
       choices: Array.isArray(value) ? value : [value],
@@ -77,7 +77,7 @@ export const componentRegistry: Record<string, AnnotationComponent> = {
     // When used with toName pointing to a Text element, enables text selection + labeling
     // Otherwise falls back to simple label selection mode
     component: React.lazy(
-      () => import('@/components/labeling/annotations/SpanLabelsInput')
+      () => import('@/components/labeling/annotations/SpanLabelsInput'),
     ),
     extractValue: (value: any) => value,
     category: 'control',
@@ -85,7 +85,7 @@ export const componentRegistry: Record<string, AnnotationComponent> = {
 
   Rating: {
     component: React.lazy(
-      () => import('@/components/labeling/annotations/RatingInput')
+      () => import('@/components/labeling/annotations/RatingInput'),
     ),
     extractValue: (value: number) => ({ rating: value }),
     category: 'control',
@@ -93,7 +93,7 @@ export const componentRegistry: Record<string, AnnotationComponent> = {
 
   Likert: {
     component: React.lazy(
-      () => import('@/components/labeling/annotations/LikertInput')
+      () => import('@/components/labeling/annotations/LikertInput'),
     ),
     extractValue: (value: number) => ({ likert: value }),
     category: 'control',
@@ -101,7 +101,7 @@ export const componentRegistry: Record<string, AnnotationComponent> = {
 
   Number: {
     component: React.lazy(
-      () => import('@/components/labeling/annotations/NumberInput')
+      () => import('@/components/labeling/annotations/NumberInput'),
     ),
     extractValue: (value: number) => ({ number: value }),
     category: 'control',
@@ -110,21 +110,21 @@ export const componentRegistry: Record<string, AnnotationComponent> = {
   // Visual tags (layout and styling)
   View: {
     component: React.lazy(
-      () => import('@/components/labeling/annotations/ViewContainer')
+      () => import('@/components/labeling/annotations/ViewContainer'),
     ),
     category: 'visual',
   },
 
   Header: {
     component: React.lazy(
-      () => import('@/components/labeling/annotations/HeaderDisplay')
+      () => import('@/components/labeling/annotations/HeaderDisplay'),
     ),
     category: 'visual',
   },
 
   Style: {
     component: React.lazy(
-      () => import('@/components/labeling/annotations/StyleContainer')
+      () => import('@/components/labeling/annotations/StyleContainer'),
     ),
     category: 'visual',
   },
@@ -148,7 +148,7 @@ export function isTagSupported(tagName: string): boolean {
  * Get all supported tags by category
  */
 export function getSupportedTags(
-  category?: 'object' | 'control' | 'visual'
+  category?: 'object' | 'control' | 'visual',
 ): string[] {
   return Object.entries(componentRegistry)
     .filter(([_, component]) => !category || component.category === category)
@@ -160,7 +160,7 @@ export function getSupportedTags(
  */
 export function registerComponent(
   tagName: string,
-  component: AnnotationComponent
+  component: AnnotationComponent,
 ): void {
   if (componentRegistry[tagName]) {
     // Overriding existing component
@@ -175,7 +175,7 @@ export function createComponentInstance(
   config: ParsedComponent,
   taskData: Record<string, any>,
   onChange: (value: any) => void,
-  onAnnotation: (result: AnnotationResult) => void
+  onAnnotation: (result: AnnotationResult) => void,
 ): React.ReactElement | null {
   const component = getComponent(config.type)
 

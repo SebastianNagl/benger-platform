@@ -52,10 +52,16 @@ jest.mock('@/lib/api/projects', () => ({
     getMembers: jest.fn(),
     removeTaskAssignment: jest.fn(),
     getTasksPage: jest.fn(() =>
-      Promise.resolve({ items: [], total: 0, page: 1, page_size: 50, pages: 0 })
+      Promise.resolve({
+        items: [],
+        total: 0,
+        page: 1,
+        page_size: 50,
+        pages: 0,
+      }),
     ),
     getTaskIds: jest.fn(() =>
-      Promise.resolve({ ids: [], total: 0, truncated: false })
+      Promise.resolve({ ids: [], total: 0, truncated: false }),
     ),
   },
 }))
@@ -104,23 +110,46 @@ jest.mock('@/components/projects/AnnotatorBadges', () => ({
             <div key={i}>
               {a.user_name}
               {onUnassign && (
-                <button data-testid={`unassign-${a.id}`} onClick={() => onUnassign(a.id)}>Remove</button>
+                <button
+                  data-testid={`unassign-${a.id}`}
+                  onClick={() => onUnassign(a.id)}
+                >
+                  Remove
+                </button>
               )}
             </div>
           ))
-        : onAssign && <button data-testid="assign-task-btn" onClick={onAssign}>Assign</button>}
+        : onAssign && (
+            <button data-testid="assign-task-btn" onClick={onAssign}>
+              Assign
+            </button>
+          )}
     </div>
   ),
 }))
 
 jest.mock('@/components/projects/BulkActions', () => ({
-  BulkActions: ({ selectedCount, onDelete, onExport, onArchive, onAssign }: any) => (
+  BulkActions: ({
+    selectedCount,
+    onDelete,
+    onExport,
+    onArchive,
+    onAssign,
+  }: any) => (
     <div data-testid="bulk-actions">
       <span data-testid="selected-count">Selected: {selectedCount}</span>
-      <button onClick={onDelete} data-testid="bulk-delete">Delete</button>
-      <button onClick={onExport} data-testid="bulk-export">Export</button>
-      <button onClick={onArchive} data-testid="bulk-archive">Archive</button>
-      <button onClick={onAssign} data-testid="bulk-assign">Assign</button>
+      <button onClick={onDelete} data-testid="bulk-delete">
+        Delete
+      </button>
+      <button onClick={onExport} data-testid="bulk-export">
+        Export
+      </button>
+      <button onClick={onArchive} data-testid="bulk-archive">
+        Archive
+      </button>
+      <button onClick={onAssign} data-testid="bulk-assign">
+        Assign
+      </button>
     </div>
   ),
 }))
@@ -129,7 +158,11 @@ jest.mock('@/components/projects/ColumnSelector', () => ({
   ColumnSelector: ({ columns, onToggle, onReset }: any) => (
     <div data-testid="column-selector">
       {columns?.map((col: any) => (
-        <button key={col.id} onClick={() => onToggle(col.id)} data-testid={`column-${col.id}`}>
+        <button
+          key={col.id}
+          onClick={() => onToggle(col.id)}
+          data-testid={`column-${col.id}`}
+        >
           {col.label}
         </button>
       ))}
@@ -139,17 +172,47 @@ jest.mock('@/components/projects/ColumnSelector', () => ({
 }))
 
 jest.mock('@/components/projects/FilterDropdown', () => ({
-  FilterDropdown: ({ filterStatus, onStatusChange, onDateRangeChange, onAnnotatorChange, onMetadataChange }: any) => (
+  FilterDropdown: ({
+    filterStatus,
+    onStatusChange,
+    onDateRangeChange,
+    onAnnotatorChange,
+    onMetadataChange,
+  }: any) => (
     <div data-testid="filter-dropdown">
-      <select value={filterStatus} onChange={(e) => onStatusChange(e.target.value)} data-testid="status-filter">
+      <select
+        value={filterStatus}
+        onChange={(e) => onStatusChange(e.target.value)}
+        data-testid="status-filter"
+      >
         <option value="all">All</option>
         <option value="completed">Completed</option>
         <option value="incomplete">Incomplete</option>
       </select>
-      <button data-testid="set-date-range" onClick={() => onDateRangeChange?.('2024-01-01', '2024-01-31')}>Set Date Range</button>
-      <button data-testid="set-annotator" onClick={() => onAnnotatorChange?.('user-1')}>Set Annotator</button>
-      <button data-testid="set-metadata" onClick={() => onMetadataChange?.({ category: ['legal'] })}>Set Metadata</button>
-      <button data-testid="clear-metadata" onClick={() => onMetadataChange?.({})}>Clear Metadata</button>
+      <button
+        data-testid="set-date-range"
+        onClick={() => onDateRangeChange?.('2024-01-01', '2024-01-31')}
+      >
+        Set Date Range
+      </button>
+      <button
+        data-testid="set-annotator"
+        onClick={() => onAnnotatorChange?.('user-1')}
+      >
+        Set Annotator
+      </button>
+      <button
+        data-testid="set-metadata"
+        onClick={() => onMetadataChange?.({ category: ['legal'] })}
+      >
+        Set Metadata
+      </button>
+      <button
+        data-testid="clear-metadata"
+        onClick={() => onMetadataChange?.({})}
+      >
+        Clear Metadata
+      </button>
     </div>
   ),
 }))
@@ -158,8 +221,12 @@ jest.mock('@/components/projects/ImportDataModal', () => ({
   ImportDataModal: ({ isOpen, onClose, onImportComplete }: any) =>
     isOpen ? (
       <div data-testid="import-modal">
-        <button data-testid="complete-import" onClick={onImportComplete}>Complete Import</button>
-        <button data-testid="close-import" onClick={onClose}>Close</button>
+        <button data-testid="complete-import" onClick={onImportComplete}>
+          Complete Import
+        </button>
+        <button data-testid="close-import" onClick={onClose}>
+          Close
+        </button>
       </div>
     ) : null,
 }))
@@ -168,8 +235,15 @@ jest.mock('@/components/projects/TaskAssignmentModal', () => ({
   TaskAssignmentModal: ({ isOpen, onClose, onAssignmentComplete }: any) =>
     isOpen ? (
       <div data-testid="assignment-modal">
-        <button data-testid="complete-assignment" onClick={onAssignmentComplete}>Complete Assignment</button>
-        <button data-testid="close-assignment" onClick={onClose}>Close</button>
+        <button
+          data-testid="complete-assignment"
+          onClick={onAssignmentComplete}
+        >
+          Complete Assignment
+        </button>
+        <button data-testid="close-assignment" onClick={onClose}>
+          Close
+        </button>
       </div>
     ) : null,
 }))
@@ -179,7 +253,9 @@ jest.mock('@/components/tasks/TaskDataViewModal', () => ({
     isOpen ? (
       <div data-testid="task-data-modal">
         <span data-testid="view-task-id">Task: {task?.id}</span>
-        <button data-testid="close-data-modal" onClick={onClose}>Close</button>
+        <button data-testid="close-data-modal" onClick={onClose}>
+          Close
+        </button>
       </div>
     ) : null,
 }))
@@ -189,13 +265,20 @@ jest.mock('@/components/tasks/TaskAnnotationComparisonModal', () => ({
     isOpen ? (
       <div data-testid="comparison-modal">
         <span data-testid="comparison-task-id">Task: {task?.id}</span>
-        <button data-testid="close-comparison" onClick={onClose}>Close</button>
+        <button data-testid="close-comparison" onClick={onClose}>
+          Close
+        </button>
       </div>
     ) : null,
 }))
 
 jest.mock('@/components/projects/TableCheckbox', () => ({
-  TableCheckbox: ({ checked, onChange, indeterminate, 'data-testid': testId }: any) => (
+  TableCheckbox: ({
+    checked,
+    onChange,
+    indeterminate,
+    'data-testid': testId,
+  }: any) => (
     <input
       type="checkbox"
       checked={checked}
@@ -211,8 +294,23 @@ jest.mock('@/components/projects/UserAvatar', () => ({
 }))
 
 jest.mock('@/components/shared/Button', () => ({
-  Button: ({ children, onClick, variant, disabled, className, title, ...rest }: any) => (
-    <button onClick={onClick} disabled={disabled} data-variant={variant} className={className} title={title} {...rest}>
+  Button: ({
+    children,
+    onClick,
+    variant,
+    disabled,
+    className,
+    title,
+    ...rest
+  }: any) => (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      data-variant={variant}
+      className={className}
+      title={title}
+      {...rest}
+    >
       {children}
     </button>
   ),
@@ -225,9 +323,15 @@ jest.mock('@/components/shared/Input', () => ({
 const mockUseAuth = useAuth as jest.MockedFunction<typeof useAuth>
 const mockUseProgress = useProgress as jest.MockedFunction<typeof useProgress>
 const mockUseToast = useToast as jest.MockedFunction<typeof useToast>
-const mockUseProjectStore = useProjectStore as jest.MockedFunction<typeof useProjectStore>
-const mockUseColumnSettings = useColumnSettings as jest.MockedFunction<typeof useColumnSettings>
-const mockUseTablePreferences = useTablePreferences as jest.MockedFunction<typeof useTablePreferences>
+const mockUseProjectStore = useProjectStore as jest.MockedFunction<
+  typeof useProjectStore
+>
+const mockUseColumnSettings = useColumnSettings as jest.MockedFunction<
+  typeof useColumnSettings
+>
+const mockUseTablePreferences = useTablePreferences as jest.MockedFunction<
+  typeof useTablePreferences
+>
 
 const mockTasks = [
   {
@@ -254,7 +358,12 @@ const mockTasks = [
     updated_at: '2024-01-02T00:00:00Z',
     meta: { category: 'civil' },
     assignments: [
-      { id: 'assign-1', user_id: 'user-1', user_name: 'John Doe', status: 'completed' },
+      {
+        id: 'assign-1',
+        user_id: 'user-1',
+        user_name: 'John Doe',
+        status: 'completed',
+      },
     ],
     agreement: 0.85,
   },
@@ -274,19 +383,110 @@ const mockTasks = [
 ]
 
 const defaultColumns = [
-  { id: 'select', label: '', visible: true, sortable: false, width: 'w-12', type: 'system' },
-  { id: 'id', label: 'ID', visible: true, sortable: true, width: 'w-20', type: 'system' },
-  { id: 'completed', label: 'Completed', visible: true, sortable: true, width: 'w-24', type: 'system' },
-  { id: 'assigned', label: 'Assigned To', visible: true, sortable: false, width: 'w-32', type: 'system' },
-  { id: 'annotations', label: 'Annotations', visible: true, sortable: true, width: 'w-32', type: 'system' },
-  { id: 'generations', label: 'Generations', visible: true, sortable: true, width: 'w-32', type: 'system' },
-  { id: 'annotators', label: 'Annotators', visible: true, sortable: false, width: 'w-32', type: 'system' },
-  { id: 'graders', label: 'Graders', visible: true, sortable: false, width: 'w-32', type: 'system' },
-  { id: 'reviewers', label: 'Reviewers', visible: true, sortable: false, width: 'w-32', type: 'system' },
-  { id: 'created', label: 'Created', visible: true, sortable: true, width: 'w-36', type: 'system' },
-  { id: 'view_data', label: 'View', visible: true, sortable: false, width: 'w-16', type: 'system' },
-  { id: 'data_text', label: 'data.text', visible: true, sortable: false, width: 'w-40', type: 'data' },
-  { id: 'meta_category', label: 'meta.category', visible: true, sortable: false, width: 'w-32', type: 'metadata' },
+  {
+    id: 'select',
+    label: '',
+    visible: true,
+    sortable: false,
+    width: 'w-12',
+    type: 'system',
+  },
+  {
+    id: 'id',
+    label: 'ID',
+    visible: true,
+    sortable: true,
+    width: 'w-20',
+    type: 'system',
+  },
+  {
+    id: 'completed',
+    label: 'Completed',
+    visible: true,
+    sortable: true,
+    width: 'w-24',
+    type: 'system',
+  },
+  {
+    id: 'assigned',
+    label: 'Assigned To',
+    visible: true,
+    sortable: false,
+    width: 'w-32',
+    type: 'system',
+  },
+  {
+    id: 'annotations',
+    label: 'Annotations',
+    visible: true,
+    sortable: true,
+    width: 'w-32',
+    type: 'system',
+  },
+  {
+    id: 'generations',
+    label: 'Generations',
+    visible: true,
+    sortable: true,
+    width: 'w-32',
+    type: 'system',
+  },
+  {
+    id: 'annotators',
+    label: 'Annotators',
+    visible: true,
+    sortable: false,
+    width: 'w-32',
+    type: 'system',
+  },
+  {
+    id: 'graders',
+    label: 'Graders',
+    visible: true,
+    sortable: false,
+    width: 'w-32',
+    type: 'system',
+  },
+  {
+    id: 'reviewers',
+    label: 'Reviewers',
+    visible: true,
+    sortable: false,
+    width: 'w-32',
+    type: 'system',
+  },
+  {
+    id: 'created',
+    label: 'Created',
+    visible: true,
+    sortable: true,
+    width: 'w-36',
+    type: 'system',
+  },
+  {
+    id: 'view_data',
+    label: 'View',
+    visible: true,
+    sortable: false,
+    width: 'w-16',
+    type: 'system',
+  },
+  {
+    id: 'data_text',
+    label: 'data.text',
+    visible: true,
+    sortable: false,
+    width: 'w-40',
+    type: 'data',
+  },
+  {
+    id: 'meta_category',
+    label: 'meta.category',
+    visible: true,
+    sortable: false,
+    width: 'w-32',
+    type: 'metadata',
+  },
 ]
 
 let mockFetchProjectTasks: jest.Mock
@@ -317,9 +517,11 @@ function setupMocks() {
       // same shape they'd see in prod.
       if (Array.isArray(items) && options?.search) {
         const q = String(options.search).toLowerCase()
-        items = items.filter((t: any) =>
-          JSON.stringify(t.data || {}).toLowerCase().includes(q) ||
-          String(t.id).toLowerCase().includes(q)
+        items = items.filter(
+          (t: any) =>
+            JSON.stringify(t.data || {})
+              .toLowerCase()
+              .includes(q) || String(t.id).toLowerCase().includes(q),
         )
       }
       if (Array.isArray(items) && options?.onlyLabeled === true) {
@@ -359,7 +561,7 @@ function setupMocks() {
         page_size: 50,
         pages: Array.isArray(items) && items.length > 0 ? 1 : 0,
       }
-    }
+    },
   )
   mockedProjectsAPI.getTaskIds.mockImplementation(async (projectId: string) => {
     const impl = mockFetchProjectTasks.getMockImplementation()
@@ -373,10 +575,25 @@ function setupMocks() {
   })
 
   mockUseAuth.mockReturnValue({
-    user: { id: 'user-1', email: 'test@example.com', username: 'testuser', is_superadmin: true, role: 'ADMIN', is_active: true, name: 'Test User' },
-    login: jest.fn(), signup: jest.fn(), logout: jest.fn(), updateUser: jest.fn(),
-    isLoading: false, refreshAuth: jest.fn(), organizations: [],
-    currentOrganization: null, setCurrentOrganization: jest.fn(), refreshOrganizations: jest.fn(),
+    user: {
+      id: 'user-1',
+      email: 'test@example.com',
+      username: 'testuser',
+      is_superadmin: true,
+      role: 'ADMIN',
+      is_active: true,
+      name: 'Test User',
+    },
+    login: jest.fn(),
+    signup: jest.fn(),
+    logout: jest.fn(),
+    updateUser: jest.fn(),
+    isLoading: false,
+    refreshAuth: jest.fn(),
+    organizations: [],
+    currentOrganization: null,
+    setCurrentOrganization: jest.fn(),
+    refreshOrganizations: jest.fn(),
     apiClient: {} as any,
   })
 
@@ -386,17 +603,28 @@ function setupMocks() {
     completeProgress: mockCompleteProgress,
   })
 
-  mockUseToast.mockReturnValue({ addToast: mockAddToast, removeToast: jest.fn(), toasts: [] })
+  mockUseToast.mockReturnValue({
+    addToast: mockAddToast,
+    removeToast: jest.fn(),
+    toasts: [],
+  })
 
   mockUseProjectStore.mockReturnValue({
-    currentProject: { id: 'project-1', title: 'Test Project', num_tasks: 3, num_annotations: 3 },
+    currentProject: {
+      id: 'project-1',
+      title: 'Test Project',
+      num_tasks: 3,
+      num_annotations: 3,
+    },
     loading: false,
     fetchProjectTasks: mockFetchProjectTasks,
   } as any)
 
   // Track columns dynamically - the component calls updateColumns() to add data_/meta_ cols
   let currentColumns = defaultColumns
-  const mockUpdateColumns = jest.fn((newCols) => { currentColumns = newCols })
+  const mockUpdateColumns = jest.fn((newCols) => {
+    currentColumns = newCols
+  })
   mockUseColumnSettings.mockImplementation(() => ({
     columns: currentColumns,
     toggleColumn: jest.fn(),
@@ -406,14 +634,23 @@ function setupMocks() {
   }))
 
   mockUseTablePreferences.mockReturnValue({
-    preferences: { showSearch: false, sortBy: 'id', sortOrder: 'desc' as const, filterStatus: 'all' as const },
+    preferences: {
+      showSearch: false,
+      sortBy: 'id',
+      sortOrder: 'desc' as const,
+      filterStatus: 'all' as const,
+    },
     updatePreference: mockUpdatePreference,
   })
 
   ;(projectsAPI.runProjectExportJob as jest.Mock).mockResolvedValue(undefined)
   ;(projectsAPI.bulkDeleteTasks as jest.Mock).mockResolvedValue({ deleted: 1 })
-  ;(projectsAPI.bulkArchiveTasks as jest.Mock).mockResolvedValue({ archived: 1 })
-  ;(projectsAPI.getMembers as jest.Mock).mockResolvedValue([{ id: 'user-1', username: 'testuser' }])
+  ;(projectsAPI.bulkArchiveTasks as jest.Mock).mockResolvedValue({
+    archived: 1,
+  })
+  ;(projectsAPI.getMembers as jest.Mock).mockResolvedValue([
+    { id: 'user-1', username: 'testuser' },
+  ])
   ;(projectsAPI.removeTaskAssignment as jest.Mock).mockResolvedValue({})
 
   global.confirm = jest.fn(() => true)
@@ -421,17 +658,21 @@ function setupMocks() {
   global.URL.revokeObjectURL = jest.fn()
 
   const originalCreateElement = document.createElement.bind(document)
-  jest.spyOn(document, 'createElement').mockImplementation((tagName: string) => {
-    const element = originalCreateElement(tagName)
-    if (tagName === 'a') element.click = jest.fn()
-    return element
-  })
+  jest
+    .spyOn(document, 'createElement')
+    .mockImplementation((tagName: string) => {
+      const element = originalCreateElement(tagName)
+      if (tagName === 'a') element.click = jest.fn()
+      return element
+    })
 }
 
 async function renderAndWaitForTasks() {
   render(<ProjectDataTab projectId="project-1" />)
   await waitFor(() => expect(mockFetchProjectTasks).toHaveBeenCalled())
-  await act(async () => { await new Promise(r => setTimeout(r, 0)) })
+  await act(async () => {
+    await new Promise((r) => setTimeout(r, 0))
+  })
 }
 
 describe('ProjectDataTab - interaction coverage', () => {
@@ -458,12 +699,15 @@ describe('ProjectDataTab - interaction coverage', () => {
           'project-1',
           'json',
           expect.objectContaining({ onStatus: expect.any(Function) }),
-          expect.any(Object)
+          expect.any(Object),
         )
       })
       expect(projectsAPI.streamExportTasks).not.toHaveBeenCalled()
       expect(mockStartProgress).toHaveBeenCalled()
-      expect(mockCompleteProgress).toHaveBeenCalledWith(expect.any(String), 'success')
+      expect(mockCompleteProgress).toHaveBeenCalledWith(
+        expect.any(String),
+        'success',
+      )
       expect(mockAddToast).toHaveBeenCalledWith(expect.any(String), 'success')
     })
 
@@ -471,7 +715,9 @@ describe('ProjectDataTab - interaction coverage', () => {
       mockFetchProjectTasks.mockResolvedValue([])
       render(<ProjectDataTab projectId="project-1" />)
       await waitFor(() => expect(mockFetchProjectTasks).toHaveBeenCalled())
-      await act(async () => { await new Promise(r => setTimeout(r, 0)) })
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 0))
+      })
 
       // Export button should be disabled when no tasks
       const exportBtn = screen.getByTestId('export-button')
@@ -479,15 +725,23 @@ describe('ProjectDataTab - interaction coverage', () => {
     })
 
     it('handles export failure', async () => {
-      ;(projectsAPI.runProjectExportJob as jest.Mock).mockRejectedValueOnce(new Error('Network error'))
+      ;(projectsAPI.runProjectExportJob as jest.Mock).mockRejectedValueOnce(
+        new Error('Network error'),
+      )
       await renderAndWaitForTasks()
 
       fireEvent.click(screen.getByTestId('export-button'))
 
       await waitFor(() => {
-        expect(mockAddToast).toHaveBeenCalledWith(expect.stringContaining('Failed'), 'error')
+        expect(mockAddToast).toHaveBeenCalledWith(
+          expect.stringContaining('Failed'),
+          'error',
+        )
       })
-      expect(mockCompleteProgress).toHaveBeenCalledWith(expect.any(String), 'error')
+      expect(mockCompleteProgress).toHaveBeenCalledWith(
+        expect.any(String),
+        'error',
+      )
     })
   })
 
@@ -506,7 +760,7 @@ describe('ProjectDataTab - interaction coverage', () => {
           'project-1',
           'json',
           expect.objectContaining({ onStatus: expect.any(Function) }),
-          expect.objectContaining({ taskIds: expect.any(Array) })
+          expect.objectContaining({ taskIds: expect.any(Array) }),
         )
       })
       expect(projectsAPI.streamExportTasks).not.toHaveBeenCalled()
@@ -514,7 +768,9 @@ describe('ProjectDataTab - interaction coverage', () => {
     })
 
     it('handles bulk export failure', async () => {
-      ;(projectsAPI.runProjectExportJob as jest.Mock).mockRejectedValueOnce(new Error('Export failed'))
+      ;(projectsAPI.runProjectExportJob as jest.Mock).mockRejectedValueOnce(
+        new Error('Export failed'),
+      )
       await renderAndWaitForTasks()
 
       const checkboxes = screen.getAllByRole('checkbox')
@@ -523,7 +779,10 @@ describe('ProjectDataTab - interaction coverage', () => {
       fireEvent.click(screen.getByTestId('bulk-export'))
 
       await waitFor(() => {
-        expect(mockAddToast).toHaveBeenCalledWith(expect.stringContaining('Failed'), 'error')
+        expect(mockAddToast).toHaveBeenCalledWith(
+          expect.stringContaining('Failed'),
+          'error',
+        )
       })
     })
   })
@@ -538,12 +797,17 @@ describe('ProjectDataTab - interaction coverage', () => {
       fireEvent.click(screen.getByTestId('bulk-delete'))
 
       await waitFor(() => {
-        expect(projectsAPI.bulkDeleteTasks).toHaveBeenCalledWith('project-1', expect.any(Array))
+        expect(projectsAPI.bulkDeleteTasks).toHaveBeenCalledWith(
+          'project-1',
+          expect.any(Array),
+        )
       })
     })
 
     it('handles bulk delete failure', async () => {
-      ;(projectsAPI.bulkDeleteTasks as jest.Mock).mockRejectedValue(new Error('Delete failed'))
+      ;(projectsAPI.bulkDeleteTasks as jest.Mock).mockRejectedValue(
+        new Error('Delete failed'),
+      )
       await renderAndWaitForTasks()
 
       const checkboxes = screen.getAllByRole('checkbox')
@@ -552,7 +816,10 @@ describe('ProjectDataTab - interaction coverage', () => {
       fireEvent.click(screen.getByTestId('bulk-delete'))
 
       await waitFor(() => {
-        expect(mockAddToast).toHaveBeenCalledWith(expect.stringContaining('Failed'), 'error')
+        expect(mockAddToast).toHaveBeenCalledWith(
+          expect.stringContaining('Failed'),
+          'error',
+        )
       })
     })
   })
@@ -568,7 +835,10 @@ describe('ProjectDataTab - interaction coverage', () => {
       if (th) {
         fireEvent.click(th)
         await waitFor(() => {
-          expect(mockUpdatePreference).toHaveBeenCalledWith('sortBy', 'annotations')
+          expect(mockUpdatePreference).toHaveBeenCalledWith(
+            'sortBy',
+            'annotations',
+          )
         })
       }
     })
@@ -581,7 +851,10 @@ describe('ProjectDataTab - interaction coverage', () => {
       if (th) {
         fireEvent.click(th)
         await waitFor(() => {
-          expect(mockUpdatePreference).toHaveBeenCalledWith('sortBy', 'generations')
+          expect(mockUpdatePreference).toHaveBeenCalledWith(
+            'sortBy',
+            'generations',
+          )
         })
       }
     })
@@ -592,7 +865,9 @@ describe('ProjectDataTab - interaction coverage', () => {
 
       // Find the ID column header - it's rendered as t(column.label) which returns 'ID'
       const sortableThs = document.querySelectorAll('th[role="button"]')
-      const idTh = Array.from(sortableThs).find(th => th.textContent?.includes('ID'))
+      const idTh = Array.from(sortableThs).find((th) =>
+        th.textContent?.includes('ID'),
+      )
       if (idTh) {
         fireEvent.click(idTh)
         // Since we started with id desc, clicking should toggle to asc
@@ -606,7 +881,9 @@ describe('ProjectDataTab - interaction coverage', () => {
       await renderAndWaitForTasks()
 
       const sortableThs = document.querySelectorAll('th[role="button"]')
-      const idTh = Array.from(sortableThs).find(th => th.textContent?.includes('ID'))
+      const idTh = Array.from(sortableThs).find((th) =>
+        th.textContent?.includes('ID'),
+      )
       if (idTh) {
         fireEvent.keyDown(idTh, { key: 'Enter' })
         await waitFor(() => {
@@ -622,21 +899,29 @@ describe('ProjectDataTab - interaction coverage', () => {
     it('filters by completed status', async () => {
       await renderAndWaitForTasks()
 
-      fireEvent.change(screen.getByTestId('status-filter'), { target: { value: 'completed' } })
+      fireEvent.change(screen.getByTestId('status-filter'), {
+        target: { value: 'completed' },
+      })
 
       await waitFor(() => {
         // After filtering, only completed task should show
-        expect(screen.getByText(/annotationTab\.display\.showing/)).toBeInTheDocument()
+        expect(
+          screen.getByText(/annotationTab\.display\.showing/),
+        ).toBeInTheDocument()
       })
     })
 
     it('filters by incomplete status', async () => {
       await renderAndWaitForTasks()
 
-      fireEvent.change(screen.getByTestId('status-filter'), { target: { value: 'incomplete' } })
+      fireEvent.change(screen.getByTestId('status-filter'), {
+        target: { value: 'incomplete' },
+      })
 
       await waitFor(() => {
-        expect(screen.getByText(/annotationTab\.display\.showing/)).toBeInTheDocument()
+        expect(
+          screen.getByText(/annotationTab\.display\.showing/),
+        ).toBeInTheDocument()
       })
     })
   })
@@ -648,7 +933,9 @@ describe('ProjectDataTab - interaction coverage', () => {
       fireEvent.click(screen.getByTestId('set-date-range'))
 
       await waitFor(() => {
-        expect(screen.getByText(/annotationTab\.display\.showing/)).toBeInTheDocument()
+        expect(
+          screen.getByText(/annotationTab\.display\.showing/),
+        ).toBeInTheDocument()
       })
     })
   })
@@ -669,7 +956,9 @@ describe('ProjectDataTab - interaction coverage', () => {
       fireEvent.click(screen.getByTestId('set-metadata'))
 
       await waitFor(() => {
-        expect(screen.getByText(/annotationTab\.display\.showing/)).toBeInTheDocument()
+        expect(
+          screen.getByText(/annotationTab\.display\.showing/),
+        ).toBeInTheDocument()
       })
     })
 
@@ -680,7 +969,9 @@ describe('ProjectDataTab - interaction coverage', () => {
       fireEvent.click(screen.getByTestId('clear-metadata'))
 
       await waitFor(() => {
-        expect(screen.getByText(/annotationTab\.display\.showing/)).toBeInTheDocument()
+        expect(
+          screen.getByText(/annotationTab\.display\.showing/),
+        ).toBeInTheDocument()
       })
     })
   })
@@ -695,7 +986,9 @@ describe('ProjectDataTab - interaction coverage', () => {
       fireEvent.click(headerCb)
 
       // Wait for the setTimeout in handleSelectAll
-      await act(async () => { await new Promise(r => setTimeout(r, 50)) })
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 50))
+      })
     })
   })
 
@@ -708,7 +1001,9 @@ describe('ProjectDataTab - interaction coverage', () => {
       // Find the view_data buttons - they have title="annotation.viewTaskData"
       // In the table, these are buttons inside view_data td cells
       const allButtons = document.querySelectorAll('td button')
-      const viewButton = Array.from(allButtons).find(b => b.getAttribute('title') === 'annotation.viewTaskData')
+      const viewButton = Array.from(allButtons).find(
+        (b) => b.getAttribute('title') === 'annotation.viewTaskData',
+      )
       if (viewButton) {
         fireEvent.click(viewButton)
 
@@ -720,7 +1015,9 @@ describe('ProjectDataTab - interaction coverage', () => {
         fireEvent.click(screen.getByTestId('close-data-modal'))
 
         await waitFor(() => {
-          expect(screen.queryByTestId('task-data-modal')).not.toBeInTheDocument()
+          expect(
+            screen.queryByTestId('task-data-modal'),
+          ).not.toBeInTheDocument()
         })
       }
     })
@@ -744,7 +1041,9 @@ describe('ProjectDataTab - interaction coverage', () => {
         fireEvent.click(screen.getByTestId('close-comparison'))
 
         await waitFor(() => {
-          expect(screen.queryByTestId('comparison-modal')).not.toBeInTheDocument()
+          expect(
+            screen.queryByTestId('comparison-modal'),
+          ).not.toBeInTheDocument()
         })
       }
     })
@@ -775,7 +1074,9 @@ describe('ProjectDataTab - interaction coverage', () => {
       await renderAndWaitForTasks()
 
       fireEvent.click(screen.getByTestId('import-button'))
-      await waitFor(() => expect(screen.getByTestId('import-modal')).toBeInTheDocument())
+      await waitFor(() =>
+        expect(screen.getByTestId('import-modal')).toBeInTheDocument(),
+      )
 
       fireEvent.click(screen.getByTestId('close-import'))
       await waitFor(() => {
@@ -808,7 +1109,9 @@ describe('ProjectDataTab - interaction coverage', () => {
       fireEvent.click(checkboxes[1])
 
       fireEvent.click(screen.getByTestId('bulk-assign'))
-      await waitFor(() => expect(screen.getByTestId('assignment-modal')).toBeInTheDocument())
+      await waitFor(() =>
+        expect(screen.getByTestId('assignment-modal')).toBeInTheDocument(),
+      )
 
       fireEvent.click(screen.getByTestId('complete-assignment'))
 
@@ -852,7 +1155,11 @@ describe('ProjectDataTab - interaction coverage', () => {
         fireEvent.click(unassignBtn)
 
         await waitFor(() => {
-          expect(projectsAPI.removeTaskAssignment).toHaveBeenCalledWith('project-1', '2', 'assign-1')
+          expect(projectsAPI.removeTaskAssignment).toHaveBeenCalledWith(
+            'project-1',
+            '2',
+            'assign-1',
+          )
         })
         // Toast uses translation key: success.assignmentRemoved
         expect(mockAddToast).toHaveBeenCalledWith(expect.any(String), 'success')
@@ -860,7 +1167,9 @@ describe('ProjectDataTab - interaction coverage', () => {
     })
 
     it('handles unassign failure', async () => {
-      ;(projectsAPI.removeTaskAssignment as jest.Mock).mockRejectedValue(new Error('Failed'))
+      ;(projectsAPI.removeTaskAssignment as jest.Mock).mockRejectedValue(
+        new Error('Failed'),
+      )
       await renderAndWaitForTasks()
 
       const unassignBtn = screen.queryByTestId('unassign-assign-1')
@@ -880,7 +1189,12 @@ describe('ProjectDataTab - interaction coverage', () => {
     it('shows search bar and filters tasks', async () => {
       // Enable search in preferences
       mockUseTablePreferences.mockReturnValue({
-        preferences: { showSearch: true, sortBy: 'id', sortOrder: 'desc' as const, filterStatus: 'all' as const },
+        preferences: {
+          showSearch: true,
+          sortBy: 'id',
+          sortOrder: 'desc' as const,
+          filterStatus: 'all' as const,
+        },
         updatePreference: mockUpdatePreference,
       })
 
@@ -894,7 +1208,9 @@ describe('ProjectDataTab - interaction coverage', () => {
 
       await waitFor(() => {
         // Should filter to only matching tasks
-        expect(screen.getByText(/annotationTab\.display\.showing/)).toBeInTheDocument()
+        expect(
+          screen.getByText(/annotationTab\.display\.showing/),
+        ).toBeInTheDocument()
       })
     })
   })
@@ -907,24 +1223,37 @@ describe('ProjectDataTab - interaction coverage', () => {
       render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => expect(mockFetchProjectTasks).toHaveBeenCalled())
-      await act(async () => { await new Promise(r => setTimeout(r, 0)) })
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 0))
+      })
 
-      expect(screen.getByText('annotationTab.empty.noTasks')).toBeInTheDocument()
+      expect(
+        screen.getByText('annotationTab.empty.noTasks'),
+      ).toBeInTheDocument()
     })
 
     it('shows no-match message when search/filter yields no results', async () => {
       mockUseTablePreferences.mockReturnValue({
-        preferences: { showSearch: true, sortBy: 'id', sortOrder: 'desc' as const, filterStatus: 'all' as const },
+        preferences: {
+          showSearch: true,
+          sortBy: 'id',
+          sortOrder: 'desc' as const,
+          filterStatus: 'all' as const,
+        },
         updatePreference: mockUpdatePreference,
       })
 
       await renderAndWaitForTasks()
 
       const searchInput = screen.getByPlaceholderText('search.placeholder')
-      fireEvent.change(searchInput, { target: { value: 'nonexistent-query-xyz' } })
+      fireEvent.change(searchInput, {
+        target: { value: 'nonexistent-query-xyz' },
+      })
 
       await waitFor(() => {
-        expect(screen.getByText('annotationTab.empty.noMatch')).toBeInTheDocument()
+        expect(
+          screen.getByText('annotationTab.empty.noMatch'),
+        ).toBeInTheDocument()
       })
     })
   })
@@ -956,7 +1285,12 @@ describe('ProjectDataTab - interaction coverage', () => {
   describe('Loading state', () => {
     it('shows loading spinner while tasks are loading', () => {
       mockUseProjectStore.mockReturnValue({
-        currentProject: { id: 'project-1', title: 'Test Project', num_tasks: 0, num_annotations: 0 },
+        currentProject: {
+          id: 'project-1',
+          title: 'Test Project',
+          num_tasks: 0,
+          num_annotations: 0,
+        },
         loading: true,
         fetchProjectTasks: jest.fn().mockReturnValue(new Promise(() => {})), // never resolves
       } as any)
@@ -974,48 +1308,83 @@ describe('ProjectDataTab - interaction coverage', () => {
   describe('Sort by various columns - switch cases', () => {
     it('sorts by completed column', async () => {
       mockUseTablePreferences.mockReturnValue({
-        preferences: { showSearch: false, sortBy: 'completed', sortOrder: 'asc' as const, filterStatus: 'all' as const },
+        preferences: {
+          showSearch: false,
+          sortBy: 'completed',
+          sortOrder: 'asc' as const,
+          filterStatus: 'all' as const,
+        },
         updatePreference: mockUpdatePreference,
       })
       await renderAndWaitForTasks()
       // Sort should have been applied - just check renders without error
-      expect(screen.getByText(/annotationTab\.display\.showing/)).toBeInTheDocument()
+      expect(
+        screen.getByText(/annotationTab\.display\.showing/),
+      ).toBeInTheDocument()
     })
 
     it('sorts by annotations column', async () => {
       mockUseTablePreferences.mockReturnValue({
-        preferences: { showSearch: false, sortBy: 'annotations', sortOrder: 'desc' as const, filterStatus: 'all' as const },
+        preferences: {
+          showSearch: false,
+          sortBy: 'annotations',
+          sortOrder: 'desc' as const,
+          filterStatus: 'all' as const,
+        },
         updatePreference: mockUpdatePreference,
       })
       await renderAndWaitForTasks()
-      expect(screen.getByText(/annotationTab\.display\.showing/)).toBeInTheDocument()
+      expect(
+        screen.getByText(/annotationTab\.display\.showing/),
+      ).toBeInTheDocument()
     })
 
     it('sorts by generations column', async () => {
       mockUseTablePreferences.mockReturnValue({
-        preferences: { showSearch: false, sortBy: 'generations', sortOrder: 'asc' as const, filterStatus: 'all' as const },
+        preferences: {
+          showSearch: false,
+          sortBy: 'generations',
+          sortOrder: 'asc' as const,
+          filterStatus: 'all' as const,
+        },
         updatePreference: mockUpdatePreference,
       })
       await renderAndWaitForTasks()
-      expect(screen.getByText(/annotationTab\.display\.showing/)).toBeInTheDocument()
+      expect(
+        screen.getByText(/annotationTab\.display\.showing/),
+      ).toBeInTheDocument()
     })
 
     it('sorts by created column', async () => {
       mockUseTablePreferences.mockReturnValue({
-        preferences: { showSearch: false, sortBy: 'created', sortOrder: 'desc' as const, filterStatus: 'all' as const },
+        preferences: {
+          showSearch: false,
+          sortBy: 'created',
+          sortOrder: 'desc' as const,
+          filterStatus: 'all' as const,
+        },
         updatePreference: mockUpdatePreference,
       })
       await renderAndWaitForTasks()
-      expect(screen.getByText(/annotationTab\.display\.showing/)).toBeInTheDocument()
+      expect(
+        screen.getByText(/annotationTab\.display\.showing/),
+      ).toBeInTheDocument()
     })
 
     it('sorts by default (unknown column) ascending', async () => {
       mockUseTablePreferences.mockReturnValue({
-        preferences: { showSearch: false, sortBy: 'unknown', sortOrder: 'asc' as const, filterStatus: 'all' as const },
+        preferences: {
+          showSearch: false,
+          sortBy: 'unknown',
+          sortOrder: 'asc' as const,
+          filterStatus: 'all' as const,
+        },
         updatePreference: mockUpdatePreference,
       })
       await renderAndWaitForTasks()
-      expect(screen.getByText(/annotationTab\.display\.showing/)).toBeInTheDocument()
+      expect(
+        screen.getByText(/annotationTab\.display\.showing/),
+      ).toBeInTheDocument()
     })
   })
 
@@ -1051,7 +1420,9 @@ describe('ProjectDataTab - interaction coverage', () => {
       fireEvent.click(screen.getByTestId('set-metadata'))
 
       await waitFor(() => {
-        expect(screen.getByText(/annotationTab\.display\.showing/)).toBeInTheDocument()
+        expect(
+          screen.getByText(/annotationTab\.display\.showing/),
+        ).toBeInTheDocument()
       })
     })
   })
@@ -1067,7 +1438,9 @@ describe('ProjectDataTab - interaction coverage', () => {
       fireEvent.click(checkboxes[2])
 
       await waitFor(() => {
-        expect(screen.getByText(/annotationTab\.display\.selected/)).toBeInTheDocument()
+        expect(
+          screen.getByText(/annotationTab\.display\.selected/),
+        ).toBeInTheDocument()
       })
     })
   })

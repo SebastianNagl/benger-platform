@@ -45,7 +45,7 @@ export class InvitationsApiClient extends BaseApiClient {
    * Accept an invitation
    */
   async accept(
-    token: string
+    token: string,
   ): Promise<{ message: string; organization_id: string; role: string }> {
     const response = await this.request(`/invitations/accept/${token}`, {
       method: 'POST',
@@ -58,7 +58,7 @@ export class InvitationsApiClient extends BaseApiClient {
    */
   async create(
     organizationId: string,
-    invitation: CreateInvitationRequest
+    invitation: CreateInvitationRequest,
   ): Promise<InvitationDetails> {
     const response = await this.request(
       `/invitations/organizations/${organizationId}/invitations`,
@@ -68,7 +68,7 @@ export class InvitationsApiClient extends BaseApiClient {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(invitation),
-      }
+      },
     )
     return response
   }
@@ -78,7 +78,7 @@ export class InvitationsApiClient extends BaseApiClient {
    */
   async list(
     organizationId: string,
-    includeExpired: boolean = false
+    includeExpired: boolean = false,
   ): Promise<InvitationDetails[]> {
     const params = new URLSearchParams()
     if (includeExpired) {

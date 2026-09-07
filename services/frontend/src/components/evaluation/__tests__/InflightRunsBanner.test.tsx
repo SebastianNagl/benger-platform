@@ -16,7 +16,11 @@ jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
     t: (_key: string, fallback: any) => {
       if (typeof fallback === 'string') return fallback
-      if (fallback && typeof fallback === 'object' && 'defaultValue' in fallback) {
+      if (
+        fallback &&
+        typeof fallback === 'object' &&
+        'defaultValue' in fallback
+      ) {
         return fallback.defaultValue
       }
       return _key
@@ -79,7 +83,7 @@ describe('InflightRunsBanner', () => {
           { evaluation_id: 'r3', status: 'cancelled' },
         ]}
         onChanged={jest.fn()}
-      />
+      />,
     )
     expect(container.firstChild).toBeNull()
   })
@@ -95,7 +99,7 @@ describe('InflightRunsBanner', () => {
           }),
         ]}
         onChanged={jest.fn()}
-      />
+      />,
     )
     // Shows the truncated id + progress.
     expect(screen.getByText(/aabbccdd/)).toBeInTheDocument()
@@ -111,7 +115,7 @@ describe('InflightRunsBanner', () => {
         projectId={PROJECT_ID}
         evaluations={[baseRun('r1')]}
         onChanged={jest.fn()}
-      />
+      />,
     )
     expect(screen.queryByText('Alle abbrechen')).not.toBeInTheDocument()
 
@@ -120,7 +124,7 @@ describe('InflightRunsBanner', () => {
         projectId={PROJECT_ID}
         evaluations={[baseRun('r1'), baseRun('r2')]}
         onChanged={jest.fn()}
-      />
+      />,
     )
     expect(screen.getByText('Alle abbrechen')).toBeInTheDocument()
   })
@@ -138,11 +142,13 @@ describe('InflightRunsBanner', () => {
         projectId={PROJECT_ID}
         evaluations={[baseRun('r1aaaaaa')]}
         onChanged={onChanged}
-      />
+      />,
     )
     await userEvent.click(screen.getByLabelText('Diesen Lauf abbrechen'))
     await waitFor(() => expect(mockConfirm).toHaveBeenCalledTimes(1))
-    await waitFor(() => expect(mockCancelEvaluationRun).toHaveBeenCalledWith('r1aaaaaa'))
+    await waitFor(() =>
+      expect(mockCancelEvaluationRun).toHaveBeenCalledWith('r1aaaaaa'),
+    )
     await waitFor(() => expect(mockAddToast).toHaveBeenCalledTimes(1))
     expect(mockAddToast.mock.calls[0][1]).toBe('success')
     expect(onChanged).toHaveBeenCalledTimes(1)
@@ -155,7 +161,7 @@ describe('InflightRunsBanner', () => {
         projectId={PROJECT_ID}
         evaluations={[baseRun('r1')]}
         onChanged={jest.fn()}
-      />
+      />,
     )
     await userEvent.click(screen.getByLabelText('Diesen Lauf abbrechen'))
     await waitFor(() => expect(mockConfirm).toHaveBeenCalled())
@@ -170,7 +176,7 @@ describe('InflightRunsBanner', () => {
         projectId={PROJECT_ID}
         evaluations={[baseRun('r1')]}
         onChanged={jest.fn()}
-      />
+      />,
     )
     const btn = screen.getByLabelText('Diesen Lauf abbrechen')
     await userEvent.click(btn)
@@ -193,7 +199,7 @@ describe('InflightRunsBanner', () => {
         projectId={PROJECT_ID}
         evaluations={[baseRun('r1'), baseRun('r2')]}
         onChanged={onChanged}
-      />
+      />,
     )
     await userEvent.click(screen.getByText('Alle abbrechen'))
     await waitFor(() => expect(mockCancelAll).toHaveBeenCalledWith(PROJECT_ID))
@@ -220,7 +226,7 @@ describe('InflightRunsBanner', () => {
           }),
         ]}
         onChanged={jest.fn()}
-      />
+      />,
     )
     // rate_limit sums across both runs (5 + 3 = 8).
     expect(screen.getByText('rate_limit: 8')).toBeInTheDocument()
@@ -244,13 +250,15 @@ describe('InflightRunsBanner', () => {
         projectId={PROJECT_ID}
         evaluations={[baseRun('r1')]}
         onChanged={onChanged}
-      />
+      />,
     )
     await userEvent.click(screen.getByTestId('eval-pause-button'))
     await waitFor(() => expect(mockPause).toHaveBeenCalledWith('r1'))
     // Pause is reversible — no confirm dialog.
     expect(mockConfirm).not.toHaveBeenCalled()
-    await waitFor(() => expect(mockAddToast).toHaveBeenCalledWith('paused ok', 'success'))
+    await waitFor(() =>
+      expect(mockAddToast).toHaveBeenCalledWith('paused ok', 'success'),
+    )
     expect(onChanged).toHaveBeenCalledTimes(1)
   })
 
@@ -268,13 +276,15 @@ describe('InflightRunsBanner', () => {
         projectId={PROJECT_ID}
         evaluations={[baseRun('p1', { status: 'paused' })]}
         onChanged={onChanged}
-      />
+      />,
     )
     expect(screen.getByText(/\(paused/)).toBeInTheDocument()
     expect(screen.getByLabelText('Diesen Lauf abbrechen')).toBeInTheDocument()
     await userEvent.click(screen.getByTestId('eval-resume-button'))
     await waitFor(() => expect(mockResume).toHaveBeenCalledWith('p1'))
-    await waitFor(() => expect(mockAddToast).toHaveBeenCalledWith('resumed ok', 'success'))
+    await waitFor(() =>
+      expect(mockAddToast).toHaveBeenCalledWith('resumed ok', 'success'),
+    )
     expect(onChanged).toHaveBeenCalledTimes(1)
   })
 
@@ -292,14 +302,25 @@ describe('InflightRunsBanner', () => {
       <InflightRunsBanner
         projectId={PROJECT_ID}
         evaluations={[
-          baseRun('f2', { status: 'failed', created_at: '2026-07-13T12:00:00Z' }),
-          baseRun('c1', { status: 'completed', created_at: '2026-07-13T11:00:00Z' }),
-          baseRun('f1', { status: 'failed', created_at: '2026-07-13T10:00:00Z' }),
+          baseRun('f2', {
+            status: 'failed',
+            created_at: '2026-07-13T12:00:00Z',
+          }),
+          baseRun('c1', {
+            status: 'completed',
+            created_at: '2026-07-13T11:00:00Z',
+          }),
+          baseRun('f1', {
+            status: 'failed',
+            created_at: '2026-07-13T10:00:00Z',
+          }),
         ]}
         onChanged={onChanged}
-      />
+      />,
     )
-    expect(screen.getByText('Letzte Auswertung fehlgeschlagen')).toBeInTheDocument()
+    expect(
+      screen.getByText('Letzte Auswertung fehlgeschlagen'),
+    ).toBeInTheDocument()
     // Exactly one retry row (the newest failed run), no pause/cancel on it.
     expect(screen.getAllByTestId('eval-retry-button')).toHaveLength(1)
     expect(screen.queryByTestId('eval-pause-button')).not.toBeInTheDocument()
@@ -313,11 +334,17 @@ describe('InflightRunsBanner', () => {
       <InflightRunsBanner
         projectId={PROJECT_ID}
         evaluations={[
-          baseRun('c1', { status: 'completed', created_at: '2026-07-13T12:00:00Z' }),
-          baseRun('f1', { status: 'failed', created_at: '2026-07-13T10:00:00Z' }),
+          baseRun('c1', {
+            status: 'completed',
+            created_at: '2026-07-13T12:00:00Z',
+          }),
+          baseRun('f1', {
+            status: 'failed',
+            created_at: '2026-07-13T10:00:00Z',
+          }),
         ]}
         onChanged={jest.fn()}
-      />
+      />,
     )
     expect(container.firstChild).toBeNull()
   })
@@ -335,10 +362,12 @@ describe('InflightRunsBanner', () => {
         projectId={PROJECT_ID}
         evaluations={[baseRun('r1')]}
         onChanged={jest.fn()}
-      />
+      />,
     )
     await userEvent.click(screen.getByTestId('eval-pause-button'))
-    await waitFor(() => expect(mockAddToast).toHaveBeenCalledWith('already done', 'info'))
+    await waitFor(() =>
+      expect(mockAddToast).toHaveBeenCalledWith('already done', 'info'),
+    )
   })
 
   test('lifecycle API failure shows error toast and re-enables button', async () => {
@@ -348,7 +377,7 @@ describe('InflightRunsBanner', () => {
         projectId={PROJECT_ID}
         evaluations={[baseRun('r1')]}
         onChanged={jest.fn()}
-      />
+      />,
     )
     const btn = screen.getByTestId('eval-pause-button')
     await userEvent.click(btn)
@@ -372,7 +401,7 @@ describe('InflightRunsBanner', () => {
           }),
         ]}
         onChanged={jest.fn()}
-      />
+      />,
     )
     // Top 8 by count are shown; the rest collapse into "+4 weitere".
     // (Order is desc by count: reason_0=12, ..., reason_7=5 visible;

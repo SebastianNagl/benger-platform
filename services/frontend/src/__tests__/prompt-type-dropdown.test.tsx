@@ -61,7 +61,7 @@ describe('Prompt Type Dropdown', () => {
   test('should handle all prompt type transitions', () => {
     const mockOnChange = jest.fn()
     const { rerender } = render(
-      <PromptTypeDropdown value="evaluation" onChange={mockOnChange} />
+      <PromptTypeDropdown value="evaluation" onChange={mockOnChange} />,
     )
 
     const select = screen.getByTestId('prompt-type-select') as HTMLSelectElement

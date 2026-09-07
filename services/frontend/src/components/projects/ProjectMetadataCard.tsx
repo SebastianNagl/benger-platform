@@ -9,8 +9,8 @@
 
 'use client'
 
-import type { Project } from '@/types/labelStudio'
 import { projectIcon, projectKindLabelKey } from '@/lib/projectKind'
+import type { Project } from '@/types/labelStudio'
 import { LockClosedIcon } from '@heroicons/react/24/outline'
 
 interface ProjectMetadataCardProps {
@@ -36,14 +36,17 @@ export function ProjectMetadataCard({ project, t }: ProjectMetadataCardProps) {
               <span
                 title={t(
                   'projects.creation.wizard.step1.kind.lockedStudent',
-                  'Der Typ studentischer Projekte kann nicht geändert werden.'
+                  'Der Typ studentischer Projekte kann nicht geändert werden.',
                 )}
               >
                 <LockClosedIcon className="h-3.5 w-3.5" />
               </span>
             )}
           </dt>
-          <dd className="mt-1 text-sm text-zinc-900 dark:text-white" data-testid="project-kind">
+          <dd
+            className="mt-1 text-sm text-zinc-900 dark:text-white"
+            data-testid="project-kind"
+          >
             <span className="mr-1" aria-hidden>
               {projectIcon(project)}
             </span>
@@ -55,7 +58,7 @@ export function ProjectMetadataCard({ project, t }: ProjectMetadataCardProps) {
             {t('project.details.status')}
           </dt>
           <dd className="mt-1 text-sm text-zinc-900 dark:text-white">
-            <span className="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-800 ring-1 ring-inset ring-emerald-600/20 dark:bg-emerald-400/10 dark:text-emerald-400 dark:ring-emerald-400/30">
+            <span className="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-800 ring-1 ring-emerald-600/20 ring-inset dark:bg-emerald-400/10 dark:text-emerald-400 dark:ring-emerald-400/30">
               {t('project.details.active')}
             </span>
           </dd>
@@ -65,8 +68,7 @@ export function ProjectMetadataCard({ project, t }: ProjectMetadataCardProps) {
             {t('project.details.createdBy')}
           </dt>
           <dd className="mt-1 text-sm text-zinc-900 dark:text-white">
-            {project.created_by_name ||
-              t('project.details.unknown')}
+            {project.created_by_name || t('project.details.unknown')}
           </dd>
         </div>
         <div>
@@ -106,8 +108,7 @@ export function ProjectMetadataCard({ project, t }: ProjectMetadataCardProps) {
           <dd className="mt-1 text-sm text-zinc-900 dark:text-white">
             <div className="flex items-center justify-between">
               <div className="flex flex-wrap gap-2">
-                {project.organizations &&
-                project.organizations.length > 0 ? (
+                {project.organizations && project.organizations.length > 0 ? (
                   project.organizations.map((org) => (
                     <span
                       key={org.id}

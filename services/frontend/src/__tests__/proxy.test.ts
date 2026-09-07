@@ -21,7 +21,7 @@ describe('proxy', () => {
 
       expect(response).toBeInstanceOf(NextResponse)
       expect(response.headers.get('Content-Type')).toBe(
-        'application/javascript'
+        'application/javascript',
       )
     })
 
@@ -35,7 +35,7 @@ describe('proxy', () => {
 
     it('handles nested CSS file paths', () => {
       const request = new NextRequest(
-        'http://localhost:3000/assets/styles/components/button.css'
+        'http://localhost:3000/assets/styles/components/button.css',
       )
       const response = proxy(request)
 
@@ -44,18 +44,18 @@ describe('proxy', () => {
 
     it('handles nested JavaScript file paths', () => {
       const request = new NextRequest(
-        'http://localhost:3000/assets/scripts/utils/helper.js'
+        'http://localhost:3000/assets/scripts/utils/helper.js',
       )
       const response = proxy(request)
 
       expect(response.headers.get('Content-Type')).toBe(
-        'application/javascript'
+        'application/javascript',
       )
     })
 
     it('handles nested SVG file paths', () => {
       const request = new NextRequest(
-        'http://localhost:3000/assets/icons/menu.svg'
+        'http://localhost:3000/assets/icons/menu.svg',
       )
       const response = proxy(request)
 
@@ -119,7 +119,7 @@ describe('proxy', () => {
 
     it('processes nested routes without extensions', () => {
       const request = new NextRequest(
-        'http://localhost:3000/projects/123/tasks'
+        'http://localhost:3000/projects/123/tasks',
       )
       const response = proxy(request)
 
@@ -129,7 +129,7 @@ describe('proxy', () => {
 
     it('processes routes with query parameters', () => {
       const request = new NextRequest(
-        'http://localhost:3000/search?q=test&page=1'
+        'http://localhost:3000/search?q=test&page=1',
       )
       const response = proxy(request)
 
@@ -147,7 +147,7 @@ describe('proxy', () => {
   describe('Edge Cases', () => {
     it('handles files with multiple dots in name', () => {
       const request = new NextRequest(
-        'http://localhost:3000/styles/main.min.css'
+        'http://localhost:3000/styles/main.min.css',
       )
       const response = proxy(request)
 
@@ -297,7 +297,7 @@ describe('proxy', () => {
 
       expect(responses[0].headers.get('Content-Type')).toBe('text/css')
       expect(responses[1].headers.get('Content-Type')).toBe(
-        'application/javascript'
+        'application/javascript',
       )
       expect(responses[2].headers.get('Content-Type')).toBe('image/svg+xml')
     })
@@ -317,7 +317,7 @@ describe('proxy', () => {
   describe('URL Encoding and Special Characters', () => {
     it('handles URL-encoded pathnames', () => {
       const request = new NextRequest(
-        'http://localhost:3000/styles/file%20name.css'
+        'http://localhost:3000/styles/file%20name.css',
       )
       const response = proxy(request)
 
@@ -326,7 +326,7 @@ describe('proxy', () => {
 
     it('handles pathnames with special characters', () => {
       const request = new NextRequest(
-        'http://localhost:3000/styles/file-v1.0.css'
+        'http://localhost:3000/styles/file-v1.0.css',
       )
       const response = proxy(request)
 

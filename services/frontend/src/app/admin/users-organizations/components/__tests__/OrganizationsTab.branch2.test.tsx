@@ -7,13 +7,23 @@
  */
 
 import '@testing-library/jest-dom'
-import { render, screen, waitFor, act } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { OrganizationsTab } from '../OrganizationsTab'
 
 const mockGetOrganizationMembers = jest.fn().mockResolvedValue([
-  { user_id: 'user-1', user_name: 'Admin', user_email: 'admin@test.com', role: 'ORG_ADMIN' },
-  { user_id: 'u2', user_name: 'John', user_email: 'john@test.com', role: 'ANNOTATOR' },
+  {
+    user_id: 'user-1',
+    user_name: 'Admin',
+    user_email: 'admin@test.com',
+    role: 'ORG_ADMIN',
+  },
+  {
+    user_id: 'u2',
+    user_name: 'John',
+    user_email: 'john@test.com',
+    role: 'ANNOTATOR',
+  },
 ])
 
 jest.mock('next/navigation', () => ({
@@ -25,12 +35,20 @@ jest.mock('@/contexts/AuthContext', () => ({
   useAuth: () => ({
     user: { id: 'user-1', name: 'Admin', is_superadmin: true },
     organizations: [
-      { id: 'org-1', name: 'Org One', description: 'First org', role: 'ORG_ADMIN', user_role: 'ORG_ADMIN' },
+      {
+        id: 'org-1',
+        name: 'Org One',
+        description: 'First org',
+        role: 'ORG_ADMIN',
+        user_role: 'ORG_ADMIN',
+      },
       { id: 'org-2', name: 'Org Two', description: '', role: 'ANNOTATOR' },
     ],
     refreshOrganizations: jest.fn().mockResolvedValue(undefined),
     apiClient: {
-      createOrganization: jest.fn().mockResolvedValue({ id: 'new-org', name: 'New' }),
+      createOrganization: jest
+        .fn()
+        .mockResolvedValue({ id: 'new-org', name: 'New' }),
       updateOrganization: jest.fn().mockResolvedValue({}),
       deleteOrganization: jest.fn().mockResolvedValue({}),
       getOrganizationMembers: mockGetOrganizationMembers,
@@ -44,7 +62,8 @@ jest.mock('@/contexts/I18nContext', () => ({
     t: (key: string, params?: any) => {
       if (params) {
         let r = key
-        for (const [k, v] of Object.entries(params)) r = r.replace(`{${k}}`, String(v))
+        for (const [k, v] of Object.entries(params))
+          r = r.replace(`{${k}}`, String(v))
         return r
       }
       return key
@@ -79,7 +98,14 @@ jest.mock('@/components/shared/Badge', () => ({
 
 jest.mock('@/components/shared/Button', () => ({
   Button: ({ children, onClick, disabled, type, ...rest }: any) => (
-    <button onClick={onClick} disabled={disabled} type={type || 'button'} {...rest}>{children}</button>
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      type={type || 'button'}
+      {...rest}
+    >
+      {children}
+    </button>
   ),
 }))
 
@@ -88,7 +114,8 @@ jest.mock('@/components/shared/Card', () => ({
 }))
 
 jest.mock('@/components/organization/OrgApiKeys', () => ({
-  OrgApiKeys: ({ open }: any) => open ? <div data-testid="api-keys-modal">API Keys</div> : null,
+  OrgApiKeys: ({ open }: any) =>
+    open ? <div data-testid="api-keys-modal">API Keys</div> : null,
 }))
 
 jest.mock('@/components/organization/OrgStorageConnections', () => ({
@@ -166,13 +193,22 @@ jest.mock('@/components/shared/FilterToolbar', () => {
   return { FilterToolbar }
 })
 
-
 describe('OrganizationsTab - branch2 coverage', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     mockGetOrganizationMembers.mockResolvedValue([
-      { user_id: 'user-1', user_name: 'Admin', user_email: 'admin@test.com', role: 'ORG_ADMIN' },
-      { user_id: 'u2', user_name: 'John', user_email: 'john@test.com', role: 'ANNOTATOR' },
+      {
+        user_id: 'user-1',
+        user_name: 'Admin',
+        user_email: 'admin@test.com',
+        role: 'ORG_ADMIN',
+      },
+      {
+        user_id: 'u2',
+        user_name: 'John',
+        user_email: 'john@test.com',
+        role: 'ANNOTATOR',
+      },
     ])
     window.history.replaceState = jest.fn()
   })
@@ -200,7 +236,9 @@ describe('OrganizationsTab - branch2 coverage', () => {
     await renderAndWaitForMembers()
 
     const badges = screen.getAllByTestId('badge')
-    const roleBadge = badges.find(b => b.textContent?.includes('admin.organizations.yourRole'))
+    const roleBadge = badges.find((b) =>
+      b.textContent?.includes('admin.organizations.yourRole'),
+    )
     expect(roleBadge).toBeTruthy()
   })
 
@@ -208,21 +246,25 @@ describe('OrganizationsTab - branch2 coverage', () => {
     const user = userEvent.setup()
     await renderAndWaitForMembers()
 
-    const createBtn = screen.getAllByRole('button').find(
-      b => b.textContent?.includes('admin.organizations.createOrganization')
-    )!
+    const createBtn = screen
+      .getAllByRole('button')
+      .find((b) =>
+        b.textContent?.includes('admin.organizations.createOrganization'),
+      )!
     await user.click(createBtn)
 
-    expect(screen.getByText('admin.organizations.createNewOrganization')).toBeInTheDocument()
+    expect(
+      screen.getByText('admin.organizations.createNewOrganization'),
+    ).toBeInTheDocument()
   })
 
   it('opens API keys modal', async () => {
     const user = userEvent.setup()
     await renderAndWaitForMembers()
 
-    const btn = screen.getAllByRole('button').find(
-      b => b.textContent?.includes('admin.organizations.apiKeys')
-    )!
+    const btn = screen
+      .getAllByRole('button')
+      .find((b) => b.textContent?.includes('admin.organizations.apiKeys'))!
     await user.click(btn)
 
     expect(screen.getByTestId('api-keys-modal')).toBeInTheDocument()

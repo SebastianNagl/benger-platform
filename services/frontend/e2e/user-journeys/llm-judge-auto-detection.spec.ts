@@ -67,7 +67,10 @@ test.describe('LLM Judge Answer Type Configuration', () => {
     // Verify the answer type selection took effect by checking for
     // NER-related text in the UI (template name or detected banner)
     const nerText = page.locator('text=/NER|Named Entity|span_selection/i')
-    const hasNerText = await nerText.first().isVisible({ timeout: 3000 }).catch(() => false)
+    const hasNerText = await nerText
+      .first()
+      .isVisible({ timeout: 3000 })
+      .catch(() => false)
     const bannerVisible = await evalHelpers.isDetectedTypeBannerVisible()
 
     console.log('NER selection:', { hasNerText, bannerVisible })
@@ -91,8 +94,13 @@ test.describe('LLM Judge Answer Type Configuration', () => {
     await page.waitForTimeout(1000)
 
     // Verify the selection took effect
-    const classText = page.locator('text=/Classification|choices|Klassifikation/i')
-    const hasClassText = await classText.first().isVisible({ timeout: 3000 }).catch(() => false)
+    const classText = page.locator(
+      'text=/Classification|choices|Klassifikation/i',
+    )
+    const hasClassText = await classText
+      .first()
+      .isVisible({ timeout: 3000 })
+      .catch(() => false)
     const bannerVisible = await evalHelpers.isDetectedTypeBannerVisible()
 
     console.log('Classification selection:', { hasClassText, bannerVisible })
@@ -116,7 +124,10 @@ test.describe('LLM Judge Answer Type Configuration', () => {
 
     // Verify the selection took effect
     const textLabel = page.locator('text=/Text|text|Freeform/i')
-    const hasTextLabel = await textLabel.first().isVisible({ timeout: 3000 }).catch(() => false)
+    const hasTextLabel = await textLabel
+      .first()
+      .isVisible({ timeout: 3000 })
+      .catch(() => false)
     const bannerVisible = await evalHelpers.isDetectedTypeBannerVisible()
 
     console.log('Text selection:', { hasTextLabel, bannerVisible })
@@ -140,7 +151,7 @@ test.describe('LLM Judge Answer Type Configuration', () => {
 
     // Verify rating option exists
     const hasRatingOption = options.some(
-      (o) => o.includes('Rating') || o.toLowerCase().includes('rating')
+      (o) => o.includes('Rating') || o.toLowerCase().includes('rating'),
     )
     expect(hasRatingOption).toBe(true)
 
@@ -186,7 +197,9 @@ test.describe('LLM Judge Answer Type Configuration', () => {
     // Verify the displayed template changes between types
     expect(textValue).not.toBe(spanValue)
     expect(spanValue).not.toBe(choicesValue)
-    console.log(`Templates: "${textValue}" → "${spanValue}" → "${choicesValue}"`)
+    console.log(
+      `Templates: "${textValue}" → "${spanValue}" → "${choicesValue}"`,
+    )
 
     // Close wizard
     await evalHelpers.clickCancel()

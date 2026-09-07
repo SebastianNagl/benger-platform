@@ -26,21 +26,28 @@ jest.mock('@/contexts/AuthContext', () => ({
 const translations: Record<string, string> = {
   'annotation.comparison.modal.title': 'Annotations',
   'annotation.comparison.modal.taskId': 'Task {{taskId}}',
-  'annotation.comparison.description': 'Compare annotations from different annotators',
+  'annotation.comparison.description':
+    'Compare annotations from different annotators',
   'annotation.comparison.modal.close': 'Close',
   'annotation.comparison.modal.retry': 'Retry',
   'annotation.comparison.tabs.createNew': 'Create New Annotation',
   'annotation.comparison.tabs.addYourAnnotation': 'Add Your Annotation',
   'annotation.comparison.tabs.editYourAnnotation': 'Edit Your Annotation',
-  'annotation.comparison.tabs.updateExisting': 'Update your existing annotation',
+  'annotation.comparison.tabs.updateExisting':
+    'Update your existing annotation',
   'annotation.comparison.tabs.addNew': 'Add a new annotation to this task',
-  'annotation.comparison.empty.noAnnotationsYet': 'This task has no annotations yet.',
-  'annotation.comparison.empty.noAnnotationsAvailable': 'No annotations available',
+  'annotation.comparison.empty.noAnnotationsYet':
+    'This task has no annotations yet.',
+  'annotation.comparison.empty.noAnnotationsAvailable':
+    'No annotations available',
   'annotation.comparison.messages.projectLoadFailed': 'Failed to load project',
   'annotation.comparison.messages.loadFailed': 'Failed to load annotations',
-  'annotation.comparison.messages.annotationSubmitted': 'Annotation submitted successfully!',
-  'annotation.comparison.messages.annotationUpdated': 'Annotation updated successfully!',
-  'annotation.comparison.messages.loadingUserAnnotation': 'Loading your annotation...',
+  'annotation.comparison.messages.annotationSubmitted':
+    'Annotation submitted successfully!',
+  'annotation.comparison.messages.annotationUpdated':
+    'Annotation updated successfully!',
+  'annotation.comparison.messages.loadingUserAnnotation':
+    'Loading your annotation...',
   'annotation.comparison.messages.waitingForAnnotation': 'Please wait',
   'annotation.comparison.messages.noData': 'No annotation data',
   'annotation.comparison.result.notAnswered': 'Not answered',
@@ -58,7 +65,8 @@ const translations: Record<string, string> = {
   'annotation.comparison.info.versionLabel': 'Version {{version}} - {{date}}',
   'annotation.comparison.info.annotatorNotes': 'Annotator Notes',
   'annotation.comparison.info.annotatorCount': '{{count}} annotator{{plural}}',
-  'annotation.comparison.info.totalAnnotations': '{{count}} total annotation{{plural}}',
+  'annotation.comparison.info.totalAnnotations':
+    '{{count}} total annotation{{plural}}',
   'annotation.comparison.buttons.addMyAnnotation': 'Add My Annotation',
   'annotation.comparison.buttons.editMyAnnotation': 'Edit My Annotation',
   'annotation.comparison.buttons.loadMore': 'Load {{count}} more',
@@ -96,7 +104,9 @@ jest.mock('@/components/labeling/AnnotationCreator', () => ({
 }))
 
 jest.mock('@/components/labeling/DynamicAnnotationInterface', () => ({
-  DynamicAnnotationInterface: () => <div data-testid="dynamic-annotation-interface" />,
+  DynamicAnnotationInterface: () => (
+    <div data-testid="dynamic-annotation-interface" />
+  ),
 }))
 
 describe('TaskAnnotationComparisonModal - coverage', () => {
@@ -121,7 +131,11 @@ describe('TaskAnnotationComparisonModal - coverage', () => {
     ;(projectsAPI.get as jest.Mock).mockResolvedValue(mockProject)
     ;(projectsAPI.getTaskAnnotations as jest.Mock).mockResolvedValue([])
     ;(UsersClient.prototype.getAllUsers as jest.Mock).mockResolvedValue([
-      { id: 'user-456', username: 'annotator1', email: 'annotator1@example.com' },
+      {
+        id: 'user-456',
+        username: 'annotator1',
+        email: 'annotator1@example.com',
+      },
     ])
   })
 
@@ -145,7 +159,7 @@ describe('TaskAnnotationComparisonModal - coverage', () => {
           isOpen={true}
           onClose={jest.fn()}
           projectId="project-1"
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -172,7 +186,7 @@ describe('TaskAnnotationComparisonModal - coverage', () => {
           isOpen={true}
           onClose={jest.fn()}
           projectId="project-1"
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -186,7 +200,11 @@ describe('TaskAnnotationComparisonModal - coverage', () => {
           id: 'ann-1',
           completed_by: 'user-456',
           result: [
-            { from_name: 'labels', type: 'labels', value: ['Option A', 'Option B', 'Option C'] },
+            {
+              from_name: 'labels',
+              type: 'labels',
+              value: ['Option A', 'Option B', 'Option C'],
+            },
           ],
           created_at: '2024-01-01',
           updated_at: '2024-01-01',
@@ -201,7 +219,7 @@ describe('TaskAnnotationComparisonModal - coverage', () => {
           isOpen={true}
           onClose={jest.fn()}
           projectId="project-1"
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -236,7 +254,7 @@ describe('TaskAnnotationComparisonModal - coverage', () => {
           isOpen={true}
           onClose={jest.fn()}
           projectId="project-1"
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -266,7 +284,7 @@ describe('TaskAnnotationComparisonModal - coverage', () => {
           isOpen={true}
           onClose={jest.fn()}
           projectId="project-1"
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -297,7 +315,7 @@ describe('TaskAnnotationComparisonModal - coverage', () => {
           isOpen={true}
           onClose={jest.fn()}
           projectId="project-1"
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -324,7 +342,7 @@ describe('TaskAnnotationComparisonModal - coverage', () => {
           isOpen={true}
           onClose={jest.fn()}
           projectId="project-1"
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -351,7 +369,7 @@ describe('TaskAnnotationComparisonModal - coverage', () => {
           isOpen={true}
           onClose={jest.fn()}
           projectId="project-1"
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -375,7 +393,9 @@ describe('TaskAnnotationComparisonModal - coverage', () => {
         {
           id: 'ann-2',
           completed_by: 'user-456',
-          result: [{ from_name: 'text', type: 'text', value: 'Second version' }],
+          result: [
+            { from_name: 'text', type: 'text', value: 'Second version' },
+          ],
           created_at: '2024-01-02T10:00:00Z',
           updated_at: '2024-01-02T10:00:00Z',
           was_cancelled: false,
@@ -389,7 +409,7 @@ describe('TaskAnnotationComparisonModal - coverage', () => {
           isOpen={true}
           onClose={jest.fn()}
           projectId="project-1"
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -419,7 +439,7 @@ describe('TaskAnnotationComparisonModal - coverage', () => {
           isOpen={true}
           onClose={jest.fn()}
           projectId="project-1"
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -447,7 +467,7 @@ describe('TaskAnnotationComparisonModal - coverage', () => {
           isOpen={true}
           onClose={jest.fn()}
           projectId="project-1"
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -475,12 +495,14 @@ describe('TaskAnnotationComparisonModal - coverage', () => {
           isOpen={true}
           onClose={jest.fn()}
           projectId="project-1"
-        />
+        />,
       )
 
       await waitFor(() => {
         expect(screen.getByText('Annotator Notes')).toBeInTheDocument()
-        expect(screen.getByText('This was a tricky question')).toBeInTheDocument()
+        expect(
+          screen.getByText('This was a tricky question'),
+        ).toBeInTheDocument()
       })
     })
   })
@@ -505,7 +527,7 @@ describe('TaskAnnotationComparisonModal - coverage', () => {
           isOpen={true}
           onClose={jest.fn()}
           projectId="project-1"
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -518,7 +540,9 @@ describe('TaskAnnotationComparisonModal - coverage', () => {
         {
           id: 'ann-1',
           completed_by: 'user-456',
-          result: [{ from_name: 'text', type: 'text', value: 'Approved answer' }],
+          result: [
+            { from_name: 'text', type: 'text', value: 'Approved answer' },
+          ],
           created_at: '2024-01-01',
           updated_at: '2024-01-01',
           was_cancelled: false,
@@ -532,7 +556,7 @@ describe('TaskAnnotationComparisonModal - coverage', () => {
           isOpen={true}
           onClose={jest.fn()}
           projectId="project-1"
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -564,7 +588,7 @@ describe('TaskAnnotationComparisonModal - coverage', () => {
           isOpen={true}
           onClose={jest.fn()}
           projectId="project-1"
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -584,7 +608,9 @@ describe('TaskAnnotationComparisonModal - coverage', () => {
 
   describe('Error and fallback handling', () => {
     it('should show project load error when projectsAPI.get fails', async () => {
-      ;(projectsAPI.get as jest.Mock).mockRejectedValue(new Error('Project not found'))
+      ;(projectsAPI.get as jest.Mock).mockRejectedValue(
+        new Error('Project not found'),
+      )
 
       render(
         <TaskAnnotationComparisonModal
@@ -592,7 +618,7 @@ describe('TaskAnnotationComparisonModal - coverage', () => {
           isOpen={true}
           onClose={jest.fn()}
           projectId="project-1"
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -613,7 +639,7 @@ describe('TaskAnnotationComparisonModal - coverage', () => {
         },
       ])
       ;(UsersClient.prototype.getAllUsers as jest.Mock).mockRejectedValue(
-        new Error('Unauthorized')
+        new Error('Unauthorized'),
       )
 
       render(
@@ -622,7 +648,7 @@ describe('TaskAnnotationComparisonModal - coverage', () => {
           isOpen={true}
           onClose={jest.fn()}
           projectId="project-1"
-        />
+        />,
       )
 
       // Should still render with fallback username (appears in tab + content area)

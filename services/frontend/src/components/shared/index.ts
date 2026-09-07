@@ -41,6 +41,7 @@ export { Code, CodeGroup, Pre } from './Code'
 export { GridPattern } from './GridPattern'
 export { Heading } from './Heading'
 export { HeroPattern } from './HeroPattern'
+export { LikertScale } from './LikertScale'
 export {
   SimpleFeatureFlagProvider,
   useFeatureFlag,
@@ -48,6 +49,5 @@ export {
 } from './SimpleFeatureFlags'
 export { Textarea } from './Textarea'
 export { default as UserApiKeys } from './UserApiKeys'
-export { LikertScale } from './LikertScale'
 
 export { GradeInput } from './GradeInput'

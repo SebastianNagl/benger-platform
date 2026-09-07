@@ -13,11 +13,14 @@ jest.mock('@/contexts/I18nContext', () => ({
     t: (key: string, params?: Record<string, string>) => {
       const translations: Record<string, string> = {
         'emptyStates.noAnalytics': 'No Analytics Available Yet',
-        'emptyStates.noAnalyticsMessage': "This task doesn't have an annotation project linked yet, so analytics are not available.",
-        'emptyStates.noAnalyticsMessageWithTask': 'The task "{taskName}" doesn\'t have an annotation project linked yet, so analytics are not available.',
+        'emptyStates.noAnalyticsMessage':
+          "This task doesn't have an annotation project linked yet, so analytics are not available.",
+        'emptyStates.noAnalyticsMessageWithTask':
+          'The task "{taskName}" doesn\'t have an annotation project linked yet, so analytics are not available.',
         'emptyStates.backToDashboard': 'Back to Dashboard',
         'emptyStates.selectTask': 'Select a Task',
-        'emptyStates.selectTaskMessage': 'Choose a task from the dropdown above to view its analytics and annotation data.',
+        'emptyStates.selectTaskMessage':
+          'Choose a task from the dropdown above to view its analytics and annotation data.',
         'emptyStates.browseTasks': 'Browse Tasks',
       }
       let result = translations[key] || key
@@ -49,7 +52,7 @@ describe('EmptyState', () => {
     render(<EmptyState {...defaultProps} />)
     expect(screen.getByText('No Data Available')).toBeInTheDocument()
     expect(
-      screen.getByText('There is no data to display at this time.')
+      screen.getByText('There is no data to display at this time.'),
     ).toBeInTheDocument()
   })
 
@@ -71,7 +74,7 @@ describe('EmptyState', () => {
       <EmptyState
         {...defaultProps}
         action={{ label: 'Take Action', onClick: handleClick }}
-      />
+      />,
     )
 
     const button = screen.getByText('Take Action')
@@ -85,7 +88,7 @@ describe('EmptyState', () => {
       <EmptyState
         {...defaultProps}
         action={{ label: 'Go to Page', href: '/some-page' }}
-      />
+      />,
     )
 
     const link = screen.getByText('Go to Page').closest('a')
@@ -94,7 +97,7 @@ describe('EmptyState', () => {
 
   it('applies custom className', () => {
     const { container } = render(
-      <EmptyState {...defaultProps} className="custom-empty-state" />
+      <EmptyState {...defaultProps} className="custom-empty-state" />,
     )
     const emptyStateElement = container.firstChild as HTMLElement
     expect(emptyStateElement).toHaveClass('custom-empty-state')
@@ -120,14 +123,14 @@ describe('NoAnalyticsDataEmptyState', () => {
     render(<NoAnalyticsDataEmptyState />)
     expect(screen.getByText('No Analytics Available Yet')).toBeInTheDocument()
     expect(
-      screen.getByText(/This task doesn't have an annotation project/)
+      screen.getByText(/This task doesn't have an annotation project/),
     ).toBeInTheDocument()
   })
 
   it('renders with task name in message when provided', () => {
     render(<NoAnalyticsDataEmptyState taskName="Test Task" />)
     expect(
-      screen.getByText(/The task "Test Task" doesn't have/)
+      screen.getByText(/The task "Test Task" doesn't have/),
     ).toBeInTheDocument()
   })
 
@@ -170,7 +173,7 @@ describe('NoTaskSelectedEmptyState', () => {
     render(<NoTaskSelectedEmptyState />)
     expect(screen.getByText('Select a Task')).toBeInTheDocument()
     expect(
-      screen.getByText(/Choose a task from the dropdown/)
+      screen.getByText(/Choose a task from the dropdown/),
     ).toBeInTheDocument()
   })
 

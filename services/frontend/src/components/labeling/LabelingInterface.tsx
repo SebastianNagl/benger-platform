@@ -6,22 +6,24 @@
  */
 
 import { PostAnnotationQuestionnaireModal } from '@/components/labeling/PostAnnotationQuestionnaireModal'
-import { useAuth } from '@/contexts/AuthContext'
-import { useActivityTracker } from '@/hooks/useActivityTracker'
-import { useModernExamLayout } from '@/hooks/useModernExamLayout'
-import { selectVariant } from '@/lib/utils/variantHash'
-import { logger } from '@/lib/utils/logger'
 import { Badge } from '@/components/shared/Badge'
 import { Button } from '@/components/shared/Button'
 import { Card } from '@/components/shared/Card'
 import { Separator } from '@/components/shared/Separator'
+import { useToast } from '@/components/shared/Toast'
+import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
+import { useActivityTracker } from '@/hooks/useActivityTracker'
+import { useModernExamLayout } from '@/hooks/useModernExamLayout'
 import { useServerDraftSync } from '@/hooks/useServerDraftSync'
 import { projectsAPI } from '@/lib/api/projects'
+import { useSlot } from '@/lib/extensions/slots'
+import { logger } from '@/lib/utils/logger'
+import { selectVariant } from '@/lib/utils/variantHash'
 import { useProjectStore } from '@/stores/projectStore'
-import { computeWindowState } from '@/utils/projectWindow'
-import { getEffectiveProjectRole } from '@/utils/permissions'
 import { AnnotationResult } from '@/types/labelStudio'
+import { getEffectiveProjectRole } from '@/utils/permissions'
+import { computeWindowState } from '@/utils/projectWindow'
 import {
   ArrowLeftIcon,
   BookOpenIcon,
@@ -33,8 +35,6 @@ import {
 import { formatDistanceToNow } from 'date-fns'
 import { useRouter, useSearchParams } from 'next/navigation'
 import React, { useCallback, useEffect, useRef, useState } from 'react'
-import { useToast } from '@/components/shared/Toast'
-import { useSlot } from '@/lib/extensions/slots'
 import { DynamicAnnotationInterface } from './DynamicAnnotationInterface'
 
 interface LabelingInterfaceProps {
@@ -84,17 +84,19 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
   // column and opts the interface into the ModernExamLayout slot. Inactive
   // (community, classic preference, non-exam config) -> unchanged classic page.
   const { active: modernExamLayoutActive } = useModernExamLayout(
-    currentProject?.label_config
+    currentProject?.label_config,
   )
 
   const [annotations, setAnnotations] = useState<AnnotationResult[]>([])
-  const [loadedAnnotations, setLoadedAnnotations] = useState<AnnotationResult[]>([])
+  const [loadedAnnotations, setLoadedAnnotations] = useState<
+    AnnotationResult[]
+  >([])
   // Bumped when a checkpoint is restored, to force a clean remount of the
   // annotation editor so the restored snapshot wins over current in-editor state.
   const [restoreKey, setRestoreKey] = useState(0)
   const [startTime, setStartTime] = useState<number>(Date.now())
   const [initializationError, setInitializationError] = useState<string | null>(
-    null
+    null,
   )
   const [showSkipModal, setShowSkipModal] = useState(false)
   const [skipComment, setSkipComment] = useState('')
@@ -109,7 +111,9 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
   const INSTRUCTIONS_DISMISSED_KEY = `benger-instructions-dismissed-${projectId}`
 
   // Conditional instruction variant (determined by hash of userId + taskId)
-  const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null)
+  const [selectedVariantId, setSelectedVariantId] = useState<string | null>(
+    null,
+  )
 
   // Strict-timer state machine. The timer endpoints live in extended; in
   // community edition the GET 404s and we stay in 'annotating' (the early
@@ -121,7 +125,8 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
   // user to pre_start. The init effect always resolves this to one of
   // pre_start | annotating | time_over (or stays 'annotating' on error /
   // community edition).
-  const [strictTimerPhase, setStrictTimerPhase] = useState<StrictTimerPhase>('loading')
+  const [strictTimerPhase, setStrictTimerPhase] =
+    useState<StrictTimerPhase>('loading')
   // Non-strict overtime: set once a non-strict countdown crosses 0. Purely
   // informational — the editor stays open and submission stays manual (an
   // auto-submitted snapshot would fire a KI-Votum grading on a half-finished
@@ -133,7 +138,8 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
   // modal (manual-submit case, where the user may want to keep editing).
   const autoSubmittedRef = useRef(false)
   const isStrictMode = !!(
-    currentProject?.strict_timer_enabled && currentProject?.annotation_time_limit_enabled
+    currentProject?.strict_timer_enabled &&
+    currentProject?.annotation_time_limit_enabled
   )
   // Reset phase synchronously during render when the task changes — otherwise
   // the previous task's 'annotating' phase carries through the render that
@@ -176,9 +182,16 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
         if (existingAnnotations && existingAnnotations.length > 0) {
           // Get the most recent annotation's results
           const latestAnnotation = existingAnnotations[0]
-          if (latestAnnotation.result && Array.isArray(latestAnnotation.result)) {
+          if (
+            latestAnnotation.result &&
+            Array.isArray(latestAnnotation.result)
+          ) {
             setLoadedAnnotations(latestAnnotation.result)
-            logger.debug('Loaded existing annotations for task:', currentTask.id, latestAnnotation.result)
+            logger.debug(
+              'Loaded existing annotations for task:',
+              currentTask.id,
+              latestAnnotation.result,
+            )
           } else {
             setLoadedAnnotations([])
           }
@@ -212,9 +225,9 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
       setStrictTimerPhase('loading')
       setNonStrictOvertime(false)
       try {
-        const status = await apiClient.get(
-          `/projects/${currentProject.id}/tasks/${currentTask.id}/timer-status`
-        ) as { session: any | null; server_time: string }
+        const status = (await apiClient.get(
+          `/projects/${currentProject.id}/tasks/${currentTask.id}/timer-status`,
+        )) as { session: any | null; server_time: string }
         if (cancelled) return
 
         const serverNow = new Date(status.server_time).getTime()
@@ -251,7 +264,13 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
     return () => {
       cancelled = true
     }
-  }, [currentTask?.id, currentProject?.id, currentProject?.annotation_time_limit_enabled, isStrictMode, apiClient])
+  }, [
+    currentTask?.id,
+    currentProject?.id,
+    currentProject?.annotation_time_limit_enabled,
+    isStrictMode,
+    apiClient,
+  ])
 
   // Strict-mode pre_start "Start" handler. Just flips the phase; the
   // TimerSlot's own POST /start-timer fires when it mounts, which is
@@ -262,11 +281,16 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
 
   // Post-annotation questionnaire state (Issue #1208)
   const [showQuestionnaireModal, setShowQuestionnaireModal] = useState(false)
-  const [questionnaireAnnotationId, setQuestionnaireAnnotationId] = useState<string | null>(null)
+  const [questionnaireAnnotationId, setQuestionnaireAnnotationId] = useState<
+    string | null
+  >(null)
   // Last submitted annotation ID (for immediate evaluation slot)
-  const [lastSubmittedAnnotationId, setLastSubmittedAnnotationId] = useState<string | null>(null)
+  const [lastSubmittedAnnotationId, setLastSubmittedAnnotationId] = useState<
+    string | null
+  >(null)
   const isQuestionnaireEnabled =
-    currentProject?.questionnaire_enabled && currentProject?.questionnaire_config
+    currentProject?.questionnaire_enabled &&
+    currentProject?.questionnaire_config
 
   // Activity tracker for enhanced timing (Issue #1208)
   const activityTracker = useActivityTracker()
@@ -286,7 +310,7 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
 
         // Always load fresh data for the new project
         logger.debug(
-          `Initializing annotation interface for project ${projectId}`
+          `Initializing annotation interface for project ${projectId}`,
         )
         await fetchProject(projectId)
 
@@ -294,17 +318,21 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
         const taskParam = searchParams?.get('task')
 
         // Also check localStorage for saved task ID and position (persists through page reload)
-        const savedTaskId = typeof window !== 'undefined'
-          ? localStorage.getItem(TASK_ID_KEY)
-          : null
-        const savedTaskPosition = typeof window !== 'undefined'
-          ? localStorage.getItem(TASK_POSITION_KEY)
-          : null
+        const savedTaskId =
+          typeof window !== 'undefined'
+            ? localStorage.getItem(TASK_ID_KEY)
+            : null
+        const savedTaskPosition =
+          typeof window !== 'undefined'
+            ? localStorage.getItem(TASK_POSITION_KEY)
+            : null
 
         // URL parameter takes priority, then localStorage
         const targetTaskNumber = taskParam
           ? parseInt(taskParam, 10)
-          : (savedTaskPosition ? parseInt(savedTaskPosition, 10) : null)
+          : savedTaskPosition
+            ? parseInt(savedTaskPosition, 10)
+            : null
 
         if (taskParam || savedTaskId || targetTaskNumber) {
           try {
@@ -320,7 +348,7 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
                 taskIndex = targetTaskNumber - 1
               } else if (savedTaskId) {
                 // localStorage: find by task ID (stable across filtered list changes)
-                taskIndex = tasks.findIndex(t => t.id === savedTaskId)
+                taskIndex = tasks.findIndex((t) => t.id === savedTaskId)
                 if (taskIndex === -1 && targetTaskNumber) {
                   // Task ID not found (already completed/excluded), fall back to position
                   taskIndex = targetTaskNumber - 1
@@ -332,20 +360,25 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
 
               if (taskIndex >= 0 && taskIndex < tasks.length) {
                 logger.debug(
-                  `Navigating to task at index ${taskIndex}${savedTaskId && !taskParam ? ` (by ID ${savedTaskId.substring(0, 8)})` : ''}`
+                  `Navigating to task at index ${taskIndex}${savedTaskId && !taskParam ? ` (by ID ${savedTaskId.substring(0, 8)})` : ''}`,
                 )
                 setTaskByIndex(taskIndex)
                 if (taskParam) {
                   addToast(
-                    t('annotation.taskLoadedFromUrl', { taskNumber: targetTaskNumber }),
-                    'success'
+                    t('annotation.taskLoadedFromUrl', {
+                      taskNumber: targetTaskNumber,
+                    }),
+                    'success',
                   )
                 }
                 return
               } else if (taskParam) {
                 addToast(
-                  t('annotation.taskNotFound', { taskNumber: targetTaskNumber, maxTasks: tasks.length }),
-                  'error'
+                  t('annotation.taskNotFound', {
+                    taskNumber: targetTaskNumber,
+                    maxTasks: tasks.length,
+                  }),
+                  'error',
                 )
                 localStorage.removeItem(TASK_POSITION_KEY)
                 localStorage.removeItem(TASK_ID_KEY)
@@ -356,8 +389,10 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
             console.error('Failed to load specific task:', error)
             if (taskParam) {
               addToast(
-                t('annotation.errors.failedToLoadTask', { defaultValue: 'Failed to load specific task' }),
-                'error'
+                t('annotation.errors.failedToLoadTask', {
+                  defaultValue: 'Failed to load specific task',
+                }),
+                'error',
               )
             }
           }
@@ -373,7 +408,10 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
           localStorage.removeItem(TASK_ID_KEY)
           localStorage.removeItem(TASK_POSITION_KEY)
           setInitializationError(
-            t('annotation.errors.noTasksAvailable', { defaultValue: 'No tasks are available for annotation in this project.' })
+            t('annotation.errors.noTasksAvailable', {
+              defaultValue:
+                'No tasks are available for annotation in this project.',
+            }),
           )
           return
         }
@@ -430,7 +468,7 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
   useEffect(() => {
     if (labelConfigVersion > 0) {
       logger.debug(
-        'Label configuration changed, reinitializing annotation interface'
+        'Label configuration changed, reinitializing annotation interface',
       )
       // Clear current annotations
       setAnnotations([])
@@ -443,7 +481,6 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- Intentional: only react to labelConfigVersion changes, currentTask is read-only trigger
   }, [labelConfigVersion, projectId, fetchProjectTasks])
-   
 
   // Auto-redirect when all tasks are completed
   useEffect(() => {
@@ -460,7 +497,14 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
       // Redirect to project detail page
       router.push(`/projects/${projectId}`)
     }
-  }, [allTasksCompleted, projectId, router, resetAnnotationCompletion, TASK_POSITION_KEY, TASK_ID_KEY])
+  }, [
+    allTasksCompleted,
+    projectId,
+    router,
+    resetAnnotationCompletion,
+    TASK_POSITION_KEY,
+    TASK_ID_KEY,
+  ])
 
   // Compute conditional-instruction variant for this user. Bucket on
   // (user, project) — NOT on task — so the assignment is stable for the
@@ -468,14 +512,21 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
   // break the A/B experiment design (each user is expected to stay in
   // exactly one cohort across all tasks).
   useEffect(() => {
-    if (!user?.id || !currentProject?.id || !currentProject?.conditional_instructions?.length) {
+    if (
+      !user?.id ||
+      !currentProject?.id ||
+      !currentProject?.conditional_instructions?.length
+    ) {
       setSelectedVariantId(null)
       return
     }
     const variantId = selectVariant(
       user.id,
       currentProject.id,
-      currentProject.conditional_instructions as { id: string; weight: number }[]
+      currentProject.conditional_instructions as {
+        id: string
+        weight: number
+      }[],
     )
     setSelectedVariantId(variantId)
   }, [user?.id, currentProject?.id, currentProject?.conditional_instructions])
@@ -512,7 +563,14 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
       // localStorage not available, show modal anyway
       setShowInstructionsModal(true)
     }
-  }, [currentProject?.show_instruction, currentProject?.instructions, currentProject?.instructions_always_visible, currentProject?.conditional_instructions, INSTRUCTIONS_DISMISSED_KEY, currentTask?.id])
+  }, [
+    currentProject?.show_instruction,
+    currentProject?.instructions,
+    currentProject?.instructions_always_visible,
+    currentProject?.conditional_instructions,
+    INSTRUCTIONS_DISMISSED_KEY,
+    currentTask?.id,
+  ])
 
   // Handle task skip
   const handleSkip = useCallback(async () => {
@@ -567,11 +625,11 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
       pId: string,
       tId: string,
       aId: string,
-      result: AnnotationResult[]
+      result: AnnotationResult[],
     ) => {
       await projectsAPI.submitQuestionnaireResponse(pId, tId, aId, result)
     },
-    []
+    [],
   )
 
   // Proceed after questionnaire (Issue #1208).
@@ -596,7 +654,7 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
 
     addToast(
       t('annotation.saved', { defaultValue: 'Annotation saved' }),
-      'success'
+      'success',
     )
     completeCurrentTask()
   }, [
@@ -611,7 +669,11 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
   // yet" before it opens (task reads are 403'd server-side) and a read-only view
   // after it closes. The backend is authoritative; this mirrors it for UX.
   const _winRole = currentProject
-    ? getEffectiveProjectRole(user as any, currentProject as any, (user as any)?.role)
+    ? getEffectiveProjectRole(
+        user as any,
+        currentProject as any,
+        (user as any)?.role,
+      )
     : null
   const _isWindowEditor =
     !!(user as any)?.is_superadmin ||
@@ -629,9 +691,15 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
       ? new Date((currentProject as any).window_start_at).toLocaleString()
       : ''
     return (
-      <div className="bg-background flex min-h-screen flex-col" data-testid="project-window-upcoming">
+      <div
+        className="bg-background flex min-h-screen flex-col"
+        data-testid="project-window-upcoming"
+      >
         <div className="border-b px-6 py-4">
-          <Button variant="text" onClick={() => router.push(`/projects/${projectId}`)}>
+          <Button
+            variant="text"
+            onClick={() => router.push(`/projects/${projectId}`)}
+          >
             <ArrowLeftIcon className="mr-2 h-4 w-4" />
             {t('annotation.backToProject', { defaultValue: 'Back to Project' })}
           </Button>
@@ -641,7 +709,9 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
             <div className="space-y-6 p-8">
               <ClockIcon className="mx-auto h-16 w-16 text-emerald-600" />
               <h2 className="text-2xl font-bold">
-                {t('annotation.window.notOpenTitle', { defaultValue: 'Not open yet' })}
+                {t('annotation.window.notOpenTitle', {
+                  defaultValue: 'Not open yet',
+                })}
               </h2>
               <p className="text-muted-foreground">
                 {t('annotation.window.notOpenDescription', {
@@ -664,7 +734,9 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
           <div className="py-12 text-center">
             <ExclamationTriangleIcon className="mx-auto mb-4 h-12 w-12 text-red-500" />
             <h2 className="mb-2 text-2xl font-bold text-red-600">
-              {t('annotation.errors.initializationError', { defaultValue: 'Initialization Error' })}
+              {t('annotation.errors.initializationError', {
+                defaultValue: 'Initialization Error',
+              })}
             </h2>
             <p className="text-muted-foreground mb-6">{initializationError}</p>
             <div className="space-x-4">
@@ -675,7 +747,9 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
                 variant="secondary"
                 onClick={() => router.push(`/projects/${projectId}`)}
               >
-                {t('annotation.backToProject', { defaultValue: 'Back to Project' })}
+                {t('annotation.backToProject', {
+                  defaultValue: 'Back to Project',
+                })}
               </Button>
             </div>
           </div>
@@ -698,12 +772,21 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
         <Card className="mx-auto max-w-2xl">
           <div className="py-12 text-center">
             <CheckIcon className="mx-auto mb-4 h-12 w-12 text-green-500" />
-            <h2 className="mb-2 text-2xl font-bold">{t('annotation.allTasksCompleted', { defaultValue: 'All tasks completed!' })}</h2>
+            <h2 className="mb-2 text-2xl font-bold">
+              {t('annotation.allTasksCompleted', {
+                defaultValue: 'All tasks completed!',
+              })}
+            </h2>
             <p className="text-muted-foreground mb-6">
-              {t('annotation.allTasksCompletedDescription', { defaultValue: "You've annotated all available tasks in this project." })}
+              {t('annotation.allTasksCompletedDescription', {
+                defaultValue:
+                  "You've annotated all available tasks in this project.",
+              })}
             </p>
             <Button onClick={() => router.push(`/projects/${projectId}`)}>
-              {t('annotation.backToProject', { defaultValue: 'Back to Project' })}
+              {t('annotation.backToProject', {
+                defaultValue: 'Back to Project',
+              })}
             </Button>
           </div>
         </Card>
@@ -715,13 +798,24 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
   // until the user explicitly clicks Start. Mirrors BenGer_old/services/
   // frontend/src/components/labeling/LabelingInterface.tsx:788-850.
   if (isStrictMode && strictTimerPhase === 'pre_start') {
-    const conditionalVariants = currentProject?.conditional_instructions as { id: string; content: string; weight: number }[] | undefined
-    const variantContent = conditionalVariants?.find(v => v.id === selectedVariantId)?.content
-    const minutes = Math.round((currentProject?.annotation_time_limit_seconds || 0) / 60)
+    const conditionalVariants = currentProject?.conditional_instructions as
+      { id: string; content: string; weight: number }[] | undefined
+    const variantContent = conditionalVariants?.find(
+      (v) => v.id === selectedVariantId,
+    )?.content
+    const minutes = Math.round(
+      (currentProject?.annotation_time_limit_seconds || 0) / 60,
+    )
     return (
-      <div className="bg-background flex min-h-screen flex-col" data-testid="klausur-pre-start">
+      <div
+        className="bg-background flex min-h-screen flex-col"
+        data-testid="klausur-pre-start"
+      >
         <div className="border-b px-6 py-4">
-          <Button variant="text" onClick={() => router.push(`/projects/${projectId}`)}>
+          <Button
+            variant="text"
+            onClick={() => router.push(`/projects/${projectId}`)}
+          >
             <ArrowLeftIcon className="mr-2 h-4 w-4" />
             {t('annotation.backToProject', { defaultValue: 'Back to Project' })}
           </Button>
@@ -731,14 +825,18 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
             <div className="space-y-6 p-8">
               <ClockIcon className="mx-auto h-16 w-16 text-emerald-600" />
               <h2 className="text-2xl font-bold">
-                {t('annotation.strictTimer.readyTitle', { defaultValue: 'Ready to Begin' })}
+                {t('annotation.strictTimer.readyTitle', {
+                  defaultValue: 'Ready to Begin',
+                })}
               </h2>
               {variantContent && (
                 <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-left dark:border-emerald-800 dark:bg-emerald-950">
                   <p className="text-sm font-medium text-emerald-800 dark:text-emerald-200">
-                    {t('annotation.instructions.title', { defaultValue: 'Annotation Instructions' })}
+                    {t('annotation.instructions.title', {
+                      defaultValue: 'Annotation Instructions',
+                    })}
                   </p>
-                  <p className="mt-2 whitespace-pre-wrap text-sm text-emerald-700 dark:text-emerald-300">
+                  <p className="mt-2 text-sm whitespace-pre-wrap text-emerald-700 dark:text-emerald-300">
                     {variantContent}
                   </p>
                 </div>
@@ -755,7 +853,9 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
                 })}
               </p>
               <Button variant="filled" onClick={handleStrictTimerStart}>
-                {t('annotation.strictTimer.startButton', { defaultValue: 'Start' })}
+                {t('annotation.strictTimer.startButton', {
+                  defaultValue: 'Start',
+                })}
               </Button>
             </div>
           </Card>
@@ -767,11 +867,19 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
   // Strict-timer time-over screen: shown after the timer expires and the
   // auto-submit fires. Gated on !showQuestionnaireModal so the questionnaire
   // flow takes precedence. Mirrors BenGer_old/.../LabelingInterface.tsx:853-908.
-  if (isStrictMode && strictTimerPhase === 'time_over' && !showQuestionnaireModal && !allTasksCompleted) {
+  if (
+    isStrictMode &&
+    strictTimerPhase === 'time_over' &&
+    !showQuestionnaireModal &&
+    !allTasksCompleted
+  ) {
     return (
       <div className="bg-background flex min-h-screen flex-col">
         <div className="border-b px-6 py-4">
-          <Button variant="text" onClick={() => router.push(`/projects/${projectId}`)}>
+          <Button
+            variant="text"
+            onClick={() => router.push(`/projects/${projectId}`)}
+          >
             <ArrowLeftIcon className="mr-2 h-4 w-4" />
             {t('annotation.backToProject', { defaultValue: 'Back to Project' })}
           </Button>
@@ -781,11 +889,14 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
             <div className="space-y-6 p-8">
               <ExclamationTriangleIcon className="mx-auto h-16 w-16 text-amber-500" />
               <h2 className="text-2xl font-bold">
-                {t('annotation.strictTimer.timeOverTitle', { defaultValue: "Time's Up" })}
+                {t('annotation.strictTimer.timeOverTitle', {
+                  defaultValue: "Time's Up",
+                })}
               </h2>
               <p className="text-muted-foreground">
                 {t('annotation.strictTimer.timeOverDescription', {
-                  defaultValue: 'Your time is over. Your work so far has been submitted in its latest form.',
+                  defaultValue:
+                    'Your time is over. Your work so far has been submitted in its latest form.',
                 })}
               </p>
               <div className="flex flex-col gap-3">
@@ -797,10 +908,17 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
                     completeCurrentTask()
                   }}
                 >
-                  {t('annotation.strictTimer.continueButton', { defaultValue: 'Continue' })}
+                  {t('annotation.strictTimer.continueButton', {
+                    defaultValue: 'Continue',
+                  })}
                 </Button>
-                <Button variant="outline" onClick={() => router.push(`/projects/${projectId}`)}>
-                  {t('annotation.backToProject', { defaultValue: 'Back to Project' })}
+                <Button
+                  variant="outline"
+                  onClick={() => router.push(`/projects/${projectId}`)}
+                >
+                  {t('annotation.backToProject', {
+                    defaultValue: 'Back to Project',
+                  })}
                 </Button>
               </div>
             </div>
@@ -835,7 +953,9 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
                 onClick={() => router.push(`/projects/${projectId}`)}
               >
                 <ArrowLeftIcon className="mr-2 h-4 w-4" />
-                {t('annotation.backToProject', { defaultValue: 'Back to Project' })}
+                {t('annotation.backToProject', {
+                  defaultValue: 'Back to Project',
+                })}
               </Button>
               <Separator orientation="vertical" className="h-6" />
               <div>
@@ -864,7 +984,9 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
                     const positionInCycle = currentTaskPosition ?? null
                     const total = projectTotal ?? remaining
                     const current =
-                      projectTotal != null && remaining != null && positionInCycle != null
+                      projectTotal != null &&
+                      remaining != null &&
+                      positionInCycle != null
                         ? projectTotal - remaining + positionInCycle
                         : positionInCycle
                     return `Task ${current ?? '?'} of ${total ?? '?'}`
@@ -875,7 +997,8 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
 
             <div className="flex items-center gap-4">
               {/* Instructions button - allows re-viewing dismissed instructions */}
-              {(currentProject?.instructions || currentProject?.conditional_instructions?.length) && (
+              {(currentProject?.instructions ||
+                currentProject?.conditional_instructions?.length) && (
                 <Button
                   variant="text"
                   onClick={() => {
@@ -884,7 +1007,9 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
                   }}
                 >
                   <BookOpenIcon className="mr-2 h-4 w-4" />
-                  {t('annotation.instructions.showInstructions', { defaultValue: 'Instructions' })}
+                  {t('annotation.instructions.showInstructions', {
+                    defaultValue: 'Instructions',
+                  })}
                 </Button>
               )}
               {CheckpointPanel && currentProject && currentTask && (
@@ -901,7 +1026,7 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
                       t('annotation.checkpoints.restored', {
                         defaultValue: 'Checkpoint restored.',
                       }),
-                      'success'
+                      'success',
                     )
                   }}
                 />
@@ -927,17 +1052,22 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
                     if (hasSubmittedRef.current) return
                     hasSubmittedRef.current = true
 
-                    const shouldRunImmediate = !!currentProject?.immediate_evaluation_enabled
+                    const shouldRunImmediate =
+                      !!currentProject?.immediate_evaluation_enabled
                     const hasQuestionnaire = !!isQuestionnaireEnabled
 
                     let annotation: any
                     try {
-                      annotation = await projectsAPI.createAnnotation(currentTask.id, {
-                        result,
-                        was_cancelled: false,
-                        auto_submitted: true,
-                        lead_time: currentProject.annotation_time_limit_seconds || 0,
-                      } as any)
+                      annotation = await projectsAPI.createAnnotation(
+                        currentTask.id,
+                        {
+                          result,
+                          was_cancelled: false,
+                          auto_submitted: true,
+                          lead_time:
+                            currentProject.annotation_time_limit_seconds || 0,
+                        } as any,
+                      )
                     } catch (err) {
                       logger.error('Auto-submit failed:', err)
                       if (isStrictMode) setStrictTimerPhase('time_over')
@@ -995,7 +1125,7 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
         <div
           className={
             modernExamLayoutActive
-              ? 'flex-1 overflow-y-auto overflow-x-hidden p-6'
+              ? 'flex-1 overflow-x-hidden overflow-y-auto p-6'
               : 'flex-1 overflow-auto p-6'
           }
         >
@@ -1009,7 +1139,8 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
             {windowReadOnly && (
               <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800/40 dark:text-zinc-300">
                 {t('annotation.window.closedReadOnly', {
-                  defaultValue: 'This project has closed — view only, no further changes.',
+                  defaultValue:
+                    'This project has closed — view only, no further changes.',
                 })}
               </div>
             )}
@@ -1019,115 +1150,128 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
                 data-testid="timer-overtime-hint"
               >
                 {t('annotation.timer.overtimeHint', {
-                  defaultValue: 'Time is up — you are now in overtime. Submit when you are done.',
+                  defaultValue:
+                    'Time is up — you are now in overtime. Submit when you are done.',
                 })}
               </div>
             )}
             {/* Dynamic annotation interface - label config is required */}
             {currentProject?.label_config ? (
               <AnnotationContextWrapper>
-              <DynamicAnnotationInterface
-                // Remount per task so no editor keeps previous-task content in
-                // local state (extended editors guard against transient empty
-                // external values and would otherwise carry text across tasks).
-                key={`${currentTask.id}-${restoreKey}`}
-                labelConfig={currentProject.label_config}
-                taskData={currentTask.data || {}}
-                taskId={currentTask.id} // Pass task ID for proper state clearing
-                initialValues={loadedAnnotations} // Load existing annotations (Issue #1082)
-                // Timed access window closed: view-only, no submit (owner exempt).
-                readOnly={windowReadOnly}
-                showSubmitButton={currentProject?.show_submit_button !== false && !windowReadOnly}
-                requireConfirmBeforeSubmit={currentProject?.require_confirm_before_submit === true}
-                startTime={startTime} // Pass start time for auto-save lead_time tracking
-                allowModernLayout // Interactive labeling host: modern exam layout may apply
-                onChange={(results) => setAnnotations(results)}
-                onSubmit={async (results) => {
-                  try {
-                    if (hasSubmittedRef.current) {
-                      addToast(
-                        t('annotation.errors.alreadySubmitted', { defaultValue: 'Annotation already submitted' }),
-                        'error'
-                      )
-                      return
-                    }
-                    // Handle dynamic annotation results
-                    setAnnotations(results)
-
-                    const hasQuestionnaire = isQuestionnaireEnabled
-                    const hasImmediateEval = !!currentProject?.immediate_evaluation_enabled
-
-                    // Calculate lead_time
-                    const leadTime = Math.round(
-                      ((Date.now() + serverClockOffset) - startTime) / 1000
-                    )
-
-                    // Get activity tracker data (Issue #1208)
-                    const timing = activityTracker.getData()
-
-                    // Skip auto-advance when either modal flow will surface
-                    // (questionnaire OR immediate eval). Auto-advancing here
-                    // races: by the time ImmediateEvalSlot mounts and POSTs
-                    // /immediate, currentTask.id is already the NEXT task —
-                    // and the eval router queries for annotations on the new
-                    // task, finds none, and returns "no annotation found".
-                    // The eval modal's onClose handles advancement once the
-                    // user dismisses it.
-                    const skipAdvance = !!hasQuestionnaire || hasImmediateEval
-                    const annotation = await createAnnotationInternal(
-                      currentTask.id,
-                      {
-                        result: results,
-                        lead_time: leadTime,
-                        active_duration_ms: timing.activeMs,
-                        focused_duration_ms: timing.focusedMs,
-                        tab_switches: timing.tabSwitches,
-                        instruction_variant: selectedVariantId || undefined,
-                      },
-                      skipAdvance
-                    )
-
-                    // Mark as submitted only after successful API call
-                    hasSubmittedRef.current = true
-
-                    // Track annotation ID for immediate evaluation slot
-                    if (annotation) {
-                      setLastSubmittedAnnotationId(annotation.id)
-                    }
-
-                    // Show questionnaire first if enabled (Issue #1208)
-                    if (hasQuestionnaire && annotation) {
-                      setQuestionnaireAnnotationId(annotation.id)
-                      setShowQuestionnaireModal(true)
-                      return
-                    }
-
-                    // Tell the eval modal's onClose to advance once dismissed
-                    // (mirrors the auto-submit + questionnaire paths).
-                    if (hasImmediateEval && annotation) {
-                      autoSubmittedRef.current = true
-                    }
-
-                    // Normal flow - show success toast
-                    addToast(
-                      t('annotation.saved', { defaultValue: 'Annotation saved' }),
-                      'success'
-                    )
-                  } catch (error) {
-                    console.error('Failed to submit annotation:', error)
-                    hasSubmittedRef.current = false
-                    addToast(
-                      t('annotation.errors.submitFailed', { defaultValue: 'Failed to submit annotation' }),
-                      'error'
-                    )
+                <DynamicAnnotationInterface
+                  // Remount per task so no editor keeps previous-task content in
+                  // local state (extended editors guard against transient empty
+                  // external values and would otherwise carry text across tasks).
+                  key={`${currentTask.id}-${restoreKey}`}
+                  labelConfig={currentProject.label_config}
+                  taskData={currentTask.data || {}}
+                  taskId={currentTask.id} // Pass task ID for proper state clearing
+                  initialValues={loadedAnnotations} // Load existing annotations (Issue #1082)
+                  // Timed access window closed: view-only, no submit (owner exempt).
+                  readOnly={windowReadOnly}
+                  showSubmitButton={
+                    currentProject?.show_submit_button !== false &&
+                    !windowReadOnly
                   }
-                }}
-                onSkip={
-                  currentProject?.show_skip_button !== false
-                    ? handleSkip
-                    : undefined
-                }
-              />
+                  requireConfirmBeforeSubmit={
+                    currentProject?.require_confirm_before_submit === true
+                  }
+                  startTime={startTime} // Pass start time for auto-save lead_time tracking
+                  allowModernLayout // Interactive labeling host: modern exam layout may apply
+                  onChange={(results) => setAnnotations(results)}
+                  onSubmit={async (results) => {
+                    try {
+                      if (hasSubmittedRef.current) {
+                        addToast(
+                          t('annotation.errors.alreadySubmitted', {
+                            defaultValue: 'Annotation already submitted',
+                          }),
+                          'error',
+                        )
+                        return
+                      }
+                      // Handle dynamic annotation results
+                      setAnnotations(results)
+
+                      const hasQuestionnaire = isQuestionnaireEnabled
+                      const hasImmediateEval =
+                        !!currentProject?.immediate_evaluation_enabled
+
+                      // Calculate lead_time
+                      const leadTime = Math.round(
+                        (Date.now() + serverClockOffset - startTime) / 1000,
+                      )
+
+                      // Get activity tracker data (Issue #1208)
+                      const timing = activityTracker.getData()
+
+                      // Skip auto-advance when either modal flow will surface
+                      // (questionnaire OR immediate eval). Auto-advancing here
+                      // races: by the time ImmediateEvalSlot mounts and POSTs
+                      // /immediate, currentTask.id is already the NEXT task —
+                      // and the eval router queries for annotations on the new
+                      // task, finds none, and returns "no annotation found".
+                      // The eval modal's onClose handles advancement once the
+                      // user dismisses it.
+                      const skipAdvance = !!hasQuestionnaire || hasImmediateEval
+                      const annotation = await createAnnotationInternal(
+                        currentTask.id,
+                        {
+                          result: results,
+                          lead_time: leadTime,
+                          active_duration_ms: timing.activeMs,
+                          focused_duration_ms: timing.focusedMs,
+                          tab_switches: timing.tabSwitches,
+                          instruction_variant: selectedVariantId || undefined,
+                        },
+                        skipAdvance,
+                      )
+
+                      // Mark as submitted only after successful API call
+                      hasSubmittedRef.current = true
+
+                      // Track annotation ID for immediate evaluation slot
+                      if (annotation) {
+                        setLastSubmittedAnnotationId(annotation.id)
+                      }
+
+                      // Show questionnaire first if enabled (Issue #1208)
+                      if (hasQuestionnaire && annotation) {
+                        setQuestionnaireAnnotationId(annotation.id)
+                        setShowQuestionnaireModal(true)
+                        return
+                      }
+
+                      // Tell the eval modal's onClose to advance once dismissed
+                      // (mirrors the auto-submit + questionnaire paths).
+                      if (hasImmediateEval && annotation) {
+                        autoSubmittedRef.current = true
+                      }
+
+                      // Normal flow - show success toast
+                      addToast(
+                        t('annotation.saved', {
+                          defaultValue: 'Annotation saved',
+                        }),
+                        'success',
+                      )
+                    } catch (error) {
+                      console.error('Failed to submit annotation:', error)
+                      hasSubmittedRef.current = false
+                      addToast(
+                        t('annotation.errors.submitFailed', {
+                          defaultValue: 'Failed to submit annotation',
+                        }),
+                        'error',
+                      )
+                    }
+                  }}
+                  onSkip={
+                    currentProject?.show_skip_button !== false
+                      ? handleSkip
+                      : undefined
+                  }
+                />
               </AnnotationContextWrapper>
             ) : (
               <Card>
@@ -1172,7 +1316,7 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
                             <p className="text-sm">{String(response)}</p>
                           </div>
                         </div>
-                      )
+                      ),
                     )}
                   </div>
                 </Card>
@@ -1195,7 +1339,7 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
               value={skipComment}
               onChange={(e) => setSkipComment(e.target.value)}
               placeholder={t('annotation.interface.skipCommentPlaceholder')}
-              className="mt-4 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 dark:border-zinc-600 dark:bg-zinc-800 dark:text-white"
+              className="mt-4 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 focus:outline-none dark:border-zinc-600 dark:bg-zinc-800 dark:text-white"
               rows={4}
             />
             <div className="mt-6 flex justify-end gap-3">
@@ -1221,50 +1365,73 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
       )}
 
       {/* Instructions Modal (shown on first load if enabled and not dismissed) */}
-      {showInstructionsModal && (currentProject?.instructions || selectedVariantId) && (() => {
-        const conditionalVariants = currentProject?.conditional_instructions as { id: string; content: string; weight: number }[] | undefined
-        const variantContent = conditionalVariants?.find(v => v.id === selectedVariantId)?.content
-        const isAlwaysVisible = currentProject?.instructions_always_visible
+      {showInstructionsModal &&
+        (currentProject?.instructions || selectedVariantId) &&
+        (() => {
+          const conditionalVariants =
+            currentProject?.conditional_instructions as
+              { id: string; content: string; weight: number }[] | undefined
+          const variantContent = conditionalVariants?.find(
+            (v) => v.id === selectedVariantId,
+          )?.content
+          const isAlwaysVisible = currentProject?.instructions_always_visible
 
-        return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-            <div className="mx-4 max-w-2xl rounded-lg bg-white p-6 shadow-xl dark:bg-zinc-900">
-              <h3 className="flex items-center gap-2 text-lg font-semibold text-zinc-900 dark:text-white">
-                <ExclamationTriangleIcon className="h-5 w-5 text-emerald-600" />
-                {t('annotation.instructions.title', { defaultValue: 'Annotation Instructions' })}
-              </h3>
-              <div className="mt-4 max-h-[60vh] overflow-y-auto">
-                <div className="prose prose-sm max-w-none text-zinc-700 dark:prose-invert dark:text-zinc-300">
-                  {variantContent && currentProject?.instructions && (
-                    <p className="whitespace-pre-wrap">{currentProject.instructions}</p>
+          return (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+              <div className="mx-4 max-w-2xl rounded-lg bg-white p-6 shadow-xl dark:bg-zinc-900">
+                <h3 className="flex items-center gap-2 text-lg font-semibold text-zinc-900 dark:text-white">
+                  <ExclamationTriangleIcon className="h-5 w-5 text-emerald-600" />
+                  {t('annotation.instructions.title', {
+                    defaultValue: 'Annotation Instructions',
+                  })}
+                </h3>
+                <div className="mt-4 max-h-[60vh] overflow-y-auto">
+                  <div className="prose prose-sm max-w-none text-zinc-700 dark:text-zinc-300 dark:prose-invert">
+                    {variantContent && currentProject?.instructions && (
+                      <p className="whitespace-pre-wrap">
+                        {currentProject.instructions}
+                      </p>
+                    )}
+                    <p className="whitespace-pre-wrap">
+                      {variantContent || currentProject?.instructions}
+                    </p>
+                  </div>
+                </div>
+                {!isAlwaysVisible &&
+                  !variantContent &&
+                  !manualInstructionsOpen && (
+                    <div className="mt-6 border-t border-zinc-200 pt-4 dark:border-zinc-700">
+                      <label className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
+                        <input
+                          type="checkbox"
+                          checked={dontShowAgain}
+                          onChange={(e) => setDontShowAgain(e.target.checked)}
+                          className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
+                        />
+                        {t('annotation.instructions.dontShowAgain', {
+                          defaultValue: "Don't show again for this project",
+                        })}
+                      </label>
+                    </div>
                   )}
-                  <p className="whitespace-pre-wrap">{variantContent || currentProject?.instructions}</p>
+                <div className="mt-4 flex justify-end">
+                  <Button
+                    onClick={handleInstructionsModalClose}
+                    variant="filled"
+                  >
+                    {manualInstructionsOpen
+                      ? t('annotation.instructions.close', {
+                          defaultValue: 'Close',
+                        })
+                      : t('annotation.instructions.startAnnotating', {
+                          defaultValue: 'Start Annotating',
+                        })}
+                  </Button>
                 </div>
-              </div>
-              {!isAlwaysVisible && !variantContent && !manualInstructionsOpen && (
-                <div className="mt-6 border-t border-zinc-200 pt-4 dark:border-zinc-700">
-                  <label className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
-                    <input
-                      type="checkbox"
-                      checked={dontShowAgain}
-                      onChange={(e) => setDontShowAgain(e.target.checked)}
-                      className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
-                    />
-                    {t('annotation.instructions.dontShowAgain', { defaultValue: "Don't show again for this project" })}
-                  </label>
-                </div>
-              )}
-              <div className="mt-4 flex justify-end">
-                <Button onClick={handleInstructionsModalClose} variant="filled">
-                  {manualInstructionsOpen
-                    ? t('annotation.instructions.close', { defaultValue: 'Close' })
-                    : t('annotation.instructions.startAnnotating', { defaultValue: 'Start Annotating' })}
-                </Button>
               </div>
             </div>
-          </div>
-        )
-      })()}
+          )
+        })()}
 
       {/* Post-Annotation Questionnaire Modal (Issue #1208) */}
       {isQuestionnaireEnabled && questionnaireAnnotationId && currentTask && (
@@ -1280,26 +1447,27 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
       )}
 
       {/* Immediate evaluation (extended feature) */}
-      {ImmediateEvalSlot && currentProject?.immediate_evaluation_enabled && lastSubmittedAnnotationId && (
-        <ImmediateEvalSlot
-          isOpen={true}
-          onClose={() => {
-            setLastSubmittedAnnotationId(null)
-            // After auto-submit-triggered eval, dismissing the modal is the
-            // user's signal to move on — advance to the next task. After a
-            // manual submit, leave them on the current task (they may want
-            // to keep editing).
-            if (autoSubmittedRef.current) {
-              autoSubmittedRef.current = false
-              completeCurrentTask()
-            }
-          }}
-          projectId={projectId}
-          taskId={currentTask?.id}
-          annotationId={lastSubmittedAnnotationId}
-        />
-      )}
-
+      {ImmediateEvalSlot &&
+        currentProject?.immediate_evaluation_enabled &&
+        lastSubmittedAnnotationId && (
+          <ImmediateEvalSlot
+            isOpen={true}
+            onClose={() => {
+              setLastSubmittedAnnotationId(null)
+              // After auto-submit-triggered eval, dismissing the modal is the
+              // user's signal to move on — advance to the next task. After a
+              // manual submit, leave them on the current task (they may want
+              // to keep editing).
+              if (autoSubmittedRef.current) {
+                autoSubmittedRef.current = false
+                completeCurrentTask()
+              }
+            }}
+            projectId={projectId}
+            taskId={currentTask?.id}
+            annotationId={lastSubmittedAnnotationId}
+          />
+        )}
     </div>
   )
 }

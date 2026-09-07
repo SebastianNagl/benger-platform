@@ -19,12 +19,10 @@ jest.mock('@/lib/api/customModels', () => ({
 }))
 jest.mock('@/lib/api/organizations', () => ({
   organizationsAPI: {
-    getOrganizations: jest
-      .fn()
-      .mockResolvedValue([
-        { id: 'org-1', name: 'Org One' },
-        { id: 'org-2', name: 'Org Two' },
-      ]),
+    getOrganizations: jest.fn().mockResolvedValue([
+      { id: 'org-1', name: 'Org One' },
+      { id: 'org-2', name: 'Org Two' },
+    ]),
   },
 }))
 jest.mock('@/contexts/I18nContext', () => ({
@@ -79,18 +77,18 @@ describe('ModelPermissionsPanel', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByTestId('model-permissions-panel')
+          screen.getByTestId('model-permissions-panel'),
         ).toBeInTheDocument()
       })
 
       expect(
-        screen.getByTestId('model-visibility-private-radio')
+        screen.getByTestId('model-visibility-private-radio'),
       ).toBeInTheDocument()
       expect(
-        screen.getByTestId('model-visibility-organization-radio')
+        screen.getByTestId('model-visibility-organization-radio'),
       ).toBeInTheDocument()
       expect(
-        screen.getByTestId('model-visibility-public-radio')
+        screen.getByTestId('model-visibility-public-radio'),
       ).toBeInTheDocument()
     })
 
@@ -100,19 +98,22 @@ describe('ModelPermissionsPanel', () => {
           modelId="custom-1"
           canEdit
           initialVisibility="public"
-        />
+        />,
       )
 
       await waitFor(() => {
         expect(
-          (screen.getByTestId('model-visibility-public-radio') as HTMLInputElement)
-            .checked
+          (
+            screen.getByTestId(
+              'model-visibility-public-radio',
+            ) as HTMLInputElement
+          ).checked,
         ).toBe(true)
       })
 
       expect(screen.queryByTestId('public-role-section')).toBeNull()
       expect(
-        screen.queryByTestId('model-visibility-public-role-section')
+        screen.queryByTestId('model-visibility-public-role-section'),
       ).toBeNull()
     })
 
@@ -123,20 +124,22 @@ describe('ModelPermissionsPanel', () => {
           canEdit
           initialVisibility="organization"
           initialOrganizationIds={['org-1']}
-        />
+        />,
       )
 
       await waitFor(() => {
         expect(
-          screen.getByTestId('model-permissions-organization-section')
+          screen.getByTestId('model-permissions-organization-section'),
         ).toBeInTheDocument()
       })
 
       await waitFor(() => {
         expect(
-          (screen.getByTestId(
-            'model-permissions-organization-checkbox-org-1'
-          ) as HTMLInputElement).checked
+          (
+            screen.getByTestId(
+              'model-permissions-organization-checkbox-org-1',
+            ) as HTMLInputElement
+          ).checked,
         ).toBe(true)
       })
     })
@@ -148,17 +151,17 @@ describe('ModelPermissionsPanel', () => {
           canEdit={false}
           initialVisibility="organization"
           initialOrganizationIds={['org-1']}
-        />
+        />,
       )
 
       expect(
-        screen.getByText('Only the creator can change visibility')
+        screen.getByText('Only the creator can change visibility'),
       ).toBeInTheDocument()
       expect(
-        screen.queryByTestId('model-permissions-panel')
+        screen.queryByTestId('model-permissions-panel'),
       ).not.toBeInTheDocument()
       expect(
-        screen.queryByTestId('model-permissions-save-button')
+        screen.queryByTestId('model-permissions-save-button'),
       ).not.toBeInTheDocument()
     })
   })
@@ -171,27 +174,27 @@ describe('ModelPermissionsPanel', () => {
           modelId="custom-1"
           canEdit
           initialVisibility="private"
-        />
+        />,
       )
 
       await waitFor(() => {
         expect(
-          screen.getByTestId('model-visibility-organization-option')
+          screen.getByTestId('model-visibility-organization-option'),
         ).toBeInTheDocument()
       })
 
       await user.click(
-        screen.getByTestId('model-visibility-organization-option')
+        screen.getByTestId('model-visibility-organization-option'),
       )
       await user.click(screen.getByTestId('model-permissions-save-button'))
 
       await waitFor(() => {
         expect(
-          screen.getByTestId('model-permissions-error')
+          screen.getByTestId('model-permissions-error'),
         ).toBeInTheDocument()
       })
       expect(
-        screen.getByText('Please select at least one organization')
+        screen.getByText('Please select at least one organization'),
       ).toBeInTheDocument()
       expect(customModelsAPI.updateVisibility).not.toHaveBeenCalled()
     })
@@ -206,12 +209,12 @@ describe('ModelPermissionsPanel', () => {
           canEdit
           initialVisibility="public"
           onSaved={mockOnSaved}
-        />
+        />,
       )
 
       await waitFor(() => {
         expect(
-          screen.getByTestId('model-visibility-private-option')
+          screen.getByTestId('model-visibility-private-option'),
         ).toBeInTheDocument()
       })
 
@@ -221,7 +224,7 @@ describe('ModelPermissionsPanel', () => {
       await waitFor(() => {
         expect(customModelsAPI.updateVisibility).toHaveBeenCalledWith(
           'custom-1',
-          { is_private: true }
+          { is_private: true },
         )
       })
       expect(toast.success).toHaveBeenCalledWith('Visibility saved')
@@ -239,34 +242,34 @@ describe('ModelPermissionsPanel', () => {
           canEdit
           initialVisibility="private"
           onSaved={mockOnSaved}
-        />
+        />,
       )
 
       await waitFor(() => {
         expect(
-          screen.getByTestId('model-visibility-organization-option')
+          screen.getByTestId('model-visibility-organization-option'),
         ).toBeInTheDocument()
       })
 
       await user.click(
-        screen.getByTestId('model-visibility-organization-option')
+        screen.getByTestId('model-visibility-organization-option'),
       )
 
       await waitFor(() => {
         expect(
-          screen.getByTestId('model-permissions-organization-checkbox-org-2')
+          screen.getByTestId('model-permissions-organization-checkbox-org-2'),
         ).toBeInTheDocument()
       })
 
       await user.click(
-        screen.getByTestId('model-permissions-organization-checkbox-org-2')
+        screen.getByTestId('model-permissions-organization-checkbox-org-2'),
       )
       await user.click(screen.getByTestId('model-permissions-save-button'))
 
       await waitFor(() => {
         expect(customModelsAPI.updateVisibility).toHaveBeenCalledWith(
           'custom-1',
-          { is_private: false, organization_ids: ['org-2'] }
+          { is_private: false, organization_ids: ['org-2'] },
         )
       })
       expect(mockOnSaved).toHaveBeenCalledWith({
@@ -283,12 +286,12 @@ describe('ModelPermissionsPanel', () => {
           canEdit
           initialVisibility="private"
           onSaved={mockOnSaved}
-        />
+        />,
       )
 
       await waitFor(() => {
         expect(
-          screen.getByTestId('model-visibility-public-option')
+          screen.getByTestId('model-visibility-public-option'),
         ).toBeInTheDocument()
       })
 
@@ -298,7 +301,7 @@ describe('ModelPermissionsPanel', () => {
       await waitFor(() => {
         expect(customModelsAPI.updateVisibility).toHaveBeenCalledWith(
           'custom-1',
-          { is_public: true }
+          { is_public: true },
         )
       })
     })
@@ -306,7 +309,7 @@ describe('ModelPermissionsPanel', () => {
     it('surfaces API errors', async () => {
       const user = userEvent.setup()
       ;(customModelsAPI.updateVisibility as jest.Mock).mockRejectedValue(
-        new Error('boom')
+        new Error('boom'),
       )
 
       render(
@@ -314,12 +317,12 @@ describe('ModelPermissionsPanel', () => {
           modelId="custom-1"
           canEdit
           initialVisibility="public"
-        />
+        />,
       )
 
       await waitFor(() => {
         expect(
-          screen.getByTestId('model-permissions-save-button')
+          screen.getByTestId('model-permissions-save-button'),
         ).toBeInTheDocument()
       })
 
@@ -328,7 +331,7 @@ describe('ModelPermissionsPanel', () => {
       await waitFor(() => {
         expect(toast.error).toHaveBeenCalledWith('boom')
         expect(
-          screen.getByTestId('model-permissions-error')
+          screen.getByTestId('model-permissions-error'),
         ).toBeInTheDocument()
       })
     })
@@ -343,12 +346,12 @@ describe('ModelPermissionsPanel', () => {
           canEdit
           initialVisibility="private"
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       await waitFor(() => {
         expect(
-          screen.getByTestId('model-visibility-public-option')
+          screen.getByTestId('model-visibility-public-option'),
         ).toBeInTheDocument()
       })
 
@@ -356,8 +359,11 @@ describe('ModelPermissionsPanel', () => {
       await user.click(screen.getByTestId('model-permissions-cancel-button'))
 
       expect(
-        (screen.getByTestId('model-visibility-private-radio') as HTMLInputElement)
-          .checked
+        (
+          screen.getByTestId(
+            'model-visibility-private-radio',
+          ) as HTMLInputElement
+        ).checked,
       ).toBe(true)
       expect(mockOnCancel).toHaveBeenCalled()
     })

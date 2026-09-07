@@ -30,7 +30,8 @@ jest.mock('@/contexts/I18nContext', () => ({
     t: (key: string) => {
       const translations: Record<string, string> = {
         'loginModal.title': 'Sign in to BenGER',
-        'loginModal.subtitle': 'Access your annotation and evaluation workspace',
+        'loginModal.subtitle':
+          'Access your annotation and evaluation workspace',
         'loginModal.usernameLabel': 'Username or Email',
         'loginModal.usernamePlaceholder': 'Enter username or email',
         'loginModal.passwordLabel': 'Password',
@@ -135,7 +136,7 @@ describe('LoginModal - Simple Tests', () => {
     })
 
     const emailInput = screen.getByLabelText(
-      /username or email/i
+      /username or email/i,
     ) as HTMLInputElement
 
     await act(async () => {

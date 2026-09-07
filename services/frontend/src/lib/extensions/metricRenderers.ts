@@ -39,7 +39,10 @@ export interface MetricDetailProps {
 const cellRenderers: Record<string, MetricCellRenderer> = {}
 const detailRenderers: Record<string, ComponentType<MetricDetailProps>> = {}
 
-export function registerMetricCell(metric: string, renderer: MetricCellRenderer) {
+export function registerMetricCell(
+  metric: string,
+  renderer: MetricCellRenderer,
+) {
   cellRenderers[metric] = renderer
 }
 

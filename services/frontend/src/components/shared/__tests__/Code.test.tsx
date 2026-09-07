@@ -46,7 +46,7 @@ describe('Code Component', () => {
 
     it('applies custom className', () => {
       const { container } = render(
-        <Code className="custom-class">test code</Code>
+        <Code className="custom-class">test code</Code>,
       )
       const codeElement = container.querySelector('code')
       expect(codeElement).toHaveClass('custom-class')
@@ -65,7 +65,7 @@ describe('Code Component', () => {
           {`function test() {
   return true;
 }`}
-        </Code>
+        </Code>,
       )
       const codeElement = container.querySelector('code')
       expect(codeElement).toBeInTheDocument()
@@ -88,7 +88,7 @@ describe('Code Component', () => {
           <Pre>
             <Code>test code</Code>
           </Pre>
-        </CodeGroup>
+        </CodeGroup>,
       )
       expect(screen.getByText('Example Code')).toBeInTheDocument()
     })
@@ -99,7 +99,7 @@ describe('Code Component', () => {
           <Pre>
             <Code>single panel</Code>
           </Pre>
-        </CodeGroup>
+        </CodeGroup>,
       )
       expect(screen.getByText('single panel')).toBeInTheDocument()
     })
@@ -113,7 +113,7 @@ describe('Code Component', () => {
           <Pre language="python" title="Python">
             <Code>print("Python")</Code>
           </Pre>
-        </CodeGroup>
+        </CodeGroup>,
       )
       expect(screen.getByText('JavaScript')).toBeInTheDocument()
       expect(screen.getByText('Python')).toBeInTheDocument()
@@ -129,7 +129,7 @@ describe('Code Component', () => {
           <Pre language="python">
             <Code>print("Python")</Code>
           </Pre>
-        </CodeGroup>
+        </CodeGroup>,
       )
 
       // First tab should be selected by default
@@ -149,7 +149,7 @@ describe('Code Component', () => {
           <Pre>
             <Code>test</Code>
           </Pre>
-        </CodeGroup>
+        </CodeGroup>,
       )
       const codeGroupDiv = container.querySelector('.rounded-2xl')
       expect(codeGroupDiv).toBeInTheDocument()
@@ -168,7 +168,7 @@ describe('Code Component', () => {
           <Pre language="python">
             <Code>x = 1</Code>
           </Pre>
-        </CodeGroup>
+        </CodeGroup>,
       )
       expect(screen.getByText('JavaScript')).toBeInTheDocument()
     })
@@ -182,7 +182,7 @@ describe('Code Component', () => {
           <Pre language="python">
             <Code>x = 1</Code>
           </Pre>
-        </CodeGroup>
+        </CodeGroup>,
       )
       expect(screen.getByText('TypeScript')).toBeInTheDocument()
     })
@@ -196,7 +196,7 @@ describe('Code Component', () => {
           <Pre language="python">
             <Code>x = 1</Code>
           </Pre>
-        </CodeGroup>
+        </CodeGroup>,
       )
       expect(screen.getByText('Python')).toBeInTheDocument()
     })
@@ -210,7 +210,7 @@ describe('Code Component', () => {
           <Pre language="python">
             <Code>x = 1</Code>
           </Pre>
-        </CodeGroup>
+        </CodeGroup>,
       )
       expect(screen.getByText('PHP')).toBeInTheDocument()
     })
@@ -224,7 +224,7 @@ describe('Code Component', () => {
           <Pre language="python">
             <Code>x = 1</Code>
           </Pre>
-        </CodeGroup>
+        </CodeGroup>,
       )
       expect(screen.getByText('Ruby')).toBeInTheDocument()
     })
@@ -238,7 +238,7 @@ describe('Code Component', () => {
           <Pre language="python">
             <Code>x = 1</Code>
           </Pre>
-        </CodeGroup>
+        </CodeGroup>,
       )
       expect(screen.getByText('Go')).toBeInTheDocument()
     })
@@ -252,7 +252,7 @@ describe('Code Component', () => {
           <Pre language="ts">
             <Code>const x: number = 1;</Code>
           </Pre>
-        </CodeGroup>
+        </CodeGroup>,
       )
       expect(screen.getByText('JavaScript')).toBeInTheDocument()
       expect(screen.getByText('TypeScript')).toBeInTheDocument()
@@ -267,7 +267,7 @@ describe('Code Component', () => {
           <Pre language="python">
             <Code>x = 1</Code>
           </Pre>
-        </CodeGroup>
+        </CodeGroup>,
       )
       expect(screen.getByText('Code')).toBeInTheDocument()
     })
@@ -281,7 +281,7 @@ describe('Code Component', () => {
           <Pre language="python">
             <Code>x = 1</Code>
           </Pre>
-        </CodeGroup>
+        </CodeGroup>,
       )
       expect(screen.getByText('Custom Title')).toBeInTheDocument()
       expect(screen.queryByText('JavaScript')).not.toBeInTheDocument()
@@ -295,7 +295,7 @@ describe('Code Component', () => {
           <Pre>
             <Code>test</Code>
           </Pre>
-        </CodeGroup>
+        </CodeGroup>,
       )
       const preElement = container.querySelector('pre')
       expect(preElement).toHaveClass('text-white')
@@ -307,7 +307,7 @@ describe('Code Component', () => {
           <Pre>
             <Code>test</Code>
           </Pre>
-        </CodeGroup>
+        </CodeGroup>,
       )
       const codeGroupDiv = container.querySelector('.bg-zinc-900')
       expect(codeGroupDiv).toBeInTheDocument()
@@ -319,7 +319,7 @@ describe('Code Component', () => {
           <Pre>
             <Code>test</Code>
           </Pre>
-        </CodeGroup>
+        </CodeGroup>,
       )
       const preElement = container.querySelector('pre')
       expect(preElement).toHaveClass('overflow-x-auto')
@@ -331,7 +331,7 @@ describe('Code Component', () => {
           <Pre>
             <Code>test</Code>
           </Pre>
-        </CodeGroup>
+        </CodeGroup>,
       )
       const preElement = container.querySelector('pre')
       expect(preElement).toHaveClass('p-4')
@@ -343,7 +343,7 @@ describe('Code Component', () => {
           <Pre>
             <Code>test</Code>
           </Pre>
-        </CodeGroup>
+        </CodeGroup>,
       )
       const preElement = container.querySelector('pre')
       expect(preElement).toHaveClass('text-xs')
@@ -357,7 +357,7 @@ describe('Code Component', () => {
           <Pre>
             <Code>const x = 1;</Code>
           </Pre>
-        </CodeGroup>
+        </CodeGroup>,
       )
       const copyButton = container.querySelector('button')
       expect(copyButton).toBeInTheDocument()
@@ -370,7 +370,7 @@ describe('Code Component', () => {
           <Pre>
             <Code>test code</Code>
           </Pre>
-        </CodeGroup>
+        </CodeGroup>,
       )
       const copyButton = container.querySelector('button')
       expect(copyButton).toHaveClass('opacity-0')
@@ -384,7 +384,7 @@ describe('Code Component', () => {
           <Pre>
             <Code>const x = 10;</Code>
           </Pre>
-        </CodeGroup>
+        </CodeGroup>,
       )
 
       const copyButton = container.querySelector('button')
@@ -405,7 +405,7 @@ describe('Code Component', () => {
           <Pre>
             <Code>test code</Code>
           </Pre>
-        </CodeGroup>
+        </CodeGroup>,
       )
 
       const copyButton = container.querySelector('button')
@@ -428,7 +428,7 @@ describe('Code Component', () => {
           <Pre>
             <Code>test code</Code>
           </Pre>
-        </CodeGroup>
+        </CodeGroup>,
       )
 
       const copyButton = container.querySelector('button')
@@ -459,7 +459,7 @@ describe('Code Component', () => {
           <Pre>
             <Code>test code</Code>
           </Pre>
-        </CodeGroup>
+        </CodeGroup>,
       )
 
       const copyButton = container.querySelector('button')
@@ -484,7 +484,7 @@ describe('Code Component', () => {
 }`}
             </Code>
           </Pre>
-        </CodeGroup>
+        </CodeGroup>,
       )
 
       const copyButton = container.querySelector('button')
@@ -508,7 +508,7 @@ describe('Code Component', () => {
           <Pre>
             <Code>{longCode}</Code>
           </Pre>
-        </CodeGroup>
+        </CodeGroup>,
       )
       expect(screen.getByText(longCode)).toBeInTheDocument()
     })
@@ -520,7 +520,7 @@ describe('Code Component', () => {
           <Pre>
             <Code>{specialChars}</Code>
           </Pre>
-        </CodeGroup>
+        </CodeGroup>,
       )
       expect(screen.getByText(specialChars)).toBeInTheDocument()
     })
@@ -532,7 +532,7 @@ describe('Code Component', () => {
           <Pre>
             <Code>{unicodeCode}</Code>
           </Pre>
-        </CodeGroup>
+        </CodeGroup>,
       )
       expect(screen.getByText(unicodeCode)).toBeInTheDocument()
     })
@@ -544,7 +544,7 @@ describe('Code Component', () => {
           <Pre>
             <Code>{indentedCode}</Code>
           </Pre>
-        </CodeGroup>
+        </CodeGroup>,
       )
       const codeElement = container.querySelector('code')
       expect(codeElement).toBeInTheDocument()
@@ -557,7 +557,7 @@ describe('Code Component', () => {
           <Pre>
             <Code> </Code>
           </Pre>
-        </CodeGroup>
+        </CodeGroup>,
       )
       const preElement = container.querySelector('pre')
       expect(preElement).toBeInTheDocument()
@@ -570,7 +570,7 @@ describe('Code Component', () => {
           <Pre>
             <Code>{htmlCode}</Code>
           </Pre>
-        </CodeGroup>
+        </CodeGroup>,
       )
       const codeElement = container.querySelector('code')
       expect(codeElement).toBeInTheDocument()
@@ -585,7 +585,7 @@ describe('Code Component', () => {
           <Pre>
             <Code>{regexCode}</Code>
           </Pre>
-        </CodeGroup>
+        </CodeGroup>,
       )
       expect(screen.getByText(regexCode)).toBeInTheDocument()
     })
@@ -597,7 +597,7 @@ describe('Code Component', () => {
           <Pre>
             <Code>{backtickCode}</Code>
           </Pre>
-        </CodeGroup>
+        </CodeGroup>,
       )
       expect(screen.getByText(backtickCode)).toBeInTheDocument()
     })
@@ -610,7 +610,7 @@ describe('Code Component', () => {
           <Pre>
             <Code>test</Code>
           </Pre>
-        </CodeGroup>
+        </CodeGroup>,
       )
       const copyButton = container.querySelector('button')
       expect(copyButton).toHaveAttribute('type', 'button')
@@ -622,7 +622,7 @@ describe('Code Component', () => {
           <Pre>
             <Code>test</Code>
           </Pre>
-        </CodeGroup>
+        </CodeGroup>,
       )
       const icon = container.querySelector('svg')
       expect(icon).toHaveAttribute('aria-hidden', 'true')
@@ -634,7 +634,7 @@ describe('Code Component', () => {
           <Pre>
             <Code>test</Code>
           </Pre>
-        </CodeGroup>
+        </CodeGroup>,
       )
       const copyButton = container.querySelector('button')
       const spans = copyButton?.querySelectorAll('span')
@@ -651,7 +651,7 @@ describe('Code Component', () => {
           <Pre>
             <Code>test</Code>
           </Pre>
-        </CodeGroup>
+        </CodeGroup>,
       )
       const heading = screen.getByRole('heading', { level: 3 })
       expect(heading).toHaveTextContent('Example Code')
@@ -663,7 +663,7 @@ describe('Code Component', () => {
           <Pre>
             <Code>test code</Code>
           </Pre>
-        </CodeGroup>
+        </CodeGroup>,
       )
       const preElement = container.querySelector('pre')
       const codeElement = preElement?.querySelector('code')
@@ -680,7 +680,7 @@ describe('Code Component', () => {
           <Pre language="python">
             <Code>print("Python")</Code>
           </Pre>
-        </CodeGroup>
+        </CodeGroup>,
       )
 
       const jsTab = screen.getByText('JavaScript')
@@ -701,7 +701,7 @@ describe('Code Component', () => {
           <Pre>
             <Code>test</Code>
           </Pre>
-        </CodeGroup>
+        </CodeGroup>,
       )
       const copyButton = container.querySelector('button')
       expect(copyButton).toHaveClass('focus:opacity-100')
@@ -715,7 +715,7 @@ describe('Code Component', () => {
           <Pre tag="GET">
             <Code>test</Code>
           </Pre>
-        </CodeGroup>
+        </CodeGroup>,
       )
       expect(screen.getByText('GET')).toBeInTheDocument()
     })
@@ -726,7 +726,7 @@ describe('Code Component', () => {
           <Pre label="/api/users">
             <Code>test</Code>
           </Pre>
-        </CodeGroup>
+        </CodeGroup>,
       )
       expect(screen.getByText('/api/users')).toBeInTheDocument()
     })
@@ -737,7 +737,7 @@ describe('Code Component', () => {
           <Pre tag="POST" label="/api/users">
             <Code>test</Code>
           </Pre>
-        </CodeGroup>
+        </CodeGroup>,
       )
       expect(screen.getByText('POST')).toBeInTheDocument()
       expect(screen.getByText('/api/users')).toBeInTheDocument()
@@ -753,7 +753,7 @@ describe('Code Component', () => {
           <Pre>
             <Code>test</Code>
           </Pre>
-        </CodeGroup>
+        </CodeGroup>,
       )
       // Header should not exist when there's no tag or label
       const header = container.querySelector('.border-b-white\\/7\\.5')
@@ -774,10 +774,10 @@ describe('Code Component', () => {
                 <div>not a string</div>
               </Code>
             </Pre>
-          </CodeGroup>
+          </CodeGroup>,
         )
       }).toThrow(
-        '`Code` children must be a string when nested inside a `CodeGroup`.'
+        '`Code` children must be a string when nested inside a `CodeGroup`.',
       )
 
       consoleSpy.mockRestore()
@@ -789,7 +789,7 @@ describe('Code Component', () => {
           <Pre>
             <Code>{'<strong>test</strong>'}</Code>
           </Pre>
-        </CodeGroup>
+        </CodeGroup>,
       )
       const codeElement = container.querySelector('code')
       expect(codeElement).toBeInTheDocument()
@@ -806,7 +806,7 @@ describe('Code Component', () => {
           <Pre>
             <Code>test code</Code>
           </Pre>
-        </CodeGroup>
+        </CodeGroup>,
       )
 
       const copyButton = container.querySelector('button')
@@ -838,7 +838,7 @@ describe('Code Component', () => {
           <Pre>
             <Code>test code</Code>
           </Pre>
-        </CodeGroup>
+        </CodeGroup>,
       )
 
       const copyButton = container.querySelector('button')
@@ -855,7 +855,7 @@ describe('Code Component', () => {
           <Pre>
             <Code>nested code</Code>
           </Pre>
-        </CodeGroup>
+        </CodeGroup>,
       )
 
       const copyButton = container.querySelector('button')
@@ -870,7 +870,7 @@ describe('Code Component', () => {
 line2
 line3`}</Code>
           </Pre>
-        </CodeGroup>
+        </CodeGroup>,
       )
 
       const copyButton = container.querySelector('button')
@@ -885,7 +885,7 @@ line3`}</Code>
           <Pre tag="GET">
             <Code>test</Code>
           </Pre>
-        </CodeGroup>
+        </CodeGroup>,
       )
 
       expect(screen.getByText('GET')).toBeInTheDocument()
@@ -897,7 +897,7 @@ line3`}</Code>
           <Pre label="/api/endpoint">
             <Code>test</Code>
           </Pre>
-        </CodeGroup>
+        </CodeGroup>,
       )
 
       expect(screen.getByText('/api/endpoint')).toBeInTheDocument()
@@ -909,7 +909,7 @@ line3`}</Code>
           <Pre tag="POST" label="/api/users">
             <Code>test</Code>
           </Pre>
-        </CodeGroup>
+        </CodeGroup>,
       )
 
       expect(screen.getByText('POST')).toBeInTheDocument()
@@ -924,7 +924,7 @@ line3`}</Code>
           <Pre>
             <Code>test</Code>
           </Pre>
-        </CodeGroup>
+        </CodeGroup>,
       )
 
       const codeGroupDiv = container.querySelector('.rounded-2xl')
@@ -937,13 +937,13 @@ line3`}</Code>
           <Pre>
             <Code>test</Code>
           </Pre>
-        </CodeGroup>
+        </CodeGroup>,
       )
 
       const copyButton = container.querySelector('button')
       expect(copyButton).toHaveClass(
         'dark:bg-white/2.5',
-        'dark:hover:bg-white/5'
+        'dark:hover:bg-white/5',
       )
     })
 
@@ -953,7 +953,7 @@ line3`}</Code>
           <Pre tag="GET">
             <Code>test</Code>
           </Pre>
-        </CodeGroup>
+        </CodeGroup>,
       )
 
       const header = container.querySelector('.border-b-white\\/7\\.5')
@@ -969,13 +969,13 @@ line3`}</Code>
           <Pre language="python">
             <Code>test2</Code>
           </Pre>
-        </CodeGroup>
+        </CodeGroup>,
       )
 
       const groupHeader = container.querySelector('.border-zinc-700')
       expect(groupHeader).toHaveClass(
         'dark:border-zinc-800',
-        'dark:bg-transparent'
+        'dark:bg-transparent',
       )
     })
   })
@@ -992,7 +992,7 @@ line3`}</Code>
           <Pre language="python">
             <Code>py code</Code>
           </Pre>
-        </CodeGroup>
+        </CodeGroup>,
       )
 
       const pythonTab = screen.getByText('Python')
@@ -1008,7 +1008,7 @@ line3`}</Code>
           <Pre language="python">
             <Code>py code 2</Code>
           </Pre>
-        </CodeGroup>
+        </CodeGroup>,
       )
 
       expect(screen.getByText('py code 2')).toBeInTheDocument()
@@ -1027,7 +1027,7 @@ line3`}</Code>
           <Pre language="ruby">
             <Code>ruby</Code>
           </Pre>
-        </CodeGroup>
+        </CodeGroup>,
       )
 
       const rubyTab = screen.getByText('Ruby')
@@ -1046,7 +1046,7 @@ line3`}</Code>
           <Pre language="python">
             <Code>python code</Code>
           </Pre>
-        </CodeGroup>
+        </CodeGroup>,
       )
 
       const pythonTab = screen.getByText('Python')
@@ -1063,7 +1063,7 @@ line3`}</Code>
           <Pre>
             <Code>test</Code>
           </Pre>
-        </CodeGroup>
+        </CodeGroup>,
       )
 
       const header = container.querySelector('.border-zinc-700')
@@ -1076,7 +1076,7 @@ line3`}</Code>
           <Pre>
             <Code>test</Code>
           </Pre>
-        </CodeGroup>
+        </CodeGroup>,
       )
 
       expect(screen.getByText('Example')).toBeInTheDocument()
@@ -1093,7 +1093,7 @@ line3`}</Code>
           <Pre language="python">
             <Code>py</Code>
           </Pre>
-        </CodeGroup>
+        </CodeGroup>,
       )
 
       expect(screen.getByText('Examples')).toBeInTheDocument()
@@ -1111,7 +1111,7 @@ line3`}</Code>
           <Pre language="python">
             <Code>py</Code>
           </Pre>
-        </CodeGroup>
+        </CodeGroup>,
       )
 
       // Check that JavaScript tab exists and is initially selected
@@ -1138,10 +1138,10 @@ line3`}</Code>
             <Pre>
               <Code>{null}</Code>
             </Pre>
-          </CodeGroup>
+          </CodeGroup>,
         )
       }).toThrow(
-        '`CodePanel` requires a `code` prop, or a child with a `code` prop.'
+        '`CodePanel` requires a `code` prop, or a child with a `code` prop.',
       )
 
       consoleSpy.mockRestore()
@@ -1153,7 +1153,7 @@ line3`}</Code>
       const { container } = render(
         <Pre title="Test">
           <Code>test content</Code>
-        </Pre>
+        </Pre>,
       )
 
       expect(container.textContent).toContain('test content')
@@ -1163,7 +1163,7 @@ line3`}</Code>
       render(
         <Pre title="Test Title">
           <Code>test</Code>
-        </Pre>
+        </Pre>,
       )
 
       expect(screen.getByText('Test Title')).toBeInTheDocument()
@@ -1177,7 +1177,7 @@ line3`}</Code>
           <Pre>
             <Code>test</Code>
           </Pre>
-        </CodeGroup>
+        </CodeGroup>,
       )
 
       const title = screen.getByText('Test Title')
@@ -1193,7 +1193,7 @@ line3`}</Code>
           <Pre language="python">
             <Code>py</Code>
           </Pre>
-        </CodeGroup>
+        </CodeGroup>,
       )
 
       const tabList = container.querySelector('[role="tablist"]')
@@ -1208,7 +1208,7 @@ line3`}</Code>
           <Pre>
             <Code>test</Code>
           </Pre>
-        </CodeGroup>
+        </CodeGroup>,
       )
 
       const copyButton = container.querySelector('button')
@@ -1221,7 +1221,7 @@ line3`}</Code>
           <Pre>
             <Code>test</Code>
           </Pre>
-        </CodeGroup>
+        </CodeGroup>,
       )
 
       const copyButton = container.querySelector('button')
@@ -1236,7 +1236,7 @@ line3`}</Code>
       const { container } = render(
         <CodeGroup title="Test">
           <Pre>{codeElement}</Pre>
-        </CodeGroup>
+        </CodeGroup>,
       )
 
       const copyButton = container.querySelector('button')

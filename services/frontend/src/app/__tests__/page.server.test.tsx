@@ -9,7 +9,8 @@ jest.mock('@/styles/tailwind.css', () => ({}))
 let mockHost = ''
 jest.mock('next/headers', () => ({
   headers: jest.fn(async () => ({
-    get: (key: string) => (key === 'x-forwarded-host' ? mockHost || null : null),
+    get: (key: string) =>
+      key === 'x-forwarded-host' ? mockHost || null : null,
   })),
 }))
 

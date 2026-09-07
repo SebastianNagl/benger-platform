@@ -9,8 +9,8 @@ jest.unmock('@/contexts/AuthContext')
 import { ApiClient, Organization, User } from '@/lib/api'
 import { devAuthHelper } from '@/lib/auth/devAuthHelper'
 import { OrganizationManager } from '@/lib/auth/organizationManager'
-import { sessionManager } from '@/lib/auth/sessionManager'
 import { redirectToLoginAsExpired } from '@/lib/auth/sessionExpired'
+import { sessionManager } from '@/lib/auth/sessionManager'
 import { authRedirect } from '@/utils/authRedirect'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { useRouter } from 'next/navigation'
@@ -79,9 +79,21 @@ jest.mock('@/utils/authRedirect', () => ({
   authRedirect: {
     toLogin: jest.fn(),
     isPublicRoute: jest.fn((path: string) => {
-      const routes = ['/', '/login', '/register', '/reset-password', '/verify-email', '/accept-invitation', '/about/imprint', '/about/data-protection']
+      const routes = [
+        '/',
+        '/login',
+        '/register',
+        '/reset-password',
+        '/verify-email',
+        '/accept-invitation',
+        '/about/imprint',
+        '/about/data-protection',
+      ]
       if (path === '/') return true
-      return routes.some((r: string) => r !== '/' && path.startsWith(r)) || path.startsWith('/about')
+      return (
+        routes.some((r: string) => r !== '/' && path.startsWith(r)) ||
+        path.startsWith('/about')
+      )
     }),
   },
   publicRoutes: [
@@ -238,7 +250,7 @@ describe('AuthContext', () => {
         // Auth is ready when loading is false
         expect(result.current.isLoading).toBe(false)
       },
-      { timeout: 2000 }
+      { timeout: 2000 },
     )
   }
 
@@ -329,7 +341,7 @@ describe('AuthContext', () => {
         () => {
           expect(mockApiClient.getUser).toHaveBeenCalled()
         },
-        { timeout: 5000 }
+        { timeout: 5000 },
       )
 
       await waitFor(() => {
@@ -354,7 +366,6 @@ describe('AuthContext', () => {
       expect(result.current.isLoading).toBe(true)
       expect(mockApiClient.getUser).not.toHaveBeenCalled()
     })
-
   })
 
   describe('login function', () => {
@@ -377,7 +388,7 @@ describe('AuthContext', () => {
 
       expect(mockApiClient.login).toHaveBeenCalledWith(
         'testuser',
-        'password123'
+        'password123',
       )
       expect(sessionManager.setLoginInProgress).toHaveBeenCalledWith(true)
       expect(sessionManager.setLoginInProgress).toHaveBeenCalledWith(false)
@@ -401,7 +412,7 @@ describe('AuthContext', () => {
       ;(sessionManager.setLoginInProgress as jest.Mock).mockImplementation(
         (inProgress: boolean) => {
           loginInProgressCalls.push(inProgress)
-        }
+        },
       )
 
       await act(async () => {
@@ -434,7 +445,7 @@ describe('AuthContext', () => {
 
     it('redirects to email verification on 403 error', async () => {
       mockApiClient.login.mockRejectedValue(
-        new Error('Email verification required')
+        new Error('Email verification required'),
       )
 
       const wrapper = ({ children }: { children: React.ReactNode }) => (
@@ -453,7 +464,7 @@ describe('AuthContext', () => {
       })
 
       expect(mockRouter.push).toHaveBeenCalledWith(
-        expect.stringContaining('/verify-email')
+        expect.stringContaining('/verify-email'),
       )
     })
 
@@ -474,7 +485,7 @@ describe('AuthContext', () => {
       await expect(
         act(async () => {
           await result.current.login('testuser', 'wrongpassword')
-        })
+        }),
       ).rejects.toThrow('Invalid credentials')
     })
 
@@ -495,7 +506,7 @@ describe('AuthContext', () => {
       await expect(
         act(async () => {
           await result.current.login('testuser', 'password')
-        })
+        }),
       ).rejects.toThrow()
 
       expect(sessionManager.setLoginInProgress).toHaveBeenLastCalledWith(false)
@@ -574,7 +585,7 @@ describe('AuthContext', () => {
           'newuser',
           'new@example.com',
           'New User',
-          'password123'
+          'password123',
         )
       })
 
@@ -584,10 +595,10 @@ describe('AuthContext', () => {
         'New User',
         'password123',
         undefined,
-        undefined
+        undefined,
       )
       expect(mockRouter.push).toHaveBeenCalledWith(
-        expect.stringContaining('/verify-email')
+        expect.stringContaining('/verify-email'),
       )
     })
 
@@ -628,7 +639,7 @@ describe('AuthContext', () => {
           'New User',
           'password123',
           undefined,
-          'invitation-token-123'
+          'invitation-token-123',
         )
       })
 
@@ -638,7 +649,7 @@ describe('AuthContext', () => {
         'New User',
         'password123',
         undefined,
-        'invitation-token-123'
+        'invitation-token-123',
       )
       // Should redirect to org subdomain, not just /dashboard
       expect(getOrgUrl).toHaveBeenCalledWith('test-org', '/dashboard')
@@ -664,9 +675,9 @@ describe('AuthContext', () => {
             'newuser',
             'existing@example.com',
             'New User',
-            'password123'
+            'password123',
           )
-        })
+        }),
       ).rejects.toThrow('Email already exists')
     })
   })
@@ -912,7 +923,7 @@ describe('AuthContext', () => {
 
       expect(global.fetch).not.toHaveBeenCalledWith(
         '/api/auth/refresh',
-        expect.any(Object)
+        expect.any(Object),
       )
 
       // Fast-forward 25 minutes and let interval fire
@@ -1108,7 +1119,7 @@ describe('AuthContext', () => {
       expect(sessionManager.handleUserSwitch).toHaveBeenCalledWith(
         mockApiClient,
         String(mockUser.id),
-        '999'
+        '999',
       )
     })
 
@@ -1356,7 +1367,7 @@ describe('AuthContext', () => {
       })
 
       expect(orgManagerInstance.setCurrentOrganization).toHaveBeenCalledWith(
-        newOrg
+        newOrg,
       )
     })
   })
@@ -1420,7 +1431,7 @@ describe('AuthContext', () => {
       await expect(
         act(async () => {
           await result.current.login('testuser', 'password')
-        })
+        }),
       ).rejects.toThrow('Login failed')
 
       expect(sessionManager.prepareForLogin).toHaveBeenCalledWith(mockApiClient)
@@ -1532,7 +1543,7 @@ describe('AuthContext', () => {
         expect(sessionManager.handleUserSwitch).toHaveBeenCalledWith(
           mockApiClient,
           String(mockUser.id),
-          '999'
+          '999',
         )
       })
     })
@@ -1661,7 +1672,7 @@ describe('AuthContext', () => {
       })
 
       expect(mockRouter.push).toHaveBeenCalledWith(
-        expect.stringContaining('/verify-email')
+        expect.stringContaining('/verify-email'),
       )
     })
   })
@@ -1707,7 +1718,11 @@ describe('AuthContext', () => {
 
   describe('org redirect on login', () => {
     it('redirects returning user to last org on login from private mode', async () => {
-      const { parseSubdomain, getOrgUrl, getLastOrgSlug } = require('@/lib/utils/subdomain')
+      const {
+        parseSubdomain,
+        getOrgUrl,
+        getLastOrgSlug,
+      } = require('@/lib/utils/subdomain')
 
       // Simulate private mode (no org subdomain)
       parseSubdomain.mockReturnValue({ orgSlug: null, isPrivateMode: true })
@@ -1733,7 +1748,11 @@ describe('AuthContext', () => {
     })
 
     it('does not redirect first-time user without last org', async () => {
-      const { parseSubdomain, getOrgUrl, getLastOrgSlug } = require('@/lib/utils/subdomain')
+      const {
+        parseSubdomain,
+        getOrgUrl,
+        getLastOrgSlug,
+      } = require('@/lib/utils/subdomain')
 
       // Simulate private mode
       parseSubdomain.mockReturnValue({ orgSlug: null, isPrivateMode: true })
@@ -1758,10 +1777,16 @@ describe('AuthContext', () => {
     })
 
     it('persists org slug cookie when on org subdomain', async () => {
-      const { parseSubdomain, setLastOrgSlug } = require('@/lib/utils/subdomain')
+      const {
+        parseSubdomain,
+        setLastOrgSlug,
+      } = require('@/lib/utils/subdomain')
 
       // Simulate being on org subdomain
-      parseSubdomain.mockReturnValue({ orgSlug: 'test-org', isPrivateMode: false })
+      parseSubdomain.mockReturnValue({
+        orgSlug: 'test-org',
+        isPrivateMode: false,
+      })
 
       const wrapper = ({ children }: { children: React.ReactNode }) => (
         <AuthProvider>{children}</AuthProvider>
@@ -1776,7 +1801,12 @@ describe('AuthContext', () => {
     })
 
     it('clears last org slug when user no longer has access', async () => {
-      const { parseSubdomain, getOrgUrl, getLastOrgSlug, clearLastOrgSlug } = require('@/lib/utils/subdomain')
+      const {
+        parseSubdomain,
+        getOrgUrl,
+        getLastOrgSlug,
+        clearLastOrgSlug,
+      } = require('@/lib/utils/subdomain')
 
       // Simulate private mode with a stored org that user no longer belongs to
       parseSubdomain.mockReturnValue({ orgSlug: null, isPrivateMode: true })
@@ -2012,7 +2042,7 @@ describe('AuthContext', () => {
         expect(sessionManager.handleUserSwitch).toHaveBeenCalledWith(
           mockApiClient,
           String(mockUser.id),
-          '999'
+          '999',
         )
       })
     })
@@ -2049,7 +2079,7 @@ describe('AuthContext', () => {
   describe('login email verification edge cases', () => {
     it('handles email verification error with specific message', async () => {
       mockApiClient.login.mockRejectedValue(
-        new Error('Email verification required')
+        new Error('Email verification required'),
       )
 
       const wrapper = ({ children }: { children: React.ReactNode }) => (
@@ -2068,7 +2098,7 @@ describe('AuthContext', () => {
       })
 
       expect(mockRouter.push).toHaveBeenCalledWith(
-        expect.stringContaining('/verify-email')
+        expect.stringContaining('/verify-email'),
       )
     })
 
@@ -2091,7 +2121,7 @@ describe('AuthContext', () => {
       })
 
       expect(mockRouter.push).toHaveBeenCalledWith(
-        expect.stringContaining('/verify-email')
+        expect.stringContaining('/verify-email'),
       )
     })
 
@@ -2156,7 +2186,7 @@ describe('AuthContext', () => {
 
       // In private mode, org is set to null
       expect(orgManagerInstance.setCurrentOrganization).toHaveBeenCalledWith(
-        null
+        null,
       )
     })
 
@@ -2348,7 +2378,7 @@ describe('AuthContext', () => {
 
     it('handles organizations fetch failure during login', async () => {
       mockApiClient.getOrganizations.mockRejectedValue(
-        new Error('Org fetch failed')
+        new Error('Org fetch failed'),
       )
 
       const wrapper = ({ children }: { children: React.ReactNode }) => (

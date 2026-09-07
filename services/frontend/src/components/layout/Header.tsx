@@ -8,7 +8,6 @@ import Link from 'next/link'
 import { forwardRef } from 'react'
 
 import { AuthButton } from '@/components/auth/AuthButton'
-import { useI18n } from '@/contexts/I18nContext'
 import { LanguageSwitcher } from '@/components/layout/LanguageSwitcher'
 import { Logo } from '@/components/layout/Logo'
 import {
@@ -19,6 +18,7 @@ import {
 import { NotificationBell } from '@/components/layout/NotificationBell'
 import { ThemeToggle } from '@/components/layout/ThemeToggle'
 import { MobileSearch, Search } from '@/components/shared/Search'
+import { useI18n } from '@/contexts/I18nContext'
 import { CloseButton } from '@headlessui/react'
 
 // Hamburger menu button component
@@ -36,7 +36,9 @@ function HamburgerMenu() {
       type="button"
       onClick={toggleSidebar}
       className="flex h-8 w-8 items-center justify-center rounded-md text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-white"
-      aria-label={showSidebar ? t('header.hideSidebar') : t('header.showSidebar')}
+      aria-label={
+        showSidebar ? t('header.hideSidebar') : t('header.showSidebar')
+      }
     >
       <svg
         className="h-4 w-4"
@@ -79,11 +81,11 @@ export const Header = forwardRef<
         // Mobile: items start from left, Desktop: space between items
         'justify-start lg:justify-between',
         // Full width header
-        'left-0 right-0 pl-1 pr-4 lg:pl-8',
+        'right-0 left-0 pr-4 pl-1 lg:pl-8',
         // Opaque background (no transparency)
         'bg-white dark:bg-zinc-900',
         // Bottom border matching sidebar style
-        'border-b border-zinc-900/10 dark:border-white/10'
+        'border-b border-zinc-900/10 dark:border-white/10',
       )}
     >
       <div className="hidden items-center gap-3 lg:flex lg:max-w-xl lg:flex-1">

@@ -60,9 +60,7 @@ describe('ConfusionMatrixChart', () => {
     })
 
     it('renders with custom title', () => {
-      render(
-        <ConfusionMatrixChart data={sampleData} title="Custom Title" />
-      )
+      render(<ConfusionMatrixChart data={sampleData} title="Custom Title" />)
       expect(screen.getByTestId('plotly-chart')).toBeInTheDocument()
     })
   })
@@ -70,9 +68,7 @@ describe('ConfusionMatrixChart', () => {
   describe('Classification metrics summary', () => {
     it('renders classification metrics section', () => {
       render(<ConfusionMatrixChart data={sampleData} />)
-      expect(
-        screen.getByText('Classification Metrics')
-      ).toBeInTheDocument()
+      expect(screen.getByText('Classification Metrics')).toBeInTheDocument()
     })
 
     it('renders overall accuracy', () => {

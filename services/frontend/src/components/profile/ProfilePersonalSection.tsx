@@ -39,7 +39,7 @@ export function ProfilePersonalSection({
               disabled
               autoComplete="username"
               title={t('profile.usernameNote')}
-              className="w-full cursor-not-allowed rounded-full bg-zinc-100 px-4 py-2 text-sm text-zinc-500 ring-1 ring-zinc-900/5 dark:bg-white/5 dark:text-zinc-400 dark:ring-inset dark:ring-white/5"
+              className="w-full cursor-not-allowed rounded-full bg-zinc-100 px-4 py-2 text-sm text-zinc-500 ring-1 ring-zinc-900/5 dark:bg-white/5 dark:text-zinc-400 dark:ring-white/5 dark:ring-inset"
             />
           </div>
           <div>
@@ -61,7 +61,7 @@ export function ProfilePersonalSection({
               disabled
               autoComplete="organization-title"
               title={t('profile.roleNote')}
-              className="w-full cursor-not-allowed rounded-full bg-zinc-100 px-4 py-2 text-sm text-zinc-500 ring-1 ring-zinc-900/5 dark:bg-white/5 dark:text-zinc-400 dark:ring-inset dark:ring-white/5"
+              className="w-full cursor-not-allowed rounded-full bg-zinc-100 px-4 py-2 text-sm text-zinc-500 ring-1 ring-zinc-900/5 dark:bg-white/5 dark:text-zinc-400 dark:ring-white/5 dark:ring-inset"
             />
           </div>
         </div>
@@ -85,7 +85,7 @@ export function ProfilePersonalSection({
               })
             }
             autoComplete="name"
-            className="w-full rounded-full bg-white px-4 py-2 text-sm text-zinc-900 ring-1 ring-zinc-900/10 transition placeholder:text-zinc-500 hover:ring-zinc-900/20 focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:bg-white/5 dark:text-white dark:ring-inset dark:ring-white/10 dark:placeholder:text-zinc-400 dark:hover:ring-white/20 dark:focus:ring-emerald-400"
+            className="w-full rounded-full bg-white px-4 py-2 text-sm text-zinc-900 ring-1 ring-zinc-900/10 transition placeholder:text-zinc-500 hover:ring-zinc-900/20 focus:ring-2 focus:ring-emerald-500 focus:outline-none dark:bg-white/5 dark:text-white dark:ring-white/10 dark:ring-inset dark:placeholder:text-zinc-400 dark:hover:ring-white/20 dark:focus:ring-emerald-400"
             required
           />
         </div>
@@ -109,7 +109,7 @@ export function ProfilePersonalSection({
               })
             }
             autoComplete="email"
-            className="w-full rounded-full bg-white px-4 py-2 text-sm text-zinc-900 ring-1 ring-zinc-900/10 transition placeholder:text-zinc-500 hover:ring-zinc-900/20 focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:bg-white/5 dark:text-white dark:ring-inset dark:ring-white/10 dark:placeholder:text-zinc-400 dark:hover:ring-white/20 dark:focus:ring-emerald-400"
+            className="w-full rounded-full bg-white px-4 py-2 text-sm text-zinc-900 ring-1 ring-zinc-900/10 transition placeholder:text-zinc-500 hover:ring-zinc-900/20 focus:ring-2 focus:ring-emerald-500 focus:outline-none dark:bg-white/5 dark:text-white dark:ring-white/10 dark:ring-inset dark:placeholder:text-zinc-400 dark:hover:ring-white/20 dark:focus:ring-emerald-400"
             required
           />
         </div>

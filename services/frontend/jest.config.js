@@ -21,7 +21,8 @@ const config = {
         '!<rootDir>/src/app/api/**', // Exclude API routes from client project
       ],
       moduleNameMapper: {
-        '^@/components/shared/Select$': '<rootDir>/src/components/shared/__mocks__/Select.tsx',
+        '^@/components/shared/Select$':
+          '<rootDir>/src/components/shared/__mocks__/Select.tsx',
         '^@/(.*)$': '<rootDir>/src/$1',
         '^@/components/(.*)$': '<rootDir>/src/components/$1',
         '^@/lib/(.*)$': '<rootDir>/src/lib/$1',

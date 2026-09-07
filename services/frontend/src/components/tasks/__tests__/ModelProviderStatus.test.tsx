@@ -5,7 +5,10 @@ import { ModelProviderStatus } from '../ModelProviderStatus'
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
     t: (key: string, varsOrDefault?: any) => {
-      const translations: Record<string, any> = require('../../../locales/en/common.json')
+      const translations: Record<
+        string,
+        any
+      > = require('../../../locales/en/common.json')
       const parts = key.split('.')
       let value: any = translations
       for (const part of parts) {
@@ -57,13 +60,13 @@ describe('ModelProviderStatus', () => {
       render(<ModelProviderStatus {...defaultProps} />)
 
       expect(
-        screen.getByText('Configure OpenAI API key to access models')
+        screen.getByText('Configure OpenAI API key to access models'),
       ).toBeInTheDocument()
     })
 
     it('applies custom className when provided', () => {
       const { container } = render(
-        <ModelProviderStatus {...defaultProps} className="custom-class" />
+        <ModelProviderStatus {...defaultProps} className="custom-class" />,
       )
 
       const statusContainer = container.querySelector('.custom-class')
@@ -92,7 +95,7 @@ describe('ModelProviderStatus', () => {
       expect(successContainer).toHaveClass(
         'border-emerald-200',
         'dark:bg-emerald-950/50',
-        'dark:border-emerald-800'
+        'dark:border-emerald-800',
       )
     })
 
@@ -100,7 +103,7 @@ describe('ModelProviderStatus', () => {
       const { container } = render(<ModelProviderStatus {...configuredProps} />)
 
       const statusDot = container.querySelector(
-        '.h-2.w-2.bg-emerald-500.rounded-full'
+        '.h-2.w-2.bg-emerald-500.rounded-full',
       )
       expect(statusDot).toBeInTheDocument()
     })
@@ -112,7 +115,7 @@ describe('ModelProviderStatus', () => {
       expect(providerName).toHaveClass(
         'text-emerald-700',
         'dark:text-emerald-400',
-        'font-medium'
+        'font-medium',
       )
     })
 
@@ -138,7 +141,7 @@ describe('ModelProviderStatus', () => {
       const { container } = render(<ModelProviderStatus {...configuredProps} />)
 
       const flexContainer = container.querySelector(
-        '.flex.items-center.space-x-2'
+        '.flex.items-center.space-x-2',
       )
       expect(flexContainer).toBeInTheDocument()
     })
@@ -150,7 +153,7 @@ describe('ModelProviderStatus', () => {
       expect(modelCount).toHaveClass(
         'text-xs',
         'text-emerald-600',
-        'dark:text-emerald-500'
+        'dark:text-emerald-500',
       )
     })
 
@@ -170,7 +173,7 @@ describe('ModelProviderStatus', () => {
       expect(warningContainer).toHaveClass(
         'border-amber-200',
         'dark:bg-amber-950/50',
-        'dark:border-amber-800'
+        'dark:border-amber-800',
       )
     })
 
@@ -193,7 +196,7 @@ describe('ModelProviderStatus', () => {
       render(<ModelProviderStatus {...defaultProps} />)
 
       expect(
-        screen.getByText('Configure OpenAI API key to access models')
+        screen.getByText('Configure OpenAI API key to access models'),
       ).toBeInTheDocument()
     })
 
@@ -201,12 +204,12 @@ describe('ModelProviderStatus', () => {
       render(<ModelProviderStatus {...defaultProps} />)
 
       const message = screen.getByText(
-        'Configure OpenAI API key to access models'
+        'Configure OpenAI API key to access models',
       )
       expect(message).toHaveClass(
         'text-sm',
         'text-amber-700',
-        'dark:text-amber-400'
+        'dark:text-amber-400',
       )
     })
 
@@ -235,7 +238,7 @@ describe('ModelProviderStatus', () => {
         'hover:text-amber-800',
         'dark:hover:text-amber-300',
         'font-medium',
-        'transition-colors'
+        'transition-colors',
       )
     })
 
@@ -243,7 +246,7 @@ describe('ModelProviderStatus', () => {
       const { container } = render(<ModelProviderStatus {...defaultProps} />)
 
       const flexContainer = container.querySelector(
-        '.flex.items-center.justify-between'
+        '.flex.items-center.justify-between',
       )
       expect(flexContainer).toBeInTheDocument()
     })
@@ -252,7 +255,7 @@ describe('ModelProviderStatus', () => {
       const { container } = render(<ModelProviderStatus {...defaultProps} />)
 
       const iconMessageGroup = container.querySelector(
-        '.flex.items-center.space-x-2'
+        '.flex.items-center.space-x-2',
       )
       expect(iconMessageGroup).toBeInTheDocument()
     })
@@ -263,7 +266,7 @@ describe('ModelProviderStatus', () => {
       render(<ModelProviderStatus {...defaultProps} provider="Anthropic" />)
 
       expect(
-        screen.getByText('Configure Anthropic API key to access models')
+        screen.getByText('Configure Anthropic API key to access models'),
       ).toBeInTheDocument()
     })
 
@@ -273,7 +276,7 @@ describe('ModelProviderStatus', () => {
           {...defaultProps}
           provider="Google"
           hasApiKey={true}
-        />
+        />,
       )
 
       expect(screen.getByText('Google')).toBeInTheDocument()
@@ -281,13 +284,13 @@ describe('ModelProviderStatus', () => {
 
     it('handles custom provider names', () => {
       render(
-        <ModelProviderStatus {...defaultProps} provider="Custom LLM Service" />
+        <ModelProviderStatus {...defaultProps} provider="Custom LLM Service" />,
       )
 
       expect(
         screen.getByText(
-          'Configure Custom LLM Service API key to access models'
-        )
+          'Configure Custom LLM Service API key to access models',
+        ),
       ).toBeInTheDocument()
     })
 
@@ -295,7 +298,7 @@ describe('ModelProviderStatus', () => {
       render(<ModelProviderStatus {...defaultProps} provider="" />)
 
       expect(
-        screen.getByText(/Configure.*API key to access models/)
+        screen.getByText(/Configure.*API key to access models/),
       ).toBeInTheDocument()
     })
   })
@@ -307,7 +310,7 @@ describe('ModelProviderStatus', () => {
           {...defaultProps}
           hasApiKey={true}
           modelCount={100}
-        />
+        />,
       )
 
       expect(screen.getByText('100 models available')).toBeInTheDocument()
@@ -319,7 +322,7 @@ describe('ModelProviderStatus', () => {
           {...defaultProps}
           hasApiKey={true}
           modelCount={1}
-        />
+        />,
       )
 
       expect(screen.getByText('1 model available')).toBeInTheDocument()
@@ -332,7 +335,7 @@ describe('ModelProviderStatus', () => {
           {...defaultProps}
           hasApiKey={true}
           modelCount={2}
-        />
+        />,
       )
 
       expect(screen.getByText('2 models available')).toBeInTheDocument()
@@ -344,7 +347,7 @@ describe('ModelProviderStatus', () => {
           {...defaultProps}
           hasApiKey={true}
           modelCount={-1}
-        />
+        />,
       )
 
       expect(screen.getByText('-1 models available')).toBeInTheDocument()
@@ -354,11 +357,11 @@ describe('ModelProviderStatus', () => {
   describe('dark mode support', () => {
     it('includes dark mode classes for configured state', () => {
       const { container } = render(
-        <ModelProviderStatus {...defaultProps} hasApiKey={true} />
+        <ModelProviderStatus {...defaultProps} hasApiKey={true} />,
       )
 
       const successContainer = container.querySelector(
-        '.dark\\:bg-emerald-950\\/50'
+        '.dark\\:bg-emerald-950\\/50',
       )
       expect(successContainer).toBeInTheDocument()
       expect(successContainer).toHaveClass('dark:border-emerald-800')
@@ -368,7 +371,7 @@ describe('ModelProviderStatus', () => {
       const { container } = render(<ModelProviderStatus {...defaultProps} />)
 
       const warningContainer = container.querySelector(
-        '.dark\\:bg-amber-950\\/50'
+        '.dark\\:bg-amber-950\\/50',
       )
       expect(warningContainer).toBeInTheDocument()
       expect(warningContainer).toHaveClass('dark:border-amber-800')
@@ -388,14 +391,14 @@ describe('ModelProviderStatus', () => {
       render(<ModelProviderStatus {...defaultProps} />)
 
       const message = screen.getByText(
-        'Configure OpenAI API key to access models'
+        'Configure OpenAI API key to access models',
       )
       expect(message).toHaveClass('dark:text-amber-400')
 
       const link = screen.getByText('Configure →')
       expect(link).toHaveClass(
         'dark:text-amber-400',
-        'dark:hover:text-amber-300'
+        'dark:hover:text-amber-300',
       )
     })
 
@@ -420,7 +423,7 @@ describe('ModelProviderStatus', () => {
       render(<ModelProviderStatus {...defaultProps} />)
 
       const message = screen.getByText(
-        'Configure OpenAI API key to access models'
+        'Configure OpenAI API key to access models',
       )
       expect(message).toBeInTheDocument()
     })
@@ -450,7 +453,7 @@ describe('ModelProviderStatus', () => {
       const { container } = render(<ModelProviderStatus {...defaultProps} />)
 
       const flexContainer = container.querySelector(
-        '.flex.items-center.justify-between'
+        '.flex.items-center.justify-between',
       )
       expect(flexContainer).toBeInTheDocument()
     })
@@ -459,14 +462,14 @@ describe('ModelProviderStatus', () => {
       render(<ModelProviderStatus {...defaultProps} />)
 
       const message = screen.getByText(
-        'Configure OpenAI API key to access models'
+        'Configure OpenAI API key to access models',
       )
       expect(message).toHaveClass('text-sm')
     })
 
     it('maintains consistent spacing', () => {
       const { container } = render(
-        <ModelProviderStatus {...defaultProps} hasApiKey={true} />
+        <ModelProviderStatus {...defaultProps} hasApiKey={true} />,
       )
 
       const spacedContainer = container.querySelector('.space-x-2')
@@ -480,7 +483,7 @@ describe('ModelProviderStatus', () => {
         <div className="space-y-4">
           <ModelProviderStatus {...defaultProps} />
           <ModelProviderStatus {...defaultProps} hasApiKey={true} />
-        </div>
+        </div>,
       )
 
       const statusComponents = container.querySelectorAll('.rounded-md.p-3')
@@ -489,7 +492,7 @@ describe('ModelProviderStatus', () => {
 
     it('handles custom className composition', () => {
       const { container } = render(
-        <ModelProviderStatus {...defaultProps} className="mb-4 shadow-sm" />
+        <ModelProviderStatus {...defaultProps} className="mb-4 shadow-sm" />,
       )
 
       const statusContainer = container.querySelector('.mb-4.shadow-sm')
@@ -504,23 +507,25 @@ describe('ModelProviderStatus', () => {
       render(<ModelProviderStatus {...defaultProps} provider={longProvider} />)
 
       expect(
-        screen.getByText(`Configure ${longProvider} API key to access models`)
+        screen.getByText(`Configure ${longProvider} API key to access models`),
       ).toBeInTheDocument()
     })
 
     it('handles special characters in provider name', () => {
       render(
-        <ModelProviderStatus {...defaultProps} provider="Provider-Name_123" />
+        <ModelProviderStatus {...defaultProps} provider="Provider-Name_123" />,
       )
 
       expect(
-        screen.getByText('Configure Provider-Name_123 API key to access models')
+        screen.getByText(
+          'Configure Provider-Name_123 API key to access models',
+        ),
       ).toBeInTheDocument()
     })
 
     it('maintains consistent styling regardless of content length', () => {
       const { container } = render(
-        <ModelProviderStatus {...defaultProps} provider="AI" />
+        <ModelProviderStatus {...defaultProps} provider="AI" />,
       )
 
       const statusContainer = container.querySelector('.rounded-md.p-3')
@@ -529,18 +534,18 @@ describe('ModelProviderStatus', () => {
 
     it('handles state transitions gracefully', () => {
       const { rerender } = render(
-        <ModelProviderStatus {...defaultProps} hasApiKey={false} />
+        <ModelProviderStatus {...defaultProps} hasApiKey={false} />,
       )
 
       expect(
-        screen.getByText('Configure OpenAI API key to access models')
+        screen.getByText('Configure OpenAI API key to access models'),
       ).toBeInTheDocument()
 
       rerender(<ModelProviderStatus {...defaultProps} hasApiKey={true} />)
 
       expect(screen.getByText('5 models available')).toBeInTheDocument()
       expect(
-        screen.queryByText('Configure OpenAI API key to access models')
+        screen.queryByText('Configure OpenAI API key to access models'),
       ).not.toBeInTheDocument()
     })
   })

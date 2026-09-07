@@ -75,19 +75,33 @@ export function ResultsTabs({
         ) : annotationData && annotationData.length > 0 ? (
           <div className="space-y-6">
             {annotationData.map((annotation, annIndex) => (
-              <div key={annotation.id} className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-700">
+              <div
+                key={annotation.id}
+                className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-700"
+              >
                 {/* Annotation Header */}
                 <div className="mb-4 flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                      annotation.ground_truth
-                        ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-400'
-                        : 'bg-zinc-100 text-zinc-800 dark:bg-zinc-800 dark:text-zinc-300'
-                    }`}>
-                      {annotation.ground_truth ? t('evaluation.multiFieldResults.groundTruth', 'Ground Truth') : t('evaluation.multiFieldResults.annotation', 'Annotation')}
+                    <span
+                      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                        annotation.ground_truth
+                          ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-400'
+                          : 'bg-zinc-100 text-zinc-800 dark:bg-zinc-800 dark:text-zinc-300'
+                      }`}
+                    >
+                      {annotation.ground_truth
+                        ? t(
+                            'evaluation.multiFieldResults.groundTruth',
+                            'Ground Truth',
+                          )
+                        : t(
+                            'evaluation.multiFieldResults.annotation',
+                            'Annotation',
+                          )}
                     </span>
                     <span className="text-sm text-zinc-600 dark:text-zinc-400">
-                      {t('evaluation.multiFieldResults.annotator', 'Annotator')}: {annotation.completed_by}
+                      {t('evaluation.multiFieldResults.annotator', 'Annotator')}
+                      : {annotation.completed_by}
                     </span>
                   </div>
                   <span className="text-xs text-zinc-500 dark:text-zinc-400">
@@ -99,7 +113,10 @@ export function ResultsTabs({
                 {annotation.result && annotation.result.length > 0 ? (
                   <div className="space-y-3">
                     {annotation.result.map((res, resIndex) => (
-                      <div key={resIndex} className="rounded-lg bg-zinc-50 p-3 dark:bg-zinc-800">
+                      <div
+                        key={resIndex}
+                        className="rounded-lg bg-zinc-50 p-3 dark:bg-zinc-800"
+                      >
                         <div className="mb-1 flex items-center gap-2">
                           <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
                             {res.from_name}
@@ -112,7 +129,7 @@ export function ResultsTabs({
                           {typeof res.value === 'string' ? (
                             <p className="whitespace-pre-wrap">{res.value}</p>
                           ) : (
-                            <pre className="whitespace-pre-wrap text-xs">
+                            <pre className="text-xs whitespace-pre-wrap">
                               {JSON.stringify(res.value, null, 2)}
                             </pre>
                           )}
@@ -122,7 +139,10 @@ export function ResultsTabs({
                   </div>
                 ) : (
                   <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                    {t('evaluation.multiFieldResults.noAnnotationResults', 'No annotation results')}
+                    {t(
+                      'evaluation.multiFieldResults.noAnnotationResults',
+                      'No annotation results',
+                    )}
                   </p>
                 )}
 
@@ -130,7 +150,9 @@ export function ResultsTabs({
                 <div className="mt-4 grid grid-cols-2 gap-4 text-sm">
                   {annotation.lead_time != null && (
                     <div className="rounded-lg bg-zinc-50 p-3 dark:bg-zinc-800">
-                      <span className="text-zinc-500 dark:text-zinc-400">{t('evaluation.multiFieldResults.duration')}:</span>
+                      <span className="text-zinc-500 dark:text-zinc-400">
+                        {t('evaluation.multiFieldResults.duration')}:
+                      </span>
                       <span className="ml-2 text-zinc-900 dark:text-white">
                         {annotation.lead_time.toFixed(1)}s
                       </span>
@@ -138,7 +160,12 @@ export function ResultsTabs({
                   )}
                   {annotation.was_cancelled && (
                     <div className="rounded-lg bg-red-50 p-3 dark:bg-red-900/20">
-                      <span className="text-red-700 dark:text-red-300">{t('evaluation.multiFieldResults.cancelled', 'Cancelled')}</span>
+                      <span className="text-red-700 dark:text-red-300">
+                        {t(
+                          'evaluation.multiFieldResults.cancelled',
+                          'Cancelled',
+                        )}
+                      </span>
                     </div>
                   )}
                 </div>
@@ -159,7 +186,10 @@ export function ResultsTabs({
           </div>
         ) : (
           <div className="py-12 text-center text-zinc-500 dark:text-zinc-400">
-            {t('evaluation.multiFieldResults.noAnnotationData', 'No annotation data available for this task')}
+            {t(
+              'evaluation.multiFieldResults.noAnnotationData',
+              'No annotation data available for this task',
+            )}
           </div>
         )
       ) : activeTab === 'generation' ? (
@@ -178,13 +208,14 @@ export function ResultsTabs({
                     <button
                       key={index}
                       onClick={() => setSelectedStructureIndex(index)}
-                      className={`whitespace-nowrap border-b-2 px-3 py-2 text-sm font-medium ${
+                      className={`border-b-2 px-3 py-2 text-sm font-medium whitespace-nowrap ${
                         selectedStructureIndex === index
                           ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400'
                           : 'border-transparent text-zinc-500 hover:border-zinc-300 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-300'
                       }`}
                     >
-                      {result.structure_key || t('evaluation.multiFieldResults.default')}
+                      {result.structure_key ||
+                        t('evaluation.multiFieldResults.default')}
                     </button>
                   ))}
                 </nav>
@@ -204,7 +235,7 @@ export function ResultsTabs({
                         {t('evaluation.multiFieldResults.generatedResponse')}
                       </h4>
                       <div className="rounded-lg bg-zinc-50 p-4 dark:bg-zinc-800">
-                        <pre className="whitespace-pre-wrap text-sm text-zinc-700 dark:text-zinc-300">
+                        <pre className="text-sm whitespace-pre-wrap text-zinc-700 dark:text-zinc-300">
                           {selectedGen.result.generated_text}
                         </pre>
                       </div>
@@ -212,18 +243,19 @@ export function ResultsTabs({
                   )}
 
                   {/* Fields Section (for structured outputs) */}
-                  {selectedGen.result?.fields && Object.keys(selectedGen.result.fields).length > 0 && (
-                    <div>
-                      <h4 className="mb-2 font-medium text-zinc-900 dark:text-white">
-                        {t('evaluation.multiFieldResults.generatedFields')}
-                      </h4>
-                      <div className="rounded-lg bg-zinc-50 p-4 dark:bg-zinc-800">
-                        <pre className="whitespace-pre-wrap text-sm text-zinc-700 dark:text-zinc-300">
-                          {JSON.stringify(selectedGen.result.fields, null, 2)}
-                        </pre>
+                  {selectedGen.result?.fields &&
+                    Object.keys(selectedGen.result.fields).length > 0 && (
+                      <div>
+                        <h4 className="mb-2 font-medium text-zinc-900 dark:text-white">
+                          {t('evaluation.multiFieldResults.generatedFields')}
+                        </h4>
+                        <div className="rounded-lg bg-zinc-50 p-4 dark:bg-zinc-800">
+                          <pre className="text-sm whitespace-pre-wrap text-zinc-700 dark:text-zinc-300">
+                            {JSON.stringify(selectedGen.result.fields, null, 2)}
+                          </pre>
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
 
                   {/* Prompt Used Section */}
                   {selectedGen.prompt_used && (
@@ -232,7 +264,7 @@ export function ResultsTabs({
                         {t('evaluation.multiFieldResults.promptUsed')}
                       </h4>
                       <div className="rounded-lg bg-blue-50 p-4 dark:bg-blue-900/20">
-                        <pre className="whitespace-pre-wrap text-sm text-blue-800 dark:text-blue-200">
+                        <pre className="text-sm whitespace-pre-wrap text-blue-800 dark:text-blue-200">
                           {selectedGen.prompt_used}
                         </pre>
                       </div>
@@ -246,22 +278,30 @@ export function ResultsTabs({
                     </h4>
                     <div className="grid grid-cols-2 gap-4 text-sm">
                       <div className="rounded-lg bg-zinc-50 p-3 dark:bg-zinc-800">
-                        <span className="text-zinc-500 dark:text-zinc-400">{t('evaluation.multiFieldResults.statusLabel')}:</span>
+                        <span className="text-zinc-500 dark:text-zinc-400">
+                          {t('evaluation.multiFieldResults.statusLabel')}:
+                        </span>
                         <span className="ml-2 text-zinc-900 dark:text-white">
                           {selectedGen.status}
                         </span>
                       </div>
                       {selectedGen.generated_at && (
                         <div className="rounded-lg bg-zinc-50 p-3 dark:bg-zinc-800">
-                          <span className="text-zinc-500 dark:text-zinc-400">{t('evaluation.multiFieldResults.generated')}:</span>
+                          <span className="text-zinc-500 dark:text-zinc-400">
+                            {t('evaluation.multiFieldResults.generated')}:
+                          </span>
                           <span className="ml-2 text-zinc-900 dark:text-white">
-                            {new Date(selectedGen.generated_at).toLocaleString()}
+                            {new Date(
+                              selectedGen.generated_at,
+                            ).toLocaleString()}
                           </span>
                         </div>
                       )}
                       {selectedGen.generation_time_seconds != null && (
                         <div className="rounded-lg bg-zinc-50 p-3 dark:bg-zinc-800">
-                          <span className="text-zinc-500 dark:text-zinc-400">{t('evaluation.multiFieldResults.duration')}:</span>
+                          <span className="text-zinc-500 dark:text-zinc-400">
+                            {t('evaluation.multiFieldResults.duration')}:
+                          </span>
                           <span className="ml-2 text-zinc-900 dark:text-white">
                             {selectedGen.generation_time_seconds.toFixed(2)}s
                           </span>
@@ -290,13 +330,13 @@ export function ResultsTabs({
             {t('evaluation.multiFieldResults.noGenerationData')}
           </div>
         )
-      ) : (
-        // Evaluation Results Tab
-        evaluationLoading ? (
-          <div className="flex items-center justify-center py-12">
-            <LoadingSpinner />
-          </div>
-        ) : evaluationData && evaluationData.results.length > 0 ? (() => {
+      ) : // Evaluation Results Tab
+      evaluationLoading ? (
+        <div className="flex items-center justify-center py-12">
+          <LoadingSpinner />
+        </div>
+      ) : evaluationData && evaluationData.results.length > 0 ? (
+        (() => {
           // Filter to entries for the currently-selected metric.
           // field_name shape from worker: "<metric>-<slug>|<pred>|<ref>"
           // (see tasks.py: field_key = f"{config_id}|...", config_id = "{metric}-{slug}")
@@ -306,7 +346,9 @@ export function ResultsTabs({
                 const inMetricsKeys =
                   r.metrics &&
                   Object.keys(r.metrics).some(
-                    (k) => k === selectedMetricName || k.startsWith(`${selectedMetricName}_`)
+                    (k) =>
+                      k === selectedMetricName ||
+                      k.startsWith(`${selectedMetricName}_`),
                   )
                 return fieldMetric === selectedMetricName || inMetricsKeys
               })
@@ -315,192 +357,251 @@ export function ResultsTabs({
             return (
               <div className="py-8 text-center text-sm text-zinc-500 dark:text-zinc-400">
                 {t('evaluation.multiFieldResults.noResultsForMetric', {
-                  defaultValue: 'No evaluation results for the selected metric.',
+                  defaultValue:
+                    'No evaluation results for the selected metric.',
                 })}
               </div>
             )
           }
           return (
-          <div className="space-y-6">
-            {visibleResults.map((result, index) => (
-              <div key={result.id} className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-700">
-                {/* Result Header */}
-                <div className="mb-4 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                      result.passed === null
-                        ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/20 dark:text-amber-400'
-                        : result.passed
-                          ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
-                          : 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
-                    }`}>
-                      {result.passed === null ? t('evaluation.multiFieldResults.error') : result.passed ? t('evaluation.multiFieldResults.passed') : t('evaluation.multiFieldResults.failed')}
-                    </span>
-                    <span className="text-sm font-medium text-zinc-900 dark:text-white">
-                      {t('evaluation.multiFieldResults.field')}: {result.field_name}
-                    </span>
-                    <span className="text-xs text-zinc-500 dark:text-zinc-400">
-                      ({result.answer_type})
-                    </span>
+            <div className="space-y-6">
+              {visibleResults.map((result, index) => (
+                <div
+                  key={result.id}
+                  className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-700"
+                >
+                  {/* Result Header */}
+                  <div className="mb-4 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <span
+                        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                          result.passed === null
+                            ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/20 dark:text-amber-400'
+                            : result.passed
+                              ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
+                              : 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
+                        }`}
+                      >
+                        {result.passed === null
+                          ? t('evaluation.multiFieldResults.error')
+                          : result.passed
+                            ? t('evaluation.multiFieldResults.passed')
+                            : t('evaluation.multiFieldResults.failed')}
+                      </span>
+                      <span className="text-sm font-medium text-zinc-900 dark:text-white">
+                        {t('evaluation.multiFieldResults.field')}:{' '}
+                        {result.field_name}
+                      </span>
+                      <span className="text-xs text-zinc-500 dark:text-zinc-400">
+                        ({result.answer_type})
+                      </span>
+                    </div>
+                    {result.confidence_score != null && (
+                      <span className="text-sm text-zinc-600 dark:text-zinc-400">
+                        {t('evaluation.multiFieldResults.confidence')}:{' '}
+                        {(result.confidence_score * 100).toFixed(1)}%
+                      </span>
+                    )}
                   </div>
-                  {result.confidence_score != null && (
-                    <span className="text-sm text-zinc-600 dark:text-zinc-400">
-                      {t('evaluation.multiFieldResults.confidence')}: {(result.confidence_score * 100).toFixed(1)}%
-                    </span>
-                  )}
-                </div>
 
-                {/* Metrics */}
-                {result.metrics && Object.keys(result.metrics).length > 0 && (() => {
-                  // Separate _response objects from numeric metrics
-                  const llmResponses: Record<string, Record<string, any>> = {}
-                  const numericMetrics: Record<string, any> = {}
+                  {/* Metrics */}
+                  {result.metrics &&
+                    Object.keys(result.metrics).length > 0 &&
+                    (() => {
+                      // Separate _response objects from numeric metrics
+                      const llmResponses: Record<
+                        string,
+                        Record<string, any>
+                      > = {}
+                      const numericMetrics: Record<string, any> = {}
 
-                  Object.entries(result.metrics).forEach(([key, value]) => {
-                    if (key.endsWith('_response') && value && typeof value === 'object') {
-                      llmResponses[key.replace('_response', '')] = value as Record<string, any>
-                    } else if (!key.endsWith('_response')) {
-                      numericMetrics[key] = value
-                    }
-                  })
+                      Object.entries(result.metrics).forEach(([key, value]) => {
+                        if (
+                          key.endsWith('_response') &&
+                          value &&
+                          typeof value === 'object'
+                        ) {
+                          llmResponses[key.replace('_response', '')] =
+                            value as Record<string, any>
+                        } else if (!key.endsWith('_response')) {
+                          numericMetrics[key] = value
+                        }
+                      })
 
-                  return (
-                    <div className="mb-4">
-                      <h5 className="mb-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                        {t('evaluation.multiFieldResults.metrics')}
-                      </h5>
-                      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                        {Object.entries(numericMetrics).map(([key, value]) => {
-                          // Extension hook: extended metrics may register
-                          // a detail component that renders the full
-                          // structured payload (dimensions, justification,
-                          // grade points, etc.) instead of the bare
-                          // formatMetricValue. Falls back to generic
-                          // numeric display when nothing is registered.
-                          const DetailComp = getMetricDetail(key)
-                          if (DetailComp) {
-                            return (
-                              <div key={key} className="col-span-full">
-                                <DetailComp value={value} evaluation={result as unknown as Record<string, unknown>} />
-                              </div>
-                            )
-                          }
-                          return (
-                            <div key={key} className="rounded bg-zinc-50 p-2 dark:bg-zinc-800">
-                              <span className="text-xs text-zinc-500 dark:text-zinc-400">{key}:</span>
-                              <span className="ml-1 font-mono text-sm text-zinc-900 dark:text-white">
-                                {formatMetricValue(value)}
-                              </span>
-                            </div>
-                          )
-                        })}
-                      </div>
-
-                      {/* Full LLM Judge Response */}
-                      {Object.keys(llmResponses).length > 0 && (
-                        <div className="mt-4">
+                      return (
+                        <div className="mb-4">
                           <h5 className="mb-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                            {t('evaluation.multiFieldResults.llmJudgeResponse')}
+                            {t('evaluation.multiFieldResults.metrics')}
                           </h5>
-                          {Object.entries(llmResponses).map(([metric, response]) => (
-                            <div key={metric} className="mb-3 rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-900/20">
-                              <span className="mb-2 block text-xs font-medium text-amber-700 dark:text-amber-400">
-                                {metric}
-                              </span>
-                              <div className="space-y-2">
-                                {Object.entries(response).map(([fieldKey, fieldValue]) => {
-                                  if (fieldKey === 'score') return null
+                          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                            {Object.entries(numericMetrics).map(
+                              ([key, value]) => {
+                                // Extension hook: extended metrics may register
+                                // a detail component that renders the full
+                                // structured payload (dimensions, justification,
+                                // grade points, etc.) instead of the bare
+                                // formatMetricValue. Falls back to generic
+                                // numeric display when nothing is registered.
+                                const DetailComp = getMetricDetail(key)
+                                if (DetailComp) {
                                   return (
-                                    <div key={fieldKey} className="text-sm">
-                                      <span className="font-medium text-amber-800 dark:text-amber-300">
-                                        {fieldKey}:
-                                      </span>
-                                      {typeof fieldValue === 'string' ? (
-                                        <p className="mt-1 whitespace-pre-wrap text-amber-900 dark:text-amber-200">
-                                          {fieldValue}
-                                        </p>
-                                      ) : (
-                                        <pre className="mt-1 overflow-x-auto rounded bg-amber-100 p-2 text-xs text-amber-900 dark:bg-amber-900/40 dark:text-amber-200">
-                                          {JSON.stringify(fieldValue, null, 2)}
-                                        </pre>
-                                      )}
+                                    <div key={key} className="col-span-full">
+                                      <DetailComp
+                                        value={value}
+                                        evaluation={
+                                          result as unknown as Record<
+                                            string,
+                                            unknown
+                                          >
+                                        }
+                                      />
                                     </div>
                                   )
-                                })}
-                              </div>
+                                }
+                                return (
+                                  <div
+                                    key={key}
+                                    className="rounded bg-zinc-50 p-2 dark:bg-zinc-800"
+                                  >
+                                    <span className="text-xs text-zinc-500 dark:text-zinc-400">
+                                      {key}:
+                                    </span>
+                                    <span className="ml-1 font-mono text-sm text-zinc-900 dark:text-white">
+                                      {formatMetricValue(value)}
+                                    </span>
+                                  </div>
+                                )
+                              },
+                            )}
+                          </div>
+
+                          {/* Full LLM Judge Response */}
+                          {Object.keys(llmResponses).length > 0 && (
+                            <div className="mt-4">
+                              <h5 className="mb-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                                {t(
+                                  'evaluation.multiFieldResults.llmJudgeResponse',
+                                )}
+                              </h5>
+                              {Object.entries(llmResponses).map(
+                                ([metric, response]) => (
+                                  <div
+                                    key={metric}
+                                    className="mb-3 rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-900/20"
+                                  >
+                                    <span className="mb-2 block text-xs font-medium text-amber-700 dark:text-amber-400">
+                                      {metric}
+                                    </span>
+                                    <div className="space-y-2">
+                                      {Object.entries(response).map(
+                                        ([fieldKey, fieldValue]) => {
+                                          if (fieldKey === 'score') return null
+                                          return (
+                                            <div
+                                              key={fieldKey}
+                                              className="text-sm"
+                                            >
+                                              <span className="font-medium text-amber-800 dark:text-amber-300">
+                                                {fieldKey}:
+                                              </span>
+                                              {typeof fieldValue ===
+                                              'string' ? (
+                                                <p className="mt-1 whitespace-pre-wrap text-amber-900 dark:text-amber-200">
+                                                  {fieldValue}
+                                                </p>
+                                              ) : (
+                                                <pre className="mt-1 overflow-x-auto rounded bg-amber-100 p-2 text-xs text-amber-900 dark:bg-amber-900/40 dark:text-amber-200">
+                                                  {JSON.stringify(
+                                                    fieldValue,
+                                                    null,
+                                                    2,
+                                                  )}
+                                                </pre>
+                                              )}
+                                            </div>
+                                          )
+                                        },
+                                      )}
+                                    </div>
+                                  </div>
+                                ),
+                              )}
                             </div>
-                          ))}
+                          )}
                         </div>
-                      )}
-                    </div>
-                  )
-                })()}
+                      )
+                    })()}
 
-                {/* Ground Truth vs Prediction */}
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div>
-                    <h5 className="mb-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                      {t('evaluation.multiFieldResults.groundTruth')}
-                    </h5>
-                    <div className="rounded-lg bg-green-50 p-3 dark:bg-green-900/20">
-                      <pre className="whitespace-pre-wrap text-xs text-green-800 dark:text-green-200">
-                        {typeof result.ground_truth === 'string'
-                          ? result.ground_truth
-                          : JSON.stringify(result.ground_truth, null, 2)}
-                      </pre>
+                  {/* Ground Truth vs Prediction */}
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div>
+                      <h5 className="mb-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                        {t('evaluation.multiFieldResults.groundTruth')}
+                      </h5>
+                      <div className="rounded-lg bg-green-50 p-3 dark:bg-green-900/20">
+                        <pre className="text-xs whitespace-pre-wrap text-green-800 dark:text-green-200">
+                          {typeof result.ground_truth === 'string'
+                            ? result.ground_truth
+                            : JSON.stringify(result.ground_truth, null, 2)}
+                        </pre>
+                      </div>
+                    </div>
+                    <div>
+                      <h5 className="mb-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                        {t('evaluation.multiFieldResults.modelPrediction')}
+                      </h5>
+                      <div className="rounded-lg bg-blue-50 p-3 dark:bg-blue-900/20">
+                        <pre className="text-xs whitespace-pre-wrap text-blue-800 dark:text-blue-200">
+                          {typeof result.prediction === 'string'
+                            ? result.prediction
+                            : JSON.stringify(result.prediction, null, 2)}
+                        </pre>
+                      </div>
                     </div>
                   </div>
-                  <div>
-                    <h5 className="mb-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                      {t('evaluation.multiFieldResults.modelPrediction')}
-                    </h5>
-                    <div className="rounded-lg bg-blue-50 p-3 dark:bg-blue-900/20">
-                      <pre className="whitespace-pre-wrap text-xs text-blue-800 dark:text-blue-200">
-                        {typeof result.prediction === 'string'
-                          ? result.prediction
-                          : JSON.stringify(result.prediction, null, 2)}
-                      </pre>
+
+                  {/* Error Message if any */}
+                  {result.error_message && (
+                    <div className="mt-4 rounded-lg bg-red-50 p-3 dark:bg-red-900/20">
+                      <p className="text-sm text-red-700 dark:text-red-300">
+                        {t('evaluation.multiFieldResults.error')}:{' '}
+                        {result.error_message}
+                      </p>
                     </div>
-                  </div>
+                  )}
+
+                  {/* Evaluation Context */}
+                  {result.evaluation_context && (
+                    <div className="mt-4 text-xs text-zinc-500 dark:text-zinc-400">
+                      {t('evaluation.multiFieldResults.evaluation')}:{' '}
+                      {result.evaluation_context.evaluation_type} (
+                      {result.evaluation_context.status})
+                      {result.created_at &&
+                        ` | ${new Date(result.created_at).toLocaleString()}`}
+                    </div>
+                  )}
                 </div>
+              ))}
 
-                {/* Error Message if any */}
-                {result.error_message && (
-                  <div className="mt-4 rounded-lg bg-red-50 p-3 dark:bg-red-900/20">
-                    <p className="text-sm text-red-700 dark:text-red-300">
-                      {t('evaluation.multiFieldResults.error')}: {result.error_message}
-                    </p>
-                  </div>
-                )}
-
-                {/* Evaluation Context */}
-                {result.evaluation_context && (
-                  <div className="mt-4 text-xs text-zinc-500 dark:text-zinc-400">
-                    {t('evaluation.multiFieldResults.evaluation')}: {result.evaluation_context.evaluation_type} ({result.evaluation_context.status})
-                    {result.created_at && ` | ${new Date(result.created_at).toLocaleString()}`}
-                  </div>
-                )}
-              </div>
-            ))}
-
-            {/* Full JSON Section (collapsed) */}
-            <details className="group">
-              <summary className="cursor-pointer font-medium text-zinc-900 dark:text-white">
-                {t('evaluation.multiFieldResults.rawJsonResponse')}
-              </summary>
-              <div className="mt-2 rounded-lg bg-zinc-50 p-4 dark:bg-zinc-800">
-                <pre className="overflow-x-auto text-xs text-zinc-700 dark:text-zinc-300">
-                  {JSON.stringify(evaluationData, null, 2)}
-                </pre>
-              </div>
-            </details>
-          </div>
+              {/* Full JSON Section (collapsed) */}
+              <details className="group">
+                <summary className="cursor-pointer font-medium text-zinc-900 dark:text-white">
+                  {t('evaluation.multiFieldResults.rawJsonResponse')}
+                </summary>
+                <div className="mt-2 rounded-lg bg-zinc-50 p-4 dark:bg-zinc-800">
+                  <pre className="overflow-x-auto text-xs text-zinc-700 dark:text-zinc-300">
+                    {JSON.stringify(evaluationData, null, 2)}
+                  </pre>
+                </div>
+              </details>
+            </div>
           )
-        })() : (
-          <div className="py-12 text-center text-zinc-500 dark:text-zinc-400">
-            {evaluationData?.message || t('evaluation.multiFieldResults.noEvalResults')}
-          </div>
-        )
+        })()
+      ) : (
+        <div className="py-12 text-center text-zinc-500 dark:text-zinc-400">
+          {evaluationData?.message ||
+            t('evaluation.multiFieldResults.noEvalResults')}
+        </div>
       )}
     </>
   )

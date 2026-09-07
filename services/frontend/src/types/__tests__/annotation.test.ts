@@ -14,20 +14,20 @@ describe('LEGAL_ANNOTATION_PRESETS', () => {
   it('should have entity_recognition preset', () => {
     expect(LEGAL_ANNOTATION_PRESETS.entity_recognition).toBeDefined()
     expect(LEGAL_ANNOTATION_PRESETS.entity_recognition.name).toBe(
-      'Legal Entity Recognition'
+      'Legal Entity Recognition',
     )
     expect(
-      LEGAL_ANNOTATION_PRESETS.entity_recognition.config.interfaces
+      LEGAL_ANNOTATION_PRESETS.entity_recognition.config.interfaces,
     ).toHaveLength(2)
   })
 
   it('should have document_classification preset', () => {
     expect(LEGAL_ANNOTATION_PRESETS.document_classification).toBeDefined()
     expect(LEGAL_ANNOTATION_PRESETS.document_classification.name).toBe(
-      'Document Classification'
+      'Document Classification',
     )
     expect(
-      LEGAL_ANNOTATION_PRESETS.document_classification.config.interfaces
+      LEGAL_ANNOTATION_PRESETS.document_classification.config.interfaces,
     ).toHaveLength(2)
   })
 
@@ -42,7 +42,7 @@ describe('LEGAL_ANNOTATION_PRESETS', () => {
   it('entity_recognition should have labels with legal entity types', () => {
     const labelInterface =
       LEGAL_ANNOTATION_PRESETS.entity_recognition.config.interfaces.find(
-        (i: any) => i.type === 'labels'
+        (i: any) => i.type === 'labels',
       )
     expect(labelInterface).toBeDefined()
     const choices = (labelInterface as any).properties.choices
@@ -56,7 +56,7 @@ describe('LEGAL_ANNOTATION_PRESETS', () => {
   it('document_classification should have taxonomy with legal areas', () => {
     const taxonomyInterface =
       LEGAL_ANNOTATION_PRESETS.document_classification.config.interfaces.find(
-        (i: any) => i.type === 'taxonomy'
+        (i: any) => i.type === 'taxonomy',
       )
     expect(taxonomyInterface).toBeDefined()
     const taxonomy = (taxonomyInterface as any).properties.taxonomy

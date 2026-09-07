@@ -56,7 +56,7 @@ describe('admin-defaults.ts', () => {
       configureAdminDefaultsClient(undefined, orgProvider)
 
       expect(mockSetOrganizationContextProvider).toHaveBeenCalledWith(
-        orgProvider
+        orgProvider,
       )
     })
 
@@ -67,7 +67,7 @@ describe('admin-defaults.ts', () => {
 
       expect(mockSetAuthFailureHandler).toHaveBeenCalledWith(authHandler)
       expect(mockSetOrganizationContextProvider).toHaveBeenCalledWith(
-        orgProvider
+        orgProvider,
       )
     })
 
@@ -77,7 +77,7 @@ describe('admin-defaults.ts', () => {
 
       expect(mockSetAuthFailureHandler).not.toHaveBeenCalled()
       expect(mockSetOrganizationContextProvider).toHaveBeenCalledWith(
-        orgProvider
+        orgProvider,
       )
     })
 
@@ -124,7 +124,7 @@ describe('admin-defaults.ts', () => {
       const result = await getDefaultPrompts('classification')
 
       expect(mockGet).toHaveBeenCalledWith(
-        '/api/default-prompts/classification'
+        '/api/default-prompts/classification',
       )
       expect(result).toEqual(mockPrompts)
     })
@@ -164,7 +164,7 @@ describe('admin-defaults.ts', () => {
       mockGet.mockRejectedValue(new Error('Not found'))
 
       await expect(getDefaultPrompts('nonexistent')).rejects.toThrow(
-        'Not found'
+        'Not found',
       )
     })
 
@@ -172,7 +172,7 @@ describe('admin-defaults.ts', () => {
       mockGet.mockRejectedValue(new Error('Network error'))
 
       await expect(getDefaultPrompts('classification')).rejects.toThrow(
-        'Network error'
+        'Network error',
       )
     })
 
@@ -204,7 +204,7 @@ describe('admin-defaults.ts', () => {
       const result = await getDefaultConfig('classification')
 
       expect(mockGet).toHaveBeenCalledWith(
-        '/api/defaults/config/classification'
+        '/api/defaults/config/classification',
       )
       expect(result).toEqual(mockConfig)
     })
@@ -231,7 +231,7 @@ describe('admin-defaults.ts', () => {
         const result = await getDefaultConfig(config.task_type)
 
         expect(mockGet).toHaveBeenCalledWith(
-          `/api/defaults/config/${config.task_type}`
+          `/api/defaults/config/${config.task_type}`,
         )
         expect(result).toEqual(config)
       }
@@ -267,7 +267,7 @@ describe('admin-defaults.ts', () => {
       mockGet.mockRejectedValue(new Error('Unauthorized'))
 
       await expect(getDefaultConfig('classification')).rejects.toThrow(
-        'Unauthorized'
+        'Unauthorized',
       )
     })
 
@@ -275,7 +275,7 @@ describe('admin-defaults.ts', () => {
       mockGet.mockRejectedValue(new Error('Config not found'))
 
       await expect(getDefaultConfig('unknown')).rejects.toThrow(
-        'Config not found'
+        'Config not found',
       )
     })
   })

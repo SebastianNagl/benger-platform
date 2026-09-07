@@ -58,7 +58,7 @@ describe('/api/auth/verify-email-enhanced/[token]', () => {
         'http://localhost:3000/api/auth/verify-email-enhanced/valid-token-123',
         {
           method: 'POST',
-        }
+        },
       )
 
       const response = await POST(request, {
@@ -94,7 +94,7 @@ describe('/api/auth/verify-email-enhanced/[token]', () => {
         'http://localhost:3000/api/auth/verify-email-enhanced/invalid-token',
         {
           method: 'POST',
-        }
+        },
       )
 
       const response = await POST(request, {
@@ -124,7 +124,7 @@ describe('/api/auth/verify-email-enhanced/[token]', () => {
         'http://localhost:3000/api/auth/verify-email-enhanced/expired-token',
         {
           method: 'POST',
-        }
+        },
       )
 
       const response = await POST(request, {
@@ -154,7 +154,7 @@ describe('/api/auth/verify-email-enhanced/[token]', () => {
         'http://localhost:3000/api/auth/verify-email-enhanced/nonexistent',
         {
           method: 'POST',
-        }
+        },
       )
 
       const response = await POST(request, {
@@ -184,7 +184,7 @@ describe('/api/auth/verify-email-enhanced/[token]', () => {
         'http://localhost:3000/api/auth/verify-email-enhanced/already-used',
         {
           method: 'POST',
-        }
+        },
       )
 
       const response = await POST(request, {
@@ -214,7 +214,7 @@ describe('/api/auth/verify-email-enhanced/[token]', () => {
         'http://localhost:3000/api/auth/verify-email-enhanced/token123',
         {
           method: 'POST',
-        }
+        },
       )
 
       await POST(request, {
@@ -223,7 +223,7 @@ describe('/api/auth/verify-email-enhanced/[token]', () => {
 
       expect(global.fetch).toHaveBeenCalledWith(
         'http://localhost:8001/api/auth/verify-email-enhanced/token123',
-        expect.any(Object)
+        expect.any(Object),
       )
     })
 
@@ -243,7 +243,7 @@ describe('/api/auth/verify-email-enhanced/[token]', () => {
         'http://localhost:3001/api/auth/verify-email-enhanced/token123',
         {
           method: 'POST',
-        }
+        },
       )
 
       await POST(request, {
@@ -252,7 +252,7 @@ describe('/api/auth/verify-email-enhanced/[token]', () => {
 
       expect(global.fetch).toHaveBeenCalledWith(
         'http://localhost:8001/api/auth/verify-email-enhanced/token123',
-        expect.any(Object)
+        expect.any(Object),
       )
     })
 
@@ -272,7 +272,7 @@ describe('/api/auth/verify-email-enhanced/[token]', () => {
         'http://benger.localhost/api/auth/verify-email-enhanced/token123',
         {
           method: 'POST',
-        }
+        },
       )
 
       await POST(request, {
@@ -281,7 +281,7 @@ describe('/api/auth/verify-email-enhanced/[token]', () => {
 
       expect(global.fetch).toHaveBeenCalledWith(
         'http://api:8000/api/auth/verify-email-enhanced/token123',
-        expect.any(Object)
+        expect.any(Object),
       )
     })
 
@@ -301,7 +301,7 @@ describe('/api/auth/verify-email-enhanced/[token]', () => {
         'https://staging.what-a-benger.net/api/auth/verify-email-enhanced/token123',
         {
           method: 'POST',
-        }
+        },
       )
 
       await POST(request, {
@@ -310,7 +310,7 @@ describe('/api/auth/verify-email-enhanced/[token]', () => {
 
       expect(global.fetch).toHaveBeenCalledWith(
         expect.stringContaining('api/auth/verify-email-enhanced/token123'),
-        expect.any(Object)
+        expect.any(Object),
       )
     })
 
@@ -330,7 +330,7 @@ describe('/api/auth/verify-email-enhanced/[token]', () => {
         'https://what-a-benger.net/api/auth/verify-email-enhanced/token123',
         {
           method: 'POST',
-        }
+        },
       )
 
       await POST(request, {
@@ -339,7 +339,7 @@ describe('/api/auth/verify-email-enhanced/[token]', () => {
 
       expect(global.fetch).toHaveBeenCalledWith(
         expect.stringContaining('api/auth/verify-email-enhanced/token123'),
-        expect.any(Object)
+        expect.any(Object),
       )
     })
 
@@ -362,7 +362,7 @@ describe('/api/auth/verify-email-enhanced/[token]', () => {
         'https://staging.what-a-benger.net/api/auth/verify-email-enhanced/token123',
         {
           method: 'POST',
-        }
+        },
       )
 
       await POST(request, {
@@ -371,7 +371,7 @@ describe('/api/auth/verify-email-enhanced/[token]', () => {
 
       expect(global.fetch).toHaveBeenCalledWith(
         'http://custom-api:9000/api/auth/verify-email-enhanced/token123',
-        expect.any(Object)
+        expect.any(Object),
       )
 
       // Restore original
@@ -398,7 +398,7 @@ describe('/api/auth/verify-email-enhanced/[token]', () => {
         'http://unknown.domain/api/auth/verify-email-enhanced/token123',
         {
           method: 'POST',
-        }
+        },
       )
 
       await POST(request, {
@@ -407,7 +407,7 @@ describe('/api/auth/verify-email-enhanced/[token]', () => {
 
       expect(global.fetch).toHaveBeenCalledWith(
         'http://api:8000/api/auth/verify-email-enhanced/token123',
-        expect.any(Object)
+        expect.any(Object),
       )
     })
   })
@@ -429,7 +429,7 @@ describe('/api/auth/verify-email-enhanced/[token]', () => {
         'http://localhost:3000/api/auth/verify-email-enhanced/token123',
         {
           method: 'POST',
-        }
+        },
       )
 
       const response = await POST(request, {
@@ -468,7 +468,7 @@ describe('/api/auth/verify-email-enhanced/[token]', () => {
         'http://localhost:3000/api/auth/verify-email-enhanced/token123',
         {
           method: 'POST',
-        }
+        },
       )
 
       const response = await POST(request, {
@@ -498,7 +498,7 @@ describe('/api/auth/verify-email-enhanced/[token]', () => {
         'http://localhost:3000/api/auth/verify-email-enhanced/token123',
         {
           method: 'POST',
-        }
+        },
       )
 
       const response = await POST(request, {
@@ -526,7 +526,7 @@ describe('/api/auth/verify-email-enhanced/[token]', () => {
         'http://localhost:3000/api/auth/verify-email-enhanced/token123',
         {
           method: 'POST',
-        }
+        },
       )
 
       const response = await POST(request, {
@@ -540,14 +540,14 @@ describe('/api/auth/verify-email-enhanced/[token]', () => {
   describe('Network Errors', () => {
     it('should handle network timeout', async () => {
       ;(global.fetch as jest.Mock).mockRejectedValueOnce(
-        new Error('Network timeout')
+        new Error('Network timeout'),
       )
 
       const request = createRequest(
         'http://localhost:3000/api/auth/verify-email-enhanced/token123',
         {
           method: 'POST',
-        }
+        },
       )
 
       const response = await POST(request, {
@@ -561,14 +561,14 @@ describe('/api/auth/verify-email-enhanced/[token]', () => {
 
     it('should handle connection refused', async () => {
       ;(global.fetch as jest.Mock).mockRejectedValueOnce(
-        new Error('ECONNREFUSED')
+        new Error('ECONNREFUSED'),
       )
 
       const request = createRequest(
         'http://localhost:3000/api/auth/verify-email-enhanced/token123',
         {
           method: 'POST',
-        }
+        },
       )
 
       const response = await POST(request, {
@@ -580,20 +580,20 @@ describe('/api/auth/verify-email-enhanced/[token]', () => {
       expect(data.error).toBe('Internal server error')
       expect(console.error).toHaveBeenCalledWith(
         '❌ Verify email enhanced error:',
-        expect.any(Error)
+        expect.any(Error),
       )
     })
 
     it('should handle DNS resolution failure', async () => {
       ;(global.fetch as jest.Mock).mockRejectedValueOnce(
-        new Error('getaddrinfo ENOTFOUND')
+        new Error('getaddrinfo ENOTFOUND'),
       )
 
       const request = createRequest(
         'http://localhost:3000/api/auth/verify-email-enhanced/token123',
         {
           method: 'POST',
-        }
+        },
       )
 
       const response = await POST(request, {
@@ -610,7 +610,7 @@ describe('/api/auth/verify-email-enhanced/[token]', () => {
         'http://localhost:3000/api/auth/verify-email-enhanced/token123',
         {
           method: 'POST',
-        }
+        },
       )
 
       const response = await POST(request, {
@@ -640,7 +640,7 @@ describe('/api/auth/verify-email-enhanced/[token]', () => {
         'http://localhost:3000/api/auth/verify-email-enhanced/token123',
         {
           method: 'POST',
-        }
+        },
       )
 
       await POST(request, {
@@ -654,7 +654,7 @@ describe('/api/auth/verify-email-enhanced/[token]', () => {
           headers: {
             'Content-Type': 'application/json',
           },
-        })
+        }),
       )
     })
   })
@@ -677,7 +677,7 @@ describe('/api/auth/verify-email-enhanced/[token]', () => {
         `http://localhost:3000/api/auth/verify-email-enhanced/${token}`,
         {
           method: 'POST',
-        }
+        },
       )
 
       await POST(request, {
@@ -686,7 +686,7 @@ describe('/api/auth/verify-email-enhanced/[token]', () => {
 
       expect(global.fetch).toHaveBeenCalledWith(
         expect.stringContaining(token),
-        expect.any(Object)
+        expect.any(Object),
       )
     })
 
@@ -707,7 +707,7 @@ describe('/api/auth/verify-email-enhanced/[token]', () => {
         `http://localhost:3000/api/auth/verify-email-enhanced/${longToken}`,
         {
           method: 'POST',
-        }
+        },
       )
 
       await POST(request, {
@@ -716,7 +716,7 @@ describe('/api/auth/verify-email-enhanced/[token]', () => {
 
       expect(global.fetch).toHaveBeenCalledWith(
         expect.stringContaining(longToken),
-        expect.any(Object)
+        expect.any(Object),
       )
     })
 
@@ -737,7 +737,7 @@ describe('/api/auth/verify-email-enhanced/[token]', () => {
         `http://localhost:3000/api/auth/verify-email-enhanced/${token}`,
         {
           method: 'POST',
-        }
+        },
       )
 
       await POST(request, {
@@ -746,7 +746,7 @@ describe('/api/auth/verify-email-enhanced/[token]', () => {
 
       expect(global.fetch).toHaveBeenCalledWith(
         expect.stringContaining(token),
-        expect.any(Object)
+        expect.any(Object),
       )
     })
   })
@@ -776,7 +776,7 @@ describe('/api/auth/verify-email-enhanced/[token]', () => {
         'http://localhost:3000/api/auth/verify-email-enhanced/token123',
         {
           method: 'POST',
-        }
+        },
       )
 
       const response = await POST(request, {
@@ -804,7 +804,7 @@ describe('/api/auth/verify-email-enhanced/[token]', () => {
         'http://localhost:3000/api/auth/verify-email-enhanced/token123',
         {
           method: 'POST',
-        }
+        },
       )
 
       const response = await POST(request, {
@@ -839,7 +839,7 @@ describe('/api/auth/verify-email-enhanced/[token]', () => {
         'http://localhost:3000/api/auth/verify-email-enhanced/token123',
         {
           method: 'POST',
-        }
+        },
       )
 
       const response = await POST(request, {

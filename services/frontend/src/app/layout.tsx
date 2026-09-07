@@ -35,8 +35,21 @@ export async function generateMetadata(): Promise<Metadata> {
     },
     description,
     keywords: vtr
-      ? ['Jura', 'Klausur', 'Falllösung', 'Karteikarten', 'KI-Korrektur', 'Examen']
-      : ['Legal AI', 'LLM Evaluation', 'German Law', 'Legal Technology', 'AI Benchmarking'],
+      ? [
+          'Jura',
+          'Klausur',
+          'Falllösung',
+          'Karteikarten',
+          'KI-Korrektur',
+          'Examen',
+        ]
+      : [
+          'Legal AI',
+          'LLM Evaluation',
+          'German Law',
+          'Legal Technology',
+          'AI Benchmarking',
+        ],
     icons: {
       icon: vtr ? '/vertretbar-icon.svg' : '/icon.svg',
     },
@@ -64,10 +77,11 @@ export default function RootLayout({
   return (
     <html lang="de" className="h-full" suppressHydrationWarning>
       <head>
-        {process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_DISABLE_AUTO_LOGIN !== 'true' && (
-          <script
-            dangerouslySetInnerHTML={{
-              __html: `
+        {process.env.NODE_ENV === 'development' &&
+          process.env.NEXT_PUBLIC_DISABLE_AUTO_LOGIN !== 'true' && (
+            <script
+              dangerouslySetInnerHTML={{
+                __html: `
                 // Dev auto-login: login automatically on any page if not authenticated
                 (function() {
                   if (sessionStorage.getItem('e2e_test_mode') === 'true') return;
@@ -99,9 +113,9 @@ export default function RootLayout({
                   }).catch(function() {});
                 })();
               `,
-            }}
-          />
-        )}
+              }}
+            />
+          )}
       </head>
       <body
         className="flex min-h-full w-full bg-white antialiased dark:bg-zinc-900"

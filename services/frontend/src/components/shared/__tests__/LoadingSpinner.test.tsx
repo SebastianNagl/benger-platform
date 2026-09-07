@@ -57,7 +57,7 @@ describe('LoadingSpinner Component', () => {
     expect(spinner).toHaveClass(
       'border-2',
       'border-gray-300',
-      'border-t-blue-600'
+      'border-t-blue-600',
     )
   })
 
@@ -70,7 +70,7 @@ describe('LoadingSpinner Component', () => {
 
   it('combines multiple classNames correctly', () => {
     const { container } = render(
-      <LoadingSpinner size="large" className="extra-class" />
+      <LoadingSpinner size="large" className="extra-class" />,
     )
 
     const spinner = container.querySelector('.animate-spin')
@@ -79,7 +79,7 @@ describe('LoadingSpinner Component', () => {
 })
 
 // Import additional components from same file
-import { TaskDataSkeleton, PageLoading } from '../LoadingSpinner'
+import { PageLoading, TaskDataSkeleton } from '../LoadingSpinner'
 
 describe('TaskDataSkeleton Component', () => {
   it('renders with default 5 rows', () => {

@@ -24,7 +24,10 @@ jest.mock('@/components/shared/Tooltip', () => ({
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
     t: (key: string, varsOrDefault?: any) => {
-      const translations: Record<string, any> = require('../../../locales/en/common.json')
+      const translations: Record<
+        string,
+        any
+      > = require('../../../locales/en/common.json')
       const parts = key.split('.')
       let value: any = translations
       for (const part of parts) {
@@ -45,7 +48,6 @@ jest.mock('@/contexts/I18nContext', () => ({
     locale: 'en',
   }),
 }))
-
 
 describe('AnnotatorBadges', () => {
   const mockAssignments = [
@@ -90,7 +92,7 @@ describe('AnnotatorBadges', () => {
           assignments={[]}
           canAssign={true}
           onAssign={mockOnAssign}
-        />
+        />,
       )
 
       expect(screen.getByText('+ Assign')).toBeInTheDocument()
@@ -105,7 +107,7 @@ describe('AnnotatorBadges', () => {
           assignments={[]}
           canAssign={true}
           onAssign={mockOnAssign}
-        />
+        />,
       )
 
       const assignButton = screen.getByText('+ Assign')
@@ -130,7 +132,7 @@ describe('AnnotatorBadges', () => {
           assignments={[]}
           canAssign={false}
           onAssign={mockOnAssign}
-        />
+        />,
       )
 
       const unassignedButton = screen.getByText('Unassigned')
@@ -258,7 +260,7 @@ describe('AnnotatorBadges', () => {
       ]
 
       const { container } = render(
-        <AnnotatorBadges assignments={assignments} showStatus={true} />
+        <AnnotatorBadges assignments={assignments} showStatus={true} />,
       )
 
       const statusIndicator = container.querySelector('.bg-emerald-500')
@@ -277,7 +279,7 @@ describe('AnnotatorBadges', () => {
       ]
 
       const { container } = render(
-        <AnnotatorBadges assignments={assignments} showStatus={true} />
+        <AnnotatorBadges assignments={assignments} showStatus={true} />,
       )
 
       const statusIndicator = container.querySelector('.bg-yellow-500')
@@ -296,7 +298,7 @@ describe('AnnotatorBadges', () => {
       ]
 
       const { container } = render(
-        <AnnotatorBadges assignments={assignments} showStatus={true} />
+        <AnnotatorBadges assignments={assignments} showStatus={true} />,
       )
 
       const statusIndicator = container.querySelector('.bg-zinc-400')
@@ -305,7 +307,7 @@ describe('AnnotatorBadges', () => {
 
     it('should not show status indicator when showStatus is false', () => {
       const { container } = render(
-        <AnnotatorBadges assignments={mockAssignments} showStatus={false} />
+        <AnnotatorBadges assignments={mockAssignments} showStatus={false} />,
       )
 
       const statusIndicator = container.querySelector('.bg-emerald-500')
@@ -324,11 +326,11 @@ describe('AnnotatorBadges', () => {
       ]
 
       const { container } = render(
-        <AnnotatorBadges assignments={assignments} showStatus={true} />
+        <AnnotatorBadges assignments={assignments} showStatus={true} />,
       )
 
       const statusIndicators = container.querySelectorAll(
-        '.bg-emerald-500, .bg-yellow-500, .bg-zinc-400'
+        '.bg-emerald-500, .bg-yellow-500, .bg-zinc-400',
       )
       expect(statusIndicators).toHaveLength(0)
     })
@@ -337,7 +339,7 @@ describe('AnnotatorBadges', () => {
   describe('Tooltips', () => {
     it('should display user name in tooltip', () => {
       const { container } = render(
-        <AnnotatorBadges assignments={mockAssignments} />
+        <AnnotatorBadges assignments={mockAssignments} />,
       )
 
       const tooltip = container.querySelector('[data-tooltip*="John Doe"]')
@@ -354,18 +356,18 @@ describe('AnnotatorBadges', () => {
       ]
 
       const { container } = render(
-        <AnnotatorBadges assignments={assignments} />
+        <AnnotatorBadges assignments={assignments} />,
       )
 
       const tooltip = container.querySelector(
-        '[data-tooltip*="test@example.com"]'
+        '[data-tooltip*="test@example.com"]',
       )
       expect(tooltip).toBeInTheDocument()
     })
 
     it('should display status in tooltip', () => {
       const { container } = render(
-        <AnnotatorBadges assignments={mockAssignments} />
+        <AnnotatorBadges assignments={mockAssignments} />,
       )
 
       const tooltip = container.querySelector('[data-tooltip*="in progress"]')
@@ -374,7 +376,7 @@ describe('AnnotatorBadges', () => {
 
     it('should display priority in tooltip', () => {
       const { container } = render(
-        <AnnotatorBadges assignments={mockAssignments} />
+        <AnnotatorBadges assignments={mockAssignments} />,
       )
 
       const tooltip = container.querySelector('[data-tooltip*="Priority: 1"]')
@@ -393,7 +395,7 @@ describe('AnnotatorBadges', () => {
       ]
 
       const { container } = render(
-        <AnnotatorBadges assignments={assignments} />
+        <AnnotatorBadges assignments={assignments} />,
       )
 
       const tooltipContent = container
@@ -411,22 +413,22 @@ describe('AnnotatorBadges', () => {
           assignments={mockAssignments}
           canUnassign={true}
           onUnassign={mockOnUnassign}
-        />
+        />,
       )
 
       const removeButtons = container.querySelectorAll(
-        '[title="Remove assignment"]'
+        '[title="Remove assignment"]',
       )
       expect(removeButtons.length).toBeGreaterThan(0)
     })
 
     it('should not show remove button when canUnassign is false', () => {
       const { container } = render(
-        <AnnotatorBadges assignments={mockAssignments} canUnassign={false} />
+        <AnnotatorBadges assignments={mockAssignments} canUnassign={false} />,
       )
 
       const removeButtons = container.querySelectorAll(
-        '[title="Remove assignment"]'
+        '[title="Remove assignment"]',
       )
       expect(removeButtons).toHaveLength(0)
     })
@@ -439,11 +441,11 @@ describe('AnnotatorBadges', () => {
           assignments={mockAssignments}
           canUnassign={true}
           onUnassign={mockOnUnassign}
-        />
+        />,
       )
 
       const removeButton = container.querySelector(
-        '[title="Remove assignment"]'
+        '[title="Remove assignment"]',
       ) as HTMLElement
       await user.click(removeButton)
 
@@ -462,11 +464,11 @@ describe('AnnotatorBadges', () => {
             canUnassign={true}
             onUnassign={mockOnUnassign}
           />
-        </div>
+        </div>,
       )
 
       const removeButton = container.querySelector(
-        '[title="Remove assignment"]'
+        '[title="Remove assignment"]',
       ) as HTMLElement
       await user.click(removeButton)
 
@@ -518,11 +520,11 @@ describe('AnnotatorBadges', () => {
       ]
 
       const { container } = render(
-        <AnnotatorBadges assignments={manyAssignments} maxVisible={2} />
+        <AnnotatorBadges assignments={manyAssignments} maxVisible={2} />,
       )
 
       const remainingTooltip = container.querySelector(
-        '[data-tooltip*="Bob Wilson"]'
+        '[data-tooltip*="Bob Wilson"]',
       )
       expect(remainingTooltip).toBeInTheDocument()
     })
@@ -546,7 +548,7 @@ describe('AnnotatorBadges', () => {
               user_email: 'test@example.com',
             },
           ]}
-        />
+        />,
       )
 
       const { container: container2 } = render(
@@ -559,7 +561,7 @@ describe('AnnotatorBadges', () => {
               user_email: 'different@example.com',
             },
           ]}
-        />
+        />,
       )
 
       const badge1 = container1.querySelector('.rounded-full')
@@ -585,7 +587,7 @@ describe('AnnotatorBadges', () => {
       ]
 
       const { container } = render(
-        <AnnotatorBadges assignments={assignments} />
+        <AnnotatorBadges assignments={assignments} />,
       )
 
       const badges = container.querySelectorAll('.rounded-full')
@@ -700,7 +702,7 @@ describe('AnnotatorBadges', () => {
           assignments={[]}
           canAssign={true}
           onAssign={mockOnAssign}
-        />
+        />,
       )
 
       const button = screen.getByText('+ Assign')
@@ -714,11 +716,11 @@ describe('AnnotatorBadges', () => {
           assignments={mockAssignments}
           canUnassign={true}
           onUnassign={mockOnUnassign}
-        />
+        />,
       )
 
       const removeButton = container.querySelector(
-        '[title="Remove assignment"]'
+        '[title="Remove assignment"]',
       )
       expect(removeButton).toHaveAttribute('title', 'Remove assignment')
     })

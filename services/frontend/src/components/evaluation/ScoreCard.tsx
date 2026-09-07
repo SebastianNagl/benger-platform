@@ -14,9 +14,9 @@
 
 'use client'
 
+import { useI18n } from '@/contexts/I18nContext'
 import { InformationCircleIcon } from '@heroicons/react/24/outline'
 import { useState } from 'react'
-import { useI18n } from '@/contexts/I18nContext'
 
 interface ScoreCardProps {
   metric: string
@@ -64,7 +64,7 @@ const getScoreColor = (
   value: number,
   higherIsBetter: boolean = true,
   min: number = 0,
-  max: number = 1
+  max: number = 1,
 ): ColorClasses => {
   // Normalize value to 0-1 range
   const normalized = (value - min) / (max - min)
@@ -99,7 +99,7 @@ const getScoreColor = (
 
 const formatValue = (
   value: number,
-  format: 'percentage' | 'decimal' | 'raw' = 'decimal'
+  format: 'percentage' | 'decimal' | 'raw' = 'decimal',
 ): string => {
   switch (format) {
     case 'percentage':
@@ -133,7 +133,7 @@ export function ScoreCard({
     value,
     higherIsBetter,
     valueRange.min,
-    valueRange.max
+    valueRange.max,
   )
 
   // Format sample size with commas for readability
@@ -147,7 +147,7 @@ export function ScoreCard({
       <div className="mb-2 flex items-start justify-between">
         <div className="flex-1">
           <h3
-            className={`text-sm font-medium uppercase tracking-wide ${colors.text}`}
+            className={`text-sm font-medium tracking-wide uppercase ${colors.text}`}
           >
             {metric}
           </h3>
@@ -166,7 +166,7 @@ export function ScoreCard({
             </button>
 
             {showTooltip && (
-              <div className="absolute right-0 top-6 z-50 w-64 rounded-lg bg-gray-900 p-3 text-xs text-white shadow-xl dark:bg-gray-700">
+              <div className="absolute top-6 right-0 z-50 w-64 rounded-lg bg-gray-900 p-3 text-xs text-white shadow-xl dark:bg-gray-700">
                 <div className="relative">
                   {description}
                   <div className="absolute -top-1 right-4 h-2 w-2 rotate-45 bg-gray-900 dark:bg-gray-700" />
@@ -187,11 +187,17 @@ export function ScoreCard({
         {/* Sample size display (academic standard) */}
         {sampleSize !== undefined && (
           <div className={`text-xs ${colors.text} mt-1`}>
-            {t('evaluation.scoreCard.sampleSize', { n: formatSampleSize(sampleSize) })}
+            {t('evaluation.scoreCard.sampleSize', {
+              n: formatSampleSize(sampleSize),
+            })}
             {clusterCount !== undefined && (
               <span className="text-gray-500 dark:text-gray-400">
                 {' '}
-                ({t('evaluation.scoreCard.clusters', { count: formatSampleSize(clusterCount) })})
+                (
+                {t('evaluation.scoreCard.clusters', {
+                  count: formatSampleSize(clusterCount),
+                })}
+                )
               </span>
             )}
           </div>
@@ -202,7 +208,11 @@ export function ScoreCard({
           <div className={`mt-1 text-xs ${colors.text}`}>
             ± {formatValue(runsAggregate.stdAcrossRuns, formatAs)}{' '}
             <span className="text-gray-500 dark:text-gray-400">
-              ({t('evaluation.scoreCard.acrossRuns', 'over {n} runs', { n: runsAggregate.runs })})
+              (
+              {t('evaluation.scoreCard.acrossRuns', 'over {n} runs', {
+                n: runsAggregate.runs,
+              })}
+              )
             </span>
           </div>
         )}
@@ -212,7 +222,11 @@ export function ScoreCard({
       {confidenceInterval && !compact && (
         <div className="space-y-2">
           <div className={`text-xs font-medium ${colors.text}`}>
-            {t('evaluation.scoreCard.ciLabel', { level: confidenceInterval.level || 95 })}: [{formatValue(confidenceInterval.lower, formatAs)}, {formatValue(confidenceInterval.upper, formatAs)}]
+            {t('evaluation.scoreCard.ciLabel', {
+              level: confidenceInterval.level || 95,
+            })}
+            : [{formatValue(confidenceInterval.lower, formatAs)},{' '}
+            {formatValue(confidenceInterval.upper, formatAs)}]
           </div>
 
           {/* Visual CI Bar */}
@@ -240,7 +254,9 @@ export function ScoreCard({
       {/* Compact CI display */}
       {confidenceInterval && compact && (
         <div className={`text-xs ${colors.text}`}>
-          {t('evaluation.scoreCard.ciShort')}: [{formatValue(confidenceInterval.lower, formatAs)}, {formatValue(confidenceInterval.upper, formatAs)}]
+          {t('evaluation.scoreCard.ciShort')}: [
+          {formatValue(confidenceInterval.lower, formatAs)},{' '}
+          {formatValue(confidenceInterval.upper, formatAs)}]
         </div>
       )}
 
@@ -261,7 +277,7 @@ export function formatAcademicScore(
   options?: {
     asPercentage?: boolean
     decimals?: number
-  }
+  },
 ): string {
   const decimals = options?.decimals ?? 3
   if (options?.asPercentage) {

@@ -127,8 +127,7 @@ export function ProjectDataTable({
               {columns
                 .filter(
                   (col) =>
-                    col.visible &&
-                    (col.id !== 'edit_data' || canEditTasks)
+                    col.visible && (col.id !== 'edit_data' || canEditTasks),
                 )
                 .map((column) => {
                   // Handle dynamic data columns
@@ -136,13 +135,13 @@ export function ProjectDataTable({
                     // Find the corresponding data column
                     const dataColumnKey = column.id.replace('data_', '')
                     const dataColumn = dataColumns.find(
-                      (dc) => dc.id === dataColumnKey
+                      (dc) => dc.id === dataColumnKey,
                     )
                     if (dataColumn) {
                       return (
                         <th
                           key={column.id}
-                          className={`min-w-[120px] whitespace-nowrap border-r border-zinc-200 px-3 py-2.5 text-left text-xs font-medium uppercase tracking-wider text-zinc-600 dark:border-zinc-700 dark:text-zinc-400 ${column.width || ''} bg-amber-50/50 dark:bg-amber-900/10`}
+                          className={`min-w-[120px] border-r border-zinc-200 px-3 py-2.5 text-left text-xs font-medium tracking-wider whitespace-nowrap text-zinc-600 uppercase dark:border-zinc-700 dark:text-zinc-400 ${column.width || ''} bg-amber-50/50 dark:bg-amber-900/10`}
                         >
                           {t(column.label)}
                         </th>
@@ -159,9 +158,9 @@ export function ProjectDataTable({
                   return (
                     <th
                       key={column.id}
-                      className={`whitespace-nowrap border-r border-zinc-200 px-3 py-2.5 text-left text-xs font-medium uppercase tracking-wider text-zinc-600 dark:border-zinc-700 dark:text-zinc-400 ${column.width || ''} ${
+                      className={`border-r border-zinc-200 px-3 py-2.5 text-left text-xs font-medium tracking-wider whitespace-nowrap text-zinc-600 uppercase dark:border-zinc-700 dark:text-zinc-400 ${column.width || ''} ${
                         column.sortable
-                          ? 'cursor-pointer select-none transition-colors duration-150 hover:text-zinc-900 dark:hover:text-white'
+                          ? 'cursor-pointer transition-colors duration-150 select-none hover:text-zinc-900 dark:hover:text-white'
                           : ''
                       } ${
                         column.type === 'metadata'
@@ -191,9 +190,7 @@ export function ProjectDataTable({
                       {column.id === 'select' ? (
                         <TableCheckbox
                           checked={headerCheckboxState.allSelected}
-                          indeterminate={
-                            headerCheckboxState.isIndeterminate
-                          }
+                          indeterminate={headerCheckboxState.isIndeterminate}
                           onChange={onSelectAll}
                           data-testid="header-checkbox"
                         />
@@ -222,12 +219,12 @@ export function ProjectDataTable({
               // assignments ('task') vs Korrektur grader assignments.
               const allAssignments = (task as any).assignments || []
               const annotatorAssignments = allAssignments.filter(
-                (a: any) => !a.target_type || a.target_type === 'task'
+                (a: any) => !a.target_type || a.target_type === 'task',
               )
               const graderAssignments = allAssignments.filter(
                 (a: any) =>
                   a.target_type === 'annotation' ||
-                  a.target_type === 'generation'
+                  a.target_type === 'generation',
               )
 
               return (
@@ -241,37 +238,31 @@ export function ProjectDataTable({
                   {columns
                     .filter(
                       (col) =>
-                        col.visible &&
-                        (col.id !== 'edit_data' || canEditTasks)
+                        col.visible && (col.id !== 'edit_data' || canEditTasks),
                     )
                     .map((column) => {
                       // Handle dynamic metadata columns
                       if (column.id.startsWith('meta_')) {
-                        const metaColumnKey = column.id.replace(
-                          'meta_',
-                          ''
-                        )
+                        const metaColumnKey = column.id.replace('meta_', '')
                         const metaColumn = metadataColumns.find(
-                          (mc) => mc.key === metaColumnKey
+                          (mc) => mc.key === metaColumnKey,
                         )
                         if (metaColumn) {
                           const value = task.meta?.[metaColumn.key]
                           const formatted = formatCellValue(
                             value,
                             metaColumn.type,
-                            50
+                            50,
                           )
                           return (
                             <td
                               key={column.id}
-                              className="min-w-[120px] cursor-pointer whitespace-nowrap border-r border-zinc-200 bg-blue-50/30 px-3 py-2 hover:bg-blue-100/30 dark:border-zinc-700 dark:bg-blue-900/5 dark:hover:bg-blue-800/10"
+                              className="min-w-[120px] cursor-pointer border-r border-zinc-200 bg-blue-50/30 px-3 py-2 whitespace-nowrap hover:bg-blue-100/30 dark:border-zinc-700 dark:bg-blue-900/5 dark:hover:bg-blue-800/10"
                               onClick={(e) => {
                                 e.stopPropagation()
                                 onViewTaskMetadata(task)
                               }}
-                              title={t(
-                                'annotationTab.display.viewMetadata'
-                              )}
+                              title={t('annotationTab.display.viewMetadata')}
                             >
                               {formatted.truncated ? (
                                 <span
@@ -293,28 +284,25 @@ export function ProjectDataTable({
 
                       // Handle dynamic data columns
                       if (column.id.startsWith('data_')) {
-                        const dataColumnKey = column.id.replace(
-                          'data_',
-                          ''
-                        )
+                        const dataColumnKey = column.id.replace('data_', '')
                         const dataColumn = dataColumns.find(
-                          (dc) => dc.id === dataColumnKey
+                          (dc) => dc.id === dataColumnKey,
                         )
                         if (dataColumn) {
                           // Use nested value getter to support dot notation paths
                           const value = getTaskNestedValue(
                             task as any,
-                            dataColumn.id
+                            dataColumn.id,
                           )
                           const formatted = formatNestedCellValue(
                             value,
                             dataColumn.type,
-                            50
+                            50,
                           )
                           return (
                             <td
                               key={column.id}
-                              className="min-w-[120px] whitespace-nowrap border-r border-zinc-200 bg-amber-50/30 px-3 py-2 dark:border-zinc-700 dark:bg-amber-900/5"
+                              className="min-w-[120px] border-r border-zinc-200 bg-amber-50/30 px-3 py-2 whitespace-nowrap dark:border-zinc-700 dark:bg-amber-900/5"
                             >
                               {formatted.truncated ? (
                                 <span
@@ -417,7 +405,7 @@ export function ProjectDataTable({
                                 {Math.max(
                                   0,
                                   task.total_annotations -
-                                    task.cancelled_annotations
+                                    task.cancelled_annotations,
                                 )}
                               </span>
                             </td>
@@ -566,12 +554,12 @@ export function ProjectDataTable({
                               key={column.id}
                               className="border-r border-zinc-200 px-3 py-2 dark:border-zinc-700"
                             >
-                              <span className="whitespace-nowrap text-sm text-zinc-600 dark:text-zinc-400">
+                              <span className="text-sm whitespace-nowrap text-zinc-600 dark:text-zinc-400">
                                 {formatDistanceToNow(
                                   new Date(task.created_at),
                                   {
                                     addSuffix: true,
-                                  }
+                                  },
                                 ).replace(/\s+/g, ' ')}
                               </span>
                             </td>

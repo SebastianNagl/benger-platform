@@ -75,7 +75,9 @@ describe('BulkMetadataEditor', () => {
   it('renders tags input field', () => {
     renderWithToast(<BulkMetadataEditor {...defaultProps} />)
     expect(screen.getByText('Tags:')).toBeInTheDocument()
-    expect(screen.getByPlaceholderText('Enter tags, separated by commas')).toBeInTheDocument()
+    expect(
+      screen.getByPlaceholderText('Enter tags, separated by commas'),
+    ).toBeInTheDocument()
   })
 
   it('renders priority selector', () => {
@@ -111,7 +113,9 @@ describe('BulkMetadataEditor', () => {
   it('adds tags when typing in tags field', async () => {
     const user = userEvent.setup()
     renderWithToast(<BulkMetadataEditor {...defaultProps} />)
-    const tagsInput = screen.getByPlaceholderText('Enter tags, separated by commas')
+    const tagsInput = screen.getByPlaceholderText(
+      'Enter tags, separated by commas',
+    )
     await user.type(tagsInput, 'tag1, tag2')
     // Metadata preview should appear
     await waitFor(() => {
@@ -122,7 +126,9 @@ describe('BulkMetadataEditor', () => {
   it('removes tags metadata when tags field is cleared', async () => {
     const user = userEvent.setup()
     renderWithToast(<BulkMetadataEditor {...defaultProps} />)
-    const tagsInput = screen.getByPlaceholderText('Enter tags, separated by commas')
+    const tagsInput = screen.getByPlaceholderText(
+      'Enter tags, separated by commas',
+    )
     await user.type(tagsInput, 'tag1')
     await user.clear(tagsInput)
     // Update button should be disabled again
@@ -164,7 +170,9 @@ describe('BulkMetadataEditor', () => {
     mockApiClient.patch.mockResolvedValueOnce({})
     renderWithToast(<BulkMetadataEditor {...defaultProps} />)
 
-    const tagsInput = screen.getByPlaceholderText('Enter tags, separated by commas')
+    const tagsInput = screen.getByPlaceholderText(
+      'Enter tags, separated by commas',
+    )
     await user.type(tagsInput, 'tag1')
 
     const updateButton = screen.getByText('Update Metadata')
@@ -173,7 +181,7 @@ describe('BulkMetadataEditor', () => {
     await waitFor(() => {
       expect(mockApiClient.patch).toHaveBeenCalledWith(
         '/api/projects/tasks/bulk-metadata',
-        { task_ids: [1, 2, 3], metadata: { tags: ['tag1'] } }
+        { task_ids: [1, 2, 3], metadata: { tags: ['tag1'] } },
       )
     })
   })
@@ -184,10 +192,16 @@ describe('BulkMetadataEditor', () => {
     const onClose = jest.fn()
     mockApiClient.patch.mockResolvedValueOnce({})
     renderWithToast(
-      <BulkMetadataEditor {...defaultProps} onSuccess={onSuccess} onClose={onClose} />
+      <BulkMetadataEditor
+        {...defaultProps}
+        onSuccess={onSuccess}
+        onClose={onClose}
+      />,
     )
 
-    const tagsInput = screen.getByPlaceholderText('Enter tags, separated by commas')
+    const tagsInput = screen.getByPlaceholderText(
+      'Enter tags, separated by commas',
+    )
     await user.type(tagsInput, 'tag1')
 
     await user.click(screen.getByText('Update Metadata'))
@@ -203,7 +217,9 @@ describe('BulkMetadataEditor', () => {
     mockApiClient.patch.mockRejectedValueOnce(new Error('API Error'))
     renderWithToast(<BulkMetadataEditor {...defaultProps} />)
 
-    const tagsInput = screen.getByPlaceholderText('Enter tags, separated by commas')
+    const tagsInput = screen.getByPlaceholderText(
+      'Enter tags, separated by commas',
+    )
     await user.type(tagsInput, 'tag1')
 
     await user.click(screen.getByText('Update Metadata'))

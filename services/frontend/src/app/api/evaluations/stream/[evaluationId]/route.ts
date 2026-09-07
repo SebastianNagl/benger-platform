@@ -1,5 +1,5 @@
-import { NextRequest } from 'next/server'
 import { getInternalApiUrl } from '@/lib/utils/apiUrl'
+import { NextRequest } from 'next/server'
 
 // Configure Next.js route segment config for SSE
 export const dynamic = 'force-dynamic'
@@ -8,7 +8,7 @@ export const maxDuration = 600 // 10 minutes max for evaluation streaming
 // SSE proxy endpoint for evaluation status streaming
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ evaluationId: string }> }
+  { params }: { params: Promise<{ evaluationId: string }> },
 ) {
   const { evaluationId } = await params
 
@@ -26,13 +26,13 @@ export async function GET(
           Accept: 'text/event-stream',
           'Cache-Control': 'no-cache',
         },
-      }
+      },
     )
 
     if (!response.ok) {
       return new Response(
         JSON.stringify({ error: 'Failed to connect to evaluation stream' }),
-        { status: response.status }
+        { status: response.status },
       )
     }
 
@@ -48,7 +48,7 @@ export async function GET(
     console.error('Evaluation stream proxy error:', error)
     return new Response(
       JSON.stringify({ error: 'Failed to connect to evaluation stream' }),
-      { status: 500 }
+      { status: 500 },
     )
   }
 }

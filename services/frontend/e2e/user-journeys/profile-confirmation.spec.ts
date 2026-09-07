@@ -24,13 +24,19 @@ async function getAuthToken(page: Page): Promise<string> {
   return body.access_token
 }
 
-async function forceProfileOverdue(page: Page, token: string): Promise<boolean> {
+async function forceProfileOverdue(
+  page: Page,
+  token: string,
+): Promise<boolean> {
   const response = await page.request.post(
     `${BASE_URL}/api/test/force-profile-overdue`,
     {
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
       timeout: 30000,
-    }
+    },
   )
   return response.ok()
 }
@@ -54,7 +60,7 @@ test.describe('Profile Confirmation - API', () => {
 
     const response = await page.request.get(
       `${BASE_URL}/api/auth/mandatory-profile-status`,
-      { headers: { Authorization: `Bearer ${token}` }, timeout: 30000 }
+      { headers: { Authorization: `Bearer ${token}` }, timeout: 30000 },
     )
 
     expect(response.ok()).toBe(true)
@@ -72,7 +78,7 @@ test.describe('Profile Confirmation - API', () => {
 
     const response = await page.request.get(
       `${BASE_URL}/api/auth/profile-history`,
-      { headers: { Authorization: `Bearer ${token}` }, timeout: 30000 }
+      { headers: { Authorization: `Bearer ${token}` }, timeout: 30000 },
     )
 
     expect(response.ok()).toBe(true)
@@ -117,7 +123,7 @@ test.describe('Profile Confirmation - API', () => {
     // Verify overdue
     const statusResp = await page.request.get(
       `${BASE_URL}/api/auth/mandatory-profile-status`,
-      { headers, timeout: 30000 }
+      { headers, timeout: 30000 },
     )
     const status = await statusResp.json()
     expect(status.confirmation_due).toBe(true)
@@ -126,17 +132,24 @@ test.describe('Profile Confirmation - API', () => {
     // Use cookie auth via page.evaluate (Bearer token may route differently via Traefik)
     const notifResult = await page.evaluate(async () => {
       // Call status endpoint to trigger notification creation
-      await fetch('/api/auth/mandatory-profile-status', { credentials: 'include' })
-      await new Promise(r => setTimeout(r, 1000))
+      await fetch('/api/auth/mandatory-profile-status', {
+        credentials: 'include',
+      })
+      await new Promise((r) => setTimeout(r, 1000))
 
       // Fetch notifications via cookie auth
-      const resp = await fetch('/api/notifications/?limit=100', { credentials: 'include' })
-      if (!resp.ok) return { found: false, status: resp.status, types: [], totalNotifs: 0 }
+      const resp = await fetch('/api/notifications/?limit=100', {
+        credentials: 'include',
+      })
+      if (!resp.ok)
+        return { found: false, status: resp.status, types: [], totalNotifs: 0 }
       const data = await resp.json()
-      const notifications = Array.isArray(data) ? data : (data.items || data.notifications || [])
+      const notifications = Array.isArray(data)
+        ? data
+        : data.items || data.notifications || []
       const types = notifications.map((n: any) => n.type)
       const profileNotif = notifications.find(
-        (n: { type: string }) => n.type === 'profile_confirmation_due'
+        (n: { type: string }) => n.type === 'profile_confirmation_due',
       )
       return { found: !!profileNotif }
     })
@@ -173,7 +186,7 @@ test.describe('Profile Confirmation - UI Banner', () => {
     // Sanity: the backend really is overdue right now.
     const statusResp = await page.request.get(
       `${BASE_URL}/api/auth/mandatory-profile-status`,
-      { headers: { Authorization: `Bearer ${token}` }, timeout: 30000 }
+      { headers: { Authorization: `Bearer ${token}` }, timeout: 30000 },
     )
     expect((await statusResp.json()).confirmation_due).toBe(true)
 
@@ -202,7 +215,7 @@ test.describe('Profile Confirmation - UI Banner', () => {
           'Content-Type': 'application/json',
         },
         timeout: 30000,
-      }
+      },
     )
     expect(confirmResp.ok()).toBe(true)
   })
@@ -233,7 +246,7 @@ test.describe('Profile Confirmation - API Mutations', () => {
           'Content-Type': 'application/json',
         },
         timeout: 30000,
-      }
+      },
     )
 
     expect(response.ok()).toBe(true)
@@ -246,7 +259,7 @@ test.describe('Profile Confirmation - API Mutations', () => {
     // After confirming, status should show not due
     const statusResp = await page.request.get(
       `${BASE_URL}/api/auth/mandatory-profile-status`,
-      { headers: { Authorization: `Bearer ${token}` }, timeout: 30000 }
+      { headers: { Authorization: `Bearer ${token}` }, timeout: 30000 },
     )
     const status = await statusResp.json()
     expect(status.confirmation_due).toBe(false)

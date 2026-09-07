@@ -79,7 +79,7 @@ export class TestFixtures {
   async waitForTasksIndexed(
     projectId: string,
     expectedCount: number,
-    timeout: number = 10000
+    timeout: number = 10000,
   ): Promise<boolean> {
     const startTime = Date.now()
     const pollInterval = 500
@@ -106,7 +106,7 @@ export class TestFixtures {
     }
 
     console.warn(
-      `Tasks not fully indexed within ${timeout}ms (got ${expectedCount} expected)`
+      `Tasks not fully indexed within ${timeout}ms (got ${expectedCount} expected)`,
     )
     return false
   }
@@ -144,7 +144,7 @@ export class TestFixtures {
 
     if (orphanedProjects.length > 0) {
       console.warn(
-        `Found ${orphanedProjects.length} orphaned E2E test projects`
+        `Found ${orphanedProjects.length} orphaned E2E test projects`,
       )
     }
 
@@ -181,7 +181,7 @@ export class TestFixtures {
    */
   async createAnnotationTestProject(
     labelConfig: string = SIMPLE_TEXT_CONFIG,
-    taskCount: number = 5
+    taskCount: number = 5,
   ): Promise<string> {
     const projectName = `E2E Annotation ${Date.now()}`
     const projectId = await this.helpers.createTestProject(projectName)
@@ -296,7 +296,7 @@ export class TestFixtures {
           return { success: false, error: String(e) }
         }
       },
-      { projectId, config }
+      { projectId, config },
     )
     if (!result.success) {
       console.error('Failed to set label config:', result.error)
@@ -315,7 +315,7 @@ export class TestFixtures {
         template: string
         is_active?: boolean
       }>
-    }
+    },
   ): Promise<void> {
     const result = await this.page.evaluate(
       async ({ projectId, config }) => {
@@ -337,7 +337,7 @@ export class TestFixtures {
           return { success: false, error: String(e) }
         }
       },
-      { projectId, config }
+      { projectId, config },
     )
     if (!result.success) {
       console.error('Failed to set generation config:', result.error)
@@ -354,7 +354,7 @@ export class TestFixtures {
       to_name: string
       type: string
       value: { text?: string; choices?: string[] }
-    }>
+    }>,
   ): Promise<void> {
     const result = await this.page.evaluate(
       async ({ taskId, annotationResult }) => {
@@ -368,7 +368,7 @@ export class TestFixtures {
               },
               credentials: 'include',
               body: JSON.stringify({ result: annotationResult }),
-            }
+            },
           )
           if (!response.ok) {
             const errorText = await response.text()
@@ -379,7 +379,7 @@ export class TestFixtures {
           return { success: false, error: String(e) }
         }
       },
-      { taskId, annotationResult }
+      { taskId, annotationResult },
     )
     if (!result.success) {
       console.error('Failed to create annotation:', result.error)
@@ -390,7 +390,7 @@ export class TestFixtures {
    * Get tasks for a project
    */
   async getTasks(
-    projectId: string
+    projectId: string,
   ): Promise<Array<{ id: string; data: Record<string, unknown> }>> {
     return await this.page.evaluate(async (projectId) => {
       try {

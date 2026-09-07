@@ -10,11 +10,22 @@ interface ReportSectionProps {
 }
 
 /** A titled card, the building block of every report section. */
-export function ReportSection({ title, children, aside, id }: ReportSectionProps) {
+export function ReportSection({
+  title,
+  children,
+  aside,
+  id,
+}: ReportSectionProps) {
   return (
-    <Card className="p-6" id={id} data-testid={id ? `section-${id}` : undefined}>
+    <Card
+      className="p-6"
+      id={id}
+      data-testid={id ? `section-${id}` : undefined}
+    >
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-xl font-semibold text-zinc-900 dark:text-white">{title}</h2>
+        <h2 className="text-xl font-semibold text-zinc-900 dark:text-white">
+          {title}
+        </h2>
         {aside}
       </div>
       {children}
@@ -25,7 +36,7 @@ export function ReportSection({ title, children, aside, id }: ReportSectionProps
 /** Muted paragraph used for section prose. */
 export function Prose({ children }: { children: ReactNode }) {
   return (
-    <p className="whitespace-pre-line text-sm leading-6 text-zinc-700 dark:text-zinc-300">
+    <p className="text-sm leading-6 whitespace-pre-line text-zinc-700 dark:text-zinc-300">
       {children}
     </p>
   )
@@ -34,7 +45,9 @@ export function Prose({ children }: { children: ReactNode }) {
 /** Sub-heading inside a section. */
 export function SubHeading({ children }: { children: ReactNode }) {
   return (
-    <h3 className="mb-3 text-base font-semibold text-zinc-900 dark:text-white">{children}</h3>
+    <h3 className="mb-3 text-base font-semibold text-zinc-900 dark:text-white">
+      {children}
+    </h3>
   )
 }
 

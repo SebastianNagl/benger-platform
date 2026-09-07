@@ -117,7 +117,7 @@ export class NotificationsClient extends BaseApiClient {
    */
   async getPreferences(): Promise<NotificationPreferences> {
     const response: PreferencesResponse = await this.get(
-      '/notifications/preferences'
+      '/notifications/preferences',
     )
     return response.preferences || {}
   }
@@ -165,7 +165,7 @@ export class NotificationsClient extends BaseApiClient {
    * Mark multiple notifications as read
    */
   async markBulkAsRead(
-    notificationIds: string[]
+    notificationIds: string[],
   ): Promise<BulkOperationResponse> {
     return this.post('/notifications/bulk/mark-read', {
       notification_ids: notificationIds,
@@ -186,7 +186,7 @@ export class NotificationsClient extends BaseApiClient {
    */
   async getNotificationGroups(
     groupBy: 'type' | 'date' | 'organization' = 'type',
-    limit: number = 50
+    limit: number = 50,
   ): Promise<NotificationGroupsResponse> {
     const params = new URLSearchParams({
       group_by: groupBy,
@@ -199,7 +199,7 @@ export class NotificationsClient extends BaseApiClient {
    * Get notification analytics summary
    */
   async getNotificationSummary(
-    days: number = 7
+    days: number = 7,
   ): Promise<NotificationSummaryResponse> {
     const params = new URLSearchParams({
       days: days.toString(),
@@ -211,7 +211,7 @@ export class NotificationsClient extends BaseApiClient {
    * Create a test notification (admin only)
    */
   async createTestNotification(
-    request: TestNotificationRequest
+    request: TestNotificationRequest,
   ): Promise<TestNotificationResponse> {
     return this.post('/notifications/test/create', request)
   }

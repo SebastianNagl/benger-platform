@@ -4,8 +4,8 @@
  * Displays header text in annotation interface
  */
 
-import type { JSX } from 'react'
 import { AnnotationComponentProps } from '@/lib/labelConfig/registry'
+import type { JSX } from 'react'
 
 export default function HeaderDisplay({ config }: AnnotationComponentProps) {
   const value = config.props.value || config.props.content || 'Header'

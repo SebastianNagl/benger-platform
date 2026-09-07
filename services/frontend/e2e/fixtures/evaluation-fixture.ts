@@ -80,7 +80,7 @@ export interface EvaluationFixtureResult {
  */
 export async function seedEvaluationTestData(
   page: Page,
-  helpers: TestHelpers
+  helpers: TestHelpers,
 ): Promise<EvaluationFixtureResult> {
   const apiSeeder = new APISeedingHelper(page)
   const timestamp = Date.now()
@@ -91,7 +91,7 @@ export async function seedEvaluationTestData(
   // Step 1: Create project
   const projectId = await apiSeeder.createProject(
     projectName,
-    'E2E test project for evaluation results verification'
+    'E2E test project for evaluation results verification',
   )
   console.log(`[Evaluation Fixture] Project created: ${projectId}`)
 
@@ -114,7 +114,7 @@ export async function seedEvaluationTestData(
 
   if (taskIds.length < TEST_TASKS.length) {
     throw new Error(
-      `Expected ${TEST_TASKS.length} tasks, got ${taskIds.length}`
+      `Expected ${TEST_TASKS.length} tasks, got ${taskIds.length}`,
     )
   }
 
@@ -130,7 +130,10 @@ export async function seedEvaluationTestData(
         },
       ])
     } catch (error) {
-      console.warn(`[Evaluation Fixture] Failed to create annotation for task ${i + 1}:`, error)
+      console.warn(
+        `[Evaluation Fixture] Failed to create annotation for task ${i + 1}:`,
+        error,
+      )
     }
   }
   console.log(`[Evaluation Fixture] Annotations created`)
@@ -145,7 +148,9 @@ export async function seedEvaluationTestData(
   // - Focus on UI functionality without strict data verification
   // - Use this fixture for basic project setup only
 
-  console.log(`[Evaluation Fixture] Setup complete (project ready for manual evaluation)`)
+  console.log(
+    `[Evaluation Fixture] Setup complete (project ready for manual evaluation)`,
+  )
 
   // Return partial data - no evaluation results seeded
   return {
@@ -169,7 +174,7 @@ export async function seedEvaluationTestData(
  */
 export async function cleanupEvaluationTestData(
   page: Page,
-  projectId: string
+  projectId: string,
 ): Promise<void> {
   const apiSeeder = new APISeedingHelper(page)
   const success = await apiSeeder.deleteProject(projectId)
@@ -187,7 +192,7 @@ export async function cleanupEvaluationTestData(
 export async function seedSecondEvaluation(
   page: Page,
   projectId: string,
-  taskIds: string[]
+  taskIds: string[],
 ): Promise<{
   evaluationId: string
   generationIds: string[]
@@ -207,13 +212,16 @@ export async function seedSecondEvaluation(
       projectId,
       taskIds[i],
       modelId,
-      { answer: `Generated answer from ${modelId} for task ${i + 1}` }
+      { answer: `Generated answer from ${modelId} for task ${i + 1}` },
     )
     generationIds.push(generationId)
   }
 
   // Create evaluation
-  const evaluationId = await apiSeeder.createEvaluation(projectId, 'multi_field')
+  const evaluationId = await apiSeeder.createEvaluation(
+    projectId,
+    'multi_field',
+  )
 
   // Create results
   const results = taskIds.map((taskId, i) => ({

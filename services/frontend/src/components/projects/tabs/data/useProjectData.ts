@@ -34,7 +34,7 @@ export function useProjectData({ projectId, userId }: UseProjectDataOptions) {
   // Use persistent table preferences
   const { preferences, updatePreference } = useTablePreferences(
     projectId,
-    userId
+    userId,
   )
 
   // State - using LabelStudio Task type internally for compatibility.
@@ -48,7 +48,7 @@ export function useProjectData({ projectId, userId }: UseProjectDataOptions) {
   const [showSearch, setShowSearch] = useState(preferences.showSearch)
   const [sortBy, setSortBy] = useState<string>(preferences.sortBy)
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>(
-    preferences.sortOrder
+    preferences.sortOrder,
   )
   const [filterStatus, setFilterStatus] = useState<
     'all' | 'completed' | 'incomplete'
@@ -70,7 +70,7 @@ export function useProjectData({ projectId, userId }: UseProjectDataOptions) {
 
   // Metadata filtering state (Label Studio aligned)
   const [metadataFilters, setMetadataFilters] = useState<Record<string, any>>(
-    {}
+    {},
   )
 
   // Lag the search input so per-keystroke typing doesn't refire the page
@@ -81,7 +81,14 @@ export function useProjectData({ projectId, userId }: UseProjectDataOptions) {
   // index may exceed the new totalPages and the UI shows an empty page.
   useEffect(() => {
     setCurrentPage(1)
-  }, [debouncedSearch, filterStatus, filterDateRange.start, filterDateRange.end, sortBy, sortOrder])
+  }, [
+    debouncedSearch,
+    filterStatus,
+    filterDateRange.start,
+    filterDateRange.end,
+    sortBy,
+    sortOrder,
+  ])
 
   // Map UI sort key to the backend sort columns. Non-server-sortable keys
   // (e.g. people columns) map to undefined and fall back to the default
@@ -89,7 +96,8 @@ export function useProjectData({ projectId, userId }: UseProjectDataOptions) {
   const serverSortBy = useMemo<
     'id' | 'created' | 'completed' | 'annotations' | 'generations' | undefined
   >(() => {
-    if (sortBy === 'id' || sortBy === 'created' || sortBy === 'completed') return sortBy
+    if (sortBy === 'id' || sortBy === 'created' || sortBy === 'completed')
+      return sortBy
     if (sortBy === 'annotations' || sortBy === 'generations') return sortBy
     return undefined
   }, [sortBy])
@@ -169,7 +177,7 @@ export function useProjectData({ projectId, userId }: UseProjectDataOptions) {
                 return taskValue === filterValues
               }
             }
-          }
+          },
         )
       })
     }

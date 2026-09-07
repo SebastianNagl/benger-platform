@@ -179,13 +179,13 @@ describe('useProjects Hook', () => {
 
       expect(result.current.projects).toHaveLength(3)
       expect(result.current.projects.filter((p) => p.is_archived)).toHaveLength(
-        1
+        1,
       )
       expect(
-        result.current.projects.filter((p) => !p.is_archived)
+        result.current.projects.filter((p) => !p.is_archived),
       ).toHaveLength(2)
       expect(
-        result.current.projects.filter((p) => p.is_published)
+        result.current.projects.filter((p) => p.is_published),
       ).toHaveLength(1)
     })
 
@@ -729,8 +729,8 @@ describe('useProjects Hook', () => {
       mockFetchProjects.mockImplementationOnce(
         () =>
           new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('Timeout')), 100)
-          )
+            setTimeout(() => reject(new Error('Timeout')), 100),
+          ),
       )
 
       const { result } = renderHook(() => useProjects(), { wrapper })

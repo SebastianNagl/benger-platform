@@ -8,30 +8,45 @@
 
 import {
   buildAnnotationResult,
+  buildSpanAnnotationResult,
+  convertFromLabelStudioFormat,
+  convertToLabelStudioFormat,
   mapLegacyAnnotation,
   parseSpanAnnotations,
-  convertToLabelStudioFormat,
-  convertFromLabelStudioFormat,
-  validateTaskDataFields,
   resolveDataBinding,
   resolvePropsDataBindings,
-  buildSpanAnnotationResult,
+  validateTaskDataFields,
 } from '../dataBinding'
 
 describe('buildAnnotationResult', () => {
   it('should format TextArea value', () => {
-    const result = buildAnnotationResult('answer', 'TextArea', 'my text', 'question')
+    const result = buildAnnotationResult(
+      'answer',
+      'TextArea',
+      'my text',
+      'question',
+    )
     expect(result.value).toEqual({ text: ['my text'] })
     expect(result.type).toBe('textarea')
   })
 
   it('should format Choices value with single string', () => {
-    const result = buildAnnotationResult('choice', 'Choices', 'option1', 'question')
+    const result = buildAnnotationResult(
+      'choice',
+      'Choices',
+      'option1',
+      'question',
+    )
     expect(result.value).toEqual({ choices: ['option1'] })
   })
 
   it('should format Choices value with array', () => {
-    const result = buildAnnotationResult('choice', 'Choices', ['a', 'b'], 'question')
+    const result = buildAnnotationResult(
+      'choice',
+      'Choices',
+      ['a', 'b'],
+      'question',
+    )
     expect(result.value).toEqual({ choices: ['a', 'b'] })
   })
 
@@ -85,7 +100,14 @@ describe('parseSpanAnnotations', () => {
   })
 
   it('should return empty array for result with no value', () => {
-    expect(parseSpanAnnotations({ value: null, from_name: 'l', to_name: 't', type: 'labels' })).toEqual([])
+    expect(
+      parseSpanAnnotations({
+        value: null,
+        from_name: 'l',
+        to_name: 't',
+        type: 'labels',
+      }),
+    ).toEqual([])
   })
 
   it('should parse new format with spans array', () => {
@@ -107,7 +129,7 @@ describe('parseSpanAnnotations', () => {
   it('should parse span with missing fields using defaults', () => {
     const result = parseSpanAnnotations({
       value: {
-        spans: [{ /* no id, start, end, text, labels */ }],
+        spans: [{/* no id, start, end, text, labels */}],
       },
       from_name: 'label',
       to_name: 'text',
@@ -214,8 +236,20 @@ describe('convertToLabelStudioFormat', () => {
 describe('convertFromLabelStudioFormat', () => {
   it('should consolidate Label Studio span annotations by from_name:to_name', () => {
     const input = [
-      { from_name: 'label', to_name: 'text', type: 'labels', value: { start: 0, end: 5, text: 'hello', labels: ['A'] }, id: 's1' },
-      { from_name: 'label', to_name: 'text', type: 'labels', value: { start: 10, end: 15, text: 'world', labels: ['B'] }, id: 's2' },
+      {
+        from_name: 'label',
+        to_name: 'text',
+        type: 'labels',
+        value: { start: 0, end: 5, text: 'hello', labels: ['A'] },
+        id: 's1',
+      },
+      {
+        from_name: 'label',
+        to_name: 'text',
+        type: 'labels',
+        value: { start: 10, end: 15, text: 'world', labels: ['B'] },
+        id: 's2',
+      },
     ]
 
     const result = convertFromLabelStudioFormat(input)
@@ -230,7 +264,9 @@ describe('convertFromLabelStudioFormat', () => {
         from_name: 'label',
         to_name: 'text',
         type: 'labels',
-        value: { spans: [{ id: 's1', start: 0, end: 5, text: 'hi', labels: ['A'] }] },
+        value: {
+          spans: [{ id: 's1', start: 0, end: 5, text: 'hi', labels: ['A'] }],
+        },
       },
     ]
 
@@ -241,7 +277,12 @@ describe('convertFromLabelStudioFormat', () => {
 
   it('should pass through non-labels annotations', () => {
     const input = [
-      { from_name: 'answer', to_name: 'q', type: 'textarea', value: { text: ['ans'] } },
+      {
+        from_name: 'answer',
+        to_name: 'q',
+        type: 'textarea',
+        value: { text: ['ans'] },
+      },
     ]
 
     const result = convertFromLabelStudioFormat(input)
@@ -250,7 +291,12 @@ describe('convertFromLabelStudioFormat', () => {
 
   it('should generate span ids when not provided', () => {
     const input = [
-      { from_name: 'l', to_name: 't', type: 'labels', value: { start: 0, end: 5 } },
+      {
+        from_name: 'l',
+        to_name: 't',
+        type: 'labels',
+        value: { start: 0, end: 5 },
+      },
     ]
 
     const result = convertFromLabelStudioFormat(input)
@@ -260,13 +306,18 @@ describe('convertFromLabelStudioFormat', () => {
 
 describe('validateTaskDataFields', () => {
   it('should validate fields present at root level', () => {
-    const result = validateTaskDataFields(['text', 'question'], { text: 'hi', question: 'why?' })
+    const result = validateTaskDataFields(['text', 'question'], {
+      text: 'hi',
+      question: 'why?',
+    })
     expect(result.valid).toBe(true)
     expect(result.missingFields).toEqual([])
   })
 
   it('should validate fields present inside data property', () => {
-    const result = validateTaskDataFields(['text'], { data: { text: 'nested' } })
+    const result = validateTaskDataFields(['text'], {
+      data: { text: 'nested' },
+    })
     expect(result.valid).toBe(true)
   })
 
@@ -303,11 +354,15 @@ describe('resolveDataBinding', () => {
   })
 
   it('should resolve $field from data property when not at root', () => {
-    expect(resolveDataBinding('$text', { data: { text: 'nested' } })).toBe('nested')
+    expect(resolveDataBinding('$text', { data: { text: 'nested' } })).toBe(
+      'nested',
+    )
   })
 
   it('should resolve nested dot paths', () => {
-    expect(resolveDataBinding('$a.b.c', { a: { b: { c: 'deep' } } })).toBe('deep')
+    expect(resolveDataBinding('$a.b.c', { a: { b: { c: 'deep' } } })).toBe(
+      'deep',
+    )
   })
 
   it('should return undefined for non-existent paths', () => {
@@ -319,7 +374,7 @@ describe('resolvePropsDataBindings', () => {
   it('should resolve all data bindings in props', () => {
     const result = resolvePropsDataBindings(
       { value: '$text', name: 'myName', static: 'literal' },
-      { text: 'resolved' }
+      { text: 'resolved' },
     )
     expect(result.value).toBe('resolved')
     expect(result.name).toBe('myName')

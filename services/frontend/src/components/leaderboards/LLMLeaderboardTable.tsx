@@ -55,10 +55,7 @@ const TIME_PERIOD_KEYS: { value: TimePeriod; key: string }[] = [
 // produced dimensionally meaningless arithmetic means that the formatter
 // then rendered as "1400%". PR #116 removed the synthetic row from the
 // aggregator and the option from this list. Pick a concrete metric instead.
-const CORE_METRICS = [
-  'llm_judge_falloesung_grade_points',
-  'accuracy',
-] as const
+const CORE_METRICS = ['llm_judge_falloesung_grade_points', 'accuracy'] as const
 
 function camelize(key: string): string {
   return key.replace(/_([a-z0-9])/g, (_, c: string) => c.toUpperCase())
@@ -195,7 +192,8 @@ export function LLMLeaderboardTable() {
   // spinner for those.
   const loading = leaderboardQuery.isPending
   const error = leaderboardQuery.error
-    ? (leaderboardQuery.error as Error).message || t('leaderboards.llm.loadFailed')
+    ? (leaderboardQuery.error as Error).message ||
+      t('leaderboards.llm.loadFailed')
     : null
 
   // Reset to page 1 when filters change. We can't put this inside the
@@ -258,7 +256,11 @@ export function LLMLeaderboardTable() {
 
   const formatScore = (score: number | null) => {
     if (score === null || score === undefined) return 'n/a'
-    return formatValueForScale(score, getMetricScale(metric), aggregation === 'sum')
+    return formatValueForScale(
+      score,
+      getMetricScale(metric),
+      aggregation === 'sum',
+    )
   }
 
   const formatCI = (ci_lower: number | null, ci_upper: number | null) => {
@@ -281,7 +283,7 @@ export function LLMLeaderboardTable() {
     setSelectedProjectIds((prev) =>
       prev.includes(projectId)
         ? prev.filter((id) => id !== projectId)
-        : [...prev, projectId]
+        : [...prev, projectId],
     )
   }
 
@@ -316,8 +318,9 @@ export function LLMLeaderboardTable() {
     if (metricOptions.length === 0) return
     if (!metricOptions.some((o) => o.value === metric)) {
       const fallback =
-        metricOptions.find((o) => o.value === 'llm_judge_falloesung_grade_points') ??
-        metricOptions[0]
+        metricOptions.find(
+          (o) => o.value === 'llm_judge_falloesung_grade_points',
+        ) ?? metricOptions[0]
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setMetric(fallback.value)
     }
@@ -362,38 +365,91 @@ export function LLMLeaderboardTable() {
     <>
       {/* Project Filter */}
       <Menu as="div" className="relative">
-          <Menu.Button as={Button} variant="outline" className="gap-2">
-            <FunnelIcon className="h-4 w-4" />
-            <span>
-              {selectedProjectIds.length > 0
-                ? t('leaderboards.llm.projectsCount', { count: selectedProjectIds.length })
-                : t('leaderboards.allProjects')}
+        <Menu.Button as={Button} variant="outline" className="gap-2">
+          <FunnelIcon className="h-4 w-4" />
+          <span>
+            {selectedProjectIds.length > 0
+              ? t('leaderboards.llm.projectsCount', {
+                  count: selectedProjectIds.length,
+                })
+              : t('leaderboards.allProjects')}
+          </span>
+          {selectedProjectIds.length > 0 && (
+            <span className="ml-1 inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200">
+              {selectedProjectIds.length}
             </span>
-            {selectedProjectIds.length > 0 && (
+          )}
+          <ChevronDownIcon className="h-4 w-4" />
+        </Menu.Button>
+        <Menu.Items className="absolute right-0 z-10 mt-2 max-h-60 w-64 overflow-auto rounded-lg bg-white py-1 shadow-lg ring-1 ring-black/5 focus:outline-none dark:bg-zinc-900">
+          {projects.map((project) => (
+            <Menu.Item key={project.id}>
+              {({ active }) => (
+                <button
+                  className={`flex w-full items-center px-4 py-2 text-left text-sm ${
+                    active ? 'bg-zinc-100 dark:bg-zinc-800' : ''
+                  }`}
+                  onClick={() => toggleProject(project.id)}
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedProjectIds.includes(project.id)}
+                    onChange={() => {}}
+                    className="mr-3 h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500"
+                  />
+                  <span className="truncate text-zinc-900 dark:text-zinc-100">
+                    {project.title}
+                  </span>
+                </button>
+              )}
+            </Menu.Item>
+          ))}
+        </Menu.Items>
+      </Menu>
+
+      {/* Evaluation Types Filter */}
+      {availableEvaluationTypes.length > 0 && (
+        <Menu as="div" className="relative">
+          <Menu.Button as={Button} variant="outline" className="gap-2">
+            <ChartBarIcon className="h-4 w-4" />
+            <span>
+              {selectedEvaluationTypes.length > 0
+                ? t('leaderboards.llm.evalTypesCount', {
+                    count: selectedEvaluationTypes.length,
+                  })
+                : t('leaderboards.llm.allEvalTypes')}
+            </span>
+            {selectedEvaluationTypes.length > 0 && (
               <span className="ml-1 inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200">
-                {selectedProjectIds.length}
+                {selectedEvaluationTypes.length}
               </span>
             )}
             <ChevronDownIcon className="h-4 w-4" />
           </Menu.Button>
           <Menu.Items className="absolute right-0 z-10 mt-2 max-h-60 w-64 overflow-auto rounded-lg bg-white py-1 shadow-lg ring-1 ring-black/5 focus:outline-none dark:bg-zinc-900">
-            {projects.map((project) => (
-              <Menu.Item key={project.id}>
+            {availableEvaluationTypes.map((evalType) => (
+              <Menu.Item key={evalType}>
                 {({ active }) => (
                   <button
                     className={`flex w-full items-center px-4 py-2 text-left text-sm ${
                       active ? 'bg-zinc-100 dark:bg-zinc-800' : ''
                     }`}
-                    onClick={() => toggleProject(project.id)}
+                    onClick={() =>
+                      setSelectedEvaluationTypes((prev) =>
+                        prev.includes(evalType)
+                          ? prev.filter((t) => t !== evalType)
+                          : [...prev, evalType],
+                      )
+                    }
                   >
                     <input
                       type="checkbox"
-                      checked={selectedProjectIds.includes(project.id)}
+                      checked={selectedEvaluationTypes.includes(evalType)}
                       onChange={() => {}}
                       className="mr-3 h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500"
                     />
                     <span className="truncate text-zinc-900 dark:text-zinc-100">
-                      {project.title}
+                      {evalType}
                     </span>
                   </button>
                 )}
@@ -401,56 +457,7 @@ export function LLMLeaderboardTable() {
             ))}
           </Menu.Items>
         </Menu>
-
-        {/* Evaluation Types Filter */}
-        {availableEvaluationTypes.length > 0 && (
-          <Menu as="div" className="relative">
-            <Menu.Button as={Button} variant="outline" className="gap-2">
-              <ChartBarIcon className="h-4 w-4" />
-              <span>
-                {selectedEvaluationTypes.length > 0
-                  ? t('leaderboards.llm.evalTypesCount', { count: selectedEvaluationTypes.length })
-                  : t('leaderboards.llm.allEvalTypes')}
-              </span>
-              {selectedEvaluationTypes.length > 0 && (
-                <span className="ml-1 inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200">
-                  {selectedEvaluationTypes.length}
-                </span>
-              )}
-              <ChevronDownIcon className="h-4 w-4" />
-            </Menu.Button>
-            <Menu.Items className="absolute right-0 z-10 mt-2 max-h-60 w-64 overflow-auto rounded-lg bg-white py-1 shadow-lg ring-1 ring-black/5 focus:outline-none dark:bg-zinc-900">
-              {availableEvaluationTypes.map((evalType) => (
-                <Menu.Item key={evalType}>
-                  {({ active }) => (
-                    <button
-                      className={`flex w-full items-center px-4 py-2 text-left text-sm ${
-                        active ? 'bg-zinc-100 dark:bg-zinc-800' : ''
-                      }`}
-                      onClick={() =>
-                        setSelectedEvaluationTypes((prev) =>
-                          prev.includes(evalType)
-                            ? prev.filter((t) => t !== evalType)
-                            : [...prev, evalType]
-                        )
-                      }
-                    >
-                      <input
-                        type="checkbox"
-                        checked={selectedEvaluationTypes.includes(evalType)}
-                        onChange={() => {}}
-                        className="mr-3 h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500"
-                      />
-                      <span className="truncate text-zinc-900 dark:text-zinc-100">
-                        {evalType}
-                      </span>
-                    </button>
-                  )}
-                </Menu.Item>
-              ))}
-            </Menu.Items>
-          </Menu>
-        )}
+      )}
     </>
   )
 
@@ -485,7 +492,10 @@ export function LLMLeaderboardTable() {
         leftExtras={projectsMenu}
       >
         <FilterToolbar.Field label={t('leaderboards.allTime')}>
-          <Select value={period} onValueChange={(v) => setPeriod(v as TimePeriod)}>
+          <Select
+            value={period}
+            onValueChange={(v) => setPeriod(v as TimePeriod)}
+          >
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
@@ -523,13 +533,17 @@ export function LLMLeaderboardTable() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="average">{t('leaderboards.aggregation.average')}</SelectItem>
+              <SelectItem value="average">
+                {t('leaderboards.aggregation.average')}
+              </SelectItem>
               {/* Sum is only meaningful for summable metrics (Notenpunkte,
                   exact_match, accuracy as count-correct). For ratios like
                   BLEU/ROUGE summing across N evals is dimensionally weird;
                   hide the option when the current metric isn't summable. */}
               {currentMetricSummable && (
-                <SelectItem value="sum">{t('leaderboards.aggregation.sum')}</SelectItem>
+                <SelectItem value="sum">
+                  {t('leaderboards.aggregation.sum')}
+                </SelectItem>
               )}
             </SelectContent>
           </Select>
@@ -599,16 +613,16 @@ export function LLMLeaderboardTable() {
           <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-700">
             <thead className="bg-zinc-50 dark:bg-zinc-800">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                   {t('leaderboards.rank')}
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                   {t('leaderboards.llm.model')}
                 </th>
-                <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                <th className="px-4 py-3 text-right text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                   {t('leaderboards.llm.generations', 'Generations')}
                 </th>
-                <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                <th className="px-4 py-3 text-right text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                   {getScoreColumnLabel()}
                 </th>
               </tr>
@@ -616,7 +630,8 @@ export function LLMLeaderboardTable() {
             <tbody className="divide-y divide-zinc-200 bg-white dark:divide-zinc-700 dark:bg-zinc-900">
               {leaderboard.map((entry) => {
                 const displayScore = getDisplayScore(entry)
-                const hasScore = displayScore !== null && displayScore !== undefined
+                const hasScore =
+                  displayScore !== null && displayScore !== undefined
                 // CI is meaningful for any per-metric mean; aggregator sets
                 // ci_lower/ci_upper=null in sum mode so we just check
                 // presence here instead of gating on metric/aggregation.
@@ -633,7 +648,7 @@ export function LLMLeaderboardTable() {
                         : 'bg-zinc-50/50 dark:bg-zinc-800/30'
                     }
                   >
-                    <td className="whitespace-nowrap px-4 py-4 text-sm font-medium">
+                    <td className="px-4 py-4 text-sm font-medium whitespace-nowrap">
                       {hasScore ? (
                         getMedalIcon(entry.rank)
                       ) : (
@@ -663,16 +678,18 @@ export function LLMLeaderboardTable() {
                         </Badge>
                       </div>
                     </td>
-                    <td className="whitespace-nowrap px-4 py-4 text-right text-sm text-zinc-500">
+                    <td className="px-4 py-4 text-right text-sm whitespace-nowrap text-zinc-500">
                       {(entry.generation_count ?? 0).toLocaleString()}
                     </td>
-                    <td className="whitespace-nowrap px-4 py-4 text-right text-sm">
+                    <td className="px-4 py-4 text-right text-sm whitespace-nowrap">
                       {hasScore ? (
                         <span className="font-semibold text-zinc-900 dark:text-white">
                           {formatScore(displayScore)}
                         </span>
                       ) : (
-                        <span className="text-zinc-400 dark:text-zinc-500">n/a</span>
+                        <span className="text-zinc-400 dark:text-zinc-500">
+                          n/a
+                        </span>
                       )}
                       {hasScore && ciText && (
                         <div
@@ -707,7 +724,9 @@ export function LLMLeaderboardTable() {
       {/* Available Metrics */}
       {availableMetrics.length > 0 && (
         <div className="mt-4 text-sm text-zinc-500">
-          <span className="font-medium">{t('leaderboards.llm.availableMetrics')}:</span>{' '}
+          <span className="font-medium">
+            {t('leaderboards.llm.availableMetrics')}:
+          </span>{' '}
           {availableMetrics.slice(0, 10).join(', ')}
           {availableMetrics.length > 10 &&
             ` ${t('leaderboards.llm.andMore', { count: availableMetrics.length - 10 })}`}

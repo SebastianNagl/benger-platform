@@ -22,6 +22,7 @@ import {
 import { useToast } from '@/components/shared/Toast'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
+import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import { useSlot } from '@/lib/extensions/slots'
 import { useProjectStore } from '@/stores/projectStore'
 import { Task, TaskAssignment } from '@/types/labelStudio'
@@ -38,7 +39,6 @@ import {
 import { formatDistanceToNow } from 'date-fns'
 import { useParams, useRouter } from 'next/navigation'
 import { useCallback, useEffect, useState } from 'react'
-import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 
 interface MyTask extends Task {
   assignment?: TaskAssignment
@@ -116,7 +116,7 @@ export default function MyTasksPage() {
         `/api/projects/${projectId}/my-tasks?${params.toString()}`,
         {
           credentials: 'include',
-        }
+        },
       )
 
       if (!response.ok) {
@@ -166,7 +166,9 @@ export default function MyTasksPage() {
       case 'assigned':
         return <Badge variant="default">{t('tasks.myTasks.assigned')}</Badge>
       case 'in_progress':
-        return <Badge variant="secondary">{t('tasks.myTasks.inProgress')}</Badge>
+        return (
+          <Badge variant="secondary">{t('tasks.myTasks.inProgress')}</Badge>
+        )
       case 'completed':
         return <Badge variant="default">{t('tasks.myTasks.completed')}</Badge>
       case 'skipped':
@@ -186,7 +188,6 @@ export default function MyTasksPage() {
     }
     return null
   }
-
 
   if (projectLoading || !currentProject) {
     return (
@@ -261,11 +262,21 @@ export default function MyTasksPage() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">{t('tasks.myTasks.allTasks')}</SelectItem>
-                <SelectItem value="assigned">{t('tasks.myTasks.assigned')}</SelectItem>
-                <SelectItem value="in_progress">{t('tasks.myTasks.inProgress')}</SelectItem>
-                <SelectItem value="completed">{t('tasks.myTasks.completed')}</SelectItem>
-                <SelectItem value="skipped">{t('tasks.myTasks.skipped')}</SelectItem>
+                <SelectItem value="all">
+                  {t('tasks.myTasks.allTasks')}
+                </SelectItem>
+                <SelectItem value="assigned">
+                  {t('tasks.myTasks.assigned')}
+                </SelectItem>
+                <SelectItem value="in_progress">
+                  {t('tasks.myTasks.inProgress')}
+                </SelectItem>
+                <SelectItem value="completed">
+                  {t('tasks.myTasks.completed')}
+                </SelectItem>
+                <SelectItem value="skipped">
+                  {t('tasks.myTasks.skipped')}
+                </SelectItem>
               </SelectContent>
             </Select>
           </FilterToolbar.Field>
@@ -287,7 +298,9 @@ export default function MyTasksPage() {
         <div className="flex items-center justify-center py-12">
           <div className="text-center">
             <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-b-2 border-emerald-600"></div>
-            <p className="text-sm text-zinc-500">{t('tasks.myTasks.loadingTasks')}</p>
+            <p className="text-sm text-zinc-500">
+              {t('tasks.myTasks.loadingTasks')}
+            </p>
           </div>
         </div>
       ) : filteredTasks.length === 0 ? (
@@ -315,7 +328,8 @@ export default function MyTasksPage() {
                 <div className="flex-1">
                   <div className="mb-2 flex items-center gap-3">
                     <span className="text-sm font-medium text-zinc-500">
-                      {t('tasks.myTasks.taskPrefix')} #{task.inner_id || task.id}
+                      {t('tasks.myTasks.taskPrefix')} #
+                      {task.inner_id || task.id}
                     </span>
                     {task.assignment &&
                       getPriorityIcon(task.assignment.priority)}
@@ -347,7 +361,7 @@ export default function MyTasksPage() {
                         {t('tasks.myTasks.assigned')}{' '}
                         {formatDistanceToNow(
                           new Date(task.assignment.assigned_at),
-                          { addSuffix: true }
+                          { addSuffix: true },
                         )}
                       </div>
 
@@ -357,7 +371,7 @@ export default function MyTasksPage() {
                           {t('tasks.myTasks.due')}{' '}
                           {formatDistanceToNow(
                             new Date(task.assignment.due_date),
-                            { addSuffix: true }
+                            { addSuffix: true },
                           )}
                         </div>
                       )}

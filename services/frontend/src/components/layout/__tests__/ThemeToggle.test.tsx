@@ -151,7 +151,7 @@ describe('ThemeToggle', () => {
         'rounded-md',
         'transition',
         'hover:bg-zinc-900/5',
-        'dark:hover:bg-white/5'
+        'dark:hover:bg-white/5',
       )
     })
 
@@ -170,12 +170,12 @@ describe('ThemeToggle', () => {
         'h-5',
         'w-5',
         'stroke-zinc-900',
-        'dark:hidden'
+        'dark:hidden',
       )
 
       // Moon icon (hidden in light mode, visible in dark mode)
       const moonIcon = container.querySelector(
-        'svg[viewBox="0 0 20 20"]:nth-of-type(2)'
+        'svg[viewBox="0 0 20 20"]:nth-of-type(2)',
       )
       expect(moonIcon).toBeInTheDocument()
       expect(moonIcon).toHaveClass(
@@ -183,7 +183,7 @@ describe('ThemeToggle', () => {
         'h-5',
         'w-5',
         'stroke-white',
-        'dark:block'
+        'dark:block',
       )
     })
 
@@ -196,13 +196,13 @@ describe('ThemeToggle', () => {
       const { container } = render(<ThemeToggle />)
 
       const touchTarget = container.querySelector(
-        '.size-12.pointer-fine\\:hidden'
+        '.size-12.pointer-fine\\:hidden',
       )
       expect(touchTarget).toBeInTheDocument()
       expect(touchTarget).toHaveClass(
         'absolute',
         'size-12',
-        'pointer-fine:hidden'
+        'pointer-fine:hidden',
       )
     })
   })
@@ -294,7 +294,7 @@ describe('ThemeToggle', () => {
       const { container } = render(<ThemeToggle />)
 
       const moonIcon = container.querySelector(
-        'svg[viewBox="0 0 20 20"]:nth-of-type(2)'
+        'svg[viewBox="0 0 20 20"]:nth-of-type(2)',
       )
       expect(moonIcon).toBeInTheDocument()
 

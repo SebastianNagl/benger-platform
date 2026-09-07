@@ -122,13 +122,13 @@ describe('PromptManager', () => {
   describe('Rendering', () => {
     it('renders empty state when no prompts exist', () => {
       render(
-        <PromptManager prompts={[]} onPromptsChange={mockOnPromptsChange} />
+        <PromptManager prompts={[]} onPromptsChange={mockOnPromptsChange} />,
       )
 
       expect(
         screen.getByText(
-          'No prompts yet. Add your first prompt to get started.'
-        )
+          'No prompts yet. Add your first prompt to get started.',
+        ),
       ).toBeInTheDocument()
       expect(screen.getByText('Add Prompt')).toBeInTheDocument()
     })
@@ -138,7 +138,7 @@ describe('PromptManager', () => {
         <PromptManager
           prompts={mockPrompts}
           onPromptsChange={mockOnPromptsChange}
-        />
+        />,
       )
 
       expect(screen.getByText('Prompt #1')).toBeInTheDocument()
@@ -152,7 +152,7 @@ describe('PromptManager', () => {
         <PromptManager
           prompts={mockPrompts}
           onPromptsChange={mockOnPromptsChange}
-        />
+        />,
       )
 
       expect(screen.getByDisplayValue('Test prompt 1')).toBeInTheDocument()
@@ -168,7 +168,7 @@ describe('PromptManager', () => {
           prompts={[]}
           onPromptsChange={mockOnPromptsChange}
           taskId="test-task-id"
-        />
+        />,
       )
 
       expect(screen.getByText('Upload Prompts')).toBeInTheDocument()
@@ -176,7 +176,7 @@ describe('PromptManager', () => {
 
     it('does not render upload button when no taskId', () => {
       render(
-        <PromptManager prompts={[]} onPromptsChange={mockOnPromptsChange} />
+        <PromptManager prompts={[]} onPromptsChange={mockOnPromptsChange} />,
       )
 
       expect(screen.queryByText('Upload Prompts')).not.toBeInTheDocument()
@@ -187,7 +187,7 @@ describe('PromptManager', () => {
     it('shows add prompt form when add button is clicked', async () => {
       const user = userEvent.setup()
       render(
-        <PromptManager prompts={[]} onPromptsChange={mockOnPromptsChange} />
+        <PromptManager prompts={[]} onPromptsChange={mockOnPromptsChange} />,
       )
 
       const addButton = screen.getByText('Add Prompt')
@@ -195,14 +195,14 @@ describe('PromptManager', () => {
 
       expect(screen.getByText('Add New Prompt')).toBeInTheDocument()
       expect(
-        screen.getByPlaceholderText('Enter prompt text...')
+        screen.getByPlaceholderText('Enter prompt text...'),
       ).toBeInTheDocument()
     })
 
     it('allows entering prompt details in add form', async () => {
       const user = userEvent.setup()
       render(
-        <PromptManager prompts={[]} onPromptsChange={mockOnPromptsChange} />
+        <PromptManager prompts={[]} onPromptsChange={mockOnPromptsChange} />,
       )
 
       const addButton = screen.getByText('Add Prompt')
@@ -217,7 +217,7 @@ describe('PromptManager', () => {
     it('adds new prompt when form is submitted', async () => {
       const user = userEvent.setup()
       render(
-        <PromptManager prompts={[]} onPromptsChange={mockOnPromptsChange} />
+        <PromptManager prompts={[]} onPromptsChange={mockOnPromptsChange} />,
       )
 
       const addButton = screen.getByText('Add Prompt')
@@ -239,7 +239,7 @@ describe('PromptManager', () => {
     it('does not add prompt if text is empty', async () => {
       const user = userEvent.setup()
       render(
-        <PromptManager prompts={[]} onPromptsChange={mockOnPromptsChange} />
+        <PromptManager prompts={[]} onPromptsChange={mockOnPromptsChange} />,
       )
 
       const addButton = screen.getByText('Add Prompt')
@@ -254,7 +254,7 @@ describe('PromptManager', () => {
     it('resets form after adding prompt', async () => {
       const user = userEvent.setup()
       render(
-        <PromptManager prompts={[]} onPromptsChange={mockOnPromptsChange} />
+        <PromptManager prompts={[]} onPromptsChange={mockOnPromptsChange} />,
       )
 
       const addButton = screen.getByText('Add Prompt')
@@ -273,7 +273,7 @@ describe('PromptManager', () => {
     it('cancels add form when cancel is clicked', async () => {
       const user = userEvent.setup()
       render(
-        <PromptManager prompts={[]} onPromptsChange={mockOnPromptsChange} />
+        <PromptManager prompts={[]} onPromptsChange={mockOnPromptsChange} />,
       )
 
       const addButton = screen.getByText('Add Prompt')
@@ -288,7 +288,7 @@ describe('PromptManager', () => {
     it('uses default configuration values for new prompts', async () => {
       const user = userEvent.setup()
       render(
-        <PromptManager prompts={[]} onPromptsChange={mockOnPromptsChange} />
+        <PromptManager prompts={[]} onPromptsChange={mockOnPromptsChange} />,
       )
 
       const addButton = screen.getByText('Add Prompt')
@@ -316,7 +316,7 @@ describe('PromptManager', () => {
         <PromptManager
           prompts={mockPrompts}
           onPromptsChange={mockOnPromptsChange}
-        />
+        />,
       )
 
       // Find the first trash icon button
@@ -325,7 +325,7 @@ describe('PromptManager', () => {
         .filter(
           (btn) =>
             btn.querySelector('svg[data-slot="icon"]') !== null &&
-            btn.querySelector('path') !== null
+            btn.querySelector('path') !== null,
         )
 
       if (trashIcons.length > 0) {
@@ -342,7 +342,7 @@ describe('PromptManager', () => {
         <PromptManager
           prompts={mockPrompts}
           onPromptsChange={mockOnPromptsChange}
-        />
+        />,
       )
 
       const promptInput = screen.getByDisplayValue('Test prompt 1')
@@ -360,7 +360,7 @@ describe('PromptManager', () => {
         <PromptManager
           prompts={mockPrompts}
           onPromptsChange={mockOnPromptsChange}
-        />
+        />,
       )
 
       const outputInput = screen.getByDisplayValue('Test output 1')
@@ -378,7 +378,7 @@ describe('PromptManager', () => {
         <PromptManager
           prompts={mockPrompts}
           onPromptsChange={mockOnPromptsChange}
-        />
+        />,
       )
 
       const maxTokensInput = screen.getByDisplayValue('500')
@@ -396,7 +396,7 @@ describe('PromptManager', () => {
         <PromptManager
           prompts={mockPrompts}
           onPromptsChange={mockOnPromptsChange}
-        />
+        />,
       )
 
       const tempInput = screen.getByDisplayValue('0.7')
@@ -414,7 +414,7 @@ describe('PromptManager', () => {
         <PromptManager
           prompts={mockPrompts}
           onPromptsChange={mockOnPromptsChange}
-        />
+        />,
       )
 
       const contextInput = screen.getByDisplayValue('Test context 1')
@@ -432,7 +432,7 @@ describe('PromptManager', () => {
         <PromptManager
           prompts={mockPrompts}
           onPromptsChange={mockOnPromptsChange}
-        />
+        />,
       )
 
       const typeSelects = screen.getAllByDisplayValue('Instruction')
@@ -458,7 +458,7 @@ describe('PromptManager', () => {
           prompts={[]}
           onPromptsChange={mockOnPromptsChange}
           taskId="test-task"
-        />
+        />,
       )
 
       const file = new File(['test'], 'test.json', { type: 'application/json' })
@@ -467,7 +467,7 @@ describe('PromptManager', () => {
       await user.click(uploadButton)
 
       const fileInput = document.querySelector(
-        'input[type="file"]'
+        'input[type="file"]',
       ) as HTMLInputElement
       if (fileInput) {
         await user.upload(fileInput, file)
@@ -486,7 +486,7 @@ describe('PromptManager', () => {
           prompts={[]}
           onPromptsChange={mockOnPromptsChange}
           taskId="test-task"
-        />
+        />,
       )
 
       expect(mockUploadData).not.toHaveBeenCalled()
@@ -503,7 +503,7 @@ describe('PromptManager', () => {
           prompts={[]}
           onPromptsChange={mockOnPromptsChange}
           taskId="test-task"
-        />
+        />,
       )
 
       const file = new File(['test'], 'test.json', { type: 'application/json' })
@@ -512,7 +512,7 @@ describe('PromptManager', () => {
       await user.click(uploadButton)
 
       const fileInput = document.querySelector(
-        'input[type="file"]'
+        'input[type="file"]',
       ) as HTMLInputElement
       if (fileInput) {
         await user.upload(fileInput, file)
@@ -528,7 +528,7 @@ describe('PromptManager', () => {
     it('displays all prompt type options', async () => {
       const user = userEvent.setup()
       render(
-        <PromptManager prompts={[]} onPromptsChange={mockOnPromptsChange} />
+        <PromptManager prompts={[]} onPromptsChange={mockOnPromptsChange} />,
       )
 
       const addButton = screen.getByText('Add Prompt')
@@ -542,7 +542,7 @@ describe('PromptManager', () => {
     it('sets instruction as default prompt type', async () => {
       const user = userEvent.setup()
       render(
-        <PromptManager prompts={[]} onPromptsChange={mockOnPromptsChange} />
+        <PromptManager prompts={[]} onPromptsChange={mockOnPromptsChange} />,
       )
 
       const addButton = screen.getByText('Add Prompt')
@@ -629,7 +629,7 @@ describe('PromptManager', () => {
     it('disables add button when prompt text is empty', async () => {
       const user = userEvent.setup()
       render(
-        <PromptManager prompts={[]} onPromptsChange={mockOnPromptsChange} />
+        <PromptManager prompts={[]} onPromptsChange={mockOnPromptsChange} />,
       )
 
       const addButton = screen.getByText('Add Prompt')
@@ -642,7 +642,7 @@ describe('PromptManager', () => {
     it('enables add button when prompt text is provided', async () => {
       const user = userEvent.setup()
       render(
-        <PromptManager prompts={[]} onPromptsChange={mockOnPromptsChange} />
+        <PromptManager prompts={[]} onPromptsChange={mockOnPromptsChange} />,
       )
 
       const addButton = screen.getByText('Add Prompt')
@@ -663,7 +663,7 @@ describe('PromptManager', () => {
           prompts={[]}
           onPromptsChange={mockOnPromptsChange}
           taskType="evaluation"
-        />
+        />,
       )
 
       // Component should use the taskType prop
@@ -672,7 +672,7 @@ describe('PromptManager', () => {
 
     it('defaults to generation task type', () => {
       render(
-        <PromptManager prompts={[]} onPromptsChange={mockOnPromptsChange} />
+        <PromptManager prompts={[]} onPromptsChange={mockOnPromptsChange} />,
       )
 
       expect(screen.getByText('Add Prompt')).toBeInTheDocument()
@@ -683,7 +683,7 @@ describe('PromptManager', () => {
     it('handles whitespace-only prompt text', async () => {
       const user = userEvent.setup()
       render(
-        <PromptManager prompts={[]} onPromptsChange={mockOnPromptsChange} />
+        <PromptManager prompts={[]} onPromptsChange={mockOnPromptsChange} />,
       )
 
       const addButton = screen.getByText('Add Prompt')
@@ -704,14 +704,14 @@ describe('PromptManager', () => {
     it('handles expected output field in add form', async () => {
       const user = userEvent.setup()
       render(
-        <PromptManager prompts={[]} onPromptsChange={mockOnPromptsChange} />
+        <PromptManager prompts={[]} onPromptsChange={mockOnPromptsChange} />,
       )
 
       const addButton = screen.getByText('Add Prompt')
       await user.click(addButton)
 
       const expectedOutputInput = screen.getByPlaceholderText(
-        'Enter expected output...'
+        'Enter expected output...',
       )
       await user.type(expectedOutputInput, 'Expected result')
 
@@ -721,7 +721,7 @@ describe('PromptManager', () => {
     it('changes prompt type in add form', async () => {
       const user = userEvent.setup()
       render(
-        <PromptManager prompts={[]} onPromptsChange={mockOnPromptsChange} />
+        <PromptManager prompts={[]} onPromptsChange={mockOnPromptsChange} />,
       )
 
       const addButton = screen.getByText('Add Prompt')
@@ -759,7 +759,7 @@ describe('PromptManager', () => {
         <PromptManager
           prompts={mixedPrompts}
           onPromptsChange={mockOnPromptsChange}
-        />
+        />,
       )
 
       expect(screen.getByDisplayValue('System')).toBeInTheDocument()
@@ -778,7 +778,7 @@ describe('PromptManager', () => {
         <PromptManager
           prompts={undefinedMetadata}
           onPromptsChange={mockOnPromptsChange}
-        />
+        />,
       )
 
       expect(screen.getByText('Prompt #1')).toBeInTheDocument()
@@ -796,7 +796,7 @@ describe('PromptManager', () => {
         <PromptManager
           prompts={noOutput}
           onPromptsChange={mockOnPromptsChange}
-        />
+        />,
       )
 
       expect(screen.getByDisplayValue('Test prompt')).toBeInTheDocument()
@@ -808,7 +808,7 @@ describe('PromptManager', () => {
         <PromptManager
           prompts={mockPrompts}
           onPromptsChange={mockOnPromptsChange}
-        />
+        />,
       )
 
       const tempInput = screen.getByDisplayValue('0.5')
@@ -831,7 +831,7 @@ describe('PromptManager', () => {
           prompts={[]}
           onPromptsChange={mockOnPromptsChange}
           taskId="test-task"
-        />
+        />,
       )
 
       const file = new File(['test'], 'test.json', { type: 'application/json' })
@@ -840,7 +840,7 @@ describe('PromptManager', () => {
       await user.click(uploadButton)
 
       const fileInput = document.querySelector(
-        'input[type="file"]'
+        'input[type="file"]',
       ) as HTMLInputElement
       if (fileInput) {
         await user.upload(fileInput, file)
@@ -864,7 +864,7 @@ describe('PromptManager', () => {
         <PromptManager
           prompts={emptyContext}
           onPromptsChange={mockOnPromptsChange}
-        />
+        />,
       )
 
       const contextInput = screen.getByPlaceholderText('Enter context...')
@@ -881,7 +881,7 @@ describe('PromptManager', () => {
         <PromptManager
           prompts={mockPrompts}
           onPromptsChange={mockOnPromptsChange}
-        />
+        />,
       )
 
       const typeSelects = screen.getAllByDisplayValue('Instruction')
@@ -898,7 +898,7 @@ describe('PromptManager', () => {
         <PromptManager
           prompts={mockPrompts}
           onPromptsChange={mockOnPromptsChange}
-        />
+        />,
       )
 
       const trashIcons = screen
@@ -915,7 +915,7 @@ describe('PromptManager', () => {
         <PromptManager
           prompts={singlePrompt}
           onPromptsChange={mockOnPromptsChange}
-        />
+        />,
       )
 
       expect(screen.getByText('Prompt #1')).toBeInTheDocument()
@@ -928,7 +928,7 @@ describe('PromptManager', () => {
         <PromptManager
           prompts={mockPrompts}
           onPromptsChange={mockOnPromptsChange}
-        />
+        />,
       )
 
       const maxTokensInput = screen.getByDisplayValue('500')
@@ -946,7 +946,7 @@ describe('PromptManager', () => {
         <PromptManager
           prompts={mockPrompts}
           onPromptsChange={mockOnPromptsChange}
-        />
+        />,
       )
 
       const tempInput = screen.getByDisplayValue('0.7')
@@ -970,7 +970,7 @@ describe('PromptManager', () => {
         <PromptManager
           prompts={mockPrompts}
           onPromptsChange={mockOnPromptsChange}
-        />
+        />,
       )
 
       const firstPromptInput = screen.getByDisplayValue('Test prompt 1')
@@ -992,7 +992,7 @@ describe('PromptManager', () => {
         <PromptManager
           prompts={singlePrompt}
           onPromptsChange={mockOnPromptsChange}
-        />
+        />,
       )
 
       const trashIcons = screen
@@ -1000,7 +1000,7 @@ describe('PromptManager', () => {
         .filter(
           (btn) =>
             btn.querySelector('svg[data-slot="icon"]') !== null &&
-            btn.querySelector('path') !== null
+            btn.querySelector('path') !== null,
         )
 
       if (trashIcons.length > 0) {
@@ -1015,7 +1015,7 @@ describe('PromptManager', () => {
           prompts={[]}
           onPromptsChange={mockOnPromptsChange}
           taskId="test-task"
-        />
+        />,
       )
 
       const fileInput = document.querySelector('input[type="file"]')
@@ -1029,7 +1029,7 @@ describe('PromptManager', () => {
           prompts={[]}
           onPromptsChange={mockOnPromptsChange}
           taskId="test-task"
-        />
+        />,
       )
 
       expect(screen.getByText('Add Prompt')).toBeInTheDocument()
@@ -1039,11 +1039,11 @@ describe('PromptManager', () => {
 
     it('displays empty state message with correct styling', () => {
       render(
-        <PromptManager prompts={[]} onPromptsChange={mockOnPromptsChange} />
+        <PromptManager prompts={[]} onPromptsChange={mockOnPromptsChange} />,
       )
 
       const emptyStateText = screen.getByText(
-        'No prompts yet. Add your first prompt to get started.'
+        'No prompts yet. Add your first prompt to get started.',
       )
       expect(emptyStateText).toBeInTheDocument()
       expect(emptyStateText.className).toContain('text-center')
@@ -1055,7 +1055,7 @@ describe('PromptManager', () => {
         <PromptManager
           prompts={mockPrompts}
           onPromptsChange={mockOnPromptsChange}
-        />
+        />,
       )
 
       // Find context input by its placeholder
@@ -1076,7 +1076,7 @@ describe('PromptManager', () => {
     it('handles prompt text multiline input', async () => {
       const user = userEvent.setup()
       render(
-        <PromptManager prompts={[]} onPromptsChange={mockOnPromptsChange} />
+        <PromptManager prompts={[]} onPromptsChange={mockOnPromptsChange} />,
       )
 
       const addButton = screen.getByText('Add Prompt')
@@ -1093,7 +1093,7 @@ describe('PromptManager', () => {
         <PromptManager
           prompts={mockPrompts}
           onPromptsChange={mockOnPromptsChange}
-        />
+        />,
       )
 
       expect(screen.getByDisplayValue('Test prompt 1')).toBeInTheDocument()
@@ -1106,7 +1106,7 @@ describe('PromptManager', () => {
     it('handles cancel without making changes', async () => {
       const user = userEvent.setup()
       render(
-        <PromptManager prompts={[]} onPromptsChange={mockOnPromptsChange} />
+        <PromptManager prompts={[]} onPromptsChange={mockOnPromptsChange} />,
       )
 
       const addButton = screen.getByText('Add Prompt')
@@ -1130,7 +1130,7 @@ describe('PromptManager', () => {
         <PromptManager
           prompts={threePrompts}
           onPromptsChange={mockOnPromptsChange}
-        />
+        />,
       )
 
       const trashIcons = screen
@@ -1138,7 +1138,7 @@ describe('PromptManager', () => {
         .filter(
           (btn) =>
             btn.querySelector('svg[data-slot="icon"]') !== null &&
-            btn.querySelector('path') !== null
+            btn.querySelector('path') !== null,
         )
 
       if (trashIcons.length >= 2) {
@@ -1157,7 +1157,7 @@ describe('PromptManager', () => {
     it('handles prompt with special characters in text', async () => {
       const user = userEvent.setup()
       render(
-        <PromptManager prompts={[]} onPromptsChange={mockOnPromptsChange} />
+        <PromptManager prompts={[]} onPromptsChange={mockOnPromptsChange} />,
       )
 
       const addButton = screen.getByText('Add Prompt')
@@ -1179,7 +1179,7 @@ describe('PromptManager', () => {
     it('maintains add button state across interactions', async () => {
       const user = userEvent.setup()
       render(
-        <PromptManager prompts={[]} onPromptsChange={mockOnPromptsChange} />
+        <PromptManager prompts={[]} onPromptsChange={mockOnPromptsChange} />,
       )
 
       const addButton = screen.getByText('Add Prompt')
@@ -1197,7 +1197,7 @@ describe('PromptManager', () => {
     it('handles default max_tokens from config', async () => {
       const user = userEvent.setup()
       render(
-        <PromptManager prompts={[]} onPromptsChange={mockOnPromptsChange} />
+        <PromptManager prompts={[]} onPromptsChange={mockOnPromptsChange} />,
       )
 
       const addButton = screen.getByText('Add Prompt')
@@ -1221,7 +1221,7 @@ describe('PromptManager', () => {
     it('handles default temperature from config', async () => {
       const user = userEvent.setup()
       render(
-        <PromptManager prompts={[]} onPromptsChange={mockOnPromptsChange} />
+        <PromptManager prompts={[]} onPromptsChange={mockOnPromptsChange} />,
       )
 
       const addButton = screen.getByText('Add Prompt')
@@ -1247,7 +1247,7 @@ describe('PromptManager', () => {
         <PromptManager
           prompts={mockPrompts}
           onPromptsChange={mockOnPromptsChange}
-        />
+        />,
       )
 
       // Check that the first prompt card has the expected classes

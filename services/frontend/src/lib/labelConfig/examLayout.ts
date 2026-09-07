@@ -139,7 +139,7 @@ export function resolveExamLayoutPrefs(raw: unknown): ExamLayoutPrefs {
  * entirely in the extended edition.
  */
 export function isExamShapedConfig(
-  parsed: ParsedComponent | null | undefined
+  parsed: ParsedComponent | null | undefined,
 ): boolean {
   if (!parsed) return false
   if (parsed.type === 'Loesung') return true

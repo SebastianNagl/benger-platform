@@ -52,7 +52,7 @@ describe('TaskAnnotationComparisonModal - Core Functionality', () => {
         isOpen={false}
         onClose={() => {}}
         projectId="project-1"
-      />
+      />,
     )
 
     expect(container.querySelector('[role="dialog"]')).not.toBeInTheDocument()
@@ -65,7 +65,7 @@ describe('TaskAnnotationComparisonModal - Core Functionality', () => {
         isOpen={true}
         onClose={() => {}}
         projectId="project-1"
-      />
+      />,
     )
 
     // Wait for the component to load and check for dialog presence
@@ -81,7 +81,7 @@ describe('TaskAnnotationComparisonModal - Core Functionality', () => {
         isOpen={true}
         onClose={() => {}}
         projectId="project-1"
-      />
+      />,
     )
 
     await waitFor(() => {

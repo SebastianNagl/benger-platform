@@ -1,5 +1,5 @@
-import { render, screen } from '@testing-library/react'
 import { getSisterHostUrl } from '@/lib/utils/subdomain'
+import { render, screen } from '@testing-library/react'
 import { HeroSection } from '../HeroSection'
 
 // Host pair helper: null (no sister host) unless a test says otherwise.
@@ -32,7 +32,10 @@ jest.mock('@/components/shared/RotatingText', () => ({
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
     t: (key: string, varsOrDefault?: any) => {
-      const translations: Record<string, any> = require('../../../locales/en/common.json')
+      const translations: Record<
+        string,
+        any
+      > = require('../../../locales/en/common.json')
       const parts = key.split('.')
       let value: any = translations
       for (const part of parts) {
@@ -55,10 +58,8 @@ jest.mock('@/contexts/I18nContext', () => ({
   }),
 }))
 
-
 describe('HeroSection', () => {
-  beforeEach(() => {
-  })
+  beforeEach(() => {})
 
   afterEach(() => {
     jest.clearAllMocks()
@@ -74,21 +75,17 @@ describe('HeroSection', () => {
       render(<HeroSection />)
 
       expect(screen.getByText(/Do you trust AI with your/)).toBeInTheDocument()
-      expect(
-        screen.getByText('?')
-      ).toBeInTheDocument()
+      expect(screen.getByText('?')).toBeInTheDocument()
       expect(screen.getByTestId('rotating-text')).toBeInTheDocument()
       expect(screen.getByTestId('rotating-text')).toHaveTextContent(
-        'legal briefs'
+        'legal briefs',
       )
     })
 
     it('renders subtitle', () => {
       render(<HeroSection />)
 
-      expect(
-        screen.getByText(/Together, we use BenGER/)
-      ).toBeInTheDocument()
+      expect(screen.getByText(/Together, we use BenGER/)).toBeInTheDocument()
     })
 
     it('renders primary CTA button', () => {
@@ -127,7 +124,7 @@ describe('HeroSection', () => {
         'text-4xl',
         'sm:text-5xl',
         'md:text-6xl',
-        'lg:text-7xl'
+        'lg:text-7xl',
       )
       expect(headline).toHaveClass('font-bold', 'tracking-tight')
     })
@@ -138,7 +135,7 @@ describe('HeroSection', () => {
       const rotatingText = screen.getByTestId('rotating-text')
       expect(rotatingText).toHaveClass(
         'text-emerald-600',
-        'dark:text-emerald-400'
+        'dark:text-emerald-400',
       )
     })
 
@@ -214,7 +211,7 @@ describe('HeroSection', () => {
         'py-12',
         'sm:py-16',
         'md:py-24',
-        'lg:py-32'
+        'lg:py-32',
       )
     })
 
@@ -226,7 +223,7 @@ describe('HeroSection', () => {
         'text-4xl',
         'sm:text-5xl',
         'md:text-6xl',
-        'lg:text-7xl'
+        'lg:text-7xl',
       )
 
       const subtitle = screen.getByText(/Together, we use BenGER/)
@@ -305,10 +302,14 @@ describe('HeroSection — student interface cross-link', () => {
     const box = screen.getByTestId('hero-student-site')
     expect(box).toHaveAttribute('href', 'https://vertretbar.net')
     expect(box).toHaveTextContent('Are you a student?')
-    expect(box).toHaveTextContent('Switch to Vertretbar, the platform for students')
+    expect(box).toHaveTextContent(
+      'Switch to Vertretbar, the platform for students',
+    )
     // The whole box is one link, rendered below the register prompt.
     const prompt = screen.getByText(/have an account/i)
-    expect(prompt.compareDocumentPosition(box) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(
+      prompt.compareDocumentPosition(box) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
   })
 
   it('renders no cross-link outside the known host pairs', () => {

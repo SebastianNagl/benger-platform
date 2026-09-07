@@ -8,7 +8,7 @@
  *   - L143: sort comparator order fallbacks
  */
 
-import { renderHook, act } from '@testing-library/react'
+import { act, renderHook } from '@testing-library/react'
 import { useColumnSettings, useTablePreferences } from '../useColumnSettings'
 
 jest.mock('@/lib/utils/logger', () => ({
@@ -25,7 +25,9 @@ describe('useColumnSettings br8', () => {
       { id: 'col1', visible: true },
       { id: 'col2', visible: false },
     ]
-    const { result } = renderHook(() => useColumnSettings('proj1', 'user1', defaults))
+    const { result } = renderHook(() =>
+      useColumnSettings('proj1', 'user1', defaults),
+    )
     expect(result.current.columns).toHaveLength(2)
     expect(result.current.columns[0].order).toBe(0)
   })
@@ -42,7 +44,9 @@ describe('useColumnSettings br8', () => {
       { id: 'col1', visible: true },
       { id: 'col2', visible: false },
     ]
-    const { result } = renderHook(() => useColumnSettings('proj1', 'user1', defaults))
+    const { result } = renderHook(() =>
+      useColumnSettings('proj1', 'user1', defaults),
+    )
     expect(result.current.columns[0].visible).toBe(false)
   })
 
@@ -55,7 +59,9 @@ describe('useColumnSettings br8', () => {
       { id: 'col2', visible: true },
       { id: 'col3', visible: true },
     ]
-    const { result } = renderHook(() => useColumnSettings('proj1', 'user1', defaults))
+    const { result } = renderHook(() =>
+      useColumnSettings('proj1', 'user1', defaults),
+    )
     expect(result.current.columns).toHaveLength(3)
   })
 
@@ -64,19 +70,25 @@ describe('useColumnSettings br8', () => {
     jest.spyOn(console, 'error').mockImplementation()
 
     const defaults = [{ id: 'col1', visible: true }]
-    const { result } = renderHook(() => useColumnSettings('proj1', 'user1', defaults))
+    const { result } = renderHook(() =>
+      useColumnSettings('proj1', 'user1', defaults),
+    )
     expect(result.current.columns).toHaveLength(1)
   })
 
   it('initializes with defaults when userId is undefined (L26)', () => {
     const defaults = [{ id: 'col1', visible: true }]
-    const { result } = renderHook(() => useColumnSettings('proj1', undefined, defaults))
+    const { result } = renderHook(() =>
+      useColumnSettings('proj1', undefined, defaults),
+    )
     expect(result.current.columns[0].order).toBe(0)
   })
 
   it('toggleColumn toggles visibility', () => {
     const defaults = [{ id: 'col1', visible: true }]
-    const { result } = renderHook(() => useColumnSettings('proj1', 'user1', defaults))
+    const { result } = renderHook(() =>
+      useColumnSettings('proj1', 'user1', defaults),
+    )
 
     act(() => {
       result.current.toggleColumn('col1')
@@ -87,7 +99,9 @@ describe('useColumnSettings br8', () => {
 
   it('resetColumns resets to default state', () => {
     const defaults = [{ id: 'col1', visible: true }]
-    const { result } = renderHook(() => useColumnSettings('proj1', 'user1', defaults))
+    const { result } = renderHook(() =>
+      useColumnSettings('proj1', 'user1', defaults),
+    )
 
     // First toggle to create a non-default state
     act(() => {
@@ -108,7 +122,9 @@ describe('useColumnSettings br8', () => {
       { id: 'col1', visible: true },
       { id: 'col2', visible: false },
     ]
-    const { result } = renderHook(() => useColumnSettings('proj1', 'user1', defaults))
+    const { result } = renderHook(() =>
+      useColumnSettings('proj1', 'user1', defaults),
+    )
 
     act(() => {
       result.current.updateColumns([
@@ -118,8 +134,12 @@ describe('useColumnSettings br8', () => {
     })
 
     // col1 should preserve visibility, col3 is new
-    expect(result.current.columns.find((c: any) => c.id === 'col1')).toBeTruthy()
-    expect(result.current.columns.find((c: any) => c.id === 'col3')).toBeTruthy()
+    expect(
+      result.current.columns.find((c: any) => c.id === 'col1'),
+    ).toBeTruthy()
+    expect(
+      result.current.columns.find((c: any) => c.id === 'col3'),
+    ).toBeTruthy()
   })
 
   it('reorderColumns updates order', () => {
@@ -128,7 +148,9 @@ describe('useColumnSettings br8', () => {
       { id: 'col2', visible: true },
       { id: 'col3', visible: true },
     ]
-    const { result } = renderHook(() => useColumnSettings('proj1', 'user1', defaults))
+    const { result } = renderHook(() =>
+      useColumnSettings('proj1', 'user1', defaults),
+    )
 
     act(() => {
       result.current.reorderColumns(0, 2)
@@ -151,7 +173,12 @@ describe('useTablePreferences br8', () => {
   })
 
   it('loads saved preferences', () => {
-    const saved = { sortBy: 'name', sortOrder: 'asc', filterStatus: 'completed', showSearch: true }
+    const saved = {
+      sortBy: 'name',
+      sortOrder: 'asc',
+      filterStatus: 'completed',
+      showSearch: true,
+    }
     localStorage.setItem('table-preferences-user1-proj1', JSON.stringify(saved))
 
     const { result } = renderHook(() => useTablePreferences('proj1', 'user1'))

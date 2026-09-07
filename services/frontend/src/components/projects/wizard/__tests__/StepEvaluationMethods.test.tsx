@@ -64,7 +64,7 @@ function setup(configs: EvaluationConfig[] = []) {
       annotationFields={[{ name: 'loesung', type: 'TextArea' } as any]}
       dataColumns={['musterloesung']}
       selectedModelIds={[]}
-    />
+    />,
   )
   return { onEvaluationConfigsChange, onImmediateEvaluationChange, ...utils }
 }
@@ -88,41 +88,57 @@ describe('StepEvaluationMethods — same-metric config pairs', () => {
     setup(JUDGE_PAIR)
     expandMetric('llm_judge_classic')
     const first = screen.getByTestId('wizard-metric-config-llm_judge_classic-0')
-    const second = screen.getByTestId('wizard-metric-config-llm_judge_classic-1')
+    const second = screen.getByTestId(
+      'wizard-metric-config-llm_judge_classic-1',
+    )
     expect(first).toHaveTextContent('free')
     expect(second).toHaveTextContent('paid')
     // Each panel's judge-model select carries that config's own model.
     expect(
-      (within(first).getAllByRole('combobox').at(-1) as HTMLSelectElement).value
+      (within(first).getAllByRole('combobox').at(-1) as HTMLSelectElement)
+        .value,
     ).toBe('gpt-5-mini')
     expect(
-      (within(second).getAllByRole('combobox').at(-1) as HTMLSelectElement).value
+      (within(second).getAllByRole('combobox').at(-1) as HTMLSelectElement)
+        .value,
     ).toBe('gpt-5.4-mini')
   })
 
   it('edits only the targeted config (judge model + name), never its sibling', () => {
     const { onEvaluationConfigsChange } = setup(JUDGE_PAIR)
     expandMetric('llm_judge_classic')
-    const second = screen.getByTestId('wizard-metric-config-llm_judge_classic-1')
+    const second = screen.getByTestId(
+      'wizard-metric-config-llm_judge_classic-1',
+    )
 
     const judgeSelect = within(second).getAllByRole('combobox').at(-1)!
     fireEvent.change(judgeSelect, { target: { value: 'gpt-5-mini' } })
     let updated = onEvaluationConfigsChange.mock.calls.at(-1)![0]
-    expect(updated.find((c: any) => c.id === 'pair-paid').metric_parameters.judge_model).toBe('gpt-5-mini')
-    expect(updated.find((c: any) => c.id === 'pair-free').metric_parameters.judge_model).toBe('gpt-5-mini')
+    expect(
+      updated.find((c: any) => c.id === 'pair-paid').metric_parameters
+        .judge_model,
+    ).toBe('gpt-5-mini')
+    expect(
+      updated.find((c: any) => c.id === 'pair-free').metric_parameters
+        .judge_model,
+    ).toBe('gpt-5-mini')
     // ...the free config is UNCHANGED (it already was gpt-5-mini) — assert by
     // reference inequality on the paid one only:
-    expect(updated.find((c: any) => c.id === 'pair-paid')).not.toBe(JUDGE_PAIR[1])
+    expect(updated.find((c: any) => c.id === 'pair-paid')).not.toBe(
+      JUDGE_PAIR[1],
+    )
     expect(updated.find((c: any) => c.id === 'pair-free')).toBe(JUDGE_PAIR[0])
 
     fireEvent.change(
       screen.getByTestId('wizard-metric-name-llm_judge_classic-1'),
-      { target: { value: 'Abo-Korrektur' } }
+      { target: { value: 'Abo-Korrektur' } },
     )
     updated = onEvaluationConfigsChange.mock.calls.at(-1)![0]
-    expect(updated.find((c: any) => c.id === 'pair-paid').display_name).toBe('Abo-Korrektur')
+    expect(updated.find((c: any) => c.id === 'pair-paid').display_name).toBe(
+      'Abo-Korrektur',
+    )
     expect(updated.find((c: any) => c.id === 'pair-free').display_name).toBe(
-      'Notenpunkte (Gratis-Modell)'
+      'Notenpunkte (Gratis-Modell)',
     )
   })
 

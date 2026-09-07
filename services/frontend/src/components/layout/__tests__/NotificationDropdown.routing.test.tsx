@@ -71,7 +71,9 @@ describe('NotificationDropdown — deep-link routing', () => {
     onRefresh: jest.fn(),
   }
 
-  const makeNotification = (overrides?: Partial<Notification>): Notification => ({
+  const makeNotification = (
+    overrides?: Partial<Notification>,
+  ): Notification => ({
     id: 'n1',
     type: 'task_created',
     title: 'A notification',
@@ -88,7 +90,7 @@ describe('NotificationDropdown — deep-link routing', () => {
   async function clickNotification(notification: Notification) {
     const user = userEvent.setup()
     render(
-      <NotificationDropdown {...baseProps} notifications={[notification]} />
+      <NotificationDropdown {...baseProps} notifications={[notification]} />,
     )
     await user.click(screen.getByText(notification.title))
   }
@@ -98,7 +100,7 @@ describe('NotificationDropdown — deep-link routing', () => {
       makeNotification({
         type: 'evaluation_completed',
         data: { evaluation_id: 'eval-42' },
-      })
+      }),
     )
     expect(mockPush).toHaveBeenCalledWith('/evaluations/eval-42')
     expect(onClose).toHaveBeenCalled()
@@ -109,14 +111,14 @@ describe('NotificationDropdown — deep-link routing', () => {
       makeNotification({
         type: 'evaluation_completed',
         data: { eval_run_id: 'run-7' },
-      })
+      }),
     )
     expect(mockPush).toHaveBeenCalledWith('/evaluations/run-7')
   })
 
   it('falls back to /runs?type=evaluation when an evaluation notification has no id', async () => {
     await clickNotification(
-      makeNotification({ type: 'evaluation_failed', data: {} })
+      makeNotification({ type: 'evaluation_failed', data: {} }),
     )
     expect(mockPush).toHaveBeenCalledWith('/runs?type=evaluation')
     expect(onClose).toHaveBeenCalled()
@@ -127,7 +129,7 @@ describe('NotificationDropdown — deep-link routing', () => {
       makeNotification({
         type: 'llm_generation_completed',
         data: { generation_id: 'gen-9' },
-      })
+      }),
     )
     expect(mockPush).toHaveBeenCalledWith('/generations/gen-9')
     expect(onClose).toHaveBeenCalled()
@@ -138,14 +140,14 @@ describe('NotificationDropdown — deep-link routing', () => {
       makeNotification({
         type: 'llm_generation_completed',
         data: { response_generation_id: 'rg-3' },
-      })
+      }),
     )
     expect(mockPush).toHaveBeenCalledWith('/generations/rg-3')
   })
 
   it('falls back to /runs?type=generation when a generation notification has no id', async () => {
     await clickNotification(
-      makeNotification({ type: 'llm_generation_completed', data: {} })
+      makeNotification({ type: 'llm_generation_completed', data: {} }),
     )
     expect(mockPush).toHaveBeenCalledWith('/runs?type=generation')
   })
@@ -155,7 +157,7 @@ describe('NotificationDropdown — deep-link routing', () => {
       makeNotification({
         type: 'task_assigned',
         data: { task_id: 't1', project_id: 'p1' },
-      })
+      }),
     )
     expect(mockPush).toHaveBeenCalledWith('/projects/p1')
     expect(onClose).toHaveBeenCalled()
@@ -163,7 +165,7 @@ describe('NotificationDropdown — deep-link routing', () => {
 
   it('does not route (only marks read) when a task notification lacks project_id', async () => {
     await clickNotification(
-      makeNotification({ type: 'task_assigned', data: { task_id: 't1' } })
+      makeNotification({ type: 'task_assigned', data: { task_id: 't1' } }),
     )
     expect(mockPush).not.toHaveBeenCalled()
     expect(onMarkAsRead).toHaveBeenCalledWith('n1')
@@ -175,7 +177,7 @@ describe('NotificationDropdown — deep-link routing', () => {
         type: 'evaluation_completed',
         is_read: true,
         data: { evaluation_id: 'eval-1' },
-      })
+      }),
     )
     expect(onMarkAsRead).not.toHaveBeenCalled()
     expect(mockPush).toHaveBeenCalledWith('/evaluations/eval-1')

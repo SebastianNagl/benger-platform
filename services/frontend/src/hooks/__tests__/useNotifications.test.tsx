@@ -45,7 +45,7 @@ class MockEventSource {
   simulateMessage(data: any) {
     if (this.onmessage) {
       this.onmessage(
-        new MessageEvent('message', { data: JSON.stringify(data) })
+        new MessageEvent('message', { data: JSON.stringify(data) }),
       )
     }
   }
@@ -129,7 +129,7 @@ describe('useNotifications', () => {
     mockApiClient.getUnreadNotificationCount.mockResolvedValue({ count: 0 })
     mockApiClient.getNotificationPreferences.mockResolvedValue({})
     mockApiClient.createNotificationStream.mockImplementation(
-      () => new MockEventSource('/api/notifications/stream')
+      () => new MockEventSource('/api/notifications/stream'),
     )
   })
 
@@ -355,7 +355,7 @@ describe('useNotifications', () => {
       }
 
       mockApiClient.createNotificationStream.mockImplementation(
-        () => new NoOpenMockEventSource('/api/notifications/stream')
+        () => new NoOpenMockEventSource('/api/notifications/stream'),
       )
 
       renderHook(() => useNotifications(), { wrapper })
@@ -479,7 +479,7 @@ describe('useNotifications', () => {
       await waitFor(() => {
         expect(mockApiClient.getNotifications).toHaveBeenCalledTimes(1)
         expect(mockApiClient.getUnreadNotificationCount).toHaveBeenCalledTimes(
-          1
+          1,
         )
       })
 
@@ -503,7 +503,7 @@ describe('useNotifications', () => {
 
       const { result: result1, unmount: unmount1 } = renderHook(
         () => useNotifications(),
-        { wrapper }
+        { wrapper },
       )
 
       // Wait for initial data to load
@@ -533,7 +533,7 @@ describe('useNotifications', () => {
       await waitFor(() => {
         expect(mockApiClient.getNotifications).toHaveBeenCalledTimes(1)
         expect(mockApiClient.getUnreadNotificationCount).toHaveBeenCalledTimes(
-          1
+          1,
         )
       })
 
@@ -577,10 +577,10 @@ describe('useNotifications', () => {
     it('should handle API errors gracefully during initialization', async () => {
       // Test error handling to ensure no cycling on API failures
       mockApiClient.getNotifications.mockRejectedValue(
-        new Error('Network error')
+        new Error('Network error'),
       )
       mockApiClient.getUnreadNotificationCount.mockRejectedValue(
-        new Error('Network error')
+        new Error('Network error'),
       )
 
       const { result } = renderHook(() => useNotifications(), { wrapper })
@@ -589,7 +589,7 @@ describe('useNotifications', () => {
       await waitFor(() => {
         expect(mockApiClient.getNotifications).toHaveBeenCalledTimes(1)
         expect(mockApiClient.getUnreadNotificationCount).toHaveBeenCalledTimes(
-          1
+          1,
         )
       })
 

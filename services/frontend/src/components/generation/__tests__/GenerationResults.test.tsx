@@ -40,8 +40,10 @@ jest.mock('@/contexts/I18nContext', () => ({
         'generation.results.modelResponses': 'Model Responses',
         'generation.results.generated': 'Generated',
         'generation.results.noMatchingResults': 'No results match your filters',
-        'generation.results.noResultsYet': 'No generation results available yet',
-        'generation.results.generateFirst': 'Generate responses first to see them here',
+        'generation.results.noResultsYet':
+          'No generation results available yet',
+        'generation.results.generateFirst':
+          'Generate responses first to see them here',
       }
       return translations[key] || key
     },
@@ -151,7 +153,7 @@ describe('GenerationResults', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('Legal case about contract law')
+          screen.getByText('Legal case about contract law'),
         ).toBeInTheDocument()
         // Task 2 shows "Case details here" because text field takes precedence
         expect(screen.getByText('Case details here')).toBeInTheDocument()
@@ -226,7 +228,7 @@ describe('GenerationResults', () => {
 
       // Before expansion, model responses should not be visible
       expect(
-        screen.queryByText('Response from GPT-4 about contract law')
+        screen.queryByText('Response from GPT-4 about contract law'),
       ).not.toBeInTheDocument()
 
       const taskHeader = screen
@@ -237,10 +239,10 @@ describe('GenerationResults', () => {
       await waitFor(
         () => {
           expect(
-            screen.getByText('Response from GPT-4 about contract law')
+            screen.getByText('Response from GPT-4 about contract law'),
           ).toBeInTheDocument()
         },
-        { timeout: 3000 }
+        { timeout: 3000 },
       )
 
       // Verify both model responses are visible (use getAllByText since multiple tasks may have these models)
@@ -264,7 +266,7 @@ describe('GenerationResults', () => {
       await user.click(taskHeader!)
       await waitFor(() => {
         expect(
-          screen.getByText('Response from GPT-4 about contract law')
+          screen.getByText('Response from GPT-4 about contract law'),
         ).toBeInTheDocument()
       })
 
@@ -272,7 +274,7 @@ describe('GenerationResults', () => {
       await user.click(taskHeader!)
       await waitFor(() => {
         expect(
-          screen.queryByText('Response from GPT-4 about contract law')
+          screen.queryByText('Response from GPT-4 about contract law'),
         ).not.toBeInTheDocument()
       })
     })
@@ -319,12 +321,12 @@ describe('GenerationResults', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('Legal case about contract law')
+          screen.getByText('Legal case about contract law'),
         ).toBeInTheDocument()
       })
 
       const searchInput = screen.getByPlaceholderText(
-        'Search tasks and responses...'
+        'Search tasks and responses...',
       )
       await user.type(searchInput, 'criminal')
 
@@ -332,10 +334,10 @@ describe('GenerationResults', () => {
         // Should find task with "criminal" in prompt field or text
         expect(screen.getByText('Case details here')).toBeInTheDocument()
         expect(
-          screen.queryByText('Legal case about contract law')
+          screen.queryByText('Legal case about contract law'),
         ).not.toBeInTheDocument()
         expect(
-          screen.queryByText('Administrative law case')
+          screen.queryByText('Administrative law case'),
         ).not.toBeInTheDocument()
       })
     })
@@ -349,14 +351,14 @@ describe('GenerationResults', () => {
       })
 
       const searchInput = screen.getByPlaceholderText(
-        'Search tasks and responses...'
+        'Search tasks and responses...',
       )
       await user.type(searchInput, 'administrative')
 
       await waitFor(() => {
         expect(screen.getByText('Administrative law case')).toBeInTheDocument()
         expect(
-          screen.queryByText('Legal case about contract law')
+          screen.queryByText('Legal case about contract law'),
         ).not.toBeInTheDocument()
       })
     })
@@ -370,7 +372,7 @@ describe('GenerationResults', () => {
       })
 
       const searchInput = screen.getByPlaceholderText(
-        'Search tasks and responses...'
+        'Search tasks and responses...',
       )
       await user.type(searchInput, 'CRIMINAL')
 
@@ -390,7 +392,7 @@ describe('GenerationResults', () => {
       })
 
       const searchInput = screen.getByPlaceholderText(
-        'Search tasks and responses...'
+        'Search tasks and responses...',
       )
       await user.type(searchInput, 'criminal')
 
@@ -436,11 +438,11 @@ describe('GenerationResults', () => {
       await waitFor(() => {
         expect(screen.getAllByText(/Task #/).length).toBe(2)
         expect(
-          screen.getByText('Legal case about contract law')
+          screen.getByText('Legal case about contract law'),
         ).toBeInTheDocument()
         expect(screen.getByText('Case details here')).toBeInTheDocument()
         expect(
-          screen.queryByText('Administrative law case')
+          screen.queryByText('Administrative law case'),
         ).not.toBeInTheDocument()
       })
     })
@@ -459,7 +461,7 @@ describe('GenerationResults', () => {
       await waitFor(() => {
         expect(screen.getAllByText(/Task #/).length).toBe(2)
         expect(
-          screen.getByText('Legal case about contract law')
+          screen.getByText('Legal case about contract law'),
         ).toBeInTheDocument()
         expect(screen.getByText('Administrative law case')).toBeInTheDocument()
       })
@@ -503,7 +505,7 @@ describe('GenerationResults', () => {
 
       // Apply search filter
       const searchInput = screen.getByPlaceholderText(
-        'Search tasks and responses...'
+        'Search tasks and responses...',
       )
       await user.type(searchInput, 'administrative')
 
@@ -535,13 +537,13 @@ describe('GenerationResults', () => {
 
       // Find all ClipboardDocumentIcon SVGs
       const clipboardIcons = Array.from(
-        document.querySelectorAll('svg')
+        document.querySelectorAll('svg'),
       ).filter((svg) => {
         const path = svg.querySelector('path')
         return path
           ?.getAttribute('d')
           ?.includes(
-            'M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3'
+            'M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3',
           )
       })
 
@@ -555,7 +557,7 @@ describe('GenerationResults', () => {
             expect(navigator.clipboard.writeText).toHaveBeenCalled()
             expect(mockAddToast).toHaveBeenCalledWith(
               'Copied to clipboard',
-              'success'
+              'success',
             )
           })
         }
@@ -613,13 +615,13 @@ describe('GenerationResults', () => {
 
       // Try to trigger copy which should fail
       const clipboardIcons = Array.from(
-        document.querySelectorAll('svg')
+        document.querySelectorAll('svg'),
       ).filter((svg) => {
         const path = svg.querySelector('path')
         return path
           ?.getAttribute('d')
           ?.includes(
-            'M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3'
+            'M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3',
           )
       })
 
@@ -631,7 +633,7 @@ describe('GenerationResults', () => {
           await waitFor(() => {
             expect(mockAddToast).toHaveBeenCalledWith(
               'Failed to copy to clipboard',
-              'error'
+              'error',
             )
           })
         }
@@ -659,7 +661,7 @@ describe('GenerationResults', () => {
         expect(mockRevokeObjectURL).toHaveBeenCalled()
         expect(mockAddToast).toHaveBeenCalledWith(
           'Exported 3 results',
-          'success'
+          'success',
         )
       })
     })
@@ -689,7 +691,7 @@ describe('GenerationResults', () => {
           expect(mockCreateObjectURL).toHaveBeenCalled()
           expect(blobData).not.toBe('')
         },
-        { timeout: 5000 }
+        { timeout: 5000 },
       )
 
       // Validate structure
@@ -715,7 +717,7 @@ describe('GenerationResults', () => {
 
       // Apply filter
       const searchInput = screen.getByPlaceholderText(
-        'Search tasks and responses...'
+        'Search tasks and responses...',
       )
       await user.type(searchInput, 'criminal')
 
@@ -730,7 +732,7 @@ describe('GenerationResults', () => {
         expect(mockCreateObjectURL).toHaveBeenCalled()
         expect(mockAddToast).toHaveBeenCalledWith(
           'Exported 1 results',
-          'success'
+          'success',
         )
       })
     })
@@ -763,7 +765,7 @@ describe('GenerationResults', () => {
       await waitFor(() => {
         expect(mockAddToast).toHaveBeenCalledWith(
           'Failed to export results',
-          'error'
+          'error',
         )
       })
     })
@@ -776,10 +778,10 @@ describe('GenerationResults', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('No generation results available yet')
+          screen.getByText('No generation results available yet'),
         ).toBeInTheDocument()
         expect(
-          screen.getByText('Generate responses first to see them here')
+          screen.getByText('Generate responses first to see them here'),
         ).toBeInTheDocument()
       })
     })
@@ -798,7 +800,7 @@ describe('GenerationResults', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('No generation results available yet')
+          screen.getByText('No generation results available yet'),
         ).toBeInTheDocument()
       })
     })
@@ -812,16 +814,16 @@ describe('GenerationResults', () => {
       })
 
       const searchInput = screen.getByPlaceholderText(
-        'Search tasks and responses...'
+        'Search tasks and responses...',
       )
       await user.type(searchInput, 'nonexistent query')
 
       await waitFor(() => {
         expect(
-          screen.getByText('No results match your filters')
+          screen.getByText('No results match your filters'),
         ).toBeInTheDocument()
         expect(
-          screen.getByText('Generate responses first to see them here')
+          screen.getByText('Generate responses first to see them here'),
         ).toBeInTheDocument()
       })
     })
@@ -842,13 +844,13 @@ describe('GenerationResults', () => {
       })
 
       const searchInput = screen.getByPlaceholderText(
-        'Search tasks and responses...'
+        'Search tasks and responses...',
       )
       await user.type(searchInput, 'criminal')
 
       await waitFor(() => {
         expect(
-          screen.getByText('No results match your filters')
+          screen.getByText('No results match your filters'),
         ).toBeInTheDocument()
       })
     })
@@ -864,11 +866,11 @@ describe('GenerationResults', () => {
       await waitFor(() => {
         expect(mockAddToast).toHaveBeenCalledWith(
           'Failed to load generation results',
-          'error'
+          'error',
         )
         expect(consoleError).toHaveBeenCalledWith(
           'Failed to load results:',
-          expect.any(Error)
+          expect.any(Error),
         )
       })
 
@@ -943,7 +945,7 @@ describe('GenerationResults', () => {
       })
 
       const searchInput = screen.getByPlaceholderText(
-        'Search tasks and responses...'
+        'Search tasks and responses...',
       )
       await user.type(searchInput, 'criminal')
 

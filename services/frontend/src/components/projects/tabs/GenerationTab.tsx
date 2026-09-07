@@ -8,10 +8,17 @@ import { Badge } from '@/components/shared/Badge'
 import { Button } from '@/components/shared/Button'
 import { Card } from '@/components/shared/Card'
 import { Input } from '@/components/shared/Input'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/shared/Select'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/shared/Select'
 import { useToast } from '@/components/shared/Toast'
 import { useI18n } from '@/contexts/I18nContext'
 import { useProgress } from '@/contexts/ProgressContext'
+import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import { Task } from '@/lib/api/types'
 import { useProjectStore } from '@/stores/projectStore'
 import { Task as LabelStudioTask } from '@/types/labelStudio'
@@ -30,7 +37,6 @@ import {
 import { formatDistanceToNow } from 'date-fns'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 
 interface GenerationTabProps {
   projectId: string
@@ -74,7 +80,7 @@ export function GenerationTab({ projectId }: GenerationTabProps) {
         })
         // Filter to only show tasks with LLM responses or generations
         const tasksWithGenerations = labelStudioTasks.filter(
-          (task) => (task as any).llm_responses || task.total_generations > 0
+          (task) => (task as any).llm_responses || task.total_generations > 0,
         )
         setTasks(tasksWithGenerations)
         setFilteredTasks(tasksWithGenerations)
@@ -145,7 +151,7 @@ export function GenerationTab({ projectId }: GenerationTabProps) {
     if ((task as any).data.prompt) return (task as any).data.prompt
 
     const firstStringValue = Object.values((task as any).data).find(
-      (v) => typeof v === 'string'
+      (v) => typeof v === 'string',
     )
     if (firstStringValue) return firstStringValue as string
 
@@ -208,7 +214,7 @@ export function GenerationTab({ projectId }: GenerationTabProps) {
       completeProgress(progressId, 'error')
       addToast(
         `Export failed: ${error.message || 'Failed to export generations'}`,
-        'error'
+        'error',
       )
     }
   }
@@ -224,7 +230,7 @@ export function GenerationTab({ projectId }: GenerationTabProps) {
 
       const labelStudioTasks = await fetchProjectTasks(projectId)
       const tasksWithGenerations = labelStudioTasks.filter(
-        (task) => (task as any).llm_responses || task.total_generations > 0
+        (task) => (task as any).llm_responses || task.total_generations > 0,
       )
       setTasks(tasksWithGenerations)
 
@@ -249,13 +255,17 @@ export function GenerationTab({ projectId }: GenerationTabProps) {
               <div className="flex items-center space-x-2">
                 <SparklesIcon className="h-4 w-4 text-zinc-500" />
                 <span className="text-zinc-600 dark:text-zinc-400">
-                  {t('projects.generationTab.tasksWithGenerations', { count: tasks.length })}
+                  {t('projects.generationTab.tasksWithGenerations', {
+                    count: tasks.length,
+                  })}
                 </span>
               </div>
               <div className="flex items-center space-x-2">
                 <CpuChipIcon className="h-4 w-4 text-zinc-500" />
                 <span className="text-zinc-600 dark:text-zinc-400">
-                  {t('projects.generationTab.modelsUsed', { count: uniqueModels.length })}
+                  {t('projects.generationTab.modelsUsed', {
+                    count: uniqueModels.length,
+                  })}
                 </span>
               </div>
             </div>
@@ -265,10 +275,14 @@ export function GenerationTab({ projectId }: GenerationTabProps) {
               {/* Model Filter */}
               <Select value={filterModel} onValueChange={setFilterModel}>
                 <SelectTrigger>
-                  <SelectValue placeholder={t('projects.generationTab.allModels')} />
+                  <SelectValue
+                    placeholder={t('projects.generationTab.allModels')}
+                  />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">{t('projects.generationTab.allModels')}</SelectItem>
+                  <SelectItem value="all">
+                    {t('projects.generationTab.allModels')}
+                  </SelectItem>
                   {uniqueModels.map((model) => (
                     <SelectItem key={model} value={model}>
                       {model}
@@ -305,7 +319,7 @@ export function GenerationTab({ projectId }: GenerationTabProps) {
         {/* Search Bar */}
         <div className="mb-4 sm:mb-6">
           <div className="relative">
-            <MagnifyingGlassIcon className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 transform text-zinc-400" />
+            <MagnifyingGlassIcon className="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 transform text-zinc-400" />
             <Input
               placeholder={t('projects.generationTab.searchPlaceholder')}
               value={searchQuery}
@@ -317,7 +331,10 @@ export function GenerationTab({ projectId }: GenerationTabProps) {
 
         {/* Results count */}
         <div className="mb-4 text-sm text-zinc-600 dark:text-zinc-400">
-          {t('projects.generationTab.showingTasks', { showing: filteredTasks.length, total: tasks.length })}
+          {t('projects.generationTab.showingTasks', {
+            showing: filteredTasks.length,
+            total: tasks.length,
+          })}
         </div>
 
         {/* Task List */}
@@ -350,11 +367,15 @@ export function GenerationTab({ projectId }: GenerationTabProps) {
                             )}
                           </button>
                           <span className="font-mono text-xs text-zinc-500">
-                            {t('projects.generationTab.taskId', { id: task.id })}
+                            {t('projects.generationTab.taskId', {
+                              id: task.id,
+                            })}
                           </span>
                           {hasResponses && (
                             <Badge variant="default" className="text-xs">
-                              {t('projects.generationTab.responses', { count: Object.keys(task.llm_responses!).length })}
+                              {t('projects.generationTab.responses', {
+                                count: Object.keys(task.llm_responses!).length,
+                              })}
                             </Badge>
                           )}
                         </div>
@@ -384,7 +405,7 @@ export function GenerationTab({ projectId }: GenerationTabProps) {
                             {t('projects.generationTab.prompt')}
                           </h4>
                         </div>
-                        <pre className="whitespace-pre-wrap rounded-md border border-zinc-200 bg-white p-3 font-mono text-sm text-zinc-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400">
+                        <pre className="rounded-md border border-zinc-200 bg-white p-3 font-mono text-sm whitespace-pre-wrap text-zinc-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400">
                           {formatPrompt(labelStudioTaskToApi(task))}
                         </pre>
                       </div>
@@ -409,14 +430,14 @@ export function GenerationTab({ projectId }: GenerationTabProps) {
                                   </span>
                                 </div>
                                 <div className="ml-5 rounded-md border border-zinc-200 bg-white p-3 dark:border-zinc-700 dark:bg-zinc-900">
-                                  <pre className="whitespace-pre-wrap text-sm text-zinc-700 dark:text-zinc-300">
+                                  <pre className="text-sm whitespace-pre-wrap text-zinc-700 dark:text-zinc-300">
                                     {typeof response === 'string'
                                       ? response
                                       : JSON.stringify(response, null, 2)}
                                   </pre>
                                 </div>
                               </div>
-                            )
+                            ),
                           )}
                         </div>
                       )}
@@ -428,7 +449,7 @@ export function GenerationTab({ projectId }: GenerationTabProps) {
                           onClick={(e) => {
                             e.stopPropagation()
                             router.push(
-                              `/projects/${projectId}/tasks/${task.id}`
+                              `/projects/${projectId}/tasks/${task.id}`,
                             )
                           }}
                           className="w-full"

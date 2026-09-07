@@ -3,11 +3,11 @@
  * Covers: useMobileNavigationStore (open, close, toggle), useIsInsideMobileNavigation
  */
 
+import { act, renderHook } from '@testing-library/react'
 import {
-  useMobileNavigationStore,
   useIsInsideMobileNavigation,
+  useMobileNavigationStore,
 } from '../MobileNavigation'
-import { renderHook, act } from '@testing-library/react'
 
 describe('MobileNavigation - store and hooks', () => {
   beforeEach(() => {

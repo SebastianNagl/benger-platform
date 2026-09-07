@@ -52,7 +52,10 @@ interface EvaluationControlModalProps {
    *  scope so the parent can forward both to its own `runEvaluation` call.
    *  Parents that pre-date the scope arg simply ignore it — their behaviour
    *  is unchanged for unfiltered runs. */
-  onRunWithMode?: (forceRerun: boolean, scope?: EvaluationRunScope) => Promise<void>
+  onRunWithMode?: (
+    forceRerun: boolean,
+    scope?: EvaluationRunScope,
+  ) => Promise<void>
 }
 
 interface ScopeModel {
@@ -90,8 +93,12 @@ export function EvaluationControlModal({
   // Defaults to all-selected so today's full-sweep behavior is preserved
   // when the user just hits Run without touching anything.
   const [availableModels, setAvailableModels] = useState<ScopeModel[]>([])
-  const [availableAnnotators, setAvailableAnnotators] = useState<ScopeAnnotator[]>([])
-  const [availableStructures, setAvailableStructures] = useState<ScopeStructure[]>([])
+  const [availableAnnotators, setAvailableAnnotators] = useState<
+    ScopeAnnotator[]
+  >([])
+  const [availableStructures, setAvailableStructures] = useState<
+    ScopeStructure[]
+  >([])
   const [selectedMetrics, setSelectedMetrics] = useState<string[]>([])
   const [selectedModels, setSelectedModels] = useState<string[]>([])
   const [selectedAnnotators, setSelectedAnnotators] = useState<string[]>([])
@@ -100,7 +107,7 @@ export function EvaluationControlModal({
 
   const allConfigs = evaluationConfigs ?? []
   const enabledConfigs = useMemo(
-    () => allConfigs.filter(c => c.enabled !== false),
+    () => allConfigs.filter((c) => c.enabled !== false),
     [allConfigs],
   )
   const displayConfigCount = configCount ?? enabledConfigs.length
@@ -111,7 +118,9 @@ export function EvaluationControlModal({
   const { judgeModelIds, costRunsPerCall, selectedConfigs } = useMemo(() => {
     const ids = new Set<string>()
     let maxRuns = 1
-    const selected = enabledConfigs.filter(c => selectedMetrics.includes(c.id))
+    const selected = enabledConfigs.filter((c) =>
+      selectedMetrics.includes(c.id),
+    )
     for (const cfg of selected) {
       if (!cfg.metric?.startsWith('llm_judge_')) continue
       const params = cfg.metric_parameters || {}
@@ -141,7 +150,7 @@ export function EvaluationControlModal({
     if (!isOpen) return
     setMode('missing')
     setLoading(false)
-    setSelectedMetrics(enabledConfigs.map(c => c.id))
+    setSelectedMetrics(enabledConfigs.map((c) => c.id))
     // C3: Clear stale lists on every open so a re-open with a different
     // projectId doesn't briefly show the previous project's models/annotators
     // before the new fetch resolves. The loading indicator below then
@@ -163,7 +172,10 @@ export function EvaluationControlModal({
     // working and degrades gracefully in prod.
     ;(async () => {
       try {
-        const rows = await apiClient.evaluations.getEvaluatedModels(projectId, false)
+        const rows = await apiClient.evaluations.getEvaluatedModels(
+          projectId,
+          false,
+        )
         if (cancelled) return
         const models: ScopeModel[] = []
         const annotators: ScopeAnnotator[] = []
@@ -187,8 +199,8 @@ export function EvaluationControlModal({
         }
         setAvailableModels(models)
         setAvailableAnnotators(annotators)
-        setSelectedModels(models.map(m => m.model_id))
-        setSelectedAnnotators(annotators.map(a => a.user_id))
+        setSelectedModels(models.map((m) => m.model_id))
+        setSelectedAnnotators(annotators.map((a) => a.user_id))
       } catch (err) {
         if (cancelled) return
         console.error('Failed to load evaluated models for scope picker:', err)
@@ -204,13 +216,15 @@ export function EvaluationControlModal({
       // section" without touching the model/annotator pickers above.
       try {
         const structuresData: Record<string, { name?: string }> | null =
-          await apiClient.get(`/projects/${projectId}/generation-config/structures`)
+          await apiClient.get(
+            `/projects/${projectId}/generation-config/structures`,
+          )
         if (cancelled) return
-        const structures: ScopeStructure[] = Object.entries(structuresData || {}).map(
-          ([key, s]) => ({ key, name: s?.name || key }),
-        )
+        const structures: ScopeStructure[] = Object.entries(
+          structuresData || {},
+        ).map(([key, s]) => ({ key, name: s?.name || key }))
         setAvailableStructures(structures)
-        setSelectedStructures(structures.map(s => s.key))
+        setSelectedStructures(structures.map((s) => s.key))
       } catch {
         if (cancelled) return
         setAvailableStructures([])
@@ -224,20 +238,20 @@ export function EvaluationControlModal({
   }, [isOpen, projectId])
 
   const toggleMetric = (id: string) =>
-    setSelectedMetrics(prev =>
-      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id],
+    setSelectedMetrics((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
     )
   const toggleModel = (id: string) =>
-    setSelectedModels(prev =>
-      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id],
+    setSelectedModels((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
     )
   const toggleAnnotator = (id: string) =>
-    setSelectedAnnotators(prev =>
-      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id],
+    setSelectedAnnotators((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
     )
   const toggleStructure = (key: string) =>
-    setSelectedStructures(prev =>
-      prev.includes(key) ? prev.filter(x => x !== key) : [...prev, key],
+    setSelectedStructures((prev) =>
+      prev.includes(key) ? prev.filter((x) => x !== key) : [...prev, key],
     )
 
   // The structure section only renders when scoping is meaningful: with a
@@ -253,22 +267,35 @@ export function EvaluationControlModal({
   const blockChecks: Array<{ blocked: boolean; reason: string }> = [
     {
       blocked: enabledConfigs.length > 0 && selectedMetrics.length === 0,
-      reason: t('evaluation.controlModal.runDisabledNoMetrics', 'Mindestens eine Metrik auswählen').toString(),
+      reason: t(
+        'evaluation.controlModal.runDisabledNoMetrics',
+        'Mindestens eine Metrik auswählen',
+      ).toString(),
     },
     {
       blocked: availableModels.length > 0 && selectedModels.length === 0,
-      reason: t('evaluation.controlModal.runDisabledNoModels', 'Mindestens ein Modell auswählen').toString(),
+      reason: t(
+        'evaluation.controlModal.runDisabledNoModels',
+        'Mindestens ein Modell auswählen',
+      ).toString(),
     },
     {
-      blocked: availableAnnotators.length > 0 && selectedAnnotators.length === 0,
-      reason: t('evaluation.controlModal.runDisabledNoAnnotators', 'Mindestens eine:n Annotator:in auswählen').toString(),
+      blocked:
+        availableAnnotators.length > 0 && selectedAnnotators.length === 0,
+      reason: t(
+        'evaluation.controlModal.runDisabledNoAnnotators',
+        'Mindestens eine:n Annotator:in auswählen',
+      ).toString(),
     },
     {
       blocked: showStructureScope && selectedStructures.length === 0,
-      reason: t('evaluation.controlModal.runDisabledNoStructures', 'Mindestens eine Prompt-Struktur auswählen').toString(),
+      reason: t(
+        'evaluation.controlModal.runDisabledNoStructures',
+        'Mindestens eine Prompt-Struktur auswählen',
+      ).toString(),
     },
   ]
-  const firstBlocker = blockChecks.find(c => c.blocked)
+  const firstBlocker = blockChecks.find((c) => c.blocked)
   const runBlocked = !!firstBlocker
   const runBlockedReason = firstBlocker?.reason ?? ''
 
@@ -278,10 +305,11 @@ export function EvaluationControlModal({
   // explicit narrowing is sent on the wire.
   const buildScope = (): EvaluationRunScope => {
     const dispatchConfigs = enabledConfigs
-      .filter(c => selectedMetrics.includes(c.id))
-      .map(c => ({ ...c, enabled: true as const }))
+      .filter((c) => selectedMetrics.includes(c.id))
+      .map((c) => ({ ...c, enabled: true as const }))
     const modelIdsFilter =
-      availableModels.length > 0 && selectedModels.length < availableModels.length
+      availableModels.length > 0 &&
+      selectedModels.length < availableModels.length
         ? selectedModels
         : undefined
     const annotatorIdsFilter =
@@ -290,11 +318,13 @@ export function EvaluationControlModal({
         ? selectedAnnotators
         : undefined
     const structureKeysFilter =
-      showStructureScope && selectedStructures.length < availableStructures.length
+      showStructureScope &&
+      selectedStructures.length < availableStructures.length
         ? selectedStructures
         : undefined
     return {
-      evaluationConfigs: dispatchConfigs.length > 0 ? dispatchConfigs : undefined,
+      evaluationConfigs:
+        dispatchConfigs.length > 0 ? dispatchConfigs : undefined,
       modelIds: modelIdsFilter,
       annotatorUserIds: annotatorIdsFilter,
       structureKeys: structureKeysFilter,
@@ -331,7 +361,12 @@ export function EvaluationControlModal({
       return
     }
 
-    const { evaluationConfigs: dispatchConfigs = [], modelIds: modelIdsFilter, annotatorUserIds: annotatorIdsFilter, structureKeys: structureKeysFilter } = buildScope()
+    const {
+      evaluationConfigs: dispatchConfigs = [],
+      modelIds: modelIdsFilter,
+      annotatorUserIds: annotatorIdsFilter,
+      structureKeys: structureKeysFilter,
+    } = buildScope()
 
     try {
       setLoading(true)
@@ -354,7 +389,8 @@ export function EvaluationControlModal({
     } catch (error: any) {
       console.error('Failed to start evaluation:', error)
       addToast(
-        error.response?.data?.detail || t('evaluation.controlModal.failedToStart'),
+        error.response?.data?.detail ||
+          t('evaluation.controlModal.failedToStart'),
         'error',
       )
     } finally {
@@ -364,7 +400,7 @@ export function EvaluationControlModal({
 
   const costEvaluationConfigs = useMemo(
     () =>
-      selectedConfigs.map(c => ({
+      selectedConfigs.map((c) => ({
         metric: c.metric,
         prediction_fields: c.prediction_fields,
       })),
@@ -397,23 +433,25 @@ export function EvaluationControlModal({
               leaveFrom="opacity-100 translate-y-0 sm:scale-100"
               leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
             >
-              <Dialog.Panel className="relative transform overflow-hidden rounded-lg bg-white px-4 pb-4 pt-5 text-left shadow-xl transition-all dark:bg-zinc-800 sm:my-8 sm:w-full sm:max-w-4xl sm:p-6">
-                <div className="absolute right-0 top-0 hidden pr-4 pt-4 sm:block">
+              <Dialog.Panel className="relative transform overflow-hidden rounded-lg bg-white px-4 pt-5 pb-4 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-4xl sm:p-6 dark:bg-zinc-800">
+                <div className="absolute top-0 right-0 hidden pt-4 pr-4 sm:block">
                   <button
                     type="button"
-                    className="rounded-md bg-white text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-300"
+                    className="rounded-md bg-white text-gray-400 hover:text-gray-500 focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:outline-none dark:bg-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-300"
                     onClick={onClose}
                   >
-                    <span className="sr-only">{t('shared.alertDialog.close')}</span>
+                    <span className="sr-only">
+                      {t('shared.alertDialog.close')}
+                    </span>
                     <XMarkIcon className="h-6 w-6" aria-hidden="true" />
                   </button>
                 </div>
 
                 <div className="sm:flex sm:items-start">
-                  <div className="mt-3 w-full text-center sm:ml-4 sm:mt-0 sm:text-left">
+                  <div className="mt-3 w-full text-center sm:mt-0 sm:ml-4 sm:text-left">
                     <Dialog.Title
                       as="h3"
-                      className="text-lg font-semibold leading-6 text-gray-900 dark:text-white"
+                      className="text-lg leading-6 font-semibold text-gray-900 dark:text-white"
                     >
                       {t('evaluation.controlModal.title')}
                     </Dialog.Title>
@@ -431,15 +469,24 @@ export function EvaluationControlModal({
                               type="radio"
                               value="missing"
                               checked={mode === 'missing'}
-                              onChange={(e) => setMode(e.target.value as 'missing')}
-                              className="mr-2 mt-1"
+                              onChange={(e) =>
+                                setMode(e.target.value as 'missing')
+                              }
+                              className="mt-1 mr-2"
                             />
                             <div>
-                              <label htmlFor="mode-missing" className="cursor-pointer font-medium text-gray-900 dark:text-white">
-                                {t('evaluation.controlModal.evaluateMissingOnly')}
+                              <label
+                                htmlFor="mode-missing"
+                                className="cursor-pointer font-medium text-gray-900 dark:text-white"
+                              >
+                                {t(
+                                  'evaluation.controlModal.evaluateMissingOnly',
+                                )}
                               </label>
                               <p className="text-sm text-gray-500 dark:text-zinc-400">
-                                {t('evaluation.controlModal.evaluateMissingOnlyDesc')}
+                                {t(
+                                  'evaluation.controlModal.evaluateMissingOnlyDesc',
+                                )}
                               </p>
                             </div>
                           </div>
@@ -450,10 +497,13 @@ export function EvaluationControlModal({
                               value="all"
                               checked={mode === 'all'}
                               onChange={(e) => setMode(e.target.value as 'all')}
-                              className="mr-2 mt-1"
+                              className="mt-1 mr-2"
                             />
                             <div>
-                              <label htmlFor="mode-all" className="cursor-pointer font-medium text-gray-900 dark:text-white">
+                              <label
+                                htmlFor="mode-all"
+                                className="cursor-pointer font-medium text-gray-900 dark:text-white"
+                              >
                                 {t('evaluation.controlModal.evaluateAll')}
                               </label>
                               <p className="text-sm text-gray-500 dark:text-zinc-400">
@@ -468,11 +518,18 @@ export function EvaluationControlModal({
                       {enabledConfigs.length > 0 && (
                         <div>
                           <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-zinc-300">
-                            {t('evaluation.controlModal.selectMetrics', 'Metriken')}
+                            {t(
+                              'evaluation.controlModal.selectMetrics',
+                              'Metriken',
+                            )}
                           </label>
                           <div className="max-h-48 space-y-2 overflow-y-auto rounded-lg border p-3 dark:border-zinc-700">
-                            {enabledConfigs.map(cfg => (
-                              <label key={cfg.id} htmlFor={`metric-${cfg.id}`} className="flex items-center">
+                            {enabledConfigs.map((cfg) => (
+                              <label
+                                key={cfg.id}
+                                htmlFor={`metric-${cfg.id}`}
+                                className="flex items-center"
+                              >
                                 <input
                                   id={`metric-${cfg.id}`}
                                   type="checkbox"
@@ -489,7 +546,11 @@ export function EvaluationControlModal({
                           <div className="mt-2 flex justify-between text-sm">
                             <button
                               type="button"
-                              onClick={() => setSelectedMetrics(enabledConfigs.map(c => c.id))}
+                              onClick={() =>
+                                setSelectedMetrics(
+                                  enabledConfigs.map((c) => c.id),
+                                )
+                              }
                               className="text-blue-600 hover:text-blue-700"
                             >
                               {t('generation.controlModal.selectAll')}
@@ -504,8 +565,19 @@ export function EvaluationControlModal({
                           </div>
                           <div className="mt-2 text-sm text-gray-600 dark:text-zinc-400">
                             {selectedMetrics.length === 1
-                              ? t('evaluation.controlModal.oneMetricSelected', '1 Metrik ausgewählt')
-                              : t('evaluation.controlModal.metricsSelected', '{count} Metriken ausgewählt').toString().replace('{count}', String(selectedMetrics.length))}
+                              ? t(
+                                  'evaluation.controlModal.oneMetricSelected',
+                                  '1 Metrik ausgewählt',
+                                )
+                              : t(
+                                  'evaluation.controlModal.metricsSelected',
+                                  '{count} Metriken ausgewählt',
+                                )
+                                  .toString()
+                                  .replace(
+                                    '{count}',
+                                    String(selectedMetrics.length),
+                                  )}
                           </div>
                         </div>
                       )}
@@ -514,11 +586,18 @@ export function EvaluationControlModal({
                       {availableModels.length > 0 && (
                         <div>
                           <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-zinc-300">
-                            {t('evaluation.controlModal.selectModels', 'Modelle')}
+                            {t(
+                              'evaluation.controlModal.selectModels',
+                              'Modelle',
+                            )}
                           </label>
                           <div className="max-h-48 space-y-2 overflow-y-auto rounded-lg border p-3 dark:border-zinc-700">
-                            {availableModels.map(m => (
-                              <label key={m.model_id} htmlFor={`model-${m.model_id}`} className="flex items-center">
+                            {availableModels.map((m) => (
+                              <label
+                                key={m.model_id}
+                                htmlFor={`model-${m.model_id}`}
+                                className="flex items-center"
+                              >
                                 <input
                                   id={`model-${m.model_id}`}
                                   type="checkbox"
@@ -533,7 +612,11 @@ export function EvaluationControlModal({
                           <div className="mt-2 flex justify-between text-sm">
                             <button
                               type="button"
-                              onClick={() => setSelectedModels(availableModels.map(m => m.model_id))}
+                              onClick={() =>
+                                setSelectedModels(
+                                  availableModels.map((m) => m.model_id),
+                                )
+                              }
                               className="text-blue-600 hover:text-blue-700"
                             >
                               {t('generation.controlModal.selectAll')}
@@ -549,7 +632,9 @@ export function EvaluationControlModal({
                           <div className="mt-2 text-sm text-gray-600 dark:text-zinc-400">
                             {selectedModels.length === 1
                               ? t('generation.controlModal.oneModelSelected')
-                              : t('generation.controlModal.modelsSelected', { count: selectedModels.length })}
+                              : t('generation.controlModal.modelsSelected', {
+                                  count: selectedModels.length,
+                                })}
                           </div>
                         </div>
                       )}
@@ -558,26 +643,41 @@ export function EvaluationControlModal({
                       {availableAnnotators.length > 0 && (
                         <div>
                           <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-zinc-300">
-                            {t('evaluation.controlModal.selectAnnotators', 'Annotator:innen')}
+                            {t(
+                              'evaluation.controlModal.selectAnnotators',
+                              'Annotator:innen',
+                            )}
                           </label>
                           <div className="max-h-48 space-y-2 overflow-y-auto rounded-lg border p-3 dark:border-zinc-700">
-                            {availableAnnotators.map(a => (
-                              <label key={a.user_id} htmlFor={`annotator-${a.user_id}`} className="flex items-center">
+                            {availableAnnotators.map((a) => (
+                              <label
+                                key={a.user_id}
+                                htmlFor={`annotator-${a.user_id}`}
+                                className="flex items-center"
+                              >
                                 <input
                                   id={`annotator-${a.user_id}`}
                                   type="checkbox"
-                                  checked={selectedAnnotators.includes(a.user_id)}
+                                  checked={selectedAnnotators.includes(
+                                    a.user_id,
+                                  )}
                                   onChange={() => toggleAnnotator(a.user_id)}
                                   className="mr-2"
                                 />
-                                <span className="text-sm">{a.display_name}</span>
+                                <span className="text-sm">
+                                  {a.display_name}
+                                </span>
                               </label>
                             ))}
                           </div>
                           <div className="mt-2 flex justify-between text-sm">
                             <button
                               type="button"
-                              onClick={() => setSelectedAnnotators(availableAnnotators.map(a => a.user_id))}
+                              onClick={() =>
+                                setSelectedAnnotators(
+                                  availableAnnotators.map((a) => a.user_id),
+                                )
+                              }
                               className="text-blue-600 hover:text-blue-700"
                             >
                               {t('generation.controlModal.selectAll')}
@@ -592,8 +692,19 @@ export function EvaluationControlModal({
                           </div>
                           <div className="mt-2 text-sm text-gray-600 dark:text-zinc-400">
                             {selectedAnnotators.length === 1
-                              ? t('evaluation.controlModal.oneAnnotatorSelected', '1 Annotator:in ausgewählt')
-                              : t('evaluation.controlModal.annotatorsSelected', '{count} Annotator:innen ausgewählt').toString().replace('{count}', String(selectedAnnotators.length))}
+                              ? t(
+                                  'evaluation.controlModal.oneAnnotatorSelected',
+                                  '1 Annotator:in ausgewählt',
+                                )
+                              : t(
+                                  'evaluation.controlModal.annotatorsSelected',
+                                  '{count} Annotator:innen ausgewählt',
+                                )
+                                  .toString()
+                                  .replace(
+                                    '{count}',
+                                    String(selectedAnnotators.length),
+                                  )}
                           </div>
                         </div>
                       )}
@@ -606,11 +717,18 @@ export function EvaluationControlModal({
                       {showStructureScope && (
                         <div>
                           <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-zinc-300">
-                            {t('evaluation.controlModal.selectStructures', 'Prompt-Strukturen')}
+                            {t(
+                              'evaluation.controlModal.selectStructures',
+                              'Prompt-Strukturen',
+                            )}
                           </label>
                           <div className="max-h-48 space-y-2 overflow-y-auto rounded-lg border p-3 dark:border-zinc-700">
-                            {availableStructures.map(s => (
-                              <label key={s.key} htmlFor={`structure-${s.key}`} className="flex items-center">
+                            {availableStructures.map((s) => (
+                              <label
+                                key={s.key}
+                                htmlFor={`structure-${s.key}`}
+                                className="flex items-center"
+                              >
                                 <input
                                   id={`structure-${s.key}`}
                                   type="checkbox"
@@ -621,7 +739,9 @@ export function EvaluationControlModal({
                                 <span className="text-sm">
                                   {s.name}
                                   {s.name !== s.key && (
-                                    <span className="ml-1 text-xs text-gray-400 dark:text-zinc-500">({s.key})</span>
+                                    <span className="ml-1 text-xs text-gray-400 dark:text-zinc-500">
+                                      ({s.key})
+                                    </span>
                                   )}
                                 </span>
                               </label>
@@ -630,7 +750,11 @@ export function EvaluationControlModal({
                           <div className="mt-2 flex justify-between text-sm">
                             <button
                               type="button"
-                              onClick={() => setSelectedStructures(availableStructures.map(s => s.key))}
+                              onClick={() =>
+                                setSelectedStructures(
+                                  availableStructures.map((s) => s.key),
+                                )
+                              }
                               className="text-blue-600 hover:text-blue-700"
                             >
                               {t('generation.controlModal.selectAll')}
@@ -645,8 +769,19 @@ export function EvaluationControlModal({
                           </div>
                           <div className="mt-2 text-sm text-gray-600 dark:text-zinc-400">
                             {selectedStructures.length === 1
-                              ? t('evaluation.controlModal.oneStructureSelected', '1 Prompt-Struktur ausgewählt')
-                              : t('evaluation.controlModal.structuresSelected', '{count} Prompt-Strukturen ausgewählt').toString().replace('{count}', String(selectedStructures.length))}
+                              ? t(
+                                  'evaluation.controlModal.oneStructureSelected',
+                                  '1 Prompt-Struktur ausgewählt',
+                                )
+                              : t(
+                                  'evaluation.controlModal.structuresSelected',
+                                  '{count} Prompt-Strukturen ausgewählt',
+                                )
+                                  .toString()
+                                  .replace(
+                                    '{count}',
+                                    String(selectedStructures.length),
+                                  )}
                           </div>
                         </div>
                       )}
@@ -654,37 +789,56 @@ export function EvaluationControlModal({
                       {/* C3: indicator visible during every scope refetch,
                           not only when both lists happen to be empty. */}
                       {scopeLoading && (
-                        <div className="text-xs text-zinc-500" role="status" aria-live="polite">
-                          {t('evaluation.controlModal.scopeLoading', 'Lade verfügbare Modelle und Annotator:innen…')}
+                        <div
+                          className="text-xs text-zinc-500"
+                          role="status"
+                          aria-live="polite"
+                        >
+                          {t(
+                            'evaluation.controlModal.scopeLoading',
+                            'Lade verfügbare Modelle und Annotator:innen…',
+                          )}
                         </div>
                       )}
 
                       {/* C2: empty-state placeholders surface AFTER a fetch
                           settles with no rows, so the user can tell apart
                           "loading" from "project genuinely has none". */}
-                      {!scopeLoading && projectId && availableModels.length === 0 && (
-                        <div className="rounded-lg border border-dashed border-zinc-300 px-3 py-2 text-xs italic text-zinc-500 dark:border-zinc-700">
-                          {t('evaluation.controlModal.noEvaluatedModels',
-                             'Keine bewerteten Modelle in diesem Projekt')}
-                        </div>
-                      )}
-                      {!scopeLoading && projectId && availableAnnotators.length === 0 && (
-                        <div className="rounded-lg border border-dashed border-zinc-300 px-3 py-2 text-xs italic text-zinc-500 dark:border-zinc-700">
-                          {t('evaluation.controlModal.noAnnotators',
-                             'Keine Annotator:innen in diesem Projekt')}
-                        </div>
-                      )}
+                      {!scopeLoading &&
+                        projectId &&
+                        availableModels.length === 0 && (
+                          <div className="rounded-lg border border-dashed border-zinc-300 px-3 py-2 text-xs text-zinc-500 italic dark:border-zinc-700">
+                            {t(
+                              'evaluation.controlModal.noEvaluatedModels',
+                              'Keine bewerteten Modelle in diesem Projekt',
+                            )}
+                          </div>
+                        )}
+                      {!scopeLoading &&
+                        projectId &&
+                        availableAnnotators.length === 0 && (
+                          <div className="rounded-lg border border-dashed border-zinc-300 px-3 py-2 text-xs text-zinc-500 italic dark:border-zinc-700">
+                            {t(
+                              'evaluation.controlModal.noAnnotators',
+                              'Keine Annotator:innen in diesem Projekt',
+                            )}
+                          </div>
+                        )}
 
                       {/* Evaluation Config Summary */}
                       {displayConfigCount > 0 && (
                         <div className="rounded-lg border border-gray-300 bg-gray-50 p-3 dark:border-zinc-600 dark:bg-zinc-700">
                           <p className="text-sm font-medium text-gray-700 dark:text-zinc-300">
-                            {t('evaluation.controlModal.evaluationConfigurations')}
+                            {t(
+                              'evaluation.controlModal.evaluationConfigurations',
+                            )}
                           </p>
                           <p className="mt-1 text-lg font-semibold text-gray-900 dark:text-white">
                             {displayConfigCount === 1
                               ? t('evaluation.controlModal.oneConfigWillBeRun')
-                              : t('evaluation.controlModal.configsWillBeRun', { count: displayConfigCount })}
+                              : t('evaluation.controlModal.configsWillBeRun', {
+                                  count: displayConfigCount,
+                                })}
                           </p>
                         </div>
                       )}
@@ -705,7 +859,9 @@ export function EvaluationControlModal({
                           enabled={isOpen}
                           modelIds={selectedModels}
                           annotatorUserIds={
-                            availableAnnotators.length > 0 ? selectedAnnotators : undefined
+                            availableAnnotators.length > 0
+                              ? selectedAnnotators
+                              : undefined
                           }
                           evaluationConfigs={costEvaluationConfigs}
                           generationMode={mode}
@@ -747,7 +903,9 @@ export function EvaluationControlModal({
                         (!onRunWithMode && enabledConfigs.length === 0)
                       }
                       aria-disabled={runBlocked || undefined}
-                      aria-describedby={runBlocked ? 'run-blocked-reason' : undefined}
+                      aria-describedby={
+                        runBlocked ? 'run-blocked-reason' : undefined
+                      }
                       className="flex items-center gap-2"
                     >
                       <PlayIcon className="h-4 w-4" />

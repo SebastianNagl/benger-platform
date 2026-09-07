@@ -103,7 +103,7 @@ describe('EditableTaskTitle', () => {
       })
 
       const { container } = render(
-        <EditableTaskTitle task={mockTask} className="custom-class" />
+        <EditableTaskTitle task={mockTask} className="custom-class" />,
       )
 
       expect(container.firstChild).toHaveClass('custom-class')
@@ -152,7 +152,7 @@ describe('EditableTaskTitle', () => {
       mockApi.updateTask.mockResolvedValue(updatedTask)
 
       render(
-        <EditableTaskTitle task={mockTask} onTaskUpdated={mockOnTaskUpdated} />
+        <EditableTaskTitle task={mockTask} onTaskUpdated={mockOnTaskUpdated} />,
       )
 
       await user.click(screen.getByText('Test Task'))
@@ -221,7 +221,7 @@ describe('EditableTaskTitle', () => {
 
       expect(mockAddToast).toHaveBeenCalledWith(
         'Task name cannot be empty',
-        'error'
+        'error',
       )
       expect(mockApi.updateTask).not.toHaveBeenCalled()
     })
@@ -245,7 +245,7 @@ describe('EditableTaskTitle', () => {
       mockApi.updateTask.mockResolvedValue(updatedTask)
 
       render(
-        <EditableTaskTitle task={mockTask} onTaskUpdated={mockOnTaskUpdated} />
+        <EditableTaskTitle task={mockTask} onTaskUpdated={mockOnTaskUpdated} />,
       )
 
       await user.click(screen.getByText('Test Task'))
@@ -277,7 +277,7 @@ describe('EditableTaskTitle', () => {
       await waitFor(() => {
         expect(mockAddToast).toHaveBeenCalledWith(
           'Task renamed successfully',
-          'success'
+          'success',
         )
       })
     })
@@ -299,7 +299,7 @@ describe('EditableTaskTitle', () => {
       await waitFor(() => {
         expect(mockAddToast).toHaveBeenCalledWith(
           'Failed to rename task: API Error',
-          'error'
+          'error',
         )
       })
     })

@@ -54,17 +54,20 @@ jest.mock('@/contexts/I18nContext', () => ({
         'dataImport.tabs.paste': 'Paste',
         'dataImport.tabs.cloud': 'Cloud',
         'projects.creation.wizard.step2.upload.dropzone': 'Drop files here',
-        'projects.creation.wizard.step2.upload.supportedFormats': 'JSON, CSV, TSV',
+        'projects.creation.wizard.step2.upload.supportedFormats':
+          'JSON, CSV, TSV',
         'projects.creation.wizard.step2.upload.chooseFiles': 'Choose Files',
         'projects.creation.wizard.step2.upload.removeFile': 'Remove File',
-        'projects.creation.wizard.step2.upload.selectedFile': 'Selected: {filename}',
+        'projects.creation.wizard.step2.upload.selectedFile':
+          'Selected: {filename}',
         'projects.creation.wizard.step2.paste.label': 'Paste data',
         'projects.creation.wizard.step2.paste.placeholder': 'Paste here',
         'projects.creation.wizard.step2.paste.noData': 'No data',
         'projects.creation.wizard.step2.paste.lines': '{count} lines',
         'projects.creation.wizard.step2.paste.clear': 'Clear',
         'projects.creation.wizard.step2.paste.validate': 'Validate',
-        'projects.creation.wizard.step2.paste.formatDetected': '{format} detected',
+        'projects.creation.wizard.step2.paste.formatDetected':
+          '{format} detected',
         'projects.creation.wizard.step2.paste.invalidFormat': 'Invalid format',
         'projects.creation.wizard.step2.detectedColumns': 'Detected columns',
         'projects.creation.wizard.step2.note': 'Note text',
@@ -82,7 +85,7 @@ jest.mock('@/contexts/I18nContext', () => ({
 }))
 
 function setup(
-  props: Partial<React.ComponentProps<typeof StepDataImport>> = {}
+  props: Partial<React.ComponentProps<typeof StepDataImport>> = {},
 ) {
   const onPastedDataChange = jest.fn()
   const onFileChange = jest.fn()
@@ -99,7 +102,7 @@ function setup(
       syntheticColumns={props.syntheticColumns}
       wizardData={props.wizardData}
       onWizardChange={props.onWizardChange}
-    />
+    />,
   )
   return { ...utils, onPastedDataChange, onFileChange, onDataColumnsChange }
 }
@@ -143,9 +146,11 @@ describe('StepDataImport — paste tab', () => {
     await openPasteTab(user)
     const count = screen.getByTestId('project-create-paste-line-count')
     expect(count).toHaveAttribute('data-line-count', '0')
-    expect(screen.getByTestId('project-create-clear-data-button')).toBeDisabled()
     expect(
-      screen.getByTestId('project-create-validate-data-button')
+      screen.getByTestId('project-create-clear-data-button'),
+    ).toBeDisabled()
+    expect(
+      screen.getByTestId('project-create-validate-data-button'),
     ).toBeDisabled()
   })
 
@@ -261,7 +266,7 @@ describe('StepDataImport — upload tab', () => {
 
     // Switch to the upload tab is the default; the hidden input is present.
     const input = screen.getByTestId(
-      'project-create-file-input'
+      'project-create-file-input',
     ) as HTMLInputElement
     const file = new File(['header1\theader2\nv1\tv2'], 'data.tsv', {
       type: 'text/tab-separated-values',
@@ -271,7 +276,7 @@ describe('StepDataImport — upload tab', () => {
 
     expect(onFileChange).toHaveBeenCalledWith(file)
     await waitFor(() =>
-      expect(onDataColumnsChange).toHaveBeenCalledWith(['header1', 'header2'])
+      expect(onDataColumnsChange).toHaveBeenCalledWith(['header1', 'header2']),
     )
   })
 
@@ -281,7 +286,7 @@ describe('StepDataImport — upload tab', () => {
 
     expect(screen.getByText('Selected: mydata.json')).toBeInTheDocument()
     expect(
-      screen.getByTestId('project-create-remove-file-button')
+      screen.getByTestId('project-create-remove-file-button'),
     ).toBeInTheDocument()
   })
 
@@ -307,7 +312,7 @@ describe('StepDataImport — upload tab', () => {
 
     expect(onFileChange).toHaveBeenCalledWith(file)
     await waitFor(() =>
-      expect(onDataColumnsChange).toHaveBeenCalledWith(['a', 'b'])
+      expect(onDataColumnsChange).toHaveBeenCalledWith(['a', 'b']),
     )
   })
 
@@ -324,7 +329,7 @@ describe('StepDataImport — synthetic data warning', () => {
   it('is absent by default', () => {
     setup()
     expect(
-      screen.queryByTestId('step2-synthetic-warning')
+      screen.queryByTestId('step2-synthetic-warning'),
     ).not.toBeInTheDocument()
   })
 
@@ -332,11 +337,11 @@ describe('StepDataImport — synthetic data warning', () => {
     setup({ syntheticActive: true })
     const warning = screen.getByTestId('step2-synthetic-warning')
     expect(warning).toHaveTextContent(
-      'projects.creation.wizard.step2.syntheticNotice'
+      'projects.creation.wizard.step2.syntheticNotice',
     )
     // No columns known yet -> no column chips.
     expect(warning).not.toHaveTextContent(
-      'projects.creation.wizard.step2.syntheticNoticeColumns'
+      'projects.creation.wizard.step2.syntheticNoticeColumns',
     )
   })
 
@@ -347,7 +352,7 @@ describe('StepDataImport — synthetic data warning', () => {
     })
     const warning = screen.getByTestId('step2-synthetic-warning')
     expect(warning).toHaveTextContent(
-      'projects.creation.wizard.step2.syntheticNoticeColumns'
+      'projects.creation.wizard.step2.syntheticNoticeColumns',
     )
     expect(warning).toHaveTextContent('sachverhalt')
     expect(warning).toHaveTextContent('musterloesung')
@@ -390,8 +395,8 @@ describe('StepDataImport — cloud tab (select-mode panel)', () => {
       onWizardChange: jest.fn(),
     })
     await user.click(screen.getByTestId('project-create-cloud-tab'))
-    expect(
-      await screen.findByTestId('cloud-import-initial')
-    ).toHaveTextContent(JSON.stringify(selection))
+    expect(await screen.findByTestId('cloud-import-initial')).toHaveTextContent(
+      JSON.stringify(selection),
+    )
   })
 })

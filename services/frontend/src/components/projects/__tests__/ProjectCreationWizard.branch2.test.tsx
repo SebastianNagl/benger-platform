@@ -5,7 +5,7 @@
  */
 
 import '@testing-library/jest-dom'
-import { render, screen, waitFor, act, fireEvent } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ProjectCreationWizard } from '../ProjectCreationWizard'
 
@@ -23,46 +23,62 @@ jest.mock('@/contexts/I18nContext', () => ({
     t: (key: string, params?: any) => {
       const translations: Record<string, string> = {
         'projects.creation.wizard.steps.projectInfo.name': 'Project Info',
-        'projects.creation.wizard.steps.projectInfo.description': 'Basic information',
+        'projects.creation.wizard.steps.projectInfo.description':
+          'Basic information',
         'projects.creation.wizard.steps.dataImport.name': 'Data Import',
         'projects.creation.wizard.steps.dataImport.description': 'Upload data',
         'projects.creation.wizard.steps.labelingSetup.name': 'Labeling Setup',
-        'projects.creation.wizard.steps.labelingSetup.description': 'Configure labels',
-        'projects.creation.wizard.steps.annotationInstructions.name': 'Instructions',
-        'projects.creation.wizard.steps.annotationInstructions.description': 'Annotation instructions',
+        'projects.creation.wizard.steps.labelingSetup.description':
+          'Configure labels',
+        'projects.creation.wizard.steps.annotationInstructions.name':
+          'Instructions',
+        'projects.creation.wizard.steps.annotationInstructions.description':
+          'Annotation instructions',
         'projects.creation.wizard.steps.models.name': 'Models',
         'projects.creation.wizard.steps.models.description': 'Select models',
         'projects.creation.wizard.steps.prompts.name': 'Prompts',
-        'projects.creation.wizard.steps.prompts.description': 'Configure prompts',
+        'projects.creation.wizard.steps.prompts.description':
+          'Configure prompts',
         'projects.creation.wizard.steps.evaluation.name': 'Evaluation',
-        'projects.creation.wizard.steps.evaluation.description': 'Select metrics',
+        'projects.creation.wizard.steps.evaluation.description':
+          'Select metrics',
         'projects.creation.wizard.steps.settings.name': 'Settings',
-        'projects.creation.wizard.steps.settings.description': 'Configure settings',
+        'projects.creation.wizard.steps.settings.description':
+          'Configure settings',
         'projects.creation.wizard.step1.title': 'Project Information',
-        'projects.creation.wizard.step1.subtitle': 'Enter basic project details',
+        'projects.creation.wizard.step1.subtitle':
+          'Enter basic project details',
         'projects.creation.wizard.step1.projectName': 'Project Name',
-        'projects.creation.wizard.step1.projectNamePlaceholder': 'Enter project name',
+        'projects.creation.wizard.step1.projectNamePlaceholder':
+          'Enter project name',
         'projects.creation.wizard.step1.description': 'Description',
         'projects.creation.wizard.step1.optional': '(Optional)',
-        'projects.creation.wizard.step1.descriptionPlaceholder': 'Enter description',
-        'projects.creation.wizard.step1.validation.nameRequired': 'Project name is required',
+        'projects.creation.wizard.step1.descriptionPlaceholder':
+          'Enter description',
+        'projects.creation.wizard.step1.validation.nameRequired':
+          'Project name is required',
         'projects.creation.wizard.features.title': 'Project Features',
         'projects.creation.wizard.features.editLater': 'Can be edited later',
         'projects.creation.wizard.features.annotation': 'Annotation',
-        'projects.creation.wizard.features.annotationDescription': 'Labels and instructions',
+        'projects.creation.wizard.features.annotationDescription':
+          'Labels and instructions',
         'projects.creation.wizard.features.dataImport': 'Data Import',
-        'projects.creation.wizard.features.dataImportDescription': 'Upload or paste data',
+        'projects.creation.wizard.features.dataImportDescription':
+          'Upload or paste data',
         'projects.creation.wizard.features.llmGeneration': 'LLM Generation',
-        'projects.creation.wizard.features.llmGenerationDescription': 'Models and prompts',
+        'projects.creation.wizard.features.llmGenerationDescription':
+          'Models and prompts',
         'projects.creation.wizard.features.evaluation': 'Evaluation',
-        'projects.creation.wizard.features.evaluationDescription': 'Metrics and methods',
+        'projects.creation.wizard.features.evaluationDescription':
+          'Metrics and methods',
         'projects.creation.wizard.step2.title': 'Import Data',
         'projects.creation.wizard.step2.subtitle': 'Upload or paste data',
         'dataImport.tabs.upload': 'Upload',
         'dataImport.tabs.paste': 'Paste',
         'dataImport.tabs.cloud': 'Cloud',
         'projects.creation.wizard.step2.upload.dropzone': 'Drop files here',
-        'projects.creation.wizard.step2.upload.supportedFormats': 'JSON, CSV, TSV',
+        'projects.creation.wizard.step2.upload.supportedFormats':
+          'JSON, CSV, TSV',
         'projects.creation.wizard.step2.upload.chooseFiles': 'Choose Files',
         'projects.creation.wizard.step2.upload.selectedFile': `Selected: ${params?.filename ?? ''}`,
         'projects.creation.wizard.step2.upload.removeFile': 'Remove file',
@@ -76,14 +92,17 @@ jest.mock('@/contexts/I18nContext', () => ({
         'projects.creation.wizard.step2.paste.invalidFormat': 'Invalid format',
         'projects.creation.wizard.step2.note': 'You can add data later',
         'projects.creation.wizard.step3.title': 'Labeling Setup',
-        'projects.creation.wizard.step3.subtitle': 'Configure labeling interface',
+        'projects.creation.wizard.step3.subtitle':
+          'Configure labeling interface',
         'projects.creation.wizard.step3.tabs.templates': 'Templates',
         'projects.creation.wizard.step3.tabs.custom': 'Custom',
         'projects.creation.wizard.step3.templates.label': 'Choose a template',
-        'projects.creation.wizard.step3.templates.description': 'Select from templates',
+        'projects.creation.wizard.step3.templates.description':
+          'Select from templates',
         'projects.creation.wizard.step3.templates.selected': 'Selected',
         'projects.creation.wizard.step3.custom.label': 'Custom Configuration',
-        'projects.creation.wizard.step3.custom.description': 'Write your own config',
+        'projects.creation.wizard.step3.custom.description':
+          'Write your own config',
         'projects.creation.wizard.step3.custom.helpTitle': 'Help',
         'projects.creation.wizard.step3.custom.helpText': 'Learn more at',
         'projects.creation.wizard.step3.preview.title': 'Preview',
@@ -94,14 +113,21 @@ jest.mock('@/contexts/I18nContext', () => ({
         'projects.creation.wizard.navigation.skip': 'Skip',
         'projects.creation.wizard.navigation.create': 'Create Project',
         'projects.creation.wizard.navigation.creating': 'Creating...',
-        'projects.creation.wizard.templates.questionAnswering.name': 'Question Answering',
-        'projects.creation.wizard.templates.questionAnswering.description': 'QA tasks',
-        'projects.creation.wizard.templates.multipleChoice.name': 'Multiple Choice',
-        'projects.creation.wizard.templates.multipleChoice.description': 'MC tasks',
+        'projects.creation.wizard.templates.questionAnswering.name':
+          'Question Answering',
+        'projects.creation.wizard.templates.questionAnswering.description':
+          'QA tasks',
+        'projects.creation.wizard.templates.multipleChoice.name':
+          'Multiple Choice',
+        'projects.creation.wizard.templates.multipleChoice.description':
+          'MC tasks',
         'projects.creation.wizard.templates.examSolving.name': 'Exam Solving',
-        'projects.creation.wizard.templates.examSolving.description': 'Legal exams',
-        'projects.creation.wizard.templates.spanAnnotation.name': 'Span Annotation',
-        'projects.creation.wizard.templates.spanAnnotation.description': 'NER tasks',
+        'projects.creation.wizard.templates.examSolving.description':
+          'Legal exams',
+        'projects.creation.wizard.templates.spanAnnotation.name':
+          'Span Annotation',
+        'projects.creation.wizard.templates.spanAnnotation.description':
+          'NER tasks',
         'projects.creation.wizard.templates.custom.name': 'Custom',
         'projects.creation.wizard.templates.custom.description': 'Custom setup',
         'projects.wizard.note': 'Note',
@@ -115,24 +141,36 @@ jest.mock('@/contexts/I18nContext', () => ({
         'projects.wizard.labelStudioDocs': 'Label Studio docs',
         'projects.creation.wizard.stepSettings.title': 'Project Settings',
         'projects.creation.wizard.stepSettings.subtitle': 'Configure settings',
-        'projects.creation.wizard.stepSettings.assignmentMode': 'Assignment Mode',
-        'projects.creation.wizard.stepSettings.assignmentModeHint': 'How tasks are distributed',
+        'projects.creation.wizard.stepSettings.assignmentMode':
+          'Assignment Mode',
+        'projects.creation.wizard.stepSettings.assignmentModeHint':
+          'How tasks are distributed',
         'projects.creation.wizard.stepSettings.modes.open': 'Open',
         'projects.creation.wizard.stepSettings.modes.manual': 'Manual',
         'projects.creation.wizard.stepSettings.modes.auto': 'Auto',
         'projects.creation.wizard.stepSettings.modesHint.open': 'Pick freely',
-        'projects.creation.wizard.stepSettings.modesHint.manual': 'Admins assign',
+        'projects.creation.wizard.stepSettings.modesHint.manual':
+          'Admins assign',
         'projects.creation.wizard.stepSettings.modesHint.auto': 'Auto-assigned',
-        'projects.creation.wizard.stepSettings.maxAnnotations': 'Max Annotations',
-        'projects.creation.wizard.stepSettings.minAnnotations': 'Min Annotations',
+        'projects.creation.wizard.stepSettings.maxAnnotations':
+          'Max Annotations',
+        'projects.creation.wizard.stepSettings.minAnnotations':
+          'Min Annotations',
         'projects.creation.wizard.stepSettings.unlimited': 'Unlimited',
-        'projects.creation.wizard.stepSettings.showSkipButton': 'Show Skip Button',
-        'projects.creation.wizard.stepSettings.showSkipButtonHint': 'Allow skipping',
-        'projects.creation.wizard.stepSettings.showInstructions': 'Show Instructions',
-        'projects.creation.wizard.stepSettings.showInstructionsHint': 'Display instructions',
-        'projects.creation.wizard.stepSettings.randomizeOrder': 'Randomize Order',
-        'projects.creation.wizard.stepSettings.randomizeOrderHint': 'Random order',
-        'projects.creation.wizard.stepSettings.advancedNote': 'More settings on project page.',
+        'projects.creation.wizard.stepSettings.showSkipButton':
+          'Show Skip Button',
+        'projects.creation.wizard.stepSettings.showSkipButtonHint':
+          'Allow skipping',
+        'projects.creation.wizard.stepSettings.showInstructions':
+          'Show Instructions',
+        'projects.creation.wizard.stepSettings.showInstructionsHint':
+          'Display instructions',
+        'projects.creation.wizard.stepSettings.randomizeOrder':
+          'Randomize Order',
+        'projects.creation.wizard.stepSettings.randomizeOrderHint':
+          'Random order',
+        'projects.creation.wizard.stepSettings.advancedNote':
+          'More settings on project page.',
       }
       return translations[key] || key
     },
@@ -178,11 +216,14 @@ jest.mock('@/hooks/useModels', () => ({
 const mockToastSuccess = jest.fn()
 const mockToastError = jest.fn()
 const mockAddToast = jest.fn(
-  (message: string, type: 'success' | 'error' | 'info' | 'warning' = 'info') => {
+  (
+    message: string,
+    type: 'success' | 'error' | 'info' | 'warning' = 'info',
+  ) => {
     if (type === 'success') mockToastSuccess(message)
     if (type === 'error') mockToastError(message)
     return 'mock-toast-id'
-  }
+  },
 )
 jest.mock('@/components/shared/Toast', () => ({
   useToast: () => ({
@@ -200,7 +241,9 @@ describe('ProjectCreationWizard branch coverage', () => {
   })
 
   // Helper to navigate to Settings (always last) and click Create
-  async function navigateToSettingsAndSubmit(user: ReturnType<typeof userEvent.setup>) {
+  async function navigateToSettingsAndSubmit(
+    user: ReturnType<typeof userEvent.setup>,
+  ) {
     // Click Next until we reach the submit button (Settings is always last)
     for (let i = 0; i < 10; i++) {
       const submitBtn = screen.queryByTestId('project-create-submit-button')
@@ -219,12 +262,19 @@ describe('ProjectCreationWizard branch coverage', () => {
   }
 
   // Helper to enable a feature and navigate to data import paste tab
-  async function navigateToPasteTab(user: ReturnType<typeof userEvent.setup>, title: string) {
+  async function navigateToPasteTab(
+    user: ReturnType<typeof userEvent.setup>,
+    title: string,
+  ) {
     const titleInput = screen.getByTestId('project-create-name-input')
     await user.type(titleInput, title)
 
     // Enable data import feature
-    await user.click(screen.getByTestId('wizard-feature-dataImport').querySelector('input[type="checkbox"]')!)
+    await user.click(
+      screen
+        .getByTestId('wizard-feature-dataImport')
+        .querySelector('input[type="checkbox"]')!,
+    )
 
     await user.click(screen.getByTestId('project-create-next-button'))
 
@@ -236,7 +286,9 @@ describe('ProjectCreationWizard branch coverage', () => {
     await user.click(pasteTab)
 
     await waitFor(() => {
-      expect(screen.getByTestId('project-create-paste-data-textarea')).toBeInTheDocument()
+      expect(
+        screen.getByTestId('project-create-paste-data-textarea'),
+      ).toBeInTheDocument()
     })
   }
 
@@ -312,7 +364,7 @@ describe('ProjectCreationWizard branch coverage', () => {
 
     await waitFor(() => {
       expect(mockToastSuccess).toHaveBeenCalledWith(
-        expect.stringContaining('TSV')
+        expect.stringContaining('TSV'),
       )
     })
   })
@@ -329,7 +381,7 @@ describe('ProjectCreationWizard branch coverage', () => {
 
     await waitFor(() => {
       expect(mockToastSuccess).toHaveBeenCalledWith(
-        expect.stringContaining('CSV')
+        expect.stringContaining('CSV'),
       )
     })
   })
@@ -376,7 +428,9 @@ describe('ProjectCreationWizard branch coverage', () => {
     await navigateToSettingsAndSubmit(user)
 
     await waitFor(() => {
-      expect(mockToastSuccess).toHaveBeenCalledWith('Project created successfully')
+      expect(mockToastSuccess).toHaveBeenCalledWith(
+        'Project created successfully',
+      )
     })
     expect(mockPush).toHaveBeenCalledWith('/projects/new-project-id')
   })
@@ -386,7 +440,11 @@ describe('ProjectCreationWizard branch coverage', () => {
     render(<ProjectCreationWizard />)
 
     // Enable a feature so the Next button appears instead of Create
-    await user.click(screen.getByTestId('wizard-feature-dataImport').querySelector('input[type="checkbox"]')!)
+    await user.click(
+      screen
+        .getByTestId('wizard-feature-dataImport')
+        .querySelector('input[type="checkbox"]')!,
+    )
     await user.click(screen.getByTestId('project-create-next-button'))
 
     expect(screen.getByText('Project name is required')).toBeInTheDocument()
@@ -406,7 +464,11 @@ describe('ProjectCreationWizard branch coverage', () => {
 
     const titleInput = screen.getByTestId('project-create-name-input')
     await user.type(titleInput, 'Drop Project')
-    await user.click(screen.getByTestId('wizard-feature-dataImport').querySelector('input[type="checkbox"]')!)
+    await user.click(
+      screen
+        .getByTestId('wizard-feature-dataImport')
+        .querySelector('input[type="checkbox"]')!,
+    )
     await user.click(screen.getByTestId('project-create-next-button'))
 
     await waitFor(() => {

@@ -36,7 +36,7 @@ describe('QuestionAddModal', () => {
           isOpen={true}
           onSave={mockOnSave}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       expect(screen.getByTestId('question-add-modal')).toBeInTheDocument()
@@ -49,7 +49,7 @@ describe('QuestionAddModal', () => {
           isOpen={false}
           onSave={mockOnSave}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       expect(screen.queryByTestId('question-add-modal')).not.toBeInTheDocument()
@@ -61,7 +61,7 @@ describe('QuestionAddModal', () => {
           isOpen={true}
           onSave={mockOnSave}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       expect(screen.getByText('Question #1')).toBeInTheDocument()
@@ -77,7 +77,7 @@ describe('QuestionAddModal', () => {
           onSave={mockOnSave}
           onCancel={mockOnCancel}
           taskType="qa"
-        />
+        />,
       )
 
       expect(screen.queryByTestId('add-reasoning-0')).not.toBeInTheDocument()
@@ -90,7 +90,7 @@ describe('QuestionAddModal', () => {
           onSave={mockOnSave}
           onCancel={mockOnCancel}
           taskType="QAR"
-        />
+        />,
       )
 
       expect(screen.getByTestId('add-reasoning-0')).toBeInTheDocument()
@@ -105,7 +105,7 @@ describe('QuestionAddModal', () => {
           isOpen={true}
           onSave={mockOnSave}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       expect(screen.getByText('Question #1')).toBeInTheDocument()
@@ -124,7 +124,7 @@ describe('QuestionAddModal', () => {
           isOpen={true}
           onSave={mockOnSave}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       // Add a second question
@@ -147,7 +147,7 @@ describe('QuestionAddModal', () => {
           isOpen={true}
           onSave={mockOnSave}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       const removeButton = screen.queryByTitle('Remove question')
@@ -161,7 +161,7 @@ describe('QuestionAddModal', () => {
           isOpen={true}
           onSave={mockOnSave}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       const questionInput = screen.getByTestId('add-question-0')
@@ -177,7 +177,7 @@ describe('QuestionAddModal', () => {
           isOpen={true}
           onSave={mockOnSave}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       const caseInput = screen.getByTestId('add-case-0')
@@ -194,7 +194,7 @@ describe('QuestionAddModal', () => {
           onSave={mockOnSave}
           onCancel={mockOnCancel}
           taskType="QAR"
-        />
+        />,
       )
 
       const reasoningInput = screen.getByTestId('add-reasoning-0')
@@ -211,7 +211,7 @@ describe('QuestionAddModal', () => {
           isOpen={true}
           onSave={mockOnSave}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       expect(screen.getByTestId('add-answer-0-0')).toBeInTheDocument()
@@ -225,7 +225,7 @@ describe('QuestionAddModal', () => {
           isOpen={true}
           onSave={mockOnSave}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       const addAnswerButton = screen.getByText('Add Answer')
@@ -242,7 +242,7 @@ describe('QuestionAddModal', () => {
           isOpen={true}
           onSave={mockOnSave}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       // Add a second answer
@@ -265,7 +265,7 @@ describe('QuestionAddModal', () => {
           isOpen={true}
           onSave={mockOnSave}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       const removeButton = screen.queryByTitle('Remove answer')
@@ -279,7 +279,7 @@ describe('QuestionAddModal', () => {
           isOpen={true}
           onSave={mockOnSave}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       const answerInput = screen.getByTestId('add-answer-0-0')
@@ -297,7 +297,7 @@ describe('QuestionAddModal', () => {
           isOpen={true}
           onSave={mockOnSave}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       const saveButton = screen.getByTestId('add-questions-button')
@@ -317,7 +317,7 @@ describe('QuestionAddModal', () => {
           isOpen={true}
           onSave={mockOnSave}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       // Fill question but leave answer empty
@@ -329,7 +329,7 @@ describe('QuestionAddModal', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('At least one answer is required')
+          screen.getByText('At least one answer is required'),
         ).toBeInTheDocument()
       })
 
@@ -343,7 +343,7 @@ describe('QuestionAddModal', () => {
           isOpen={true}
           onSave={mockOnSave}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       // Add a second question
@@ -376,7 +376,7 @@ describe('QuestionAddModal', () => {
           isOpen={true}
           onSave={mockOnSave}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       const questionInput = screen.getByTestId('add-question-0')
@@ -405,7 +405,7 @@ describe('QuestionAddModal', () => {
           isOpen={true}
           onSave={mockOnSave}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       const questionInput = screen.getByTestId('add-question-0')
@@ -438,7 +438,7 @@ describe('QuestionAddModal', () => {
           isOpen={true}
           onSave={mockOnSave}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       const questionInput = screen.getByTestId('add-question-0')
@@ -470,7 +470,7 @@ describe('QuestionAddModal', () => {
           isOpen={true}
           onSave={mockOnSave}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       const questionInput = screen.getByTestId('add-question-0')
@@ -501,7 +501,7 @@ describe('QuestionAddModal', () => {
           isOpen={true}
           onSave={mockOnSave}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       const cancelButton = screen.getByText('Cancel')
@@ -517,7 +517,7 @@ describe('QuestionAddModal', () => {
           isOpen={true}
           onSave={mockOnSave}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       const closeButton = screen.getByRole('button', { name: '' })
@@ -533,7 +533,7 @@ describe('QuestionAddModal', () => {
           isOpen={true}
           onSave={mockOnSave}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       // Fill in some data
@@ -550,7 +550,7 @@ describe('QuestionAddModal', () => {
           isOpen={true}
           onSave={mockOnSave}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       // Check that form is reset
@@ -564,7 +564,7 @@ describe('QuestionAddModal', () => {
           isOpen={true}
           onSave={mockOnSave}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       expect(screen.getByText('Add 1 Question(s)')).toBeInTheDocument()
@@ -577,7 +577,7 @@ describe('QuestionAddModal', () => {
           isOpen={true}
           onSave={mockOnSave}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       const addButton = screen.getByText('Add Another Question')
@@ -596,7 +596,7 @@ describe('QuestionAddModal', () => {
           isOpen={true}
           onSave={mockOnSave}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       // Add second question
@@ -641,7 +641,7 @@ describe('QuestionAddModal', () => {
           isOpen={true}
           onSave={mockOnSave}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       const questionInput = screen.getByTestId('add-question-0')
@@ -682,7 +682,7 @@ describe('QuestionAddModal', () => {
           isOpen={true}
           onSave={mockOnSave}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       // Add second question
@@ -719,7 +719,7 @@ describe('QuestionAddModal', () => {
           onSave={mockOnSave}
           onCancel={mockOnCancel}
           taskType="QAR"
-        />
+        />,
       )
 
       const questionInput = screen.getByTestId('add-question-0')
@@ -752,7 +752,7 @@ describe('QuestionAddModal', () => {
           onSave={mockOnSave}
           onCancel={mockOnCancel}
           taskType="QAR"
-        />
+        />,
       )
 
       const questionInput = screen.getByTestId('add-question-0')

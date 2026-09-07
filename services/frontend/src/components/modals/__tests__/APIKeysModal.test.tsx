@@ -15,7 +15,10 @@ jest.mock('@heroicons/react/24/outline', () => ({
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
     t: (key: string, varsOrDefault?: any) => {
-      const translations: Record<string, any> = require('../../../locales/en/common.json')
+      const translations: Record<
+        string,
+        any
+      > = require('../../../locales/en/common.json')
       const parts = key.split('.')
       let value: any = translations
       for (const part of parts) {
@@ -61,7 +64,7 @@ jest.mock('@headlessui/react', () => {
           <div {...props}>{children}</div>
         ),
         Title: ({ children, ...props }: any) => <h2 {...props}>{children}</h2>,
-      }
+      },
     ),
   }
 })
@@ -95,7 +98,9 @@ describe('APIKeysModal', () => {
     it('renders modal description', () => {
       render(<APIKeysModal {...defaultProps} />)
       expect(
-        screen.getByText('Manage your personal API keys for LLM providers. These keys are encrypted and stored securely.')
+        screen.getByText(
+          'Manage your personal API keys for LLM providers. These keys are encrypted and stored securely.',
+        ),
       ).toBeInTheDocument()
     })
 
@@ -152,7 +157,7 @@ describe('APIKeysModal', () => {
 
       const title = screen.getByText('API Keys Management')
       const description = screen.getByText(
-        'Manage your personal API keys for LLM providers. These keys are encrypted and stored securely.'
+        'Manage your personal API keys for LLM providers. These keys are encrypted and stored securely.',
       )
 
       expect(title.tagName).toBe('H2')
@@ -168,9 +173,7 @@ describe('APIKeysModal', () => {
 
     it('close button has aria-label', () => {
       render(<APIKeysModal {...defaultProps} />)
-      expect(
-        screen.getByRole('button', { name: 'Close' })
-      ).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Close' })).toBeInTheDocument()
     })
 
     it('backdrop has aria-hidden attribute', () => {

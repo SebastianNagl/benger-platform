@@ -17,8 +17,8 @@ import { customModelsAPI } from '@/lib/api/customModels'
 import type { CustomModel } from '@/lib/api/types'
 import { ChevronRightIcon } from '@heroicons/react/24/outline'
 import { useState } from 'react'
-import { CustomBadge, VisibilityBadge } from './ModelBadges'
 import { CustomModelCredentialRow } from './CustomModelCredentialRow'
+import { CustomBadge, VisibilityBadge } from './ModelBadges'
 import { ModelPermissionsPanel } from './ModelPermissionsPanel'
 
 interface CustomModelListProps {
@@ -32,7 +32,7 @@ interface CustomModelListProps {
 }
 
 function modelVisibility(
-  model: CustomModel
+  model: CustomModel,
 ): 'private' | 'organization' | 'public' {
   if (model.is_public) return 'public'
   if (model.is_private) return 'private'
@@ -50,7 +50,7 @@ export function CustomModelList({
 
   const [expandedIds, setExpandedIds] = useState<string[]>([])
   const [visibilityOpenFor, setVisibilityOpenFor] = useState<string | null>(
-    null
+    null,
   )
   const [deleteTarget, setDeleteTarget] = useState<CustomModel | null>(null)
   const [deleting, setDeleting] = useState(false)
@@ -59,7 +59,7 @@ export function CustomModelList({
     setExpandedIds((prev) =>
       prev.includes(modelId)
         ? prev.filter((id) => id !== modelId)
-        : [...prev, modelId]
+        : [...prev, modelId],
     )
   }
 
@@ -75,7 +75,7 @@ export function CustomModelList({
         result?.deleted === 'soft'
           ? t('customModels.list.deactivateSuccess')
           : t('customModels.list.deleteSuccess'),
-        'success'
+        'success',
       )
       onChanged?.()
     } catch (error: any) {

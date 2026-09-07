@@ -89,7 +89,8 @@ const nextConfig = {
     resolveExtensions: ['.tsx', '.ts', '.jsx', '.js', '.json'],
     resolveAlias: {
       '@benger/extended':
-        isExtended && require('fs').existsSync('./benger-extended-frontend/index.ts')
+        isExtended &&
+        require('fs').existsSync('./benger-extended-frontend/index.ts')
           ? './benger-extended-frontend'
           : isExtended
             ? './node_modules/@benger/extended'

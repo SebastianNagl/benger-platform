@@ -4,12 +4,12 @@
 
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
+import { mockToast as __mockToast } from '@/test-utils/setupTests'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useRouter } from 'next/navigation'
-import { mockToast as __mockToast } from '@/test-utils/setupTests'
-const toast = { success: __mockToast.success, error: __mockToast.error }
 import ProfilePage from '../page'
+const toast = { success: __mockToast.success, error: __mockToast.error }
 
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
@@ -87,10 +87,16 @@ jest.mock('@/components/shared/LikertScale', () => ({
   LikertScale: ({ name, label, value, onChange, required }: any) => (
     <fieldset data-testid={`likert-${name}`}>
       <legend>{label}</legend>
-      {[1,2,3,4,5,6,7].map((n: number) => (
+      {[1, 2, 3, 4, 5, 6, 7].map((n: number) => (
         <label key={n}>
-          <input type="radio" name={name} value={n} checked={value === n}
-            onChange={() => onChange(n)} data-testid={`likert-${name}-${n}`} />
+          <input
+            type="radio"
+            name={name}
+            value={n}
+            checked={value === n}
+            onChange={() => onChange(n)}
+            data-testid={`likert-${name}-${n}`}
+          />
           {n}
         </label>
       ))}
@@ -146,7 +152,8 @@ const mockT = (key: string) => {
     'profile.currentSemesterPlaceholder': 'e.g., 3',
     'profile.researchProfile': 'Research Profile',
     'profile.subjectiveCompetence': 'Subjective Competence',
-    'profile.subjectiveCompetenceDescription': 'Rate your competence in each area',
+    'profile.subjectiveCompetenceDescription':
+      'Rate your competence in each area',
     'profile.competenceCivil': 'Civil Law Competence',
     'profile.competencePublic': 'Public Law Competence',
     'profile.competenceCriminal': 'Criminal Law Competence',
@@ -305,7 +312,7 @@ describe('ProfilePage', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByRole('heading', { name: 'Profile' })
+          screen.getByRole('heading', { name: 'Profile' }),
         ).toBeInTheDocument()
       })
 
@@ -498,7 +505,7 @@ describe('ProfilePage', () => {
           expect.objectContaining({
             name: 'Updated Name',
             email: 'test@example.com',
-          })
+          }),
         )
       })
     })
@@ -534,7 +541,7 @@ describe('ProfilePage', () => {
 
       await waitFor(() => {
         expect(toast.success).toHaveBeenCalledWith(
-          'Profile updated successfully!'
+          'Profile updated successfully!',
         )
       })
     })
@@ -564,7 +571,7 @@ describe('ProfilePage', () => {
         () =>
           new Promise((resolve) => {
             resolveUpdate = resolve
-          })
+          }),
       )
 
       render(<ProfilePage />)
@@ -621,7 +628,7 @@ describe('ProfilePage', () => {
 
       await waitFor(() => {
         expect(
-          screen.queryByTestId('change-password-modal')
+          screen.queryByTestId('change-password-modal'),
         ).not.toBeInTheDocument()
       })
     })
@@ -772,10 +779,10 @@ describe('ProfilePage', () => {
       await waitFor(
         () => {
           expect(
-            screen.getByDisplayValue('Software Developer')
+            screen.getByDisplayValue('Software Developer'),
           ).toBeInTheDocument()
         },
-        { timeout: 3000 }
+        { timeout: 3000 },
       )
 
       const experienceInput = screen.getByLabelText('Years of Experience')
@@ -824,9 +831,7 @@ describe('ProfilePage', () => {
       })
 
       await waitFor(() => {
-        expect(
-          getSelectByLabel('Legal Expertise Level')
-        ).toBeInTheDocument()
+        expect(getSelectByLabel('Legal Expertise Level')).toBeInTheDocument()
       })
     })
 
@@ -849,9 +854,7 @@ describe('ProfilePage', () => {
       render(<ProfilePage />)
 
       await waitFor(() => {
-        expect(
-          getSelectByLabel('Legal Expertise Level')
-        ).toBeInTheDocument()
+        expect(getSelectByLabel('Legal Expertise Level')).toBeInTheDocument()
       })
 
       const expertiseSelect = getSelectByLabel('Legal Expertise Level')
@@ -870,7 +873,7 @@ describe('ProfilePage', () => {
 
       await waitFor(() => {
         expect(
-          querySelectByLabel('Degree Program Type')
+          querySelectByLabel('Degree Program Type'),
         ).not.toBeInTheDocument()
       })
     })
@@ -910,7 +913,7 @@ describe('ProfilePage', () => {
 
       await waitFor(() => {
         expect(
-          querySelectByLabel('Degree Program Type')
+          querySelectByLabel('Degree Program Type'),
         ).not.toBeInTheDocument()
       })
     })
@@ -945,7 +948,9 @@ describe('ProfilePage', () => {
       })
 
       // Pseudonym fields should NOT be visible when collapsed
-      expect(screen.queryByDisplayValue('AnonymousUser123')).not.toBeInTheDocument()
+      expect(
+        screen.queryByDisplayValue('AnonymousUser123'),
+      ).not.toBeInTheDocument()
     })
 
     it('displays pseudonym field (disabled) when expanded', async () => {
@@ -988,7 +993,7 @@ describe('ProfilePage', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByLabelText(/I want to work under my pseudonym/i)
+          screen.getByLabelText(/I want to work under my pseudonym/i),
         ).toBeInTheDocument()
       })
     })
@@ -1010,12 +1015,12 @@ describe('ProfilePage', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByLabelText(/I want to work under my pseudonym/i)
+          screen.getByLabelText(/I want to work under my pseudonym/i),
         ).toBeInTheDocument()
       })
 
       const checkbox = screen.getByLabelText(
-        /I want to work under my pseudonym/i
+        /I want to work under my pseudonym/i,
       )
       expect(checkbox).toBeChecked()
 
@@ -1114,7 +1119,7 @@ describe('ProfilePage', () => {
         () => {
           expect(localStorage.getItem('other_key')).toBeNull()
         },
-        { timeout: 3000 }
+        { timeout: 3000 },
       )
     })
 
@@ -1159,7 +1164,7 @@ describe('ProfilePage', () => {
         () => {
           expect(localStorage.getItem('test_key')).toBeNull()
         },
-        { timeout: 3000 }
+        { timeout: 3000 },
       )
     })
 
@@ -1177,7 +1182,7 @@ describe('ProfilePage', () => {
         () => {
           expect(sessionStorage.getItem('test_session_key')).toBeNull()
         },
-        { timeout: 3000 }
+        { timeout: 3000 },
       )
     })
   })
@@ -1203,15 +1208,15 @@ describe('ProfilePage', () => {
 
       expect(screen.getByLabelText('Username')).toHaveAttribute(
         'autocomplete',
-        'username'
+        'username',
       )
       expect(screen.getByLabelText('Full Name')).toHaveAttribute(
         'autocomplete',
-        'name'
+        'name',
       )
       expect(screen.getByLabelText('Email Address')).toHaveAttribute(
         'autocomplete',
-        'email'
+        'email',
       )
     })
   })
@@ -1253,9 +1258,7 @@ describe('ProfilePage', () => {
       render(<ProfilePage />)
 
       await waitFor(() => {
-        expect(
-          getSelectByLabel('Legal Expertise Level')
-        ).toBeInTheDocument()
+        expect(getSelectByLabel('Legal Expertise Level')).toBeInTheDocument()
       })
 
       const expertiseSelect = getSelectByLabel('Legal Expertise Level')
@@ -1362,9 +1365,15 @@ describe('ProfilePage', () => {
         expect(screen.getByText('Subjective Competence')).toBeInTheDocument()
       })
 
-      expect(screen.getByTestId('likert-subjective_competence_civil')).toBeInTheDocument()
-      expect(screen.getByTestId('likert-subjective_competence_public')).toBeInTheDocument()
-      expect(screen.getByTestId('likert-subjective_competence_criminal')).toBeInTheDocument()
+      expect(
+        screen.getByTestId('likert-subjective_competence_civil'),
+      ).toBeInTheDocument()
+      expect(
+        screen.getByTestId('likert-subjective_competence_public'),
+      ).toBeInTheDocument()
+      expect(
+        screen.getByTestId('likert-subjective_competence_criminal'),
+      ).toBeInTheDocument()
     })
 
     it('sets competence value via likert scale', async () => {
@@ -1373,13 +1382,19 @@ describe('ProfilePage', () => {
       render(<ProfilePage />)
 
       await waitFor(() => {
-        expect(screen.getByTestId('likert-subjective_competence_civil')).toBeInTheDocument()
+        expect(
+          screen.getByTestId('likert-subjective_competence_civil'),
+        ).toBeInTheDocument()
       })
 
       // Click a radio button to set value
-      await user.click(screen.getByTestId('likert-subjective_competence_civil-3'))
+      await user.click(
+        screen.getByTestId('likert-subjective_competence_civil-3'),
+      )
 
-      expect(screen.getByTestId('likert-subjective_competence_civil-3')).toBeChecked()
+      expect(
+        screen.getByTestId('likert-subjective_competence_civil-3'),
+      ).toBeChecked()
     })
   })
 
@@ -1561,7 +1576,9 @@ describe('ProfilePage', () => {
         expect(screen.getByText('Personal Information')).toBeInTheDocument()
       })
 
-      expect(screen.queryByText('profile.profileHistory')).not.toBeInTheDocument()
+      expect(
+        screen.queryByText('profile.profileHistory'),
+      ).not.toBeInTheDocument()
     })
   })
 
@@ -1697,7 +1714,7 @@ describe('ProfilePage', () => {
             grade_zwischenpruefung: 8.5,
             grade_vorgeruecktenubung: 9.0,
             grade_first_staatsexamen: 10.5,
-          })
+          }),
         )
       })
     })

@@ -62,7 +62,7 @@ export function TaskDataViewModal({
 
   // Edit state
   const [mode, setMode] = useState<'view' | 'edit'>(
-    canEdit ? initialMode : 'view'
+    canEdit ? initialMode : 'view',
   )
   const [editValues, setEditValues] = useState<Record<string, string>>({})
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
@@ -75,10 +75,8 @@ export function TaskDataViewModal({
     data: Record<string, any>
   } | null>(null)
 
-  const baseData: Record<string, any> = ((task as any)?.data as Record<
-    string,
-    any
-  >) || {}
+  const baseData: Record<string, any> =
+    ((task as any)?.data as Record<string, any>) || {}
   const currentTaskId = taskId ?? (task ? String(task.id) : '')
   const currentData =
     savedOverride && savedOverride.id === currentTaskId
@@ -166,7 +164,11 @@ export function TaskDataViewModal({
     setSaving(true)
     setSaveError(null)
     try {
-      await projectsAPI.updateTaskData(resolvedProjectId, currentTaskId, newData)
+      await projectsAPI.updateTaskData(
+        resolvedProjectId,
+        currentTaskId,
+        newData,
+      )
       setSavedOverride({
         id: currentTaskId,
         data: { ...currentData, ...newData },
@@ -174,12 +176,11 @@ export function TaskDataViewModal({
       setMode('view')
       onSaved?.(newData)
     } catch (err: any) {
-      const detail =
-        err?.response?.data?.detail ?? err?.detail ?? err?.message
+      const detail = err?.response?.data?.detail ?? err?.detail ?? err?.message
       setSaveError(
         typeof detail === 'string' && detail
           ? detail
-          : t('tasks.dataView.saveFailed')
+          : t('tasks.dataView.saveFailed'),
       )
     } finally {
       setSaving(false)
@@ -210,7 +211,7 @@ export function TaskDataViewModal({
     ? Object.entries(currentData).filter(
         ([key, value]) =>
           key.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          String(value).toLowerCase().includes(searchTerm.toLowerCase())
+          String(value).toLowerCase().includes(searchTerm.toLowerCase()),
       )
     : Object.entries(currentData)
 
@@ -334,13 +335,13 @@ export function TaskDataViewModal({
           {!isEditing && viewMode === 'formatted' && (
             <div className="border-b border-zinc-200 p-6 dark:border-zinc-700">
               <div className="relative">
-                <MagnifyingGlassIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-zinc-400" />
+                <MagnifyingGlassIcon className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 transform text-zinc-400" />
                 <input
                   type="text"
                   placeholder={t('tasks.dataView.searchPlaceholder')}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full rounded-lg border border-zinc-300 bg-white py-2 pl-10 pr-4 text-zinc-900 placeholder-zinc-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 dark:border-zinc-600 dark:bg-zinc-800 dark:text-white dark:placeholder-zinc-400 dark:focus:border-blue-400"
+                  className="w-full rounded-lg border border-zinc-300 bg-white py-2 pr-4 pl-10 text-zinc-900 placeholder-zinc-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 dark:border-zinc-600 dark:bg-zinc-800 dark:text-white dark:placeholder-zinc-400 dark:focus:border-blue-400"
                 />
               </div>
             </div>
@@ -519,16 +520,16 @@ function highlightMatch(text: string, searchTerm: string) {
       </mark>
     ) : (
       part
-    )
+    ),
   )
 }
 
 function formatValueForDisplay(
   value: any,
-  searchTerm: string
+  searchTerm: string,
 ): React.ReactNode {
   if (value === null || value === undefined) {
-    return <span className="italic text-zinc-500 dark:text-zinc-400">null</span>
+    return <span className="text-zinc-500 italic dark:text-zinc-400">null</span>
   }
 
   if (Array.isArray(value)) {
@@ -572,13 +573,13 @@ function getValueType(value: any): string {
 
 function formatTaskDataAsText(
   data: Record<string, any>,
-  searchTerm: string
+  searchTerm: string,
 ): string {
   const filteredEntries = searchTerm
     ? Object.entries(data).filter(
         ([key, value]) =>
           key.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          String(value).toLowerCase().includes(searchTerm.toLowerCase())
+          String(value).toLowerCase().includes(searchTerm.toLowerCase()),
       )
     : Object.entries(data)
 

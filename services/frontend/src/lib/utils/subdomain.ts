@@ -38,7 +38,9 @@ export function isStudentLockedHost(hostname?: string | null): boolean {
     hostname ?? (typeof window !== 'undefined' ? window.location.hostname : '')
   if (!host) return false
   const bare = host.split(':')[0].toLowerCase()
-  return STUDENT_LOCKED_DOMAINS.some((d) => bare === d || bare.endsWith(`.${d}`))
+  return STUDENT_LOCKED_DOMAINS.some(
+    (d) => bare === d || bare.endsWith(`.${d}`),
+  )
 }
 
 /**
@@ -147,10 +149,14 @@ export function parseSubdomain(): {
  */
 export function getOrgUrl(slug: string, path?: string): string {
   const baseDomain = getBaseDomain()
-  const protocol = typeof window !== 'undefined' ? window.location.protocol : 'http:'
+  const protocol =
+    typeof window !== 'undefined' ? window.location.protocol : 'http:'
   const port =
-    typeof window !== 'undefined' && window.location.port ? `:${window.location.port}` : ''
-  const targetPath = path || (typeof window !== 'undefined' ? window.location.pathname : '/')
+    typeof window !== 'undefined' && window.location.port
+      ? `:${window.location.port}`
+      : ''
+  const targetPath =
+    path || (typeof window !== 'undefined' ? window.location.pathname : '/')
   return `${protocol}//${slug}.${baseDomain}${port}${targetPath}`
 }
 
@@ -159,10 +165,14 @@ export function getOrgUrl(slug: string, path?: string): string {
  */
 export function getPrivateUrl(path?: string): string {
   const baseDomain = getBaseDomain()
-  const protocol = typeof window !== 'undefined' ? window.location.protocol : 'http:'
+  const protocol =
+    typeof window !== 'undefined' ? window.location.protocol : 'http:'
   const port =
-    typeof window !== 'undefined' && window.location.port ? `:${window.location.port}` : ''
-  const targetPath = path || (typeof window !== 'undefined' ? window.location.pathname : '/')
+    typeof window !== 'undefined' && window.location.port
+      ? `:${window.location.port}`
+      : ''
+  const targetPath =
+    path || (typeof window !== 'undefined' ? window.location.pathname : '/')
   return `${protocol}//${baseDomain}${port}${targetPath}`
 }
 
@@ -195,7 +205,9 @@ const LAST_ORG_COOKIE = 'last_org_slug'
 
 export function getLastOrgSlug(): string | null {
   if (typeof document === 'undefined') return null
-  const match = document.cookie.match(new RegExp(`(?:^|; )${LAST_ORG_COOKIE}=([^;]*)`))
+  const match = document.cookie.match(
+    new RegExp(`(?:^|; )${LAST_ORG_COOKIE}=([^;]*)`),
+  )
   return match ? decodeURIComponent(match[1]) : null
 }
 

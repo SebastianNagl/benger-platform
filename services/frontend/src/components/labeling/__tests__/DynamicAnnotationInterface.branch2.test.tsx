@@ -22,8 +22,10 @@ jest.mock('@/contexts/I18nContext', () => ({
     t: (key: string, params?: any) => {
       const translations: Record<string, string> = {
         'annotation.interface.configError': 'Configuration Error',
-        'annotation.interface.missingFields': 'Missing required fields: {fields}',
-        'annotation.interface.atLeastOne': 'At least one annotation is required',
+        'annotation.interface.missingFields':
+          'Missing required fields: {fields}',
+        'annotation.interface.atLeastOne':
+          'At least one annotation is required',
         'annotation.interface.fieldRequired': 'Field "{fieldName}" is required',
         'annotation.interface.submissionError': 'Error submitting annotations',
         'annotation.interface.taskData': 'Task Data',
@@ -31,14 +33,21 @@ jest.mock('@/contexts/I18nContext', () => ({
         'annotation.interface.skipShortcut': '(Ctrl+ESC)',
         'annotation.interface.submit': 'Submit',
         'annotation.interface.submitShortcut': 'Ctrl+Enter',
-        'annotation.interface.tip': 'Use keyboard shortcuts for faster annotation',
-        'annotation.interface.confirmDone': 'I confirm that I have read the annotation instructions and am ready to submit',
+        'annotation.interface.tip':
+          'Use keyboard shortcuts for faster annotation',
+        'annotation.interface.confirmDone':
+          'I confirm that I have read the annotation instructions and am ready to submit',
       }
       let value = translations[key] || key
       if (params) {
-        value = value.replace(/\{(\w+)\}/g, (match: string, variableName: string) => {
-          return params[variableName] !== undefined ? String(params[variableName]) : match
-        })
+        value = value.replace(
+          /\{(\w+)\}/g,
+          (match: string, variableName: string) => {
+            return params[variableName] !== undefined
+              ? String(params[variableName])
+              : match
+          },
+        )
       }
       return value
     },
@@ -110,7 +119,12 @@ jest.mock('@/hooks/useAutoSave', () => ({
           <button
             data-testid="component-submit-button"
             onClick={() =>
-              onAnnotation({ from_name: config?.name || config?.props?.name, to_name: 'text', type: 'textarea', value: value })
+              onAnnotation({
+                from_name: config?.name || config?.props?.name,
+                to_name: 'text',
+                type: 'textarea',
+                value: value,
+              })
             }
           >
             Submit
@@ -118,7 +132,7 @@ jest.mock('@/hooks/useAutoSave', () => ({
         )}
       </div>
     )
-  }
+  },
 )
 
 ;(global as any).__mockViewComponent = jest.fn(({ children }: any) => (
@@ -153,11 +167,22 @@ import {
   validateParsedConfig,
 } from '@/lib/labelConfig/parser'
 
-const mockParseLabelConfig = parseLabelConfig as jest.MockedFunction<typeof parseLabelConfig>
-const mockValidateParsedConfig = validateParsedConfig as jest.MockedFunction<typeof validateParsedConfig>
-const mockExtractRequiredDataFields = extractRequiredDataFields as jest.MockedFunction<typeof extractRequiredDataFields>
-const mockResolvePropsDataBindings = resolvePropsDataBindings as jest.MockedFunction<typeof resolvePropsDataBindings>
-const mockValidateTaskDataFields = validateTaskDataFields as jest.MockedFunction<typeof validateTaskDataFields>
+const mockParseLabelConfig = parseLabelConfig as jest.MockedFunction<
+  typeof parseLabelConfig
+>
+const mockValidateParsedConfig = validateParsedConfig as jest.MockedFunction<
+  typeof validateParsedConfig
+>
+const mockExtractRequiredDataFields =
+  extractRequiredDataFields as jest.MockedFunction<
+    typeof extractRequiredDataFields
+  >
+const mockResolvePropsDataBindings =
+  resolvePropsDataBindings as jest.MockedFunction<
+    typeof resolvePropsDataBindings
+  >
+const mockValidateTaskDataFields =
+  validateTaskDataFields as jest.MockedFunction<typeof validateTaskDataFields>
 
 const textareaParsedConfig = {
   type: 'View',
@@ -190,7 +215,10 @@ describe('DynamicAnnotationInterface - branch coverage', () => {
     mockValidateParsedConfig.mockReturnValue({ valid: true, errors: [] })
     mockExtractRequiredDataFields.mockReturnValue([])
     mockResolvePropsDataBindings.mockImplementation((props) => props)
-    mockValidateTaskDataFields.mockReturnValue({ valid: true, missingFields: [] })
+    mockValidateTaskDataFields.mockReturnValue({
+      valid: true,
+      missingFields: [],
+    })
   })
 
   describe('requireConfirmBeforeSubmit', () => {
@@ -199,11 +227,13 @@ describe('DynamicAnnotationInterface - branch coverage', () => {
         <DynamicAnnotationInterface
           {...defaultProps}
           requireConfirmBeforeSubmit={true}
-        />
+        />,
       )
 
       expect(
-        screen.getByText(/I confirm that I have read the annotation instructions/i)
+        screen.getByText(
+          /I confirm that I have read the annotation instructions/i,
+        ),
       ).toBeInTheDocument()
     })
 
@@ -214,7 +244,7 @@ describe('DynamicAnnotationInterface - branch coverage', () => {
         <DynamicAnnotationInterface
           {...defaultProps}
           requireConfirmBeforeSubmit={true}
-        />
+        />,
       )
 
       // Type something first to have data
@@ -223,7 +253,9 @@ describe('DynamicAnnotationInterface - branch coverage', () => {
 
       // Submit button should be disabled (not confirmed)
       const submitButtons = screen.getAllByRole('button', { name: /submit/i })
-      const mainSubmit = submitButtons.find((b) => b.classList.contains('bg-emerald-600'))
+      const mainSubmit = submitButtons.find((b) =>
+        b.classList.contains('bg-emerald-600'),
+      )
       expect(mainSubmit).toBeDisabled()
 
       // Check the confirmation checkbox
@@ -239,7 +271,7 @@ describe('DynamicAnnotationInterface - branch coverage', () => {
         <DynamicAnnotationInterface
           {...defaultProps}
           requireConfirmBeforeSubmit={true}
-        />
+        />,
       )
 
       const skipButton = screen.getByRole('button', { name: /skip/i })
@@ -254,7 +286,7 @@ describe('DynamicAnnotationInterface - branch coverage', () => {
           {...defaultProps}
           onSubmit={mockOnSubmit}
           requireConfirmBeforeSubmit={true}
-        />
+        />,
       )
 
       fireEvent.keyDown(window, { key: 'Enter', ctrlKey: true })
@@ -271,7 +303,7 @@ describe('DynamicAnnotationInterface - branch coverage', () => {
           {...defaultProps}
           onSkip={mockOnSkip}
           requireConfirmBeforeSubmit={true}
-        />
+        />,
       )
 
       fireEvent.keyDown(window, { key: 'Escape', ctrlKey: true })
@@ -296,22 +328,23 @@ describe('DynamicAnnotationInterface - branch coverage', () => {
         <DynamicAnnotationInterface
           {...defaultProps}
           initialValues={initialValues}
-        />
+        />,
       )
 
       const textarea = screen.getByTestId('textarea')
       expect(textarea).toHaveValue('Single string value')
     })
-
   })
 
   describe('enableAutoSave=false', () => {
     it('does not show AutoSaveIndicator when enableAutoSave is false', () => {
       render(
-        <DynamicAnnotationInterface {...defaultProps} enableAutoSave={false} />
+        <DynamicAnnotationInterface {...defaultProps} enableAutoSave={false} />,
       )
 
-      expect(screen.queryByTestId('auto-save-indicator')).not.toBeInTheDocument()
+      expect(
+        screen.queryByTestId('auto-save-indicator'),
+      ).not.toBeInTheDocument()
     })
 
     it('shows AutoSaveIndicator when enableAutoSave is true (default)', () => {
@@ -327,7 +360,10 @@ describe('DynamicAnnotationInterface - branch coverage', () => {
       const user = userEvent.setup()
 
       render(
-        <DynamicAnnotationInterface {...defaultProps} onSubmit={mockOnSubmit} />
+        <DynamicAnnotationInterface
+          {...defaultProps}
+          onSubmit={mockOnSubmit}
+        />,
       )
 
       // Type in the textarea to create componentValues
@@ -336,7 +372,9 @@ describe('DynamicAnnotationInterface - branch coverage', () => {
 
       // Submit - should build from componentValues since no onAnnotation was called
       const submitButtons = screen.getAllByRole('button', { name: /submit/i })
-      const mainSubmit = submitButtons.find((b) => b.classList.contains('bg-emerald-600'))
+      const mainSubmit = submitButtons.find((b) =>
+        b.classList.contains('bg-emerald-600'),
+      )
       fireEvent.click(mainSubmit!)
 
       await waitFor(() => {
@@ -346,7 +384,7 @@ describe('DynamicAnnotationInterface - branch coverage', () => {
               from_name: 'answer',
               type: 'textarea',
             }),
-          ])
+          ]),
         )
       })
     })
@@ -373,7 +411,9 @@ describe('DynamicAnnotationInterface - branch coverage', () => {
       // Label and Choice should NOT trigger console.warn
       // But UnknownCustom should
       const warnCalls = consoleWarnSpy.mock.calls.filter(
-        (call) => typeof call[0] === 'string' && call[0].includes('Unknown component type')
+        (call) =>
+          typeof call[0] === 'string' &&
+          call[0].includes('Unknown component type'),
       )
       expect(warnCalls.length).toBe(1)
       expect(warnCalls[0][0]).toContain('UnknownCustom')

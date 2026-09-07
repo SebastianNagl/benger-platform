@@ -1,6 +1,12 @@
 'use client'
 
-import { createContext, ReactNode, useContext, useEffect, useState } from 'react'
+import {
+  createContext,
+  ReactNode,
+  useContext,
+  useEffect,
+  useState,
+} from 'react'
 
 /**
  * HydrationContext provides a centralized way to detect when the app has
@@ -18,7 +24,9 @@ import { createContext, ReactNode, useContext, useEffect, useState } from 'react
 
 // Use a symbol to detect if we're inside a provider
 const NOT_PROVIDED = Symbol('not-provided')
-const HydrationContext = createContext<boolean | typeof NOT_PROVIDED>(NOT_PROVIDED)
+const HydrationContext = createContext<boolean | typeof NOT_PROVIDED>(
+  NOT_PROVIDED,
+)
 
 export function HydrationProvider({ children }: { children: ReactNode }) {
   const [isHydrated, setIsHydrated] = useState(false)

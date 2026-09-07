@@ -77,7 +77,7 @@ export function TaskDescriptionModal({
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   rows={6}
-                  className="block w-full resize-none rounded-lg border border-zinc-300 bg-white px-3 py-2.5 text-zinc-900 transition-colors placeholder:text-zinc-500 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 dark:border-zinc-600 dark:bg-zinc-800 dark:text-white dark:placeholder:text-zinc-400 dark:focus:border-emerald-400 dark:focus:ring-emerald-400/20 sm:text-sm"
+                  className="block w-full resize-none rounded-lg border border-zinc-300 bg-white px-3 py-2.5 text-zinc-900 transition-colors placeholder:text-zinc-500 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 sm:text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-white dark:placeholder:text-zinc-400 dark:focus:border-emerald-400 dark:focus:ring-emerald-400/20"
                   placeholder={t('modals.taskDescription.textareaPlaceholder')}
                 />
               </div>

@@ -45,13 +45,16 @@ describe('login route br8', () => {
 
   it('handles OK response with Set-Cookie having domain rewrite (L52-96)', async () => {
     const headers = new Headers()
-    headers.append('Set-Cookie', 'access_token=tok; Domain=old; Secure; HttpOnly')
+    headers.append(
+      'Set-Cookie',
+      'access_token=tok; Domain=old; Secure; HttpOnly',
+    )
 
     jest.spyOn(global, 'fetch').mockResolvedValue(
       new Response(JSON.stringify({ user: { id: 1 } }), {
         status: 200,
         headers,
-      })
+      }),
     )
     const { POST } = require('../route')
     const res = await POST(makeRequest('benger.localhost'))
@@ -72,7 +75,7 @@ describe('login route br8', () => {
       new Response(JSON.stringify({ ok: true }), {
         status: 200,
         headers,
-      })
+      }),
     )
     const { POST } = require('../route')
     const res = await POST(makeRequest('benger.localhost'))
@@ -90,7 +93,7 @@ describe('login route br8', () => {
       new Response(JSON.stringify({ ok: true }), {
         status: 200,
         headers,
-      })
+      }),
     )
     const { POST } = require('../route')
     const res = await POST(makeRequest('localhost:3000'))
@@ -101,7 +104,9 @@ describe('login route br8', () => {
 
   it('handles non-ok response (login failure)', async () => {
     jest.spyOn(global, 'fetch').mockResolvedValue(
-      new Response(JSON.stringify({ detail: 'Invalid credentials' }), { status: 401 })
+      new Response(JSON.stringify({ detail: 'Invalid credentials' }), {
+        status: 401,
+      }),
     )
     const { POST } = require('../route')
     const res = await POST(makeRequest('benger.localhost'))

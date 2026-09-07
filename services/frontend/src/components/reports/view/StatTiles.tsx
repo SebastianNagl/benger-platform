@@ -16,10 +16,10 @@ export function StatTiles({ tiles }: { tiles: StatTile[] }) {
     >
       {tiles.map((tile) => (
         <Card key={tile.id} className="p-4" data-testid={`stat-${tile.id}`}>
-          <div className="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+          <div className="text-xs font-medium tracking-wide text-zinc-500 uppercase dark:text-zinc-400">
             {tile.label}
           </div>
-          <div className="mt-1 text-2xl font-semibold tabular-nums text-zinc-900 dark:text-white">
+          <div className="mt-1 text-2xl font-semibold text-zinc-900 tabular-nums dark:text-white">
             {tile.value}
           </div>
         </Card>

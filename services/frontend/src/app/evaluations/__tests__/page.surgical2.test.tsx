@@ -10,7 +10,7 @@ import { useI18n } from '@/contexts/I18nContext'
 import { apiClient } from '@/lib/api/client'
 import { projectsAPI } from '@/lib/api/projects'
 import '@testing-library/jest-dom'
-import { render, screen, waitFor, act, fireEvent } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useRouter, useSearchParams } from 'next/navigation'
 import EvaluationDashboard from '../page'
@@ -206,10 +206,18 @@ describe('EvaluationDashboard - Surgical Branch Coverage 2', () => {
 
     // Default API mocks
     ;(projectsAPI.list as jest.Mock).mockResolvedValue({ items: [] })
-    ;(apiClient.evaluations.getProjectEvaluationConfig as jest.Mock).mockResolvedValue({})
-    ;(apiClient.evaluations.getConfiguredMethods as jest.Mock).mockResolvedValue({ fields: [] })
-    ;(apiClient.evaluations.getEvaluatedModels as jest.Mock).mockResolvedValue([])
-    ;(apiClient.evaluations.getProjectAnnotators as jest.Mock).mockResolvedValue({ annotators: [] })
+    ;(
+      apiClient.evaluations.getProjectEvaluationConfig as jest.Mock
+    ).mockResolvedValue({})
+    ;(
+      apiClient.evaluations.getConfiguredMethods as jest.Mock
+    ).mockResolvedValue({ fields: [] })
+    ;(apiClient.evaluations.getEvaluatedModels as jest.Mock).mockResolvedValue(
+      [],
+    )
+    ;(
+      apiClient.evaluations.getProjectAnnotators as jest.Mock
+    ).mockResolvedValue({ annotators: [] })
     ;(apiClient.get as jest.Mock).mockResolvedValue({ data: [] })
   })
 
@@ -243,9 +251,7 @@ describe('EvaluationDashboard - Surgical Branch Coverage 2', () => {
       const mockSearchParams = new URLSearchParams()
       ;(useSearchParams as jest.Mock).mockReturnValue(mockSearchParams)
       ;(projectsAPI.list as jest.Mock).mockResolvedValue({
-        items: [
-          { id: 1, title: 'Project 1', task_count: 10 },
-        ],
+        items: [{ id: 1, title: 'Project 1', task_count: 10 }],
       })
 
       render(<EvaluationDashboard />)
@@ -262,7 +268,7 @@ describe('EvaluationDashboard - Surgical Branch Coverage 2', () => {
   describe('URL filter parsing (lines 290, 304, 312)', () => {
     it('loads project from URL params and applies aggregation and stats filters', async () => {
       const mockSearchParams = new URLSearchParams(
-        'projectId=1&chartType=bar&aggregation=model,metric&stats=ci,bootstrap'
+        'projectId=1&chartType=bar&aggregation=model,metric&stats=ci,bootstrap',
       )
       ;(useSearchParams as jest.Mock).mockReturnValue(mockSearchParams)
 
@@ -275,16 +281,33 @@ describe('EvaluationDashboard - Surgical Branch Coverage 2', () => {
       })
 
       // Mock full evaluation data pipeline
-      ;(apiClient.evaluations.getProjectEvaluationConfig as jest.Mock).mockResolvedValue({
+      ;(
+        apiClient.evaluations.getProjectEvaluationConfig as jest.Mock
+      ).mockResolvedValue({
         evaluation_configs: [
-          { metric: 'bleu', enabled: true, prediction_fields: ['text'], reference_fields: ['ref'] },
+          {
+            metric: 'bleu',
+            enabled: true,
+            prediction_fields: ['text'],
+            reference_fields: ['ref'],
+          },
         ],
       })
-      ;(apiClient.evaluations.getConfiguredMethods as jest.Mock).mockResolvedValue({
+      ;(
+        apiClient.evaluations.getConfiguredMethods as jest.Mock
+      ).mockResolvedValue({
         fields: [{ name: 'text', methods: ['bleu'] }],
       })
-      ;(apiClient.evaluations.getEvaluatedModels as jest.Mock).mockResolvedValue([
-        { model_id: 'gpt-4', model_name: 'GPT-4', provider: 'OpenAI', has_results: true, evaluation_count: 5 },
+      ;(
+        apiClient.evaluations.getEvaluatedModels as jest.Mock
+      ).mockResolvedValue([
+        {
+          model_id: 'gpt-4',
+          model_name: 'GPT-4',
+          provider: 'OpenAI',
+          has_results: true,
+          evaluation_count: 5,
+        },
       ])
 
       render(<EvaluationDashboard />)
@@ -300,9 +323,7 @@ describe('EvaluationDashboard - Surgical Branch Coverage 2', () => {
       ;(useSearchParams as jest.Mock).mockReturnValue(mockSearchParams)
 
       ;(projectsAPI.list as jest.Mock).mockResolvedValue({
-        items: [
-          { id: 2, title: 'Project 2', task_count: 5 },
-        ],
+        items: [{ id: 2, title: 'Project 2', task_count: 5 }],
       })
 
       render(<EvaluationDashboard />)
@@ -319,7 +340,7 @@ describe('EvaluationDashboard - Surgical Branch Coverage 2', () => {
       // Issue #111: URL filter key moved from `?metrics=` to `?configs=`
       // (now scoped by evaluation_config.id).
       const mockSearchParams = new URLSearchParams(
-        'projectId=1&models=gpt-4,claude-3&configs=cfg-bleu,cfg-rouge'
+        'projectId=1&models=gpt-4,claude-3&configs=cfg-bleu,cfg-rouge',
       )
       ;(useSearchParams as jest.Mock).mockReturnValue(mockSearchParams)
 
@@ -327,18 +348,48 @@ describe('EvaluationDashboard - Surgical Branch Coverage 2', () => {
         items: [{ id: 1, title: 'Project 1', task_count: 10 }],
       })
 
-      ;(apiClient.evaluations.getProjectEvaluationConfig as jest.Mock).mockResolvedValue({
+      ;(
+        apiClient.evaluations.getProjectEvaluationConfig as jest.Mock
+      ).mockResolvedValue({
         evaluation_configs: [
-          { id: 'cfg-bleu', metric: 'bleu', enabled: true, prediction_fields: ['text'], reference_fields: ['ref'] },
-          { id: 'cfg-rouge', metric: 'rouge', enabled: true, prediction_fields: ['text'], reference_fields: ['ref'] },
+          {
+            id: 'cfg-bleu',
+            metric: 'bleu',
+            enabled: true,
+            prediction_fields: ['text'],
+            reference_fields: ['ref'],
+          },
+          {
+            id: 'cfg-rouge',
+            metric: 'rouge',
+            enabled: true,
+            prediction_fields: ['text'],
+            reference_fields: ['ref'],
+          },
         ],
       })
-      ;(apiClient.evaluations.getConfiguredMethods as jest.Mock).mockResolvedValue({
+      ;(
+        apiClient.evaluations.getConfiguredMethods as jest.Mock
+      ).mockResolvedValue({
         fields: [{ name: 'text', methods: ['bleu', 'rouge'] }],
       })
-      ;(apiClient.evaluations.getEvaluatedModels as jest.Mock).mockResolvedValue([
-        { model_id: 'gpt-4', model_name: 'GPT-4', provider: 'OpenAI', has_results: true, evaluation_count: 5 },
-        { model_id: 'claude-3', model_name: 'Claude 3', provider: 'Anthropic', has_results: true, evaluation_count: 3 },
+      ;(
+        apiClient.evaluations.getEvaluatedModels as jest.Mock
+      ).mockResolvedValue([
+        {
+          model_id: 'gpt-4',
+          model_name: 'GPT-4',
+          provider: 'OpenAI',
+          has_results: true,
+          evaluation_count: 5,
+        },
+        {
+          model_id: 'claude-3',
+          model_name: 'Claude 3',
+          provider: 'Anthropic',
+          has_results: true,
+          evaluation_count: 3,
+        },
       ])
 
       render(<EvaluationDashboard />)
@@ -350,7 +401,7 @@ describe('EvaluationDashboard - Surgical Branch Coverage 2', () => {
 
     it('handles URL models filter with some invalid model ids and configs', async () => {
       const mockSearchParams = new URLSearchParams(
-        'projectId=1&models=gpt-4,nonexistent&configs=cfg-bleu,cfg-nonexistent'
+        'projectId=1&models=gpt-4,nonexistent&configs=cfg-bleu,cfg-nonexistent',
       )
       ;(useSearchParams as jest.Mock).mockReturnValue(mockSearchParams)
 
@@ -358,16 +409,34 @@ describe('EvaluationDashboard - Surgical Branch Coverage 2', () => {
         items: [{ id: 1, title: 'Project 1', task_count: 10 }],
       })
 
-      ;(apiClient.evaluations.getProjectEvaluationConfig as jest.Mock).mockResolvedValue({
+      ;(
+        apiClient.evaluations.getProjectEvaluationConfig as jest.Mock
+      ).mockResolvedValue({
         evaluation_configs: [
-          { id: 'cfg-bleu', metric: 'bleu', enabled: true, prediction_fields: ['text'], reference_fields: ['ref'] },
+          {
+            id: 'cfg-bleu',
+            metric: 'bleu',
+            enabled: true,
+            prediction_fields: ['text'],
+            reference_fields: ['ref'],
+          },
         ],
       })
-      ;(apiClient.evaluations.getConfiguredMethods as jest.Mock).mockResolvedValue({
+      ;(
+        apiClient.evaluations.getConfiguredMethods as jest.Mock
+      ).mockResolvedValue({
         fields: [{ name: 'text', methods: ['bleu'] }],
       })
-      ;(apiClient.evaluations.getEvaluatedModels as jest.Mock).mockResolvedValue([
-        { model_id: 'gpt-4', model_name: 'GPT-4', provider: 'OpenAI', has_results: true, evaluation_count: 5 },
+      ;(
+        apiClient.evaluations.getEvaluatedModels as jest.Mock
+      ).mockResolvedValue([
+        {
+          model_id: 'gpt-4',
+          model_name: 'GPT-4',
+          provider: 'OpenAI',
+          has_results: true,
+          evaluation_count: 5,
+        },
       ])
 
       render(<EvaluationDashboard />)
@@ -381,23 +450,42 @@ describe('EvaluationDashboard - Surgical Branch Coverage 2', () => {
   // Lines 383, 386: URL sync - aggregation and stats conditions
   describe('URL sync for aggregation and stats (lines 383, 386)', () => {
     it('syncs non-default aggregation and stats to URL', async () => {
-      const mockSearchParams = new URLSearchParams('projectId=1&aggregation=metric&stats=bootstrap,permutation')
+      const mockSearchParams = new URLSearchParams(
+        'projectId=1&aggregation=metric&stats=bootstrap,permutation',
+      )
       ;(useSearchParams as jest.Mock).mockReturnValue(mockSearchParams)
 
       ;(projectsAPI.list as jest.Mock).mockResolvedValue({
         items: [{ id: 1, title: 'Project 1', task_count: 10 }],
       })
 
-      ;(apiClient.evaluations.getProjectEvaluationConfig as jest.Mock).mockResolvedValue({
+      ;(
+        apiClient.evaluations.getProjectEvaluationConfig as jest.Mock
+      ).mockResolvedValue({
         evaluation_configs: [
-          { metric: 'bleu', enabled: true, prediction_fields: ['text'], reference_fields: ['ref'] },
+          {
+            metric: 'bleu',
+            enabled: true,
+            prediction_fields: ['text'],
+            reference_fields: ['ref'],
+          },
         ],
       })
-      ;(apiClient.evaluations.getConfiguredMethods as jest.Mock).mockResolvedValue({
+      ;(
+        apiClient.evaluations.getConfiguredMethods as jest.Mock
+      ).mockResolvedValue({
         fields: [],
       })
-      ;(apiClient.evaluations.getEvaluatedModels as jest.Mock).mockResolvedValue([
-        { model_id: 'gpt-4', model_name: 'GPT-4', provider: 'OpenAI', has_results: true, evaluation_count: 5 },
+      ;(
+        apiClient.evaluations.getEvaluatedModels as jest.Mock
+      ).mockResolvedValue([
+        {
+          model_id: 'gpt-4',
+          model_name: 'GPT-4',
+          provider: 'OpenAI',
+          has_results: true,
+          evaluation_count: 5,
+        },
       ])
 
       render(<EvaluationDashboard />)
@@ -419,10 +507,15 @@ describe('EvaluationDashboard - Surgical Branch Coverage 2', () => {
       })
 
       // Return config with selected_methods but no evaluation_configs
-      ;(apiClient.evaluations.getProjectEvaluationConfig as jest.Mock).mockResolvedValue({
+      ;(
+        apiClient.evaluations.getProjectEvaluationConfig as jest.Mock
+      ).mockResolvedValue({
         selected_methods: {
           text: {
-            automated: ['bleu', { name: 'rouge', parameters: { variant: 'rougeL' } }],
+            automated: [
+              'bleu',
+              { name: 'rouge', parameters: { variant: 'rougeL' } },
+            ],
             human: [],
             field_mapping: {
               prediction_field: 'generated_text',
@@ -433,18 +526,30 @@ describe('EvaluationDashboard - Surgical Branch Coverage 2', () => {
         evaluation_configs: [],
       })
 
-      ;(apiClient.evaluations.getConfiguredMethods as jest.Mock).mockResolvedValue({
+      ;(
+        apiClient.evaluations.getConfiguredMethods as jest.Mock
+      ).mockResolvedValue({
         fields: [{ name: 'text', methods: ['bleu', 'rouge'] }],
       })
 
-      ;(apiClient.evaluations.getEvaluatedModels as jest.Mock).mockResolvedValue([
-        { model_id: 'gpt-4', model_name: 'GPT-4', provider: 'OpenAI', has_results: true, evaluation_count: 5 },
+      ;(
+        apiClient.evaluations.getEvaluatedModels as jest.Mock
+      ).mockResolvedValue([
+        {
+          model_id: 'gpt-4',
+          model_name: 'GPT-4',
+          provider: 'OpenAI',
+          has_results: true,
+          evaluation_count: 5,
+        },
       ])
 
       render(<EvaluationDashboard />)
 
       await waitFor(() => {
-        expect(apiClient.evaluations.getProjectEvaluationConfig).toHaveBeenCalled()
+        expect(
+          apiClient.evaluations.getProjectEvaluationConfig,
+        ).toHaveBeenCalled()
       })
     })
 
@@ -456,12 +561,17 @@ describe('EvaluationDashboard - Surgical Branch Coverage 2', () => {
         items: [{ id: 1, title: 'Legacy Mixed', task_count: 10 }],
       })
 
-      ;(apiClient.evaluations.getProjectEvaluationConfig as jest.Mock).mockResolvedValue({
+      ;(
+        apiClient.evaluations.getProjectEvaluationConfig as jest.Mock
+      ).mockResolvedValue({
         selected_methods: {
           answer: {
             automated: [
               'exact_match',
-              { name: 'semantic_similarity', parameters: { model: 'all-MiniLM' } },
+              {
+                name: 'semantic_similarity',
+                parameters: { model: 'all-MiniLM' },
+              },
             ],
             human: ['accuracy'],
             field_mapping: {},
@@ -469,16 +579,24 @@ describe('EvaluationDashboard - Surgical Branch Coverage 2', () => {
         },
       })
 
-      ;(apiClient.evaluations.getConfiguredMethods as jest.Mock).mockResolvedValue({
-        fields: [{ name: 'answer', methods: ['exact_match', 'semantic_similarity'] }],
+      ;(
+        apiClient.evaluations.getConfiguredMethods as jest.Mock
+      ).mockResolvedValue({
+        fields: [
+          { name: 'answer', methods: ['exact_match', 'semantic_similarity'] },
+        ],
       })
 
-      ;(apiClient.evaluations.getEvaluatedModels as jest.Mock).mockResolvedValue([])
+      ;(
+        apiClient.evaluations.getEvaluatedModels as jest.Mock
+      ).mockResolvedValue([])
 
       render(<EvaluationDashboard />)
 
       await waitFor(() => {
-        expect(apiClient.evaluations.getProjectEvaluationConfig).toHaveBeenCalled()
+        expect(
+          apiClient.evaluations.getProjectEvaluationConfig,
+        ).toHaveBeenCalled()
       })
     })
   })

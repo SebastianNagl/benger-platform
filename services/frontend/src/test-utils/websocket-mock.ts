@@ -91,7 +91,7 @@ export const simulateCollaboration = {
     ws.simulateMessage(
       createWSMessage(WS_EVENTS.USER_JOINED, {
         user: { id: userId, name: userName },
-      })
+      }),
     )
   },
 
@@ -99,20 +99,20 @@ export const simulateCollaboration = {
     ws.simulateMessage(
       createWSMessage(WS_EVENTS.USER_LEFT, {
         userId,
-      })
+      }),
     )
   },
 
   cursorMove: (
     ws: MockWebSocket,
     userId: string,
-    position: { x: number; y: number }
+    position: { x: number; y: number },
   ) => {
     ws.simulateMessage(
       createWSMessage(WS_EVENTS.CURSOR_MOVE, {
         userId,
         position,
-      })
+      }),
     )
   },
 
@@ -120,7 +120,7 @@ export const simulateCollaboration = {
     ws.simulateMessage(
       createWSMessage(WS_EVENTS.ANNOTATION_UPDATE, {
         annotation,
-      })
+      }),
     )
   },
 
@@ -129,7 +129,7 @@ export const simulateCollaboration = {
       createWSMessage(WS_EVENTS.CONFLICT_DETECTED, {
         local: localData,
         remote: remoteData,
-      })
+      }),
     )
   },
 }

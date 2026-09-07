@@ -44,13 +44,16 @@ describe('refresh route br8', () => {
 
   it('handles OK response with Set-Cookie domain rewrite (L52-85)', async () => {
     const headers = new Headers()
-    headers.append('Set-Cookie', 'access_token=newtok; Domain=old; Secure; HttpOnly')
+    headers.append(
+      'Set-Cookie',
+      'access_token=newtok; Domain=old; Secure; HttpOnly',
+    )
 
     jest.spyOn(global, 'fetch').mockResolvedValue(
       new Response(JSON.stringify({ refreshed: true }), {
         status: 200,
         headers,
-      })
+      }),
     )
     const { POST } = require('../route')
     const res = await POST(makeRequest('benger.localhost'))
@@ -68,7 +71,7 @@ describe('refresh route br8', () => {
       new Response(JSON.stringify({ ok: true }), {
         status: 200,
         headers,
-      })
+      }),
     )
     const { POST } = require('../route')
     const res = await POST(makeRequest('benger.localhost'))
@@ -85,7 +88,7 @@ describe('refresh route br8', () => {
       new Response(JSON.stringify({ ok: true }), {
         status: 200,
         headers,
-      })
+      }),
     )
     const { POST } = require('../route')
     const res = await POST(makeRequest('localhost:3000'))
@@ -95,7 +98,9 @@ describe('refresh route br8', () => {
 
   it('handles non-ok response', async () => {
     jest.spyOn(global, 'fetch').mockResolvedValue(
-      new Response(JSON.stringify({ detail: 'Token expired' }), { status: 401 })
+      new Response(JSON.stringify({ detail: 'Token expired' }), {
+        status: 401,
+      }),
     )
     const { POST } = require('../route')
     const res = await POST(makeRequest('benger.localhost'))

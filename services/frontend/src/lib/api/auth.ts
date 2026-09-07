@@ -65,7 +65,7 @@ export class AuthClient extends BaseApiClient {
       // Research data use consent (extended-edition gating)
       research_data_consent_accepted?: boolean
     },
-    invitationToken?: string
+    invitationToken?: string,
   ): Promise<User> {
     const signupData: Record<string, unknown> = {
       username,

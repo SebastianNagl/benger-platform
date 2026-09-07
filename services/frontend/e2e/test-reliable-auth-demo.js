@@ -67,10 +67,10 @@ class SimplePuppeteerAuthHelper {
         // Clear any existing values
         await this.page.evaluate(() => {
           const emailInput = document.querySelector(
-            '[data-testid="auth-login-email-input"]'
+            '[data-testid="auth-login-email-input"]',
           )
           const passwordInput = document.querySelector(
-            '[data-testid="auth-login-password-input"]'
+            '[data-testid="auth-login-password-input"]',
           )
 
           if (emailInput) emailInput.value = ''
@@ -83,22 +83,22 @@ class SimplePuppeteerAuthHelper {
         // Fill credentials with extra safety
         await this.page.waitForSelector(
           '[data-testid="auth-login-email-input"]',
-          { visible: true }
+          { visible: true },
         )
         await this.page.click('[data-testid="auth-login-email-input"]')
         await this.page.type(
           '[data-testid="auth-login-email-input"]',
-          credentials.username
+          credentials.username,
         )
 
         await this.page.waitForSelector(
           '[data-testid="auth-login-password-input"]',
-          { visible: true }
+          { visible: true },
         )
         await this.page.click('[data-testid="auth-login-password-input"]')
         await this.page.type(
           '[data-testid="auth-login-password-input"]',
-          credentials.password
+          credentials.password,
         )
 
         // Submit form with navigation wait
@@ -127,7 +127,7 @@ class SimplePuppeteerAuthHelper {
 
         if (attempt === this.config.maxRetries) {
           throw new Error(
-            `Login failed after ${this.config.maxRetries} attempts: ${error.message}`
+            `Login failed after ${this.config.maxRetries} attempts: ${error.message}`,
           )
         }
 
@@ -155,7 +155,7 @@ class SimplePuppeteerAuthHelper {
         // Look for auth indicators
         const authIndicators = await this.page.evaluate(() => {
           const logoutBtn = document.querySelector(
-            '[data-testid="logout-button"]'
+            '[data-testid="logout-button"]',
           )
           const userMenu = document.querySelector('[data-testid="user-menu"]')
 
@@ -293,7 +293,7 @@ async function testReliableAuthentication() {
     } catch (screenshotError) {
       console.log(
         '⚠️  Could not save failure screenshot:',
-        screenshotError.message
+        screenshotError.message,
       )
     }
 

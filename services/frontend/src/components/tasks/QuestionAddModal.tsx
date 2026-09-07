@@ -20,7 +20,7 @@ interface QuestionAddModalProps {
       answer: string[]
       case?: string
       reasoning?: string
-    }>
+    }>,
   ) => void
   onCancel: () => void
   taskType?: string
@@ -119,35 +119,35 @@ export function QuestionAddModal({
 
   const updateQuestion = (index: number, field: string, value: string) => {
     setQuestions((prev) =>
-      prev.map((q, i) => (i === index ? { ...q, [field]: value } : q))
+      prev.map((q, i) => (i === index ? { ...q, [field]: value } : q)),
     )
   }
 
   const addReferenceAnswer = (questionIndex: number) => {
     setQuestions((prev) =>
       prev.map((q, i) =>
-        i === questionIndex ? { ...q, answer: [...q.answer, ''] } : q
-      )
+        i === questionIndex ? { ...q, answer: [...q.answer, ''] } : q,
+      ),
     )
   }
 
   const removeReferenceAnswer = (
     questionIndex: number,
-    answerIndex: number
+    answerIndex: number,
   ) => {
     setQuestions((prev) =>
       prev.map((q, i) =>
         i === questionIndex && q.answer.length > 1
           ? { ...q, answer: q.answer.filter((_, j) => j !== answerIndex) }
-          : q
-      )
+          : q,
+      ),
     )
   }
 
   const updateReferenceAnswer = (
     questionIndex: number,
     answerIndex: number,
-    value: string
+    value: string,
   ) => {
     setQuestions((prev) =>
       prev.map((q, i) =>
@@ -155,11 +155,11 @@ export function QuestionAddModal({
           ? {
               ...q,
               answer: q.answer.map((answer, j) =>
-                j === answerIndex ? value : answer
+                j === answerIndex ? value : answer,
               ),
             }
-          : q
-      )
+          : q,
+      ),
     )
   }
 
@@ -210,7 +210,7 @@ export function QuestionAddModal({
                 <div className="mb-4 flex items-center justify-between">
                   <Dialog.Title
                     as="h3"
-                    className="text-lg font-medium leading-6 text-zinc-900 dark:text-zinc-100"
+                    className="text-lg leading-6 font-medium text-zinc-900 dark:text-zinc-100"
                   >
                     {t('tasks.questions.addTitle')}
                   </Dialog.Title>
@@ -230,7 +230,9 @@ export function QuestionAddModal({
                     >
                       <div className="flex items-start justify-between">
                         <h4 className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                          {t('tasks.questions.questionNumber', { number: qIndex + 1 })}
+                          {t('tasks.questions.questionNumber', {
+                            number: qIndex + 1,
+                          })}
                         </h4>
                         {questions.length > 1 && (
                           <button
@@ -259,7 +261,7 @@ export function QuestionAddModal({
                           onChange={(e) =>
                             updateQuestion(qIndex, 'question', e.target.value)
                           }
-                          className="w-full rounded-md border border-zinc-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+                          className="w-full rounded-md border border-zinc-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500 focus:outline-none dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
                           placeholder={t('tasks.questions.questionPlaceholder')}
                           data-testid={`add-question-${qIndex}`}
                         />
@@ -286,7 +288,7 @@ export function QuestionAddModal({
                           onChange={(e) =>
                             updateQuestion(qIndex, 'case', e.target.value)
                           }
-                          className="w-full rounded-md border border-zinc-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+                          className="w-full rounded-md border border-zinc-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500 focus:outline-none dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
                           placeholder={t('tasks.questions.casePlaceholder')}
                           data-testid={`add-case-${qIndex}`}
                         />
@@ -318,11 +320,14 @@ export function QuestionAddModal({
                                   updateReferenceAnswer(
                                     qIndex,
                                     aIndex,
-                                    e.target.value
+                                    e.target.value,
                                   )
                                 }
-                                className="flex-1 rounded-md border border-zinc-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
-                                placeholder={t('tasks.questions.answerPlaceholder', { number: aIndex + 1 })}
+                                className="flex-1 rounded-md border border-zinc-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500 focus:outline-none dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+                                placeholder={t(
+                                  'tasks.questions.answerPlaceholder',
+                                  { number: aIndex + 1 },
+                                )}
                                 data-testid={`add-answer-${qIndex}-${aIndex}`}
                               />
                               {question.answer.length > 1 && (
@@ -365,11 +370,13 @@ export function QuestionAddModal({
                               updateQuestion(
                                 qIndex,
                                 'reasoning',
-                                e.target.value
+                                e.target.value,
                               )
                             }
-                            className="w-full rounded-md border border-zinc-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
-                            placeholder={t('tasks.questions.reasoningPlaceholder')}
+                            className="w-full rounded-md border border-zinc-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500 focus:outline-none dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+                            placeholder={t(
+                              'tasks.questions.reasoningPlaceholder',
+                            )}
                             data-testid={`add-reasoning-${qIndex}`}
                           />
                         </div>

@@ -30,7 +30,7 @@ test.describe('Annotation Comparison Workflow', () => {
 
       // Navigate to data/tasks view
       const dataTab = page.locator(
-        'a:has-text("Data"), button:has-text("Data"), a:has-text("Tasks")'
+        'a:has-text("Data"), button:has-text("Data"), a:has-text("Tasks")',
       )
       if (await dataTab.isVisible({ timeout: 3000 })) {
         await dataTab.click()
@@ -64,7 +64,7 @@ test.describe('Annotation Comparison Workflow', () => {
 
       // Navigate to data view
       const dataTab = page.locator(
-        'a:has-text("Data"), button:has-text("Data")'
+        'a:has-text("Data"), button:has-text("Data")',
       )
       if (await dataTab.isVisible({ timeout: 3000 })) {
         await dataTab.click()
@@ -100,7 +100,7 @@ test.describe('Annotation Comparison Workflow', () => {
 
       // Navigate to data view
       const dataTab = page.locator(
-        'a:has-text("Data"), button:has-text("Data")'
+        'a:has-text("Data"), button:has-text("Data")',
       )
       if (await dataTab.isVisible({ timeout: 3000 })) {
         await dataTab.click()
@@ -117,7 +117,7 @@ test.describe('Annotation Comparison Workflow', () => {
 
         // Check for modal or task detail view
         const modal = page.locator(
-          '[role="dialog"], .modal, [data-testid="annotation-comparison-modal"], [data-testid="task-detail"]'
+          '[role="dialog"], .modal, [data-testid="annotation-comparison-modal"], [data-testid="task-detail"]',
         )
         const detailView = page.getByText(/annotation|comparison/i)
 

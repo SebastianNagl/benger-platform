@@ -57,7 +57,7 @@ interface ProgressContextType {
       sublabel?: string
       indeterminate?: boolean
       onCancel?: () => void
-    }
+    },
   ) => void
   updateProgress: (id: string, progress: number, sublabel?: string) => void
   completeProgress: (id: string, status?: 'success' | 'error') => void
@@ -65,7 +65,7 @@ interface ProgressContextType {
 }
 
 const ProgressContext = createContext<ProgressContextType | undefined>(
-  undefined
+  undefined,
 )
 
 export function ProgressProvider({ children }: { children: ReactNode }) {
@@ -86,7 +86,7 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
           indeterminate: t.progress!.indeterminate,
           onCancel: t.progress!.onCancel,
         })),
-    [toasts]
+    [toasts],
   )
 
   // Map of progress-id -> auto-dismiss timer handle. ProgressProvider is
@@ -94,7 +94,7 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
   // when `completeProgress` flips status off 'running' and clears it on
   // restart or manual remove.
   const timersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(
-    new Map()
+    new Map(),
   )
   const clearTimer = useCallback((id: string) => {
     const prev = timersRef.current.get(id)
@@ -109,7 +109,7 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
       timersRef.current.forEach((h) => clearTimeout(h))
       timersRef.current.clear()
     },
-    []
+    [],
   )
 
   const startProgress = useCallback(
@@ -120,7 +120,7 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
         sublabel?: string
         indeterminate?: boolean
         onCancel?: () => void
-      }
+      },
     ) => {
       // Restart of the same id: cancel any pending auto-dismiss from a
       // prior completion so the restarted progress doesn't vanish on us.
@@ -134,7 +134,7 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
       }
       upsert(id, label, progress)
     },
-    [upsert, clearTimer]
+    [upsert, clearTimer],
   )
 
   const updateProgress = useCallback(
@@ -151,7 +151,7 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
       }
       upsert(id, existing.message, next)
     },
-    [upsert]
+    [upsert],
   )
 
   const completeProgress = useCallback(
@@ -183,7 +183,7 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
       }, DEFAULT_TOAST_DURATION_MS)
       timersRef.current.set(id, handle)
     },
-    [upsert, remove, clearTimer]
+    [upsert, remove, clearTimer],
   )
 
   const removeProgress = useCallback(
@@ -191,7 +191,7 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
       clearTimer(id)
       remove(id)
     },
-    [remove, clearTimer]
+    [remove, clearTimer],
   )
 
   const value = useMemo(
@@ -208,7 +208,7 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
       updateProgress,
       completeProgress,
       removeProgress,
-    ]
+    ],
   )
 
   return (

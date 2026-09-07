@@ -30,7 +30,7 @@ describe('FeatureFlag', () => {
       const { container } = render(
         <FeatureFlag flag="test-flag">
           <div>Content</div>
-        </FeatureFlag>
+        </FeatureFlag>,
       )
 
       expect(container).toBeInTheDocument()
@@ -43,7 +43,7 @@ describe('FeatureFlag', () => {
       render(
         <FeatureFlag flag="test-flag">
           <div>Test Content</div>
-        </FeatureFlag>
+        </FeatureFlag>,
       )
 
       expect(screen.getByText('Test Content')).toBeInTheDocument()
@@ -57,7 +57,7 @@ describe('FeatureFlag', () => {
         <FeatureFlag flag="test-flag">
           <div>First Child</div>
           <div>Second Child</div>
-        </FeatureFlag>
+        </FeatureFlag>,
       )
 
       expect(screen.getByText('First Child')).toBeInTheDocument()
@@ -75,7 +75,7 @@ describe('FeatureFlag', () => {
             <p>Description</p>
             <button>Action</button>
           </div>
-        </FeatureFlag>
+        </FeatureFlag>,
       )
 
       expect(screen.getByText('Title')).toBeInTheDocument()
@@ -92,7 +92,7 @@ describe('FeatureFlag', () => {
       render(
         <FeatureFlag flag="my-feature">
           <div>Content</div>
-        </FeatureFlag>
+        </FeatureFlag>,
       )
 
       expect(mockUseFeatureFlag).toHaveBeenCalledWith('my-feature')
@@ -105,7 +105,7 @@ describe('FeatureFlag', () => {
       render(
         <FeatureFlag flag="enabled-flag">
           <div>Enabled Content</div>
-        </FeatureFlag>
+        </FeatureFlag>,
       )
 
       expect(screen.getByText('Enabled Content')).toBeInTheDocument()
@@ -118,7 +118,7 @@ describe('FeatureFlag', () => {
       render(
         <FeatureFlag flag="disabled-flag">
           <div>Hidden Content</div>
-        </FeatureFlag>
+        </FeatureFlag>,
       )
 
       expect(screen.queryByText('Hidden Content')).not.toBeInTheDocument()
@@ -131,7 +131,7 @@ describe('FeatureFlag', () => {
       const { rerender } = render(
         <FeatureFlag flag="dynamic-flag">
           <div>Dynamic Content</div>
-        </FeatureFlag>
+        </FeatureFlag>,
       )
 
       expect(screen.queryByText('Dynamic Content')).not.toBeInTheDocument()
@@ -140,7 +140,7 @@ describe('FeatureFlag', () => {
       rerender(
         <FeatureFlag flag="dynamic-flag">
           <div>Dynamic Content</div>
-        </FeatureFlag>
+        </FeatureFlag>,
       )
 
       expect(screen.getByText('Dynamic Content')).toBeInTheDocument()
@@ -155,7 +155,7 @@ describe('FeatureFlag', () => {
       render(
         <FeatureFlag flag="test-flag">
           <div>Visible Content</div>
-        </FeatureFlag>
+        </FeatureFlag>,
       )
 
       expect(screen.getByText('Visible Content')).toBeInTheDocument()
@@ -168,7 +168,7 @@ describe('FeatureFlag', () => {
       render(
         <FeatureFlag flag="test-flag">
           <div>Hidden Content</div>
-        </FeatureFlag>
+        </FeatureFlag>,
       )
 
       expect(screen.queryByText('Hidden Content')).not.toBeInTheDocument()
@@ -183,7 +183,7 @@ describe('FeatureFlag', () => {
       render(
         <FeatureFlag flag="test-flag">
           <TestComponent />
-        </FeatureFlag>
+        </FeatureFlag>,
       )
 
       expect(screen.getByText('Component Content')).toBeInTheDocument()
@@ -198,7 +198,7 @@ describe('FeatureFlag', () => {
           <button data-testid="test-button" className="custom-class">
             Click Me
           </button>
-        </FeatureFlag>
+        </FeatureFlag>,
       )
 
       const button = screen.getByTestId('test-button')
@@ -215,7 +215,7 @@ describe('FeatureFlag', () => {
       render(
         <FeatureFlag flag="test-flag" fallback={<div>Fallback Content</div>}>
           <div>Main Content</div>
-        </FeatureFlag>
+        </FeatureFlag>,
       )
 
       expect(screen.getByText('Fallback Content')).toBeInTheDocument()
@@ -229,7 +229,7 @@ describe('FeatureFlag', () => {
       const { container } = render(
         <FeatureFlag flag="test-flag">
           <div>Main Content</div>
-        </FeatureFlag>
+        </FeatureFlag>,
       )
 
       expect(container.textContent).toBe('')
@@ -250,12 +250,12 @@ describe('FeatureFlag', () => {
           }
         >
           <div>Main Content</div>
-        </FeatureFlag>
+        </FeatureFlag>,
       )
 
       expect(screen.getByText('Feature Unavailable')).toBeInTheDocument()
       expect(
-        screen.getByText('This feature is currently disabled')
+        screen.getByText('This feature is currently disabled'),
       ).toBeInTheDocument()
     })
 
@@ -266,7 +266,7 @@ describe('FeatureFlag', () => {
       render(
         <FeatureFlag flag="test-flag" fallback={<div>Fallback Content</div>}>
           <div>Main Content</div>
-        </FeatureFlag>
+        </FeatureFlag>,
       )
 
       expect(screen.getByText('Main Content')).toBeInTheDocument()
@@ -282,7 +282,7 @@ describe('FeatureFlag', () => {
       render(
         <FeatureFlag flag="test-flag" loading={<div>Loading...</div>}>
           <div>Main Content</div>
-        </FeatureFlag>
+        </FeatureFlag>,
       )
 
       expect(screen.getByText('Loading...')).toBeInTheDocument()
@@ -296,7 +296,7 @@ describe('FeatureFlag', () => {
       render(
         <FeatureFlag flag="test-flag" loading={<div>Loading...</div>}>
           <div>Main Content</div>
-        </FeatureFlag>
+        </FeatureFlag>,
       )
 
       expect(screen.queryByText('Loading...')).not.toBeInTheDocument()
@@ -310,7 +310,7 @@ describe('FeatureFlag', () => {
       const { container } = render(
         <FeatureFlag flag="test-flag">
           <div>Main Content</div>
-        </FeatureFlag>
+        </FeatureFlag>,
       )
 
       expect(container.textContent).toBe('')
@@ -323,7 +323,7 @@ describe('FeatureFlag', () => {
       const { rerender } = render(
         <FeatureFlag flag="test-flag" loading={<div>Loading...</div>}>
           <div>Main Content</div>
-        </FeatureFlag>
+        </FeatureFlag>,
       )
 
       expect(screen.getByText('Loading...')).toBeInTheDocument()
@@ -334,7 +334,7 @@ describe('FeatureFlag', () => {
       rerender(
         <FeatureFlag flag="test-flag" loading={<div>Loading...</div>}>
           <div>Main Content</div>
-        </FeatureFlag>
+        </FeatureFlag>,
       )
 
       expect(screen.queryByText('Loading...')).not.toBeInTheDocument()
@@ -348,7 +348,7 @@ describe('FeatureFlag', () => {
       mockUseFeatureFlag.mockReturnValue(true)
 
       const { container } = render(
-        <FeatureFlag flag="test-flag">{null}</FeatureFlag>
+        <FeatureFlag flag="test-flag">{null}</FeatureFlag>,
       )
 
       expect(container.textContent).toBe('')
@@ -361,7 +361,7 @@ describe('FeatureFlag', () => {
       render(
         <FeatureFlag flag="">
           <div>Content</div>
-        </FeatureFlag>
+        </FeatureFlag>,
       )
 
       expect(screen.queryByText('Content')).not.toBeInTheDocument()
@@ -374,11 +374,11 @@ describe('FeatureFlag', () => {
       render(
         <FeatureFlag flag="feature-with-dashes_and_underscores">
           <div>Content</div>
-        </FeatureFlag>
+        </FeatureFlag>,
       )
 
       expect(mockUseFeatureFlag).toHaveBeenCalledWith(
-        'feature-with-dashes_and_underscores'
+        'feature-with-dashes_and_underscores',
       )
       expect(screen.getByText('Content')).toBeInTheDocument()
     })
@@ -390,7 +390,7 @@ describe('FeatureFlag', () => {
       const { rerender } = render(
         <FeatureFlag flag="test-flag">
           <div>Content</div>
-        </FeatureFlag>
+        </FeatureFlag>,
       )
 
       expect(screen.getByText('Content')).toBeInTheDocument()
@@ -399,7 +399,7 @@ describe('FeatureFlag', () => {
       rerender(
         <FeatureFlag flag="test-flag">
           <div>Content</div>
-        </FeatureFlag>
+        </FeatureFlag>,
       )
 
       expect(screen.queryByText('Content')).not.toBeInTheDocument()
@@ -408,7 +408,7 @@ describe('FeatureFlag', () => {
       rerender(
         <FeatureFlag flag="test-flag">
           <div>Content</div>
-        </FeatureFlag>
+        </FeatureFlag>,
       )
 
       expect(screen.getByText('Content')).toBeInTheDocument()
@@ -431,7 +431,7 @@ describe('FeatureFlag', () => {
       render(
         <AsyncFeatureFlag flag="async-flag" loading={<div>Loading...</div>}>
           <div>Content</div>
-        </AsyncFeatureFlag>
+        </AsyncFeatureFlag>,
       )
 
       expect(screen.getByText('Loading...')).toBeInTheDocument()
@@ -444,7 +444,7 @@ describe('FeatureFlag', () => {
       render(
         <AsyncFeatureFlag flag="async-flag">
           <div>Async Content</div>
-        </AsyncFeatureFlag>
+        </AsyncFeatureFlag>,
       )
 
       await waitFor(() => {
@@ -461,7 +461,7 @@ describe('FeatureFlag', () => {
       render(
         <AsyncFeatureFlag flag="async-flag" fallback={<div>Fallback</div>}>
           <div>Async Content</div>
-        </AsyncFeatureFlag>
+        </AsyncFeatureFlag>,
       )
 
       await waitFor(() => {
@@ -482,7 +482,7 @@ describe('FeatureFlag', () => {
           fallback={<div>Error Fallback</div>}
         >
           <div>Async Content</div>
-        </AsyncFeatureFlag>
+        </AsyncFeatureFlag>,
       )
 
       await waitFor(() => {
@@ -500,7 +500,7 @@ describe('FeatureFlag', () => {
       const { unmount } = render(
         <AsyncFeatureFlag flag="async-flag">
           <div>Content</div>
-        </AsyncFeatureFlag>
+        </AsyncFeatureFlag>,
       )
 
       unmount()
@@ -520,7 +520,7 @@ describe('FeatureFlag', () => {
           fallback={<div>No Loading Fallback</div>}
         >
           <div>Content</div>
-        </AsyncFeatureFlag>
+        </AsyncFeatureFlag>,
       )
 
       expect(screen.getByText('No Loading Fallback')).toBeInTheDocument()
@@ -537,7 +537,7 @@ describe('FeatureFlag', () => {
       const { container } = render(
         <AsyncFeatureFlag flag="async-flag">
           <div>Content</div>
-        </AsyncFeatureFlag>
+        </AsyncFeatureFlag>,
       )
 
       await waitFor(() => {
@@ -554,7 +554,7 @@ describe('FeatureFlag', () => {
       render(
         <AsyncFeatureFlag flag="specific-async-flag">
           <div>Content</div>
-        </AsyncFeatureFlag>
+        </AsyncFeatureFlag>,
       )
 
       await waitFor(() => {
@@ -569,7 +569,7 @@ describe('FeatureFlag', () => {
       const { rerender } = render(
         <AsyncFeatureFlag flag="flag1">
           <div>Content 1</div>
-        </AsyncFeatureFlag>
+        </AsyncFeatureFlag>,
       )
 
       await waitFor(() => {
@@ -581,7 +581,7 @@ describe('FeatureFlag', () => {
       rerender(
         <AsyncFeatureFlag flag="flag2">
           <div>Content 2</div>
-        </AsyncFeatureFlag>
+        </AsyncFeatureFlag>,
       )
 
       await waitFor(() => {
@@ -593,14 +593,14 @@ describe('FeatureFlag', () => {
       const mockCheckFlag = jest
         .fn()
         .mockImplementation(
-          () => new Promise((resolve) => setTimeout(() => resolve(true), 100))
+          () => new Promise((resolve) => setTimeout(() => resolve(true), 100)),
         )
       mockUseFeatureFlags.mockReturnValue({ checkFlag: mockCheckFlag })
 
       const { unmount } = render(
         <AsyncFeatureFlag flag="async-flag">
           <div>Content</div>
-        </AsyncFeatureFlag>
+        </AsyncFeatureFlag>,
       )
 
       unmount()
@@ -621,7 +621,7 @@ describe('FeatureFlag', () => {
             <p>Async Description</p>
             <button>Async Action</button>
           </div>
-        </AsyncFeatureFlag>
+        </AsyncFeatureFlag>,
       )
 
       await waitFor(() => {
@@ -630,7 +630,7 @@ describe('FeatureFlag', () => {
 
       expect(screen.getByText('Async Description')).toBeInTheDocument()
       expect(
-        screen.getByRole('button', { name: 'Async Action' })
+        screen.getByRole('button', { name: 'Async Action' }),
       ).toBeInTheDocument()
     })
 
@@ -638,14 +638,14 @@ describe('FeatureFlag', () => {
       const mockCheckFlag = jest
         .fn()
         .mockImplementation(
-          () => new Promise((resolve) => setTimeout(() => resolve(true), 5000))
+          () => new Promise((resolve) => setTimeout(() => resolve(true), 5000)),
         )
       mockUseFeatureFlags.mockReturnValue({ checkFlag: mockCheckFlag })
 
       render(
         <AsyncFeatureFlag flag="timeout-flag" loading={<div>Loading...</div>}>
           <div>Content</div>
-        </AsyncFeatureFlag>
+        </AsyncFeatureFlag>,
       )
 
       expect(screen.getByText('Loading...')).toBeInTheDocument()
@@ -654,7 +654,7 @@ describe('FeatureFlag', () => {
         () => {
           expect(mockCheckFlag).toHaveBeenCalled()
         },
-        { timeout: 6000 }
+        { timeout: 6000 },
       )
     })
 
@@ -671,7 +671,7 @@ describe('FeatureFlag', () => {
           fallback={<div>Network Error</div>}
         >
           <div>Content</div>
-        </AsyncFeatureFlag>
+        </AsyncFeatureFlag>,
       )
 
       await waitFor(() => {
@@ -680,7 +680,7 @@ describe('FeatureFlag', () => {
 
       expect(consoleErrorSpy).toHaveBeenCalledWith(
         "Error checking feature flag 'network-flag':",
-        expect.any(Error)
+        expect.any(Error),
       )
 
       consoleErrorSpy.mockRestore()
@@ -693,13 +693,13 @@ describe('FeatureFlag', () => {
       const { unmount, rerender } = render(
         <AsyncFeatureFlag flag="race-flag">
           <div>Content 1</div>
-        </AsyncFeatureFlag>
+        </AsyncFeatureFlag>,
       )
 
       rerender(
         <AsyncFeatureFlag flag="race-flag">
           <div>Content 2</div>
-        </AsyncFeatureFlag>
+        </AsyncFeatureFlag>,
       )
 
       unmount()
@@ -726,7 +726,7 @@ describe('FeatureFlag', () => {
           >
             <div>Should Not Render</div>
           </AsyncFeatureFlag>
-        </div>
+        </div>,
       )
 
       await waitFor(() => {
@@ -844,7 +844,7 @@ describe('FeatureFlag', () => {
       render(<FeatureFlagDebug flag="test-flag" showDetails />)
 
       expect(
-        screen.getByText(/Error: Failed to load flags/)
+        screen.getByText(/Error: Failed to load flags/),
       ).toBeInTheDocument()
     })
   })
@@ -870,7 +870,7 @@ describe('FeatureFlag', () => {
       const WrappedComponent = withFeatureFlag(
         TestComponent,
         'test-flag',
-        <div>HOC Fallback</div>
+        <div>HOC Fallback</div>,
       )
 
       render(<WrappedComponent text="Wrapped Content" />)
@@ -966,7 +966,7 @@ describe('FeatureFlag', () => {
       render(
         <FeatureFlagBoundary>
           <div>Boundary Content</div>
-        </FeatureFlagBoundary>
+        </FeatureFlagBoundary>,
       )
 
       expect(screen.getByText('Boundary Content')).toBeInTheDocument()
@@ -979,13 +979,13 @@ describe('FeatureFlag', () => {
       render(
         <FeatureFlagBoundary>
           <div>Boundary Content</div>
-        </FeatureFlagBoundary>
+        </FeatureFlagBoundary>,
       )
 
       expect(screen.getByText('Boundary Content')).toBeInTheDocument()
       expect(consoleErrorSpy).toHaveBeenCalledWith(
         'Feature flag system error:',
-        'System Error'
+        'System Error',
       )
 
       consoleErrorSpy.mockRestore()
@@ -998,7 +998,7 @@ describe('FeatureFlag', () => {
       render(
         <FeatureFlagBoundary fallback={<div>Error Fallback</div>}>
           <div>Boundary Content</div>
-        </FeatureFlagBoundary>
+        </FeatureFlagBoundary>,
       )
 
       expect(screen.getByText('Error Fallback')).toBeInTheDocument()
@@ -1019,7 +1019,7 @@ describe('FeatureFlag', () => {
               <div>Nested Content</div>
             </FeatureFlag>
           </div>
-        </FeatureFlag>
+        </FeatureFlag>,
       )
 
       mockUseFeatureFlag.mockImplementation((flag: string) => {
@@ -1033,7 +1033,7 @@ describe('FeatureFlag', () => {
               <div>Nested Content</div>
             </FeatureFlag>
           </div>
-        </FeatureFlag>
+        </FeatureFlag>,
       )
 
       expect(screen.getByText('Nested Content')).toBeInTheDocument()
@@ -1042,7 +1042,7 @@ describe('FeatureFlag', () => {
     it('handles complex real-world scenario', () => {
       mockUseFeatureFlags.mockReturnValue({ isLoading: false })
       mockUseFeatureFlag.mockImplementation(
-        (flag: string) => flag === 'reports'
+        (flag: string) => flag === 'reports',
       )
 
       render(
@@ -1063,12 +1063,12 @@ describe('FeatureFlag', () => {
           >
             <div>Analytics Content</div>
           </FeatureFlag>
-        </div>
+        </div>,
       )
 
       expect(screen.getByText('Reports Dashboard')).toBeInTheDocument()
       expect(
-        screen.getByRole('button', { name: 'Generate Report' })
+        screen.getByRole('button', { name: 'Generate Report' }),
       ).toBeInTheDocument()
       expect(screen.getByText('Analytics unavailable')).toBeInTheDocument()
       expect(screen.queryByText('Analytics Content')).not.toBeInTheDocument()
@@ -1083,7 +1083,7 @@ describe('FeatureFlag', () => {
           <FeatureFlag flag="test-flag">
             <div>Protected Content</div>
           </FeatureFlag>
-        </FeatureFlagBoundary>
+        </FeatureFlagBoundary>,
       )
 
       expect(screen.getByText('Protected Content')).toBeInTheDocument()
@@ -1102,7 +1102,7 @@ describe('FeatureFlag', () => {
           <FeatureFlag flag="test-flag">
             <div>Main Content</div>
           </FeatureFlag>
-        </FeatureFlagBoundary>
+        </FeatureFlagBoundary>,
       )
 
       expect(screen.getByText('System unavailable')).toBeInTheDocument()
@@ -1125,7 +1125,7 @@ describe('FeatureFlag', () => {
               </div>
             </FeatureFlag>
           </div>
-        </FeatureFlag>
+        </FeatureFlag>,
       )
 
       expect(screen.getByText('Deep Content')).toBeInTheDocument()
@@ -1147,7 +1147,7 @@ describe('FeatureFlag', () => {
           <AsyncFeatureFlag flag="async-flag">
             <div>Async Content</div>
           </AsyncFeatureFlag>
-        </div>
+        </div>,
       )
 
       expect(screen.getByText('Sync Content')).toBeInTheDocument()
@@ -1186,7 +1186,7 @@ describe('FeatureFlag', () => {
               <span className="grandchild">Styled Content</span>
             </div>
           </div>
-        </FeatureFlag>
+        </FeatureFlag>,
       )
 
       const child = screen.getByTestId('styled-child')
@@ -1201,7 +1201,7 @@ describe('FeatureFlag', () => {
       mockUseFeatureFlag.mockReturnValue(true)
 
       const { container } = render(
-        <FeatureFlag flag="test-flag">{false}</FeatureFlag>
+        <FeatureFlag flag="test-flag">{false}</FeatureFlag>,
       )
 
       expect(container.textContent).toBe('')
@@ -1227,7 +1227,7 @@ describe('FeatureFlag', () => {
             <div key="2">Item 2</div>,
             <div key="3">Item 3</div>,
           ]}
-        </FeatureFlag>
+        </FeatureFlag>,
       )
 
       expect(screen.getByText('Item 1')).toBeInTheDocument()
@@ -1256,7 +1256,7 @@ describe('FeatureFlag', () => {
             <div>Fragment Child 1</div>
             <div>Fragment Child 2</div>
           </>
-        </FeatureFlag>
+        </FeatureFlag>,
       )
 
       expect(screen.getByText('Fragment Child 1')).toBeInTheDocument()
@@ -1273,7 +1273,7 @@ describe('FeatureFlag', () => {
       render(
         <FeatureFlag flag={longFlagName}>
           <div>Content</div>
-        </FeatureFlag>
+        </FeatureFlag>,
       )
 
       expect(mockUseFeatureFlag).toHaveBeenCalledWith(longFlagName)
@@ -1287,7 +1287,7 @@ describe('FeatureFlag', () => {
       render(
         <FeatureFlag flag="flag-with-émojis-🚀">
           <div>Unicode Content</div>
-        </FeatureFlag>
+        </FeatureFlag>,
       )
 
       expect(mockUseFeatureFlag).toHaveBeenCalledWith('flag-with-émojis-🚀')
@@ -1302,7 +1302,7 @@ describe('FeatureFlag', () => {
       const { container } = render(
         <FeatureFlag flag="test-flag" fallback={fallbackContent}>
           <div>Main Content</div>
-        </FeatureFlag>
+        </FeatureFlag>,
       )
 
       expect(container.textContent).toBe('')
@@ -1317,7 +1317,7 @@ describe('FeatureFlag', () => {
       render(
         <FeatureFlag flag="test-flag">
           <button onClick={handleClick}>Click Me</button>
-        </FeatureFlag>
+        </FeatureFlag>,
       )
 
       const button = screen.getByRole('button', { name: 'Click Me' })
@@ -1341,7 +1341,7 @@ describe('FeatureFlag', () => {
           }
         >
           <div>Content</div>
-        </FeatureFlag>
+        </FeatureFlag>,
       )
 
       expect(screen.getByText('Loading...')).toBeInTheDocument()
@@ -1353,28 +1353,28 @@ describe('FeatureFlag', () => {
       const { rerender } = render(
         <FeatureFlag flag="flag1">
           <div>Content 1</div>
-        </FeatureFlag>
+        </FeatureFlag>,
       )
 
       mockUseFeatureFlag.mockReturnValue(true)
       rerender(
         <FeatureFlag flag="flag2">
           <div>Content 2</div>
-        </FeatureFlag>
+        </FeatureFlag>,
       )
 
       mockUseFeatureFlag.mockReturnValue(false)
       rerender(
         <FeatureFlag flag="flag3">
           <div>Content 3</div>
-        </FeatureFlag>
+        </FeatureFlag>,
       )
 
       mockUseFeatureFlag.mockReturnValue(true)
       rerender(
         <FeatureFlag flag="flag4">
           <div>Content 4</div>
-        </FeatureFlag>
+        </FeatureFlag>,
       )
 
       expect(screen.getByText('Content 4')).toBeInTheDocument()
@@ -1388,7 +1388,7 @@ describe('FeatureFlag', () => {
           <div>Child 1</div>
           <div>Child 2</div>
           <div>Child 3</div>
-        </FeatureFlagBoundary>
+        </FeatureFlagBoundary>,
       )
 
       expect(screen.getByText('Child 1')).toBeInTheDocument()

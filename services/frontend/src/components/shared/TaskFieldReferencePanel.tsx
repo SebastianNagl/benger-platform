@@ -1,15 +1,15 @@
 'use client'
 
-import { useEffect, useState } from 'react'
 import { useI18n } from '@/contexts/I18nContext'
+import { projectsAPI } from '@/lib/api/projects'
 import {
-  InformationCircleIcon,
-  ClipboardDocumentIcon,
   ChevronDownIcon,
   ChevronRightIcon,
+  ClipboardDocumentIcon,
+  InformationCircleIcon,
 } from '@heroicons/react/24/outline'
 import clsx from 'clsx'
-import { projectsAPI } from '@/lib/api/projects'
+import { useEffect, useState } from 'react'
 import { LoadingSpinner } from './LoadingSpinner'
 
 interface TaskFieldInfo {
@@ -81,7 +81,7 @@ export function TaskFieldReferencePanel({
     <div
       className={clsx(
         'rounded-lg border border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800/50',
-        className
+        className,
       )}
     >
       <button
@@ -122,14 +122,14 @@ export function TaskFieldReferencePanel({
             <p className="text-sm text-zinc-500">
               {t(
                 'taskFields.noFieldsReference',
-                'No fields found. Import tasks to see available fields.'
+                'No fields found. Import tasks to see available fields.',
               )}
             </p>
           ) : (
             <div className="space-y-3">
               {topLevelFields.length > 0 && (
                 <div>
-                  <h4 className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                  <h4 className="mb-1.5 text-xs font-semibold tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                     {t('taskFields.topLevelFields', 'Top-level Fields')}
                   </h4>
                   <div className="flex flex-wrap gap-1.5">
@@ -147,7 +147,7 @@ export function TaskFieldReferencePanel({
 
               {nestedFields.length > 0 && (
                 <div>
-                  <h4 className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                  <h4 className="mb-1.5 text-xs font-semibold tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                     {t('taskFields.nestedFields', 'Nested Fields')}
                   </h4>
                   <div className="flex flex-wrap gap-1.5">
@@ -166,7 +166,7 @@ export function TaskFieldReferencePanel({
               <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
                 {t(
                   'taskFields.clickToCopy',
-                  'Click a field name to copy it to clipboard'
+                  'Click a field name to copy it to clipboard',
                 )}
               </p>
             </div>
@@ -194,10 +194,10 @@ function FieldBadge({ field, copied, onCopy }: FieldBadgeProps) {
     <button
       onClick={onCopy}
       className={clsx(
-        'group relative inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-mono transition-colors',
+        'group relative inline-flex items-center gap-1 rounded-md border px-2 py-1 font-mono text-xs transition-colors',
         copied
           ? 'border-emerald-500 bg-emerald-100 text-emerald-700 dark:border-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-400'
-          : 'border-zinc-300 bg-white text-zinc-700 hover:border-emerald-400 hover:bg-emerald-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:border-emerald-500 dark:hover:bg-emerald-900/20'
+          : 'border-zinc-300 bg-white text-zinc-700 hover:border-emerald-400 hover:bg-emerald-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:border-emerald-500 dark:hover:bg-emerald-900/20',
       )}
       title={
         field.sample_value
@@ -211,11 +211,11 @@ function FieldBadge({ field, copied, onCopy }: FieldBadgeProps) {
           'h-3 w-3 transition-opacity',
           copied
             ? 'opacity-100'
-            : 'opacity-0 group-hover:opacity-100 text-zinc-400'
+            : 'text-zinc-400 opacity-0 group-hover:opacity-100',
         )}
       />
       {copied && (
-        <span className="absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-zinc-900 px-2 py-1 text-xs text-white shadow-lg dark:bg-zinc-700">
+        <span className="absolute -top-8 left-1/2 -translate-x-1/2 rounded bg-zinc-900 px-2 py-1 text-xs whitespace-nowrap text-white shadow-lg dark:bg-zinc-700">
           {t('common.copied')}
         </span>
       )}

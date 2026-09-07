@@ -14,11 +14,7 @@ describe('suggestFieldMappings · content-based (Step 4) matching', () => {
   it('matches a numeric column to a "number" target by value pattern', () => {
     const source = ['col_a'] // no name overlap with target
     const target = ['item_number']
-    const data = [
-      { col_a: 42 },
-      { col_a: 7 },
-      { col_a: 100 },
-    ]
+    const data = [{ col_a: 42 }, { col_a: 7 }, { col_a: 100 }]
     const out = suggestFieldMappings(source, target, data)
     const m = out.mappings.find((x) => x.source === 'col_a')
     expect(m).toBeTruthy()
@@ -32,11 +28,7 @@ describe('suggestFieldMappings · content-based (Step 4) matching', () => {
     const target = ['is_active']
     // Pure string booleans: `true` would count as numeric (Number(true)===1),
     // so use the German/English string forms that fail the numeric check.
-    const data = [
-      { xyz: 'false' },
-      { xyz: 'ja' },
-      { xyz: 'nein' },
-    ]
+    const data = [{ xyz: 'false' }, { xyz: 'ja' }, { xyz: 'nein' }]
     const out = suggestFieldMappings(source, target, data)
     const m = out.mappings.find((x) => x.source === 'xyz')
     expect(m).toBeTruthy()
@@ -112,7 +104,7 @@ describe('suggestFieldMappings · medium quality classification', () => {
     // 1.0 → medium branch (avgConfidence > 0.7).
     const out = suggestFieldMappings(
       ['question', 'totally_unrelated_xyz'],
-      ['question', 'another_unrelated_abc']
+      ['question', 'another_unrelated_abc'],
     )
     expect(out.quality).toBe('medium')
   })

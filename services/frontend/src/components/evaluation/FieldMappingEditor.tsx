@@ -1,19 +1,19 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
-import { useI18n } from '@/contexts/I18nContext'
+import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
 import {
+  TaskFieldInfo,
+  TaskFieldSelector,
+} from '@/components/shared/TaskFieldSelector'
+import { useI18n } from '@/contexts/I18nContext'
+import { projectsAPI } from '@/lib/api/projects'
+import {
+  InformationCircleIcon,
   PlusIcon,
   TrashIcon,
-  InformationCircleIcon,
 } from '@heroicons/react/24/outline'
 import clsx from 'clsx'
-import {
-  TaskFieldSelector,
-  TaskFieldInfo,
-} from '@/components/shared/TaskFieldSelector'
-import { projectsAPI } from '@/lib/api/projects'
-import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
+import { useCallback, useEffect, useState } from 'react'
 
 interface FieldMappingEditorProps {
   projectId: string
@@ -66,11 +66,13 @@ export function FieldMappingEditor({
         Object.keys(incoming).length === Object.keys(emitted).length &&
         Object.entries(incoming).every(([k, v]) => emitted[k] === v)
       if (isEcho && prev.length > 0) return prev
-      return Object.entries(incoming).map(([variableName, fieldPath], index) => ({
-        id: `mapping-${index}-${Date.now()}`,
-        variableName,
-        fieldPath,
-      }))
+      return Object.entries(incoming).map(
+        ([variableName, fieldPath], index) => ({
+          id: `mapping-${index}-${Date.now()}`,
+          variableName,
+          fieldPath,
+        }),
+      )
     })
   }, [value])
 
@@ -104,7 +106,7 @@ export function FieldMappingEditor({
       })
       onChange(mappings)
     },
-    [onChange]
+    [onChange],
   )
 
   const addRow = () => {
@@ -127,7 +129,7 @@ export function FieldMappingEditor({
   const updateRow = (id: string, field: keyof MappingRow, value: string) => {
     setRows((prev) => {
       const updated = prev.map((row) =>
-        row.id === id ? { ...row, [field]: value } : row
+        row.id === id ? { ...row, [field]: value } : row,
       )
       emitChanges(updated)
       return updated
@@ -165,7 +167,7 @@ export function FieldMappingEditor({
       <p className="text-xs text-gray-500 dark:text-gray-400">
         {t(
           'fieldMapping.helpText',
-          'Map custom template variables to task data fields. Use {{variable_name}} in your prompt.'
+          'Map custom template variables to task data fields. Use {{variable_name}} in your prompt.',
         )}
       </p>
 
@@ -174,7 +176,7 @@ export function FieldMappingEditor({
           <p className="text-sm text-gray-500 dark:text-gray-400">
             {t(
               'fieldMapping.noMappings',
-              'No field mappings defined. Click "Add Mapping" to create one.'
+              'No field mappings defined. Click "Add Mapping" to create one.',
             )}
           </p>
         </div>
@@ -203,7 +205,7 @@ export function FieldMappingEditor({
                     ? 'border-red-300 bg-red-50 dark:border-red-700 dark:bg-red-900/20'
                     : hasWarning
                       ? 'border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-900/20'
-                      : 'border-gray-200 dark:border-gray-700'
+                      : 'border-gray-200 dark:border-gray-700',
                 )}
               >
                 {/* Variable name input */}
@@ -215,16 +217,19 @@ export function FieldMappingEditor({
                       // Sanitize: only allow alphanumeric and underscore
                       const sanitized = e.target.value.replace(
                         /[^a-zA-Z0-9_]/g,
-                        ''
+                        '',
                       )
                       updateRow(row.id, 'variableName', sanitized)
                     }}
-                    placeholder={t('fieldMapping.variablePlaceholder', 'domain')}
+                    placeholder={t(
+                      'fieldMapping.variablePlaceholder',
+                      'domain',
+                    )}
                     className={clsx(
-                      'w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-1',
+                      'w-full rounded-md border px-3 py-2 text-sm focus:ring-1 focus:outline-none',
                       hasError
                         ? 'border-red-300 focus:border-red-500 focus:ring-red-500 dark:border-red-700'
-                        : 'border-gray-300 focus:border-emerald-500 focus:ring-emerald-500 dark:border-gray-600 dark:bg-gray-800'
+                        : 'border-gray-300 focus:border-emerald-500 focus:ring-emerald-500 dark:border-gray-600 dark:bg-gray-800',
                     )}
                   />
                   {row.variableName && (
@@ -233,11 +238,14 @@ export function FieldMappingEditor({
                         'text-xs',
                         hasError
                           ? 'text-red-600 dark:text-red-400'
-                          : 'text-gray-500 dark:text-gray-400'
+                          : 'text-gray-500 dark:text-gray-400',
                       )}
                     >
                       {hasError
-                        ? t('fieldMapping.reservedVariable', 'Reserved variable name')
+                        ? t(
+                            'fieldMapping.reservedVariable',
+                            'Reserved variable name',
+                          )
                         : getVariablePreview(row.variableName)}
                     </span>
                   )}
@@ -253,7 +261,10 @@ export function FieldMappingEditor({
                   projectId={projectId}
                   value={row.fieldPath}
                   onChange={(path) => updateRow(row.id, 'fieldPath', path)}
-                  placeholder={t('fieldMapping.selectField', 'Select a field...')}
+                  placeholder={t(
+                    'fieldMapping.selectField',
+                    'Select a field...',
+                  )}
                   allowManualEntry={true}
                 />
 
@@ -277,7 +288,10 @@ export function FieldMappingEditor({
         <div className="rounded-lg bg-gray-50 p-3 dark:bg-gray-800/50">
           <div className="mb-2 flex items-center gap-2 text-xs font-medium text-gray-600 dark:text-gray-400">
             <InformationCircleIcon className="h-4 w-4" />
-            {t('fieldMapping.availableFields', 'Available fields in your tasks:')}
+            {t(
+              'fieldMapping.availableFields',
+              'Available fields in your tasks:',
+            )}
           </div>
           <div className="flex flex-wrap gap-1">
             {fields.slice(0, 10).map((field) => (

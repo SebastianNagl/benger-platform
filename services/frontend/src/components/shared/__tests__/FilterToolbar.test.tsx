@@ -135,11 +135,11 @@ describe('FilterToolbar', () => {
           hasActiveFilters
           onClearFilters={() => {}}
           clearLabel="Reset everything"
-        />
+        />,
       )
       expect(screen.getByTitle('Reset everything')).toBeInTheDocument()
       expect(
-        screen.getByRole('button', { name: 'Reset everything' })
+        screen.getByRole('button', { name: 'Reset everything' }),
       ).toBeInTheDocument()
     })
 

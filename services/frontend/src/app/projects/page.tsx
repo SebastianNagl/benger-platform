@@ -30,11 +30,10 @@ export default function ProjectsPage() {
     )
   }
 
-
   return (
     <ResponsiveContainer
       size="full"
-      className="px-4 pb-10 pt-8 sm:px-6 lg:px-8"
+      className="px-4 pt-8 pb-10 sm:px-6 lg:px-8"
     >
       {/* Breadcrumb */}
       <div className="mb-4">

@@ -6,7 +6,7 @@
  * and error handling in both hooks.
  */
 
-import { getDefaultTemperature, getDefaultMaxTokens } from '../useDefaultConfig'
+import { getDefaultMaxTokens, getDefaultTemperature } from '../useDefaultConfig'
 
 // Mock the API admin-defaults module
 jest.mock('@/lib/api/admin-defaults', () => ({

@@ -25,7 +25,7 @@ describe('ApiClientContext', () => {
       const { getByText } = render(
         <ApiClientContextProvider client={makeFakeClient()}>
           <div>child</div>
-        </ApiClientContextProvider>
+        </ApiClientContextProvider>,
       )
       expect(getByText('child')).toBeInTheDocument()
     })
@@ -60,7 +60,7 @@ describe('ApiClientContext', () => {
     it('throws when used outside a provider', () => {
       const consoleError = jest.spyOn(console, 'error').mockImplementation()
       expect(() => renderHook(() => useApiClient())).toThrow(
-        /must be used within an ApiClientContextProvider/
+        /must be used within an ApiClientContextProvider/,
       )
       consoleError.mockRestore()
     })
@@ -77,7 +77,7 @@ describe('ApiClientContext', () => {
               {children}
             </ApiClientContextProvider>
           ),
-        }
+        },
       )
       expect(result.current.a).toBe(result.current.b)
       expect(result.current.a).toBe(client)

@@ -1,11 +1,11 @@
 'use client'
 
-import type { Project } from '@/types/labelStudio'
-import { PROJECT_KIND_OPTIONS } from '@/components/projects/wizard/ProjectTypeAndIcon'
 import { SubSection } from '@/components/projects/SubSection'
+import { PROJECT_KIND_OPTIONS } from '@/components/projects/wizard/ProjectTypeAndIcon'
 import { useI18n } from '@/contexts/I18nContext'
 import { useSlot } from '@/lib/extensions/slots'
 import { cn } from '@/lib/utils'
+import type { Project } from '@/types/labelStudio'
 
 interface ProjectKindSectionProps {
   project: Project
@@ -22,7 +22,10 @@ interface ProjectKindSectionProps {
  * chosen experience to fully work (extended edition; empty in community).
  * The host gates rendering on edit permission + non-student origin.
  */
-export function ProjectKindSection({ project, onKindChange }: ProjectKindSectionProps) {
+export function ProjectKindSection({
+  project,
+  onKindChange,
+}: ProjectKindSectionProps) {
   const { t } = useI18n()
   const KindHints = useSlot('ProjectKindHints')
   const currentKindId = project.kind ?? 'generic'
@@ -32,19 +35,23 @@ export function ProjectKindSection({ project, onKindChange }: ProjectKindSection
       badge={t(
         PROJECT_KIND_OPTIONS.find((o) => o.id === currentKindId)?.nameKey ??
           'projects.creation.wizard.step1.kind.generic',
-        PROJECT_KIND_OPTIONS.find((o) => o.id === currentKindId)?.nameFallback ?? 'Generisch',
+        PROJECT_KIND_OPTIONS.find((o) => o.id === currentKindId)
+          ?.nameFallback ?? 'Generisch',
       )}
     >
       <p className="mb-3 text-xs text-zinc-500 dark:text-zinc-400">
         {t(
           'projects.creation.wizard.step1.kind.editableHint',
-          'Der Typ steuert, ob Studierende dieses Projekt als Klausur bzw. Kartenstapel finden können.'
+          'Der Typ steuert, ob Studierende dieses Projekt als Klausur bzw. Kartenstapel finden können.',
         )}
       </p>
       <div
         className="grid grid-cols-3 gap-2"
         role="radiogroup"
-        aria-label={t('projects.creation.wizard.step1.kind.title', 'Projekttyp')}
+        aria-label={t(
+          'projects.creation.wizard.step1.kind.title',
+          'Projekttyp',
+        )}
         data-testid="project-kind-section"
       >
         {PROJECT_KIND_OPTIONS.map((opt) => {
@@ -65,7 +72,7 @@ export function ProjectKindSection({ project, onKindChange }: ProjectKindSection
                 'flex items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500',
                 isSelected
                   ? 'border-emerald-500 bg-emerald-50 text-zinc-900 ring-1 ring-emerald-500 dark:bg-emerald-900/20 dark:text-white'
-                  : 'border-zinc-200 text-zinc-700 hover:border-zinc-300 dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-zinc-600'
+                  : 'border-zinc-200 text-zinc-700 hover:border-zinc-300 dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-zinc-600',
               )}
             >
               <span className="text-lg" aria-hidden>

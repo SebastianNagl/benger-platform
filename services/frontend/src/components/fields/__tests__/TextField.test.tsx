@@ -21,7 +21,10 @@ jest.mock('@heroicons/react/24/outline', () => ({
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
     t: (key: string, varsOrDefault?: any) => {
-      const translations: Record<string, any> = require('../../../locales/en/common.json')
+      const translations: Record<
+        string,
+        any
+      > = require('../../../locales/en/common.json')
       const parts = key.split('.')
       let value: any = translations
       for (const part of parts) {
@@ -103,7 +106,7 @@ describe('TextField Component', () => {
       expect(description).toHaveClass(
         'text-sm',
         'text-gray-500',
-        'dark:text-gray-400'
+        'dark:text-gray-400',
       )
     })
 
@@ -208,7 +211,7 @@ describe('TextField Component', () => {
       const label = screen.getByText('Test Field (Optional)')
       expect(label).toBeInTheDocument()
       expect(
-        screen.queryByText('Test Field (Optional) (Optional)')
+        screen.queryByText('Test Field (Optional) (Optional)'),
       ).not.toBeInTheDocument()
     })
   })
@@ -222,7 +225,7 @@ describe('TextField Component', () => {
       expect(input).toHaveClass(
         'bg-gray-50',
         'dark:bg-gray-800',
-        'cursor-not-allowed'
+        'cursor-not-allowed',
       )
     })
 
@@ -243,7 +246,7 @@ describe('TextField Component', () => {
       expect(input).toHaveClass(
         'bg-gray-50',
         'dark:bg-gray-800',
-        'cursor-not-allowed'
+        'cursor-not-allowed',
       )
     })
   })
@@ -338,7 +341,7 @@ describe('TextField Component', () => {
         'rounded-md',
         'shadow-sm',
         'sm:text-sm',
-        'transition-colors'
+        'transition-colors',
       )
     })
 
@@ -350,7 +353,7 @@ describe('TextField Component', () => {
         'border-gray-300',
         'dark:border-gray-600',
         'bg-white',
-        'dark:bg-gray-700'
+        'dark:bg-gray-700',
       )
     })
 
@@ -384,7 +387,7 @@ describe('TextField Component', () => {
 
       contexts.forEach((context) => {
         const { unmount } = render(
-          <TextField {...defaultProps} context={context} />
+          <TextField {...defaultProps} context={context} />,
         )
         expect(screen.getByRole('textbox')).toBeInTheDocument()
         unmount()
@@ -533,7 +536,7 @@ describe('TextField Component', () => {
           <button>Before</button>
           <TextField {...defaultProps} />
           <button>After</button>
-        </div>
+        </div>,
       )
 
       const beforeButton = screen.getByRole('button', { name: 'Before' })

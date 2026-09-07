@@ -22,7 +22,7 @@ export interface ParseError {
  * Parse Label Studio XML configuration
  */
 export function parseLabelConfig(
-  xmlString: string
+  xmlString: string,
 ): ParsedComponent | ParseError {
   try {
     // Create a DOM parser
@@ -119,7 +119,7 @@ export function validateParsedConfig(config: ParsedComponent): {
 function validateComponent(
   component: ParsedComponent,
   errors: string[],
-  path: string = ''
+  path: string = '',
 ): void {
   const currentPath = path ? `${path}/${component.type}` : component.type
 
@@ -137,12 +137,12 @@ function validateComponent(
     case 'TextArea':
       if (!component.props.name) {
         errors.push(
-          `${currentPath}: TextArea component requires 'name' attribute`
+          `${currentPath}: TextArea component requires 'name' attribute`,
         )
       }
       if (!component.props.toName) {
         errors.push(
-          `${currentPath}: TextArea component requires 'toName' attribute`
+          `${currentPath}: TextArea component requires 'toName' attribute`,
         )
       }
       break
@@ -150,17 +150,17 @@ function validateComponent(
     case 'Choices':
       if (!component.props.name) {
         errors.push(
-          `${currentPath}: Choices component requires 'name' attribute`
+          `${currentPath}: Choices component requires 'name' attribute`,
         )
       }
       if (!component.props.toName) {
         errors.push(
-          `${currentPath}: Choices component requires 'toName' attribute`
+          `${currentPath}: Choices component requires 'toName' attribute`,
         )
       }
       if (component.children.length === 0) {
         errors.push(
-          `${currentPath}: Choices component requires at least one Choice`
+          `${currentPath}: Choices component requires at least one Choice`,
         )
       }
       break
@@ -168,11 +168,10 @@ function validateComponent(
     case 'Choice':
       if (!component.props.value) {
         errors.push(
-          `${currentPath}: Choice component requires 'value' attribute`
+          `${currentPath}: Choice component requires 'value' attribute`,
         )
       }
       break
-
   }
 
   // Validate children

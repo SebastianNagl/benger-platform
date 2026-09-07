@@ -7,9 +7,7 @@ import { NextRequest } from 'next/server'
  */
 export function getExternalHost(request: NextRequest): string {
   return (
-    request.headers.get('x-forwarded-host') ||
-    request.headers.get('host') ||
-    ''
+    request.headers.get('x-forwarded-host') || request.headers.get('host') || ''
   )
 }
 
@@ -33,7 +31,10 @@ export function getInternalApiUrl(request: NextRequest): string {
   // Host-based detection
   if (host.includes('benger-test.localhost')) return 'http://test-api:8000'
   // Vertretbar shares the same backend as benger (dev: the api service).
-  if (host.includes('benger.localhost') || host.includes('vertretbar.localhost'))
+  if (
+    host.includes('benger.localhost') ||
+    host.includes('vertretbar.localhost')
+  )
     return 'http://api:8000'
   if (host.includes('localhost:3000') || host.includes('localhost:3001')) {
     return process.env.DOCKER_INTERNAL_API_URL

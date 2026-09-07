@@ -48,7 +48,7 @@ test.describe('Reports Flow', () => {
 
     // No permission error should be shown for admin
     const permissionError = page.locator(
-      'text=/Permission denied|Access denied|Zugriff verweigert/i'
+      'text=/Permission denied|Access denied|Zugriff verweigert/i',
     )
     await expect(permissionError).not.toBeVisible({ timeout: 5000 })
   })

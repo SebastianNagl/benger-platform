@@ -63,7 +63,9 @@ describe('FeatureFlagContext - branch coverage extensions', () => {
 
   it('should suppress console.error for 401 errors during refreshFlags', async () => {
     const error401 = new Error('Request failed with 401')
-    ;(apiModule.api as any).getFeatureFlags = jest.fn().mockRejectedValue(error401)
+    ;(apiModule.api as any).getFeatureFlags = jest
+      .fn()
+      .mockRejectedValue(error401)
 
     const consoleSpy = jest.spyOn(console, 'error').mockImplementation()
 
@@ -76,7 +78,7 @@ describe('FeatureFlagContext - branch coverage extensions', () => {
     // 401 errors should NOT trigger console.error
     expect(consoleSpy).not.toHaveBeenCalledWith(
       'Error fetching feature flags:',
-      error401
+      error401,
     )
     expect(result.current.error).toBe('Request failed with 401')
 
@@ -85,7 +87,9 @@ describe('FeatureFlagContext - branch coverage extensions', () => {
 
   it('should log non-401 errors during refreshFlags', async () => {
     const networkError = new Error('Network failure')
-    ;(apiModule.api as any).getFeatureFlags = jest.fn().mockRejectedValue(networkError)
+    ;(apiModule.api as any).getFeatureFlags = jest
+      .fn()
+      .mockRejectedValue(networkError)
 
     const consoleSpy = jest.spyOn(console, 'error').mockImplementation()
 
@@ -98,7 +102,7 @@ describe('FeatureFlagContext - branch coverage extensions', () => {
     // Non-401 errors SHOULD trigger console.error
     expect(consoleSpy).toHaveBeenCalledWith(
       'Error fetching feature flags:',
-      networkError
+      networkError,
     )
     expect(result.current.error).toBe('Network failure')
 
@@ -106,7 +110,9 @@ describe('FeatureFlagContext - branch coverage extensions', () => {
   })
 
   it('should handle non-Error objects in refreshFlags error path', async () => {
-    ;(apiModule.api as any).getFeatureFlags = jest.fn().mockRejectedValue('string error')
+    ;(apiModule.api as any).getFeatureFlags = jest
+      .fn()
+      .mockRejectedValue('string error')
 
     const consoleSpy = jest.spyOn(console, 'error').mockImplementation()
 
@@ -123,7 +129,9 @@ describe('FeatureFlagContext - branch coverage extensions', () => {
   })
 
   it('isEnabled should return false for undefined flag', async () => {
-    ;(apiModule.api as any).getFeatureFlags = jest.fn().mockResolvedValue({ someFlag: true })
+    ;(apiModule.api as any).getFeatureFlags = jest
+      .fn()
+      .mockResolvedValue({ someFlag: true })
 
     const { result } = renderHook(() => useFeatureFlags(), { wrapper })
 
@@ -177,7 +185,9 @@ describe('FeatureFlagContext - branch coverage extensions', () => {
 
   it('checkFlag should return false on API error', async () => {
     ;(apiModule.api as any).getFeatureFlags = jest.fn().mockResolvedValue({})
-    ;(apiModule.api as any).checkFeatureFlag = jest.fn().mockRejectedValue(new Error('API error'))
+    ;(apiModule.api as any).checkFeatureFlag = jest
+      .fn()
+      .mockRejectedValue(new Error('API error'))
 
     const consoleSpy = jest.spyOn(console, 'error').mockImplementation()
 
@@ -196,7 +206,9 @@ describe('FeatureFlagContext - branch coverage extensions', () => {
 
   it('checkFlag should return is_enabled value on success', async () => {
     ;(apiModule.api as any).getFeatureFlags = jest.fn().mockResolvedValue({})
-    ;(apiModule.api as any).checkFeatureFlag = jest.fn().mockResolvedValue({ is_enabled: true })
+    ;(apiModule.api as any).checkFeatureFlag = jest
+      .fn()
+      .mockResolvedValue({ is_enabled: true })
 
     const { result } = renderHook(() => useFeatureFlags(), { wrapper })
 
@@ -267,7 +279,9 @@ describe('useFeatureFlag convenience hook - branch coverage', () => {
   })
 
   it('should return false for unknown flag via useFeatureFlag', async () => {
-    ;(apiModule.api as any).getFeatureFlags = jest.fn().mockResolvedValue({ known: true })
+    ;(apiModule.api as any).getFeatureFlags = jest
+      .fn()
+      .mockResolvedValue({ known: true })
 
     const wrapper = ({ children }: { children: React.ReactNode }) => (
       <FeatureFlagProvider>{children}</FeatureFlagProvider>
@@ -282,7 +296,9 @@ describe('useFeatureFlag convenience hook - branch coverage', () => {
   })
 
   it('should return true for known enabled flag via useFeatureFlag', async () => {
-    ;(apiModule.api as any).getFeatureFlags = jest.fn().mockResolvedValue({ myFlag: true })
+    ;(apiModule.api as any).getFeatureFlags = jest
+      .fn()
+      .mockResolvedValue({ myFlag: true })
 
     const wrapper = ({ children }: { children: React.ReactNode }) => (
       <FeatureFlagProvider>{children}</FeatureFlagProvider>
@@ -296,7 +312,9 @@ describe('useFeatureFlag convenience hook - branch coverage', () => {
   })
 
   it('should return false for known disabled flag via useFeatureFlag', async () => {
-    ;(apiModule.api as any).getFeatureFlags = jest.fn().mockResolvedValue({ myFlag: false })
+    ;(apiModule.api as any).getFeatureFlags = jest
+      .fn()
+      .mockResolvedValue({ myFlag: false })
 
     const wrapper = ({ children }: { children: React.ReactNode }) => (
       <FeatureFlagProvider>{children}</FeatureFlagProvider>

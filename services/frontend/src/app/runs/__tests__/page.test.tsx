@@ -87,7 +87,12 @@ beforeEach(() => {
 
 describe('RunsPage', () => {
   it('loads evaluations on mount and renders rows', async () => {
-    mockGet.mockResolvedValueOnce({ items: [evalRun], total: 1, page: 1, page_size: 25 })
+    mockGet.mockResolvedValueOnce({
+      items: [evalRun],
+      total: 1,
+      page: 1,
+      page_size: 25,
+    })
     render(<RunsPage />)
     await waitFor(() => expect(mockGet).toHaveBeenCalled())
     const url: string = mockGet.mock.calls[0][0]
@@ -95,7 +100,9 @@ describe('RunsPage', () => {
     expect(url).toContain('page=1')
     expect(url).toContain('page_size=25')
     // Eval-tab columns are visible.
-    await waitFor(() => expect(screen.getByText('gpt-4o-mini')).toBeInTheDocument())
+    await waitFor(() =>
+      expect(screen.getByText('gpt-4o-mini')).toBeInTheDocument(),
+    )
     expect(screen.getByText(/gpt-4o, claude-opus/)).toBeInTheDocument()
     // "Benchaton 2" appears both in the project filter dropdown <option>
     // and in the row's project column — both expected.
@@ -104,8 +111,18 @@ describe('RunsPage', () => {
 
   it('switches to generation tab and updates URL', async () => {
     mockGet
-      .mockResolvedValueOnce({ items: [evalRun], total: 1, page: 1, page_size: 25 })
-      .mockResolvedValueOnce({ items: [genRun], total: 1, page: 1, page_size: 25 })
+      .mockResolvedValueOnce({
+        items: [evalRun],
+        total: 1,
+        page: 1,
+        page_size: 25,
+      })
+      .mockResolvedValueOnce({
+        items: [genRun],
+        total: 1,
+        page: 1,
+        page_size: 25,
+      })
     render(<RunsPage />)
     await waitFor(() => expect(mockGet).toHaveBeenCalledTimes(1))
 
@@ -150,9 +167,16 @@ describe('RunsPage', () => {
   })
 
   it('clicking an evaluation row navigates to /evaluations/{id}', async () => {
-    mockGet.mockResolvedValueOnce({ items: [evalRun], total: 1, page: 1, page_size: 25 })
+    mockGet.mockResolvedValueOnce({
+      items: [evalRun],
+      total: 1,
+      page: 1,
+      page_size: 25,
+    })
     render(<RunsPage />)
-    await waitFor(() => expect(screen.getByText('gpt-4o-mini')).toBeInTheDocument())
+    await waitFor(() =>
+      expect(screen.getByText('gpt-4o-mini')).toBeInTheDocument(),
+    )
 
     fireEvent.click(screen.getByText('gpt-4o-mini').closest('tr')!)
     expect(mockPush).toHaveBeenCalledWith('/evaluations/eval-1')
@@ -160,7 +184,12 @@ describe('RunsPage', () => {
 
   it('clicking a generation row navigates to /generations/{id}', async () => {
     mockSearchParams = new URLSearchParams('type=generation')
-    mockGet.mockResolvedValueOnce({ items: [genRun], total: 1, page: 1, page_size: 25 })
+    mockGet.mockResolvedValueOnce({
+      items: [genRun],
+      total: 1,
+      page: 1,
+      page_size: 25,
+    })
     render(<RunsPage />)
     await waitFor(() => expect(screen.getByText('gpt-5.4')).toBeInTheDocument())
 
@@ -169,14 +198,23 @@ describe('RunsPage', () => {
   })
 
   it('renders empty-state row when API returns no items', async () => {
-    mockGet.mockResolvedValueOnce({ items: [], total: 0, page: 1, page_size: 25 })
+    mockGet.mockResolvedValueOnce({
+      items: [],
+      total: 0,
+      page: 1,
+      page_size: 25,
+    })
     render(<RunsPage />)
-    await waitFor(() => expect(screen.getByText('Keine Einträge')).toBeInTheDocument())
+    await waitFor(() =>
+      expect(screen.getByText('Keine Einträge')).toBeInTheDocument(),
+    )
   })
 
   it('renders an error banner on API failure', async () => {
     mockGet.mockRejectedValueOnce({ message: 'unreachable' })
     render(<RunsPage />)
-    await waitFor(() => expect(screen.getByText('unreachable')).toBeInTheDocument())
+    await waitFor(() =>
+      expect(screen.getByText('unreachable')).toBeInTheDocument(),
+    )
   })
 })

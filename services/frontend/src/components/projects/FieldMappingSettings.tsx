@@ -8,11 +8,11 @@
 'use client'
 
 import { useToast } from '@/components/shared/Toast'
-import { useI18n } from '@/contexts/I18nContext'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { useI18n } from '@/contexts/I18nContext'
 import { projectsAPI } from '@/lib/api/projects'
 import {
   ArrowPathIcon,
@@ -58,10 +58,10 @@ export function FieldMappingSettings({
 
   const validateFieldMapping = () => {
     const missingFields = templateFields.filter(
-      (field) => !includesInsensitive(availableFields, field)
+      (field) => !includesInsensitive(availableFields, field),
     )
     const unusedFields = availableFields.filter(
-      (field) => !includesInsensitive(templateFields, field)
+      (field) => !includesInsensitive(templateFields, field),
     )
 
     return {
@@ -84,8 +84,11 @@ export function FieldMappingSettings({
       setIsEditing(false)
     } catch (error: any) {
       addToast(
-        t('projects.fieldMapping.updateFailed', { error: error.message || t('projects.fieldMapping.failedUpdateTemplate') }),
-        'error'
+        t('projects.fieldMapping.updateFailed', {
+          error:
+            error.message || t('projects.fieldMapping.failedUpdateTemplate'),
+        }),
+        'error',
       )
     } finally {
       setLoading(false)
@@ -123,20 +126,26 @@ export function FieldMappingSettings({
             <CardTitle>{t('projects.fieldMapping.title')}</CardTitle>
           </div>
           <Button variant="outline" onClick={() => setIsEditing(!isEditing)}>
-            {isEditing ? t('common.cancel') : t('projects.fieldMapping.editTemplate')}
+            {isEditing
+              ? t('common.cancel')
+              : t('projects.fieldMapping.editTemplate')}
           </Button>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Current field mapping status */}
         <div className="space-y-2">
-          <h4 className="text-sm font-medium">{t('projects.fieldMapping.fieldMappingStatus')}</h4>
+          <h4 className="text-sm font-medium">
+            {t('projects.fieldMapping.fieldMappingStatus')}
+          </h4>
           <div className="flex flex-wrap gap-2">
             {templateFields.map((field) => (
               <Badge
                 key={field}
                 variant={
-                  includesInsensitive(availableFields, field) ? 'default' : 'destructive'
+                  includesInsensitive(availableFields, field)
+                    ? 'default'
+                    : 'destructive'
                 }
                 className="text-xs"
               >
@@ -156,9 +165,7 @@ export function FieldMappingSettings({
           <Alert>
             <ExclamationTriangleIcon className="h-4 w-4" />
             <AlertDescription>
-              <strong>
-                {t('projects.fieldMapping.validationError')}
-              </strong>{' '}
+              <strong>{t('projects.fieldMapping.validationError')}</strong>{' '}
               {validation.missingFields.join(', ')}
               <br />
               <span className="text-xs">
@@ -185,7 +192,9 @@ export function FieldMappingSettings({
         {isEditing && (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <h4 className="text-sm font-medium">{t('projects.fieldMapping.labelingConfiguration')}</h4>
+              <h4 className="text-sm font-medium">
+                {t('projects.fieldMapping.labelingConfiguration')}
+              </h4>
               <Button
                 variant="ghost"
                 onClick={() => setNewTemplate(generateSuggestedTemplate())}

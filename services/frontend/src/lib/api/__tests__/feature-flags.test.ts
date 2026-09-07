@@ -346,7 +346,7 @@ describe('FeatureFlagsClient', () => {
         .mockRejectedValueOnce(new Error('Network error'))
 
       await expect(client.getAllFeatureFlagsForAdmin()).rejects.toThrow(
-        'Network error'
+        'Network error',
       )
     })
 
@@ -361,7 +361,7 @@ describe('FeatureFlagsClient', () => {
       }
 
       await expect(client.createFeatureFlag(flagData)).rejects.toThrow(
-        'Validation failed'
+        'Validation failed',
       )
     })
 
@@ -371,7 +371,7 @@ describe('FeatureFlagsClient', () => {
         .mockRejectedValueOnce(new Error('Not found'))
 
       await expect(client.getFeatureFlag('invalid-id')).rejects.toThrow(
-        'Not found'
+        'Not found',
       )
     })
 
@@ -381,7 +381,7 @@ describe('FeatureFlagsClient', () => {
         .mockRejectedValueOnce(new Error('Unauthorized'))
 
       await expect(
-        client.updateFeatureFlag('flag-1', { enabled: true })
+        client.updateFeatureFlag('flag-1', { enabled: true }),
       ).rejects.toThrow('Unauthorized')
     })
 
@@ -391,7 +391,7 @@ describe('FeatureFlagsClient', () => {
         .mockRejectedValueOnce(new Error('Cannot delete'))
 
       await expect(client.deleteFeatureFlag('flag-1')).rejects.toThrow(
-        'Cannot delete'
+        'Cannot delete',
       )
     })
   })

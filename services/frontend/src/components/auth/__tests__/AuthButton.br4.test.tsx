@@ -58,17 +58,27 @@ jest.mock('@/contexts/HydrationContext', () => ({
 
 jest.mock('@/components/auth/LoginModal', () => ({
   LoginModal: ({ isOpen, onClose }: any) =>
-    isOpen ? <div data-testid="login-modal"><button onClick={onClose}>Close Login</button></div> : null,
+    isOpen ? (
+      <div data-testid="login-modal">
+        <button onClick={onClose}>Close Login</button>
+      </div>
+    ) : null,
 }))
 
 jest.mock('@/components/auth/SignupModal', () => ({
   SignupModal: ({ isOpen, onClose }: any) =>
-    isOpen ? <div data-testid="signup-modal"><button onClick={onClose}>Close Signup</button></div> : null,
+    isOpen ? (
+      <div data-testid="signup-modal">
+        <button onClick={onClose}>Close Signup</button>
+      </div>
+    ) : null,
 }))
 
 jest.mock('@/components/shared/Button', () => ({
   Button: ({ children, onClick, disabled, ...props }: any) => (
-    <button onClick={onClick} disabled={disabled} {...props}>{children}</button>
+    <button onClick={onClick} disabled={disabled} {...props}>
+      {children}
+    </button>
   ),
 }))
 
@@ -202,7 +212,7 @@ describe('AuthButton br4 - uncovered branches', () => {
       <div>
         <div data-testid="outside">Outside</div>
         <AuthButton />
-      </div>
+      </div>,
     )
 
     await user.click(screen.getByText('testuser'))

@@ -19,16 +19,19 @@ const PREFS_BODY = {
 }
 
 function makeRequest(body: unknown = PREFS_BODY) {
-  return new NextRequest('http://vertretbar.localhost/api/auth/me/exam-layout', {
-    method: 'PUT',
-    headers: {
-      host: 'vertretbar.localhost',
-      cookie: 'session=abc',
-      authorization: 'Bearer token123',
-      'content-type': 'application/json',
+  return new NextRequest(
+    'http://vertretbar.localhost/api/auth/me/exam-layout',
+    {
+      method: 'PUT',
+      headers: {
+        host: 'vertretbar.localhost',
+        cookie: 'session=abc',
+        authorization: 'Bearer token123',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify(body),
     },
-    body: JSON.stringify(body),
-  })
+  )
 }
 
 describe('PUT /api/auth/me/exam-layout', () => {
@@ -40,7 +43,10 @@ describe('PUT /api/auth/me/exam-layout', () => {
     mockFetch.mockResolvedValue({
       ok: true,
       json: () =>
-        Promise.resolve({ id: 'u1', exam_layout_prefs: PREFS_BODY.exam_layout_prefs }),
+        Promise.resolve({
+          id: 'u1',
+          exam_layout_prefs: PREFS_BODY.exam_layout_prefs,
+        }),
     })
 
     const response = await PUT(makeRequest())
@@ -56,7 +62,7 @@ describe('PUT /api/auth/me/exam-layout', () => {
           Authorization: 'Bearer token123',
         }),
         body: JSON.stringify(PREFS_BODY),
-      })
+      }),
     )
   })
 
@@ -72,7 +78,7 @@ describe('PUT /api/auth/me/exam-layout', () => {
       expect.any(String),
       expect.objectContaining({
         body: JSON.stringify({ exam_layout_prefs: null }),
-      })
+      }),
     )
   })
 
@@ -83,7 +89,9 @@ describe('PUT /api/auth/me/exam-layout', () => {
       text: () => Promise.resolve('validation error'),
     })
 
-    const response = await PUT(makeRequest({ exam_layout_prefs: { mode: 'nope' } }))
+    const response = await PUT(
+      makeRequest({ exam_layout_prefs: { mode: 'nope' } }),
+    )
     const data = await response.json()
 
     expect(response.status).toBe(422)
@@ -96,11 +104,17 @@ describe('PUT /api/auth/me/exam-layout', () => {
       json: () => Promise.resolve({ id: 'u1' }),
     })
 
-    const bare = new NextRequest('http://vertretbar.localhost/api/auth/me/exam-layout', {
-      method: 'PUT',
-      headers: { host: 'vertretbar.localhost', 'content-type': 'application/json' },
-      body: JSON.stringify(PREFS_BODY),
-    })
+    const bare = new NextRequest(
+      'http://vertretbar.localhost/api/auth/me/exam-layout',
+      {
+        method: 'PUT',
+        headers: {
+          host: 'vertretbar.localhost',
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify(PREFS_BODY),
+      },
+    )
 
     await PUT(bare)
 
@@ -108,7 +122,7 @@ describe('PUT /api/auth/me/exam-layout', () => {
       expect.any(String),
       expect.objectContaining({
         headers: expect.objectContaining({ Cookie: '', Authorization: '' }),
-      })
+      }),
     )
   })
 

@@ -225,7 +225,7 @@ describe('Search Component - Invalid Results Cleanup', () => {
         // Either we have results or a no results message
         return results.length > 0 || !!noResultsText
       },
-      { timeout: 5000 }
+      { timeout: 5000 },
     )
   })
 })

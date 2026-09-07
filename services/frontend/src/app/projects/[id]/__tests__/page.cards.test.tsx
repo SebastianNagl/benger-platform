@@ -20,7 +20,12 @@ import { useUIStore } from '@/stores'
 import { useProjectStore } from '@/stores/projectStore'
 import '@testing-library/jest-dom'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { useRouter, useParams, useSearchParams, usePathname } from 'next/navigation'
+import {
+  useParams,
+  usePathname,
+  useRouter,
+  useSearchParams,
+} from 'next/navigation'
 
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
@@ -108,10 +113,14 @@ jest.mock('@/components/projects/LabelConfigEditor', () => {
   }
 })
 jest.mock('@/components/projects/PromptStructuresManager', () => ({
-  PromptStructuresManager: () => <div data-testid="prompt-structures-manager" />,
+  PromptStructuresManager: () => (
+    <div data-testid="prompt-structures-manager" />
+  ),
 }))
 jest.mock('@/components/projects/GenerationStructureEditor', () => ({
-  GenerationStructureEditor: () => <div data-testid="generation-structure-editor" />,
+  GenerationStructureEditor: () => (
+    <div data-testid="generation-structure-editor" />
+  ),
 }))
 jest.mock('@/components/evaluation/EvaluationBuilder', () => ({
   EvaluationBuilder: () => <div data-testid="evaluation-builder" />,
@@ -230,11 +239,15 @@ describe('ProjectDetailPage — 4-card structure', () => {
     render(<ProjectDetailPage params={params} />)
     // Visible without expanding the (collapsed) settings card.
     await waitFor(() => {
-      expect(screen.getByTestId('sharing-stub')).toHaveTextContent('test-project-123')
+      expect(screen.getByTestId('sharing-stub')).toHaveTextContent(
+        'test-project-123',
+      )
     })
     const host = screen.getByTestId('project-sharing')
     const settings = screen.getByText('project.settings.title')
-    expect(settings.compareDocumentPosition(host) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(
+      settings.compareDocumentPosition(host) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
     const props = Stub.mock.calls[0][0]
     fetchProject.mockClear()
     props.onRefresh()
@@ -256,8 +269,12 @@ describe('ProjectDetailPage — 4-card structure', () => {
     await waitFor(() => {
       // i18n mock returns the key verbatim, so each card title appears as
       // its translation key. The 4 cards from the rework:
-      expect(screen.getByText('project.annotationConfiguration.title')).toBeInTheDocument()
-      expect(screen.getByText('project.generationConfiguration.title')).toBeInTheDocument()
+      expect(
+        screen.getByText('project.annotationConfiguration.title'),
+      ).toBeInTheDocument()
+      expect(
+        screen.getByText('project.generationConfiguration.title'),
+      ).toBeInTheDocument()
       expect(screen.getByText('project.evaluation.title')).toBeInTheDocument()
       expect(screen.getByText('project.settings.title')).toBeInTheDocument()
     })
@@ -274,9 +291,13 @@ describe('ProjectDetailPage — 4-card structure', () => {
     const params = Promise.resolve({ id: 'test-project-123' })
     render(<ProjectDetailPage params={params} />)
     await waitFor(() => {
-      expect(screen.getByText('project.generationConfiguration.title')).toBeInTheDocument()
+      expect(
+        screen.getByText('project.generationConfiguration.title'),
+      ).toBeInTheDocument()
     })
-    expect(screen.queryByText('project.annotationConfiguration.title')).not.toBeInTheDocument()
+    expect(
+      screen.queryByText('project.annotationConfiguration.title'),
+    ).not.toBeInTheDocument()
   })
 
   it('hides Generation card when enable_generation is false', async () => {
@@ -290,9 +311,13 @@ describe('ProjectDetailPage — 4-card structure', () => {
     const params = Promise.resolve({ id: 'test-project-123' })
     render(<ProjectDetailPage params={params} />)
     await waitFor(() => {
-      expect(screen.getByText('project.annotationConfiguration.title')).toBeInTheDocument()
+      expect(
+        screen.getByText('project.annotationConfiguration.title'),
+      ).toBeInTheDocument()
     })
-    expect(screen.queryByText('project.generationConfiguration.title')).not.toBeInTheDocument()
+    expect(
+      screen.queryByText('project.generationConfiguration.title'),
+    ).not.toBeInTheDocument()
   })
 
   it('hides Evaluation card when enable_evaluation is false', async () => {
@@ -306,9 +331,13 @@ describe('ProjectDetailPage — 4-card structure', () => {
     const params = Promise.resolve({ id: 'test-project-123' })
     render(<ProjectDetailPage params={params} />)
     await waitFor(() => {
-      expect(screen.getByText('project.annotationConfiguration.title')).toBeInTheDocument()
+      expect(
+        screen.getByText('project.annotationConfiguration.title'),
+      ).toBeInTheDocument()
     })
-    expect(screen.queryByText('project.evaluation.title')).not.toBeInTheDocument()
+    expect(
+      screen.queryByText('project.evaluation.title'),
+    ).not.toBeInTheDocument()
   })
 
   it('triggers fetchProject on mount', async () => {
@@ -338,6 +367,8 @@ describe('ProjectDetailPage — 4-card structure', () => {
     const params = Promise.resolve({ id: 'test-project-123' })
     render(<ProjectDetailPage params={params} />)
     // Loading state — none of the card titles should appear
-    expect(screen.queryByText('project.annotationConfiguration.title')).not.toBeInTheDocument()
+    expect(
+      screen.queryByText('project.annotationConfiguration.title'),
+    ).not.toBeInTheDocument()
   })
 })

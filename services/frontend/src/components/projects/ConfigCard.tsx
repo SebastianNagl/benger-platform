@@ -72,7 +72,7 @@ export function ConfigCard({
         </button>
         {(saving || dirty) && (
           <span
-            className="ml-3 flex items-center gap-1.5 whitespace-nowrap text-xs text-zinc-500 dark:text-zinc-400"
+            className="ml-3 flex items-center gap-1.5 text-xs whitespace-nowrap text-zinc-500 dark:text-zinc-400"
             role="status"
           >
             <span
@@ -85,7 +85,7 @@ export function ConfigCard({
         )}
       </div>
       {expanded && (
-        <div className="mt-6 *:py-6 *:pl-6 [&>*:first-child]:pt-6 [&>*:last-child]:pb-2 [&>*+*]:border-t [&>*+*]:border-zinc-200 dark:[&>*+*]:border-zinc-700">
+        <div className="mt-6 *:py-6 *:pl-6 [&>*+*]:border-t [&>*+*]:border-zinc-200 dark:[&>*+*]:border-zinc-700 [&>*:first-child]:pt-6 [&>*:last-child]:pb-2">
           {children}
         </div>
       )}

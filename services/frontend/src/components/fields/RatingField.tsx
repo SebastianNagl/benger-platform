@@ -55,7 +55,9 @@ export function RatingField({
                 } rounded p-1 transition-all duration-200 ${
                   isFilled ? 'bg-yellow-100 dark:bg-yellow-900/30' : ''
                 }`}
-                title={labels[rating - min] || t('fields.stars', { count: rating })}
+                title={
+                  labels[rating - min] || t('fields.stars', { count: rating })
+                }
               >
                 <Icon
                   className={`h-8 w-8 ${
@@ -66,7 +68,7 @@ export function RatingField({
                 />
               </button>
             )
-          }
+          },
         )}
       </div>
 

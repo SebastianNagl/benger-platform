@@ -2,10 +2,10 @@
  * Tests for the minimal page and layout
  */
 
-import React from 'react'
 import { render, screen } from '@testing-library/react'
-import MinimalPage from '../page'
+import React from 'react'
 import MinimalLayout from '../layout'
+import MinimalPage from '../page'
 
 describe('MinimalPage', () => {
   it('should render the minimal page heading', () => {
@@ -19,7 +19,7 @@ describe('MinimalLayout', () => {
     render(
       <MinimalLayout>
         <div data-testid="child">Hello</div>
-      </MinimalLayout>
+      </MinimalLayout>,
     )
     expect(screen.getByTestId('child')).toBeInTheDocument()
   })

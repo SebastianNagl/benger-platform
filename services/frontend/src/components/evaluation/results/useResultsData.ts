@@ -68,7 +68,7 @@ export function useResultsData({
       // showHistory controls display filtering, not the API fetch.
       const displayData = await apiClient.getProjectEvaluationResults(
         String(projectId),
-        false
+        false,
       )
       setResults(displayData)
       setError(null)
@@ -89,7 +89,7 @@ export function useResultsData({
   // Poll for running evaluations
   useEffect(() => {
     const hasRunningEval = results?.evaluations?.some(
-      (e) => e.status === 'running' || e.status === 'pending'
+      (e) => e.status === 'running' || e.status === 'pending',
     )
 
     if (hasRunningEval) {
@@ -161,7 +161,8 @@ export function useTaskModelData({
     // Serve a fresh-enough cached matrix immediately (no spinner), then
     // revalidate in the background.
     const cached = taskModelCache.get(cacheKey)
-    const hasFreshCache = !!cached && Date.now() - cached.at < TASK_MODEL_CACHE_TTL_MS
+    const hasFreshCache =
+      !!cached && Date.now() - cached.at < TASK_MODEL_CACHE_TTL_MS
     if (hasFreshCache) setTaskModelData(cached!.data)
 
     const fetchTaskModelData = async (opts: { live?: boolean } = {}) => {

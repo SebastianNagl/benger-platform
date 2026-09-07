@@ -7,8 +7,8 @@
  */
 
 import {
-  getAnnotationStatistics,
   findNextUnannotatedItem,
+  getAnnotationStatistics,
   getItemAnnotationStatus,
 } from '../annotationStatus'
 
@@ -31,10 +31,7 @@ describe('annotationStatus br4 - uncovered branches', () => {
   })
 
   it('getAnnotationStatistics counts items with undefined ids', () => {
-    const items = [
-      { id: undefined },
-      { id: 3 },
-    ]
+    const items = [{ id: undefined }, { id: 3 }]
     const result = getAnnotationStatistics(items as any, [])
     expect(result.total).toBe(2)
   })

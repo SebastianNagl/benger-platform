@@ -1,5 +1,5 @@
-import { NextRequest } from 'next/server'
 import { getInternalApiUrl } from '@/lib/utils/apiUrl'
+import { NextRequest } from 'next/server'
 
 // Configure Next.js route segment config for SSE
 export const dynamic = 'force-dynamic'
@@ -96,7 +96,7 @@ export async function GET(request: NextRequest) {
       async start(controller) {
         // Send immediate connection confirmation to trigger EventSource OPEN
         controller.enqueue(
-          encoder.encode(`data: {"type": "proxy_connected"}\n\n`)
+          encoder.encode(`data: {"type": "proxy_connected"}\n\n`),
         )
 
         // Start backend connection
@@ -110,8 +110,8 @@ export async function GET(request: NextRequest) {
           if (!response.ok) {
             controller.enqueue(
               encoder.encode(
-                `data: {"type": "error", "message": "Backend connection failed"}\n\n`
-              )
+                `data: {"type": "error", "message": "Backend connection failed"}\n\n`,
+              ),
             )
             controller.close()
             return
@@ -121,8 +121,8 @@ export async function GET(request: NextRequest) {
           if (!reader) {
             controller.enqueue(
               encoder.encode(
-                `data: {"type": "error", "message": "No backend stream"}\n\n`
-              )
+                `data: {"type": "error", "message": "No backend stream"}\n\n`,
+              ),
             )
             controller.close()
             return
@@ -156,8 +156,8 @@ export async function GET(request: NextRequest) {
           if (!abortController.signal.aborted) {
             controller.enqueue(
               encoder.encode(
-                `data: {"type": "error", "message": "Backend error"}\n\n`
-              )
+                `data: {"type": "error", "message": "Backend error"}\n\n`,
+              ),
             )
           }
           controller.close()
@@ -212,7 +212,7 @@ export async function GET(request: NextRequest) {
           'X-Accel-Buffering': 'no',
           'X-Content-Type-Options': 'nosniff',
         },
-      }
+      },
     )
   }
 }

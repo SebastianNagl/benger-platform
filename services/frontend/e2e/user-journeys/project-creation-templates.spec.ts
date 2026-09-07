@@ -10,7 +10,7 @@
  * Issue #1079: Simplify project creation template gallery to 5 focused options
  */
 
-import { expect, test, Page } from '@playwright/test'
+import { expect, Page, test } from '@playwright/test'
 import { TestHelpers } from '../helpers/test-helpers'
 import {
   clickSubmitFromAnyStep,
@@ -23,7 +23,7 @@ import {
 async function navigateToTemplateSelection(
   page: Page,
   helpers: TestHelpers,
-  projectName: string
+  projectName: string,
 ): Promise<void> {
   await helpers.login('admin', 'admin')
 
@@ -34,7 +34,7 @@ async function navigateToTemplateSelection(
   await newProjectButton.click()
 
   await expect(
-    page.locator('[data-testid="project-create-name-input"]')
+    page.locator('[data-testid="project-create-name-input"]'),
   ).toBeVisible({ timeout: 15000 })
 
   await page.fill('[data-testid="project-create-name-input"]', projectName)
@@ -107,7 +107,7 @@ test.describe('Project Creation Templates - Full Workflow Tests', () => {
     await expect(page).toHaveURL(/\/projects\//, { timeout: 15000 })
 
     console.log(
-      '✅ Multiple Choice Question template project created successfully'
+      '✅ Multiple Choice Question template project created successfully',
     )
   })
 
@@ -144,7 +144,9 @@ test.describe('Project Creation Templates - Full Workflow Tests', () => {
     await customTab.click()
 
     // The custom config textarea should now be visible
-    const customTextarea = page.locator('[data-testid="project-create-custom-config-textarea"]')
+    const customTextarea = page.locator(
+      '[data-testid="project-create-custom-config-textarea"]',
+    )
     await expect(customTextarea).toBeVisible({ timeout: 5000 })
 
     // Enter a custom configuration
@@ -174,7 +176,7 @@ test.describe('Project Creation Templates - Full Workflow Tests', () => {
     // Verify templates are visible
     await expect(page.locator('text=Frage-Antwort').first()).toBeVisible()
     await expect(
-      page.locator('text=Multiple-Choice-Frage').first()
+      page.locator('text=Multiple-Choice-Frage').first(),
     ).toBeVisible()
     await expect(page.locator('text=Span-Annotation').first()).toBeVisible()
     await expect(page.locator('text=Benutzerdefiniert').first()).toBeVisible()
@@ -184,14 +186,12 @@ test.describe('Project Creation Templates - Full Workflow Tests', () => {
     await expect(page.locator('text=Textklassifikation')).not.toBeVisible()
     await expect(page.locator('text=Beziehungsextraktion')).not.toBeVisible()
     await expect(page.locator('text=Taxonomie')).not.toBeVisible()
-    await expect(
-      page.locator('text=Maschinelle Übersetzung')
-    ).not.toBeVisible()
+    await expect(page.locator('text=Maschinelle Übersetzung')).not.toBeVisible()
     await expect(page.locator('text=Content-Moderation')).not.toBeVisible()
     await expect(page.locator('text=Textzusammenfassung')).not.toBeVisible()
 
     console.log(
-      '✅ Template gallery displays exactly 5 templates (old templates removed)'
+      '✅ Template gallery displays exactly 5 templates (old templates removed)',
     )
 
     // Navigate away to avoid creating unnecessary project
@@ -205,19 +205,21 @@ test.describe('Project Creation Templates - Full Workflow Tests', () => {
 
     // Verify German descriptions
     await expect(
-      page.locator('text=Beantworten Sie Fragen basierend auf gegebenem Text')
+      page.locator('text=Beantworten Sie Fragen basierend auf gegebenem Text'),
     ).toBeVisible()
     await expect(
-      page.locator('text=Wählen Sie aus vordefinierten Antwortoptionen')
+      page.locator('text=Wählen Sie aus vordefinierten Antwortoptionen'),
     ).toBeVisible()
     await expect(
-      page.locator('text=Markieren und beschriften Sie Textabschnitte')
+      page.locator('text=Markieren und beschriften Sie Textabschnitte'),
     ).toBeVisible()
     await expect(
-      page.locator('text=Definieren Sie Ihre eigene Label Studio XML')
+      page.locator('text=Definieren Sie Ihre eigene Label Studio XML'),
     ).toBeVisible()
 
-    console.log('✅ All template descriptions are correctly localized in German')
+    console.log(
+      '✅ All template descriptions are correctly localized in German',
+    )
 
     // Navigate away
     await page.goto('/projects')

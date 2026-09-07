@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useEffect, useState } from 'react'
 
 import { useAuth } from '@/contexts/AuthContext'
 import { useSlot } from '@/lib/extensions/slots'
@@ -31,8 +31,10 @@ export default function VertretbarLandingPage() {
   const VertretbarLanding = useSlot('VertretbarLanding')
 
   const [mounted, setMounted] = useState(false)
-  // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => { setMounted(true) }, [])
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Intentional: mount flag for hydration-safe UI
+    setMounted(true)
+  }, [])
 
   // Guard: this route only makes sense on a student-locked host.
   useEffect(() => {

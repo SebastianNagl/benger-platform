@@ -84,7 +84,7 @@ describe('ImageDisplay', () => {
         props: { ...mockConfig.props, name: undefined },
       }
       const { container } = render(
-        <ImageDisplay config={config} taskData={mockTaskData} />
+        <ImageDisplay config={config} taskData={mockTaskData} />,
       )
 
       const label = container.querySelector('label')
@@ -167,7 +167,7 @@ describe('ImageDisplay', () => {
       render(<ImageDisplay config={mockConfig} taskData={taskData} />)
 
       expect(
-        screen.getByText(/No image data for field: \$image/)
+        screen.getByText(/No image data for field: \$image/),
       ).toBeInTheDocument()
     })
 
@@ -176,7 +176,7 @@ describe('ImageDisplay', () => {
       render(<ImageDisplay config={mockConfig} taskData={taskData} />)
 
       expect(
-        screen.getByText(/No image data for field: \$image/)
+        screen.getByText(/No image data for field: \$image/),
       ).toBeInTheDocument()
     })
 
@@ -185,7 +185,7 @@ describe('ImageDisplay', () => {
       render(<ImageDisplay config={mockConfig} taskData={taskData} />)
 
       expect(
-        screen.getByText(/No image data for field: \$image/)
+        screen.getByText(/No image data for field: \$image/),
       ).toBeInTheDocument()
     })
 
@@ -198,14 +198,14 @@ describe('ImageDisplay', () => {
       render(<ImageDisplay config={config} taskData={taskData} />)
 
       expect(
-        screen.getByText('No image data for field: $customImage')
+        screen.getByText('No image data for field: $customImage'),
       ).toBeInTheDocument()
     })
 
     it('should apply error styling when data is missing', () => {
       const taskData = {}
       const { container } = render(
-        <ImageDisplay config={mockConfig} taskData={taskData} />
+        <ImageDisplay config={mockConfig} taskData={taskData} />,
       )
 
       const errorElement = container.querySelector('.italic.text-zinc-500')
@@ -284,7 +284,7 @@ describe('ImageDisplay', () => {
       const img = screen.getByRole('img')
       expect(img).toHaveAttribute(
         'src',
-        expect.stringContaining('data:image/png;base64')
+        expect.stringContaining('data:image/png;base64'),
       )
     })
 
@@ -308,7 +308,7 @@ describe('ImageDisplay', () => {
   describe('Styling and Layout', () => {
     it('should apply wrapper class', () => {
       const { container } = render(
-        <ImageDisplay config={mockConfig} taskData={mockTaskData} />
+        <ImageDisplay config={mockConfig} taskData={mockTaskData} />,
       )
 
       const wrapper = container.querySelector('.image-display')
@@ -317,7 +317,7 @@ describe('ImageDisplay', () => {
 
     it('should apply label styling', () => {
       const { container } = render(
-        <ImageDisplay config={mockConfig} taskData={mockTaskData} />
+        <ImageDisplay config={mockConfig} taskData={mockTaskData} />,
       )
 
       const label = container.querySelector('label')
@@ -408,7 +408,7 @@ describe('ImageDisplay', () => {
       const img = screen.getByRole('img')
       expect(img).toHaveAttribute(
         'src',
-        'https://example.com/image%20with%20spaces.jpg?param=value&other=test'
+        'https://example.com/image%20with%20spaces.jpg?param=value&other=test',
       )
     })
 
@@ -426,13 +426,13 @@ describe('ImageDisplay', () => {
       formats.forEach((format) => {
         const taskData = { image: `https://example.com/image.${format}` }
         const { unmount } = render(
-          <ImageDisplay config={mockConfig} taskData={taskData} />
+          <ImageDisplay config={mockConfig} taskData={taskData} />,
         )
 
         const img = screen.getByRole('img')
         expect(img).toHaveAttribute(
           'src',
-          `https://example.com/image.${format}`
+          `https://example.com/image.${format}`,
         )
         unmount()
       })
@@ -479,7 +479,7 @@ describe('ImageDisplay', () => {
 
     it('should associate label with image semantically', () => {
       const { container } = render(
-        <ImageDisplay config={mockConfig} taskData={mockTaskData} />
+        <ImageDisplay config={mockConfig} taskData={mockTaskData} />,
       )
 
       const label = container.querySelector('label')

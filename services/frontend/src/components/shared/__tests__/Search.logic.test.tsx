@@ -26,7 +26,12 @@ jest.mock('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams(),
 }))
 
-const mockUser = { id: '1', username: 'u', email: 'u@e.com', is_superadmin: true }
+const mockUser = {
+  id: '1',
+  username: 'u',
+  email: 'u@e.com',
+  is_superadmin: true,
+}
 const mockOrganizations = [{ id: '1', name: 'Org', role: 'ORG_ADMIN' }]
 
 jest.mock('@/contexts/AuthContext', () => ({
@@ -69,7 +74,10 @@ jest.mock('@/contexts/I18nContext', () => ({
 
 jest.mock('@/components/layout/Navigation', () => ({
   navigation: [
-    { title: 'Projects & Data', links: [{ href: '/projects', title: 'Projects' }] },
+    {
+      title: 'Projects & Data',
+      links: [{ href: '/projects', title: 'Projects' }],
+    },
   ],
 }))
 
@@ -146,9 +154,9 @@ async function getItemsForQuery(query: string) {
 }
 
 function getItemUrl(item: any) {
-  return capturedConfig.getSources({ query: 'x' }).then((s: any[]) =>
-    s[0].getItemUrl({ item })
-  )
+  return capturedConfig
+    .getSources({ query: 'x' })
+    .then((s: any[]) => s[0].getItemUrl({ item }))
 }
 
 describe('Search getSources logic', () => {
@@ -202,7 +210,7 @@ describe('Search getItemUrl guards', () => {
 
   it('returns external http urls unchanged', async () => {
     expect(await getItemUrl({ url: 'https://example.com' })).toBe(
-      'https://example.com'
+      'https://example.com',
     )
   })
 

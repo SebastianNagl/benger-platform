@@ -97,30 +97,28 @@ jest.mock('@/components/shared/Tag', () => ({
 
 jest.mock('@headlessui/react', () => {
   const React = require('react')
-  const CloseButton = React.forwardRef(
-    function CloseButton(
-      {
-        children,
-        href,
-        className,
-        as: Component = 'button',
-        ...props
-      }: {
-        children: React.ReactNode
-        href?: string
-        className?: string
-        as?: any
-        [key: string]: any
-      },
-      ref: any
-    ) {
-      return (
-        <Component ref={ref} href={href} className={className} {...props}>
-          {children}
-        </Component>
-      )
-    }
-  )
+  const CloseButton = React.forwardRef(function CloseButton(
+    {
+      children,
+      href,
+      className,
+      as: Component = 'button',
+      ...props
+    }: {
+      children: React.ReactNode
+      href?: string
+      className?: string
+      as?: any
+      [key: string]: any
+    },
+    ref: any,
+  ) {
+    return (
+      <Component ref={ref} href={href} className={className} {...props}>
+        {children}
+      </Component>
+    )
+  })
   CloseButton.displayName = 'CloseButton'
   return { CloseButton }
 })
@@ -151,7 +149,10 @@ jest.mock('@/contexts/HydrationContext', () => ({
 }))
 
 jest.mock('@/lib/utils/subdomain', () => ({
-  parseSubdomain: jest.fn(() => ({ orgSlug: 'test-org', isPrivateMode: false })),
+  parseSubdomain: jest.fn(() => ({
+    orgSlug: 'test-org',
+    isPrivateMode: false,
+  })),
 }))
 
 jest.mock('@/contexts/I18nContext', () => ({
@@ -197,7 +198,9 @@ describe('Navigation', () => {
         email: 'test@example.com',
         is_superadmin: true,
       },
-      organizations: [{ id: 1, name: 'Test Org', slug: 'test-org', role: 'ORG_ADMIN' }],
+      organizations: [
+        { id: 1, name: 'Test Org', slug: 'test-org', role: 'ORG_ADMIN' },
+      ],
     })
     mockUseFeatureFlags.mockReturnValue({
       flags: {
@@ -308,7 +311,6 @@ describe('Navigation', () => {
 
       const projectsLink = screen.getByText('Projects').closest('a')
       expect(projectsLink).toHaveAttribute('href', '/projects')
-
     })
   })
 
@@ -453,7 +455,7 @@ describe('Navigation', () => {
           id="test-nav"
           data-custom="value"
           aria-label="Main navigation"
-        />
+        />,
       )
 
       const nav = screen.getByRole('navigation')
@@ -640,7 +642,9 @@ describe('Navigation', () => {
           email: 'admin@example.com',
           is_superadmin: true,
         },
-        organizations: [{ id: 1, name: 'Test Org', slug: 'test-org', role: 'ORG_ADMIN' }],
+        organizations: [
+          { id: 1, name: 'Test Org', slug: 'test-org', role: 'ORG_ADMIN' },
+        ],
       })
 
       render(<Navigation />)

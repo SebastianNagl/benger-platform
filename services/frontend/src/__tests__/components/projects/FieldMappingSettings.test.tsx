@@ -36,17 +36,22 @@ jest.mock('@/components/shared/Toast', () => ({
 const mockFieldMappingTranslate = (key: string, arg2?: any, arg3?: any) => {
   const vars = typeof arg2 === 'object' ? arg2 : arg3
   const translations: Record<string, string> = {
-    'toasts.template.annotationUpdated': 'Annotation template has been updated successfully',
+    'toasts.template.annotationUpdated':
+      'Annotation template has been updated successfully',
     'projects.fieldMapping.title': 'Field Mapping & Template',
     'projects.fieldMapping.editTemplate': 'Edit Template',
     'projects.fieldMapping.fieldMappingStatus': 'Field Mapping Status',
-    'projects.fieldMapping.validationError': 'Validation error - These fields are not present in the data:',
-    'projects.fieldMapping.validationErrorHint': 'This will cause annotation errors. Update your template or import new data.',
+    'projects.fieldMapping.validationError':
+      'Validation error - These fields are not present in the data:',
+    'projects.fieldMapping.validationErrorHint':
+      'This will cause annotation errors. Update your template or import new data.',
     'projects.fieldMapping.unusedFields': 'Unused fields in your data:',
-    'projects.fieldMapping.unusedFieldsHint': 'Consider updating your template to use these fields.',
+    'projects.fieldMapping.unusedFieldsHint':
+      'Consider updating your template to use these fields.',
     'projects.fieldMapping.labelingConfiguration': 'Labeling Configuration',
     'projects.fieldMapping.generateFromData': 'Generate from Data',
-    'projects.fieldMapping.placeholder': 'Enter your Label Studio configuration...',
+    'projects.fieldMapping.placeholder':
+      'Enter your Label Studio configuration...',
     'projects.fieldMapping.updateTemplate': 'Update Template',
     'projects.fieldMapping.autoConfigureTemplate': 'Auto-Configure Template',
     'projects.fieldMapping.updateFailed': 'Update failed: {error}',
@@ -98,7 +103,7 @@ describe('FieldMappingSettings', () => {
           projectId={projectId}
           currentTemplate={currentTemplate}
           availableFields={availableFields}
-        />
+        />,
       )
 
       expect(screen.getByText('Field Mapping & Template')).toBeInTheDocument()
@@ -111,7 +116,7 @@ describe('FieldMappingSettings', () => {
           projectId={projectId}
           currentTemplate={currentTemplate}
           availableFields={availableFields}
-        />
+        />,
       )
 
       expect(screen.getByText('Field Mapping Status')).toBeInTheDocument()
@@ -125,7 +130,7 @@ describe('FieldMappingSettings', () => {
           projectId={projectId}
           currentTemplate={currentTemplate}
           availableFields={availableFields}
-        />
+        />,
       )
 
       expect(screen.getByText('$question')).toBeInTheDocument()
@@ -140,7 +145,7 @@ describe('FieldMappingSettings', () => {
           projectId={projectId}
           currentTemplate={emptyTemplate}
           availableFields={availableFields}
-        />
+        />,
       )
 
       expect(screen.getByText('Field Mapping Status')).toBeInTheDocument()
@@ -157,7 +162,7 @@ describe('FieldMappingSettings', () => {
           projectId={projectId}
           currentTemplate={duplicateTemplate}
           availableFields={['text']}
-        />
+        />,
       )
 
       const textBadges = screen.getAllByText('$text')
@@ -176,13 +181,13 @@ describe('FieldMappingSettings', () => {
           projectId={projectId}
           currentTemplate={templateWithMissingField}
           availableFields={availableFields}
-        />
+        />,
       )
 
       expect(
         screen.getByText(
-          /Validation error - These fields are not present in the data:/
-        )
+          /Validation error - These fields are not present in the data:/,
+        ),
       ).toBeInTheDocument()
       // Use getAllByText since "nonexistent" appears in both badge and alert text
       const nonexistentElements = screen.getAllByText(/nonexistent/)
@@ -199,11 +204,11 @@ describe('FieldMappingSettings', () => {
           projectId={projectId}
           currentTemplate={templateWithoutCategory}
           availableFields={availableFields}
-        />
+        />,
       )
 
       expect(
-        screen.getByText(/Unused fields in your data:/)
+        screen.getByText(/Unused fields in your data:/),
       ).toBeInTheDocument()
       expect(screen.getByText(/answer/)).toBeInTheDocument()
       expect(screen.getByText(/category/)).toBeInTheDocument()
@@ -221,7 +226,7 @@ describe('FieldMappingSettings', () => {
           projectId={projectId}
           currentTemplate={validTemplate}
           availableFields={availableFields}
-        />
+        />,
       )
 
       expect(screen.queryByText(/Validation error/)).not.toBeInTheDocument()
@@ -238,7 +243,7 @@ describe('FieldMappingSettings', () => {
           projectId={projectId}
           currentTemplate={currentTemplate}
           availableFields={availableFields}
-        />
+        />,
       )
 
       const editButton = screen.getByText('Edit Template')
@@ -246,7 +251,7 @@ describe('FieldMappingSettings', () => {
 
       expect(screen.getByText('Labeling Configuration')).toBeInTheDocument()
       expect(
-        screen.getByPlaceholderText('Enter your Label Studio configuration...')
+        screen.getByPlaceholderText('Enter your Label Studio configuration...'),
       ).toBeInTheDocument()
       // Use getAllByText since Cancel appears in multiple buttons
       expect(screen.getAllByText('Cancel').length).toBeGreaterThan(0)
@@ -260,7 +265,7 @@ describe('FieldMappingSettings', () => {
           projectId={projectId}
           currentTemplate={currentTemplate}
           availableFields={availableFields}
-        />
+        />,
       )
 
       const editButton = screen.getByText('Edit Template')
@@ -271,8 +276,8 @@ describe('FieldMappingSettings', () => {
 
       expect(
         screen.queryByPlaceholderText(
-          'Enter your Label Studio configuration...'
-        )
+          'Enter your Label Studio configuration...',
+        ),
       ).not.toBeInTheDocument()
     })
 
@@ -284,14 +289,14 @@ describe('FieldMappingSettings', () => {
           projectId={projectId}
           currentTemplate={currentTemplate}
           availableFields={availableFields}
-        />
+        />,
       )
 
       const editButton = screen.getByText('Edit Template')
       await user.click(editButton)
 
       const textarea = screen.getByPlaceholderText(
-        'Enter your Label Studio configuration...'
+        'Enter your Label Studio configuration...',
       ) as HTMLTextAreaElement
       await user.clear(textarea)
       await user.type(textarea, '<View><Text name="test"/></View>')
@@ -307,7 +312,7 @@ describe('FieldMappingSettings', () => {
           projectId={projectId}
           currentTemplate={currentTemplate}
           availableFields={availableFields}
-        />
+        />,
       )
 
       const editButton = screen.getByText('Edit Template')
@@ -329,14 +334,14 @@ describe('FieldMappingSettings', () => {
           currentTemplate={currentTemplate}
           availableFields={availableFields}
           onTemplateUpdate={mockOnTemplateUpdate}
-        />
+        />,
       )
 
       const editButton = screen.getByText('Edit Template')
       await user.click(editButton)
 
       const textarea = screen.getByPlaceholderText(
-        'Enter your Label Studio configuration...'
+        'Enter your Label Studio configuration...',
       )
       const newTemplate = '<View><Text name="new"/></View>'
       await user.clear(textarea)
@@ -352,11 +357,11 @@ describe('FieldMappingSettings', () => {
           })
           expect(mockAddToast).toHaveBeenCalledWith(
             'Annotation template has been updated successfully',
-            'success'
+            'success',
           )
           expect(mockOnTemplateUpdate).toHaveBeenCalledWith(newTemplate)
         },
-        { timeout: 3000 }
+        { timeout: 3000 },
       )
     })
 
@@ -369,7 +374,7 @@ describe('FieldMappingSettings', () => {
           projectId={projectId}
           currentTemplate={currentTemplate}
           availableFields={availableFields}
-        />
+        />,
       )
 
       const editButton = screen.getByText('Edit Template')
@@ -382,10 +387,10 @@ describe('FieldMappingSettings', () => {
         () => {
           expect(mockAddToast).toHaveBeenCalledWith(
             expect.stringContaining('Update failed'),
-            'error'
+            'error',
           )
         },
-        { timeout: 3000 }
+        { timeout: 3000 },
       )
     })
 
@@ -398,7 +403,7 @@ describe('FieldMappingSettings', () => {
           projectId={projectId}
           currentTemplate={currentTemplate}
           availableFields={availableFields}
-        />
+        />,
       )
 
       const editButton = screen.getByText('Edit Template')
@@ -410,8 +415,8 @@ describe('FieldMappingSettings', () => {
       await waitFor(() => {
         expect(
           screen.queryByPlaceholderText(
-            'Enter your Label Studio configuration...'
-          )
+            'Enter your Label Studio configuration...',
+          ),
         ).not.toBeInTheDocument()
       })
     })
@@ -425,7 +430,7 @@ describe('FieldMappingSettings', () => {
           projectId={projectId}
           currentTemplate={currentTemplate}
           availableFields={availableFields}
-        />
+        />,
       )
 
       const editButton = screen.getByText('Edit Template')
@@ -449,7 +454,7 @@ describe('FieldMappingSettings', () => {
           projectId={projectId}
           currentTemplate={currentTemplate}
           availableFields={['text', 'image', 'question', 'other']}
-        />
+        />,
       )
 
       const editButton = screen.getByText('Edit Template')
@@ -459,7 +464,7 @@ describe('FieldMappingSettings', () => {
       await user.click(generateButton)
 
       const textarea = screen.getByPlaceholderText(
-        'Enter your Label Studio configuration...'
+        'Enter your Label Studio configuration...',
       ) as HTMLTextAreaElement
 
       expect(textarea.value).toContain('<View>')
@@ -476,7 +481,7 @@ describe('FieldMappingSettings', () => {
           projectId={projectId}
           currentTemplate={currentTemplate}
           availableFields={['question_text', 'answer_text']}
-        />
+        />,
       )
 
       const editButton = screen.getByText('Edit Template')
@@ -486,7 +491,7 @@ describe('FieldMappingSettings', () => {
       await user.click(generateButton)
 
       const textarea = screen.getByPlaceholderText(
-        'Enter your Label Studio configuration...'
+        'Enter your Label Studio configuration...',
       ) as HTMLTextAreaElement
 
       expect(textarea.value).toContain('<Text name="question_text"')
@@ -501,7 +506,7 @@ describe('FieldMappingSettings', () => {
           projectId={projectId}
           currentTemplate={currentTemplate}
           availableFields={['photo_image', 'document']}
-        />
+        />,
       )
 
       const editButton = screen.getByText('Edit Template')
@@ -511,7 +516,7 @@ describe('FieldMappingSettings', () => {
       await user.click(generateButton)
 
       const textarea = screen.getByPlaceholderText(
-        'Enter your Label Studio configuration...'
+        'Enter your Label Studio configuration...',
       ) as HTMLTextAreaElement
 
       expect(textarea.value).toContain('<Image name="photo_image"')
@@ -526,7 +531,7 @@ describe('FieldMappingSettings', () => {
           projectId={projectId}
           currentTemplate={currentTemplate}
           availableFields={['text', 'label']}
-        />
+        />,
       )
 
       const autoConfigButton = screen.getByText('Auto-Configure Template')
@@ -534,8 +539,8 @@ describe('FieldMappingSettings', () => {
 
       expect(
         screen.queryByPlaceholderText(
-          'Enter your Label Studio configuration...'
-        )
+          'Enter your Label Studio configuration...',
+        ),
       ).not.toBeInTheDocument()
     })
 
@@ -545,7 +550,7 @@ describe('FieldMappingSettings', () => {
           projectId={projectId}
           currentTemplate={currentTemplate}
           availableFields={[]}
-        />
+        />,
       )
 
       const autoConfigButton = screen.getByText('Auto-Configure Template')
@@ -560,7 +565,7 @@ describe('FieldMappingSettings', () => {
       mockProjectsAPI.update.mockReturnValueOnce(
         new Promise((resolve) => {
           resolveUpdate = resolve
-        })
+        }),
       )
 
       render(
@@ -568,7 +573,7 @@ describe('FieldMappingSettings', () => {
           projectId={projectId}
           currentTemplate={currentTemplate}
           availableFields={availableFields}
-        />
+        />,
       )
 
       const editButton = screen.getByText('Edit Template')
@@ -593,7 +598,7 @@ describe('FieldMappingSettings', () => {
           projectId={projectId}
           currentTemplate={currentTemplate}
           availableFields={availableFields}
-        />
+        />,
       )
 
       const questionBadge = screen.getByText('$question').closest('div')
@@ -611,7 +616,7 @@ describe('FieldMappingSettings', () => {
           projectId={projectId}
           currentTemplate={templateWithMissingField}
           availableFields={availableFields}
-        />
+        />,
       )
 
       expect(screen.getByText('$missing')).toBeInTheDocument()
@@ -631,7 +636,7 @@ describe('FieldMappingSettings', () => {
           projectId={projectId}
           currentTemplate={complexTemplate}
           availableFields={['field_1', 'field_2', 'field3_test']}
-        />
+        />,
       )
 
       expect(screen.getByText('$field_1')).toBeInTheDocument()
@@ -645,13 +650,13 @@ describe('FieldMappingSettings', () => {
           projectId={projectId}
           currentTemplate={currentTemplate}
           availableFields={[]}
-        />
+        />,
       )
 
       expect(
         screen.getByText(
-          /Validation error - These fields are not present in the data:/
-        )
+          /Validation error - These fields are not present in the data:/,
+        ),
       ).toBeInTheDocument()
     })
 
@@ -666,7 +671,7 @@ describe('FieldMappingSettings', () => {
           projectId={projectId}
           currentTemplate={currentTemplate}
           availableFields={availableFields}
-        />
+        />,
       )
 
       const editButton = screen.getByText('Edit Template')
@@ -679,10 +684,10 @@ describe('FieldMappingSettings', () => {
         () => {
           expect(mockAddToast).toHaveBeenCalledWith(
             'Update failed: Invalid template syntax',
-            'error'
+            'error',
           )
         },
-        { timeout: 3000 }
+        { timeout: 3000 },
       )
     })
 
@@ -695,7 +700,7 @@ describe('FieldMappingSettings', () => {
           projectId={projectId}
           currentTemplate={currentTemplate}
           availableFields={availableFields}
-        />
+        />,
       )
 
       const editButton = screen.getByText('Edit Template')
@@ -708,10 +713,10 @@ describe('FieldMappingSettings', () => {
         () => {
           expect(mockAddToast).toHaveBeenCalledWith(
             'Update failed: Failed to update template',
-            'error'
+            'error',
           )
         },
-        { timeout: 3000 }
+        { timeout: 3000 },
       )
     })
   })
@@ -723,7 +728,7 @@ describe('FieldMappingSettings', () => {
           projectId={projectId}
           currentTemplate={currentTemplate}
           availableFields={availableFields}
-        />
+        />,
       )
 
       const editButton = screen.getByText('Edit Template')
@@ -741,14 +746,14 @@ describe('FieldMappingSettings', () => {
           projectId={projectId}
           currentTemplate={currentTemplate}
           availableFields={availableFields}
-        />
+        />,
       )
 
       const editButton = screen.getByText('Edit Template')
       await user.click(editButton)
 
       const textarea = screen.getByPlaceholderText(
-        'Enter your Label Studio configuration...'
+        'Enter your Label Studio configuration...',
       )
       expect(textarea).toHaveAttribute('placeholder')
     })

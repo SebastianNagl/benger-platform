@@ -58,7 +58,8 @@ import { PostAnnotationQuestionnaireModal } from '../../../components/labeling/P
 
 const defaultProps = {
   isOpen: true,
-  questionnaireConfig: '<View><Choices name="q1" toName="text"><Choice value="Yes"/><Choice value="No"/></Choices></View>',
+  questionnaireConfig:
+    '<View><Choices name="q1" toName="text"><Choice value="Yes"/><Choice value="No"/></Choices></View>',
   projectId: 'proj-123',
   taskId: 'task-456',
   annotationId: 'ann-789',
@@ -76,21 +77,25 @@ describe('PostAnnotationQuestionnaireModal', () => {
   describe('Rendering', () => {
     it('should render modal content when isOpen is true', async () => {
       await act(async () => {
-        render(<PostAnnotationQuestionnaireModal {...defaultProps} isOpen={true} />)
+        render(
+          <PostAnnotationQuestionnaireModal {...defaultProps} isOpen={true} />,
+        )
       })
 
       expect(
-        screen.getByText('Post-Annotation Questionnaire')
+        screen.getByText('Post-Annotation Questionnaire'),
       ).toBeInTheDocument()
     })
 
     it('should not render modal content when isOpen is false', async () => {
       await act(async () => {
-        render(<PostAnnotationQuestionnaireModal {...defaultProps} isOpen={false} />)
+        render(
+          <PostAnnotationQuestionnaireModal {...defaultProps} isOpen={false} />,
+        )
       })
 
       expect(
-        screen.queryByText('Post-Annotation Questionnaire')
+        screen.queryByText('Post-Annotation Questionnaire'),
       ).not.toBeInTheDocument()
     })
 
@@ -100,12 +105,12 @@ describe('PostAnnotationQuestionnaireModal', () => {
       })
 
       expect(
-        screen.getByText('Post-Annotation Questionnaire')
+        screen.getByText('Post-Annotation Questionnaire'),
       ).toBeInTheDocument()
       expect(
         screen.getByText(
-          'Please answer the following questions about this annotation.'
-        )
+          'Please answer the following questions about this annotation.',
+        ),
       ).toBeInTheDocument()
     })
 
@@ -116,7 +121,7 @@ describe('PostAnnotationQuestionnaireModal', () => {
 
       expect(screen.getByTestId('mock-dynamic-interface')).toBeInTheDocument()
       expect(screen.getByTestId('label-config')).toHaveTextContent(
-        defaultProps.questionnaireConfig
+        defaultProps.questionnaireConfig,
       )
       expect(screen.getByTestId('show-submit')).toHaveTextContent('true')
       expect(screen.getByTestId('auto-save')).toHaveTextContent('false')
@@ -139,7 +144,7 @@ describe('PostAnnotationQuestionnaireModal', () => {
           'proj-123',
           'task-456',
           'ann-789',
-          [{ id: 'test', value: 'answer' }]
+          [{ id: 'test', value: 'answer' }],
         )
       })
     })
@@ -163,7 +168,7 @@ describe('PostAnnotationQuestionnaireModal', () => {
 
       // The submitting text should be visible while the promise is pending
       expect(
-        screen.getByText('Submitting questionnaire...')
+        screen.getByText('Submitting questionnaire...'),
       ).toBeInTheDocument()
 
       // Resolve the promise to clean up
@@ -248,9 +253,7 @@ describe('PostAnnotationQuestionnaireModal', () => {
 
     it('should fall back to default error message when err.message is undefined', async () => {
       // Reject with an object that has no message property
-      defaultProps.onSubmitResponse = jest
-        .fn()
-        .mockRejectedValue({ code: 500 })
+      defaultProps.onSubmitResponse = jest.fn().mockRejectedValue({ code: 500 })
 
       const user = userEvent.setup()
 
@@ -263,7 +266,7 @@ describe('PostAnnotationQuestionnaireModal', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('Failed to submit questionnaire response')
+          screen.getByText('Failed to submit questionnaire response'),
         ).toBeInTheDocument()
       })
     })
@@ -294,7 +297,7 @@ describe('PostAnnotationQuestionnaireModal', () => {
 
       await waitFor(() => {
         expect(
-          screen.queryByText('First attempt failed')
+          screen.queryByText('First attempt failed'),
         ).not.toBeInTheDocument()
       })
     })
@@ -314,7 +317,7 @@ describe('PostAnnotationQuestionnaireModal', () => {
 
       // Modal should still be visible — it was not dismissed
       expect(
-        screen.getByText('Post-Annotation Questionnaire')
+        screen.getByText('Post-Annotation Questionnaire'),
       ).toBeInTheDocument()
     })
   })

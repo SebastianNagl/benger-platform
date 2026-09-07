@@ -9,25 +9,35 @@
 import {
   detectValueType,
   extractDataColumns,
-  formatFieldLabel,
+  extractMetadataColumns,
   formatCellValue,
+  formatFieldLabel,
   getTaskDisplayValue,
   hasConsistentDataStructure,
-  extractMetadataColumns,
   hasConsistentMetadataStructure,
 } from '../dataColumnHelpers'
 
 describe('detectValueType', () => {
-  it('should return text for null', () => expect(detectValueType(null)).toBe('text'))
-  it('should return text for undefined', () => expect(detectValueType(undefined)).toBe('text'))
-  it('should return boolean for true', () => expect(detectValueType(true)).toBe('boolean'))
-  it('should return boolean for false', () => expect(detectValueType(false)).toBe('boolean'))
-  it('should return number for 42', () => expect(detectValueType(42)).toBe('number'))
-  it('should return number for 0', () => expect(detectValueType(0)).toBe('number'))
-  it('should return date for ISO string', () => expect(detectValueType('2024-01-15T00:00:00Z')).toBe('date'))
-  it('should return text for regular string', () => expect(detectValueType('hello')).toBe('text'))
-  it('should return array for arrays', () => expect(detectValueType([1, 2])).toBe('array'))
-  it('should return object for objects', () => expect(detectValueType({ a: 1 })).toBe('object'))
+  it('should return text for null', () =>
+    expect(detectValueType(null)).toBe('text'))
+  it('should return text for undefined', () =>
+    expect(detectValueType(undefined)).toBe('text'))
+  it('should return boolean for true', () =>
+    expect(detectValueType(true)).toBe('boolean'))
+  it('should return boolean for false', () =>
+    expect(detectValueType(false)).toBe('boolean'))
+  it('should return number for 42', () =>
+    expect(detectValueType(42)).toBe('number'))
+  it('should return number for 0', () =>
+    expect(detectValueType(0)).toBe('number'))
+  it('should return date for ISO string', () =>
+    expect(detectValueType('2024-01-15T00:00:00Z')).toBe('date'))
+  it('should return text for regular string', () =>
+    expect(detectValueType('hello')).toBe('text'))
+  it('should return array for arrays', () =>
+    expect(detectValueType([1, 2])).toBe('array'))
+  it('should return object for objects', () =>
+    expect(detectValueType({ a: 1 })).toBe('object'))
 })
 
 describe('extractDataColumns', () => {
@@ -36,7 +46,9 @@ describe('extractDataColumns', () => {
   })
 
   it('should extract columns from task data', () => {
-    const tasks = [{ id: '1', data: { question: 'why?', answer: 'because' } }] as any
+    const tasks = [
+      { id: '1', data: { question: 'why?', answer: 'because' } },
+    ] as any
     const cols = extractDataColumns(tasks)
     expect(cols.length).toBeGreaterThan(0)
     expect(cols.some((c: any) => c.key === 'question')).toBe(true)
@@ -92,7 +104,11 @@ describe('formatFieldLabel', () => {
 
 describe('formatCellValue', () => {
   it('should return dash for null', () => {
-    expect(formatCellValue(null, 'text')).toEqual({ display: '-', full: '-', truncated: false })
+    expect(formatCellValue(null, 'text')).toEqual({
+      display: '-',
+      full: '-',
+      truncated: false,
+    })
   })
 
   it('should format boolean true', () => {
@@ -162,25 +178,38 @@ describe('getTaskDisplayValue', () => {
   })
 
   it('should return priority field value', () => {
-    expect(getTaskDisplayValue({ id: '1', data: { question: 'Why?' } } as any)).toBe('Why?')
+    expect(
+      getTaskDisplayValue({ id: '1', data: { question: 'Why?' } } as any),
+    ).toBe('Why?')
   })
 
   it('should fall back to first string value', () => {
-    expect(getTaskDisplayValue({ id: '1', data: { custom: 'hello' } } as any)).toBe('hello')
+    expect(
+      getTaskDisplayValue({ id: '1', data: { custom: 'hello' } } as any),
+    ).toBe('hello')
   })
 
   it('should skip non-string priority fields', () => {
-    expect(getTaskDisplayValue({ id: '1', data: { question: 42, custom: 'fallback' } } as any)).toBe('fallback')
+    expect(
+      getTaskDisplayValue({
+        id: '1',
+        data: { question: 42, custom: 'fallback' },
+      } as any),
+    ).toBe('fallback')
   })
 
   it('should return Task id when data has no strings', () => {
-    expect(getTaskDisplayValue({ id: '1', data: { num: 42 } } as any)).toBe('Task 1')
+    expect(getTaskDisplayValue({ id: '1', data: { num: 42 } } as any)).toBe(
+      'Task 1',
+    )
   })
 })
 
 describe('hasConsistentDataStructure', () => {
   it('should return true for single task', () => {
-    expect(hasConsistentDataStructure([{ id: '1', data: { a: 1 } }] as any)).toBe(true)
+    expect(
+      hasConsistentDataStructure([{ id: '1', data: { a: 1 } }] as any),
+    ).toBe(true)
   })
 
   it('should return true for consistent tasks', () => {
@@ -225,7 +254,9 @@ describe('extractMetadataColumns', () => {
 
 describe('hasConsistentMetadataStructure', () => {
   it('should return true for single task', () => {
-    expect(hasConsistentMetadataStructure([{ id: '1', meta: { a: 1 } }] as any)).toBe(true)
+    expect(
+      hasConsistentMetadataStructure([{ id: '1', meta: { a: 1 } }] as any),
+    ).toBe(true)
   })
 
   it('should return true when fewer than 2 tasks have meta', () => {

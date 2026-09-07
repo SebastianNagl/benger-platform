@@ -54,10 +54,10 @@ describe('SearchInput', () => {
           value=""
           onChange={() => {}}
           placeholder="Find projects..."
-        />
+        />,
       )
       expect(
-        screen.getByPlaceholderText('Find projects...')
+        screen.getByPlaceholderText('Find projects...'),
       ).toBeInTheDocument()
     })
 
@@ -69,7 +69,7 @@ describe('SearchInput', () => {
 
     it('should hide icon when showIcon is false', () => {
       const { container } = render(
-        <SearchInput value="" onChange={() => {}} showIcon={false} />
+        <SearchInput value="" onChange={() => {}} showIcon={false} />,
       )
       const icon = container.querySelector('svg')
       expect(icon).not.toBeInTheDocument()
@@ -83,7 +83,7 @@ describe('SearchInput', () => {
 
     it('should position icon on the right when specified', () => {
       const { container } = render(
-        <SearchInput value="" onChange={() => {}} iconPosition="right" />
+        <SearchInput value="" onChange={() => {}} iconPosition="right" />,
       )
       const rightIcon = container.querySelector('.right-0')
       expect(rightIcon).toBeInTheDocument()
@@ -91,7 +91,7 @@ describe('SearchInput', () => {
 
     it('should show loading spinner when loading is true', () => {
       const { container } = render(
-        <SearchInput value="" onChange={() => {}} loading={true} />
+        <SearchInput value="" onChange={() => {}} loading={true} />,
       )
       const spinner = container.querySelector('.animate-spin')
       expect(spinner).toBeInTheDocument()
@@ -99,7 +99,7 @@ describe('SearchInput', () => {
 
     it('should apply custom className', () => {
       const { container } = render(
-        <SearchInput value="" onChange={() => {}} className="custom-class" />
+        <SearchInput value="" onChange={() => {}} className="custom-class" />,
       )
       expect(container.firstChild).toHaveClass('custom-class')
     })
@@ -176,7 +176,7 @@ describe('SearchInput', () => {
 
     it('should sync with external value changes', () => {
       const { rerender } = render(
-        <SearchInput value="initial" onChange={() => {}} />
+        <SearchInput value="initial" onChange={() => {}} />,
       )
       expect(screen.getByDisplayValue('initial')).toBeInTheDocument()
 
@@ -207,7 +207,7 @@ describe('SearchInput', () => {
           aria-label="Search projects"
           data-testid="custom-search"
           autoComplete="off"
-        />
+        />,
       )
       const input = screen.getByPlaceholderText('Search...')
       expect(input).toHaveAttribute('aria-label', 'Search projects')

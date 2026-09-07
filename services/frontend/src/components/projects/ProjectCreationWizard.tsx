@@ -10,24 +10,28 @@
 
 import { Button } from '@/components/shared/Button'
 import { Card } from '@/components/shared/Card'
+import { useToast } from '@/components/shared/Toast'
 import { useI18n } from '@/contexts/I18nContext'
 import { apiClient } from '@/lib/api/client'
 import { projectsAPI } from '@/lib/api/projects'
-import { getRegisteredWizardTemplates, getWizardKindPreset, getWizardPostCreateHooks } from '@/lib/extensions'
+import {
+  getRegisteredWizardTemplates,
+  getWizardKindPreset,
+  getWizardPostCreateHooks,
+} from '@/lib/extensions'
 import { useSlot } from '@/lib/extensions/slots'
-import { defaultIconForKind } from '@/lib/projectKind'
 import { getWizardFinishContributors } from '@/lib/extensions/wizardFinish'
-import { extractFieldsFromLabelConfig } from '@/lib/labelConfig/fieldExtractor'
 import {
   buildImportFile,
   detectFormat,
   parseImportData,
 } from '@/lib/import/parseImportData'
+import { extractFieldsFromLabelConfig } from '@/lib/labelConfig/fieldExtractor'
+import { defaultIconForKind } from '@/lib/projectKind'
 import { useProjectStore } from '@/stores/projectStore'
 import { ArrowLeftIcon, ArrowRightIcon } from '@heroicons/react/24/outline'
 import { useRouter } from 'next/navigation'
 import { useCallback, useMemo, useRef, useState } from 'react'
-import { useToast } from '@/components/shared/Toast'
 import { StepAnnotationInstructions } from './wizard/StepAnnotationInstructions'
 import { StepDataImport } from './wizard/StepDataImport'
 import { StepEvaluationMethods } from './wizard/StepEvaluationMethods'
@@ -68,7 +72,7 @@ export function ProjectCreationWizard() {
         id: 'question-answering',
         name: t('projects.creation.wizard.templates.questionAnswering.name'),
         description: t(
-          'projects.creation.wizard.templates.questionAnswering.description'
+          'projects.creation.wizard.templates.questionAnswering.description',
         ),
         icon: '\u2753',
         category: 'NLP',
@@ -84,7 +88,7 @@ export function ProjectCreationWizard() {
         id: 'multiple-choice',
         name: t('projects.creation.wizard.templates.multipleChoice.name'),
         description: t(
-          'projects.creation.wizard.templates.multipleChoice.description'
+          'projects.creation.wizard.templates.multipleChoice.description',
         ),
         icon: '\uD83D\uDD18',
         category: 'NLP',
@@ -106,7 +110,7 @@ export function ProjectCreationWizard() {
         id: 'span-annotation',
         name: t('projects.creation.wizard.templates.spanAnnotation.name'),
         description: t(
-          'projects.creation.wizard.templates.spanAnnotation.description'
+          'projects.creation.wizard.templates.spanAnnotation.description',
         ),
         icon: '\uD83C\uDFF7\uFE0F',
         category: 'NLP',
@@ -139,7 +143,7 @@ export function ProjectCreationWizard() {
         description: t(r.descriptionKey),
       })),
     ],
-    [t]
+    [t],
   )
 
   // Extended-edition step body for the experimental KI-Generator feature
@@ -158,7 +162,7 @@ export function ProjectCreationWizard() {
         id: 'projectInfo',
         name: t('projects.creation.wizard.steps.projectInfo.name'),
         description: t(
-          'projects.creation.wizard.steps.projectInfo.description'
+          'projects.creation.wizard.steps.projectInfo.description',
         ),
       },
     ]
@@ -167,9 +171,7 @@ export function ProjectCreationWizard() {
       steps.push({
         id: 'synthetic',
         name: t('projects.creation.wizard.steps.synthetic.name'),
-        description: t(
-          'projects.creation.wizard.steps.synthetic.description'
-        ),
+        description: t('projects.creation.wizard.steps.synthetic.description'),
       })
     }
 
@@ -177,9 +179,7 @@ export function ProjectCreationWizard() {
       steps.push({
         id: 'dataImport',
         name: t('projects.creation.wizard.steps.dataImport.name'),
-        description: t(
-          'projects.creation.wizard.steps.dataImport.description'
-        ),
+        description: t('projects.creation.wizard.steps.dataImport.description'),
       })
     }
 
@@ -189,18 +189,16 @@ export function ProjectCreationWizard() {
           id: 'labelingSetup',
           name: t('projects.creation.wizard.steps.labelingSetup.name'),
           description: t(
-            'projects.creation.wizard.steps.labelingSetup.description'
+            'projects.creation.wizard.steps.labelingSetup.description',
           ),
         },
         {
           id: 'annotationInstructions',
-          name: t(
-            'projects.creation.wizard.steps.annotationInstructions.name'
-          ),
+          name: t('projects.creation.wizard.steps.annotationInstructions.name'),
           description: t(
-            'projects.creation.wizard.steps.annotationInstructions.description'
+            'projects.creation.wizard.steps.annotationInstructions.description',
           ),
-        }
+        },
       )
     }
 
@@ -209,17 +207,13 @@ export function ProjectCreationWizard() {
         {
           id: 'models',
           name: t('projects.creation.wizard.steps.models.name'),
-          description: t(
-            'projects.creation.wizard.steps.models.description'
-          ),
+          description: t('projects.creation.wizard.steps.models.description'),
         },
         {
           id: 'prompts',
           name: t('projects.creation.wizard.steps.prompts.name'),
-          description: t(
-            'projects.creation.wizard.steps.prompts.description'
-          ),
-        }
+          description: t('projects.creation.wizard.steps.prompts.description'),
+        },
       )
     }
 
@@ -227,9 +221,7 @@ export function ProjectCreationWizard() {
       steps.push({
         id: 'evaluation',
         name: t('projects.creation.wizard.steps.evaluation.name'),
-        description: t(
-          'projects.creation.wizard.steps.evaluation.description'
-        ),
+        description: t('projects.creation.wizard.steps.evaluation.description'),
       })
     }
 
@@ -242,18 +234,14 @@ export function ProjectCreationWizard() {
       steps.push({
         id: 'rubric',
         name: t('projects.creation.wizard.steps.rubric.name'),
-        description: t(
-          'projects.creation.wizard.steps.rubric.description'
-        ),
+        description: t('projects.creation.wizard.steps.rubric.description'),
       })
     }
 
     steps.push({
       id: 'settings',
       name: t('projects.creation.wizard.steps.settings.name'),
-      description: t(
-        'projects.creation.wizard.steps.settings.description'
-      ),
+      description: t('projects.creation.wizard.steps.settings.description'),
     })
 
     return steps
@@ -275,7 +263,7 @@ export function ProjectCreationWizard() {
       wizardData.labelingConfig?.config
         ? extractFieldsFromLabelConfig(wizardData.labelingConfig.config)
         : { outputFields: [], inputFields: [] },
-    [wizardData.labelingConfig?.config]
+    [wizardData.labelingConfig?.config],
   )
 
   const availableVariables = useMemo(() => {
@@ -315,11 +303,11 @@ export function ProjectCreationWizard() {
           }
           // The icon follows the type default until the user picked their own.
           const prevDefault = defaultIconForKind(
-            prev.projectKind === 'generic' ? null : prev.projectKind
+            prev.projectKind === 'generic' ? null : prev.projectKind,
           )
           if (!prev.icon || prev.icon === prevDefault) {
             next.icon = defaultIconForKind(
-              partial.projectKind === 'generic' ? null : partial.projectKind
+              partial.projectKind === 'generic' ? null : partial.projectKind,
             )
           }
           // Extended kind preset: prefills judge pair / immediate eval /
@@ -349,7 +337,7 @@ export function ProjectCreationWizard() {
         return next
       })
     },
-    [nlpTemplates]
+    [nlpTemplates],
   )
 
   const validateStep = (): boolean => {
@@ -358,7 +346,7 @@ export function ProjectCreationWizard() {
     if (currentStep?.id === 'projectInfo') {
       if (!wizardData.title.trim()) {
         newErrors.title = t(
-          'projects.creation.wizard.step1.validation.nameRequired'
+          'projects.creation.wizard.step1.validation.nameRequired',
         )
       }
       if (
@@ -367,7 +355,7 @@ export function ProjectCreationWizard() {
       ) {
         newErrors.organizationIds = t(
           'projects.creation.wizard.step1.validation.orgRequired',
-          'Pick at least one organization, or change visibility.'
+          'Pick at least one organization, or change visibility.',
         )
       }
     }
@@ -417,11 +405,11 @@ export function ProjectCreationWizard() {
       } = {
         title: wizardData.title.trim(),
         description: wizardData.description.trim(),
-        label_config:
-          wizardData.labelingConfig?.config || defaultLabelConfig,
+        label_config: wizardData.labelingConfig?.config || defaultLabelConfig,
         // Write-once project type; generic stays NULL so plain benchmark
         // projects are unaffected.
-        kind: wizardData.projectKind === 'generic' ? null : wizardData.projectKind,
+        kind:
+          wizardData.projectKind === 'generic' ? null : wizardData.projectKind,
         icon: wizardData.icon.trim() || null,
       }
       if (wizardData.visibility === 'private') {
@@ -455,18 +443,20 @@ export function ProjectCreationWizard() {
               (orgId) => ({
                 organization_id: orgId,
                 group_id: wizardData.organizationGroupIds[orgId] ?? null,
-              })
+              }),
             ),
           })
         } catch (err) {
-           
-          console.error('Failed to assign organizations after project create', err)
+          console.error(
+            'Failed to assign organizations after project create',
+            err,
+          )
           addToast(
             t(
               'projects.creation.wizard.orgAssignFailed',
-              'Project was created but could not be assigned to the selected organizations. Please assign them from the project settings.'
+              'Project was created but could not be assigned to the selected organizations. Please assign them from the project settings.',
             ),
-            'error'
+            'error',
           )
         }
       }
@@ -492,7 +482,7 @@ export function ProjectCreationWizard() {
             })
             const parsed = parseImportData(
               content,
-              detectFormat(content, wizardData.selectedFile.name)
+              detectFormat(content, wizardData.selectedFile.name),
             )
             rows = parsed.rows
             extras = parsed.extras
@@ -527,7 +517,7 @@ export function ProjectCreationWizard() {
                   ? importError.message
                   : t('projects.wizard.unknownError'),
             }),
-            'error'
+            'error',
           )
         }
       }
@@ -572,13 +562,15 @@ export function ProjectCreationWizard() {
       // Annotation display settings (from instructions step)
       if (wizardData.features.annotation) {
         updatePayload.show_instruction = wizardData.show_instruction
-        updatePayload.instructions_always_visible = wizardData.instructions_always_visible
+        updatePayload.instructions_always_visible =
+          wizardData.instructions_always_visible
         updatePayload.show_skip_button = wizardData.show_skip_button
       }
 
       // Evaluation settings
       if (wizardData.features.evaluation) {
-        updatePayload.immediate_evaluation_enabled = wizardData.immediate_evaluation_enabled
+        updatePayload.immediate_evaluation_enabled =
+          wizardData.immediate_evaluation_enabled
       }
 
       // Let extended packages contribute additional fields based on the
@@ -606,11 +598,14 @@ export function ProjectCreationWizard() {
       updatePayload.maximum_annotations = s.maximum_annotations
       updatePayload.min_annotations_per_task = s.min_annotations_per_task
       updatePayload.randomize_task_order = s.randomize_task_order
-      updatePayload.require_confirm_before_submit = s.require_confirm_before_submit
+      updatePayload.require_confirm_before_submit =
+        s.require_confirm_before_submit
       updatePayload.annotator_full_visibility_after_submit =
         s.annotator_full_visibility_after_submit
-      updatePayload.annotation_time_limit_enabled = s.annotation_time_limit_enabled
-      updatePayload.annotation_time_limit_seconds = s.annotation_time_limit_seconds
+      updatePayload.annotation_time_limit_enabled =
+        s.annotation_time_limit_enabled
+      updatePayload.annotation_time_limit_seconds =
+        s.annotation_time_limit_seconds
       updatePayload.strict_timer_enabled = s.strict_timer_enabled
       updatePayload.window_start_at = s.window_start_at
       updatePayload.window_end_at = s.window_end_at
@@ -633,7 +628,7 @@ export function ProjectCreationWizard() {
         try {
           await apiClient.put(
             `/evaluations/projects/${project.id}/evaluation-config`,
-            { evaluation_configs: wizardData.evaluationConfigs }
+            { evaluation_configs: wizardData.evaluationConfigs },
           )
         } catch (evalError) {
           addToast(t('projects.creation.wizard.evalSaveFailed'), 'error')
@@ -651,22 +646,23 @@ export function ProjectCreationWizard() {
           await apiClient.put(
             `/projects/${project.id}/generation-config/structures/default`,
             {
-              name: wizardData.promptTemplate !== 'custom'
-                ? wizardData.promptTemplate
-                : 'Default',
+              name:
+                wizardData.promptTemplate !== 'custom'
+                  ? wizardData.promptTemplate
+                  : 'Default',
               system_prompt: wizardData.systemPrompt,
               instruction_prompt: wizardData.instructionPrompt,
-            }
+            },
           )
           await apiClient.put(
             `/projects/${project.id}/generation-config/structures`,
-            ['default']
+            ['default'],
           )
         } catch {
           // Non-critical — prompts are also saved in generation_config.selected_configuration
           addToast(
             t('projects.creation.wizard.promptStructureSaveFailed'),
-            'error'
+            'error',
           )
         }
       }
@@ -680,8 +676,11 @@ export function ProjectCreationWizard() {
           addToast(
             hookError instanceof Error
               ? hookError.message
-              : t('projects.wizard.postCreateHookFailed', 'Nachbearbeitung fehlgeschlagen'),
-            'error'
+              : t(
+                  'projects.wizard.postCreateHookFailed',
+                  'Nachbearbeitung fehlgeschlagen',
+                ),
+            'error',
           )
         }
       }
@@ -696,7 +695,7 @@ export function ProjectCreationWizard() {
         error instanceof Error
           ? error.message
           : t('projects.wizard.createFailed'),
-        'error'
+        'error',
       )
       // Re-enable the button so the user can retry. On the success path we
       // navigate away (router.push) and the component unmounts, so the guard
@@ -768,9 +767,7 @@ export function ProjectCreationWizard() {
             onPastedDataChange={(pastedData) =>
               updateWizardData({ pastedData })
             }
-            onFileChange={(selectedFile) =>
-              updateWizardData({ selectedFile })
-            }
+            onFileChange={(selectedFile) => updateWizardData({ selectedFile })}
             onDataColumnsChange={(dataColumns) =>
               updateWizardData({ dataColumns })
             }
@@ -873,9 +870,7 @@ export function ProjectCreationWizard() {
         <Button
           variant="outline"
           onClick={
-            currentStepIndex === 0
-              ? () => router.push('/projects')
-              : handleBack
+            currentStepIndex === 0 ? () => router.push('/projects') : handleBack
           }
           disabled={loading}
           data-testid={

@@ -25,19 +25,29 @@ jest.mock('@/contexts/I18nContext', () => ({
         'tasks.questionCard.reasoning': 'Reasoning',
         'tasks.questionCard.contextOptional': 'Context (Optional)',
         'tasks.questionCard.answerOptions': 'Answer Options',
-        'tasks.questionCard.placeholderCase': 'Case background, case, or relevant details...',
+        'tasks.questionCard.placeholderCase':
+          'Case background, case, or relevant details...',
         'tasks.questionCard.placeholderQuestion': 'Enter your question here...',
-        'tasks.questionCard.placeholderExpectedAnswer': 'Enter the expected answer...',
-        'tasks.questionCard.placeholderMcq': 'Enter your multiple choice question here...',
-        'tasks.questionCard.placeholderContext': 'Additional case or background information (optional)...',
-        'tasks.questionCard.placeholderLegalCase': 'Case background, relevant precedents, or case...',
-        'tasks.questionCard.placeholderLegalQuestion': 'Enter the legal question to be analyzed...',
-        'tasks.questionCard.placeholderLegalAnswer': 'Provide the expected answer to the legal question...',
-        'tasks.questionCard.placeholderReasoning': 'Provide detailed reasoning for the decision...',
-        'tasks.questionCard.selectCorrectTooltip': 'Select the radio button for the correct reference answer',
+        'tasks.questionCard.placeholderExpectedAnswer':
+          'Enter the expected answer...',
+        'tasks.questionCard.placeholderMcq':
+          'Enter your multiple choice question here...',
+        'tasks.questionCard.placeholderContext':
+          'Additional case or background information (optional)...',
+        'tasks.questionCard.placeholderLegalCase':
+          'Case background, relevant precedents, or case...',
+        'tasks.questionCard.placeholderLegalQuestion':
+          'Enter the legal question to be analyzed...',
+        'tasks.questionCard.placeholderLegalAnswer':
+          'Provide the expected answer to the legal question...',
+        'tasks.questionCard.placeholderReasoning':
+          'Provide detailed reasoning for the decision...',
+        'tasks.questionCard.selectCorrectTooltip':
+          'Select the radio button for the correct reference answer',
         'tasks.questionCard.optionPlaceholder': `Option ${params?.option || ''}`,
         'tasks.questionCard.answerConfiguration': 'Answer Configuration:',
-        'tasks.questionCard.answerConfigHelp': 'QAR tasks always use free text input for detailed reasoning',
+        'tasks.questionCard.answerConfigHelp':
+          'QAR tasks always use free text input for detailed reasoning',
         'tasks.questionCard.caseLabel': 'Case:',
         'tasks.questionCard.questionLabel': 'Question:',
         'tasks.questionCard.referenceAnswerLabel': 'Reference Answer:',
@@ -95,11 +105,11 @@ describe('QuestionCard', () => {
           taskType="qa"
           onUpdate={mockOnUpdate}
           onDelete={mockOnDelete}
-        />
+        />,
       )
 
       expect(
-        screen.getByText('What is the capital of Germany?')
+        screen.getByText('What is the capital of Germany?'),
       ).toBeInTheDocument()
       expect(screen.getByText('Berlin')).toBeInTheDocument()
       expect(screen.getByText('Question test-question-1')).toBeInTheDocument()
@@ -112,18 +122,18 @@ describe('QuestionCard', () => {
           taskType="qa"
           onUpdate={mockOnUpdate}
           onDelete={mockOnDelete}
-        />
+        />,
       )
 
       // Component starts in edit mode, so Edit button is not visible
       expect(
-        screen.queryByRole('button', { name: /edit/i })
+        screen.queryByRole('button', { name: /edit/i }),
       ).not.toBeInTheDocument()
       expect(
-        screen.getByRole('button', { name: /delete/i })
+        screen.getByRole('button', { name: /delete/i }),
       ).toBeInTheDocument()
       expect(
-        screen.getByRole('button', { name: /cancel/i })
+        screen.getByRole('button', { name: /cancel/i }),
       ).toBeInTheDocument()
       expect(screen.getByRole('button', { name: /save/i })).toBeInTheDocument()
     })
@@ -136,7 +146,7 @@ describe('QuestionCard', () => {
           taskType="qa"
           onUpdate={mockOnUpdate}
           onDelete={mockOnDelete}
-        />
+        />,
       )
 
       const deleteButton = screen.getByRole('button', { name: /delete/i })
@@ -152,17 +162,17 @@ describe('QuestionCard', () => {
           taskType="qa"
           onUpdate={mockOnUpdate}
           onDelete={mockOnDelete}
-        />
+        />,
       )
 
       // Component starts in edit mode, so form inputs should be visible
       expect(
-        screen.getByDisplayValue('What is the capital of Germany?')
+        screen.getByDisplayValue('What is the capital of Germany?'),
       ).toBeInTheDocument()
       expect(screen.getByDisplayValue('Berlin')).toBeInTheDocument()
       expect(screen.getByRole('button', { name: /save/i })).toBeInTheDocument()
       expect(
-        screen.getByRole('button', { name: /cancel/i })
+        screen.getByRole('button', { name: /cancel/i }),
       ).toBeInTheDocument()
     })
 
@@ -174,12 +184,12 @@ describe('QuestionCard', () => {
           taskType="qa"
           onUpdate={mockOnUpdate}
           onDelete={mockOnDelete}
-        />
+        />,
       )
 
       // Component starts in edit mode, so we can directly edit
       const questionInput = screen.getByDisplayValue(
-        'What is the capital of Germany?'
+        'What is the capital of Germany?',
       )
       await user.clear(questionInput)
       await user.type(questionInput, 'What is the largest city in Germany?')
@@ -195,13 +205,13 @@ describe('QuestionCard', () => {
           taskType="qa"
           onUpdate={mockOnUpdate}
           onDelete={mockOnDelete}
-        />
+        />,
       )
 
       // Component starts in edit mode already
 
       const questionInput = screen.getByDisplayValue(
-        'What is the capital of Germany?'
+        'What is the capital of Germany?',
       )
       const answerInput = screen.getByDisplayValue('Berlin')
 
@@ -228,12 +238,12 @@ describe('QuestionCard', () => {
           taskType="qa"
           onUpdate={mockOnUpdate}
           onDelete={mockOnDelete}
-        />
+        />,
       )
 
       // Component starts in edit mode already
       const questionInput = screen.getByDisplayValue(
-        'What is the capital of Germany?'
+        'What is the capital of Germany?',
       )
       await user.clear(questionInput)
       await user.type(questionInput, 'This should not be saved')
@@ -245,7 +255,7 @@ describe('QuestionCard', () => {
       expect(mockOnUpdate).toHaveBeenCalled()
       // After cancel, should exit edit mode and show original text as read-only
       expect(
-        screen.getByText('What is the capital of Germany?')
+        screen.getByText('What is the capital of Germany?'),
       ).toBeInTheDocument()
       expect(screen.getByRole('button', { name: /edit/i })).toBeInTheDocument()
     })
@@ -261,18 +271,18 @@ describe('QuestionCard', () => {
           onDelete={mockOnDelete}
           isExpanded={false}
           onToggleExpanded={mockOnToggleExpanded}
-        />
+        />,
       )
 
       // Component starts in edit mode, so form fields should be visible
       expect(
-        screen.getByDisplayValue('Analyze this legal case.')
+        screen.getByDisplayValue('Analyze this legal case.'),
       ).toBeInTheDocument()
       expect(
-        screen.getByDisplayValue('The defendant is liable under §823 BGB.')
+        screen.getByDisplayValue('The defendant is liable under §823 BGB.'),
       ).toBeInTheDocument()
       expect(
-        screen.getByRole('button', { name: /delete/i })
+        screen.getByRole('button', { name: /delete/i }),
       ).toBeInTheDocument()
       expect(screen.getByRole('button', { name: /save/i })).toBeInTheDocument()
     })
@@ -286,15 +296,15 @@ describe('QuestionCard', () => {
           onDelete={mockOnDelete}
           isExpanded={false}
           onToggleExpanded={mockOnToggleExpanded}
-        />
+        />,
       )
 
       // Component starts in edit mode, so expand/collapse buttons should not be visible
       expect(
-        screen.queryByRole('button', { name: /expand/i })
+        screen.queryByRole('button', { name: /expand/i }),
       ).not.toBeInTheDocument()
       expect(
-        screen.queryByRole('button', { name: /collapse/i })
+        screen.queryByRole('button', { name: /collapse/i }),
       ).not.toBeInTheDocument()
     })
 
@@ -307,15 +317,15 @@ describe('QuestionCard', () => {
           onDelete={mockOnDelete}
           isExpanded={true}
           onToggleExpanded={mockOnToggleExpanded}
-        />
+        />,
       )
 
       // In edit mode, form fields should be visible regardless of expanded state
       expect(
-        screen.getByDisplayValue('Analyze this legal case.')
+        screen.getByDisplayValue('Analyze this legal case.'),
       ).toBeInTheDocument()
       expect(
-        screen.getByDisplayValue('The defendant is liable under §823 BGB.')
+        screen.getByDisplayValue('The defendant is liable under §823 BGB.'),
       ).toBeInTheDocument()
     })
   })
@@ -329,7 +339,7 @@ describe('QuestionCard', () => {
           taskType="qa"
           onUpdate={mockOnUpdate}
           onDelete={mockOnDelete}
-        />
+        />,
       )
 
       // Component starts in edit mode already
@@ -347,13 +357,13 @@ describe('QuestionCard', () => {
           taskType="qa"
           onUpdate={mockOnUpdate}
           onDelete={mockOnDelete}
-        />
+        />,
       )
 
       // Component starts in edit mode already
 
       const questionInput = screen.getByDisplayValue(
-        'What is the capital of Germany?'
+        'What is the capital of Germany?',
       )
       await user.click(questionInput)
       await user.keyboard('{Tab}')
@@ -377,15 +387,15 @@ describe('QuestionCard', () => {
           taskType="qa"
           onUpdate={mockOnUpdate}
           onDelete={mockOnDelete}
-        />
+        />,
       )
 
       // In edit mode, empty values show as empty input fields, not placeholder text
       const questionInput = screen.getByPlaceholderText(
-        'Enter your question here...'
+        'Enter your question here...',
       )
       const answerInput = screen.getByPlaceholderText(
-        'Enter the expected answer...'
+        'Enter the expected answer...',
       )
 
       expect(questionInput).toHaveValue('')
@@ -406,7 +416,7 @@ describe('QuestionCard', () => {
           taskType="qa_reasoning"
           onUpdate={mockOnUpdate}
           onDelete={mockOnDelete}
-        />
+        />,
       )
 
       expect(screen.getByText('Question minimal-qar')).toBeInTheDocument()

@@ -25,8 +25,14 @@ import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
 
 export function AuthButton() {
-  const { user, logout, isLoading, currentOrganization, organizations, setCurrentOrganization } =
-    useAuth()
+  const {
+    user,
+    logout,
+    isLoading,
+    currentOrganization,
+    organizations,
+    setCurrentOrganization,
+  } = useAuth()
   const { t } = useI18n()
   // Extended: account-menu entries (e.g. Abo & Abrechnung + tier badge).
   const AuthMenuExtended = useSlot('AuthMenuExtended')
@@ -67,14 +73,16 @@ export function AuthButton() {
       <div className="relative" ref={dropdownRef}>
         <button
           onClick={() => setDropdownOpen(!dropdownOpen)}
-          className="hover:bg-zinc-900/2.5 inline-flex items-center justify-center gap-2 overflow-hidden rounded-full px-4 py-1.5 text-sm font-medium leading-tight text-zinc-700 ring-1 ring-inset ring-zinc-900/10 transition hover:text-zinc-900 dark:text-zinc-400 dark:ring-white/10 dark:hover:bg-white/5 dark:hover:text-white"
+          className="inline-flex items-center justify-center gap-2 overflow-hidden rounded-full px-4 py-1.5 text-sm leading-tight font-medium text-zinc-700 ring-1 ring-zinc-900/10 transition ring-inset hover:bg-zinc-900/2.5 hover:text-zinc-900 dark:text-zinc-400 dark:ring-white/10 dark:hover:bg-white/5 dark:hover:text-white"
         >
           <span className="hidden sm:block">{user.username}</span>
           <span
             className="hidden max-w-56 truncate text-xs opacity-70 md:block"
             title={currentOrganization ? currentOrganization.name : undefined}
           >
-            ({currentOrganization ? currentOrganization.name : t('auth.private')})
+            (
+            {currentOrganization ? currentOrganization.name : t('auth.private')}
+            )
           </span>
           <ChevronDownIcon
             className={`h-4 w-4 opacity-70 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`}
@@ -121,7 +129,7 @@ export function AuthButton() {
               {organizations.length > 0 && (
                 <>
                   <hr className="my-1 border-zinc-200 dark:border-zinc-700" />
-                  <div className="px-4 py-1 text-xs font-semibold uppercase tracking-wider text-zinc-400">
+                  <div className="px-4 py-1 text-xs font-semibold tracking-wider text-zinc-400 uppercase">
                     {t('auth.switchContext')}
                   </div>
                   <button
@@ -209,7 +217,7 @@ export function AuthButton() {
                   onClick={() => {
                     setDropdownOpen(false)
                     viewMode.switchTo(
-                      viewMode.resolved === 'student' ? 'expert' : 'student'
+                      viewMode.resolved === 'student' ? 'expert' : 'student',
                     )
                   }}
                   className="flex w-full items-center px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-700"

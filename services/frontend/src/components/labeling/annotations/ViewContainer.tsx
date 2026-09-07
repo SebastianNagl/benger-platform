@@ -53,13 +53,13 @@ function parseStyleString(styleString: string): React.CSSProperties {
     if (property && value) {
       // Convert kebab-case to camelCase
       const camelProperty = property.replace(/-([a-z])/g, (_, letter) =>
-        letter.toUpperCase()
+        letter.toUpperCase(),
       )
 
       // Handle numeric values
       if (
         ['padding', 'margin', 'width', 'height'].some((p) =>
-          property.includes(p)
+          property.includes(p),
         ) &&
         !isNaN(Number(value))
       ) {

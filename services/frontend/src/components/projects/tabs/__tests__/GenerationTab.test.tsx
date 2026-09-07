@@ -53,20 +53,25 @@ jest.mock('@/contexts/I18nContext', () => ({
       const translations: Record<string, string> = {
         'toasts.generation.refreshed': 'Generations refreshed successfully',
         'toasts.generation.refreshFailed': 'Failed to refresh generations',
-        'projects.generationTab.tasksWithGenerations': '{count} tasks with generations',
+        'projects.generationTab.tasksWithGenerations':
+          '{count} tasks with generations',
         'projects.generationTab.modelsUsed': '{count} models used',
         'projects.generationTab.allModels': 'All Models',
         'projects.generationTab.export': 'Export',
-        'projects.generationTab.searchPlaceholder': 'Search prompts and responses...',
-        'projects.generationTab.showingTasks': 'Showing {showing} of {total} tasks',
+        'projects.generationTab.searchPlaceholder':
+          'Search prompts and responses...',
+        'projects.generationTab.showingTasks':
+          'Showing {showing} of {total} tasks',
         'projects.generationTab.taskId': 'Task #{id}',
         'projects.generationTab.responses': '{count} responses',
         'projects.generationTab.prompt': 'Prompt',
         'projects.generationTab.llmResponses': 'LLM Responses',
         'projects.generationTab.viewTaskDetails': 'View Task Details',
-        'projects.generationTab.noMatchingGenerations': 'No LLM generations match your filters',
+        'projects.generationTab.noMatchingGenerations':
+          'No LLM generations match your filters',
         'projects.generationTab.noGenerationsFound': 'No LLM generations found',
-        'projects.generationTab.generateResponsesToSee': 'Generate responses using the LLM models to see them here',
+        'projects.generationTab.generateResponsesToSee':
+          'Generate responses using the LLM models to see them here',
       }
       let result = translations[key] || key
       if (params) {
@@ -103,7 +108,7 @@ describe('GenerationTab', () => {
   const createMockTask = (
     id: string,
     hasLLMResponses: boolean = true,
-    responseData?: any
+    responseData?: any,
   ): LabelStudioTask => ({
     id,
     project_id: 'project-1',
@@ -160,7 +165,7 @@ describe('GenerationTab', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText(/no llm generations found/i)
+          screen.getByText(/no llm generations found/i),
         ).toBeInTheDocument()
       })
     })
@@ -184,7 +189,7 @@ describe('GenerationTab', () => {
 
       await waitFor(() => {
         const searchInput = screen.getByPlaceholderText(
-          /search prompts and responses/i
+          /search prompts and responses/i,
         )
         expect(searchInput).toBeInTheDocument()
       })
@@ -286,7 +291,7 @@ describe('GenerationTab', () => {
       })
 
       const searchInput = screen.getByPlaceholderText(
-        /search prompts and responses/i
+        /search prompts and responses/i,
       )
       await user.type(searchInput, 'dogs')
 
@@ -308,7 +313,7 @@ describe('GenerationTab', () => {
       })
 
       const searchInput = screen.getByPlaceholderText(
-        /search prompts and responses/i
+        /search prompts and responses/i,
       )
       await user.type(searchInput, '42')
 
@@ -330,7 +335,7 @@ describe('GenerationTab', () => {
       })
 
       const searchInput = screen.getByPlaceholderText(
-        /search prompts and responses/i
+        /search prompts and responses/i,
       )
       await user.type(searchInput, 'task 1')
 
@@ -379,7 +384,7 @@ describe('GenerationTab', () => {
       // Verify export button exists
       const buttons = container.querySelectorAll('button')
       const exportButton = Array.from(buttons).find((btn) =>
-        btn.textContent?.includes('Export')
+        btn.textContent?.includes('Export'),
       )
       expect(exportButton).toBeInTheDocument()
       expect(exportButton).not.toBeDisabled()
@@ -396,7 +401,7 @@ describe('GenerationTab', () => {
 
       const buttons = container.querySelectorAll('button')
       const exportButton = Array.from(buttons).find((btn) =>
-        btn.textContent?.includes('Export')
+        btn.textContent?.includes('Export'),
       )
       expect(exportButton).toBeDisabled()
     })
@@ -411,7 +416,11 @@ describe('GenerationTab', () => {
 
       await waitFor(() => {
         expect(mockStore.fetchProjectTasks).toHaveBeenCalledTimes(1)
-        expect(mockStore.fetchProjectTasks).toHaveBeenCalledWith('project-1', false, expect.objectContaining({}))
+        expect(mockStore.fetchProjectTasks).toHaveBeenCalledWith(
+          'project-1',
+          false,
+          expect.objectContaining({}),
+        )
       })
     })
 
@@ -608,7 +617,7 @@ describe('GenerationTab', () => {
 
       // Then apply search (cats)
       const searchInput = container.querySelector(
-        'input[placeholder*="Search"]'
+        'input[placeholder*="Search"]',
       )
       if (searchInput) {
         await user.type(searchInput as HTMLElement, 'cats')
@@ -634,14 +643,14 @@ describe('GenerationTab', () => {
       })
 
       const searchInput = container.querySelector(
-        'input[placeholder*="Search"]'
+        'input[placeholder*="Search"]',
       )
       if (searchInput) {
         await user.type(searchInput as HTMLElement, 'nonexistent')
 
         await waitFor(() => {
           expect(container.textContent).toMatch(
-            /no llm generations match your filters/i
+            /no llm generations match your filters/i,
           )
         })
       }
@@ -756,7 +765,7 @@ describe('GenerationTab', () => {
       await waitFor(() => {
         expect(container.textContent).toMatch(/no llm generations found/i)
         expect(container.textContent).toMatch(
-          /generate responses using the llm models/i
+          /generate responses using the llm models/i,
         )
       })
     })
@@ -773,7 +782,7 @@ describe('GenerationTab', () => {
       })
 
       const searchInput = container.querySelector(
-        'input[placeholder*="Search"]'
+        'input[placeholder*="Search"]',
       )
       if (searchInput) {
         await user.clear(searchInput as HTMLElement)
@@ -781,7 +790,7 @@ describe('GenerationTab', () => {
 
         await waitFor(() => {
           expect(container.textContent).toMatch(
-            /no llm generations match your filters/i
+            /no llm generations match your filters/i,
           )
         })
       }
@@ -803,7 +812,7 @@ describe('GenerationTab', () => {
         expect(select).toBeInTheDocument()
 
         const options = Array.from(
-          select?.querySelectorAll('option') || []
+          select?.querySelectorAll('option') || [],
         ).map((opt) => opt.textContent)
 
         expect(options).toContain('All Models')
@@ -859,7 +868,7 @@ describe('GenerationTab', () => {
 
       await waitFor(() => {
         const exportButton = Array.from(
-          container.querySelectorAll('button')
+          container.querySelectorAll('button'),
         ).find((btn) => btn.textContent?.includes('Export'))
 
         expect(exportButton).toBeInTheDocument()
@@ -977,7 +986,7 @@ describe('GenerationTab', () => {
   describe('Loading States', () => {
     it('should show loading indicator initially', () => {
       mockStore.fetchProjectTasks.mockImplementation(
-        () => new Promise(() => {})
+        () => new Promise(() => {}),
       )
 
       const { container } = render(<GenerationTab projectId="project-1" />)
@@ -1012,7 +1021,7 @@ describe('GenerationTab', () => {
       })
 
       const searchInput = container.querySelector(
-        'input[placeholder*="Search"]'
+        'input[placeholder*="Search"]',
       ) as HTMLInputElement
 
       await user.type(searchInput, 'task 1')
@@ -1045,7 +1054,11 @@ describe('GenerationTab', () => {
       const { rerender } = render(<GenerationTab projectId="project-1" />)
 
       await waitFor(() => {
-        expect(mockStore.fetchProjectTasks).toHaveBeenCalledWith('project-1', false, expect.objectContaining({}))
+        expect(mockStore.fetchProjectTasks).toHaveBeenCalledWith(
+          'project-1',
+          false,
+          expect.objectContaining({}),
+        )
       })
 
       mockStore.fetchProjectTasks.mockClear()
@@ -1053,7 +1066,11 @@ describe('GenerationTab', () => {
       rerender(<GenerationTab projectId="project-2" />)
 
       await waitFor(() => {
-        expect(mockStore.fetchProjectTasks).toHaveBeenCalledWith('project-2', false, expect.objectContaining({}))
+        expect(mockStore.fetchProjectTasks).toHaveBeenCalledWith(
+          'project-2',
+          false,
+          expect.objectContaining({}),
+        )
       })
     })
   })
@@ -1073,7 +1090,7 @@ describe('GenerationTab', () => {
       })
 
       const searchInput = container.querySelector(
-        'input[placeholder*="Search"]'
+        'input[placeholder*="Search"]',
       )
       if (searchInput) {
         await user.type(searchInput as HTMLElement, 'deep thought')
@@ -1166,7 +1183,7 @@ describe('GenerationTab', () => {
 
         await waitFor(() => {
           const promptSections = container.querySelectorAll(
-            '[class*="border-t"]'
+            '[class*="border-t"]',
           )
           expect(promptSections.length).toBe(0)
         })
@@ -1238,7 +1255,7 @@ describe('GenerationTab', () => {
       })
 
       const exportButton = Array.from(
-        container.querySelectorAll('button')
+        container.querySelectorAll('button'),
       ).find((btn) => btn.textContent?.includes('Export'))
 
       if (exportButton) {
@@ -1269,7 +1286,7 @@ describe('GenerationTab', () => {
       })
 
       const exportButton = Array.from(
-        container.querySelectorAll('button')
+        container.querySelectorAll('button'),
       ).find((btn) => btn.textContent?.includes('Export'))
 
       if (exportButton) {
@@ -1278,7 +1295,7 @@ describe('GenerationTab', () => {
         await waitFor(() => {
           expect(mockProgress.completeProgress).toHaveBeenCalledWith(
             expect.any(String),
-            'error'
+            'error',
           )
         })
       }
@@ -1302,7 +1319,7 @@ describe('GenerationTab', () => {
       mockStore.fetchProjectTasks.mockClear()
 
       const refreshButton = Array.from(
-        container.querySelectorAll('button')
+        container.querySelectorAll('button'),
       ).find((btn) => {
         const svg = btn.querySelector('svg')
         return svg && !btn.textContent?.includes('Export')
@@ -1332,11 +1349,11 @@ describe('GenerationTab', () => {
 
       // Make next call fail
       mockStore.fetchProjectTasks.mockRejectedValueOnce(
-        new Error('Network error')
+        new Error('Network error'),
       )
 
       const refreshButton = Array.from(
-        container.querySelectorAll('button')
+        container.querySelectorAll('button'),
       ).find((btn) => {
         const svg = btn.querySelector('svg')
         return svg && !btn.textContent?.includes('Export')
@@ -1348,7 +1365,7 @@ describe('GenerationTab', () => {
         await waitFor(() => {
           expect(mockProgress.completeProgress).toHaveBeenCalledWith(
             expect.any(String),
-            'error'
+            'error',
           )
         })
       }
@@ -1403,7 +1420,7 @@ describe('GenerationTab', () => {
             // Check for Prompt section
             expect(screen.getByText('Prompt')).toBeInTheDocument()
           },
-          { timeout: 3000 }
+          { timeout: 3000 },
         )
 
         // Content should be visible
@@ -1434,7 +1451,7 @@ describe('GenerationTab', () => {
             // Check for Prompt section
             expect(screen.getByText('Prompt')).toBeInTheDocument()
           },
-          { timeout: 3000 }
+          { timeout: 3000 },
         )
 
         // Content should be visible
@@ -1496,7 +1513,7 @@ describe('GenerationTab', () => {
             // Check that LLM Responses section is visible
             expect(screen.getByText('LLM Responses')).toBeInTheDocument()
           },
-          { timeout: 3000 }
+          { timeout: 3000 },
         )
 
         // Model names should be visible (may appear in both dropdown and responses)
@@ -1583,7 +1600,7 @@ describe('GenerationTab', () => {
 
       await waitFor(() => {
         expect(container.textContent).toMatch(
-          /generate responses using the llm models to see them here/i
+          /generate responses using the llm models to see them here/i,
         )
       })
     })
@@ -1603,7 +1620,7 @@ describe('GenerationTab', () => {
   describe('Multiple Task Handling', () => {
     it('should handle many tasks efficiently', async () => {
       const tasks = Array.from({ length: 50 }, (_, i) =>
-        createMockTask(String(i + 1))
+        createMockTask(String(i + 1)),
       )
       mockStore.fetchProjectTasks.mockResolvedValue(tasks)
 
@@ -1630,7 +1647,7 @@ describe('GenerationTab', () => {
       })
 
       const searchInput = container.querySelector(
-        'input[placeholder*="Search"]'
+        'input[placeholder*="Search"]',
       )
 
       if (searchInput) {

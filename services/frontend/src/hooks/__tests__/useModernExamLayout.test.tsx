@@ -104,7 +104,10 @@ describe('useModernExamLayout', () => {
 
   it('is inactive when the user preference is classic', () => {
     const { result } = setup({
-      user: { id: 'u1', exam_layout_prefs: { ...MODERN_PREFS, mode: 'classic' } },
+      user: {
+        id: 'u1',
+        exam_layout_prefs: { ...MODERN_PREFS, mode: 'classic' },
+      },
     })
     expect(result.current.active).toBe(false)
   })

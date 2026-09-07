@@ -38,7 +38,7 @@ function resolveMetricValue(entry: MetricEntry): number {
 /** Mean of the given metric names for a single model (missing → 0). */
 export function averageMetricScore<T extends ModelWithMetrics>(
   model: T,
-  metricNames: string[]
+  metricNames: string[],
 ): number {
   if (!metricNames || metricNames.length === 0) return 0
   const metrics = model.metrics ?? {}
@@ -55,7 +55,7 @@ export function averageMetricScore<T extends ModelWithMetrics>(
  */
 export function sortModelsByScoreAsc<T extends ModelWithMetrics>(
   models: readonly T[],
-  metricNames: string[]
+  metricNames: string[],
 ): T[] {
   return models
     .map((model, index) => ({

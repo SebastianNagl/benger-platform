@@ -56,7 +56,7 @@ Object.entries(FIELD_SYNONYMS).forEach(([canonical, synonyms]) => {
 export function suggestFieldMappings(
   sourceFields: string[],
   targetFields: string[],
-  existingData?: any[]
+  existingData?: any[],
 ): MappingSuggestion {
   const mappings: FieldMapping[] = []
   const usedTargets = new Set<string>()
@@ -67,7 +67,7 @@ export function suggestFieldMappings(
     const sourceLower = source.toLowerCase()
     const exactMatch = targetFields.find(
       (target) =>
-        target.toLowerCase() === sourceLower && !usedTargets.has(target)
+        target.toLowerCase() === sourceLower && !usedTargets.has(target),
     )
 
     if (exactMatch) {
@@ -157,7 +157,7 @@ export function suggestFieldMappings(
       const bestMatch = findMatchByContent(
         sourceValues,
         targetFields,
-        usedTargets
+        usedTargets,
       )
 
       if (bestMatch) {
@@ -247,7 +247,7 @@ function getCommonParts(s1: string, s2: string): string[] {
   const parts2 = s2.split(/[_\-\s]+/)
 
   return parts1.filter((part) =>
-    parts2.some((p) => p === part || levenshteinDistance(p, part) <= 1)
+    parts2.some((p) => p === part || levenshteinDistance(p, part) <= 1),
   )
 }
 
@@ -257,7 +257,7 @@ function getCommonParts(s1: string, s2: string): string[] {
 function findMatchByContent(
   values: any[],
   targetFields: string[],
-  usedTargets: Set<string>
+  usedTargets: Set<string>,
 ): { target: string; confidence: number } | null {
   // Detect patterns in values
   const patterns = detectValuePatterns(values)
@@ -340,7 +340,7 @@ function detectValuePatterns(values: any[]): {
  */
 export function applyFieldMappings(
   data: any[],
-  mappings: FieldMapping[]
+  mappings: FieldMapping[],
 ): any[] {
   return data.map((row) => {
     const mappedRow: any = {}

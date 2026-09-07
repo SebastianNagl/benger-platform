@@ -10,7 +10,7 @@
  */
 
 import '@testing-library/jest-dom'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { HistoricalTrendChart } from '../HistoricalTrendChart'
 
 jest.mock('@/contexts/I18nContext', () => ({
@@ -30,9 +30,13 @@ jest.mock('@/contexts/I18nContext', () => ({
 }))
 
 jest.mock('recharts', () => ({
-  ResponsiveContainer: ({ children }: any) => <div data-testid="responsive-container">{children}</div>,
+  ResponsiveContainer: ({ children }: any) => (
+    <div data-testid="responsive-container">{children}</div>
+  ),
   LineChart: ({ children, data }: any) => (
-    <div data-testid="line-chart" data-points={data?.length || 0}>{children}</div>
+    <div data-testid="line-chart" data-points={data?.length || 0}>
+      {children}
+    </div>
   ),
   CartesianGrid: () => <div data-testid="grid" />,
   XAxis: () => <div data-testid="x-axis" />,
@@ -45,14 +49,27 @@ jest.mock('recharts', () => ({
 
 describe('HistoricalTrendChart', () => {
   const now = new Date()
-  const makeDate = (daysAgo: number) => new Date(now.getTime() - daysAgo * 24 * 60 * 60 * 1000).toISOString()
+  const makeDate = (daysAgo: number) =>
+    new Date(now.getTime() - daysAgo * 24 * 60 * 60 * 1000).toISOString()
 
   const sampleData = [
-    { date: makeDate(1), model_id: 'gpt4', value: 0.85, ci_lower: 0.80, ci_upper: 0.90 },
-    { date: makeDate(5), model_id: 'gpt4', value: 0.82, ci_lower: 0.77, ci_upper: 0.87 },
+    {
+      date: makeDate(1),
+      model_id: 'gpt4',
+      value: 0.85,
+      ci_lower: 0.8,
+      ci_upper: 0.9,
+    },
+    {
+      date: makeDate(5),
+      model_id: 'gpt4',
+      value: 0.82,
+      ci_lower: 0.77,
+      ci_upper: 0.87,
+    },
     { date: makeDate(20), model_id: 'gpt4', value: 0.78 },
     { date: makeDate(60), model_id: 'gpt4', value: 0.75 },
-    { date: makeDate(120), model_id: 'gpt4', value: 0.70 },
+    { date: makeDate(120), model_id: 'gpt4', value: 0.7 },
   ]
 
   it('renders with data and date range buttons', () => {
@@ -61,7 +78,7 @@ describe('HistoricalTrendChart', () => {
         data={sampleData}
         modelIds={['gpt4']}
         metric="F1"
-      />
+      />,
     )
     expect(screen.getByText(/F1/)).toBeInTheDocument()
     expect(screen.getByText('7D')).toBeInTheDocument()
@@ -76,7 +93,7 @@ describe('HistoricalTrendChart', () => {
         data={sampleData}
         modelIds={['gpt4']}
         metric="F1"
-      />
+      />,
     )
     fireEvent.click(screen.getByText('7D'))
     expect(screen.getByTestId('line-chart')).toBeInTheDocument()
@@ -88,7 +105,7 @@ describe('HistoricalTrendChart', () => {
         data={sampleData}
         modelIds={['gpt4']}
         metric="F1"
-      />
+      />,
     )
     fireEvent.click(screen.getByText('30D'))
     expect(screen.getByTestId('line-chart')).toBeInTheDocument()
@@ -100,7 +117,7 @@ describe('HistoricalTrendChart', () => {
         data={sampleData}
         modelIds={['gpt4']}
         metric="F1"
-      />
+      />,
     )
     fireEvent.click(screen.getByText('90D'))
     expect(screen.getByTestId('line-chart')).toBeInTheDocument()
@@ -112,19 +129,13 @@ describe('HistoricalTrendChart', () => {
         data={sampleData}
         modelIds={['gpt4']}
         metric="F1"
-      />
+      />,
     )
     expect(screen.getByTestId('line-chart')).toBeInTheDocument()
   })
 
   it('renders with empty data', () => {
-    render(
-      <HistoricalTrendChart
-        data={[]}
-        modelIds={['gpt4']}
-        metric="F1"
-      />
-    )
+    render(<HistoricalTrendChart data={[]} modelIds={['gpt4']} metric="F1" />)
     expect(screen.getByText('No data for this range')).toBeInTheDocument()
   })
 
@@ -135,7 +146,7 @@ describe('HistoricalTrendChart', () => {
         modelIds={['gpt4']}
         metric="F1"
         showConfidenceIntervals={false}
-      />
+      />,
     )
     expect(screen.getByTestId('line-chart')).toBeInTheDocument()
   })
@@ -143,7 +154,7 @@ describe('HistoricalTrendChart', () => {
   it('renders with multiple models', () => {
     const multiData = [
       ...sampleData,
-      { date: makeDate(1), model_id: 'claude', value: 0.90 },
+      { date: makeDate(1), model_id: 'claude', value: 0.9 },
       { date: makeDate(5), model_id: 'claude', value: 0.88 },
     ]
     render(
@@ -151,7 +162,7 @@ describe('HistoricalTrendChart', () => {
         data={multiData}
         modelIds={['gpt4', 'claude']}
         metric="F1"
-      />
+      />,
     )
     expect(screen.getByTestId('line-gpt4')).toBeInTheDocument()
     expect(screen.getByTestId('line-claude')).toBeInTheDocument()
@@ -163,11 +174,7 @@ describe('HistoricalTrendChart', () => {
       { date: makeDate(5), model_id: 'gpt4', value: 38.2 },
     ]
     render(
-      <HistoricalTrendChart
-        data={bigData}
-        modelIds={['gpt4']}
-        metric="BLEU"
-      />
+      <HistoricalTrendChart data={bigData} modelIds={['gpt4']} metric="BLEU" />,
     )
     expect(screen.getByTestId('line-chart')).toBeInTheDocument()
   })

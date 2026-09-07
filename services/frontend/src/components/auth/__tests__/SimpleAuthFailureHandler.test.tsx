@@ -171,7 +171,6 @@ describe('SimpleAuthFailureHandler Component', () => {
 
       expect(mockLogout).not.toHaveBeenCalled()
     })
-
   })
 
   describe('Edge Cases', () => {
@@ -252,7 +251,7 @@ describe('SimpleAuthFailureHandler Component', () => {
           <SimpleAuthFailureHandler />
           <SimpleAuthFailureHandler />
           <SimpleAuthFailureHandler />
-        </div>
+        </div>,
       )
 
       // Component renders null, so container has only the wrapper div

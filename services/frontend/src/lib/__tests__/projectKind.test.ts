@@ -1,4 +1,8 @@
-import { defaultIconForKind, projectIcon, projectKindLabelKey } from '../projectKind'
+import {
+  defaultIconForKind,
+  projectIcon,
+  projectKindLabelKey,
+} from '../projectKind'
 
 describe('projectKind helpers', () => {
   it('falls back to the kind icon and resolves label keys', () => {

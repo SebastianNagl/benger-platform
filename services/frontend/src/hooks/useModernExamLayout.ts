@@ -23,6 +23,7 @@ import { useMemo } from 'react'
 
 import { useOptionalAuth } from '@/contexts/AuthContext'
 import { isExtendedEdition } from '@/hooks/useResolvedUiMode'
+import { useSlot } from '@/lib/extensions/slots'
 import {
   isExamShapedConfig,
   MODERN_EXAM_LAYOUT_SLOT,
@@ -31,7 +32,6 @@ import {
   type ModernExamLayoutComponent,
 } from '@/lib/labelConfig/examLayout'
 import { parseLabelConfig } from '@/lib/labelConfig/parser'
-import { useSlot } from '@/lib/extensions/slots'
 
 export interface ModernExamLayoutState {
   /** True iff every layer above resolves to the modern layout. */
@@ -43,10 +43,10 @@ export interface ModernExamLayoutState {
 }
 
 export function useModernExamLayout(
-  labelConfig: string | null | undefined
+  labelConfig: string | null | undefined,
 ): ModernExamLayoutState {
   const Layout = useSlot(
-    MODERN_EXAM_LAYOUT_SLOT
+    MODERN_EXAM_LAYOUT_SLOT,
   ) as ModernExamLayoutComponent | null
   // Optional: DynamicAnnotationInterface must stay mountable without an
   // AuthProvider (isolated tests, review surfaces). No auth -> classic.
@@ -54,7 +54,7 @@ export function useModernExamLayout(
 
   const prefs = useMemo(
     () => resolveExamLayoutPrefs(user?.exam_layout_prefs),
-    [user?.exam_layout_prefs]
+    [user?.exam_layout_prefs],
   )
 
   const examShaped = useMemo(() => {

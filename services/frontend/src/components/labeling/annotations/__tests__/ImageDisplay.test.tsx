@@ -13,7 +13,8 @@ import { render, screen } from '@testing-library/react'
 // Mock data binding
 jest.mock('@/lib/labelConfig/dataBinding', () => ({
   resolveDataBinding: (expression: string, taskData: any) => {
-    if (typeof expression !== 'string' || !expression.startsWith('$')) return expression
+    if (typeof expression !== 'string' || !expression.startsWith('$'))
+      return expression
     const key = expression.substring(1)
     return taskData?.[key]
   },

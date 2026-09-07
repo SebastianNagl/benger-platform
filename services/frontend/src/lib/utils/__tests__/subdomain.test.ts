@@ -41,7 +41,7 @@ describe('getSisterHostUrl (benger <-> vertretbar cross-link)', () => {
     'returns null outside the known host pairs (%s)',
     (host) => {
       expect(getSisterHostUrl(host)).toBeNull()
-    }
+    },
   )
 
   it('falls back to window.location (jsdom localhost has no sister)', () => {
@@ -85,7 +85,9 @@ describe('getBaseDomainFromHost', () => {
   })
 
   it('returns benger.localhost for org subdomain', () => {
-    expect(getBaseDomainFromHost('tum.benger.localhost')).toBe('benger.localhost')
+    expect(getBaseDomainFromHost('tum.benger.localhost')).toBe(
+      'benger.localhost',
+    )
   })
 
   it('returns what-a-benger.net for production domain', () => {
@@ -93,7 +95,9 @@ describe('getBaseDomainFromHost', () => {
   })
 
   it('returns what-a-benger.net for production org subdomain', () => {
-    expect(getBaseDomainFromHost('tum.what-a-benger.net')).toBe('what-a-benger.net')
+    expect(getBaseDomainFromHost('tum.what-a-benger.net')).toBe(
+      'what-a-benger.net',
+    )
   })
 
   it('falls back to hostname for unknown domains', () => {
@@ -101,7 +105,9 @@ describe('getBaseDomainFromHost', () => {
   })
 
   it('falls back to hostname for localhost with port info stripped', () => {
-    expect(getBaseDomainFromHost('some-other-domain.com')).toBe('some-other-domain.com')
+    expect(getBaseDomainFromHost('some-other-domain.com')).toBe(
+      'some-other-domain.com',
+    )
   })
 })
 
@@ -173,19 +179,27 @@ describe('parseSubdomainFromHost', () => {
 
 describe('getCookieDomainFromHost', () => {
   it('returns .benger.localhost for benger.localhost', () => {
-    expect(getCookieDomainFromHost('benger.localhost')).toBe('.benger.localhost')
+    expect(getCookieDomainFromHost('benger.localhost')).toBe(
+      '.benger.localhost',
+    )
   })
 
   it('returns .benger.localhost for org subdomain', () => {
-    expect(getCookieDomainFromHost('tum.benger.localhost')).toBe('.benger.localhost')
+    expect(getCookieDomainFromHost('tum.benger.localhost')).toBe(
+      '.benger.localhost',
+    )
   })
 
   it('returns .what-a-benger.net for production domain', () => {
-    expect(getCookieDomainFromHost('what-a-benger.net')).toBe('.what-a-benger.net')
+    expect(getCookieDomainFromHost('what-a-benger.net')).toBe(
+      '.what-a-benger.net',
+    )
   })
 
   it('returns .what-a-benger.net for production org subdomain', () => {
-    expect(getCookieDomainFromHost('tum.what-a-benger.net')).toBe('.what-a-benger.net')
+    expect(getCookieDomainFromHost('tum.what-a-benger.net')).toBe(
+      '.what-a-benger.net',
+    )
   })
 
   // Vertretbar apex: this is what lets auth cookies work on vertretbar.net.
@@ -198,15 +212,21 @@ describe('getCookieDomainFromHost', () => {
   })
 
   it('returns .vertretbar.net for a vertretbar subdomain (www)', () => {
-    expect(getCookieDomainFromHost('www.vertretbar.net')).toBe('.vertretbar.net')
+    expect(getCookieDomainFromHost('www.vertretbar.net')).toBe(
+      '.vertretbar.net',
+    )
   })
 
   it('returns .staging.vertretbar.net for the vertretbar staging apex', () => {
-    expect(getCookieDomainFromHost('staging.vertretbar.net')).toBe('.staging.vertretbar.net')
+    expect(getCookieDomainFromHost('staging.vertretbar.net')).toBe(
+      '.staging.vertretbar.net',
+    )
   })
 
   it('returns .vertretbar.localhost for local vertretbar dev', () => {
-    expect(getCookieDomainFromHost('vertretbar.localhost')).toBe('.vertretbar.localhost')
+    expect(getCookieDomainFromHost('vertretbar.localhost')).toBe(
+      '.vertretbar.localhost',
+    )
   })
 
   it('returns empty string for plain localhost', () => {
@@ -218,7 +238,9 @@ describe('getCookieDomainFromHost', () => {
   })
 
   it('returns .benger.localhost for deeply nested subdomain', () => {
-    expect(getCookieDomainFromHost('a.b.benger.localhost')).toBe('.benger.localhost')
+    expect(getCookieDomainFromHost('a.b.benger.localhost')).toBe(
+      '.benger.localhost',
+    )
   })
 })
 

@@ -15,24 +15,26 @@ describe('computeWindowState', () => {
 
   it('returns "upcoming" before the start', () => {
     expect(
-      computeWindowState('2026-07-01T13:00:00Z', '2026-07-01T15:00:00Z', NOW)
+      computeWindowState('2026-07-01T13:00:00Z', '2026-07-01T15:00:00Z', NOW),
     ).toBe('upcoming')
   })
 
   it('returns "open" within the window', () => {
     expect(
-      computeWindowState('2026-07-01T11:00:00Z', '2026-07-01T13:00:00Z', NOW)
+      computeWindowState('2026-07-01T11:00:00Z', '2026-07-01T13:00:00Z', NOW),
     ).toBe('open')
   })
 
   it('returns "closed" after the end', () => {
     expect(
-      computeWindowState('2026-07-01T09:00:00Z', '2026-07-01T11:00:00Z', NOW)
+      computeWindowState('2026-07-01T09:00:00Z', '2026-07-01T11:00:00Z', NOW),
     ).toBe('closed')
   })
 
   it('handles one-sided windows', () => {
-    expect(computeWindowState('2026-07-01T13:00:00Z', null, NOW)).toBe('upcoming')
+    expect(computeWindowState('2026-07-01T13:00:00Z', null, NOW)).toBe(
+      'upcoming',
+    )
     expect(computeWindowState('2026-07-01T11:00:00Z', null, NOW)).toBe('open')
     expect(computeWindowState(null, '2026-07-01T13:00:00Z', NOW)).toBe('open')
     expect(computeWindowState(null, '2026-07-01T11:00:00Z', NOW)).toBe('closed')
@@ -42,10 +44,10 @@ describe('computeWindowState', () => {
 describe('windowBoundLabel', () => {
   it('labels the relevant bound', () => {
     expect(windowBoundLabel('upcoming', '2026-07-01T13:00:00Z', null)).toBe(
-      new Date('2026-07-01T13:00:00Z').toLocaleString()
+      new Date('2026-07-01T13:00:00Z').toLocaleString(),
     )
     expect(windowBoundLabel('closed', null, '2026-07-01T11:00:00Z')).toBe(
-      new Date('2026-07-01T11:00:00Z').toLocaleString()
+      new Date('2026-07-01T11:00:00Z').toLocaleString(),
     )
     expect(windowBoundLabel('open', '2026-07-01T13:00:00Z', null)).toBeNull()
     expect(windowBoundLabel('none', null, null)).toBeNull()

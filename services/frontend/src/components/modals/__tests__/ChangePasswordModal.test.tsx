@@ -2,9 +2,9 @@
  * @jest-environment jsdom
  */
 
+import { mockToast } from '@/test-utils/setupTests'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { mockToast } from '@/test-utils/setupTests'
 import { ChangePasswordModal } from '../ChangePasswordModal'
 
 // Alias the per-type mocks so existing toast.success/error assertions keep
@@ -20,7 +20,10 @@ jest.mock('@heroicons/react/24/outline', () => ({
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
     t: (key: string, varsOrDefault?: any) => {
-      const translations: Record<string, any> = require('../../../locales/en/common.json')
+      const translations: Record<
+        string,
+        any
+      > = require('../../../locales/en/common.json')
       const parts = key.split('.')
       let value: any = translations
       for (const part of parts) {
@@ -76,7 +79,7 @@ jest.mock('@headlessui/react', () => {
           <div {...props}>{children}</div>
         ),
         Title: ({ children, ...props }: any) => <h2 {...props}>{children}</h2>,
-      }
+      },
     ),
   }
 })
@@ -107,7 +110,7 @@ describe('ChangePasswordModal', () => {
       render(<ChangePasswordModal {...defaultProps} />)
       // Title is rendered as h2 element
       expect(
-        screen.getByRole('heading', { name: 'Change Password' })
+        screen.getByRole('heading', { name: 'Change Password' }),
       ).toBeInTheDocument()
     })
 
@@ -197,7 +200,7 @@ describe('ChangePasswordModal', () => {
       await user.type(screen.getByLabelText('New Password'), 'newpassword123')
       await user.type(
         screen.getByLabelText('Confirm New Password'),
-        'differentpassword'
+        'differentpassword',
       )
 
       fireEvent.submit(screen.getByRole('dialog').querySelector('form')!)
@@ -215,7 +218,7 @@ describe('ChangePasswordModal', () => {
       await user.type(screen.getByLabelText('New Password'), 'newpassword123')
       await user.type(
         screen.getByLabelText('Confirm New Password'),
-        'differentpassword'
+        'differentpassword',
       )
 
       fireEvent.submit(screen.getByRole('dialog').querySelector('form')!)
@@ -230,15 +233,15 @@ describe('ChangePasswordModal', () => {
 
       expect(screen.getByLabelText('Current Password')).toHaveAttribute(
         'type',
-        'password'
+        'password',
       )
       expect(screen.getByLabelText('New Password')).toHaveAttribute(
         'type',
-        'password'
+        'password',
       )
       expect(screen.getByLabelText('Confirm New Password')).toHaveAttribute(
         'type',
-        'password'
+        'password',
       )
     })
 
@@ -247,11 +250,11 @@ describe('ChangePasswordModal', () => {
 
       expect(screen.getByLabelText('New Password')).toHaveAttribute(
         'minLength',
-        '6'
+        '6',
       )
       expect(screen.getByLabelText('Confirm New Password')).toHaveAttribute(
         'minLength',
-        '6'
+        '6',
       )
     })
 
@@ -259,11 +262,11 @@ describe('ChangePasswordModal', () => {
       render(<ChangePasswordModal {...defaultProps} />)
 
       expect(screen.getByLabelText('Current Password')).toHaveAttribute(
-        'required'
+        'required',
       )
       expect(screen.getByLabelText('New Password')).toHaveAttribute('required')
       expect(screen.getByLabelText('Confirm New Password')).toHaveAttribute(
-        'required'
+        'required',
       )
     })
   })
@@ -278,7 +281,7 @@ describe('ChangePasswordModal', () => {
       await user.type(screen.getByLabelText('New Password'), 'newpassword123')
       await user.type(
         screen.getByLabelText('Confirm New Password'),
-        'newpassword123'
+        'newpassword123',
       )
 
       fireEvent.submit(screen.getByRole('dialog').querySelector('form')!)
@@ -301,14 +304,14 @@ describe('ChangePasswordModal', () => {
       await user.type(screen.getByLabelText('New Password'), 'newpassword123')
       await user.type(
         screen.getByLabelText('Confirm New Password'),
-        'newpassword123'
+        'newpassword123',
       )
 
       fireEvent.submit(screen.getByRole('dialog').querySelector('form')!)
 
       await waitFor(() => {
         expect(toast.success).toHaveBeenCalledWith(
-          'Password changed successfully'
+          'Password changed successfully',
         )
       })
     })
@@ -322,7 +325,7 @@ describe('ChangePasswordModal', () => {
       await user.type(screen.getByLabelText('New Password'), 'newpassword123')
       await user.type(
         screen.getByLabelText('Confirm New Password'),
-        'newpassword123'
+        'newpassword123',
       )
 
       fireEvent.submit(screen.getByRole('dialog').querySelector('form')!)
@@ -341,7 +344,7 @@ describe('ChangePasswordModal', () => {
       await user.type(screen.getByLabelText('New Password'), 'newpassword123')
       await user.type(
         screen.getByLabelText('Confirm New Password'),
-        'newpassword123'
+        'newpassword123',
       )
 
       fireEvent.submit(screen.getByRole('dialog').querySelector('form')!)
@@ -360,7 +363,7 @@ describe('ChangePasswordModal', () => {
       await user.type(screen.getByLabelText('New Password'), 'newpassword123')
       await user.type(
         screen.getByLabelText('Confirm New Password'),
-        'newpassword123'
+        'newpassword123',
       )
 
       fireEvent.submit(screen.getByRole('dialog').querySelector('form')!)
@@ -379,7 +382,7 @@ describe('ChangePasswordModal', () => {
       await user.type(screen.getByLabelText('New Password'), 'newpassword123')
       await user.type(
         screen.getByLabelText('Confirm New Password'),
-        'newpassword123'
+        'newpassword123',
       )
 
       fireEvent.submit(screen.getByRole('dialog').querySelector('form')!)
@@ -398,7 +401,7 @@ describe('ChangePasswordModal', () => {
     it('disables submit button while loading', async () => {
       // Make the API call hang
       mockChangePassword.mockImplementation(
-        () => new Promise(() => {}) // Never resolves
+        () => new Promise(() => {}), // Never resolves
       )
       const user = userEvent.setup()
       render(<ChangePasswordModal {...defaultProps} />)
@@ -407,7 +410,7 @@ describe('ChangePasswordModal', () => {
       await user.type(screen.getByLabelText('New Password'), 'newpassword123')
       await user.type(
         screen.getByLabelText('Confirm New Password'),
-        'newpassword123'
+        'newpassword123',
       )
 
       fireEvent.submit(screen.getByRole('dialog').querySelector('form')!)
@@ -421,7 +424,7 @@ describe('ChangePasswordModal', () => {
 
     it('shows loading text on submit button while loading', async () => {
       mockChangePassword.mockImplementation(
-        () => new Promise(() => {}) // Never resolves
+        () => new Promise(() => {}), // Never resolves
       )
       const user = userEvent.setup()
       render(<ChangePasswordModal {...defaultProps} />)
@@ -430,14 +433,14 @@ describe('ChangePasswordModal', () => {
       await user.type(screen.getByLabelText('New Password'), 'newpassword123')
       await user.type(
         screen.getByLabelText('Confirm New Password'),
-        'newpassword123'
+        'newpassword123',
       )
 
       fireEvent.submit(screen.getByRole('dialog').querySelector('form')!)
 
       await waitFor(() => {
         expect(
-          screen.getByRole('button', { name: 'Changing...' })
+          screen.getByRole('button', { name: 'Changing...' }),
         ).toBeInTheDocument()
       })
     })
@@ -453,7 +456,7 @@ describe('ChangePasswordModal', () => {
       await user.type(screen.getByLabelText('New Password'), 'newpassword123')
       await user.type(
         screen.getByLabelText('Confirm New Password'),
-        'newpassword123'
+        'newpassword123',
       )
 
       // Click cancel to close
@@ -472,7 +475,7 @@ describe('ChangePasswordModal', () => {
       await user.type(screen.getByLabelText('New Password'), 'newpassword123')
       await user.type(
         screen.getByLabelText('Confirm New Password'),
-        'newpassword123'
+        'newpassword123',
       )
 
       fireEvent.submit(screen.getByRole('dialog').querySelector('form')!)
@@ -490,15 +493,15 @@ describe('ChangePasswordModal', () => {
 
       expect(screen.getByLabelText('Current Password')).toHaveAttribute(
         'autocomplete',
-        'current-password'
+        'current-password',
       )
       expect(screen.getByLabelText('New Password')).toHaveAttribute(
         'autocomplete',
-        'new-password'
+        'new-password',
       )
       expect(screen.getByLabelText('Confirm New Password')).toHaveAttribute(
         'autocomplete',
-        'new-password'
+        'new-password',
       )
     })
 
@@ -513,9 +516,7 @@ describe('ChangePasswordModal', () => {
     it('close button has aria-label', () => {
       render(<ChangePasswordModal {...defaultProps} />)
 
-      expect(
-        screen.getByRole('button', { name: 'Close' })
-      ).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Close' })).toBeInTheDocument()
     })
   })
 })

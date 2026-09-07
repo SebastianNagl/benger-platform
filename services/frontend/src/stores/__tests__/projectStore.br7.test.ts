@@ -118,7 +118,9 @@ describe('projectStore br7', () => {
       const project = { id: 'p1', title: 'New' } as any
       api.create.mockResolvedValue(project)
 
-      const result = await useProjectStore.getState().createProject({ title: 'New' })
+      const result = await useProjectStore
+        .getState()
+        .createProject({ title: 'New' })
 
       expect(result).toEqual(project)
       expect(toast.success).toHaveBeenCalled()
@@ -128,7 +130,7 @@ describe('projectStore br7', () => {
       api.create.mockRejectedValue(new Error('Validation failed'))
 
       await expect(
-        useProjectStore.getState().createProject({ title: '' })
+        useProjectStore.getState().createProject({ title: '' }),
       ).rejects.toThrow('Validation failed')
 
       const state = useProjectStore.getState()
@@ -139,10 +141,12 @@ describe('projectStore br7', () => {
       api.create.mockRejectedValue('unknown')
 
       await expect(
-        useProjectStore.getState().createProject({ title: '' })
+        useProjectStore.getState().createProject({ title: '' }),
       ).rejects.toBe('unknown')
 
-      expect(useProjectStore.getState().error).toBe('store.project.createFailed')
+      expect(useProjectStore.getState().error).toBe(
+        'store.project.createFailed',
+      )
     })
   })
 
@@ -153,9 +157,15 @@ describe('projectStore br7', () => {
         currentProject: { id: 'p1', title: 'Test' } as any,
         labelConfigVersion: 0,
       })
-      api.update.mockResolvedValue({ id: 'p1', title: 'Test', label_config: '<View/>' } as any)
+      api.update.mockResolvedValue({
+        id: 'p1',
+        title: 'Test',
+        label_config: '<View/>',
+      } as any)
 
-      await useProjectStore.getState().updateProject('p1', { label_config: '<View/>' })
+      await useProjectStore
+        .getState()
+        .updateProject('p1', { label_config: '<View/>' })
 
       expect(useProjectStore.getState().labelConfigVersion).toBe(1)
     })
@@ -175,7 +185,10 @@ describe('projectStore br7', () => {
 
     it('updates currentProject only when it matches projectId', async () => {
       useProjectStore.setState({
-        projects: [{ id: 'p1', title: 'Test' } as any, { id: 'p2', title: 'Other' } as any],
+        projects: [
+          { id: 'p1', title: 'Test' } as any,
+          { id: 'p2', title: 'Other' } as any,
+        ],
         currentProject: { id: 'p2', title: 'Other' } as any,
       })
       api.update.mockResolvedValue({ id: 'p1', title: 'Updated' } as any)
@@ -204,7 +217,9 @@ describe('projectStore br7', () => {
         useProjectStore.getState().updateProject('p1', { title: 'x' }),
       ).rejects.toBe(42)
 
-      expect(useProjectStore.getState().error).toBe('store.project.updateFailed')
+      expect(useProjectStore.getState().error).toBe(
+        'store.project.updateFailed',
+      )
     })
   })
 
@@ -247,7 +262,9 @@ describe('projectStore br7', () => {
 
       await useProjectStore.getState().deleteProject('p1')
 
-      expect(useProjectStore.getState().error).toBe('store.project.deleteFailed')
+      expect(useProjectStore.getState().error).toBe(
+        'store.project.deleteFailed',
+      )
     })
   })
 
@@ -278,7 +295,9 @@ describe('projectStore br7', () => {
       const tasks = await useProjectStore.getState().fetchProjectTasks('p1')
 
       expect(tasks).toEqual([])
-      expect(useProjectStore.getState().error).toBe('store.project.fetchTasksFailed')
+      expect(useProjectStore.getState().error).toBe(
+        'store.project.fetchTasksFailed',
+      )
     })
   })
 
@@ -382,7 +401,11 @@ describe('projectStore br7', () => {
         taskCycle: [],
         currentTaskIndex: 0,
       })
-      api.getNextTask.mockResolvedValue({ task: { id: 't2' }, current_position: 1, total_tasks: 5 })
+      api.getNextTask.mockResolvedValue({
+        task: { id: 't2' },
+        current_position: 1,
+        total_tasks: 5,
+      })
 
       await useProjectStore.getState().completeCurrentTask()
 
@@ -406,7 +429,7 @@ describe('projectStore br7', () => {
       useProjectStore.setState({
         currentProject: { id: 'p1', assignment_mode: 'open' } as any,
         taskCycle: [{ id: 't1' } as any, { id: 't2' } as any],
-        currentTaskIndex: 1,  // Last index, removing it should wrap to 0
+        currentTaskIndex: 1, // Last index, removing it should wrap to 0
       })
 
       await useProjectStore.getState().completeCurrentTask()
@@ -429,7 +452,10 @@ describe('projectStore br7', () => {
 
       await useProjectStore.getState().importData('p1', [{ text: 'test' }])
 
-      expect(api.runNestedImportJob).toHaveBeenCalledWith('p1', expect.any(File))
+      expect(api.runNestedImportJob).toHaveBeenCalledWith(
+        'p1',
+        expect.any(File),
+      )
       expect(toast.success).toHaveBeenCalled()
       // Should refetch the project since it's the current one
       expect(api.get).toHaveBeenCalledWith('p1')
@@ -464,7 +490,9 @@ describe('projectStore br7', () => {
 
       await useProjectStore.getState().importData('p1', [])
 
-      expect(useProjectStore.getState().error).toBe('store.project.importFailed')
+      expect(useProjectStore.getState().error).toBe(
+        'store.project.importFailed',
+      )
     })
   })
 
@@ -555,7 +583,11 @@ describe('projectStore br7', () => {
     })
 
     it('handles non-array projects in response', async () => {
-      api.list.mockResolvedValue({ items: 'not-an-array', total: 0, pages: 1 } as any)
+      api.list.mockResolvedValue({
+        items: 'not-an-array',
+        total: 0,
+        pages: 1,
+      } as any)
 
       await useProjectStore.getState().fetchProjects()
 
@@ -572,7 +604,9 @@ describe('projectStore br7', () => {
       })
       api.createAnnotation.mockResolvedValue({ id: 'a1' } as any)
 
-      const result = await useProjectStore.getState().createAnnotationInternal('t1', { result: [] })
+      const result = await useProjectStore
+        .getState()
+        .createAnnotationInternal('t1', { result: [] })
 
       expect(result).toEqual({ id: 'a1' })
       // Task should have been removed from cycle
@@ -587,7 +621,9 @@ describe('projectStore br7', () => {
       })
       api.createAnnotation.mockResolvedValue({ id: 'a1' } as any)
 
-      await useProjectStore.getState().createAnnotationInternal('t1', { result: [] })
+      await useProjectStore
+        .getState()
+        .createAnnotationInternal('t1', { result: [] })
 
       expect(useProjectStore.getState().allTasksCompleted).toBe(true)
     })
@@ -600,7 +636,9 @@ describe('projectStore br7', () => {
       })
       api.createAnnotation.mockResolvedValue({ id: 'a1' } as any)
 
-      await useProjectStore.getState().createAnnotationInternal('t1', { result: [] }, true)
+      await useProjectStore
+        .getState()
+        .createAnnotationInternal('t1', { result: [] }, true)
 
       // Task cycle should NOT have changed
       expect(useProjectStore.getState().taskCycle).toHaveLength(2)
@@ -613,9 +651,15 @@ describe('projectStore br7', () => {
         currentTaskIndex: 0,
       })
       api.createAnnotation.mockResolvedValue({ id: 'a1' } as any)
-      api.getNextTask.mockResolvedValue({ task: { id: 't2' }, current_position: 1, total_tasks: 5 })
+      api.getNextTask.mockResolvedValue({
+        task: { id: 't2' },
+        current_position: 1,
+        total_tasks: 5,
+      })
 
-      await useProjectStore.getState().createAnnotationInternal('t1', { result: [] })
+      await useProjectStore
+        .getState()
+        .createAnnotationInternal('t1', { result: [] })
 
       expect(api.getNextTask).toHaveBeenCalledWith('p1')
     })
@@ -625,7 +669,7 @@ describe('projectStore br7', () => {
       api.createAnnotation.mockRejectedValue(new Error('Create failed'))
 
       await expect(
-        useProjectStore.getState().createAnnotationInternal('t1', {})
+        useProjectStore.getState().createAnnotationInternal('t1', {}),
       ).rejects.toThrow('Create failed')
 
       consoleSpy.mockRestore()

@@ -28,7 +28,8 @@ export default function NumberInput({
   const max = config.props.max
   const step = config.props.step || '1'
   const required = config.props.required === 'true'
-  const placeholder = config.props.placeholder || t('annotation.numberPlaceholder')
+  const placeholder =
+    config.props.placeholder || t('annotation.numberPlaceholder')
 
   // Handle value change
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -45,7 +46,7 @@ export default function NumberInput({
           name,
           'Number',
           numericValue,
-          toName
+          toName,
         )
         onAnnotation(result)
       }

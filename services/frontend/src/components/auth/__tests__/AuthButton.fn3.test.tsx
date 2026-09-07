@@ -3,8 +3,8 @@
  * Targets: handleClickOutside, org switching callbacks, superadmin feature flags link
  */
 
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import React from 'react'
-import { render, screen, fireEvent, act } from '@testing-library/react'
 
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
@@ -86,7 +86,10 @@ describe('AuthButton fn3', () => {
     render(<AuthButton />)
     fireEvent.click(screen.getByText('testuser').closest('button')!)
     fireEvent.click(screen.getByText('Other Org'))
-    expect(mockSetCurrentOrganization).toHaveBeenCalledWith({ id: 'org-2', name: 'Other Org' })
+    expect(mockSetCurrentOrganization).toHaveBeenCalledWith({
+      id: 'org-2',
+      name: 'Other Org',
+    })
   })
 
   it('shows feature flags link for superadmin', () => {
@@ -107,7 +110,7 @@ describe('AuthButton fn3', () => {
       <div>
         <AuthButton />
         <div data-testid="outside">Outside</div>
-      </div>
+      </div>,
     )
     // Open dropdown
     fireEvent.click(screen.getByText('testuser').closest('button')!)

@@ -72,7 +72,7 @@ describe('DynamicChartRenderer br6 - uncovered branches', () => {
           chartType="box"
           models={models}
           metrics={['score']}
-        />
+        />,
       )
       expect(screen.getByTestId('box-plot-chart')).toBeInTheDocument()
     })
@@ -91,7 +91,7 @@ describe('DynamicChartRenderer br6 - uncovered branches', () => {
           models={models}
           metrics={['score']}
           colorScheme="accessible"
-        />
+        />,
       )
       expect(container.querySelector('.bg-blue-500')).toBeInTheDocument()
     })
@@ -99,7 +99,7 @@ describe('DynamicChartRenderer br6 - uncovered branches', () => {
     it('shows blue-200 for scores 0.5-0.7 in accessible scheme', () => {
       const models = [
         { model_id: 'a', model_name: 'A', metrics: { score: 0.55 } },
-        { model_id: 'b', model_name: 'B', metrics: { score: 0.60 } },
+        { model_id: 'b', model_name: 'B', metrics: { score: 0.6 } },
       ]
       const { container } = render(
         <DynamicChartRenderer
@@ -107,7 +107,7 @@ describe('DynamicChartRenderer br6 - uncovered branches', () => {
           models={models}
           metrics={['score']}
           colorScheme="accessible"
-        />
+        />,
       )
       expect(container.querySelector('.bg-blue-200')).toBeInTheDocument()
     })
@@ -115,7 +115,7 @@ describe('DynamicChartRenderer br6 - uncovered branches', () => {
     it('shows red-200 for scores 0.3-0.5 in accessible scheme', () => {
       const models = [
         { model_id: 'a', model_name: 'A', metrics: { score: 0.35 } },
-        { model_id: 'b', model_name: 'B', metrics: { score: 0.40 } },
+        { model_id: 'b', model_name: 'B', metrics: { score: 0.4 } },
       ]
       const { container } = render(
         <DynamicChartRenderer
@@ -123,7 +123,7 @@ describe('DynamicChartRenderer br6 - uncovered branches', () => {
           models={models}
           metrics={['score']}
           colorScheme="accessible"
-        />
+        />,
       )
       expect(container.querySelector('.bg-red-200')).toBeInTheDocument()
     })
@@ -131,7 +131,7 @@ describe('DynamicChartRenderer br6 - uncovered branches', () => {
     it('shows red-500 for scores < 0.3 in accessible scheme', () => {
       const models = [
         { model_id: 'a', model_name: 'A', metrics: { score: 0.15 } },
-        { model_id: 'b', model_name: 'B', metrics: { score: 0.10 } },
+        { model_id: 'b', model_name: 'B', metrics: { score: 0.1 } },
       ]
       const { container } = render(
         <DynamicChartRenderer
@@ -139,7 +139,7 @@ describe('DynamicChartRenderer br6 - uncovered branches', () => {
           models={models}
           metrics={['score']}
           colorScheme="accessible"
-        />
+        />,
       )
       expect(container.querySelector('.bg-red-500')).toBeInTheDocument()
     })
@@ -149,7 +149,7 @@ describe('DynamicChartRenderer br6 - uncovered branches', () => {
     it('shows yellow-400 for scores 0.5-0.7 in default scheme', () => {
       const models = [
         { model_id: 'a', model_name: 'A', metrics: { score: 0.55 } },
-        { model_id: 'b', model_name: 'B', metrics: { score: 0.60 } },
+        { model_id: 'b', model_name: 'B', metrics: { score: 0.6 } },
       ]
       const { container } = render(
         <DynamicChartRenderer
@@ -157,7 +157,7 @@ describe('DynamicChartRenderer br6 - uncovered branches', () => {
           models={models}
           metrics={['score']}
           colorScheme="default"
-        />
+        />,
       )
       expect(container.querySelector('.bg-yellow-400')).toBeInTheDocument()
     })
@@ -165,7 +165,7 @@ describe('DynamicChartRenderer br6 - uncovered branches', () => {
     it('shows orange-400 for scores 0.3-0.5 in default scheme', () => {
       const models = [
         { model_id: 'a', model_name: 'A', metrics: { score: 0.35 } },
-        { model_id: 'b', model_name: 'B', metrics: { score: 0.40 } },
+        { model_id: 'b', model_name: 'B', metrics: { score: 0.4 } },
       ]
       const { container } = render(
         <DynamicChartRenderer
@@ -173,7 +173,7 @@ describe('DynamicChartRenderer br6 - uncovered branches', () => {
           models={models}
           metrics={['score']}
           colorScheme="default"
-        />
+        />,
       )
       expect(container.querySelector('.bg-orange-400')).toBeInTheDocument()
     })
@@ -181,7 +181,7 @@ describe('DynamicChartRenderer br6 - uncovered branches', () => {
     it('shows red-500 for scores < 0.3 in default scheme', () => {
       const models = [
         { model_id: 'a', model_name: 'A', metrics: { score: 0.15 } },
-        { model_id: 'b', model_name: 'B', metrics: { score: 0.10 } },
+        { model_id: 'b', model_name: 'B', metrics: { score: 0.1 } },
       ]
       const { container } = render(
         <DynamicChartRenderer
@@ -189,7 +189,7 @@ describe('DynamicChartRenderer br6 - uncovered branches', () => {
           models={models}
           metrics={['score']}
           colorScheme="default"
-        />
+        />,
       )
       expect(container.querySelector('.bg-red-500')).toBeInTheDocument()
     })
@@ -206,7 +206,7 @@ describe('DynamicChartRenderer br6 - uncovered branches', () => {
           chartType="heatmap"
           models={models}
           metrics={['score']}
-        />
+        />,
       )
       expect(screen.getByText('model-abc')).toBeInTheDocument()
       expect(screen.getByText('model-def')).toBeInTheDocument()
@@ -224,7 +224,7 @@ describe('DynamicChartRenderer br6 - uncovered branches', () => {
           chartType="heatmap"
           models={models}
           metrics={['score']}
-        />
+        />,
       )
       // Should show dash for model B's missing score
       const dashes = screen.getAllByText('\u2014') // em dash

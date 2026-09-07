@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { logger } from '@/lib/utils/logger'
 import { getInternalApiUrl } from '@/lib/utils/apiUrl'
+import { logger } from '@/lib/utils/logger'
+import { NextRequest, NextResponse } from 'next/server'
 
 export async function GET(request: NextRequest) {
   try {
@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
     console.error('❌ Feature flags proxy error:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
-      { status: 500 }
+      { status: 500 },
     )
   }
 }

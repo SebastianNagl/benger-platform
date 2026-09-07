@@ -41,7 +41,7 @@ class MockWebSocket {
   simulateMessage(data: any) {
     if (this.onmessage) {
       this.onmessage(
-        new MessageEvent('message', { data: JSON.stringify(data) })
+        new MessageEvent('message', { data: JSON.stringify(data) }),
       )
     }
   }
@@ -96,7 +96,7 @@ jest.mock('@/lib/api/client', () => ({
         page_size: 50,
         total_pages: 1,
         models: ['model-1', 'model-2'],
-      })
+      }),
     ),
   },
   getApiUrl: jest.fn(() => 'http://localhost'),
@@ -125,11 +125,13 @@ jest.mock('@/contexts/I18nContext', () => ({
         'generation.taskList.task': 'Task',
         'generation.taskList.noTextData': 'No text data',
         'generation.taskList.noModels': 'No models configured for generation',
-        'generation.taskList.configureFirst': 'Configure models in project settings first',
+        'generation.taskList.configureFirst':
+          'Configure models in project settings first',
         'generation.taskList.loadError': 'Failed to load generation data',
         'common.retry': 'Retry',
         'generation.taskList.realTimeActive': 'Real-time updates active',
-        'generation.taskList.tooltipStats': '{completed} completed, {running} running, {failed} failed',
+        'generation.taskList.tooltipStats':
+          '{completed} completed, {running} running, {failed} failed',
         'generation.taskList.clickToView': 'Click to view',
         'generation.taskList.notYetGenerated': 'Not yet generated',
       }
@@ -218,7 +220,6 @@ jest.mock('@/components/shared/FilterToolbar', () => {
   FilterToolbar.Field = ({ children }: any) => <div>{children}</div>
   return { FilterToolbar }
 })
-
 
 describe('GenerationTaskList', () => {
   beforeEach(() => {
@@ -320,10 +321,10 @@ describe('GenerationTaskList', () => {
       await screen.findByText('No models configured for generation')
 
       expect(
-        screen.getByText('No models configured for generation')
+        screen.getByText('No models configured for generation'),
       ).toBeInTheDocument()
       expect(
-        screen.getByText('Configure models in project settings first')
+        screen.getByText('Configure models in project settings first'),
       ).toBeInTheDocument()
     })
   })
@@ -344,7 +345,7 @@ describe('GenerationTaskList', () => {
 
       await waitFor(() => {
         expect(global.WebSocket).toHaveBeenCalledWith(
-          'ws://localhost/api/ws/projects/test-project/generation-progress'
+          'ws://localhost/api/ws/projects/test-project/generation-progress',
         )
       })
     })
@@ -374,7 +375,7 @@ describe('GenerationTaskList', () => {
 
       await waitFor(() => {
         expect(apiClient.get.mock.calls.length).toBeGreaterThan(
-          initialCallCount
+          initialCallCount,
         )
       })
     })
@@ -408,7 +409,7 @@ describe('GenerationTaskList', () => {
 
       await waitFor(() => {
         expect(
-          (global.WebSocket as jest.Mock).mock.calls.length
+          (global.WebSocket as jest.Mock).mock.calls.length,
         ).toBeGreaterThan(initialCallCount)
       })
 
@@ -425,7 +426,7 @@ describe('GenerationTaskList', () => {
 
       if (mockWebSocket?.onmessage) {
         mockWebSocket.onmessage(
-          new MessageEvent('message', { data: 'invalid json' })
+          new MessageEvent('message', { data: 'invalid json' }),
         )
       }
 
@@ -462,7 +463,7 @@ describe('GenerationTaskList', () => {
       })
 
       const { unmount } = render(
-        <GenerationTaskList projectId="test-project" />
+        <GenerationTaskList projectId="test-project" />,
       )
 
       await waitFor(() => {
@@ -500,7 +501,7 @@ describe('GenerationTaskList', () => {
       })
 
       const { unmount } = render(
-        <GenerationTaskList projectId="test-project" />
+        <GenerationTaskList projectId="test-project" />,
       )
 
       await waitFor(() => {
@@ -574,7 +575,7 @@ describe('GenerationTaskList', () => {
 
       const statusButtons = screen.getAllByRole('button')
       const completedButton = statusButtons.find((btn) =>
-        btn.getAttribute('title')?.includes('Click to view')
+        btn.getAttribute('title')?.includes('Click to view'),
       )
 
       if (completedButton) {
@@ -593,7 +594,7 @@ describe('GenerationTaskList', () => {
 
       const statusButtons = screen.getAllByRole('button')
       const failedButton = statusButtons.find((btn) =>
-        btn.getAttribute('title')?.includes('Click to view')
+        btn.getAttribute('title')?.includes('Click to view'),
       )
 
       if (failedButton) {
@@ -620,7 +621,10 @@ describe('GenerationTaskList', () => {
 
       // Running status buttons are now always clickable (they open the result modal)
       if (runningButton) {
-        expect(runningButton).toHaveAttribute('title', expect.stringContaining('running'))
+        expect(runningButton).toHaveAttribute(
+          'title',
+          expect.stringContaining('running'),
+        )
       }
     })
   })
@@ -773,7 +777,7 @@ describe('GenerationTaskList', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByPlaceholderText('Search tasks...')
+          screen.getByPlaceholderText('Search tasks...'),
         ).toBeInTheDocument()
       })
 
@@ -794,7 +798,7 @@ describe('GenerationTaskList', () => {
 
       const selects = document.querySelectorAll('select')
       const statusFilter = Array.from(selects).find((select) =>
-        select.className.includes('sm:w-44')
+        select.className.includes('sm:w-44'),
       )
 
       if (statusFilter) {
@@ -812,7 +816,7 @@ describe('GenerationTaskList', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByPlaceholderText('Search tasks...')
+          screen.getByPlaceholderText('Search tasks...'),
         ).toBeInTheDocument()
       })
 
@@ -825,7 +829,7 @@ describe('GenerationTaskList', () => {
 
       await waitFor(() => {
         expect(apiClient.get.mock.calls.length).toBeGreaterThan(
-          initialCallCount
+          initialCallCount,
         )
       })
 
@@ -847,7 +851,7 @@ describe('GenerationTaskList', () => {
 
       const selects = document.querySelectorAll('select')
       const statusFilter = Array.from(selects).find((select) =>
-        select.className.includes('sm:w-44')
+        select.className.includes('sm:w-44'),
       )
 
       if (statusFilter) {
@@ -855,7 +859,7 @@ describe('GenerationTaskList', () => {
 
         await waitFor(() => {
           expect(apiClient.get.mock.calls.length).toBeGreaterThan(
-            initialCallCount
+            initialCallCount,
           )
         })
       }
@@ -911,7 +915,7 @@ describe('GenerationTaskList', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByPlaceholderText('Search tasks...')
+          screen.getByPlaceholderText('Search tasks...'),
         ).toBeInTheDocument()
       })
 
@@ -928,7 +932,7 @@ describe('GenerationTaskList', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByPlaceholderText('Search tasks...')
+          screen.getByPlaceholderText('Search tasks...'),
         ).toBeInTheDocument()
       })
 
@@ -964,7 +968,7 @@ describe('GenerationTaskList', () => {
   describe('Cleanup', () => {
     it('closes WebSocket on unmount', async () => {
       const { unmount } = render(
-        <GenerationTaskList projectId="test-project" />
+        <GenerationTaskList projectId="test-project" />,
       )
 
       await waitFor(() => {
@@ -980,7 +984,7 @@ describe('GenerationTaskList', () => {
     it('clears reconnect timeout on unmount', async () => {
       jest.useFakeTimers()
       const { unmount } = render(
-        <GenerationTaskList projectId="test-project" />
+        <GenerationTaskList projectId="test-project" />,
       )
 
       await waitFor(() => {
@@ -1016,7 +1020,7 @@ describe('GenerationTaskList', () => {
       })
 
       const { unmount } = render(
-        <GenerationTaskList projectId="test-project" />
+        <GenerationTaskList projectId="test-project" />,
       )
 
       await waitFor(() => {
@@ -1040,7 +1044,7 @@ describe('GenerationTaskList', () => {
       await waitFor(() => {
         expect(consoleSpy).toHaveBeenCalledWith(
           'Failed to connect WebSocket:',
-          expect.any(Error)
+          expect.any(Error),
         )
       })
 
@@ -1123,7 +1127,7 @@ describe('GenerationTaskList', () => {
       })
 
       const { unmount } = render(
-        <GenerationTaskList projectId="test-project" />
+        <GenerationTaskList projectId="test-project" />,
       )
 
       await waitFor(() => {
@@ -1153,15 +1157,15 @@ describe('GenerationTaskList', () => {
 
       // New tooltip format: "X completed, Y running, Z failed" with optional " - Click to view"
       const hasClickToView = buttons.some((btn) =>
-        btn.getAttribute('title')?.includes('Click to view')
+        btn.getAttribute('title')?.includes('Click to view'),
       )
 
       const hasRunningStatus = buttons.some((btn) =>
-        btn.getAttribute('title')?.includes('running')
+        btn.getAttribute('title')?.includes('running'),
       )
 
       const hasNotGenerated = buttons.some(
-        (btn) => btn.getAttribute('title') === 'Not yet generated'
+        (btn) => btn.getAttribute('title') === 'Not yet generated',
       )
 
       expect(hasClickToView || hasRunningStatus || hasNotGenerated).toBe(true)
@@ -1196,7 +1200,7 @@ describe('GenerationTaskList', () => {
 
       const buttons = screen.getAllByRole('button')
       const notGeneratedButton = buttons.find(
-        (btn) => btn.getAttribute('title') === 'Not yet generated'
+        (btn) => btn.getAttribute('title') === 'Not yet generated',
       )
 
       expect(notGeneratedButton).toBeTruthy()
@@ -1365,14 +1369,14 @@ describe('GenerationTaskList', () => {
       const selects = Array.from(document.querySelectorAll('select'))
       const statusFilter = selects.find((select) =>
         Array.from(select.querySelectorAll('option')).some(
-          (o) => o.textContent === 'Completed'
-        )
+          (o) => o.textContent === 'Completed',
+        ),
       )
 
       expect(statusFilter).toBeTruthy()
       if (statusFilter) {
         const optionLabels = Array.from(
-          statusFilter.querySelectorAll('option')
+          statusFilter.querySelectorAll('option'),
         ).map((o) => o.textContent)
         expect(optionLabels).toEqual(
           expect.arrayContaining([
@@ -1382,7 +1386,7 @@ describe('GenerationTaskList', () => {
             'Running',
             'Pending',
             'Not generated',
-          ])
+          ]),
         )
       }
     })
@@ -1412,7 +1416,7 @@ describe('GenerationTaskList', () => {
       await waitFor(() => {
         expect(consoleSpy).toHaveBeenCalledWith(
           '[GenerationTaskList] Failed to fetch project data:',
-          expect.any(Error)
+          expect.any(Error),
         )
       })
 
@@ -1433,13 +1437,17 @@ describe('GenerationTaskList', () => {
       render(<GenerationTaskList projectId="test-project" />)
 
       await waitFor(() => {
-        expect(screen.getByText('Failed to load generation data')).toBeInTheDocument()
+        expect(
+          screen.getByText('Failed to load generation data'),
+        ).toBeInTheDocument()
       })
 
       expect(screen.getByText('HTTP error! status: 500')).toBeInTheDocument()
       expect(screen.getByText('Retry')).toBeInTheDocument()
       // Should NOT show "no models" message
-      expect(screen.queryByText('No models configured for generation')).not.toBeInTheDocument()
+      expect(
+        screen.queryByText('No models configured for generation'),
+      ).not.toBeInTheDocument()
 
       consoleSpy.mockRestore()
     })
@@ -1530,18 +1538,20 @@ describe('GenerationTaskList', () => {
       // Check for buttons with results (completed with generation_id)
       expect(
         buttons.some((btn) =>
-          btn.getAttribute('title')?.includes('Click to view')
-        )
+          btn.getAttribute('title')?.includes('Click to view'),
+        ),
       ).toBe(true)
 
       // Check for running statuses
       expect(
-        buttons.some((btn) => btn.getAttribute('title')?.includes('running'))
+        buttons.some((btn) => btn.getAttribute('title')?.includes('running')),
       ).toBe(true)
 
       // Check for not-yet-generated status (model with no entry in generation_status)
       expect(
-        buttons.some((btn) => btn.getAttribute('title') === 'Not yet generated')
+        buttons.some(
+          (btn) => btn.getAttribute('title') === 'Not yet generated',
+        ),
       ).toBe(true)
     })
   })
@@ -1558,8 +1568,8 @@ describe('GenerationTaskList', () => {
 
       const buttons = screen.getAllByRole('button')
 
-      const completedButton = buttons.find(
-        (btn) => btn.getAttribute('title')?.includes('Click to view')
+      const completedButton = buttons.find((btn) =>
+        btn.getAttribute('title')?.includes('Click to view'),
       )
 
       if (completedButton) {
@@ -1567,12 +1577,13 @@ describe('GenerationTaskList', () => {
         await user.click(completedButton)
       }
 
-      const failedButton = buttons.find(
-        (btn) => {
-          const title = btn.getAttribute('title') || ''
-          return title.includes('Click to view') && title !== completedButton?.getAttribute('title')
-        }
-      )
+      const failedButton = buttons.find((btn) => {
+        const title = btn.getAttribute('title') || ''
+        return (
+          title.includes('Click to view') &&
+          title !== completedButton?.getAttribute('title')
+        )
+      })
 
       if (failedButton) {
         expect(failedButton).not.toBeDisabled()
@@ -1612,7 +1623,7 @@ describe('GenerationTaskList', () => {
       const pageSizeSelect = Array.from(pageSizeSelects).find((select) => {
         const options = select.querySelectorAll('option')
         return Array.from(options).some(
-          (opt) => opt.value === '25' || opt.value === '100'
+          (opt) => opt.value === '25' || opt.value === '100',
         )
       })
 
@@ -1674,7 +1685,7 @@ describe('GenerationTaskList', () => {
       await waitFor(() => {
         expect(screen.queryByTestId('control-modal')).not.toBeInTheDocument()
         expect(apiClient.get.mock.calls.length).toBeGreaterThan(
-          initialCallCount
+          initialCallCount,
         )
       })
     })
@@ -1689,8 +1700,8 @@ describe('GenerationTaskList', () => {
       })
 
       const buttons = screen.getAllByRole('button')
-      const completedButton = buttons.find(
-        (btn) => btn.getAttribute('title')?.includes('Click to view')
+      const completedButton = buttons.find((btn) =>
+        btn.getAttribute('title')?.includes('Click to view'),
       )
 
       if (completedButton) {
@@ -1747,7 +1758,7 @@ describe('GenerationTaskList', () => {
 
       // No WebSocket, no running generations - should not be polling
       expect(
-        screen.queryByText('Real-time updates active')
+        screen.queryByText('Real-time updates active'),
       ).not.toBeInTheDocument()
 
       const callCountBefore = apiClient.get.mock.calls.length
@@ -1796,8 +1807,8 @@ describe('GenerationTaskList', () => {
       })
 
       const buttons = screen.getAllByRole('button')
-      const completedButton = buttons.find(
-        (btn) => btn.getAttribute('title')?.includes('Click to view')
+      const completedButton = buttons.find((btn) =>
+        btn.getAttribute('title')?.includes('Click to view'),
       )
 
       if (completedButton) {
@@ -1847,7 +1858,7 @@ describe('GenerationTaskList', () => {
 
       // Should be in polling mode (no WebSocket)
       expect(
-        screen.queryByText('Real-time updates active')
+        screen.queryByText('Real-time updates active'),
       ).not.toBeInTheDocument()
 
       // Verify API was called for data loading

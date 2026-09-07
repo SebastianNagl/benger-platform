@@ -137,7 +137,7 @@ async function selectOrgAndConnection() {
     target: { value: 'org-a' },
   })
   await waitFor(() =>
-    expect(mockListStorageConnections).toHaveBeenCalledWith('org-a')
+    expect(mockListStorageConnections).toHaveBeenCalledWith('org-a'),
   )
   // Wait for the connection option to render before selecting it.
   await screen.findByText('Chair bucket (law-exams)')
@@ -167,10 +167,10 @@ describe('CloudImportPanel — pickers', () => {
     mockOrganizations = []
     render(<CloudImportPanel mode="select" />)
     expect(
-      screen.getByText('dataImport.cloud.noOrganizations')
+      screen.getByText('dataImport.cloud.noOrganizations'),
     ).toBeInTheDocument()
     expect(
-      screen.queryByTestId('cloud-import-org-select')
+      screen.queryByTestId('cloud-import-org-select'),
     ).not.toBeInTheDocument()
   })
 
@@ -178,7 +178,7 @@ describe('CloudImportPanel — pickers', () => {
     mockOrganizations = [ORG_A]
     render(<CloudImportPanel mode="select" />)
     await waitFor(() =>
-      expect(mockListStorageConnections).toHaveBeenCalledWith('org-a')
+      expect(mockListStorageConnections).toHaveBeenCalledWith('org-a'),
     )
     expect(screen.getByTestId('cloud-import-org-select')).toHaveValue('org-a')
   })
@@ -190,7 +190,7 @@ describe('CloudImportPanel — pickers', () => {
       target: { value: 'org-a' },
     })
     expect(
-      await screen.findByTestId('cloud-import-no-connections')
+      await screen.findByTestId('cloud-import-no-connections'),
     ).toHaveTextContent('dataImport.cloud.noConnections')
   })
 })
@@ -206,13 +206,13 @@ describe('CloudImportPanel — browsing', () => {
       maxResults: 100,
     })
     expect(
-      await screen.findByTestId('cloud-import-folder-2026')
+      await screen.findByTestId('cloud-import-folder-2026'),
     ).toBeInTheDocument()
     expect(
-      screen.getByTestId('cloud-import-object-tasks.json')
+      screen.getByTestId('cloud-import-object-tasks.json'),
     ).toBeInTheDocument()
     expect(
-      screen.getByTestId('cloud-import-object-photo.png')
+      screen.getByTestId('cloud-import-object-photo.png'),
     ).toBeInTheDocument()
   })
 
@@ -241,7 +241,7 @@ describe('CloudImportPanel — browsing', () => {
         prefix: 'imports/2026/',
         continuationToken: undefined,
         maxResults: 100,
-      })
+      }),
     )
 
     fireEvent.click(screen.getByTestId('cloud-import-breadcrumb-root'))
@@ -250,7 +250,7 @@ describe('CloudImportPanel — browsing', () => {
         prefix: 'imports/',
         continuationToken: undefined,
         maxResults: 100,
-      })
+      }),
     )
   })
 
@@ -260,9 +260,7 @@ describe('CloudImportPanel — browsing', () => {
     await selectOrgAndConnection()
 
     mockListObjects.mockResolvedValueOnce({
-      objects: [
-        { key: 'imports/more.csv', size: 1, last_modified: null },
-      ],
+      objects: [{ key: 'imports/more.csv', size: 1, last_modified: null }],
       prefixes: [],
       next_token: null,
     })
@@ -273,14 +271,14 @@ describe('CloudImportPanel — browsing', () => {
         prefix: 'imports/',
         continuationToken: 'tok-1',
         maxResults: 100,
-      })
+      }),
     )
     // Appended, not replaced.
     expect(
-      await screen.findByTestId('cloud-import-object-more.csv')
+      await screen.findByTestId('cloud-import-object-more.csv'),
     ).toBeInTheDocument()
     expect(
-      screen.getByTestId('cloud-import-object-tasks.json')
+      screen.getByTestId('cloud-import-object-tasks.json'),
     ).toBeInTheDocument()
   })
 
@@ -291,7 +289,7 @@ describe('CloudImportPanel — browsing', () => {
     render(<CloudImportPanel mode="select" />)
     await selectOrgAndConnection()
     expect(
-      await screen.findByText('Access denied on bucket')
+      await screen.findByText('Access denied on bucket'),
     ).toBeInTheDocument()
   })
 })
@@ -300,7 +298,7 @@ describe('CloudImportPanel — select mode', () => {
   it('reports the selection up and shows a summary line', async () => {
     const onSelectionChange = jest.fn()
     render(
-      <CloudImportPanel mode="select" onSelectionChange={onSelectionChange} />
+      <CloudImportPanel mode="select" onSelectionChange={onSelectionChange} />,
     )
     await selectOrgAndConnection()
 
@@ -313,7 +311,7 @@ describe('CloudImportPanel — select mode', () => {
       objectKeys: ['imports/tasks.json'],
     })
     expect(
-      screen.getByTestId('cloud-import-selection-summary')
+      screen.getByTestId('cloud-import-selection-summary'),
     ).toHaveTextContent('dataImport.cloud.selectionSummary count=1')
 
     // Unchecking reports the empty selection.
@@ -328,7 +326,7 @@ describe('CloudImportPanel — select mode', () => {
   it('caps the selection at 20 files and shows the hint', async () => {
     const manyKeys = Array.from(
       { length: MAX_CLOUD_IMPORT_FILES },
-      (_, i) => `imports/f${i}.json`
+      (_, i) => `imports/f${i}.json`,
     )
     render(
       <CloudImportPanel
@@ -338,20 +336,20 @@ describe('CloudImportPanel — select mode', () => {
           connectionId: 'conn-1',
           objectKeys: manyKeys,
         }}
-      />
+      />,
     )
     await waitFor(() =>
-      expect(mockListStorageConnections).toHaveBeenCalledWith('org-a')
+      expect(mockListStorageConnections).toHaveBeenCalledWith('org-a'),
     )
     await waitFor(() => expect(mockListObjects).toHaveBeenCalled())
 
     expect(
-      screen.getByTestId('cloud-import-selection-summary')
+      screen.getByTestId('cloud-import-selection-summary'),
     ).toHaveTextContent(`count=${MAX_CLOUD_IMPORT_FILES}`)
     expect(
       screen.getByText(
-        `dataImport.cloud.selectionCapHint max=${MAX_CLOUD_IMPORT_FILES}`
-      )
+        `dataImport.cloud.selectionCapHint max=${MAX_CLOUD_IMPORT_FILES}`,
+      ),
     ).toBeInTheDocument()
     // A further (unchecked) importable file is disabled at the cap.
     const jsonRow = await screen.findByTestId('cloud-import-object-tasks.json')
@@ -367,13 +365,13 @@ describe('CloudImportPanel — select mode', () => {
           connectionId: 'conn-1',
           objectKeys: ['imports/tasks.json'],
         }}
-      />
+      />,
     )
     await waitFor(() => expect(mockListObjects).toHaveBeenCalled())
     expect(screen.getByTestId('cloud-import-org-select')).toHaveValue('org-a')
-    expect(
-      screen.getByTestId('cloud-import-connection-select')
-    ).toHaveValue('conn-1')
+    expect(screen.getByTestId('cloud-import-connection-select')).toHaveValue(
+      'conn-1',
+    )
     const jsonRow = await screen.findByTestId('cloud-import-object-tasks.json')
     expect(jsonRow.querySelector('input')).toBeChecked()
   })
@@ -388,7 +386,7 @@ describe('CloudImportPanel — immediate mode', () => {
         mode="immediate"
         projectId="proj-1"
         onImportComplete={onImportComplete}
-      />
+      />,
     )
     await selectOrgAndConnection()
 
@@ -406,26 +404,26 @@ describe('CloudImportPanel — immediate mode', () => {
           connection_id: 'conn-1',
           object_keys: ['imports/tasks.json'],
         },
-        expect.anything()
-      )
+        expect.anything(),
+      ),
     )
     await waitFor(() =>
       expect(mockAddToast).toHaveBeenCalledWith(
         'dataImport.cloud.importSuccess',
-        'success'
-      )
+        'success',
+      ),
     )
     expect(mockStartProgress).toHaveBeenCalled()
     expect(mockCompleteProgress).toHaveBeenCalledWith(
       expect.any(String),
-      'success'
+      'success',
     )
     // History fetched initially + after the import.
     expect(mockListCloudImports).toHaveBeenCalledTimes(2)
     expect(onImportComplete).toHaveBeenCalled()
     // Selection cleared after a successful import.
     expect(
-      screen.getByTestId('cloud-import-selection-summary')
+      screen.getByTestId('cloud-import-selection-summary'),
     ).toHaveTextContent('count=0')
   })
 
@@ -433,13 +431,13 @@ describe('CloudImportPanel — immediate mode', () => {
     render(<CloudImportPanel mode="immediate" projectId="proj-1" />)
     await selectOrgAndConnection()
     expect(
-      await screen.findByTestId('cloud-import-import-button')
+      await screen.findByTestId('cloud-import-import-button'),
     ).toBeDisabled()
   })
 
   it('toasts the aggregate error when the import fails', async () => {
     mockRunCloudImportJobs.mockRejectedValue(
-      new Error('imports/tasks.json: bad payload')
+      new Error('imports/tasks.json: bad payload'),
     )
     render(<CloudImportPanel mode="immediate" projectId="proj-1" />)
     await selectOrgAndConnection()
@@ -451,12 +449,12 @@ describe('CloudImportPanel — immediate mode', () => {
     await waitFor(() =>
       expect(mockAddToast).toHaveBeenCalledWith(
         'dataImport.cloud.importFailedWithReason reason=imports/tasks.json: bad payload',
-        'error'
-      )
+        'error',
+      ),
     )
     expect(mockCompleteProgress).toHaveBeenCalledWith(
       expect.any(String),
-      'error'
+      'error',
     )
   })
 
@@ -511,8 +509,8 @@ describe('CloudImportPanel — immediate mode', () => {
           connection_id: 'conn-1',
           object_keys: ['imports/tasks.json'],
         },
-        expect.anything()
-      )
+        expect.anything(),
+      ),
     )
 
     // Row whose connection is gone stays disabled.

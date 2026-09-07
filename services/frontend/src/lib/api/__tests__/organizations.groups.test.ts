@@ -124,7 +124,7 @@ describe('OrganizationsClient — groups', () => {
       await client.getOrgApiKeyStatus('org-1', 'grp-1')
       expect(calls[0].endpoint).toBe('/organizations/org-1/api-keys/status')
       expect(calls[1].endpoint).toBe(
-        '/organizations/org-1/api-keys/status?group_id=grp-1'
+        '/organizations/org-1/api-keys/status?group_id=grp-1',
       )
     })
 

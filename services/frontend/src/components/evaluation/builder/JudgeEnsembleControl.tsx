@@ -48,17 +48,17 @@ export function JudgeEnsembleControl<S extends BuilderStateWithParameters>({
 
   const primaryJudge: string = metricParameters.judge_model || DEFAULT_MODEL_ID
   const existingJudges = Array.isArray(metricParameters.judges)
-    ? (metricParameters.judges as Array<{ judge_model_id: string; runs?: number }>)
+    ? (metricParameters.judges as Array<{
+        judge_model_id: string
+        runs?: number
+      }>)
     : []
   const runsPerJudge: number = Math.max(
     1,
     Math.min(
       25,
-      Number(
-        existingJudges[0]?.runs ??
-          metricParameters.runs_per_judge ??
-          1,
-      ) || 1,
+      Number(existingJudges[0]?.runs ?? metricParameters.runs_per_judge ?? 1) ||
+        1,
     ),
   )
   const additionalJudges: string[] = existingJudges
@@ -83,18 +83,12 @@ export function JudgeEnsembleControl<S extends BuilderStateWithParameters>({
   return (
     <div className="space-y-4 rounded-md border border-emerald-200 bg-emerald-50/40 p-3 dark:border-emerald-800/40 dark:bg-emerald-900/10">
       <div className="text-xs font-semibold text-emerald-800 dark:text-emerald-200">
-        {t(
-          'evaluationBuilder.parameters.ensembleAndRuns',
-          'Ensemble & Läufe',
-        )}
+        {t('evaluationBuilder.parameters.ensembleAndRuns', 'Ensemble & Läufe')}
       </div>
 
       <div>
         <label className="mb-2 block text-xs font-medium text-gray-700 dark:text-gray-300">
-          {t(
-            'evaluationBuilder.parameters.runsPerJudge',
-            'Läufe pro Judge',
-          )}
+          {t('evaluationBuilder.parameters.runsPerJudge', 'Läufe pro Judge')}
         </label>
         <input
           type="number"
@@ -102,10 +96,7 @@ export function JudgeEnsembleControl<S extends BuilderStateWithParameters>({
           max={25}
           value={runsPerJudge}
           onChange={(e) => {
-            const r = Math.max(
-              1,
-              Math.min(25, parseInt(e.target.value) || 1),
-            )
+            const r = Math.max(1, Math.min(25, parseInt(e.target.value) || 1))
             writeJudges(additionalJudges, r)
           }}
           className="h-8 w-24 rounded-md border border-gray-300 px-2 text-sm dark:border-gray-600 dark:bg-gray-800"
@@ -130,9 +121,7 @@ export function JudgeEnsembleControl<S extends BuilderStateWithParameters>({
             // BYOM: officials first, then a "Custom" sub-heading + custom
             // models with badge. Missing is_official counts as official.
             const selectable = judgeModels.filter((m) => m.id !== primaryJudge)
-            const officials = selectable.filter(
-              (m) => m.is_official !== false,
-            )
+            const officials = selectable.filter((m) => m.is_official !== false)
             const customs = selectable.filter((m) => m.is_official === false)
 
             // Saved judges whose model row is gone from the catalog
@@ -156,9 +145,7 @@ export function JudgeEnsembleControl<S extends BuilderStateWithParameters>({
                 m.has_credential === false
               return (
                 <div key={m.id}>
-                  <label
-                    className="flex items-center gap-2 rounded-md border border-gray-200 p-2 text-xs dark:border-gray-700"
-                  >
+                  <label className="flex items-center gap-2 rounded-md border border-gray-200 p-2 text-xs dark:border-gray-700">
                     <input
                       type="checkbox"
                       checked={checked}
@@ -198,7 +185,7 @@ export function JudgeEnsembleControl<S extends BuilderStateWithParameters>({
               <>
                 {officials.map(renderEntry)}
                 {customs.length > 0 && (
-                  <div className="col-span-2 pt-1 text-xs font-semibold uppercase tracking-wider text-gray-400">
+                  <div className="col-span-2 pt-1 text-xs font-semibold tracking-wider text-gray-400 uppercase">
                     {t('customModels.picker.customSection')}
                   </div>
                 )}

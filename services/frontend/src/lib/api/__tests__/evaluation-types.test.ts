@@ -3,11 +3,11 @@
  */
 
 import {
+  FIELD_SPECIFIERS,
   generateEvaluationId,
   getDimensionDisplayName,
   getFieldDisplayName,
   isSpecialFieldValue,
-  FIELD_SPECIFIERS,
 } from '../evaluation-types'
 
 describe('getDimensionDisplayName', () => {
@@ -49,13 +49,13 @@ describe('isSpecialFieldValue', () => {
 describe('getFieldDisplayName', () => {
   it('should return display name for ALL_MODEL', () => {
     expect(getFieldDisplayName(FIELD_SPECIFIERS.ALL_MODEL)).toBe(
-      'All model responses'
+      'All model responses',
     )
   })
 
   it('should return display name for ALL_HUMAN', () => {
     expect(getFieldDisplayName(FIELD_SPECIFIERS.ALL_HUMAN)).toBe(
-      'All human annotations'
+      'All human annotations',
     )
   })
 

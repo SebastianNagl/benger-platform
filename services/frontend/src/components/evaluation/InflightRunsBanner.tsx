@@ -69,10 +69,10 @@ export function InflightRunsBanner({
   const [bulkCancelling, setBulkCancelling] = useState(false)
 
   const inflight = evaluations.filter((e) =>
-    LIFECYCLE_STATUSES.includes(e.status)
+    LIFECYCLE_STATUSES.includes(e.status),
   )
   const cancellable = inflight.filter(
-    (e) => e.status === 'pending' || e.status === 'running'
+    (e) => e.status === 'pending' || e.status === 'running',
   )
 
   // Retry affordance for the run the user just watched fail: only the
@@ -81,7 +81,7 @@ export function InflightRunsBanner({
   // orders newest-first, but compute defensively via created_at.
   const newest = evaluations.reduce<EvaluationLike | null>(
     (a, b) => (!a ? b : (b.created_at ?? '') > (a.created_at ?? '') ? b : a),
-    null
+    null,
   )
   const latestFailed =
     newest && newest.status === 'failed' && inflight.length === 0
@@ -101,7 +101,7 @@ export function InflightRunsBanner({
 
   const runLifecycleAction = async (
     id: string,
-    action: 'pause' | 'resume' | 'retry'
+    action: 'pause' | 'resume' | 'retry',
   ) => {
     markBusy(id, true)
     try {
@@ -119,7 +119,7 @@ export function InflightRunsBanner({
           detail: err instanceof Error ? err.message : String(err),
           defaultValue: `Aktion fehlgeschlagen: ${err instanceof Error ? err.message : String(err)}`,
         } as any),
-        'error'
+        'error',
       )
     } finally {
       markBusy(id, false)
@@ -131,7 +131,7 @@ export function InflightRunsBanner({
       title: t('evaluation.cancel.confirmSingleTitle', 'Lauf abbrechen?'),
       message: t(
         'evaluation.cancel.confirmSingleMessage',
-        'Bereits berechnete Bewertungen bleiben erhalten und werden beim nächsten Lauf wiederverwendet.'
+        'Bereits berechnete Bewertungen bleiben erhalten und werden beim nächsten Lauf wiederverwendet.',
       ),
       confirmText: t('evaluation.cancel.cancel', 'Abbrechen'),
       cancelText: t('evaluation.cancel.keepRunning', 'Weiterlaufen lassen'),
@@ -148,7 +148,7 @@ export function InflightRunsBanner({
               defaultValue: `Lauf abgebrochen. ${result.preserved_task_evaluation_count} Bewertungen erhalten.`,
             } as any)
           : result.message,
-        'success'
+        'success',
       )
       onChanged()
     } catch (err) {
@@ -157,7 +157,7 @@ export function InflightRunsBanner({
           detail: err instanceof Error ? err.message : String(err),
           defaultValue: `Abbruch fehlgeschlagen: ${err instanceof Error ? err.message : String(err)}`,
         } as any),
-        'error'
+        'error',
       )
     } finally {
       markBusy(id, false)
@@ -178,9 +178,8 @@ export function InflightRunsBanner({
     if (!ok) return
     setBulkCancelling(true)
     try {
-      const result = await apiClient.evaluations.cancelAllProjectEvaluations(
-        projectId
-      )
+      const result =
+        await apiClient.evaluations.cancelAllProjectEvaluations(projectId)
       addToast(
         result.cancelled_run_ids.length > 0
           ? t('evaluation.cancel.bulkSuccessWithCount', {
@@ -189,7 +188,7 @@ export function InflightRunsBanner({
               defaultValue: `${result.cancelled_run_ids.length} Läufe abgebrochen, ${result.preserved_task_evaluation_count} Bewertungen erhalten.`,
             } as any)
           : result.message,
-        'success'
+        'success',
       )
       onChanged()
     } catch (err) {
@@ -198,7 +197,7 @@ export function InflightRunsBanner({
           detail: err instanceof Error ? err.message : String(err),
           defaultValue: `Abbruch fehlgeschlagen: ${err instanceof Error ? err.message : String(err)}`,
         } as any),
-        'error'
+        'error',
       )
     } finally {
       setBulkCancelling(false)
@@ -262,7 +261,7 @@ export function InflightRunsBanner({
               data-testid="eval-retry-button"
               aria-label={t(
                 'evaluation.lifecycle.retryAria',
-                'Diesen Lauf erneut versuchen'
+                'Diesen Lauf erneut versuchen',
               )}
             >
               <ArrowPathIcon className="h-3.5 w-3.5" />
@@ -277,7 +276,7 @@ export function InflightRunsBanner({
                 onClick={() =>
                   runLifecycleAction(
                     e.evaluation_id,
-                    isPaused ? 'resume' : 'pause'
+                    isPaused ? 'resume' : 'pause',
                   )
                 }
                 disabled={isBusy || bulkCancelling}
@@ -289,11 +288,11 @@ export function InflightRunsBanner({
                   isPaused
                     ? t(
                         'evaluation.lifecycle.resumeAria',
-                        'Diesen Lauf fortsetzen'
+                        'Diesen Lauf fortsetzen',
                       )
                     : t(
                         'evaluation.lifecycle.pauseAria',
-                        'Diesen Lauf pausieren'
+                        'Diesen Lauf pausieren',
                       )
                 }
               >
@@ -317,7 +316,7 @@ export function InflightRunsBanner({
                 className={lifecycleButtonClass}
                 aria-label={t(
                   'evaluation.cancel.singleAria',
-                  'Diesen Lauf abbrechen'
+                  'Diesen Lauf abbrechen',
                 )}
               >
                 <XMarkIcon className="h-3.5 w-3.5" />
@@ -345,7 +344,7 @@ export function InflightRunsBanner({
             {latestFailed
               ? t(
                   'evaluation.lifecycle.latestFailedHeading',
-                  'Letzte Auswertung fehlgeschlagen'
+                  'Letzte Auswertung fehlgeschlagen',
                 )
               : t('evaluation.inflight.heading', {
                   count: inflight.length,

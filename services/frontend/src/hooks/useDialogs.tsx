@@ -140,7 +140,7 @@ export function useErrorAlert() {
         variant: 'error',
       })
     },
-    [alert]
+    [alert],
   )
 }
 
@@ -154,7 +154,7 @@ export function useSuccessAlert() {
         variant: 'success',
       })
     },
-    [alert]
+    [alert],
   )
 }
 
@@ -168,7 +168,7 @@ export function useWarningAlert() {
         variant: 'warning',
       })
     },
-    [alert]
+    [alert],
   )
 }
 
@@ -185,6 +185,6 @@ export function useDeleteConfirm() {
         confirmButtonVariant: 'filled',
       })
     },
-    [confirm]
+    [confirm],
   )
 }

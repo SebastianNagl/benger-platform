@@ -9,7 +9,6 @@ import '@testing-library/jest-dom'
 // per-file by importing `@/test-utils/locationMock` (which loads
 // jest-location-mock plus a patch that handles relative URLs in href setters).
 
-
 // Mock fetch globally for all tests
 global.fetch = jest.fn(() =>
   Promise.resolve({
@@ -24,7 +23,7 @@ global.fetch = jest.fn(() =>
     statusText: 'OK',
     type: 'basic',
     url: '',
-  })
+  }),
 )
 
 // Mock Next.js router

@@ -259,10 +259,10 @@ describe('useHydration', () => {
       }))
 
       const { result: result1, rerender: rerender1 } = renderHook(() =>
-        useHydration()
+        useHydration(),
       )
       const { result: result2, rerender: rerender2 } = renderHook(() =>
-        useHydration()
+        useHydration(),
       )
 
       expect(result1.current).toBe(false)
@@ -539,7 +539,7 @@ describe('useHydration', () => {
 
       const { result: result1 } = renderHook(() => useHydration())
       const { result: result2, unmount: unmount2 } = renderHook(() =>
-        useHydration()
+        useHydration(),
       )
 
       expect(result1.current).toBe(false)

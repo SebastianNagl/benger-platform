@@ -107,7 +107,7 @@ export default function LikertEvaluation() {
           project_id: projectId,
           session_type: 'likert',
           dimensions: getDefaultDimensions(t),
-        }
+        },
       )
 
       const newSession = response.data
@@ -128,7 +128,7 @@ export default function LikertEvaluation() {
   const loadSession = async (sessionId: string) => {
     try {
       const response = await apiClient.get(
-        `/evaluations/human/session/${sessionId}`
+        `/evaluations/human/session/${sessionId}`,
       )
       setSession(response.data)
 
@@ -145,7 +145,7 @@ export default function LikertEvaluation() {
     setLoading(true)
     try {
       const response = await apiClient.get(
-        `/evaluations/human/session/${sessionId}/next`
+        `/evaluations/human/session/${sessionId}/next`,
       )
 
       if (response.data.completed) {
@@ -171,8 +171,10 @@ export default function LikertEvaluation() {
       session.dimensions?.filter((d) => !ratings[d.id]) || []
     if (missingRatings.length > 0) {
       addToast(
-        t('evaluations.human.likert.rateAllDimensions', { dimensions: missingRatings.map((d) => d.name).join(', ') }),
-        'error'
+        t('evaluations.human.likert.rateAllDimensions', {
+          dimensions: missingRatings.map((d) => d.name).join(', '),
+        }),
+        'error',
       )
       return
     }
@@ -233,7 +235,9 @@ export default function LikertEvaluation() {
         <div className="flex items-center justify-between">
           <label className="text-sm font-medium">{dimension.name}</label>
           <span className="text-xs text-gray-500">
-            {rating > 0 ? `${rating}/5` : t('evaluations.human.likert.notRated')}
+            {rating > 0
+              ? `${rating}/5`
+              : t('evaluations.human.likert.notRated')}
           </span>
         </div>
         <p className="text-xs text-gray-600">{dimension.description}</p>
@@ -243,7 +247,9 @@ export default function LikertEvaluation() {
               key={star}
               onClick={() => setRatings({ ...ratings, [dimension.id]: star })}
               className="p-1 transition-transform hover:scale-110"
-              aria-label={t('evaluations.human.likert.rateStars', { count: String(star) })}
+              aria-label={t('evaluations.human.likert.rateStars', {
+                count: String(star),
+              })}
             >
               {star <= rating ? (
                 <StarIconSolid className="h-8 w-8 text-yellow-400" />
@@ -279,11 +285,15 @@ export default function LikertEvaluation() {
             </p>
             <div className="mb-6 space-y-2">
               <p className="text-sm">
-                <span className="font-medium">{t('evaluations.human.likert.projectLabel')}:</span>{' '}
+                <span className="font-medium">
+                  {t('evaluations.human.likert.projectLabel')}:
+                </span>{' '}
                 {session?.project_name}
               </p>
               <p className="text-sm">
-                <span className="font-medium">{t('evaluations.human.likert.itemsEvaluated')}:</span>{' '}
+                <span className="font-medium">
+                  {t('evaluations.human.likert.itemsEvaluated')}:
+                </span>{' '}
                 {session?.evaluated_items}
               </p>
             </div>
@@ -338,9 +348,11 @@ export default function LikertEvaluation() {
           {/* Task and Response */}
           <div className="space-y-4">
             <Card className="p-6">
-              <h3 className="mb-3 font-medium">{t('evaluations.human.likert.taskData')}</h3>
+              <h3 className="mb-3 font-medium">
+                {t('evaluations.human.likert.taskData')}
+              </h3>
               <div className="rounded-lg bg-gray-50 p-4">
-                <pre className="whitespace-pre-wrap text-sm">
+                <pre className="text-sm whitespace-pre-wrap">
                   {currentItem &&
                     JSON.stringify(currentItem.task_data, null, 2)}
                 </pre>
@@ -349,11 +361,13 @@ export default function LikertEvaluation() {
 
             <Card className="p-6">
               <div className="mb-3 flex items-center justify-between">
-                <h3 className="font-medium">{t('evaluations.human.likert.modelResponse')}</h3>
+                <h3 className="font-medium">
+                  {t('evaluations.human.likert.modelResponse')}
+                </h3>
                 <Badge variant="outline">{currentItem?.model_id}</Badge>
               </div>
               <div className="rounded-lg bg-blue-50 p-4">
-                <p className="whitespace-pre-wrap text-sm">
+                <p className="text-sm whitespace-pre-wrap">
                   {currentItem?.response_content}
                 </p>
               </div>
@@ -363,7 +377,9 @@ export default function LikertEvaluation() {
           {/* Rating Controls */}
           <div className="space-y-4">
             <Card className="p-6">
-              <h3 className="mb-4 font-medium">{t('evaluations.human.likert.rateResponse')}</h3>
+              <h3 className="mb-4 font-medium">
+                {t('evaluations.human.likert.rateResponse')}
+              </h3>
               <div className="space-y-6">
                 {session?.dimensions?.map((dimension) => (
                   <div key={dimension.id}>{renderStarRating(dimension)}</div>
@@ -399,7 +415,9 @@ export default function LikertEvaluation() {
 
             {/* Instructions */}
             <Card className="border-yellow-200 bg-yellow-50 p-4">
-              <h4 className="mb-2 text-sm font-medium">{t('evaluations.human.likert.ratingGuidelines')}</h4>
+              <h4 className="mb-2 text-sm font-medium">
+                {t('evaluations.human.likert.ratingGuidelines')}
+              </h4>
               <ul className="space-y-1 text-xs text-gray-600">
                 <li>• {t('evaluations.human.likert.guidelineRate')}</li>
                 <li>• {t('evaluations.human.likert.guidelineConsider')}</li>

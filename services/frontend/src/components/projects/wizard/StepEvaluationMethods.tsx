@@ -11,6 +11,7 @@ import {
   SelectValue,
 } from '@/components/shared/Select'
 import { useI18n } from '@/contexts/I18nContext'
+import { useModels } from '@/hooks/useModels'
 import {
   EvaluationConfig,
   generateEvaluationId,
@@ -20,7 +21,6 @@ import {
 } from '@/lib/api/evaluation-types'
 import { computeDefaultEvalName } from '@/lib/evaluation/evalName'
 import { OutputField } from '@/lib/labelConfig/fieldExtractor'
-import { useModels } from '@/hooks/useModels'
 import { DEFAULT_MODEL_ID } from '@/lib/modelDefaults'
 import { ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/24/outline'
 import { useState } from 'react'
@@ -57,7 +57,10 @@ export function StepEvaluationMethods({
 
   // Build prediction field options from label_config output fields
   const predictionOptions = [
-    { value: '__all_model__', label: t('projects.creation.wizard.step7.allModelOutputs') },
+    {
+      value: '__all_model__',
+      label: t('projects.creation.wizard.step7.allModelOutputs'),
+    },
     ...annotationFields.map((f) => ({
       value: `model:${f.name}`,
       label: `model:${f.name}`,
@@ -84,7 +87,7 @@ export function StepEvaluationMethods({
   const toggleMetric = (metricKey: string) => {
     if (selectedMetrics.has(metricKey)) {
       onEvaluationConfigsChange(
-        evaluationConfigs.filter((c) => c.metric !== metricKey)
+        evaluationConfigs.filter((c) => c.metric !== metricKey),
       )
     } else {
       const def = metricDefinitions[metricKey]
@@ -103,7 +106,8 @@ export function StepEvaluationMethods({
           prediction_fields: defaultPrediction ? [defaultPrediction] : [],
           reference_fields: defaultReference ? [defaultReference] : [],
           enabled: true,
-          metric_parameters: Object.keys(defaultParams).length > 0 ? defaultParams : undefined,
+          metric_parameters:
+            Object.keys(defaultParams).length > 0 ? defaultParams : undefined,
         },
       ])
     }
@@ -115,19 +119,20 @@ export function StepEvaluationMethods({
   const updateConfig = (
     configId: string,
     field: keyof EvaluationConfig,
-    value: any
+    value: any,
   ) => {
     onEvaluationConfigsChange(
       evaluationConfigs.map((c) =>
-        c.id === configId ? { ...c, [field]: value } : c
-      )
+        c.id === configId ? { ...c, [field]: value } : c,
+      ),
     )
   }
 
-  const hasFieldOptions = predictionOptions.length > 0 || referenceOptions.length > 0
+  const hasFieldOptions =
+    predictionOptions.length > 0 || referenceOptions.length > 0
   const isKorrekturClassicSelected = selectedMetrics.has('korrektur_classic')
   const korrekturClassicConfig = evaluationConfigs.find(
-    (c) => c.metric === 'korrektur_classic'
+    (c) => c.metric === 'korrektur_classic',
   )
 
   const DEFAULT_KORREKTUR_LABELS = [
@@ -136,7 +141,10 @@ export function StepEvaluationMethods({
     { value: 'Suggestion', background: '#FFEAA7' },
   ]
 
-  const getKorrekturLabels = (): Array<{ value: string; background: string }> => {
+  const getKorrekturLabels = (): Array<{
+    value: string
+    background: string
+  }> => {
     const params = (korrekturClassicConfig?.metric_parameters as any) || {}
     const labels = params.highlight_labels
     if (Array.isArray(labels) && labels.length > 0) return labels
@@ -167,7 +175,9 @@ export function StepEvaluationMethods({
       {/* Immediate evaluation toggle */}
       <div className="flex items-center justify-between">
         <div>
-          <Label>{t('projects.creation.wizard.step7.immediateEvaluation')}</Label>
+          <Label>
+            {t('projects.creation.wizard.step7.immediateEvaluation')}
+          </Label>
           <p className="text-sm text-zinc-500 dark:text-zinc-400">
             {t('projects.creation.wizard.step7.immediateEvaluationHint')}
           </p>
@@ -213,7 +223,7 @@ export function StepEvaluationMethods({
                 // ALL configs of this metric — usually one, but pairs exist
                 // (tier-selected judge configs); each gets its own editor.
                 const metricConfigs = evaluationConfigs.filter(
-                  (c) => c.metric === metricKey
+                  (c) => c.metric === metricKey,
                 )
                 const isExpanded = expandedMetric === metricKey
 
@@ -231,14 +241,14 @@ export function StepEvaluationMethods({
                               <span
                                 title={t(
                                   'projects.creation.wizard.step7.batchOnlyHint',
-                                  'Dieses Verfahren lädt ein großes Modell und läuft nur in der Batch-Evaluation, nicht in der Sofort-Evaluation.'
+                                  'Dieses Verfahren lädt ein großes Modell und läuft nur in der Batch-Evaluation, nicht in der Sofort-Evaluation.',
                                 )}
                                 className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
                                 data-testid={`metric-batch-only-${metricKey}`}
                               >
                                 {t(
                                   'projects.creation.wizard.step7.batchOnly',
-                                  'Nur Batch'
+                                  'Nur Batch',
                                 )}
                               </span>
                             )}
@@ -252,9 +262,7 @@ export function StepEvaluationMethods({
                           <button
                             type="button"
                             onClick={() =>
-                              setExpandedMetric(
-                                isExpanded ? null : metricKey
-                              )
+                              setExpandedMetric(isExpanded ? null : metricKey)
                             }
                             className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
                           >
@@ -282,7 +290,7 @@ export function StepEvaluationMethods({
                       metricConfigs.map((config, configIndex) => (
                         <div
                           key={config.id}
-                          className="ml-4 mt-2 space-y-3 rounded-lg border border-zinc-200 p-3 dark:border-zinc-700"
+                          className="mt-2 ml-4 space-y-3 rounded-lg border border-zinc-200 p-3 dark:border-zinc-700"
                           data-testid={`wizard-metric-config-${metricKey}-${configIndex}`}
                         >
                           {metricConfigs.length > 1 && (
@@ -307,15 +315,17 @@ export function StepEvaluationMethods({
                                 computeDefaultEvalName(
                                   def,
                                   config.metric_parameters,
-                                  metricKey
+                                  metricKey,
                                 ) ||
-                                t('projects.creation.wizard.step7.namePlaceholder')
+                                t(
+                                  'projects.creation.wizard.step7.namePlaceholder',
+                                )
                               }
                               onChange={(e) =>
                                 updateConfig(
                                   config.id,
                                   'display_name',
-                                  e.target.value
+                                  e.target.value,
                                 )
                               }
                               className="mt-1 w-full rounded border border-zinc-300 px-2 py-1 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-white"
@@ -330,18 +340,27 @@ export function StepEvaluationMethods({
                           {predictionOptions.length > 0 && (
                             <div>
                               <Label className="text-xs">
-                                {t('projects.creation.wizard.step7.predictionField')}
+                                {t(
+                                  'projects.creation.wizard.step7.predictionField',
+                                )}
                               </Label>
                               <Select
                                 value={config.prediction_fields[0] || ''}
                                 onValueChange={(val) =>
-                                  updateConfig(config.id, 'prediction_fields', [val])
+                                  updateConfig(config.id, 'prediction_fields', [
+                                    val,
+                                  ])
                                 }
                               >
-                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
                                 <SelectContent>
                                   {predictionOptions.map((opt) => (
-                                    <SelectItem key={opt.value} value={opt.value}>
+                                    <SelectItem
+                                      key={opt.value}
+                                      value={opt.value}
+                                    >
                                       {opt.label}
                                     </SelectItem>
                                   ))}
@@ -353,18 +372,27 @@ export function StepEvaluationMethods({
                           {referenceOptions.length > 0 && (
                             <div>
                               <Label className="text-xs">
-                                {t('projects.creation.wizard.step7.referenceField')}
+                                {t(
+                                  'projects.creation.wizard.step7.referenceField',
+                                )}
                               </Label>
                               <Select
                                 value={config.reference_fields[0] || ''}
                                 onValueChange={(val) =>
-                                  updateConfig(config.id, 'reference_fields', [val])
+                                  updateConfig(config.id, 'reference_fields', [
+                                    val,
+                                  ])
                                 }
                               >
-                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
                                 <SelectContent>
                                   {referenceOptions.map((opt) => (
-                                    <SelectItem key={opt.value} value={opt.value}>
+                                    <SelectItem
+                                      key={opt.value}
+                                      value={opt.value}
+                                    >
                                       {opt.label}
                                     </SelectItem>
                                   ))}
@@ -373,41 +401,55 @@ export function StepEvaluationMethods({
                             </div>
                           )}
 
-                          {def.category === LLM_JUDGE_CATEGORY && models.length > 0 && (
-                            <div>
-                              <Label className="text-xs">
-                                {t('projects.creation.wizard.step7.judgeModel')}
-                              </Label>
-                              <Select
-                                value={
-                                  (config.metric_parameters as any)?.judge_model ||
-                                  // Preselect the shared default, but only when the
-                                  // catalog actually offers it — a value with no
-                                  // matching SelectItem renders as a blank trigger.
-                                  (models.some((m) => m.id === DEFAULT_MODEL_ID)
-                                    ? DEFAULT_MODEL_ID
-                                    : '')
-                                }
-                                onValueChange={(val) =>
-                                  updateConfig(config.id, 'metric_parameters', {
-                                    ...config.metric_parameters,
-                                    judge_model: val,
-                                  })
-                                }
-                              >
-                                <SelectTrigger>
-                                  <SelectValue placeholder={t('projects.creation.wizard.step7.selectJudgeModel')} />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {models.map((m) => (
-                                    <SelectItem key={m.id} value={m.id}>
-                                      {m.name}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </div>
-                          )}
+                          {def.category === LLM_JUDGE_CATEGORY &&
+                            models.length > 0 && (
+                              <div>
+                                <Label className="text-xs">
+                                  {t(
+                                    'projects.creation.wizard.step7.judgeModel',
+                                  )}
+                                </Label>
+                                <Select
+                                  value={
+                                    (config.metric_parameters as any)
+                                      ?.judge_model ||
+                                    // Preselect the shared default, but only when the
+                                    // catalog actually offers it — a value with no
+                                    // matching SelectItem renders as a blank trigger.
+                                    (models.some(
+                                      (m) => m.id === DEFAULT_MODEL_ID,
+                                    )
+                                      ? DEFAULT_MODEL_ID
+                                      : '')
+                                  }
+                                  onValueChange={(val) =>
+                                    updateConfig(
+                                      config.id,
+                                      'metric_parameters',
+                                      {
+                                        ...config.metric_parameters,
+                                        judge_model: val,
+                                      },
+                                    )
+                                  }
+                                >
+                                  <SelectTrigger>
+                                    <SelectValue
+                                      placeholder={t(
+                                        'projects.creation.wizard.step7.selectJudgeModel',
+                                      )}
+                                    />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {models.map((m) => (
+                                      <SelectItem key={m.id} value={m.id}>
+                                        {m.name}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            )}
                         </div>
                       ))}
                   </div>
@@ -438,7 +480,10 @@ export function StepEvaluationMethods({
                   value={label.background}
                   onChange={(e) => {
                     const updated = [...getKorrekturLabels()]
-                    updated[index] = { ...updated[index], background: e.target.value }
+                    updated[index] = {
+                      ...updated[index],
+                      background: e.target.value,
+                    }
                     setKorrekturLabels(updated)
                   }}
                   className="h-8 w-8 cursor-pointer rounded border border-zinc-300 dark:border-zinc-600"
@@ -448,7 +493,10 @@ export function StepEvaluationMethods({
                   value={label.value}
                   onChange={(e) => {
                     const updated = [...getKorrekturLabels()]
-                    updated[index] = { ...updated[index], value: e.target.value }
+                    updated[index] = {
+                      ...updated[index],
+                      value: e.target.value,
+                    }
                     setKorrekturLabels(updated)
                   }}
                   placeholder="Label-Name"
@@ -472,9 +520,10 @@ export function StepEvaluationMethods({
               type="button"
               onClick={() => {
                 const existing = getKorrekturLabels()
-                const next = DEFAULT_KORREKTUR_LABELS[
-                  existing.length % DEFAULT_KORREKTUR_LABELS.length
-                ]
+                const next =
+                  DEFAULT_KORREKTUR_LABELS[
+                    existing.length % DEFAULT_KORREKTUR_LABELS.length
+                  ]
                 setKorrekturLabels([
                   ...existing,
                   {

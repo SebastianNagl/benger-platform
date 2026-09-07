@@ -77,8 +77,10 @@ export function AnnotationGuidelinesModal({
                   value={guidelines}
                   onChange={(e) => setGuidelines(e.target.value)}
                   rows={8}
-                  className="block w-full resize-none rounded-lg border border-zinc-300 bg-white px-3 py-2.5 text-zinc-900 transition-colors placeholder:text-zinc-500 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 dark:border-zinc-600 dark:bg-zinc-800 dark:text-white dark:placeholder:text-zinc-400 dark:focus:border-emerald-400 dark:focus:ring-emerald-400/20 sm:text-sm"
-                  placeholder={t('modals.annotationGuidelines.textareaPlaceholder')}
+                  className="block w-full resize-none rounded-lg border border-zinc-300 bg-white px-3 py-2.5 text-zinc-900 transition-colors placeholder:text-zinc-500 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 sm:text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-white dark:placeholder:text-zinc-400 dark:focus:border-emerald-400 dark:focus:ring-emerald-400/20"
+                  placeholder={t(
+                    'modals.annotationGuidelines.textareaPlaceholder',
+                  )}
                 />
               </div>
 
@@ -99,7 +101,9 @@ export function AnnotationGuidelinesModal({
                   </div>
                   <div className="ml-3">
                     <p className="text-sm text-amber-800 dark:text-amber-200">
-                      <strong>{t('modals.annotationGuidelines.helpTitle')}</strong>
+                      <strong>
+                        {t('modals.annotationGuidelines.helpTitle')}
+                      </strong>
                     </p>
                     <ul className="mt-2 list-inside list-disc space-y-1 text-sm text-amber-700 dark:text-amber-300">
                       <li>{t('modals.annotationGuidelines.helpItem1')}</li>

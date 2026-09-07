@@ -62,7 +62,7 @@ export function ColumnSelector({
 
     if (sourceColumn && destColumn) {
       const realSourceIndex = columns.findIndex(
-        (col) => col.id === sourceColumn.id
+        (col) => col.id === sourceColumn.id,
       )
       const realDestIndex = columns.findIndex((col) => col.id === destColumn.id)
 
@@ -92,7 +92,7 @@ export function ColumnSelector({
             <Droppable droppableId="columns-list">
               {(provided) => (
                 <div
-                  className="scrollbar-thin scrollbar-thumb-zinc-400 dark:scrollbar-thumb-zinc-600 scrollbar-track-zinc-100 dark:scrollbar-track-zinc-800 max-h-96 overflow-y-auto"
+                  className="max-h-96 scrollbar-thin scrollbar-thumb-zinc-400 scrollbar-track-zinc-100 overflow-y-auto dark:scrollbar-thumb-zinc-600 dark:scrollbar-track-zinc-800"
                   {...provided.droppableProps}
                   ref={provided.innerRef}
                 >

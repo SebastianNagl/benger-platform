@@ -29,7 +29,8 @@ jest.mock('@/contexts/I18nContext', () => ({
         'navigation.projects': 'Projects',
         'projects.create.title': 'Create',
         'projects.create.accessDenied': 'Access Denied',
-        'projects.create.permissionDenied': 'Only superadmins, organization admins, and contributors can create projects.',
+        'projects.create.permissionDenied':
+          'Only superadmins, organization admins, and contributors can create projects.',
         'projects.backToProjects': 'Back to Projects',
       }
       return translations[key] || key
@@ -130,7 +131,7 @@ describe('Create Project Page', () => {
       const { container } = render(<CreateProjectPage />)
 
       const loadingContainer = container.querySelector(
-        '.items-center.justify-center'
+        '.items-center.justify-center',
       )
       expect(loadingContainer).toBeInTheDocument()
     })
@@ -173,8 +174,8 @@ describe('Create Project Page', () => {
 
       expect(
         screen.getByText(
-          /Only superadmins, organization admins, and contributors can create projects/
-        )
+          /Only superadmins, organization admins, and contributors can create projects/,
+        ),
       ).toBeInTheDocument()
     })
 
@@ -229,7 +230,7 @@ describe('Create Project Page', () => {
 
       await waitFor(() => {
         expect(mockReplace).toHaveBeenCalledWith(
-          '/projects?error=no-permission'
+          '/projects?error=no-permission',
         )
       })
     })
@@ -319,10 +320,10 @@ describe('Create Project Page', () => {
       render(<CreateProjectPage />)
       expect(screen.getByTestId('breadcrumb-item-0')).toHaveTextContent('Home')
       expect(screen.getByTestId('breadcrumb-item-1')).toHaveTextContent(
-        'Projects'
+        'Projects',
       )
       expect(screen.getByTestId('breadcrumb-item-2')).toHaveTextContent(
-        'Create'
+        'Create',
       )
     })
 
@@ -403,7 +404,9 @@ describe('Create Project Page', () => {
 
       render(<CreateProjectPage />)
 
-      expect(canCreateProjects).toHaveBeenCalledWith(mockUser, { isPrivateMode: false })
+      expect(canCreateProjects).toHaveBeenCalledWith(mockUser, {
+        isPrivateMode: false,
+      })
     })
 
     it('does not call canCreateProjects while loading', () => {
@@ -446,7 +449,7 @@ describe('Create Project Page', () => {
 
       await waitFor(() => {
         expect(mockReplace).toHaveBeenCalledWith(
-          '/projects?error=no-permission'
+          '/projects?error=no-permission',
         )
       })
     })
@@ -591,7 +594,7 @@ describe('Create Project Page', () => {
       render(<CreateProjectPage />)
 
       const message = screen.getByText(
-        /Only superadmins, organization admins, and contributors can create projects/
+        /Only superadmins, organization admins, and contributors can create projects/,
       )
       expect(message.tagName).toBe('P')
     })

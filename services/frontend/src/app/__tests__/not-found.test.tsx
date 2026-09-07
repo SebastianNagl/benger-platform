@@ -107,7 +107,7 @@ describe('NotFound', () => {
       const { container } = render(<NotFound />)
 
       const centerContainer = container.querySelector(
-        '.mx-auto.flex.h-full.max-w-xl'
+        '.mx-auto.flex.h-full.max-w-xl',
       )
       expect(centerContainer).toBeInTheDocument()
     })
@@ -123,7 +123,7 @@ describe('NotFound', () => {
       const { container } = render(<NotFound />)
 
       const centerContainer = container.querySelector(
-        '.items-center.justify-center'
+        '.items-center.justify-center',
       )
       expect(centerContainer).toBeInTheDocument()
       expect(centerContainer).toHaveClass('text-center')
@@ -153,7 +153,7 @@ describe('NotFound', () => {
         'text-sm',
         'font-semibold',
         'text-zinc-900',
-        'dark:text-white'
+        'dark:text-white',
       )
     })
 
@@ -166,7 +166,7 @@ describe('NotFound', () => {
         'text-2xl',
         'font-bold',
         'text-zinc-900',
-        'dark:text-white'
+        'dark:text-white',
       )
     })
 
@@ -178,7 +178,7 @@ describe('NotFound', () => {
         'mt-2',
         'text-base',
         'text-zinc-600',
-        'dark:text-zinc-400'
+        'dark:text-zinc-400',
       )
     })
 
@@ -332,7 +332,7 @@ describe('NotFound', () => {
       const { container } = render(<NotFound />)
 
       const centerContainer = container.querySelector(
-        '.items-center.justify-center'
+        '.items-center.justify-center',
       )
       expect(centerContainer).toBeInTheDocument()
     })

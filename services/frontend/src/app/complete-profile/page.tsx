@@ -110,7 +110,9 @@ export default function CompleteProfilePage() {
       }
     } catch (err: any) {
       console.error('Failed to complete profile:', err)
-      setError(err.response?.data?.detail || t('completeProfile.failedToComplete'))
+      setError(
+        err.response?.data?.detail || t('completeProfile.failedToComplete'),
+      )
     } finally {
       setSubmitting(false)
     }
@@ -171,7 +173,7 @@ export default function CompleteProfilePage() {
             {error && (
               <div className="mb-6 rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/20">
                 <div className="flex">
-                  <ExclamationTriangleIcon className="mr-2 mt-0.5 h-5 w-5 shrink-0 text-red-400" />
+                  <ExclamationTriangleIcon className="mt-0.5 mr-2 h-5 w-5 shrink-0 text-red-400" />
                   <div className="text-red-800 dark:text-red-200">{error}</div>
                 </div>
               </div>
@@ -195,7 +197,7 @@ export default function CompleteProfilePage() {
                     required
                     value={formData.username}
                     onChange={handleChange}
-                    className="block w-full rounded-md border-zinc-300 px-3 py-2 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-emerald-500 dark:border-zinc-600 dark:bg-zinc-700 dark:text-white sm:text-sm"
+                    className="block w-full rounded-md border-zinc-300 px-3 py-2 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 focus:outline-none sm:text-sm dark:border-zinc-600 dark:bg-zinc-700 dark:text-white"
                     placeholder={t('completeProfile.usernamePlaceholder')}
                   />
                 </div>
@@ -216,7 +218,7 @@ export default function CompleteProfilePage() {
                     autoComplete="name"
                     value={formData.name}
                     onChange={handleChange}
-                    className="block w-full rounded-md border-zinc-300 px-3 py-2 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-emerald-500 dark:border-zinc-600 dark:bg-zinc-700 dark:text-white sm:text-sm"
+                    className="block w-full rounded-md border-zinc-300 px-3 py-2 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 focus:outline-none sm:text-sm dark:border-zinc-600 dark:bg-zinc-700 dark:text-white"
                     placeholder={t('completeProfile.displayNamePlaceholder')}
                   />
                 </div>
@@ -238,7 +240,7 @@ export default function CompleteProfilePage() {
                     required
                     value={formData.password}
                     onChange={handleChange}
-                    className="block w-full rounded-md border-zinc-300 px-3 py-2 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-emerald-500 dark:border-zinc-600 dark:bg-zinc-700 dark:text-white sm:text-sm"
+                    className="block w-full rounded-md border-zinc-300 px-3 py-2 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 focus:outline-none sm:text-sm dark:border-zinc-600 dark:bg-zinc-700 dark:text-white"
                     placeholder={t('completeProfile.passwordPlaceholder')}
                   />
                 </div>
@@ -260,8 +262,10 @@ export default function CompleteProfilePage() {
                     required
                     value={formData.confirmPassword}
                     onChange={handleChange}
-                    className="block w-full rounded-md border-zinc-300 px-3 py-2 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-emerald-500 dark:border-zinc-600 dark:bg-zinc-700 dark:text-white sm:text-sm"
-                    placeholder={t('completeProfile.confirmPasswordPlaceholder')}
+                    className="block w-full rounded-md border-zinc-300 px-3 py-2 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 focus:outline-none sm:text-sm dark:border-zinc-600 dark:bg-zinc-700 dark:text-white"
+                    placeholder={t(
+                      'completeProfile.confirmPasswordPlaceholder',
+                    )}
                   />
                 </div>
               </div>

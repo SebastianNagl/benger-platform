@@ -6,13 +6,13 @@
  * Issue #216: Implement Unified Task Configuration and Display System
  */
 
+import { useI18n } from '@/contexts/I18nContext'
 import {
   CloudArrowUpIcon,
   DocumentIcon,
   XMarkIcon,
 } from '@heroicons/react/24/outline'
 import React, { useRef } from 'react'
-import { useI18n } from '@/contexts/I18nContext'
 import { BaseFieldProps, FieldWrapper } from './BaseField'
 
 interface FileInfo {
@@ -66,13 +66,13 @@ export function FileUploadField({
   return (
     <FieldWrapper field={field} errors={errors} className={className}>
       {!currentFile ? (
-        <div className="flex justify-center rounded-md border-2 border-dashed border-gray-300 px-6 pb-6 pt-5 dark:border-gray-600">
+        <div className="flex justify-center rounded-md border-2 border-dashed border-gray-300 px-6 pt-5 pb-6 dark:border-gray-600">
           <div className="space-y-1 text-center">
             <CloudArrowUpIcon className="mx-auto h-12 w-12 text-gray-400" />
             <div className="flex text-sm text-gray-600 dark:text-gray-400">
               <label
                 htmlFor={field.name}
-                className={`relative cursor-pointer rounded-md font-medium text-blue-600 focus-within:outline-none focus-within:ring-2 focus-within:ring-blue-500 focus-within:ring-offset-2 hover:text-blue-500 ${
+                className={`relative cursor-pointer rounded-md font-medium text-blue-600 focus-within:ring-2 focus-within:ring-blue-500 focus-within:ring-offset-2 focus-within:outline-none hover:text-blue-500 ${
                   readonly ? 'cursor-not-allowed opacity-50' : ''
                 }`}
               >

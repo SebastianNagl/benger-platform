@@ -8,26 +8,30 @@
  */
 
 import '@testing-library/jest-dom'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 
 // Mock LikertScale shared component
 jest.mock('@/components/shared/LikertScale', () => ({
   LikertScale: ({ name, label, value, onChange, required, min, max }: any) => (
     <fieldset data-testid="likert-scale">
-      <legend>{label}{required && <span>*</span>}</legend>
-      {Array.from({ length: (max || 7) - (min || 1) + 1 }, (_, i) => (min || 1) + i).map(
-        (point: number) => (
-          <button
-            key={point}
-            type="button"
-            data-testid={`likert-${point}`}
-            data-selected={value === point}
-            onClick={() => onChange(point)}
-          >
-            {point}
-          </button>
-        )
-      )}
+      <legend>
+        {label}
+        {required && <span>*</span>}
+      </legend>
+      {Array.from(
+        { length: (max || 7) - (min || 1) + 1 },
+        (_, i) => (min || 1) + i,
+      ).map((point: number) => (
+        <button
+          key={point}
+          type="button"
+          data-testid={`likert-${point}`}
+          data-selected={value === point}
+          onClick={() => onChange(point)}
+        >
+          {point}
+        </button>
+      ))}
     </fieldset>
   ),
 }))
@@ -108,19 +112,24 @@ describe('LikertInput', () => {
         ...defaultProps,
         config: {
           ...defaultProps.config,
-          props: { ...defaultProps.config.props, hint: 'Select your agreement level' },
+          props: {
+            ...defaultProps.config.props,
+            hint: 'Select your agreement level',
+          },
         },
       }
       render(<LikertInput {...props} />)
-      expect(screen.getByText('Select your agreement level')).toBeInTheDocument()
+      expect(
+        screen.getByText('Select your agreement level'),
+      ).toBeInTheDocument()
     })
 
     it('does not render hint when not provided', () => {
       const { container } = render(<LikertInput {...defaultProps} />)
       const hintElements = container.querySelectorAll('.text-zinc-500')
       // No hint paragraph (only the likert scale legend may have zinc-500)
-      const hintTexts = Array.from(hintElements).filter((el) =>
-        el.tagName.toLowerCase() === 'p'
+      const hintTexts = Array.from(hintElements).filter(
+        (el) => el.tagName.toLowerCase() === 'p',
       )
       expect(hintTexts).toHaveLength(0)
     })
@@ -170,7 +179,7 @@ describe('LikertInput', () => {
         'agreement',
         'Likert',
         2,
-        'statement'
+        'statement',
       )
     })
 
@@ -190,7 +199,7 @@ describe('LikertInput', () => {
         'fallback-likert',
         'Likert',
         1,
-        'statement'
+        'statement',
       )
     })
 
@@ -210,7 +219,7 @@ describe('LikertInput', () => {
         'likert',
         'Likert',
         1,
-        'statement'
+        'statement',
       )
     })
   })
@@ -220,14 +229,20 @@ describe('LikertInput', () => {
       const props = { ...defaultProps, value: 4 }
       render(<LikertInput {...props} />)
       // The button with value 4 should have data-selected="true"
-      expect(screen.getByTestId('likert-4')).toHaveAttribute('data-selected', 'true')
+      expect(screen.getByTestId('likert-4')).toHaveAttribute(
+        'data-selected',
+        'true',
+      )
     })
 
     it('initializes as undefined when no external value', () => {
       render(<LikertInput {...defaultProps} />)
       // No button should have data-selected="true"
       for (let i = 1; i <= 7; i++) {
-        expect(screen.getByTestId(`likert-${i}`)).toHaveAttribute('data-selected', 'false')
+        expect(screen.getByTestId(`likert-${i}`)).toHaveAttribute(
+          'data-selected',
+          'false',
+        )
       }
     })
   })

@@ -181,7 +181,7 @@ function renderModal(props: Partial<any> = {}) {
       open={true}
       onOpenChange={jest.fn()}
       {...props}
-    />
+    />,
   )
 }
 
@@ -194,23 +194,21 @@ describe('OrgStorageConnections', () => {
   describe('Rendering', () => {
     it('renders title and description', async () => {
       renderModal()
-      expect(
-        screen.getByText('Cloud storage connections')
-      ).toBeInTheDocument()
+      expect(screen.getByText('Cloud storage connections')).toBeInTheDocument()
       expect(
         screen.getByText(
-          'Connect S3-compatible storage so members can import files straight from the bucket.'
-        )
+          'Connect S3-compatible storage so members can import files straight from the bucket.',
+        ),
       ).toBeInTheDocument()
       await waitFor(() =>
-        expect(mockListStorageConnections).toHaveBeenCalledWith('org-1')
+        expect(mockListStorageConnections).toHaveBeenCalledWith('org-1'),
       )
     })
 
     it('does not render when open is false', () => {
       renderModal({ open: false })
       expect(
-        screen.queryByText('Cloud storage connections')
+        screen.queryByText('Cloud storage connections'),
       ).not.toBeInTheDocument()
       expect(mockListStorageConnections).not.toHaveBeenCalled()
     })
@@ -218,7 +216,7 @@ describe('OrgStorageConnections', () => {
     it('shows the empty state when no connections exist', async () => {
       renderModal()
       expect(
-        await screen.findByText('No storage connections configured yet.')
+        await screen.findByText('No storage connections configured yet.'),
       ).toBeInTheDocument()
     })
 
@@ -226,9 +224,7 @@ describe('OrgStorageConnections', () => {
       mockListStorageConnections.mockResolvedValue([CONN])
       renderModal()
       expect(await screen.findByText('Chair bucket')).toBeInTheDocument()
-      expect(
-        screen.getByText('https://minio.example.org')
-      ).toBeInTheDocument()
+      expect(screen.getByText('https://minio.example.org')).toBeInTheDocument()
       expect(screen.getByText('law-exams/imports/')).toBeInTheDocument()
       expect(screen.getByText('Key ...A1B2')).toBeInTheDocument()
     })
@@ -239,7 +235,7 @@ describe('OrgStorageConnections', () => {
       ])
       renderModal()
       expect(
-        await screen.findByText('AWS default endpoint')
+        await screen.findByText('AWS default endpoint'),
       ).toBeInTheDocument()
     })
 
@@ -249,8 +245,8 @@ describe('OrgStorageConnections', () => {
       expect(await screen.findByText('Chair bucket')).toBeInTheDocument()
       expect(
         screen.getByText(
-          'Only organization admins can manage storage connections.'
-        )
+          'Only organization admins can manage storage connections.',
+        ),
       ).toBeInTheDocument()
       expect(screen.queryByText('Add connection')).not.toBeInTheDocument()
       expect(screen.queryByText('Edit')).not.toBeInTheDocument()
@@ -318,10 +314,10 @@ describe('OrgStorageConnections', () => {
           use_ssl: true,
           access_key: 'AKIA123',
           secret_key: 'secret456',
-        })
+        }),
       )
       expect(
-        await screen.findByText('Storage connection "My bucket" saved')
+        await screen.findByText('Storage connection "My bucket" saved'),
       ).toBeInTheDocument()
       // List refetched after save.
       expect(mockListStorageConnections).toHaveBeenCalledTimes(2)
@@ -351,8 +347,8 @@ describe('OrgStorageConnections', () => {
       fireEvent.click(screen.getByText('Save'))
       expect(
         await screen.findByText(
-          'A storage connection with this name already exists'
-        )
+          'A storage connection with this name already exists',
+        ),
       ).toBeInTheDocument()
     })
 
@@ -394,11 +390,11 @@ describe('OrgStorageConnections', () => {
             bucket: 'bucket-a',
             access_key: 'AKIA123',
             secret_key: 'secret456',
-          })
-        )
+          }),
+        ),
       )
       expect(
-        await screen.findByText('Bucket reachable, 12 objects visible')
+        await screen.findByText('Bucket reachable, 12 objects visible'),
       ).toBeInTheDocument()
     })
   })
@@ -433,15 +429,15 @@ describe('OrgStorageConnections', () => {
             prefix: 'imports/',
             region: null,
             use_ssl: true,
-          }
-        )
+          },
+        ),
       )
       // Credentials NOT included when left empty.
       const body = mockUpdateStorageConnection.mock.calls[0][2]
       expect(body).not.toHaveProperty('access_key')
       expect(body).not.toHaveProperty('secret_key')
       expect(
-        await screen.findByText('Storage connection "Renamed" updated')
+        await screen.findByText('Storage connection "Renamed" updated'),
       ).toBeInTheDocument()
     })
 
@@ -460,11 +456,11 @@ describe('OrgStorageConnections', () => {
         expect(mockUpdateStorageConnection).toHaveBeenCalledWith(
           'org-1',
           'conn-1',
-          expect.objectContaining({ secret_key: 'new-secret' })
-        )
+          expect.objectContaining({ secret_key: 'new-secret' }),
+        ),
       )
       expect(mockUpdateStorageConnection.mock.calls[0][2]).not.toHaveProperty(
-        'access_key'
+        'access_key',
       )
     })
   })
@@ -482,11 +478,11 @@ describe('OrgStorageConnections', () => {
       await waitFor(() =>
         expect(mockTestSavedStorageConnection).toHaveBeenCalledWith(
           'org-1',
-          'conn-1'
-        )
+          'conn-1',
+        ),
       )
       expect(
-        await screen.findByText('Access denied on bucket')
+        await screen.findByText('Access denied on bucket'),
       ).toBeInTheDocument()
     })
 
@@ -496,7 +492,7 @@ describe('OrgStorageConnections', () => {
       renderModal()
       fireEvent.click(await screen.findByText('Test connection'))
       expect(
-        await screen.findByText('Connection test failed')
+        await screen.findByText('Connection test failed'),
       ).toBeInTheDocument()
     })
   })
@@ -516,11 +512,11 @@ describe('OrgStorageConnections', () => {
       await waitFor(() =>
         expect(mockDeleteStorageConnection).toHaveBeenCalledWith(
           'org-1',
-          'conn-1'
-        )
+          'conn-1',
+        ),
       )
       expect(
-        await screen.findByText('Storage connection "Chair bucket" deleted')
+        await screen.findByText('Storage connection "Chair bucket" deleted'),
       ).toBeInTheDocument()
     })
 

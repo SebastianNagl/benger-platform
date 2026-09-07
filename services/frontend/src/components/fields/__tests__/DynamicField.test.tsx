@@ -4,7 +4,10 @@ import { DynamicField, DynamicFieldGroup, FieldConfig } from '../DynamicField'
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
     t: (key: string, varsOrDefault?: any) => {
-      const translations: Record<string, any> = require('../../../locales/en/common.json')
+      const translations: Record<
+        string,
+        any
+      > = require('../../../locales/en/common.json')
       const parts = key.split('.')
       let value: any = translations
       for (const part of parts) {
@@ -55,7 +58,7 @@ describe('DynamicField', () => {
         type: 'text',
       }
       const { container } = render(
-        <DynamicField field={field} value="test" className="custom-class" />
+        <DynamicField field={field} value="test" className="custom-class" />,
       )
       expect(container.firstChild).toHaveClass('custom-class')
     })
@@ -192,7 +195,7 @@ describe('DynamicField', () => {
         type: 'list',
       }
       render(
-        <DynamicField field={field} value={['Item 1', 'Item 2', 'Item 3']} />
+        <DynamicField field={field} value={['Item 1', 'Item 2', 'Item 3']} />,
       )
       expect(screen.getByText('Items')).toBeInTheDocument()
       expect(screen.getByText('Item 1')).toBeInTheDocument()
@@ -218,7 +221,7 @@ describe('DynamicField', () => {
         type: 'list',
       }
       const { container } = render(
-        <DynamicField field={field} value="not an array" />
+        <DynamicField field={field} value="not an array" />,
       )
       expect(container.firstChild).toBeNull()
     })
@@ -239,7 +242,7 @@ describe('DynamicField', () => {
         type: 'list',
       }
       const { container } = render(
-        <DynamicField field={field} value={['Item 1']} />
+        <DynamicField field={field} value={['Item 1']} />,
       )
       const list = container.querySelector('ul')
       expect(list).toBeInTheDocument()
@@ -358,7 +361,7 @@ describe('DynamicField', () => {
       }
       const textWithSpaces = 'a'.repeat(250)
       const { container } = render(
-        <DynamicField field={field} value={textWithSpaces} />
+        <DynamicField field={field} value={textWithSpaces} />,
       )
       const textElement = container.querySelector('.whitespace-pre-wrap')
       expect(textElement).toBeInTheDocument()
@@ -451,7 +454,7 @@ describe('DynamicFieldGroup', () => {
       ]
       const data = { name: 'John' }
       render(
-        <DynamicFieldGroup fields={fields} data={data} title="User Info" />
+        <DynamicFieldGroup fields={fields} data={data} title="User Info" />,
       )
       expect(screen.getByText('User Info')).toBeInTheDocument()
     })
@@ -475,7 +478,7 @@ describe('DynamicFieldGroup', () => {
           fields={fields}
           data={data}
           className="custom-group"
-        />
+        />,
       )
       expect(container.firstChild).toHaveClass('custom-group')
     })
@@ -513,7 +516,7 @@ describe('DynamicFieldGroup', () => {
       ]
       const data = { other: 'value' }
       const { container } = render(
-        <DynamicFieldGroup fields={fields} data={data} />
+        <DynamicFieldGroup fields={fields} data={data} />,
       )
       expect(screen.queryByText('Missing')).not.toBeInTheDocument()
     })
@@ -522,7 +525,7 @@ describe('DynamicFieldGroup', () => {
       const fields: FieldConfig[] = [{ name: 'nullValue', label: 'Null' }]
       const data = { nullValue: null }
       const { container } = render(
-        <DynamicFieldGroup fields={fields} data={data} />
+        <DynamicFieldGroup fields={fields} data={data} />,
       )
       expect(screen.queryByText('Null')).not.toBeInTheDocument()
     })
@@ -556,10 +559,10 @@ describe('DynamicFieldGroup', () => {
       ]
       const data = { first: '1', second: '2', third: '3' }
       const { container } = render(
-        <DynamicFieldGroup fields={fields} data={data} />
+        <DynamicFieldGroup fields={fields} data={data} />,
       )
       const labels = Array.from(container.querySelectorAll('.font-medium')).map(
-        (el) => el.textContent
+        (el) => el.textContent,
       )
       expect(labels).toEqual(['First:', 'Second:', 'Third:'])
     })

@@ -122,7 +122,7 @@ describe('PeopleSection', () => {
       render(<PeopleSection />)
       expect(screen.getByText('Group & Network')).toBeInTheDocument()
       expect(
-        screen.getByText('Meet the team behind BenGER.')
+        screen.getByText('Meet the team behind BenGER.'),
       ).toBeInTheDocument()
     })
 
@@ -199,18 +199,16 @@ describe('PeopleSection', () => {
     it('renders network partner names', () => {
       render(<PeopleSection />)
       expect(
-        screen.getByText('Technical University of Munich')
+        screen.getByText('Technical University of Munich'),
       ).toBeInTheDocument()
       expect(screen.getByText('LegalTechColab')).toBeInTheDocument()
     })
 
     it('renders network partner descriptions', () => {
       render(<PeopleSection />)
+      expect(screen.getByText('Chair of Legal Technology')).toBeInTheDocument()
       expect(
-        screen.getByText('Chair of Legal Technology')
-      ).toBeInTheDocument()
-      expect(
-        screen.getByText('Collaborative research network.')
+        screen.getByText('Collaborative research network.'),
       ).toBeInTheDocument()
     })
 
@@ -239,7 +237,9 @@ describe('PeopleSection', () => {
       // in the mocks) plus the network label — no skipped heading level.
       const h3s = screen.getAllByRole('heading', { level: 3 })
       expect(h3s).toHaveLength(6)
-      expect(screen.getByRole('heading', { level: 3, name: 'Sebastian Nagl' })).toBeInTheDocument()
+      expect(
+        screen.getByRole('heading', { level: 3, name: 'Sebastian Nagl' }),
+      ).toBeInTheDocument()
     })
 
     it('opens external links in new tab safely', () => {
@@ -260,7 +260,9 @@ describe('PeopleSection', () => {
       expect(mockT).toHaveBeenCalledWith('landing.people.networkTitle')
       expect(mockT).toHaveBeenCalledWith('landing.people.teamPlatform')
       expect(mockT).toHaveBeenCalledWith('landing.people.teamDatasetCore')
-      expect(mockT).toHaveBeenCalledWith('landing.people.teamDatasetContribution')
+      expect(mockT).toHaveBeenCalledWith(
+        'landing.people.teamDatasetContribution',
+      )
       expect(mockT).toHaveBeenCalledWith('landing.people.teamDatasetSenior')
       expect(mockT).toHaveBeenCalledWith('landing.people.acknowledgements')
       expect(mockT).toHaveBeenCalledWith('landing.people.network')

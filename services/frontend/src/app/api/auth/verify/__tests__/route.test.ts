@@ -55,7 +55,7 @@ describe('/api/auth/verify', () => {
       }
 
       ;(global.fetch as jest.Mock).mockResolvedValueOnce(
-        createMockResponse(mockResponse, 200)
+        createMockResponse(mockResponse, 200),
       )
 
       const request = createRequest('http://localhost:3000/api/auth/verify', {
@@ -74,7 +74,7 @@ describe('/api/auth/verify', () => {
           headers: expect.objectContaining({
             Cookie: 'access_token=test_token_123; refresh_token=refresh_456',
           }),
-        })
+        }),
       )
     })
 
@@ -89,7 +89,7 @@ describe('/api/auth/verify', () => {
       }
 
       ;(global.fetch as jest.Mock).mockResolvedValueOnce(
-        createMockResponse(mockResponse, 200)
+        createMockResponse(mockResponse, 200),
       )
 
       const request = createRequest('http://localhost:3000/api/auth/verify', {
@@ -114,7 +114,7 @@ describe('/api/auth/verify', () => {
       }
 
       ;(global.fetch as jest.Mock).mockResolvedValueOnce(
-        createMockResponse(mockResponse, 200)
+        createMockResponse(mockResponse, 200),
       )
 
       const request = createRequest('http://localhost:3000/api/auth/verify', {
@@ -132,7 +132,7 @@ describe('/api/auth/verify', () => {
           headers: expect.objectContaining({
             Authorization: 'Bearer test_token_123',
           }),
-        })
+        }),
       )
     })
 
@@ -143,7 +143,7 @@ describe('/api/auth/verify', () => {
       }
 
       ;(global.fetch as jest.Mock).mockResolvedValueOnce(
-        createMockResponse(mockResponse, 200)
+        createMockResponse(mockResponse, 200),
       )
 
       const request = createRequest('http://localhost:3000/api/auth/verify', {
@@ -159,7 +159,7 @@ describe('/api/auth/verify', () => {
             Cookie: '',
             Authorization: '',
           }),
-        })
+        }),
       )
     })
   })
@@ -167,7 +167,7 @@ describe('/api/auth/verify', () => {
   describe('Verification Failures', () => {
     it('should return 401 for unauthenticated request', async () => {
       ;(global.fetch as jest.Mock).mockResolvedValueOnce(
-        createMockResponse('Unauthorized', 401, true)
+        createMockResponse('Unauthorized', 401, true),
       )
 
       const request = createRequest('http://localhost:3000/api/auth/verify', {
@@ -183,7 +183,7 @@ describe('/api/auth/verify', () => {
 
     it('should return 401 for invalid token', async () => {
       ;(global.fetch as jest.Mock).mockResolvedValueOnce(
-        createMockResponse('Invalid token', 401, true)
+        createMockResponse('Invalid token', 401, true),
       )
 
       const request = createRequest('http://localhost:3000/api/auth/verify', {
@@ -202,7 +202,7 @@ describe('/api/auth/verify', () => {
 
     it('should return 401 for expired token', async () => {
       ;(global.fetch as jest.Mock).mockResolvedValueOnce(
-        createMockResponse('Token expired', 401, true)
+        createMockResponse('Token expired', 401, true),
       )
 
       const request = createRequest('http://localhost:3000/api/auth/verify', {
@@ -221,7 +221,7 @@ describe('/api/auth/verify', () => {
 
     it('should return 403 for forbidden access', async () => {
       ;(global.fetch as jest.Mock).mockResolvedValueOnce(
-        createMockResponse('Forbidden', 403, true)
+        createMockResponse('Forbidden', 403, true),
       )
 
       const request = createRequest('http://localhost:3000/api/auth/verify', {
@@ -238,7 +238,7 @@ describe('/api/auth/verify', () => {
 
     it('should handle empty error response', async () => {
       ;(global.fetch as jest.Mock).mockResolvedValueOnce(
-        createMockResponse('', 401, true)
+        createMockResponse('', 401, true),
       )
 
       const request = createRequest('http://localhost:3000/api/auth/verify', {
@@ -256,7 +256,7 @@ describe('/api/auth/verify', () => {
   describe('Backend API Errors', () => {
     it('should handle 500 Internal Server Error', async () => {
       ;(global.fetch as jest.Mock).mockResolvedValueOnce(
-        createMockResponse('Internal server error', 500, true)
+        createMockResponse('Internal server error', 500, true),
       )
 
       const request = createRequest('http://localhost:3000/api/auth/verify', {
@@ -273,7 +273,7 @@ describe('/api/auth/verify', () => {
 
     it('should handle 502 Bad Gateway', async () => {
       ;(global.fetch as jest.Mock).mockResolvedValueOnce(
-        createMockResponse('Bad Gateway', 502, true)
+        createMockResponse('Bad Gateway', 502, true),
       )
 
       const request = createRequest('http://localhost:3000/api/auth/verify', {
@@ -290,7 +290,7 @@ describe('/api/auth/verify', () => {
 
     it('should handle 503 Service Unavailable', async () => {
       ;(global.fetch as jest.Mock).mockResolvedValueOnce(
-        createMockResponse('Service Unavailable', 503, true)
+        createMockResponse('Service Unavailable', 503, true),
       )
 
       const request = createRequest('http://localhost:3000/api/auth/verify', {
@@ -309,7 +309,7 @@ describe('/api/auth/verify', () => {
   describe('Network Errors', () => {
     it('should handle network timeout', async () => {
       ;(global.fetch as jest.Mock).mockRejectedValueOnce(
-        new Error('Network timeout')
+        new Error('Network timeout'),
       )
 
       const request = createRequest('http://localhost:3000/api/auth/verify', {
@@ -328,7 +328,7 @@ describe('/api/auth/verify', () => {
 
     it('should handle connection refused', async () => {
       ;(global.fetch as jest.Mock).mockRejectedValueOnce(
-        new Error('ECONNREFUSED')
+        new Error('ECONNREFUSED'),
       )
 
       const request = createRequest('http://localhost:3000/api/auth/verify', {
@@ -345,13 +345,13 @@ describe('/api/auth/verify', () => {
       expect(data.error).toBe('Internal server error')
       expect(console.error).toHaveBeenCalledWith(
         '❌ Auth verify proxy error:',
-        expect.any(Error)
+        expect.any(Error),
       )
     })
 
     it('should handle DNS resolution failure', async () => {
       ;(global.fetch as jest.Mock).mockRejectedValueOnce(
-        new Error('getaddrinfo ENOTFOUND')
+        new Error('getaddrinfo ENOTFOUND'),
       )
 
       const request = createRequest('http://localhost:3000/api/auth/verify', {
@@ -370,7 +370,7 @@ describe('/api/auth/verify', () => {
   describe('API Base URL Detection', () => {
     it('should use Docker API URL for benger.localhost', async () => {
       ;(global.fetch as jest.Mock).mockResolvedValueOnce(
-        createMockResponse({ authenticated: true }, 200)
+        createMockResponse({ authenticated: true }, 200),
       )
 
       const request = createRequest('http://benger.localhost/api/auth/verify', {
@@ -384,13 +384,13 @@ describe('/api/auth/verify', () => {
 
       expect(global.fetch).toHaveBeenCalledWith(
         'http://api:8000/api/auth/verify',
-        expect.any(Object)
+        expect.any(Object),
       )
     })
 
     it('should use localhost:8001 for localhost:3000', async () => {
       ;(global.fetch as jest.Mock).mockResolvedValueOnce(
-        createMockResponse({ authenticated: true }, 200)
+        createMockResponse({ authenticated: true }, 200),
       )
 
       const request = createRequest('http://localhost:3000/api/auth/verify', {
@@ -404,7 +404,7 @@ describe('/api/auth/verify', () => {
 
       expect(global.fetch).toHaveBeenCalledWith(
         'http://localhost:8001/api/auth/verify',
-        expect.any(Object)
+        expect.any(Object),
       )
     })
 
@@ -413,7 +413,7 @@ describe('/api/auth/verify', () => {
       const originalApiUrl = process.env.API_URL
       process.env.DOCKER_INTERNAL_API_URL = 'http://custom-api:7000'
       ;(global.fetch as jest.Mock).mockResolvedValueOnce(
-        createMockResponse({ authenticated: true }, 200)
+        createMockResponse({ authenticated: true }, 200),
       )
 
       const request = createRequest(
@@ -423,14 +423,14 @@ describe('/api/auth/verify', () => {
           headers: {
             cookie: 'access_token=valid_token',
           },
-        }
+        },
       )
 
       await GET(request)
 
       expect(global.fetch).toHaveBeenCalledWith(
         'http://custom-api:7000/api/auth/verify',
-        expect.any(Object)
+        expect.any(Object),
       )
 
       if (originalDockerUrl) {
@@ -449,7 +449,7 @@ describe('/api/auth/verify', () => {
       delete process.env.DOCKER_INTERNAL_API_URL
       delete process.env.API_URL
       ;(global.fetch as jest.Mock).mockResolvedValueOnce(
-        createMockResponse({ authenticated: true }, 200)
+        createMockResponse({ authenticated: true }, 200),
       )
 
       const request = createRequest(
@@ -459,14 +459,14 @@ describe('/api/auth/verify', () => {
           headers: {
             cookie: 'access_token=valid_token',
           },
-        }
+        },
       )
 
       await GET(request)
 
       expect(global.fetch).toHaveBeenCalledWith(
         'http://benger-api:8000/api/auth/verify',
-        expect.any(Object)
+        expect.any(Object),
       )
 
       if (originalDockerUrl) {
@@ -479,7 +479,7 @@ describe('/api/auth/verify', () => {
 
     it('should default to Docker API URL for unknown hosts', async () => {
       ;(global.fetch as jest.Mock).mockResolvedValueOnce(
-        createMockResponse({ authenticated: true }, 200)
+        createMockResponse({ authenticated: true }, 200),
       )
 
       const request = createRequest('http://unknown.domain/api/auth/verify', {
@@ -493,7 +493,7 @@ describe('/api/auth/verify', () => {
 
       expect(global.fetch).toHaveBeenCalledWith(
         'http://api:8000/api/auth/verify',
-        expect.any(Object)
+        expect.any(Object),
       )
     })
   })
@@ -501,7 +501,7 @@ describe('/api/auth/verify', () => {
   describe('Request Forwarding', () => {
     it('should forward both cookies and authorization header', async () => {
       ;(global.fetch as jest.Mock).mockResolvedValueOnce(
-        createMockResponse({ authenticated: true }, 200)
+        createMockResponse({ authenticated: true }, 200),
       )
 
       const request = createRequest('http://localhost:3000/api/auth/verify', {
@@ -522,13 +522,13 @@ describe('/api/auth/verify', () => {
             Cookie: 'access_token=cookie_token',
             Authorization: 'Bearer header_token',
           },
-        })
+        }),
       )
     })
 
     it('should handle only authorization header without cookies', async () => {
       ;(global.fetch as jest.Mock).mockResolvedValueOnce(
-        createMockResponse({ authenticated: true }, 200)
+        createMockResponse({ authenticated: true }, 200),
       )
 
       const request = createRequest('http://localhost:3000/api/auth/verify', {
@@ -547,13 +547,13 @@ describe('/api/auth/verify', () => {
             Cookie: '',
             Authorization: 'Bearer only_header_token',
           }),
-        })
+        }),
       )
     })
 
     it('should handle only cookies without authorization header', async () => {
       ;(global.fetch as jest.Mock).mockResolvedValueOnce(
-        createMockResponse({ authenticated: true }, 200)
+        createMockResponse({ authenticated: true }, 200),
       )
 
       const request = createRequest('http://localhost:3000/api/auth/verify', {
@@ -572,7 +572,7 @@ describe('/api/auth/verify', () => {
             Cookie: 'access_token=only_cookie_token',
             Authorization: '',
           }),
-        })
+        }),
       )
     })
   })
@@ -580,7 +580,7 @@ describe('/api/auth/verify', () => {
   describe('Error Logging', () => {
     it('should log errors from network failures', async () => {
       ;(global.fetch as jest.Mock).mockRejectedValueOnce(
-        new Error('Connection failed')
+        new Error('Connection failed'),
       )
 
       const request = createRequest('http://localhost:3000/api/auth/verify', {
@@ -594,13 +594,13 @@ describe('/api/auth/verify', () => {
 
       expect(console.error).toHaveBeenCalledWith(
         '❌ Auth verify proxy error:',
-        expect.any(Error)
+        expect.any(Error),
       )
     })
 
     it('should log errors from backend failures', async () => {
       ;(global.fetch as jest.Mock).mockRejectedValueOnce(
-        new Error('Backend unreachable')
+        new Error('Backend unreachable'),
       )
 
       const request = createRequest('http://localhost:3000/api/auth/verify', {
@@ -616,7 +616,7 @@ describe('/api/auth/verify', () => {
         '❌ Auth verify proxy error:',
         expect.objectContaining({
           message: 'Backend unreachable',
-        })
+        }),
       )
     })
   })

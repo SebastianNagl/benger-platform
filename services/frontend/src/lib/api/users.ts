@@ -12,20 +12,24 @@ export class UsersClient extends BaseApiClient {
    * server — the response is bounded by `limit` either way (defaults to
    * 500 to keep the payload sane on large deployments).
    */
-  async getAllUsers(options?: { search?: string; limit?: number }): Promise<User[]> {
+  async getAllUsers(options?: {
+    search?: string
+    limit?: number
+  }): Promise<User[]> {
     const params = new URLSearchParams()
     if (options?.search) params.append('search', options.search)
     if (options?.limit) params.append('limit', String(options.limit))
     const qs = params.toString()
-    return this.request(
-      `/organizations/manage/users${qs ? '?' + qs : ''}`
-    )
+    return this.request(`/organizations/manage/users${qs ? '?' + qs : ''}`)
   }
 
   /**
    * Alias for getAllUsers for backward compatibility
    */
-  async getUsers(options?: { search?: string; limit?: number }): Promise<User[]> {
+  async getUsers(options?: {
+    search?: string
+    limit?: number
+  }): Promise<User[]> {
     return this.getAllUsers(options)
   }
 
@@ -34,7 +38,7 @@ export class UsersClient extends BaseApiClient {
    */
   async updateUserSuperadminStatus(
     userId: string,
-    isSuperadmin: boolean
+    isSuperadmin: boolean,
   ): Promise<User> {
     return this.request(`/organizations/manage/users/${userId}/superadmin`, {
       method: 'PUT',

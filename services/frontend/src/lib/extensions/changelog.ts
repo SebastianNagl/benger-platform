@@ -58,7 +58,9 @@ export function useChangelogEntries(): ChangelogEntry[] {
   useEffect(() => {
     const listener = () => setTick((t) => t + 1)
     listeners.add(listener)
-    return () => { listeners.delete(listener) }
+    return () => {
+      listeners.delete(listener)
+    }
   }, [])
 
   return getChangelogEntries()

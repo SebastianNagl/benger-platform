@@ -2,14 +2,21 @@
 
 import { Button } from '@/components/shared/Button'
 import { FilterToolbar } from '@/components/shared/FilterToolbar'
-import { useToast } from '@/components/shared/Toast'
-import { useI18n } from '@/contexts/I18nContext'
-import { logger } from '@/lib/utils/logger'
 import { Pagination } from '@/components/shared/Pagination'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/shared/Select'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/shared/Select'
+import { useToast } from '@/components/shared/Toast'
 import { useAuth } from '@/contexts/AuthContext'
+import { useI18n } from '@/contexts/I18nContext'
+import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import { apiClient, getApiUrl } from '@/lib/api/client'
 import { redirectToLoginAsExpired } from '@/lib/auth/sessionExpired'
+import { logger } from '@/lib/utils/logger'
 import { Project } from '@/types/labelStudio'
 import { canStartGeneration } from '@/utils/permissions'
 import {
@@ -20,7 +27,6 @@ import {
   XCircleIcon,
 } from '@heroicons/react/24/outline'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import { GenerationControlModal } from './GenerationControlModal'
 import { GenerationResultModal } from './GenerationResultModal'
 
@@ -67,7 +73,7 @@ interface GenerationTaskListProps {
 
 // Helper function to get aggregate status for a model (across all structures)
 function getAggregateStatus(
-  modelStatuses: TaskGenerationStatus[] | TaskGenerationStatus | undefined
+  modelStatuses: TaskGenerationStatus[] | TaskGenerationStatus | undefined,
 ): { status: string | null; hasResults: boolean } {
   if (!modelStatuses) {
     return { status: null, hasResults: false }
@@ -82,7 +88,7 @@ function getAggregateStatus(
   }
 
   const hasResults = statusArray.some(
-    (s) => s.status === 'completed' || s.status === 'failed'
+    (s) => s.status === 'completed' || s.status === 'failed',
   )
 
   // A status with status='completed' but a non-null error_message is the
@@ -94,10 +100,11 @@ function getAggregateStatus(
 
   const hasCompleted = statusArray.some(isSuccessfulCompletion)
   const hasRunning = statusArray.some(
-    (s) => s.status === 'running' || s.status === 'pending'
+    (s) => s.status === 'running' || s.status === 'pending',
   )
   const hasFailed = statusArray.some(
-    (s) => s.status === 'failed' || (s.status === 'completed' && !!s.error_message)
+    (s) =>
+      s.status === 'failed' || (s.status === 'completed' && !!s.error_message),
   )
 
   if (hasCompleted) return { status: 'completed', hasResults }
@@ -190,7 +197,7 @@ export function GenerationTaskList({
     try {
       logger.debug(
         '[GenerationTaskList] fetchData called for projectId:',
-        projectId
+        projectId,
       )
       const params = new URLSearchParams({
         page: pageRef.current.toString(),
@@ -213,7 +220,7 @@ export function GenerationTaskList({
     } catch (error: any) {
       console.error(
         '[GenerationTaskList] Failed to fetch task generation status:',
-        error
+        error,
       )
       setFetchError(error.message || t('generation.taskList.loadError'))
     } finally {
@@ -225,7 +232,14 @@ export function GenerationTaskList({
   // `debouncedSearch` (not `search`) so per-keystroke typing coalesces.
   useEffect(() => {
     fetchData()
-  }, [fetchData, page, pageSize, debouncedSearch, statusFilter, structureFilter])
+  }, [
+    fetchData,
+    page,
+    pageSize,
+    debouncedSearch,
+    statusFilter,
+    structureFilter,
+  ])
 
   // Fetch project data when projectId changes
   useEffect(() => {
@@ -304,7 +318,7 @@ export function GenerationTaskList({
           if (mounted && reconnectAttemptsRef.current < 5) {
             const timeout = Math.min(
               1000 * Math.pow(2, reconnectAttemptsRef.current),
-              30000
+              30000,
             )
             reconnectTimeoutRef.current = setTimeout(() => {
               reconnectAttemptsRef.current++
@@ -350,7 +364,11 @@ export function GenerationTaskList({
   }
 
   const handleCellGenerate = useCallback(
-    async (taskId: string, modelId: string, selectedStructureKeys?: string[]) => {
+    async (
+      taskId: string,
+      modelId: string,
+      selectedStructureKeys?: string[],
+    ) => {
       if (!project) return
       setGeneratingCell({ taskId, modelId })
       try {
@@ -370,7 +388,7 @@ export function GenerationTaskList({
 
         await apiClient.post(
           `/generation-tasks/projects/${projectId}/generate`,
-          requestBody
+          requestBody,
         )
         addToast(t('generation.taskList.cellGenerationQueued'), 'success')
         fetchData()
@@ -378,13 +396,13 @@ export function GenerationTaskList({
         addToast(
           error.response?.data?.detail ||
             t('generation.taskList.cellGenerationFailed'),
-          'error'
+          'error',
         )
       } finally {
         setGeneratingCell(null)
       }
     },
-    [project, projectId, fetchData, addToast, t]
+    [project, projectId, fetchData, addToast, t],
   )
 
   // Close context menu on outside click
@@ -444,7 +462,9 @@ export function GenerationTaskList({
       searchPlaceholder={t('generation.taskList.searchPlaceholder')}
       searchLabel={t('common.filters.search')}
       filtersLabel={t('common.filters.filters')}
-      hasActiveFilters={!!statusFilter || !!structureFilter || search.trim() !== ''}
+      hasActiveFilters={
+        !!statusFilter || !!structureFilter || search.trim() !== ''
+      }
       onClearFilters={() => {
         setStatusFilter(null)
         setStructureFilter(null)
@@ -454,10 +474,7 @@ export function GenerationTaskList({
       leftExtras={projectInlinePicker}
       rightExtras={
         canStartGeneration(user) && projectId ? (
-          <Button
-            variant="filled"
-            onClick={() => setShowControlModal(true)}
-          >
+          <Button variant="filled" onClick={() => setShowControlModal(true)}>
             {t('generation.taskList.startGeneration')}
           </Button>
         ) : null
@@ -472,29 +489,52 @@ export function GenerationTaskList({
             <SelectValue placeholder={t('generation.taskList.allStatuses')} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">{t('generation.taskList.allStatuses')}</SelectItem>
-            <SelectItem value="completed">{t('generation.taskList.completed')}</SelectItem>
-            <SelectItem value="failed">{t('generation.taskList.failed')}</SelectItem>
-            <SelectItem value="running">{t('generation.taskList.running')}</SelectItem>
-            <SelectItem value="pending">{t('generation.taskList.pending')}</SelectItem>
-            <SelectItem value="not_generated">{t('generation.taskList.notGenerated')}</SelectItem>
+            <SelectItem value="">
+              {t('generation.taskList.allStatuses')}
+            </SelectItem>
+            <SelectItem value="completed">
+              {t('generation.taskList.completed')}
+            </SelectItem>
+            <SelectItem value="failed">
+              {t('generation.taskList.failed')}
+            </SelectItem>
+            <SelectItem value="running">
+              {t('generation.taskList.running')}
+            </SelectItem>
+            <SelectItem value="pending">
+              {t('generation.taskList.pending')}
+            </SelectItem>
+            <SelectItem value="not_generated">
+              {t('generation.taskList.notGenerated')}
+            </SelectItem>
           </SelectContent>
         </Select>
       </FilterToolbar.Field>
       {(data?.structures?.length ?? 0) > 1 && (
-        <FilterToolbar.Field label={t('generation.taskList.allStructures', 'Prompt-Strukturen')}>
+        <FilterToolbar.Field
+          label={t('generation.taskList.allStructures', 'Prompt-Strukturen')}
+        >
           <Select
             value={structureFilter || ''}
             onValueChange={(v) => setStructureFilter(v || null)}
           >
             <SelectTrigger>
-              <SelectValue placeholder={t('generation.taskList.allStructures', 'Alle Strukturen')} />
+              <SelectValue
+                placeholder={t(
+                  'generation.taskList.allStructures',
+                  'Alle Strukturen',
+                )}
+              />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">{t('generation.taskList.allStructures', 'Alle Strukturen')}</SelectItem>
+              <SelectItem value="">
+                {t('generation.taskList.allStructures', 'Alle Strukturen')}
+              </SelectItem>
               {(data?.structures ?? []).map((key) => {
-                const ps = (project?.generation_config as any)?.prompt_structures?.[key]
-                const label = ps?.name && ps.name !== key ? `${ps.name} (${key})` : key
+                const ps = (project?.generation_config as any)
+                  ?.prompt_structures?.[key]
+                const label =
+                  ps?.name && ps.name !== key ? `${ps.name} (${key})` : key
                 return (
                   <SelectItem key={key} value={key}>
                     {label}
@@ -524,9 +564,17 @@ export function GenerationTaskList({
       <div className="space-y-4">
         {filterToolbar}
         <div className="py-12 text-center">
-          <p className="text-red-600 dark:text-red-400">{t('generation.taskList.loadError')}</p>
-          <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">{fetchError}</p>
-          <Button variant="outline" onClick={() => fetchData()} className="mt-4">
+          <p className="text-red-600 dark:text-red-400">
+            {t('generation.taskList.loadError')}
+          </p>
+          <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
+            {fetchError}
+          </p>
+          <Button
+            variant="outline"
+            onClick={() => fetchData()}
+            className="mt-4"
+          >
             {t('common.retry')}
           </Button>
         </div>
@@ -539,7 +587,9 @@ export function GenerationTaskList({
       <div className="space-y-4">
         {filterToolbar}
         <div className="py-12 text-center">
-          <p className="text-zinc-600 dark:text-zinc-400">{t('generation.taskList.noModels')}</p>
+          <p className="text-zinc-600 dark:text-zinc-400">
+            {t('generation.taskList.noModels')}
+          </p>
           <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-500">
             {t('generation.taskList.configureFirst')}
           </p>
@@ -553,17 +603,17 @@ export function GenerationTaskList({
       {filterToolbar}
 
       {/* Table */}
-      <div className="scrollbar-thin scrollbar-thumb-zinc-300 scrollbar-track-transparent dark:scrollbar-thumb-zinc-600 overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-700">
+      <div className="scrollbar-thin scrollbar-thumb-zinc-300 scrollbar-track-transparent overflow-x-auto rounded-lg border border-zinc-200 dark:scrollbar-thumb-zinc-600 dark:border-zinc-700">
         <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-700">
           <thead className="bg-zinc-50 dark:bg-zinc-800">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+              <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                 {t('generation.taskList.task')}
               </th>
               {data.models.map((model) => (
                 <th
                   key={model}
-                  className="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400"
+                  className="px-6 py-3 text-center text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400"
                 >
                   {model}
                 </th>
@@ -581,132 +631,143 @@ export function GenerationTaskList({
                 )
               })
               .map((task) => (
-              <tr key={task.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50">
-                <td className="whitespace-nowrap px-6 py-4 text-sm text-zinc-900 dark:text-zinc-100">
-                  <div className="max-w-xs truncate">
-                    {getFirstDataField(task.data)}
-                  </div>
-                  <div className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                    ID: {task.id.substring(0, 8)}...
-                  </div>
-                </td>
-                {data.models.map((model) => {
-                  const rawStatuses = task.generation_status[model]
-                  // Handle both array and object formats
-                  const modelStatuses = !rawStatuses
-                    ? []
-                    : Array.isArray(rawStatuses)
-                      ? rawStatuses
-                      : [rawStatuses]
-                  const { status, hasResults } =
-                    getAggregateStatus(modelStatuses)
+                <tr
+                  key={task.id}
+                  className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
+                >
+                  <td className="px-6 py-4 text-sm whitespace-nowrap text-zinc-900 dark:text-zinc-100">
+                    <div className="max-w-xs truncate">
+                      {getFirstDataField(task.data)}
+                    </div>
+                    <div className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                      ID: {task.id.substring(0, 8)}...
+                    </div>
+                  </td>
+                  {data.models.map((model) => {
+                    const rawStatuses = task.generation_status[model]
+                    // Handle both array and object formats
+                    const modelStatuses = !rawStatuses
+                      ? []
+                      : Array.isArray(rawStatuses)
+                        ? rawStatuses
+                        : [rawStatuses]
+                    const { status, hasResults } =
+                      getAggregateStatus(modelStatuses)
 
-                  // Build tooltip showing status of each structure.
-                  // status='completed' + error_message means the worker
-                  // recorded a per-call failure that ran to lifecycle end —
-                  // count those in failed, not completed.
-                  const structureCount = modelStatuses.length
-                  const completedCount = modelStatuses.filter(
-                    (s) => s.status === 'completed' && !s.error_message
-                  ).length
-                  const runningCount = modelStatuses.filter(
-                    (s) => s.status === 'running' || s.status === 'pending'
-                  ).length
-                  const failedCount = modelStatuses.filter(
-                    (s) =>
-                      s.status === 'failed' ||
-                      (s.status === 'completed' && !!s.error_message)
-                  ).length
+                    // Build tooltip showing status of each structure.
+                    // status='completed' + error_message means the worker
+                    // recorded a per-call failure that ran to lifecycle end —
+                    // count those in failed, not completed.
+                    const structureCount = modelStatuses.length
+                    const completedCount = modelStatuses.filter(
+                      (s) => s.status === 'completed' && !s.error_message,
+                    ).length
+                    const runningCount = modelStatuses.filter(
+                      (s) => s.status === 'running' || s.status === 'pending',
+                    ).length
+                    const failedCount = modelStatuses.filter(
+                      (s) =>
+                        s.status === 'failed' ||
+                        (s.status === 'completed' && !!s.error_message),
+                    ).length
 
-                  let tooltip = ''
-                  if (structureCount > 0) {
-                    tooltip = t('generation.taskList.tooltipStats', { completed: completedCount, running: runningCount, failed: failedCount })
-                    if (hasResults) {
-                      tooltip += ' - ' + t('generation.taskList.clickToView')
+                    let tooltip = ''
+                    if (structureCount > 0) {
+                      tooltip = t('generation.taskList.tooltipStats', {
+                        completed: completedCount,
+                        running: runningCount,
+                        failed: failedCount,
+                      })
+                      if (hasResults) {
+                        tooltip += ' - ' + t('generation.taskList.clickToView')
+                      }
+                    } else {
+                      tooltip = t('generation.taskList.notYetGenerated')
                     }
-                  } else {
-                    tooltip = t('generation.taskList.notYetGenerated')
-                  }
 
-                  // Multi-run progress (migration 041): show "completed/requested"
-                  // when any structure has runs_requested > 1. Picks the max
-                  // requested across structures so a per-cell glance shows the
-                  // worst-case progress.
-                  const runsRequestedMax = modelStatuses.reduce(
-                    (max, s) => Math.max(max, s.runs_requested ?? 1),
-                    1,
-                  )
-                  const runsCompletedSum = modelStatuses.reduce(
-                    (sum, s) => sum + (s.runs_completed ?? 0),
-                    0,
-                  )
-                  const runsFailedSum = modelStatuses.reduce(
-                    (sum, s) => sum + (s.runs_failed ?? 0),
-                    0,
-                  )
-                  const showMultiRunBadge = runsRequestedMax > 1
-                  if (showMultiRunBadge) {
-                    tooltip += ` — runs ${runsCompletedSum}/${runsRequestedMax * Math.max(1, structureCount)}`
-                    if (runsFailedSum > 0) tooltip += ` (${runsFailedSum} failed)`
-                  }
+                    // Multi-run progress (migration 041): show "completed/requested"
+                    // when any structure has runs_requested > 1. Picks the max
+                    // requested across structures so a per-cell glance shows the
+                    // worst-case progress.
+                    const runsRequestedMax = modelStatuses.reduce(
+                      (max, s) => Math.max(max, s.runs_requested ?? 1),
+                      1,
+                    )
+                    const runsCompletedSum = modelStatuses.reduce(
+                      (sum, s) => sum + (s.runs_completed ?? 0),
+                      0,
+                    )
+                    const runsFailedSum = modelStatuses.reduce(
+                      (sum, s) => sum + (s.runs_failed ?? 0),
+                      0,
+                    )
+                    const showMultiRunBadge = runsRequestedMax > 1
+                    if (showMultiRunBadge) {
+                      tooltip += ` — runs ${runsCompletedSum}/${runsRequestedMax * Math.max(1, structureCount)}`
+                      if (runsFailedSum > 0)
+                        tooltip += ` (${runsFailedSum} failed)`
+                    }
 
-                  const isGenerating =
-                    generatingCell?.taskId === task.id &&
-                    generatingCell?.modelId === model
-                  const isRunningOrPending =
-                    status === 'running' || status === 'pending'
-                  const canGenerate =
-                    canStartGeneration(user) &&
-                    !isRunningOrPending &&
-                    !isGenerating
+                    const isGenerating =
+                      generatingCell?.taskId === task.id &&
+                      generatingCell?.modelId === model
+                    const isRunningOrPending =
+                      status === 'running' || status === 'pending'
+                    const canGenerate =
+                      canStartGeneration(user) &&
+                      !isRunningOrPending &&
+                      !isGenerating
 
-                  return (
-                    <td
-                      key={model}
-                      className="relative whitespace-nowrap px-6 py-4 text-center"
-                      onContextMenu={(e) => {
-                        if (!canStartGeneration(user)) return
-                        e.preventDefault()
-                        setContextMenu({
-                          x: e.clientX,
-                          y: e.clientY,
-                          taskId: task.id,
-                          modelId: model,
-                          status,
-                          hasResults,
-                        })
-                      }}
-                    >
-                      <button
-                        onClick={() => {
-                          setSelectedTaskModel({
+                    return (
+                      <td
+                        key={model}
+                        className="relative px-6 py-4 text-center whitespace-nowrap"
+                        onContextMenu={(e) => {
+                          if (!canStartGeneration(user)) return
+                          e.preventDefault()
+                          setContextMenu({
+                            x: e.clientX,
+                            y: e.clientY,
                             taskId: task.id,
                             modelId: model,
+                            status,
+                            hasResults,
                           })
-                          setShowResultModal(true)
                         }}
-                        className="inline-flex cursor-pointer items-center justify-center transition-transform hover:scale-110"
-                        title={tooltip}
                       >
-                        {isGenerating ? (
-                          <div className="h-5 w-5 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
-                        ) : (
-                          getStatusIcon(status)
-                        )}
-                      </button>
-                      {showMultiRunBadge && (
-                        <span className="ml-1 inline-block rounded bg-zinc-100 px-1.5 py-0.5 align-middle text-[10px] font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
-                          {runsCompletedSum}/{runsRequestedMax * Math.max(1, structureCount)}
-                          {runsFailedSum > 0 && (
-                            <span className="ml-1 text-red-600 dark:text-red-400">!</span>
+                        <button
+                          onClick={() => {
+                            setSelectedTaskModel({
+                              taskId: task.id,
+                              modelId: model,
+                            })
+                            setShowResultModal(true)
+                          }}
+                          className="inline-flex cursor-pointer items-center justify-center transition-transform hover:scale-110"
+                          title={tooltip}
+                        >
+                          {isGenerating ? (
+                            <div className="h-5 w-5 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
+                          ) : (
+                            getStatusIcon(status)
                           )}
-                        </span>
-                      )}
-                    </td>
-                  )
-                })}
-              </tr>
-            ))}
+                        </button>
+                        {showMultiRunBadge && (
+                          <span className="ml-1 inline-block rounded bg-zinc-100 px-1.5 py-0.5 align-middle text-[10px] font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+                            {runsCompletedSum}/
+                            {runsRequestedMax * Math.max(1, structureCount)}
+                            {runsFailedSum > 0 && (
+                              <span className="ml-1 text-red-600 dark:text-red-400">
+                                !
+                              </span>
+                            )}
+                          </span>
+                        )}
+                      </td>
+                    )
+                  })}
+                </tr>
+              ))}
           </tbody>
         </table>
       </div>
@@ -756,7 +817,9 @@ export function GenerationTaskList({
           onRegenerate={
             canStartGeneration(user) ? handleCellGenerate : undefined
           }
-          availableStructureKeys={Object.keys(project?.generation_config?.prompt_structures || {})}
+          availableStructureKeys={Object.keys(
+            project?.generation_config?.prompt_structures || {},
+          )}
         />
       )}
 

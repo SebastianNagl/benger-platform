@@ -11,7 +11,8 @@ jest.mock('@/contexts/I18nContext', () => ({
     t: (key: string) => {
       const translations: Record<string, string> = {
         'common.comingSoon': 'Coming Soon',
-        'common.comingSoonMessage': 'This feature is currently under development and will be available soon.',
+        'common.comingSoonMessage':
+          'This feature is currently under development and will be available soon.',
         'common.goBack': 'Go Back',
       }
       return translations[key] || key
@@ -50,8 +51,8 @@ describe('ComingSoon Component', () => {
       expect(screen.getByText('Coming Soon')).toBeInTheDocument()
       expect(
         screen.getByText(
-          'This feature is currently under development and will be available soon.'
-        )
+          'This feature is currently under development and will be available soon.',
+        ),
       ).toBeInTheDocument()
       expect(screen.getByText('Go Back')).toBeInTheDocument()
     })
@@ -76,7 +77,7 @@ describe('ComingSoon Component', () => {
 
       // Description
       const description = screen.getByText(
-        'This feature is currently under development and will be available soon.'
+        'This feature is currently under development and will be available soon.',
       )
       expect(description).toBeInTheDocument()
     })
@@ -97,8 +98,8 @@ describe('ComingSoon Component', () => {
       expect(screen.getByText(customDesc)).toBeInTheDocument()
       expect(
         screen.queryByText(
-          'This feature is currently under development and will be available soon.'
-        )
+          'This feature is currently under development and will be available soon.',
+        ),
       ).not.toBeInTheDocument()
     })
 
@@ -107,14 +108,14 @@ describe('ComingSoon Component', () => {
         <ComingSoon
           title="New Analytics Dashboard"
           description="Advanced analytics and reporting tools are being developed."
-        />
+        />,
       )
 
       expect(screen.getByText('New Analytics Dashboard')).toBeInTheDocument()
       expect(
         screen.getByText(
-          'Advanced analytics and reporting tools are being developed.'
-        )
+          'Advanced analytics and reporting tools are being developed.',
+        ),
       ).toBeInTheDocument()
     })
   })
@@ -147,8 +148,8 @@ describe('ComingSoon Component', () => {
       expect(screen.getByText('Coming Soon')).toBeInTheDocument()
       expect(
         screen.getByText(
-          'This feature is currently under development and will be available soon.'
-        )
+          'This feature is currently under development and will be available soon.',
+        ),
       ).toBeInTheDocument()
       expect(screen.getByText('Go Back')).toBeInTheDocument()
     })
@@ -159,7 +160,7 @@ describe('ComingSoon Component', () => {
       const { container } = render(<ComingSoon />)
 
       const mainContainer = container.querySelector(
-        '.flex.min-h-\\[60vh\\].flex-col.items-center.justify-center.text-center'
+        '.flex.min-h-\\[60vh\\].flex-col.items-center.justify-center.text-center',
       )
       expect(mainContainer).toBeInTheDocument()
     })
@@ -172,7 +173,7 @@ describe('ComingSoon Component', () => {
         'h-24',
         'w-24',
         'text-zinc-300',
-        'dark:text-zinc-600'
+        'dark:text-zinc-600',
       )
     })
 
@@ -185,7 +186,7 @@ describe('ComingSoon Component', () => {
         'text-3xl',
         'font-bold',
         'text-zinc-900',
-        'dark:text-zinc-100'
+        'dark:text-zinc-100',
       )
     })
 
@@ -193,7 +194,7 @@ describe('ComingSoon Component', () => {
       const { container } = render(<ComingSoon />)
 
       const description = screen.getByText(
-        'This feature is currently under development and will be available soon.'
+        'This feature is currently under development and will be available soon.',
       )
       expect(description.tagName).toBe('P')
       expect(description).toHaveClass(
@@ -201,7 +202,7 @@ describe('ComingSoon Component', () => {
         'max-w-md',
         'text-lg',
         'text-zinc-600',
-        'dark:text-zinc-400'
+        'dark:text-zinc-400',
       )
     })
 
@@ -224,7 +225,7 @@ describe('ComingSoon Component', () => {
       const path = container.querySelector('path')
       expect(path).toHaveAttribute(
         'd',
-        'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z'
+        'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z',
       )
     })
   })
@@ -255,7 +256,7 @@ describe('ComingSoon Component', () => {
       expect(button).toHaveClass(
         'bg-emerald-600',
         'text-white',
-        'hover:bg-emerald-700'
+        'hover:bg-emerald-700',
       )
     })
   })
@@ -274,7 +275,7 @@ describe('ComingSoon Component', () => {
 
       const heading = screen.getByRole('heading', { level: 1 })
       const description = screen.getByText(
-        'This feature is currently under development and will be available soon.'
+        'This feature is currently under development and will be available soon.',
       )
 
       expect(heading).toBeInTheDocument()
@@ -379,7 +380,7 @@ describe('ComingSoon Component', () => {
           title={undefined}
           description={undefined}
           showBackButton={undefined}
-        />
+        />,
       )
 
       // Should use default values
@@ -478,7 +479,7 @@ describe('ComingSoon Component', () => {
       expect(button).toHaveClass(
         'bg-emerald-600',
         'text-white',
-        'hover:bg-emerald-700'
+        'hover:bg-emerald-700',
       )
     })
 
@@ -538,7 +539,7 @@ describe('ComingSoon Component', () => {
       expect(mainContainer).toHaveClass(
         'items-center',
         'justify-center',
-        'text-center'
+        'text-center',
       )
     })
   })

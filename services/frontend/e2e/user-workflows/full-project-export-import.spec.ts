@@ -48,10 +48,10 @@ test.describe('Full Project Export/Import Roundtrip (Issue #817)', () => {
     await nameInput.fill(testProjectName)
 
     const descInput = page.locator(
-      '[data-testid="project-create-description-textarea"]'
+      '[data-testid="project-create-description-textarea"]',
     )
     await descInput.fill(
-      'Comprehensive project for testing full export/import roundtrip with all settings'
+      'Comprehensive project for testing full export/import roundtrip with all settings',
     )
 
     await enableWizardFeatures(page, ['dataImport', 'annotation'])
@@ -94,7 +94,7 @@ test.describe('Full Project Export/Import Roundtrip (Issue #817)', () => {
       await page.waitForTimeout(500)
 
       const jsonInput = page.locator(
-        'textarea[placeholder*="JSON"], textarea.json-input'
+        'textarea[placeholder*="JSON"], textarea.json-input',
       )
       if (await jsonInput.isVisible()) {
         await jsonInput.fill(JSON.stringify(sampleData, null, 2))
@@ -119,7 +119,7 @@ test.describe('Full Project Export/Import Roundtrip (Issue #817)', () => {
     testProjectId = urlPath.split('/projects/')[1]?.split('/')[0] || ''
 
     console.log(
-      `✅ Created comprehensive test project: ${testProjectName} (ID: ${testProjectId})`
+      `✅ Created comprehensive test project: ${testProjectName} (ID: ${testProjectId})`,
     )
 
     await page.close()
@@ -145,7 +145,7 @@ test.describe('Full Project Export/Import Roundtrip (Issue #817)', () => {
 
           // Click delete button
           const deleteButton = page.locator(
-            'button:has-text("Delete"), [data-testid="delete-projects-button"]'
+            'button:has-text("Delete"), [data-testid="delete-projects-button"]',
           )
           if (await deleteButton.isVisible()) {
             await deleteButton.click()
@@ -153,7 +153,7 @@ test.describe('Full Project Export/Import Roundtrip (Issue #817)', () => {
 
             // Confirm deletion
             const confirmButton = page.locator(
-              'button:has-text("Confirm"), button:has-text("Delete")'
+              'button:has-text("Confirm"), button:has-text("Delete")',
             )
             if (await confirmButton.isVisible()) {
               await confirmButton.click()
@@ -184,7 +184,7 @@ test.describe('Full Project Export/Import Roundtrip (Issue #817)', () => {
     await helpers.login('admin', 'admin')
 
     console.log(
-      '📤 Testing: Export full project without AttributeError (Issue #817)'
+      '📤 Testing: Export full project without AttributeError (Issue #817)',
     )
 
     // Navigate to projects list page
@@ -193,7 +193,7 @@ test.describe('Full Project Export/Import Roundtrip (Issue #817)', () => {
 
     // Use search to filter for the test project
     const searchBox = page.locator(
-      'input[type="search"], input[placeholder*="suchen"], searchbox'
+      'input[type="search"], input[placeholder*="suchen"], searchbox',
     )
     if (await searchBox.first().isVisible({ timeout: 5000 })) {
       await searchBox.first().fill(testProjectName)
@@ -210,7 +210,7 @@ test.describe('Full Project Export/Import Roundtrip (Issue #817)', () => {
 
     // Click Actions dropdown button (German: "Aktionen")
     const actionsButton = page.locator(
-      'button:has-text("Actions"), button:has-text("Aktionen")'
+      'button:has-text("Actions"), button:has-text("Aktionen")',
     )
     await expect(actionsButton).toBeVisible({ timeout: 10000 })
     await actionsButton.click()
@@ -243,11 +243,11 @@ test.describe('Full Project Export/Import Roundtrip (Issue #817)', () => {
     expect(download.suggestedFilename()).toMatch(/\.zip$/)
 
     console.log(
-      `✅ Full project export successful: ${download.suggestedFilename()}`
+      `✅ Full project export successful: ${download.suggestedFilename()}`,
     )
     console.log(`📁 Exported file saved to: ${exportedFilePath}`)
     console.log(
-      `✅ No AttributeError - Issue #817 fix verified (prompt_id removed)`
+      `✅ No AttributeError - Issue #817 fix verified (prompt_id removed)`,
     )
   })
 
@@ -257,7 +257,7 @@ test.describe('Full Project Export/Import Roundtrip (Issue #817)', () => {
     test.setTimeout(60000)
 
     console.log(
-      '🔍 Testing: Exported JSON contains generation_config, evaluation_config, and all settings'
+      '🔍 Testing: Exported JSON contains generation_config, evaluation_config, and all settings',
     )
 
     // Read and extract the exported ZIP file
@@ -335,7 +335,7 @@ test.describe('Full Project Export/Import Roundtrip (Issue #817)', () => {
       for (const generation of project.generations) {
         expect(generation).not.toHaveProperty('prompt_id')
         console.log(
-          '✅ Verified: No prompt_id in generations (removed in issue #759)'
+          '✅ Verified: No prompt_id in generations (removed in issue #759)',
         )
       }
     }
@@ -376,7 +376,7 @@ test.describe('Full Project Export/Import Roundtrip (Issue #817)', () => {
 
     // Click import/upload button
     const uploadButton = page.locator(
-      'button:has-text("Import"), button:has-text("Upload")'
+      'button:has-text("Import"), button:has-text("Upload")',
     )
     if (await uploadButton.isVisible()) {
       await uploadButton.click()
@@ -385,7 +385,7 @@ test.describe('Full Project Export/Import Roundtrip (Issue #817)', () => {
 
     // Verify import success message or redirect
     const successMessage = page.locator(
-      'text=/imported successfully|Import complete|✅/'
+      'text=/imported successfully|Import complete|✅/',
     )
     const hasSuccessMessage = await successMessage.isVisible({
       timeout: 10000,
@@ -401,7 +401,7 @@ test.describe('Full Project Export/Import Roundtrip (Issue #817)', () => {
     await page.waitForTimeout(2000)
 
     const importedProject = page.locator(
-      `tr:has-text("${testProjectName}"), tr:has-text("Import")`
+      `tr:has-text("${testProjectName}"), tr:has-text("Import")`,
     )
     await expect(importedProject.first()).toBeVisible({ timeout: 10000 })
 
@@ -430,7 +430,7 @@ test.describe('Full Project Export/Import Roundtrip (Issue #817)', () => {
           ) {
             importedProjectId = projectIdFromHref
             console.log(
-              `Found imported project ID: ${importedProjectId} from row: ${rowText?.substring(0, 100)}`
+              `Found imported project ID: ${importedProjectId} from row: ${rowText?.substring(0, 100)}`,
             )
             break
           }
@@ -457,7 +457,7 @@ test.describe('Full Project Export/Import Roundtrip (Issue #817)', () => {
 
     console.log('✅ Imported project appears in projects list')
     console.log(
-      '✅ Full roundtrip successful - Export/Import preserves all data'
+      '✅ Full roundtrip successful - Export/Import preserves all data',
     )
   })
 
@@ -468,7 +468,7 @@ test.describe('Full Project Export/Import Roundtrip (Issue #817)', () => {
     // This is supplementary verification - core Issue #817 functionality is tested in other tests
     if (!importedProjectId) {
       console.log(
-        '⚠️ Skipping settings verification - imported project ID not available from previous test'
+        '⚠️ Skipping settings verification - imported project ID not available from previous test',
       )
       console.warn('⚠️ Skipping test due to missing preconditions')
       return
@@ -479,7 +479,7 @@ test.describe('Full Project Export/Import Roundtrip (Issue #817)', () => {
     await helpers.login('admin', 'admin')
 
     console.log(
-      '🔍 Testing: Imported project preserves all settings (roundtrip verification)'
+      '🔍 Testing: Imported project preserves all settings (roundtrip verification)',
     )
 
     // Double-check the imported project ID is still valid
@@ -526,7 +526,7 @@ test.describe('Full Project Export/Import Roundtrip (Issue #817)', () => {
     // If still not found, skip this test gracefully
     if (!importedProjectId) {
       console.log(
-        '⚠️ Could not find imported project - skipping settings verification'
+        '⚠️ Could not find imported project - skipping settings verification',
       )
       console.warn('⚠️ Skipping test due to missing preconditions')
       return
@@ -550,7 +550,7 @@ test.describe('Full Project Export/Import Roundtrip (Issue #817)', () => {
 
       // Verify we can see settings (confirms project is fully functional)
       const settingsContent = page.locator(
-        'text=/Label Config|Annotation Settings|Project Settings/'
+        'text=/Label Config|Annotation Settings|Project Settings/',
       )
       await expect(settingsContent.first()).toBeVisible({ timeout: 5000 })
     }
@@ -558,7 +558,7 @@ test.describe('Full Project Export/Import Roundtrip (Issue #817)', () => {
     console.log('✅ Imported project is fully functional')
     console.log('✅ All settings preserved in roundtrip')
     console.log(
-      '✅ Issue #817 verification complete: Full export/import roundtrip works'
+      '✅ Issue #817 verification complete: Full export/import roundtrip works',
     )
   })
 
@@ -569,7 +569,7 @@ test.describe('Full Project Export/Import Roundtrip (Issue #817)', () => {
     // The core Issue #817 functionality is verified in tests 1 and 3
     if (!testProjectId || !testProjectName) {
       console.log(
-        '⚠️ Skipping generations export test - test project was cleaned up'
+        '⚠️ Skipping generations export test - test project was cleaned up',
       )
       console.warn('⚠️ Skipping test due to missing preconditions')
       return
@@ -580,7 +580,7 @@ test.describe('Full Project Export/Import Roundtrip (Issue #817)', () => {
     await helpers.login('admin', 'admin')
 
     console.log(
-      '📤 Testing: Export project with generations (AttributeError check)'
+      '📤 Testing: Export project with generations (AttributeError check)',
     )
 
     // Navigate to projects list
@@ -589,7 +589,7 @@ test.describe('Full Project Export/Import Roundtrip (Issue #817)', () => {
 
     // Use search to filter for the test project (like test 1 does)
     const searchBox = page.locator(
-      'input[type="search"], input[placeholder*="suchen"], searchbox'
+      'input[type="search"], input[placeholder*="suchen"], searchbox',
     )
     if (
       await searchBox
@@ -613,10 +613,10 @@ test.describe('Full Project Export/Import Roundtrip (Issue #817)', () => {
       .catch(() => false)
     if (!projectVisible) {
       console.log(
-        '⚠️ Skipping generations export test - test project no longer visible in projects list'
+        '⚠️ Skipping generations export test - test project no longer visible in projects list',
       )
       console.log(
-        '✅ Core Issue #817 functionality already verified in tests 1 and 3'
+        '✅ Core Issue #817 functionality already verified in tests 1 and 3',
       )
       console.warn('⚠️ Skipping test due to missing preconditions')
       return
@@ -630,7 +630,7 @@ test.describe('Full Project Export/Import Roundtrip (Issue #817)', () => {
 
     // Click Actions dropdown (German: "Aktionen")
     const actionsButton = page.locator(
-      'button:has-text("Actions"), button:has-text("Aktionen")'
+      'button:has-text("Actions"), button:has-text("Aktionen")',
     )
     await expect(actionsButton).toBeVisible({ timeout: 10000 })
     await actionsButton.click()
@@ -649,7 +649,7 @@ test.describe('Full Project Export/Import Roundtrip (Issue #817)', () => {
 
     console.log('✅ Export with generations completed without AttributeError')
     console.log(
-      '✅ prompt_id successfully removed from all export paths (Issue #817)'
+      '✅ prompt_id successfully removed from all export paths (Issue #817)',
     )
   })
 })
@@ -722,12 +722,15 @@ test.describe('Export/Import Data-Integrity Round-Trip @extended', () => {
     await helpers.login('admin', 'admin')
 
     tumOrgId = await page.evaluate(async () => {
-      const response = await fetch('/api/organizations', { credentials: 'include' })
+      const response = await fetch('/api/organizations', {
+        credentials: 'include',
+      })
       if (!response.ok) return null
       const data = await response.json()
       const orgs = data.items || data.organizations || data || []
       const tum = orgs.find(
-        (o: { name?: string; slug?: string }) => o.name === 'TUM' || o.slug === 'tum'
+        (o: { name?: string; slug?: string }) =>
+          o.name === 'TUM' || o.slug === 'tum',
       )
       return tum?.id || null
     })
@@ -735,7 +738,9 @@ test.describe('Export/Import Data-Integrity Round-Trip @extended', () => {
     // 1. Create + korrektur-enable the source project.
     sourceProjectId = await page.evaluate(
       async ({ name, labelConfig, orgId }) => {
-        const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+        const headers: Record<string, string> = {
+          'Content-Type': 'application/json',
+        }
         if (orgId) headers['X-Organization-Context'] = orgId
         const createRes = await fetch('/api/projects', {
           method: 'POST',
@@ -756,14 +761,17 @@ test.describe('Export/Import Data-Integrity Round-Trip @extended', () => {
             korrektur_enabled: true,
             evaluation_config: {
               evaluation_configs: [
-                { metric: 'korrektur_falloesung', metric_parameters: { assignment_mode: 'open' } },
+                {
+                  metric: 'korrektur_falloesung',
+                  metric_parameters: { assignment_mode: 'open' },
+                },
               ],
             },
           }),
         })
         return project.id
       },
-      { name: ROUNDTRIP_NAME, labelConfig: LABEL_CONFIG, orgId: tumOrgId }
+      { name: ROUNDTRIP_NAME, labelConfig: LABEL_CONFIG, orgId: tumOrgId },
     )
     expect(sourceProjectId).toBeTruthy()
 
@@ -771,16 +779,30 @@ test.describe('Export/Import Data-Integrity Round-Trip @extended', () => {
     const importResult = await page.evaluate(importTasksInBrowser, {
       projectId: sourceProjectId!,
       tasks: [
-        { data: { question: 'Anspruch K gegen B aus § 433 II BGB?', musterloesung: 'Anspruch (+).' } },
-        { data: { question: 'Anspruch aus § 280 I BGB?', musterloesung: 'Schadensersatz (+).' } },
+        {
+          data: {
+            question: 'Anspruch K gegen B aus § 433 II BGB?',
+            musterloesung: 'Anspruch (+).',
+          },
+        },
+        {
+          data: {
+            question: 'Anspruch aus § 280 I BGB?',
+            musterloesung: 'Schadensersatz (+).',
+          },
+        },
       ],
     })
     expect(importResult.success).toBeTruthy()
 
     const tasks = await page.evaluate(async (pid) => {
-      const response = await fetch(`/api/projects/${pid}/tasks`, { credentials: 'include' })
+      const response = await fetch(`/api/projects/${pid}/tasks`, {
+        credentials: 'include',
+      })
       const data = await response.json()
-      return (data.items || data.tasks || data || []).map((t: { id: string }) => t.id)
+      return (data.items || data.tasks || data || []).map(
+        (t: { id: string }) => t.id,
+      )
     }, sourceProjectId)
     expect(tasks.length).toBe(2)
 
@@ -795,7 +817,11 @@ test.describe('Export/Import Data-Integrity Round-Trip @extended', () => {
               from_name: 'loesung',
               to_name: 'question',
               type: 'textarea',
-              value: { text: [`Studierendenlösung ${i + 1}: K kann Zahlung verlangen.`] },
+              value: {
+                text: [
+                  `Studierendenlösung ${i + 1}: K kann Zahlung verlangen.`,
+                ],
+              },
             },
           ],
         }))
@@ -805,10 +831,11 @@ test.describe('Export/Import Data-Integrity Round-Trip @extended', () => {
           credentials: 'include',
           body: JSON.stringify({ project_id: pid, annotations }),
         })
-        if (!response.ok) return { success: false, error: await response.text() }
+        if (!response.ok)
+          return { success: false, error: await response.text() }
         return response.json()
       },
-      { pid: sourceProjectId, taskIds: tasks }
+      { pid: sourceProjectId, taskIds: tasks },
     )
     expect(seedResult.created_count || 0).toBe(2)
 
@@ -816,9 +843,12 @@ test.describe('Export/Import Data-Integrity Round-Trip @extended', () => {
     // Seeded as 'annotator', browsing as admin — the list endpoint defaults
     // to own-annotations-only (data isolation), so ask for all users.
     const firstAnnotationId = await page.evaluate(async (tid) => {
-      const response = await fetch(`/api/projects/tasks/${tid}/annotations?all_users=true`, {
-        credentials: 'include',
-      })
+      const response = await fetch(
+        `/api/projects/tasks/${tid}/annotations?all_users=true`,
+        {
+          credentials: 'include',
+        },
+      )
       const data = await response.json()
       const anns = data.items || data.annotations || data || []
       return anns[0]?.id || null
@@ -837,25 +867,40 @@ test.describe('Export/Import Data-Integrity Round-Trip @extended', () => {
               annotation_id: annId,
               field_name: 'loesung',
               answer_type: 'long_text',
-              dimensions: { [dimKey]: { score: 16, justification: 'Ergebnis vertretbar begründet.' } },
+              dimensions: {
+                [dimKey]: {
+                  score: 16,
+                  justification: 'Ergebnis vertretbar begründet.',
+                },
+              },
               overall_assessment: 'Solide Bearbeitung.',
               improvement_tips: [],
             }),
-          }
+          },
         )
-        if (!response.ok) return { success: false, error: await response.text() }
+        if (!response.ok)
+          return { success: false, error: await response.text() }
         return { success: true, ...(await response.json()) }
       },
-      { pid: sourceProjectId, tid: tasks[0], annId: firstAnnotationId, dimKey: GRADED_DIMENSION }
+      {
+        pid: sourceProjectId,
+        tid: tasks[0],
+        annId: firstAnnotationId,
+        dimKey: GRADED_DIMENSION,
+      },
     )
     console.log(`[Roundtrip] Korrektur grade: ${JSON.stringify(gradeResult)}`)
     expect(gradeResult.success).toBeTruthy()
 
     // 5. Record the source counts that must survive the round-trip.
     const counts = await page.evaluate(async (pid) => {
-      const tasksRes = await fetch(`/api/projects/${pid}/tasks`, { credentials: 'include' })
+      const tasksRes = await fetch(`/api/projects/${pid}/tasks`, {
+        credentials: 'include',
+      })
       const tasksData = await tasksRes.json()
-      const projRes = await fetch(`/api/projects/${pid}`, { credentials: 'include' })
+      const projRes = await fetch(`/api/projects/${pid}`, {
+        credentials: 'include',
+      })
       const projData = await projRes.json()
       return {
         tasks: tasksData.total ?? (tasksData.items || []).length,
@@ -881,13 +926,17 @@ test.describe('Export/Import Data-Integrity Round-Trip @extended', () => {
     // presigned URL. The artifact's statistics.total_task_evaluations is the
     // korrektur-grade survival counter (the value the old bug regressed).
     const artifact = await page.evaluate(async (pid) => {
-      const startRes = await fetch(`/api/projects/${pid}/exports?format=comprehensive`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({}),
-      })
-      if (!startRes.ok) return { ok: false, stage: 'start', error: await startRes.text() }
+      const startRes = await fetch(
+        `/api/projects/${pid}/exports?format=comprehensive`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({}),
+        },
+      )
+      if (!startRes.ok)
+        return { ok: false, stage: 'start', error: await startRes.text() }
       const { job_id } = await startRes.json()
 
       // Poll the export job.
@@ -900,27 +949,36 @@ test.describe('Export/Import Data-Integrity Round-Trip @extended', () => {
         if (!pollRes.ok) continue
         const data = await pollRes.json()
         status = data.status
-        if (status === 'failed') return { ok: false, stage: 'export', error: data.error_message }
+        if (status === 'failed')
+          return { ok: false, stage: 'export', error: data.error_message }
       }
-      if (status !== 'completed') return { ok: false, stage: 'export', error: 'timeout' }
+      if (status !== 'completed')
+        return { ok: false, stage: 'export', error: 'timeout' }
 
       // Resolve the presigned download URL (?json=1 returns {url} instead of a 302).
-      const dlRes = await fetch(`/api/projects/${pid}/exports/${job_id}/download?json=1`, {
-        credentials: 'include',
-      })
-      if (!dlRes.ok) return { ok: false, stage: 'download', error: await dlRes.text() }
+      const dlRes = await fetch(
+        `/api/projects/${pid}/exports/${job_id}/download?json=1`,
+        {
+          credentials: 'include',
+        },
+      )
+      if (!dlRes.ok)
+        return { ok: false, stage: 'download', error: await dlRes.text() }
       const { url } = await dlRes.json()
 
       // Fetch the artifact bytes (single JSON document for comprehensive format).
       const fileRes = await fetch(url)
-      if (!fileRes.ok) return { ok: false, stage: 'fetch-artifact', status: fileRes.status }
+      if (!fileRes.ok)
+        return { ok: false, stage: 'fetch-artifact', status: fileRes.status }
       const doc = await fileRes.json()
       return {
         ok: true,
         jobId: job_id,
         totalTaskEvaluations:
           doc?.statistics?.total_task_evaluations ??
-          (Array.isArray(doc?.task_evaluations) ? doc.task_evaluations.length : 0),
+          (Array.isArray(doc?.task_evaluations)
+            ? doc.task_evaluations.length
+            : 0),
         taskEvaluationsArrayLen: Array.isArray(doc?.task_evaluations)
           ? doc.task_evaluations.length
           : null,
@@ -937,7 +995,9 @@ test.describe('Export/Import Data-Integrity Round-Trip @extended', () => {
     expect(expected.korrekturGrades).toBeGreaterThanOrEqual(1)
   })
 
-  test('Import as new project and assert counts MATCH the source', async ({ page }) => {
+  test('Import as new project and assert counts MATCH the source', async ({
+    page,
+  }) => {
     test.setTimeout(180000)
     test.skip(!sourceProjectId, 'Source project not built')
     const helpers = new TestHelpers(page)
@@ -947,31 +1007,48 @@ test.describe('Export/Import Data-Integrity Round-Trip @extended', () => {
     // create import job → poll → assert the new project's counts match source.
     const roundtrip = await page.evaluate(
       async ({ pid, orgId }) => {
-        const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+        const headers: Record<string, string> = {
+          'Content-Type': 'application/json',
+        }
         if (orgId) headers['X-Organization-Context'] = orgId
 
         // (a) Re-export comprehensive and fetch the raw artifact bytes.
-        const startRes = await fetch(`/api/projects/${pid}/exports?format=comprehensive`, {
-          method: 'POST',
-          headers,
-          credentials: 'include',
-          body: JSON.stringify({}),
-        })
-        if (!startRes.ok) return { ok: false, stage: 'export-start', error: await startRes.text() }
+        const startRes = await fetch(
+          `/api/projects/${pid}/exports?format=comprehensive`,
+          {
+            method: 'POST',
+            headers,
+            credentials: 'include',
+            body: JSON.stringify({}),
+          },
+        )
+        if (!startRes.ok)
+          return {
+            ok: false,
+            stage: 'export-start',
+            error: await startRes.text(),
+          }
         const { job_id: exportJob } = await startRes.json()
         let exStatus = 'pending'
         for (let i = 0; i < 60 && exStatus !== 'completed'; i++) {
           await new Promise((r) => setTimeout(r, 1000))
-          const p = await fetch(`/api/projects/${pid}/exports/${exportJob}`, { credentials: 'include' })
+          const p = await fetch(`/api/projects/${pid}/exports/${exportJob}`, {
+            credentials: 'include',
+          })
           if (!p.ok) continue
           const d = await p.json()
           exStatus = d.status
-          if (exStatus === 'failed') return { ok: false, stage: 'export', error: d.error_message }
+          if (exStatus === 'failed')
+            return { ok: false, stage: 'export', error: d.error_message }
         }
-        if (exStatus !== 'completed') return { ok: false, stage: 'export', error: 'timeout' }
-        const dl = await fetch(`/api/projects/${pid}/exports/${exportJob}/download?json=1`, {
-          credentials: 'include',
-        })
+        if (exStatus !== 'completed')
+          return { ok: false, stage: 'export', error: 'timeout' }
+        const dl = await fetch(
+          `/api/projects/${pid}/exports/${exportJob}/download?json=1`,
+          {
+            credentials: 'include',
+          },
+        )
         const { url } = await dl.json()
         const fileRes = await fetch(url)
         const artifactBlob = await fileRes.blob()
@@ -979,9 +1056,10 @@ test.describe('Export/Import Data-Integrity Round-Trip @extended', () => {
         // (b) Presign an import upload slot (create-new flow).
         const presignRes = await fetch(
           `/api/projects/project-imports/upload-url?filename=roundtrip.json`,
-          { method: 'POST', headers, credentials: 'include' }
+          { method: 'POST', headers, credentials: 'include' },
         )
-        if (!presignRes.ok) return { ok: false, stage: 'presign', error: await presignRes.text() }
+        if (!presignRes.ok)
+          return { ok: false, stage: 'presign', error: await presignRes.text() }
         const presign = await presignRes.json()
 
         // (c) Upload artifact straight to object storage (fields first, file last).
@@ -995,7 +1073,12 @@ test.describe('Export/Import Data-Integrity Round-Trip @extended', () => {
           body: formData,
         })
         if (!uploadRes.ok) {
-          return { ok: false, stage: 'upload', status: uploadRes.status, error: await uploadRes.text() }
+          return {
+            ok: false,
+            stage: 'upload',
+            status: uploadRes.status,
+            error: await uploadRes.text(),
+          }
         }
 
         // (d) Enqueue the create-new import job.
@@ -1005,7 +1088,12 @@ test.describe('Export/Import Data-Integrity Round-Trip @extended', () => {
           credentials: 'include',
           body: JSON.stringify({ object_key: presign.file_key }),
         })
-        if (!jobRes.ok) return { ok: false, stage: 'import-start', error: await jobRes.text() }
+        if (!jobRes.ok)
+          return {
+            ok: false,
+            stage: 'import-start',
+            error: await jobRes.text(),
+          }
         const { job_id: importJob } = await jobRes.json()
 
         // (e) Poll the import job; the new project id lands on .project_id.
@@ -1013,27 +1101,48 @@ test.describe('Export/Import Data-Integrity Round-Trip @extended', () => {
         let newProjectId: string | null = null
         for (let i = 0; i < 90 && imStatus !== 'completed'; i++) {
           await new Promise((r) => setTimeout(r, 1000))
-          const p = await fetch(`/api/projects/project-imports/${importJob}`, { credentials: 'include' })
+          const p = await fetch(`/api/projects/project-imports/${importJob}`, {
+            credentials: 'include',
+          })
           if (!p.ok) continue
           const d = await p.json()
           imStatus = d.status
-          newProjectId = d.project_id || d.result?.project_id || d.result?.new_project_id || newProjectId
-          if (imStatus === 'failed') return { ok: false, stage: 'import', error: d.error_message }
+          newProjectId =
+            d.project_id ||
+            d.result?.project_id ||
+            d.result?.new_project_id ||
+            newProjectId
+          if (imStatus === 'failed')
+            return { ok: false, stage: 'import', error: d.error_message }
         }
         if (imStatus !== 'completed' || !newProjectId) {
-          return { ok: false, stage: 'import', error: 'timeout or missing project_id', newProjectId }
+          return {
+            ok: false,
+            stage: 'import',
+            error: 'timeout or missing project_id',
+            newProjectId,
+          }
         }
 
         // (f) Read the new project's task + annotation counts.
-        const tasksRes = await fetch(`/api/projects/${newProjectId}/tasks`, { credentials: 'include' })
+        const tasksRes = await fetch(`/api/projects/${newProjectId}/tasks`, {
+          credentials: 'include',
+        })
         const tasksData = await tasksRes.json()
-        const projRes = await fetch(`/api/projects/${newProjectId}`, { credentials: 'include' })
+        const projRes = await fetch(`/api/projects/${newProjectId}`, {
+          credentials: 'include',
+        })
         const projData = await projRes.json()
 
         // (g) Re-export the imported project to count surviving korrektur grades.
         const reExportStart = await fetch(
           `/api/projects/${newProjectId}/exports?format=comprehensive`,
-          { method: 'POST', headers, credentials: 'include', body: JSON.stringify({}) }
+          {
+            method: 'POST',
+            headers,
+            credentials: 'include',
+            body: JSON.stringify({}),
+          },
         )
         let reTaskEvals = 0
         if (reExportStart.ok) {
@@ -1041,21 +1150,29 @@ test.describe('Export/Import Data-Integrity Round-Trip @extended', () => {
           let reStatus = 'pending'
           for (let i = 0; i < 60 && reStatus !== 'completed'; i++) {
             await new Promise((r) => setTimeout(r, 1000))
-            const p = await fetch(`/api/projects/${newProjectId}/exports/${reJob}`, { credentials: 'include' })
+            const p = await fetch(
+              `/api/projects/${newProjectId}/exports/${reJob}`,
+              { credentials: 'include' },
+            )
             if (!p.ok) continue
             const d = await p.json()
             reStatus = d.status
             if (reStatus === 'failed') break
           }
           if (reStatus === 'completed') {
-            const reDl = await fetch(`/api/projects/${newProjectId}/exports/${reJob}/download?json=1`, {
-              credentials: 'include',
-            })
+            const reDl = await fetch(
+              `/api/projects/${newProjectId}/exports/${reJob}/download?json=1`,
+              {
+                credentials: 'include',
+              },
+            )
             const { url: reUrl } = await reDl.json()
             const reDoc = await (await fetch(reUrl)).json()
             reTaskEvals =
               reDoc?.statistics?.total_task_evaluations ??
-              (Array.isArray(reDoc?.task_evaluations) ? reDoc.task_evaluations.length : 0)
+              (Array.isArray(reDoc?.task_evaluations)
+                ? reDoc.task_evaluations.length
+                : 0)
           }
         }
 
@@ -1067,7 +1184,7 @@ test.describe('Export/Import Data-Integrity Round-Trip @extended', () => {
           korrekturGrades: reTaskEvals,
         }
       },
-      { pid: sourceProjectId, orgId: tumOrgId }
+      { pid: sourceProjectId, orgId: tumOrgId },
     )
 
     console.log(`[Roundtrip] Import result: ${JSON.stringify(roundtrip)}`)

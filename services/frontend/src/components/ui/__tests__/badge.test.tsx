@@ -31,7 +31,7 @@ describe('Badge', () => {
 
   it('renders with destructive variant', () => {
     const { container } = render(
-      <Badge variant="destructive">Destructive</Badge>
+      <Badge variant="destructive">Destructive</Badge>,
     )
     const badge = container.firstChild as HTMLElement
     expect(badge).toHaveClass('bg-red-100')
@@ -69,7 +69,7 @@ describe('Badge', () => {
     const { container } = render(
       <Badge data-testid="test-badge" id="badge-id">
         Props Badge
-      </Badge>
+      </Badge>,
     )
     const badge = container.firstChild as HTMLElement
     expect(badge).toHaveAttribute('data-testid', 'test-badge')
@@ -91,7 +91,7 @@ describe('Badge', () => {
         <Badge variant="default">Badge 1</Badge>
         <Badge variant="secondary">Badge 2</Badge>
         <Badge variant="outline">Badge 3</Badge>
-      </>
+      </>,
     )
 
     expect(screen.getByText('Badge 1')).toBeInTheDocument()
@@ -104,7 +104,7 @@ describe('Badge', () => {
       <Badge>
         <span>Complex</span>
         <span> Content</span>
-      </Badge>
+      </Badge>,
     )
 
     expect(screen.getByText('Complex')).toBeInTheDocument()

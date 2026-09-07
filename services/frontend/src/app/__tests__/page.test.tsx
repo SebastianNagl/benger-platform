@@ -90,7 +90,7 @@ describe('LandingPage', () => {
       const { container } = render(<LandingPage />)
 
       const loadingContainer = container.querySelector(
-        '.flex.min-h-screen.items-center.justify-center'
+        '.flex.min-h-screen.items-center.justify-center',
       )
       expect(loadingContainer).toBeInTheDocument()
       expect(loadingContainer).toHaveClass('bg-white', 'dark:bg-zinc-900')
@@ -111,7 +111,7 @@ describe('LandingPage', () => {
         'w-8',
         'rounded-full',
         'border-b-2',
-        'border-emerald-500'
+        'border-emerald-500',
       )
     })
   })
@@ -136,7 +136,7 @@ describe('LandingPage', () => {
       render(<LandingPage />)
 
       expect(
-        screen.getByText('Redirecting to dashboard...')
+        screen.getByText('Redirecting to dashboard...'),
       ).toBeInTheDocument()
       expect(screen.queryByTestId('hero-section')).not.toBeInTheDocument()
     })
@@ -153,7 +153,7 @@ describe('LandingPage', () => {
       const { container } = render(<LandingPage />)
 
       const redirectContainer = container.querySelector(
-        '.flex.min-h-screen.items-center.justify-center'
+        '.flex.min-h-screen.items-center.justify-center',
       )
       expect(redirectContainer).toBeInTheDocument()
       expect(redirectContainer).toHaveClass('bg-white', 'dark:bg-zinc-900')
@@ -219,7 +219,7 @@ describe('LandingPage', () => {
 
       expect(screen.queryByText('Loading...')).not.toBeInTheDocument()
       expect(
-        screen.queryByText('Redirecting to dashboard...')
+        screen.queryByText('Redirecting to dashboard...'),
       ).not.toBeInTheDocument()
     })
 
@@ -273,7 +273,7 @@ describe('LandingPage', () => {
 
       expect(screen.queryByText('Loading...')).not.toBeInTheDocument()
       expect(
-        screen.getByText('Redirecting to dashboard...')
+        screen.getByText('Redirecting to dashboard...'),
       ).toBeInTheDocument()
 
       await waitFor(() => {
@@ -300,7 +300,7 @@ describe('LandingPage', () => {
 
       expect(screen.queryByTestId('landing-layout')).not.toBeInTheDocument()
       expect(
-        screen.getByText('Redirecting to dashboard...')
+        screen.getByText('Redirecting to dashboard...'),
       ).toBeInTheDocument()
 
       await waitFor(() => {
@@ -371,7 +371,7 @@ describe('LandingPage', () => {
       render(<LandingPage />)
 
       expect(
-        screen.getByText('Redirecting to dashboard...')
+        screen.getByText('Redirecting to dashboard...'),
       ).toBeInTheDocument()
     })
 
@@ -386,7 +386,7 @@ describe('LandingPage', () => {
       expect(screen.queryByTestId('landing-layout')).not.toBeInTheDocument()
       expect(screen.queryByTestId('hero-section')).not.toBeInTheDocument()
       expect(
-        screen.getByText('Redirecting to dashboard...')
+        screen.getByText('Redirecting to dashboard...'),
       ).toBeInTheDocument()
     })
 
@@ -556,7 +556,7 @@ describe('LandingPage', () => {
       render(<LandingPage />)
 
       expect(
-        screen.getByText('Redirecting to dashboard...')
+        screen.getByText('Redirecting to dashboard...'),
       ).toBeInTheDocument()
     })
 

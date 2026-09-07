@@ -11,8 +11,8 @@
  * projects lead with the structured tab.
  */
 
-import { Button } from '@/components/shared/Button'
 import { ExtractTextButton } from '@/components/projects/ExtractTextButton'
+import { Button } from '@/components/shared/Button'
 import { Label } from '@/components/shared/Label'
 import {
   Tabs,
@@ -24,10 +24,7 @@ import { Textarea } from '@/components/shared/Textarea'
 import { useToast } from '@/components/shared/Toast'
 import { useI18n } from '@/contexts/I18nContext'
 import { detectFormat, extractColumns } from '@/lib/import/parseImportData'
-import {
-  CheckCircleIcon,
-  CloudArrowUpIcon,
-} from '@heroicons/react/24/outline'
+import { CheckCircleIcon, CloudArrowUpIcon } from '@heroicons/react/24/outline'
 import React, { ReactNode, useCallback } from 'react'
 
 export type ImportTabId = 'upload' | 'paste' | 'cloud' | 'structured'
@@ -39,7 +36,7 @@ export type ImportTabId = 'upload' | 'paste' | 'cloud' | 'structured'
  */
 export function getImportTabConfig(
   kind: string | undefined,
-  hasStructured: boolean
+  hasStructured: boolean,
 ): { order: ImportTabId[]; defaultTab: ImportTabId } {
   if (hasStructured && kind === 'exam') {
     return {
@@ -93,7 +90,7 @@ export function ImportSourceTabs({
       onPastedDataChange(data)
       onColumnsDetected?.(extractColumns(data))
     },
-    [onPastedDataChange, onColumnsDetected]
+    [onPastedDataChange, onColumnsDetected],
   )
 
   const handleFileWithColumns = useCallback(
@@ -111,7 +108,7 @@ export function ImportSourceTabs({
         onColumnsDetected([])
       }
     },
-    [onFileChange, onColumnsDetected]
+    [onFileChange, onColumnsDetected],
   )
 
   const handleFileSelect = useCallback(
@@ -121,7 +118,7 @@ export function ImportSourceTabs({
         handleFileWithColumns(file)
       }
     },
-    [handleFileWithColumns]
+    [handleFileWithColumns],
   )
 
   const handleDrop = useCallback(
@@ -132,7 +129,7 @@ export function ImportSourceTabs({
         handleFileWithColumns(file)
       }
     },
-    [handleFileWithColumns]
+    [handleFileWithColumns],
   )
 
   const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
@@ -301,12 +298,12 @@ export function ImportSourceTabs({
                       t('projects.creation.wizard.step2.paste.formatDetected', {
                         format: format.toUpperCase(),
                       }),
-                      'success'
+                      'success',
                     )
                   } catch {
                     addToast(
                       t('projects.creation.wizard.step2.paste.invalidFormat'),
-                      'error'
+                      'error',
                     )
                   }
                 }}

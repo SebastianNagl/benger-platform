@@ -13,10 +13,14 @@
  * wizards (defaults) and the backfill produce identical names.
  */
 
-import type { AvailableMetric, MetricParameters } from '@/lib/api/evaluation-types'
+import type {
+  AvailableMetric,
+  MetricParameters,
+} from '@/lib/api/evaluation-types'
 
 type MetricDefLike = Pick<AvailableMetric, 'display_name'> | undefined | null
-type MetricParamsLike = MetricParameters | Record<string, any> | undefined | null
+type MetricParamsLike =
+  MetricParameters | Record<string, any> | undefined | null
 
 /**
  * Resolve the judge-model descriptor for a config, or `undefined` when none.
@@ -83,7 +87,7 @@ function resolveJudgeModel(metricParams: MetricParamsLike): string | undefined {
 export function computeDefaultEvalName(
   metricDef: MetricDefLike,
   metricParams: MetricParamsLike,
-  metric: string
+  metric: string,
 ): string {
   const base = metricDef?.display_name || metric
   const model = resolveJudgeModel(metricParams)

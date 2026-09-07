@@ -13,7 +13,9 @@ export function DevModeIndicator() {
   // Derive visibility from environment and user state
   const isVisible = useMemo(() => {
     if (!isHydrated) return false
-    const isDevAutoAuth = process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_DISABLE_AUTO_LOGIN !== 'true'
+    const isDevAutoAuth =
+      process.env.NODE_ENV === 'development' &&
+      process.env.NEXT_PUBLIC_DISABLE_AUTO_LOGIN !== 'true'
     const isLocalhost =
       typeof window !== 'undefined' &&
       (window.location.hostname === 'localhost' ||
@@ -29,7 +31,7 @@ export function DevModeIndicator() {
   return (
     <>
       {/* Small badge indicator */}
-      <div className="fixed bottom-4 right-4 z-50">
+      <div className="fixed right-4 bottom-4 z-50">
         <button
           onClick={() => setShowDetails(!showDetails)}
           className="flex items-center gap-2 rounded-full border border-amber-300 bg-amber-100 px-3 py-1.5 text-xs font-medium text-amber-800 shadow-sm transition-colors duration-200 hover:bg-amber-200 dark:border-amber-700 dark:bg-amber-900/80 dark:text-amber-200 dark:hover:bg-amber-800"
@@ -42,7 +44,7 @@ export function DevModeIndicator() {
 
       {/* Details popup (only when clicked) */}
       {showDetails && (
-        <div className="fixed bottom-16 right-4 z-50 transition-opacity duration-200">
+        <div className="fixed right-4 bottom-16 z-50 transition-opacity duration-200">
           <div className="max-w-sm rounded-lg border border-gray-200 bg-white p-4 shadow-lg dark:border-zinc-700 dark:bg-zinc-800">
             <div className="mb-2 flex items-start justify-between">
               <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">
@@ -73,4 +75,3 @@ export function DevModeIndicator() {
     </>
   )
 }
-

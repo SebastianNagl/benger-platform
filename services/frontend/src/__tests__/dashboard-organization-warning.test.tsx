@@ -15,7 +15,7 @@ const render: typeof rtlRender = (ui, options) => {
   })
   return rtlRender(
     <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>,
-    options
+    options,
   )
 }
 
@@ -53,7 +53,13 @@ jest.mock('@/contexts/I18nContext', () => ({
 
 // Mock Next.js Link component
 jest.mock('next/link', () => {
-  return function MockLink({ children, href }: { children: React.ReactNode; href: string }) {
+  return function MockLink({
+    children,
+    href,
+  }: {
+    children: React.ReactNode
+    href: string
+  }) {
     return <a href={href}>{children}</a>
   }
 })
@@ -152,7 +158,7 @@ describe('Dashboard Organization Warning', () => {
       })
 
       const warningMessage = screen.getByText(
-        /You are not currently assigned to any organization/
+        /You are not currently assigned to any organization/,
       )
       expect(warningMessage).toBeInTheDocument()
     })
@@ -185,7 +191,7 @@ describe('Dashboard Organization Warning', () => {
       if (warningElement && statsSection) {
         expect(
           warningElement.compareDocumentPosition(statsSection) &
-            Node.DOCUMENT_POSITION_FOLLOWING
+            Node.DOCUMENT_POSITION_FOLLOWING,
         ).toBeTruthy()
       }
     })
@@ -194,7 +200,12 @@ describe('Dashboard Organization Warning', () => {
   describe('when user has organizations', () => {
     beforeEach(() => {
       ;(useAuth as jest.Mock).mockReturnValue({
-        user: { id: '1', username: 'testuser', is_superadmin: false, role: 'CONTRIBUTOR' },
+        user: {
+          id: '1',
+          username: 'testuser',
+          is_superadmin: false,
+          role: 'CONTRIBUTOR',
+        },
         organizations: [
           {
             id: '1',
@@ -218,7 +229,7 @@ describe('Dashboard Organization Warning', () => {
       expect(warningTitle).not.toBeInTheDocument()
 
       const warningMessage = screen.queryByText(
-        /You are not currently assigned to any organization/
+        /You are not currently assigned to any organization/,
       )
       expect(warningMessage).not.toBeInTheDocument()
     })
@@ -313,10 +324,10 @@ describe('Dashboard Organization Warning', () => {
       await waitFor(() => {
         // Check for German translations
         expect(
-          screen.getByText('Keine Organisationszuweisung')
+          screen.getByText('Keine Organisationszuweisung'),
         ).toBeInTheDocument()
         expect(
-          screen.getByText(/Sie sind derzeit keiner Organisation zugewiesen/)
+          screen.getByText(/Sie sind derzeit keiner Organisation zugewiesen/),
         ).toBeInTheDocument()
       })
     })

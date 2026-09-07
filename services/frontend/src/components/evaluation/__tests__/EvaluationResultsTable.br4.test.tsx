@@ -92,17 +92,13 @@ describe('EvaluationResultsTable br4 - uncovered branches', () => {
   })
 
   it('handles rank=3 styling (lines 262-263)', () => {
-    const results = [
-      { modelId: 'bronze', metrics: { score: 0.7 }, rank: 3 },
-    ]
+    const results = [{ modelId: 'bronze', metrics: { score: 0.7 }, rank: 3 }]
     render(<EvaluationResultsTable results={results} />)
     expect(screen.getByText('#3')).toBeInTheDocument()
   })
 
   it('handles rank>3 styling (line 264)', () => {
-    const results = [
-      { modelId: 'other', metrics: { score: 0.5 }, rank: 4 },
-    ]
+    const results = [{ modelId: 'other', metrics: { score: 0.5 }, rank: 4 }]
     render(<EvaluationResultsTable results={results} />)
     expect(screen.getByText('#4')).toBeInTheDocument()
   })

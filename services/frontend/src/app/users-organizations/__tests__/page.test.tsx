@@ -29,9 +29,7 @@ const mockSuperadmin = {
   updated_at: '2024-01-01',
 }
 
-const mockOrgs = [
-  { id: 'org1', name: 'Org 1', slug: 'org1', role: 'admin' },
-]
+const mockOrgs = [{ id: 'org1', name: 'Org 1', slug: 'org1', role: 'admin' }]
 
 let mockAuthReturn: any = {
   user: mockSuperadmin,
@@ -83,9 +81,7 @@ jest.mock('@heroicons/react/24/outline', () => ({
 }))
 
 jest.mock('@/app/admin/users-organizations/components/GlobalUsersTab', () => ({
-  GlobalUsersTab: () => (
-    <div data-testid="global-users-tab">Global Users</div>
-  ),
+  GlobalUsersTab: () => <div data-testid="global-users-tab">Global Users</div>,
 }))
 
 jest.mock(
@@ -94,7 +90,7 @@ jest.mock(
     OrganizationsTab: () => (
       <div data-testid="organizations-tab">Organizations</div>
     ),
-  })
+  }),
 )
 
 describe('UsersOrganizationsPage', () => {
@@ -120,9 +116,7 @@ describe('UsersOrganizationsPage', () => {
       render(<UsersOrganizationsPage />)
       await waitFor(() => {
         expect(screen.getByTestId('breadcrumb')).toBeInTheDocument()
-        expect(
-          screen.getByText('navigation.dashboard')
-        ).toBeInTheDocument()
+        expect(screen.getByText('navigation.dashboard')).toBeInTheDocument()
       })
     })
 
@@ -130,7 +124,7 @@ describe('UsersOrganizationsPage', () => {
       render(<UsersOrganizationsPage />)
       await waitFor(() => {
         expect(
-          screen.getByText('admin.usersOrganizationsDescription')
+          screen.getByText('admin.usersOrganizationsDescription'),
         ).toBeInTheDocument()
       })
     })
@@ -146,7 +140,7 @@ describe('UsersOrganizationsPage', () => {
       render(<UsersOrganizationsPage />)
       await waitFor(() => {
         expect(
-          screen.getByText('admin.organizations.tabLabel')
+          screen.getByText('admin.organizations.tabLabel'),
         ).toBeInTheDocument()
       })
     })
@@ -161,9 +155,7 @@ describe('UsersOrganizationsPage', () => {
     it('should render OrganizationsTab component', async () => {
       render(<UsersOrganizationsPage />)
       await waitFor(() => {
-        expect(
-          screen.getByTestId('organizations-tab')
-        ).toBeInTheDocument()
+        expect(screen.getByTestId('organizations-tab')).toBeInTheDocument()
       })
     })
   })
@@ -188,9 +180,7 @@ describe('UsersOrganizationsPage', () => {
     it('should not show Global Users tab', async () => {
       render(<UsersOrganizationsPage />)
       await waitFor(() => {
-        expect(
-          screen.queryByText('admin.globalUsers')
-        ).not.toBeInTheDocument()
+        expect(screen.queryByText('admin.globalUsers')).not.toBeInTheDocument()
       })
     })
 
@@ -198,7 +188,7 @@ describe('UsersOrganizationsPage', () => {
       render(<UsersOrganizationsPage />)
       await waitFor(() => {
         expect(
-          screen.getByText('admin.organizations.tabLabel')
+          screen.getByText('admin.organizations.tabLabel'),
         ).toBeInTheDocument()
       })
     })

@@ -28,7 +28,9 @@ export const MODEL_FIELD_PREFIX = 'model:'
 export const HUMAN_FIELD_PREFIX = 'human:'
 
 export function isHumanField(field: string): boolean {
-  return field.startsWith(HUMAN_FIELD_PREFIX) || field === FIELD_SPECIFIERS.ALL_HUMAN
+  return (
+    field.startsWith(HUMAN_FIELD_PREFIX) || field === FIELD_SPECIFIERS.ALL_HUMAN
+  )
 }
 
 export function isModelField(field: string): boolean {
@@ -83,7 +85,10 @@ export const PROMPT_TEMPLATE_VARIABLES = [
   { key: '{ground_truth}', description: 'Reference / ground truth answer' },
   { key: '{prediction}', description: 'Model response to evaluate' },
   { key: '{criterion_name}', description: 'Name of the evaluation criterion' },
-  { key: '{criterion_description}', description: 'Description of the criterion' },
+  {
+    key: '{criterion_description}',
+    description: 'Description of the criterion',
+  },
   { key: '{rubric}', description: 'Scoring rubric (1-5 scale)' },
 ] as const
 
@@ -1018,7 +1023,8 @@ export const METRIC_DEFINITIONS: Record<string, AvailableMetric> = {
   llm_judge_classic: {
     name: 'llm_judge_classic',
     display_name: 'Classic LLM Judge',
-    description: 'Evaluate using predefined dimensions (Helpfulness, Correctness, Fluency, etc.)',
+    description:
+      'Evaluate using predefined dimensions (Helpfulness, Correctness, Fluency, etc.)',
     category: 'LLM-as-Judge',
     status: 'stable',
     supports_parameters: true,
@@ -1028,7 +1034,8 @@ export const METRIC_DEFINITIONS: Record<string, AvailableMetric> = {
   llm_judge_custom: {
     name: 'llm_judge_custom',
     display_name: 'Custom LLM Judge',
-    description: 'Create a fully custom evaluation with your own prompt and criteria',
+    description:
+      'Create a fully custom evaluation with your own prompt and criteria',
     category: 'LLM-as-Judge',
     status: 'stable',
     supports_parameters: true,
@@ -1064,10 +1071,7 @@ export const GROUPED_METRICS: MetricCategory[] = [
   {
     name: 'LLM-as-Judge',
     description: 'AI model-based evaluation (requires judge_config)',
-    metrics: [
-      'llm_judge_classic',
-      'llm_judge_custom',
-    ],
+    metrics: ['llm_judge_classic', 'llm_judge_custom'],
   },
 ]
 
@@ -1141,7 +1145,7 @@ export function getMetricScale(key: string): MetricDisplayScale {
 export function formatValueForScale(
   value: number,
   scale: MetricDisplayScale,
-  sum: boolean
+  sum: boolean,
 ): string {
   if (scale === '0-18') {
     return sum ? `${value.toFixed(1)} NP` : `${value.toFixed(1)} / 18 NP`

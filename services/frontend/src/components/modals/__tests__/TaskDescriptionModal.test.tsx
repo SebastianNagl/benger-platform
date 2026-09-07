@@ -10,7 +10,10 @@ import { TaskDescriptionModal } from '../TaskDescriptionModal'
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
     t: (key: string, varsOrDefault?: any) => {
-      const translations: Record<string, any> = require('../../../locales/en/common.json')
+      const translations: Record<
+        string,
+        any
+      > = require('../../../locales/en/common.json')
       const parts = key.split('.')
       let value: any = translations
       for (const part of parts) {
@@ -57,7 +60,7 @@ jest.mock('@headlessui/react', () => {
           <div {...props}>{children}</div>
         ),
         Title: ({ children, ...props }: any) => <h2 {...props}>{children}</h2>,
-      }
+      },
     ),
     Transition: Object.assign(
       ({ show, appear, children, ...props }: any) =>
@@ -86,7 +89,7 @@ jest.mock('@headlessui/react', () => {
             </div>
           )
         },
-      }
+      },
     ),
     Fragment: mockFragment,
   }
@@ -119,7 +122,7 @@ describe('TaskDescriptionModal', () => {
     it('renders modal title', () => {
       render(<TaskDescriptionModal {...defaultProps} />)
       expect(
-        screen.getByRole('heading', { name: 'Task Description' })
+        screen.getByRole('heading', { name: 'Task Description' }),
       ).toBeInTheDocument()
     })
 
@@ -127,8 +130,8 @@ describe('TaskDescriptionModal', () => {
       render(<TaskDescriptionModal {...defaultProps} />)
       expect(
         screen.getByText(
-          /Provide an optional description for your task to help users understand its purpose/i
-        )
+          /Provide an optional description for your task to help users understand its purpose/i,
+        ),
       ).toBeInTheDocument()
     })
 
@@ -144,8 +147,8 @@ describe('TaskDescriptionModal', () => {
       expect(screen.getByLabelText('Description')).toBeInTheDocument()
       expect(
         screen.getByPlaceholderText(
-          'Describe the purpose and goals of this task...'
-        )
+          'Describe the purpose and goals of this task...',
+        ),
       ).toBeInTheDocument()
     })
 
@@ -157,33 +160,33 @@ describe('TaskDescriptionModal', () => {
     it('renders save button', () => {
       render(<TaskDescriptionModal {...defaultProps} />)
       expect(
-        screen.getByRole('button', { name: 'Save Description' })
+        screen.getByRole('button', { name: 'Save Description' }),
       ).toBeInTheDocument()
     })
 
     it('renders tips section', () => {
       render(<TaskDescriptionModal {...defaultProps} />)
       expect(
-        screen.getByText('Tips for writing task descriptions:')
+        screen.getByText('Tips for writing task descriptions:'),
       ).toBeInTheDocument()
       expect(
-        screen.getByText(/Explain the task's purpose and objectives/i)
+        screen.getByText(/Explain the task's purpose and objectives/i),
       ).toBeInTheDocument()
     })
 
     it('renders all tip list items', () => {
       render(<TaskDescriptionModal {...defaultProps} />)
       expect(
-        screen.getByText(/Explain the task's purpose and objectives/i)
+        screen.getByText(/Explain the task's purpose and objectives/i),
       ).toBeInTheDocument()
       expect(
-        screen.getByText(/Mention any specific domain knowledge required/i)
+        screen.getByText(/Mention any specific domain knowledge required/i),
       ).toBeInTheDocument()
       expect(
-        screen.getByText(/Include context about expected outputs/i)
+        screen.getByText(/Include context about expected outputs/i),
       ).toBeInTheDocument()
       expect(
-        screen.getByText(/Note any special instructions or constraints/i)
+        screen.getByText(/Note any special instructions or constraints/i),
       ).toBeInTheDocument()
     })
   })
@@ -198,7 +201,7 @@ describe('TaskDescriptionModal', () => {
     it('displays initialValue in textarea', () => {
       const initialValue = 'Task for annotating legal documents'
       render(
-        <TaskDescriptionModal {...defaultProps} initialValue={initialValue} />
+        <TaskDescriptionModal {...defaultProps} initialValue={initialValue} />,
       )
       const textarea = screen.getByLabelText('Description')
       expect(textarea).toHaveValue(initialValue)
@@ -209,7 +212,7 @@ describe('TaskDescriptionModal', () => {
         <TaskDescriptionModal
           {...defaultProps}
           initialValue="First description"
-        />
+        />,
       )
       let textarea = screen.getByLabelText('Description')
       expect(textarea).toHaveValue('First description')
@@ -218,7 +221,7 @@ describe('TaskDescriptionModal', () => {
         <TaskDescriptionModal
           {...defaultProps}
           initialValue="Updated description"
-        />
+        />,
       )
       textarea = screen.getByLabelText('Description')
       expect(textarea).toHaveValue('Updated description')
@@ -227,7 +230,10 @@ describe('TaskDescriptionModal', () => {
     it('handles multiline initialValue', () => {
       const multilineValue = 'Purpose: Annotation\nDomain: Legal\nOutput: JSON'
       render(
-        <TaskDescriptionModal {...defaultProps} initialValue={multilineValue} />
+        <TaskDescriptionModal
+          {...defaultProps}
+          initialValue={multilineValue}
+        />,
       )
       const textarea = screen.getByLabelText('Description')
       expect(textarea).toHaveValue(multilineValue)
@@ -253,7 +259,7 @@ describe('TaskDescriptionModal', () => {
     it('allows clearing textarea', async () => {
       const user = userEvent.setup()
       render(
-        <TaskDescriptionModal {...defaultProps} initialValue="Initial text" />
+        <TaskDescriptionModal {...defaultProps} initialValue="Initial text" />,
       )
       const textarea = screen.getByLabelText('Description')
 
@@ -298,7 +304,7 @@ describe('TaskDescriptionModal', () => {
         <TaskDescriptionModal
           {...defaultProps}
           initialValue="Select this text"
-        />
+        />,
       )
       const textarea = screen.getByLabelText('Description')
 
@@ -320,7 +326,7 @@ describe('TaskDescriptionModal', () => {
       await user.click(saveButton)
 
       expect(defaultProps.onSave).toHaveBeenCalledWith(
-        'Description with spaces'
+        'Description with spaces',
       )
       expect(defaultProps.onSave).toHaveBeenCalledTimes(1)
     })
@@ -391,7 +397,7 @@ describe('TaskDescriptionModal', () => {
       await user.click(saveButton)
 
       expect(defaultProps.onSave).toHaveBeenCalledWith(
-        'Text with  multiple  spaces'
+        'Text with  multiple  spaces',
       )
     })
 
@@ -454,7 +460,7 @@ describe('TaskDescriptionModal', () => {
       const user = userEvent.setup()
       const initialValue = 'Original description'
       render(
-        <TaskDescriptionModal {...defaultProps} initialValue={initialValue} />
+        <TaskDescriptionModal {...defaultProps} initialValue={initialValue} />,
       )
       const textarea = screen.getByLabelText('Description')
       const cancelButton = screen.getByRole('button', { name: 'Cancel' })
@@ -482,7 +488,7 @@ describe('TaskDescriptionModal', () => {
       const user = userEvent.setup()
       const initialValue = 'Original'
       render(
-        <TaskDescriptionModal {...defaultProps} initialValue={initialValue} />
+        <TaskDescriptionModal {...defaultProps} initialValue={initialValue} />,
       )
       const textarea = screen.getByLabelText('Description')
       const closeButton = screen.getByRole('button', { name: /close/i })
@@ -511,7 +517,7 @@ describe('TaskDescriptionModal', () => {
   describe('Modal Behavior', () => {
     it('maintains state when reopened without closing', () => {
       const { rerender } = render(
-        <TaskDescriptionModal {...defaultProps} isOpen={true} />
+        <TaskDescriptionModal {...defaultProps} isOpen={true} />,
       )
       const textarea = screen.getByLabelText('Description')
       fireEvent.change(textarea, { target: { value: 'Test text' } })
@@ -523,7 +529,7 @@ describe('TaskDescriptionModal', () => {
 
     it('handles rapid open/close transitions', () => {
       const { rerender } = render(
-        <TaskDescriptionModal {...defaultProps} isOpen={false} />
+        <TaskDescriptionModal {...defaultProps} isOpen={false} />,
       )
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
 
@@ -557,7 +563,7 @@ describe('TaskDescriptionModal', () => {
           {...defaultProps}
           isOpen={true}
           initialValue={initialValue}
-        />
+        />,
       )
       const textarea = screen.getByLabelText('Description')
       const cancelButton = screen.getByRole('button', { name: 'Cancel' })
@@ -571,14 +577,14 @@ describe('TaskDescriptionModal', () => {
           {...defaultProps}
           isOpen={false}
           initialValue={initialValue}
-        />
+        />,
       )
       rerender(
         <TaskDescriptionModal
           {...defaultProps}
           isOpen={true}
           initialValue={initialValue}
-        />
+        />,
       )
 
       expect(screen.getByLabelText('Description')).toHaveValue(initialValue)
@@ -598,7 +604,7 @@ describe('TaskDescriptionModal', () => {
 
     it('updates when initialValue prop changes while open', () => {
       const { rerender } = render(
-        <TaskDescriptionModal {...defaultProps} initialValue="First" />
+        <TaskDescriptionModal {...defaultProps} initialValue="First" />,
       )
       let textarea = screen.getByLabelText('Description')
       expect(textarea).toHaveValue('First')
@@ -630,9 +636,7 @@ describe('TaskDescriptionModal', () => {
   describe('Accessibility', () => {
     it('has proper ARIA label for close button', () => {
       render(<TaskDescriptionModal {...defaultProps} />)
-      expect(
-        screen.getByRole('button', { name: /close/i })
-      ).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /close/i })).toBeInTheDocument()
     })
 
     it('has proper ID for textarea', () => {
@@ -646,7 +650,7 @@ describe('TaskDescriptionModal', () => {
       const textarea = screen.getByLabelText('Description')
       expect(textarea).toHaveAttribute(
         'placeholder',
-        'Describe the purpose and goals of this task...'
+        'Describe the purpose and goals of this task...',
       )
     })
 
@@ -680,7 +684,7 @@ describe('TaskDescriptionModal', () => {
   describe('Edge Cases', () => {
     it('handles undefined initialValue', () => {
       render(
-        <TaskDescriptionModal {...defaultProps} initialValue={undefined} />
+        <TaskDescriptionModal {...defaultProps} initialValue={undefined} />,
       )
       const textarea = screen.getByLabelText('Description')
       expect(textarea).toHaveValue('')
@@ -696,7 +700,7 @@ describe('TaskDescriptionModal', () => {
     it('handles special characters in initialValue', () => {
       const specialText = '!@#$%^&*()_+-=[]{}|;:\'",.<>?/~`'
       render(
-        <TaskDescriptionModal {...defaultProps} initialValue={specialText} />
+        <TaskDescriptionModal {...defaultProps} initialValue={specialText} />,
       )
       const textarea = screen.getByLabelText('Description')
       expect(textarea).toHaveValue(specialText)
@@ -705,7 +709,7 @@ describe('TaskDescriptionModal', () => {
     it('handles unicode characters', () => {
       const unicodeText = '🎯 Legal analysis 法律 قانوني'
       render(
-        <TaskDescriptionModal {...defaultProps} initialValue={unicodeText} />
+        <TaskDescriptionModal {...defaultProps} initialValue={unicodeText} />,
       )
       const textarea = screen.getByLabelText('Description')
       expect(textarea).toHaveValue(unicodeText)
@@ -755,7 +759,7 @@ describe('TaskDescriptionModal', () => {
     it('preserves line breaks in multiline text', () => {
       const multilineText = 'Line 1\nLine 2\nLine 3\nLine 4'
       render(
-        <TaskDescriptionModal {...defaultProps} initialValue={multilineText} />
+        <TaskDescriptionModal {...defaultProps} initialValue={multilineText} />,
       )
       const textarea = screen.getByLabelText('Description')
       expect(textarea.value).toBe(multilineText)

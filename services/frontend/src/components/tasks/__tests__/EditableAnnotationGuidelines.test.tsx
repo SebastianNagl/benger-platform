@@ -53,7 +53,10 @@ jest.mock('@/components/modals/AnnotationGuidelinesModal', () => ({
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
     t: (key: string, varsOrDefault?: any) => {
-      const translations: Record<string, any> = require('../../../locales/en/common.json')
+      const translations: Record<
+        string,
+        any
+      > = require('../../../locales/en/common.json')
       const parts = key.split('.')
       let value: any = translations
       for (const part of parts) {
@@ -74,7 +77,6 @@ jest.mock('@/contexts/I18nContext', () => ({
     locale: 'en',
   }),
 }))
-
 
 // Mock Heroicons
 jest.mock('@heroicons/react/24/outline', () => ({
@@ -150,7 +152,7 @@ describe('EditableAnnotationGuidelines', () => {
       render(<EditableAnnotationGuidelines task={taskWithGuidelines} />)
 
       expect(
-        screen.getByText('Please follow these guidelines for annotation.')
+        screen.getByText('Please follow these guidelines for annotation.'),
       ).toBeInTheDocument()
     })
 
@@ -160,7 +162,7 @@ describe('EditableAnnotationGuidelines', () => {
       render(<EditableAnnotationGuidelines task={taskWithoutGuidelines} />)
 
       expect(
-        screen.getByText('No annotation guidelines provided')
+        screen.getByText('No annotation guidelines provided'),
       ).toBeInTheDocument()
     })
 
@@ -170,7 +172,7 @@ describe('EditableAnnotationGuidelines', () => {
         <EditableAnnotationGuidelines
           task={taskWithGuidelines}
           className="custom-class"
-        />
+        />,
       )
 
       const component = container.querySelector('.custom-class')
@@ -188,7 +190,7 @@ describe('EditableAnnotationGuidelines', () => {
 
       expect(screen.getByTestId('pencil-icon')).toBeInTheDocument()
       expect(
-        screen.getByTitle('Edit annotation guidelines')
+        screen.getByTitle('Edit annotation guidelines'),
       ).toBeInTheDocument()
     })
 
@@ -196,12 +198,12 @@ describe('EditableAnnotationGuidelines', () => {
       render(<EditableAnnotationGuidelines task={taskWithoutGuidelines} />)
 
       expect(
-        screen.getByText('Click to add annotation guidelines')
+        screen.getByText('Click to add annotation guidelines'),
       ).toBeInTheDocument()
       expect(
         screen.getByText(
-          'Help annotators understand how to complete this task effectively'
-        )
+          'Help annotators understand how to complete this task effectively',
+        ),
       ).toBeInTheDocument()
     })
 
@@ -209,7 +211,7 @@ describe('EditableAnnotationGuidelines', () => {
       render(<EditableAnnotationGuidelines task={taskWithGuidelines} />)
 
       const clickableArea = screen.getByTitle(
-        'Click to edit annotation guidelines'
+        'Click to edit annotation guidelines',
       )
       expect(clickableArea).toBeInTheDocument()
     })
@@ -222,7 +224,7 @@ describe('EditableAnnotationGuidelines', () => {
       await user.click(editButton)
 
       expect(
-        screen.getByTestId('annotation-guidelines-modal')
+        screen.getByTestId('annotation-guidelines-modal'),
       ).toBeInTheDocument()
     })
 
@@ -231,12 +233,12 @@ describe('EditableAnnotationGuidelines', () => {
       render(<EditableAnnotationGuidelines task={taskWithGuidelines} />)
 
       const contentArea = screen.getByTitle(
-        'Click to edit annotation guidelines'
+        'Click to edit annotation guidelines',
       )
       await user.click(contentArea)
 
       expect(
-        screen.getByTestId('annotation-guidelines-modal')
+        screen.getByTestId('annotation-guidelines-modal'),
       ).toBeInTheDocument()
     })
   })
@@ -260,7 +262,7 @@ describe('EditableAnnotationGuidelines', () => {
       await user.click(editButton)
 
       expect(
-        screen.getByTestId('annotation-guidelines-modal')
+        screen.getByTestId('annotation-guidelines-modal'),
       ).toBeInTheDocument()
     })
   })
@@ -280,10 +282,10 @@ describe('EditableAnnotationGuidelines', () => {
       render(<EditableAnnotationGuidelines task={taskWithoutGuidelines} />)
 
       expect(
-        screen.getByText('No annotation guidelines provided')
+        screen.getByText('No annotation guidelines provided'),
       ).toBeInTheDocument()
       expect(
-        screen.queryByText('Click to add annotation guidelines')
+        screen.queryByText('Click to add annotation guidelines'),
       ).not.toBeInTheDocument()
     })
 
@@ -291,7 +293,7 @@ describe('EditableAnnotationGuidelines', () => {
       render(<EditableAnnotationGuidelines task={taskWithGuidelines} />)
 
       expect(
-        screen.queryByTitle('Click to edit annotation guidelines')
+        screen.queryByTitle('Click to edit annotation guidelines'),
       ).not.toBeInTheDocument()
     })
 
@@ -300,12 +302,12 @@ describe('EditableAnnotationGuidelines', () => {
       render(<EditableAnnotationGuidelines task={taskWithGuidelines} />)
 
       const guidelinesText = screen.getByText(
-        'Please follow these guidelines for annotation.'
+        'Please follow these guidelines for annotation.',
       )
       await user.click(guidelinesText)
 
       expect(
-        screen.queryByTestId('annotation-guidelines-modal')
+        screen.queryByTestId('annotation-guidelines-modal'),
       ).not.toBeInTheDocument()
     })
   })
@@ -320,7 +322,7 @@ describe('EditableAnnotationGuidelines', () => {
 
       expect(screen.queryByTestId('pencil-icon')).not.toBeInTheDocument()
       expect(
-        screen.queryByTitle('Click to edit annotation guidelines')
+        screen.queryByTitle('Click to edit annotation guidelines'),
       ).not.toBeInTheDocument()
     })
   })
@@ -338,7 +340,7 @@ describe('EditableAnnotationGuidelines', () => {
       await user.click(editButton)
 
       expect(screen.getByTestId('modal-initial-value')).toHaveTextContent(
-        'Please follow these guidelines for annotation.'
+        'Please follow these guidelines for annotation.',
       )
     })
 
@@ -360,14 +362,14 @@ describe('EditableAnnotationGuidelines', () => {
       await user.click(editButton)
 
       expect(
-        screen.getByTestId('annotation-guidelines-modal')
+        screen.getByTestId('annotation-guidelines-modal'),
       ).toBeInTheDocument()
 
       const closeButton = screen.getByTestId('modal-close')
       await user.click(closeButton)
 
       expect(
-        screen.queryByTestId('annotation-guidelines-modal')
+        screen.queryByTestId('annotation-guidelines-modal'),
       ).not.toBeInTheDocument()
     })
   })
@@ -383,7 +385,7 @@ describe('EditableAnnotationGuidelines', () => {
         <EditableAnnotationGuidelines
           task={taskWithGuidelines}
           onTaskUpdated={mockOnTaskUpdated}
-        />
+        />,
       )
 
       const editButton = screen.getByTitle('Edit annotation guidelines')
@@ -412,7 +414,7 @@ describe('EditableAnnotationGuidelines', () => {
       await waitFor(() => {
         expect(mockAddToast).toHaveBeenCalledWith(
           'Annotation guidelines updated successfully',
-          'success'
+          'success',
         )
       })
     })
@@ -423,7 +425,7 @@ describe('EditableAnnotationGuidelines', () => {
         <EditableAnnotationGuidelines
           task={taskWithGuidelines}
           onTaskUpdated={mockOnTaskUpdated}
-        />
+        />,
       )
 
       const editButton = screen.getByTitle('Edit annotation guidelines')
@@ -445,7 +447,7 @@ describe('EditableAnnotationGuidelines', () => {
       await user.click(editButton)
 
       expect(
-        screen.getByTestId('annotation-guidelines-modal')
+        screen.getByTestId('annotation-guidelines-modal'),
       ).toBeInTheDocument()
 
       const saveButton = screen.getByTestId('modal-save')
@@ -453,7 +455,7 @@ describe('EditableAnnotationGuidelines', () => {
 
       await waitFor(() => {
         expect(
-          screen.queryByTestId('annotation-guidelines-modal')
+          screen.queryByTestId('annotation-guidelines-modal'),
         ).not.toBeInTheDocument()
       })
     })
@@ -490,7 +492,7 @@ describe('EditableAnnotationGuidelines', () => {
                 <button
                   onClick={() =>
                     handleSaveUnchanged(
-                      'Please follow these guidelines for annotation.'
+                      'Please follow these guidelines for annotation.',
                     )
                   }
                   data-testid="modal-save-unchanged"
@@ -533,7 +535,7 @@ describe('EditableAnnotationGuidelines', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByTestId('annotation-guidelines-modal')
+          screen.getByTestId('annotation-guidelines-modal'),
         ).toBeInTheDocument()
       })
 
@@ -543,7 +545,7 @@ describe('EditableAnnotationGuidelines', () => {
       await waitFor(() => {
         expect(mockAddToast).toHaveBeenCalledWith(
           'Failed to update annotation guidelines: API Error',
-          'error'
+          'error',
         )
       })
     })
@@ -562,7 +564,7 @@ describe('EditableAnnotationGuidelines', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByTestId('annotation-guidelines-modal')
+          screen.getByTestId('annotation-guidelines-modal'),
         ).toBeInTheDocument()
       })
 
@@ -572,7 +574,7 @@ describe('EditableAnnotationGuidelines', () => {
       await waitFor(() => {
         expect(consoleSpy).toHaveBeenCalledWith(
           'Error updating annotation guidelines:',
-          expect.any(Error)
+          expect.any(Error),
         )
       })
 
@@ -590,7 +592,7 @@ describe('EditableAnnotationGuidelines', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByTestId('annotation-guidelines-modal')
+          screen.getByTestId('annotation-guidelines-modal'),
         ).toBeInTheDocument()
       })
 
@@ -600,7 +602,7 @@ describe('EditableAnnotationGuidelines', () => {
       await waitFor(() => {
         expect(mockAddToast).toHaveBeenCalledWith(
           'Failed to update annotation guidelines: Failed to update annotation guidelines',
-          'error'
+          'error',
         )
       })
     })
@@ -610,7 +612,7 @@ describe('EditableAnnotationGuidelines', () => {
     it('applies correct styling for guidelines container', () => {
       mockUseAuth.mockReturnValue({ user: regularUser })
       const { container } = render(
-        <EditableAnnotationGuidelines task={taskWithGuidelines} />
+        <EditableAnnotationGuidelines task={taskWithGuidelines} />,
       )
 
       const guidelinesContainer = container.querySelector('.bg-blue-50')
@@ -620,14 +622,14 @@ describe('EditableAnnotationGuidelines', () => {
         'rounded-lg',
         'p-4',
         'border',
-        'border-blue-200'
+        'border-blue-200',
       )
     })
 
     it('applies correct styling for empty state', () => {
       mockUseAuth.mockReturnValue({ user: regularUser })
       const { container } = render(
-        <EditableAnnotationGuidelines task={taskWithoutGuidelines} />
+        <EditableAnnotationGuidelines task={taskWithoutGuidelines} />,
       )
 
       const emptyContainer = container.querySelector('.border-dashed')
@@ -637,7 +639,7 @@ describe('EditableAnnotationGuidelines', () => {
         'dark:border-zinc-600',
         'rounded-lg',
         'p-4',
-        'text-center'
+        'text-center',
       )
     })
 
@@ -652,14 +654,14 @@ describe('EditableAnnotationGuidelines', () => {
     it('applies hover effects for editable content', () => {
       mockUseAuth.mockReturnValue({ user: superadminUser })
       const { container } = render(
-        <EditableAnnotationGuidelines task={taskWithGuidelines} />
+        <EditableAnnotationGuidelines task={taskWithGuidelines} />,
       )
 
       const contentArea = container.querySelector('.cursor-pointer')
       expect(contentArea).toBeInTheDocument()
       expect(contentArea).toHaveClass(
         'hover:text-zinc-800',
-        'dark:hover:text-zinc-200'
+        'dark:hover:text-zinc-200',
       )
     })
 
@@ -671,7 +673,7 @@ describe('EditableAnnotationGuidelines', () => {
       mockUseAuth.mockReturnValue({ user: regularUser })
 
       const { container } = render(
-        <EditableAnnotationGuidelines task={taskWithMultilineGuidelines} />
+        <EditableAnnotationGuidelines task={taskWithMultilineGuidelines} />,
       )
 
       // Check that the text element has the whitespace-pre-wrap class for proper formatting
@@ -696,13 +698,13 @@ describe('EditableAnnotationGuidelines', () => {
     it('includes dark mode classes for guidelines content', () => {
       mockUseAuth.mockReturnValue({ user: regularUser })
       const { container } = render(
-        <EditableAnnotationGuidelines task={taskWithGuidelines} />
+        <EditableAnnotationGuidelines task={taskWithGuidelines} />,
       )
 
       const guidelinesContainer = container.querySelector('.bg-blue-50')
       expect(guidelinesContainer).toHaveClass(
         'dark:bg-blue-900/20',
-        'dark:border-blue-800'
+        'dark:border-blue-800',
       )
 
       const guidelinesText = container.querySelector('.whitespace-pre-wrap')
@@ -712,7 +714,7 @@ describe('EditableAnnotationGuidelines', () => {
     it('includes dark mode classes for empty state', () => {
       mockUseAuth.mockReturnValue({ user: regularUser })
       const { container } = render(
-        <EditableAnnotationGuidelines task={taskWithoutGuidelines} />
+        <EditableAnnotationGuidelines task={taskWithoutGuidelines} />,
       )
 
       const emptyContainer = container.querySelector('.border-dashed')
@@ -729,10 +731,10 @@ describe('EditableAnnotationGuidelines', () => {
       render(<EditableAnnotationGuidelines task={taskWithGuidelines} />)
 
       expect(
-        screen.getByTitle('Edit annotation guidelines')
+        screen.getByTitle('Edit annotation guidelines'),
       ).toBeInTheDocument()
       expect(
-        screen.getByTitle('Click to edit annotation guidelines')
+        screen.getByTitle('Click to edit annotation guidelines'),
       ).toBeInTheDocument()
     })
 
@@ -764,7 +766,7 @@ describe('EditableAnnotationGuidelines', () => {
       render(<EditableAnnotationGuidelines task={taskWithEmptyGuidelines} />)
 
       expect(
-        screen.getByText('No annotation guidelines provided')
+        screen.getByText('No annotation guidelines provided'),
       ).toBeInTheDocument()
     })
 
@@ -776,11 +778,11 @@ describe('EditableAnnotationGuidelines', () => {
       mockUseAuth.mockReturnValue({ user: regularUser })
 
       render(
-        <EditableAnnotationGuidelines task={taskWithWhitespaceGuidelines} />
+        <EditableAnnotationGuidelines task={taskWithWhitespaceGuidelines} />,
       )
 
       expect(
-        screen.getByText('No annotation guidelines provided')
+        screen.getByText('No annotation guidelines provided'),
       ).toBeInTheDocument()
     })
 
@@ -826,7 +828,7 @@ describe('EditableAnnotationGuidelines', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByTestId('annotation-guidelines-modal')
+          screen.getByTestId('annotation-guidelines-modal'),
         ).toBeInTheDocument()
       })
 

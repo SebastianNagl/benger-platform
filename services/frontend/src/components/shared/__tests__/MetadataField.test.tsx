@@ -103,7 +103,7 @@ describe('MetadataField', () => {
 
     it('renders field with custom className', () => {
       const { container } = renderWithToast(
-        <MetadataField {...defaultProps} className="custom-class" />
+        <MetadataField {...defaultProps} className="custom-class" />,
       )
 
       const field = container.querySelector('.custom-class')
@@ -135,7 +135,7 @@ describe('MetadataField', () => {
 
     it('updates display when value prop changes', () => {
       const { rerender } = renderWithToast(
-        <MetadataField {...defaultProps} value="initial" />
+        <MetadataField {...defaultProps} value="initial" />,
       )
 
       expect(screen.getByText('initial')).toBeInTheDocument()
@@ -143,7 +143,7 @@ describe('MetadataField', () => {
       rerender(
         <ToastProvider>
           <MetadataField {...defaultProps} value="updated" />
-        </ToastProvider>
+        </ToastProvider>,
       )
 
       expect(screen.getByText('updated')).toBeInTheDocument()
@@ -194,7 +194,7 @@ describe('MetadataField', () => {
           'bg-green-100',
           'text-green-700',
           'dark:bg-green-900/20',
-          'dark:text-green-400'
+          'dark:text-green-400',
         )
       })
 
@@ -206,7 +206,7 @@ describe('MetadataField', () => {
           'bg-zinc-100',
           'text-zinc-500',
           'dark:bg-zinc-800',
-          'dark:text-zinc-400'
+          'dark:text-zinc-400',
         )
       })
 
@@ -236,7 +236,7 @@ describe('MetadataField', () => {
     describe('Array values', () => {
       it('renders empty array correctly', () => {
         renderWithToast(
-          <MetadataField {...defaultProps} fieldName="tags" value={[]} />
+          <MetadataField {...defaultProps} fieldName="tags" value={[]} />,
         )
 
         expect(screen.getByText('No tags')).toBeInTheDocument()
@@ -250,7 +250,7 @@ describe('MetadataField', () => {
 
       it('renders two array items', () => {
         renderWithToast(
-          <MetadataField {...defaultProps} value={['tag1', 'tag2']} />
+          <MetadataField {...defaultProps} value={['tag1', 'tag2']} />,
         )
 
         expect(screen.getByText('tag1')).toBeInTheDocument()
@@ -262,7 +262,7 @@ describe('MetadataField', () => {
           <MetadataField
             {...defaultProps}
             value={['tag1', 'tag2', 'tag3', 'tag4']}
-          />
+          />,
         )
 
         expect(screen.getByText('tag1')).toBeInTheDocument()
@@ -276,7 +276,7 @@ describe('MetadataField', () => {
           <MetadataField
             {...defaultProps}
             value={['verylongtagnamethatexceedstenlimit']}
-          />
+          />,
         )
 
         // Component truncates at 10 characters
@@ -302,13 +302,13 @@ describe('MetadataField', () => {
           'font-medium',
           'text-zinc-700',
           'dark:bg-zinc-800',
-          'dark:text-zinc-300'
+          'dark:text-zinc-300',
         )
       })
 
       it('shows plus icon for empty array', () => {
         renderWithToast(
-          <MetadataField {...defaultProps} fieldName="tags" value={[]} />
+          <MetadataField {...defaultProps} fieldName="tags" value={[]} />,
         )
 
         const button = screen.getByTitle('Add tags')
@@ -327,7 +327,7 @@ describe('MetadataField', () => {
         expect(input).toHaveValue('')
         expect(input).toHaveAttribute(
           'placeholder',
-          'Enter status, separated by commas'
+          'Enter status, separated by commas',
         )
       })
     })
@@ -343,14 +343,14 @@ describe('MetadataField', () => {
 
     it('combines custom className with base classes', () => {
       const { container } = renderWithToast(
-        <MetadataField {...defaultProps} className="my-custom-class" />
+        <MetadataField {...defaultProps} className="my-custom-class" />,
       )
 
       const field = container.firstChild
       expect(field).toHaveClass(
         'inline-flex',
         'items-center',
-        'my-custom-class'
+        'my-custom-class',
       )
     })
 
@@ -380,7 +380,7 @@ describe('MetadataField', () => {
         'focus:ring-2',
         'focus:ring-emerald-500',
         'dark:border-zinc-700',
-        'dark:bg-zinc-800'
+        'dark:bg-zinc-800',
       )
     })
   })
@@ -421,7 +421,7 @@ describe('MetadataField', () => {
 
     it('does not show plus icon when not editable', () => {
       renderWithToast(
-        <MetadataField {...defaultProps} value={null} editable={false} />
+        <MetadataField {...defaultProps} value={null} editable={false} />,
       )
 
       const button = screen.queryByTitle('Add status')
@@ -430,14 +430,14 @@ describe('MetadataField', () => {
 
     it('applies correct styling to empty array message', () => {
       renderWithToast(
-        <MetadataField {...defaultProps} fieldName="tags" value={[]} />
+        <MetadataField {...defaultProps} fieldName="tags" value={[]} />,
       )
 
       const message = screen.getByText('No tags')
       expect(message).toHaveClass(
         'text-sm',
         'text-zinc-400',
-        'dark:text-zinc-500'
+        'dark:text-zinc-500',
       )
     })
   })
@@ -457,7 +457,7 @@ describe('MetadataField', () => {
 
     it('formats array with proper spacing', () => {
       renderWithToast(
-        <MetadataField {...defaultProps} value={['a', 'b', 'c']} />
+        <MetadataField {...defaultProps} value={['a', 'b', 'c']} />,
       )
 
       const container = screen.getByText('a').parentElement
@@ -477,7 +477,7 @@ describe('MetadataField', () => {
       mockApiClient.patch.mockResolvedValueOnce({})
 
       renderWithToast(
-        <MetadataField {...defaultProps} value={[]} onUpdate={mockUpdate} />
+        <MetadataField {...defaultProps} value={[]} onUpdate={mockUpdate} />,
       )
 
       const addButton = screen.getByTitle('Add status')
@@ -496,10 +496,10 @@ describe('MetadataField', () => {
         () => {
           expect(mockApiClient.patch).toHaveBeenCalledWith(
             '/api/projects/tasks/1/metadata',
-            { status: ['tag1', 'tag2', 'tag3'] }
+            { status: ['tag1', 'tag2', 'tag3'] },
           )
         },
-        { timeout: 500 }
+        { timeout: 500 },
       )
     })
 
@@ -509,7 +509,7 @@ describe('MetadataField', () => {
       mockApiClient.patch.mockResolvedValueOnce({})
 
       renderWithToast(
-        <MetadataField {...defaultProps} value={[]} onUpdate={mockUpdate} />
+        <MetadataField {...defaultProps} value={[]} onUpdate={mockUpdate} />,
       )
 
       const addButton = screen.getByTitle('Add status')
@@ -527,10 +527,10 @@ describe('MetadataField', () => {
         () => {
           expect(mockApiClient.patch).toHaveBeenCalledWith(
             '/api/projects/tasks/1/metadata',
-            { status: ['tag1', 'tag2'] }
+            { status: ['tag1', 'tag2'] },
           )
         },
-        { timeout: 500 }
+        { timeout: 500 },
       )
     })
   })
@@ -628,7 +628,7 @@ describe('MetadataField', () => {
       await waitFor(() => {
         expect(mockApiClient.patch).toHaveBeenCalledWith(
           '/api/projects/tasks/1/metadata',
-          { status: 'updated' }
+          { status: 'updated' },
         )
       })
     })
@@ -639,7 +639,7 @@ describe('MetadataField', () => {
       mockApiClient.patch.mockResolvedValueOnce({})
 
       renderWithToast(
-        <MetadataField {...defaultProps} value={null} onUpdate={mockUpdate} />
+        <MetadataField {...defaultProps} value={null} onUpdate={mockUpdate} />,
       )
 
       const addButton = screen.getByTitle('Add status')
@@ -741,7 +741,7 @@ describe('MetadataField', () => {
       await waitFor(() => {
         expect(mockApiClient.patch).toHaveBeenCalledWith(
           '/api/projects/tasks/1/metadata',
-          { status: 'updated' }
+          { status: 'updated' },
         )
       })
     })
@@ -764,7 +764,7 @@ describe('MetadataField', () => {
     it('disables buttons while saving', async () => {
       const user = userEvent.setup()
       mockApiClient.patch.mockImplementation(
-        () => new Promise((resolve) => setTimeout(resolve, 100))
+        () => new Promise((resolve) => setTimeout(resolve, 100)),
       )
 
       renderWithToast(<MetadataField {...defaultProps} value={null} />)
@@ -785,7 +785,7 @@ describe('MetadataField', () => {
     it('disables input while saving', async () => {
       const user = userEvent.setup()
       mockApiClient.patch.mockImplementation(
-        () => new Promise((resolve) => setTimeout(resolve, 100))
+        () => new Promise((resolve) => setTimeout(resolve, 100)),
       )
 
       renderWithToast(<MetadataField {...defaultProps} value={null} />)
@@ -821,7 +821,7 @@ describe('MetadataField', () => {
       await waitFor(() => {
         expect(mockApiClient.patch).toHaveBeenCalledWith(
           '/api/projects/tasks/1/metadata',
-          { status: 'updated' }
+          { status: 'updated' },
         )
       })
 
@@ -888,7 +888,7 @@ describe('MetadataField', () => {
   describe('Non-editable Mode', () => {
     it('does not show edit controls when editable is false', () => {
       renderWithToast(
-        <MetadataField {...defaultProps} value="test" editable={false} />
+        <MetadataField {...defaultProps} value="test" editable={false} />,
       )
 
       expect(screen.queryByTitle('Save')).not.toBeInTheDocument()
@@ -899,7 +899,7 @@ describe('MetadataField', () => {
       const user = userEvent.setup()
 
       renderWithToast(
-        <MetadataField {...defaultProps} value="test" editable={false} />
+        <MetadataField {...defaultProps} value="test" editable={false} />,
       )
 
       const value = screen.getByText('test')
@@ -910,7 +910,7 @@ describe('MetadataField', () => {
 
     it('does not show plus icon for empty values', () => {
       renderWithToast(
-        <MetadataField {...defaultProps} value={null} editable={false} />
+        <MetadataField {...defaultProps} value={null} editable={false} />,
       )
 
       expect(screen.queryByTitle('Add status')).not.toBeInTheDocument()
@@ -918,7 +918,7 @@ describe('MetadataField', () => {
 
     it('renders with simple div wrapper', () => {
       const { container } = renderWithToast(
-        <MetadataField {...defaultProps} value="test" editable={false} />
+        <MetadataField {...defaultProps} value="test" editable={false} />,
       )
 
       const div = container.querySelector('div')
@@ -937,7 +937,7 @@ describe('MetadataField', () => {
 
     it('handles empty string value', () => {
       const { container } = renderWithToast(
-        <MetadataField {...defaultProps} value="" />
+        <MetadataField {...defaultProps} value="" />,
       )
 
       // Empty string renders but doesn't show add button (not null/undefined/empty array)
@@ -982,7 +982,7 @@ describe('MetadataField', () => {
       const { container } = renderWithToast(
         <div onClick={mockParentClick}>
           <MetadataField {...defaultProps} value="test" />
-        </div>
+        </div>,
       )
 
       const field = container.querySelector('.inline-flex')
@@ -997,7 +997,7 @@ describe('MetadataField', () => {
       mockApiClient.patch.mockResolvedValueOnce({})
 
       renderWithToast(
-        <MetadataField taskId={null as any} fieldName="status" value={null} />
+        <MetadataField taskId={null as any} fieldName="status" value={null} />,
       )
 
       const addButton = screen.getByTitle('Add status')
@@ -1012,7 +1012,7 @@ describe('MetadataField', () => {
       await waitFor(() => {
         expect(mockApiClient.patch).toHaveBeenCalledWith(
           '/api/projects/tasks/null/metadata',
-          { status: 'updated' }
+          { status: 'updated' },
         )
       })
     })
@@ -1119,7 +1119,7 @@ describe('MetadataField', () => {
         'hover:text-green-700',
         'disabled:opacity-50',
         'dark:text-green-400',
-        'dark:hover:text-green-300'
+        'dark:hover:text-green-300',
       )
     })
 
@@ -1138,7 +1138,7 @@ describe('MetadataField', () => {
         'hover:text-red-700',
         'disabled:opacity-50',
         'dark:text-red-400',
-        'dark:hover:text-red-300'
+        'dark:hover:text-red-300',
       )
     })
 
@@ -1151,7 +1151,7 @@ describe('MetadataField', () => {
         'text-zinc-400',
         'hover:text-zinc-600',
         'dark:text-zinc-500',
-        'dark:hover:text-zinc-300'
+        'dark:hover:text-zinc-300',
       )
     })
 
@@ -1163,7 +1163,7 @@ describe('MetadataField', () => {
       renderWithToast(
         <div onClick={mockParentClick}>
           <MetadataField {...defaultProps} value={null} />
-        </div>
+        </div>,
       )
 
       const addButton = screen.getByTitle('Add status')

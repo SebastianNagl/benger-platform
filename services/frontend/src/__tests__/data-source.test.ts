@@ -105,7 +105,7 @@ describe('API Data Source Validation', () => {
       // Check for known production task names
       const productionTaskNames = ['Criminal BenGER', 'test 2']
       const hasProductionTasks = data.some((task: any) =>
-        productionTaskNames.includes(task.name)
+        productionTaskNames.includes(task.name),
       )
 
       // Should not have production tasks (this test should pass with clean mock data)
@@ -123,7 +123,7 @@ describe('API Endpoint Validation', () => {
       expect(apiBaseUrl).not.toMatch(/what-a-benger\.net/)
       expect(apiBaseUrl).not.toMatch(/https:\/\/api\./)
       expect(apiBaseUrl).toMatch(
-        /^(\/api|http:\/\/localhost|http:\/\/127\.0\.0\.1)/
+        /^(\/api|http:\/\/localhost|http:\/\/127\.0\.0\.1)/,
       )
     }
   })

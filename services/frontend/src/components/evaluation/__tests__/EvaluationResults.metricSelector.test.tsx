@@ -36,7 +36,12 @@ type EvalRun = {
   }>
 }
 
-type Cfg = { id?: string; metric?: string; display_name?: string; enabled?: boolean }
+type Cfg = {
+  id?: string
+  metric?: string
+  display_name?: string
+  enabled?: boolean
+}
 
 type ConfigEntry = {
   id: string
@@ -63,7 +68,8 @@ function buildConfigEntries(
     if (cfg?.enabled === false) continue
     const cfgId = cfg?.id || cfg?.metric
     if (!cfgId || byConfig.has(cfgId)) continue
-    if (selectedConfigIds.length > 0 && !selectedConfigIds.includes(cfgId)) continue
+    if (selectedConfigIds.length > 0 && !selectedConfigIds.includes(cfgId))
+      continue
     byConfig.set(cfgId, {
       id: cfgId,
       metric: cfg?.metric || 'unknown',
@@ -76,7 +82,10 @@ function buildConfigEntries(
 
   // Annotate from runs; defensively surface an orphaned canonical config id.
   const visible = (runs ?? []).filter(
-    (e) => e.status === 'completed' || e.status === 'running' || e.status === 'pending',
+    (e) =>
+      e.status === 'completed' ||
+      e.status === 'running' ||
+      e.status === 'pending',
   )
   for (const e of visible) {
     const inflight = e.status === 'running' || e.status === 'pending'
@@ -104,7 +113,10 @@ function buildConfigEntries(
         ? [byConfig.get(rawId)!]
         : Array.from(byConfig.values()).filter((x) => x.metric === metric)
       for (const entry of targets) {
-        entry.samplesEvaluated = Math.max(entry.samplesEvaluated, e.samples_evaluated || 0)
+        entry.samplesEvaluated = Math.max(
+          entry.samplesEvaluated,
+          e.samples_evaluated || 0,
+        )
         if (inflight) entry.running = true
       }
     }
@@ -118,10 +130,20 @@ describe('availableMetricRuns — one entry per enabled config (method)', () => 
     // The Benchathon scenario: one run bundled 5 metrics; the project has the
     // matching 5 enabled configs → 5 selectable entries.
     const configs: Cfg[] = [
-      { id: 'cfg1', metric: 'llm_judge_falloesung', display_name: 'LLM Judge', enabled: true },
+      {
+        id: 'cfg1',
+        metric: 'llm_judge_falloesung',
+        display_name: 'LLM Judge',
+        enabled: true,
+      },
       { id: 'cfg2', metric: 'rouge', display_name: 'ROUGE', enabled: true },
       { id: 'cfg3', metric: 'bleu', display_name: 'BLEU', enabled: true },
-      { id: 'cfg4', metric: 'semantic_similarity', display_name: 'Semantic Similarity', enabled: true },
+      {
+        id: 'cfg4',
+        metric: 'semantic_similarity',
+        display_name: 'Semantic Similarity',
+        enabled: true,
+      },
       { id: 'cfg5', metric: 'meteor', display_name: 'METEOR', enabled: true },
     ]
     const runs: EvalRun[] = [
@@ -129,7 +151,11 @@ describe('availableMetricRuns — one entry per enabled config (method)', () => 
         evaluation_id: 'run-1',
         status: 'completed',
         samples_evaluated: 268,
-        evaluation_configs: configs.map((c) => ({ metric: c.metric!, id: c.id, display_name: c.display_name })),
+        evaluation_configs: configs.map((c) => ({
+          metric: c.metric!,
+          id: c.id,
+          display_name: c.display_name,
+        })),
       },
     ]
     const result = buildConfigEntries(configs, runs)
@@ -152,13 +178,32 @@ describe('availableMetricRuns — one entry per enabled config (method)', () => 
   // surface as three distinct, independently-selectable entries.
   it('produces N entries when N configs share the same metric type', () => {
     const configs: Cfg[] = [
-      { id: 'cfg-judges-a', metric: 'llm_judge_falloesung', display_name: 'Judge lineup A (Anne+Sebastian)', enabled: true },
-      { id: 'cfg-judges-b', metric: 'llm_judge_falloesung', display_name: 'Judge lineup B (Aleyna+Anne+Sebastian)', enabled: true },
-      { id: 'cfg-judges-c', metric: 'llm_judge_falloesung', display_name: 'Judge lineup C (3-judge ensemble)', enabled: true },
+      {
+        id: 'cfg-judges-a',
+        metric: 'llm_judge_falloesung',
+        display_name: 'Judge lineup A (Anne+Sebastian)',
+        enabled: true,
+      },
+      {
+        id: 'cfg-judges-b',
+        metric: 'llm_judge_falloesung',
+        display_name: 'Judge lineup B (Aleyna+Anne+Sebastian)',
+        enabled: true,
+      },
+      {
+        id: 'cfg-judges-c',
+        metric: 'llm_judge_falloesung',
+        display_name: 'Judge lineup C (3-judge ensemble)',
+        enabled: true,
+      },
     ]
     const result = buildConfigEntries(configs, [])
     expect(result).toHaveLength(3)
-    expect(result.map((r) => r.id).sort()).toEqual(['cfg-judges-a', 'cfg-judges-b', 'cfg-judges-c'])
+    expect(result.map((r) => r.id).sort()).toEqual([
+      'cfg-judges-a',
+      'cfg-judges-b',
+      'cfg-judges-c',
+    ])
     expect(result.map((r) => r.displayName).sort()).toEqual([
       'Judge lineup A (Anne+Sebastian)',
       'Judge lineup B (Aleyna+Anne+Sebastian)',
@@ -175,16 +220,54 @@ describe('availableMetricRuns — one entry per enabled config (method)', () => 
   // config-id entry pinned to the empty run.
   it('collapses immediate + a non-immediate batch run into a single entry', () => {
     const configs: Cfg[] = [
-      { id: 'cfg-judge', metric: 'llm_judge_falloesung', display_name: 'Falllösung LLM Judge', enabled: true },
+      {
+        id: 'cfg-judge',
+        metric: 'llm_judge_falloesung',
+        display_name: 'Falllösung LLM Judge',
+        enabled: true,
+      },
     ]
     const runs: EvalRun[] = [
-      { evaluation_id: 'imm-1', model_id: 'immediate', status: 'completed', samples_evaluated: 1,
-        evaluation_configs: [{ metric: 'llm_judge_falloesung', id: 'llm_judge_falloesung', display_name: 'Falllösung LLM Judge' }] },
-      { evaluation_id: 'imm-2', model_id: 'immediate', status: 'completed', samples_evaluated: 1,
-        evaluation_configs: [{ metric: 'llm_judge_falloesung', id: 'llm_judge_falloesung', display_name: 'Falllösung LLM Judge' }] },
+      {
+        evaluation_id: 'imm-1',
+        model_id: 'immediate',
+        status: 'completed',
+        samples_evaluated: 1,
+        evaluation_configs: [
+          {
+            metric: 'llm_judge_falloesung',
+            id: 'llm_judge_falloesung',
+            display_name: 'Falllösung LLM Judge',
+          },
+        ],
+      },
+      {
+        evaluation_id: 'imm-2',
+        model_id: 'immediate',
+        status: 'completed',
+        samples_evaluated: 1,
+        evaluation_configs: [
+          {
+            metric: 'llm_judge_falloesung',
+            id: 'llm_judge_falloesung',
+            display_name: 'Falllösung LLM Judge',
+          },
+        ],
+      },
       // org-admin missing-only run on a pure human project → model_id 'unknown', own cfg id, 0 rows
-      { evaluation_id: 'batch-unknown', model_id: 'unknown', status: 'completed', samples_evaluated: 0,
-        evaluation_configs: [{ metric: 'llm_judge_falloesung', id: 'cfg-judge', display_name: 'Falllösung LLM Judge' }] },
+      {
+        evaluation_id: 'batch-unknown',
+        model_id: 'unknown',
+        status: 'completed',
+        samples_evaluated: 0,
+        evaluation_configs: [
+          {
+            metric: 'llm_judge_falloesung',
+            id: 'cfg-judge',
+            display_name: 'Falllösung LLM Judge',
+          },
+        ],
+      },
     ]
     const result = buildConfigEntries(configs, runs)
     expect(result).toHaveLength(1)
@@ -198,13 +281,32 @@ describe('availableMetricRuns — one entry per enabled config (method)', () => 
   // runs (real model_id) and human-annotation immediate runs. Still ONE entry.
   it('keeps a mixed generation+annotation method as a single entry', () => {
     const configs: Cfg[] = [
-      { id: 'cfg-fall', metric: 'llm_judge_falloesung', display_name: 'Falllösung LLM Judge', enabled: true },
+      {
+        id: 'cfg-fall',
+        metric: 'llm_judge_falloesung',
+        display_name: 'Falllösung LLM Judge',
+        enabled: true,
+      },
     ]
     const runs: EvalRun[] = [
-      { evaluation_id: 'gen-run', model_id: 'gpt-5', status: 'completed', samples_evaluated: 40,
-        evaluation_configs: [{ metric: 'llm_judge_falloesung', id: 'cfg-fall' }] },
-      { evaluation_id: 'imm-a', model_id: 'immediate', status: 'completed', samples_evaluated: 1,
-        evaluation_configs: [{ metric: 'llm_judge_falloesung', id: 'llm_judge_falloesung' }] },
+      {
+        evaluation_id: 'gen-run',
+        model_id: 'gpt-5',
+        status: 'completed',
+        samples_evaluated: 40,
+        evaluation_configs: [
+          { metric: 'llm_judge_falloesung', id: 'cfg-fall' },
+        ],
+      },
+      {
+        evaluation_id: 'imm-a',
+        model_id: 'immediate',
+        status: 'completed',
+        samples_evaluated: 1,
+        evaluation_configs: [
+          { metric: 'llm_judge_falloesung', id: 'llm_judge_falloesung' },
+        ],
+      },
     ]
     const result = buildConfigEntries(configs, runs)
     expect(result).toHaveLength(1)
@@ -214,24 +316,51 @@ describe('availableMetricRuns — one entry per enabled config (method)', () => 
 
   it('lists a human-graded korrektur config that has no EvaluationRun', () => {
     const configs: Cfg[] = [
-      { id: 'cfg-judge', metric: 'llm_judge_falloesung', display_name: 'Falllösung LLM Judge', enabled: true },
-      { id: 'cfg-korrektur', metric: 'korrektur_falloesung', display_name: 'Korrektur (Standard Falllösung)', enabled: true },
+      {
+        id: 'cfg-judge',
+        metric: 'llm_judge_falloesung',
+        display_name: 'Falllösung LLM Judge',
+        enabled: true,
+      },
+      {
+        id: 'cfg-korrektur',
+        metric: 'korrektur_falloesung',
+        display_name: 'Korrektur (Standard Falllösung)',
+        enabled: true,
+      },
     ]
     const runs: EvalRun[] = [
-      { evaluation_id: 'imm-1', model_id: 'immediate', status: 'completed', samples_evaluated: 14,
-        evaluation_configs: [{ metric: 'llm_judge_falloesung', id: 'cfg-judge', display_name: 'Falllösung LLM Judge' }] },
+      {
+        evaluation_id: 'imm-1',
+        model_id: 'immediate',
+        status: 'completed',
+        samples_evaluated: 14,
+        evaluation_configs: [
+          {
+            metric: 'llm_judge_falloesung',
+            id: 'cfg-judge',
+            display_name: 'Falllösung LLM Judge',
+          },
+        ],
+      },
     ]
     const result = buildConfigEntries(configs, runs)
     expect(result.find((r) => r.id === 'cfg-korrektur')).toBeTruthy()
-    expect(result.find((r) => r.id === 'cfg-korrektur')!.metric).toBe('korrektur_falloesung')
+    expect(result.find((r) => r.id === 'cfg-korrektur')!.metric).toBe(
+      'korrektur_falloesung',
+    )
     expect(result.find((r) => r.id === 'cfg-judge')).toBeTruthy()
   })
 
   it('marks an entry running when any of its runs is in-flight', () => {
     const configs: Cfg[] = [{ id: 'cfg-bleu', metric: 'bleu', enabled: true }]
     const runs: EvalRun[] = [
-      { evaluation_id: 'r1', status: 'running', samples_evaluated: 0,
-        evaluation_configs: [{ metric: 'bleu', id: 'cfg-bleu' }] },
+      {
+        evaluation_id: 'r1',
+        status: 'running',
+        samples_evaluated: 0,
+        evaluation_configs: [{ metric: 'bleu', id: 'cfg-bleu' }],
+      },
     ]
     const result = buildConfigEntries(configs, runs)
     expect(result[0].running).toBe(true)
@@ -261,8 +390,15 @@ describe('availableMetricRuns — one entry per enabled config (method)', () => 
     // vanish, so it appears as its own entry.
     const configs: Cfg[] = []
     const runs: EvalRun[] = [
-      { evaluation_id: 'r1', model_id: 'gpt-5', status: 'completed', samples_evaluated: 12,
-        evaluation_configs: [{ metric: 'bleu', id: 'bleu-mabc123-xy', display_name: 'BLEU (old)' }] },
+      {
+        evaluation_id: 'r1',
+        model_id: 'gpt-5',
+        status: 'completed',
+        samples_evaluated: 12,
+        evaluation_configs: [
+          { metric: 'bleu', id: 'bleu-mabc123-xy', display_name: 'BLEU (old)' },
+        ],
+      },
     ]
     const result = buildConfigEntries(configs, runs)
     expect(result).toHaveLength(1)
@@ -273,10 +409,20 @@ describe('availableMetricRuns — one entry per enabled config (method)', () => 
   it('does NOT surface a bare-metric immediate id as an orphan entry', () => {
     // An immediate run with a bare-metric id and no matching enabled config
     // must not create a phantom entry (bare metric ids have no '-').
-    const result = buildConfigEntries([], [
-      { evaluation_id: 'imm', model_id: 'immediate', status: 'completed', samples_evaluated: 1,
-        evaluation_configs: [{ metric: 'llm_judge_falloesung', id: 'llm_judge_falloesung' }] },
-    ])
+    const result = buildConfigEntries(
+      [],
+      [
+        {
+          evaluation_id: 'imm',
+          model_id: 'immediate',
+          status: 'completed',
+          samples_evaluated: 1,
+          evaluation_configs: [
+            { metric: 'llm_judge_falloesung', id: 'llm_judge_falloesung' },
+          ],
+        },
+      ],
+    )
     expect(result).toHaveLength(0)
   })
 })

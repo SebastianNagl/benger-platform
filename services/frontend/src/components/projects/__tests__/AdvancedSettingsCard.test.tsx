@@ -16,14 +16,14 @@
  * @jest-environment jsdom
  */
 
-import '@testing-library/jest-dom'
-import { fireEvent, render, screen, within } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
-import { useState, type ComponentType } from 'react'
 import {
   AdvancedSettingsCard,
   type AdvancedSettings,
 } from '@/components/projects/AdvancedSettingsCard'
+import '@testing-library/jest-dom'
+import { fireEvent, render, screen, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { useState, type ComponentType } from 'react'
 
 // A translation fn that returns the key, honouring a string default 2nd arg
 // or an object `{ defaultValue }` so the rendered labels are stable + queryable.
@@ -36,7 +36,7 @@ const t = (key: string, params?: any): string => {
 }
 
 function makeSettings(
-  overrides: Partial<AdvancedSettings> = {}
+  overrides: Partial<AdvancedSettings> = {},
 ): AdvancedSettings {
   return {
     show_instruction: true,
@@ -86,11 +86,11 @@ function Harness({
   onChange,
 }: HarnessProps) {
   const [settings, setSettings] = useState<AdvancedSettings>(
-    makeSettings(initial)
+    makeSettings(initial),
   )
 
   const set: React.Dispatch<React.SetStateAction<AdvancedSettings>> = (
-    update
+    update,
   ) => {
     setSettings((prev) => {
       const next =
@@ -129,11 +129,11 @@ describe('AdvancedSettingsCard', () => {
     it('renders the read-only message and no controls when editing is forbidden', () => {
       render(<Harness canEdit={false} />)
       expect(
-        screen.getByText('read-only: project.settings.title')
+        screen.getByText('read-only: project.settings.title'),
       ).toBeInTheDocument()
       // None of the section headings or controls render
       expect(
-        screen.queryByText('project.settings.annotationBehavior.title')
+        screen.queryByText('project.settings.annotationBehavior.title'),
       ).not.toBeInTheDocument()
       expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
       expect(screen.queryByRole('combobox')).not.toBeInTheDocument()
@@ -142,13 +142,13 @@ describe('AdvancedSettingsCard', () => {
     it('renders the full settings form when editing is allowed', () => {
       render(<Harness />)
       expect(
-        screen.getByText('project.settings.annotationBehavior.title')
+        screen.getByText('project.settings.annotationBehavior.title'),
       ).toBeInTheDocument()
       expect(
-        screen.getByText('project.settings.interface.title')
+        screen.getByText('project.settings.interface.title'),
       ).toBeInTheDocument()
       expect(
-        screen.getByText('Post-Annotation Questionnaire')
+        screen.getByText('Post-Annotation Questionnaire'),
       ).toBeInTheDocument()
       // 4 base selects when questionnaire collapsed: max, min, assignment, skip
       expect(screen.getAllByRole('combobox')).toHaveLength(4)
@@ -159,7 +159,9 @@ describe('AdvancedSettingsCard', () => {
     it('reflects initial maximum_annotations and updates on change', async () => {
       const user = userEvent.setup()
       const onChange = jest.fn()
-      render(<Harness initial={{ maximum_annotations: 2 }} onChange={onChange} />)
+      render(
+        <Harness initial={{ maximum_annotations: 2 }} onChange={onChange} />,
+      )
 
       // The max-annotations select is the one containing the "single"/"double" options.
       const maxSelect = screen
@@ -169,12 +171,12 @@ describe('AdvancedSettingsCard', () => {
 
       await user.selectOptions(maxSelect, '5')
       expect(onChange).toHaveBeenLastCalledWith(
-        expect.objectContaining({ maximum_annotations: 5 })
+        expect.objectContaining({ maximum_annotations: 5 }),
       )
 
       await user.selectOptions(maxSelect, '0') // "unlimited"
       expect(onChange).toHaveBeenLastCalledWith(
-        expect.objectContaining({ maximum_annotations: 0 })
+        expect.objectContaining({ maximum_annotations: 0 }),
       )
     })
 
@@ -190,7 +192,7 @@ describe('AdvancedSettingsCard', () => {
 
       await user.selectOptions(minSelect, '3')
       expect(onChange).toHaveBeenLastCalledWith(
-        expect.objectContaining({ min_annotations_per_task: 3 })
+        expect.objectContaining({ min_annotations_per_task: 3 }),
       )
     })
 
@@ -206,12 +208,12 @@ describe('AdvancedSettingsCard', () => {
 
       await user.selectOptions(modeSelect, 'manual')
       expect(onChange).toHaveBeenLastCalledWith(
-        expect.objectContaining({ assignment_mode: 'manual' })
+        expect.objectContaining({ assignment_mode: 'manual' }),
       )
 
       await user.selectOptions(modeSelect, 'auto')
       expect(onChange).toHaveBeenLastCalledWith(
-        expect.objectContaining({ assignment_mode: 'auto' })
+        expect.objectContaining({ assignment_mode: 'auto' }),
       )
     })
   })
@@ -226,7 +228,7 @@ describe('AdvancedSettingsCard', () => {
       expect(cb.checked).toBe(false)
       await user.click(cb)
       expect(onChange).toHaveBeenLastCalledWith(
-        expect.objectContaining({ randomize_task_order: true })
+        expect.objectContaining({ randomize_task_order: true }),
       )
       expect(cb.checked).toBe(true)
     })
@@ -241,7 +243,7 @@ describe('AdvancedSettingsCard', () => {
       expect(onChange).toHaveBeenLastCalledWith(
         expect.objectContaining({
           annotator_full_visibility_after_submit: true,
-        })
+        }),
       )
     })
   })
@@ -267,7 +269,7 @@ describe('AdvancedSettingsCard', () => {
           annotation_time_limit_enabled: true,
           annotation_time_limit_seconds: 1800,
           strict_timer_enabled: false,
-        })
+        }),
       )
 
       // The minutes input (1800s -> 30) and strict toggle now render
@@ -287,7 +289,7 @@ describe('AdvancedSettingsCard', () => {
             strict_timer_enabled: true,
           }}
           onChange={onChange}
-        />
+        />,
       )
 
       const timerToggle = checkboxForLabel(/Annotation time limit/i)
@@ -299,7 +301,7 @@ describe('AdvancedSettingsCard', () => {
           annotation_time_limit_enabled: false,
           annotation_time_limit_seconds: null,
           strict_timer_enabled: false,
-        })
+        }),
       )
     })
 
@@ -310,7 +312,7 @@ describe('AdvancedSettingsCard', () => {
             annotation_time_limit_enabled: true,
             annotation_time_limit_seconds: null,
           }}
-        />
+        />,
       )
       const minutes = screen.getByRole('spinbutton') as HTMLInputElement
       expect(minutes.value).toBe('30')
@@ -323,7 +325,7 @@ describe('AdvancedSettingsCard', () => {
             annotation_time_limit_enabled: true,
             annotation_time_limit_seconds: 150, // 2.5 -> rounds to 3
           }}
-        />
+        />,
       )
       const minutes = screen.getByRole('spinbutton') as HTMLInputElement
       expect(minutes.value).toBe('3')
@@ -338,14 +340,14 @@ describe('AdvancedSettingsCard', () => {
             annotation_time_limit_seconds: 1800,
           }}
           onChange={onChange}
-        />
+        />,
       )
 
       const minutes = screen.getByRole('spinbutton') as HTMLInputElement
       // Drive the controlled number input deterministically: value "5" -> 5*60.
       fireEvent.change(minutes, { target: { value: '5' } })
       expect(onChange).toHaveBeenLastCalledWith(
-        expect.objectContaining({ annotation_time_limit_seconds: 300 })
+        expect.objectContaining({ annotation_time_limit_seconds: 300 }),
       )
     })
 
@@ -358,14 +360,14 @@ describe('AdvancedSettingsCard', () => {
             annotation_time_limit_seconds: 600,
           }}
           onChange={onChange}
-        />
+        />,
       )
 
       const minutes = screen.getByRole('spinbutton') as HTMLInputElement
       // empty -> parseInt('') NaN -> (|| 30) -> 30 * 60 = 1800
       fireEvent.change(minutes, { target: { value: '' } })
       expect(onChange).toHaveBeenLastCalledWith(
-        expect.objectContaining({ annotation_time_limit_seconds: 1800 })
+        expect.objectContaining({ annotation_time_limit_seconds: 1800 }),
       )
     })
 
@@ -380,23 +382,31 @@ describe('AdvancedSettingsCard', () => {
             strict_timer_enabled: false,
           }}
           onChange={onChange}
-        />
+        />,
       )
 
       const strict = checkboxForLabel(/Strict timer/i)
       expect(strict.checked).toBe(false)
       await user.click(strict)
       expect(onChange).toHaveBeenLastCalledWith(
-        expect.objectContaining({ strict_timer_enabled: true })
+        expect.objectContaining({ strict_timer_enabled: true }),
       )
     })
   })
 
   describe('Interface settings — toggles', () => {
     const cases: Array<[RegExp, keyof AdvancedSettings, boolean]> = [
-      [/project\.settings\.interface\.showInstructions$/i, 'show_instruction', true],
+      [
+        /project\.settings\.interface\.showInstructions$/i,
+        'show_instruction',
+        true,
+      ],
       [/Always show instructions/i, 'instructions_always_visible', false],
-      [/project\.settings\.interface\.showSkipButton$/i, 'show_skip_button', true],
+      [
+        /project\.settings\.interface\.showSkipButton$/i,
+        'show_skip_button',
+        true,
+      ],
       [
         /project\.settings\.interface\.requireCommentOnSkip$/i,
         'require_comment_on_skip',
@@ -414,21 +424,18 @@ describe('AdvancedSettingsCard', () => {
       ],
     ]
 
-    it.each(cases)(
-      'flips %s checkbox',
-      async (labelRe, key, initialValue) => {
-        const user = userEvent.setup()
-        const onChange = jest.fn()
-        render(<Harness onChange={onChange} />)
+    it.each(cases)('flips %s checkbox', async (labelRe, key, initialValue) => {
+      const user = userEvent.setup()
+      const onChange = jest.fn()
+      render(<Harness onChange={onChange} />)
 
-        const cb = checkboxForLabel(labelRe)
-        expect(cb.checked).toBe(initialValue)
-        await user.click(cb)
-        expect(onChange).toHaveBeenLastCalledWith(
-          expect.objectContaining({ [key]: !initialValue })
-        )
-      }
-    )
+      const cb = checkboxForLabel(labelRe)
+      expect(cb.checked).toBe(initialValue)
+      await user.click(cb)
+      expect(onChange).toHaveBeenLastCalledWith(
+        expect.objectContaining({ [key]: !initialValue }),
+      )
+    })
   })
 
   describe('Interface settings — skip_queue select', () => {
@@ -445,24 +452,28 @@ describe('AdvancedSettingsCard', () => {
 
       await user.selectOptions(skipSelect, 'requeue_for_me')
       expect(onChange).toHaveBeenLastCalledWith(
-        expect.objectContaining({ skip_queue: 'requeue_for_me' })
+        expect.objectContaining({ skip_queue: 'requeue_for_me' }),
       )
 
       await user.selectOptions(skipSelect, 'ignore_skipped')
       expect(onChange).toHaveBeenLastCalledWith(
-        expect.objectContaining({ skip_queue: 'ignore_skipped' })
+        expect.objectContaining({ skip_queue: 'ignore_skipped' }),
       )
 
       await user.selectOptions(skipSelect, 'requeue_for_others')
       expect(onChange).toHaveBeenLastCalledWith(
-        expect.objectContaining({ skip_queue: 'requeue_for_others' })
+        expect.objectContaining({ skip_queue: 'requeue_for_others' }),
       )
     })
 
     it('falls back to requeue_for_others display when skip_queue is unset', () => {
       // Cast through unknown to simulate a legacy row missing skip_queue.
       render(
-        <Harness initial={{ skip_queue: undefined as unknown as AdvancedSettings['skip_queue'] }} />
+        <Harness
+          initial={{
+            skip_queue: undefined as unknown as AdvancedSettings['skip_queue'],
+          }}
+        />,
       )
       const skipSelect = screen
         .getByText('Skip permanently')
@@ -477,7 +488,7 @@ describe('AdvancedSettingsCard', () => {
       render(<Harness initial={{ questionnaire_enabled: false }} />)
       expect(screen.queryByText('Template')).not.toBeInTheDocument()
       expect(
-        screen.queryByText('Questionnaire Config (Label Studio XML)')
+        screen.queryByText('Questionnaire Config (Label Studio XML)'),
       ).not.toBeInTheDocument()
     })
 
@@ -489,12 +500,12 @@ describe('AdvancedSettingsCard', () => {
       const enable = checkboxForLabel(/Enable Questionnaire/i)
       await user.click(enable)
       expect(onChange).toHaveBeenLastCalledWith(
-        expect.objectContaining({ questionnaire_enabled: true })
+        expect.objectContaining({ questionnaire_enabled: true }),
       )
 
       expect(screen.getByText('Template')).toBeInTheDocument()
       expect(
-        screen.getByText('Questionnaire Config (Label Studio XML)')
+        screen.getByText('Questionnaire Config (Label Studio XML)'),
       ).toBeInTheDocument()
       // questionnaire adds a 5th combobox (the template picker)
       expect(screen.getAllByRole('combobox')).toHaveLength(5)
@@ -503,7 +514,12 @@ describe('AdvancedSettingsCard', () => {
     it('selecting the "confidence_difficulty" template writes its XML into the config', async () => {
       const user = userEvent.setup()
       const onChange = jest.fn()
-      render(<Harness initial={{ questionnaire_enabled: true }} onChange={onChange} />)
+      render(
+        <Harness
+          initial={{ questionnaire_enabled: true }}
+          onChange={onChange}
+        />,
+      )
 
       const templateSelect = screen
         .getByText('Confidence & Difficulty (2 items)')
@@ -512,9 +528,7 @@ describe('AdvancedSettingsCard', () => {
 
       expect(onChange).toHaveBeenCalled()
       const next = onChange.mock.calls.at(-1)![0] as AdvancedSettings
-      expect(next.questionnaire_config).toContain(
-        'Post-Annotation Feedback'
-      )
+      expect(next.questionnaire_config).toContain('Post-Annotation Feedback')
       expect(next.questionnaire_config).toContain('name="confidence"')
       expect(next.questionnaire_config).not.toContain('guideline_clarity')
     })
@@ -522,7 +536,12 @@ describe('AdvancedSettingsCard', () => {
     it('selecting the "extended" template writes the 4-item XML', async () => {
       const user = userEvent.setup()
       const onChange = jest.fn()
-      render(<Harness initial={{ questionnaire_enabled: true }} onChange={onChange} />)
+      render(
+        <Harness
+          initial={{ questionnaire_enabled: true }}
+          onChange={onChange}
+        />,
+      )
 
       const templateSelect = screen
         .getByText('Extended Feedback (4 items)')
@@ -537,7 +556,12 @@ describe('AdvancedSettingsCard', () => {
     it('selecting the "utaut_study" template writes the Likert XML', async () => {
       const user = userEvent.setup()
       const onChange = jest.fn()
-      render(<Harness initial={{ questionnaire_enabled: true }} onChange={onChange} />)
+      render(
+        <Harness
+          initial={{ questionnaire_enabled: true }}
+          onChange={onChange}
+        />,
+      )
 
       const templateSelect = screen
         .getByText('UTAUT Study (12 items, Likert 1-7)')
@@ -558,7 +582,7 @@ describe('AdvancedSettingsCard', () => {
             questionnaire_config: '<View>keep-me</View>',
           }}
           onChange={onChange}
-        />
+        />,
       )
 
       const templateSelect = screen
@@ -577,7 +601,7 @@ describe('AdvancedSettingsCard', () => {
         <Harness
           initial={{ questionnaire_enabled: true, questionnaire_config: '' }}
           onChange={onChange}
-        />
+        />,
       )
 
       const textarea = screen
@@ -586,7 +610,7 @@ describe('AdvancedSettingsCard', () => {
         .querySelector('textarea') as HTMLTextAreaElement
       await user.type(textarea, '<View/>')
       expect(onChange).toHaveBeenLastCalledWith(
-        expect.objectContaining({ questionnaire_config: '<View/>' })
+        expect.objectContaining({ questionnaire_config: '<View/>' }),
       )
       expect(textarea.value).toBe('<View/>')
     })
@@ -598,7 +622,7 @@ describe('AdvancedSettingsCard', () => {
             questionnaire_enabled: true,
             questionnaire_config: '<View>existing</View>',
           }}
-        />
+        />,
       )
       const textarea = screen
         .getByText('Questionnaire Config (Label Studio XML)')
@@ -627,7 +651,7 @@ describe('AdvancedSettingsCard', () => {
           initial={{ assignment_mode: 'manual' }}
           editing
           ProjectSettingsExtended={Extended}
-        />
+        />,
       )
 
       expect(screen.getByTestId('extended-slot')).toBeInTheDocument()
@@ -652,12 +676,10 @@ describe('AdvancedSettingsCard', () => {
         </button>
       )
 
-      render(
-        <Harness ProjectSettingsExtended={Extended} onChange={onChange} />
-      )
+      render(<Harness ProjectSettingsExtended={Extended} onChange={onChange} />)
       await user.click(screen.getByTestId('ext-btn'))
       expect(onChange).toHaveBeenLastCalledWith(
-        expect.objectContaining({ review_enabled: true })
+        expect.objectContaining({ review_enabled: true }),
       )
     })
   })
@@ -672,24 +694,20 @@ describe('AdvancedSettingsCard', () => {
             annotation_time_limit_seconds: 1800,
             questionnaire_enabled: true,
           }}
-        />
+        />,
       )
 
       // All comboboxes disabled
-      screen
-        .getAllByRole('combobox')
-        .forEach((el) => expect(el).toBeDisabled())
+      screen.getAllByRole('combobox').forEach((el) => expect(el).toBeDisabled())
       // All checkboxes disabled
-      screen
-        .getAllByRole('checkbox')
-        .forEach((el) => expect(el).toBeDisabled())
+      screen.getAllByRole('checkbox').forEach((el) => expect(el).toBeDisabled())
       // Minutes input + config textarea disabled
       expect(screen.getByRole('spinbutton')).toBeDisabled()
       expect(
         screen
           .getByText('Questionnaire Config (Label Studio XML)')
           .closest('div')!
-          .querySelector('textarea')
+          .querySelector('textarea'),
       ).toBeDisabled()
     })
   })

@@ -56,13 +56,17 @@ jest.mock('@/contexts/I18nContext', () => ({
         'projects.taskAssignment.assigningTasks': 'Assigning {count} tasks',
         'projects.taskAssignment.distributionMethod': 'Distribution Method',
         'projects.taskAssignment.manual': 'Manual',
-        'projects.taskAssignment.manualDescription': 'Assign all selected tasks to all selected users',
+        'projects.taskAssignment.manualDescription':
+          'Assign all selected tasks to all selected users',
         'projects.taskAssignment.roundRobin': 'Round Robin',
-        'projects.taskAssignment.roundRobinDescription': 'Distribute tasks evenly across selected users',
+        'projects.taskAssignment.roundRobinDescription':
+          'Distribute tasks evenly across selected users',
         'projects.taskAssignment.random': 'Random',
-        'projects.taskAssignment.randomDescription': 'Randomly assign tasks to selected users',
+        'projects.taskAssignment.randomDescription':
+          'Randomly assign tasks to selected users',
         'projects.taskAssignment.loadBalanced': 'Load Balanced',
-        'projects.taskAssignment.loadBalancedDescription': 'Assign tasks based on current workload',
+        'projects.taskAssignment.loadBalancedDescription':
+          'Assign tasks based on current workload',
         'projects.taskAssignment.selectAnnotators': 'Select Annotators',
         'projects.taskAssignment.selectAll': 'Select All',
         'projects.taskAssignment.deselectAll': 'Deselect All',
@@ -72,7 +76,8 @@ jest.mock('@/contexts/I18nContext', () => ({
         'projects.taskAssignment.priorityMedium': 'Medium',
         'projects.taskAssignment.priorityHigh': 'High',
         'projects.taskAssignment.priorityUrgent': 'Urgent',
-        'projects.taskAssignment.notesPlaceholder': 'Add notes for this assignment...',
+        'projects.taskAssignment.notesPlaceholder':
+          'Add notes for this assignment...',
       }
       let result = translations[key] || key
       if (params && typeof params === 'object') {
@@ -137,7 +142,7 @@ describe('TaskAssignmentModal', () => {
     render(<TaskAssignmentModal {...defaultProps} isOpen={false} />)
 
     expect(
-      screen.queryByText('Assign Tasks to Annotators')
+      screen.queryByText('Assign Tasks to Annotators'),
     ).not.toBeInTheDocument()
   })
 
@@ -172,7 +177,7 @@ describe('TaskAssignmentModal', () => {
 
     // Check for default distribution description
     expect(
-      screen.getByText('Assign all selected tasks to all selected users')
+      screen.getByText('Assign all selected tasks to all selected users'),
     ).toBeInTheDocument()
   })
 
@@ -237,7 +242,7 @@ describe('TaskAssignmentModal', () => {
             'Content-Type': 'application/json',
           }),
           body: expect.stringContaining('"user_ids":["user-1"]'),
-        })
+        }),
       )
     })
 
@@ -283,7 +288,7 @@ describe('TaskAssignmentModal', () => {
     await waitFor(() => {
       expect(mockAddToast).toHaveBeenCalledWith(
         'Failed to assign tasks',
-        'error'
+        'error',
       )
     })
   })
@@ -301,9 +306,9 @@ describe('TaskAssignmentModal', () => {
                 ok: true,
                 json: () => Promise.resolve({ assignments_created: 3 }),
               }),
-            100
-          )
-        )
+            100,
+          ),
+        ),
     )
 
     render(<TaskAssignmentModal {...defaultProps} />)
@@ -341,7 +346,7 @@ describe('TaskAssignmentModal', () => {
 
     // Check for default description (manual assignment)
     expect(
-      screen.getByText('Assign all selected tasks to all selected users')
+      screen.getByText('Assign all selected tasks to all selected users'),
     ).toBeInTheDocument()
   })
 
@@ -375,7 +380,7 @@ describe('TaskAssignmentModal', () => {
     render(<TaskAssignmentModal {...propsWithNoMembers} />)
 
     expect(
-      screen.getByText('Please select at least one user')
+      screen.getByText('Please select at least one user'),
     ).toBeInTheDocument()
   })
 
@@ -399,7 +404,7 @@ describe('TaskAssignmentModal', () => {
     ]
 
     render(
-      <TaskAssignmentModal {...defaultProps} projectMembers={mixedMembers} />
+      <TaskAssignmentModal {...defaultProps} projectMembers={mixedMembers} />,
     )
 
     expect(screen.getAllByText('Alice Contributor').length).toBeGreaterThan(0)
@@ -461,7 +466,7 @@ describe('TaskAssignmentModal', () => {
     await waitFor(() => {
       expect(mockAddToast).toHaveBeenCalledWith(
         'Tasks assigned successfully',
-        'info'
+        'info',
       )
     })
   })
@@ -496,7 +501,7 @@ describe('TaskAssignmentModal', () => {
     await waitFor(() => {
       expect(mockAddToast).toHaveBeenCalledWith(
         'Tasks assigned successfully',
-        'success'
+        'success',
       )
     })
   })
@@ -531,7 +536,7 @@ describe('TaskAssignmentModal', () => {
     await waitFor(() => {
       expect(mockAddToast).toHaveBeenCalledWith(
         'Custom success message',
-        'info'
+        'info',
       )
     })
   })
@@ -562,7 +567,7 @@ describe('TaskAssignmentModal', () => {
     await waitFor(() => {
       expect(mockAddToast).toHaveBeenCalledWith(
         'Failed to assign tasks',
-        'error'
+        'error',
       )
     })
   })
@@ -591,7 +596,7 @@ describe('TaskAssignmentModal', () => {
         expect.any(String),
         expect.objectContaining({
           body: expect.stringContaining('2025-12-31T23:59'),
-        })
+        }),
       )
     })
   })
@@ -636,7 +641,7 @@ describe('TaskAssignmentModal', () => {
       <TaskAssignmentModal
         {...defaultProps}
         onAssignmentComplete={mockComplete}
-      />
+      />,
     )
 
     const checkboxes = screen.getAllByRole('checkbox')
@@ -672,9 +677,9 @@ describe('TaskAssignmentModal', () => {
                 ok: true,
                 json: () => Promise.resolve({ assignments_created: 1 }),
               }),
-            100
-          )
-        )
+            100,
+          ),
+        ),
     )
 
     render(<TaskAssignmentModal {...defaultProps} />)
@@ -715,7 +720,7 @@ describe('TaskAssignmentModal', () => {
       <TaskAssignmentModal
         {...defaultProps}
         projectMembers={membersWithUppercaseRoles}
-      />
+      />,
     )
 
     expect(screen.getAllByText('Upper Annotator').length).toBeGreaterThan(0)
@@ -731,13 +736,13 @@ jest.mock('@/components/shared', () => {
       React.createElement(
         'div',
         { 'data-testid': 'hero-pattern' },
-        'Hero Pattern'
+        'Hero Pattern',
       ),
     GridPattern: () =>
       React.createElement(
         'div',
         { 'data-testid': 'grid-pattern' },
-        'Grid Pattern'
+        'Grid Pattern',
       ),
     Button: ({ children, ...props }) =>
       React.createElement('button', props, children),
@@ -747,7 +752,7 @@ jest.mock('@/components/shared', () => {
       React.createElement(
         'div',
         { 'data-testid': 'loading-spinner' },
-        'Loading...'
+        'Loading...',
       ),
     EmptyState: ({ message }) => React.createElement('div', null, message),
     Spinner: () => React.createElement('div', null, 'Loading...'),

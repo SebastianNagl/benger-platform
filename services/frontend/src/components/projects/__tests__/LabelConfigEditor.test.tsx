@@ -15,16 +15,20 @@ const mockTranslate = (key: string, arg2?: any, arg3?: any) => {
   const vars = typeof arg2 === 'object' ? arg2 : arg3
   const translations: Record<string, string> = {
     'projects.labelConfig.title': 'Label Configuration',
-    'projects.labelConfig.description': 'Edit your Label Studio XML configuration below',
-    'projects.labelConfig.placeholder': 'Enter your Label Studio XML configuration...',
+    'projects.labelConfig.description':
+      'Edit your Label Studio XML configuration below',
+    'projects.labelConfig.placeholder':
+      'Enter your Label Studio XML configuration...',
     'projects.labelConfig.errorEmpty': 'Configuration cannot be empty',
     'projects.labelConfig.errorInvalidXml': 'Invalid XML: ',
-    'projects.labelConfig.errorMissingView': 'Configuration must contain a <View> element',
+    'projects.labelConfig.errorMissingView':
+      'Configuration must contain a <View> element',
     'projects.labelConfig.errorInvalidFormat': 'Invalid configuration format',
     'projects.labelConfig.valid': 'Configuration is valid',
     'projects.labelConfig.saveButton': 'Save Configuration',
     'common.cancel': 'Cancel',
-    'project.labelConfiguration.fieldReferenceHelp': 'Reference task data fields in your XML using $fieldname syntax (e.g., $text, $question).',
+    'project.labelConfiguration.fieldReferenceHelp':
+      'Reference task data fields in your XML using $fieldname syntax (e.g., $text, $question).',
   }
   let result = translations[key] || key
   if (vars) {
@@ -57,12 +61,12 @@ describe('LabelConfigEditor', () => {
 
       expect(screen.getByText('Label Configuration')).toBeInTheDocument()
       expect(
-        screen.getByText(/Edit your Label Studio XML configuration/i)
+        screen.getByText(/Edit your Label Studio XML configuration/i),
       ).toBeInTheDocument()
       expect(
         screen.getByPlaceholderText(
-          /Enter your Label Studio XML configuration/i
-        )
+          /Enter your Label Studio XML configuration/i,
+        ),
       ).toBeInTheDocument()
     })
 
@@ -70,7 +74,7 @@ describe('LabelConfigEditor', () => {
       render(<LabelConfigEditor onSave={mockOnSave} />)
 
       expect(
-        screen.getByRole('button', { name: /save configuration/i })
+        screen.getByRole('button', { name: /save configuration/i }),
       ).toBeInTheDocument()
     })
 
@@ -78,7 +82,7 @@ describe('LabelConfigEditor', () => {
       render(<LabelConfigEditor onSave={mockOnSave} onCancel={mockOnCancel} />)
 
       expect(
-        screen.getByRole('button', { name: /cancel/i })
+        screen.getByRole('button', { name: /cancel/i }),
       ).toBeInTheDocument()
     })
 
@@ -86,18 +90,18 @@ describe('LabelConfigEditor', () => {
       render(<LabelConfigEditor onSave={mockOnSave} />)
 
       expect(
-        screen.queryByRole('button', { name: /cancel/i })
+        screen.queryByRole('button', { name: /cancel/i }),
       ).not.toBeInTheDocument()
     })
 
     it('should render with initial configuration', () => {
       const initialConfig = '<View><Text name="test" value="$text"/></View>'
       render(
-        <LabelConfigEditor initialConfig={initialConfig} onSave={mockOnSave} />
+        <LabelConfigEditor initialConfig={initialConfig} onSave={mockOnSave} />,
       )
 
       const textarea = screen.getByPlaceholderText(
-        /Enter your Label Studio XML configuration/i
+        /Enter your Label Studio XML configuration/i,
       ) as HTMLTextAreaElement
       expect(textarea.value).toBe(initialConfig)
     })
@@ -109,7 +113,7 @@ describe('LabelConfigEditor', () => {
       render(<LabelConfigEditor onSave={mockOnSave} />)
 
       const textarea = screen.getByPlaceholderText(
-        /Enter your Label Studio XML configuration/i
+        /Enter your Label Studio XML configuration/i,
       )
 
       await user.type(textarea, '<View><Text name="test"/></View>')
@@ -121,11 +125,11 @@ describe('LabelConfigEditor', () => {
       const user = userEvent.setup()
       const initialConfig = '<View><Text name="old"/></View>'
       render(
-        <LabelConfigEditor initialConfig={initialConfig} onSave={mockOnSave} />
+        <LabelConfigEditor initialConfig={initialConfig} onSave={mockOnSave} />,
       )
 
       const textarea = screen.getByPlaceholderText(
-        /Enter your Label Studio XML configuration/i
+        /Enter your Label Studio XML configuration/i,
       )
 
       await user.clear(textarea)
@@ -139,12 +143,12 @@ describe('LabelConfigEditor', () => {
       render(<LabelConfigEditor onSave={mockOnSave} />)
 
       const textarea = screen.getByPlaceholderText(
-        /Enter your Label Studio XML configuration/i
+        /Enter your Label Studio XML configuration/i,
       )
 
       await user.type(
         textarea,
-        '<View><Text name="test" value="$text"/></View>'
+        '<View><Text name="test" value="$text"/></View>',
       )
 
       await waitFor(() => {
@@ -170,12 +174,12 @@ describe('LabelConfigEditor', () => {
       render(<LabelConfigEditor onSave={mockOnSave} />)
 
       const textarea = screen.getByPlaceholderText(
-        /Enter your Label Studio XML configuration/i
+        /Enter your Label Studio XML configuration/i,
       )
 
       await user.type(
         textarea,
-        '<View><Text name="test" value="$text"/></View>'
+        '<View><Text name="test" value="$text"/></View>',
       )
 
       await waitFor(() => {
@@ -188,7 +192,7 @@ describe('LabelConfigEditor', () => {
       render(<LabelConfigEditor onSave={mockOnSave} />)
 
       const textarea = screen.getByPlaceholderText(
-        /Enter your Label Studio XML configuration/i
+        /Enter your Label Studio XML configuration/i,
       )
 
       await user.type(textarea, '<View><Text name="test">')
@@ -203,14 +207,14 @@ describe('LabelConfigEditor', () => {
       render(<LabelConfigEditor onSave={mockOnSave} />)
 
       const textarea = screen.getByPlaceholderText(
-        /Enter your Label Studio XML configuration/i
+        /Enter your Label Studio XML configuration/i,
       )
 
       await user.type(textarea, '<Text name="test" value="$text"/>')
 
       await waitFor(() => {
         expect(
-          screen.getByText(/Configuration must contain a <View> element/i)
+          screen.getByText(/Configuration must contain a <View> element/i),
         ).toBeInTheDocument()
       })
     })
@@ -220,7 +224,7 @@ describe('LabelConfigEditor', () => {
       render(<LabelConfigEditor onSave={mockOnSave} />)
 
       const textarea = screen.getByPlaceholderText(
-        /Enter your Label Studio XML configuration/i
+        /Enter your Label Studio XML configuration/i,
       )
 
       await user.type(textarea, '<View><Text name="test">')
@@ -238,12 +242,12 @@ describe('LabelConfigEditor', () => {
       render(<LabelConfigEditor onSave={mockOnSave} />)
 
       const textarea = screen.getByPlaceholderText(
-        /Enter your Label Studio XML configuration/i
+        /Enter your Label Studio XML configuration/i,
       )
 
       await user.type(
         textarea,
-        '<View><Text name="test" value="$text"/></View>'
+        '<View><Text name="test" value="$text"/></View>',
       )
 
       await waitFor(() => {
@@ -259,7 +263,7 @@ describe('LabelConfigEditor', () => {
       render(<LabelConfigEditor onSave={mockOnSave} />)
 
       const textarea = screen.getByPlaceholderText(
-        /Enter your Label Studio XML configuration/i
+        /Enter your Label Studio XML configuration/i,
       )
 
       const complexConfig = `<View>
@@ -285,7 +289,7 @@ describe('LabelConfigEditor', () => {
       render(<LabelConfigEditor onSave={mockOnSave} />)
 
       const textarea = screen.getByPlaceholderText(
-        /Enter your Label Studio XML configuration/i
+        /Enter your Label Studio XML configuration/i,
       )
       const validConfig = '<View><Text name="test" value="$text"/></View>'
 
@@ -312,7 +316,7 @@ describe('LabelConfigEditor', () => {
       render(<LabelConfigEditor onSave={mockOnSave} />)
 
       const textarea = screen.getByPlaceholderText(
-        /Enter your Label Studio XML configuration/i
+        /Enter your Label Studio XML configuration/i,
       )
 
       await user.type(textarea, '<View><Text name="test">')
@@ -328,7 +332,6 @@ describe('LabelConfigEditor', () => {
       expect(saveButton).toBeDisabled()
       expect(mockOnSave).not.toHaveBeenCalled()
     })
-
   })
 
   describe('Cancel Functionality', () => {
@@ -347,12 +350,12 @@ describe('LabelConfigEditor', () => {
       render(<LabelConfigEditor onSave={mockOnSave} onCancel={mockOnCancel} />)
 
       const textarea = screen.getByPlaceholderText(
-        /Enter your Label Studio XML configuration/i
+        /Enter your Label Studio XML configuration/i,
       )
 
       await user.type(
         textarea,
-        '<View><Text name="test" value="$text"/></View>'
+        '<View><Text name="test" value="$text"/></View>',
       )
 
       const cancelButton = screen.getByRole('button', { name: /cancel/i })
@@ -369,7 +372,7 @@ describe('LabelConfigEditor', () => {
       render(<LabelConfigEditor onSave={mockOnSave} />)
 
       const textarea = screen.getByPlaceholderText(
-        /Enter your Label Studio XML configuration/i
+        /Enter your Label Studio XML configuration/i,
       )
 
       await user.type(textarea, '<View><Invalid')
@@ -384,12 +387,12 @@ describe('LabelConfigEditor', () => {
       render(<LabelConfigEditor onSave={mockOnSave} />)
 
       const textarea = screen.getByPlaceholderText(
-        /Enter your Label Studio XML configuration/i
+        /Enter your Label Studio XML configuration/i,
       )
 
       await user.type(
         textarea,
-        '<View><Text name="test" value="$text"/></View>'
+        '<View><Text name="test" value="$text"/></View>',
       )
 
       await waitFor(() => {
@@ -402,7 +405,7 @@ describe('LabelConfigEditor', () => {
       render(<LabelConfigEditor onSave={mockOnSave} />)
 
       const textarea = screen.getByPlaceholderText(
-        /Enter your Label Studio XML configuration/i
+        /Enter your Label Studio XML configuration/i,
       )
 
       await user.type(textarea, '<View><Text')
@@ -414,7 +417,7 @@ describe('LabelConfigEditor', () => {
       await user.clear(textarea)
       await user.type(
         textarea,
-        '<View><Text name="test" value="$text"/></View>'
+        '<View><Text name="test" value="$text"/></View>',
       )
 
       await waitFor(() => {
@@ -427,7 +430,7 @@ describe('LabelConfigEditor', () => {
       const user = userEvent.setup()
       const initialConfig = '<View><Text name="test" value="$text"/></View>'
       render(
-        <LabelConfigEditor initialConfig={initialConfig} onSave={mockOnSave} />
+        <LabelConfigEditor initialConfig={initialConfig} onSave={mockOnSave} />,
       )
 
       await waitFor(() => {
@@ -435,7 +438,7 @@ describe('LabelConfigEditor', () => {
       })
 
       const textarea = screen.getByPlaceholderText(
-        /Enter your Label Studio XML configuration/i
+        /Enter your Label Studio XML configuration/i,
       )
 
       await user.clear(textarea)
@@ -454,7 +457,7 @@ describe('LabelConfigEditor', () => {
       render(<LabelConfigEditor onSave={mockOnSave} />)
 
       const textarea = screen.getByPlaceholderText(
-        /Enter your Label Studio XML configuration/i
+        /Enter your Label Studio XML configuration/i,
       ) as HTMLTextAreaElement
 
       expect(textarea.value).toBe('')
@@ -474,7 +477,7 @@ describe('LabelConfigEditor', () => {
       render(<LabelConfigEditor onSave={mockOnSave} />)
 
       expect(
-        screen.queryByText(/Configuration is valid/i)
+        screen.queryByText(/Configuration is valid/i),
       ).not.toBeInTheDocument()
       expect(screen.queryByText(/Invalid/i)).not.toBeInTheDocument()
     })
@@ -482,7 +485,7 @@ describe('LabelConfigEditor', () => {
     it('should validate initial config if provided', async () => {
       const initialConfig = '<View><Text name="test" value="$text"/></View>'
       render(
-        <LabelConfigEditor initialConfig={initialConfig} onSave={mockOnSave} />
+        <LabelConfigEditor initialConfig={initialConfig} onSave={mockOnSave} />,
       )
 
       await waitFor(() => {
@@ -493,7 +496,7 @@ describe('LabelConfigEditor', () => {
     it('should show error for invalid initial config', async () => {
       const invalidConfig = '<View><Text'
       render(
-        <LabelConfigEditor initialConfig={invalidConfig} onSave={mockOnSave} />
+        <LabelConfigEditor initialConfig={invalidConfig} onSave={mockOnSave} />,
       )
 
       await waitFor(() => {
@@ -508,7 +511,7 @@ describe('LabelConfigEditor', () => {
       render(<LabelConfigEditor onSave={mockOnSave} />)
 
       const textarea = screen.getByPlaceholderText(
-        /Enter your Label Studio XML configuration/i
+        /Enter your Label Studio XML configuration/i,
       )
 
       await user.type(textarea, '   \n\n   ')
@@ -525,7 +528,7 @@ describe('LabelConfigEditor', () => {
       render(<LabelConfigEditor onSave={mockOnSave} />)
 
       const textarea = screen.getByPlaceholderText(
-        /Enter your Label Studio XML configuration/i
+        /Enter your Label Studio XML configuration/i,
       )
 
       await user.type(textarea, '<View>')
@@ -540,14 +543,14 @@ describe('LabelConfigEditor', () => {
       render(<LabelConfigEditor onSave={mockOnSave} />)
 
       const textarea = screen.getByPlaceholderText(
-        /Enter your Label Studio XML configuration/i
+        /Enter your Label Studio XML configuration/i,
       )
 
       await user.type(textarea, '<View/>')
 
       await waitFor(() => {
         expect(
-          screen.getByText(/Configuration must contain a <View> element/i)
+          screen.getByText(/Configuration must contain a <View> element/i),
         ).toBeInTheDocument()
       })
     })
@@ -557,7 +560,7 @@ describe('LabelConfigEditor', () => {
       render(<LabelConfigEditor onSave={mockOnSave} />)
 
       const textarea = screen.getByPlaceholderText(
-        /Enter your Label Studio XML configuration/i
+        /Enter your Label Studio XML configuration/i,
       )
 
       const longConfig = `<View>
@@ -579,7 +582,7 @@ describe('LabelConfigEditor', () => {
       render(<LabelConfigEditor onSave={mockOnSave} />)
 
       const textarea = screen.getByPlaceholderText(
-        /Enter your Label Studio XML configuration/i
+        /Enter your Label Studio XML configuration/i,
       )
 
       const specialConfig = '<View><Text name="test" value="$text"/></View>'
@@ -596,7 +599,7 @@ describe('LabelConfigEditor', () => {
       render(<LabelConfigEditor onSave={mockOnSave} />)
 
       const textarea = screen.getByPlaceholderText(
-        /Enter your Label Studio XML configuration/i
+        /Enter your Label Studio XML configuration/i,
       )
 
       const commentConfig =
@@ -616,7 +619,7 @@ describe('LabelConfigEditor', () => {
       render(<LabelConfigEditor onSave={mockOnSave} />)
 
       const textarea = screen.getByPlaceholderText(
-        /Enter your Label Studio XML configuration/i
+        /Enter your Label Studio XML configuration/i,
       )
 
       const customConfig = `<View>
@@ -649,12 +652,12 @@ describe('LabelConfigEditor', () => {
       render(<LabelConfigEditor onSave={mockOnSave} onCancel={mockOnCancel} />)
 
       const textarea = screen.getByPlaceholderText(
-        /Enter your Label Studio XML configuration/i
+        /Enter your Label Studio XML configuration/i,
       )
 
       await user.type(
         textarea,
-        '<View><Text name="test" value="$text"/></View>'
+        '<View><Text name="test" value="$text"/></View>',
       )
 
       const cancelButton = screen.getByRole('button', { name: /cancel/i })
@@ -672,7 +675,7 @@ describe('LabelConfigEditor', () => {
           initialConfig={initialConfig}
           onSave={mockOnSave}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -680,7 +683,7 @@ describe('LabelConfigEditor', () => {
       })
 
       const textarea = screen.getByPlaceholderText(
-        /Enter your Label Studio XML configuration/i
+        /Enter your Label Studio XML configuration/i,
       )
 
       await user.clear(textarea)
@@ -692,7 +695,7 @@ describe('LabelConfigEditor', () => {
       await user.click(saveButton)
 
       expect(mockOnSave).toHaveBeenCalledWith(
-        '<View><Text name="new" value="$new"/></View>'
+        '<View><Text name="new" value="$new"/></View>',
       )
     })
   })

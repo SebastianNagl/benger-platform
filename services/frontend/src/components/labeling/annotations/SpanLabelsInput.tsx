@@ -17,11 +17,11 @@
 
 'use client'
 
+import { useI18n } from '@/contexts/I18nContext'
 import { buildSpanAnnotationResult } from '@/lib/labelConfig/dataBinding'
 import { AnnotationComponentProps } from '@/lib/labelConfig/registry'
 import { XMarkIcon } from '@heroicons/react/24/outline'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useI18n } from '@/contexts/I18nContext'
 
 // Helper to compare span arrays for equality
 function spansEqual(a: Span[], b: Span[]): boolean {
@@ -32,7 +32,7 @@ function spansEqual(a: Span[], b: Span[]): boolean {
       span.start === b[i].start &&
       span.end === b[i].end &&
       span.text === b[i].text &&
-      JSON.stringify(span.labels) === JSON.stringify(b[i].labels)
+      JSON.stringify(span.labels) === JSON.stringify(b[i].labels),
   )
 }
 
@@ -119,10 +119,10 @@ export default function SpanLabelsInput({
 
   // State
   const [spans, setSpans] = useState<Span[]>(() =>
-    parseInitialSpans(externalValue)
+    parseInitialSpans(externalValue),
   )
   const [selectedLabel, setSelectedLabel] = useState<string | null>(
-    labels.length > 0 ? labels[0].value : null
+    labels.length > 0 ? labels[0].value : null,
   )
   const [pendingSelection, setPendingSelection] = useState<{
     start: number
@@ -175,7 +175,7 @@ export default function SpanLabelsInput({
         // eslint-disable-next-line react-hooks/set-state-in-effect -- Intentional: clear on external reset
         setSpans([])
         previousSpansRef.current = []
-         
+
         setPendingSelection(null)
       }
     }
@@ -208,7 +208,7 @@ export default function SpanLabelsInput({
 
       setSpans((prev) => [...prev, newSpan])
     },
-    []
+    [],
   )
 
   // Handle text selection
@@ -269,13 +269,13 @@ export default function SpanLabelsInput({
         pendingSelection.start,
         pendingSelection.end,
         pendingSelection.text,
-        labelArray
+        labelArray,
       )
 
       setPendingSelection(null)
       window.getSelection()?.removeAllRanges()
     },
-    [pendingSelection, createSpan, choice]
+    [pendingSelection, createSpan, choice],
   )
 
   // Remove a span (notifications handled by useEffect)
@@ -316,7 +316,7 @@ export default function SpanLabelsInput({
   const renderHighlightedText = useMemo(() => {
     if (!sourceText) {
       return (
-        <span className="italic text-zinc-400">
+        <span className="text-zinc-400 italic">
           {t('labeling.spanLabels.noText')}
         </span>
       )
@@ -338,7 +338,7 @@ export default function SpanLabelsInput({
         elements.push(
           <span key={`text-${lastEnd}`}>
             {sourceText.substring(lastEnd, span.start)}
-          </span>
+          </span>,
         )
       }
 
@@ -356,10 +356,10 @@ export default function SpanLabelsInput({
           title={`${span.labels.join(', ')} (${t('labeling.spanLabels.clickToRemove')})`}
         >
           {span.text}
-          <span className="absolute -top-6 left-0 z-10 hidden whitespace-nowrap rounded bg-zinc-800 px-2 py-1 text-xs text-white group-hover:block">
+          <span className="absolute -top-6 left-0 z-10 hidden rounded bg-zinc-800 px-2 py-1 text-xs whitespace-nowrap text-white group-hover:block">
             {span.labels.join(', ')} - {t('labeling.spanLabels.clickToRemove')}
           </span>
-        </span>
+        </span>,
       )
 
       lastEnd = span.end
@@ -368,7 +368,7 @@ export default function SpanLabelsInput({
     // Add remaining text after last span
     if (lastEnd < sourceText.length) {
       elements.push(
-        <span key={`text-${lastEnd}`}>{sourceText.substring(lastEnd)}</span>
+        <span key={`text-${lastEnd}`}>{sourceText.substring(lastEnd)}</span>,
       )
     }
 
@@ -474,7 +474,7 @@ export default function SpanLabelsInput({
           <div className="max-h-40 space-y-1 overflow-y-auto rounded-lg border border-zinc-200 bg-zinc-50 p-2 dark:border-zinc-700 dark:bg-zinc-900">
             {spans.map((span) => {
               const labelConfig = labels.find((l) =>
-                span.labels.includes(l.value)
+                span.labels.includes(l.value),
               )
               return (
                 <div
@@ -487,7 +487,7 @@ export default function SpanLabelsInput({
                       style={{
                         backgroundColor: labelConfig?.background || '#e5e7eb',
                         color: getContrastColor(
-                          labelConfig?.background || '#e5e7eb'
+                          labelConfig?.background || '#e5e7eb',
                         ),
                       }}
                     >
@@ -521,7 +521,8 @@ export default function SpanLabelsInput({
 
       {/* Help text */}
       <div className="text-xs text-zinc-500 dark:text-zinc-400">
-        <strong>{t('labeling.spanLabels.tipLabel')}:</strong> {t('labeling.spanLabels.tipText')}
+        <strong>{t('labeling.spanLabels.tipLabel')}:</strong>{' '}
+        {t('labeling.spanLabels.tipText')}
       </div>
     </div>
   )

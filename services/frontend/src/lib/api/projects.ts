@@ -112,7 +112,7 @@ export const projectsAPI = {
     search?: string,
     isArchived?: boolean,
     includeAllPrivate?: boolean,
-    onlyDeleted?: boolean
+    onlyDeleted?: boolean,
   ): Promise<PaginatedResponse<Project>> => {
     const params = new URLSearchParams({
       page: page.toString(),
@@ -155,7 +155,7 @@ export const projectsAPI = {
     // Add cache-busting parameter to ensure fresh data
     const cacheBuster = Date.now()
     const response = await apiClient.get(
-      `/projects/${projectId}?_=${cacheBuster}`
+      `/projects/${projectId}?_=${cacheBuster}`,
     )
     return response
   },
@@ -189,7 +189,9 @@ export const projectsAPI = {
     await apiClient.delete(`/projects/${projectId}/purge`)
   },
 
-  bulkRestoreProjects: async (projectIds: string[]): Promise<{ restored: number }> =>
+  bulkRestoreProjects: async (
+    projectIds: string[],
+  ): Promise<{ restored: number }> =>
     apiClient.post('/projects/bulk-restore', { project_ids: projectIds }),
 
   bulkPurgeProjects: async (
@@ -225,11 +227,11 @@ export const projectsAPI = {
           }>
         }
       | { is_public: true; public_role: 'ANNOTATOR' | 'CONTRIBUTOR' }
-      | { public_role: 'ANNOTATOR' | 'CONTRIBUTOR' }
+      | { public_role: 'ANNOTATOR' | 'CONTRIBUTOR' },
   ): Promise<Project> => {
     const response = await apiClient.patch(
       `/projects/${projectId}/visibility`,
-      payload
+      payload,
     )
     return response
   },
@@ -250,7 +252,7 @@ export const projectsAPI = {
       dateTo?: string
       sortBy?: 'id' | 'created' | 'completed' | 'annotations' | 'generations'
       sortOrder?: 'asc' | 'desc'
-    }
+    },
   ): Promise<Task[]> => {
     const params = new URLSearchParams({
       page: (options?.page || 1).toString(),
@@ -283,7 +285,7 @@ export const projectsAPI = {
     }
 
     const response = await apiClient.get(
-      `/projects/${projectId}/tasks?${params}`
+      `/projects/${projectId}/tasks?${params}`,
     )
 
     // Handle paginated response format
@@ -317,7 +319,7 @@ export const projectsAPI = {
       dateTo?: string
       sortBy?: 'id' | 'created' | 'completed' | 'annotations' | 'generations'
       sortOrder?: 'asc' | 'desc'
-    }
+    },
   ): Promise<{
     items: Task[]
     total: number
@@ -346,7 +348,7 @@ export const projectsAPI = {
     if (options?.sortOrder) params.append('sort_order', options.sortOrder)
 
     const response = await apiClient.get(
-      `/projects/${projectId}/tasks?${params.toString()}`
+      `/projects/${projectId}/tasks?${params.toString()}`,
     )
 
     if (response && typeof response === 'object' && 'items' in response) {
@@ -368,7 +370,13 @@ export const projectsAPI = {
         pages: 1,
       }
     }
-    return { items: [], total: 0, page: 1, page_size: options?.pageSize ?? 50, pages: 0 }
+    return {
+      items: [],
+      total: 0,
+      page: 1,
+      page_size: options?.pageSize ?? 50,
+      pages: 0,
+    }
   },
 
   /**
@@ -387,7 +395,7 @@ export const projectsAPI = {
       dateFrom?: string
       dateTo?: string
       idsLimit?: number
-    }
+    },
   ): Promise<{ ids: string[]; total: number; truncated: boolean }> => {
     const params = new URLSearchParams({
       ids_only: 'true',
@@ -409,7 +417,7 @@ export const projectsAPI = {
     if (options?.idsLimit) params.append('ids_limit', String(options.idsLimit))
 
     const response = await apiClient.get(
-      `/projects/${projectId}/tasks?${params.toString()}`
+      `/projects/${projectId}/tasks?${params.toString()}`,
     )
     return {
       ids: response?.ids ?? [],
@@ -422,7 +430,7 @@ export const projectsAPI = {
    * Get next task to annotate
    */
   getNextTask: async (
-    projectId: string
+    projectId: string,
   ): Promise<{
     task: Task | null
     remaining: number
@@ -446,11 +454,11 @@ export const projectsAPI = {
    */
   createAnnotation: async (
     taskId: string,
-    data: AnnotationCreate
+    data: AnnotationCreate,
   ): Promise<Annotation> => {
     const response = await apiClient.post(
       `/projects/tasks/${taskId}/annotations`,
-      data
+      data,
     )
     return response
   },
@@ -466,7 +474,8 @@ export const projectsAPI = {
   ): Promise<Annotation[]> => {
     const params = new URLSearchParams()
     if (allUsers) params.append('all_users', 'true')
-    if (completedByUsername) params.append('completed_by_username', completedByUsername)
+    if (completedByUsername)
+      params.append('completed_by_username', completedByUsername)
     if (latestOnly) params.append('latest_only', 'true')
     const qs = params.toString()
     const url = `/projects/tasks/${taskId}/annotations${qs ? '?' + qs : ''}`
@@ -479,11 +488,11 @@ export const projectsAPI = {
    */
   updateAnnotation: async (
     annotationId: string,
-    data: Partial<AnnotationCreate>
+    data: Partial<AnnotationCreate>,
   ): Promise<Annotation> => {
     const response = await apiClient.patch(
       `/projects/annotations/${annotationId}`,
-      data
+      data,
     )
     return response
   },
@@ -493,13 +502,13 @@ export const projectsAPI = {
    */
   bulkDeleteTasks: async (
     projectId: string,
-    taskIds: string[]
+    taskIds: string[],
   ): Promise<{ deleted: number }> => {
     const response = await apiClient.post(
       `/projects/${projectId}/tasks/bulk-delete`,
       {
         task_ids: taskIds,
-      }
+      },
     )
     return response
   },
@@ -513,19 +522,25 @@ export const projectsAPI = {
    */
   createExportJob: async (
     projectId: string,
-    format: 'json' | 'csv' | 'tsv' | 'txt' | 'label_studio' | 'comprehensive' = 'json',
-    taskIds?: string[]
+    format:
+      | 'json'
+      | 'csv'
+      | 'tsv'
+      | 'txt'
+      | 'label_studio'
+      | 'comprehensive' = 'json',
+    taskIds?: string[],
   ): Promise<{ job_id: string; status: ExportJobState }> => {
     return apiClient.post(
       `/projects/${projectId}/exports?format=${encodeURIComponent(format)}`,
-      taskIds && taskIds.length > 0 ? { task_ids: taskIds } : undefined
+      taskIds && taskIds.length > 0 ? { task_ids: taskIds } : undefined,
     )
   },
 
   /** Poll the status of an export job. */
   getExportJob: async (
     projectId: string,
-    jobId: string
+    jobId: string,
   ): Promise<ExportJobStatus> => {
     return apiClient.get(`/projects/${projectId}/exports/${jobId}`)
   },
@@ -537,10 +552,10 @@ export const projectsAPI = {
    */
   getExportDownloadUrl: async (
     projectId: string,
-    jobId: string
+    jobId: string,
   ): Promise<{ url: string; expires_in: number }> => {
     return apiClient.get(
-      `/projects/${projectId}/exports/${jobId}/download?json=1`
+      `/projects/${projectId}/exports/${jobId}/download?json=1`,
     )
   },
 
@@ -561,12 +576,16 @@ export const projectsAPI = {
     projectId: string,
     format: 'json' | 'csv' | 'tsv' | 'txt' | 'label_studio' | 'comprehensive',
     callbacks?: { onStatus?: (status: ExportJobStatus) => void },
-    options?: { pollIntervalMs?: number; signal?: AbortSignal; taskIds?: string[] }
+    options?: {
+      pollIntervalMs?: number
+      signal?: AbortSignal
+      taskIds?: string[]
+    },
   ): Promise<void> => {
     const { job_id } = await projectsAPI.createExportJob(
       projectId,
       format,
-      options?.taskIds
+      options?.taskIds,
     )
 
     let attempt = 0
@@ -600,10 +619,10 @@ export const projectsAPI = {
    */
   createImportUploadUrl: async (
     projectId: string,
-    filename: string
+    filename: string,
   ): Promise<PresignedUpload> => {
     return apiClient.post(
-      `/projects/${projectId}/imports/upload-url?filename=${encodeURIComponent(filename)}`
+      `/projects/${projectId}/imports/upload-url?filename=${encodeURIComponent(filename)}`,
     )
   },
 
@@ -612,10 +631,10 @@ export const projectsAPI = {
    * project). The returned key is scoped to the requesting user.
    */
   createFullImportUploadUrl: async (
-    filename: string
+    filename: string,
   ): Promise<PresignedUpload> => {
     return apiClient.post(
-      `/projects/project-imports/upload-url?filename=${encodeURIComponent(filename)}`
+      `/projects/project-imports/upload-url?filename=${encodeURIComponent(filename)}`,
     )
   },
 
@@ -628,7 +647,7 @@ export const projectsAPI = {
    */
   uploadToPresignedUrl: async (
     upload: PresignedUpload,
-    file: File
+    file: File,
   ): Promise<void> => {
     const formData = new FormData()
     for (const [key, value] of Object.entries(upload.fields || {})) {
@@ -642,7 +661,7 @@ export const projectsAPI = {
     if (!res.ok) {
       const body = await res.text().catch(() => '')
       throw new Error(
-        `Upload to storage failed (${res.status}): ${body.slice(0, 500)}`
+        `Upload to storage failed (${res.status}): ${body.slice(0, 500)}`,
       )
     }
   },
@@ -650,7 +669,7 @@ export const projectsAPI = {
   /** Create an async NESTED import job for an already-uploaded artifact. */
   createImportJob: async (
     projectId: string,
-    objectKey: string
+    objectKey: string,
   ): Promise<{ job_id: string; status: ImportJobState }> => {
     return apiClient.post(`/projects/${projectId}/imports`, {
       object_key: objectKey,
@@ -659,15 +678,17 @@ export const projectsAPI = {
 
   /** Create an async FULL-PROJECT import job for an already-uploaded artifact. */
   createFullImportJob: async (
-    objectKey: string
+    objectKey: string,
   ): Promise<{ job_id: string; status: ImportJobState }> => {
-    return apiClient.post('/projects/project-imports', { object_key: objectKey })
+    return apiClient.post('/projects/project-imports', {
+      object_key: objectKey,
+    })
   },
 
   /** Poll the status of a nested import job. */
   getImportJob: async (
     projectId: string,
-    jobId: string
+    jobId: string,
   ): Promise<ImportJobStatus> => {
     return apiClient.get(`/projects/${projectId}/imports/${jobId}`)
   },
@@ -688,13 +709,13 @@ export const projectsAPI = {
     projectId: string,
     file: File,
     callbacks?: { onStatus?: (status: ImportJobStatus) => void },
-    options?: { pollIntervalMs?: number; signal?: AbortSignal }
+    options?: { pollIntervalMs?: number; signal?: AbortSignal },
   ): Promise<ImportJobStatus> => {
     const upload = await projectsAPI.createImportUploadUrl(projectId, file.name)
     await projectsAPI.uploadToPresignedUrl(upload, file)
     const { job_id } = await projectsAPI.createImportJob(
       projectId,
-      upload.file_key
+      upload.file_key,
     )
 
     let attempt = 0
@@ -723,7 +744,7 @@ export const projectsAPI = {
   runProjectImportJob: async (
     file: File,
     callbacks?: { onStatus?: (status: ImportJobStatus) => void },
-    options?: { pollIntervalMs?: number; signal?: AbortSignal }
+    options?: { pollIntervalMs?: number; signal?: AbortSignal },
   ): Promise<ImportJobStatus> => {
     const upload = await projectsAPI.createFullImportUploadUrl(file.name)
     await projectsAPI.uploadToPresignedUrl(upload, file)
@@ -750,14 +771,14 @@ export const projectsAPI = {
    */
   createCloudImportJobs: async (
     projectId: string,
-    body: CloudImportRequest
+    body: CloudImportRequest,
   ): Promise<{ jobs: CloudImportJobDescriptor[] }> => {
     return apiClient.post(`/projects/${projectId}/cloud-imports`, body)
   },
 
   /** Cloud-import history for a project (newest first, with connection names). */
   listCloudImports: async (
-    projectId: string
+    projectId: string,
   ): Promise<CloudImportHistoryEntry[]> => {
     return apiClient.get(`/projects/${projectId}/cloud-imports`)
   },
@@ -776,7 +797,7 @@ export const projectsAPI = {
     callbacks?: {
       onStatus?: (objectKey: string, status: ImportJobStatus) => void
     },
-    options?: { pollIntervalMs?: number; signal?: AbortSignal }
+    options?: { pollIntervalMs?: number; signal?: AbortSignal },
   ): Promise<ImportJobStatus[]> => {
     const { jobs } = await projectsAPI.createCloudImportJobs(projectId, body)
 
@@ -801,7 +822,7 @@ export const projectsAPI = {
     if (rejected && rejected.status === 'rejected') throw rejected.reason
 
     const finals = settled.map(
-      (s) => (s as PromiseFulfilledResult<ImportJobStatus>).value
+      (s) => (s as PromiseFulfilledResult<ImportJobStatus>).value,
     )
     const failures = finals
       .map((status, i) => ({ status, objectKey: jobs[i].object_key }))
@@ -811,9 +832,9 @@ export const projectsAPI = {
         failures
           .map(
             ({ objectKey, status }) =>
-              `${objectKey}: ${status.error_message || 'Import job failed'}`
+              `${objectKey}: ${status.error_message || 'Import job failed'}`,
           )
-          .join('\n')
+          .join('\n'),
       )
     }
     return finals
@@ -824,13 +845,13 @@ export const projectsAPI = {
    */
   bulkArchiveTasks: async (
     projectId: string,
-    taskIds: string[]
+    taskIds: string[],
   ): Promise<{ archived: number }> => {
     const response = await apiClient.post(
       `/projects/${projectId}/tasks/bulk-archive`,
       {
         task_ids: taskIds,
-      }
+      },
     )
     return response
   },
@@ -839,7 +860,7 @@ export const projectsAPI = {
    * Bulk delete projects
    */
   bulkDeleteProjects: async (
-    projectIds: string[]
+    projectIds: string[],
   ): Promise<{ deleted: number }> => {
     const response = await apiClient.post('/projects/bulk-delete', {
       project_ids: projectIds,
@@ -851,7 +872,7 @@ export const projectsAPI = {
    * Bulk archive projects
    */
   bulkArchiveProjects: async (
-    projectIds: string[]
+    projectIds: string[],
   ): Promise<{ archived: number }> => {
     const response = await apiClient.post('/projects/bulk-archive', {
       project_ids: projectIds,
@@ -863,7 +884,7 @@ export const projectsAPI = {
    * Bulk unarchive projects
    */
   bulkUnarchiveProjects: async (
-    projectIds: string[]
+    projectIds: string[],
   ): Promise<{ unarchived: number }> => {
     const response = await apiClient.post('/projects/bulk-unarchive', {
       project_ids: projectIds,
@@ -877,7 +898,7 @@ export const projectsAPI = {
   bulkExportProjects: async (
     projectIds: string[],
     format: 'json' | 'csv' = 'json',
-    includeData: boolean = true
+    includeData: boolean = true,
   ): Promise<Blob> => {
     const response = await apiClient.post('/projects/bulk-export', {
       project_ids: projectIds,
@@ -902,7 +923,7 @@ export const projectsAPI = {
    * Get project members (used by annotator pickers, not by a per-project page).
    */
   getMembers: async (
-    projectId: string
+    projectId: string,
   ): Promise<
     Array<{
       id: string
@@ -926,13 +947,13 @@ export const projectsAPI = {
   updateTaskData: async (
     projectId: string,
     taskId: string,
-    data: Record<string, any>
+    data: Record<string, any>,
   ): Promise<Task> => {
     const response = await apiClient.put(
       `/projects/${projectId}/tasks/${taskId}`,
       {
         data,
-      }
+      },
     )
     return response
   },
@@ -942,7 +963,7 @@ export const projectsAPI = {
    */
   assignTasks: async (
     projectId: string,
-    data: AssignTasksRequest
+    data: AssignTasksRequest,
   ): Promise<{
     assignments_created: number
     skipped_existing: number
@@ -950,7 +971,7 @@ export const projectsAPI = {
   }> => {
     const response = await apiClient.post(
       `/projects/${projectId}/tasks/assign`,
-      data
+      data,
     )
     return response
   },
@@ -960,7 +981,7 @@ export const projectsAPI = {
    * Fixes annotation counts by excluding skipped/cancelled annotations
    */
   recalculateStats: async (
-    projectId: string
+    projectId: string,
   ): Promise<{
     message: string
     project_id: string
@@ -970,7 +991,7 @@ export const projectsAPI = {
     progress_percentage: number
   }> => {
     const response = await apiClient.post(
-      `/projects/${projectId}/recalculate-stats`
+      `/projects/${projectId}/recalculate-stats`,
     )
     return response
   },
@@ -982,7 +1003,7 @@ export const projectsAPI = {
     projectId: string,
     page = 1,
     pageSize = 50,
-    status?: string
+    status?: string,
   ): Promise<PaginatedResponse<Task & { assignment?: TaskAssignment }>> => {
     const params = new URLSearchParams({
       page: page.toString(),
@@ -994,7 +1015,7 @@ export const projectsAPI = {
     }
 
     const response = await apiClient.get(
-      `/projects/${projectId}/my-tasks?${params}`
+      `/projects/${projectId}/my-tasks?${params}`,
     )
     return response
   },
@@ -1005,10 +1026,10 @@ export const projectsAPI = {
   removeTaskAssignment: async (
     projectId: string,
     taskId: string,
-    assignmentId: string
+    assignmentId: string,
   ): Promise<void> => {
     await apiClient.delete(
-      `/projects/${projectId}/tasks/${taskId}/assignments/${assignmentId}`
+      `/projects/${projectId}/tasks/${taskId}/assignments/${assignmentId}`,
     )
   },
 
@@ -1018,7 +1039,7 @@ export const projectsAPI = {
    */
   getTaskFields: async (
     projectId: string,
-    sampleCount: number = 5
+    sampleCount: number = 5,
   ): Promise<{
     project_id: string
     fields: Array<{
@@ -1034,7 +1055,7 @@ export const projectsAPI = {
       sample_count: sampleCount.toString(),
     })
     const response = await apiClient.get(
-      `/projects/${projectId}/task-fields?${params}`
+      `/projects/${projectId}/task-fields?${params}`,
     )
     return response
   },
@@ -1046,12 +1067,11 @@ export const projectsAPI = {
   saveDraft: async (
     projectId: string,
     taskId: string,
-    result: any[]
+    result: any[],
   ): Promise<void> => {
-    await apiClient.put(
-      `/projects/${projectId}/tasks/${taskId}/draft`,
-      { result }
-    )
+    await apiClient.put(`/projects/${projectId}/tasks/${taskId}/draft`, {
+      result,
+    })
   },
 
   /**
@@ -1062,21 +1082,23 @@ export const projectsAPI = {
   saveCheckpoint: async (
     projectId: string,
     taskId: string,
-    result: any[]
+    result: any[],
   ): Promise<void> => {
-    await apiClient.post(
-      `/projects/${projectId}/tasks/${taskId}/checkpoint`,
-      { result }
-    )
+    await apiClient.post(`/projects/${projectId}/tasks/${taskId}/checkpoint`, {
+      result,
+    })
   },
 
   /** List the current user's checkpoint snapshots for a task (newest first, metadata only). */
   listCheckpoints: async (
     projectId: string,
-    taskId: string
+    taskId: string,
   ): Promise<Array<{ id: string; created_at: string; size: number }>> => {
-    const res: { checkpoints?: Array<{ id: string; created_at: string; size: number }> } =
-      await apiClient.get(`/projects/${projectId}/tasks/${taskId}/checkpoints`)
+    const res: {
+      checkpoints?: Array<{ id: string; created_at: string; size: number }>
+    } = await apiClient.get(
+      `/projects/${projectId}/tasks/${taskId}/checkpoints`,
+    )
     return res.checkpoints || []
   },
 
@@ -1084,10 +1106,10 @@ export const projectsAPI = {
   getCheckpoint: async (
     projectId: string,
     taskId: string,
-    checkpointId: string
+    checkpointId: string,
   ): Promise<{ id: string; created_at: string; result: any[] }> => {
     return apiClient.get(
-      `/projects/${projectId}/tasks/${taskId}/checkpoints/${checkpointId}`
+      `/projects/${projectId}/tasks/${taskId}/checkpoints/${checkpointId}`,
     )
   },
 
@@ -1098,11 +1120,11 @@ export const projectsAPI = {
     projectId: string,
     taskId: string,
     annotationId: string,
-    result: any[]
+    result: any[],
   ): Promise<any> => {
     const response = await apiClient.post(
       `/projects/${projectId}/tasks/${taskId}/questionnaire-response`,
-      { annotation_id: annotationId, result }
+      { annotation_id: annotationId, result },
     )
     return response
   },

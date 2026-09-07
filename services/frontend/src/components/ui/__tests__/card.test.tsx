@@ -14,7 +14,7 @@ describe('Card Components', () => {
       render(
         <Card>
           <div data-testid="card-child">Card content</div>
-        </Card>
+        </Card>,
       )
 
       const card = screen.getByTestId('card-child').parentElement
@@ -26,7 +26,7 @@ describe('Card Components', () => {
       render(
         <Card data-testid="card">
           <div>Content</div>
-        </Card>
+        </Card>,
       )
 
       const card = screen.getByTestId('card')
@@ -37,7 +37,7 @@ describe('Card Components', () => {
         'bg-white',
         'shadow-sm',
         'dark:border-zinc-800',
-        'dark:bg-zinc-900'
+        'dark:bg-zinc-900',
       )
     })
 
@@ -45,7 +45,7 @@ describe('Card Components', () => {
       render(
         <Card className="custom-class" data-testid="card">
           <div>Content</div>
-        </Card>
+        </Card>,
       )
 
       const card = screen.getByTestId('card')
@@ -62,7 +62,7 @@ describe('Card Components', () => {
           aria-label="Card section"
         >
           <div>Content</div>
-        </Card>
+        </Card>,
       )
 
       const card = screen.getByTestId('card')
@@ -77,7 +77,7 @@ describe('Card Components', () => {
       render(
         <CardHeader>
           <div data-testid="header-child">Header content</div>
-        </CardHeader>
+        </CardHeader>,
       )
 
       const header = screen.getByTestId('header-child').parentElement
@@ -89,7 +89,7 @@ describe('Card Components', () => {
       render(
         <CardHeader data-testid="header">
           <div>Header</div>
-        </CardHeader>
+        </CardHeader>,
       )
 
       const header = screen.getByTestId('header')
@@ -98,7 +98,7 @@ describe('Card Components', () => {
         'py-4',
         'border-b',
         'border-zinc-200',
-        'dark:border-zinc-800'
+        'dark:border-zinc-800',
       )
     })
 
@@ -106,7 +106,7 @@ describe('Card Components', () => {
       render(
         <CardHeader className="custom-header" data-testid="header">
           <div>Header</div>
-        </CardHeader>
+        </CardHeader>,
       )
 
       const header = screen.getByTestId('header')
@@ -132,7 +132,7 @@ describe('Card Components', () => {
         'text-lg',
         'font-semibold',
         'text-zinc-900',
-        'dark:text-zinc-100'
+        'dark:text-zinc-100',
       )
     })
 
@@ -140,7 +140,7 @@ describe('Card Components', () => {
       render(
         <CardTitle className="custom-title" data-testid="title">
           Title
-        </CardTitle>
+        </CardTitle>,
       )
 
       const title = screen.getByTestId('title')
@@ -152,7 +152,7 @@ describe('Card Components', () => {
       render(
         <CardTitle data-testid="title" id="title-id" aria-level="3">
           Title
-        </CardTitle>
+        </CardTitle>,
       )
 
       const title = screen.getByTestId('title')
@@ -172,14 +172,16 @@ describe('Card Components', () => {
 
     it('applies default description styles', () => {
       render(
-        <CardDescription data-testid="description">Description</CardDescription>
+        <CardDescription data-testid="description">
+          Description
+        </CardDescription>,
       )
 
       const description = screen.getByTestId('description')
       expect(description).toHaveClass(
         'text-sm',
         'text-zinc-600',
-        'dark:text-zinc-400'
+        'dark:text-zinc-400',
       )
     })
 
@@ -187,7 +189,7 @@ describe('Card Components', () => {
       render(
         <CardDescription className="custom-desc" data-testid="description">
           Description
-        </CardDescription>
+        </CardDescription>,
       )
 
       const description = screen.getByTestId('description')
@@ -201,7 +203,7 @@ describe('Card Components', () => {
       render(
         <CardContent>
           <div data-testid="content-child">Content here</div>
-        </CardContent>
+        </CardContent>,
       )
 
       const content = screen.getByTestId('content-child').parentElement
@@ -213,7 +215,7 @@ describe('Card Components', () => {
       render(
         <CardContent data-testid="content">
           <div>Content</div>
-        </CardContent>
+        </CardContent>,
       )
 
       const content = screen.getByTestId('content')
@@ -224,7 +226,7 @@ describe('Card Components', () => {
       render(
         <CardContent className="custom-content" data-testid="content">
           <div>Content</div>
-        </CardContent>
+        </CardContent>,
       )
 
       const content = screen.getByTestId('content')
@@ -238,7 +240,7 @@ describe('Card Components', () => {
       render(
         <CardFooter>
           <div data-testid="footer-child">Footer content</div>
-        </CardFooter>
+        </CardFooter>,
       )
 
       const footer = screen.getByTestId('footer-child').parentElement
@@ -250,7 +252,7 @@ describe('Card Components', () => {
       render(
         <CardFooter data-testid="footer">
           <div>Footer</div>
-        </CardFooter>
+        </CardFooter>,
       )
 
       const footer = screen.getByTestId('footer')
@@ -259,7 +261,7 @@ describe('Card Components', () => {
         'py-4',
         'border-t',
         'border-zinc-200',
-        'dark:border-zinc-800'
+        'dark:border-zinc-800',
       )
     })
 
@@ -267,7 +269,7 @@ describe('Card Components', () => {
       render(
         <CardFooter className="custom-footer" data-testid="footer">
           <div>Footer</div>
-        </CardFooter>
+        </CardFooter>,
       )
 
       const footer = screen.getByTestId('footer')
@@ -292,7 +294,7 @@ describe('Card Components', () => {
           <CardFooter data-testid="full-footer">
             <button>Action Button</button>
           </CardFooter>
-        </Card>
+        </Card>,
       )
 
       expect(screen.getByTestId('full-card')).toBeInTheDocument()
@@ -303,14 +305,14 @@ describe('Card Components', () => {
       expect(screen.getByTestId('full-footer')).toBeInTheDocument()
 
       expect(screen.getByRole('heading', { level: 3 })).toHaveTextContent(
-        'Card Title'
+        'Card Title',
       )
       expect(screen.getByText('Card description text')).toBeInTheDocument()
       expect(
-        screen.getByText('Main card content goes here')
+        screen.getByText('Main card content goes here'),
       ).toBeInTheDocument()
       expect(
-        screen.getByRole('button', { name: 'Action Button' })
+        screen.getByRole('button', { name: 'Action Button' }),
       ).toBeInTheDocument()
     })
 
@@ -320,7 +322,7 @@ describe('Card Components', () => {
           <CardContent data-testid="minimal-content">
             <p>Simple card content</p>
           </CardContent>
-        </Card>
+        </Card>,
       )
 
       expect(screen.getByTestId('minimal-card')).toBeInTheDocument()
@@ -340,7 +342,7 @@ describe('Card Components', () => {
           <CardContent>
             <p>Accessible content</p>
           </CardContent>
-        </Card>
+        </Card>,
       )
 
       const heading = screen.getByRole('heading', { level: 3 })
@@ -359,7 +361,7 @@ describe('Card Components', () => {
           <CardContent>
             <p>Article content</p>
           </CardContent>
-        </Card>
+        </Card>,
       )
 
       const card = screen.getByRole('article')
@@ -381,7 +383,7 @@ describe('Card Components', () => {
             </CardDescription>
           </CardHeader>
           <CardFooter data-testid="dark-footer">Footer</CardFooter>
-        </Card>
+        </Card>,
       )
 
       const card = screen.getByTestId('dark-card')
@@ -418,7 +420,7 @@ describe('Card Components', () => {
               </div>
             </div>
           </CardContent>
-        </Card>
+        </Card>,
       )
 
       expect(screen.getByText('Nested')).toBeInTheDocument()
@@ -434,7 +436,7 @@ describe('Card Components', () => {
           <Card data-testid="card-2">
             <CardTitle>Second Card</CardTitle>
           </Card>
-        </div>
+        </div>,
       )
 
       expect(screen.getByTestId('card-1')).toBeInTheDocument()

@@ -58,7 +58,7 @@ export function QuestionEditModal({
             : [''],
         context: question.context || '',
       })
-       
+
       setErrors({})
     }
   }, [isOpen, question])
@@ -71,10 +71,12 @@ export function QuestionEditModal({
     }
 
     const validAnswers = formData.reference_answers.filter((answer) =>
-      answer.trim()
+      answer.trim(),
     )
     if (validAnswers.length === 0) {
-      newErrors.reference_answers = t('tasks.questions.validation.referenceAnswerRequired')
+      newErrors.reference_answers = t(
+        'tasks.questions.validation.referenceAnswerRequired',
+      )
     }
 
     setErrors(newErrors)
@@ -85,7 +87,7 @@ export function QuestionEditModal({
     if (validateForm()) {
       // Filter out empty reference answers
       const cleanedAnswers = formData.reference_answers.filter((answer) =>
-        answer.trim()
+        answer.trim(),
       )
 
       const saveData = {
@@ -121,7 +123,7 @@ export function QuestionEditModal({
     setFormData((prev) => ({
       ...prev,
       reference_answers: prev.reference_answers.map((answer, i) =>
-        i === index ? value : answer
+        i === index ? value : answer,
       ),
     }))
   }
@@ -159,7 +161,7 @@ export function QuestionEditModal({
                 <div className="mb-4 flex items-center justify-between">
                   <Dialog.Title
                     as="h3"
-                    className="text-lg font-medium leading-6 text-zinc-900 dark:text-zinc-100"
+                    className="text-lg leading-6 font-medium text-zinc-900 dark:text-zinc-100"
                   >
                     {t('tasks.questions.editTitle')}{' '}
                     {question?.id !== undefined ? `#${question.id}` : ''}
@@ -192,7 +194,7 @@ export function QuestionEditModal({
                           question: e.target.value,
                         }))
                       }
-                      className="w-full rounded-md border border-zinc-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+                      className="w-full rounded-md border border-zinc-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500 focus:outline-none dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
                       placeholder={t('tasks.questions.questionPlaceholder')}
                       data-testid="question-input"
                     />
@@ -221,7 +223,7 @@ export function QuestionEditModal({
                           context: e.target.value,
                         }))
                       }
-                      className="w-full rounded-md border border-zinc-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+                      className="w-full rounded-md border border-zinc-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500 focus:outline-none dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
                       placeholder={t('tasks.questions.contextPlaceholder')}
                     />
                   </div>
@@ -251,8 +253,11 @@ export function QuestionEditModal({
                             onChange={(e) =>
                               updateReferenceAnswer(index, e.target.value)
                             }
-                            className="flex-1 rounded-md border border-zinc-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
-                            placeholder={t('tasks.questions.referenceAnswerPlaceholder', { number: index + 1 })}
+                            className="flex-1 rounded-md border border-zinc-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500 focus:outline-none dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+                            placeholder={t(
+                              'tasks.questions.referenceAnswerPlaceholder',
+                              { number: index + 1 },
+                            )}
                             data-testid={`reference-answer-${index}`}
                           />
                           {formData.reference_answers.length > 1 && (

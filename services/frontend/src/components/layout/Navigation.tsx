@@ -14,9 +14,9 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useFeatureFlags } from '@/contexts/FeatureFlagContext'
 import { useHydration } from '@/contexts/HydrationContext'
 import { useI18n } from '@/contexts/I18nContext'
-import { parseSubdomain } from '@/lib/utils/subdomain'
 import { useSlot } from '@/lib/extensions/slots'
 import { remToPx } from '@/lib/remToPx'
+import { parseSubdomain } from '@/lib/utils/subdomain'
 import { CloseButton } from '@headlessui/react'
 
 interface NavGroup {
@@ -99,8 +99,6 @@ const ArchitectureIcon = () => (
     />
   </svg>
 )
-
-
 
 const ProjectsIcon = () => (
   <svg
@@ -275,8 +273,8 @@ function NavLink({
       <div
         className={clsx(
           'flex cursor-not-allowed items-center gap-2 py-1 text-sm opacity-50',
-          isAnchorLink ? 'pl-7' : 'pl-4 pr-3',
-          'text-zinc-400 dark:text-zinc-500'
+          isAnchorLink ? 'pl-7' : 'pr-3 pl-4',
+          'text-zinc-400 dark:text-zinc-500',
         )}
       >
         {icon && !isAnchorLink && <span className="shrink-0">{icon}</span>}
@@ -293,10 +291,10 @@ function NavLink({
       aria-current={active ? 'page' : undefined}
       className={clsx(
         'group relative flex items-center gap-2 py-1 text-sm transition',
-        isAnchorLink ? 'pl-7' : 'pl-4 pr-3',
+        isAnchorLink ? 'pl-7' : 'pr-3 pl-4',
         active
           ? 'text-zinc-900 dark:text-white'
-          : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white'
+          : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white',
       )}
     >
       {icon && !isAnchorLink && <span className="shrink-0">{icon}</span>}
@@ -322,15 +320,15 @@ function VisibleSectionHighlight({
       useSectionStore((s) => s.sections),
       useSectionStore((s) => s.visibleSections),
     ],
-    useIsInsideMobileNavigation()
+    useIsInsideMobileNavigation(),
   )
 
   let isPresent = useIsPresent()
   let firstVisibleSectionIndex = Math.max(
     0,
     [{ id: '_top' }, ...sections].findIndex(
-      (section) => section.id === visibleSections[0]
-    )
+      (section) => section.id === visibleSections[0],
+    ),
   )
   let itemHeight = remToPx(2)
   let height = isPresent
@@ -346,7 +344,7 @@ function VisibleSectionHighlight({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1, transition: { delay: 0.2 } }}
       exit={{ opacity: 0 }}
-      className="bg-zinc-800/2.5 dark:bg-white/2.5 absolute inset-x-0 top-0 will-change-transform"
+      className="absolute inset-x-0 top-0 bg-zinc-800/2.5 will-change-transform dark:bg-white/2.5"
       style={{ borderRadius: 8, height, top }}
     />
   )
@@ -392,7 +390,7 @@ function NavigationGroup({
   let currentSections = useSectionStore((s) => s.sections)
   let [initialPathname, initialSections] = useInitialValue(
     [currentPathname, currentSections],
-    true
+    true,
   )
 
   // For mobile navigation, use initial values to prevent changes during animations
@@ -494,7 +492,10 @@ export function Navigation(props: React.ComponentPropsWithoutRef<'nav'>) {
   const hasLearningStats = !!useSlot('PersonalAnalyticsPage')
 
   // Parse current subdomain context
-  const { isPrivateMode, orgSlug } = typeof window !== 'undefined' ? parseSubdomain() : { isPrivateMode: true, orgSlug: null }
+  const { isPrivateMode, orgSlug } =
+    typeof window !== 'undefined'
+      ? parseSubdomain()
+      : { isPrivateMode: true, orgSlug: null }
   const currentOrgRole = orgSlug
     ? organizations.find((o) => o.slug === orgSlug)?.role
     : null
@@ -508,9 +509,22 @@ export function Navigation(props: React.ComponentPropsWithoutRef<'nav'>) {
 
     // Private mode: Dashboard, Projects, Data, Generations, Evaluations, Runs
     if (isPrivateMode) {
-      return ['/dashboard', '/projects', '/data', '/generations', '/evaluations', '/runs', '/reports', '/leaderboards'].includes(href) ||
-        href.startsWith('/about') || href.startsWith('/how-to') ||
-        href === '/models' || href === '/architecture'
+      return (
+        [
+          '/dashboard',
+          '/projects',
+          '/data',
+          '/generations',
+          '/evaluations',
+          '/runs',
+          '/reports',
+          '/leaderboards',
+        ].includes(href) ||
+        href.startsWith('/about') ||
+        href.startsWith('/how-to') ||
+        href === '/models' ||
+        href === '/architecture'
+      )
     }
 
     // Org mode: role-based access
@@ -520,7 +534,9 @@ export function Navigation(props: React.ComponentPropsWithoutRef<'nav'>) {
       case '/evaluations':
       case '/runs':
         // CONTRIBUTOR and above
-        return currentOrgRole === 'ORG_ADMIN' || currentOrgRole === 'CONTRIBUTOR'
+        return (
+          currentOrgRole === 'ORG_ADMIN' || currentOrgRole === 'CONTRIBUTOR'
+        )
       case '/projects':
         return true // All org members can see projects
       default:
@@ -545,7 +561,9 @@ export function Navigation(props: React.ComponentPropsWithoutRef<'nav'>) {
       ...(hasLearningStats
         ? [
             {
-              title: isClient ? t('navigation.learningStats') : 'Learning Statistics',
+              title: isClient
+                ? t('navigation.learningStats')
+                : 'Learning Statistics',
               href: '/learning-stats',
               icon: <LearningStatsIcon />,
             },

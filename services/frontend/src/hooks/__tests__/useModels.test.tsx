@@ -156,7 +156,7 @@ describe('useModels', () => {
         () =>
           new Promise((resolve) => {
             resolveModels = resolve
-          })
+          }),
       )
 
       const { result } = renderHook(() => useModels())
@@ -241,7 +241,7 @@ describe('useModels', () => {
       expect(result.current.error?.type).toBe('AUTH_FAILED')
       expect(result.current.error?.message).toBe('models.errors.authFailed')
       expect(result.current.error?.details).toBe(
-        'models.errors.authFailedDetails'
+        'models.errors.authFailedDetails',
       )
       expect(result.current.models).toEqual([])
     })
@@ -289,7 +289,7 @@ describe('useModels', () => {
       expect(result.current.error?.type).toBe('SERVER_ERROR')
       expect(result.current.error?.message).toBe('models.errors.serverError')
       expect(result.current.error?.details).toBe(
-        'models.errors.serverErrorDetails'
+        'models.errors.serverErrorDetails',
       )
     })
 
@@ -335,7 +335,7 @@ describe('useModels', () => {
       expect(result.current.error?.type).toBe('NETWORK_ERROR')
       expect(result.current.error?.message).toBe('models.errors.networkError')
       expect(result.current.error?.details).toBe(
-        'models.errors.networkErrorDetails'
+        'models.errors.networkErrorDetails',
       )
     })
 
@@ -353,7 +353,7 @@ describe('useModels', () => {
       expect(result.current.error?.type).toBe('UNKNOWN')
       expect(result.current.error?.message).toBe('models.errors.loadFailed')
       expect(result.current.error?.details).toBe(
-        'Something unexpected happened'
+        'Something unexpected happened',
       )
     })
 
@@ -401,7 +401,7 @@ describe('useModels', () => {
       await waitFor(() => {
         expect(consoleErrorSpy).toHaveBeenCalledWith(
           'Failed to fetch models:',
-          expect.any(Error)
+          expect.any(Error),
         )
       })
 
@@ -533,7 +533,7 @@ describe('useModels', () => {
         () =>
           new Promise((resolve) => {
             resolveRefetch = resolve
-          })
+          }),
       )
 
       const refetchPromise = result.current.refetch()

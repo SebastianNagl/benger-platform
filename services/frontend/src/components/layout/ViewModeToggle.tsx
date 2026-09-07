@@ -1,8 +1,8 @@
 'use client'
 
-import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react'
 import { useI18n } from '@/contexts/I18nContext'
 import { useViewModeSwitch } from '@/hooks/useViewModeSwitch'
+import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react'
 
 function GraduationCapIcon(props: React.ComponentPropsWithoutRef<'svg'>) {
   return (
@@ -94,7 +94,11 @@ export function ViewModeToggle({
   }
 
   const OPTIONS: { mode: UiMode; label: string; Icon: typeof ExpertIcon }[] = [
-    { mode: 'student', label: t('student.view.student'), Icon: GraduationCapIcon },
+    {
+      mode: 'student',
+      label: t('student.view.student'),
+      Icon: GraduationCapIcon,
+    },
     { mode: 'expert', label: t('student.view.expert'), Icon: ExpertIcon },
   ]
   const current = OPTIONS.find((o) => o.mode === resolved) ?? OPTIONS[0]
@@ -105,7 +109,10 @@ export function ViewModeToggle({
       : 'flex items-center gap-1.5 rounded-md px-2 py-1 text-sm font-medium text-zinc-700 transition hover:bg-zinc-900/5 disabled:opacity-50 dark:text-zinc-200 dark:hover:bg-white/5'
 
   return (
-    <Menu as="div" className={`relative ${variant === 'sidebar' ? 'w-full' : ''}`}>
+    <Menu
+      as="div"
+      className={`relative ${variant === 'sidebar' ? 'w-full' : ''}`}
+    >
       <MenuButton
         type="button"
         disabled={pending}
@@ -116,7 +123,11 @@ export function ViewModeToggle({
         className={triggerClass}
       >
         <current.Icon className="h-5 w-5 shrink-0 stroke-zinc-900 dark:stroke-white" />
-        <span className={variant === 'sidebar' ? 'flex-1 text-left' : 'hidden sm:inline'}>
+        <span
+          className={
+            variant === 'sidebar' ? 'flex-1 text-left' : 'hidden sm:inline'
+          }
+        >
           {current.label}
         </span>
         <ChevronIcon className="h-4 w-4 shrink-0 opacity-60" />

@@ -10,8 +10,8 @@
  * for real (not mocked) so the constraint-derivation branches are covered too.
  */
 
-import { renderHook } from '@testing-library/react'
 import type { Model } from '@/hooks/useModels'
+import { renderHook } from '@testing-library/react'
 import {
   PROVIDER_TEMPERATURE_RANGES,
   useJudgeModelHelpers,
@@ -334,7 +334,7 @@ describe('useJudgeModelHelpers', () => {
         message: '',
       })
       expect(
-        current.getTemperatureValidation('nf', null as unknown as number)
+        current.getTemperatureValidation('nf', null as unknown as number),
       ).toEqual({ type: null, message: '' })
     })
 

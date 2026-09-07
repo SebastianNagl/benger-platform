@@ -30,7 +30,7 @@ test.describe('Numeric Annotation', () => {
 
       // Navigate to annotation if possible
       const annotateButton = page.locator(
-        'button:has-text("Annotate"), a:has-text("Start Annotating"), a:has-text("Annotation")'
+        'button:has-text("Annotate"), a:has-text("Start Annotating"), a:has-text("Annotation")',
       )
       if (await annotateButton.isVisible({ timeout: 3000 })) {
         await annotateButton.click()
@@ -39,7 +39,7 @@ test.describe('Numeric Annotation', () => {
 
       // Verify numeric input interface is visible
       const numericElements = page.locator(
-        '[data-testid="number-input"], input[type="number"], input[inputmode="numeric"], .number-input'
+        '[data-testid="number-input"], input[type="number"], input[inputmode="numeric"], .number-input',
       )
 
       if ((await numericElements.count()) > 0) {
@@ -73,7 +73,7 @@ test.describe('Numeric Annotation', () => {
 
       // Navigate to data/tasks view
       const dataTab = page.locator(
-        'a:has-text("Data"), button:has-text("Data"), a:has-text("Tasks")'
+        'a:has-text("Data"), button:has-text("Data"), a:has-text("Tasks")',
       )
       if (await dataTab.isVisible({ timeout: 3000 })) {
         await dataTab.click()

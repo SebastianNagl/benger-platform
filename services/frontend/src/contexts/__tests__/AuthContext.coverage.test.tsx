@@ -104,7 +104,9 @@ jest.mock('@/lib/auth/sessionExpired', () => ({
 
 jest.mock('@/lib/utils/subdomain', () => ({
   parseSubdomain: jest.fn(() => ({ orgSlug: null, isPrivateMode: true })),
-  getOrgUrl: jest.fn((slug: string, path = '') => `http://${slug}.benger.localhost${path}`),
+  getOrgUrl: jest.fn(
+    (slug: string, path = '') => `http://${slug}.benger.localhost${path}`,
+  ),
   getPrivateUrl: jest.fn((path = '') => `http://benger.localhost${path}`),
   getCookieDomain: jest.fn(() => ''),
   getLastOrgSlug: jest.fn(() => null),
@@ -113,7 +115,12 @@ jest.mock('@/lib/utils/subdomain', () => ({
 }))
 
 jest.mock('@/lib/utils/logger', () => ({
-  logger: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn() },
+  logger: {
+    debug: jest.fn(),
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+  },
 }))
 
 jest.mock('@/lib/utils/translate', () => ({
@@ -265,7 +272,7 @@ describe('AuthContext - coverage complement', () => {
     await waitFor(() => expect(result.current.isLoading).toBe(false))
 
     // The OrganizationManager mock must report org-a so the lookup succeeds.
-    const orgManagerInstance = (result.current.apiClient as any)
+    const orgManagerInstance = result.current.apiClient as any
     // refreshOrganizations is driven by the login flow; make the org list known
     // via the manager used inside AuthContext. We assert the redirect side
     // effect through getOrgUrl being called with the last-org slug.
@@ -380,7 +387,7 @@ describe('AuthContext - coverage complement', () => {
         'New User',
         'password123',
         undefined,
-        'invite-token-123'
+        'invite-token-123',
       )
       for (let i = 0; i < 8; i++) await Promise.resolve()
     })
@@ -391,7 +398,7 @@ describe('AuthContext - coverage complement', () => {
       'New User',
       'password123',
       undefined,
-      'invite-token-123'
+      'invite-token-123',
     )
     // No orgs -> flash + dashboard push (lines 721-724).
     expect(flash).toHaveBeenCalled()

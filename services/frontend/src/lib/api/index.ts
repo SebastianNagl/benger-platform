@@ -183,7 +183,7 @@ export class ApiClient {
     this.changePassword = safeBind(this.authClient, 'changePassword')
     this.getMandatoryProfileStatus = safeBind(
       this.authClient,
-      'getMandatoryProfileStatus'
+      'getMandatoryProfileStatus',
     )
     this.confirmProfile = safeBind(this.authClient, 'confirmProfile')
     this.getProfileHistory = safeBind(this.authClient, 'getProfileHistory')
@@ -198,7 +198,7 @@ export class ApiClient {
     this.updateUserRole = safeBind(this.usersClient, 'updateUserRole')
     this.updateUserSuperadminStatus = safeBind(
       this.usersClient,
-      'updateUserSuperadminStatus'
+      'updateUserSuperadminStatus',
     )
     this.updateUserStatus = safeBind(this.usersClient, 'updateUserStatus')
     this.deleteUser = safeBind(this.usersClient, 'deleteUser')
@@ -206,23 +206,23 @@ export class ApiClient {
     this.getEvaluations = safeBind(this.evaluationsClient, 'getEvaluations')
     this.getEvaluationStatus = safeBind(
       this.evaluationsClient,
-      'getEvaluationStatus'
+      'getEvaluationStatus',
     )
     this.getGenerationStatus = safeBind(
       this.evaluationsClient,
-      'getGenerationStatus'
+      'getGenerationStatus',
     )
     this.getTaskGenerationStatuses = safeBind(
       this.evaluationsClient,
-      'getTaskGenerationStatuses'
+      'getTaskGenerationStatuses',
     )
     this.getGenerationResult = safeBind(
       this.evaluationsClient,
-      'getGenerationResult'
+      'getGenerationResult',
     )
     this.getTaskEvaluation = safeBind(
       this.evaluationsClient,
-      'getTaskEvaluation'
+      'getTaskEvaluation',
     )
     this.getModels = safeBind(this.evaluationsClient, 'getModels')
     this.getLLMModels = safeBind(this.evaluationsClient, 'getLLMModels')
@@ -231,16 +231,16 @@ export class ApiClient {
     this.getTaskType = safeBind(this.evaluationsClient, 'getTaskType')
     this.getEvaluationTypes = safeBind(
       this.evaluationsClient,
-      'getEvaluationTypes'
+      'getEvaluationTypes',
     )
     this.getEvaluationType = safeBind(
       this.evaluationsClient,
-      'getEvaluationType'
+      'getEvaluationType',
     )
     // Prompt methods removed in Issue #759 - use generation_structure instead
     this.getSupportedMetrics = safeBind(
       this.evaluationsClient,
-      'getSupportedMetrics'
+      'getSupportedMetrics',
     )
     this.uploadData = safeBind(this.evaluationsClient, 'uploadData')
     this.getUploadedData = safeBind(this.evaluationsClient, 'getUploadedData')
@@ -248,144 +248,144 @@ export class ApiClient {
     this.exportBulkData = safeBind(this.evaluationsClient, 'exportBulkData')
     this.deleteUploadedData = safeBind(
       this.evaluationsClient,
-      'deleteUploadedData'
+      'deleteUploadedData',
     )
     this.importUniversalTemplate = safeBind(
       this.evaluationsClient,
-      'importUniversalTemplate'
+      'importUniversalTemplate',
     )
     this.getProjects = safeBind(this.evaluationsClient, 'getProjects')
     this.getProject = safeBind(this.evaluationsClient, 'getProject')
     this.getProjectTasks = safeBind(this.evaluationsClient, 'getProjectTasks')
     this.getTaskCompletionStats = safeBind(
       this.evaluationsClient,
-      'getTaskCompletionStats'
+      'getTaskCompletionStats',
     )
     this.generateSyntheticData = safeBind(
       this.evaluationsClient,
-      'generateSyntheticData'
+      'generateSyntheticData',
     )
     this.getSyntheticDataGenerations = safeBind(
       this.evaluationsClient,
-      'getSyntheticDataGenerations'
+      'getSyntheticDataGenerations',
     )
     this.getUserAnnotationForItem = safeBind(
       this.evaluationsClient,
-      'getUserAnnotationForItem'
+      'getUserAnnotationForItem',
     )
     this.getTaskData = safeBind(this.evaluationsClient, 'getTaskData')
     this.getTaskResponses = safeBind(this.evaluationsClient, 'getTaskResponses')
     this.getTaskEvaluations = safeBind(
       this.evaluationsClient,
-      'getTaskEvaluations'
+      'getTaskEvaluations',
     )
     this.getAnnotationOverview = safeBind(
       this.evaluationsClient,
-      'getAnnotationOverview'
+      'getAnnotationOverview',
     )
     this.getTaskOrganizationMembers = safeBind(
       this.evaluationsClient,
-      'getTaskOrganizationMembers'
+      'getTaskOrganizationMembers',
     )
     this.getDashboardStats = safeBind(
       this.evaluationsClient,
-      'getDashboardStats'
+      'getDashboardStats',
     )
     this.getUserApiKeys = safeBind(this.evaluationsClient, 'getUserApiKeys')
     this.getUserApiKeyStatus = safeBind(
       this.evaluationsClient,
-      'getUserApiKeys'
+      'getUserApiKeys',
     )
     this.setUserApiKey = safeBind(this.evaluationsClient, 'setUserApiKey')
     this.removeUserApiKey = safeBind(this.evaluationsClient, 'removeUserApiKey')
     this.testUserApiKey = safeBind(this.evaluationsClient, 'testUserApiKey')
     this.testSavedUserApiKey = safeBind(
       this.evaluationsClient,
-      'testSavedUserApiKey'
+      'testSavedUserApiKey',
     )
     this.getAvailableModels = safeBind(
       this.evaluationsClient,
-      'getAvailableModels'
+      'getAvailableModels',
     )
     this.getOrganizations = safeBind(
       this.organizationsClient,
-      'getOrganizations'
+      'getOrganizations',
     )
     this.createOrganization = safeBind(
       this.organizationsClient,
-      'createOrganization'
+      'createOrganization',
     )
     this.getOrganization = safeBind(this.organizationsClient, 'getOrganization')
     this.updateOrganization = safeBind(
       this.organizationsClient,
-      'updateOrganization'
+      'updateOrganization',
     )
     this.deleteOrganization = safeBind(
       this.organizationsClient,
-      'deleteOrganization'
+      'deleteOrganization',
     )
     this.getOrganizationMembers = safeBind(
       this.organizationsClient,
-      'getOrganizationMembers'
+      'getOrganizationMembers',
     )
     this.updateMemberRole = safeBind(
       this.organizationsClient,
-      'updateMemberRole'
+      'updateMemberRole',
     )
     this.removeMember = safeBind(this.organizationsClient, 'removeMember')
     this.getOrganizationInvitations = safeBind(this.invitationsClient, 'list')
     this.getAllUsers = safeBind(this.organizationsClient, 'getAllUsers')
     this.updateUserGlobalRole = safeBind(
       this.organizationsClient,
-      'updateUserGlobalRole'
+      'updateUserGlobalRole',
     )
     this.addUserToOrganization = safeBind(
       this.organizationsClient,
-      'addUserToOrganization'
+      'addUserToOrganization',
     )
     this.getNotifications = safeBind(
       this.notificationsClient,
-      'getNotifications'
+      'getNotifications',
     )
     this.getUnreadNotificationCount = safeBind(
       this.notificationsClient,
-      'getUnreadCount'
+      'getUnreadCount',
     )
     this.markNotificationAsRead = safeBind(
       this.notificationsClient,
-      'markAsRead'
+      'markAsRead',
     )
     this.markAllNotificationsAsRead = safeBind(
       this.notificationsClient,
-      'markAllAsRead'
+      'markAllAsRead',
     )
     this.getNotificationPreferences = safeBind(
       this.notificationsClient,
-      'getPreferences'
+      'getPreferences',
     )
     this.updateNotificationPreferences = safeBind(
       this.notificationsClient,
-      'updatePreferences'
+      'updatePreferences',
     )
     this.createNotificationStream = safeBind(
       this.notificationsClient,
-      'createNotificationStream'
+      'createNotificationStream',
     )
     this.markNotificationsBulkAsRead = safeBind(
       this.notificationsClient,
-      'markBulkAsRead'
+      'markBulkAsRead',
     )
     this.deleteNotificationsBulk = safeBind(
       this.notificationsClient,
-      'deleteBulk'
+      'deleteBulk',
     )
     this.getNotificationGroups = safeBind(
       this.notificationsClient,
-      'getNotificationGroups'
+      'getNotificationGroups',
     )
     this.getNotificationSummary = safeBind(
       this.notificationsClient,
-      'getNotificationSummary'
+      'getNotificationSummary',
     )
     this.getInvitationByToken = safeBind(this.invitationsClient, 'getByToken')
     this.acceptInvitation = safeBind(this.invitationsClient, 'accept')
@@ -393,80 +393,77 @@ export class ApiClient {
     this.cancelInvitation = safeBind(this.invitationsClient, 'cancel')
     this.convertTaskPredictions = safeBind(
       this.evaluationsClient,
-      'convertTaskPredictions'
+      'convertTaskPredictions',
     )
     this.setupHumanEvaluation = safeBind(
       this.evaluationsClient,
-      'setupHumanEvaluation'
+      'setupHumanEvaluation',
     )
     this.getHumanEvaluationConfig = safeBind(
       this.evaluationsClient,
-      'getHumanEvaluationConfig'
+      'getHumanEvaluationConfig',
     )
     this.getHumanEvaluationResults = safeBind(
       this.evaluationsClient,
-      'getHumanEvaluationResults'
+      'getHumanEvaluationResults',
     )
     this.syncHumanEvaluationResults = safeBind(
       this.evaluationsClient,
-      'syncHumanEvaluationResults'
+      'syncHumanEvaluationResults',
     )
     this.deleteHumanEvaluation = safeBind(
       this.evaluationsClient,
-      'deleteHumanEvaluation'
+      'deleteHumanEvaluation',
     )
 
     // Evaluation methods (Phase 8: N:M Field Mapping)
     this.getAvailableEvaluationFields = safeBind(
       this.evaluationsClient,
-      'getAvailableEvaluationFields'
+      'getAvailableEvaluationFields',
     )
-    this.runEvaluation = safeBind(
-      this.evaluationsClient,
-      'runEvaluation'
-    )
+    this.runEvaluation = safeBind(this.evaluationsClient, 'runEvaluation')
     // Immediate evaluation: kick off + poll-until-complete (used by the
     // ImmediateEvaluationSlot wrapper after annotation submit).
     this.runImmediateEvaluation = safeBind(
       this.evaluationsClient,
-      'runImmediateEvaluation'
+      'runImmediateEvaluation',
     )
     this.pollImmediateEvaluation = safeBind(
       this.evaluationsClient,
-      'pollImmediateEvaluation'
+      'pollImmediateEvaluation',
     )
     this.getEvaluationDetailResults = safeBind(
       this.evaluationsClient,
-      'getEvaluationDetailResults'
+      'getEvaluationDetailResults',
     )
     // Phase 9: Project-level evaluation results
     this.getProjectEvaluationResults = safeBind(
       this.evaluationsClient,
-      'getProjectEvaluationResults'
+      'getProjectEvaluationResults',
     )
     // Per-task/model results matrix
     this.getResultsByTaskModel = safeBind(
       this.evaluationsClient,
-      'getResultsByTaskModel'
+      'getResultsByTaskModel',
     )
     // Project-level aggregated per-task/model results
     this.getProjectResultsByTaskModel = safeBind(
       this.evaluationsClient,
-      'getProjectResultsByTaskModel'
+      'getProjectResultsByTaskModel',
     )
 
     this.getFeatureFlags = safeBind(this.featureFlagsClient, 'getFeatureFlags')
     this.getAllFeatureFlagsForAdmin = safeBind(
       this.featureFlagsClient,
-      'getAllFeatureFlagsForAdmin'
+      'getAllFeatureFlagsForAdmin',
     )
     this.updateFeatureFlag = safeBind(
       this.featureFlagsClient,
-      'updateFeatureFlag'
+      'updateFeatureFlag',
     )
     this.checkFeatureFlag = safeBind(
       this.featureFlagsClient,
-      'checkFeatureFlag'
+      'checkFeatureFlag',
     )
 
     // Set up aliases

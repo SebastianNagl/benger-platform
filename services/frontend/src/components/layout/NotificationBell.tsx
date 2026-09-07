@@ -35,14 +35,18 @@ export function NotificationBell() {
         type="button"
         className="relative flex size-6 items-center justify-center rounded-md transition hover:bg-zinc-900/5 dark:hover:bg-white/5"
         onClick={() => setIsOpen(!isOpen)}
-        aria-label={hasUnread ? t('notifications.bellAriaLabelUnread', { count: unreadCount }) : t('notifications.bellAriaLabel')}
+        aria-label={
+          hasUnread
+            ? t('notifications.bellAriaLabelUnread', { count: unreadCount })
+            : t('notifications.bellAriaLabel')
+        }
       >
-        <span className="pointer-fine:hidden absolute size-12" />
+        <span className="absolute size-12 pointer-fine:hidden" />
         <BellIcon className="h-4 w-4 stroke-zinc-900 dark:stroke-white" />
 
         {/* Unread Count Badge */}
         {hasUnread && (
-          <span className="absolute -right-1 -top-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-xs font-medium text-white">
+          <span className="absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-xs font-medium text-white">
             {unreadCount > 99 ? '99+' : unreadCount}
           </span>
         )}

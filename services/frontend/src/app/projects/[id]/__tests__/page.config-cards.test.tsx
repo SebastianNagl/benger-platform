@@ -38,7 +38,14 @@ import { apiClient } from '@/lib/api/client'
 import { useUIStore } from '@/stores'
 import { useProjectStore } from '@/stores/projectStore'
 import '@testing-library/jest-dom'
-import { render, screen, waitFor, act, fireEvent, within } from '@testing-library/react'
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react'
 import { useRouter } from 'next/navigation'
 
 const mockPush = jest.fn()
@@ -95,15 +102,23 @@ jest.mock('@/components/projects/SubSection', () => ({
 
 jest.mock('@/components/shared/Breadcrumb', () => ({
   Breadcrumb: ({ items }: any) => (
-    <nav>{items.map((it: any, i: number) => <span key={i}>{it.label}</span>)}</nav>
+    <nav>
+      {items.map((it: any, i: number) => (
+        <span key={i}>{it.label}</span>
+      ))}
+    </nav>
   ),
 }))
 jest.mock('@/components/shared/Button', () => ({
   Button: ({ children, onClick, disabled, href, ...props }: any) =>
     href ? (
-      <a href={href} {...props}>{children}</a>
+      <a href={href} {...props}>
+        {children}
+      </a>
     ) : (
-      <button onClick={onClick} disabled={disabled} {...props}>{children}</button>
+      <button onClick={onClick} disabled={disabled} {...props}>
+        {children}
+      </button>
     ),
 }))
 jest.mock('@/components/shared/Card', () => ({
@@ -132,27 +147,29 @@ let mockLabelHasErrors: () => boolean = () => false
 jest.mock('@/components/projects/LabelConfigEditor', () => {
   const React = require('react')
   const LabelConfigEditor = React.forwardRef((props: any, ref: any) => {
-      React.useImperativeHandle(ref, () => ({
-        save: mockLabelSave,
-        isDirty: () => mockLabelIsDirty(),
-        hasErrors: () => mockLabelHasErrors(),
-      }))
-      return (
-        <div data-testid="label-config-editor">
-          <button
-            data-testid="label-config-change"
-            onClick={() => props.onConfigChange?.()}
-          >
-            change
-          </button>
-        </div>
-      )
+    React.useImperativeHandle(ref, () => ({
+      save: mockLabelSave,
+      isDirty: () => mockLabelIsDirty(),
+      hasErrors: () => mockLabelHasErrors(),
+    }))
+    return (
+      <div data-testid="label-config-editor">
+        <button
+          data-testid="label-config-change"
+          onClick={() => props.onConfigChange?.()}
+        >
+          change
+        </button>
+      </div>
+    )
   })
   LabelConfigEditor.displayName = 'LabelConfigEditorMock'
   return { LabelConfigEditor }
 })
 jest.mock('@/components/projects/PromptStructuresManager', () => ({
-  PromptStructuresManager: () => <div data-testid="prompt-structures-manager" />,
+  PromptStructuresManager: () => (
+    <div data-testid="prompt-structures-manager" />
+  ),
 }))
 jest.mock('@/components/projects/ProjectPermissionsPanel', () => ({
   ProjectPermissionsPanel: () => <div data-testid="permissions-panel" />,
@@ -188,7 +205,10 @@ jest.mock('@/components/evaluation/EvaluationBuilder', () => ({
 jest.mock('@/components/generation/GenerationControlModal', () => ({
   GenerationControlModal: ({ isOpen, models }: any) =>
     isOpen ? (
-      <div data-testid="generation-control-modal" data-models={JSON.stringify(models)} />
+      <div
+        data-testid="generation-control-modal"
+        data-models={JSON.stringify(models)}
+      />
     ) : null,
 }))
 jest.mock('@/components/evaluation/EvaluationControlModal', () => ({
@@ -312,7 +332,10 @@ beforeEach(() => {
   mockLabelIsDirty = () => true
   mockLabelHasErrors = () => false
   ;(useRouter as jest.Mock).mockReturnValue({ push: mockPush })
-  ;(useAuth as jest.Mock).mockReturnValue({ user: superadmin, currentOrganization: null })
+  ;(useAuth as jest.Mock).mockReturnValue({
+    user: superadmin,
+    currentOrganization: null,
+  })
   ;(useI18n as jest.Mock).mockReturnValue({
     // A string 2nd arg is a defaultValue fallback (the page passes both
     // forms): collapse those to the bare key so SubSection/CTA titles like
@@ -325,15 +348,22 @@ beforeEach(() => {
   ;(useUIStore as jest.Mock).mockReturnValue({ isSidebarHidden: false })
   setModels([])
   setStore()
-  ;(apiClient.get as jest.Mock).mockResolvedValue({ task: { id: 't' }, remaining: 5 })
+  ;(apiClient.get as jest.Mock).mockResolvedValue({
+    task: { id: 't' },
+    remaining: 5,
+  })
   ;(apiClient.put as jest.Mock).mockResolvedValue({})
-  ;(apiClient.evaluations.getAvailableEvaluationFields as jest.Mock).mockResolvedValue({
+  ;(
+    apiClient.evaluations.getAvailableEvaluationFields as jest.Mock
+  ).mockResolvedValue({
     model_response_fields: [],
     human_annotation_fields: [],
     reference_fields: [],
     all_fields: [],
   })
-  global.fetch = jest.fn().mockResolvedValue({ ok: false, status: 404, json: jest.fn() }) as any
+  global.fetch = jest
+    .fn()
+    .mockResolvedValue({ ok: false, status: 404, json: jest.fn() }) as any
 })
 
 afterEach(() => {
@@ -345,13 +375,22 @@ afterEach(() => {
 describe('Generation card — model selection', () => {
   it('expands Modellauswahl, lists models with provider badges + selected count', async () => {
     setModels([recommendedModel])
-    setStore({ currentProject: { ...baseProject, generation_config: { selected_configuration: { models: ['claude-x'] } } } })
+    setStore({
+      currentProject: {
+        ...baseProject,
+        generation_config: { selected_configuration: { models: ['claude-x'] } },
+      },
+    })
     render(<ProjectDetailPage params={params()} />)
-    await screen.findByTestId('config-card-project.generationConfiguration.title')
+    await screen.findByTestId(
+      'config-card-project.generationConfiguration.title',
+    )
 
     // Collapsed badge shows the selected/total count interpolation.
     expect(
-      screen.getByText('project.modelSelection.selectedCount:{"selected":1,"total":1}'),
+      screen.getByText(
+        'project.modelSelection.selectedCount:{"selected":1,"total":1}',
+      ),
     ).toBeInTheDocument()
 
     // Expand the model list.
@@ -366,7 +405,9 @@ describe('Generation card — model selection', () => {
     setModels([recommendedModel])
     const store = setStore()
     render(<ProjectDetailPage params={params()} />)
-    await screen.findByTestId('config-card-project.generationConfiguration.title')
+    await screen.findByTestId(
+      'config-card-project.generationConfiguration.title',
+    )
 
     fireEvent.click(screen.getByText('project.modelSelection.title'))
     const checkbox = screen.getByLabelText('Claude X')
@@ -400,13 +441,19 @@ describe('Generation card — model selection', () => {
           selected_configuration: expect.objectContaining({
             models: ['claude-x'],
             model_configs: expect.objectContaining({
-              'claude-x': expect.objectContaining({ temperature: 0.3, max_tokens: 4096 }),
+              'claude-x': expect.objectContaining({
+                temperature: 0.3,
+                max_tokens: 4096,
+              }),
             }),
           }),
         }),
       }),
     )
-    expect(mockAddToast).toHaveBeenCalledWith('toasts.project.modelsSaved', 'success')
+    expect(mockAddToast).toHaveBeenCalledWith(
+      'toasts.project.modelsSaved',
+      'success',
+    )
     // Successful flush clears the dirty flag.
     expect(
       screen.queryByTestId('card-dirty-project.generationConfiguration.title'),
@@ -417,12 +464,16 @@ describe('Generation card — model selection', () => {
     setModels([recommendedModel])
     const store = setStore()
     render(<ProjectDetailPage params={params()} />)
-    await screen.findByTestId('config-card-project.generationConfiguration.title')
+    await screen.findByTestId(
+      'config-card-project.generationConfiguration.title',
+    )
 
     jest.useFakeTimers()
     // Switch the GENERATION defaults mode to "minimum" (scope the radio to
     // the gen-defaults subsection; the eval card has a same-valued radio).
-    const genDefaults = screen.getByTestId('subsection-project.generationDefaults.title')
+    const genDefaults = screen.getByTestId(
+      'subsection-project.generationDefaults.title',
+    )
     const minRadio = within(genDefaults).getByDisplayValue('minimum')
     await act(async () => {
       fireEvent.click(minRadio)
@@ -454,10 +505,15 @@ describe('Generation card — model selection', () => {
   it('deselecting a model removes it and the auto-save persists the empty list', async () => {
     setModels([recommendedModel])
     const store = setStore({
-      currentProject: { ...baseProject, generation_config: { selected_configuration: { models: ['claude-x'] } } },
+      currentProject: {
+        ...baseProject,
+        generation_config: { selected_configuration: { models: ['claude-x'] } },
+      },
     })
     render(<ProjectDetailPage params={params()} />)
-    await screen.findByTestId('config-card-project.generationConfiguration.title')
+    await screen.findByTestId(
+      'config-card-project.generationConfiguration.title',
+    )
     fireEvent.click(screen.getByText('project.modelSelection.title'))
 
     const checkbox = screen.getByLabelText('Claude X')
@@ -490,9 +546,13 @@ describe('Generation card — model selection', () => {
     })
     setStore()
     render(<ProjectDetailPage params={params()} />)
-    await screen.findByTestId('config-card-project.generationConfiguration.title')
+    await screen.findByTestId(
+      'config-card-project.generationConfiguration.title',
+    )
     fireEvent.click(screen.getByText('project.modelSelection.title'))
-    expect(screen.getByText('project.modelSelection.loadingModels')).toBeInTheDocument()
+    expect(
+      screen.getByText('project.modelSelection.loadingModels'),
+    ).toBeInTheDocument()
   })
 
   it('shows the NO_API_KEYS error with a configure-keys CTA that routes to /profile', async () => {
@@ -506,9 +566,13 @@ describe('Generation card — model selection', () => {
     })
     setStore()
     render(<ProjectDetailPage params={params()} />)
-    await screen.findByTestId('config-card-project.generationConfiguration.title')
+    await screen.findByTestId(
+      'config-card-project.generationConfiguration.title',
+    )
     fireEvent.click(screen.getByText('project.modelSelection.title'))
-    expect(screen.getByText('project.modelSelection.noApiKeys')).toBeInTheDocument()
+    expect(
+      screen.getByText('project.modelSelection.noApiKeys'),
+    ).toBeInTheDocument()
     fireEvent.click(screen.getByText('project.modelSelection.configureApiKeys'))
     expect(mockPush).toHaveBeenCalledWith('/profile')
   })
@@ -520,10 +584,14 @@ describe('Generation card — defaults and start CTA', () => {
     setModels([recommendedModel])
     const store = setStore()
     render(<ProjectDetailPage params={params()} />)
-    await screen.findByTestId('config-card-project.generationConfiguration.title')
+    await screen.findByTestId(
+      'config-card-project.generationConfiguration.title',
+    )
 
     // Default mode is "recommended" → temperature input disabled.
-    const genDefaults = screen.getByTestId('subsection-project.generationDefaults.title')
+    const genDefaults = screen.getByTestId(
+      'subsection-project.generationDefaults.title',
+    )
     const tempInput = within(genDefaults).getByDisplayValue('0')
     expect(tempInput).toBeDisabled()
 
@@ -554,16 +622,23 @@ describe('Generation card — defaults and start CTA', () => {
         }),
       }),
     )
-    expect(mockAddToast).toHaveBeenCalledWith('toasts.project.generationDefaultsSaved', 'success')
+    expect(mockAddToast).toHaveBeenCalledWith(
+      'toasts.project.generationDefaultsSaved',
+      'success',
+    )
   })
 
   it('editing runs-per-task marks the card dirty and persists runs_per_task', async () => {
     const store = setStore()
     render(<ProjectDetailPage params={params()} />)
-    await screen.findByTestId('config-card-project.generationConfiguration.title')
+    await screen.findByTestId(
+      'config-card-project.generationConfiguration.title',
+    )
 
     jest.useFakeTimers()
-    const runsSub = screen.getByTestId('subsection-project.generationDefaults.runsTitle')
+    const runsSub = screen.getByTestId(
+      'subsection-project.generationDefaults.runsTitle',
+    )
     const runsInput = within(runsSub).getByDisplayValue('1')
     await act(async () => {
       fireEvent.change(runsInput, { target: { value: '5' } })
@@ -583,12 +658,19 @@ describe('Generation card — defaults and start CTA', () => {
 
   it('the "Generierung starten" footer CTA opens the generation control modal', async () => {
     setStore({
-      currentProject: { ...baseProject, generation_config: { selected_configuration: { models: ['claude-x'] } } },
+      currentProject: {
+        ...baseProject,
+        generation_config: { selected_configuration: { models: ['claude-x'] } },
+      },
     })
     render(<ProjectDetailPage params={params()} />)
-    await screen.findByTestId('config-card-project.generationConfiguration.title')
+    await screen.findByTestId(
+      'config-card-project.generationConfiguration.title',
+    )
 
-    expect(screen.queryByTestId('generation-control-modal')).not.toBeInTheDocument()
+    expect(
+      screen.queryByTestId('generation-control-modal'),
+    ).not.toBeInTheDocument()
     fireEvent.click(screen.getByText('project.generation.runCta'))
     const modal = await screen.findByTestId('generation-control-modal')
     // Modal receives the project's configured models.
@@ -644,7 +726,12 @@ describe('Evaluation card', () => {
       if (url.includes('/evaluation-config')) {
         return Promise.resolve({
           evaluation_configs: [
-            { id: 'e1', metric: 'korrektur_falloesung', enabled: true, metric_parameters: {} },
+            {
+              id: 'e1',
+              metric: 'korrektur_falloesung',
+              enabled: true,
+              metric_parameters: {},
+            },
           ],
         })
       }
@@ -657,7 +744,9 @@ describe('Evaluation card', () => {
 
     // Flip immediate-eval on — no edit mode, the checkbox is live.
     jest.useFakeTimers()
-    const evalSettings = screen.getByTestId('subsection-project.evaluationSettings.title')
+    const evalSettings = screen.getByTestId(
+      'subsection-project.evaluationSettings.title',
+    )
     const checkboxes = within(evalSettings).getAllByRole('checkbox')
     await act(async () => {
       fireEvent.click(checkboxes[0]) // immediate_evaluation_enabled
@@ -677,7 +766,9 @@ describe('Evaluation card', () => {
     expect(store.updateProject).toHaveBeenCalledWith(
       'proj-1',
       expect.objectContaining({
-        evaluation_config: expect.objectContaining({ defaults_mode: 'recommended' }),
+        evaluation_config: expect.objectContaining({
+          defaults_mode: 'recommended',
+        }),
       }),
     )
     // blind params written back to the korrektur config via PUT
@@ -700,7 +791,9 @@ describe('Evaluation card', () => {
   it('hides blind toggles when no korrektur_falloesung config is present', async () => {
     ;(apiClient.get as jest.Mock).mockImplementation((url: string) => {
       if (url.includes('/evaluation-config')) {
-        return Promise.resolve({ evaluation_configs: [{ id: 'e2', metric: 'bleu', enabled: true }] })
+        return Promise.resolve({
+          evaluation_configs: [{ id: 'e2', metric: 'bleu', enabled: true }],
+        })
       }
       return Promise.resolve({ task: { id: 't' }, remaining: 5 })
     })
@@ -720,8 +813,20 @@ describe('Evaluation card', () => {
       if (url.includes('/evaluation-config')) {
         return Promise.resolve({
           evaluation_configs: [
-            { id: 'a', metric: 'bleu', enabled: true, prediction_fields: [], reference_fields: [] },
-            { id: 'b', metric: 'rouge', enabled: false, prediction_fields: [], reference_fields: [] },
+            {
+              id: 'a',
+              metric: 'bleu',
+              enabled: true,
+              prediction_fields: [],
+              reference_fields: [],
+            },
+            {
+              id: 'b',
+              metric: 'rouge',
+              enabled: false,
+              prediction_fields: [],
+              reference_fields: [],
+            },
           ],
         })
       }
@@ -753,12 +858,17 @@ describe('Evaluation card', () => {
     await waitFor(() => {
       expect(screen.getByTestId('evaluation-builder')).toBeInTheDocument()
     })
-    expect(screen.queryByText('project.evaluation.runCta')).not.toBeInTheDocument()
+    expect(
+      screen.queryByText('project.evaluation.runCta'),
+    ).not.toBeInTheDocument()
   })
 
   it('passes the eval defaults mode down to the EvaluationBuilder', async () => {
     setStore({
-      currentProject: { ...baseProject, evaluation_config: { defaults_mode: 'minimum' } },
+      currentProject: {
+        ...baseProject,
+        evaluation_config: { defaults_mode: 'minimum' },
+      },
     })
     render(<ProjectDetailPage params={params()} />)
     await screen.findByTestId('config-card-project.evaluation.title')
@@ -790,7 +900,10 @@ describe('Evaluation card — save orchestration (issue #289)', () => {
     render(<ProjectDetailPage params={params()} />)
     await screen.findByTestId('config-card-project.evaluation.title')
     await waitFor(() => {
-      expect(screen.getByTestId('evaluation-builder')).toHaveAttribute('data-count', '1')
+      expect(screen.getByTestId('evaluation-builder')).toHaveAttribute(
+        'data-count',
+        '1',
+      )
     })
 
     // No fire-and-forget autosave: within the debounce window the builder
@@ -800,9 +913,14 @@ describe('Evaluation card — save orchestration (issue #289)', () => {
       fireEvent.click(screen.getByTestId('eval-builder-add'))
     })
     expect(apiClient.put).not.toHaveBeenCalled()
-    expect(screen.getByTestId('evaluation-builder')).toHaveAttribute('data-count', '2')
+    expect(screen.getByTestId('evaluation-builder')).toHaveAttribute(
+      'data-count',
+      '2',
+    )
     // …and marks the card dirty so the pending flush is visible.
-    expect(screen.getByTestId('card-dirty-project.evaluation.title')).toBeInTheDocument()
+    expect(
+      screen.getByTestId('card-dirty-project.evaluation.title'),
+    ).toBeInTheDocument()
 
     // The debounce elapses → the flush persists the new list automatically.
     await flushAutosave()
@@ -828,7 +946,10 @@ describe('Evaluation card — save orchestration (issue #289)', () => {
     render(<ProjectDetailPage params={params()} />)
     await screen.findByTestId('config-card-project.evaluation.title')
     await waitFor(() => {
-      expect(screen.getByTestId('evaluation-builder')).toHaveAttribute('data-count', '1')
+      expect(screen.getByTestId('evaluation-builder')).toHaveAttribute(
+        'data-count',
+        '1',
+      )
     })
 
     jest.useFakeTimers()
@@ -845,7 +966,9 @@ describe('Evaluation card — save orchestration (issue #289)', () => {
     // in-flight save.
     expect(store.updateProject).toHaveBeenCalledTimes(1)
     expect(apiClient.put).not.toHaveBeenCalled()
-    expect(screen.getByTestId('card-saving-project.evaluation.title')).toBeInTheDocument()
+    expect(
+      screen.getByTestId('card-saving-project.evaluation.title'),
+    ).toBeInTheDocument()
     await act(async () => {
       resolvers[0]({})
     })
@@ -886,7 +1009,10 @@ describe('Evaluation card — save orchestration (issue #289)', () => {
     render(<ProjectDetailPage params={params()} />)
     await screen.findByTestId('config-card-project.evaluation.title')
     await waitFor(() => {
-      expect(screen.getByTestId('evaluation-builder')).toHaveAttribute('data-count', '1')
+      expect(screen.getByTestId('evaluation-builder')).toHaveAttribute(
+        'data-count',
+        '1',
+      )
     })
 
     jest.useFakeTimers()
@@ -900,7 +1026,9 @@ describe('Evaluation card — save orchestration (issue #289)', () => {
       'error',
     )
     // The card must not pretend the save succeeded — the dirty flag stays.
-    expect(screen.getByTestId('card-dirty-project.evaluation.title')).toBeInTheDocument()
+    expect(
+      screen.getByTestId('card-dirty-project.evaluation.title'),
+    ).toBeInTheDocument()
     expect(
       screen.queryByTestId('card-saving-project.evaluation.title'),
     ).not.toBeInTheDocument()
@@ -915,7 +1043,10 @@ describe('Evaluation card — save orchestration (issue #289)', () => {
     render(<ProjectDetailPage params={params()} />)
     await screen.findByTestId('config-card-project.evaluation.title')
     await waitFor(() => {
-      expect(screen.getByTestId('evaluation-builder')).toHaveAttribute('data-count', '1')
+      expect(screen.getByTestId('evaluation-builder')).toHaveAttribute(
+        'data-count',
+        '1',
+      )
     })
 
     jest.useFakeTimers()
@@ -929,7 +1060,9 @@ describe('Evaluation card — save orchestration (issue #289)', () => {
       'error',
     )
     expect(apiClient.put).not.toHaveBeenCalled()
-    expect(screen.getByTestId('card-dirty-project.evaluation.title')).toBeInTheDocument()
+    expect(
+      screen.getByTestId('card-dirty-project.evaluation.title'),
+    ).toBeInTheDocument()
   })
 })
 
@@ -940,7 +1073,10 @@ describe('Generation card — save orchestration (issue #289)', () => {
       currentProject: {
         ...baseProject,
         generation_config: {
-          selected_configuration: { models: [], parameters: { temperature: 0.7 } },
+          selected_configuration: {
+            models: [],
+            parameters: { temperature: 0.7 },
+          },
         },
       },
     })
@@ -949,7 +1085,9 @@ describe('Generation card — save orchestration (issue #289)', () => {
       () => new Promise((res) => resolvers.push(res)),
     )
     render(<ProjectDetailPage params={params()} />)
-    await screen.findByTestId('config-card-project.generationConfiguration.title')
+    await screen.findByTestId(
+      'config-card-project.generationConfiguration.title',
+    )
 
     fireEvent.click(screen.getByText('project.modelSelection.title'))
     jest.useFakeTimers()
@@ -993,9 +1131,13 @@ describe('Generation card — save orchestration (issue #289)', () => {
   it('a failed models PATCH keeps the card dirty and skips the defaults PATCH', async () => {
     setModels([recommendedModel])
     const store = setStore()
-    ;(store.updateProject as jest.Mock).mockRejectedValueOnce(new Error('models down'))
+    ;(store.updateProject as jest.Mock).mockRejectedValueOnce(
+      new Error('models down'),
+    )
     render(<ProjectDetailPage params={params()} />)
-    await screen.findByTestId('config-card-project.generationConfiguration.title')
+    await screen.findByTestId(
+      'config-card-project.generationConfiguration.title',
+    )
 
     fireEvent.click(screen.getByText('project.modelSelection.title'))
     jest.useFakeTimers()
@@ -1020,7 +1162,9 @@ describe('Annotation card — auto-save & instructions', () => {
   it('a label-config change marks the card dirty; the flush awaits LabelConfigEditor.save()', async () => {
     const store = setStore()
     render(<ProjectDetailPage params={params()} />)
-    await screen.findByTestId('config-card-project.annotationConfiguration.title')
+    await screen.findByTestId(
+      'config-card-project.annotationConfiguration.title',
+    )
 
     // The editor mounts as soon as the label config section is expanded —
     // no edit mode needed.
@@ -1051,7 +1195,9 @@ describe('Annotation card — auto-save & instructions', () => {
     mockLabelHasErrors = () => true
     setStore()
     render(<ProjectDetailPage params={params()} />)
-    await screen.findByTestId('config-card-project.annotationConfiguration.title')
+    await screen.findByTestId(
+      'config-card-project.annotationConfiguration.title',
+    )
 
     fireEvent.click(screen.getByText('project.labelConfiguration.title'))
     jest.useFakeTimers()
@@ -1068,9 +1214,13 @@ describe('Annotation card — auto-save & instructions', () => {
   })
 
   it('saves edited instructions through updateProject when the card flushes', async () => {
-    const store = setStore({ currentProject: { ...baseProject, instructions: 'Old text' } })
+    const store = setStore({
+      currentProject: { ...baseProject, instructions: 'Old text' },
+    })
     render(<ProjectDetailPage params={params()} />)
-    await screen.findByTestId('config-card-project.annotationConfiguration.title')
+    await screen.findByTestId(
+      'config-card-project.annotationConfiguration.title',
+    )
 
     // Expand instructions — the textarea is always editable for editors.
     fireEvent.click(screen.getByText('project.annotationInstructions.title'))
@@ -1095,7 +1245,9 @@ describe('Annotation card — auto-save & instructions', () => {
   it('saves conditional instructions and rejects weights that do not sum to 100', async () => {
     const store = setStore()
     render(<ProjectDetailPage params={params()} />)
-    await screen.findByTestId('config-card-project.annotationConfiguration.title')
+    await screen.findByTestId(
+      'config-card-project.annotationConfiguration.title',
+    )
 
     fireEvent.click(screen.getByText('project.annotationInstructions.title'))
 
@@ -1103,11 +1255,15 @@ describe('Annotation card — auto-save & instructions', () => {
     // These controls pass a { defaultValue } 2nd arg to t(), so match by the
     // key prefix (the i18n mock appends the serialized vars).
     fireEvent.click(screen.getByText(/^project\.conditionalInstructions\.add:/))
-    fireEvent.click(screen.getByText(/^project\.conditionalInstructions\.addVariant/))
+    fireEvent.click(
+      screen.getByText(/^project\.conditionalInstructions\.addVariant/),
+    )
 
     // One variant @ weight 50 ≠ 100 → save shows the weight error, no PATCH.
     await act(async () => {
-      fireEvent.click(screen.getByText(/^project\.conditionalInstructions\.save/))
+      fireEvent.click(
+        screen.getByText(/^project\.conditionalInstructions\.save/),
+      )
     })
     await waitFor(() => {
       expect(mockAddToast).toHaveBeenCalledWith(
@@ -1132,7 +1288,9 @@ describe('Read-only gating for non-editors', () => {
     })
     setStore()
     render(<ProjectDetailPage params={params()} />)
-    await screen.findByTestId('config-card-project.annotationConfiguration.title')
+    await screen.findByTestId(
+      'config-card-project.annotationConfiguration.title',
+    )
 
     // The annotation card shows the creatorOnly read-only message instead of
     // the editable instructions UI.
@@ -1140,6 +1298,8 @@ describe('Read-only gating for non-editors', () => {
     expect(notices.length).toBeGreaterThan(0)
     // The model-selection edit UI is replaced by a read-only notice too, so
     // no model checkboxes exist for a non-editor.
-    expect(screen.queryByText('project.modelSelection.title')).not.toBeInTheDocument()
+    expect(
+      screen.queryByText('project.modelSelection.title'),
+    ).not.toBeInTheDocument()
   })
 })

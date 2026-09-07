@@ -37,11 +37,28 @@ const sampleEstimate = {
   sample_size: 10,
   tasks_total: 100,
   per_model: [
-    { model_id: 'gpt-4o', per_call_usd: 0.012, per_run_usd: 1.2, total_usd: 3.6, pricing_known: true },
-    { model_id: 'mystery-model', per_call_usd: 0, per_run_usd: 0, total_usd: 0, pricing_known: false },
+    {
+      model_id: 'gpt-4o',
+      per_call_usd: 0.012,
+      per_run_usd: 1.2,
+      total_usd: 3.6,
+      pricing_known: true,
+    },
+    {
+      model_id: 'mystery-model',
+      per_call_usd: 0,
+      per_run_usd: 0,
+      total_usd: 0,
+      pricing_known: false,
+    },
   ],
   total_usd: 3.6,
-  token_estimate: { input_mean: 800, input_p95: 1200, output_estimate: 600, encoding: 'o200k_base' },
+  token_estimate: {
+    input_mean: 800,
+    input_p95: 1200,
+    output_estimate: 600,
+    encoding: 'o200k_base',
+  },
   note: 'Estimate accuracy ± ~20%.',
 }
 
@@ -103,7 +120,9 @@ describe('CostEstimatePanel', () => {
         enabled={true}
       />,
     )
-    await waitFor(() => expect(screen.getAllByText('$3.60').length).toBeGreaterThan(0))
+    await waitFor(() =>
+      expect(screen.getAllByText('$3.60').length).toBeGreaterThan(0),
+    )
     expect(screen.getByText('gpt-4o')).toBeInTheDocument()
     expect(screen.getByText('mystery-model')).toBeInTheDocument()
     // Per-call cell on the priced row.
@@ -132,7 +151,9 @@ describe('CostEstimatePanel', () => {
     )
     await waitFor(() => expect(screen.getByText('$3.60')).toBeInTheDocument())
     // Token-estimate breakdown line is rendered once the estimate arrives.
-    expect(screen.getByText(/Input: 800 \(mean\) \/ 1200 \(p95\)/)).toBeInTheDocument()
+    expect(
+      screen.getByText(/Input: 800 \(mean\) \/ 1200 \(p95\)/),
+    ).toBeInTheDocument()
     expect(screen.getByText(/Estimate accuracy ± ~20%/)).toBeInTheDocument()
     // No per-model table in single-priced-model case.
     expect(screen.queryByText(/Pro Aufruf/)).not.toBeInTheDocument()

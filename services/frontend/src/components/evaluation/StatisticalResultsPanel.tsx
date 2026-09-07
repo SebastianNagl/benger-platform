@@ -24,7 +24,7 @@ interface MetricStatistics {
   mean: number
   median?: number
   std: number
-  se?: number  // Standard Error = std / sqrt(n)
+  se?: number // Standard Error = std / sqrt(n)
   min?: number
   max?: number
   ci_lower: number
@@ -183,7 +183,9 @@ export function StatisticalResultsPanel({
       <Card className={`p-6 ${className}`}>
         <div className="flex items-center justify-center py-8">
           <LoadingSpinner />
-          <span className="ml-2 text-gray-500">{t('evaluation.statisticalResults.computingStatistics')}</span>
+          <span className="ml-2 text-gray-500">
+            {t('evaluation.statisticalResults.computingStatistics')}
+          </span>
         </div>
       </Card>
     )
@@ -212,8 +214,10 @@ export function StatisticalResultsPanel({
   }
 
   const metricNames = Object.keys(data.metrics)
-  const hasModelBreakdown = data.by_model && Object.keys(data.by_model).length > 0
-  const hasFieldBreakdown = data.by_field && Object.keys(data.by_field).length > 0
+  const hasModelBreakdown =
+    data.by_model && Object.keys(data.by_model).length > 0
+  const hasFieldBreakdown =
+    data.by_field && Object.keys(data.by_field).length > 0
 
   return (
     <div className={`space-y-6 ${className}`}>
@@ -254,18 +258,18 @@ export function StatisticalResultsPanel({
             <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
               <thead>
                 <tr>
-                  <th className="px-4 py-2 text-left text-xs font-medium uppercase text-gray-500">
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
                     {t('evaluation.statisticalResults.model')}
                   </th>
                   {metricNames.map((metric) => (
                     <th
                       key={metric}
-                      className="px-4 py-2 text-right text-xs font-medium uppercase text-gray-500"
+                      className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase"
                     >
                       {metric}
                     </th>
                   ))}
-                  <th className="px-4 py-2 text-right text-xs font-medium uppercase text-gray-500">
+                  <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
                     {t('evaluation.statisticalResults.n')}
                   </th>
                 </tr>
@@ -287,7 +291,13 @@ export function StatisticalResultsPanel({
                           className="px-4 py-3 text-right font-mono text-sm text-gray-700 dark:text-gray-300"
                         >
                           {stats ? (
-                            <div title={showStat('ci') ? `CI: [${formatValue(stats.ci_lower)}, ${formatValue(stats.ci_upper)}]` : undefined}>
+                            <div
+                              title={
+                                showStat('ci')
+                                  ? `CI: [${formatValue(stats.ci_lower)}, ${formatValue(stats.ci_upper)}]`
+                                  : undefined
+                              }
+                            >
                               <span>{formatValue(stats.mean)}</span>
                               {showStat('se') && stats.se !== undefined && (
                                 <span className="ml-1 text-xs text-gray-400">
@@ -322,61 +332,69 @@ export function StatisticalResultsPanel({
             <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
               <thead>
                 <tr>
-                  <th className="px-4 py-2 text-left text-xs font-medium uppercase text-gray-500">
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
                     {t('evaluation.statisticalResults.field')}
                   </th>
                   {metricNames.map((metric) => (
                     <th
                       key={metric}
-                      className="px-4 py-2 text-right text-xs font-medium uppercase text-gray-500"
+                      className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase"
                     >
                       {metric}
                     </th>
                   ))}
-                  <th className="px-4 py-2 text-right text-xs font-medium uppercase text-gray-500">
+                  <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
                     {t('evaluation.statisticalResults.n')}
                   </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                {Object.entries(data.by_field!).map(([fieldName, fieldStats]) => (
-                  <tr
-                    key={fieldName}
-                    className="hover:bg-gray-50 dark:hover:bg-gray-800"
-                  >
-                    <td
-                      className="max-w-xs truncate px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100"
-                      title={fieldName}
+                {Object.entries(data.by_field!).map(
+                  ([fieldName, fieldStats]) => (
+                    <tr
+                      key={fieldName}
+                      className="hover:bg-gray-50 dark:hover:bg-gray-800"
                     >
-                      {fieldName}
-                    </td>
-                    {metricNames.map((metric) => {
-                      const stats = fieldStats.metrics[metric]
-                      return (
-                        <td
-                          key={metric}
-                          className="px-4 py-3 text-right font-mono text-sm text-gray-700 dark:text-gray-300"
-                        >
-                          {stats ? (
-                            <div title={showStat('ci') ? `CI: [${formatValue(stats.ci_lower)}, ${formatValue(stats.ci_upper)}]` : undefined}>
-                              <span>{formatValue(stats.mean)}</span>
-                              {showStat('se') && stats.se !== undefined && (
-                                <span className="ml-1 text-xs text-gray-400">
-                                  ±{stats.se.toFixed(3)}
-                                </span>
-                              )}
-                            </div>
-                          ) : (
-                            '—'
-                          )}
-                        </td>
-                      )
-                    })}
-                    <td className="px-4 py-3 text-right text-sm text-gray-600 dark:text-gray-400">
-                      {fieldStats.sample_count}
-                    </td>
-                  </tr>
-                ))}
+                      <td
+                        className="max-w-xs truncate px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100"
+                        title={fieldName}
+                      >
+                        {fieldName}
+                      </td>
+                      {metricNames.map((metric) => {
+                        const stats = fieldStats.metrics[metric]
+                        return (
+                          <td
+                            key={metric}
+                            className="px-4 py-3 text-right font-mono text-sm text-gray-700 dark:text-gray-300"
+                          >
+                            {stats ? (
+                              <div
+                                title={
+                                  showStat('ci')
+                                    ? `CI: [${formatValue(stats.ci_lower)}, ${formatValue(stats.ci_upper)}]`
+                                    : undefined
+                                }
+                              >
+                                <span>{formatValue(stats.mean)}</span>
+                                {showStat('se') && stats.se !== undefined && (
+                                  <span className="ml-1 text-xs text-gray-400">
+                                    ±{stats.se.toFixed(3)}
+                                  </span>
+                                )}
+                              </div>
+                            ) : (
+                              '—'
+                            )}
+                          </td>
+                        )
+                      })}
+                      <td className="px-4 py-3 text-right text-sm text-gray-600 dark:text-gray-400">
+                        {fieldStats.sample_count}
+                      </td>
+                    </tr>
+                  ),
+                )}
               </tbody>
             </table>
           </div>
@@ -394,26 +412,26 @@ export function StatisticalResultsPanel({
           <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
             <thead>
               <tr>
-                <th className="px-4 py-2 text-left text-xs font-medium uppercase text-gray-500">
+                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
                   {t('evaluation.statisticalResults.metric')}
                 </th>
-                <th className="px-4 py-2 text-right text-xs font-medium uppercase text-gray-500">
+                <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
                   {t('evaluation.statisticalResults.mean')}
                 </th>
                 {showStat('ci') && (
-                  <th className="px-4 py-2 text-right text-xs font-medium uppercase text-gray-500">
+                  <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
                     {t('evaluation.statisticalResults.ci95')}
                   </th>
                 )}
-                <th className="px-4 py-2 text-right text-xs font-medium uppercase text-gray-500">
+                <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
                   {t('evaluation.statisticalResults.std')}
                 </th>
                 {showStat('se') && (
-                  <th className="px-4 py-2 text-right text-xs font-medium uppercase text-gray-500">
+                  <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
                     {t('evaluation.statisticalResults.se')}
                   </th>
                 )}
-                <th className="px-4 py-2 text-right text-xs font-medium uppercase text-gray-500">
+                <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
                   {t('evaluation.statisticalResults.n')}
                 </th>
               </tr>
@@ -458,208 +476,225 @@ export function StatisticalResultsPanel({
       </Card>
 
       {/* Pairwise Comparisons - only show if significance tests or effect sizes are selected */}
-      {showSignificanceTests && data.pairwise_comparisons && data.pairwise_comparisons.length > 0 && (
-        <Card className="p-6">
-          <div className="mb-4 flex items-start justify-between">
-            <h3 className="text-lg font-medium dark:text-white">
-              {t('evaluation.statisticalResults.pairwiseComparisons')}
-            </h3>
+      {showSignificanceTests &&
+        data.pairwise_comparisons &&
+        data.pairwise_comparisons.length > 0 && (
+          <Card className="p-6">
+            <div className="mb-4 flex items-start justify-between">
+              <h3 className="text-lg font-medium dark:text-white">
+                {t('evaluation.statisticalResults.pairwiseComparisons')}
+              </h3>
 
-            {/* Bonferroni Correction Indicator */}
-            {showBonferroniInfo && data.bonferroni_correction && (
-              <div
-                className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs ${
-                  data.bonferroni_correction.applied
-                    ? 'border border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-300'
-                    : 'border border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-300'
-                }`}
-              >
-                <InformationCircleIcon className="h-4 w-4" />
-                <div>
-                  {data.bonferroni_correction.applied ? (
-                    <>
-                      <span className="font-medium">{t('evaluation.statisticalResults.bonferroniCorrected')}</span>
-                      <span className="ml-1 text-gray-500 dark:text-gray-400">
-                        ({data.bonferroni_correction.num_comparisons}{' '}
-                        comparisons, α ={' '}
-                        {data.bonferroni_correction.corrected_alpha.toFixed(4)})
-                      </span>
-                    </>
-                  ) : (
-                    <>
-                      <span className="font-medium">{t('evaluation.statisticalResults.multipleComparisons')}</span>
-                      <span className="ml-1 text-gray-500 dark:text-gray-400">
-                        ({data.bonferroni_correction.num_comparisons} tests,
-                        uncorrected α ={' '}
-                        {data.bonferroni_correction.original_alpha})
-                      </span>
-                    </>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Auto-detect multiple comparisons warning if no bonferroni_correction data */}
-            {showBonferroniInfo &&
-              !data.bonferroni_correction &&
-              data.pairwise_comparisons.length > 1 && (
-                <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs text-amber-700 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-300">
+              {/* Bonferroni Correction Indicator */}
+              {showBonferroniInfo && data.bonferroni_correction && (
+                <div
+                  className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs ${
+                    data.bonferroni_correction.applied
+                      ? 'border border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-300'
+                      : 'border border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-300'
+                  }`}
+                >
                   <InformationCircleIcon className="h-4 w-4" />
-                  <span>
-                    {t('evaluation.statisticalResults.considerBonferroni', { count: data.pairwise_comparisons.length })}
-                  </span>
+                  <div>
+                    {data.bonferroni_correction.applied ? (
+                      <>
+                        <span className="font-medium">
+                          {t(
+                            'evaluation.statisticalResults.bonferroniCorrected',
+                          )}
+                        </span>
+                        <span className="ml-1 text-gray-500 dark:text-gray-400">
+                          ({data.bonferroni_correction.num_comparisons}{' '}
+                          comparisons, α ={' '}
+                          {data.bonferroni_correction.corrected_alpha.toFixed(
+                            4,
+                          )}
+                          )
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="font-medium">
+                          {t(
+                            'evaluation.statisticalResults.multipleComparisons',
+                          )}
+                        </span>
+                        <span className="ml-1 text-gray-500 dark:text-gray-400">
+                          ({data.bonferroni_correction.num_comparisons} tests,
+                          uncorrected α ={' '}
+                          {data.bonferroni_correction.original_alpha})
+                        </span>
+                      </>
+                    )}
+                  </div>
                 </div>
               )}
-          </div>
 
-          <div className="mb-3 text-xs text-gray-500">
-            * p&lt;0.05, ** p&lt;0.01, *** p&lt;0.001
-          </div>
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-              <thead>
-                <tr>
-                  <th className="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500">
-                    {t('evaluation.statisticalResults.modelA')}
-                  </th>
-                  <th className="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500">
-                    {t('evaluation.statisticalResults.modelB')}
-                  </th>
-                  <th className="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500">
-                    {t('evaluation.statisticalResults.metric')}
-                  </th>
-                  <th className="px-3 py-2 text-center text-xs font-medium uppercase text-gray-500">
-                    {t('evaluation.statisticalResults.pValue')}
-                  </th>
-                  {showEffectSizes && (
-                    <th className="px-3 py-2 text-center text-xs font-medium uppercase text-gray-500">
-                      {t('evaluation.statisticalResults.effectSize')}
+              {/* Auto-detect multiple comparisons warning if no bonferroni_correction data */}
+              {showBonferroniInfo &&
+                !data.bonferroni_correction &&
+                data.pairwise_comparisons.length > 1 && (
+                  <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs text-amber-700 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-300">
+                    <InformationCircleIcon className="h-4 w-4" />
+                    <span>
+                      {t('evaluation.statisticalResults.considerBonferroni', {
+                        count: data.pairwise_comparisons.length,
+                      })}
+                    </span>
+                  </div>
+                )}
+            </div>
+
+            <div className="mb-3 text-xs text-gray-500">
+              * p&lt;0.05, ** p&lt;0.01, *** p&lt;0.001
+            </div>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead>
+                  <tr>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                      {t('evaluation.statisticalResults.modelA')}
                     </th>
-                  )}
-                  <th className="px-3 py-2 text-center text-xs font-medium uppercase text-gray-500">
-                    {t('evaluation.statisticalResults.significant')}
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                {data.pairwise_comparisons.map((comp, idx) => (
-                  <tr
-                    key={idx}
-                    className="hover:bg-gray-50 dark:hover:bg-gray-800"
-                  >
-                    <td className="px-3 py-2 text-sm text-gray-900 dark:text-gray-100">
-                      {comp.model_a}
-                    </td>
-                    <td className="px-3 py-2 text-sm text-gray-900 dark:text-gray-100">
-                      {comp.model_b}
-                    </td>
-                    <td className="px-3 py-2 text-sm text-gray-700 dark:text-gray-300">
-                      {comp.metric}
-                    </td>
-                    <td className="px-3 py-2 text-center font-mono text-sm">
-                      {comp.ttest_p !== undefined && (
-                        <span className="text-gray-700 dark:text-gray-300">
-                          {formatPValue(comp.ttest_p)}
-                          <sup className="ml-0.5 font-bold text-emerald-600">
-                            {getSignificanceStars(comp.ttest_p)}
-                          </sup>
-                        </span>
-                      )}
-                    </td>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                      {t('evaluation.statisticalResults.modelB')}
+                    </th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                      {t('evaluation.statisticalResults.metric')}
+                    </th>
+                    <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase">
+                      {t('evaluation.statisticalResults.pValue')}
+                    </th>
                     {showEffectSizes && (
-                      <td className="px-3 py-2 text-center">
-                        {comp.cohens_d !== undefined && (
-                          <Badge
-                            className={`text-xs ${getEffectSizeColor(comp.cohens_d_interpretation)}`}
-                          >
-                            d={comp.cohens_d.toFixed(2)} (
-                            {comp.cohens_d_interpretation})
-                          </Badge>
+                      <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase">
+                        {t('evaluation.statisticalResults.effectSize')}
+                      </th>
+                    )}
+                    <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase">
+                      {t('evaluation.statisticalResults.significant')}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                  {data.pairwise_comparisons.map((comp, idx) => (
+                    <tr
+                      key={idx}
+                      className="hover:bg-gray-50 dark:hover:bg-gray-800"
+                    >
+                      <td className="px-3 py-2 text-sm text-gray-900 dark:text-gray-100">
+                        {comp.model_a}
+                      </td>
+                      <td className="px-3 py-2 text-sm text-gray-900 dark:text-gray-100">
+                        {comp.model_b}
+                      </td>
+                      <td className="px-3 py-2 text-sm text-gray-700 dark:text-gray-300">
+                        {comp.metric}
+                      </td>
+                      <td className="px-3 py-2 text-center font-mono text-sm">
+                        {comp.ttest_p !== undefined && (
+                          <span className="text-gray-700 dark:text-gray-300">
+                            {formatPValue(comp.ttest_p)}
+                            <sup className="ml-0.5 font-bold text-emerald-600">
+                              {getSignificanceStars(comp.ttest_p)}
+                            </sup>
+                          </span>
                         )}
                       </td>
-                    )}
-                    <td className="px-3 py-2 text-center">
-                      {comp.significant ? (
-                        <CheckCircleIcon className="mx-auto h-5 w-5 text-green-500" />
-                      ) : (
-                        <XCircleIcon className="mx-auto h-5 w-5 text-gray-400" />
+                      {showEffectSizes && (
+                        <td className="px-3 py-2 text-center">
+                          {comp.cohens_d !== undefined && (
+                            <Badge
+                              className={`text-xs ${getEffectSizeColor(comp.cohens_d_interpretation)}`}
+                            >
+                              d={comp.cohens_d.toFixed(2)} (
+                              {comp.cohens_d_interpretation})
+                            </Badge>
+                          )}
+                        </td>
                       )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Card>
-      )}
+                      <td className="px-3 py-2 text-center">
+                        {comp.significant ? (
+                          <CheckCircleIcon className="mx-auto h-5 w-5 text-green-500" />
+                        ) : (
+                          <XCircleIcon className="mx-auto h-5 w-5 text-gray-400" />
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        )}
 
       {/* Correlation Matrix - only show if correlation is selected */}
-      {showStat('correlation') && data.correlations && Object.keys(data.correlations).length > 0 && (
-        <Card className="p-6">
-          <h3 className="mb-4 text-lg font-medium dark:text-white">
-            {t('evaluation.statisticalResults.correlationMatrix')}
-          </h3>
-          <div className="overflow-x-auto">
-            <table className="min-w-full">
-              <thead>
-                <tr>
-                  <th className="px-2 py-2 text-xs font-medium text-gray-500"></th>
-                  {metricNames.map((metric) => (
-                    <th
-                      key={metric}
-                      className="px-2 py-2 text-center text-xs font-medium text-gray-500"
-                      style={{
-                        writingMode: 'vertical-rl',
-                        transform: 'rotate(180deg)',
-                      }}
-                    >
-                      {metric}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {metricNames.map((metricA) => (
-                  <tr key={metricA}>
-                    <td className="px-2 py-2 text-xs font-medium text-gray-700 dark:text-gray-300">
-                      {metricA}
-                    </td>
-                    {metricNames.map((metricB) => {
-                      const value =
-                        data.correlations?.[metricA]?.[metricB] ?? null
-                      return (
-                        <td
-                          key={metricB}
-                          className={`px-2 py-2 text-center font-mono text-xs ${getCorrelationColor(value)}`}
-                          title={
-                            value !== null ? `r = ${value.toFixed(3)}` : 'N/A'
-                          }
-                        >
-                          {value !== null ? value.toFixed(2) : '-'}
-                        </td>
-                      )
-                    })}
+      {showStat('correlation') &&
+        data.correlations &&
+        Object.keys(data.correlations).length > 0 && (
+          <Card className="p-6">
+            <h3 className="mb-4 text-lg font-medium dark:text-white">
+              {t('evaluation.statisticalResults.correlationMatrix')}
+            </h3>
+            <div className="overflow-x-auto">
+              <table className="min-w-full">
+                <thead>
+                  <tr>
+                    <th className="px-2 py-2 text-xs font-medium text-gray-500"></th>
+                    {metricNames.map((metric) => (
+                      <th
+                        key={metric}
+                        className="px-2 py-2 text-center text-xs font-medium text-gray-500"
+                        style={{
+                          writingMode: 'vertical-rl',
+                          transform: 'rotate(180deg)',
+                        }}
+                      >
+                        {metric}
+                      </th>
+                    ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <div className="mt-3 flex items-center gap-4 text-xs text-gray-500">
-            <div className="flex items-center gap-1">
-              <div className="h-3 w-3 rounded bg-green-500" />
-              <span>{t('evaluation.statisticalResults.strongPositive')}</span>
+                </thead>
+                <tbody>
+                  {metricNames.map((metricA) => (
+                    <tr key={metricA}>
+                      <td className="px-2 py-2 text-xs font-medium text-gray-700 dark:text-gray-300">
+                        {metricA}
+                      </td>
+                      {metricNames.map((metricB) => {
+                        const value =
+                          data.correlations?.[metricA]?.[metricB] ?? null
+                        return (
+                          <td
+                            key={metricB}
+                            className={`px-2 py-2 text-center font-mono text-xs ${getCorrelationColor(value)}`}
+                            title={
+                              value !== null ? `r = ${value.toFixed(3)}` : 'N/A'
+                            }
+                          >
+                            {value !== null ? value.toFixed(2) : '-'}
+                          </td>
+                        )
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-            <div className="flex items-center gap-1">
-              <div className="h-3 w-3 rounded bg-red-500" />
-              <span>{t('evaluation.statisticalResults.strongNegative')}</span>
+            <div className="mt-3 flex items-center gap-4 text-xs text-gray-500">
+              <div className="flex items-center gap-1">
+                <div className="h-3 w-3 rounded bg-green-500" />
+                <span>{t('evaluation.statisticalResults.strongPositive')}</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <div className="h-3 w-3 rounded bg-red-500" />
+                <span>{t('evaluation.statisticalResults.strongNegative')}</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <div className="h-3 w-3 rounded bg-gray-200 dark:bg-gray-700" />
+                <span>{t('evaluation.statisticalResults.weakNone')}</span>
+              </div>
             </div>
-            <div className="flex items-center gap-1">
-              <div className="h-3 w-3 rounded bg-gray-200 dark:bg-gray-700" />
-              <span>{t('evaluation.statisticalResults.weakNone')}</span>
-            </div>
-          </div>
-        </Card>
-      )}
+          </Card>
+        )}
     </div>
   )
 }

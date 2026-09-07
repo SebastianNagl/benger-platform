@@ -29,7 +29,9 @@ test.describe('Leaderboards', () => {
     // Human annotators tab (DE: "Menschliche Annotatoren")
     const humanTab = page
       .locator('button')
-      .filter({ hasText: /Menschliche Annotatoren|Human Annotators|Annotator/i })
+      .filter({
+        hasText: /Menschliche Annotatoren|Human Annotators|Annotator/i,
+      })
       .first()
     await expect(humanTab).toBeVisible({ timeout: 10000 })
   })

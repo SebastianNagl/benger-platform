@@ -49,8 +49,7 @@ jest.mock('@/contexts/I18nContext', () => ({
         'notifications.analyticsTitle': 'Notification Analytics',
         'notifications.showSummary': 'Show Summary',
         'notifications.hideSummary': 'Hide Summary',
-        'notifications.searchGroupsHint':
-          'Search (switch to list to apply)',
+        'notifications.searchGroupsHint': 'Search (switch to list to apply)',
         'notifications.searchPlaceholder': 'Search notifications...',
         'notifications.activeSearch': 'Active search',
         'notifications.refresh': 'Refresh',
@@ -91,8 +90,7 @@ jest.mock('@/contexts/I18nContext', () => ({
         'notifications.errorTitle': 'Error Loading Notifications',
         'notifications.tryAgain': 'Try Again',
         'notifications.activeSearchFilter': 'Active search filter',
-        'notifications.searchSavedHint':
-          'Search term "{searchTerm}" is saved',
+        'notifications.searchSavedHint': 'Search term "{searchTerm}" is saved',
         'notifications.switchToList': 'Switch to List',
         'notifications.authRequired': 'Authentication Required',
         'notifications.authRequiredMessage':
@@ -106,12 +104,11 @@ jest.mock('@/contexts/I18nContext', () => ({
       // Handle variable interpolation for searchSavedHint
       let result = translations[key]
       if (!result) {
-        return typeof defaultValueOrVars === 'string'
-          ? defaultValueOrVars
-          : key
+        return typeof defaultValueOrVars === 'string' ? defaultValueOrVars : key
       }
       const variables =
-        vars || (typeof defaultValueOrVars === 'object' ? defaultValueOrVars : null)
+        vars ||
+        (typeof defaultValueOrVars === 'object' ? defaultValueOrVars : null)
       if (variables) {
         Object.entries(variables).forEach(([k, v]) => {
           result = result.replace(`{${k}}`, String(v))
@@ -277,7 +274,6 @@ jest.mock('@/components/shared/FilterToolbar', () => {
   return { FilterToolbar }
 })
 
-
 describe('NotificationsPage', () => {
   const mockPush = jest.fn()
   const mockMarkAsRead = jest.fn()
@@ -339,10 +335,12 @@ describe('NotificationsPage', () => {
   // Helper: open status filter dropdown and select an option
   const selectStatusFilter = async (
     user: ReturnType<typeof userEvent.setup>,
-    label: string
+    label: string,
   ) => {
-    const statusButton = screen.getByText('All Status')
-      .closest('button') || screen.getByText('Unread').closest('button') || screen.getByText('Read').closest('button')
+    const statusButton =
+      screen.getByText('All Status').closest('button') ||
+      screen.getByText('Unread').closest('button') ||
+      screen.getByText('Read').closest('button')
     if (statusButton) await user.click(statusButton)
     const option = await screen.findByText(label)
     await user.click(option)
@@ -354,7 +352,7 @@ describe('NotificationsPage', () => {
 
       expect(screen.getAllByText('Notifications').length).toBeGreaterThan(0)
       expect(
-        screen.getByText(/stay up to date with your tasks/i)
+        screen.getByText(/stay up to date with your tasks/i),
       ).toBeInTheDocument()
     })
 
@@ -375,7 +373,7 @@ describe('NotificationsPage', () => {
 
       expect(screen.getByText('Authentication Required')).toBeInTheDocument()
       expect(
-        screen.getByText(/please log in to view your notifications/i)
+        screen.getByText(/please log in to view your notifications/i),
       ).toBeInTheDocument()
     })
 
@@ -397,11 +395,12 @@ describe('NotificationsPage', () => {
     it('renders analytics link', () => {
       render(<NotificationsPage />)
 
-      const analyticsLink = screen.getByRole('link', { name: /notification analytics/i })
+      const analyticsLink = screen.getByRole('link', {
+        name: /notification analytics/i,
+      })
       expect(analyticsLink).toBeInTheDocument()
       expect(analyticsLink).toHaveAttribute('href', '/notifications/analytics')
     })
-
   })
 
   describe('Notification List Display', () => {
@@ -491,7 +490,7 @@ describe('NotificationsPage', () => {
       await user.selectOptions(statusSelect, 'unread')
 
       expect(
-        screen.getByText(/you're all caught up! no unread notifications/i)
+        screen.getByText(/you're all caught up! no unread notifications/i),
       ).toBeInTheDocument()
     })
   })
@@ -753,7 +752,7 @@ describe('NotificationsPage', () => {
 
     it('shows error state when error occurs', async () => {
       ;(api.getNotifications as jest.Mock).mockRejectedValue(
-        new Error('Network error')
+        new Error('Network error'),
       )
 
       render(<NotificationsPage />)
@@ -761,13 +760,13 @@ describe('NotificationsPage', () => {
       await waitFor(
         () => {
           const errorElement = screen.queryByText(
-            /error loading notifications/i
+            /error loading notifications/i,
           )
           if (errorElement) {
             expect(errorElement).toBeInTheDocument()
           }
         },
-        { timeout: 5000 }
+        { timeout: 5000 },
       )
     })
 
@@ -792,7 +791,7 @@ describe('NotificationsPage', () => {
       const user = userEvent.setup()
 
       ;(api.getNotifications as jest.Mock).mockRejectedValueOnce(
-        new Error('Network error')
+        new Error('Network error'),
       )
 
       render(<NotificationsPage />)
@@ -800,13 +799,13 @@ describe('NotificationsPage', () => {
       await waitFor(
         () => {
           const errorElement = screen.queryByText(
-            /error loading notifications/i
+            /error loading notifications/i,
           )
           if (errorElement) {
             expect(errorElement).toBeInTheDocument()
           }
         },
-        { timeout: 5000 }
+        { timeout: 5000 },
       )
 
       const tryAgainButton = screen.queryByText('Try Again')
@@ -842,7 +841,7 @@ describe('NotificationsPage', () => {
       const taskTitles = screen.getAllByText('Task Created')
       expect(taskTitles.length).toBeGreaterThan(0)
       expect(
-        screen.getByText('A new task has been created')
+        screen.getByText('A new task has been created'),
       ).toBeInTheDocument()
     })
 
@@ -959,8 +958,16 @@ describe('NotificationsPage', () => {
     it('filters notifications by type via dropdown', async () => {
       const user = userEvent.setup()
       const notifications = [
-        createNotification({ id: '1', type: 'task_created', title: 'First Task' }),
-        createNotification({ id: '2', type: 'task_completed', title: 'Second Task' }),
+        createNotification({
+          id: '1',
+          type: 'task_created',
+          title: 'First Task',
+        }),
+        createNotification({
+          id: '2',
+          type: 'task_completed',
+          title: 'Second Task',
+        }),
       ]
 
       ;(useNotifications as jest.Mock).mockReturnValue({
@@ -982,7 +989,9 @@ describe('NotificationsPage', () => {
       // Select 'Task Created' from dropdown (it's a button element in the dropdown)
       const taskCreatedOptions = await screen.findAllByText('Task Created')
       // Click the dropdown button option (not the notification title)
-      const dropdownOption = taskCreatedOptions.find(el => el.tagName === 'BUTTON')
+      const dropdownOption = taskCreatedOptions.find(
+        (el) => el.tagName === 'BUTTON',
+      )
       if (dropdownOption) await user.click(dropdownOption)
 
       // After filtering by task_created, only first task should show
@@ -995,7 +1004,11 @@ describe('NotificationsPage', () => {
       const user = userEvent.setup()
       const notifications = [
         createNotification({ id: '1', type: 'task_created', title: 'First' }),
-        createNotification({ id: '2', type: 'annotation_completed', title: 'Second' }),
+        createNotification({
+          id: '2',
+          type: 'annotation_completed',
+          title: 'Second',
+        }),
       ]
 
       ;(useNotifications as jest.Mock).mockReturnValue({
@@ -1278,7 +1291,7 @@ describe('NotificationsPage', () => {
 
       await waitFor(() => {
         const emptyMessage = screen.queryByText(
-          /no notifications match your search criteria/i
+          /no notifications match your search criteria/i,
         )
         if (!emptyMessage) {
           expect(screen.getByText(/no notifications/i)).toBeInTheDocument()
@@ -1328,7 +1341,9 @@ describe('NotificationsPage', () => {
       await user.click(typeButton)
       // Find the dropdown button option for Task Created (not the notification title)
       const taskCreatedOptions = await screen.findAllByText('Task Created')
-      const dropdownOption = taskCreatedOptions.find(el => el.tagName === 'BUTTON')
+      const dropdownOption = taskCreatedOptions.find(
+        (el) => el.tagName === 'BUTTON',
+      )
       if (dropdownOption) await user.click(dropdownOption)
 
       // Apply date filter
@@ -1499,7 +1514,7 @@ describe('NotificationsPage', () => {
       render(<NotificationsPage />)
 
       expect(
-        screen.queryByText(/notification.*selected/i)
+        screen.queryByText(/notification.*selected/i),
       ).not.toBeInTheDocument()
     })
 
@@ -1549,7 +1564,7 @@ describe('NotificationsPage', () => {
 
     it('handles bulk mark as read error gracefully', async () => {
       ;(api.markNotificationsBulkAsRead as jest.Mock).mockRejectedValue(
-        new Error('Network error')
+        new Error('Network error'),
       )
 
       render(<NotificationsPage />)
@@ -1562,7 +1577,7 @@ describe('NotificationsPage', () => {
     it('handles bulk delete error gracefully', async () => {
       global.confirm = jest.fn(() => true)
       ;(api.deleteNotificationsBulk as jest.Mock).mockRejectedValue(
-        new Error('Network error')
+        new Error('Network error'),
       )
 
       render(<NotificationsPage />)
@@ -1577,7 +1592,7 @@ describe('NotificationsPage', () => {
     it('loads more notifications on page 2', async () => {
       const user = userEvent.setup()
       const notifications = Array.from({ length: 20 }, (_, i) =>
-        createNotification({ id: String(i) })
+        createNotification({ id: String(i) }),
       )
 
       ;(useNotifications as jest.Mock).mockReturnValue({
@@ -1591,8 +1606,8 @@ describe('NotificationsPage', () => {
       })
       ;(api.getNotifications as jest.Mock).mockResolvedValue(
         Array.from({ length: 20 }, (_, i) =>
-          createNotification({ id: String(i + 20) })
-        )
+          createNotification({ id: String(i + 20) }),
+        ),
       )
 
       render(<NotificationsPage />)
@@ -1609,7 +1624,7 @@ describe('NotificationsPage', () => {
     it('applies read status filter via dropdown', async () => {
       const user = userEvent.setup()
       const notifications = Array.from({ length: 20 }, (_, i) =>
-        createNotification({ id: String(i) })
+        createNotification({ id: String(i) }),
       )
 
       ;(useNotifications as jest.Mock).mockReturnValue({
@@ -1634,7 +1649,7 @@ describe('NotificationsPage', () => {
     it('applies type filter via dropdown', async () => {
       const user = userEvent.setup()
       const notifications = Array.from({ length: 20 }, (_, i) =>
-        createNotification({ id: String(i), type: 'task_created' })
+        createNotification({ id: String(i), type: 'task_created' }),
       )
 
       ;(useNotifications as jest.Mock).mockReturnValue({
@@ -1655,7 +1670,9 @@ describe('NotificationsPage', () => {
 
       // Find the dropdown button option for Task Created (not the notification titles)
       const taskCreatedOptions = await screen.findAllByText('Task Created')
-      const dropdownOption = taskCreatedOptions.find(el => el.tagName === 'BUTTON')
+      const dropdownOption = taskCreatedOptions.find(
+        (el) => el.tagName === 'BUTTON',
+      )
       if (dropdownOption) await user.click(dropdownOption)
 
       await waitFor(() => {
@@ -1772,7 +1789,7 @@ describe('NotificationsPage', () => {
     it('handles pagination with less than 20 results to set hasMore false', async () => {
       const user = userEvent.setup()
       const notifications = Array.from({ length: 20 }, (_, i) =>
-        createNotification({ id: String(i) })
+        createNotification({ id: String(i) }),
       )
 
       ;(useNotifications as jest.Mock).mockReturnValue({
@@ -1786,8 +1803,8 @@ describe('NotificationsPage', () => {
       })
       ;(api.getNotifications as jest.Mock).mockResolvedValue(
         Array.from({ length: 5 }, (_, i) =>
-          createNotification({ id: String(i + 20) })
-        )
+          createNotification({ id: String(i + 20) }),
+        ),
       )
 
       render(<NotificationsPage />)
@@ -1804,7 +1821,7 @@ describe('NotificationsPage', () => {
     it('handles pagination error gracefully', async () => {
       const user = userEvent.setup()
       const notifications = Array.from({ length: 20 }, (_, i) =>
-        createNotification({ id: String(i) })
+        createNotification({ id: String(i) }),
       )
 
       ;(useNotifications as jest.Mock).mockReturnValue({
@@ -1817,7 +1834,7 @@ describe('NotificationsPage', () => {
         fetchNotifications: mockFetchNotifications,
       })
       ;(api.getNotifications as jest.Mock).mockRejectedValue(
-        new Error('Failed to fetch')
+        new Error('Failed to fetch'),
       )
 
       render(<NotificationsPage />)
@@ -1881,7 +1898,7 @@ describe('NotificationsPage', () => {
           () => {
             expect(mockMarkAsReadWithError).toHaveBeenCalledWith('123')
           },
-          { timeout: 3000 }
+          { timeout: 3000 },
         )
       }
     })
@@ -1957,7 +1974,9 @@ describe('NotificationsPage', () => {
       await user.click(typeButton)
       // Find the dropdown button option for Task Created (not the notification title)
       const taskCreatedOptions = await screen.findAllByText('Task Created')
-      const dropdownOption = taskCreatedOptions.find(el => el.tagName === 'BUTTON')
+      const dropdownOption = taskCreatedOptions.find(
+        (el) => el.tagName === 'BUTTON',
+      )
       if (dropdownOption) await user.click(dropdownOption)
 
       await waitFor(() => {
@@ -2044,8 +2063,8 @@ describe('NotificationsPage', () => {
 
       expect(
         screen.getByText(
-          /this is a very long notification title that should be handled properly/i
-        )
+          /this is a very long notification title that should be handled properly/i,
+        ),
       ).toBeInTheDocument()
     })
 
@@ -2069,13 +2088,15 @@ describe('NotificationsPage', () => {
       // Notification should be rendered in the table
       const table = screen.getByRole('table')
       expect(within(table).getByText('Task Created')).toBeInTheDocument()
-      expect(within(table).getByText('A new task has been created')).toBeInTheDocument()
+      expect(
+        within(table).getByText('A new task has been created'),
+      ).toBeInTheDocument()
     })
 
     it('handles load more functionality', async () => {
       const user = userEvent.setup()
       const notifications = Array.from({ length: 20 }, (_, i) =>
-        createNotification({ id: String(i), title: `Notification ${i}` })
+        createNotification({ id: String(i), title: `Notification ${i}` }),
       )
 
       ;(useNotifications as jest.Mock).mockReturnValue({
@@ -2092,8 +2113,8 @@ describe('NotificationsPage', () => {
           createNotification({
             id: String(i + 20),
             title: `Notification ${i + 20}`,
-          })
-        )
+          }),
+        ),
       )
 
       render(<NotificationsPage />)
@@ -2150,8 +2171,8 @@ describe('NotificationsPage', () => {
 
       expect(
         screen.getByText(
-          /this is an extremely long notification message that should be properly rendered/i
-        )
+          /this is an extremely long notification message that should be properly rendered/i,
+        ),
       ).toBeInTheDocument()
     })
 
@@ -2231,7 +2252,9 @@ describe('NotificationsPage', () => {
       await user.click(typeButton)
       // Find the dropdown button option for Task Created (not the notification title)
       const taskCreatedOptions = await screen.findAllByText('Task Created')
-      const dropdownOption = taskCreatedOptions.find(el => el.tagName === 'BUTTON')
+      const dropdownOption = taskCreatedOptions.find(
+        (el) => el.tagName === 'BUTTON',
+      )
       if (dropdownOption) await user.click(dropdownOption)
 
       await waitFor(() => {

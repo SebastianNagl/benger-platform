@@ -20,7 +20,10 @@ jest.mock('@heroicons/react/24/outline', () => ({
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
     t: (key: string, varsOrDefault?: any) => {
-      const translations: Record<string, any> = require('../../../locales/en/common.json')
+      const translations: Record<
+        string,
+        any
+      > = require('../../../locales/en/common.json')
       const parts = key.split('.')
       let value: any = translations
       for (const part of parts) {
@@ -263,7 +266,7 @@ describe('DateField Component', () => {
           <button>Before</button>
           <DateField {...defaultProps} />
           <button>After</button>
-        </div>
+        </div>,
       )
 
       const beforeButton = screen.getByRole('button', { name: 'Before' })
@@ -282,7 +285,7 @@ describe('DateField Component', () => {
   describe('Edge Cases', () => {
     it('handles invalid date strings gracefully', () => {
       const { container } = render(
-        <DateField {...defaultProps} value="invalid-date" />
+        <DateField {...defaultProps} value="invalid-date" />,
       )
 
       const input = container.querySelector('input[type="date"]')

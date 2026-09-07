@@ -16,7 +16,10 @@ jest.mock('@heroicons/react/24/outline', () => ({
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
     t: (key: string, varsOrDefault?: any) => {
-      const translations: Record<string, any> = require('../../../locales/en/common.json')
+      const translations: Record<
+        string,
+        any
+      > = require('../../../locales/en/common.json')
       const parts = key.split('.')
       let value: any = translations
       for (const part of parts) {
@@ -37,7 +40,6 @@ jest.mock('@/contexts/I18nContext', () => ({
     locale: 'en',
   }),
 }))
-
 
 // Mock Next.js Link
 jest.mock('next/link', () => ({
@@ -222,7 +224,7 @@ describe('Breadcrumb Component', () => {
       const projectsLink = screen.getByText('Projects').closest('a')
       expect(projectsLink).toHaveClass(
         'hover:text-zinc-900',
-        'dark:hover:text-white'
+        'dark:hover:text-white',
       )
     })
   })
@@ -258,7 +260,7 @@ describe('Breadcrumb Component', () => {
       expect(projectsLink).toHaveClass(
         'text-zinc-600',
         'dark:text-zinc-400',
-        'transition-colors'
+        'transition-colors',
       )
     })
 

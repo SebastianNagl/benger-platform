@@ -78,10 +78,16 @@ jest.mock('@/components/shared/Toast', () => ({
 jest.mock('@/lib/api/projects', () => ({
   projectsAPI: {
     getTasksPage: jest.fn(() =>
-      Promise.resolve({ items: [], total: 0, page: 1, page_size: 50, pages: 0 })
+      Promise.resolve({
+        items: [],
+        total: 0,
+        page: 1,
+        page_size: 50,
+        pages: 0,
+      }),
     ),
     getTaskIds: jest.fn(() =>
-      Promise.resolve({ ids: [], total: 0, truncated: false })
+      Promise.resolve({ ids: [], total: 0, truncated: false }),
     ),
     getMembers: jest.fn(() => Promise.resolve([])),
   },
@@ -177,7 +183,10 @@ describe('ProjectDataTab — dynamic data columns', () => {
     // keys): the sync effect must pick up the changed id SET, not just the
     // presence of data columns.
     mockTasks = [
-      examTask({ sachverhalt: 'Der A ...', korrekturhinweise: 'Streng bewerten.' }),
+      examTask({
+        sachverhalt: 'Der A ...',
+        korrekturhinweise: 'Streng bewerten.',
+      }),
     ]
     rerender(<ProjectDataTab projectId="project-1" />)
 

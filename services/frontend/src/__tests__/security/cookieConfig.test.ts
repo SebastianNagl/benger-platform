@@ -159,7 +159,7 @@ describe('Cookie Security Configuration', () => {
 
       expect(validateCookieSecurity(config)).toBe(false)
       expect(console.error).toHaveBeenCalledWith(
-        'Cookie must have Secure flag in production'
+        'Cookie must have Secure flag in production',
       )
     })
 
@@ -173,7 +173,7 @@ describe('Cookie Security Configuration', () => {
 
       expect(validateCookieSecurity(config)).toBe(false)
       expect(console.error).toHaveBeenCalledWith(
-        'SameSite=None requires Secure flag'
+        'SameSite=None requires Secure flag',
       )
     })
 
@@ -198,7 +198,7 @@ describe('Cookie Security Configuration', () => {
       expect(headers).toHaveProperty('X-XSS-Protection', '1; mode=block')
       expect(headers).toHaveProperty(
         'Referrer-Policy',
-        'strict-origin-when-cross-origin'
+        'strict-origin-when-cross-origin',
       )
       expect(headers).toHaveProperty('Permissions-Policy')
     })
@@ -233,7 +233,7 @@ describe('Cookie Security Configuration', () => {
       expect(csp).toContain("img-src 'self' data: https:")
       expect(csp).toContain("font-src 'self' data:")
       expect(csp).toContain(
-        "connect-src 'self' https://api.benger.de wss://api.benger.de"
+        "connect-src 'self' https://api.benger.de wss://api.benger.de",
       )
       expect(csp).toContain("frame-ancestors 'none'")
       expect(csp).toContain("base-uri 'self'")

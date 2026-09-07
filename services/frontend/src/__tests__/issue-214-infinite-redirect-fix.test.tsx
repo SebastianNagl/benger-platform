@@ -112,7 +112,7 @@ describe('Issue #214: Infinite Redirect Loop Fix', () => {
       render(
         <ProtectedRoute>
           <div>Protected Content</div>
-        </ProtectedRoute>
+        </ProtectedRoute>,
       )
 
       expect(mockRouter.replace).not.toHaveBeenCalled()
@@ -130,7 +130,7 @@ describe('Issue #214: Infinite Redirect Loop Fix', () => {
       render(
         <ProtectedRoute>
           <div>Protected Content</div>
-        </ProtectedRoute>
+        </ProtectedRoute>,
       )
 
       await waitFor(() => {
@@ -150,7 +150,7 @@ describe('Issue #214: Infinite Redirect Loop Fix', () => {
       render(
         <ProtectedRoute>
           <div>Protected Content</div>
-        </ProtectedRoute>
+        </ProtectedRoute>,
       )
 
       expect(mockRouter.replace).not.toHaveBeenCalled()
@@ -168,7 +168,7 @@ describe('Issue #214: Infinite Redirect Loop Fix', () => {
       render(
         <ProtectedRoute>
           <div>Public Content</div>
-        </ProtectedRoute>
+        </ProtectedRoute>,
       )
 
       expect(mockRouter.replace).not.toHaveBeenCalled()
@@ -223,7 +223,7 @@ describe('Issue #214: Infinite Redirect Loop Fix', () => {
       render(<LandingPage />)
 
       expect(
-        screen.getByText('Redirecting to dashboard...')
+        screen.getByText('Redirecting to dashboard...'),
       ).toBeInTheDocument()
     })
   })
@@ -242,7 +242,7 @@ describe('Issue #214: Infinite Redirect Loop Fix', () => {
       const { rerender } = render(
         <ProtectedRoute>
           <div>Protected Content</div>
-        </ProtectedRoute>
+        </ProtectedRoute>,
       )
 
       // Verify no redirect during loading
@@ -256,7 +256,7 @@ describe('Issue #214: Infinite Redirect Loop Fix', () => {
       rerender(
         <ProtectedRoute>
           <div>Protected Content</div>
-        </ProtectedRoute>
+        </ProtectedRoute>,
       )
 
       // Should only redirect once when auth state stabilizes

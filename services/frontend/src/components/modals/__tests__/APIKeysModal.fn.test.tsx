@@ -2,7 +2,7 @@
  * Additional coverage for APIKeysModal - open/close, org key settings fetch
  */
 
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { APIKeysModal } from '../APIKeysModal'
 
 jest.mock('@/contexts/I18nContext', () => ({
@@ -30,7 +30,9 @@ jest.mock('@/components/shared/UserApiKeys', () => {
   return function MockUserApiKeys({ disabled, disabledMessage }: any) {
     return (
       <div data-testid="user-api-keys" data-disabled={disabled}>
-        {disabledMessage && <span data-testid="disabled-msg">{disabledMessage}</span>}
+        {disabledMessage && (
+          <span data-testid="disabled-msg">{disabledMessage}</span>
+        )}
       </div>
     )
   }
@@ -44,7 +46,7 @@ jest.mock('@headlessui/react', () => ({
         {children}
       </div>
     ) : null,
-   
+
   'Dialog.Panel': undefined,
   'Dialog.Title': undefined,
 }))
@@ -58,14 +60,24 @@ jest.mock('@headlessui/react', () => {
       </div>
     ) : null
   // eslint-disable-next-line react/display-name
-  Dialog.Panel = ({ children, className }: any) => <div data-testid="dialog-panel" className={className}>{children}</div>
+  Dialog.Panel = ({ children, className }: any) => (
+    <div data-testid="dialog-panel" className={className}>
+      {children}
+    </div>
+  )
   // eslint-disable-next-line react/display-name
-  Dialog.Title = ({ children, className }: any) => <h2 data-testid="dialog-title" className={className}>{children}</h2>
+  Dialog.Title = ({ children, className }: any) => (
+    <h2 data-testid="dialog-title" className={className}>
+      {children}
+    </h2>
+  )
   return { Dialog }
 })
 
 jest.mock('@heroicons/react/24/outline', () => ({
-  XMarkIcon: ({ className }: any) => <span data-testid="close-icon" className={className} />,
+  XMarkIcon: ({ className }: any) => (
+    <span data-testid="close-icon" className={className} />
+  ),
 }))
 
 describe('APIKeysModal', () => {

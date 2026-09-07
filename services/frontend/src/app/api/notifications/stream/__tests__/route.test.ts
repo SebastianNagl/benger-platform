@@ -38,14 +38,14 @@ describe('SSE Notification Stream Route - Business Logic', () => {
         'http://localhost:3000/api/notifications/stream',
         {
           headers,
-        }
+        },
       )
 
       await GET(request)
 
       expect(mockFetch).toHaveBeenCalledWith(
         'http://localhost:8001/api/notifications/stream/',
-        expect.any(Object)
+        expect.any(Object),
       )
     })
 
@@ -69,14 +69,14 @@ describe('SSE Notification Stream Route - Business Logic', () => {
         'http://benger.localhost/api/notifications/stream',
         {
           headers,
-        }
+        },
       )
 
       await GET(request)
 
       expect(mockFetch).toHaveBeenCalledWith(
         'http://api:8000/api/notifications/stream/',
-        expect.any(Object)
+        expect.any(Object),
       )
     })
 
@@ -100,14 +100,14 @@ describe('SSE Notification Stream Route - Business Logic', () => {
         'http://what-a-benger.net/api/notifications/stream',
         {
           headers,
-        }
+        },
       )
 
       await GET(request)
 
       expect(mockFetch).toHaveBeenCalledWith(
         'http://benger-api:8000/api/notifications/stream/',
-        expect.any(Object)
+        expect.any(Object),
       )
     })
 
@@ -131,14 +131,14 @@ describe('SSE Notification Stream Route - Business Logic', () => {
         'http://staging.what-a-benger.net/api/notifications/stream',
         {
           headers,
-        }
+        },
       )
 
       await GET(request)
 
       expect(mockFetch).toHaveBeenCalledWith(
         'http://benger-api:8000/api/notifications/stream/',
-        expect.any(Object)
+        expect.any(Object),
       )
     })
 
@@ -161,14 +161,14 @@ describe('SSE Notification Stream Route - Business Logic', () => {
         'http://example.com/api/notifications/stream',
         {
           headers,
-        }
+        },
       )
 
       await GET(request)
 
       expect(mockFetch).toHaveBeenCalledWith(
         'http://api:8000/api/notifications/stream/',
-        expect.any(Object)
+        expect.any(Object),
       )
     })
   })
@@ -194,7 +194,7 @@ describe('SSE Notification Stream Route - Business Logic', () => {
         'http://localhost:3000/api/notifications/stream',
         {
           headers,
-        }
+        },
       )
 
       await GET(request)
@@ -203,12 +203,12 @@ describe('SSE Notification Stream Route - Business Logic', () => {
         expect.any(String),
         expect.objectContaining({
           headers: expect.any(Headers),
-        })
+        }),
       )
 
       const callHeaders = mockFetch.mock.calls[0][1].headers
       expect(callHeaders.get('cookie')).toContain(
-        'access_token=test_access_token'
+        'access_token=test_access_token',
       )
     })
 
@@ -232,7 +232,7 @@ describe('SSE Notification Stream Route - Business Logic', () => {
         'http://localhost:3000/api/notifications/stream',
         {
           headers,
-        }
+        },
       )
 
       await GET(request)
@@ -248,7 +248,7 @@ describe('SSE Notification Stream Route - Business Logic', () => {
       headers.set('host', 'localhost:3000')
       headers.set(
         'cookie',
-        'access_token=token1; refresh_token=token2; other=value'
+        'access_token=token1; refresh_token=token2; other=value',
       )
 
       const mockReader = {
@@ -266,7 +266,7 @@ describe('SSE Notification Stream Route - Business Logic', () => {
         'http://localhost:3000/api/notifications/stream',
         {
           headers,
-        }
+        },
       )
 
       await GET(request)
@@ -297,7 +297,7 @@ describe('SSE Notification Stream Route - Business Logic', () => {
         'http://localhost:3000/api/notifications/stream',
         {
           headers,
-        }
+        },
       )
 
       await GET(request)
@@ -315,7 +315,7 @@ describe('SSE Notification Stream Route - Business Logic', () => {
       const refreshHeaders = new Headers()
       refreshHeaders.append(
         'Set-Cookie',
-        'access_token=new_access_token; Path=/; HttpOnly'
+        'access_token=new_access_token; Path=/; HttpOnly',
       )
 
       // Mock refresh response with proper getSetCookie method
@@ -341,7 +341,7 @@ describe('SSE Notification Stream Route - Business Logic', () => {
         'http://localhost:3000/api/notifications/stream',
         {
           headers,
-        }
+        },
       )
 
       await GET(request)
@@ -350,7 +350,7 @@ describe('SSE Notification Stream Route - Business Logic', () => {
         'http://localhost:8001/api/auth/refresh',
         expect.objectContaining({
           method: 'POST',
-        })
+        }),
       )
     })
 
@@ -382,7 +382,7 @@ describe('SSE Notification Stream Route - Business Logic', () => {
         'http://localhost:3000/api/notifications/stream',
         {
           headers,
-        }
+        },
       )
 
       await GET(request)
@@ -420,7 +420,7 @@ describe('SSE Notification Stream Route - Business Logic', () => {
         'http://localhost:3000/api/notifications/stream',
         {
           headers,
-        }
+        },
       )
 
       await GET(request)
@@ -448,7 +448,7 @@ describe('SSE Notification Stream Route - Business Logic', () => {
         'http://localhost:3000/api/notifications/stream',
         {
           headers,
-        }
+        },
       )
 
       await GET(request)
@@ -456,7 +456,7 @@ describe('SSE Notification Stream Route - Business Logic', () => {
       expect(mockFetch).toHaveBeenCalledTimes(1)
       expect(mockFetch).not.toHaveBeenCalledWith(
         expect.stringContaining('/auth/refresh'),
-        expect.any(Object)
+        expect.any(Object),
       )
     })
 
@@ -479,7 +479,7 @@ describe('SSE Notification Stream Route - Business Logic', () => {
         'http://localhost:3000/api/notifications/stream',
         {
           headers,
-        }
+        },
       )
 
       await GET(request)
@@ -487,7 +487,7 @@ describe('SSE Notification Stream Route - Business Logic', () => {
       expect(mockFetch).toHaveBeenCalledTimes(1)
       expect(mockFetch).not.toHaveBeenCalledWith(
         expect.stringContaining('/auth/refresh'),
-        expect.any(Object)
+        expect.any(Object),
       )
     })
 
@@ -516,14 +516,14 @@ describe('SSE Notification Stream Route - Business Logic', () => {
         'http://localhost:3000/api/notifications/stream',
         {
           headers,
-        }
+        },
       )
 
       await GET(request)
 
       expect(consoleErrorSpy).toHaveBeenCalledWith(
         'SSE Proxy - Token refresh error:',
-        expect.any(Error)
+        expect.any(Error),
       )
       expect(mockFetch).toHaveBeenCalledTimes(2)
 
@@ -561,14 +561,14 @@ describe('SSE Notification Stream Route - Business Logic', () => {
         'http://localhost:3000/api/notifications/stream',
         {
           headers,
-        }
+        },
       )
 
       await GET(request)
 
       const streamCallHeaders = mockFetch.mock.calls[1][1].headers
       expect(streamCallHeaders.get('cookie')).toContain(
-        'access_token=new_access_token'
+        'access_token=new_access_token',
       )
     })
   })
@@ -594,7 +594,7 @@ describe('SSE Notification Stream Route - Business Logic', () => {
         'http://localhost:3000/api/notifications/stream',
         {
           headers,
-        }
+        },
       )
 
       await GET(request)
@@ -623,7 +623,7 @@ describe('SSE Notification Stream Route - Business Logic', () => {
         'http://localhost:3000/api/notifications/stream',
         {
           headers,
-        }
+        },
       )
 
       await GET(request)
@@ -652,14 +652,14 @@ describe('SSE Notification Stream Route - Business Logic', () => {
         'http://localhost:3000/api/notifications/stream',
         {
           headers,
-        }
+        },
       )
 
       await GET(request)
 
       const callHeaders = mockFetch.mock.calls[0][1].headers
       expect(callHeaders.get('referer')).toBe(
-        'http://localhost:3000/notifications'
+        'http://localhost:3000/notifications',
       )
     })
 
@@ -682,7 +682,7 @@ describe('SSE Notification Stream Route - Business Logic', () => {
         'http://localhost:3000/api/notifications/stream',
         {
           headers,
-        }
+        },
       )
 
       await GET(request)
@@ -714,13 +714,13 @@ describe('SSE Notification Stream Route - Business Logic', () => {
         'http://localhost:3000/api/notifications/stream',
         {
           headers,
-        }
+        },
       )
 
       const response = await GET(request)
 
       expect(response.headers.get('Content-Type')).toBe(
-        'text/event-stream; charset=utf-8'
+        'text/event-stream; charset=utf-8',
       )
       expect(response.headers.get('Cache-Control')).toContain('no-cache')
       expect(response.headers.get('Cache-Control')).toContain('no-store')
@@ -748,7 +748,7 @@ describe('SSE Notification Stream Route - Business Logic', () => {
         'http://localhost:3000/api/notifications/stream',
         {
           headers,
-        }
+        },
       )
 
       const response = await GET(request)
@@ -757,7 +757,7 @@ describe('SSE Notification Stream Route - Business Logic', () => {
       if (response.status === 200) {
         expect(response.headers.get('Access-Control-Allow-Origin')).toBe('*')
         expect(response.headers.get('Access-Control-Allow-Headers')).toBe(
-          'Cache-Control'
+          'Cache-Control',
         )
       }
     })
@@ -774,14 +774,14 @@ describe('SSE Notification Stream Route - Business Logic', () => {
         'http://localhost:3000/api/notifications/stream',
         {
           headers,
-        }
+        },
       )
 
       const response = await GET(request)
 
       // SSE routes return streaming response even on errors
       expect(response.headers.get('content-type')).toContain(
-        'text/event-stream'
+        'text/event-stream',
       )
       // Errors are sent via the SSE stream, not thrown
       expect(response.status).toBe(200)
@@ -800,14 +800,14 @@ describe('SSE Notification Stream Route - Business Logic', () => {
         'http://localhost:3000/api/notifications/stream',
         {
           headers,
-        }
+        },
       )
 
       const response = await GET(request)
 
       // Returns SSE response (may be 200 or 500 depending on when error occurs)
       expect(response.headers.get('content-type')).toContain(
-        'text/event-stream'
+        'text/event-stream',
       )
     })
 
@@ -825,14 +825,14 @@ describe('SSE Notification Stream Route - Business Logic', () => {
         'http://localhost:3000/api/notifications/stream',
         {
           headers,
-        }
+        },
       )
 
       const response = await GET(request)
 
       // Returns SSE response
       expect(response.headers.get('content-type')).toContain(
-        'text/event-stream'
+        'text/event-stream',
       )
     })
 
@@ -862,14 +862,14 @@ describe('SSE Notification Stream Route - Business Logic', () => {
         'http://localhost:3000/api/notifications/stream',
         {
           headers,
-        }
+        },
       )
 
       const response = await GET(request)
 
       // Returns SSE response
       expect(response.headers.get('content-type')).toContain(
-        'text/event-stream'
+        'text/event-stream',
       )
     })
 
@@ -890,14 +890,14 @@ describe('SSE Notification Stream Route - Business Logic', () => {
         'http://localhost:3000/api/notifications/stream',
         {
           headers,
-        }
+        },
       )
 
       const response = await GET(request)
 
       // SSE endpoints return streaming response
       expect(response.headers.get('content-type')).toContain(
-        'text/event-stream'
+        'text/event-stream',
       )
 
       consoleErrorSpy.mockRestore()
@@ -916,14 +916,14 @@ describe('SSE Notification Stream Route - Business Logic', () => {
         'http://localhost:3000/api/notifications/stream',
         {
           headers,
-        }
+        },
       )
 
       const response = await GET(request)
 
       // SSE endpoints return streaming response
       expect(response.headers.get('content-type')).toContain(
-        'text/event-stream'
+        'text/event-stream',
       )
 
       consoleErrorSpy.mockRestore()
@@ -939,13 +939,13 @@ describe('SSE Notification Stream Route - Business Logic', () => {
         'http://localhost:3000/api/notifications/stream',
         {
           headers,
-        }
+        },
       )
 
       const response = await GET(request)
 
       expect(response.headers.get('Content-Type')).toBe(
-        'text/event-stream; charset=utf-8'
+        'text/event-stream; charset=utf-8',
       )
       expect(response.headers.get('X-Accel-Buffering')).toBe('no')
     })
@@ -986,14 +986,14 @@ describe('SSE Notification Stream Route - Business Logic', () => {
         'http://what-a-benger.net/api/notifications/stream',
         {
           headers,
-        }
+        },
       )
 
       await GET(request)
 
       expect(mockFetch).toHaveBeenCalledWith(
         'http://custom-api:9000/api/notifications/stream/',
-        expect.any(Object)
+        expect.any(Object),
       )
 
       if (originalEnv !== undefined) {

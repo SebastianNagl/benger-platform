@@ -68,7 +68,7 @@ describe('GlobalErrorBoundary', () => {
       render(
         <GlobalErrorBoundary>
           <WorkingComponent />
-        </GlobalErrorBoundary>
+        </GlobalErrorBoundary>,
       )
 
       expect(screen.getByText('Working component')).toBeInTheDocument()
@@ -80,7 +80,7 @@ describe('GlobalErrorBoundary', () => {
           <div>Child 1</div>
           <div>Child 2</div>
           <div>Child 3</div>
-        </GlobalErrorBoundary>
+        </GlobalErrorBoundary>,
       )
 
       expect(screen.getByText('Child 1')).toBeInTheDocument()
@@ -97,7 +97,7 @@ describe('GlobalErrorBoundary', () => {
               <p>Deep nested content</p>
             </div>
           </div>
-        </GlobalErrorBoundary>
+        </GlobalErrorBoundary>,
       )
 
       expect(screen.getByText('Nested')).toBeInTheDocument()
@@ -112,7 +112,7 @@ describe('GlobalErrorBoundary', () => {
       render(
         <GlobalErrorBoundary>
           <ThrowError error={error} />
-        </GlobalErrorBoundary>
+        </GlobalErrorBoundary>,
       )
 
       expect(screen.getByText('Application Error')).toBeInTheDocument()
@@ -125,7 +125,7 @@ describe('GlobalErrorBoundary', () => {
       render(
         <GlobalErrorBoundary>
           <ThrowError error={error} />
-        </GlobalErrorBoundary>
+        </GlobalErrorBoundary>,
       )
 
       expect(screen.getByText('Application Error')).toBeInTheDocument()
@@ -138,12 +138,12 @@ describe('GlobalErrorBoundary', () => {
       render(
         <GlobalErrorBoundary>
           <ThrowError error={error} />
-        </GlobalErrorBoundary>
+        </GlobalErrorBoundary>,
       )
 
       expect(screen.getByText('Application Error')).toBeInTheDocument()
       expect(
-        screen.getByText('An unexpected error occurred')
+        screen.getByText('An unexpected error occurred'),
       ).toBeInTheDocument()
     })
 
@@ -153,12 +153,12 @@ describe('GlobalErrorBoundary', () => {
       render(
         <GlobalErrorBoundary>
           <ThrowError error={error} />
-        </GlobalErrorBoundary>
+        </GlobalErrorBoundary>,
       )
 
       expect(screen.getByText('Application Error')).toBeInTheDocument()
       expect(
-        screen.getByText('Cannot read property of undefined')
+        screen.getByText('Cannot read property of undefined'),
       ).toBeInTheDocument()
     })
 
@@ -168,7 +168,7 @@ describe('GlobalErrorBoundary', () => {
       render(
         <GlobalErrorBoundary>
           <ThrowError error={error} />
-        </GlobalErrorBoundary>
+        </GlobalErrorBoundary>,
       )
 
       expect(screen.getByText('Application Error')).toBeInTheDocument()
@@ -183,7 +183,7 @@ describe('GlobalErrorBoundary', () => {
       render(
         <GlobalErrorBoundary>
           <ThrowError error={error} />
-        </GlobalErrorBoundary>
+        </GlobalErrorBoundary>,
       )
 
       expect(screen.getByText('Application Error')).toBeInTheDocument()
@@ -199,7 +199,7 @@ describe('GlobalErrorBoundary', () => {
       render(
         <GlobalErrorBoundary>
           <ThrowError error={error} />
-        </GlobalErrorBoundary>
+        </GlobalErrorBoundary>,
       )
 
       const details = screen.getByText('Error Details')
@@ -218,7 +218,7 @@ describe('GlobalErrorBoundary', () => {
       render(
         <GlobalErrorBoundary>
           <ThrowError error={error} />
-        </GlobalErrorBoundary>
+        </GlobalErrorBoundary>,
       )
 
       expect(screen.getByText(/at TestFile\.js:20:10/)).toBeInTheDocument()
@@ -232,7 +232,7 @@ describe('GlobalErrorBoundary', () => {
       render(
         <GlobalErrorBoundary>
           <ThrowError error={error} />
-        </GlobalErrorBoundary>
+        </GlobalErrorBoundary>,
       )
 
       expect(screen.getByText('Application Error')).toBeInTheDocument()
@@ -247,7 +247,7 @@ describe('GlobalErrorBoundary', () => {
       render(
         <GlobalErrorBoundary>
           <ThrowError error={error} />
-        </GlobalErrorBoundary>
+        </GlobalErrorBoundary>,
       )
 
       const reloadButton = screen.getByText('Reload Page')
@@ -261,7 +261,7 @@ describe('GlobalErrorBoundary', () => {
       render(
         <GlobalErrorBoundary>
           <ThrowError error={error} />
-        </GlobalErrorBoundary>
+        </GlobalErrorBoundary>,
       )
 
       const reloadButton = screen.getByText('Reload Page')
@@ -275,7 +275,7 @@ describe('GlobalErrorBoundary', () => {
       render(
         <GlobalErrorBoundary>
           <ThrowError error={error} />
-        </GlobalErrorBoundary>
+        </GlobalErrorBoundary>,
       )
 
       const reloadButton = screen.getByText('Reload Page')
@@ -293,14 +293,14 @@ describe('GlobalErrorBoundary', () => {
       render(
         <GlobalErrorBoundary>
           <ThrowError error={error} />
-        </GlobalErrorBoundary>
+        </GlobalErrorBoundary>,
       )
 
       expect(consoleErrorSpy).toHaveBeenCalled()
       expect(consoleErrorSpy).toHaveBeenCalledWith(
         'Module initialization error:',
         error,
-        expect.any(Object)
+        expect.any(Object),
       )
     })
 
@@ -310,13 +310,13 @@ describe('GlobalErrorBoundary', () => {
       render(
         <GlobalErrorBoundary>
           <ThrowError error={error} />
-        </GlobalErrorBoundary>
+        </GlobalErrorBoundary>,
       )
 
       expect(consoleErrorSpy).toHaveBeenCalledWith(
         'Module initialization error:',
         error,
-        expect.any(Object)
+        expect.any(Object),
       )
 
       expect(consoleErrorSpy).toHaveBeenCalledWith(
@@ -325,7 +325,7 @@ describe('GlobalErrorBoundary', () => {
           message: 'Cannot read properties of undefined',
           stack: expect.any(String),
           componentStack: expect.any(String),
-        })
+        }),
       )
     })
 
@@ -335,17 +335,17 @@ describe('GlobalErrorBoundary', () => {
       render(
         <GlobalErrorBoundary>
           <ThrowError error={error} />
-        </GlobalErrorBoundary>
+        </GlobalErrorBoundary>,
       )
 
       expect(consoleErrorSpy).toHaveBeenCalledWith(
         'Module initialization error:',
         error,
-        expect.any(Object)
+        expect.any(Object),
       )
 
       const webpackCalls = consoleErrorSpy.mock.calls.filter((call) =>
-        call[0]?.includes?.('Webpack')
+        call[0]?.includes?.('Webpack'),
       )
       expect(webpackCalls).toHaveLength(0)
     })
@@ -356,7 +356,7 @@ describe('GlobalErrorBoundary', () => {
       render(
         <GlobalErrorBoundary>
           <ThrowError error={error} />
-        </GlobalErrorBoundary>
+        </GlobalErrorBoundary>,
       )
 
       expect(consoleErrorSpy).toHaveBeenCalledWith(
@@ -364,7 +364,7 @@ describe('GlobalErrorBoundary', () => {
         error,
         expect.objectContaining({
           componentStack: expect.any(String),
-        })
+        }),
       )
     })
   })
@@ -374,7 +374,7 @@ describe('GlobalErrorBoundary', () => {
       render(
         <GlobalErrorBoundary>
           <div data-testid="child">Child content</div>
-        </GlobalErrorBoundary>
+        </GlobalErrorBoundary>,
       )
 
       expect(screen.getByTestId('child')).toBeInTheDocument()
@@ -388,7 +388,7 @@ describe('GlobalErrorBoundary', () => {
         <GlobalErrorBoundary>
           <ThrowError error={error} />
           <div data-testid="should-not-render">Should not see this</div>
-        </GlobalErrorBoundary>
+        </GlobalErrorBoundary>,
       )
 
       expect(screen.queryByTestId('should-not-render')).not.toBeInTheDocument()
@@ -413,7 +413,7 @@ describe('GlobalErrorBoundary', () => {
           <GlobalErrorBoundary>
             <ThrowError error={outerError} />
           </GlobalErrorBoundary>
-        </GlobalErrorBoundary>
+        </GlobalErrorBoundary>,
       )
 
       expect(screen.getByText('Application Error')).toBeInTheDocument()
@@ -434,7 +434,7 @@ describe('GlobalErrorBoundary', () => {
       render(
         <GlobalErrorBoundary>
           <ParentComponent />
-        </GlobalErrorBoundary>
+        </GlobalErrorBoundary>,
       )
 
       expect(screen.getByText('Application Error')).toBeInTheDocument()
@@ -447,7 +447,7 @@ describe('GlobalErrorBoundary', () => {
       const { rerender } = render(
         <GlobalErrorBoundary>
           <AsyncErrorComponent shouldThrow={shouldThrow} />
-        </GlobalErrorBoundary>
+        </GlobalErrorBoundary>,
       )
 
       expect(screen.getByText('Async component rendered')).toBeInTheDocument()
@@ -457,7 +457,7 @@ describe('GlobalErrorBoundary', () => {
       rerender(
         <GlobalErrorBoundary>
           <AsyncErrorComponent shouldThrow={shouldThrow} />
-        </GlobalErrorBoundary>
+        </GlobalErrorBoundary>,
       )
 
       expect(screen.getByText('Application Error')).toBeInTheDocument()
@@ -471,7 +471,7 @@ describe('GlobalErrorBoundary', () => {
       render(
         <GlobalErrorBoundary>
           <ThrowError error={error} />
-        </GlobalErrorBoundary>
+        </GlobalErrorBoundary>,
       )
 
       expect(screen.getByText('Application Error')).toBeInTheDocument()
@@ -484,12 +484,12 @@ describe('GlobalErrorBoundary', () => {
       render(
         <GlobalErrorBoundary>
           <ThrowError error={error} />
-        </GlobalErrorBoundary>
+        </GlobalErrorBoundary>,
       )
 
       expect(screen.getByText('Application Error')).toBeInTheDocument()
       expect(
-        screen.getByText('Error with <script>alert("xss")</script>')
+        screen.getByText('Error with <script>alert("xss")</script>'),
       ).toBeInTheDocument()
     })
 
@@ -499,7 +499,7 @@ describe('GlobalErrorBoundary', () => {
       const { rerender } = render(
         <GlobalErrorBoundary>
           <ThrowError error={error1} />
-        </GlobalErrorBoundary>
+        </GlobalErrorBoundary>,
       )
 
       expect(screen.getByText('First error')).toBeInTheDocument()
@@ -509,7 +509,7 @@ describe('GlobalErrorBoundary', () => {
       rerender(
         <GlobalErrorBoundary>
           <ThrowError error={error2} />
-        </GlobalErrorBoundary>
+        </GlobalErrorBoundary>,
       )
 
       expect(screen.getByText('Application Error')).toBeInTheDocument()
@@ -523,12 +523,12 @@ describe('GlobalErrorBoundary', () => {
       render(
         <GlobalErrorBoundary>
           <ThrowError error={error} />
-        </GlobalErrorBoundary>
+        </GlobalErrorBoundary>,
       )
 
       expect(screen.getByText('Application Error')).toBeInTheDocument()
       expect(
-        screen.getByText('An unexpected error occurred')
+        screen.getByText('An unexpected error occurred'),
       ).toBeInTheDocument()
     })
   })
@@ -543,7 +543,7 @@ describe('GlobalErrorBoundary', () => {
       render(
         <GlobalErrorBoundary>
           <ThrowError error={new Error('Brand test')} />
-        </GlobalErrorBoundary>
+        </GlobalErrorBoundary>,
       )
       const brand = screen.getByTestId('error-brand-vertretbar')
       expect(brand).toHaveTextContent('Vertretbar')
@@ -553,9 +553,11 @@ describe('GlobalErrorBoundary', () => {
       render(
         <GlobalErrorBoundary>
           <ThrowError error={new Error('Brand test')} />
-        </GlobalErrorBoundary>
+        </GlobalErrorBoundary>,
       )
-      expect(screen.queryByTestId('error-brand-vertretbar')).not.toBeInTheDocument()
+      expect(
+        screen.queryByTestId('error-brand-vertretbar'),
+      ).not.toBeInTheDocument()
     })
   })
 
@@ -566,7 +568,7 @@ describe('GlobalErrorBoundary', () => {
       render(
         <GlobalErrorBoundary>
           <ThrowError error={error} />
-        </GlobalErrorBoundary>
+        </GlobalErrorBoundary>,
       )
 
       const heading = screen.getByText('Application Error')
@@ -579,7 +581,7 @@ describe('GlobalErrorBoundary', () => {
       render(
         <GlobalErrorBoundary>
           <ThrowError error={error} />
-        </GlobalErrorBoundary>
+        </GlobalErrorBoundary>,
       )
 
       const reloadButton = screen.getByText('Reload Page')
@@ -597,7 +599,7 @@ describe('GlobalErrorBoundary', () => {
       render(
         <GlobalErrorBoundary>
           <ThrowError error={error} />
-        </GlobalErrorBoundary>
+        </GlobalErrorBoundary>,
       )
 
       const details = screen.getByText('Error Details').closest('details')
@@ -611,7 +613,7 @@ describe('GlobalErrorBoundary', () => {
       render(
         <GlobalErrorBoundary>
           <ThrowError error={error} />
-        </GlobalErrorBoundary>
+        </GlobalErrorBoundary>,
       )
 
       const errorMessage = screen.getByText('Contrast test')
@@ -624,7 +626,7 @@ describe('GlobalErrorBoundary', () => {
       render(
         <GlobalErrorBoundary>
           <ThrowError error={error} />
-        </GlobalErrorBoundary>
+        </GlobalErrorBoundary>,
       )
 
       const reloadButton = screen.getByText('Reload Page')
@@ -639,7 +641,7 @@ describe('GlobalErrorBoundary', () => {
       const { container } = render(
         <GlobalErrorBoundary>
           <ThrowError error={error} />
-        </GlobalErrorBoundary>
+        </GlobalErrorBoundary>,
       )
 
       const errorContainer = container.firstChild

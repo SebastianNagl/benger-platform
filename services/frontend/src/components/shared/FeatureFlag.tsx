@@ -137,7 +137,7 @@ export function FeatureFlagDebug({
 export function withFeatureFlag<P extends object>(
   Component: React.ComponentType<P>,
   flagName: string,
-  fallback?: ReactNode
+  fallback?: ReactNode,
 ) {
   return function FeatureFlagWrappedComponent(props: P) {
     return (
@@ -151,13 +151,13 @@ export function withFeatureFlag<P extends object>(
 // Hook for imperative feature flag checking with error handling
 export function useFeatureFlagWithFallback(
   flagName: string,
-  fallback: boolean = false
+  fallback: boolean = false,
 ): boolean {
   const { isEnabled, error } = useFeatureFlags()
 
   if (error) {
     console.warn(
-      `Feature flag '${flagName}' check failed, using fallback: ${fallback}`
+      `Feature flag '${flagName}' check failed, using fallback: ${fallback}`,
     )
     return fallback
   }

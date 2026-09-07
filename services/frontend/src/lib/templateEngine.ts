@@ -105,7 +105,7 @@ export class TemplateEngine {
     for (const column of template.display_config.table_columns) {
       if (!fieldMap.has(column)) {
         throw new Error(
-          `Display column '${column}' not found in template fields`
+          `Display column '${column}' not found in template fields`,
         )
       }
     }
@@ -128,7 +128,7 @@ export class TemplateEngine {
     annotationData: Record<string, any>,
     onChange: (fieldName: string, value: any) => void,
     errors: Record<string, string[]> = {},
-    context: DisplayContext = 'annotation'
+    context: DisplayContext = 'annotation',
   ): React.ReactElement[] {
     const elements: React.ReactElement[] = []
     const { template, fieldMap } = parsedTemplate
@@ -179,7 +179,7 @@ export class TemplateEngine {
           readonly: displayMode === 'readonly',
           errors: errors[field.name],
           context: context,
-        })
+        }),
       )
     }
 
@@ -197,7 +197,7 @@ export class TemplateEngine {
         string,
         (value: any, rowData: T) => React.ReactElement
       >
-    } = {}
+    } = {},
   ): ColumnDef<TableFeatures, T>[] {
     const columns: ColumnDef<TableFeatures, T>[] = []
     const { template, fieldMap } = parsedTemplate
@@ -231,7 +231,7 @@ export class TemplateEngine {
             field,
             value,
             rowData,
-            options.onCellClick
+            options.onCellClick,
           )
         },
       }
@@ -254,7 +254,7 @@ export class TemplateEngine {
             parsedTemplate,
             rowData,
             template.display_config.answer_display!,
-            options.onCellClick
+            options.onCellClick,
           )
         }
       }
@@ -268,7 +268,7 @@ export class TemplateEngine {
    */
   generatePrompt(
     parsedTemplate: ParsedTemplate,
-    taskData: Record<string, any>
+    taskData: Record<string, any>,
   ): string {
     const { template } = parsedTemplate
 
@@ -283,7 +283,7 @@ export class TemplateEngine {
       // Handle conditional blocks {{#if field}}...{{/if}}
       const conditionalRegex = new RegExp(
         `{{#if ${key}}}([\\s\\S]*?){{/if}}`,
-        'g'
+        'g',
       )
       prompt = prompt.replace(conditionalRegex, (match, content) => {
         return value ? content : ''
@@ -317,7 +317,7 @@ export class TemplateEngine {
    */
   parseLLMResponse(
     parsedTemplate: ParsedTemplate,
-    response: string
+    response: string,
   ): Record<string, any> {
     const { template } = parsedTemplate
 
@@ -334,7 +334,7 @@ export class TemplateEngine {
           if (template.llm_config.field_mapping) {
             const mapped: Record<string, any> = {}
             for (const [responseField, templateField] of Object.entries(
-              template.llm_config.field_mapping
+              template.llm_config.field_mapping,
             )) {
               if (responseField in parsed) {
                 mapped[templateField] = parsed[responseField]
@@ -366,7 +366,7 @@ export class TemplateEngine {
   validateData(
     parsedTemplate: ParsedTemplate,
     data: Record<string, any>,
-    context?: DisplayContext
+    context?: DisplayContext,
   ): { valid: boolean; errors: Record<string, string[]> } {
     const errors: Record<string, string[]> = {}
     const { fieldMap, requiredFields } = parsedTemplate
@@ -407,7 +407,7 @@ export class TemplateEngine {
   private evaluateFieldCondition(
     field: TaskTemplateField,
     taskData: Record<string, any>,
-    annotationData: Record<string, any>
+    annotationData: Record<string, any>,
   ): boolean {
     if (!field.condition) return true
 
@@ -449,7 +449,7 @@ export class TemplateEngine {
     field: TaskTemplateField,
     value: any,
     rowData: any,
-    onCellClick?: (field: string, value: any, rowData: any) => void
+    onCellClick?: (field: string, value: any, rowData: any) => void,
   ): React.ReactElement {
     const handleClick = () => {
       if (onCellClick) {
@@ -465,7 +465,7 @@ export class TemplateEngine {
           'cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 p-2 rounded transition-colors',
         onClick: handleClick,
       },
-      this.formatFieldValue(field, value)
+      this.formatFieldValue(field, value),
     )
 
     return cellContent
@@ -478,7 +478,7 @@ export class TemplateEngine {
       fields: string[]
       separator?: 'divider' | 'space' | 'newline'
     },
-    onCellClick?: (field: string, value: any, rowData: any) => void
+    onCellClick?: (field: string, value: any, rowData: any) => void,
   ): React.ReactElement {
     const { fieldMap } = parsedTemplate
     const elements: React.ReactElement[] = []
@@ -494,8 +494,8 @@ export class TemplateEngine {
         React.createElement(
           'div',
           { key: fieldName },
-          this.formatFieldValue(field, value)
-        )
+          this.formatFieldValue(field, value),
+        ),
       )
 
       // Add separator
@@ -507,7 +507,7 @@ export class TemplateEngine {
                 key: `separator-${i}`,
                 className:
                   'mt-2 pt-2 border-t border-zinc-200 dark:border-zinc-700',
-              })
+              }),
             )
             break
           case 'space':
@@ -515,7 +515,7 @@ export class TemplateEngine {
               React.createElement('div', {
                 key: `separator-${i}`,
                 className: 'mt-2',
-              })
+              }),
             )
             break
           case 'newline':
@@ -534,16 +534,16 @@ export class TemplateEngine {
           onCellClick?.(
             answerDisplay.fields[0],
             rowData[answerDisplay.fields[0]],
-            rowData
+            rowData,
           ),
       },
-      elements
+      elements,
     )
   }
 
   private formatFieldValue(
     field: TaskTemplateField,
-    value: any
+    value: any,
   ): React.ReactNode {
     if (value === null || value === undefined) {
       return React.createElement('span', { className: 'text-zinc-400' }, '-')
@@ -559,7 +559,7 @@ export class TemplateEngine {
           {
             className: 'text-sm text-zinc-700 dark:text-zinc-300',
           },
-          value
+          value,
         )
 
       case 'rich_text':
@@ -576,7 +576,7 @@ export class TemplateEngine {
           {
             className: 'text-sm font-medium text-zinc-700 dark:text-zinc-300',
           },
-          value
+          value,
         )
 
       case 'date':
@@ -585,7 +585,7 @@ export class TemplateEngine {
           {
             className: 'text-sm text-zinc-700 dark:text-zinc-300',
           },
-          new Date(value).toLocaleDateString()
+          new Date(value).toLocaleDateString(),
         )
 
       case 'checkbox':
@@ -595,7 +595,7 @@ export class TemplateEngine {
             {
               className: 'text-sm text-zinc-700 dark:text-zinc-300',
             },
-            value.join(', ')
+            value.join(', '),
           )
         }
         return React.createElement(
@@ -603,7 +603,7 @@ export class TemplateEngine {
           {
             className: 'text-sm text-zinc-700 dark:text-zinc-300',
           },
-          value ? 'Yes' : 'No'
+          value ? 'Yes' : 'No',
         )
 
       case 'radio':
@@ -612,7 +612,7 @@ export class TemplateEngine {
           {
             className: 'text-sm text-zinc-700 dark:text-zinc-300',
           },
-          value
+          value,
         )
 
       case 'file_upload':
@@ -622,7 +622,7 @@ export class TemplateEngine {
           {
             className: 'text-sm text-zinc-700 dark:text-zinc-300',
           },
-          `File: ${value}`
+          `File: ${value}`,
         )
 
       default:
@@ -631,14 +631,14 @@ export class TemplateEngine {
           {
             className: 'text-sm text-zinc-700 dark:text-zinc-300',
           },
-          String(value)
+          String(value),
         )
     }
   }
 
   private parseStructuredResponse(
     response: string,
-    parsedTemplate: ParsedTemplate
+    parsedTemplate: ParsedTemplate,
   ): Record<string, any> {
     // TODO: Implement structured response parsing
     // This could use regex patterns, section markers, etc.

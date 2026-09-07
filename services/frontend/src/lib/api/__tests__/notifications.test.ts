@@ -28,7 +28,7 @@ jest.mock('../base', () => ({
     private async handleRequest<T>(
       method: string,
       url: string,
-      data?: any
+      data?: any,
     ): Promise<T> {
       // Mock notifications list
       if (
@@ -336,7 +336,7 @@ describe('NotificationsClient', () => {
       }
 
       await expect(
-        client.updatePreferences(newPreferences)
+        client.updatePreferences(newPreferences),
       ).resolves.not.toThrow()
     })
   })
@@ -554,7 +554,7 @@ describe('NotificationsClient', () => {
         .mockRejectedValue(new Error('Network error'))
 
       await expect(errorClient.getNotifications()).rejects.toThrow(
-        'Network error'
+        'Network error',
       )
     })
 
@@ -579,16 +579,16 @@ describe('NotificationsClient', () => {
       await expect(client.getNotificationGroups('type')).resolves.toBeDefined()
       await expect(client.getNotificationGroups('date')).resolves.toBeDefined()
       await expect(
-        client.getNotificationGroups('organization')
+        client.getNotificationGroups('organization'),
       ).resolves.toBeDefined()
     })
 
     it('should validate limit parameter in getNotificationGroups', async () => {
       await expect(
-        client.getNotificationGroups('type', 100)
+        client.getNotificationGroups('type', 100),
       ).resolves.toBeDefined()
       await expect(
-        client.getNotificationGroups('type', 1)
+        client.getNotificationGroups('type', 1),
       ).resolves.toBeDefined()
     })
 

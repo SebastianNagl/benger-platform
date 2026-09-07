@@ -107,7 +107,7 @@ class MockWebSocket {
   simulateMessage(data: any) {
     if (this.onmessage) {
       this.onmessage(
-        new MessageEvent('message', { data: JSON.stringify(data) })
+        new MessageEvent('message', { data: JSON.stringify(data) }),
       )
     }
   }
@@ -190,7 +190,7 @@ describe('GenerationProgress', () => {
 
       await waitFor(() => {
         expect(global.WebSocket).toHaveBeenCalledWith(
-          'ws://localhost:8000/ws/projects/project-1/generation-progress'
+          'ws://localhost:8000/ws/projects/project-1/generation-progress',
         )
       })
     })
@@ -634,7 +634,7 @@ describe('GenerationProgress', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('Connection error occurred')
+          screen.getByText('Connection error occurred'),
         ).toBeInTheDocument()
       })
     })
@@ -659,7 +659,7 @@ describe('GenerationProgress', () => {
 
       await waitFor(() => {
         expect(
-          (global.WebSocket as jest.Mock).mock.calls.length
+          (global.WebSocket as jest.Mock).mock.calls.length,
         ).toBeGreaterThan(initialCallCount)
       })
 
@@ -681,7 +681,7 @@ describe('GenerationProgress', () => {
         throw new Error('WebSocket unavailable')
       })
       ;(apiClient.get as jest.Mock).mockRejectedValue(
-        new Error('Network error')
+        new Error('Network error'),
       )
 
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation()
@@ -690,7 +690,7 @@ describe('GenerationProgress', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('Failed to connect to progress updates')
+          screen.getByText('Failed to connect to progress updates'),
         ).toBeInTheDocument()
       })
 
@@ -791,7 +791,7 @@ describe('GenerationProgress', () => {
       // Send invalid JSON
       if (mockWebSocket?.onmessage) {
         mockWebSocket.onmessage(
-          new MessageEvent('message', { data: 'invalid json{' })
+          new MessageEvent('message', { data: 'invalid json{' }),
         )
       }
 
@@ -821,7 +821,7 @@ describe('GenerationProgress', () => {
       await waitFor(() => {
         expect(consoleSpy).toHaveBeenCalledWith(
           'WebSocket error:',
-          'API rate limit exceeded'
+          'API rate limit exceeded',
         )
       })
 
@@ -997,7 +997,7 @@ describe('GenerationProgress', () => {
     it('shows fallback error message when API error has no detail', async () => {
       const user = userEvent.setup()
       ;(apiClient.post as jest.Mock).mockRejectedValue(
-        new Error('Network error')
+        new Error('Network error'),
       )
 
       render(<GenerationProgress {...defaultProps} />)
@@ -1050,7 +1050,7 @@ describe('GenerationProgress', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('Failed to connect to progress updates')
+          screen.getByText('Failed to connect to progress updates'),
         ).toBeInTheDocument()
       })
 
@@ -1059,7 +1059,7 @@ describe('GenerationProgress', () => {
 
       await waitFor(() => {
         expect(apiClient.get).toHaveBeenCalledWith(
-          '/projects/project-1/generation-status'
+          '/projects/project-1/generation-status',
         )
       })
 
@@ -1090,7 +1090,7 @@ describe('GenerationProgress', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('Failed to connect to progress updates')
+          screen.getByText('Failed to connect to progress updates'),
         ).toBeInTheDocument()
       })
 
@@ -1114,7 +1114,7 @@ describe('GenerationProgress', () => {
 
       await waitFor(() => {
         expect(global.WebSocket).toHaveBeenCalledWith(
-          'wss://api.example.com/ws/projects/project-1/generation-progress'
+          'wss://api.example.com/ws/projects/project-1/generation-progress',
         )
       })
     })
@@ -1127,7 +1127,7 @@ describe('GenerationProgress', () => {
 
       await waitFor(() => {
         expect(global.WebSocket).toHaveBeenCalledWith(
-          'ws://localhost:8000/ws/projects/project-1/generation-progress'
+          'ws://localhost:8000/ws/projects/project-1/generation-progress',
         )
       })
     })
@@ -1286,7 +1286,7 @@ describe('GenerationProgress', () => {
   describe('Edge Cases', () => {
     it('handles empty generation IDs array', () => {
       render(
-        <GenerationProgress {...defaultProps} generationIds={[]} models={[]} />
+        <GenerationProgress {...defaultProps} generationIds={[]} models={[]} />,
       )
 
       expect(screen.getByText('0%')).toBeInTheDocument()
@@ -1300,7 +1300,7 @@ describe('GenerationProgress', () => {
           generationIds={['gen-1']}
           models={['gpt-4']}
           onComplete={mockOnComplete}
-        />
+        />,
       )
 
       await waitFor(() => {

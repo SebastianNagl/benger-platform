@@ -13,7 +13,7 @@ describe('Button Layout Fix - Issue #107', () => {
       <Button variant="outline" className="flex items-center gap-2">
         <ArrowLeftIcon className="h-4 w-4" />
         Back to Dashboard
-      </Button>
+      </Button>,
     )
 
     const button = screen.getByRole('button')
@@ -38,7 +38,7 @@ describe('Button Layout Fix - Issue #107', () => {
       <Button>
         <ArrowLeftIcon className="h-4 w-4" />
         Click Me
-      </Button>
+      </Button>,
     )
 
     const button = screen.getByRole('button')
@@ -76,7 +76,7 @@ describe('Button Layout Fix - Issue #107', () => {
         <Button variant={variant} data-testid={`button-${variant}`}>
           <ArrowLeftIcon className="h-4 w-4" />
           {variant} Button
-        </Button>
+        </Button>,
       )
 
       const button = screen.getByTestId(`button-${variant}`)
@@ -107,7 +107,7 @@ describe('Button Layout Fix - Issue #107', () => {
       <Button className="gap-4">
         <ArrowLeftIcon className="h-4 w-4" />
         Custom Gap
-      </Button>
+      </Button>,
     )
 
     const button = screen.getByRole('button')

@@ -4,9 +4,9 @@
  */
 
 import { projectsAPI } from '@/lib/api/projects'
+import { mockToast } from '@/test-utils/setupTests'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { mockToast } from '@/test-utils/setupTests'
 import { ProjectPermissionsPanel } from '../ProjectPermissionsPanel'
 
 const toast = { success: mockToast.success, error: mockToast.error }
@@ -93,12 +93,12 @@ describe('ProjectPermissionsPanel', () => {
         <ProjectPermissionsPanel
           projectId="project-1"
           initialVisibility="private"
-        />
+        />,
       )
 
       await waitFor(() => {
         expect(
-          screen.getByTestId('project-permissions-panel')
+          screen.getByTestId('project-permissions-panel'),
         ).toBeInTheDocument()
       })
 
@@ -112,7 +112,7 @@ describe('ProjectPermissionsPanel', () => {
         <ProjectPermissionsPanel
           projectId="project-1"
           initialVisibility="organization"
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -134,14 +134,14 @@ describe('ProjectPermissionsPanel', () => {
           projectId="project-1"
           projectCreatorId="someone-else"
           initialVisibility="organization"
-        />
+        />,
       )
 
       expect(
-        screen.getByText('You can only view these permissions')
+        screen.getByText('You can only view these permissions'),
       ).toBeInTheDocument()
       expect(
-        screen.queryByTestId('project-permissions-panel')
+        screen.queryByTestId('project-permissions-panel'),
       ).not.toBeInTheDocument()
     })
 
@@ -159,12 +159,12 @@ describe('ProjectPermissionsPanel', () => {
           projectId="project-1"
           projectCreatorId="creator-1"
           initialVisibility="private"
-        />
+        />,
       )
 
       await waitFor(() => {
         expect(
-          screen.getByTestId('project-permissions-panel')
+          screen.getByTestId('project-permissions-panel'),
         ).toBeInTheDocument()
       })
     })
@@ -175,17 +175,20 @@ describe('ProjectPermissionsPanel', () => {
           projectId="project-1"
           initialVisibility="public"
           initialPublicRole="CONTRIBUTOR"
-        />
+        />,
       )
 
       await waitFor(() => {
         expect(
-          (screen.getByTestId('public-radio') as HTMLInputElement).checked
+          (screen.getByTestId('public-radio') as HTMLInputElement).checked,
         ).toBe(true)
       })
       expect(
-        (screen.getByTestId('public-role-contributor-radio') as HTMLInputElement)
-          .checked
+        (
+          screen.getByTestId(
+            'public-role-contributor-radio',
+          ) as HTMLInputElement
+        ).checked,
       ).toBe(true)
     })
   })
@@ -197,7 +200,7 @@ describe('ProjectPermissionsPanel', () => {
         <ProjectPermissionsPanel
           projectId="project-1"
           initialVisibility="private"
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -218,7 +221,7 @@ describe('ProjectPermissionsPanel', () => {
           projectId="project-1"
           initialVisibility="public"
           initialPublicRole="ANNOTATOR"
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -229,7 +232,7 @@ describe('ProjectPermissionsPanel', () => {
 
       await waitFor(() => {
         expect(
-          screen.queryByTestId('public-role-section')
+          screen.queryByTestId('public-role-section'),
         ).not.toBeInTheDocument()
       })
     })
@@ -243,22 +246,27 @@ describe('ProjectPermissionsPanel', () => {
           projectId="project-1"
           initialVisibility="public"
           initialPublicRole="ANNOTATOR"
-        />
+        />,
       )
 
       await waitFor(() => {
         expect(
-          (screen.getByTestId(
-            'public-role-annotator-radio'
-          ) as HTMLInputElement).checked
+          (
+            screen.getByTestId(
+              'public-role-annotator-radio',
+            ) as HTMLInputElement
+          ).checked,
         ).toBe(true)
       })
 
       await user.click(screen.getByTestId('public-role-contributor-option'))
 
       expect(
-        (screen.getByTestId('public-role-contributor-radio') as HTMLInputElement)
-          .checked
+        (
+          screen.getByTestId(
+            'public-role-contributor-radio',
+          ) as HTMLInputElement
+        ).checked,
       ).toBe(true)
     })
   })
@@ -271,7 +279,7 @@ describe('ProjectPermissionsPanel', () => {
           projectId="project-1"
           initialVisibility="private"
           onSave={mockOnSave}
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -288,7 +296,7 @@ describe('ProjectPermissionsPanel', () => {
           public_role: 'CONTRIBUTOR',
         })
         expect(toast.success).toHaveBeenCalledWith(
-          'Permissions saved successfully'
+          'Permissions saved successfully',
         )
       })
     })
@@ -301,7 +309,7 @@ describe('ProjectPermissionsPanel', () => {
           initialVisibility="public"
           initialPublicRole="ANNOTATOR"
           onSave={mockOnSave}
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -322,14 +330,14 @@ describe('ProjectPermissionsPanel', () => {
       const user = userEvent.setup()
       const errorMessage = 'Failed to save permissions'
       ;(projectsAPI.updateVisibility as jest.Mock).mockRejectedValue(
-        new Error(errorMessage)
+        new Error(errorMessage),
       )
 
       render(
         <ProjectPermissionsPanel
           projectId="project-1"
           initialVisibility="public"
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -341,7 +349,7 @@ describe('ProjectPermissionsPanel', () => {
       await waitFor(() => {
         expect(toast.error).toHaveBeenCalledWith(errorMessage)
         expect(
-          screen.getByTestId('project-permissions-error')
+          screen.getByTestId('project-permissions-error'),
         ).toBeInTheDocument()
       })
     })
@@ -355,7 +363,7 @@ describe('ProjectPermissionsPanel', () => {
           projectId="project-1"
           initialVisibility="private"
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -366,7 +374,7 @@ describe('ProjectPermissionsPanel', () => {
       await user.click(screen.getByTestId('cancel-button'))
 
       expect(
-        (screen.getByTestId('private-radio') as HTMLInputElement).checked
+        (screen.getByTestId('private-radio') as HTMLInputElement).checked,
       ).toBe(true)
       expect(mockOnCancel).toHaveBeenCalled()
     })

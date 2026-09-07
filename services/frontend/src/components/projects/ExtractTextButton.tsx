@@ -1,7 +1,7 @@
 'use client'
 
-import { useRef, useState } from 'react'
 import { DocumentArrowUpIcon } from '@heroicons/react/24/outline'
+import { useRef, useState } from 'react'
 
 import { Button } from '@/components/shared/Button'
 import { useToast } from '@/components/shared/Toast'
@@ -35,7 +35,11 @@ export function ExtractTextButton({ onText, className }: Props) {
       if (res.warnings?.length) addToast(res.warnings.join(' '), 'warning')
     } catch (err: any) {
       addToast(
-        err?.message || t('tasks.importModal.extractText.failed', 'Text konnte nicht extrahiert werden.'),
+        err?.message ||
+          t(
+            'tasks.importModal.extractText.failed',
+            'Text konnte nicht extrahiert werden.',
+          ),
         'error',
       )
     } finally {
@@ -64,7 +68,10 @@ export function ExtractTextButton({ onText, className }: Props) {
         <DocumentArrowUpIcon className="mr-2 h-4 w-4" />
         {busy
           ? t('tasks.importModal.extractText.busy', 'Extrahiere…')
-          : t('tasks.importModal.extractText.button', 'Text aus Dokument (PDF/DOCX)')}
+          : t(
+              'tasks.importModal.extractText.button',
+              'Text aus Dokument (PDF/DOCX)',
+            )}
       </Button>
     </span>
   )

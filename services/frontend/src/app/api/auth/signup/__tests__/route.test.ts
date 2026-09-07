@@ -83,7 +83,7 @@ describe('/api/auth/signup', () => {
             password: 'SecurePass123!',
             username: 'newuser',
           }),
-        })
+        }),
       )
     })
 
@@ -119,7 +119,7 @@ describe('/api/auth/signup', () => {
             password: 'SecurePass123!',
             username: 'newuser',
           }),
-        }
+        },
       )
 
       const response = await POST(request)
@@ -127,7 +127,7 @@ describe('/api/auth/signup', () => {
       expect(response.status).toBe(201)
       expect(global.fetch).toHaveBeenCalledWith(
         'http://api:8000/api/auth/signup',
-        expect.any(Object)
+        expect.any(Object),
       )
     })
   })
@@ -458,7 +458,7 @@ describe('/api/auth/signup', () => {
 
     it('should handle network errors gracefully', async () => {
       ;(global.fetch as jest.Mock).mockRejectedValueOnce(
-        new Error('Network error')
+        new Error('Network error'),
       )
 
       const request = new NextRequest('http://localhost:3000/api/auth/signup', {
@@ -621,7 +621,7 @@ describe('/api/auth/signup', () => {
 
       expect(global.fetch).toHaveBeenCalledWith(
         'http://localhost:8001/api/auth/signup',
-        expect.any(Object)
+        expect.any(Object),
       )
     })
 
@@ -654,14 +654,14 @@ describe('/api/auth/signup', () => {
             password: 'SecurePass123!',
             username: 'newuser',
           }),
-        }
+        },
       )
 
       await POST(request)
 
       expect(global.fetch).toHaveBeenCalledWith(
         'http://api:8000/api/auth/signup',
-        expect.any(Object)
+        expect.any(Object),
       )
     })
 
@@ -697,14 +697,14 @@ describe('/api/auth/signup', () => {
             password: 'SecurePass123!',
             username: 'newuser',
           }),
-        }
+        },
       )
 
       await POST(request)
 
       expect(global.fetch).toHaveBeenCalledWith(
         'http://custom-api:8000/api/auth/signup',
-        expect.any(Object)
+        expect.any(Object),
       )
 
       // Restore environment variable
@@ -880,7 +880,7 @@ describe('/api/auth/signup', () => {
             extraField: 'should be ignored',
             role: 'admin',
           }),
-        })
+        }),
       )
     })
   })
@@ -986,7 +986,7 @@ describe('/api/auth/signup', () => {
   describe('Error Logging', () => {
     it('should log error on failure', async () => {
       ;(global.fetch as jest.Mock).mockRejectedValueOnce(
-        new Error('Network error')
+        new Error('Network error'),
       )
 
       const request = new NextRequest('http://localhost:3000/api/auth/signup', {
@@ -1006,7 +1006,7 @@ describe('/api/auth/signup', () => {
 
       expect(console.error).toHaveBeenCalledWith(
         '❌ Signup proxy error:',
-        expect.any(Error)
+        expect.any(Error),
       )
     })
   })

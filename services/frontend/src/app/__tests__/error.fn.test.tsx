@@ -3,7 +3,7 @@
  * Covers: reset button, reload button, error logging, development details
  */
 
-import { render, screen, fireEvent } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import GlobalError from '../error'
 
 jest.mock('@/contexts/I18nContext', () => ({
@@ -55,7 +55,9 @@ describe('GlobalError', () => {
   it('renders error description', () => {
     render(<GlobalError error={mockError} reset={mockReset} />)
     expect(
-      screen.getByText('Beim Laden dieses Inhalts ist ein unerwarteter Fehler aufgetreten.')
+      screen.getByText(
+        'Beim Laden dieses Inhalts ist ein unerwarteter Fehler aufgetreten.',
+      ),
     ).toBeInTheDocument()
   })
 
@@ -85,7 +87,9 @@ describe('GlobalError', () => {
   })
 
   it('renders SVG warning icon', () => {
-    const { container } = render(<GlobalError error={mockError} reset={mockReset} />)
+    const { container } = render(
+      <GlobalError error={mockError} reset={mockReset} />,
+    )
     const svg = container.querySelector('svg')
     expect(svg).toBeInTheDocument()
   })

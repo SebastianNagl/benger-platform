@@ -10,7 +10,10 @@ import { RichTextField } from '../RichTextField'
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
     t: (key: string, varsOrDefault?: any) => {
-      const translations: Record<string, any> = require('../../../locales/en/common.json')
+      const translations: Record<
+        string,
+        any
+      > = require('../../../locales/en/common.json')
       const parts = key.split('.')
       let value: any = translations
       for (const part of parts) {
@@ -98,7 +101,7 @@ describe('RichTextField Component', () => {
       render(<RichTextField {...defaultProps} />)
 
       expect(
-        screen.getByText('Enter a detailed description')
+        screen.getByText('Enter a detailed description'),
       ).toBeInTheDocument()
     })
 
@@ -107,8 +110,8 @@ describe('RichTextField Component', () => {
 
       expect(
         screen.getByText(
-          'Rich text editor coming soon. Currently using plain text.'
-        )
+          'Rich text editor coming soon. Currently using plain text.',
+        ),
       ).toBeInTheDocument()
     })
   })
@@ -123,7 +126,7 @@ describe('RichTextField Component', () => {
 
     it('handles null/undefined values gracefully', () => {
       const { rerender } = render(
-        <RichTextField {...defaultProps} value={null} />
+        <RichTextField {...defaultProps} value={null} />,
       )
       expect(screen.getByRole('textbox')).toHaveValue('')
 
@@ -217,13 +220,13 @@ describe('RichTextField Component', () => {
       expect(textarea).toHaveClass(
         'cursor-not-allowed',
         'bg-gray-50',
-        'dark:bg-gray-800'
+        'dark:bg-gray-800',
       )
     })
 
     it('applies readonly class to wrapper', () => {
       const { container } = render(
-        <RichTextField {...defaultProps} readonly={true} />
+        <RichTextField {...defaultProps} readonly={true} />,
       )
 
       const wrapper = container.querySelector('.rich-text-editor')
@@ -258,7 +261,7 @@ describe('RichTextField Component', () => {
         'border-red-300',
         'focus:border-red-500',
         'focus:ring-red-500',
-        'dark:border-red-600'
+        'dark:border-red-600',
       )
     })
 
@@ -278,7 +281,7 @@ describe('RichTextField Component', () => {
         'border-gray-300',
         'focus:border-blue-500',
         'focus:ring-blue-500',
-        'dark:border-gray-600'
+        'dark:border-gray-600',
       )
     })
   })
@@ -321,7 +324,7 @@ describe('RichTextField Component', () => {
           <button>Before</button>
           <RichTextField {...defaultProps} />
           <button>After</button>
-        </div>
+        </div>,
       )
 
       const beforeButton = screen.getByRole('button', { name: 'Before' })
@@ -352,7 +355,7 @@ describe('RichTextField Component', () => {
         placeholder: undefined,
       }
       render(
-        <RichTextField {...defaultProps} field={fieldWithoutPlaceholder} />
+        <RichTextField {...defaultProps} field={fieldWithoutPlaceholder} />,
       )
 
       const textarea = screen.getByRole('textbox')
@@ -424,13 +427,13 @@ describe('RichTextField Component', () => {
       render(<RichTextField {...defaultProps} />)
 
       const message = screen.getByText(
-        'Rich text editor coming soon. Currently using plain text.'
+        'Rich text editor coming soon. Currently using plain text.',
       )
       expect(message).toBeInTheDocument()
       expect(message).toHaveClass(
         'text-xs',
         'text-gray-500',
-        'dark:text-gray-400'
+        'dark:text-gray-400',
       )
     })
   })

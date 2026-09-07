@@ -63,7 +63,7 @@ describe('Tag', () => {
     const { container: mediumContainer } = render(
       <Tag variant="medium" color="rose">
         TEST
-      </Tag>
+      </Tag>,
     )
     const mediumTag = mediumContainer.firstChild as HTMLElement
     expect(mediumTag).toHaveClass('ring-rose-200')
@@ -72,7 +72,7 @@ describe('Tag', () => {
     const { container: smallContainer } = render(
       <Tag variant="small" color="rose">
         TEST
-      </Tag>
+      </Tag>,
     )
     const smallTag = smallContainer.firstChild as HTMLElement
     expect(smallTag).toHaveClass('text-red-500')
@@ -97,7 +97,7 @@ describe('Tag', () => {
     const colors = ['emerald', 'sky', 'amber', 'rose', 'zinc'] as const
     colors.forEach((color) => {
       const { container } = render(
-        <Tag color={color}>{color.toUpperCase()}</Tag>
+        <Tag color={color}>{color.toUpperCase()}</Tag>,
       )
       const tagElement = container.firstChild as HTMLElement
       expect(tagElement).toBeInTheDocument()

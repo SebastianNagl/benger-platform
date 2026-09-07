@@ -19,12 +19,7 @@
  * The panel ships in the extended edition (LtiRegistrationsAdmin slot),
  * hence the @extended tag per suite convention.
  */
-import {
-  BrowserContext,
-  expect,
-  Page,
-  test,
-} from '@playwright/test'
+import { BrowserContext, expect, Page, test } from '@playwright/test'
 
 import { TestHelpers } from '../helpers/test-helpers'
 import { bengerDbSql, gotoWithRetry, warmAppRoutes } from './moodle-helpers'
@@ -37,7 +32,10 @@ const E2E_ISSUER = 'https://moodle.e2e.invalid'
 test.describe.configure({ mode: 'serial' })
 
 test.describe('LTI registrations admin @extended', () => {
-  test.skip(!process.env.LTI_E2E, 'needs the lti-dev Moodle harness (LTI_E2E=1)')
+  test.skip(
+    !process.env.LTI_E2E,
+    'needs the lti-dev Moodle harness (LTI_E2E=1)',
+  )
 
   // issuer+client_id is globally unique — a per-run client id keeps the spec
   // re-runnable even when an aborted earlier run left its row behind.
@@ -76,7 +74,7 @@ test.describe('LTI registrations admin @extended', () => {
     // directly; ON DELETE CASCADE removes the deployments. The fixed fake
     // issuer also sweeps strays left by earlier aborted runs.
     bengerDbSql(
-      `DELETE FROM lti_platform_registrations WHERE issuer = '${E2E_ISSUER}'`
+      `DELETE FROM lti_platform_registrations WHERE issuer = '${E2E_ISSUER}'`,
     )
     await context?.close()
   })
@@ -85,33 +83,35 @@ test.describe('LTI registrations admin @extended', () => {
     await gotoWithRetry(page, `${ADMIN_BASE}/admin/lti`)
 
     await expect(
-      page.getByRole('heading', { name: 'LTI-Registrierungen (Moodle)' })
+      page.getByRole('heading', { name: 'LTI-Registrierungen (Moodle)' }),
     ).toBeVisible({ timeout: 20_000 })
     await expect(
-      page.getByRole('heading', { name: 'Registrierungen', exact: true })
+      page.getByRole('heading', { name: 'Registrierungen', exact: true }),
     ).toBeVisible()
     // The dev harness seeds one registration, so the table (not the empty
     // state) is showing.
-    await expect(page.getByRole('button', { name: 'Neue Registrierung' })).toBeVisible()
+    await expect(
+      page.getByRole('button', { name: 'Neue Registrierung' }),
+    ).toBeVisible()
   })
 
   test('creates a registration, deriving the Moodle URLs from the issuer', async () => {
     // Any existing organization works for the fake university; the seeded
     // lti-dev registration's org is guaranteed by the harness.
     const listResponse = await page.request.get(
-      `${ADMIN_BASE}/api/admin/lti/registrations`
+      `${ADMIN_BASE}/api/admin/lti/registrations`,
     )
     expect(listResponse.ok(), await listResponse.text()).toBe(true)
     const registrations = await listResponse.json()
     const organizationId = registrations[0]?.organization_id
     expect(
       organizationId,
-      'the lti-dev harness must have seeded a registration to borrow an org id from'
+      'the lti-dev harness must have seeded a registration to borrow an org id from',
     ).toBeTruthy()
 
     await page.getByRole('button', { name: 'Neue Registrierung' }).click()
     await expect(
-      page.getByRole('heading', { name: 'Neue Registrierung' })
+      page.getByRole('heading', { name: 'Neue Registrierung' }),
     ).toBeVisible()
 
     await page.getByTestId('lti-form-organization_id').fill(organizationId)
@@ -122,13 +122,13 @@ test.describe('LTI registrations admin @extended', () => {
     // The prefill helper derives Moodle's three endpoints from the issuer.
     await page.getByTestId('lti-form-moodle-defaults').click()
     await expect(page.getByTestId('lti-form-auth_login_url')).toHaveValue(
-      `${E2E_ISSUER}/mod/lti/auth.php`
+      `${E2E_ISSUER}/mod/lti/auth.php`,
     )
     await expect(page.getByTestId('lti-form-auth_token_url')).toHaveValue(
-      `${E2E_ISSUER}/mod/lti/token.php`
+      `${E2E_ISSUER}/mod/lti/token.php`,
     )
     await expect(page.getByTestId('lti-form-jwks_uri')).toHaveValue(
-      `${E2E_ISSUER}/mod/lti/certs.php`
+      `${E2E_ISSUER}/mod/lti/certs.php`,
     )
 
     await page.getByTestId('lti-form-submit').click()
@@ -144,15 +144,19 @@ test.describe('LTI registrations admin @extended', () => {
       await page.request.get(`${ADMIN_BASE}/api/admin/lti/registrations`)
     ).json()
     registrationId = created.find(
-      (registration: { client_id: string }) => registration.client_id === clientId
+      (registration: { client_id: string }) =>
+        registration.client_id === clientId,
     )?.id
-    expect(registrationId, 'created registration present in the API list').toBeTruthy()
+    expect(
+      registrationId,
+      'created registration present in the API list',
+    ).toBeTruthy()
   })
 
   test('tool-config panel shows the tool URLs for the Moodle admin', async () => {
     await page.getByTestId(`lti-reg-config-${registrationId}`).click()
     await expect(
-      page.getByRole('heading', { name: 'Tool-Konfiguration' })
+      page.getByRole('heading', { name: 'Tool-Konfiguration' }),
     ).toBeVisible()
 
     // Copy-paste values derive from the admin host's origin.
@@ -177,7 +181,7 @@ test.describe('LTI registrations admin @extended', () => {
   test('adds a deployment id', async () => {
     await page.getByTestId(`lti-reg-deployments-${registrationId}`).click()
     await expect(
-      page.getByRole('heading', { name: 'Deployments', exact: true })
+      page.getByRole('heading', { name: 'Deployments', exact: true }),
     ).toBeVisible()
 
     await page.getByTestId('lti-deployment-new-id').fill('e2e-dep-1')
@@ -202,21 +206,21 @@ test.describe('LTI registrations admin @extended', () => {
     // … and the deployments panel lists the new id.
     await page.getByTestId(`lti-reg-deployments-${registrationId}`).click()
     await expect(
-      page.locator('li').filter({ hasText: 'e2e-dep-1' })
+      page.locator('li').filter({ hasText: 'e2e-dep-1' }),
     ).toBeVisible({ timeout: 15_000 })
   })
 
   test('disables the registration via edit', async () => {
     await page.getByTestId(`lti-reg-edit-${registrationId}`).click()
     await expect(
-      page.getByRole('heading', { name: 'Registrierung bearbeiten' })
+      page.getByRole('heading', { name: 'Registrierung bearbeiten' }),
     ).toBeVisible()
 
     await page.getByTestId('lti-form-status').selectOption('disabled')
     await page.getByTestId('lti-form-submit').click()
     // The edit panel closes once the PUT has landed.
     await expect(
-      page.getByRole('heading', { name: 'Registrierung bearbeiten' })
+      page.getByRole('heading', { name: 'Registrierung bearbeiten' }),
     ).toBeHidden({ timeout: 15_000 })
 
     // Fresh page load — same GET-cache staleness caveat as above.

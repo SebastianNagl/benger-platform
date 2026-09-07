@@ -47,13 +47,13 @@ describe('AdminLayout Integration', () => {
     render(
       <AdminLayout>
         <AdminPage />
-      </AdminLayout>
+      </AdminLayout>,
     )
 
     // Verify admin page content is rendered
     expect(screen.getByText('User Management')).toBeInTheDocument()
     expect(
-      screen.getByText('This is the admin page content')
+      screen.getByText('This is the admin page content'),
     ).toBeInTheDocument()
   })
 
@@ -61,7 +61,7 @@ describe('AdminLayout Integration', () => {
     render(
       <AdminLayout>
         <div>Admin Content</div>
-      </AdminLayout>
+      </AdminLayout>,
     )
 
     // Verify admin content is rendered
@@ -88,7 +88,7 @@ describe('AdminLayout Integration', () => {
     render(
       <AdminLayout>
         <UserManagementPage />
-      </AdminLayout>
+      </AdminLayout>,
     )
 
     // Verify different admin page content works with the layout
@@ -102,7 +102,7 @@ describe('AdminLayout Integration', () => {
     render(
       <AdminLayout>
         <div>Test Admin Content</div>
-      </AdminLayout>
+      </AdminLayout>,
     )
 
     // Verify content is rendered consistently

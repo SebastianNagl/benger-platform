@@ -44,11 +44,9 @@ export function SiteHeader() {
           if (entry.isIntersecting) visibleSections.add(entry.target.id)
           else visibleSections.delete(entry.target.id)
         }
-        setActiveSection(
-          sectionIds.find((id) => visibleSections.has(id)) || ''
-        )
+        setActiveSection(sectionIds.find((id) => visibleSections.has(id)) || '')
       },
-      { threshold: 0.3 }
+      { threshold: 0.3 },
     )
     sectionIds.forEach((id) => {
       const el = document.getElementById(id)
@@ -66,7 +64,7 @@ export function SiteHeader() {
     }
 
   return (
-    <header className="sticky top-0 z-50 flex h-14 items-center justify-between border-b border-zinc-900/10 bg-white pl-1 pr-4 sm:px-6 lg:px-8 dark:border-white/10 dark:bg-zinc-900">
+    <header className="sticky top-0 z-50 flex h-14 items-center justify-between border-b border-zinc-900/10 bg-white pr-4 pl-1 sm:px-6 lg:px-8 dark:border-white/10 dark:bg-zinc-900">
       <div className="flex items-center gap-3">
         <Link href="/" className="flex items-center">
           <span className="sr-only">BenGER</span>
@@ -80,10 +78,10 @@ export function SiteHeader() {
               href={`/#${id}`}
               onClick={handleSectionClick(id)}
               className={clsx(
-                'whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
+                'rounded-md px-3 py-1.5 text-sm font-medium whitespace-nowrap transition-colors',
                 isHome && activeSection === id
                   ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400'
-                  : 'text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-white'
+                  : 'text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-white',
               )}
             >
               {t(key)}
@@ -99,7 +97,7 @@ export function SiteHeader() {
         </div>
         <Link
           href="/login"
-          className="inline-flex items-center justify-center overflow-hidden rounded-full px-4 py-1.5 text-sm font-medium text-zinc-700 ring-1 ring-inset ring-zinc-900/10 transition hover:text-zinc-900 dark:text-zinc-400 dark:ring-white/10 dark:hover:bg-white/5 dark:hover:text-white"
+          className="inline-flex items-center justify-center overflow-hidden rounded-full px-4 py-1.5 text-sm font-medium text-zinc-700 ring-1 ring-zinc-900/10 transition ring-inset hover:text-zinc-900 dark:text-zinc-400 dark:ring-white/10 dark:hover:bg-white/5 dark:hover:text-white"
         >
           {t('landing.nav.login')}
         </Link>

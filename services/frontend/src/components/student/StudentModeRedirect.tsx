@@ -35,7 +35,8 @@ export function StudentModeRedirect() {
     if (!isAuthenticated) return
     if (!pathname) return
 
-    const onStudentRoute = pathname === '/student' || pathname.startsWith('/student/')
+    const onStudentRoute =
+      pathname === '/student' || pathname.startsWith('/student/')
 
     if (resolvedUiMode === 'student') {
       if (pathname === '/' || pathname === '/dashboard') {

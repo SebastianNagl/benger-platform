@@ -15,12 +15,14 @@ test.describe('Unified Admin Interface', () => {
 
     // Look for the user dropdown button - it should show the username
     await expect(
-      page.locator('[data-testid="user-menu-button"], button:has-text("admin")')
+      page.locator(
+        '[data-testid="user-menu-button"], button:has-text("admin")',
+      ),
     ).toBeVisible({ timeout: 10000 })
 
     // Click on the user dropdown to open it
     await page.click(
-      '[data-testid="user-menu-button"], button:has-text("admin")'
+      '[data-testid="user-menu-button"], button:has-text("admin")',
     )
 
     // Wait for dropdown to be visible - look for profile settings link which appears in dropdown
@@ -28,7 +30,7 @@ test.describe('Unified Admin Interface', () => {
       '[href="/profile"], [href="/settings/notifications"]',
       {
         timeout: 5000,
-      }
+      },
     )
 
     // Check that admin-specific links are visible (handles both English and German)

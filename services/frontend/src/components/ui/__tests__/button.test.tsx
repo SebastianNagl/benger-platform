@@ -36,7 +36,7 @@ describe('Button', () => {
         'bg-emerald-600',
         'text-white',
         'hover:bg-emerald-700',
-        'focus:ring-emerald-500'
+        'focus:ring-emerald-500',
       )
     })
 
@@ -48,7 +48,7 @@ describe('Button', () => {
         'border',
         'border-zinc-300',
         'bg-transparent',
-        'hover:bg-zinc-100'
+        'hover:bg-zinc-100',
       )
     })
 
@@ -67,7 +67,7 @@ describe('Button', () => {
         'bg-red-600',
         'text-white',
         'hover:bg-red-700',
-        'focus:ring-red-500'
+        'focus:ring-red-500',
       )
     })
   })
@@ -135,7 +135,7 @@ describe('Button', () => {
       expect(button).toBeDisabled()
       expect(button).toHaveClass(
         'disabled:opacity-50',
-        'disabled:pointer-events-none'
+        'disabled:pointer-events-none',
       )
     })
 
@@ -172,7 +172,7 @@ describe('Button', () => {
       render(
         <Button onClick={handleClick} disabled>
           Disabled
-        </Button>
+        </Button>,
       )
 
       await user.click(screen.getByRole('button'))
@@ -186,7 +186,7 @@ describe('Button', () => {
       render(
         <Button onClick={handleClick} loading>
           Loading
-        </Button>
+        </Button>,
       )
 
       await user.click(screen.getByRole('button'))
@@ -223,7 +223,7 @@ describe('Button', () => {
           aria-label="Custom aria label"
         >
           Submit
-        </Button>
+        </Button>,
       )
 
       const button = screen.getByRole('button')
@@ -257,7 +257,7 @@ describe('Button', () => {
       expect(button).toHaveClass(
         'focus:outline-none',
         'focus:ring-2',
-        'focus:ring-offset-2'
+        'focus:ring-offset-2',
       )
     })
 
@@ -275,7 +275,7 @@ describe('Button', () => {
       render(
         <Button variant="outline" size="lg">
           Large outline
-        </Button>
+        </Button>,
       )
 
       const button = screen.getByRole('button')
@@ -287,7 +287,7 @@ describe('Button', () => {
       render(
         <Button variant="destructive" loading>
           Loading destructive
-        </Button>
+        </Button>,
       )
 
       const button = screen.getByRole('button')
@@ -310,7 +310,7 @@ describe('Button', () => {
           data-testid="complex-button"
         >
           Complex button
-        </Button>
+        </Button>,
       )
 
       const button = screen.getByRole('button')
@@ -333,7 +333,7 @@ describe('Button', () => {
         'justify-center',
         'font-medium',
         'rounded-md',
-        'transition-colors'
+        'transition-colors',
       )
     })
   })
@@ -352,7 +352,7 @@ describe('Button', () => {
         <Button>
           <span>Icon</span>
           <span>Text</span>
-        </Button>
+        </Button>,
       )
 
       const button = screen.getByRole('button')

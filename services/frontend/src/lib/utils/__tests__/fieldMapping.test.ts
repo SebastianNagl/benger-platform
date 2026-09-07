@@ -87,7 +87,7 @@ describe('applyFieldMappings', () => {
           confidence: 1,
           type: 'exact' as const,
         },
-      ]
+      ],
     )
     expect(result).toEqual([])
   })
@@ -130,7 +130,7 @@ describe('suggestFieldMappings', () => {
 
     expect(suggestions.mappings.length).toBeGreaterThan(0)
     const questionMapping = suggestions.mappings.find(
-      (m) => m.source === 'quest'
+      (m) => m.source === 'quest',
     )
     expect(questionMapping).toBeTruthy()
     expect(questionMapping?.target).toBe('question')
@@ -172,7 +172,7 @@ describe('suggestFieldMappings', () => {
     const suggestions = suggestFieldMappings(sourceFields, targetFields)
 
     const exactMatch = suggestions.mappings.find(
-      (m) => m.source === 'question' && m.target === 'question'
+      (m) => m.source === 'question' && m.target === 'question',
     )
     expect(exactMatch).toBeTruthy()
     expect(exactMatch?.type).toBe('exact')
@@ -194,14 +194,14 @@ describe('suggestFieldMappings', () => {
     // High quality: all fields mapped with high confidence
     const highQuality = suggestFieldMappings(
       ['question', 'answer'],
-      ['question', 'answer']
+      ['question', 'answer'],
     )
     expect(highQuality.quality).toBe('high')
 
     // Low quality: no fields mapped
     const lowQuality = suggestFieldMappings(
       ['foo', 'bar'],
-      ['question', 'answer']
+      ['question', 'answer'],
     )
     expect(lowQuality.quality).toBe('low')
   })
@@ -217,11 +217,11 @@ describe('suggestFieldMappings', () => {
     const suggestions = suggestFieldMappings(
       sourceFields,
       targetFields,
-      sampleData
+      sampleData,
     )
 
     const dateMapping = suggestions.mappings.find(
-      (m) => m.source === 'date_field'
+      (m) => m.source === 'date_field',
     )
     expect(dateMapping).toBeTruthy()
     expect(dateMapping?.target).toContain('date')

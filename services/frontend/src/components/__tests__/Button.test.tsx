@@ -18,7 +18,7 @@ describe('Button Component', () => {
       <Button variant="outline" className="flex items-center gap-2">
         <ArrowLeftIcon className="h-4 w-4" />
         Back to Dashboard
-      </Button>
+      </Button>,
     )
 
     const button = screen.getByRole('button')
@@ -69,7 +69,7 @@ describe('Button Component', () => {
       <Button variant="outline">
         <ArrowLeftIcon className="h-4 w-4" />
         Back to Dashboard
-      </Button>
+      </Button>,
     )
 
     const button = screen.getByRole('button')
@@ -91,7 +91,7 @@ describe('Button Component', () => {
         <Button variant={variant}>
           <ArrowLeftIcon className="h-4 w-4" />
           Test Button
-        </Button>
+        </Button>,
       )
 
       const button = screen.getByRole('button')
@@ -107,7 +107,7 @@ describe('Button Component', () => {
       <Button>
         <ArrowLeftIcon className="h-4 w-4" />
         Back to Dashboard
-      </Button>
+      </Button>,
     )
 
     const button = screen.getByRole('button')
@@ -122,7 +122,7 @@ describe('Button Component', () => {
       <Button>
         <ArrowLeftIcon className="h-4 w-4" data-testid="icon" />
         <span data-testid="text">Back to Dashboard</span>
-      </Button>
+      </Button>,
     )
 
     const button = screen.getByRole('button')

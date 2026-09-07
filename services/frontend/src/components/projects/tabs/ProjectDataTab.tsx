@@ -5,7 +5,6 @@
 
 'use client'
 
-import { logger } from '@/lib/utils/logger'
 import { BulkActions } from '@/components/projects/BulkActions'
 import { ColumnSelector } from '@/components/projects/ColumnSelector'
 import { FilterDropdown } from '@/components/projects/FilterDropdown'
@@ -23,6 +22,7 @@ import { useColumnSettings } from '@/hooks/useColumnSettings'
 import { usePermissions } from '@/hooks/usePermissions'
 import { projectsAPI } from '@/lib/api/projects'
 import { Task } from '@/lib/api/types'
+import { logger } from '@/lib/utils/logger'
 import { useProjectStore } from '@/stores/projectStore'
 import { Task as LabelStudioTask } from '@/types/labelStudio'
 import {
@@ -41,10 +41,7 @@ import {
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { DataRecordModal } from './data/DataRecordModal'
-import {
-  ProjectDataTable,
-  type TableColumn,
-} from './data/ProjectDataTable'
+import { ProjectDataTable, type TableColumn } from './data/ProjectDataTable'
 import { useProjectData } from './data/useProjectData'
 
 interface ProjectDataTabProps {
@@ -279,7 +276,7 @@ export function ProjectDataTab({ projectId }: ProjectDataTabProps) {
       if (truncated) {
         addToast(
           `Selection capped at ${ids.length} tasks; refine filters to act on the rest.`,
-          'warning'
+          'warning',
         )
       }
     } catch (e) {
@@ -313,7 +310,7 @@ export function ProjectDataTab({ projectId }: ProjectDataTabProps) {
         updatePreference('sortOrder', 'desc')
       }
     },
-    [columns, sortBy, sortOrder, updatePreference]
+    [columns, sortBy, sortOrder, updatePreference],
   )
 
   // Handle bulk actions
@@ -324,7 +321,7 @@ export function ProjectDataTab({ projectId }: ProjectDataTabProps) {
       !confirm(
         t('annotationTab.confirmations.deleteTasks', {
           count: selectedTasks.size,
-        })
+        }),
       )
     ) {
       return
@@ -348,7 +345,7 @@ export function ProjectDataTab({ projectId }: ProjectDataTabProps) {
 
       addToast(
         t('annotationTab.messages.tasksDeleted', { count: result.deleted }),
-        'success'
+        'success',
       )
       setSelectedTasks(new Set())
 
@@ -363,7 +360,7 @@ export function ProjectDataTab({ projectId }: ProjectDataTabProps) {
       updateProgress(
         progressId,
         100,
-        t('annotationTab.messages.exportComplete')
+        t('annotationTab.messages.exportComplete'),
       )
       completeProgress(progressId, 'success')
     } catch (error) {
@@ -400,12 +397,12 @@ export function ProjectDataTab({ projectId }: ProjectDataTabProps) {
               updateProgress(
                 progressId,
                 status.progress,
-                t('annotationTab.messages.exporting')
+                t('annotationTab.messages.exporting'),
               )
             }
           },
         },
-        { taskIds }
+        { taskIds },
       )
 
       completeProgress(progressId, 'success')
@@ -413,7 +410,7 @@ export function ProjectDataTab({ projectId }: ProjectDataTabProps) {
         t('annotationTab.messages.exportedTasks', {
           count: selectedTasks.size,
         }),
-        'success'
+        'success',
       )
     } catch (error) {
       logger.error('Failed to export tasks:', error)
@@ -422,7 +419,7 @@ export function ProjectDataTab({ projectId }: ProjectDataTabProps) {
         t('annotationTab.messages.exportFailed', {
           error: (error as any)?.message || 'Unknown error',
         }),
-        'error'
+        'error',
       )
     }
   }
@@ -464,7 +461,7 @@ export function ProjectDataTab({ projectId }: ProjectDataTabProps) {
         if (truncated) {
           addToast(
             `Export capped at ${ids.length} tasks; refine filters to export the rest.`,
-            'warning'
+            'warning',
           )
         }
         taskIds = ids
@@ -486,19 +483,16 @@ export function ProjectDataTab({ projectId }: ProjectDataTabProps) {
               updateProgress(
                 progressId,
                 status.progress,
-                t('annotationTab.messages.exporting')
+                t('annotationTab.messages.exporting'),
               )
             }
           },
         },
-        { taskIds }
+        { taskIds },
       )
 
       completeProgress(progressId, 'success')
-      addToast(
-        t('annotationTab.messages.exportedTasks', { count }),
-        'success'
-      )
+      addToast(t('annotationTab.messages.exportedTasks', { count }), 'success')
     } catch (error) {
       logger.error('Failed to export tasks:', error)
       completeProgress(progressId, 'error')
@@ -506,7 +500,7 @@ export function ProjectDataTab({ projectId }: ProjectDataTabProps) {
         t('annotationTab.messages.exportFailed', {
           error: (error as any)?.message || 'Unknown error',
         }),
-        'error'
+        'error',
       )
     }
   }
@@ -518,7 +512,7 @@ export function ProjectDataTab({ projectId }: ProjectDataTabProps) {
       !confirm(
         t('annotationTab.confirmations.archiveTasks', {
           count: selectedTasks.size,
-        })
+        }),
       )
     ) {
       return
@@ -544,7 +538,7 @@ export function ProjectDataTab({ projectId }: ProjectDataTabProps) {
 
       addToast(
         t('annotationTab.messages.tasksArchived', { count: result.archived }),
-        'success'
+        'success',
       )
       setSelectedTasks(new Set())
 
@@ -559,7 +553,7 @@ export function ProjectDataTab({ projectId }: ProjectDataTabProps) {
       updateProgress(
         progressId,
         100,
-        t('annotationTab.messages.exportComplete')
+        t('annotationTab.messages.exportComplete'),
       )
       completeProgress(progressId, 'success')
     } catch (error) {
@@ -579,7 +573,7 @@ export function ProjectDataTab({ projectId }: ProjectDataTabProps) {
   const canEditTasks =
     perms.getEffectiveProjectRole(
       currentProject ?? null,
-      user?.role ?? null
+      user?.role ?? null,
     ) === 'ORG_ADMIN'
 
   // State for annotation comparison modal
@@ -640,7 +634,7 @@ export function ProjectDataTab({ projectId }: ProjectDataTabProps) {
         .map((col) => `data_${col.id}`)
         .sort()
         .join('|'),
-    [useDataColumns, dataColumns]
+    [useDataColumns, dataColumns],
   )
   const expectedMetaIds = useMemo(
     () =>
@@ -648,7 +642,7 @@ export function ProjectDataTab({ projectId }: ProjectDataTabProps) {
         .map((col) => `meta_${col.key}`)
         .sort()
         .join('|'),
-    [useMetadataColumns, metadataColumns]
+    [useMetadataColumns, metadataColumns],
   )
 
   // Update columns to include dynamic data and metadata columns for the column selector
@@ -711,7 +705,7 @@ export function ProjectDataTab({ projectId }: ProjectDataTabProps) {
         // Add remaining system columns before view_data
         const remainingSystemCols = baseColumns.slice(
           assignedIndex + 1,
-          viewDataIndex > -1 ? viewDataIndex : undefined
+          viewDataIndex > -1 ? viewDataIndex : undefined,
         )
         newColumns = [...newColumns, ...remainingSystemCols]
 
@@ -771,7 +765,7 @@ export function ProjectDataTab({ projectId }: ProjectDataTabProps) {
     if ((task as any).data.prompt) return (task as any).data.prompt
 
     const firstStringValue = Object.values((task as any).data).find(
-      (v) => typeof v === 'string'
+      (v) => typeof v === 'string',
     )
     if (firstStringValue) return firstStringValue as string
 
@@ -815,7 +809,7 @@ export function ProjectDataTab({ projectId }: ProjectDataTabProps) {
     try {
       // Find the task that contains this assignment
       const task = tasks.find((t) =>
-        (t as any).assignments?.some((a: any) => a.id === assignmentId)
+        (t as any).assignments?.some((a: any) => a.id === assignmentId),
       )
 
       if (!task) {
@@ -879,14 +873,16 @@ export function ProjectDataTab({ projectId }: ProjectDataTabProps) {
               <BulkActions
                 selectedCount={selectedTasks.size}
                 selectedTaskIds={Array.from(selectedTasks).map((id) =>
-                  String(id)
+                  String(id),
                 )}
                 projectId={projectId}
                 onDelete={handleBulkDelete}
                 onExport={handleBulkExport}
                 onArchive={handleBulkArchive}
                 onAssign={handleOpenAssignmentModal}
-                canAssign={perms.canAccessProjectData({ project: currentProject })}
+                canAssign={perms.canAccessProjectData({
+                  project: currentProject,
+                })}
                 onTagsUpdated={async () => {
                   await reloadCurrentPage()
                   addToast(t('success.tagsUpdated'), 'success')
@@ -1061,7 +1057,7 @@ export function ProjectDataTab({ projectId }: ProjectDataTabProps) {
         {showSearch && (
           <div className="animate-in slide-in-from-top-2 mb-4 duration-200 sm:mb-6">
             <div className="relative">
-              <MagnifyingGlassIcon className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 transform text-zinc-400" />
+              <MagnifyingGlassIcon className="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 transform text-zinc-400" />
               <Input
                 placeholder={t('search.placeholder')}
                 value={searchQuery}
@@ -1074,7 +1070,7 @@ export function ProjectDataTab({ projectId }: ProjectDataTabProps) {
         )}
 
         {/* Results count */}
-        <div className="mb-4 flex flex-col text-sm text-zinc-600 dark:text-zinc-400 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mb-4 flex flex-col text-sm text-zinc-600 sm:flex-row sm:items-center sm:justify-between dark:text-zinc-400">
           <p>
             {selectedTasks.size > 0 && (
               <span className="font-medium text-zinc-900 dark:text-white">
@@ -1167,7 +1163,7 @@ export function ProjectDataTab({ projectId }: ProjectDataTabProps) {
             while everything lived in memory; they're real controls again. */}
         {totalTasks > 0 && (
           <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="order-2 text-sm text-zinc-600 dark:text-zinc-400 sm:order-1">
+            <div className="order-2 text-sm text-zinc-600 sm:order-1 dark:text-zinc-400">
               <div className="flex flex-col gap-1 sm:flex-row sm:gap-0">
                 <span>
                   {t('annotationTab.display.tasksCount', {

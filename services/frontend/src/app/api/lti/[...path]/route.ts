@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { getExternalHost, getInternalApiUrl } from '@/lib/utils/apiUrl'
 import { logger } from '@/lib/utils/logger'
-import { getInternalApiUrl, getExternalHost } from '@/lib/utils/apiUrl'
 import { getCookieDomainFromHost } from '@/lib/utils/subdomain'
+import { NextRequest, NextResponse } from 'next/server'
 
 /**
  * Dedicated proxy for the LTI tool endpoints (/api/lti/*).
@@ -62,13 +62,21 @@ async function proxyLti(request: NextRequest): Promise<NextResponse> {
     backendResponse = await fetch(targetUrl, init)
   } catch (error) {
     logger.error('LTI proxy error:', error)
-    return NextResponse.json({ error: 'LTI upstream unreachable' }, { status: 502 })
+    return NextResponse.json(
+      { error: 'LTI upstream unreachable' },
+      { status: 502 },
+    )
   }
 
   const responseHeaders = new Headers()
   backendResponse.headers.forEach((value, key) => {
     const k = key.toLowerCase()
-    if (k === 'set-cookie' || k === 'content-length' || k === 'content-encoding' || k === 'transfer-encoding') {
+    if (
+      k === 'set-cookie' ||
+      k === 'content-length' ||
+      k === 'content-encoding' ||
+      k === 'transfer-encoding'
+    ) {
       return
     }
     responseHeaders.set(key, value)

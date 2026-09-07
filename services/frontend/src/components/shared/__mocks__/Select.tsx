@@ -40,7 +40,13 @@ export function Select({
 }) {
   return (
     <SelectContext.Provider
-      value={{ value, onValueChange, disabled, displayValue, childrenForLookup: children }}
+      value={{
+        value,
+        onValueChange,
+        disabled,
+        displayValue,
+        childrenForLookup: children,
+      }}
     >
       {children}
     </SelectContext.Provider>
@@ -104,7 +110,10 @@ export function SelectTrigger({
   )
 }
 
-export function SelectContent(_props: { children: ReactNode; className?: string }) {
+export function SelectContent(_props: {
+  children: ReactNode
+  className?: string
+}) {
   // The options are rendered by SelectTrigger inside the native <select>.
   return null
 }

@@ -7,15 +7,15 @@
 'use client'
 
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute'
-import { logger } from '@/lib/utils/logger'
 import { Breadcrumb } from '@/components/shared/Breadcrumb'
 import { Button } from '@/components/shared/Button'
 import { Textarea } from '@/components/shared/Textarea'
 import { useToast } from '@/components/shared/Toast'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
-import { useSlot } from '@/lib/extensions/slots'
 import { projectsAPI } from '@/lib/api/projects'
+import { useSlot } from '@/lib/extensions/slots'
+import { logger } from '@/lib/utils/logger'
 import { useProjectStore } from '@/stores/projectStore'
 import { Task } from '@/types/labelStudio'
 import { CheckIcon, PencilIcon, XMarkIcon } from '@heroicons/react/24/outline'
@@ -67,7 +67,7 @@ export default function TaskDetailPage({ params }: TaskDetailPageProps) {
     'TaskDetailPage - projectId:',
     projectId,
     'type:',
-    typeof projectId
+    typeof projectId,
   )
 
   const { currentProject, fetchProject } = useProjectStore()
@@ -102,7 +102,7 @@ export default function TaskDetailPage({ params }: TaskDetailPageProps) {
         'loadTask called with taskId:',
         taskId,
         'type:',
-        typeof taskId
+        typeof taskId,
       )
       setLoading(true)
       try {
@@ -124,7 +124,7 @@ export default function TaskDetailPage({ params }: TaskDetailPageProps) {
       'truthy:',
       !!taskId,
       'resolvedParams:',
-      resolvedParams
+      resolvedParams,
     )
     if (taskId && resolvedParams) {
       loadTask()
@@ -192,7 +192,7 @@ export default function TaskDetailPage({ params }: TaskDetailPageProps) {
       const updatedTask = await projectsAPI.updateTaskData(
         projectId,
         taskId,
-        parsedData
+        parsedData,
       )
 
       // Update local state
@@ -260,7 +260,10 @@ export default function TaskDetailPage({ params }: TaskDetailPageProps) {
                   label: currentProject?.title || 'Project',
                   href: `/projects/${projectId}`,
                 },
-                { label: t('tasks.detail.backToDataManager'), href: `/projects/${projectId}/data` },
+                {
+                  label: t('tasks.detail.backToDataManager'),
+                  href: `/projects/${projectId}/data`,
+                },
                 {
                   label: t('tasks.detail.taskBreadcrumb', { id: task.id }),
                   href: `/projects/${projectId}/tasks/${task.id}`,
@@ -292,7 +295,9 @@ export default function TaskDetailPage({ params }: TaskDetailPageProps) {
                             projectId={projectId}
                             task={task}
                             canEdit
-                            onSaved={(data: any) => setTask({ ...(task as any), data })}
+                            onSaved={(data: any) =>
+                              setTask({ ...(task as any), data })
+                            }
                           />
                         </span>
                       )}
@@ -346,7 +351,7 @@ export default function TaskDetailPage({ params }: TaskDetailPageProps) {
                   </div>
                 ) : (
                   <div className="rounded-lg bg-zinc-50 p-4 dark:bg-zinc-800">
-                    <pre className="whitespace-pre-wrap text-sm text-zinc-900 dark:text-white">
+                    <pre className="text-sm whitespace-pre-wrap text-zinc-900 dark:text-white">
                       {JSON.stringify((task as any).data, null, 2)}
                     </pre>
                   </div>
@@ -362,8 +367,8 @@ export default function TaskDetailPage({ params }: TaskDetailPageProps) {
                   <span
                     className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ${
                       task.is_labeled
-                        ? 'bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-600/20 dark:bg-emerald-400/10 dark:text-emerald-400 dark:ring-emerald-400/30'
-                        : 'bg-yellow-50 text-yellow-700 ring-1 ring-inset ring-yellow-600/20 dark:bg-yellow-400/10 dark:text-yellow-400 dark:ring-yellow-400/30'
+                        ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-600/20 ring-inset dark:bg-emerald-400/10 dark:text-emerald-400 dark:ring-emerald-400/30'
+                        : 'bg-yellow-50 text-yellow-700 ring-1 ring-yellow-600/20 ring-inset dark:bg-yellow-400/10 dark:text-yellow-400 dark:ring-yellow-400/30'
                     }`}
                   >
                     {task.is_labeled
@@ -422,7 +427,9 @@ export default function TaskDetailPage({ params }: TaskDetailPageProps) {
                   {t('tasks.detail.existingAnnotations')}
                 </h3>
                 <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                  {t('tasks.detail.annotationCount', { count: task.total_annotations })}
+                  {t('tasks.detail.annotationCount', {
+                    count: task.total_annotations,
+                  })}
                 </p>
                 {/* TODO: Load and display actual annotations */}
               </div>

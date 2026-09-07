@@ -87,7 +87,9 @@ export function BulkActions({
             {selectedCount > 0 ? (
               <>
                 <div className="px-3 py-2 text-xs font-medium text-zinc-500 dark:text-zinc-400">
-                  {t('projects.bulkActions.tasksSelected', { count: selectedCount })}
+                  {t('projects.bulkActions.tasksSelected', {
+                    count: selectedCount,
+                  })}
                 </div>
 
                 {canAssign && onAssign && (

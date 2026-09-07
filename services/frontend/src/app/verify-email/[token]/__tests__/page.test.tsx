@@ -35,31 +35,31 @@ describe('VerifyTokenPage', () => {
   describe('Rendering', () => {
     it('should show loading state initially', async () => {
       ;(global.fetch as jest.Mock).mockImplementation(
-        () => new Promise(() => {})
+        () => new Promise(() => {}),
       )
 
       render(<VerifyTokenPage params={mockParams('test-token')} />)
 
       await waitFor(() => {
         expect(
-          screen.getByText('emailVerification.verifying')
+          screen.getByText('emailVerification.verifying'),
         ).toBeInTheDocument()
         expect(
-          screen.getByText('emailVerification.checkInboxDescription')
+          screen.getByText('emailVerification.checkInboxDescription'),
         ).toBeInTheDocument()
       })
     })
 
     it('should render card layout', async () => {
       ;(global.fetch as jest.Mock).mockImplementation(
-        () => new Promise(() => {})
+        () => new Promise(() => {}),
       )
 
       render(<VerifyTokenPage params={mockParams('test-token')} />)
 
       await waitFor(() => {
         expect(
-          screen.getByText('emailVerification.verifying')
+          screen.getByText('emailVerification.verifying'),
         ).toBeInTheDocument()
       })
     })
@@ -87,7 +87,7 @@ describe('VerifyTokenPage', () => {
             headers: {
               'Content-Type': 'application/json',
             },
-          }
+          },
         )
       })
     })
@@ -120,7 +120,7 @@ describe('VerifyTokenPage', () => {
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({ token: 'test-token' }),
-          }
+          },
         )
       })
     })
@@ -162,10 +162,10 @@ describe('VerifyTokenPage', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('emailVerification.verified')
+          screen.getByText('emailVerification.verified'),
         ).toBeInTheDocument()
         expect(
-          screen.getByText('Email verified successfully')
+          screen.getByText('Email verified successfully'),
         ).toBeInTheDocument()
       })
     })
@@ -183,7 +183,7 @@ describe('VerifyTokenPage', () => {
       await waitFor(() => {
         // Multiple elements may display this text
         const descriptions = screen.getAllByText(
-          'emailVerification.verifiedDescription'
+          'emailVerification.verifiedDescription',
         )
         expect(descriptions.length).toBeGreaterThanOrEqual(1)
       })
@@ -202,7 +202,7 @@ describe('VerifyTokenPage', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('emailVerification.verified')
+          screen.getByText('emailVerification.verified'),
         ).toBeInTheDocument()
       })
     })
@@ -239,7 +239,7 @@ describe('VerifyTokenPage', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('emailVerification.verified')
+          screen.getByText('emailVerification.verified'),
         ).toBeInTheDocument()
       })
 
@@ -267,7 +267,7 @@ describe('VerifyTokenPage', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('emailVerification.verified')
+          screen.getByText('emailVerification.verified'),
         ).toBeInTheDocument()
       })
 
@@ -294,7 +294,7 @@ describe('VerifyTokenPage', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('emailVerification.verified')
+          screen.getByText('emailVerification.verified'),
         ).toBeInTheDocument()
       })
 
@@ -302,7 +302,7 @@ describe('VerifyTokenPage', () => {
 
       await waitFor(() => {
         expect(mockRouterPush).toHaveBeenCalledWith(
-          '/login?message=Email verified! You can now log in.'
+          '/login?message=Email verified! You can now log in.',
         )
       })
 
@@ -328,7 +328,7 @@ describe('VerifyTokenPage', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('emailVerification.verified')
+          screen.getByText('emailVerification.verified'),
         ).toBeInTheDocument()
       })
 
@@ -336,7 +336,7 @@ describe('VerifyTokenPage', () => {
 
       await waitFor(() => {
         expect(mockRouterPush).toHaveBeenCalledWith(
-          '/login?message=Email verified! You can now log in.'
+          '/login?message=Email verified! You can now log in.',
         )
       })
 
@@ -357,10 +357,10 @@ describe('VerifyTokenPage', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('emailVerification.invalid')
+          screen.getByText('emailVerification.invalid'),
         ).toBeInTheDocument()
         expect(
-          screen.getByText('Invalid verification token')
+          screen.getByText('Invalid verification token'),
         ).toBeInTheDocument()
       })
     })
@@ -390,7 +390,7 @@ describe('VerifyTokenPage', () => {
 
       await waitFor(() => {
         const elements = screen.getAllByText(
-          'emailVerification.invalidDescription'
+          'emailVerification.invalidDescription',
         )
         expect(elements.length).toBeGreaterThan(0)
       })
@@ -398,7 +398,7 @@ describe('VerifyTokenPage', () => {
 
     it('should handle network errors', async () => {
       ;(global.fetch as jest.Mock).mockRejectedValueOnce(
-        new Error('Network error')
+        new Error('Network error'),
       )
 
       render(<VerifyTokenPage params={mockParams('test-token')} />)
@@ -407,7 +407,7 @@ describe('VerifyTokenPage', () => {
         const invalidElements = screen.getAllByText('emailVerification.invalid')
         expect(invalidElements.length).toBeGreaterThan(0)
         const descElements = screen.getAllByText(
-          'emailVerification.invalidDescription'
+          'emailVerification.invalidDescription',
         )
         expect(descElements.length).toBeGreaterThan(0)
       })
@@ -425,7 +425,7 @@ describe('VerifyTokenPage', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('emailVerification.invalid')
+          screen.getByText('emailVerification.invalid'),
         ).toBeInTheDocument()
       })
     })
@@ -447,7 +447,7 @@ describe('VerifyTokenPage', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('passwordReset.backToLogin')
+          screen.getByText('passwordReset.backToLogin'),
         ).toBeInTheDocument()
       })
 
@@ -455,7 +455,7 @@ describe('VerifyTokenPage', () => {
       await user.click(backButton)
 
       expect(mockRouterPush).toHaveBeenCalledWith(
-        '/login?message=Email verified! You can now log in.'
+        '/login?message=Email verified! You can now log in.',
       )
     })
 
@@ -523,28 +523,28 @@ describe('VerifyTokenPage', () => {
   describe('Loading State', () => {
     it('should show loading spinner', async () => {
       ;(global.fetch as jest.Mock).mockImplementation(
-        () => new Promise(() => {})
+        () => new Promise(() => {}),
       )
 
       render(<VerifyTokenPage params={mockParams('test-token')} />)
 
       await waitFor(() => {
         expect(
-          screen.getByText('emailVerification.verifying')
+          screen.getByText('emailVerification.verifying'),
         ).toBeInTheDocument()
       })
     })
 
     it('should show loading description', async () => {
       ;(global.fetch as jest.Mock).mockImplementation(
-        () => new Promise(() => {})
+        () => new Promise(() => {}),
       )
 
       render(<VerifyTokenPage params={mockParams('test-token')} />)
 
       await waitFor(() => {
         expect(
-          screen.getByText('emailVerification.checkInboxDescription')
+          screen.getByText('emailVerification.checkInboxDescription'),
         ).toBeInTheDocument()
       })
     })
@@ -584,7 +584,7 @@ describe('VerifyTokenPage', () => {
         () => {
           expect(global.fetch).not.toHaveBeenCalled()
         },
-        { timeout: 1000 }
+        { timeout: 1000 },
       )
     })
   })
@@ -592,7 +592,7 @@ describe('VerifyTokenPage', () => {
   describe('i18n Integration', () => {
     it('should call translation function for all text', async () => {
       ;(global.fetch as jest.Mock).mockImplementation(
-        () => new Promise(() => {})
+        () => new Promise(() => {}),
       )
 
       render(<VerifyTokenPage params={mockParams('test-token')} />)
@@ -600,7 +600,7 @@ describe('VerifyTokenPage', () => {
       await waitFor(() => {
         expect(mockT).toHaveBeenCalledWith('emailVerification.verifying')
         expect(mockT).toHaveBeenCalledWith(
-          'emailVerification.checkInboxDescription'
+          'emailVerification.checkInboxDescription',
         )
       })
     })
@@ -619,7 +619,7 @@ describe('VerifyTokenPage', () => {
       await waitFor(() => {
         expect(mockT).toHaveBeenCalledWith('emailVerification.verified')
         expect(mockT).toHaveBeenCalledWith(
-          'emailVerification.verifiedDescription'
+          'emailVerification.verifiedDescription',
         )
       })
     })
@@ -637,7 +637,7 @@ describe('VerifyTokenPage', () => {
       await waitFor(() => {
         expect(mockT).toHaveBeenCalledWith('emailVerification.invalid')
         expect(mockT).toHaveBeenCalledWith(
-          'emailVerification.invalidDescription'
+          'emailVerification.invalidDescription',
         )
       })
     })

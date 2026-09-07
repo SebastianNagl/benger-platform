@@ -128,7 +128,7 @@ const setupMocks = ({ user = superadminUser, slotRegistered = true } = {}) => {
     apiClient: mockApiClient,
   })
   mockUseSlot.mockImplementation((name: string) =>
-    slotRegistered && name === 'OrgLtiPanel' ? OrgLtiPanelStub : null
+    slotRegistered && name === 'OrgLtiPanel' ? OrgLtiPanelStub : null,
   )
   mockSearchParams.get.mockReturnValue(null)
   mockApiClient.getOrganizationMembers.mockResolvedValue([])
@@ -155,7 +155,9 @@ describe('OrganizationsTab OrgLtiPanel slot host', () => {
 
     // Wait until the auto-selected org has rendered, then assert absence.
     await waitFor(() =>
-      expect(screen.getAllByText('Test Organization').length).toBeGreaterThan(0)
+      expect(screen.getAllByText('Test Organization').length).toBeGreaterThan(
+        0,
+      ),
     )
     expect(screen.queryByTestId('org-lti-panel')).not.toBeInTheDocument()
   })
@@ -165,7 +167,9 @@ describe('OrganizationsTab OrgLtiPanel slot host', () => {
     render(<OrganizationsTab />)
 
     await waitFor(() =>
-      expect(screen.getAllByText('Test Organization').length).toBeGreaterThan(0)
+      expect(screen.getAllByText('Test Organization').length).toBeGreaterThan(
+        0,
+      ),
     )
     expect(mockUseSlot).toHaveBeenCalledWith('OrgLtiPanel')
     expect(screen.queryByTestId('org-lti-panel')).not.toBeInTheDocument()

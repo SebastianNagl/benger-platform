@@ -88,7 +88,7 @@ export default function DashboardPage() {
     projects
       ?.sort(
         (a, b) =>
-          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
       )
       .slice(0, 5) || []
 
@@ -106,7 +106,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <ResponsiveContainer size="xl" className="pb-10 pt-8">
+    <ResponsiveContainer size="xl" className="pt-8 pb-10">
       {/* Breadcrumb */}
       <div className="mb-4">
         <Breadcrumb
@@ -136,7 +136,6 @@ export default function DashboardPage() {
           </div>
         </Alert>
       )}
-
 
       {error && (
         <div className="mb-8 rounded-md border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-950">
@@ -372,13 +371,13 @@ export default function DashboardPage() {
                             t('dashboard.recentProjects.noDescription')}
                         </p>
                         <div className="mt-2 flex items-center gap-x-2 text-xs text-zinc-500 dark:text-zinc-400">
-                          <span className="inline-flex items-center rounded-md bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700 ring-1 ring-inset ring-emerald-600/20 dark:bg-emerald-400/10 dark:text-emerald-400 dark:ring-emerald-400/30">
+                          <span className="inline-flex items-center rounded-md bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700 ring-1 ring-emerald-600/20 ring-inset dark:bg-emerald-400/10 dark:text-emerald-400 dark:ring-emerald-400/30">
                             {project.task_count || 0}{' '}
                             {t('dashboard.recentProjects.tasks')}
                           </span>
                           <span>
                             {new Date(project.created_at).toLocaleDateString(
-                              'de-DE'
+                              'de-DE',
                             )}
                           </span>
                         </div>

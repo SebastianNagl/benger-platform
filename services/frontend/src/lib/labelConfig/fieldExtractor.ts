@@ -38,7 +38,7 @@ const OUTPUT_COMPONENT_TYPES = new Set([
  * Returns empty arrays if the XML is invalid or empty.
  */
 export function extractFieldsFromLabelConfig(
-  xmlString: string
+  xmlString: string,
 ): LabelConfigFields {
   const result: LabelConfigFields = {
     outputFields: [],

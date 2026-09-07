@@ -103,7 +103,10 @@ jest.mock('recharts', () => {
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
     t: (key: string, varsOrDefault?: any) => {
-      const translations: Record<string, any> = require('../../../locales/en/common.json')
+      const translations: Record<
+        string,
+        any
+      > = require('../../../locales/en/common.json')
       const parts = key.split('.')
       let value: any = translations
       for (const part of parts) {
@@ -124,7 +127,6 @@ jest.mock('@/contexts/I18nContext', () => ({
     locale: 'en',
   }),
 }))
-
 
 describe('ModelComparisonChart', () => {
   const mockModels = [
@@ -173,7 +175,7 @@ describe('ModelComparisonChart', () => {
           models={mockModels}
           metrics={mockMetrics}
           visualizationType="radar"
-        />
+        />,
       )
 
       expect(screen.getByTestId('radar-chart')).toBeInTheDocument()
@@ -185,7 +187,7 @@ describe('ModelComparisonChart', () => {
           models={mockModels}
           metrics={mockMetrics}
           height={500}
-        />
+        />,
       )
 
       const container = screen.getByTestId('responsive-container')
@@ -284,17 +286,17 @@ describe('ModelComparisonChart', () => {
           models={mockModels}
           metrics={mockMetrics}
           title="Model Performance Comparison"
-        />
+        />,
       )
 
       expect(
-        screen.getByText('Model Performance Comparison')
+        screen.getByText('Model Performance Comparison'),
       ).toBeInTheDocument()
     })
 
     it('should not render title when not provided', () => {
       const { container } = render(
-        <ModelComparisonChart models={mockModels} metrics={mockMetrics} />
+        <ModelComparisonChart models={mockModels} metrics={mockMetrics} />,
       )
 
       const title = container.querySelector('h3')
@@ -309,7 +311,7 @@ describe('ModelComparisonChart', () => {
           models={mockModels}
           metrics={mockMetrics}
           visualizationType="bar"
-        />
+        />,
       )
 
       expect(screen.getByTestId('bar-chart')).toBeInTheDocument()
@@ -322,7 +324,7 @@ describe('ModelComparisonChart', () => {
           models={mockModels}
           metrics={mockMetrics}
           visualizationType="bar"
-        />
+        />,
       )
 
       const grid = screen.getByTestId('cartesian-grid')
@@ -335,7 +337,7 @@ describe('ModelComparisonChart', () => {
           models={mockModels}
           metrics={mockMetrics}
           visualizationType="bar"
-        />
+        />,
       )
 
       const xAxis = screen.getByTestId('x-axis')
@@ -348,7 +350,7 @@ describe('ModelComparisonChart', () => {
           models={mockModels}
           metrics={mockMetrics}
           visualizationType="bar"
-        />
+        />,
       )
 
       const yAxis = screen.getByTestId('y-axis')
@@ -361,7 +363,7 @@ describe('ModelComparisonChart', () => {
           models={mockModels}
           metrics={mockMetrics}
           visualizationType="bar"
-        />
+        />,
       )
 
       const bars = screen.getAllByTestId('bar')
@@ -374,7 +376,7 @@ describe('ModelComparisonChart', () => {
           models={mockModels}
           metrics={mockMetrics}
           visualizationType="bar"
-        />
+        />,
       )
 
       const bars = screen.getAllByTestId('bar')
@@ -390,7 +392,7 @@ describe('ModelComparisonChart', () => {
           models={mockModels}
           metrics={mockMetrics}
           visualizationType="bar"
-        />
+        />,
       )
 
       const bars = screen.getAllByTestId('bar')
@@ -405,7 +407,7 @@ describe('ModelComparisonChart', () => {
           models={mockModels}
           metrics={mockMetrics}
           visualizationType="bar"
-        />
+        />,
       )
 
       expect(screen.getByText('Model')).toBeInTheDocument()
@@ -418,7 +420,7 @@ describe('ModelComparisonChart', () => {
           models={mockModels}
           metrics={mockMetrics}
           visualizationType="bar"
-        />
+        />,
       )
 
       expect(screen.getByText('gpt-4')).toBeInTheDocument()
@@ -432,7 +434,7 @@ describe('ModelComparisonChart', () => {
           models={mockModels}
           metrics={mockMetrics}
           visualizationType="bar"
-        />
+        />,
       )
 
       expect(screen.getByText('accuracy')).toBeInTheDocument()
@@ -447,7 +449,7 @@ describe('ModelComparisonChart', () => {
           models={mockModels}
           metrics={mockMetrics}
           visualizationType="bar"
-        />
+        />,
       )
 
       expect(screen.getAllByText('0.950').length).toBeGreaterThan(0)
@@ -460,7 +462,7 @@ describe('ModelComparisonChart', () => {
           models={mockModels}
           metrics={mockMetrics}
           visualizationType="bar"
-        />
+        />,
       )
 
       expect(screen.getByText('0.935')).toBeInTheDocument()
@@ -472,7 +474,7 @@ describe('ModelComparisonChart', () => {
           models={mockModels}
           metrics={mockMetrics}
           visualizationType="bar"
-        />
+        />,
       )
 
       const indicators = container.querySelectorAll('.h-3.w-3.rounded-full')
@@ -487,12 +489,12 @@ describe('ModelComparisonChart', () => {
           models={mockModels}
           metrics={mockMetrics}
           visualizationType="radar"
-        />
+        />,
       )
 
       const chart = screen.getByTestId('radar-chart')
       const chartData = JSON.parse(
-        chart.getAttribute('data-chart-data') || '[]'
+        chart.getAttribute('data-chart-data') || '[]',
       )
 
       expect(chartData).toHaveLength(4)
@@ -507,12 +509,12 @@ describe('ModelComparisonChart', () => {
           models={mockModels}
           metrics={mockMetrics}
           visualizationType="bar"
-        />
+        />,
       )
 
       const chart = screen.getByTestId('bar-chart')
       const chartData = JSON.parse(
-        chart.getAttribute('data-chart-data') || '[]'
+        chart.getAttribute('data-chart-data') || '[]',
       )
 
       expect(chartData).toHaveLength(3)
@@ -534,12 +536,12 @@ describe('ModelComparisonChart', () => {
         <ModelComparisonChart
           models={modelsWithMissing}
           metrics={['accuracy', 'precision']}
-        />
+        />,
       )
 
       const chart = screen.getByTestId('radar-chart')
       const chartData = JSON.parse(
-        chart.getAttribute('data-chart-data') || '[]'
+        chart.getAttribute('data-chart-data') || '[]',
       )
 
       expect(chartData[1]).toHaveProperty('model-1', 0)
@@ -561,7 +563,7 @@ describe('ModelComparisonChart', () => {
 
     it('should handle single model', () => {
       render(
-        <ModelComparisonChart models={[mockModels[0]]} metrics={mockMetrics} />
+        <ModelComparisonChart models={[mockModels[0]]} metrics={mockMetrics} />,
       )
 
       const radars = screen.getAllByTestId('radar')
@@ -570,12 +572,12 @@ describe('ModelComparisonChart', () => {
 
     it('should handle single metric', () => {
       render(
-        <ModelComparisonChart models={mockModels} metrics={['accuracy']} />
+        <ModelComparisonChart models={mockModels} metrics={['accuracy']} />,
       )
 
       const chart = screen.getByTestId('radar-chart')
       const chartData = JSON.parse(
-        chart.getAttribute('data-chart-data') || '[]'
+        chart.getAttribute('data-chart-data') || '[]',
       )
 
       expect(chartData).toHaveLength(1)
@@ -588,7 +590,7 @@ describe('ModelComparisonChart', () => {
       }))
 
       render(
-        <ModelComparisonChart models={manyModels} metrics={['accuracy']} />
+        <ModelComparisonChart models={manyModels} metrics={['accuracy']} />,
       )
 
       const radars = screen.getAllByTestId('radar')
@@ -614,7 +616,7 @@ describe('ModelComparisonChart', () => {
           models={modelsWithZero}
           metrics={['accuracy', 'precision']}
           visualizationType="bar"
-        />
+        />,
       )
 
       expect(screen.getAllByText('0.000').length).toBeGreaterThan(0)
@@ -635,7 +637,7 @@ describe('ModelComparisonChart', () => {
           models={modelsWithUndefined}
           metrics={['accuracy', 'nonexistent']}
           visualizationType="bar"
-        />
+        />,
       )
 
       expect(screen.getByText('0.000')).toBeInTheDocument()
@@ -657,7 +659,7 @@ describe('ModelComparisonChart', () => {
           models={modelsWithMissing}
           metrics={['accuracy', 'precision', 'recall']}
           visualizationType="bar"
-        />
+        />,
       )
 
       expect(screen.getByText('0.567')).toBeInTheDocument()
@@ -667,7 +669,7 @@ describe('ModelComparisonChart', () => {
   describe('Styling and Layout', () => {
     it('should apply correct wrapper styling', () => {
       const { container } = render(
-        <ModelComparisonChart models={mockModels} metrics={mockMetrics} />
+        <ModelComparisonChart models={mockModels} metrics={mockMetrics} />,
       )
 
       const wrapper = container.querySelector('.space-y-2')
@@ -680,7 +682,7 @@ describe('ModelComparisonChart', () => {
           models={mockModels}
           metrics={mockMetrics}
           title="Test Title"
-        />
+        />,
       )
 
       const title = screen.getByText('Test Title')
@@ -693,7 +695,7 @@ describe('ModelComparisonChart', () => {
           models={mockModels}
           metrics={mockMetrics}
           visualizationType="bar"
-        />
+        />,
       )
 
       const table = container.querySelector('table')
@@ -706,7 +708,7 @@ describe('ModelComparisonChart', () => {
           models={mockModels}
           metrics={mockMetrics}
           visualizationType="bar"
-        />
+        />,
       )
 
       const rows = container.querySelectorAll('tbody tr')
@@ -721,7 +723,7 @@ describe('ModelComparisonChart', () => {
           models={mockModels}
           metrics={mockMetrics}
           visualizationType="bar"
-        />
+        />,
       )
 
       const cells = container.querySelectorAll('.tabular-nums')
@@ -736,7 +738,7 @@ describe('ModelComparisonChart', () => {
           models={mockModels}
           metrics={mockMetrics}
           visualizationType="bar"
-        />
+        />,
       )
 
       const table = container.querySelector('table')
@@ -753,7 +755,7 @@ describe('ModelComparisonChart', () => {
           models={mockModels}
           metrics={mockMetrics}
           visualizationType="bar"
-        />
+        />,
       )
 
       const headers = container.querySelectorAll('thead th')
@@ -766,7 +768,7 @@ describe('ModelComparisonChart', () => {
           models={mockModels}
           metrics={mockMetrics}
           title="Test"
-        />
+        />,
       )
 
       const heading = container.querySelector('h3')

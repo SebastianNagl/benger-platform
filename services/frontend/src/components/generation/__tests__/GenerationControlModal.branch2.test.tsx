@@ -5,7 +5,7 @@
  * @jest-environment jsdom
  */
 
-import { render, screen, waitFor, fireEvent, act } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import React from 'react'
 import { GenerationControlModal } from '../GenerationControlModal'
@@ -37,7 +37,8 @@ jest.mock('@/contexts/I18nContext', () => ({
     t: (key: string, params?: any) => {
       const translations: Record<string, string> = {
         'toasts.generation.selectModel': 'Please select at least one model',
-        'toasts.generation.selectStructure': 'Please select at least one structure',
+        'toasts.generation.selectStructure':
+          'Please select at least one structure',
         'generation.controlModal.title': 'Start Bulk Generation',
         'generation.controlModal.generationOptions': 'Generation Options',
         'generation.controlModal.generationMode': 'Generation Mode',
@@ -50,7 +51,8 @@ jest.mock('@/contexts/I18nContext', () => ({
         'generation.controlModal.clearAll': 'Clear All',
         'generation.controlModal.oneModelSelected': '1 model selected',
         'generation.controlModal.modelsSelected': `${params?.count ?? 0} models selected`,
-        'generation.controlModal.selectPromptStructures': 'Select Prompt Structures',
+        'generation.controlModal.selectPromptStructures':
+          'Select Prompt Structures',
         'generation.controlModal.oneStructureSelected': '1 structure selected',
         'generation.controlModal.structuresSelected': `${params?.count ?? 0} structures selected`,
         'generation.controlModal.advancedSettings': 'Advanced Settings',
@@ -59,8 +61,10 @@ jest.mock('@/contexts/I18nContext', () => ({
         'generation.controlModal.defaultMaxTokens': 'Default Max Tokens',
         'generation.controlModal.defaultMaxTokensDesc': 'Max response length',
         'generation.controlModal.perModelTokenLimits': 'Per-Model Token Limits',
-        'generation.controlModal.perModelTokenLimitsDesc': 'Override for specific models',
-        'generation.controlModal.totalGenerationsPerTask': 'Total generations per task:',
+        'generation.controlModal.perModelTokenLimitsDesc':
+          'Override for specific models',
+        'generation.controlModal.totalGenerationsPerTask':
+          'Total generations per task:',
         'generation.controlModal.models': 'models',
         'generation.controlModal.model': 'model',
         'generation.controlModal.structures': 'structures',
@@ -180,10 +184,7 @@ describe('GenerationControlModal branch coverage', () => {
     const mockOnGenerate = jest.fn()
 
     render(
-      <GenerationControlModal
-        {...defaultProps}
-        onGenerate={mockOnGenerate}
-      />
+      <GenerationControlModal {...defaultProps} onGenerate={mockOnGenerate} />,
     )
 
     // Select a model
@@ -198,7 +199,7 @@ describe('GenerationControlModal branch coverage', () => {
       expect(mockOnGenerate).toHaveBeenCalledWith(
         ['gpt-4'],
         true, // missing mode by default
-        undefined // no structures
+        undefined, // no structures
       )
     })
   })
@@ -236,11 +237,7 @@ describe('GenerationControlModal branch coverage', () => {
     await user.click(submitBtn)
 
     await waitFor(() => {
-      expect(mockOnGenerate).toHaveBeenCalledWith(
-        ['gpt-4'],
-        true,
-        ['struct1']
-      )
+      expect(mockOnGenerate).toHaveBeenCalledWith(['gpt-4'], true, ['struct1'])
     })
   })
 
@@ -352,7 +349,9 @@ describe('GenerationControlModal branch coverage', () => {
   it('shows error toast on API failure', async () => {
     const user = userEvent.setup()
     const mockPost = require('@/lib/api/client').apiClient.post
-    mockPost.mockRejectedValue({ response: { data: { detail: 'Custom API error' } } })
+    mockPost.mockRejectedValue({
+      response: { data: { detail: 'Custom API error' } },
+    })
 
     render(<GenerationControlModal {...defaultProps} />)
 
@@ -384,7 +383,7 @@ describe('GenerationControlModal branch coverage', () => {
     await waitFor(() => {
       expect(mockAddToast).toHaveBeenCalledWith(
         'Failed to start generation',
-        'error'
+        'error',
       )
     })
   })
@@ -433,10 +432,7 @@ describe('GenerationControlModal branch coverage', () => {
     })
 
     render(
-      <GenerationControlModal
-        {...defaultProps}
-        onSuccess={mockOnSuccess}
-      />
+      <GenerationControlModal {...defaultProps} onSuccess={mockOnSuccess} />,
     )
 
     const modelCheckboxes = screen.getAllByRole('checkbox')

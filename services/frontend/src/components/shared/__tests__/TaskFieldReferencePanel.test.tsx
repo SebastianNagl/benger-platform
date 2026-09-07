@@ -16,7 +16,9 @@ jest.mock('@/lib/api/projects', () => ({
 
 jest.mock('../LoadingSpinner', () => ({
   LoadingSpinner: ({ size }: any) => (
-    <div data-testid="loading-spinner" data-size={size}>Spinner</div>
+    <div data-testid="loading-spinner" data-size={size}>
+      Spinner
+    </div>
   ),
 }))
 
@@ -45,7 +47,7 @@ describe('TaskFieldReferencePanel', () => {
 
   it('applies custom className', () => {
     const { container } = render(
-      <TaskFieldReferencePanel {...defaultProps} className="my-class" />
+      <TaskFieldReferencePanel {...defaultProps} className="my-class" />,
     )
     expect(container.querySelector('.my-class')).toBeInTheDocument()
   })

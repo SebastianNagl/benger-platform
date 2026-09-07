@@ -30,12 +30,7 @@ export type FieldSource = 'task_data' | 'annotation' | 'generated' | 'computed'
 export type DisplayContext = 'annotation' | 'table' | 'creation' | 'review'
 
 export type DisplayMode =
-  | 'readonly'
-  | 'editable'
-  | 'hidden'
-  | 'column'
-  | 'in_answer_cell'
-  | 'reference'
+  'readonly' | 'editable' | 'hidden' | 'column' | 'in_answer_cell' | 'reference'
 
 export interface ValidationRule {
   type:
@@ -173,7 +168,7 @@ export interface TaskTemplateInstance {
 
 // Type guards
 export function isTextField(
-  type: FieldType
+  type: FieldType,
 ): type is 'text' | 'text_area' | 'rich_text' {
   return ['text', 'text_area', 'rich_text'].includes(type)
 }
@@ -189,7 +184,7 @@ export function isNumericField(type: FieldType): type is 'number' | 'rating' {
 // Validation helpers
 export function validateFieldValue(
   field: TaskTemplateField,
-  value: any
+  value: any,
 ): { valid: boolean; errors: string[] } {
   const errors: string[] = []
 
@@ -206,7 +201,7 @@ export function validateFieldValue(
           if (typeof value === 'string' && value.length < rule.value) {
             errors.push(
               rule.message ||
-                `${field.label || field.name} must be at least ${rule.value} characters`
+                `${field.label || field.name} must be at least ${rule.value} characters`,
             )
           }
           break
@@ -214,7 +209,7 @@ export function validateFieldValue(
           if (typeof value === 'string' && value.length > rule.value) {
             errors.push(
               rule.message ||
-                `${field.label || field.name} must be at most ${rule.value} characters`
+                `${field.label || field.name} must be at most ${rule.value} characters`,
             )
           }
           break
@@ -222,7 +217,7 @@ export function validateFieldValue(
           if (typeof value === 'number' && value < rule.value) {
             errors.push(
               rule.message ||
-                `${field.label || field.name} must be at least ${rule.value}`
+                `${field.label || field.name} must be at least ${rule.value}`,
             )
           }
           break
@@ -230,7 +225,7 @@ export function validateFieldValue(
           if (typeof value === 'number' && value > rule.value) {
             errors.push(
               rule.message ||
-                `${field.label || field.name} must be at most ${rule.value}`
+                `${field.label || field.name} must be at most ${rule.value}`,
             )
           }
           break
@@ -240,7 +235,7 @@ export function validateFieldValue(
             !new RegExp(rule.value).test(value)
           ) {
             errors.push(
-              rule.message || `${field.label || field.name} format is invalid`
+              rule.message || `${field.label || field.name} format is invalid`,
             )
           }
           break

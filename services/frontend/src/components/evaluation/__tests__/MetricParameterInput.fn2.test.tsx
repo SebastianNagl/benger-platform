@@ -4,14 +4,16 @@
  * showAdvanced toggle, parameter rendering for BLEU, ROUGE, METEOR, chrF
  */
 
+import { fireEvent, render, screen } from '@testing-library/react'
 import React from 'react'
-import { render, screen, fireEvent } from '@testing-library/react'
 import { MetricParameterInput } from '../MetricParameterInput'
 
 // Mock dependencies
 jest.mock('@/components/shared/Button', () => ({
   Button: ({ children, onClick, ...rest }: any) => (
-    <button onClick={onClick} {...rest}>{children}</button>
+    <button onClick={onClick} {...rest}>
+      {children}
+    </button>
   ),
 }))
 jest.mock('@/components/shared/Input', () => ({
@@ -37,35 +39,55 @@ describe('MetricParameterInput', () => {
 
   it('returns null for unsupported metric', () => {
     const { container } = render(
-      <MetricParameterInput metric="accuracy" parameters={{}} onChange={mockOnChange} />
+      <MetricParameterInput
+        metric="accuracy"
+        parameters={{}}
+        onChange={mockOnChange}
+      />,
     )
     expect(container.innerHTML).toBe('')
   })
 
   it('renders toggle button for BLEU metric', () => {
     render(
-      <MetricParameterInput metric="bleu" parameters={{}} onChange={mockOnChange} />
+      <MetricParameterInput
+        metric="bleu"
+        parameters={{}}
+        onChange={mockOnChange}
+      />,
     )
     expect(screen.getByTestId('icon-adjustments')).toBeInTheDocument()
   })
 
   it('renders toggle button for ROUGE metric', () => {
     render(
-      <MetricParameterInput metric="rouge" parameters={{}} onChange={mockOnChange} />
+      <MetricParameterInput
+        metric="rouge"
+        parameters={{}}
+        onChange={mockOnChange}
+      />,
     )
     expect(screen.getByTestId('icon-adjustments')).toBeInTheDocument()
   })
 
   it('renders toggle button for METEOR metric', () => {
     render(
-      <MetricParameterInput metric="meteor" parameters={{}} onChange={mockOnChange} />
+      <MetricParameterInput
+        metric="meteor"
+        parameters={{}}
+        onChange={mockOnChange}
+      />,
     )
     expect(screen.getByTestId('icon-adjustments')).toBeInTheDocument()
   })
 
   it('renders toggle button for chrF metric', () => {
     render(
-      <MetricParameterInput metric="chrf" parameters={{}} onChange={mockOnChange} />
+      <MetricParameterInput
+        metric="chrf"
+        parameters={{}}
+        onChange={mockOnChange}
+      />,
     )
     expect(screen.getByTestId('icon-adjustments')).toBeInTheDocument()
   })
@@ -76,7 +98,7 @@ describe('MetricParameterInput', () => {
         metric="bleu"
         parameters={{ max_order: 4, smoothing: 'method1' }}
         onChange={mockOnChange}
-      />
+      />,
     )
 
     // Click first button (the toggle) to show advanced
@@ -92,7 +114,7 @@ describe('MetricParameterInput', () => {
         metric="rouge"
         parameters={{ variant: 'rougeL', use_stemmer: true }}
         onChange={mockOnChange}
-      />
+      />,
     )
 
     fireEvent.click(screen.getAllByRole('button')[0])
@@ -105,7 +127,7 @@ describe('MetricParameterInput', () => {
         metric="meteor"
         parameters={{ alpha: 0.9, beta: 3.0, gamma: 0.5 }}
         onChange={mockOnChange}
-      />
+      />,
     )
 
     fireEvent.click(screen.getAllByRole('button')[0])
@@ -118,7 +140,7 @@ describe('MetricParameterInput', () => {
         metric="chrf"
         parameters={{ char_order: 6, word_order: 0, beta: 2 }}
         onChange={mockOnChange}
-      />
+      />,
     )
 
     fireEvent.click(screen.getAllByRole('button')[0])
@@ -131,7 +153,7 @@ describe('MetricParameterInput', () => {
         metric="bleu"
         parameters={{ max_order: 2 }}
         onChange={mockOnChange}
-      />
+      />,
     )
 
     // Open advanced
@@ -139,7 +161,9 @@ describe('MetricParameterInput', () => {
 
     // Click reset defaults button (second button after toggle)
     const buttons = screen.getAllByRole('button')
-    const resetBtn = buttons.find(b => b.textContent?.includes('evaluation.metricParams.resetDefaults'))
+    const resetBtn = buttons.find((b) =>
+      b.textContent?.includes('evaluation.metricParams.resetDefaults'),
+    )
     if (resetBtn) {
       fireEvent.click(resetBtn)
       expect(mockOnChange).toHaveBeenCalled()

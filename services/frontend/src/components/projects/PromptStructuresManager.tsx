@@ -8,8 +8,8 @@
 'use client'
 
 import { GenerationStructureEditor } from '@/components/projects/GenerationStructureEditor'
-import { TaskFieldReferencePanel } from '@/components/shared/TaskFieldReferencePanel'
 import { Button } from '@/components/shared/Button'
+import { TaskFieldReferencePanel } from '@/components/shared/TaskFieldReferencePanel'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -47,7 +47,7 @@ export function PromptStructuresManager({
 }: PromptStructuresManagerProps) {
   const { t } = useI18n()
   const [structures, setStructures] = useState<Record<string, PromptStructure>>(
-    {}
+    {},
   )
   const [activeStructures, setActiveStructures] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
@@ -80,7 +80,7 @@ export function PromptStructuresManager({
     try {
       // Fetch structures
       const structuresData = await apiClient.get(
-        `/projects/${projectId}/generation-config/structures`
+        `/projects/${projectId}/generation-config/structures`,
       )
       setStructures(structuresData || {})
 
@@ -115,7 +115,7 @@ export function PromptStructuresManager({
     try {
       await apiClient.put(
         `/projects/${projectId}/generation-config/structures`,
-        newActiveStructures
+        newActiveStructures,
       )
       if (onStructuresChange) {
         onStructuresChange()
@@ -153,7 +153,7 @@ export function PromptStructuresManager({
           evaluation_prompt: structure.evaluation_prompt,
         },
         null,
-        2
+        2,
       ),
     })
     setModalError(null)
@@ -212,9 +212,7 @@ export function PromptStructuresManager({
 
     if (!parsedConfig.system_prompt && !parsedConfig.instruction_prompt) {
       logger.debug('Validation failed: No prompts defined')
-      setModalError(
-        t('projects.promptStructures.missingPrompts')
-      )
+      setModalError(t('projects.promptStructures.missingPrompts'))
       return
     }
 
@@ -233,7 +231,7 @@ export function PromptStructuresManager({
       logger.debug('Calling API with:', key, structureData)
       await apiClient.put(
         `/projects/${projectId}/generation-config/structures/${key}`,
-        structureData
+        structureData,
       )
 
       // Refresh structures
@@ -246,7 +244,11 @@ export function PromptStructuresManager({
       logger.debug('Save successful')
     } catch (err: any) {
       console.error('Failed to save structure:', err)
-      setModalError(err?.detail || err?.message || t('projects.promptStructures.saveFailed'))
+      setModalError(
+        err?.detail ||
+          err?.message ||
+          t('projects.promptStructures.saveFailed'),
+      )
     } finally {
       setSaving(false)
     }
@@ -256,7 +258,7 @@ export function PromptStructuresManager({
     setSaving(true)
     try {
       await apiClient.delete(
-        `/projects/${projectId}/generation-config/structures/${key}`
+        `/projects/${projectId}/generation-config/structures/${key}`,
       )
 
       // Refresh structures
@@ -388,7 +390,11 @@ export function PromptStructuresManager({
                           checked={isActive}
                           onChange={() => handleToggleActive(key)}
                           className="mt-0.5 h-4 w-4 shrink-0 rounded border-zinc-300 bg-white text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600 dark:bg-zinc-700"
-                          title={isActive ? t('projects.promptStructures.activeTooltip') : t('projects.promptStructures.inactiveTooltip')}
+                          title={
+                            isActive
+                              ? t('projects.promptStructures.activeTooltip')
+                              : t('projects.promptStructures.inactiveTooltip')
+                          }
                         />
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
@@ -486,7 +492,7 @@ export function PromptStructuresManager({
                       setModalData({ ...modalData, key: e.target.value })
                     }
                     placeholder={t(
-                      'project.promptStructures.structureKeyPlaceholder'
+                      'project.promptStructures.structureKeyPlaceholder',
                     )}
                     className="mt-1"
                   />
@@ -524,7 +530,7 @@ export function PromptStructuresManager({
                     setModalData({ ...modalData, description: e.target.value })
                   }
                   placeholder={t(
-                    'project.promptStructures.descriptionPlaceholder'
+                    'project.promptStructures.descriptionPlaceholder',
                   )}
                   rows={2}
                   className="mt-1"
@@ -537,7 +543,7 @@ export function PromptStructuresManager({
                 defaultExpanded={false}
                 description={t(
                   'project.promptStructures.fieldReferenceHelp',
-                  'Use $fieldname or $nested.path syntax to reference task data fields in your prompts.'
+                  'Use $fieldname or $nested.path syntax to reference task data fields in your prompts.',
                 )}
               />
 
@@ -554,7 +560,7 @@ export function PromptStructuresManager({
                   onChange={(config) => {
                     logger.debug(
                       'Editor onChange called with config length:',
-                      config.length
+                      config.length,
                     )
                     setModalData({ ...modalData, config })
                   }}

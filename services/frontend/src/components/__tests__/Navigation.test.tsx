@@ -114,19 +114,19 @@ describe('Navigation RSC Prefetch Fix', () => {
   it('should disable prefetch for /data route links when data page is enabled', () => {
     // Enable the data page feature flag for this test
     const useFeatureFlagMock = jest.requireMock(
-      '@/contexts/FeatureFlagContext'
+      '@/contexts/FeatureFlagContext',
     ).useFeatureFlag
     useFeatureFlagMock.mockImplementation((flag: string) => flag === 'data')
 
     render(
       <TestWrapper>
         <Navigation />
-      </TestWrapper>
+      </TestWrapper>,
     )
 
     // Try to find data management links (they may be disabled)
     const dataLinks = screen.queryAllByText(
-      /Data Management|navigation\.dataManagement/
+      /Data Management|navigation\.dataManagement/,
     )
 
     // If data links exist and are actual links (not disabled), check prefetch
@@ -145,7 +145,7 @@ describe('Navigation RSC Prefetch Fix', () => {
     render(
       <TestWrapper>
         <Navigation />
-      </TestWrapper>
+      </TestWrapper>,
     )
 
     // Find dashboard link that should have normal prefetch
@@ -160,20 +160,20 @@ describe('Navigation RSC Prefetch Fix', () => {
     render(
       <TestWrapper>
         <Navigation />
-      </TestWrapper>
+      </TestWrapper>,
     )
 
     // Check main navigation items exist
     expect(
-      screen.getByText(/Dashboard|navigation\.dashboard/)
+      screen.getByText(/Dashboard|navigation\.dashboard/),
     ).toBeInTheDocument()
 
     // Check navigation groups exist
     expect(
-      screen.getByText(/Quick Start|navigation\.quickStart/)
+      screen.getByText(/Quick Start|navigation\.quickStart/),
     ).toBeInTheDocument()
     expect(
-      screen.getByText(/Knowledge|navigation\.knowledge/)
+      screen.getByText(/Knowledge|navigation\.knowledge/),
     ).toBeInTheDocument()
   })
 })

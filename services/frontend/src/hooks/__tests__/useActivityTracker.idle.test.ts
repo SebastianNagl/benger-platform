@@ -18,7 +18,7 @@
  * performance.now() is mocked and driven manually via setTime().
  */
 
-import { renderHook, act } from '@testing-library/react'
+import { act, renderHook } from '@testing-library/react'
 import { useActivityTracker } from '../useActivityTracker'
 
 const IDLE_THRESHOLD_MS = 60_000
@@ -43,7 +43,7 @@ describe('useActivityTracker - idle branch coverage', () => {
           document,
           event,
           handler as any,
-          options
+          options,
         )
       })
 

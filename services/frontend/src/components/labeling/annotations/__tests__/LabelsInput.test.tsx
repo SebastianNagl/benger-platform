@@ -369,7 +369,11 @@ describe('LabelsInput', () => {
       }
 
       render(
-        <LabelsInput {...defaultProps} config={config} value={['default-bg']} />
+        <LabelsInput
+          {...defaultProps}
+          config={config}
+          value={['default-bg']}
+        />,
       )
 
       const button = screen.getByText('default-bg').closest('button')
@@ -421,7 +425,7 @@ describe('LabelsInput', () => {
       // Note: The selected prop is parsed but not automatically applied to state
       // It's up to the parent component to initialize with correct value
       render(
-        <LabelsInput {...defaultProps} config={config} value={['positive']} />
+        <LabelsInput {...defaultProps} config={config} value={['positive']} />,
       )
 
       const positiveButton = screen.getByText('positive').closest('button')
@@ -442,7 +446,7 @@ describe('LabelsInput', () => {
 
     it('maintains internal state after initialization', () => {
       const { rerender } = render(
-        <LabelsInput {...defaultProps} value={['positive']} />
+        <LabelsInput {...defaultProps} value={['positive']} />,
       )
 
       let positiveButton = screen.getByText('positive').closest('button')
@@ -512,7 +516,7 @@ describe('LabelsInput', () => {
         'categories',
         'Labels',
         ['positive'],
-        'text'
+        'text',
       )
     })
 
@@ -696,7 +700,7 @@ describe('LabelsInput', () => {
         <div>
           <LabelsInput {...props1} />
           <LabelsInput {...props2} />
-        </div>
+        </div>,
       )
 
       const allButtons = screen.getAllByRole('button')
@@ -732,7 +736,7 @@ describe('LabelsInput', () => {
 
     it('maintains internal state independent of external value changes', () => {
       const { rerender } = render(
-        <LabelsInput {...defaultProps} value={undefined} />
+        <LabelsInput {...defaultProps} value={undefined} />,
       )
 
       const positiveButton = screen.getByText('positive').closest('button')

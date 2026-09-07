@@ -19,7 +19,11 @@ interface GenerationResultModalProps {
   taskId: string
   modelId: string
   onClose: () => void
-  onRegenerate?: (taskId: string, modelId: string, structureKeys?: string[]) => void
+  onRegenerate?: (
+    taskId: string,
+    modelId: string,
+    structureKeys?: string[],
+  ) => void
   result?: any
   availableStructureKeys?: string[]
 }
@@ -61,7 +65,9 @@ export function GenerationResultModal({
   const [selectedStructureIndex, setSelectedStructureIndex] = useState(0)
   const [copied, setCopied] = useState(false)
   const [viewMode, setViewMode] = useState<'formatted' | 'raw'>('formatted')
-  const [selectedStructureKeys, setSelectedStructureKeys] = useState<Set<string>>(new Set())
+  const [selectedStructureKeys, setSelectedStructureKeys] = useState<
+    Set<string>
+  >(new Set())
   const [showStructureSelection, setShowStructureSelection] = useState(false)
 
   // History tab state (Issue #1372)
@@ -73,7 +79,7 @@ export function GenerationResultModal({
   // Stabilize array reference to prevent infinite re-render loop
   const stableStructureKeys = useMemo(
     () => JSON.stringify(availableStructureKeys),
-    [availableStructureKeys]
+    [availableStructureKeys],
   )
 
   // Reset state when modal opens
@@ -96,7 +102,7 @@ export function GenerationResultModal({
         model_id: modelId,
       })
       const data: MultipleGenerationResults = await apiClient.get(
-        `/generation-tasks/generation-result?${params}`
+        `/generation-tasks/generation-result?${params}`,
       )
       setResults(data.results || [])
     } catch (error) {
@@ -116,7 +122,7 @@ export function GenerationResultModal({
         include_history: 'true',
       })
       const data: MultipleGenerationResults = await apiClient.get(
-        `/generation-tasks/generation-result?${params}`
+        `/generation-tasks/generation-result?${params}`,
       )
       setHistoryResults(data.results || [])
     } catch (error) {
@@ -197,7 +203,7 @@ export function GenerationResultModal({
     const selectedResult = results[selectedStructureIndex]
     if (!selectedResult) return historyResults
     return historyResults.filter(
-      (h) => h.structure_key === selectedResult.structure_key
+      (h) => h.structure_key === selectedResult.structure_key,
     )
   }, [historyResults, results, selectedStructureIndex])
 
@@ -216,13 +222,14 @@ export function GenerationResultModal({
           <summary className="cursor-pointer text-sm font-medium text-gray-700">
             {t('generation.resultModal.viewPrompt')}
           </summary>
-          <p className="mt-2 text-sm italic text-gray-400">
+          <p className="mt-2 text-sm text-gray-400 italic">
             {t('generation.resultModal.noPromptStored')}
           </p>
         </details>
       )
     }
-    let parsed: { system_prompt?: string; instruction_prompt?: string } | null = null
+    let parsed: { system_prompt?: string; instruction_prompt?: string } | null =
+      null
     try {
       parsed = JSON.parse(promptUsed)
     } catch {
@@ -237,23 +244,27 @@ export function GenerationResultModal({
           <div className="mt-2 space-y-3">
             {parsed.system_prompt && (
               <div>
-                <p className="text-xs font-medium uppercase text-gray-500">System Prompt</p>
-                <pre className="mt-1 whitespace-pre-wrap text-sm text-gray-600">
+                <p className="text-xs font-medium text-gray-500 uppercase">
+                  System Prompt
+                </p>
+                <pre className="mt-1 text-sm whitespace-pre-wrap text-gray-600">
                   {parsed.system_prompt}
                 </pre>
               </div>
             )}
             {parsed.instruction_prompt && (
               <div>
-                <p className="text-xs font-medium uppercase text-gray-500">Instruction Prompt</p>
-                <pre className="mt-1 whitespace-pre-wrap text-sm text-gray-600">
+                <p className="text-xs font-medium text-gray-500 uppercase">
+                  Instruction Prompt
+                </p>
+                <pre className="mt-1 text-sm whitespace-pre-wrap text-gray-600">
                   {parsed.instruction_prompt}
                 </pre>
               </div>
             )}
           </div>
         ) : (
-          <pre className="mt-2 whitespace-pre-wrap text-sm text-gray-600">
+          <pre className="mt-2 text-sm whitespace-pre-wrap text-gray-600">
             {promptUsed}
           </pre>
         )}
@@ -269,7 +280,7 @@ export function GenerationResultModal({
             {t('generation.resultModal.generatedText')}
           </h4>
           <div className="max-h-96 overflow-y-auto rounded-lg bg-gray-50 p-4">
-            <pre className="whitespace-pre-wrap font-mono text-sm text-gray-800">
+            <pre className="font-mono text-sm whitespace-pre-wrap text-gray-800">
               {viewMode === 'raw'
                 ? JSON.stringify(result.result, null, 2)
                 : formatResult(result.result)}
@@ -281,9 +292,7 @@ export function GenerationResultModal({
           <p className="text-sm font-medium text-red-800">
             {t('generation.resultModal.error')}
           </p>
-          <p className="mt-1 text-sm text-red-600">
-            {result.error_message}
-          </p>
+          <p className="mt-1 text-sm text-red-600">{result.error_message}</p>
         </div>
       ) : result.status === 'running' ? (
         <div className="rounded-lg bg-yellow-50 p-4">
@@ -299,9 +308,7 @@ export function GenerationResultModal({
         </div>
       ) : result.status === 'cancelled' && result.error_message ? (
         <div className="rounded-lg border border-orange-200 bg-orange-50 p-4">
-          <p className="text-sm text-orange-800">
-            {result.error_message}
-          </p>
+          <p className="text-sm text-orange-800">{result.error_message}</p>
         </div>
       ) : (
         <div className="rounded-lg bg-gray-50 p-4">
@@ -340,32 +347,38 @@ export function GenerationResultModal({
               leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
             >
               <Dialog.Panel className="relative transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-3xl">
-                <div className="bg-white px-4 pb-4 pt-5 sm:p-6 sm:pb-4">
+                <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
                   <div className="mb-4 flex items-center justify-between">
                     <div>
                       <Dialog.Title
                         as="h3"
-                        className="text-lg font-semibold leading-6 text-gray-900"
+                        className="text-lg leading-6 font-semibold text-gray-900"
                       >
                         {t('generation.resultModal.title')}
                       </Dialog.Title>
                       <div className="mt-1 space-y-1">
                         <p className="text-sm text-gray-500">
-                          <span className="font-medium">{t('generation.resultModal.model')}</span>{' '}
+                          <span className="font-medium">
+                            {t('generation.resultModal.model')}
+                          </span>{' '}
                           <span>{modelId}</span>
                         </p>
                         <p className="text-sm text-gray-500">
-                          <span className="font-medium">{t('generation.resultModal.task')}</span>{' '}
+                          <span className="font-medium">
+                            {t('generation.resultModal.task')}
+                          </span>{' '}
                           {taskId.substring(0, 8)}...
                         </p>
                       </div>
                     </div>
                     <button
                       type="button"
-                      className="rounded-md bg-white text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                      className="rounded-md bg-white text-gray-400 hover:text-gray-500 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:outline-none"
                       onClick={onClose}
                     >
-                      <span className="sr-only">{t('shared.alertDialog.close')}</span>
+                      <span className="sr-only">
+                        {t('shared.alertDialog.close')}
+                      </span>
                       <XMarkIcon className="h-6 w-6" aria-hidden="true" />
                     </button>
                   </div>
@@ -373,7 +386,9 @@ export function GenerationResultModal({
                   {loading ? (
                     <div className="flex h-64 flex-col items-center justify-center space-y-4">
                       <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-blue-600"></div>
-                      <p className="text-sm text-gray-600">{t('generation.resultModal.loading')}</p>
+                      <p className="text-sm text-gray-600">
+                        {t('generation.resultModal.loading')}
+                      </p>
                     </div>
                   ) : results.length > 0 ? (
                     <>
@@ -409,13 +424,14 @@ export function GenerationResultModal({
                               <button
                                 key={index}
                                 onClick={() => setSelectedStructureIndex(index)}
-                                className={`whitespace-nowrap border-b-2 px-3 py-2 text-sm font-medium ${
+                                className={`border-b-2 px-3 py-2 text-sm font-medium whitespace-nowrap ${
                                   selectedStructureIndex === index
                                     ? 'border-blue-500 text-blue-600'
                                     : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
                                 }`}
                               >
-                                {result.structure_key || t('generation.resultModal.default')}
+                                {result.structure_key ||
+                                  t('generation.resultModal.default')}
                               </button>
                             ))}
                           </nav>
@@ -443,7 +459,7 @@ export function GenerationResultModal({
                                     </span>
                                     <span className="text-sm text-gray-600">
                                       {new Date(
-                                        result.generated_at
+                                        result.generated_at,
                                       ).toLocaleString()}
                                     </span>
                                   </div>
@@ -451,10 +467,17 @@ export function GenerationResultModal({
                                 {result.generation_time_seconds != null && (
                                   <div className="flex items-center justify-between">
                                     <span className="text-sm font-medium text-gray-700">
-                                      {t('generation.resultModal.generationTime')}
+                                      {t(
+                                        'generation.resultModal.generationTime',
+                                      )}
                                     </span>
                                     <span className="text-sm text-gray-600">
-                                      {t('generation.resultModal.seconds', { value: result.generation_time_seconds.toFixed(2) })}
+                                      {t('generation.resultModal.seconds', {
+                                        value:
+                                          result.generation_time_seconds.toFixed(
+                                            2,
+                                          ),
+                                      })}
                                     </span>
                                   </div>
                                 )}
@@ -510,10 +533,16 @@ export function GenerationResultModal({
                                 Object.keys(result.parameters).length > 0 && (
                                   <details className="rounded-lg border p-4">
                                     <summary className="cursor-pointer text-sm font-medium text-gray-700">
-                                      {t('generation.resultModal.viewParameters')}
+                                      {t(
+                                        'generation.resultModal.viewParameters',
+                                      )}
                                     </summary>
-                                    <pre className="mt-2 whitespace-pre-wrap text-sm text-gray-600">
-                                      {JSON.stringify(result.parameters, null, 2)}
+                                    <pre className="mt-2 text-sm whitespace-pre-wrap text-gray-600">
+                                      {JSON.stringify(
+                                        result.parameters,
+                                        null,
+                                        2,
+                                      )}
                                     </pre>
                                   </details>
                                 )}
@@ -566,26 +595,40 @@ export function GenerationResultModal({
                                             {getStatusBadge(entry.status)}
                                             <span className="text-gray-600">
                                               {entry.generated_at
-                                                ? new Date(entry.generated_at).toLocaleString()
+                                                ? new Date(
+                                                    entry.generated_at,
+                                                  ).toLocaleString()
                                                 : '\u2014'}
                                             </span>
-                                            {entry.generation_time_seconds != null && (
+                                            {entry.generation_time_seconds !=
+                                              null && (
                                               <span className="text-gray-400">
-                                                {t('generation.resultModal.seconds', {
-                                                  value: entry.generation_time_seconds.toFixed(2),
-                                                })}
+                                                {t(
+                                                  'generation.resultModal.seconds',
+                                                  {
+                                                    value:
+                                                      entry.generation_time_seconds.toFixed(
+                                                        2,
+                                                      ),
+                                                  },
+                                                )}
                                               </span>
                                             )}
                                             {entry.created_by_name && (
                                               <span className="text-gray-400">
-                                                {t('generation.resultModal.by', {
-                                                  user: entry.created_by_name,
-                                                })}
+                                                {t(
+                                                  'generation.resultModal.by',
+                                                  {
+                                                    user: entry.created_by_name,
+                                                  },
+                                                )}
                                               </span>
                                             )}
                                             {index === 0 && (
                                               <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
-                                                {t('generation.resultModal.currentLabel')}
+                                                {t(
+                                                  'generation.resultModal.currentLabel',
+                                                )}
                                               </span>
                                             )}
                                           </div>
@@ -593,7 +636,7 @@ export function GenerationResultModal({
                                             className={`h-4 w-4 text-gray-500 transition-transform ${open ? 'rotate-180' : ''}`}
                                           />
                                         </Disclosure.Button>
-                                        <Disclosure.Panel className="px-4 pb-3 pt-2">
+                                        <Disclosure.Panel className="px-4 pt-2 pb-3">
                                           <div className="space-y-3">
                                             {renderResultContent(entry)}
 
@@ -602,13 +645,20 @@ export function GenerationResultModal({
 
                                             {/* Parameters */}
                                             {entry.parameters &&
-                                              Object.keys(entry.parameters).length > 0 && (
+                                              Object.keys(entry.parameters)
+                                                .length > 0 && (
                                                 <details className="rounded-lg border p-3">
                                                   <summary className="cursor-pointer text-sm font-medium text-gray-700">
-                                                    {t('generation.resultModal.viewParameters')}
+                                                    {t(
+                                                      'generation.resultModal.viewParameters',
+                                                    )}
                                                   </summary>
-                                                  <pre className="mt-2 max-h-48 overflow-y-auto whitespace-pre-wrap text-sm text-gray-600">
-                                                    {JSON.stringify(entry.parameters, null, 2)}
+                                                  <pre className="mt-2 max-h-48 overflow-y-auto text-sm whitespace-pre-wrap text-gray-600">
+                                                    {JSON.stringify(
+                                                      entry.parameters,
+                                                      null,
+                                                      2,
+                                                    )}
                                                   </pre>
                                                 </details>
                                               )}
@@ -643,11 +693,14 @@ export function GenerationResultModal({
                               modelId,
                               availableStructureKeys.length > 1
                                 ? [...selectedStructureKeys]
-                                : undefined
+                                : undefined,
                             )
                             onClose()
                           }}
-                          disabled={availableStructureKeys.length > 1 && selectedStructureKeys.size === 0}
+                          disabled={
+                            availableStructureKeys.length > 1 &&
+                            selectedStructureKeys.size === 0
+                          }
                         >
                           <PlayIcon className="h-4 w-4" />
                           {t('generation.resultModal.generate')}
@@ -662,7 +715,9 @@ export function GenerationResultModal({
                   {onRegenerate && availableStructureKeys.length > 1 && (
                     <div className="mb-3">
                       <button
-                        onClick={() => setShowStructureSelection(!showStructureSelection)}
+                        onClick={() =>
+                          setShowStructureSelection(!showStructureSelection)
+                        }
                         className="mb-2 text-xs text-gray-500 underline hover:text-gray-700"
                       >
                         {t('generation.resultModal.selectStructures')}
@@ -707,11 +762,14 @@ export function GenerationResultModal({
                             modelId,
                             availableStructureKeys.length > 1
                               ? [...selectedStructureKeys]
-                              : undefined
+                              : undefined,
                           )
                           onClose()
                         }}
-                        disabled={availableStructureKeys.length > 1 && selectedStructureKeys.size === 0}
+                        disabled={
+                          availableStructureKeys.length > 1 &&
+                          selectedStructureKeys.size === 0
+                        }
                       >
                         <ArrowPathIcon className="h-4 w-4" />
                         {t('generation.resultModal.regenerate')}

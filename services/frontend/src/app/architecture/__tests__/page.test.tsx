@@ -13,15 +13,24 @@ import ArchitecturePage from '../page'
 
 let mockLocale = 'de'
 jest.mock('@/contexts/I18nContext', () => ({
-  useI18n: () => ({ locale: mockLocale, t: (key: string, fallback?: string) => fallback ?? key }),
+  useI18n: () => ({
+    locale: mockLocale,
+    t: (key: string, fallback?: string) => fallback ?? key,
+  }),
 }))
 jest.mock('@/components/shared/ResponsiveContainer', () => ({
   ResponsiveContainer: ({ children }: any) => <div>{children}</div>,
 }))
-jest.mock('@/components/shared/Breadcrumb', () => ({ Breadcrumb: () => <nav data-testid="breadcrumb" /> }))
+jest.mock('@/components/shared/Breadcrumb', () => ({
+  Breadcrumb: () => <nav data-testid="breadcrumb" />,
+}))
 jest.mock('next/link', () => ({
   __esModule: true,
-  default: ({ href, children, ...rest }: any) => <a href={href} {...rest}>{children}</a>,
+  default: ({ href, children, ...rest }: any) => (
+    <a href={href} {...rest}>
+      {children}
+    </a>
+  ),
 }))
 
 beforeEach(() => {
@@ -60,7 +69,9 @@ describe('ArchitecturePage', () => {
     render(<ArchitecturePage />)
     const overview = screen.getByTestId('architecture-overview')
     expect(overview).toHaveTextContent('open-core system')
-    expect(overview.querySelector('strong')).toHaveTextContent('open-core system')
+    expect(overview.querySelector('strong')).toHaveTextContent(
+      'open-core system',
+    )
     expect(overview.querySelector('code')).toHaveTextContent('benger-platform')
   })
 })

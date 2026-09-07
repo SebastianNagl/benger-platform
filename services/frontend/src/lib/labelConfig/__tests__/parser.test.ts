@@ -330,8 +330,8 @@ describe('validateParsedConfig', () => {
       expect(result.valid).toBe(false)
       expect(
         result.errors.some((e) =>
-          e.includes("Text component requires 'name' attribute")
-        )
+          e.includes("Text component requires 'name' attribute"),
+        ),
       ).toBe(true)
     })
 
@@ -354,8 +354,8 @@ describe('validateParsedConfig', () => {
       expect(result.valid).toBe(false)
       expect(
         result.errors.some((e) =>
-          e.includes("Text component requires 'value' attribute")
-        )
+          e.includes("Text component requires 'value' attribute"),
+        ),
       ).toBe(true)
     })
 
@@ -418,8 +418,8 @@ describe('validateParsedConfig', () => {
       expect(result.valid).toBe(false)
       expect(
         result.errors.some((e) =>
-          e.includes("TextArea component requires 'name' attribute")
-        )
+          e.includes("TextArea component requires 'name' attribute"),
+        ),
       ).toBe(true)
     })
 
@@ -442,8 +442,8 @@ describe('validateParsedConfig', () => {
       expect(result.valid).toBe(false)
       expect(
         result.errors.some((e) =>
-          e.includes("TextArea component requires 'toName' attribute")
-        )
+          e.includes("TextArea component requires 'toName' attribute"),
+        ),
       ).toBe(true)
     })
   })
@@ -491,8 +491,8 @@ describe('validateParsedConfig', () => {
       expect(result.valid).toBe(false)
       expect(
         result.errors.some((e) =>
-          e.includes("Choices component requires 'name' attribute")
-        )
+          e.includes("Choices component requires 'name' attribute"),
+        ),
       ).toBe(true)
     })
 
@@ -517,8 +517,8 @@ describe('validateParsedConfig', () => {
       expect(result.valid).toBe(false)
       expect(
         result.errors.some((e) =>
-          e.includes("Choices component requires 'toName' attribute")
-        )
+          e.includes("Choices component requires 'toName' attribute"),
+        ),
       ).toBe(true)
     })
 
@@ -541,8 +541,8 @@ describe('validateParsedConfig', () => {
       expect(result.valid).toBe(false)
       expect(
         result.errors.some((e) =>
-          e.includes('Choices component requires at least one Choice')
-        )
+          e.includes('Choices component requires at least one Choice'),
+        ),
       ).toBe(true)
     })
   })
@@ -588,8 +588,8 @@ describe('validateParsedConfig', () => {
       expect(result.valid).toBe(false)
       expect(
         result.errors.some((e) =>
-          e.includes("Choice component requires 'value' attribute")
-        )
+          e.includes("Choice component requires 'value' attribute"),
+        ),
       ).toBe(true)
     })
   })

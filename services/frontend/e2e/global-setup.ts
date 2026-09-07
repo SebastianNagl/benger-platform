@@ -15,7 +15,7 @@ interface HealthCheckResult {
 async function validateInfrastructure(
   page: Page,
   baseURL: string,
-  maxRetries: number = 5
+  maxRetries: number = 5,
 ): Promise<HealthCheckResult> {
   const result: HealthCheckResult = {
     api: false,
@@ -37,10 +37,12 @@ async function validateInfrastructure(
       if (healthResponse.ok()) {
         result.api = true
         const healthData = await healthResponse.json().catch(() => ({}))
-        result.database = healthData.status === 'healthy' || healthData.database === 'ok'
-        result.redis = healthData.redis === 'connected' || healthData.redis === 'ok'
+        result.database =
+          healthData.status === 'healthy' || healthData.database === 'ok'
+        result.redis =
+          healthData.redis === 'connected' || healthData.redis === 'ok'
         console.log(
-          `  API: OK, DB: ${result.database ? 'OK' : 'FAIL'}, Redis: ${result.redis ? 'OK' : 'FAIL'}`
+          `  API: OK, DB: ${result.database ? 'OK' : 'FAIL'}, Redis: ${result.redis ? 'OK' : 'FAIL'}`,
         )
       }
 
@@ -51,7 +53,7 @@ async function validateInfrastructure(
           headers: { 'Content-Type': 'application/json' },
           data: { username: 'admin', password: 'admin' },
           timeout: 10000,
-        }
+        },
       )
 
       if (authResponse.ok()) {
@@ -76,7 +78,7 @@ async function validateInfrastructure(
         })
         result.frontend = hasContent
         console.log(
-          `  Frontend: ${result.frontend ? 'OK' : 'FAIL (no content)'}`
+          `  Frontend: ${result.frontend ? 'OK' : 'FAIL (no content)'}`,
         )
       }
 
@@ -95,7 +97,7 @@ async function validateInfrastructure(
       }
     } catch (error) {
       console.log(
-        `  Health check error: ${error instanceof Error ? error.message : error}`
+        `  Health check error: ${error instanceof Error ? error.message : error}`,
       )
       if (attempt < maxRetries) {
         const backoffMs = Math.min(2000 * Math.pow(1.5, attempt - 1), 10000)
@@ -161,7 +163,7 @@ async function globalSetup(config: FullConfig) {
     console.error('Setup failed:', error)
     if (process.env.CI) {
       console.log(
-        'Ignoring setup failure in CI - tests will handle connectivity issues'
+        'Ignoring setup failure in CI - tests will handle connectivity issues',
       )
     } else {
       throw error

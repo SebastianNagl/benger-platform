@@ -87,7 +87,7 @@ export default function PreferenceEvaluation() {
             allow_ties: true,
             anonymize_sources: true,
           },
-        }
+        },
       )
 
       const newSession = response.data
@@ -108,7 +108,7 @@ export default function PreferenceEvaluation() {
   const loadSession = async (sessionId: string) => {
     try {
       const response = await apiClient.get(
-        `/evaluations/human/session/${sessionId}`
+        `/evaluations/human/session/${sessionId}`,
       )
       setSession(response.data)
 
@@ -130,7 +130,7 @@ export default function PreferenceEvaluation() {
 
     try {
       const response = await apiClient.get(
-        `/evaluations/human/session/${sessionId}/next`
+        `/evaluations/human/session/${sessionId}/next`,
       )
 
       if (response.data.completed) {
@@ -253,11 +253,15 @@ export default function PreferenceEvaluation() {
             </p>
             <div className="mb-6 space-y-2">
               <p className="text-sm">
-                <span className="font-medium">{t('evaluations.human.preference.projectLabel')}:</span>{' '}
+                <span className="font-medium">
+                  {t('evaluations.human.preference.projectLabel')}:
+                </span>{' '}
                 {session?.project_name}
               </p>
               <p className="text-sm">
-                <span className="font-medium">{t('evaluations.human.preference.itemsEvaluated')}:</span>{' '}
+                <span className="font-medium">
+                  {t('evaluations.human.preference.itemsEvaluated')}:
+                </span>{' '}
                 {session?.evaluated_items}
               </p>
             </div>
@@ -316,9 +320,11 @@ export default function PreferenceEvaluation() {
 
         {/* Task Display */}
         <Card className="mb-6 p-6">
-          <h3 className="mb-3 font-medium">{t('evaluations.human.preference.task')}</h3>
+          <h3 className="mb-3 font-medium">
+            {t('evaluations.human.preference.task')}
+          </h3>
           <div className="rounded-lg bg-gray-50 p-4">
-            <pre className="whitespace-pre-wrap text-sm">
+            <pre className="text-sm whitespace-pre-wrap">
               {currentItem && JSON.stringify(currentItem.task_data, null, 2)}
             </pre>
           </div>
@@ -348,7 +354,7 @@ export default function PreferenceEvaluation() {
                 {isTie && <EqualsIcon className="h-6 w-6 text-blue-500" />}
               </div>
               <div className="rounded-lg border bg-white p-4">
-                <p className="whitespace-pre-wrap text-sm">
+                <p className="text-sm whitespace-pre-wrap">
                   {response.content}
                 </p>
               </div>
@@ -359,7 +365,9 @@ export default function PreferenceEvaluation() {
         {/* Selection Controls */}
         <Card className="mb-6 p-6">
           <div className="mb-4 flex items-center justify-between">
-            <h3 className="font-medium">{t('evaluations.human.preference.yourSelection')}</h3>
+            <h3 className="font-medium">
+              {t('evaluations.human.preference.yourSelection')}
+            </h3>
             {session?.allow_ties && (
               <Button
                 variant={isTie ? 'primary' : 'outline'}
@@ -408,7 +416,9 @@ export default function PreferenceEvaluation() {
             onClick={() => setRevealIdentities(!revealIdentities)}
             variant="outline"
           >
-            {revealIdentities ? t('evaluations.human.preference.hideModelNames') : t('evaluations.human.preference.revealModelNames')}
+            {revealIdentities
+              ? t('evaluations.human.preference.hideModelNames')
+              : t('evaluations.human.preference.revealModelNames')}
           </Button>
           <div className="flex-1" />
           <Button onClick={skipItem} variant="outline" disabled={submitting}>
@@ -431,7 +441,9 @@ export default function PreferenceEvaluation() {
 
         {/* Instructions */}
         <Card className="border-yellow-200 bg-yellow-50 p-4">
-          <h4 className="mb-2 text-sm font-medium">{t('evaluations.human.preference.guidelines')}</h4>
+          <h4 className="mb-2 text-sm font-medium">
+            {t('evaluations.human.preference.guidelines')}
+          </h4>
           <ul className="space-y-1 text-xs text-gray-600">
             <li>• {t('evaluations.human.preference.guidelineAnonymized')}</li>
             <li>• {t('evaluations.human.preference.guidelineClick')}</li>
@@ -444,7 +456,9 @@ export default function PreferenceEvaluation() {
         {/* Model Identity Reveal (if enabled) */}
         {revealIdentities && currentItem && (
           <Card className="mt-4 border-purple-200 bg-purple-50 p-4">
-            <h4 className="mb-2 text-sm font-medium">{t('evaluations.human.preference.modelIdentities')}</h4>
+            <h4 className="mb-2 text-sm font-medium">
+              {t('evaluations.human.preference.modelIdentities')}
+            </h4>
             <div className="space-y-1">
               {currentItem.responses.map((response) => (
                 <p key={response.id} className="text-xs">

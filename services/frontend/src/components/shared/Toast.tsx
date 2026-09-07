@@ -1,31 +1,29 @@
 'use client'
 
-import { AnimatePresence, motion } from 'framer-motion'
-import React, { createContext, useCallback, useContext, useEffect, useRef } from 'react'
-import { useI18n } from '@/contexts/I18nContext'
 import { ProgressIndicator } from '@/components/shared/ProgressIndicator'
-import { XMarkIcon } from '@heroicons/react/24/outline'
+import { useI18n } from '@/contexts/I18nContext'
 import {
   DEFAULT_TOAST_DURATION_MS,
   ToastItem,
   ToastType,
   useNotificationStore,
 } from '@/stores/notificationStore'
+import { XMarkIcon } from '@heroicons/react/24/outline'
+import { AnimatePresence, motion } from 'framer-motion'
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+} from 'react'
 
 // Re-export the type for callers historically importing it from here.
 export type Toast = ToastItem
 
 interface ToastContextType {
-  addToast: (
-    message: string,
-    type?: ToastType,
-    duration?: number
-  ) => string
-  showToast: (
-    message: string,
-    type?: ToastType,
-    duration?: number
-  ) => string
+  addToast: (message: string, type?: ToastType, duration?: number) => string
+  showToast: (message: string, type?: ToastType, duration?: number) => string
   removeToast: (id: string) => void
 }
 
@@ -44,23 +42,18 @@ export function useToast() {
 // the dispatcher on mount; calls before mount log a warning and no-op.
 let dispatcher: ToastContextType['addToast'] | null = null
 
-export function setToastDispatcher(
-  fn: ToastContextType['addToast'] | null
-) {
+export function setToastDispatcher(fn: ToastContextType['addToast'] | null) {
   dispatcher = fn
 }
 
 export function toast(
   message: string,
   type?: ToastType,
-  duration?: number
+  duration?: number,
 ): string {
   if (!dispatcher) {
     if (typeof console !== 'undefined') {
-      console.warn(
-        'Toast dispatched before ToastProvider mounted:',
-        message
-      )
+      console.warn('Toast dispatched before ToastProvider mounted:', message)
     }
     return ''
   }
@@ -80,7 +73,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   const storeRemove = useNotificationStore((s) => s.removeToast)
   const consumeFlashes = useNotificationStore((s) => s.consumeFlashes)
   const timeoutsRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(
-    new Map()
+    new Map(),
   )
 
   // Wrap the store's addToast to also schedule the auto-dismiss timer.
@@ -101,7 +94,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       }
       return id
     },
-    [storeAdd, storeRemove]
+    [storeAdd, storeRemove],
   )
 
   const removeToast = useCallback(
@@ -113,7 +106,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
         timeoutsRef.current.delete(id)
       }
     },
-    [storeRemove]
+    [storeRemove],
   )
 
   // Mount: register the module dispatcher and drain any pending flashes
@@ -211,7 +204,7 @@ function ToastContainer({
     <div
       // z-60 keeps toasts above HeadlessUI Dialogs (which render at z-50);
       // same-z + later DOM order let the dialog occlude toasts otherwise.
-      className="pointer-events-none fixed right-4 top-4 z-60 max-w-sm space-y-2"
+      className="pointer-events-none fixed top-4 right-4 z-60 max-w-sm space-y-2"
       data-testid="toast-container"
     >
       <AnimatePresence mode="popLayout">

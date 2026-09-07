@@ -1,10 +1,10 @@
 'use client'
 
-import { Alert } from '@/components/shared/Alert'
 import { CloudImportPanel } from '@/components/projects/import/CloudImportPanel'
 import { ImportSourceTabs } from '@/components/projects/import/ImportSourceTabs'
-import { useSlot } from '@/lib/extensions/slots'
+import { Alert } from '@/components/shared/Alert'
 import { useI18n } from '@/contexts/I18nContext'
+import { useSlot } from '@/lib/extensions/slots'
 
 interface StepDataImportProps {
   pastedData: string
@@ -69,7 +69,9 @@ export function StepDataImport({
               {syntheticColumns.length > 0 && (
                 <>
                   {' '}
-                  {t('projects.creation.wizard.step2.syntheticNoticeColumns')}{' '}
+                  {t(
+                    'projects.creation.wizard.step2.syntheticNoticeColumns',
+                  )}{' '}
                   <span className="inline-flex flex-wrap gap-1 align-middle">
                     {syntheticColumns.map((col) => (
                       <code
@@ -132,7 +134,7 @@ export function StepDataImport({
             {dataColumns.map((col) => (
               <span
                 key={col}
-                className="rounded bg-zinc-100 px-2 py-0.5 text-xs font-mono text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
+                className="rounded bg-zinc-100 px-2 py-0.5 font-mono text-xs text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
               >
                 {col}
               </span>

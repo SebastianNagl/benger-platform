@@ -51,7 +51,7 @@ describe('/api/auth/refresh route', () => {
             host: 'localhost:3000',
             cookie: 'refresh_token=valid-token',
           },
-        }
+        },
       )
 
       await POST(request)
@@ -64,7 +64,7 @@ describe('/api/auth/refresh route', () => {
             'Content-Type': 'application/json',
             Cookie: 'refresh_token=valid-token',
           },
-        })
+        }),
       )
     })
 
@@ -87,7 +87,7 @@ describe('/api/auth/refresh route', () => {
           headers: {
             cookie: cookies,
           },
-        }
+        },
       )
 
       await POST(request)
@@ -113,7 +113,7 @@ describe('/api/auth/refresh route', () => {
         'http://localhost:3000/api/auth/refresh',
         {
           method: 'POST',
-        }
+        },
       )
 
       await POST(request)
@@ -139,7 +139,7 @@ describe('/api/auth/refresh route', () => {
         'http://localhost:3000/api/auth/refresh',
         {
           method: 'POST',
-        }
+        },
       )
 
       const response = await POST(request)
@@ -166,7 +166,7 @@ describe('/api/auth/refresh route', () => {
           headers: {
             cookie: 'refresh_token=invalid-token',
           },
-        }
+        },
       )
 
       const response = await POST(request)
@@ -193,7 +193,7 @@ describe('/api/auth/refresh route', () => {
           headers: {
             cookie: 'refresh_token=expired-token',
           },
-        }
+        },
       )
 
       const response = await POST(request)
@@ -213,7 +213,7 @@ describe('/api/auth/refresh route', () => {
           headers: {
             cookie: 'refresh_token=valid-token',
           },
-        }
+        },
       )
 
       const response = await POST(request)
@@ -243,14 +243,14 @@ describe('/api/auth/refresh route', () => {
             host: 'benger.localhost',
             cookie: 'refresh_token=valid-token',
           },
-        }
+        },
       )
 
       await POST(request)
 
       expect(mockFetch).toHaveBeenCalledWith(
         'http://api:8000/api/auth/refresh',
-        expect.any(Object)
+        expect.any(Object),
       )
     })
 
@@ -274,14 +274,14 @@ describe('/api/auth/refresh route', () => {
             host: 'localhost:3000',
             cookie: 'refresh_token=valid-token',
           },
-        }
+        },
       )
 
       await POST(request)
 
       expect(mockFetch).toHaveBeenCalledWith(
         'http://localhost:8001/api/auth/refresh',
-        expect.any(Object)
+        expect.any(Object),
       )
     })
 
@@ -308,14 +308,14 @@ describe('/api/auth/refresh route', () => {
             host: 'what-a-benger.net',
             cookie: 'refresh_token=valid-token',
           },
-        }
+        },
       )
 
       await POST(request)
 
       expect(mockFetch).toHaveBeenCalledWith(
         expect.stringContaining('/api/auth/refresh'),
-        expect.any(Object)
+        expect.any(Object),
       )
     })
 
@@ -339,14 +339,14 @@ describe('/api/auth/refresh route', () => {
             host: 'staging.what-a-benger.net',
             cookie: 'refresh_token=valid-token',
           },
-        }
+        },
       )
 
       await POST(request)
 
       expect(mockFetch).toHaveBeenCalledWith(
         expect.stringContaining('/api/auth/refresh'),
-        expect.any(Object)
+        expect.any(Object),
       )
     })
 
@@ -373,14 +373,14 @@ describe('/api/auth/refresh route', () => {
             host: 'what-a-benger.net',
             cookie: 'refresh_token=valid-token',
           },
-        }
+        },
       )
 
       await POST(request)
 
       expect(mockFetch).toHaveBeenCalledWith(
         'http://custom-api:9000/api/auth/refresh',
-        expect.any(Object)
+        expect.any(Object),
       )
 
       // Restore
@@ -414,7 +414,7 @@ describe('/api/auth/refresh route', () => {
           headers: {
             cookie: 'refresh_token=valid-token',
           },
-        }
+        },
       )
 
       const response = await POST(request)
@@ -441,7 +441,7 @@ describe('/api/auth/refresh route', () => {
           headers: {
             cookie: 'refresh_token=valid-token',
           },
-        }
+        },
       )
 
       const response = await POST(request)
@@ -468,7 +468,7 @@ describe('/api/auth/refresh route', () => {
           headers: {
             cookie: 'refresh_token=valid-token',
           },
-        }
+        },
       )
 
       const response = await POST(request)
@@ -493,7 +493,7 @@ describe('/api/auth/refresh route', () => {
           headers: {
             cookie: 'refresh_token=valid-token',
           },
-        }
+        },
       )
 
       const response = await POST(request)
@@ -518,7 +518,7 @@ describe('/api/auth/refresh route', () => {
           headers: {
             cookie: 'refresh_token=valid-token',
           },
-        }
+        },
       )
 
       const response = await POST(request)
@@ -543,7 +543,7 @@ describe('/api/auth/refresh route', () => {
           headers: {
             cookie: 'refresh_token=valid-token',
           },
-        }
+        },
       )
 
       const response = await POST(request)
@@ -574,14 +574,14 @@ describe('/api/auth/refresh route', () => {
             host: 'what-a-benger.net',
             cookie: 'refresh_token=valid-token',
           },
-        }
+        },
       )
 
       await POST(request)
 
       expect(mockFetch).toHaveBeenCalledWith(
         'http://env-api:8000/api/auth/refresh',
-        expect.any(Object)
+        expect.any(Object),
       )
 
       // Restore
@@ -616,7 +616,7 @@ describe('/api/auth/refresh route', () => {
 
       expect(mockFetch).toHaveBeenCalledWith(
         'http://api:8000/api/auth/refresh',
-        expect.any(Object)
+        expect.any(Object),
       )
     })
 
@@ -630,7 +630,7 @@ describe('/api/auth/refresh route', () => {
           headers: {
             cookie: 'refresh_token=valid-token',
           },
-        }
+        },
       )
 
       const response = await POST(request)
@@ -650,7 +650,7 @@ describe('/api/auth/refresh route', () => {
           headers: {
             cookie: 'refresh_token=valid-token',
           },
-        }
+        },
       )
 
       const response = await POST(request)
@@ -658,7 +658,7 @@ describe('/api/auth/refresh route', () => {
       expect(response.status).toBe(500)
       expect(console.error).toHaveBeenCalledWith(
         '❌ Refresh proxy error:',
-        expect.any(Error)
+        expect.any(Error),
       )
     })
 
@@ -683,7 +683,7 @@ describe('/api/auth/refresh route', () => {
             host: 'benger.localhost',
             cookie: 'refresh_token=old-token',
           },
-        }
+        },
       )
 
       const response = await POST(request)
@@ -691,7 +691,9 @@ describe('/api/auth/refresh route', () => {
       const cookies = response.headers.getSetCookie()
       expect(cookies.length).toBeGreaterThanOrEqual(1)
       // Should have Domain rewritten and Secure removed
-      const accessCookie = cookies.find((c: string) => c.startsWith('access_token='))
+      const accessCookie = cookies.find((c: string) =>
+        c.startsWith('access_token='),
+      )
       if (accessCookie) {
         expect(accessCookie).not.toMatch(/Domain=api:8000/)
         expect(accessCookie).not.toMatch(/;\s*Secure/i)
@@ -705,9 +707,7 @@ describe('/api/auth/refresh route', () => {
         status: 200,
         json: () => Promise.resolve({ access_token: 'tok' }),
         headers: {
-          getSetCookie: () => [
-            'access_token=tok; HttpOnly',
-          ],
+          getSetCookie: () => ['access_token=tok; HttpOnly'],
         },
       } as any)
 
@@ -719,12 +719,14 @@ describe('/api/auth/refresh route', () => {
             host: 'benger.localhost',
             cookie: 'refresh_token=old',
           },
-        }
+        },
       )
 
       const response = await POST(request)
       const cookies = response.headers.getSetCookie()
-      const accessCookie = cookies.find((c: string) => c.startsWith('access_token='))
+      const accessCookie = cookies.find((c: string) =>
+        c.startsWith('access_token='),
+      )
       if (accessCookie) {
         expect(accessCookie).toContain('Path=/')
       }
@@ -749,14 +751,14 @@ describe('/api/auth/refresh route', () => {
             host: 'benger.localhost',
             cookie: 'refresh_token=old',
           },
-        }
+        },
       )
 
       await POST(request)
 
       expect(mockFetch).toHaveBeenCalledWith(
         'http://custom:7777/api/auth/refresh',
-        expect.any(Object)
+        expect.any(Object),
       )
 
       if (orig) process.env.API_BASE_URL = orig
@@ -779,13 +781,13 @@ describe('/api/auth/refresh route', () => {
             host: 'benger-test.localhost',
             cookie: 'refresh_token=old',
           },
-        }
+        },
       )
 
       await POST(request)
       expect(mockFetch).toHaveBeenCalledWith(
         'http://test-api:8000/api/auth/refresh',
-        expect.any(Object)
+        expect.any(Object),
       )
     })
 
@@ -799,7 +801,7 @@ describe('/api/auth/refresh route', () => {
           headers: {
             cookie: 'refresh_token=valid-token',
           },
-        }
+        },
       )
 
       const response = await POST(request)

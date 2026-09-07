@@ -6,7 +6,7 @@
  * @jest-environment jsdom
  */
 
-import { render, screen, fireEvent } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import React from 'react'
 import { MaxTokensInput } from '../MaxTokensInput'
 
@@ -64,7 +64,13 @@ describe('MaxTokensInput', () => {
 
   it('renders the recommended value (default-block fallback for both modes)', () => {
     mockModels = [modelWithRec]
-    render(<MaxTokensInput judgeModelId="gpt-4o" value={4000} onChange={jest.fn()} />)
+    render(
+      <MaxTokensInput
+        judgeModelId="gpt-4o"
+        value={4000}
+        onChange={jest.fn()}
+      />,
+    )
     expect(screen.getByText(/Empfehlung/i).textContent).toContain('4000')
     expect(screen.queryByText(/Zurücksetzen/)).not.toBeInTheDocument()
   })
@@ -72,7 +78,9 @@ describe('MaxTokensInput', () => {
   it('shows reset link when user value diverges from recommendation', () => {
     mockModels = [modelWithRec]
     const onChange = jest.fn()
-    render(<MaxTokensInput judgeModelId="gpt-4o" value={500} onChange={onChange} />)
+    render(
+      <MaxTokensInput judgeModelId="gpt-4o" value={500} onChange={onChange} />,
+    )
     const resetBtn = screen.getByText(/Zurücksetzen/)
     fireEvent.click(resetBtn)
     expect(onChange).toHaveBeenCalledWith(4000)
@@ -80,21 +88,36 @@ describe('MaxTokensInput', () => {
 
   it('falls back to the fallback value when value is undefined', () => {
     mockModels = [modelWithRec]
-    render(<MaxTokensInput judgeModelId="gpt-4o" value={undefined} onChange={jest.fn()} fallback={500} />)
+    render(
+      <MaxTokensInput
+        judgeModelId="gpt-4o"
+        value={undefined}
+        onChange={jest.fn()}
+        fallback={500}
+      />,
+    )
     // Reset link should appear since fallback (500) ≠ recommendation (4000).
     expect(screen.getByText(/Zurücksetzen/)).toBeInTheDocument()
   })
 
   it('shows "Keine Empfehlung" when the model has no recommendations', () => {
     mockModels = [modelWithoutRec]
-    render(<MaxTokensInput judgeModelId="community-model" value={500} onChange={jest.fn()} />)
+    render(
+      <MaxTokensInput
+        judgeModelId="community-model"
+        value={500}
+        onChange={jest.fn()}
+      />,
+    )
     expect(screen.getByText(/Keine Empfehlung$/)).toBeInTheDocument()
   })
 
   it('emits the input value via onChange when user edits the field', () => {
     mockModels = [modelWithRec]
     const onChange = jest.fn()
-    render(<MaxTokensInput judgeModelId="gpt-4o" value={4000} onChange={onChange} />)
+    render(
+      <MaxTokensInput judgeModelId="gpt-4o" value={4000} onChange={onChange} />,
+    )
     const input = screen.getByRole('spinbutton')
     fireEvent.change(input, { target: { value: '2000' } })
     expect(onChange).toHaveBeenCalledWith(2000)

@@ -96,9 +96,7 @@ test.describe('Dashboard Analytics', () => {
 
     // The dashboard has a "Create New Project" card with an <a> styled as Button
     // Matches: "Projekt erstellen", "Create Your First Project", "Neues Projekt erstellen"
-    const createLink = page
-      .locator('a[href="/projects/create"]')
-      .first()
+    const createLink = page.locator('a[href="/projects/create"]').first()
 
     await expect(createLink).toBeVisible({ timeout: 15000 })
 

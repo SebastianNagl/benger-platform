@@ -1,14 +1,14 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
 import { useI18n } from '@/contexts/I18nContext'
+import type { CustomCriteriaDefinition } from '@/lib/api/evaluation-types'
 import {
+  InformationCircleIcon,
   PlusIcon,
   TrashIcon,
-  InformationCircleIcon,
 } from '@heroicons/react/24/outline'
 import clsx from 'clsx'
-import type { CustomCriteriaDefinition } from '@/lib/api/evaluation-types'
+import { useCallback, useEffect, useState } from 'react'
 
 interface DimensionsEditorProps {
   value: Record<string, CustomCriteriaDefinition>
@@ -33,7 +33,7 @@ let rowIdSeed = 0
 const nextRowId = () => `dim-${++rowIdSeed}-${Date.now()}`
 
 function dimsToRows(
-  dims: Record<string, CustomCriteriaDefinition>
+  dims: Record<string, CustomCriteriaDefinition>,
 ): DimensionRow[] {
   return Object.entries(dims || {}).map(([key, def]) => ({
     rowId: nextRowId(),
@@ -45,7 +45,9 @@ function dimsToRows(
   }))
 }
 
-function rowsToDims(rows: DimensionRow[]): Record<string, CustomCriteriaDefinition> {
+function rowsToDims(
+  rows: DimensionRow[],
+): Record<string, CustomCriteriaDefinition> {
   const out: Record<string, CustomCriteriaDefinition> = {}
   for (const row of rows) {
     if (!row.key) continue
@@ -84,7 +86,7 @@ export function DimensionsEditor({ value, onChange }: DimensionsEditorProps) {
       setRows(next)
       onChange(rowsToDims(next))
     },
-    [onChange]
+    [onChange],
   )
 
   const addRow = () => {
@@ -131,8 +133,8 @@ export function DimensionsEditor({ value, onChange }: DimensionsEditorProps) {
               totalMax === 100
                 ? 'text-green-600 dark:text-green-400'
                 : totalMax === 0
-                ? 'text-gray-400'
-                : 'text-amber-600 dark:text-amber-400'
+                  ? 'text-gray-400'
+                  : 'text-amber-600 dark:text-amber-400',
             )}
           >
             {totalMax}
@@ -146,7 +148,7 @@ export function DimensionsEditor({ value, onChange }: DimensionsEditorProps) {
           <div>
             {t(
               'evaluationBuilder.parameters.dimensionsHint',
-              'Define weighted dimensions to switch the judge into single-call multi-dimension mode. The judge will return one JSON with per-dimension scores (each clamped to its max_score) plus a total_score. Leave max_score empty on every dimension to keep the legacy per-criterion 1-5 scoring.'
+              'Define weighted dimensions to switch the judge into single-call multi-dimension mode. The judge will return one JSON with per-dimension scores (each clamped to its max_score) plus a total_score. Leave max_score empty on every dimension to keep the legacy per-criterion 1-5 scoring.',
             )}
           </div>
         </div>
@@ -156,7 +158,7 @@ export function DimensionsEditor({ value, onChange }: DimensionsEditorProps) {
         <div className="rounded-md border border-dashed border-gray-300 p-4 text-center text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400">
           {t(
             'evaluationBuilder.parameters.noDimensions',
-            'No dimensions defined. Click "Add dimension" to start.'
+            'No dimensions defined. Click "Add dimension" to start.',
           )}
         </div>
       )}
@@ -169,31 +171,38 @@ export function DimensionsEditor({ value, onChange }: DimensionsEditorProps) {
           >
             <div className="grid grid-cols-12 gap-2">
               <div className="col-span-4">
-                <label className="mb-1 block text-[10px] uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                <label className="mb-1 block text-[10px] tracking-wider text-gray-500 uppercase dark:text-gray-400">
                   {t('evaluationBuilder.parameters.dimensionKey', 'Key')}
                 </label>
                 <input
                   type="text"
                   value={row.key}
                   placeholder="result_correctness"
-                  onChange={(e) => updateRow(row.rowId, { key: e.target.value.trim() })}
+                  onChange={(e) =>
+                    updateRow(row.rowId, { key: e.target.value.trim() })
+                  }
                   className="w-full rounded-md border border-gray-300 px-2 py-1 font-mono text-xs dark:border-gray-600 dark:bg-gray-800"
                 />
               </div>
               <div className="col-span-5">
-                <label className="mb-1 block text-[10px] uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                  {t('evaluationBuilder.parameters.dimensionName', 'Display Name')}
+                <label className="mb-1 block text-[10px] tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                  {t(
+                    'evaluationBuilder.parameters.dimensionName',
+                    'Display Name',
+                  )}
                 </label>
                 <input
                   type="text"
                   value={row.name}
                   placeholder="Ergebnisrichtigkeit"
-                  onChange={(e) => updateRow(row.rowId, { name: e.target.value })}
+                  onChange={(e) =>
+                    updateRow(row.rowId, { name: e.target.value })
+                  }
                   className="w-full rounded-md border border-gray-300 px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-800"
                 />
               </div>
               <div className="col-span-2">
-                <label className="mb-1 block text-[10px] uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                <label className="mb-1 block text-[10px] tracking-wider text-gray-500 uppercase dark:text-gray-400">
                   {t('evaluationBuilder.parameters.dimensionMax', 'Max')}
                 </label>
                 <input
@@ -203,7 +212,9 @@ export function DimensionsEditor({ value, onChange }: DimensionsEditorProps) {
                   step={1}
                   value={row.max_score}
                   onChange={(e) =>
-                    updateRow(row.rowId, { max_score: Number(e.target.value) || 0 })
+                    updateRow(row.rowId, {
+                      max_score: Number(e.target.value) || 0,
+                    })
                   }
                   className="w-full rounded-md border border-gray-300 px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-800"
                 />
@@ -221,33 +232,40 @@ export function DimensionsEditor({ value, onChange }: DimensionsEditorProps) {
               </div>
 
               <div className="col-span-12">
-                <label className="mb-1 block text-[10px] uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                  {t('evaluationBuilder.parameters.dimensionDescription', 'Description')}
+                <label className="mb-1 block text-[10px] tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                  {t(
+                    'evaluationBuilder.parameters.dimensionDescription',
+                    'Description',
+                  )}
                 </label>
                 <input
                   type="text"
                   value={row.description}
                   placeholder={t(
                     'evaluationBuilder.parameters.dimensionDescriptionPlaceholder',
-                    'What this dimension assesses (optional, shown to the judge in the rubric)'
+                    'What this dimension assesses (optional, shown to the judge in the rubric)',
                   )}
-                  onChange={(e) => updateRow(row.rowId, { description: e.target.value })}
+                  onChange={(e) =>
+                    updateRow(row.rowId, { description: e.target.value })
+                  }
                   className="w-full rounded-md border border-gray-300 px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-800"
                 />
               </div>
 
               <div className="col-span-12">
-                <label className="mb-1 block text-[10px] uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                <label className="mb-1 block text-[10px] tracking-wider text-gray-500 uppercase dark:text-gray-400">
                   {t('evaluationBuilder.parameters.dimensionRubric', 'Rubric')}
                 </label>
                 <textarea
                   value={row.rubric}
                   placeholder={t(
                     'evaluationBuilder.parameters.dimensionRubricPlaceholder',
-                    'Anchored guidance for the judge: what earns 0, what earns max_score (optional).'
+                    'Anchored guidance for the judge: what earns 0, what earns max_score (optional).',
                   )}
                   rows={2}
-                  onChange={(e) => updateRow(row.rowId, { rubric: e.target.value })}
+                  onChange={(e) =>
+                    updateRow(row.rowId, { rubric: e.target.value })
+                  }
                   className="w-full rounded-md border border-gray-300 px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-800"
                 />
               </div>
@@ -269,15 +287,18 @@ export function DimensionsEditor({ value, onChange }: DimensionsEditorProps) {
         <div className="rounded-md border border-red-200 bg-red-50 p-2 text-xs text-red-700 dark:border-red-800/40 dark:bg-red-900/20 dark:text-red-300">
           {duplicateKeys.length > 0 && (
             <div>
-              {t('evaluationBuilder.parameters.duplicateKeys', 'Duplicate keys')}:{' '}
-              <code className="font-mono">{duplicateKeys.join(', ')}</code>
+              {t(
+                'evaluationBuilder.parameters.duplicateKeys',
+                'Duplicate keys',
+              )}
+              : <code className="font-mono">{duplicateKeys.join(', ')}</code>
             </div>
           )}
           {invalidKeys.length > 0 && (
             <div>
               {t(
                 'evaluationBuilder.parameters.invalidKeys',
-                'Keys must be snake_case (lowercase, digits, underscores; start with a letter)'
+                'Keys must be snake_case (lowercase, digits, underscores; start with a letter)',
               )}
               : <code className="font-mono">{invalidKeys.join(', ')}</code>
             </div>

@@ -13,7 +13,7 @@ async function throttledRequest<T>(fn: () => Promise<T>): Promise<T> {
   const timeSinceLastRequest = now - lastRequestTime
   if (timeSinceLastRequest < MIN_REQUEST_INTERVAL) {
     await new Promise((resolve) =>
-      setTimeout(resolve, MIN_REQUEST_INTERVAL - timeSinceLastRequest)
+      setTimeout(resolve, MIN_REQUEST_INTERVAL - timeSinceLastRequest),
     )
   }
   lastRequestTime = Date.now()
@@ -41,7 +41,9 @@ export class TestHelpers {
       try {
         if (navAttempt > 1) {
           const delay = 500 * navAttempt
-          console.log(`⏳ Navigation retry ${navAttempt}/${maxAttempts} for /login after ${delay}ms delay...`)
+          console.log(
+            `⏳ Navigation retry ${navAttempt}/${maxAttempts} for /login after ${delay}ms delay...`,
+          )
           await this.page.waitForTimeout(delay)
         }
 
@@ -52,7 +54,9 @@ export class TestHelpers {
 
         // Check for 404 or other error response
         if (response && response.status() >= 400) {
-          console.log(`⚠️  Navigation returned ${response.status()}, retrying...`)
+          console.log(
+            `⚠️  Navigation returned ${response.status()}, retrying...`,
+          )
           continue
         }
 
@@ -60,14 +64,18 @@ export class TestHelpers {
         break
       } catch (error) {
         if (navAttempt === maxAttempts) {
-          throw new Error(`Navigation to /login failed after ${maxAttempts} attempts: ${error}`)
+          throw new Error(
+            `Navigation to /login failed after ${maxAttempts} attempts: ${error}`,
+          )
         }
         console.log(`⚠️  Navigation error, retrying: ${error}`)
       }
     }
 
     if (!navigationSuccess) {
-      throw new Error(`Failed to navigate to login page after ${maxAttempts} attempts`)
+      throw new Error(
+        `Failed to navigate to login page after ${maxAttempts} attempts`,
+      )
     }
 
     // Wait a bit for auto-login to potentially redirect
@@ -92,13 +100,13 @@ export class TestHelpers {
     // At this point, we're on login page - fill the form
     try {
       const emailInput = this.page.locator(
-        '[data-testid="auth-login-email-input"]'
+        '[data-testid="auth-login-email-input"]',
       )
       const passwordInput = this.page.locator(
-        '[data-testid="auth-login-password-input"]'
+        '[data-testid="auth-login-password-input"]',
       )
       const submitButton = this.page.locator(
-        '[data-testid="auth-login-submit-button"]'
+        '[data-testid="auth-login-submit-button"]',
       )
 
       // Wait for form to be visible with retry logic for slow page rendering
@@ -129,8 +137,12 @@ export class TestHelpers {
 
       // Wait for successful login - either redirect or user indicator appearing
       await Promise.race([
-        this.page.waitForURL(/\/(dashboard|tasks|projects)/, { timeout: 30000 }),
-        this.page.waitForSelector('button:has-text("admin")', { timeout: 30000 }),
+        this.page.waitForURL(/\/(dashboard|tasks|projects)/, {
+          timeout: 30000,
+        }),
+        this.page.waitForSelector('button:has-text("admin")', {
+          timeout: 30000,
+        }),
         this.page.waitForSelector('[class*="sidebar"]', { timeout: 30000 }),
       ]).catch(() => {
         console.log('Login wait timeout, checking current state...')
@@ -141,7 +153,9 @@ export class TestHelpers {
       if (this.page.url().includes('/login')) {
         // Still on login page - check for error
         const errorMessage = this.page.locator('[data-testid="auth-error"]')
-        if (await errorMessage.isVisible({ timeout: 1000 }).catch(() => false)) {
+        if (
+          await errorMessage.isVisible({ timeout: 1000 }).catch(() => false)
+        ) {
           const errorText = await errorMessage.textContent()
           throw new Error(`Login failed: ${errorText}`)
         }
@@ -182,7 +196,7 @@ export class TestHelpers {
     selector: string,
     fileName: string,
     content: string,
-    mimeType: string
+    mimeType: string,
   ) {
     const buffer = Buffer.from(content)
     await this.page.setInputFiles(selector, {
@@ -225,7 +239,7 @@ export class TestHelpers {
     if (projectData.description) {
       await this.page.fill(
         'textarea[name="description"]',
-        projectData.description
+        projectData.description,
       )
     }
 
@@ -288,13 +302,13 @@ export class TestHelpers {
             },
           })
           return { status: response.status, ok: response.ok }
-        }, projectId)
+        }, projectId),
       )
 
       // 200 = deleted, 404 = already deleted (both acceptable)
       if (deleteResult.status !== 200 && deleteResult.status !== 404) {
         console.warn(
-          `Delete returned status ${deleteResult.status} for project ${projectId}`
+          `Delete returned status ${deleteResult.status} for project ${projectId}`,
         )
         return false
       }
@@ -308,12 +322,12 @@ export class TestHelpers {
             },
           })
           return response.status
-        }, projectId)
+        }, projectId),
       )
 
       if (verifyResult !== 404) {
         console.warn(
-          `Project ${projectId} still exists after deletion (status: ${verifyResult})`
+          `Project ${projectId} still exists after deletion (status: ${verifyResult})`,
         )
         return false
       }

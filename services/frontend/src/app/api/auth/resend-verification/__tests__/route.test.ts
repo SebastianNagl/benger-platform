@@ -22,7 +22,10 @@ describe('/api/auth/resend-verification', () => {
     jest.restoreAllMocks()
   })
 
-  const makeReq = (host: string, body: unknown = { email: 'x@example.com', language: 'de' }) =>
+  const makeReq = (
+    host: string,
+    body: unknown = { email: 'x@example.com', language: 'de' },
+  ) =>
     new NextRequest(`http://${host}/api/auth/resend-verification`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', host },
@@ -32,7 +35,9 @@ describe('/api/auth/resend-verification', () => {
   it('forwards to the backend and returns its status/body', async () => {
     ;(global.fetch as jest.Mock).mockResolvedValueOnce({
       status: 200,
-      json: async () => ({ message: 'If the email exists and is unverified, a link has been sent' }),
+      json: async () => ({
+        message: 'If the email exists and is unverified, a link has been sent',
+      }),
     })
 
     const response = await POST(makeReq('benger.localhost'))
@@ -53,8 +58,10 @@ describe('/api/auth/resend-verification', () => {
     expect(global.fetch).toHaveBeenCalledWith(
       expect.stringContaining('/api/auth/resend-verification'),
       expect.objectContaining({
-        headers: expect.objectContaining({ 'x-forwarded-host': 'vertretbar.localhost' }),
-      })
+        headers: expect.objectContaining({
+          'x-forwarded-host': 'vertretbar.localhost',
+        }),
+      }),
     )
   })
 
@@ -69,7 +76,9 @@ describe('/api/auth/resend-verification', () => {
   })
 
   it('returns 500 on a network error', async () => {
-    ;(global.fetch as jest.Mock).mockRejectedValueOnce(new Error('Network error'))
+    ;(global.fetch as jest.Mock).mockRejectedValueOnce(
+      new Error('Network error'),
+    )
 
     const response = await POST(makeReq('benger.localhost'))
     expect(response.status).toBe(500)
@@ -78,11 +87,17 @@ describe('/api/auth/resend-verification', () => {
   })
 
   it('returns 500 on an invalid JSON body', async () => {
-    const request = new NextRequest('http://benger.localhost/api/auth/resend-verification', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', host: 'benger.localhost' },
-      body: 'not json',
-    })
+    const request = new NextRequest(
+      'http://benger.localhost/api/auth/resend-verification',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          host: 'benger.localhost',
+        },
+        body: 'not json',
+      },
+    )
 
     const response = await POST(request)
     expect(response.status).toBe(500)

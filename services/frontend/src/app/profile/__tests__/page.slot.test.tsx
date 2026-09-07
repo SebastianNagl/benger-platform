@@ -79,16 +79,18 @@ jest.mock('@/components/profile/ProfileHistorySection', () => ({
 jest.mock('@/components/profile/ProfileAccountSection', () => ({
   ProfileAccountSection: () => null,
 }))
-jest.mock('@heroicons/react/24/outline', () =>
-  new Proxy(
-    {},
-    {
-      get: (_target, prop) => {
-        if (prop === '__esModule') return true
-        return (props: any) => <svg data-testid="icon" {...props} />
+jest.mock(
+  '@heroicons/react/24/outline',
+  () =>
+    new Proxy(
+      {},
+      {
+        get: (_target, prop) => {
+          if (prop === '__esModule') return true
+          return (props: any) => <svg data-testid="icon" {...props} />
+        },
       },
-    }
-  )
+    ),
 )
 
 import ProfilePage from '../page'
@@ -110,10 +112,10 @@ describe('profile page profile-settings-extended slot', () => {
   it('renders nothing extra while the slot is unregistered (community)', async () => {
     render(<ProfilePage />)
     await waitFor(() =>
-      expect(screen.getByTestId('section-personal')).toBeInTheDocument()
+      expect(screen.getByTestId('section-personal')).toBeInTheDocument(),
     )
     expect(
-      screen.queryByTestId('profile-settings-extended-content')
+      screen.queryByTestId('profile-settings-extended-content'),
     ).not.toBeInTheDocument()
   })
 
@@ -126,8 +128,8 @@ describe('profile page profile-settings-extended slot', () => {
 
     await waitFor(() =>
       expect(
-        screen.getByTestId('profile-settings-extended-content')
-      ).toBeInTheDocument()
+        screen.getByTestId('profile-settings-extended-content'),
+      ).toBeInTheDocument(),
     )
   })
 })

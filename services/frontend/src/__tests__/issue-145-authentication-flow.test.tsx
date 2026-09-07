@@ -64,7 +64,7 @@ describe('Issue #145: Authentication Flow Optimization', () => {
         mockApi.login({
           username: 'wrong@example.com',
           password: 'wrongpassword',
-        })
+        }),
       ).rejects.toThrow('Invalid credentials')
 
       expect(mockApi.login).toHaveBeenCalledWith({
@@ -78,15 +78,15 @@ describe('Issue #145: Authentication Flow Optimization', () => {
       mockApi.login.mockImplementation(
         () =>
           new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('Network timeout')), 50)
-          )
+            setTimeout(() => reject(new Error('Network timeout')), 50),
+          ),
       )
 
       await expect(
         mockApi.login({
           username: 'test@example.com',
           password: 'testpassword',
-        })
+        }),
       ).rejects.toThrow('Network timeout')
     })
   })
@@ -126,7 +126,7 @@ describe('Issue #145: Authentication Flow Optimization', () => {
     it('should handle registration validation errors', async () => {
       // Mock validation error
       mockApi.register.mockRejectedValueOnce(
-        new Error('Username already exists')
+        new Error('Username already exists'),
       )
 
       await expect(
@@ -135,7 +135,7 @@ describe('Issue #145: Authentication Flow Optimization', () => {
           email: 'existing@example.com',
           name: 'Existing User',
           password: 'password',
-        })
+        }),
       ).rejects.toThrow('Username already exists')
     })
 
@@ -149,7 +149,7 @@ describe('Issue #145: Authentication Flow Optimization', () => {
           email: 'new@example.com',
           name: 'New User',
           password: '123',
-        })
+        }),
       ).rejects.toThrow('Password too weak')
     })
   })
@@ -205,21 +205,21 @@ describe('Issue #145: Authentication Flow Optimization', () => {
         mockApi.login({
           username: 'test@example.com',
           password: 'testpassword',
-        })
+        }),
       ).rejects.toThrow('bcrypt error')
     })
 
     it('should handle database connection issues', async () => {
       // Mock database error
       mockApi.login.mockRejectedValueOnce(
-        new Error('Database connection failed')
+        new Error('Database connection failed'),
       )
 
       await expect(
         mockApi.login({
           username: 'test@example.com',
           password: 'testpassword',
-        })
+        }),
       ).rejects.toThrow('Database connection failed')
     })
 
@@ -231,7 +231,7 @@ describe('Issue #145: Authentication Flow Optimization', () => {
         mockApi.login({
           username: 'test@example.com',
           password: 'testpassword',
-        })
+        }),
       ).rejects.toThrow('Service unavailable')
     })
   })
@@ -250,9 +250,9 @@ describe('Issue #145: Authentication Flow Optimization', () => {
                     token_type: 'bearer',
                     expires_in: 3600,
                   }),
-                10
-              ) // 10ms simulated server response
-          )
+                10,
+              ), // 10ms simulated server response
+          ),
       )
 
       const iterations = 5
@@ -276,7 +276,7 @@ describe('Issue #145: Authentication Flow Optimization', () => {
       expect(maxTime).toBeLessThan(100) // Max should be < 100ms
 
       console.log(
-        `Authentication performance: avg=${averageTime.toFixed(1)}ms, max=${maxTime}ms`
+        `Authentication performance: avg=${averageTime.toFixed(1)}ms, max=${maxTime}ms`,
       )
     })
 
@@ -293,7 +293,7 @@ describe('Issue #145: Authentication Flow Optimization', () => {
         mockApi.login({
           username: 'test@example.com',
           password: 'testpassword',
-        })
+        }),
       )
 
       const startTime = Date.now()
@@ -311,7 +311,7 @@ describe('Issue #145: Authentication Flow Optimization', () => {
       expect(totalTime).toBeLessThan(200) // Should complete within 200ms
 
       console.log(
-        `Concurrent authentication: ${concurrentRequests} requests in ${totalTime}ms`
+        `Concurrent authentication: ${concurrentRequests} requests in ${totalTime}ms`,
       )
     })
   })

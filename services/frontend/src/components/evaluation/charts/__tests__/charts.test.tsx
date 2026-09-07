@@ -10,10 +10,18 @@ jest.mock('@/contexts/I18nContext', () => ({
 
 // Mock recharts — avoid canvas/SVG rendering issues in jsdom
 jest.mock('recharts', () => ({
-  ResponsiveContainer: ({ children }: any) => <div data-testid="responsive-container">{children}</div>,
-  ComposedChart: ({ children }: any) => <div data-testid="composed-chart">{children}</div>,
-  BarChart: ({ children }: any) => <div data-testid="bar-chart">{children}</div>,
-  LineChart: ({ children }: any) => <div data-testid="line-chart">{children}</div>,
+  ResponsiveContainer: ({ children }: any) => (
+    <div data-testid="responsive-container">{children}</div>
+  ),
+  ComposedChart: ({ children }: any) => (
+    <div data-testid="composed-chart">{children}</div>
+  ),
+  BarChart: ({ children }: any) => (
+    <div data-testid="bar-chart">{children}</div>
+  ),
+  LineChart: ({ children }: any) => (
+    <div data-testid="line-chart">{children}</div>
+  ),
   Bar: () => <div data-testid="bar" />,
   Line: () => <div data-testid="line" />,
   Cell: () => <div data-testid="cell" />,
@@ -25,8 +33,8 @@ jest.mock('recharts', () => ({
   ReferenceLine: () => <div data-testid="reference-line" />,
 }))
 
-import { BoxPlotChart } from '../BoxPlotChart'
 import type { BoxPlotData } from '../BoxPlotChart'
+import { BoxPlotChart } from '../BoxPlotChart'
 
 describe('BoxPlotChart', () => {
   const sampleData: BoxPlotData[] = [
@@ -50,12 +58,16 @@ describe('BoxPlotChart', () => {
   })
 
   it('accepts optional title prop', () => {
-    const { container } = render(<BoxPlotChart data={sampleData} title="Score Distribution" />)
+    const { container } = render(
+      <BoxPlotChart data={sampleData} title="Score Distribution" />,
+    )
     expect(container).toBeTruthy()
   })
 
   it('accepts optional height prop', () => {
-    const { container } = render(<BoxPlotChart data={sampleData} height={400} />)
+    const { container } = render(
+      <BoxPlotChart data={sampleData} height={400} />,
+    )
     expect(container).toBeTruthy()
   })
 })

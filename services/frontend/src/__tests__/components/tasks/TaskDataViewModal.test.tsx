@@ -6,10 +6,10 @@
  * @jest-environment jsdom
  */
 
+import { projectsAPI } from '@/lib/api/projects'
 import '@testing-library/jest-dom'
 import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { projectsAPI } from '@/lib/api/projects'
 import { TaskDataViewModal } from '../../../components/tasks/TaskDataViewModal'
 import { Task } from '../../../types/labelStudio'
 
@@ -110,7 +110,7 @@ describe('TaskDataViewModal', () => {
 
   it('should not render when task is null', async () => {
     render(
-      <TaskDataViewModal task={null} isOpen={true} onClose={mockOnClose} />
+      <TaskDataViewModal task={null} isOpen={true} onClose={mockOnClose} />,
     )
 
     expect(screen.queryByText(/Task Data/)).not.toBeInTheDocument()
@@ -123,7 +123,7 @@ describe('TaskDataViewModal', () => {
           task={mockTask}
           isOpen={true}
           onClose={mockOnClose}
-        />
+        />,
       )
     })
 
@@ -140,7 +140,7 @@ describe('TaskDataViewModal', () => {
           task={mockTask}
           isOpen={true}
           onClose={mockOnClose}
-        />
+        />,
       )
     })
 
@@ -158,7 +158,7 @@ describe('TaskDataViewModal', () => {
           task={typedTask}
           isOpen={true}
           onClose={mockOnClose}
-        />
+        />,
       )
     })
 
@@ -167,7 +167,7 @@ describe('TaskDataViewModal', () => {
 
   it('should display formatted view by default', async () => {
     render(
-      <TaskDataViewModal task={mockTask} isOpen={true} onClose={mockOnClose} />
+      <TaskDataViewModal task={mockTask} isOpen={true} onClose={mockOnClose} />,
     )
 
     // Should show formatted fields
@@ -182,7 +182,7 @@ describe('TaskDataViewModal', () => {
     const user = userEvent.setup()
 
     render(
-      <TaskDataViewModal task={mockTask} isOpen={true} onClose={mockOnClose} />
+      <TaskDataViewModal task={mockTask} isOpen={true} onClose={mockOnClose} />,
     )
 
     const jsonButton = screen.getByText('JSON')
@@ -199,11 +199,11 @@ describe('TaskDataViewModal', () => {
     const user = userEvent.setup()
 
     render(
-      <TaskDataViewModal task={mockTask} isOpen={true} onClose={mockOnClose} />
+      <TaskDataViewModal task={mockTask} isOpen={true} onClose={mockOnClose} />,
     )
 
     const searchInput = screen.getByPlaceholderText(
-      'Search fields and values...'
+      'Search fields and values...',
     )
     await user.type(searchInput, 'legal')
 
@@ -224,7 +224,7 @@ describe('TaskDataViewModal', () => {
           task={mockTask}
           isOpen={true}
           onClose={mockOnClose}
-        />
+        />,
       )
     })
 
@@ -249,7 +249,7 @@ describe('TaskDataViewModal', () => {
           task={mockTask}
           isOpen={true}
           onClose={mockOnClose}
-        />
+        />,
       )
     })
 
@@ -274,7 +274,7 @@ describe('TaskDataViewModal', () => {
     const user = userEvent.setup()
 
     render(
-      <TaskDataViewModal task={mockTask} isOpen={true} onClose={mockOnClose} />
+      <TaskDataViewModal task={mockTask} isOpen={true} onClose={mockOnClose} />,
     )
 
     const closeButton = screen.getByRole('button', { name: '' }) // Close button with X icon
@@ -285,7 +285,7 @@ describe('TaskDataViewModal', () => {
 
   it('should display field count and creation date', async () => {
     render(
-      <TaskDataViewModal task={mockTask} isOpen={true} onClose={mockOnClose} />
+      <TaskDataViewModal task={mockTask} isOpen={true} onClose={mockOnClose} />,
     )
 
     // Should show field count
@@ -297,7 +297,7 @@ describe('TaskDataViewModal', () => {
 
     // Handle potential multiple date renderings in CI (React StrictMode double-render)
     const dateElements = screen.getAllByText(
-      /1\/15\/2024|15\/1\/2024|2024-01-15/
+      /1\/15\/2024|15\/1\/2024|2024-01-15/,
     )
     expect(dateElements.length).toBeGreaterThanOrEqual(1)
     expect(dateElements[0]).toBeInTheDocument()
@@ -326,7 +326,7 @@ describe('TaskDataViewModal', () => {
           task={taskWithVariousTypes}
           isOpen={true}
           onClose={mockOnClose}
-        />
+        />,
       )
     })
 
@@ -345,11 +345,11 @@ describe('TaskDataViewModal', () => {
     const user = userEvent.setup()
 
     render(
-      <TaskDataViewModal task={mockTask} isOpen={true} onClose={mockOnClose} />
+      <TaskDataViewModal task={mockTask} isOpen={true} onClose={mockOnClose} />,
     )
 
     const searchInput = screen.getByPlaceholderText(
-      'Search fields and values...'
+      'Search fields and values...',
     )
     await user.type(searchInput, 'Sample')
 
@@ -362,11 +362,11 @@ describe('TaskDataViewModal', () => {
     const user = userEvent.setup()
 
     render(
-      <TaskDataViewModal task={mockTask} isOpen={true} onClose={mockOnClose} />
+      <TaskDataViewModal task={mockTask} isOpen={true} onClose={mockOnClose} />,
     )
 
     const searchInput = screen.getByPlaceholderText(
-      'Search fields and values...'
+      'Search fields and values...',
     )
     await user.type(searchInput, 'legal')
 
@@ -378,11 +378,11 @@ describe('TaskDataViewModal', () => {
     const user = userEvent.setup()
 
     render(
-      <TaskDataViewModal task={mockTask} isOpen={true} onClose={mockOnClose} />
+      <TaskDataViewModal task={mockTask} isOpen={true} onClose={mockOnClose} />,
     )
 
     const searchInput = screen.getByPlaceholderText(
-      'Search fields and values...'
+      'Search fields and values...',
     )
     await user.type(searchInput, 'nonexistent')
 
@@ -400,7 +400,7 @@ describe('TaskDataViewModal', () => {
         task={taskWithEmptyData}
         isOpen={true}
         onClose={mockOnClose}
-      />
+      />,
     )
 
     expect(screen.getByText('0 fields')).toBeInTheDocument()
@@ -413,7 +413,7 @@ describe('TaskDataViewModal', () => {
     // Replace the navigator.clipboard completely to ensure it throws
     const originalClipboard = Object.getOwnPropertyDescriptor(
       window.navigator,
-      'clipboard'
+      'clipboard',
     )
     Object.defineProperty(window.navigator, 'clipboard', {
       value: {
@@ -428,7 +428,7 @@ describe('TaskDataViewModal', () => {
           task={mockTask}
           isOpen={true}
           onClose={mockOnClose}
-        />
+        />,
       )
     })
 
@@ -453,7 +453,7 @@ describe('TaskDataViewModal', () => {
     const user = userEvent.setup()
 
     const { rerender } = render(
-      <TaskDataViewModal task={mockTask} isOpen={true} onClose={mockOnClose} />
+      <TaskDataViewModal task={mockTask} isOpen={true} onClose={mockOnClose} />,
     )
 
     // Switch to JSON view
@@ -464,7 +464,7 @@ describe('TaskDataViewModal', () => {
     const newTask: Task = { ...mockTask, id: 456, data: { different: 'data' } }
 
     rerender(
-      <TaskDataViewModal task={newTask} isOpen={true} onClose={mockOnClose} />
+      <TaskDataViewModal task={newTask} isOpen={true} onClose={mockOnClose} />,
     )
 
     // Should still be in JSON view
@@ -480,13 +480,13 @@ describe('TaskDataViewModal', () => {
           task={mockTask}
           isOpen={true}
           onClose={mockOnClose}
-        />
+        />,
       )
     })
 
     // Add search term
     const searchInput = screen.getByPlaceholderText(
-      'Search fields and values...'
+      'Search fields and values...',
     )
     await act(async () => {
       await user.type(searchInput, 'legal')
@@ -508,7 +508,7 @@ describe('TaskDataViewModal', () => {
     const fieldCount = Object.keys(mockTask.data).length
     await waitFor(() => {
       expect(
-        screen.getByText(new RegExp(`${fieldCount} fields`))
+        screen.getByText(new RegExp(`${fieldCount} fields`)),
       ).toBeInTheDocument()
     })
   })
@@ -522,12 +522,12 @@ describe('TaskDataViewModal', () => {
           task={mockTask}
           isOpen={true}
           onClose={mockOnClose}
-        />
+        />,
       )
     })
 
     expect(
-      screen.queryByRole('button', { name: 'Edit' })
+      screen.queryByRole('button', { name: 'Edit' }),
     ).not.toBeInTheDocument()
   })
 
@@ -547,16 +547,16 @@ describe('TaskDataViewModal', () => {
           onClose={mockOnClose}
           projectId="proj-1"
           canEdit={true}
-        />
+        />,
       )
     })
 
     // Starts in view mode: search bar present, no Save button.
     expect(
-      screen.getByPlaceholderText('Search fields and values...')
+      screen.getByPlaceholderText('Search fields and values...'),
     ).toBeInTheDocument()
     expect(
-      screen.queryByRole('button', { name: 'Save' })
+      screen.queryByRole('button', { name: 'Save' }),
     ).not.toBeInTheDocument()
 
     await act(async () => {
@@ -571,7 +571,7 @@ describe('TaskDataViewModal', () => {
     expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument()
     // Search bar is hidden in edit mode.
     expect(
-      screen.queryByPlaceholderText('Search fields and values...')
+      screen.queryByPlaceholderText('Search fields and values...'),
     ).not.toBeInTheDocument()
   })
 
@@ -591,7 +591,7 @@ describe('TaskDataViewModal', () => {
           projectId="proj-1"
           canEdit={true}
           initialMode="edit"
-        />
+        />,
       )
     })
 
@@ -616,14 +616,16 @@ describe('TaskDataViewModal', () => {
           onClose={mockOnClose}
           projectId="proj-1"
           initialMode="edit"
-        />
+        />,
       )
     })
 
     // Without canEdit, edit mode must not engage: no textarea, no Save.
-    expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument()
     expect(
-      screen.getByPlaceholderText('Search fields and values...')
+      screen.queryByRole('button', { name: 'Save' }),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.getByPlaceholderText('Search fields and values...'),
     ).toBeInTheDocument()
   })
 
@@ -646,7 +648,7 @@ describe('TaskDataViewModal', () => {
           canEdit={true}
           initialMode="edit"
           onSaved={onSaved}
-        />
+        />,
       )
     })
 
@@ -670,7 +672,7 @@ describe('TaskDataViewModal', () => {
     // After a successful save the modal returns to view mode.
     await waitFor(() => {
       expect(
-        screen.queryByRole('button', { name: 'Save' })
+        screen.queryByRole('button', { name: 'Save' }),
       ).not.toBeInTheDocument()
     })
   })
@@ -694,7 +696,7 @@ describe('TaskDataViewModal', () => {
           canEdit={true}
           initialMode="edit"
           onSaved={onSaved}
-        />
+        />,
       )
     })
 
@@ -735,7 +737,7 @@ describe('TaskDataViewModal', () => {
           canEdit={true}
           initialMode="edit"
           onSaved={onSaved}
-        />
+        />,
       )
     })
 
@@ -748,7 +750,7 @@ describe('TaskDataViewModal', () => {
     // A no-op save drops straight back to view mode.
     await waitFor(() => {
       expect(
-        screen.queryByRole('button', { name: 'Save' })
+        screen.queryByRole('button', { name: 'Save' }),
       ).not.toBeInTheDocument()
     })
     expect(screen.getByRole('button', { name: 'Edit' })).toBeInTheDocument()
@@ -771,7 +773,7 @@ describe('TaskDataViewModal', () => {
           projectId="proj-1"
           canEdit={true}
           initialMode="edit"
-        />
+        />,
       )
     })
 
@@ -789,7 +791,7 @@ describe('TaskDataViewModal', () => {
     expect(mockUpdateTaskData).not.toHaveBeenCalled()
     await waitFor(() => {
       expect(
-        screen.queryByRole('button', { name: 'Save' })
+        screen.queryByRole('button', { name: 'Save' }),
       ).not.toBeInTheDocument()
     })
   })
@@ -811,7 +813,7 @@ describe('TaskDataViewModal', () => {
           projectId="proj-1"
           canEdit={true}
           initialMode="edit"
-        />
+        />,
       )
     })
 
@@ -853,7 +855,7 @@ describe('TaskDataViewModal', () => {
           projectId="proj-1"
           canEdit={true}
           initialMode="edit"
-        />
+        />,
       )
     })
 
@@ -871,8 +873,8 @@ describe('TaskDataViewModal', () => {
     await waitFor(() => {
       expect(
         screen.getByText(
-          'Only superadmins or organization admins can edit task data'
-        )
+          'Only superadmins or organization admins can edit task data',
+        ),
       ).toBeInTheDocument()
     })
     // Stays in edit mode so the user can retry.
@@ -888,14 +890,14 @@ describe('TaskDataViewModal Accessibility', () => {
           task={mockTask}
           isOpen={true}
           onClose={mockOnClose}
-        />
+        />,
       )
     })
 
     expect(screen.getByRole('dialog')).toBeInTheDocument()
     expect(screen.getByText('Copy')).toBeInTheDocument()
     expect(
-      screen.getByPlaceholderText('Search fields and values...')
+      screen.getByPlaceholderText('Search fields and values...'),
     ).toBeInTheDocument()
   })
 
@@ -903,7 +905,7 @@ describe('TaskDataViewModal Accessibility', () => {
     const user = userEvent.setup()
 
     render(
-      <TaskDataViewModal task={mockTask} isOpen={true} onClose={mockOnClose} />
+      <TaskDataViewModal task={mockTask} isOpen={true} onClose={mockOnClose} />,
     )
 
     // Should be able to tab through interactive elements
@@ -921,7 +923,7 @@ describe('TaskDataViewModal Accessibility', () => {
     const user = userEvent.setup()
 
     render(
-      <TaskDataViewModal task={mockTask} isOpen={true} onClose={mockOnClose} />
+      <TaskDataViewModal task={mockTask} isOpen={true} onClose={mockOnClose} />,
     )
 
     await user.keyboard('{Escape}')

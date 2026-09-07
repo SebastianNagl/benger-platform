@@ -67,19 +67,13 @@ describe('CustomModelFormModal', () => {
 
   const fillRequired = async (
     user: ReturnType<typeof userEvent.setup>,
-    baseUrl = 'https://api.example.com/v1'
+    baseUrl = 'https://api.example.com/v1',
   ) => {
-    await user.type(
-      screen.getByTestId('custom-model-name-input'),
-      'My Model'
-    )
-    await user.type(
-      screen.getByTestId('custom-model-base-url-input'),
-      baseUrl
-    )
+    await user.type(screen.getByTestId('custom-model-name-input'), 'My Model')
+    await user.type(screen.getByTestId('custom-model-base-url-input'), baseUrl)
     await user.type(
       screen.getByTestId('custom-model-endpoint-name-input'),
-      'llama-x'
+      'llama-x',
     )
   }
 
@@ -90,14 +84,12 @@ describe('CustomModelFormModal', () => {
 
       await user.click(screen.getByTestId('custom-model-form-submit'))
 
+      expect(screen.getByTestId('custom-model-error-name')).toBeInTheDocument()
       expect(
-        screen.getByTestId('custom-model-error-name')
+        screen.getByTestId('custom-model-error-base_url'),
       ).toBeInTheDocument()
       expect(
-        screen.getByTestId('custom-model-error-base_url')
-      ).toBeInTheDocument()
-      expect(
-        screen.getByTestId('custom-model-error-endpoint_model_name')
+        screen.getByTestId('custom-model-error-endpoint_model_name'),
       ).toBeInTheDocument()
       expect(customModelsAPI.create).not.toHaveBeenCalled()
     })
@@ -110,7 +102,7 @@ describe('CustomModelFormModal', () => {
       await user.click(screen.getByTestId('custom-model-form-submit'))
 
       expect(
-        screen.getByTestId('custom-model-error-base_url')
+        screen.getByTestId('custom-model-error-base_url'),
       ).toBeInTheDocument()
       expect(customModelsAPI.create).not.toHaveBeenCalled()
     })
@@ -123,7 +115,7 @@ describe('CustomModelFormModal', () => {
       await user.click(screen.getByTestId('custom-model-form-submit'))
 
       expect(
-        screen.getByTestId('custom-model-error-base_url')
+        screen.getByTestId('custom-model-error-base_url'),
       ).toBeInTheDocument()
       expect(customModelsAPI.create).not.toHaveBeenCalled()
     })
@@ -135,7 +127,7 @@ describe('CustomModelFormModal', () => {
       await fillRequired(user, 'http://localhost:8000/v1')
 
       expect(
-        screen.queryByTestId('custom-model-http-warning')
+        screen.queryByTestId('custom-model-http-warning'),
       ).not.toBeInTheDocument()
 
       await user.click(screen.getByTestId('custom-model-form-submit'))
@@ -144,7 +136,7 @@ describe('CustomModelFormModal', () => {
         expect(customModelsAPI.create).toHaveBeenCalled()
       })
       expect(
-        screen.queryByTestId('custom-model-error-base_url')
+        screen.queryByTestId('custom-model-error-base_url'),
       ).not.toBeInTheDocument()
     })
 
@@ -154,11 +146,11 @@ describe('CustomModelFormModal', () => {
 
       await user.type(
         screen.getByTestId('custom-model-base-url-input'),
-        'http://myserver.example.com/v1'
+        'http://myserver.example.com/v1',
       )
 
       expect(
-        screen.getByTestId('custom-model-http-warning')
+        screen.getByTestId('custom-model-http-warning'),
       ).toBeInTheDocument()
     })
 
@@ -168,13 +160,13 @@ describe('CustomModelFormModal', () => {
 
       await user.type(
         screen.getByTestId('custom-model-base-url-input'),
-        'http://myserver.example.com/v1'
+        'http://myserver.example.com/v1',
       )
 
       // requires_api_key defaults to true → the bearer-in-plaintext warning
       // shows (issue #274 item 2: warn, don't block)
       expect(
-        screen.getByTestId('custom-model-http-key-warning')
+        screen.getByTestId('custom-model-http-key-warning'),
       ).toBeInTheDocument()
 
       // Turning the key requirement off drops the escalated warning but
@@ -185,10 +177,10 @@ describe('CustomModelFormModal', () => {
       await user.click(toggle!)
 
       expect(
-        screen.queryByTestId('custom-model-http-key-warning')
+        screen.queryByTestId('custom-model-http-key-warning'),
       ).not.toBeInTheDocument()
       expect(
-        screen.getByTestId('custom-model-http-warning')
+        screen.getByTestId('custom-model-http-warning'),
       ).toBeInTheDocument()
     })
 
@@ -198,11 +190,11 @@ describe('CustomModelFormModal', () => {
 
       await user.type(
         screen.getByTestId('custom-model-base-url-input'),
-        'https://myserver.example.com/v1'
+        'https://myserver.example.com/v1',
       )
 
       expect(
-        screen.queryByTestId('custom-model-http-key-warning')
+        screen.queryByTestId('custom-model-http-key-warning'),
       ).not.toBeInTheDocument()
     })
 
@@ -213,12 +205,12 @@ describe('CustomModelFormModal', () => {
       await fillRequired(user)
       await user.type(
         screen.getByTestId('custom-model-input-cost-input'),
-        '1.5'
+        '1.5',
       )
       await user.click(screen.getByTestId('custom-model-form-submit'))
 
       expect(
-        screen.getByTestId('custom-model-error-input_cost')
+        screen.getByTestId('custom-model-error-input_cost'),
       ).toBeInTheDocument()
       expect(customModelsAPI.create).not.toHaveBeenCalled()
     })
@@ -232,25 +224,22 @@ describe('CustomModelFormModal', () => {
           isOpen
           onClose={mockOnClose}
           onSaved={mockOnSaved}
-        />
+        />,
       )
 
       await fillRequired(user)
       await user.type(
         screen.getByTestId('custom-model-description-input'),
-        'Desc'
+        'Desc',
       )
       await user.type(
         screen.getByTestId('custom-model-input-cost-input'),
-        '1.5'
+        '1.5',
       )
-      await user.type(
-        screen.getByTestId('custom-model-output-cost-input'),
-        '2'
-      )
+      await user.type(screen.getByTestId('custom-model-output-cost-input'), '2')
       await user.type(
         screen.getByTestId('custom-model-api-key-input'),
-        'sk-abc'
+        'sk-abc',
       )
       await user.click(screen.getByTestId('custom-model-form-submit'))
 
@@ -269,7 +258,7 @@ describe('CustomModelFormModal', () => {
 
       // Success step with test-connection offer; modal stays open.
       expect(
-        screen.getByTestId('custom-model-form-success')
+        screen.getByTestId('custom-model-form-success'),
       ).toBeInTheDocument()
       expect(mockOnSaved).toHaveBeenCalledWith(createdModel)
       expect(mockOnClose).not.toHaveBeenCalled()
@@ -278,11 +267,11 @@ describe('CustomModelFormModal', () => {
 
       await waitFor(() => {
         expect(customModelsAPI.testConnection).toHaveBeenCalledWith(
-          'custom-new'
+          'custom-new',
         )
       })
       expect(
-        screen.getByTestId('custom-model-form-test-result')
+        screen.getByTestId('custom-model-form-test-result'),
       ).toHaveTextContent('Connection ok')
 
       await user.click(screen.getByTestId('custom-model-form-close-button'))
@@ -299,21 +288,21 @@ describe('CustomModelFormModal', () => {
           onClose={mockOnClose}
           model={existingModel}
           onSaved={mockOnSaved}
-        />
+        />,
       )
 
       const nameInput = screen.getByTestId(
-        'custom-model-name-input'
+        'custom-model-name-input',
       ) as HTMLInputElement
       expect(nameInput.value).toBe('Old Name')
       expect(
         (screen.getByTestId('custom-model-base-url-input') as HTMLInputElement)
-          .value
+          .value,
       ).toBe('https://api.example.com/v1')
 
       // No api_key field in edit mode - credentials live in the row.
       expect(
-        screen.queryByTestId('custom-model-api-key-input')
+        screen.queryByTestId('custom-model-api-key-input'),
       ).not.toBeInTheDocument()
 
       await user.clear(nameInput)
@@ -352,14 +341,14 @@ describe('CustomModelFormModal', () => {
           isOpen
           onClose={mockOnClose}
           onSaved={mockOnSaved}
-        />
+        />,
       )
       await fillRequired(user)
       await user.click(screen.getByTestId('custom-model-form-submit'))
 
       const banner = await screen.findByTestId('custom-model-form-error')
       expect(banner).toHaveTextContent(
-        'String should have at most 255 characters'
+        'String should have at most 255 characters',
       )
       // The banner is a plain string node — no React "Objects are not valid
       // as a React child" crash (the test would have thrown on render).
@@ -372,17 +361,17 @@ describe('CustomModelFormModal', () => {
           isOpen
           onClose={mockOnClose}
           onSaved={mockOnSaved}
-        />
+        />,
       )
       await user.type(screen.getByTestId('custom-model-name-input'), 'M')
       await user.type(
         screen.getByTestId('custom-model-base-url-input'),
-        'https://api.example.com/v1'
+        'https://api.example.com/v1',
       )
       // maxLength on the input caps typed length, so set the value directly
       // to simulate a paste of an over-long identifier.
       const endpointInput = screen.getByTestId(
-        'custom-model-endpoint-name-input'
+        'custom-model-endpoint-name-input',
       ) as HTMLInputElement
       endpointInput.setAttribute('maxlength', '10000')
       await user.type(endpointInput, 'x'.repeat(256))
@@ -390,7 +379,7 @@ describe('CustomModelFormModal', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByTestId('custom-model-error-endpoint_model_name')
+          screen.getByTestId('custom-model-error-endpoint_model_name'),
         ).toBeInTheDocument()
       })
       expect(customModelsAPI.create).not.toHaveBeenCalled()
@@ -401,7 +390,11 @@ describe('CustomModelFormModal', () => {
     it('create: default None sends no default_config', async () => {
       const user = userEvent.setup()
       render(
-        <CustomModelFormModal isOpen onClose={mockOnClose} onSaved={mockOnSaved} />
+        <CustomModelFormModal
+          isOpen
+          onClose={mockOnClose}
+          onSaved={mockOnSaved}
+        />,
       )
       await fillRequired(user)
       await user.click(screen.getByTestId('custom-model-form-submit'))
@@ -413,12 +406,16 @@ describe('CustomModelFormModal', () => {
     it('create: selecting an effort knob declares reasoning_config', async () => {
       const user = userEvent.setup()
       render(
-        <CustomModelFormModal isOpen onClose={mockOnClose} onSaved={mockOnSaved} />
+        <CustomModelFormModal
+          isOpen
+          onClose={mockOnClose}
+          onSaved={mockOnSaved}
+        />,
       )
       await fillRequired(user)
       await user.selectOptions(
         screen.getByTestId('custom-model-reasoning-select'),
-        'reasoning_effort'
+        'reasoning_effort',
       )
       await user.click(screen.getByTestId('custom-model-form-submit'))
       await waitFor(() => expect(customModelsAPI.create).toHaveBeenCalled())
@@ -451,10 +448,10 @@ describe('CustomModelFormModal', () => {
           model={modelWithConfig}
           onClose={mockOnClose}
           onSaved={mockOnSaved}
-        />
+        />,
       )
       const select = screen.getByTestId(
-        'custom-model-reasoning-select'
+        'custom-model-reasoning-select',
       ) as HTMLSelectElement
       expect(select.value).toBe('reasoning_effort')
       await user.selectOptions(select, 'thinking_budget')
@@ -498,7 +495,7 @@ describe('CustomModelFormModal', () => {
           model={modelWithConfig}
           onClose={mockOnClose}
           onSaved={mockOnSaved}
-        />
+        />,
       )
       // Same param stays selected; a template must NOT clobber the
       // customized declaration.
@@ -524,11 +521,11 @@ describe('CustomModelFormModal', () => {
           model={modelWithConfig}
           onClose={mockOnClose}
           onSaved={mockOnSaved}
-        />
+        />,
       )
       await user.selectOptions(
         screen.getByTestId('custom-model-reasoning-select'),
-        'none'
+        'none',
       )
       await user.click(screen.getByTestId('custom-model-form-submit'))
       await waitFor(() => expect(customModelsAPI.update).toHaveBeenCalled())
@@ -544,7 +541,7 @@ describe('CustomModelFormModal', () => {
           model={existingModel}
           onClose={mockOnClose}
           onSaved={mockOnSaved}
-        />
+        />,
       )
       await user.type(screen.getByTestId('custom-model-name-input'), '2')
       await user.click(screen.getByTestId('custom-model-form-submit'))

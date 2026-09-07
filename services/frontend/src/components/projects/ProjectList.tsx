@@ -15,8 +15,8 @@ import {
   TabsList,
   TabsTrigger,
 } from '@/components/shared/Tabs'
-import { useProjectStore } from '@/stores/projectStore'
 import { useI18n } from '@/contexts/I18nContext'
+import { useProjectStore } from '@/stores/projectStore'
 import {
   ArchiveBoxIcon,
   ChartBarIcon,
@@ -64,7 +64,7 @@ export function ProjectList() {
         : project.task_count > 0
           ? Math.min(
               100,
-              Math.round((project.annotation_count / project.task_count) * 100)
+              Math.round((project.annotation_count / project.task_count) * 100),
             )
           : 0
 
@@ -163,7 +163,8 @@ export function ProjectList() {
                           <div className="flex-1">
                             <h3 className="line-clamp-1">{project.title}</h3>
                             <p className="mt-1 line-clamp-2">
-                              {project.description || t('projects.list.noDescription')}
+                              {project.description ||
+                                t('projects.list.noDescription')}
                             </p>
                           </div>
                         </div>
@@ -216,7 +217,7 @@ export function ProjectList() {
                                     >
                                       {modelId}
                                     </Badge>
-                                  )
+                                  ),
                                 )}
                               </div>
                             </div>
@@ -224,7 +225,11 @@ export function ProjectList() {
 
                         {/* Footer */}
                         <div className="text-muted-foreground flex items-center justify-between text-sm">
-                          <span>{t('projects.list.annotations', { count: project.annotation_count })}</span>
+                          <span>
+                            {t('projects.list.annotations', {
+                              count: project.annotation_count,
+                            })}
+                          </span>
                           <span>
                             {formatDistanceToNow(new Date(project.created_at), {
                               addSuffix: true,
@@ -265,7 +270,8 @@ export function ProjectList() {
                           {project.title}
                         </h3>
                         <p className="text-muted-foreground mb-4 line-clamp-2 text-sm">
-                          {project.description || t('projects.list.noDescription')}
+                          {project.description ||
+                            t('projects.list.noDescription')}
                         </p>
                         <Badge variant="secondary" className="mb-3">
                           {t('projects.list.archived')}

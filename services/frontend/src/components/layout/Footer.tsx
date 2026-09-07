@@ -36,7 +36,7 @@ function SocialLink({
 function SmallPrint() {
   const { t } = useI18n()
   return (
-    <div className="flex flex-col items-center justify-between gap-5 border-t border-zinc-900/5 pt-8 dark:border-white/5 sm:flex-row">
+    <div className="flex flex-col items-center justify-between gap-5 border-t border-zinc-900/5 pt-8 sm:flex-row dark:border-white/5">
       <div className="flex flex-col items-center gap-3 sm:flex-row sm:items-center sm:gap-6">
         <div className="flex gap-4 text-xs">
           <Link
@@ -90,7 +90,7 @@ export function Footer({ innerClassName }: { innerClassName?: string }) {
       <div
         className={
           innerClassName ??
-          'mx-auto max-w-2xl space-y-10 lg:max-w-5xl 3xl:max-w-5xl 4xl:max-w-6xl 5xl:max-w-7xl'
+          'mx-auto max-w-2xl space-y-10 3xl:max-w-5xl 4xl:max-w-6xl 5xl:max-w-7xl lg:max-w-5xl'
         }
       >
         <SmallPrint />

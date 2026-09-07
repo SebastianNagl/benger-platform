@@ -71,7 +71,7 @@ describe('Footer', () => {
         'px-4',
         'sm:px-6',
         'lg:px-8',
-        'pb-16'
+        'pb-16',
       )
     })
 
@@ -80,14 +80,14 @@ describe('Footer', () => {
 
       expect(screen.getByRole('link', { name: /imprint/i })).toHaveAttribute(
         'href',
-        '/about/imprint'
+        '/about/imprint',
       )
       expect(
-        screen.getByRole('link', { name: /privacy policy/i })
+        screen.getByRole('link', { name: /privacy policy/i }),
       ).toHaveAttribute('href', '/about/data-protection')
       expect(screen.getByRole('link', { name: /changelog/i })).toHaveAttribute(
         'href',
-        '/changelog'
+        '/changelog',
       )
     })
 
@@ -110,7 +110,7 @@ describe('Footer', () => {
       })
       expect(githubLink).toHaveAttribute(
         'href',
-        'https://github.com/SebastianNagl/benger-platform'
+        'https://github.com/SebastianNagl/benger-platform',
       )
     })
   })
@@ -129,7 +129,7 @@ describe('Footer', () => {
         expect(icon).toHaveClass(
           'transition',
           'group-hover:fill-zinc-900',
-          'dark:group-hover:fill-zinc-500'
+          'dark:group-hover:fill-zinc-500',
         )
       })
     })
@@ -173,7 +173,7 @@ describe('Footer', () => {
         '3xl:max-w-5xl',
         '4xl:max-w-6xl',
         '5xl:max-w-7xl',
-        'lg:max-w-5xl'
+        'lg:max-w-5xl',
       )
     })
 
@@ -181,17 +181,17 @@ describe('Footer', () => {
       const { container } = render(<Footer />)
 
       const smallPrintContainer = container.querySelector(
-        '.flex.flex-col.items-center.justify-between'
+        '.flex.flex-col.items-center.justify-between',
       )
       expect(smallPrintContainer).toHaveClass('sm:flex-row')
 
       const linksContainer = container.querySelector(
-        '.flex.flex-col.items-center.gap-3'
+        '.flex.flex-col.items-center.gap-3',
       )
       expect(linksContainer).toHaveClass(
         'sm:flex-row',
         'sm:items-center',
-        'sm:gap-6'
+        'sm:gap-6',
       )
     })
 
@@ -215,7 +215,7 @@ describe('Footer', () => {
         'border-t',
         'border-zinc-900/5',
         'dark:border-white/5',
-        'pt-8'
+        'pt-8',
       )
     })
 
@@ -233,7 +233,7 @@ describe('Footer', () => {
           'text-zinc-600',
           'hover:text-zinc-900',
           'dark:text-zinc-400',
-          'dark:hover:text-zinc-300'
+          'dark:hover:text-zinc-300',
         )
       })
     })
@@ -245,14 +245,14 @@ describe('Footer', () => {
       expect(copyrightText).toHaveClass(
         'text-xs',
         'text-zinc-600',
-        'dark:text-zinc-400'
+        'dark:text-zinc-400',
       )
 
       const authorLink = screen.getByRole('link', { name: 'pschOrr95' })
       expect(authorLink).toHaveClass(
         'font-bold',
         'hover:text-zinc-900',
-        'dark:hover:text-zinc-300'
+        'dark:hover:text-zinc-300',
       )
     })
   })
@@ -291,16 +291,15 @@ describe('Footer', () => {
 
       // Check text colors
       const darkTextElements = container.querySelectorAll(
-        '.dark\\:text-zinc-400'
+        '.dark\\:text-zinc-400',
       )
       expect(darkTextElements.length).toBeGreaterThan(0)
 
       // Check hover states
       const darkHoverElements = container.querySelectorAll(
-        '.dark\\:hover\\:text-zinc-300'
+        '.dark\\:hover\\:text-zinc-300',
       )
       expect(darkHoverElements.length).toBeGreaterThan(0)
     })
   })
-
 })

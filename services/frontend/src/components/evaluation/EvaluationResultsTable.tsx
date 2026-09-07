@@ -52,7 +52,7 @@ type SortConfig = {
 
 const getScoreColorClass = (
   value: number,
-  higherIsBetter: boolean = true
+  higherIsBetter: boolean = true,
 ): string => {
   const score = higherIsBetter ? value : 1 - value
 
@@ -102,7 +102,7 @@ export function EvaluationResultsTable({
 
   // Extract all unique metric keys
   const metricKeys = Array.from(
-    new Set(results.flatMap((result) => Object.keys(result.metrics || {})))
+    new Set(results.flatMap((result) => Object.keys(result.metrics || {}))),
   ).sort()
 
   // Sort results based on current sort config
@@ -175,7 +175,9 @@ export function EvaluationResultsTable({
       <div className="flex items-center gap-4 rounded-lg bg-gray-50 p-3 text-xs dark:bg-gray-800">
         <div className="flex items-center gap-1">
           <div className="h-3 w-3 rounded bg-green-500" />
-          <span className="text-gray-600 dark:text-gray-400">{t('evaluation.resultsTable.scoreHigh')}</span>
+          <span className="text-gray-600 dark:text-gray-400">
+            {t('evaluation.resultsTable.scoreHigh')}
+          </span>
         </div>
         <div className="flex items-center gap-1">
           <div className="h-3 w-3 rounded bg-yellow-500" />
@@ -203,7 +205,7 @@ export function EvaluationResultsTable({
             <tr>
               {/* Rank Column */}
               <th
-                className="cursor-pointer px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-700 transition-colors hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+                className="cursor-pointer px-4 py-3 text-left text-xs font-semibold tracking-wider text-gray-700 uppercase transition-colors hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
                 onClick={() => handleSort('rank')}
               >
                 <div className="flex items-center gap-1">
@@ -214,7 +216,7 @@ export function EvaluationResultsTable({
 
               {/* Model Column */}
               <th
-                className="cursor-pointer px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-700 transition-colors hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+                className="cursor-pointer px-4 py-3 text-left text-xs font-semibold tracking-wider text-gray-700 uppercase transition-colors hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
                 onClick={() => handleSort('modelId')}
               >
                 <div className="flex items-center gap-1">
@@ -227,7 +229,7 @@ export function EvaluationResultsTable({
               {metricKeys.map((metricKey) => (
                 <th
                   key={metricKey}
-                  className="cursor-pointer px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-700 transition-colors hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+                  className="cursor-pointer px-4 py-3 text-center text-xs font-semibold tracking-wider text-gray-700 uppercase transition-colors hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
                   onClick={() => handleSort(metricKey)}
                   title={metricDescriptions[metricKey] || metricKey}
                 >
@@ -251,7 +253,7 @@ export function EvaluationResultsTable({
                   }`}
                 >
                   {/* Rank */}
-                  <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100">
+                  <td className="px-4 py-3 text-sm font-medium whitespace-nowrap text-gray-900 dark:text-gray-100">
                     {result.rank !== undefined ? (
                       <span
                         className={`inline-flex items-center justify-center rounded-full px-2 py-1 ${
@@ -272,7 +274,7 @@ export function EvaluationResultsTable({
                   </td>
 
                   {/* Model Name */}
-                  <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100">
+                  <td className="px-4 py-3 text-sm font-medium whitespace-nowrap text-gray-900 dark:text-gray-100">
                     <div>
                       {result.modelName || result.modelId}
                       {isBaseline && (
@@ -291,7 +293,7 @@ export function EvaluationResultsTable({
                       higherIsBetter[metricKey] ?? true
                     const colorClass = getScoreColorClass(
                       value,
-                      metricHigherIsBetter
+                      metricHigherIsBetter,
                     )
 
                     const significance =
@@ -305,7 +307,7 @@ export function EvaluationResultsTable({
                     return (
                       <td
                         key={metricKey}
-                        className="whitespace-nowrap px-4 py-3 text-center text-sm"
+                        className="px-4 py-3 text-center text-sm whitespace-nowrap"
                       >
                         {metric !== undefined ? (
                           <div className="inline-flex flex-col items-center">
@@ -324,12 +326,12 @@ export function EvaluationResultsTable({
                                 [
                                 {formatMetricValue(
                                   (metric as MetricValue).confidenceInterval!
-                                    .lower
+                                    .lower,
                                 )}
                                 ,{' '}
                                 {formatMetricValue(
                                   (metric as MetricValue).confidenceInterval!
-                                    .upper
+                                    .upper,
                                 )}
                                 ]
                               </span>
@@ -352,7 +354,9 @@ export function EvaluationResultsTable({
       {baselineModel && (
         <div className="rounded-lg bg-blue-50 p-3 text-xs text-blue-800 dark:bg-blue-900/20 dark:text-blue-200">
           <p>
-            {t('evaluation.resultsTable.baselineNote', { model: baselineModel })}
+            {t('evaluation.resultsTable.baselineNote', {
+              model: baselineModel,
+            })}
           </p>
         </div>
       )}

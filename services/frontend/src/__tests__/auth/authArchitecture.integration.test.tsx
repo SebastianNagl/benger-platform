@@ -349,7 +349,7 @@ describe('Authentication Architecture Integration', () => {
           sessionManager.trackUserSession(user)
           orgManager.setOrganizations(mockOrganizations)
           await new Promise((resolve) =>
-            setTimeout(resolve, Math.random() * 100)
+            setTimeout(resolve, Math.random() * 100),
           )
           sessionManager.clearSession(mockApiClient)
           orgManager.clear()

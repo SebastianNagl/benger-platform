@@ -18,7 +18,7 @@ describe('TableCheckbox', () => {
         checked={false}
         onChange={onChange}
         data-testid="test-checkbox"
-      />
+      />,
     )
 
     const checkbox = screen.getByTestId('test-checkbox')
@@ -36,7 +36,7 @@ describe('TableCheckbox', () => {
         checked={true}
         onChange={onChange}
         data-testid="test-checkbox"
-      />
+      />,
     )
 
     expect(checkbox).toBeChecked()
@@ -54,11 +54,11 @@ describe('TableCheckbox', () => {
         indeterminate={true}
         onChange={onChange}
         data-testid="test-checkbox"
-      />
+      />,
     )
 
     const checkbox = container.querySelector(
-      'input[type="checkbox"]'
+      'input[type="checkbox"]',
     ) as HTMLInputElement
 
     // Should be indeterminate
@@ -76,7 +76,7 @@ describe('TableCheckbox', () => {
         checked={true}
         onChange={onChange}
         data-testid="test-checkbox"
-      />
+      />,
     )
 
     const checkbox = container.querySelector('input[type="checkbox"]')

@@ -6,10 +6,7 @@
  * minLength, maxLength, min, max, pattern rules.
  */
 
-import {
-  validateFieldValue,
-  TaskTemplateField,
-} from '../taskTemplate'
+import { TaskTemplateField, validateFieldValue } from '../taskTemplate'
 
 function makeField(overrides?: Partial<TaskTemplateField>): TaskTemplateField {
   return {
@@ -109,7 +106,9 @@ describe('validateFieldValue - validation rule custom messages', () => {
 
   it('uses custom pattern message when provided', () => {
     const field = makeField({
-      validation: [{ type: 'pattern', value: '^[A-Z]+$', message: 'Must be uppercase!' }],
+      validation: [
+        { type: 'pattern', value: '^[A-Z]+$', message: 'Must be uppercase!' },
+      ],
     })
     const result = validateFieldValue(field, 'abc')
     expect(result.valid).toBe(false)

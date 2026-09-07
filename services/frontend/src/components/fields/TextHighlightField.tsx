@@ -11,9 +11,9 @@
  * Issue #218: ize Annotation System with Label Studio-Inspired Architecture
  */
 
+import { useI18n } from '@/contexts/I18nContext'
 import { ChatBubbleLeftIcon, TrashIcon } from '@heroicons/react/24/outline'
 import React, { useCallback, useMemo, useRef, useState } from 'react'
-import { useI18n } from '@/contexts/I18nContext'
 import { BaseFieldProps, FieldWrapper } from './BaseField'
 
 interface TextHighlight {
@@ -57,11 +57,11 @@ export function TextHighlightField({
 }: BaseFieldProps<TextHighlightValue>) {
   const { t } = useI18n()
   const [selectedLabel, setSelectedLabel] = useState<HighlightLabel>(
-    DEFAULT_LABELS[0]
+    DEFAULT_LABELS[0],
   )
   const [showLabelMenu, setShowLabelMenu] = useState(false)
   const [selectedHighlight, setSelectedHighlight] = useState<string | null>(
-    null
+    null,
   )
   const textRef = useRef<HTMLDivElement>(null)
 
@@ -127,7 +127,7 @@ export function TextHighlightField({
       })
       setSelectedHighlight(null)
     },
-    [readonly, highlights, text, onChange]
+    [readonly, highlights, text, onChange],
   )
 
   // Update highlight comment
@@ -136,14 +136,14 @@ export function TextHighlightField({
       if (readonly) return
 
       const newHighlights = highlights.map((h) =>
-        h.id === highlightId ? { ...h, comment } : h
+        h.id === highlightId ? { ...h, comment } : h,
       )
       onChange({
         text,
         highlights: newHighlights,
       })
     },
-    [readonly, highlights, text, onChange]
+    [readonly, highlights, text, onChange],
   )
 
   // Render text with highlights
@@ -176,7 +176,7 @@ export function TextHighlightField({
 
       // Find highlights that cover this segment
       const segmentHighlights = highlights.filter(
-        (h) => h.start <= start && h.end >= end
+        (h) => h.start <= start && h.end >= end,
       )
 
       segments.push({
@@ -209,7 +209,7 @@ export function TextHighlightField({
         >
           {segment.text}
           {segment.highlights.length > 1 && (
-            <span className="absolute -right-1 -top-1 flex h-3 w-3 items-center justify-center rounded-full bg-gray-600 text-xs text-white">
+            <span className="absolute -top-1 -right-1 flex h-3 w-3 items-center justify-center rounded-full bg-gray-600 text-xs text-white">
               {segment.highlights.length}
             </span>
           )}
@@ -283,7 +283,10 @@ export function TextHighlightField({
               </div>
             </div>
             <div className="text-xs text-gray-500 dark:text-gray-500">
-              {highlights.length} {highlights.length !== 1 ? t('labeling.textHighlight.highlightsPlural') : t('labeling.textHighlight.highlightSingular')}
+              {highlights.length}{' '}
+              {highlights.length !== 1
+                ? t('labeling.textHighlight.highlightsPlural')
+                : t('labeling.textHighlight.highlightSingular')}
             </div>
           </div>
         )}
@@ -334,7 +337,7 @@ export function TextHighlightField({
                         ({highlight.start}-{highlight.end})
                       </span>
                     </div>
-                    <p className="italic text-gray-600 dark:text-gray-400">
+                    <p className="text-gray-600 italic dark:text-gray-400">
                       "{highlight.text}"
                     </p>
                     {highlight.comment && (
@@ -365,7 +368,10 @@ export function TextHighlightField({
         {/* Instructions */}
         {!readonly && (
           <div className="mt-3 text-xs text-gray-500 dark:text-gray-500">
-            <strong>{t('labeling.textHighlight.instructionsLabel')}:</strong> {t('labeling.textHighlight.instructionsText', { max: String(labels.length) })}
+            <strong>{t('labeling.textHighlight.instructionsLabel')}:</strong>{' '}
+            {t('labeling.textHighlight.instructionsText', {
+              max: String(labels.length),
+            })}
           </div>
         )}
       </div>

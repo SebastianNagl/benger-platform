@@ -12,7 +12,7 @@ try {
     {
       encoding: 'utf8',
       maxBuffer: 1024 * 1024 * 10, // 10MB buffer
-    }
+    },
   )
 } catch (error) {
   const output = error.stdout + error.stderr
@@ -103,7 +103,7 @@ try {
   console.log('📊 Test Failure Analysis:\n')
 
   console.log(
-    `🔧 Component Interface Issues: ${failurePatterns.componentInterface.length}`
+    `🔧 Component Interface Issues: ${failurePatterns.componentInterface.length}`,
   )
   failurePatterns.componentInterface.slice(0, 5).forEach((f) => {
     console.log(`  • ${f.test}: ${f.error.substring(0, 80)}...`)
@@ -115,7 +115,7 @@ try {
   })
 
   console.log(
-    `\n📋 Clipboard Errors: ${failurePatterns.clipboardErrors.length}`
+    `\n📋 Clipboard Errors: ${failurePatterns.clipboardErrors.length}`,
   )
   failurePatterns.clipboardErrors.slice(0, 3).forEach((f) => {
     console.log(`  • ${f.test}: ${f.error.substring(0, 80)}...`)
@@ -127,7 +127,7 @@ try {
   })
 
   console.log(
-    `\n🌐 Translation Key Errors: ${failurePatterns.translationKeys.length}`
+    `\n🌐 Translation Key Errors: ${failurePatterns.translationKeys.length}`,
   )
   failurePatterns.translationKeys.slice(0, 3).forEach((f) => {
     console.log(`  • ${f.test}: ${f.error.substring(0, 80)}...`)
@@ -140,12 +140,12 @@ try {
 
   // Get test summary
   const summaryMatch = output.match(
-    /Test Suites: (\d+) failed, (\d+) passed, (\d+) total/
+    /Test Suites: (\d+) failed, (\d+) passed, (\d+) total/,
   )
   if (summaryMatch) {
     const [, failed, passed, total] = summaryMatch
     console.log(
-      `\n📈 Current Status: ${passed}/${total} test suites passing (${Math.round((passed / total) * 100)}%)`
+      `\n📈 Current Status: ${passed}/${total} test suites passing (${Math.round((passed / total) * 100)}%)`,
     )
   }
 
@@ -153,12 +153,12 @@ try {
   console.log('\n🎯 Priority Fix Recommendations:')
   if (failurePatterns.hookErrors.length > 0) {
     console.log(
-      '1. ⚠️  Fix Hook Errors - These prevent tests from running at all'
+      '1. ⚠️  Fix Hook Errors - These prevent tests from running at all',
     )
   }
   if (failurePatterns.componentInterface.length > 5) {
     console.log(
-      '2. 🔧 Fix Component Interface Mismatches - Update tests to match current component API'
+      '2. 🔧 Fix Component Interface Mismatches - Update tests to match current component API',
     )
   }
   if (failurePatterns.timeoutErrors.length > 3) {

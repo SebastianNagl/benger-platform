@@ -42,7 +42,7 @@ export class SessionManager {
 
     if (lastSessionUser && lastSessionUser !== String(currentUser.id)) {
       logger.debug(
-        `User switch detected (was: ${lastSessionUser}, now: ${currentUser.id})`
+        `User switch detected (was: ${lastSessionUser}, now: ${currentUser.id})`,
       )
       return true
     }
@@ -56,7 +56,7 @@ export class SessionManager {
   handleUserSwitch(
     apiClient: ApiClient,
     newUserId: string,
-    oldUserId: string | null
+    oldUserId: string | null,
   ): void {
     // Clear the previous user's cached data
     if (oldUserId) {
@@ -133,7 +133,7 @@ export class SessionManager {
         (key) =>
           key.includes('auth') ||
           key.includes('user') ||
-          key.includes('session')
+          key.includes('session'),
       )
       keysToRemove.forEach((key) => localStorage.removeItem(key))
 
@@ -182,7 +182,7 @@ export class SessionManager {
           key.includes('auth') ||
           key.includes('token') ||
           key.includes('user') ||
-          key.includes('session')
+          key.includes('session'),
       )
       keysToRemove.forEach((key) => localStorage.removeItem(key))
       sessionStorage.clear()

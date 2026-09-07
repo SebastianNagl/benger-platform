@@ -55,7 +55,9 @@ jest.mock('@/contexts/ProgressContext', () => ({
 }))
 
 // AuthContext is overridden per test via the `mockUser` ref below.
-const mockUser = { current: { is_superadmin: false } as { is_superadmin: boolean } }
+const mockUser = {
+  current: { is_superadmin: false } as { is_superadmin: boolean },
+}
 jest.mock('@/contexts/AuthContext', () => ({
   useAuth: () => ({
     user: mockUser.current,
@@ -69,7 +71,8 @@ jest.mock('@/contexts/AuthContext', () => ({
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
     t: (key: string) => {
-      if (key === 'projects.list.showAllPrivate') return 'Show all private projects'
+      if (key === 'projects.list.showAllPrivate')
+        return 'Show all private projects'
       return key
     },
     locale: 'en',
@@ -94,7 +97,10 @@ jest.mock('@/components/shared/ToggleSwitch', () => ({
   ToggleSwitch: ({
     enabled,
     onChange,
-  }: { enabled: boolean; onChange: (next: boolean) => void }) => (
+  }: {
+    enabled: boolean
+    onChange: (next: boolean) => void
+  }) => (
     <button
       role="switch"
       aria-checked={enabled}
@@ -136,7 +142,9 @@ describe('ProjectListTable — superadmin private-projects toggle', () => {
     mockUser.current = { is_superadmin: false }
     render(<ProjectListTable />)
 
-    expect(screen.queryByTestId('superadmin-private-toggle')).not.toBeInTheDocument()
+    expect(
+      screen.queryByTestId('superadmin-private-toggle'),
+    ).not.toBeInTheDocument()
   })
 
   it('shows the toggle for superadmins, defaulting to OFF (narrow view)', () => {
@@ -168,14 +176,24 @@ describe('ProjectListTable — superadmin private-projects toggle', () => {
     render(<ProjectListTable />)
 
     // Initial mount runs fetchProjects with includeAllPrivate=false.
-    expect(mockFetchProjects).toHaveBeenCalledWith(undefined, undefined, false, false)
+    expect(mockFetchProjects).toHaveBeenCalledWith(
+      undefined,
+      undefined,
+      false,
+      false,
+    )
     mockFetchProjects.mockClear()
 
     const toggle = screen.getByTestId('superadmin-private-toggle')
     await user.click(toggle)
 
     await waitFor(() => {
-      expect(mockFetchProjects).toHaveBeenCalledWith(undefined, undefined, false, true)
+      expect(mockFetchProjects).toHaveBeenCalledWith(
+        undefined,
+        undefined,
+        false,
+        true,
+      )
     })
     expect(window.localStorage.getItem(STORAGE_KEY)).toBe('true')
   })

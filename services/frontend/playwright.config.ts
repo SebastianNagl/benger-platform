@@ -189,7 +189,8 @@ export default defineConfig({
       name: 'lti',
       use: {
         ...devices['Desktop Chrome'],
-        baseURL: process.env.PLAYWRIGHT_BASE_URL || 'http://vertretbar.localhost',
+        baseURL:
+          process.env.PLAYWRIGHT_BASE_URL || 'http://vertretbar.localhost',
       },
       testMatch: ['**/lti/*.spec.ts'],
       workers: 1,

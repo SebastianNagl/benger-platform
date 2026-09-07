@@ -39,7 +39,8 @@ jest.mock('@/contexts/I18nContext', () => ({
         'projects.evaluationTab.pending': 'Pending',
         'projects.evaluationTab.export': 'Export',
         'projects.evaluationTab.searchPlaceholder': 'Search evaluations...',
-        'projects.evaluationTab.showingTasks': 'Showing {showing} of {total} tasks',
+        'projects.evaluationTab.showingTasks':
+          'Showing {showing} of {total} tasks',
         'projects.evaluationTab.taskId': 'Task ID',
         'projects.evaluationTab.taskData': 'Task Data',
         'projects.evaluationTab.status': 'Status',
@@ -48,9 +49,12 @@ jest.mock('@/contexts/I18nContext', () => ({
         'projects.evaluationTab.confidence': 'Confidence',
         'projects.evaluationTab.model': 'Model',
         'projects.evaluationTab.evaluatedColumn': 'Evaluated',
-        'projects.evaluationTab.noMatchingEvaluations': 'No evaluations match your filters',
-        'projects.evaluationTab.noEvaluationData': 'No evaluation data available yet',
-        'projects.evaluationTab.metricsWillAppear': 'Evaluation metrics will appear here once tasks are evaluated',
+        'projects.evaluationTab.noMatchingEvaluations':
+          'No evaluations match your filters',
+        'projects.evaluationTab.noEvaluationData':
+          'No evaluation data available yet',
+        'projects.evaluationTab.metricsWillAppear':
+          'Evaluation metrics will appear here once tasks are evaluated',
       }
       let result = translations[key] || key
       if (params) {
@@ -190,7 +194,11 @@ describe('EvaluationTab', () => {
       render(<EvaluationTab projectId="test-project-id" />)
 
       await waitFor(() => {
-        expect(mockFetchProjectTasks).toHaveBeenCalledWith('test-project-id', false, expect.objectContaining({}))
+        expect(mockFetchProjectTasks).toHaveBeenCalledWith(
+          'test-project-id',
+          false,
+          expect.objectContaining({}),
+        )
         expect(screen.getByText('Test task data')).toBeInTheDocument()
       })
     })
@@ -249,7 +257,7 @@ describe('EvaluationTab', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByPlaceholderText('Search evaluations...')
+          screen.getByPlaceholderText('Search evaluations...'),
         ).toBeInTheDocument()
       })
 
@@ -267,7 +275,7 @@ describe('EvaluationTab', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByPlaceholderText('Search evaluations...')
+          screen.getByPlaceholderText('Search evaluations...'),
         ).toBeInTheDocument()
       })
 
@@ -276,7 +284,7 @@ describe('EvaluationTab', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('No evaluations match your filters')
+          screen.getByText('No evaluations match your filters'),
         ).toBeInTheDocument()
       })
     })
@@ -432,11 +440,11 @@ describe('EvaluationTab', () => {
         expect(mockUpdateProgress).toHaveBeenCalled()
         expect(mockCompleteProgress).toHaveBeenCalledWith(
           expect.any(String),
-          'success'
+          'success',
         )
         expect(mockAddToast).toHaveBeenCalledWith(
           'Exported 3 evaluations',
-          'success'
+          'success',
         )
       })
     })
@@ -457,7 +465,11 @@ describe('EvaluationTab', () => {
 
       // Wait for initial load to complete
       await waitFor(() => {
-        expect(mockFetchProjectTasks).toHaveBeenCalledWith('test-project-id', false, expect.objectContaining({}))
+        expect(mockFetchProjectTasks).toHaveBeenCalledWith(
+          'test-project-id',
+          false,
+          expect.objectContaining({}),
+        )
       })
 
       // Clear mocks to track new calls
@@ -477,11 +489,11 @@ describe('EvaluationTab', () => {
         expect(mockFetchProjectTasks).toHaveBeenCalledWith('test-project-id')
         expect(mockCompleteProgress).toHaveBeenCalledWith(
           expect.any(String),
-          'success'
+          'success',
         )
         expect(mockAddToast).toHaveBeenCalledWith(
           'Evaluations refreshed successfully',
-          'success'
+          'success',
         )
       })
     })
@@ -516,11 +528,11 @@ describe('EvaluationTab', () => {
       await waitFor(() => {
         expect(mockCompleteProgress).toHaveBeenCalledWith(
           expect.any(String),
-          'error'
+          'error',
         )
         expect(mockAddToast).toHaveBeenCalledWith(
           expect.stringContaining('Export failed'),
-          'error'
+          'error',
         )
       })
     })
@@ -546,11 +558,11 @@ describe('EvaluationTab', () => {
       await waitFor(() => {
         expect(mockCompleteProgress).toHaveBeenCalledWith(
           expect.any(String),
-          'error'
+          'error',
         )
         expect(mockAddToast).toHaveBeenCalledWith(
           'Failed to refresh evaluations',
-          'error'
+          'error',
         )
       })
     })
@@ -569,12 +581,12 @@ describe('EvaluationTab', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('No evaluation data available yet')
+          screen.getByText('No evaluation data available yet'),
         ).toBeInTheDocument()
         expect(
           screen.getByText(
-            'Evaluation metrics will appear here once tasks are evaluated'
-          )
+            'Evaluation metrics will appear here once tasks are evaluated',
+          ),
         ).toBeInTheDocument()
       })
     })
@@ -597,7 +609,7 @@ describe('EvaluationTab', () => {
       await waitFor(() => {
         expect(screen.queryByText('No evaluation data')).not.toBeInTheDocument()
         expect(
-          screen.getByText('No evaluation data available yet')
+          screen.getByText('No evaluation data available yet'),
         ).toBeInTheDocument()
       })
     })

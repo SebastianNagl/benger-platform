@@ -14,23 +14,23 @@
  */
 
 import {
-  isHumanField,
-  isModelField,
+  FIELD_SPECIFIERS,
   getBaseFieldName,
   getDimensionDisplayName,
   getFieldDisplayName,
-  isSpecialFieldValue,
-  registerMetric,
-  registerMetricGroup,
+  getGroupedMetrics,
   getMetricDefinitions,
   getMetricScale,
   getMetricSummable,
-  isMetricImmediateEligible,
-  getGroupedMetrics,
-  FIELD_SPECIFIERS,
-  MODEL_FIELD_PREFIX,
   HUMAN_FIELD_PREFIX,
+  isHumanField,
+  isMetricImmediateEligible,
+  isModelField,
+  isSpecialFieldValue,
   METRIC_DEFINITIONS,
+  MODEL_FIELD_PREFIX,
+  registerMetric,
+  registerMetricGroup,
   type AvailableMetric,
 } from '../evaluation-types'
 
@@ -89,7 +89,7 @@ describe('getDimensionDisplayName - type-specific branch', () => {
   it('returns the type-specific display name when the dimension is known', () => {
     // boundary_accuracy is a key of TYPE_SPECIFIC_DIMENSIONS.
     expect(getDimensionDisplayName('boundary_accuracy')).toBe(
-      'Boundary Accuracy'
+      'Boundary Accuracy',
     )
   })
 
@@ -102,22 +102,22 @@ describe('getDimensionDisplayName - type-specific branch', () => {
 describe('getFieldDisplayName - unstructured response branch', () => {
   it('labels model:__response__ as the unstructured model response', () => {
     expect(getFieldDisplayName('model:__response__')).toBe(
-      'Model Response (unstructured)'
+      'Model Response (unstructured)',
     )
   })
 
   it('labels bare __response__ as the unstructured model response', () => {
     expect(getFieldDisplayName('__response__')).toBe(
-      'Model Response (unstructured)'
+      'Model Response (unstructured)',
     )
   })
 
   it('still resolves the ALL_MODEL / ALL_HUMAN specifiers', () => {
     expect(getFieldDisplayName(FIELD_SPECIFIERS.ALL_MODEL)).toBe(
-      'All model responses'
+      'All model responses',
     )
     expect(getFieldDisplayName(FIELD_SPECIFIERS.ALL_HUMAN)).toBe(
-      'All human annotations'
+      'All human annotations',
     )
   })
 
@@ -209,9 +209,7 @@ describe('metric registry extension points', () => {
     expect(lexical).toBeDefined()
     // The new metric is appended; the duplicate exact_match is NOT added twice.
     expect(lexical!.metrics).toContain('ext_lexical_metric')
-    expect(
-      lexical!.metrics.filter((m) => m === 'exact_match')
-    ).toHaveLength(1)
+    expect(lexical!.metrics.filter((m) => m === 'exact_match')).toHaveLength(1)
     // Core description preserved (not overwritten by the merged group).
     expect(lexical!.description).toBe('String and surface-level matching')
   })
@@ -235,9 +233,7 @@ describe('metric registry extension points', () => {
     const before = lexical.metrics.length
     lexical.metrics.push('mutation_probe')
     // Re-fetch: the pushed probe must not have leaked into the shared source.
-    const again = getGroupedMetrics().find(
-      (g) => g.name === 'Lexical Metrics'
-    )!
+    const again = getGroupedMetrics().find((g) => g.name === 'Lexical Metrics')!
     expect(again.metrics).not.toContain('mutation_probe')
     expect(again.metrics.length).toBe(before)
   })

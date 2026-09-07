@@ -52,7 +52,7 @@ export function detectValueType(value: any): DataColumn['type'] {
  */
 export function extractDataColumns(
   tasks: Task[],
-  maxColumns = 15
+  maxColumns = 15,
 ): DataColumn[] {
   if (!tasks || tasks.length === 0) return []
 
@@ -73,7 +73,7 @@ export function extractDataColumns(
             (item) =>
               typeof item === 'string' ||
               typeof item === 'number' ||
-              typeof item === 'boolean'
+              typeof item === 'boolean',
           )
           if (!isSimpleArray) return
         } else {
@@ -127,7 +127,7 @@ export function formatFieldLabel(fieldName: string): string {
 export function formatCellValue(
   value: any,
   type: DataColumn['type'],
-  maxLength = 50
+  maxLength = 50,
 ): { display: string; full: string; truncated: boolean } {
   if (value === null || value === undefined) {
     return { display: '-', full: '-', truncated: false }
@@ -201,7 +201,7 @@ export function getTaskDisplayValue(task: Task): string {
 
   // Fall back to first string value
   const firstStringValue = Object.values((task as any).data).find(
-    (v) => typeof v === 'string'
+    (v) => typeof v === 'string',
   )
   if (firstStringValue) return firstStringValue as string
 
@@ -222,7 +222,7 @@ export function hasConsistentDataStructure(tasks: Task[]): boolean {
     const taskKeys = new Set(Object.keys((task as any).data || {}))
     // Check if at least 70% of keys match
     const intersection = new Set(
-      [...firstTaskKeys].filter((x) => taskKeys.has(x))
+      [...firstTaskKeys].filter((x) => taskKeys.has(x)),
     )
     return intersection.size >= firstTaskKeys.size * 0.7
   })
@@ -236,7 +236,7 @@ export function hasConsistentDataStructure(tasks: Task[]): boolean {
  */
 export function extractMetadataColumns(
   tasks: Task[],
-  maxColumns = 10
+  maxColumns = 10,
 ): DataColumn[] {
   if (!tasks || tasks.length === 0) return []
 
@@ -295,12 +295,12 @@ export function hasConsistentMetadataStructure(tasks: Task[]): boolean {
 
   // Get metadata keys from tasks that have metadata
   const tasksWithMeta = tasks.filter(
-    (t) => (t as any).meta && Object.keys((t as any).meta).length > 0
+    (t) => (t as any).meta && Object.keys((t as any).meta).length > 0,
   )
   if (tasksWithMeta.length < 2) return true
 
   const firstTaskKeys = new Set(
-    Object.keys((tasksWithMeta[0] as any).meta || {})
+    Object.keys((tasksWithMeta[0] as any).meta || {}),
   )
 
   return tasksWithMeta
@@ -309,7 +309,7 @@ export function hasConsistentMetadataStructure(tasks: Task[]): boolean {
       const taskKeys = new Set(Object.keys((task as any).meta || {}))
       // Check if at least 60% of keys match (metadata can be more varied)
       const intersection = new Set(
-        [...firstTaskKeys].filter((x) => taskKeys.has(x))
+        [...firstTaskKeys].filter((x) => taskKeys.has(x)),
       )
       return intersection.size >= firstTaskKeys.size * 0.6
     })

@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { getExternalHost, getInternalApiUrl } from '@/lib/utils/apiUrl'
 import { logger } from '@/lib/utils/logger'
-import { getInternalApiUrl, getExternalHost } from '@/lib/utils/apiUrl'
 import { getCookieDomainFromHost } from '@/lib/utils/subdomain'
+import { NextRequest, NextResponse } from 'next/server'
 
 export async function POST(request: NextRequest) {
   try {
@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
     console.error('❌ Verify email error:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
-      { status: 500 }
+      { status: 500 },
     )
   }
 }

@@ -30,7 +30,7 @@ export function useOperationToasts() {
       taskId: string,
       message: string,
       details?: string,
-      persistent: boolean = false
+      persistent: boolean = false,
     ) => {
       const id = `${type}-${taskId}-${Date.now()}`
 
@@ -48,7 +48,7 @@ export function useOperationToasts() {
       setToasts((prev) => {
         // Remove any existing toast for the same operation type and task
         const filtered = prev.filter(
-          (toast) => !(toast.type === type && toast.taskId === taskId)
+          (toast) => !(toast.type === type && toast.taskId === taskId),
         )
         return [...filtered, newToast]
       })
@@ -64,7 +64,7 @@ export function useOperationToasts() {
 
       return id
     },
-    []
+    [],
   )
 
   const updateOperationToast = useCallback(
@@ -73,7 +73,7 @@ export function useOperationToasts() {
       taskId: string,
       status: OperationStatus,
       message: string,
-      details?: string
+      details?: string,
     ) => {
       setToasts((prev) =>
         prev.map((toast) => {
@@ -99,10 +99,10 @@ export function useOperationToasts() {
             return updated
           }
           return toast
-        })
+        }),
       )
     },
-    []
+    [],
   )
 
   const dismissToast = useCallback((id: string) => {
@@ -113,11 +113,11 @@ export function useOperationToasts() {
     (type: OperationType, taskId: string) => {
       setToasts((prev) =>
         prev.filter(
-          (toast) => !(toast.type === type && toast.taskId === taskId)
-        )
+          (toast) => !(toast.type === type && toast.taskId === taskId),
+        ),
       )
     },
-    []
+    [],
   )
 
   const clearAllToasts = useCallback(() => {
@@ -130,7 +130,7 @@ export function useOperationToasts() {
     }
 
     return (
-      <div className="fixed right-4 top-4 z-50 max-w-sm space-y-3">
+      <div className="fixed top-4 right-4 z-50 max-w-sm space-y-3">
         {toasts
           .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime()) // Oldest first (bottom to top stacking)
           .map((toast) => (
@@ -159,10 +159,10 @@ export function useOperationToasts() {
         taskId,
         t('operations.generation.starting', { count: modelCount }),
         t('operations.generation.initializing'),
-        false
+        false,
       )
     },
-    [addOperationToast]
+    [addOperationToast],
   )
 
   const updateGeneration = useCallback(
@@ -170,11 +170,11 @@ export function useOperationToasts() {
       taskId: string,
       status: OperationStatus,
       message: string,
-      details?: string
+      details?: string,
     ) => {
       updateOperationToast('generation', taskId, status, message, details)
     },
-    [updateOperationToast]
+    [updateOperationToast],
   )
 
   const startEvaluation = useCallback(
@@ -186,10 +186,10 @@ export function useOperationToasts() {
         taskId,
         t('operations.evaluation.starting', { count: evaluationCount }),
         t('operations.evaluation.initializing'),
-        false
+        false,
       )
     },
-    [addOperationToast]
+    [addOperationToast],
   )
 
   const updateEvaluation = useCallback(
@@ -197,11 +197,11 @@ export function useOperationToasts() {
       taskId: string,
       status: OperationStatus,
       message: string,
-      details?: string
+      details?: string,
     ) => {
       updateOperationToast('evaluation', taskId, status, message, details)
     },
-    [updateOperationToast]
+    [updateOperationToast],
   )
 
   return {

@@ -46,7 +46,7 @@ export const customModelsAPI = {
    */
   update: async (
     modelId: string,
-    data: CustomModelUpdate
+    data: CustomModelUpdate,
   ): Promise<CustomModel> => {
     const response = await apiClient.patch(`/custom-models/${modelId}`, data)
     return response
@@ -74,11 +74,11 @@ export const customModelsAPI = {
    */
   updateVisibility: async (
     modelId: string,
-    payload: CustomModelVisibilityPayload
+    payload: CustomModelVisibilityPayload,
   ): Promise<CustomModel> => {
     const response = await apiClient.patch(
       `/custom-models/${modelId}/visibility`,
-      payload
+      payload,
     )
     return response
   },
@@ -88,11 +88,11 @@ export const customModelsAPI = {
    */
   setCredential: async (
     modelId: string,
-    apiKey: string
+    apiKey: string,
   ): Promise<{ has_credential: boolean; updated_at?: string }> => {
     const response = await apiClient.put(
       `/custom-models/${modelId}/credential`,
-      { api_key: apiKey }
+      { api_key: apiKey },
     )
     return response
   },
@@ -108,11 +108,9 @@ export const customModelsAPI = {
    * Check whether the calling user has a stored key for this model.
    */
   getCredentialStatus: async (
-    modelId: string
+    modelId: string,
   ): Promise<{ has_credential: boolean; updated_at?: string }> => {
-    const response = await apiClient.get(
-      `/custom-models/${modelId}/credential`
-    )
+    const response = await apiClient.get(`/custom-models/${modelId}/credential`)
     return response
   },
 
@@ -123,11 +121,11 @@ export const customModelsAPI = {
    */
   testConnection: async (
     modelId: string,
-    opts?: { api_key?: string; chat_ping?: boolean }
+    opts?: { api_key?: string; chat_ping?: boolean },
   ): Promise<CustomModelTestResult> => {
     const response = await apiClient.post(
       `/custom-models/${modelId}/test`,
-      opts ?? {}
+      opts ?? {},
     )
     return response
   },

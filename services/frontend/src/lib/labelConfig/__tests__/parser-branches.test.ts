@@ -7,16 +7,18 @@
  */
 
 import {
-  parseLabelConfig,
-  validateParsedConfig,
   extractDataFields,
   extractRequiredDataFields,
   ParsedComponent,
+  parseLabelConfig,
+  validateParsedConfig,
 } from '../parser'
 
 describe('parseLabelConfig', () => {
   it('should parse valid XML', () => {
-    const result = parseLabelConfig('<View><Text name="t" value="$text"/></View>')
+    const result = parseLabelConfig(
+      '<View><Text name="t" value="$text"/></View>',
+    )
     expect('type' in result).toBe(true)
     expect((result as ParsedComponent).type).toBe('View')
   })
@@ -33,7 +35,9 @@ describe('parseLabelConfig', () => {
   })
 
   it('should not set content for elements with children', () => {
-    const result = parseLabelConfig('<View><Choices name="c" toName="t"><Choice value="a"/></Choices></View>')
+    const result = parseLabelConfig(
+      '<View><Choices name="c" toName="t"><Choice value="a"/></Choices></View>',
+    )
     const choices = (result as ParsedComponent).children[0]
     expect(choices.props.content).toBeUndefined()
   })
@@ -54,7 +58,9 @@ describe('validateParsedConfig', () => {
       children: [{ type: 'Text', props: { value: '$text' }, children: [] }],
     }
     const result = validateParsedConfig(config)
-    expect(result.errors.some((e) => e.includes('Text component requires \'name\''))).toBe(true)
+    expect(
+      result.errors.some((e) => e.includes("Text component requires 'name'")),
+    ).toBe(true)
   })
 
   it('should validate Text component requires value', () => {
@@ -64,7 +70,9 @@ describe('validateParsedConfig', () => {
       children: [{ type: 'Text', props: { name: 't' }, children: [] }],
     }
     const result = validateParsedConfig(config)
-    expect(result.errors.some((e) => e.includes('Text component requires \'value\''))).toBe(true)
+    expect(
+      result.errors.some((e) => e.includes("Text component requires 'value'")),
+    ).toBe(true)
   })
 
   it('should validate TextArea requires name and toName', () => {
@@ -74,29 +82,55 @@ describe('validateParsedConfig', () => {
       children: [{ type: 'TextArea', props: {}, children: [] }],
     }
     const result = validateParsedConfig(config)
-    expect(result.errors.some((e) => e.includes('TextArea component requires \'name\''))).toBe(true)
-    expect(result.errors.some((e) => e.includes('TextArea component requires \'toName\''))).toBe(true)
+    expect(
+      result.errors.some((e) =>
+        e.includes("TextArea component requires 'name'"),
+      ),
+    ).toBe(true)
+    expect(
+      result.errors.some((e) =>
+        e.includes("TextArea component requires 'toName'"),
+      ),
+    ).toBe(true)
   })
 
   it('should validate Choices requires children', () => {
     const config: ParsedComponent = {
       type: 'View',
       props: {},
-      children: [{ type: 'Choices', props: { name: 'c', toName: 't' }, children: [] }],
+      children: [
+        { type: 'Choices', props: { name: 'c', toName: 't' }, children: [] },
+      ],
     }
     const result = validateParsedConfig(config)
-    expect(result.errors.some((e) => e.includes('at least one Choice'))).toBe(true)
+    expect(result.errors.some((e) => e.includes('at least one Choice'))).toBe(
+      true,
+    )
   })
 
   it('should validate Choices requires name and toName', () => {
     const config: ParsedComponent = {
       type: 'View',
       props: {},
-      children: [{ type: 'Choices', props: {}, children: [{ type: 'Choice', props: { value: 'a' }, children: [] }] }],
+      children: [
+        {
+          type: 'Choices',
+          props: {},
+          children: [{ type: 'Choice', props: { value: 'a' }, children: [] }],
+        },
+      ],
     }
     const result = validateParsedConfig(config)
-    expect(result.errors.some((e) => e.includes('Choices component requires \'name\''))).toBe(true)
-    expect(result.errors.some((e) => e.includes('Choices component requires \'toName\''))).toBe(true)
+    expect(
+      result.errors.some((e) =>
+        e.includes("Choices component requires 'name'"),
+      ),
+    ).toBe(true)
+    expect(
+      result.errors.some((e) =>
+        e.includes("Choices component requires 'toName'"),
+      ),
+    ).toBe(true)
   })
 
   it('should validate Choice requires value', () => {
@@ -112,7 +146,11 @@ describe('validateParsedConfig', () => {
       ],
     }
     const result = validateParsedConfig(config)
-    expect(result.errors.some((e) => e.includes('Choice component requires \'value\''))).toBe(true)
+    expect(
+      result.errors.some((e) =>
+        e.includes("Choice component requires 'value'"),
+      ),
+    ).toBe(true)
   })
 
   it('should return valid for correct configuration', () => {
@@ -140,7 +178,11 @@ describe('extractDataFields', () => {
       props: {},
       children: [
         { type: 'Text', props: { name: 't', value: '$text' }, children: [] },
-        { type: 'Text', props: { name: 'q', value: '$question' }, children: [] },
+        {
+          type: 'Text',
+          props: { name: 'q', value: '$question' },
+          children: [],
+        },
       ],
     }
     const fields = extractDataFields(config)
@@ -165,8 +207,16 @@ describe('extractRequiredDataFields', () => {
       type: 'View',
       props: {},
       children: [
-        { type: 'TextArea', props: { name: 'a', toName: 't', value: '$field1', required: 'true' }, children: [] },
-        { type: 'TextArea', props: { name: 'b', toName: 't', value: '$field2' }, children: [] },
+        {
+          type: 'TextArea',
+          props: { name: 'a', toName: 't', value: '$field1', required: 'true' },
+          children: [],
+        },
+        {
+          type: 'TextArea',
+          props: { name: 'b', toName: 't', value: '$field2' },
+          children: [],
+        },
       ],
     }
     const fields = extractRequiredDataFields(config)
@@ -179,7 +229,11 @@ describe('extractRequiredDataFields', () => {
       type: 'View',
       props: {},
       children: [
-        { type: 'TextArea', props: { name: 'a', toName: 't', value: '$field1', required: true }, children: [] },
+        {
+          type: 'TextArea',
+          props: { name: 'a', toName: 't', value: '$field1', required: true },
+          children: [],
+        },
       ],
     }
     const fields = extractRequiredDataFields(config)
@@ -191,7 +245,11 @@ describe('extractRequiredDataFields', () => {
       type: 'View',
       props: {},
       children: [
-        { type: 'TextArea', props: { name: 'a', toName: 't', value: '$field1' }, children: [] },
+        {
+          type: 'TextArea',
+          props: { name: 'a', toName: 't', value: '$field1' },
+          children: [],
+        },
       ],
     }
     const fields = extractRequiredDataFields(config)

@@ -11,7 +11,10 @@ import { PromptStructuresManager } from '../PromptStructuresManager'
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
     t: (key: string, varsOrDefault?: any) => {
-      const translations: Record<string, any> = require('../../../locales/en/common.json')
+      const translations: Record<
+        string,
+        any
+      > = require('../../../locales/en/common.json')
       const parts = key.split('.')
       let value: any = translations
       for (const part of parts) {
@@ -110,7 +113,7 @@ describe('PromptStructuresManager', () => {
     it('should show loading state initially', () => {
       render(<PromptStructuresManager projectId={mockProjectId} />)
       expect(
-        screen.getByText('Loading prompt structures...')
+        screen.getByText('Loading prompt structures...'),
       ).toBeInTheDocument()
     })
 
@@ -119,7 +122,7 @@ describe('PromptStructuresManager', () => {
 
       await waitFor(() => {
         expect(
-          screen.queryByText('Loading prompt structures...')
+          screen.queryByText('Loading prompt structures...'),
         ).not.toBeInTheDocument()
       })
 
@@ -133,7 +136,7 @@ describe('PromptStructuresManager', () => {
 
       await waitFor(() => {
         expect(
-          screen.queryByText('Loading prompt structures...')
+          screen.queryByText('Loading prompt structures...'),
         ).not.toBeInTheDocument()
       })
 
@@ -159,7 +162,7 @@ describe('PromptStructuresManager', () => {
 
       await waitFor(() => {
         expect(
-          screen.queryByText('Loading prompt structures...')
+          screen.queryByText('Loading prompt structures...'),
         ).not.toBeInTheDocument()
       })
 
@@ -179,7 +182,7 @@ describe('PromptStructuresManager', () => {
 
       await waitFor(() => {
         expect(
-          screen.queryByText('Loading prompt structures...')
+          screen.queryByText('Loading prompt structures...'),
         ).not.toBeInTheDocument()
       })
 
@@ -189,10 +192,10 @@ describe('PromptStructuresManager', () => {
       await userEvent.click(headerButton)
 
       expect(
-        screen.getByText(/No prompt structures configured yet/i)
+        screen.getByText(/No prompt structures configured yet/i),
       ).toBeInTheDocument()
       expect(
-        screen.getByRole('button', { name: /Create First Structure/i })
+        screen.getByRole('button', { name: /Create First Structure/i }),
       ).toBeInTheDocument()
     })
 
@@ -201,7 +204,7 @@ describe('PromptStructuresManager', () => {
 
       await waitFor(() => {
         expect(
-          screen.queryByText('Loading prompt structures...')
+          screen.queryByText('Loading prompt structures...'),
         ).not.toBeInTheDocument()
       })
 
@@ -221,7 +224,7 @@ describe('PromptStructuresManager', () => {
 
       await waitFor(() => {
         expect(
-          screen.queryByText('Loading prompt structures...')
+          screen.queryByText('Loading prompt structures...'),
         ).not.toBeInTheDocument()
       })
 
@@ -231,7 +234,7 @@ describe('PromptStructuresManager', () => {
       await userEvent.click(headerButton)
 
       expect(
-        screen.getByRole('button', { name: /Add Structure/i })
+        screen.getByRole('button', { name: /Add Structure/i }),
       ).toBeInTheDocument()
     })
   })
@@ -244,7 +247,7 @@ describe('PromptStructuresManager', () => {
 
       await waitFor(() => {
         expect(
-          screen.queryByText('Loading prompt structures...')
+          screen.queryByText('Loading prompt structures...'),
         ).not.toBeInTheDocument()
       })
 
@@ -267,21 +270,21 @@ describe('PromptStructuresManager', () => {
       await waitFor(() => {
         expect(apiClient.put).toHaveBeenCalledWith(
           `/projects/${mockProjectId}/generation-config/structures`,
-          ['legal-analysis', 'simple-qa']
+          ['legal-analysis', 'simple-qa'],
         )
       })
     })
 
     it('should handle toggle errors and revert state', async () => {
       ;(apiClient.put as jest.Mock).mockRejectedValue(
-        new Error('Failed to update')
+        new Error('Failed to update'),
       )
 
       render(<PromptStructuresManager projectId={mockProjectId} />)
 
       await waitFor(() => {
         expect(
-          screen.queryByText('Loading prompt structures...')
+          screen.queryByText('Loading prompt structures...'),
         ).not.toBeInTheDocument()
       })
 
@@ -295,7 +298,7 @@ describe('PromptStructuresManager', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('Failed to update active structures')
+          screen.getByText('Failed to update active structures'),
         ).toBeInTheDocument()
       })
     })
@@ -308,12 +311,12 @@ describe('PromptStructuresManager', () => {
         <PromptStructuresManager
           projectId={mockProjectId}
           onStructuresChange={onStructuresChange}
-        />
+        />,
       )
 
       await waitFor(() => {
         expect(
-          screen.queryByText('Loading prompt structures...')
+          screen.queryByText('Loading prompt structures...'),
         ).not.toBeInTheDocument()
       })
 
@@ -337,7 +340,7 @@ describe('PromptStructuresManager', () => {
 
       await waitFor(() => {
         expect(
-          screen.queryByText('Loading prompt structures...')
+          screen.queryByText('Loading prompt structures...'),
         ).not.toBeInTheDocument()
       })
 
@@ -359,7 +362,7 @@ describe('PromptStructuresManager', () => {
 
       await waitFor(() => {
         expect(
-          screen.queryByText('Loading prompt structures...')
+          screen.queryByText('Loading prompt structures...'),
         ).not.toBeInTheDocument()
       })
 
@@ -386,7 +389,7 @@ describe('PromptStructuresManager', () => {
 
       await waitFor(() => {
         expect(
-          screen.queryByText('Loading prompt structures...')
+          screen.queryByText('Loading prompt structures...'),
         ).not.toBeInTheDocument()
       })
 
@@ -406,7 +409,7 @@ describe('PromptStructuresManager', () => {
       await userEvent.type(nameInput, 'Test Structure')
       await userEvent.click(configTextarea)
       await userEvent.paste(
-        '{"system_prompt": "test", "instruction_prompt": "test"}'
+        '{"system_prompt": "test", "instruction_prompt": "test"}',
       )
 
       const createButton = screen.getByRole('button', {
@@ -417,8 +420,8 @@ describe('PromptStructuresManager', () => {
       await waitFor(() => {
         expect(
           screen.getByText(
-            /Structure key can only contain alphanumeric characters, underscores, and hyphens/i
-          )
+            /Structure key can only contain alphanumeric characters, underscores, and hyphens/i,
+          ),
         ).toBeInTheDocument()
       })
     })
@@ -428,7 +431,7 @@ describe('PromptStructuresManager', () => {
 
       await waitFor(() => {
         expect(
-          screen.queryByText('Loading prompt structures...')
+          screen.queryByText('Loading prompt structures...'),
         ).not.toBeInTheDocument()
       })
 
@@ -448,7 +451,7 @@ describe('PromptStructuresManager', () => {
       await userEvent.type(nameInput, 'Test Structure')
       await userEvent.click(configTextarea)
       await userEvent.paste(
-        '{"system_prompt": "test", "instruction_prompt": "test"}'
+        '{"system_prompt": "test", "instruction_prompt": "test"}',
       )
 
       const createButton = screen.getByRole('button', {
@@ -458,7 +461,7 @@ describe('PromptStructuresManager', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('A structure with this key already exists')
+          screen.getByText('A structure with this key already exists'),
         ).toBeInTheDocument()
       })
     })
@@ -468,7 +471,7 @@ describe('PromptStructuresManager', () => {
 
       await waitFor(() => {
         expect(
-          screen.queryByText('Loading prompt structures...')
+          screen.queryByText('Loading prompt structures...'),
         ).not.toBeInTheDocument()
       })
 
@@ -496,7 +499,7 @@ describe('PromptStructuresManager', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('Invalid JSON in structure configuration')
+          screen.getByText('Invalid JSON in structure configuration'),
         ).toBeInTheDocument()
       })
     })
@@ -506,7 +509,7 @@ describe('PromptStructuresManager', () => {
 
       await waitFor(() => {
         expect(
-          screen.queryByText('Loading prompt structures...')
+          screen.queryByText('Loading prompt structures...'),
         ).not.toBeInTheDocument()
       })
 
@@ -535,8 +538,8 @@ describe('PromptStructuresManager', () => {
       await waitFor(() => {
         expect(
           screen.getByText(
-            'Structure must have at least system_prompt or instruction_prompt'
-          )
+            'Structure must have at least system_prompt or instruction_prompt',
+          ),
         ).toBeInTheDocument()
       })
     })
@@ -562,7 +565,7 @@ describe('PromptStructuresManager', () => {
 
       await waitFor(() => {
         expect(
-          screen.queryByText('Loading prompt structures...')
+          screen.queryByText('Loading prompt structures...'),
         ).not.toBeInTheDocument()
       })
 
@@ -585,7 +588,7 @@ describe('PromptStructuresManager', () => {
       await userEvent.clear(configTextarea)
       await userEvent.click(configTextarea)
       await userEvent.paste(
-        '{"system_prompt": "test", "instruction_prompt": "test"}'
+        '{"system_prompt": "test", "instruction_prompt": "test"}',
       )
 
       const createButton = screen.getByRole('button', {
@@ -601,7 +604,7 @@ describe('PromptStructuresManager', () => {
             description: 'Test description',
             system_prompt: 'test',
             instruction_prompt: 'test',
-          })
+          }),
         )
       })
     })
@@ -611,7 +614,7 @@ describe('PromptStructuresManager', () => {
 
       await waitFor(() => {
         expect(
-          screen.queryByText('Loading prompt structures...')
+          screen.queryByText('Loading prompt structures...'),
         ).not.toBeInTheDocument()
       })
 
@@ -630,7 +633,7 @@ describe('PromptStructuresManager', () => {
 
       await waitFor(() => {
         expect(
-          screen.queryByText('Add Prompt Structure')
+          screen.queryByText('Add Prompt Structure'),
         ).not.toBeInTheDocument()
       })
     })
@@ -642,7 +645,7 @@ describe('PromptStructuresManager', () => {
 
       await waitFor(() => {
         expect(
-          screen.queryByText('Loading prompt structures...')
+          screen.queryByText('Loading prompt structures...'),
         ).not.toBeInTheDocument()
       })
 
@@ -686,7 +689,7 @@ describe('PromptStructuresManager', () => {
 
       await waitFor(() => {
         expect(
-          screen.queryByText('Loading prompt structures...')
+          screen.queryByText('Loading prompt structures...'),
         ).not.toBeInTheDocument()
       })
 
@@ -720,7 +723,7 @@ describe('PromptStructuresManager', () => {
           `/projects/${mockProjectId}/generation-config/structures/legal-analysis`,
           expect.objectContaining({
             name: 'Updated Legal Analysis',
-          })
+          }),
         )
       })
     })
@@ -735,7 +738,7 @@ describe('PromptStructuresManager', () => {
 
       await waitFor(() => {
         expect(
-          screen.queryByText('Loading prompt structures...')
+          screen.queryByText('Loading prompt structures...'),
         ).not.toBeInTheDocument()
       })
 
@@ -765,7 +768,7 @@ describe('PromptStructuresManager', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('Failed to update structure')
+          screen.getByText('Failed to update structure'),
         ).toBeInTheDocument()
       })
     })
@@ -777,7 +780,7 @@ describe('PromptStructuresManager', () => {
 
       await waitFor(() => {
         expect(
-          screen.queryByText('Loading prompt structures...')
+          screen.queryByText('Loading prompt structures...'),
         ).not.toBeInTheDocument()
       })
 
@@ -797,10 +800,10 @@ describe('PromptStructuresManager', () => {
 
         await waitFor(() => {
           expect(
-            screen.getByText('Delete Prompt Structure')
+            screen.getByText('Delete Prompt Structure'),
           ).toBeInTheDocument()
           expect(
-            screen.getByText(/Are you sure you want to delete/i)
+            screen.getByText(/Are you sure you want to delete/i),
           ).toBeInTheDocument()
         })
       }
@@ -817,7 +820,7 @@ describe('PromptStructuresManager', () => {
 
       await waitFor(() => {
         expect(
-          screen.queryByText('Loading prompt structures...')
+          screen.queryByText('Loading prompt structures...'),
         ).not.toBeInTheDocument()
       })
 
@@ -837,7 +840,7 @@ describe('PromptStructuresManager', () => {
 
         await waitFor(() => {
           expect(
-            screen.getByText('Delete Prompt Structure')
+            screen.getByText('Delete Prompt Structure'),
           ).toBeInTheDocument()
         })
 
@@ -852,7 +855,7 @@ describe('PromptStructuresManager', () => {
 
           await waitFor(() => {
             expect(apiClient.delete).toHaveBeenCalledWith(
-              `/projects/${mockProjectId}/generation-config/structures/legal-analysis`
+              `/projects/${mockProjectId}/generation-config/structures/legal-analysis`,
             )
           })
         }
@@ -864,7 +867,7 @@ describe('PromptStructuresManager', () => {
 
       await waitFor(() => {
         expect(
-          screen.queryByText('Loading prompt structures...')
+          screen.queryByText('Loading prompt structures...'),
         ).not.toBeInTheDocument()
       })
 
@@ -884,7 +887,7 @@ describe('PromptStructuresManager', () => {
 
         await waitFor(() => {
           expect(
-            screen.getByText('Delete Prompt Structure')
+            screen.getByText('Delete Prompt Structure'),
           ).toBeInTheDocument()
         })
 
@@ -893,7 +896,7 @@ describe('PromptStructuresManager', () => {
 
         await waitFor(() => {
           expect(
-            screen.queryByText('Delete Prompt Structure')
+            screen.queryByText('Delete Prompt Structure'),
           ).not.toBeInTheDocument()
         })
 
@@ -903,14 +906,14 @@ describe('PromptStructuresManager', () => {
 
     it('should handle delete errors', async () => {
       ;(apiClient.delete as jest.Mock).mockRejectedValue(
-        new Error('Failed to delete')
+        new Error('Failed to delete'),
       )
 
       render(<PromptStructuresManager projectId={mockProjectId} />)
 
       await waitFor(() => {
         expect(
-          screen.queryByText('Loading prompt structures...')
+          screen.queryByText('Loading prompt structures...'),
         ).not.toBeInTheDocument()
       })
 
@@ -930,7 +933,7 @@ describe('PromptStructuresManager', () => {
 
         await waitFor(() => {
           expect(
-            screen.getByText('Delete Prompt Structure')
+            screen.getByText('Delete Prompt Structure'),
           ).toBeInTheDocument()
         })
 
@@ -945,7 +948,7 @@ describe('PromptStructuresManager', () => {
 
           await waitFor(() => {
             expect(
-              screen.getByText('Failed to delete structure')
+              screen.getByText('Failed to delete structure'),
             ).toBeInTheDocument()
           })
         }
@@ -956,14 +959,14 @@ describe('PromptStructuresManager', () => {
   describe('Error Handling', () => {
     it('should display error when fetching structures fails', async () => {
       ;(apiClient.get as jest.Mock).mockRejectedValue(
-        new Error('Network error')
+        new Error('Network error'),
       )
 
       render(<PromptStructuresManager projectId={mockProjectId} />)
 
       await waitFor(() => {
         expect(
-          screen.queryByText('Loading prompt structures...')
+          screen.queryByText('Loading prompt structures...'),
         ).not.toBeInTheDocument()
       })
 
@@ -974,7 +977,7 @@ describe('PromptStructuresManager', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('Failed to load prompt structures')
+          screen.getByText('Failed to load prompt structures'),
         ).toBeInTheDocument()
       })
     })
@@ -982,14 +985,14 @@ describe('PromptStructuresManager', () => {
     it('should handle project fetch failure gracefully', async () => {
       ;(apiClient.get as jest.Mock).mockResolvedValue(mockStructures)
       ;(apiClient.getProject as jest.Mock).mockRejectedValue(
-        new Error('Project not found')
+        new Error('Project not found'),
       )
 
       render(<PromptStructuresManager projectId={mockProjectId} />)
 
       await waitFor(() => {
         expect(
-          screen.queryByText('Loading prompt structures...')
+          screen.queryByText('Loading prompt structures...'),
         ).not.toBeInTheDocument()
       })
 
@@ -1000,7 +1003,7 @@ describe('PromptStructuresManager', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('Failed to load prompt structures')
+          screen.getByText('Failed to load prompt structures'),
         ).toBeInTheDocument()
       })
     })
@@ -1012,7 +1015,7 @@ describe('PromptStructuresManager', () => {
 
       await waitFor(() => {
         expect(
-          screen.queryByText('Loading prompt structures...')
+          screen.queryByText('Loading prompt structures...'),
         ).not.toBeInTheDocument()
       })
 
@@ -1043,12 +1046,12 @@ describe('PromptStructuresManager', () => {
         <PromptStructuresManager
           projectId={mockProjectId}
           onStructuresChange={onStructuresChange}
-        />
+        />,
       )
 
       await waitFor(() => {
         expect(
-          screen.queryByText('Loading prompt structures...')
+          screen.queryByText('Loading prompt structures...'),
         ).not.toBeInTheDocument()
       })
 
@@ -1068,7 +1071,7 @@ describe('PromptStructuresManager', () => {
       await userEvent.type(nameInput, 'Test')
       await userEvent.click(configTextarea)
       await userEvent.paste(
-        '{"system_prompt": "test", "instruction_prompt": "test"}'
+        '{"system_prompt": "test", "instruction_prompt": "test"}',
       )
 
       const createButton = screen.getByRole('button', {
@@ -1093,12 +1096,12 @@ describe('PromptStructuresManager', () => {
         <PromptStructuresManager
           projectId={mockProjectId}
           onStructuresChange={onStructuresChange}
-        />
+        />,
       )
 
       await waitFor(() => {
         expect(
-          screen.queryByText('Loading prompt structures...')
+          screen.queryByText('Loading prompt structures...'),
         ).not.toBeInTheDocument()
       })
 
@@ -1118,7 +1121,7 @@ describe('PromptStructuresManager', () => {
 
         await waitFor(() => {
           expect(
-            screen.getByText('Delete Prompt Structure')
+            screen.getByText('Delete Prompt Structure'),
           ).toBeInTheDocument()
         })
 

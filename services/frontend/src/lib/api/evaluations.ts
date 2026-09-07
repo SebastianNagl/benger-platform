@@ -159,7 +159,7 @@ export class EvaluationsClient extends BaseApiClient {
     taskId: string,
     modelId: string,
     structureKey?: string,
-    includeHistory?: boolean
+    includeHistory?: boolean,
   ): Promise<{
     task_id: string
     model_id: string
@@ -191,7 +191,7 @@ export class EvaluationsClient extends BaseApiClient {
     }
     return await this.request(
       `/generation/generation-result?${params.toString()}`,
-      { method: 'GET' }
+      { method: 'GET' },
     )
   }
 
@@ -241,7 +241,7 @@ export class EvaluationsClient extends BaseApiClient {
     }
     return await this.request(
       `/evaluations/sample-result?${params.toString()}`,
-      { method: 'GET' }
+      { method: 'GET' },
     )
   }
 
@@ -256,7 +256,7 @@ export class EvaluationsClient extends BaseApiClient {
 
   async getEvaluationTypes(
     taskTypeId?: string,
-    category?: string
+    category?: string,
   ): Promise<EvaluationType[]> {
     const params = new URLSearchParams()
     if (taskTypeId) params.append('task_type_id', taskTypeId)
@@ -277,7 +277,7 @@ export class EvaluationsClient extends BaseApiClient {
   async uploadData(
     file: File,
     taskId: string,
-    description?: string
+    description?: string,
   ): Promise<UploadResponse> {
     try {
       // Validate inputs
@@ -336,7 +336,7 @@ export class EvaluationsClient extends BaseApiClient {
         contentType = 'prompts'
       } else {
         throw new Error(
-          'Unknown content type - file must contain questions (with "question" and "answer" fields) or prompts (with "prompt" field)'
+          'Unknown content type - file must contain questions (with "question" and "answer" fields) or prompts (with "prompt" field)',
         )
       }
 
@@ -354,7 +354,7 @@ export class EvaluationsClient extends BaseApiClient {
             }
           } catch (transformError) {
             throw new Error(
-              `Invalid question format at index ${index}: ${transformError}`
+              `Invalid question format at index ${index}: ${transformError}`,
             )
           }
         })
@@ -389,7 +389,7 @@ export class EvaluationsClient extends BaseApiClient {
             }
           } catch (transformError) {
             throw new Error(
-              `Invalid prompt format at index ${index}: ${transformError}`
+              `Invalid prompt format at index ${index}: ${transformError}`,
             )
           }
         })
@@ -453,7 +453,7 @@ export class EvaluationsClient extends BaseApiClient {
   }
 
   async getTaskCompletionStats(
-    taskId: string
+    taskId: string,
   ): Promise<{ completed: number; total: number; completionRate: number }> {
     // NO FALLBACK - Errors must be visible for scientific rigor
     // Try dedicated endpoint first, fall back to task-based calculation (but not silent zeros)
@@ -477,7 +477,7 @@ export class EvaluationsClient extends BaseApiClient {
 
   // Synthetic data generation
   async generateSyntheticData(
-    request: SyntheticDataGenerationRequest
+    request: SyntheticDataGenerationRequest,
   ): Promise<SyntheticDataGenerationResponse> {
     return this.request('/synthetic-data/generate', {
       method: 'POST',
@@ -610,7 +610,7 @@ export class EvaluationsClient extends BaseApiClient {
 
   async testUserApiKey(
     provider: string,
-    apiKey: string
+    apiKey: string,
   ): Promise<{
     status: 'success' | 'error'
     message: string
@@ -684,7 +684,7 @@ export class EvaluationsClient extends BaseApiClient {
   // =====================================================================
 
   async setupHumanEvaluation(
-    config: HumanEvaluationConfigCreate
+    config: HumanEvaluationConfigCreate,
   ): Promise<HumanEvaluationSetupResponse> {
     return this.request(`/evaluations/human/session/start`, {
       method: 'POST',
@@ -693,7 +693,7 @@ export class EvaluationsClient extends BaseApiClient {
   }
 
   async getHumanEvaluationConfig(
-    projectId: string
+    projectId: string,
   ): Promise<HumanEvaluationConfigResponse> {
     return this.request(`/evaluations/human/config/${projectId}`, {
       method: 'GET',
@@ -701,7 +701,7 @@ export class EvaluationsClient extends BaseApiClient {
   }
 
   async getHumanEvaluationResults(
-    sessionId: string
+    sessionId: string,
   ): Promise<HumanEvaluationResultSummary> {
     return this.request(`/evaluations/human/session/${sessionId}/progress`, {
       method: 'GET',
@@ -724,7 +724,7 @@ export class EvaluationsClient extends BaseApiClient {
       question: string
       case?: string
       answer?: string[]
-    }>
+    }>,
   ): Promise<{
     success: boolean
     added_count: number
@@ -749,7 +749,7 @@ export class EvaluationsClient extends BaseApiClient {
         prompt_type?: string
         context?: string
       }
-    }>
+    }>,
   ): Promise<AddPromptsResponse> {
     return this.request(`/tasks/${taskId}/add-prompts`, {
       method: 'POST',
@@ -767,7 +767,7 @@ export class EvaluationsClient extends BaseApiClient {
       answer?: string[]
       reasoning?: string
       answer_config?: any
-    }
+    },
   ): Promise<{
     success: boolean
     message: string
@@ -784,7 +784,7 @@ export class EvaluationsClient extends BaseApiClient {
   // Delete Question from Task
   async deleteTaskQuestion(
     taskId: string,
-    questionIndex: number
+    questionIndex: number,
   ): Promise<{
     success: boolean
     message: string
@@ -826,7 +826,7 @@ export class EvaluationsClient extends BaseApiClient {
   async getUserAnnotationForItem(
     userId: string,
     taskId: string,
-    itemId: string
+    itemId: string,
   ): Promise<{
     user_id: string
     user_name: string
@@ -852,7 +852,7 @@ export class EvaluationsClient extends BaseApiClient {
     message?: string
   }> {
     return this.request(
-      `/api/annotations/user/${userId}/task/${taskId}/item/${itemId}`
+      `/api/annotations/user/${userId}/task/${taskId}/item/${itemId}`,
     )
   }
 
@@ -912,7 +912,9 @@ export class EvaluationsClient extends BaseApiClient {
       `/evaluations/projects/${projectId}/tasks/${taskId}/immediate`,
       {
         method: 'POST',
-        body: JSON.stringify(annotationId ? { annotation_id: annotationId } : {}),
+        body: JSON.stringify(
+          annotationId ? { annotation_id: annotationId } : {},
+        ),
       },
     )
   }
@@ -989,11 +991,11 @@ export class EvaluationsClient extends BaseApiClient {
     }>
     batch_size?: number
     label_config_version?: string
-    force_rerun?: boolean  // If true, re-evaluate all; if false, only evaluate missing
-    task_ids?: string[]    // Filter to specific tasks (for single-cell re-evaluation)
-    model_ids?: string[]   // Filter to specific models (for single-cell re-evaluation)
-    annotator_user_ids?: string[]  // Filter annotation-side judge fan-out to specific annotators
-    structure_keys?: string[]  // Filter generation-side cells to specific prompt structures
+    force_rerun?: boolean // If true, re-evaluate all; if false, only evaluate missing
+    task_ids?: string[] // Filter to specific tasks (for single-cell re-evaluation)
+    model_ids?: string[] // Filter to specific models (for single-cell re-evaluation)
+    annotator_user_ids?: string[] // Filter annotation-side judge fan-out to specific annotators
+    structure_keys?: string[] // Filter generation-side cells to specific prompt structures
   }): Promise<{
     evaluation_id: string
     project_id: string
@@ -1029,7 +1031,9 @@ export class EvaluationsClient extends BaseApiClient {
    * Pause an in-flight evaluation run (issue #198). Cell sub-tasks skip
    * while paused; completed scores survive. Resume continues missing-only.
    */
-  async pauseEvaluationRun(evaluationId: string): Promise<EvaluationLifecycleResult> {
+  async pauseEvaluationRun(
+    evaluationId: string,
+  ): Promise<EvaluationLifecycleResult> {
     return this.request(`/evaluations/run/${evaluationId}/pause`, {
       method: 'POST',
     })
@@ -1039,7 +1043,9 @@ export class EvaluationsClient extends BaseApiClient {
    * Resume a paused (or continue a cancelled) evaluation run: same run id,
    * missing-only re-dispatch so completed cells are reused.
    */
-  async resumeEvaluationRun(evaluationId: string): Promise<EvaluationLifecycleResult> {
+  async resumeEvaluationRun(
+    evaluationId: string,
+  ): Promise<EvaluationLifecycleResult> {
     return this.request(`/evaluations/run/${evaluationId}/resume`, {
       method: 'POST',
     })
@@ -1049,7 +1055,9 @@ export class EvaluationsClient extends BaseApiClient {
    * Retry a failed evaluation run: same run id, missing-only re-dispatch,
    * increments the server-side retry counter.
    */
-  async retryEvaluationRun(evaluationId: string): Promise<EvaluationLifecycleResult> {
+  async retryEvaluationRun(
+    evaluationId: string,
+  ): Promise<EvaluationLifecycleResult> {
     return this.request(`/evaluations/run/${evaluationId}/retry`, {
       method: 'POST',
     })
@@ -1107,7 +1115,7 @@ export class EvaluationsClient extends BaseApiClient {
    */
   async getProjectEvaluationResults(
     projectId: string,
-    latestOnly: boolean = true
+    latestOnly: boolean = true,
   ): Promise<{
     project_id: string
     evaluations: Array<{
@@ -1149,7 +1157,7 @@ export class EvaluationsClient extends BaseApiClient {
   }> {
     const params = latestOnly ? '' : '?latest_only=false'
     return this.request(
-      `/evaluations/run/results/project/${projectId}${params}`
+      `/evaluations/run/results/project/${projectId}${params}`,
     )
   }
 
@@ -1158,7 +1166,10 @@ export class EvaluationsClient extends BaseApiClient {
    * Returns a matrix of scores for each task-model combination.
    * @param evaluationId - The evaluation ID to get results for
    */
-  async getResultsByTaskModel(evaluationId: string, includeHistory: boolean = false): Promise<{
+  async getResultsByTaskModel(
+    evaluationId: string,
+    includeHistory: boolean = false,
+  ): Promise<{
     evaluation_id: string
     models: string[]
     model_names: Record<string, string>
@@ -1178,7 +1189,7 @@ export class EvaluationsClient extends BaseApiClient {
   }> {
     const qs = includeHistory ? '?include_history=true' : ''
     return this.request(
-      `/evaluations/${evaluationId}/results/by-task-model${qs}`
+      `/evaluations/${evaluationId}/results/by-task-model${qs}`,
     )
   }
 
@@ -1188,7 +1199,14 @@ export class EvaluationsClient extends BaseApiClient {
    * in multiple runs, uses the LATEST result.
    * @param projectId - The project ID to get aggregated results for
    */
-  async getProjectResultsByTaskModel(projectId: string, evaluationIds?: string[], includeHistory: boolean = false, metric?: string | null, evaluationConfigId?: string | null, options?: { signal?: AbortSignal }): Promise<{
+  async getProjectResultsByTaskModel(
+    projectId: string,
+    evaluationIds?: string[],
+    includeHistory: boolean = false,
+    metric?: string | null,
+    evaluationConfigId?: string | null,
+    options?: { signal?: AbortSignal },
+  ): Promise<{
     project_id: string
     models: string[]
     model_names: Record<string, string>
@@ -1227,7 +1245,7 @@ export class EvaluationsClient extends BaseApiClient {
       `/evaluations/projects/${projectId}/results/by-task-model${qs ? '?' + qs : ''}`,
       // AbortSignal so a superseded config/metric switch cancels the old
       // request instead of leaving it occupying a DB connection (issue #280)
-      options?.signal ? { signal: options.signal } : {}
+      options?.signal ? { signal: options.signal } : {},
     )
   }
 
@@ -1238,7 +1256,7 @@ export class EvaluationsClient extends BaseApiClient {
    */
   async getEvaluatedModels(
     projectId: string,
-    includeConfigured: boolean = false
+    includeConfigured: boolean = false,
   ): Promise<
     Array<{
       model_id: string
@@ -1263,7 +1281,7 @@ export class EvaluationsClient extends BaseApiClient {
   > {
     const params = includeConfigured ? '?include_configured=true' : ''
     return this.request(
-      `/evaluations/projects/${projectId}/evaluated-models${params}`
+      `/evaluations/projects/${projectId}/evaluated-models${params}`,
     )
   }
 
@@ -1327,13 +1345,13 @@ export class EvaluationsClient extends BaseApiClient {
     params.metrics.forEach((m) => queryParams.append('metrics', m))
     if (params.evaluationConfigIds && params.evaluationConfigIds.length > 0) {
       params.evaluationConfigIds.forEach((c) =>
-        queryParams.append('evaluation_config_ids', c)
+        queryParams.append('evaluation_config_ids', c),
       )
     }
     if (params.startDate) queryParams.append('start_date', params.startDate)
     if (params.endDate) queryParams.append('end_date', params.endDate)
     return this.request(
-      `/evaluations/projects/${params.projectId}/evaluation-history?${queryParams.toString()}`
+      `/evaluations/projects/${params.projectId}/evaluation-history?${queryParams.toString()}`,
     )
   }
 
@@ -1366,11 +1384,11 @@ export class EvaluationsClient extends BaseApiClient {
     params.metrics.forEach((m) => queryParams.append('metrics', m))
     if (params.evaluationConfigIds && params.evaluationConfigIds.length > 0) {
       params.evaluationConfigIds.forEach((c) =>
-        queryParams.append('evaluation_config_ids', c)
+        queryParams.append('evaluation_config_ids', c),
       )
     }
     return this.request(
-      `/evaluations/significance/${params.projectId}?${queryParams.toString()}`
+      `/evaluations/significance/${params.projectId}?${queryParams.toString()}`,
     )
   }
 
@@ -1433,7 +1451,7 @@ export class EvaluationsClient extends BaseApiClient {
           compare_models: params.compareModels,
           evaluation_config_ids: params.evaluationConfigIds,
         }),
-      }
+      },
     )
   }
 
@@ -1502,7 +1520,7 @@ export class EvaluationsClient extends BaseApiClient {
       passed?: boolean
       page?: number
       pageSize?: number
-    }
+    },
   ): Promise<{
     items: Array<{
       id: string
@@ -1534,7 +1552,7 @@ export class EvaluationsClient extends BaseApiClient {
       queryParams.append('page_size', String(params.pageSize))
     const queryString = queryParams.toString()
     return this.request(
-      `/evaluations/${evaluationId}/samples${queryString ? `?${queryString}` : ''}`
+      `/evaluations/${evaluationId}/samples${queryString ? `?${queryString}` : ''}`,
     )
   }
 
@@ -1545,7 +1563,7 @@ export class EvaluationsClient extends BaseApiClient {
   async getMetricDistribution(
     evaluationId: string,
     metricName: string,
-    fieldName?: string
+    fieldName?: string,
   ): Promise<{
     metric_name: string
     mean: number
@@ -1558,8 +1576,7 @@ export class EvaluationsClient extends BaseApiClient {
   }> {
     const queryParams = fieldName ? `?field_name=${fieldName}` : ''
     return this.request(
-      `/evaluations/${evaluationId}/metrics/${metricName}/distribution${queryParams}`
+      `/evaluations/${evaluationId}/metrics/${metricName}/distribution${queryParams}`,
     )
   }
-
 }

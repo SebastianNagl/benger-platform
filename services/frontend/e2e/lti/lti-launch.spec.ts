@@ -21,13 +21,7 @@
  * The UI surfaces under test ship in the extended edition (slot
  * implementations), hence the @extended tag per suite convention.
  */
-import {
-  Browser,
-  BrowserContext,
-  expect,
-  Page,
-  test,
-} from '@playwright/test'
+import { Browser, BrowserContext, expect, Page, test } from '@playwright/test'
 
 import {
   APP_BASE,
@@ -46,7 +40,10 @@ import {
 test.describe.configure({ mode: 'serial' })
 
 test.describe('LTI Moodle launch flows @extended', () => {
-  test.skip(!process.env.LTI_E2E, 'needs the lti-dev Moodle harness (LTI_E2E=1)')
+  test.skip(
+    !process.env.LTI_E2E,
+    'needs the lti-dev Moodle harness (LTI_E2E=1)',
+  )
 
   // Unique per run: the Moodle activity, the exam, and the student are
   // created fresh every time, so the spec is re-runnable without cleanup.
@@ -110,7 +107,11 @@ test.describe('LTI Moodle launch flows @extended', () => {
     teacherContext = await newAppContext(browser)
     teacherPage = await teacherContext.newPage()
 
-    await moodleLogin(teacherPage, MOODLE_TEACHER.username, MOODLE_TEACHER.password)
+    await moodleLogin(
+      teacherPage,
+      MOODLE_TEACHER.username,
+      MOODLE_TEACHER.password,
+    )
     await launchActivity(teacherPage, cmid)
 
     // Unlinked activity + Instructor role → the link picker host route.
@@ -119,7 +120,7 @@ test.describe('LTI Moodle launch flows @extended', () => {
     // German picker UI, titled after the Moodle activity; the submit stays
     // disabled while nothing is selected.
     await expect(
-      teacherPage.getByRole('heading', { name: activityName })
+      teacherPage.getByRole('heading', { name: activityName }),
     ).toBeVisible({ timeout: 20_000 })
     await expect(teacherPage.getByText('Wähle die Klausur')).toBeVisible()
     await expect(teacherPage.getByTestId('lti-link-submit')).toBeDisabled()
@@ -134,7 +135,7 @@ test.describe('LTI Moodle launch flows @extended', () => {
           angabe: 'E2E-Sachverhalt: A verkauft B ein Fahrrad.',
           musterloesung: 'E2E-Musterlösung: Anspruch aus § 433 II BGB besteht.',
         },
-      }
+      },
     )
     expect(created.status(), await created.text()).toBe(201)
     examId = (await created.json()).project_id
@@ -157,7 +158,7 @@ test.describe('LTI Moodle launch flows @extended', () => {
       timeout: 30_000,
     })
     await expect(
-      teacherPage.getByRole('heading', { name: examTitle })
+      teacherPage.getByRole('heading', { name: examTitle }),
     ).toBeVisible({ timeout: 20_000 })
   })
 
@@ -174,7 +175,7 @@ test.describe('LTI Moodle launch flows @extended', () => {
     // Linked activity + first-time student → the consent gate.
     await expect(studentPage).toHaveURL(/\/lti\/consent\?rl=[0-9a-f-]+/)
     await expect(
-      studentPage.getByRole('heading', { name: examTitle })
+      studentPage.getByRole('heading', { name: examTitle }),
     ).toBeVisible({ timeout: 20_000 })
 
     const gdpr = studentPage.getByTestId('lti-gdpr-consent')
@@ -200,7 +201,7 @@ test.describe('LTI Moodle launch flows @extended', () => {
       timeout: 30_000,
     })
     await expect(
-      studentPage.getByRole('heading', { name: examTitle })
+      studentPage.getByRole('heading', { name: examTitle }),
     ).toBeVisible({ timeout: 20_000 })
   })
 
@@ -211,16 +212,16 @@ test.describe('LTI Moodle launch flows @extended', () => {
     // two-tabs guard's expected-user parameter.
     await studentPage.waitForURL(
       new RegExp(`/student/exams/${examId}\\?.*lti_u=`),
-      { timeout: 30_000 }
+      { timeout: 30_000 },
     )
     const landing = new URL(studentPage.url())
     expect(landing.pathname).toBe(`/student/exams/${examId}`)
     expect(landing.searchParams.get('lti_u')).toBe(
-      await currentUserId(studentPage)
+      await currentUserId(studentPage),
     )
 
     await expect(
-      studentPage.getByRole('heading', { name: examTitle })
+      studentPage.getByRole('heading', { name: examTitle }),
     ).toBeVisible({ timeout: 20_000 })
     await expect(studentPage.getByTestId('lti-session-mismatch')).toHaveCount(0)
   })
@@ -231,7 +232,7 @@ test.describe('LTI Moodle launch flows @extended', () => {
     // Wrong expected user (someone else's launch URL) → hard-block overlay.
     await gotoWithRetry(
       studentPage,
-      `${APP_BASE}/student/exams/${examId}?lti_u=e2e-someone-else`
+      `${APP_BASE}/student/exams/${examId}?lti_u=e2e-someone-else`,
     )
     const overlay = studentPage.getByTestId('lti-session-mismatch')
     await expect(overlay).toBeVisible({ timeout: 20_000 })
@@ -241,10 +242,10 @@ test.describe('LTI Moodle launch flows @extended', () => {
     // Matching expected user → no overlay, exam usable.
     await gotoWithRetry(
       studentPage,
-      `${APP_BASE}/student/exams/${examId}?lti_u=${userId}`
+      `${APP_BASE}/student/exams/${examId}?lti_u=${userId}`,
     )
     await expect(
-      studentPage.getByRole('heading', { name: examTitle })
+      studentPage.getByRole('heading', { name: examTitle }),
     ).toBeVisible({ timeout: 20_000 })
     await expect(studentPage.getByTestId('lti-session-mismatch')).toHaveCount(0)
   })
@@ -259,14 +260,16 @@ test.describe('LTI Moodle launch flows @extended', () => {
     await expect(
       studentPage.getByRole('heading', {
         name: 'Start aus Moodle fehlgeschlagen',
-      })
+      }),
     ).toBeVisible({ timeout: 20_000 })
     await expect(
       studentPage.getByText(
-        'Diese Aktivität ist noch keiner Klausur zugeordnet.'
-      )
+        'Diese Aktivität ist noch keiner Klausur zugeordnet.',
+      ),
     ).toBeVisible()
     await expect(studentPage.getByText('Fehlercode')).toBeVisible()
-    await expect(studentPage.getByText('not_linked', { exact: true })).toBeVisible()
+    await expect(
+      studentPage.getByText('not_linked', { exact: true }),
+    ).toBeVisible()
   })
 })

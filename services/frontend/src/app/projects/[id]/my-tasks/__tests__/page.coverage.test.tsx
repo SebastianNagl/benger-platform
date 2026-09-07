@@ -64,8 +64,10 @@ jest.mock('@/components/shared', () => {
   return {
     HeroPattern: () => React.createElement('div'),
     GridPattern: () => React.createElement('div'),
-    Button: ({ children, ...props }: any) => React.createElement('button', props, children),
-    ResponsiveContainer: ({ children }: any) => React.createElement('div', null, children),
+    Button: ({ children, ...props }: any) =>
+      React.createElement('button', props, children),
+    ResponsiveContainer: ({ children }: any) =>
+      React.createElement('div', null, children),
     LoadingSpinner: () => React.createElement('div', null, 'Loading...'),
     EmptyState: ({ message }: any) => React.createElement('div', null, message),
     Spinner: () => React.createElement('div', null, 'Loading...'),
@@ -121,7 +123,7 @@ describe('MyTasksPage - branch coverage', () => {
         if (vars) {
           return Object.entries(vars).reduce(
             (acc, [k, v]) => acc.replace(`{${k}}`, String(v)),
-            translation
+            translation,
           )
         }
         return translation
@@ -247,7 +249,9 @@ describe('MyTasksPage - branch coverage', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Task #2')).toBeInTheDocument()
-      expect(screen.getAllByText('In Progress').length).toBeGreaterThanOrEqual(1)
+      expect(screen.getAllByText('In Progress').length).toBeGreaterThanOrEqual(
+        1,
+      )
     })
   })
 
@@ -427,7 +431,16 @@ describe('MyTasksPage - branch coverage', () => {
       ok: true,
       json: () =>
         Promise.resolve({
-          tasks: [{ id: '1', assignment: { status: 'assigned', priority: 0, assigned_at: '2024-01-01T10:00:00Z' } }],
+          tasks: [
+            {
+              id: '1',
+              assignment: {
+                status: 'assigned',
+                priority: 0,
+                assigned_at: '2024-01-01T10:00:00Z',
+              },
+            },
+          ],
           total: 40,
           page: 1,
           page_size: 20,
@@ -466,7 +479,9 @@ describe('MyTasksPage - branch coverage', () => {
       expect(screen.getByText('Task #task-99')).toBeInTheDocument()
     })
 
-    const card = screen.getByText('Task #task-99').closest('[class*="cursor-pointer"]')
+    const card = screen
+      .getByText('Task #task-99')
+      .closest('[class*="cursor-pointer"]')
     await user.click(card!)
 
     expect(setItemSpy).toHaveBeenCalledWith('benger_task_id_proj-1', 'task-99')

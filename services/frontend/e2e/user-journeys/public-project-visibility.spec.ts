@@ -58,7 +58,7 @@ test.describe('Public project visibility', () => {
       const annPage = await annContext.newPage()
       // Block dev auto-login (admin) so the annotator login below sticks.
       await annPage.addInitScript(() =>
-        sessionStorage.setItem('e2e_test_mode', 'true')
+        sessionStorage.setItem('e2e_test_mode', 'true'),
       )
       const annHelpers = new TestHelpers(annPage)
       await annHelpers.login('annotator', 'admin')

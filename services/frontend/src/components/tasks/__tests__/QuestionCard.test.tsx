@@ -37,11 +37,13 @@ jest.mock('@/contexts/I18nContext', () => ({
         'tasks.questionCard.correct': '✓ Correct',
         'tasks.questionCard.placeholderCase': 'Enter case details...',
         'tasks.questionCard.placeholderQuestion': 'Enter your question here...',
-        'tasks.questionCard.placeholderExpectedAnswer': 'Enter the expected answer...',
+        'tasks.questionCard.placeholderExpectedAnswer':
+          'Enter the expected answer...',
         'tasks.questionCard.placeholderMcq': 'Enter your question here...',
         'tasks.questionCard.placeholderContext': 'Enter context...',
         'tasks.questionCard.placeholderLegalCase': 'Enter case details...',
-        'tasks.questionCard.placeholderLegalQuestion': 'Enter your question here...',
+        'tasks.questionCard.placeholderLegalQuestion':
+          'Enter your question here...',
         'tasks.questionCard.placeholderLegalAnswer': 'Enter expected answer...',
         'tasks.questionCard.placeholderReasoning': 'Enter reasoning...',
         'tasks.questionCard.selectCorrectTooltip': 'Select the correct answer',
@@ -116,16 +118,16 @@ describe('QuestionCard', () => {
           taskType="qa"
           onUpdate={mockOnUpdate}
           onDelete={mockOnDelete}
-        />
+        />,
       )
 
       expect(screen.getByText('Question 1')).toBeInTheDocument()
       expect(screen.getByDisplayValue('What is the law?')).toBeInTheDocument()
       expect(
-        screen.getByDisplayValue('The law is a system of rules.')
+        screen.getByDisplayValue('The law is a system of rules.'),
       ).toBeInTheDocument()
       expect(
-        screen.getByDisplayValue('This is a legal case')
+        screen.getByDisplayValue('This is a legal case'),
       ).toBeInTheDocument()
     })
 
@@ -137,7 +139,7 @@ describe('QuestionCard', () => {
           taskType="qa"
           onUpdate={mockOnUpdate}
           onDelete={mockOnDelete}
-        />
+        />,
       )
 
       const questionInput = screen.getByDisplayValue('What is the law?')
@@ -158,7 +160,7 @@ describe('QuestionCard', () => {
           taskType="qa"
           onUpdate={mockOnUpdate}
           onDelete={mockOnDelete}
-        />
+        />,
       )
 
       // Make a change
@@ -184,7 +186,7 @@ describe('QuestionCard', () => {
           taskType="qa"
           onUpdate={mockOnUpdate}
           onDelete={mockOnDelete}
-        />
+        />,
       )
 
       const deleteButton = screen.getByText('Delete')
@@ -201,7 +203,7 @@ describe('QuestionCard', () => {
           taskType="qa"
           onUpdate={mockOnUpdate}
           onDelete={mockOnDelete}
-        />
+        />,
       )
 
       // Start in edit mode, save to switch to view mode
@@ -232,7 +234,7 @@ describe('QuestionCard', () => {
           taskType="multiple_choice"
           onUpdate={mockOnUpdate}
           onDelete={mockOnDelete}
-        />
+        />,
       )
 
       expect(screen.getByText('MCQ 2')).toBeInTheDocument()
@@ -251,7 +253,7 @@ describe('QuestionCard', () => {
           taskType="multiple_choice"
           onUpdate={mockOnUpdate}
           onDelete={mockOnDelete}
-        />
+        />,
       )
 
       const optionBRadio = screen.getByLabelText('B')
@@ -271,7 +273,7 @@ describe('QuestionCard', () => {
           taskType="multiple_choice"
           onUpdate={mockOnUpdate}
           onDelete={mockOnDelete}
-        />
+        />,
       )
 
       const choiceAInput = screen.getByDisplayValue('Option A')
@@ -292,7 +294,7 @@ describe('QuestionCard', () => {
           taskType="multiple_choice"
           onUpdate={mockOnUpdate}
           onDelete={mockOnDelete}
-        />
+        />,
       )
 
       // Save to switch to view mode
@@ -311,16 +313,16 @@ describe('QuestionCard', () => {
           taskType="qa_reasoning"
           onUpdate={mockOnUpdate}
           onDelete={mockOnDelete}
-        />
+        />,
       )
 
       expect(screen.getByText('Question 3')).toBeInTheDocument()
       expect(
-        screen.getByDisplayValue('Analyze this legal issue')
+        screen.getByDisplayValue('Analyze this legal issue'),
       ).toBeInTheDocument()
       expect(screen.getByDisplayValue('Detailed analysis')).toBeInTheDocument()
       expect(
-        screen.getByDisplayValue('Legal reasoning here')
+        screen.getByDisplayValue('Legal reasoning here'),
       ).toBeInTheDocument()
     })
 
@@ -334,7 +336,7 @@ describe('QuestionCard', () => {
           onDelete={mockOnDelete}
           isExpanded={false}
           onToggleExpanded={mockOnToggleExpanded}
-        />
+        />,
       )
 
       // Save to get to view mode
@@ -362,7 +364,7 @@ describe('QuestionCard', () => {
           onDelete={mockOnDelete}
           isExpanded={false}
           onToggleExpanded={mockOnToggleExpanded}
-        />
+        />,
       )
 
       // Save to view mode
@@ -386,7 +388,7 @@ describe('QuestionCard', () => {
           onDelete={mockOnDelete}
           isExpanded={true}
           onToggleExpanded={mockOnToggleExpanded}
-        />
+        />,
       )
 
       // Save to view mode
@@ -410,7 +412,7 @@ describe('QuestionCard', () => {
           taskType="qa_reasoning"
           onUpdate={mockOnUpdate}
           onDelete={mockOnDelete}
-        />
+        />,
       )
 
       const reasoningInput = screen.getByDisplayValue('Legal reasoning here')
@@ -433,7 +435,7 @@ describe('QuestionCard', () => {
           taskType="qa"
           onUpdate={mockOnUpdate}
           onDelete={mockOnDelete}
-        />
+        />,
       )
 
       // Make a change
@@ -464,14 +466,14 @@ describe('QuestionCard', () => {
           taskType="qa"
           onUpdate={mockOnUpdate}
           onDelete={mockOnDelete}
-        />
+        />,
       )
 
       expect(
-        screen.getByPlaceholderText('Enter your question here...')
+        screen.getByPlaceholderText('Enter your question here...'),
       ).toBeInTheDocument()
       expect(
-        screen.getByPlaceholderText('Enter the expected answer...')
+        screen.getByPlaceholderText('Enter the expected answer...'),
       ).toBeInTheDocument()
     })
 
@@ -482,7 +484,7 @@ describe('QuestionCard', () => {
           taskType="qa"
           onUpdate={mockOnUpdate}
           onDelete={mockOnDelete}
-        />
+        />,
       )
 
       // QA should have blue theme
@@ -494,7 +496,7 @@ describe('QuestionCard', () => {
           taskType="multiple_choice"
           onUpdate={mockOnUpdate}
           onDelete={mockOnDelete}
-        />
+        />,
       )
 
       // MC should have orange theme
@@ -506,7 +508,7 @@ describe('QuestionCard', () => {
           taskType="qa_reasoning"
           onUpdate={mockOnUpdate}
           onDelete={mockOnDelete}
-        />
+        />,
       )
 
       // QAR should have emerald theme
@@ -521,7 +523,7 @@ describe('QuestionCard', () => {
           taskType="qa"
           onUpdate={mockOnUpdate}
           onDelete={mockOnDelete}
-        />
+        />,
       )
 
       const caseInput = screen.getByDisplayValue('This is a legal case')
@@ -543,7 +545,7 @@ describe('QuestionCard', () => {
           taskType="qa"
           onUpdate={mockOnUpdate}
           onDelete={mockOnDelete}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Save'))
@@ -562,7 +564,7 @@ describe('QuestionCard', () => {
           taskType="qa"
           onUpdate={mockOnUpdate}
           onDelete={mockOnDelete}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Save'))
@@ -581,7 +583,7 @@ describe('QuestionCard', () => {
           taskType="qa"
           onUpdate={mockOnUpdate}
           onDelete={mockOnDelete}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Save'))
@@ -599,14 +601,14 @@ describe('QuestionCard', () => {
           taskType="qa"
           onUpdate={mockOnUpdate}
           onDelete={mockOnDelete}
-        />
+        />,
       )
 
       const questionInput = screen.getByDisplayValue('What is the law?')
       await user.type(questionInput, ' updated')
 
       const answerInput = screen.getByDisplayValue(
-        'The law is a system of rules.'
+        'The law is a system of rules.',
       )
       await user.type(answerInput, ' updated')
 
@@ -627,7 +629,7 @@ describe('QuestionCard', () => {
           taskType="qa"
           onUpdate={mockOnUpdate}
           onDelete={mockOnDelete}
-        />
+        />,
       )
 
       const questionInput = screen.getByDisplayValue('What is the law?')
@@ -637,7 +639,7 @@ describe('QuestionCard', () => {
         expect.objectContaining({
           model_responses: withResponses.model_responses,
           human_responses: withResponses.human_responses,
-        })
+        }),
       )
     })
 
@@ -656,7 +658,7 @@ describe('QuestionCard', () => {
           taskType="multiple_choice"
           onUpdate={mockOnUpdate}
           onDelete={mockOnDelete}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Save'))
@@ -674,7 +676,7 @@ describe('QuestionCard', () => {
           taskType="multiple_choice"
           onUpdate={mockOnUpdate}
           onDelete={mockOnDelete}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Save'))
@@ -692,7 +694,7 @@ describe('QuestionCard', () => {
           taskType="multiple_choice"
           onUpdate={mockOnUpdate}
           onDelete={mockOnDelete}
-        />
+        />,
       )
 
       const contextInput = screen.getByDisplayValue('Context for the question')
@@ -714,7 +716,7 @@ describe('QuestionCard', () => {
           taskType="multiple_choice"
           onUpdate={mockOnUpdate}
           onDelete={mockOnDelete}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Save'))
@@ -732,7 +734,7 @@ describe('QuestionCard', () => {
           taskType="multiple_choice"
           onUpdate={mockOnUpdate}
           onDelete={mockOnDelete}
-        />
+        />,
       )
 
       await user.click(screen.getByLabelText('C'))
@@ -755,7 +757,7 @@ describe('QuestionCard', () => {
           taskType="multiple_choice"
           onUpdate={mockOnUpdate}
           onDelete={mockOnDelete}
-        />
+        />,
       )
 
       const helpIcon = document.querySelector('svg[stroke="currentColor"]')
@@ -770,7 +772,7 @@ describe('QuestionCard', () => {
           taskType="qa_reasoning"
           onUpdate={mockOnUpdate}
           onDelete={mockOnDelete}
-        />
+        />,
       )
 
       const caseInput = screen.getByDisplayValue('Legal case background')
@@ -799,7 +801,7 @@ describe('QuestionCard', () => {
           onDelete={mockOnDelete}
           isExpanded={false}
           onToggleExpanded={mockOnToggleExpanded}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Save'))
@@ -821,7 +823,7 @@ describe('QuestionCard', () => {
           onDelete={mockOnDelete}
           isExpanded={true}
           onToggleExpanded={mockOnToggleExpanded}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Save'))
@@ -838,7 +840,7 @@ describe('QuestionCard', () => {
           taskType="qa_reasoning"
           onUpdate={mockOnUpdate}
           onDelete={mockOnDelete}
-        />
+        />,
       )
 
       // Check for either the full text or part of it
@@ -859,7 +861,7 @@ describe('QuestionCard', () => {
           onDelete={mockOnDelete}
           isExpanded={false}
           onToggleExpanded={mockOnToggleExpanded}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Save'))
@@ -880,7 +882,7 @@ describe('QuestionCard', () => {
           onDelete={mockOnDelete}
           isExpanded={false}
           onToggleExpanded={mockOnToggleExpanded}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Save'))
@@ -906,7 +908,7 @@ describe('QuestionCard', () => {
           onDelete={mockOnDelete}
           isExpanded={true}
           onToggleExpanded={mockOnToggleExpanded}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Save'))
@@ -934,7 +936,7 @@ describe('QuestionCard', () => {
           taskType="qa"
           onUpdate={mockOnUpdate}
           onDelete={mockOnDelete}
-        />
+        />,
       )
 
       const questionInput = screen.getByDisplayValue('What is the law?')
@@ -943,7 +945,7 @@ describe('QuestionCard', () => {
       expect(mockOnUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
           answer_config: withConfig.answer_config,
-        })
+        }),
       )
     })
 
@@ -956,7 +958,7 @@ describe('QuestionCard', () => {
           taskType="multiple_choice"
           onUpdate={mockOnUpdate}
           onDelete={mockOnDelete}
-        />
+        />,
       )
 
       const questionInput = screen.getByDisplayValue('Which is correct?')
@@ -965,7 +967,7 @@ describe('QuestionCard', () => {
       expect(mockOnUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
           fall: 'fall-value',
-        })
+        }),
       )
     })
 
@@ -978,7 +980,7 @@ describe('QuestionCard', () => {
           taskType="qa"
           onUpdate={mockOnUpdate}
           onDelete={mockOnDelete}
-        />
+        />,
       )
 
       const questionInput = screen.getByDisplayValue('What is the law?')
@@ -987,7 +989,7 @@ describe('QuestionCard', () => {
       expect(mockOnUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
           binary_solution: 'yes',
-        })
+        }),
       )
     })
 
@@ -999,7 +1001,7 @@ describe('QuestionCard', () => {
           taskType="qa"
           onUpdate={mockOnUpdate}
           onDelete={mockOnDelete}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Save'))
@@ -1007,7 +1009,9 @@ describe('QuestionCard', () => {
 
       await user.click(screen.getByText('Edit'))
       await waitFor(() =>
-        expect(screen.getByDisplayValue('What is the law?')).toBeInTheDocument()
+        expect(
+          screen.getByDisplayValue('What is the law?'),
+        ).toBeInTheDocument(),
       )
 
       await user.click(screen.getByText('Save'))
@@ -1023,7 +1027,7 @@ describe('QuestionCard', () => {
           onUpdate={mockOnUpdate}
           onDelete={mockOnDelete}
           isExpanded={false}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Save'))
@@ -1044,11 +1048,11 @@ describe('QuestionCard', () => {
           taskType="qa"
           onUpdate={mockOnUpdate}
           onDelete={mockOnDelete}
-        />
+        />,
       )
 
       const answerInput = screen.getByDisplayValue(
-        'The law is a system of rules.'
+        'The law is a system of rules.',
       )
       await user.clear(answerInput)
 
@@ -1066,7 +1070,7 @@ describe('QuestionCard', () => {
           taskType="qa"
           onUpdate={mockOnUpdate}
           onDelete={mockOnDelete}
-        />
+        />,
       )
 
       // Component should still render even with undefined id
@@ -1082,7 +1086,7 @@ describe('QuestionCard', () => {
           taskType="multiple_choice"
           onUpdate={mockOnUpdate}
           onDelete={mockOnDelete}
-        />
+        />,
       )
 
       const radios = screen.getAllByRole('radio')
@@ -1097,7 +1101,7 @@ describe('QuestionCard', () => {
           taskType="qa"
           onUpdate={mockOnUpdate}
           onDelete={mockOnDelete}
-        />
+        />,
       )
 
       const questionInput = screen.getByDisplayValue('What is the law?')

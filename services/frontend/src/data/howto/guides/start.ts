@@ -4,7 +4,10 @@ export const START_GUIDES: HowToGuide[] = [
   {
     id: 'what-is-benger',
     category: 'start',
-    title: { de: 'Was ist BenGER, was ist Vertretbar?', en: 'What is BenGER, what is Vertretbar?' },
+    title: {
+      de: 'Was ist BenGER, was ist Vertretbar?',
+      en: 'What is BenGER, what is Vertretbar?',
+    },
     summary: {
       de: '**BenGER** (what-a-benger.net) ist die Expertenplattform: Projekte anlegen, Daten hochladen, annotieren lassen, Antworten mit KI-Modellen generieren und auswerten. **Vertretbar** (vertretbar.net) ist die Plattform für Studierende: Klausuren im Gutachtenstil üben, in Sekunden eine KI-Korrektur mit Notenpunkten bekommen, mit Karteikarten lernen. Beide sind Oberflächen desselben Systems, mit derselben Datenbank und demselben Konto.',
       en: '**BenGER** (what-a-benger.net) is the expert platform: create projects, upload data, have them annotated, generate answers with AI models and evaluate. **Vertretbar** (vertretbar.net) is the platform for students: practise exams in the legal expert style, get an AI grading in seconds with grade points, learn with flashcards. Both are interfaces of the same system, with the same database and the same account.',
@@ -33,13 +36,42 @@ export const START_GUIDES: HowToGuide[] = [
         'The open-source community edition of BenGER contains only the expert platform. Vertretbar is part of the extended edition.',
       ],
     },
-    links: [{ label: { de: 'Klausur für Studierende freigeben', en: 'Sharing an exam with students' }, href: '/how-to#share-with-students' }],
-    keywords: { de: ['Vertretbar', 'Lernbereich', 'Studierendenansicht', 'Expertenansicht', 'Unterschied', 'Ansicht wechseln', 'vertretbar.net', 'what-a-benger.net'], en: ['Vertretbar', 'student platform', 'expert platform', 'difference', 'switch view'] },
+    links: [
+      {
+        label: {
+          de: 'Klausur für Studierende freigeben',
+          en: 'Sharing an exam with students',
+        },
+        href: '/how-to#share-with-students',
+      },
+    ],
+    keywords: {
+      de: [
+        'Vertretbar',
+        'Lernbereich',
+        'Studierendenansicht',
+        'Expertenansicht',
+        'Unterschied',
+        'Ansicht wechseln',
+        'vertretbar.net',
+        'what-a-benger.net',
+      ],
+      en: [
+        'Vertretbar',
+        'student platform',
+        'expert platform',
+        'difference',
+        'switch view',
+      ],
+    },
   },
   {
     id: 'first-steps',
     category: 'start',
-    title: { de: 'Was richte ich als Erstes ein?', en: 'What should I set up first?' },
+    title: {
+      de: 'Was richte ich als Erstes ein?',
+      en: 'What should I set up first?',
+    },
     summary: {
       de: 'In dieser Reihenfolge: in die richtige Organisation wechseln, einen API-Schlüssel klären (eigener oder Organisation), ein Projekt anlegen, Daten hochladen, dann annotieren, generieren und auswerten.',
       en: 'In this order: switch to the right organization, sort out an API key (your own or the organization’s), create a project, upload data, then annotate, generate and evaluate.',
@@ -62,12 +94,18 @@ export const START_GUIDES: HowToGuide[] = [
         '**Results**: [Evaluation](/evaluations), [Reports](/reports) and [Leaderboards](/leaderboards).',
       ],
     },
-    keywords: { de: ['Einstieg', 'Start', 'Checkliste', 'Anfang', 'los'], en: ['getting started', 'checklist', 'onboarding'] },
+    keywords: {
+      de: ['Einstieg', 'Start', 'Checkliste', 'Anfang', 'los'],
+      en: ['getting started', 'checklist', 'onboarding'],
+    },
   },
   {
     id: 'navigation-overview',
     category: 'start',
-    title: { de: 'Wo finde ich was in der Navigation?', en: 'Where do I find what in the navigation?' },
+    title: {
+      de: 'Wo finde ich was in der Navigation?',
+      en: 'Where do I find what in the navigation?',
+    },
     summary: {
       de: 'Die Seitenleiste hat drei Gruppen. **Schnellstart**: Dashboard, Berichte, Lernstatistik, Bestenlisten. **Projekte & Daten**: Projekte, Datenverwaltung, Generierung, Evaluation. **Wissen**: Anleitungen, Modelle, Architektur. Alles Persönliche liegt oben rechts im Kontomenü.',
       en: 'The sidebar has three groups. **Quick start**: dashboard, reports, learning statistics, leaderboards. **Projects & data**: projects, data management, generation, evaluation. **Knowledge**: guides, models, architecture. Everything personal sits top right in the account menu.',
@@ -86,6 +124,16 @@ export const START_GUIDES: HowToGuide[] = [
         '**Models** is the model catalog with prices and the place to register your own models.',
       ],
     },
-    keywords: { de: ['Navigation', 'Menü', 'Seitenleiste', 'Kontomenü', 'Suche', 'wo finde ich'], en: ['navigation', 'menu', 'sidebar', 'account menu', 'search', 'where'] },
+    keywords: {
+      de: [
+        'Navigation',
+        'Menü',
+        'Seitenleiste',
+        'Kontomenü',
+        'Suche',
+        'wo finde ich',
+      ],
+      en: ['navigation', 'menu', 'sidebar', 'account menu', 'search', 'where'],
+    },
   },
 ]

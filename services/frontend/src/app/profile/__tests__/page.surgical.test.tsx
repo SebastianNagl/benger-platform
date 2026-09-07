@@ -21,11 +21,11 @@
 
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
-import { render, screen, waitFor, fireEvent, act } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
 import { mockToast as __mockToast } from '@/test-utils/setupTests'
-const toast = { success: __mockToast.success, error: __mockToast.error }
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import ProfilePage from '../page'
+const toast = { success: __mockToast.success, error: __mockToast.error }
 
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(() => ({ push: jest.fn(), replace: jest.fn() })),
@@ -180,7 +180,8 @@ const mockT = (key: string) => {
     'profile.profileConfirmed': 'Profile confirmed',
     'profile.confirmFailed': 'Confirmation failed',
     'profile.mandatoryIncomplete': 'Mandatory profile incomplete',
-    'profile.mandatoryIncompleteDescription': 'Please complete mandatory fields',
+    'profile.mandatoryIncompleteDescription':
+      'Please complete mandatory fields',
     'profile.profileHistory': 'Profile History',
     'profile.hideProfileHistory': 'Hide history',
     'profile.showProfileHistory': 'Show history',
@@ -279,7 +280,9 @@ function setupMocks(overrides: any = {}) {
     missing_fields: [],
     ...overrides.mandatoryStatus,
   })
-  mockApiClient.getProfileHistory.mockResolvedValue(overrides.profileHistory || [])
+  mockApiClient.getProfileHistory.mockResolvedValue(
+    overrides.profileHistory || [],
+  )
   mockApiClient.confirmProfile.mockResolvedValue({})
   ;(useAuth as jest.Mock).mockReturnValue({
     user: { id: 'user-123', username: 'testuser' },
@@ -357,7 +360,11 @@ describe('ProfilePage - Surgical Coverage', () => {
       setupMocks({
         profileOverrides: { is_superadmin: true },
         profileHistory: [
-          { id: 'h1', changed_at: '2025-06-01T10:00:00Z', changed_fields: ['name'] },
+          {
+            id: 'h1',
+            changed_at: '2025-06-01T10:00:00Z',
+            changed_fields: ['name'],
+          },
         ],
       })
       await renderAndWaitFake()
@@ -385,7 +392,13 @@ describe('ProfilePage - Surgical Coverage', () => {
         profileOverrides: {
           ati_s_scores: { item1: 3, item2: 4, item3: 5, item4: 3 },
           ptt_a_scores: { item1: 2, item2: 3, item3: 4 },
-          ki_experience_scores: { item1: 5, item2: 4, item3: 3, item4: 2, item5: 1 },
+          ki_experience_scores: {
+            item1: 5,
+            item2: 4,
+            item3: 3,
+            item4: 2,
+            item5: 1,
+          },
         },
       })
       await renderAndWaitFake()
@@ -396,7 +409,11 @@ describe('ProfilePage - Surgical Coverage', () => {
   // Lines 449, 451: handleProfileSubmit flow
   describe('profile form submission (lines 449, 451)', () => {
     it('submits profile and updates form from response', async () => {
-      const updatedProfile = makeProfile({ name: 'Updated User', use_pseudonym: false, job: 'Lawyer' })
+      const updatedProfile = makeProfile({
+        name: 'Updated User',
+        use_pseudonym: false,
+        job: 'Lawyer',
+      })
       const mockUpdateUser = jest.fn()
       setupMocks({ updateUser: mockUpdateUser })
       mockApiClient.updateProfile.mockResolvedValue(updatedProfile)
@@ -460,7 +477,9 @@ describe('ProfilePage - Surgical Coverage', () => {
       await renderAndWaitFake()
 
       // Legal section should be expanded. Find grade input.
-      const gradeInput = screen.getByLabelText('Zwischenpruefung') as HTMLInputElement
+      const gradeInput = screen.getByLabelText(
+        'Zwischenpruefung',
+      ) as HTMLInputElement
 
       // Type a valid number with comma (line 162)
       fireEvent.change(gradeInput, { target: { value: '12,5' } })
@@ -532,7 +551,7 @@ describe('ProfilePage - Surgical Coverage', () => {
 
       // The code at line 287-288 logs the pollution prevention error
       expect(errorSpy).toHaveBeenCalledWith(
-        expect.stringContaining('[POLLUTION PREVENTION v2]')
+        expect.stringContaining('[POLLUTION PREVENTION v2]'),
       )
 
       errorSpy.mockRestore()

@@ -15,34 +15,43 @@ jest.mock('@/contexts/I18nContext', () => ({
     t: (key: string) => {
       const translations: Record<string, string> = {
         'errors.states.noApiKeys.title': 'No API Keys Configured',
-        'errors.states.noApiKeys.message': 'You need to configure at least one API key to access LLM models.',
+        'errors.states.noApiKeys.message':
+          'You need to configure at least one API key to access LLM models.',
         'errors.states.noApiKeys.configureKeys': 'Configure API Keys',
         'errors.states.noApiKeys.supportedProviders': 'Supported providers:',
         'errors.states.authFailed.title': 'Authentication Failed',
-        'errors.states.authFailed.message': 'Your session has expired. Please log in again to continue.',
+        'errors.states.authFailed.message':
+          'Your session has expired. Please log in again to continue.',
         'errors.states.authFailed.refreshPage': 'Refresh Page',
         'errors.states.serverError.title': 'Server Error',
-        'errors.states.serverError.defaultMessage': 'The server encountered an error. This might be temporary.',
+        'errors.states.serverError.defaultMessage':
+          'The server encountered an error. This might be temporary.',
         'errors.states.serverError.tryAgain': 'Try Again',
         'errors.states.networkError.title': 'Connection Error',
-        'errors.states.networkError.message': 'Unable to connect to the server. Please check your internet connection and try again.',
+        'errors.states.networkError.message':
+          'Unable to connect to the server. Please check your internet connection and try again.',
         'errors.states.networkError.retryConnection': 'Retry Connection',
         'errors.states.taskNotFound.title': 'Task Not Found',
-        'errors.states.taskNotFound.defaultMessage': 'The requested task does not exist or has been deleted.',
+        'errors.states.taskNotFound.defaultMessage':
+          'The requested task does not exist or has been deleted.',
         'errors.states.taskNotFound.backToProjects': 'Back to Projects',
         'errors.states.accessDenied.title': 'Access Denied',
-        'errors.states.accessDenied.defaultMessage': 'You do not have permission to access this task.',
+        'errors.states.accessDenied.defaultMessage':
+          'You do not have permission to access this task.',
         'errors.states.accessDenied.backToProjects': 'Back to Projects',
         'errors.states.configError.title': 'Configuration Error',
-        'errors.states.configError.defaultMessage': 'There was an error with the task configuration.',
+        'errors.states.configError.defaultMessage':
+          'There was an error with the task configuration.',
         'errors.states.configError.tryAgain': 'Try Again',
         'errors.states.default.title': 'Something went wrong',
         'errors.states.default.defaultMessage': 'An unexpected error occurred.',
         'errors.states.default.tryAgain': 'Try Again',
         'errors.states.authenticationError.message': 'Authentication failed',
-        'errors.states.authenticationError.details': 'Your session has expired. Please log in again to continue.',
+        'errors.states.authenticationError.details':
+          'Your session has expired. Please log in again to continue.',
         'errors.states.serverErrorWithRetry.message': 'Server error',
-        'errors.states.serverErrorWithRetry.defaultDetails': 'The server encountered an error. Please try again.',
+        'errors.states.serverErrorWithRetry.defaultDetails':
+          'The server encountered an error. Please try again.',
       }
       return translations[key] || key
     },
@@ -132,8 +141,8 @@ describe('ErrorState Component', () => {
         expect(screen.getByText('No API Keys Configured')).toBeInTheDocument()
         expect(
           screen.getByText(
-            /You need to configure at least one API key to access LLM models/
-          )
+            /You need to configure at least one API key to access LLM models/,
+          ),
         ).toBeInTheDocument()
       })
 
@@ -178,7 +187,7 @@ describe('ErrorState Component', () => {
         render(<ErrorState error={error} />)
         expect(screen.getByText('Authentication Failed')).toBeInTheDocument()
         expect(
-          screen.getByText(/Your session has expired. Please log in again/)
+          screen.getByText(/Your session has expired. Please log in again/),
         ).toBeInTheDocument()
       })
 
@@ -228,8 +237,8 @@ describe('ErrorState Component', () => {
         render(<ErrorState error={error} />)
         expect(
           screen.getByText(
-            'The server encountered an error. This might be temporary.'
-          )
+            'The server encountered an error. This might be temporary.',
+          ),
         ).toBeInTheDocument()
       })
 
@@ -241,7 +250,7 @@ describe('ErrorState Component', () => {
         }
         render(<ErrorState error={error} />)
         expect(
-          screen.getByText('Custom server error details')
+          screen.getByText('Custom server error details'),
         ).toBeInTheDocument()
       })
 
@@ -275,8 +284,8 @@ describe('ErrorState Component', () => {
         expect(screen.getByText('Connection Error')).toBeInTheDocument()
         expect(
           screen.getByText(
-            /Unable to connect to the server. Please check your internet/
-          )
+            /Unable to connect to the server. Please check your internet/,
+          ),
         ).toBeInTheDocument()
       })
 
@@ -318,8 +327,8 @@ describe('ErrorState Component', () => {
         render(<ErrorState error={error} />)
         expect(
           screen.getByText(
-            'The requested task does not exist or has been deleted.'
-          )
+            'The requested task does not exist or has been deleted.',
+          ),
         ).toBeInTheDocument()
       })
 
@@ -331,7 +340,7 @@ describe('ErrorState Component', () => {
         }
         render(<ErrorState error={error} />)
         expect(
-          screen.getByText('Task was removed by administrator')
+          screen.getByText('Task was removed by administrator'),
         ).toBeInTheDocument()
       })
 
@@ -372,7 +381,7 @@ describe('ErrorState Component', () => {
         }
         render(<ErrorState error={error} />)
         expect(
-          screen.getByText('You do not have permission to access this task.')
+          screen.getByText('You do not have permission to access this task.'),
         ).toBeInTheDocument()
       })
 
@@ -424,7 +433,7 @@ describe('ErrorState Component', () => {
         }
         render(<ErrorState error={error} />)
         expect(
-          screen.getByText('Invalid configuration found')
+          screen.getByText('Invalid configuration found'),
         ).toBeInTheDocument()
       })
 
@@ -444,7 +453,7 @@ describe('ErrorState Component', () => {
         }
         render(<ErrorState error={error} />)
         expect(
-          screen.getByText('There was an error with the task configuration.')
+          screen.getByText('There was an error with the task configuration.'),
         ).toBeInTheDocument()
       })
 
@@ -485,7 +494,7 @@ describe('ErrorState Component', () => {
         }
         render(<ErrorState error={error} />)
         expect(
-          screen.getByText('An unexpected error occurred.')
+          screen.getByText('An unexpected error occurred.'),
         ).toBeInTheDocument()
       })
 
@@ -511,7 +520,7 @@ describe('ErrorState Component', () => {
       }
       render(<ErrorState error={error} />)
       expect(screen.getByTestId('error-message')).toHaveTextContent(
-        'Test error details'
+        'Test error details',
       )
     })
 
@@ -535,7 +544,7 @@ describe('ErrorState Component', () => {
       }
       render(<ErrorState error={error} />)
       expect(screen.getByTestId('error-message')).toHaveTextContent(
-        `Error ${ampersand} ${lessThan}details${greaterThan}`
+        `Error ${ampersand} ${lessThan}details${greaterThan}`,
       )
     })
 
@@ -608,7 +617,7 @@ describe('ErrorState Component', () => {
         message: 'Server error',
       }
       render(
-        <ErrorState error={error} className="custom-class another-class" />
+        <ErrorState error={error} className="custom-class another-class" />,
       )
       const errorState = screen.getByTestId('error-state')
       expect(errorState).toHaveClass('custom-class')
@@ -698,7 +707,7 @@ describe('ErrorState Component', () => {
       }
       const { container } = render(<ErrorState error={error} />)
       const iconContainer = container.querySelector(
-        '.dark\\:bg-orange-900\\/30'
+        '.dark\\:bg-orange-900\\/30',
       )
       expect(iconContainer).toBeInTheDocument()
     })
@@ -828,8 +837,8 @@ describe('ErrorState Component', () => {
       render(<ErrorState error={error} />)
       expect(
         screen.getByText(
-          'The server encountered an error. This might be temporary.'
-        )
+          'The server encountered an error. This might be temporary.',
+        ),
       ).toBeInTheDocument()
     })
 
@@ -849,7 +858,7 @@ describe('ErrorState Component', () => {
       }
       render(<ErrorState error={error} />)
       expect(
-        screen.getByText('An unexpected error occurred.')
+        screen.getByText('An unexpected error occurred.'),
       ).toBeInTheDocument()
     })
 
@@ -910,7 +919,7 @@ describe('ErrorState Component', () => {
       }
       render(<ErrorState error={error} />)
       expect(
-        screen.getByText('There was an error with the task configuration.')
+        screen.getByText('There was an error with the task configuration.'),
       ).toBeInTheDocument()
     })
   })
@@ -922,7 +931,7 @@ describe('AuthenticationError Component', () => {
     render(<AuthenticationError />)
     expect(screen.getByText('Authentication Failed')).toBeInTheDocument()
     expect(
-      screen.getByText(/Your session has expired. Please log in again/)
+      screen.getByText(/Your session has expired. Please log in again/),
     ).toBeInTheDocument()
   })
 
@@ -953,7 +962,7 @@ describe('AuthenticationError Component', () => {
   it('renders with default empty className', () => {
     const { container } = render(<AuthenticationError />)
     expect(
-      container.querySelector('[data-testid="error-state"]')
+      container.querySelector('[data-testid="error-state"]'),
     ).toBeInTheDocument()
   })
 })
@@ -970,7 +979,7 @@ describe('ServerErrorWithRetry Component', () => {
     const handleRetry = jest.fn()
     render(<ServerErrorWithRetry onRetry={handleRetry} />)
     expect(
-      screen.getByText('The server encountered an error. Please try again.')
+      screen.getByText('The server encountered an error. Please try again.'),
     ).toBeInTheDocument()
   })
 
@@ -980,7 +989,7 @@ describe('ServerErrorWithRetry Component', () => {
       <ServerErrorWithRetry
         onRetry={handleRetry}
         message="Custom server error message"
-      />
+      />,
     )
     expect(screen.getByText('Custom server error message')).toBeInTheDocument()
   })
@@ -999,7 +1008,7 @@ describe('ServerErrorWithRetry Component', () => {
       <ServerErrorWithRetry
         onRetry={handleRetry}
         className="custom-server-class"
-      />
+      />,
     )
     const errorState = screen.getByTestId('error-state')
     expect(errorState).toHaveClass('custom-server-class')
@@ -1009,7 +1018,7 @@ describe('ServerErrorWithRetry Component', () => {
     const handleRetry = jest.fn()
     const { container } = render(<ServerErrorWithRetry onRetry={handleRetry} />)
     expect(
-      container.querySelector('[data-testid="error-state"]')
+      container.querySelector('[data-testid="error-state"]'),
     ).toBeInTheDocument()
   })
 
@@ -1023,7 +1032,7 @@ describe('ServerErrorWithRetry Component', () => {
     const handleRetry = jest.fn()
     render(<ServerErrorWithRetry onRetry={handleRetry} message="" />)
     expect(
-      screen.getByText('The server encountered an error. Please try again.')
+      screen.getByText('The server encountered an error. Please try again.'),
     ).toBeInTheDocument()
   })
 

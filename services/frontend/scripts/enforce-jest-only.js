@@ -157,7 +157,7 @@ function main() {
   const quiet = args.includes('--quiet')
 
   console.log(
-    `${colors.blue}🔍 Checking for Vitest usage in test files...${colors.reset}\n`
+    `${colors.blue}🔍 Checking for Vitest usage in test files...${colors.reset}\n`,
   )
 
   const testFiles = findTestFiles()
@@ -177,17 +177,17 @@ function main() {
 
       if (!quiet) {
         console.log(
-          `${colors.yellow}📄 ${path.relative(process.cwd(), file)}${colors.reset}`
+          `${colors.yellow}📄 ${path.relative(process.cwd(), file)}${colors.reset}`,
         )
         result.issues.forEach((issue) => {
           const color = issue.severity === 'error' ? colors.red : colors.yellow
           console.log(
-            `  ${color}✗ ${issue.name}: ${issue.count} occurrence(s)${colors.reset}`
+            `  ${color}✗ ${issue.name}: ${issue.count} occurrence(s)${colors.reset}`,
           )
           if (!shouldFix) {
             issue.examples.forEach((example) => {
               console.log(
-                `    Example: ${colors.blue}${example}${colors.reset}`
+                `    Example: ${colors.blue}${example}${colors.reset}`,
               )
             })
           }
@@ -217,17 +217,17 @@ function main() {
 
   if (filesWithIssues > 0 && !shouldFix) {
     console.log(
-      `\n${colors.yellow}💡 Run with --fix flag to automatically fix these issues:${colors.reset}`
+      `\n${colors.yellow}💡 Run with --fix flag to automatically fix these issues:${colors.reset}`,
     )
     console.log(`  ${colors.blue}npm run enforce-jest -- --fix${colors.reset}`)
     process.exit(1)
   } else if (filesWithIssues === 0) {
     console.log(
-      `\n${colors.green}✅ No Vitest usage found! The codebase is Jest-only.${colors.reset}`
+      `\n${colors.green}✅ No Vitest usage found! The codebase is Jest-only.${colors.reset}`,
     )
   } else if (shouldFix) {
     console.log(
-      `\n${colors.green}✅ All Vitest usage has been replaced with Jest!${colors.reset}`
+      `\n${colors.green}✅ All Vitest usage has been replaced with Jest!${colors.reset}`,
     )
   }
 }

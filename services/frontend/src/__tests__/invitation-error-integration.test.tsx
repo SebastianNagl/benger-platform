@@ -27,7 +27,7 @@ const InvitationTestComponent = () => {
   const [loading, setLoading] = React.useState(false)
   const [showModal, setShowModal] = React.useState(false)
   const [existingInvitations, setExistingInvitations] = React.useState<any[]>(
-    []
+    [],
   )
 
   // Clear form when modal opens (mimics actual implementation)
@@ -49,7 +49,7 @@ const InvitationTestComponent = () => {
         await organizationsAPI.getOrganizationInvitations('org-123')
       const existingInvite = invitations.find(
         (inv: any) =>
-          inv.email.toLowerCase() === email.toLowerCase() && !inv.accepted
+          inv.email.toLowerCase() === email.toLowerCase() && !inv.accepted,
       )
 
       if (existingInvite) {
@@ -177,7 +177,7 @@ describe('Invitation Error Flow - Integration Tests', () => {
       // Should show warning toast
       expect(mockAddToast).toHaveBeenCalledWith(
         'An invitation has already been sent to existing@example.com',
-        'warning'
+        'warning',
       )
 
       // Should NOT call sendInvitation
@@ -215,7 +215,7 @@ describe('Invitation Error Flow - Integration Tests', () => {
       await waitFor(() => {
         expect(mockAddToast).toHaveBeenCalledWith(
           'An invitation has already been sent to duplicate@example.com',
-          'error'
+          'error',
         )
       })
     })
@@ -245,7 +245,7 @@ describe('Invitation Error Flow - Integration Tests', () => {
       await waitFor(() => {
         expect(mockAddToast).toHaveBeenCalledWith(
           'Too many invitations sent. Please wait before sending more',
-          'error'
+          'error',
         )
       })
     })
@@ -255,7 +255,7 @@ describe('Invitation Error Flow - Integration Tests', () => {
 
       mockGetOrganizationInvitations.mockResolvedValue([])
       mockSendInvitation.mockRejectedValue(
-        new Error('Network error: Unable to connect')
+        new Error('Network error: Unable to connect'),
       )
 
       render(<InvitationTestComponent />)
@@ -270,7 +270,7 @@ describe('Invitation Error Flow - Integration Tests', () => {
       await waitFor(() => {
         expect(mockAddToast).toHaveBeenCalledWith(
           'Network error. Please check your connection and try again',
-          'error'
+          'error',
         )
       })
     })
@@ -305,7 +305,7 @@ describe('Invitation Error Flow - Integration Tests', () => {
         // Should show success toast
         expect(mockAddToast).toHaveBeenCalledWith(
           'Invitation sent successfully',
-          'success'
+          'success',
         )
 
         // Should reload members
@@ -327,7 +327,7 @@ describe('Invitation Error Flow - Integration Tests', () => {
       await user.click(screen.getByText('Invite Member'))
 
       const emailInput = screen.getByPlaceholderText(
-        'colleague@example.com'
+        'colleague@example.com',
       ) as HTMLInputElement
       const roleSelect = screen.getByRole('combobox') as HTMLSelectElement
 
@@ -347,7 +347,7 @@ describe('Invitation Error Flow - Integration Tests', () => {
 
       // Fields should be reset
       const newEmailInput = screen.getByPlaceholderText(
-        'colleague@example.com'
+        'colleague@example.com',
       ) as HTMLInputElement
       const newRoleSelect = screen.getByRole('combobox') as HTMLSelectElement
 
@@ -442,7 +442,7 @@ describe('Invitation Error Flow - Integration Tests', () => {
         await waitFor(() => {
           expect(mockAddToast).toHaveBeenCalledWith(
             scenario.expectedMessage,
-            'error'
+            'error',
           )
         })
 
@@ -479,7 +479,7 @@ describe('Invitation Error Flow - Integration Tests', () => {
         // Should detect as duplicate despite different casing
         expect(mockAddToast).toHaveBeenCalledWith(
           'An invitation has already been sent to EXISTING@EXAMPLE.COM',
-          'warning'
+          'warning',
         )
       })
 
@@ -521,7 +521,7 @@ describe('Invitation Error Flow - Integration Tests', () => {
       await waitFor(() => {
         expect(mockAddToast).toHaveBeenCalledWith(
           'Internal server error',
-          'error'
+          'error',
         )
       })
 
@@ -534,7 +534,7 @@ describe('Invitation Error Flow - Integration Tests', () => {
       await waitFor(() => {
         expect(mockAddToast).toHaveBeenCalledWith(
           'Invitation sent successfully',
-          'success'
+          'success',
         )
       })
 

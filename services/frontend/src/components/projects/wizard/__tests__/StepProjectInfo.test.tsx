@@ -60,12 +60,12 @@ function makeData(overrides: Partial<WizardData> = {}): WizardData {
 
 function renderStep(
   overrides: Partial<WizardData> = {},
-  errors: Record<string, string> = {}
+  errors: Record<string, string> = {},
 ) {
   const onChange = jest.fn()
   const data = makeData(overrides)
   const utils = render(
-    <StepProjectInfo data={data} onChange={onChange} errors={errors} />
+    <StepProjectInfo data={data} onChange={onChange} errors={errors} />,
   )
   return { onChange, data, ...utils }
 }
@@ -83,7 +83,7 @@ describe('StepProjectInfo', () => {
     it('renders nothing when no slot is registered (community edition)', () => {
       renderStep()
       expect(
-        screen.queryByTestId('synthetic-slot-stub')
+        screen.queryByTestId('synthetic-slot-stub'),
       ).not.toBeInTheDocument()
     })
 
@@ -95,7 +95,7 @@ describe('StepProjectInfo', () => {
         features: { ...INITIAL_WIZARD_DATA.features, synthetic: true },
       })
       expect(screen.getByTestId('synthetic-slot-stub')).toHaveTextContent(
-        'true'
+        'true',
       )
     })
 
@@ -156,7 +156,7 @@ describe('StepProjectInfo', () => {
       const { onChange } = renderStep()
       fireEvent.change(
         screen.getByTestId('project-create-description-textarea'),
-        { target: { value: 'A description' } }
+        { target: { value: 'A description' } },
       )
       expect(onChange).toHaveBeenCalledWith({ description: 'A description' })
     })
@@ -179,7 +179,7 @@ describe('StepProjectInfo', () => {
       })
       const annotationRow = screen.getByTestId('wizard-feature-annotation')
       const checkbox = annotationRow.querySelector(
-        'input[type="checkbox"]'
+        'input[type="checkbox"]',
       ) as HTMLInputElement
       expect(checkbox).not.toBeChecked()
       fireEvent.click(checkbox)
@@ -204,7 +204,7 @@ describe('StepProjectInfo', () => {
       })
       const row = screen.getByTestId('wizard-feature-dataImport')
       const checkbox = row.querySelector(
-        'input[type="checkbox"]'
+        'input[type="checkbox"]',
       ) as HTMLInputElement
       expect(checkbox).toBeChecked()
       fireEvent.click(checkbox)
@@ -222,7 +222,9 @@ describe('StepProjectInfo', () => {
   describe('visibility', () => {
     it('switches visibility to organization', () => {
       const { onChange } = renderStep({ visibility: 'private' })
-      fireEvent.click(screen.getByTestId('wizard-visibility-organization-radio'))
+      fireEvent.click(
+        screen.getByTestId('wizard-visibility-organization-radio'),
+      )
       expect(onChange).toHaveBeenCalledWith({ visibility: 'organization' })
     })
 
@@ -235,10 +237,10 @@ describe('StepProjectInfo', () => {
     it('does not render org or public sections when private', () => {
       renderStep({ visibility: 'private' })
       expect(
-        screen.queryByTestId('wizard-organization-section')
+        screen.queryByTestId('wizard-organization-section'),
       ).not.toBeInTheDocument()
       expect(
-        screen.queryByTestId('wizard-public-role-section')
+        screen.queryByTestId('wizard-public-role-section'),
       ).not.toBeInTheDocument()
       // Private visibility should not even call the orgs API
       expect(mockGetOrganizations).not.toHaveBeenCalled()
@@ -258,7 +260,9 @@ describe('StepProjectInfo', () => {
 
       // The org list is loaded asynchronously
       await waitFor(() =>
-        expect(screen.getByTestId('wizard-organization-list')).toBeInTheDocument()
+        expect(
+          screen.getByTestId('wizard-organization-list'),
+        ).toBeInTheDocument(),
       )
       expect(screen.getByText('Org One')).toBeInTheDocument()
       expect(screen.getByText('Org Two')).toBeInTheDocument()
@@ -275,10 +279,12 @@ describe('StepProjectInfo', () => {
       })
 
       await waitFor(() =>
-        expect(screen.getByTestId('wizard-organization-list')).toBeInTheDocument()
+        expect(
+          screen.getByTestId('wizard-organization-list'),
+        ).toBeInTheDocument(),
       )
       const checkbox = screen.getByTestId(
-        'wizard-organization-org-1-checkbox'
+        'wizard-organization-org-1-checkbox',
       ) as HTMLInputElement
       expect(checkbox).toBeChecked()
       fireEvent.click(checkbox)
@@ -290,11 +296,15 @@ describe('StepProjectInfo', () => {
       renderStep({ visibility: 'organization' })
 
       await waitFor(() =>
-        expect(screen.getByTestId('wizard-organization-section')).toBeInTheDocument()
+        expect(
+          screen.getByTestId('wizard-organization-section'),
+        ).toBeInTheDocument(),
       )
-      expect(screen.getByText('No organizations available.')).toBeInTheDocument()
       expect(
-        screen.queryByTestId('wizard-organization-list')
+        screen.getByText('No organizations available.'),
+      ).toBeInTheDocument()
+      expect(
+        screen.queryByTestId('wizard-organization-list'),
       ).not.toBeInTheDocument()
     })
 
@@ -306,8 +316,8 @@ describe('StepProjectInfo', () => {
       // Empty-state message renders since orgs stayed []
       await waitFor(() =>
         expect(
-          screen.getByText('No organizations available.')
-        ).toBeInTheDocument()
+          screen.getByText('No organizations available.'),
+        ).toBeInTheDocument(),
       )
     })
 
@@ -315,12 +325,12 @@ describe('StepProjectInfo', () => {
       mockGetOrganizations.mockResolvedValue([])
       renderStep(
         { visibility: 'organization' },
-        { organizationIds: 'Pick at least one organization' }
+        { organizationIds: 'Pick at least one organization' },
       )
       await waitFor(() =>
         expect(
-          screen.getByText('Pick at least one organization')
-        ).toBeInTheDocument()
+          screen.getByText('Pick at least one organization'),
+        ).toBeInTheDocument(),
       )
     })
   })
@@ -354,12 +364,12 @@ describe('StepProjectInfo', () => {
       })
 
       const select = await screen.findByTestId(
-        'wizard-organization-group-select-org-1'
+        'wizard-organization-group-select-org-1',
       )
       expect(mockGetGroups).toHaveBeenCalledWith('org-1')
       // Org admins see every active group + the org-wide option.
       const optionValues = Array.from(
-        (select as HTMLSelectElement).options
+        (select as HTMLSelectElement).options,
       ).map((o) => o.value)
       expect(optionValues).toEqual(['', 'grp-1', 'grp-2'])
 
@@ -385,7 +395,7 @@ describe('StepProjectInfo', () => {
       await waitFor(() =>
         expect(onChange).toHaveBeenCalledWith({
           organizationGroupIds: { 'org-1': 'grp-1' },
-        })
+        }),
       )
     })
 
@@ -406,7 +416,7 @@ describe('StepProjectInfo', () => {
       expect(onChange).not.toHaveBeenCalledWith(
         expect.objectContaining({
           organizationGroupIds: expect.anything(),
-        })
+        }),
       )
     })
 
@@ -419,7 +429,7 @@ describe('StepProjectInfo', () => {
 
       await waitFor(() => expect(mockGetGroups).toHaveBeenCalledWith('org-1'))
       expect(
-        screen.queryByTestId('wizard-organization-group-select-org-1')
+        screen.queryByTestId('wizard-organization-group-select-org-1'),
       ).not.toBeInTheDocument()
     })
 
@@ -436,7 +446,7 @@ describe('StepProjectInfo', () => {
       await waitFor(() => expect(mockGetGroups).toHaveBeenCalledWith('org-1'))
       // No visible groups -> no select at all (org-wide attachment).
       expect(
-        screen.queryByTestId('wizard-organization-group-select-org-1')
+        screen.queryByTestId('wizard-organization-group-select-org-1'),
       ).not.toBeInTheDocument()
     })
   })
@@ -448,10 +458,10 @@ describe('StepProjectInfo', () => {
         publicRole: 'ANNOTATOR',
       })
       expect(
-        screen.getByTestId('wizard-public-role-section')
+        screen.getByTestId('wizard-public-role-section'),
       ).toBeInTheDocument()
       fireEvent.click(
-        screen.getByTestId('wizard-public-role-contributor-radio')
+        screen.getByTestId('wizard-public-role-contributor-radio'),
       )
       expect(onChange).toHaveBeenCalledWith({ publicRole: 'CONTRIBUTOR' })
     })
@@ -459,10 +469,10 @@ describe('StepProjectInfo', () => {
     it('reflects the currently selected role', () => {
       renderStep({ visibility: 'public', publicRole: 'CONTRIBUTOR' })
       const contributorRadio = screen.getByTestId(
-        'wizard-public-role-contributor-radio'
+        'wizard-public-role-contributor-radio',
       ) as HTMLInputElement
       const annotatorRadio = screen.getByTestId(
-        'wizard-public-role-annotator-radio'
+        'wizard-public-role-annotator-radio',
       ) as HTMLInputElement
       expect(contributorRadio).toBeChecked()
       expect(annotatorRadio).not.toBeChecked()

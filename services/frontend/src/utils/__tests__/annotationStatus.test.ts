@@ -222,13 +222,13 @@ describe('Annotation Status Utilities', () => {
 
       // Data dashboard logic: individual item status should match
       expect(getItemDisplayStatus('1', annotations)).toBe(
-        DISPLAY_STATUS.ANNOTATED
+        DISPLAY_STATUS.ANNOTATED,
       )
       expect(getItemDisplayStatus('2', annotations)).toBe(
-        DISPLAY_STATUS.ANNOTATED
+        DISPLAY_STATUS.ANNOTATED,
       )
       expect(getItemDisplayStatus('3', annotations)).toBe(
-        DISPLAY_STATUS.NOT_ANNOTATED
+        DISPLAY_STATUS.NOT_ANNOTATED,
       )
 
       // Both views should agree on overall completion
@@ -251,10 +251,10 @@ describe('Annotation Status Utilities', () => {
 
       // Both should be recognized as annotated regardless of ID type
       expect(getItemDisplayStatus(1, annotations)).toBe(
-        DISPLAY_STATUS.ANNOTATED
+        DISPLAY_STATUS.ANNOTATED,
       )
       expect(getItemDisplayStatus('2', annotations)).toBe(
-        DISPLAY_STATUS.ANNOTATED
+        DISPLAY_STATUS.ANNOTATED,
       )
       expect(areAllItemsAnnotated(items, annotations)).toBe(true)
     })

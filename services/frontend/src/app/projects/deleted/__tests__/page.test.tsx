@@ -21,7 +21,9 @@ jest.mock('@/contexts/I18nContext', () => ({
     t: (k: string, d?: any, vars?: any) => {
       let s = typeof d === 'string' ? d : k
       const v = vars ?? (typeof d === 'object' ? d : undefined)
-      if (v) for (const key of Object.keys(v)) s = s.split(`{${key}}`).join(String(v[key]))
+      if (v)
+        for (const key of Object.keys(v))
+          s = s.split(`{${key}}`).join(String(v[key]))
       return s
     },
   }),
@@ -33,7 +35,9 @@ jest.mock('@/components/shared/ResponsiveContainer', () => ({
   ResponsiveContainer: ({ children }: any) => <div>{children}</div>,
 }))
 const mockAddToast = jest.fn()
-jest.mock('@/components/shared/Toast', () => ({ useToast: () => ({ addToast: mockAddToast }) }))
+jest.mock('@/components/shared/Toast', () => ({
+  useToast: () => ({ addToast: mockAddToast }),
+}))
 const mockConfirm = jest.fn()
 jest.mock('@/hooks/useDialogs', () => ({ useConfirm: () => mockConfirm }))
 const mockList = jest.fn()
@@ -47,7 +51,12 @@ jest.mock('@/lib/api/projects', () => ({
   },
 }))
 
-const row = { id: 'p1', title: 'Alte Klausur', kind: 'exam', deleted_at: '2026-08-24T10:00:00Z' }
+const row = {
+  id: 'p1',
+  title: 'Alte Klausur',
+  kind: 'exam',
+  deleted_at: '2026-08-24T10:00:00Z',
+}
 
 describe('DeletedProjectsPage', () => {
   beforeEach(() => {
@@ -59,8 +68,17 @@ describe('DeletedProjectsPage', () => {
   it('lists deleted projects with only_deleted and restores', async () => {
     mockRestore.mockResolvedValue(undefined)
     render(<DeletedProjectsPage />)
-    expect(await screen.findByTestId('deleted-row-p1')).toHaveTextContent('Alte Klausur')
-    expect(mockList).toHaveBeenCalledWith(1, 200, undefined, undefined, undefined, true)
+    expect(await screen.findByTestId('deleted-row-p1')).toHaveTextContent(
+      'Alte Klausur',
+    )
+    expect(mockList).toHaveBeenCalledWith(
+      1,
+      200,
+      undefined,
+      undefined,
+      undefined,
+      true,
+    )
     mockList.mockResolvedValue({ items: [] })
     fireEvent.click(screen.getByTestId('deleted-restore-p1'))
     await waitFor(() => expect(mockRestore).toHaveBeenCalledWith('p1'))

@@ -56,7 +56,7 @@ global.fetch = jest.fn(() =>
     statusText: 'OK',
     type: 'basic',
     url: '',
-  })
+  }),
 ) as jest.Mock
 
 // Mock Next.js navigation globally
@@ -226,7 +226,8 @@ jest.mock('@/contexts/I18nContext', () => {
     'tasks.description.cancel': 'Cancel',
     'tasks.detail.loading': 'Loading task...',
     'tasks.detail.notFound': 'Task not found',
-    'tasks.detail.notFoundDescription': "The task you're looking for doesn't exist or has been deleted.",
+    'tasks.detail.notFoundDescription':
+      "The task you're looking for doesn't exist or has been deleted.",
     'tasks.detail.backToDataManager': 'Back to Data Manager',
     'tasks.detail.taskData': 'Task Data',
     'tasks.detail.edit': 'Edit',
@@ -243,18 +244,22 @@ jest.mock('@/contexts/I18nContext', () => {
     'tasks.detail.skipTask': 'Skip Task',
     'tasks.detail.existingAnnotations': 'Existing Annotations',
     'tasks.detail.editDataPlaceholder': 'Enter valid JSON data...',
-    'tasks.detail.editHelpText': "Edit the JSON data above. Make sure it's valid JSON format.",
+    'tasks.detail.editHelpText':
+      "Edit the JSON data above. Make sure it's valid JSON format.",
     'tasks.detail.dataUpdated': 'Task data updated successfully',
     'tasks.detail.dataUpdateFailed': 'Failed to update task data',
     'tasks.detail.invalidJson': 'Invalid JSON format',
     'tasks.detail.loadFailed': 'Failed to load task',
-    'tasks.detail.noAnnotationsAvailable': 'No annotations available for this task',
+    'tasks.detail.noAnnotationsAvailable':
+      'No annotations available for this task',
     'tasks.detail.taskIdNotAvailable': 'Task ID not available',
     'tasks.detail.loadAnnotationsFailed': 'Failed to load annotations',
-    'tasks.detail.projectOrTaskIdNotAvailable': 'Project ID or Task ID not available',
+    'tasks.detail.projectOrTaskIdNotAvailable':
+      'Project ID or Task ID not available',
     'tasks.metadata.loading': 'Loading task...',
     'tasks.metadata.notFound': 'Task not found',
-    'tasks.metadata.notFoundDescription': "The task you're looking for doesn't exist.",
+    'tasks.metadata.notFoundDescription':
+      "The task you're looking for doesn't exist.",
     'tasks.metadata.backToDataManager': 'Back to Data Manager',
     'tasks.metadata.title': 'Task Metadata',
     'tasks.metadata.edit': 'Edit',
@@ -262,14 +267,16 @@ jest.mock('@/contexts/I18nContext', () => {
     'tasks.metadata.save': 'Save',
     'tasks.metadata.cancel': 'Cancel',
     'tasks.metadata.jsonPlaceholder': 'Enter valid JSON data...',
-    'tasks.metadata.jsonHelpText': 'Edit the metadata as JSON. Ensure proper JSON formatting.',
+    'tasks.metadata.jsonHelpText':
+      'Edit the metadata as JSON. Ensure proper JSON formatting.',
     'tasks.metadata.status': 'Status:',
     'tasks.metadata.completed': 'Completed',
     'tasks.metadata.unlabeled': 'Unlabeled',
     'tasks.metadata.loadFailed': 'Failed to load task',
     'tasks.metadata.updated': 'Metadata updated successfully',
     'tasks.metadata.updateFailed': 'Failed to update metadata',
-    'tasks.metadata.invalidJson': 'Invalid JSON format. Please check your syntax.',
+    'tasks.metadata.invalidJson':
+      'Invalid JSON format. Please check your syntax.',
     'error.pageNotFound': 'Page not found',
     'error.404': '404',
     'error.returnToDashboard': 'Return to Dashboard',
@@ -332,11 +339,16 @@ jest.mock('@/contexts/I18nContext', () => {
     'generation.results': 'Results',
 
     // Toast translations - Human Evaluation
-    'toasts.humanEvaluation.noProjectOrSession': 'No project or session specified',
-    'toasts.humanEvaluation.sessionCreateFailed': 'Failed to create evaluation session',
-    'toasts.humanEvaluation.sessionLoadFailed': 'Failed to load evaluation session',
-    'toasts.humanEvaluation.itemLoadFailed': 'Failed to load next evaluation item',
-    'toasts.humanEvaluation.selectWinner': 'Please select a winner or mark as tie',
+    'toasts.humanEvaluation.noProjectOrSession':
+      'No project or session specified',
+    'toasts.humanEvaluation.sessionCreateFailed':
+      'Failed to create evaluation session',
+    'toasts.humanEvaluation.sessionLoadFailed':
+      'Failed to load evaluation session',
+    'toasts.humanEvaluation.itemLoadFailed':
+      'Failed to load next evaluation item',
+    'toasts.humanEvaluation.selectWinner':
+      'Please select a winner or mark as tie',
     'toasts.humanEvaluation.submitFailed': 'Failed to submit evaluation',
     'toasts.humanEvaluation.skipFailed': 'Failed to skip item',
 
@@ -375,7 +387,8 @@ jest.mock('@/contexts/I18nContext', () => {
     'toasts.projects.selectJsonOrZip': 'Please select a JSON or ZIP file',
     'toasts.projects.archiveFailed': 'Failed to archive project',
     'toasts.projects.unarchiveFailed': 'Failed to unarchive project',
-    'toasts.project.instructionsUpdateFailed': 'Failed to update instructions: {{error}}',
+    'toasts.project.instructionsUpdateFailed':
+      'Failed to update instructions: {{error}}',
     'toasts.project.modelsSaved': 'Models saved',
     'toasts.project.modelsSaveFailed': 'Failed to save models: {{error}}',
     'toasts.project.settingsSaved': 'Settings saved',
@@ -405,21 +418,29 @@ jest.mock('@/contexts/I18nContext', () => {
     // Projects create page translations
     'projects.create.title': 'Create',
     'projects.create.accessDenied': 'Access Denied',
-    'projects.create.permissionDenied': 'Only superadmins, organization admins, and contributors can create projects.',
+    'projects.create.permissionDenied':
+      'Only superadmins, organization admins, and contributors can create projects.',
     'projects.backToProjects': 'Back to Projects',
 
     // Evaluation human setup translations
     'evaluation.human.setup.evaluatorCount': 'Number of Evaluators',
-    'evaluation.human.setup.evaluatorCountHelp': 'Target number of human evaluators (typically 3-5 for good reliability)',
+    'evaluation.human.setup.evaluatorCountHelp':
+      'Target number of human evaluators (typically 3-5 for good reliability)',
     'evaluation.human.setup.blindingLabel': 'Enable Response Blinding',
-    'evaluation.human.setup.blindingHelp': 'Recommended: Hide model identities from evaluators to prevent bias',
+    'evaluation.human.setup.blindingHelp':
+      'Recommended: Hide model identities from evaluators to prevent bias',
     'evaluation.human.setup.includeHumanLabel': 'Include Human Responses',
-    'evaluation.human.setup.includeHumanHelp': 'Mix human-written responses with AI responses for comparison (if available)',
+    'evaluation.human.setup.includeHumanHelp':
+      'Mix human-written responses with AI responses for comparison (if available)',
     'evaluation.human.setup.nextStepsTitle': 'What happens next?',
-    'evaluation.human.setup.nextStep1': '\u2022 A dedicated annotation project will be created',
-    'evaluation.human.setup.nextStep2': '\u2022 LLM responses will be anonymized and imported',
-    'evaluation.human.setup.nextStep3': '\u2022 Evaluators can assess responses on 4 criteria using 5-point scales',
-    'evaluation.human.setup.nextStep4': '\u2022 Results will include inter-rater reliability statistics',
+    'evaluation.human.setup.nextStep1':
+      '\u2022 A dedicated annotation project will be created',
+    'evaluation.human.setup.nextStep2':
+      '\u2022 LLM responses will be anonymized and imported',
+    'evaluation.human.setup.nextStep3':
+      '\u2022 Evaluators can assess responses on 4 criteria using 5-point scales',
+    'evaluation.human.setup.nextStep4':
+      '\u2022 Results will include inter-rater reliability statistics',
 
     // Task question modal translations
     'tasks.questions.addTitle': 'Add Questions',
@@ -441,10 +462,13 @@ jest.mock('@/contexts/I18nContext', () => {
     'tasks.questions.contextLabel': 'Context (Optional)',
     'tasks.questions.contextPlaceholder': 'Enter additional context...',
     'tasks.questions.referenceAnswersLabel': 'Reference Answers *',
-    'tasks.questions.referenceAnswerPlaceholder': 'Reference answer {{number}}...',
+    'tasks.questions.referenceAnswerPlaceholder':
+      'Reference answer {{number}}...',
     'tasks.questions.validation.questionRequired': 'Question is required',
-    'tasks.questions.validation.answerRequired': 'At least one answer is required',
-    'tasks.questions.validation.referenceAnswerRequired': 'At least one reference answer is required',
+    'tasks.questions.validation.answerRequired':
+      'At least one answer is required',
+    'tasks.questions.validation.referenceAnswerRequired':
+      'At least one reference answer is required',
     'common.saveChanges': 'Save Changes',
     'annotation.viewTaskData': 'View complete task data',
   }
@@ -460,7 +484,7 @@ jest.mock('@/contexts/I18nContext', () => {
           Object.entries(params).forEach(([paramKey, value]) => {
             translation = translation.replace(
               new RegExp(`\\{\\{${paramKey}\\}\\}`, 'g'),
-              String(value)
+              String(value),
             )
           })
         }
@@ -508,7 +532,7 @@ jest.mock('@/components/shared/LoadingSpinner', () => {
           'data-testid': 'loading-spinner',
           className: `loading-spinner-${size}`,
         },
-        'Loading...'
+        'Loading...',
       ),
 
     TaskDataSkeleton: ({ rows = 5 }: { rows?: number }) =>
@@ -517,7 +541,7 @@ jest.mock('@/components/shared/LoadingSpinner', () => {
         {
           'data-testid': 'task-data-skeleton',
         },
-        `Loading ${rows} rows...`
+        `Loading ${rows} rows...`,
       ),
 
     PageLoading: ({ message = 'Loading...' }: { message?: string }) =>
@@ -526,7 +550,7 @@ jest.mock('@/components/shared/LoadingSpinner', () => {
         {
           'data-testid': 'page-loading',
         },
-        message
+        message,
       ),
   }
 })
@@ -548,7 +572,7 @@ const mockStableAddToast = jest.fn(
     else if (type === 'warning') mockStableToastWarning(message)
     else mockStableToastInfo(message)
     return 'mock-toast-id'
-  }
+  },
 )
 const mockStableRemoveToast = jest.fn()
 const mockStableSetToastDispatcher = jest.fn()
@@ -572,7 +596,7 @@ jest.mock('@/components/shared/Toast', () => {
         {
           'data-testid': 'toast-provider',
         },
-        children
+        children,
       ),
 
     // Return stable mock references instead of creating new ones each call
@@ -841,7 +865,7 @@ if (typeof window !== 'undefined') {
   // Store original getter
   const originalLocationDescriptor = Object.getOwnPropertyDescriptor(
     window,
-    'location'
+    'location',
   )
 
   // Use a workaround: delete from window and define on Window.prototype instead

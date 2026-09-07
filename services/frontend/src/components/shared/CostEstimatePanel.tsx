@@ -3,8 +3,8 @@
 import { useEffect, useState } from 'react'
 
 import { useToast } from '@/components/shared/Toast'
-import { useI18n } from '@/contexts/I18nContext'
 import { useOptionalApiClient } from '@/contexts/ApiClientContext'
+import { useI18n } from '@/contexts/I18nContext'
 import apiClientSingleton from '@/lib/api'
 
 export interface CostEstimatePanelProps {
@@ -53,7 +53,9 @@ function hashConfigs(
   cfgs: Array<{ metric?: string; prediction_fields: string[] }> | undefined,
 ): string {
   if (!cfgs || cfgs.length === 0) return ''
-  return cfgs.map(c => `${c.metric ?? ''}:${c.prediction_fields.join(',')}`).join('|')
+  return cfgs
+    .map((c) => `${c.metric ?? ''}:${c.prediction_fields.join(',')}`)
+    .join('|')
 }
 
 interface CostEstimateResponse {
@@ -136,7 +138,10 @@ export function CostEstimatePanel({
         if (!cancelled) setEstimate(data)
       } catch (err: any) {
         if (!cancelled) {
-          const msg = err?.response?.data?.detail || err?.message || 'Failed to estimate cost'
+          const msg =
+            err?.response?.data?.detail ||
+            err?.message ||
+            'Failed to estimate cost'
           setError(msg)
           addToast(msg, 'error')
         }
@@ -170,7 +175,7 @@ export function CostEstimatePanel({
 
   return (
     <div className="rounded-md border border-zinc-200 bg-zinc-50 p-3 text-sm dark:border-zinc-800 dark:bg-zinc-900/40">
-      <div className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+      <div className="text-xs font-semibold tracking-wide text-zinc-500 uppercase dark:text-zinc-400">
         {t('costEstimate.title', 'Kostenschätzung')}
       </div>
 
@@ -204,8 +209,9 @@ export function CostEstimatePanel({
                   title={(() => {
                     try {
                       const ts = new Date(estimate.estimated_at)
-                      return String(t('costEstimate.estimatedAt', 'Berechnet um {time}'))
-                        .replace('{time}', ts.toLocaleTimeString())
+                      return String(
+                        t('costEstimate.estimatedAt', 'Berechnet um {time}'),
+                      ).replace('{time}', ts.toLocaleTimeString())
                     } catch {
                       return estimate.estimated_at
                     }
@@ -229,12 +235,18 @@ export function CostEstimatePanel({
                 // count (issue #132), so we no longer surface a separate
                 // "× runs" multiplier — it would mislead about how the dollar
                 // figure is composed.
-                const tpl = t('costEstimate.breakdownCells', '{cells} Zellen über {models} Judge-Modell(e)')
+                const tpl = t(
+                  'costEstimate.breakdownCells',
+                  '{cells} Zellen über {models} Judge-Modell(e)',
+                )
                 return String(tpl)
                   .replace('{cells}', String(estimate.subject_count))
                   .replace('{models}', String(estimate.per_model.length))
               }
-              const tpl = t('costEstimate.breakdown', '{tasks} Tasks × {runs} Lauf/Läufe × {models} Modell(e)')
+              const tpl = t(
+                'costEstimate.breakdown',
+                '{tasks} Tasks × {runs} Lauf/Läufe × {models} Modell(e)',
+              )
               return String(tpl)
                 .replace('{tasks}', String(estimate.tasks_total))
                 .replace('{runs}', String(estimate.runs_per_call))
@@ -247,49 +259,66 @@ export function CostEstimatePanel({
               For one priced model the headline already shows the same
               number — repeating it once more is just noise. */}
           {(estimate.per_model.length > 1 ||
-            (estimate.per_model[0] && !estimate.per_model[0].pricing_known)) && (
-          <div className="overflow-hidden rounded border border-zinc-200 dark:border-zinc-800">
-            <table className="min-w-full divide-y divide-zinc-200 text-xs dark:divide-zinc-800">
-              <thead className="bg-zinc-100 text-[10px] uppercase text-zinc-500 dark:bg-zinc-800/50 dark:text-zinc-400">
-                <tr>
-                  <th className="px-2 py-1.5 text-left font-medium">{t('costEstimate.modelCol', 'Modell')}</th>
-                  <th className="px-2 py-1.5 text-right font-medium">{t('costEstimate.perCallCol', 'Pro Aufruf')}</th>
-                  <th className="px-2 py-1.5 text-right font-medium">{t('costEstimate.perRunCol', 'Pro Lauf')}</th>
-                  <th className="px-2 py-1.5 text-right font-medium">{t('costEstimate.totalCol', 'Gesamt')}</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                {estimate.per_model.map((m) => (
-                  <tr key={m.model_id}>
-                    <td className="px-2 py-1.5 font-mono text-[11px]">{m.model_id}</td>
-                    <td className="px-2 py-1.5 text-right">
-                      {m.pricing_known ? `$${m.per_call_usd.toFixed(4)}` : '—'}
-                    </td>
-                    <td className="px-2 py-1.5 text-right">
-                      {m.pricing_known ? `$${m.per_run_usd.toFixed(2)}` : '—'}
-                    </td>
-                    <td className="px-2 py-1.5 text-right font-medium">
-                      {m.pricing_known ? `$${m.total_usd.toFixed(2)}` : (
-                        <span className="text-amber-600 dark:text-amber-400">
-                          {t('costEstimate.noPricing', 'Keine Preisdaten')}
-                        </span>
-                      )}
-                    </td>
+            (estimate.per_model[0] &&
+              !estimate.per_model[0].pricing_known)) && (
+            <div className="overflow-hidden rounded border border-zinc-200 dark:border-zinc-800">
+              <table className="min-w-full divide-y divide-zinc-200 text-xs dark:divide-zinc-800">
+                <thead className="bg-zinc-100 text-[10px] text-zinc-500 uppercase dark:bg-zinc-800/50 dark:text-zinc-400">
+                  <tr>
+                    <th className="px-2 py-1.5 text-left font-medium">
+                      {t('costEstimate.modelCol', 'Modell')}
+                    </th>
+                    <th className="px-2 py-1.5 text-right font-medium">
+                      {t('costEstimate.perCallCol', 'Pro Aufruf')}
+                    </th>
+                    <th className="px-2 py-1.5 text-right font-medium">
+                      {t('costEstimate.perRunCol', 'Pro Lauf')}
+                    </th>
+                    <th className="px-2 py-1.5 text-right font-medium">
+                      {t('costEstimate.totalCol', 'Gesamt')}
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                  {estimate.per_model.map((m) => (
+                    <tr key={m.model_id}>
+                      <td className="px-2 py-1.5 font-mono text-[11px]">
+                        {m.model_id}
+                      </td>
+                      <td className="px-2 py-1.5 text-right">
+                        {m.pricing_known
+                          ? `$${m.per_call_usd.toFixed(4)}`
+                          : '—'}
+                      </td>
+                      <td className="px-2 py-1.5 text-right">
+                        {m.pricing_known ? `$${m.per_run_usd.toFixed(2)}` : '—'}
+                      </td>
+                      <td className="px-2 py-1.5 text-right font-medium">
+                        {m.pricing_known ? (
+                          `$${m.total_usd.toFixed(2)}`
+                        ) : (
+                          <span className="text-amber-600 dark:text-amber-400">
+                            {t('costEstimate.noPricing', 'Keine Preisdaten')}
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
 
           <div className="rounded bg-blue-50 p-2 text-[11px] text-blue-900 dark:bg-blue-900/20 dark:text-blue-200">
-            <div className="font-medium">{t('costEstimate.tokenLabel', 'Token-Schätzung pro Aufruf')}</div>
+            <div className="font-medium">
+              {t('costEstimate.tokenLabel', 'Token-Schätzung pro Aufruf')}
+            </div>
             <div className="mt-0.5">
               Input: {estimate.token_estimate.input_mean.toFixed(0)} (mean) /{' '}
-              {estimate.token_estimate.input_p95.toFixed(0)} (p95) ·{' '}
-              Output: {estimate.token_estimate.output_estimate.toFixed(0)} ·{' '}
-              Encoding: {estimate.token_estimate.encoding} ·{' '}
-              Sample: {estimate.sample_size} Tasks
+              {estimate.token_estimate.input_p95.toFixed(0)} (p95) · Output:{' '}
+              {estimate.token_estimate.output_estimate.toFixed(0)} · Encoding:{' '}
+              {estimate.token_estimate.encoding} · Sample:{' '}
+              {estimate.sample_size} Tasks
             </div>
           </div>
 

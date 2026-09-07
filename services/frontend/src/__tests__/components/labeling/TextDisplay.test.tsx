@@ -14,7 +14,10 @@ import TextDisplay from '../../../components/labeling/annotations/TextDisplay'
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
     t: (key: string, varsOrDefault?: any) => {
-      const translations: Record<string, any> = require('../../../locales/en/common.json')
+      const translations: Record<
+        string,
+        any
+      > = require('../../../locales/en/common.json')
       const parts = key.split('.')
       let value: any = translations
       for (const part of parts) {
@@ -120,7 +123,7 @@ describe('TextDisplay', () => {
         props: { ...mockConfig.props, name: undefined },
       }
       const { container } = render(
-        <TextDisplay config={config} taskData={mockTaskData} />
+        <TextDisplay config={config} taskData={mockTaskData} />,
       )
 
       const label = container.querySelector('label')
@@ -132,7 +135,7 @@ describe('TextDisplay', () => {
         text: 'Line 1\nLine 2\nLine 3',
       }
       const { container } = render(
-        <TextDisplay config={mockConfig} taskData={taskData} />
+        <TextDisplay config={mockConfig} taskData={taskData} />,
       )
 
       const textElement = container.querySelector('.whitespace-pre-wrap')
@@ -178,7 +181,7 @@ describe('TextDisplay', () => {
         text: { key: 'value', nested: { data: 'test' } },
       }
       const { container } = render(
-        <TextDisplay config={mockConfig} taskData={taskData} />
+        <TextDisplay config={mockConfig} taskData={taskData} />,
       )
 
       const pre = container.querySelector('pre')
@@ -192,7 +195,7 @@ describe('TextDisplay', () => {
         text: ['item1', 'item2', 'item3'],
       }
       const { container } = render(
-        <TextDisplay config={mockConfig} taskData={taskData} />
+        <TextDisplay config={mockConfig} taskData={taskData} />,
       )
 
       const pre = container.querySelector('pre')
@@ -204,7 +207,7 @@ describe('TextDisplay', () => {
     it('should handle empty string', () => {
       const taskData = { text: '' }
       const { container } = render(
-        <TextDisplay config={mockConfig} taskData={taskData} />
+        <TextDisplay config={mockConfig} taskData={taskData} />,
       )
 
       const textElement = container.querySelector('.whitespace-pre-wrap')
@@ -236,14 +239,14 @@ describe('TextDisplay', () => {
       render(<TextDisplay config={config} taskData={taskData} />)
 
       expect(
-        screen.getByText('No data for field: $customField')
+        screen.getByText('No data for field: $customField'),
       ).toBeInTheDocument()
     })
 
     it('should apply error styling when data is missing', () => {
       const taskData = {}
       const { container } = render(
-        <TextDisplay config={mockConfig} taskData={taskData} />
+        <TextDisplay config={mockConfig} taskData={taskData} />,
       )
 
       const errorElement = container.querySelector('.italic.text-zinc-500')
@@ -310,7 +313,7 @@ describe('TextDisplay', () => {
         props: { ...mockConfig.props, className: 'custom-class' },
       }
       const { container } = render(
-        <TextDisplay config={config} taskData={mockTaskData} />
+        <TextDisplay config={config} taskData={mockTaskData} />,
       )
 
       const wrapper = container.querySelector('.text-display.custom-class')
@@ -326,7 +329,7 @@ describe('TextDisplay', () => {
         },
       }
       const { container } = render(
-        <TextDisplay config={config} taskData={mockTaskData} />
+        <TextDisplay config={config} taskData={mockTaskData} />,
       )
 
       const wrapper = container.querySelector('.text-display') as HTMLElement
@@ -337,18 +340,18 @@ describe('TextDisplay', () => {
 
     it('should apply prose styling to content', () => {
       const { container } = render(
-        <TextDisplay config={mockConfig} taskData={mockTaskData} />
+        <TextDisplay config={mockConfig} taskData={mockTaskData} />,
       )
 
       const prose = container.querySelector(
-        '.prose.prose-sm.max-w-none.dark\\:prose-invert'
+        '.prose.prose-sm.max-w-none.dark\\:prose-invert',
       )
       expect(prose).toBeInTheDocument()
     })
 
     it('should apply label styling', () => {
       const { container } = render(
-        <TextDisplay config={mockConfig} taskData={mockTaskData} />
+        <TextDisplay config={mockConfig} taskData={mockTaskData} />,
       )
 
       const label = container.querySelector('label')
@@ -358,7 +361,7 @@ describe('TextDisplay', () => {
     it('should apply object rendering styles', () => {
       const taskData = { text: { key: 'value' } }
       const { container } = render(
-        <TextDisplay config={mockConfig} taskData={taskData} />
+        <TextDisplay config={mockConfig} taskData={taskData} />,
       )
 
       const pre = container.querySelector('pre')
@@ -369,7 +372,7 @@ describe('TextDisplay', () => {
   describe('Responsive Behavior', () => {
     it('should have max-w-none for full width prose', () => {
       const { container } = render(
-        <TextDisplay config={mockConfig} taskData={mockTaskData} />
+        <TextDisplay config={mockConfig} taskData={mockTaskData} />,
       )
 
       const prose = container.querySelector('.max-w-none')
@@ -381,7 +384,7 @@ describe('TextDisplay', () => {
         text: { very: 'long', object: 'data', with: 'many', keys: 'here' },
       }
       const { container } = render(
-        <TextDisplay config={mockConfig} taskData={taskData} />
+        <TextDisplay config={mockConfig} taskData={taskData} />,
       )
 
       const pre = container.querySelector('.overflow-x-auto')
@@ -391,7 +394,7 @@ describe('TextDisplay', () => {
     it('should preserve whitespace for multiline content', () => {
       const taskData = { text: 'Line 1\n\nLine 2\n\n\nLine 3' }
       const { container } = render(
-        <TextDisplay config={mockConfig} taskData={taskData} />
+        <TextDisplay config={mockConfig} taskData={taskData} />,
       )
 
       const p = container.querySelector('.whitespace-pre-wrap')
@@ -407,7 +410,7 @@ describe('TextDisplay', () => {
         props: { value: '$text' },
       }
       const { container } = render(
-        <TextDisplay config={config} taskData={mockTaskData} />
+        <TextDisplay config={config} taskData={mockTaskData} />,
       )
 
       expect(container.querySelector('.text-display')).toBeInTheDocument()
@@ -447,7 +450,7 @@ describe('TextDisplay', () => {
       }
       const taskData = { text: deepObject }
       const { container } = render(
-        <TextDisplay config={mockConfig} taskData={taskData} />
+        <TextDisplay config={mockConfig} taskData={taskData} />,
       )
 
       const pre = container.querySelector('pre')

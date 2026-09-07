@@ -4,7 +4,10 @@ export const ANNOTATION_GUIDES: HowToGuide[] = [
   {
     id: 'labeling-templates',
     category: 'annotation',
-    title: { de: 'Welche Annotationsvorlagen gibt es und wann nehme ich welche?', en: 'Which labeling templates exist and when do I use which?' },
+    title: {
+      de: 'Welche Annotationsvorlagen gibt es und wann nehme ich welche?',
+      en: 'Which labeling templates exist and when do I use which?',
+    },
     summary: {
       de: 'Im Schritt **Annotation einrichten** wählen Sie aus der Vorlagen-Galerie: *Frage-Antwort*, *Multiple-Choice*, *Span-Annotation*, *Klausurlösung*, *Karteikarten (leer)* oder *Benutzerdefiniert* (eigenes XML). Die Vorlage bestimmt, welche Felder Annotierende sehen und ausfüllen.',
       en: 'In the **Labeling setup** step you choose from the template gallery: *Question answering*, *Multiple choice*, *Span annotation*, *Klausurlösung*, *Flashcards (empty)* or *Custom* (your own XML). The template defines which fields annotators see and fill in.',
@@ -28,15 +31,41 @@ export const ANNOTATION_GUIDES: HowToGuide[] = [
       ],
     },
     tips: {
-      de: ['Wählen Sie keine Vorlage, bekommt das Projekt eine minimale Vorlage mit einem Textfeld `text` und einer Freitextantwort.'],
-      en: ['If you pick no template, the project gets a minimal template with a `text` field and a free-text answer.'],
+      de: [
+        'Wählen Sie keine Vorlage, bekommt das Projekt eine minimale Vorlage mit einem Textfeld `text` und einer Freitextantwort.',
+      ],
+      en: [
+        'If you pick no template, the project gets a minimal template with a `text` field and a free-text answer.',
+      ],
     },
-    keywords: { de: ['Vorlage', 'Template', 'Galerie', 'Frage-Antwort', 'Multiple-Choice', 'Span', 'Klausurlösung', 'Karteikarten'], en: ['template', 'gallery', 'question answering', 'multiple choice', 'span', 'flashcards'] },
+    keywords: {
+      de: [
+        'Vorlage',
+        'Template',
+        'Galerie',
+        'Frage-Antwort',
+        'Multiple-Choice',
+        'Span',
+        'Klausurlösung',
+        'Karteikarten',
+      ],
+      en: [
+        'template',
+        'gallery',
+        'question answering',
+        'multiple choice',
+        'span',
+        'flashcards',
+      ],
+    },
   },
   {
     id: 'edit-label-xml',
     category: 'annotation',
-    title: { de: 'Wie bearbeite ich das XML der Annotationsoberfläche (Label-Konfiguration)?', en: 'How do I edit the XML of the annotation interface (label configuration)?' },
+    title: {
+      de: 'Wie bearbeite ich das XML der Annotationsoberfläche (Label-Konfiguration)?',
+      en: 'How do I edit the XML of the annotation interface (label configuration)?',
+    },
     summary: {
       de: 'Projektseite → **Annotationskonfiguration → Label-Konfiguration → Konfiguration bearbeiten**. Das XML folgt dem Label-Studio-Schema: ein `<View>` als Wurzel, Anzeige-Tags wie `<Text>` mit `value="$feld"`, Eingabe-Tags wie `<TextArea>` oder `<Choices>` mit `name` und `toName`.',
       en: 'Project page → **Annotation configuration → Label configuration → Edit configuration**. The XML follows the Label Studio schema: a `<View>` root, display tags such as `<Text>` with `value="$field"`, input tags such as `<TextArea>` or `<Choices>` with `name` and `toName`.',
@@ -83,13 +112,50 @@ export const ANNOTATION_GUIDES: HowToGuide[] = [
         '**Do not rename an input field once annotations exist.** Old annotations and the evaluation methods (prediction field, e.g. `loesung`) reference the old name.',
       ],
     },
-    links: [{ label: { de: 'Label Studio Tag-Referenz', en: 'Label Studio tag reference' }, href: 'https://labelstud.io/tags/' }],
-    keywords: { de: ['XML', 'Label-Konfiguration', 'Label Studio', 'View', 'TextArea', 'Choices', 'Labels', 'Angabe', 'Gliederung', 'Loesung', 'Oberfläche anpassen', 'Interface'], en: ['xml', 'label config', 'label studio', 'view', 'textarea', 'choices', 'labels', 'interface', 'customize'] },
+    links: [
+      {
+        label: {
+          de: 'Label Studio Tag-Referenz',
+          en: 'Label Studio tag reference',
+        },
+        href: 'https://labelstud.io/tags/',
+      },
+    ],
+    keywords: {
+      de: [
+        'XML',
+        'Label-Konfiguration',
+        'Label Studio',
+        'View',
+        'TextArea',
+        'Choices',
+        'Labels',
+        'Angabe',
+        'Gliederung',
+        'Loesung',
+        'Oberfläche anpassen',
+        'Interface',
+      ],
+      en: [
+        'xml',
+        'label config',
+        'label studio',
+        'view',
+        'textarea',
+        'choices',
+        'labels',
+        'interface',
+        'customize',
+      ],
+    },
   },
   {
     id: 'annotation-instructions',
     category: 'annotation',
-    title: { de: 'Wie gebe ich Annotierenden Anweisungen und wie funktioniert das Annotieren?', en: 'How do I give annotators instructions and how does annotating work?' },
+    title: {
+      de: 'Wie gebe ich Annotierenden Anweisungen und wie funktioniert das Annotieren?',
+      en: 'How do I give annotators instructions and how does annotating work?',
+    },
     summary: {
       de: 'Anweisungen schreiben Sie im Assistenten (Schritt *Anweisungen*) oder auf der Projektseite unter **Annotationskonfiguration → Annotationsanweisungen**. Annotierende starten über **Annotation starten** oder **Meine Aufgaben**, bearbeiten Aufgabe für Aufgabe und geben mit *Absenden* ab.',
       en: 'Write instructions in the wizard (step *Instructions*) or on the project page under **Annotation configuration → Annotation instructions**. Annotators start via **Start annotation** or **My tasks**, work task by task and submit with *Submit*.',
@@ -110,6 +176,26 @@ export const ANNOTATION_GUIDES: HowToGuide[] = [
         '**Restorable checkpoints** save a snapshot every five minutes that annotators can bring back.',
       ],
     },
-    keywords: { de: ['Anweisungen', 'Instruktionen', 'annotieren', 'Absenden', 'Meine Aufgaben', 'Varianten', 'A/B', 'Zwischenstand'], en: ['instructions', 'annotate', 'submit', 'my tasks', 'variants', 'a/b', 'checkpoint'] },
+    keywords: {
+      de: [
+        'Anweisungen',
+        'Instruktionen',
+        'annotieren',
+        'Absenden',
+        'Meine Aufgaben',
+        'Varianten',
+        'A/B',
+        'Zwischenstand',
+      ],
+      en: [
+        'instructions',
+        'annotate',
+        'submit',
+        'my tasks',
+        'variants',
+        'a/b',
+        'checkpoint',
+      ],
+    },
   },
 ]

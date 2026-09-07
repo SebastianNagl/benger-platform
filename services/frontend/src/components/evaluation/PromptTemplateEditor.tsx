@@ -1,9 +1,9 @@
 'use client'
 
-import { useCallback, useMemo, useRef } from 'react'
 import { useI18n } from '@/contexts/I18nContext'
 import { InformationCircleIcon } from '@heroicons/react/24/outline'
 import clsx from 'clsx'
+import { useCallback, useMemo, useRef } from 'react'
 
 interface PromptTemplateEditorProps {
   value: string
@@ -48,10 +48,10 @@ export function PromptTemplateEditor({
   }, [value])
 
   const unmappedVariables = detectedVariables.filter(
-    (v) => !knownVariables.includes(v)
+    (v) => !knownVariables.includes(v),
   )
   const missingDimensions = dimensionKeys.filter(
-    (k) => !(value || '').includes(k)
+    (k) => !(value || '').includes(k),
   )
 
   const insertAtCursor = useCallback(
@@ -63,7 +63,8 @@ export function PromptTemplateEditor({
       }
       const start = ta.selectionStart ?? value.length
       const end = ta.selectionEnd ?? value.length
-      const next = (value || '').slice(0, start) + snippet + (value || '').slice(end)
+      const next =
+        (value || '').slice(0, start) + snippet + (value || '').slice(end)
       onChange(next)
       requestAnimationFrame(() => {
         ta.focus()
@@ -71,13 +72,16 @@ export function PromptTemplateEditor({
         ta.setSelectionRange(cursor, cursor)
       })
     },
-    [onChange, value]
+    [onChange, value],
   )
 
   return (
     <div className="space-y-2">
       <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">
-        {t('evaluationBuilder.parameters.customPromptTemplate', 'Prompt Template')}
+        {t(
+          'evaluationBuilder.parameters.customPromptTemplate',
+          'Prompt Template',
+        )}
       </label>
 
       <textarea
@@ -108,12 +112,18 @@ export function PromptTemplateEditor({
                 'rounded-full border px-2 py-0.5 text-xs transition-colors',
                 used
                   ? 'border-green-300 bg-green-50 text-green-700 dark:border-green-700 dark:bg-green-900/30 dark:text-green-300'
-                  : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300'
+                  : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300',
               )}
               title={
                 used
-                  ? t('evaluationBuilder.parameters.variableInUse', 'Already used in template')
-                  : t('evaluationBuilder.parameters.variableAvailable', 'Click to insert')
+                  ? t(
+                      'evaluationBuilder.parameters.variableInUse',
+                      'Already used in template',
+                    )
+                  : t(
+                      'evaluationBuilder.parameters.variableAvailable',
+                      'Click to insert',
+                    )
               }
             >
               {used ? '✓ ' : ''}
@@ -129,13 +139,12 @@ export function PromptTemplateEditor({
           <div>
             {t(
               'evaluationBuilder.parameters.unmappedVariables',
-              'Template references variables not yet mapped to task fields'
+              'Template references variables not yet mapped to task fields',
             )}
-            :{' '}
-            <code className="font-mono">{unmappedVariables.join(', ')}</code>.{' '}
+            : <code className="font-mono">{unmappedVariables.join(', ')}</code>.{' '}
             {t(
               'evaluationBuilder.parameters.unmappedVariablesHint',
-              'Add them to Field Mappings below so they resolve to task data.'
+              'Add them to Field Mappings below so they resolve to task data.',
             )}
           </div>
         </div>
@@ -147,12 +156,12 @@ export function PromptTemplateEditor({
           <div>
             {t(
               'evaluationBuilder.parameters.missingDimensions',
-              'Dimension keys not mentioned in the prompt'
+              'Dimension keys not mentioned in the prompt',
             )}
             : <code className="font-mono">{missingDimensions.join(', ')}</code>.{' '}
             {t(
               'evaluationBuilder.parameters.missingDimensionsHint',
-              "The judge won't know to score them unless they appear in the prompt's instructions and JSON schema example."
+              "The judge won't know to score them unless they appear in the prompt's instructions and JSON schema example.",
             )}
           </div>
         </div>

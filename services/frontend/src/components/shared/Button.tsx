@@ -49,7 +49,7 @@ export function Button({
     'inline-flex items-center justify-center overflow-hidden text-sm font-medium transition leading-tight focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-zinc-900',
     !hasCustomGap && 'gap-2', // Only add default gap if no custom gap is provided
     variantStyles[variant],
-    className
+    className,
   )
 
   let arrowIcon = (
@@ -58,7 +58,7 @@ export function Button({
         'mt-0.5 h-5 w-5',
         variant === 'text' && 'relative top-px',
         arrow === 'left' && '-ml-1 rotate-180',
-        arrow === 'right' && '-mr-1'
+        arrow === 'right' && '-mr-1',
       )}
     />
   )

@@ -90,7 +90,7 @@ test.describe('Remaining Pages - Project Review', () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-      body: JSON.stringify({
+        body: JSON.stringify({
           title: 'E2E Review Test Project',
           description: 'Created for review page E2E test',
         }),
@@ -346,7 +346,7 @@ test.describe('Remaining Pages - Profile', () => {
     // Find a text input on the profile page (name field)
     const nameInput = page
       .locator(
-        'input[name="name"], input[name="fullName"], input[name="display_name"], input[placeholder*="Name"]'
+        'input[name="name"], input[name="fullName"], input[name="display_name"], input[placeholder*="Name"]',
       )
       .first()
 
@@ -402,7 +402,7 @@ test.describe('Remaining Pages - Organizations', () => {
 
     // If there are organization cards or links, verify they are clickable
     const orgLinks = page.locator(
-      'a[href*="/organizations/"], [data-testid*="org"]'
+      'a[href*="/organizations/"], [data-testid*="org"]',
     )
     const count = await orgLinks.count()
     if (count > 0) {
@@ -521,7 +521,7 @@ test.describe('Remaining Pages - Generations', () => {
 
     // If there are generation entries, verify they display status information
     const statusBadges = page.locator(
-      '[class*="badge"], [class*="status"], span:has-text("completed"), span:has-text("running"), span:has-text("failed"), span:has-text("pending")'
+      '[class*="badge"], [class*="status"], span:has-text("completed"), span:has-text("running"), span:has-text("failed"), span:has-text("pending")',
     )
     const badgeCount = await statusBadges.count()
     if (badgeCount > 0) {

@@ -3,9 +3,9 @@
  */
 
 import { projectsAPI } from '@/lib/api/projects'
+import { mockToast as mockToastSetup } from '@/test-utils/setupTests'
 import { Annotation, Project, Task } from '@/types/labelStudio'
 import { act } from '@testing-library/react'
-import { mockToast as mockToastSetup } from '@/test-utils/setupTests'
 import { useProjectStore } from '../projectStore'
 
 // projectStore now calls module-level toast(msg, type) from @/components/shared/Toast.
@@ -22,7 +22,7 @@ jest.mock('@/lib/utils/translate', () => ({
   translate: (key: string, vars?: Record<string, any>) => {
     if (vars) {
       return key.replace(/\{(\w+)\}/g, (_, name) =>
-        vars[name] !== undefined ? String(vars[name]) : `{${name}}`
+        vars[name] !== undefined ? String(vars[name]) : `{${name}}`,
       )
     }
     return key
@@ -189,7 +189,7 @@ describe('ProjectStore', () => {
         '',
         false,
         false,
-        false
+        false,
       )
       const state = useProjectStore.getState()
       expect(state.currentPage).toBe(2)
@@ -219,7 +219,7 @@ describe('ProjectStore', () => {
         'test search',
         false,
         false,
-        false
+        false,
       )
     })
 
@@ -242,7 +242,7 @@ describe('ProjectStore', () => {
         '',
         true,
         false,
-        false
+        false,
       )
     })
 
@@ -260,14 +260,28 @@ describe('ProjectStore', () => {
       await act(async () => {
         await useProjectStore.getState().fetchProjects(1, 30, true, true)
       })
-      expect(mockProjectsAPI.list).toHaveBeenLastCalledWith(1, 30, '', true, true, false)
+      expect(mockProjectsAPI.list).toHaveBeenLastCalledWith(
+        1,
+        30,
+        '',
+        true,
+        true,
+        false,
+      )
 
       // A bare paginate call (the setCurrentPage path) must keep that scope
       // instead of dropping isArchived/includeAllPrivate back to undefined.
       await act(async () => {
         await useProjectStore.getState().fetchProjects(2)
       })
-      expect(mockProjectsAPI.list).toHaveBeenLastCalledWith(2, 30, '', true, true, false)
+      expect(mockProjectsAPI.list).toHaveBeenLastCalledWith(
+        2,
+        30,
+        '',
+        true,
+        true,
+        false,
+      )
     })
 
     it('should handle undefined response gracefully', async () => {
@@ -340,9 +354,9 @@ describe('ProjectStore', () => {
                   page_size: 30,
                   pages: 0,
                 }),
-              100
-            )
-          )
+              100,
+            ),
+          ),
       )
 
       const fetchPromise = act(async () => {
@@ -443,9 +457,7 @@ describe('ProjectStore', () => {
       const state = useProjectStore.getState()
       expect(state.projects).toContainEqual(createdProject)
       expect(state.currentProject).toEqual(createdProject)
-      expect(mockToast.success).toHaveBeenCalledWith(
-        'store.project.created'
-      )
+      expect(mockToast.success).toHaveBeenCalledWith('store.project.created')
     })
 
     it('should handle creation errors', async () => {
@@ -454,7 +466,7 @@ describe('ProjectStore', () => {
       await expect(
         act(async () => {
           await useProjectStore.getState().createProject({ title: 'Test' })
-        })
+        }),
       ).rejects.toThrow('Creation failed')
 
       const state = useProjectStore.getState()
@@ -485,9 +497,7 @@ describe('ProjectStore', () => {
       const state = useProjectStore.getState()
       expect(state.projects[0].title).toBe('New Title')
       expect(state.currentProject?.title).toBe('New Title')
-      expect(mockToast.success).toHaveBeenCalledWith(
-        'store.project.updated'
-      )
+      expect(mockToast.success).toHaveBeenCalledWith('store.project.updated')
     })
 
     it('should increment label config version when label_config changes', async () => {
@@ -659,9 +669,7 @@ describe('ProjectStore', () => {
 
       const state = useProjectStore.getState()
       expect(state.projects).toHaveLength(0)
-      expect(mockToast.success).toHaveBeenCalledWith(
-        'store.project.deleted'
-      )
+      expect(mockToast.success).toHaveBeenCalledWith('store.project.deleted')
     })
 
     it('should clear current project if deleted', async () => {
@@ -699,10 +707,10 @@ describe('ProjectStore', () => {
   describe('fetchProjectTasks', () => {
     it('should fetch all tasks with pagination', async () => {
       const tasks1 = Array.from({ length: 100 }, (_, i) =>
-        createMockTask({ id: `${i + 1}`, project_id: '1' })
+        createMockTask({ id: `${i + 1}`, project_id: '1' }),
       )
       const tasks2 = Array.from({ length: 50 }, (_, i) =>
-        createMockTask({ id: `${i + 101}`, project_id: '1' })
+        createMockTask({ id: `${i + 101}`, project_id: '1' }),
       )
 
       mockProjectsAPI.getTasks
@@ -818,7 +826,9 @@ describe('ProjectStore', () => {
       })
 
       expect(result).toBeNull()
-      expect(mockToastSetup.info).toHaveBeenCalledWith('store.project.noMoreTasks')
+      expect(mockToastSetup.info).toHaveBeenCalledWith(
+        'store.project.noMoreTasks',
+      )
     })
 
     it('should handle errors', async () => {
@@ -916,7 +926,7 @@ describe('ProjectStore', () => {
       expect(state.currentTaskIndex).toBe(0)
       expect(state.currentTask).toEqual(tasks[0])
       expect(mockToastSetup.info).toHaveBeenCalledWith(
-        'store.project.allTasksCompletedRestart'
+        'store.project.allTasksCompletedRestart',
       )
     })
 
@@ -955,11 +965,9 @@ describe('ProjectStore', () => {
 
       expect(mockProjectsAPI.runNestedImportJob).toHaveBeenCalledWith(
         '1',
-        expect.any(File)
+        expect.any(File),
       )
-      expect(mockToast.success).toHaveBeenCalledWith(
-        'store.project.imported'
-      )
+      expect(mockToast.success).toHaveBeenCalledWith('store.project.imported')
       expect(mockProjectsAPI.get).toHaveBeenCalledWith('1')
     })
 
@@ -993,7 +1001,7 @@ describe('ProjectStore', () => {
 
     it('should handle import errors', async () => {
       mockProjectsAPI.runNestedImportJob.mockRejectedValue(
-        new Error('Import failed')
+        new Error('Import failed'),
       )
 
       await act(async () => {
@@ -1027,7 +1035,9 @@ describe('ProjectStore', () => {
       })
 
       expect(result).toEqual(annotation)
-      expect(mockToast.success).toHaveBeenCalledWith('store.project.annotationSaved')
+      expect(mockToast.success).toHaveBeenCalledWith(
+        'store.project.annotationSaved',
+      )
 
       // Task should be removed from cycle, index stays at 0 (now pointing to task 2)
       const state = useProjectStore.getState()
@@ -1038,7 +1048,7 @@ describe('ProjectStore', () => {
 
     it('should handle annotation errors', async () => {
       mockProjectsAPI.createAnnotation.mockRejectedValue(
-        new Error('Save failed')
+        new Error('Save failed'),
       )
 
       await expect(async () => {
@@ -1124,7 +1134,9 @@ describe('ProjectStore', () => {
         await useProjectStore.getState().skipTask()
       })
 
-      expect(mockToastSetup.info).toHaveBeenCalledWith('store.project.taskSkipped')
+      expect(mockToastSetup.info).toHaveBeenCalledWith(
+        'store.project.taskSkipped',
+      )
     })
 
     it('should handle missing current task', async () => {
@@ -1140,7 +1152,9 @@ describe('ProjectStore', () => {
       })
 
       // Should not throw error
-      expect(mockToastSetup.info).not.toHaveBeenCalledWith('store.project.taskSkipped')
+      expect(mockToastSetup.info).not.toHaveBeenCalledWith(
+        'store.project.taskSkipped',
+      )
     })
 
     it('should handle missing current project', async () => {
@@ -1156,7 +1170,9 @@ describe('ProjectStore', () => {
       })
 
       // Should not throw error and not call toast
-      expect(mockToastSetup.info).not.toHaveBeenCalledWith('store.project.taskSkipped')
+      expect(mockToastSetup.info).not.toHaveBeenCalledWith(
+        'store.project.taskSkipped',
+      )
     })
 
     it('should remove task from cycle when skip_queue is requeue_for_others', async () => {
@@ -1165,7 +1181,10 @@ describe('ProjectStore', () => {
         createMockTask({ id: '2' }),
         createMockTask({ id: '3' }),
       ]
-      const project = createMockProject({ id: '1', skip_queue: 'requeue_for_others' })
+      const project = createMockProject({
+        id: '1',
+        skip_queue: 'requeue_for_others',
+      })
 
       act(() => {
         useProjectStore.setState({
@@ -1183,18 +1202,18 @@ describe('ProjectStore', () => {
       const state = useProjectStore.getState()
       // Task '1' should be removed from cycle
       expect(state.taskCycle).toHaveLength(2)
-      expect(state.taskCycle.map(t => t.id)).toEqual(['2', '3'])
+      expect(state.taskCycle.map((t) => t.id)).toEqual(['2', '3'])
       // Should now be on task '2' (index 0 in updated cycle)
       expect(state.currentTask?.id).toBe('2')
       expect(state.currentTaskIndex).toBe(0)
     })
 
     it('should remove task from cycle when skip_queue is ignore_skipped', async () => {
-      const tasks = [
-        createMockTask({ id: '1' }),
-        createMockTask({ id: '2' }),
-      ]
-      const project = createMockProject({ id: '1', skip_queue: 'ignore_skipped' })
+      const tasks = [createMockTask({ id: '1' }), createMockTask({ id: '2' })]
+      const project = createMockProject({
+        id: '1',
+        skip_queue: 'ignore_skipped',
+      })
 
       act(() => {
         useProjectStore.setState({
@@ -1220,7 +1239,10 @@ describe('ProjectStore', () => {
         createMockTask({ id: '2' }),
         createMockTask({ id: '3' }),
       ]
-      const project = createMockProject({ id: '1', skip_queue: 'requeue_for_me' })
+      const project = createMockProject({
+        id: '1',
+        skip_queue: 'requeue_for_me',
+      })
 
       act(() => {
         useProjectStore.setState({
@@ -1245,7 +1267,10 @@ describe('ProjectStore', () => {
 
     it('should set allTasksCompleted when last task is skipped with requeue_for_others', async () => {
       const tasks = [createMockTask({ id: '1' })]
-      const project = createMockProject({ id: '1', skip_queue: 'requeue_for_others' })
+      const project = createMockProject({
+        id: '1',
+        skip_queue: 'requeue_for_others',
+      })
 
       act(() => {
         useProjectStore.setState({
@@ -1267,10 +1292,7 @@ describe('ProjectStore', () => {
     })
 
     it('should default to requeue_for_others when skip_queue is undefined', async () => {
-      const tasks = [
-        createMockTask({ id: '1' }),
-        createMockTask({ id: '2' }),
-      ]
+      const tasks = [createMockTask({ id: '1' }), createMockTask({ id: '2' })]
       // Project without skip_queue set (legacy/default)
       const project = createMockProject({ id: '1' })
 
@@ -1294,7 +1316,6 @@ describe('ProjectStore', () => {
     })
   })
 
-
   describe('evaluateLLMResponses', () => {
     it('should show not implemented message', async () => {
       await act(async () => {
@@ -1302,7 +1323,7 @@ describe('ProjectStore', () => {
       })
 
       expect(mockToastSetup.info).toHaveBeenCalledWith(
-        'store.project.evaluationNotImplemented'
+        'store.project.evaluationNotImplemented',
       )
     })
   })
@@ -1345,8 +1366,8 @@ describe('ProjectStore', () => {
           '',
           false,
           false,
-        false
-      )
+          false,
+        )
       })
     })
 
@@ -1377,8 +1398,8 @@ describe('ProjectStore', () => {
           '',
           false,
           false,
-        false
-      )
+          false,
+        )
       })
     })
 
@@ -1431,9 +1452,9 @@ describe('ProjectStore', () => {
                   page_size: 30,
                   pages: 1,
                 }),
-              50
-            )
-          )
+              50,
+            ),
+          ),
       )
 
       await act(async () => {
@@ -1543,9 +1564,9 @@ describe('ProjectStore', () => {
                   page_size: 30,
                   pages: 1,
                 }),
-              100
-            )
-          )
+              100,
+            ),
+          ),
       )
 
       const fetchPromise = act(async () => {
@@ -1679,7 +1700,7 @@ describe('ProjectStore', () => {
 
       expect(mockProjectsAPI.runNestedImportJob).toHaveBeenCalledWith(
         'p1',
-        expect.any(File)
+        expect.any(File),
       )
     })
 
@@ -1710,7 +1731,7 @@ describe('ProjectStore', () => {
 
     it('should handle import error', async () => {
       mockProjectsAPI.runNestedImportJob.mockRejectedValue(
-        new Error('Import failed')
+        new Error('Import failed'),
       )
 
       await act(async () => {
@@ -1726,13 +1747,10 @@ describe('ProjectStore', () => {
   describe('createAnnotation with max annotations error', () => {
     it('should handle max annotations limit in open mode', async () => {
       mockProjectsAPI.createAnnotation.mockRejectedValue(
-        new Error('Maximum annotations limit reached')
+        new Error('Maximum annotations limit reached'),
       )
 
-      const tasks = [
-        createMockTask({ id: '1' }),
-        createMockTask({ id: '2' }),
-      ]
+      const tasks = [createMockTask({ id: '1' }), createMockTask({ id: '2' })]
 
       act(() => {
         useProjectStore.setState({
@@ -1757,7 +1775,7 @@ describe('ProjectStore', () => {
 
     it('should set allTasksCompleted when max annotations on last task in open mode', async () => {
       mockProjectsAPI.createAnnotation.mockRejectedValue(
-        new Error('Maximum annotations limit reached')
+        new Error('Maximum annotations limit reached'),
       )
 
       act(() => {
@@ -1778,7 +1796,7 @@ describe('ProjectStore', () => {
 
     it('should handle max annotations limit in auto mode', async () => {
       mockProjectsAPI.createAnnotation.mockRejectedValue(
-        new Error('Maximum annotations limit reached')
+        new Error('Maximum annotations limit reached'),
       )
       mockProjectsAPI.getNextTask.mockResolvedValue(null)
 
@@ -1809,10 +1827,7 @@ describe('ProjectStore', () => {
         json: () => Promise.resolve({}),
       }) as any
 
-      const tasks = [
-        createMockTask({ id: '1' }),
-        createMockTask({ id: '2' }),
-      ]
+      const tasks = [createMockTask({ id: '1' }), createMockTask({ id: '2' })]
 
       act(() => {
         useProjectStore.setState({
@@ -1840,10 +1855,7 @@ describe('ProjectStore', () => {
         json: () => Promise.resolve({}),
       }) as any
 
-      const tasks = [
-        createMockTask({ id: '1' }),
-        createMockTask({ id: '2' }),
-      ]
+      const tasks = [createMockTask({ id: '1' }), createMockTask({ id: '2' })]
 
       act(() => {
         useProjectStore.setState({
@@ -1882,7 +1894,7 @@ describe('ProjectStore', () => {
       await expect(
         act(async () => {
           await useProjectStore.getState().skipTask()
-        })
+        }),
       ).rejects.toThrow('Skip failed')
     })
 

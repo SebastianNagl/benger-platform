@@ -12,6 +12,7 @@
  *     parent's `Promise.all([...])` short-circuits with a useful message.
  */
 
+import { TaskFieldReferencePanel } from '@/components/shared/TaskFieldReferencePanel'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import {
@@ -22,10 +23,9 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { Textarea } from '@/components/ui/textarea'
-import { TaskFieldReferencePanel } from '@/components/shared/TaskFieldReferencePanel'
+import { useI18n } from '@/contexts/I18nContext'
 import { CheckIcon, XMarkIcon } from '@heroicons/react/24/outline'
 import { forwardRef, useImperativeHandle, useMemo, useState } from 'react'
-import { useI18n } from '@/contexts/I18nContext'
 
 interface LabelConfigEditorProps {
   initialConfig?: string
@@ -73,7 +73,9 @@ export const LabelConfigEditor = forwardRef<
       const doc = parser.parseFromString(config, 'text/xml')
       const parseError = doc.querySelector('parsererror')
       if (parseError) {
-        return t('projects.labelConfig.errorInvalidXml') + parseError.textContent
+        return (
+          t('projects.labelConfig.errorInvalidXml') + parseError.textContent
+        )
       }
       if (!config.includes('<View>') || !config.includes('</View>')) {
         return t('projects.labelConfig.errorMissingView')
@@ -117,7 +119,7 @@ export const LabelConfigEditor = forwardRef<
               defaultExpanded={false}
               description={t(
                 'project.labelConfiguration.fieldReferenceHelp',
-                'Reference task data fields in your XML using $fieldname syntax (e.g., $text, $question).'
+                'Reference task data fields in your XML using $fieldname syntax (e.g., $text, $question).',
               )}
             />
           )}
@@ -143,7 +145,9 @@ export const LabelConfigEditor = forwardRef<
           {!error && config && (
             <Alert>
               <CheckIcon className="h-4 w-4" />
-              <AlertDescription>{t('projects.labelConfig.valid')}</AlertDescription>
+              <AlertDescription>
+                {t('projects.labelConfig.valid')}
+              </AlertDescription>
             </Alert>
           )}
 

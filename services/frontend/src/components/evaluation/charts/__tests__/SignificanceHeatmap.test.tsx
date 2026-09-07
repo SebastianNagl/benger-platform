@@ -74,7 +74,7 @@ describe('SignificanceHeatmap', () => {
         modelIds={modelIds}
         metric="F1"
         significanceData={significanceData}
-      />
+      />,
     )
     expect(container).toBeTruthy()
   })
@@ -85,7 +85,7 @@ describe('SignificanceHeatmap', () => {
         modelIds={modelIds}
         metric="F1"
         significanceData={significanceData}
-      />
+      />,
     )
     expect(screen.getByTestId('plotly-chart')).toBeInTheDocument()
   })
@@ -96,7 +96,7 @@ describe('SignificanceHeatmap', () => {
         modelIds={modelIds}
         metric="F1"
         significanceData={significanceData}
-      />
+      />,
     )
     const lastProps = mockPlotProps[mockPlotProps.length - 1]
     expect(lastProps.data[0].x).toEqual(modelIds)
@@ -109,7 +109,7 @@ describe('SignificanceHeatmap', () => {
         modelIds={modelIds}
         metric="F1"
         significanceData={significanceData}
-      />
+      />,
     )
     const lastProps = mockPlotProps[mockPlotProps.length - 1]
     const z = lastProps.data[0].z
@@ -131,7 +131,7 @@ describe('SignificanceHeatmap', () => {
         modelIds={modelIds}
         metric="F1"
         significanceData={significanceData}
-      />
+      />,
     )
     const lastProps = mockPlotProps[mockPlotProps.length - 1]
     const z = lastProps.data[0].z
@@ -151,7 +151,7 @@ describe('SignificanceHeatmap', () => {
         modelIds={modelIds}
         metric="BLEU"
         significanceData={significanceData}
-      />
+      />,
     )
     const lastProps = mockPlotProps[mockPlotProps.length - 1]
     expect(lastProps.layout.title.text).toContain('BLEU')
@@ -164,7 +164,7 @@ describe('SignificanceHeatmap', () => {
         metric="F1"
         significanceData={significanceData}
         height={600}
-      />
+      />,
     )
     const lastProps = mockPlotProps[mockPlotProps.length - 1]
     expect(lastProps.layout.height).toBe(600)
@@ -177,7 +177,7 @@ describe('SignificanceHeatmap', () => {
         modelIds={modelIds}
         metric="F1"
         significanceData={significanceData}
-      />
+      />,
     )
     const lastProps = mockPlotProps[mockPlotProps.length - 1]
     expect(lastProps.layout.height).toBe(400)
@@ -189,11 +189,17 @@ describe('SignificanceHeatmap', () => {
         modelIds={modelIds}
         metric="F1"
         significanceData={significanceData}
-      />
+      />,
     )
-    expect(screen.getByText('evaluation.charts.significance.legend')).toBeInTheDocument()
-    expect(screen.getByText('evaluation.charts.significance.colorScale')).toBeInTheDocument()
-    expect(screen.getByText('evaluation.charts.significance.significanceStars')).toBeInTheDocument()
+    expect(
+      screen.getByText('evaluation.charts.significance.legend'),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText('evaluation.charts.significance.colorScale'),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText('evaluation.charts.significance.significanceStars'),
+    ).toBeInTheDocument()
   })
 
   it('displays significance stars in the legend', () => {
@@ -202,7 +208,7 @@ describe('SignificanceHeatmap', () => {
         modelIds={modelIds}
         metric="F1"
         significanceData={significanceData}
-      />
+      />,
     )
     expect(screen.getByText('***')).toBeInTheDocument()
     expect(screen.getByText('**')).toBeInTheDocument()
@@ -217,7 +223,7 @@ describe('SignificanceHeatmap', () => {
         metric="F1"
         significanceData={significanceData}
         onCellClick={onCellClick}
-      />
+      />,
     )
     const lastProps = mockPlotProps[mockPlotProps.length - 1]
     // Simulate Plotly click event
@@ -235,7 +241,7 @@ describe('SignificanceHeatmap', () => {
         metric="F1"
         significanceData={significanceData}
         onCellClick={onCellClick}
-      />
+      />,
     )
     const lastProps = mockPlotProps[mockPlotProps.length - 1]
     lastProps.onClick({
@@ -250,7 +256,7 @@ describe('SignificanceHeatmap', () => {
         modelIds={modelIds}
         metric="F1"
         significanceData={significanceData}
-      />
+      />,
     )
     const lastProps = mockPlotProps[mockPlotProps.length - 1]
     expect(() => {
@@ -266,7 +272,7 @@ describe('SignificanceHeatmap', () => {
         metric="F1"
         significanceData={significanceData}
         onCellClick={onCellClick}
-      />
+      />,
     )
     const lastProps = mockPlotProps[mockPlotProps.length - 1]
     lastProps.onClick({ points: [] })
@@ -279,7 +285,7 @@ describe('SignificanceHeatmap', () => {
         modelIds={modelIds}
         metric="F1"
         significanceData={[]}
-      />
+      />,
     )
     const lastProps = mockPlotProps[mockPlotProps.length - 1]
     const z = lastProps.data[0].z
@@ -294,7 +300,7 @@ describe('SignificanceHeatmap', () => {
         modelIds={['only-model']}
         metric="F1"
         significanceData={[]}
-      />
+      />,
     )
     const lastProps = mockPlotProps[mockPlotProps.length - 1]
     const z = lastProps.data[0].z
@@ -308,7 +314,7 @@ describe('SignificanceHeatmap', () => {
         modelIds={modelIds}
         metric="F1"
         significanceData={significanceData}
-      />
+      />,
     )
     const lastProps = mockPlotProps[mockPlotProps.length - 1]
     const annotations = lastProps.layout.annotations
@@ -325,7 +331,7 @@ describe('SignificanceHeatmap', () => {
         modelIds={modelIds}
         metric="F1"
         significanceData={significanceData}
-      />
+      />,
     )
     const lastProps = mockPlotProps[mockPlotProps.length - 1]
     const annotations = lastProps.layout.annotations
@@ -342,10 +348,12 @@ describe('SignificanceHeatmap', () => {
         modelIds={modelIds}
         metric="F1"
         significanceData={significanceData}
-      />
+      />,
     )
     // noteLabel is inside a <strong> tag with a colon appended
-    expect(screen.getByText(/evaluation\.charts\.significance\.noteLabel/)).toBeInTheDocument()
+    expect(
+      screen.getByText(/evaluation\.charts\.significance\.noteLabel/),
+    ).toBeInTheDocument()
   })
 
   it('builds correct customdata structure for hover tooltips', () => {
@@ -354,7 +362,7 @@ describe('SignificanceHeatmap', () => {
         modelIds={modelIds}
         metric="F1"
         significanceData={significanceData}
-      />
+      />,
     )
     const lastProps = mockPlotProps[mockPlotProps.length - 1]
     const customdata = lastProps.data[0].customdata

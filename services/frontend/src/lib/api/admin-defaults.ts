@@ -10,7 +10,7 @@ const defaultsClient = new BaseApiClient()
 // Export function to configure the client with auth failure handler and organization context
 export function configureAdminDefaultsClient(
   authFailureHandler?: () => void,
-  organizationContextProvider?: () => string | null
+  organizationContextProvider?: () => string | null,
 ) {
   if (authFailureHandler) {
     defaultsClient.setAuthFailureHandler(authFailureHandler)
@@ -41,7 +41,7 @@ export interface DefaultConfig {
  * Uses public endpoint that doesn't require superadmin privileges
  */
 export async function getDefaultPrompts(
-  taskType: string
+  taskType: string,
 ): Promise<DefaultPrompts> {
   const response = await defaultsClient.get(`/api/default-prompts/${taskType}`)
   return response
@@ -51,7 +51,7 @@ export async function getDefaultPrompts(
  * Get default configuration for a specific task type
  */
 export async function getDefaultConfig(
-  taskType: string
+  taskType: string,
 ): Promise<DefaultConfig> {
   const response = await defaultsClient.get(`/api/defaults/config/${taskType}`)
   return response

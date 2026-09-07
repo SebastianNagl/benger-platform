@@ -129,7 +129,7 @@ describe('NotificationBell', () => {
         'rounded-md',
         'transition',
         'hover:bg-zinc-900/5',
-        'dark:hover:bg-white/5'
+        'dark:hover:bg-white/5',
       )
     })
 
@@ -210,7 +210,7 @@ describe('NotificationBell', () => {
         'flex',
         'items-center',
         'justify-center',
-        'px-1'
+        'px-1',
       )
     })
 
@@ -251,7 +251,7 @@ describe('NotificationBell', () => {
 
       await user.click(button)
       expect(
-        screen.queryByTestId('notification-dropdown')
+        screen.queryByTestId('notification-dropdown'),
       ).not.toBeInTheDocument()
     })
 
@@ -259,7 +259,7 @@ describe('NotificationBell', () => {
       render(<NotificationBell />)
 
       expect(
-        screen.queryByTestId('notification-dropdown')
+        screen.queryByTestId('notification-dropdown'),
       ).not.toBeInTheDocument()
     })
 
@@ -289,7 +289,7 @@ describe('NotificationBell', () => {
       await user.click(screen.getByRole('button'))
 
       expect(screen.getByTestId('dropdown-notifications')).toHaveTextContent(
-        '1'
+        '1',
       )
       expect(screen.getByTestId('dropdown-unread-count')).toHaveTextContent('1')
     })
@@ -307,7 +307,7 @@ describe('NotificationBell', () => {
       }
 
       expect(
-        screen.queryByTestId('notification-dropdown')
+        screen.queryByTestId('notification-dropdown'),
       ).not.toBeInTheDocument()
     })
 
@@ -320,7 +320,7 @@ describe('NotificationBell', () => {
       // Test dropdown close callback
       await user.click(screen.getByTestId('dropdown-close'))
       expect(
-        screen.queryByTestId('notification-dropdown')
+        screen.queryByTestId('notification-dropdown'),
       ).not.toBeInTheDocument()
 
       // Reopen and test other callbacks
@@ -374,7 +374,7 @@ describe('NotificationBell', () => {
       await user.click(screen.getByRole('button'))
 
       const dropdownContainer = document.querySelector(
-        '.absolute.right-0.mt-2.z-50'
+        '.absolute.right-0.mt-2.z-50',
       )
       expect(dropdownContainer).toBeInTheDocument()
     })
@@ -465,7 +465,7 @@ describe('NotificationBell', () => {
       // Close dropdown
       await user.click(button)
       expect(
-        screen.queryByTestId('notification-dropdown')
+        screen.queryByTestId('notification-dropdown'),
       ).not.toBeInTheDocument()
 
       // Open again
@@ -671,7 +671,7 @@ describe('NotificationBell', () => {
 
       // Check dropdown shows correct data
       expect(screen.getByTestId('dropdown-notifications')).toHaveTextContent(
-        '2'
+        '2',
       )
       expect(screen.getByTestId('dropdown-unread-count')).toHaveTextContent('1')
     })

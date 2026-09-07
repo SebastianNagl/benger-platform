@@ -58,7 +58,11 @@ describe('OrganizationManager', () => {
     })
 
     it('preserves an explicitly-set current org across setOrganizations', () => {
-      const existingOrg = { id: 'existing', name: 'Existing', slug: 'existing' } as any
+      const existingOrg = {
+        id: 'existing',
+        name: 'Existing',
+        slug: 'existing',
+      } as any
       manager.setCurrentOrganization(existingOrg)
 
       manager.setOrganizations([
@@ -96,9 +100,7 @@ describe('OrganizationManager', () => {
 
   describe('fetchOrganizations', () => {
     it('should fetch and set organizations on success', async () => {
-      const mockOrgs = [
-        { id: 'org1', name: 'Org 1', slug: 'org1' },
-      ] as any[]
+      const mockOrgs = [{ id: 'org1', name: 'Org 1', slug: 'org1' }] as any[]
 
       const mockApiClient = {
         getOrganizations: jest.fn().mockResolvedValue(mockOrgs),
@@ -114,10 +116,14 @@ describe('OrganizationManager', () => {
 
     it('should clear state on fetch failure', async () => {
       // First set some state
-      manager.setOrganizations([{ id: 'old', name: 'Old', slug: 'old' }] as any[])
+      manager.setOrganizations([
+        { id: 'old', name: 'Old', slug: 'old' },
+      ] as any[])
 
       const mockApiClient = {
-        getOrganizations: jest.fn().mockRejectedValue(new Error('Network error')),
+        getOrganizations: jest
+          .fn()
+          .mockRejectedValue(new Error('Network error')),
       } as any
 
       const consoleSpy = jest.spyOn(console, 'warn').mockImplementation()
@@ -129,7 +135,7 @@ describe('OrganizationManager', () => {
       expect(manager.getCurrentOrganization()).toBeNull()
       expect(consoleSpy).toHaveBeenCalledWith(
         'Failed to fetch organizations:',
-        expect.any(Error)
+        expect.any(Error),
       )
 
       consoleSpy.mockRestore()

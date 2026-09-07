@@ -63,7 +63,9 @@ describe('proxy', () => {
 
     it('should NOT set x-org-slug for multi-level subdomain (contains dot)', () => {
       // "deep.sub.benger.localhost" => subdomain = "deep.sub" which contains '.'
-      const res = proxy(createRequest('/dashboard', 'deep.sub.benger.localhost'))
+      const res = proxy(
+        createRequest('/dashboard', 'deep.sub.benger.localhost'),
+      )
       expect(res.headers.get('x-org-slug')).toBeNull()
     })
 

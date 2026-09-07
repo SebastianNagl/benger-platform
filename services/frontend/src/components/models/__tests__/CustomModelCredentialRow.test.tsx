@@ -33,7 +33,7 @@ describe('CustomModelCredentialRow', () => {
       has_credential: true,
     })
     ;(customModelsAPI.deleteCredential as jest.Mock).mockResolvedValue(
-      undefined
+      undefined,
     )
     ;(customModelsAPI.testConnection as jest.Mock).mockResolvedValue({
       status: 'success',
@@ -44,9 +44,7 @@ describe('CustomModelCredentialRow', () => {
   it('shows the endpoint the key will be sent to', async () => {
     render(<CustomModelCredentialRow {...defaultProps} />)
 
-    expect(
-      screen.getByText('https://api.example.com/v1')
-    ).toBeInTheDocument()
+    expect(screen.getByText('https://api.example.com/v1')).toBeInTheDocument()
   })
 
   it('derives the status pill from the credential GET', async () => {
@@ -58,21 +56,17 @@ describe('CustomModelCredentialRow', () => {
 
     await waitFor(() => {
       expect(customModelsAPI.getCredentialStatus).toHaveBeenCalledWith(
-        'custom-1'
+        'custom-1',
       )
     })
     await waitFor(() => {
       expect(screen.getByTestId('credential-status-pill')).toHaveTextContent(
-        'customModels.credential.configured'
+        'customModels.credential.configured',
       )
     })
     // Configured state: remove button instead of the key input.
-    expect(
-      screen.getByTestId('credential-remove-button')
-    ).toBeInTheDocument()
-    expect(
-      screen.queryByTestId('credential-key-input')
-    ).not.toBeInTheDocument()
+    expect(screen.getByTestId('credential-remove-button')).toBeInTheDocument()
+    expect(screen.queryByTestId('credential-key-input')).not.toBeInTheDocument()
   })
 
   it('saves a key via PUT and dispatches apiKeysChanged', async () => {
@@ -81,9 +75,7 @@ describe('CustomModelCredentialRow', () => {
     window.addEventListener('apiKeysChanged', keysChangedListener)
 
     const onChanged = jest.fn()
-    render(
-      <CustomModelCredentialRow {...defaultProps} onChanged={onChanged} />
-    )
+    render(<CustomModelCredentialRow {...defaultProps} onChanged={onChanged} />)
 
     await waitFor(() => {
       expect(screen.getByTestId('credential-key-input')).toBeInTheDocument()
@@ -95,7 +87,7 @@ describe('CustomModelCredentialRow', () => {
     await waitFor(() => {
       expect(customModelsAPI.setCredential).toHaveBeenCalledWith(
         'custom-1',
-        'sk-test'
+        'sk-test',
       )
     })
     expect(keysChangedListener).toHaveBeenCalled()
@@ -103,7 +95,7 @@ describe('CustomModelCredentialRow', () => {
 
     // Pill flips to configured without a refetch round-trip.
     expect(screen.getByTestId('credential-status-pill')).toHaveTextContent(
-      'customModels.credential.configured'
+      'customModels.credential.configured',
     )
 
     window.removeEventListener('apiKeysChanged', keysChangedListener)
@@ -121,14 +113,13 @@ describe('CustomModelCredentialRow', () => {
     await user.click(screen.getByTestId('credential-test-button'))
 
     await waitFor(() => {
-      expect(customModelsAPI.testConnection).toHaveBeenCalledWith(
-        'custom-1',
-        { api_key: 'sk-test' }
-      )
+      expect(customModelsAPI.testConnection).toHaveBeenCalledWith('custom-1', {
+        api_key: 'sk-test',
+      })
     })
-    expect(
-      screen.getByTestId('credential-test-result')
-    ).toHaveTextContent('Connection ok')
+    expect(screen.getByTestId('credential-test-result')).toHaveTextContent(
+      'Connection ok',
+    )
   })
 
   it('shows an error box when the test fails', async () => {
@@ -149,9 +140,9 @@ describe('CustomModelCredentialRow', () => {
     await user.click(screen.getByTestId('credential-test-button'))
 
     await waitFor(() => {
-      expect(
-        screen.getByTestId('credential-test-result')
-      ).toHaveTextContent('Invalid key')
+      expect(screen.getByTestId('credential-test-result')).toHaveTextContent(
+        'Invalid key',
+      )
     })
   })
 
@@ -166,21 +157,17 @@ describe('CustomModelCredentialRow', () => {
     render(<CustomModelCredentialRow {...defaultProps} />)
 
     await waitFor(() => {
-      expect(
-        screen.getByTestId('credential-remove-button')
-      ).toBeInTheDocument()
+      expect(screen.getByTestId('credential-remove-button')).toBeInTheDocument()
     })
 
     await user.click(screen.getByTestId('credential-remove-button'))
 
     await waitFor(() => {
-      expect(customModelsAPI.deleteCredential).toHaveBeenCalledWith(
-        'custom-1'
-      )
+      expect(customModelsAPI.deleteCredential).toHaveBeenCalledWith('custom-1')
     })
     expect(keysChangedListener).toHaveBeenCalled()
     expect(screen.getByTestId('credential-status-pill')).toHaveTextContent(
-      'customModels.credential.notConfigured'
+      'customModels.credential.notConfigured',
     )
 
     window.removeEventListener('apiKeysChanged', keysChangedListener)
@@ -190,20 +177,20 @@ describe('CustomModelCredentialRow', () => {
     it('renders the informational state with only a Test button', async () => {
       const user = userEvent.setup()
       render(
-        <CustomModelCredentialRow {...defaultProps} requiresApiKey={false} />
+        <CustomModelCredentialRow {...defaultProps} requiresApiKey={false} />,
       )
 
       expect(
-        screen.getByTestId('credential-no-key-required')
+        screen.getByTestId('credential-no-key-required'),
       ).toBeInTheDocument()
       expect(
-        screen.queryByTestId('credential-key-input')
+        screen.queryByTestId('credential-key-input'),
       ).not.toBeInTheDocument()
       expect(
-        screen.queryByTestId('credential-save-button')
+        screen.queryByTestId('credential-save-button'),
       ).not.toBeInTheDocument()
       expect(
-        screen.queryByTestId('credential-status-pill')
+        screen.queryByTestId('credential-status-pill'),
       ).not.toBeInTheDocument()
       // No credential status fetch for keyless models.
       expect(customModelsAPI.getCredentialStatus).not.toHaveBeenCalled()
@@ -213,12 +200,12 @@ describe('CustomModelCredentialRow', () => {
       await waitFor(() => {
         expect(customModelsAPI.testConnection).toHaveBeenCalledWith(
           'custom-1',
-          {}
+          {},
         )
       })
-      expect(
-        screen.getByTestId('credential-test-result')
-      ).toHaveTextContent('Connection ok')
+      expect(screen.getByTestId('credential-test-result')).toHaveTextContent(
+        'Connection ok',
+      )
     })
   })
 })

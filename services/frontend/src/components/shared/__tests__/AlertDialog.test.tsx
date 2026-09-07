@@ -3,7 +3,10 @@ import { AlertDialog } from '../AlertDialog'
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
     t: (key: string, varsOrDefault?: any) => {
-      const translations: Record<string, any> = require('../../../locales/en/common.json')
+      const translations: Record<
+        string,
+        any
+      > = require('../../../locales/en/common.json')
       const parts = key.split('.')
       let value: any = translations
       for (const part of parts) {
@@ -24,7 +27,6 @@ jest.mock('@/contexts/I18nContext', () => ({
     locale: 'en',
   }),
 }))
-
 
 jest.unmock('@/components/shared/AlertDialog')
 
@@ -60,7 +62,7 @@ jest.mock('@headlessui/react', () => {
           <div {...props}>{children}</div>
         ),
         Title: ({ children, ...props }: any) => <h3 {...props}>{children}</h3>,
-      }
+      },
     ),
     Transition: Object.assign(
       ({ show, appear, children, ...props }: any) =>
@@ -82,7 +84,7 @@ jest.mock('@headlessui/react', () => {
                 }
               }
               return child
-            }
+            },
           )
 
           return (
@@ -93,7 +95,7 @@ jest.mock('@headlessui/react', () => {
             </div>
           )
         },
-      }
+      },
     ),
     Fragment: mockFragment,
   }
@@ -139,7 +141,7 @@ describe('AlertDialog', () => {
   describe('Open/Close State', () => {
     it('handles sequential open/close states', () => {
       const { rerender } = render(
-        <AlertDialog {...defaultProps} isOpen={false} />
+        <AlertDialog {...defaultProps} isOpen={false} />,
       )
       expect(screen.queryByText('Alert Title')).not.toBeInTheDocument()
 
@@ -213,10 +215,10 @@ describe('AlertDialog', () => {
         <AlertDialog
           {...defaultProps}
           message="This is a critical alert message"
-        />
+        />,
       )
       expect(
-        screen.getByText('This is a critical alert message')
+        screen.getByText('This is a critical alert message'),
       ).toBeInTheDocument()
     })
 
@@ -236,7 +238,7 @@ describe('AlertDialog', () => {
       rerender(<AlertDialog {...defaultProps} message="Updated message text" />)
       expect(screen.getByText('Updated message text')).toBeInTheDocument()
       expect(
-        screen.queryByText('This is an alert message')
+        screen.queryByText('This is an alert message'),
       ).not.toBeInTheDocument()
     })
   })
@@ -368,7 +370,7 @@ describe('AlertDialog', () => {
 
     it('handles special characters in title', () => {
       render(
-        <AlertDialog {...defaultProps} title="Alert! @#$%^&*() <Special>" />
+        <AlertDialog {...defaultProps} title="Alert! @#$%^&*() <Special>" />,
       )
       expect(screen.getByText('Alert! @#$%^&*() <Special>')).toBeInTheDocument()
     })
@@ -378,16 +380,16 @@ describe('AlertDialog', () => {
         <AlertDialog
           {...defaultProps}
           message="Message with <HTML> tags & special chars: @#$%"
-        />
+        />,
       )
       expect(
-        screen.getByText('Message with <HTML> tags & special chars: @#$%')
+        screen.getByText('Message with <HTML> tags & special chars: @#$%'),
       ).toBeInTheDocument()
     })
 
     it('handles rapid variant changes', () => {
       const { rerender } = render(
-        <AlertDialog {...defaultProps} variant="info" />
+        <AlertDialog {...defaultProps} variant="info" />,
       )
       expect(screen.getByTestId('information-circle-icon')).toBeInTheDocument()
 
@@ -399,7 +401,7 @@ describe('AlertDialog', () => {
 
       rerender(<AlertDialog {...defaultProps} variant="warning" />)
       expect(
-        screen.getByTestId('exclamation-triangle-icon')
+        screen.getByTestId('exclamation-triangle-icon'),
       ).toBeInTheDocument()
     })
   })
@@ -438,7 +440,7 @@ describe('AlertDialog', () => {
     it('handles different onClose callbacks', () => {
       const firstCallback = jest.fn()
       const { rerender } = render(
-        <AlertDialog {...defaultProps} onClose={firstCallback} />
+        <AlertDialog {...defaultProps} onClose={firstCallback} />,
       )
       const button = screen.getByRole('button', { name: 'OK' })
       fireEvent.click(button)
@@ -459,7 +461,7 @@ describe('AlertDialog', () => {
           {...defaultProps}
           title="Updated Title"
           message="Updated Message"
-        />
+        />,
       )
 
       const button = screen.getByRole('button', { name: 'OK' })
@@ -487,10 +489,10 @@ describe('AlertDialog', () => {
 
       rerender(<AlertDialog {...defaultProps} buttonText="Dismiss" />)
       expect(
-        screen.getByRole('button', { name: 'Dismiss' })
+        screen.getByRole('button', { name: 'Dismiss' }),
       ).toBeInTheDocument()
       expect(
-        screen.queryByRole('button', { name: 'OK' })
+        screen.queryByRole('button', { name: 'OK' }),
       ).not.toBeInTheDocument()
     })
   })

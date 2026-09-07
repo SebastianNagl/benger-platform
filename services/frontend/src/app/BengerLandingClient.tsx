@@ -3,8 +3,8 @@
 
 import { HeroSection } from '@/components/landing/HeroSection'
 import { InformationSection } from '@/components/landing/InformationSection'
-import { LicenseCitationSection } from '@/components/landing/LicenseCitationSection'
 import { LandingLayout } from '@/components/landing/LandingLayout'
+import { LicenseCitationSection } from '@/components/landing/LicenseCitationSection'
 import { NewsSection } from '@/components/landing/NewsSection'
 import { PeopleSection } from '@/components/landing/PeopleSection'
 import { useAuth } from '@/contexts/AuthContext'
@@ -32,8 +32,11 @@ export default function BengerLandingClient() {
   // this, hydration sees the server's "not authenticated" tree but the client
   // already knows the user is logged in (cookie present), causing a mismatch.
   const [mounted, setMounted] = useState(false)
-  // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => { setMounted(true); setIsLocked(isStudentLockedHost()) }, [])
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Intentional: mount flag for hydration-safe auth UI
+    setMounted(true)
+    setIsLocked(isStudentLockedHost())
+  }, [])
 
   // Redirect authenticated users to dashboard
   // Only redirect when auth state is stable (not loading)
@@ -63,7 +66,9 @@ export default function BengerLandingClient() {
       <div className="flex min-h-screen items-center justify-center bg-white dark:bg-zinc-900">
         <div className="text-center">
           <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-b-2 border-emerald-500"></div>
-          <p className="text-zinc-600 dark:text-zinc-400">{t('common.loading')}</p>
+          <p className="text-zinc-600 dark:text-zinc-400">
+            {t('common.loading')}
+          </p>
         </div>
       </div>
     )

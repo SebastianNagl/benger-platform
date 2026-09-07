@@ -3,7 +3,7 @@
  * Tests the helper functions by rendering the component with different data
  */
 
-import { render, screen, fireEvent } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { HistoricalTrendChart } from '../HistoricalTrendChart'
 
 jest.mock('@/contexts/I18nContext', () => ({
@@ -24,7 +24,9 @@ jest.mock('recharts', () => ({
       {children}
     </div>
   ),
-  ResponsiveContainer: ({ children }: any) => <div data-testid="responsive-container">{children}</div>,
+  ResponsiveContainer: ({ children }: any) => (
+    <div data-testid="responsive-container">{children}</div>
+  ),
   Tooltip: () => <div data-testid="tooltip" />,
   XAxis: ({ tickFormatter }: any) => {
     // Call the tickFormatter to cover formatDate
@@ -45,8 +47,20 @@ jest.mock('recharts', () => ({
 
 describe('HistoricalTrendChart', () => {
   const baseData = [
-    { date: '2025-06-01T12:00:00Z', model_id: 'gpt-4', value: 0.85, ci_lower: 0.80, ci_upper: 0.90 },
-    { date: '2025-06-02T12:00:00Z', model_id: 'gpt-4', value: 0.87, ci_lower: 0.82, ci_upper: 0.92 },
+    {
+      date: '2025-06-01T12:00:00Z',
+      model_id: 'gpt-4',
+      value: 0.85,
+      ci_lower: 0.8,
+      ci_upper: 0.9,
+    },
+    {
+      date: '2025-06-02T12:00:00Z',
+      model_id: 'gpt-4',
+      value: 0.87,
+      ci_lower: 0.82,
+      ci_upper: 0.92,
+    },
     { date: '2025-06-01T12:00:00Z', model_id: 'claude-3', value: 0.75 },
     { date: '2025-06-02T12:00:00Z', model_id: 'claude-3', value: 0.78 },
   ]
@@ -64,10 +78,18 @@ describe('HistoricalTrendChart', () => {
 
   it('renders date range buttons', () => {
     render(<HistoricalTrendChart {...defaultProps} />)
-    expect(screen.getByText('evaluation.charts.trend.range7d')).toBeInTheDocument()
-    expect(screen.getByText('evaluation.charts.trend.range30d')).toBeInTheDocument()
-    expect(screen.getByText('evaluation.charts.trend.range90d')).toBeInTheDocument()
-    expect(screen.getByText('evaluation.charts.trend.rangeAll')).toBeInTheDocument()
+    expect(
+      screen.getByText('evaluation.charts.trend.range7d'),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText('evaluation.charts.trend.range30d'),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText('evaluation.charts.trend.range90d'),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText('evaluation.charts.trend.rangeAll'),
+    ).toBeInTheDocument()
   })
 
   it('renders a line for each model', () => {
@@ -97,23 +119,40 @@ describe('HistoricalTrendChart', () => {
   })
 
   it('handles showConfidenceIntervals=false', () => {
-    render(<HistoricalTrendChart {...defaultProps} showConfidenceIntervals={false} />)
+    render(
+      <HistoricalTrendChart
+        {...defaultProps}
+        showConfidenceIntervals={false}
+      />,
+    )
     expect(screen.getByTestId('line-chart')).toBeInTheDocument()
   })
 
   it('shows no data message when data is empty', () => {
     render(<HistoricalTrendChart data={[]} modelIds={[]} metric="accuracy" />)
-    expect(screen.getByText('evaluation.charts.trend.noDataForRange')).toBeInTheDocument()
+    expect(
+      screen.getByText('evaluation.charts.trend.noDataForRange'),
+    ).toBeInTheDocument()
   })
 
   it('handles data within 7 day range', () => {
     const now = new Date()
     const recent = [
-      { date: new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000).toISOString(), model_id: 'gpt-4', value: 0.8 },
+      {
+        date: new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+        model_id: 'gpt-4',
+        value: 0.8,
+      },
       { date: now.toISOString(), model_id: 'gpt-4', value: 0.85 },
     ]
 
-    render(<HistoricalTrendChart data={recent} modelIds={['gpt-4']} metric="accuracy" />)
+    render(
+      <HistoricalTrendChart
+        data={recent}
+        modelIds={['gpt-4']}
+        metric="accuracy"
+      />,
+    )
     expect(screen.getByTestId('line-chart')).toBeInTheDocument()
   })
 
@@ -123,7 +162,13 @@ describe('HistoricalTrendChart', () => {
       { date: '2025-06-01T12:00:00Z', model_id: 'gpt-4', value: 0.9 },
     ]
 
-    render(<HistoricalTrendChart data={longRange} modelIds={['gpt-4']} metric="accuracy" />)
+    render(
+      <HistoricalTrendChart
+        data={longRange}
+        modelIds={['gpt-4']}
+        metric="accuracy"
+      />,
+    )
     expect(screen.getByTestId('line-chart')).toBeInTheDocument()
   })
 
@@ -147,7 +192,9 @@ describe('HistoricalTrendChart', () => {
       { date: '2025-06-02T12:00:00Z', model_id: 'gpt-4', value: 16.2 },
     ]
 
-    render(<HistoricalTrendChart data={data} modelIds={['gpt-4']} metric="score" />)
+    render(
+      <HistoricalTrendChart data={data} modelIds={['gpt-4']} metric="score" />,
+    )
     expect(screen.getByTestId('line-chart')).toBeInTheDocument()
   })
 })

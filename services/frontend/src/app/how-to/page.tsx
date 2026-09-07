@@ -28,7 +28,10 @@ export default function HowToPage() {
   const scrolledTo = useRef<string | null>(null)
 
   const visible = useMemo(
-    () => (category === 'all' ? guides : guides.filter((g) => g.category === category)),
+    () =>
+      category === 'all'
+        ? guides
+        : guides.filter((g) => g.category === category),
     [guides, category],
   )
   const grouped = useMemo(
@@ -59,11 +62,14 @@ export default function HowToPage() {
   }, [guides])
 
   return (
-    <ResponsiveContainer size="xl" className="pb-16 pt-8">
+    <ResponsiveContainer size="xl" className="pt-8 pb-16">
       <div className="mb-4">
         <Breadcrumb
           items={[
-            { label: t('navigation.dashboard', 'Dashboard'), href: '/dashboard' },
+            {
+              label: t('navigation.dashboard', 'Dashboard'),
+              href: '/dashboard',
+            },
             { label: t('howTo.title', 'Anleitungen') },
           ]}
         />
@@ -133,19 +139,23 @@ export default function HowToPage() {
         {/* Guides */}
         <div className="min-w-0 space-y-14">
           {grouped.map(({ cat, guides: catGuides }) => (
-              <section key={cat.id} id={`howto-${cat.id}`} className="scroll-mt-24">
-                <h2 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-white">
-                  {pick(cat.title, locale)}
-                </h2>
-                <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-                  {pick(cat.blurb, locale)}
-                </p>
-                <div className="mt-5 space-y-5">
-                  {catGuides.map((g) => (
-                    <GuideCard key={g.id} guide={g} />
-                  ))}
-                </div>
-              </section>
+            <section
+              key={cat.id}
+              id={`howto-${cat.id}`}
+              className="scroll-mt-24"
+            >
+              <h2 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-white">
+                {pick(cat.title, locale)}
+              </h2>
+              <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+                {pick(cat.blurb, locale)}
+              </p>
+              <div className="mt-5 space-y-5">
+                {catGuides.map((g) => (
+                  <GuideCard key={g.id} guide={g} />
+                ))}
+              </div>
+            </section>
           ))}
 
           <p className="border-t border-zinc-200 pt-6 text-sm text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
@@ -186,7 +196,13 @@ function Chip({
       }`}
     >
       {label}
-      <span className={active ? 'text-emerald-600 dark:text-emerald-400' : 'text-zinc-400 dark:text-zinc-500'}>
+      <span
+        className={
+          active
+            ? 'text-emerald-600 dark:text-emerald-400'
+            : 'text-zinc-400 dark:text-zinc-500'
+        }
+      >
         {count}
       </span>
     </button>

@@ -5,7 +5,10 @@
  * Targets: br37[1] L219 (data || {}), br51[1] L303, br52[1] L309
  */
 
-import { hasConsistentDataStructure, hasConsistentMetadataStructure } from '../dataColumnHelpers'
+import {
+  hasConsistentDataStructure,
+  hasConsistentMetadataStructure,
+} from '../dataColumnHelpers'
 
 describe('dataColumnHelpers branch coverage', () => {
   it('hasConsistentDataStructure with tasks missing data property', () => {

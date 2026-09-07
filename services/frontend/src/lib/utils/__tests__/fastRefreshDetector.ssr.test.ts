@@ -19,9 +19,7 @@ describe('FastRefreshDetector (SSR)', () => {
   })
 
   it('markHandled does not throw on server-side', () => {
-    expect(() =>
-      fastRefreshDetector.markHandled('TestComponent')
-    ).not.toThrow()
+    expect(() => fastRefreshDetector.markHandled('TestComponent')).not.toThrow()
   })
 
   it('hasBeenHandled returns false on server-side', () => {

@@ -88,10 +88,10 @@ test.describe('LLM Judge Answer Type Detection', () => {
     // Check for key options
     const hasText = options.some((o) => o.includes('Text'))
     const hasNER = options.some(
-      (o) => o.includes('NER') || o.includes('Entity')
+      (o) => o.includes('NER') || o.includes('Entity'),
     )
     const hasChoices = options.some(
-      (o) => o.includes('Choice') || o.includes('Classification')
+      (o) => o.includes('Choice') || o.includes('Classification'),
     )
 
     expect(hasText).toBe(true)
@@ -116,7 +116,10 @@ test.describe('LLM Judge Answer Type Detection', () => {
 
     // Verify NER template is active (text or banner confirms selection)
     const nerText = page.locator('text=/NER|Named Entity|span_selection/i')
-    const hasNerText = await nerText.first().isVisible({ timeout: 3000 }).catch(() => false)
+    const hasNerText = await nerText
+      .first()
+      .isVisible({ timeout: 3000 })
+      .catch(() => false)
     const bannerVisible = await evalHelpers.isDetectedTypeBannerVisible()
 
     console.log('NER selection:', { hasNerText, bannerVisible })
@@ -137,7 +140,10 @@ test.describe('LLM Judge Answer Type Detection', () => {
 
     // Verify text template is active
     const textLabel = page.locator('text=/Text|Freeform|Freitext/i')
-    const hasTextLabel = await textLabel.first().isVisible({ timeout: 3000 }).catch(() => false)
+    const hasTextLabel = await textLabel
+      .first()
+      .isVisible({ timeout: 3000 })
+      .catch(() => false)
     const bannerVisible = await evalHelpers.isDetectedTypeBannerVisible()
 
     console.log('Text selection:', { hasTextLabel, bannerVisible })
@@ -157,8 +163,13 @@ test.describe('LLM Judge Answer Type Detection', () => {
     await page.waitForTimeout(1000)
 
     // Verify classification template is active
-    const classText = page.locator('text=/Classification|choices|Klassifikation/i')
-    const hasClassText = await classText.first().isVisible({ timeout: 3000 }).catch(() => false)
+    const classText = page.locator(
+      'text=/Classification|choices|Klassifikation/i',
+    )
+    const hasClassText = await classText
+      .first()
+      .isVisible({ timeout: 3000 })
+      .catch(() => false)
     const bannerVisible = await evalHelpers.isDetectedTypeBannerVisible()
 
     console.log('Classification selection:', { hasClassText, bannerVisible })

@@ -43,7 +43,9 @@ export function useSlot(name: string): ComponentType<any> | null {
   useEffect(() => {
     const listener = () => setTick((t) => t + 1)
     listeners.add(listener)
-    return () => { listeners.delete(listener) }
+    return () => {
+      listeners.delete(listener)
+    }
   }, [])
 
   return slots[name] ?? null

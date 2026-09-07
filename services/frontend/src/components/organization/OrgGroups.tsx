@@ -1,20 +1,20 @@
 'use client'
 
-import { useI18n } from '@/contexts/I18nContext'
 import { Button } from '@/components/shared/Button'
+import { useI18n } from '@/contexts/I18nContext'
 import {
   organizationsAPI,
   type OrganizationGroup,
   type OrganizationGroupMember,
 } from '@/lib/api/organizations'
 import type { OrganizationMember } from '@/lib/api/types'
+import { Dialog } from '@headlessui/react'
 import {
   PencilIcon,
   TrashIcon,
   UserGroupIcon,
   XMarkIcon,
 } from '@heroicons/react/24/outline'
-import { Dialog } from '@headlessui/react'
 import { useCallback, useEffect, useState } from 'react'
 
 interface OrgGroupsProps {
@@ -59,11 +59,13 @@ export function OrgGroups({
   const [editDescription, setEditDescription] = useState('')
   const [editIsActive, setEditIsActive] = useState(true)
   const [savingEdit, setSavingEdit] = useState(false)
-  const [deleteLoading, setDeleteLoading] = useState<Record<string, boolean>>({})
+  const [deleteLoading, setDeleteLoading] = useState<Record<string, boolean>>(
+    {},
+  )
 
   // Member sub-view
   const [selectedGroup, setSelectedGroup] = useState<OrganizationGroup | null>(
-    null
+    null,
   )
   const [members, setMembers] = useState<OrganizationGroupMember[]>([])
   const [membersLoading, setMembersLoading] = useState(false)
@@ -71,7 +73,9 @@ export function OrgGroups({
   const [addUserId, setAddUserId] = useState('')
   const [addAsGroupAdmin, setAddAsGroupAdmin] = useState(false)
   const [addingMember, setAddingMember] = useState(false)
-  const [memberLoading, setMemberLoading] = useState<Record<string, boolean>>({})
+  const [memberLoading, setMemberLoading] = useState<Record<string, boolean>>(
+    {},
+  )
 
   const fetchGroups = useCallback(async () => {
     setGroupsLoading(true)
@@ -100,7 +104,7 @@ export function OrgGroups({
       try {
         const rows = await organizationsAPI.getGroupMembers(
           organizationId,
-          groupId
+          groupId,
         )
         setMembers(Array.isArray(rows) ? rows : [])
       } catch (error: any) {
@@ -115,7 +119,7 @@ export function OrgGroups({
         setMembersLoading(false)
       }
     },
-    [organizationId, t]
+    [organizationId, t],
   )
 
   const fetchOrgMembers = useCallback(async () => {
@@ -277,7 +281,7 @@ export function OrgGroups({
         organizationId,
         selectedGroup.id,
         member.user_id,
-        { is_group_admin: !member.is_group_admin }
+        { is_group_admin: !member.is_group_admin },
       )
       setMessage({
         type: 'success',
@@ -305,7 +309,7 @@ export function OrgGroups({
       await organizationsAPI.removeGroupMember(
         organizationId,
         selectedGroup.id,
-        member.user_id
+        member.user_id,
       )
       setMessage({
         type: 'success',
@@ -472,7 +476,7 @@ export function OrgGroups({
                                 {member.is_group_admin && (
                                   <span className="ml-2 inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
                                     {t(
-                                      'admin.organizations.groups.groupAdminBadge'
+                                      'admin.organizations.groups.groupAdminBadge',
                                     )}
                                   </span>
                                 )}
@@ -495,7 +499,7 @@ export function OrgGroups({
                                     className="h-4 w-4 rounded border-zinc-300 accent-emerald-600 dark:border-zinc-600"
                                   />
                                   {t(
-                                    'admin.organizations.groups.groupAdminToggle'
+                                    'admin.organizations.groups.groupAdminToggle',
                                   )}
                                 </label>
                                 <button
@@ -504,7 +508,7 @@ export function OrgGroups({
                                   disabled={isBusy}
                                   data-testid={`group-member-remove-${member.user_id}`}
                                   aria-label={t(
-                                    'admin.organizations.groups.remove'
+                                    'admin.organizations.groups.remove',
                                   )}
                                   className="text-red-600 hover:text-red-800 disabled:opacity-50 dark:text-red-400 dark:hover:text-red-300"
                                 >
@@ -535,7 +539,7 @@ export function OrgGroups({
                           value={newName}
                           onChange={(e) => setNewName(e.target.value)}
                           placeholder={t(
-                            'admin.organizations.groups.namePlaceholder'
+                            'admin.organizations.groups.namePlaceholder',
                           )}
                           data-testid="group-create-name"
                           className={inputClassName}
@@ -545,7 +549,7 @@ export function OrgGroups({
                           value={newDescription}
                           onChange={(e) => setNewDescription(e.target.value)}
                           placeholder={t(
-                            'admin.organizations.groups.descriptionPlaceholder'
+                            'admin.organizations.groups.descriptionPlaceholder',
                           )}
                           data-testid="group-create-description"
                           className={inputClassName}
@@ -604,7 +608,7 @@ export function OrgGroups({
                                     setEditDescription(e.target.value)
                                   }
                                   placeholder={t(
-                                    'admin.organizations.groups.descriptionPlaceholder'
+                                    'admin.organizations.groups.descriptionPlaceholder',
                                   )}
                                   data-testid={`group-edit-description-${group.id}`}
                                   className={inputClassName}
@@ -650,14 +654,14 @@ export function OrgGroups({
                                     {!group.is_active && (
                                       <span className="inline-flex items-center rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-700 dark:text-zinc-400">
                                         {t(
-                                          'admin.organizations.groups.inactiveBadge'
+                                          'admin.organizations.groups.inactiveBadge',
                                         )}
                                       </span>
                                     )}
                                     {group.is_group_admin && (
                                       <span className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
                                         {t(
-                                          'admin.organizations.groups.groupAdminBadge'
+                                          'admin.organizations.groups.groupAdminBadge',
                                         )}
                                       </span>
                                     )}
@@ -671,7 +675,7 @@ export function OrgGroups({
                                     <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
                                       {t(
                                         'admin.organizations.groups.memberCount',
-                                        { count: group.member_count }
+                                        { count: group.member_count },
                                       )}
                                     </p>
                                   )}
@@ -694,7 +698,7 @@ export function OrgGroups({
                                         onClick={() => startEdit(group)}
                                         data-testid={`group-edit-${group.id}`}
                                         aria-label={t(
-                                          'admin.organizations.groups.edit'
+                                          'admin.organizations.groups.edit',
                                         )}
                                         className="text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300"
                                       >
@@ -706,7 +710,7 @@ export function OrgGroups({
                                         disabled={isDeleting}
                                         data-testid={`group-delete-${group.id}`}
                                         aria-label={t(
-                                          'admin.organizations.groups.delete'
+                                          'admin.organizations.groups.delete',
                                         )}
                                         className="text-red-600 hover:text-red-800 disabled:opacity-50 dark:text-red-400 dark:hover:text-red-300"
                                       >

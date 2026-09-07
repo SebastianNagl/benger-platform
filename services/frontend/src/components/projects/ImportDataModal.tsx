@@ -12,7 +12,6 @@
 
 'use client'
 
-import { logger } from '@/lib/utils/logger'
 import { CloudImportPanel } from '@/components/projects/import/CloudImportPanel'
 import { ImportSourceTabs } from '@/components/projects/import/ImportSourceTabs'
 import { Dialog } from '@/components/shared/Dialog'
@@ -27,6 +26,7 @@ import {
   detectFormat,
   parseImportData,
 } from '@/lib/import/parseImportData'
+import { logger } from '@/lib/utils/logger'
 import { useProjectStore } from '@/stores/projectStore'
 import { ExclamationTriangleIcon } from '@heroicons/react/24/outline'
 import React, { useCallback, useEffect, useState } from 'react'
@@ -111,13 +111,13 @@ export function ImportDataModal({
     })
 
     const missingFields = templateFields.filter(
-      (field) => !allDataFields.has(field)
+      (field) => !allDataFields.has(field),
     )
 
     if (missingFields.length > 0) {
       // Use Label Studio's exact error format
       errors.push(
-        `Validation error - These fields are not present in the data: ${missingFields.join(', ')}`
+        `Validation error - These fields are not present in the data: ${missingFields.join(', ')}`,
       )
     }
 
@@ -162,7 +162,7 @@ export function ImportDataModal({
 
           const parsed = parseImportData(
             content,
-            detectFormat(content, selectedFile.name)
+            detectFormat(content, selectedFile.name),
           )
           data = parsed.rows
           extras = parsed.extras
@@ -189,7 +189,7 @@ export function ImportDataModal({
         // Show field mapping as an option, not a blocker
         addToast(
           `Some fields don't match your template. You can import as-is or use field mapping.`,
-          'error'
+          'error',
         )
         setValidationErrors(validation.errors)
         setParsedData(data)

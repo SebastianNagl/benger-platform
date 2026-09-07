@@ -1,6 +1,6 @@
+import { BASE_DOMAINS, isStudentLockedHost } from '@/lib/utils/subdomain'
 import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
-import { BASE_DOMAINS, isStudentLockedHost } from '@/lib/utils/subdomain'
 
 export function proxy(request: NextRequest) {
   const hostname =

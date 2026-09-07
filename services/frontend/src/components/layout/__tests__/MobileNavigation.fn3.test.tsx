@@ -4,8 +4,8 @@
  *          useMobileNavigationStore toggle/open/close
  */
 
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import React from 'react'
-import { render, screen, fireEvent, act } from '@testing-library/react'
 
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
@@ -18,7 +18,8 @@ jest.mock('@/contexts/I18nContext', () => ({
 
 // Mock headlessui
 jest.mock('@headlessui/react', () => ({
-  Dialog: ({ children, open }: any) => open ? <div data-testid="dialog">{children}</div> : null,
+  Dialog: ({ children, open }: any) =>
+    open ? <div data-testid="dialog">{children}</div> : null,
   DialogBackdrop: ({ children }: any) => <div>{children}</div>,
   DialogPanel: ({ children }: any) => <div>{children}</div>,
   TransitionChild: ({ children }: any) => <div>{children}</div>,
@@ -40,7 +41,11 @@ jest.mock('@/components/layout/Navigation', () => ({
   Navigation: () => <nav data-testid="navigation">Nav</nav>,
 }))
 
-import { MobileNavigation, useMobileNavigationStore, useIsInsideMobileNavigation } from '../MobileNavigation'
+import {
+  MobileNavigation,
+  useIsInsideMobileNavigation,
+  useMobileNavigationStore,
+} from '../MobileNavigation'
 
 describe('MobileNavigation fn3', () => {
   beforeEach(() => {

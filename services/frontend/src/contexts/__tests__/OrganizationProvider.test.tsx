@@ -46,7 +46,12 @@ describe('OrganizationProvider', () => {
   it('should set current organization', () => {
     const { result } = renderHook(() => useOrganization(), { wrapper })
 
-    const org = { id: 'org2', name: 'Org 2', slug: 'org2', role: 'admin' as const }
+    const org = {
+      id: 'org2',
+      name: 'Org 2',
+      slug: 'org2',
+      role: 'admin' as const,
+    }
 
     act(() => {
       result.current.setCurrentOrganization(org as any)

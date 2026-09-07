@@ -24,7 +24,7 @@ export function LegalPageWrapper({
   // For authenticated users, show full layout with breadcrumb
   if (user) {
     return (
-      <ResponsiveContainer size="xl" className="pb-10 pt-8">
+      <ResponsiveContainer size="xl" className="pt-8 pb-10">
         <div className="mb-4">
           <Breadcrumb
             items={[
@@ -33,7 +33,7 @@ export function LegalPageWrapper({
             ]}
           />
         </div>
-        <div className="prose prose-zinc max-w-none dark:prose-invert">
+        <div className="prose max-w-none prose-zinc dark:prose-invert">
           {children}
         </div>
       </ResponsiveContainer>

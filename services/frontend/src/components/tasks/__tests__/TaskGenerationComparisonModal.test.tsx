@@ -50,7 +50,7 @@ describe('TaskGenerationComparisonModal', () => {
         isOpen={false}
         onClose={() => {}}
         projectId="project-1"
-      />
+      />,
     )
     expect(container.querySelector('[role="dialog"]')).not.toBeInTheDocument()
   })
@@ -62,7 +62,7 @@ describe('TaskGenerationComparisonModal', () => {
         isOpen
         onClose={() => {}}
         projectId="project-1"
-      />
+      />,
     )
 
     await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument())
@@ -74,7 +74,7 @@ describe('TaskGenerationComparisonModal', () => {
     // The first model's results are fetched and rendered.
     await waitFor(() => expect(mockGet).toHaveBeenCalled())
     await waitFor(() =>
-      expect(screen.getByText('Hello from model A')).toBeInTheDocument()
+      expect(screen.getByText('Hello from model A')).toBeInTheDocument(),
     )
 
     // Fetch uses include_history so per-model totals reconcile with the count.
@@ -90,12 +90,12 @@ describe('TaskGenerationComparisonModal', () => {
         isOpen
         onClose={() => {}}
         projectId="project-1"
-      />
+      />,
     )
 
     await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument())
     expect(
-      screen.getByText(/generation\.comparison\.modal\.noGenerations/i)
+      screen.getByText(/generation\.comparison\.modal\.noGenerations/i),
     ).toBeInTheDocument()
     expect(mockGet).not.toHaveBeenCalled()
   })

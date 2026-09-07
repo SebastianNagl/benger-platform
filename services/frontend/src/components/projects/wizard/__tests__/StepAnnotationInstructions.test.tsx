@@ -54,7 +54,7 @@ function renderStep(args: RenderArgs = {}) {
       onShowInstructionChange={onShowInstructionChange}
       onInstructionsAlwaysVisibleChange={onInstructionsAlwaysVisibleChange}
       onShowSkipButtonChange={onShowSkipButtonChange}
-    />
+    />,
   )
   return {
     onInstructionsChange,
@@ -184,7 +184,7 @@ describe('StepAnnotationInstructions', () => {
       })
       const variant = screen.getByTestId('wizard-variant-0')
       const aiCheckbox = variant.querySelector(
-        'input[type="checkbox"]'
+        'input[type="checkbox"]',
       ) as HTMLInputElement
       fireEvent.click(aiCheckbox)
       expect(onConditionalInstructionsChange).toHaveBeenCalledWith([
@@ -203,7 +203,7 @@ describe('StepAnnotationInstructions', () => {
       })
       // weightError translation key gets interpolated with the sum (90)
       expect(
-        screen.getByText(/projects\.creation\.wizard\.step4\.weightError/)
+        screen.getByText(/projects\.creation\.wizard\.step4\.weightError/),
       ).toBeInTheDocument()
     })
 
@@ -215,7 +215,7 @@ describe('StepAnnotationInstructions', () => {
         ],
       })
       expect(
-        screen.queryByText(/projects\.creation\.wizard\.step4\.weightError/)
+        screen.queryByText(/projects\.creation\.wizard\.step4\.weightError/),
       ).not.toBeInTheDocument()
     })
   })
@@ -224,11 +224,11 @@ describe('StepAnnotationInstructions', () => {
     it('toggles show-instruction off', () => {
       const { onShowInstructionChange } = renderStep({ showInstruction: true })
       const label = screen.getByText(
-        'projects.creation.wizard.step4.showInstructions'
+        'projects.creation.wizard.step4.showInstructions',
       )
       const row = label.closest('.flex')!
       const checkbox = row.querySelector(
-        'input[type="checkbox"]'
+        'input[type="checkbox"]',
       ) as HTMLInputElement
       expect(checkbox).toBeChecked()
       fireEvent.click(checkbox)
@@ -240,11 +240,11 @@ describe('StepAnnotationInstructions', () => {
         instructionsAlwaysVisible: false,
       })
       const label = screen.getByText(
-        'projects.creation.wizard.step4.alwaysShowInstructions'
+        'projects.creation.wizard.step4.alwaysShowInstructions',
       )
       const row = label.closest('.flex')!
       const checkbox = row.querySelector(
-        'input[type="checkbox"]'
+        'input[type="checkbox"]',
       ) as HTMLInputElement
       fireEvent.click(checkbox)
       expect(onInstructionsAlwaysVisibleChange).toHaveBeenCalledWith(true)
@@ -253,11 +253,11 @@ describe('StepAnnotationInstructions', () => {
     it('toggles show-skip-button off', () => {
       const { onShowSkipButtonChange } = renderStep({ showSkipButton: true })
       const label = screen.getByText(
-        'projects.creation.wizard.step4.showSkipButton'
+        'projects.creation.wizard.step4.showSkipButton',
       )
       const row = label.closest('.flex')!
       const checkbox = row.querySelector(
-        'input[type="checkbox"]'
+        'input[type="checkbox"]',
       ) as HTMLInputElement
       fireEvent.click(checkbox)
       expect(onShowSkipButtonChange).toHaveBeenCalledWith(false)

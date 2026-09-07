@@ -156,7 +156,8 @@ const mockTranslations: Record<string, string> = {
   'register.expertiseLevel.lawStudent': 'Jurastudent/in',
   'register.expertiseLevel.referendar': 'Rechtsreferendar/in',
   'register.expertiseLevel.graduatedNoPractice': 'Abgeschlossen (Keine Praxis)',
-  'register.expertiseLevel.practicingLawyer': 'Praktizierender Anwalt/Anwaeltin',
+  'register.expertiseLevel.practicingLawyer':
+    'Praktizierender Anwalt/Anwaeltin',
   'register.expertiseLevel.judgeProfessor': 'Richter/in / Professor/in',
   'register.germanProficiency.native': 'Muttersprachler/in',
   'register.germanProficiency.c2': 'C2 (Kompetent)',
@@ -243,7 +244,7 @@ describe('Issue #148: Profile Page Collapsible Sections', () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText('Demografische Informationen')
+        screen.getByText('Demografische Informationen'),
       ).toBeInTheDocument()
     })
 
@@ -266,7 +267,7 @@ describe('Issue #148: Profile Page Collapsible Sections', () => {
 
     // Section is expanded by default - show/hide text should show "ausblenden"
     expect(
-      screen.getByText('Juristische Erfahrung ausblenden')
+      screen.getByText('Juristische Erfahrung ausblenden'),
     ).toBeInTheDocument()
   })
 
@@ -292,13 +293,13 @@ describe('Issue #148: Profile Page Collapsible Sections', () => {
     // Should be hidden
     await waitFor(() => {
       expect(
-        screen.queryByText('Juristische Expertise')
+        screen.queryByText('Juristische Expertise'),
       ).not.toBeInTheDocument()
     })
 
     // Text should change to "anzeigen" (Show)
     expect(
-      screen.getByText('Juristische Erfahrung anzeigen')
+      screen.getByText('Juristische Erfahrung anzeigen'),
     ).toBeInTheDocument()
 
     // Click to expand again
@@ -314,9 +315,7 @@ describe('Issue #148: Profile Page Collapsible Sections', () => {
     render(<ProfilePage />)
 
     await waitFor(() => {
-      expect(
-        screen.getByText('Persoenliche Informationen')
-      ).toBeInTheDocument()
+      expect(screen.getByText('Persoenliche Informationen')).toBeInTheDocument()
     })
 
     // Check that the main sections are present
@@ -344,7 +343,7 @@ describe('Issue #148: Profile Page Collapsible Sections', () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText('Demografische Informationen')
+        screen.getByText('Demografische Informationen'),
       ).toBeInTheDocument()
     })
 
@@ -359,9 +358,7 @@ describe('Issue #148: Profile Page Collapsible Sections', () => {
     render(<ProfilePage />)
 
     await waitFor(() => {
-      expect(
-        screen.getByText('Persoenliche Informationen')
-      ).toBeInTheDocument()
+      expect(screen.getByText('Persoenliche Informationen')).toBeInTheDocument()
     })
 
     // Check that the Change Password and API Keys buttons exist

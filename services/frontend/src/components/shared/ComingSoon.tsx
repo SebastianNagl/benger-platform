@@ -23,7 +23,7 @@ export function ComingSoon({
   const displayDescription = description ?? t('common.comingSoonMessage')
 
   return (
-    <ResponsiveContainer size="xl" className="pb-10 pt-8">
+    <ResponsiveContainer size="xl" className="pt-8 pb-10">
       <div className="flex min-h-[60vh] flex-col items-center justify-center text-center">
         {/* Icon */}
         <div className="mb-8">

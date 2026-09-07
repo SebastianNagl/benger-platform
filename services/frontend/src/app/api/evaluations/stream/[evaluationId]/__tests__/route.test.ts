@@ -21,9 +21,12 @@ describe('GET /api/evaluations/stream/[evaluationId]', () => {
       body: mockBody,
     })
 
-    const request = new NextRequest('http://localhost:3000/api/evaluations/stream/eval-123', {
-      headers: { host: 'localhost:3000', cookie: 'session=abc' },
-    })
+    const request = new NextRequest(
+      'http://localhost:3000/api/evaluations/stream/eval-123',
+      {
+        headers: { host: 'localhost:3000', cookie: 'session=abc' },
+      },
+    )
     const params = Promise.resolve({ evaluationId: 'eval-123' })
 
     const response = await GET(request, { params })
@@ -35,7 +38,7 @@ describe('GET /api/evaluations/stream/[evaluationId]', () => {
           Cookie: 'session=abc',
           Accept: 'text/event-stream',
         }),
-      })
+      }),
     )
     expect(response.headers.get('Content-Type')).toBe('text/event-stream')
   })
@@ -46,16 +49,19 @@ describe('GET /api/evaluations/stream/[evaluationId]', () => {
       body: new ReadableStream(),
     })
 
-    const request = new NextRequest('http://benger.localhost/api/evaluations/stream/eval-456', {
-      headers: { host: 'benger.localhost', cookie: '' },
-    })
+    const request = new NextRequest(
+      'http://benger.localhost/api/evaluations/stream/eval-456',
+      {
+        headers: { host: 'benger.localhost', cookie: '' },
+      },
+    )
     const params = Promise.resolve({ evaluationId: 'eval-456' })
 
     await GET(request, { params })
 
     expect(mockFetch).toHaveBeenCalledWith(
       'http://api:8000/api/evaluations/stream/eval-456',
-      expect.anything()
+      expect.anything(),
     )
   })
 
@@ -65,16 +71,19 @@ describe('GET /api/evaluations/stream/[evaluationId]', () => {
       body: new ReadableStream(),
     })
 
-    const request = new NextRequest('http://staging.what-a-benger.net/api/evaluations/stream/eval-789', {
-      headers: { host: 'staging.what-a-benger.net', cookie: '' },
-    })
+    const request = new NextRequest(
+      'http://staging.what-a-benger.net/api/evaluations/stream/eval-789',
+      {
+        headers: { host: 'staging.what-a-benger.net', cookie: '' },
+      },
+    )
     const params = Promise.resolve({ evaluationId: 'eval-789' })
 
     await GET(request, { params })
 
     expect(mockFetch).toHaveBeenCalledWith(
       'http://benger-api:8000/api/evaluations/stream/eval-789',
-      expect.anything()
+      expect.anything(),
     )
   })
 
@@ -84,16 +93,19 @@ describe('GET /api/evaluations/stream/[evaluationId]', () => {
       body: new ReadableStream(),
     })
 
-    const request = new NextRequest('http://what-a-benger.net/api/evaluations/stream/eval-100', {
-      headers: { host: 'what-a-benger.net', cookie: '' },
-    })
+    const request = new NextRequest(
+      'http://what-a-benger.net/api/evaluations/stream/eval-100',
+      {
+        headers: { host: 'what-a-benger.net', cookie: '' },
+      },
+    )
     const params = Promise.resolve({ evaluationId: 'eval-100' })
 
     await GET(request, { params })
 
     expect(mockFetch).toHaveBeenCalledWith(
       'http://benger-api:8000/api/evaluations/stream/eval-100',
-      expect.anything()
+      expect.anything(),
     )
   })
 
@@ -103,9 +115,12 @@ describe('GET /api/evaluations/stream/[evaluationId]', () => {
       status: 404,
     })
 
-    const request = new NextRequest('http://localhost:3000/api/evaluations/stream/missing', {
-      headers: { host: 'localhost:3000', cookie: '' },
-    })
+    const request = new NextRequest(
+      'http://localhost:3000/api/evaluations/stream/missing',
+      {
+        headers: { host: 'localhost:3000', cookie: '' },
+      },
+    )
     const params = Promise.resolve({ evaluationId: 'missing' })
 
     const response = await GET(request, { params })
@@ -118,9 +133,12 @@ describe('GET /api/evaluations/stream/[evaluationId]', () => {
   it('should return 500 when fetch throws an error', async () => {
     mockFetch.mockRejectedValue(new Error('Connection refused'))
 
-    const request = new NextRequest('http://localhost:3000/api/evaluations/stream/fail', {
-      headers: { host: 'localhost:3000', cookie: '' },
-    })
+    const request = new NextRequest(
+      'http://localhost:3000/api/evaluations/stream/fail',
+      {
+        headers: { host: 'localhost:3000', cookie: '' },
+      },
+    )
     const params = Promise.resolve({ evaluationId: 'fail' })
 
     const response = await GET(request, { params })
@@ -136,12 +154,15 @@ describe('GET /api/evaluations/stream/[evaluationId]', () => {
       body: new ReadableStream(),
     })
 
-    const request = new NextRequest('http://localhost:3000/api/evaluations/stream/eval-123', {
-      headers: {
-        host: 'localhost:3000',
-        cookie: 'session=xyz123; other=abc',
+    const request = new NextRequest(
+      'http://localhost:3000/api/evaluations/stream/eval-123',
+      {
+        headers: {
+          host: 'localhost:3000',
+          cookie: 'session=xyz123; other=abc',
+        },
       },
-    })
+    )
     const params = Promise.resolve({ evaluationId: 'eval-123' })
 
     await GET(request, { params })
@@ -152,7 +173,7 @@ describe('GET /api/evaluations/stream/[evaluationId]', () => {
         headers: expect.objectContaining({
           Cookie: 'session=xyz123; other=abc',
         }),
-      })
+      }),
     )
   })
 })

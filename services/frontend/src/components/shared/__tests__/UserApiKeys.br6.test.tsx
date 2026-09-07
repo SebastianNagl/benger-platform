@@ -18,7 +18,7 @@
  */
 
 import '@testing-library/jest-dom'
-import { render, screen, waitFor, act } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
 const mockGetUserApiKeys = jest.fn()
@@ -61,17 +61,29 @@ describe('UserApiKeys br6', () => {
     // Default: all keys not configured
     mockGetUserApiKeys.mockResolvedValue({
       api_key_status: {
-        openai: false, anthropic: false, google: false,
-        deepinfra: false, grok: false, mistral: false, cohere: false,
+        openai: false,
+        anthropic: false,
+        google: false,
+        deepinfra: false,
+        grok: false,
+        mistral: false,
+        cohere: false,
       },
     })
   })
 
   it('renders with disabled=true and shows disabledMessage', async () => {
-    render(<UserApiKeys disabled={true} disabledMessage="Keys disabled for this role" />)
+    render(
+      <UserApiKeys
+        disabled={true}
+        disabledMessage="Keys disabled for this role"
+      />,
+    )
 
     await waitFor(() => {
-      expect(screen.getByText('Keys disabled for this role')).toBeInTheDocument()
+      expect(
+        screen.getByText('Keys disabled for this role'),
+      ).toBeInTheDocument()
     })
   })
 
@@ -91,22 +103,31 @@ describe('UserApiKeys br6', () => {
     render(<UserApiKeys />)
 
     await waitFor(() => {
-      expect(screen.getByText('shared.userApiKeys.failedLoadStatus')).toBeInTheDocument()
+      expect(
+        screen.getByText('shared.userApiKeys.failedLoadStatus'),
+      ).toBeInTheDocument()
     })
   })
 
   it('renders configured status for a provider', async () => {
     mockGetUserApiKeys.mockResolvedValue({
       api_key_status: {
-        openai: true, anthropic: false, google: false,
-        deepinfra: false, grok: false, mistral: false, cohere: false,
+        openai: true,
+        anthropic: false,
+        google: false,
+        deepinfra: false,
+        grok: false,
+        mistral: false,
+        cohere: false,
       },
     })
 
     render(<UserApiKeys />)
 
     await waitFor(() => {
-      expect(screen.getByText('shared.userApiKeys.configured')).toBeInTheDocument()
+      expect(
+        screen.getByText('shared.userApiKeys.configured'),
+      ).toBeInTheDocument()
     })
   })
 
@@ -128,7 +149,9 @@ describe('UserApiKeys br6', () => {
     await user.click(saveButtons[0])
 
     await waitFor(() => {
-      expect(screen.getByText(/shared.userApiKeys.invalidKeyFormat/)).toBeInTheDocument()
+      expect(
+        screen.getByText(/shared.userApiKeys.invalidKeyFormat/),
+      ).toBeInTheDocument()
     })
   })
 
@@ -137,14 +160,24 @@ describe('UserApiKeys br6', () => {
     mockGetUserApiKeys
       .mockResolvedValueOnce({
         api_key_status: {
-          openai: false, anthropic: false, google: false,
-          deepinfra: false, grok: false, mistral: false, cohere: false,
+          openai: false,
+          anthropic: false,
+          google: false,
+          deepinfra: false,
+          grok: false,
+          mistral: false,
+          cohere: false,
         },
       })
       .mockResolvedValueOnce({
         api_key_status: {
-          openai: true, anthropic: false, google: false,
-          deepinfra: false, grok: false, mistral: false, cohere: false,
+          openai: true,
+          anthropic: false,
+          google: false,
+          deepinfra: false,
+          grok: false,
+          mistral: false,
+          cohere: false,
         },
       })
 
@@ -161,12 +194,17 @@ describe('UserApiKeys br6', () => {
     await user.click(saveButtons[0])
 
     await waitFor(() => {
-      expect(mockSetUserApiKey).toHaveBeenCalledWith('openai', 'sk-abc123456789012345678901')
+      expect(mockSetUserApiKey).toHaveBeenCalledWith(
+        'openai',
+        'sk-abc123456789012345678901',
+      )
     })
   })
 
   it('handles save API key failure', async () => {
-    mockSetUserApiKey.mockRejectedValue({ response: { data: { detail: 'Save failed' } } })
+    mockSetUserApiKey.mockRejectedValue({
+      response: { data: { detail: 'Save failed' } },
+    })
 
     render(<UserApiKeys />)
 
@@ -201,7 +239,9 @@ describe('UserApiKeys br6', () => {
     await user.click(saveButtons[0])
 
     await waitFor(() => {
-      expect(screen.getByText('shared.userApiKeys.failedSave')).toBeInTheDocument()
+      expect(
+        screen.getByText('shared.userApiKeys.failedSave'),
+      ).toBeInTheDocument()
     })
   })
 
@@ -210,21 +250,33 @@ describe('UserApiKeys br6', () => {
     mockGetUserApiKeys
       .mockResolvedValueOnce({
         api_key_status: {
-          openai: true, anthropic: false, google: false,
-          deepinfra: false, grok: false, mistral: false, cohere: false,
+          openai: true,
+          anthropic: false,
+          google: false,
+          deepinfra: false,
+          grok: false,
+          mistral: false,
+          cohere: false,
         },
       })
       .mockResolvedValueOnce({
         api_key_status: {
-          openai: false, anthropic: false, google: false,
-          deepinfra: false, grok: false, mistral: false, cohere: false,
+          openai: false,
+          anthropic: false,
+          google: false,
+          deepinfra: false,
+          grok: false,
+          mistral: false,
+          cohere: false,
         },
       })
 
     render(<UserApiKeys />)
 
     await waitFor(() => {
-      expect(screen.getByText('shared.userApiKeys.configured')).toBeInTheDocument()
+      expect(
+        screen.getByText('shared.userApiKeys.configured'),
+      ).toBeInTheDocument()
     })
 
     const removeBtn = screen.getByText('shared.userApiKeys.removeApiKey')
@@ -246,9 +298,9 @@ describe('UserApiKeys br6', () => {
     expect(inputs[0]).toHaveAttribute('type', 'password')
 
     // Find and click the eye toggle button (it's the button next to the input)
-    const toggleBtns = screen.getAllByRole('button').filter(
-      (b) => b.querySelector('svg') && b.closest('.relative')
-    )
+    const toggleBtns = screen
+      .getAllByRole('button')
+      .filter((b) => b.querySelector('svg') && b.closest('.relative'))
     if (toggleBtns.length > 0) {
       await user.click(toggleBtns[0])
     }
@@ -268,7 +320,9 @@ describe('UserApiKeys br6', () => {
     await user.click(saveButtons[0])
 
     await waitFor(() => {
-      expect(screen.getByText(/shared.userApiKeys.invalidKeyFormat/)).toBeInTheDocument()
+      expect(
+        screen.getByText(/shared.userApiKeys.invalidKeyFormat/),
+      ).toBeInTheDocument()
     })
 
     // Type more - validation error should clear
@@ -276,7 +330,9 @@ describe('UserApiKeys br6', () => {
 
     // Error should be cleared
     await waitFor(() => {
-      expect(screen.queryByText(/shared.userApiKeys.invalidKeyFormat/)).not.toBeInTheDocument()
+      expect(
+        screen.queryByText(/shared.userApiKeys.invalidKeyFormat/),
+      ).not.toBeInTheDocument()
     })
   })
 })

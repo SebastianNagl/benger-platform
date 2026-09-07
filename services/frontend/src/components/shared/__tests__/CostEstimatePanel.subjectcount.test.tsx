@@ -84,9 +84,7 @@ describe('CostEstimatePanel — subject_count (eval-with-configs) path', () => {
       />,
     )
 
-    await waitFor(() =>
-      expect(screen.getByText('$4.00')).toBeInTheDocument(),
-    )
+    await waitFor(() => expect(screen.getByText('$4.00')).toBeInTheDocument())
 
     // Per-cell breakdown line (subject_count > 0 branch) instead of the
     // tasks×runs×models legacy line.
@@ -118,9 +116,7 @@ describe('CostEstimatePanel — subject_count (eval-with-configs) path', () => {
       />,
     )
 
-    await waitFor(() =>
-      expect(screen.getByText('$4.00')).toBeInTheDocument(),
-    )
+    await waitFor(() => expect(screen.getByText('$4.00')).toBeInTheDocument())
     const hint = screen.getByText('ⓘ')
     // new Date('not-a-real-date').toLocaleTimeString() === 'Invalid Date',
     // so the catch re-uses the raw string. Either way the title is present;

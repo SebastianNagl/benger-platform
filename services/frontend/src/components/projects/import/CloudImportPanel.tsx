@@ -26,10 +26,7 @@ import {
   type OrgStorageConnection,
   type OrgStorageObject,
 } from '@/lib/api/organizations'
-import {
-  projectsAPI,
-  type CloudImportHistoryEntry,
-} from '@/lib/api/projects'
+import { projectsAPI, type CloudImportHistoryEntry } from '@/lib/api/projects'
 import {
   ArrowPathIcon,
   DocumentIcon,
@@ -82,7 +79,8 @@ const formatSize = (size: number | null): string => {
   if (size === null || size === undefined) return ''
   if (size < 1024) return `${size} B`
   if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`
-  if (size < 1024 * 1024 * 1024) return `${(size / (1024 * 1024)).toFixed(1)} MB`
+  if (size < 1024 * 1024 * 1024)
+    return `${(size / (1024 * 1024)).toFixed(1)} MB`
   return `${(size / (1024 * 1024 * 1024)).toFixed(1)} GB`
 }
 
@@ -105,12 +103,12 @@ export function CloudImportPanel({
   const { startProgress, updateProgress, completeProgress } = useProgress()
 
   const [organizationId, setOrganizationId] = useState<string>(
-    initialSelection?.organizationId ?? ''
+    initialSelection?.organizationId ?? '',
   )
   const [connections, setConnections] = useState<OrgStorageConnection[]>([])
   const [connectionsLoading, setConnectionsLoading] = useState(false)
   const [connectionId, setConnectionId] = useState<string>(
-    initialSelection?.connectionId ?? ''
+    initialSelection?.connectionId ?? '',
   )
 
   const [currentPrefix, setCurrentPrefix] = useState('')
@@ -121,7 +119,7 @@ export function CloudImportPanel({
   const [browseError, setBrowseError] = useState<string | null>(null)
 
   const [selectedKeys, setSelectedKeys] = useState<string[]>(
-    initialSelection?.objectKeys ?? []
+    initialSelection?.objectKeys ?? [],
   )
   const [importing, setImporting] = useState(false)
 
@@ -142,7 +140,7 @@ export function CloudImportPanel({
         objectKeys: keys,
       })
     },
-    [onSelectionChange]
+    [onSelectionChange],
   )
 
   // Auto-select the only org.
@@ -181,7 +179,7 @@ export function CloudImportPanel({
       orgId: string,
       connId: string,
       prefix: string,
-      token?: string | null
+      token?: string | null,
     ) => {
       setBrowseLoading(true)
       setBrowseError(null)
@@ -193,22 +191,24 @@ export function CloudImportPanel({
             prefix,
             continuationToken: token || undefined,
             maxResults: 100,
-          }
+          },
         )
-        setObjects((prev) => (token ? [...prev, ...page.objects] : page.objects))
+        setObjects((prev) =>
+          token ? [...prev, ...page.objects] : page.objects,
+        )
         setPrefixes((prev) =>
-          token ? [...prev, ...page.prefixes] : page.prefixes
+          token ? [...prev, ...page.prefixes] : page.prefixes,
         )
         setNextToken(page.next_token)
       } catch (error: any) {
         setBrowseError(
-          error?.response?.data?.detail || t('dataImport.cloud.browseFailed')
+          error?.response?.data?.detail || t('dataImport.cloud.browseFailed'),
         )
       } finally {
         setBrowseLoading(false)
       }
     },
-    [t]
+    [t],
   )
 
   // Connection change → jump to its root prefix and list it.
@@ -302,10 +302,10 @@ export function CloudImportPanel({
             updateProgress(
               progressId,
               Math.min(95, Math.round((done / keys.length) * 100)),
-              basename(objectKey)
+              basename(objectKey),
             )
           },
-        }
+        },
       )
       completeProgress(progressId, 'success')
       addToast(t('dataImport.cloud.importSuccess'), 'success')
@@ -320,7 +320,7 @@ export function CloudImportPanel({
               reason: error.message,
             })
           : t('dataImport.cloud.importFailed'),
-        'error'
+        'error',
       )
       await fetchHistory()
     } finally {
@@ -333,7 +333,7 @@ export function CloudImportPanel({
   // Re-run resolves the connection by name — the history rows carry only the
   // connection's display name (the FK id is not serialized).
   const resolveHistoryConnection = (
-    entry: CloudImportHistoryEntry
+    entry: CloudImportHistoryEntry,
   ): string | null => {
     const match = connections.find((c) => c.name === entry.connection_name)
     return match ? match.id : null
@@ -373,12 +373,10 @@ export function CloudImportPanel({
           <select
             value={organizationId}
             onChange={(e) => handleOrgChange(e.target.value)}
-            className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+            className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
             data-testid="cloud-import-org-select"
           >
-            <option value="">
-              {t('dataImport.cloud.selectOrganization')}
-            </option>
+            <option value="">{t('dataImport.cloud.selectOrganization')}</option>
             {organizations.map((org) => (
               <option key={org.id} value={org.id}>
                 {org.display_name || org.name}
@@ -394,7 +392,7 @@ export function CloudImportPanel({
             value={connectionId}
             onChange={(e) => handleConnectionChange(e.target.value)}
             disabled={!organizationId || connectionsLoading}
-            className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+            className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none disabled:opacity-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
             data-testid="cloud-import-connection-select"
           >
             <option value="">
@@ -443,7 +441,7 @@ export function CloudImportPanel({
                   type="button"
                   onClick={() =>
                     navigateTo(
-                      rootPrefix + crumbs.slice(0, i + 1).join('/') + '/'
+                      rootPrefix + crumbs.slice(0, i + 1).join('/') + '/',
                     )
                   }
                   className="text-emerald-600 hover:underline dark:text-emerald-400"
@@ -512,10 +510,10 @@ export function CloudImportPanel({
                     <span className="min-w-0 flex-1 truncate text-zinc-900 dark:text-zinc-100">
                       {basename(obj.key)}
                     </span>
-                    <span className="whitespace-nowrap text-xs text-zinc-500 dark:text-zinc-400">
+                    <span className="text-xs whitespace-nowrap text-zinc-500 dark:text-zinc-400">
                       {formatSize(obj.size)}
                     </span>
-                    <span className="whitespace-nowrap text-xs text-zinc-500 dark:text-zinc-400">
+                    <span className="text-xs whitespace-nowrap text-zinc-500 dark:text-zinc-400">
                       {formatDate(obj.last_modified)}
                     </span>
                   </label>
@@ -545,7 +543,7 @@ export function CloudImportPanel({
                         organizationId,
                         connectionId,
                         currentPrefix,
-                        nextToken
+                        nextToken,
                       )
                     }
                     data-testid="cloud-import-load-more"
@@ -623,7 +621,7 @@ export function CloudImportPanel({
                     {basename(entry.object_key)}
                   </span>
                   {entry.connection_name && (
-                    <span className="whitespace-nowrap text-xs text-zinc-500 dark:text-zinc-400">
+                    <span className="text-xs whitespace-nowrap text-zinc-500 dark:text-zinc-400">
                       {entry.connection_name}
                     </span>
                   )}
@@ -638,7 +636,7 @@ export function CloudImportPanel({
                   >
                     {t(`dataImport.cloud.status.${entry.status}`)}
                   </span>
-                  <span className="whitespace-nowrap text-xs text-zinc-500 dark:text-zinc-400">
+                  <span className="text-xs whitespace-nowrap text-zinc-500 dark:text-zinc-400">
                     {formatDate(entry.created_at)}
                   </span>
                   <Button

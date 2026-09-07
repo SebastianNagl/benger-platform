@@ -115,7 +115,7 @@ jest.mock('../base', () => ({
       // Create invitation
       if (
         endpoint.match(
-          /^\/invitations\/organizations\/org-\w+\/invitations$/
+          /^\/invitations\/organizations\/org-\w+\/invitations$/,
         ) &&
         method === 'POST'
       ) {
@@ -216,7 +216,7 @@ jest.mock('../base', () => ({
       // Update user global role
       if (
         endpoint.match(
-          /^\/organizations\/manage\/users\/user-\w+\/superadmin$/
+          /^\/organizations\/manage\/users\/user-\w+\/superadmin$/,
         ) &&
         method === 'PUT'
       ) {
@@ -234,7 +234,7 @@ jest.mock('../base', () => ({
       // Verify member email
       if (
         endpoint.match(
-          /^\/organizations\/org-\w+\/members\/user-\w+\/verify-email$/
+          /^\/organizations\/org-\w+\/members\/user-\w+\/verify-email$/,
         ) &&
         method === 'POST'
       ) {
@@ -399,7 +399,7 @@ describe('OrganizationsClient', () => {
       const result = await client.updateMemberRole(
         'org-1',
         'user-1',
-        'CONTRIBUTOR'
+        'CONTRIBUTOR',
       )
 
       expect(result).toEqual({ message: 'Role updated successfully' })
@@ -411,7 +411,7 @@ describe('OrganizationsClient', () => {
 
       expect(putSpy).toHaveBeenCalledWith(
         '/organizations/org-1/members/user-1/role',
-        { role: 'ANNOTATOR' }
+        { role: 'ANNOTATOR' },
       )
     })
   })
@@ -469,7 +469,7 @@ describe('OrganizationsClient', () => {
 
       expect(postSpy).toHaveBeenCalledWith(
         '/invitations/organizations/org-1/invitations',
-        invitationData
+        invitationData,
       )
     })
   })
@@ -493,7 +493,7 @@ describe('OrganizationsClient', () => {
       await client.getOrganizationInvitations('org-1', false)
 
       expect(getSpy).toHaveBeenCalledWith(
-        '/invitations/organizations/org-1/invitations'
+        '/invitations/organizations/org-1/invitations',
       )
     })
 
@@ -502,7 +502,7 @@ describe('OrganizationsClient', () => {
       await client.getOrganizationInvitations('org-1', true)
 
       expect(getSpy).toHaveBeenCalledWith(
-        '/invitations/organizations/org-1/invitations?include_expired=true'
+        '/invitations/organizations/org-1/invitations?include_expired=true',
       )
     })
   })
@@ -577,7 +577,7 @@ describe('OrganizationsClient', () => {
       const getSpy = jest.spyOn(client as any, 'get')
       await client.getAllUsers({ search: 'bob' })
       expect(getSpy).toHaveBeenCalledWith(
-        expect.stringMatching(/^\/organizations\/manage\/users\?search=bob$/)
+        expect.stringMatching(/^\/organizations\/manage\/users\?search=bob$/),
       )
     })
 
@@ -585,7 +585,7 @@ describe('OrganizationsClient', () => {
       const getSpy = jest.spyOn(client as any, 'get')
       await client.getAllUsers({ limit: 100 })
       expect(getSpy).toHaveBeenCalledWith(
-        expect.stringMatching(/^\/organizations\/manage\/users\?limit=100$/)
+        expect.stringMatching(/^\/organizations\/manage\/users\?limit=100$/),
       )
     })
   })
@@ -609,7 +609,7 @@ describe('OrganizationsClient', () => {
 
       expect(putSpy).toHaveBeenCalledWith(
         '/organizations/manage/users/user-1/superadmin',
-        { is_superadmin: true }
+        { is_superadmin: true },
       )
     })
 
@@ -619,7 +619,7 @@ describe('OrganizationsClient', () => {
 
       expect(putSpy).toHaveBeenCalledWith(
         '/organizations/manage/users/user-1/superadmin',
-        { is_superadmin: false }
+        { is_superadmin: false },
       )
     })
   })
@@ -637,7 +637,7 @@ describe('OrganizationsClient', () => {
       const result = await client.addUserToOrganization(
         'org-1',
         'user-1',
-        'CONTRIBUTOR'
+        'CONTRIBUTOR',
       )
 
       expect(result).toEqual({
@@ -672,7 +672,7 @@ describe('OrganizationsClient', () => {
       const result = await client.verifyMemberEmail(
         'org-1',
         'user-1',
-        'Manual verification'
+        'Manual verification',
       )
 
       expect(result.message).toBe('Email verified successfully')
@@ -684,7 +684,7 @@ describe('OrganizationsClient', () => {
 
       expect(postSpy).toHaveBeenCalledWith(
         '/organizations/org-1/members/user-1/verify-email',
-        { reason: 'Test reason' }
+        { reason: 'Test reason' },
       )
     })
   })
@@ -705,7 +705,7 @@ describe('OrganizationsClient', () => {
       const result = await client.bulkVerifyMemberEmails(
         'org-1',
         userIds,
-        'Bulk verification'
+        'Bulk verification',
       )
 
       expect(result.summary.total).toBe(2)
@@ -722,7 +722,7 @@ describe('OrganizationsClient', () => {
         {
           user_ids: userIds,
           reason: 'Test',
-        }
+        },
       )
     })
 
@@ -755,7 +755,7 @@ describe('OrganizationsClient', () => {
           name: 'Test',
           display_name: 'Test',
           slug: 'test',
-        })
+        }),
       ).rejects.toThrow('Unauthorized')
     })
 
@@ -765,7 +765,7 @@ describe('OrganizationsClient', () => {
         .mockRejectedValueOnce(new Error('Not found'))
 
       await expect(client.getOrganization('invalid-id')).rejects.toThrow(
-        'Not found'
+        'Not found',
       )
     })
   })

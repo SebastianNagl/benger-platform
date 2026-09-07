@@ -7,11 +7,11 @@
 
 'use client'
 
+import { useI18n } from '@/contexts/I18nContext'
 import {
   ArrowDownTrayIcon,
   ClipboardDocumentIcon,
 } from '@heroicons/react/24/outline'
-import { useI18n } from '@/contexts/I18nContext'
 import dynamic from 'next/dynamic'
 import { useMemo, useState } from 'react'
 
@@ -96,7 +96,7 @@ export function EvaluationHeatmap({
         predictionField: predField,
         referenceField: refField,
         score: scores[predField]?.[refField] ?? null,
-      }))
+      })),
     )
 
     return [
@@ -155,7 +155,7 @@ export function EvaluationHeatmap({
       margin: { l: 150, r: 100, t: 100, b: 150 },
       annotations,
     }),
-    [metric, predictionFields.length, referenceFields.length, annotations, t]
+    [metric, predictionFields.length, referenceFields.length, annotations, t],
   )
 
   const config = useMemo(
@@ -165,7 +165,7 @@ export function EvaluationHeatmap({
       displaylogo: false,
       modeBarButtonsToRemove: ['lasso2d', 'select2d'] as any[],
     }),
-    []
+    [],
   )
 
   const handleClick = (event: any) => {
@@ -194,7 +194,7 @@ export function EvaluationHeatmap({
         const refField = referenceFields[j]
         const score = scores[predField]?.[refField]
         rowData.push(
-          score !== undefined && score !== null ? score.toFixed(4) : 'N/A'
+          score !== undefined && score !== null ? score.toFixed(4) : 'N/A',
         )
       }
       rows.push(rowData.join(','))
@@ -223,10 +223,10 @@ export function EvaluationHeatmap({
     lines.push('\\begin{table}[h]')
     lines.push('\\centering')
     lines.push(
-      `\\caption{${metric} scores for prediction × reference field combinations}`
+      `\\caption{${metric} scores for prediction × reference field combinations}`,
     )
     lines.push(
-      `\\label{tab:field-scores-${metric.toLowerCase().replace(/\s+/g, '-')}}`
+      `\\label{tab:field-scores-${metric.toLowerCase().replace(/\s+/g, '-')}}`,
     )
 
     // Column specification
@@ -250,7 +250,7 @@ export function EvaluationHeatmap({
         const refField = referenceFields[j]
         const score = scores[predField]?.[refField]
         rowData.push(
-          score !== undefined && score !== null ? score.toFixed(3) : '--'
+          score !== undefined && score !== null ? score.toFixed(3) : '--',
         )
       }
       lines.push(rowData.join(' & ') + ' \\\\')
@@ -284,14 +284,14 @@ export function EvaluationHeatmap({
         <div className="flex gap-2">
           <button
             onClick={exportToCSV}
-            className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none"
           >
             <ArrowDownTrayIcon className="h-4 w-4" />
             {t('evaluation.charts.heatmap.exportCsv')}
           </button>
           <button
             onClick={exportToLaTeX}
-            className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none"
           >
             <ClipboardDocumentIcon className="h-4 w-4" />
             {t('evaluation.charts.heatmap.exportLatex')}
@@ -316,7 +316,9 @@ export function EvaluationHeatmap({
 
       {/* Legend */}
       <div className="rounded-lg border bg-gray-50 p-4">
-        <h4 className="mb-3 font-medium">{t('evaluation.charts.heatmap.legend')}</h4>
+        <h4 className="mb-3 font-medium">
+          {t('evaluation.charts.heatmap.legend')}
+        </h4>
         <div className="space-y-3">
           <div>
             <h5 className="mb-2 text-sm font-medium text-gray-700">
@@ -349,7 +351,8 @@ export function EvaluationHeatmap({
 
           <div className="rounded border-l-4 border-blue-500 bg-blue-50 p-3 text-sm">
             <p className="text-gray-700">
-              <strong>{t('evaluation.charts.heatmap.noteLabel')}:</strong> {t('evaluation.charts.heatmap.noteText', { metric })}
+              <strong>{t('evaluation.charts.heatmap.noteLabel')}:</strong>{' '}
+              {t('evaluation.charts.heatmap.noteText', { metric })}
             </p>
           </div>
 
@@ -359,11 +362,15 @@ export function EvaluationHeatmap({
             </h5>
             <div className="space-y-1 text-sm">
               <div className="flex items-center gap-2">
-                <span className="font-medium">{t('evaluation.charts.heatmap.min')}:</span>
+                <span className="font-medium">
+                  {t('evaluation.charts.heatmap.min')}:
+                </span>
                 <span>{minScore.toFixed(4)}</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="font-medium">{t('evaluation.charts.heatmap.max')}:</span>
+                <span className="font-medium">
+                  {t('evaluation.charts.heatmap.max')}:
+                </span>
                 <span>{maxScore.toFixed(4)}</span>
               </div>
             </div>

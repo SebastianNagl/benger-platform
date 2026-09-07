@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 
-import { renderHook, act } from '@testing-library/react'
+import { act, renderHook } from '@testing-library/react'
 import { useAutoSave } from '../useAutoSave'
 
 describe('useAutoSave', () => {
@@ -21,7 +21,7 @@ describe('useAutoSave', () => {
 
   it('should initialize with no draft when localStorage is empty', () => {
     const { result } = renderHook(() =>
-      useAutoSave('task-1', emptyAnnotations, emptyValues, startTime)
+      useAutoSave('task-1', emptyAnnotations, emptyValues, startTime),
     )
 
     expect(result.current.hasDraft).toBe(false)
@@ -41,7 +41,7 @@ describe('useAutoSave', () => {
     localStorage.setItem('benger_draft_task-1', JSON.stringify(draftData))
 
     const { result } = renderHook(() =>
-      useAutoSave('task-1', emptyAnnotations, emptyValues, startTime)
+      useAutoSave('task-1', emptyAnnotations, emptyValues, startTime),
     )
 
     expect(result.current.hasDraft).toBe(true)
@@ -59,7 +59,7 @@ describe('useAutoSave', () => {
     localStorage.setItem('benger_draft_task-2', JSON.stringify(draftData))
 
     const { result } = renderHook(() =>
-      useAutoSave('task-2', emptyAnnotations, emptyValues, startTime)
+      useAutoSave('task-2', emptyAnnotations, emptyValues, startTime),
     )
 
     const loaded = result.current.loadDraft()
@@ -70,7 +70,7 @@ describe('useAutoSave', () => {
 
   it('should return null when loading draft without taskId', () => {
     const { result } = renderHook(() =>
-      useAutoSave(null, emptyAnnotations, emptyValues, startTime)
+      useAutoSave(null, emptyAnnotations, emptyValues, startTime),
     )
 
     const loaded = result.current.loadDraft()
@@ -86,11 +86,11 @@ describe('useAutoSave', () => {
         componentValues: {},
         savedAt: Date.now(),
         leadTime: 0,
-      })
+      }),
     )
 
     const { result } = renderHook(() =>
-      useAutoSave('task-3', emptyAnnotations, emptyValues, startTime)
+      useAutoSave('task-3', emptyAnnotations, emptyValues, startTime),
     )
 
     expect(result.current.hasDraft).toBe(true)
@@ -108,7 +108,7 @@ describe('useAutoSave', () => {
     const values = new Map<string, unknown>()
 
     const { result } = renderHook(() =>
-      useAutoSave('task-4', annotations, values, startTime)
+      useAutoSave('task-4', annotations, values, startTime),
     )
 
     // Advance timers to trigger debounced save
@@ -123,9 +123,7 @@ describe('useAutoSave', () => {
   it('should debounce saves (not save immediately)', () => {
     const annotations = new Map([['comp1', { id: 'a1', value: 'test' }]])
 
-    renderHook(() =>
-      useAutoSave('task-5', annotations, emptyValues, startTime)
-    )
+    renderHook(() => useAutoSave('task-5', annotations, emptyValues, startTime))
 
     // Before debounce timeout
     act(() => {
@@ -148,7 +146,7 @@ describe('useAutoSave', () => {
     renderHook(() =>
       useAutoSave('task-6', annotations, emptyValues, startTime, {
         enabled: false,
-      })
+      }),
     )
 
     act(() => {
@@ -161,9 +159,7 @@ describe('useAutoSave', () => {
   it('should not save when taskId is null', () => {
     const annotations = new Map([['comp1', { id: 'a1', value: 'test' }]])
 
-    renderHook(() =>
-      useAutoSave(null, annotations, emptyValues, startTime)
-    )
+    renderHook(() => useAutoSave(null, annotations, emptyValues, startTime))
 
     act(() => {
       jest.advanceTimersByTime(2000)
@@ -177,7 +173,7 @@ describe('useAutoSave', () => {
     const annotations = new Map([['comp1', { id: 'a1', value: 'test' }]])
 
     const { result } = renderHook(() =>
-      useAutoSave('task-7', annotations, emptyValues, startTime)
+      useAutoSave('task-7', annotations, emptyValues, startTime),
     )
 
     await act(async () => {
@@ -192,7 +188,7 @@ describe('useAutoSave', () => {
     const values = new Map<string, unknown>()
 
     const { result } = renderHook(() =>
-      useAutoSave('task-8', annotations, values, startTime)
+      useAutoSave('task-8', annotations, values, startTime),
     )
 
     await act(async () => {
@@ -207,7 +203,7 @@ describe('useAutoSave', () => {
     const values = new Map<string, unknown>()
 
     const { result } = renderHook(() =>
-      useAutoSave('task-9', annotations, values, startTime)
+      useAutoSave('task-9', annotations, values, startTime),
     )
 
     await act(async () => {
@@ -217,15 +213,13 @@ describe('useAutoSave', () => {
       })
     })
 
-    const saved = JSON.parse(
-      localStorage.getItem('benger_draft_task-9')!
-    )
+    const saved = JSON.parse(localStorage.getItem('benger_draft_task-9')!)
     expect(saved.componentValues.myField).toBe('directValue')
   })
 
   it('should return null from loadServerDraft', async () => {
     const { result } = renderHook(() =>
-      useAutoSave('task-10', emptyAnnotations, emptyValues, startTime)
+      useAutoSave('task-10', emptyAnnotations, emptyValues, startTime),
     )
 
     let serverDraft: any
@@ -240,7 +234,7 @@ describe('useAutoSave', () => {
     localStorage.setItem('benger_draft_task-11', 'not-valid-json')
 
     const { result } = renderHook(() =>
-      useAutoSave('task-11', emptyAnnotations, emptyValues, startTime)
+      useAutoSave('task-11', emptyAnnotations, emptyValues, startTime),
     )
 
     expect(result.current.hasDraft).toBe(false)
@@ -250,7 +244,7 @@ describe('useAutoSave', () => {
     const annotations = new Map([['comp1', { id: 'a1', value: 'test' }]])
 
     const { unmount } = renderHook(() =>
-      useAutoSave('task-12', annotations, emptyValues, startTime)
+      useAutoSave('task-12', annotations, emptyValues, startTime),
     )
 
     unmount()

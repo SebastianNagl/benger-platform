@@ -29,7 +29,10 @@ interface SelectProps {
   children: ReactNode
 }
 
-interface SelectTriggerProps extends Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'value'> {
+interface SelectTriggerProps extends Omit<
+  React.ButtonHTMLAttributes<HTMLButtonElement>,
+  'value'
+> {
   children: ReactNode
   className?: string
 }
@@ -93,7 +96,11 @@ function findItemLabel(node: ReactNode, value: string): ReactNode | null {
   return result
 }
 
-export function SelectTrigger({ children, className, ...props }: SelectTriggerProps) {
+export function SelectTrigger({
+  children,
+  className,
+  ...props
+}: SelectTriggerProps) {
   const context = useContext(SelectContext)
   if (!context) throw new Error('SelectTrigger must be used within Select')
 
@@ -101,19 +108,16 @@ export function SelectTrigger({ children, className, ...props }: SelectTriggerPr
     <Listbox.Button
       {...props}
       className={clsx(
-        'relative h-8 w-full cursor-default rounded-full bg-white pl-3 pr-8 text-left text-sm text-zinc-900 ring-1 ring-zinc-900/10 transition',
-        'hover:ring-zinc-900/20 focus:outline-none focus:ring-2 focus:ring-emerald-500',
-        'dark:bg-white/5 dark:text-zinc-100 dark:ring-inset dark:ring-white/10 dark:hover:ring-white/20 dark:focus:ring-emerald-400',
+        'relative h-8 w-full cursor-default rounded-full bg-white pr-8 pl-3 text-left text-sm text-zinc-900 ring-1 ring-zinc-900/10 transition',
+        'hover:ring-zinc-900/20 focus:ring-2 focus:ring-emerald-500 focus:outline-none',
+        'dark:bg-white/5 dark:text-zinc-100 dark:ring-white/10 dark:ring-inset dark:hover:ring-white/20 dark:focus:ring-emerald-400',
         'disabled:cursor-not-allowed disabled:opacity-50',
-        className
+        className,
       )}
     >
       {children}
       <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2.5">
-        <ChevronDownIcon
-          className="h-4 w-4 text-zinc-400"
-          aria-hidden="true"
-        />
+        <ChevronDownIcon className="h-4 w-4 text-zinc-400" aria-hidden="true" />
       </span>
     </Listbox.Button>
   )
@@ -124,7 +128,7 @@ export function SelectContent({ children, className }: SelectContentProps) {
     <Listbox.Options
       className={clsx(
         'absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-lg bg-white py-1 text-sm shadow-lg ring-1 ring-black/5 transition duration-100 ease-in focus:outline-none data-closed:opacity-0 dark:bg-zinc-800',
-        className
+        className,
       )}
     >
       {children}
@@ -132,7 +136,12 @@ export function SelectContent({ children, className }: SelectContentProps) {
   )
 }
 
-export function SelectItem({ value, children, className, disabled }: SelectItemProps) {
+export function SelectItem({
+  value,
+  children,
+  className,
+  disabled,
+}: SelectItemProps) {
   return (
     <Listbox.Option
       value={value}
@@ -140,12 +149,12 @@ export function SelectItem({ value, children, className, disabled }: SelectItemP
       disabled={disabled}
       className={({ active }) =>
         clsx(
-          'relative cursor-default select-none py-2 pl-10 pr-4',
+          'relative cursor-default py-2 pr-4 pl-10 select-none',
           active
             ? 'bg-emerald-100 text-emerald-900 dark:bg-emerald-900 dark:text-emerald-100'
             : 'text-zinc-900 dark:text-zinc-100',
           disabled && 'cursor-not-allowed opacity-50',
-          className
+          className,
         )
       }
     >
@@ -154,7 +163,7 @@ export function SelectItem({ value, children, className, disabled }: SelectItemP
           <span
             className={clsx(
               'block truncate',
-              selected ? 'font-medium' : 'font-normal'
+              selected ? 'font-medium' : 'font-normal',
             )}
           >
             {children}
@@ -183,7 +192,7 @@ export function SelectValue({ placeholder, className }: SelectValueProps) {
       className={clsx(
         'block truncate text-zinc-900 dark:text-white',
         !context.value && 'text-zinc-500 dark:text-zinc-400',
-        className
+        className,
       )}
     >
       {context.displayValue || derivedLabel || context.value || placeholder}

@@ -53,7 +53,7 @@ describe('API Proxy Route - coverage extensions', () => {
 
     expect(mockFetch).toHaveBeenCalledWith(
       'http://custom-api:9000/api/tasks',
-      expect.anything()
+      expect.anything(),
     )
   })
 
@@ -73,7 +73,7 @@ describe('API Proxy Route - coverage extensions', () => {
 
     expect(mockFetch).toHaveBeenCalledWith(
       'http://test-api:8000/api/tasks',
-      expect.anything()
+      expect.anything(),
     )
   })
 
@@ -93,7 +93,7 @@ describe('API Proxy Route - coverage extensions', () => {
 
     expect(mockFetch).toHaveBeenCalledWith(
       expect.stringContaining('/api/tasks'),
-      expect.anything()
+      expect.anything(),
     )
   })
 

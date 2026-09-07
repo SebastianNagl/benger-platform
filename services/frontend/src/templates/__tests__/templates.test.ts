@@ -20,8 +20,8 @@ import {
 import { multiModalAnalysisTemplate } from '../multiModalAnalysisTemplate'
 import { multipleChoiceTemplate } from '../multipleChoiceTemplate'
 import { multiQuestionQATemplate } from '../multiQuestionQATemplate'
-import { qaTemplate } from '../qaTemplate'
 import { qarTemplate } from '../qarTemplate'
+import { qaTemplate } from '../qaTemplate'
 import { textAnalysisTemplate } from '../textAnalysisTemplate'
 
 // All templates for iteration
@@ -51,7 +51,7 @@ describe('Task Templates', () => {
         expect(template.fields).toBeDefined()
         expect(Array.isArray(template.fields)).toBe(true)
         expect(template.fields.length).toBeGreaterThan(0)
-      }
+      },
     )
 
     it.each(allTemplates.map((t) => [t.id, t]))(
@@ -63,16 +63,19 @@ describe('Task Templates', () => {
           expect(field.label).toBeDefined()
           expect(field.type).toBeDefined()
           expect(field.source).toBeDefined()
-          expect(['task_data', 'annotation', 'generated', 'computed']).toContain(
-            field.source
-          )
+          expect([
+            'task_data',
+            'annotation',
+            'generated',
+            'computed',
+          ]).toContain(field.source)
           expect(typeof field.required).toBe('boolean')
           expect(field.display).toBeDefined()
           expect(field.display.creation).toBeDefined()
           expect(field.display.annotation).toBeDefined()
           expect(field.display.table).toBeDefined()
         }
-      }
+      },
     )
 
     it.each(allTemplates.map((t) => [t.id, t]))(
@@ -81,7 +84,7 @@ describe('Task Templates', () => {
         const names = template.fields.map((f) => f.name)
         const uniqueNames = new Set(names)
         expect(uniqueNames.size).toBe(names.length)
-      }
+      },
     )
 
     it.each(allTemplates.map((t) => [t.id, t]))(
@@ -91,7 +94,7 @@ describe('Task Templates', () => {
         expect(template.display_config.table_columns).toBeDefined()
         expect(Array.isArray(template.display_config.table_columns)).toBe(true)
         expect(template.display_config.table_columns.length).toBeGreaterThan(0)
-      }
+      },
     )
 
     it.each(allTemplates.map((t) => [t.id, t]))(
@@ -100,7 +103,7 @@ describe('Task Templates', () => {
         expect(template.metadata).toBeDefined()
         expect(template.metadata.created_at).toBeDefined()
         expect(template.metadata.updated_at).toBeDefined()
-      }
+      },
     )
   })
 
@@ -188,7 +191,7 @@ describe('Task Templates', () => {
             }
           }
         }
-      }
+      },
     )
 
     it('qaTemplate confidence field should have min/max validation', () => {
@@ -213,7 +216,7 @@ describe('Task Templates', () => {
           expect(typeof template.llm_config.prompt_template).toBe('string')
           expect(template.llm_config.prompt_template.length).toBeGreaterThan(0)
         }
-      }
+      },
     )
   })
 
@@ -225,7 +228,7 @@ describe('Task Templates', () => {
           expect(template.evaluation_config.metrics).toBeDefined()
           expect(Array.isArray(template.evaluation_config.metrics)).toBe(true)
         }
-      }
+      },
     )
   })
 
@@ -237,7 +240,7 @@ describe('Task Templates', () => {
         for (const col of template.display_config.table_columns) {
           expect(fieldNames).toContain(col)
         }
-      }
+      },
     )
 
     it.each(allTemplates.map((t) => [t.id, t]))(
@@ -246,10 +249,12 @@ describe('Task Templates', () => {
         if (template.display_config.column_widths) {
           for (const col of template.display_config.table_columns) {
             expect(template.display_config.column_widths[col]).toBeDefined()
-            expect(typeof template.display_config.column_widths[col]).toBe('number')
+            expect(typeof template.display_config.column_widths[col]).toBe(
+              'number',
+            )
           }
         }
-      }
+      },
     )
   })
 })
@@ -292,7 +297,9 @@ describe('Template Index Exports', () => {
 
     it('should have multiple_choice category', () => {
       expect(templatesByCategory.multiple_choice).toHaveLength(1)
-      expect(templatesByCategory.multiple_choice).toContain(multipleChoiceTemplate)
+      expect(templatesByCategory.multiple_choice).toContain(
+        multipleChoiceTemplate,
+      )
     })
 
     it('should have generation category', () => {
@@ -374,10 +381,10 @@ describe('Template Index Exports', () => {
       expect(getTemplateById('multi_qa')).toBe(multiQuestionQATemplate)
       expect(getTemplateById('text-analysis')).toBe(textAnalysisTemplate)
       expect(getTemplateById('collaborative-research')).toBe(
-        collaborativeResearchTemplate
+        collaborativeResearchTemplate,
       )
       expect(getTemplateById('multi-modal-analysis')).toBe(
-        multiModalAnalysisTemplate
+        multiModalAnalysisTemplate,
       )
     })
 
@@ -409,7 +416,7 @@ describe('Template Index Exports', () => {
 
     it('should return empty array for unknown feature', () => {
       const templates = getTemplatesByFeature(
-        'nonexistent' as keyof typeof templatesByFeature
+        'nonexistent' as keyof typeof templatesByFeature,
       )
       expect(templates).toHaveLength(0)
     })

@@ -29,7 +29,7 @@ describe('Issue #231: Button Selector Fix', () => {
       render(
         <div>
           <LanguageSwitcher />
-        </div>
+        </div>,
       )
 
       const button = screen.getByTestId('language-switcher')
@@ -42,7 +42,7 @@ describe('Issue #231: Button Selector Fix', () => {
       render(
         <div>
           <LanguageSwitcher />
-        </div>
+        </div>,
       )
 
       const button = screen.getByTestId('language-switcher')
@@ -56,7 +56,7 @@ describe('Issue #231: Button Selector Fix', () => {
       render(
         <ThemeProvider attribute="class" defaultTheme="light">
           <ThemeToggle />
-        </ThemeProvider>
+        </ThemeProvider>,
       )
 
       const button = screen.getByTestId('theme-toggle')
@@ -69,7 +69,7 @@ describe('Issue #231: Button Selector Fix', () => {
       render(
         <ThemeProvider attribute="class" defaultTheme="light">
           <ThemeToggle />
-        </ThemeProvider>
+        </ThemeProvider>,
       )
 
       const button = screen.getByTestId('theme-toggle')

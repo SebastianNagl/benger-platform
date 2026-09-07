@@ -44,7 +44,7 @@ describe('fieldMapping kills · FIELD_SYNONYMS created/updated/tags rows (L40-42
           type: 'semantic',
         },
       ])
-    }
+    },
   )
 
   const siblingPairs: Array<[string, string]> = [
@@ -71,6 +71,6 @@ describe('fieldMapping kills · FIELD_SYNONYMS created/updated/tags rows (L40-42
           type: 'semantic',
         },
       ])
-    }
+    },
   )
 })

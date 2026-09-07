@@ -4,7 +4,10 @@ export const ORGANIZATION_GUIDES: HowToGuide[] = [
   {
     id: 'org-context',
     category: 'organizations',
-    title: { de: 'Warum sehe ich keine Projekte? Privater Kontext vs. Organisation', en: 'Why do I see no projects? Private context vs. organization' },
+    title: {
+      de: 'Warum sehe ich keine Projekte? Privater Kontext vs. Organisation',
+      en: 'Why do I see no projects? Private context vs. organization',
+    },
     summary: {
       de: 'Projekte gehören zu Organisationen. Im Kontext **Privat** sehen Sie nur Ihre privaten Projekte. Wechseln Sie oben rechts im Kontomenü unter **Kontext wechseln** zur Organisation.',
       en: 'Projects belong to organizations. In the **Private** context you only see your private projects. Switch to the organization top right in the account menu under **Switch context**.',
@@ -22,15 +25,40 @@ export const ORGANIZATION_GUIDES: HowToGuide[] = [
       ],
     },
     tips: {
-      de: ['Der zuletzt gewählte Kontext wird gemerkt. Lesezeichen auf die Organisationsadresse führen direkt in den richtigen Kontext.'],
-      en: ['The last chosen context is remembered. Bookmarks on the organization address lead straight into the right context.'],
+      de: [
+        'Der zuletzt gewählte Kontext wird gemerkt. Lesezeichen auf die Organisationsadresse führen direkt in den richtigen Kontext.',
+      ],
+      en: [
+        'The last chosen context is remembered. Bookmarks on the organization address lead straight into the right context.',
+      ],
     },
-    keywords: { de: ['Kontext', 'Privat', 'Organisation', 'keine Projekte', 'leer', 'Subdomain', 'Organisationswechsler'], en: ['context', 'private', 'no projects', 'empty', 'subdomain', 'org switcher'] },
+    keywords: {
+      de: [
+        'Kontext',
+        'Privat',
+        'Organisation',
+        'keine Projekte',
+        'leer',
+        'Subdomain',
+        'Organisationswechsler',
+      ],
+      en: [
+        'context',
+        'private',
+        'no projects',
+        'empty',
+        'subdomain',
+        'org switcher',
+      ],
+    },
   },
   {
     id: 'org-roles',
     category: 'organizations',
-    title: { de: 'Welche Rollen gibt es in einer Organisation und was dürfen sie?', en: 'Which roles exist in an organization and what can they do?' },
+    title: {
+      de: 'Welche Rollen gibt es in einer Organisation und was dürfen sie?',
+      en: 'Which roles exist in an organization and what can they do?',
+    },
     summary: {
       de: 'Drei Rollen: **Admin** verwaltet die Organisation, lädt ein und sieht alles. **Mitwirkender** legt Projekte an, importiert Daten, startet Generierung und Evaluation. **Annotator** annotiert zugewiesene oder offene Aufgaben und löst Klausuren.',
       en: 'Three roles: **Admin** manages the organization, invites and sees everything. **Contributor** creates projects, imports data, starts generation and evaluation. **Annotator** annotates assigned or open tasks and solves exams.',
@@ -50,15 +78,33 @@ export const ORGANIZATION_GUIDES: HowToGuide[] = [
       ],
     },
     tips: {
-      de: ['Neue Organisationen legt nur die Plattform-Administration (Superadmin) an. Schreiben Sie uns, wenn Sie eine brauchen.'],
-      en: ['New organizations are created by the platform administration (superadmin) only. Write to us if you need one.'],
+      de: [
+        'Neue Organisationen legt nur die Plattform-Administration (Superadmin) an. Schreiben Sie uns, wenn Sie eine brauchen.',
+      ],
+      en: [
+        'New organizations are created by the platform administration (superadmin) only. Write to us if you need one.',
+      ],
     },
-    keywords: { de: ['Rolle', 'Rollen', 'Admin', 'Mitwirkender', 'Annotator', 'Rechte', 'Berechtigung'], en: ['role', 'roles', 'admin', 'contributor', 'annotator', 'permissions'] },
+    keywords: {
+      de: [
+        'Rolle',
+        'Rollen',
+        'Admin',
+        'Mitwirkender',
+        'Annotator',
+        'Rechte',
+        'Berechtigung',
+      ],
+      en: ['role', 'roles', 'admin', 'contributor', 'annotator', 'permissions'],
+    },
   },
   {
     id: 'invite-members',
     category: 'organizations',
-    title: { de: 'Wie lade ich jemanden in meine Organisation ein?', en: 'How do I invite someone to my organization?' },
+    title: {
+      de: 'Wie lade ich jemanden in meine Organisation ein?',
+      en: 'How do I invite someone to my organization?',
+    },
     summary: {
       de: 'Unter [Benutzer & Organisationen](/users-organizations) → *Organisationen* → **Mitglied einladen** (oder **Mehrere einladen**). Die Person erhält eine E-Mail mit einem Link, der 7 Tage gültig ist, und tritt beim Annehmen mit der gewählten Rolle bei.',
       en: 'Under [Users & organizations](/users-organizations) → *Organizations* → **Invite member** (or **Invite several**). The person gets an email with a link valid for 7 days and joins with the chosen role on accepting.',
@@ -89,12 +135,25 @@ export const ORGANIZATION_GUIDES: HowToGuide[] = [
         'There is no joining by email domain. Every member comes in through an invitation, a learning-platform connection (LTI) or the platform administration.',
       ],
     },
-    keywords: { de: ['einladen', 'Einladung', 'Mitglied', 'E-Mail', 'beitreten', 'Link abgelaufen'], en: ['invite', 'invitation', 'member', 'join', 'expired link'] },
+    keywords: {
+      de: [
+        'einladen',
+        'Einladung',
+        'Mitglied',
+        'E-Mail',
+        'beitreten',
+        'Link abgelaufen',
+      ],
+      en: ['invite', 'invitation', 'member', 'join', 'expired link'],
+    },
   },
   {
     id: 'org-groups',
     category: 'organizations',
-    title: { de: 'Wie lege ich Gruppen (z.B. Lehrstühle) an und wer verwaltet sie?', en: 'How do I create groups (e.g. chairs) and who manages them?' },
+    title: {
+      de: 'Wie lege ich Gruppen (z.B. Lehrstühle) an und wer verwaltet sie?',
+      en: 'How do I create groups (e.g. chairs) and who manages them?',
+    },
     summary: {
       de: 'Gruppen teilen eine Organisation auf: Projekte und API-Schlüssel können auf eine Gruppe beschränkt werden, und Gruppenmitglieder sehen nur ihre Gruppenprojekte. Organisationsadmins legen Gruppen unter **Gruppen** an. Ein **Gruppen-Admin** verwaltet Mitglieder und Schlüssel seiner Gruppe, ohne organisationsweite Rechte.',
       en: 'Groups split an organization: projects and API keys can be restricted to a group, and group members only see their group’s projects. Organization admins create groups under **Groups**. A **group admin** manages the members and keys of their group without organization-wide rights.',
@@ -137,6 +196,16 @@ export const ORGANIZATION_GUIDES: HowToGuide[] = [
         'A group admin cannot invite anyone as organization admin and cannot create new groups.',
       ],
     },
-    keywords: { de: ['Gruppe', 'Gruppen', 'Lehrstuhl', 'Gruppen-Admin', 'Geltungsbereich', 'Untergruppe'], en: ['group', 'groups', 'chair', 'group admin', 'scope', 'department'] },
+    keywords: {
+      de: [
+        'Gruppe',
+        'Gruppen',
+        'Lehrstuhl',
+        'Gruppen-Admin',
+        'Geltungsbereich',
+        'Untergruppe',
+      ],
+      en: ['group', 'groups', 'chair', 'group admin', 'scope', 'department'],
+    },
   },
 ]

@@ -121,9 +121,12 @@ const getNotificationTypes = (t: any) => [
   },
   {
     key: 'task_assigned',
-    name: t('settings.notifications.types.taskAssigned', { defaultValue: 'Aufgabe zugewiesen' }),
+    name: t('settings.notifications.types.taskAssigned', {
+      defaultValue: 'Aufgabe zugewiesen',
+    }),
     description: t('settings.notifications.types.taskAssignedDesc', {
-      defaultValue: 'Sie wurden einer oder mehreren Annotationsaufgaben zugewiesen',
+      defaultValue:
+        'Sie wurden einer oder mehreren Annotationsaufgaben zugewiesen',
     }),
     icon: UserPlusIcon,
     category: t('settings.notifications.categories.annotation'),
@@ -134,7 +137,8 @@ const getNotificationTypes = (t: any) => [
       defaultValue: 'Korrektur zugewiesen',
     }),
     description: t('settings.notifications.types.korrekturAssignedDesc', {
-      defaultValue: 'Sie wurden einer Korrekturaufgabe (Classic oder Falllösung) zugewiesen',
+      defaultValue:
+        'Sie wurden einer Korrekturaufgabe (Classic oder Falllösung) zugewiesen',
     }),
     icon: UserPlusIcon,
     category: t('settings.notifications.categories.annotation'),
@@ -226,7 +230,9 @@ const getNotificationTypes = (t: any) => [
   {
     key: 'long_running_operation_update',
     name: t('settings.notifications.types.longRunningOperationUpdate'),
-    description: t('settings.notifications.types.longRunningOperationUpdateDesc'),
+    description: t(
+      'settings.notifications.types.longRunningOperationUpdateDesc',
+    ),
     icon: ClockIcon,
     category: t('settings.notifications.categories.system'),
   },
@@ -299,7 +305,9 @@ function NotificationSettingsContent() {
       return {
         notificationTypes: allNotificationTypes,
         timezoneOptions: getTimezoneOptions(t),
-        categories: Array.from(new Set(allNotificationTypes.map((type: any) => type.category))),
+        categories: Array.from(
+          new Set(allNotificationTypes.map((type: any) => type.category)),
+        ),
       }
     } catch (err) {
       console.error('Error loading notification configuration:', err)
@@ -357,9 +365,7 @@ function NotificationSettingsContent() {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="text-center">
-          <p className="mb-4 text-red-600">
-            {loadingErrorText}
-          </p>
+          <p className="mb-4 text-red-600">{loadingErrorText}</p>
           <button
             onClick={() => window.location.reload()}
             className="rounded bg-emerald-600 px-4 py-2 text-white hover:bg-emerald-700"
@@ -420,7 +426,7 @@ function NotificationSettingsContent() {
   const handlePreferenceChange = (
     notificationType: string,
     field: 'enabled' | 'in_app' | 'email',
-    value: boolean
+    value: boolean,
   ) => {
     setPreferences((prev) => ({
       ...prev,
@@ -442,7 +448,7 @@ function NotificationSettingsContent() {
 
   const handleBulkToggle = (category: string, enabled: boolean) => {
     const categoryTypes = notificationTypes.filter(
-      (type) => type.category === category
+      (type) => type.category === category,
     )
     const updates = Object.fromEntries(
       categoryTypes.map((type) => [
@@ -452,7 +458,7 @@ function NotificationSettingsContent() {
           in_app: enabled,
           email: (enabled && emailStatus?.configured) || false,
         },
-      ])
+      ]),
     )
     setPreferences((prev) => ({ ...prev, ...updates }))
   }
@@ -479,7 +485,7 @@ function NotificationSettingsContent() {
 
   const getEnabledCount = (category: string): number => {
     const categoryTypes = notificationTypes.filter(
-      (type) => type.category === category
+      (type) => type.category === category,
     )
     return categoryTypes.filter((type) => preferences[type.key]?.enabled).length
   }
@@ -505,8 +511,14 @@ function NotificationSettingsContent() {
       <div className="mb-4">
         <Breadcrumb
           items={[
-            { label: t('settings.notifications.breadcrumb.settings'), href: '/settings' },
-            { label: t('settings.notifications.breadcrumb.notifications'), href: '/settings/notifications' },
+            {
+              label: t('settings.notifications.breadcrumb.settings'),
+              href: '/settings',
+            },
+            {
+              label: t('settings.notifications.breadcrumb.notifications'),
+              href: '/settings/notifications',
+            },
           ]}
         />
       </div>
@@ -525,7 +537,7 @@ function NotificationSettingsContent() {
       {error && (
         <div className="mb-6 rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/20">
           <div className="flex">
-            <ExclamationTriangleIcon className="mr-2 mt-0.5 h-5 w-5 shrink-0 text-red-400" />
+            <ExclamationTriangleIcon className="mt-0.5 mr-2 h-5 w-5 shrink-0 text-red-400" />
             <div className="text-red-800 dark:text-red-200">{error}</div>
           </div>
         </div>
@@ -534,7 +546,7 @@ function NotificationSettingsContent() {
       {success && (
         <div className="mb-6 rounded-lg border border-green-200 bg-green-50 p-4 dark:border-green-800 dark:bg-green-900/20">
           <div className="flex">
-            <CheckCircleIcon className="mr-2 mt-0.5 h-5 w-5 shrink-0 text-green-400" />
+            <CheckCircleIcon className="mt-0.5 mr-2 h-5 w-5 shrink-0 text-green-400" />
             <div className="text-green-800 dark:text-green-200">{success}</div>
           </div>
         </div>
@@ -566,19 +578,19 @@ function NotificationSettingsContent() {
               <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-700">
                 <thead className="bg-zinc-50 dark:bg-zinc-800/30">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                    <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                       {t('settings.notifications.ui.notificationType')}
                     </th>
-                    <th className="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                    <th className="px-6 py-3 text-center text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                       {t('settings.notifications.ui.enabled')}
                     </th>
-                    <th className="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                    <th className="px-6 py-3 text-center text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                       <div className="flex items-center justify-center space-x-1">
                         <BellIcon className="h-3 w-3" />
                         <span>{t('settings.notifications.ui.inApp')}</span>
                       </div>
                     </th>
-                    <th className="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                    <th className="px-6 py-3 text-center text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                       <div className="flex items-center justify-center space-x-1">
                         <EnvelopeIcon className="h-3 w-3" />
                         <span>{t('settings.notifications.ui.email')}</span>
@@ -600,7 +612,7 @@ function NotificationSettingsContent() {
                         key={`notification-${notificationType.key}-${index}`}
                         className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
                       >
-                        <td className="whitespace-nowrap px-6 py-4">
+                        <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center space-x-3">
                             <div className="shrink-0">
                               <IconComponent className="h-5 w-5 text-zinc-400" />
@@ -620,10 +632,10 @@ function NotificationSettingsContent() {
                             </div>
                           </div>
                         </td>
-                        <td className="whitespace-nowrap px-6 py-4 text-center">
+                        <td className="px-6 py-4 text-center whitespace-nowrap">
                           <button
                             type="button"
-                            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:ring-offset-2 ${
+                            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:ring-2 focus:ring-emerald-600 focus:ring-offset-2 focus:outline-none ${
                               pref.enabled
                                 ? 'bg-emerald-600'
                                 : 'bg-zinc-200 dark:bg-zinc-700'
@@ -632,7 +644,7 @@ function NotificationSettingsContent() {
                               handlePreferenceChange(
                                 notificationType.key,
                                 'enabled',
-                                !pref.enabled
+                                !pref.enabled,
                               )
                             }
                             data-testid={`settings-notification-toggle-${notificationType.key}`}
@@ -644,10 +656,10 @@ function NotificationSettingsContent() {
                             />
                           </button>
                         </td>
-                        <td className="whitespace-nowrap px-6 py-4 text-center">
+                        <td className="px-6 py-4 text-center whitespace-nowrap">
                           <button
                             type="button"
-                            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:ring-offset-2 ${
+                            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:ring-2 focus:ring-emerald-600 focus:ring-offset-2 focus:outline-none ${
                               pref.in_app
                                 ? 'bg-emerald-600'
                                 : 'bg-zinc-200 dark:bg-zinc-700'
@@ -657,7 +669,7 @@ function NotificationSettingsContent() {
                               handlePreferenceChange(
                                 notificationType.key,
                                 'in_app',
-                                !pref.in_app
+                                !pref.in_app,
                               )
                             }
                             data-testid={`settings-notification-inapp-${notificationType.key}`}
@@ -669,10 +681,10 @@ function NotificationSettingsContent() {
                             />
                           </button>
                         </td>
-                        <td className="whitespace-nowrap px-6 py-4 text-center">
+                        <td className="px-6 py-4 text-center whitespace-nowrap">
                           <button
                             type="button"
-                            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:ring-offset-2 ${
+                            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:ring-2 focus:ring-emerald-600 focus:ring-offset-2 focus:outline-none ${
                               pref.email && emailStatus?.configured
                                 ? 'bg-emerald-600'
                                 : 'bg-zinc-200 dark:bg-zinc-700'
@@ -682,7 +694,7 @@ function NotificationSettingsContent() {
                               handlePreferenceChange(
                                 notificationType.key,
                                 'email',
-                                !pref.email
+                                !pref.email,
                               )
                             }
                             data-testid={`settings-notification-email-${notificationType.key}`}
@@ -713,7 +725,9 @@ function NotificationSettingsContent() {
               <div className="flex items-center justify-between">
                 <div className="text-sm text-zinc-600 dark:text-zinc-400">
                   {t('settings.notifications.ui.enabledCount', {
-                    enabled: Object.values(preferences).filter((p) => p?.enabled).length,
+                    enabled: Object.values(preferences).filter(
+                      (p) => p?.enabled,
+                    ).length,
                     total: notificationTypes.length,
                   })}
                 </div>
@@ -724,7 +738,7 @@ function NotificationSettingsContent() {
                         notificationTypes.map((type) => [
                           type.key,
                           { enabled: false, in_app: false, email: false },
-                        ])
+                        ]),
                       )
                       setPreferences(updates)
                     }}
@@ -744,7 +758,7 @@ function NotificationSettingsContent() {
                             in_app: true,
                             email: emailStatus?.configured || false,
                           },
-                        ])
+                        ]),
                       )
                       setPreferences(updates)
                     }}
@@ -796,7 +810,9 @@ function NotificationSettingsContent() {
                 <div className="flex items-start space-x-2">
                   <EnvelopeIcon className="mt-0.5 h-4 w-4 shrink-0 text-zinc-400" />
                   <div>
-                    <strong>{t('settings.notifications.help.emailTitle')}</strong>{' '}
+                    <strong>
+                      {t('settings.notifications.help.emailTitle')}
+                    </strong>{' '}
                     {t('settings.notifications.help.emailDescBefore')}{' '}
                     <strong>{user?.email}</strong>.{' '}
                     {t('settings.notifications.help.emailDescAfter')}
@@ -806,16 +822,12 @@ function NotificationSettingsContent() {
 
               <div className="flex items-start space-x-2">
                 <ClockIcon className="mt-0.5 h-4 w-4 shrink-0 text-zinc-400" />
-                <div>
-                  {t('settings.notifications.help.roleBasedDesc')}
-                </div>
+                <div>{t('settings.notifications.help.roleBasedDesc')}</div>
               </div>
 
               <div className="flex items-start space-x-2">
                 <GlobeAltIcon className="mt-0.5 h-4 w-4 shrink-0 text-zinc-400" />
-                <div>
-                  {t('settings.notifications.help.preferencesDesc')}
-                </div>
+                <div>{t('settings.notifications.help.preferencesDesc')}</div>
               </div>
             </div>
           </div>
@@ -827,7 +839,7 @@ function NotificationSettingsContent() {
 
 export default function NotificationSettingsPage() {
   return (
-    <ResponsiveContainer size="xl" className="pb-10 pt-8">
+    <ResponsiveContainer size="xl" className="pt-8 pb-10">
       <NotificationSettingsContent />
     </ResponsiveContainer>
   )

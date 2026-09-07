@@ -9,10 +9,10 @@
  */
 
 import { Label } from '@/components/shared/Label'
-import { logger } from '@/lib/utils/logger'
 import { Textarea } from '@/components/shared/Textarea'
 import { buildAnnotationResult } from '@/lib/labelConfig/dataBinding'
 import { AnnotationComponentProps } from '@/lib/labelConfig/registry'
+import { logger } from '@/lib/utils/logger'
 import React, { useEffect, useState } from 'react'
 
 export default function TextAreaInput({

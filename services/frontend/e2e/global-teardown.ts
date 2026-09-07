@@ -11,7 +11,7 @@ const infraDir = path.resolve(process.cwd(), '../infra')
 function executeWithTimeout(
   cmd: string,
   cwd: string,
-  timeout: number = 60000
+  timeout: number = 60000,
 ): Promise<{ success: boolean; timedOut: boolean }> {
   return new Promise((resolve) => {
     const proc = spawn('sh', ['-c', cmd], { cwd, stdio: 'inherit' })
@@ -20,7 +20,7 @@ function executeWithTimeout(
     const timer = setTimeout(() => {
       timedOut = true
       console.warn(
-        `Teardown timed out after ${timeout / 1000}s, force killing...`
+        `Teardown timed out after ${timeout / 1000}s, force killing...`,
       )
       proc.kill('SIGKILL')
     }, timeout)
@@ -53,7 +53,7 @@ async function globalTeardown() {
     const result = await executeWithTimeout(
       'docker-compose -f docker-compose.test.yml down',
       infraDir,
-      60000
+      60000,
     )
 
     if (result.success) {
@@ -61,18 +61,18 @@ async function globalTeardown() {
     } else if (result.timedOut) {
       console.warn('Teardown timed out - containers may still be running')
       console.log(
-        'Clean up manually with: cd infra && docker-compose -f docker-compose.test.yml down -t 0'
+        'Clean up manually with: cd infra && docker-compose -f docker-compose.test.yml down -t 0',
       )
     } else {
       console.warn('Failed to stop E2E Docker containers')
       console.log(
-        'Clean up manually with: cd infra && docker-compose -f docker-compose.test.yml down'
+        'Clean up manually with: cd infra && docker-compose -f docker-compose.test.yml down',
       )
     }
   } else if (isIsolatedE2E && !shouldCleanup) {
     console.log('E2E containers left running for debugging (E2E_CLEANUP=false)')
     console.log(
-      'Clean up manually with: cd infra && docker-compose -f docker-compose.test.yml down'
+      'Clean up manually with: cd infra && docker-compose -f docker-compose.test.yml down',
     )
   }
 

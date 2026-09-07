@@ -28,7 +28,7 @@ const mockFetch = global.fetch as jest.MockedFunction<typeof fetch>
 /** Build upstream response headers (jest.setup's Headers supports getSetCookie). */
 function upstreamHeaders(
   entries: Record<string, string> = {},
-  cookies: string[] = []
+  cookies: string[] = [],
 ): Headers {
   const headers = new Headers(entries)
   cookies.forEach((cookie) => headers.append('Set-Cookie', cookie))
@@ -38,7 +38,7 @@ function upstreamHeaders(
 /** Minimal upstream fetch-response double covering what the route touches. */
 function upstreamResponse(
   status: number,
-  opts: { headers?: Headers; body?: string } = {}
+  opts: { headers?: Headers; body?: string } = {},
 ): Response {
   return {
     status,
@@ -60,15 +60,17 @@ function ltiRequest(
     method?: string
     headers?: Record<string, string>
     body?: string
-  } = {}
+  } = {},
 ): NextRequest {
   const request = new NextRequest(url, {
     method: init.method ?? 'GET',
     headers: init.headers ?? {},
     ...(init.body !== undefined ? { body: init.body } : {}),
   } as ConstructorParameters<typeof NextRequest>[1])
-  ;(request as unknown as { arrayBuffer: () => Promise<ArrayBuffer> }).arrayBuffer =
-    async () => new TextEncoder().encode(init.body ?? '').buffer as ArrayBuffer
+  ;(
+    request as unknown as { arrayBuffer: () => Promise<ArrayBuffer> }
+  ).arrayBuffer = async () =>
+    new TextEncoder().encode(init.body ?? '').buffer as ArrayBuffer
   return request
 }
 
@@ -102,7 +104,7 @@ describe('LTI proxy route (/api/lti/[...path])', () => {
       mockFetch.mockResolvedValueOnce(
         upstreamResponse(303, {
           headers: upstreamHeaders({ location }),
-        })
+        }),
       )
 
       const response = await POST(
@@ -110,13 +112,13 @@ describe('LTI proxy route (/api/lti/[...path])', () => {
           method: 'POST',
           headers: { host: 'benger.localhost' },
           body: 'id_token=abc&state=xyz',
-        })
+        }),
       )
 
       expect(mockFetch).toHaveBeenCalledTimes(1)
       expect(mockFetch).toHaveBeenCalledWith(
         'http://api:8000/api/lti/launch',
-        expect.objectContaining({ redirect: 'manual', method: 'POST' })
+        expect.objectContaining({ redirect: 'manual', method: 'POST' }),
       )
       expect(response.status).toBe(303)
       expect(response.headers.get('location')).toBe(location)
@@ -128,7 +130,9 @@ describe('LTI proxy route (/api/lti/[...path])', () => {
       mockFetch.mockResolvedValueOnce({
         status: 303,
         statusText: '',
-        headers: upstreamHeaders({ location: 'http://benger.localhost/lti/consent' }),
+        headers: upstreamHeaders({
+          location: 'http://benger.localhost/lti/consent',
+        }),
         arrayBuffer: async () => {
           throw new Error('3xx body must not be consumed by the proxy')
         },
@@ -137,7 +141,7 @@ describe('LTI proxy route (/api/lti/[...path])', () => {
       const response = await GET(
         ltiRequest('http://benger.localhost/api/lti/launch', {
           headers: { host: 'benger.localhost' },
-        })
+        }),
       )
 
       expect(response.status).toBe(303)
@@ -149,19 +153,19 @@ describe('LTI proxy route (/api/lti/[...path])', () => {
       mockFetch.mockResolvedValueOnce(
         upstreamResponse(302, {
           headers: upstreamHeaders({ location: moodleAuth }),
-        })
+        }),
       )
 
       const response = await GET(
         ltiRequest(
           'http://benger.localhost/api/lti/login?iss=https%3A%2F%2Fmoodle.example&login_hint=42',
-          { headers: { host: 'benger.localhost' } }
-        )
+          { headers: { host: 'benger.localhost' } },
+        ),
       )
 
       expect(mockFetch).toHaveBeenCalledWith(
         'http://api:8000/api/lti/login?iss=https%3A%2F%2Fmoodle.example&login_hint=42',
-        expect.objectContaining({ redirect: 'manual' })
+        expect.objectContaining({ redirect: 'manual' }),
       )
       expect(response.status).toBe(302)
       expect(response.headers.get('location')).toBe(moodleAuth)
@@ -176,9 +180,9 @@ describe('LTI proxy route (/api/lti/[...path])', () => {
             { location: 'http://benger.localhost/student' },
             [
               'access_token=x; Domain=api.internal; Path=/; HttpOnly; SameSite=Lax; Secure',
-            ]
+            ],
           ),
-        })
+        }),
       )
 
       const response = await POST(
@@ -186,7 +190,7 @@ describe('LTI proxy route (/api/lti/[...path])', () => {
           method: 'POST',
           headers: { host: 'benger.localhost' },
           body: 'id_token=abc',
-        })
+        }),
       )
 
       const cookies = response.headers.getSetCookie()
@@ -214,13 +218,13 @@ describe('LTI proxy route (/api/lti/[...path])', () => {
             'lti_state=abc',
           ]),
           body: '{}',
-        })
+        }),
       )
 
       const response = await GET(
         ltiRequest('http://localhost:3000/api/lti/session', {
           headers: { host: 'localhost:3000' },
-        })
+        }),
       )
 
       const cookies = response.headers.getSetCookie()
@@ -239,9 +243,11 @@ describe('LTI proxy route (/api/lti/[...path])', () => {
         upstreamResponse(303, {
           headers: upstreamHeaders(
             { location: 'https://what-a-benger.net/student' },
-            ['access_token=x; Domain=api.internal; Path=/; HttpOnly; SameSite=Lax; Secure']
+            [
+              'access_token=x; Domain=api.internal; Path=/; HttpOnly; SameSite=Lax; Secure',
+            ],
           ),
-        })
+        }),
       )
 
       const response = await POST(
@@ -249,7 +255,7 @@ describe('LTI proxy route (/api/lti/[...path])', () => {
           method: 'POST',
           headers: { host: 'what-a-benger.net' },
           body: 'id_token=abc',
-        })
+        }),
       )
 
       const cookie = response.headers.getSetCookie()[0]
@@ -263,7 +269,7 @@ describe('LTI proxy route (/api/lti/[...path])', () => {
       mockFetch.mockResolvedValueOnce(
         upstreamResponse(302, {
           headers: upstreamHeaders({ location: 'https://moodle.example/auth' }),
-        })
+        }),
       )
 
       const form = 'iss=https%3A%2F%2Fmoodle.example&login_hint=42'
@@ -279,13 +285,13 @@ describe('LTI proxy route (/api/lti/[...path])', () => {
             cookie: 'session=1',
           },
           body: form,
-        })
+        }),
       )
 
       // The external host (x-forwarded-host) drives internal API resolution.
       expect(mockFetch).toHaveBeenCalledWith(
         'http://api:8000/api/lti/login',
-        expect.objectContaining({ method: 'POST', redirect: 'manual' })
+        expect.objectContaining({ method: 'POST', redirect: 'manual' }),
       )
 
       const init = mockFetch.mock.calls[0][1]!
@@ -296,7 +302,7 @@ describe('LTI proxy route (/api/lti/[...path])', () => {
       expect(headers.has('content-length')).toBe(false)
       // ...while the payload headers survive.
       expect(headers.get('content-type')).toBe(
-        'application/x-www-form-urlencoded'
+        'application/x-www-form-urlencoded',
       )
       expect(headers.get('cookie')).toBe('session=1')
       // The API builds browser-facing URLs from the external host.
@@ -311,13 +317,13 @@ describe('LTI proxy route (/api/lti/[...path])', () => {
         upstreamResponse(200, {
           headers: upstreamHeaders({ 'content-type': 'application/json' }),
           body: '{}',
-        })
+        }),
       )
 
       await GET(
         ltiRequest('http://benger.localhost/api/lti/jwks', {
           headers: { host: 'benger.localhost' },
-        })
+        }),
       )
 
       const init = mockFetch.mock.calls[0][1]!
@@ -334,7 +340,7 @@ describe('LTI proxy route (/api/lti/[...path])', () => {
           method: 'POST',
           headers: { host: 'benger.localhost' },
           body: 'id_token=abc',
-        })
+        }),
       )
 
       expect(response.status).toBe(502)
@@ -354,18 +360,18 @@ describe('LTI proxy route (/api/lti/[...path])', () => {
             'transfer-encoding': 'chunked',
           }),
           body: jwks,
-        })
+        }),
       )
 
       const response = await GET(
         ltiRequest('http://benger.localhost/api/lti/jwks', {
           headers: { host: 'benger.localhost' },
-        })
+        }),
       )
 
       expect(mockFetch).toHaveBeenCalledWith(
         'http://api:8000/api/lti/jwks',
-        expect.objectContaining({ method: 'GET', redirect: 'manual' })
+        expect.objectContaining({ method: 'GET', redirect: 'manual' }),
       )
       expect(response.status).toBe(200)
       expect(response.headers.get('content-type')).toBe('application/json')

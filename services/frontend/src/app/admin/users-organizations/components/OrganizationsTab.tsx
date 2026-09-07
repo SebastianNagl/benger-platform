@@ -1,26 +1,32 @@
 'use client'
 
 import { OrgApiKeys } from '@/components/organization/OrgApiKeys'
-import { OrgStorageConnections } from '@/components/organization/OrgStorageConnections'
 import { OrgGroups } from '@/components/organization/OrgGroups'
+import { OrgStorageConnections } from '@/components/organization/OrgStorageConnections'
 import { Badge } from '@/components/shared/Badge'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/shared/Select'
 import { Button } from '@/components/shared/Button'
 import { Card } from '@/components/shared/Card'
 import { FilterToolbar } from '@/components/shared/FilterToolbar'
 import { Input } from '@/components/shared/Input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/shared/Select'
 import { useToast } from '@/components/shared/Toast'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
-import { useDeleteConfirm, useErrorAlert } from '@/hooks/useDialogs'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
+import { useDeleteConfirm, useErrorAlert } from '@/hooks/useDialogs'
 import { Organization, OrganizationMember } from '@/lib/api'
-import type { BulkInvitationCreate, InvitationCreate } from '@/lib/api/types'
 import { InvitationDetails } from '@/lib/api/invitations'
 import {
   organizationsAPI,
   type OrganizationGroup,
 } from '@/lib/api/organizations'
+import type { BulkInvitationCreate, InvitationCreate } from '@/lib/api/types'
 import { useSlot } from '@/lib/extensions/slots'
 import { UserOrganizationPermissions } from '@/lib/permissions/userOrganizationPermissions'
 import {
@@ -71,7 +77,7 @@ export function OrganizationsTab() {
             })),
           }
         : null,
-    [currentUser, organizations]
+    [currentUser, organizations],
   )
 
   const [selectedOrganization, setSelectedOrganization] =
@@ -159,10 +165,13 @@ export function OrganizationsTab() {
       ) {
         return false
       }
-      if (memberRoleFilter !== 'all' && m.role !== memberRoleFilter) return false
+      if (memberRoleFilter !== 'all' && m.role !== memberRoleFilter)
+        return false
       if (memberVerificationFilter !== 'all') {
-        if (memberVerificationFilter === 'verified' && !m.email_verified) return false
-        if (memberVerificationFilter === 'unverified' && m.email_verified) return false
+        if (memberVerificationFilter === 'verified' && !m.email_verified)
+          return false
+        if (memberVerificationFilter === 'unverified' && m.email_verified)
+          return false
       }
       return true
     })
@@ -197,8 +206,8 @@ export function OrganizationsTab() {
         const adminOrgs = organizations.filter((org: any) =>
           UserOrganizationPermissions.canManageOrganization(
             userWithOrganizations,
-            org.id
-          )
+            org.id,
+          ),
         )
         if (adminOrgs.length > 0) {
           setSelectedOrganization(adminOrgs[0])
@@ -214,19 +223,27 @@ export function OrganizationsTab() {
 
     try {
       setLoadingMembers(true)
-      const membersData = await apiClient.getOrganizationMembers(selectedOrganization.id)
+      const membersData = await apiClient.getOrganizationMembers(
+        selectedOrganization.id,
+      )
       setMembers(membersData)
 
       // Invitations require ORG_ADMIN or superadmin - gracefully skip for others
       try {
-        const invitationsData = await organizationsAPI.getOrganizationInvitations(selectedOrganization.id)
+        const invitationsData =
+          await organizationsAPI.getOrganizationInvitations(
+            selectedOrganization.id,
+          )
         setInvitations(invitationsData)
       } catch (invErr) {
         console.warn('Failed to load invitations:', invErr)
       }
     } catch (error) {
       console.error('Failed to load organization data:', error)
-      showError(t('admin.organizations.errors.loadFailed'), t('admin.organizations.errors.errorTitle'))
+      showError(
+        t('admin.organizations.errors.loadFailed'),
+        t('admin.organizations.errors.errorTitle'),
+      )
     } finally {
       setLoadingMembers(false)
     }
@@ -241,7 +258,10 @@ export function OrganizationsTab() {
   const handleCreateOrganization = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!canCreateOrganization) {
-      showError(t('admin.organizations.errors.noPermissionCreate'), t('admin.organizations.errors.errorTitle'))
+      showError(
+        t('admin.organizations.errors.noPermissionCreate'),
+        t('admin.organizations.errors.errorTitle'),
+      )
       return
     }
 
@@ -259,7 +279,11 @@ export function OrganizationsTab() {
       // Update URL without triggering navigation
       const params = new URLSearchParams(window.location.search)
       params.set('org', newOrg.id)
-      window.history.replaceState(null, '', `${window.location.pathname}?${params.toString()}`)
+      window.history.replaceState(
+        null,
+        '',
+        `${window.location.pathname}?${params.toString()}`,
+      )
       setShowCreateOrgModal(false)
       setNewOrgName('')
       setNewOrgSlug('')
@@ -267,7 +291,10 @@ export function OrganizationsTab() {
       addToast(t('toasts.admin.orgCreated'), 'success')
     } catch (error) {
       console.error('Failed to create organization:', error)
-      showError(t('admin.organizations.errors.createFailed'), t('admin.organizations.errors.errorTitle'))
+      showError(
+        t('admin.organizations.errors.createFailed'),
+        t('admin.organizations.errors.errorTitle'),
+      )
     } finally {
       setLoading(false)
     }
@@ -280,10 +307,13 @@ export function OrganizationsTab() {
     if (
       !UserOrganizationPermissions.canInviteToOrganization(
         userWithOrganizations,
-        selectedOrganization.id
+        selectedOrganization.id,
       )
     ) {
-      showError(t('admin.organizations.errors.noPermissionInvite'), t('admin.organizations.errors.errorTitle'))
+      showError(
+        t('admin.organizations.errors.noPermissionInvite'),
+        t('admin.organizations.errors.errorTitle'),
+      )
       return
     }
 
@@ -309,8 +339,9 @@ export function OrganizationsTab() {
     } catch (error: any) {
       console.error('Failed to send invitation:', error)
       showError(
-        error.response?.data?.detail || t('admin.organizations.errors.inviteFailed'),
-        t('admin.organizations.errors.errorTitle')
+        error.response?.data?.detail ||
+          t('admin.organizations.errors.inviteFailed'),
+        t('admin.organizations.errors.errorTitle'),
       )
     } finally {
       setInviting(false)
@@ -324,10 +355,13 @@ export function OrganizationsTab() {
     if (
       !UserOrganizationPermissions.canInviteToOrganization(
         userWithOrganizations,
-        selectedOrganization.id
+        selectedOrganization.id,
       )
     ) {
-      showError(t('admin.organizations.errors.noPermissionInvite'), t('admin.organizations.errors.errorTitle'))
+      showError(
+        t('admin.organizations.errors.noPermissionInvite'),
+        t('admin.organizations.errors.errorTitle'),
+      )
       return
     }
 
@@ -347,7 +381,7 @@ export function OrganizationsTab() {
     if (emails.length === 0) {
       showError(
         t('admin.organizations.bulkInviteNoValidEmails'),
-        t('admin.organizations.errors.errorTitle')
+        t('admin.organizations.errors.errorTitle'),
       )
       return
     }
@@ -364,7 +398,7 @@ export function OrganizationsTab() {
       }
       const result = await organizationsAPI.bulkInvite(
         selectedOrganization.id,
-        payload
+        payload,
       )
 
       await loadOrganizationData()
@@ -373,7 +407,7 @@ export function OrganizationsTab() {
           queued: result.queued,
           skipped: result.skipped,
         }),
-        'success'
+        'success',
       )
       setShowBulkInviteModal(false)
       setShowInviteModal(false)
@@ -382,8 +416,9 @@ export function OrganizationsTab() {
     } catch (error: any) {
       console.error('Failed to send bulk invitations:', error)
       showError(
-        error.response?.data?.detail || t('admin.organizations.bulkInviteFailed'),
-        t('admin.organizations.errors.errorTitle')
+        error.response?.data?.detail ||
+          t('admin.organizations.bulkInviteFailed'),
+        t('admin.organizations.errors.errorTitle'),
       )
     } finally {
       setBulkInviting(false)
@@ -398,16 +433,19 @@ export function OrganizationsTab() {
         userWithOrganizations,
         userId,
         selectedOrganization.id,
-        userRole
+        userRole,
       )
     ) {
-      showError(t('admin.organizations.errors.noPermissionRemove'), t('admin.organizations.errors.errorTitle'))
+      showError(
+        t('admin.organizations.errors.noPermissionRemove'),
+        t('admin.organizations.errors.errorTitle'),
+      )
       return
     }
 
     const member = members.find((m) => m.user_id === userId)
     const confirmed = await confirmDelete(
-      `${member?.user_name || 'member'} from organization`
+      `${member?.user_name || 'member'} from organization`,
     )
 
     if (!confirmed) return
@@ -418,14 +456,17 @@ export function OrganizationsTab() {
       addToast(t('toasts.admin.memberRemoved'), 'success')
     } catch (error) {
       console.error('Failed to remove member:', error)
-      showError(t('admin.organizations.errors.removeFailed'), t('admin.organizations.errors.errorTitle'))
+      showError(
+        t('admin.organizations.errors.removeFailed'),
+        t('admin.organizations.errors.errorTitle'),
+      )
     }
   }
 
   const handleChangeRole = async (
     userId: string,
     newRole: 'ANNOTATOR' | 'CONTRIBUTOR' | 'ORG_ADMIN',
-    currentRole?: string
+    currentRole?: string,
   ) => {
     if (!selectedOrganization) return
 
@@ -434,10 +475,13 @@ export function OrganizationsTab() {
         userWithOrganizations,
         userId,
         selectedOrganization.id,
-        currentRole
+        currentRole,
       )
     ) {
-      showError(t('admin.organizations.errors.noPermissionChangeRole'), t('admin.organizations.errors.errorTitle'))
+      showError(
+        t('admin.organizations.errors.noPermissionChangeRole'),
+        t('admin.organizations.errors.errorTitle'),
+      )
       return
     }
 
@@ -445,13 +489,16 @@ export function OrganizationsTab() {
       await organizationsAPI.updateMemberRole(
         selectedOrganization.id,
         userId,
-        newRole
+        newRole,
       )
       await loadOrganizationData()
       addToast(t('toasts.admin.memberRoleUpdated'), 'success')
     } catch (error) {
       console.error('Failed to update role:', error)
-      showError(t('admin.organizations.errors.updateRoleFailed'), t('admin.organizations.errors.errorTitle'))
+      showError(
+        t('admin.organizations.errors.updateRoleFailed'),
+        t('admin.organizations.errors.errorTitle'),
+      )
     }
   }
 
@@ -461,10 +508,13 @@ export function OrganizationsTab() {
     if (
       !UserOrganizationPermissions.canEditOrganization(
         userWithOrganizations,
-        selectedOrganization.id
+        selectedOrganization.id,
       )
     ) {
-      showError(t('admin.organizations.errors.noPermissionEdit'), t('admin.organizations.errors.errorTitle'))
+      showError(
+        t('admin.organizations.errors.noPermissionEdit'),
+        t('admin.organizations.errors.errorTitle'),
+      )
       return
     }
 
@@ -481,14 +531,17 @@ export function OrganizationsTab() {
       setSelectedOrganization((prev) =>
         prev
           ? { ...prev, name: editOrgName, description: editOrgDescription }
-          : prev
+          : prev,
       )
       await refreshOrganizations()
       setIsEditingOrg(false)
       addToast(t('toasts.admin.orgUpdated'), 'success')
     } catch (error) {
       console.error('Failed to update organization:', error)
-      showError(t('admin.organizations.errors.updateFailed'), t('admin.organizations.errors.errorTitle'))
+      showError(
+        t('admin.organizations.errors.updateFailed'),
+        t('admin.organizations.errors.errorTitle'),
+      )
     } finally {
       setOrgUpdateLoading(false)
     }
@@ -500,12 +553,15 @@ export function OrganizationsTab() {
     if (
       !UserOrganizationPermissions.canDeleteOrganization(userWithOrganizations)
     ) {
-      showError(t('admin.organizations.errors.noPermissionDelete'), t('admin.organizations.errors.errorTitle'))
+      showError(
+        t('admin.organizations.errors.noPermissionDelete'),
+        t('admin.organizations.errors.errorTitle'),
+      )
       return
     }
 
     const confirmed = await confirmDelete(
-      `organization "${selectedOrganization.name}"`
+      `organization "${selectedOrganization.name}"`,
     )
 
     if (!confirmed) return
@@ -517,7 +573,10 @@ export function OrganizationsTab() {
       addToast(t('toasts.admin.orgDeleted'), 'success')
     } catch (error) {
       console.error('Failed to delete organization:', error)
-      showError(t('admin.organizations.errors.deleteFailed'), t('admin.organizations.errors.errorTitle'))
+      showError(
+        t('admin.organizations.errors.deleteFailed'),
+        t('admin.organizations.errors.errorTitle'),
+      )
     }
   }
 
@@ -530,7 +589,10 @@ export function OrganizationsTab() {
       addToast(t('toasts.admin.invitationCancelled'), 'success')
     } catch (error) {
       console.error('Failed to cancel invitation:', error)
-      showError(t('admin.organizations.errors.cancelInvitationFailed'), t('admin.organizations.errors.errorTitle'))
+      showError(
+        t('admin.organizations.errors.cancelInvitationFailed'),
+        t('admin.organizations.errors.errorTitle'),
+      )
     }
   }
 
@@ -543,7 +605,7 @@ export function OrganizationsTab() {
       const seq = ++userFetchSeq.current
       try {
         const users = await organizationsAPI.getAllUsers(
-          search ? { search } : undefined
+          search ? { search } : undefined,
         )
         if (seq !== userFetchSeq.current) return // stale response
         // Filter out users who are already members
@@ -553,10 +615,13 @@ export function OrganizationsTab() {
       } catch (error) {
         if (seq !== userFetchSeq.current) return
         console.error('Failed to load users:', error)
-        showError(t('admin.organizations.errors.loadUsersFailed'), t('admin.organizations.errors.errorTitle'))
+        showError(
+          t('admin.organizations.errors.loadUsersFailed'),
+          t('admin.organizations.errors.errorTitle'),
+        )
       }
     },
-    [members, showError, t]
+    [members, showError, t],
   )
 
   const debouncedUserSearch = useDebouncedValue(userSearchQuery, 300)
@@ -572,10 +637,13 @@ export function OrganizationsTab() {
     if (
       !UserOrganizationPermissions.canInviteToOrganization(
         userWithOrganizations,
-        selectedOrganization.id
+        selectedOrganization.id,
       )
     ) {
-      showError(t('admin.organizations.errors.noPermissionAdd'), t('admin.organizations.errors.errorTitle'))
+      showError(
+        t('admin.organizations.errors.noPermissionAdd'),
+        t('admin.organizations.errors.errorTitle'),
+      )
       return
     }
 
@@ -584,7 +652,7 @@ export function OrganizationsTab() {
       await organizationsAPI.addUserToOrganization(
         selectedOrganization.id,
         selectedUserId,
-        selectedUserRole
+        selectedUserRole,
       )
 
       await loadOrganizationData()
@@ -595,7 +663,11 @@ export function OrganizationsTab() {
       setUserSearchQuery('')
     } catch (error: any) {
       console.error('Failed to add user:', error)
-      showError(error.response?.data?.detail || t('admin.organizations.errors.addUserFailed'), t('admin.organizations.errors.errorTitle'))
+      showError(
+        error.response?.data?.detail ||
+          t('admin.organizations.errors.addUserFailed'),
+        t('admin.organizations.errors.errorTitle'),
+      )
     } finally {
       setAddingUser(false)
     }
@@ -609,7 +681,7 @@ export function OrganizationsTab() {
   const canManageOrg = selectedOrganization
     ? UserOrganizationPermissions.canManageOrganization(
         userWithOrganizations,
-        selectedOrganization.id
+        selectedOrganization.id,
       )
     : false
 
@@ -619,7 +691,7 @@ export function OrganizationsTab() {
   const isGroupAdminOfSelectedOrg = useMemo(() => {
     if (!selectedOrganization) return false
     const entry = organizations.find(
-      (org) => org.id === selectedOrganization.id
+      (org) => org.id === selectedOrganization.id,
     )
     return Boolean(entry?.groups?.some((group) => group.is_group_admin))
   }, [organizations, selectedOrganization])
@@ -630,14 +702,14 @@ export function OrganizationsTab() {
   const inviteAdminGroups = useMemo(
     () =>
       inviteGroups.filter((group) => group.is_group_admin && group.is_active),
-    [inviteGroups]
+    [inviteGroups],
   )
   const inviteSelectableGroups = useMemo(
     () =>
       inviteViaGroupOnly
         ? inviteAdminGroups
         : inviteGroups.filter((group) => group.is_active),
-    [inviteViaGroupOnly, inviteAdminGroups, inviteGroups]
+    [inviteViaGroupOnly, inviteAdminGroups, inviteGroups],
   )
 
   // Load the org's groups when an invite modal opens (defensive: a failing
@@ -711,10 +783,12 @@ export function OrganizationsTab() {
           {showOrgSwitcher && (
             <div className="absolute z-10 mt-1 w-72 rounded-md border border-zinc-200 bg-white py-1 shadow-lg dark:border-zinc-700 dark:bg-zinc-800">
               <div className="relative px-2 py-2">
-                <MagnifyingGlassIcon className="pointer-events-none absolute left-5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+                <MagnifyingGlassIcon className="pointer-events-none absolute top-1/2 left-5 h-4 w-4 -translate-y-1/2 text-zinc-400" />
                 <Input
                   type="text"
-                  placeholder={t('admin.organizations.filters.switcherSearchPlaceholder')}
+                  placeholder={t(
+                    'admin.organizations.filters.switcherSearchPlaceholder',
+                  )}
                   value={orgSwitcherSearch}
                   onChange={(e) => setOrgSwitcherSearch(e.target.value)}
                   className="pl-8 text-sm"
@@ -735,9 +809,15 @@ export function OrganizationsTab() {
                         setShowOrgSwitcher(false)
                         setOrgSwitcherSearch('')
                         // Update URL without triggering navigation
-                        const params = new URLSearchParams(window.location.search)
+                        const params = new URLSearchParams(
+                          window.location.search,
+                        )
                         params.set('org', org.id)
-                        window.history.replaceState(null, '', `${window.location.pathname}?${params.toString()}`)
+                        window.history.replaceState(
+                          null,
+                          '',
+                          `${window.location.pathname}?${params.toString()}`,
+                        )
                       }}
                       className={`w-full px-4 py-2 text-left text-sm hover:bg-zinc-50 dark:hover:bg-zinc-700 ${
                         selectedOrganization?.id === org.id
@@ -760,12 +840,16 @@ export function OrganizationsTab() {
         </div>
 
         <div className="flex gap-2">
-          {selectedOrganization && (canManageOrg || isGroupAdminOfSelectedOrg) && (
-            <Button onClick={() => setShowApiKeysModal(true)} variant="outline">
-              <KeyIcon className="h-4 w-4" />
-              {t('admin.organizations.apiKeys')}
-            </Button>
-          )}
+          {selectedOrganization &&
+            (canManageOrg || isGroupAdminOfSelectedOrg) && (
+              <Button
+                onClick={() => setShowApiKeysModal(true)}
+                variant="outline"
+              >
+                <KeyIcon className="h-4 w-4" />
+                {t('admin.organizations.apiKeys')}
+              </Button>
+            )}
           {selectedOrganization && canManageOrg && (
             <Button
               onClick={() => setShowStorageConnectionsModal(true)}
@@ -775,24 +859,30 @@ export function OrganizationsTab() {
               {t('admin.organizations.storageConnections')}
             </Button>
           )}
-          {selectedOrganization && (canManageOrg || isGroupAdminOfSelectedOrg) && (
-            <Button
-              onClick={() => setShowGroupsModal(true)}
-              variant="outline"
-              data-testid="org-groups-button"
-            >
-              <UserGroupIcon className="h-4 w-4" />
-              {t('admin.organizations.groups.button')}
-            </Button>
-          )}
-          {selectedOrganization && currentUser?.is_superadmin && OrgLtiPanel && (
-            <OrgLtiPanel
-              organizationId={selectedOrganization.id}
-              organizationName={selectedOrganization.name}
-            />
-          )}
+          {selectedOrganization &&
+            (canManageOrg || isGroupAdminOfSelectedOrg) && (
+              <Button
+                onClick={() => setShowGroupsModal(true)}
+                variant="outline"
+                data-testid="org-groups-button"
+              >
+                <UserGroupIcon className="h-4 w-4" />
+                {t('admin.organizations.groups.button')}
+              </Button>
+            )}
+          {selectedOrganization &&
+            currentUser?.is_superadmin &&
+            OrgLtiPanel && (
+              <OrgLtiPanel
+                organizationId={selectedOrganization.id}
+                organizationName={selectedOrganization.name}
+              />
+            )}
           {canCreateOrganization && (
-            <Button onClick={() => setShowCreateOrgModal(true)} variant="primary">
+            <Button
+              onClick={() => setShowCreateOrgModal(true)}
+              variant="primary"
+            >
               <PlusIcon className="h-4 w-4" />
               {t('admin.organizations.createOrganization')}
             </Button>
@@ -807,7 +897,7 @@ export function OrganizationsTab() {
             <div className="p-6">
               <div className="flex items-start justify-between">
                 <div className="flex items-start">
-                  <BuildingOfficeIcon className="mr-3 mt-1 h-8 w-8 text-zinc-400 dark:text-zinc-500" />
+                  <BuildingOfficeIcon className="mt-1 mr-3 h-8 w-8 text-zinc-400 dark:text-zinc-500" />
                   <div className="flex-1">
                     {isEditingOrg ? (
                       <div className="space-y-3">
@@ -831,7 +921,9 @@ export function OrganizationsTab() {
                             disabled={orgUpdateLoading}
                             variant="primary"
                           >
-                            {orgUpdateLoading ? t('admin.organizations.saving') : t('admin.organizations.save')}
+                            {orgUpdateLoading
+                              ? t('admin.organizations.saving')
+                              : t('admin.organizations.save')}
                           </Button>
                           <Button
                             onClick={() => setIsEditingOrg(false)}
@@ -847,16 +939,21 @@ export function OrganizationsTab() {
                           {selectedOrganization.name}
                         </h3>
                         <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-                          {selectedOrganization.description || t('admin.organizations.noDescription')}
+                          {selectedOrganization.description ||
+                            t('admin.organizations.noDescription')}
                         </p>
                         <div className="mt-2 flex items-center gap-4 text-sm">
                           <span className="text-zinc-500 dark:text-zinc-400">
                             <UserGroupIcon className="mr-1 inline h-4 w-4" />
-                            {t('admin.organizations.membersCount', { count: members.length })}
+                            {t('admin.organizations.membersCount', {
+                              count: members.length,
+                            })}
                           </span>
                           {selectedOrganization.user_role && (
                             <Badge variant="secondary">
-                              {t('admin.organizations.yourRole', { role: selectedOrganization.user_role })}
+                              {t('admin.organizations.yourRole', {
+                                role: selectedOrganization.user_role,
+                              })}
                             </Badge>
                           )}
                         </div>
@@ -871,7 +968,7 @@ export function OrganizationsTab() {
                       onClick={() => {
                         setEditOrgName(selectedOrganization.name)
                         setEditOrgDescription(
-                          selectedOrganization.description || ''
+                          selectedOrganization.description || '',
                         )
                         setIsEditingOrg(true)
                       }}
@@ -880,7 +977,7 @@ export function OrganizationsTab() {
                       <PencilIcon className="h-4 w-4" />
                     </button>
                     {UserOrganizationPermissions.canDeleteOrganization(
-                      userWithOrganizations
+                      userWithOrganizations,
                     ) && (
                       <button
                         onClick={handleDeleteOrganization}
@@ -912,7 +1009,7 @@ export function OrganizationsTab() {
                       {t('admin.organizations.inviteMember')}
                     </Button>
                     {UserOrganizationPermissions.canManageGlobalUsers(
-                      userWithOrganizations
+                      userWithOrganizations,
                     ) && (
                       <Button onClick={openAddUserModal} variant="primary">
                         <UserGroupIcon className="h-4 w-4" />
@@ -934,42 +1031,68 @@ export function OrganizationsTab() {
                   <FilterToolbar
                     searchValue={memberSearch}
                     onSearchChange={setMemberSearch}
-                    searchPlaceholder={t('admin.organizations.filters.memberSearchPlaceholder')}
+                    searchPlaceholder={t(
+                      'admin.organizations.filters.memberSearchPlaceholder',
+                    )}
                     searchLabel={t('common.filters.search')}
                     filtersLabel={t('common.filters.filters')}
                     hasActiveFilters={memberHasActiveFilters}
                     onClearFilters={clearMemberFilters}
                     clearLabel={t('common.filters.clearAll')}
                   >
-                    <FilterToolbar.Field label={t('admin.organizations.filters.role')}>
+                    <FilterToolbar.Field
+                      label={t('admin.organizations.filters.role')}
+                    >
                       <Select
                         value={memberRoleFilter}
-                        onValueChange={(v) => setMemberRoleFilter(v as typeof memberRoleFilter)}
+                        onValueChange={(v) =>
+                          setMemberRoleFilter(v as typeof memberRoleFilter)
+                        }
                       >
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="all">{t('common.filters.all')}</SelectItem>
-                          <SelectItem value="ANNOTATOR">{t('admin.organizations.roleAnnotator')}</SelectItem>
-                          <SelectItem value="CONTRIBUTOR">{t('admin.organizations.roleContributor')}</SelectItem>
-                          <SelectItem value="ORG_ADMIN">{t('admin.organizations.roleAdmin')}</SelectItem>
+                          <SelectItem value="all">
+                            {t('common.filters.all')}
+                          </SelectItem>
+                          <SelectItem value="ANNOTATOR">
+                            {t('admin.organizations.roleAnnotator')}
+                          </SelectItem>
+                          <SelectItem value="CONTRIBUTOR">
+                            {t('admin.organizations.roleContributor')}
+                          </SelectItem>
+                          <SelectItem value="ORG_ADMIN">
+                            {t('admin.organizations.roleAdmin')}
+                          </SelectItem>
                         </SelectContent>
                       </Select>
                     </FilterToolbar.Field>
 
-                    <FilterToolbar.Field label={t('admin.organizations.filters.verification')}>
+                    <FilterToolbar.Field
+                      label={t('admin.organizations.filters.verification')}
+                    >
                       <Select
                         value={memberVerificationFilter}
-                        onValueChange={(v) => setMemberVerificationFilter(v as typeof memberVerificationFilter)}
+                        onValueChange={(v) =>
+                          setMemberVerificationFilter(
+                            v as typeof memberVerificationFilter,
+                          )
+                        }
                       >
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="all">{t('common.filters.all')}</SelectItem>
-                          <SelectItem value="verified">{t('admin.organizations.filters.verified')}</SelectItem>
-                          <SelectItem value="unverified">{t('admin.organizations.filters.unverified')}</SelectItem>
+                          <SelectItem value="all">
+                            {t('common.filters.all')}
+                          </SelectItem>
+                          <SelectItem value="verified">
+                            {t('admin.organizations.filters.verified')}
+                          </SelectItem>
+                          <SelectItem value="unverified">
+                            {t('admin.organizations.filters.unverified')}
+                          </SelectItem>
                         </SelectContent>
                       </Select>
                     </FilterToolbar.Field>
@@ -983,107 +1106,119 @@ export function OrganizationsTab() {
                     </div>
                   )}
                   {filteredMembers.map((member) => (
-                  <div
-                    key={member.user_id}
-                    className="flex items-center justify-between p-4"
-                  >
-                    <div className="flex items-center">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-zinc-300 dark:bg-zinc-600">
-                        <span className="text-sm font-medium text-zinc-700 dark:text-zinc-200">
-                          {member.user_name?.charAt(0).toUpperCase()}
-                        </span>
+                    <div
+                      key={member.user_id}
+                      className="flex items-center justify-between p-4"
+                    >
+                      <div className="flex items-center">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-zinc-300 dark:bg-zinc-600">
+                          <span className="text-sm font-medium text-zinc-700 dark:text-zinc-200">
+                            {member.user_name?.charAt(0).toUpperCase()}
+                          </span>
+                        </div>
+                        <div className="ml-3">
+                          <p className="font-medium text-zinc-900 dark:text-white">
+                            {member.user_name}
+                          </p>
+                          <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                            {member.user_email}
+                          </p>
+                          {member.groups && member.groups.length > 0 && (
+                            <div className="mt-1 flex flex-wrap gap-1">
+                              {member.groups.map((group) => (
+                                <span
+                                  key={group.id}
+                                  data-testid={`member-group-chip-${member.user_id}-${group.id}`}
+                                  title={
+                                    group.is_group_admin
+                                      ? t(
+                                          'admin.organizations.groups.groupAdminBadge',
+                                        )
+                                      : undefined
+                                  }
+                                  className="inline-flex items-center gap-0.5 rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-600 dark:bg-zinc-700 dark:text-zinc-300"
+                                >
+                                  {group.is_group_admin && (
+                                    <span aria-hidden="true">★</span>
+                                  )}
+                                  {group.name}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       </div>
-                      <div className="ml-3">
-                        <p className="font-medium text-zinc-900 dark:text-white">
-                          {member.user_name}
-                        </p>
-                        <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                          {member.user_email}
-                        </p>
-                        {member.groups && member.groups.length > 0 && (
-                          <div className="mt-1 flex flex-wrap gap-1">
-                            {member.groups.map((group) => (
-                              <span
-                                key={group.id}
-                                data-testid={`member-group-chip-${member.user_id}-${group.id}`}
-                                title={
-                                  group.is_group_admin
-                                    ? t(
-                                        'admin.organizations.groups.groupAdminBadge'
-                                      )
-                                    : undefined
-                                }
-                                className="inline-flex items-center gap-0.5 rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-600 dark:bg-zinc-700 dark:text-zinc-300"
-                              >
-                                {group.is_group_admin && (
-                                  <span aria-hidden="true">★</span>
-                                )}
-                                {group.name}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </div>
 
-                    <div className="flex items-center gap-2">
-                      {canManageOrg && member.user_id !== currentUser?.id ? (
-                        <Select
-                          value={member.role}
-                          onValueChange={(v) =>
-                            handleChangeRole(
-                              member.user_id,
-                              v as any,
-                              member.role
-                            )
-                          }
-                          disabled={
-                            !UserOrganizationPermissions.canChangeUserRole(
-                              userWithOrganizations,
-                              member.user_id,
-                              selectedOrganization.id,
-                              member.role
-                            )
-                          }
-                          displayValue={
-                            member.role === 'ANNOTATOR' ? t('admin.organizations.roleAnnotator') :
-                            member.role === 'CONTRIBUTOR' ? t('admin.organizations.roleContributor') :
-                            t('admin.organizations.roleAdmin')
-                          }
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder={t('admin.organizations.roleAnnotator')} />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="ANNOTATOR">{t('admin.organizations.roleAnnotator')}</SelectItem>
-                            <SelectItem value="CONTRIBUTOR">{t('admin.organizations.roleContributor')}</SelectItem>
-                            <SelectItem value="ORG_ADMIN">{t('admin.organizations.roleAdmin')}</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      ) : (
-                        <Badge variant="secondary">{member.role}</Badge>
-                      )}
-
-                      {canManageOrg &&
-                        member.user_id !== currentUser?.id &&
-                        UserOrganizationPermissions.canRemoveMember(
-                          userWithOrganizations,
-                          member.user_id,
-                          selectedOrganization.id,
-                          member.role
-                        ) && (
-                          <button
-                            onClick={() =>
-                              handleRemoveMember(member.user_id, member.role)
+                      <div className="flex items-center gap-2">
+                        {canManageOrg && member.user_id !== currentUser?.id ? (
+                          <Select
+                            value={member.role}
+                            onValueChange={(v) =>
+                              handleChangeRole(
+                                member.user_id,
+                                v as any,
+                                member.role,
+                              )
                             }
-                            className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
+                            disabled={
+                              !UserOrganizationPermissions.canChangeUserRole(
+                                userWithOrganizations,
+                                member.user_id,
+                                selectedOrganization.id,
+                                member.role,
+                              )
+                            }
+                            displayValue={
+                              member.role === 'ANNOTATOR'
+                                ? t('admin.organizations.roleAnnotator')
+                                : member.role === 'CONTRIBUTOR'
+                                  ? t('admin.organizations.roleContributor')
+                                  : t('admin.organizations.roleAdmin')
+                            }
                           >
-                            <TrashIcon className="h-4 w-4" />
-                          </button>
+                            <SelectTrigger>
+                              <SelectValue
+                                placeholder={t(
+                                  'admin.organizations.roleAnnotator',
+                                )}
+                              />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="ANNOTATOR">
+                                {t('admin.organizations.roleAnnotator')}
+                              </SelectItem>
+                              <SelectItem value="CONTRIBUTOR">
+                                {t('admin.organizations.roleContributor')}
+                              </SelectItem>
+                              <SelectItem value="ORG_ADMIN">
+                                {t('admin.organizations.roleAdmin')}
+                              </SelectItem>
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <Badge variant="secondary">{member.role}</Badge>
                         )}
+
+                        {canManageOrg &&
+                          member.user_id !== currentUser?.id &&
+                          UserOrganizationPermissions.canRemoveMember(
+                            userWithOrganizations,
+                            member.user_id,
+                            selectedOrganization.id,
+                            member.role,
+                          ) && (
+                            <button
+                              onClick={() =>
+                                handleRemoveMember(member.user_id, member.role)
+                              }
+                              className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
+                            >
+                              <TrashIcon className="h-4 w-4" />
+                            </button>
+                          )}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
                 </div>
               </>
             )}
@@ -1110,7 +1245,9 @@ export function OrganizationsTab() {
                           {invitation.email}
                         </p>
                         <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                          {t('admin.organizations.invitedAs', { role: invitation.role })}
+                          {t('admin.organizations.invitedAs', {
+                            role: invitation.role,
+                          })}
                         </p>
                       </div>
                     </div>
@@ -1159,7 +1296,6 @@ export function OrganizationsTab() {
               onOpenChange={setShowGroupsModal}
             />
           )}
-
         </div>
       ) : (
         <Card>
@@ -1224,7 +1360,9 @@ export function OrganizationsTab() {
                     {t('admin.organizations.cancel')}
                   </Button>
                   <Button type="submit" disabled={loading} variant="primary">
-                    {loading ? t('admin.organizations.creating') : t('admin.organizations.create')}
+                    {loading
+                      ? t('admin.organizations.creating')
+                      : t('admin.organizations.create')}
                   </Button>
                 </div>
               </form>
@@ -1264,14 +1402,18 @@ export function OrganizationsTab() {
                     displayValue={
                       selectedUserId
                         ? (() => {
-                            const u = allUsers.find((u) => u.id === selectedUserId)
+                            const u = allUsers.find(
+                              (u) => u.id === selectedUserId,
+                            )
                             return u ? `${u.name} (${u.email})` : undefined
                           })()
                         : undefined
                     }
                   >
                     <SelectTrigger className="w-full">
-                      <SelectValue placeholder={t('admin.organizations.selectAUser')} />
+                      <SelectValue
+                        placeholder={t('admin.organizations.selectAUser')}
+                      />
                     </SelectTrigger>
                     <SelectContent>
                       {allUsers
@@ -1283,7 +1425,7 @@ export function OrganizationsTab() {
                               .includes(userSearchQuery.toLowerCase()) ||
                             user.email
                               ?.toLowerCase()
-                              .includes(userSearchQuery.toLowerCase())
+                              .includes(userSearchQuery.toLowerCase()),
                         )
                         .map((user) => (
                           <SelectItem key={user.id} value={user.id}>
@@ -1301,18 +1443,28 @@ export function OrganizationsTab() {
                     value={selectedUserRole}
                     onValueChange={(v) => setSelectedUserRole(v as any)}
                     displayValue={
-                      selectedUserRole === 'ANNOTATOR' ? t('admin.organizations.roleAnnotator') :
-                      selectedUserRole === 'CONTRIBUTOR' ? t('admin.organizations.roleContributor') :
-                      t('admin.organizations.roleAdmin')
+                      selectedUserRole === 'ANNOTATOR'
+                        ? t('admin.organizations.roleAnnotator')
+                        : selectedUserRole === 'CONTRIBUTOR'
+                          ? t('admin.organizations.roleContributor')
+                          : t('admin.organizations.roleAdmin')
                     }
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder={t('admin.organizations.roleAnnotator')} />
+                      <SelectValue
+                        placeholder={t('admin.organizations.roleAnnotator')}
+                      />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="ANNOTATOR">{t('admin.organizations.roleAnnotator')}</SelectItem>
-                      <SelectItem value="CONTRIBUTOR">{t('admin.organizations.roleContributor')}</SelectItem>
-                      <SelectItem value="ORG_ADMIN">{t('admin.organizations.roleAdmin')}</SelectItem>
+                      <SelectItem value="ANNOTATOR">
+                        {t('admin.organizations.roleAnnotator')}
+                      </SelectItem>
+                      <SelectItem value="CONTRIBUTOR">
+                        {t('admin.organizations.roleContributor')}
+                      </SelectItem>
+                      <SelectItem value="ORG_ADMIN">
+                        {t('admin.organizations.roleAdmin')}
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -1334,7 +1486,9 @@ export function OrganizationsTab() {
                     disabled={addingUser || !selectedUserId}
                     variant="primary"
                   >
-                    {addingUser ? t('admin.organizations.adding') : t('admin.organizations.addUser')}
+                    {addingUser
+                      ? t('admin.organizations.adding')
+                      : t('admin.organizations.addUser')}
                   </Button>
                 </div>
               </form>
@@ -1372,19 +1526,29 @@ export function OrganizationsTab() {
                     value={inviteRole}
                     onValueChange={(v) => setInviteRole(v as any)}
                     displayValue={
-                      inviteRole === 'ANNOTATOR' ? t('admin.organizations.roleAnnotator') :
-                      inviteRole === 'CONTRIBUTOR' ? t('admin.organizations.roleContributor') :
-                      t('admin.organizations.roleAdmin')
+                      inviteRole === 'ANNOTATOR'
+                        ? t('admin.organizations.roleAnnotator')
+                        : inviteRole === 'CONTRIBUTOR'
+                          ? t('admin.organizations.roleContributor')
+                          : t('admin.organizations.roleAdmin')
                     }
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder={t('admin.organizations.roleAnnotator')} />
+                      <SelectValue
+                        placeholder={t('admin.organizations.roleAnnotator')}
+                      />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="ANNOTATOR">{t('admin.organizations.roleAnnotator')}</SelectItem>
-                      <SelectItem value="CONTRIBUTOR">{t('admin.organizations.roleContributor')}</SelectItem>
+                      <SelectItem value="ANNOTATOR">
+                        {t('admin.organizations.roleAnnotator')}
+                      </SelectItem>
+                      <SelectItem value="CONTRIBUTOR">
+                        {t('admin.organizations.roleContributor')}
+                      </SelectItem>
                       {!inviteViaGroupOnly && (
-                        <SelectItem value="ORG_ADMIN">{t('admin.organizations.roleAdmin')}</SelectItem>
+                        <SelectItem value="ORG_ADMIN">
+                          {t('admin.organizations.roleAdmin')}
+                        </SelectItem>
                       )}
                     </SelectContent>
                   </Select>
@@ -1402,7 +1566,7 @@ export function OrganizationsTab() {
                       <SelectTrigger>
                         <SelectValue
                           placeholder={t(
-                            'admin.organizations.groups.inviteGroupNone'
+                            'admin.organizations.groups.inviteGroupNone',
                           )}
                         />
                       </SelectTrigger>
@@ -1456,7 +1620,9 @@ export function OrganizationsTab() {
                       {t('admin.organizations.cancel')}
                     </Button>
                     <Button type="submit" disabled={inviting} variant="primary">
-                      {inviting ? t('admin.organizations.sending') : t('admin.organizations.sendInvitation')}
+                      {inviting
+                        ? t('admin.organizations.sending')
+                        : t('admin.organizations.sendInvitation')}
                     </Button>
                   </div>
                 </div>
@@ -1498,19 +1664,29 @@ export function OrganizationsTab() {
                     value={bulkRole}
                     onValueChange={(v) => setBulkRole(v as any)}
                     displayValue={
-                      bulkRole === 'ANNOTATOR' ? t('admin.organizations.roleAnnotator') :
-                      bulkRole === 'CONTRIBUTOR' ? t('admin.organizations.roleContributor') :
-                      t('admin.organizations.roleAdmin')
+                      bulkRole === 'ANNOTATOR'
+                        ? t('admin.organizations.roleAnnotator')
+                        : bulkRole === 'CONTRIBUTOR'
+                          ? t('admin.organizations.roleContributor')
+                          : t('admin.organizations.roleAdmin')
                     }
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder={t('admin.organizations.roleAnnotator')} />
+                      <SelectValue
+                        placeholder={t('admin.organizations.roleAnnotator')}
+                      />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="ANNOTATOR">{t('admin.organizations.roleAnnotator')}</SelectItem>
-                      <SelectItem value="CONTRIBUTOR">{t('admin.organizations.roleContributor')}</SelectItem>
+                      <SelectItem value="ANNOTATOR">
+                        {t('admin.organizations.roleAnnotator')}
+                      </SelectItem>
+                      <SelectItem value="CONTRIBUTOR">
+                        {t('admin.organizations.roleContributor')}
+                      </SelectItem>
                       {!inviteViaGroupOnly && (
-                        <SelectItem value="ORG_ADMIN">{t('admin.organizations.roleAdmin')}</SelectItem>
+                        <SelectItem value="ORG_ADMIN">
+                          {t('admin.organizations.roleAdmin')}
+                        </SelectItem>
                       )}
                     </SelectContent>
                   </Select>
@@ -1528,7 +1704,7 @@ export function OrganizationsTab() {
                       <SelectTrigger>
                         <SelectValue
                           placeholder={t(
-                            'admin.organizations.groups.inviteGroupNone'
+                            'admin.organizations.groups.inviteGroupNone',
                           )}
                         />
                       </SelectTrigger>
@@ -1569,8 +1745,14 @@ export function OrganizationsTab() {
                   >
                     {t('admin.organizations.cancel')}
                   </Button>
-                  <Button type="submit" disabled={bulkInviting} variant="primary">
-                    {bulkInviting ? t('admin.organizations.bulkInviteSending') : t('admin.organizations.bulkInviteSubmit')}
+                  <Button
+                    type="submit"
+                    disabled={bulkInviting}
+                    variant="primary"
+                  >
+                    {bulkInviting
+                      ? t('admin.organizations.bulkInviteSending')
+                      : t('admin.organizations.bulkInviteSubmit')}
                   </Button>
                 </div>
               </form>

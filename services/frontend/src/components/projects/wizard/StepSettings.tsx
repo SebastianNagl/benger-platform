@@ -3,7 +3,6 @@
 import { Alert } from '@/components/shared/Alert'
 import { Input } from '@/components/shared/Input'
 import { Label } from '@/components/shared/Label'
-import { isoToLocalInput, localInputToIso } from '@/utils/projectWindow'
 import {
   Select,
   SelectContent,
@@ -12,6 +11,7 @@ import {
   SelectValue,
 } from '@/components/shared/Select'
 import { useI18n } from '@/contexts/I18nContext'
+import { isoToLocalInput, localInputToIso } from '@/utils/projectWindow'
 import { ProjectSettings } from './types'
 
 interface StepSettingsProps {
@@ -160,13 +160,13 @@ export function StepSettings({
               <Label>
                 {t(
                   'projects.creation.wizard.stepSettings.revealSolution',
-                  'Musterlösung nach Abgabe anzeigen'
+                  'Musterlösung nach Abgabe anzeigen',
                 )}
               </Label>
               <p className="text-sm text-zinc-500 dark:text-zinc-400">
                 {t(
                   'projects.creation.wizard.stepSettings.revealSolutionHint',
-                  'Nach der Abgabe sehen Bearbeitende alle Aufgabenfelder inkl. Musterlösung.'
+                  'Nach der Abgabe sehen Bearbeitende alle Aufgabenfelder inkl. Musterlösung.',
                 )}
               </p>
             </div>
@@ -174,7 +174,9 @@ export function StepSettings({
               type="checkbox"
               checked={settings.annotator_full_visibility_after_submit}
               onChange={(e) =>
-                update({ annotator_full_visibility_after_submit: e.target.checked })
+                update({
+                  annotator_full_visibility_after_submit: e.target.checked,
+                })
               }
               className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
               data-testid="wizard-setting-reveal-solution"
@@ -279,7 +281,10 @@ export function StepSettings({
           <div className="flex items-center justify-between">
             <div>
               <Label>
-                {t('project.settings.accessWindow.title', 'Timed access window')}
+                {t(
+                  'project.settings.accessWindow.title',
+                  'Timed access window',
+                )}
               </Label>
               <p className="text-sm text-zinc-500 dark:text-zinc-400">
                 {t(
@@ -297,7 +302,8 @@ export function StepSettings({
                   start.setSeconds(0, 0)
                   const end = new Date(start.getTime() + 2 * 3600 * 1000)
                   update({
-                    window_start_at: settings.window_start_at ?? start.toISOString(),
+                    window_start_at:
+                      settings.window_start_at ?? start.toISOString(),
                     window_end_at: settings.window_end_at ?? end.toISOString(),
                   })
                 } else {

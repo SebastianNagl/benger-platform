@@ -67,7 +67,9 @@ test.describe('LLM Judge Wizard Configuration', () => {
 
     // Verify card shows selected state (emerald background)
     // Use data-testid for reliable selection
-    const selectedCard = page.locator('[data-testid^="metric-button-llm_judge"]').first()
+    const selectedCard = page
+      .locator('[data-testid^="metric-button-llm_judge"]')
+      .first()
     await expect(selectedCard).toHaveClass(/bg-emerald-100|bg-emerald-900/)
 
     // Close wizard
@@ -116,13 +118,28 @@ test.describe('LLM Judge Wizard Configuration', () => {
     expect(step).toBe(4)
 
     // Verify Answer Type label exists (HeadlessUI Listbox, not native select)
-    await expect(page.locator('label').filter({ hasText: /Antworttyp|Answer Type/i }).first()).toBeVisible()
+    await expect(
+      page
+        .locator('label')
+        .filter({ hasText: /Antworttyp|Answer Type/i })
+        .first(),
+    ).toBeVisible()
 
     // Verify Judge Model label exists
-    await expect(page.locator('label').filter({ hasText: /Richter-Modell|Judge Model/i }).first()).toBeVisible()
+    await expect(
+      page
+        .locator('label')
+        .filter({ hasText: /Richter-Modell|Judge Model/i })
+        .first(),
+    ).toBeVisible()
 
     // Verify Temperature label exists
-    await expect(page.locator('label').filter({ hasText: /Temperatur|Temperature/i }).first()).toBeVisible()
+    await expect(
+      page
+        .locator('label')
+        .filter({ hasText: /Temperatur|Temperature/i })
+        .first(),
+    ).toBeVisible()
 
     // Close wizard
     await evalHelpers.clickCancel()
@@ -243,7 +260,7 @@ test.describe('LLM Judge Mocked API Workflow', () => {
       }
     } else {
       console.log(
-        'No run button available - may need to configure evaluation first'
+        'No run button available - may need to configure evaluation first',
       )
     }
 
@@ -280,7 +297,7 @@ test.describe('LLM Judge Mocked API Workflow', () => {
 
       // Verify error is displayed
       const errorMessage = page.locator(
-        'text=/API key|error|failed/i, [role="alert"]'
+        'text=/API key|error|failed/i, [role="alert"]',
       )
       const hasError = await errorMessage
         .isVisible({ timeout: 5000 })

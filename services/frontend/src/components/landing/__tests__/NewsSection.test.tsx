@@ -4,7 +4,10 @@ import { NewsSection } from '../NewsSection'
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
     t: (key: string, varsOrDefault?: any) => {
-      const translations: Record<string, any> = require('../../../locales/en/common.json')
+      const translations: Record<
+        string,
+        any
+      > = require('../../../locales/en/common.json')
       const parts = key.split('.')
       let value: any = translations
       for (const part of parts) {
@@ -43,10 +46,8 @@ jest.mock('@/components/shared/Badge', () => ({
   ),
 }))
 
-
 describe('NewsSection', () => {
-  beforeEach(() => {
-  })
+  beforeEach(() => {})
 
   afterEach(() => {
     jest.clearAllMocks()
@@ -63,7 +64,7 @@ describe('NewsSection', () => {
       render(<NewsSection />)
       expect(screen.getByText('Latest News & Publications')).toBeInTheDocument()
       expect(
-        screen.getByText(/Stay up to date with our latest research/)
+        screen.getByText(/Stay up to date with our latest research/),
       ).toBeInTheDocument()
     })
 
@@ -93,11 +94,9 @@ describe('NewsSection', () => {
       render(<NewsSection />)
       expect(screen.getByText('BenGER Benchathon 2026')).toBeInTheDocument()
       expect(
-        screen.getByText('BenGER Platform Update and Roadmap')
+        screen.getByText('BenGER Platform Update and Roadmap'),
       ).toBeInTheDocument()
-      expect(
-        screen.getByText(/First glimpse into BenGER/)
-      ).toBeInTheDocument()
+      expect(screen.getByText(/First glimpse into BenGER/)).toBeInTheDocument()
     })
 
     it('renders dates on cards', () => {
@@ -155,7 +154,9 @@ describe('NewsSection', () => {
     it('renders translated section text', () => {
       render(<NewsSection />)
       expect(screen.getByText('Latest News & Publications')).toBeInTheDocument()
-      expect(screen.getByText(/Stay up to date with our latest research/)).toBeInTheDocument()
+      expect(
+        screen.getByText(/Stay up to date with our latest research/),
+      ).toBeInTheDocument()
     })
   })
 
@@ -199,10 +200,18 @@ describe('NewsSection', () => {
         t: (key: string) => {
           if (key === 'landing.news.items') {
             return [
-              { title: 'No Link Item', description: 'desc', date: '2026-01-01', type: 'news' },
+              {
+                title: 'No Link Item',
+                description: 'desc',
+                date: '2026-01-01',
+                type: 'news',
+              },
             ]
           }
-          const translations: Record<string, any> = require('../../../locales/en/common.json')
+          const translations: Record<
+            string,
+            any
+          > = require('../../../locales/en/common.json')
           const parts = key.split('.')
           let value: any = translations
           for (const part of parts) {

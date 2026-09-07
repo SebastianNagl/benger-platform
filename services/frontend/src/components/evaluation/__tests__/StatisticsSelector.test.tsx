@@ -21,9 +21,9 @@ jest.mock('@/contexts/I18nContext', () => ({
         'evaluation.statistics.bootstrap': 'Bootstrap Significance',
         'evaluation.statistics.bootstrapShort': 'Bootstrap',
         'evaluation.statistics.cohensD': "Cohen's d",
-        'evaluation.statistics.cohensDShort': "d",
+        'evaluation.statistics.cohensDShort': 'd',
         'evaluation.statistics.cliffsDelta': "Cliff's delta",
-        'evaluation.statistics.cliffsDeltaShort': "delta",
+        'evaluation.statistics.cliffsDeltaShort': 'delta',
         'evaluation.statistics.correlation': 'Correlation',
         'evaluation.statistics.correlationShort': 'Corr',
         'evaluation.statistics.selectPlaceholder': 'Select statistics...',
@@ -80,17 +80,14 @@ describe('StatisticsSelector', () => {
             'cliffs_delta',
             'correlation',
           ]}
-        />
+        />,
       )
       expect(screen.getByText('All Methods')).toBeInTheDocument()
     })
 
     it('shows individual labels when 1-2 methods selected', () => {
       render(
-        <StatisticsSelector
-          {...defaultProps}
-          selectedMethods={['ci', 'se']}
-        />
+        <StatisticsSelector {...defaultProps} selectedMethods={['ci', 'se']} />,
       )
       expect(screen.getByText('CI, SE')).toBeInTheDocument()
     })
@@ -100,7 +97,7 @@ describe('StatisticsSelector', () => {
         <StatisticsSelector
           {...defaultProps}
           selectedMethods={['ci', 'se', 'std']}
-        />
+        />,
       )
       expect(screen.getByText('3 selected')).toBeInTheDocument()
     })
@@ -126,7 +123,7 @@ describe('StatisticsSelector', () => {
       await user.click(screen.getByText('Select statistics...'))
 
       expect(
-        screen.getByText('Confidence Intervals (95% CI)')
+        screen.getByText('Confidence Intervals (95% CI)'),
       ).toBeInTheDocument()
       expect(screen.getByText('Standard Error')).toBeInTheDocument()
       expect(screen.getByText('T-test')).toBeInTheDocument()
@@ -137,10 +134,7 @@ describe('StatisticsSelector', () => {
     it('shows selected count in footer', async () => {
       const user = userEvent.setup()
       render(
-        <StatisticsSelector
-          {...defaultProps}
-          selectedMethods={['ci', 'se']}
-        />
+        <StatisticsSelector {...defaultProps} selectedMethods={['ci', 'se']} />,
       )
 
       await user.click(screen.getByText('CI, SE'))
@@ -153,12 +147,7 @@ describe('StatisticsSelector', () => {
     it('calls onChange to add a method when clicked', async () => {
       const user = userEvent.setup()
       const onChange = jest.fn()
-      render(
-        <StatisticsSelector
-          selectedMethods={[]}
-          onChange={onChange}
-        />
-      )
+      render(<StatisticsSelector selectedMethods={[]} onChange={onChange} />)
 
       await user.click(screen.getByText('Select statistics...'))
       await user.click(screen.getByText('Confidence Intervals (95% CI)'))
@@ -173,7 +162,7 @@ describe('StatisticsSelector', () => {
         <StatisticsSelector
           selectedMethods={['ci', 'se']}
           onChange={onChange}
-        />
+        />,
       )
 
       await user.click(screen.getByText('CI, SE'))
@@ -187,9 +176,7 @@ describe('StatisticsSelector', () => {
     it('selects all methods', async () => {
       const user = userEvent.setup()
       const onChange = jest.fn()
-      render(
-        <StatisticsSelector selectedMethods={[]} onChange={onChange} />
-      )
+      render(<StatisticsSelector selectedMethods={[]} onChange={onChange} />)
 
       await user.click(screen.getByText('Select statistics...'))
       await user.click(screen.getByText('Select All'))
@@ -213,7 +200,7 @@ describe('StatisticsSelector', () => {
         <StatisticsSelector
           selectedMethods={['ci', 'se']}
           onChange={onChange}
-        />
+        />,
       )
 
       await user.click(screen.getByText('CI, SE'))
@@ -230,7 +217,7 @@ describe('StatisticsSelector', () => {
         <div>
           <StatisticsSelector {...defaultProps} />
           <div data-testid="outside">Outside</div>
-        </div>
+        </div>,
       )
 
       await user.click(screen.getByText('Select statistics...'))

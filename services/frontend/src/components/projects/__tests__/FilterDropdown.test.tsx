@@ -49,7 +49,10 @@ import { FilterDropdown } from '../FilterDropdown'
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
     t: (key: string, varsOrDefault?: any) => {
-      const translations: Record<string, any> = require('../../../locales/en/common.json')
+      const translations: Record<
+        string,
+        any
+      > = require('../../../locales/en/common.json')
       const parts = key.split('.')
       let value: any = translations
       for (const part of parts) {
@@ -70,7 +73,6 @@ jest.mock('@/contexts/I18nContext', () => ({
     locale: 'en',
   }),
 }))
-
 
 // Simple stateful mock for Headless UI Menu
 const MockMenu = ({ children }: any) => {
@@ -93,7 +95,7 @@ const MockMenu = ({ children }: any) => {
                 ...child.props,
                 as: undefined, // Remove the 'as' prop
               },
-              child.props.children
+              child.props.children,
             )}
           </div>
         )
@@ -125,7 +127,7 @@ const MockMenu = ({ children }: any) => {
 
 MockMenu.Button = React.forwardRef(function MockMenuButton(
   { children, as: Component = 'button', ...props }: any,
-  ref
+  ref,
 ) {
   // If 'as' is provided, use it as the component
   if (Component && Component !== 'button') {
@@ -246,7 +248,7 @@ describe('FilterDropdown', () => {
       expect(screen.getByText('Annotator')).toBeInTheDocument()
     })
     expect(
-      screen.getByPlaceholderText('Filter by annotator name...')
+      screen.getByPlaceholderText('Filter by annotator name...'),
     ).toBeInTheDocument()
   })
 
@@ -302,7 +304,10 @@ describe('FilterDropdown', () => {
   test('handles date range filter application', async () => {
     const onDateRangeChange = jest.fn()
     render(
-      <FilterDropdown {...defaultProps} onDateRangeChange={onDateRangeChange} />
+      <FilterDropdown
+        {...defaultProps}
+        onDateRangeChange={onDateRangeChange}
+      />,
     )
 
     const button = screen.getByText('Filters')
@@ -330,7 +335,10 @@ describe('FilterDropdown', () => {
   test('handles annotator filter application', async () => {
     const onAnnotatorChange = jest.fn()
     render(
-      <FilterDropdown {...defaultProps} onAnnotatorChange={onAnnotatorChange} />
+      <FilterDropdown
+        {...defaultProps}
+        onAnnotatorChange={onAnnotatorChange}
+      />,
     )
 
     const button = screen.getByText('Filters')
@@ -341,7 +349,7 @@ describe('FilterDropdown', () => {
     })
 
     const annotatorInput = screen.getByPlaceholderText(
-      'Filter by annotator name...'
+      'Filter by annotator name...',
     )
     fireEvent.change(annotatorInput, { target: { value: 'John Doe' } })
 
@@ -411,7 +419,7 @@ describe('FilterDropdown', () => {
     })
 
     const annotatorInput = screen.getByPlaceholderText(
-      'Filter by annotator name...'
+      'Filter by annotator name...',
     )
     fireEvent.change(annotatorInput, { target: { value: 'Test Annotator' } })
     expect(annotatorInput).toHaveValue('Test Annotator')
@@ -596,7 +604,7 @@ describe('FilterDropdown', () => {
 
     await waitFor(() => {
       expect(apiClient.get).toHaveBeenCalledWith(
-        '/projects/test-project/tasks?limit=100'
+        '/projects/test-project/tasks?limit=100',
       )
     })
   })
@@ -626,7 +634,7 @@ describe('FilterDropdown', () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText('No metadata fields available')
+        screen.getByText('No metadata fields available'),
       ).toBeInTheDocument()
     })
   })
@@ -701,7 +709,7 @@ describe('FilterDropdown', () => {
         {...defaultProps}
         projectId="test-project"
         onMetadataChange={onMetadataChange}
-      />
+      />,
     )
 
     const button = screen.getByText('Filters')
@@ -738,7 +746,7 @@ describe('FilterDropdown', () => {
         projectId="test-project"
         metadataFilters={{ category: ['legal'] }}
         onMetadataChange={onMetadataChange}
-      />
+      />,
     )
 
     const button = screen.getByText('Filters')
@@ -751,7 +759,7 @@ describe('FilterDropdown', () => {
     // Find the remove button (X) next to the legal tag
     const removeButtons = screen.getAllByRole('button')
     const legalRemoveButton = removeButtons.find((btn) =>
-      btn.getAttribute('aria-label')?.includes('Remove filter category:legal')
+      btn.getAttribute('aria-label')?.includes('Remove filter category:legal'),
     )
 
     if (legalRemoveButton) {
@@ -777,7 +785,7 @@ describe('FilterDropdown', () => {
         {...defaultProps}
         projectId="test-project"
         metadataFilters={{ category: ['legal'] }}
-      />
+      />,
     )
 
     const button = screen.getByText('Filters')
@@ -808,7 +816,7 @@ describe('FilterDropdown', () => {
         projectId="test-project"
         metadataFilters={{ status: 'active' }}
         onMetadataChange={onMetadataChange}
-      />
+      />,
     )
 
     const button = screen.getByText('Filters')
@@ -887,7 +895,7 @@ describe('FilterDropdown', () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText('No metadata fields available')
+        screen.getByText('No metadata fields available'),
       ).toBeInTheDocument()
     })
   })
@@ -941,7 +949,7 @@ describe('FilterDropdown', () => {
           category: ['legal'],
           priority: ['high'],
         }}
-      />
+      />,
     )
 
     const button = screen.getByText('Filters')
@@ -967,7 +975,7 @@ describe('FilterDropdown', () => {
         projectId="test-project"
         metadataFilters={{ category: ['legal'] }}
         onMetadataChange={onMetadataChange}
-      />
+      />,
     )
 
     const button = screen.getByText('Filters')

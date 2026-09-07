@@ -194,7 +194,7 @@ describe('Accessibility Tests', () => {
       }
 
       const { container } = renderWithProviders(
-        <ProjectCard project={project} />
+        <ProjectCard project={project} />,
       )
       const results = await axe(container)
       expect(results).toHaveNoViolations()
@@ -204,7 +204,7 @@ describe('Accessibility Tests', () => {
       const { container } = renderWithProviders(
         <Modal isOpen={true} onClose={jest.fn()} title="Test Modal">
           Modal content
-        </Modal>
+        </Modal>,
       )
       const results = await axe(container)
       expect(results).toHaveNoViolations()
@@ -230,7 +230,7 @@ describe('Accessibility Tests', () => {
         <div>
           <Navigation />
           <AnnotationForm />
-        </div>
+        </div>,
       )
 
       // Tab through navigation
@@ -291,7 +291,7 @@ describe('Accessibility Tests', () => {
       renderWithProviders(
         <Modal isOpen={true} onClose={mockClose} title="Test Modal">
           Content
-        </Modal>
+        </Modal>,
       )
 
       await user.keyboard('{Escape}')
@@ -319,10 +319,10 @@ describe('Accessibility Tests', () => {
       renderWithProviders(<AnnotationForm />)
 
       expect(
-        screen.getByText('Enter your annotation for the current task')
+        screen.getByText('Enter your annotation for the current task'),
       ).toBeInTheDocument()
       expect(
-        screen.getByText('Enter your annotation for the current task')
+        screen.getByText('Enter your annotation for the current task'),
       ).toHaveClass('sr-only')
     })
 
@@ -335,16 +335,16 @@ describe('Accessibility Tests', () => {
       }
 
       const { rerender } = renderWithProviders(
-        <ProjectCard project={project} />
+        <ProjectCard project={project} />,
       )
 
       expect(screen.getByText('Progress: 50%')).toHaveAttribute(
         'aria-live',
-        'polite'
+        'polite',
       )
       expect(screen.getByText('Progress: 50%')).toHaveAttribute(
         'aria-atomic',
-        'true'
+        'true',
       )
 
       // Update progress
@@ -461,7 +461,7 @@ describe('Accessibility Tests', () => {
       expect(progressbar).toHaveAttribute('aria-valuemax', '10')
       expect(progressbar).toHaveAttribute(
         'aria-label',
-        'Progress: 7 of 10 completed'
+        'Progress: 7 of 10 completed',
       )
     })
   })
@@ -489,7 +489,7 @@ describe('Accessibility Tests', () => {
       expect(input).toHaveAttribute('aria-invalid', 'true')
       expect(input).toHaveAttribute('aria-describedby', 'email-error')
       expect(screen.getByRole('alert')).toHaveTextContent(
-        'Please enter a valid email address'
+        'Please enter a valid email address',
       )
     })
   })
@@ -505,7 +505,7 @@ describe('Accessibility Tests', () => {
           <button style={{ backgroundColor: '#007bff', color: '#fff' }}>
             Button with contrast
           </button>
-        </div>
+        </div>,
       )
 
       const results = await axe(container, {

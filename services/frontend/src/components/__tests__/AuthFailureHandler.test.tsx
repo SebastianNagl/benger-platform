@@ -120,7 +120,7 @@ describe('AuthFailureHandler', () => {
 
       // Verify that setAuthFailureHandler was called on the api client
       expect(mockApiClient.setAuthFailureHandler).toHaveBeenCalledWith(
-        expect.any(Function)
+        expect.any(Function),
       )
     })
 
@@ -157,7 +157,7 @@ describe('AuthFailureHandler', () => {
 
       expect(mockAddToast).toHaveBeenCalledWith(
         'Your session has expired. Please log in again.',
-        'warning'
+        'warning',
       )
     })
 
@@ -267,7 +267,7 @@ describe('AuthFailureHandler', () => {
         <>
           <AuthFailureHandler />
           <TestComponent />
-        </>
+        </>,
       )
 
       expect(getByTestId('test-component')).toBeInTheDocument()
@@ -381,7 +381,7 @@ describe('AuthFailureHandler', () => {
 
       expect(mockAddToast).toHaveBeenCalledWith(
         'Your session has expired. Please log in again.',
-        'warning'
+        'warning',
       )
     })
 
@@ -395,12 +395,12 @@ describe('AuthFailureHandler', () => {
       expect(mockAddToast).toHaveBeenNthCalledWith(
         1,
         'Your session has expired. Please log in again.',
-        'warning'
+        'warning',
       )
       expect(mockAddToast).toHaveBeenNthCalledWith(
         2,
         'Your session has expired. Please log in again.',
-        'warning'
+        'warning',
       )
     })
   })

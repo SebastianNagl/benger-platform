@@ -51,36 +51,49 @@ export function MetricDistributionChart({
     ([range, count]) => ({
       range,
       count,
-    })
+    }),
   )
 
   return (
     <div className="space-y-4">
       <div className="rounded-lg border bg-white p-4">
         <h3 className="mb-4 text-lg font-medium">
-          {title || t('evaluation.metricDistribution.titleWithMetric', { metric: data.metric_name })}
+          {title ||
+            t('evaluation.metricDistribution.titleWithMetric', {
+              metric: data.metric_name,
+            })}
         </h3>
 
         {/* Statistics Summary */}
         <div className="mb-6 grid grid-cols-2 gap-4 rounded-lg bg-gray-50 p-4 md:grid-cols-5">
           <div>
-            <div className="text-xs text-gray-600">{t('evaluation.metricDistribution.mean')}</div>
+            <div className="text-xs text-gray-600">
+              {t('evaluation.metricDistribution.mean')}
+            </div>
             <div className="text-lg font-bold">{data.mean.toFixed(3)}</div>
           </div>
           <div>
-            <div className="text-xs text-gray-600">{t('evaluation.metricDistribution.median')}</div>
+            <div className="text-xs text-gray-600">
+              {t('evaluation.metricDistribution.median')}
+            </div>
             <div className="text-lg font-bold">{data.median.toFixed(3)}</div>
           </div>
           <div>
-            <div className="text-xs text-gray-600">{t('evaluation.metricDistribution.stdDev')}</div>
+            <div className="text-xs text-gray-600">
+              {t('evaluation.metricDistribution.stdDev')}
+            </div>
             <div className="text-lg font-bold">{data.std.toFixed(3)}</div>
           </div>
           <div>
-            <div className="text-xs text-gray-600">{t('evaluation.metricDistribution.min')}</div>
+            <div className="text-xs text-gray-600">
+              {t('evaluation.metricDistribution.min')}
+            </div>
             <div className="text-lg font-bold">{data.min.toFixed(3)}</div>
           </div>
           <div>
-            <div className="text-xs text-gray-600">{t('evaluation.metricDistribution.max')}</div>
+            <div className="text-xs text-gray-600">
+              {t('evaluation.metricDistribution.max')}
+            </div>
             <div className="text-lg font-bold">{data.max.toFixed(3)}</div>
           </div>
         </div>
@@ -101,7 +114,11 @@ export function MetricDistributionChart({
                 fontSize={11}
               />
               <YAxis
-                label={{ value: t('evaluation.metricDistribution.count'), angle: -90, position: 'insideLeft' }}
+                label={{
+                  value: t('evaluation.metricDistribution.count'),
+                  angle: -90,
+                  position: 'insideLeft',
+                }}
               />
               <Tooltip
                 contentStyle={{
@@ -110,7 +127,10 @@ export function MetricDistributionChart({
                   borderRadius: '4px',
                 }}
               />
-              <Bar dataKey="count" name={t('evaluation.metricDistribution.sampleCount')}>
+              <Bar
+                dataKey="count"
+                name={t('evaluation.metricDistribution.sampleCount')}
+              >
                 {histogramData.map((entry, index) => (
                   <Cell
                     key={`cell-${index}`}
@@ -124,7 +144,9 @@ export function MetricDistributionChart({
 
         {/* Quartiles Visualization */}
         <div className="mt-6">
-          <h4 className="mb-2 text-sm font-medium text-gray-700">{t('evaluation.metricDistribution.quartiles')}</h4>
+          <h4 className="mb-2 text-sm font-medium text-gray-700">
+            {t('evaluation.metricDistribution.quartiles')}
+          </h4>
           <div className="relative h-8 w-full rounded bg-linear-to-r from-red-200 via-yellow-200 to-green-200">
             {/* Q1 Marker */}
             <div
@@ -164,8 +186,12 @@ export function MetricDistributionChart({
             </div>
           </div>
           <div className="mt-2 flex justify-between text-xs text-gray-600">
-            <span>{t('evaluation.metricDistribution.min')}: {data.min.toFixed(3)}</span>
-            <span>{t('evaluation.metricDistribution.max')}: {data.max.toFixed(3)}</span>
+            <span>
+              {t('evaluation.metricDistribution.min')}: {data.min.toFixed(3)}
+            </span>
+            <span>
+              {t('evaluation.metricDistribution.max')}: {data.max.toFixed(3)}
+            </span>
           </div>
         </div>
       </div>

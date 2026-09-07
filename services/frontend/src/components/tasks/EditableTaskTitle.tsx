@@ -108,7 +108,7 @@ export function EditableTaskTitle({
           onKeyDown={handleKeyDown}
           onBlur={handleBlur}
           disabled={isSubmitting}
-          className="w-full min-w-0 rounded-lg border-2 border-emerald-500 bg-transparent px-2 py-1 text-3xl font-bold tracking-tight text-zinc-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:text-white"
+          className="w-full min-w-0 rounded-lg border-2 border-emerald-500 bg-transparent px-2 py-1 text-3xl font-bold tracking-tight text-zinc-900 focus:ring-2 focus:ring-emerald-500/20 focus:outline-none dark:text-white"
           placeholder={t('tasks.editTitle.enterTaskName')}
         />
       </div>
@@ -127,7 +127,7 @@ export function EditableTaskTitle({
       {canEdit && (
         <button
           onClick={handleStartEdit}
-          className="p-1 text-zinc-500 opacity-0 transition-all hover:text-zinc-600 group-hover:opacity-100 dark:text-zinc-400 dark:hover:text-zinc-300"
+          className="p-1 text-zinc-500 opacity-0 transition-all group-hover:opacity-100 hover:text-zinc-600 dark:text-zinc-400 dark:hover:text-zinc-300"
           title={t('tasks.editTitle.editTaskName')}
           aria-label={t('tasks.editTitle.editTaskName')}
         >

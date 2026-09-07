@@ -11,8 +11,12 @@
  */
 
 import '@testing-library/jest-dom'
-import { render, screen, fireEvent } from '@testing-library/react'
-import { FieldPairSelector, extractFieldPairsFromConfig, FieldPair } from '../FieldPairSelector'
+import { fireEvent, render, screen } from '@testing-library/react'
+import {
+  extractFieldPairsFromConfig,
+  FieldPair,
+  FieldPairSelector,
+} from '../FieldPairSelector'
 
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
@@ -38,22 +42,48 @@ jest.mock('@/contexts/I18nContext', () => ({
 jest.mock('@heroicons/react/24/outline', () => ({
   ArrowRightIcon: (props: any) => <svg {...props} data-testid="arrow-right" />,
   CheckIcon: (props: any) => <svg {...props} data-testid="check-icon" />,
-  ChevronDownIcon: (props: any) => <svg {...props} data-testid="chevron-icon" />,
+  ChevronDownIcon: (props: any) => (
+    <svg {...props} data-testid="chevron-icon" />
+  ),
 }))
 
 const modelPairs: FieldPair[] = [
-  { id: 'gen_a->ref', predictionField: 'generation_a', referenceField: 'reference', displayLabel: 'gen_a -> ref', source: 'model', resultCount: 10 },
-  { id: 'gen_b->ref', predictionField: 'generation_b', referenceField: 'reference', displayLabel: 'gen_b -> ref', source: 'model', hasResults: false },
+  {
+    id: 'gen_a->ref',
+    predictionField: 'generation_a',
+    referenceField: 'reference',
+    displayLabel: 'gen_a -> ref',
+    source: 'model',
+    resultCount: 10,
+  },
+  {
+    id: 'gen_b->ref',
+    predictionField: 'generation_b',
+    referenceField: 'reference',
+    displayLabel: 'gen_b -> ref',
+    source: 'model',
+    hasResults: false,
+  },
 ]
 
 const humanPairs: FieldPair[] = [
-  { id: 'ann->ref', predictionField: 'annotation', referenceField: 'reference', displayLabel: 'ann -> ref', source: 'human' },
+  {
+    id: 'ann->ref',
+    predictionField: 'annotation',
+    referenceField: 'reference',
+    displayLabel: 'ann -> ref',
+    source: 'human',
+  },
 ]
 
 describe('FieldPairSelector', () => {
   it('returns null when fieldPairs is empty', () => {
     const { container } = render(
-      <FieldPairSelector fieldPairs={[]} selectedPairs={[]} onChange={jest.fn()} />
+      <FieldPairSelector
+        fieldPairs={[]}
+        selectedPairs={[]}
+        onChange={jest.fn()}
+      />,
     )
     expect(container.innerHTML).toBe('')
   })
@@ -64,7 +94,7 @@ describe('FieldPairSelector', () => {
         fieldPairs={modelPairs}
         selectedPairs={['gen_a->ref', 'gen_b->ref']}
         onChange={jest.fn()}
-      />
+      />,
     )
     expect(screen.getByText('All Pairs')).toBeInTheDocument()
   })
@@ -75,7 +105,7 @@ describe('FieldPairSelector', () => {
         fieldPairs={modelPairs}
         selectedPairs={['gen_a->ref']}
         onChange={jest.fn()}
-      />
+      />,
     )
     expect(screen.getByText('gen_a -> ref')).toBeInTheDocument()
   })
@@ -87,7 +117,7 @@ describe('FieldPairSelector', () => {
         fieldPairs={allPairs}
         selectedPairs={['gen_a->ref', 'ann->ref']}
         onChange={jest.fn()}
-      />
+      />,
     )
     expect(screen.getByText('2 selected')).toBeInTheDocument()
   })
@@ -99,7 +129,7 @@ describe('FieldPairSelector', () => {
         fieldPairs={allPairs}
         selectedPairs={['gen_a->ref']}
         onChange={jest.fn()}
-      />
+      />,
     )
     fireEvent.click(screen.getByText('gen_a -> ref'))
     expect(screen.getByText('Model Responses')).toBeInTheDocument()
@@ -113,7 +143,7 @@ describe('FieldPairSelector', () => {
         fieldPairs={modelPairs}
         selectedPairs={['gen_a->ref']}
         onChange={onChange}
-      />
+      />,
     )
     fireEvent.click(screen.getByText('gen_a -> ref'))
     // Select gen_b
@@ -128,7 +158,7 @@ describe('FieldPairSelector', () => {
         fieldPairs={modelPairs}
         selectedPairs={['gen_a->ref']}
         onChange={onChange}
-      />
+      />,
     )
     fireEvent.click(screen.getByText('gen_a -> ref'))
     // Try to deselect the only selected pair
@@ -143,7 +173,7 @@ describe('FieldPairSelector', () => {
         fieldPairs={modelPairs}
         selectedPairs={['gen_a->ref']}
         onChange={onChange}
-      />
+      />,
     )
     fireEvent.click(screen.getByText('gen_a -> ref'))
     fireEvent.click(screen.getByText('Select All'))
@@ -157,7 +187,7 @@ describe('FieldPairSelector', () => {
         fieldPairs={modelPairs}
         selectedPairs={['gen_a->ref', 'gen_b->ref']}
         onChange={onChange}
-      />
+      />,
     )
     fireEvent.click(screen.getByText('All Pairs'))
     fireEvent.click(screen.getByText('Clear'))
@@ -170,7 +200,7 @@ describe('FieldPairSelector', () => {
         fieldPairs={modelPairs}
         selectedPairs={['gen_a->ref']}
         onChange={jest.fn()}
-      />
+      />,
     )
     fireEvent.click(screen.getByText('gen_a -> ref'))
     expect(screen.getByText('No results')).toBeInTheDocument()
@@ -182,7 +212,7 @@ describe('FieldPairSelector', () => {
         fieldPairs={modelPairs}
         selectedPairs={['gen_a->ref']}
         onChange={jest.fn()}
-      />
+      />,
     )
     fireEvent.click(screen.getByText('gen_a -> ref'))
     expect(screen.getByText('10 results')).toBeInTheDocument()
@@ -195,7 +225,7 @@ describe('FieldPairSelector', () => {
         selectedPairs={['gen_a->ref']}
         onChange={jest.fn()}
         disabled={true}
-      />
+      />,
     )
     fireEvent.click(screen.getByText('gen_a -> ref'))
     expect(screen.queryByText('Select All')).not.toBeInTheDocument()
@@ -205,7 +235,11 @@ describe('FieldPairSelector', () => {
 describe('extractFieldPairsFromConfig', () => {
   it('extracts pairs from evaluation configs', () => {
     const configs = [
-      { id: '1', prediction_fields: ['generation_a'], reference_fields: ['reference'] },
+      {
+        id: '1',
+        prediction_fields: ['generation_a'],
+        reference_fields: ['reference'],
+      },
     ]
     const pairs = extractFieldPairsFromConfig(configs)
     expect(pairs).toHaveLength(1)
@@ -214,8 +248,16 @@ describe('extractFieldPairsFromConfig', () => {
 
   it('deduplicates pairs', () => {
     const configs = [
-      { id: '1', prediction_fields: ['annotation'], reference_fields: ['reference'] },
-      { id: '2', prediction_fields: ['annotation'], reference_fields: ['reference'] },
+      {
+        id: '1',
+        prediction_fields: ['annotation'],
+        reference_fields: ['reference'],
+      },
+      {
+        id: '2',
+        prediction_fields: ['annotation'],
+        reference_fields: ['reference'],
+      },
     ]
     const pairs = extractFieldPairsFromConfig(configs)
     expect(pairs).toHaveLength(1)

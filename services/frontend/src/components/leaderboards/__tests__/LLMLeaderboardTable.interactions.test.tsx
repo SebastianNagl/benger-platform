@@ -22,8 +22,8 @@
  * (see jest.config.js moduleNameMapper), so period/metric/aggregation are
  * real comboboxes we can drive with selectOptions / fireEvent.change.
  */
-import '@testing-library/jest-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import '@testing-library/jest-dom'
 import {
   fireEvent,
   render as rtlRender,
@@ -40,7 +40,7 @@ const render: typeof rtlRender = (ui, options) => {
   })
   return rtlRender(
     <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>,
-    options
+    options,
   )
 }
 
@@ -90,7 +90,7 @@ jest.mock('@headlessui/react', () => {
     return React.createElement(
       As === 'div' ? 'div' : As,
       rest,
-      React.createElement(Ctx.Provider, { value: { open, setOpen } }, children)
+      React.createElement(Ctx.Provider, { value: { open, setOpen } }, children),
     )
   }
   // Named components (not `Menu.X = () => …`): rules-of-hooks only accepts
@@ -102,7 +102,7 @@ jest.mock('@headlessui/react', () => {
     return React.createElement(
       Comp,
       { ...rest, onClick: () => setOpen(!open) },
-      children
+      children,
     )
   }
   Menu.Button = MenuButton
@@ -217,7 +217,9 @@ const dataResponse = {
 function findSelectByOption(optionText: string): HTMLSelectElement {
   const selects = screen.getAllByRole('combobox') as HTMLSelectElement[]
   const match = selects.find((sel) =>
-    within(sel).queryAllByRole('option').some((o) => o.textContent === optionText)
+    within(sel)
+      .queryAllByRole('option')
+      .some((o) => o.textContent === optionText),
   )
   if (!match) {
     throw new Error(`No <select> with an option "${optionText}" found`)
@@ -283,7 +285,9 @@ describe('LLMLeaderboardTable interactions', () => {
     await waitFor(() => {
       expect(container.textContent).toContain('leaderboards.llm.noDataTitle')
     })
-    expect(container.textContent).toContain('leaderboards.llm.noDataDescription')
+    expect(container.textContent).toContain(
+      'leaderboards.llm.noDataDescription',
+    )
     // No pagination when there are zero models.
     expect(screen.queryByLabelText('Pagination')).not.toBeInTheDocument()
   })
@@ -304,7 +308,7 @@ describe('LLMLeaderboardTable interactions', () => {
 
     await waitFor(() => {
       expect(mockGetLLMLeaderboard.mock.calls.length).toBeGreaterThan(
-        callsBeforeRetry
+        callsBeforeRetry,
       )
     })
     // Recovered: data now visible.
@@ -318,7 +322,9 @@ describe('LLMLeaderboardTable interactions', () => {
     const { container } = render(<LLMLeaderboardTable />)
 
     await waitFor(() => {
-      expect(container.textContent).toContain('leaderboards.llm.availableMetrics')
+      expect(container.textContent).toContain(
+        'leaderboards.llm.availableMetrics',
+      )
     })
     // 13 metrics, only first 10 listed -> "and more" with count 3.
     expect(container.textContent).toContain('leaderboards.llm.andMore')
@@ -365,7 +371,7 @@ describe('LLMLeaderboardTable interactions', () => {
     })
     // Page reset to 1 -> offset 0.
     const monthlyCall = mockGetLLMLeaderboard.mock.calls.find(
-      (c) => c[0].period === 'monthly'
+      (c) => c[0].period === 'monthly',
     )!
     expect(monthlyCall[0].offset).toBe(0)
   })
@@ -384,7 +390,9 @@ describe('LLMLeaderboardTable interactions', () => {
 
     await waitFor(() => {
       expect(
-        mockGetLLMLeaderboard.mock.calls.some((c) => c[0].metric === 'accuracy')
+        mockGetLLMLeaderboard.mock.calls.some(
+          (c) => c[0].metric === 'accuracy',
+        ),
       ).toBe(true)
     })
   })
@@ -405,7 +413,7 @@ describe('LLMLeaderboardTable interactions', () => {
       const aggSelect = screen.queryAllByRole('combobox').find((sel) =>
         within(sel as HTMLElement)
           .queryAllByRole('option')
-          .some((o) => o.textContent === 'leaderboards.aggregation.sum')
+          .some((o) => o.textContent === 'leaderboards.aggregation.sum'),
       )
       expect(aggSelect).toBeTruthy()
     })
@@ -417,8 +425,8 @@ describe('LLMLeaderboardTable interactions', () => {
     await waitFor(() => {
       expect(
         mockGetLLMLeaderboard.mock.calls.some(
-          (c) => c[0].aggregation === 'sum'
-        )
+          (c) => c[0].aggregation === 'sum',
+        ),
       ).toBe(true)
     })
     // In sum mode the score formatter takes the raw-number branch (no %).
@@ -439,10 +447,10 @@ describe('LLMLeaderboardTable interactions', () => {
     // Locate the min-samples checkbox: it is the one that is checked by
     // default (the include-all checkbox is unchecked + disabled).
     const checkboxes = container.querySelectorAll<HTMLInputElement>(
-      'input[type="checkbox"]'
+      'input[type="checkbox"]',
     )
     const minSamples = Array.from(checkboxes).find(
-      (c) => c.checked && !c.disabled
+      (c) => c.checked && !c.disabled,
     )
     expect(minSamples).toBeTruthy()
 
@@ -452,8 +460,9 @@ describe('LLMLeaderboardTable interactions', () => {
     await waitFor(() => {
       expect(
         mockGetLLMLeaderboard.mock.calls.some(
-          (c) => c[0].min_generation_count === 0 && c[0].min_samples_evaluated === 0
-        )
+          (c) =>
+            c[0].min_generation_count === 0 && c[0].min_samples_evaluated === 0,
+        ),
       ).toBe(true)
     })
   })
@@ -478,8 +487,8 @@ describe('LLMLeaderboardTable interactions', () => {
       expect(
         mockGetLLMLeaderboard.mock.calls.some(
           (c) =>
-            Array.isArray(c[0].project_ids) && c[0].project_ids.includes('p1')
-        )
+            Array.isArray(c[0].project_ids) && c[0].project_ids.includes('p1'),
+        ),
       ).toBe(true)
     })
   })
@@ -496,7 +505,7 @@ describe('LLMLeaderboardTable interactions', () => {
     await userEvent.selectOptions(periodSelect, 'weekly')
     await waitFor(() => {
       expect(
-        mockGetLLMLeaderboard.mock.calls.some((c) => c[0].period === 'weekly')
+        mockGetLLMLeaderboard.mock.calls.some((c) => c[0].period === 'weekly'),
       ).toBe(true)
     })
 
@@ -509,7 +518,7 @@ describe('LLMLeaderboardTable interactions', () => {
 
     await waitFor(() => {
       expect(
-        mockGetLLMLeaderboard.mock.calls.some((c) => c[0].period === 'overall')
+        mockGetLLMLeaderboard.mock.calls.some((c) => c[0].period === 'overall'),
       ).toBe(true)
     })
   })

@@ -53,14 +53,14 @@ describe('Textarea Component', () => {
 
     it('supports controlled textarea with value prop', () => {
       const { rerender } = render(
-        <Textarea {...defaultProps} value="initial" onChange={() => {}} />
+        <Textarea {...defaultProps} value="initial" onChange={() => {}} />,
       )
 
       let textarea = screen.getByRole('textbox')
       expect(textarea).toHaveValue('initial')
 
       rerender(
-        <Textarea {...defaultProps} value="updated" onChange={() => {}} />
+        <Textarea {...defaultProps} value="updated" onChange={() => {}} />,
       )
       textarea = screen.getByRole('textbox')
       expect(textarea).toHaveValue('updated')
@@ -110,7 +110,7 @@ describe('Textarea Component', () => {
           target: expect.objectContaining({
             value: 'a',
           }),
-        })
+        }),
       )
     })
 
@@ -162,7 +162,7 @@ describe('Textarea Component', () => {
       const mockChange = jest.fn()
 
       render(
-        <Textarea {...defaultProps} disabled={true} onChange={mockChange} />
+        <Textarea {...defaultProps} disabled={true} onChange={mockChange} />,
       )
 
       const textarea = screen.getByRole('textbox')
@@ -177,7 +177,7 @@ describe('Textarea Component', () => {
       const mockChange = jest.fn()
 
       render(
-        <Textarea {...defaultProps} disabled={false} onChange={mockChange} />
+        <Textarea {...defaultProps} disabled={false} onChange={mockChange} />,
       )
 
       const textarea = screen.getByRole('textbox')
@@ -276,7 +276,7 @@ describe('Textarea Component', () => {
         <>
           <Textarea {...defaultProps} aria-describedby="description-help" />
           <div id="description-help">Help text</div>
-        </>
+        </>,
       )
 
       const textarea = screen.getByRole('textbox')
@@ -304,7 +304,7 @@ describe('Textarea Component', () => {
       const mockBlur = jest.fn()
 
       render(
-        <Textarea {...defaultProps} onFocus={mockFocus} onBlur={mockBlur} />
+        <Textarea {...defaultProps} onFocus={mockFocus} onBlur={mockBlur} />,
       )
 
       const textarea = screen.getByRole('textbox')
@@ -359,7 +359,7 @@ describe('Textarea Component', () => {
           readOnly={true}
           defaultValue="initial"
           onChange={mockChange}
-        />
+        />,
       )
 
       const textarea = screen.getByRole('textbox')
@@ -419,7 +419,7 @@ describe('Textarea Component', () => {
           required={true}
           rows={10}
           cols={50}
-        />
+        />,
       )
 
       const textarea = screen.getByRole('textbox')
@@ -445,7 +445,7 @@ describe('Textarea Component', () => {
           aria-label="Custom label"
           aria-required={true}
           aria-invalid={false}
-        />
+        />,
       )
 
       const textarea = screen.getByRole('textbox')
@@ -466,7 +466,7 @@ describe('Textarea Component', () => {
           onKeyDown={mockKeyDown}
           onKeyUp={mockKeyUp}
           onKeyPress={mockKeyPress}
-        />
+        />,
       )
 
       const textarea = screen.getByRole('textbox')
@@ -483,7 +483,7 @@ describe('Textarea Component', () => {
           form="test-form"
           autoFocus={true}
           spellCheck={false}
-        />
+        />,
       )
 
       const textarea = screen.getByRole('textbox')
@@ -506,7 +506,7 @@ describe('Textarea Component', () => {
           lang="en"
           title="Textarea title"
           tabIndex={2}
-        />
+        />,
       )
 
       const textarea = screen.getByRole('textbox')

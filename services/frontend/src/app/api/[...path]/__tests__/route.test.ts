@@ -52,7 +52,7 @@ describe('API Proxy Route', () => {
 
       expect(mockFetch).toHaveBeenCalledWith(
         'http://localhost:8001/api/tasks',
-        expect.any(Object)
+        expect.any(Object),
       )
     })
 
@@ -71,7 +71,7 @@ describe('API Proxy Route', () => {
 
       expect(mockFetch).toHaveBeenCalledWith(
         'http://api:8000/api/tasks',
-        expect.any(Object)
+        expect.any(Object),
       )
     })
 
@@ -93,7 +93,7 @@ describe('API Proxy Route', () => {
 
       expect(mockFetch).toHaveBeenCalledWith(
         expect.stringContaining('api/tasks'),
-        expect.any(Object)
+        expect.any(Object),
       )
 
       process.env.NODE_ENV = originalEnv
@@ -119,7 +119,7 @@ describe('API Proxy Route', () => {
 
       expect(mockFetch).toHaveBeenCalledWith(
         'http://custom-api:9000/api/tasks',
-        expect.any(Object)
+        expect.any(Object),
       )
 
       process.env.DOCKER_INTERNAL_API_URL = originalUrl
@@ -143,7 +143,7 @@ describe('API Proxy Route', () => {
 
       expect(mockFetch).toHaveBeenCalledWith(
         expect.stringContaining('/api/tasks'),
-        expect.objectContaining({ method: 'GET' })
+        expect.objectContaining({ method: 'GET' }),
       )
     })
 
@@ -163,7 +163,7 @@ describe('API Proxy Route', () => {
           // Proxy now streams the body — could be a ReadableStream,
           // legacy string, or null for empty bodies. Don't lock the type.
           body: expect.anything(),
-        })
+        }),
       )
     })
 
@@ -178,7 +178,7 @@ describe('API Proxy Route', () => {
 
       expect(mockFetch).toHaveBeenCalledWith(
         expect.stringContaining('/api/tasks/1'),
-        expect.objectContaining({ method: 'PUT' })
+        expect.objectContaining({ method: 'PUT' }),
       )
     })
 
@@ -195,7 +195,7 @@ describe('API Proxy Route', () => {
 
       expect(mockFetch).toHaveBeenCalledWith(
         expect.stringContaining('/api/tasks/1'),
-        expect.objectContaining({ method: 'PATCH' })
+        expect.objectContaining({ method: 'PATCH' }),
       )
     })
 
@@ -210,7 +210,7 @@ describe('API Proxy Route', () => {
 
       expect(mockFetch).toHaveBeenCalledWith(
         expect.stringContaining('/api/tasks/1'),
-        expect.objectContaining({ method: 'DELETE' })
+        expect.objectContaining({ method: 'DELETE' }),
       )
     })
   })
@@ -251,7 +251,7 @@ describe('API Proxy Route', () => {
       const fetchCall = mockFetch.mock.calls[0]
       const headers = fetchCall[1]?.headers as Headers
       expect(headers.get('cookie')).toBe(
-        'access_token=test; refresh_token=test123'
+        'access_token=test; refresh_token=test123',
       )
     })
 
@@ -302,14 +302,14 @@ describe('API Proxy Route', () => {
 
     it('should forward query parameters', async () => {
       const request = new NextRequest(
-        'http://localhost:3000/api/tasks?status=active&page=2'
+        'http://localhost:3000/api/tasks?status=active&page=2',
       )
 
       await GET(request, { params: Promise.resolve({ path: ['tasks'] }) })
 
       expect(mockFetch).toHaveBeenCalledWith(
         expect.stringContaining('?status=active&page=2'),
-        expect.any(Object)
+        expect.any(Object),
       )
     })
 
@@ -445,7 +445,7 @@ describe('API Proxy Route', () => {
         'http://localhost:3000/api/auth/verify-email',
         {
           headers: { host: 'localhost:3000' },
-        }
+        },
       )
       const response = await GET(request, {
         params: Promise.resolve({ path: ['auth', 'verify-email'] }),
@@ -474,7 +474,7 @@ describe('API Proxy Route', () => {
 
       expect(mockFetch).toHaveBeenCalledWith(
         expect.stringContaining('/api/tasks'),
-        expect.any(Object)
+        expect.any(Object),
       )
     })
 
@@ -486,13 +486,13 @@ describe('API Proxy Route', () => {
 
       expect(mockFetch).toHaveBeenCalledWith(
         expect.stringContaining('/api/tasks/1/edit'),
-        expect.any(Object)
+        expect.any(Object),
       )
     })
 
     it('should handle paths with special characters', async () => {
       const request = new NextRequest(
-        'http://localhost:3000/api/tasks/test-task-123'
+        'http://localhost:3000/api/tasks/test-task-123',
       )
       await GET(request, {
         params: Promise.resolve({ path: ['tasks', 'test-task-123'] }),
@@ -500,13 +500,13 @@ describe('API Proxy Route', () => {
 
       expect(mockFetch).toHaveBeenCalledWith(
         expect.stringContaining('/api/tasks/test-task-123'),
-        expect.any(Object)
+        expect.any(Object),
       )
     })
 
     it('should handle deep nested paths', async () => {
       const request = new NextRequest(
-        'http://localhost:3000/api/projects/1/tasks/2/annotations/3/comments'
+        'http://localhost:3000/api/projects/1/tasks/2/annotations/3/comments',
       )
       await GET(request, {
         params: Promise.resolve({
@@ -516,9 +516,9 @@ describe('API Proxy Route', () => {
 
       expect(mockFetch).toHaveBeenCalledWith(
         expect.stringContaining(
-          '/api/projects/1/tasks/2/annotations/3/comments'
+          '/api/projects/1/tasks/2/annotations/3/comments',
         ),
-        expect.any(Object)
+        expect.any(Object),
       )
     })
 
@@ -530,14 +530,14 @@ describe('API Proxy Route', () => {
 
       expect(mockFetch).toHaveBeenCalledWith(
         expect.stringContaining('/api/users/12345'),
-        expect.any(Object)
+        expect.any(Object),
       )
     })
 
     it('should handle paths with UUID-like strings', async () => {
       const uuid = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890'
       const request = new NextRequest(
-        `http://localhost:3000/api/resources/${uuid}`
+        `http://localhost:3000/api/resources/${uuid}`,
       )
       await GET(request, {
         params: Promise.resolve({ path: ['resources', uuid] }),
@@ -545,7 +545,7 @@ describe('API Proxy Route', () => {
 
       expect(mockFetch).toHaveBeenCalledWith(
         expect.stringContaining(`/api/resources/${uuid}`),
-        expect.any(Object)
+        expect.any(Object),
       )
     })
   })
@@ -941,7 +941,7 @@ describe('API Proxy Route', () => {
 
       expect(mockFetch).toHaveBeenCalledWith(
         'http://docker-api:8000/api/tasks',
-        expect.any(Object)
+        expect.any(Object),
       )
 
       // Restore
@@ -972,7 +972,7 @@ describe('API Proxy Route', () => {
       await GET(request, { params: Promise.resolve({ path: ['tasks'] }) })
 
       const previewLogs = (console.log as jest.Mock).mock.calls.filter(
-        (call) => call[0] === '📝 Response data preview:'
+        (call) => call[0] === '📝 Response data preview:',
       )
       expect(previewLogs.length).toBe(0)
 
@@ -999,14 +999,14 @@ describe('API Proxy Route', () => {
         'https://staging.what-a-benger.net/api/tasks',
         {
           headers: { host: 'staging.what-a-benger.net' },
-        }
+        },
       )
 
       await GET(request, { params: Promise.resolve({ path: ['tasks'] }) })
 
       expect(mockFetch).toHaveBeenCalledWith(
         expect.stringContaining('api/tasks'),
-        expect.any(Object)
+        expect.any(Object),
       )
 
       process.env.NODE_ENV = originalEnv
@@ -1039,7 +1039,7 @@ describe('API Proxy Route', () => {
 
       expect(mockFetch).toHaveBeenCalledWith(
         'http://localhost:8001/api/tasks',
-        expect.any(Object)
+        expect.any(Object),
       )
 
       // Restore

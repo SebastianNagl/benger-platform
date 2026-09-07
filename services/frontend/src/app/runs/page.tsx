@@ -119,7 +119,10 @@ export default function RunsPage() {
       .list(1, 200)
       .then((resp) => {
         if (cancelled) return
-        const items = (resp?.items || []) as Array<{ id: string; title: string }>
+        const items = (resp?.items || []) as Array<{
+          id: string
+          title: string
+        }>
         setProjects(items.map((p) => ({ id: String(p.id), title: p.title })))
       })
       .catch(() => {
@@ -223,7 +226,7 @@ export default function RunsPage() {
             <button
               key={tname}
               onClick={() => handleTabChange(tname)}
-              className={`whitespace-nowrap border-b-2 py-3 text-sm font-medium ${
+              className={`border-b-2 py-3 text-sm font-medium whitespace-nowrap ${
                 tab === tname
                   ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400'
                   : 'border-transparent text-zinc-500 hover:border-zinc-300 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200'
@@ -239,7 +242,9 @@ export default function RunsPage() {
 
       {/* Filters */}
       <div className="mb-4 flex flex-wrap items-center gap-3">
-        <label className="text-xs text-zinc-500">{t('runs.filterProject', 'Projekt')}</label>
+        <label className="text-xs text-zinc-500">
+          {t('runs.filterProject', 'Projekt')}
+        </label>
         <select
           value={projectFilter}
           onChange={(e) => handleProjectChange(e.target.value)}
@@ -252,7 +257,9 @@ export default function RunsPage() {
             </option>
           ))}
         </select>
-        <label className="text-xs text-zinc-500">{t('runs.filterStatus', 'Status')}</label>
+        <label className="text-xs text-zinc-500">
+          {t('runs.filterStatus', 'Status')}
+        </label>
         <select
           value={statusFilter}
           onChange={(e) => {
@@ -286,39 +293,61 @@ export default function RunsPage() {
       {/* Table */}
       <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
         <table className="min-w-full divide-y divide-zinc-200 text-sm dark:divide-zinc-800">
-          <thead className="bg-zinc-50 text-left text-xs uppercase tracking-wide text-zinc-500 dark:bg-zinc-900/40 dark:text-zinc-400">
+          <thead className="bg-zinc-50 text-left text-xs tracking-wide text-zinc-500 uppercase dark:bg-zinc-900/40 dark:text-zinc-400">
             <tr>
-              <th className="px-3 py-2">{t('runs.col.started', 'Gestartet')}</th>
+              <th className="px-3 py-2">
+                {t('runs.col.started', 'Gestartet')}
+              </th>
               <th className="px-3 py-2">{t('runs.col.project', 'Projekt')}</th>
               <th className="px-3 py-2">{t('runs.col.status', 'Status')}</th>
               {tab === 'generation' ? (
                 <>
                   <th className="px-3 py-2">{t('runs.col.model', 'Modell')}</th>
-                  <th className="px-3 py-2">{t('runs.col.structure', 'Struktur')}</th>
-                  <th className="px-3 py-2 text-right">{t('runs.col.runs', 'Läufe')}</th>
+                  <th className="px-3 py-2">
+                    {t('runs.col.structure', 'Struktur')}
+                  </th>
+                  <th className="px-3 py-2 text-right">
+                    {t('runs.col.runs', 'Läufe')}
+                  </th>
                 </>
               ) : (
                 <>
-                  <th className="px-3 py-2">{t('runs.col.targetModel', 'Ziel-Modell')}</th>
-                  <th className="px-3 py-2">{t('runs.col.judges', 'Judges')}</th>
-                  <th className="px-3 py-2">{t('runs.col.metrics', 'Metriken')}</th>
-                  <th className="px-3 py-2 text-right">{t('runs.col.samples', 'Samples')}</th>
+                  <th className="px-3 py-2">
+                    {t('runs.col.targetModel', 'Ziel-Modell')}
+                  </th>
+                  <th className="px-3 py-2">
+                    {t('runs.col.judges', 'Judges')}
+                  </th>
+                  <th className="px-3 py-2">
+                    {t('runs.col.metrics', 'Metriken')}
+                  </th>
+                  <th className="px-3 py-2 text-right">
+                    {t('runs.col.samples', 'Samples')}
+                  </th>
                 </>
               )}
-              <th className="px-3 py-2 text-right">{t('runs.col.duration', 'Dauer')}</th>
+              <th className="px-3 py-2 text-right">
+                {t('runs.col.duration', 'Dauer')}
+              </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-100 bg-white dark:divide-zinc-800 dark:bg-zinc-950">
             {loading && (
               <tr>
-                <td colSpan={tab === 'generation' ? 7 : 8} className="px-3 py-6 text-center text-xs text-zinc-500">
+                <td
+                  colSpan={tab === 'generation' ? 7 : 8}
+                  className="px-3 py-6 text-center text-xs text-zinc-500"
+                >
                   {t('runs.loading', 'Lade…')}
                 </td>
               </tr>
             )}
             {!loading && data?.items.length === 0 && (
               <tr>
-                <td colSpan={tab === 'generation' ? 7 : 8} className="px-3 py-6 text-center text-xs text-zinc-500">
+                <td
+                  colSpan={tab === 'generation' ? 7 : 8}
+                  className="px-3 py-6 text-center text-xs text-zinc-500"
+                >
                   {t('runs.empty', 'Keine Einträge')}
                 </td>
               </tr>
@@ -333,7 +362,7 @@ export default function RunsPage() {
                   <td className="px-3 py-2 whitespace-nowrap text-zinc-700 dark:text-zinc-300">
                     {formatDate(run.created_at)}
                   </td>
-                  <td className="px-3 py-2 max-w-xs truncate">
+                  <td className="max-w-xs truncate px-3 py-2">
                     {run.project_title || (
                       <span className="text-zinc-400">—</span>
                     )}
@@ -343,26 +372,39 @@ export default function RunsPage() {
                   </td>
                   {tab === 'generation' ? (
                     <>
-                      <td className="px-3 py-2 font-mono text-xs">{run.model_id || '—'}</td>
-                      <td className="px-3 py-2 font-mono text-xs">{run.structure_key || '—'}</td>
+                      <td className="px-3 py-2 font-mono text-xs">
+                        {run.model_id || '—'}
+                      </td>
+                      <td className="px-3 py-2 font-mono text-xs">
+                        {run.structure_key || '—'}
+                      </td>
                       <td className="px-3 py-2 text-right font-mono text-xs">
                         {run.runs_requested && run.runs_requested > 1
                           ? `${run.runs_completed ?? 0}/${run.runs_requested}${
-                              run.runs_failed ? ` (${run.runs_failed} fehlgeschlagen)` : ''
+                              run.runs_failed
+                                ? ` (${run.runs_failed} fehlgeschlagen)`
+                                : ''
                             }`
                           : '1'}
                       </td>
                     </>
                   ) : (
                     <>
-                      <td className="px-3 py-2 font-mono text-xs">{run.model_id || '—'}</td>
+                      <td className="px-3 py-2 font-mono text-xs">
+                        {run.model_id || '—'}
+                      </td>
                       <td className="px-3 py-2 font-mono text-xs">
                         {run.judge_models && run.judge_models.length > 0
                           ? run.judge_models.join(', ')
                           : '—'}
                       </td>
-                      <td className="px-3 py-2 font-mono text-xs max-w-xs truncate" title={run.metrics?.join(', ')}>
-                        {run.metrics && run.metrics.length > 0 ? run.metrics.join(', ') : '—'}
+                      <td
+                        className="max-w-xs truncate px-3 py-2 font-mono text-xs"
+                        title={run.metrics?.join(', ')}
+                      >
+                        {run.metrics && run.metrics.length > 0
+                          ? run.metrics.join(', ')
+                          : '—'}
                       </td>
                       <td className="px-3 py-2 text-right font-mono text-xs">
                         {run.samples_evaluated ?? '—'}

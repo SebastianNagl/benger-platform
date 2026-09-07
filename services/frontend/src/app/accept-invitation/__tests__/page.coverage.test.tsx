@@ -60,7 +60,8 @@ jest.mock('@/lib/api/client', () => ({
 }))
 
 jest.mock('@/lib/utils/subdomain', () => ({
-  getOrgUrl: (slug: string, path: string) => `https://${slug}.example.com${path}`,
+  getOrgUrl: (slug: string, path: string) =>
+    `https://${slug}.example.com${path}`,
 }))
 
 const mockRouter = { push: jest.fn() }
@@ -79,7 +80,8 @@ const translations: Record<string, string | ((params: any) => string)> = {
   'invitation.expired': 'This invitation has expired.',
   'invitation.emailMismatch': (params: any) =>
     `This invitation is for ${params.invitedEmail}, but you're logged in as ${params.currentEmail}.`,
-  'invitation.welcomeTo': (params: any) => `Welcome to ${params.organizationName}!`,
+  'invitation.welcomeTo': (params: any) =>
+    `Welcome to ${params.organizationName}!`,
   'invitation.joinedSuccess': (params: any) => `You joined as ${params.role}.`,
   'invitation.redirectingToOrg': 'Redirecting...',
   'invitation.accept': 'Accept Invitation',
@@ -155,7 +157,9 @@ describe('AcceptInvitationPage - branch coverage', () => {
     it('redirects an unauthenticated user to the registration wizard', async () => {
       ;(api.getInvitationByToken as jest.Mock).mockResolvedValue(mockInvitation)
 
-      render(<AcceptInvitationPage params={Promise.resolve({ token: 'token-1' })} />)
+      render(
+        <AcceptInvitationPage params={Promise.resolve({ token: 'token-1' })} />,
+      )
 
       await waitFor(() => {
         expect(screen.getByText('Accept & Create Account')).toBeInTheDocument()
@@ -165,7 +169,7 @@ describe('AcceptInvitationPage - branch coverage', () => {
       // them to the full wizard (which carries the optional research-data steps).
       fireEvent.click(screen.getByText('Accept & Create Account'))
       expect(mockRouter.push).toHaveBeenCalledWith(
-        expect.stringContaining('/register?invitation=')
+        expect.stringContaining('/register?invitation='),
       )
     })
   })
@@ -176,7 +180,11 @@ describe('AcceptInvitationPage - branch coverage', () => {
         response: { data: { detail: 'Token expired' } },
       })
 
-      render(<AcceptInvitationPage params={Promise.resolve({ token: 'bad-token' })} />)
+      render(
+        <AcceptInvitationPage
+          params={Promise.resolve({ token: 'bad-token' })}
+        />,
+      )
 
       await waitFor(() => {
         expect(screen.getByText('Token expired')).toBeInTheDocument()
@@ -184,12 +192,20 @@ describe('AcceptInvitationPage - branch coverage', () => {
     })
 
     it('falls back to loadFailed message when no response detail', async () => {
-      ;(api.getInvitationByToken as jest.Mock).mockRejectedValue(new Error('Network'))
+      ;(api.getInvitationByToken as jest.Mock).mockRejectedValue(
+        new Error('Network'),
+      )
 
-      render(<AcceptInvitationPage params={Promise.resolve({ token: 'bad-token' })} />)
+      render(
+        <AcceptInvitationPage
+          params={Promise.resolve({ token: 'bad-token' })}
+        />,
+      )
 
       await waitFor(() => {
-        expect(screen.getByText('Failed to load invitation')).toBeInTheDocument()
+        expect(
+          screen.getByText('Failed to load invitation'),
+        ).toBeInTheDocument()
       })
     })
   })
@@ -211,7 +227,9 @@ describe('AcceptInvitationPage - branch coverage', () => {
         { id: 'other-org', slug: 'other' },
       ])
 
-      render(<AcceptInvitationPage params={Promise.resolve({ token: 'token-1' })} />)
+      render(
+        <AcceptInvitationPage params={Promise.resolve({ token: 'token-1' })} />,
+      )
 
       await waitFor(() => {
         expect(screen.getByText('Accept Invitation')).toBeInTheDocument()
@@ -232,9 +250,13 @@ describe('AcceptInvitationPage - branch coverage', () => {
 
     it('falls back to /dashboard when getOrganizations throws', async () => {
       ;(api.acceptInvitation as jest.Mock).mockResolvedValue({ message: 'OK' })
-      ;(apiClient.getOrganizations as jest.Mock).mockRejectedValue(new Error('fetch fail'))
+      ;(apiClient.getOrganizations as jest.Mock).mockRejectedValue(
+        new Error('fetch fail'),
+      )
 
-      render(<AcceptInvitationPage params={Promise.resolve({ token: 'token-1' })} />)
+      render(
+        <AcceptInvitationPage params={Promise.resolve({ token: 'token-1' })} />,
+      )
 
       await waitFor(() => {
         expect(screen.getByText('Accept Invitation')).toBeInTheDocument()
@@ -266,7 +288,9 @@ describe('AcceptInvitationPage - branch coverage', () => {
       ;(api.acceptInvitation as jest.Mock).mockResolvedValue({ message: 'OK' })
       ;(apiClient.getOrganizations as jest.Mock).mockResolvedValue([])
 
-      render(<AcceptInvitationPage params={Promise.resolve({ token: 'token-1' })} />)
+      render(
+        <AcceptInvitationPage params={Promise.resolve({ token: 'token-1' })} />,
+      )
 
       await waitFor(() => {
         expect(screen.getByText('Accept Invitation')).toBeInTheDocument()
@@ -286,11 +310,15 @@ describe('AcceptInvitationPage - branch coverage', () => {
     it('shows error view when invitation is null and no error', async () => {
       ;(api.getInvitationByToken as jest.Mock).mockResolvedValue(null)
 
-      render(<AcceptInvitationPage params={Promise.resolve({ token: 'token-1' })} />)
+      render(
+        <AcceptInvitationPage params={Promise.resolve({ token: 'token-1' })} />,
+      )
 
       await waitFor(() => {
         expect(screen.getByText('Invalid Invitation')).toBeInTheDocument()
-        expect(screen.getByText('This invitation is invalid.')).toBeInTheDocument()
+        expect(
+          screen.getByText('This invitation is invalid.'),
+        ).toBeInTheDocument()
       })
     })
   })

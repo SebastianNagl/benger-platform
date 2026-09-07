@@ -14,11 +14,11 @@
  * - handleBack function (clicking back button)
  * - validateStep default case
  */
-import '@testing-library/jest-dom'
-import '@/test-utils/locationMock'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { hasSlot, useSlot } from '@/lib/extensions/slots'
+import '@/test-utils/locationMock'
+import '@testing-library/jest-dom'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useRouter } from 'next/navigation'
@@ -37,7 +37,9 @@ jest.mock('@/lib/extensions/slots', () => ({
 }))
 
 jest.mock('@/components/layout', () => ({
-  LanguageSwitcher: () => <div data-testid="language-switcher">LanguageSwitcher</div>,
+  LanguageSwitcher: () => (
+    <div data-testid="language-switcher">LanguageSwitcher</div>
+  ),
   ThemeToggle: () => <div data-testid="theme-toggle">ThemeToggle</div>,
 }))
 
@@ -114,21 +116,44 @@ describe('RegisterPage - branch coverage', () => {
   // Helpers
   async function fillStep1(user: ReturnType<typeof userEvent.setup>) {
     await user.type(screen.getByTestId('auth-register-name-input'), 'Test User')
-    await user.type(screen.getByTestId('auth-register-username-input'), 'testuser')
-    await user.type(screen.getByTestId('auth-register-email-input'), 'test@example.com')
-    await user.type(screen.getByTestId('auth-register-password-input'), 'password123')
-    await user.type(screen.getByTestId('auth-register-confirm-password-input'), 'password123')
+    await user.type(
+      screen.getByTestId('auth-register-username-input'),
+      'testuser',
+    )
+    await user.type(
+      screen.getByTestId('auth-register-email-input'),
+      'test@example.com',
+    )
+    await user.type(
+      screen.getByTestId('auth-register-password-input'),
+      'password123',
+    )
+    await user.type(
+      screen.getByTestId('auth-register-confirm-password-input'),
+      'password123',
+    )
   }
 
-  async function fillStep2(user: ReturnType<typeof userEvent.setup>, expertise: string = 'layperson') {
-    await user.selectOptions(getSelectInTestId('auth-register-legal-expertise-select'), expertise)
-    await user.selectOptions(getSelectInTestId('auth-register-german-proficiency-select'), 'native')
+  async function fillStep2(
+    user: ReturnType<typeof userEvent.setup>,
+    expertise: string = 'layperson',
+  ) {
+    await user.selectOptions(
+      getSelectInTestId('auth-register-legal-expertise-select'),
+      expertise,
+    )
+    await user.selectOptions(
+      getSelectInTestId('auth-register-german-proficiency-select'),
+      'native',
+    )
   }
 
   async function fillStep4(user: ReturnType<typeof userEvent.setup>) {
     await user.click(screen.getByTestId('likert-subjectiveCompetenceCivil-4'))
     await user.click(screen.getByTestId('likert-subjectiveCompetencePublic-4'))
-    await user.click(screen.getByTestId('likert-subjectiveCompetenceCriminal-4'))
+    await user.click(
+      screen.getByTestId('likert-subjectiveCompetenceCriminal-4'),
+    )
   }
 
   async function fillStep5(user: ReturnType<typeof userEvent.setup>) {
@@ -139,7 +164,10 @@ describe('RegisterPage - branch coverage', () => {
     }
   }
 
-  async function navigateToStep(user: ReturnType<typeof userEvent.setup>, step: number) {
+  async function navigateToStep(
+    user: ReturnType<typeof userEvent.setup>,
+    step: number,
+  ) {
     if (step >= 2) {
       await fillStep1(user)
       await user.click(screen.getByTestId('register-next-button'))
@@ -185,12 +213,16 @@ describe('RegisterPage - branch coverage', () => {
       // Select law_student expertise
       await user.selectOptions(
         getSelectInTestId('auth-register-legal-expertise-select'),
-        'law_student'
+        'law_student',
       )
 
       // Should show degree program dropdown and semester field
-      expect(screen.getByTestId('auth-register-degree-program-select')).toBeInTheDocument()
-      expect(screen.getByTestId('auth-register-semester-input')).toBeInTheDocument()
+      expect(
+        screen.getByTestId('auth-register-degree-program-select'),
+      ).toBeInTheDocument()
+      expect(
+        screen.getByTestId('auth-register-semester-input'),
+      ).toBeInTheDocument()
     })
 
     it('hides degree program field for layperson expertise', async () => {
@@ -202,12 +234,16 @@ describe('RegisterPage - branch coverage', () => {
 
       await user.selectOptions(
         getSelectInTestId('auth-register-legal-expertise-select'),
-        'layperson'
+        'layperson',
       )
 
       // Should NOT show degree program
-      expect(screen.queryByTestId('auth-register-degree-program-select')).not.toBeInTheDocument()
-      expect(screen.queryByTestId('auth-register-semester-input')).not.toBeInTheDocument()
+      expect(
+        screen.queryByTestId('auth-register-degree-program-select'),
+      ).not.toBeInTheDocument()
+      expect(
+        screen.queryByTestId('auth-register-semester-input'),
+      ).not.toBeInTheDocument()
     })
 
     it('shows semester field only for law_student', async () => {
@@ -220,12 +256,16 @@ describe('RegisterPage - branch coverage', () => {
       // Select referendar (not law_student)
       await user.selectOptions(
         getSelectInTestId('auth-register-legal-expertise-select'),
-        'referendar'
+        'referendar',
       )
 
       // Should show degree program but NOT semester
-      expect(screen.getByTestId('auth-register-degree-program-select')).toBeInTheDocument()
-      expect(screen.queryByTestId('auth-register-semester-input')).not.toBeInTheDocument()
+      expect(
+        screen.getByTestId('auth-register-degree-program-select'),
+      ).toBeInTheDocument()
+      expect(
+        screen.queryByTestId('auth-register-semester-input'),
+      ).not.toBeInTheDocument()
     })
   })
 
@@ -237,19 +277,36 @@ describe('RegisterPage - branch coverage', () => {
       await fillStep1(user)
       await user.click(screen.getByTestId('register-next-button'))
 
-      await user.selectOptions(getSelectInTestId('auth-register-legal-expertise-select'), 'law_student')
-      await user.selectOptions(getSelectInTestId('auth-register-german-proficiency-select'), 'native')
-      await user.selectOptions(getSelectInTestId('auth-register-degree-program-select'), 'staatsexamen')
+      await user.selectOptions(
+        getSelectInTestId('auth-register-legal-expertise-select'),
+        'law_student',
+      )
+      await user.selectOptions(
+        getSelectInTestId('auth-register-german-proficiency-select'),
+        'native',
+      )
+      await user.selectOptions(
+        getSelectInTestId('auth-register-degree-program-select'),
+        'staatsexamen',
+      )
 
       await user.click(screen.getByTestId('register-next-button'))
       // Skip demographics
       await user.click(screen.getByTestId('register-next-button'))
 
       // Step 4: Should show Zwischenpruefung and Vorgeruecktenubung but NOT first/second Staatsexamen
-      expect(screen.getByTestId('register-grade-zwischenpruefung')).toBeInTheDocument()
-      expect(screen.getByTestId('register-grade-vorgeruecktenubung')).toBeInTheDocument()
-      expect(screen.queryByTestId('register-grade-first-staatsexamen')).not.toBeInTheDocument()
-      expect(screen.queryByTestId('register-grade-second-staatsexamen')).not.toBeInTheDocument()
+      expect(
+        screen.getByTestId('register-grade-zwischenpruefung'),
+      ).toBeInTheDocument()
+      expect(
+        screen.getByTestId('register-grade-vorgeruecktenubung'),
+      ).toBeInTheDocument()
+      expect(
+        screen.queryByTestId('register-grade-first-staatsexamen'),
+      ).not.toBeInTheDocument()
+      expect(
+        screen.queryByTestId('register-grade-second-staatsexamen'),
+      ).not.toBeInTheDocument()
     })
 
     it('hides grade fields for LLB degree (incomparable grading)', async () => {
@@ -259,16 +316,29 @@ describe('RegisterPage - branch coverage', () => {
       await fillStep1(user)
       await user.click(screen.getByTestId('register-next-button'))
 
-      await user.selectOptions(getSelectInTestId('auth-register-legal-expertise-select'), 'referendar')
-      await user.selectOptions(getSelectInTestId('auth-register-german-proficiency-select'), 'native')
-      await user.selectOptions(getSelectInTestId('auth-register-degree-program-select'), 'llb')
+      await user.selectOptions(
+        getSelectInTestId('auth-register-legal-expertise-select'),
+        'referendar',
+      )
+      await user.selectOptions(
+        getSelectInTestId('auth-register-german-proficiency-select'),
+        'native',
+      )
+      await user.selectOptions(
+        getSelectInTestId('auth-register-degree-program-select'),
+        'llb',
+      )
 
       await user.click(screen.getByTestId('register-next-button'))
       await user.click(screen.getByTestId('register-next-button'))
 
       // Step 4: Should NOT show any grade fields for LLB
-      expect(screen.queryByTestId('register-grade-zwischenpruefung')).not.toBeInTheDocument()
-      expect(screen.queryByTestId('register-grade-first-staatsexamen')).not.toBeInTheDocument()
+      expect(
+        screen.queryByTestId('register-grade-zwischenpruefung'),
+      ).not.toBeInTheDocument()
+      expect(
+        screen.queryByTestId('register-grade-first-staatsexamen'),
+      ).not.toBeInTheDocument()
     })
 
     it('shows all grade fields for graduated_no_practice with staatsexamen', async () => {
@@ -278,18 +348,35 @@ describe('RegisterPage - branch coverage', () => {
       await fillStep1(user)
       await user.click(screen.getByTestId('register-next-button'))
 
-      await user.selectOptions(getSelectInTestId('auth-register-legal-expertise-select'), 'graduated_no_practice')
-      await user.selectOptions(getSelectInTestId('auth-register-german-proficiency-select'), 'native')
-      await user.selectOptions(getSelectInTestId('auth-register-degree-program-select'), 'staatsexamen')
+      await user.selectOptions(
+        getSelectInTestId('auth-register-legal-expertise-select'),
+        'graduated_no_practice',
+      )
+      await user.selectOptions(
+        getSelectInTestId('auth-register-german-proficiency-select'),
+        'native',
+      )
+      await user.selectOptions(
+        getSelectInTestId('auth-register-degree-program-select'),
+        'staatsexamen',
+      )
 
       await user.click(screen.getByTestId('register-next-button'))
       await user.click(screen.getByTestId('register-next-button'))
 
       // Step 4: Should show Zwischenpruefung, Vorgeruecktenubung, first Staatsexamen, second Staatsexamen
-      expect(screen.getByTestId('register-grade-zwischenpruefung')).toBeInTheDocument()
-      expect(screen.getByTestId('register-grade-vorgeruecktenubung')).toBeInTheDocument()
-      expect(screen.getByTestId('register-grade-first-staatsexamen')).toBeInTheDocument()
-      expect(screen.getByTestId('register-grade-second-staatsexamen')).toBeInTheDocument()
+      expect(
+        screen.getByTestId('register-grade-zwischenpruefung'),
+      ).toBeInTheDocument()
+      expect(
+        screen.getByTestId('register-grade-vorgeruecktenubung'),
+      ).toBeInTheDocument()
+      expect(
+        screen.getByTestId('register-grade-first-staatsexamen'),
+      ).toBeInTheDocument()
+      expect(
+        screen.getByTestId('register-grade-second-staatsexamen'),
+      ).toBeInTheDocument()
     })
   })
 
@@ -300,14 +387,25 @@ describe('RegisterPage - branch coverage', () => {
 
       // Fill everything except username
       await user.type(screen.getByTestId('auth-register-name-input'), 'Test')
-      await user.type(screen.getByTestId('auth-register-email-input'), 'test@test.com')
-      await user.type(screen.getByTestId('auth-register-password-input'), 'password123')
-      await user.type(screen.getByTestId('auth-register-confirm-password-input'), 'password123')
+      await user.type(
+        screen.getByTestId('auth-register-email-input'),
+        'test@test.com',
+      )
+      await user.type(
+        screen.getByTestId('auth-register-password-input'),
+        'password123',
+      )
+      await user.type(
+        screen.getByTestId('auth-register-confirm-password-input'),
+        'password123',
+      )
 
       await user.click(screen.getByTestId('register-next-button'))
 
       await waitFor(() => {
-        expect(screen.getByTestId('auth-register-error-message')).toHaveTextContent('register.usernameRequired')
+        expect(
+          screen.getByTestId('auth-register-error-message'),
+        ).toHaveTextContent('register.usernameRequired')
       })
     })
 
@@ -316,14 +414,25 @@ describe('RegisterPage - branch coverage', () => {
       render(<RegisterPage />)
 
       await user.type(screen.getByTestId('auth-register-name-input'), 'Test')
-      await user.type(screen.getByTestId('auth-register-username-input'), 'testuser')
-      await user.type(screen.getByTestId('auth-register-password-input'), 'password123')
-      await user.type(screen.getByTestId('auth-register-confirm-password-input'), 'password123')
+      await user.type(
+        screen.getByTestId('auth-register-username-input'),
+        'testuser',
+      )
+      await user.type(
+        screen.getByTestId('auth-register-password-input'),
+        'password123',
+      )
+      await user.type(
+        screen.getByTestId('auth-register-confirm-password-input'),
+        'password123',
+      )
 
       await user.click(screen.getByTestId('register-next-button'))
 
       await waitFor(() => {
-        expect(screen.getByTestId('auth-register-error-message')).toHaveTextContent('register.emailRequired')
+        expect(
+          screen.getByTestId('auth-register-error-message'),
+        ).toHaveTextContent('register.emailRequired')
       })
     })
 
@@ -331,15 +440,29 @@ describe('RegisterPage - branch coverage', () => {
       const user = userEvent.setup()
       render(<RegisterPage />)
 
-      await user.type(screen.getByTestId('auth-register-username-input'), 'testuser')
-      await user.type(screen.getByTestId('auth-register-email-input'), 'test@test.com')
-      await user.type(screen.getByTestId('auth-register-password-input'), 'password123')
-      await user.type(screen.getByTestId('auth-register-confirm-password-input'), 'password123')
+      await user.type(
+        screen.getByTestId('auth-register-username-input'),
+        'testuser',
+      )
+      await user.type(
+        screen.getByTestId('auth-register-email-input'),
+        'test@test.com',
+      )
+      await user.type(
+        screen.getByTestId('auth-register-password-input'),
+        'password123',
+      )
+      await user.type(
+        screen.getByTestId('auth-register-confirm-password-input'),
+        'password123',
+      )
 
       await user.click(screen.getByTestId('register-next-button'))
 
       await waitFor(() => {
-        expect(screen.getByTestId('auth-register-error-message')).toHaveTextContent('register.nameRequired')
+        expect(
+          screen.getByTestId('auth-register-error-message'),
+        ).toHaveTextContent('register.nameRequired')
       })
     })
 
@@ -368,9 +491,11 @@ describe('RegisterPage - branch coverage', () => {
       // Step 5 (psychometric) — reached with no error shown.
       expect(screen.getByTestId('register-step-5')).toBeInTheDocument()
       expect(screen.getByTestId('register-optional-notice')).toBeInTheDocument()
-      expect(screen.getByTestId('auth-register-submit-button')).toBeInTheDocument()
       expect(
-        screen.queryByTestId('auth-register-error-message')
+        screen.getByTestId('auth-register-submit-button'),
+      ).toBeInTheDocument()
+      expect(
+        screen.queryByTestId('auth-register-error-message'),
       ).not.toBeInTheDocument()
     })
 
@@ -470,7 +595,7 @@ describe('RegisterPage - branch coverage', () => {
             checked={value}
             onChange={(e) => onChange(e.target.checked)}
           />
-        )
+        ),
       )
 
       const user = userEvent.setup()
@@ -482,7 +607,7 @@ describe('RegisterPage - branch coverage', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByTestId('auth-register-error-message')
+          screen.getByTestId('auth-register-error-message'),
         ).toHaveTextContent('register.researchConsent.required')
       })
       expect(screen.getByTestId('register-step-1')).toBeInTheDocument()
@@ -518,25 +643,31 @@ describe('RegisterPage - branch coverage', () => {
       render(<RegisterPage />)
 
       // Trigger a step-1 validation error (password mismatch).
-      await user.type(screen.getByTestId('auth-register-name-input'), 'Test User')
-      await user.type(screen.getByTestId('auth-register-username-input'), 'testuser')
+      await user.type(
+        screen.getByTestId('auth-register-name-input'),
+        'Test User',
+      )
+      await user.type(
+        screen.getByTestId('auth-register-username-input'),
+        'testuser',
+      )
       await user.type(
         screen.getByTestId('auth-register-email-input'),
-        'test@example.com'
+        'test@example.com',
       )
       await user.type(
         screen.getByTestId('auth-register-password-input'),
-        'password123'
+        'password123',
       )
       await user.type(
         screen.getByTestId('auth-register-confirm-password-input'),
-        'mismatch'
+        'mismatch',
       )
       await user.click(screen.getByTestId('register-next-button'))
 
       await waitFor(() => {
         expect(
-          screen.getByTestId('auth-register-error-message')
+          screen.getByTestId('auth-register-error-message'),
         ).toBeInTheDocument()
       })
 
@@ -545,7 +676,7 @@ describe('RegisterPage - branch coverage', () => {
       await user.click(step2Indicator.closest('button')!)
 
       expect(
-        screen.queryByTestId('auth-register-error-message')
+        screen.queryByTestId('auth-register-error-message'),
       ).not.toBeInTheDocument()
       expect(screen.getByTestId('register-step-2')).toBeInTheDocument()
     })
@@ -568,7 +699,9 @@ describe('RegisterPage - branch coverage', () => {
     it('does not show back button on step 1', () => {
       render(<RegisterPage />)
 
-      expect(screen.queryByTestId('register-back-button')).not.toBeInTheDocument()
+      expect(
+        screen.queryByTestId('register-back-button'),
+      ).not.toBeInTheDocument()
     })
 
     it('shows submit button on step 5 instead of next', async () => {
@@ -577,8 +710,12 @@ describe('RegisterPage - branch coverage', () => {
 
       await navigateToStep(user, 5)
 
-      expect(screen.getByTestId('auth-register-submit-button')).toBeInTheDocument()
-      expect(screen.queryByTestId('register-next-button')).not.toBeInTheDocument()
+      expect(
+        screen.getByTestId('auth-register-submit-button'),
+      ).toBeInTheDocument()
+      expect(
+        screen.queryByTestId('register-next-button'),
+      ).not.toBeInTheDocument()
     })
   })
 
@@ -610,9 +747,18 @@ describe('RegisterPage - branch coverage', () => {
       await user.click(screen.getByTestId('register-next-button'))
 
       // Step 2 - select referendar with staatsexamen
-      await user.selectOptions(getSelectInTestId('auth-register-legal-expertise-select'), 'referendar')
-      await user.selectOptions(getSelectInTestId('auth-register-german-proficiency-select'), 'native')
-      await user.selectOptions(getSelectInTestId('auth-register-degree-program-select'), 'staatsexamen')
+      await user.selectOptions(
+        getSelectInTestId('auth-register-legal-expertise-select'),
+        'referendar',
+      )
+      await user.selectOptions(
+        getSelectInTestId('auth-register-german-proficiency-select'),
+        'native',
+      )
+      await user.selectOptions(
+        getSelectInTestId('auth-register-degree-program-select'),
+        'staatsexamen',
+      )
       await user.click(screen.getByTestId('register-next-button'))
 
       // Step 3 - demographics (optional, fill some)
@@ -622,9 +768,18 @@ describe('RegisterPage - branch coverage', () => {
 
       // Step 4 - competence + grades
       await fillStep4(user)
-      await user.type(screen.getByTestId('register-grade-zwischenpruefung'), '12,5')
-      await user.type(screen.getByTestId('register-grade-vorgeruecktenubung'), '10,0')
-      await user.type(screen.getByTestId('register-grade-first-staatsexamen'), '8,5')
+      await user.type(
+        screen.getByTestId('register-grade-zwischenpruefung'),
+        '12,5',
+      )
+      await user.type(
+        screen.getByTestId('register-grade-vorgeruecktenubung'),
+        '10,0',
+      )
+      await user.type(
+        screen.getByTestId('register-grade-first-staatsexamen'),
+        '8,5',
+      )
       await user.click(screen.getByTestId('register-next-button'))
 
       // Step 5
@@ -647,7 +802,7 @@ describe('RegisterPage - branch coverage', () => {
             grade_vorgeruecktenubung: 10.0,
             grade_first_staatsexamen: 8.5,
           }),
-          undefined
+          undefined,
         )
       })
     })

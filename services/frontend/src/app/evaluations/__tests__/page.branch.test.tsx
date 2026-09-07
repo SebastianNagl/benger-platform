@@ -14,7 +14,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { apiClient } from '@/lib/api/client'
 import { projectsAPI } from '@/lib/api/projects'
-import { render, screen, waitFor, fireEvent, act } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useRouter, useSearchParams } from 'next/navigation'
 import EvaluationDashboard from '../page'
@@ -94,7 +94,9 @@ jest.mock('@/components/shared/FeatureFlag', () => ({
 jest.mock('@/components/shared/Breadcrumb', () => ({
   Breadcrumb: ({ items }: any) => (
     <nav data-testid="breadcrumb">
-      {items.map((item: any, i: number) => <span key={i}>{item.label}</span>)}
+      {items.map((item: any, i: number) => (
+        <span key={i}>{item.label}</span>
+      ))}
     </nav>
   ),
 }))
@@ -105,12 +107,16 @@ jest.mock('@/components/shared/ResponsiveContainer', () => ({
 
 jest.mock('@/components/shared/Button', () => ({
   Button: ({ children, onClick, disabled, variant, className }: any) => (
-    <button onClick={onClick} disabled={disabled} className={className}>{children}</button>
+    <button onClick={onClick} disabled={disabled} className={className}>
+      {children}
+    </button>
   ),
 }))
 
 jest.mock('@/components/shared/Card', () => ({
-  Card: ({ children, className }: any) => <div className={className}>{children}</div>,
+  Card: ({ children, className }: any) => (
+    <div className={className}>{children}</div>
+  ),
 }))
 
 jest.mock('@/components/shared/LoadingSpinner', () => ({
@@ -122,7 +128,9 @@ jest.mock('@/components/evaluation/EvaluationResults', () => ({
 }))
 
 jest.mock('@/components/evaluation/EvaluationResultsTable', () => ({
-  EvaluationResultsTable: () => <div data-testid="evaluation-results-table">Table</div>,
+  EvaluationResultsTable: () => (
+    <div data-testid="evaluation-results-table">Table</div>
+  ),
 }))
 
 jest.mock('@/components/evaluation/ScoreCard', () => ({
@@ -171,7 +179,9 @@ const mockAddToast = jest.fn()
 
 function setupMocks(overrides: Record<string, any> = {}) {
   ;(useRouter as jest.Mock).mockReturnValue(mockRouter)
-  ;(useSearchParams as jest.Mock).mockReturnValue(overrides.searchParams ?? mockSearchParams)
+  ;(useSearchParams as jest.Mock).mockReturnValue(
+    overrides.searchParams ?? mockSearchParams,
+  )
   ;(useAuth as jest.Mock).mockReturnValue({
     user: overrides.user ?? { id: 'u1', is_superadmin: true, role: 'admin' },
     isLoading: overrides.authLoading ?? false,
@@ -195,7 +205,9 @@ function setupMocks(overrides: Record<string, any> = {}) {
     { id: 'p2', title: 'Project 2', task_count: 20, annotation_count: 10 },
   ]
   ;(projectsAPI.list as jest.Mock).mockResolvedValue({ items: projects })
-  ;(apiClient.evaluations.getProjectEvaluationConfig as jest.Mock).mockResolvedValue({
+  ;(
+    apiClient.evaluations.getProjectEvaluationConfig as jest.Mock
+  ).mockResolvedValue({
     selected_methods: {},
     evaluation_configs: [],
   })
@@ -203,12 +215,23 @@ function setupMocks(overrides: Record<string, any> = {}) {
     automated: [],
     human: [],
   })
-  ;(apiClient.evaluations.getEvaluatedModels as jest.Mock).mockResolvedValue(overrides.evaluatedModels ?? [])
-  ;(apiClient.evaluations.getProjectAnnotators as jest.Mock).mockResolvedValue([])
-  ;(apiClient.evaluations.getEvaluationHistory as jest.Mock).mockResolvedValue({ series: [] })
-  ;(apiClient.evaluations.getSignificanceTests as jest.Mock).mockResolvedValue([])
+  ;(apiClient.evaluations.getEvaluatedModels as jest.Mock).mockResolvedValue(
+    overrides.evaluatedModels ?? [],
+  )
+  ;(apiClient.evaluations.getProjectAnnotators as jest.Mock).mockResolvedValue(
+    [],
+  )
+  ;(apiClient.evaluations.getEvaluationHistory as jest.Mock).mockResolvedValue({
+    series: [],
+  })
+  ;(apiClient.evaluations.getSignificanceTests as jest.Mock).mockResolvedValue(
+    [],
+  )
   ;(apiClient.evaluations.computeStatistics as jest.Mock).mockResolvedValue({})
-  ;(apiClient.get as jest.Mock).mockResolvedValue({ configured_methods: [], metrics_with_results: [] })
+  ;(apiClient.get as jest.Mock).mockResolvedValue({
+    configured_methods: [],
+    metrics_with_results: [],
+  })
 }
 
 describe('EvaluationDashboard Branch Coverage', () => {
@@ -216,8 +239,14 @@ describe('EvaluationDashboard Branch Coverage', () => {
     jest.clearAllMocks()
     // Mock localStorage
     const store: Record<string, string> = {}
-    jest.spyOn(Storage.prototype, 'getItem').mockImplementation((key) => store[key] || null)
-    jest.spyOn(Storage.prototype, 'setItem').mockImplementation((key, value) => { store[key] = value })
+    jest
+      .spyOn(Storage.prototype, 'getItem')
+      .mockImplementation((key) => store[key] || null)
+    jest
+      .spyOn(Storage.prototype, 'setItem')
+      .mockImplementation((key, value) => {
+        store[key] = value
+      })
   })
 
   afterEach(() => {
@@ -237,7 +266,9 @@ describe('EvaluationDashboard Branch Coverage', () => {
       setupMocks()
       render(<EvaluationDashboard />)
       await waitFor(() => {
-        expect(screen.getByText('evaluation.viewer.emptyStates.selectProject.title')).toBeInTheDocument()
+        expect(
+          screen.getByText('evaluation.viewer.emptyStates.selectProject.title'),
+        ).toBeInTheDocument()
       })
     })
   })
@@ -314,7 +345,9 @@ describe('EvaluationDashboard Branch Coverage', () => {
       setupMocks({ projects: [] })
       render(<EvaluationDashboard />)
       await waitFor(() => {
-        expect(screen.getByText('evaluation.viewer.emptyStates.selectProject.title')).toBeInTheDocument()
+        expect(
+          screen.getByText('evaluation.viewer.emptyStates.selectProject.title'),
+        ).toBeInTheDocument()
       })
     })
   })
@@ -355,7 +388,9 @@ describe('EvaluationDashboard Branch Coverage', () => {
   describe('Project list load error', () => {
     it('handles projects API error gracefully', async () => {
       setupMocks()
-      ;(projectsAPI.list as jest.Mock).mockRejectedValue(new Error('Network error'))
+      ;(projectsAPI.list as jest.Mock).mockRejectedValue(
+        new Error('Network error'),
+      )
       const { container } = render(<EvaluationDashboard />)
       await waitFor(() => {
         expect(container.firstChild).toBeTruthy()

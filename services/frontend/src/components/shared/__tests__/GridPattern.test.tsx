@@ -51,7 +51,7 @@ describe('GridPattern', () => {
       const rects = container.querySelectorAll('rect')
       expect(rects.length).toBeGreaterThan(0)
       const backgroundRect = Array.from(rects).find(
-        (rect) => rect.getAttribute('width') === '100%'
+        (rect) => rect.getAttribute('width') === '100%',
       )
       expect(backgroundRect).toBeInTheDocument()
     })
@@ -67,7 +67,7 @@ describe('GridPattern', () => {
   describe('Props and Attributes', () => {
     it('applies width and height to pattern', () => {
       const { container } = render(
-        <GridPattern {...defaultProps} width={50} height={60} />
+        <GridPattern {...defaultProps} width={50} height={60} />,
       )
       const pattern = container.querySelector('pattern')
       expect(pattern).toHaveAttribute('width', '50')
@@ -76,7 +76,7 @@ describe('GridPattern', () => {
 
     it('applies x and y coordinates to pattern', () => {
       const { container } = render(
-        <GridPattern {...defaultProps} x={10} y={20} />
+        <GridPattern {...defaultProps} x={10} y={20} />,
       )
       const pattern = container.querySelector('pattern')
       expect(pattern).toHaveAttribute('x', '10')
@@ -85,7 +85,7 @@ describe('GridPattern', () => {
 
     it('accepts string values for x and y', () => {
       const { container } = render(
-        <GridPattern {...defaultProps} x="15" y="25" />
+        <GridPattern {...defaultProps} x="15" y="25" />,
       )
       const pattern = container.querySelector('pattern')
       expect(pattern).toHaveAttribute('x', '15')
@@ -106,7 +106,7 @@ describe('GridPattern', () => {
         [3, 3],
       ]
       const { container } = render(
-        <GridPattern {...defaultProps} squares={squares} />
+        <GridPattern {...defaultProps} squares={squares} />,
       )
       const nestedSvg = container.querySelectorAll('svg')[1]
       const squareRects = nestedSvg.querySelectorAll('rect')
@@ -119,7 +119,7 @@ describe('GridPattern', () => {
           {...defaultProps}
           className="custom-class"
           data-testid="grid-pattern"
-        />
+        />,
       )
       const svg = container.querySelector('svg')
       expect(svg).toHaveClass('custom-class')
@@ -128,7 +128,7 @@ describe('GridPattern', () => {
 
     it('supports style prop', () => {
       const { container } = render(
-        <GridPattern {...defaultProps} style={{ opacity: 0.5 }} />
+        <GridPattern {...defaultProps} style={{ opacity: 0.5 }} />,
       )
       const svg = container.querySelector('svg')
       expect(svg).toHaveAttribute('style')
@@ -149,7 +149,7 @@ describe('GridPattern', () => {
       const { container } = render(<GridPattern {...defaultProps} />)
       const rects = container.querySelectorAll('rect')
       const backgroundRect = Array.from(rects).find(
-        (rect) => rect.getAttribute('width') === '100%'
+        (rect) => rect.getAttribute('width') === '100%',
       )
       // React converts numeric strokeWidth prop to string attribute
       expect(backgroundRect).toHaveAttribute('stroke-width', '0')
@@ -167,7 +167,7 @@ describe('GridPattern', () => {
 
     it('applies custom className alongside default classes', () => {
       const { container } = render(
-        <GridPattern {...defaultProps} className="custom-grid" />
+        <GridPattern {...defaultProps} className="custom-grid" />,
       )
       const svg = container.querySelector('svg')
       expect(svg).toHaveClass('custom-grid')
@@ -181,7 +181,7 @@ describe('GridPattern', () => {
         <>
           <GridPattern {...defaultProps} />
           <GridPattern {...defaultProps} />
-        </>
+        </>,
       )
 
       const patterns = container.querySelectorAll('pattern')
@@ -202,7 +202,7 @@ describe('GridPattern', () => {
 
       const rects = container.querySelectorAll('rect')
       const backgroundRect = Array.from(rects).find(
-        (rect) => rect.getAttribute('width') === '100%'
+        (rect) => rect.getAttribute('width') === '100%',
       )
       const fill = backgroundRect?.getAttribute('fill')
 
@@ -211,7 +211,7 @@ describe('GridPattern', () => {
 
     it('generates path with correct dimensions', () => {
       const { container } = render(
-        <GridPattern {...defaultProps} width={50} height={60} />
+        <GridPattern {...defaultProps} width={50} height={60} />,
       )
       const path = container.querySelector('path')
       const expectedD = 'M.5 60V.5H50'
@@ -238,7 +238,7 @@ describe('GridPattern', () => {
           squares={squares}
           width={width}
           height={height}
-        />
+        />,
       )
       const nestedSvg = container.querySelectorAll('svg')[1]
       const squareRects = nestedSvg.querySelectorAll('rect')
@@ -254,7 +254,7 @@ describe('GridPattern', () => {
       const height = 40
 
       const { container } = render(
-        <GridPattern {...defaultProps} width={width} height={height} />
+        <GridPattern {...defaultProps} width={width} height={height} />,
       )
       const nestedSvg = container.querySelectorAll('svg')[1]
       const squareRects = nestedSvg.querySelectorAll('rect')
@@ -272,14 +272,14 @@ describe('GridPattern', () => {
         [2, 2],
       ]
       const { container } = render(
-        <GridPattern {...defaultProps} squares={squares} />
+        <GridPattern {...defaultProps} squares={squares} />,
       )
       const nestedSvg = container.querySelectorAll('svg')[1]
       const squareRects = nestedSvg.querySelectorAll('rect')
 
       // React keys are internal, but we can verify the rects are unique by their attributes
       const keys = Array.from(squareRects).map(
-        (rect) => `${rect.getAttribute('x')}-${rect.getAttribute('y')}`
+        (rect) => `${rect.getAttribute('x')}-${rect.getAttribute('y')}`,
       )
       const uniqueKeys = new Set(keys)
       expect(uniqueKeys.size).toBe(squares.length)
@@ -290,7 +290,7 @@ describe('GridPattern', () => {
   describe('Responsive Behavior', () => {
     it('handles small dimensions', () => {
       const { container } = render(
-        <GridPattern {...defaultProps} width={1} height={1} />
+        <GridPattern {...defaultProps} width={1} height={1} />,
       )
       const pattern = container.querySelector('pattern')
       expect(pattern).toHaveAttribute('width', '1')
@@ -299,7 +299,7 @@ describe('GridPattern', () => {
 
     it('handles large dimensions', () => {
       const { container } = render(
-        <GridPattern {...defaultProps} width={1000} height={1000} />
+        <GridPattern {...defaultProps} width={1000} height={1000} />,
       )
       const pattern = container.querySelector('pattern')
       expect(pattern).toHaveAttribute('width', '1000')
@@ -308,7 +308,7 @@ describe('GridPattern', () => {
 
     it('handles negative coordinates', () => {
       const { container } = render(
-        <GridPattern {...defaultProps} x={-10} y={-20} />
+        <GridPattern {...defaultProps} x={-10} y={-20} />,
       )
       const pattern = container.querySelector('pattern')
       expect(pattern).toHaveAttribute('x', '-10')
@@ -321,24 +321,24 @@ describe('GridPattern', () => {
         [-2, -2],
       ]
       const { container } = render(
-        <GridPattern {...defaultProps} squares={squares} />
+        <GridPattern {...defaultProps} squares={squares} />,
       )
       const nestedSvg = container.querySelectorAll('svg')[1]
       const squareRects = nestedSvg.querySelectorAll('rect')
 
       expect(squareRects[0]).toHaveAttribute(
         'x',
-        String(-1 * defaultProps.width)
+        String(-1 * defaultProps.width),
       )
       expect(squareRects[0]).toHaveAttribute(
         'y',
-        String(-1 * defaultProps.height)
+        String(-1 * defaultProps.height),
       )
     })
 
     it('handles zero dimensions', () => {
       const { container } = render(
-        <GridPattern {...defaultProps} width={0} height={0} />
+        <GridPattern {...defaultProps} width={0} height={0} />,
       )
       const pattern = container.querySelector('pattern')
       expect(pattern).toHaveAttribute('width', '0')
@@ -347,7 +347,7 @@ describe('GridPattern', () => {
 
     it('handles fractional dimensions', () => {
       const { container } = render(
-        <GridPattern {...defaultProps} width={40.5} height={40.75} />
+        <GridPattern {...defaultProps} width={40.5} height={40.75} />,
       )
       const pattern = container.querySelector('pattern')
       expect(pattern).toHaveAttribute('width', '40.5')
@@ -366,7 +366,7 @@ describe('GridPattern', () => {
     it('does not have focusable elements', () => {
       const { container } = render(<GridPattern {...defaultProps} />)
       const focusableElements = container.querySelectorAll(
-        'a, button, input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        'a, button, input, select, textarea, [tabindex]:not([tabindex="-1"])',
       )
       expect(focusableElements.length).toBe(0)
     })
@@ -391,7 +391,7 @@ describe('GridPattern', () => {
   describe('Edge Cases', () => {
     it('renders with empty squares array', () => {
       const { container } = render(
-        <GridPattern {...defaultProps} squares={[]} />
+        <GridPattern {...defaultProps} squares={[]} />,
       )
       const svg = container.querySelector('svg')
       expect(svg).toBeInTheDocument()
@@ -404,7 +404,7 @@ describe('GridPattern', () => {
     it('renders with single square', () => {
       const squares: Array<[number, number]> = [[0, 0]]
       const { container } = render(
-        <GridPattern {...defaultProps} squares={squares} />
+        <GridPattern {...defaultProps} squares={squares} />,
       )
       const nestedSvg = container.querySelectorAll('svg')[1]
       const squareRects = nestedSvg.querySelectorAll('rect')
@@ -414,10 +414,10 @@ describe('GridPattern', () => {
     it('renders with many squares', () => {
       const squares: Array<[number, number]> = Array.from(
         { length: 100 },
-        (_, i) => [i % 10, Math.floor(i / 10)]
+        (_, i) => [i % 10, Math.floor(i / 10)],
       )
       const { container } = render(
-        <GridPattern {...defaultProps} squares={squares} />
+        <GridPattern {...defaultProps} squares={squares} />,
       )
       const nestedSvg = container.querySelectorAll('svg')[1]
       const squareRects = nestedSvg.querySelectorAll('rect')
@@ -432,7 +432,7 @@ describe('GridPattern', () => {
         [1, 1],
       ]
       const { container } = render(
-        <GridPattern {...defaultProps} squares={squares} />
+        <GridPattern {...defaultProps} squares={squares} />,
       )
       const nestedSvg = container.querySelectorAll('svg')[1]
       const squareRects = nestedSvg.querySelectorAll('rect')
@@ -444,24 +444,24 @@ describe('GridPattern', () => {
     it('handles very large square coordinates', () => {
       const squares: Array<[number, number]> = [[1000000, 1000000]]
       const { container } = render(
-        <GridPattern {...defaultProps} squares={squares} />
+        <GridPattern {...defaultProps} squares={squares} />,
       )
       const nestedSvg = container.querySelectorAll('svg')[1]
       const squareRects = nestedSvg.querySelectorAll('rect')
       expect(squareRects[0]).toHaveAttribute(
         'x',
-        String(1000000 * defaultProps.width)
+        String(1000000 * defaultProps.width),
       )
       expect(squareRects[0]).toHaveAttribute(
         'y',
-        String(1000000 * defaultProps.height)
+        String(1000000 * defaultProps.height),
       )
     })
 
     it('handles zero coordinate squares', () => {
       const squares: Array<[number, number]> = [[0, 0]]
       const { container } = render(
-        <GridPattern {...defaultProps} squares={squares} />
+        <GridPattern {...defaultProps} squares={squares} />,
       )
       const nestedSvg = container.querySelectorAll('svg')[1]
       const squareRects = nestedSvg.querySelectorAll('rect')
@@ -473,7 +473,7 @@ describe('GridPattern', () => {
       const specialChar = '@'
       const className = `grid${specialChar}pattern`
       const { container } = render(
-        <GridPattern {...defaultProps} className={className} />
+        <GridPattern {...defaultProps} className={className} />,
       )
       const svg = container.querySelector('svg')
       expect(svg).toHaveClass(className)
@@ -481,7 +481,7 @@ describe('GridPattern', () => {
 
     it('handles string x and y with decimal values', () => {
       const { container } = render(
-        <GridPattern {...defaultProps} x="10.5" y="20.75" />
+        <GridPattern {...defaultProps} x="10.5" y="20.75" />,
       )
       const pattern = container.querySelector('pattern')
       expect(pattern).toHaveAttribute('x', '10.5')
@@ -494,7 +494,7 @@ describe('GridPattern', () => {
       const id1 = pattern1?.getAttribute('id')
 
       rerender(
-        <GridPattern {...defaultProps} width={50} height={50} squares={[]} />
+        <GridPattern {...defaultProps} width={50} height={50} squares={[]} />,
       )
       const pattern2 = container.querySelector('pattern')
       const id2 = pattern2?.getAttribute('id')
@@ -508,7 +508,7 @@ describe('GridPattern', () => {
   describe('Dark Mode Support', () => {
     it('supports dark mode class via className prop', () => {
       const { container } = render(
-        <GridPattern {...defaultProps} className="dark:stroke-white/10" />
+        <GridPattern {...defaultProps} className="dark:stroke-white/10" />,
       )
       const svg = container.querySelector('svg')
       expect(svg).toHaveClass('dark:stroke-white/10')
@@ -519,7 +519,7 @@ describe('GridPattern', () => {
         <GridPattern
           {...defaultProps}
           className="stroke-gray-500 dark:stroke-gray-700"
-        />
+        />,
       )
       const svg = container.querySelector('svg')
       expect(svg).toHaveClass('stroke-gray-500')
@@ -531,7 +531,7 @@ describe('GridPattern', () => {
         <GridPattern
           {...defaultProps}
           className="[&_rect]:fill-blue-500 dark:[&_rect]:fill-blue-700"
-        />
+        />,
       )
       const svg = container.querySelector('svg')
       expect(svg).toHaveClass('[&_rect]:fill-blue-500')
@@ -540,7 +540,10 @@ describe('GridPattern', () => {
 
     it('supports opacity classes', () => {
       const { container } = render(
-        <GridPattern {...defaultProps} className="opacity-50 dark:opacity-25" />
+        <GridPattern
+          {...defaultProps}
+          className="opacity-50 dark:opacity-25"
+        />,
       )
       const svg = container.querySelector('svg')
       expect(svg).toHaveClass('opacity-50')
@@ -551,7 +554,7 @@ describe('GridPattern', () => {
       const darkModeClasses =
         'stroke-gray-500 dark:stroke-gray-700 opacity-50 dark:opacity-25'
       const { container } = render(
-        <GridPattern {...defaultProps} className={darkModeClasses} />
+        <GridPattern {...defaultProps} className={darkModeClasses} />,
       )
       const svg = container.querySelector('svg')
       expect(svg).toHaveClass('stroke-gray-500')

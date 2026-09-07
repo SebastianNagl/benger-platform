@@ -77,7 +77,7 @@ describe('Dialog Component', () => {
       render(
         <Dialog open={true} onOpenChange={jest.fn()}>
           <div>Dialog Content</div>
-        </Dialog>
+        </Dialog>,
       )
 
       expect(screen.getByRole('dialog')).toBeInTheDocument()
@@ -88,7 +88,7 @@ describe('Dialog Component', () => {
       render(
         <Dialog open={false} onOpenChange={jest.fn()}>
           <div>Dialog Content</div>
-        </Dialog>
+        </Dialog>,
       )
 
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
@@ -99,7 +99,7 @@ describe('Dialog Component', () => {
       render(
         <Dialog isOpen={true} onClose={jest.fn()}>
           <div>Dialog Content</div>
-        </Dialog>
+        </Dialog>,
       )
 
       expect(screen.getByRole('dialog')).toBeInTheDocument()
@@ -110,7 +110,7 @@ describe('Dialog Component', () => {
       render(
         <Dialog isOpen={false} onClose={jest.fn()}>
           <div>Dialog Content</div>
-        </Dialog>
+        </Dialog>,
       )
 
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
@@ -121,7 +121,7 @@ describe('Dialog Component', () => {
         <Dialog open={true} onOpenChange={jest.fn()}>
           <div data-testid="child-1">Child 1</div>
           <div data-testid="child-2">Child 2</div>
-        </Dialog>
+        </Dialog>,
       )
 
       expect(screen.getByTestId('child-1')).toBeInTheDocument()
@@ -135,7 +135,7 @@ describe('Dialog Component', () => {
       render(
         <Dialog open={true} onOpenChange={handleOpenChange}>
           <div>Content</div>
-        </Dialog>
+        </Dialog>,
       )
 
       expect(screen.getByRole('dialog')).toBeInTheDocument()
@@ -146,7 +146,7 @@ describe('Dialog Component', () => {
       render(
         <Dialog isOpen={true} onClose={handleClose}>
           <div>Content</div>
-        </Dialog>
+        </Dialog>,
       )
 
       expect(screen.getByRole('dialog')).toBeInTheDocument()
@@ -156,7 +156,7 @@ describe('Dialog Component', () => {
       render(
         <Dialog onClose={jest.fn()}>
           <div>Content</div>
-        </Dialog>
+        </Dialog>,
       )
 
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
@@ -166,7 +166,7 @@ describe('Dialog Component', () => {
       render(
         <Dialog open={true} isOpen={false} onClose={jest.fn()}>
           <div>Content</div>
-        </Dialog>
+        </Dialog>,
       )
 
       expect(screen.getByRole('dialog')).toBeInTheDocument()
@@ -181,7 +181,7 @@ describe('Dialog Component', () => {
       render(
         <Dialog open={true} onOpenChange={handleOpenChange} title="Test Dialog">
           <div>Content</div>
-        </Dialog>
+        </Dialog>,
       )
 
       const closeButton = screen.getByRole('button')
@@ -197,7 +197,7 @@ describe('Dialog Component', () => {
       render(
         <Dialog isOpen={true} onClose={handleClose} title="Test Dialog">
           <div>Content</div>
-        </Dialog>
+        </Dialog>,
       )
 
       const closeButton = screen.getByRole('button')
@@ -212,7 +212,7 @@ describe('Dialog Component', () => {
       render(
         <Dialog open={true} title="Test Dialog">
           <div>Content</div>
-        </Dialog>
+        </Dialog>,
       )
 
       const closeButton = screen.getByRole('button')
@@ -225,12 +225,12 @@ describe('Dialog Component', () => {
       render(
         <Dialog open={true} onClose={jest.fn()} title="Test Dialog Title">
           <div>Content</div>
-        </Dialog>
+        </Dialog>,
       )
 
       expect(screen.getByText('Test Dialog Title')).toBeInTheDocument()
       expect(screen.getByRole('heading', { level: 3 })).toHaveTextContent(
-        'Test Dialog Title'
+        'Test Dialog Title',
       )
     })
 
@@ -238,7 +238,7 @@ describe('Dialog Component', () => {
       render(
         <Dialog open={true} onClose={jest.fn()}>
           <div>Content</div>
-        </Dialog>
+        </Dialog>,
       )
 
       expect(screen.queryByRole('heading')).not.toBeInTheDocument()
@@ -248,7 +248,7 @@ describe('Dialog Component', () => {
       const { rerender } = render(
         <Dialog open={true} onClose={jest.fn()} title="Test">
           <div>Content</div>
-        </Dialog>
+        </Dialog>,
       )
 
       expect(screen.getByRole('button')).toBeInTheDocument()
@@ -257,7 +257,7 @@ describe('Dialog Component', () => {
       rerender(
         <Dialog open={true} onClose={jest.fn()}>
           <div>Content</div>
-        </Dialog>
+        </Dialog>,
       )
 
       expect(screen.queryByRole('button')).not.toBeInTheDocument()
@@ -267,7 +267,7 @@ describe('Dialog Component', () => {
       render(
         <Dialog open={true} onClose={jest.fn()} title="My Dialog">
           <div>Content</div>
-        </Dialog>
+        </Dialog>,
       )
 
       const heading = screen.getByRole('heading', { level: 3 })
@@ -283,12 +283,12 @@ describe('Dialog Component', () => {
             <button>Cancel</button>
             <button>Confirm</button>
           </div>
-        </Dialog>
+        </Dialog>,
       )
 
       expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument()
       expect(
-        screen.getByRole('button', { name: 'Confirm' })
+        screen.getByRole('button', { name: 'Confirm' }),
       ).toBeInTheDocument()
     })
 
@@ -303,7 +303,7 @@ describe('Dialog Component', () => {
             <button onClick={handleCancel}>Cancel</button>
             <button onClick={handleConfirm}>Confirm</button>
           </div>
-        </Dialog>
+        </Dialog>,
       )
 
       await user.click(screen.getByRole('button', { name: 'Cancel' }))
@@ -321,7 +321,7 @@ describe('Dialog Component', () => {
       render(
         <Dialog open={true} onClose={jest.fn()}>
           <div>Content</div>
-        </Dialog>
+        </Dialog>,
       )
 
       const dialog = screen.getByRole('dialog')
@@ -334,7 +334,7 @@ describe('Dialog Component', () => {
       render(
         <Dialog open={true} onClose={jest.fn()} className="custom-class">
           <div>Content</div>
-        </Dialog>
+        </Dialog>,
       )
 
       const dialog = screen.getByRole('dialog')
@@ -345,7 +345,7 @@ describe('Dialog Component', () => {
       render(
         <Dialog open={true} onClose={jest.fn()} className="custom-width">
           <div>Content</div>
-        </Dialog>
+        </Dialog>,
       )
 
       const dialog = screen.getByRole('dialog')
@@ -357,7 +357,7 @@ describe('Dialog Component', () => {
       render(
         <Dialog open={true} onClose={jest.fn()} title="Styled Title">
           <div>Content</div>
-        </Dialog>
+        </Dialog>,
       )
 
       const heading = screen.getByRole('heading', { level: 3 })
@@ -371,7 +371,7 @@ describe('Dialog Component', () => {
       render(
         <Dialog open={true} onClose={jest.fn()} title="Test">
           <div>Content</div>
-        </Dialog>
+        </Dialog>,
       )
 
       const closeButton = screen.getByRole('button')
@@ -386,7 +386,7 @@ describe('Dialog Component', () => {
       render(
         <Dialog open={true} onClose={jest.fn()}>
           <div>Content</div>
-        </Dialog>
+        </Dialog>,
       )
 
       expect(screen.getByRole('dialog')).toBeInTheDocument()
@@ -396,11 +396,11 @@ describe('Dialog Component', () => {
       render(
         <Dialog open={true} onClose={jest.fn()} title="Accessible Dialog">
           <div>Content</div>
-        </Dialog>
+        </Dialog>,
       )
 
       expect(
-        screen.getByRole('heading', { name: 'Accessible Dialog' })
+        screen.getByRole('heading', { name: 'Accessible Dialog' }),
       ).toBeInTheDocument()
     })
 
@@ -408,7 +408,7 @@ describe('Dialog Component', () => {
       render(
         <Dialog open={true} onClose={jest.fn()} title="Test">
           <div>Content</div>
-        </Dialog>
+        </Dialog>,
       )
 
       const closeButton = screen.getByRole('button')
@@ -425,7 +425,7 @@ describe('Dialog Component', () => {
             <button>Action 1</button>
             <button>Action 2</button>
           </div>
-        </Dialog>
+        </Dialog>,
       )
 
       await user.tab()
@@ -441,7 +441,7 @@ describe('Dialog Component', () => {
         <Dialog open={true} onClose={jest.fn()} title="Focus Test">
           <input type="text" placeholder="First input" />
           <input type="text" placeholder="Second input" />
-        </Dialog>
+        </Dialog>,
       )
 
       const inputs = screen.getAllByRole('textbox')
@@ -455,8 +455,8 @@ describe('Dialog Component', () => {
         render(
           <Dialog open={true}>
             <div>Content</div>
-          </Dialog>
-        )
+          </Dialog>,
+        ),
       ).not.toThrow()
     })
 
@@ -464,7 +464,7 @@ describe('Dialog Component', () => {
       render(
         <Dialog open={true} onClose={jest.fn()}>
           {null}
-        </Dialog>
+        </Dialog>,
       )
 
       expect(screen.getByRole('dialog')).toBeInTheDocument()
@@ -474,7 +474,7 @@ describe('Dialog Component', () => {
       render(
         <Dialog open={true} onClose={jest.fn()} title="">
           <div>Content</div>
-        </Dialog>
+        </Dialog>,
       )
 
       expect(screen.queryByRole('heading')).not.toBeInTheDocument()
@@ -484,13 +484,13 @@ describe('Dialog Component', () => {
       const { rerender } = render(
         <Dialog open={false} onClose={jest.fn()}>
           <div>Content</div>
-        </Dialog>
+        </Dialog>,
       )
 
       rerender(
         <Dialog open={true} onClose={jest.fn()}>
           <div>Content</div>
-        </Dialog>
+        </Dialog>,
       )
 
       await waitFor(() => {
@@ -500,7 +500,7 @@ describe('Dialog Component', () => {
       rerender(
         <Dialog open={false} onClose={jest.fn()}>
           <div>Content</div>
-        </Dialog>
+        </Dialog>,
       )
 
       await waitFor(() => {
@@ -523,7 +523,7 @@ describe('Dialog Component', () => {
               </div>
             </div>
           </div>
-        </Dialog>
+        </Dialog>,
       )
 
       expect(screen.getByText('Paragraph 1')).toBeInTheDocument()
@@ -538,7 +538,7 @@ describe('Dialog Component', () => {
       render(
         <Dialog open={true} onClose={jest.fn()} title="Long Content">
           <div>{longContent}</div>
-        </Dialog>
+        </Dialog>,
       )
 
       expect(screen.getByText(longContent)).toBeInTheDocument()
@@ -552,7 +552,7 @@ describe('Dialog Component', () => {
           title="Special <>&quot;'` Characters"
         >
           <div>Content</div>
-        </Dialog>
+        </Dialog>,
       )
 
       expect(screen.getByText(/Special.*Characters/)).toBeInTheDocument()
@@ -566,7 +566,7 @@ describe('Dialog Component', () => {
       const { rerender } = render(
         <Dialog open={true} onClose={handler1} title="Test">
           <div>Content</div>
-        </Dialog>
+        </Dialog>,
       )
 
       await user.click(screen.getByRole('button'))
@@ -576,7 +576,7 @@ describe('Dialog Component', () => {
       rerender(
         <Dialog open={true} onClose={handler2} title="Test">
           <div>Content</div>
-        </Dialog>
+        </Dialog>,
       )
 
       await user.click(screen.getByRole('button'))
@@ -590,7 +590,7 @@ describe('Dialog Component', () => {
       render(
         <DialogContent>
           <div>Dialog Content</div>
-        </DialogContent>
+        </DialogContent>,
       )
 
       expect(screen.getByText('Dialog Content')).toBeInTheDocument()
@@ -600,7 +600,7 @@ describe('Dialog Component', () => {
       render(
         <DialogContent>
           <div>Content</div>
-        </DialogContent>
+        </DialogContent>,
       )
 
       const dialog = screen.getByRole('dialog')
@@ -612,7 +612,7 @@ describe('Dialog Component', () => {
       render(
         <DialogContent className="custom-content-class">
           <div>Content</div>
-        </DialogContent>
+        </DialogContent>,
       )
 
       const dialog = screen.getByRole('dialog')
@@ -625,7 +625,7 @@ describe('Dialog Component', () => {
       render(
         <DialogHeader>
           <div>Header Content</div>
-        </DialogHeader>
+        </DialogHeader>,
       )
 
       expect(screen.getByText('Header Content')).toBeInTheDocument()
@@ -635,7 +635,7 @@ describe('Dialog Component', () => {
       render(
         <DialogHeader>
           <div>Header</div>
-        </DialogHeader>
+        </DialogHeader>,
       )
 
       const header = screen.getByText('Header').parentElement
@@ -646,7 +646,7 @@ describe('Dialog Component', () => {
       render(
         <DialogHeader className="custom-header-class">
           <div>Header</div>
-        </DialogHeader>
+        </DialogHeader>,
       )
 
       const header = screen.getByText('Header').parentElement
@@ -692,11 +692,11 @@ describe('Dialog Component', () => {
       render(
         <DialogTrigger>
           <button>Open Dialog</button>
-        </DialogTrigger>
+        </DialogTrigger>,
       )
 
       expect(
-        screen.getByRole('button', { name: 'Open Dialog' })
+        screen.getByRole('button', { name: 'Open Dialog' }),
       ).toBeInTheDocument()
     })
 
@@ -704,11 +704,11 @@ describe('Dialog Component', () => {
       render(
         <DialogTrigger asChild>
           <button>Trigger Button</button>
-        </DialogTrigger>
+        </DialogTrigger>,
       )
 
       expect(
-        screen.getByRole('button', { name: 'Trigger Button' })
+        screen.getByRole('button', { name: 'Trigger Button' }),
       ).toBeInTheDocument()
     })
 
@@ -719,7 +719,7 @@ describe('Dialog Component', () => {
             <span>Child 1</span>
             <span>Child 2</span>
           </div>
-        </DialogTrigger>
+        </DialogTrigger>,
       )
 
       expect(screen.getByTestId('trigger-content')).toBeInTheDocument()
@@ -738,11 +738,11 @@ describe('Dialog Component', () => {
           <DialogContent>
             <p>This is the dialog content</p>
           </DialogContent>
-        </Dialog>
+        </Dialog>,
       )
 
       expect(
-        screen.getByRole('heading', { name: 'Complete Dialog' })
+        screen.getByRole('heading', { name: 'Complete Dialog' }),
       ).toBeInTheDocument()
       expect(screen.getByText('This is the dialog content')).toBeInTheDocument()
     })
@@ -762,7 +762,7 @@ describe('Dialog Component', () => {
               <button onClick={handleClose}>Close Dialog</button>
             </div>
           </Dialog>
-        </div>
+        </div>,
       )
 
       expect(screen.getByRole('dialog')).toBeInTheDocument()
@@ -778,14 +778,14 @@ describe('Dialog width override', () => {
     const { unmount } = render(
       <Dialog open onOpenChange={() => {}} title="T">
         <p>body</p>
-      </Dialog>
+      </Dialog>,
     )
     expect(document.querySelector('.max-w-md')).not.toBeNull()
     unmount()
     render(
       <Dialog open onOpenChange={() => {}} title="T" className="max-w-4xl">
         <p>body</p>
-      </Dialog>
+      </Dialog>,
     )
     expect(document.querySelector('.max-w-md')).toBeNull()
     expect(document.querySelector('.max-w-4xl')).not.toBeNull()

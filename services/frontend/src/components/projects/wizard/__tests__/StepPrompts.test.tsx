@@ -41,7 +41,7 @@ function renderStep(args: RenderArgs = {}) {
       onPromptTemplateChange={onPromptTemplateChange}
       onSystemPromptChange={onSystemPromptChange}
       onInstructionPromptChange={onInstructionPromptChange}
-    />
+    />,
   )
   return {
     onPromptTemplateChange,
@@ -65,15 +65,15 @@ describe('StepPrompts', () => {
       } = renderStep({ promptTemplate: 'custom' })
 
       fireEvent.click(
-        screen.getByTestId('wizard-prompt-template-question-answering')
+        screen.getByTestId('wizard-prompt-template-question-answering'),
       )
 
       expect(onPromptTemplateChange).toHaveBeenCalledWith('question-answering')
       expect(onSystemPromptChange).toHaveBeenCalledWith(
-        expect.stringContaining('expert assistant')
+        expect.stringContaining('expert assistant'),
       )
       expect(onInstructionPromptChange).toHaveBeenCalledWith(
-        expect.stringContaining('$context')
+        expect.stringContaining('$context'),
       )
     })
 
@@ -93,9 +93,11 @@ describe('StepPrompts', () => {
 
     it('seeds German legal prompts for the legal-analysis template', () => {
       const { onSystemPromptChange } = renderStep({ promptTemplate: 'custom' })
-      fireEvent.click(screen.getByTestId('wizard-prompt-template-legal-analysis'))
+      fireEvent.click(
+        screen.getByTestId('wizard-prompt-template-legal-analysis'),
+      )
       expect(onSystemPromptChange).toHaveBeenCalledWith(
-        expect.stringContaining('deutsches Recht')
+        expect.stringContaining('deutsches Recht'),
       )
     })
   })
@@ -124,7 +126,7 @@ describe('StepPrompts', () => {
       expect(screen.queryByText('$question')).not.toBeInTheDocument()
       // The no-variables informational note should be visible
       expect(
-        screen.getByText('projects.creation.wizard.step6.noVariablesNote')
+        screen.getByText('projects.creation.wizard.step6.noVariablesNote'),
       ).toBeInTheDocument()
 
       rerender(
@@ -136,7 +138,7 @@ describe('StepPrompts', () => {
           onPromptTemplateChange={jest.fn()}
           onSystemPromptChange={jest.fn()}
           onInstructionPromptChange={jest.fn()}
-        />
+        />,
       )
       // Two chips render: one for system prompt, one for instruction prompt
       expect(screen.getAllByText('$question').length).toBeGreaterThanOrEqual(2)
@@ -149,7 +151,7 @@ describe('StepPrompts', () => {
       })
 
       const textarea = screen.getByTestId(
-        'wizard-system-prompt'
+        'wizard-system-prompt',
       ) as HTMLTextAreaElement
       // Place the cursor between "Hello" and " world"
       textarea.setSelectionRange(5, 5)
@@ -168,12 +170,9 @@ describe('StepPrompts', () => {
       })
 
       const textarea = screen.getByTestId(
-        'wizard-instruction-prompt'
+        'wizard-instruction-prompt',
       ) as HTMLTextAreaElement
-      textarea.setSelectionRange(
-        textarea.value.length,
-        textarea.value.length
-      )
+      textarea.setSelectionRange(textarea.value.length, textarea.value.length)
 
       // chips[1] is the instruction-prompt copy of the variable chip
       const chips = screen.getAllByText('$answer')

@@ -50,7 +50,7 @@ describe('PUT /api/auth/me/ui-mode', () => {
           Authorization: 'Bearer token123',
         }),
         body: JSON.stringify({ preferred_ui_mode: 'student' }),
-      })
+      }),
     )
   })
 
@@ -74,11 +74,17 @@ describe('PUT /api/auth/me/ui-mode', () => {
       json: () => Promise.resolve({ id: 'u1' }),
     })
 
-    const bare = new NextRequest('http://vertretbar.localhost/api/auth/me/ui-mode', {
-      method: 'PUT',
-      headers: { host: 'vertretbar.localhost', 'content-type': 'application/json' },
-      body: JSON.stringify({ preferred_ui_mode: 'student' }),
-    })
+    const bare = new NextRequest(
+      'http://vertretbar.localhost/api/auth/me/ui-mode',
+      {
+        method: 'PUT',
+        headers: {
+          host: 'vertretbar.localhost',
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({ preferred_ui_mode: 'student' }),
+      },
+    )
 
     await PUT(bare)
 
@@ -86,7 +92,7 @@ describe('PUT /api/auth/me/ui-mode', () => {
       expect.any(String),
       expect.objectContaining({
         headers: expect.objectContaining({ Cookie: '', Authorization: '' }),
-      })
+      }),
     )
   })
 

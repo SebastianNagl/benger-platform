@@ -115,14 +115,18 @@ describe('Report API', () => {
 
       expect(mockPut).toHaveBeenCalledWith(
         '/projects/p1/report/publish',
-        undefined
+        undefined,
       )
       expect(result).toEqual(mockResponse)
       expect(mockInvalidate).toHaveBeenCalledWith('/reports')
     })
 
     it('sends is_public in the body when publishing publicly', async () => {
-      mockPut.mockResolvedValue({ id: 'r1', is_published: true, is_public: true })
+      mockPut.mockResolvedValue({
+        id: 'r1',
+        is_published: true,
+        is_public: true,
+      })
 
       await publishReport('p1', { is_public: true })
 
@@ -132,7 +136,11 @@ describe('Report API', () => {
     })
 
     it('sends is_public=false explicitly when requested', async () => {
-      mockPut.mockResolvedValue({ id: 'r1', is_published: true, is_public: false })
+      mockPut.mockResolvedValue({
+        id: 'r1',
+        is_published: true,
+        is_public: false,
+      })
 
       await publishReport('p1', { is_public: false })
 
@@ -170,7 +178,11 @@ describe('Report API', () => {
     })
 
     it('can switch back to organizations only', async () => {
-      mockPut.mockResolvedValue({ id: 'r1', is_published: true, is_public: false })
+      mockPut.mockResolvedValue({
+        id: 'r1',
+        is_published: true,
+        is_public: false,
+      })
 
       await setReportVisibility('p1', { is_public: false })
 
@@ -198,8 +210,18 @@ describe('Report API', () => {
   describe('listPublishedReports', () => {
     it('should list published reports (works anonymously; API filters)', async () => {
       const mockReports = [
-        { id: 'r1', project_title: 'Report 1', is_public: true, visibility: 'public' },
-        { id: 'r2', project_title: 'Report 2', is_public: false, visibility: 'organizations' },
+        {
+          id: 'r1',
+          project_title: 'Report 1',
+          is_public: true,
+          visibility: 'public',
+        },
+        {
+          id: 'r2',
+          project_title: 'Report 2',
+          is_public: false,
+          visibility: 'organizations',
+        },
       ]
       mockGet.mockResolvedValue(mockReports)
 

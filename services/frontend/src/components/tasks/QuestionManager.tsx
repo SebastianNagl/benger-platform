@@ -80,7 +80,7 @@ export function QuestionManager({
 
   const handleUpdateQuestion = (updatedQuestion: QuestionData) => {
     const updatedQuestions = questions.map((q) =>
-      q.id === updatedQuestion.id ? updatedQuestion : q
+      q.id === updatedQuestion.id ? updatedQuestion : q,
     )
     onQuestionsChange(updatedQuestions)
   }
@@ -222,7 +222,7 @@ export function QuestionManager({
 // Helper function to convert questions to JSON format for the backend
 export function questionsToJson(
   questions: QuestionData[],
-  taskType: 'qa' | 'qa_reasoning' | 'multiple_choice'
+  taskType: 'qa' | 'qa_reasoning' | 'multiple_choice',
 ): string {
   const convertedQuestions = questions.map((q) => {
     if (taskType === 'qa') {

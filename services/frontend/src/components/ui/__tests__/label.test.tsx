@@ -26,7 +26,7 @@ describe('Label', () => {
 
   it('applies custom className', () => {
     const { container } = render(
-      <Label className="custom-label-class">Custom Label</Label>
+      <Label className="custom-label-class">Custom Label</Label>,
     )
     const label = container.firstChild as HTMLElement
     expect(label).toHaveClass('custom-label-class')
@@ -44,7 +44,7 @@ describe('Label', () => {
 
   it('passes through htmlFor attribute', () => {
     const { container } = render(
-      <Label htmlFor="input-id">Label for Input</Label>
+      <Label htmlFor="input-id">Label for Input</Label>,
     )
     const label = container.firstChild as HTMLElement
     expect(label).toHaveAttribute('for', 'input-id')
@@ -63,7 +63,7 @@ describe('Label', () => {
     const { container } = render(
       <Label data-testid="test-label" id="label-id" title="Label Title">
         Props Label
-      </Label>
+      </Label>,
     )
     const label = container.firstChild as HTMLElement
     expect(label).toHaveAttribute('data-testid', 'test-label')
@@ -76,7 +76,7 @@ describe('Label', () => {
       <div>
         <Label htmlFor="test-input">Input Label</Label>
         <input id="test-input" type="text" />
-      </div>
+      </div>,
     )
 
     const label = screen.getByText('Input Label')
@@ -93,7 +93,7 @@ describe('Label', () => {
         <Label htmlFor="input1">Label 1</Label>
         <Label htmlFor="input2">Label 2</Label>
         <Label htmlFor="input3">Label 3</Label>
-      </>
+      </>,
     )
 
     expect(screen.getByText('Label 1')).toBeInTheDocument()
@@ -106,7 +106,7 @@ describe('Label', () => {
       <Label>
         <span>Required Field</span>
         <span className="text-red-500"> *</span>
-      </Label>
+      </Label>,
     )
 
     expect(screen.getByText('Required Field')).toBeInTheDocument()

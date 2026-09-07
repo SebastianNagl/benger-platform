@@ -4,7 +4,10 @@
 import '@testing-library/jest-dom'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { PDFReportGenerator, PDFReportGeneratorProps } from '../PDFReportGenerator'
+import {
+  PDFReportGenerator,
+  PDFReportGeneratorProps,
+} from '../PDFReportGenerator'
 
 // Mock i18n
 jest.mock('@/contexts/I18nContext', () => ({
@@ -15,7 +18,8 @@ jest.mock('@/contexts/I18nContext', () => ({
         'evaluation.pdfReport.reportFormat': 'Report Format',
         'evaluation.pdfReport.academicFormat': 'Academic',
         'evaluation.pdfReport.businessFormat': 'Business',
-        'evaluation.pdfReport.academicDescription': 'Includes methodology and citations',
+        'evaluation.pdfReport.academicDescription':
+          'Includes methodology and citations',
         'evaluation.pdfReport.businessDescription': 'Executive summary focused',
         'evaluation.pdfReport.includeSections': 'Include Sections',
         'evaluation.pdfReport.resultsTables': 'Results Tables',
@@ -34,14 +38,18 @@ jest.mock('@/contexts/I18nContext', () => ({
         'evaluation.pdfReport.averageScore': 'Average Score',
         'evaluation.pdfReport.methodology': 'Methodology',
         'evaluation.pdfReport.evaluationMetrics': 'Evaluation Metrics',
-        'evaluation.pdfReport.metricsEmployed': 'The following metrics were employed:',
-        'evaluation.pdfReport.statisticalAnalysisSection': 'Statistical Analysis',
-        'evaluation.pdfReport.statisticalMethodology': 'Statistical methodology used.',
+        'evaluation.pdfReport.metricsEmployed':
+          'The following metrics were employed:',
+        'evaluation.pdfReport.statisticalAnalysisSection':
+          'Statistical Analysis',
+        'evaluation.pdfReport.statisticalMethodology':
+          'Statistical methodology used.',
         'evaluation.pdfReport.results': 'Results',
         'evaluation.pdfReport.rank': 'Rank',
         'evaluation.pdfReport.model': 'Model',
         'evaluation.pdfReport.average': 'Average',
-        'evaluation.pdfReport.statisticalSignificance': 'Statistical Significance',
+        'evaluation.pdfReport.statisticalSignificance':
+          'Statistical Significance',
         'evaluation.pdfReport.comparison': 'Comparison',
         'evaluation.pdfReport.pValue': 'p-value',
         'evaluation.pdfReport.significant': 'Significant?',
@@ -61,11 +69,13 @@ jest.mock('@/contexts/I18nContext', () => ({
 }))
 
 // Mock html2canvas and jsPDF
-jest.mock('html2canvas', () => jest.fn().mockResolvedValue({
-  toDataURL: () => 'data:image/png;base64,mock',
-  width: 1200,
-  height: 800,
-}))
+jest.mock('html2canvas', () =>
+  jest.fn().mockResolvedValue({
+    toDataURL: () => 'data:image/png;base64,mock',
+    width: 1200,
+    height: 800,
+  }),
+)
 
 jest.mock('jspdf', () => {
   const mockSave = jest.fn()
@@ -89,7 +99,12 @@ jest.mock('jspdf', () => {
 // Mock shared components
 jest.mock('@/components/shared/Button', () => ({
   Button: ({ children, onClick, disabled, variant, ...props }: any) => (
-    <button onClick={onClick} disabled={disabled} data-variant={variant} {...props}>
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      data-variant={variant}
+      {...props}
+    >
       {children}
     </button>
   ),
@@ -97,7 +112,9 @@ jest.mock('@/components/shared/Button', () => ({
 
 jest.mock('@/components/shared/Card', () => ({
   Card: ({ children, className }: any) => (
-    <div className={className} data-testid="card">{children}</div>
+    <div className={className} data-testid="card">
+      {children}
+    </div>
   ),
 }))
 
@@ -119,15 +136,23 @@ jest.mock('@/components/shared/Checkbox', () => ({
 jest.mock('@/components/shared/Select', () => ({
   Select: ({ children, value, onValueChange }: any) => (
     <div data-testid="select-root" data-value={value}>
-      {typeof children === 'function' ? children({ value, onValueChange }) : children}
+      {typeof children === 'function'
+        ? children({ value, onValueChange })
+        : children}
     </div>
   ),
-  SelectContent: ({ children }: any) => <div data-testid="select-content">{children}</div>,
+  SelectContent: ({ children }: any) => (
+    <div data-testid="select-content">{children}</div>
+  ),
   SelectItem: ({ children, value }: any) => (
-    <option data-testid={`select-item-${value}`} value={value}>{children}</option>
+    <option data-testid={`select-item-${value}`} value={value}>
+      {children}
+    </option>
   ),
   SelectTrigger: ({ children, className }: any) => (
-    <div data-testid="select-trigger" className={className}>{children}</div>
+    <div data-testid="select-trigger" className={className}>
+      {children}
+    </div>
   ),
   SelectValue: () => <span data-testid="select-value" />,
 }))
@@ -136,7 +161,9 @@ jest.mock('@/lib/utils', () => ({
   cn: (...args: any[]) => args.filter(Boolean).join(' '),
 }))
 
-const makeDefaultProps = (overrides?: Partial<PDFReportGeneratorProps>): PDFReportGeneratorProps => ({
+const makeDefaultProps = (
+  overrides?: Partial<PDFReportGeneratorProps>,
+): PDFReportGeneratorProps => ({
   projectId: 'project-1',
   projectName: 'Test Project',
   evaluationData: {
@@ -174,7 +201,9 @@ describe('PDFReportGenerator', () => {
       render(<PDFReportGenerator {...makeDefaultProps()} />)
       expect(screen.getByTestId('checkbox-include-tables')).toBeInTheDocument()
       expect(screen.getByTestId('checkbox-include-charts')).toBeInTheDocument()
-      expect(screen.getByTestId('checkbox-include-statistics')).toBeInTheDocument()
+      expect(
+        screen.getByTestId('checkbox-include-statistics'),
+      ).toBeInTheDocument()
     })
 
     it('renders model selection checkboxes', () => {
@@ -209,7 +238,9 @@ describe('PDFReportGenerator', () => {
   describe('Preview content', () => {
     it('renders the report title with project name', () => {
       render(<PDFReportGenerator {...makeDefaultProps()} />)
-      expect(screen.getByText('Test Project Evaluation Report')).toBeInTheDocument()
+      expect(
+        screen.getByText('Test Project Evaluation Report'),
+      ).toBeInTheDocument()
     })
 
     it('renders the executive summary', () => {
@@ -380,7 +411,9 @@ describe('PDFReportGenerator', () => {
 
       const statsCheckbox = screen.getByTestId('checkbox-include-statistics')
       await user.click(statsCheckbox)
-      expect(screen.queryByText('Statistical Significance')).not.toBeInTheDocument()
+      expect(
+        screen.queryByText('Statistical Significance'),
+      ).not.toBeInTheDocument()
     })
   })
 
@@ -444,7 +477,9 @@ describe('PDFReportGenerator', () => {
 
     it('does not render significance table when no tests are provided', () => {
       render(<PDFReportGenerator {...makeDefaultProps()} />)
-      expect(screen.queryByText('Statistical Significance')).not.toBeInTheDocument()
+      expect(
+        screen.queryByText('Statistical Significance'),
+      ).not.toBeInTheDocument()
     })
   })
 
@@ -507,7 +542,10 @@ describe('PDFReportGenerator', () => {
       await user.click(screen.getByText('Generate PDF'))
 
       await screen.findByText('Generate PDF')
-      expect(consoleSpy).toHaveBeenCalledWith('PDF generation failed:', expect.any(Error))
+      expect(consoleSpy).toHaveBeenCalledWith(
+        'PDF generation failed:',
+        expect.any(Error),
+      )
       consoleSpy.mockRestore()
     })
   })
@@ -563,7 +601,9 @@ describe('PDFReportGenerator', () => {
   describe('Format description', () => {
     it('shows academic description for academic format', () => {
       render(<PDFReportGenerator {...makeDefaultProps()} />)
-      expect(screen.getByText('Includes methodology and citations')).toBeInTheDocument()
+      expect(
+        screen.getByText('Includes methodology and citations'),
+      ).toBeInTheDocument()
     })
   })
 })

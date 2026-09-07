@@ -69,7 +69,7 @@ describe('Admin Role Display', () => {
       expect(screen.getByText(/Superadmin:/)).toBeInTheDocument()
       expect(screen.getByText(/User:/)).toBeInTheDocument()
       expect(
-        screen.getByText(/Organization roles.*managed per-organization/)
+        screen.getByText(/Organization roles.*managed per-organization/),
       ).toBeInTheDocument()
     })
 
@@ -77,10 +77,10 @@ describe('Admin Role Display', () => {
       render(<MockRoleSystemExplanation />)
 
       expect(
-        screen.getByText(/Full system access and user management/)
+        screen.getByText(/Full system access and user management/),
       ).toBeInTheDocument()
       expect(
-        screen.getByText(/Basic access with organization-specific permissions/)
+        screen.getByText(/Basic access with organization-specific permissions/),
       ).toBeInTheDocument()
       expect(screen.getByText(/Organization Roles tab/)).toBeInTheDocument()
     })
@@ -135,10 +135,10 @@ describe('Admin Role Display', () => {
       expect(screen.getByText('Global User Roles')).toBeInTheDocument()
       expect(screen.getByText('Global Role')).toBeInTheDocument()
       expect(
-        screen.getByText(/system-wide user permissions/)
+        screen.getByText(/system-wide user permissions/),
       ).toBeInTheDocument()
       expect(
-        screen.getByText(/Organization-specific roles/)
+        screen.getByText(/Organization-specific roles/),
       ).toBeInTheDocument()
     })
   })
@@ -147,7 +147,7 @@ describe('Admin Role Display', () => {
     // Helper function to simulate role access checking
     const hasAccessToRoute = (
       userRole: 'superadmin' | 'user',
-      route: string
+      route: string,
     ): boolean => {
       if (userRole !== 'superadmin') return false
 

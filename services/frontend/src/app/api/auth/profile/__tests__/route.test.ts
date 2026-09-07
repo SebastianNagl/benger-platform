@@ -38,7 +38,7 @@ describe('/api/auth/profile route', () => {
           headers: {
             cookie: 'access_token=valid-token',
           },
-        }
+        },
       )
 
       const response = await GET(request)
@@ -52,7 +52,7 @@ describe('/api/auth/profile route', () => {
             Cookie: 'access_token=valid-token',
             Authorization: '',
           },
-        })
+        }),
       )
 
       const data = await response.json()
@@ -74,7 +74,7 @@ describe('/api/auth/profile route', () => {
           headers: {
             authorization: 'Bearer token123',
           },
-        }
+        },
       )
 
       await GET(request)
@@ -85,7 +85,7 @@ describe('/api/auth/profile route', () => {
           headers: expect.objectContaining({
             Authorization: 'Bearer token123',
           }),
-        })
+        }),
       )
     })
 
@@ -114,7 +114,7 @@ describe('/api/auth/profile route', () => {
           headers: {
             cookie: 'access_token=valid-token',
           },
-        }
+        },
       )
 
       const response = await GET(request)
@@ -140,14 +140,14 @@ describe('/api/auth/profile route', () => {
             host: 'benger.localhost',
             cookie: 'access_token=valid-token',
           },
-        }
+        },
       )
 
       await GET(request)
 
       expect(mockFetch).toHaveBeenCalledWith(
         'http://api:8000/api/auth/profile',
-        expect.any(Object)
+        expect.any(Object),
       )
     })
   })
@@ -181,7 +181,7 @@ describe('/api/auth/profile route', () => {
             cookie: 'access_token=valid-token',
           },
           body: JSON.stringify(updateData),
-        }
+        },
       )
 
       const response = await PUT(request)
@@ -196,7 +196,7 @@ describe('/api/auth/profile route', () => {
             Cookie: 'access_token=valid-token',
           }),
           body: JSON.stringify(updateData),
-        })
+        }),
       )
 
       const data = await response.json()
@@ -223,7 +223,7 @@ describe('/api/auth/profile route', () => {
             cookie: 'access_token=valid-token',
           },
           body: JSON.stringify(updateData),
-        }
+        },
       )
 
       const response = await PUT(request)
@@ -250,7 +250,7 @@ describe('/api/auth/profile route', () => {
             'content-type': 'application/json',
           },
           body: JSON.stringify(updateData),
-        }
+        },
       )
 
       const response = await PUT(request)
@@ -283,7 +283,7 @@ describe('/api/auth/profile route', () => {
             authorization: 'Bearer token123',
           },
           body: JSON.stringify(updateData),
-        }
+        },
       )
 
       await PUT(request)
@@ -294,7 +294,7 @@ describe('/api/auth/profile route', () => {
           headers: expect.objectContaining({
             Authorization: 'Bearer token123',
           }),
-        })
+        }),
       )
     })
 
@@ -312,7 +312,7 @@ describe('/api/auth/profile route', () => {
             cookie: 'access_token=valid-token',
           },
           body: JSON.stringify(updateData),
-        }
+        },
       )
 
       const response = await PUT(request)
@@ -338,7 +338,7 @@ describe('/api/auth/profile route', () => {
             cookie: 'access_token=valid-token',
           },
           body: JSON.stringify({}),
-        }
+        },
       )
 
       const response = await PUT(request)

@@ -9,7 +9,10 @@ import { ModelProviderStatus } from '../tasks/ModelProviderStatus'
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
     t: (key: string, varsOrDefault?: any) => {
-      const translations: Record<string, any> = require('../../locales/en/common.json')
+      const translations: Record<
+        string,
+        any
+      > = require('../../locales/en/common.json')
       const parts = key.split('.')
       let value: any = translations
       for (const part of parts) {
@@ -50,7 +53,7 @@ describe('ModelProviderStatus', () => {
           provider="OpenAI"
           hasApiKey={true}
           modelCount={3}
-        />
+        />,
       )
 
       expect(screen.getByText('OpenAI')).toBeInTheDocument()
@@ -64,7 +67,7 @@ describe('ModelProviderStatus', () => {
           provider="Anthropic"
           hasApiKey={true}
           modelCount={1}
-        />
+        />,
       )
 
       expect(screen.getByText('1 model available')).toBeInTheDocument()
@@ -76,7 +79,7 @@ describe('ModelProviderStatus', () => {
           provider="Google"
           hasApiKey={true}
           modelCount={2}
-        />
+        />,
       )
 
       expect(container.firstChild).toHaveClass('bg-emerald-50')
@@ -90,14 +93,14 @@ describe('ModelProviderStatus', () => {
           provider="OpenAI"
           hasApiKey={false}
           modelCount={0}
-        />
+        />,
       )
 
       expect(
-        screen.getByText('Configure OpenAI API key to access models')
+        screen.getByText('Configure OpenAI API key to access models'),
       ).toBeInTheDocument()
       expect(
-        screen.getByRole('link', { name: 'Configure →' })
+        screen.getByRole('link', { name: 'Configure →' }),
       ).toBeInTheDocument()
       expect(screen.getByRole('link')).toHaveAttribute('href', '/profile')
     })
@@ -108,7 +111,7 @@ describe('ModelProviderStatus', () => {
           provider="Anthropic"
           hasApiKey={false}
           modelCount={0}
-        />
+        />,
       )
 
       expect(container.firstChild).toHaveClass('bg-amber-50')
@@ -120,7 +123,7 @@ describe('ModelProviderStatus', () => {
           provider="DeepInfra"
           hasApiKey={false}
           modelCount={0}
-        />
+        />,
       )
 
       const svg = container.querySelector('svg')
@@ -136,7 +139,7 @@ describe('ModelProviderStatus', () => {
         hasApiKey={true}
         modelCount={1}
         className="custom-class"
-      />
+      />,
     )
 
     expect(container.firstChild).toHaveClass('custom-class')
@@ -144,7 +147,11 @@ describe('ModelProviderStatus', () => {
 
   it('renders accessible content', () => {
     render(
-      <ModelProviderStatus provider="OpenAI" hasApiKey={false} modelCount={0} />
+      <ModelProviderStatus
+        provider="OpenAI"
+        hasApiKey={false}
+        modelCount={0}
+      />,
     )
 
     // Link should be accessible

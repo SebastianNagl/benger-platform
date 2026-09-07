@@ -67,7 +67,7 @@ jest.mock('@/contexts/I18nContext', () => ({
 }))
 
 function setup(
-  props: Partial<React.ComponentProps<typeof ImportSourceTabs>> = {}
+  props: Partial<React.ComponentProps<typeof ImportSourceTabs>> = {},
 ) {
   const onPastedDataChange = jest.fn()
   const onFileChange = jest.fn()
@@ -87,7 +87,7 @@ function setup(
       structuredTab={props.structuredTab}
       cloudPanel={props.cloudPanel}
       testIdPrefix={props.testIdPrefix ?? 'test-import'}
-    />
+    />,
   )
   return { ...utils, onPastedDataChange, onFileChange, onColumnsDetected }
 }
@@ -138,7 +138,7 @@ describe('ImportSourceTabs — rendering', () => {
     expect(screen.getByTestId('test-import-paste-tab')).toBeInTheDocument()
     expect(screen.getByTestId('test-import-cloud-tab')).toBeInTheDocument()
     expect(
-      screen.queryByTestId('test-import-structured-tab')
+      screen.queryByTestId('test-import-structured-tab'),
     ).not.toBeInTheDocument()
     // Upload panel is the default content.
     expect(screen.getByText('Drop files here')).toBeInTheDocument()
@@ -227,9 +227,10 @@ describe('ImportSourceTabs — paste tab', () => {
     const user = userEvent.setup()
     setup({ pastedData: 'a\nb\nc' })
     await openPasteTab(user)
-    expect(
-      screen.getByTestId('test-import-paste-line-count')
-    ).toHaveAttribute('data-line-count', '3')
+    expect(screen.getByTestId('test-import-paste-line-count')).toHaveAttribute(
+      'data-line-count',
+      '3',
+    )
   })
 
   it('toasts the detected format on validate', async () => {
@@ -246,7 +247,7 @@ describe('ImportSourceTabs — paste tab', () => {
     await openPasteTab(user)
     await user.click(screen.getByTestId('extract-text-stub'))
     expect(onPastedDataChange).toHaveBeenCalledWith(
-      JSON.stringify([{ text: 'extracted text' }], null, 2)
+      JSON.stringify([{ text: 'extracted text' }], null, 2),
     )
   })
 })
@@ -257,7 +258,7 @@ describe('ImportSourceTabs — upload tab', () => {
     const { onFileChange, onColumnsDetected } = setup()
 
     const input = screen.getByTestId(
-      'test-import-file-input'
+      'test-import-file-input',
     ) as HTMLInputElement
     const file = new File(['h1\th2\nv1\tv2'], 'data.tsv', {
       type: 'text/tab-separated-values',
@@ -266,7 +267,7 @@ describe('ImportSourceTabs — upload tab', () => {
 
     expect(onFileChange).toHaveBeenCalledWith(file)
     await waitFor(() =>
-      expect(onColumnsDetected).toHaveBeenCalledWith(['h1', 'h2'])
+      expect(onColumnsDetected).toHaveBeenCalledWith(['h1', 'h2']),
     )
   })
 
@@ -276,7 +277,7 @@ describe('ImportSourceTabs — upload tab', () => {
     setup({ onFileChange, onColumnsDetected: undefined })
 
     const input = screen.getByTestId(
-      'test-import-file-input'
+      'test-import-file-input',
     ) as HTMLInputElement
     const file = new File(['x'], 'plain.txt', { type: 'text/plain' })
     await user.upload(input, file)

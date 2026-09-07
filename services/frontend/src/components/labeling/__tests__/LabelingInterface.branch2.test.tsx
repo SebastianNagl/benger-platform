@@ -38,13 +38,13 @@ jest.mock('@/lib/api/projects', () => ({
   },
 }))
 
+import { useAuth } from '@/contexts/AuthContext'
+import { projectsAPI } from '@/lib/api/projects'
 import { mockToast as __mockToast } from '@/test-utils/setupTests'
 const toast = Object.assign(
   (msg: string, type?: any) => __mockToast.addToast(msg, type),
-  { success: __mockToast.success, error: __mockToast.error }
+  { success: __mockToast.success, error: __mockToast.error },
 )
-import { projectsAPI } from '@/lib/api/projects'
-import { useAuth } from '@/contexts/AuthContext'
 
 // Mock the DynamicAnnotationInterface
 jest.mock('../DynamicAnnotationInterface', () => ({
@@ -58,13 +58,31 @@ jest.mock('../DynamicAnnotationInterface', () => ({
     return (
       <div data-testid="dynamic-annotation">
         <span data-testid="show-submit-prop">{String(showSubmitButton)}</span>
-        <span data-testid="require-confirm-prop">{String(requireConfirmBeforeSubmit)}</span>
-        {onSkip && <button data-testid="mock-skip" onClick={onSkip}>Skip</button>}
-        <button data-testid="mock-submit" onClick={() => {
-          const results = [{from_name:'a',to_name:'t',type:'textarea',value:{text:['test']}}]
-          onChange?.(results)
-          onSubmit?.(results)
-        }}>Submit</button>
+        <span data-testid="require-confirm-prop">
+          {String(requireConfirmBeforeSubmit)}
+        </span>
+        {onSkip && (
+          <button data-testid="mock-skip" onClick={onSkip}>
+            Skip
+          </button>
+        )}
+        <button
+          data-testid="mock-submit"
+          onClick={() => {
+            const results = [
+              {
+                from_name: 'a',
+                to_name: 't',
+                type: 'textarea',
+                value: { text: ['test'] },
+              },
+            ]
+            onChange?.(results)
+            onSubmit?.(results)
+          }}
+        >
+          Submit
+        </button>
       </div>
     )
   },
@@ -79,7 +97,9 @@ jest.mock('@/components/labeling/PostAnnotationQuestionnaireModal', () => ({
 jest.mock('@/hooks/useActivityTracker', () => ({
   useActivityTracker: () => ({
     start: jest.fn(),
-    getData: jest.fn().mockReturnValue({ activeMs: 1000, focusedMs: 900, tabSwitches: 0 }),
+    getData: jest
+      .fn()
+      .mockReturnValue({ activeMs: 1000, focusedMs: 900, tabSwitches: 0 }),
   }),
 }))
 
@@ -305,18 +325,16 @@ describe('LabelingInterface - branch2 coverage', () => {
   it('solves in a full-viewport surface when the modern exam layout is active', () => {
     // Force the predicate: the real hook needs the extended slot + user pref.
     const modernHook = require('@/hooks/useModernExamLayout')
-    const spy = jest
-      .spyOn(modernHook, 'useModernExamLayout')
-      .mockReturnValue({
-        active: true,
-        prefs: {
-          mode: 'modern',
-          case_position: 'left',
-          notes_position: 'right',
-          outline_position: 'none',
-        },
-        Layout: () => null,
-      })
+    const spy = jest.spyOn(modernHook, 'useModernExamLayout').mockReturnValue({
+      active: true,
+      prefs: {
+        mode: 'modern',
+        case_position: 'left',
+        notes_position: 'right',
+        outline_position: 'none',
+      },
+      Layout: () => null,
+    })
     try {
       setupMocks({
         currentProject: {
@@ -419,7 +437,9 @@ describe('LabelingInterface - branch2 coverage', () => {
 
     await waitFor(() => {
       // Should show the skip comment dialog
-      expect(screen.getByText('annotation.interface.skipCommentTitle')).toBeInTheDocument()
+      expect(
+        screen.getByText('annotation.interface.skipCommentTitle'),
+      ).toBeInTheDocument()
     })
   })
 })

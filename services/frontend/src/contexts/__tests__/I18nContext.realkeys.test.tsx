@@ -110,7 +110,7 @@ describe('I18nContext — real-key translation branches (live t)', () => {
 
     // Missing key + string second arg => returns the default (line 80, 65).
     expect(result.current.t('totally.missing.key', 'Default Text')).toBe(
-      'Default Text'
+      'Default Text',
     )
   })
 

@@ -25,15 +25,11 @@ jest.mock('recharts', () => ({
       {children}
     </div>
   ),
-  Bar: ({ dataKey, shape }: any) => (
-    <div data-testid={`bar-${dataKey}`} />
-  ),
+  Bar: ({ dataKey, shape }: any) => <div data-testid={`bar-${dataKey}`} />,
   Cell: () => <div data-testid="cell" />,
   CartesianGrid: () => <div data-testid="cartesian-grid" />,
   Tooltip: ({ content }: any) => <div data-testid="tooltip" />,
-  XAxis: ({ dataKey }: any) => (
-    <div data-testid="x-axis" data-key={dataKey} />
-  ),
+  XAxis: ({ dataKey }: any) => <div data-testid="x-axis" data-key={dataKey} />,
   YAxis: ({ label }: any) => (
     <div data-testid="y-axis" data-label={label?.value} />
   ),
@@ -80,7 +76,9 @@ describe('BoxPlotChart', () => {
   })
 
   it('should render axes', () => {
-    render(<BoxPlotChart data={sampleData} xAxisLabel="Model" yAxisLabel="Score" />)
+    render(
+      <BoxPlotChart data={sampleData} xAxisLabel="Model" yAxisLabel="Score" />,
+    )
     expect(screen.getByTestId('x-axis')).toBeInTheDocument()
     expect(screen.getByTestId('y-axis')).toBeInTheDocument()
   })
@@ -93,26 +91,26 @@ describe('BoxPlotChart', () => {
   it('should render legend items', () => {
     render(<BoxPlotChart data={sampleData} />)
     expect(
-      screen.getByText('evaluation.charts.boxPlot.whiskers')
+      screen.getByText('evaluation.charts.boxPlot.whiskers'),
     ).toBeInTheDocument()
     expect(
-      screen.getByText('evaluation.charts.boxPlot.iqr')
+      screen.getByText('evaluation.charts.boxPlot.iqr'),
     ).toBeInTheDocument()
     expect(
-      screen.getByText('evaluation.charts.boxPlot.medianLabel')
+      screen.getByText('evaluation.charts.boxPlot.medianLabel'),
     ).toBeInTheDocument()
   })
 
   it('should apply custom className', () => {
     const { container } = render(
-      <BoxPlotChart data={sampleData} className="custom-class" />
+      <BoxPlotChart data={sampleData} className="custom-class" />,
     )
     expect(container.firstChild).toHaveClass('custom-class')
   })
 
   it('should render with showMean and showOutliers props', () => {
     render(
-      <BoxPlotChart data={sampleData} showMean={true} showOutliers={false} />
+      <BoxPlotChart data={sampleData} showMean={true} showOutliers={false} />,
     )
     expect(screen.getByTestId('composed-chart')).toBeInTheDocument()
   })

@@ -55,7 +55,7 @@ describe('OrganizationsClient', () => {
       ]
 
       mockOrganizationsClient.getOrganizations.mockResolvedValue(
-        mockOrganizations
+        mockOrganizations,
       )
 
       const organizations = await mockOrganizationsClient.getOrganizations()
@@ -96,7 +96,7 @@ describe('OrganizationsClient', () => {
       }
 
       mockOrganizationsClient.createOrganization.mockResolvedValue(
-        mockOrganization
+        mockOrganization,
       )
 
       const organization =
@@ -113,7 +113,7 @@ describe('OrganizationsClient', () => {
         member_count: 1,
       })
       expect(mockOrganizationsClient.createOrganization).toHaveBeenCalledWith(
-        createData
+        createData,
       )
     })
   })
@@ -132,7 +132,7 @@ describe('OrganizationsClient', () => {
       }
 
       mockOrganizationsClient.getOrganization.mockResolvedValue(
-        mockOrganization
+        mockOrganization,
       )
 
       const organization =
@@ -149,7 +149,7 @@ describe('OrganizationsClient', () => {
         member_count: 2,
       })
       expect(mockOrganizationsClient.getOrganization).toHaveBeenCalledWith(
-        'org-123'
+        'org-123',
       )
     })
   })
@@ -170,7 +170,7 @@ describe('OrganizationsClient', () => {
       ]
 
       mockOrganizationsClient.getOrganizationMembers.mockResolvedValue(
-        mockMembers
+        mockMembers,
       )
 
       const members =
@@ -188,7 +188,7 @@ describe('OrganizationsClient', () => {
         user_email: 'test@example.com',
       })
       expect(
-        mockOrganizationsClient.getOrganizationMembers
+        mockOrganizationsClient.getOrganizationMembers,
       ).toHaveBeenCalledWith('org-123')
     })
   })
@@ -218,7 +218,7 @@ describe('OrganizationsClient', () => {
 
       const invitation = await mockOrganizationsClient.createInvitation(
         'org-123',
-        invitationData
+        invitationData,
       )
 
       expect(invitation).toMatchObject({
@@ -233,7 +233,7 @@ describe('OrganizationsClient', () => {
       })
       expect(mockOrganizationsClient.createInvitation).toHaveBeenCalledWith(
         'org-123',
-        invitationData
+        invitationData,
       )
     })
   })
@@ -255,11 +255,11 @@ describe('OrganizationsClient', () => {
       }
 
       mockOrganizationsClient.getInvitationByToken.mockResolvedValue(
-        mockInvitation
+        mockInvitation,
       )
 
       const invitation = await mockOrganizationsClient.getInvitationByToken(
-        'invitation-token-123'
+        'invitation-token-123',
       )
 
       expect(invitation).toMatchObject({
@@ -273,7 +273,7 @@ describe('OrganizationsClient', () => {
         inviter_name: 'Test User',
       })
       expect(mockOrganizationsClient.getInvitationByToken).toHaveBeenCalledWith(
-        'invitation-token-123'
+        'invitation-token-123',
       )
     })
   })
@@ -289,7 +289,7 @@ describe('OrganizationsClient', () => {
       mockOrganizationsClient.acceptInvitation.mockResolvedValue(mockResult)
 
       const result = await mockOrganizationsClient.acceptInvitation(
-        'invitation-token-123'
+        'invitation-token-123',
       )
 
       expect(result).toEqual({
@@ -298,7 +298,7 @@ describe('OrganizationsClient', () => {
         role: 'org_user',
       })
       expect(mockOrganizationsClient.acceptInvitation).toHaveBeenCalledWith(
-        'invitation-token-123'
+        'invitation-token-123',
       )
     })
   })
@@ -312,14 +312,14 @@ describe('OrganizationsClient', () => {
       const result = await mockOrganizationsClient.updateMemberRole(
         'org-123',
         'user-123',
-        'org_contributor'
+        'org_contributor',
       )
 
       expect(result).toEqual({ message: 'Success' })
       expect(mockOrganizationsClient.updateMemberRole).toHaveBeenCalledWith(
         'org-123',
         'user-123',
-        'org_contributor'
+        'org_contributor',
       )
     })
   })
@@ -332,13 +332,13 @@ describe('OrganizationsClient', () => {
 
       const result = await mockOrganizationsClient.removeMember(
         'org-123',
-        'user-123'
+        'user-123',
       )
 
       expect(result).toEqual({ message: 'Success' })
       expect(mockOrganizationsClient.removeMember).toHaveBeenCalledWith(
         'org-123',
-        'user-123'
+        'user-123',
       )
     })
   })

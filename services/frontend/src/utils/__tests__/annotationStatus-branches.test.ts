@@ -8,17 +8,17 @@
  */
 
 import {
-  normalizeItemId,
+  Annotation,
+  ANNOTATION_STATUS,
+  areAllItemsAnnotated,
+  DISPLAY_STATUS,
+  findNextUnannotatedItem,
+  getAnnotationStatistics,
   getItemAnnotations,
   getItemAnnotationStatus,
   getItemDisplayStatus,
-  areAllItemsAnnotated,
-  getAnnotationStatistics,
-  findNextUnannotatedItem,
   getUserAnnotationStatus,
-  ANNOTATION_STATUS,
-  DISPLAY_STATUS,
-  Annotation,
+  normalizeItemId,
   TaskItem,
 } from '../annotationStatus'
 
@@ -74,12 +74,18 @@ describe('getItemAnnotationStatus', () => {
 
   it('should return IN_PROGRESS for draft-only annotation', () => {
     const anns: Annotation[] = [{ id: '1', item_id: '1', status: 'draft' }]
-    expect(getItemAnnotationStatus('1', anns)).toBe(ANNOTATION_STATUS.IN_PROGRESS)
+    expect(getItemAnnotationStatus('1', anns)).toBe(
+      ANNOTATION_STATUS.IN_PROGRESS,
+    )
   })
 
   it('should return NOT_STARTED for annotation with unknown status', () => {
-    const anns: Annotation[] = [{ id: '1', item_id: '1', status: 'unknown' as any }]
-    expect(getItemAnnotationStatus('1', anns)).toBe(ANNOTATION_STATUS.NOT_STARTED)
+    const anns: Annotation[] = [
+      { id: '1', item_id: '1', status: 'unknown' as any },
+    ]
+    expect(getItemAnnotationStatus('1', anns)).toBe(
+      ANNOTATION_STATUS.NOT_STARTED,
+    )
   })
 })
 
@@ -174,34 +180,44 @@ describe('getUserAnnotationStatus', () => {
     const anns: Annotation[] = [
       { id: '1', item_id: '1', status: 'submitted', user_id: 'other' },
     ]
-    expect(getUserAnnotationStatus('me', '1', anns)).toBe(ANNOTATION_STATUS.NOT_STARTED)
+    expect(getUserAnnotationStatus('me', '1', anns)).toBe(
+      ANNOTATION_STATUS.NOT_STARTED,
+    )
   })
 
   it('should return COMPLETED when user has submitted annotation', () => {
     const anns: Annotation[] = [
       { id: '1', item_id: '1', status: 'submitted', user_id: 'me' },
     ]
-    expect(getUserAnnotationStatus('me', '1', anns)).toBe(ANNOTATION_STATUS.COMPLETED)
+    expect(getUserAnnotationStatus('me', '1', anns)).toBe(
+      ANNOTATION_STATUS.COMPLETED,
+    )
   })
 
   it('should return COMPLETED when user has approved annotation', () => {
     const anns: Annotation[] = [
       { id: '1', item_id: '1', status: 'approved', user_id: 'me' },
     ]
-    expect(getUserAnnotationStatus('me', '1', anns)).toBe(ANNOTATION_STATUS.COMPLETED)
+    expect(getUserAnnotationStatus('me', '1', anns)).toBe(
+      ANNOTATION_STATUS.COMPLETED,
+    )
   })
 
   it('should return IN_PROGRESS when user has draft annotation', () => {
     const anns: Annotation[] = [
       { id: '1', item_id: '1', status: 'draft', user_id: 'me' },
     ]
-    expect(getUserAnnotationStatus('me', '1', anns)).toBe(ANNOTATION_STATUS.IN_PROGRESS)
+    expect(getUserAnnotationStatus('me', '1', anns)).toBe(
+      ANNOTATION_STATUS.IN_PROGRESS,
+    )
   })
 
   it('should return NOT_STARTED for unknown annotation status', () => {
     const anns: Annotation[] = [
       { id: '1', item_id: '1', status: 'pending' as any, user_id: 'me' },
     ]
-    expect(getUserAnnotationStatus('me', '1', anns)).toBe(ANNOTATION_STATUS.NOT_STARTED)
+    expect(getUserAnnotationStatus('me', '1', anns)).toBe(
+      ANNOTATION_STATUS.NOT_STARTED,
+    )
   })
 })

@@ -9,17 +9,16 @@ import {
   type OrganizationGroup,
 } from '@/lib/api/organizations'
 import { useSlot } from '@/lib/extensions/slots'
-import { cn } from '@/lib/utils'
-import { IconPickerModal, ProjectTypeSelector } from './ProjectTypeAndIcon'
 import { defaultIconForKind } from '@/lib/projectKind'
+import { cn } from '@/lib/utils'
 import { useEffect, useState } from 'react'
+import { IconPickerModal, ProjectTypeSelector } from './ProjectTypeAndIcon'
 import {
   WizardData,
   WizardFeatures,
   WizardPublicRole,
   WizardVisibility,
 } from './types'
-
 
 interface StepProjectInfoProps {
   data: WizardData
@@ -111,7 +110,7 @@ export function StepProjectInfo({
     let cancelled = false
     if (data.visibility !== 'organization') return
     const missing = data.organizationIds.filter(
-      (orgId) => groupsByOrg[orgId] === undefined
+      (orgId) => groupsByOrg[orgId] === undefined,
     )
     if (missing.length === 0) return
     missing.forEach((orgId) => {
@@ -150,7 +149,7 @@ export function StepProjectInfo({
       const groups = groupsByOrg[orgId]
       if (groups === undefined) continue
       const memberGroups = groups.filter(
-        (group) => group.is_active && group.is_member
+        (group) => group.is_active && group.is_member,
       )
       if (memberGroups.length === 1) {
         defaults[orgId] = memberGroups[0].id
@@ -162,7 +161,12 @@ export function StepProjectInfo({
       })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data.visibility, data.organizationIds, data.organizationGroupIds, groupsByOrg])
+  }, [
+    data.visibility,
+    data.organizationIds,
+    data.organizationGroupIds,
+    groupsByOrg,
+  ])
 
   const toggleFeature = (key: keyof WizardFeatures) => {
     onChange({
@@ -192,7 +196,7 @@ export function StepProjectInfo({
     const groups = groupsByOrg[org.id] ?? []
     const isOrgAdmin = org.role === 'ORG_ADMIN'
     return groups.filter(
-      (group) => group.is_active && (isOrgAdmin || group.is_member)
+      (group) => group.is_active && (isOrgAdmin || group.is_member),
     )
   }
 
@@ -212,15 +216,23 @@ export function StepProjectInfo({
           <button
             type="button"
             onClick={() => setIconPickerOpen(true)}
-            title={t('projects.creation.wizard.step1.icon.title', 'Symbol wählen')}
+            title={t(
+              'projects.creation.wizard.step1.icon.title',
+              'Symbol wählen',
+            )}
             data-testid="project-icon-button"
             className="flex h-14 w-14 items-center justify-center rounded-xl border border-zinc-200 text-3xl transition-colors hover:border-emerald-400 hover:bg-emerald-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:border-zinc-700 dark:hover:bg-emerald-900/20"
           >
             {data.icon ||
-              defaultIconForKind(data.projectKind === 'generic' ? null : data.projectKind)}
+              defaultIconForKind(
+                data.projectKind === 'generic' ? null : data.projectKind,
+              )}
           </button>
           <span className="text-[11px] text-zinc-500 dark:text-zinc-400">
-            {t('projects.creation.wizard.step1.icon.clickToEdit', 'Klicken zum Bearbeiten')}
+            {t(
+              'projects.creation.wizard.step1.icon.clickToEdit',
+              'Klicken zum Bearbeiten',
+            )}
           </span>
         </div>
         <IconPickerModal
@@ -241,7 +253,7 @@ export function StepProjectInfo({
           <Input
             id="title"
             placeholder={t(
-              'projects.creation.wizard.step1.projectNamePlaceholder'
+              'projects.creation.wizard.step1.projectNamePlaceholder',
             )}
             value={data.title}
             onChange={(e) => onChange({ title: e.target.value })}
@@ -265,7 +277,7 @@ export function StepProjectInfo({
           <Textarea
             id="description"
             placeholder={t(
-              'projects.creation.wizard.step1.descriptionPlaceholder'
+              'projects.creation.wizard.step1.descriptionPlaceholder',
             )}
             value={data.description}
             onChange={(e) => onChange({ description: e.target.value })}
@@ -274,7 +286,10 @@ export function StepProjectInfo({
           />
         </div>
 
-        <ProjectTypeSelector projectKind={data.projectKind} onChange={onChange} />
+        <ProjectTypeSelector
+          projectKind={data.projectKind}
+          onChange={onChange}
+        />
       </div>
 
       <hr className="border-zinc-200 dark:border-zinc-700" />
@@ -296,9 +311,7 @@ export function StepProjectInfo({
               data-testid={`wizard-feature-${key}`}
             >
               <div>
-                <Label>
-                  {t(labelKey)}
-                </Label>
+                <Label>{t(labelKey)}</Label>
                 <p className="text-sm text-zinc-500 dark:text-zinc-400">
                   {t(descriptionKey)}
                 </p>
@@ -332,9 +345,7 @@ export function StepProjectInfo({
 
       {/* Visibility */}
       <div className="space-y-3">
-        <Label>
-          {t('projects.creation.wizard.step1.visibilityLabel')}
-        </Label>
+        <Label>{t('projects.creation.wizard.step1.visibilityLabel')}</Label>
         <p className="text-sm text-zinc-500 dark:text-zinc-400">
           {t('projects.creation.wizard.step1.visibilityDescription')}
         </p>
@@ -407,14 +418,11 @@ export function StepProjectInfo({
               <p className="text-sm text-zinc-500 dark:text-zinc-400">
                 {t(
                   'projects.creation.wizard.step1.noOrganizationsAvailable',
-                  'No organizations available.'
+                  'No organizations available.',
                 )}
               </p>
             ) : (
-              <div
-                className="space-y-2"
-                data-testid="wizard-organization-list"
-              >
+              <div className="space-y-2" data-testid="wizard-organization-list">
                 {orgs.map((org) => {
                   const isChecked = data.organizationIds.includes(org.id)
                   const groupOptions = isChecked ? groupOptionsFor(org) : []
@@ -437,14 +445,16 @@ export function StepProjectInfo({
                       </label>
                       {isChecked && groupOptions.length > 0 && (
                         <div
-                          className="ml-7 mt-2"
+                          className="mt-2 ml-7"
                           data-testid={`wizard-organization-group-section-${org.id}`}
                         >
                           <label
                             htmlFor={`wizard-organization-group-${org.id}`}
                             className="block text-xs font-medium text-zinc-600 dark:text-zinc-400"
                           >
-                            {t('projects.creation.wizard.step1.groupScopeLabel')}
+                            {t(
+                              'projects.creation.wizard.step1.groupScopeLabel',
+                            )}
                           </label>
                           <select
                             id={`wizard-organization-group-${org.id}`}
@@ -457,7 +467,7 @@ export function StepProjectInfo({
                           >
                             <option value="">
                               {t(
-                                'projects.creation.wizard.step1.groupScopeOrgWide'
+                                'projects.creation.wizard.step1.groupScopeOrgWide',
                               )}
                             </option>
                             {groupOptions.map((group) => (
@@ -467,9 +477,7 @@ export function StepProjectInfo({
                             ))}
                           </select>
                           <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                            {t(
-                              'projects.creation.wizard.step1.groupScopeHelp'
-                            )}
+                            {t('projects.creation.wizard.step1.groupScopeHelp')}
                           </p>
                         </div>
                       )}
@@ -491,9 +499,7 @@ export function StepProjectInfo({
             className="ml-6 space-y-2"
             data-testid="wizard-public-role-section"
           >
-            <Label>
-              {t('projects.creation.wizard.step1.publicRoleLabel')}
-            </Label>
+            <Label>{t('projects.creation.wizard.step1.publicRoleLabel')}</Label>
             <p className="text-sm text-zinc-500 dark:text-zinc-400">
               {t('projects.creation.wizard.step1.publicRoleDescription')}
             </p>
@@ -508,12 +514,12 @@ export function StepProjectInfo({
                     <div>
                       <Label>
                         {t(
-                          `projects.creation.wizard.step1.publicRole.${role.toLowerCase()}`
+                          `projects.creation.wizard.step1.publicRole.${role.toLowerCase()}`,
                         )}
                       </Label>
                       <p className="text-sm text-zinc-500 dark:text-zinc-400">
                         {t(
-                          `projects.creation.wizard.step1.publicRole.${role.toLowerCase()}Description`
+                          `projects.creation.wizard.step1.publicRole.${role.toLowerCase()}Description`,
                         )}
                       </p>
                     </div>
@@ -526,7 +532,7 @@ export function StepProjectInfo({
                       data-testid={`wizard-public-role-${role.toLowerCase()}-radio`}
                     />
                   </label>
-                )
+                ),
               )}
             </div>
           </div>

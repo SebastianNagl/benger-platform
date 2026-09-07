@@ -47,13 +47,19 @@ export interface PrimarySelection {
 export function selectPrimary(
   snapshot: ReportSnapshot,
   chartsConfig: ReportChartsConfig | undefined,
-  visibleConfigs: ReportConfigRef[] = selectVisibleConfigs(snapshot, chartsConfig),
+  visibleConfigs: ReportConfigRef[] = selectVisibleConfigs(
+    snapshot,
+    chartsConfig,
+  ),
 ): PrimarySelection {
   const metric = chartsConfig?.primary_metric ?? snapshot.primary_metric ?? null
   if (!metric) return { metric: null, configId: null, gradeMetric: null }
 
   const candidates = configsForMetric(visibleConfigs, metric)
-  const preferred = [chartsConfig?.primary_config_id, snapshot.primary_config_id]
+  const preferred = [
+    chartsConfig?.primary_config_id,
+    snapshot.primary_config_id,
+  ]
   let configId: string | null = null
   for (const id of preferred) {
     if (id && candidates.some((c) => c.id === id)) {
@@ -143,7 +149,11 @@ export function otherMetricColumns(
       seen.add(key)
       if (key === primaryMetric || key === gradeMetric) continue
       if (isHiddenMetricKey(key)) continue
-      if (Array.isArray(visibleMetrics) && visibleMetrics.length > 0 && !visibleMetrics.includes(key)) {
+      if (
+        Array.isArray(visibleMetrics) &&
+        visibleMetrics.length > 0 &&
+        !visibleMetrics.includes(key)
+      ) {
         continue
       }
       columns.push(key)
@@ -183,8 +193,10 @@ export function binLabel(
 ): string {
   const lower = bins[index]
   if (scale === '0-18') return String(lower)
-  const upper = index + 1 < bins.length ? bins[index + 1] : scaleUpper(scale, bins)
-  if (scale === '0-1') return `${Math.round(lower * 100)}–${Math.round(upper * 100)} %`
+  const upper =
+    index + 1 < bins.length ? bins[index + 1] : scaleUpper(scale, bins)
+  if (scale === '0-1')
+    return `${Math.round(lower * 100)}–${Math.round(upper * 100)} %`
   return `${trim(lower)}–${trim(upper)}`
 }
 
@@ -205,7 +217,9 @@ function trim(value: number): string {
  * Per-bin counts for both kinds plus each kind's share of its own total, so
  * groups of different size compare on one axis.
  */
-export function toPercentSeries(distribution: ReportDistribution): PercentBin[] {
+export function toPercentSeries(
+  distribution: ReportDistribution,
+): PercentBin[] {
   const { bins, by_kind, scale } = distribution
   const modelTotal = by_kind.model.reduce((a, b) => a + b, 0)
   const humanTotal = by_kind.human.reduce((a, b) => a + b, 0)

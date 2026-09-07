@@ -35,16 +35,13 @@ const translations: Record<string, string> = {
   'annotation.comparison.tabs.editYourAnnotation': 'Edit Your Annotation',
   'annotation.comparison.tabs.updateExisting':
     'Update your existing annotation',
-  'annotation.comparison.tabs.addNew':
-    'Add a new annotation to this task',
+  'annotation.comparison.tabs.addNew': 'Add a new annotation to this task',
   'annotation.comparison.empty.noAnnotationsYet':
     'This task has no annotations yet. Start annotating below.',
   'annotation.comparison.empty.noAnnotationsAvailable':
     'No annotations available',
-  'annotation.comparison.messages.projectLoadFailed':
-    'Failed to load project',
-  'annotation.comparison.messages.loadFailed':
-    'Failed to load annotations',
+  'annotation.comparison.messages.projectLoadFailed': 'Failed to load project',
+  'annotation.comparison.messages.loadFailed': 'Failed to load annotations',
   'annotation.comparison.messages.annotationSubmitted':
     'Annotation submitted successfully!',
   'annotation.comparison.messages.annotationUpdated':
@@ -65,13 +62,10 @@ const translations: Record<string, string> = {
   'annotation.comparison.info.lastUpdated': 'Last updated: {{date}}',
   'annotation.comparison.info.timeSpent': 'Time spent: {{seconds}}s',
   'annotation.comparison.info.confidence': 'Confidence: {{percent}}%',
-  'annotation.comparison.info.showingVersions':
-    'Showing {{count}} versions',
-  'annotation.comparison.info.versionLabel':
-    'Version {{version}} - {{date}}',
+  'annotation.comparison.info.showingVersions': 'Showing {{count}} versions',
+  'annotation.comparison.info.versionLabel': 'Version {{version}} - {{date}}',
   'annotation.comparison.info.annotatorNotes': 'Annotator Notes',
-  'annotation.comparison.info.annotatorCount':
-    '{{count}} annotator{{plural}}',
+  'annotation.comparison.info.annotatorCount': '{{count}} annotator{{plural}}',
   'annotation.comparison.info.totalAnnotations':
     '{{count}} total annotation{{plural}}',
   'annotation.comparison.buttons.addMyAnnotation': 'Add My Annotation',
@@ -185,15 +179,15 @@ describe('TaskAnnotationComparisonModal', () => {
           isOpen={true}
           onClose={jest.fn()}
           projectId="project-1"
-        />
+        />,
       )
 
       await waitFor(() => {
         expect(screen.getByText('Create New Annotation')).toBeInTheDocument()
         expect(
           screen.getByText(
-            'This task has no annotations yet. Start annotating below.'
-          )
+            'This task has no annotations yet. Start annotating below.',
+          ),
         ).toBeInTheDocument()
         expect(screen.getByTestId('annotation-creator')).toBeInTheDocument()
       })
@@ -207,7 +201,7 @@ describe('TaskAnnotationComparisonModal', () => {
           isOpen={true}
           onClose={onClose}
           projectId="project-1"
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -231,7 +225,7 @@ describe('TaskAnnotationComparisonModal', () => {
           isOpen={true}
           onClose={jest.fn()}
           projectId="project-1"
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -241,7 +235,7 @@ describe('TaskAnnotationComparisonModal', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('Annotation submitted successfully!')
+          screen.getByText('Annotation submitted successfully!'),
         ).toBeInTheDocument()
       })
     })
@@ -250,7 +244,7 @@ describe('TaskAnnotationComparisonModal', () => {
   describe('Task with Annotations', () => {
     beforeEach(() => {
       ;(projectsAPI.getTaskAnnotations as jest.Mock).mockResolvedValue(
-        mockAnnotations
+        mockAnnotations,
       )
     })
 
@@ -261,7 +255,7 @@ describe('TaskAnnotationComparisonModal', () => {
           isOpen={true}
           onClose={jest.fn()}
           projectId="project-1"
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -279,7 +273,7 @@ describe('TaskAnnotationComparisonModal', () => {
           isOpen={true}
           onClose={jest.fn()}
           projectId="project-1"
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -307,7 +301,7 @@ describe('TaskAnnotationComparisonModal', () => {
           isOpen={true}
           onClose={jest.fn()}
           projectId="project-1"
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -324,7 +318,7 @@ describe('TaskAnnotationComparisonModal', () => {
           isOpen={true}
           onClose={jest.fn()}
           projectId="project-1"
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -343,7 +337,7 @@ describe('TaskAnnotationComparisonModal', () => {
           isOpen={true}
           onClose={onClose}
           projectId="project-1"
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -361,7 +355,7 @@ describe('TaskAnnotationComparisonModal', () => {
           isOpen={false}
           onClose={jest.fn()}
           projectId="project-1"
-        />
+        />,
       )
 
       expect(container.firstChild).toBeNull()
@@ -374,7 +368,7 @@ describe('TaskAnnotationComparisonModal', () => {
           isOpen={true}
           onClose={jest.fn()}
           projectId="project-1"
-        />
+        />,
       )
 
       expect(container.firstChild).toBeNull()
@@ -384,7 +378,7 @@ describe('TaskAnnotationComparisonModal', () => {
   describe('Error Handling', () => {
     it('should display error message when annotation fetch fails', async () => {
       ;(projectsAPI.getTaskAnnotations as jest.Mock).mockRejectedValue(
-        new Error('Failed to fetch')
+        new Error('Failed to fetch'),
       )
 
       render(
@@ -393,12 +387,12 @@ describe('TaskAnnotationComparisonModal', () => {
           isOpen={true}
           onClose={jest.fn()}
           projectId="project-1"
-        />
+        />,
       )
 
       await waitFor(() => {
         expect(
-          screen.getByText('Failed to load annotations')
+          screen.getByText('Failed to load annotations'),
         ).toBeInTheDocument()
         expect(screen.getByText('Retry')).toBeInTheDocument()
       })
@@ -415,7 +409,7 @@ describe('TaskAnnotationComparisonModal', () => {
           isOpen={true}
           onClose={jest.fn()}
           projectId="project-1"
-        />
+        />,
       )
 
       const retryButton = await screen.findByText('Retry')
@@ -427,7 +421,7 @@ describe('TaskAnnotationComparisonModal', () => {
       // clean-main flake). The intent is only "Retry triggered a refetch".
       await waitFor(() => {
         expect(
-          (projectsAPI.getTaskAnnotations as jest.Mock).mock.calls.length
+          (projectsAPI.getTaskAnnotations as jest.Mock).mock.calls.length,
         ).toBeGreaterThanOrEqual(2)
       })
     })
@@ -441,7 +435,7 @@ describe('TaskAnnotationComparisonModal', () => {
           isOpen={true}
           onClose={jest.fn()}
           projectId="project-1"
-        />
+        />,
       )
 
       await waitFor(() => {

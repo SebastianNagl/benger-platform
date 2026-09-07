@@ -24,7 +24,7 @@ export function Alert({
       className={cn(
         'rounded-md border px-4 py-3',
         variants[variant],
-        className
+        className,
       )}
       {...props}
     >

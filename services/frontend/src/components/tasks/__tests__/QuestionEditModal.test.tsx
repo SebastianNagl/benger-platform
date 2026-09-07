@@ -44,7 +44,7 @@ describe('QuestionEditModal', () => {
           question={mockQuestion}
           onSave={mockOnSave}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       expect(screen.getByTestId('question-edit-modal')).toBeInTheDocument()
@@ -58,11 +58,11 @@ describe('QuestionEditModal', () => {
           question={mockQuestion}
           onSave={mockOnSave}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       expect(
-        screen.queryByTestId('question-edit-modal')
+        screen.queryByTestId('question-edit-modal'),
       ).not.toBeInTheDocument()
     })
 
@@ -73,18 +73,18 @@ describe('QuestionEditModal', () => {
           question={mockQuestion}
           onSave={mockOnSave}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       expect(screen.getByDisplayValue('What is the law?')).toBeInTheDocument()
       expect(
-        screen.getByDisplayValue('The law is a system of rules')
+        screen.getByDisplayValue('The law is a system of rules'),
       ).toBeInTheDocument()
       expect(
-        screen.getByDisplayValue('Laws govern society')
+        screen.getByDisplayValue('Laws govern society'),
       ).toBeInTheDocument()
       expect(
-        screen.getByDisplayValue('Legal system basics')
+        screen.getByDisplayValue('Legal system basics'),
       ).toBeInTheDocument()
     })
 
@@ -100,11 +100,11 @@ describe('QuestionEditModal', () => {
           question={questionWithoutContext}
           onSave={mockOnSave}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       const contextInput = screen.getByPlaceholderText(
-        'Enter additional context...'
+        'Enter additional context...',
       )
       expect(contextInput).toHaveValue('')
     })
@@ -121,12 +121,12 @@ describe('QuestionEditModal', () => {
           question={questionWithoutAnswers}
           onSave={mockOnSave}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       // Should have at least one empty answer field
       expect(
-        screen.getByPlaceholderText('Reference answer 1...')
+        screen.getByPlaceholderText('Reference answer 1...'),
       ).toBeInTheDocument()
     })
 
@@ -137,7 +137,7 @@ describe('QuestionEditModal', () => {
           question={mockQuestion}
           onSave={mockOnSave}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       expect(screen.getByDisplayValue('What is the law?')).toBeInTheDocument()
@@ -153,7 +153,7 @@ describe('QuestionEditModal', () => {
           question={newQuestion}
           onSave={mockOnSave}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       expect(screen.getByDisplayValue('What is justice?')).toBeInTheDocument()
@@ -169,7 +169,7 @@ describe('QuestionEditModal', () => {
           question={mockQuestion}
           onSave={mockOnSave}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       const questionInput = screen.getByTestId('question-input')
@@ -187,7 +187,7 @@ describe('QuestionEditModal', () => {
           question={mockQuestion}
           onSave={mockOnSave}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       const contextInput = screen.getByDisplayValue('Legal system basics')
@@ -205,7 +205,7 @@ describe('QuestionEditModal', () => {
           question={mockQuestion}
           onSave={mockOnSave}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       const firstAnswer = screen.getByTestId('reference-answer-0')
@@ -225,7 +225,7 @@ describe('QuestionEditModal', () => {
           question={mockQuestion}
           onSave={mockOnSave}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       expect(screen.getAllByPlaceholderText(/Reference answer/)).toHaveLength(2)
@@ -235,7 +235,7 @@ describe('QuestionEditModal', () => {
 
       expect(screen.getAllByPlaceholderText(/Reference answer/)).toHaveLength(3)
       expect(
-        screen.getByPlaceholderText('Reference answer 3...')
+        screen.getByPlaceholderText('Reference answer 3...'),
       ).toBeInTheDocument()
     })
 
@@ -247,7 +247,7 @@ describe('QuestionEditModal', () => {
           question={mockQuestion}
           onSave={mockOnSave}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       expect(screen.getAllByPlaceholderText(/Reference answer/)).toHaveLength(2)
@@ -271,7 +271,7 @@ describe('QuestionEditModal', () => {
           question={questionWithOneAnswer}
           onSave={mockOnSave}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       const removeButton = screen.queryByTitle('Remove answer')
@@ -286,7 +286,7 @@ describe('QuestionEditModal', () => {
           question={mockQuestion}
           onSave={mockOnSave}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       // Remove first answer
@@ -310,7 +310,7 @@ describe('QuestionEditModal', () => {
           question={mockQuestion}
           onSave={mockOnSave}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       const questionInput = screen.getByTestId('question-input')
@@ -334,7 +334,7 @@ describe('QuestionEditModal', () => {
           question={mockQuestion}
           onSave={mockOnSave}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       const answers = screen.getAllByTestId(/reference-answer-/)
@@ -347,7 +347,7 @@ describe('QuestionEditModal', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('At least one reference answer is required')
+          screen.getByText('At least one reference answer is required'),
         ).toBeInTheDocument()
       })
 
@@ -362,7 +362,7 @@ describe('QuestionEditModal', () => {
           question={mockQuestion}
           onSave={mockOnSave}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       const saveButton = screen.getByTestId('save-question-button')
@@ -386,7 +386,7 @@ describe('QuestionEditModal', () => {
           question={mockQuestion}
           onSave={mockOnSave}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       // Add a new empty answer
@@ -414,7 +414,7 @@ describe('QuestionEditModal', () => {
           question={mockQuestion}
           onSave={mockOnSave}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       const questionInput = screen.getByTestId('question-input')
@@ -446,7 +446,7 @@ describe('QuestionEditModal', () => {
           question={mockQuestion}
           onSave={mockOnSave}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       const contextInput = screen.getByDisplayValue('Legal system basics')
@@ -473,7 +473,7 @@ describe('QuestionEditModal', () => {
           question={mockQuestion}
           onSave={mockOnSave}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       const firstAnswer = screen.getByTestId('reference-answer-0')
@@ -500,7 +500,7 @@ describe('QuestionEditModal', () => {
           question={mockQuestion}
           onSave={mockOnSave}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       const cancelButton = screen.getByText('Cancel')
@@ -517,7 +517,7 @@ describe('QuestionEditModal', () => {
           question={mockQuestion}
           onSave={mockOnSave}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       const closeButton = screen.getByRole('button', { name: '' })
@@ -533,7 +533,7 @@ describe('QuestionEditModal', () => {
           question={mockQuestion}
           onSave={mockOnSave}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       expect(screen.getByText('Save Changes')).toBeInTheDocument()
@@ -549,7 +549,7 @@ describe('QuestionEditModal', () => {
           question={null}
           onSave={mockOnSave}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       expect(screen.getByTestId('question-edit-modal')).toBeInTheDocument()
@@ -562,7 +562,7 @@ describe('QuestionEditModal', () => {
           question={mockQuestion}
           onSave={mockOnSave}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       expect(screen.getByDisplayValue('What is the law?')).toBeInTheDocument()
@@ -574,7 +574,7 @@ describe('QuestionEditModal', () => {
           question={mockQuestion}
           onSave={mockOnSave}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       // Reopen with new question
@@ -590,7 +590,7 @@ describe('QuestionEditModal', () => {
           question={newQuestion}
           onSave={mockOnSave}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       expect(screen.getByDisplayValue('New question')).toBeInTheDocument()
@@ -605,7 +605,7 @@ describe('QuestionEditModal', () => {
           question={mockQuestion}
           onSave={mockOnSave}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       // Create validation error
@@ -626,7 +626,7 @@ describe('QuestionEditModal', () => {
           question={mockQuestion}
           onSave={mockOnSave}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       rerender(
@@ -635,7 +635,7 @@ describe('QuestionEditModal', () => {
           question={mockQuestion}
           onSave={mockOnSave}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       expect(screen.queryByText('Question is required')).not.toBeInTheDocument()
@@ -653,7 +653,7 @@ describe('QuestionEditModal', () => {
           question={questionWithoutId}
           onSave={mockOnSave}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       // Should still render, title without id
@@ -670,7 +670,7 @@ describe('QuestionEditModal', () => {
           question={mockQuestion}
           onSave={mockOnSave}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       const firstAnswer = screen.getByTestId('reference-answer-0')
@@ -694,7 +694,7 @@ describe('QuestionEditModal', () => {
           question={mockQuestion}
           onSave={mockOnSave}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       // Add third answer

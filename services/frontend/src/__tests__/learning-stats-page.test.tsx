@@ -6,10 +6,10 @@
  */
 
 import LearningStatsPage from '@/app/learning-stats/page'
+import { registerSlot } from '@/lib/extensions/slots'
 import '@testing-library/jest-dom'
 import { render, screen } from '@testing-library/react'
 import React from 'react'
-import { registerSlot } from '@/lib/extensions/slots'
 
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
@@ -35,7 +35,7 @@ describe('Learning stats page', () => {
     render(<LearningStatsPage />)
     expect(screen.getByTestId('analytics-body')).toBeInTheDocument()
     expect(
-      screen.queryByTestId('learning-stats-unavailable')
+      screen.queryByTestId('learning-stats-unavailable'),
     ).not.toBeInTheDocument()
   })
 })

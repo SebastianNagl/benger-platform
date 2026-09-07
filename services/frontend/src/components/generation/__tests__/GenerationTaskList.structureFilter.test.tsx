@@ -35,7 +35,10 @@ jest.mock('@/components/shared/Select', () => {
       const walk = (node: any) => {
         React.Children.forEach(node?.props?.children ?? node, (child: any) => {
           if (!child || typeof child !== 'object') return
-          if (child.props?.value !== undefined && child.type?.displayName !== 'SelectValue') {
+          if (
+            child.props?.value !== undefined &&
+            child.type?.displayName !== 'SelectValue'
+          ) {
             options.push(child)
           }
           if (child.props?.children) walk(child)
@@ -59,7 +62,9 @@ jest.mock('@/components/shared/Select', () => {
     SelectTrigger: ({ children }: any) => <>{children}</>,
     SelectValue: () => null,
     SelectContent: ({ children }: any) => <>{children}</>,
-    SelectItem: ({ value, children }: any) => <option value={value}>{children}</option>,
+    SelectItem: ({ value, children }: any) => (
+      <option value={value}>{children}</option>
+    ),
   }
 })
 
@@ -153,10 +158,14 @@ describe('GenerationTaskList structure filter', () => {
     const user = userEvent.setup()
     render(<GenerationTaskList projectId="p1" />)
     await waitFor(() =>
-      expect(mockGet).toHaveBeenCalledWith(expect.stringContaining('/task-status'))
+      expect(mockGet).toHaveBeenCalledWith(
+        expect.stringContaining('/task-status'),
+      ),
     )
     await openFilterPanel(user)
-    expect(await screen.findByText('LEXam Open (DE) (lexam-open)')).toBeInTheDocument()
+    expect(
+      await screen.findByText('LEXam Open (DE) (lexam-open)'),
+    ).toBeInTheDocument()
     expect(screen.getByText('Falllösung (fallloesung)')).toBeInTheDocument()
   })
 
@@ -165,14 +174,16 @@ describe('GenerationTaskList structure filter', () => {
     const user = userEvent.setup()
     render(<GenerationTaskList projectId="p1" />)
     await waitFor(() =>
-      expect(mockGet).toHaveBeenCalledWith(expect.stringContaining('/task-status'))
+      expect(mockGet).toHaveBeenCalledWith(
+        expect.stringContaining('/task-status'),
+      ),
     )
     await openFilterPanel(user)
     await screen.findByText('LEXam Open (DE) (lexam-open)')
 
     const selects = screen.getAllByTestId('structure-or-status-select')
     const structureSelect = selects.find((s) =>
-      [...s.querySelectorAll('option')].some((o) => o.value === 'lexam-open')
+      [...s.querySelectorAll('option')].some((o) => o.value === 'lexam-open'),
     ) as HTMLSelectElement
     await user.selectOptions(structureSelect, 'lexam-open')
 
@@ -181,8 +192,9 @@ describe('GenerationTaskList structure filter', () => {
       expect(
         calls.some(
           (u: string) =>
-            u.includes('/task-status') && u.includes('structure_key=lexam-open')
-        )
+            u.includes('/task-status') &&
+            u.includes('structure_key=lexam-open'),
+        ),
       ).toBe(true)
     })
   })
@@ -192,9 +204,13 @@ describe('GenerationTaskList structure filter', () => {
     const user = userEvent.setup()
     render(<GenerationTaskList projectId="p1" />)
     await waitFor(() =>
-      expect(mockGet).toHaveBeenCalledWith(expect.stringContaining('/task-status'))
+      expect(mockGet).toHaveBeenCalledWith(
+        expect.stringContaining('/task-status'),
+      ),
     )
     await openFilterPanel(user)
-    expect(screen.queryByText('Falllösung (fallloesung)')).not.toBeInTheDocument()
+    expect(
+      screen.queryByText('Falllösung (fallloesung)'),
+    ).not.toBeInTheDocument()
   })
 })

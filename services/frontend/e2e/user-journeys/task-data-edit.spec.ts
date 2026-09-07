@@ -57,7 +57,7 @@ const LABEL_CONFIG =
 async function seedProjectWithTask(
   seeder: APISeedingHelper,
   namePrefix: string,
-  taskText: string
+  taskText: string,
 ): Promise<{ projectId: string; taskId: string }> {
   const projectId = await seeder.createProject(`${namePrefix} ${Date.now()}`)
   await seeder.setLabelConfig(projectId, LABEL_CONFIG)
@@ -76,7 +76,7 @@ async function seedProjectWithTask(
 async function editValueInOpenModal(
   page: Page,
   originalText: string,
-  editedText: string
+  editedText: string,
 ) {
   // Don't gate on the Dialog ROOT's visibility: HeadlessUI's root div is a
   // zero-size positioning wrapper that Playwright reports as hidden even
@@ -147,7 +147,7 @@ test.describe('Task Data Edit Modal (#159)', () => {
       const seeded = await seedProjectWithTask(
         seeder,
         'Task Data Edit Project Tab',
-        originalText
+        originalText,
       )
       projectId = seeded.projectId
 
@@ -208,7 +208,7 @@ test.describe('Task Data Edit Modal (#159)', () => {
       const seeded = await seedProjectWithTask(
         seeder,
         'Task Data Edit Global Data',
-        originalText
+        originalText,
       )
       projectId = seeded.projectId
 
@@ -263,13 +263,14 @@ test.describe('Task Data Edit Modal (#159)', () => {
     const taskText = `${marker} read only`
 
     let projectId: string | null = null
-    let annotatorContext: Awaited<ReturnType<typeof browser.newContext>> | null =
-      null
+    let annotatorContext: Awaited<
+      ReturnType<typeof browser.newContext>
+    > | null = null
     try {
       const seeded = await seedProjectWithTask(
         seeder,
         'Task Data Edit Annotator View',
-        taskText
+        taskText,
       )
       projectId = seeded.projectId
 
@@ -297,7 +298,7 @@ test.describe('Task Data Edit Modal (#159)', () => {
       const annotatorPage = await annotatorContext.newPage()
       // Block dev auto-login (admin) so the annotator login below sticks.
       await annotatorPage.addInitScript(() =>
-        sessionStorage.setItem('e2e_test_mode', 'true')
+        sessionStorage.setItem('e2e_test_mode', 'true'),
       )
       const annotatorHelpers = new TestHelpers(annotatorPage)
       await annotatorHelpers.login('annotator', 'admin')
@@ -312,7 +313,9 @@ test.describe('Task Data Edit Modal (#159)', () => {
       // The table must actually render for the annotator — an access error
       // or redirect here would prove nothing about the pencil.
       await annotatorPage.goto(`${BASE_URL}/projects/${projectId}/data`)
-      const row = annotatorPage.locator('tbody tr').filter({ hasText: taskText })
+      const row = annotatorPage
+        .locator('tbody tr')
+        .filter({ hasText: taskText })
       await row.waitFor({ state: 'visible', timeout: 45000 })
 
       // The view (eye) affordance is there for everyone...
@@ -322,7 +325,7 @@ test.describe('Task Data Edit Modal (#159)', () => {
       await expect(
         annotatorPage
           .locator('thead th')
-          .filter({ hasText: /^(View|Ansicht)$/ })
+          .filter({ hasText: /^(View|Ansicht)$/ }),
       ).toHaveCount(1)
 
       // ...but the edit pencil (and its column header) must not be.
@@ -330,7 +333,7 @@ test.describe('Task Data Edit Modal (#159)', () => {
       await expect(
         annotatorPage
           .locator('thead th')
-          .filter({ hasText: /^(Edit|Bearbeiten)$/ })
+          .filter({ hasText: /^(Edit|Bearbeiten)$/ }),
       ).toHaveCount(0)
       console.log('Annotator: table rendered, no edit pencil present')
 

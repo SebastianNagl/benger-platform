@@ -48,7 +48,12 @@ jest.mock('@/lib/api/client', () => ({
 }))
 
 jest.mock('@/lib/utils/logger', () => ({
-  logger: { debug: jest.fn(), error: jest.fn(), warn: jest.fn(), info: jest.fn() },
+  logger: {
+    debug: jest.fn(),
+    error: jest.fn(),
+    warn: jest.fn(),
+    info: jest.fn(),
+  },
 }))
 
 // Child visualization components — render their props as testable DOM so
@@ -61,7 +66,13 @@ jest.mock('@/components/evaluation/ConfusionMatrixChart', () => ({
 }))
 
 jest.mock('@/components/evaluation/JudgeAgreementHeatmap', () => ({
-  JudgeAgreementHeatmap: ({ judgeModelIds, metric, scoreType, pairwise, fleissKappa }: any) => (
+  JudgeAgreementHeatmap: ({
+    judgeModelIds,
+    metric,
+    scoreType,
+    pairwise,
+    fleissKappa,
+  }: any) => (
     <div
       data-testid="judge-agreement-heatmap"
       data-judges={(judgeModelIds || []).join(',')}
@@ -126,7 +137,12 @@ jest.mock('@/components/shared/Breadcrumb', () => ({
 
 jest.mock('@/components/shared/Button', () => ({
   Button: ({ children, onClick, disabled, variant, className }: any) => (
-    <button onClick={onClick} disabled={disabled} data-variant={variant} className={className}>
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      data-variant={variant}
+      className={className}
+    >
       {children}
     </button>
   ),
@@ -222,7 +238,7 @@ const baseSamples = {
 
 function renderPage() {
   return render(
-    <EvaluationDashboard params={Promise.resolve({ id: 'eval-1' })} />
+    <EvaluationDashboard params={Promise.resolve({ id: 'eval-1' })} />,
   )
 }
 
@@ -233,17 +249,25 @@ describe('EvaluationDashboard ([id] page)', () => {
     ;(useI18n as jest.Mock).mockReturnValue({ t: mockT })
     ;(useToast as jest.Mock).mockReturnValue({ addToast: mockAddToast })
 
-    ;(apiClient.evaluations.getResults as jest.Mock).mockResolvedValue(baseEvaluation)
-    ;(apiClient.evaluations.getSamples as jest.Mock).mockResolvedValue(baseSamples)
-    ;(apiClient.evaluations.getConfusionMatrix as jest.Mock).mockResolvedValue(null)
-    ;(apiClient.get as jest.Mock).mockResolvedValue({ data: { buckets: [1, 2, 3] } })
+    ;(apiClient.evaluations.getResults as jest.Mock).mockResolvedValue(
+      baseEvaluation,
+    )
+    ;(apiClient.evaluations.getSamples as jest.Mock).mockResolvedValue(
+      baseSamples,
+    )
+    ;(apiClient.evaluations.getConfusionMatrix as jest.Mock).mockResolvedValue(
+      null,
+    )
+    ;(apiClient.get as jest.Mock).mockResolvedValue({
+      data: { buckets: [1, 2, 3] },
+    })
     ;(apiClient.post as jest.Mock).mockResolvedValue({})
   })
 
   describe('Loading and not-found', () => {
     it('shows a spinner before the evaluation resolves', () => {
       ;(apiClient.evaluations.getResults as jest.Mock).mockReturnValue(
-        new Promise(() => {})
+        new Promise(() => {}),
       )
       renderPage()
       expect(screen.getByTestId('loading-spinner')).toBeInTheDocument()
@@ -255,7 +279,7 @@ describe('EvaluationDashboard ([id] page)', () => {
       renderPage()
       await waitFor(() => {
         expect(
-          screen.getByText('evaluation.human.results.noResults')
+          screen.getByText('evaluation.human.results.noResults'),
         ).toBeInTheDocument()
       })
       await user.click(screen.getByText('evaluation.human.preference.next'))
@@ -264,13 +288,13 @@ describe('EvaluationDashboard ([id] page)', () => {
 
     it('shows an error toast when the evaluation fails to load', async () => {
       ;(apiClient.evaluations.getResults as jest.Mock).mockRejectedValue(
-        new Error('load failed')
+        new Error('load failed'),
       )
       renderPage()
       await waitFor(() => {
         expect(mockAddToast).toHaveBeenCalledWith(
           'evaluation.human.preference.saveFailed',
-          'error'
+          'error',
         )
       })
     })
@@ -338,9 +362,7 @@ describe('EvaluationDashboard ([id] page)', () => {
       })
       renderPage()
       await waitFor(() => {
-        expect(
-          screen.getByText('Eingeschränkt auf:')
-        ).toBeInTheDocument()
+        expect(screen.getByText('Eingeschränkt auf:')).toBeInTheDocument()
       })
       // annotator display rendered in the scope summary
       expect(screen.getByText(/Alice/)).toBeInTheDocument()
@@ -350,7 +372,7 @@ describe('EvaluationDashboard ([id] page)', () => {
       renderPage()
       await waitFor(() => {
         expect(apiClient.get).toHaveBeenCalledWith(
-          '/evaluations/eval-1/metrics/exact_match/distribution'
+          '/evaluations/eval-1/metrics/exact_match/distribution',
         )
       })
     })
@@ -402,7 +424,9 @@ describe('EvaluationDashboard ([id] page)', () => {
       })
       renderPage()
       await waitFor(() => {
-        expect(screen.getByText('evaluation.human.results.detailed')).toBeInTheDocument()
+        expect(
+          screen.getByText('evaluation.human.results.detailed'),
+        ).toBeInTheDocument()
       })
       await user.click(screen.getByText('evaluation.human.results.detailed'))
 
@@ -410,7 +434,9 @@ describe('EvaluationDashboard ([id] page)', () => {
       expect(table).toHaveAttribute('data-sample-count', '1')
       await waitFor(() => {
         const consistency = JSON.parse(
-          screen.getByTestId('sample-results-table').getAttribute('data-consistency') || '{}'
+          screen
+            .getByTestId('sample-results-table')
+            .getAttribute('data-consistency') || '{}',
         )
         expect(consistency['task-1']).toEqual({
           n_runs: 3,
@@ -425,13 +451,19 @@ describe('EvaluationDashboard ([id] page)', () => {
       const user = userEvent.setup()
       renderPage()
       await waitFor(() => {
-        expect(screen.getByText('evaluation.human.results.detailed')).toBeInTheDocument()
+        expect(
+          screen.getByText('evaluation.human.results.detailed'),
+        ).toBeInTheDocument()
       })
       await user.click(screen.getByText('evaluation.human.results.detailed'))
       await waitFor(() => {
         expect(apiClient.post).toHaveBeenCalledWith(
           '/evaluations/projects/project-1/statistics',
-          { metrics: ['exact_match', 'f1_score'], aggregation: 'model', methods: ['ci'] }
+          {
+            metrics: ['exact_match', 'f1_score'],
+            aggregation: 'model',
+            methods: ['ci'],
+          },
         )
       })
     })
@@ -443,23 +475,27 @@ describe('EvaluationDashboard ([id] page)', () => {
       renderPage()
       await waitFor(() => {
         expect(
-          screen.getByText('evaluation.human.results.distribution')
+          screen.getByText('evaluation.human.results.distribution'),
         ).toBeInTheDocument()
       })
-      await user.click(screen.getByText('evaluation.human.results.distribution'))
+      await user.click(
+        screen.getByText('evaluation.human.results.distribution'),
+      )
 
-      expect(await screen.findByTestId('metric-distribution-chart')).toBeInTheDocument()
+      expect(
+        await screen.findByTestId('metric-distribution-chart'),
+      ).toBeInTheDocument()
 
       const select = screen.getByRole('combobox')
       // The shared Select mock pushes <option>s in via an effect — wait for
       // the f1_score option to mount before driving the change.
       await waitFor(() =>
-        expect(within(select).getByText('f1_score')).toBeInTheDocument()
+        expect(within(select).getByText('f1_score')).toBeInTheDocument(),
       )
       await user.selectOptions(select, 'f1_score')
       await waitFor(() => {
         expect(apiClient.get).toHaveBeenCalledWith(
-          '/evaluations/eval-1/metrics/f1_score/distribution'
+          '/evaluations/eval-1/metrics/f1_score/distribution',
         )
       })
     })
@@ -470,7 +506,7 @@ describe('EvaluationDashboard ([id] page)', () => {
       await waitFor(() => {
         expect(mockAddToast).toHaveBeenCalledWith(
           'evaluation.human.preference.saveFailed',
-          'error'
+          'error',
         )
       })
     })
@@ -482,43 +518,58 @@ describe('EvaluationDashboard ([id] page)', () => {
       ;(apiClient.evaluations.getSamples as jest.Mock).mockResolvedValue({
         ...baseSamples,
         items: [
-          { ...baseSamples.items[0], answer_type: 'single_choice', field_name: 'verdict' },
+          {
+            ...baseSamples.items[0],
+            answer_type: 'single_choice',
+            field_name: 'verdict',
+          },
         ],
       })
-      ;(apiClient.evaluations.getConfusionMatrix as jest.Mock).mockResolvedValue({
+      ;(
+        apiClient.evaluations.getConfusionMatrix as jest.Mock
+      ).mockResolvedValue({
         labels: ['A', 'B'],
-        matrix: [[1, 0], [0, 1]],
+        matrix: [
+          [1, 0],
+          [0, 1],
+        ],
       })
       renderPage()
       await waitFor(() => {
         expect(
-          screen.getByText('evaluations.detail.confusionMatrix')
+          screen.getByText('evaluations.detail.confusionMatrix'),
         ).toBeInTheDocument()
       })
       expect(apiClient.evaluations.getConfusionMatrix).toHaveBeenCalledWith(
         'eval-1',
-        'verdict'
+        'verdict',
       )
       await user.click(screen.getByText('evaluations.detail.confusionMatrix'))
-      expect(await screen.findByTestId('confusion-matrix-chart')).toBeInTheDocument()
+      expect(
+        await screen.findByTestId('confusion-matrix-chart'),
+      ).toBeInTheDocument()
     })
 
     it('hides the confusion tab when the matrix endpoint throws', async () => {
       ;(apiClient.evaluations.getSamples as jest.Mock).mockResolvedValue({
         ...baseSamples,
         items: [
-          { ...baseSamples.items[0], answer_type: 'classification', field_name: 'verdict' },
+          {
+            ...baseSamples.items[0],
+            answer_type: 'classification',
+            field_name: 'verdict',
+          },
         ],
       })
-      ;(apiClient.evaluations.getConfusionMatrix as jest.Mock).mockRejectedValue(
-        new Error('no matrix')
-      )
+      ;(
+        apiClient.evaluations.getConfusionMatrix as jest.Mock
+      ).mockRejectedValue(new Error('no matrix'))
       renderPage()
       await waitFor(() => {
         expect(apiClient.evaluations.getConfusionMatrix).toHaveBeenCalled()
       })
       expect(
-        screen.queryByText('evaluations.detail.confusionMatrix')
+        screen.queryByText('evaluations.detail.confusionMatrix'),
       ).not.toBeInTheDocument()
     })
   })
@@ -552,7 +603,9 @@ describe('EvaluationDashboard ([id] page)', () => {
 
     it('derives perRunRows from judges_by_config and shows the failed banner', async () => {
       const user = userEvent.setup()
-      ;(apiClient.evaluations.getResults as jest.Mock).mockResolvedValue(judgesEvaluation)
+      ;(apiClient.evaluations.getResults as jest.Mock).mockResolvedValue(
+        judgesEvaluation,
+      )
       ;(apiClient.post as jest.Mock).mockResolvedValue({})
       renderPage()
       await waitFor(() => {
@@ -571,13 +624,15 @@ describe('EvaluationDashboard ([id] page)', () => {
       expect(breakdown).toHaveAttribute('data-metric', 'exact_match')
       // any-judge-failed banner
       expect(
-        screen.getByText(/Mindestens ein Judge-Lauf ist fehlgeschlagen/)
+        screen.getByText(/Mindestens ein Judge-Lauf ist fehlgeschlagen/),
       ).toBeInTheDocument()
     })
 
     it('renders the agreement heatmap from pearson when cohens dict is empty', async () => {
       const user = userEvent.setup()
-      ;(apiClient.evaluations.getResults as jest.Mock).mockResolvedValue(judgesEvaluation)
+      ;(apiClient.evaluations.getResults as jest.Mock).mockResolvedValue(
+        judgesEvaluation,
+      )
       ;(apiClient.post as jest.Mock).mockResolvedValue({
         judge_agreement_by_model_metric: {
           'gpt-4o|exact_match': {
@@ -604,7 +659,9 @@ describe('EvaluationDashboard ([id] page)', () => {
 
     it('uses kappa scoreType when cohens dict is non-empty', async () => {
       const user = userEvent.setup()
-      ;(apiClient.evaluations.getResults as jest.Mock).mockResolvedValue(judgesEvaluation)
+      ;(apiClient.evaluations.getResults as jest.Mock).mockResolvedValue(
+        judgesEvaluation,
+      )
       ;(apiClient.post as jest.Mock).mockResolvedValue({
         judge_agreement_by_model_metric: {
           'gpt-4o|exact_match': {
@@ -627,7 +684,9 @@ describe('EvaluationDashboard ([id] page)', () => {
 
     it('does not render the heatmap when only one distinct judge exists', async () => {
       const user = userEvent.setup()
-      ;(apiClient.evaluations.getResults as jest.Mock).mockResolvedValue(judgesEvaluation)
+      ;(apiClient.evaluations.getResults as jest.Mock).mockResolvedValue(
+        judgesEvaluation,
+      )
       ;(apiClient.post as jest.Mock).mockResolvedValue({
         judge_agreement_by_model_metric: {
           'gpt-4o|exact_match': {
@@ -643,13 +702,19 @@ describe('EvaluationDashboard ([id] page)', () => {
       })
       await user.click(screen.getByText('Judges & Läufe'))
       await screen.findByTestId('per-run-breakdown')
-      expect(screen.queryByTestId('judge-agreement-heatmap')).not.toBeInTheDocument()
+      expect(
+        screen.queryByTestId('judge-agreement-heatmap'),
+      ).not.toBeInTheDocument()
     })
 
     it('sets multiRunStats error sentinel when the statistics POST fails (no crash)', async () => {
       const user = userEvent.setup()
-      ;(apiClient.evaluations.getResults as jest.Mock).mockResolvedValue(judgesEvaluation)
-      ;(apiClient.post as jest.Mock).mockRejectedValue(new Error('stats failed'))
+      ;(apiClient.evaluations.getResults as jest.Mock).mockResolvedValue(
+        judgesEvaluation,
+      )
+      ;(apiClient.post as jest.Mock).mockRejectedValue(
+        new Error('stats failed'),
+      )
       renderPage()
       await waitFor(() => {
         expect(screen.getByText('Judges & Läufe')).toBeInTheDocument()
@@ -657,13 +722,17 @@ describe('EvaluationDashboard ([id] page)', () => {
       await user.click(screen.getByText('Judges & Läufe'))
       // PerRunBreakdown still renders; heatmap absent (error sentinel has no agreement block).
       expect(await screen.findByTestId('per-run-breakdown')).toBeInTheDocument()
-      expect(screen.queryByTestId('judge-agreement-heatmap')).not.toBeInTheDocument()
+      expect(
+        screen.queryByTestId('judge-agreement-heatmap'),
+      ).not.toBeInTheDocument()
     })
 
     it('does not render the judges tab when there is no judges_by_config', async () => {
       renderPage()
       await waitFor(() => {
-        expect(screen.getByText('evaluation.human.results.summary')).toBeInTheDocument()
+        expect(
+          screen.getByText('evaluation.human.results.summary'),
+        ).toBeInTheDocument()
       })
       expect(screen.queryByText('Judges & Läufe')).not.toBeInTheDocument()
     })

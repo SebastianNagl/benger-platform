@@ -1,4 +1,4 @@
-import { registerSlot, getSlot, hasSlot } from '../slots'
+import { getSlot, hasSlot, registerSlot } from '../slots'
 
 describe('Extension Slots', () => {
   test('getSlot returns null for unregistered slot', () => {

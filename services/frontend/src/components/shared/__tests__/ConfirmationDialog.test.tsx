@@ -49,7 +49,7 @@ jest.mock('@headlessui/react', () => {
           <div {...props}>{children}</div>
         ),
         Title: ({ children, ...props }: any) => <h3 {...props}>{children}</h3>,
-      }
+      },
     ),
     Transition: Object.assign(
       ({ show, appear, children, ...props }: any) =>
@@ -73,7 +73,7 @@ jest.mock('@headlessui/react', () => {
                 }
               }
               return child
-            }
+            },
           )
 
           return (
@@ -84,7 +84,7 @@ jest.mock('@headlessui/react', () => {
             </div>
           )
         },
-      }
+      },
     ),
     Fragment: mockFragment,
   }
@@ -107,7 +107,7 @@ describe('ConfirmationDialog', () => {
     render(<ConfirmationDialog {...defaultProps} />)
     expect(screen.getByText('Confirm Action')).toBeInTheDocument()
     expect(
-      screen.getByText('Are you sure you want to proceed?')
+      screen.getByText('Are you sure you want to proceed?'),
     ).toBeInTheDocument()
   })
 
@@ -119,10 +119,10 @@ describe('ConfirmationDialog', () => {
   it('renders default button texts', () => {
     render(<ConfirmationDialog {...defaultProps} />)
     expect(
-      screen.getByTestId('confirm-dialog-confirm-button')
+      screen.getByTestId('confirm-dialog-confirm-button'),
     ).toHaveTextContent('Confirm')
     expect(
-      screen.getByTestId('confirm-dialog-cancel-button')
+      screen.getByTestId('confirm-dialog-cancel-button'),
     ).toHaveTextContent('Cancel')
   })
 
@@ -132,13 +132,13 @@ describe('ConfirmationDialog', () => {
         {...defaultProps}
         confirmText="Delete"
         cancelText="Keep"
-      />
+      />,
     )
     expect(
-      screen.getByTestId('confirm-dialog-confirm-button')
+      screen.getByTestId('confirm-dialog-confirm-button'),
     ).toHaveTextContent('Delete')
     expect(
-      screen.getByTestId('confirm-dialog-cancel-button')
+      screen.getByTestId('confirm-dialog-cancel-button'),
     ).toHaveTextContent('Keep')
   })
 
@@ -162,7 +162,7 @@ describe('ConfirmationDialog', () => {
     // Check that the dialog content renders
     expect(screen.getByText('Confirm Action')).toBeInTheDocument()
     expect(
-      screen.getByText('Are you sure you want to proceed?')
+      screen.getByText('Are you sure you want to proceed?'),
     ).toBeInTheDocument()
 
     // Check for presence of warning-specific testid from heroicon mock
@@ -200,7 +200,7 @@ describe('ConfirmationDialog', () => {
 
   it('applies custom confirm button variant', () => {
     render(
-      <ConfirmationDialog {...defaultProps} confirmButtonVariant="primary" />
+      <ConfirmationDialog {...defaultProps} confirmButtonVariant="primary" />,
     )
     const confirmButton = screen.getByTestId('confirm-dialog-confirm-button')
     expect(confirmButton).toBeInTheDocument()
@@ -222,7 +222,7 @@ describe('ConfirmationDialog', () => {
 
   it('handles sequential open/close states', () => {
     const { rerender } = render(
-      <ConfirmationDialog {...defaultProps} isOpen={false} />
+      <ConfirmationDialog {...defaultProps} isOpen={false} />,
     )
     expect(screen.queryByText('Confirm Action')).not.toBeInTheDocument()
 

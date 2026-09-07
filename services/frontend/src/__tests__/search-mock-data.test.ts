@@ -46,7 +46,7 @@ const REQUIRED_URLS = [
 ]
 
 function staticUrls(source: string): string[] {
-  const matches = source.matchAll(/page\(t,\s*'([^']+)'/g)
+  const matches = source.matchAll(/page\(\s*t,\s*'([^']+)'/g)
   return [...matches].map((m) => m[1])
 }
 
@@ -55,7 +55,10 @@ describe('Search index - static pages are real routes', () => {
   let appDir: string
 
   beforeAll(() => {
-    source = fs.readFileSync(path.join(__dirname, '../lib/search/index.ts'), 'utf-8')
+    source = fs.readFileSync(
+      path.join(__dirname, '../lib/search/index.ts'),
+      'utf-8',
+    )
     appDir = path.join(__dirname, '../app')
   })
 
@@ -76,7 +79,10 @@ describe('Search index - static pages are real routes', () => {
     urls.forEach((u) => {
       const route = u === '/' ? '' : u
       const pagePath = path.join(appDir, route, 'page.tsx')
-      expect({ url: u, exists: fs.existsSync(pagePath) }).toEqual({ url: u, exists: true })
+      expect({ url: u, exists: fs.existsSync(pagePath) }).toEqual({
+        url: u,
+        exists: true,
+      })
     })
   })
 })

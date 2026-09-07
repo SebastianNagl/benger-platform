@@ -140,14 +140,14 @@ describe('SiteHeader', () => {
       ioCallback!([{ target: { id: 'news' }, isIntersecting: true }])
     })
     expect(screen.getByText('landing.nav.news').className).toContain(
-      'bg-emerald-50'
+      'bg-emerald-50',
     )
 
     act(() => {
       ioCallback!([{ target: { id: 'news' }, isIntersecting: false }])
     })
     expect(screen.getByText('landing.nav.news').className).not.toContain(
-      'bg-emerald-50'
+      'bg-emerald-50',
     )
   })
 
@@ -167,9 +167,7 @@ describe('SiteHeader', () => {
   it('handleSectionClick scrolls + rewrites history on the home page', async () => {
     const user = userEvent.setup()
     const scrollSpy = jest.fn()
-    document
-      .getElementById('people')!
-      .scrollIntoView = scrollSpy as any
+    document.getElementById('people')!.scrollIntoView = scrollSpy as any
     const replaceStateSpy = jest.spyOn(window.history, 'replaceState')
 
     render(<SiteHeader />)

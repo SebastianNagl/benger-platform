@@ -1,18 +1,25 @@
 'use client'
 
+import { ApiClientContextProvider } from '@/contexts/ApiClientContext'
 import apiClientSingleton, {
   ApiClient,
   createApiClient,
   Organization,
   User,
 } from '@/lib/api'
-import { ApiClientContextProvider } from '@/contexts/ApiClientContext'
 import { devAuthHelper } from '@/lib/auth/devAuthHelper'
-import { logger } from '@/lib/utils/logger'
 import { OrganizationManager } from '@/lib/auth/organizationManager'
 import { redirectToLoginAsExpired } from '@/lib/auth/sessionExpired'
 import { sessionManager } from '@/lib/auth/sessionManager'
-import { parseSubdomain, getOrgUrl, getPrivateUrl, getLastOrgSlug, setLastOrgSlug, clearLastOrgSlug } from '@/lib/utils/subdomain'
+import { logger } from '@/lib/utils/logger'
+import {
+  clearLastOrgSlug,
+  getLastOrgSlug,
+  getOrgUrl,
+  getPrivateUrl,
+  parseSubdomain,
+  setLastOrgSlug,
+} from '@/lib/utils/subdomain'
 import { translate } from '@/lib/utils/translate'
 import { useNotificationStore } from '@/stores/notificationStore'
 import { authRedirect, publicRoutes } from '@/utils/authRedirect'
@@ -57,7 +64,7 @@ interface AuthContextType {
       ki_experience_scores?: Record<string, number>
       research_data_consent_accepted?: boolean
     },
-    invitationToken?: string
+    invitationToken?: string,
   ) => Promise<void>
   logout: () => Promise<void>
   updateUser: (userData: Partial<User>) => void
@@ -99,7 +106,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       createApiClient({
         orgContextProvider: () => orgManager.getOrganizationContext(),
       }),
-    [orgManager]
+    [orgManager],
   )
 
   // Set up auth failure handler with stable callback
@@ -123,7 +130,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Promise.all rejects early → finally clears authInitializationInProgress → then
     // getOrganizations' refresh fails → onAuthFailure fires with the guard already cleared.
     // Public routes don't require auth, so redirecting would be wrong regardless.
-    const currentPath = typeof window !== 'undefined' ? window.location.pathname : ''
+    const currentPath =
+      typeof window !== 'undefined' ? window.location.pathname : ''
     if (authRedirect.isPublicRoute(currentPath)) {
       logger.debug('Ignoring auth failure - on public route:', currentPath)
       setUser(null)
@@ -200,7 +208,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             // Silent token refresh failed
           }
         },
-        25 * 60 * 1000
+        25 * 60 * 1000,
       ) // 25 minutes
     }
 
@@ -225,12 +233,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Prevent multiple simultaneous auth checks
     if (authInitializationInProgress.current) {
-      logger.debug('[AuthContext] Auth initialization already in progress, skipping')
+      logger.debug(
+        '[AuthContext] Auth initialization already in progress, skipping',
+      )
       return
     }
 
     if (sessionManager.isLoginInProgress()) {
-      logger.debug('[AuthContext] Skipping auth initialization - login in progress')
+      logger.debug(
+        '[AuthContext] Skipping auth initialization - login in progress',
+      )
       return
     }
 
@@ -273,7 +285,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // For public routes, only skip if we have no auth indicators
       if (isPublicRoute && !hasToken && !hasAuthVerified) {
         logger.debug(
-          '[AuthContext] Public route with no auth, clearing user state'
+          '[AuthContext] Public route with no auth, clearing user state',
         )
         setUser(null)
         setOrganizations([])
@@ -285,7 +297,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // This ensures HttpOnly cookies are properly validated
       try {
         logger.debug(
-          '[AuthContext] Starting API calls to verify authentication'
+          '[AuthContext] Starting API calls to verify authentication',
         )
         // Single API call for user + organizations (with fallback to 2 calls)
         let currentUser: any
@@ -298,14 +310,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } catch (ctxError: any) {
           logger.debug(
             '[AuthContext] getUserContexts failed, falling back to separate calls:',
-            ctxError.message
+            ctxError.message,
           )
           const results = await Promise.all([
             apiClient.getUser(),
             apiClient.getOrganizations().catch((error: any) => {
               logger.debug(
                 '[AuthContext] getOrganizations failed:',
-                error.message
+                error.message,
               )
               return []
             }),
@@ -318,7 +330,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           '[AuthContext] API calls completed. User:',
           currentUser?.username,
           'Orgs:',
-          orgs.length
+          orgs.length,
         )
 
         // Handle user switch detection
@@ -328,7 +340,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           sessionManager.handleUserSwitch(
             apiClient,
             String(currentUser.id),
-            lastSessionUser
+            lastSessionUser,
           )
         }
 
@@ -366,10 +378,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           // Private mode — check if returning user has a last org
           const lastOrgSlug = getLastOrgSlug()
           if (lastOrgSlug && orgs.length > 0) {
-            const lastOrg = orgs.find((o: Organization) => o.slug === lastOrgSlug)
+            const lastOrg = orgs.find(
+              (o: Organization) => o.slug === lastOrgSlug,
+            )
             if (lastOrg) {
-              logger.debug('[AuthContext] Redirecting returning user to last org:', lastOrgSlug)
-              window.location.href = getOrgUrl(lastOrgSlug, window.location.pathname)
+              logger.debug(
+                '[AuthContext] Redirecting returning user to last org:',
+                lastOrgSlug,
+              )
+              window.location.href = getOrgUrl(
+                lastOrgSlug,
+                window.location.pathname,
+              )
               return
             } else {
               // User no longer has access to this org, clear it
@@ -404,7 +424,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Handle any errors that occur during auth initialization
       logger.debug(
         '[AuthContext] Outer catch - error during auth initialization:',
-        error
+        error,
       )
       setUser(null)
       setOrganizations([])
@@ -480,7 +500,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         orgManager.clear()
       }
     },
-    [apiClient, orgManager]
+    [apiClient, orgManager],
   )
 
   const refreshAuth = useCallback(async () => {
@@ -511,21 +531,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (org && org.slug) {
           setLastOrgSlug(org.slug)
           const targetUrl = getOrgUrl(org.slug)
-          if (!window.location.href.startsWith(targetUrl.split('/').slice(0, 3).join('/'))) {
+          if (
+            !window.location.href.startsWith(
+              targetUrl.split('/').slice(0, 3).join('/'),
+            )
+          ) {
             orgSwitchNavigating.current = true
             window.location.href = targetUrl
           }
         } else {
           clearLastOrgSlug()
           const targetUrl = getPrivateUrl()
-          if (!window.location.href.startsWith(targetUrl.split('/').slice(0, 3).join('/'))) {
+          if (
+            !window.location.href.startsWith(
+              targetUrl.split('/').slice(0, 3).join('/'),
+            )
+          ) {
             orgSwitchNavigating.current = true
             window.location.href = targetUrl
           }
         }
       }
     },
-    [orgManager]
+    [orgManager],
   )
 
   const login = useCallback(
@@ -555,9 +583,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const lastOrgSlug = getLastOrgSlug()
           if (lastOrgSlug) {
             const orgs = orgManager.getOrganizations()
-            const lastOrg = orgs.find((o: Organization) => o.slug === lastOrgSlug)
+            const lastOrg = orgs.find(
+              (o: Organization) => o.slug === lastOrgSlug,
+            )
             if (lastOrg) {
-              logger.debug('[AuthContext] Redirecting returning user to last org after login:', lastOrgSlug)
+              logger.debug(
+                '[AuthContext] Redirecting returning user to last org after login:',
+                lastOrgSlug,
+              )
               const targetUrl = getOrgUrl(lastOrgSlug, '/dashboard')
               // sessionStorage doesn't survive a cross-subdomain redirect —
               // encode the success flash on the URL so the destination's
@@ -598,7 +631,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         sessionManager.setLoginInProgress(false)
       }
     },
-    [apiClient, refreshOrganizations, router]
+    [apiClient, refreshOrganizations, router],
   )
 
   const logout = useCallback(async () => {
@@ -658,7 +691,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         ki_experience_scores?: Record<string, number>
         research_data_consent_accepted?: boolean
       },
-      invitationToken?: string
+      invitationToken?: string,
     ) => {
       try {
         // Use API client for signup with profile data and optional invitation token
@@ -668,7 +701,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           name,
           password,
           profileData,
-          invitationToken
+          invitationToken,
         )
 
         // If invitation token was provided, user is already verified and added to org
@@ -685,7 +718,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               .flashRedirect(
                 targetUrl,
                 translate('auth.signupComplete'),
-                'success'
+                'success',
               )
           } else {
             useNotificationStore
@@ -702,7 +735,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw error
       }
     },
-    [apiClient, router, initializeAuth]
+    [apiClient, router, initializeAuth],
   )
 
   const updateUser = useCallback((userData: Partial<User>) => {
@@ -738,7 +771,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       currentOrganization,
       setCurrentOrganization,
       refreshOrganizations,
-    ]
+    ],
   )
 
   return (

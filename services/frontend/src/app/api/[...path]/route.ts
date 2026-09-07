@@ -1,14 +1,14 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { getExternalHost, getInternalApiUrl } from '@/lib/utils/apiUrl'
 import { logger } from '@/lib/utils/logger'
 import { getCookieDomainFromHost } from '@/lib/utils/subdomain'
-import { getInternalApiUrl, getExternalHost } from '@/lib/utils/apiUrl'
+import { NextRequest, NextResponse } from 'next/server'
 
 // Development debugging
 const isDevelopment = process.env.NODE_ENV === 'development'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ path: string[] }> }
+  { params }: { params: Promise<{ path: string[] }> },
 ) {
   const resolvedParams = await params
   return proxyRequest(request, resolvedParams.path, 'GET')
@@ -16,7 +16,7 @@ export async function GET(
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ path: string[] }> }
+  { params }: { params: Promise<{ path: string[] }> },
 ) {
   const resolvedParams = await params
   return proxyRequest(request, resolvedParams.path, 'POST')
@@ -24,7 +24,7 @@ export async function POST(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: Promise<{ path: string[] }> }
+  { params }: { params: Promise<{ path: string[] }> },
 ) {
   const resolvedParams = await params
   return proxyRequest(request, resolvedParams.path, 'PUT')
@@ -32,7 +32,7 @@ export async function PUT(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<{ path: string[] }> }
+  { params }: { params: Promise<{ path: string[] }> },
 ) {
   const resolvedParams = await params
   return proxyRequest(request, resolvedParams.path, 'PATCH')
@@ -40,7 +40,7 @@ export async function PATCH(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ path: string[] }> }
+  { params }: { params: Promise<{ path: string[] }> },
 ) {
   const resolvedParams = await params
   return proxyRequest(request, resolvedParams.path, 'DELETE')
@@ -52,7 +52,7 @@ export async function DELETE(
 function forwardHeadersAndCookies(
   upstream: Response,
   downstream: NextResponse,
-  request: NextRequest
+  request: NextRequest,
 ) {
   upstream.headers.forEach((value, key) => {
     // content-encoding must never be copied: undici transparently
@@ -98,7 +98,7 @@ async function proxyRequest(
   request: NextRequest,
   pathSegments: string[],
   method: string,
-  retryCount: number = 0
+  retryCount: number = 0,
 ) {
   try {
     const path = pathSegments.join('/')
@@ -126,7 +126,7 @@ async function proxyRequest(
       logger.debug('Auth endpoint should use dedicated handler:', path)
       return NextResponse.json(
         { error: 'Use dedicated auth handler' },
-        { status: 400 }
+        { status: 400 },
       )
     }
 
@@ -226,18 +226,18 @@ async function proxyRequest(
     // Handle service restart scenarios - retry 502/503 errors
     if ([502, 503].includes(response.status) && retryCount < 3) {
       logger.debug(
-        `⚠️ Service temporarily unavailable (${response.status}), retrying in ${(retryCount + 1) * 1000}ms... (attempt ${retryCount + 1}/3)`
+        `⚠️ Service temporarily unavailable (${response.status}), retrying in ${(retryCount + 1) * 1000}ms... (attempt ${retryCount + 1}/3)`,
       )
 
       // Special handling for annotation endpoints
       if (path.includes('annotations')) {
         logger.debug('Annotation endpoint detected, using longer retry delay')
         await new Promise((resolve) =>
-          setTimeout(resolve, (retryCount + 1) * 2000)
+          setTimeout(resolve, (retryCount + 1) * 2000),
         )
       } else {
         await new Promise((resolve) =>
-          setTimeout(resolve, (retryCount + 1) * 1000)
+          setTimeout(resolve, (retryCount + 1) * 1000),
         )
       }
 
@@ -263,7 +263,9 @@ async function proxyRequest(
     // `transfer-encoding` (already excluded by the helper) so Node emits
     // chunked transfer encoding correctly.
     const contentDisposition = response.headers.get('content-disposition') ?? ''
-    const contentType = (response.headers.get('content-type') ?? '').toLowerCase()
+    const contentType = (
+      response.headers.get('content-type') ?? ''
+    ).toLowerCase()
     const isAttachment = /^\s*attachment\b/i.test(contentDisposition)
     const STREAMABLE_TYPES = [
       'application/zip',
@@ -316,7 +318,7 @@ async function proxyRequest(
     })
     return NextResponse.json(
       { error: 'Internal server error' },
-      { status: 500 }
+      { status: 500 },
     )
   }
 }

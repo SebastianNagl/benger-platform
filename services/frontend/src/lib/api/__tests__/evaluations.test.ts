@@ -581,12 +581,23 @@ jest.mock('../base', () => ({
 
       // Evaluation run
       if (url === '/evaluations/run' && method === 'POST') {
-        return { evaluation_id: 'eval-1', project_id: 'proj-1', status: 'started', message: 'Started', evaluation_configs_count: 1, started_at: '2025-01-01' } as T
+        return {
+          evaluation_id: 'eval-1',
+          project_id: 'proj-1',
+          status: 'started',
+          message: 'Started',
+          evaluation_configs_count: 1,
+          started_at: '2025-01-01',
+        } as T
       }
 
       // Evaluation detail results
       if (url.match(/\/evaluations\/run\/results\/.+/)) {
-        return { evaluation_id: url.split('/').pop(), status: 'completed', samples_evaluated: 50 } as T
+        return {
+          evaluation_id: url.split('/').pop(),
+          status: 'completed',
+          samples_evaluated: 50,
+        } as T
       }
 
       // Project evaluation results
@@ -596,7 +607,9 @@ jest.mock('../base', () => ({
 
       // Evaluated models
       if (url.match(/\/evaluations\/projects\/.+\/evaluated-models/)) {
-        return [{ model_id: 'gpt-4', model_name: 'GPT-4', has_results: true }] as T
+        return [
+          { model_id: 'gpt-4', model_name: 'GPT-4', has_results: true },
+        ] as T
       }
 
       // Configured methods
@@ -816,7 +829,7 @@ describe('EvaluationsClient', () => {
       await client.getEvaluationTypes('type-1')
 
       expect(mockRequest).toHaveBeenCalledWith(
-        '/evaluation-types?task_type_id=type-1'
+        '/evaluation-types?task_type_id=type-1',
       )
     })
 
@@ -825,7 +838,7 @@ describe('EvaluationsClient', () => {
       await client.getEvaluationTypes(undefined, 'automatic')
 
       expect(mockRequest).toHaveBeenCalledWith(
-        '/evaluation-types?category=automatic'
+        '/evaluation-types?category=automatic',
       )
     })
 
@@ -834,7 +847,7 @@ describe('EvaluationsClient', () => {
       await client.getEvaluationTypes('type-1', 'automatic')
 
       expect(mockRequest).toHaveBeenCalledWith(
-        '/evaluation-types?task_type_id=type-1&category=automatic'
+        '/evaluation-types?task_type_id=type-1&category=automatic',
       )
     })
   })
@@ -855,7 +868,7 @@ describe('EvaluationsClient', () => {
   describe('uploadData', () => {
     it('should throw error if file is missing', async () => {
       await expect(client.uploadData(null as any, 'task-1')).rejects.toThrow(
-        'File is required for upload'
+        'File is required for upload',
       )
     })
 
@@ -864,14 +877,14 @@ describe('EvaluationsClient', () => {
         type: 'application/json',
       })
       await expect(client.uploadData(mockFile, '')).rejects.toThrow(
-        'Task ID is required for upload'
+        'Task ID is required for upload',
       )
     })
 
     it('should throw error for empty file', async () => {
       const mockFile = new File([''], 'data.json', { type: 'application/json' })
       await expect(client.uploadData(mockFile, 'task-1')).rejects.toThrow(
-        'File is empty or contains no valid content'
+        'File is empty or contains no valid content',
       )
     })
 
@@ -880,7 +893,7 @@ describe('EvaluationsClient', () => {
         type: 'application/json',
       })
       await expect(client.uploadData(mockFile, 'task-1')).rejects.toThrow(
-        'Invalid JSON format in file'
+        'Invalid JSON format in file',
       )
     })
 
@@ -889,7 +902,7 @@ describe('EvaluationsClient', () => {
         type: 'application/json',
       })
       await expect(client.uploadData(mockFile, 'task-1')).rejects.toThrow(
-        'File must contain an array of items'
+        'File must contain an array of items',
       )
     })
 
@@ -898,7 +911,7 @@ describe('EvaluationsClient', () => {
         type: 'application/json',
       })
       await expect(client.uploadData(mockFile, 'task-1')).rejects.toThrow(
-        'File contains no items'
+        'File contains no items',
       )
     })
 
@@ -907,7 +920,7 @@ describe('EvaluationsClient', () => {
         type: 'application/json',
       })
       await expect(client.uploadData(mockFile, 'task-1')).rejects.toThrow(
-        'Unknown content type'
+        'Unknown content type',
       )
     })
 
@@ -1037,7 +1050,7 @@ describe('EvaluationsClient', () => {
       const result = await client.uploadData(
         mockFile,
         'task-1',
-        'Test description'
+        'Test description',
       )
 
       expect(result.status).toBe('success')
@@ -1129,7 +1142,7 @@ describe('EvaluationsClient', () => {
         .mockRejectedValue(new Error('API error'))
 
       await expect(client.getProjectTasks('proj-invalid')).rejects.toThrow(
-        'API error'
+        'API error',
       )
     })
   })
@@ -1170,7 +1183,7 @@ describe('EvaluationsClient', () => {
         .mockRejectedValue(new Error('API error'))
 
       await expect(client.getTaskCompletionStats('task-error')).rejects.toThrow(
-        'API error'
+        'API error',
       )
     })
   })
@@ -1224,7 +1237,7 @@ describe('EvaluationsClient', () => {
       await client.getSupportedMetrics('classification')
 
       expect(mockRequest).toHaveBeenCalledWith(
-        '/supported-metrics?task_type=classification'
+        '/supported-metrics?task_type=classification',
       )
     })
   })
@@ -1497,7 +1510,7 @@ describe('EvaluationsClient', () => {
         const result = await client.updateTaskQuestion(
           'task-1',
           0,
-          questionData
+          questionData,
         )
 
         expect(result).toEqual({
@@ -1555,7 +1568,7 @@ describe('EvaluationsClient', () => {
         const annotation = await client.getUserAnnotationForItem(
           'user-1',
           'task-1',
-          'item-1'
+          'item-1',
         )
 
         expect(annotation.user_id).toBe('user-1')
@@ -1623,13 +1636,15 @@ describe('EvaluationsClient', () => {
       mockRequest.mockResolvedValueOnce({
         task_id: 'task-1',
         model_id: 'gpt-4',
-        results: [{ task_id: 'task-1', model_id: 'gpt-4', status: 'completed' }],
+        results: [
+          { task_id: 'task-1', model_id: 'gpt-4', status: 'completed' },
+        ],
       })
 
       const result = await client.getGenerationResult('task-1', 'gpt-4')
       expect(mockRequest).toHaveBeenCalledWith(
         expect.stringContaining('/generation/generation-result'),
-        expect.objectContaining({ method: 'GET' })
+        expect.objectContaining({ method: 'GET' }),
       )
       expect(result.task_id).toBe('task-1')
     })
@@ -1645,7 +1660,7 @@ describe('EvaluationsClient', () => {
       await client.getGenerationResult('task-1', 'gpt-4', 'custom_structure')
       expect(mockRequest).toHaveBeenCalledWith(
         expect.stringContaining('structure_key=custom_structure'),
-        expect.any(Object)
+        expect.any(Object),
       )
     })
 
@@ -1661,7 +1676,7 @@ describe('EvaluationsClient', () => {
       const result = await client.getTaskEvaluation('task-1', 'gpt-4')
       expect(mockRequest).toHaveBeenCalledWith(
         expect.stringContaining('/evaluations/sample-result'),
-        expect.objectContaining({ method: 'GET' })
+        expect.objectContaining({ method: 'GET' }),
       )
       expect(result.task_id).toBe('task-1')
     })
@@ -1682,9 +1697,12 @@ describe('EvaluationsClient', () => {
         evaluation_configs: [],
         force_rerun: false,
       })
-      expect(mockRequest).toHaveBeenCalledWith('/evaluations/run', expect.objectContaining({
-        method: 'POST',
-      }))
+      expect(mockRequest).toHaveBeenCalledWith(
+        '/evaluations/run',
+        expect.objectContaining({
+          method: 'POST',
+        }),
+      )
       expect(result.evaluation_id).toBe('eval-1')
     })
 
@@ -1697,7 +1715,9 @@ describe('EvaluationsClient', () => {
       })
 
       const result = await client.getEvaluationDetailResults('eval-1')
-      expect(mockRequest).toHaveBeenCalledWith('/evaluations/run/results/eval-1')
+      expect(mockRequest).toHaveBeenCalledWith(
+        '/evaluations/run/results/eval-1',
+      )
       expect(result.evaluation_id).toBe('eval-1')
     })
 
@@ -1778,11 +1798,19 @@ describe('EvaluationsClient', () => {
       })
 
       const calledPath = mockRequest.mock.calls[0][0] as string
-      expect(calledPath).toContain('/evaluations/projects/proj-1/evaluation-history?')
+      expect(calledPath).toContain(
+        '/evaluations/projects/proj-1/evaluation-history?',
+      )
       expect(calledPath.match(/(?:^|[?&])metrics=bleu(?:&|$)/)).not.toBeNull()
-      expect(calledPath.match(/(?:^|[?&])metrics=rouge_l(?:&|$)/)).not.toBeNull()
-      expect(calledPath.match(/(?:^|[?&])evaluation_config_ids=cfg-a(?:&|$)/)).not.toBeNull()
-      expect(calledPath.match(/(?:^|[?&])evaluation_config_ids=cfg-b(?:&|$)/)).not.toBeNull()
+      expect(
+        calledPath.match(/(?:^|[?&])metrics=rouge_l(?:&|$)/),
+      ).not.toBeNull()
+      expect(
+        calledPath.match(/(?:^|[?&])evaluation_config_ids=cfg-a(?:&|$)/),
+      ).not.toBeNull()
+      expect(
+        calledPath.match(/(?:^|[?&])evaluation_config_ids=cfg-b(?:&|$)/),
+      ).not.toBeNull()
       // Issue #111: ensure the legacy `metric=` (singular) key is gone.
       expect(calledPath).not.toMatch(/[?&]metric=/)
       expect(result).toEqual({
@@ -1917,7 +1945,7 @@ describe('EvaluationsClient', () => {
         .mockRejectedValue(new Error('HTTP error! status: 500'))
 
       await expect(client.getModels()).rejects.toThrow(
-        'HTTP error! status: 500'
+        'HTTP error! status: 500',
       )
     })
 
@@ -1927,7 +1955,7 @@ describe('EvaluationsClient', () => {
         .mockRejectedValue(new Error('HTTP error! status: 401'))
 
       await expect(client.getEvaluations()).rejects.toThrow(
-        'HTTP error! status: 401'
+        'HTTP error! status: 401',
       )
     })
   })

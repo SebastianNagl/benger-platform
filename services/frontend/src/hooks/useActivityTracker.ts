@@ -80,9 +80,13 @@ export function useActivityTracker() {
       const now = performance.now()
       const timeSinceInteraction = now - lastInteractionTimeRef.current
 
-      if (timeSinceInteraction >= IDLE_THRESHOLD_MS && idleStartRef.current === null) {
+      if (
+        timeSinceInteraction >= IDLE_THRESHOLD_MS &&
+        idleStartRef.current === null
+      ) {
         // User went idle — mark when idle started (at the threshold boundary)
-        idleStartRef.current = lastInteractionTimeRef.current + IDLE_THRESHOLD_MS
+        idleStartRef.current =
+          lastInteractionTimeRef.current + IDLE_THRESHOLD_MS
       }
     }, 5000)
 
@@ -93,7 +97,13 @@ export function useActivityTracker() {
   useEffect(() => {
     document.addEventListener('visibilitychange', handleVisibilityChange)
 
-    const interactionEvents = ['mousemove', 'keydown', 'scroll', 'click', 'touchstart']
+    const interactionEvents = [
+      'mousemove',
+      'keydown',
+      'scroll',
+      'click',
+      'touchstart',
+    ]
     interactionEvents.forEach((event) => {
       document.addEventListener(event, handleInteraction, { passive: true })
     })

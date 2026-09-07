@@ -10,7 +10,10 @@ import { RatingField } from '../RatingField'
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
     t: (key: string, varsOrDefault?: any) => {
-      const translations: Record<string, any> = require('../../../locales/en/common.json')
+      const translations: Record<
+        string,
+        any
+      > = require('../../../locales/en/common.json')
       const parts = key.split('.')
       let value: any = translations
       for (const part of parts) {
@@ -293,7 +296,7 @@ describe('RatingField Component', () => {
         },
       }
       render(
-        <RatingField {...defaultProps} field={fieldWithLabels} value={3} />
+        <RatingField {...defaultProps} field={fieldWithLabels} value={3} />,
       )
 
       expect(screen.getByText('Good')).toBeInTheDocument()
@@ -308,7 +311,7 @@ describe('RatingField Component', () => {
         },
       }
       render(
-        <RatingField {...defaultProps} field={fieldWithLabels} value={4} />
+        <RatingField {...defaultProps} field={fieldWithLabels} value={4} />,
       )
 
       expect(screen.getByText('Selected: 4 stars')).toBeInTheDocument()
@@ -323,7 +326,7 @@ describe('RatingField Component', () => {
         },
       }
       render(
-        <RatingField {...defaultProps} field={fieldWithLabels} value={3} />
+        <RatingField {...defaultProps} field={fieldWithLabels} value={3} />,
       )
 
       expect(screen.getByText('Selected: 3 stars')).toBeInTheDocument()
@@ -502,7 +505,7 @@ describe('RatingField Component', () => {
         validation: [{ type: 'max', value: 7 }],
       }
       render(
-        <RatingField {...defaultProps} field={fieldWithPartialValidation} />
+        <RatingField {...defaultProps} field={fieldWithPartialValidation} />,
       )
 
       const stars = screen.getAllByRole('button')
@@ -515,7 +518,7 @@ describe('RatingField Component', () => {
         validation: [{ type: 'min', value: 2 }],
       }
       render(
-        <RatingField {...defaultProps} field={fieldWithPartialValidation} />
+        <RatingField {...defaultProps} field={fieldWithPartialValidation} />,
       )
 
       const stars = screen.getAllByRole('button')
@@ -528,7 +531,11 @@ describe('RatingField Component', () => {
         metadata: undefined,
       }
       render(
-        <RatingField {...defaultProps} field={fieldWithoutMetadata} value={3} />
+        <RatingField
+          {...defaultProps}
+          field={fieldWithoutMetadata}
+          value={3}
+        />,
       )
 
       expect(screen.getByText('Selected: 3 stars')).toBeInTheDocument()

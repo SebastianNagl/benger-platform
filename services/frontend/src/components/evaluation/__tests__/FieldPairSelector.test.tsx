@@ -69,7 +69,7 @@ describe('FieldPairSelector', () => {
           fieldPairs={[]}
           selectedPairs={[]}
           onChange={jest.fn()}
-        />
+        />,
       )
       expect(container.firstChild).toBeNull()
     })
@@ -84,7 +84,7 @@ describe('FieldPairSelector', () => {
     it('shows single pair display label when one pair selected', () => {
       render(<FieldPairSelector {...defaultProps} />)
       expect(
-        screen.getByText('generation_answer -> answer')
+        screen.getByText('generation_answer -> answer'),
       ).toBeInTheDocument()
     })
 
@@ -92,11 +92,8 @@ describe('FieldPairSelector', () => {
       render(
         <FieldPairSelector
           {...defaultProps}
-          selectedPairs={[
-            'generation_answer->answer',
-            'human_answer->answer',
-          ]}
-        />
+          selectedPairs={['generation_answer->answer', 'human_answer->answer']}
+        />,
       )
       expect(screen.getByText('All Pairs')).toBeInTheDocument()
     })
@@ -116,15 +113,13 @@ describe('FieldPairSelector', () => {
             },
           ]}
           selectedPairs={['generation_answer->answer', 'human_answer->answer']}
-        />
+        />,
       )
       expect(screen.getByText('2 pairs selected')).toBeInTheDocument()
     })
 
     it('shows placeholder when no pairs selected', () => {
-      render(
-        <FieldPairSelector {...defaultProps} selectedPairs={[]} />
-      )
+      render(<FieldPairSelector {...defaultProps} selectedPairs={[]} />)
       expect(screen.getByText('Select field pairs...')).toBeInTheDocument()
     })
   })
@@ -134,9 +129,7 @@ describe('FieldPairSelector', () => {
       const user = userEvent.setup()
       render(<FieldPairSelector {...defaultProps} />)
 
-      await user.click(
-        screen.getByText('generation_answer -> answer')
-      )
+      await user.click(screen.getByText('generation_answer -> answer'))
 
       expect(screen.getByText('Model Responses')).toBeInTheDocument()
       expect(screen.getByText('Human Annotations')).toBeInTheDocument()
@@ -146,9 +139,7 @@ describe('FieldPairSelector', () => {
       const user = userEvent.setup()
       render(<FieldPairSelector {...defaultProps} />)
 
-      await user.click(
-        screen.getByText('generation_answer -> answer')
-      )
+      await user.click(screen.getByText('generation_answer -> answer'))
 
       expect(screen.getByText('generation_answer')).toBeInTheDocument()
       expect(screen.getByText('human_answer')).toBeInTheDocument()
@@ -158,9 +149,7 @@ describe('FieldPairSelector', () => {
       const user = userEvent.setup()
       render(<FieldPairSelector {...defaultProps} />)
 
-      await user.click(
-        screen.getByText('generation_answer -> answer')
-      )
+      await user.click(screen.getByText('generation_answer -> answer'))
 
       expect(screen.getByText('50 results')).toBeInTheDocument()
       expect(screen.getByText('30 results')).toBeInTheDocument()
@@ -170,9 +159,7 @@ describe('FieldPairSelector', () => {
       const user = userEvent.setup()
       render(<FieldPairSelector {...defaultProps} />)
 
-      await user.click(
-        screen.getByText('generation_answer -> answer')
-      )
+      await user.click(screen.getByText('generation_answer -> answer'))
 
       expect(screen.getByText('1 of 2 selected')).toBeInTheDocument()
     })
@@ -182,16 +169,9 @@ describe('FieldPairSelector', () => {
     it('adds a pair when selected', async () => {
       const user = userEvent.setup()
       const onChange = jest.fn()
-      render(
-        <FieldPairSelector
-          {...defaultProps}
-          onChange={onChange}
-        />
-      )
+      render(<FieldPairSelector {...defaultProps} onChange={onChange} />)
 
-      await user.click(
-        screen.getByText('generation_answer -> answer')
-      )
+      await user.click(screen.getByText('generation_answer -> answer'))
       await user.click(screen.getByText('human_answer'))
 
       expect(onChange).toHaveBeenCalledWith([
@@ -206,12 +186,9 @@ describe('FieldPairSelector', () => {
       render(
         <FieldPairSelector
           {...defaultProps}
-          selectedPairs={[
-            'generation_answer->answer',
-            'human_answer->answer',
-          ]}
+          selectedPairs={['generation_answer->answer', 'human_answer->answer']}
           onChange={onChange}
-        />
+        />,
       )
 
       await user.click(screen.getByText('All Pairs'))
@@ -228,12 +205,10 @@ describe('FieldPairSelector', () => {
           {...defaultProps}
           selectedPairs={['generation_answer->answer']}
           onChange={onChange}
-        />
+        />,
       )
 
-      await user.click(
-        screen.getByText('generation_answer -> answer')
-      )
+      await user.click(screen.getByText('generation_answer -> answer'))
       await user.click(screen.getByText('generation_answer'))
 
       // onChange should not be called since it's the last selected pair
@@ -245,13 +220,9 @@ describe('FieldPairSelector', () => {
     it('selects all pairs', async () => {
       const user = userEvent.setup()
       const onChange = jest.fn()
-      render(
-        <FieldPairSelector {...defaultProps} onChange={onChange} />
-      )
+      render(<FieldPairSelector {...defaultProps} onChange={onChange} />)
 
-      await user.click(
-        screen.getByText('generation_answer -> answer')
-      )
+      await user.click(screen.getByText('generation_answer -> answer'))
       await user.click(screen.getByText('Select All'))
 
       expect(onChange).toHaveBeenCalledWith([
@@ -266,12 +237,9 @@ describe('FieldPairSelector', () => {
       render(
         <FieldPairSelector
           {...defaultProps}
-          selectedPairs={[
-            'generation_answer->answer',
-            'human_answer->answer',
-          ]}
+          selectedPairs={['generation_answer->answer', 'human_answer->answer']}
           onChange={onChange}
-        />
+        />,
       )
 
       await user.click(screen.getByText('All Pairs'))
@@ -286,9 +254,7 @@ describe('FieldPairSelector', () => {
       const user = userEvent.setup()
       render(<FieldPairSelector {...defaultProps} disabled />)
 
-      await user.click(
-        screen.getByText('generation_answer -> answer')
-      )
+      await user.click(screen.getByText('generation_answer -> answer'))
 
       expect(screen.queryByText('Model Responses')).not.toBeInTheDocument()
     })
@@ -308,7 +274,7 @@ describe('FieldPairSelector', () => {
           fieldPairs={pairsWithNoResults}
           selectedPairs={[pairsWithNoResults[0].id]}
           onChange={jest.fn()}
-        />
+        />,
       )
 
       // Click the dropdown trigger button (the button element containing the display text)

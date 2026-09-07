@@ -16,7 +16,9 @@ export default function LikertInput({
   onChange,
   onAnnotation,
 }: AnnotationComponentProps) {
-  const [value, setValue] = useState<number | undefined>(externalValue || undefined)
+  const [value, setValue] = useState<number | undefined>(
+    externalValue || undefined,
+  )
 
   const name = config.props.name || config.name || 'likert'
   const toName = config.props.toName

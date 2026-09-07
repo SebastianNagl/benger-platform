@@ -693,10 +693,10 @@ describe('round-trip conversion', () => {
 
     expect(convertedApiTask.id).toBe(originalApiTask.id)
     expect(convertedApiTask.annotation_count).toBe(
-      originalApiTask.annotation_count
+      originalApiTask.annotation_count,
     )
     expect(convertedApiTask.template_data).toEqual(
-      originalApiTask.template_data
+      originalApiTask.template_data,
     )
   })
 
@@ -721,7 +721,7 @@ describe('round-trip conversion', () => {
     expect(convertedLsTask.id).toBe(originalLsTask.id)
     expect(convertedLsTask.data).toEqual(originalLsTask.data)
     expect(convertedLsTask.total_annotations).toBe(
-      originalLsTask.total_annotations
+      originalLsTask.total_annotations,
     )
   })
 })
@@ -776,7 +776,7 @@ describe('edge cases and validation', () => {
     const convertedApiTask = labelStudioTaskToApi(lsTask)
 
     expect(convertedApiTask.template_data?.text).toBe(
-      'Text with äöüß and special chars: <>&"\''
+      'Text with äöüß and special chars: <>&"\'',
     )
   })
 

@@ -10,8 +10,10 @@
 
 import type { LabelingTemplate } from '@/components/projects/wizard/types'
 
-export interface RegisteredWizardTemplate
-  extends Omit<LabelingTemplate, 'name' | 'description'> {
+export interface RegisteredWizardTemplate extends Omit<
+  LabelingTemplate,
+  'name' | 'description'
+> {
   nameKey: string
   descriptionKey: string
 }
@@ -63,15 +65,22 @@ export function _resetWizardPostCreateHooks() {
  * state AFTER the template/annotation defaults and returns a partial to
  * merge (nested objects must be returned whole).
  */
-export type WizardKindPreset = (data: Record<string, any>) => Record<string, any>
+export type WizardKindPreset = (
+  data: Record<string, any>,
+) => Record<string, any>
 
 const kindPresets: Record<string, WizardKindPreset> = {}
 
-export function registerWizardKindPreset(kind: string, preset: WizardKindPreset) {
+export function registerWizardKindPreset(
+  kind: string,
+  preset: WizardKindPreset,
+) {
   kindPresets[kind] = preset
 }
 
-export function getWizardKindPreset(kind: string): WizardKindPreset | undefined {
+export function getWizardKindPreset(
+  kind: string,
+): WizardKindPreset | undefined {
   return kindPresets[kind]
 }
 

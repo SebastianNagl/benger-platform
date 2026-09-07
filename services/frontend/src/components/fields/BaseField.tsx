@@ -102,7 +102,7 @@ export function getInputClasses(hasError: boolean, readonly: boolean): string {
  */
 export function validateFieldValue(
   field: TaskTemplateField,
-  value: any
+  value: any,
 ): string[] {
   const errors: string[] = []
 

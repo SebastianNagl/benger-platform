@@ -7,8 +7,8 @@ import { ResponsiveContainer } from '@/components/shared/ResponsiveContainer'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { projectsAPI } from '@/lib/api/projects'
-import { Project } from '@/types/labelStudio'
 import { parseSubdomain } from '@/lib/utils/subdomain'
+import { Project } from '@/types/labelStudio'
 import { canAccessProjectData } from '@/utils/permissions'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useCallback, useEffect, useState } from 'react'
@@ -22,9 +22,7 @@ export default function GenerationPage() {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null)
   const [projects, setProjects] = useState<Project[]>([])
   const { isPrivateMode } =
-    typeof window !== 'undefined'
-      ? parseSubdomain()
-      : { isPrivateMode: true }
+    typeof window !== 'undefined' ? parseSubdomain() : { isPrivateMode: true }
 
   // Check permissions
   useEffect(() => {
@@ -42,7 +40,7 @@ export default function GenerationPage() {
       params.set('projectId', project.id.toString())
       router.replace(`/generations?${params.toString()}`, { scroll: false })
     },
-    [searchParams, router]
+    [searchParams, router],
   )
 
   // Load projects
@@ -90,7 +88,7 @@ export default function GenerationPage() {
 
   if (!canAccessProjectData(user, { isPrivateMode })) {
     return (
-      <ResponsiveContainer size="xl" className="pb-10 pt-8">
+      <ResponsiveContainer size="xl" className="pt-8 pb-10">
         <div className="text-center">
           <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-gray-100">
             {t('dataManagement.accessDenied')}
@@ -111,7 +109,7 @@ export default function GenerationPage() {
   return (
     <ResponsiveContainer
       size="full"
-      className="px-4 pb-10 pt-8 sm:px-6 lg:px-8"
+      className="px-4 pt-8 pb-10 sm:px-6 lg:px-8"
     >
       <div className="mb-4">
         <Breadcrumb

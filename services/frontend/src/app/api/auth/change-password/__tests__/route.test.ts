@@ -50,7 +50,7 @@ describe('/api/auth/change-password', () => {
       }
 
       ;(global.fetch as jest.Mock).mockResolvedValueOnce(
-        createMockResponse(mockResponse, 200)
+        createMockResponse(mockResponse, 200),
       )
 
       const passwordData = {
@@ -67,7 +67,7 @@ describe('/api/auth/change-password', () => {
             cookie: 'access_token=valid_token',
           },
           body: JSON.stringify(passwordData),
-        }
+        },
       )
 
       await POST(request)
@@ -81,7 +81,7 @@ describe('/api/auth/change-password', () => {
             Cookie: 'access_token=valid_token',
           }),
           body: JSON.stringify(passwordData),
-        })
+        }),
       )
     })
 
@@ -91,7 +91,7 @@ describe('/api/auth/change-password', () => {
       }
 
       ;(global.fetch as jest.Mock).mockResolvedValueOnce(
-        createMockResponse(mockResponse, 200)
+        createMockResponse(mockResponse, 200),
       )
 
       const request = createRequest(
@@ -105,7 +105,7 @@ describe('/api/auth/change-password', () => {
             old_password: 'oldpass',
             new_password: 'newpass',
           }),
-        }
+        },
       )
 
       const response = await POST(request)
@@ -121,7 +121,7 @@ describe('/api/auth/change-password', () => {
       }
 
       ;(global.fetch as jest.Mock).mockResolvedValueOnce(
-        createMockResponse(mockResponse, 200)
+        createMockResponse(mockResponse, 200),
       )
 
       const request = createRequest(
@@ -135,7 +135,7 @@ describe('/api/auth/change-password', () => {
             old_password: 'oldpass',
             new_password: 'newpass',
           }),
-        }
+        },
       )
 
       await POST(request)
@@ -146,7 +146,7 @@ describe('/api/auth/change-password', () => {
           headers: expect.objectContaining({
             Authorization: 'Bearer test_token_123',
           }),
-        })
+        }),
       )
     })
 
@@ -156,7 +156,7 @@ describe('/api/auth/change-password', () => {
       }
 
       ;(global.fetch as jest.Mock).mockResolvedValueOnce(
-        createMockResponse(mockResponse, 200)
+        createMockResponse(mockResponse, 200),
       )
 
       const request = createRequest(
@@ -171,7 +171,7 @@ describe('/api/auth/change-password', () => {
             old_password: 'oldpass',
             new_password: 'newpass',
           }),
-        }
+        },
       )
 
       await POST(request)
@@ -183,7 +183,7 @@ describe('/api/auth/change-password', () => {
             Cookie: 'access_token=cookie_token',
             Authorization: 'Bearer header_token',
           }),
-        })
+        }),
       )
     })
   })
@@ -191,7 +191,7 @@ describe('/api/auth/change-password', () => {
   describe('Authentication Failures', () => {
     it('should return 401 for unauthenticated request', async () => {
       ;(global.fetch as jest.Mock).mockResolvedValueOnce(
-        createMockResponse('Unauthorized', 401, true)
+        createMockResponse('Unauthorized', 401, true),
       )
 
       const request = createRequest(
@@ -202,7 +202,7 @@ describe('/api/auth/change-password', () => {
             old_password: 'oldpass',
             new_password: 'newpass',
           }),
-        }
+        },
       )
 
       const response = await POST(request)
@@ -214,7 +214,7 @@ describe('/api/auth/change-password', () => {
 
     it('should return 401 for invalid token', async () => {
       ;(global.fetch as jest.Mock).mockResolvedValueOnce(
-        createMockResponse('Invalid token', 401, true)
+        createMockResponse('Invalid token', 401, true),
       )
 
       const request = createRequest(
@@ -228,7 +228,7 @@ describe('/api/auth/change-password', () => {
             old_password: 'oldpass',
             new_password: 'newpass',
           }),
-        }
+        },
       )
 
       const response = await POST(request)
@@ -238,7 +238,7 @@ describe('/api/auth/change-password', () => {
 
     it('should return 403 for forbidden access', async () => {
       ;(global.fetch as jest.Mock).mockResolvedValueOnce(
-        createMockResponse('Forbidden', 403, true)
+        createMockResponse('Forbidden', 403, true),
       )
 
       const request = createRequest(
@@ -252,7 +252,7 @@ describe('/api/auth/change-password', () => {
             old_password: 'oldpass',
             new_password: 'newpass',
           }),
-        }
+        },
       )
 
       const response = await POST(request)
@@ -268,7 +268,7 @@ describe('/api/auth/change-password', () => {
       }
 
       ;(global.fetch as jest.Mock).mockResolvedValueOnce(
-        createMockResponse('Current password is incorrect', 400, true)
+        createMockResponse('Current password is incorrect', 400, true),
       )
 
       const request = createRequest(
@@ -282,7 +282,7 @@ describe('/api/auth/change-password', () => {
             old_password: 'wrongpassword',
             new_password: 'newpass123',
           }),
-        }
+        },
       )
 
       const response = await POST(request)
@@ -294,7 +294,7 @@ describe('/api/auth/change-password', () => {
 
     it('should return 422 for weak new password', async () => {
       ;(global.fetch as jest.Mock).mockResolvedValueOnce(
-        createMockResponse('Password too weak', 422, true)
+        createMockResponse('Password too weak', 422, true),
       )
 
       const request = createRequest(
@@ -308,7 +308,7 @@ describe('/api/auth/change-password', () => {
             old_password: 'oldpass',
             new_password: '123',
           }),
-        }
+        },
       )
 
       const response = await POST(request)
@@ -318,7 +318,7 @@ describe('/api/auth/change-password', () => {
 
     it('should return 422 for missing old password', async () => {
       ;(global.fetch as jest.Mock).mockResolvedValueOnce(
-        createMockResponse('Old password is required', 422, true)
+        createMockResponse('Old password is required', 422, true),
       )
 
       const request = createRequest(
@@ -331,7 +331,7 @@ describe('/api/auth/change-password', () => {
           body: JSON.stringify({
             new_password: 'newpass123',
           }),
-        }
+        },
       )
 
       const response = await POST(request)
@@ -341,7 +341,7 @@ describe('/api/auth/change-password', () => {
 
     it('should return 422 for missing new password', async () => {
       ;(global.fetch as jest.Mock).mockResolvedValueOnce(
-        createMockResponse('New password is required', 422, true)
+        createMockResponse('New password is required', 422, true),
       )
 
       const request = createRequest(
@@ -354,7 +354,7 @@ describe('/api/auth/change-password', () => {
           body: JSON.stringify({
             old_password: 'oldpass123',
           }),
-        }
+        },
       )
 
       const response = await POST(request)
@@ -364,7 +364,7 @@ describe('/api/auth/change-password', () => {
 
     it('should return 422 for empty request body', async () => {
       ;(global.fetch as jest.Mock).mockResolvedValueOnce(
-        createMockResponse('Request body is required', 422, true)
+        createMockResponse('Request body is required', 422, true),
       )
 
       const request = createRequest(
@@ -375,7 +375,7 @@ describe('/api/auth/change-password', () => {
             cookie: 'access_token=valid_token',
           },
           body: JSON.stringify({}),
-        }
+        },
       )
 
       const response = await POST(request)
@@ -392,7 +392,7 @@ describe('/api/auth/change-password', () => {
             cookie: 'access_token=valid_token',
           },
           body: 'invalid json',
-        }
+        },
       )
 
       const response = await POST(request)
@@ -406,7 +406,7 @@ describe('/api/auth/change-password', () => {
   describe('Backend API Errors', () => {
     it('should handle 500 Internal Server Error', async () => {
       ;(global.fetch as jest.Mock).mockResolvedValueOnce(
-        createMockResponse('Internal server error', 500, true)
+        createMockResponse('Internal server error', 500, true),
       )
 
       const request = createRequest(
@@ -420,7 +420,7 @@ describe('/api/auth/change-password', () => {
             old_password: 'oldpass',
             new_password: 'newpass',
           }),
-        }
+        },
       )
 
       const response = await POST(request)
@@ -430,7 +430,7 @@ describe('/api/auth/change-password', () => {
 
     it('should handle 502 Bad Gateway', async () => {
       ;(global.fetch as jest.Mock).mockResolvedValueOnce(
-        createMockResponse('Bad Gateway', 502, true)
+        createMockResponse('Bad Gateway', 502, true),
       )
 
       const request = createRequest(
@@ -444,7 +444,7 @@ describe('/api/auth/change-password', () => {
             old_password: 'oldpass',
             new_password: 'newpass',
           }),
-        }
+        },
       )
 
       const response = await POST(request)
@@ -454,7 +454,7 @@ describe('/api/auth/change-password', () => {
 
     it('should handle 503 Service Unavailable', async () => {
       ;(global.fetch as jest.Mock).mockResolvedValueOnce(
-        createMockResponse('Service Unavailable', 503, true)
+        createMockResponse('Service Unavailable', 503, true),
       )
 
       const request = createRequest(
@@ -468,7 +468,7 @@ describe('/api/auth/change-password', () => {
             old_password: 'oldpass',
             new_password: 'newpass',
           }),
-        }
+        },
       )
 
       const response = await POST(request)
@@ -478,7 +478,7 @@ describe('/api/auth/change-password', () => {
 
     it('should handle empty error response with fallback message', async () => {
       ;(global.fetch as jest.Mock).mockResolvedValueOnce(
-        createMockResponse('', 400, true)
+        createMockResponse('', 400, true),
       )
 
       const request = createRequest(
@@ -492,7 +492,7 @@ describe('/api/auth/change-password', () => {
             old_password: 'oldpass',
             new_password: 'newpass',
           }),
-        }
+        },
       )
 
       const response = await POST(request)
@@ -506,7 +506,7 @@ describe('/api/auth/change-password', () => {
   describe('Network Errors', () => {
     it('should handle network timeout', async () => {
       ;(global.fetch as jest.Mock).mockRejectedValueOnce(
-        new Error('Network timeout')
+        new Error('Network timeout'),
       )
 
       const request = createRequest(
@@ -520,7 +520,7 @@ describe('/api/auth/change-password', () => {
             old_password: 'oldpass',
             new_password: 'newpass',
           }),
-        }
+        },
       )
 
       const response = await POST(request)
@@ -532,7 +532,7 @@ describe('/api/auth/change-password', () => {
 
     it('should handle connection refused', async () => {
       ;(global.fetch as jest.Mock).mockRejectedValueOnce(
-        new Error('ECONNREFUSED')
+        new Error('ECONNREFUSED'),
       )
 
       const request = createRequest(
@@ -546,7 +546,7 @@ describe('/api/auth/change-password', () => {
             old_password: 'oldpass',
             new_password: 'newpass',
           }),
-        }
+        },
       )
 
       const response = await POST(request)
@@ -556,13 +556,13 @@ describe('/api/auth/change-password', () => {
       expect(data.error).toBe('Internal server error')
       expect(console.error).toHaveBeenCalledWith(
         '❌ Change password proxy error:',
-        expect.any(Error)
+        expect.any(Error),
       )
     })
 
     it('should handle DNS resolution failure', async () => {
       ;(global.fetch as jest.Mock).mockRejectedValueOnce(
-        new Error('getaddrinfo ENOTFOUND')
+        new Error('getaddrinfo ENOTFOUND'),
       )
 
       const request = createRequest(
@@ -576,7 +576,7 @@ describe('/api/auth/change-password', () => {
             old_password: 'oldpass',
             new_password: 'newpass',
           }),
-        }
+        },
       )
 
       const response = await POST(request)
@@ -588,7 +588,7 @@ describe('/api/auth/change-password', () => {
   describe('API Base URL Detection', () => {
     it('should use Docker API URL for benger.localhost', async () => {
       ;(global.fetch as jest.Mock).mockResolvedValueOnce(
-        createMockResponse({ message: 'Success' }, 200)
+        createMockResponse({ message: 'Success' }, 200),
       )
 
       const request = createRequest(
@@ -602,20 +602,20 @@ describe('/api/auth/change-password', () => {
             old_password: 'oldpass',
             new_password: 'newpass',
           }),
-        }
+        },
       )
 
       await POST(request)
 
       expect(global.fetch).toHaveBeenCalledWith(
         'http://api:8000/api/auth/change-password',
-        expect.any(Object)
+        expect.any(Object),
       )
     })
 
     it('should use localhost:8001 for localhost:3000', async () => {
       ;(global.fetch as jest.Mock).mockResolvedValueOnce(
-        createMockResponse({ message: 'Success' }, 200)
+        createMockResponse({ message: 'Success' }, 200),
       )
 
       const request = createRequest(
@@ -629,14 +629,14 @@ describe('/api/auth/change-password', () => {
             old_password: 'oldpass',
             new_password: 'newpass',
           }),
-        }
+        },
       )
 
       await POST(request)
 
       expect(global.fetch).toHaveBeenCalledWith(
         'http://localhost:8001/api/auth/change-password',
-        expect.any(Object)
+        expect.any(Object),
       )
     })
 
@@ -645,7 +645,7 @@ describe('/api/auth/change-password', () => {
       const originalApiUrl = process.env.API_URL
       process.env.DOCKER_INTERNAL_API_URL = 'http://custom-api:7000'
       ;(global.fetch as jest.Mock).mockResolvedValueOnce(
-        createMockResponse({ message: 'Success' }, 200)
+        createMockResponse({ message: 'Success' }, 200),
       )
 
       const request = createRequest(
@@ -659,14 +659,14 @@ describe('/api/auth/change-password', () => {
             old_password: 'oldpass',
             new_password: 'newpass',
           }),
-        }
+        },
       )
 
       await POST(request)
 
       expect(global.fetch).toHaveBeenCalledWith(
         'http://custom-api:7000/api/auth/change-password',
-        expect.any(Object)
+        expect.any(Object),
       )
 
       if (originalDockerUrl) {
@@ -685,7 +685,7 @@ describe('/api/auth/change-password', () => {
       delete process.env.DOCKER_INTERNAL_API_URL
       delete process.env.API_URL
       ;(global.fetch as jest.Mock).mockResolvedValueOnce(
-        createMockResponse({ message: 'Success' }, 200)
+        createMockResponse({ message: 'Success' }, 200),
       )
 
       const request = createRequest(
@@ -699,14 +699,14 @@ describe('/api/auth/change-password', () => {
             old_password: 'oldpass',
             new_password: 'newpass',
           }),
-        }
+        },
       )
 
       await POST(request)
 
       expect(global.fetch).toHaveBeenCalledWith(
         'http://benger-api:8000/api/auth/change-password',
-        expect.any(Object)
+        expect.any(Object),
       )
 
       if (originalDockerUrl) {
@@ -719,7 +719,7 @@ describe('/api/auth/change-password', () => {
 
     it('should default to Docker API URL for unknown hosts', async () => {
       ;(global.fetch as jest.Mock).mockResolvedValueOnce(
-        createMockResponse({ message: 'Success' }, 200)
+        createMockResponse({ message: 'Success' }, 200),
       )
 
       const request = createRequest(
@@ -733,14 +733,14 @@ describe('/api/auth/change-password', () => {
             old_password: 'oldpass',
             new_password: 'newpass',
           }),
-        }
+        },
       )
 
       await POST(request)
 
       expect(global.fetch).toHaveBeenCalledWith(
         'http://api:8000/api/auth/change-password',
-        expect.any(Object)
+        expect.any(Object),
       )
     })
   })
@@ -753,7 +753,7 @@ describe('/api/auth/change-password', () => {
       }
 
       ;(global.fetch as jest.Mock).mockResolvedValueOnce(
-        createMockResponse({ message: 'Success' }, 200)
+        createMockResponse({ message: 'Success' }, 200),
       )
 
       const request = createRequest(
@@ -764,7 +764,7 @@ describe('/api/auth/change-password', () => {
             cookie: 'access_token=valid_token',
           },
           body: JSON.stringify(passwordData),
-        }
+        },
       )
 
       await POST(request)
@@ -777,13 +777,13 @@ describe('/api/auth/change-password', () => {
             'Content-Type': 'application/json',
           }),
           body: JSON.stringify(passwordData),
-        })
+        }),
       )
     })
 
     it('should set correct Content-Type header', async () => {
       ;(global.fetch as jest.Mock).mockResolvedValueOnce(
-        createMockResponse({ message: 'Success' }, 200)
+        createMockResponse({ message: 'Success' }, 200),
       )
 
       const request = createRequest(
@@ -797,7 +797,7 @@ describe('/api/auth/change-password', () => {
             old_password: 'oldpass',
             new_password: 'newpass',
           }),
-        }
+        },
       )
 
       await POST(request)
@@ -808,13 +808,13 @@ describe('/api/auth/change-password', () => {
           headers: expect.objectContaining({
             'Content-Type': 'application/json',
           }),
-        })
+        }),
       )
     })
 
     it('should handle empty cookies gracefully', async () => {
       ;(global.fetch as jest.Mock).mockResolvedValueOnce(
-        createMockResponse({ message: 'Success' }, 200)
+        createMockResponse({ message: 'Success' }, 200),
       )
 
       const request = createRequest(
@@ -825,7 +825,7 @@ describe('/api/auth/change-password', () => {
             old_password: 'oldpass',
             new_password: 'newpass',
           }),
-        }
+        },
       )
 
       await POST(request)
@@ -837,7 +837,7 @@ describe('/api/auth/change-password', () => {
             Cookie: '',
             Authorization: '',
           }),
-        })
+        }),
       )
     })
   })
@@ -845,7 +845,7 @@ describe('/api/auth/change-password', () => {
   describe('Error Logging', () => {
     it('should log errors from network failures', async () => {
       ;(global.fetch as jest.Mock).mockRejectedValueOnce(
-        new Error('Connection failed')
+        new Error('Connection failed'),
       )
 
       const request = createRequest(
@@ -859,20 +859,20 @@ describe('/api/auth/change-password', () => {
             old_password: 'oldpass',
             new_password: 'newpass',
           }),
-        }
+        },
       )
 
       await POST(request)
 
       expect(console.error).toHaveBeenCalledWith(
         '❌ Change password proxy error:',
-        expect.any(Error)
+        expect.any(Error),
       )
     })
 
     it('should log errors from backend failures', async () => {
       ;(global.fetch as jest.Mock).mockRejectedValueOnce(
-        new Error('Backend unreachable')
+        new Error('Backend unreachable'),
       )
 
       const request = createRequest(
@@ -886,7 +886,7 @@ describe('/api/auth/change-password', () => {
             old_password: 'oldpass',
             new_password: 'newpass',
           }),
-        }
+        },
       )
 
       await POST(request)
@@ -895,7 +895,7 @@ describe('/api/auth/change-password', () => {
         '❌ Change password proxy error:',
         expect.objectContaining({
           message: 'Backend unreachable',
-        })
+        }),
       )
     })
   })

@@ -12,10 +12,10 @@
  */
 
 import { useAuth } from '@/contexts/AuthContext'
+import { mockToast } from '@/test-utils/setupTests'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import React from 'react'
 import { useNotifications } from '../useNotifications'
-import { mockToast } from '@/test-utils/setupTests'
 
 jest.mock('@/contexts/AuthContext', () => ({
   useAuth: jest.fn(),
@@ -34,7 +34,8 @@ jest.mock('@/contexts/I18nContext', () => {
         '{count} Benachrichtigung als gelesen markiert',
     },
     en: {
-      'notifications.markAllReadSuccess': '{count} notifications marked as read',
+      'notifications.markAllReadSuccess':
+        '{count} notifications marked as read',
       'notifications.markAllReadSuccessOne':
         '{count} notification marked as read',
     },
@@ -46,7 +47,7 @@ jest.mock('@/contexts/I18nContext', () => {
         let s = (dict[bound] && dict[bound][key]) || key
         if (vars) {
           s = s.replace(/\{(\w+)\}/g, (m, n) =>
-            vars[n] !== undefined ? String(vars[n]) : m
+            vars[n] !== undefined ? String(vars[n]) : m,
           )
         }
         return s
@@ -109,7 +110,7 @@ describe('useNotifications - toast follows current locale after live switch', ()
       count: 2,
     })
     mockApiClient.createNotificationStream.mockImplementation(
-      () => new MockEventSource()
+      () => new MockEventSource(),
     )
   })
 
@@ -127,7 +128,7 @@ describe('useNotifications - toast follows current locale after live switch', ()
       await result.current.markAllAsRead()
     })
     expect(mockToast.success).toHaveBeenLastCalledWith(
-      '2 Benachrichtigungen als gelesen markiert'
+      '2 Benachrichtigungen als gelesen markiert',
     )
 
     // Switch language live (no remount) and rerender the hook, as happens when
@@ -139,7 +140,7 @@ describe('useNotifications - toast follows current locale after live switch', ()
       await result.current.markAllAsRead()
     })
     expect(mockToast.success).toHaveBeenLastCalledWith(
-      '2 notifications marked as read'
+      '2 notifications marked as read',
     )
   })
 })

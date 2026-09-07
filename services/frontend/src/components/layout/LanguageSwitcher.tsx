@@ -57,7 +57,7 @@ export function LanguageSwitcher({
       title={`Language: ${localeNames[safeLocale]} → ${localeNames[otherLocale]}`}
       data-testid="language-switcher"
     >
-      <span className="pointer-fine:hidden absolute size-12" />
+      <span className="absolute size-12 pointer-fine:hidden" />
       <span className="text-sm" role="img" aria-label={localeNames[safeLocale]}>
         {currentFlag}
       </span>

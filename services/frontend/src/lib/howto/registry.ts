@@ -73,7 +73,10 @@ export const HOWTO_CATEGORIES: HowToCategory[] = [
   },
   {
     id: 'organizations',
-    title: { de: 'Organisationen, Gruppen & Einladungen', en: 'Organizations, groups & invitations' },
+    title: {
+      de: 'Organisationen, Gruppen & Einladungen',
+      en: 'Organizations, groups & invitations',
+    },
     blurb: {
       de: 'Mitglieder, Rollen, Gruppen (z.B. Lehrstühle) und Einladungslinks.',
       en: 'Members, roles, groups (e.g. chairs) and invitation links.',
@@ -81,7 +84,10 @@ export const HOWTO_CATEGORIES: HowToCategory[] = [
   },
   {
     id: 'projects',
-    title: { de: 'Projekte anlegen & konfigurieren', en: 'Creating & configuring projects' },
+    title: {
+      de: 'Projekte anlegen & konfigurieren',
+      en: 'Creating & configuring projects',
+    },
     blurb: {
       de: 'Der Projekt-Assistent, Projekttypen, Einstellungen und die Projektseite.',
       en: 'The project wizard, project types, settings and the project page.',
@@ -89,7 +95,10 @@ export const HOWTO_CATEGORIES: HowToCategory[] = [
   },
   {
     id: 'data',
-    title: { de: 'Daten hochladen, importieren & exportieren', en: 'Uploading, importing & exporting data' },
+    title: {
+      de: 'Daten hochladen, importieren & exportieren',
+      en: 'Uploading, importing & exporting data',
+    },
     blurb: {
       de: 'Dateiformate, Feldzuordnung und der Projekt-Export/-Import.',
       en: 'File formats, field mapping and project export/import.',
@@ -97,7 +106,10 @@ export const HOWTO_CATEGORIES: HowToCategory[] = [
   },
   {
     id: 'annotation',
-    title: { de: 'Annotationsoberfläche & XML', en: 'Annotation interface & XML' },
+    title: {
+      de: 'Annotationsoberfläche & XML',
+      en: 'Annotation interface & XML',
+    },
     blurb: {
       de: 'Die Oberfläche, die Annotierende sehen, und wie Sie das XML dahinter anpassen.',
       en: 'The interface annotators see, and how to edit the XML behind it.',
@@ -113,7 +125,10 @@ export const HOWTO_CATEGORIES: HowToCategory[] = [
   },
   {
     id: 'evaluation',
-    title: { de: 'Evaluation, Korrektur & Berichte', en: 'Evaluation, grading & reports' },
+    title: {
+      de: 'Evaluation, Korrektur & Berichte',
+      en: 'Evaluation, grading & reports',
+    },
     blurb: {
       de: 'Bewertungsverfahren, Sofort-Evaluation, menschliche Korrektur, Berichte und Bestenlisten.',
       en: 'Evaluation methods, immediate evaluation, human grading, reports and leaderboards.',
@@ -121,7 +136,10 @@ export const HOWTO_CATEGORIES: HowToCategory[] = [
   },
   {
     id: 'integrations',
-    title: { de: 'Integrationen (Moodle, ILIAS, LTI)', en: 'Integrations (Moodle, ILIAS, LTI)' },
+    title: {
+      de: 'Integrationen (Moodle, ILIAS, LTI)',
+      en: 'Integrations (Moodle, ILIAS, LTI)',
+    },
     blurb: {
       de: 'BenGER-Klausuren in Lernplattformen einbinden.',
       en: 'Embedding BenGER exams in learning platforms.',
@@ -167,7 +185,9 @@ export function getHowToGuides(): HowToGuide[] {
   const order = new Map(HOWTO_CATEGORIES.map((c, i) => [c.id, i]))
   return Object.values(buckets)
     .flat()
-    .sort((a, b) => (order.get(a.category) ?? 99) - (order.get(b.category) ?? 99))
+    .sort(
+      (a, b) => (order.get(a.category) ?? 99) - (order.get(b.category) ?? 99),
+    )
 }
 
 /** React hook: all guides, re-rendering when a source registers later. */
@@ -187,7 +207,10 @@ export function pick(text: Bilingual, locale: string): string {
   return locale === 'en' ? text.en : text.de
 }
 
-export function pickList(list: BilingualList | undefined, locale: string): string[] {
+export function pickList(
+  list: BilingualList | undefined,
+  locale: string,
+): string[] {
   if (!list) return []
   return locale === 'en' ? list.en : list.de
 }

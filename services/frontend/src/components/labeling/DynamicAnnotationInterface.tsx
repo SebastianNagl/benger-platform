@@ -6,10 +6,10 @@
 
 import { Alert } from '@/components/shared/Alert'
 import { AutoSaveIndicator } from '@/components/shared/AutoSaveIndicator'
-import { useAutoSave } from '@/hooks/useAutoSave'
-import { logger } from '@/lib/utils/logger'
 import { Skeleton } from '@/components/shared/Skeleton'
 import { useI18n } from '@/contexts/I18nContext'
+import { useAutoSave } from '@/hooks/useAutoSave'
+import { useModernExamLayout } from '@/hooks/useModernExamLayout'
 import {
   AnnotationResult,
   resolvePropsDataBindings,
@@ -22,7 +22,7 @@ import {
   validateParsedConfig,
 } from '@/lib/labelConfig/parser'
 import { getComponent } from '@/lib/labelConfig/registry'
-import { useModernExamLayout } from '@/hooks/useModernExamLayout'
+import { logger } from '@/lib/utils/logger'
 import React, {
   Suspense,
   useCallback,
@@ -79,7 +79,8 @@ export function DynamicAnnotationInterface({
     prefs: examLayoutPrefs,
     Layout: ModernLayout,
   } = useModernExamLayout(labelConfig)
-  const useModernRender = allowModernLayout && modernLayoutActive && !!ModernLayout
+  const useModernRender =
+    allowModernLayout && modernLayoutActive && !!ModernLayout
 
   // Track start time for lead_time calculation - use lazy initializer to avoid calling Date.now() on every render
   const [initialStartTime] = useState(() => startTime || Date.now())
@@ -94,7 +95,7 @@ export function DynamicAnnotationInterface({
         })
       }
       return map
-    }
+    },
   )
   const [componentValues, setComponentValues] = useState<Map<string, any>>(
     () => {
@@ -116,7 +117,7 @@ export function DynamicAnnotationInterface({
         })
       }
       return map
-    }
+    },
   )
   const [submissionErrors, setSubmissionErrors] = useState<string[]>([])
   const [confirmedDone, setConfirmedDone] = useState(false)
@@ -128,7 +129,7 @@ export function DynamicAnnotationInterface({
     annotations,
     componentValues,
     initialStartTime, // Use the stable initial value instead of ref.current
-    { enabled: enableAutoSave }
+    { enabled: enableAutoSave },
   )
 
   // Load draft from localStorage on mount (Issue #1110 - restore drafts after page refresh)
@@ -136,7 +137,11 @@ export function DynamicAnnotationInterface({
   useEffect(() => {
     if (!enableAutoSave) return
     const draft = autoSave.loadDraft()
-    if (draft && draft.componentValues && Object.keys(draft.componentValues).length > 0) {
+    if (
+      draft &&
+      draft.componentValues &&
+      Object.keys(draft.componentValues).length > 0
+    ) {
       // Restore componentValues from draft
       const valuesMap = new Map<string, any>()
       Object.entries(draft.componentValues).forEach(([key, value]) => {
@@ -152,14 +157,21 @@ export function DynamicAnnotationInterface({
         })
         setAnnotations(annotationsMap)
       }
-      logger.debug('Restored form from localStorage draft:', Object.keys(draft.componentValues).length, 'fields')
+      logger.debug(
+        'Restored form from localStorage draft:',
+        Object.keys(draft.componentValues).length,
+        'fields',
+      )
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- Only run on mount
   }, [])
 
   // Reset start time when task changes
   useEffect(() => {
-    if (previousTaskId.current !== taskId && previousTaskId.current !== undefined) {
+    if (
+      previousTaskId.current !== taskId &&
+      previousTaskId.current !== undefined
+    ) {
       startTimeRef.current = Date.now()
     }
   }, [taskId])
@@ -171,7 +183,6 @@ export function DynamicAnnotationInterface({
       previousTaskId.current !== taskId &&
       previousTaskId.current !== undefined
     ) {
-       
       setAnnotations(new Map())
 
       setComponentValues(new Map())
@@ -202,14 +213,16 @@ export function DynamicAnnotationInterface({
           typeof value === 'object' &&
           value?.text
         ) {
-          value = Array.isArray(value.text)
-            ? value.text.join(' ')
-            : value.text
+          value = Array.isArray(value.text) ? value.text.join(' ') : value.text
         }
         valuesMap.set(annotation.from_name, value)
       })
       setComponentValues(valuesMap)
-      logger.debug('Populated form with initial values:', initialValues.length, 'annotations')
+      logger.debug(
+        'Populated form with initial values:',
+        initialValues.length,
+        'annotations',
+      )
     }
   }, [initialValues])
 
@@ -251,35 +264,40 @@ export function DynamicAnnotationInterface({
   // identity re-fires those effects after every state landing — with a
   // publish-on-effect component (Loesung/Gliederung) that becomes an infinite
   // publish → setState → new callback → publish loop.
-  const handleComponentChange = useCallback((componentName: string, value: any) => {
-    logger.debug('handleComponentChange called:', componentName, value)
-    setComponentValues((prev) => {
-      const updated = new Map(prev)
-      updated.set(componentName, value)
-      logger.debug('Updated componentValues size:', updated.size)
-      return updated
-    })
-  }, [])
+  const handleComponentChange = useCallback(
+    (componentName: string, value: any) => {
+      logger.debug('handleComponentChange called:', componentName, value)
+      setComponentValues((prev) => {
+        const updated = new Map(prev)
+        updated.set(componentName, value)
+        logger.debug('Updated componentValues size:', updated.size)
+        return updated
+      })
+    },
+    [],
+  )
 
   // Notify parent when component values change (outside render cycle to avoid setState-during-render)
   useEffect(() => {
     if (onChange && componentValues.size > 0) {
       // Merge: prefer properly formatted annotations (from blur) over raw componentValues
-      const results = Array.from(componentValues.entries()).map(([name, val]) => {
-        const existingAnnotation = annotations.get(name)
-        if (existingAnnotation) {
-          return existingAnnotation
-        }
-        return {
-          from_name: name,
-          to_name: 'text',
-          type: 'textarea' as const,
-          value: val,
-        }
-      })
+      const results = Array.from(componentValues.entries()).map(
+        ([name, val]) => {
+          const existingAnnotation = annotations.get(name)
+          if (existingAnnotation) {
+            return existingAnnotation
+          }
+          return {
+            from_name: name,
+            to_name: 'text',
+            type: 'textarea' as const,
+            value: val,
+          }
+        },
+      )
       onChange(results)
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [componentValues])
 
   // Notify parent when annotations change (outside render cycle to avoid setState-during-render)
@@ -287,7 +305,7 @@ export function DynamicAnnotationInterface({
     if (onChange) {
       onChange(Array.from(annotations.values()))
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [annotations])
 
   // Handle annotation from component. Memoized for the same reason as
@@ -304,9 +322,12 @@ export function DynamicAnnotationInterface({
   }, [])
 
   // Wrapper for saveNow that passes field info directly to avoid race conditions
-  const handleSaveToDb = useCallback(async (fieldName: string, value: unknown): Promise<void> => {
-    await autoSave.saveNow({ fieldName, value })
-  }, [autoSave])
+  const handleSaveToDb = useCallback(
+    async (fieldName: string, value: unknown): Promise<void> => {
+      await autoSave.saveNow({ fieldName, value })
+    },
+    [autoSave],
+  )
 
   // Handle submit - simplified to prevent stack overflow
   const handleSubmit = useCallback(async () => {
@@ -332,7 +353,7 @@ export function DynamicAnnotationInterface({
             to_name: 'text',
             type: 'textarea',
             value,
-          }
+          },
         )
       })
       // Include any annotation-only fields that never emitted a componentValue.
@@ -394,7 +415,7 @@ export function DynamicAnnotationInterface({
   // Render component tree recursively
   const renderComponent = (
     config: ParsedComponent,
-    key: string = '0'
+    key: string = '0',
   ): React.ReactNode => {
     const component = getComponent(config.type)
 
@@ -417,7 +438,7 @@ export function DynamicAnnotationInterface({
 
     // Render component with children
     const children = config.children.map((child, index) =>
-      renderComponent(child, `${key}_${index}`)
+      renderComponent(child, `${key}_${index}`),
     )
 
     return (
@@ -427,7 +448,11 @@ export function DynamicAnnotationInterface({
           taskData={taskData}
           taskId={taskId?.toString()}
           value={value}
-          onChange={readOnly ? () => {} : (val) => handleComponentChange(componentName, val)}
+          onChange={
+            readOnly
+              ? () => {}
+              : (val) => handleComponentChange(componentName, val)
+          }
           onAnnotation={readOnly ? () => {} : handleAnnotation}
           hideSubmitButton={showSubmitButton} // Hide individual submit buttons when main button is shown (Issue #251, #1030)
           onSaveToDb={enableAutoSave && !readOnly ? handleSaveToDb : undefined} // Pass immediate save handler for Ctrl+S
@@ -517,7 +542,10 @@ export function DynamicAnnotationInterface({
                 onChange={(e) => setConfirmedDone(e.target.checked)}
                 className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
               />
-              {t('annotation.interface.confirmDone', { defaultValue: 'I confirm that I have read the annotation instructions and am ready to submit' })}
+              {t('annotation.interface.confirmDone', {
+                defaultValue:
+                  'I confirm that I have read the annotation instructions and am ready to submit',
+              })}
             </label>
           </div>
         )}
@@ -552,7 +580,10 @@ export function DynamicAnnotationInterface({
               <button
                 type="button"
                 onClick={handleSubmit}
-                disabled={(annotations.size === 0 && componentValues.size === 0) || (requireConfirmBeforeSubmit && !confirmedDone)}
+                disabled={
+                  (annotations.size === 0 && componentValues.size === 0) ||
+                  (requireConfirmBeforeSubmit && !confirmedDone)
+                }
                 className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {t('annotation.interface.submit')}{' '}

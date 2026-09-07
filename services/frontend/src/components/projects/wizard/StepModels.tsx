@@ -25,11 +25,15 @@ interface StepModelsProps {
 }
 
 const PROVIDER_COLORS: Record<string, string> = {
-  openai: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
-  anthropic: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300',
+  openai:
+    'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
+  anthropic:
+    'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300',
   google: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
-  deepinfra: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300',
-  mistral: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300',
+  deepinfra:
+    'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300',
+  mistral:
+    'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300',
   cohere: 'bg-pink-100 text-pink-800 dark:bg-pink-900/30 dark:text-pink-300',
   grok: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
 }
@@ -69,7 +73,7 @@ export function StepModels({
       acc[provider].push(model)
       return acc
     },
-    {} as Record<string, typeof models>
+    {} as Record<string, typeof models>,
   )
 
   const toggleModel = (modelId: string) => {
@@ -86,7 +90,7 @@ export function StepModels({
   const updateConfig = (
     modelId: string,
     field: keyof ModelConfig,
-    value: number | undefined
+    value: number | undefined,
   ) => {
     onModelConfigsChange({
       ...modelConfigs,
@@ -140,7 +144,7 @@ export function StepModels({
                   className={cn(
                     'rounded-md px-2 py-0.5 text-xs font-medium capitalize',
                     PROVIDER_COLORS[provider] ||
-                      'bg-zinc-100 text-zinc-800 dark:bg-zinc-800 dark:text-zinc-300'
+                      'bg-zinc-100 text-zinc-800 dark:bg-zinc-800 dark:text-zinc-300',
                   )}
                 >
                   {provider}
@@ -172,9 +176,7 @@ export function StepModels({
                             <button
                               type="button"
                               onClick={() =>
-                                setExpandedModel(
-                                  isExpanded ? null : model.id
-                                )
+                                setExpandedModel(isExpanded ? null : model.id)
                               }
                               className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
                             >
@@ -196,12 +198,12 @@ export function StepModels({
                       </div>
 
                       {isSelected && isExpanded && (
-                        <div className="ml-4 mt-2 rounded-lg border border-zinc-200 p-3 dark:border-zinc-700">
+                        <div className="mt-2 ml-4 rounded-lg border border-zinc-200 p-3 dark:border-zinc-700">
                           <div className="grid grid-cols-2 gap-3">
                             <div>
                               <Label className="text-xs">
                                 {t(
-                                  'projects.creation.wizard.step5.temperature'
+                                  'projects.creation.wizard.step5.temperature',
                                 )}
                               </Label>
                               <Input
@@ -219,21 +221,19 @@ export function StepModels({
                                     'temperature',
                                     e.target.value
                                       ? Number(e.target.value)
-                                      : undefined
+                                      : undefined,
                                   )
                                 }
                                 placeholder={String(
                                   model.parameter_constraints?.temperature
-                                    ?.default ?? 0.7
+                                    ?.default ?? 0.7,
                                 )}
                                 className="text-sm"
                               />
                             </div>
                             <div>
                               <Label className="text-xs">
-                                {t(
-                                  'projects.creation.wizard.step5.maxTokens'
-                                )}
+                                {t('projects.creation.wizard.step5.maxTokens')}
                               </Label>
                               <Input
                                 type="number"
@@ -245,12 +245,12 @@ export function StepModels({
                                     'max_tokens',
                                     e.target.value
                                       ? Number(e.target.value)
-                                      : undefined
+                                      : undefined,
                                   )
                                 }
                                 placeholder={String(
                                   model.parameter_constraints?.max_tokens
-                                    ?.default ?? 4096
+                                    ?.default ?? 4096,
                                 )}
                                 className="text-sm"
                               />

@@ -10,7 +10,7 @@
  */
 
 import '@testing-library/jest-dom'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { HighlightField } from '../HighlightField'
 
 jest.mock('@/contexts/I18nContext', () => ({
@@ -32,7 +32,11 @@ jest.mock('@/components/fields/BaseField', () => ({
   FieldWrapper: ({ children, field, errors, className }: any) => (
     <div data-testid="field-wrapper" className={className}>
       <div data-testid="field-label">{field.label || field.name}</div>
-      {errors?.map((e: string, i: number) => <div key={i} data-testid="error">{e}</div>)}
+      {errors?.map((e: string, i: number) => (
+        <div key={i} data-testid="error">
+          {e}
+        </div>
+      ))}
       {children}
     </div>
   ),
@@ -41,7 +45,11 @@ jest.mock('@/components/fields/BaseField', () => ({
 const baseField = {
   name: 'highlight1',
   type: 'highlight' as const,
-  display: { annotation: 'editable' as const, table: 'column' as const, creation: 'editable' as const },
+  display: {
+    annotation: 'editable' as const,
+    table: 'column' as const,
+    creation: 'editable' as const,
+  },
   source: 'annotation' as const,
   label: 'Test Highlight',
   metadata: { source_text: 'The quick brown fox jumps over the lazy dog' },
@@ -55,9 +63,11 @@ describe('HighlightField', () => {
         value={[]}
         onChange={jest.fn()}
         context="annotation"
-      />
+      />,
     )
-    expect(screen.getByText('The quick brown fox jumps over the lazy dog')).toBeInTheDocument()
+    expect(
+      screen.getByText('The quick brown fox jumps over the lazy dog'),
+    ).toBeInTheDocument()
     expect(screen.getByText('Select text to highlight')).toBeInTheDocument()
   })
 
@@ -69,9 +79,11 @@ describe('HighlightField', () => {
         onChange={jest.fn()}
         readonly={true}
         context="annotation"
-      />
+      />,
     )
-    expect(screen.queryByText('Select text to highlight')).not.toBeInTheDocument()
+    expect(
+      screen.queryByText('Select text to highlight'),
+    ).not.toBeInTheDocument()
   })
 
   it('renders with non-array value (converts to empty array)', () => {
@@ -81,9 +93,11 @@ describe('HighlightField', () => {
         value="not-array"
         onChange={jest.fn()}
         context="annotation"
-      />
+      />,
     )
-    expect(screen.getByText('The quick brown fox jumps over the lazy dog')).toBeInTheDocument()
+    expect(
+      screen.getByText('The quick brown fox jumps over the lazy dog'),
+    ).toBeInTheDocument()
   })
 
   it('renders with highlights showing text and remove buttons', () => {
@@ -97,7 +111,7 @@ describe('HighlightField', () => {
         value={highlights}
         onChange={jest.fn()}
         context="annotation"
-      />
+      />,
     )
     expect(screen.getByText(/2 highlights/)).toBeInTheDocument()
     expect(screen.getAllByText('Remove')).toHaveLength(2)
@@ -112,7 +126,7 @@ describe('HighlightField', () => {
         onChange={jest.fn()}
         readonly={true}
         context="annotation"
-      />
+      />,
     )
     expect(screen.queryByText('Remove')).not.toBeInTheDocument()
   })
@@ -129,7 +143,7 @@ describe('HighlightField', () => {
         value={highlights}
         onChange={onChange}
         context="annotation"
-      />
+      />,
     )
     fireEvent.click(screen.getAllByText('Remove')[0])
     expect(onChange).toHaveBeenCalledWith([{ start: 16, end: 19, text: 'fox' }])
@@ -145,7 +159,7 @@ describe('HighlightField', () => {
         onChange={onChange}
         readonly={true}
         context="annotation"
-      />
+      />,
     )
     // Click the highlighted text span (which also has onClick for remove)
     const highlightSpan = screen.getByText('"quick"').closest('li')
@@ -162,9 +176,11 @@ describe('HighlightField', () => {
         value={[]}
         onChange={jest.fn()}
         context="annotation"
-      />
+      />,
     )
-    expect(screen.getByText('No text available for highlighting')).toBeInTheDocument()
+    expect(
+      screen.getByText('No text available for highlighting'),
+    ).toBeInTheDocument()
   })
 
   it('renders with errors', () => {
@@ -175,7 +191,7 @@ describe('HighlightField', () => {
         onChange={jest.fn()}
         errors={['Required field']}
         context="annotation"
-      />
+      />,
     )
     expect(screen.getByText('Required field')).toBeInTheDocument()
   })
@@ -188,7 +204,7 @@ describe('HighlightField', () => {
         onChange={jest.fn()}
         context="annotation"
         className="custom-class"
-      />
+      />,
     )
     expect(screen.getByTestId('field-wrapper')).toHaveClass('custom-class')
   })

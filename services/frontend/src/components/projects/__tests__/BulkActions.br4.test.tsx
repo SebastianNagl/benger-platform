@@ -74,7 +74,7 @@ describe('BulkActions br4 - uncovered branches', () => {
         selectedCount={2}
         canAssign={true}
         onAssign={onAssign}
-      />
+      />,
     )
 
     const button = screen.getByText('Actions').closest('button')!
@@ -88,11 +88,7 @@ describe('BulkActions br4 - uncovered branches', () => {
   it('hides assign button when canAssign is false (line 93 falsy)', async () => {
     const user = userEvent.setup()
     render(
-      <BulkActions
-        {...defaultProps}
-        selectedCount={2}
-        canAssign={false}
-      />
+      <BulkActions {...defaultProps} selectedCount={2} canAssign={false} />,
     )
 
     const button = screen.getByText('Actions').closest('button')!
@@ -105,11 +101,7 @@ describe('BulkActions br4 - uncovered branches', () => {
     const user = userEvent.setup()
     const onExport = jest.fn()
     render(
-      <BulkActions
-        {...defaultProps}
-        selectedCount={1}
-        onExport={onExport}
-      />
+      <BulkActions {...defaultProps} selectedCount={1} onExport={onExport} />,
     )
 
     const button = screen.getByText('Actions').closest('button')!
@@ -122,11 +114,7 @@ describe('BulkActions br4 - uncovered branches', () => {
     const user = userEvent.setup()
     const onArchive = jest.fn()
     render(
-      <BulkActions
-        {...defaultProps}
-        selectedCount={1}
-        onArchive={onArchive}
-      />
+      <BulkActions {...defaultProps} selectedCount={1} onArchive={onArchive} />,
     )
 
     const button = screen.getByText('Actions').closest('button')!
@@ -139,11 +127,7 @@ describe('BulkActions br4 - uncovered branches', () => {
     const user = userEvent.setup()
     const onDelete = jest.fn()
     render(
-      <BulkActions
-        {...defaultProps}
-        selectedCount={1}
-        onDelete={onDelete}
-      />
+      <BulkActions {...defaultProps} selectedCount={1} onDelete={onDelete} />,
     )
 
     const button = screen.getByText('Actions').closest('button')!
@@ -160,7 +144,7 @@ describe('BulkActions br4 - uncovered branches', () => {
         selectedCount={1}
         selectedTaskIds={['1', '2']}
         projectId="proj1"
-      />
+      />,
     )
 
     const button = screen.getByText('Actions').closest('button')!
@@ -175,11 +159,8 @@ describe('BulkActions br4 - uncovered branches', () => {
     render(
       <div>
         <div data-testid="outside">Outside</div>
-        <BulkActions
-          {...defaultProps}
-          selectedCount={2}
-        />
-      </div>
+        <BulkActions {...defaultProps} selectedCount={2} />
+      </div>,
     )
 
     // Open dropdown

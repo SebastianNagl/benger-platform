@@ -37,7 +37,8 @@ jest.mock('@/contexts/I18nContext', () => ({
     t: (key: string, defaultValueOrVars?: any, vars?: any) => {
       const translations: Record<string, string> = {
         'notifications.title': 'Notifications',
-        'notifications.subtitle': 'Stay up to date with your tasks and system updates',
+        'notifications.subtitle':
+          'Stay up to date with your tasks and system updates',
         'notifications.searchPlaceholder': 'Search notifications...',
         'notifications.refresh': 'Refresh',
         'notifications.markAllRead': 'Mark all read',
@@ -53,8 +54,10 @@ jest.mock('@/contexts/I18nContext', () => ({
         'notifications.loading': 'Loading notifications...',
         'notifications.noNotifications': 'No Notifications',
         'notifications.noNotificationsDescription': 'No notifications yet',
-        'notifications.noMatches': 'No notifications match your search criteria',
-        'notifications.allCaughtUp': "You're all caught up! No unread notifications",
+        'notifications.noMatches':
+          'No notifications match your search criteria',
+        'notifications.allCaughtUp':
+          "You're all caught up! No unread notifications",
         'notifications.deleteConfirm': 'Are you sure you want to delete?',
         'notifications.markRead': 'Mark as Read',
         'notifications.delete': 'Delete',
@@ -67,7 +70,8 @@ jest.mock('@/contexts/I18nContext', () => ({
         'notifications.tryAgain': 'Try Again',
         'notifications.loadFailed': 'Failed to load notifications',
         'notifications.authRequired': 'Authentication Required',
-        'notifications.authRequiredMessage': 'Please log in to view your notifications',
+        'notifications.authRequiredMessage':
+          'Please log in to view your notifications',
         'notifications.columnNotification': 'Notification',
         'notifications.columnTime': 'Time',
         'notifications.columnStatus': 'Status',
@@ -79,7 +83,9 @@ jest.mock('@/contexts/I18nContext', () => ({
       if (!result) {
         return typeof defaultValueOrVars === 'string' ? defaultValueOrVars : key
       }
-      const variables = vars || (typeof defaultValueOrVars === 'object' ? defaultValueOrVars : null)
+      const variables =
+        vars ||
+        (typeof defaultValueOrVars === 'object' ? defaultValueOrVars : null)
       if (variables) {
         Object.entries(variables).forEach(([k, v]) => {
           result = result.replace(`{${k}}`, String(v))
@@ -106,39 +112,64 @@ jest.mock('date-fns', () => ({
 
 jest.mock('@heroicons/react/24/outline', () => ({
   ArrowPathIcon: (props: any) => <svg data-testid="refresh-icon" {...props} />,
-  CheckCircleIcon: (props: any) => <svg data-testid="check-circle-icon" {...props} />,
+  CheckCircleIcon: (props: any) => (
+    <svg data-testid="check-circle-icon" {...props} />
+  ),
   CheckIcon: (props: any) => <svg data-testid="check-icon" {...props} />,
-  ChevronDownIcon: (props: any) => <svg data-testid="chevron-down-icon" {...props} />,
-  ChevronUpDownIcon: (props: any) => <svg data-testid="chevron-up-down-icon" {...props} />,
+  ChevronDownIcon: (props: any) => (
+    <svg data-testid="chevron-down-icon" {...props} />
+  ),
+  ChevronUpDownIcon: (props: any) => (
+    <svg data-testid="chevron-up-down-icon" {...props} />
+  ),
   ClockIcon: (props: any) => <svg data-testid="clock-icon" {...props} />,
-  ExclamationTriangleIcon: (props: any) => <svg data-testid="exclamation-icon" {...props} />,
+  ExclamationTriangleIcon: (props: any) => (
+    <svg data-testid="exclamation-icon" {...props} />
+  ),
   FunnelIcon: (props: any) => <svg data-testid="funnel-icon" {...props} />,
-  InformationCircleIcon: (props: any) => <svg data-testid="info-icon" {...props} />,
+  InformationCircleIcon: (props: any) => (
+    <svg data-testid="info-icon" {...props} />
+  ),
   UserPlusIcon: (props: any) => <svg data-testid="user-plus-icon" {...props} />,
   XMarkIcon: (props: any) => <svg data-testid="x-mark-icon" {...props} />,
   ChartBarIcon: (props: any) => <svg data-testid="chart-bar-icon" {...props} />,
-  MagnifyingGlassIcon: (props: any) => <svg data-testid="magnifying-glass-icon" {...props} />,
+  MagnifyingGlassIcon: (props: any) => (
+    <svg data-testid="magnifying-glass-icon" {...props} />
+  ),
   TrashIcon: (props: any) => <svg data-testid="trash-icon" {...props} />,
 }))
 
 jest.mock('next/link', () => ({
   __esModule: true,
-  default: ({ children, href, ...props }: { children: React.ReactNode; href: string }) => (
-    <a href={href} {...props}>{children}</a>
+  default: ({
+    children,
+    href,
+    ...props
+  }: {
+    children: React.ReactNode
+    href: string
+  }) => (
+    <a href={href} {...props}>
+      {children}
+    </a>
   ),
 }))
 
 jest.mock('@/components/shared/Breadcrumb', () => ({
   Breadcrumb: ({ items }: any) => (
     <nav data-testid="breadcrumb">
-      {items?.map((item: any, i: number) => <span key={i}>{item.label}</span>)}
+      {items?.map((item: any, i: number) => (
+        <span key={i}>{item.label}</span>
+      ))}
     </nav>
   ),
 }))
 
 jest.mock('@/components/shared/Button', () => ({
   Button: ({ children, onClick, disabled, ...props }: any) => (
-    <button onClick={onClick} disabled={disabled} {...props}>{children}</button>
+    <button onClick={onClick} disabled={disabled} {...props}>
+      {children}
+    </button>
   ),
 }))
 
@@ -206,7 +237,6 @@ jest.mock('@/components/shared/FilterToolbar', () => {
   return { FilterToolbar }
 })
 
-
 describe('NotificationsPage - coverage extensions', () => {
   const mockPush = jest.fn()
   const mockMarkAsRead = jest.fn()
@@ -245,8 +275,12 @@ describe('NotificationsPage - coverage extensions', () => {
       fetchNotifications: mockFetchNotifications,
     })
     ;(api.getNotifications as jest.Mock).mockResolvedValue([])
-    ;(api.markNotificationsBulkAsRead as jest.Mock).mockResolvedValue({ message: 'Success' })
-    ;(api.deleteNotificationsBulk as jest.Mock).mockResolvedValue({ message: 'Success' })
+    ;(api.markNotificationsBulkAsRead as jest.Mock).mockResolvedValue({
+      message: 'Success',
+    })
+    ;(api.deleteNotificationsBulk as jest.Mock).mockResolvedValue({
+      message: 'Success',
+    })
   })
 
   describe('Date filtering logic', () => {
@@ -270,8 +304,16 @@ describe('NotificationsPage - coverage extensions', () => {
     it('filters by "today" - shows only today notifications', async () => {
       const user = userEvent.setup()
       renderWith([
-        createNotification({ id: 'today-1', title: 'Today Task', created_at: new Date().toISOString() }),
-        createNotification({ id: 'old-1', title: 'Old Task', created_at: '2020-01-01T10:00:00Z' }),
+        createNotification({
+          id: 'today-1',
+          title: 'Today Task',
+          created_at: new Date().toISOString(),
+        }),
+        createNotification({
+          id: 'old-1',
+          title: 'Old Task',
+          created_at: '2020-01-01T10:00:00Z',
+        }),
       ])
 
       await user.selectOptions(getDateFilter(), 'today')
@@ -284,8 +326,16 @@ describe('NotificationsPage - coverage extensions', () => {
     it('filters by "week" - hides notifications older than 7 days', async () => {
       const user = userEvent.setup()
       renderWith([
-        createNotification({ id: 'recent-1', title: 'Recent Task', created_at: new Date().toISOString() }),
-        createNotification({ id: 'old-1', title: 'Ancient Task', created_at: '2020-01-01T10:00:00Z' }),
+        createNotification({
+          id: 'recent-1',
+          title: 'Recent Task',
+          created_at: new Date().toISOString(),
+        }),
+        createNotification({
+          id: 'old-1',
+          title: 'Ancient Task',
+          created_at: '2020-01-01T10:00:00Z',
+        }),
       ])
 
       await user.selectOptions(getDateFilter(), 'week')
@@ -298,15 +348,25 @@ describe('NotificationsPage - coverage extensions', () => {
     it('filters by "month" - hides notifications before current month', async () => {
       const user = userEvent.setup()
       renderWith([
-        createNotification({ id: 'month-1', title: 'This Month Task', created_at: new Date().toISOString() }),
-        createNotification({ id: 'old-1', title: 'Last Year Task', created_at: '2020-01-01T10:00:00Z' }),
+        createNotification({
+          id: 'month-1',
+          title: 'This Month Task',
+          created_at: new Date().toISOString(),
+        }),
+        createNotification({
+          id: 'old-1',
+          title: 'Last Year Task',
+          created_at: '2020-01-01T10:00:00Z',
+        }),
       ])
 
       await user.selectOptions(getDateFilter(), 'month')
 
       const table = screen.getByRole('table')
       expect(within(table).getByText('This Month Task')).toBeInTheDocument()
-      expect(within(table).queryByText('Last Year Task')).not.toBeInTheDocument()
+      expect(
+        within(table).queryByText('Last Year Task'),
+      ).not.toBeInTheDocument()
     })
   })
 
@@ -365,7 +425,7 @@ describe('NotificationsPage - coverage extensions', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('No notifications match your search criteria')
+          screen.getByText('No notifications match your search criteria'),
         ).toBeInTheDocument()
       })
     })
@@ -403,8 +463,16 @@ describe('NotificationsPage - coverage extensions', () => {
       const user = userEvent.setup()
       ;(useNotifications as jest.Mock).mockReturnValue({
         notifications: [
-          createNotification({ id: '1', type: 'task_created', title: 'Task One' }),
-          createNotification({ id: '2', type: 'annotation_completed', title: 'Annotation Done' }),
+          createNotification({
+            id: '1',
+            type: 'task_created',
+            title: 'Task One',
+          }),
+          createNotification({
+            id: '2',
+            type: 'annotation_completed',
+            title: 'Annotation Done',
+          }),
         ],
         unreadCount: 2,
         isLoading: false,
@@ -422,7 +490,9 @@ describe('NotificationsPage - coverage extensions', () => {
 
       const table = screen.getByRole('table')
       expect(within(table).getByText('Task One')).toBeInTheDocument()
-      expect(within(table).queryByText('Annotation Done')).not.toBeInTheDocument()
+      expect(
+        within(table).queryByText('Annotation Done'),
+      ).not.toBeInTheDocument()
     })
   })
 
@@ -433,7 +503,7 @@ describe('NotificationsPage - coverage extensions', () => {
           id: String(i),
           title: `Task ${i}`,
           created_at: new Date().toISOString(),
-        })
+        }),
       )
 
       ;(useNotifications as jest.Mock).mockReturnValue({
@@ -459,7 +529,7 @@ describe('NotificationsPage - coverage extensions', () => {
           id: String(i),
           title: `Task ${i}`,
           created_at: new Date().toISOString(),
-        })
+        }),
       )
 
       ;(useNotifications as jest.Mock).mockReturnValue({

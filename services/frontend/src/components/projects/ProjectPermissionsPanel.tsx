@@ -17,6 +17,7 @@
 
 import { Button } from '@/components/shared/Button'
 import { Label } from '@/components/shared/Label'
+import { useToast } from '@/components/shared/Toast'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import {
@@ -25,7 +26,6 @@ import {
 } from '@/lib/api/organizations'
 import { projectsAPI } from '@/lib/api/projects'
 import { useEffect, useRef, useState } from 'react'
-import { useToast } from '@/components/shared/Toast'
 
 interface Organization {
   id: string
@@ -72,7 +72,7 @@ export function ProjectPermissionsPanel({
     useState<ProjectVisibility>(initialVisibility)
   const [publicRole, setPublicRole] = useState<PublicRole>(initialPublicRole)
   const [selectedOrgIds, setSelectedOrgIds] = useState<string[]>(
-    initialOrganizations.map((o) => o.id)
+    initialOrganizations.map((o) => o.id),
   )
   const [availableOrganizations, setAvailableOrganizations] = useState<
     Organization[]
@@ -94,8 +94,8 @@ export function ProjectPermissionsPanel({
     Record<string, string | null>
   >(() =>
     Object.fromEntries(
-      initialOrganizations.map((o) => [o.id, o.group_id ?? null])
-    )
+      initialOrganizations.map((o) => [o.id, o.group_id ?? null]),
+    ),
   )
 
   const canEditPermissions = () => {
@@ -117,9 +117,7 @@ export function ProjectPermissionsPanel({
       } catch (err) {
         if (!cancelled) {
           const msg =
-            err instanceof Error
-              ? err.message
-              : 'Failed to load organizations'
+            err instanceof Error ? err.message : 'Failed to load organizations'
           addToast(msg, 'error')
         }
       } finally {
@@ -139,7 +137,7 @@ export function ProjectPermissionsPanel({
     const missing = selectedOrgIds.filter(
       (orgId) =>
         orgGroupsById[orgId] === undefined &&
-        !groupFetchInFlight.current.has(orgId)
+        !groupFetchInFlight.current.has(orgId),
     )
     missing.forEach((orgId) => {
       groupFetchInFlight.current.add(orgId)
@@ -174,7 +172,7 @@ export function ProjectPermissionsPanel({
         const groups = orgGroupsById[orgId]
         if (groups === undefined) continue
         const memberGroups = groups.filter(
-          (group) => group.is_active && group.is_member
+          (group) => group.is_active && group.is_member,
         )
         next[orgId] = memberGroups.length === 1 ? memberGroups[0].id : null
         changed = true
@@ -187,7 +185,7 @@ export function ProjectPermissionsPanel({
     setSelectedOrgIds((prev) =>
       prev.includes(orgId)
         ? prev.filter((id) => id !== orgId)
-        : [...prev, orgId]
+        : [...prev, orgId],
     )
   }
 
@@ -196,10 +194,9 @@ export function ProjectPermissionsPanel({
   // stored-but-hidden selection is appended so the select reflects reality.
   const groupOptionsFor = (org: Organization): OrganizationGroup[] => {
     const groups = orgGroupsById[org.id] ?? []
-    const isOrgAdmin =
-      Boolean(user?.is_superadmin) || org.role === 'ORG_ADMIN'
+    const isOrgAdmin = Boolean(user?.is_superadmin) || org.role === 'ORG_ADMIN'
     const options = groups.filter(
-      (group) => group.is_active && (isOrgAdmin || group.is_member)
+      (group) => group.is_active && (isOrgAdmin || group.is_member),
     )
     const selected = selectedGroupByOrg[org.id]
     if (selected && !options.some((group) => group.id === selected)) {
@@ -265,8 +262,8 @@ export function ProjectPermissionsPanel({
     setSelectedOrgIds(initialOrganizations.map((o) => o.id))
     setSelectedGroupByOrg(
       Object.fromEntries(
-        initialOrganizations.map((o) => [o.id, o.group_id ?? null])
-      )
+        initialOrganizations.map((o) => [o.id, o.group_id ?? null]),
+      ),
     )
     setError(null)
     if (onCancel) {
@@ -447,7 +444,7 @@ export function ProjectPermissionsPanel({
                     </label>
                     {isChecked && groupOptions.length > 0 && (
                       <div
-                        className="ml-7 mt-2"
+                        className="mt-2 ml-7"
                         data-testid={`organization-group-section-${org.id}`}
                       >
                         <label

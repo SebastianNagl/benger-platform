@@ -38,7 +38,7 @@ export function getContainerStats(): ContainerStats[] {
     try {
       const output = execSync(
         `docker stats infra-${container}-1 --no-stream --format "{{.MemUsage}} {{.CPUPerc}}"`,
-        { encoding: 'utf8', timeout: 5000 }
+        { encoding: 'utf8', timeout: 5000 },
       ).trim()
 
       const parts = output.split(' ')
@@ -111,7 +111,7 @@ export function getStoppedContainers(): string[] {
  * High connection counts can indicate connection leaks
  */
 export async function checkDatabaseConnections(
-  apiUrl: string
+  apiUrl: string,
 ): Promise<number> {
   try {
     const response = await fetch(`${apiUrl}/api/health/detailed`, {

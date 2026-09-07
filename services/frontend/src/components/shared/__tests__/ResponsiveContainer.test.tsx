@@ -20,7 +20,7 @@ describe('ResponsiveContainer', () => {
       const { container } = render(
         <ResponsiveContainer>
           <div>Test content</div>
-        </ResponsiveContainer>
+        </ResponsiveContainer>,
       )
       expect(container.firstChild).toBeInTheDocument()
     })
@@ -29,7 +29,7 @@ describe('ResponsiveContainer', () => {
       const { container } = render(
         <ResponsiveContainer>
           <div>Test content</div>
-        </ResponsiveContainer>
+        </ResponsiveContainer>,
       )
       const element = container.firstChild as HTMLElement
       expect(element.tagName).toBe('DIV')
@@ -39,7 +39,7 @@ describe('ResponsiveContainer', () => {
       const { container } = render(
         <ResponsiveContainer>
           <div>Test content</div>
-        </ResponsiveContainer>
+        </ResponsiveContainer>,
       )
       const element = container.firstChild as HTMLElement
       expect(element).toHaveClass('transition-all')
@@ -52,7 +52,7 @@ describe('ResponsiveContainer', () => {
       render(
         <ResponsiveContainer>
           <p data-testid="child">Test content</p>
-        </ResponsiveContainer>
+        </ResponsiveContainer>,
       )
       expect(screen.getByTestId('child')).toBeInTheDocument()
       expect(screen.getByTestId('child')).toHaveTextContent('Test content')
@@ -64,7 +64,7 @@ describe('ResponsiveContainer', () => {
           <h1 data-testid="heading">Heading</h1>
           <p data-testid="paragraph">Paragraph</p>
           <button data-testid="button">Button</button>
-        </ResponsiveContainer>
+        </ResponsiveContainer>,
       )
       expect(screen.getByTestId('heading')).toBeInTheDocument()
       expect(screen.getByTestId('paragraph')).toBeInTheDocument()
@@ -79,7 +79,7 @@ describe('ResponsiveContainer', () => {
               <span data-testid="nested">Nested content</span>
             </div>
           </div>
-        </ResponsiveContainer>
+        </ResponsiveContainer>,
       )
       expect(screen.getByTestId('nested')).toBeInTheDocument()
     })
@@ -96,7 +96,7 @@ describe('ResponsiveContainer', () => {
             <span data-testid="first">First</span>
             <span data-testid="second">Second</span>
           </>
-        </ResponsiveContainer>
+        </ResponsiveContainer>,
       )
       expect(screen.getByTestId('first')).toBeInTheDocument()
       expect(screen.getByTestId('second')).toBeInTheDocument()
@@ -108,7 +108,7 @@ describe('ResponsiveContainer', () => {
       it('applies correct classes when sidebar is visible', () => {
         useUIStore.setState({ isSidebarHidden: false })
         const { container } = render(
-          <ResponsiveContainer size="sm">Content</ResponsiveContainer>
+          <ResponsiveContainer size="sm">Content</ResponsiveContainer>,
         )
         const element = container.firstChild as HTMLElement
         expect(element).toHaveClass('max-w-2xl')
@@ -120,7 +120,7 @@ describe('ResponsiveContainer', () => {
       it('applies correct classes when sidebar is hidden', () => {
         useUIStore.setState({ isSidebarHidden: true })
         const { container } = render(
-          <ResponsiveContainer size="sm">Content</ResponsiveContainer>
+          <ResponsiveContainer size="sm">Content</ResponsiveContainer>,
         )
         const element = container.firstChild as HTMLElement
         expect(element).toHaveClass('max-w-3xl')
@@ -134,7 +134,7 @@ describe('ResponsiveContainer', () => {
         const { container } = render(
           <ResponsiveContainer size="sm" adaptToSidebar={false}>
             Content
-          </ResponsiveContainer>
+          </ResponsiveContainer>,
         )
         const element = container.firstChild as HTMLElement
         expect(element).toHaveClass('max-w-2xl')
@@ -146,7 +146,7 @@ describe('ResponsiveContainer', () => {
       it('applies correct classes when sidebar is visible', () => {
         useUIStore.setState({ isSidebarHidden: false })
         const { container } = render(
-          <ResponsiveContainer size="md">Content</ResponsiveContainer>
+          <ResponsiveContainer size="md">Content</ResponsiveContainer>,
         )
         const element = container.firstChild as HTMLElement
         expect(element).toHaveClass('max-w-3xl')
@@ -158,7 +158,7 @@ describe('ResponsiveContainer', () => {
       it('applies correct classes when sidebar is hidden', () => {
         useUIStore.setState({ isSidebarHidden: true })
         const { container } = render(
-          <ResponsiveContainer size="md">Content</ResponsiveContainer>
+          <ResponsiveContainer size="md">Content</ResponsiveContainer>,
         )
         const element = container.firstChild as HTMLElement
         expect(element).toHaveClass('max-w-5xl')
@@ -172,7 +172,7 @@ describe('ResponsiveContainer', () => {
         const { container } = render(
           <ResponsiveContainer size="md" adaptToSidebar={false}>
             Content
-          </ResponsiveContainer>
+          </ResponsiveContainer>,
         )
         const element = container.firstChild as HTMLElement
         expect(element).toHaveClass('max-w-3xl')
@@ -184,7 +184,7 @@ describe('ResponsiveContainer', () => {
       it('applies correct classes when sidebar is visible', () => {
         useUIStore.setState({ isSidebarHidden: false })
         const { container } = render(
-          <ResponsiveContainer>Content</ResponsiveContainer>
+          <ResponsiveContainer>Content</ResponsiveContainer>,
         )
         const element = container.firstChild as HTMLElement
         expect(element).toHaveClass('max-w-4xl')
@@ -196,7 +196,7 @@ describe('ResponsiveContainer', () => {
       it('applies correct classes when sidebar is hidden', () => {
         useUIStore.setState({ isSidebarHidden: true })
         const { container } = render(
-          <ResponsiveContainer>Content</ResponsiveContainer>
+          <ResponsiveContainer>Content</ResponsiveContainer>,
         )
         const element = container.firstChild as HTMLElement
         expect(element).toHaveClass('max-w-6xl')
@@ -210,7 +210,7 @@ describe('ResponsiveContainer', () => {
         const { container } = render(
           <ResponsiveContainer adaptToSidebar={false}>
             Content
-          </ResponsiveContainer>
+          </ResponsiveContainer>,
         )
         const element = container.firstChild as HTMLElement
         expect(element).toHaveClass('max-w-4xl')
@@ -222,7 +222,7 @@ describe('ResponsiveContainer', () => {
       it('applies correct classes when sidebar is visible', () => {
         useUIStore.setState({ isSidebarHidden: false })
         const { container } = render(
-          <ResponsiveContainer size="xl">Content</ResponsiveContainer>
+          <ResponsiveContainer size="xl">Content</ResponsiveContainer>,
         )
         const element = container.firstChild as HTMLElement
         expect(element).toHaveClass('max-w-5xl')
@@ -234,7 +234,7 @@ describe('ResponsiveContainer', () => {
       it('applies correct classes when sidebar is hidden', () => {
         useUIStore.setState({ isSidebarHidden: true })
         const { container } = render(
-          <ResponsiveContainer size="xl">Content</ResponsiveContainer>
+          <ResponsiveContainer size="xl">Content</ResponsiveContainer>,
         )
         const element = container.firstChild as HTMLElement
         expect(element).toHaveClass('max-w-7xl')
@@ -248,7 +248,7 @@ describe('ResponsiveContainer', () => {
         const { container } = render(
           <ResponsiveContainer size="xl" adaptToSidebar={false}>
             Content
-          </ResponsiveContainer>
+          </ResponsiveContainer>,
         )
         const element = container.firstChild as HTMLElement
         expect(element).toHaveClass('max-w-5xl')
@@ -259,7 +259,7 @@ describe('ResponsiveContainer', () => {
     describe('Size: full', () => {
       it('does not apply max-width classes', () => {
         const { container } = render(
-          <ResponsiveContainer size="full">Content</ResponsiveContainer>
+          <ResponsiveContainer size="full">Content</ResponsiveContainer>,
         )
         const element = container.firstChild as HTMLElement
         expect(element.className).not.toContain('max-w-')
@@ -267,7 +267,7 @@ describe('ResponsiveContainer', () => {
 
       it('does not apply mx-auto class', () => {
         const { container } = render(
-          <ResponsiveContainer size="full">Content</ResponsiveContainer>
+          <ResponsiveContainer size="full">Content</ResponsiveContainer>,
         )
         const element = container.firstChild as HTMLElement
         expect(element).not.toHaveClass('mx-auto')
@@ -276,7 +276,7 @@ describe('ResponsiveContainer', () => {
       it('ignores sidebar state when size is full', () => {
         useUIStore.setState({ isSidebarHidden: true })
         const { container } = render(
-          <ResponsiveContainer size="full">Content</ResponsiveContainer>
+          <ResponsiveContainer size="full">Content</ResponsiveContainer>,
         )
         const element = container.firstChild as HTMLElement
         expect(element.className).not.toContain('max-w-')
@@ -287,7 +287,7 @@ describe('ResponsiveContainer', () => {
       const sizes = ['sm', 'md', 'lg', 'xl'] as const
       sizes.forEach((size) => {
         const { container } = render(
-          <ResponsiveContainer size={size}>Content</ResponsiveContainer>
+          <ResponsiveContainer size={size}>Content</ResponsiveContainer>,
         )
         const element = container.firstChild as HTMLElement
         expect(element).toHaveClass('mx-auto')
@@ -298,7 +298,7 @@ describe('ResponsiveContainer', () => {
   describe('Padding and Spacing', () => {
     it('applies default padding classes for non-full sizes', () => {
       const { container } = render(
-        <ResponsiveContainer>Content</ResponsiveContainer>
+        <ResponsiveContainer>Content</ResponsiveContainer>,
       )
       const element = container.firstChild as HTMLElement
       expect(element).toHaveClass('px-4')
@@ -310,7 +310,7 @@ describe('ResponsiveContainer', () => {
 
     it('does not apply padding classes for full size', () => {
       const { container } = render(
-        <ResponsiveContainer size="full">Content</ResponsiveContainer>
+        <ResponsiveContainer size="full">Content</ResponsiveContainer>,
       )
       const element = container.firstChild as HTMLElement
       expect(element.className).not.toContain('px-')
@@ -320,7 +320,7 @@ describe('ResponsiveContainer', () => {
       const sizes = ['sm', 'md', 'lg', 'xl'] as const
       sizes.forEach((size) => {
         const { container } = render(
-          <ResponsiveContainer size={size}>Content</ResponsiveContainer>
+          <ResponsiveContainer size={size}>Content</ResponsiveContainer>,
         )
         const element = container.firstChild as HTMLElement
         expect(element).toHaveClass('px-4')
@@ -335,7 +335,7 @@ describe('ResponsiveContainer', () => {
       const { container } = render(
         <ResponsiveContainer className="custom-class">
           Content
-        </ResponsiveContainer>
+        </ResponsiveContainer>,
       )
       const element = container.firstChild as HTMLElement
       expect(element).toHaveClass('custom-class')
@@ -345,7 +345,7 @@ describe('ResponsiveContainer', () => {
       const { container } = render(
         <ResponsiveContainer className="custom-class">
           Content
-        </ResponsiveContainer>
+        </ResponsiveContainer>,
       )
       const element = container.firstChild as HTMLElement
       expect(element).toHaveClass('custom-class')
@@ -357,7 +357,7 @@ describe('ResponsiveContainer', () => {
       const { container } = render(
         <ResponsiveContainer className="class-one class-two class-three">
           Content
-        </ResponsiveContainer>
+        </ResponsiveContainer>,
       )
       const element = container.firstChild as HTMLElement
       expect(element).toHaveClass('class-one')
@@ -367,7 +367,7 @@ describe('ResponsiveContainer', () => {
 
     it('defaults to lg size when size prop is not provided', () => {
       const { container } = render(
-        <ResponsiveContainer>Content</ResponsiveContainer>
+        <ResponsiveContainer>Content</ResponsiveContainer>,
       )
       const element = container.firstChild as HTMLElement
       expect(element).toHaveClass('max-w-4xl')
@@ -376,7 +376,7 @@ describe('ResponsiveContainer', () => {
     it('defaults to adaptToSidebar true when not provided', () => {
       useUIStore.setState({ isSidebarHidden: true })
       const { container } = render(
-        <ResponsiveContainer size="sm">Content</ResponsiveContainer>
+        <ResponsiveContainer size="sm">Content</ResponsiveContainer>,
       )
       const element = container.firstChild as HTMLElement
       expect(element).toHaveClass('max-w-3xl')
@@ -386,7 +386,7 @@ describe('ResponsiveContainer', () => {
   describe('Styling', () => {
     it('applies transition-all duration-300 classes', () => {
       const { container } = render(
-        <ResponsiveContainer>Content</ResponsiveContainer>
+        <ResponsiveContainer>Content</ResponsiveContainer>,
       )
       const element = container.firstChild as HTMLElement
       expect(element).toHaveClass('transition-all')
@@ -397,7 +397,7 @@ describe('ResponsiveContainer', () => {
       const sizes = ['sm', 'md', 'lg', 'xl'] as const
       sizes.forEach((size) => {
         const { container } = render(
-          <ResponsiveContainer size={size}>Content</ResponsiveContainer>
+          <ResponsiveContainer size={size}>Content</ResponsiveContainer>,
         )
         const element = container.firstChild as HTMLElement
         expect(element).toHaveClass('transition-all')
@@ -409,7 +409,7 @@ describe('ResponsiveContainer', () => {
       const { container } = render(
         <ResponsiveContainer className="duration-500">
           Content
-        </ResponsiveContainer>
+        </ResponsiveContainer>,
       )
       const element = container.firstChild as HTMLElement
       expect(element).toHaveClass('duration-500')
@@ -419,7 +419,7 @@ describe('ResponsiveContainer', () => {
   describe('Edge Cases', () => {
     it('handles empty string children', () => {
       const { container } = render(
-        <ResponsiveContainer>{''}</ResponsiveContainer>
+        <ResponsiveContainer>{''}</ResponsiveContainer>,
       )
       expect(container.firstChild).toBeInTheDocument()
     })
@@ -431,14 +431,16 @@ describe('ResponsiveContainer', () => {
 
     it('handles boolean children', () => {
       const { container } = render(
-        <ResponsiveContainer>{true}</ResponsiveContainer>
+        <ResponsiveContainer>{true}</ResponsiveContainer>,
       )
       expect(container.firstChild).toBeInTheDocument()
     })
 
     it('handles null className', () => {
       const { container } = render(
-        <ResponsiveContainer className={undefined}>Content</ResponsiveContainer>
+        <ResponsiveContainer className={undefined}>
+          Content
+        </ResponsiveContainer>,
       )
       const element = container.firstChild as HTMLElement
       expect(element).toBeInTheDocument()
@@ -446,7 +448,7 @@ describe('ResponsiveContainer', () => {
 
     it('handles empty string className', () => {
       const { container } = render(
-        <ResponsiveContainer className="">Content</ResponsiveContainer>
+        <ResponsiveContainer className="">Content</ResponsiveContainer>,
       )
       const element = container.firstChild as HTMLElement
       expect(element).toBeInTheDocument()
@@ -456,7 +458,7 @@ describe('ResponsiveContainer', () => {
       const { container } = render(
         <ResponsiveContainer className="class-one class-two">
           Content
-        </ResponsiveContainer>
+        </ResponsiveContainer>,
       )
       const element = container.firstChild as HTMLElement
       expect(element).toBeInTheDocument()
@@ -466,7 +468,7 @@ describe('ResponsiveContainer', () => {
   describe('Responsive Breakpoints', () => {
     it('applies responsive classes for sm breakpoint', () => {
       const { container } = render(
-        <ResponsiveContainer>Content</ResponsiveContainer>
+        <ResponsiveContainer>Content</ResponsiveContainer>,
       )
       const element = container.firstChild as HTMLElement
       expect(element).toHaveClass('sm:px-6')
@@ -474,7 +476,7 @@ describe('ResponsiveContainer', () => {
 
     it('applies responsive classes for 3xl breakpoint', () => {
       const { container } = render(
-        <ResponsiveContainer>Content</ResponsiveContainer>
+        <ResponsiveContainer>Content</ResponsiveContainer>,
       )
       const element = container.firstChild as HTMLElement
       expect(element).toHaveClass('3xl:px-8')
@@ -483,7 +485,7 @@ describe('ResponsiveContainer', () => {
 
     it('applies responsive classes for 4xl breakpoint', () => {
       const { container } = render(
-        <ResponsiveContainer>Content</ResponsiveContainer>
+        <ResponsiveContainer>Content</ResponsiveContainer>,
       )
       const element = container.firstChild as HTMLElement
       expect(element).toHaveClass('4xl:px-10')
@@ -492,7 +494,7 @@ describe('ResponsiveContainer', () => {
 
     it('applies responsive classes for 5xl breakpoint', () => {
       const { container } = render(
-        <ResponsiveContainer>Content</ResponsiveContainer>
+        <ResponsiveContainer>Content</ResponsiveContainer>,
       )
       const element = container.firstChild as HTMLElement
       expect(element).toHaveClass('5xl:px-12')
@@ -501,7 +503,7 @@ describe('ResponsiveContainer', () => {
 
     it('applies all responsive breakpoints in correct order', () => {
       const { container } = render(
-        <ResponsiveContainer size="md">Content</ResponsiveContainer>
+        <ResponsiveContainer size="md">Content</ResponsiveContainer>,
       )
       const element = container.firstChild as HTMLElement
       const className = element.className
@@ -517,7 +519,7 @@ describe('ResponsiveContainer', () => {
     it('reacts to sidebar state changes', () => {
       useUIStore.setState({ isSidebarHidden: false })
       const { container, rerender } = render(
-        <ResponsiveContainer size="sm">Content</ResponsiveContainer>
+        <ResponsiveContainer size="sm">Content</ResponsiveContainer>,
       )
       let element = container.firstChild as HTMLElement
       expect(element).toHaveClass('max-w-2xl')
@@ -533,7 +535,7 @@ describe('ResponsiveContainer', () => {
       const { container, rerender } = render(
         <ResponsiveContainer size="sm" adaptToSidebar={false}>
           Content
-        </ResponsiveContainer>
+        </ResponsiveContainer>,
       )
       let element = container.firstChild as HTMLElement
       expect(element).toHaveClass('max-w-2xl')
@@ -542,7 +544,7 @@ describe('ResponsiveContainer', () => {
       rerender(
         <ResponsiveContainer size="sm" adaptToSidebar={false}>
           Content
-        </ResponsiveContainer>
+        </ResponsiveContainer>,
       )
       element = container.firstChild as HTMLElement
       expect(element).toHaveClass('max-w-2xl')
@@ -559,7 +561,7 @@ describe('ResponsiveContainer', () => {
           <ResponsiveContainer size="xl">
             <div data-testid="container-2">Container 2</div>
           </ResponsiveContainer>
-        </>
+        </>,
       )
 
       expect(screen.getByTestId('container-1')).toBeInTheDocument()
@@ -574,7 +576,7 @@ describe('ResponsiveContainer', () => {
         <>
           <ResponsiveContainer size="sm">Content 1</ResponsiveContainer>
           <ResponsiveContainer size="xl">Content 2</ResponsiveContainer>
-        </>
+        </>,
       )
 
       const containers = container.querySelectorAll('.transition-all')
@@ -590,7 +592,7 @@ describe('LegacyContainer', () => {
       const { container } = render(
         <LegacyContainer>
           <div>Test content</div>
-        </LegacyContainer>
+        </LegacyContainer>,
       )
       expect(container.firstChild).toBeInTheDocument()
     })
@@ -599,7 +601,7 @@ describe('LegacyContainer', () => {
       const { container } = render(
         <LegacyContainer>
           <div>Test content</div>
-        </LegacyContainer>
+        </LegacyContainer>,
       )
       const element = container.firstChild as HTMLElement
       expect(element.tagName).toBe('DIV')
@@ -611,7 +613,7 @@ describe('LegacyContainer', () => {
       render(
         <LegacyContainer>
           <p data-testid="child">Legacy content</p>
-        </LegacyContainer>
+        </LegacyContainer>,
       )
       expect(screen.getByTestId('child')).toBeInTheDocument()
       expect(screen.getByTestId('child')).toHaveTextContent('Legacy content')
@@ -622,7 +624,7 @@ describe('LegacyContainer', () => {
         <LegacyContainer>
           <h1 data-testid="heading">Heading</h1>
           <p data-testid="paragraph">Paragraph</p>
-        </LegacyContainer>
+        </LegacyContainer>,
       )
       expect(screen.getByTestId('heading')).toBeInTheDocument()
       expect(screen.getByTestId('paragraph')).toBeInTheDocument()
@@ -653,7 +655,7 @@ describe('LegacyContainer', () => {
       const { container } = render(
         <LegacyContainer className="custom-legacy-class">
           Content
-        </LegacyContainer>
+        </LegacyContainer>,
       )
       const element = container.firstChild as HTMLElement
       expect(element).toHaveClass('custom-legacy-class')
@@ -662,7 +664,7 @@ describe('LegacyContainer', () => {
 
     it('merges custom className with default classes', () => {
       const { container } = render(
-        <LegacyContainer className="custom-class">Content</LegacyContainer>
+        <LegacyContainer className="custom-class">Content</LegacyContainer>,
       )
       const element = container.firstChild as HTMLElement
       expect(element).toHaveClass('custom-class')
@@ -679,7 +681,7 @@ describe('LegacyContainer', () => {
 
     it('handles undefined className', () => {
       const { container } = render(
-        <LegacyContainer className={undefined}>Content</LegacyContainer>
+        <LegacyContainer className={undefined}>Content</LegacyContainer>,
       )
       const element = container.firstChild as HTMLElement
       expect(element).toBeInTheDocument()
@@ -696,7 +698,7 @@ describe('LegacyContainer', () => {
           <LegacyContainer>
             <div data-testid="legacy-2">Legacy 2</div>
           </LegacyContainer>
-        </>
+        </>,
       )
 
       expect(screen.getByTestId('legacy-1')).toBeInTheDocument()

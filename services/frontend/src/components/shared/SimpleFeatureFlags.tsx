@@ -35,22 +35,30 @@ export function SimpleFeatureFlagProvider({
 }) {
   const { user } = useAuth()
   // Store only user-toggled overrides
-  const [flagOverrides, setFlagOverrides] = useState<Record<string, boolean>>({})
+  const [flagOverrides, setFlagOverrides] = useState<Record<string, boolean>>(
+    {},
+  )
   const [isLoading] = useState(false)
 
   // Base flags derived from user role
-  const baseFlags = useMemo(() => ({
-    new_ui: true,
-    beta_features: false,
-    advanced_analytics: user?.role === 'admin',
-    experimental_features: false,
-  }), [user?.role])
+  const baseFlags = useMemo(
+    () => ({
+      new_ui: true,
+      beta_features: false,
+      advanced_analytics: user?.role === 'admin',
+      experimental_features: false,
+    }),
+    [user?.role],
+  )
 
   // Combine base flags with overrides (overrides take precedence)
-  const flags = useMemo(() => ({
-    ...baseFlags,
-    ...flagOverrides,
-  }), [baseFlags, flagOverrides])
+  const flags = useMemo(
+    () => ({
+      ...baseFlags,
+      ...flagOverrides,
+    }),
+    [baseFlags, flagOverrides],
+  )
 
   const isEnabled = (flagName: string): boolean => {
     // Check overrides first, then base flags

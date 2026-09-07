@@ -195,7 +195,7 @@ describe('Internationalization (i18n)', () => {
         <div>
           <Navigation t={i18n.t} />
           <ProjectList t={i18n.t} />
-        </div>
+        </div>,
       )
 
       expect(screen.getByText('Projects')).toBeInTheDocument()
@@ -211,7 +211,7 @@ describe('Internationalization (i18n)', () => {
         <div>
           <Navigation t={i18n.t} />
           <ProjectList t={i18n.t} />
-        </div>
+        </div>,
       )
 
       expect(screen.getByText('Projekte')).toBeInTheDocument()
@@ -227,7 +227,7 @@ describe('Internationalization (i18n)', () => {
         <div>
           <Navigation t={i18n.t} />
           <ProjectList t={i18n.t} />
-        </div>
+        </div>,
       )
 
       expect(screen.getByText('المشاريع')).toBeInTheDocument()
@@ -283,7 +283,7 @@ describe('Internationalization (i18n)', () => {
       const { container } = renderWithProviders(
         <div dir={i18n.direction}>
           <Navigation t={i18n.t} />
-        </div>
+        </div>,
       )
 
       expect(container.firstChild).toHaveAttribute('dir', 'rtl')
@@ -296,13 +296,13 @@ describe('Internationalization (i18n)', () => {
       const { container: containerEn } = renderWithProviders(
         <div dir={i18nEn.direction}>
           <Navigation t={i18nEn.t} />
-        </div>
+        </div>,
       )
 
       const { container: containerDe } = renderWithProviders(
         <div dir={i18nDe.direction}>
           <Navigation t={i18nDe.t} />
-        </div>
+        </div>,
       )
 
       expect(containerEn.firstChild).toHaveAttribute('dir', 'ltr')
@@ -315,7 +315,7 @@ describe('Internationalization (i18n)', () => {
       const testDate = new Date('2024-01-15')
 
       const { rerender } = renderWithProviders(
-        <DateDisplay date={testDate} locale="en" />
+        <DateDisplay date={testDate} locale="en" />,
       )
 
       // US format
@@ -337,7 +337,7 @@ describe('Internationalization (i18n)', () => {
   describe('Number Formatting', () => {
     it('formats numbers according to locale', () => {
       const { rerender } = renderWithProviders(
-        <NumberDisplay value={1234.56} locale="en" />
+        <NumberDisplay value={1234.56} locale="en" />,
       )
 
       // US format
@@ -350,7 +350,7 @@ describe('Internationalization (i18n)', () => {
 
     it('formats large numbers correctly', () => {
       const { rerender } = renderWithProviders(
-        <NumberDisplay value={1000000} locale="en" />
+        <NumberDisplay value={1000000} locale="en" />,
       )
 
       expect(screen.getByText('1,000,000')).toBeInTheDocument()
@@ -363,7 +363,7 @@ describe('Internationalization (i18n)', () => {
   describe('Currency Formatting', () => {
     it('formats currency according to locale', () => {
       const { rerender } = renderWithProviders(
-        <CurrencyDisplay amount={1234.56} locale="en" />
+        <CurrencyDisplay amount={1234.56} locale="en" />,
       )
 
       // US format
@@ -426,7 +426,7 @@ describe('Internationalization (i18n)', () => {
         <div>
           <WelcomeMessage />
           <ItemCount />
-        </div>
+        </div>,
       )
 
       expect(screen.getByText('Welcome, John!')).toBeInTheDocument()

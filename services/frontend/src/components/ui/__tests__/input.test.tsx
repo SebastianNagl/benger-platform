@@ -27,7 +27,7 @@ describe('Input', () => {
         'bg-white',
         'px-3',
         'py-2',
-        'text-sm'
+        'text-sm',
       )
     })
 
@@ -39,7 +39,7 @@ describe('Input', () => {
         'focus-visible:outline-none',
         'focus-visible:ring-2',
         'focus-visible:ring-emerald-500',
-        'focus-visible:ring-offset-2'
+        'focus-visible:ring-offset-2',
       )
     })
 
@@ -49,7 +49,7 @@ describe('Input', () => {
       const input = screen.getByTestId('input')
       expect(input).toHaveClass(
         'disabled:cursor-not-allowed',
-        'disabled:opacity-50'
+        'disabled:opacity-50',
       )
     })
 
@@ -62,7 +62,7 @@ describe('Input', () => {
         'dark:bg-zinc-800',
         'dark:ring-offset-zinc-950',
         'dark:placeholder:text-zinc-400',
-        'dark:focus-visible:ring-emerald-400'
+        'dark:focus-visible:ring-emerald-400',
       )
     })
   })
@@ -105,7 +105,7 @@ describe('Input', () => {
         'file:border-0',
         'file:bg-transparent',
         'file:text-sm',
-        'file:font-medium'
+        'file:font-medium',
       )
     })
   })
@@ -113,7 +113,7 @@ describe('Input', () => {
   describe('Value and onChange', () => {
     it('displays initial value', () => {
       render(
-        <Input value="initial value" onChange={() => {}} data-testid="input" />
+        <Input value="initial value" onChange={() => {}} data-testid="input" />,
       )
 
       const input = screen.getByTestId('input') as HTMLInputElement
@@ -281,7 +281,7 @@ describe('Input', () => {
           autoComplete="email"
           aria-label="Test input"
           data-testid="input"
-        />
+        />,
       )
 
       const input = screen.getByTestId('input')
@@ -357,7 +357,7 @@ describe('Input', () => {
           aria-invalid="true"
           aria-required="true"
           data-testid="input"
-        />
+        />,
       )
 
       const input = screen.getByTestId('input')
@@ -371,7 +371,7 @@ describe('Input', () => {
         <div>
           <label htmlFor="test-input">Test Label</label>
           <Input id="test-input" data-testid="input" />
-        </div>
+        </div>,
       )
 
       const input = screen.getByLabelText('Test Label')
@@ -389,7 +389,7 @@ describe('Input', () => {
 
     it('handles undefined value', () => {
       render(
-        <Input value={undefined} onChange={() => {}} data-testid="input" />
+        <Input value={undefined} onChange={() => {}} data-testid="input" />,
       )
 
       const input = screen.getByTestId('input')
@@ -399,7 +399,7 @@ describe('Input', () => {
     it('handles very long values', () => {
       const longValue = 'a'.repeat(1000)
       render(
-        <Input value={longValue} onChange={() => {}} data-testid="input" />
+        <Input value={longValue} onChange={() => {}} data-testid="input" />,
       )
 
       const input = screen.getByTestId('input') as HTMLInputElement

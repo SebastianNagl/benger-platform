@@ -167,7 +167,7 @@ function invalidateReportLists() {
  * - Org members can view only published reports
  */
 export async function getProjectReport(
-  projectId: string
+  projectId: string,
 ): Promise<ReportResponse> {
   return await apiClient.get(`/projects/${projectId}/report`)
 }
@@ -178,7 +178,7 @@ export async function getProjectReport(
  */
 export async function updateProjectReport(
   projectId: string,
-  content: ReportContent
+  content: ReportContent,
 ): Promise<ReportResponse> {
   return await apiClient.post(`/projects/${projectId}/report`, { content })
 }
@@ -190,13 +190,13 @@ export async function updateProjectReport(
  */
 export async function publishReport(
   projectId: string,
-  options?: PublishReportOptions
+  options?: PublishReportOptions,
 ): Promise<ReportResponse> {
   const result = await apiClient.put(
     `/projects/${projectId}/report/publish`,
     options?.is_public !== undefined
       ? { is_public: options.is_public }
-      : undefined
+      : undefined,
   )
   invalidateReportLists()
   return result
@@ -206,7 +206,7 @@ export async function publishReport(
  * Unpublish a report (superadmin only)
  */
 export async function unpublishReport(
-  projectId: string
+  projectId: string,
 ): Promise<ReportResponse> {
   const result = await apiClient.put(`/projects/${projectId}/report/unpublish`)
   invalidateReportLists()
@@ -219,11 +219,11 @@ export async function unpublishReport(
  */
 export async function setReportVisibility(
   projectId: string,
-  options: ReportVisibilityOptions
+  options: ReportVisibilityOptions,
 ): Promise<ReportResponse> {
   const result = await apiClient.put(
     `/projects/${projectId}/report/visibility`,
-    { is_public: options.is_public }
+    { is_public: options.is_public },
   )
   invalidateReportLists()
   return result
@@ -234,7 +234,7 @@ export async function setReportVisibility(
  * Returns the report with the fresh `content.snapshot`.
  */
 export async function refreshReport(
-  projectId: string
+  projectId: string,
 ): Promise<ReportResponse> {
   return await apiClient.post(`/projects/${projectId}/report/refresh`)
 }
@@ -257,7 +257,7 @@ export async function listPublishedReports(): Promise<
  * readable by superadmins.
  */
 export async function getReportData(
-  reportId: string
+  reportId: string,
 ): Promise<ReportDataResponse> {
   return await apiClient.get(`/reports/${reportId}/data`)
 }

@@ -12,6 +12,8 @@
 
 'use client'
 
+import { Button } from '@/components/shared/Button'
+import { useI18n } from '@/contexts/I18nContext'
 import {
   ArrowTrendingUpIcon,
   BeakerIcon,
@@ -20,8 +22,6 @@ import {
   ScaleIcon,
 } from '@heroicons/react/24/outline'
 import { useEffect, useRef, useState } from 'react'
-import { Button } from '@/components/shared/Button'
-import { useI18n } from '@/contexts/I18nContext'
 
 export type StatisticalMethod =
   | 'ci'
@@ -95,10 +95,26 @@ function getStatisticalMethods(t: (key: string) => string): StatMethod[] {
 
 function getCategories(t: (key: string) => string) {
   return [
-    { id: 'basic', label: t('evaluation.statistics.categoryBasic'), icon: ArrowTrendingUpIcon },
-    { id: 'significance', label: t('evaluation.statistics.categorySignificance'), icon: BeakerIcon },
-    { id: 'effect_size', label: t('evaluation.statistics.categoryEffectSize'), icon: ScaleIcon },
-    { id: 'relationship', label: t('evaluation.statistics.categoryRelationship'), icon: ArrowTrendingUpIcon },
+    {
+      id: 'basic',
+      label: t('evaluation.statistics.categoryBasic'),
+      icon: ArrowTrendingUpIcon,
+    },
+    {
+      id: 'significance',
+      label: t('evaluation.statistics.categorySignificance'),
+      icon: BeakerIcon,
+    },
+    {
+      id: 'effect_size',
+      label: t('evaluation.statistics.categoryEffectSize'),
+      icon: ScaleIcon,
+    },
+    {
+      id: 'relationship',
+      label: t('evaluation.statistics.categoryRelationship'),
+      icon: ArrowTrendingUpIcon,
+    },
   ]
 }
 
@@ -147,7 +163,8 @@ export function StatisticsSelector({
   }
 
   const getSelectedLabels = () => {
-    if (selectedMethods.length === 0) return t('evaluation.statistics.selectPlaceholder')
+    if (selectedMethods.length === 0)
+      return t('evaluation.statistics.selectPlaceholder')
     if (selectedMethods.length === STATISTICAL_METHODS.length)
       return t('evaluation.statistics.allMethods')
     if (selectedMethods.length <= 2) {
@@ -167,9 +184,7 @@ export function StatisticsSelector({
         onClick={() => setIsOpen(!isOpen)}
         className="w-full justify-between text-left"
       >
-        <span className="truncate">
-          {getSelectedLabels()}
-        </span>
+        <span className="truncate">{getSelectedLabels()}</span>
         <ChevronDownIcon
           className={`h-4 w-4 opacity-70 transition-transform ${isOpen ? 'rotate-180' : ''}`}
         />
@@ -201,7 +216,7 @@ export function StatisticsSelector({
             {CATEGORIES.map((category) => {
               const Icon = category.icon
               const methods = STATISTICAL_METHODS.filter(
-                (m) => m.category === category.id
+                (m) => m.category === category.id,
               )
 
               return (
@@ -262,7 +277,10 @@ export function StatisticsSelector({
 
           {/* Selected count */}
           <div className="border-t border-gray-100 px-3 py-2 text-xs text-gray-500 dark:border-gray-700 dark:text-gray-400">
-            {t('evaluation.statistics.selectedCount', { selected: selectedMethods.length, total: STATISTICAL_METHODS.length })}
+            {t('evaluation.statistics.selectedCount', {
+              selected: selectedMethods.length,
+              total: STATISTICAL_METHODS.length,
+            })}
           </div>
         </div>
       )}

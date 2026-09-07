@@ -39,14 +39,21 @@ describe('NotificationsClient - additional function coverage', () => {
 
   describe('createNotificationStream', () => {
     it('creates EventSource with correct URL', () => {
-      mockEventSource.mockImplementation(function (this: any, url: string, opts?: any) {
+      mockEventSource.mockImplementation(function (
+        this: any,
+        url: string,
+        opts?: any,
+      ) {
         this.url = url
         this.withCredentials = opts?.withCredentials
       })
       const stream = client.createNotificationStream()
-      expect(mockEventSource).toHaveBeenCalledWith('/api/notifications/stream', {
-        withCredentials: true,
-      })
+      expect(mockEventSource).toHaveBeenCalledWith(
+        '/api/notifications/stream',
+        {
+          withCredentials: true,
+        },
+      )
     })
   })
 

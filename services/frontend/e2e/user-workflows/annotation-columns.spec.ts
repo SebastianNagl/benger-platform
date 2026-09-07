@@ -66,7 +66,7 @@ test.describe('ProjectDataTab Column Management - Real Implementation', () => {
 
     if (!foundProject) {
       console.warn(
-        '⚠️ No accessible projects with task data found - test will be minimal'
+        '⚠️ No accessible projects with task data found - test will be minimal',
       )
       // Return early but don't fail the test - this is an environment issue, not a test failure
       return
@@ -116,7 +116,7 @@ test.describe('ProjectDataTab Column Management - Real Implementation', () => {
       // Get the label for this checkbox
       const checkboxLabel = await firstCheckbox.locator('..').textContent()
       console.log(
-        `Toggling checkbox: ${checkboxLabel}, was checked: ${wasChecked}`
+        `Toggling checkbox: ${checkboxLabel}, was checked: ${wasChecked}`,
       )
 
       await firstCheckbox.click()
@@ -204,7 +204,7 @@ test.describe('ProjectDataTab Column Management - Real Implementation', () => {
       (label) =>
         label.toLowerCase().includes('data') ||
         label.includes('.') || // Nested fields with dot notation
-        label.includes('›') // Nested field indicator
+        label.includes('›'), // Nested field indicator
     )
 
     console.log('Has dynamic data columns:', hasDataColumns)
@@ -230,7 +230,7 @@ test.describe('ProjectDataTab Column Management - Real Implementation', () => {
     ]
 
     const foundPriorityFields = priorityFields.filter((field) =>
-      labels.some((label) => label.toLowerCase().includes(field.toLowerCase()))
+      labels.some((label) => label.toLowerCase().includes(field.toLowerCase())),
     )
     console.log('Priority fields found:', foundPriorityFields)
 
@@ -287,7 +287,7 @@ test.describe('ProjectDataTab Column Management - Real Implementation', () => {
     }
 
     console.log(
-      `Testing localStorage persistence with project ID: ${projectId}`
+      `Testing localStorage persistence with project ID: ${projectId}`,
     )
 
     // Open column configuration
@@ -313,7 +313,7 @@ test.describe('ProjectDataTab Column Management - Real Implementation', () => {
       const hasColumnConfig = await page.evaluate(() => {
         const keys = Object.keys(localStorage)
         return keys.some(
-          (key) => key.includes('column') || key.includes('preference')
+          (key) => key.includes('column') || key.includes('preference'),
         )
       })
 
@@ -325,12 +325,12 @@ test.describe('ProjectDataTab Column Management - Real Implementation', () => {
 
       // Configuration should be preserved
       const columnsButtonAfterReload = page.locator(
-        'button:has-text("Columns")'
+        'button:has-text("Columns")',
       )
       await expect(columnsButtonAfterReload).toBeVisible({ timeout: 10000 })
 
       console.log(
-        'Page reloaded successfully - column configuration should be restored'
+        'Page reloaded successfully - column configuration should be restored',
       )
     }
 
@@ -414,7 +414,7 @@ test.describe('ProjectDataTab Column Management - Real Implementation', () => {
       (label) =>
         label.toLowerCase().includes('id') ||
         label.toLowerCase().includes('completed') ||
-        label.toLowerCase().includes('assigned')
+        label.toLowerCase().includes('assigned'),
     )
     expect(hasSystemColumns).toBeTruthy()
 
@@ -431,7 +431,7 @@ test.describe('ProjectDataTab Column Management - Real Implementation', () => {
       (label) =>
         label.includes('.') ||
         label.includes('›') ||
-        label.toLowerCase().includes('data')
+        label.toLowerCase().includes('data'),
     )
 
     // At minimum should have system columns

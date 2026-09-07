@@ -4,7 +4,10 @@
 
 import { render, screen } from '@testing-library/react'
 import React from 'react'
-import { useIsInsideMobileNavigation, useMobileNavigationStore } from '../MobileNavigation'
+import {
+  useIsInsideMobileNavigation,
+  useMobileNavigationStore,
+} from '../MobileNavigation'
 
 // We only test the non-JSX exports to avoid complex mocking of HeadlessUI+framer-motion
 

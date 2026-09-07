@@ -33,7 +33,7 @@ export interface PredictionFieldsStepProps {
   /** Toggles a prediction field (wizard's `handleFieldToggle`). */
   onFieldToggle: (
     fieldType: 'prediction_fields' | 'reference_fields',
-    value: string
+    value: string,
   ) => void
 }
 
@@ -67,12 +67,8 @@ export function PredictionFieldsStep({
                 className="flex cursor-pointer items-center gap-2 rounded p-2 hover:bg-gray-50 dark:hover:bg-gray-800"
               >
                 <Checkbox
-                  checked={selectedFields.includes(
-                    opt.value
-                  )}
-                  onChange={() =>
-                    onFieldToggle('prediction_fields', opt.value)
-                  }
+                  checked={selectedFields.includes(opt.value)}
+                  onChange={() => onFieldToggle('prediction_fields', opt.value)}
                 />
                 <span className="text-sm font-medium text-emerald-600 dark:text-emerald-400">
                   {opt.label}
@@ -95,14 +91,14 @@ export function PredictionFieldsStep({
                   className="flex cursor-pointer items-center gap-2 rounded p-2 hover:bg-gray-50 dark:hover:bg-gray-800"
                 >
                   <Checkbox
-                    checked={selectedFields.includes(
-                      prefixed
-                    )}
+                    checked={selectedFields.includes(prefixed)}
                     onChange={() =>
                       onFieldToggle('prediction_fields', prefixed)
                     }
                   />
-                  <span className="text-sm">{getFieldDisplayName(prefixed)}</span>
+                  <span className="text-sm">
+                    {getFieldDisplayName(prefixed)}
+                  </span>
                   <Badge variant="secondary" className="text-[10px]">
                     model
                   </Badge>
@@ -126,14 +122,14 @@ export function PredictionFieldsStep({
                   className="flex cursor-pointer items-center gap-2 rounded p-2 hover:bg-gray-50 dark:hover:bg-gray-800"
                 >
                   <Checkbox
-                    checked={selectedFields.includes(
-                      prefixed
-                    )}
+                    checked={selectedFields.includes(prefixed)}
                     onChange={() =>
                       onFieldToggle('prediction_fields', prefixed)
                     }
                   />
-                  <span className="text-sm">{getFieldDisplayName(prefixed)}</span>
+                  <span className="text-sm">
+                    {getFieldDisplayName(prefixed)}
+                  </span>
                   <Badge variant="secondary" className="text-[10px]">
                     human
                   </Badge>
@@ -144,7 +140,7 @@ export function PredictionFieldsStep({
         )}
 
         {allPredictionOptions.length === 2 && (
-          <p className="py-4 text-xs italic text-gray-500">
+          <p className="py-4 text-xs text-gray-500 italic">
             {t('evaluationBuilder.fields.noFieldsDetected')}
           </p>
         )}

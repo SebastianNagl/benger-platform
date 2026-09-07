@@ -28,7 +28,7 @@ test.describe('Network Failure Recovery', () => {
 
     // Create a project for testing
     const projectId = await helpers.createTestProject(
-      'Network Test ' + Date.now()
+      'Network Test ' + Date.now(),
     )
 
     if (!projectId) {
@@ -39,7 +39,7 @@ test.describe('Network Failure Recovery', () => {
     // Import some test data
     await page.goto(`/projects/${projectId}/data`)
     const importButton = page.locator(
-      'button:has-text("Import"), button:has-text("Importieren")'
+      'button:has-text("Import"), button:has-text("Importieren")',
     )
     if (await importButton.isVisible()) {
       await importButton.click()
@@ -53,7 +53,7 @@ test.describe('Network Failure Recovery', () => {
 
     // Start annotation
     const annotationInput = page.locator(
-      'textarea[name="answer"], [data-testid="annotation-input"]'
+      'textarea[name="answer"], [data-testid="annotation-input"]',
     )
     if (await annotationInput.isVisible({ timeout: 5000 })) {
       const testText = 'Important legal analysis that should be preserved'
@@ -64,7 +64,7 @@ test.describe('Network Failure Recovery', () => {
 
       // Try to save (should fail)
       const saveButton = page.locator(
-        'button:has-text("Save"), button:has-text("Submit")'
+        'button:has-text("Save"), button:has-text("Submit")',
       )
       if (await saveButton.isVisible()) {
         await saveButton.click()
@@ -76,7 +76,7 @@ test.describe('Network Failure Recovery', () => {
         .or(page.getByText(/offline|connection|verbindung/i))
         .first()
       const errorMessage = page.locator(
-        '[data-testid="error-message"], .error, .alert'
+        '[data-testid="error-message"], .error, .alert',
       )
       const hasIndication =
         (await offlineIndicator
@@ -158,7 +158,7 @@ test.describe('Network Failure Recovery', () => {
 
     // Try to perform authenticated action
     const createButton = page.locator(
-      'button:has-text("Neues Projekt"), button:has-text("New Project"), [data-testid="projects-create-button"]'
+      'button:has-text("Neues Projekt"), button:has-text("New Project"), [data-testid="projects-create-button"]',
     )
     if (await createButton.isVisible({ timeout: 5000 })) {
       await createButton.click()
@@ -174,30 +174,36 @@ test.describe('Network Failure Recovery', () => {
 
     // Check if we're on login page or see login prompt or got redirected
     const loginForm = page.locator(
-      'form[action*="login"], [data-testid="login-form"], input[type="password"]'
+      'form[action*="login"], [data-testid="login-form"], input[type="password"]',
     )
-    const isOnLogin = await loginForm.isVisible({ timeout: 5000 }).catch(() => false)
+    const isOnLogin = await loginForm
+      .isVisible({ timeout: 5000 })
+      .catch(() => false)
     const redirectedToLogin = page.url().includes('/login')
 
     // The app should either show login form or redirect to login
     // In some environments, auto-login may re-authenticate automatically
     if (!isOnLogin && !redirectedToLogin) {
-      console.log('Session expiration did not redirect to login - auto-login may have re-authenticated')
+      console.log(
+        'Session expiration did not redirect to login - auto-login may have re-authenticated',
+      )
       return // Test passes - app handled session expiration gracefully
     }
 
     // Login again
     await page.fill(
       'input[type="text"], input[type="email"], input[placeholder*="Benutzername"]',
-      'admin'
+      'admin',
     )
     await page.fill('input[type="password"]', 'admin')
     await page.click(
-      'button[type="submit"], button:has-text("Anmelden"), button:has-text("Login")'
+      'button[type="submit"], button:has-text("Anmelden"), button:has-text("Login")',
     )
 
     // Should return to original page or dashboard
-    await page.waitForURL((url) => !url.toString().includes('/login'), { timeout: 10000 })
+    await page.waitForURL((url) => !url.toString().includes('/login'), {
+      timeout: 10000,
+    })
 
     // Verify logged in
     await expect(page.locator('text=admin')).toBeVisible({ timeout: 10000 })
@@ -208,7 +214,7 @@ test.describe('Network Failure Recovery', () => {
 
     // Create a project
     const projectId = await helpers.createTestProject(
-      'API Error Test ' + Date.now()
+      'API Error Test ' + Date.now(),
     )
 
     if (!projectId) {
@@ -237,7 +243,7 @@ test.describe('Network Failure Recovery', () => {
 
     // Should eventually load despite initial failures
     await expect(
-      page.locator('h1, h2, [data-testid="project-title"]').first()
+      page.locator('h1, h2, [data-testid="project-title"]').first(),
     ).toBeVisible({
       timeout: 20000, // Allow time for retries
     })
@@ -254,7 +260,7 @@ test.describe('Network Failure Recovery', () => {
 
     // Create a project
     const projectId = await helpers.createTestProject(
-      'Draft Test ' + Date.now()
+      'Draft Test ' + Date.now(),
     )
 
     if (!projectId) {
@@ -265,7 +271,7 @@ test.describe('Network Failure Recovery', () => {
     // Import test data
     await page.goto(`/projects/${projectId}/data`)
     const importButton = page.locator(
-      'button:has-text("Import"), button:has-text("Importieren")'
+      'button:has-text("Import"), button:has-text("Importieren")',
     )
     if (await importButton.isVisible()) {
       await importButton.click()
@@ -279,7 +285,7 @@ test.describe('Network Failure Recovery', () => {
 
     // Type some content
     const annotationInput = page.locator(
-      'textarea[name="answer"], [data-testid="annotation-input"]'
+      'textarea[name="answer"], [data-testid="annotation-input"]',
     )
     const draftText = 'This is my draft annotation that should be preserved'
 
@@ -303,7 +309,7 @@ test.describe('Network Failure Recovery', () => {
 
       // Check if draft was preserved
       const restoredInput = page.locator(
-        'textarea[name="answer"], [data-testid="annotation-input"]'
+        'textarea[name="answer"], [data-testid="annotation-input"]',
       )
       if (await restoredInput.isVisible({ timeout: 5000 })) {
         const restoredText = await restoredInput.inputValue()
@@ -327,7 +333,7 @@ test.describe('Network Failure Recovery', () => {
             // Check if draft was restored
             const finalText = await restoredInput.inputValue()
             console.log(
-              `Draft recovery: Original="${draftText}", Restored="${finalText}"`
+              `Draft recovery: Original="${draftText}", Restored="${finalText}"`,
             )
           }
         } else {
@@ -394,7 +400,7 @@ test.describe('Network Failure Recovery', () => {
 
     // Create a project for collaboration features
     const projectId = await helpers.createTestProject(
-      'WebSocket Test ' + Date.now()
+      'WebSocket Test ' + Date.now(),
     )
 
     if (!projectId) {
@@ -407,7 +413,7 @@ test.describe('Network Failure Recovery', () => {
 
     // Check if WebSocket connection indicator exists
     const wsIndicator = page.locator(
-      '[data-testid="websocket-status"], [data-testid="connection-status"], .connection-indicator'
+      '[data-testid="websocket-status"], [data-testid="connection-status"], .connection-indicator',
     )
     const hasWsFeature = await wsIndicator
       .isVisible({ timeout: 5000 })

@@ -95,7 +95,7 @@ export function useAutoSave(
   annotations: Map<string, AnnotationResult>,
   componentValues: Map<string, unknown>,
   startTime: number,
-  options: UseAutoSaveOptions = {}
+  options: UseAutoSaveOptions = {},
 ) {
   const { enabled = true } = options
 
@@ -217,17 +217,21 @@ export function useAutoSave(
 
   // Immediate save (for Ctrl+S) - saves to localStorage only
   // Accepts optional direct values to avoid race conditions with React state updates
-  const saveNow = useCallback(async (
-    directValues?: { fieldName: string; value: unknown }
-  ): Promise<void> => {
-    // If direct values provided, update componentValues immediately before saving
-    // This avoids the race condition where React state hasn't propagated yet
-    if (directValues) {
-      componentValues.set(directValues.fieldName, directValues.value)
-    }
+  const saveNow = useCallback(
+    async (directValues?: {
+      fieldName: string
+      value: unknown
+    }): Promise<void> => {
+      // If direct values provided, update componentValues immediately before saving
+      // This avoids the race condition where React state hasn't propagated yet
+      if (directValues) {
+        componentValues.set(directValues.fieldName, directValues.value)
+      }
 
-    saveToLocal()
-  }, [saveToLocal, componentValues])
+      saveToLocal()
+    },
+    [saveToLocal, componentValues],
+  )
 
   return {
     ...state,

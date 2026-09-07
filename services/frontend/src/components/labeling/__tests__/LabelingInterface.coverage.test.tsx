@@ -41,8 +41,8 @@ jest.mock('@/lib/api/projects', () => ({
   },
 }))
 
-import { projectsAPI } from '@/lib/api/projects'
 import { useAuth } from '@/contexts/AuthContext'
+import { projectsAPI } from '@/lib/api/projects'
 
 // Controllable slot registry. Each test can swap the mounted slot components.
 const mockSlots: Record<string, any> = {}
@@ -151,7 +151,10 @@ import { mockToast as __mockToast } from '@/test-utils/setupTests'
 const mockPush = jest.fn()
 const mockApiGet = jest.fn()
 
-function setupMocks(storeOverrides: any = {}, searchParam: string | null = null) {
+function setupMocks(
+  storeOverrides: any = {},
+  searchParam: string | null = null,
+) {
   ;(useRouter as jest.Mock).mockReturnValue({ push: mockPush })
   ;(useSearchParams as jest.Mock).mockReturnValue({
     get: jest.fn().mockReturnValue(searchParam),
@@ -252,13 +255,11 @@ describe('LabelingInterface - strict timer pre_start', () => {
       expect(screen.getByTestId('klausur-pre-start')).toBeInTheDocument()
     })
 
-    fireEvent.click(
-      screen.getByText('Start')
-    )
+    fireEvent.click(screen.getByText('Start'))
 
     await waitFor(() => {
       expect(
-        screen.getByTestId('dynamic-annotation-interface')
+        screen.getByTestId('dynamic-annotation-interface'),
       ).toBeInTheDocument()
     })
   })
@@ -440,7 +441,7 @@ describe('LabelingInterface - TimerSlot onAutoSubmit', () => {
     await waitFor(() => {
       expect(projectsAPI.createAnnotation).toHaveBeenCalledWith(
         'task-1',
-        expect.objectContaining({ auto_submitted: true })
+        expect.objectContaining({ auto_submitted: true }),
       )
       expect(screen.getByText("Time's Up")).toBeInTheDocument()
     })
@@ -508,7 +509,7 @@ describe('LabelingInterface - TimerSlot onAutoSubmit', () => {
   it('auto-submit create failure routes to time_over', async () => {
     mountTimerSlot()
     ;(projectsAPI.createAnnotation as jest.Mock).mockRejectedValueOnce(
-      new Error('boom')
+      new Error('boom'),
     )
     setupMocks({
       currentProject: strictProject,
@@ -660,7 +661,7 @@ describe('LabelingInterface - manual submit guards', () => {
     await waitFor(() => {
       expect(__mockToast.addToast).toHaveBeenCalledWith(
         'Annotation already submitted',
-        'error'
+        'error',
       )
     })
   })
@@ -695,7 +696,7 @@ describe('LabelingInterface - manual submit guards', () => {
     await waitFor(() => {
       expect(__mockToast.addToast).toHaveBeenCalledWith(
         'Failed to submit annotation',
-        'error'
+        'error',
       )
     })
   })
@@ -755,7 +756,7 @@ describe('LabelingInterface - URL task param navigation', () => {
           .mockResolvedValue([{ id: 'task-1' }, { id: 'task-2' }]),
         setTaskByIndex,
       },
-      '2'
+      '2',
     )
 
     render(<LabelingInterface projectId="proj-1" />)
@@ -766,7 +767,7 @@ describe('LabelingInterface - URL task param navigation', () => {
       // by the real i18n at runtime); here we assert the success branch fired.
       expect(__mockToast.addToast).toHaveBeenCalledWith(
         expect.stringContaining('annotation.taskLoadedFromUrl'),
-        'success'
+        'success',
       )
     })
   })
@@ -779,7 +780,7 @@ describe('LabelingInterface - URL task param navigation', () => {
         fetchProjectTasks: jest.fn().mockResolvedValue([{ id: 'task-1' }]),
         getNextTask: jest.fn().mockResolvedValue(null),
       },
-      '99'
+      '99',
     )
 
     render(<LabelingInterface projectId="proj-1" />)
@@ -787,7 +788,7 @@ describe('LabelingInterface - URL task param navigation', () => {
     await waitFor(() => {
       expect(__mockToast.addToast).toHaveBeenCalledWith(
         expect.stringContaining('annotation.taskNotFound'),
-        'error'
+        'error',
       )
     })
   })
@@ -830,7 +831,7 @@ describe('LabelingInterface - draft sync on change', () => {
       expect(projectsAPI.saveDraft).toHaveBeenCalledWith(
         'proj-1',
         'task-1',
-        expect.any(Array)
+        expect.any(Array),
       )
     })
 
@@ -891,7 +892,9 @@ describe('LabelingInterface - non-strict overtime (no auto-submit at 0)', () => 
     })
     expect(projectsAPI.createAnnotation).not.toHaveBeenCalled()
     // Editor still mounted — manual submit remains possible in overtime.
-    expect(screen.getByTestId('dynamic-annotation-interface')).toBeInTheDocument()
+    expect(
+      screen.getByTestId('dynamic-annotation-interface'),
+    ).toBeInTheDocument()
     expect(screen.getByTestId('mock-submit')).toBeInTheDocument()
     // No strict time_over lock screen.
     expect(screen.queryByText("Time's Up")).not.toBeInTheDocument()

@@ -10,7 +10,13 @@
 import { projectsAPI } from '@/lib/api/projects'
 import { useProjectStore } from '@/stores/projectStore'
 import { Project } from '@/types/labelStudio'
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useRouter } from 'next/navigation'
 import { ProjectListTable } from '../ProjectListTable'
@@ -102,7 +108,10 @@ jest.mock('@/contexts/AuthContext', () => ({
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
     t: (key: string, varsOrDefault?: any) => {
-      const translations: Record<string, any> = require('../../../locales/en/common.json')
+      const translations: Record<
+        string,
+        any
+      > = require('../../../locales/en/common.json')
       const parts = key.split('.')
       let value: any = translations
       for (const part of parts) {
@@ -166,7 +175,6 @@ jest.mock('@/components/shared/FilterToolbar', () => {
   return { FilterToolbar }
 })
 
-
 describe('ProjectListTable', () => {
   const mockFetchProjects = jest.fn()
   const mockSetSearchQuery = jest.fn()
@@ -222,7 +230,7 @@ describe('ProjectListTable', () => {
       push: mockPush,
     })
     ;(useProjectStore as unknown as jest.Mock).mockReturnValue(
-      defaultStoreState
+      defaultStoreState,
     )
   })
 
@@ -335,13 +343,13 @@ describe('ProjectListTable', () => {
       render(<ProjectListTable />)
 
       expect(
-        screen.getByTestId('projects-table-checkbox-1')
+        screen.getByTestId('projects-table-checkbox-1'),
       ).toBeInTheDocument()
       expect(
-        screen.getByTestId('projects-table-checkbox-2')
+        screen.getByTestId('projects-table-checkbox-2'),
       ).toBeInTheDocument()
       expect(
-        screen.getByTestId('projects-table-checkbox-3')
+        screen.getByTestId('projects-table-checkbox-3'),
       ).toBeInTheDocument()
     })
 
@@ -456,7 +464,7 @@ describe('ProjectListTable', () => {
       fireEvent.click(checkbox)
 
       expect(screen.getByTestId('projects-selection-count')).toHaveTextContent(
-        '1 project(s) selected'
+        '1 project(s) selected',
       )
     })
 
@@ -473,7 +481,7 @@ describe('ProjectListTable', () => {
       fireEvent.click(checkbox)
 
       expect(
-        screen.queryByTestId('projects-selection-count')
+        screen.queryByTestId('projects-selection-count'),
       ).not.toBeInTheDocument()
     })
 
@@ -486,12 +494,12 @@ describe('ProjectListTable', () => {
       render(<ProjectListTable />)
 
       const headerCheckbox = screen.getByTestId(
-        'projects-table-header-checkbox'
+        'projects-table-header-checkbox',
       )
       fireEvent.click(headerCheckbox)
 
       expect(screen.getByTestId('projects-selection-count')).toHaveTextContent(
-        '3 project(s) selected'
+        '3 project(s) selected',
       )
     })
 
@@ -504,13 +512,13 @@ describe('ProjectListTable', () => {
       render(<ProjectListTable />)
 
       const headerCheckbox = screen.getByTestId(
-        'projects-table-header-checkbox'
+        'projects-table-header-checkbox',
       )
       fireEvent.click(headerCheckbox)
       fireEvent.click(headerCheckbox)
 
       expect(
-        screen.queryByTestId('projects-selection-count')
+        screen.queryByTestId('projects-selection-count'),
       ).not.toBeInTheDocument()
     })
 
@@ -526,12 +534,12 @@ describe('ProjectListTable', () => {
       fireEvent.click(checkbox1)
 
       const headerCheckbox = screen.getByTestId(
-        'projects-table-header-checkbox'
+        'projects-table-header-checkbox',
       )
       // Check for indeterminate property or attribute
       expect(
         headerCheckbox.getAttribute('data-indeterminate') === 'true' ||
-          (headerCheckbox as any).indeterminate === true
+          (headerCheckbox as any).indeterminate === true,
       ).toBeTruthy()
     })
 
@@ -548,7 +556,7 @@ describe('ProjectListTable', () => {
       fireEvent.click(checkbox)
 
       expect(screen.getByTestId('projects-selection-count')).toHaveTextContent(
-        '1 project(s) selected'
+        '1 project(s) selected',
       )
       ;(useProjectStore as unknown as jest.Mock).mockReturnValue({
         ...defaultStoreState,
@@ -559,7 +567,7 @@ describe('ProjectListTable', () => {
       rerender(<ProjectListTable />)
 
       expect(
-        screen.queryByTestId('projects-selection-count')
+        screen.queryByTestId('projects-selection-count'),
       ).not.toBeInTheDocument()
     })
   })
@@ -633,7 +641,7 @@ describe('ProjectListTable', () => {
 
       // Find and click delete option
       const deleteOption = await screen.findByTestId(
-        'projects-bulk-delete-option'
+        'projects-bulk-delete-option',
       )
       await user.click(deleteOption)
 
@@ -654,7 +662,7 @@ describe('ProjectListTable', () => {
       await waitFor(() => {
         expect(mockAddToast).toHaveBeenCalledWith(
           '2 projects deleted successfully',
-          'success'
+          'success',
         )
       })
     })
@@ -678,7 +686,7 @@ describe('ProjectListTable', () => {
 
       // Find and click delete option
       const deleteOption = await screen.findByTestId(
-        'projects-bulk-delete-option'
+        'projects-bulk-delete-option',
       )
       await user.click(deleteOption)
 
@@ -713,14 +721,14 @@ describe('ProjectListTable', () => {
 
       // Find and click delete option
       const deleteOption = await screen.findByTestId(
-        'projects-bulk-delete-option'
+        'projects-bulk-delete-option',
       )
       await user.click(deleteOption)
 
       await waitFor(() => {
         expect(mockAddToast).toHaveBeenCalledWith(
           'Deleted 1 of 2 projects. Some projects could not be deleted due to permissions.',
-          'warning'
+          'warning',
         )
       })
     })
@@ -729,7 +737,7 @@ describe('ProjectListTable', () => {
       const user = userEvent.setup()
       mockConfirm.mockResolvedValue(true)
       ;(projectsAPI.bulkDeleteProjects as jest.Mock).mockRejectedValue(
-        new Error('Network error')
+        new Error('Network error'),
       )
       ;(useProjectStore as unknown as jest.Mock).mockReturnValue({
         ...defaultStoreState,
@@ -747,14 +755,14 @@ describe('ProjectListTable', () => {
 
       // Find and click delete option
       const deleteOption = await screen.findByTestId(
-        'projects-bulk-delete-option'
+        'projects-bulk-delete-option',
       )
       await user.click(deleteOption)
 
       await waitFor(() => {
         expect(mockAddToast).toHaveBeenCalledWith(
           'Failed to delete projects',
-          'error'
+          'error',
         )
       })
     })
@@ -781,14 +789,14 @@ describe('ProjectListTable', () => {
 
       // Find and click delete option
       const deleteOption = await screen.findByTestId(
-        'projects-bulk-delete-option'
+        'projects-bulk-delete-option',
       )
       await user.click(deleteOption)
 
       await waitFor(() => {
         expect(mockAddToast).toHaveBeenCalledWith(
           'No projects were deleted. You may not have permission to delete the selected projects.',
-          'warning'
+          'warning',
         )
       })
     })
@@ -799,7 +807,7 @@ describe('ProjectListTable', () => {
       const user = userEvent.setup()
       const mockBlob = new Blob(['test'], { type: 'application/json' })
       ;(projectsAPI.bulkExportFullProjects as jest.Mock).mockResolvedValue(
-        mockBlob
+        mockBlob,
       )
       ;(useProjectStore as unknown as jest.Mock).mockReturnValue({
         ...defaultStoreState,
@@ -821,7 +829,7 @@ describe('ProjectListTable', () => {
 
       // Find and click the export option
       const exportOption = await screen.findByTestId(
-        'projects-bulk-export-option'
+        'projects-bulk-export-option',
       )
       await user.click(exportOption)
 
@@ -833,7 +841,7 @@ describe('ProjectListTable', () => {
         expect(mockAddToast).toHaveBeenCalledWith(
           expect.stringContaining('Exported 1 full project'),
           'success',
-          5000
+          5000,
         )
       })
     })
@@ -855,14 +863,14 @@ describe('ProjectListTable', () => {
       await user.click(actionsButton)
 
       const exportOption = await screen.findByTestId(
-        'projects-bulk-export-option'
+        'projects-bulk-export-option',
       )
       await user.click(exportOption)
 
       await waitFor(() => {
         expect(mockAddToast).toHaveBeenCalledWith(
           expect.stringContaining('Failed to export projects'),
-          'error'
+          'error',
         )
       })
     })
@@ -871,7 +879,7 @@ describe('ProjectListTable', () => {
       const user = userEvent.setup()
       const emptyBlob = new Blob([], { type: 'application/json' })
       ;(projectsAPI.bulkExportFullProjects as jest.Mock).mockResolvedValue(
-        emptyBlob
+        emptyBlob,
       )
       ;(useProjectStore as unknown as jest.Mock).mockReturnValue({
         ...defaultStoreState,
@@ -887,14 +895,14 @@ describe('ProjectListTable', () => {
       await user.click(actionsButton)
 
       const exportOption = await screen.findByTestId(
-        'projects-bulk-export-option'
+        'projects-bulk-export-option',
       )
       await user.click(exportOption)
 
       await waitFor(() => {
         expect(mockAddToast).toHaveBeenCalledWith(
           expect.stringContaining('Received empty file from server'),
-          'error'
+          'error',
         )
       })
     })
@@ -925,7 +933,7 @@ describe('ProjectListTable', () => {
 
       // Find and click archive option in menu
       const archiveOption = await screen.findByTestId(
-        'projects-bulk-archive-option'
+        'projects-bulk-archive-option',
       )
       await user.click(archiveOption)
 
@@ -945,7 +953,7 @@ describe('ProjectListTable', () => {
       await waitFor(() => {
         expect(mockAddToast).toHaveBeenCalledWith(
           'Archived 2 projects successfully',
-          'success'
+          'success',
         )
       })
     })
@@ -970,7 +978,7 @@ describe('ProjectListTable', () => {
       await user.click(actionsButton)
 
       const unarchiveOption = await screen.findByTestId(
-        'projects-bulk-unarchive-option'
+        'projects-bulk-unarchive-option',
       )
       await user.click(unarchiveOption)
 
@@ -992,7 +1000,7 @@ describe('ProjectListTable', () => {
       const user = userEvent.setup()
       mockConfirm.mockResolvedValue(true)
       ;(projectsAPI.bulkArchiveProjects as jest.Mock).mockRejectedValue(
-        new Error('Archive failed')
+        new Error('Archive failed'),
       )
       ;(useProjectStore as unknown as jest.Mock).mockReturnValue({
         ...defaultStoreState,
@@ -1008,14 +1016,14 @@ describe('ProjectListTable', () => {
       await user.click(actionsButton)
 
       const archiveOption = await screen.findByTestId(
-        'projects-bulk-archive-option'
+        'projects-bulk-archive-option',
       )
       await user.click(archiveOption)
 
       await waitFor(() => {
         expect(mockAddToast).toHaveBeenCalledWith(
           'Failed to archive projects',
-          'error'
+          'error',
         )
       })
     })
@@ -1062,7 +1070,7 @@ describe('ProjectListTable', () => {
       await waitFor(() => {
         expect(mockAddToast).toHaveBeenCalledWith(
           expect.stringContaining('Successfully imported "Imported Project"'),
-          'success'
+          'success',
         )
       })
 
@@ -1080,7 +1088,7 @@ describe('ProjectListTable', () => {
       render(<ProjectListTable />)
 
       const fileInput = screen.getByTestId(
-        'project-import-file-input'
+        'project-import-file-input',
       ) as HTMLInputElement
       const file = new File(['test'], 'project.txt', { type: 'text/plain' })
 
@@ -1094,7 +1102,7 @@ describe('ProjectListTable', () => {
       await waitFor(() => {
         expect(mockAddToast).toHaveBeenCalledWith(
           'Please select a JSON or ZIP file',
-          'error'
+          'error',
         )
       })
 
@@ -1103,7 +1111,7 @@ describe('ProjectListTable', () => {
 
     it('should handle import error', async () => {
       ;(projectsAPI.runProjectImportJob as jest.Mock).mockRejectedValue(
-        new Error('Invalid JSON format')
+        new Error('Invalid JSON format'),
       )
       ;(useProjectStore as unknown as jest.Mock).mockReturnValue({
         ...defaultStoreState,
@@ -1122,7 +1130,7 @@ describe('ProjectListTable', () => {
       await waitFor(() => {
         expect(mockAddToast).toHaveBeenCalledWith(
           expect.stringContaining('Invalid JSON format'),
-          'error'
+          'error',
         )
       })
     })
@@ -1157,7 +1165,7 @@ describe('ProjectListTable', () => {
       // The first label button corresponds to the first project in sortedProjects
       // which might be different from mockProjects order due to default sort
       expect(mockPush).toHaveBeenCalledWith(
-        expect.stringMatching(/\/projects\/\d+\/label/)
+        expect.stringMatching(/\/projects\/\d+\/label/),
       )
     })
 
@@ -1253,9 +1261,11 @@ describe('ProjectListTable', () => {
       render(<ProjectListTable />)
 
       expect(
-        screen.getByText('No projects match your filters')
+        screen.getByText('No projects match your filters'),
       ).toBeInTheDocument()
-      expect(screen.getByText('Try adjusting your search criteria')).toBeInTheDocument()
+      expect(
+        screen.getByText('Try adjusting your search criteria'),
+      ).toBeInTheDocument()
     })
 
     it('should provide link to create project in empty state', () => {
@@ -1266,7 +1276,9 @@ describe('ProjectListTable', () => {
 
       render(<ProjectListTable />)
 
-      const createLink = screen.getByText('Create your first project to get started')
+      const createLink = screen.getByText(
+        'Create your first project to get started',
+      )
       fireEvent.click(createLink)
 
       expect(mockPush).toHaveBeenCalledWith('/projects/create')
@@ -1281,7 +1293,7 @@ describe('ProjectListTable', () => {
         undefined,
         undefined,
         true,
-        false
+        false,
       )
     })
 
@@ -1295,10 +1307,10 @@ describe('ProjectListTable', () => {
       render(<ProjectListTable showArchivedOnly={true} />)
 
       expect(
-        screen.queryByTestId('projects-create-button')
+        screen.queryByTestId('projects-create-button'),
       ).not.toBeInTheDocument()
       expect(
-        screen.queryByTestId('projects-import-button')
+        screen.queryByTestId('projects-import-button'),
       ).not.toBeInTheDocument()
     })
 
@@ -1320,7 +1332,7 @@ describe('ProjectListTable', () => {
 
       // Look for Unarchive option in the menu
       const unarchiveOption = await screen.findByTestId(
-        'projects-bulk-unarchive-option'
+        'projects-bulk-unarchive-option',
       )
       expect(unarchiveOption).toBeInTheDocument()
     })
@@ -1339,7 +1351,7 @@ describe('ProjectListTable', () => {
       fireEvent.click(checkbox1)
 
       expect(screen.getByTestId('projects-selection-count')).toHaveTextContent(
-        '1 project(s) selected'
+        '1 project(s) selected',
       )
     })
 
@@ -1357,7 +1369,7 @@ describe('ProjectListTable', () => {
       fireEvent.click(checkbox2)
 
       expect(screen.getByTestId('projects-selection-count')).toHaveTextContent(
-        '2 project(s) selected'
+        '2 project(s) selected',
       )
     })
 
@@ -1439,7 +1451,7 @@ describe('ProjectListTable', () => {
   describe('Import Error Handling', () => {
     it('should handle JSON-specific import errors', async () => {
       ;(projectsAPI.runProjectImportJob as jest.Mock).mockRejectedValue(
-        new Error('Invalid JSON format in file')
+        new Error('Invalid JSON format in file'),
       )
       ;(useProjectStore as unknown as jest.Mock).mockReturnValue({
         ...defaultStoreState,
@@ -1449,7 +1461,7 @@ describe('ProjectListTable', () => {
       render(<ProjectListTable />)
 
       const fileInput = screen.getByTestId(
-        'project-import-file-input'
+        'project-import-file-input',
       ) as HTMLInputElement
       const file = new File(['{}'], 'project.json', {
         type: 'application/json',
@@ -1464,14 +1476,14 @@ describe('ProjectListTable', () => {
       await waitFor(() => {
         expect(mockAddToast).toHaveBeenCalledWith(
           expect.stringContaining('Invalid JSON format'),
-          'error'
+          'error',
         )
       })
     })
 
     it('should handle format version errors', async () => {
       ;(projectsAPI.runProjectImportJob as jest.Mock).mockRejectedValue(
-        new Error('Unsupported format_version')
+        new Error('Unsupported format_version'),
       )
       ;(useProjectStore as unknown as jest.Mock).mockReturnValue({
         ...defaultStoreState,
@@ -1481,7 +1493,7 @@ describe('ProjectListTable', () => {
       render(<ProjectListTable />)
 
       const fileInput = screen.getByTestId(
-        'project-import-file-input'
+        'project-import-file-input',
       ) as HTMLInputElement
       const file = new File(['{}'], 'project.json', {
         type: 'application/json',
@@ -1496,14 +1508,14 @@ describe('ProjectListTable', () => {
       await waitFor(() => {
         expect(mockAddToast).toHaveBeenCalledWith(
           expect.stringContaining('Unsupported file format version'),
-          'error'
+          'error',
         )
       })
     })
 
     it('should handle required fields errors', async () => {
       ;(projectsAPI.runProjectImportJob as jest.Mock).mockRejectedValue(
-        new Error('Missing required fields')
+        new Error('Missing required fields'),
       )
       ;(useProjectStore as unknown as jest.Mock).mockReturnValue({
         ...defaultStoreState,
@@ -1513,7 +1525,7 @@ describe('ProjectListTable', () => {
       render(<ProjectListTable />)
 
       const fileInput = screen.getByTestId(
-        'project-import-file-input'
+        'project-import-file-input',
       ) as HTMLInputElement
       const file = new File(['{}'], 'project.json', {
         type: 'application/json',
@@ -1528,7 +1540,7 @@ describe('ProjectListTable', () => {
       await waitFor(() => {
         expect(mockAddToast).toHaveBeenCalledWith(
           expect.stringContaining('Missing required fields'),
-          'error'
+          'error',
         )
       })
     })
@@ -1554,7 +1566,7 @@ describe('ProjectListTable', () => {
       render(<ProjectListTable />)
 
       const fileInput = screen.getByTestId(
-        'project-import-file-input'
+        'project-import-file-input',
       ) as HTMLInputElement
       const file = new File(['{}'], 'project.json', {
         type: 'application/json',
@@ -1573,7 +1585,7 @@ describe('ProjectListTable', () => {
       const user = userEvent.setup()
       const mockBlob = new Blob(['test'], { type: 'application/json' })
       ;(projectsAPI.bulkExportFullProjects as jest.Mock).mockResolvedValue(
-        mockBlob
+        mockBlob,
       )
       ;(useProjectStore as unknown as jest.Mock).mockReturnValue({
         ...defaultStoreState,
@@ -1592,7 +1604,7 @@ describe('ProjectListTable', () => {
       await user.click(actionsButton)
 
       const exportOption = await screen.findByTestId(
-        'projects-bulk-export-option'
+        'projects-bulk-export-option',
       )
       await user.click(exportOption)
 
@@ -1601,7 +1613,7 @@ describe('ProjectListTable', () => {
         expect(mockStartProgress).toHaveBeenCalledWith(
           expect.any(String),
           expect.stringContaining('Exporting 1'),
-          { indeterminate: true }
+          { indeterminate: true },
         )
       })
 
@@ -1609,14 +1621,14 @@ describe('ProjectListTable', () => {
       await waitFor(() => {
         expect(mockCompleteProgress).toHaveBeenCalledWith(
           expect.any(String),
-          'success'
+          'success',
         )
       })
       await waitFor(() => {
         expect(mockAddToast).toHaveBeenCalledWith(
           expect.stringContaining('Exported 1 full project'),
           'success',
-          5000
+          5000,
         )
       })
     })
@@ -1624,7 +1636,7 @@ describe('ProjectListTable', () => {
     it('should show error toast on export failure', async () => {
       const user = userEvent.setup()
       ;(projectsAPI.bulkExportFullProjects as jest.Mock).mockRejectedValue(
-        new Error('Export failed')
+        new Error('Export failed'),
       )
       ;(useProjectStore as unknown as jest.Mock).mockReturnValue({
         ...defaultStoreState,
@@ -1640,7 +1652,7 @@ describe('ProjectListTable', () => {
       await user.click(actionsButton)
 
       const exportOption = await screen.findByTestId(
-        'projects-bulk-export-option'
+        'projects-bulk-export-option',
       )
       await user.click(exportOption)
 
@@ -1648,7 +1660,7 @@ describe('ProjectListTable', () => {
       await waitFor(() => {
         expect(mockAddToast).toHaveBeenCalledWith(
           expect.stringContaining('Failed to export'),
-          'error'
+          'error',
         )
       })
     })
@@ -1669,7 +1681,7 @@ describe('ProjectListTable', () => {
       if (taskCell) {
         fireEvent.click(taskCell)
         expect(mockPush).toHaveBeenCalledWith(
-          expect.stringMatching(/\/projects\/\d+/)
+          expect.stringMatching(/\/projects\/\d+/),
         )
       }
     })
@@ -1705,7 +1717,7 @@ describe('ProjectListTable', () => {
       if (annotationCell) {
         fireEvent.click(annotationCell)
         expect(mockPush).toHaveBeenCalledWith(
-          expect.stringMatching(/\/projects\/\d+/)
+          expect.stringMatching(/\/projects\/\d+/),
         )
       }
     })
@@ -1724,7 +1736,7 @@ describe('ProjectListTable', () => {
       if (firstRowProgressCell) {
         fireEvent.click(firstRowProgressCell)
         expect(mockPush).toHaveBeenCalledWith(
-          expect.stringMatching(/\/projects\/\d+/)
+          expect.stringMatching(/\/projects\/\d+/),
         )
       }
     })
@@ -1748,7 +1760,7 @@ describe('ProjectListTable', () => {
         () => {
           expect(mockSetSearchQuery).toHaveBeenCalledWith('Alpha')
         },
-        { timeout: 500 }
+        { timeout: 500 },
       )
     })
 
@@ -1769,7 +1781,7 @@ describe('ProjectListTable', () => {
         () => {
           expect(mockSetSearchQuery).toHaveBeenCalledWith('')
         },
-        { timeout: 500 }
+        { timeout: 500 },
       )
     })
 
@@ -1929,7 +1941,7 @@ describe('ProjectListTable', () => {
       fireEvent.click(checkbox3)
 
       expect(screen.getByTestId('projects-selection-count')).toHaveTextContent(
-        '3 project(s) selected'
+        '3 project(s) selected',
       )
     })
 
@@ -1954,7 +1966,7 @@ describe('ProjectListTable', () => {
       fireEvent.click(checkbox2)
 
       expect(screen.getByTestId('projects-selection-count')).toHaveTextContent(
-        '2 project(s) selected'
+        '2 project(s) selected',
       )
     })
   })
@@ -2099,7 +2111,7 @@ describe('ProjectListTable', () => {
         undefined,
         undefined,
         false,
-        false
+        false,
       )
     })
 
@@ -2110,7 +2122,7 @@ describe('ProjectListTable', () => {
         undefined,
         undefined,
         true,
-        false
+        false,
       )
     })
 
@@ -2138,7 +2150,7 @@ describe('ProjectListTable', () => {
       render(<ProjectListTable />)
 
       const fileInput = screen.getByTestId(
-        'project-import-file-input'
+        'project-import-file-input',
       ) as HTMLInputElement
       const clickSpy = jest.spyOn(fileInput, 'click')
 

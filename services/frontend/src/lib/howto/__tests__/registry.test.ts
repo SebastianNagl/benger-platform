@@ -8,7 +8,11 @@ import {
   type HowToGuide,
 } from '../registry'
 
-const g = (id: string, category: HowToGuide['category'], extra: Partial<HowToGuide> = {}): HowToGuide => ({
+const g = (
+  id: string,
+  category: HowToGuide['category'],
+  extra: Partial<HowToGuide> = {},
+): HowToGuide => ({
   id,
   category,
   title: { de: `Titel ${id}`, en: `Title ${id}` },
@@ -26,7 +30,9 @@ describe('how-to registry', () => {
     registerHowToGuides('a', [g('one', 'projects')])
     registerHowToGuides('a', [g('one', 'projects'), g('two', 'data')])
     expect(getHowToGuides().filter((x) => x.id === 'one')).toHaveLength(1)
-    expect(getHowToGuides().map((x) => x.id)).toEqual(expect.arrayContaining(['one', 'two']))
+    expect(getHowToGuides().map((x) => x.id)).toEqual(
+      expect.arrayContaining(['one', 'two']),
+    )
   })
 
   it('orders guides by category order, regardless of registration order', () => {
@@ -49,13 +55,17 @@ describe('how-to registry', () => {
 
 describe('search helpers', () => {
   it('stripInlineMarkup turns guide copy into plain text', () => {
-    expect(stripInlineMarkup('Unter **Profil** → `Modelle` (*optional*), siehe [Profil](/profile).')).toBe(
-      'Unter Profil → Modelle (optional), siehe Profil.',
-    )
+    expect(
+      stripInlineMarkup(
+        'Unter **Profil** → `Modelle` (*optional*), siehe [Profil](/profile).',
+      ),
+    ).toBe('Unter Profil → Modelle (optional), siehe Profil.')
   })
 
   it('normalizes umlauts and sharp s so "schlussel" finds "Schlüssel"', () => {
-    expect(normalizeForSearch('API-Schlüssel Straße')).toBe('api-schlussel strasse')
+    expect(normalizeForSearch('API-Schlüssel Straße')).toBe(
+      'api-schlussel strasse',
+    )
   })
 
   it('guideSearchText includes steps, tips, pitfalls and both languages of keywords', () => {

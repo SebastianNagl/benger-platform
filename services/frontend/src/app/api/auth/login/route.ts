@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { getExternalHost, getInternalApiUrl } from '@/lib/utils/apiUrl'
 import { logger } from '@/lib/utils/logger'
-import { getInternalApiUrl, getExternalHost } from '@/lib/utils/apiUrl'
 import { getCookieDomainFromHost } from '@/lib/utils/subdomain'
+import { NextRequest, NextResponse } from 'next/server'
 
 export async function POST(request: NextRequest) {
   try {
@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
 
         logger.debug(
           '🍪 Setting cookie:',
-          modifiedCookie.substring(0, 100) + '...'
+          modifiedCookie.substring(0, 100) + '...',
         )
         response.headers.append('Set-Cookie', modifiedCookie)
       })
@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
       // Also set a test cookie that's NOT HttpOnly to verify cookies work at all
       response.headers.append(
         'Set-Cookie',
-        'test_cookie=working; Path=/; SameSite=Lax'
+        'test_cookie=working; Path=/; SameSite=Lax',
       )
     }
 
@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
     console.error('❌ Login proxy error:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
-      { status: 500 }
+      { status: 500 },
     )
   }
 }

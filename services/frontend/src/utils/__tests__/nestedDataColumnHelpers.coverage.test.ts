@@ -8,8 +8,8 @@ import {
   formatNestedFieldLabel,
   getTaskNestedValue,
   hasConsistentNestedStructure,
-  saveColumnConfig,
   loadColumnConfig,
+  saveColumnConfig,
 } from '../nestedDataColumnHelpers'
 
 describe('nestedDataColumnHelpers - coverage extensions', () => {
@@ -55,7 +55,10 @@ describe('nestedDataColumnHelpers - coverage extensions', () => {
 
   describe('getTaskNestedValue', () => {
     it('should return value from nested task data', () => {
-      const task = { id: '1', data: { text: 'hello', nested: { value: 42 } } } as any
+      const task = {
+        id: '1',
+        data: { text: 'hello', nested: { value: 42 } },
+      } as any
       const result = getTaskNestedValue(task, 'text')
       expect(result).toBeDefined()
     })
@@ -107,8 +110,14 @@ describe('nestedDataColumnHelpers - coverage extensions', () => {
     beforeEach(() => {
       // Mock localStorage
       const store: Record<string, string> = {}
-      jest.spyOn(Storage.prototype, 'getItem').mockImplementation((key) => store[key] || null)
-      jest.spyOn(Storage.prototype, 'setItem').mockImplementation((key, value) => { store[key] = value })
+      jest
+        .spyOn(Storage.prototype, 'getItem')
+        .mockImplementation((key) => store[key] || null)
+      jest
+        .spyOn(Storage.prototype, 'setItem')
+        .mockImplementation((key, value) => {
+          store[key] = value
+        })
     })
 
     afterEach(() => {

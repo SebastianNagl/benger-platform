@@ -44,7 +44,7 @@ describe('LegacyAdminUsersOrganizationsPage', () => {
 
     await waitFor(() => {
       expect(mockReplace).toHaveBeenCalledWith(
-        '/users-organizations?tab=organizations'
+        '/users-organizations?tab=organizations',
       )
     })
   })

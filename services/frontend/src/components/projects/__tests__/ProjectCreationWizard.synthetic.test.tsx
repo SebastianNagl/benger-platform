@@ -140,7 +140,7 @@ describe('ProjectCreationWizard — synthetic step (extended)', () => {
 
     await user.type(
       screen.getByTestId('project-create-name-input'),
-      'Synthetic Demo'
+      'Synthetic Demo',
     )
     await user.click(screen.getByTestId('wizard-synthetic-checkbox'))
     await user.click(screen.getByTestId('project-create-next-button'))
@@ -150,9 +150,7 @@ describe('ProjectCreationWizard — synthetic step (extended)', () => {
     })
     expect(screen.getByTestId('synthetic-step-stub')).toBeInTheDocument()
     // The step gets the wizard state + updater like every other step.
-    expect(screen.getByTestId('synthetic-step-wired')).toHaveTextContent(
-      'true'
-    )
+    expect(screen.getByTestId('synthetic-step-wired')).toHaveTextContent('true')
   })
 
   it('imports generated rows on finish even without the dataImport feature', async () => {
@@ -165,7 +163,7 @@ describe('ProjectCreationWizard — synthetic step (extended)', () => {
 
     await user.type(
       screen.getByTestId('project-create-name-input'),
-      'Generated Project'
+      'Generated Project',
     )
     await user.click(screen.getByTestId('wizard-synthetic-checkbox'))
     await user.click(screen.getByTestId('project-create-next-button'))
@@ -199,7 +197,9 @@ describe('ProjectCreationWizard — synthetic step (extended)', () => {
       jest.requireActual('@/lib/extensions/wizardTemplates')
     _resetWizardPostCreateHooks()
     const hook = jest.fn().mockResolvedValue(undefined)
-    const badHook = jest.fn().mockRejectedValue(new Error('rubric dispatch failed'))
+    const badHook = jest
+      .fn()
+      .mockRejectedValue(new Error('rubric dispatch failed'))
     registerWizardPostCreateHook(hook)
     registerWizardPostCreateHook(badHook)
     mockCreateProject.mockResolvedValue({ id: 'proj-1' })
@@ -220,24 +220,43 @@ describe('ProjectCreationWizard — synthetic step (extended)', () => {
     expect(hook.mock.calls[0][0].wizardData.title).toBe('Hooked')
     // Import ran before the hooks.
     expect(mockRunNestedImportJob).toHaveBeenCalled()
-    await waitFor(() => expect(mockAddToast).toHaveBeenCalledWith('rubric dispatch failed', 'error'))
+    await waitFor(() =>
+      expect(mockAddToast).toHaveBeenCalledWith(
+        'rubric dispatch failed',
+        'error',
+      ),
+    )
     // The project was still created → success toast + redirect.
-    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/projects/proj-1'))
+    await waitFor(() =>
+      expect(mockPush).toHaveBeenCalledWith('/projects/proj-1'),
+    )
     _resetWizardPostCreateHooks()
   })
 
   it('sends the locked project type + icon at creation, preselects the exam template and applies the kind preset', async () => {
-    const { registerWizardTemplate, registerWizardKindPreset, _resetWizardKindPresets } =
-      jest.requireActual('@/lib/extensions/wizardTemplates')
+    const {
+      registerWizardTemplate,
+      registerWizardKindPreset,
+      _resetWizardKindPresets,
+    } = jest.requireActual('@/lib/extensions/wizardTemplates')
     registerWizardTemplate({
-      id: 'exam-solving', nameKey: 'x', descriptionKey: 'y', icon: '', category: 'NLP',
+      id: 'exam-solving',
+      nameKey: 'x',
+      descriptionKey: 'y',
+      icon: '',
+      category: 'NLP',
       config: '<View><Angabe name="a" value="$sachverhalt"/></View>',
     })
     _resetWizardKindPresets()
     const preset = jest.fn((data: any) => ({
       immediate_evaluation_enabled: true,
-      evaluationConfigs: [{ id: 'structured-falloesung-free', metric: 'llm_judge_falloesung' }],
-      settings: { ...data.settings, annotator_full_visibility_after_submit: true },
+      evaluationConfigs: [
+        { id: 'structured-falloesung-free', metric: 'llm_judge_falloesung' },
+      ],
+      settings: {
+        ...data.settings,
+        annotator_full_visibility_after_submit: true,
+      },
     }))
     registerWizardKindPreset('exam', preset)
     mockCreateProject.mockResolvedValue({ id: 'proj-1' })
@@ -263,7 +282,11 @@ describe('ProjectCreationWizard — synthetic step (extended)', () => {
     await user.click(screen.getByTestId('synthetic-step-inject'))
     // Picking "Klausur" switched annotation on → labeling (+ instructions)
     // steps are present; keep clicking Next until the submit button shows.
-    for (let i = 0; i < 6 && !screen.queryByTestId('project-create-submit-button'); i++) {
+    for (
+      let i = 0;
+      i < 6 && !screen.queryByTestId('project-create-submit-button');
+      i++
+    ) {
       await user.click(screen.getByTestId('project-create-next-button'))
     }
     await user.click(screen.getByTestId('project-create-submit-button'))
@@ -281,16 +304,14 @@ describe('ProjectCreationWizard — synthetic step (extended)', () => {
 
     await user.type(
       screen.getByTestId('project-create-name-input'),
-      'Plain Project'
+      'Plain Project',
     )
     await user.click(screen.getByTestId('project-create-next-button'))
 
     await waitFor(() => {
       expect(currentStepId()).toBe('settings')
     })
-    expect(
-      screen.queryByTestId('synthetic-step-stub')
-    ).not.toBeInTheDocument()
+    expect(screen.queryByTestId('synthetic-step-stub')).not.toBeInTheDocument()
   })
 
   it('unchecking the feature removes the step again', async () => {
@@ -301,7 +322,7 @@ describe('ProjectCreationWizard — synthetic step (extended)', () => {
     await user.click(screen.getByTestId('wizard-synthetic-checkbox'))
     await user.type(
       screen.getByTestId('project-create-name-input'),
-      'Toggled Off'
+      'Toggled Off',
     )
     await user.click(screen.getByTestId('project-create-next-button'))
 

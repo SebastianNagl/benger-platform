@@ -21,7 +21,9 @@ import { useNotificationStore } from '@/stores/notificationStore'
 
 const DEFAULT_MESSAGE_KEY = 'toasts.auth.sessionExpired'
 
-export function redirectToLoginAsExpired(messageKey: string = DEFAULT_MESSAGE_KEY): void {
+export function redirectToLoginAsExpired(
+  messageKey: string = DEFAULT_MESSAGE_KEY,
+): void {
   if (typeof window === 'undefined') {
     // SSR safety — no-op on the server. AuthContext's own initialization
     // flow handles auth state recovery on the next render.

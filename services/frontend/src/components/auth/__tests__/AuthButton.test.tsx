@@ -2,8 +2,6 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { AuthButton } from '../AuthButton'
 
- 
-
 // Mock Next.js Link
 jest.mock('next/link', () => {
   function Link({ href, className, children, onClick }: any) {
@@ -245,10 +243,10 @@ describe('AuthButton', () => {
       render(<AuthButton />)
 
       expect(
-        screen.getByRole('button', { name: /sign in/i })
+        screen.getByRole('button', { name: /sign in/i }),
       ).toBeInTheDocument()
       expect(
-        screen.getByRole('button', { name: /sign up/i })
+        screen.getByRole('button', { name: /sign up/i }),
       ).toBeInTheDocument()
     })
 
@@ -326,7 +324,9 @@ describe('AuthButton', () => {
       render(<AuthButton />)
 
       // Hidden until the dropdown is opened.
-      expect(screen.queryByTestId('account-view-switch')).not.toBeInTheDocument()
+      expect(
+        screen.queryByTestId('account-view-switch'),
+      ).not.toBeInTheDocument()
       await user.click(screen.getByRole('button'))
 
       const switchItem = screen.getByTestId('account-view-switch')
@@ -358,7 +358,9 @@ describe('AuthButton', () => {
       // Default mockViewModeState.status is 'unavailable'.
       render(<AuthButton />)
       await user.click(screen.getByRole('button'))
-      expect(screen.queryByTestId('account-view-switch')).not.toBeInTheDocument()
+      expect(
+        screen.queryByTestId('account-view-switch'),
+      ).not.toBeInTheDocument()
     })
 
     it('toggles dropdown when clicked', async () => {
@@ -403,7 +405,7 @@ describe('AuthButton', () => {
         <div>
           <AuthButton />
           <div data-testid="outside">Outside</div>
-        </div>
+        </div>,
       )
 
       // Open dropdown
@@ -571,7 +573,7 @@ describe('AuthButton', () => {
         'dark:border-zinc-700',
         'rounded-lg',
         'shadow-lg',
-        'z-50'
+        'z-50',
       )
     })
 
@@ -795,7 +797,7 @@ describe('AuthButton', () => {
 
       await waitFor(() => {
         expect(
-          screen.queryByText(/notification settings/i)
+          screen.queryByText(/notification settings/i),
         ).not.toBeInTheDocument()
       })
     })
@@ -875,7 +877,7 @@ describe('AuthButton', () => {
 
       await waitFor(() => {
         expect(
-          screen.queryByText(/users & organizations/i)
+          screen.queryByText(/users & organizations/i),
         ).not.toBeInTheDocument()
       })
     })
@@ -945,7 +947,7 @@ describe('AuthButton', () => {
         'gap-2',
         'rounded-full',
         'px-4',
-        'py-1.5'
+        'py-1.5',
       )
     })
 
@@ -957,7 +959,7 @@ describe('AuthButton', () => {
         'dark:text-zinc-400',
         'dark:ring-white/10',
         'dark:hover:bg-white/5',
-        'dark:hover:text-white'
+        'dark:hover:text-white',
       )
     })
   })
@@ -995,7 +997,7 @@ describe('AuthButton', () => {
         'py-2',
         'text-sm',
         'hover:bg-zinc-100',
-        'dark:hover:bg-zinc-700'
+        'dark:hover:bg-zinc-700',
       )
     })
 
@@ -1014,7 +1016,7 @@ describe('AuthButton', () => {
         'py-2',
         'text-sm',
         'hover:bg-zinc-100',
-        'dark:hover:bg-zinc-700'
+        'dark:hover:bg-zinc-700',
       )
     })
   })
@@ -1222,7 +1224,7 @@ describe('AuthButton', () => {
       render(<AuthButton />)
 
       expect(
-        screen.getByText('verylongusernamethatmightbreakthelayout')
+        screen.getByText('verylongusernamethatmightbreakthelayout'),
       ).toBeInTheDocument()
     })
 
@@ -1255,8 +1257,8 @@ describe('AuthButton', () => {
 
       expect(
         screen.getByText(
-          '(Very Long Organization Name That Might Break Layout)'
-        )
+          '(Very Long Organization Name That Might Break Layout)',
+        ),
       ).toBeInTheDocument()
     })
 

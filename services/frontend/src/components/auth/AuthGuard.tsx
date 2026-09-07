@@ -3,8 +3,8 @@
 import { LoginModal } from '@/components/auth/LoginModal'
 import { Button } from '@/components/shared/Button'
 import { useAuth } from '@/contexts/AuthContext'
-import { Dialog, DialogBackdrop, DialogPanel } from '@headlessui/react'
 import { useI18n } from '@/contexts/I18nContext'
+import { Dialog, DialogBackdrop, DialogPanel } from '@headlessui/react'
 import { useRouter } from 'next/navigation'
 import React, { useState } from 'react'
 
@@ -53,7 +53,9 @@ export function AuthGuard({ children, requireAuth = true }: AuthGuardProps) {
       >
         <div className="text-center">
           <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-b-2 border-emerald-500"></div>
-          <p className="text-zinc-600 dark:text-zinc-400">{t('auth.guard.loading')}</p>
+          <p className="text-zinc-600 dark:text-zinc-400">
+            {t('auth.guard.loading')}
+          </p>
         </div>
       </div>
     )

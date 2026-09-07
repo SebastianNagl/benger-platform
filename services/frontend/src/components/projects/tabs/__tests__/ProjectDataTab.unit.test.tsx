@@ -139,7 +139,7 @@ describe('ProjectDataTab Business Logic', () => {
               }
             }
             return taskValue === filterValues
-          }
+          },
         )
       })
 
@@ -352,7 +352,7 @@ describe('ProjectDataTab Business Logic', () => {
     it('should fall back to first string value', () => {
       const task = { data: { custom_field: 'Custom value', number: 123 } }
       const firstStringValue = Object.values(task.data).find(
-        (v) => typeof v === 'string'
+        (v) => typeof v === 'string',
       )
 
       expect(firstStringValue).toBe('Custom value')
@@ -361,7 +361,7 @@ describe('ProjectDataTab Business Logic', () => {
     it('should handle task with no string values', () => {
       const task = { id: '123', data: { number: 123, boolean: true } }
       const firstStringValue = Object.values(task.data).find(
-        (v) => typeof v === 'string'
+        (v) => typeof v === 'string',
       )
 
       expect(firstStringValue).toBeUndefined()
@@ -450,7 +450,7 @@ describe('ProjectDataTab Business Logic', () => {
     it('should calculate active annotations (excluding cancelled)', () => {
       const total = mockTasks.reduce(
         (sum, t) => sum + (t.total_annotations - t.cancelled_annotations),
-        0
+        0,
       )
 
       expect(total).toBe(5)
@@ -467,7 +467,7 @@ describe('ProjectDataTab Business Logic', () => {
     it('should toggle column visibility', () => {
       const columnId = 'assigned'
       const updated = defaultColumns.map((col) =>
-        col.id === columnId ? { ...col, visible: !col.visible } : col
+        col.id === columnId ? { ...col, visible: !col.visible } : col,
       )
 
       const assignedCol = updated.find((c) => c.id === 'assigned')

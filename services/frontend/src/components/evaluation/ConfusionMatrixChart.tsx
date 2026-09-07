@@ -57,7 +57,7 @@ export function ConfusionMatrixChart({
           size: 14,
           weight: 600,
         },
-      }))
+      })),
     )
 
     return [
@@ -84,7 +84,11 @@ export function ConfusionMatrixChart({
   const layout = useMemo(
     () => ({
       title: {
-        text: title || t('evaluation.confusionMatrix.titleWithField', { field: data.field_name }),
+        text:
+          title ||
+          t('evaluation.confusionMatrix.titleWithField', {
+            field: data.field_name,
+          }),
         font: { size: 18 },
       },
       xaxis: {
@@ -108,7 +112,7 @@ export function ConfusionMatrixChart({
       margin: { l: 120, r: 80, t: 120, b: 100 },
       annotations: plotData[0].annotations,
     }),
-    [data.field_name, title, width, height, plotData, t]
+    [data.field_name, title, width, height, plotData, t],
   )
 
   const config = useMemo(
@@ -118,7 +122,7 @@ export function ConfusionMatrixChart({
       displaylogo: false,
       modeBarButtonsToRemove: ['lasso2d', 'select2d'] as any[],
     }),
-    []
+    [],
   )
 
   return (
@@ -129,9 +133,13 @@ export function ConfusionMatrixChart({
 
       {/* Metrics Summary */}
       <div className="rounded-lg border bg-gray-50 p-4">
-        <h4 className="mb-3 font-medium">{t('evaluation.confusionMatrix.classificationMetrics')}</h4>
+        <h4 className="mb-3 font-medium">
+          {t('evaluation.confusionMatrix.classificationMetrics')}
+        </h4>
         <div className="mb-4">
-          <span className="text-sm font-medium">{t('evaluation.confusionMatrix.overallAccuracy')}: </span>
+          <span className="text-sm font-medium">
+            {t('evaluation.confusionMatrix.overallAccuracy')}:{' '}
+          </span>
           <span className="text-lg font-bold text-blue-600">
             {(data.accuracy * 100).toFixed(2)}%
           </span>
@@ -143,19 +151,25 @@ export function ConfusionMatrixChart({
               <div className="mb-2 font-medium text-gray-700">{label}</div>
               <div className="space-y-1 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-gray-600">{t('evaluation.confusionMatrix.precision')}:</span>
+                  <span className="text-gray-600">
+                    {t('evaluation.confusionMatrix.precision')}:
+                  </span>
                   <span className="font-medium">
                     {((data.precision_per_class[label] || 0) * 100).toFixed(1)}%
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-600">{t('evaluation.confusionMatrix.recall')}:</span>
+                  <span className="text-gray-600">
+                    {t('evaluation.confusionMatrix.recall')}:
+                  </span>
                   <span className="font-medium">
                     {((data.recall_per_class[label] || 0) * 100).toFixed(1)}%
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-600">{t('evaluation.confusionMatrix.f1')}:</span>
+                  <span className="text-gray-600">
+                    {t('evaluation.confusionMatrix.f1')}:
+                  </span>
                   <span className="font-medium">
                     {((data.f1_per_class[label] || 0) * 100).toFixed(1)}%
                   </span>

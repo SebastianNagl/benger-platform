@@ -1,15 +1,24 @@
-import React from 'react'
-import { render, screen, within } from '@testing-library/react'
 import { REPORT_SNAPSHOT_FIXTURE as FIX } from '@/lib/reports/fixture'
 import { rankSeries } from '@/lib/reports/select'
+import { render, screen, within } from '@testing-library/react'
+import React from 'react'
 import { t } from '../__mocks__/testUtils'
 import { RankingTable } from '../RankingTable'
 
-const primary = { id: 'llm_judge_falloesung', label: 'Falllösung LLM Judge', scale: '0-100' as const }
+const primary = {
+  id: 'llm_judge_falloesung',
+  label: 'Falllösung LLM Judge',
+  scale: '0-100' as const,
+}
 
 describe('RankingTable', () => {
   it('renders ranked model rows with formatted columns', () => {
-    const rows = rankSeries(FIX.series, 'cfg-judge-sonnet', 'llm_judge_falloesung', 'model')
+    const rows = rankSeries(
+      FIX.series,
+      'cfg-judge-sonnet',
+      'llm_judge_falloesung',
+      'model',
+    )
     render(
       <RankingTable
         title="Leistung nach Modell"
@@ -33,8 +42,17 @@ describe('RankingTable', () => {
     expect(within(trs[3]).getByTestId('rank-badge')).toHaveTextContent('4')
     expect(trs[3]).toHaveTextContent('58 %')
 
-    const headers = screen.getAllByRole('columnheader').map((h) => h.textContent)
-    expect(headers).toEqual(['Rang', 'Modell', 'Falllösung LLM Judge', 'Notenpunkte', 'Bestanden', 'n'])
+    const headers = screen
+      .getAllByRole('columnheader')
+      .map((h) => h.textContent)
+    expect(headers).toEqual([
+      'Rang',
+      'Modell',
+      'Falllösung LLM Judge',
+      'Notenpunkte',
+      'Bestanden',
+      'n',
+    ])
   })
 
   it('adds other metric columns and omits grade/pass columns when absent', () => {
@@ -51,7 +69,9 @@ describe('RankingTable', () => {
         testId="bleu-table"
       />,
     )
-    const headers = screen.getAllByRole('columnheader').map((h) => h.textContent)
+    const headers = screen
+      .getAllByRole('columnheader')
+      .map((h) => h.textContent)
     expect(headers).toEqual(['Rang', 'Modell', 'BLEU', 'n', 'Missing'])
     const row = screen.getByTestId('ranking-row')
     expect(row).toHaveTextContent('21 %')
@@ -60,13 +80,29 @@ describe('RankingTable', () => {
   })
 
   it('shows a quiet note instead of an empty table', () => {
-    render(<RankingTable title="Leer" rows={[]} primary={primary} subjectHeader="Modell" locale="de" t={t} />)
+    render(
+      <RankingTable
+        title="Leer"
+        rows={[]}
+        primary={primary}
+        subjectHeader="Modell"
+        locale="de"
+        t={t}
+      />,
+    )
     expect(screen.queryByRole('table')).not.toBeInTheDocument()
-    expect(screen.getByText('Für diese Metrik liegen keine Werte vor.')).toBeInTheDocument()
+    expect(
+      screen.getByText('Für diese Metrik liegen keine Werte vor.'),
+    ).toBeInTheDocument()
   })
 
   it('styles podium ranks and skips the grade column when no row carries it', () => {
-    const rows = rankSeries(FIX.series, 'cfg-judge-sonnet', 'llm_judge_falloesung', 'human')
+    const rows = rankSeries(
+      FIX.series,
+      'cfg-judge-sonnet',
+      'llm_judge_falloesung',
+      'human',
+    )
     render(
       <RankingTable
         title="Menschen"
@@ -82,6 +118,8 @@ describe('RankingTable', () => {
     expect(badges[0].className).toContain('bg-emerald-600')
     expect(badges[1].className).toContain('bg-emerald-100')
     expect(screen.queryByText('Notenpunkte')).not.toBeInTheDocument()
-    expect(screen.getAllByTestId('ranking-row')[0]).toHaveTextContent('72.3 / 100')
+    expect(screen.getAllByTestId('ranking-row')[0]).toHaveTextContent(
+      '72.3 / 100',
+    )
   })
 })

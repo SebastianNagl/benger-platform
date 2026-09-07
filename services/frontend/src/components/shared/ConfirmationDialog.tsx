@@ -101,7 +101,7 @@ export function ConfirmationDialog({
                   <div
                     className={clsx(
                       'mx-auto flex h-12 w-12 shrink-0 items-center justify-center rounded-full sm:mx-0 sm:h-10 sm:w-10',
-                      variantStyle.iconBg
+                      variantStyle.iconBg,
                     )}
                   >
                     <IconComponent
@@ -109,10 +109,10 @@ export function ConfirmationDialog({
                       aria-hidden="true"
                     />
                   </div>
-                  <div className="ml-4 mt-0 w-full text-left">
+                  <div className="mt-0 ml-4 w-full text-left">
                     <Dialog.Title
                       as="h3"
-                      className="text-lg font-semibold leading-6 text-zinc-900 dark:text-white"
+                      className="text-lg leading-6 font-semibold text-zinc-900 dark:text-white"
                     >
                       {title}
                     </Dialog.Title>

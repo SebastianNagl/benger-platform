@@ -3,8 +3,8 @@
  * Targets: handleSearch, handleModelFilter, handleExpandTask, handleCopy, handleExport
  */
 
-import React from 'react'
 import { render, screen } from '@testing-library/react'
+import React from 'react'
 
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
@@ -34,7 +34,12 @@ describe('GenerationResults fn3', () => {
   })
 
   it('renders with generationIds filter', () => {
-    render(<GenerationResults projectId="proj-1" generationIds={['gen-1', 'gen-2']} />)
+    render(
+      <GenerationResults
+        projectId="proj-1"
+        generationIds={['gen-1', 'gen-2']}
+      />,
+    )
     expect(document.body).toBeInTheDocument()
   })
 })

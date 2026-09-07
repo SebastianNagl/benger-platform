@@ -9,12 +9,19 @@ import { Button } from '@/components/shared/Button'
 import { FilterToolbar } from '@/components/shared/FilterToolbar'
 import { Input } from '@/components/shared/Input'
 import { Pagination } from '@/components/shared/Pagination'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/shared/Select'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/shared/Select'
 import { useToast } from '@/components/shared/Toast'
 import { TaskDataViewModal } from '@/components/tasks/TaskDataViewModal'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { useProgress } from '@/contexts/ProgressContext'
+import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import { apiClient } from '@/lib/api/client'
 import { Task } from '@/lib/api/types'
 import { canEditTaskData } from '@/utils/permissions'
@@ -33,7 +40,6 @@ import {
 import { formatDistanceToNow } from 'date-fns'
 import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 
 interface GlobalTask extends Task {
   project: {
@@ -146,7 +152,7 @@ export function GlobalDataTab() {
       }
 
       const response = (await apiClient.get(
-        `/data/?${params.toString()}`
+        `/data/?${params.toString()}`,
       )) as PaginatedResponse<GlobalTask>
 
       setTasks(response.items)
@@ -248,7 +254,7 @@ export function GlobalDataTab() {
           headers: {
             Authorization: `Bearer ${localStorage.getItem('token')}`,
           },
-        }
+        },
       )
 
       const blob = await response.blob()
@@ -324,177 +330,183 @@ export function GlobalDataTab() {
     <>
       {/* Actions Dropdown */}
       <div className="relative inline-block text-left" ref={actionsRef}>
-                <Button
-                  variant="outline"
-                  className="gap-2"
-                  disabled={selectedTasks.size === 0}
-                  onClick={() => setShowActionsDropdown(!showActionsDropdown)}
+        <Button
+          variant="outline"
+          className="gap-2"
+          disabled={selectedTasks.size === 0}
+          onClick={() => setShowActionsDropdown(!showActionsDropdown)}
+        >
+          <EllipsisHorizontalIcon className="h-4 w-4" />
+          {t('data.management.actions')}
+          {selectedTasks.size > 0 && (
+            <span className="ml-1 inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200">
+              {selectedTasks.size}
+            </span>
+          )}
+          <ChevronDownIcon className="h-4 w-4" />
+        </Button>
+
+        {showActionsDropdown && (
+          <div className="absolute left-0 z-10 mt-2 w-56 origin-top-left rounded-lg bg-white shadow-lg ring-1 ring-black/5 focus:outline-none dark:bg-zinc-900">
+            <div className="p-1">
+              <div className="px-3 py-2 text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                {t('data.management.tasksSelected', {
+                  count: selectedTasks.size,
+                })}
+              </div>
+
+              <button
+                className="group flex w-full items-center rounded-md px-3 py-2 text-sm text-zinc-900 hover:bg-zinc-100 dark:text-white dark:hover:bg-zinc-800"
+                onClick={() => {
+                  handleBulkComplete()
+                  setShowActionsDropdown(false)
+                }}
+              >
+                <CheckIcon className="mr-3 h-4 w-4 text-green-600" />
+                {t('data.management.markComplete')}
+              </button>
+
+              <button
+                className="group flex w-full items-center rounded-md px-3 py-2 text-sm text-zinc-900 hover:bg-zinc-100 dark:text-white dark:hover:bg-zinc-800"
+                onClick={() => {
+                  handleBulkIncomplete()
+                  setShowActionsDropdown(false)
+                }}
+              >
+                <MagnifyingGlassIcon className="mr-3 h-4 w-4 text-yellow-600" />
+                {t('data.management.markIncomplete')}
+              </button>
+
+              <div className="my-1 border-t border-zinc-200 dark:border-zinc-700" />
+
+              <button
+                className="group flex w-full items-center rounded-md px-3 py-2 text-sm text-zinc-900 hover:bg-zinc-100 dark:text-white dark:hover:bg-zinc-800"
+                onClick={() => {
+                  handleExport('json')
+                  setShowActionsDropdown(false)
+                }}
+              >
+                <ArrowDownTrayIcon className="mr-3 h-4 w-4" />
+                {t('data.management.exportJson')}
+              </button>
+
+              <button
+                className="group flex w-full items-center rounded-md px-3 py-2 text-sm text-zinc-900 hover:bg-zinc-100 dark:text-white dark:hover:bg-zinc-800"
+                onClick={() => {
+                  handleExport('csv')
+                  setShowActionsDropdown(false)
+                }}
+              >
+                <ArrowDownTrayIcon className="mr-3 h-4 w-4" />
+                {t('data.management.exportCsv')}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Columns Dropdown */}
+      <div className="relative inline-block text-left" ref={columnsRef}>
+        <Button
+          variant="outline"
+          className="gap-2"
+          onClick={() => setShowColumnsDropdown(!showColumnsDropdown)}
+        >
+          <ViewColumnsIcon className="h-4 w-4" />
+          {t('data.management.columns')}
+          <ChevronDownIcon className="h-4 w-4" />
+        </Button>
+
+        {showColumnsDropdown && (
+          <div className="absolute left-0 z-10 mt-2 w-56 origin-top-left rounded-lg bg-white shadow-lg ring-1 ring-black/5 focus:outline-none dark:bg-zinc-900">
+            <div className="p-2">
+              <div className="px-2 py-1 text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                {t('data.management.showHideColumns')}
+              </div>
+
+              {Object.entries(visibleColumns)
+                .filter(([key]) => key !== 'edit' || userCanEdit)
+                .map(([key, visible]) => (
+                  <label
+                    key={key}
+                    className="flex items-center rounded px-2 py-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={visible}
+                      onChange={() => toggleColumn(key)}
+                      className="rounded border-zinc-300"
+                    />
+                    <span className="ml-2 text-sm capitalize">
+                      {key === 'id' ? 'ID' : key}
+                    </span>
+                  </label>
+                ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Order By Dropdown */}
+      <div className="relative inline-block text-left" ref={orderRef}>
+        <Button
+          variant="outline"
+          className="gap-2"
+          onClick={() => setShowOrderDropdown(!showOrderDropdown)}
+        >
+          <ChevronDownIcon className="h-4 w-4" />
+          {t('data.management.orderBy')}
+          <ChevronDownIcon className="h-4 w-4" />
+        </Button>
+
+        {showOrderDropdown && (
+          <div className="absolute left-0 z-10 mt-2 w-56 origin-top-left rounded-lg bg-white shadow-lg ring-1 ring-black/5 focus:outline-none dark:bg-zinc-900">
+            <div className="p-2">
+              <div className="px-2 py-1 text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                {t('data.management.sortBy')}
+              </div>
+
+              {[
+                {
+                  value: 'created_at',
+                  label: t('data.management.createdDate'),
+                },
+                {
+                  value: 'updated_at',
+                  label: t('data.management.updatedDate'),
+                },
+                { value: 'is_labeled', label: t('data.management.status') },
+                { value: 'id', label: t('data.management.taskId') },
+              ].map((option) => (
+                <button
+                  key={option.value}
+                  className="flex w-full items-center justify-between rounded px-2 py-1.5 text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                  onClick={() => {
+                    if (sortBy === option.value) {
+                      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
+                    } else {
+                      setSortBy(option.value)
+                      setSortOrder('desc')
+                    }
+                    setShowOrderDropdown(false)
+                  }}
                 >
-                  <EllipsisHorizontalIcon className="h-4 w-4" />
-                  {t('data.management.actions')}
-                  {selectedTasks.size > 0 && (
-                    <span className="ml-1 inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200">
-                      {selectedTasks.size}
+                  <span
+                    className={sortBy === option.value ? 'font-medium' : ''}
+                  >
+                    {option.label}
+                  </span>
+                  {sortBy === option.value && (
+                    <span className="text-xs text-zinc-500">
+                      {sortOrder === 'asc' ? '↑' : '↓'}
                     </span>
                   )}
-                  <ChevronDownIcon className="h-4 w-4" />
-                </Button>
-
-                {showActionsDropdown && (
-                  <div className="absolute left-0 z-10 mt-2 w-56 origin-top-left rounded-lg bg-white shadow-lg ring-1 ring-black/5 focus:outline-none dark:bg-zinc-900">
-                    <div className="p-1">
-                      <div className="px-3 py-2 text-xs font-medium text-zinc-500 dark:text-zinc-400">
-                        {t('data.management.tasksSelected', { count: selectedTasks.size })}
-                      </div>
-
-                      <button
-                        className="group flex w-full items-center rounded-md px-3 py-2 text-sm text-zinc-900 hover:bg-zinc-100 dark:text-white dark:hover:bg-zinc-800"
-                        onClick={() => {
-                          handleBulkComplete()
-                          setShowActionsDropdown(false)
-                        }}
-                      >
-                        <CheckIcon className="mr-3 h-4 w-4 text-green-600" />
-                        {t('data.management.markComplete')}
-                      </button>
-
-                      <button
-                        className="group flex w-full items-center rounded-md px-3 py-2 text-sm text-zinc-900 hover:bg-zinc-100 dark:text-white dark:hover:bg-zinc-800"
-                        onClick={() => {
-                          handleBulkIncomplete()
-                          setShowActionsDropdown(false)
-                        }}
-                      >
-                        <MagnifyingGlassIcon className="mr-3 h-4 w-4 text-yellow-600" />
-                        {t('data.management.markIncomplete')}
-                      </button>
-
-                      <div className="my-1 border-t border-zinc-200 dark:border-zinc-700" />
-
-                      <button
-                        className="group flex w-full items-center rounded-md px-3 py-2 text-sm text-zinc-900 hover:bg-zinc-100 dark:text-white dark:hover:bg-zinc-800"
-                        onClick={() => {
-                          handleExport('json')
-                          setShowActionsDropdown(false)
-                        }}
-                      >
-                        <ArrowDownTrayIcon className="mr-3 h-4 w-4" />
-                        {t('data.management.exportJson')}
-                      </button>
-
-                      <button
-                        className="group flex w-full items-center rounded-md px-3 py-2 text-sm text-zinc-900 hover:bg-zinc-100 dark:text-white dark:hover:bg-zinc-800"
-                        onClick={() => {
-                          handleExport('csv')
-                          setShowActionsDropdown(false)
-                        }}
-                      >
-                        <ArrowDownTrayIcon className="mr-3 h-4 w-4" />
-                        {t('data.management.exportCsv')}
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Columns Dropdown */}
-              <div className="relative inline-block text-left" ref={columnsRef}>
-                <Button
-                  variant="outline"
-                  className="gap-2"
-                  onClick={() => setShowColumnsDropdown(!showColumnsDropdown)}
-                >
-                  <ViewColumnsIcon className="h-4 w-4" />
-                  {t('data.management.columns')}
-                  <ChevronDownIcon className="h-4 w-4" />
-                </Button>
-
-                {showColumnsDropdown && (
-                  <div className="absolute left-0 z-10 mt-2 w-56 origin-top-left rounded-lg bg-white shadow-lg ring-1 ring-black/5 focus:outline-none dark:bg-zinc-900">
-                    <div className="p-2">
-                      <div className="px-2 py-1 text-xs font-medium text-zinc-500 dark:text-zinc-400">
-                        {t('data.management.showHideColumns')}
-                      </div>
-
-                      {Object.entries(visibleColumns)
-                        .filter(([key]) => key !== 'edit' || userCanEdit)
-                        .map(([key, visible]) => (
-                          <label
-                            key={key}
-                            className="flex items-center rounded px-2 py-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-800"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={visible}
-                              onChange={() => toggleColumn(key)}
-                              className="rounded border-zinc-300"
-                            />
-                            <span className="ml-2 text-sm capitalize">
-                              {key === 'id' ? 'ID' : key}
-                            </span>
-                          </label>
-                        ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Order By Dropdown */}
-              <div className="relative inline-block text-left" ref={orderRef}>
-                <Button
-                  variant="outline"
-                  className="gap-2"
-                  onClick={() => setShowOrderDropdown(!showOrderDropdown)}
-                >
-                  <ChevronDownIcon className="h-4 w-4" />
-                  {t('data.management.orderBy')}
-                  <ChevronDownIcon className="h-4 w-4" />
-                </Button>
-
-                {showOrderDropdown && (
-                  <div className="absolute left-0 z-10 mt-2 w-56 origin-top-left rounded-lg bg-white shadow-lg ring-1 ring-black/5 focus:outline-none dark:bg-zinc-900">
-                    <div className="p-2">
-                      <div className="px-2 py-1 text-xs font-medium text-zinc-500 dark:text-zinc-400">
-                        {t('data.management.sortBy')}
-                      </div>
-
-                      {[
-                        { value: 'created_at', label: t('data.management.createdDate') },
-                        { value: 'updated_at', label: t('data.management.updatedDate') },
-                        { value: 'is_labeled', label: t('data.management.status') },
-                        { value: 'id', label: t('data.management.taskId') },
-                      ].map((option) => (
-                        <button
-                          key={option.value}
-                          className="flex w-full items-center justify-between rounded px-2 py-1.5 text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800"
-                          onClick={() => {
-                            if (sortBy === option.value) {
-                              setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
-                            } else {
-                              setSortBy(option.value)
-                              setSortOrder('desc')
-                            }
-                            setShowOrderDropdown(false)
-                          }}
-                        >
-                          <span
-                            className={
-                              sortBy === option.value ? 'font-medium' : ''
-                            }
-                          >
-                            {option.label}
-                          </span>
-                          {sortBy === option.value && (
-                            <span className="text-xs text-zinc-500">
-                              {sortOrder === 'asc' ? '↑' : '↓'}
-                            </span>
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
     </>
   )
 
@@ -536,15 +548,24 @@ export function GlobalDataTab() {
         rightExtras={dataRightExtras}
       >
         <FilterToolbar.Field label={t('data.management.status')}>
-          <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as any)}>
+          <Select
+            value={statusFilter}
+            onValueChange={(v) => setStatusFilter(v as any)}
+          >
             <SelectTrigger>
               <SelectValue placeholder={t('data.management.all')} />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">{t('data.management.all')}</SelectItem>
-              <SelectItem value="completed">{t('data.management.completed')}</SelectItem>
-              <SelectItem value="incomplete">{t('data.management.incomplete')}</SelectItem>
-              <SelectItem value="in_progress">{t('data.management.inProgress')}</SelectItem>
+              <SelectItem value="completed">
+                {t('data.management.completed')}
+              </SelectItem>
+              <SelectItem value="incomplete">
+                {t('data.management.incomplete')}
+              </SelectItem>
+              <SelectItem value="in_progress">
+                {t('data.management.inProgress')}
+              </SelectItem>
             </SelectContent>
           </Select>
         </FilterToolbar.Field>
@@ -555,28 +576,41 @@ export function GlobalDataTab() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="created_at">{t('data.management.created')}</SelectItem>
-              <SelectItem value="updated_at">{t('data.management.updated')}</SelectItem>
-              <SelectItem value="is_labeled">{t('data.management.status')}</SelectItem>
+              <SelectItem value="created_at">
+                {t('data.management.created')}
+              </SelectItem>
+              <SelectItem value="updated_at">
+                {t('data.management.updated')}
+              </SelectItem>
+              <SelectItem value="is_labeled">
+                {t('data.management.status')}
+              </SelectItem>
             </SelectContent>
           </Select>
         </FilterToolbar.Field>
 
         <FilterToolbar.Field label={t('data.management.order')}>
-          <Select value={sortOrder} onValueChange={(v) => setSortOrder(v as 'asc' | 'desc')}>
+          <Select
+            value={sortOrder}
+            onValueChange={(v) => setSortOrder(v as 'asc' | 'desc')}
+          >
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="desc">{t('data.management.newestFirst')}</SelectItem>
-              <SelectItem value="asc">{t('data.management.oldestFirst')}</SelectItem>
+              <SelectItem value="desc">
+                {t('data.management.newestFirst')}
+              </SelectItem>
+              <SelectItem value="asc">
+                {t('data.management.oldestFirst')}
+              </SelectItem>
             </SelectContent>
           </Select>
         </FilterToolbar.Field>
       </FilterToolbar>
 
       {/* Table */}
-      <div className="scrollbar-thin scrollbar-thumb-zinc-300 scrollbar-track-transparent dark:scrollbar-thumb-zinc-600 overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-700">
+      <div className="scrollbar-thin scrollbar-thumb-zinc-300 scrollbar-track-transparent overflow-x-auto rounded-lg border border-zinc-200 dark:scrollbar-thumb-zinc-600 dark:border-zinc-700">
         <table className="min-w-[1200px] divide-y divide-zinc-200 dark:divide-zinc-700">
           <thead className="bg-zinc-50 dark:bg-zinc-800">
             <tr>
@@ -591,42 +625,42 @@ export function GlobalDataTab() {
                 />
               </th>
               {visibleColumns.id && (
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">
+                <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase">
                   {t('data.management.columnId')}
                 </th>
               )}
               {visibleColumns.project && (
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">
+                <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase">
                   {t('data.management.columnProject')}
                 </th>
               )}
               {visibleColumns.status && (
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">
+                <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase">
                   {t('data.management.status')}
                 </th>
               )}
               {visibleColumns.assigned && (
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">
+                <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase">
                   {t('data.management.columnAssignedTo')}
                 </th>
               )}
               {visibleColumns.annotations && (
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">
+                <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase">
                   {t('data.management.columnAnnotations')}
                 </th>
               )}
               {visibleColumns.created && (
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">
+                <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase">
                   {t('data.management.created')}
                 </th>
               )}
               {visibleColumns.actions && (
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">
+                <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase">
                   {t('data.management.actions')}
                 </th>
               )}
               {visibleColumns.edit && userCanEdit && (
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">
+                <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase">
                   {t('data.management.columnEdit')}
                 </th>
               )}

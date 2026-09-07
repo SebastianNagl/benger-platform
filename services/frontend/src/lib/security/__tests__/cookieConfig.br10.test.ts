@@ -5,14 +5,14 @@
  */
 
 import {
-  getSecureCookieConfig,
+  COOKIE_NAMES,
+  getAccessTokenCookieConfig,
+  getCSPHeader,
   getCSRFCookieConfig,
   getRefreshTokenCookieConfig,
-  getAccessTokenCookieConfig,
-  validateCookieSecurity,
+  getSecureCookieConfig,
   getSecurityHeaders,
-  getCSPHeader,
-  COOKIE_NAMES,
+  validateCookieSecurity,
 } from '../cookieConfig'
 
 describe('getSecureCookieConfig', () => {
@@ -53,17 +53,23 @@ describe('getAccessTokenCookieConfig', () => {
 
 describe('validateCookieSecurity', () => {
   it('returns true for valid config', () => {
-    expect(validateCookieSecurity({ sameSite: 'strict', secure: true })).toBe(true)
+    expect(validateCookieSecurity({ sameSite: 'strict', secure: true })).toBe(
+      true,
+    )
   })
 
   it('returns false for SameSite=None without Secure', () => {
     const spy = jest.spyOn(console, 'error').mockImplementation()
-    expect(validateCookieSecurity({ sameSite: 'none', secure: false })).toBe(false)
+    expect(validateCookieSecurity({ sameSite: 'none', secure: false })).toBe(
+      false,
+    )
     spy.mockRestore()
   })
 
   it('returns true for SameSite=None with Secure', () => {
-    expect(validateCookieSecurity({ sameSite: 'none', secure: true })).toBe(true)
+    expect(validateCookieSecurity({ sameSite: 'none', secure: true })).toBe(
+      true,
+    )
   })
 
   it('returns true for lax sameSite', () => {

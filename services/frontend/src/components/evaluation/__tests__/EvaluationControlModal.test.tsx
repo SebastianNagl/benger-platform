@@ -13,11 +13,15 @@ jest.mock('@/contexts/I18nContext', () => ({
         'evaluation.controlModal.title': 'Run Evaluation',
         'evaluation.controlModal.evaluationMode': 'Evaluation Mode',
         'evaluation.controlModal.evaluateMissingOnly': 'Missing Only',
-        'evaluation.controlModal.evaluateMissingOnlyDesc': 'Only evaluate samples without results',
+        'evaluation.controlModal.evaluateMissingOnlyDesc':
+          'Only evaluate samples without results',
         'evaluation.controlModal.evaluateAll': 'All Samples',
-        'evaluation.controlModal.evaluateAllDesc': 'Re-evaluate all samples, overwriting existing results',
-        'evaluation.controlModal.evaluationConfigurations': 'Evaluation Configurations',
-        'evaluation.controlModal.oneConfigWillBeRun': '1 configuration will be run',
+        'evaluation.controlModal.evaluateAllDesc':
+          'Re-evaluate all samples, overwriting existing results',
+        'evaluation.controlModal.evaluationConfigurations':
+          'Evaluation Configurations',
+        'evaluation.controlModal.oneConfigWillBeRun':
+          '1 configuration will be run',
         'evaluation.controlModal.configsWillBeRun': `${params?.count} configurations will be run`,
         'evaluation.controlModal.starting': 'Starting...',
         'evaluation.controlModal.startEvaluation': 'Start Evaluation',
@@ -61,22 +65,40 @@ jest.mock('@headlessui/react', () => {
   }
   // eslint-disable-next-line react/display-name
   Dialog.Panel = ({ children, className }: any) => (
-    <div data-testid="dialog-panel" className={className}>{children}</div>
+    <div data-testid="dialog-panel" className={className}>
+      {children}
+    </div>
   )
-  const Transition = ({ children, show }: any) => (show !== false ? <>{children}</> : null)
+  const Transition = ({ children, show }: any) =>
+    show !== false ? <>{children}</> : null
   // eslint-disable-next-line react/display-name
-  Transition.Root = ({ children, show }: any) => (show !== false ? <>{children}</> : null)
+  Transition.Root = ({ children, show }: any) =>
+    show !== false ? <>{children}</> : null
   // eslint-disable-next-line react/display-name
   Transition.Child = ({ children }: any) => <>{children}</>
-  return { Dialog, Transition, Fragment: ({ children }: any) => <>{children}</> }
+  return {
+    Dialog,
+    Transition,
+    Fragment: ({ children }: any) => <>{children}</>,
+  }
 })
 
 const defaultProps = {
   isOpen: true,
   projectId: 'project-1',
   evaluationConfigs: [
-    { id: 'config-1', metric: 'exact_match', prediction_fields: ['answer'], reference_fields: ['gold_answer'] },
-    { id: 'config-2', metric: 'rouge', prediction_fields: ['summary'], reference_fields: ['gold_summary'] },
+    {
+      id: 'config-1',
+      metric: 'exact_match',
+      prediction_fields: ['answer'],
+      reference_fields: ['gold_answer'],
+    },
+    {
+      id: 'config-2',
+      metric: 'rouge',
+      prediction_fields: ['summary'],
+      reference_fields: ['gold_summary'],
+    },
   ],
   onClose: jest.fn(),
   onSuccess: jest.fn(),
@@ -102,7 +124,9 @@ describe('EvaluationControlModal', () => {
 
     it('shows config count for multiple configs', () => {
       render(<EvaluationControlModal {...defaultProps} />)
-      expect(screen.getByText('2 configurations will be run')).toBeInTheDocument()
+      expect(
+        screen.getByText('2 configurations will be run'),
+      ).toBeInTheDocument()
     })
 
     it('shows singular config text for one config', () => {
@@ -110,19 +134,18 @@ describe('EvaluationControlModal', () => {
         <EvaluationControlModal
           {...defaultProps}
           evaluationConfigs={[defaultProps.evaluationConfigs![0]]}
-        />
+        />,
       )
-      expect(screen.getByText('1 configuration will be run')).toBeInTheDocument()
+      expect(
+        screen.getByText('1 configuration will be run'),
+      ).toBeInTheDocument()
     })
 
     it('uses configCount prop over evaluationConfigs length', () => {
-      render(
-        <EvaluationControlModal
-          {...defaultProps}
-          configCount={5}
-        />
-      )
-      expect(screen.getByText('5 configurations will be run')).toBeInTheDocument()
+      render(<EvaluationControlModal {...defaultProps} configCount={5} />)
+      expect(
+        screen.getByText('5 configurations will be run'),
+      ).toBeInTheDocument()
     })
 
     it('does not render the legacy "Note: runs in background" hint', () => {
@@ -181,7 +204,7 @@ describe('EvaluationControlModal', () => {
           expect.objectContaining({
             project_id: 'project-1',
             force_rerun: false,
-          })
+          }),
         )
       })
     })
@@ -197,7 +220,7 @@ describe('EvaluationControlModal', () => {
         expect(mockRunEvaluation).toHaveBeenCalledWith(
           expect.objectContaining({
             force_rerun: true,
-          })
+          }),
         )
       })
     })
@@ -206,12 +229,21 @@ describe('EvaluationControlModal', () => {
       const user = userEvent.setup()
       const onSuccess = jest.fn()
       const onClose = jest.fn()
-      render(<EvaluationControlModal {...defaultProps} onSuccess={onSuccess} onClose={onClose} />)
+      render(
+        <EvaluationControlModal
+          {...defaultProps}
+          onSuccess={onSuccess}
+          onClose={onClose}
+        />,
+      )
 
       await user.click(screen.getByText('Start Evaluation'))
 
       await waitFor(() => {
-        expect(mockAddToast).toHaveBeenCalledWith('Evaluation started', 'success')
+        expect(mockAddToast).toHaveBeenCalledWith(
+          'Evaluation started',
+          'success',
+        )
         expect(onSuccess).toHaveBeenCalled()
         expect(onClose).toHaveBeenCalled()
       })
@@ -220,7 +252,10 @@ describe('EvaluationControlModal', () => {
     it('shows error toast on API failure', async () => {
       const user = userEvent.setup()
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation()
-      mockRunEvaluation.mockRejectedValue({ message: 'Server error', response: { data: { detail: 'Rate limited' } } })
+      mockRunEvaluation.mockRejectedValue({
+        message: 'Server error',
+        response: { data: { detail: 'Rate limited' } },
+      })
 
       render(<EvaluationControlModal {...defaultProps} />)
 
@@ -234,10 +269,7 @@ describe('EvaluationControlModal', () => {
 
     it('disables start button when no configs and no callback', () => {
       render(
-        <EvaluationControlModal
-          {...defaultProps}
-          evaluationConfigs={[]}
-        />
+        <EvaluationControlModal {...defaultProps} evaluationConfigs={[]} />,
       )
 
       const startButton = screen.getByText('Start Evaluation')
@@ -246,15 +278,13 @@ describe('EvaluationControlModal', () => {
 
     it('shows toast when projectId is missing', async () => {
       const user = userEvent.setup()
-      render(
-        <EvaluationControlModal
-          {...defaultProps}
-          projectId={undefined}
-        />
-      )
+      render(<EvaluationControlModal {...defaultProps} projectId={undefined} />)
 
       await user.click(screen.getByText('Start Evaluation'))
-      expect(mockAddToast).toHaveBeenCalledWith('Project ID is required', 'error')
+      expect(mockAddToast).toHaveBeenCalledWith(
+        'Project ID is required',
+        'error',
+      )
     })
   })
 
@@ -266,7 +296,7 @@ describe('EvaluationControlModal', () => {
         <EvaluationControlModal
           {...defaultProps}
           onRunWithMode={onRunWithMode}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Start Evaluation'))
@@ -286,7 +316,7 @@ describe('EvaluationControlModal', () => {
         <EvaluationControlModal
           {...defaultProps}
           onRunWithMode={onRunWithMode}
-        />
+        />,
       )
 
       await user.click(screen.getByRole('radio', { name: /All Samples/ }))
@@ -300,12 +330,14 @@ describe('EvaluationControlModal', () => {
     it('handles callback mode errors', async () => {
       const user = userEvent.setup()
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation()
-      const onRunWithMode = jest.fn().mockRejectedValue(new Error('Callback failed'))
+      const onRunWithMode = jest
+        .fn()
+        .mockRejectedValue(new Error('Callback failed'))
       render(
         <EvaluationControlModal
           {...defaultProps}
           onRunWithMode={onRunWithMode}
-        />
+        />,
       )
 
       await user.click(screen.getByText('Start Evaluation'))

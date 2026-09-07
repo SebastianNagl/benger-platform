@@ -14,9 +14,15 @@
  * Mirrors the existing file's mocking idiom: inline jest.mock of
  * @/lib/api/client + I18nContext, real HeadlessUI Dialog (renders in JSDOM).
  */
-import '@testing-library/jest-dom'
 import { apiClient } from '@/lib/api/client'
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import '@testing-library/jest-dom'
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { GenerationResultModal } from '../GenerationResultModal'
 
@@ -90,12 +96,12 @@ describe('GenerationResultModal regenerate + structure selection', () => {
         onRegenerate={onRegenerate}
         result={makeResult()}
         availableStructureKeys={['gliederung', 'loesung']}
-      />
+      />,
     )
 
     // Footer Regenerate button is present (onRegenerate + results.length > 0).
     expect(
-      await screen.findByRole('button', { name: /Regenerate/i })
+      await screen.findByRole('button', { name: /Regenerate/i }),
     ).toBeInTheDocument()
     // The structure-selection toggle renders for >1 structure keys.
     expect(screen.getByText('Select structures')).toBeInTheDocument()
@@ -113,7 +119,7 @@ describe('GenerationResultModal regenerate + structure selection', () => {
         onRegenerate={onRegenerate}
         result={makeResult()}
         availableStructureKeys={['gliederung', 'loesung']}
-      />
+      />,
     )
 
     // Open the structure selection panel.
@@ -122,7 +128,7 @@ describe('GenerationResultModal regenerate + structure selection', () => {
     // Both keys start selected; uncheck "loesung".
     const loesung = await screen.findByText('loesung')
     const loesungCheckbox = within(
-      loesung.closest('label') as HTMLElement
+      loesung.closest('label') as HTMLElement,
     ).getByRole('checkbox')
     expect(loesungCheckbox).toBeChecked()
     await userEvent.click(loesungCheckbox)
@@ -131,11 +137,9 @@ describe('GenerationResultModal regenerate + structure selection', () => {
     // Click Regenerate -> onRegenerate gets the remaining key set + onClose.
     await userEvent.click(screen.getByRole('button', { name: /Regenerate/i }))
 
-    expect(onRegenerate).toHaveBeenCalledWith(
-      'task-12345678',
-      'gpt-4',
-      ['gliederung']
-    )
+    expect(onRegenerate).toHaveBeenCalledWith('task-12345678', 'gpt-4', [
+      'gliederung',
+    ])
     expect(onClose).toHaveBeenCalled()
   })
 
@@ -150,7 +154,7 @@ describe('GenerationResultModal regenerate + structure selection', () => {
         onRegenerate={onRegenerate}
         result={makeResult()}
         availableStructureKeys={['gliederung', 'loesung']}
-      />
+      />,
     )
 
     await userEvent.click(screen.getByText('Select structures'))
@@ -180,11 +184,11 @@ describe('GenerationResultModal regenerate + structure selection', () => {
         onClose={onClose}
         onRegenerate={onRegenerate}
         availableStructureKeys={['only-one']}
-      />
+      />,
     )
 
     expect(
-      await screen.findByText('No generation results found')
+      await screen.findByText('No generation results found'),
     ).toBeInTheDocument()
 
     const generateBtn = screen.getByRole('button', { name: /Generate/i })
@@ -194,7 +198,7 @@ describe('GenerationResultModal regenerate + structure selection', () => {
     expect(onRegenerate).toHaveBeenCalledWith(
       'task-12345678',
       'gpt-4',
-      undefined
+      undefined,
     )
     expect(onClose).toHaveBeenCalled()
   })
@@ -211,7 +215,7 @@ describe('GenerationResultModal regenerate + structure selection', () => {
         taskId="task-12345678"
         modelId="gpt-4"
         onClose={jest.fn()}
-      />
+      />,
     )
 
     // Current results render.
@@ -223,7 +227,7 @@ describe('GenerationResultModal regenerate + structure selection', () => {
     // The rejected history fetch leaves historyResults empty -> no-history msg.
     await waitFor(() => {
       expect(
-        screen.getByText('No generation history available')
+        screen.getByText('No generation history available'),
       ).toBeInTheDocument()
     })
     // The error was swallowed; the modal title still shows.
@@ -249,7 +253,7 @@ describe('GenerationResultModal regenerate + structure selection', () => {
         taskId="task-12345678"
         modelId="gpt-4"
         onClose={jest.fn()}
-      />
+      />,
     )
 
     // Two structures render two tabs; default selected index 0 = gliederung.
@@ -267,7 +271,7 @@ describe('GenerationResultModal regenerate + structure selection', () => {
     })
     // No-history message must NOT appear (filtered history is non-empty).
     expect(
-      screen.queryByText('No generation history available')
+      screen.queryByText('No generation history available'),
     ).not.toBeInTheDocument()
   })
 })

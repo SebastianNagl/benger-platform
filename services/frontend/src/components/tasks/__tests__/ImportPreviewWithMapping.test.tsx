@@ -15,7 +15,10 @@ jest.mock('@/lib/utils/fieldMapping')
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
     t: (key: string, varsOrDefault?: any) => {
-      const translations: Record<string, any> = require('../../../locales/en/common.json')
+      const translations: Record<
+        string,
+        any
+      > = require('../../../locales/en/common.json')
       const parts = key.split('.')
       let value: any = translations
       for (const part of parts) {
@@ -36,7 +39,6 @@ jest.mock('@/contexts/I18nContext', () => ({
     locale: 'en',
   }),
 }))
-
 
 describe('ImportPreviewWithMapping', () => {
   const mockOnImport = jest.fn()
@@ -78,13 +80,13 @@ describe('ImportPreviewWithMapping', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     ;(universalImport.importFile as jest.Mock).mockResolvedValue(
-      mockImportResult
+      mockImportResult,
     )
     ;(fieldMapping.suggestFieldMappings as jest.Mock).mockReturnValue(
-      mockMappingSuggestion
+      mockMappingSuggestion,
     )
     ;(fieldMapping.applyFieldMappings as jest.Mock).mockImplementation(
-      (data) => data
+      (data) => data,
     )
     ;(universalImport.exportData as jest.Mock).mockResolvedValue(undefined)
   })
@@ -103,7 +105,7 @@ describe('ImportPreviewWithMapping', () => {
           templateFields={templateFields}
           onImport={mockOnImport}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       expect(screen.getByText('Processing file...')).toBeInTheDocument()
@@ -121,7 +123,7 @@ describe('ImportPreviewWithMapping', () => {
           templateFields={templateFields}
           onImport={mockOnImport}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -135,7 +137,7 @@ describe('ImportPreviewWithMapping', () => {
     it('displays error when file processing fails', async () => {
       const errorMessage = 'Failed to parse file'
       ;(universalImport.importFile as jest.Mock).mockRejectedValue(
-        new Error(errorMessage)
+        new Error(errorMessage),
       )
 
       render(
@@ -144,7 +146,7 @@ describe('ImportPreviewWithMapping', () => {
           templateFields={templateFields}
           onImport={mockOnImport}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -157,7 +159,7 @@ describe('ImportPreviewWithMapping', () => {
 
     it('handles cancel action from error state', async () => {
       ;(universalImport.importFile as jest.Mock).mockRejectedValue(
-        new Error('Test error')
+        new Error('Test error'),
       )
 
       const user = userEvent.setup()
@@ -167,7 +169,7 @@ describe('ImportPreviewWithMapping', () => {
           templateFields={templateFields}
           onImport={mockOnImport}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -186,7 +188,7 @@ describe('ImportPreviewWithMapping', () => {
           templateFields={templateFields}
           onImport={mockOnImport}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       expect(universalImport.importFile).not.toHaveBeenCalled()
@@ -201,7 +203,7 @@ describe('ImportPreviewWithMapping', () => {
           templateFields={templateFields}
           onImport={mockOnImport}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -222,7 +224,7 @@ describe('ImportPreviewWithMapping', () => {
           templateFields={templateFields}
           onImport={mockOnImport}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -237,7 +239,7 @@ describe('ImportPreviewWithMapping', () => {
           templateFields={templateFields}
           onImport={mockOnImport}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -267,7 +269,7 @@ describe('ImportPreviewWithMapping', () => {
           templateFields={templateFields}
           onImport={mockOnImport}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -281,7 +283,7 @@ describe('ImportPreviewWithMapping', () => {
         errors: ['Row 1: Invalid format', 'Row 5: Missing required field'],
       }
       ;(universalImport.importFile as jest.Mock).mockResolvedValue(
-        resultWithErrors
+        resultWithErrors,
       )
 
       render(
@@ -290,14 +292,14 @@ describe('ImportPreviewWithMapping', () => {
           templateFields={templateFields}
           onImport={mockOnImport}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       await waitFor(() => {
         expect(screen.getByText('Import warnings:')).toBeInTheDocument()
         expect(screen.getByText('Row 1: Invalid format')).toBeInTheDocument()
         expect(
-          screen.getByText('Row 5: Missing required field')
+          screen.getByText('Row 5: Missing required field'),
         ).toBeInTheDocument()
       })
     })
@@ -308,7 +310,7 @@ describe('ImportPreviewWithMapping', () => {
         errors: ['Error 1', 'Error 2', 'Error 3', 'Error 4', 'Error 5'],
       }
       ;(universalImport.importFile as jest.Mock).mockResolvedValue(
-        resultWithManyErrors
+        resultWithManyErrors,
       )
 
       render(
@@ -317,7 +319,7 @@ describe('ImportPreviewWithMapping', () => {
           templateFields={templateFields}
           onImport={mockOnImport}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -327,7 +329,6 @@ describe('ImportPreviewWithMapping', () => {
         expect(screen.getByText('...and 2 more')).toBeInTheDocument()
       })
     })
-
   })
 
   describe('Field Mapping Tab', () => {
@@ -338,14 +339,14 @@ describe('ImportPreviewWithMapping', () => {
           templateFields={templateFields}
           onImport={mockOnImport}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       await waitFor(() => {
         expect(fieldMapping.suggestFieldMappings).toHaveBeenCalledWith(
           mockImportResult.headers,
           templateFields,
-          expect.any(Array)
+          expect.any(Array),
         )
       })
     })
@@ -357,7 +358,7 @@ describe('ImportPreviewWithMapping', () => {
           templateFields={[]}
           onImport={mockOnImport}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -376,7 +377,7 @@ describe('ImportPreviewWithMapping', () => {
           templateFields={templateFields}
           onImport={mockOnImport}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -400,7 +401,7 @@ describe('ImportPreviewWithMapping', () => {
           templateFields={templateFields}
           onImport={mockOnImport}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -424,7 +425,7 @@ describe('ImportPreviewWithMapping', () => {
           templateFields={templateFields}
           onImport={mockOnImport}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -448,7 +449,7 @@ describe('ImportPreviewWithMapping', () => {
           templateFields={templateFields}
           onImport={mockOnImport}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -479,7 +480,7 @@ describe('ImportPreviewWithMapping', () => {
           templateFields={templateFields}
           onImport={mockOnImport}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -506,7 +507,7 @@ describe('ImportPreviewWithMapping', () => {
           }),
         ]),
         'json',
-        'field-mapping-config'
+        'field-mapping-config',
       )
     })
   })
@@ -520,7 +521,7 @@ describe('ImportPreviewWithMapping', () => {
           templateFields={[]}
           onImport={mockOnImport}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -539,7 +540,7 @@ describe('ImportPreviewWithMapping', () => {
         { fullName: 'Test 2', emailAddress: 'test2@example.com' },
       ]
       ;(fieldMapping.applyFieldMappings as jest.Mock).mockReturnValue(
-        mappedData
+        mappedData,
       )
 
       const user = userEvent.setup()
@@ -549,7 +550,7 @@ describe('ImportPreviewWithMapping', () => {
           templateFields={templateFields}
           onImport={mockOnImport}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -571,7 +572,7 @@ describe('ImportPreviewWithMapping', () => {
           templateFields={templateFields}
           onImport={mockOnImport}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -591,7 +592,7 @@ describe('ImportPreviewWithMapping', () => {
           templateFields={templateFields}
           onImport={mockOnImport}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -606,7 +607,7 @@ describe('ImportPreviewWithMapping', () => {
           templateFields={[]}
           onImport={mockOnImport}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -624,7 +625,7 @@ describe('ImportPreviewWithMapping', () => {
           templateFields={templateFields}
           onImport={mockOnImport}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -645,7 +646,7 @@ describe('ImportPreviewWithMapping', () => {
           templateFields={templateFields}
           onImport={mockOnImport}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -666,7 +667,7 @@ describe('ImportPreviewWithMapping', () => {
           templateFields={templateFields}
           onImport={mockOnImport}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -691,7 +692,7 @@ describe('ImportPreviewWithMapping', () => {
           templateFields={templateFields}
           onImport={mockOnImport}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -712,7 +713,7 @@ describe('ImportPreviewWithMapping', () => {
           templateFields={templateFields}
           onImport={mockOnImport}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -728,7 +729,7 @@ describe('ImportPreviewWithMapping', () => {
           onImport={mockOnImport}
           onCancel={mockOnCancel}
           className="custom-class"
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -739,7 +740,7 @@ describe('ImportPreviewWithMapping', () => {
 
     it('handles non-Error thrown in file processing', async () => {
       ;(universalImport.importFile as jest.Mock).mockRejectedValue(
-        'String error'
+        'String error',
       )
 
       render(
@@ -748,7 +749,7 @@ describe('ImportPreviewWithMapping', () => {
           templateFields={templateFields}
           onImport={mockOnImport}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -765,7 +766,7 @@ describe('ImportPreviewWithMapping', () => {
           templateFields={templateFields}
           onImport={mockOnImport}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -784,7 +785,7 @@ describe('ImportPreviewWithMapping', () => {
           templateFields={templateFields}
           onImport={mockOnImport}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -802,7 +803,7 @@ describe('ImportPreviewWithMapping', () => {
           templateFields={templateFields}
           onImport={mockOnImport}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -824,7 +825,7 @@ describe('ImportPreviewWithMapping', () => {
           templateFields={templateFields}
           onImport={mockOnImport}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -847,7 +848,7 @@ describe('ImportPreviewWithMapping', () => {
           templateFields={templateFields}
           onImport={mockOnImport}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -875,7 +876,7 @@ describe('ImportPreviewWithMapping', () => {
           templateFields={templateFields}
           onImport={mockOnImport}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -892,7 +893,7 @@ describe('ImportPreviewWithMapping', () => {
           templateFields={templateFields}
           onImport={mockOnImport}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -933,7 +934,7 @@ describe('ImportPreviewWithMapping', () => {
           templateFields={templateFields}
           onImport={mockOnImport}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -947,7 +948,7 @@ describe('ImportPreviewWithMapping', () => {
         errors: ['Error 1', 'Error 2', 'Error 3'],
       }
       ;(universalImport.importFile as jest.Mock).mockResolvedValue(
-        resultWith3Errors
+        resultWith3Errors,
       )
 
       render(
@@ -956,7 +957,7 @@ describe('ImportPreviewWithMapping', () => {
           templateFields={templateFields}
           onImport={mockOnImport}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       await waitFor(() => {
@@ -980,7 +981,7 @@ describe('ImportPreviewWithMapping', () => {
           templateFields={templateFields}
           onImport={mockOnImport}
           onCancel={mockOnCancel}
-        />
+        />,
       )
 
       await waitFor(() => {

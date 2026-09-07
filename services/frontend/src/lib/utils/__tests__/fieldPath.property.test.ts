@@ -29,10 +29,10 @@
 import fc from 'fast-check'
 
 import {
-  getValueByPath,
-  setValueByPath,
-  hasPath,
   getAllPaths,
+  getValueByPath,
+  hasPath,
+  setValueByPath,
 } from '../fieldPath'
 
 // --- Arbitraries ---------------------------------------------------------
@@ -91,11 +91,16 @@ describe('fieldPath — round-trip law: get(set(o, p, v), p) === v', () => {
     // write must win regardless of what was there before.
     const seedObjArb = fc.dictionary(safeKeyArb, safeLeafArb, { maxKeys: 5 })
     fc.assert(
-      fc.property(seedObjArb, objectPathArb, safeLeafArb, (seed, path, value) => {
-        const o: any = { ...seed }
-        setValueByPath(o, path, value)
-        expect(getValueByPath(o, path)).toBe(value)
-      }),
+      fc.property(
+        seedObjArb,
+        objectPathArb,
+        safeLeafArb,
+        (seed, path, value) => {
+          const o: any = { ...seed }
+          setValueByPath(o, path, value)
+          expect(getValueByPath(o, path)).toBe(value)
+        },
+      ),
     )
   })
 

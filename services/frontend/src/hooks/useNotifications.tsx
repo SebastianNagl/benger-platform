@@ -1,10 +1,10 @@
 'use client'
 
+import { toast } from '@/components/shared/Toast'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { getTranslatedNotification } from '@/lib/notificationTranslation'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { toast } from '@/components/shared/Toast'
 
 export interface Notification {
   id: string
@@ -71,7 +71,7 @@ export function useNotifications() {
         return []
       }
     },
-    [apiClient, user]
+    [apiClient, user],
   )
 
   // Fetch unread count
@@ -102,8 +102,8 @@ export function useNotifications() {
           prev.map((notification) =>
             notification.id === notificationId
               ? { ...notification, is_read: true }
-              : notification
-          )
+              : notification,
+          ),
         )
 
         // Update unread count
@@ -113,7 +113,7 @@ export function useNotifications() {
         toast(tRef.current('notifications.markReadError'), 'error')
       }
     },
-    [apiClient, user]
+    [apiClient, user],
   )
 
   // Mark all notifications as read
@@ -125,7 +125,7 @@ export function useNotifications() {
 
       // Update local state optimistically
       setNotifications((prev) =>
-        prev.map((notification) => ({ ...notification, is_read: true }))
+        prev.map((notification) => ({ ...notification, is_read: true })),
       )
       setUnreadCount(0)
 
@@ -178,7 +178,7 @@ export function useNotifications() {
         return false
       }
     },
-    [apiClient, user]
+    [apiClient, user],
   )
 
   // Refresh all notification data
@@ -233,8 +233,10 @@ export function useNotifications() {
               const newNotification = data.notification
               setNotifications((prev) => [newNotification, ...prev])
               setUnreadCount((prev) => prev + 1)
-              const { title: translatedToastTitle } =
-                getTranslatedNotification(tRef.current, newNotification)
+              const { title: translatedToastTitle } = getTranslatedNotification(
+                tRef.current,
+                newNotification,
+              )
               toast(translatedToastTitle, 'success')
               break
 
@@ -278,7 +280,7 @@ export function useNotifications() {
           // every ~5 s indefinitely with no auth cookie.
           if (reconnectAttemptsRef.current >= MAX_RECONNECT_ATTEMPTS) {
             console.warn(
-              `Notification SSE: giving up after ${MAX_RECONNECT_ATTEMPTS} reconnect attempts`
+              `Notification SSE: giving up after ${MAX_RECONNECT_ATTEMPTS} reconnect attempts`,
             )
             return
           }

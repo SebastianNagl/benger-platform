@@ -59,10 +59,14 @@ jest.mock('@headlessui/react', () => {
       data-testid="listbox-option"
       data-value={value}
       className={
-        typeof className === 'function' ? className({ active: false }) : className
+        typeof className === 'function'
+          ? className({ active: false })
+          : className
       }
     >
-      {typeof children === 'function' ? children({ selected: false }) : children}
+      {typeof children === 'function'
+        ? children({ selected: false })
+        : children}
     </li>
   )
   return { Listbox }
@@ -95,7 +99,7 @@ describe('TaskFieldSelector - br5 branch coverage', () => {
 
   it('applies loading className', () => {
     const { container } = render(
-      <TaskFieldSelector {...defaultProps} className="my-class" />
+      <TaskFieldSelector {...defaultProps} className="my-class" />,
     )
     expect(container.querySelector('.my-class')).toBeInTheDocument()
   })

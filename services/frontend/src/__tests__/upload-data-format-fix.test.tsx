@@ -45,7 +45,7 @@ describe('Upload Data Format Fix', () => {
     const result = await client.uploadData(
       file,
       'test-task-id',
-      'Test questions'
+      'Test questions',
     )
 
     // Verify the request was made correctly
@@ -54,7 +54,7 @@ describe('Upload Data Format Fix', () => {
       expect.objectContaining({
         method: 'POST',
         body: JSON.stringify({ questions: questionsData }),
-      })
+      }),
     )
 
     // Verify the response
@@ -84,12 +84,12 @@ describe('Upload Data Format Fix', () => {
     const file = new File(
       [JSON.stringify(oldFormatData)],
       'old-questions.json',
-      { type: 'application/json' }
+      { type: 'application/json' },
     )
 
     // Test should throw error for unknown content type
     await expect(
-      client.uploadData(file, 'test-task-id', 'Test')
+      client.uploadData(file, 'test-task-id', 'Test'),
     ).rejects.toThrow('Unknown content type')
   })
 
@@ -128,7 +128,7 @@ describe('Upload Data Format Fix', () => {
       expect.objectContaining({
         method: 'POST',
         body: JSON.stringify({ prompts: promptsData }),
-      })
+      }),
     )
 
     // Verify the response

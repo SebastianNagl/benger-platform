@@ -76,7 +76,7 @@ describe('TextAreaInput - branch coverage', () => {
         value=""
         onChange={mockOnChange}
         onAnnotation={mockOnAnnotation}
-      />
+      />,
     )
 
     expect(screen.getByLabelText('myTextArea')).toBeInTheDocument()
@@ -96,7 +96,7 @@ describe('TextAreaInput - branch coverage', () => {
         value=""
         onChange={mockOnChange}
         onAnnotation={mockOnAnnotation}
-      />
+      />,
     )
 
     expect(screen.getByText('*')).toBeInTheDocument()
@@ -115,7 +115,7 @@ describe('TextAreaInput - branch coverage', () => {
         value=""
         onChange={mockOnChange}
         onAnnotation={mockOnAnnotation}
-      />
+      />,
     )
 
     expect(screen.getByText('Enter at least 100 words')).toBeInTheDocument()
@@ -130,7 +130,7 @@ describe('TextAreaInput - branch coverage', () => {
         onChange={mockOnChange}
         onAnnotation={mockOnAnnotation}
         hideSubmitButton={true}
-      />
+      />,
     )
 
     expect(screen.queryByText('Submit')).not.toBeInTheDocument()
@@ -149,7 +149,7 @@ describe('TextAreaInput - branch coverage', () => {
         value=""
         onChange={mockOnChange}
         onAnnotation={mockOnAnnotation}
-      />
+      />,
     )
 
     expect(screen.queryByText('Submit')).not.toBeInTheDocument()
@@ -163,7 +163,7 @@ describe('TextAreaInput - branch coverage', () => {
         value=""
         onChange={mockOnChange}
         onAnnotation={mockOnAnnotation}
-      />
+      />,
     )
 
     expect(screen.getByText('Submit')).toBeInTheDocument()
@@ -182,7 +182,7 @@ describe('TextAreaInput - branch coverage', () => {
         value=""
         onChange={mockOnChange}
         onAnnotation={mockOnAnnotation}
-      />
+      />,
     )
 
     const submitButton = screen.getByText('Submit')
@@ -199,7 +199,7 @@ describe('TextAreaInput - branch coverage', () => {
         value="Hello"
         onChange={mockOnChange}
         onAnnotation={mockOnAnnotation}
-      />
+      />,
     )
 
     const submitButton = screen.getByText('Submit')
@@ -221,7 +221,7 @@ describe('TextAreaInput - branch coverage', () => {
         value="Hello"
         onChange={mockOnChange}
         onAnnotation={mockOnAnnotation}
-      />
+      />,
     )
 
     const submitButton = screen.getByText('Submit')
@@ -238,7 +238,7 @@ describe('TextAreaInput - branch coverage', () => {
         value="Some text"
         onChange={mockOnChange}
         onAnnotation={mockOnAnnotation}
-      />
+      />,
     )
 
     const textarea = screen.getByPlaceholderText('Write here...')
@@ -260,7 +260,7 @@ describe('TextAreaInput - branch coverage', () => {
         value="Some text"
         onChange={mockOnChange}
         onAnnotation={mockOnAnnotation}
-      />
+      />,
     )
 
     const textarea = screen.getByPlaceholderText('Write here...')
@@ -277,7 +277,7 @@ describe('TextAreaInput - branch coverage', () => {
         value=""
         onChange={mockOnChange}
         onAnnotation={mockOnAnnotation}
-      />
+      />,
     )
 
     const textarea = screen.getByPlaceholderText('Write here...')
@@ -302,10 +302,12 @@ describe('TextAreaInput - branch coverage', () => {
         value="initial"
         onChange={mockOnChange}
         onAnnotation={mockOnAnnotation}
-      />
+      />,
     )
 
-    const textarea = screen.getByPlaceholderText('Write here...') as HTMLTextAreaElement
+    const textarea = screen.getByPlaceholderText(
+      'Write here...',
+    ) as HTMLTextAreaElement
     expect(textarea.value).toBe('initial')
 
     rerender(
@@ -315,7 +317,7 @@ describe('TextAreaInput - branch coverage', () => {
         value="updated"
         onChange={mockOnChange}
         onAnnotation={mockOnAnnotation}
-      />
+      />,
     )
 
     expect(textarea.value).toBe('updated')
@@ -329,7 +331,7 @@ describe('TextAreaInput - branch coverage', () => {
         value="some text"
         onChange={mockOnChange}
         onAnnotation={mockOnAnnotation}
-      />
+      />,
     )
 
     rerender(
@@ -339,10 +341,12 @@ describe('TextAreaInput - branch coverage', () => {
         value={undefined as any}
         onChange={mockOnChange}
         onAnnotation={mockOnAnnotation}
-      />
+      />,
     )
 
-    const textarea = screen.getByPlaceholderText('Write here...') as HTMLTextAreaElement
+    const textarea = screen.getByPlaceholderText(
+      'Write here...',
+    ) as HTMLTextAreaElement
     expect(textarea.value).toBe('')
   })
 
@@ -359,7 +363,7 @@ describe('TextAreaInput - branch coverage', () => {
         value=""
         onChange={mockOnChange}
         onAnnotation={mockOnAnnotation}
-      />
+      />,
     )
 
     expect(screen.getByLabelText('textarea')).toBeInTheDocument()
@@ -380,7 +384,7 @@ describe('TextAreaInput - branch coverage', () => {
         value=""
         onChange={mockOnChange}
         onAnnotation={mockOnAnnotation}
-      />
+      />,
     )
 
     expect(screen.getByLabelText('textarea')).toBeInTheDocument()

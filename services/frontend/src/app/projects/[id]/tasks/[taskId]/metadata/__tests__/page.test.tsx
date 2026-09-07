@@ -170,18 +170,21 @@ describe('TaskMetadataPage', () => {
       'tasks.metadata.saving': 'Saving...',
       'tasks.metadata.cancel': 'Cancel',
       'tasks.metadata.jsonPlaceholder': 'Enter valid JSON data...',
-      'tasks.metadata.jsonHelpText': 'Edit the metadata as JSON. Ensure proper JSON formatting.',
+      'tasks.metadata.jsonHelpText':
+        'Edit the metadata as JSON. Ensure proper JSON formatting.',
       'tasks.metadata.status': 'Status:',
       'tasks.metadata.completed': 'Completed',
       'tasks.metadata.unlabeled': 'Unlabeled',
       'tasks.metadata.annotations': 'Annotations: {count}',
       'tasks.metadata.generations': 'Generations: {count}',
       'tasks.metadata.notFound': 'Task not found',
-      'tasks.metadata.notFoundDescription': "The task you're looking for doesn't exist.",
+      'tasks.metadata.notFoundDescription':
+        "The task you're looking for doesn't exist.",
       'tasks.metadata.backToDataManager': 'Back to Data Manager',
       'tasks.metadata.loadFailed': 'Failed to load task',
       'tasks.metadata.updated': 'Metadata updated successfully',
-      'tasks.metadata.invalidJson': 'Invalid JSON format. Please check your syntax.',
+      'tasks.metadata.invalidJson':
+        'Invalid JSON format. Please check your syntax.',
       'tasks.metadata.updateFailed': 'Failed to update metadata',
     }
     ;(useI18n as jest.Mock).mockReturnValue({
@@ -219,7 +222,7 @@ describe('TaskMetadataPage', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText(/Task #task-456 - Metadata/)
+          screen.getByText(/Task #task-456 - Metadata/),
         ).toBeInTheDocument()
       })
     })
@@ -298,7 +301,7 @@ describe('TaskMetadataPage', () => {
 
       await waitFor(() => {
         expect(apiClient.get).toHaveBeenCalledWith(
-          '/api/projects/tasks/task-456'
+          '/api/projects/tasks/task-456',
         )
       })
     })
@@ -346,7 +349,7 @@ describe('TaskMetadataPage', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText(/Task #task-456 - Metadata/)
+          screen.getByText(/Task #task-456 - Metadata/),
         ).toBeInTheDocument()
       })
     })
@@ -362,7 +365,7 @@ describe('TaskMetadataPage', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText(/Task #task-456 - Metadata/)
+          screen.getByText(/Task #task-456 - Metadata/),
         ).toBeInTheDocument()
       })
     })
@@ -371,7 +374,7 @@ describe('TaskMetadataPage', () => {
   describe('Error Handling', () => {
     it('shows error toast when task fails to load', async () => {
       ;(apiClient.get as jest.Mock).mockRejectedValue(
-        new Error('Failed to load')
+        new Error('Failed to load'),
       )
 
       const params = { id: 'project-123', taskId: 'task-456' }
@@ -380,7 +383,7 @@ describe('TaskMetadataPage', () => {
       await waitFor(() => {
         expect(mockAddToast).toHaveBeenCalledWith(
           'Failed to load task',
-          'error'
+          'error',
         )
       })
     })
@@ -394,7 +397,7 @@ describe('TaskMetadataPage', () => {
       await waitFor(() => {
         expect(screen.getByText('Task not found')).toBeInTheDocument()
         expect(
-          screen.getByText("The task you're looking for doesn't exist.")
+          screen.getByText("The task you're looking for doesn't exist."),
         ).toBeInTheDocument()
       })
     })
@@ -481,7 +484,7 @@ describe('TaskMetadataPage', () => {
       await user.click(editButton)
 
       const textarea = await screen.findByPlaceholderText(
-        'Enter valid JSON data...'
+        'Enter valid JSON data...',
       )
       await user.clear(textarea)
       await user.paste('{"modified": "data"}')
@@ -492,7 +495,7 @@ describe('TaskMetadataPage', () => {
       await waitFor(() => {
         expect(screen.getByText('Edit')).toBeInTheDocument()
         expect(
-          screen.queryByPlaceholderText('Enter valid JSON data...')
+          screen.queryByPlaceholderText('Enter valid JSON data...'),
         ).not.toBeInTheDocument()
       })
     })
@@ -510,7 +513,7 @@ describe('TaskMetadataPage', () => {
       await user.click(editButton)
 
       const textarea = await screen.findByPlaceholderText(
-        'Enter valid JSON data...'
+        'Enter valid JSON data...',
       )
       const newMetadata = { updated: 'metadata', newField: 'value' }
       await user.clear(textarea)
@@ -522,14 +525,14 @@ describe('TaskMetadataPage', () => {
       await waitFor(() => {
         expect(apiClient.patch).toHaveBeenCalledWith(
           '/api/projects/tasks/task-456/metadata',
-          newMetadata
+          newMetadata,
         )
       })
 
       await waitFor(() => {
         expect(mockAddToast).toHaveBeenCalledWith(
           'Metadata updated successfully',
-          'success'
+          'success',
         )
       })
     })
@@ -547,7 +550,7 @@ describe('TaskMetadataPage', () => {
       await user.click(editButton)
 
       const textarea = await screen.findByPlaceholderText(
-        'Enter valid JSON data...'
+        'Enter valid JSON data...',
       )
       await user.clear(textarea)
       await user.paste('{invalid json}')
@@ -558,7 +561,7 @@ describe('TaskMetadataPage', () => {
       await waitFor(() => {
         expect(mockAddToast).toHaveBeenCalledWith(
           'Invalid JSON format. Please check your syntax.',
-          'error'
+          'error',
         )
       })
 
@@ -570,8 +573,8 @@ describe('TaskMetadataPage', () => {
       ;(apiClient.patch as jest.Mock).mockImplementation(
         () =>
           new Promise((resolve) =>
-            setTimeout(() => resolve({ success: true }), 100)
-          )
+            setTimeout(() => resolve({ success: true }), 100),
+          ),
       )
 
       const params = { id: 'project-123', taskId: 'task-456' }
@@ -585,7 +588,7 @@ describe('TaskMetadataPage', () => {
       await user.click(editButton)
 
       const textarea = await screen.findByPlaceholderText(
-        'Enter valid JSON data...'
+        'Enter valid JSON data...',
       )
       await user.clear(textarea)
       await user.paste('{"test": "data"}')
@@ -605,8 +608,8 @@ describe('TaskMetadataPage', () => {
       ;(apiClient.patch as jest.Mock).mockImplementation(
         () =>
           new Promise((resolve) =>
-            setTimeout(() => resolve({ success: true }), 100)
-          )
+            setTimeout(() => resolve({ success: true }), 100),
+          ),
       )
 
       const params = { id: 'project-123', taskId: 'task-456' }
@@ -620,7 +623,7 @@ describe('TaskMetadataPage', () => {
       await user.click(editButton)
 
       const textarea = await screen.findByPlaceholderText(
-        'Enter valid JSON data...'
+        'Enter valid JSON data...',
       )
       await user.clear(textarea)
       await user.paste('{"test": "data"}')
@@ -656,7 +659,7 @@ describe('TaskMetadataPage', () => {
       await user.click(editButton)
 
       const textarea = await screen.findByPlaceholderText(
-        'Enter valid JSON data...'
+        'Enter valid JSON data...',
       )
       await user.clear(textarea)
       await user.paste('{"test": "data"}')
@@ -684,7 +687,7 @@ describe('TaskMetadataPage', () => {
       await user.click(editButton)
 
       const textarea = await screen.findByPlaceholderText(
-        'Enter valid JSON data...'
+        'Enter valid JSON data...',
       )
       await user.clear(textarea)
       await user.paste('{"test": "data"}')
@@ -695,7 +698,7 @@ describe('TaskMetadataPage', () => {
       await waitFor(() => {
         expect(mockAddToast).toHaveBeenCalledWith(
           'Failed to update metadata',
-          'error'
+          'error',
         )
       })
     })
@@ -715,7 +718,7 @@ describe('TaskMetadataPage', () => {
       await user.click(editButton)
 
       const textarea = await screen.findByPlaceholderText(
-        'Enter valid JSON data...'
+        'Enter valid JSON data...',
       )
       await user.clear(textarea)
       await user.paste(JSON.stringify(newMetadata))
@@ -773,8 +776,8 @@ describe('TaskMetadataPage', () => {
       await waitFor(() => {
         expect(
           screen.getByText(
-            'Edit the metadata as JSON. Ensure proper JSON formatting.'
-          )
+            'Edit the metadata as JSON. Ensure proper JSON formatting.',
+          ),
         ).toBeInTheDocument()
       })
     })
@@ -797,7 +800,7 @@ describe('TaskMetadataPage', () => {
       ;(apiClient.get as jest.Mock).mockResolvedValue(null)
 
       const textarea = await screen.findByPlaceholderText(
-        'Enter valid JSON data...'
+        'Enter valid JSON data...',
       )
       await user.clear(textarea)
       await user.paste('{"test": "data"}')

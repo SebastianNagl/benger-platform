@@ -51,11 +51,11 @@ export function normalizeItemId(itemId: string | number | undefined): string {
  */
 export function getItemAnnotations(
   itemId: string | number,
-  annotations: Annotation[]
+  annotations: Annotation[],
 ): Annotation[] {
   const normalizedItemId = normalizeItemId(itemId)
   return annotations.filter(
-    (a) => normalizeItemId(a.item_id) === normalizedItemId
+    (a) => normalizeItemId(a.item_id) === normalizedItemId,
   )
 }
 
@@ -65,7 +65,7 @@ export function getItemAnnotations(
  */
 export function getItemAnnotationStatus(
   itemId: string | number,
-  annotations: Annotation[]
+  annotations: Annotation[],
 ): string {
   const itemAnnotations = getItemAnnotations(itemId, annotations)
 
@@ -75,7 +75,7 @@ export function getItemAnnotationStatus(
 
   // Check for submitted or approved annotations (completed)
   const hasSubmitted = itemAnnotations.some(
-    (a) => a.status === 'submitted' || a.status === 'approved'
+    (a) => a.status === 'submitted' || a.status === 'approved',
   )
 
   if (hasSubmitted) {
@@ -98,11 +98,11 @@ export function getItemAnnotationStatus(
  */
 export function getItemDisplayStatus(
   itemId: string | number,
-  annotations: Annotation[]
+  annotations: Annotation[],
 ): string {
   const itemAnnotations = getItemAnnotations(itemId, annotations)
   const hasSubmitted = itemAnnotations.some(
-    (a) => a.status === 'submitted' || a.status === 'approved'
+    (a) => a.status === 'submitted' || a.status === 'approved',
   )
 
   return hasSubmitted ? DISPLAY_STATUS.ANNOTATED : DISPLAY_STATUS.NOT_ANNOTATED
@@ -114,7 +114,7 @@ export function getItemDisplayStatus(
  */
 export function areAllItemsAnnotated(
   items: TaskItem[],
-  annotations: Annotation[]
+  annotations: Annotation[],
 ): boolean {
   if (items.length === 0) {
     return false
@@ -131,7 +131,7 @@ export function areAllItemsAnnotated(
  */
 export function getAnnotationStatistics(
   items: TaskItem[],
-  annotations: Annotation[]
+  annotations: Annotation[],
 ) {
   if (items.length === 0) {
     return {
@@ -149,7 +149,7 @@ export function getAnnotationStatistics(
       counts[status] = (counts[status] || 0) + 1
       return counts
     },
-    {} as Record<string, number>
+    {} as Record<string, number>,
   )
 
   const completed = statusCounts[ANNOTATION_STATUS.COMPLETED] || 0
@@ -170,7 +170,7 @@ export function getAnnotationStatistics(
  */
 export function findNextUnannotatedItem(
   items: TaskItem[],
-  annotations: Annotation[]
+  annotations: Annotation[],
 ): TaskItem | null {
   return (
     items.find((item) => {
@@ -186,7 +186,7 @@ export function findNextUnannotatedItem(
 export function getUserAnnotationStatus(
   userId: string,
   itemId: string | number,
-  annotations: Annotation[]
+  annotations: Annotation[],
 ): string {
   const itemAnnotations = getItemAnnotations(itemId, annotations)
   const userAnnotations = itemAnnotations.filter((a) => a.user_id === userId)
@@ -196,7 +196,7 @@ export function getUserAnnotationStatus(
   }
 
   const hasSubmitted = userAnnotations.some(
-    (a) => a.status === 'submitted' || a.status === 'approved'
+    (a) => a.status === 'submitted' || a.status === 'approved',
   )
 
   if (hasSubmitted) {

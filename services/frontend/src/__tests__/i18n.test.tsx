@@ -191,7 +191,7 @@ describe('I18n Context and Translations', () => {
     render(
       <MockI18nProvider>
         <TestComponent />
-      </MockI18nProvider>
+      </MockI18nProvider>,
     )
 
     expect(screen.getByTestId('current-locale')).toHaveTextContent('de')
@@ -201,12 +201,12 @@ describe('I18n Context and Translations', () => {
     render(
       <MockI18nProvider>
         <TestComponent />
-      </MockI18nProvider>
+      </MockI18nProvider>,
     )
 
     expect(screen.getByTestId('dashboard-title')).toHaveTextContent('Dashboard')
     expect(screen.getByTestId('dashboard-subtitle')).toHaveTextContent(
-      'Verwalten Sie Ihre Annotationsprojekte und verfolgen Sie den Fortschritt'
+      'Verwalten Sie Ihre Annotationsprojekte und verfolgen Sie den Fortschritt',
     )
   })
 
@@ -214,7 +214,7 @@ describe('I18n Context and Translations', () => {
     render(
       <MockI18nProvider>
         <TestComponent />
-      </MockI18nProvider>
+      </MockI18nProvider>,
     )
 
     expect(screen.getByTestId('projects-title')).toHaveTextContent('Projekte')
@@ -224,11 +224,11 @@ describe('I18n Context and Translations', () => {
     render(
       <MockI18nProvider>
         <TestComponent />
-      </MockI18nProvider>
+      </MockI18nProvider>,
     )
 
     expect(screen.getByTestId('data-title')).toHaveTextContent(
-      'Datenmanagement'
+      'Datenmanagement',
     )
   })
 
@@ -236,7 +236,7 @@ describe('I18n Context and Translations', () => {
     render(
       <MockI18nProvider>
         <TestComponent />
-      </MockI18nProvider>
+      </MockI18nProvider>,
     )
 
     const switchToEnButton = screen.getByTestId('switch-to-en')
@@ -246,7 +246,7 @@ describe('I18n Context and Translations', () => {
       () => {
         expect(screen.getByTestId('current-locale')).toHaveTextContent('en')
       },
-      { timeout: 3000 }
+      { timeout: 3000 },
     )
   })
 
@@ -254,7 +254,7 @@ describe('I18n Context and Translations', () => {
     render(
       <MockI18nProvider>
         <TestComponent />
-      </MockI18nProvider>
+      </MockI18nProvider>,
     )
 
     const switchToEnButton = screen.getByTestId('switch-to-en')
@@ -263,13 +263,13 @@ describe('I18n Context and Translations', () => {
     await waitFor(
       () => {
         expect(screen.getByTestId('dashboard-title')).toHaveTextContent(
-          'Dashboard'
+          'Dashboard',
         )
         expect(screen.getByTestId('dashboard-subtitle')).toHaveTextContent(
-          'Manage your annotation projects and track progress'
+          'Manage your annotation projects and track progress',
         )
       },
-      { timeout: 3000 }
+      { timeout: 3000 },
     )
   })
 
@@ -277,7 +277,7 @@ describe('I18n Context and Translations', () => {
     render(
       <MockI18nProvider>
         <TestComponent />
-      </MockI18nProvider>
+      </MockI18nProvider>,
     )
 
     const switchToEnButton = screen.getByTestId('switch-to-en')
@@ -286,10 +286,10 @@ describe('I18n Context and Translations', () => {
     await waitFor(
       () => {
         expect(screen.getByTestId('projects-title')).toHaveTextContent(
-          'Projects'
+          'Projects',
         )
       },
-      { timeout: 3000 }
+      { timeout: 3000 },
     )
   })
 
@@ -297,7 +297,7 @@ describe('I18n Context and Translations', () => {
     render(
       <MockI18nProvider>
         <TestComponent />
-      </MockI18nProvider>
+      </MockI18nProvider>,
     )
 
     const switchToEnButton = screen.getByTestId('switch-to-en')
@@ -306,10 +306,10 @@ describe('I18n Context and Translations', () => {
     await waitFor(
       () => {
         expect(screen.getByTestId('data-title')).toHaveTextContent(
-          'Data Management'
+          'Data Management',
         )
       },
-      { timeout: 3000 }
+      { timeout: 3000 },
     )
   })
 
@@ -317,7 +317,7 @@ describe('I18n Context and Translations', () => {
     render(
       <MockI18nProvider>
         <TestComponent />
-      </MockI18nProvider>
+      </MockI18nProvider>,
     )
 
     const switchToEnButton = screen.getByTestId('switch-to-en')
@@ -327,7 +327,7 @@ describe('I18n Context and Translations', () => {
       () => {
         expect(localStorage.getItem('preferred-locale')).toBe('en')
       },
-      { timeout: 3000 }
+      { timeout: 3000 },
     )
   })
 
@@ -337,7 +337,7 @@ describe('I18n Context and Translations', () => {
     render(
       <MockI18nProvider>
         <TestComponent />
-      </MockI18nProvider>
+      </MockI18nProvider>,
     )
 
     // Should load the stored locale preference
@@ -348,7 +348,7 @@ describe('I18n Context and Translations', () => {
     render(
       <MockI18nProvider>
         <TestComponent />
-      </MockI18nProvider>
+      </MockI18nProvider>,
     )
 
     // Create a component that tests nested keys
@@ -370,11 +370,11 @@ describe('I18n Context and Translations', () => {
     const { container } = render(
       <MockI18nProvider>
         <NestedTestComponent />
-      </MockI18nProvider>
+      </MockI18nProvider>,
     )
 
     const statsProjects = container.querySelector(
-      '[data-testid="stats-projects"]'
+      '[data-testid="stats-projects"]',
     )
     const recentTitle = container.querySelector('[data-testid="recent-title"]')
     const tableTasks = container.querySelector('[data-testid="table-tasks"]')
@@ -393,11 +393,11 @@ describe('I18n Context and Translations', () => {
     render(
       <MockI18nProvider>
         <MissingKeyComponent />
-      </MockI18nProvider>
+      </MockI18nProvider>,
     )
 
     expect(screen.getByTestId('missing-key')).toHaveTextContent(
-      'non.existent.key'
+      'non.existent.key',
     )
   })
 
@@ -405,7 +405,7 @@ describe('I18n Context and Translations', () => {
     render(
       <MockI18nProvider>
         <TestComponent />
-      </MockI18nProvider>
+      </MockI18nProvider>,
     )
 
     const switchToEnButton = screen.getByTestId('switch-to-en')
@@ -417,7 +417,7 @@ describe('I18n Context and Translations', () => {
       () => {
         expect(screen.getByTestId('current-locale')).toHaveTextContent('en')
       },
-      { timeout: 3000 }
+      { timeout: 3000 },
     )
 
     // Switch back to German
@@ -426,7 +426,7 @@ describe('I18n Context and Translations', () => {
       () => {
         expect(screen.getByTestId('current-locale')).toHaveTextContent('de')
       },
-      { timeout: 3000 }
+      { timeout: 3000 },
     )
 
     // Switch to English again
@@ -435,7 +435,7 @@ describe('I18n Context and Translations', () => {
       () => {
         expect(screen.getByTestId('current-locale')).toHaveTextContent('en')
       },
-      { timeout: 3000 }
+      { timeout: 3000 },
     )
   })
 })
@@ -489,7 +489,7 @@ describe('Translation Coverage', () => {
     const { rerender } = render(
       <MockI18nProvider>
         <TestAllKeysComponent />
-      </MockI18nProvider>
+      </MockI18nProvider>,
     )
 
     // Check that all keys return non-empty values in German
@@ -522,7 +522,7 @@ describe('I18n isReady Flag - Issue #758', () => {
     render(
       <MockI18nProvider>
         <IsReadyTestComponent />
-      </MockI18nProvider>
+      </MockI18nProvider>,
     )
 
     // After mount, isReady should be true
@@ -530,7 +530,7 @@ describe('I18n isReady Flag - Issue #758', () => {
       () => {
         expect(screen.getByTestId('is-ready')).toHaveTextContent('true')
       },
-      { timeout: 3000 }
+      { timeout: 3000 },
     )
   })
 
@@ -553,7 +553,7 @@ describe('I18n isReady Flag - Issue #758', () => {
     render(
       <MockI18nProvider>
         <TranslationKeyTestComponent />
-      </MockI18nProvider>
+      </MockI18nProvider>,
     )
 
     // Wait for translations to be ready
@@ -566,7 +566,7 @@ describe('I18n isReady Flag - Issue #758', () => {
           expect(titleElement.textContent).not.toBe('dashboard.title')
         }
       },
-      { timeout: 3000 }
+      { timeout: 3000 },
     )
   })
 
@@ -601,7 +601,7 @@ describe('I18n isReady Flag - Issue #758', () => {
     render(
       <MockI18nProvider>
         <WaitForReadyComponent />
-      </MockI18nProvider>
+      </MockI18nProvider>,
     )
 
     await waitFor(
@@ -613,7 +613,7 @@ describe('I18n isReady Flag - Issue #758', () => {
           expect(result0Title.textContent).not.toBe('dashboard.title')
         }
       },
-      { timeout: 3000 }
+      { timeout: 3000 },
     )
   })
 
@@ -649,7 +649,7 @@ describe('I18n isReady Flag - Issue #758', () => {
     render(
       <MockI18nProvider>
         <ConditionalResultsComponent />
-      </MockI18nProvider>
+      </MockI18nProvider>,
     )
 
     await waitFor(
@@ -660,7 +660,7 @@ describe('I18n isReady Flag - Issue #758', () => {
           expect(parseInt(resultCount.textContent || '0')).toBeGreaterThan(0)
         }
       },
-      { timeout: 3000 }
+      { timeout: 3000 },
     )
   })
 
@@ -696,7 +696,7 @@ describe('I18n isReady Flag - Issue #758', () => {
     render(
       <MockI18nProvider>
         <NoKeysComponent />
-      </MockI18nProvider>
+      </MockI18nProvider>,
     )
 
     await waitFor(
@@ -709,7 +709,7 @@ describe('I18n isReady Flag - Issue #758', () => {
           expect(text).not.toMatch(/^[a-z]+\.[a-z]+/)
         }
       },
-      { timeout: 3000 }
+      { timeout: 3000 },
     )
   })
 })

@@ -47,9 +47,7 @@ jest.mock('recharts', () => ({
     capturedTooltipContent = content
     return <div data-testid="tooltip">{content}</div>
   },
-  XAxis: ({ dataKey }: any) => (
-    <div data-testid="x-axis" data-key={dataKey} />
-  ),
+  XAxis: ({ dataKey }: any) => <div data-testid="x-axis" data-key={dataKey} />,
   YAxis: ({ domain, label }: any) => (
     <div
       data-testid="y-axis"
@@ -95,7 +93,11 @@ describe('BoxPlotChart - coverage extensions', () => {
       if (capturedTooltipContent) {
         const TooltipComponent = capturedTooltipContent.type
         const { container } = render(
-          <TooltipComponent active={false} payload={null} t={(k: string) => k} />
+          <TooltipComponent
+            active={false}
+            payload={null}
+            t={(k: string) => k}
+          />,
         )
         expect(container.innerHTML).toBe('')
       }
@@ -106,7 +108,7 @@ describe('BoxPlotChart - coverage extensions', () => {
       if (capturedTooltipContent) {
         const TooltipComponent = capturedTooltipContent.type
         const { container } = render(
-          <TooltipComponent active={true} payload={[]} t={(k: string) => k} />
+          <TooltipComponent active={true} payload={[]} t={(k: string) => k} />,
         )
         expect(container.innerHTML).toBe('')
       }
@@ -132,7 +134,11 @@ describe('BoxPlotChart - coverage extensions', () => {
           },
         ]
         const { container } = render(
-          <TooltipComponent active={true} payload={mockPayload} t={(k: string) => k} />
+          <TooltipComponent
+            active={true}
+            payload={mockPayload}
+            t={(k: string) => k}
+          />,
         )
         expect(container.textContent).toContain('GPT-4')
         expect(container.textContent).toContain('0.750')
@@ -159,10 +165,16 @@ describe('BoxPlotChart - coverage extensions', () => {
           },
         ]
         const { container } = render(
-          <TooltipComponent active={true} payload={mockPayload} t={(k: string) => k} />
+          <TooltipComponent
+            active={true}
+            payload={mockPayload}
+            t={(k: string) => k}
+          />,
         )
         expect(container.textContent).toContain('Test')
-        expect(container.textContent).not.toContain('evaluation.charts.boxPlot.mean')
+        expect(container.textContent).not.toContain(
+          'evaluation.charts.boxPlot.mean',
+        )
       }
     })
 
@@ -185,10 +197,16 @@ describe('BoxPlotChart - coverage extensions', () => {
           },
         ]
         const { container } = render(
-          <TooltipComponent active={true} payload={mockPayload} t={(k: string) => k} />
+          <TooltipComponent
+            active={true}
+            payload={mockPayload}
+            t={(k: string) => k}
+          />,
         )
         expect(container.textContent).toContain('0.500')
-        expect(container.textContent).not.toContain('evaluation.charts.boxPlot.n')
+        expect(container.textContent).not.toContain(
+          'evaluation.charts.boxPlot.n',
+        )
       }
     })
   })

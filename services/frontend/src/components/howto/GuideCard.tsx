@@ -1,12 +1,12 @@
 'use client'
 
-import Link from 'next/link'
 import {
   ArrowTopRightOnSquareIcon,
   ExclamationTriangleIcon,
   LightBulbIcon,
   LinkIcon,
 } from '@heroicons/react/24/outline'
+import Link from 'next/link'
 
 import { useI18n } from '@/contexts/I18nContext'
 import { pick, pickList, type HowToGuide } from '@/lib/howto'
@@ -36,7 +36,10 @@ export function GuideCard({ guide }: Props) {
       className="scroll-mt-28 rounded-lg border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900"
     >
       <h3 className="group flex items-start gap-2 text-lg font-semibold text-zinc-900 dark:text-white">
-        <a href={`#${guide.id}`} className="hover:text-emerald-600 dark:hover:text-emerald-400">
+        <a
+          href={`#${guide.id}`}
+          className="hover:text-emerald-600 dark:hover:text-emerald-400"
+        >
           {pick(guide.title, locale)}
         </a>
         <a
@@ -54,7 +57,10 @@ export function GuideCard({ guide }: Props) {
       {steps.length > 0 && (
         <ol className="mt-4 space-y-2 border-l-2 border-emerald-200 pl-4 dark:border-emerald-900">
           {steps.map((step, i) => (
-            <li key={i} className="flex gap-3 text-sm text-zinc-700 dark:text-zinc-300">
+            <li
+              key={i}
+              className="flex gap-3 text-sm text-zinc-700 dark:text-zinc-300"
+            >
               <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-xs font-semibold text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300">
                 {i + 1}
               </span>
@@ -68,7 +74,7 @@ export function GuideCard({ guide }: Props) {
 
       {tips.length > 0 && (
         <div className="mt-4 rounded-md bg-zinc-50 p-3 dark:bg-zinc-800/60">
-          <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+          <p className="flex items-center gap-1.5 text-xs font-semibold tracking-wide text-zinc-500 uppercase dark:text-zinc-400">
             <LightBulbIcon className="h-4 w-4 text-emerald-500" />
             {t('howTo.labels.tips', 'Gut zu wissen')}
           </p>
@@ -84,7 +90,7 @@ export function GuideCard({ guide }: Props) {
 
       {pitfalls.length > 0 && (
         <div className="mt-3 rounded-md bg-amber-50 p-3 dark:bg-amber-950/30">
-          <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-amber-800 dark:text-amber-300">
+          <p className="flex items-center gap-1.5 text-xs font-semibold tracking-wide text-amber-800 uppercase dark:text-amber-300">
             <ExclamationTriangleIcon className="h-4 w-4" />
             {t('howTo.labels.pitfalls', 'Typische Stolpersteine')}
           </p>

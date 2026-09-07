@@ -62,29 +62,38 @@ jest.mock('@/contexts/I18nContext', () => ({
         'projects.data.import': 'Import Data',
         'projects.data.importSuccess': 'Data imported successfully',
         'projects.data.importFailed': 'Failed to import data',
-        'tasks.importModal.description': 'Import data to create tasks in your project',
+        'tasks.importModal.description':
+          'Import data to create tasks in your project',
         'tasks.importModal.fieldRequirements': 'Data Field Requirements',
-        'tasks.importModal.fieldRequirementsDescription': 'Your template requires these data fields',
-        'tasks.importModal.missingFieldsWarning': 'Missing required fields will cause validation errors',
+        'tasks.importModal.fieldRequirementsDescription':
+          'Your template requires these data fields',
+        'tasks.importModal.missingFieldsWarning':
+          'Missing required fields will cause validation errors',
         // Shared ImportSourceTabs keys
         'dataImport.tabs.upload': 'Upload Files',
         'dataImport.tabs.paste': 'Paste Data',
         'dataImport.tabs.cloud': 'Cloud Storage',
-        'projects.creation.wizard.step2.upload.dropzone': 'Drop files here or click to upload',
-        'projects.creation.wizard.step2.upload.supportedFormats': 'Supports JSON, CSV, TSV, and plain text files',
+        'projects.creation.wizard.step2.upload.dropzone':
+          'Drop files here or click to upload',
+        'projects.creation.wizard.step2.upload.supportedFormats':
+          'Supports JSON, CSV, TSV, and plain text files',
         'projects.creation.wizard.step2.upload.chooseFiles': 'Choose Files',
         'projects.creation.wizard.step2.upload.removeFile': 'Remove File',
-        'projects.creation.wizard.step2.upload.selectedFile': 'Selected: {filename}',
+        'projects.creation.wizard.step2.upload.selectedFile':
+          'Selected: {filename}',
         'projects.creation.wizard.step2.paste.label': 'Paste your data',
-        'projects.creation.wizard.step2.paste.placeholder': 'Paste JSON, CSV, or plain text data...',
+        'projects.creation.wizard.step2.paste.placeholder':
+          'Paste JSON, CSV, or plain text data...',
         'projects.creation.wizard.step2.paste.lines': '{count} lines',
         'projects.creation.wizard.step2.paste.noData': 'No data',
         'projects.creation.wizard.step2.paste.clear': 'Clear',
         'projects.creation.wizard.step2.paste.validate': 'Validate',
-        'projects.creation.wizard.step2.paste.formatDetected': '{format} detected',
+        'projects.creation.wizard.step2.paste.formatDetected':
+          '{format} detected',
         'projects.creation.wizard.step2.paste.invalidFormat': 'Invalid format',
         'tasks.importModal.validationError': 'Import Validation Error',
-        'tasks.importModal.validationErrorDescription': 'The imported data fields do not match the template requirements',
+        'tasks.importModal.validationErrorDescription':
+          'The imported data fields do not match the template requirements',
         'tasks.importModal.importAnyway': 'Import Anyway',
         'tasks.importModal.orUseFieldMapping': 'Or use field mapping below',
         'common.remove': 'Remove',
@@ -171,10 +180,10 @@ describe('ImportDataModal', () => {
       render(<ImportDataModal {...defaultProps} />)
 
       expect(
-        screen.getByRole('heading', { name: 'Import Data' })
+        screen.getByRole('heading', { name: 'Import Data' }),
       ).toBeInTheDocument()
       expect(
-        screen.getByText(/Import data to create tasks in your project/i)
+        screen.getByText(/Import data to create tasks in your project/i),
       ).toBeInTheDocument()
     })
 
@@ -216,7 +225,7 @@ describe('ImportDataModal', () => {
       render(<ImportDataModal {...defaultProps} />)
 
       expect(
-        screen.getByText('Drop files here or click to upload')
+        screen.getByText('Drop files here or click to upload'),
       ).toBeInTheDocument()
     })
 
@@ -227,7 +236,7 @@ describe('ImportDataModal', () => {
       await user.click(screen.getByText('Paste Data'))
 
       expect(
-        screen.getByPlaceholderText('Paste JSON, CSV, or plain text data...')
+        screen.getByPlaceholderText('Paste JSON, CSV, or plain text data...'),
       ).toBeInTheDocument()
     })
 
@@ -252,7 +261,7 @@ describe('ImportDataModal', () => {
       })
 
       const input = document.querySelector(
-        'input[type="file"]'
+        'input[type="file"]',
       ) as HTMLInputElement
 
       await userEvent.upload(input, file)
@@ -269,7 +278,7 @@ describe('ImportDataModal', () => {
         type: 'text/plain',
       })
       const input = document.querySelector(
-        'input[type="file"]'
+        'input[type="file"]',
       ) as HTMLInputElement
 
       await userEvent.upload(input, file)
@@ -285,7 +294,7 @@ describe('ImportDataModal', () => {
 
       const file = new File(['test'], 'test.txt', { type: 'text/plain' })
       const input = document.querySelector(
-        'input[type="file"]'
+        'input[type="file"]',
       ) as HTMLInputElement
 
       await userEvent.upload(input, file)
@@ -296,7 +305,7 @@ describe('ImportDataModal', () => {
 
       expect(screen.queryByText('Selected: test.txt')).not.toBeInTheDocument()
       expect(
-        screen.getByText('Drop files here or click to upload')
+        screen.getByText('Drop files here or click to upload'),
       ).toBeInTheDocument()
     })
 
@@ -308,7 +317,7 @@ describe('ImportDataModal', () => {
       })
 
       const dropZone = screen.getByText(
-        'Drop files here or click to upload'
+        'Drop files here or click to upload',
       ).parentElement!
 
       fireEvent.dragOver(dropZone)
@@ -328,7 +337,7 @@ describe('ImportDataModal', () => {
       await user.click(screen.getByText('Paste Data'))
 
       const textarea = screen.getByPlaceholderText(
-        'Paste JSON, CSV, or plain text data...'
+        'Paste JSON, CSV, or plain text data...',
       )
       await user.type(textarea, 'some pasted data')
 
@@ -336,7 +345,7 @@ describe('ImportDataModal', () => {
 
       const file = new File(['test'], 'test.txt', { type: 'text/plain' })
       const input = document.querySelector(
-        'input[type="file"]'
+        'input[type="file"]',
       ) as HTMLInputElement
       await userEvent.upload(input, file)
 
@@ -354,7 +363,7 @@ describe('ImportDataModal', () => {
       await user.click(screen.getByText('Paste Data'))
 
       const textarea = screen.getByPlaceholderText(
-        'Paste JSON, CSV, or plain text data...'
+        'Paste JSON, CSV, or plain text data...',
       )
       fireEvent.change(textarea, {
         target: { value: '{"data": {"text": "pasted"}}' },
@@ -370,7 +379,7 @@ describe('ImportDataModal', () => {
       // First select a file
       const file = new File(['test'], 'test.txt', { type: 'text/plain' })
       const input = document.querySelector(
-        'input[type="file"]'
+        'input[type="file"]',
       ) as HTMLInputElement
       await userEvent.upload(input, file)
 
@@ -379,7 +388,7 @@ describe('ImportDataModal', () => {
       // Then paste data
       await user.click(screen.getByText('Paste Data'))
       const textarea = screen.getByPlaceholderText(
-        'Paste JSON, CSV, or plain text data...'
+        'Paste JSON, CSV, or plain text data...',
       )
       await user.type(textarea, 'some text')
 
@@ -402,7 +411,7 @@ describe('ImportDataModal', () => {
 
       const file = new File(['test'], 'test.txt', { type: 'text/plain' })
       const input = document.querySelector(
-        'input[type="file"]'
+        'input[type="file"]',
       ) as HTMLInputElement
 
       await userEvent.upload(input, file)
@@ -421,7 +430,7 @@ describe('ImportDataModal', () => {
 
       await user.click(screen.getByText('Paste Data'))
       const textarea = screen.getByPlaceholderText(
-        'Paste JSON, CSV, or plain text data...'
+        'Paste JSON, CSV, or plain text data...',
       )
       await user.type(textarea, 'test data')
 
@@ -437,7 +446,7 @@ describe('ImportDataModal', () => {
         type: 'application/json',
       })
       const input = document.querySelector(
-        'input[type="file"]'
+        'input[type="file"]',
       ) as HTMLInputElement
 
       await userEvent.upload(input, file)
@@ -461,7 +470,7 @@ describe('ImportDataModal', () => {
       })
 
       const input = document.querySelector(
-        'input[type="file"]'
+        'input[type="file"]',
       ) as HTMLInputElement
       await userEvent.upload(input, file)
 
@@ -474,7 +483,7 @@ describe('ImportDataModal', () => {
         expect(projectsAPI.runNestedImportJob).toHaveBeenCalledWith(
           'test-project-123',
           expect.any(File),
-          expect.objectContaining({ onStatus: expect.any(Function) })
+          expect.objectContaining({ onStatus: expect.any(Function) }),
         )
       })
       // The serialized envelope carries the parsed task list.
@@ -491,7 +500,7 @@ describe('ImportDataModal', () => {
       const file = new File([csvContent], 'test.csv', { type: 'text/csv' })
 
       const input = document.querySelector(
-        'input[type="file"]'
+        'input[type="file"]',
       ) as HTMLInputElement
       await userEvent.upload(input, file)
 
@@ -508,7 +517,7 @@ describe('ImportDataModal', () => {
           data: expect.arrayContaining([
             expect.objectContaining({ data: expect.any(Object) }),
           ]),
-        })
+        }),
       )
     })
 
@@ -520,7 +529,7 @@ describe('ImportDataModal', () => {
       const file = new File([textContent], 'test.txt', { type: 'text/plain' })
 
       const input = document.querySelector(
-        'input[type="file"]'
+        'input[type="file"]',
       ) as HTMLInputElement
       await userEvent.upload(input, file)
 
@@ -540,7 +549,7 @@ describe('ImportDataModal', () => {
 
       await user.click(screen.getByText('Paste Data'))
       const textarea = screen.getByPlaceholderText(
-        'Paste JSON, CSV, or plain text data...'
+        'Paste JSON, CSV, or plain text data...',
       )
       fireEvent.change(textarea, {
         target: { value: JSON.stringify([{ data: { text: 'pasted' } }]) },
@@ -557,7 +566,7 @@ describe('ImportDataModal', () => {
           data: expect.arrayContaining([
             expect.objectContaining({ data: { text: 'pasted' } }),
           ]),
-        })
+        }),
       )
     })
 
@@ -569,7 +578,7 @@ describe('ImportDataModal', () => {
         type: 'application/json',
       })
       const input = document.querySelector(
-        'input[type="file"]'
+        'input[type="file"]',
       ) as HTMLInputElement
 
       await userEvent.upload(input, file)
@@ -582,12 +591,12 @@ describe('ImportDataModal', () => {
         expect(mockStartProgress).toHaveBeenCalledWith(
           expect.any(String),
           'Importing data...',
-          expect.any(Object)
+          expect.any(Object),
         )
         expect(mockUpdateProgress).toHaveBeenCalled()
         expect(mockCompleteProgress).toHaveBeenCalledWith(
           expect.any(String),
-          'success'
+          'success',
         )
       })
     })
@@ -600,7 +609,7 @@ describe('ImportDataModal', () => {
         type: 'application/json',
       })
       const input = document.querySelector(
-        'input[type="file"]'
+        'input[type="file"]',
       ) as HTMLInputElement
 
       await userEvent.upload(input, file)
@@ -612,7 +621,7 @@ describe('ImportDataModal', () => {
       await waitFor(() => {
         expect(mockAddToast).toHaveBeenCalledWith(
           'Data imported successfully',
-          'success'
+          'success',
         )
       })
     })
@@ -625,7 +634,7 @@ describe('ImportDataModal', () => {
         type: 'application/json',
       })
       const input = document.querySelector(
-        'input[type="file"]'
+        'input[type="file"]',
       ) as HTMLInputElement
 
       await userEvent.upload(input, file)
@@ -638,7 +647,7 @@ describe('ImportDataModal', () => {
         () => {
           expect(mockOnImportComplete).toHaveBeenCalled()
         },
-        { timeout: 3000 }
+        { timeout: 3000 },
       )
     })
 
@@ -650,7 +659,7 @@ describe('ImportDataModal', () => {
         type: 'application/json',
       })
       const input = document.querySelector(
-        'input[type="file"]'
+        'input[type="file"]',
       ) as HTMLInputElement
 
       await userEvent.upload(input, file)
@@ -663,7 +672,7 @@ describe('ImportDataModal', () => {
         () => {
           expect(mockOnClose).toHaveBeenCalled()
         },
-        { timeout: 3000 }
+        { timeout: 3000 },
       )
     })
   })
@@ -675,7 +684,7 @@ describe('ImportDataModal', () => {
 
       await user.click(screen.getByText('Paste Data'))
       const textarea = screen.getByPlaceholderText(
-        'Paste JSON, CSV, or plain text data...'
+        'Paste JSON, CSV, or plain text data...',
       )
       fireEvent.change(textarea, { target: { value: '{invalid json}' } })
 
@@ -685,14 +694,14 @@ describe('ImportDataModal', () => {
       await waitFor(() => {
         expect(mockAddToast).toHaveBeenCalledWith(
           'Failed to import data',
-          'error'
+          'error',
         )
       })
     })
 
     it('handles API import failure', async () => {
       ;(projectsAPI.runNestedImportJob as jest.Mock).mockRejectedValue(
-        new Error('Import failed')
+        new Error('Import failed'),
       )
 
       const user = userEvent.setup()
@@ -702,7 +711,7 @@ describe('ImportDataModal', () => {
         type: 'application/json',
       })
       const input = document.querySelector(
-        'input[type="file"]'
+        'input[type="file"]',
       ) as HTMLInputElement
 
       await userEvent.upload(input, file)
@@ -715,7 +724,7 @@ describe('ImportDataModal', () => {
         expect(mockAddToast).toHaveBeenCalledWith(expect.any(String), 'error')
         expect(mockCompleteProgress).toHaveBeenCalledWith(
           expect.any(String),
-          'error'
+          'error',
         )
       })
     })
@@ -732,7 +741,7 @@ describe('ImportDataModal', () => {
         type: 'application/json',
       })
       const input = document.querySelector(
-        'input[type="file"]'
+        'input[type="file"]',
       ) as HTMLInputElement
 
       await userEvent.upload(input, file)
@@ -744,7 +753,7 @@ describe('ImportDataModal', () => {
       await waitFor(() => {
         expect(mockAddToast).toHaveBeenCalledWith(
           'Failed to import data',
-          'error'
+          'error',
         )
       })
     })
@@ -761,7 +770,7 @@ describe('ImportDataModal', () => {
         type: 'application/json',
       })
       const input = document.querySelector(
-        'input[type="file"]'
+        'input[type="file"]',
       ) as HTMLInputElement
 
       await userEvent.upload(input, file)
@@ -773,7 +782,7 @@ describe('ImportDataModal', () => {
       await waitFor(() => {
         expect(mockAddToast).toHaveBeenCalledWith(
           'Failed to import data',
-          'error'
+          'error',
         )
       })
     })
@@ -788,10 +797,10 @@ describe('ImportDataModal', () => {
       const file = new File(
         ['{"data": {"wrong_field": "test"}}'],
         'test.json',
-        { type: 'application/json' }
+        { type: 'application/json' },
       )
       const input = document.querySelector(
-        'input[type="file"]'
+        'input[type="file"]',
       ) as HTMLInputElement
 
       await userEvent.upload(input, file)
@@ -812,10 +821,10 @@ describe('ImportDataModal', () => {
       const file = new File(
         ['{"data": {"wrong_field": "test"}}'],
         'test.json',
-        { type: 'application/json' }
+        { type: 'application/json' },
       )
       const input = document.querySelector(
-        'input[type="file"]'
+        'input[type="file"]',
       ) as HTMLInputElement
 
       await userEvent.upload(input, file)
@@ -839,10 +848,10 @@ describe('ImportDataModal', () => {
       const file = new File(
         [JSON.stringify([{ data: { wrong_field: 'test' } }])],
         'test.json',
-        { type: 'application/json' }
+        { type: 'application/json' },
       )
       const input = document.querySelector(
-        'input[type="file"]'
+        'input[type="file"]',
       ) as HTMLInputElement
 
       await userEvent.upload(input, file)
@@ -856,14 +865,14 @@ describe('ImportDataModal', () => {
         () => {
           expect(screen.getByText('Import Anyway')).toBeInTheDocument()
           expect(
-            screen.getByText(/Import Validation Error/i)
+            screen.getByText(/Import Validation Error/i),
           ).toBeInTheDocument()
           expect(mockAddToast).toHaveBeenCalledWith(
             expect.stringContaining("don't match"),
-            'error'
+            'error',
           )
         },
-        { timeout: 3000 }
+        { timeout: 3000 },
       )
     })
 
@@ -874,10 +883,10 @@ describe('ImportDataModal', () => {
       const file = new File(
         ['{"data": {"wrong_field": "test"}}'],
         'test.json',
-        { type: 'application/json' }
+        { type: 'application/json' },
       )
       const input = document.querySelector(
-        'input[type="file"]'
+        'input[type="file"]',
       ) as HTMLInputElement
 
       await userEvent.upload(input, file)
@@ -894,7 +903,7 @@ describe('ImportDataModal', () => {
       await user.click(cancelButton)
 
       expect(
-        screen.queryByText('Import Validation Error')
+        screen.queryByText('Import Validation Error'),
       ).not.toBeInTheDocument()
     })
   })
@@ -922,9 +931,9 @@ describe('ImportDataModal', () => {
                   status: 'completed',
                   result: { created_tasks: 1 },
                 }),
-              100
+              100,
             )
-          })
+          }),
       )
 
       render(<ImportDataModal {...defaultProps} />)
@@ -934,10 +943,10 @@ describe('ImportDataModal', () => {
         'test.json',
         {
           type: 'application/json',
-        }
+        },
       )
       const input = document.querySelector(
-        'input[type="file"]'
+        'input[type="file"]',
       ) as HTMLInputElement
 
       await userEvent.upload(input, file)
@@ -961,7 +970,7 @@ describe('ImportDataModal', () => {
 
       await user.click(screen.getByText('Paste Data'))
       const textarea = screen.getByPlaceholderText(
-        'Paste JSON, CSV, or plain text data...'
+        'Paste JSON, CSV, or plain text data...',
       )
       fireEvent.change(textarea, {
         target: { value: '{"data": {"text": "test"}}' },
@@ -981,7 +990,7 @@ describe('ImportDataModal', () => {
 
       await user.click(screen.getByText('Paste Data'))
       const textarea = screen.getByPlaceholderText(
-        'Paste JSON, CSV, or plain text data...'
+        'Paste JSON, CSV, or plain text data...',
       )
       await user.type(textarea, 'text\nhello\nworld')
 
@@ -999,7 +1008,7 @@ describe('ImportDataModal', () => {
 
       await user.click(screen.getByText('Paste Data'))
       const textarea = screen.getByPlaceholderText(
-        'Paste JSON, CSV, or plain text data...'
+        'Paste JSON, CSV, or plain text data...',
       )
       fireEvent.change(textarea, {
         target: { value: 'text\thello\nworld\ttest' },

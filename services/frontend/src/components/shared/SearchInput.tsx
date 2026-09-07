@@ -5,11 +5,10 @@ import { MagnifyingGlassIcon } from '@heroicons/react/24/outline'
 import clsx from 'clsx'
 import { forwardRef } from 'react'
 
-interface SearchInputProps
-  extends Omit<
-    React.InputHTMLAttributes<HTMLInputElement>,
-    'onChange' | 'type'
-  > {
+interface SearchInputProps extends Omit<
+  React.InputHTMLAttributes<HTMLInputElement>,
+  'onChange' | 'type'
+> {
   value: string
   onChange: (value: string) => void
   placeholder?: string
@@ -31,7 +30,7 @@ export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(
       iconPosition = 'left',
       ...props
     },
-    ref
+    ref,
   ) => {
     const { t } = useI18n()
     const displayPlaceholder = placeholder ?? t('common.search')
@@ -49,7 +48,7 @@ export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(
                 'h-5 w-5',
                 loading
                   ? 'text-zinc-300 dark:text-zinc-600'
-                  : 'text-zinc-400 dark:text-zinc-500'
+                  : 'text-zinc-400 dark:text-zinc-500',
               )}
             />
           </div>
@@ -67,23 +66,23 @@ export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(
             'bg-white dark:bg-white/5',
             'text-sm text-zinc-900 dark:text-zinc-100',
             'placeholder-zinc-500 dark:placeholder-zinc-400',
-            'ring-1 ring-zinc-900/10 dark:ring-inset dark:ring-white/10',
+            'ring-1 ring-zinc-900/10 dark:ring-white/10 dark:ring-inset',
             // Padding based on icon position
-            showIcon && iconPosition === 'left' ? 'pl-10 pr-3' : 'px-3',
-            showIcon && iconPosition === 'right' ? 'pl-3 pr-10' : '',
+            showIcon && iconPosition === 'left' ? 'pr-3 pl-10' : 'px-3',
+            showIcon && iconPosition === 'right' ? 'pr-10 pl-3' : '',
             // Height matching navigation
             'h-8 py-2',
             // Focus and hover states matching navigation
             'transition',
             'hover:ring-zinc-900/20 dark:hover:ring-white/20',
-            'focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:focus:ring-emerald-400',
+            'focus:ring-2 focus:ring-emerald-500 focus:outline-none dark:focus:ring-emerald-400',
             // Disabled state
             'disabled:cursor-not-allowed disabled:opacity-50',
             // Remove default search input styling
             '[&::-webkit-search-cancel-button]:hidden',
             '[&::-webkit-search-decoration]:hidden',
             '[&::-webkit-search-results-button]:hidden',
-            '[&::-webkit-search-results-decoration]:hidden'
+            '[&::-webkit-search-results-decoration]:hidden',
           )}
           {...props}
         />
@@ -95,7 +94,7 @@ export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(
                 'h-5 w-5',
                 loading
                   ? 'text-zinc-300 dark:text-zinc-600'
-                  : 'text-zinc-400 dark:text-zinc-500'
+                  : 'text-zinc-400 dark:text-zinc-500',
               )}
             />
           </div>
@@ -127,7 +126,7 @@ export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(
         )}
       </div>
     )
-  }
+  },
 )
 
 SearchInput.displayName = 'SearchInput'

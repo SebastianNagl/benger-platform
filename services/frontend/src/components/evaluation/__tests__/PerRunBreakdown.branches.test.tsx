@@ -127,7 +127,13 @@ describe('PerRunBreakdown branch coverage', () => {
         mean_score: 0.9,
       },
     ]
-    render(<PerRunBreakdown rows={rows} metric="exact_match" showTargetModel={false} />)
+    render(
+      <PerRunBreakdown
+        rows={rows}
+        metric="exact_match"
+        showTargetModel={false}
+      />,
+    )
     expect(screen.getByText('(deterministic)')).toBeInTheDocument()
     // samples column shows the placeholder
     const dashes = Array.from(document.querySelectorAll('td')).filter(

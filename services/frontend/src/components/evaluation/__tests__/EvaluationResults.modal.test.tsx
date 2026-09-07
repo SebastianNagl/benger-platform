@@ -8,7 +8,7 @@
  */
 
 import '@testing-library/jest-dom'
-import { render, screen, waitFor, act, fireEvent } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { EvaluationResults } from '../EvaluationResults'
 
 const mockAddToast = jest.fn()
@@ -28,17 +28,28 @@ jest.mock('@/contexts/I18nContext', () => ({
 }))
 
 jest.mock('@/components/shared/Badge', () => ({
-  Badge: ({ children, className }: any) => <span className={className}>{children}</span>,
+  Badge: ({ children, className }: any) => (
+    <span className={className}>{children}</span>
+  ),
 }))
 
 jest.mock('@/components/shared/Button', () => ({
   Button: ({ children, onClick, disabled, className, ...props }: any) => (
-    <button onClick={onClick} disabled={disabled} className={className} {...props}>{children}</button>
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className={className}
+      {...props}
+    >
+      {children}
+    </button>
   ),
 }))
 
 jest.mock('@/components/shared/Card', () => ({
-  Card: ({ children, className }: any) => <div className={className}>{children}</div>,
+  Card: ({ children, className }: any) => (
+    <div className={className}>{children}</div>
+  ),
 }))
 
 jest.mock('@/components/shared/LoadingSpinner', () => ({
@@ -50,7 +61,9 @@ jest.mock('@/components/tasks/TaskDataViewModal', () => ({
     isOpen ? (
       <div data-testid="task-data-view-modal">
         {task ? <span>Task: {task.id}</span> : <span>Loading task...</span>}
-        <button onClick={onClose} data-testid="close-task-modal">Close</button>
+        <button onClick={onClose} data-testid="close-task-modal">
+          Close
+        </button>
       </div>
     ) : null,
 }))
@@ -71,15 +84,24 @@ jest.mock('@heroicons/react/24/outline', () => ({
 jest.mock('@headlessui/react', () => ({
   Dialog: ({ children, open, onClose }: any) =>
     open ? (
-      <div data-testid="dialog" onClick={(e: any) => { if (e.target === e.currentTarget) onClose?.() }}>
+      <div
+        data-testid="dialog"
+        onClick={(e: any) => {
+          if (e.target === e.currentTarget) onClose?.()
+        }}
+      >
         {typeof children === 'function' ? children({ open }) : children}
       </div>
     ) : null,
   DialogPanel: ({ children, className }: any) => (
-    <div data-testid="dialog-panel" className={className}>{children}</div>
+    <div data-testid="dialog-panel" className={className}>
+      {children}
+    </div>
   ),
   DialogTitle: ({ children, className }: any) => (
-    <h2 data-testid="dialog-title" className={className}>{children}</h2>
+    <h2 data-testid="dialog-title" className={className}>
+      {children}
+    </h2>
   ),
 }))
 
@@ -99,8 +121,10 @@ jest.mock('@/utils/permissions', () => ({
 
 jest.mock('@/lib/api/client', () => ({
   apiClient: {
-    getProjectEvaluationResults: (...args: any[]) => mockGetProjectEvaluationResults(...args),
-    getProjectResultsByTaskModel: (...args: any[]) => mockGetProjectResultsByTaskModel(...args),
+    getProjectEvaluationResults: (...args: any[]) =>
+      mockGetProjectEvaluationResults(...args),
+    getProjectResultsByTaskModel: (...args: any[]) =>
+      mockGetProjectResultsByTaskModel(...args),
     getTaskEvaluation: (...args: any[]) => mockGetTaskEvaluation(...args),
     get: (...args: any[]) => mockApiClientGet(...args),
     evaluations: { computeStatistics: jest.fn() },
@@ -196,13 +220,23 @@ const DATA_VIEW_PROPS = {
 function setupMocks() {
   mockGetProjectEvaluationResults.mockResolvedValue(makeProjectResults())
   mockGetProjectResultsByTaskModel.mockResolvedValue(makeTaskModelData())
-  mockGetTask.mockResolvedValue({ id: 'task-111', data: { text: 'Hello world' } })
+  mockGetTask.mockResolvedValue({
+    id: 'task-111',
+    data: { text: 'Hello world' },
+  })
   mockGetTaskAnnotations.mockResolvedValue([
     {
       id: 'ann-1',
       task_id: 1,
       completed_by: 'admin',
-      result: [{ value: 'answer text', from_name: 'answer', to_name: 'text', type: 'textarea' }],
+      result: [
+        {
+          value: 'answer text',
+          from_name: 'answer',
+          to_name: 'text',
+          type: 'textarea',
+        },
+      ],
       was_cancelled: false,
       ground_truth: true,
       lead_time: 45.5,
@@ -212,7 +246,14 @@ function setupMocks() {
       id: 'ann-2',
       task_id: 1,
       completed_by: 'user-2',
-      result: [{ value: { choices: ['A'] }, from_name: 'choice', to_name: 'text', type: 'choices' }],
+      result: [
+        {
+          value: { choices: ['A'] },
+          from_name: 'choice',
+          to_name: 'text',
+          type: 'choices',
+        },
+      ],
       was_cancelled: true,
       ground_truth: false,
       lead_time: null,
@@ -286,28 +327,47 @@ describe('EvaluationResults - modal and handler coverage', () => {
 
   async function renderDataView() {
     render(<EvaluationResults projectId="p1" {...DATA_VIEW_PROPS} />)
-    await waitFor(() => expect(mockGetProjectEvaluationResults).toHaveBeenCalled())
-    await waitFor(() => {
-      // Wait for task model data to load and render the data table
-      const taskLinks = screen.queryAllByTitle('evaluation.multiFieldResults.clickToViewTaskData')
-      return taskLinks.length > 0
-    }, { timeout: 5000 })
-    await act(async () => { await new Promise(r => setTimeout(r, 50)) })
+    await waitFor(() =>
+      expect(mockGetProjectEvaluationResults).toHaveBeenCalled(),
+    )
+    await waitFor(
+      () => {
+        // Wait for task model data to load and render the data table
+        const taskLinks = screen.queryAllByTitle(
+          'evaluation.multiFieldResults.clickToViewTaskData',
+        )
+        return taskLinks.length > 0
+      },
+      { timeout: 5000 },
+    )
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50))
+    })
   }
 
   it('opens task data modal when task link is clicked', async () => {
     await renderDataView()
 
-    const taskLinks = screen.queryAllByTitle('evaluation.multiFieldResults.clickToViewTaskData')
+    const taskLinks = screen.queryAllByTitle(
+      'evaluation.multiFieldResults.clickToViewTaskData',
+    )
     if (taskLinks.length > 0) {
-      await act(async () => { fireEvent.click(taskLinks[0]) })
+      await act(async () => {
+        fireEvent.click(taskLinks[0])
+      })
 
       await waitFor(() => expect(mockGetTask).toHaveBeenCalledWith('task-111'))
-      await waitFor(() => expect(screen.getByTestId('task-data-view-modal')).toBeInTheDocument())
+      await waitFor(() =>
+        expect(screen.getByTestId('task-data-view-modal')).toBeInTheDocument(),
+      )
 
       // Close modal
       fireEvent.click(screen.getByTestId('close-task-modal'))
-      await waitFor(() => expect(screen.queryByTestId('task-data-view-modal')).not.toBeInTheDocument())
+      await waitFor(() =>
+        expect(
+          screen.queryByTestId('task-data-view-modal'),
+        ).not.toBeInTheDocument(),
+      )
     }
   })
 
@@ -315,21 +375,33 @@ describe('EvaluationResults - modal and handler coverage', () => {
     mockGetTask.mockRejectedValue(new Error('Not found'))
     await renderDataView()
 
-    const taskLinks = screen.queryAllByTitle('evaluation.multiFieldResults.clickToViewTaskData')
+    const taskLinks = screen.queryAllByTitle(
+      'evaluation.multiFieldResults.clickToViewTaskData',
+    )
     if (taskLinks.length > 0) {
-      await act(async () => { fireEvent.click(taskLinks[0]) })
-      await waitFor(() => expect(mockAddToast).toHaveBeenCalledWith(expect.any(String), 'error'))
+      await act(async () => {
+        fireEvent.click(taskLinks[0])
+      })
+      await waitFor(() =>
+        expect(mockAddToast).toHaveBeenCalledWith(expect.any(String), 'error'),
+      )
     }
   })
 
   it('opens result details modal when score cell is clicked', async () => {
     await renderDataView()
 
-    const scoreCells = screen.queryAllByTitle('evaluation.multiFieldResults.clickToViewResponse')
+    const scoreCells = screen.queryAllByTitle(
+      'evaluation.multiFieldResults.clickToViewResponse',
+    )
     if (scoreCells.length > 0) {
-      await act(async () => { fireEvent.click(scoreCells[0]) })
+      await act(async () => {
+        fireEvent.click(scoreCells[0])
+      })
 
-      await waitFor(() => expect(screen.getByTestId('dialog')).toBeInTheDocument())
+      await waitFor(() =>
+        expect(screen.getByTestId('dialog')).toBeInTheDocument(),
+      )
 
       // Verify the modal is open and APIs were called
       // Note: getTaskAnnotations is only called for annotator cells, not model cells
@@ -343,16 +415,28 @@ describe('EvaluationResults - modal and handler coverage', () => {
   it('switches to generation tab in result details modal', async () => {
     await renderDataView()
 
-    const scoreCells = screen.queryAllByTitle('evaluation.multiFieldResults.clickToViewResponse')
+    const scoreCells = screen.queryAllByTitle(
+      'evaluation.multiFieldResults.clickToViewResponse',
+    )
     if (scoreCells.length > 0) {
-      await act(async () => { fireEvent.click(scoreCells[0]) })
-      await waitFor(() => expect(screen.getByTestId('dialog')).toBeInTheDocument())
-      await act(async () => { await new Promise(r => setTimeout(r, 100)) })
+      await act(async () => {
+        fireEvent.click(scoreCells[0])
+      })
+      await waitFor(() =>
+        expect(screen.getByTestId('dialog')).toBeInTheDocument(),
+      )
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 100))
+      })
 
       // Click generation tab
-      fireEvent.click(screen.getByText('evaluation.multiFieldResults.generationResults'))
+      fireEvent.click(
+        screen.getByText('evaluation.multiFieldResults.generationResults'),
+      )
       await waitFor(() => {
-        expect(screen.getByText('Generated response text here')).toBeInTheDocument()
+        expect(
+          screen.getByText('Generated response text here'),
+        ).toBeInTheDocument()
       })
     }
   })
@@ -360,18 +444,34 @@ describe('EvaluationResults - modal and handler coverage', () => {
   it('switches to evaluation tab and shows pass/fail/error results with LLM judge', async () => {
     await renderDataView()
 
-    const scoreCells = screen.queryAllByTitle('evaluation.multiFieldResults.clickToViewResponse')
+    const scoreCells = screen.queryAllByTitle(
+      'evaluation.multiFieldResults.clickToViewResponse',
+    )
     if (scoreCells.length > 0) {
-      await act(async () => { fireEvent.click(scoreCells[0]) })
-      await waitFor(() => expect(screen.getByTestId('dialog')).toBeInTheDocument())
-      await act(async () => { await new Promise(r => setTimeout(r, 100)) })
+      await act(async () => {
+        fireEvent.click(scoreCells[0])
+      })
+      await waitFor(() =>
+        expect(screen.getByTestId('dialog')).toBeInTheDocument(),
+      )
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 100))
+      })
 
       // Click evaluation tab
-      fireEvent.click(screen.getByText('evaluation.multiFieldResults.evaluationResults'))
+      fireEvent.click(
+        screen.getByText('evaluation.multiFieldResults.evaluationResults'),
+      )
       await waitFor(() => {
-        expect(screen.getByText('evaluation.multiFieldResults.passed')).toBeInTheDocument()
-        expect(screen.getByText('evaluation.multiFieldResults.failed')).toBeInTheDocument()
-        expect(screen.getByText('evaluation.multiFieldResults.error')).toBeInTheDocument()
+        expect(
+          screen.getByText('evaluation.multiFieldResults.passed'),
+        ).toBeInTheDocument()
+        expect(
+          screen.getByText('evaluation.multiFieldResults.failed'),
+        ).toBeInTheDocument()
+        expect(
+          screen.getByText('evaluation.multiFieldResults.error'),
+        ).toBeInTheDocument()
       })
     }
   })
@@ -397,10 +497,16 @@ describe('EvaluationResults - modal and handler coverage', () => {
     mockGetTaskAnnotations.mockResolvedValue([])
     await renderDataView()
 
-    const scoreCells = screen.queryAllByTitle('evaluation.multiFieldResults.clickToViewResponse')
+    const scoreCells = screen.queryAllByTitle(
+      'evaluation.multiFieldResults.clickToViewResponse',
+    )
     if (scoreCells.length > 0) {
-      await act(async () => { fireEvent.click(scoreCells[0]) })
-      await waitFor(() => expect(screen.getByTestId('dialog')).toBeInTheDocument())
+      await act(async () => {
+        fireEvent.click(scoreCells[0])
+      })
+      await waitFor(() =>
+        expect(screen.getByTestId('dialog')).toBeInTheDocument(),
+      )
       await waitFor(() => expect(mockGetTaskAnnotations).toHaveBeenCalled())
     }
   })
@@ -409,15 +515,27 @@ describe('EvaluationResults - modal and handler coverage', () => {
     mockApiClientGet.mockResolvedValue({ results: [] })
     await renderDataView()
 
-    const scoreCells = screen.queryAllByTitle('evaluation.multiFieldResults.clickToViewResponse')
+    const scoreCells = screen.queryAllByTitle(
+      'evaluation.multiFieldResults.clickToViewResponse',
+    )
     if (scoreCells.length > 0) {
-      await act(async () => { fireEvent.click(scoreCells[0]) })
-      await waitFor(() => expect(screen.getByTestId('dialog')).toBeInTheDocument())
-      await act(async () => { await new Promise(r => setTimeout(r, 100)) })
+      await act(async () => {
+        fireEvent.click(scoreCells[0])
+      })
+      await waitFor(() =>
+        expect(screen.getByTestId('dialog')).toBeInTheDocument(),
+      )
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 100))
+      })
 
-      fireEvent.click(screen.getByText('evaluation.multiFieldResults.generationResults'))
+      fireEvent.click(
+        screen.getByText('evaluation.multiFieldResults.generationResults'),
+      )
       await waitFor(() => {
-        expect(screen.getByText('evaluation.multiFieldResults.noGenerationData')).toBeInTheDocument()
+        expect(
+          screen.getByText('evaluation.multiFieldResults.noGenerationData'),
+        ).toBeInTheDocument()
       })
     }
   })
@@ -426,15 +544,27 @@ describe('EvaluationResults - modal and handler coverage', () => {
     mockGetTaskEvaluation.mockResolvedValue({ results: [] })
     await renderDataView()
 
-    const scoreCells = screen.queryAllByTitle('evaluation.multiFieldResults.clickToViewResponse')
+    const scoreCells = screen.queryAllByTitle(
+      'evaluation.multiFieldResults.clickToViewResponse',
+    )
     if (scoreCells.length > 0) {
-      await act(async () => { fireEvent.click(scoreCells[0]) })
-      await waitFor(() => expect(screen.getByTestId('dialog')).toBeInTheDocument())
-      await act(async () => { await new Promise(r => setTimeout(r, 100)) })
+      await act(async () => {
+        fireEvent.click(scoreCells[0])
+      })
+      await waitFor(() =>
+        expect(screen.getByTestId('dialog')).toBeInTheDocument(),
+      )
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 100))
+      })
 
-      fireEvent.click(screen.getByText('evaluation.multiFieldResults.evaluationResults'))
+      fireEvent.click(
+        screen.getByText('evaluation.multiFieldResults.evaluationResults'),
+      )
       await waitFor(() => {
-        expect(screen.getByText('evaluation.multiFieldResults.noEvalResults')).toBeInTheDocument()
+        expect(
+          screen.getByText('evaluation.multiFieldResults.noEvalResults'),
+        ).toBeInTheDocument()
       })
     }
   })
@@ -442,16 +572,26 @@ describe('EvaluationResults - modal and handler coverage', () => {
   it('closes result details modal', async () => {
     await renderDataView()
 
-    const scoreCells = screen.queryAllByTitle('evaluation.multiFieldResults.clickToViewResponse')
+    const scoreCells = screen.queryAllByTitle(
+      'evaluation.multiFieldResults.clickToViewResponse',
+    )
     if (scoreCells.length > 0) {
-      await act(async () => { fireEvent.click(scoreCells[0]) })
-      await waitFor(() => expect(screen.getByTestId('dialog')).toBeInTheDocument())
+      await act(async () => {
+        fireEvent.click(scoreCells[0])
+      })
+      await waitFor(() =>
+        expect(screen.getByTestId('dialog')).toBeInTheDocument(),
+      )
 
       // Close via XMarkIcon button
-      const closeBtn = screen.getAllByRole('button').find(b => b.querySelector('[data-testid="x-mark-icon"]'))
+      const closeBtn = screen
+        .getAllByRole('button')
+        .find((b) => b.querySelector('[data-testid="x-mark-icon"]'))
       if (closeBtn) {
         fireEvent.click(closeBtn)
-        await waitFor(() => expect(screen.queryByTestId('dialog')).not.toBeInTheDocument())
+        await waitFor(() =>
+          expect(screen.queryByTestId('dialog')).not.toBeInTheDocument(),
+        )
       }
     }
   })
@@ -477,12 +617,18 @@ describe('EvaluationResults - modal and handler coverage', () => {
 
     await renderDataView()
 
-    const scoreCells = screen.queryAllByTitle('evaluation.multiFieldResults.clickToViewResponse')
+    const scoreCells = screen.queryAllByTitle(
+      'evaluation.multiFieldResults.clickToViewResponse',
+    )
     if (scoreCells.length > 0) {
-      await act(async () => { fireEvent.click(scoreCells[0]) })
+      await act(async () => {
+        fireEvent.click(scoreCells[0])
+      })
 
       // Should NOT call the generation API for annotator models
-      await act(async () => { await new Promise(r => setTimeout(r, 100)) })
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 100))
+      })
       expect(mockApiClientGet).not.toHaveBeenCalled()
     }
   })

@@ -29,14 +29,18 @@ describe('ImprintPage', () => {
     expect(screen.getByText('legal.imprint.contact')).toBeInTheDocument()
     expect(screen.getByText('legal.imprint.representedBy')).toBeInTheDocument()
     expect(screen.getByText('legal.imprint.registration')).toBeInTheDocument()
-    expect(screen.getByText('legal.imprint.responsibleForContent')).toBeInTheDocument()
+    expect(
+      screen.getByText('legal.imprint.responsibleForContent'),
+    ).toBeInTheDocument()
     expect(screen.getByText('legal.imprint.disclaimer')).toBeInTheDocument()
     expect(screen.getByText('legal.imprint.dataProtection')).toBeInTheDocument()
   })
 
   it('should render disclaimer subsections', () => {
     render(<ImprintPage />)
-    expect(screen.getByText('legal.imprint.disclaimerContent')).toBeInTheDocument()
+    expect(
+      screen.getByText('legal.imprint.disclaimerContent'),
+    ).toBeInTheDocument()
     expect(screen.getByText('legal.imprint.linksTitle')).toBeInTheDocument()
     expect(screen.getByText('legal.imprint.copyrightTitle')).toBeInTheDocument()
   })
@@ -44,12 +48,18 @@ describe('ImprintPage', () => {
   it('should render section content text', () => {
     render(<ImprintPage />)
     expect(screen.getByText('legal.imprint.contactInfo')).toBeInTheDocument()
-    expect(screen.getByText('legal.imprint.representedByInfo')).toBeInTheDocument()
-    expect(screen.getByText('legal.imprint.registrationInfo')).toBeInTheDocument()
+    expect(
+      screen.getByText('legal.imprint.representedByInfo'),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText('legal.imprint.registrationInfo'),
+    ).toBeInTheDocument()
     expect(screen.getByText('legal.imprint.disclaimerText')).toBeInTheDocument()
     expect(screen.getByText('legal.imprint.linksText')).toBeInTheDocument()
     expect(screen.getByText('legal.imprint.copyrightText')).toBeInTheDocument()
-    expect(screen.getByText('legal.imprint.dataProtectionText')).toBeInTheDocument()
+    expect(
+      screen.getByText('legal.imprint.dataProtectionText'),
+    ).toBeInTheDocument()
   })
 
   it('should render lead paragraph', () => {

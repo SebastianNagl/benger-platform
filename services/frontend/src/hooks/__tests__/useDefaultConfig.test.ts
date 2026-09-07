@@ -192,7 +192,7 @@ describe('useDefaultConfig', () => {
         ({ taskType }) => useDefaultConfig(taskType),
         {
           initialProps: { taskType: 'qa' },
-        }
+        },
       )
 
       await waitFor(() => {
@@ -234,7 +234,7 @@ describe('useDefaultConfig', () => {
         () =>
           new Promise((resolve) => {
             resolveConfig = resolve
-          })
+          }),
       )
 
       const { result } = renderHook(() => useDefaultConfig('qa'))
@@ -286,7 +286,7 @@ describe('useDefaultConfig', () => {
         () =>
           new Promise((resolve) => {
             resolveRefresh = resolve
-          })
+          }),
       )
 
       result.current.refresh()
@@ -358,7 +358,7 @@ describe('useDefaultConfig', () => {
       await waitFor(() => {
         expect(console.error).toHaveBeenCalledWith(
           'Failed to fetch default config:',
-          error
+          error,
         )
       })
     })
@@ -422,7 +422,7 @@ describe('useDefaultConfig', () => {
       expect(result.current.config).toEqual(fullConfig)
       expect(result.current.config?.generation_config.top_p).toBe(0.9)
       expect(result.current.config?.generation_config.frequency_penalty).toBe(
-        0.5
+        0.5,
       )
     })
 
@@ -447,7 +447,7 @@ describe('useDefaultConfig', () => {
       })
 
       expect(result.current.config?.generation_config.extra_field).toBe(
-        'extra_value'
+        'extra_value',
       )
       expect(result.current.config?.generation_config.nested).toEqual({
         field: 'value',
@@ -532,7 +532,7 @@ describe('useDefaultConfig', () => {
         () =>
           new Promise((resolve) => {
             resolveRefresh = resolve
-          })
+          }),
       )
 
       result.current.refresh()
@@ -684,7 +684,7 @@ describe('useDefaultConfig', () => {
         ({ taskType }) => useDefaultConfig(taskType),
         {
           initialProps: { taskType: 'qa' },
-        }
+        },
       )
 
       await waitFor(() => {
@@ -875,7 +875,7 @@ describe('useAllDefaultConfigs', () => {
         () =>
           new Promise((resolve) => {
             resolveConfigs = resolve
-          })
+          }),
       )
 
       const { result } = renderHook(() => useAllDefaultConfigs())
@@ -950,7 +950,7 @@ describe('useAllDefaultConfigs', () => {
       await waitFor(() => {
         expect(console.error).toHaveBeenCalledWith(
           'Failed to fetch all default configs:',
-          error
+          error,
         )
       })
     })
@@ -1088,7 +1088,7 @@ describe('useAllDefaultConfigs', () => {
         () =>
           new Promise((resolve) => {
             resolveRefresh = resolve
-          })
+          }),
       )
 
       result.current.refresh()

@@ -26,7 +26,7 @@ export interface ReferenceFieldsStepProps {
   /** Toggles a reference field (wizard's `handleFieldToggle`). */
   onFieldToggle: (
     fieldType: 'prediction_fields' | 'reference_fields',
-    value: string
+    value: string,
   ) => void
 }
 
@@ -53,12 +53,8 @@ export function ReferenceFieldsStep({
               className="flex cursor-pointer items-center gap-2 rounded p-2 hover:bg-gray-50 dark:hover:bg-gray-800"
             >
               <Checkbox
-                checked={selectedFields.includes(
-                  opt.value
-                )}
-                onChange={() =>
-                  onFieldToggle('reference_fields', opt.value)
-                }
+                checked={selectedFields.includes(opt.value)}
+                onChange={() => onFieldToggle('reference_fields', opt.value)}
               />
               <span className="text-sm">{opt.label}</span>
               <Badge variant="default" className="text-[10px]">
@@ -67,7 +63,7 @@ export function ReferenceFieldsStep({
             </label>
           ))
         ) : (
-          <p className="py-4 text-xs italic text-gray-500">
+          <p className="py-4 text-xs text-gray-500 italic">
             {t('evaluationBuilder.fields.noReferenceFields')}
           </p>
         )}
@@ -80,9 +76,7 @@ export function ReferenceFieldsStep({
               <strong>
                 {t('evaluationBuilder.fields.multipleReferencesTitle')}
               </strong>{' '}
-              {t(
-                'evaluationBuilder.fields.multipleReferencesDescription'
-              )}
+              {t('evaluationBuilder.fields.multipleReferencesDescription')}
             </div>
           </div>
         </div>

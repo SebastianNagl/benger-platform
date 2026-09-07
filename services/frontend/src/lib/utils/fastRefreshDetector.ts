@@ -30,13 +30,13 @@ class FastRefreshDetector {
           sessionStorage.setItem('fast_refresh_active', 'true')
           sessionStorage.setItem(
             'fast_refresh_time',
-            this.lastRefreshTime.toString()
+            this.lastRefreshTime.toString(),
           )
 
           // Call original function
           const result = originalPerformReactRefresh.apply(
             window.__REACT_REFRESH_RUNTIME__,
-            args
+            args,
           )
 
           // Reset flag after a short delay
@@ -125,7 +125,7 @@ class FastRefreshDetector {
     if (typeof window !== 'undefined') {
       sessionStorage.setItem(
         `fast_refresh_handled_${componentName}`,
-        Date.now().toString()
+        Date.now().toString(),
       )
     }
   }
@@ -139,7 +139,7 @@ class FastRefreshDetector {
     }
 
     const handledTime = sessionStorage.getItem(
-      `fast_refresh_handled_${componentName}`
+      `fast_refresh_handled_${componentName}`,
     )
     if (!handledTime) {
       return false

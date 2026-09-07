@@ -79,7 +79,7 @@ describe('ProtectedRoute Component', () => {
       render(
         <ProtectedRoute>
           <TestComponent />
-        </ProtectedRoute>
+        </ProtectedRoute>,
       )
 
       expect(screen.getByTestId('protected-content')).toBeInTheDocument()
@@ -95,7 +95,7 @@ describe('ProtectedRoute Component', () => {
       render(
         <ProtectedRoute>
           <TestComponent />
-        </ProtectedRoute>
+        </ProtectedRoute>,
       )
 
       expect(screen.getByTestId('protected-content')).toBeInTheDocument()
@@ -112,7 +112,7 @@ describe('ProtectedRoute Component', () => {
       render(
         <ProtectedRoute>
           <TestComponent />
-        </ProtectedRoute>
+        </ProtectedRoute>,
       )
 
       expect(screen.getByTestId('protected-content')).toBeInTheDocument()
@@ -127,7 +127,7 @@ describe('ProtectedRoute Component', () => {
       render(
         <ProtectedRoute>
           <TestComponent />
-        </ProtectedRoute>
+        </ProtectedRoute>,
       )
 
       expect(mockToLogin).not.toHaveBeenCalled()
@@ -148,7 +148,7 @@ describe('ProtectedRoute Component', () => {
       render(
         <ProtectedRoute>
           <TestComponent />
-        </ProtectedRoute>
+        </ProtectedRoute>,
       )
 
       expect(screen.getByTestId('protected-content')).toBeInTheDocument()
@@ -165,7 +165,7 @@ describe('ProtectedRoute Component', () => {
       render(
         <ProtectedRoute>
           <TestComponent />
-        </ProtectedRoute>
+        </ProtectedRoute>,
       )
 
       expect(mockToLogin).not.toHaveBeenCalled()
@@ -186,7 +186,7 @@ describe('ProtectedRoute Component', () => {
       const { container } = render(
         <ProtectedRoute>
           <TestComponent />
-        </ProtectedRoute>
+        </ProtectedRoute>,
       )
 
       expect(container.firstChild).toBeNull()
@@ -203,7 +203,7 @@ describe('ProtectedRoute Component', () => {
       render(
         <ProtectedRoute>
           <TestComponent />
-        </ProtectedRoute>
+        </ProtectedRoute>,
       )
 
       expect(screen.queryByText('Redirecting...')).not.toBeInTheDocument()
@@ -218,7 +218,7 @@ describe('ProtectedRoute Component', () => {
       render(
         <ProtectedRoute>
           <TestComponent />
-        </ProtectedRoute>
+        </ProtectedRoute>,
       )
 
       expect(mockToLogin).not.toHaveBeenCalled()
@@ -239,7 +239,7 @@ describe('ProtectedRoute Component', () => {
       render(
         <ProtectedRoute>
           <TestComponent />
-        </ProtectedRoute>
+        </ProtectedRoute>,
       )
 
       expect(screen.getByText('Redirecting...')).toBeInTheDocument()
@@ -255,20 +255,20 @@ describe('ProtectedRoute Component', () => {
       const { container } = render(
         <ProtectedRoute>
           <TestComponent />
-        </ProtectedRoute>
+        </ProtectedRoute>,
       )
 
       // Viewport overlay (not min-h-screen inside the page chrome), so the
       // spinner is centred exactly like the layout's auth-loading screen.
       const loadingContainer = container.querySelector(
-        '[data-testid="protected-route-redirecting"]'
+        '[data-testid="protected-route-redirecting"]',
       )
       expect(loadingContainer).toHaveClass(
         'fixed',
         'inset-0',
         'flex',
         'items-center',
-        'justify-center'
+        'justify-center',
       )
 
       const spinner = container.querySelector('.animate-spin')
@@ -276,7 +276,7 @@ describe('ProtectedRoute Component', () => {
         'animate-spin',
         'rounded-full',
         'border-b-2',
-        'border-emerald-500'
+        'border-emerald-500',
       )
     })
 
@@ -289,7 +289,7 @@ describe('ProtectedRoute Component', () => {
       render(
         <ProtectedRoute>
           <TestComponent />
-        </ProtectedRoute>
+        </ProtectedRoute>,
       )
 
       await waitFor(() => {
@@ -307,7 +307,7 @@ describe('ProtectedRoute Component', () => {
       const { rerender } = render(
         <ProtectedRoute>
           <TestComponent />
-        </ProtectedRoute>
+        </ProtectedRoute>,
       )
 
       await waitFor(() => {
@@ -317,7 +317,7 @@ describe('ProtectedRoute Component', () => {
       rerender(
         <ProtectedRoute>
           <TestComponent />
-        </ProtectedRoute>
+        </ProtectedRoute>,
       )
 
       expect(mockToLogin).toHaveBeenCalledTimes(1)
@@ -337,7 +337,7 @@ describe('ProtectedRoute Component', () => {
       const { rerender } = render(
         <ProtectedRoute>
           <TestComponent />
-        </ProtectedRoute>
+        </ProtectedRoute>,
       )
 
       expect(screen.getByTestId('protected-content')).toBeInTheDocument()
@@ -349,7 +349,7 @@ describe('ProtectedRoute Component', () => {
       rerender(
         <ProtectedRoute>
           <TestComponent />
-        </ProtectedRoute>
+        </ProtectedRoute>,
       )
 
       expect(screen.getByTestId('protected-content')).toBeInTheDocument()
@@ -365,7 +365,7 @@ describe('ProtectedRoute Component', () => {
       const { container, rerender } = render(
         <ProtectedRoute>
           <TestComponent />
-        </ProtectedRoute>
+        </ProtectedRoute>,
       )
 
       expect(container.firstChild).toBeNull()
@@ -378,7 +378,7 @@ describe('ProtectedRoute Component', () => {
       rerender(
         <ProtectedRoute>
           <TestComponent />
-        </ProtectedRoute>
+        </ProtectedRoute>,
       )
 
       expect(screen.getByTestId('protected-content')).toBeInTheDocument()
@@ -393,7 +393,7 @@ describe('ProtectedRoute Component', () => {
       const { rerender } = render(
         <ProtectedRoute>
           <TestComponent />
-        </ProtectedRoute>
+        </ProtectedRoute>,
       )
 
       expect(screen.getByTestId('protected-content')).toBeInTheDocument()
@@ -406,7 +406,7 @@ describe('ProtectedRoute Component', () => {
       rerender(
         <ProtectedRoute>
           <TestComponent />
-        </ProtectedRoute>
+        </ProtectedRoute>,
       )
 
       expect(screen.queryByTestId('protected-content')).not.toBeInTheDocument()
@@ -430,7 +430,7 @@ describe('ProtectedRoute Component', () => {
       render(
         <ProtectedRoute>
           <TestComponent />
-        </ProtectedRoute>
+        </ProtectedRoute>,
       )
 
       await waitFor(() => {
@@ -450,7 +450,7 @@ describe('ProtectedRoute Component', () => {
       render(
         <ProtectedRoute>
           <TestComponent />
-        </ProtectedRoute>
+        </ProtectedRoute>,
       )
 
       expect(screen.getByTestId('protected-content')).toBeInTheDocument()
@@ -478,7 +478,7 @@ describe('ProtectedRoute Component', () => {
         <ProtectedRoute>
           <div data-testid="child-1">Child 1</div>
           <div data-testid="child-2">Child 2</div>
-        </ProtectedRoute>
+        </ProtectedRoute>,
       )
 
       expect(screen.getByTestId('child-1')).toBeInTheDocument()
@@ -496,7 +496,7 @@ describe('ProtectedRoute Component', () => {
       const { container } = render(
         <ProtectedRoute>
           <TestComponent />
-        </ProtectedRoute>
+        </ProtectedRoute>,
       )
 
       const loadingContainer = container.querySelector('.bg-white')

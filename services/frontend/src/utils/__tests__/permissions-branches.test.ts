@@ -5,19 +5,39 @@
  */
 
 import {
-  canCreateProjects,
   canAccessProjectData,
-  canDeleteProjects,
-  isAnnotatorOnly,
   canAccessReports,
+  canCreateProjects,
+  canDeleteProjects,
   getUserPermissions,
   hasOrganization,
+  isAnnotatorOnly,
 } from '../permissions'
 
-const superadmin = { id: '1', name: 'SA', is_superadmin: true, role: 'ORG_ADMIN' } as any
-const orgAdmin = { id: '2', name: 'OA', is_superadmin: false, role: 'ORG_ADMIN' } as any
-const contributor = { id: '3', name: 'C', is_superadmin: false, role: 'CONTRIBUTOR' } as any
-const annotator = { id: '4', name: 'A', is_superadmin: false, role: 'ANNOTATOR' } as any
+const superadmin = {
+  id: '1',
+  name: 'SA',
+  is_superadmin: true,
+  role: 'ORG_ADMIN',
+} as any
+const orgAdmin = {
+  id: '2',
+  name: 'OA',
+  is_superadmin: false,
+  role: 'ORG_ADMIN',
+} as any
+const contributor = {
+  id: '3',
+  name: 'C',
+  is_superadmin: false,
+  role: 'CONTRIBUTOR',
+} as any
+const annotator = {
+  id: '4',
+  name: 'A',
+  is_superadmin: false,
+  role: 'ANNOTATOR',
+} as any
 
 describe('canCreateProjects', () => {
   it('should return false for null user', () => {

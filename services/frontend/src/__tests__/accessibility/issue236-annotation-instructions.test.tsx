@@ -64,7 +64,7 @@ describe('Issue #236: Annotation instruction text accessibility', () => {
     it('should use accessible text colors for pre-formatted instructions', () => {
       const InstructionComponent = () => (
         <div className="text-sm text-gray-700 dark:text-gray-300">
-          <pre className="whitespace-pre-wrap rounded-lg bg-zinc-50 p-4 text-gray-700 dark:bg-zinc-800 dark:text-gray-300">
+          <pre className="rounded-lg bg-zinc-50 p-4 whitespace-pre-wrap text-gray-700 dark:bg-zinc-800 dark:text-gray-300">
             Test instructions
           </pre>
         </div>

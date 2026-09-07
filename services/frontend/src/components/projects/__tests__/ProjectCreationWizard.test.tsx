@@ -173,24 +173,37 @@ jest.mock('@/contexts/I18nContext', () => ({
           'Advanced configuration available on project page.',
         'projects.creation.wizard.stepSettings.title': 'Project Settings',
         'projects.creation.wizard.stepSettings.subtitle': 'Configure settings',
-        'projects.creation.wizard.stepSettings.assignmentMode': 'Assignment Mode',
-        'projects.creation.wizard.stepSettings.assignmentModeHint': 'How tasks are distributed',
+        'projects.creation.wizard.stepSettings.assignmentMode':
+          'Assignment Mode',
+        'projects.creation.wizard.stepSettings.assignmentModeHint':
+          'How tasks are distributed',
         'projects.creation.wizard.stepSettings.modes.open': 'Open',
         'projects.creation.wizard.stepSettings.modes.manual': 'Manual',
         'projects.creation.wizard.stepSettings.modes.auto': 'Auto',
-        'projects.creation.wizard.stepSettings.modesHint.open': 'Annotators pick freely',
-        'projects.creation.wizard.stepSettings.modesHint.manual': 'Admins assign tasks',
+        'projects.creation.wizard.stepSettings.modesHint.open':
+          'Annotators pick freely',
+        'projects.creation.wizard.stepSettings.modesHint.manual':
+          'Admins assign tasks',
         'projects.creation.wizard.stepSettings.modesHint.auto': 'Auto-assigned',
-        'projects.creation.wizard.stepSettings.maxAnnotations': 'Max Annotations',
-        'projects.creation.wizard.stepSettings.minAnnotations': 'Min Annotations',
+        'projects.creation.wizard.stepSettings.maxAnnotations':
+          'Max Annotations',
+        'projects.creation.wizard.stepSettings.minAnnotations':
+          'Min Annotations',
         'projects.creation.wizard.stepSettings.unlimited': 'Unlimited',
-        'projects.creation.wizard.stepSettings.showSkipButton': 'Show Skip Button',
-        'projects.creation.wizard.stepSettings.showSkipButtonHint': 'Allow skipping tasks',
-        'projects.creation.wizard.stepSettings.showInstructions': 'Show Instructions',
-        'projects.creation.wizard.stepSettings.showInstructionsHint': 'Display instructions',
-        'projects.creation.wizard.stepSettings.randomizeOrder': 'Randomize Order',
-        'projects.creation.wizard.stepSettings.randomizeOrderHint': 'Random task order',
-        'projects.creation.wizard.stepSettings.advancedNote': 'Additional settings available on project page.',
+        'projects.creation.wizard.stepSettings.showSkipButton':
+          'Show Skip Button',
+        'projects.creation.wizard.stepSettings.showSkipButtonHint':
+          'Allow skipping tasks',
+        'projects.creation.wizard.stepSettings.showInstructions':
+          'Show Instructions',
+        'projects.creation.wizard.stepSettings.showInstructionsHint':
+          'Display instructions',
+        'projects.creation.wizard.stepSettings.randomizeOrder':
+          'Randomize Order',
+        'projects.creation.wizard.stepSettings.randomizeOrderHint':
+          'Random task order',
+        'projects.creation.wizard.stepSettings.advancedNote':
+          'Additional settings available on project page.',
         'projects.creation.wizard.evalSaveFailed':
           'Failed to save evaluation config',
         // Templates
@@ -305,11 +318,14 @@ jest.mock('@/hooks/useModels', () => ({
 const mockToastSuccessFn = jest.fn()
 const mockToastErrorFn = jest.fn()
 const mockAddToastFn = jest.fn(
-  (message: string, type: 'success' | 'error' | 'info' | 'warning' = 'info') => {
+  (
+    message: string,
+    type: 'success' | 'error' | 'info' | 'warning' = 'info',
+  ) => {
     if (type === 'success') mockToastSuccessFn(message)
     if (type === 'error') mockToastErrorFn(message)
     return 'mock-toast-id'
-  }
+  },
 )
 jest.mock('@/components/shared/Toast', () => ({
   useToast: () => ({
@@ -322,7 +338,7 @@ jest.mock('@/components/shared/Toast', () => ({
 // Helper to enable features on step 1
 async function enableFeature(
   user: ReturnType<typeof userEvent.setup>,
-  featureKey: string
+  featureKey: string,
 ) {
   const wrapper = screen.getByTestId(`wizard-feature-${featureKey}`)
   const checkbox = wrapper.querySelector('input[type="checkbox"]')!
@@ -333,13 +349,10 @@ async function enableFeature(
 async function navigateToStep(
   user: ReturnType<typeof userEvent.setup>,
   stepId: string,
-  projectName = 'Test Project'
+  projectName = 'Test Project',
 ) {
   // Fill in name
-  await user.type(
-    screen.getByTestId('project-create-name-input'),
-    projectName
-  )
+  await user.type(screen.getByTestId('project-create-name-input'), projectName)
 
   // Enable features based on target step
   const featureMap: Record<string, string[]> = {
@@ -433,7 +446,7 @@ describe('ProjectCreationWizard', () => {
       render(<ProjectCreationWizard />)
       expect(screen.getByTestId('project-create-name-input')).toHaveValue('')
       expect(
-        screen.getByTestId('project-create-description-textarea')
+        screen.getByTestId('project-create-description-textarea'),
       ).toHaveValue('')
     })
 
@@ -441,26 +454,29 @@ describe('ProjectCreationWizard', () => {
       render(<ProjectCreationWizard />)
       expect(screen.getByText(/Project Features/)).toBeInTheDocument()
       expect(screen.getByText(/Can be edited later/)).toBeInTheDocument()
-      expect(screen.getByTestId('wizard-feature-annotation')).toBeInTheDocument()
-      expect(screen.getByTestId('wizard-feature-dataImport')).toBeInTheDocument()
       expect(
-        screen.getByTestId('wizard-feature-llmGeneration')
+        screen.getByTestId('wizard-feature-annotation'),
       ).toBeInTheDocument()
-      expect(screen.getByTestId('wizard-feature-evaluation')).toBeInTheDocument()
+      expect(
+        screen.getByTestId('wizard-feature-dataImport'),
+      ).toBeInTheDocument()
+      expect(
+        screen.getByTestId('wizard-feature-llmGeneration'),
+      ).toBeInTheDocument()
+      expect(
+        screen.getByTestId('wizard-feature-evaluation'),
+      ).toBeInTheDocument()
     })
 
     it('shows Next button on step 1 leading to Settings step', async () => {
       const user = userEvent.setup()
       render(<ProjectCreationWizard />)
 
-      await user.type(
-        screen.getByTestId('project-create-name-input'),
-        'Test'
-      )
+      await user.type(screen.getByTestId('project-create-name-input'), 'Test')
 
       // With no features, step 1 has Next (Settings is step 2)
       expect(
-        screen.getByTestId('project-create-next-button')
+        screen.getByTestId('project-create-next-button'),
       ).toBeInTheDocument()
     })
   })
@@ -514,9 +530,7 @@ describe('ProjectCreationWizard', () => {
 
       // 7 feature steps + settings = 8
       for (let i = 1; i <= 8; i++) {
-        expect(
-          screen.getByTestId(`wizard-step-dot-${i}`)
-        ).toBeInTheDocument()
+        expect(screen.getByTestId(`wizard-step-dot-${i}`)).toBeInTheDocument()
       }
       expect(screen.queryByTestId('wizard-step-dot-9')).not.toBeInTheDocument()
     })
@@ -542,16 +556,14 @@ describe('ProjectCreationWizard', () => {
 
       await user.type(
         screen.getByTestId('project-create-name-input'),
-        'Test Project'
+        'Test Project',
       )
       await enableFeature(user, 'annotation')
 
       await user.click(screen.getByTestId('project-create-next-button'))
 
       await waitFor(() => {
-        expect(
-          screen.getByText('Labeling Configuration')
-        ).toBeInTheDocument()
+        expect(screen.getByText('Labeling Configuration')).toBeInTheDocument()
       })
     })
 
@@ -561,11 +573,11 @@ describe('ProjectCreationWizard', () => {
 
       await user.type(
         screen.getByTestId('project-create-name-input'),
-        'My Project'
+        'My Project',
       )
       await user.type(
         screen.getByTestId('project-create-description-textarea'),
-        'My Description'
+        'My Description',
       )
       await enableFeature(user, 'dataImport')
 
@@ -577,10 +589,10 @@ describe('ProjectCreationWizard', () => {
       await user.click(screen.getByTestId('project-create-back-button'))
 
       expect(screen.getByTestId('project-create-name-input')).toHaveValue(
-        'My Project'
+        'My Project',
       )
       expect(
-        screen.getByTestId('project-create-description-textarea')
+        screen.getByTestId('project-create-description-textarea'),
       ).toHaveValue('My Description')
     })
 
@@ -607,20 +619,25 @@ describe('ProjectCreationWizard', () => {
   describe('Data Import Step', () => {
     it('offers the extended structured entry as a fourth tab and applies its rows', async () => {
       const { registerSlot } = jest.requireActual('@/lib/extensions/slots')
-      registerSlot('ProjectWizardStructuredEntry', ({ data, onChange, variant }: any) => (
-        <button
-          data-testid="structured-entry-stub"
-          data-variant={String(variant)}
-          onClick={() =>
-            onChange({
-              pastedData: JSON.stringify([{ sachverhalt: 'Fall', musterloesung: 'Lsg' }]),
-              structuredExam: true,
-            })
-          }
-        >
-          {String(typeof data === 'object')}
-        </button>
-      ))
+      registerSlot(
+        'ProjectWizardStructuredEntry',
+        ({ data, onChange, variant }: any) => (
+          <button
+            data-testid="structured-entry-stub"
+            data-variant={String(variant)}
+            onClick={() =>
+              onChange({
+                pastedData: JSON.stringify([
+                  { sachverhalt: 'Fall', musterloesung: 'Lsg' },
+                ]),
+                structuredExam: true,
+              })
+            }
+          >
+            {String(typeof data === 'object')}
+          </button>
+        ),
+      )
       const user = userEvent.setup()
       render(<ProjectCreationWizard />)
       await navigateToStep(user, 'dataImport')
@@ -631,8 +648,12 @@ describe('ProjectCreationWizard', () => {
       expect(stub).toHaveAttribute('data-variant', 'tab')
       await user.click(stub)
       await user.click(screen.getByText('Paste'))
-      const textarea = await screen.findByTestId('project-create-paste-data-textarea')
-      expect((textarea as HTMLTextAreaElement).value).toContain('"sachverhalt":"Fall"')
+      const textarea = await screen.findByTestId(
+        'project-create-paste-data-textarea',
+      )
+      expect((textarea as HTMLTextAreaElement).value).toContain(
+        '"sachverhalt":"Fall"',
+      )
       registerSlot('ProjectWizardStructuredEntry', null as any)
     })
 
@@ -655,7 +676,7 @@ describe('ProjectCreationWizard', () => {
 
       await user.click(screen.getByText('Paste'))
       const textarea = await screen.findByTestId(
-        'project-create-paste-data-textarea'
+        'project-create-paste-data-textarea',
       )
       await user.type(textarea, 'Line 1\nLine 2')
 
@@ -688,9 +709,7 @@ describe('ProjectCreationWizard', () => {
       await navigateToStep(user, 'labelingSetup')
 
       expect(screen.getByText('Question Answering')).toBeInTheDocument()
-      expect(
-        screen.getByText('Multiple Choice Question')
-      ).toBeInTheDocument()
+      expect(screen.getByText('Multiple Choice Question')).toBeInTheDocument()
       // 'Exam Solving' (Klausurlösung) is registered by benger-extended via
       // registerWizardTemplate at runtime; not present in the public wizard.
       expect(screen.queryByText('Exam Solving')).not.toBeInTheDocument()
@@ -717,11 +736,9 @@ describe('ProjectCreationWizard', () => {
 
       await navigateToStep(user, 'annotationInstructions')
 
+      expect(screen.getByText('Annotation Instructions')).toBeInTheDocument()
       expect(
-        screen.getByText('Annotation Instructions')
-      ).toBeInTheDocument()
-      expect(
-        screen.getByTestId('wizard-instructions-textarea')
+        screen.getByTestId('wizard-instructions-textarea'),
       ).toBeInTheDocument()
     })
 
@@ -785,7 +802,7 @@ describe('ProjectCreationWizard', () => {
       expect(screen.getByText('Configure Prompts')).toBeInTheDocument()
       expect(screen.getByTestId('wizard-system-prompt')).toBeInTheDocument()
       expect(
-        screen.getByTestId('wizard-instruction-prompt')
+        screen.getByTestId('wizard-instruction-prompt'),
       ).toBeInTheDocument()
     })
   })
@@ -826,13 +843,15 @@ describe('ProjectCreationWizard', () => {
 
       await user.type(
         screen.getByTestId('project-create-name-input'),
-        'Bare Project'
+        'Bare Project',
       )
 
       // Navigate to Settings (step 2, always last)
       await user.click(screen.getByTestId('project-create-next-button'))
       await waitFor(() => {
-        expect(screen.getByTestId('project-create-submit-button')).toBeInTheDocument()
+        expect(
+          screen.getByTestId('project-create-submit-button'),
+        ).toBeInTheDocument()
       })
 
       await user.click(screen.getByTestId('project-create-submit-button'))
@@ -842,7 +861,7 @@ describe('ProjectCreationWizard', () => {
           expect.objectContaining({
             title: 'Bare Project',
             description: '',
-          })
+          }),
         )
       })
 
@@ -861,7 +880,7 @@ describe('ProjectCreationWizard', () => {
         () =>
           new Promise<{ id: string }>((resolve) => {
             resolveCreate = resolve
-          })
+          }),
       )
       mockFetchProject.mockResolvedValue({})
 
@@ -869,12 +888,12 @@ describe('ProjectCreationWizard', () => {
 
       await user.type(
         screen.getByTestId('project-create-name-input'),
-        'Dup Guard'
+        'Dup Guard',
       )
       await user.click(screen.getByTestId('project-create-next-button'))
       await waitFor(() => {
         expect(
-          screen.getByTestId('project-create-submit-button')
+          screen.getByTestId('project-create-submit-button'),
         ).toBeInTheDocument()
       })
 
@@ -908,7 +927,7 @@ describe('ProjectCreationWizard', () => {
       // Step 1: Project info + all features
       await user.type(
         screen.getByTestId('project-create-name-input'),
-        'Full Project'
+        'Full Project',
       )
       await enableFeature(user, 'annotation')
       await enableFeature(user, 'dataImport')
@@ -924,22 +943,18 @@ describe('ProjectCreationWizard', () => {
       // Step 3: Labeling - select template
       await user.click(screen.getByTestId('project-create-next-button'))
       await waitFor(() => {
-        expect(
-          screen.getByText('Labeling Configuration')
-        ).toBeInTheDocument()
+        expect(screen.getByText('Labeling Configuration')).toBeInTheDocument()
       })
       await user.click(screen.getByText('Question Answering'))
 
       // Step 4: Instructions
       await user.click(screen.getByTestId('project-create-next-button'))
       await waitFor(() => {
-        expect(
-          screen.getByText('Annotation Instructions')
-        ).toBeInTheDocument()
+        expect(screen.getByText('Annotation Instructions')).toBeInTheDocument()
       })
       await user.type(
         screen.getByTestId('wizard-instructions-textarea'),
-        'Please annotate carefully'
+        'Please annotate carefully',
       )
 
       // Step 5: Models
@@ -960,12 +975,18 @@ describe('ProjectCreationWizard', () => {
       await waitFor(() => {
         expect(screen.getByText('Evaluation Setup')).toBeInTheDocument()
       })
-      await user.click(screen.getByTestId('wizard-metric-rouge').querySelector('input[type="checkbox"]')!)
+      await user.click(
+        screen
+          .getByTestId('wizard-metric-rouge')
+          .querySelector('input[type="checkbox"]')!,
+      )
 
       // Step 8: Settings (always last)
       await user.click(screen.getByTestId('project-create-next-button'))
       await waitFor(() => {
-        expect(screen.getByTestId('project-create-submit-button')).toBeInTheDocument()
+        expect(
+          screen.getByTestId('project-create-submit-button'),
+        ).toBeInTheDocument()
       })
 
       // Create
@@ -976,7 +997,7 @@ describe('ProjectCreationWizard', () => {
           expect.objectContaining({
             title: 'Full Project',
             label_config: expect.stringContaining('TextArea'),
-          })
+          }),
         )
       })
 
@@ -991,7 +1012,7 @@ describe('ProjectCreationWizard', () => {
                 models: ['gpt-4'],
               }),
             }),
-          })
+          }),
         )
       })
 
@@ -1003,7 +1024,7 @@ describe('ProjectCreationWizard', () => {
             evaluation_configs: expect.arrayContaining([
               expect.objectContaining({ metric: 'rouge' }),
             ]),
-          })
+          }),
         )
       })
 
@@ -1018,15 +1039,14 @@ describe('ProjectCreationWizard', () => {
 
       render(<ProjectCreationWizard />)
 
-      await user.type(
-        screen.getByTestId('project-create-name-input'),
-        'Test'
-      )
+      await user.type(screen.getByTestId('project-create-name-input'), 'Test')
 
       // Navigate to Settings (last step)
       await user.click(screen.getByTestId('project-create-next-button'))
       await waitFor(() => {
-        expect(screen.getByTestId('project-create-submit-button')).toBeInTheDocument()
+        expect(
+          screen.getByTestId('project-create-submit-button'),
+        ).toBeInTheDocument()
       })
       await user.click(screen.getByTestId('project-create-submit-button'))
 
@@ -1045,10 +1065,7 @@ describe('ProjectCreationWizard', () => {
 
       render(<ProjectCreationWizard />)
 
-      await user.type(
-        screen.getByTestId('project-create-name-input'),
-        'Test'
-      )
+      await user.type(screen.getByTestId('project-create-name-input'), 'Test')
       await enableFeature(user, 'dataImport')
 
       await user.click(screen.getByTestId('project-create-next-button'))
@@ -1058,7 +1075,7 @@ describe('ProjectCreationWizard', () => {
 
       await user.click(screen.getByText('Paste'))
       const textarea = await screen.findByTestId(
-        'project-create-paste-data-textarea'
+        'project-create-paste-data-textarea',
       )
       await user.click(textarea)
       await user.paste('{"text": "test"}')
@@ -1066,14 +1083,16 @@ describe('ProjectCreationWizard', () => {
       // Navigate to Settings (last step)
       await user.click(screen.getByTestId('project-create-next-button'))
       await waitFor(() => {
-        expect(screen.getByTestId('project-create-submit-button')).toBeInTheDocument()
+        expect(
+          screen.getByTestId('project-create-submit-button'),
+        ).toBeInTheDocument()
       })
 
       await user.click(screen.getByTestId('project-create-submit-button'))
 
       await waitFor(() => {
         expect(mockToastError).toHaveBeenCalledWith(
-          expect.stringContaining('Failed to import data')
+          expect.stringContaining('Failed to import data'),
         )
       })
 
@@ -1092,16 +1111,14 @@ describe('ProjectCreationWizard', () => {
       // Step 1: fill data and enable annotation
       await user.type(
         screen.getByTestId('project-create-name-input'),
-        'Nav Test'
+        'Nav Test',
       )
       await enableFeature(user, 'annotation')
 
       // Go to step 2 (labeling)
       await user.click(screen.getByTestId('project-create-next-button'))
       await waitFor(() => {
-        expect(
-          screen.getByText('Labeling Configuration')
-        ).toBeInTheDocument()
+        expect(screen.getByText('Labeling Configuration')).toBeInTheDocument()
       })
 
       // Select template
@@ -1111,23 +1128,19 @@ describe('ProjectCreationWizard', () => {
       // Go to step 3 (instructions)
       await user.click(screen.getByTestId('project-create-next-button'))
       await waitFor(() => {
-        expect(
-          screen.getByText('Annotation Instructions')
-        ).toBeInTheDocument()
+        expect(screen.getByText('Annotation Instructions')).toBeInTheDocument()
       })
 
       // Type instructions
       await user.type(
         screen.getByTestId('wizard-instructions-textarea'),
-        'Some instructions'
+        'Some instructions',
       )
 
       // Go back to step 2
       await user.click(screen.getByTestId('project-create-back-button'))
       await waitFor(() => {
-        expect(
-          screen.getByText('Labeling Configuration')
-        ).toBeInTheDocument()
+        expect(screen.getByText('Labeling Configuration')).toBeInTheDocument()
       })
 
       // Template should still be selected
@@ -1136,22 +1149,20 @@ describe('ProjectCreationWizard', () => {
       // Go back to step 1
       await user.click(screen.getByTestId('project-create-back-button'))
       expect(screen.getByTestId('project-create-name-input')).toHaveValue(
-        'Nav Test'
+        'Nav Test',
       )
 
       // Go forward to step 3 again
       await user.click(screen.getByTestId('project-create-next-button'))
       await user.click(screen.getByTestId('project-create-next-button'))
       await waitFor(() => {
-        expect(
-          screen.getByText('Annotation Instructions')
-        ).toBeInTheDocument()
+        expect(screen.getByText('Annotation Instructions')).toBeInTheDocument()
       })
 
       // Instructions should be preserved
-      expect(
-        screen.getByTestId('wizard-instructions-textarea')
-      ).toHaveValue('Some instructions')
+      expect(screen.getByTestId('wizard-instructions-textarea')).toHaveValue(
+        'Some instructions',
+      )
     })
   })
 })

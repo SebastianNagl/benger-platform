@@ -24,7 +24,8 @@ const translations: Record<string, string> = {
   'completeProfile.loading': 'Loading profile...',
   'completeProfile.title': 'Complete Your Profile',
   'completeProfile.welcome': 'Welcome to BenGER!',
-  'completeProfile.description': 'Please set up your username and password to continue.',
+  'completeProfile.description':
+    'Please set up your username and password to continue.',
   'completeProfile.username': 'Username',
   'completeProfile.usernamePlaceholder': 'Enter username',
   'completeProfile.displayName': 'Display Name (Optional)',
@@ -40,8 +41,10 @@ const translations: Record<string, string> = {
   'completeProfile.failedToCheck': 'Failed to check profile status',
   'completeProfile.failedToComplete': 'Failed to complete profile setup',
   'completeProfile.alreadyCompleted': 'Profile already completed.',
-  'completeProfile.notice': 'Completing your profile will gain full access to your organization\'s projects and collaboration features.',
-  'completeProfile.organizationAccess': 'You will have access to your organization after completing your profile.',
+  'completeProfile.notice':
+    "Completing your profile will gain full access to your organization's projects and collaboration features.",
+  'completeProfile.organizationAccess':
+    'You will have access to your organization after completing your profile.',
 }
 
 describe('CompleteProfilePage', () => {
@@ -102,7 +105,7 @@ describe('CompleteProfilePage', () => {
         expect(screen.getByText('Complete Your Profile')).toBeInTheDocument()
         expect(screen.getByLabelText('Username')).toBeInTheDocument()
         expect(
-          screen.getByLabelText('Display Name (Optional)')
+          screen.getByLabelText('Display Name (Optional)'),
         ).toBeInTheDocument()
         expect(screen.getByLabelText('Password')).toBeInTheDocument()
         expect(screen.getByLabelText('Confirm Password')).toBeInTheDocument()
@@ -121,10 +124,10 @@ describe('CompleteProfilePage', () => {
 
       await waitFor(() => {
         const usernameInput = screen.getByLabelText(
-          'Username'
+          'Username',
         ) as HTMLInputElement
         const nameInput = screen.getByLabelText(
-          'Display Name (Optional)'
+          'Display Name (Optional)',
         ) as HTMLInputElement
 
         expect(usernameInput.value).toBe('inviteduser')
@@ -145,7 +148,7 @@ describe('CompleteProfilePage', () => {
       await waitFor(() => {
         expect(screen.getByText('Welcome to BenGER!')).toBeInTheDocument()
         expect(
-          screen.getByText(/Please set up your username and password/i)
+          screen.getByText(/Please set up your username and password/i),
         ).toBeInTheDocument()
       })
     })
@@ -207,7 +210,7 @@ describe('CompleteProfilePage', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('Failed to check profile status')
+          screen.getByText('Failed to check profile status'),
         ).toBeInTheDocument()
       })
 
@@ -226,7 +229,7 @@ describe('CompleteProfilePage', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText(/Profile already completed/i)
+          screen.getByText(/Profile already completed/i),
         ).toBeInTheDocument()
       })
     })
@@ -271,7 +274,7 @@ describe('CompleteProfilePage', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('Password must be at least 8 characters')
+          screen.getByText('Password must be at least 8 characters'),
         ).toBeInTheDocument()
       })
 
@@ -282,7 +285,7 @@ describe('CompleteProfilePage', () => {
       expect(screen.getByLabelText('Username')).toHaveAttribute('required')
       expect(screen.getByLabelText('Password')).toHaveAttribute('required')
       expect(screen.getByLabelText('Confirm Password')).toHaveAttribute(
-        'required'
+        'required',
       )
     })
 
@@ -290,16 +293,16 @@ describe('CompleteProfilePage', () => {
       const user = userEvent.setup()
 
       const usernameInput = screen.getByLabelText(
-        'Username'
+        'Username',
       ) as HTMLInputElement
       const nameInput = screen.getByLabelText(
-        'Display Name (Optional)'
+        'Display Name (Optional)',
       ) as HTMLInputElement
       const passwordInput = screen.getByLabelText(
-        'Password'
+        'Password',
       ) as HTMLInputElement
       const confirmPasswordInput = screen.getByLabelText(
-        'Confirm Password'
+        'Confirm Password',
       ) as HTMLInputElement
 
       await user.clear(usernameInput)
@@ -346,7 +349,7 @@ describe('CompleteProfilePage', () => {
       await user.type(screen.getByLabelText('Password'), 'newpassword123')
       await user.type(
         screen.getByLabelText('Confirm Password'),
-        'newpassword123'
+        'newpassword123',
       )
       await user.click(screen.getByText('Complete Profile Setup'))
 
@@ -370,14 +373,14 @@ describe('CompleteProfilePage', () => {
       })
 
       const nameInput = screen.getByLabelText(
-        'Display Name (Optional)'
+        'Display Name (Optional)',
       ) as HTMLInputElement
       await user.clear(nameInput)
 
       await user.type(screen.getByLabelText('Password'), 'newpassword123')
       await user.type(
         screen.getByLabelText('Confirm Password'),
-        'newpassword123'
+        'newpassword123',
       )
       await user.click(screen.getByText('Complete Profile Setup'))
 
@@ -397,13 +400,13 @@ describe('CompleteProfilePage', () => {
       mockApiPost.mockReturnValue(
         new Promise((resolve) => {
           resolvePost = resolve
-        })
+        }),
       )
 
       await user.type(screen.getByLabelText('Password'), 'newpassword123')
       await user.type(
         screen.getByLabelText('Confirm Password'),
-        'newpassword123'
+        'newpassword123',
       )
 
       const submitButton = screen.getByText('Complete Profile Setup')
@@ -431,7 +434,7 @@ describe('CompleteProfilePage', () => {
       await user.type(screen.getByLabelText('Password'), 'newpassword123')
       await user.type(
         screen.getByLabelText('Confirm Password'),
-        'newpassword123'
+        'newpassword123',
       )
       await user.click(screen.getByText('Complete Profile Setup'))
 
@@ -453,7 +456,7 @@ describe('CompleteProfilePage', () => {
       await user.type(screen.getByLabelText('Password'), 'newpassword123')
       await user.type(
         screen.getByLabelText('Confirm Password'),
-        'newpassword123'
+        'newpassword123',
       )
       await user.click(screen.getByText('Complete Profile Setup'))
 
@@ -474,7 +477,7 @@ describe('CompleteProfilePage', () => {
       await user.type(screen.getByLabelText('Password'), 'newpassword123')
       await user.type(
         screen.getByLabelText('Confirm Password'),
-        'newpassword123'
+        'newpassword123',
       )
       await user.click(screen.getByText('Complete Profile Setup'))
 
@@ -517,7 +520,7 @@ describe('CompleteProfilePage', () => {
       await user.type(screen.getByLabelText('Password'), 'newpassword123')
       await user.type(
         screen.getByLabelText('Confirm Password'),
-        'newpassword123'
+        'newpassword123',
       )
       await user.click(screen.getByText('Complete Profile Setup'))
 
@@ -539,13 +542,13 @@ describe('CompleteProfilePage', () => {
       await user.type(screen.getByLabelText('Password'), 'newpassword123')
       await user.type(
         screen.getByLabelText('Confirm Password'),
-        'newpassword123'
+        'newpassword123',
       )
       await user.click(screen.getByText('Complete Profile Setup'))
 
       await waitFor(() => {
         expect(
-          screen.getByText('Failed to complete profile setup')
+          screen.getByText('Failed to complete profile setup'),
         ).toBeInTheDocument()
       })
 
@@ -569,7 +572,7 @@ describe('CompleteProfilePage', () => {
       await user.type(screen.getByLabelText('Password'), 'newpassword123')
       await user.type(
         screen.getByLabelText('Confirm Password'),
-        'newpassword123'
+        'newpassword123',
       )
       await user.click(screen.getByText('Complete Profile Setup'))
 
@@ -611,10 +614,10 @@ describe('CompleteProfilePage', () => {
 
       // Retry
       const passwordInput = screen.getByLabelText(
-        'Password'
+        'Password',
       ) as HTMLInputElement
       const confirmPasswordInput = screen.getByLabelText(
-        'Confirm Password'
+        'Confirm Password',
       ) as HTMLInputElement
 
       await user.clear(passwordInput)
@@ -650,7 +653,7 @@ describe('CompleteProfilePage', () => {
     it('should have proper form labels', () => {
       expect(screen.getByLabelText('Username')).toBeInTheDocument()
       expect(
-        screen.getByLabelText('Display Name (Optional)')
+        screen.getByLabelText('Display Name (Optional)'),
       ).toBeInTheDocument()
       expect(screen.getByLabelText('Password')).toBeInTheDocument()
       expect(screen.getByLabelText('Confirm Password')).toBeInTheDocument()
@@ -659,38 +662,38 @@ describe('CompleteProfilePage', () => {
     it('should have proper autocomplete attributes', () => {
       expect(screen.getByLabelText('Username')).toHaveAttribute(
         'autocomplete',
-        'username'
+        'username',
       )
       expect(screen.getByLabelText('Display Name (Optional)')).toHaveAttribute(
         'autocomplete',
-        'name'
+        'name',
       )
       expect(screen.getByLabelText('Password')).toHaveAttribute(
         'autocomplete',
-        'new-password'
+        'new-password',
       )
       expect(screen.getByLabelText('Confirm Password')).toHaveAttribute(
         'autocomplete',
-        'new-password'
+        'new-password',
       )
     })
 
     it('should have proper field IDs', () => {
       expect(screen.getByLabelText('Username')).toHaveAttribute(
         'id',
-        'username'
+        'username',
       )
       expect(screen.getByLabelText('Display Name (Optional)')).toHaveAttribute(
         'id',
-        'name'
+        'name',
       )
       expect(screen.getByLabelText('Password')).toHaveAttribute(
         'id',
-        'password'
+        'password',
       )
       expect(screen.getByLabelText('Confirm Password')).toHaveAttribute(
         'id',
-        'confirmPassword'
+        'confirmPassword',
       )
     })
   })
@@ -713,7 +716,7 @@ describe('CompleteProfilePage', () => {
 
     it('should show organization access message', () => {
       expect(
-        screen.getByText(/gain full access to your organization's projects/i)
+        screen.getByText(/gain full access to your organization's projects/i),
       ).toBeInTheDocument()
     })
 
@@ -724,11 +727,11 @@ describe('CompleteProfilePage', () => {
     it('should have password field type', () => {
       expect(screen.getByLabelText('Password')).toHaveAttribute(
         'type',
-        'password'
+        'password',
       )
       expect(screen.getByLabelText('Confirm Password')).toHaveAttribute(
         'type',
-        'password'
+        'password',
       )
     })
   })
@@ -748,7 +751,7 @@ describe('CompleteProfilePage', () => {
       render(<CompleteProfilePage />)
 
       expect(
-        screen.queryByText('Complete Your Profile')
+        screen.queryByText('Complete Your Profile'),
       ).not.toBeInTheDocument()
     })
   })

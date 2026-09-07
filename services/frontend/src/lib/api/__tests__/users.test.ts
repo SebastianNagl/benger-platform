@@ -149,7 +149,7 @@ describe('UsersClient', () => {
       const mockRequest = jest.spyOn(client as any, 'request')
       await client.getAllUsers({ search: 'alice' })
       expect(mockRequest).toHaveBeenCalledWith(
-        expect.stringMatching(/^\/organizations\/manage\/users\?search=alice$/)
+        expect.stringMatching(/^\/organizations\/manage\/users\?search=alice$/),
       )
     })
 
@@ -157,7 +157,7 @@ describe('UsersClient', () => {
       const mockRequest = jest.spyOn(client as any, 'request')
       await client.getAllUsers({ limit: 200 })
       expect(mockRequest).toHaveBeenCalledWith(
-        expect.stringMatching(/^\/organizations\/manage\/users\?limit=200$/)
+        expect.stringMatching(/^\/organizations\/manage\/users\?limit=200$/),
       )
     })
 
@@ -210,7 +210,7 @@ describe('UsersClient', () => {
         {
           method: 'PUT',
           body: JSON.stringify({ is_superadmin: true }),
-        }
+        },
       )
     })
   })
@@ -226,7 +226,7 @@ describe('UsersClient', () => {
     it('should convert superadmin role to boolean', async () => {
       const mockUpdateSuperadmin = jest.spyOn(
         client,
-        'updateUserSuperadminStatus'
+        'updateUserSuperadminStatus',
       )
       await client.updateUserRole('user-1', 'superadmin')
 
@@ -236,7 +236,7 @@ describe('UsersClient', () => {
     it('should convert non-superadmin role to false', async () => {
       const mockUpdateSuperadmin = jest.spyOn(
         client,
-        'updateUserSuperadminStatus'
+        'updateUserSuperadminStatus',
       )
       await client.updateUserRole('user-1', 'user')
 
@@ -285,7 +285,7 @@ describe('UsersClient', () => {
         '/organizations/manage/users/user-1',
         {
           method: 'DELETE',
-        }
+        },
       )
     })
   })
@@ -325,7 +325,7 @@ describe('UsersClient', () => {
         .mockRejectedValue(new Error('HTTP error! status: 403'))
 
       await expect(
-        client.updateUserSuperadminStatus('user-1', true)
+        client.updateUserSuperadminStatus('user-1', true),
       ).rejects.toThrow('HTTP error! status: 403')
     })
 
@@ -335,7 +335,7 @@ describe('UsersClient', () => {
         .mockRejectedValue(new Error('HTTP error! status: 404'))
 
       await expect(client.deleteUser('nonexistent-user')).rejects.toThrow(
-        'HTTP error! status: 404'
+        'HTTP error! status: 404',
       )
     })
   })

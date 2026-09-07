@@ -2,8 +2,8 @@
  * JsonViewer component for displaying JSON data in a tree-like structure
  */
 
-import type { JSX } from 'react'
 import { ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline'
+import type { JSX } from 'react'
 import { useState } from 'react'
 
 interface JsonViewerProps {
@@ -20,7 +20,7 @@ export function JsonViewer({
   maxDepth = 10,
 }: JsonViewerProps) {
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(
-    new Set(expanded ? ['root'] : [])
+    new Set(expanded ? ['root'] : []),
   )
 
   const toggleNode = (path: string) => {
@@ -92,7 +92,7 @@ export function JsonViewer({
             <span className="ml-1">Array[{value.length}]</span>
           </button>
           {isExpanded && depth < maxDepth && (
-            <div className="ml-4 mt-1">
+            <div className="mt-1 ml-4">
               {value.map((item, i) => (
                 <div key={i} className="my-1">
                   <span className="mr-2 text-gray-500">{i}:</span>
@@ -128,7 +128,7 @@ export function JsonViewer({
             <span className="ml-1">Object{`{${keys.length}}`}</span>
           </button>
           {isExpanded && depth < maxDepth && (
-            <div className="ml-4 mt-1">
+            <div className="mt-1 ml-4">
               {keys.map((key) => (
                 <div key={key} className="my-1">
                   <span className="font-medium text-gray-700">{key}:</span>{' '}

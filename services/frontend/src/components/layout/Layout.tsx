@@ -41,7 +41,6 @@ export function Layout({
     if (isHydrated) {
       // Small delay to ensure layout is stable before enabling animations
       const timer = setTimeout(() => {
-
         setIsInitialRender(false)
       }, 100)
       return () => clearTimeout(timer)
@@ -92,7 +91,7 @@ export function Layout({
           suppressHydrationWarning
         >
           <motion.div
-            className="lg:pointer-events-auto lg:w-64 lg:overflow-y-auto lg:border-r lg:border-zinc-900/10 lg:bg-white lg:px-6 lg:pb-8 lg:pt-4 lg:dark:border-white/10 lg:dark:bg-zinc-900 xl:w-72 2xl:w-80"
+            className="lg:pointer-events-auto lg:w-64 lg:overflow-y-auto lg:border-r lg:border-zinc-900/10 lg:bg-white lg:px-6 lg:pt-4 lg:pb-8 xl:w-72 2xl:w-80 lg:dark:border-white/10 lg:dark:bg-zinc-900"
             initial={false}
             animate={{
               x: showSidebar ? 0 : -320,

@@ -39,7 +39,7 @@ describe('Alert', () => {
   it('applies custom className', () => {
     const customClass = 'custom-alert-class'
     const { container } = render(
-      <Alert className={customClass}>{defaultText}</Alert>
+      <Alert className={customClass}>{defaultText}</Alert>,
     )
     const alertElement = container.firstChild as HTMLElement
     expect(alertElement).toHaveClass(customClass)
@@ -50,7 +50,7 @@ describe('Alert', () => {
       <Alert>
         <h3>Alert Title</h3>
         <p>Alert description</p>
-      </Alert>
+      </Alert>,
     )
     expect(screen.getByText('Alert Title')).toBeInTheDocument()
     expect(screen.getByText('Alert description')).toBeInTheDocument()
@@ -66,16 +66,16 @@ describe('Alert', () => {
 
   it('renders different icons for different variants', () => {
     const { container: infoContainer } = render(
-      <Alert variant="info">Info</Alert>
+      <Alert variant="info">Info</Alert>,
     )
     const { container: successContainer } = render(
-      <Alert variant="success">Success</Alert>
+      <Alert variant="success">Success</Alert>,
     )
     const { container: warningContainer } = render(
-      <Alert variant="warning">Warning</Alert>
+      <Alert variant="warning">Warning</Alert>,
     )
     const { container: errorContainer } = render(
-      <Alert variant="error">Error</Alert>
+      <Alert variant="error">Error</Alert>,
     )
 
     // Each variant should have an icon
@@ -87,25 +87,25 @@ describe('Alert', () => {
 
   it('applies correct icon colors for each variant', () => {
     const { container: infoContainer } = render(
-      <Alert variant="info">Info</Alert>
+      <Alert variant="info">Info</Alert>,
     )
     const infoIcon = infoContainer.querySelector('svg')
     expect(infoIcon).toHaveClass('text-blue-600')
 
     const { container: successContainer } = render(
-      <Alert variant="success">Success</Alert>
+      <Alert variant="success">Success</Alert>,
     )
     const successIcon = successContainer.querySelector('svg')
     expect(successIcon).toHaveClass('text-green-600')
 
     const { container: warningContainer } = render(
-      <Alert variant="warning">Warning</Alert>
+      <Alert variant="warning">Warning</Alert>,
     )
     const warningIcon = warningContainer.querySelector('svg')
     expect(warningIcon).toHaveClass('text-amber-600')
 
     const { container: errorContainer } = render(
-      <Alert variant="error">Error</Alert>
+      <Alert variant="error">Error</Alert>,
     )
     const errorIcon = errorContainer.querySelector('svg')
     expect(errorIcon).toHaveClass('text-red-600')

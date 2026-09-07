@@ -98,7 +98,10 @@ export function OperationToast({
     // Navigation disabled - tasks are now accessed through projects
   }
 
-  const typeLabel = type === 'generation' ? t('toasts.operation.generation') : t('toasts.operation.evaluation')
+  const typeLabel =
+    type === 'generation'
+      ? t('toasts.operation.generation')
+      : t('toasts.operation.evaluation')
 
   return (
     <div
@@ -112,12 +115,12 @@ export function OperationToast({
     >
       {/* Status indicator bar */}
       <div
-        className={`absolute left-0 right-0 top-0 h-1 rounded-t-lg ${getStatusColor()}`}
+        className={`absolute top-0 right-0 left-0 h-1 rounded-t-lg ${getStatusColor()}`}
       ></div>
 
       <div className="p-4">
         <div className="flex items-start">
-          <div className="mr-3 mt-0.5 shrink-0">
+          <div className="mt-0.5 mr-3 shrink-0">
             <div
               className={`flex h-8 w-8 items-center justify-center rounded-full ${getStatusColor()}`}
             >

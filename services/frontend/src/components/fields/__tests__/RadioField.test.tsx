@@ -9,7 +9,10 @@ import { RadioField } from '../RadioField'
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
     t: (key: string, varsOrDefault?: any) => {
-      const translations: Record<string, any> = require('../../../locales/en/common.json')
+      const translations: Record<
+        string,
+        any
+      > = require('../../../locales/en/common.json')
       const parts = key.split('.')
       let value: any = translations
       for (const part of parts) {
@@ -66,7 +69,7 @@ jest.mock('@headlessui/react', () => {
         <div onClick={() => !disabled && onChange(value)}>{children}</div>
       </div>
     ),
-    { Option: MockRadioGroupOption }
+    { Option: MockRadioGroupOption },
   )
 
   return {
@@ -159,14 +162,14 @@ describe('RadioField Component', () => {
     it('applies correct styling to "No choices available"', () => {
       const fieldWithoutChoices = { ...defaultField, choices: [] }
       const { container } = render(
-        <RadioField {...defaultProps} field={fieldWithoutChoices} />
+        <RadioField {...defaultProps} field={fieldWithoutChoices} />,
       )
 
       const noChoicesText = screen.getByText('No choices available')
       expect(noChoicesText).toHaveClass(
         'text-sm',
         'text-gray-500',
-        'dark:text-gray-400'
+        'dark:text-gray-400',
       )
     })
   })

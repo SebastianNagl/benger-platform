@@ -30,7 +30,7 @@ describe('HeroPattern Component', () => {
         '-z-10',
         'mx-0',
         'max-w-none',
-        'overflow-hidden'
+        'overflow-hidden',
       )
     })
 
@@ -45,7 +45,7 @@ describe('HeroPattern Component', () => {
         'absolute',
         'left-1/2',
         'top-0',
-        '-ml-152'
+        '-ml-152',
       )
     })
 
@@ -111,7 +111,7 @@ describe('HeroPattern Component', () => {
         'fill-black/40',
         'stroke-black/50',
         'mix-blend-overlay',
-        'dark:stroke-white/5'
+        'dark:stroke-white/5',
       )
     })
 
@@ -149,7 +149,7 @@ describe('HeroPattern Component', () => {
       const gradientDiv = middleDiv.firstChild as HTMLElement
       expect(gradientDiv).toHaveClass(
         'bg-linear-to-r',
-        'mask-[radial-gradient(farthest-side_at_top,white,transparent)]'
+        'mask-[radial-gradient(farthest-side_at_top,white,transparent)]',
       )
     })
 
@@ -176,7 +176,7 @@ describe('HeroPattern Component', () => {
       const gradientDiv = middleDiv.firstChild as HTMLElement
       expect(gradientDiv).toHaveClass(
         'dark:from-[#36b49f]/30',
-        'dark:to-[#DBFF75]/30'
+        'dark:to-[#DBFF75]/30',
       )
     })
 
@@ -216,7 +216,7 @@ describe('HeroPattern Component', () => {
         'absolute',
         'left-1/2',
         'top-0',
-        '-ml-76'
+        '-ml-76',
       )
     })
 

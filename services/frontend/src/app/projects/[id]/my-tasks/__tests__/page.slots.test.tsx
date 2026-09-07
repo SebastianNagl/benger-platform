@@ -26,7 +26,14 @@ const mockToast = { addToast: jest.fn() }
 jest.mock('@/components/shared/Toast', () => ({ useToast: () => mockToast }))
 
 const stableT = (k: string) => k
-const task = { id: 't1', inner_id: 1, is_labeled: true, has_evaluation: true, has_feedback: false, assignment: null }
+const task = {
+  id: 't1',
+  inner_id: 1,
+  is_labeled: true,
+  has_evaluation: true,
+  has_feedback: false,
+  assignment: null,
+}
 
 describe('MyTasksPage — extended slots', () => {
   beforeEach(() => {
@@ -40,7 +47,14 @@ describe('MyTasksPage — extended slots', () => {
     })
     global.fetch = jest.fn().mockResolvedValue({
       ok: true,
-      json: () => Promise.resolve({ tasks: [task], total: 1, page: 1, page_size: 20, pages: 1 }),
+      json: () =>
+        Promise.resolve({
+          tasks: [task],
+          total: 1,
+          page: 1,
+          page_size: 20,
+          pages: 1,
+        }),
     }) as any
   })
   afterEach(() => {
@@ -51,12 +65,17 @@ describe('MyTasksPage — extended slots', () => {
 
   it('renders the result card with tasks and opens the review modal via onOpenReview', async () => {
     const Card = jest.fn(({ tasks, onOpenReview }: any) => (
-      <button data-testid="result-card" onClick={() => onOpenReview(tasks[0].id)}>
+      <button
+        data-testid="result-card"
+        onClick={() => onOpenReview(tasks[0].id)}
+      >
         {tasks.length}
       </button>
     ))
     registerSlot('MyTasksResultCard', Card)
-    registerSlot('MyTaskEvaluationModal', ({ taskId }: any) => <div data-testid="review-modal">{taskId}</div>)
+    registerSlot('MyTaskEvaluationModal', ({ taskId }: any) => (
+      <div data-testid="review-modal">{taskId}</div>
+    ))
     render(<MyTasksPage />)
     expect(await screen.findByTestId('result-card')).toHaveTextContent('1')
     expect(Card.mock.calls[0][0].projectId).toBe('proj-1')
@@ -65,14 +84,18 @@ describe('MyTasksPage — extended slots', () => {
   })
 
   it('renders row actions inside the row without triggering the row click', async () => {
-    registerSlot('MyTaskRowActions', ({ task }: any) => <button data-testid="row-action">{task.id}</button>)
+    registerSlot('MyTaskRowActions', ({ task }: any) => (
+      <button data-testid="row-action">{task.id}</button>
+    ))
     const Modal = jest.fn(() => <div data-testid="review-modal" />)
     registerSlot('MyTaskEvaluationModal', Modal)
     render(<MyTasksPage />)
     const action = await screen.findByTestId('row-action')
     expect(action).toHaveTextContent('t1')
     fireEvent.click(action)
-    await waitFor(() => expect(screen.queryByTestId('review-modal')).not.toBeInTheDocument())
+    await waitFor(() =>
+      expect(screen.queryByTestId('review-modal')).not.toBeInTheDocument(),
+    )
     fireEvent.click(screen.getByTestId('my-task-item'))
     expect(await screen.findByTestId('review-modal')).toBeInTheDocument()
   })

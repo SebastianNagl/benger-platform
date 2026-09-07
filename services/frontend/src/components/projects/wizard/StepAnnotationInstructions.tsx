@@ -23,7 +23,7 @@ interface StepAnnotationInstructionsProps {
   showSkipButton: boolean
   onInstructionsChange: (instructions: string) => void
   onConditionalInstructionsChange: (
-    conditionalInstructions: ConditionalInstruction[]
+    conditionalInstructions: ConditionalInstruction[],
   ) => void
   onShowInstructionChange: (val: boolean) => void
   onInstructionsAlwaysVisibleChange: (val: boolean) => void
@@ -44,12 +44,12 @@ export function StepAnnotationInstructions({
 }: StepAnnotationInstructionsProps) {
   const { t } = useI18n()
   const [showVariants, setShowVariants] = useState(
-    conditionalInstructions.length > 0
+    conditionalInstructions.length > 0,
   )
 
   const weightSum = conditionalInstructions.reduce(
     (sum, v) => sum + v.weight,
-    0
+    0,
   )
   const hasWeightError =
     conditionalInstructions.length > 0 && Math.abs(weightSum - 100) > 0.01
@@ -68,14 +68,14 @@ export function StepAnnotationInstructions({
 
   const removeVariant = (index: number) => {
     onConditionalInstructionsChange(
-      conditionalInstructions.filter((_, i) => i !== index)
+      conditionalInstructions.filter((_, i) => i !== index),
     )
   }
 
   const updateVariant = (
     index: number,
     field: keyof ConditionalInstruction,
-    value: string | number | boolean
+    value: string | number | boolean,
   ) => {
     const updated = [...conditionalInstructions]
     updated[index] = { ...updated[index], [field]: value }
@@ -101,7 +101,7 @@ export function StepAnnotationInstructions({
           <Textarea
             id="instructions"
             placeholder={t(
-              'projects.creation.wizard.step4.instructionsPlaceholder'
+              'projects.creation.wizard.step4.instructionsPlaceholder',
             )}
             value={instructions}
             onChange={(e) => onInstructionsChange(e.target.value)}
@@ -144,7 +144,8 @@ export function StepAnnotationInstructions({
                   >
                     <div className="mb-3 flex items-center justify-between">
                       <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                        {t('projects.creation.wizard.step4.variant')} {index + 1}
+                        {t('projects.creation.wizard.step4.variant')}{' '}
+                        {index + 1}
                       </span>
                       <Button
                         variant="outline"
@@ -185,7 +186,7 @@ export function StepAnnotationInstructions({
                                 updateVariant(
                                   index,
                                   'weight',
-                                  Number(e.target.value)
+                                  Number(e.target.value),
                                 )
                               }
                               className="text-sm"
@@ -207,7 +208,7 @@ export function StepAnnotationInstructions({
                           rows={3}
                           className="text-sm"
                           placeholder={t(
-                            'projects.creation.wizard.step4.variantContentPlaceholder'
+                            'projects.creation.wizard.step4.variantContentPlaceholder',
                           )}
                         />
                       </div>
@@ -220,11 +221,7 @@ export function StepAnnotationInstructions({
                           type="checkbox"
                           checked={variant.ai_allowed ?? false}
                           onChange={(e) =>
-                            updateVariant(
-                              index,
-                              'ai_allowed',
-                              e.target.checked
-                            )
+                            updateVariant(index, 'ai_allowed', e.target.checked)
                           }
                           className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
                         />
@@ -288,7 +285,9 @@ export function StepAnnotationInstructions({
             <input
               type="checkbox"
               checked={instructionsAlwaysVisible}
-              onChange={(e) => onInstructionsAlwaysVisibleChange(e.target.checked)}
+              onChange={(e) =>
+                onInstructionsAlwaysVisibleChange(e.target.checked)
+              }
               className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
             />
           </div>

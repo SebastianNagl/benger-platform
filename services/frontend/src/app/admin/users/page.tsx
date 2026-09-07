@@ -1,10 +1,15 @@
 'use client'
 
 import { EmailVerificationModal } from '@/components/admin/EmailVerificationModal'
-import { logger } from '@/lib/utils/logger'
 import { Breadcrumb } from '@/components/shared/Breadcrumb'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/shared/Select'
 import { ResponsiveContainer } from '@/components/shared/ResponsiveContainer'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/shared/Select'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { useDeleteConfirm, useErrorAlert } from '@/hooks/useDialogs'
@@ -17,6 +22,7 @@ import {
 } from '@/lib/api'
 import { InvitationDetails } from '@/lib/api/invitations'
 import { organizationsAPI } from '@/lib/api/organizations'
+import { logger } from '@/lib/utils/logger'
 import {
   BuildingOfficeIcon,
   CheckCircleIcon,
@@ -79,7 +85,7 @@ export default function AdminUsersPage() {
   const [deletingUser, setDeletingUser] = useState<string | null>(null)
   const [orgUpdateLoading, setOrgUpdateLoading] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(
-    null
+    null,
   )
 
   // Email verification states
@@ -121,7 +127,9 @@ export default function AdminUsersPage() {
       setUsers(data)
     } catch (error) {
       const errorMessage =
-        error instanceof Error ? error.message : t('admin.usersPage.failedToLoadUsers')
+        error instanceof Error
+          ? error.message
+          : t('admin.usersPage.failedToLoadUsers')
       setError(errorMessage)
     } finally {
       setLoading(false)
@@ -164,36 +172,44 @@ export default function AdminUsersPage() {
                   email_verified: true,
                   email_verification_method: 'admin' as const,
                 }
-              : u
-          )
+              : u,
+          ),
         )
       } else {
         // Refresh organization members
         await loadOrganizationData()
       }
 
-      showError(t('admin.usersPage.emailVerifiedSuccess'), t('admin.usersPage.successTitle'))
+      showError(
+        t('admin.usersPage.emailVerifiedSuccess'),
+        t('admin.usersPage.successTitle'),
+      )
     } catch (error) {
-      showError(t('admin.usersPage.emailVerifyFailed'), t('admin.usersPage.errorTitle'))
+      showError(
+        t('admin.usersPage.emailVerifyFailed'),
+        t('admin.usersPage.errorTitle'),
+      )
     }
   }
 
   const handleSuperadminChange = async (
     userId: string,
-    isSuperadmin: boolean
+    isSuperadmin: boolean,
   ) => {
     setUpdatingUser(userId)
     try {
       const updatedUser = await api.updateUserSuperadminStatus(
         userId,
-        isSuperadmin
+        isSuperadmin,
       )
       logger.debug('Updated user response:', updatedUser)
 
       // Ensure the updated user has all required fields
       if (updatedUser && updatedUser.id) {
         setUsers((prevUsers) =>
-          prevUsers.map((u) => (u.id === userId ? { ...u, ...updatedUser } : u))
+          prevUsers.map((u) =>
+            u.id === userId ? { ...u, ...updatedUser } : u,
+          ),
         )
       } else {
         console.error('Invalid user response:', updatedUser)
@@ -222,7 +238,9 @@ export default function AdminUsersPage() {
       setShowDeleteConfirm(null)
     } catch (error) {
       const errorMessage =
-        error instanceof Error ? error.message : t('admin.usersPage.failedToDeleteUser')
+        error instanceof Error
+          ? error.message
+          : t('admin.usersPage.failedToDeleteUser')
       setError(errorMessage)
     } finally {
       setDeletingUser(null)
@@ -231,7 +249,10 @@ export default function AdminUsersPage() {
 
   const handleBulkVerifyEmails = async () => {
     if (selectedUsers.length === 0) {
-      showError(t('admin.usersPage.pleaseSelectUsers'), t('admin.usersPage.selectionRequired'))
+      showError(
+        t('admin.usersPage.pleaseSelectUsers'),
+        t('admin.usersPage.selectionRequired'),
+      )
       return
     }
 
@@ -241,18 +262,21 @@ export default function AdminUsersPage() {
     if (!orgId && isSuperAdmin && activeTab === 'users') {
       // Try to use TUM organization as default for superadmin actions
       const tumOrg = organizations?.find(
-        (org) => org.slug === 'tum' || org.name.toLowerCase().includes('tum')
+        (org) => org.slug === 'tum' || org.name.toLowerCase().includes('tum'),
       )
       orgId = tumOrg?.id || organizations?.[0]?.id
 
       if (!orgId) {
-        showError(t('admin.usersPage.noOrgsAvailable'), t('admin.usersPage.orgRequired'))
+        showError(
+          t('admin.usersPage.noOrgsAvailable'),
+          t('admin.usersPage.orgRequired'),
+        )
         return
       }
     } else if (!orgId) {
       showError(
         t('admin.usersPage.pleaseSelectOrg'),
-        t('admin.usersPage.noOrgSelected')
+        t('admin.usersPage.noOrgSelected'),
       )
       return
     }
@@ -261,7 +285,7 @@ export default function AdminUsersPage() {
       const result = await organizationsAPI.bulkVerifyMemberEmails(
         orgId,
         selectedUsers,
-        t('admin.usersPage.bulkVerifyReason')
+        t('admin.usersPage.bulkVerifyReason'),
       )
 
       // Update local state for successfully verified users
@@ -277,8 +301,8 @@ export default function AdminUsersPage() {
                 email_verified: true,
                 email_verification_method: 'admin' as const,
               }
-            : u
-        )
+            : u,
+        ),
       )
 
       setSelectedUsers([])
@@ -290,10 +314,13 @@ export default function AdminUsersPage() {
           skipped: result.summary.skipped,
           errors: result.summary.errors,
         }),
-        t('admin.usersPage.bulkVerifyComplete')
+        t('admin.usersPage.bulkVerifyComplete'),
       )
     } catch (error) {
-      showError(t('admin.usersPage.bulkVerifyFailed'), t('admin.usersPage.bulkVerifyError'))
+      showError(
+        t('admin.usersPage.bulkVerifyFailed'),
+        t('admin.usersPage.bulkVerifyError'),
+      )
     }
   }
 
@@ -319,7 +346,7 @@ export default function AdminUsersPage() {
       console.error('Failed to create organization:', error)
       showError(
         t('admin.users.createOrg.failed'),
-        t('admin.usersPage.orgCreationFailed')
+        t('admin.usersPage.orgCreationFailed'),
       )
     }
   }
@@ -341,13 +368,16 @@ export default function AdminUsersPage() {
       await loadOrganizationData()
     } catch (error) {
       console.error('Failed to send invitation:', error)
-      showError(t('admin.users.invite.failed'), t('admin.usersPage.invitationFailed'))
+      showError(
+        t('admin.users.invite.failed'),
+        t('admin.usersPage.invitationFailed'),
+      )
     }
   }
 
   const handleOrgRoleChange = async (
     userId: string,
-    newRole: OrganizationRole
+    newRole: OrganizationRole,
   ) => {
     if (!selectedOrganization) return
 
@@ -356,7 +386,10 @@ export default function AdminUsersPage() {
       await loadOrganizationData()
     } catch (error) {
       console.error('Failed to update member role:', error)
-      showError(t('admin.users.members.updateFailed'), t('admin.usersPage.updateFailed'))
+      showError(
+        t('admin.users.members.updateFailed'),
+        t('admin.usersPage.updateFailed'),
+      )
     }
   }
 
@@ -371,7 +404,10 @@ export default function AdminUsersPage() {
       await loadOrganizationData()
     } catch (error) {
       console.error('Failed to remove member:', error)
-      showError(t('admin.users.members.removeFailed'), t('admin.usersPage.removeMemberFailed'))
+      showError(
+        t('admin.users.members.removeFailed'),
+        t('admin.usersPage.removeMemberFailed'),
+      )
     }
   }
 
@@ -386,7 +422,7 @@ export default function AdminUsersPage() {
       await apiClient.addUserToOrganization(
         selectedOrganization.id,
         selectedUserId,
-        selectedUserRole
+        selectedUserRole,
       )
 
       setSelectedUserId('')
@@ -428,7 +464,7 @@ export default function AdminUsersPage() {
       console.error('Failed to cancel invitation:', error)
       showError(
         t('admin.users.invitations.cancelFailed'),
-        t('admin.usersPage.cancelInvitationFailed')
+        t('admin.usersPage.cancelInvitationFailed'),
       )
     }
   }
@@ -451,7 +487,7 @@ export default function AdminUsersPage() {
         {
           name: editOrgName,
           description: editOrgDescription,
-        }
+        },
       )
 
       setSelectedOrganization(updatedOrg)
@@ -461,7 +497,7 @@ export default function AdminUsersPage() {
       console.error('Failed to update organization:', error)
       showError(
         t('admin.users.orgDetails.updateFailed'),
-        t('admin.usersPage.orgUpdateFailed')
+        t('admin.usersPage.orgUpdateFailed'),
       )
     } finally {
       setOrgUpdateLoading(false)
@@ -483,13 +519,19 @@ export default function AdminUsersPage() {
 
   if (!isSuperAdmin) {
     return (
-      <ResponsiveContainer size="xl" className="pb-10 pt-8">
+      <ResponsiveContainer size="xl" className="pt-8 pb-10">
         {/* Breadcrumb */}
         <div className="mb-4">
           <Breadcrumb
             items={[
-              { label: t('admin.usersPage.breadcrumb.dashboard'), href: '/dashboard' },
-              { label: t('admin.usersPage.breadcrumb.userManagement'), href: '/admin/users' },
+              {
+                label: t('admin.usersPage.breadcrumb.dashboard'),
+                href: '/dashboard',
+              },
+              {
+                label: t('admin.usersPage.breadcrumb.userManagement'),
+                href: '/admin/users',
+              },
             ]}
           />
         </div>
@@ -507,13 +549,19 @@ export default function AdminUsersPage() {
   }
 
   return (
-    <ResponsiveContainer size="xl" className="pb-10 pt-8">
+    <ResponsiveContainer size="xl" className="pt-8 pb-10">
       {/* Breadcrumb */}
       <div className="mb-4">
         <Breadcrumb
           items={[
-            { label: t('admin.usersPage.breadcrumb.dashboard'), href: '/dashboard' },
-            { label: t('admin.usersPage.breadcrumb.userManagement'), href: '/admin/users' },
+            {
+              label: t('admin.usersPage.breadcrumb.dashboard'),
+              href: '/dashboard',
+            },
+            {
+              label: t('admin.usersPage.breadcrumb.userManagement'),
+              href: '/admin/users',
+            },
           ]}
         />
       </div>
@@ -575,8 +623,12 @@ export default function AdminUsersPage() {
             <div className="flex items-center justify-between bg-indigo-50 px-6 py-3 dark:bg-indigo-900/20">
               <span className="text-sm text-indigo-700 dark:text-indigo-300">
                 {selectedUsers.length > 1
-                  ? t('admin.usersPage.usersSelected', { count: selectedUsers.length })
-                  : t('admin.usersPage.userSelected', { count: selectedUsers.length })}
+                  ? t('admin.usersPage.usersSelected', {
+                      count: selectedUsers.length,
+                    })
+                  : t('admin.usersPage.userSelected', {
+                      count: selectedUsers.length,
+                    })}
               </span>
               <div className="flex gap-2">
                 <button
@@ -621,19 +673,19 @@ export default function AdminUsersPage() {
                         className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
                       />
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                    <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                       {t('admin.usersPage.columnUser')}
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                    <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                       {t('admin.usersPage.columnEmail')}
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                    <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                       {t('admin.usersPage.columnEmailVerification')}
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                    <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                       {t('admin.usersPage.columnSuperadminStatus')}
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                    <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                       {t('admin.usersPage.columnActions')}
                     </th>
                   </tr>
@@ -651,14 +703,14 @@ export default function AdminUsersPage() {
                                 setSelectedUsers([...selectedUsers, user.id])
                               } else {
                                 setSelectedUsers(
-                                  selectedUsers.filter((id) => id !== user.id)
+                                  selectedUsers.filter((id) => id !== user.id),
                                 )
                               }
                             }}
                             className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
                           />
                         </td>
-                        <td className="whitespace-nowrap px-6 py-4">
+                        <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
                             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-300 dark:bg-zinc-600">
                               <span className="text-sm font-medium text-zinc-700 dark:text-zinc-200">
@@ -675,10 +727,10 @@ export default function AdminUsersPage() {
                             </div>
                           </div>
                         </td>
-                        <td className="whitespace-nowrap px-6 py-4 text-sm text-zinc-900 dark:text-zinc-100">
+                        <td className="px-6 py-4 text-sm whitespace-nowrap text-zinc-900 dark:text-zinc-100">
                           {user.email}
                         </td>
-                        <td className="whitespace-nowrap px-6 py-4">
+                        <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center gap-2">
                             {user.email_verified ? (
                               <div className="flex items-center gap-1">
@@ -720,7 +772,7 @@ export default function AdminUsersPage() {
                             )}
                           </div>
                         </td>
-                        <td className="whitespace-nowrap px-6 py-4">
+                        <td className="px-6 py-4 whitespace-nowrap">
                           {user.id === currentUser?.id ||
                           updatingUser === user.id ? (
                             <span className="text-sm text-zinc-600 dark:text-zinc-400">
@@ -736,23 +788,33 @@ export default function AdminUsersPage() {
                               onValueChange={(v) =>
                                 handleSuperadminChange(
                                   user.id,
-                                  v === 'superadmin'
+                                  v === 'superadmin',
                                 )
                               }
                               disabled={updatingUser === user.id}
-                              displayValue={user.is_superadmin ? t('admin.usersPage.superadmin') : t('admin.usersPage.regularUser')}
+                              displayValue={
+                                user.is_superadmin
+                                  ? t('admin.usersPage.superadmin')
+                                  : t('admin.usersPage.regularUser')
+                              }
                             >
                               <SelectTrigger>
-                                <SelectValue placeholder={t('admin.usersPage.regularUser')} />
+                                <SelectValue
+                                  placeholder={t('admin.usersPage.regularUser')}
+                                />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="user">{t('admin.usersPage.regularUser')}</SelectItem>
-                                <SelectItem value="superadmin">{t('admin.usersPage.superadmin')}</SelectItem>
+                                <SelectItem value="user">
+                                  {t('admin.usersPage.regularUser')}
+                                </SelectItem>
+                                <SelectItem value="superadmin">
+                                  {t('admin.usersPage.superadmin')}
+                                </SelectItem>
                               </SelectContent>
                             </Select>
                           )}
                         </td>
-                        <td className="whitespace-nowrap px-6 py-4 text-sm font-medium">
+                        <td className="px-6 py-4 text-sm font-medium whitespace-nowrap">
                           {user.id !== currentUser?.id && (
                             <div className="flex space-x-2">
                               <button
@@ -841,7 +903,7 @@ export default function AdminUsersPage() {
               <div className="rounded-lg bg-white p-6 shadow-sm ring-1 ring-zinc-900/5 dark:bg-zinc-900 dark:ring-white/10">
                 <div className="flex items-start justify-between">
                   <div className="flex items-start">
-                    <BuildingOfficeIcon className="mr-3 mt-1 h-8 w-8 text-zinc-400 dark:text-zinc-500" />
+                    <BuildingOfficeIcon className="mt-1 mr-3 h-8 w-8 text-zinc-400 dark:text-zinc-500" />
                     <div className="flex-1">
                       {isEditingOrg ? (
                         <div className="space-y-3">
@@ -889,9 +951,10 @@ export default function AdminUsersPage() {
                             </p>
                           )}
                           <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
-                            {members.length} {t('admin.usersPage.members')} • {t('admin.usersPage.created')}{' '}
+                            {members.length} {t('admin.usersPage.members')} •{' '}
+                            {t('admin.usersPage.created')}{' '}
                             {new Date(
-                              selectedOrganization.created_at
+                              selectedOrganization.created_at,
                             ).toLocaleDateString()}
                           </p>
                         </div>
@@ -1016,24 +1079,33 @@ export default function AdminUsersPage() {
                             <Select
                               value={member.role}
                               onValueChange={(v) =>
-                                handleOrgRoleChange(
-                                  member.user_id,
-                                  v as any
-                                )
+                                handleOrgRoleChange(member.user_id, v as any)
                               }
                               displayValue={
-                                member.role === 'ANNOTATOR' ? t('admin.usersPage.roles.annotator') :
-                                member.role === 'CONTRIBUTOR' ? t('admin.usersPage.roles.contributor') :
-                                t('admin.usersPage.roles.admin')
+                                member.role === 'ANNOTATOR'
+                                  ? t('admin.usersPage.roles.annotator')
+                                  : member.role === 'CONTRIBUTOR'
+                                    ? t('admin.usersPage.roles.contributor')
+                                    : t('admin.usersPage.roles.admin')
                               }
                             >
                               <SelectTrigger>
-                                <SelectValue placeholder={t('admin.usersPage.roles.annotator')} />
+                                <SelectValue
+                                  placeholder={t(
+                                    'admin.usersPage.roles.annotator',
+                                  )}
+                                />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="ANNOTATOR">{t('admin.usersPage.roles.annotator')}</SelectItem>
-                                <SelectItem value="CONTRIBUTOR">{t('admin.usersPage.roles.contributor')}</SelectItem>
-                                <SelectItem value="ORG_ADMIN">{t('admin.usersPage.roles.admin')}</SelectItem>
+                                <SelectItem value="ANNOTATOR">
+                                  {t('admin.usersPage.roles.annotator')}
+                                </SelectItem>
+                                <SelectItem value="CONTRIBUTOR">
+                                  {t('admin.usersPage.roles.contributor')}
+                                </SelectItem>
+                                <SelectItem value="ORG_ADMIN">
+                                  {t('admin.usersPage.roles.admin')}
+                                </SelectItem>
                               </SelectContent>
                             </Select>
                             <button
@@ -1073,9 +1145,10 @@ export default function AdminUsersPage() {
                                 {invitation.email}
                               </p>
                               <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                                {getRoleDisplayName(invitation.role)} • {t('admin.usersPage.expires')}{' '}
+                                {getRoleDisplayName(invitation.role)} •{' '}
+                                {t('admin.usersPage.expires')}{' '}
                                 {new Date(
-                                  invitation.expires_at
+                                  invitation.expires_at,
                                 ).toLocaleDateString()}
                               </p>
                             </div>
@@ -1169,7 +1242,9 @@ export default function AdminUsersPage() {
                     value={newOrgSlug}
                     onChange={(e) =>
                       setNewOrgSlug(
-                        e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-')
+                        e.target.value
+                          .toLowerCase()
+                          .replace(/[^a-z0-9-]/g, '-'),
                       )
                     }
                     className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-zinc-900 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-100"
@@ -1237,18 +1312,28 @@ export default function AdminUsersPage() {
                     value={inviteRole}
                     onValueChange={(v) => setInviteRole(v as any)}
                     displayValue={
-                      inviteRole === 'ANNOTATOR' ? t('admin.usersPage.roles.annotator') :
-                      inviteRole === 'CONTRIBUTOR' ? t('admin.usersPage.roles.contributor') :
-                      t('admin.usersPage.roles.admin')
+                      inviteRole === 'ANNOTATOR'
+                        ? t('admin.usersPage.roles.annotator')
+                        : inviteRole === 'CONTRIBUTOR'
+                          ? t('admin.usersPage.roles.contributor')
+                          : t('admin.usersPage.roles.admin')
                     }
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder={t('admin.usersPage.roles.annotator')} />
+                      <SelectValue
+                        placeholder={t('admin.usersPage.roles.annotator')}
+                      />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="ANNOTATOR">{t('admin.usersPage.roles.annotator')}</SelectItem>
-                      <SelectItem value="CONTRIBUTOR">{t('admin.usersPage.roles.contributor')}</SelectItem>
-                      <SelectItem value="ORG_ADMIN">{t('admin.usersPage.roles.admin')}</SelectItem>
+                      <SelectItem value="ANNOTATOR">
+                        {t('admin.usersPage.roles.annotator')}
+                      </SelectItem>
+                      <SelectItem value="CONTRIBUTOR">
+                        {t('admin.usersPage.roles.contributor')}
+                      </SelectItem>
+                      <SelectItem value="ORG_ADMIN">
+                        {t('admin.usersPage.roles.admin')}
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -1299,7 +1384,9 @@ export default function AdminUsersPage() {
                     }
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder={t('admin.usersPage.chooseUser')} />
+                      <SelectValue
+                        placeholder={t('admin.usersPage.chooseUser')}
+                      />
                     </SelectTrigger>
                     <SelectContent>
                       {users
@@ -1320,18 +1407,28 @@ export default function AdminUsersPage() {
                     value={selectedUserRole}
                     onValueChange={(v) => setSelectedUserRole(v as any)}
                     displayValue={
-                      selectedUserRole === 'ANNOTATOR' ? t('admin.usersPage.roles.annotator') :
-                      selectedUserRole === 'CONTRIBUTOR' ? t('admin.usersPage.roles.contributor') :
-                      t('admin.usersPage.roles.admin')
+                      selectedUserRole === 'ANNOTATOR'
+                        ? t('admin.usersPage.roles.annotator')
+                        : selectedUserRole === 'CONTRIBUTOR'
+                          ? t('admin.usersPage.roles.contributor')
+                          : t('admin.usersPage.roles.admin')
                     }
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder={t('admin.usersPage.roles.annotator')} />
+                      <SelectValue
+                        placeholder={t('admin.usersPage.roles.annotator')}
+                      />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="ANNOTATOR">{t('admin.usersPage.roles.annotator')}</SelectItem>
-                      <SelectItem value="CONTRIBUTOR">{t('admin.usersPage.roles.contributor')}</SelectItem>
-                      <SelectItem value="ORG_ADMIN">{t('admin.usersPage.roles.admin')}</SelectItem>
+                      <SelectItem value="ANNOTATOR">
+                        {t('admin.usersPage.roles.annotator')}
+                      </SelectItem>
+                      <SelectItem value="CONTRIBUTOR">
+                        {t('admin.usersPage.roles.contributor')}
+                      </SelectItem>
+                      <SelectItem value="ORG_ADMIN">
+                        {t('admin.usersPage.roles.admin')}
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

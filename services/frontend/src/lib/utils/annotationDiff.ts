@@ -33,7 +33,7 @@ export interface AnnotationDiffResult {
  */
 export function computeAnnotationDiff(
   original: AnnotationResult[],
-  review: AnnotationResult[]
+  review: AnnotationResult[],
 ): AnnotationDiffResult {
   const fields: FieldDiff[] = []
   const originalMap = new Map<string, AnnotationResult>()
@@ -100,21 +100,27 @@ export function computeAnnotationDiff(
  */
 export interface SpanDiffItem {
   status: 'added' | 'removed' | 'common'
-  span: { id: string; start: number; end: number; text: string; labels: string[] }
+  span: {
+    id: string
+    start: number
+    end: number
+    text: string
+    labels: string[]
+  }
   source: 'original' | 'review' | 'both'
 }
 
 export function computeHighlightDiff(
   originalSpans: any[],
-  reviewSpans: any[]
+  reviewSpans: any[],
 ): SpanDiffItem[] {
   const results: SpanDiffItem[] = []
 
   const origSet = new Set(
-    originalSpans.map((s) => `${s.start}:${s.end}:${s.labels?.join(',')}`)
+    originalSpans.map((s) => `${s.start}:${s.end}:${s.labels?.join(',')}`),
   )
   const revSet = new Set(
-    reviewSpans.map((s) => `${s.start}:${s.end}:${s.labels?.join(',')}`)
+    reviewSpans.map((s) => `${s.start}:${s.end}:${s.labels?.join(',')}`),
   )
 
   for (const span of originalSpans) {
@@ -147,7 +153,7 @@ export interface LineDiff {
 
 export function computeLineDiff(
   originalText: string,
-  reviewText: string
+  reviewText: string,
 ): LineDiff[] {
   const origLines = originalText.split('\n')
   const revLines = reviewText.split('\n')
@@ -162,7 +168,11 @@ export function computeLineDiff(
   while (li < lcs.length) {
     // Add removed lines (in original but not in LCS match)
     while (oi < origLines.length && origLines[oi] !== lcs[li]) {
-      results.push({ status: 'removed', line: origLines[oi], lineNumber: oi + 1 })
+      results.push({
+        status: 'removed',
+        line: origLines[oi],
+        lineNumber: oi + 1,
+      })
       oi++
     }
     // Add added lines (in review but not in LCS match)
@@ -195,13 +205,19 @@ export function computeLineDiff(
  */
 export interface CommentDiffItem {
   status: 'added' | 'removed' | 'common'
-  comment: { id: string; type: string; text: string; start?: number; end?: number }
+  comment: {
+    id: string
+    type: string
+    text: string
+    start?: number
+    end?: number
+  }
   source: 'original' | 'review' | 'both'
 }
 
 export function computeCommentDiff(
   originalComments: any[],
-  reviewComments: any[]
+  reviewComments: any[],
 ): CommentDiffItem[] {
   const results: CommentDiffItem[] = []
   const origIds = new Set(originalComments.map((c) => c.id))
@@ -234,7 +250,7 @@ function computeLCS(a: string[], b: string[]): string[] {
   const m = a.length
   const n = b.length
   const dp: number[][] = Array.from({ length: m + 1 }, () =>
-    new Array(n + 1).fill(0)
+    new Array(n + 1).fill(0),
   )
 
   for (let i = 1; i <= m; i++) {

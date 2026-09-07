@@ -42,7 +42,7 @@ Object.defineProperty(window, 'localStorage', {
 class TestApiClient extends BaseApiClient {
   public async testAuthCheck(
     endpoint: string,
-    options?: RequestInit
+    options?: RequestInit,
   ): Promise<any> {
     return (this as any).authCheckRequest(endpoint, options)
   }
@@ -51,7 +51,7 @@ class TestApiClient extends BaseApiClient {
     endpoint: string,
     options?: RequestInit,
     isRetry?: boolean,
-    retryCount?: number
+    retryCount?: number,
   ): Promise<any> {
     return (this as any).request(endpoint, options, isRetry, retryCount)
   }
@@ -71,7 +71,7 @@ class TestApiClient extends BaseApiClient {
   public async post(
     endpoint: string,
     data?: any,
-    options?: RequestInit
+    options?: RequestInit,
   ): Promise<any> {
     let body: any
     if (data instanceof FormData) {
@@ -85,7 +85,7 @@ class TestApiClient extends BaseApiClient {
   public async put(
     endpoint: string,
     data?: any,
-    options?: RequestInit
+    options?: RequestInit,
   ): Promise<any> {
     return this.testRequest(endpoint, {
       ...options,
@@ -97,7 +97,7 @@ class TestApiClient extends BaseApiClient {
   public async patch(
     endpoint: string,
     data?: any,
-    options?: RequestInit
+    options?: RequestInit,
   ): Promise<any> {
     return this.testRequest(endpoint, {
       ...options,
@@ -228,7 +228,7 @@ describe('BaseApiClient - Comprehensive Coverage', () => {
 
     it('should handle refresh access token network error', async () => {
       ;(global.fetch as jest.Mock).mockRejectedValueOnce(
-        new Error('Network error')
+        new Error('Network error'),
       )
 
       const refreshPromise = (client as any).refreshAccessToken()
@@ -308,7 +308,7 @@ describe('BaseApiClient - Comprehensive Coverage', () => {
       // Access private method through bracket notation
       const isValid = (client as any).validateCacheEntry(
         cacheEntry,
-        'current-user'
+        'current-user',
       )
 
       expect(isValid).toBe(false)
@@ -348,7 +348,7 @@ describe('BaseApiClient - Comprehensive Coverage', () => {
 
       const isValid = (client as any).validateCacheEntry(
         expiredEntry,
-        'test-user'
+        'test-user',
       )
 
       expect(isValid).toBe(false)
@@ -358,7 +358,7 @@ describe('BaseApiClient - Comprehensive Coverage', () => {
   describe('Token expiration checking', () => {
     it('should detect expired tokens', () => {
       const expiredToken = `header.${btoa(
-        JSON.stringify({ exp: Math.floor(Date.now() / 1000) - 3600 })
+        JSON.stringify({ exp: Math.floor(Date.now() / 1000) - 3600 }),
       )}.signature`
 
       const isExpired = (client as any).isTokenExpired(expiredToken)
@@ -368,7 +368,7 @@ describe('BaseApiClient - Comprehensive Coverage', () => {
 
     it('should detect tokens expiring within 30 seconds', () => {
       const soonToExpireToken = `header.${btoa(
-        JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 20 })
+        JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 20 }),
       )}.signature`
 
       const isExpired = (client as any).isTokenExpired(soonToExpireToken)
@@ -404,7 +404,7 @@ describe('BaseApiClient - Comprehensive Coverage', () => {
           headers: expect.objectContaining({
             'X-Organization-Context': 'org-123',
           }),
-        })
+        }),
       )
     })
 
@@ -436,7 +436,7 @@ describe('BaseApiClient - Comprehensive Coverage', () => {
       })
 
       await expect(client.testAuthCheck('/auth/check')).rejects.toThrow(
-        'Unauthenticated'
+        'Unauthenticated',
       )
     })
 
@@ -473,11 +473,11 @@ describe('BaseApiClient - Comprehensive Coverage', () => {
 
     it('should handle network errors in authCheckRequest', async () => {
       ;(global.fetch as jest.Mock).mockRejectedValueOnce(
-        new TypeError('fetch failed')
+        new TypeError('fetch failed'),
       )
 
       await expect(client.testAuthCheck('/test')).rejects.toThrow(
-        'Network error'
+        'Network error',
       )
     })
 
@@ -503,7 +503,7 @@ describe('BaseApiClient - Comprehensive Coverage', () => {
       })
 
       await expect(client.testAuthCheck('/test')).rejects.toThrow(
-        'Invalid JSON response'
+        'Invalid JSON response',
       )
     })
 
@@ -530,7 +530,7 @@ describe('BaseApiClient - Comprehensive Coverage', () => {
       })
 
       await expect(client.testAuthCheck('/test')).rejects.toThrow(
-        'HTTP error! status: 400 - Error details'
+        'HTTP error! status: 400 - Error details',
       )
     })
 
@@ -546,7 +546,7 @@ describe('BaseApiClient - Comprehensive Coverage', () => {
       })
 
       await expect(client.testAuthCheck('/test')).rejects.toThrow(
-        'HTTP error! status: 500'
+        'HTTP error! status: 500',
       )
     })
   })
@@ -589,9 +589,9 @@ describe('BaseApiClient - Comprehensive Coverage', () => {
                   headers: new Headers({ 'content-type': 'application/json' }),
                   text: async () => JSON.stringify({ success: true }),
                 }),
-              10
-            )
-          )
+              10,
+            ),
+          ),
       )
 
       const requests = []
@@ -699,7 +699,7 @@ describe('BaseApiClient - Comprehensive Coverage', () => {
 
     it('should use valid access token from localStorage', async () => {
       const validToken = `header.${btoa(
-        JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 3600 })
+        JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 3600 }),
       )}.signature`
 
       localStorageMock.getItem.mockImplementation((key) => {
@@ -721,13 +721,13 @@ describe('BaseApiClient - Comprehensive Coverage', () => {
           headers: expect.objectContaining({
             Authorization: `Bearer ${validToken}`,
           }),
-        })
+        }),
       )
     })
 
     it('should not use expired token from localStorage', async () => {
       const expiredToken = `header.${btoa(
-        JSON.stringify({ exp: Math.floor(Date.now() / 1000) - 3600 })
+        JSON.stringify({ exp: Math.floor(Date.now() / 1000) - 3600 }),
       )}.signature`
 
       localStorageMock.getItem.mockImplementation((key) => {
@@ -985,7 +985,7 @@ describe('BaseApiClient - Comprehensive Coverage', () => {
       })
 
       await expect(client.get('/test')).rejects.toThrow(
-        'HTTP error! status: 500'
+        'HTTP error! status: 500',
       )
     })
   })

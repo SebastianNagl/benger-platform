@@ -247,7 +247,7 @@ describe('PuppeteerAuthHelper', () => {
       const mockLanguageSwitcher = { click: jest.fn() }
       mockPage.setElement(
         '[data-testid="language-switcher"]',
-        mockLanguageSwitcher
+        mockLanguageSwitcher,
       )
 
       await authHelper.recoverFromLanguageSwitch()
@@ -260,7 +260,7 @@ describe('PuppeteerAuthHelper', () => {
       const mockLanguageSwitcher = { click: jest.fn() }
       mockPage.setElement(
         '[data-testid="language-switcher"]',
-        mockLanguageSwitcher
+        mockLanguageSwitcher,
       )
 
       await authHelper.recoverFromLanguageSwitch()
@@ -274,7 +274,7 @@ describe('PuppeteerAuthHelper', () => {
 
       // Should not throw error
       await expect(
-        authHelper.recoverFromLanguageSwitch()
+        authHelper.recoverFromLanguageSwitch(),
       ).resolves.not.toThrow()
     })
 
@@ -285,7 +285,7 @@ describe('PuppeteerAuthHelper', () => {
 
       // Should not throw error
       await expect(
-        authHelper.recoverFromLanguageSwitch()
+        authHelper.recoverFromLanguageSwitch(),
       ).resolves.not.toThrow()
     })
   })
@@ -476,7 +476,7 @@ describe('PuppeteerAuthHelper', () => {
         .mockRejectedValue(new Error('Navigation timeout'))
 
       await expect(authHelper.reliableLogin()).rejects.toThrow(
-        'Navigation timeout'
+        'Navigation timeout',
       )
     })
 
@@ -499,7 +499,7 @@ describe('PuppeteerAuthHelper', () => {
         .mockRejectedValue(new Error('Persistent failure'))
 
       await expect(helperWithLimitedRetries.reliableLogin()).rejects.toThrow(
-        'Login failed after 2 attempts'
+        'Login failed after 2 attempts',
       )
     })
   })
@@ -540,7 +540,7 @@ describe('Integration Scenarios', () => {
           }
           resolve()
         }, 100)
-      })
+      }),
     )
 
     // Perform login

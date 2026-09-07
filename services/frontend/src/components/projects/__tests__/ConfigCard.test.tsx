@@ -18,7 +18,7 @@ describe('ConfigCard', () => {
       render(
         <ConfigCard title="Annotation">
           <div data-testid="child">inner</div>
-        </ConfigCard>
+        </ConfigCard>,
       )
       expect(screen.getByTestId('child')).toBeInTheDocument()
     })
@@ -27,7 +27,7 @@ describe('ConfigCard', () => {
       render(
         <ConfigCard title="Annotation" defaultExpanded={false}>
           <div data-testid="child">inner</div>
-        </ConfigCard>
+        </ConfigCard>,
       )
       expect(screen.queryByTestId('child')).not.toBeInTheDocument()
     })
@@ -37,7 +37,7 @@ describe('ConfigCard', () => {
       render(
         <ConfigCard title="Annotation" defaultExpanded={false}>
           <div data-testid="child">inner</div>
-        </ConfigCard>
+        </ConfigCard>,
       )
       await user.click(screen.getByRole('button', { name: /Annotation/i }))
       expect(screen.getByTestId('child')).toBeInTheDocument()
@@ -49,7 +49,7 @@ describe('ConfigCard', () => {
       render(
         <ConfigCard title="Evaluation" badge="3 methods">
           <div>inner</div>
-        </ConfigCard>
+        </ConfigCard>,
       )
       expect(screen.getByText('3 methods')).toBeInTheDocument()
     })
@@ -60,7 +60,7 @@ describe('ConfigCard', () => {
       render(
         <ConfigCard title="Annotation">
           <div>inner</div>
-        </ConfigCard>
+        </ConfigCard>,
       )
       expect(screen.queryByRole('status')).not.toBeInTheDocument()
     })
@@ -69,10 +69,10 @@ describe('ConfigCard', () => {
       render(
         <ConfigCard title="Annotation" dirty>
           <div>inner</div>
-        </ConfigCard>
+        </ConfigCard>,
       )
       expect(screen.getByRole('status')).toHaveTextContent(
-        'Ungespeicherte Änderungen'
+        'Ungespeicherte Änderungen',
       )
     })
 
@@ -80,7 +80,7 @@ describe('ConfigCard', () => {
       render(
         <ConfigCard title="Annotation" dirty saving>
           <div>inner</div>
-        </ConfigCard>
+        </ConfigCard>,
       )
       expect(screen.getByRole('status')).toHaveTextContent('Speichert…')
     })
@@ -89,10 +89,10 @@ describe('ConfigCard', () => {
       render(
         <ConfigCard title="Annotation" defaultExpanded={false} dirty>
           <div>inner</div>
-        </ConfigCard>
+        </ConfigCard>,
       )
       expect(screen.getByRole('status')).toHaveTextContent(
-        'Ungespeicherte Änderungen'
+        'Ungespeicherte Änderungen',
       )
     })
 
@@ -100,16 +100,16 @@ describe('ConfigCard', () => {
       render(
         <ConfigCard title="Annotation" dirty saving>
           <div>inner</div>
-        </ConfigCard>
+        </ConfigCard>,
       )
       expect(
-        screen.queryByRole('button', { name: 'Bearbeiten' })
+        screen.queryByRole('button', { name: 'Bearbeiten' }),
       ).not.toBeInTheDocument()
       expect(
-        screen.queryByRole('button', { name: /Speicher/ })
+        screen.queryByRole('button', { name: /Speicher/ }),
       ).not.toBeInTheDocument()
       expect(
-        screen.queryByRole('button', { name: 'Abbrechen' })
+        screen.queryByRole('button', { name: 'Abbrechen' }),
       ).not.toBeInTheDocument()
     })
   })

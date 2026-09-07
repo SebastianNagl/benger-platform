@@ -79,7 +79,7 @@ describe('ActivateAccountPage', () => {
     await fillAndSubmit()
 
     await waitFor(() =>
-      expect(screen.getByTestId('activate-success')).toBeInTheDocument()
+      expect(screen.getByTestId('activate-success')).toBeInTheDocument(),
     )
     expect(global.fetch).toHaveBeenCalledWith(
       '/api/auth/activate-account',
@@ -90,7 +90,7 @@ describe('ActivateAccountPage', () => {
           new_password: 'NeuesPasswort1!',
           confirm_password: 'NeuesPasswort1!',
         }),
-      })
+      }),
     )
 
     jest.advanceTimersByTime(3000)
@@ -103,7 +103,7 @@ describe('ActivateAccountPage', () => {
     await fillAndSubmit('NeuesPasswort1!', 'Anders!')
 
     expect(screen.getByTestId('activate-error')).toHaveTextContent(
-      'accountActivation.mismatch'
+      'accountActivation.mismatch',
     )
     expect(global.fetch).not.toHaveBeenCalled()
   })
@@ -119,8 +119,8 @@ describe('ActivateAccountPage', () => {
 
     await waitFor(() =>
       expect(screen.getByTestId('activate-error')).toHaveTextContent(
-        'accountActivation.expiredDescription'
-      )
+        'accountActivation.expiredDescription',
+      ),
     )
   })
 
@@ -135,8 +135,8 @@ describe('ActivateAccountPage', () => {
 
     await waitFor(() =>
       expect(screen.getByTestId('activate-error')).toHaveTextContent(
-        'accountActivation.emailTaken'
-      )
+        'accountActivation.emailTaken',
+      ),
     )
   })
 })

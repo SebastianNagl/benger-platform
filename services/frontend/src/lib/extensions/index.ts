@@ -10,22 +10,26 @@
  * returning null/empty.
  */
 
-export { registerSlot, getSlot, useSlot, hasSlot } from './slots'
 export {
-  registerChangelogEntries,
   getChangelogEntries,
+  registerChangelogEntries,
   useChangelogEntries,
 } from './changelog'
-export type { ChangelogEntry, ChangelogAudience } from './changelog'
+export type { ChangelogAudience, ChangelogEntry } from './changelog'
+export { getSlot, hasSlot, registerSlot, useSlot } from './slots'
 export {
-  registerWizardTemplate,
   getRegisteredWizardTemplates,
-  registerWizardPostCreateHook,
+  getWizardKindPreset,
   getWizardPostCreateHooks,
   registerWizardKindPreset,
-  getWizardKindPreset,
+  registerWizardPostCreateHook,
+  registerWizardTemplate,
 } from './wizardTemplates'
-export type { RegisteredWizardTemplate, WizardPostCreateHook, WizardKindPreset } from './wizardTemplates'
+export type {
+  RegisteredWizardTemplate,
+  WizardKindPreset,
+  WizardPostCreateHook,
+} from './wizardTemplates'
 
 let extendedLoaded = false
 

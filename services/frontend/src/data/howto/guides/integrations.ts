@@ -4,7 +4,10 @@ export const INTEGRATION_GUIDES: HowToGuide[] = [
   {
     id: 'lti-setup',
     category: 'integrations',
-    title: { de: 'Wie binde ich BenGER an Moodle oder ILIAS an (LTI)?', en: 'How do I connect BenGER to Moodle or ILIAS (LTI)?' },
+    title: {
+      de: 'Wie binde ich BenGER an Moodle oder ILIAS an (LTI)?',
+      en: 'How do I connect BenGER to Moodle or ILIAS (LTI)?',
+    },
     summary: {
       de: 'Über **LTI 1.3**. Die Plattform-Administration erzeugt für Ihre Organisation einen einmaligen Einladungslink, den die Moodle- oder ILIAS-Administration Ihrer Hochschule als externes Tool einträgt. Danach verknüpfen Lehrende Aktivitäten mit Klausuren, Studierende starten die Klausur aus dem Kurs und Noten fließen zurück.',
       en: 'Via **LTI 1.3**. The platform administration creates a one-time invitation link for your organization, which your university’s Moodle or ILIAS administration enters as an external tool. Afterwards teachers link activities to exams, students start the exam from the course and grades flow back.',
@@ -35,13 +38,44 @@ export const INTEGRATION_GUIDES: HowToGuide[] = [
         'ILIAS shows grades as learning progress relative to the mastery score. Recommendation: mastery score 22, which equals 4 of 18 grade points.',
       ],
     },
-    links: [{ label: { de: 'Klausur mit einer Aktivität verknüpfen', en: 'Linking an exam to an activity' }, href: '/how-to#lti-teacher' }],
-    keywords: { de: ['LTI', 'Moodle', 'ILIAS', 'Lernplattform', 'Integration', 'externes Tool', 'Anbindung', 'Registrierung'], en: ['lti', 'moodle', 'ilias', 'lms', 'integration', 'external tool', 'registration'] },
+    links: [
+      {
+        label: {
+          de: 'Klausur mit einer Aktivität verknüpfen',
+          en: 'Linking an exam to an activity',
+        },
+        href: '/how-to#lti-teacher',
+      },
+    ],
+    keywords: {
+      de: [
+        'LTI',
+        'Moodle',
+        'ILIAS',
+        'Lernplattform',
+        'Integration',
+        'externes Tool',
+        'Anbindung',
+        'Registrierung',
+      ],
+      en: [
+        'lti',
+        'moodle',
+        'ilias',
+        'lms',
+        'integration',
+        'external tool',
+        'registration',
+      ],
+    },
   },
   {
     id: 'lti-teacher',
     category: 'integrations',
-    title: { de: 'Wie verknüpfe ich als Lehrende:r eine Moodle-Aktivität mit einer Klausur?', en: 'How do I, as a teacher, link a Moodle activity to an exam?' },
+    title: {
+      de: 'Wie verknüpfe ich als Lehrende:r eine Moodle-Aktivität mit einer Klausur?',
+      en: 'How do I, as a teacher, link a Moodle activity to an exam?',
+    },
     summary: {
       de: 'Legen Sie im Kurs eine Aktivität *Externes Tool* mit dem BenGER-Tool an und geben Sie ihr eine Bewertung. Beim **ersten Start** öffnet sich in BenGER die Seite *Aktivität verknüpfen*: Klausur wählen oder neu anlegen, **Verknüpfen**. Studierende landen ab dann direkt in der Klausur.',
       en: 'Create an *External tool* activity in the course with the BenGER tool and give it a grade. On the **first launch** BenGER opens the *Link activity* page: pick an exam or create a new one, **Link**. Students then land directly in the exam.',
@@ -72,6 +106,16 @@ export const INTEGRATION_GUIDES: HowToGuide[] = [
         'Exams with a custom rubric (custom judge) cannot return grades yet.',
       ],
     },
-    keywords: { de: ['Aktivität verknüpfen', 'Notenübertragung', 'Grade Sync', 'Moodle Kurs', 'Bewertung', 'Notenbuch'], en: ['link activity', 'grade sync', 'moodle course', 'gradebook'] },
+    keywords: {
+      de: [
+        'Aktivität verknüpfen',
+        'Notenübertragung',
+        'Grade Sync',
+        'Moodle Kurs',
+        'Bewertung',
+        'Notenbuch',
+      ],
+      en: ['link activity', 'grade sync', 'moodle course', 'gradebook'],
+    },
   },
 ]

@@ -70,7 +70,7 @@ describe('Issue #134: Annotation Status Synchronization', () => {
 
       const allAnnotatedComplete = areAllItemsAnnotated(
         mockItems,
-        completeAnnotations
+        completeAnnotations,
       )
       expect(allAnnotatedComplete).toBe(true)
 
@@ -78,13 +78,13 @@ describe('Issue #134: Annotation Status Synchronization', () => {
       mockItems.forEach((item) => {
         const itemStatus = getItemAnnotationStatus(
           item.id!,
-          completeAnnotations
+          completeAnnotations,
         )
         expect(itemStatus).toBe(ANNOTATION_STATUS.COMPLETED)
 
         const displayStatus = getItemDisplayStatus(
           item.id!,
-          completeAnnotations
+          completeAnnotations,
         )
         expect(displayStatus).toBe(DISPLAY_STATUS.ANNOTATED)
       })
@@ -100,26 +100,26 @@ describe('Issue #134: Annotation Status Synchronization', () => {
 
       // Item 1 should be completed (has submitted annotation despite also having draft)
       expect(getItemAnnotationStatus('1', mixedAnnotations)).toBe(
-        ANNOTATION_STATUS.COMPLETED
+        ANNOTATION_STATUS.COMPLETED,
       )
       expect(getItemDisplayStatus('1', mixedAnnotations)).toBe(
-        DISPLAY_STATUS.ANNOTATED
+        DISPLAY_STATUS.ANNOTATED,
       )
 
       // Item 2 should be in progress (only draft)
       expect(getItemAnnotationStatus('2', mixedAnnotations)).toBe(
-        ANNOTATION_STATUS.IN_PROGRESS
+        ANNOTATION_STATUS.IN_PROGRESS,
       )
       expect(getItemDisplayStatus('2', mixedAnnotations)).toBe(
-        DISPLAY_STATUS.NOT_ANNOTATED
+        DISPLAY_STATUS.NOT_ANNOTATED,
       )
 
       // Item 3 should be not started (no annotations)
       expect(getItemAnnotationStatus('3', mixedAnnotations)).toBe(
-        ANNOTATION_STATUS.NOT_STARTED
+        ANNOTATION_STATUS.NOT_STARTED,
       )
       expect(getItemDisplayStatus('3', mixedAnnotations)).toBe(
-        DISPLAY_STATUS.NOT_ANNOTATED
+        DISPLAY_STATUS.NOT_ANNOTATED,
       )
 
       // Overall should not be all annotated
@@ -173,7 +173,7 @@ describe('Issue #134: Annotation Status Synchronization', () => {
 
       const nextItemComplete = findNextUnannotatedItem(
         mockItems,
-        completeAnnotations
+        completeAnnotations,
       )
       expect(nextItemComplete).toBeNull()
     })
@@ -184,17 +184,17 @@ describe('Issue #134: Annotation Status Synchronization', () => {
       const user1Status1 = getUserAnnotationStatus(
         'user1',
         '1',
-        mockAnnotations
+        mockAnnotations,
       )
       const user1Status2 = getUserAnnotationStatus(
         'user1',
         '2',
-        mockAnnotations
+        mockAnnotations,
       )
       const user1Status3 = getUserAnnotationStatus(
         'user1',
         '3',
-        mockAnnotations
+        mockAnnotations,
       )
 
       expect(user1Status1).toBe(ANNOTATION_STATUS.COMPLETED) // Has submitted
@@ -205,7 +205,7 @@ describe('Issue #134: Annotation Status Synchronization', () => {
       const user2Status1 = getUserAnnotationStatus(
         'user2',
         '1',
-        mockAnnotations
+        mockAnnotations,
       )
       expect(user2Status1).toBe(ANNOTATION_STATUS.NOT_STARTED)
     })
@@ -239,16 +239,16 @@ describe('Issue #134: Annotation Status Synchronization', () => {
 
       // Should handle string/number ID mismatches consistently
       expect(getItemAnnotationStatus(1, stringAnnotations)).toBe(
-        ANNOTATION_STATUS.COMPLETED
+        ANNOTATION_STATUS.COMPLETED,
       )
       expect(getItemAnnotationStatus('1', stringAnnotations)).toBe(
-        ANNOTATION_STATUS.COMPLETED
+        ANNOTATION_STATUS.COMPLETED,
       )
       expect(getItemDisplayStatus(1, stringAnnotations)).toBe(
-        DISPLAY_STATUS.ANNOTATED
+        DISPLAY_STATUS.ANNOTATED,
       )
       expect(getItemDisplayStatus('1', stringAnnotations)).toBe(
-        DISPLAY_STATUS.ANNOTATED
+        DISPLAY_STATUS.ANNOTATED,
       )
     })
 
@@ -260,14 +260,14 @@ describe('Issue #134: Annotation Status Synchronization', () => {
 
       // Should handle gracefully without throwing errors
       expect(() =>
-        getItemAnnotationStatus(undefined as any, mockAnnotations)
+        getItemAnnotationStatus(undefined as any, mockAnnotations),
       ).not.toThrow()
       expect(() =>
-        areAllItemsAnnotated(itemsWithUndefinedId, mockAnnotations)
+        areAllItemsAnnotated(itemsWithUndefinedId, mockAnnotations),
       ).not.toThrow()
 
       expect(getItemAnnotationStatus(undefined as any, mockAnnotations)).toBe(
-        ANNOTATION_STATUS.NOT_STARTED
+        ANNOTATION_STATUS.NOT_STARTED,
       )
     })
   })
@@ -304,7 +304,7 @@ describe('Issue #134: Annotation Status Synchronization', () => {
       // Task overview logic: Check if all items are annotated
       const taskOverviewResult = areAllItemsAnnotated(
         realWorldItems,
-        realWorldAnnotations
+        realWorldAnnotations,
       )
 
       // Data dashboard logic: Check individual item status
@@ -320,7 +320,7 @@ describe('Issue #134: Annotation Status Synchronization', () => {
 
       // If task overview says "All items annotated!", all individual items should show "Annotated"
       const allAnnotated = [item1Status, item2Status, item3Status].every(
-        (status) => status === DISPLAY_STATUS.ANNOTATED
+        (status) => status === DISPLAY_STATUS.ANNOTATED,
       )
 
       expect(taskOverviewResult).toBe(allAnnotated) // Should match!

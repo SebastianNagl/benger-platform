@@ -26,16 +26,36 @@ jest.mock('next/navigation', () => ({
 
 jest.mock('next/link', () => {
   return function Link({ children, href, className, ...props }: any) {
-    return <a href={href} className={className} {...props}>{children}</a>
+    return (
+      <a href={href} className={className} {...props}>
+        {children}
+      </a>
+    )
   }
 })
 
 jest.mock('framer-motion', () => ({
   motion: {
-    div: ({ children, className, ...props }: any) => <div className={className} {...props}>{children}</div>,
-    h2: ({ children, className, ...props }: any) => <h2 className={className} {...props}>{children}</h2>,
-    li: ({ children, className, ...props }: any) => <li className={className} {...props}>{children}</li>,
-    ul: ({ children, className, ...props }: any) => <ul className={className} {...props}>{children}</ul>,
+    div: ({ children, className, ...props }: any) => (
+      <div className={className} {...props}>
+        {children}
+      </div>
+    ),
+    h2: ({ children, className, ...props }: any) => (
+      <h2 className={className} {...props}>
+        {children}
+      </h2>
+    ),
+    li: ({ children, className, ...props }: any) => (
+      <li className={className} {...props}>
+        {children}
+      </li>
+    ),
+    ul: ({ children, className, ...props }: any) => (
+      <ul className={className} {...props}>
+        {children}
+      </ul>
+    ),
   },
   AnimatePresence: ({ children }: any) => <>{children}</>,
   useIsPresent: jest.fn(() => true),
@@ -54,21 +74,29 @@ jest.mock('@/components/layout/SectionProvider', () => ({
 
 jest.mock('@/components/shared/Button', () => ({
   Button: ({ children, href, className }: any) => (
-    <a href={href} className={className} data-testid="sign-in-button">{children}</a>
+    <a href={href} className={className} data-testid="sign-in-button">
+      {children}
+    </a>
   ),
 }))
 
 jest.mock('@/components/shared/Tag', () => ({
-  Tag: ({ children }: { children: React.ReactNode }) => <span data-testid="tag">{children}</span>,
+  Tag: ({ children }: { children: React.ReactNode }) => (
+    <span data-testid="tag">{children}</span>
+  ),
 }))
 
 jest.mock('@headlessui/react', () => {
   const React = require('react')
   const CloseButton = React.forwardRef(function CloseButton(
     { children, href, className, as: Component = 'button', ...props }: any,
-    ref: any
+    ref: any,
   ) {
-    return <Component ref={ref} href={href} className={className} {...props}>{children}</Component>
+    return (
+      <Component ref={ref} href={href} className={className} {...props}>
+        {children}
+      </Component>
+    )
   })
   CloseButton.displayName = 'CloseButton'
   return { CloseButton }
@@ -84,7 +112,14 @@ jest.mock('@/contexts/AuthContext', () => ({
 }))
 
 const mockUseFeatureFlags = jest.fn(() => ({
-  flags: { data: true, generations: true, evaluations: true, reports: true, 'how-to': true, leaderboards: true },
+  flags: {
+    data: true,
+    generations: true,
+    evaluations: true,
+    reports: true,
+    'how-to': true,
+    leaderboards: true,
+  },
   lastUpdate: Date.now(),
 }))
 
@@ -156,7 +191,10 @@ describe('Navigation br6 - SSR and edge case branches', () => {
 
   it('renders in org mode with OrgAdmin role (switch /data case)', () => {
     const { parseSubdomain } = require('@/lib/utils/subdomain')
-    ;(parseSubdomain as jest.Mock).mockReturnValue({ orgSlug: 'test-org', isPrivateMode: false })
+    ;(parseSubdomain as jest.Mock).mockReturnValue({
+      orgSlug: 'test-org',
+      isPrivateMode: false,
+    })
 
     mockUseAuth.mockReturnValue({
       user: { id: 1, is_superadmin: false },
@@ -169,7 +207,14 @@ describe('Navigation br6 - SSR and edge case branches', () => {
 
   it('renders with all feature flags disabled', () => {
     mockUseFeatureFlags.mockReturnValue({
-      flags: { data: false, generations: false, evaluations: false, reports: false, 'how-to': false, leaderboards: false },
+      flags: {
+        data: false,
+        generations: false,
+        evaluations: false,
+        reports: false,
+        'how-to': false,
+        leaderboards: false,
+      },
       lastUpdate: Date.now(),
     })
 

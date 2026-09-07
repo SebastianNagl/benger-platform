@@ -27,7 +27,8 @@ jest.mock('@/contexts/I18nContext', () => ({
     t: (key: string, params?: any) => {
       const translations: Record<string, string> = {
         'annotation.interface.configError': 'Configuration Error',
-        'annotation.interface.atLeastOne': 'At least one annotation is required',
+        'annotation.interface.atLeastOne':
+          'At least one annotation is required',
         'annotation.interface.submit': 'Submit',
         'annotation.interface.submitShortcut': 'Ctrl+Enter',
         'annotation.interface.skip': 'Skip',
@@ -37,7 +38,7 @@ jest.mock('@/contexts/I18nContext', () => ({
       let value = translations[key] || params?.defaultValue || key
       if (params) {
         value = value.replace(/\{(\w+)\}/g, (m: string, name: string) =>
-          params[name] !== undefined ? String(params[name]) : m
+          params[name] !== undefined ? String(params[name]) : m,
         )
       }
       return value
@@ -110,7 +111,7 @@ jest.mock('@/hooks/useAutoSave', () => ({
         Annotate
       </button>
     </div>
-  )
+  ),
 )
 
 ;(global as any).__mockVisual = jest.fn(({ children }: any) => (
@@ -140,7 +141,9 @@ import {
   validateParsedConfig,
 } from '@/lib/labelConfig/parser'
 
-const mockParse = parseLabelConfig as jest.MockedFunction<typeof parseLabelConfig>
+const mockParse = parseLabelConfig as jest.MockedFunction<
+  typeof parseLabelConfig
+>
 const mockValidateConfig = validateParsedConfig as jest.MockedFunction<
   typeof validateParsedConfig
 >
@@ -210,7 +213,7 @@ describe('DynamicAnnotationInterface - draft restore on mount', () => {
 
   it('does not attempt to restore a draft when enableAutoSave is false', () => {
     render(
-      <DynamicAnnotationInterface {...defaultProps} enableAutoSave={false} />
+      <DynamicAnnotationInterface {...defaultProps} enableAutoSave={false} />,
     )
     expect(mockLoadDraft).not.toHaveBeenCalled()
   })
@@ -237,7 +240,7 @@ describe('DynamicAnnotationInterface - handleAnnotation path', () => {
             from_name: 'answer',
             value: 'annotated-value',
           }),
-        ])
+        ]),
       )
     })
   })
@@ -257,7 +260,7 @@ describe('DynamicAnnotationInterface - handleAnnotation path', () => {
       expect(onSubmit).toHaveBeenCalledWith(
         expect.arrayContaining([
           expect.objectContaining({ value: 'annotated-value' }),
-        ])
+        ]),
       )
     })
     // Successful submit clears the draft.
@@ -278,7 +281,7 @@ describe('DynamicAnnotationInterface - empty submit', () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText('At least one annotation is required')
+        screen.getByText('At least one annotation is required'),
       ).toBeInTheDocument()
     })
     expect(submit).toBeDisabled()
@@ -348,7 +351,8 @@ describe('DynamicAnnotationInterface - component dispatch', () => {
 
     expect(screen.getByTestId('control-input')).toBeInTheDocument()
     const unknownWarn = warnSpy.mock.calls.filter(
-      (c) => typeof c[0] === 'string' && c[0].includes('Unknown component type')
+      (c) =>
+        typeof c[0] === 'string' && c[0].includes('Unknown component type'),
     )
     expect(unknownWarn.length).toBe(1)
     expect(unknownWarn[0][0]).toContain('Mystery')

@@ -24,8 +24,9 @@ test.describe('Notification Pages', () => {
     // In CI (after heavy API/worker tests), the /api/auth/me call can be slow.
     // If we navigate to a protected route before auth resolves, AuthContext may
     // redirect to /login.
-    await expect(page.locator('nav, [class*="sidebar"], [class*="navigation"]').first())
-      .toBeVisible({ timeout: 15000 })
+    await expect(
+      page.locator('nav, [class*="sidebar"], [class*="navigation"]').first(),
+    ).toBeVisible({ timeout: 15000 })
   })
 
   test('notifications inbox loads with heading and action bar', async () => {
@@ -47,8 +48,7 @@ test.describe('Notification Pages', () => {
     await expect(async () => {
       const text = await heading.textContent()
       const hasTitle =
-        text?.includes('Notifications') ||
-        text?.includes('Benachrichtigungen')
+        text?.includes('Notifications') || text?.includes('Benachrichtigungen')
       expect(hasTitle).toBe(true)
     }).toPass({ timeout: 15000 })
   })
@@ -106,7 +106,10 @@ test.describe('Notification Pages', () => {
 
     let apiCalled = false
     page.on('request', (request) => {
-      if (request.url().includes('/api/notifications') && request.method() === 'GET') {
+      if (
+        request.url().includes('/api/notifications') &&
+        request.method() === 'GET'
+      ) {
         apiCalled = true
       }
     })
@@ -141,7 +144,10 @@ test.describe('Notification Pages', () => {
     // The analytics page has time range dropdowns (native <select> or HeadlessUI Listbox depending on build)
     // Try native select first, fall back to HeadlessUI button
     const nativeSelects = page.locator('select')
-    const hasNativeSelect = await nativeSelects.count().then(c => c > 0).catch(() => false)
+    const hasNativeSelect = await nativeSelects
+      .count()
+      .then((c) => c > 0)
+      .catch(() => false)
 
     if (hasNativeSelect) {
       // Native <select> path
@@ -161,7 +167,12 @@ test.describe('Notification Pages', () => {
     } else {
       // HeadlessUI Listbox path — find time range button by position (first button in the header controls area)
       // The heading and controls are siblings: heading + div with buttons
-      const controlsArea = page.locator('h1').locator('..').locator('..').locator('button').first()
+      const controlsArea = page
+        .locator('h1')
+        .locator('..')
+        .locator('..')
+        .locator('button')
+        .first()
       await expect(controlsArea).toBeVisible({ timeout: 15000 })
 
       const initialText = await controlsArea.textContent()
@@ -177,7 +188,12 @@ test.describe('Notification Pages', () => {
         await options.nth(1).click()
         await page.waitForTimeout(300)
         // Re-locate the button after selection (text changed, locator must be fresh)
-        const updatedButton = page.locator('h1').locator('..').locator('..').locator('button').first()
+        const updatedButton = page
+          .locator('h1')
+          .locator('..')
+          .locator('..')
+          .locator('button')
+          .first()
         const newText = await updatedButton.textContent()
         console.log('New time range:', newText)
         expect(newText).not.toBe(initialText)
@@ -251,7 +267,7 @@ test.describe('Notification Pages', () => {
 
     // Find the save button
     const saveButton = page.locator(
-      '[data-testid="settings-save-notifications-button"]'
+      '[data-testid="settings-save-notifications-button"]',
     )
     await expect(saveButton).toBeVisible({ timeout: 20000 })
 
@@ -260,7 +276,9 @@ test.describe('Notification Pages', () => {
     page.on('request', (request) => {
       if (
         request.url().includes('/api/notifications/preferences') &&
-        (request.method() === 'PUT' || request.method() === 'POST' || request.method() === 'PATCH')
+        (request.method() === 'PUT' ||
+          request.method() === 'POST' ||
+          request.method() === 'PATCH')
       ) {
         saveRequestMade = true
       }
@@ -299,7 +317,7 @@ test.describe('Notification Pages', () => {
 
     // Find the "Disable All" button
     const disableAllButton = page.locator(
-      '[data-testid="settings-disable-all-notifications-button"]'
+      '[data-testid="settings-disable-all-notifications-button"]',
     )
     await expect(disableAllButton).toBeVisible({ timeout: 15000 })
 
@@ -310,7 +328,7 @@ test.describe('Notification Pages', () => {
     // Verify all enabled toggles switched to disabled (bg-zinc classes)
     await expect(async () => {
       const enabledToggles = page.locator(
-        '[data-testid^="settings-notification-toggle-"]'
+        '[data-testid^="settings-notification-toggle-"]',
       )
       const count = await enabledToggles.count()
       for (let i = 0; i < count; i++) {
@@ -321,7 +339,7 @@ test.describe('Notification Pages', () => {
 
     // Find the "Enable All" button
     const enableAllButton = page.locator(
-      '[data-testid="settings-enable-all-notifications-button"]'
+      '[data-testid="settings-enable-all-notifications-button"]',
     )
     await expect(enableAllButton).toBeVisible({ timeout: 10000 })
 
@@ -332,7 +350,7 @@ test.describe('Notification Pages', () => {
     // Verify all toggles switched to enabled (bg-emerald-600)
     await expect(async () => {
       const enabledToggles = page.locator(
-        '[data-testid^="settings-notification-toggle-"]'
+        '[data-testid^="settings-notification-toggle-"]',
       )
       const count = await enabledToggles.count()
       for (let i = 0; i < count; i++) {

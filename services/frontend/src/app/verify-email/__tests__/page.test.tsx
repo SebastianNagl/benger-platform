@@ -64,7 +64,7 @@ describe('VerifyEmailPage', () => {
       render(<VerifyEmailPage />)
 
       expect(
-        screen.getByText('emailVerification.verifying')
+        screen.getByText('emailVerification.verifying'),
       ).toBeInTheDocument()
     })
 
@@ -76,11 +76,11 @@ describe('VerifyEmailPage', () => {
 
       waitFor(() => {
         expect(
-          screen.getByText('emailVerification.checkInbox')
+          screen.getByText('emailVerification.checkInbox'),
         ).toBeInTheDocument()
         // Component calls t(`emailVerification.${messageKey}`)
         expect(
-          screen.getByText('emailVerification.registrationSuccess')
+          screen.getByText('emailVerification.registrationSuccess'),
         ).toBeInTheDocument()
       })
     })
@@ -90,11 +90,11 @@ describe('VerifyEmailPage', () => {
 
       waitFor(() => {
         expect(
-          screen.getByText('emailVerification.invalid')
+          screen.getByText('emailVerification.invalid'),
         ).toBeInTheDocument()
         // Component calls t('emailVerification.noToken')
         expect(
-          screen.getByText('emailVerification.noToken')
+          screen.getByText('emailVerification.noToken'),
         ).toBeInTheDocument()
       })
     })
@@ -136,10 +136,10 @@ describe('VerifyEmailPage', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('emailVerification.verified')
+          screen.getByText('emailVerification.verified'),
         ).toBeInTheDocument()
         expect(
-          screen.getByText('emailVerification.verifiedDescription')
+          screen.getByText('emailVerification.verifiedDescription'),
         ).toBeInTheDocument()
       })
     })
@@ -158,7 +158,9 @@ describe('VerifyEmailPage', () => {
         // Component renders: {t('emailVerification.emailLabel')} {email}
         // Mock t() returns the key, so we expect: 'emailVerification.emailLabel verified@example.com'
         expect(
-          screen.getByText(/emailVerification\.emailLabel.*verified@example\.com/i)
+          screen.getByText(
+            /emailVerification\.emailLabel.*verified@example\.com/i,
+          ),
         ).toBeInTheDocument()
       })
     })
@@ -176,7 +178,7 @@ describe('VerifyEmailPage', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('emailVerification.verified')
+          screen.getByText('emailVerification.verified'),
         ).toBeInTheDocument()
       })
 
@@ -201,10 +203,10 @@ describe('VerifyEmailPage', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('emailVerification.invalid')
+          screen.getByText('emailVerification.invalid'),
         ).toBeInTheDocument()
         expect(
-          screen.getByText('Invalid verification token')
+          screen.getByText('Invalid verification token'),
         ).toBeInTheDocument()
       })
     })
@@ -213,17 +215,17 @@ describe('VerifyEmailPage', () => {
       mockSearchParams.set('token', 'test-token')
       ;(useSearchParams as jest.Mock).mockReturnValue(mockSearchParams)
       ;(global.fetch as jest.Mock).mockRejectedValueOnce(
-        new Error('Network error')
+        new Error('Network error'),
       )
 
       render(<VerifyEmailPage />)
 
       await waitFor(() => {
         expect(
-          screen.getByText('emailVerification.invalid')
+          screen.getByText('emailVerification.invalid'),
         ).toBeInTheDocument()
         expect(
-          screen.getByText('emailVerification.invalidDescription')
+          screen.getByText('emailVerification.invalidDescription'),
         ).toBeInTheDocument()
       })
     })
@@ -247,14 +249,14 @@ describe('VerifyEmailPage', () => {
       // Wait for error state
       await waitFor(() => {
         expect(
-          screen.getByText('emailVerification.invalid')
+          screen.getByText('emailVerification.invalid'),
         ).toBeInTheDocument()
       })
 
       // Note: The component doesn't expose email on error, so resend button won't show
       // This test verifies that behavior
       expect(
-        screen.queryByText('emailVerification.resend')
+        screen.queryByText('emailVerification.resend'),
       ).not.toBeInTheDocument()
     })
 
@@ -278,7 +280,7 @@ describe('VerifyEmailPage', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('emailVerification.invalid')
+          screen.getByText('emailVerification.invalid'),
         ).toBeInTheDocument()
       })
 
@@ -315,7 +317,7 @@ describe('VerifyEmailPage', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('emailVerification.verified')
+          screen.getByText('emailVerification.verified'),
         ).toBeInTheDocument()
       })
 
@@ -334,16 +336,16 @@ describe('VerifyEmailPage', () => {
       mockSearchParams.set('token', 'test-token')
       ;(useSearchParams as jest.Mock).mockReturnValue(mockSearchParams)
       ;(global.fetch as jest.Mock).mockImplementation(
-        () => new Promise(() => {}) // Never resolves
+        () => new Promise(() => {}), // Never resolves
       )
 
       render(<VerifyEmailPage />)
 
       expect(
-        screen.getByText('emailVerification.verifying')
+        screen.getByText('emailVerification.verifying'),
       ).toBeInTheDocument()
       expect(
-        screen.getByText('emailVerification.checkInboxDescription')
+        screen.getByText('emailVerification.checkInboxDescription'),
       ).toBeInTheDocument()
     })
 
@@ -375,7 +377,7 @@ describe('VerifyEmailPage', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('emailVerification.invalid')
+          screen.getByText('emailVerification.invalid'),
         ).toBeInTheDocument()
       })
     })
@@ -388,7 +390,7 @@ describe('VerifyEmailPage', () => {
 
       waitFor(() => {
         expect(
-          screen.getByText('emailVerification.checkInbox')
+          screen.getByText('emailVerification.checkInbox'),
         ).toBeInTheDocument()
       })
     })
@@ -399,14 +401,14 @@ describe('VerifyEmailPage', () => {
       mockSearchParams.set('token', 'test-token')
       ;(useSearchParams as jest.Mock).mockReturnValue(mockSearchParams)
       ;(global.fetch as jest.Mock).mockImplementation(
-        () => new Promise(() => {})
+        () => new Promise(() => {}),
       )
 
       render(<VerifyEmailPage />)
 
       expect(mockT).toHaveBeenCalledWith('emailVerification.verifying')
       expect(mockT).toHaveBeenCalledWith(
-        'emailVerification.checkInboxDescription'
+        'emailVerification.checkInboxDescription',
       )
     })
   })
@@ -423,13 +425,13 @@ describe('VerifyEmailPage', () => {
       mockSearchParams.set('token', 'test-token')
       ;(useSearchParams as jest.Mock).mockReturnValue(mockSearchParams)
       ;(global.fetch as jest.Mock).mockImplementation(
-        () => new Promise(() => {})
+        () => new Promise(() => {}),
       )
 
       render(<VerifyEmailPage />)
 
       expect(
-        screen.getByText('emailVerification.checkInboxDescription')
+        screen.getByText('emailVerification.checkInboxDescription'),
       ).toBeInTheDocument()
     })
   })
@@ -447,7 +449,7 @@ describe('VerifyEmailPage', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('emailVerification.invalidDescription')
+          screen.getByText('emailVerification.invalidDescription'),
         ).toBeInTheDocument()
       })
     })
@@ -460,20 +462,20 @@ describe('VerifyEmailPage', () => {
       mockSearchParams.set('token', 'test-token')
       ;(useSearchParams as jest.Mock).mockReturnValue(mockSearchParams)
       ;(global.fetch as jest.Mock).mockRejectedValueOnce(
-        new Error('Network error')
+        new Error('Network error'),
       )
 
       render(<VerifyEmailPage />)
 
       await waitFor(() => {
         expect(
-          screen.getByText('emailVerification.invalid')
+          screen.getByText('emailVerification.invalid'),
         ).toBeInTheDocument()
       })
 
       expect(consoleErrorSpy).toHaveBeenCalledWith(
         'Error verifying email:',
-        expect.any(Error)
+        expect.any(Error),
       )
 
       consoleErrorSpy.mockRestore()

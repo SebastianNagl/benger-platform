@@ -99,7 +99,7 @@ describe('dataColumnHelpers', () => {
       expect(formatFieldLabel('firstName')).toBe('First Name')
       expect(formatFieldLabel('UPPERCASE')).toBe('Uppercase')
       expect(formatFieldLabel('multiple_word_field_name')).toBe(
-        'Multiple Word Field Name'
+        'Multiple Word Field Name',
       )
       expect(formatFieldLabel('simpleField')).toBe('Simple Field')
     })
@@ -287,7 +287,7 @@ describe('dataColumnHelpers', () => {
       }
 
       expect(getTaskDisplayValue(taskWithoutPriorityFields)).toBe(
-        'fallback value'
+        'fallback value',
       )
     })
 

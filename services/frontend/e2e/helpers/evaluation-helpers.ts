@@ -34,11 +34,11 @@ export class EvaluationHelpers {
    */
   async createProjectWithConfig(
     config: string,
-    taskCount: number = 3
+    taskCount: number = 3,
   ): Promise<string> {
     if (!this.fixtures) {
       throw new Error(
-        'TestFixtures not initialized. Call initHelpers() first or pass helpers to constructor.'
+        'TestFixtures not initialized. Call initHelpers() first or pass helpers to constructor.',
       )
     }
     return await this.fixtures.createAnnotationTestProject(config, taskCount)
@@ -59,13 +59,13 @@ export class EvaluationHelpers {
           {
             waitUntil: 'domcontentloaded',
             timeout: 30000,
-          }
+          },
         )
 
         // Check for 404 or other error responses
         if (response && response.status() >= 400) {
           console.warn(
-            `Navigation attempt ${attempt} returned ${response.status()}, retrying...`
+            `Navigation attempt ${attempt} returned ${response.status()}, retrying...`,
           )
           await this.page.waitForTimeout(1000 * attempt)
           continue
@@ -104,7 +104,7 @@ export class EvaluationHelpers {
         if (!finalUrl.includes(`/projects/${projectId}`)) {
           throw new Error(
             `Navigation to /projects/${projectId} ended up at ${finalUrl} ` +
-              `— project may not exist or user lacks access`
+              `— project may not exist or user lacks access`,
           )
         }
         console.log(`[navigateToProject] landed at ${finalUrl}`)
@@ -112,7 +112,7 @@ export class EvaluationHelpers {
       } catch (error) {
         lastError = error as Error
         console.warn(
-          `Navigation attempt ${attempt}/${maxRetries} failed: ${lastError.message}`
+          `Navigation attempt ${attempt}/${maxRetries} failed: ${lastError.message}`,
         )
         if (attempt < maxRetries) {
           await this.page.waitForTimeout(1000 * attempt)
@@ -123,7 +123,7 @@ export class EvaluationHelpers {
     throw (
       lastError ||
       new Error(
-        `Failed to navigate to project ${projectId} after ${maxRetries} attempts`
+        `Failed to navigate to project ${projectId} after ${maxRetries} attempts`,
       )
     )
   }
@@ -146,7 +146,7 @@ export class EvaluationHelpers {
   async ensureProjectExists(): Promise<string> {
     if (!this.fixtures) {
       throw new Error(
-        'TestFixtures not initialized. Call initHelpers() first or pass helpers to constructor.'
+        'TestFixtures not initialized. Call initHelpers() first or pass helpers to constructor.',
       )
     }
 
@@ -158,7 +158,7 @@ export class EvaluationHelpers {
 
     const projectId = await this.fixtures.createAnnotationTestProject(
       labelConfig,
-      3
+      3,
     )
     return projectId
   }
@@ -202,7 +202,9 @@ export class EvaluationHelpers {
   async openEvaluationConfigSection(): Promise<void> {
     // Wait for project page to be ready
     await this.page.waitForTimeout(1000)
-    console.log(`[openEvaluationConfigSection] starting at URL: ${this.page.url()}`)
+    console.log(
+      `[openEvaluationConfigSection] starting at URL: ${this.page.url()}`,
+    )
 
     // Fail fast if we're not on a project detail page — the rest of the
     // helper otherwise scrolls a wrong page silently and confuses later
@@ -211,7 +213,7 @@ export class EvaluationHelpers {
     if (!/\/projects\/[0-9a-f-]{8,}/.test(this.page.url())) {
       throw new Error(
         `openEvaluationConfigSection called from ${this.page.url()}, ` +
-          `expected /projects/{id} — earlier setup step likely failed silently`
+          `expected /projects/{id} — earlier setup step likely failed silently`,
       )
     }
 
@@ -251,7 +253,7 @@ export class EvaluationHelpers {
     }
 
     throw new Error(
-      `Evaluation config section not found after scrolling at ${this.page.url()}`
+      `Evaluation config section not found after scrolling at ${this.page.url()}`,
     )
   }
 
@@ -280,7 +282,9 @@ export class EvaluationHelpers {
       'Evaluation Methoden',
     ]
     for (const title of sectionTitles) {
-      const header = this.page.locator(`button:has(h2:text-is("${title}"))`).first()
+      const header = this.page
+        .locator(`button:has(h2:text-is("${title}"))`)
+        .first()
       if (await header.isVisible({ timeout: 1000 }).catch(() => false)) {
         await header.click()
         await this.page.waitForTimeout(500)
@@ -301,20 +305,22 @@ export class EvaluationHelpers {
     // The button lives inside a SubSection that's collapsed by default —
     // expand it first so the button is in the DOM.
     await this.expandEvaluationMethodsSection()
-    const testIdButton = this.page.locator('[data-testid="add-evaluation-button"]')
+    const testIdButton = this.page.locator(
+      '[data-testid="add-evaluation-button"]',
+    )
     if (await testIdButton.isVisible({ timeout: 3000 }).catch(() => false)) {
       await testIdButton.click()
       // Confirm the wizard actually rendered before continuing — without this
       // a misclick or stale state silently passes through and surfaces as a
       // mysterious "Next button not found" three steps later.
       const wizardHeader = this.page.locator(
-        '[data-testid="evaluation-wizard-header"]'
+        '[data-testid="evaluation-wizard-header"]',
       )
       try {
         await wizardHeader.waitFor({ state: 'visible', timeout: 5000 })
       } catch {
         throw new Error(
-          'Clicked add-evaluation-button but wizard header never appeared'
+          'Clicked add-evaluation-button but wizard header never appeared',
         )
       }
       await this.page.waitForTimeout(500)
@@ -352,8 +358,15 @@ export class EvaluationHelpers {
     // Try scrolling the container to find LLM Judge
     for (let scrollAttempt = 0; scrollAttempt < 5; scrollAttempt++) {
       // Try data-testid first (most reliable)
-      const metricByTestId = this.page.locator('[data-testid^="metric-button-llm_judge"]')
-      if (await metricByTestId.first().isVisible({ timeout: 1000 }).catch(() => false)) {
+      const metricByTestId = this.page.locator(
+        '[data-testid^="metric-button-llm_judge"]',
+      )
+      if (
+        await metricByTestId
+          .first()
+          .isVisible({ timeout: 1000 })
+          .catch(() => false)
+      ) {
         await metricByTestId.first().click()
         await this.page.waitForTimeout(500)
         return
@@ -376,7 +389,9 @@ export class EvaluationHelpers {
       }
 
       // Scroll within the container
-      if (await scrollContainer.isVisible({ timeout: 500 }).catch(() => false)) {
+      if (
+        await scrollContainer.isVisible({ timeout: 500 }).catch(() => false)
+      ) {
         await scrollContainer.evaluate((el) => (el.scrollTop += 300))
       } else {
         // Fallback to window scroll
@@ -386,7 +401,7 @@ export class EvaluationHelpers {
     }
 
     throw new Error(
-      'LLM Judge metric not found - check if wizard is open and metrics are loaded'
+      'LLM Judge metric not found - check if wizard is open and metrics are loaded',
     )
   }
 
@@ -400,13 +415,23 @@ export class EvaluationHelpers {
     await this.page.waitForTimeout(500)
 
     // Try data-testid first (most reliable)
-    const metricByTestId = this.page.locator('[data-testid^="metric-button-llm_judge"]')
-    if (await metricByTestId.first().isVisible({ timeout: 2000 }).catch(() => false)) {
+    const metricByTestId = this.page.locator(
+      '[data-testid^="metric-button-llm_judge"]',
+    )
+    if (
+      await metricByTestId
+        .first()
+        .isVisible({ timeout: 2000 })
+        .catch(() => false)
+    ) {
       return true
     }
 
     // Fallback: look for button containing LLM Judge text
-    const llmJudgeButton = this.page.locator('button').filter({ hasText: /LLM Judge/i }).first()
+    const llmJudgeButton = this.page
+      .locator('button')
+      .filter({ hasText: /LLM Judge/i })
+      .first()
     return await llmJudgeButton.isVisible({ timeout: 2000 }).catch(() => false)
   }
 
@@ -426,7 +451,7 @@ export class EvaluationHelpers {
         throw new Error(
           `wizard-next-button is disabled at step "${stepIndicator}" ` +
             `at URL ${this.page.url()} — current step's canProceed() is false ` +
-            `(likely a previous helper clicked the wrong element)`
+            `(likely a previous helper clicked the wrong element)`,
         )
       }
       await testIdButton.click()
@@ -458,7 +483,7 @@ export class EvaluationHelpers {
     console.log('Available buttons:', allButtons.slice(0, 10))
     throw new Error(
       `Next/Weiter button not found in wizard ` +
-        `(wizard header visible: ${wizardOpen}, URL: ${this.page.url()})`
+        `(wizard header visible: ${wizardOpen}, URL: ${this.page.url()})`,
     )
   }
 
@@ -529,7 +554,7 @@ export class EvaluationHelpers {
     }
 
     throw new Error(
-      `No prediction field checkbox found inside wizard at ${this.page.url()}`
+      `No prediction field checkbox found inside wizard at ${this.page.url()}`,
     )
   }
 
@@ -548,7 +573,7 @@ export class EvaluationHelpers {
     }
 
     throw new Error(
-      `No reference field checkbox found inside wizard at ${this.page.url()}`
+      `No reference field checkbox found inside wizard at ${this.page.url()}`,
     )
   }
 
@@ -558,7 +583,9 @@ export class EvaluationHelpers {
    */
   async getCurrentStep(): Promise<number> {
     // First try data-testid selector (most reliable)
-    const stepIndicator = this.page.locator('[data-testid="wizard-step-indicator"]')
+    const stepIndicator = this.page.locator(
+      '[data-testid="wizard-step-indicator"]',
+    )
     if (await stepIndicator.isVisible({ timeout: 3000 }).catch(() => false)) {
       const text = await stepIndicator.textContent().catch(() => '')
       // Match both English and German formats
@@ -569,7 +596,9 @@ export class EvaluationHelpers {
     }
 
     // Fallback: Look for the wizard header which contains the step indicator
-    const wizardHeader = this.page.locator('[data-testid="evaluation-wizard-header"]')
+    const wizardHeader = this.page.locator(
+      '[data-testid="evaluation-wizard-header"]',
+    )
     if (await wizardHeader.isVisible({ timeout: 2000 }).catch(() => false)) {
       const headerText = await wizardHeader.textContent().catch(() => '')
 
@@ -618,7 +647,9 @@ export class EvaluationHelpers {
     // HeadlessUI: use the shared button locator
     const answerTypeButton = this.answerTypeButton()
 
-    if (!(await answerTypeButton.isVisible({ timeout: 5000 }).catch(() => false))) {
+    if (
+      !(await answerTypeButton.isVisible({ timeout: 5000 }).catch(() => false))
+    ) {
       return []
     }
 
@@ -634,7 +665,7 @@ export class EvaluationHelpers {
     await this.page.keyboard.press('Escape')
     await this.page.waitForTimeout(200)
 
-    return options.map(o => o.trim())
+    return options.map((o) => o.trim())
   }
 
   /**
@@ -667,20 +698,20 @@ export class EvaluationHelpers {
         .catch(() => [])
       throw new Error(
         `Answer type listbox did not open after clicking ${JSON.stringify(
-          (await answerTypeButton.textContent().catch(() => '')) || ''
-        )}. wizardButtons=${JSON.stringify(buttonTexts)} value=${value}`
+          (await answerTypeButton.textContent().catch(() => '')) || '',
+        )}. wizardButtons=${JSON.stringify(buttonTexts)} value=${value}`,
       )
     }
 
     // Scope option search to the open listbox so an unrelated [role="option"]
     // elsewhere on the page can't shadow the lookup.
     const option = listbox.locator(`[data-value="${value}"]`)
-    if (await option.count() === 0) {
+    if ((await option.count()) === 0) {
       const optionTexts = await listbox.getByRole('option').allTextContents()
       await this.page.keyboard.press('Escape')
       throw new Error(
         `Could not find answer type option data-value="${value}". ` +
-          `Visible options: ${JSON.stringify(optionTexts)}`
+          `Visible options: ${JSON.stringify(optionTexts)}`,
       )
     }
     await option.click()
@@ -714,7 +745,8 @@ export class EvaluationHelpers {
     return this.page
       .locator('[data-testid="evaluation-wizard-body"] button')
       .filter({
-        hasText: /Free.form|Short Text|Long Text|NER|Named Entity|Span|Freitext|Kurztext|Langtext|Rating|Binary|Choice|Classification/i,
+        hasText:
+          /Free.form|Short Text|Long Text|NER|Named Entity|Span|Freitext|Kurztext|Langtext|Rating|Binary|Choice|Classification/i,
       })
       .first()
   }

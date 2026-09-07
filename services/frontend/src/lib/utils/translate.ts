@@ -35,10 +35,7 @@ function getLocale(): 'de' | 'en' {
  * Translate a key outside of React context.
  * Supports variable interpolation: translate('key', { count: 5 })
  */
-export function translate(
-  key: string,
-  vars?: Record<string, any>
-): string {
+export function translate(key: string, vars?: Record<string, any>): string {
   try {
     const locale = getLocale()
     const keys = key.split('.')

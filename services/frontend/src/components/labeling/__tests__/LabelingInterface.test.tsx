@@ -36,13 +36,13 @@ jest.mock('@/lib/api/projects', () => ({
 
 // Toast mocked by setupTests; alias the per-type stable mocks here so
 // existing toast.success/error assertions keep reading the right call list.
+import { useAuth } from '@/contexts/AuthContext'
+import { projectsAPI } from '@/lib/api/projects'
 import { mockToast as __mockToast } from '@/test-utils/setupTests'
 const toast = Object.assign(
   (msg: string, type?: any) => __mockToast.addToast(msg, type),
-  { success: __mockToast.success, error: __mockToast.error }
+  { success: __mockToast.success, error: __mockToast.error },
 )
-import { projectsAPI } from '@/lib/api/projects'
-import { useAuth } from '@/contexts/AuthContext'
 
 // Mock the DynamicAnnotationInterface
 jest.mock('../DynamicAnnotationInterface', () => ({
@@ -70,7 +70,9 @@ jest.mock('../DynamicAnnotationInterface', () => ({
           <button
             data-testid="mock-annotate"
             onClick={() => {
-              onChange([{ type: 'textarea', value: { text: ['test annotation'] } }])
+              onChange([
+                { type: 'textarea', value: { text: ['test annotation'] } },
+              ])
             }}
           >
             Annotate
@@ -109,15 +111,18 @@ jest.mock('@/contexts/I18nContext', () => ({
       const translations: Record<string, string> = {
         'annotation.timer.expiredToast': 'Time limit reached',
         'annotation.interface.skipCommentTitle': 'Skip Task',
-        'annotation.interface.skipCommentMessage': 'Please provide a reason for skipping this task.',
+        'annotation.interface.skipCommentMessage':
+          'Please provide a reason for skipping this task.',
         'annotation.interface.skipCommentPlaceholder': 'Enter your comment...',
         'annotation.interface.cancel': 'Cancel',
         'annotation.interface.skip': 'Skip',
         'annotation.instructions.title': 'Annotation Instructions',
-        'annotation.instructions.dontShowAgain': "Don't show again for this project",
+        'annotation.instructions.dontShowAgain':
+          "Don't show again for this project",
         'annotation.instructions.startAnnotating': 'Start Annotating',
         'annotation.taskLoadedFromUrl': 'Loaded task {taskNumber} from URL',
-        'annotation.taskNotFound': 'Task {taskNumber} not found (max: {maxTasks}). Loading first task instead.',
+        'annotation.taskNotFound':
+          'Task {taskNumber} not found (max: {maxTasks}). Loading first task instead.',
       }
       let result = translations[key] || options?.defaultValue || key
       if (options) {
@@ -235,7 +240,7 @@ describe('LabelingInterface', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByTestId('dynamic-annotation-interface')
+          screen.getByTestId('dynamic-annotation-interface'),
         ).toBeInTheDocument()
       })
     })
@@ -297,7 +302,7 @@ describe('LabelingInterface', () => {
       await waitFor(() => {
         expect(mockStoreState.fetchProjectTasks).toHaveBeenCalledWith(
           'project-1',
-          false
+          false,
         )
         expect(mockStoreState.setTaskByIndex).toHaveBeenCalledWith(4)
         expect(toast.success).toHaveBeenCalledWith('Loaded task 5 from URL')
@@ -324,7 +329,7 @@ describe('LabelingInterface', () => {
 
       await waitFor(() => {
         expect(toast.error).toHaveBeenCalledWith(
-          expect.stringContaining('Task 999 not found')
+          expect.stringContaining('Task 999 not found'),
         )
       })
     })
@@ -332,7 +337,7 @@ describe('LabelingInterface', () => {
     it('should handle failed task loading from URL', async () => {
       mockSearchParams.get.mockReturnValue('5')
       mockStoreState.fetchProjectTasks.mockRejectedValue(
-        new Error('Failed to fetch tasks')
+        new Error('Failed to fetch tasks'),
       )
 
       render(<LabelingInterface projectId="project-1" />)
@@ -369,8 +374,8 @@ describe('LabelingInterface', () => {
       await waitFor(() => {
         expect(
           screen.getByText(
-            'No tasks are available for annotation in this project.'
-          )
+            'No tasks are available for annotation in this project.',
+          ),
         ).toBeInTheDocument()
       })
     })
@@ -415,8 +420,8 @@ describe('LabelingInterface', () => {
       expect(screen.getByText('All tasks completed!')).toBeInTheDocument()
       expect(
         screen.getByText(
-          "You've annotated all available tasks in this project."
-        )
+          "You've annotated all available tasks in this project.",
+        ),
       ).toBeInTheDocument()
     })
 
@@ -470,7 +475,7 @@ describe('LabelingInterface', () => {
         expect(mockStoreState.createAnnotationInternal).toHaveBeenCalledWith(
           'task-1',
           expect.objectContaining({ result: [] }),
-          false
+          false,
         )
       })
     })
@@ -480,7 +485,7 @@ describe('LabelingInterface', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByTestId('dynamic-annotation-interface')
+          screen.getByTestId('dynamic-annotation-interface'),
         ).toBeInTheDocument()
       })
 
@@ -525,7 +530,7 @@ describe('LabelingInterface', () => {
       await waitFor(() => {
         expect(consoleErrorSpy).toHaveBeenCalledWith(
           'Failed to skip task:',
-          expect.any(Error)
+          expect.any(Error),
         )
       })
 
@@ -577,7 +582,7 @@ describe('LabelingInterface', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('No label configuration found')
+          screen.getByText('No label configuration found'),
         ).toBeInTheDocument()
       })
     })
@@ -588,7 +593,7 @@ describe('LabelingInterface', () => {
       await waitFor(() => {
         const labelConfigElement = screen.getByTestId('label-config')
         expect(labelConfigElement).toHaveTextContent(
-          '<View><Text name="text" value="$text"/></View>'
+          '<View><Text name="text" value="$text"/></View>',
         )
       })
     })
@@ -599,7 +604,7 @@ describe('LabelingInterface', () => {
       await waitFor(() => {
         const taskDataElement = screen.getByTestId('task-data')
         expect(taskDataElement).toHaveTextContent(
-          JSON.stringify({ text: 'Test task data' })
+          JSON.stringify({ text: 'Test task data' }),
         )
       })
     })
@@ -611,21 +616,21 @@ describe('LabelingInterface', () => {
         fetchProjectTasks: jest.fn().mockResolvedValue([mockTask]),
       }
       ;(useProjectStore as unknown as jest.Mock).mockReturnValue(
-        storeWithConfig
+        storeWithConfig,
       )
 
       render(<LabelingInterface projectId="project-1" />)
 
       await waitFor(() => {
         expect(
-          screen.getByTestId('dynamic-annotation-interface')
+          screen.getByTestId('dynamic-annotation-interface'),
         ).toBeInTheDocument()
       })
 
       // When label config version changes, fetchProjectTasks should be called with per-user filter
       expect(storeWithConfig.fetchProjectTasks).toHaveBeenCalledWith(
         'project-1',
-        true
+        true,
       )
     })
   })
@@ -676,7 +681,7 @@ describe('LabelingInterface', () => {
         currentTask: taskWithEmptyLLM,
       }
       ;(useProjectStore as unknown as jest.Mock).mockReturnValue(
-        storeWithEmptyLLM
+        storeWithEmptyLLM,
       )
 
       render(<LabelingInterface projectId="project-1" />)
@@ -750,7 +755,7 @@ describe('LabelingInterface', () => {
         currentTaskTotal: null,
       }
       ;(useProjectStore as unknown as jest.Mock).mockReturnValue(
-        storeWithNullTotal
+        storeWithNullTotal,
       )
 
       render(<LabelingInterface projectId="project-1" />)
@@ -770,7 +775,7 @@ describe('LabelingInterface', () => {
         },
       }
       ;(useProjectStore as unknown as jest.Mock).mockReturnValue(
-        storeWithNoTotal
+        storeWithNoTotal,
       )
 
       render(<LabelingInterface projectId="project-1" />)
@@ -793,7 +798,7 @@ describe('LabelingInterface', () => {
         currentTask: taskWithEmptyData,
       }
       ;(useProjectStore as unknown as jest.Mock).mockReturnValue(
-        storeWithEmptyData
+        storeWithEmptyData,
       )
 
       render(<LabelingInterface projectId="project-1" />)
@@ -815,7 +820,7 @@ describe('LabelingInterface', () => {
         currentTask: taskWithNullData,
       }
       ;(useProjectStore as unknown as jest.Mock).mockReturnValue(
-        storeWithNullData
+        storeWithNullData,
       )
 
       render(<LabelingInterface projectId="project-1" />)
@@ -858,7 +863,7 @@ describe('LabelingInterface', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByTestId('dynamic-annotation-interface')
+          screen.getByTestId('dynamic-annotation-interface'),
         ).toBeInTheDocument()
       })
 
@@ -901,7 +906,7 @@ describe('LabelingInterface', () => {
       await waitFor(() => {
         expect(consoleErrorSpy).toHaveBeenCalledWith(
           'Failed to submit annotation:',
-          expect.any(Error)
+          expect.any(Error),
         )
       })
 
@@ -949,7 +954,7 @@ describe('LabelingInterface', () => {
         currentTaskPosition: null,
       }
       ;(useProjectStore as unknown as jest.Mock).mockReturnValue(
-        storeWithNullPosition
+        storeWithNullPosition,
       )
 
       render(<LabelingInterface projectId="project-1" />)
@@ -968,14 +973,14 @@ describe('LabelingInterface', () => {
         fetchProjectTasks: jest.fn(),
       }
       ;(useProjectStore as unknown as jest.Mock).mockReturnValue(
-        storeWithZeroVersion
+        storeWithZeroVersion,
       )
 
       render(<LabelingInterface projectId="project-1" />)
 
       await waitFor(() => {
         expect(
-          screen.getByTestId('dynamic-annotation-interface')
+          screen.getByTestId('dynamic-annotation-interface'),
         ).toBeInTheDocument()
       })
 
@@ -1009,7 +1014,7 @@ describe('LabelingInterface', () => {
         },
       }
       ;(useProjectStore as unknown as jest.Mock).mockReturnValue(
-        projectWithSkip
+        projectWithSkip,
       )
 
       render(<LabelingInterface projectId="project-1" />)
@@ -1030,7 +1035,7 @@ describe('LabelingInterface', () => {
         },
       }
       ;(useProjectStore as unknown as jest.Mock).mockReturnValue(
-        projectWithNullSkip
+        projectWithNullSkip,
       )
 
       render(<LabelingInterface projectId="project-1" />)
@@ -1056,7 +1061,7 @@ describe('LabelingInterface', () => {
         currentTask: taskWithObjectResponse,
       }
       ;(useProjectStore as unknown as jest.Mock).mockReturnValue(
-        storeWithObjectLLM
+        storeWithObjectLLM,
       )
 
       render(<LabelingInterface projectId="project-1" />)
@@ -1096,7 +1101,7 @@ describe('LabelingInterface', () => {
         expect(projectsAPI.saveDraft).toHaveBeenCalledWith(
           'project-1',
           'task-1',
-          [{ type: 'textarea', value: { text: ['test annotation'] } }]
+          [{ type: 'textarea', value: { text: ['test annotation'] } }],
         )
       })
     })
@@ -1167,7 +1172,9 @@ describe('LabelingInterface', () => {
       render(<LabelingInterface projectId="project-1" />)
 
       await waitFor(() => {
-        expect(screen.getByTestId('dynamic-annotation-interface')).toBeInTheDocument()
+        expect(
+          screen.getByTestId('dynamic-annotation-interface'),
+        ).toBeInTheDocument()
       })
 
       // Advance 30s without making any annotations
@@ -1197,7 +1204,7 @@ describe('LabelingInterface', () => {
         expect(projectsAPI.saveDraft).toHaveBeenCalledWith(
           'project-1',
           'task-1',
-          [{ type: 'textarea', value: { text: ['test annotation'] } }]
+          [{ type: 'textarea', value: { text: ['test annotation'] } }],
         )
       })
 
@@ -1212,7 +1219,9 @@ describe('LabelingInterface', () => {
       render(<LabelingInterface projectId="project-1" />)
 
       await waitFor(() => {
-        expect(screen.getByTestId('dynamic-annotation-interface')).toBeInTheDocument()
+        expect(
+          screen.getByTestId('dynamic-annotation-interface'),
+        ).toBeInTheDocument()
       })
 
       // Simulate tab hidden without making annotations
@@ -1237,7 +1246,9 @@ describe('LabelingInterface', () => {
       const { unmount } = render(<LabelingInterface projectId="project-1" />)
 
       await waitFor(() => {
-        expect(screen.getByTestId('dynamic-annotation-interface')).toBeInTheDocument()
+        expect(
+          screen.getByTestId('dynamic-annotation-interface'),
+        ).toBeInTheDocument()
       })
 
       unmount()
@@ -1245,7 +1256,7 @@ describe('LabelingInterface', () => {
       expect(clearIntervalSpy).toHaveBeenCalled()
       expect(removeEventSpy).toHaveBeenCalledWith(
         'visibilitychange',
-        expect.any(Function)
+        expect.any(Function),
       )
 
       clearIntervalSpy.mockRestore()
@@ -1253,7 +1264,9 @@ describe('LabelingInterface', () => {
     })
 
     it('should silently handle saveDraft errors', async () => {
-      ;(projectsAPI.saveDraft as jest.Mock).mockRejectedValue(new Error('Network error'))
+      ;(projectsAPI.saveDraft as jest.Mock).mockRejectedValue(
+        new Error('Network error'),
+      )
 
       render(<LabelingInterface projectId="project-1" />)
 
@@ -1272,11 +1285,11 @@ describe('LabelingInterface', () => {
       })
 
       // Component should still be rendered (no crash)
-      expect(screen.getByTestId('dynamic-annotation-interface')).toBeInTheDocument()
+      expect(
+        screen.getByTestId('dynamic-annotation-interface'),
+      ).toBeInTheDocument()
     })
   })
-
-
 
   describe('Instructions Button', () => {
     it('should show Instructions button when project has instructions', async () => {
@@ -1288,7 +1301,9 @@ describe('LabelingInterface', () => {
           show_instruction: true,
         },
       }
-      ;(useProjectStore as unknown as jest.Mock).mockReturnValue(storeWithInstructions)
+      ;(useProjectStore as unknown as jest.Mock).mockReturnValue(
+        storeWithInstructions,
+      )
 
       render(<LabelingInterface projectId="project-1" />)
 
@@ -1306,7 +1321,9 @@ describe('LabelingInterface', () => {
           conditional_instructions: null,
         },
       }
-      ;(useProjectStore as unknown as jest.Mock).mockReturnValue(storeNoInstructions)
+      ;(useProjectStore as unknown as jest.Mock).mockReturnValue(
+        storeNoInstructions,
+      )
 
       render(<LabelingInterface projectId="project-1" />)
 
@@ -1326,7 +1343,9 @@ describe('LabelingInterface', () => {
           show_instruction: false, // Not auto-shown
         },
       }
-      ;(useProjectStore as unknown as jest.Mock).mockReturnValue(storeWithInstructions)
+      ;(useProjectStore as unknown as jest.Mock).mockReturnValue(
+        storeWithInstructions,
+      )
 
       render(<LabelingInterface projectId="project-1" />)
 
@@ -1335,14 +1354,18 @@ describe('LabelingInterface', () => {
       })
 
       // Modal should not be visible initially (show_instruction is false and no auto-show)
-      expect(screen.queryByText('Important annotation guidelines here.')).not.toBeInTheDocument()
+      expect(
+        screen.queryByText('Important annotation guidelines here.'),
+      ).not.toBeInTheDocument()
 
       // Click the Instructions button
       fireEvent.click(screen.getByText('Instructions'))
 
       // Modal should now be visible with the instructions text
       await waitFor(() => {
-        expect(screen.getByText('Important annotation guidelines here.')).toBeInTheDocument()
+        expect(
+          screen.getByText('Important annotation guidelines here.'),
+        ).toBeInTheDocument()
       })
     })
 
@@ -1355,7 +1378,9 @@ describe('LabelingInterface', () => {
           show_instruction: false,
         },
       }
-      ;(useProjectStore as unknown as jest.Mock).mockReturnValue(storeWithInstructions)
+      ;(useProjectStore as unknown as jest.Mock).mockReturnValue(
+        storeWithInstructions,
+      )
 
       render(<LabelingInterface projectId="project-1" />)
 
@@ -1367,7 +1392,9 @@ describe('LabelingInterface', () => {
       fireEvent.click(screen.getByText('Instructions'))
 
       await waitFor(() => {
-        expect(screen.getByText('Test instructions content.')).toBeInTheDocument()
+        expect(
+          screen.getByText('Test instructions content.'),
+        ).toBeInTheDocument()
       })
 
       // Should show "Close" not "Start Annotating"
@@ -1375,7 +1402,7 @@ describe('LabelingInterface', () => {
       expect(screen.queryByText('Start Annotating')).not.toBeInTheDocument()
     })
 
-    it('should hide Don\'t show again checkbox when opened manually', async () => {
+    it("should hide Don't show again checkbox when opened manually", async () => {
       const storeWithInstructions = {
         ...mockStoreState,
         currentProject: {
@@ -1385,7 +1412,9 @@ describe('LabelingInterface', () => {
           instructions_always_visible: false,
         },
       }
-      ;(useProjectStore as unknown as jest.Mock).mockReturnValue(storeWithInstructions)
+      ;(useProjectStore as unknown as jest.Mock).mockReturnValue(
+        storeWithInstructions,
+      )
 
       render(<LabelingInterface projectId="project-1" />)
 
@@ -1400,10 +1429,12 @@ describe('LabelingInterface', () => {
       })
 
       // "Don't show again" checkbox should NOT be present when opened manually
-      expect(screen.queryByText("Don't show again for this project")).not.toBeInTheDocument()
+      expect(
+        screen.queryByText("Don't show again for this project"),
+      ).not.toBeInTheDocument()
     })
 
-    it('should show instructions modal on load and hide Don\'t show again when always visible', async () => {
+    it("should show instructions modal on load and hide Don't show again when always visible", async () => {
       const storeAlwaysVisible = {
         ...mockStoreState,
         currentProject: {
@@ -1413,17 +1444,23 @@ describe('LabelingInterface', () => {
           instructions_always_visible: true,
         },
       }
-      ;(useProjectStore as unknown as jest.Mock).mockReturnValue(storeAlwaysVisible)
+      ;(useProjectStore as unknown as jest.Mock).mockReturnValue(
+        storeAlwaysVisible,
+      )
 
       render(<LabelingInterface projectId="project-1" />)
 
       // Modal should auto-show
       await waitFor(() => {
-        expect(screen.getByText('Always visible instructions.')).toBeInTheDocument()
+        expect(
+          screen.getByText('Always visible instructions.'),
+        ).toBeInTheDocument()
       })
 
       // "Don't show again" should be hidden when always visible
-      expect(screen.queryByText("Don't show again for this project")).not.toBeInTheDocument()
+      expect(
+        screen.queryByText("Don't show again for this project"),
+      ).not.toBeInTheDocument()
 
       // Should show "Start Annotating" (auto-shown, not manual)
       expect(screen.getByText('Start Annotating')).toBeInTheDocument()
@@ -1462,7 +1499,11 @@ describe('LabelingInterface', () => {
     it('should include user ID in localStorage keys when user is authenticated', async () => {
       ;(useAuth as jest.Mock).mockReturnValue({
         ...mockAuthDefault,
-        user: { id: 'user-42', username: 'testuser', email: 'test@example.com' },
+        user: {
+          id: 'user-42',
+          username: 'testuser',
+          email: 'test@example.com',
+        },
       })
 
       render(<LabelingInterface projectId="project-1" />)
@@ -1473,11 +1514,11 @@ describe('LabelingInterface', () => {
 
       // The setItem calls should use user-scoped keys
       const setItemCalls = (localStorage.setItem as jest.Mock).mock.calls
-      const positionCall = setItemCalls.find(
-        ([key]: [string]) => key.includes('task_position')
+      const positionCall = setItemCalls.find(([key]: [string]) =>
+        key.includes('task_position'),
       )
-      const idCall = setItemCalls.find(
-        ([key]: [string]) => key.includes('task_id')
+      const idCall = setItemCalls.find(([key]: [string]) =>
+        key.includes('task_id'),
       )
 
       expect(positionCall).toBeDefined()
@@ -1499,11 +1540,11 @@ describe('LabelingInterface', () => {
       })
 
       const setItemCalls = (localStorage.setItem as jest.Mock).mock.calls
-      const positionCall = setItemCalls.find(
-        ([key]: [string]) => key.includes('task_position')
+      const positionCall = setItemCalls.find(([key]: [string]) =>
+        key.includes('task_position'),
       )
-      const idCall = setItemCalls.find(
-        ([key]: [string]) => key.includes('task_id')
+      const idCall = setItemCalls.find(([key]: [string]) =>
+        key.includes('task_id'),
       )
 
       expect(positionCall).toBeDefined()
@@ -1515,7 +1556,11 @@ describe('LabelingInterface', () => {
     it('should read from user-scoped localStorage key on initialization', async () => {
       ;(useAuth as jest.Mock).mockReturnValue({
         ...mockAuthDefault,
-        user: { id: 'user-42', username: 'testuser', email: 'test@example.com' },
+        user: {
+          id: 'user-42',
+          username: 'testuser',
+          email: 'test@example.com',
+        },
       })
 
       render(<LabelingInterface projectId="project-1" />)
@@ -1526,7 +1571,7 @@ describe('LabelingInterface', () => {
 
       // getItem should be called with user-scoped keys
       const getItemCalls = (localStorage.getItem as jest.Mock).mock.calls.map(
-        ([key]: [string]) => key
+        ([key]: [string]) => key,
       )
       expect(getItemCalls).toContain('benger_task_id_project-1_user-42')
       expect(getItemCalls).toContain('benger_task_position_project-1_user-42')
@@ -1546,8 +1591,8 @@ describe('LabelingInterface', () => {
       })
 
       const setItemCallsA = (localStorage.setItem as jest.Mock).mock.calls
-      const positionCallA = setItemCallsA.find(
-        ([key]: [string]) => key.includes('task_position')
+      const positionCallA = setItemCallsA.find(([key]: [string]) =>
+        key.includes('task_position'),
       )
       expect(positionCallA).toBeDefined()
       expect(positionCallA![0]).toBe('benger_task_position_project-1_user-A')
@@ -1572,8 +1617,8 @@ describe('LabelingInterface', () => {
       })
 
       const setItemCallsB = (localStorage.setItem as jest.Mock).mock.calls
-      const positionCallB = setItemCallsB.find(
-        ([key]: [string]) => key.includes('task_position')
+      const positionCallB = setItemCallsB.find(([key]: [string]) =>
+        key.includes('task_position'),
       )
       expect(positionCallB).toBeDefined()
       expect(positionCallB![0]).toBe('benger_task_position_project-1_user-B')
@@ -1592,7 +1637,9 @@ describe('LabelingInterface', () => {
           created_at: '2025-01-01T00:00:00Z',
         },
       ]
-      ;(projectsAPI.getTaskAnnotations as jest.Mock).mockResolvedValue(existingAnnotations)
+      ;(projectsAPI.getTaskAnnotations as jest.Mock).mockResolvedValue(
+        existingAnnotations,
+      )
 
       render(<LabelingInterface projectId="project-1" />)
 
@@ -1603,7 +1650,7 @@ describe('LabelingInterface', () => {
           'task-1',
           false,
           undefined,
-          true
+          true,
         )
       })
     })
@@ -1612,22 +1659,30 @@ describe('LabelingInterface', () => {
       const annotationNoResult = [
         { id: 'ann-1', result: null, created_at: '2025-01-01T00:00:00Z' },
       ]
-      ;(projectsAPI.getTaskAnnotations as jest.Mock).mockResolvedValue(annotationNoResult)
+      ;(projectsAPI.getTaskAnnotations as jest.Mock).mockResolvedValue(
+        annotationNoResult,
+      )
 
       render(<LabelingInterface projectId="project-1" />)
 
       await waitFor(() => {
-        expect(screen.getByTestId('dynamic-annotation-interface')).toBeInTheDocument()
+        expect(
+          screen.getByTestId('dynamic-annotation-interface'),
+        ).toBeInTheDocument()
       })
     })
 
     it('should handle annotation loading failure gracefully', async () => {
-      ;(projectsAPI.getTaskAnnotations as jest.Mock).mockRejectedValue(new Error('Network error'))
+      ;(projectsAPI.getTaskAnnotations as jest.Mock).mockRejectedValue(
+        new Error('Network error'),
+      )
 
       render(<LabelingInterface projectId="project-1" />)
 
       await waitFor(() => {
-        expect(screen.getByTestId('dynamic-annotation-interface')).toBeInTheDocument()
+        expect(
+          screen.getByTestId('dynamic-annotation-interface'),
+        ).toBeInTheDocument()
       })
     })
 
@@ -1660,12 +1715,13 @@ describe('LabelingInterface', () => {
       render(<LabelingInterface projectId="project-1" />)
 
       await waitFor(() => {
-        expect(screen.getByTestId('dynamic-annotation-interface')).toBeInTheDocument()
+        expect(
+          screen.getByTestId('dynamic-annotation-interface'),
+        ).toBeInTheDocument()
       })
       // Timer status should not be called for non-timed projects
       expect(projectsAPI.getTimerStatus).not.toHaveBeenCalled()
     })
-
 
     it('should resume running timer session', async () => {
       const timedProject = {
@@ -1692,7 +1748,9 @@ describe('LabelingInterface', () => {
       render(<LabelingInterface projectId="project-1" />)
 
       await waitFor(() => {
-        expect(screen.getByTestId('dynamic-annotation-interface')).toBeInTheDocument()
+        expect(
+          screen.getByTestId('dynamic-annotation-interface'),
+        ).toBeInTheDocument()
       })
       // Should NOT start a new timer (session exists)
       expect(projectsAPI.startTimer).not.toHaveBeenCalled()
@@ -1707,16 +1765,19 @@ describe('LabelingInterface', () => {
         currentProject: timedProject,
       }
       ;(useProjectStore as unknown as jest.Mock).mockReturnValue(storeTimed)
-      ;(projectsAPI.getTimerStatus as jest.Mock).mockRejectedValue(new Error('Server error'))
+      ;(projectsAPI.getTimerStatus as jest.Mock).mockRejectedValue(
+        new Error('Server error'),
+      )
 
       render(<LabelingInterface projectId="project-1" />)
 
       // Should still render the annotation interface (client-side fallback)
       await waitFor(() => {
-        expect(screen.getByTestId('dynamic-annotation-interface')).toBeInTheDocument()
+        expect(
+          screen.getByTestId('dynamic-annotation-interface'),
+        ).toBeInTheDocument()
       })
     })
-
 
     it('should show non-strict expired session as annotating', async () => {
       const timedProject = {
@@ -1744,7 +1805,9 @@ describe('LabelingInterface', () => {
 
       // Non-strict expired: should still show the annotation interface
       await waitFor(() => {
-        expect(screen.getByTestId('dynamic-annotation-interface')).toBeInTheDocument()
+        expect(
+          screen.getByTestId('dynamic-annotation-interface'),
+        ).toBeInTheDocument()
       })
     })
   })
@@ -1758,7 +1821,9 @@ describe('LabelingInterface', () => {
           require_comment_on_skip: true,
         },
       }
-      ;(useProjectStore as unknown as jest.Mock).mockReturnValue(requireCommentStore)
+      ;(useProjectStore as unknown as jest.Mock).mockReturnValue(
+        requireCommentStore,
+      )
 
       render(<LabelingInterface projectId="project-1" />)
 
@@ -1770,7 +1835,9 @@ describe('LabelingInterface', () => {
 
       await waitFor(() => {
         expect(screen.getByText('Skip Task')).toBeInTheDocument()
-        expect(screen.getByText('Please provide a reason for skipping this task.')).toBeInTheDocument()
+        expect(
+          screen.getByText('Please provide a reason for skipping this task.'),
+        ).toBeInTheDocument()
       })
     })
 
@@ -1782,7 +1849,9 @@ describe('LabelingInterface', () => {
           require_comment_on_skip: true,
         },
       }
-      ;(useProjectStore as unknown as jest.Mock).mockReturnValue(requireCommentStore)
+      ;(useProjectStore as unknown as jest.Mock).mockReturnValue(
+        requireCommentStore,
+      )
 
       render(<LabelingInterface projectId="project-1" />)
 
@@ -1809,7 +1878,9 @@ describe('LabelingInterface', () => {
           require_comment_on_skip: true,
         },
       }
-      ;(useProjectStore as unknown as jest.Mock).mockReturnValue(requireCommentStore)
+      ;(useProjectStore as unknown as jest.Mock).mockReturnValue(
+        requireCommentStore,
+      )
 
       render(<LabelingInterface projectId="project-1" />)
 
@@ -1826,11 +1897,17 @@ describe('LabelingInterface', () => {
       fireEvent.change(textarea, { target: { value: 'Task is ambiguous' } })
 
       // Skip button should now be enabled
-      const skipButton = screen.getAllByText('Skip').find(el => el.tagName === 'BUTTON' && !el.hasAttribute('data-testid'))
+      const skipButton = screen
+        .getAllByText('Skip')
+        .find(
+          (el) => el.tagName === 'BUTTON' && !el.hasAttribute('data-testid'),
+        )
       fireEvent.click(skipButton!)
 
       await waitFor(() => {
-        expect(mockStoreState.skipTask).toHaveBeenCalledWith('Task is ambiguous')
+        expect(mockStoreState.skipTask).toHaveBeenCalledWith(
+          'Task is ambiguous',
+        )
       })
     })
 
@@ -1842,7 +1919,9 @@ describe('LabelingInterface', () => {
           require_comment_on_skip: true,
         },
       }
-      ;(useProjectStore as unknown as jest.Mock).mockReturnValue(requireCommentStore)
+      ;(useProjectStore as unknown as jest.Mock).mockReturnValue(
+        requireCommentStore,
+      )
 
       render(<LabelingInterface projectId="project-1" />)
 
@@ -1856,11 +1935,10 @@ describe('LabelingInterface', () => {
 
       // Skip button in modal should be disabled when comment is empty
       const allSkipButtons = screen.getAllByText('Skip')
-      const modalSkipButton = allSkipButtons.find(el => el.closest('.fixed'))
+      const modalSkipButton = allSkipButtons.find((el) => el.closest('.fixed'))
       expect(modalSkipButton).toBeDisabled()
     })
   })
-
 
   describe('Instruction Modal Auto-show Logic', () => {
     it('should auto-show instructions modal when show_instruction is true and not dismissed', async () => {
@@ -1874,7 +1952,9 @@ describe('LabelingInterface', () => {
           conditional_instructions: null,
         },
       }
-      ;(useProjectStore as unknown as jest.Mock).mockReturnValue(storeWithInstructions)
+      ;(useProjectStore as unknown as jest.Mock).mockReturnValue(
+        storeWithInstructions,
+      )
       // localStorage.getItem returns null (not dismissed)
 
       render(<LabelingInterface projectId="project-1" />)
@@ -1884,14 +1964,18 @@ describe('LabelingInterface', () => {
       })
 
       // Should show "Don't show again" checkbox
-      expect(screen.getByText("Don't show again for this project")).toBeInTheDocument()
+      expect(
+        screen.getByText("Don't show again for this project"),
+      ).toBeInTheDocument()
     })
 
     it('should not auto-show instructions when already dismissed', async () => {
-      ;(window.localStorage.getItem as jest.Mock).mockImplementation((key: string) => {
-        if (key === 'benger-instructions-dismissed-project-1') return 'true'
-        return null
-      })
+      ;(window.localStorage.getItem as jest.Mock).mockImplementation(
+        (key: string) => {
+          if (key === 'benger-instructions-dismissed-project-1') return 'true'
+          return null
+        },
+      )
 
       const storeWithInstructions = {
         ...mockStoreState,
@@ -1903,7 +1987,9 @@ describe('LabelingInterface', () => {
           conditional_instructions: null,
         },
       }
-      ;(useProjectStore as unknown as jest.Mock).mockReturnValue(storeWithInstructions)
+      ;(useProjectStore as unknown as jest.Mock).mockReturnValue(
+        storeWithInstructions,
+      )
 
       render(<LabelingInterface projectId="project-1" />)
 
@@ -1911,7 +1997,9 @@ describe('LabelingInterface', () => {
         expect(screen.getByText('Test Project')).toBeInTheDocument()
       })
 
-      expect(screen.queryByText('Read these carefully.')).not.toBeInTheDocument()
+      expect(
+        screen.queryByText('Read these carefully.'),
+      ).not.toBeInTheDocument()
     })
 
     it('should always show conditional instructions per-task (no dismiss)', async () => {
@@ -1923,11 +2011,17 @@ describe('LabelingInterface', () => {
           show_instruction: false,
           instructions_always_visible: false,
           conditional_instructions: [
-            { id: 'variant-a', content: 'Condition A instructions', weight: 100 },
+            {
+              id: 'variant-a',
+              content: 'Condition A instructions',
+              weight: 100,
+            },
           ],
         },
       }
-      ;(useProjectStore as unknown as jest.Mock).mockReturnValue(storeWithConditional)
+      ;(useProjectStore as unknown as jest.Mock).mockReturnValue(
+        storeWithConditional,
+      )
 
       render(<LabelingInterface projectId="project-1" />)
 
@@ -1947,7 +2041,9 @@ describe('LabelingInterface', () => {
           conditional_instructions: null,
         },
       }
-      ;(useProjectStore as unknown as jest.Mock).mockReturnValue(storeWithInstructions)
+      ;(useProjectStore as unknown as jest.Mock).mockReturnValue(
+        storeWithInstructions,
+      )
 
       render(<LabelingInterface projectId="project-1" />)
 
@@ -1965,19 +2061,19 @@ describe('LabelingInterface', () => {
       await waitFor(() => {
         expect(localStorage.setItem).toHaveBeenCalledWith(
           'benger-instructions-dismissed-project-1',
-          'true'
+          'true',
         )
       })
     })
   })
-
 
   describe('Questionnaire Flow', () => {
     it('should show questionnaire modal after submit when questionnaire is enabled', async () => {
       const questionnaireProject = {
         ...mockProject,
         questionnaire_enabled: true,
-        questionnaire_config: '<View><Rating name="q" toName="q" maxRating="5"/></View>',
+        questionnaire_config:
+          '<View><Rating name="q" toName="q" maxRating="5"/></View>',
       }
       const qStore = {
         ...mockStoreState,
@@ -2003,7 +2099,7 @@ describe('LabelingInterface', () => {
         expect(qStore.createAnnotationInternal).toHaveBeenCalledWith(
           'task-1',
           expect.objectContaining({ result: [] }),
-          true // skipAdvance when questionnaire is active
+          true, // skipAdvance when questionnaire is active
         )
       })
     })
@@ -2025,21 +2121,23 @@ describe('LabelingInterface', () => {
 
       expect(completedStore.resetAnnotationCompletion).toHaveBeenCalled()
       expect(localStorage.removeItem).toHaveBeenCalledWith(
-        expect.stringContaining('task_position')
+        expect.stringContaining('task_position'),
       )
       expect(localStorage.removeItem).toHaveBeenCalledWith(
-        expect.stringContaining('task_id')
+        expect.stringContaining('task_id'),
       )
     })
   })
 
   describe('Saved Task ID Restoration', () => {
     it('should restore from saved task ID in localStorage', async () => {
-      ;(window.localStorage.getItem as jest.Mock).mockImplementation((key: string) => {
-        if (key.includes('task_id')) return 'task-3'
-        if (key.includes('task_position')) return '3'
-        return null
-      })
+      ;(window.localStorage.getItem as jest.Mock).mockImplementation(
+        (key: string) => {
+          if (key.includes('task_id')) return 'task-3'
+          if (key.includes('task_position')) return '3'
+          return null
+        },
+      )
 
       const tasks = [
         { ...mockTask, id: 'task-1' },
@@ -2051,17 +2149,22 @@ describe('LabelingInterface', () => {
       render(<LabelingInterface projectId="project-1" />)
 
       await waitFor(() => {
-        expect(mockStoreState.fetchProjectTasks).toHaveBeenCalledWith('project-1', true)
+        expect(mockStoreState.fetchProjectTasks).toHaveBeenCalledWith(
+          'project-1',
+          true,
+        )
         expect(mockStoreState.setTaskByIndex).toHaveBeenCalledWith(2) // task-3 at index 2
       })
     })
 
     it('should fall back to position when saved task ID not found', async () => {
-      ;(window.localStorage.getItem as jest.Mock).mockImplementation((key: string) => {
-        if (key.includes('task_id')) return 'deleted-task'
-        if (key.includes('task_position')) return '2'
-        return null
-      })
+      ;(window.localStorage.getItem as jest.Mock).mockImplementation(
+        (key: string) => {
+          if (key.includes('task_id')) return 'deleted-task'
+          if (key.includes('task_position')) return '2'
+          return null
+        },
+      )
 
       const tasks = [
         { ...mockTask, id: 'task-1' },

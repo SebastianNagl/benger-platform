@@ -7,13 +7,13 @@
 
 'use client'
 
+import { useI18n } from '@/contexts/I18nContext'
 import {
   ArrowRightIcon,
   CheckIcon,
   ChevronDownIcon,
 } from '@heroicons/react/24/outline'
 import { useEffect, useRef, useState } from 'react'
-import { useI18n } from '@/contexts/I18nContext'
 
 export interface FieldPair {
   id: string
@@ -81,8 +81,10 @@ export function FieldPairSelector({
   }
 
   const getDisplayText = () => {
-    if (selectedPairs.length === 0) return t('evaluation.fieldPair.selectPlaceholder')
-    if (selectedPairs.length === fieldPairs.length) return t('evaluation.fieldPair.allPairs')
+    if (selectedPairs.length === 0)
+      return t('evaluation.fieldPair.selectPlaceholder')
+    if (selectedPairs.length === fieldPairs.length)
+      return t('evaluation.fieldPair.allPairs')
     if (selectedPairs.length === 1) {
       const pair = fieldPairs.find((fp) => fp.id === selectedPairs[0])
       return pair?.displayLabel || t('evaluation.fieldPair.nSelected', { n: 1 })
@@ -108,7 +110,7 @@ export function FieldPairSelector({
         type="button"
         onClick={() => !disabled && setIsOpen(!isOpen)}
         disabled={disabled}
-        className={`flex w-full items-center justify-between rounded-full bg-white px-4 py-2 text-sm ring-1 ring-zinc-900/10 transition focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:bg-white/5 dark:ring-inset dark:ring-white/10 ${
+        className={`flex w-full items-center justify-between rounded-full bg-white px-4 py-2 text-sm ring-1 ring-zinc-900/10 transition focus:ring-2 focus:ring-emerald-500 focus:outline-none dark:bg-white/5 dark:ring-white/10 dark:ring-inset ${
           disabled
             ? 'cursor-not-allowed opacity-50'
             : 'hover:ring-zinc-900/20 dark:hover:ring-white/20'
@@ -192,7 +194,10 @@ export function FieldPairSelector({
 
           {/* Selected count */}
           <div className="border-t border-gray-100 px-3 py-2 text-xs text-gray-500 dark:border-gray-700 dark:text-gray-400">
-            {t('evaluation.fieldPair.selectedCount', { selected: selectedPairs.length, total: fieldPairs.length })}
+            {t('evaluation.fieldPair.selectedCount', {
+              selected: selectedPairs.length,
+              total: fieldPairs.length,
+            })}
           </div>
         </div>
       )}
@@ -249,7 +254,7 @@ function FieldPairOption({ pair, isSelected, onToggle }: FieldPairOptionProps) {
 
       {/* No results indicator */}
       {pair.hasResults === false && (
-        <span className="whitespace-nowrap text-xs text-amber-500 dark:text-amber-400">
+        <span className="text-xs whitespace-nowrap text-amber-500 dark:text-amber-400">
           {t('evaluation.fieldPair.noResults')}
         </span>
       )}
@@ -267,7 +272,7 @@ export function extractFieldPairsFromConfig(
     reference_fields: string[]
     metric?: string
   }>,
-  resultsMap?: Record<string, { hasResults: boolean; resultCount: number }>
+  resultsMap?: Record<string, { hasResults: boolean; resultCount: number }>,
 ): FieldPair[] {
   const pairs: FieldPair[] = []
   const seenPairs = new Set<string>()

@@ -19,7 +19,7 @@ export default function ImageDisplay({
 
   if (!imageSrc) {
     return (
-      <div className="italic text-zinc-500 dark:text-zinc-400">
+      <div className="text-zinc-500 italic dark:text-zinc-400">
         No image data for field: {valueExpression}
       </div>
     )

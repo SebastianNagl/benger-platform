@@ -24,7 +24,7 @@ export function RichTextField({
     (e: React.ChangeEvent<HTMLTextAreaElement>) => {
       onChange(e.target.value)
     },
-    [onChange]
+    [onChange],
   )
 
   return (
@@ -44,7 +44,7 @@ export function RichTextField({
             errors.length > 0
               ? 'border-red-300 focus:border-red-500 focus:ring-red-500 dark:border-red-600'
               : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600'
-          } resize-vertical focus:outline-none focus:ring-2 dark:text-white`}
+          } resize-vertical focus:ring-2 focus:outline-none dark:text-white`}
         />
         <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
           {t('fields.richTextPlaceholder')}

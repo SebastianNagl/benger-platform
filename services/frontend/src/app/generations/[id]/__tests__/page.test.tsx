@@ -82,8 +82,8 @@ jest.mock('@heroicons/react/24/outline', () => ({
 
 import { useI18n } from '@/contexts/I18nContext'
 import apiClient from '@/lib/api'
-import * as React from 'react'
 import { useRouter } from 'next/navigation'
+import * as React from 'react'
 import GenerationRunDetailPage from '../page'
 
 const mockRouter = {
@@ -134,19 +134,33 @@ describe('GenerationRunDetailPage', () => {
 
   it('shows loading state before data resolves', () => {
     ;(apiClient.get as jest.Mock).mockReturnValue(new Promise(() => {}))
-    render(<GenerationRunDetailPage params={Promise.resolve({ id: 'gen-run-123' })} />)
+    render(
+      <GenerationRunDetailPage
+        params={Promise.resolve({ id: 'gen-run-123' })}
+      />,
+    )
     expect(screen.getByText('Lade…')).toBeInTheDocument()
   })
 
   it('fetches the run on mount via /runs/generations/{id}', async () => {
-    render(<GenerationRunDetailPage params={Promise.resolve({ id: 'gen-run-123' })} />)
+    render(
+      <GenerationRunDetailPage
+        params={Promise.resolve({ id: 'gen-run-123' })}
+      />,
+    )
     await waitFor(() => {
-      expect(apiClient.get).toHaveBeenCalledWith('/runs/generations/gen-run-123')
+      expect(apiClient.get).toHaveBeenCalledWith(
+        '/runs/generations/gen-run-123',
+      )
     })
   })
 
   it('renders the summary card with model, run counts and project title', async () => {
-    render(<GenerationRunDetailPage params={Promise.resolve({ id: 'gen-run-123' })} />)
+    render(
+      <GenerationRunDetailPage
+        params={Promise.resolve({ id: 'gen-run-123' })}
+      />,
+    )
     await waitFor(() => {
       expect(screen.getByText('gpt-4o')).toBeInTheDocument()
     })
@@ -165,7 +179,11 @@ describe('GenerationRunDetailPage', () => {
       runs_completed: 2,
       runs_failed: 1,
     })
-    render(<GenerationRunDetailPage params={Promise.resolve({ id: 'gen-run-123' })} />)
+    render(
+      <GenerationRunDetailPage
+        params={Promise.resolve({ id: 'gen-run-123' })}
+      />,
+    )
     await waitFor(() => {
       expect(screen.getByText(/2\/3/)).toBeInTheDocument()
     })
@@ -174,7 +192,11 @@ describe('GenerationRunDetailPage', () => {
 
   it('renders error state when fetch rejects with a message', async () => {
     ;(apiClient.get as jest.Mock).mockRejectedValue(new Error('boom'))
-    render(<GenerationRunDetailPage params={Promise.resolve({ id: 'gen-run-123' })} />)
+    render(
+      <GenerationRunDetailPage
+        params={Promise.resolve({ id: 'gen-run-123' })}
+      />,
+    )
     await waitFor(() => {
       expect(screen.getByText('boom')).toBeInTheDocument()
     })
@@ -182,15 +204,25 @@ describe('GenerationRunDetailPage', () => {
 
   it('renders fallback error message when fetch rejects without a message', async () => {
     ;(apiClient.get as jest.Mock).mockRejectedValue({})
-    render(<GenerationRunDetailPage params={Promise.resolve({ id: 'gen-run-123' })} />)
+    render(
+      <GenerationRunDetailPage
+        params={Promise.resolve({ id: 'gen-run-123' })}
+      />,
+    )
     await waitFor(() => {
-      expect(screen.getByText('Failed to load generation run')).toBeInTheDocument()
+      expect(
+        screen.getByText('Failed to load generation run'),
+      ).toBeInTheDocument()
     })
   })
 
   it('renders "Not found" when the API resolves to null', async () => {
     ;(apiClient.get as jest.Mock).mockResolvedValue(null)
-    render(<GenerationRunDetailPage params={Promise.resolve({ id: 'gen-run-123' })} />)
+    render(
+      <GenerationRunDetailPage
+        params={Promise.resolve({ id: 'gen-run-123' })}
+      />,
+    )
     await waitFor(() => {
       expect(screen.getByText('Not found')).toBeInTheDocument()
     })
@@ -199,7 +231,11 @@ describe('GenerationRunDetailPage', () => {
   it('navigates back to /runs?type=generation from the error state', async () => {
     const user = userEvent.setup()
     ;(apiClient.get as jest.Mock).mockResolvedValue(null)
-    render(<GenerationRunDetailPage params={Promise.resolve({ id: 'gen-run-123' })} />)
+    render(
+      <GenerationRunDetailPage
+        params={Promise.resolve({ id: 'gen-run-123' })}
+      />,
+    )
     await waitFor(() => {
       expect(screen.getByText('Not found')).toBeInTheDocument()
     })
@@ -213,10 +249,14 @@ describe('GenerationRunDetailPage', () => {
       status: 'failed',
       error_message: 'Provider rejected the request',
     })
-    render(<GenerationRunDetailPage params={Promise.resolve({ id: 'gen-run-123' })} />)
+    render(
+      <GenerationRunDetailPage
+        params={Promise.resolve({ id: 'gen-run-123' })}
+      />,
+    )
     await waitFor(() => {
       expect(
-        screen.getByText('Provider rejected the request')
+        screen.getByText('Provider rejected the request'),
       ).toBeInTheDocument()
     })
   })
@@ -226,7 +266,11 @@ describe('GenerationRunDetailPage', () => {
       ...baseDetail,
       parameters: { temperature: 0.7, max_tokens: 512 },
     })
-    render(<GenerationRunDetailPage params={Promise.resolve({ id: 'gen-run-123' })} />)
+    render(
+      <GenerationRunDetailPage
+        params={Promise.resolve({ id: 'gen-run-123' })}
+      />,
+    )
     await waitFor(() => {
       expect(screen.getByText('Parameter')).toBeInTheDocument()
     })
@@ -260,7 +304,11 @@ describe('GenerationRunDetailPage', () => {
         },
       ],
     })
-    render(<GenerationRunDetailPage params={Promise.resolve({ id: 'gen-run-123' })} />)
+    render(
+      <GenerationRunDetailPage
+        params={Promise.resolve({ id: 'gen-run-123' })}
+      />,
+    )
     await waitFor(() => {
       expect(screen.getByText('Pro Lauf')).toBeInTheDocument()
     })
@@ -287,7 +335,11 @@ describe('GenerationRunDetailPage', () => {
         },
       ],
     })
-    render(<GenerationRunDetailPage params={Promise.resolve({ id: 'gen-run-123' })} />)
+    render(
+      <GenerationRunDetailPage
+        params={Promise.resolve({ id: 'gen-run-123' })}
+      />,
+    )
     await waitFor(() => {
       expect(screen.getByText('Antwort')).toBeInTheDocument()
     })
@@ -310,7 +362,11 @@ describe('GenerationRunDetailPage', () => {
         },
       ],
     })
-    render(<GenerationRunDetailPage params={Promise.resolve({ id: 'gen-run-123' })} />)
+    render(
+      <GenerationRunDetailPage
+        params={Promise.resolve({ id: 'gen-run-123' })}
+      />,
+    )
     await waitFor(() => {
       expect(screen.getByText('Verknüpfte Evaluierungen')).toBeInTheDocument()
     })
@@ -320,7 +376,11 @@ describe('GenerationRunDetailPage', () => {
 
   it('navigates to the project from the project button in the summary card', async () => {
     const user = userEvent.setup()
-    render(<GenerationRunDetailPage params={Promise.resolve({ id: 'gen-run-123' })} />)
+    render(
+      <GenerationRunDetailPage
+        params={Promise.resolve({ id: 'gen-run-123' })}
+      />,
+    )
     await waitFor(() => {
       expect(screen.getByText('gpt-4o')).toBeInTheDocument()
     })
@@ -338,12 +398,16 @@ describe('GenerationRunDetailPage', () => {
       ...baseDetail,
       prompt_used: 'You are a helpful legal assistant.',
     })
-    render(<GenerationRunDetailPage params={Promise.resolve({ id: 'gen-run-123' })} />)
+    render(
+      <GenerationRunDetailPage
+        params={Promise.resolve({ id: 'gen-run-123' })}
+      />,
+    )
     await waitFor(() => {
       expect(screen.getByText('Verwendeter Prompt')).toBeInTheDocument()
     })
     expect(
-      screen.getByText('You are a helpful legal assistant.')
+      screen.getByText('You are a helpful legal assistant.'),
     ).toBeInTheDocument()
   })
 
@@ -358,7 +422,11 @@ describe('GenerationRunDetailPage', () => {
       completed_at: null,
       children: [],
     })
-    render(<GenerationRunDetailPage params={Promise.resolve({ id: 'gen-run-123' })} />)
+    render(
+      <GenerationRunDetailPage
+        params={Promise.resolve({ id: 'gen-run-123' })}
+      />,
+    )
     await waitFor(() => {
       // StatusBadge with null status renders a dash; fmtDate(null) renders a dash.
       expect(screen.getAllByText('—').length).toBeGreaterThan(0)

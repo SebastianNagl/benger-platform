@@ -16,7 +16,9 @@ jest.mock('@/components/layout/SectionProvider', () => ({
 }))
 
 jest.mock('@/components/layout/Logo', () => ({
-  Logo: ({ className }: any) => <div data-testid="logo" className={className} />,
+  Logo: ({ className }: any) => (
+    <div data-testid="logo" className={className} />
+  ),
 }))
 
 jest.mock('@/components/layout/ThemeToggle', () => ({
@@ -67,7 +69,7 @@ describe('MinimalLayout', () => {
     const { container } = render(
       <MinimalLayout>
         <div>Body content</div>
-      </MinimalLayout>
+      </MinimalLayout>,
     )
 
     expect(container.querySelector('header')).toBeInTheDocument()
@@ -81,7 +83,7 @@ describe('MinimalLayout', () => {
     render(
       <MinimalLayout sections={[]}>
         <div>Content</div>
-      </MinimalLayout>
+      </MinimalLayout>,
     )
 
     expect(screen.getByTestId('section-provider')).toBeInTheDocument()
@@ -95,12 +97,12 @@ describe('MinimalLayout', () => {
     render(
       <MinimalLayout sections={sections}>
         <div>Content</div>
-      </MinimalLayout>
+      </MinimalLayout>,
     )
 
     expect(screen.getByTestId('section-provider')).toHaveAttribute(
       'data-sections',
-      JSON.stringify(sections)
+      JSON.stringify(sections),
     )
   })
 
@@ -108,7 +110,7 @@ describe('MinimalLayout', () => {
     render(
       <MinimalLayout>
         <div>Content</div>
-      </MinimalLayout>
+      </MinimalLayout>,
     )
 
     expect(screen.getByTestId('logo')).toBeInTheDocument()
@@ -116,7 +118,7 @@ describe('MinimalLayout', () => {
     expect(screen.getByTestId('theme-toggle')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Login' })).toHaveAttribute(
       'href',
-      '/login'
+      '/login',
     )
   })
 
@@ -124,24 +126,24 @@ describe('MinimalLayout', () => {
     render(
       <MinimalLayout>
         <div>Content</div>
-      </MinimalLayout>
+      </MinimalLayout>,
     )
 
     expect(screen.getByRole('link', { name: 'Imprint' })).toHaveAttribute(
       'href',
-      '/about/imprint'
+      '/about/imprint',
     )
     expect(
-      screen.getByRole('link', { name: 'Data Protection' })
+      screen.getByRole('link', { name: 'Data Protection' }),
     ).toHaveAttribute('href', '/about/data-protection')
     expect(
-      screen.getByRole('link', { name: /Follow us on GitHub/ })
+      screen.getByRole('link', { name: /Follow us on GitHub/ }),
     ).toHaveAttribute(
       'href',
-      'https://github.com/SebastianNagl/benger-platform'
+      'https://github.com/SebastianNagl/benger-platform',
     )
     expect(
-      screen.queryByRole('link', { name: /Notion/ })
+      screen.queryByRole('link', { name: /Notion/ }),
     ).not.toBeInTheDocument()
   })
 
@@ -149,7 +151,7 @@ describe('MinimalLayout', () => {
     const { container } = render(
       <MinimalLayout>
         <div>Content</div>
-      </MinimalLayout>
+      </MinimalLayout>,
     )
 
     const main = container.querySelector('main')
@@ -160,7 +162,7 @@ describe('MinimalLayout', () => {
       'prose',
       'prose-zinc',
       'max-w-none',
-      'dark:prose-invert'
+      'dark:prose-invert',
     )
   })
 
@@ -168,17 +170,25 @@ describe('MinimalLayout', () => {
     const { container } = render(
       <MinimalLayout>
         <div>Content</div>
-      </MinimalLayout>
+      </MinimalLayout>,
     )
 
-    const root = container.querySelector('[data-testid="section-provider"] > div')
-    expect(root).toHaveClass('min-h-screen', 'w-full', 'flex', 'flex-col', 'bg-white')
+    const root = container.querySelector(
+      '[data-testid="section-provider"] > div',
+    )
+    expect(root).toHaveClass(
+      'min-h-screen',
+      'w-full',
+      'flex',
+      'flex-col',
+      'bg-white',
+    )
   })
   it('renders app content without the prose wrapper at the wider column when prose={false}', () => {
     const { container } = render(
       <MinimalLayout prose={false}>
         <h2 data-testid="app-heading">Daten</h2>
-      </MinimalLayout>
+      </MinimalLayout>,
     )
     // Public report pages bring their own components: no typography margins
     // must be imposed on their headings, and they get the wider column.
@@ -186,5 +196,4 @@ describe('MinimalLayout', () => {
     expect(container.querySelector('main')?.className).toContain('max-w-6xl')
     expect(screen.getByTestId('app-heading')).toBeInTheDocument()
   })
-
 })

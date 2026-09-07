@@ -9,7 +9,7 @@
  */
 
 import '@testing-library/jest-dom'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { ScoreCard, formatAcademicScore } from '../ScoreCard'
 
 jest.mock('@/contexts/I18nContext', () => ({
@@ -28,7 +28,9 @@ jest.mock('@/contexts/I18nContext', () => ({
 }))
 
 jest.mock('@heroicons/react/24/outline', () => ({
-  InformationCircleIcon: (props: any) => <svg {...props} data-testid="info-icon" />,
+  InformationCircleIcon: (props: any) => (
+    <svg {...props} data-testid="info-icon" />
+  ),
 }))
 
 describe('ScoreCard', () => {
@@ -54,20 +56,30 @@ describe('ScoreCard', () => {
   })
 
   it('renders with formatAs="raw"', () => {
-    render(<ScoreCard metric="BLEU" value={42.5} formatAs="raw" valueRange={{ min: 0, max: 100 }} />)
+    render(
+      <ScoreCard
+        metric="BLEU"
+        value={42.5}
+        formatAs="raw"
+        valueRange={{ min: 0, max: 100 }}
+      />,
+    )
     expect(screen.getByText('42.50')).toBeInTheDocument()
   })
 
   it('renders with higherIsBetter=false', () => {
-    render(
-      <ScoreCard metric="Loss" value={0.3} higherIsBetter={false} />
-    )
+    render(<ScoreCard metric="Loss" value={0.3} higherIsBetter={false} />)
     expect(screen.getByText('0.300')).toBeInTheDocument()
   })
 
   it('renders with custom valueRange', () => {
     render(
-      <ScoreCard metric="BLEU" value={25} valueRange={{ min: 0, max: 100 }} formatAs="raw" />
+      <ScoreCard
+        metric="BLEU"
+        value={25}
+        valueRange={{ min: 0, max: 100 }}
+        formatAs="raw"
+      />,
     )
     expect(screen.getByText('25.00')).toBeInTheDocument()
   })
@@ -77,8 +89,8 @@ describe('ScoreCard', () => {
       <ScoreCard
         metric="F1"
         value={0.85}
-        confidenceInterval={{ lower: 0.80, upper: 0.90, level: 95 }}
-      />
+        confidenceInterval={{ lower: 0.8, upper: 0.9, level: 95 }}
+      />,
     )
     expect(screen.getByText(/95% CI/)).toBeInTheDocument()
   })
@@ -88,16 +100,20 @@ describe('ScoreCard', () => {
       <ScoreCard
         metric="F1"
         value={0.85}
-        confidenceInterval={{ lower: 0.80, upper: 0.90 }}
+        confidenceInterval={{ lower: 0.8, upper: 0.9 }}
         compact
-      />
+      />,
     )
     expect(screen.getByText(/CI/)).toBeInTheDocument()
   })
 
   it('shows description tooltip on hover', () => {
     render(
-      <ScoreCard metric="F1" value={0.85} description="Harmonic mean of P and R" />
+      <ScoreCard
+        metric="F1"
+        value={0.85}
+        description="Harmonic mean of P and R"
+      />,
     )
     const button = screen.getByLabelText(/Info about F1/)
     fireEvent.mouseEnter(button)
@@ -107,7 +123,7 @@ describe('ScoreCard', () => {
 
   it('renders sample size and cluster count', () => {
     render(
-      <ScoreCard metric="F1" value={0.85} sampleSize={1000} clusterCount={5} />
+      <ScoreCard metric="F1" value={0.85} sampleSize={1000} clusterCount={5} />,
     )
     expect(screen.getByText(/n = /)).toBeInTheDocument()
     expect(screen.getByText(/clusters/)).toBeInTheDocument()

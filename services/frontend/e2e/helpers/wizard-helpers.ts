@@ -14,10 +14,7 @@
 import type { Page } from '@playwright/test'
 
 export type WizardFeatureKey =
-  | 'annotation'
-  | 'dataImport'
-  | 'llmGeneration'
-  | 'evaluation'
+  'annotation' | 'dataImport' | 'llmGeneration' | 'evaluation'
 
 /**
  * Tick the named feature checkboxes on the wizard's projectInfo step.
@@ -26,7 +23,7 @@ export type WizardFeatureKey =
  */
 export async function enableWizardFeatures(
   page: Page,
-  features: WizardFeatureKey[]
+  features: WizardFeatureKey[],
 ): Promise<void> {
   for (const key of features) {
     await page
@@ -59,7 +56,7 @@ export async function clickSubmitFromAnyStep(page: Page): Promise<void> {
   let prev = await readStep()
   if (prev === 0) {
     throw new Error(
-      `clickSubmitFromAnyStep called but no step indicator found at ${page.url()}`
+      `clickSubmitFromAnyStep called but no step indicator found at ${page.url()}`,
     )
   }
 
@@ -79,17 +76,17 @@ export async function clickSubmitFromAnyStep(page: Page): Promise<void> {
           return parseInt(raw ?? '0', 10) > prevStep
         },
         { prev, sel: indicatorSel },
-        { timeout: 5000 }
+        { timeout: 5000 },
       )
     } catch {
       throw new Error(
         `Wizard step did not advance past ${prev} after Next click ` +
-          `at ${page.url()} — likely a wizard regression`
+          `at ${page.url()} — likely a wizard regression`,
       )
     }
     prev = await readStep()
   }
   throw new Error(
-    `Submit button never appeared after 8 Next clicks; stuck at step ${prev}`
+    `Submit button never appeared after 8 Next clicks; stuck at step ${prev}`,
   )
 }

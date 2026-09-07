@@ -41,7 +41,7 @@ describe('ViewContainer', () => {
       render(
         <ViewContainer {...defaultProps}>
           <div>Child Content</div>
-        </ViewContainer>
+        </ViewContainer>,
       )
 
       expect(screen.getByText('Child Content')).toBeInTheDocument()
@@ -53,7 +53,7 @@ describe('ViewContainer', () => {
           <div>First Child</div>
           <div>Second Child</div>
           <div>Third Child</div>
-        </ViewContainer>
+        </ViewContainer>,
       )
 
       expect(screen.getByText('First Child')).toBeInTheDocument()
@@ -74,7 +74,7 @@ describe('ViewContainer', () => {
           <ViewContainer {...defaultProps}>
             <div>Nested Content</div>
           </ViewContainer>
-        </ViewContainer>
+        </ViewContainer>,
       )
 
       expect(screen.getByText('Nested Content')).toBeInTheDocument()
@@ -122,7 +122,7 @@ describe('ViewContainer', () => {
       render(
         <ViewContainer {...defaultProps} config={config}>
           <div>Should Not Render</div>
-        </ViewContainer>
+        </ViewContainer>,
       )
 
       expect(screen.queryByText('Should Not Render')).not.toBeInTheDocument()
@@ -541,7 +541,7 @@ describe('ViewContainer', () => {
           >
             <div>Footer</div>
           </ViewContainer>
-        </ViewContainer>
+        </ViewContainer>,
       )
 
       expect(screen.getByText('Column 1')).toBeInTheDocument()
@@ -581,7 +581,7 @@ describe('ViewContainer', () => {
       render(
         <ViewContainer {...defaultProps} config={config}>
           <div>Complete Test</div>
-        </ViewContainer>
+        </ViewContainer>,
       )
 
       const container = document.querySelector('.view-container')
@@ -653,7 +653,7 @@ describe('ViewContainer', () => {
           >
             <div>Second Container</div>
           </ViewContainer>
-        </div>
+        </div>,
       )
 
       const containers = document.querySelectorAll('.view-container')
@@ -676,7 +676,7 @@ describe('ViewContainer', () => {
               </ViewContainer>
             </ViewContainer>
           </ViewContainer>
-        </ViewContainer>
+        </ViewContainer>,
       )
 
       const containers = document.querySelectorAll('.view-container')

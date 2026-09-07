@@ -3,13 +3,14 @@
  * Targets: handleSave, handleCancel, handleFieldChange callbacks
  */
 
+import { fireEvent, render, screen } from '@testing-library/react'
 import React from 'react'
-import { render, screen, fireEvent } from '@testing-library/react'
 
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
     locale: 'en',
-    t: (key: string, vars?: any) => (vars ? `${key}:${JSON.stringify(vars)}` : key),
+    t: (key: string, vars?: any) =>
+      vars ? `${key}:${JSON.stringify(vars)}` : key,
     changeLocale: jest.fn(),
     isReady: true,
   }),
@@ -37,7 +38,7 @@ describe('QuestionCard fn3', () => {
         taskType="qa"
         onUpdate={mockOnUpdate}
         onDelete={mockOnDelete}
-      />
+      />,
     )
     expect(document.body).toBeInTheDocument()
   })
@@ -53,7 +54,7 @@ describe('QuestionCard fn3', () => {
         taskType="qa_reasoning"
         onUpdate={mockOnUpdate}
         onDelete={mockOnDelete}
-      />
+      />,
     )
     expect(document.body).toBeInTheDocument()
   })
@@ -75,7 +76,7 @@ describe('QuestionCard fn3', () => {
         taskType="multiple_choice"
         onUpdate={mockOnUpdate}
         onDelete={mockOnDelete}
-      />
+      />,
     )
     expect(document.body).toBeInTheDocument()
   })
@@ -87,7 +88,7 @@ describe('QuestionCard fn3', () => {
         taskType="qa"
         onUpdate={mockOnUpdate}
         onDelete={mockOnDelete}
-      />
+      />,
     )
     // Find any input/textarea and change its value
     const textareas = screen.getAllByRole('textbox')
@@ -107,7 +108,7 @@ describe('QuestionCard fn3', () => {
         onDelete={mockOnDelete}
         isExpanded={false}
         onToggleExpanded={onToggle}
-      />
+      />,
     )
     expect(document.body).toBeInTheDocument()
   })

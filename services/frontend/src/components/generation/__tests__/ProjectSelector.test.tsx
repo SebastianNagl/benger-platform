@@ -19,8 +19,7 @@ jest.mock('@/contexts/I18nContext', () => ({
         'generation.projectSelector.tableHeaders.status': 'Status',
         'generation.projectSelector.statusLabels.complete': '✓ Complete',
         'generation.projectSelector.statusLabels.ready': '✓ Ready',
-        'generation.projectSelector.statusLabels.setupNeeded':
-          '⚠ Setup needed',
+        'generation.projectSelector.statusLabels.setupNeeded': '⚠ Setup needed',
         'generation.projectSelector.emptyStates.noProjects':
           'No projects available',
         'generation.projectSelector.emptyStates.noProjectsFound':
@@ -132,13 +131,13 @@ describe('ProjectSelector', () => {
       // Check for responsive grid column classes on the grid div
       const gridDiv = screen.getByText('Project').parentElement
       expect(gridDiv?.className).toMatch(
-        /grid-cols-\[32px_1fr_80px_80px_80px_80px_120px\]/
+        /grid-cols-\[32px_1fr_80px_80px_80px_80px_120px\]/,
       )
       expect(gridDiv?.className).toMatch(
-        /md:grid-cols-\[32px_1fr_96px_96px_96px_96px_140px\]/
+        /md:grid-cols-\[32px_1fr_96px_96px_96px_96px_140px\]/,
       )
       expect(gridDiv?.className).toMatch(
-        /lg:grid-cols-\[32px_1fr_96px_128px_128px_128px_160px\]/
+        /lg:grid-cols-\[32px_1fr_96px_128px_128px_128px_160px\]/,
       )
     })
 
@@ -162,13 +161,13 @@ describe('ProjectSelector', () => {
       // Check for responsive grid classes on the grid element
       const gridRow = projectRow?.querySelector('.grid')
       expect(gridRow?.className).toMatch(
-        /grid-cols-\[32px_1fr_80px_80px_80px_80px_120px\]/
+        /grid-cols-\[32px_1fr_80px_80px_80px_80px_120px\]/,
       )
       expect(gridRow?.className).toMatch(
-        /md:grid-cols-\[32px_1fr_96px_96px_96px_96px_140px\]/
+        /md:grid-cols-\[32px_1fr_96px_96px_96px_96px_140px\]/,
       )
       expect(gridRow?.className).toMatch(
-        /lg:grid-cols-\[32px_1fr_96px_128px_128px_128px_160px\]/
+        /lg:grid-cols-\[32px_1fr_96px_128px_128px_128px_160px\]/,
       )
     })
 
@@ -198,7 +197,7 @@ describe('ProjectSelector', () => {
       // Get header columns from the grid element
       const headerGrid = screen.getByText('Project').parentElement
       const headerColumns = headerGrid?.className.match(
-        /grid-cols-\[([^\]]+)\]/
+        /grid-cols-\[([^\]]+)\]/,
       )?.[1]
 
       // Get row columns from the grid element
@@ -207,7 +206,7 @@ describe('ProjectSelector', () => {
         .closest('div.overflow-hidden')
         ?.parentElement?.parentElement?.querySelector('.grid')
       const rowColumns = projectRow?.className.match(
-        /grid-cols-\[([^\]]+)\]/
+        /grid-cols-\[([^\]]+)\]/,
       )?.[1]
 
       // They should have the same column structure
@@ -284,7 +283,7 @@ describe('ProjectSelector', () => {
       render(<ProjectSelector onProjectSelect={mockOnProjectSelect} />)
 
       const searchInput = screen.getByPlaceholderText(
-        /search projects by name, description, or organization/i
+        /search projects by name, description, or organization/i,
       )
       expect(searchInput).toBeInTheDocument()
     })
@@ -294,7 +293,7 @@ describe('ProjectSelector', () => {
       render(<ProjectSelector onProjectSelect={mockOnProjectSelect} />)
 
       const searchInput = screen.getByPlaceholderText(
-        /search projects by name, description, or organization/i
+        /search projects by name, description, or organization/i,
       )
       await user.type(searchInput, 'Project 1')
 
@@ -307,7 +306,7 @@ describe('ProjectSelector', () => {
       render(<ProjectSelector onProjectSelect={mockOnProjectSelect} />)
 
       const searchInput = screen.getByPlaceholderText(
-        /search projects by name, description, or organization/i
+        /search projects by name, description, or organization/i,
       )
       await user.type(searchInput, 'description 2')
 
@@ -319,7 +318,7 @@ describe('ProjectSelector', () => {
       render(<ProjectSelector onProjectSelect={mockOnProjectSelect} />)
 
       const searchInput = screen.getByPlaceholderText(
-        /search projects by name, description, or organization/i
+        /search projects by name, description, or organization/i,
       )
       await user.type(searchInput, 'Test Org')
 
@@ -332,7 +331,7 @@ describe('ProjectSelector', () => {
       render(<ProjectSelector onProjectSelect={mockOnProjectSelect} />)
 
       const searchInput = screen.getByPlaceholderText(
-        /search projects by name, description, or organization/i
+        /search projects by name, description, or organization/i,
       )
       await user.type(searchInput, 'TEST PROJECT')
 
@@ -344,7 +343,7 @@ describe('ProjectSelector', () => {
       render(<ProjectSelector onProjectSelect={mockOnProjectSelect} />)
 
       const searchInput = screen.getByPlaceholderText(
-        /search projects by name, description, or organization/i
+        /search projects by name, description, or organization/i,
       )
       await user.type(searchInput, 'Project 1')
 
@@ -356,12 +355,12 @@ describe('ProjectSelector', () => {
       render(<ProjectSelector onProjectSelect={mockOnProjectSelect} />)
 
       const searchInput = screen.getByPlaceholderText(
-        /search projects by name, description, or organization/i
+        /search projects by name, description, or organization/i,
       )
       await user.type(searchInput, 'nonexistent')
 
       expect(
-        screen.getByText('No projects found matching your search')
+        screen.getByText('No projects found matching your search'),
       ).toBeInTheDocument()
     })
 
@@ -397,7 +396,7 @@ describe('ProjectSelector', () => {
         <ProjectSelector
           onProjectSelect={mockOnProjectSelect}
           selectedProjectId="1"
-        />
+        />,
       )
 
       const project1 = screen
@@ -412,7 +411,7 @@ describe('ProjectSelector', () => {
         <ProjectSelector
           onProjectSelect={mockOnProjectSelect}
           selectedProjectId="1"
-        />
+        />,
       )
 
       const checkIcon = container.querySelector('.text-emerald-600')
@@ -421,7 +420,7 @@ describe('ProjectSelector', () => {
 
     it('should show empty circle for unselected projects', () => {
       const { container } = render(
-        <ProjectSelector onProjectSelect={mockOnProjectSelect} />
+        <ProjectSelector onProjectSelect={mockOnProjectSelect} />,
       )
 
       const circles = container.querySelectorAll('.rounded.border-2')
@@ -534,7 +533,7 @@ describe('ProjectSelector', () => {
       render(<ProjectSelector onProjectSelect={mockOnProjectSelect} />)
 
       const readyBadge = screen.getByLabelText(
-        /Navigate to Test Project 1 settings/
+        /Navigate to Test Project 1 settings/,
       )
       expect(readyBadge).toBeInTheDocument()
     })
@@ -563,7 +562,7 @@ describe('ProjectSelector', () => {
       })
 
       const { container } = render(
-        <ProjectSelector onProjectSelect={mockOnProjectSelect} />
+        <ProjectSelector onProjectSelect={mockOnProjectSelect} />,
       )
 
       const loadingContainer = container.querySelector('.justify-center')
@@ -583,7 +582,7 @@ describe('ProjectSelector', () => {
       render(<ProjectSelector onProjectSelect={mockOnProjectSelect} />)
 
       expect(
-        screen.getByText('Failed to load projects: Failed to load projects')
+        screen.getByText('Failed to load projects: Failed to load projects'),
       ).toBeInTheDocument()
     })
 
@@ -596,7 +595,7 @@ describe('ProjectSelector', () => {
       })
 
       const { container } = render(
-        <ProjectSelector onProjectSelect={mockOnProjectSelect} />
+        <ProjectSelector onProjectSelect={mockOnProjectSelect} />,
       )
 
       const errorCard = container.querySelector('.border-red-200')
@@ -617,7 +616,9 @@ describe('ProjectSelector', () => {
 
       expect(screen.getByText('No projects available')).toBeInTheDocument()
       expect(
-        screen.getByText('Create a project first to start generating responses')
+        screen.getByText(
+          'Create a project first to start generating responses',
+        ),
       ).toBeInTheDocument()
     })
 
@@ -626,14 +627,14 @@ describe('ProjectSelector', () => {
       render(<ProjectSelector onProjectSelect={mockOnProjectSelect} />)
 
       const searchInput = screen.getByPlaceholderText(
-        /search projects by name, description, or organization/i
+        /search projects by name, description, or organization/i,
       )
       await user.type(searchInput, 'nonexistent')
 
       expect(
         screen.queryByText(
-          'Create a project first to start generating responses'
-        )
+          'Create a project first to start generating responses',
+        ),
       ).not.toBeInTheDocument()
     })
   })
@@ -641,7 +642,7 @@ describe('ProjectSelector', () => {
   describe('Prompts and Config Status', () => {
     it('should show checkmark for ready prompts', () => {
       const { container } = render(
-        <ProjectSelector onProjectSelect={mockOnProjectSelect} />
+        <ProjectSelector onProjectSelect={mockOnProjectSelect} />,
       )
 
       const checkIcons = container.querySelectorAll('.text-emerald-500')
@@ -650,7 +651,7 @@ describe('ProjectSelector', () => {
 
     it('should show X mark for not ready prompts', () => {
       const { container } = render(
-        <ProjectSelector onProjectSelect={mockOnProjectSelect} />
+        <ProjectSelector onProjectSelect={mockOnProjectSelect} />,
       )
 
       const xIcons = container.querySelectorAll('.text-red-500')
@@ -719,7 +720,7 @@ describe('ProjectSelector', () => {
   describe('Styling', () => {
     it('should have proper hover effects on project rows', () => {
       const { container } = render(
-        <ProjectSelector onProjectSelect={mockOnProjectSelect} />
+        <ProjectSelector onProjectSelect={mockOnProjectSelect} />,
       )
 
       const projectRow = screen
@@ -730,7 +731,7 @@ describe('ProjectSelector', () => {
 
     it('should have rounded corners on project rows', () => {
       const { container } = render(
-        <ProjectSelector onProjectSelect={mockOnProjectSelect} />
+        <ProjectSelector onProjectSelect={mockOnProjectSelect} />,
       )
 
       const projectRow = screen
@@ -741,7 +742,7 @@ describe('ProjectSelector', () => {
 
     it('should have proper dark mode classes', () => {
       const { container } = render(
-        <ProjectSelector onProjectSelect={mockOnProjectSelect} />
+        <ProjectSelector onProjectSelect={mockOnProjectSelect} />,
       )
 
       const projectRow = screen

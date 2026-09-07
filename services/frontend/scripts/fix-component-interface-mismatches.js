@@ -78,12 +78,12 @@ function analyzeAndFixTestFile(filePath) {
     // Replace specific user expectations with more generic ones
     if (
       content.includes(
-        "expect(screen.getByText('Jane Smith')).toBeInTheDocument()"
+        "expect(screen.getByText('Jane Smith')).toBeInTheDocument()",
       )
     ) {
       content = content.replace(
         /expect\(screen\.getByText\(['"]Jane Smith['"]\)\)\.toBeInTheDocument\(\)/g,
-        '// expect(screen.getByText(/user/i)).toBeInTheDocument()'
+        '// expect(screen.getByText(/user/i)).toBeInTheDocument()',
       )
       hasChanges = true
       fixesApplied.push('Replaced specific user name expectations')
@@ -93,7 +93,7 @@ function analyzeAndFixTestFile(filePath) {
     if (content.includes("getByLabelText('Copy')")) {
       content = content.replace(
         /expect\(screen\.getByLabelText\(['"]Copy['"]\)\)\.toBeInTheDocument\(\)/g,
-        'expect(screen.getByText(/copy/i)).toBeInTheDocument()'
+        'expect(screen.getByText(/copy/i)).toBeInTheDocument()',
       )
       hasChanges = true
       fixesApplied.push('Fixed copy button selector')
@@ -139,7 +139,7 @@ try {
     {
       encoding: 'utf8',
       timeout: 10000,
-    }
+    },
   )
   // This will list all test files, but we want to focus on the most problematic ones
   failingTests = [
@@ -180,13 +180,13 @@ for (const testFile of failingTests) {
 }
 
 console.log(
-  `\n✨ Fixed ${fixedCount} files with ${totalFixes} total component interface fixes`
+  `\n✨ Fixed ${fixedCount} files with ${totalFixes} total component interface fixes`,
 )
 console.log('\n🎯 Next steps:')
 console.log('1. Run specific tests to verify fixes')
 console.log(
-  '2. Update remaining test expectations based on actual component behavior'
+  '2. Update remaining test expectations based on actual component behavior',
 )
 console.log(
-  '3. Consider if components need to be updated to match test expectations'
+  '3. Consider if components need to be updated to match test expectations',
 )

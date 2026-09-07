@@ -72,13 +72,13 @@ describe('Notification Types Configuration', () => {
 
     // Check that project-based types exist
     const projectCreated = notificationTypes.find(
-      (type) => type.key === 'project_created'
+      (type) => type.key === 'project_created',
     )
     const projectUpdated = notificationTypes.find(
-      (type) => type.key === 'project_updated'
+      (type) => type.key === 'project_updated',
     )
     const projectShared = notificationTypes.find(
-      (type) => type.key === 'project_shared'
+      (type) => type.key === 'project_shared',
     )
 
     expect(projectCreated).toBeDefined()
@@ -96,13 +96,13 @@ describe('Notification Types Configuration', () => {
     const notificationTypes = getNotificationTypes(mockT)
 
     const annotationAssigned = notificationTypes.find(
-      (type) => type.key === 'annotation_assigned'
+      (type) => type.key === 'annotation_assigned',
     )
 
     expect(annotationAssigned).toBeDefined()
     expect(annotationAssigned?.name).toBe('Annotation Assigned')
     expect(annotationAssigned?.description).toBe(
-      'Receive notifications when you are assigned to annotation tasks'
+      'Receive notifications when you are assigned to annotation tasks',
     )
     expect(annotationAssigned?.category).toBe('Annotation')
   })
@@ -112,7 +112,7 @@ describe('Notification Types Configuration', () => {
 
     // Check that old task-based types are NOT present
     const taskCreated = notificationTypes.find(
-      (type) => type.key === 'task_created'
+      (type) => type.key === 'task_created',
     )
 
     expect(taskCreated).toBeUndefined()
@@ -132,7 +132,7 @@ describe('Notification Types Configuration', () => {
     // Should NOT include old Tasks category in our test data
     // (Note: other notification types may still use different categories)
     const projectTypes = notificationTypes.filter(
-      (type) => type.category === 'Projects'
+      (type) => type.category === 'Projects',
     )
     expect(projectTypes.length).toBeGreaterThan(0)
   })

@@ -55,9 +55,7 @@ const mockOrgAdmin = {
   updated_at: '2024-01-01',
 }
 
-const mockOrgs = [
-  { id: 'org1', name: 'Org 1', slug: 'org1', role: 'admin' },
-]
+const mockOrgs = [{ id: 'org1', name: 'Org 1', slug: 'org1', role: 'admin' }]
 
 let mockAuthReturn: any = {
   user: mockSuperadmin,
@@ -100,7 +98,11 @@ jest.mock('@headlessui/react', () => ({
   ),
   TabGroup: ({ children, onChange, selectedIndex }: any) => {
     capturedOnChange = onChange
-    return <div data-testid="tab-group" data-selected-index={selectedIndex}>{children}</div>
+    return (
+      <div data-testid="tab-group" data-selected-index={selectedIndex}>
+        {children}
+      </div>
+    )
   },
   TabList: ({ children }: any) => <div role="tablist">{children}</div>,
   TabPanel: ({ children }: any) => <div role="tabpanel">{children}</div>,
@@ -113,9 +115,7 @@ jest.mock('@heroicons/react/24/outline', () => ({
 }))
 
 jest.mock('@/app/admin/users-organizations/components/GlobalUsersTab', () => ({
-  GlobalUsersTab: () => (
-    <div data-testid="global-users-tab">Global Users</div>
-  ),
+  GlobalUsersTab: () => <div data-testid="global-users-tab">Global Users</div>,
 }))
 
 jest.mock(
@@ -124,7 +124,7 @@ jest.mock(
     OrganizationsTab: () => (
       <div data-testid="organizations-tab">Organizations</div>
     ),
-  })
+  }),
 )
 
 describe('UsersOrganizationsPage - branch coverage', () => {
@@ -200,7 +200,7 @@ describe('UsersOrganizationsPage - branch coverage', () => {
       capturedOnChange!(0)
 
       expect(mockPush).toHaveBeenCalledWith(
-        expect.stringContaining('tab=users')
+        expect.stringContaining('tab=users'),
       )
     })
 
@@ -214,7 +214,7 @@ describe('UsersOrganizationsPage - branch coverage', () => {
       capturedOnChange!(1)
 
       expect(mockPush).toHaveBeenCalledWith(
-        expect.stringContaining('tab=organizations')
+        expect.stringContaining('tab=organizations'),
       )
     })
 
@@ -235,7 +235,7 @@ describe('UsersOrganizationsPage - branch coverage', () => {
       capturedOnChange!(0)
 
       expect(mockPush).toHaveBeenCalledWith(
-        expect.stringContaining('tab=organizations')
+        expect.stringContaining('tab=organizations'),
       )
     })
 
@@ -251,7 +251,7 @@ describe('UsersOrganizationsPage - branch coverage', () => {
       capturedOnChange!(1)
 
       expect(mockPush).toHaveBeenCalledWith(
-        expect.stringContaining('org=test-org')
+        expect.stringContaining('org=test-org'),
       )
     })
   })

@@ -5,7 +5,13 @@
  * Replaces the complex TagManager with direct, simple editing
  */
 
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/shared/Select'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/shared/Select'
 import { useToast } from '@/components/shared/Toast'
 import { useI18n } from '@/contexts/I18nContext'
 import apiClient from '@/lib/api'
@@ -99,7 +105,7 @@ export function MetadataField({
               {value.slice(0, 2).map((item, index) => (
                 <span
                   key={index}
-                  className="inline-flex items-center whitespace-nowrap rounded bg-zinc-100 px-1.5 py-0 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
+                  className="inline-flex items-center rounded bg-zinc-100 px-1.5 py-0 text-xs font-medium whitespace-nowrap text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
                 >
                   {item.length > 10 ? item.substring(0, 10) + '...' : item}
                 </span>
@@ -150,8 +156,10 @@ export function MetadataField({
             setEditValue(newValue)
           }}
           onKeyDown={handleKeyDown}
-          className="rounded-md border px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:border-zinc-700 dark:bg-zinc-800"
-          placeholder={t('shared.metadata.enterCommaSeparated', { field: fieldName })}
+          className="rounded-md border px-2 py-1 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-800"
+          placeholder={t('shared.metadata.enterCommaSeparated', {
+            field: fieldName,
+          })}
           disabled={isLoading}
         />
       )
@@ -161,7 +169,9 @@ export function MetadataField({
           value={String(editValue)}
           onValueChange={(v) => setEditValue(v === 'true')}
           disabled={isLoading}
-          displayValue={editValue ? t('shared.metadata.yes') : t('shared.metadata.no')}
+          displayValue={
+            editValue ? t('shared.metadata.yes') : t('shared.metadata.no')
+          }
         >
           <SelectTrigger className="h-7 w-auto min-w-20 text-sm">
             <SelectValue />
@@ -180,7 +190,7 @@ export function MetadataField({
           value={editValue || ''}
           onChange={(e) => setEditValue(e.target.value)}
           onKeyDown={handleKeyDown}
-          className="rounded-md border px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:border-zinc-700 dark:bg-zinc-800"
+          className="rounded-md border px-2 py-1 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-800"
           placeholder={t('shared.metadata.enterField', { field: fieldName })}
           disabled={isLoading}
         />
@@ -277,7 +287,10 @@ export function BulkMetadataEditor({
         metadata,
       })
 
-      addToast(t('shared.metadata.bulkUpdated', { count: taskIds.length }), 'success')
+      addToast(
+        t('shared.metadata.bulkUpdated', { count: taskIds.length }),
+        'success',
+      )
       onSuccess?.()
       onClose()
     } catch (error) {
@@ -312,7 +325,9 @@ export function BulkMetadataEditor({
       <div className="mb-4 space-y-3">
         {/* Common metadata fields */}
         <div className="flex items-center gap-2">
-          <label className="w-24 text-sm font-medium">{t('shared.metadata.labelTags')}</label>
+          <label className="w-24 text-sm font-medium">
+            {t('shared.metadata.labelTags')}
+          </label>
           <input
             type="text"
             placeholder={t('shared.metadata.tagsPlaceholder')}
@@ -327,12 +342,14 @@ export function BulkMetadataEditor({
                 removeField('tags')
               }
             }}
-            className="flex-1 rounded-md border px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:border-zinc-700 dark:bg-zinc-800"
+            className="flex-1 rounded-md border px-3 py-1.5 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-800"
           />
         </div>
 
         <div className="flex items-center gap-2">
-          <label className="w-24 text-sm font-medium">{t('shared.metadata.labelPriority')}</label>
+          <label className="w-24 text-sm font-medium">
+            {t('shared.metadata.labelPriority')}
+          </label>
           <div className="flex-1">
             <Select
               value={metadata.priority || ''}
@@ -344,28 +361,42 @@ export function BulkMetadataEditor({
                 }
               }}
               displayValue={
-                metadata.priority === 'low' ? t('shared.metadata.priorityLow') :
-                metadata.priority === 'medium' ? t('shared.metadata.priorityMedium') :
-                metadata.priority === 'high' ? t('shared.metadata.priorityHigh') :
-                metadata.priority === 'urgent' ? t('shared.metadata.priorityUrgent') :
-                undefined
+                metadata.priority === 'low'
+                  ? t('shared.metadata.priorityLow')
+                  : metadata.priority === 'medium'
+                    ? t('shared.metadata.priorityMedium')
+                    : metadata.priority === 'high'
+                      ? t('shared.metadata.priorityHigh')
+                      : metadata.priority === 'urgent'
+                        ? t('shared.metadata.priorityUrgent')
+                        : undefined
               }
             >
               <SelectTrigger>
                 <SelectValue placeholder={t('shared.metadata.selectDefault')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="low">{t('shared.metadata.priorityLow')}</SelectItem>
-                <SelectItem value="medium">{t('shared.metadata.priorityMedium')}</SelectItem>
-                <SelectItem value="high">{t('shared.metadata.priorityHigh')}</SelectItem>
-                <SelectItem value="urgent">{t('shared.metadata.priorityUrgent')}</SelectItem>
+                <SelectItem value="low">
+                  {t('shared.metadata.priorityLow')}
+                </SelectItem>
+                <SelectItem value="medium">
+                  {t('shared.metadata.priorityMedium')}
+                </SelectItem>
+                <SelectItem value="high">
+                  {t('shared.metadata.priorityHigh')}
+                </SelectItem>
+                <SelectItem value="urgent">
+                  {t('shared.metadata.priorityUrgent')}
+                </SelectItem>
               </SelectContent>
             </Select>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
-          <label className="w-24 text-sm font-medium">{t('shared.metadata.labelStatus')}</label>
+          <label className="w-24 text-sm font-medium">
+            {t('shared.metadata.labelStatus')}
+          </label>
           <div className="flex-1">
             <Select
               value={metadata.status || ''}
@@ -377,21 +408,33 @@ export function BulkMetadataEditor({
                 }
               }}
               displayValue={
-                metadata.status === 'pending' ? t('shared.metadata.statusPending') :
-                metadata.status === 'in_progress' ? t('shared.metadata.statusInProgress') :
-                metadata.status === 'review' ? t('shared.metadata.statusReview') :
-                metadata.status === 'completed' ? t('shared.metadata.statusCompleted') :
-                undefined
+                metadata.status === 'pending'
+                  ? t('shared.metadata.statusPending')
+                  : metadata.status === 'in_progress'
+                    ? t('shared.metadata.statusInProgress')
+                    : metadata.status === 'review'
+                      ? t('shared.metadata.statusReview')
+                      : metadata.status === 'completed'
+                        ? t('shared.metadata.statusCompleted')
+                        : undefined
               }
             >
               <SelectTrigger>
                 <SelectValue placeholder={t('shared.metadata.selectDefault')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="pending">{t('shared.metadata.statusPending')}</SelectItem>
-                <SelectItem value="in_progress">{t('shared.metadata.statusInProgress')}</SelectItem>
-                <SelectItem value="review">{t('shared.metadata.statusReview')}</SelectItem>
-                <SelectItem value="completed">{t('shared.metadata.statusCompleted')}</SelectItem>
+                <SelectItem value="pending">
+                  {t('shared.metadata.statusPending')}
+                </SelectItem>
+                <SelectItem value="in_progress">
+                  {t('shared.metadata.statusInProgress')}
+                </SelectItem>
+                <SelectItem value="review">
+                  {t('shared.metadata.statusReview')}
+                </SelectItem>
+                <SelectItem value="completed">
+                  {t('shared.metadata.statusCompleted')}
+                </SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -421,7 +464,9 @@ export function BulkMetadataEditor({
           disabled={isLoading || Object.keys(metadata).length === 0}
           className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {isLoading ? t('shared.metadata.updating') : t('shared.metadata.updateMetadata')}
+          {isLoading
+            ? t('shared.metadata.updating')
+            : t('shared.metadata.updateMetadata')}
         </button>
       </div>
     </div>

@@ -138,9 +138,11 @@ export class LeaderboardsClient extends BaseApiClient {
     }
     if (params?.period) queryParams.append('period', params.period)
     if (params?.metric) queryParams.append('metric', params.metric)
-    if (params?.aggregation) queryParams.append('aggregation', params.aggregation)
+    if (params?.aggregation)
+      queryParams.append('aggregation', params.aggregation)
     if (params?.limit) queryParams.append('limit', params.limit.toString())
-    if (params?.offset !== undefined) queryParams.append('offset', params.offset.toString())
+    if (params?.offset !== undefined)
+      queryParams.append('offset', params.offset.toString())
     return this.get(`/leaderboards/annotators?${queryParams.toString()}`)
   }
 
@@ -161,9 +163,11 @@ export class LeaderboardsClient extends BaseApiClient {
     }
     if (params?.period) queryParams.append('period', params.period)
     if (params?.metric) queryParams.append('metric', params.metric)
-    if (params?.aggregation) queryParams.append('aggregation', params.aggregation)
+    if (params?.aggregation)
+      queryParams.append('aggregation', params.aggregation)
     if (params?.limit) queryParams.append('limit', params.limit.toString())
-    if (params?.offset !== undefined) queryParams.append('offset', params.offset.toString())
+    if (params?.offset !== undefined)
+      queryParams.append('offset', params.offset.toString())
     return this.get(`/leaderboards/co-creation?${queryParams.toString()}`)
   }
 
@@ -252,12 +256,15 @@ export class LeaderboardsClient extends BaseApiClient {
 
     if (params?.evaluation_types && params.evaluation_types.length > 0) {
       params.evaluation_types.forEach((type) =>
-        queryParams.append('evaluation_types', type)
+        queryParams.append('evaluation_types', type),
       )
     }
 
     if (params?.include_all_models !== undefined) {
-      queryParams.append('include_all_models', params.include_all_models.toString())
+      queryParams.append(
+        'include_all_models',
+        params.include_all_models.toString(),
+      )
     }
 
     if (params?.search) {
@@ -265,11 +272,17 @@ export class LeaderboardsClient extends BaseApiClient {
     }
 
     if (params?.min_generation_count !== undefined) {
-      queryParams.append('min_generation_count', params.min_generation_count.toString())
+      queryParams.append(
+        'min_generation_count',
+        params.min_generation_count.toString(),
+      )
     }
 
     if (params?.min_samples_evaluated !== undefined) {
-      queryParams.append('min_samples_evaluated', params.min_samples_evaluated.toString())
+      queryParams.append(
+        'min_samples_evaluated',
+        params.min_samples_evaluated.toString(),
+      )
     }
 
     if (params?.limit) {
@@ -291,7 +304,7 @@ export class LeaderboardsClient extends BaseApiClient {
     params?: {
       project_ids?: string[]
       period?: 'overall' | 'monthly' | 'weekly'
-    }
+    },
   ): Promise<LLMModelDetails> {
     const queryParams = new URLSearchParams()
 
@@ -304,8 +317,7 @@ export class LeaderboardsClient extends BaseApiClient {
     }
 
     return this.get(
-      `/leaderboards/llm-models/${encodeURIComponent(modelId)}?${queryParams.toString()}`
+      `/leaderboards/llm-models/${encodeURIComponent(modelId)}?${queryParams.toString()}`,
     )
   }
-
 }

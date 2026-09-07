@@ -34,7 +34,7 @@ describe('ToggleSwitch Component', () => {
           enabled={false}
           onChange={mockOnChange}
           label="Enable feature"
-        />
+        />,
       )
 
       expect(screen.getByText('Enable feature')).toBeInTheDocument()
@@ -42,11 +42,11 @@ describe('ToggleSwitch Component', () => {
 
     it('renders toggle indicator dot', () => {
       const { container } = render(
-        <ToggleSwitch enabled={false} onChange={mockOnChange} />
+        <ToggleSwitch enabled={false} onChange={mockOnChange} />,
       )
 
       const indicator = container.querySelector(
-        '.inline-block.rounded-full.bg-white'
+        '.inline-block.rounded-full.bg-white',
       )
       expect(indicator).toBeInTheDocument()
     })
@@ -62,7 +62,7 @@ describe('ToggleSwitch Component', () => {
 
     it('applies gray background when disabled', () => {
       const { container } = render(
-        <ToggleSwitch enabled={false} onChange={mockOnChange} />
+        <ToggleSwitch enabled={false} onChange={mockOnChange} />,
       )
 
       const switchButton = screen.getByRole('switch')
@@ -71,7 +71,7 @@ describe('ToggleSwitch Component', () => {
 
     it('positions indicator to the left when off', () => {
       const { container } = render(
-        <ToggleSwitch enabled={false} onChange={mockOnChange} />
+        <ToggleSwitch enabled={false} onChange={mockOnChange} />,
       )
 
       const indicator = container.querySelector('.inline-block.rounded-full')
@@ -96,7 +96,7 @@ describe('ToggleSwitch Component', () => {
 
     it('positions indicator to the right when on', () => {
       const { container } = render(
-        <ToggleSwitch enabled={true} onChange={mockOnChange} />
+        <ToggleSwitch enabled={true} onChange={mockOnChange} />,
       )
 
       const indicator = container.querySelector('.inline-block.rounded-full')
@@ -129,7 +129,7 @@ describe('ToggleSwitch Component', () => {
     it('can be toggled multiple times', async () => {
       const user = userEvent.setup()
       const { rerender } = render(
-        <ToggleSwitch enabled={false} onChange={mockOnChange} />
+        <ToggleSwitch enabled={false} onChange={mockOnChange} />,
       )
 
       const switchButton = screen.getByRole('switch')
@@ -150,7 +150,7 @@ describe('ToggleSwitch Component', () => {
           enabled={false}
           onChange={mockOnChange}
           label="Dark mode"
-        />
+        />,
       )
 
       expect(screen.getByText('Dark mode')).toBeInTheDocument()
@@ -162,14 +162,14 @@ describe('ToggleSwitch Component', () => {
           enabled={false}
           onChange={mockOnChange}
           label="Settings"
-        />
+        />,
       )
 
       const label = screen.getByText('Settings')
       expect(label).toHaveClass(
         'font-medium',
         'text-zinc-900',
-        'dark:text-zinc-100'
+        'dark:text-zinc-100',
       )
     })
 
@@ -180,7 +180,7 @@ describe('ToggleSwitch Component', () => {
           enabled={false}
           onChange={mockOnChange}
           label="Enable notifications"
-        />
+        />,
       )
 
       const label = screen.getByText('Enable notifications')
@@ -191,7 +191,7 @@ describe('ToggleSwitch Component', () => {
 
     it('does not render label wrapper when label not provided', () => {
       const { container } = render(
-        <ToggleSwitch enabled={false} onChange={mockOnChange} />
+        <ToggleSwitch enabled={false} onChange={mockOnChange} />,
       )
 
       const labelElement = container.querySelector('label')
@@ -205,7 +205,7 @@ describe('ToggleSwitch Component', () => {
           enabled={false}
           onChange={mockOnChange}
           label={longLabel}
-        />
+        />,
       )
 
       expect(screen.getByText(longLabel)).toBeInTheDocument()
@@ -218,7 +218,7 @@ describe('ToggleSwitch Component', () => {
           enabled={false}
           onChange={mockOnChange}
           label={specialLabel}
-        />
+        />,
       )
 
       expect(screen.getByText(specialLabel)).toBeInTheDocument()
@@ -228,7 +228,11 @@ describe('ToggleSwitch Component', () => {
   describe('Disabled State', () => {
     it('disables switch when disabled is true', () => {
       render(
-        <ToggleSwitch enabled={false} onChange={mockOnChange} disabled={true} />
+        <ToggleSwitch
+          enabled={false}
+          onChange={mockOnChange}
+          disabled={true}
+        />,
       )
 
       const switchButton = screen.getByRole('switch')
@@ -237,7 +241,11 @@ describe('ToggleSwitch Component', () => {
 
     it('applies disabled styling', () => {
       render(
-        <ToggleSwitch enabled={false} onChange={mockOnChange} disabled={true} />
+        <ToggleSwitch
+          enabled={false}
+          onChange={mockOnChange}
+          disabled={true}
+        />,
       )
 
       const switchButton = screen.getByRole('switch')
@@ -247,7 +255,11 @@ describe('ToggleSwitch Component', () => {
     it('does not call onChange when disabled and clicked', async () => {
       const user = userEvent.setup()
       render(
-        <ToggleSwitch enabled={false} onChange={mockOnChange} disabled={true} />
+        <ToggleSwitch
+          enabled={false}
+          onChange={mockOnChange}
+          disabled={true}
+        />,
       )
 
       const switchButton = screen.getByRole('switch')
@@ -258,7 +270,7 @@ describe('ToggleSwitch Component', () => {
 
     it('maintains enabled state when disabled', () => {
       render(
-        <ToggleSwitch enabled={true} onChange={mockOnChange} disabled={true} />
+        <ToggleSwitch enabled={true} onChange={mockOnChange} disabled={true} />,
       )
 
       const switchButton = screen.getByRole('switch')
@@ -268,14 +280,18 @@ describe('ToggleSwitch Component', () => {
 
     it('disabled switch still shows correct colors', () => {
       const { rerender } = render(
-        <ToggleSwitch enabled={false} onChange={mockOnChange} disabled={true} />
+        <ToggleSwitch
+          enabled={false}
+          onChange={mockOnChange}
+          disabled={true}
+        />,
       )
 
       let switchButton = screen.getByRole('switch')
       expect(switchButton).toHaveClass('bg-zinc-200')
 
       rerender(
-        <ToggleSwitch enabled={true} onChange={mockOnChange} disabled={true} />
+        <ToggleSwitch enabled={true} onChange={mockOnChange} disabled={true} />,
       )
       switchButton = screen.getByRole('switch')
       expect(switchButton).toHaveClass('bg-emerald-600')
@@ -293,7 +309,7 @@ describe('ToggleSwitch Component', () => {
         'h-6',
         'w-11',
         'items-center',
-        'rounded-full'
+        'rounded-full',
       )
     })
 
@@ -312,13 +328,13 @@ describe('ToggleSwitch Component', () => {
         'focus:outline-none',
         'focus:ring-2',
         'focus:ring-emerald-500',
-        'focus:ring-offset-2'
+        'focus:ring-offset-2',
       )
     })
 
     it('indicator has rounded styling', () => {
       const { container } = render(
-        <ToggleSwitch enabled={false} onChange={mockOnChange} />
+        <ToggleSwitch enabled={false} onChange={mockOnChange} />,
       )
 
       const indicator = container.querySelector('.inline-block')
@@ -327,7 +343,7 @@ describe('ToggleSwitch Component', () => {
 
     it('indicator has correct size', () => {
       const { container } = render(
-        <ToggleSwitch enabled={false} onChange={mockOnChange} />
+        <ToggleSwitch enabled={false} onChange={mockOnChange} />,
       )
 
       const indicator = container.querySelector('.inline-block')
@@ -347,7 +363,7 @@ describe('ToggleSwitch Component', () => {
           enabled={false}
           onChange={mockOnChange}
           label="Test label"
-        />
+        />,
       )
 
       const label = screen.getByText('Test label')
@@ -388,7 +404,7 @@ describe('ToggleSwitch Component', () => {
           <button>Before</button>
           <ToggleSwitch enabled={false} onChange={mockOnChange} />
           <button>After</button>
-        </div>
+        </div>,
       )
 
       const beforeButton = screen.getByRole('button', { name: 'Before' })
@@ -409,7 +425,7 @@ describe('ToggleSwitch Component', () => {
           enabled={false}
           onChange={mockOnChange}
           label="Enable feature"
-        />
+        />,
       )
 
       const switchButton = screen.getByRole('switch')
@@ -424,7 +440,7 @@ describe('ToggleSwitch Component', () => {
   describe('Controlled Behavior', () => {
     it('maintains controlled state', () => {
       const { rerender } = render(
-        <ToggleSwitch enabled={false} onChange={mockOnChange} />
+        <ToggleSwitch enabled={false} onChange={mockOnChange} />,
       )
 
       let switchButton = screen.getByRole('switch')
@@ -437,7 +453,7 @@ describe('ToggleSwitch Component', () => {
 
     it('updates visual state when enabled prop changes', () => {
       const { rerender, container } = render(
-        <ToggleSwitch enabled={false} onChange={mockOnChange} />
+        <ToggleSwitch enabled={false} onChange={mockOnChange} />,
       )
 
       let indicator = container.querySelector('.inline-block')
@@ -450,7 +466,7 @@ describe('ToggleSwitch Component', () => {
 
     it('background color updates with enabled prop', () => {
       const { rerender } = render(
-        <ToggleSwitch enabled={false} onChange={mockOnChange} />
+        <ToggleSwitch enabled={false} onChange={mockOnChange} />,
       )
 
       let switchButton = screen.getByRole('switch')
@@ -483,7 +499,7 @@ describe('ToggleSwitch Component', () => {
           enabled={false}
           onChange={mockOnChange}
           label={unicodeLabel}
-        />
+        />,
       )
 
       expect(screen.getByText(unicodeLabel)).toBeInTheDocument()
@@ -492,7 +508,7 @@ describe('ToggleSwitch Component', () => {
     it('maintains state consistency during interaction', async () => {
       const user = userEvent.setup()
       const { rerender } = render(
-        <ToggleSwitch enabled={false} onChange={mockOnChange} />
+        <ToggleSwitch enabled={false} onChange={mockOnChange} />,
       )
 
       const switchButton = screen.getByRole('switch')
@@ -522,14 +538,18 @@ describe('ToggleSwitch Component', () => {
           enabled={false}
           onChange={mockOnChange}
           disabled={false}
-        />
+        />,
       )
 
       let switchButton = screen.getByRole('switch')
       expect(switchButton).not.toBeDisabled()
 
       rerender(
-        <ToggleSwitch enabled={false} onChange={mockOnChange} disabled={true} />
+        <ToggleSwitch
+          enabled={false}
+          onChange={mockOnChange}
+          disabled={true}
+        />,
       )
       switchButton = screen.getByRole('switch')
       expect(switchButton).toBeDisabled()

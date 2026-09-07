@@ -93,7 +93,7 @@ export default function TaskMetadataPage({ params }: TaskMetadataPageProps) {
       // Update metadata via API - send the entire metadata object
       await apiClient.patch(
         `/api/projects/tasks/${taskId}/metadata`,
-        parsedMetadata
+        parsedMetadata,
       )
 
       // Update local state
@@ -218,7 +218,9 @@ export default function TaskMetadataPage({ params }: TaskMetadataPageProps) {
                       className="flex items-center gap-1"
                     >
                       <CheckIcon className="h-4 w-4" />
-                      {isSaving ? t('tasks.metadata.saving') : t('tasks.metadata.save')}
+                      {isSaving
+                        ? t('tasks.metadata.saving')
+                        : t('tasks.metadata.save')}
                     </Button>
                     <Button
                       variant="outline"
@@ -267,8 +269,16 @@ export default function TaskMetadataPage({ params }: TaskMetadataPageProps) {
                     </span>
                   )}
                 </span>
-                <span>{t('tasks.metadata.annotations', { count: task.total_annotations || 0 })}</span>
-                <span>{t('tasks.metadata.generations', { count: task.total_generations || 0 })}</span>
+                <span>
+                  {t('tasks.metadata.annotations', {
+                    count: task.total_annotations || 0,
+                  })}
+                </span>
+                <span>
+                  {t('tasks.metadata.generations', {
+                    count: task.total_generations || 0,
+                  })}
+                </span>
               </div>
             </div>
           </div>

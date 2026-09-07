@@ -71,9 +71,7 @@ describe('EvaluationResultsTable', () => {
     })
 
     it('renders dash for undefined rank', () => {
-      const results = [
-        { modelId: 'test', metrics: { accuracy: 0.5 } },
-      ]
+      const results = [{ modelId: 'test', metrics: { accuracy: 0.5 } }]
       render(<EvaluationResultsTable results={results} />)
       expect(screen.getByText('-')).toBeInTheDocument()
     })
@@ -87,9 +85,7 @@ describe('EvaluationResultsTable', () => {
     })
 
     it('falls back to modelId when modelName is not provided', () => {
-      const results = [
-        { modelId: 'test-model-id', metrics: { accuracy: 0.5 } },
-      ]
+      const results = [{ modelId: 'test-model-id', metrics: { accuracy: 0.5 } }]
       render(<EvaluationResultsTable results={results} />)
       expect(screen.getByText('test-model-id')).toBeInTheDocument()
     })
@@ -97,27 +93,21 @@ describe('EvaluationResultsTable', () => {
 
   describe('Score color coding', () => {
     it('applies green class for high scores (>=0.7)', () => {
-      const results = [
-        { modelId: 'high', metrics: { score: 0.85 } },
-      ]
+      const results = [{ modelId: 'high', metrics: { score: 0.85 } }]
       render(<EvaluationResultsTable results={results} />)
       const scoreEl = screen.getByText('85.0%')
       expect(scoreEl).toHaveClass('bg-green-100')
     })
 
     it('applies yellow class for medium scores (0.5-0.7)', () => {
-      const results = [
-        { modelId: 'medium', metrics: { score: 0.6 } },
-      ]
+      const results = [{ modelId: 'medium', metrics: { score: 0.6 } }]
       render(<EvaluationResultsTable results={results} />)
       const scoreEl = screen.getByText('60.0%')
       expect(scoreEl).toHaveClass('bg-yellow-100')
     })
 
     it('applies red class for low scores (<0.5)', () => {
-      const results = [
-        { modelId: 'low', metrics: { score: 0.3 } },
-      ]
+      const results = [{ modelId: 'low', metrics: { score: 0.3 } }]
       render(<EvaluationResultsTable results={results} />)
       const scoreEl = screen.getByText('30.0%')
       expect(scoreEl).toHaveClass('bg-red-100')
@@ -200,7 +190,7 @@ describe('EvaluationResultsTable', () => {
       // Missing metric cells render <span className="text-gray-400">-</span>
       const dashSpans = document.querySelectorAll('span.text-gray-400')
       const metricDashes = Array.from(dashSpans).filter(
-        (span) => span.textContent === '-'
+        (span) => span.textContent === '-',
       )
       // Two dashes: model "a" missing "f1", model "b" missing "accuracy"
       expect(metricDashes.length).toBe(2)
@@ -211,7 +201,7 @@ describe('EvaluationResultsTable', () => {
     it('uses metricNames map for column headers', () => {
       const metricNames = { accuracy: 'Accuracy Score', f1: 'F1 Measure' }
       render(
-        <EvaluationResultsTable {...defaultProps} metricNames={metricNames} />
+        <EvaluationResultsTable {...defaultProps} metricNames={metricNames} />,
       )
       expect(screen.getByText('Accuracy Score')).toBeInTheDocument()
       expect(screen.getByText('F1 Measure')).toBeInTheDocument()
@@ -223,7 +213,7 @@ describe('EvaluationResultsTable', () => {
         <EvaluationResultsTable
           {...defaultProps}
           metricDescriptions={metricDescriptions}
-        />
+        />,
       )
       // The th element should have the title
       const th = screen.getByTitle('Overall accuracy metric')
@@ -233,25 +223,19 @@ describe('EvaluationResultsTable', () => {
 
   describe('Baseline model', () => {
     it('shows baseline badge for baseline model', () => {
-      render(
-        <EvaluationResultsTable {...defaultProps} baselineModel="gpt-4" />
-      )
+      render(<EvaluationResultsTable {...defaultProps} baselineModel="gpt-4" />)
       expect(screen.getByText('Baseline')).toBeInTheDocument()
     })
 
     it('shows significance legend when baseline is set', () => {
-      render(
-        <EvaluationResultsTable {...defaultProps} baselineModel="gpt-4" />
-      )
+      render(<EvaluationResultsTable {...defaultProps} baselineModel="gpt-4" />)
       expect(
-        screen.getByText('* p<0.05, ** p<0.01, *** p<0.001')
+        screen.getByText('* p<0.05, ** p<0.01, *** p<0.001'),
       ).toBeInTheDocument()
     })
 
     it('shows baseline note footer', () => {
-      render(
-        <EvaluationResultsTable {...defaultProps} baselineModel="gpt-4" />
-      )
+      render(<EvaluationResultsTable {...defaultProps} baselineModel="gpt-4" />)
       expect(screen.getByText('Compared against gpt-4')).toBeInTheDocument()
     })
   })
@@ -300,14 +284,12 @@ describe('EvaluationResultsTable', () => {
 
   describe('Higher is better', () => {
     it('inverts color coding when higherIsBetter is false', () => {
-      const results = [
-        { modelId: 'test', metrics: { error_rate: 0.2 } },
-      ]
+      const results = [{ modelId: 'test', metrics: { error_rate: 0.2 } }]
       render(
         <EvaluationResultsTable
           results={results}
           higherIsBetter={{ error_rate: false }}
-        />
+        />,
       )
       // 0.2 with higherIsBetter=false means score = 1-0.2 = 0.8, which is green
       const scoreEl = screen.getByText('20.0%')
@@ -317,9 +299,7 @@ describe('EvaluationResultsTable', () => {
 
   describe('Large values', () => {
     it('formats values > 1 with 3 decimal places (not percentage)', () => {
-      const results = [
-        { modelId: 'test', metrics: { perplexity: 25.678 } },
-      ]
+      const results = [{ modelId: 'test', metrics: { perplexity: 25.678 } }]
       render(<EvaluationResultsTable results={results} />)
       expect(screen.getByText('25.678')).toBeInTheDocument()
     })

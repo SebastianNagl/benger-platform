@@ -23,7 +23,10 @@ import { EvaluationsClient } from '../evaluations'
 
 jest.mock('../base', () => ({
   BaseApiClient: class MockBaseApiClient {
-    protected async request<T>(_url: string, _options?: RequestInit): Promise<T> {
+    protected async request<T>(
+      _url: string,
+      _options?: RequestInit,
+    ): Promise<T> {
       return {} as T
     }
     clearCache() {}
@@ -75,7 +78,7 @@ describe('EvaluationsClient - uncovered methods', () => {
     it('URL-encodes the field name', async () => {
       await client.getConfusionMatrix('eval-1', 'field name/with')
       expect(url()).toBe(
-        '/evaluations/eval-1/confusion-matrix?field_name=field%20name%2Fwith'
+        '/evaluations/eval-1/confusion-matrix?field_name=field%20name%2Fwith',
       )
     })
   })
@@ -149,7 +152,7 @@ describe('EvaluationsClient - uncovered methods', () => {
 
       expect(result).toBe(completed)
       expect(url()).toBe(
-        '/evaluations/projects/p1/tasks/t1/immediate/eval-1/status'
+        '/evaluations/projects/p1/tasks/t1/immediate/eval-1/status',
       )
       // Polled exactly once — no setTimeout wait reached.
       expect(requestSpy).toHaveBeenCalledTimes(1)
@@ -177,7 +180,9 @@ describe('EvaluationsClient - uncovered methods', () => {
         status: 'pending',
         results: [],
         message: 'working',
-        methods: [{ metric_name: 'bleu', display_name: 'BLEU', status: 'pending' }],
+        methods: [
+          { metric_name: 'bleu', display_name: 'BLEU', status: 'pending' },
+        ],
       }
       const completed = {
         success: true,
@@ -186,9 +191,7 @@ describe('EvaluationsClient - uncovered methods', () => {
         results: [],
         message: 'done',
       }
-      requestSpy
-        .mockResolvedValueOnce(pending)
-        .mockResolvedValueOnce(completed)
+      requestSpy.mockResolvedValueOnce(pending).mockResolvedValueOnce(completed)
       const onUpdate = jest.fn()
 
       const promise = client.pollImmediateEvaluation('p1', 't1', 'eval-1', {
@@ -209,9 +212,14 @@ describe('EvaluationsClient - uncovered methods', () => {
     it('returns a soft-failure payload when it times out without polling', async () => {
       // timeoutMs: 0 makes the while-guard false on entry: request is never
       // called and the synthetic timeout payload is returned (last === null).
-      const result = await client.pollImmediateEvaluation('p1', 't1', 'eval-1', {
-        timeoutMs: 0,
-      })
+      const result = await client.pollImmediateEvaluation(
+        'p1',
+        't1',
+        'eval-1',
+        {
+          timeoutMs: 0,
+        },
+      )
 
       expect(requestSpy).not.toHaveBeenCalled()
       expect(result).toMatchObject({
@@ -271,7 +279,7 @@ describe('EvaluationsClient - uncovered methods', () => {
     it('adds include_history=true when requested', async () => {
       await client.getResultsByTaskModel('eval-1', true)
       expect(url()).toBe(
-        '/evaluations/eval-1/results/by-task-model?include_history=true'
+        '/evaluations/eval-1/results/by-task-model?include_history=true',
       )
     })
   })
@@ -308,7 +316,13 @@ describe('EvaluationsClient - uncovered methods', () => {
     it('appends evaluation_config_id and omits evaluation_ids for the config-scoped fetch', async () => {
       // The results grid scopes by config id and lets the backend scan all runs
       // (no run-id pinning) — so evaluation_ids must be absent.
-      await client.getProjectResultsByTaskModel('p1', undefined, false, 'bleu', 'cfg-xyz')
+      await client.getProjectResultsByTaskModel(
+        'p1',
+        undefined,
+        false,
+        'bleu',
+        'cfg-xyz',
+      )
       const u = url()
       expect(u).toContain('metric=bleu')
       expect(u).toContain('evaluation_config_id=cfg-xyz')
@@ -316,7 +330,13 @@ describe('EvaluationsClient - uncovered methods', () => {
     })
 
     it('omits evaluation_config_id when it is null', async () => {
-      await client.getProjectResultsByTaskModel('p1', undefined, false, 'bleu', null)
+      await client.getProjectResultsByTaskModel(
+        'p1',
+        undefined,
+        false,
+        'bleu',
+        null,
+      )
       expect(url()).not.toContain('evaluation_config_id')
     })
   })
@@ -324,15 +344,13 @@ describe('EvaluationsClient - uncovered methods', () => {
   describe('getMetricDistribution', () => {
     it('omits the field_name query when fieldName is absent', async () => {
       await client.getMetricDistribution('eval-1', 'bleu')
-      expect(url()).toBe(
-        '/evaluations/eval-1/metrics/bleu/distribution'
-      )
+      expect(url()).toBe('/evaluations/eval-1/metrics/bleu/distribution')
     })
 
     it('appends field_name when provided', async () => {
       await client.getMetricDistribution('eval-1', 'bleu', 'answer')
       expect(url()).toBe(
-        '/evaluations/eval-1/metrics/bleu/distribution?field_name=answer'
+        '/evaluations/eval-1/metrics/bleu/distribution?field_name=answer',
       )
     })
   })
@@ -377,7 +395,7 @@ describe('EvaluationsClient - uncovered methods', () => {
     it('adds latest_only=false when latestOnly is false', async () => {
       await client.getProjectEvaluationResults('p1', false)
       expect(url()).toBe(
-        '/evaluations/run/results/project/p1?latest_only=false'
+        '/evaluations/run/results/project/p1?latest_only=false',
       )
     })
   })
@@ -391,7 +409,7 @@ describe('EvaluationsClient - uncovered methods', () => {
     it('adds include_configured=true when requested', async () => {
       await client.getEvaluatedModels('p1', true)
       expect(url()).toBe(
-        '/evaluations/projects/p1/evaluated-models?include_configured=true'
+        '/evaluations/projects/p1/evaluated-models?include_configured=true',
       )
     })
   })

@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server'
 import { getInternalApiUrl } from '@/lib/utils/apiUrl'
+import { NextRequest, NextResponse } from 'next/server'
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,14 +16,14 @@ export async function POST(request: NextRequest) {
           Cookie: cookies,
           Authorization: authorization,
         },
-      }
+      },
     )
 
     if (!backendResponse.ok) {
       const errorData = await backendResponse.text()
       return NextResponse.json(
         { error: errorData || 'Request failed' },
-        { status: backendResponse.status }
+        { status: backendResponse.status },
       )
     }
 
@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
     console.error('Confirm profile proxy error:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
-      { status: 500 }
+      { status: 500 },
     )
   }
 }

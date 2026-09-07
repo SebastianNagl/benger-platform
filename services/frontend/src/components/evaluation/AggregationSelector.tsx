@@ -10,6 +10,8 @@
 
 'use client'
 
+import { Button } from '@/components/shared/Button'
+import { useI18n } from '@/contexts/I18nContext'
 import {
   ChartBarIcon,
   CheckIcon,
@@ -19,8 +21,6 @@ import {
   TableCellsIcon,
 } from '@heroicons/react/24/outline'
 import { useEffect, useRef, useState } from 'react'
-import { Button } from '@/components/shared/Button'
-import { useI18n } from '@/contexts/I18nContext'
 
 export type AggregationLevel = 'sample' | 'model' | 'field' | 'overall'
 
@@ -31,7 +31,9 @@ interface AggregationOption {
   icon: React.ComponentType<{ className?: string }>
 }
 
-function getAggregationOptions(t: (key: string) => string): AggregationOption[] {
+function getAggregationOptions(
+  t: (key: string) => string,
+): AggregationOption[] {
   return [
     {
       id: 'sample',
@@ -113,8 +115,10 @@ export function AggregationSelector({
   }
 
   const getSelectedLabels = () => {
-    if (levels.length === 0) return t('evaluation.aggregation.selectPlaceholder')
-    if (levels.length === options.length) return t('evaluation.aggregation.allSelected')
+    if (levels.length === 0)
+      return t('evaluation.aggregation.selectPlaceholder')
+    if (levels.length === options.length)
+      return t('evaluation.aggregation.allSelected')
     return levels
       .map((l) => AGGREGATION_OPTIONS.find((opt) => opt.id === l)?.label)
       .filter(Boolean)
@@ -129,9 +133,7 @@ export function AggregationSelector({
         onClick={() => setIsOpen(!isOpen)}
         className="w-full justify-between text-left"
       >
-        <span className="truncate">
-          {getSelectedLabels()}
-        </span>
+        <span className="truncate">{getSelectedLabels()}</span>
         <ChevronDownIcon
           className={`h-4 w-4 opacity-70 transition-transform ${isOpen ? 'rotate-180' : ''}`}
         />
@@ -215,7 +217,10 @@ export function AggregationSelector({
 
           {/* Selected count */}
           <div className="border-t border-gray-100 px-3 py-2 text-xs text-gray-500 dark:border-gray-700 dark:text-gray-400">
-            {t('evaluation.aggregation.selectedCount', { selected: levels.length, total: options.length })}
+            {t('evaluation.aggregation.selectedCount', {
+              selected: levels.length,
+              total: options.length,
+            })}
           </div>
         </div>
       )}

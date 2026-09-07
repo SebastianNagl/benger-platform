@@ -3,8 +3,6 @@ import { Organization } from '@/lib/api'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { OrganizationSwitcher } from '../OrganizationSwitcher'
 
-
-
 // Mock dependencies
 
 // Mock useAuth hook
@@ -222,7 +220,10 @@ describe('OrganizationSwitcher', () => {
         user: mockUser,
         setCurrentOrganization: jest.fn(),
       })
-      mockParseSubdomain.mockReturnValue({ orgSlug: 'org-one', isPrivateMode: false })
+      mockParseSubdomain.mockReturnValue({
+        orgSlug: 'org-one',
+        isPrivateMode: false,
+      })
     })
 
     it('renders the listbox button', () => {
@@ -245,7 +246,7 @@ describe('OrganizationSwitcher', () => {
 
     it('applies custom className', () => {
       const { container } = render(
-        <OrganizationSwitcher className="custom-class" />
+        <OrganizationSwitcher className="custom-class" />,
       )
 
       const wrapper = container.querySelector('.relative')
@@ -303,7 +304,7 @@ describe('OrganizationSwitcher', () => {
         'text-left',
         'shadow-md',
         'border',
-        'border-gray-300'
+        'border-gray-300',
       )
     })
 
@@ -314,7 +315,7 @@ describe('OrganizationSwitcher', () => {
       expect(button).toHaveClass(
         'focus:outline-none',
         'focus-visible:border-indigo-500',
-        'focus-visible:ring-2'
+        'focus-visible:ring-2',
       )
     })
 
@@ -409,7 +410,9 @@ describe('OrganizationSwitcher', () => {
       const secondOption = screen.getByTestId('listbox-option-org-2')
       fireEvent.click(secondOption)
 
-      expect(mockSetCurrentOrganization).toHaveBeenCalledWith(mockOrganizations[1])
+      expect(mockSetCurrentOrganization).toHaveBeenCalledWith(
+        mockOrganizations[1],
+      )
     })
 
     it('calls setCurrentOrganization with null when Private option is clicked', () => {
@@ -493,7 +496,7 @@ describe('OrganizationSwitcher', () => {
       expect(button).toHaveClass(
         'focus-visible:border-indigo-500',
         'focus-visible:ring-2',
-        'focus-visible:ring-white/75'
+        'focus-visible:ring-white/75',
       )
     })
 

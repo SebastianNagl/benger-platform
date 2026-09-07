@@ -6,19 +6,23 @@
  */
 
 import {
-  apiTaskToLabelStudio,
-  labelStudioTaskToApi,
   apiTasksToLabelStudio,
-  labelStudioTasksToApi,
-  isLabelStudioTask,
-  isApiTask,
-  ensureLabelStudioTask,
+  apiTaskToLabelStudio,
   ensureApiTask,
+  ensureLabelStudioTask,
+  isApiTask,
+  isLabelStudioTask,
+  labelStudioTasksToApi,
+  labelStudioTaskToApi,
 } from '../taskTypeAdapter'
 
 describe('apiTaskToLabelStudio', () => {
   it('should convert API task to LabelStudio format', () => {
-    const apiTask = { id: '1', annotation_count: 3, template_data: { q: 'why?' } } as any
+    const apiTask = {
+      id: '1',
+      annotation_count: 3,
+      template_data: { q: 'why?' },
+    } as any
     const result = apiTaskToLabelStudio(apiTask)
     expect(result.is_labeled).toBe(true)
     expect(result.total_annotations).toBe(3)
@@ -77,7 +81,9 @@ describe('batch conversions', () => {
   })
 
   it('labelStudioTasksToApi should convert array', () => {
-    const tasks = [{ id: '1', data: {}, is_labeled: true, total_annotations: 1 }] as any
+    const tasks = [
+      { id: '1', data: {}, is_labeled: true, total_annotations: 1 },
+    ] as any
     const result = labelStudioTasksToApi(tasks)
     expect(result).toHaveLength(1)
   })
@@ -85,7 +91,9 @@ describe('batch conversions', () => {
 
 describe('isLabelStudioTask', () => {
   it('should return true for LS task', () => {
-    expect(isLabelStudioTask({ is_labeled: true, total_annotations: 1 })).toBe(true)
+    expect(isLabelStudioTask({ is_labeled: true, total_annotations: 1 })).toBe(
+      true,
+    )
   })
   it('should return false for API task', () => {
     expect(isLabelStudioTask({ annotation_count: 1 })).toBe(false)
@@ -119,7 +127,12 @@ describe('ensureApiTask', () => {
     expect(ensureApiTask(apiTask)).toBe(apiTask)
   })
   it('should convert LS task', () => {
-    const lsTask = { id: '1', is_labeled: true, total_annotations: 2, data: {} } as any
+    const lsTask = {
+      id: '1',
+      is_labeled: true,
+      total_annotations: 2,
+      data: {},
+    } as any
     const result = ensureApiTask(lsTask)
     expect(result.annotation_count).toBe(2)
   })

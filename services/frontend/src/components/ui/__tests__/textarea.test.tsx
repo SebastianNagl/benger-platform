@@ -27,7 +27,7 @@ describe('Textarea', () => {
         'bg-white',
         'px-3',
         'py-2',
-        'text-sm'
+        'text-sm',
       )
     })
 
@@ -39,7 +39,7 @@ describe('Textarea', () => {
         'focus-visible:outline-none',
         'focus-visible:ring-2',
         'focus-visible:ring-emerald-500',
-        'focus-visible:ring-offset-2'
+        'focus-visible:ring-offset-2',
       )
     })
 
@@ -49,7 +49,7 @@ describe('Textarea', () => {
       const textarea = screen.getByTestId('textarea')
       expect(textarea).toHaveClass(
         'disabled:cursor-not-allowed',
-        'disabled:opacity-50'
+        'disabled:opacity-50',
       )
     })
 
@@ -62,7 +62,7 @@ describe('Textarea', () => {
         'dark:bg-zinc-800',
         'dark:ring-offset-zinc-950',
         'dark:placeholder:text-zinc-400',
-        'dark:focus-visible:ring-emerald-400'
+        'dark:focus-visible:ring-emerald-400',
       )
     })
   })
@@ -74,7 +74,7 @@ describe('Textarea', () => {
           value="initial content"
           onChange={() => {}}
           data-testid="textarea"
-        />
+        />,
       )
 
       const textarea = screen.getByTestId('textarea') as HTMLTextAreaElement
@@ -110,7 +110,7 @@ describe('Textarea', () => {
       render(<ControlledTextarea />)
 
       const textarea = screen.getByTestId(
-        'controlled-textarea'
+        'controlled-textarea',
       ) as HTMLTextAreaElement
       await user.type(textarea, 'controlled')
 
@@ -131,7 +131,7 @@ describe('Textarea', () => {
   describe('Placeholder', () => {
     it('displays placeholder text', () => {
       render(
-        <Textarea placeholder="Enter your text here" data-testid="textarea" />
+        <Textarea placeholder="Enter your text here" data-testid="textarea" />,
       )
 
       const textarea = screen.getByTestId('textarea')
@@ -274,7 +274,7 @@ describe('Textarea', () => {
           aria-label="Test textarea"
           data-testid="textarea"
           readOnly
-        />
+        />,
       )
 
       const textarea = screen.getByTestId('textarea')
@@ -381,7 +381,7 @@ describe('Textarea', () => {
           aria-invalid="true"
           aria-required="true"
           data-testid="textarea"
-        />
+        />,
       )
 
       const textarea = screen.getByTestId('textarea')
@@ -395,7 +395,7 @@ describe('Textarea', () => {
         <div>
           <label htmlFor="test-textarea">Test Label</label>
           <Textarea id="test-textarea" data-testid="textarea" />
-        </div>
+        </div>,
       )
 
       const textarea = screen.getByLabelText('Test Label')
@@ -407,7 +407,7 @@ describe('Textarea', () => {
         <div>
           <h3 id="textarea-label">Description</h3>
           <Textarea aria-labelledby="textarea-label" data-testid="textarea" />
-        </div>
+        </div>,
       )
 
       const textarea = screen.getByTestId('textarea')
@@ -429,7 +429,7 @@ describe('Textarea', () => {
           value={undefined}
           onChange={() => {}}
           data-testid="textarea"
-        />
+        />,
       )
 
       const textarea = screen.getByTestId('textarea')
@@ -443,7 +443,7 @@ describe('Textarea', () => {
           value={longValue}
           onChange={() => {}}
           data-testid="textarea"
-        />
+        />,
       )
 
       const textarea = screen.getByTestId('textarea') as HTMLTextAreaElement

@@ -67,59 +67,254 @@ export function buildPageIndex(ctx: SearchIndexContext): SearchEntry[] {
   }
   const isSuperadmin = Boolean(user?.is_superadmin)
   const isOrgAdmin =
-    isSuperadmin || Boolean(organizations?.some((org) => org.role === 'ORG_ADMIN'))
+    isSuperadmin ||
+    Boolean(organizations?.some((org) => org.role === 'ORG_ADMIN'))
 
   const pages: SearchEntry[] = [
     page(t, '/', 'landing', cat.benger, 'start home landing startseite'),
     page(t, '/dashboard', 'dashboard', cat.benger, 'übersicht overview home'),
   ]
-  if (flags?.reports) pages.push(page(t, '/reports', 'reports', cat.benger, 'berichte report pdf csv export'))
+  if (flags?.reports)
+    pages.push(
+      page(
+        t,
+        '/reports',
+        'reports',
+        cat.benger,
+        'berichte report pdf csv export',
+      ),
+    )
   if (flags?.leaderboards) {
-    pages.push(page(t, '/leaderboards', 'leaderboards', cat.benger, 'bestenliste rangliste ranking annotatoren llm co-creation'))
+    pages.push(
+      page(
+        t,
+        '/leaderboards',
+        'leaderboards',
+        cat.benger,
+        'bestenliste rangliste ranking annotatoren llm co-creation',
+      ),
+    )
   }
   if (user) {
-    pages.push(page(t, '/runs', 'runs', cat.benger, 'läufe runs generierung evaluation status fortschritt'))
-    pages.push(page(t, '/learning-stats', 'learningStats', cat.benger, 'lernstatistik statistik fällig karteikarten klausuren notenverlauf'))
+    pages.push(
+      page(
+        t,
+        '/runs',
+        'runs',
+        cat.benger,
+        'läufe runs generierung evaluation status fortschritt',
+      ),
+    )
+    pages.push(
+      page(
+        t,
+        '/learning-stats',
+        'learningStats',
+        cat.benger,
+        'lernstatistik statistik fällig karteikarten klausuren notenverlauf',
+      ),
+    )
   }
-  pages.push(page(t, '/architecture', 'architecture', cat.benger, 'architektur technik aufbau'))
-  pages.push(page(t, '/changelog', 'changelog', cat.benger, 'änderungen neuigkeiten changelog updates version'))
+  pages.push(
+    page(
+      t,
+      '/architecture',
+      'architecture',
+      cat.benger,
+      'architektur technik aufbau',
+    ),
+  )
+  pages.push(
+    page(
+      t,
+      '/changelog',
+      'changelog',
+      cat.benger,
+      'änderungen neuigkeiten changelog updates version',
+    ),
+  )
 
   pages.push(
-    page(t, '/projects', 'projects', cat.projects, 'projekte projekt klausur kartenstapel'),
-    page(t, '/projects/create', 'createProject', cat.projects, 'neues projekt anlegen erstellen assistent wizard klausur'),
-    page(t, '/projects/archived', 'archivedProjects', cat.projects, 'archiv archiviert archivierte projekte'),
+    page(
+      t,
+      '/projects',
+      'projects',
+      cat.projects,
+      'projekte projekt klausur kartenstapel',
+    ),
+    page(
+      t,
+      '/projects/create',
+      'createProject',
+      cat.projects,
+      'neues projekt anlegen erstellen assistent wizard klausur',
+    ),
+    page(
+      t,
+      '/projects/archived',
+      'archivedProjects',
+      cat.projects,
+      'archiv archiviert archivierte projekte',
+    ),
   )
-  if (flags?.data) pages.push(page(t, '/data', 'dataManagement', cat.projects, 'daten upload import export csv json'))
-  if (flags?.generations) pages.push(page(t, '/generations', 'generations', cat.projects, 'generierung generierungen llm prompt modelle'))
+  if (flags?.data)
+    pages.push(
+      page(
+        t,
+        '/data',
+        'dataManagement',
+        cat.projects,
+        'daten upload import export csv json',
+      ),
+    )
+  if (flags?.generations)
+    pages.push(
+      page(
+        t,
+        '/generations',
+        'generations',
+        cat.projects,
+        'generierung generierungen llm prompt modelle',
+      ),
+    )
   if (flags?.evaluations) {
     pages.push(
-      page(t, '/evaluations', 'evaluations', cat.projects, 'evaluation evaluierung bewertung metriken judge'),
-      page(t, '/evaluations/human/likert', 'humanLikert', cat.projects, 'menschliche bewertung likert skala human evaluation'),
-      page(t, '/evaluations/human/preference', 'humanPreference', cat.projects, 'menschliche bewertung präferenz vergleich a/b human evaluation'),
+      page(
+        t,
+        '/evaluations',
+        'evaluations',
+        cat.projects,
+        'evaluation evaluierung bewertung metriken judge',
+      ),
+      page(
+        t,
+        '/evaluations/human/likert',
+        'humanLikert',
+        cat.projects,
+        'menschliche bewertung likert skala human evaluation',
+      ),
+      page(
+        t,
+        '/evaluations/human/preference',
+        'humanPreference',
+        cat.projects,
+        'menschliche bewertung präferenz vergleich a/b human evaluation',
+      ),
     )
   }
 
-  if (flags?.['how-to']) pages.push(page(t, '/how-to', 'howTo', cat.knowledge, 'anleitung anleitungen hilfe help faq guide tutorial'))
-  pages.push(page(t, '/models', 'models', cat.knowledge, 'modelle llm modellkatalog eigene modelle byom custom model preise'))
+  if (flags?.['how-to'])
+    pages.push(
+      page(
+        t,
+        '/how-to',
+        'howTo',
+        cat.knowledge,
+        'anleitung anleitungen hilfe help faq guide tutorial',
+      ),
+    )
+  pages.push(
+    page(
+      t,
+      '/models',
+      'models',
+      cat.knowledge,
+      'modelle llm modellkatalog eigene modelle byom custom model preise',
+    ),
+  )
 
   pages.push(
-    page(t, '/profile', 'profile', cat.user, 'profil konto account pseudonym passwort sprache oberfläche'),
-    page(t, '/settings/notifications', 'notificationSettings', cat.user, 'benachrichtigungen einstellungen e-mail'),
-    page(t, '/notifications', 'notifications', cat.user, 'benachrichtigungen mitteilungen inbox'),
-    page(t, '/settings/models', 'modelSettings', cat.user, 'api-schlüssel api key openai anthropic provider schlüssel modelle'),
-    page(t, '/users-organizations', 'usersOrganizations', cat.org, 'benutzer organisationen mitglieder einladen einladung gruppen rollen'),
+    page(
+      t,
+      '/profile',
+      'profile',
+      cat.user,
+      'profil konto account pseudonym passwort sprache oberfläche',
+    ),
+    page(
+      t,
+      '/settings/notifications',
+      'notificationSettings',
+      cat.user,
+      'benachrichtigungen einstellungen e-mail',
+    ),
+    page(
+      t,
+      '/notifications',
+      'notifications',
+      cat.user,
+      'benachrichtigungen mitteilungen inbox',
+    ),
+    page(
+      t,
+      '/settings/models',
+      'modelSettings',
+      cat.user,
+      'api-schlüssel api key openai anthropic provider schlüssel modelle',
+    ),
+    page(
+      t,
+      '/users-organizations',
+      'usersOrganizations',
+      cat.org,
+      'benutzer organisationen mitglieder einladen einladung gruppen rollen',
+    ),
   )
   if (isOrgAdmin) {
-    pages.push(page(t, '/organizations', 'organizations', cat.org, 'organisation verwalten mitglieder rollen gruppen api-schlüssel einladung lti'))
+    pages.push(
+      page(
+        t,
+        '/organizations',
+        'organizations',
+        cat.org,
+        'organisation verwalten mitglieder rollen gruppen api-schlüssel einladung lti',
+      ),
+    )
   }
   if (isSuperadmin) {
     pages.push(
-      page(t, '/admin/users', 'userManagement', cat.admin, 'benutzerverwaltung admin users'),
-      page(t, '/admin/users-organizations', 'adminUsersOrganizations', cat.admin, 'admin benutzer organisationen'),
-      page(t, '/admin/feature-flags', 'featureFlags', cat.admin, 'feature flags funktionen freischalten'),
-      page(t, '/admin/lti', 'lti', cat.admin, 'lti moodle ilias integration registrierung'),
-      page(t, '/admin/email-verification', 'emailVerification', cat.admin, 'e-mail verifizierung admin'),
-      page(t, '/projects/deleted', 'deletedProjects', cat.admin, 'gelöschte projekte papierkorb wiederherstellen'),
+      page(
+        t,
+        '/admin/users',
+        'userManagement',
+        cat.admin,
+        'benutzerverwaltung admin users',
+      ),
+      page(
+        t,
+        '/admin/users-organizations',
+        'adminUsersOrganizations',
+        cat.admin,
+        'admin benutzer organisationen',
+      ),
+      page(
+        t,
+        '/admin/feature-flags',
+        'featureFlags',
+        cat.admin,
+        'feature flags funktionen freischalten',
+      ),
+      page(
+        t,
+        '/admin/lti',
+        'lti',
+        cat.admin,
+        'lti moodle ilias integration registrierung',
+      ),
+      page(
+        t,
+        '/admin/email-verification',
+        'emailVerification',
+        cat.admin,
+        'e-mail verifizierung admin',
+      ),
+      page(
+        t,
+        '/projects/deleted',
+        'deletedProjects',
+        cat.admin,
+        'gelöschte projekte papierkorb wiederherstellen',
+      ),
     )
   }
   return pages
@@ -270,12 +465,16 @@ export function expandQuery(query: string): string[] {
     }
   })
   queryLower.split(/\s+/).forEach((word) => {
-    if (CROSS_LANGUAGE_MAPPINGS[word]) expanded.push(...CROSS_LANGUAGE_MAPPINGS[word])
+    if (CROSS_LANGUAGE_MAPPINGS[word])
+      expanded.push(...CROSS_LANGUAGE_MAPPINGS[word])
   })
   return [...new Set(expanded)]
 }
 
-export function scoreEntry(entry: SearchEntry, expandedQueries: string[]): number {
+export function scoreEntry(
+  entry: SearchEntry,
+  expandedQueries: string[],
+): number {
   let score = 0
   const title = entry.title.toLowerCase()
   const description = (entry.description ?? '').toLowerCase()
