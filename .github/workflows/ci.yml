@@ -50,8 +50,50 @@ jobs:
         if: matrix.shard == 1
         run: cd services/frontend && npx prettier --check .
 
+      # Thresholds are evaluated per shard by Jest, which cannot work for a
+      # global floor; disable them here and enforce them once on the merged
+      # map in frontend-coverage-gate (scripts/coverage-gate.mjs).
       - name: Run Jest tests
-        run: cd services/frontend && npm test -- --ci --passWithNoTests --shard=${{ matrix.shard }}/3
+        run: |
+          cd services/frontend && npm test -- --ci --passWithNoTests \
+            --shard=${{ matrix.shard }}/3 \
+            --coverageReporters=json --coverageThreshold='{}'
+
+      - name: Upload shard coverage
+        uses: actions/upload-artifact@v7
+        with:
+          name: jest-coverage-${{ matrix.shard }}
+          path: services/frontend/coverage/coverage-final.json
+          if-no-files-found: error
+          retention-days: 3
+
+  frontend-coverage-gate:
+    name: Frontend coverage gate
+    needs: frontend-tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: services/frontend/package-lock.json
+
+      - name: Install dependencies
+        run: cd services/frontend && npm ci --no-audit
+
+      - name: Download shard coverage
+        uses: actions/download-artifact@v8
+        with:
+          pattern: jest-coverage-*
+          path: services/frontend/coverage-shards
+
+      - name: Enforce jest.config.js coverageThreshold on the merged map
+        run: |
+          cd services/frontend && node scripts/coverage-gate.mjs coverage-shards/*/coverage-final.json
 
   python-checks:
     name: Python Lint
@@ -205,7 +247,7 @@ jobs:
   # passes CI.
   notify-extended:
     name: Trigger downstream rebuild
-    needs: [frontend-tests, python-checks, integration-tests]
+    needs: [frontend-tests, frontend-coverage-gate, python-checks, integration-tests]
     if: >-
       always() && github.event_name == 'push' &&
       !contains(needs.*.result, 'failure') &&
