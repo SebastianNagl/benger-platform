@@ -43,7 +43,8 @@ import {
 // "a.0" address arr[0] rather than the string key "0" — a legitimate ambiguity
 // of the grammar, not something the round-trip law should have to dodge.
 const safeKeyArb = fc
-  .stringOf(fc.constantFrom(...'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOP_$'), {
+  .string({
+    unit: fc.constantFrom(...'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOP_$'),
     minLength: 1,
     maxLength: 6,
   })

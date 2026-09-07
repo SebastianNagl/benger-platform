@@ -28,10 +28,11 @@ import {
 // present as a target) actually occur during a run — that's where exact /
 // synonym / fuzzy precedence and target-reuse guards live.
 const fieldTokenArb = fc
-  .stringOf(
-    fc.constantFrom(..."abcdefghijklmnopqrstuvwxyz0123456789_- ".split('')),
-    { minLength: 1, maxLength: 8 },
-  )
+  .string({
+    unit: fc.constantFrom(..."abcdefghijklmnopqrstuvwxyz0123456789_- ".split('')),
+    minLength: 1,
+    maxLength: 8,
+  })
   .filter((s) => s.trim().length > 0)
 
 // A set of DISTINCT field names. Totality of the source/unmapped partition is
@@ -47,12 +48,9 @@ const distinctFieldsArb = fc
 const wildStringArb = fc.oneof(
   fc.string(),
   fc.constantFrom('', '   ', '___', '---', '  _-  ', 'ä', 'ß', '日本語', '🚀'),
-  fc.stringOf(
-    fc.constantFrom(
+  fc.string({ unit: fc.constantFrom(
       ...'abcDEF123_- äöüß日'.split(''),
-    ),
-    { minLength: 0, maxLength: 12 },
-  ),
+    ), minLength: 0, maxLength: 12 }),
 )
 const wildFieldsArb = fc.array(wildStringArb, { maxLength: 8 })
 
@@ -236,10 +234,7 @@ describe('suggestFieldMappings — confidence scoring fixed points', () => {
   it('generalized monotonicity over random targets: nearer source ⇒ confidence ≥ farther source', () => {
     fc.assert(
       fc.property(
-        fc.stringOf(
-          fc.constantFrom(..."abcdefghijklmnopqrstuvwxyz".split('')),
-          { minLength: 4, maxLength: 8 },
-        ),
+        fc.string({ unit: fc.constantFrom(..."abcdefghijklmnopqrstuvwxyz".split('')), minLength: 4, maxLength: 8 }),
         (base) => {
           // Build two single-token sources from `base`: one identical-but-for-
           // one-trailing-char (distance ~1) and one differing in two trailing
