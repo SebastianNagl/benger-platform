@@ -82,7 +82,7 @@ export function ColumnSelector({
         </Menu.Button>
       </div>
 
-      <Menu.Items className="absolute left-0 z-50 mt-2 w-72 origin-top-left rounded-lg bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none dark:bg-zinc-900">
+      <Menu.Items className="absolute left-0 z-50 mt-2 w-72 origin-top-left rounded-lg bg-white shadow-lg ring-1 ring-black/5 focus:outline-none dark:bg-zinc-900">
         <div className="py-2">
           <div className="flex items-center justify-between border-b border-zinc-200 px-4 py-2 text-xs font-medium text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
             <span>{t('projects.columns.showHideReorder')}</span>
@@ -132,7 +132,7 @@ export function ColumnSelector({
                                   type="checkbox"
                                   checked={column.visible}
                                   readOnly
-                                  className="pointer-events-none mr-3 h-4 w-4 flex-shrink-0 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
+                                  className="pointer-events-none mr-3 h-4 w-4 shrink-0 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
                                 />
                                 <span className="flex-1 truncate text-left">
                                   {t(column.label)}

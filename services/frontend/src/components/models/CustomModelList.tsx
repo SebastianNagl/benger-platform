@@ -120,7 +120,7 @@ export function CustomModelList({
                 data-testid={`custom-model-expand-${model.id}`}
               >
                 <ChevronRightIcon
-                  className={`h-4 w-4 flex-shrink-0 text-zinc-400 transition-transform ${
+                  className={`h-4 w-4 shrink-0 text-zinc-400 transition-transform ${
                     expanded ? 'rotate-90' : ''
                   }`}
                 />
@@ -165,7 +165,7 @@ export function CustomModelList({
                 </div>
               </button>
 
-              <div className="flex flex-shrink-0 items-center gap-3">
+              <div className="flex shrink-0 items-center gap-3">
                 <div className="text-right text-xs text-zinc-500 dark:text-zinc-400">
                   {model.input_cost_per_million != null &&
                   model.output_cost_per_million != null ? (

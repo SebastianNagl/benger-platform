@@ -920,7 +920,7 @@ export function ProjectDataTab({ projectId }: ProjectDataTabProps) {
                   {t('annotationTab.buttons.orderBy')}
                   <ChevronDownIcon className="h-4 w-4" />
                 </Menu.Button>
-                <Menu.Items className="absolute right-0 z-50 mt-2 w-56 origin-top-right rounded-lg bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none dark:bg-zinc-900">
+                <Menu.Items className="absolute right-0 z-50 mt-2 w-56 origin-top-right rounded-lg bg-white shadow-lg ring-1 ring-black/5 focus:outline-none dark:bg-zinc-900">
                   <div className="py-1">
                     <div className="px-4 py-2 text-xs font-medium text-zinc-500 dark:text-zinc-400">
                       {t('annotationTab.orderBy.sortBy')}

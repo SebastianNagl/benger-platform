@@ -105,13 +105,13 @@ describe('Toast Component', () => {
 
       await user.click(screen.getByText('Add Toast'))
 
-      // ToastContainer was bumped to z-[60] so toasts stack above
+      // ToastContainer was bumped to z-60 so toasts stack above
       // HeadlessUI Dialogs (z-50). Selector dropped the z-class so it
       // tracks future ordering tweaks; class assertion enforces the
       // current value.
       const toastContainer = document.querySelector('.fixed.right-4.top-4')
       expect(toastContainer).toBeInTheDocument()
-      expect(toastContainer).toHaveClass('z-[60]')
+      expect(toastContainer).toHaveClass('z-60')
       expect(toastContainer).toHaveClass('pointer-events-none')
       expect(toastContainer).toHaveClass('max-w-sm')
       expect(toastContainer).toHaveClass('space-y-2')
@@ -456,7 +456,7 @@ describe('Toast Component', () => {
       await user.click(screen.getByText('Add Toast'))
 
       const closeButton = screen.getByRole('button', { name: /close/i })
-      expect(closeButton).toHaveClass('flex-shrink-0')
+      expect(closeButton).toHaveClass('shrink-0')
       expect(closeButton).toHaveClass('text-current')
       expect(closeButton).toHaveClass('transition-opacity')
       expect(closeButton).toHaveClass('hover:opacity-70')
@@ -642,7 +642,7 @@ describe('Toast Component', () => {
       await user.click(screen.getByText('Add Toast'))
 
       const icon = screen.getByText('ℹ')
-      expect(icon).toHaveClass('flex-shrink-0')
+      expect(icon).toHaveClass('shrink-0')
       expect(icon).toHaveClass('text-lg')
     })
 

@@ -383,7 +383,7 @@ export function EvaluationControlModal({
           leaveFrom="opacity-100"
           leaveTo="opacity-0"
         >
-          <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity dark:bg-zinc-900 dark:bg-opacity-75" />
+          <div className="fixed inset-0 bg-gray-500/75 transition-opacity dark:bg-zinc-900/75" />
         </Transition.Child>
 
         <div className="fixed inset-0 z-10 overflow-y-auto">

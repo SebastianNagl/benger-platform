@@ -175,7 +175,7 @@ module.exports = {
               fontSize: '1.125em',
             },
             'h2 small, h3 small, h4 small': {
-              fontFamily: theme('fontFamily.mono').join(', '),
+              fontFamily: [].concat(theme('fontFamily.mono')).join(', '),
               color: theme('colors.zinc.500'),
               fontWeight: 500,
             },

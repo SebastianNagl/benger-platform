@@ -478,7 +478,7 @@ export function CloudImportPanel({
                   className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-zinc-50 dark:hover:bg-zinc-800"
                   data-testid={`cloud-import-folder-${basename(prefix)}`}
                 >
-                  <FolderIcon className="h-4 w-4 flex-shrink-0 text-zinc-400" />
+                  <FolderIcon className="h-4 w-4 shrink-0 text-zinc-400" />
                   <span className="truncate text-zinc-900 dark:text-zinc-100">
                     {basename(prefix)}
                   </span>
@@ -508,7 +508,7 @@ export function CloudImportPanel({
                       onChange={() => toggleKey(obj.key)}
                       className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500"
                     />
-                    <DocumentIcon className="h-4 w-4 flex-shrink-0 text-zinc-400" />
+                    <DocumentIcon className="h-4 w-4 shrink-0 text-zinc-400" />
                     <span className="min-w-0 flex-1 truncate text-zinc-900 dark:text-zinc-100">
                       {basename(obj.key)}
                     </span>

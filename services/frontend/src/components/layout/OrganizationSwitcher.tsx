@@ -43,7 +43,7 @@ export function OrganizationSwitcher({
   return (
     <Listbox value={selectedOption} onChange={handleChange}>
       <div className={`relative ${className}`}>
-        <Listbox.Button className="relative w-full cursor-default rounded-lg border border-gray-300 bg-white py-2 pl-3 pr-10 text-left shadow-md focus:outline-none focus-visible:border-indigo-500 focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-orange-300 sm:text-sm">
+        <Listbox.Button className="relative w-full cursor-default rounded-lg border border-gray-300 bg-white py-2 pl-3 pr-10 text-left shadow-md focus:outline-none focus-visible:border-indigo-500 focus-visible:ring-2 focus-visible:ring-white/75 focus-visible:ring-offset-2 focus-visible:ring-offset-orange-300 sm:text-sm">
           <span className="flex items-center">
             {selectedOption.id === 'private' ? (
               <UserIcon className="mr-2 h-5 w-5 shrink-0 text-gray-400" />
@@ -62,7 +62,7 @@ export function OrganizationSwitcher({
           </span>
         </Listbox.Button>
 
-        <Listbox.Options className="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 transition duration-100 ease-in focus:outline-none data-[closed]:opacity-0 sm:text-sm">
+        <Listbox.Options className="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black/5 transition duration-100 ease-in focus:outline-none data-closed:opacity-0 sm:text-sm">
           {options.map((option) => (
             <Listbox.Option
               key={option.id}

@@ -55,7 +55,7 @@ export function ConfigCard({
             </span>
           )}
           <svg
-            className={`ml-auto h-5 w-5 flex-shrink-0 text-zinc-400 transition-transform ${
+            className={`ml-auto h-5 w-5 shrink-0 text-zinc-400 transition-transform ${
               expanded ? 'rotate-90 transform' : ''
             }`}
             fill="none"
@@ -85,7 +85,7 @@ export function ConfigCard({
         )}
       </div>
       {expanded && (
-        <div className="mt-6 [&>*]:py-6 [&>*]:pl-6 [&>*:first-child]:pt-6 [&>*:last-child]:pb-2 [&>*+*]:border-t [&>*+*]:border-zinc-200 dark:[&>*+*]:border-zinc-700">
+        <div className="mt-6 *:py-6 *:pl-6 [&>*:first-child]:pt-6 [&>*:last-child]:pb-2 [&>*+*]:border-t [&>*+*]:border-zinc-200 dark:[&>*+*]:border-zinc-700">
           {children}
         </div>
       )}

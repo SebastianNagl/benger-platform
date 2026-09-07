@@ -45,7 +45,7 @@ describe('HeroPattern Component', () => {
         'absolute',
         'left-1/2',
         'top-0',
-        'ml-[-38rem]'
+        '-ml-152'
       )
     })
 
@@ -216,7 +216,7 @@ describe('HeroPattern Component', () => {
         'absolute',
         'left-1/2',
         'top-0',
-        'ml-[-19rem]'
+        '-ml-76'
       )
     })
 
@@ -267,7 +267,7 @@ describe('HeroPattern Component', () => {
       const { container } = render(<HeroPattern />)
       const outerDiv = container.firstChild as HTMLElement
       const middleDiv = outerDiv.firstChild as HTMLElement
-      expect(middleDiv).toHaveClass('ml-[-38rem]')
+      expect(middleDiv).toHaveClass('-ml-152')
     })
 
     it('SVG centers with left-1/2', () => {

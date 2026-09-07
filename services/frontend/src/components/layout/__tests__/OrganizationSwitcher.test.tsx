@@ -493,7 +493,7 @@ describe('OrganizationSwitcher', () => {
       expect(button).toHaveClass(
         'focus-visible:border-indigo-500',
         'focus-visible:ring-2',
-        'focus-visible:ring-white'
+        'focus-visible:ring-white/75'
       )
     })
 

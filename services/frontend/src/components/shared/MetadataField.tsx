@@ -163,7 +163,7 @@ export function MetadataField({
           disabled={isLoading}
           displayValue={editValue ? t('shared.metadata.yes') : t('shared.metadata.no')}
         >
-          <SelectTrigger className="h-7 w-auto min-w-[5rem] text-sm">
+          <SelectTrigger className="h-7 w-auto min-w-20 text-sm">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>

@@ -120,7 +120,7 @@ export function ModelSelectionSection({
             </span>
           )}
           <svg
-            className={`h-5 w-5 flex-shrink-0 text-zinc-400 transition-transform ${expandedModels ? 'rotate-90 transform' : ''}`}
+            className={`h-5 w-5 shrink-0 text-zinc-400 transition-transform ${expandedModels ? 'rotate-90 transform' : ''}`}
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -186,7 +186,7 @@ export function ModelSelectionSection({
                               type="checkbox"
                               checked={isSelected}
                               onChange={() => handleModelToggle(model.id)}
-                              className="h-4 w-4 flex-shrink-0 rounded border-zinc-300 bg-white text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600 dark:bg-zinc-700"
+                              className="h-4 w-4 shrink-0 rounded border-zinc-300 bg-white text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600 dark:bg-zinc-700"
                             />
                             <div className="min-w-0 flex-1">
                               <label
@@ -202,7 +202,7 @@ export function ModelSelectionSection({
                               )}
                             </div>
                           </div>
-                          <div className="ml-3 flex flex-shrink-0 items-center space-x-2">
+                          <div className="ml-3 flex shrink-0 items-center space-x-2">
                             {reasoningConfig && (
                               <span className="inline-flex items-center rounded bg-purple-100 px-1.5 py-0.5 text-xs font-medium text-purple-700 dark:bg-purple-900/30 dark:text-purple-400">
                                 {t('project.modelSelection.thinking', 'Thinking')}
@@ -306,7 +306,7 @@ export function ModelSelectionSection({
                                       return val.charAt(0).toUpperCase() + val.slice(1)
                                     })()}
                                   >
-                                    <SelectTrigger className="h-7 w-auto min-w-[5rem] text-xs">
+                                    <SelectTrigger className="h-7 w-auto min-w-20 text-xs">
                                       <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -349,7 +349,7 @@ export function ModelSelectionSection({
                                               return preset ? `${preset.label} (${preset.value.toLocaleString()} tokens)` : val
                                             })()}
                                           >
-                                            <SelectTrigger className="h-7 w-auto min-w-[8rem] text-xs">
+                                            <SelectTrigger className="h-7 w-auto min-w-32 text-xs">
                                               <SelectValue />
                                             </SelectTrigger>
                                             <SelectContent>

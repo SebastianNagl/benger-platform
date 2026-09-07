@@ -290,7 +290,7 @@ export function ImportDataModal({
           {validationErrors.length > 0 && (
             <div className="rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/20">
               <div className="flex items-start space-x-2">
-                <ExclamationTriangleIcon className="mt-0.5 h-5 w-5 flex-shrink-0 text-red-600 dark:text-red-400" />
+                <ExclamationTriangleIcon className="mt-0.5 h-5 w-5 shrink-0 text-red-600 dark:text-red-400" />
                 <div className="flex-1">
                   <h4 className="text-sm font-medium text-red-900 dark:text-red-100">
                     {t('tasks.importModal.validationError')}
@@ -353,7 +353,7 @@ export function ImportDataModal({
         {templateFields.length > 0 && (
           <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-900/20">
             <div className="flex items-start space-x-2">
-              <ExclamationTriangleIcon className="mt-0.5 h-5 w-5 flex-shrink-0 text-amber-600 dark:text-amber-400" />
+              <ExclamationTriangleIcon className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
               <div className="flex-1">
                 <h4 className="text-sm font-medium text-amber-900 dark:text-amber-100">
                   {t('tasks.importModal.fieldRequirements')}

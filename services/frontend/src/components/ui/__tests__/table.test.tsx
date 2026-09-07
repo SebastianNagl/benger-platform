@@ -236,7 +236,7 @@ describe('TableCell', () => {
     )
 
     const td = container.querySelector('td')
-    expect(td).toHaveClass('[&:has([role=checkbox])]:pr-0')
+    expect(td).toHaveClass('has-[[role=checkbox]]:pr-0')
   })
 })
 

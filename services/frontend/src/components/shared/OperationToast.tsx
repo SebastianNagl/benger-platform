@@ -117,7 +117,7 @@ export function OperationToast({
 
       <div className="p-4">
         <div className="flex items-start">
-          <div className="mr-3 mt-0.5 flex-shrink-0">
+          <div className="mr-3 mt-0.5 shrink-0">
             <div
               className={`flex h-8 w-8 items-center justify-center rounded-full ${getStatusColor()}`}
             >
@@ -135,7 +135,7 @@ export function OperationToast({
                   e.stopPropagation()
                   onDismiss()
                 }}
-                className={`ml-2 flex-shrink-0 rounded-full p-1 transition-colors hover:bg-black/10 ${getTextColor()}`}
+                className={`ml-2 shrink-0 rounded-full p-1 transition-colors hover:bg-black/10 ${getTextColor()}`}
               >
                 <span className="text-lg leading-none">×</span>
               </button>

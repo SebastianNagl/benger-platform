@@ -491,7 +491,7 @@ export function GenerationProgress({
 
           <div className="h-2 w-full overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-700">
             <div
-              className="h-full bg-gradient-to-r from-emerald-500 to-emerald-600 transition-all duration-500"
+              className="h-full bg-linear-to-r from-emerald-500 to-emerald-600 transition-all duration-500"
               style={{ width: `${overallProgress}%` }}
             />
           </div>

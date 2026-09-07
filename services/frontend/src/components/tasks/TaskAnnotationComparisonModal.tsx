@@ -343,14 +343,14 @@ export function TaskAnnotationComparisonModal({
     if (stringValue.length > 200) {
       return (
         <div className="space-y-2">
-          <p className="whitespace-pre-wrap break-words">
+          <p className="whitespace-pre-wrap wrap-break-word">
             {stringValue.substring(0, 200)}...
           </p>
           <details className="cursor-pointer">
             <summary className="text-sm text-blue-600 hover:text-blue-800">
               {t('annotation.comparison.result.showFullText')}
             </summary>
-            <p className="mt-2 whitespace-pre-wrap break-words">
+            <p className="mt-2 whitespace-pre-wrap wrap-break-word">
               {stringValue}
             </p>
           </details>
@@ -358,7 +358,7 @@ export function TaskAnnotationComparisonModal({
       )
     }
 
-    return <p className="whitespace-pre-wrap break-words">{stringValue}</p>
+    return <p className="whitespace-pre-wrap wrap-break-word">{stringValue}</p>
   }
 
   const renderAnnotationFields = (annotation: Annotation) => {
@@ -562,14 +562,14 @@ export function TaskAnnotationComparisonModal({
                       <Tab
                         key={tab.userId}
                         className={({ selected }) =>
-                          `flex flex-shrink-0 items-center gap-2 whitespace-nowrap rounded-t-lg px-3 py-2 text-xs font-medium transition-colors sm:px-4 sm:text-sm ${
+                          `flex shrink-0 items-center gap-2 whitespace-nowrap rounded-t-lg px-3 py-2 text-xs font-medium transition-colors sm:px-4 sm:text-sm ${
                             selected
                               ? 'border-b-2 border-blue-600 bg-white text-blue-600 dark:bg-zinc-900 dark:text-blue-400'
                               : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white'
                           }`
                         }
                       >
-                        <UserCircleIcon className="h-3 w-3 flex-shrink-0 sm:h-4 sm:w-4" />
+                        <UserCircleIcon className="h-3 w-3 shrink-0 sm:h-4 sm:w-4" />
                         <span className="max-w-[150px] truncate sm:max-w-none">
                           {tab.username}
                         </span>

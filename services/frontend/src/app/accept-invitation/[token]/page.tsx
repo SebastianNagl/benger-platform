@@ -276,7 +276,7 @@ export default function AcceptInvitationPage({
             {error && (
               <div className="mb-6 rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/20">
                 <div className="flex">
-                  <ExclamationTriangleIcon className="mr-2 mt-0.5 h-5 w-5 flex-shrink-0 text-red-400" />
+                  <ExclamationTriangleIcon className="mr-2 mt-0.5 h-5 w-5 shrink-0 text-red-400" />
                   <div className="text-red-800 dark:text-red-200">{error}</div>
                 </div>
               </div>
@@ -286,7 +286,7 @@ export default function AcceptInvitationPage({
             {expired && (
               <div className="mb-6 rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/20">
                 <div className="flex">
-                  <ExclamationTriangleIcon className="mr-2 mt-0.5 h-5 w-5 flex-shrink-0 text-red-400" />
+                  <ExclamationTriangleIcon className="mr-2 mt-0.5 h-5 w-5 shrink-0 text-red-400" />
                   <div className="text-red-800 dark:text-red-200">
                     {t('invitation.expired')}
                   </div>
@@ -298,7 +298,7 @@ export default function AcceptInvitationPage({
             {user && user.email !== invitation.email && (
               <div className="mb-6 rounded-lg border border-yellow-200 bg-yellow-50 p-4 dark:border-yellow-800 dark:bg-yellow-900/20">
                 <div className="flex">
-                  <ExclamationTriangleIcon className="mr-2 mt-0.5 h-5 w-5 flex-shrink-0 text-yellow-400" />
+                  <ExclamationTriangleIcon className="mr-2 mt-0.5 h-5 w-5 shrink-0 text-yellow-400" />
                   <div className="text-yellow-800 dark:text-yellow-200">
                     {t('invitation.emailMismatch', {
                       invitedEmail: invitation.email,

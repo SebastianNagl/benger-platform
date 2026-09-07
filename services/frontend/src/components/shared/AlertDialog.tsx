@@ -73,7 +73,7 @@ export function AlertDialog({
           leaveFrom="opacity-100"
           leaveTo="opacity-0"
         >
-          <div className="fixed inset-0 bg-black bg-opacity-25 dark:bg-opacity-40" />
+          <div className="fixed inset-0 bg-black/25 dark:bg-black/40" />
         </Transition.Child>
 
         <div className="fixed inset-0 overflow-y-auto">
@@ -102,7 +102,7 @@ export function AlertDialog({
                 <div className="flex items-start">
                   <div
                     className={clsx(
-                      'mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full sm:mx-0 sm:h-10 sm:w-10',
+                      'mx-auto flex h-12 w-12 shrink-0 items-center justify-center rounded-full sm:mx-0 sm:h-10 sm:w-10',
                       variantStyle.iconBg
                     )}
                   >

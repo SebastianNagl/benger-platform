@@ -558,7 +558,7 @@ function formatValueForDisplay(
   }
 
   return (
-    <span className={typeof value === 'string' ? 'break-words' : ''}>
+    <span className={typeof value === 'string' ? 'wrap-break-word' : ''}>
       {highlightMatch(String(value), searchTerm)}
     </span>
   )

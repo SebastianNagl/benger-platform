@@ -553,7 +553,7 @@ export function ProjectListTable({
                     {t('projects.more', 'Mehr')}
                     <ChevronDownIcon className="h-4 w-4" />
                   </Menu.Button>
-                  <Menu.Items className="absolute right-0 z-10 mt-2 w-56 origin-top-right rounded-lg bg-white p-1 shadow-lg ring-1 ring-black ring-opacity-5 transition duration-100 ease-out focus:outline-none data-[closed]:scale-95 data-[closed]:transform data-[closed]:opacity-0 dark:bg-zinc-900">
+                  <Menu.Items className="absolute right-0 z-10 mt-2 w-56 origin-top-right rounded-lg bg-white p-1 shadow-lg ring-1 ring-black/5 transition duration-100 ease-out focus:outline-none data-closed:scale-95 data-closed:transform data-closed:opacity-0 dark:bg-zinc-900">
                     {ProjectDiscoverModal && (
                       <Menu.Item>
                         {({ active }) => (

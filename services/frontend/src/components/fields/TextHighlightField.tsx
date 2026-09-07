@@ -322,7 +322,7 @@ export function TextHighlightField({
                   onClick={() => setSelectedHighlight(highlight.id)}
                 >
                   <div
-                    className="mt-0.5 h-3 w-3 flex-shrink-0 rounded-full"
+                    className="mt-0.5 h-3 w-3 shrink-0 rounded-full"
                     style={{ backgroundColor: highlight.color }}
                   />
                   <div className="flex-1 text-sm">

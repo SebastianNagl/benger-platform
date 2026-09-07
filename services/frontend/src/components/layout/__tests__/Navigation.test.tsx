@@ -396,11 +396,11 @@ describe('Navigation', () => {
       expect(icon).toHaveAttribute('stroke', 'currentColor')
     })
 
-    it('icons are wrapped in flex-shrink-0 span', () => {
+    it('icons are wrapped in shrink-0 span', () => {
       const { container } = render(<Navigation />)
 
       const dashboardLink = screen.getByText('Dashboard').closest('a')
-      const iconWrapper = dashboardLink?.querySelector('.flex-shrink-0')
+      const iconWrapper = dashboardLink?.querySelector('.shrink-0')
       expect(iconWrapper).toBeInTheDocument()
     })
   })

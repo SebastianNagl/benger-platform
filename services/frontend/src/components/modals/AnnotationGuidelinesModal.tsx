@@ -84,7 +84,7 @@ export function AnnotationGuidelinesModal({
 
               <div className="rounded-lg bg-amber-50 p-4 dark:bg-amber-900/20">
                 <div className="flex">
-                  <div className="flex-shrink-0">
+                  <div className="shrink-0">
                     <svg
                       className="h-5 w-5 text-amber-400"
                       viewBox="0 0 20 20"
@@ -114,7 +114,7 @@ export function AnnotationGuidelinesModal({
 
               <div className="rounded-lg bg-emerald-50 p-4 dark:bg-emerald-900/20">
                 <div className="flex">
-                  <div className="flex-shrink-0">
+                  <div className="shrink-0">
                     <svg
                       className="h-5 w-5 text-emerald-400"
                       viewBox="0 0 20 20"

@@ -14,7 +14,7 @@ import { render, screen } from '@testing-library/react'
 const MockRoleSystemExplanation = () => (
   <div className="border-l-4 border-blue-400 bg-blue-50 px-6 py-4 dark:border-blue-500 dark:bg-blue-950/50">
     <div className="flex">
-      <div className="flex-shrink-0">
+      <div className="shrink-0">
         <svg
           className="h-5 w-5 text-blue-400"
           viewBox="0 0 20 20"

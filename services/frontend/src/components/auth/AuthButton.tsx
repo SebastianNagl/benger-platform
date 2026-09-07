@@ -71,7 +71,7 @@ export function AuthButton() {
         >
           <span className="hidden sm:block">{user.username}</span>
           <span
-            className="hidden max-w-[14rem] truncate text-xs opacity-70 md:block"
+            className="hidden max-w-56 truncate text-xs opacity-70 md:block"
             title={currentOrganization ? currentOrganization.name : undefined}
           >
             ({currentOrganization ? currentOrganization.name : t('auth.private')})

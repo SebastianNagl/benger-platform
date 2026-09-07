@@ -131,7 +131,7 @@ export function ViewModeToggle({
               type="button"
               onClick={() => switchTo(mode)}
               data-ui-mode-option={mode}
-              className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm text-zinc-700 data-[focus]:bg-zinc-900/5 dark:text-zinc-200 dark:data-[focus]:bg-white/5"
+              className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm text-zinc-700 data-focus:bg-zinc-900/5 dark:text-zinc-200 dark:data-focus:bg-white/5"
             >
               <Icon className="h-5 w-5 shrink-0 stroke-zinc-900 dark:stroke-white" />
               <span className="flex-1 text-left">{label}</span>

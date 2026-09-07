@@ -1134,7 +1134,7 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
                 <div className="p-6">
                   <div className="rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/20">
                     <div className="flex items-start gap-3">
-                      <ExclamationTriangleIcon className="mt-0.5 h-5 w-5 flex-shrink-0 text-red-600 dark:text-red-400" />
+                      <ExclamationTriangleIcon className="mt-0.5 h-5 w-5 shrink-0 text-red-600 dark:text-red-400" />
                       <div className="text-sm text-red-800 dark:text-red-200">
                         <p className="font-medium">
                           No label configuration found

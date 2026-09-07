@@ -1689,7 +1689,7 @@ export function EvaluationBuilder({
                         </Badge>
                       )}
                     </div>
-                    <div className="space-y-1 text-xs text-gray-500 break-words">
+                    <div className="space-y-1 text-xs text-gray-500 wrap-break-word">
                       <div>
                         <span className="font-medium">
                           {t('evaluationBuilder.list.predictions')}

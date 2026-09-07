@@ -123,7 +123,7 @@ export function SelectContent({ children, className }: SelectContentProps) {
   return (
     <Listbox.Options
       className={clsx(
-        'absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-lg bg-white py-1 text-sm shadow-lg ring-1 ring-black ring-opacity-5 transition duration-100 ease-in focus:outline-none data-[closed]:opacity-0 dark:bg-zinc-800',
+        'absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-lg bg-white py-1 text-sm shadow-lg ring-1 ring-black/5 transition duration-100 ease-in focus:outline-none data-closed:opacity-0 dark:bg-zinc-800',
         className
       )}
     >

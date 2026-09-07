@@ -1668,7 +1668,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                     <Button
                       onClick={handleStartEditDescription}
                       variant="outline"
-                      className="flex-shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
+                      className="shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
                     >
                       <PencilIcon className="h-4 w-4" />
                     </Button>
@@ -1682,7 +1682,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
 
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl dark:bg-zinc-900">
             <h3 className="mb-4 text-lg font-semibold text-zinc-900 dark:text-white">
               {t('project.deleteConfirmTitle')}: {currentProject.title}
@@ -1783,7 +1783,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                   </span>
                 )}
                 <svg
-                  className={`h-5 w-5 flex-shrink-0 text-zinc-400 transition-transform ${expandedInstructions ? 'rotate-90 transform' : ''}`}
+                  className={`h-5 w-5 shrink-0 text-zinc-400 transition-transform ${expandedInstructions ? 'rotate-90 transform' : ''}`}
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -2027,7 +2027,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                   </span>
                 )}
                 <svg
-                  className={`h-5 w-5 flex-shrink-0 text-zinc-400 transition-transform ${expandedConfig ? 'rotate-90 transform' : ''}`}
+                  className={`h-5 w-5 shrink-0 text-zinc-400 transition-transform ${expandedConfig ? 'rotate-90 transform' : ''}`}
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -2827,7 +2827,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
             ) : (
               <div className="space-y-3">
                 <div className="flex items-center space-x-3">
-                  <div className="flex-shrink-0">
+                  <div className="shrink-0">
                     <DocumentTextIcon className="h-5 w-5 text-zinc-400" />
                   </div>
                   <div className="min-w-0 flex-1">
@@ -2849,7 +2849,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                 </div>
                 {(currentProject.annotation_count ?? 0) > 0 && (
                   <div className="flex items-center space-x-3">
-                    <div className="flex-shrink-0">
+                    <div className="shrink-0">
                       <CheckCircleIcon className="h-5 w-5 text-emerald-500" />
                     </div>
                     <div className="min-w-0 flex-1">

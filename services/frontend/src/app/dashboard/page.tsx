@@ -159,7 +159,7 @@ export default function DashboardPage() {
         <div className="rounded-lg bg-white shadow-sm ring-1 ring-zinc-900/5 dark:bg-zinc-900 dark:ring-white/10">
           <div className="p-6">
             <div className="flex items-center">
-              <div className="flex-shrink-0">
+              <div className="shrink-0">
                 <div className="flex h-8 w-8 items-center justify-center rounded-md bg-emerald-600">
                   <svg
                     className="h-5 w-5 text-white"
@@ -194,7 +194,7 @@ export default function DashboardPage() {
         <div className="rounded-lg bg-white shadow-sm ring-1 ring-zinc-900/5 dark:bg-zinc-900 dark:ring-white/10">
           <div className="p-6">
             <div className="flex items-center">
-              <div className="flex-shrink-0">
+              <div className="shrink-0">
                 <div className="flex h-8 w-8 items-center justify-center rounded-md bg-emerald-600">
                   <svg
                     className="h-5 w-5 text-white"
@@ -229,7 +229,7 @@ export default function DashboardPage() {
         <div className="rounded-lg bg-white shadow-sm ring-1 ring-zinc-900/5 dark:bg-zinc-900 dark:ring-white/10">
           <div className="p-6">
             <div className="flex items-center">
-              <div className="flex-shrink-0">
+              <div className="shrink-0">
                 <div className="flex h-8 w-8 items-center justify-center rounded-md bg-emerald-600">
                   <svg
                     className="h-5 w-5 text-white"
@@ -264,7 +264,7 @@ export default function DashboardPage() {
         <div className="rounded-lg bg-white shadow-sm ring-1 ring-zinc-900/5 dark:bg-zinc-900 dark:ring-white/10">
           <div className="p-6">
             <div className="flex items-center">
-              <div className="flex-shrink-0">
+              <div className="shrink-0">
                 <div className="flex h-8 w-8 items-center justify-center rounded-md bg-emerald-600">
                   <svg
                     className="h-5 w-5 text-white"
@@ -299,7 +299,7 @@ export default function DashboardPage() {
         <div className="rounded-lg bg-white shadow-sm ring-1 ring-zinc-900/5 dark:bg-zinc-900 dark:ring-white/10">
           <div className="p-6">
             <div className="flex items-center">
-              <div className="flex-shrink-0">
+              <div className="shrink-0">
                 <div className="flex h-8 w-8 items-center justify-center rounded-md bg-emerald-600">
                   <svg
                     className="h-5 w-5 text-white"

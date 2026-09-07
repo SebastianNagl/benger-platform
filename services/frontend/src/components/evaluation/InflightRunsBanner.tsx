@@ -340,7 +340,7 @@ export function InflightRunsBanner({
     >
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2 text-sm text-amber-900 dark:text-amber-100">
-          <ExclamationTriangleIcon className="h-5 w-5 flex-shrink-0" />
+          <ExclamationTriangleIcon className="h-5 w-5 shrink-0" />
           <span className="font-medium">
             {latestFailed
               ? t(

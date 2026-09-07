@@ -131,7 +131,7 @@ export function ModelComparisonChart({
           <strong>{t('evaluation.modelComparison.missingData')}:</strong>{' '}
           {t('evaluation.modelComparison.missingDataSummary', { count: modelsWithMissingData.size })}
         </summary>
-        <div className="mt-2 break-words">
+        <div className="mt-2 wrap-break-word">
           {Array.from(modelsWithMissingData).join(', ')}
         </div>
       </details>

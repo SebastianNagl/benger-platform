@@ -345,7 +345,7 @@ export default function TestNotificationsPage() {
                       className="flex items-start gap-4 rounded-lg border border-zinc-200 p-4 dark:border-zinc-700"
                     >
                       <div
-                        className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full ${notification.color}`}
+                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${notification.color}`}
                       >
                         <IconComponent className="h-5 w-5" />
                       </div>

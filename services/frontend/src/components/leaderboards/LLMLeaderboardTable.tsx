@@ -376,7 +376,7 @@ export function LLMLeaderboardTable() {
             )}
             <ChevronDownIcon className="h-4 w-4" />
           </Menu.Button>
-          <Menu.Items className="absolute right-0 z-10 mt-2 max-h-60 w-64 overflow-auto rounded-lg bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none dark:bg-zinc-900">
+          <Menu.Items className="absolute right-0 z-10 mt-2 max-h-60 w-64 overflow-auto rounded-lg bg-white py-1 shadow-lg ring-1 ring-black/5 focus:outline-none dark:bg-zinc-900">
             {projects.map((project) => (
               <Menu.Item key={project.id}>
                 {({ active }) => (
@@ -419,7 +419,7 @@ export function LLMLeaderboardTable() {
               )}
               <ChevronDownIcon className="h-4 w-4" />
             </Menu.Button>
-            <Menu.Items className="absolute right-0 z-10 mt-2 max-h-60 w-64 overflow-auto rounded-lg bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none dark:bg-zinc-900">
+            <Menu.Items className="absolute right-0 z-10 mt-2 max-h-60 w-64 overflow-auto rounded-lg bg-white py-1 shadow-lg ring-1 ring-black/5 focus:outline-none dark:bg-zinc-900">
               {availableEvaluationTypes.map((evalType) => (
                 <Menu.Item key={evalType}>
                   {({ active }) => (

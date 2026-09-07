@@ -44,7 +44,7 @@ export function SubSection({
             </span>
           )}
           <svg
-            className={`h-5 w-5 flex-shrink-0 text-zinc-400 transition-transform ${
+            className={`h-5 w-5 shrink-0 text-zinc-400 transition-transform ${
               expanded ? 'rotate-90 transform' : ''
             }`}
             fill="none"

@@ -185,7 +185,7 @@ export function FilterDropdown({
         </Menu.Button>
       </div>
 
-      <Menu.Items className="absolute left-0 z-10 mt-2 max-h-96 w-80 origin-top-left overflow-y-auto rounded-lg bg-white shadow-lg ring-1 ring-black ring-opacity-5 transition duration-100 ease-out focus:outline-none data-[closed]:scale-95 data-[closed]:transform data-[closed]:opacity-0 dark:bg-zinc-900">
+      <Menu.Items className="absolute left-0 z-10 mt-2 max-h-96 w-80 origin-top-left overflow-y-auto rounded-lg bg-white shadow-lg ring-1 ring-black/5 transition duration-100 ease-out focus:outline-none data-closed:scale-95 data-closed:transform data-closed:opacity-0 dark:bg-zinc-900">
         <div className="p-1">
           <div className="px-3 py-2 text-xs font-medium text-zinc-500 dark:text-zinc-400">
             {t('projects.filter.status')}

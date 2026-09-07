@@ -611,7 +611,7 @@ export function AdvancedSettingsCard({
                       : t('project.settings.interface.skipQueueIgnoreSkipped', { defaultValue: 'Skip permanently' })
                   }
                 >
-                  <SelectTrigger className="w-auto min-w-[10rem]">
+                  <SelectTrigger className="w-auto min-w-40">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>

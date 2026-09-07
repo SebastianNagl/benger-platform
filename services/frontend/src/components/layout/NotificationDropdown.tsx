@@ -139,7 +139,7 @@ export function NotificationDropdown({
   }
 
   return (
-    <div className="w-96 max-w-sm rounded-lg bg-white shadow-lg ring-1 ring-black ring-opacity-5 dark:bg-zinc-900 dark:ring-zinc-700">
+    <div className="w-96 max-w-sm rounded-lg bg-white shadow-lg ring-1 ring-black/5 dark:bg-zinc-900 dark:ring-zinc-700">
       {/* Header */}
       <div className="flex items-center justify-between border-b border-zinc-200 px-4 py-3 dark:border-zinc-700">
         <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
@@ -225,7 +225,7 @@ export function NotificationDropdown({
                     {/* Icon */}
                     <div
                       className={cn(
-                        'flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full',
+                        'flex h-8 w-8 shrink-0 items-center justify-center rounded-full',
                         iconColorClass
                       )}
                     >
@@ -248,7 +248,7 @@ export function NotificationDropdown({
 
                         {/* Unread indicator */}
                         {!notification.is_read && (
-                          <div className="ml-2 h-2 w-2 flex-shrink-0 rounded-full bg-emerald-600" />
+                          <div className="ml-2 h-2 w-2 shrink-0 rounded-full bg-emerald-600" />
                         )}
                       </div>
 

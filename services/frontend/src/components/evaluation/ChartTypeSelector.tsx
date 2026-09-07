@@ -203,7 +203,7 @@ export function ChartTypeSelector({
                     isDisabled && disabledReason ? disabledReason : undefined
                   }
                 >
-                  <Icon className={`${iconSize} mt-0.5 flex-shrink-0`} />
+                  <Icon className={`${iconSize} mt-0.5 shrink-0`} />
                   <div className="flex-1">
                     <div className="font-medium">{chartType.label}</div>
                     <div className="text-xs text-gray-500 dark:text-gray-400">

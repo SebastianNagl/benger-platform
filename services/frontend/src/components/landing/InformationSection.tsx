@@ -23,22 +23,22 @@ export function InformationSection() {
         </h2>
 
         <Tabs defaultValue="whatIsIt" className="mt-12">
-          <TabsList className="mx-auto flex !h-auto w-full max-w-2xl justify-center overflow-hidden rounded-lg !p-0">
+          <TabsList className="mx-auto flex h-auto! w-full max-w-2xl justify-center overflow-hidden rounded-lg p-0!">
             <TabsTrigger
               value="whatIsIt"
-              className="flex-1 !rounded-none px-4 py-2.5 text-sm sm:px-6 sm:text-base"
+              className="flex-1 rounded-none! px-4 py-2.5 text-sm sm:px-6 sm:text-base"
             >
               {t('landing.information.tabs.whatIsIt')}
             </TabsTrigger>
             <TabsTrigger
               value="howItWorks"
-              className="flex-1 !rounded-none px-4 py-2.5 text-sm sm:px-6 sm:text-base"
+              className="flex-1 rounded-none! px-4 py-2.5 text-sm sm:px-6 sm:text-base"
             >
               {t('landing.information.tabs.howItWorks')}
             </TabsTrigger>
             <TabsTrigger
               value="whyNeeded"
-              className="flex-1 !rounded-none px-4 py-2.5 text-sm sm:px-6 sm:text-base"
+              className="flex-1 rounded-none! px-4 py-2.5 text-sm sm:px-6 sm:text-base"
             >
               {t('landing.information.tabs.whyNeeded')}
             </TabsTrigger>
@@ -117,7 +117,7 @@ export function InformationSection() {
                     key={step}
                     className="flex items-start gap-4 rounded-lg border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900"
                   >
-                    <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-emerald-600 text-sm font-bold text-white">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-sm font-bold text-white">
                       {t(`landing.information.howItWorks.steps.${step}.number`)}
                     </div>
                     <div>

@@ -1,6 +1,6 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
+
+@config '../../tailwind.config.js';
 
 /* Typography scale matching protocol-ts */
 :root {
@@ -36,7 +36,67 @@
   --shiki-token-punctuation: rgb(228 228 231);
 }
 
-/* Custom utility classes */
+/*
+  The default border color has changed to `currentcolor` in Tailwind CSS v4,
+  so we've added these compatibility styles to make sure everything still
+  looks the same as it did with Tailwind CSS v3.
+
+  If we ever want to remove these styles, we need to add an explicit border
+  color utility to any element that depends on these defaults.
+*/
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentcolor);
+  }
+}
+
+@utility text-2xs {
+  font-size: var(--text-2xs);
+  line-height: var(--text-2xs--line-height);
+}
+
+@utility shadow-glow {
+  box-shadow: 0 0 4px rgb(0 0 0 / 0.1);
+}
+
+@utility text-secondary {
+  /* Better contrast text utilities for dark mode */
+  @apply text-zinc-600 dark:text-zinc-300;
+}
+
+@utility text-muted {
+  @apply text-zinc-500 dark:text-zinc-300;
+}
+
+@utility text-subtle {
+  @apply text-zinc-400 dark:text-zinc-400;
+}
+
+@utility text-label {
+  @apply text-zinc-500 dark:text-zinc-300;
+}
+
+@utility text-caption {
+  @apply text-zinc-500 dark:text-zinc-300;
+}
+
+@utility list-readable {
+  /* List utilities with good contrast */
+  @apply text-zinc-700 dark:text-zinc-300;
+
+  & li {
+    @apply text-zinc-700 dark:text-zinc-300;
+  }
+
+  & li::marker {
+    @apply text-zinc-500 dark:text-zinc-300;
+  }
+}
+
 @layer base {
   /* Reset browser defaults */
   html,
@@ -71,62 +131,6 @@
 
   input[type='checkbox']:focus {
     @apply ring-2 ring-emerald-500 ring-offset-0;
-  }
-}
-
-@layer components {
-  .text-2xs {
-    font-size: var(--text-2xs);
-    line-height: var(--text-2xs--line-height);
-  }
-
-  .shadow-glow {
-    box-shadow: 0 0 4px rgb(0 0 0 / 0.1);
-  }
-
-  /* Better contrast text utilities for dark mode */
-  .text-secondary {
-    @apply text-zinc-600 dark:text-zinc-300;
-  }
-
-  .text-muted {
-    @apply text-zinc-500 dark:text-zinc-300;
-  }
-
-  .text-subtle {
-    @apply text-zinc-400 dark:text-zinc-400;
-  }
-
-  .text-label {
-    @apply text-zinc-500 dark:text-zinc-300;
-  }
-
-  .text-caption {
-    @apply text-zinc-500 dark:text-zinc-300;
-  }
-
-  /* List utilities with good contrast */
-  .list-readable {
-    @apply text-zinc-700 dark:text-zinc-300;
-  }
-
-  .list-readable li {
-    @apply text-zinc-700 dark:text-zinc-300;
-  }
-
-  .list-readable li::marker {
-    @apply text-zinc-500 dark:text-zinc-300;
-  }
-}
-
-@layer utilities {
-  /* Support for CSS custom property opacity syntax */
-  .bg-white\/\(--bg-opacity-light\) {
-    background-color: rgba(255, 255, 255, var(--bg-opacity-light));
-  }
-
-  .dark .bg-zinc-900\/\(--bg-opacity-dark\) {
-    background-color: rgba(39, 39, 42, var(--bg-opacity-dark));
   }
 }
 
@@ -170,11 +174,11 @@
 }
 
 .scrollbar-thin::-webkit-scrollbar-track {
-  @apply rounded bg-zinc-100 dark:bg-zinc-800;
+  @apply rounded-sm bg-zinc-100 dark:bg-zinc-800;
 }
 
 .scrollbar-thin::-webkit-scrollbar-thumb {
-  @apply rounded bg-zinc-400 hover:bg-zinc-500 dark:bg-zinc-600 dark:hover:bg-zinc-500;
+  @apply rounded-sm bg-zinc-400 hover:bg-zinc-500 dark:bg-zinc-600 dark:hover:bg-zinc-500;
 }
 
 /* Alternative without custom classes - direct styling */

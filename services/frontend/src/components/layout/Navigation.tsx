@@ -279,7 +279,7 @@ function NavLink({
           'text-zinc-400 dark:text-zinc-500'
         )}
       >
-        {icon && !isAnchorLink && <span className="flex-shrink-0">{icon}</span>}
+        {icon && !isAnchorLink && <span className="shrink-0">{icon}</span>}
         <span className="truncate">{children}</span>
       </div>
     )
@@ -299,7 +299,7 @@ function NavLink({
           : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white'
       )}
     >
-      {icon && !isAnchorLink && <span className="flex-shrink-0">{icon}</span>}
+      {icon && !isAnchorLink && <span className="shrink-0">{icon}</span>}
       <span className="truncate">{children}</span>
       {tag && (
         <Tag variant="small" color="zinc">

@@ -63,7 +63,7 @@ export function ProjectBulkActions({
 
       <Menu.Items
         anchor="bottom end"
-        className="z-10 w-64 rounded-lg bg-white shadow-lg ring-1 ring-black ring-opacity-5 transition duration-100 ease-out focus:outline-none data-[closed]:scale-95 data-[closed]:transform data-[closed]:opacity-0 dark:bg-zinc-900"
+        className="z-10 w-64 rounded-lg bg-white shadow-lg ring-1 ring-black/5 transition duration-100 ease-out focus:outline-none data-closed:scale-95 data-closed:transform data-closed:opacity-0 dark:bg-zinc-900"
         data-testid="projects-bulk-actions-menu"
       >
         <div className="p-1">

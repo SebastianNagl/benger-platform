@@ -171,7 +171,7 @@ export default function CompleteProfilePage() {
             {error && (
               <div className="mb-6 rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/20">
                 <div className="flex">
-                  <ExclamationTriangleIcon className="mr-2 mt-0.5 h-5 w-5 flex-shrink-0 text-red-400" />
+                  <ExclamationTriangleIcon className="mr-2 mt-0.5 h-5 w-5 shrink-0 text-red-400" />
                   <div className="text-red-800 dark:text-red-200">{error}</div>
                 </div>
               </div>

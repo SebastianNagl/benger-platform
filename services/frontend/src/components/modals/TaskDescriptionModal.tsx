@@ -84,7 +84,7 @@ export function TaskDescriptionModal({
 
               <div className="rounded-lg bg-blue-50 p-4 dark:bg-blue-900/20">
                 <div className="flex">
-                  <div className="flex-shrink-0">
+                  <div className="shrink-0">
                     <svg
                       className="h-5 w-5 text-blue-400"
                       viewBox="0 0 20 20"

@@ -646,7 +646,7 @@ describe('MetricDistributionChart', () => {
       )
 
       const quartileBar = container.querySelector(
-        '.bg-gradient-to-r.from-red-200.via-yellow-200.to-green-200'
+        '.bg-linear-to-r.from-red-200.via-yellow-200.to-green-200'
       )
       expect(quartileBar).toBeInTheDocument()
       expect(quartileBar).toHaveClass('relative', 'h-8', 'w-full', 'rounded')

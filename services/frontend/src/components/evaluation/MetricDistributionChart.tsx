@@ -125,7 +125,7 @@ export function MetricDistributionChart({
         {/* Quartiles Visualization */}
         <div className="mt-6">
           <h4 className="mb-2 text-sm font-medium text-gray-700">{t('evaluation.metricDistribution.quartiles')}</h4>
-          <div className="relative h-8 w-full rounded bg-gradient-to-r from-red-200 via-yellow-200 to-green-200">
+          <div className="relative h-8 w-full rounded bg-linear-to-r from-red-200 via-yellow-200 to-green-200">
             {/* Q1 Marker */}
             <div
               className="absolute top-0 h-full w-0.5 bg-red-600"

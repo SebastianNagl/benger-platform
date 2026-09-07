@@ -128,8 +128,7 @@ describe('NotificationDropdown', () => {
         'bg-white',
         'shadow-lg',
         'ring-1',
-        'ring-black',
-        'ring-opacity-5',
+        'ring-black/5',
         'dark:bg-zinc-900',
         'dark:ring-zinc-700'
       )
@@ -220,7 +219,7 @@ describe('NotificationDropdown', () => {
       )
 
       const unreadIndicator = container.querySelector(
-        '.h-2.w-2.flex-shrink-0.rounded-full.bg-emerald-600'
+        '.h-2.w-2.shrink-0.rounded-full.bg-emerald-600'
       )
       expect(unreadIndicator).toBeInTheDocument()
     })
@@ -236,7 +235,7 @@ describe('NotificationDropdown', () => {
       )
 
       const unreadIndicator = container.querySelector(
-        '.h-2.w-2.flex-shrink-0.rounded-full.bg-emerald-600'
+        '.h-2.w-2.shrink-0.rounded-full.bg-emerald-600'
       )
       expect(unreadIndicator).not.toBeInTheDocument()
     })

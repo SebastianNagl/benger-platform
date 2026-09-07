@@ -177,7 +177,7 @@ export function JudgeEnsembleControl<S extends BuilderStateWithParameters>({
                       {m.name}{' '}
                       <span className="text-gray-400">({m.provider})</span>
                     </span>
-                    {isCustom && <CustomBadge className="flex-shrink-0" />}
+                    {isCustom && <CustomBadge className="shrink-0" />}
                   </label>
                   {missing && (
                     <div className="mt-0.5 text-xs text-amber-600">
@@ -226,7 +226,7 @@ export function JudgeEnsembleControl<S extends BuilderStateWithParameters>({
                           runsPerJudge,
                         )
                       }
-                      className="flex-shrink-0 rounded px-1.5 py-0.5 text-amber-700 underline hover:text-amber-900 dark:text-amber-300"
+                      className="shrink-0 rounded px-1.5 py-0.5 text-amber-700 underline hover:text-amber-900 dark:text-amber-300"
                     >
                       {t(
                         'evaluationBuilder.parameters.removeJudge',

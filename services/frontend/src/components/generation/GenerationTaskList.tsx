@@ -763,7 +763,7 @@ export function GenerationTaskList({
       {/* Context menu for cell actions */}
       {contextMenu && (
         <div
-          className="fixed z-50 min-w-[160px] rounded-lg bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 dark:bg-zinc-900 dark:ring-white/10"
+          className="fixed z-50 min-w-[160px] rounded-lg bg-white py-1 shadow-lg ring-1 ring-black/5 dark:bg-zinc-900 dark:ring-white/10"
           style={{ left: contextMenu.x, top: contextMenu.y }}
           onMouseDown={(e) => e.stopPropagation()}
         >

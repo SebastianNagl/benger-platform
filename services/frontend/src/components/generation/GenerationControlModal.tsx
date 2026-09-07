@@ -332,7 +332,7 @@ export function GenerationControlModal({
           leaveFrom="opacity-100"
           leaveTo="opacity-0"
         >
-          <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" />
+          <div className="fixed inset-0 bg-gray-500/75 transition-opacity" />
         </Transition.Child>
 
         <div className="fixed inset-0 z-10 overflow-y-auto">
@@ -658,7 +658,7 @@ export function GenerationControlModal({
                                 />
                                 {temperatureConstraints.fixedModels.length > 0 && (
                                   <div className="mt-1 flex items-start gap-1 text-xs text-amber-600">
-                                    <ExclamationTriangleIcon className="mt-0.5 h-3 w-3 flex-shrink-0" />
+                                    <ExclamationTriangleIcon className="mt-0.5 h-3 w-3 shrink-0" />
                                     <span>
                                       {temperatureConstraints.fixedModels.join(', ')} {temperatureConstraints.fixedModels.length === 1 ? 'requires' : 'require'} fixed temperature=1.0. The backend will override for {temperatureConstraints.fixedModels.length === 1 ? 'this model' : 'these models'}.
                                     </span>

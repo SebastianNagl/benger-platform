@@ -567,7 +567,7 @@ function NotificationsPageContent() {
       ) : error ? (
         <div className="rounded-md border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-950">
           <div className="flex">
-            <ExclamationTriangleIcon className="h-5 w-5 flex-shrink-0 text-red-600 dark:text-red-400" />
+            <ExclamationTriangleIcon className="h-5 w-5 shrink-0 text-red-600 dark:text-red-400" />
             <div className="ml-3">
               <h3 className="text-sm font-medium text-red-800 dark:text-red-200">
                 {t('notifications.errorTitle')}
@@ -638,7 +638,7 @@ function NotificationsPageContent() {
                       <td className="px-6 py-4">
                         <div className="flex items-start gap-3">
                           <div
-                            className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full ${colorClass}`}
+                            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${colorClass}`}
                           >
                             <IconComponent className="h-4 w-4" />
                           </div>

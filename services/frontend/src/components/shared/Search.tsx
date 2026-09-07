@@ -388,7 +388,7 @@ function SearchResults({
         <NoResultsIcon className="mx-auto h-5 w-5 stroke-zinc-900 dark:stroke-zinc-400" />
         <p className="mt-2 text-xs text-zinc-700 dark:text-zinc-300">
           {t('search.noResults')}{' '}
-          <strong className="break-words font-semibold text-zinc-900 dark:text-white">
+          <strong className="wrap-break-word font-semibold text-zinc-900 dark:text-white">
             &lsquo;{query}&rsquo;
           </strong>
           . {t('search.tryAgain')}

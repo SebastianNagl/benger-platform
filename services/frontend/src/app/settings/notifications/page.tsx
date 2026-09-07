@@ -525,7 +525,7 @@ function NotificationSettingsContent() {
       {error && (
         <div className="mb-6 rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/20">
           <div className="flex">
-            <ExclamationTriangleIcon className="mr-2 mt-0.5 h-5 w-5 flex-shrink-0 text-red-400" />
+            <ExclamationTriangleIcon className="mr-2 mt-0.5 h-5 w-5 shrink-0 text-red-400" />
             <div className="text-red-800 dark:text-red-200">{error}</div>
           </div>
         </div>
@@ -534,7 +534,7 @@ function NotificationSettingsContent() {
       {success && (
         <div className="mb-6 rounded-lg border border-green-200 bg-green-50 p-4 dark:border-green-800 dark:bg-green-900/20">
           <div className="flex">
-            <CheckCircleIcon className="mr-2 mt-0.5 h-5 w-5 flex-shrink-0 text-green-400" />
+            <CheckCircleIcon className="mr-2 mt-0.5 h-5 w-5 shrink-0 text-green-400" />
             <div className="text-green-800 dark:text-green-200">{success}</div>
           </div>
         </div>
@@ -602,7 +602,7 @@ function NotificationSettingsContent() {
                       >
                         <td className="whitespace-nowrap px-6 py-4">
                           <div className="flex items-center space-x-3">
-                            <div className="flex-shrink-0">
+                            <div className="shrink-0">
                               <IconComponent className="h-5 w-5 text-zinc-400" />
                             </div>
                             <div>
@@ -623,7 +623,7 @@ function NotificationSettingsContent() {
                         <td className="whitespace-nowrap px-6 py-4 text-center">
                           <button
                             type="button"
-                            className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:ring-offset-2 ${
+                            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:ring-offset-2 ${
                               pref.enabled
                                 ? 'bg-emerald-600'
                                 : 'bg-zinc-200 dark:bg-zinc-700'
@@ -647,7 +647,7 @@ function NotificationSettingsContent() {
                         <td className="whitespace-nowrap px-6 py-4 text-center">
                           <button
                             type="button"
-                            className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:ring-offset-2 ${
+                            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:ring-offset-2 ${
                               pref.in_app
                                 ? 'bg-emerald-600'
                                 : 'bg-zinc-200 dark:bg-zinc-700'
@@ -672,7 +672,7 @@ function NotificationSettingsContent() {
                         <td className="whitespace-nowrap px-6 py-4 text-center">
                           <button
                             type="button"
-                            className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:ring-offset-2 ${
+                            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:ring-offset-2 ${
                               pref.email && emailStatus?.configured
                                 ? 'bg-emerald-600'
                                 : 'bg-zinc-200 dark:bg-zinc-700'
@@ -785,7 +785,7 @@ function NotificationSettingsContent() {
             </h3>
             <div className="space-y-3 text-sm text-zinc-600 dark:text-zinc-400">
               <div className="flex items-start space-x-2">
-                <BellIcon className="mt-0.5 h-4 w-4 flex-shrink-0 text-zinc-400" />
+                <BellIcon className="mt-0.5 h-4 w-4 shrink-0 text-zinc-400" />
                 <div>
                   <strong>{t('settings.notifications.help.inAppTitle')}</strong>{' '}
                   {t('settings.notifications.help.inAppDesc')}
@@ -794,7 +794,7 @@ function NotificationSettingsContent() {
 
               {emailStatus?.configured && (
                 <div className="flex items-start space-x-2">
-                  <EnvelopeIcon className="mt-0.5 h-4 w-4 flex-shrink-0 text-zinc-400" />
+                  <EnvelopeIcon className="mt-0.5 h-4 w-4 shrink-0 text-zinc-400" />
                   <div>
                     <strong>{t('settings.notifications.help.emailTitle')}</strong>{' '}
                     {t('settings.notifications.help.emailDescBefore')}{' '}
@@ -805,14 +805,14 @@ function NotificationSettingsContent() {
               )}
 
               <div className="flex items-start space-x-2">
-                <ClockIcon className="mt-0.5 h-4 w-4 flex-shrink-0 text-zinc-400" />
+                <ClockIcon className="mt-0.5 h-4 w-4 shrink-0 text-zinc-400" />
                 <div>
                   {t('settings.notifications.help.roleBasedDesc')}
                 </div>
               </div>
 
               <div className="flex items-start space-x-2">
-                <GlobeAltIcon className="mt-0.5 h-4 w-4 flex-shrink-0 text-zinc-400" />
+                <GlobeAltIcon className="mt-0.5 h-4 w-4 shrink-0 text-zinc-400" />
                 <div>
                   {t('settings.notifications.help.preferencesDesc')}
                 </div>

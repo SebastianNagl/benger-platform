@@ -209,9 +209,9 @@ function ToastContainer({
 }) {
   return (
     <div
-      // z-[60] keeps toasts above HeadlessUI Dialogs (which render at z-50);
+      // z-60 keeps toasts above HeadlessUI Dialogs (which render at z-50);
       // same-z + later DOM order let the dialog occlude toasts otherwise.
-      className="pointer-events-none fixed right-4 top-4 z-[60] max-w-sm space-y-2"
+      className="pointer-events-none fixed right-4 top-4 z-60 max-w-sm space-y-2"
       data-testid="toast-container"
     >
       <AnimatePresence mode="popLayout">
@@ -275,7 +275,7 @@ function ToastItemView({
       data-toast-type={toast.type}
     >
       {!progress && (
-        <span className="flex-shrink-0 text-lg">{getIcon(toast.type)}</span>
+        <span className="shrink-0 text-lg">{getIcon(toast.type)}</span>
       )}
       <div className="min-w-0 flex-1">
         {progress ? (
@@ -291,7 +291,7 @@ function ToastItemView({
           <p className="text-sm font-medium">{toast.message}</p>
         )}
       </div>
-      <div className="flex flex-shrink-0 items-center gap-1">
+      <div className="flex shrink-0 items-center gap-1">
         {showCancel && (
           <button
             onClick={() => progress!.onCancel!()}
@@ -304,7 +304,7 @@ function ToastItemView({
         )}
         <button
           onClick={() => onRemove(toast.id)}
-          className="flex-shrink-0 rounded p-1 text-current transition-opacity hover:opacity-70"
+          className="shrink-0 rounded p-1 text-current transition-opacity hover:opacity-70"
           aria-label={t('shared.toast.close')}
         >
           <span className="sr-only">{t('shared.toast.close')}</span>

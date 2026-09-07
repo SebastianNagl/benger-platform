@@ -1173,7 +1173,7 @@ export function OrganizationsTab() {
 
       {/* Create Organization Modal */}
       {showCreateOrgModal && (
-        <div className="fixed inset-0 z-50 h-full w-full overflow-y-auto bg-zinc-600 bg-opacity-50 dark:bg-zinc-900 dark:bg-opacity-75">
+        <div className="fixed inset-0 z-50 h-full w-full overflow-y-auto bg-zinc-600/50 dark:bg-zinc-900/75">
           <div className="relative top-20 mx-auto w-96 rounded-md border border-zinc-200 bg-white p-5 shadow-lg dark:border-zinc-700 dark:bg-zinc-800">
             <div className="mt-3">
               <h3 className="mb-4 text-lg font-medium text-zinc-900 dark:text-zinc-100">
@@ -1235,7 +1235,7 @@ export function OrganizationsTab() {
 
       {/* Add Existing User Modal */}
       {showAddUserModal && (
-        <div className="fixed inset-0 z-50 h-full w-full overflow-y-auto bg-zinc-600 bg-opacity-50 dark:bg-zinc-900 dark:bg-opacity-75">
+        <div className="fixed inset-0 z-50 h-full w-full overflow-y-auto bg-zinc-600/50 dark:bg-zinc-900/75">
           <div className="relative top-20 mx-auto w-96 rounded-md border border-zinc-200 bg-white p-5 shadow-lg dark:border-zinc-700 dark:bg-zinc-800">
             <div className="mt-3">
               <h3 className="mb-4 text-lg font-medium text-zinc-900 dark:text-zinc-100">
@@ -1345,7 +1345,7 @@ export function OrganizationsTab() {
 
       {/* Invite Member Modal */}
       {showInviteModal && (
-        <div className="fixed inset-0 z-50 h-full w-full overflow-y-auto bg-zinc-600 bg-opacity-50 dark:bg-zinc-900 dark:bg-opacity-75">
+        <div className="fixed inset-0 z-50 h-full w-full overflow-y-auto bg-zinc-600/50 dark:bg-zinc-900/75">
           <div className="relative top-20 mx-auto w-96 rounded-md border border-zinc-200 bg-white p-5 shadow-lg dark:border-zinc-700 dark:bg-zinc-800">
             <div className="mt-3">
               <h3 className="mb-4 text-lg font-medium text-zinc-900 dark:text-zinc-100">
@@ -1467,7 +1467,7 @@ export function OrganizationsTab() {
       )}
 
       {showBulkInviteModal && (
-        <div className="fixed inset-0 z-[60] h-full w-full overflow-y-auto bg-zinc-600 bg-opacity-50 dark:bg-zinc-900 dark:bg-opacity-75">
+        <div className="fixed inset-0 z-60 h-full w-full overflow-y-auto bg-zinc-600/50 dark:bg-zinc-900/75">
           <div className="relative top-20 mx-auto w-96 rounded-md border border-zinc-200 bg-white p-5 shadow-lg dark:border-zinc-700 dark:bg-zinc-800">
             <div className="mt-3">
               <h3 className="mb-4 text-lg font-medium text-zinc-900 dark:text-zinc-100">
