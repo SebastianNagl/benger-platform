@@ -208,7 +208,9 @@ test.describe('Mobile Annotation Workflow', () => {
 
       // Should save locally or show offline indicator
       const offlineIndicator = await page
-        .locator('[data-testid="offline"], text=/offline|no connection/i')
+        .locator('[data-testid="offline"]')
+        .or(page.getByText(/offline|no connection/i))
+        .first()
         .isVisible({ timeout: 5000 })
         .catch(() => false)
 
@@ -218,9 +220,10 @@ test.describe('Mobile Annotation Workflow', () => {
       // Should sync automatically
       if (offlineIndicator) {
         await page
-          .waitForSelector('[data-testid="online"], text=/synced|connected/i', {
-            timeout: 10000,
-          })
+          .locator('[data-testid="online"]')
+          .or(page.getByText(/synced|connected/i))
+          .first()
+          .waitFor({ state: 'visible', timeout: 10000 })
           .catch(() => {})
       }
 

@@ -37,10 +37,11 @@ test.describe('Annotation Comparison Workflow', () => {
         await page.waitForTimeout(2000)
       }
 
-      // Look for annotation count column or indicators
-      const annotationCountElements = page.locator(
-        '[data-testid="annotation-count"], .annotation-count, td:has-text(/\\d+ annotations?/i)'
-      )
+      // Look for annotation count column or indicators. Regexes are not
+      // valid inside CSS `:has-text()`; use a filter for the text match.
+      const annotationCountElements = page
+        .locator('[data-testid="annotation-count"], .annotation-count')
+        .or(page.locator('td').filter({ hasText: /\d+ annotations?/i }))
 
       const pageContent = await page.content()
       // Seeded data has 2-4 annotations per task
@@ -71,9 +72,9 @@ test.describe('Annotation Comparison Workflow', () => {
       }
 
       // Look for annotator badges or names
-      const annotatorElements = page.locator(
-        '[data-testid="annotator-badge"], .annotator-name, text=/admin/i, text=/contributor/i, text=/annotator/i'
-      )
+      const annotatorElements = page
+        .locator('[data-testid="annotator-badge"], .annotator-name')
+        .or(page.getByText(/admin|contributor|annotator/i))
 
       const pageContent = await page.content()
       // Check for annotator names from seeded data
@@ -118,9 +119,7 @@ test.describe('Annotation Comparison Workflow', () => {
         const modal = page.locator(
           '[role="dialog"], .modal, [data-testid="annotation-comparison-modal"], [data-testid="task-detail"]'
         )
-        const detailView = page.locator(
-          'text=/annotation/i, text=/comparison/i'
-        )
+        const detailView = page.getByText(/annotation|comparison/i)
 
         const hasDetailView =
           (await modal.count()) > 0 || (await detailView.count()) > 0

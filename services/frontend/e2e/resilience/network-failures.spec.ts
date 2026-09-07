@@ -71,9 +71,10 @@ test.describe('Network Failure Recovery', () => {
       }
 
       // Should show offline indicator or error
-      const offlineIndicator = page.locator(
-        '[data-testid="offline-indicator"], text=/offline|connection|verbindung/i'
-      )
+      const offlineIndicator = page
+        .locator('[data-testid="offline-indicator"]')
+        .or(page.getByText(/offline|connection|verbindung/i))
+        .first()
       const errorMessage = page.locator(
         '[data-testid="error-message"], .error, .alert'
       )
@@ -86,9 +87,10 @@ test.describe('Network Failure Recovery', () => {
       expect(hasIndication).toBeTruthy()
 
       // Check if data is queued for retry
-      const pendingSync = page.locator(
-        '[data-testid="pending-sync"], text=/pending|wartend|retry/i'
-      )
+      const pendingSync = page
+        .locator('[data-testid="pending-sync"]')
+        .or(page.getByText(/pending|wartend|retry/i))
+        .first()
       const hasPending = await pendingSync
         .isVisible({ timeout: 5000 })
         .catch(() => false)
@@ -100,12 +102,10 @@ test.describe('Network Failure Recovery', () => {
       if (hasPending) {
         // Wait for auto-sync
         await page
-          .waitForSelector(
-            '[data-testid="sync-success"], text=/saved|gespeichert|synced/i',
-            {
-              timeout: 15000,
-            }
-          )
+          .locator('[data-testid="sync-success"]')
+          .or(page.getByText(/saved|gespeichert|synced/i))
+          .first()
+          .waitFor({ state: 'visible', timeout: 15000 })
           .catch(() => {
             // If no auto-sync, try manual save
             saveButton.click()
@@ -311,9 +311,10 @@ test.describe('Network Failure Recovery', () => {
         // Draft might be preserved in localStorage or shown in a recovery prompt
         if (restoredText !== draftText) {
           // Check for draft recovery prompt
-          const draftRecovery = page.locator(
-            '[data-testid="draft-recovery"], text=/draft|entwurf|restore|wiederherstellen/i'
-          )
+          const draftRecovery = page
+            .locator('[data-testid="draft-recovery"]')
+            .or(page.getByText(/draft|entwurf|restore|wiederherstellen/i))
+            .first()
           const hasDraftRecovery = await draftRecovery
             .isVisible({ timeout: 5000 })
             .catch(() => false)
