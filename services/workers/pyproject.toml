@@ -27,14 +27,17 @@ dependencies = [
     # break the image build. Bounds are aligned by hand; a CI drift-check (à la
     # scripts/check_model_catalog_drift.py) is the structural follow-up.
     "celery==5.6.3",
-    "redis>=5.0.0,<5.4.0",
-    "cryptography>=43.0.0,<47.0.0",  # floor aligned with api; <47 cap rationale in services/api/pyproject.toml
+    "redis>=6.4.0,<6.5.0",  # kombu 5.6 caps redis at <6.5
+    "cryptography>=46.0.0,<51.0.0",  # bounds aligned with api
     "PyJWT[crypto]>=2.8.0,<2.14.0",  # bounds aligned with api; LTI 1.3 AGS token client (extended workers)
     "psycopg2-binary>=2.9.10",
     "sqlalchemy>=2.0.49",
     "python-dotenv==1.2.3",
     "httpx==0.28.1",
-    "transformers>=4.57.6",  # Required by sentence-transformers>=3.2.0 for ONNX support
+    # transformers 5 / sentence-transformers 6 are BLOCKED by optimum: the
+    # ONNX backend (optimum[onnxruntime] -> optimum-onnx 0.1.0) pins
+    # transformers<4.58. Re-check when optimum-onnx supports transformers 5.
+    "transformers>=4.57.6,<4.58",
     "sentencepiece>=0.2.1",  # Required by T5Tokenizer for QAGS
     "tiktoken>=0.13.0",  # Required by AlbertTokenizer for SummaC/ViTC
     "torch>=2.12.0,<2.14.0",
@@ -66,18 +69,18 @@ dependencies = [
     # storage singleton falls back to local filesystem (issue #158).
     "boto3>=1.35.0",
     "botocore>=1.43.11",
-    "pytest==8.4.2",
-    "pytest-asyncio==0.26.0",
+    "pytest==9.1.1",
+    "pytest-asyncio==1.4.0",
     # AI service dependencies
-    "openai==1.109.1",
-    "anthropic==0.125.0",
+    "openai==3.8.0",
+    "anthropic==1.4.0",
     "google-genai>=1.75.0",
     "mistralai>=1.12.4",  # Mistral AI models
     "cohere>=5.21.1",  # Cohere models
     "aiohttp==3.14.3",
     # Neural metrics (GPU on-demand)
     "bert-score>=0.3.13",
-    "sentence-transformers>=3.2.0",  # Updated for ONNX backend support
+    "sentence-transformers>=5.7.0,<6",  # v6 needs transformers 5 (blocked, see above)
     "moverscore>=1.0.3",
     # pyemd - removed: metadata version mismatch with uv, POT is preferred on all platforms
     # summac removed - conflicts with transformers>=4.57.6 (requires huggingface-hub<=0.17.0)

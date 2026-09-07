@@ -16,12 +16,15 @@ dependencies = [
     "pydantic==2.13.4",
     "python-multipart==0.0.32",
     "PyJWT[crypto]==2.13.0",
-    "cryptography>=43.0.0,<47.0.0",
-    "bcrypt==4.3.0",
+    "cryptography>=46.0.0,<51.0.0",
+    # bcrypt 5 raises on >72-byte passwords instead of silently truncating;
+    # auth hashes via bcrypt directly (no passlib).
+    "bcrypt==5.0.0",
     "python-dotenv==1.2.3",
     "httpx==0.28.1",
     "celery==5.6.3",
-    "redis==5.3.1",
+    # redis-py 7/8 are held back by kombu 5.6 (`redis<6.5` on its extra).
+    "redis==6.4.0",
     "sqlalchemy==2.0.52",
     "psycopg2-binary==2.9.12",
     # asyncpg is the asyncio Postgres driver for the new async engine
@@ -32,8 +35,11 @@ dependencies = [
     "email-validator==2.3.0",
     # starlette version is managed by fastapi
     "anyio==4.14.2",
-    "openai==1.109.1",
-    "anthropic==0.125.0",
+    # openai 3.x / anthropic 1.x speak httpx2 and verify TLS against the OS
+    # trust store (python:*-slim ships ca-certificates). anthropic 1.0 moved
+    # temperature to extra_body — see shared/ai_services/anthropic_service.py.
+    "openai==3.8.0",
+    "anthropic==1.4.0",
     "google-genai>=1.0.0",
     # tiktoken powers the prompt-token count in services/api/services/
     # token_estimation.py — without it the cost estimator falls back to
@@ -63,7 +69,7 @@ dependencies = [
     "numpy>=1.24.0",
     "scipy>=1.11.0",
     # SSE for real-time streaming
-    "sse-starlette==2.4.1",
+    "sse-starlette==3.4.11",
     # zstandard decodes the newest Anki .apkg form (collection.anki21b is a
     # zstd-compressed SQLite collection) for the flashcard import IR
     # (services/shared/anki, issue #35). The api Dockerfile installs from
@@ -77,7 +83,9 @@ dependencies = [
     # become editable exam-field text. api-only.
     "mammoth>=1.6,<2.0",
     "pdfplumber>=0.10,<1.0",
-    "stripe>=11.0.0,<15.0.0",  # Vertretbar billing (extended-only; community never imports)
+    # Vertretbar billing (extended-only; community never imports). stripe 15
+    # made StripeObject non-dict: extended reads fields via _stripe_compat.get.
+    "stripe>=15.0.0,<16.0.0",
 ]
 
 [project.optional-dependencies]

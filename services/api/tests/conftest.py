@@ -9,7 +9,6 @@ Fixtures are organized in tests/fixtures/:
   - mocks.py:      mock_celery, mock_redis (autouse), mock_redis_async
 """
 
-import asyncio
 import os
 import sys
 from typing import Generator
@@ -68,12 +67,3 @@ pytest_plugins = [
     "tests.fixtures.evaluation",
     "tests.fixtures.mocks",
 ]
-
-
-@pytest.fixture(scope="session")
-def event_loop() -> Generator[asyncio.AbstractEventLoop, None, None]:
-    """Create an instance of the default event loop for the test session."""
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    yield loop
-    loop.close()
