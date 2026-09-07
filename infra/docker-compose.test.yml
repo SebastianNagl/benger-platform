@@ -484,7 +484,7 @@ services:
       test-redis:
         condition: service_healthy
     entrypoint: ["/bin/sh", "-c"]
-    command: ["pip install -q -r requirements-test.txt && pytest tests/ -v --tb=short --maxfail=10 --ignore=tests/e2e"]
+    command: ["pip install -q -r requirements-test.txt && pytest tests/ -n auto -v --tb=short --maxfail=10 --ignore=tests/e2e"]
     networks:
       - benger-test-network
     profiles:

@@ -13,7 +13,7 @@ requires-python = ">=3.13"
 dependencies = [
     "fastapi==0.141.1",
     "uvicorn[standard]==0.52.4",
-    "pydantic==2.13.4",
+    "pydantic==2.13.5",
     "python-multipart==0.0.32",
     "PyJWT[crypto]==2.13.0",
     "cryptography>=46.0.0,<51.0.0",
@@ -31,10 +31,10 @@ dependencies = [
     # (database.async_engine). 0.30.x verified against PG 18.3 on prod
     # (Bitnami/Broadcom Photon rebuild) via 2026-05-18 pre-flight.
     "asyncpg==0.31.0",
-    "alembic==1.19.1",
+    "alembic==1.19.2",
     "email-validator==2.3.0",
     # starlette version is managed by fastapi
-    "anyio==4.14.2",
+    "anyio==4.15.1",
     # openai 3.x / anthropic 1.x speak httpx2 and verify TLS against the OS
     # trust store (python:*-slim ships ca-certificates). anthropic 1.0 moved
     # temperature to extra_body — see shared/ai_services/anthropic_service.py.

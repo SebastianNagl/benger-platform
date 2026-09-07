@@ -433,10 +433,10 @@ test-api: ## Run API tests only (use GREP="pattern" to filter, FILE="path" to ta
 	@echo "$(BLUE)🔍 Running API tests...$(NC)"
 ifdef GREP
 	@$(DOCKER_COMPOSE_TEST) --profile test run --rm test-api-runner \
-		"pip install -q -r requirements-test.txt && pytest $(if $(FILE),$(FILE),tests/) -v --tb=short --maxfail=10 --ignore=tests/e2e $(API_COV_FLAGS) -k '$(GREP)'"
+		"pip install -q -r requirements-test.txt && pytest -n auto $(if $(FILE),$(FILE),tests/) -v --tb=short --maxfail=10 --ignore=tests/e2e $(API_COV_FLAGS) -k '$(GREP)'"
 else ifdef FILE
 	@$(DOCKER_COMPOSE_TEST) --profile test run --rm test-api-runner \
-		"pip install -q -r requirements-test.txt && pytest $(FILE) -v --tb=short --maxfail=10 --ignore=tests/e2e $(API_COV_FLAGS)"
+		"pip install -q -r requirements-test.txt && pytest -n auto $(FILE) -v --tb=short --maxfail=10 --ignore=tests/e2e $(API_COV_FLAGS)"
 else
 	@$(DOCKER_COMPOSE_TEST) --profile test run --rm test-api-runner
 endif

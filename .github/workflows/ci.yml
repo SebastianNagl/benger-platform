@@ -22,9 +22,15 @@ permissions:
 
 jobs:
   frontend-tests:
-    name: Frontend Tests
+    # 777 suites / ~17k tests take ~12 min on one runner; three shards bring
+    # the job to ~5 min. Jest's --shard splits by suite, deterministically.
+    name: Frontend Tests (${{ matrix.shard }}/3)
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
     steps:
       - uses: actions/checkout@v7
 
@@ -41,10 +47,11 @@ jobs:
       # The tree was reformatted in one commit (see .git-blame-ignore-revs);
       # this keeps it that way. `npx prettier --write .` fixes a red run.
       - name: Prettier format check
+        if: matrix.shard == 1
         run: cd services/frontend && npx prettier --check .
 
       - name: Run Jest tests
-        run: cd services/frontend && npm test -- --ci --passWithNoTests
+        run: cd services/frontend && npm test -- --ci --passWithNoTests --shard=${{ matrix.shard }}/3
 
   python-checks:
     name: Python Lint
