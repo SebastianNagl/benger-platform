@@ -98,6 +98,45 @@ class TestHealthEndpoints:
             data = response.json()
             assert data["redis"] == "unavailable"
 
+    def test_health_redis_reconnects_after_first_boot_race(self, client):
+        """Redis that came up AFTER the api's import-time connect is retried.
+
+        On a fresh environment the cache singleton's one-shot connect can fail
+        (Redis pod not ready yet); /health must call reconnect() and report
+        healthy once that succeeds instead of 503-ing for the pod's lifetime.
+        """
+        from database import get_async_db
+
+        async def override_async_db():
+            mock_db = AsyncMock()
+            mock_db.execute = AsyncMock(return_value=Mock())
+            yield mock_db
+
+        app.dependency_overrides[get_async_db] = override_async_db
+        try:
+            mock_redis = Mock()
+            mock_redis.ping.return_value = True
+            with patch("services.redis_cache.cache") as mock_cache, \
+                 patch("celery_client.get_celery_app") as mock_get_app:
+                mock_cache.is_available = False
+                mock_cache.redis_client = None
+
+                def _reconnect():
+                    mock_cache.is_available = True
+                    mock_cache.redis_client = mock_redis
+                    return True
+
+                mock_cache.reconnect.side_effect = _reconnect
+                mock_get_app.return_value.control.inspect.return_value.ping.return_value = {
+                    "celery@w": {"ok": "pong"}
+                }
+                response = client.get("/health")
+                assert response.status_code == status.HTTP_200_OK
+                assert response.json()["redis"] == "connected"
+                mock_cache.reconnect.assert_called_once()
+        finally:
+            app.dependency_overrides.clear()
+
     def test_health_redis_ping_error(self, client):
         """Test /health with Redis ping error returns 503 + 'unhealthy'.
         Redis is a required dep — failure means K8s must evict (`unhealthy`
