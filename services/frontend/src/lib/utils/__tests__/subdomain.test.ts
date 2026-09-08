@@ -15,6 +15,7 @@ import {
   getOrgUrl,
   getPrivateUrl,
   getSisterHostUrl,
+  isDemoHost,
   isStudentLockedHost,
   parseSubdomain,
   parseSubdomainFromHost,
@@ -29,6 +30,9 @@ describe('getSisterHostUrl (benger <-> vertretbar cross-link)', () => {
     ['vertretbar.net', 'https://what-a-benger.net'],
     ['www.vertretbar.net', 'https://what-a-benger.net'],
     ['staging.vertretbar.net', 'https://staging.what-a-benger.net'],
+    ['demo.what-a-benger.net', 'https://demo.vertretbar.net'],
+    ['demo-uni.demo.what-a-benger.net', 'https://demo.vertretbar.net'],
+    ['demo.vertretbar.net', 'https://demo.what-a-benger.net'],
     ['WHAT-A-BENGER.NET', 'https://vertretbar.net'],
     ['benger.localhost', 'http://vertretbar.localhost'],
     ['benger.localhost:3000', 'http://vertretbar.localhost:3000'],
@@ -54,6 +58,7 @@ describe('isStudentLockedHost (vertretbar)', () => {
     'vertretbar.net',
     'www.vertretbar.net',
     'staging.vertretbar.net',
+    'demo.vertretbar.net',
     'vertretbar.localhost',
     'VERTRETBAR.NET',
     'vertretbar.net:3000',
@@ -66,6 +71,7 @@ describe('isStudentLockedHost (vertretbar)', () => {
     '',
     'what-a-benger.net',
     'staging.what-a-benger.net',
+    'demo.what-a-benger.net',
     'benger.localhost',
     'notvertretbar.net',
     'vertretbar.net.evil.com',
@@ -76,6 +82,35 @@ describe('isStudentLockedHost (vertretbar)', () => {
   it('returns false for null/undefined', () => {
     expect(isStudentLockedHost(null)).toBe(false)
     expect(isStudentLockedHost(undefined)).toBe(false)
+  })
+})
+
+describe('isDemoHost (demo environment)', () => {
+  it.each([
+    'demo.what-a-benger.net',
+    'demo-uni.demo.what-a-benger.net',
+    'demo.vertretbar.net',
+    'DEMO.WHAT-A-BENGER.NET',
+    'demo.what-a-benger.net:443',
+  ])('recognises %s', (host) => {
+    expect(isDemoHost(host)).toBe(true)
+  })
+
+  it.each([
+    '',
+    'what-a-benger.net',
+    'demo.what-a-benger.net.evil.com',
+    'staging.what-a-benger.net',
+    'vertretbar.net',
+    'benger.localhost',
+    'notdemo.what-a-benger.net',
+  ])('does not treat %s as demo', (host) => {
+    expect(isDemoHost(host)).toBe(false)
+  })
+
+  it('falls back to window.location (jsdom localhost is not demo)', () => {
+    expect(isDemoHost()).toBe(false)
+    expect(isDemoHost(null)).toBe(false)
   })
 })
 
@@ -220,6 +255,21 @@ describe('getCookieDomainFromHost', () => {
   it('returns .staging.vertretbar.net for the vertretbar staging apex', () => {
     expect(getCookieDomainFromHost('staging.vertretbar.net')).toBe(
       '.staging.vertretbar.net',
+    )
+  })
+
+  // Demo environment: the multi-level apex must win over what-a-benger.net so
+  // the auth cookie is scoped to .demo.what-a-benger.net (org subdomains
+  // included) and never leaks to prod.
+  it('returns .demo.what-a-benger.net for the demo apex and its org subdomains', () => {
+    expect(getCookieDomainFromHost('demo.what-a-benger.net')).toBe(
+      '.demo.what-a-benger.net',
+    )
+    expect(getCookieDomainFromHost('demo-uni.demo.what-a-benger.net')).toBe(
+      '.demo.what-a-benger.net',
+    )
+    expect(getCookieDomainFromHost('demo.vertretbar.net')).toBe(
+      '.demo.vertretbar.net',
     )
   })
 

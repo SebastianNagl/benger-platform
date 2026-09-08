@@ -26,7 +26,7 @@ if _jwt_env:
     SECRET_KEY = _jwt_env
 else:
     SECRET_KEY = secrets.token_urlsafe(32)
-    if os.getenv("ENVIRONMENT", "").lower() in ("production", "staging") or os.getenv("PYTEST_CURRENT_TEST") is None:
+    if os.getenv("ENVIRONMENT", "").lower() in ("production", "staging", "demo") or os.getenv("PYTEST_CURRENT_TEST") is None:
         # PYTEST_CURRENT_TEST is set by pytest only during a test run; outside
         # of tests, missing JWT secret in any environment is loud-bad.
         logger.critical(

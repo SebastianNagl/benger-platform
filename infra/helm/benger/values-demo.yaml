@@ -1,0 +1,413 @@
+# Demo-environment values for BenGER / Vertretbar (demo.what-a-benger.net).
+#
+# A third release next to prod and staging, deployed in lockstep with prod by
+# the extended repo's deploy-demo job (always the prod images, never a PR
+# build). It holds ONLY synthetic / self-authored showcase content plus fixed
+# self-serve demo accounts, and is reset every night from a golden snapshot
+# (see templates/cronjob-demo-reset.yaml and the demoReset block below).
+#
+# Use with: helm upgrade --install benger-demo . -n benger-demo \
+#             -f values.yaml -f values-demo.yaml -f <extended>/infra/helm/values-extended.yaml
+#
+# PRE-REQUISITES in the benger-demo namespace (same shape as staging):
+#   ghcr-secret, benger-postgres-credentials (host/port/username/password/
+#   database/uri), benger-redis-credentials (uri + password),
+#   benger-api-secrets (secret_key/encryption_key — fresh, never prod's),
+#   benger-llm-credentials (a DEDICATED OpenAI key with a hard spend cap),
+#   benger-minio-credentials (access-key/secret-key), optional
+#   benger-email-config. DNS: demo + *.demo + api.demo + storage.demo
+#   .what-a-benger.net (Cloudflare, DNS-01 wildcard) and demo.vertretbar.net
+#   (Namecheap, HTTP-01 apex).
+
+global:
+  environment: demo
+  domain: demo.what-a-benger.net
+  tlsSecretName: benger-demo-tls
+
+api:
+  replicaCount: 1
+  resources:
+    limits:
+      cpu: 1
+      memory: 2Gi
+    requests:
+      cpu: 200m
+      memory: 512Mi
+  env:
+    - name: ENVIRONMENT
+      value: "demo"
+    # Vertretbar org in the DEMO DB — onboarding + billing scope. Fill in after
+    # seeding the demo content (select id from organizations where ...). Kept
+    # here (not just base values.yaml) because api/workers env REPLACES base.
+    - name: VERTRETBAR_ORG_ID
+      value: ""
+    # Host list mirrored from the frontend STUDENT_LOCKED_DOMAINS; the demo
+    # apex must be here or a demo.vertretbar.net signup onboards as BenGER.
+    - name: VERTRETBAR_HOSTS
+      value: "vertretbar.net,staging.vertretbar.net,demo.vertretbar.net,vertretbar.localhost"
+    # Tiered grading (mirrors base values.yaml). No benger-billing-secrets
+    # Secret exists in benger-demo on purpose, so billing stays a no-op and the
+    # free-tier judge grades every demo exam.
+    - name: BILLING_PROVIDER
+      value: "stripe"
+    - name: VERTRETBAR_FREE_GRADINGS_PER_WEEK
+      value: "1"
+    - name: VERTRETBAR_PER_GRADING_PRICE_CENTS
+      value: "100"
+    - name: VERTRETBAR_FLASHCARD_BILLABLE
+      value: "false"
+    - name: STRIPE_METER_EVENT_NAME
+      value: "exam_grading"
+    - name: STRIPE_SECRET_KEY
+      valueFrom:
+        secretKeyRef:
+          name: benger-billing-secrets
+          key: stripe_secret_key
+          optional: true
+    - name: STRIPE_WEBHOOK_SECRET
+      valueFrom:
+        secretKeyRef:
+          name: benger-billing-secrets
+          key: stripe_webhook_secret
+          optional: true
+    - name: STRIPE_PRICE_BASE
+      valueFrom:
+        secretKeyRef:
+          name: benger-billing-secrets
+          key: stripe_price_base
+          optional: true
+    - name: STRIPE_PRICE_METERED
+      valueFrom:
+        secretKeyRef:
+          name: benger-billing-secrets
+          key: stripe_price_metered
+          optional: true
+    - name: FRONTEND_URL
+      value: "https://demo.what-a-benger.net"
+    - name: DATABASE_URI
+      valueFrom:
+        secretKeyRef:
+          name: benger-postgres-credentials
+          key: uri
+    - name: REDIS_URI
+      valueFrom:
+        secretKeyRef:
+          name: benger-redis-credentials
+          key: uri
+    - name: SECRET_KEY
+      valueFrom:
+        secretKeyRef:
+          name: benger-api-secrets
+          key: secret_key
+    - name: JWT_SECRET_KEY
+      valueFrom:
+        secretKeyRef:
+          name: benger-api-secrets
+          key: secret_key
+    - name: ENCRYPTION_KEY
+      valueFrom:
+        secretKeyRef:
+          name: benger-api-secrets
+          key: encryption_key
+    - name: LOG_LEVEL
+      value: "DEBUG"
+    - name: SCHEMA_VALIDATION_MODE
+      value: "strict"
+    # SendGrid configuration for demo
+    # Note: Using production domain (what-a-benger.net) as it's verified in SendGrid
+    # Emails will show "BenGER Demo" as sender name to differentiate
+    - name: SENDGRID_API_KEY
+      valueFrom:
+        secretKeyRef:
+          name: benger-email-config
+          key: SENDGRID_API_KEY
+          optional: true
+    - name: EMAIL_FROM_ADDRESS
+      value: "noreply@what-a-benger.net"  # Using verified domain
+    - name: EMAIL_FROM_NAME
+      value: "BenGER Demo"
+    - name: EMAIL_ENABLED
+      value: "true"
+    - name: MAIL_ENABLED
+      value: "true"
+    - name: COOKIE_DOMAIN
+      value: ".demo.what-a-benger.net"
+  ingress:
+    annotations:
+      traefik.ingress.kubernetes.io/router.priority: "200"
+    hosts:
+      - host: api.demo.what-a-benger.net
+        paths:
+          - path: /
+            pathType: Prefix
+    tls:
+      - secretName: benger-demo-tls
+        hosts:
+          - api.demo.what-a-benger.net
+
+workers:
+  replicaCount: 1
+  concurrency: 2  # Reduce worker processes for demo
+  resources:
+    limits:
+      cpu: 500m
+      memory: 1Gi
+    requests:
+      cpu: 100m
+      memory: 512Mi
+  env:
+    - name: ENVIRONMENT
+      value: "demo"
+    # Vertretbar org in the DEMO DB — onboarding + billing scope. Fill in after
+    # seeding the demo content (select id from organizations where ...). Kept
+    # here (not just base values.yaml) because api/workers env REPLACES base.
+    - name: VERTRETBAR_ORG_ID
+      value: ""
+    # Host list mirrored from the frontend STUDENT_LOCKED_DOMAINS; the demo
+    # apex must be here or a demo.vertretbar.net signup onboards as BenGER.
+    - name: VERTRETBAR_HOSTS
+      value: "vertretbar.net,staging.vertretbar.net,demo.vertretbar.net,vertretbar.localhost"
+    # Tiered grading (mirrors base values.yaml). No benger-billing-secrets
+    # Secret exists in benger-demo on purpose, so billing stays a no-op and the
+    # free-tier judge grades every demo exam.
+    - name: BILLING_PROVIDER
+      value: "stripe"
+    - name: VERTRETBAR_FREE_GRADINGS_PER_WEEK
+      value: "1"
+    - name: VERTRETBAR_PER_GRADING_PRICE_CENTS
+      value: "100"
+    - name: VERTRETBAR_FLASHCARD_BILLABLE
+      value: "false"
+    - name: STRIPE_METER_EVENT_NAME
+      value: "exam_grading"
+    - name: STRIPE_SECRET_KEY
+      valueFrom:
+        secretKeyRef:
+          name: benger-billing-secrets
+          key: stripe_secret_key
+          optional: true
+    - name: STRIPE_WEBHOOK_SECRET
+      valueFrom:
+        secretKeyRef:
+          name: benger-billing-secrets
+          key: stripe_webhook_secret
+          optional: true
+    - name: STRIPE_PRICE_BASE
+      valueFrom:
+        secretKeyRef:
+          name: benger-billing-secrets
+          key: stripe_price_base
+          optional: true
+    - name: STRIPE_PRICE_METERED
+      valueFrom:
+        secretKeyRef:
+          name: benger-billing-secrets
+          key: stripe_price_metered
+          optional: true
+    - name: FRONTEND_URL
+      value: "https://demo.what-a-benger.net"
+    - name: DATABASE_URI
+      valueFrom:
+        secretKeyRef:
+          name: benger-postgres-credentials
+          key: uri
+    - name: REDIS_URI
+      valueFrom:
+        secretKeyRef:
+          name: benger-redis-credentials
+          key: uri
+    - name: SECRET_KEY
+      valueFrom:
+        secretKeyRef:
+          name: benger-api-secrets
+          key: secret_key
+    - name: JWT_SECRET_KEY
+      valueFrom:
+        secretKeyRef:
+          name: benger-api-secrets
+          key: secret_key
+    - name: ENCRYPTION_KEY
+      valueFrom:
+        secretKeyRef:
+          name: benger-api-secrets
+          key: encryption_key
+    - name: OPENAI_API_KEY
+      valueFrom:
+        secretKeyRef:
+          name: benger-llm-credentials
+          key: openai_api_key
+    - name: ANTHROPIC_API_KEY
+      valueFrom:
+        secretKeyRef:
+          name: benger-llm-credentials
+          key: anthropic_api_key
+    # SendGrid configuration for workers
+    - name: SENDGRID_API_KEY
+      valueFrom:
+        secretKeyRef:
+          name: benger-email-config
+          key: SENDGRID_API_KEY
+          optional: true
+    - name: EMAIL_FROM_ADDRESS
+      valueFrom:
+        secretKeyRef:
+          name: benger-email-config
+          key: EMAIL_FROM_ADDRESS
+          optional: true
+    - name: EMAIL_FROM_NAME
+      valueFrom:
+        secretKeyRef:
+          name: benger-email-config
+          key: EMAIL_FROM_NAME
+          optional: true
+    - name: EMAIL_ENABLED
+      value: "true"
+    - name: MAIL_ENABLED
+      value: "true"
+
+# Demo sizing for the interactive/aux worker pools (same as staging). Because workerPools is a
+# MAP, this merges key-by-key with the base values: `queues`, `concurrency`,
+# `prefetchMultiplier` and `enabled` are inherited and must NOT be restated here
+# (unlike workers.env above, which is a list and therefore REPLACES the base).
+#
+# Sizing floor is set by the PROBES, not the workers: every liveness/readiness
+# exec spawns `celery -A tasks inspect ping`, which re-imports all of tasks.py
+# (~0.5Gi transient, 15-20s at full CPU) inside the pod's cgroup. The first
+# 512Mi/300m attempt OOMKilled both pools on the probe alone (2026-07-28) —
+# the worker booted to `ready.` and then died exit 137. Keep limits at
+# probe-import + worker parent, and CPU high enough that the import beats the
+# probe timeout.
+workerPools:
+  fast:
+    replicaCount: 1
+    resources:
+      limits:
+        cpu: 1000m
+        memory: 1Gi
+      requests:
+        cpu: 100m
+        memory: 256Mi
+  aux:
+    replicaCount: 1
+    resources:
+      limits:
+        cpu: 500m
+        memory: 768Mi
+      requests:
+        cpu: 50m
+        memory: 192Mi
+
+frontend:
+  replicaCount: 1
+  resources:
+    limits:
+      cpu: 500m
+      memory: 1Gi
+    requests:
+      cpu: 100m
+      memory: 512Mi
+  env:
+    - name: NEXT_PUBLIC_API_URL
+      value: "https://api.demo.what-a-benger.net"
+    - name: INTERNAL_API_URL
+      value: "http://benger-demo-api:8000"
+  ingress:
+    annotations:
+      traefik.ingress.kubernetes.io/router.priority: "150"
+    hosts:
+      - host: demo.what-a-benger.net
+        paths:
+          - path: /
+            pathType: Prefix
+      - host: "*.demo.what-a-benger.net"
+        paths:
+          - path: /
+            pathType: Prefix
+    tls:
+      - secretName: benger-demo-tls
+        hosts:
+          - demo.what-a-benger.net
+          - "*.demo.what-a-benger.net"
+
+# Database migrations configuration for demo
+# Migrations run as a Helm pre-upgrade/pre-install hook before deployments
+migrations:
+  enabled: true
+  # Lower resource limits for demo
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+
+# No rolling backups: the golden snapshot IS the backup of record for demo.
+backup:
+  enabled: false
+
+# Golden snapshot + nightly reset (templates/cronjob-demo-reset.yaml).
+#   nightly:  <release>-reset  restores /opt/benger-demo/golden/db.dump
+#   manual:   kubectl -n benger-demo create job --from=cronjob/benger-demo-snapshot snap-$(date +%s)
+#             kubectl -n benger-demo create job --from=cronjob/benger-demo-reset  reset-$(date +%s)
+# The extended repo's demo-ops workflow wraps both for one-click use.
+demoReset:
+  enabled: true
+  schedule: "0 4 * * *"
+  timeZone: "Europe/Berlin"
+  hostPath: "/opt/benger-demo/golden"
+  timeoutSeconds: 1800
+
+
+# MinIO object storage (issue #158). Deep-merges over values.yaml, which now
+# defaults enabled=true, so object storage deploys here too. Only the
+# demo-specific deltas live here (smaller PVC + shorter expiry than prod; the
+# demo host is covered by the *.demo.what-a-benger.net wildcard cert).
+# PRE-REQUISITE: the benger-minio-credentials Secret must exist in the
+# benger-demo namespace before deploy, or api/workers CrashLoop on the
+# missing secretKeyRef (see values.yaml minio block).
+minio:
+  publicHost: storage.demo.what-a-benger.net
+  expiryDays: 3
+  persistence:
+    size: 5Gi
+
+# Traefik middleware. noindex keeps the demo hosts (and their showcase
+# content) out of search engines — X-Robots-Tag on every response.
+middleware:
+  enabled: true
+  noindex: true
+  securityHeaders:
+    stsSeconds: 31536000
+    stsIncludeSubdomains: true
+    stsPreload: false
+
+# Vertretbar student apex on demo: demo.vertretbar.net. Its own HTTP-01 cert
+# (the *.demo.what-a-benger.net wildcard does not cover this apex).
+# PRE-REQUISITE: demo.vertretbar.net must resolve to the server so the cert can
+# issue.
+vertretbar:
+  enabled: true
+  host: demo.vertretbar.net
+  tlsSecretName: vertretbar-demo-tls
+  betaAuth:
+    enabled: false  # open demo; flip true (+ benger-beta-auth Secret) to password-lock the host
+# The subcharts read their passwords from the SAME pre-created Secrets the app
+# uses (staging/prod let the subchart generate one and then mirrored it by hand;
+# for demo the credential Secrets are created first, then the release). Keys:
+#   benger-postgres-credentials.password  → postgres superuser password
+#   benger-redis-credentials.password     → redis password (uri must embed it)
+postgresql:
+  auth:
+    existingSecret: benger-postgres-credentials
+    secretKeys:
+      adminPasswordKey: password
+      userPasswordKey: password
+
+redis:
+  auth:
+    existingSecret: benger-redis-credentials
+    existingSecretPasswordKey: password
+  # Demo doesn't need Redis HA - disable replicas
+  replica:
+    replicaCount: 0

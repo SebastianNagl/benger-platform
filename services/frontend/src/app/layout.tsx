@@ -1,4 +1,5 @@
 import { Providers } from '@/app/providers'
+import { DemoEnvBadge } from '@/components/demo/DemoEnvBadge'
 import { DevModeIndicator } from '@/components/dev/DevModeIndicator'
 import { ConditionalLayout } from '@/components/layout/ConditionalLayout'
 import { type Section } from '@/components/layout/SectionProvider'
@@ -126,6 +127,7 @@ export default function RootLayout({
             {children}
           </ConditionalLayout>
           <DevModeIndicator />
+          <DemoEnvBadge />
         </Providers>
       </body>
     </html>

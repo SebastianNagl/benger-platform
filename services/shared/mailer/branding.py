@@ -19,7 +19,12 @@ import os
 from dataclasses import dataclass
 
 # Mirror STUDENT_LOCKED_DOMAINS in the frontend subdomain util.
-_STUDENT_LOCKED_HOSTS = ("vertretbar.net", "staging.vertretbar.net", "vertretbar.localhost")
+_STUDENT_LOCKED_HOSTS = (
+    "vertretbar.net",
+    "staging.vertretbar.net",
+    "demo.vertretbar.net",
+    "vertretbar.localhost",
+)
 
 
 def is_student_locked_host(host: str | None) -> bool:
@@ -32,8 +37,8 @@ def is_student_locked_host(host: str | None) -> bool:
 
 def _url_from_host(host: str) -> str:
     """Browser-facing origin for a request host. Derived from the actual host so
-    a staging.vertretbar.net signup links back to staging (not prod) and dev to
-    localhost — https everywhere except *.localhost."""
+    a staging.vertretbar.net signup links back to staging (not prod), demo to
+    demo, and dev to localhost — https everywhere except *.localhost."""
     bare = host.split(":")[0].lower()
     scheme = "http" if (bare == "localhost" or bare.endswith(".localhost")) else "https"
     return f"{scheme}://{host}"
