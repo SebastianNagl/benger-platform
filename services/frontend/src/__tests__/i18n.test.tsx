@@ -441,7 +441,7 @@ describe('I18n Context and Translations', () => {
 })
 
 describe('Translation Coverage', () => {
-  it('should have matching keys in both English and German translations', () => {
+  it('should have matching keys in both English and German translations', async () => {
     // This test would need access to the actual translation files
     // For now, we'll test a subset of keys we know should exist
     const keysToTest = [
@@ -499,16 +499,18 @@ describe('Translation Coverage', () => {
       expect(element.textContent).not.toBe(key) // Should not return the key itself
     })
 
-    // Switch to English and check again
+    // Switch to English and check again. Wait for the re-render instead of
+    // a bare setTimeout: the timer used to fire after this test had finished
+    // (inside the next test's DOM), which failed the suite sporadically.
     fireEvent.click(screen.getByTestId('set-en'))
 
-    setTimeout(() => {
+    await waitFor(() => {
       keysToTest.forEach((key) => {
         const element = screen.getByTestId(`key-${key}-en`)
         expect(element.textContent).not.toBe('')
         expect(element.textContent).not.toBe(key) // Should not return the key itself
       })
-    }, 100)
+    })
   })
 })
 
