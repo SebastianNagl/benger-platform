@@ -20,7 +20,7 @@ services:
 
   # PostgreSQL Test Database (Ephemeral)
   test-db:
-    image: postgres:15-alpine
+    image: postgres:18-alpine
     hostname: test-db
     restart: unless-stopped
     ports:
@@ -41,8 +41,10 @@ services:
       - "-c"
       - "full_page_writes=off"
     # Ephemeral - no persistent volumes
+    # postgres:18+ keeps its data in a version subdirectory under
+    # /var/lib/postgresql and refuses a mount at the old .../data path.
     tmpfs:
-      - /var/lib/postgresql/data:size=2G
+      - /var/lib/postgresql:size=2G
     networks:
       - benger-test-network
     healthcheck:

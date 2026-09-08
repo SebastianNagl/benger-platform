@@ -545,6 +545,20 @@ postgresql:
 
 redis:
   enabled: true
+  image:
+    # PINNED (2026-09-08): bitnami/redis:7.0.12-debian-11-r0 has been DELETED
+    # from Docker Hub (Broadcom's Bitnami purge, same as the postgresql tag);
+    # prod ran it from the node's containerd cache only. The manifest list
+    # the pod was running (sha256:23289a4f…) was copied byte-identical into
+    # the project's GHCR via the extended repo's rescue-image workflow. Same
+    # pull secret as the app images (global.imagePullSecrets). Redis 7.0 is
+    # old; moving to a current Redis means a different chart, tracked as a
+    # follow-up — this pin only removes the pull-failure time bomb.
+    registry: ghcr.io
+    repository: sebastiannagl/benger-extended/redis
+    tag: "7.0.12-debian-11-r0"
+    digest: "sha256:23289a4f4765da46419590fb80d8803363b07e5783ef45396ff85c641db81a0e"
+    pullPolicy: IfNotPresent
   auth:
     enabled: true
     # password: # Generated automatically or set via external secrets
