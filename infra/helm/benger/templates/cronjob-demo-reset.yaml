@@ -22,6 +22,9 @@ golden DB references only objects that already exist, exports expire via the
 bucket lifecycle, and nothing deletes objects, so MinIO state stays valid across
 resets.
 
+The job image is alpine/k8s (kubectl on Alpine) — it needs a /bin/sh for the
+script below; rancher/kubectl is shell-less and fails with "stat /bin/sh".
+
 A reset that fails mid-way leaves the app scaled to zero on purpose — better a
 visibly down demo than one serving a half-restored database. Re-run the reset
 job (or `kubectl scale`) to recover.
@@ -137,7 +140,7 @@ spec:
             runAsUser: 0
           containers:
             - name: {{ $mode }}
-              image: {{ $.Values.demoReset.kubectlImage | default "rancher/kubectl:v1.34.9" | quote }}
+              image: {{ $.Values.demoReset.kubectlImage | default "alpine/k8s:1.34.9" | quote }}
               imagePullPolicy: IfNotPresent
               env:
                 - name: MODE
