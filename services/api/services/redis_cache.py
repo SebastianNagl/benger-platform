@@ -111,6 +111,19 @@ class RedisCache:
             logger.warning(f"⚠️ Redis cache not available: {e}")
             self.is_available = False
 
+    def reconnect(self) -> bool:
+        """Retry the initial connection and report whether the cache is usable.
+
+        The singleton connects once at import time. On a fresh install Redis
+        can come up AFTER the api process (first boot of a new environment),
+        which left ``is_available`` False for the pod's whole lifetime and
+        ``/health`` answering 503 until a manual restart. Callers that treat
+        the cache as required (the health check) call this before giving up.
+        """
+        if not self.is_available:
+            self._connect()
+        return self.is_available
+
     def get(self, key: str) -> Optional[Any]:
         """Get value from cache with error handling"""
         if not self.is_available:

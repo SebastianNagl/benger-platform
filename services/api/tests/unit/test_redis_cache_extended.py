@@ -29,6 +29,37 @@ class TestRedisCacheMethods:
         instance.is_available = False
         assert instance.get("key") is None
 
+    def test_reconnect_retries_only_when_unavailable(self):
+        """reconnect() re-runs _connect for a cache that never connected
+        (first-boot race: Redis up after the api) and is a no-op otherwise."""
+        from services.redis_cache import RedisCache
+
+        instance = RedisCache.__new__(RedisCache)
+        instance.redis_client = None
+        instance.is_available = False
+
+        def _connect_ok():
+            instance.redis_client = fakeredis.FakeStrictRedis(decode_responses=True)
+            instance.is_available = True
+
+        instance._connect = Mock(side_effect=_connect_ok)
+        assert instance.reconnect() is True
+        instance._connect.assert_called_once()
+
+        # Already available: no second connect attempt.
+        assert instance.reconnect() is True
+        instance._connect.assert_called_once()
+
+    def test_reconnect_reports_false_when_redis_still_down(self):
+        from services.redis_cache import RedisCache
+
+        instance = RedisCache.__new__(RedisCache)
+        instance.redis_client = None
+        instance.is_available = False
+        instance._connect = Mock()  # leaves is_available False
+        assert instance.reconnect() is False
+        instance._connect.assert_called_once()
+
     def test_get_returns_parsed_json(self, cache_instance):
         cache_instance.redis_client.set("test-key", json.dumps({"value": 42}))
         result = cache_instance.get("test-key")

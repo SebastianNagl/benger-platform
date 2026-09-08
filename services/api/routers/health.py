@@ -60,6 +60,11 @@ async def health(db: AsyncSession = Depends(get_async_db)):
     try:
         from services.redis_cache import cache
 
+        if not cache.is_available:
+            # First-boot race: Redis may have come up after the api's
+            # import-time connect. Retry once instead of reporting a dead
+            # cache for the rest of the pod's life.
+            cache.reconnect()
         if cache.is_available and cache.redis_client:
             cache.redis_client.ping()
             health_status["redis"] = "connected"
