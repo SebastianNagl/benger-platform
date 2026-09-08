@@ -36,11 +36,12 @@ api:
   env:
     - name: ENVIRONMENT
       value: "demo"
-    # Vertretbar org in the DEMO DB — onboarding + billing scope. Fill in after
-    # seeding the demo content (select id from organizations where ...). Kept
-    # here (not just base values.yaml) because api/workers env REPLACES base.
+    # Vertretbar org in the DEMO DB ("Vertretbar Demo", slug vertretbar-demo) —
+    # onboarding + billing scope for demo.vertretbar.net self-signups. Part of
+    # the golden snapshot, so the id is stable across resets. Kept here (not
+    # just base values.yaml) because api/workers env REPLACES base.
     - name: VERTRETBAR_ORG_ID
-      value: ""
+      value: "f92f24b4-5bc5-499b-a273-ac4829028881"
     # Host list mirrored from the frontend STUDENT_LOCKED_DOMAINS; the demo
     # apex must be here or a demo.vertretbar.net signup onboards as BenGER.
     - name: VERTRETBAR_HOSTS
@@ -150,7 +151,10 @@ workers:
   concurrency: 2  # Reduce worker processes for demo
   resources:
     limits:
-      cpu: 500m
+      # 1 CPU (staging: 500m): the readiness/liveness exec probe re-imports
+      # tasks.py (~15-20 s at full CPU); at 500m it timed out on first install
+      # and the bulk pod never became Ready.
+      cpu: 1000m
       memory: 1Gi
     requests:
       cpu: 100m
@@ -158,11 +162,12 @@ workers:
   env:
     - name: ENVIRONMENT
       value: "demo"
-    # Vertretbar org in the DEMO DB — onboarding + billing scope. Fill in after
-    # seeding the demo content (select id from organizations where ...). Kept
-    # here (not just base values.yaml) because api/workers env REPLACES base.
+    # Vertretbar org in the DEMO DB ("Vertretbar Demo", slug vertretbar-demo) —
+    # onboarding + billing scope for demo.vertretbar.net self-signups. Part of
+    # the golden snapshot, so the id is stable across resets. Kept here (not
+    # just base values.yaml) because api/workers env REPLACES base.
     - name: VERTRETBAR_ORG_ID
-      value: ""
+      value: "f92f24b4-5bc5-499b-a273-ac4829028881"
     # Host list mirrored from the frontend STUDENT_LOCKED_DOMAINS; the demo
     # apex must be here or a demo.vertretbar.net signup onboards as BenGER.
     - name: VERTRETBAR_HOSTS
