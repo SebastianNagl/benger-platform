@@ -38,7 +38,7 @@ export function NewsSection() {
             const content = (
               <Card
                 key={i}
-                className={`flex flex-col p-6${item.url ? 'transition-shadow hover:shadow-lg' : ''}`}
+                className={`flex h-full flex-col p-6 ${item.url ? 'transition-shadow hover:shadow-lg' : ''}`}
               >
                 <div className="mb-3">
                   <Badge
@@ -75,7 +75,7 @@ export function NewsSection() {
                   href={item.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="block"
+                  className="block h-full"
                 >
                   {content}
                 </a>

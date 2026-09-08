@@ -437,7 +437,7 @@ export default function RegisterPage() {
             value={formData.email}
             onChange={handleChange}
             disabled={isInvitedUser}
-            className={`${inputClassName}${isInvitedUser ? 'cursor-not-allowed bg-zinc-100 dark:bg-zinc-700' : ''}`}
+            className={`${inputClassName} ${isInvitedUser ? 'cursor-not-allowed bg-zinc-100 dark:bg-zinc-700' : ''}`}
             placeholder={t('register.emailPlaceholder')}
             data-testid="auth-register-email-input"
           />
