@@ -4197,6 +4197,8 @@
       "selectOrganization": "Select Organization",
       "apiKeys": "API Keys",
       "storageConnections": "Cloud Storage",
+      "more": "More",
+      "lmsIntegration": "Learning platform (LTI)",
       "customModelKeys": "Custom Model Keys",
       "groups": {
         "button": "Groups",

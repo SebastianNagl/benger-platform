@@ -7,7 +7,7 @@
  * mirroring the useSlot + useAuth mock pattern of src/app/admin/lti.
  */
 
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import React from 'react'
 
 // Mock Next.js navigation
@@ -109,11 +109,19 @@ const mockOrganizations = [
 const OrgLtiPanelStub = ({
   organizationId,
   organizationName,
+  open,
+  hideTrigger,
 }: {
   organizationId: string
   organizationName: string
+  open?: boolean
+  hideTrigger?: boolean
 }) => (
-  <div data-testid="org-lti-panel">
+  <div
+    data-testid="org-lti-panel"
+    data-open={String(Boolean(open))}
+    data-hide-trigger={String(Boolean(hideTrigger))}
+  >
     {organizationId}:{organizationName}
   </div>
 )
@@ -173,5 +181,38 @@ describe('OrganizationsTab OrgLtiPanel slot host', () => {
     )
     expect(mockUseSlot).toHaveBeenCalledWith('OrgLtiPanel')
     expect(screen.queryByTestId('org-lti-panel')).not.toBeInTheDocument()
+  })
+
+  it('mounts the slot trigger-less and opens it from the "Mehr" menu', async () => {
+    setupMocks()
+    render(<OrganizationsTab />)
+
+    const panel = await screen.findByTestId('org-lti-panel')
+    expect(panel).toHaveAttribute('data-hide-trigger', 'true')
+    expect(panel).toHaveAttribute('data-open', 'false')
+
+    fireEvent.click(screen.getByTestId('org-more-button'))
+    fireEvent.click(await screen.findByTestId('org-lti-button'))
+
+    await waitFor(() =>
+      expect(screen.getByTestId('org-lti-panel')).toHaveAttribute(
+        'data-open',
+        'true',
+      ),
+    )
+  })
+
+  it('keeps the storage item but offers no LTI item to non-superadmin org admins', async () => {
+    setupMocks({ user: regularUser })
+    render(<OrganizationsTab />)
+
+    await waitFor(() =>
+      expect(screen.getAllByText('Test Organization').length).toBeGreaterThan(
+        0,
+      ),
+    )
+    fireEvent.click(screen.getByTestId('org-more-button'))
+    await screen.findByTestId('org-storage-button')
+    expect(screen.queryByTestId('org-lti-button')).not.toBeInTheDocument()
   })
 })

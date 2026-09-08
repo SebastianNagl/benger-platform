@@ -29,7 +29,9 @@ import {
 import type { BulkInvitationCreate, InvitationCreate } from '@/lib/api/types'
 import { useSlot } from '@/lib/extensions/slots'
 import { UserOrganizationPermissions } from '@/lib/permissions/userOrganizationPermissions'
+import { Menu } from '@headlessui/react'
 import {
+  AcademicCapIcon,
   BuildingOfficeIcon,
   ChevronDownIcon,
   CloudIcon,
@@ -96,6 +98,7 @@ export function OrganizationsTab() {
   const [showStorageConnectionsModal, setShowStorageConnectionsModal] =
     useState(false)
   const [showGroupsModal, setShowGroupsModal] = useState(false)
+  const [showLtiPanel, setShowLtiPanel] = useState(false)
   const [isEditingOrg, setIsEditingOrg] = useState(false)
 
   // Form states
@@ -696,6 +699,10 @@ export function OrganizationsTab() {
     return Boolean(entry?.groups?.some((group) => group.is_group_admin))
   }, [organizations, selectedOrganization])
 
+  // LMS/LTI management is superadmin-only and lives in the extended edition
+  // (OrgLtiPanel slot); without the slot the menu item is not offered.
+  const showLtiMenuItem = Boolean(currentUser?.is_superadmin && OrgLtiPanel)
+
   // A group admin without org-admin rights may only invite into one of
   // their own groups (and never as ORG_ADMIN).
   const inviteViaGroupOnly = !canManageOrg && isGroupAdminOfSelectedOrg
@@ -767,7 +774,7 @@ export function OrganizationsTab() {
   return (
     <div className="space-y-6">
       {/* Organization Selector and Actions */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="relative">
           <button
             onClick={() => setShowOrgSwitcher(!showOrgSwitcher)}
@@ -839,26 +846,7 @@ export function OrganizationsTab() {
           )}
         </div>
 
-        <div className="flex gap-2">
-          {selectedOrganization &&
-            (canManageOrg || isGroupAdminOfSelectedOrg) && (
-              <Button
-                onClick={() => setShowApiKeysModal(true)}
-                variant="outline"
-              >
-                <KeyIcon className="h-4 w-4" />
-                {t('admin.organizations.apiKeys')}
-              </Button>
-            )}
-          {selectedOrganization && canManageOrg && (
-            <Button
-              onClick={() => setShowStorageConnectionsModal(true)}
-              variant="outline"
-            >
-              <CloudIcon className="h-4 w-4" />
-              {t('admin.organizations.storageConnections')}
-            </Button>
-          )}
+        <div className="flex flex-wrap gap-2">
           {selectedOrganization &&
             (canManageOrg || isGroupAdminOfSelectedOrg) && (
               <Button
@@ -871,13 +859,65 @@ export function OrganizationsTab() {
               </Button>
             )}
           {selectedOrganization &&
-            currentUser?.is_superadmin &&
-            OrgLtiPanel && (
-              <OrgLtiPanel
-                organizationId={selectedOrganization.id}
-                organizationName={selectedOrganization.name}
-              />
+            (canManageOrg || isGroupAdminOfSelectedOrg) && (
+              <Button
+                onClick={() => setShowApiKeysModal(true)}
+                variant="outline"
+                data-testid="org-api-keys-button"
+              >
+                <KeyIcon className="h-4 w-4" />
+                {t('admin.organizations.apiKeys')}
+              </Button>
             )}
+          {selectedOrganization && (canManageOrg || showLtiMenuItem) && (
+            <Menu as="div" className="relative inline-block text-left">
+              <Menu.Button
+                as={Button}
+                variant="outline"
+                data-testid="org-more-button"
+              >
+                {t('admin.organizations.more', 'Mehr')}
+                <ChevronDownIcon className="h-4 w-4" />
+              </Menu.Button>
+              <Menu.Items className="absolute right-0 z-10 mt-2 w-56 origin-top-right rounded-lg bg-white p-1 shadow-lg ring-1 ring-black/5 transition duration-100 ease-out focus:outline-none data-closed:scale-95 data-closed:transform data-closed:opacity-0 dark:bg-zinc-900">
+                {canManageOrg && (
+                  <Menu.Item>
+                    {({ active }) => (
+                      <button
+                        className={`${
+                          active ? 'bg-zinc-100 dark:bg-zinc-800' : ''
+                        } group flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-zinc-900 dark:text-white`}
+                        onClick={() => setShowStorageConnectionsModal(true)}
+                        data-testid="org-storage-button"
+                      >
+                        <CloudIcon className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
+                        {t('admin.organizations.storageConnections')}
+                      </button>
+                    )}
+                  </Menu.Item>
+                )}
+                {showLtiMenuItem && (
+                  <Menu.Item>
+                    {({ active }) => (
+                      <button
+                        className={`${
+                          active ? 'bg-zinc-100 dark:bg-zinc-800' : ''
+                        } group flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-zinc-900 dark:text-white`}
+                        onClick={() => setShowLtiPanel(true)}
+                        data-testid="org-lti-button"
+                      >
+                        <AcademicCapIcon className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
+                        {t(
+                          'admin.organizations.lmsIntegration',
+                          'Lernplattform (LTI)',
+                        )}
+                      </button>
+                    )}
+                  </Menu.Item>
+                )}
+              </Menu.Items>
+            </Menu>
+          )}
           {canCreateOrganization && (
             <Button
               onClick={() => setShowCreateOrgModal(true)}
@@ -889,6 +929,19 @@ export function OrganizationsTab() {
           )}
         </div>
       </div>
+
+      {/* The LTI panel (extended slot) owns its own dialog; it is opened from
+          the "Mehr" menu above and mounted here, outside the menu, so the
+          dialog survives the menu closing. */}
+      {selectedOrganization && showLtiMenuItem && OrgLtiPanel && (
+        <OrgLtiPanel
+          organizationId={selectedOrganization.id}
+          organizationName={selectedOrganization.name}
+          open={showLtiPanel}
+          onOpenChange={setShowLtiPanel}
+          hideTrigger
+        />
+      )}
 
       {selectedOrganization ? (
         <div className="space-y-6">
