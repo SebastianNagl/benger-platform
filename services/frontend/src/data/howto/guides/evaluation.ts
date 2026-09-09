@@ -32,12 +32,12 @@ export const EVALUATION_GUIDES: HowToGuide[] = [
     },
     tips: {
       de: [
-        'Klausur-Projekte bekommen automatisch **zwei** Falllösungs-Judges, *Gratis-Modell* und *Abo-Modell*. Bei der Sofort-Korrektur läuft genau einer davon, je nachdem wer die Korrektur bezahlt. Die Batch-Evaluation führt beide aus. Das ist gewollt.',
+        'Klausur-Projekte bekommen automatisch **zwei** Falllösungs-Judges auf zwei verschiedenen Modellen (z. B. *Notenpunkte (gpt-5-mini)* und *Notenpunkte (gpt-5.4-mini)*). Bei der Sofort-Korrektur läuft genau einer davon. Die Batch-Evaluation führt beide aus. Das ist gewollt.',
         'Erweiterte Einstellungen (Judge-Modell, Temperatur, Denkbudget, mehrere Judges als Ensemble, Läufe pro Judge) finden Sie nach dem Anlegen auf der Projektseite.',
         'Eine eigene Rubrik geben Sie beim *Custom LLM Judge* als Kriterien mit Beschreibung und Maximalpunktzahl an. Mit Maximalpunktzahl bewertet der Judge alle Kriterien in einem Durchgang.',
       ],
       en: [
-        'Exam projects automatically get **two** case-solution judges, *free model* and *subscription model*. Immediate grading runs exactly one of them, depending on who pays for the grading. Batch evaluation runs both. This is intended.',
+        'Exam projects automatically get **two** case-solution judges on two different models (e.g. *Notenpunkte (gpt-5-mini)* and *Notenpunkte (gpt-5.4-mini)*). Immediate grading runs exactly one of them. Batch evaluation runs both. This is intended.',
         'Advanced settings (judge model, temperature, thinking budget, several judges as an ensemble, runs per judge) are on the project page after creation.',
         'A custom rubric is entered on the *Custom LLM Judge* as criteria with description and maximum score. With a maximum score the judge scores all criteria in one pass.',
       ],
