@@ -21,6 +21,12 @@ spec:
     customResponseHeaders:
       Server: ""
       X-Powered-By: ""
+      {{- if .Values.middleware.noindex }}
+      # Keep search engines out of non-production hosts (demo/staging). The
+      # header applies to every router that carries the security-headers
+      # middleware: api, frontend and the vertretbar apex.
+      X-Robots-Tag: "noindex, nofollow"
+      {{- end }}
 ---
 # Compression middleware (API only — Next.js handles frontend compression)
 apiVersion: traefik.io/v1alpha1

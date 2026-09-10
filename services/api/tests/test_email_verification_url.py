@@ -277,6 +277,27 @@ class TestEmailVerificationURL:
                 assert kwargs["from_address"] == "noreply@vertretbar.net"
 
     @pytest.mark.asyncio
+    async def test_demo_vertretbar_host_links_to_demo(
+        self, mock_db, mock_user, email_service
+    ):
+        """A demo.vertretbar.net signup links back to the demo environment."""
+        with patch.object(email_service, "_log_email_event"):
+            with patch.object(
+                email_service.email_service,
+                "send_verification_email",
+                new=AsyncMock(return_value=True),
+            ) as mock_send:
+                await email_service.send_verification_email(
+                    db=mock_db, user=mock_user, host="demo.vertretbar.net"
+                )
+
+                kwargs = mock_send.call_args.kwargs
+                assert kwargs["verification_link"].startswith(
+                    "https://demo.vertretbar.net/verify-email/"
+                )
+                assert kwargs["from_address"] == "noreply@vertretbar.net"
+
+    @pytest.mark.asyncio
     async def test_benger_host_keeps_default_sender(self, mock_db, mock_user, email_service):
         """A benger host uses the default sender (None → EMAIL_FROM_ADDRESS) + BenGER brand."""
         with patch.dict(os.environ, {"FRONTEND_URL": "https://what-a-benger.net"}):

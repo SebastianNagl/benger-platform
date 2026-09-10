@@ -70,7 +70,7 @@ export const REPORT_SNAPSHOT_FIXTURE: ReportSnapshot = {
       metric: 'llm_judge_falloesung',
       judge_model: 'claude-sonnet-4-6',
       judge_label: 'Claude Sonnet 4.6',
-      name: 'Notenpunkte (Abo-Modell)',
+      name: 'Notenpunkte (claude-sonnet-4-6)',
       n: 900,
     },
     {
@@ -78,7 +78,7 @@ export const REPORT_SNAPSHOT_FIXTURE: ReportSnapshot = {
       metric: 'llm_judge_falloesung',
       judge_model: 'gpt-5-mini',
       judge_label: 'GPT-5 mini',
-      name: 'Notenpunkte (Gratis-Modell)',
+      name: 'Notenpunkte (gpt-5-mini)',
       n: 420,
     },
     {

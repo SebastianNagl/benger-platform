@@ -506,9 +506,9 @@ except ImportError as e:
     # In any non-test environment a worker without SessionLocal can't do
     # its job — every task body would hit a Mock that returns None / []
     # and pretend success. Log CRITICAL with stack so the gap is obvious;
-    # also refuse to start in production/staging where the only correct
+    # also refuse to start in production/staging/demo where the only correct
     # response is "fix it and redeploy", not "limp along returning mocks".
-    if os.getenv("ENVIRONMENT", "").lower() in ("production", "staging"):
+    if os.getenv("ENVIRONMENT", "").lower() in ("production", "staging", "demo"):
         logger.critical(
             "❌ Failed to import database/models in production — refusing to start. %s",
             e,
@@ -589,7 +589,7 @@ except ImportError as e:
     # AI services are required for generation/evaluation tasks. Mirror the
     # SessionLocal fail-fast pattern above so a real import bug in prod
     # doesn't silently degrade every model call to a mock "response".
-    if os.getenv("ENVIRONMENT", "").lower() in ("production", "staging"):
+    if os.getenv("ENVIRONMENT", "").lower() in ("production", "staging", "demo"):
         logger.critical(
             "❌ Failed to import AI services in production — refusing to start. %s",
             e,

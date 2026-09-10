@@ -7,6 +7,14 @@ import type { ChangelogEntry } from '@/lib/extensions/changelog'
  */
 export const PLATFORM_CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-09-08',
+    audience: 'both',
+    text: {
+      de: 'Aufgeräumte Werkzeugleiste auf „Benutzer & Organisationen“: Neben der Organisationsauswahl stehen nur noch „Gruppen“, „API-Schlüssel“ und ein „Mehr“-Menü (Cloud-Speicher, Lernplattform-Anbindung); Superadmins sehen zusätzlich „Organisation erstellen“.',
+      en: 'Tidier toolbar on “Users & Organizations”: next to the organization picker only “Groups”, “API keys” and a “More” menu (cloud storage, learning-platform integration) remain; superadmins additionally see “Create organization”.',
+    },
+  },
+  {
     date: '2026-09-03',
     audience: 'benger',
     text: {

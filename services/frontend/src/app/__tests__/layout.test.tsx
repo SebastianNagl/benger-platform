@@ -30,6 +30,11 @@ jest.mock('@/components/dev/DevModeIndicator', () => ({
   DevModeIndicator: () => <div data-testid="dev-mode-indicator" />,
 }))
 
+// Mock DemoEnvBadge (host-driven; renders nothing outside the demo env)
+jest.mock('@/components/demo/DemoEnvBadge', () => ({
+  DemoEnvBadge: () => <div data-testid="demo-env-badge" />,
+}))
+
 // Mock ConditionalLayout
 jest.mock('@/components/layout/ConditionalLayout', () => ({
   ConditionalLayout: ({

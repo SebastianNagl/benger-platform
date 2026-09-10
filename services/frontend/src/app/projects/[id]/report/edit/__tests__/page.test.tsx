@@ -408,8 +408,8 @@ describe('ReportEditorPage', () => {
       expect(select.value).toBe('cfg-judge-sonnet')
       const labels = Array.from(select.options).map((o) => o.textContent)
       expect(labels).toEqual([
-        'Notenpunkte (Abo-Modell) · Claude Sonnet 4.6 (n=900)',
-        'Notenpunkte (Gratis-Modell) · GPT-5 mini (n=420)',
+        'Notenpunkte (claude-sonnet-4-6) · Claude Sonnet 4.6 (n=900)',
+        'Notenpunkte (gpt-5-mini) · GPT-5 mini (n=420)',
       ])
     })
 

@@ -4,16 +4,41 @@
  * URL scheme:
  * - Private mode: what-a-benger.net / benger.localhost
  * - Org mode: {slug}.what-a-benger.net / {slug}.benger.localhost
+ *
+ * Environments: prod (what-a-benger.net), staging (staging.…), demo (demo.…),
+ * local (benger.localhost) — each with its vertretbar sister apex. Multi-level
+ * entries (demo./staging.) must precede the bare apex so an org subdomain on
+ * demo parses as {slug}.demo.what-a-benger.net, not as slug "x.demo".
  */
 
 export const BASE_DOMAINS = [
+  'demo.what-a-benger.net',
   'staging.what-a-benger.net',
   'what-a-benger.net',
   'benger.localhost',
+  'demo.vertretbar.net',
   'staging.vertretbar.net',
   'vertretbar.net',
   'vertretbar.localhost',
 ]
+
+/**
+ * Hosts of the demo environment (demo.what-a-benger.net / demo.vertretbar.net,
+ * incl. org subdomains). Showcase content only, self-serve demo accounts,
+ * reset nightly from a golden snapshot — the DemoEnvBadge tells visitors so.
+ */
+export const DEMO_DOMAINS = ['demo.what-a-benger.net', 'demo.vertretbar.net']
+
+/**
+ * Is the given (or current) host part of the demo environment?
+ */
+export function isDemoHost(hostname?: string | null): boolean {
+  const host =
+    hostname ?? (typeof window !== 'undefined' ? window.location.hostname : '')
+  if (!host) return false
+  const bare = host.split(':')[0].toLowerCase()
+  return DEMO_DOMAINS.some((d) => bare === d || bare.endsWith(`.${d}`))
+}
 
 /**
  * Hosts locked to the pure student interface (Vertretbar).
@@ -26,6 +51,7 @@ export const BASE_DOMAINS = [
 export const STUDENT_LOCKED_DOMAINS = [
   'vertretbar.net',
   'staging.vertretbar.net',
+  'demo.vertretbar.net',
   'vertretbar.localhost',
 ]
 
@@ -56,14 +82,17 @@ export function getHostBrandName(hostname?: string | null): string {
  * Sister product hosts: the expert/benchmarking interface (what-a-benger.net)
  * and the student exam interface (vertretbar.net) are two shells over one
  * deployment. Environments pair up (prod <-> prod, staging <-> staging,
- * localhost <-> localhost); an org subdomain maps to the sister apex.
+ * demo <-> demo, localhost <-> localhost); an org subdomain maps to the
+ * sister apex.
  */
 const SISTER_HOSTS: Record<string, string> = {
   'what-a-benger.net': 'vertretbar.net',
   'staging.what-a-benger.net': 'staging.vertretbar.net',
+  'demo.what-a-benger.net': 'demo.vertretbar.net',
   'benger.localhost': 'vertretbar.localhost',
   'vertretbar.net': 'what-a-benger.net',
   'staging.vertretbar.net': 'staging.what-a-benger.net',
+  'demo.vertretbar.net': 'demo.what-a-benger.net',
   'vertretbar.localhost': 'benger.localhost',
 }
 

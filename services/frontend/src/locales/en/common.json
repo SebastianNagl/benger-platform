@@ -4197,6 +4197,8 @@
       "selectOrganization": "Select Organization",
       "apiKeys": "API Keys",
       "storageConnections": "Cloud Storage",
+      "more": "More",
+      "lmsIntegration": "Learning platform (LTI)",
       "customModelKeys": "Custom Model Keys",
       "groups": {
         "button": "Groups",
@@ -9504,6 +9506,41 @@
       "deleteFailed": "Failed to delete the storage connection",
       "encryptedInfo": "Credentials are stored encrypted and never returned to the browser.",
       "membersInfo": "All members of the organization can import files into their projects via these connections."
+    }
+  },
+  "gradingFeedback": {
+    "prompt": "Happy with this grading?",
+    "thumbsUp": "Yes, the grading is fair",
+    "thumbsDown": "No, the grading is off",
+    "comment": "Comment",
+    "editComment": "Edit comment",
+    "commentPlaceholder": "What was good, what was missing? (optional)",
+    "downHint": "What was off? A short note helps us improve the grading.",
+    "send": "Send",
+    "thanks": "Thanks for your feedback!",
+    "saveError": "Could not save the feedback. Please try again later.",
+    "source": {
+      "llm": "AI grading",
+      "human": "Human correction",
+      "general": "General"
+    },
+    "stats": {
+      "title": "Grading feedback",
+      "positive": "positive",
+      "negative": "negative",
+      "comments": "Comments ({count})",
+      "dialogTitle": "Grading comments",
+      "task": "Task #{n}",
+      "empty": "No comments yet."
+    },
+    "open": "Feedback",
+    "edit": "Edit feedback",
+    "close": "Collapse feedback",
+    "panelHint": "How happy are you with the grading, and is there anything else you want to tell us?",
+    "general": {
+      "title": "General feedback",
+      "placeholder": "Anything else about the exam or the platform (optional)",
+      "saved": "Saved"
     }
   }
 }

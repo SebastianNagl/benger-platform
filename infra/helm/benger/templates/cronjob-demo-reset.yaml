@@ -1,0 +1,242 @@
+{{- /*
+Demo-environment golden snapshot + nightly reset (demo.what-a-benger.net).
+
+Rendered only when demoReset.enabled (values-demo.yaml). Two CronJobs share one
+pod template, selected by MODE:
+
+  <release>-reset     scheduled (default 04:00 Europe/Berlin): scale the app
+                           to zero, drop + restore the database from the golden
+                           dump, scale back up (the api's startup migration
+                           runner brings an older dump to alembic head).
+  <release>-snapshot  suspended (never fires on its own): re-take the golden
+                           dump from the CURRENT database. Run it by hand after
+                           curating demo content:
+                             kubectl -n benger-demo create job --from=cronjob/benger-demo-snapshot snap-$(date +%s)
+
+The golden dump lives on the node at demoReset.hostPath (default
+/opt/benger-demo/golden/db.dump) — outside every PVC, so it survives a helm
+uninstall / PVC wipe. pg_dump/pg_restore run INSIDE the postgresql pod via
+kubectl exec (its binaries match the running server major), so this pod only
+needs kubectl. Object storage is deliberately not part of the snapshot: the
+golden DB references only objects that already exist, exports expire via the
+bucket lifecycle, and nothing deletes objects, so MinIO state stays valid across
+resets.
+
+The job image is alpine/k8s (kubectl on Alpine) — it needs a /bin/sh for the
+script below; rancher/kubectl is shell-less and fails with "stat /bin/sh".
+
+A reset that fails mid-way leaves the app scaled to zero on purpose — better a
+visibly down demo than one serving a half-restored database. Re-run the reset
+job (or `kubectl scale`) to recover.
+*/ -}}
+{{- if (.Values.demoReset).enabled }}
+{{- $sa := printf "%s-reset" .Release.Name }}
+{{- /* "<deployment>=<replicas>" for everything that talks to the database; the
+       api goes first so the rollout wait below targets it. Replica counts come
+       from the same values that size the deployments, so a resized demo is
+       scaled back to its real numbers, never a stale constant. */}}
+{{- $targets := list
+      (printf "%s-%s=%d" .Release.Name .Values.api.name (int .Values.api.replicaCount))
+      (printf "%s-%s=%d" .Release.Name .Values.workers.name (int .Values.workers.replicaCount)) }}
+{{- range $poolName, $pool := .Values.workerPools }}
+{{- if $pool.enabled }}
+{{- $targets = append $targets (printf "%s-workers-%s=%d" $.Release.Name $poolName (int ($pool.replicaCount | default 1))) }}
+{{- end }}
+{{- end }}
+{{- if .Values.beat.enabled }}
+{{- $targets = append $targets (printf "%s-%s=1" .Release.Name .Values.beat.name) }}
+{{- end }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ $sa }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: demo-reset
+    app.kubernetes.io/part-of: benger
+    app.kubernetes.io/managed-by: helm
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ $sa }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: demo-reset
+    app.kubernetes.io/part-of: benger
+    app.kubernetes.io/managed-by: helm
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments", "deployments/scale"]
+    verbs: ["get", "list", "watch", "patch", "update"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["pods/exec"]
+    verbs: ["create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ $sa }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: demo-reset
+    app.kubernetes.io/part-of: benger
+    app.kubernetes.io/managed-by: helm
+subjects:
+  - kind: ServiceAccount
+    name: {{ $sa }}
+    namespace: {{ .Release.Namespace }}
+roleRef:
+  kind: Role
+  name: {{ $sa }}
+  apiGroup: rbac.authorization.k8s.io
+{{- range $mode := list "reset" "snapshot" }}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ $.Release.Name }}-{{ $mode }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: {{ $.Release.Name }}-{{ $mode }}
+    app.kubernetes.io/instance: {{ $.Release.Name }}
+    app.kubernetes.io/component: demo-reset
+    app.kubernetes.io/part-of: benger
+    app.kubernetes.io/managed-by: helm
+spec:
+  {{- if eq $mode "reset" }}
+  schedule: {{ $.Values.demoReset.schedule | default "0 4 * * *" | quote }}
+  timeZone: {{ $.Values.demoReset.timeZone | default "Europe/Berlin" | quote }}
+  suspend: {{ $.Values.demoReset.suspend | default false }}
+  {{- else }}
+  # Never fires on its own (Feb 31st) and is suspended on top; exists only as
+  # the template for `kubectl create job --from=cronjob/...`.
+  schedule: "0 0 31 2 *"
+  suspend: true
+  {{- end }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: {{ $.Values.demoReset.timeoutSeconds | default 1800 }}
+      backoffLimit: 0
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: {{ $.Release.Name }}-{{ $mode }}
+            app.kubernetes.io/instance: {{ $.Release.Name }}
+            app.kubernetes.io/component: demo-reset
+        spec:
+          restartPolicy: Never
+          serviceAccountName: {{ $sa }}
+          securityContext:
+            runAsUser: 0
+          containers:
+            - name: {{ $mode }}
+              image: {{ $.Values.demoReset.kubectlImage | default "alpine/k8s:1.34.9" | quote }}
+              imagePullPolicy: IfNotPresent
+              env:
+                - name: MODE
+                  value: {{ $mode | quote }}
+                - name: NAMESPACE
+                  value: {{ $.Release.Namespace | quote }}
+                - name: PG_POD
+                  value: {{ $.Values.demoReset.postgresPod | default (printf "%s-postgresql-0" $.Release.Name) | quote }}
+                - name: TARGETS
+                  value: {{ join " " $targets | quote }}
+                - name: GOLDEN_DIR
+                  value: /golden
+                - name: PGUSER
+                  valueFrom:
+                    secretKeyRef:
+                      name: benger-postgres-credentials
+                      key: username
+                - name: PGDATABASE
+                  valueFrom:
+                    secretKeyRef:
+                      name: benger-postgres-credentials
+                      key: database
+                - name: PGPASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: benger-postgres-credentials
+                      key: password
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  set -eu
+                  DUMP="${GOLDEN_DIR}/db.dump"
+                  log() { echo "[$(date -u +%FT%TZ)] $*"; }
+                  # pg_* run inside the postgresql pod (matching server binaries).
+                  pgx() { kubectl -n "$NAMESPACE" exec -i "$PG_POD" -- env PGPASSWORD="$PGPASSWORD" "$@"; }
+
+                  case "$MODE" in
+                    snapshot)
+                      mkdir -p "$GOLDEN_DIR"
+                      log "Snapshotting ${PG_POD}/${PGDATABASE} -> ${DUMP}"
+                      pgx pg_dump -U "$PGUSER" -d "$PGDATABASE" -Fc --no-owner --no-acl < /dev/null > "${DUMP}.tmp"
+                      # Plausibility guard: an empty/failed dump must never replace the golden one.
+                      SIZE=$(wc -c < "${DUMP}.tmp")
+                      if [ "$SIZE" -lt 100000 ]; then
+                        log "ERROR: dump is only ${SIZE} bytes — refusing to replace the golden snapshot"
+                        rm -f "${DUMP}.tmp"; exit 1
+                      fi
+                      [ -f "$DUMP" ] && cp "$DUMP" "${DUMP}.prev"
+                      mv "${DUMP}.tmp" "$DUMP"
+                      log "Golden snapshot written (${SIZE} bytes, previous kept as db.dump.prev)"
+                      ;;
+                    reset)
+                      if [ ! -f "$DUMP" ]; then
+                        log "ERROR: no golden dump at ${DUMP} — run the snapshot job first"; exit 1
+                      fi
+                      log "Scaling app to zero: ${TARGETS}"
+                      for entry in $TARGETS; do
+                        d="${entry%%=*}"
+                        kubectl -n "$NAMESPACE" scale deployment "$d" --replicas=0 2>/dev/null || log "  (no deployment $d)"
+                      done
+                      for entry in $TARGETS; do
+                        d="${entry%%=*}"
+                        kubectl -n "$NAMESPACE" wait --for=delete pod -l "app=${d}" --timeout=180s 2>/dev/null || true
+                      done
+                      log "Dropping + recreating ${PGDATABASE}"
+                      pgx psql -U "$PGUSER" -d postgres -v ON_ERROR_STOP=1 \
+                        -c "DROP DATABASE IF EXISTS \"${PGDATABASE}\" WITH (FORCE);" \
+                        -c "CREATE DATABASE \"${PGDATABASE}\";"
+                      log "Restoring golden dump ($(wc -c < "$DUMP") bytes)"
+                      pgx pg_restore -U "$PGUSER" -d "$PGDATABASE" --no-owner --no-acl --exit-on-error < "$DUMP"
+                      log "Restore done; scaling app back up"
+                      for entry in $TARGETS; do
+                        d="${entry%%=*}"; n="${entry##*=}"
+                        kubectl -n "$NAMESPACE" scale deployment "$d" --replicas="$n" 2>/dev/null || true
+                      done
+                      API="${TARGETS%% *}"
+                      kubectl -n "$NAMESPACE" rollout status deployment "${API%%=*}" --timeout=600s
+                      log "Demo reset complete"
+                      ;;
+                    *) log "unknown MODE=$MODE"; exit 2 ;;
+                  esac
+              volumeMounts:
+                - name: golden
+                  mountPath: /golden
+              resources:
+                requests:
+                  memory: "64Mi"
+                  cpu: "50m"
+                limits:
+                  memory: "512Mi"
+                  cpu: "500m"
+          volumes:
+            - name: golden
+              hostPath:
+                path: {{ $.Values.demoReset.hostPath | default "/opt/benger-demo/golden" }}
+                type: DirectoryOrCreate
+{{- end }}
+{{- end }}

@@ -1,38 +1,32 @@
-{{- if eq .Values.global.environment "production" }}
+{{- /*
+Wildcard cert for the environment's own apex: <domain> + *.<domain> (org
+subdomains). One block for every environment — prod (what-a-benger.net),
+staging (staging.what-a-benger.net), demo (demo.what-a-benger.net) — keyed on
+global.domain / global.tlsSecretName instead of per-environment copies. Issued
+via the Cloudflare DNS-01 issuer, the only way to get a wildcard.
+
+Certificate names are kept per environment for continuity with the resources
+cert-manager already owns (renaming would re-issue the prod cert for nothing).
+*/ -}}
+{{- $certName := ternary "benger-wildcard-tls" (printf "%s-wildcard-tls" .Release.Name) (eq .Values.global.environment "production") }}
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-  name: benger-wildcard-tls
+  name: {{ $certName }}
   namespace: {{ .Release.Namespace }}
 spec:
-  secretName: benger-tls
+  secretName: {{ required "global.tlsSecretName is required" .Values.global.tlsSecretName }}
   issuerRef:
     name: letsencrypt-prod
     kind: ClusterIssuer
   dnsNames:
-  - "what-a-benger.net"
-  - "*.what-a-benger.net"
-{{- end }}
----
-{{- if eq .Values.global.environment "staging" }}
-apiVersion: cert-manager.io/v1
-kind: Certificate
-metadata:
-  name: benger-staging-wildcard-tls
-  namespace: {{ .Release.Namespace }}
-spec:
-  secretName: benger-staging-tls
-  issuerRef:
-    name: letsencrypt-prod
-    kind: ClusterIssuer
-  dnsNames:
-  - "staging.what-a-benger.net"
-  - "*.staging.what-a-benger.net"
-{{- end }}
+  - {{ required "global.domain is required" .Values.global.domain | quote }}
+  - {{ printf "*.%s" .Values.global.domain | quote }}
 ---
 {{- if .Values.vertretbar.enabled }}
 # Vertretbar branded apex served from this same release. Host is per-environment
-# (prod: vertretbar.net; staging: staging.vertretbar.net) via the values overlays.
+# (prod: vertretbar.net; staging: staging.vertretbar.net; demo: demo.vertretbar.net)
+# via the values overlays.
 # Apex-only for the beta (HTTP-01 needs each dnsName's A record to resolve;
 # www/wildcard can be added later). Issued by the same server-local
 # letsencrypt-prod ClusterIssuer.
