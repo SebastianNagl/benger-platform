@@ -49,7 +49,8 @@ admin_router = APIRouter(
     tags=["grading-feedback-admin"],
 )
 
-GRADING_SOURCES = ("llm", "human")
+# "general" = free-text feedback about the exam/platform (no rating, no snapshot).
+GRADING_SOURCES = ("llm", "human", "general")
 SUMMARY_COMMENT_LIMIT = 500
 EXPORT_DEFAULT_LIMIT = 10_000
 EXPORT_MAX_LIMIT = 50_000

@@ -1471,8 +1471,9 @@ class GradingFeedback(Base):
     027/031; the student UI still labels a human correction "Feedback deiner
     Korrektur"). This is meta-feedback ABOUT a grading: ``grading_source``
     ``'llm'`` (a judge run) or ``'human'`` (Korrektur grade and/or
-    Randbemerkungen), mined by operators to tune the judges and the Korrektur
-    workflow.
+    Randbemerkungen), plus ``'general'`` for free-text feedback about the exam
+    or the platform left from the same panel (no rating, no grading snapshot).
+    Mined by operators to tune the judges and the Korrektur workflow.
 
     One row per (user, annotation, grading_source), enforced by the unique
     index ``uq_grading_feedback_user_annotation_source``; vote flips and
@@ -1506,7 +1507,7 @@ class GradingFeedback(Base):
         String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
 
-    # 'llm' | 'human'
+    # 'llm' | 'human' | 'general'
     grading_source = Column(String(8), nullable=False)
     evaluation_run_id = Column(
         String, ForeignKey("evaluation_runs.id", ondelete="SET NULL"), nullable=True
@@ -1542,7 +1543,8 @@ class GradingFeedback(Base):
         sa.Index("ix_grading_feedback_project_created", "project_id", "created_at"),
         sa.Index("ix_grading_feedback_evaluation_run", "evaluation_run_id"),
         sa.CheckConstraint(
-            "grading_source IN ('llm', 'human')", name="ck_grading_feedback_source"
+            "grading_source IN ('llm', 'human', 'general')",
+            name="ck_grading_feedback_source",
         ),
         sa.CheckConstraint(
             "rating IS NULL OR rating IN ('up', 'down')", name="ck_grading_feedback_rating"

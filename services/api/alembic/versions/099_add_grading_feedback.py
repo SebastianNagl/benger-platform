@@ -9,10 +9,11 @@ created ``feedback_comments``, 031 renamed everything to ``korrektur_*``) and
 the student UI still labels a human correction "Feedback deiner Korrektur".
 This table is meta-feedback ABOUT a grading.
 
-- ``grading_source`` = ``'llm'`` (a judge run) or ``'human'`` (Korrektur grade
-  and/or Randbemerkungen). ``evaluation_run_id`` records which run was rated
-  (NULL for comment-only human corrections) and is SET NULL on run deletion so
-  the opinion survives.
+- ``grading_source`` = ``'llm'`` (a judge run), ``'human'`` (Korrektur grade
+  and/or Randbemerkungen) or ``'general'`` (free-text feedback about the exam
+  or the platform, no rating, no snapshot). ``evaluation_run_id`` records which
+  run was rated (NULL for comment-only human corrections and general feedback)
+  and is SET NULL on run deletion so the opinion survives.
 - ``judge_model_id`` / ``grade_points`` / ``passed`` snapshot what the solver
   saw at vote time as discrete columns (SQL/CSV slicing); ``context`` JSONB
   keeps the long tail (metric keys, task_evaluation ids, judge/grader ids,
@@ -120,7 +121,8 @@ def upgrade() -> None:
                 nullable=False,
             ),
             sa.CheckConstraint(
-                "grading_source IN ('llm', 'human')", name="ck_grading_feedback_source"
+                "grading_source IN ('llm', 'human', 'general')",
+                name="ck_grading_feedback_source",
             ),
             sa.CheckConstraint(
                 "rating IS NULL OR rating IN ('up', 'down')",

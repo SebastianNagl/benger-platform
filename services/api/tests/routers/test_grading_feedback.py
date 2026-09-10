@@ -223,6 +223,10 @@ async def test_summary_counts_and_anonymized_comments(async_test_client, async_t
     await _make_feedback(db, annotation=a, user=alice, source="llm", rating="up", comment="Zu streng")
     await _make_feedback(db, annotation=b, user=bob, source="llm", rating="down")
     await _make_feedback(db, annotation=a, user=alice, source="human", rating="down", comment="Unfair")
+    await _make_feedback(
+        db, annotation=b, user=bob, source="general", rating=None,
+        comment="Der Editor hakt auf dem Handy.", grade_points=None, passed=None,
+    )
     await db.commit()
 
     with _as_user(owner):
@@ -231,15 +235,18 @@ async def test_summary_counts_and_anonymized_comments(async_test_client, async_t
         body = r.json()
 
     assert body["project_id"] == exam.id
-    assert body["total"] == 3
+    assert body["total"] == 4
     assert body["totals"]["llm"] == {"up": 1, "down": 1, "comments": 1}
     assert body["totals"]["human"] == {"up": 0, "down": 1, "comments": 1}
-    assert len(body["comments"]) == 2
-    assert {c["comment"] for c in body["comments"]} == {"Zu streng", "Unfair"}
+    assert body["totals"]["general"] == {"up": 0, "down": 0, "comments": 1}
+    assert len(body["comments"]) == 3
+    assert {c["comment"] for c in body["comments"]} == {
+        "Zu streng", "Unfair", "Der Editor hakt auf dem Handy."
+    }
     for c in body["comments"]:
         assert "user_id" not in c
         assert c["task_inner_id"] == 7
-        assert c["grading_source"] in ("llm", "human")
+        assert c["grading_source"] in ("llm", "human", "general")
     assert "alice" not in r.text.lower()
 
 

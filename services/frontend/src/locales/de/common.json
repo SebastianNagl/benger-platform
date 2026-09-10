@@ -9529,7 +9529,8 @@
     "saveError": "Feedback konnte nicht gespeichert werden. Bitte später erneut versuchen.",
     "source": {
       "llm": "KI-Korrektur",
-      "human": "Menschliche Korrektur"
+      "human": "Menschliche Korrektur",
+      "general": "Allgemein"
     },
     "stats": {
       "title": "Korrektur-Feedback",
@@ -9539,6 +9540,15 @@
       "dialogTitle": "Kommentare zur Korrektur",
       "task": "Aufgabe #{n}",
       "empty": "Noch keine Kommentare."
+    },
+    "open": "Feedback",
+    "edit": "Feedback bearbeiten",
+    "close": "Feedback einklappen",
+    "panelHint": "Zufrieden mit der Korrektur? Und gibt es sonst etwas, das wir wissen sollten?",
+    "general": {
+      "title": "Allgemeines Feedback",
+      "placeholder": "Sonstiges Feedback zur Klausur oder zur Plattform (optional)",
+      "saved": "Gespeichert"
     }
   }
 }

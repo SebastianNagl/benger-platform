@@ -9521,7 +9521,8 @@
     "saveError": "Could not save the feedback. Please try again later.",
     "source": {
       "llm": "AI grading",
-      "human": "Human correction"
+      "human": "Human correction",
+      "general": "General"
     },
     "stats": {
       "title": "Grading feedback",
@@ -9531,6 +9532,15 @@
       "dialogTitle": "Grading comments",
       "task": "Task #{n}",
       "empty": "No comments yet."
+    },
+    "open": "Feedback",
+    "edit": "Edit feedback",
+    "close": "Collapse feedback",
+    "panelHint": "How happy are you with the grading, and is there anything else you want to tell us?",
+    "general": {
+      "title": "General feedback",
+      "placeholder": "Anything else about the exam or the platform (optional)",
+      "saved": "Saved"
     }
   }
 }
