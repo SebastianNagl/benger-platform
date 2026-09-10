@@ -1464,6 +1464,101 @@ class TaskRubric(Base):
         )
 
 
+class GradingFeedback(Base):
+    """Solver reaction to ONE grading of ONE own submission: thumbs + optional comment.
+
+    NOT the Korrektur feature ("feedback" was its pre-031 name, see migrations
+    027/031; the student UI still labels a human correction "Feedback deiner
+    Korrektur"). This is meta-feedback ABOUT a grading: ``grading_source``
+    ``'llm'`` (a judge run) or ``'human'`` (Korrektur grade and/or
+    Randbemerkungen), mined by operators to tune the judges and the Korrektur
+    workflow.
+
+    One row per (user, annotation, grading_source), enforced by the unique
+    index ``uq_grading_feedback_user_annotation_source``; vote flips and
+    comment edits upsert in place (``INSERT ... ON CONFLICT``), and a re-graded
+    submission re-points the row (run id + snapshot) on the solver's next vote.
+    ``judge_model_id`` / ``grade_points`` / ``passed`` snapshot what the solver
+    saw at vote time as discrete columns for SQL/CSV slicing; ``context`` keeps
+    the long tail (metric keys, task_evaluation ids, judge/grader ids, comment
+    count, run status). ``evaluation_run_id`` is SET NULL on run deletion so the
+    opinion survives; it is NULL for comment-only human corrections.
+
+    Platform owns persistence + generic reads (``routers/grading_feedback.py``);
+    the write path (participant access policy, target validation, snapshot)
+    lives in ``benger_extended.api.routers.grading_feedback``. Not part of the
+    project export/import round-trip yet.
+    """
+
+    __tablename__ = "grading_feedback"
+
+    id = Column(String, primary_key=True, index=True)
+    project_id = Column(
+        String, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    task_id = Column(
+        String, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    annotation_id = Column(
+        String, ForeignKey("annotations.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    user_id = Column(
+        String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+
+    # 'llm' | 'human'
+    grading_source = Column(String(8), nullable=False)
+    evaluation_run_id = Column(
+        String, ForeignKey("evaluation_runs.id", ondelete="SET NULL"), nullable=True
+    )
+    # Snapshot of the grading the solver reacted to (NULL judge for human rows).
+    judge_model_id = Column(String, nullable=True)
+    grade_points = Column(Float, nullable=True)
+    passed = Column(Boolean, nullable=True)
+
+    # 'up' | 'down' | NULL (comment-only)
+    rating = Column(String(8), nullable=True)
+    comment = Column(Text, nullable=True)
+    context = Column(JSONB, nullable=True)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+    project = relationship("Project")
+    task = relationship("Task")
+    annotation = relationship("Annotation")
+    user = relationship("User")
+
+    __table_args__ = (
+        sa.Index(
+            "uq_grading_feedback_user_annotation_source",
+            "user_id",
+            "annotation_id",
+            "grading_source",
+            unique=True,
+        ),
+        sa.Index("ix_grading_feedback_project_created", "project_id", "created_at"),
+        sa.Index("ix_grading_feedback_evaluation_run", "evaluation_run_id"),
+        sa.CheckConstraint(
+            "grading_source IN ('llm', 'human')", name="ck_grading_feedback_source"
+        ),
+        sa.CheckConstraint(
+            "rating IS NULL OR rating IN ('up', 'down')", name="ck_grading_feedback_rating"
+        ),
+        sa.CheckConstraint(
+            "rating IS NOT NULL OR comment IS NOT NULL", name="ck_grading_feedback_not_empty"
+        ),
+    )
+
+    def __repr__(self):
+        return (
+            f"<GradingFeedback(id={self.id}, annotation_id={self.annotation_id}, "
+            f"source={self.grading_source}, rating={self.rating})>"
+        )
+
+
 def project_not_deleted():
     """Soft-delete predicate (migration 093): every visibility query excludes
     stamped projects; superadmin surfaces opt back in explicitly. Lives in

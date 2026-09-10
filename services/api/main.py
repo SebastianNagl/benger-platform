@@ -443,6 +443,10 @@ from routers.reports import router as reports_router  # noqa: E402
 from routers.runs import router as runs_router  # noqa: E402
 from routers.storage import router as storage_router  # noqa: E402
 from routers.task_rubrics import router as task_rubrics_router  # noqa: E402
+from routers.grading_feedback import (  # noqa: E402
+    admin_router as grading_feedback_admin_router,
+    router as grading_feedback_router,
+)
 from routers.tasks import router as tasks_router  # noqa: E402
 
 # Test seeding router (only active in test/dev environments)
@@ -468,6 +472,7 @@ app.include_router(generation_task_list_router)  # Generation task list (Issue #
 app.include_router(runs_router)  # Single-run inventory (multi-run feature)
 app.include_router(prompt_structures_router)  # Prompt structures (Issue #762)
 app.include_router(task_rubrics_router)  # Per-task Bewertungsbogen reads
+app.include_router(grading_feedback_router)  # Solver feedback on gradings: own rows + editor summary
 app.include_router(storage_router)  # Storage and CDN
 app.include_router(organizations_router)  # Organizations
 app.include_router(invitations_router)  # Invitations
@@ -495,6 +500,7 @@ app.include_router(share_token_router)  # Student exam sharing: /api/shares/{tok
 app.include_router(student_dashboard_router)  # Student dashboard reads: /api/student/* (issue #35)
 app.include_router(marketplace_router)  # Vendor marketplace: /api/marketplace/* generic reads + listing CRUD
 app.include_router(marketplace_admin_router)  # Superadmin vendor approval: /api/admin/vendors
+app.include_router(grading_feedback_admin_router)  # Superadmin: grading feedback export (/api/admin/grading-feedback)
 app.include_router(leaderboards_router)  # Leaderboards for annotation performance (Issue #790)
 app.include_router(test_seeding_router)  # Test seeding endpoints (guarded by env check + superadmin)
 

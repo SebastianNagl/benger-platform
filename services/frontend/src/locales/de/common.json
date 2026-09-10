@@ -9515,5 +9515,30 @@
       "encryptedInfo": "Zugangsdaten werden verschlüsselt gespeichert und nie an den Browser zurückgegeben.",
       "membersInfo": "Alle Mitglieder der Organisation können über diese Verbindungen Dateien in ihre Projekte importieren."
     }
+  },
+  "gradingFeedback": {
+    "prompt": "Zufrieden mit dieser Korrektur?",
+    "thumbsUp": "Ja, die Korrektur passt",
+    "thumbsDown": "Nein, die Korrektur passt nicht",
+    "comment": "Kommentar",
+    "editComment": "Kommentar bearbeiten",
+    "commentPlaceholder": "Was war gut, was hat gefehlt? (optional)",
+    "downHint": "Was hat nicht gepasst? Ein kurzer Hinweis hilft, die Korrektur zu verbessern.",
+    "send": "Absenden",
+    "thanks": "Danke für das Feedback!",
+    "saveError": "Feedback konnte nicht gespeichert werden. Bitte später erneut versuchen.",
+    "source": {
+      "llm": "KI-Korrektur",
+      "human": "Menschliche Korrektur"
+    },
+    "stats": {
+      "title": "Korrektur-Feedback",
+      "positive": "positiv",
+      "negative": "negativ",
+      "comments": "Kommentare ({count})",
+      "dialogTitle": "Kommentare zur Korrektur",
+      "task": "Aufgabe #{n}",
+      "empty": "Noch keine Kommentare."
+    }
   }
 }

@@ -80,7 +80,9 @@ class TestExtensionLoader:
         # org_billing_authorized consumer-inheritance flag.
         # 2.11 adds organization groups (shared/org_groups,
         # ProjectOrganization.group_id, group-scoped org API keys).
-        assert CORE_API_VERSION == "2.11"
+        # 2.12 adds the grading_feedback table + project_models.GradingFeedback
+        # (solver thumbs/comment feedback on LLM and human gradings).
+        assert CORE_API_VERSION == "2.12"
 
     def test_tasks_with_feedback_for_user_empty_without_package(self):
         """Community edition: no human-feedback workflow -> empty set."""
