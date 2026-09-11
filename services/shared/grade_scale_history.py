@@ -1,11 +1,10 @@
-"""The audit trail of an exam's Notenschlüssel (contract v5).
+"""The audit trail of an exam's Notenschlüssel.
 
 Unlike every other evaluation setting, the Notenschlüssel
-(``project.evaluation_config.grade_scale``, contract v2) retroactively
-rewrites grades people have already seen: change the key, press "Notenpunkte
-aktualisieren" (contract v4), and a stored 10 becomes a 12. A grade must
-never move without a record of who moved it, so every write of the key
-appends an entry here.
+(``project.evaluation_config.grade_scale``) retroactively rewrites grades
+people have already seen: change the key, press "Notenpunkte aktualisieren",
+and a stored 10 becomes a 12. A grade must never move without a record of who
+moved it, so every write of the key appends an entry here.
 
 Storage: ``project.evaluation_config.grade_scale_history`` — a JSONB list in
 the same deep-merged document as the key itself. No migration, and the
@@ -50,7 +49,7 @@ from typing import Any, Dict, List, Optional
 #: Key of the audit list inside ``evaluation_config``.
 HISTORY_KEY = "grade_scale_history"
 
-#: Key of the Notenschlüssel itself (contract v2), next to the history.
+#: Key of the Notenschlüssel itself, next to the history.
 GRADE_SCALE_KEY = "grade_scale"
 
 #: How many entries are kept. Older ones are dropped from the FRONT.

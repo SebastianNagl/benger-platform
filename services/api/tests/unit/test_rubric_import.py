@@ -89,7 +89,7 @@ class TestColleagueSample:
             "max_points": 100,
         }
         # The same key in percent, offered as the EXAM's Notenschlüssel
-        # (contract v2). This sheet totals 100 BE, so the numbers coincide.
+        # This sheet totals 100 BE, so the numbers coincide.
         assert result["grade_scale_percent"] == {
             "unit": "percent",
             "preset": "custom",

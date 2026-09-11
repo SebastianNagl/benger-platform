@@ -1,4 +1,4 @@
-"""The Notenschlüssel audit trail helper (contract v5).
+"""The Notenschlüssel audit trail helper.
 
 ``services/shared/grade_scale_history.py`` is the ONE place both writers of
 ``evaluation_config.grade_scale`` append through — the platform eval-config

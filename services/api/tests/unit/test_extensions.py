@@ -89,7 +89,12 @@ class TestExtensionLoader:
         # 2.14 adds the shared ``grade_scale_history`` module — the one audit
         # trail both writers of evaluation_config.grade_scale append through
         # (the extended exam router imports it at module level).
-        assert CORE_API_VERSION == "2.14"
+        # 2.15 REMOVES the Falllösung judge's prompt versioning: the bulk
+        # fan-out no longer forwards ``metric_parameters.prompt_version`` (the
+        # extended compute hook no longer takes it) and migration 101 strips
+        # the dead key from stored evaluation configs. One judge prompt, one
+        # Notenschlüssel, for every exam.
+        assert CORE_API_VERSION == "2.15"
 
     def test_tasks_with_feedback_for_user_empty_without_package(self):
         """Community edition: no human-feedback workflow -> empty set."""

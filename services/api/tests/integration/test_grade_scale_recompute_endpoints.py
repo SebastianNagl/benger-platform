@@ -1,4 +1,4 @@
-"""The two Notenschlüssel-recompute endpoints (contract v4).
+"""The two Notenschlüssel-recompute endpoints.
 
     GET  /api/evaluations/projects/{id}/grade-scale/drift
          -> {"stale": int, "graded": int, "scale_source": ...,
@@ -392,7 +392,7 @@ class TestGradeScaleRecompute:
 
 @pytest.mark.integration
 class TestGradeScaleAudit:
-    """The key's audit trail (contract v5) as the two endpoints expose it.
+    """The key's audit trail as the two endpoints expose it.
 
     The trail itself is written by the eval-config PUT (and by the extended
     exam router, through the same shared helper). Here: the drift read

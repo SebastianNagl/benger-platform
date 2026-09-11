@@ -197,7 +197,7 @@ COLLEAGUE_SCALE = {
 }
 
 
-# The exam-level key (contract v2): percent thresholds, resolved BEFORE the
+# The exam-level key: percent thresholds, resolved BEFORE the
 # sheet's own scale by rubric_structure.resolve_grade_scale.
 EXAM_PERCENT_SCALE = {
     "unit": "percent",

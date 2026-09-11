@@ -353,7 +353,7 @@ def validate_evaluation_config_entries(eval_configs_list) -> None:
 def validate_eval_config_grade_scale(config) -> None:
     """Contract-check ``evaluation_config.grade_scale`` (raises 422).
 
-    The exam-level Notenschlüssel (contract v2): 18 non-decreasing
+    The exam-level Notenschlüssel: 18 non-decreasing
     thresholds for Notenpunkte 1..18, a rounding rule, a pass grade and an
     optional preset name. ``unit: "percent"`` thresholds are a share of
     whatever the graded sheet totals, so no point total is known (or needed)
@@ -497,7 +497,7 @@ async def update_project_evaluation_config(
         validate_evaluation_config_entries(eval_configs_list)
 
         # The exam-level Notenschlüssel lives next to them in the same
-        # document (contract v2) and is deep-merged like everything else.
+        # document and is deep-merged like everything else.
         validate_eval_config_grade_scale(config)
 
         # Deep-merge the body into the stored config — same contract as
@@ -509,7 +509,7 @@ async def update_project_evaluation_config(
         stored_config = project.evaluation_config or {}
         merged = deep_merge_dicts(stored_config, config)
 
-        # Every Notenschlüssel change is recorded (contract v5) — the key
+        # Every Notenschlüssel change is recorded — the key
         # retroactively rewrites grades people have already seen, so a grade
         # must never move without a record of who moved it. The trail is
         # SERVER-OWNED: whatever the body said about `grade_scale_history` is

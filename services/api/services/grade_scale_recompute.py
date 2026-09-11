@@ -1,8 +1,8 @@
 """Bring stored Notenpunkte onto the project's CURRENT Notenschlüssel.
 
-The exam-level Notenschlüssel (``project.evaluation_config.grade_scale``,
-contract v2) is editable after the fact, but a grade is computed once at
-grading time and persisted into ``TaskEvaluation.metrics``. Changing the key
+The exam-level Notenschlüssel (``project.evaluation_config.grade_scale``) is
+editable after the fact, but a grade is computed once at grading time and
+persisted into ``TaskEvaluation.metrics``. Changing the key
 therefore leaves every older grading on the old curve — the same submission
 can end up with two different Notenpunkte depending on when it was graded.
 
@@ -339,7 +339,7 @@ def grade_scale_drift(db: Session, project: Project) -> Dict[str, Any]:
     "default", "last_change": {…}|null}`` — ``graded`` counts rows that carry
     a grade at all, ``stale`` the subset whose stored grade (or pass flag)
     differs from what the current key produces, ``last_change`` the newest
-    entry of the key's audit trail (contract v5). Read-only.
+    entry of the key's audit trail. Read-only.
     """
     scan = _scan(db, project)
     return {
@@ -379,7 +379,7 @@ def recompute_grade_scale(db: Session, project: Project) -> Dict[str, Any]:
     call over an unchanged key updates nothing. Commits once.
 
     The run is stamped onto the newest ``grade_scale_history`` entry
-    (contract v5), so the audit trail says not just who moved the key but how
+   , so the audit trail says not just who moved the key but how
     many grades that move actually moved.
     """
     scan = _scan(db, project)

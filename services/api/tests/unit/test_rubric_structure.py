@@ -470,7 +470,7 @@ class TestGrades:
 
 
 # ---------------------------------------------------------------------------
-# Exam-level Notenschlüssel (contract v2): presets, percent unit, resolution
+# Exam-level Notenschlüssel: presets, percent unit, resolution
 # ---------------------------------------------------------------------------
 
 

@@ -1395,7 +1395,7 @@ def parse_rubric_file(filename: str, data: bytes) -> Dict[str, Any]:
         "total_points": total,
         "grade_scale": grade_scale,
         # The same key expressed in PERCENT of the sheet total, so the client
-        # can offer it as the EXAM's Notenschlüssel (contract v2: the key is
+        # can offer it as the EXAM's Notenschlüssel (the key is
         # assessment policy on the exam, not content on the sheet, and a
         # percent key survives a later change of the sheet's point total).
         # ``None`` when the file carried no readable key.

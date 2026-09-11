@@ -1,5 +1,5 @@
 """Unit suite for ``services.grade_scale_recompute`` — the rewrite that
-brings stored Notenpunkte onto a changed Notenschlüssel (contract v4).
+brings stored Notenpunkte onto a changed Notenschlüssel.
 
 Everything here exercises the PURE planner ``_plan_row`` (no DB): it decides,
 for one ``TaskEvaluation.metrics`` blob, whether the row is in scope, what the

@@ -871,7 +871,7 @@ class TestUpdateEvaluationConfig:
         assert mp["rubric_generator_model_id"] == "gpt-5.4"
         assert mp["rubric_prompt_key"] == "bewertungsbogen"
 
-    # --- grade_scale (the exam-level Notenschlüssel, contract v2) ---
+    # --- grade_scale (the exam-level Notenschlüssel) ---
 
     def _percent_scale(self, **overrides):
         scale = {
