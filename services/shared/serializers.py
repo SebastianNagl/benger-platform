@@ -311,6 +311,35 @@ def serialize_korrektur_comment(comment) -> dict:
     }
 
 
+def serialize_grading_feedback(fb) -> dict:
+    """Full export shape for GradingFeedback — used by all three export sites.
+
+    ``context`` travels verbatim. It is a provenance snapshot of what the solver
+    saw (metric keys, judge/grader ids, the ids of the rated task_evaluation
+    rows); those inner ids belong to the SOURCE deployment and are deliberately
+    not remapped on import — they document the original grading, they are never
+    joined on (the same treatment a korrektur comment targeting an evaluation
+    row gets).
+    """
+    return {
+        "id": fb.id,
+        "project_id": fb.project_id,
+        "task_id": fb.task_id,
+        "annotation_id": fb.annotation_id,
+        "user_id": fb.user_id,
+        "grading_source": fb.grading_source,
+        "evaluation_run_id": fb.evaluation_run_id,
+        "judge_model_id": fb.judge_model_id,
+        "grade_points": fb.grade_points,
+        "passed": fb.passed,
+        "rating": fb.rating,
+        "comment": fb.comment,
+        "context": fb.context,
+        "created_at": _isoformat(fb.created_at),
+        "updated_at": _isoformat(fb.updated_at),
+    }
+
+
 def serialize_human_evaluation_data(db, project_id: str, task_ids: List[str]) -> Dict[str, list]:
     """Bundle of human-evaluation tables for a project.
 

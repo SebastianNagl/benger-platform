@@ -64,6 +64,7 @@ from models import (
 )
 from project_models import (
     Annotation,
+    GradingFeedback,
     KorrekturComment,
     PostAnnotationResponse,
     Project,
@@ -103,7 +104,14 @@ _NESTED_SMALL_KEYS = frozenset({
     "preference_rankings",
     "likert_scale_evaluations",
     "korrektur_comments",
+    "grading_feedback",
 })
+
+# Accepted ``grading_feedback.grading_source`` values, mirroring the table's
+# ck_grading_feedback_source CHECK (migration 099). A payload carrying anything
+# else is skipped row-by-row instead of failing the whole import on a constraint
+# violation — an export from a newer deployment may know sources this one does not.
+_GRADING_FEEDBACK_SOURCES = frozenset({"llm", "human", "general"})
 
 # Opening ijson events that begin a JSON value, used to classify each top-level
 # key (so callers can assert e.g. ``data`` is an array → 422 otherwise).
@@ -329,6 +337,7 @@ class _NestedTopFields:
         "preference_rankings",
         "likert_scale_evaluations",
         "korrektur_comments",
+        "grading_feedback",
     )
 
     def __init__(self, top_obj: Dict[str, Any]):
@@ -492,6 +501,9 @@ def run_nested_import(db, project_id: str, fileobj, user_id: str) -> dict:
             for field in ("created_by", "resolved_by"):
                 if c.get(field):
                     import_user_ids.add(c[field])
+    for fb in data.grading_feedback or []:
+        if isinstance(fb, dict) and fb.get("user_id"):
+            import_user_ids.add(fb["user_id"])
     for session in data.human_evaluation_sessions or []:
         if isinstance(session, dict) and session.get("evaluator_id"):
             import_user_ids.add(session["evaluator_id"])
@@ -981,6 +993,52 @@ def run_nested_import(db, project_id: str, fileobj, user_id: str) -> dict:
             created_by=c.get("created_by", user_id),
         ))
 
+    # Grading feedback (a solver's thumbs/comment ON a grading). Unlike every
+    # other FK here the author is NEVER replaced by the importing user: this is
+    # an opinion bound to an identity, and the stub-user pass above materializes
+    # authors this deployment doesn't know, so the row keeps its own author.
+    # A row whose submission didn't come along is dropped rather than dangled.
+    created_grading_feedback = 0
+    seen_feedback: set = set()
+    for fb in data.grading_feedback or []:
+        if not isinstance(fb, dict):
+            continue
+        author_id = fb.get("user_id")
+        new_task_id = task_id_mapping.get(fb.get("task_id"))
+        new_annotation_id = annotation_id_mapping.get(fb.get("annotation_id"))
+        source = fb.get("grading_source")
+        if not author_id or not new_task_id or not new_annotation_id:
+            continue
+        if source not in _GRADING_FEEDBACK_SOURCES:
+            continue
+        # Whitespace-only text is empty, the same normalization the write path
+        # applies; a row with neither a rating nor text carries no opinion.
+        comment = (fb.get("comment") or "").strip() or None
+        if fb.get("rating") is None and comment is None:
+            continue  # ck_grading_feedback_not_empty
+        key = (author_id, new_annotation_id, source)
+        if key in seen_feedback:
+            continue  # uq_grading_feedback_user_annotation_source
+        seen_feedback.add(key)
+        db.add(GradingFeedback(
+            id=str(uuid.uuid4()),
+            project_id=project_id,
+            task_id=new_task_id,
+            annotation_id=new_annotation_id,
+            user_id=author_id,
+            grading_source=source,
+            evaluation_run_id=evaluation_run_id_mapping.get(
+                fb.get("evaluation_run_id")
+            ),
+            judge_model_id=fb.get("judge_model_id"),
+            grade_points=fb.get("grade_points"),
+            passed=fb.get("passed"),
+            rating=fb.get("rating"),
+            comment=comment,
+            context=fb.get("context"),
+        ))
+        created_grading_feedback += 1
+
     # Commit everything atomically
     db.commit()
 
@@ -1003,6 +1061,7 @@ def run_nested_import(db, project_id: str, fileobj, user_id: str) -> dict:
         "created_rubrics": created_rubrics,
         "created_evaluation_runs": created_evaluation_runs,
         "created_task_evaluations": created_task_evaluations,
+        "created_grading_feedback": created_grading_feedback,
         "total_items": total_items,
         "project_id": project_id,
         "task_id_mapping": task_id_mapping,  # Return mapping for debugging/reference
@@ -1149,6 +1208,8 @@ class _FullImportContext:
         "te_seen",
         "comment_id_mapping",
         "catchall_judge_runs",
+        "matched_user_ids",
+        "grading_feedback_seen",
     )
 
     def __init__(self, db, user_id: str):
@@ -1177,6 +1238,13 @@ class _FullImportContext:
             "post_annotation_responses": {},
         }
         self.user_email_to_id: Dict[str, str] = {}
+        # Old->new user ids that matched a REAL user of this deployment by
+        # email. `id_mappings["users"]` cannot answer that question: its
+        # fallback points unknown authors at the importing user, which is fine
+        # for authorship of a comment but would silently re-attribute an
+        # opinion (see _insert_grading_feedback).
+        self.matched_user_ids: Dict[str, str] = {}
+        self.grading_feedback_seen: set = set()
         self.task_counter = 1
         self.te_seen = 0
         self.comment_id_mapping: Dict[str, str] = {}
@@ -1201,6 +1269,7 @@ def _insert_user(ctx: _FullImportContext, user_data: dict) -> None:
         if existing_user:
             ctx.id_mappings["users"][old_user_id] = existing_user.id
             ctx.user_email_to_id[email] = existing_user.id
+            ctx.matched_user_ids[old_user_id] = existing_user.id
         else:
             # For now, map to current importing user as fallback
             ctx.id_mappings["users"][old_user_id] = ctx.user_id
@@ -1640,6 +1709,59 @@ def _insert_korrektur_comment(ctx: _FullImportContext, c: dict) -> None:
     ))
 
 
+def _insert_grading_feedback(ctx: _FullImportContext, fb: dict) -> None:
+    """Insert one grading-feedback row — or skip it.
+
+    Feedback is an OPINION bound to an identity, so the author is the one FK
+    here that is never remapped to the importing user: the row is imported only
+    when the exported author matched a real user of this deployment by email
+    (``matched_user_ids``). Otherwise it is dropped, because a thumbs-down
+    silently re-attributed to whoever ran the import would poison the very
+    analysis the table exists for — and an anonymous row is not an option
+    either (``user_id`` is NOT NULL, and one row per (user, annotation, source)
+    is what the unique index expects).
+
+    Skips rows whose submission didn't come along, whose source this deployment
+    doesn't know, or that would violate the table's CHECK/unique constraints.
+    """
+    author_id = ctx.matched_user_ids.get(fb.get("user_id"))
+    new_task_id = ctx.id_mappings["tasks"].get(fb.get("task_id"))
+    new_annotation_id = ctx.id_mappings["annotations"].get(fb.get("annotation_id"))
+    source = fb.get("grading_source")
+    if not author_id or not new_task_id or not new_annotation_id:
+        return
+    if source not in _GRADING_FEEDBACK_SOURCES:
+        return
+    # Whitespace-only text is empty, the same normalization the write path
+    # applies; a row with neither a rating nor text carries no opinion.
+    comment = (fb.get("comment") or "").strip() or None
+    if fb.get("rating") is None and comment is None:
+        return  # ck_grading_feedback_not_empty
+    key = (author_id, new_annotation_id, source)
+    if key in ctx.grading_feedback_seen:
+        return  # uq_grading_feedback_user_annotation_source
+    ctx.grading_feedback_seen.add(key)
+    ctx.db.add(GradingFeedback(
+        id=str(uuid.uuid4()),
+        project_id=ctx.new_project_id,
+        task_id=new_task_id,
+        annotation_id=new_annotation_id,
+        user_id=author_id,
+        grading_source=source,
+        # The rated run, when it came along; NULL keeps the opinion (a
+        # comment-only human correction has no run either).
+        evaluation_run_id=ctx.id_mappings["evaluations"].get(
+            fb.get("evaluation_run_id")
+        ),
+        judge_model_id=fb.get("judge_model_id"),
+        grade_points=fb.get("grade_points"),
+        passed=fb.get("passed"),
+        rating=fb.get("rating"),
+        comment=comment,
+        context=fb.get("context"),
+    ))
+
+
 def _insert_project_member(ctx: _FullImportContext, member_data: dict) -> None:
     old_member_id = member_data.get("id", str(uuid.uuid4()))
     new_member_id = str(uuid.uuid4())
@@ -1973,6 +2095,7 @@ def _build_full_import_stats(
             "project_members": len(ctx.id_mappings["project_members"]),
             "task_assignments": len(ctx.id_mappings["task_assignments"]),
             "post_annotation_responses": len(ctx.id_mappings["post_annotation_responses"]),
+            "grading_feedback": len(ctx.grading_feedback_seen),
         },
     }
 
@@ -1996,6 +2119,7 @@ _NDJSON_INSERT_DISPATCH = {
     "preference_ranking": _insert_preference_ranking,
     "likert_scale_evaluation": _insert_likert_scale_evaluation,
     "korrektur_comment": _insert_korrektur_comment,
+    "grading_feedback": _insert_grading_feedback,
     "project_member": _insert_project_member,
     "task_assignment": _insert_task_assignment,
     "post_annotation_response": _insert_post_annotation_response,
@@ -2316,6 +2440,11 @@ def run_full_project_import(db, fileobj, user_id: str) -> dict:
 
     for c in _korrektur_parents_then_replies():
         _insert_korrektur_comment(ctx, c)
+
+    # Grading feedback after annotations + evaluation runs (its FKs) and after
+    # the users pass (its author gate).
+    for fb_data in _stream_rows(db, fileobj, "grading_feedback.item"):
+        _insert_grading_feedback(ctx, fb_data)
 
     for member_data in _stream_rows(db, fileobj, "project_members.item"):
         _insert_project_member(ctx, member_data)
