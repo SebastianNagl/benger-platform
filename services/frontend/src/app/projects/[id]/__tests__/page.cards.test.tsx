@@ -221,7 +221,7 @@ describe('ProjectDetailPage — 4-card structure', () => {
     jest.spyOn(window, 'removeEventListener').mockImplementation(jest.fn())
   })
 
-  it('renders the sharing slot as its own block after the settings card with project + onRefresh', async () => {
+  it('renders the sharing slot inside the settings card with project + onRefresh', async () => {
     const { registerSlot } = jest.requireActual('@/lib/extensions/slots')
     const Stub = jest.fn(({ project }: any) => (
       <div data-testid="sharing-stub">{project.id}</div>
@@ -237,14 +237,17 @@ describe('ProjectDetailPage — 4-card structure', () => {
     })
     const params = Promise.resolve({ id: 'test-project-123' })
     render(<ProjectDetailPage params={params} />)
-    // Visible without expanding the (collapsed) settings card.
+    // Einzel-Freigabe is a sub-section of Settings, so it only mounts once
+    // that card is open — the card itself is collapsed by default.
+    const settings = await screen.findByText('project.settings.title')
+    expect(screen.queryByTestId('sharing-stub')).not.toBeInTheDocument()
+    fireEvent.click(settings)
     await waitFor(() => {
       expect(screen.getByTestId('sharing-stub')).toHaveTextContent(
         'test-project-123',
       )
     })
     const host = screen.getByTestId('project-sharing')
-    const settings = screen.getByText('project.settings.title')
     expect(
       settings.compareDocumentPosition(host) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy()

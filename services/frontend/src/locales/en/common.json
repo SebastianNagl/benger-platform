@@ -1409,7 +1409,7 @@
       "titleCannotBeEmpty": "Title cannot be empty"
     },
     "sharing": {
-      "title": "Sharing",
+      "title": "Individual sharing",
       "help": "Students reach the project through “Discover” (public or shared with the organization) or through share links.",
       "discoverableHint": "Students find this project under “Discover”.",
       "notDiscoverableHint": "Students do not find this project under “Discover”; it is reachable only through share links.",

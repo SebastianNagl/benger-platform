@@ -2898,19 +2898,21 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                       </SubSection>
                     </div>
                   )}
-              </ConfigCard>
 
-              {/* Sharing (extended): share links, participants and whether
-              students can find the project. Own collapsible; not gated on
-              enable_annotation so flashcard decks get it too. */}
-              {ProjectSharing && currentProject && canEditProject() && (
-                <div data-testid="project-sharing">
-                  <ProjectSharing
-                    project={currentProject}
-                    onRefresh={() => fetchProject(projectId)}
-                  />
-                </div>
-              )}
+                {/* Sharing (extended): share links, participants and whether
+              students can find the project. A sub-section of Settings — it
+              sits beside "Projekt-Sichtbarkeit" because both answer who may
+              reach this project. Not gated on enable_annotation, so flashcard
+              decks get it too. */}
+                {ProjectSharing && currentProject && canEditProject() && (
+                  <div data-testid="project-sharing">
+                    <ProjectSharing
+                      project={currentProject}
+                      onRefresh={() => fetchProject(projectId)}
+                    />
+                  </div>
+                )}
+              </ConfigCard>
             </>
           )}
         </div>

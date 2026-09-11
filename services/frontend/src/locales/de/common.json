@@ -1409,7 +1409,7 @@
       "titleCannotBeEmpty": "Titel kann nicht leer sein"
     },
     "sharing": {
-      "title": "Freigabe",
+      "title": "Einzel-Freigabe",
       "help": "Studierende erreichen das Projekt über „Entdecken“ (öffentlich oder in der Organisation geteilt) oder über Freigabe-Links.",
       "discoverableHint": "Studierende finden dieses Projekt unter „Entdecken“.",
       "notDiscoverableHint": "Studierende finden dieses Projekt nicht unter „Entdecken“; es ist nur über Freigabe-Links erreichbar.",
