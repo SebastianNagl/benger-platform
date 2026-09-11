@@ -53,6 +53,7 @@ def empty_export_stats() -> dict:
         "total_members": 0,
         "total_assignments": 0,
         "total_post_annotation_responses": 0,
+        "total_grading_feedback": 0,
     }
 
 
