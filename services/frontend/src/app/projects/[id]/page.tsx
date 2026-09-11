@@ -2859,10 +2859,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                 {currentProject &&
                   (user?.is_superadmin ||
                     String(user?.id) === String(currentProject.created_by)) && (
-                    <div
-                      className="mt-6"
-                      data-testid="project-visibility-danger-zone"
-                    >
+                    <div data-testid="project-visibility-danger-zone">
                       <SubSection
                         title={t('project.settings.visibilityDangerZone.title')}
                         badge={
