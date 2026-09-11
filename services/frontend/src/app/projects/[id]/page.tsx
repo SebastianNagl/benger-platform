@@ -2350,7 +2350,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
               above. Splitting it makes the mode picker apply only to
               actual model parameters (temperature/max_tokens). */}
                   {canEditProject() && (
-                    <div className="mb-6">
+                    <div>
                       <SubSection
                         title={t(
                           'project.generationDefaults.runsTitle',
@@ -2498,7 +2498,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                       scheduling/budget knob orthogonal to the parameter
                       strategy picker above. Same split as the gen side. */}
                       {canEditProject() && (
-                        <div className="mb-6">
+                        <div>
                           <SubSection
                             title={t(
                               'project.evaluationDefaults.runsTitle',
@@ -2552,7 +2552,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                       methods produce. Saves itself — see the slot comment
                       at the useSlot call above. */}
                       {canEditProject() && ProjectGradeScale && (
-                        <div className="mb-6">
+                        <div>
                           <ProjectGradeScale
                             projectId={projectId || ''}
                             evaluationConfig={

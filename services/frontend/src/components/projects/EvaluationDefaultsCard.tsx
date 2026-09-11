@@ -49,7 +49,10 @@ export function EvaluationDefaultsCard({
   beginEditEvaluation,
 }: EvaluationDefaultsCardProps) {
   return (
-    <div className="mb-6">
+    // No own bottom margin: the ConfigCard's section container gives every
+    // direct child `py-6` and a divider, so an extra `mb-6` here pushed
+    // this section's divider 24px lower than the ones below it.
+    <div>
       <SubSection title={t('project.evaluationDefaults.title')}>
         <p className="-mt-2 mb-3 text-xs text-zinc-500 dark:text-zinc-400">
           {t('project.evaluationDefaults.description')}
