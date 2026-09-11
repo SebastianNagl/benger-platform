@@ -9439,19 +9439,10 @@
     "totalMismatch": "The checkpoints add up to {points} BE, but the file declares a total of {declared} BE.",
     "steps": "{count} checkpoints",
     "empty": "No sheet yet. Upload a grading sheet, let the AI draft one, or add the first checkpoint.",
-    "keyboardHint": "Keyboard: Tab/Shift+Tab indent/outdent, Alt+↑/↓ move, Enter new checkpoint.",
-    "gradeScale": {
-      "title": "Grade scale",
-      "useCustom": "Own grade scale",
-      "defaultHint": "Without an own scale the default table applies (pass from 4 grade points), scaled to the sheet total.",
-      "np": "GP",
-      "minFor": "{np} GP from",
-      "passGrade": "Pass from",
-      "reset": "Default",
-      "invalidOrder": "Thresholds must be non-decreasing.",
-      "aboveTotal": "A threshold exceeds the sheet total.",
-      "invalidCount": "Every grade point from 1 to 18 needs a threshold."
-    }
+    "adoptScale": "The sheet contains a grade scale. Use it as the exam's grade scale?",
+    "adoptScaleConfirm": "Apply",
+    "adoptScaleDismiss": "Ignore",
+    "keyboardHint": "Keyboard: Tab/Shift+Tab indent/outdent, Alt+↑/↓ move, Enter new checkpoint."
   },
   "rubricResult": {
     "title": "Grading sheet",
@@ -9471,6 +9462,34 @@
     "collapseAll": "Collapse all",
     "notRevealed": "The filled grading sheet is shown once the model solution is revealed.",
     "noScores": "No checkpoints recorded."
+  },
+  "notenschluessel": {
+    "partLabel": "Grade scale",
+    "partDescription": "The exam's points-to-grade-points table — pick a preset (pass at 50 % or 40 %) or enter your own thresholds.",
+    "partSummary": "{preset} · pass from {points} points",
+    "intro": "The grade scale converts the points achieved into grade points. Thresholds are percentages of the total, so the scale stays valid when the grading sheet changes.",
+    "preset": "Scale",
+    "presetStandard": "Standard (pass at 50 %)",
+    "presetUebungsklausur": "Practice exam (pass at 40 %)",
+    "presetCustom": "Own scale",
+    "presetShortStandard": "Standard",
+    "presetShortUebungsklausur": "Practice exam",
+    "presetShortCustom": "Own scale",
+    "customHint": "Own scale — \u201cReset\u201d restores the preset you picked last.",
+    "reset": "Reset",
+    "total": "Total points: {points}",
+    "tableLabel": "Grade scale",
+    "np": "Grade points",
+    "fromPoints": "from points",
+    "percent": "Share",
+    "percentValue": "{percent} %",
+    "rowLabel": "{np} grade points from points",
+    "passLine": "Pass from {grade} grade points — that is {points} points.",
+    "adopted": "The grade scale from the file will become the exam's grade scale when you apply this part.",
+    "invalidCount": "Every grade point from 1 to 18 needs a threshold.",
+    "invalidOrder": "Thresholds must increase from grade point 1 to 18.",
+    "outOfRange": "Every threshold must be above 0 and must not exceed the total points.",
+    "invalidPassGrade": "The pass mark must be between 0 and 18 grade points."
   },
   "vendor": {
     "adminTitle": "Approve vendors (superadmin)",

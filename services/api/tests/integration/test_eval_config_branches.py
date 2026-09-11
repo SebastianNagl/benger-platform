@@ -871,6 +871,117 @@ class TestUpdateEvaluationConfig:
         assert mp["rubric_generator_model_id"] == "gpt-5.4"
         assert mp["rubric_prompt_key"] == "bewertungsbogen"
 
+    # --- grade_scale (the exam-level Notenschlüssel, contract v2) ---
+
+    def _percent_scale(self, **overrides):
+        scale = {
+            "unit": "percent",
+            "preset": "uebungsklausur",
+            "thresholds": [10, 20, 30, 40, 44, 48, 52, 56, 60, 64, 68, 72, 76, 80, 84, 88, 92, 96],
+            "rounding": "floor",
+            "pass_grade": 4,
+        }
+        scale.update(overrides)
+        return scale
+
+    def test_grade_scale_persists(
+        self, client, test_db, test_users, auth_headers, test_org
+    ):
+        project = _make_project(test_db, test_users[0], test_org)
+        resp = client.put(
+            f"/api/evaluations/projects/{project.id}/evaluation-config",
+            json={"grade_scale": self._percent_scale()},
+            headers=_org_headers(auth_headers, "admin", test_org),
+        )
+        assert resp.status_code == 200, resp.text
+        test_db.expire_all()
+        stored = (
+            test_db.query(Project).filter(Project.id == project.id).first()
+        ).evaluation_config
+        assert stored["grade_scale"]["preset"] == "uebungsklausur"
+        assert stored["grade_scale"]["thresholds"][3] == 40
+
+    def test_grade_scale_survives_a_sibling_key_write(
+        self, client, test_db, test_users, auth_headers, test_org
+    ):
+        """The PUT deep-merges: a later evaluation_configs-only body must not
+        drop the exam's Notenschlüssel (issue #289 contract)."""
+        project = _make_project(test_db, test_users[0], test_org)
+        url = f"/api/evaluations/projects/{project.id}/evaluation-config"
+        headers = _org_headers(auth_headers, "admin", test_org)
+        assert client.put(url, json={"grade_scale": self._percent_scale()}, headers=headers).status_code == 200
+        assert client.put(url, json=self._rubric_config(), headers=headers).status_code == 200
+        test_db.expire_all()
+        stored = (
+            test_db.query(Project).filter(Project.id == project.id).first()
+        ).evaluation_config
+        assert stored["grade_scale"]["thresholds"][3] == 40
+        assert stored["evaluation_configs"][0]["metric"] == "llm_judge_rubric"
+
+    def test_grade_scale_null_clears_it(
+        self, client, test_db, test_users, auth_headers, test_org
+    ):
+        project = _make_project(test_db, test_users[0], test_org)
+        url = f"/api/evaluations/projects/{project.id}/evaluation-config"
+        headers = _org_headers(auth_headers, "admin", test_org)
+        assert client.put(url, json={"grade_scale": self._percent_scale()}, headers=headers).status_code == 200
+        assert client.put(url, json={"grade_scale": None}, headers=headers).status_code == 200
+        test_db.expire_all()
+        stored = (
+            test_db.query(Project).filter(Project.id == project.id).first()
+        ).evaluation_config
+        assert "grade_scale" not in stored
+
+    @pytest.mark.parametrize(
+        "bad, needle",
+        [
+            ({"thresholds": [10, 20]}, "exactly 18"),
+            ({"thresholds": [0] + [10, 20, 30, 40, 44, 48, 52, 56, 60, 64, 68, 72, 76, 80, 84, 88, 92]}, "percentage"),
+            ({"thresholds": [50, 26, 39, 50, 54, 57, 60, 64, 67, 70, 74, 77, 80, 84, 87, 90, 94, 97]}, "lower than its predecessor"),
+            ({"pass_grade": 19}, "pass_grade"),
+            ({"preset": "nope"}, "preset"),
+            ({"rounding": "up"}, "rounding"),
+        ],
+    )
+    def test_invalid_grade_scale_returns_422(
+        self, client, test_db, test_users, auth_headers, test_org, bad, needle
+    ):
+        project = _make_project(test_db, test_users[0], test_org)
+        resp = client.put(
+            f"/api/evaluations/projects/{project.id}/evaluation-config",
+            json={"grade_scale": self._percent_scale(**bad)},
+            headers=_org_headers(auth_headers, "admin", test_org),
+        )
+        assert resp.status_code == 422, resp.text
+        detail = resp.json()["detail"]
+        assert detail.startswith("Invalid Notenschlüssel: ")
+        assert needle in detail
+
+    def test_non_object_grade_scale_returns_422(
+        self, client, test_db, test_users, auth_headers, test_org
+    ):
+        project = _make_project(test_db, test_users[0], test_org)
+        resp = client.put(
+            f"/api/evaluations/projects/{project.id}/evaluation-config",
+            json={"grade_scale": "standard"},
+            headers=_org_headers(auth_headers, "admin", test_org),
+        )
+        assert resp.status_code == 422
+        assert "must be an object" in resp.json()["detail"]
+
+    def test_absolute_grade_scale_is_accepted_without_a_total(
+        self, client, test_db, test_users, auth_headers, test_org
+    ):
+        """A legacy BE key can be stored at exam level too — there is no
+        sheet total at config-save time, so only the shape is checked."""
+        project = _make_project(test_db, test_users[0], test_org)
+        resp = client.put(
+            f"/api/evaluations/projects/{project.id}/evaluation-config",
+            json={"grade_scale": self._percent_scale(unit="BE", preset="custom")},
+            headers=_org_headers(auth_headers, "admin", test_org),
+        )
+        assert resp.status_code == 200, resp.text
+
 
 # =====================================================================
 # GET /detect-answer-types  (async)

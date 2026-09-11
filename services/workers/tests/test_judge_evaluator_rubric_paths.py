@@ -197,10 +197,49 @@ COLLEAGUE_SCALE = {
 }
 
 
-def _run_graded(db_total, total_max=100.0, *, grade_scale=None, total_points=100, metric_params=None):
+# The exam-level key (contract v2): percent thresholds, resolved BEFORE the
+# sheet's own scale by rubric_structure.resolve_grade_scale.
+EXAM_PERCENT_SCALE = {
+    "unit": "percent",
+    "preset": "standard",
+    "thresholds": [13, 26, 39, 50, 54, 57, 60, 64, 67, 70, 74, 77, 80, 84, 87, 90, 94, 97],
+    "rounding": "floor",
+    "pass_grade": 4,
+}
+
+
+def _db_for(task_row, project):
+    """A db double that answers the Project lookup separately from the task
+    lookup (both go through ``db.query(...).filter(...).first()``)."""
     db = MagicMock()
+
+    def _query(model):
+        q = MagicMock()
+        q.filter.return_value.first.return_value = (
+            project if getattr(model, "__name__", "") == "Project" else task_row
+        )
+        return q
+
+    db.query.side_effect = _query
+    return db
+
+
+def _run_graded(
+    db_total,
+    total_max=100.0,
+    *,
+    grade_scale=None,
+    total_points=100,
+    metric_params=None,
+    project_config=None,
+):
     task_row = SimpleNamespace(id="task-1", data={"musterloesung": "ML"})
-    db.query.return_value.filter.return_value.first.return_value = task_row
+    db = _db_for(
+        task_row,
+        SimpleNamespace(id="proj-1", evaluation_config=project_config)
+        if project_config is not None
+        else None,
+    )
     rubric = SimpleNamespace(
         id="rub-9",
         generator_model_id=None,
@@ -270,3 +309,48 @@ def test_rubric_metric_lifts_default_max_tokens_to_the_floor():
     assert factory.call_args.kwargs["max_tokens"] == 32000
     _, _, factory = _run_graded(80, metric_params={"judge_model": "gpt-5.4-mini", "max_tokens": 3000})
     assert factory.call_args.kwargs["max_tokens"] == 3000
+
+
+def test_exam_percent_key_beats_the_sheets_absolute_scale():
+    """The exam's Notenschlüssel (project.evaluation_config.grade_scale) is
+    assessment policy and wins over anything the sheet carries: 40 BE passes
+    on the sheet's own 40-BE key, but the exam's standard key (50 %) grades
+    the same 40 BE as NP 3 — fail."""
+    _, row, _ = _run_graded(40, grade_scale=COLLEAGUE_SCALE)
+    assert row.metrics["llm_judge_rubric"]["details"]["grade_points"] == 4
+    assert row.passed is True
+
+    _, row, _ = _run_graded(
+        40,
+        grade_scale=COLLEAGUE_SCALE,
+        project_config={"grade_scale": EXAM_PERCENT_SCALE},
+    )
+    details = row.metrics["llm_judge_rubric"]["details"]
+    assert details["grade_points"] == 3
+    assert details["passed"] is False
+    assert details["grade_scale_source"] == "project"
+    assert row.metrics["llm_judge_rubric_grade_points"] == 3.0
+    assert row.metrics["llm_judge_rubric_passed"] == 0.0
+    assert row.passed is False
+
+
+def test_exam_percent_key_projects_onto_the_sheet_total():
+    """A percent key is total-agnostic: on a 50 BE sheet, 25 BE is 50 % → NP 4."""
+    _, row, _ = _run_graded(
+        25,
+        total_max=50.0,
+        total_points=50,
+        project_config={"grade_scale": EXAM_PERCENT_SCALE},
+    )
+    details = row.metrics["llm_judge_rubric"]["details"]
+    assert details["grade_points"] == 4 and details["passed"] is True
+    assert details["grade_scale_source"] == "project"
+
+
+def test_project_without_a_key_still_uses_the_sheet_scale():
+    _, row, _ = _run_graded(
+        40, grade_scale=COLLEAGUE_SCALE, project_config={"evaluation_configs": []}
+    )
+    details = row.metrics["llm_judge_rubric"]["details"]
+    assert details["grade_points"] == 4
+    assert details["grade_scale_source"] == "rubric"

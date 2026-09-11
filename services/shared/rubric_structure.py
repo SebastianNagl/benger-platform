@@ -59,6 +59,23 @@ DEFAULT_PASS_GRADE = 4
 DEFAULT_ROUNDING = "floor"
 DEFAULT_GRADE_UNIT = "BE"
 
+# Named Notenschlüssel presets, expressed in PERCENT of the exam's point
+# total. ``standard`` is exactly ``DEFAULT_GRADE_THRESHOLDS`` (the Falllösung
+# table on 100), so an exam that picks it keeps today's grades bit for bit;
+# ``uebungsklausur`` is the milder Übungsklausur key that passes at 40 %.
+GRADE_SCALE_PRESETS: Dict[str, List[float]] = {
+    "standard": [13, 26, 39, 50, 54, 57, 60, 64, 67, 70, 74, 77, 80, 84, 87, 90, 94, 97],
+    "uebungsklausur": [10, 20, 30, 40, 44, 48, 52, 56, 60, 64, 68, 72, 76, 80, 84, 88, 92, 96],
+}
+DEFAULT_GRADE_PRESET = "standard"
+GRADE_PRESET_PASS_GRADES = {"standard": 4, "uebungsklausur": 4}
+# ``BE`` = absolute points against the sheet total (legacy, per-rubric);
+# ``percent`` = share of whatever the sheet totals (the exam-level key, which
+# survives a re-pointed rubric).
+GRADE_UNITS = ("BE", "percent")
+PERCENT_GRADE_UNIT = "percent"
+GRADE_PRESET_NAMES = tuple(GRADE_SCALE_PRESETS) + ("custom",)
+
 _STEP_KEY_ORDER = re.compile(r"^s(\d+)_")
 
 
@@ -265,16 +282,36 @@ def validate_structure(structure: Any) -> List[str]:
     return errors
 
 
+def is_percent_scale(scale: Any) -> bool:
+    """``True`` when the scale's thresholds are PERCENT of the point total."""
+    if not isinstance(scale, dict):
+        return False
+    unit = scale.get("unit")
+    return isinstance(unit, str) and unit.strip().lower() == PERCENT_GRADE_UNIT
+
+
 def validate_grade_scale(scale: Any, total_points: Any = None) -> List[str]:
     """Contract violations of a Notenschlüssel (empty list == valid).
 
-    ``thresholds`` are the MINIMUM points for Notenpunkte 1..18 (exactly 18,
-    non-decreasing, >= 0, <= ``total_points`` when given).
+    ``thresholds`` are the MINIMUM values for Notenpunkte 1..18 (exactly 18,
+    non-decreasing). Two units:
+
+    - ``"BE"`` (default, legacy per-rubric scales): absolute points, ``>= 0``
+      and ``<= total_points`` when a total is given.
+    - ``"percent"`` (the exam-level key): a share of whatever the sheet
+      totals, ``0 < t <= 100``. A percent scale is valid on ANY total — that
+      is the point of the unit — so the "exceeds the total" rule does not
+      apply to it.
+
+    ``preset`` names the key the thresholds came from (a
+    ``GRADE_SCALE_PRESETS`` entry or ``"custom"``); it is informational and
+    never overrides the thresholds.
     """
     errors: List[str] = []
     if not isinstance(scale, dict):
         return ["grade_scale must be an object"]
 
+    percent = is_percent_scale(scale)
     thresholds = scale.get("thresholds")
     if not isinstance(thresholds, list) or len(thresholds) != GRADE_COUNT:
         errors.append(f"grade_scale.thresholds must list exactly {GRADE_COUNT} values")
@@ -286,16 +323,29 @@ def validate_grade_scale(scale: Any, total_points: Any = None) -> List[str]:
                 prev = None
                 continue
             value_f = float(value)
-            if value_f < 0:
-                errors.append(f"grade_scale.thresholds[{i}] must be >= 0")
+            if percent:
+                if value_f <= 0 or value_f > 100:
+                    errors.append(
+                        f"grade_scale.thresholds[{i}] must be a percentage "
+                        "greater than 0 and at most 100"
+                    )
+            else:
+                if value_f < 0:
+                    errors.append(f"grade_scale.thresholds[{i}] must be >= 0")
+                if _is_number(total_points) and value_f > float(total_points):
+                    errors.append(
+                        f"grade_scale.thresholds[{i}] ({format_points(value_f)}) exceeds the "
+                        f"total of {format_points(total_points)} points"
+                    )
             if prev is not None and value_f < prev:
                 errors.append(f"grade_scale.thresholds[{i}] is lower than its predecessor")
-            if _is_number(total_points) and value_f > float(total_points):
-                errors.append(
-                    f"grade_scale.thresholds[{i}] ({format_points(value_f)}) exceeds the "
-                    f"total of {format_points(total_points)} points"
-                )
             prev = value_f
+
+    preset = scale.get("preset")
+    if preset is not None and preset not in GRADE_PRESET_NAMES:
+        errors.append(
+            "grade_scale.preset must be one of " + ", ".join(GRADE_PRESET_NAMES)
+        )
 
     rounding = scale.get("rounding")
     if rounding is not None and rounding not in ROUNDING_MODES:
@@ -328,8 +378,10 @@ def normalize_grade_scale(scale: Dict[str, Any]) -> Dict[str, Any]:
     """Canonical copy of a (validated) Notenschlüssel for storage.
 
     ``{"unit", "thresholds", "rounding", "pass_grade"}`` with defaults filled
-    in, thresholds coerced (int when integral) and ``max_points`` kept only
-    when given.
+    in, thresholds coerced (int when integral) and ``max_points`` / ``preset``
+    kept only when given. The UNIT survives verbatim: a ``"percent"`` key
+    stays percent all the way into the JSONB column, and only
+    ``effective_grade_scale`` projects it onto a concrete point total.
     """
     out: Dict[str, Any] = {
         "unit": _clean_text(scale.get("unit")) or DEFAULT_GRADE_UNIT,
@@ -343,9 +395,35 @@ def normalize_grade_scale(scale: Dict[str, Any]) -> Dict[str, Any]:
             else DEFAULT_PASS_GRADE
         ),
     }
+    if scale.get("preset") in GRADE_PRESET_NAMES:
+        out["preset"] = scale["preset"]
     if _is_number(scale.get("max_points")):
         out["max_points"] = _coerce_points(scale["max_points"])
     return out
+
+
+def grade_scale_from_preset(
+    preset: str = DEFAULT_GRADE_PRESET, *, pass_grade: Optional[int] = None
+) -> Dict[str, Any]:
+    """A percent Notenschlüssel for one of the named presets.
+
+    ``standard`` reproduces the platform default exactly (on a 100-point
+    sheet its point thresholds are ``DEFAULT_GRADE_THRESHOLDS``), so storing
+    it on an exam changes no grade.
+    """
+    if preset not in GRADE_SCALE_PRESETS:
+        raise ValueError(f"unknown grade scale preset {preset!r}")
+    return {
+        "unit": PERCENT_GRADE_UNIT,
+        "preset": preset,
+        "thresholds": list(GRADE_SCALE_PRESETS[preset]),
+        "rounding": DEFAULT_ROUNDING,
+        "pass_grade": (
+            pass_grade
+            if isinstance(pass_grade, int) and not isinstance(pass_grade, bool)
+            else GRADE_PRESET_PASS_GRADES.get(preset, DEFAULT_PASS_GRADE)
+        ),
+    }
 
 
 def normalize_structure(structure: Dict[str, Any]) -> Dict[str, Any]:
@@ -670,23 +748,44 @@ def mirror_rubric_into_task_data(task: Any, rubric: Any) -> None:
 
 
 def effective_grade_scale(scale: Any, total_points: Any) -> Dict[str, Any]:
-    """The scale actually applied: the rubric's own, or the default table
-    scaled to ``total_points`` (``source`` = ``"rubric"`` | ``"default"``)."""
+    """The scale actually applied, projected onto ``total_points``.
+
+    ``source`` is ``"rubric"`` when an explicit scale was handed in (the
+    caller knows whether it came from the exam key or the sheet — see
+    ``grade_for_rubric``), ``"default"`` when the standard preset is used.
+
+    A ``unit: "percent"`` scale is converted to POINTS here
+    (``t / 100 * total_points``) and the returned unit is ``"BE"``, so every
+    downstream reader (grade computation, ``render_grade_scale_text``) works
+    in one unit. ``source_unit`` records what came in.
+    """
     total = float(total_points) if _is_number(total_points) and float(total_points) > 0 else 100.0
     if isinstance(scale, dict) and isinstance(scale.get("thresholds"), list) and len(
         scale["thresholds"]
     ) == GRADE_COUNT:
-        thresholds = [float(t) if _is_number(t) else 0.0 for t in scale["thresholds"]]
+        percent = is_percent_scale(scale)
+        factor = total / 100.0 if percent else 1.0
+        thresholds = [
+            (float(t) * factor if _is_number(t) else 0.0) for t in scale["thresholds"]
+        ]
         pass_grade = scale.get("pass_grade")
         max_points = scale.get("max_points")
-        return {
-            "unit": scale.get("unit") or DEFAULT_GRADE_UNIT,
-            "thresholds": [_coerce_points(t) for t in thresholds],
+        out = {
+            "unit": DEFAULT_GRADE_UNIT if percent else (scale.get("unit") or DEFAULT_GRADE_UNIT),
+            "thresholds": [_coerce_points(round(t, 6)) for t in thresholds],
             "rounding": scale.get("rounding") if scale.get("rounding") in ROUNDING_MODES else DEFAULT_ROUNDING,
             "pass_grade": pass_grade if isinstance(pass_grade, int) and not isinstance(pass_grade, bool) else DEFAULT_PASS_GRADE,
-            "max_points": _coerce_points(max_points) if _is_number(max_points) else _coerce_points(total),
+            "max_points": (
+                _coerce_points(total)
+                if percent or not _is_number(max_points)
+                else _coerce_points(max_points)
+            ),
             "source": "rubric",
+            "source_unit": PERCENT_GRADE_UNIT if percent else (scale.get("unit") or DEFAULT_GRADE_UNIT),
         }
+        if scale.get("preset") in GRADE_PRESET_NAMES:
+            out["preset"] = scale["preset"]
+        return out
     factor = total / 100.0
     return {
         "unit": DEFAULT_GRADE_UNIT,
@@ -695,6 +794,8 @@ def effective_grade_scale(scale: Any, total_points: Any) -> Dict[str, Any]:
         "pass_grade": DEFAULT_PASS_GRADE,
         "max_points": _coerce_points(total),
         "source": "default",
+        "source_unit": PERCENT_GRADE_UNIT,
+        "preset": DEFAULT_GRADE_PRESET,
     }
 
 
@@ -730,17 +831,64 @@ def grade_from_points(
     return grade, grade >= int(effective["pass_grade"])
 
 
-def grade_for_rubric(rubric: Any, points: Any, fallback_total: Any) -> Tuple[int, bool, str]:
+def _scale_or_none(candidate: Any) -> Optional[Dict[str, Any]]:
+    """A usable Notenschlüssel dict, or ``None``."""
+    if isinstance(candidate, dict) and isinstance(candidate.get("thresholds"), list):
+        return candidate
+    return None
+
+
+def resolve_grade_scale(project_config: Any, rubric: Any = None) -> Optional[Dict[str, Any]]:
+    """The Notenschlüssel that governs a grading, in contract order.
+
+    1. ``project_config["grade_scale"]`` — the EXAM's key (usually
+       ``unit: "percent"``). Assessment policy belongs to the exam, so it
+       wins over anything a single sheet carries.
+    2. ``rubric.grade_scale`` — a legacy / imported per-sheet key (absolute
+       ``unit: "BE"`` points).
+    3. ``None`` — the platform default (the ``standard`` preset scaled to
+       the sheet total).
+
+    ``project_config`` is the raw ``Project.evaluation_config`` document (or
+    ``None``); ``rubric`` may be a ``TaskRubric`` row, any object with a
+    ``grade_scale`` attribute, or a plain dict.
+    """
+    if isinstance(project_config, dict):
+        found = _scale_or_none(project_config.get("grade_scale"))
+        if found is not None:
+            return found
+    if rubric is not None:
+        candidate = (
+            rubric.get("grade_scale")
+            if isinstance(rubric, dict)
+            else getattr(rubric, "grade_scale", None)
+        )
+        found = _scale_or_none(candidate)
+        if found is not None:
+            return found
+    return None
+
+
+def grade_for_rubric(
+    rubric: Any, points: Any, fallback_total: Any, project_config: Any = None
+) -> Tuple[int, bool, str]:
     """``(grade, passed, scale_source)`` for a rubric row (or row-like object).
 
     The rubric's ``total_points`` wins over ``fallback_total`` (the judge's
-    summed ``total_max``); ``scale_source`` is ``"rubric"`` when the row
-    carries its own Notenschlüssel, else ``"default"``.
+    summed ``total_max``). ``scale_source`` says which step of
+    ``resolve_grade_scale`` won: ``"project"`` (the exam's own
+    Notenschlüssel), ``"rubric"`` (the sheet's) or ``"default"``.
     """
     total = getattr(rubric, "total_points", None)
     if not _is_number(total) or float(total) <= 0:
         total = fallback_total
-    scale = getattr(rubric, "grade_scale", None)
+    project_scale = (
+        _scale_or_none((project_config or {}).get("grade_scale"))
+        if isinstance(project_config, dict)
+        else None
+    )
+    scale = project_scale if project_scale is not None else resolve_grade_scale(None, rubric)
     grade, passed = grade_from_points(points, total, scale)
-    source = effective_grade_scale(scale, total)["source"]
-    return grade, passed, source
+    if project_scale is not None:
+        return grade, passed, "project"
+    return grade, passed, effective_grade_scale(scale, total)["source"]

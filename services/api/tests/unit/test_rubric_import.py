@@ -88,6 +88,15 @@ class TestColleagueSample:
             "pass_grade": 4,
             "max_points": 100,
         }
+        # The same key in percent, offered as the EXAM's Notenschlüssel
+        # (contract v2). This sheet totals 100 BE, so the numbers coincide.
+        assert result["grade_scale_percent"] == {
+            "unit": "percent",
+            "preset": "custom",
+            "thresholds": [float(t) for t in COLLEAGUE_THRESHOLDS],
+            "rounding": "floor",
+            "pass_grade": 4,
+        }
         assert validate_structure(result["structure"]) == []
         assert criteria_from_structure(result["structure"]) == result["criteria"]
         assert list(result["criteria"])[:2] == [
@@ -295,6 +304,33 @@ class TestXlsxHeuristics:
         assert result["grade_scale"] is None
         assert "grade_scale_total_mismatch" in _codes(result)
         assert "grade_scale_unparsed" in _codes(result)
+        assert result["grade_scale_percent"] is None
+
+    def test_percent_twin_on_a_non_100_total(self):
+        """A 50 BE sheet: the absolute key stays absolute, the percent twin
+        rescales it so the exam key survives a later change of the total."""
+        lows = [5, 10, 15, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 40, 42, 44, 46, 48]
+        bounds = [(0, lows[0] - 1)] + [
+            (low, (lows[i + 1] - 1) if i + 1 < len(lows) else 50)
+            for i, low in enumerate(lows)
+        ]
+        rows = [{"A": "I. a", "B": 50}, {"A": "Notenschlüssel:"}]
+        rows += [
+            {"A": f"{low}-{high} BE", "B": grade}
+            for grade, (low, high) in enumerate(bounds)
+        ]
+        result = _xlsx(rows)
+        assert result["total_points"] == 50
+        assert result["grade_scale"]["unit"] == "BE"
+        percent = result["grade_scale_percent"]
+        assert percent["unit"] == "percent" and percent["preset"] == "custom"
+        assert percent["rounding"] == result["grade_scale"]["rounding"]
+        assert percent["pass_grade"] == 4
+        assert "max_points" not in percent
+        assert percent["thresholds"] == [
+            round(t / 50 * 100, 4) for t in result["grade_scale"]["thresholds"]
+        ]
+        assert percent["thresholds"][0] == 10.0  # 5 BE of 50 = 10 %
 
     def test_title_from_first_free_row(self):
         result = _xlsx([{"A": "Korrekturbogen Übungsklausur"}, {"A": "I. a", "B": 1}, {"A": "II. b", "B": 1}])

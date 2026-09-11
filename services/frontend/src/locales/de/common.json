@@ -9428,19 +9428,10 @@
     "totalMismatch": "Die Summe der Schritte ({points} BE) weicht von der in der Datei angegebenen Gesamtsumme ({declared} BE) ab.",
     "steps": "{count} Schritte",
     "empty": "Noch kein Bogen. Lade einen Korrekturbogen hoch, lass die KI einen Vorschlag erstellen oder lege den ersten Schritt an.",
-    "keyboardHint": "Tastatur: Tab/Shift+Tab ein-/ausrücken, Alt+↑/↓ verschieben, Enter neuer Schritt.",
-    "gradeScale": {
-      "title": "Notenschlüssel",
-      "useCustom": "Eigener Notenschlüssel",
-      "defaultHint": "Ohne eigenen Schlüssel gilt die Standard-Tabelle (bestanden ab 4 Notenpunkten), auf die Gesamtsumme des Bogens umgerechnet.",
-      "np": "NP",
-      "minFor": "{np} NP ab",
-      "passGrade": "Bestanden ab",
-      "reset": "Standard",
-      "invalidOrder": "Die Schwellen müssen aufsteigend sein.",
-      "aboveTotal": "Eine Schwelle liegt über der Gesamtsumme des Bogens.",
-      "invalidCount": "Für jeden Notenpunkt von 1 bis 18 wird eine Schwelle benötigt."
-    }
+    "adoptScale": "Der Bogen enthält einen Notenschlüssel. Als Notenschlüssel der Klausur übernehmen?",
+    "adoptScaleConfirm": "Übernehmen",
+    "adoptScaleDismiss": "Ignorieren",
+    "keyboardHint": "Tastatur: Tab/Shift+Tab ein-/ausrücken, Alt+↑/↓ verschieben, Enter neuer Schritt."
   },
   "rubricResult": {
     "title": "Bewertungsbogen",
@@ -9460,6 +9451,34 @@
     "collapseAll": "Alle zuklappen",
     "notRevealed": "Der ausgefüllte Bewertungsbogen wird nach Freigabe der Musterlösung angezeigt.",
     "noScores": "Keine Schritte erfasst."
+  },
+  "notenschluessel": {
+    "partLabel": "Notenschlüssel",
+    "partDescription": "Punkte-zu-Notenpunkte-Tabelle der Klausur — Vorlage wählen (ab 50 % oder ab 40 %) oder eigene Schwellen eintragen.",
+    "partSummary": "{preset} · bestanden ab {points} Punkten",
+    "intro": "Der Notenschlüssel rechnet die erreichten Punkte in Notenpunkte um. Die Schwellen sind Prozentwerte der Gesamtpunktzahl — ändert sich der Bewertungsbogen, bleibt der Schlüssel gültig.",
+    "preset": "Schlüssel",
+    "presetStandard": "Standard (ab 50 %)",
+    "presetUebungsklausur": "Übungsklausur (ab 40 %)",
+    "presetCustom": "Eigener Schlüssel",
+    "presetShortStandard": "Standard",
+    "presetShortUebungsklausur": "Übungsklausur",
+    "presetShortCustom": "Eigener Schlüssel",
+    "customHint": "Eigener Schlüssel — „Zurücksetzen“ stellt die zuletzt gewählte Vorlage wieder her.",
+    "reset": "Zurücksetzen",
+    "total": "Gesamtpunktzahl: {points}",
+    "tableLabel": "Notenschlüssel",
+    "np": "Notenpunkte",
+    "fromPoints": "ab Punkten",
+    "percent": "Anteil",
+    "percentValue": "{percent} %",
+    "rowLabel": "{np} Notenpunkte ab Punkten",
+    "passLine": "Bestanden ab {grade} Notenpunkten — das sind {points} Punkte.",
+    "adopted": "Der Notenschlüssel aus der Datei wird beim Übernehmen als Notenschlüssel der Klausur gesetzt.",
+    "invalidCount": "Für jeden Notenpunkt von 1 bis 18 wird eine Schwelle gebraucht.",
+    "invalidOrder": "Die Schwellen müssen von Notenpunkt 1 bis 18 aufsteigend sein.",
+    "outOfRange": "Jede Schwelle muss über 0 liegen und darf die Gesamtpunktzahl nicht überschreiten.",
+    "invalidPassGrade": "Die Bestehensgrenze muss zwischen 0 und 18 Notenpunkten liegen."
   },
   "vendor": {
     "adminTitle": "Anbieter freischalten (Superadmin)",

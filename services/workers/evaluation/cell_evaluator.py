@@ -89,12 +89,55 @@ def _render_rubric_text(rubric) -> str:
     return rubric_prompt_text(rubric, include_grade_scale=False)
 
 
-def _stamp_rubric_grade(result, task_rubric) -> None:
+def _project_eval_config(db, project_id):
+    """The project's ``evaluation_config`` document, or ``None``.
+
+    Read lazily, once per cell, only when a Bewertungsbogen grade is about
+    to be computed: the exam-level Notenschlüssel
+    (``evaluation_config.grade_scale``) beats the sheet's own scale — see
+    ``rubric_structure.resolve_grade_scale``.
+    """
+    if not project_id:
+        return None
+    try:
+        from project_models import Project as _Project
+
+        row = db.query(_Project).filter(_Project.id == project_id).first()
+    except Exception:  # pragma: no cover - defensive, grading must not break
+        return None
+    config = getattr(row, "evaluation_config", None)
+    return config if isinstance(config, dict) else None
+
+
+def _falloesung_grade_scale_kwargs(fn, db, project_id) -> Dict[str, Any]:
+    """``{"grade_scale": …}`` when the extended Falllösung compute accepts it.
+
+    The exam-level Notenschlüssel governs the Falllösung lane too (its raw
+    total is a 0-100 score). Older extended packages have no ``grade_scale``
+    parameter, so probe the signature first — the same forward/backward
+    compatibility convention as ``_supported_extra_kwargs``.
+    """
+    import inspect as _inspect
+
+    try:
+        params = _inspect.signature(fn).parameters
+    except (TypeError, ValueError):  # pragma: no cover - builtins/C callables
+        return {}
+    if "grade_scale" not in params:
+        return {}
+    from rubric_structure import resolve_grade_scale
+
+    scale = resolve_grade_scale(_project_eval_config(db, project_id))
+    return {"grade_scale": scale} if scale else {}
+
+
+def _stamp_rubric_grade(result, task_rubric, project_config=None) -> None:
     """Add ``grade_points`` / ``passed`` / ``grade_scale_source`` to a scored
     multi-dim result of an ``llm_judge_rubric`` cell (in place).
 
-    Notenpunkte come from the rubric's own Notenschlüssel or the default
-    table scaled to its total (``rubric_structure.grade_for_rubric``);
+    Notenpunkte come from the exam's Notenschlüssel
+    (``project_config["grade_scale"]``), else the rubric's own, else the
+    default table scaled to its total (``rubric_structure.grade_for_rubric``);
     ``_build_multidim_judge_row_metrics`` lifts them into the row shape.
     Error results and results without scores are left untouched.
     """
@@ -104,7 +147,9 @@ def _stamp_rubric_grade(result, task_rubric) -> None:
 
     total = float(result.get("total_score") or 0.0)
     total_max = float(result.get("total_max") or 0.0)
-    grade_points, passed, source = grade_for_rubric(task_rubric, total, total_max)
+    grade_points, passed, source = grade_for_rubric(
+        task_rubric, total, total_max, project_config
+    )
     result["grade_points"] = grade_points
     result["passed"] = passed
     result["grade_scale_source"] = source
@@ -561,6 +606,9 @@ def evaluate_generation_cell_impl(
                                         thinking_budget=getattr(jr_evaluator, "thinking_budget", None),
                                         reasoning_effort=getattr(jr_evaluator, "reasoning_effort", None),
                                         **_falloesung_extra,
+                                        **_falloesung_grade_scale_kwargs(
+                                            falloesung_bulk_fn, db, project_id
+                                        ),
                                     )
                                 elif multidim_mode:
                                     # Flatten the model's per-field output
@@ -612,7 +660,11 @@ def evaluate_generation_cell_impl(
                                     if task_rubric is not None:
                                         if isinstance(result, dict):
                                             result["rubric_id"] = task_rubric.id
-                                            _stamp_rubric_grade(result, task_rubric)
+                                            _stamp_rubric_grade(
+                                                result,
+                                                task_rubric,
+                                                _project_eval_config(db, project_id),
+                                            )
                                         if isinstance(judge_prompts, dict):
                                             judge_prompts["task_rubric_id"] = task_rubric.id
                                             judge_prompts["task_rubric_generator"] = (
@@ -1178,6 +1230,9 @@ def evaluate_annotation_cell_impl(
                                             prediction=str(prediction) if prediction else "",
                                             thinking_budget=getattr(jr_evaluator, "thinking_budget", None),
                                             reasoning_effort=getattr(jr_evaluator, "reasoning_effort", None),
+                                            **_falloesung_grade_scale_kwargs(
+                                                falloesung_bulk_fn, db, project_id
+                                            ),
                                         )
                                     elif multidim_mode:
                                         # Same as the gen-cell side: flatten
@@ -1228,7 +1283,11 @@ def evaluate_annotation_cell_impl(
                                         if task_rubric is not None:
                                             if isinstance(result, dict):
                                                 result["rubric_id"] = task_rubric.id
-                                                _stamp_rubric_grade(result, task_rubric)
+                                                _stamp_rubric_grade(
+                                                    result,
+                                                    task_rubric,
+                                                    _project_eval_config(db, project_id),
+                                                )
                                             if isinstance(judge_prompts, dict):
                                                 judge_prompts["task_rubric_id"] = task_rubric.id
                                                 judge_prompts["task_rubric_generator"] = (

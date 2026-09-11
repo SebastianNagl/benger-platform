@@ -18,7 +18,9 @@ import pytest
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
 from rubric_structure import (  # noqa: E402
+    DEFAULT_GRADE_PRESET,
     DEFAULT_GRADE_THRESHOLDS,
+    GRADE_SCALE_PRESETS,
     MAX_NODES,
     STEP_KEY_PATTERN,
     criteria_from_structure,
@@ -26,6 +28,7 @@ from rubric_structure import (  # noqa: E402
     format_points,
     grade_for_rubric,
     grade_from_points,
+    grade_scale_from_preset,
     iter_steps,
     mirror_rubric_into_task_data,
     normalize_grade_scale,
@@ -33,6 +36,7 @@ from rubric_structure import (  # noqa: E402
     render_flat_criteria_text,
     render_grade_scale_text,
     render_structure_text,
+    resolve_grade_scale,
     rubric_prompt_text,
     slugify_step_key,
     structure_from_flat_criteria,
@@ -463,3 +467,167 @@ class TestGrades:
         assert format_points(None) == ""
         assert format_points("x") == "x"
         assert format_points(math.inf) == "inf"
+
+
+# ---------------------------------------------------------------------------
+# Exam-level Notenschlüssel (contract v2): presets, percent unit, resolution
+# ---------------------------------------------------------------------------
+
+
+PERCENT_STANDARD = {
+    "unit": "percent",
+    "preset": "standard",
+    "thresholds": list(GRADE_SCALE_PRESETS["standard"]),
+    "rounding": "floor",
+    "pass_grade": 4,
+}
+PERCENT_UEBUNG = {
+    "unit": "percent",
+    "preset": "uebungsklausur",
+    "thresholds": list(GRADE_SCALE_PRESETS["uebungsklausur"]),
+    "rounding": "floor",
+    "pass_grade": 4,
+}
+
+
+class TestGradeScalePresets:
+    def test_preset_table(self):
+        assert DEFAULT_GRADE_PRESET == "standard"
+        assert set(GRADE_SCALE_PRESETS) == {"standard", "uebungsklausur"}
+        for thresholds in GRADE_SCALE_PRESETS.values():
+            assert len(thresholds) == 18
+            assert thresholds == sorted(thresholds)
+            assert all(0 < t <= 100 for t in thresholds)
+        # "standard" IS today's default table — the "no exam changes
+        # silently" guarantee lives on this identity.
+        assert GRADE_SCALE_PRESETS["standard"] == DEFAULT_GRADE_THRESHOLDS
+        assert GRADE_SCALE_PRESETS["uebungsklausur"][3] == 40  # passes at 40 %
+
+    def test_grade_scale_from_preset(self):
+        scale = grade_scale_from_preset("uebungsklausur")
+        assert scale["unit"] == "percent"
+        assert scale["preset"] == "uebungsklausur"
+        assert scale["pass_grade"] == 4 and scale["rounding"] == "floor"
+        assert validate_grade_scale(scale) == []
+        assert grade_scale_from_preset()["preset"] == "standard"
+        assert grade_scale_from_preset("standard", pass_grade=0)["pass_grade"] == 0
+        with pytest.raises(ValueError):
+            grade_scale_from_preset("nope")
+
+    def test_standard_preset_is_byte_identical_to_the_platform_default(self):
+        """Every integer total 0..100: the standard preset must produce the
+        SAME Notenpunkte as today's absolute default. Pinned so adopting the
+        exam key can never silently re-grade an existing exam."""
+        for points in range(0, 101):
+            assert grade_from_points(points, 100, PERCENT_STANDARD) == grade_from_points(
+                points, 100
+            ), points
+            assert grade_from_points(points, 100, PERCENT_STANDARD)[0] == _legacy_grade(points)
+
+    def test_uebungsklausur_preset_pins(self):
+        # Same numbers as the colleague's imported sheet, expressed in percent.
+        assert grade_from_points(39.5, 100, PERCENT_UEBUNG) == (3, False)
+        assert grade_from_points(40, 100, PERCENT_UEBUNG) == (4, True)
+        assert grade_from_points(72.5, 100, PERCENT_UEBUNG) == (12, True)
+
+
+class TestPercentScales:
+    def test_validate_accepts_percent(self):
+        assert validate_grade_scale(PERCENT_STANDARD) == []
+        assert validate_grade_scale(PERCENT_UEBUNG, 10) == []
+        # A percent key is valid on ANY total — that is the whole point of
+        # the unit; the "exceeds the total" rule is for absolute BE scales.
+        assert validate_grade_scale(PERCENT_UEBUNG, 3.5) == []
+        assert any("exceeds the total" in e for e in validate_grade_scale(COLLEAGUE_SCALE, 10))
+
+    def test_validate_percent_bounds(self):
+        bad = {**PERCENT_STANDARD, "thresholds": [0] + PERCENT_STANDARD["thresholds"][1:]}
+        assert any("percentage" in e for e in validate_grade_scale(bad))
+        bad = {**PERCENT_STANDARD, "thresholds": PERCENT_STANDARD["thresholds"][:-1] + [101]}
+        assert any("percentage" in e for e in validate_grade_scale(bad))
+        bad = {**PERCENT_STANDARD, "thresholds": [50, 26] + PERCENT_STANDARD["thresholds"][2:]}
+        assert any("lower than its predecessor" in e for e in validate_grade_scale(bad))
+
+    def test_validate_preset_name(self):
+        assert validate_grade_scale({**PERCENT_STANDARD, "preset": "custom"}) == []
+        assert any(
+            "preset" in e for e in validate_grade_scale({**PERCENT_STANDARD, "preset": "nope"})
+        )
+
+    def test_normalize_keeps_unit_and_preset(self):
+        out = normalize_grade_scale(PERCENT_UEBUNG)
+        assert out["unit"] == "percent"
+        assert out["preset"] == "uebungsklausur"
+        assert out["thresholds"] == PERCENT_UEBUNG["thresholds"]
+        assert "preset" not in normalize_grade_scale(COLLEAGUE_SCALE)
+        assert normalize_grade_scale({**PERCENT_UEBUNG, "preset": "nope"}).get("preset") is None
+
+    def test_effective_scale_converts_percent_to_points(self):
+        eff = effective_grade_scale(PERCENT_UEBUNG, 72.5)
+        assert eff["unit"] == "BE" and eff["source_unit"] == "percent"
+        assert eff["max_points"] == 72.5
+        # 40 % of 72.5 BE = 29 BE for the 4th Notenpunkt.
+        assert eff["thresholds"][3] == pytest.approx(29.0)
+        assert eff["thresholds"][0] == pytest.approx(7.25)
+        assert grade_from_points(29, 72.5, PERCENT_UEBUNG) == (4, True)
+        assert grade_from_points(28.9, 72.5, PERCENT_UEBUNG) == (3, False)
+        # An absolute scale is passed through untouched.
+        assert effective_grade_scale(COLLEAGUE_SCALE, 72.5)["thresholds"] == COLLEAGUE_SCALE["thresholds"]
+        assert effective_grade_scale(COLLEAGUE_SCALE, 72.5)["source_unit"] == "BE"
+
+    def test_percent_key_survives_a_trimmed_sheet(self):
+        """The reason for the unit: trimming a 100 BE sheet to 90 BE keeps
+        the key valid and the pass mark proportional."""
+        assert validate_grade_scale(PERCENT_UEBUNG, 90) == []
+        assert grade_from_points(36, 90, PERCENT_UEBUNG) == (4, True)   # 40 % of 90
+        assert grade_from_points(35, 90, PERCENT_UEBUNG) == (3, False)
+
+
+class TestResolveGradeScale:
+    def test_project_key_wins(self):
+        rubric = SimpleNamespace(total_points=100, grade_scale=COLLEAGUE_SCALE)
+        assert resolve_grade_scale({"grade_scale": PERCENT_UEBUNG}, rubric) is PERCENT_UEBUNG
+
+    def test_falls_back_to_the_rubric(self):
+        rubric = SimpleNamespace(total_points=100, grade_scale=COLLEAGUE_SCALE)
+        assert resolve_grade_scale(None, rubric) is COLLEAGUE_SCALE
+        assert resolve_grade_scale({}, rubric) is COLLEAGUE_SCALE
+        assert resolve_grade_scale({"grade_scale": None}, rubric) is COLLEAGUE_SCALE
+        # Unusable project entries are ignored, not crashed on.
+        assert resolve_grade_scale({"grade_scale": "nope"}, rubric) is COLLEAGUE_SCALE
+        assert resolve_grade_scale({"grade_scale": {}}, rubric) is COLLEAGUE_SCALE
+
+    def test_none_means_platform_default(self):
+        assert resolve_grade_scale(None, None) is None
+        assert resolve_grade_scale({}, SimpleNamespace(grade_scale=None)) is None
+        assert resolve_grade_scale("not a dict", None) is None
+
+    def test_accepts_a_plain_dict_rubric(self):
+        assert resolve_grade_scale(None, {"grade_scale": COLLEAGUE_SCALE}) is COLLEAGUE_SCALE
+
+
+class TestGradeForRubricWithProjectConfig:
+    def test_exam_percent_key_beats_the_sheets_absolute_one(self):
+        row = SimpleNamespace(total_points=100, grade_scale=COLLEAGUE_SCALE)
+        # Sheet key: 39.5 BE → NP 3 (fail). Exam key (standard, 50 %): also 3.
+        assert grade_for_rubric(row, 39.5, 100) == (3, False, "rubric")
+        assert grade_for_rubric(row, 40, 100) == (4, True, "rubric")
+        # With the exam's standard key, 40 BE is NOT a pass any more.
+        assert grade_for_rubric(row, 40, 100, {"grade_scale": PERCENT_STANDARD}) == (
+            3, False, "project",
+        )
+        assert grade_for_rubric(row, 50, 100, {"grade_scale": PERCENT_STANDARD}) == (
+            4, True, "project",
+        )
+
+    def test_percent_key_projects_onto_the_sheet_total(self):
+        row = SimpleNamespace(total_points=72.5, grade_scale=None)
+        assert grade_for_rubric(row, 29, 72.5, {"grade_scale": PERCENT_UEBUNG}) == (
+            4, True, "project",
+        )
+
+    def test_positional_signature_is_unchanged(self):
+        row = SimpleNamespace(total_points=100, grade_scale=None)
+        assert grade_for_rubric(row, 80, 100) == (13, True, "default")
+        assert grade_for_rubric(row, 80, 100, None) == (13, True, "default")
+        assert grade_for_rubric(row, 80, 100, {}) == (13, True, "default")

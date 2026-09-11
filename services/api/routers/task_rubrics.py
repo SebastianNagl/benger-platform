@@ -93,6 +93,10 @@ class ParsedRubricResponse(BaseModel):
     criteria: Dict[str, Any]
     total_points: float
     grade_scale: Optional[Dict[str, Any]] = None
+    # The same key in PERCENT of the sheet total — what the client offers as
+    # the EXAM's Notenschlüssel (contract v2). ``None`` when the file carried
+    # no readable key.
+    grade_scale_percent: Optional[Dict[str, Any]] = None
     warnings: List[Dict[str, Any]] = []
     source_format: str
     rendered_text: str

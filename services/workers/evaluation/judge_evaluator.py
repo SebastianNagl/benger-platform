@@ -14,6 +14,25 @@ names, and decorator args) remain in ``tasks.py`` and delegate here.
 import tasks
 from typing import Any, Dict, Optional
 
+def _project_eval_config(db, project_id):
+    """The project's ``evaluation_config`` document, or ``None``.
+
+    Only read when a Bewertungsbogen grade is about to be computed — the
+    exam-level Notenschlüssel (``evaluation_config.grade_scale``) beats the
+    sheet's own scale, see ``rubric_structure.resolve_grade_scale``.
+    """
+    if not project_id:
+        return None
+    try:
+        from project_models import Project as _Project
+
+        row = db.query(_Project).filter(_Project.id == project_id).first()
+    except Exception:  # pragma: no cover - defensive, grading must not break
+        return None
+    config = getattr(row, "evaluation_config", None)
+    return config if isinstance(config, dict) else None
+
+
 def _evaluate_llm_judge_single_impl(
     db, record_id, immediate_eval_id, project_id, task_id,
     annotation_id, user_id, field_name, metric_type, prediction,
@@ -246,7 +265,7 @@ def _evaluate_llm_judge_single_impl(
             from rubric_structure import grade_for_rubric
 
             grade_points, row_passed, scale_source = grade_for_rubric(
-                task_rubric, total, total_max
+                task_rubric, total, total_max, _project_eval_config(db, project_id)
             )
             multidim_details["grade_points"] = grade_points
             multidim_details["passed"] = row_passed

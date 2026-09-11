@@ -1295,6 +1295,36 @@ def _detect_grade_scale(
 # ---------------------------------------------------------------------------
 
 
+def _grade_scale_as_percent(
+    scale: Optional[Dict[str, Any]], total_points: Any
+) -> Optional[Dict[str, Any]]:
+    """A ``unit: "percent"`` twin of an absolute (BE) Notenschlüssel.
+
+    Each threshold becomes ``round(t / total_points * 100, 4)``. Returns
+    ``None`` when there is no scale or no usable total — the caller then
+    simply has nothing to offer as the exam key and the default applies.
+    """
+    if not isinstance(scale, dict):
+        return None
+    thresholds = scale.get("thresholds")
+    if not isinstance(thresholds, list) or not thresholds:
+        return None
+    try:
+        total = float(total_points)
+    except (TypeError, ValueError):
+        return None
+    if total <= 0:
+        return None
+    out: Dict[str, Any] = {
+        "unit": "percent",
+        "preset": "custom",
+        "thresholds": [round(float(t) / total * 100, 4) for t in thresholds],
+        "rounding": scale.get("rounding") or "floor",
+        "pass_grade": scale.get("pass_grade", 4),
+    }
+    return out
+
+
 def parse_rubric_file(filename: str, data: bytes) -> Dict[str, Any]:
     """Parse an XLSX or DOCX Korrekturbogen into the rubric contract.
 
@@ -1364,6 +1394,12 @@ def parse_rubric_file(filename: str, data: bytes) -> Dict[str, Any]:
         "criteria": criteria_from_structure(structure),
         "total_points": total,
         "grade_scale": grade_scale,
+        # The same key expressed in PERCENT of the sheet total, so the client
+        # can offer it as the EXAM's Notenschlüssel (contract v2: the key is
+        # assessment policy on the exam, not content on the sheet, and a
+        # percent key survives a later change of the sheet's point total).
+        # ``None`` when the file carried no readable key.
+        "grade_scale_percent": _grade_scale_as_percent(grade_scale, total),
         "warnings": list(warnings),
         "source_format": source_format,
     }

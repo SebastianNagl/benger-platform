@@ -344,6 +344,31 @@ def validate_evaluation_config_entries(eval_configs_list) -> None:
                 )
 
 
+def validate_eval_config_grade_scale(config) -> None:
+    """Contract-check ``evaluation_config.grade_scale`` (raises 422).
+
+    The exam-level Notenschlüssel (contract v2): 18 non-decreasing
+    thresholds for Notenpunkte 1..18, a rounding rule, a pass grade and an
+    optional preset name. ``unit: "percent"`` thresholds are a share of
+    whatever the graded sheet totals, so no point total is known (or needed)
+    here; an absolute ``unit: "BE"`` key is only checked for shape.
+
+    Called from the eval-config PUT, which deep-merges the WHOLE document —
+    so the key is validated whenever the body carries it. An explicit
+    ``null`` clears the key and is accepted.
+    """
+    if not isinstance(config, dict) or config.get("grade_scale") is None:
+        return
+    from rubric_structure import validate_grade_scale
+
+    problems = list(validate_grade_scale(config["grade_scale"]) or [])
+    if problems:
+        raise HTTPException(
+            status_code=422,
+            detail="Invalid Notenschlüssel: " + "; ".join(problems),
+        )
+
+
 @router.put("/projects/{project_id}/evaluation-config")
 async def update_project_evaluation_config(
     project_id: str,
@@ -464,6 +489,10 @@ async def update_project_evaluation_config(
         # the same rules in its tests.
         eval_configs_list = config.get("evaluation_configs") or config.get("multi_field_evaluations") or []
         validate_evaluation_config_entries(eval_configs_list)
+
+        # The exam-level Notenschlüssel lives next to them in the same
+        # document (contract v2) and is deep-merged like everything else.
+        validate_eval_config_grade_scale(config)
 
         # Deep-merge the body into the stored config — same contract as
         # PATCH /projects/{id} (crud.py): nested dicts merge recursively,
