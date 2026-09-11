@@ -9498,7 +9498,19 @@
     "projectSaved": "Grade scale saved.",
     "projectSaveError": "The grade scale could not be saved.",
     "wizardHint": "Optional: this project’s points-to-grade-points table. Without an own grade scale the standard applies — passed from 50 % of the total. The scale can be changed later on the project page.",
-    "builderHint": "Optional: an own points-to-grade-points table for the generated exam. Without an own scale the standard applies — passed from 50 %."
+    "builderHint": "Optional: an own points-to-grade-points table for the generated exam. Without an own scale the standard applies — passed from 50 %.",
+    "driftOne": "1 grading was computed with a different grade scale.",
+    "driftMany": "{count} gradings were computed with a different grade scale.",
+    "driftCaveatsIntro": "What updating does and does not do:",
+    "driftCaveatReports": "Published reports keep their old numbers.",
+    "driftCaveatLti": "Grades already sent to an LMS are not sent again.",
+    "driftCaveatSolvers": "Anyone who has already seen a grade will see it change.",
+    "driftAction": "Update grade points",
+    "driftRunning": "Updating grade points…",
+    "driftDoneNone": "There was nothing to update.",
+    "driftDoneOne": "1 grading updated.",
+    "driftDoneMany": "{count} gradings updated.",
+    "driftError": "The grade points could not be updated."
   },
   "vendor": {
     "adminTitle": "Approve vendors (superadmin)",

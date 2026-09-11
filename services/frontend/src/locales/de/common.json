@@ -9487,7 +9487,19 @@
     "projectSaved": "Notenschlüssel gespeichert.",
     "projectSaveError": "Notenschlüssel konnte nicht gespeichert werden.",
     "wizardHint": "Optional: die Punkte-zu-Notenpunkte-Tabelle dieses Projekts. Ohne eigenen Notenschlüssel gilt der Standard — bestanden ab 50 % der Gesamtpunktzahl. Der Schlüssel lässt sich später auf der Projektseite ändern.",
-    "builderHint": "Optional: eigene Punkte-zu-Notenpunkte-Tabelle für die erzeugte Klausur. Ohne eigenen Schlüssel gilt der Standard — bestanden ab 50 %."
+    "builderHint": "Optional: eigene Punkte-zu-Notenpunkte-Tabelle für die erzeugte Klausur. Ohne eigenen Schlüssel gilt der Standard — bestanden ab 50 %.",
+    "driftOne": "1 Bewertung wurde mit einem anderen Notenschlüssel berechnet.",
+    "driftMany": "{count} Bewertungen wurden mit einem anderen Notenschlüssel berechnet.",
+    "driftCaveatsIntro": "Beim Aktualisieren gilt:",
+    "driftCaveatReports": "Veröffentlichte Berichte bleiben auf dem alten Stand.",
+    "driftCaveatLti": "Schon an ein LMS übertragene Noten werden nicht erneut gesendet.",
+    "driftCaveatSolvers": "Wer seine Note bereits gesehen hat, sieht sie sich ändern.",
+    "driftAction": "Notenpunkte aktualisieren",
+    "driftRunning": "Notenpunkte werden aktualisiert…",
+    "driftDoneNone": "Es war nichts zu aktualisieren.",
+    "driftDoneOne": "1 Bewertung aktualisiert.",
+    "driftDoneMany": "{count} Bewertungen aktualisiert.",
+    "driftError": "Die Notenpunkte konnten nicht aktualisiert werden."
   },
   "vendor": {
     "adminTitle": "Anbieter freischalten (Superadmin)",

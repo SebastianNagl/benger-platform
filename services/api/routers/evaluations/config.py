@@ -16,6 +16,7 @@ from app.core.authorization import Permission, auth_service
 from auth_module import User, require_user
 from database import get_async_db, get_db
 from services.evaluation.config import update_project_evaluation_config as generate_evaluation_config
+from services.grade_scale_recompute import grade_scale_drift, recompute_grade_scale
 from project_models import Project
 from routers.evaluations.helpers import extract_metric_name
 from routers.projects.helpers import (
@@ -531,6 +532,82 @@ async def update_project_evaluation_config(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to update evaluation config: {str(e)}",
+        )
+
+
+def _project_for_grade_scale_write(
+    project_id: str, request: Request, current_user: User, db: Session
+) -> Project:
+    """The project a Notenschlüssel recompute acts on, edit-gated.
+
+    Same gate as the eval-config PUT that owns the key
+    (``Permission.PROJECT_EDIT``): rewriting stored Notenpunkte is an
+    assessment change, so a read-only visitor of a public project must not
+    reach it — not even the drift count, which discloses how many gradings
+    exist.
+    """
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Project '{project_id}' not found",
+        )
+    org_context = get_org_context_from_request(request)
+    if not auth_service.check_project_access(
+        current_user, project, Permission.PROJECT_EDIT, db, org_context=org_context
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail="You don't have permission to edit this project's evaluation config",
+        )
+    return project
+
+
+# Both handlers are declared SYNC on purpose: they walk the project's graded
+# TaskEvaluation rows over the psycopg2 lane, so FastAPI runs them in the
+# threadpool instead of blocking the event loop for the length of the scan.
+
+
+@router.get("/projects/{project_id}/grade-scale/drift")
+def get_grade_scale_drift(
+    project_id: str,
+    request: Request,
+    current_user: User = Depends(require_user),
+    db: Session = Depends(get_db),
+):
+    """How many stored gradings no longer match the exam's Notenschlüssel.
+
+    ``{"stale": int, "graded": int, "scale_source": "project"|"rubric"|
+    "default"}``. Read-only — the rewrite is the POST below.
+    """
+    project = _project_for_grade_scale_write(project_id, request, current_user, db)
+    return grade_scale_drift(db, project)
+
+
+@router.post("/projects/{project_id}/grade-scale/recompute")
+def post_grade_scale_recompute(
+    project_id: str,
+    request: Request,
+    current_user: User = Depends(require_user),
+    db: Session = Depends(get_db),
+):
+    """Rewrite stale Notenpunkte onto the exam's current Notenschlüssel.
+
+    ``{"updated": int, "scanned": int}``. Idempotent — running it twice
+    changes nothing the second time. Only rows that ALREADY carry a grade
+    are touched; published report snapshots, LTI grades already pushed and
+    anything a solver has seen are untouched by design.
+    """
+    project = _project_for_grade_scale_write(project_id, request, current_user, db)
+    try:
+        return recompute_grade_scale(db, project)
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to recompute Notenpunkte: {str(e)}",
         )
 
 
