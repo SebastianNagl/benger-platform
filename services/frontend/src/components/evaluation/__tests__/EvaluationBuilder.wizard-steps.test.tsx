@@ -831,6 +831,50 @@ describe('EvaluationBuilder wizard step rendering', () => {
       }
     })
 
+    it('edits a config written without id or field lists', async () => {
+      // An extension can append an entry with only {metric, enabled,
+      // metric_parameters}. That used to crash the wizard on the field step
+      // (`prediction_fields.length` of undefined), and with no id to match,
+      // saving would have appended a DUPLICATE instead of updating.
+      const user = userEvent.setup()
+      const mockOnChange = jest.fn()
+      const bare: any = {
+        metric: 'llm_judge',
+        enabled: true,
+        metric_parameters: { judge_model: 'gpt-4o' },
+      }
+      render(
+        <EvaluationBuilder
+          {...defaultProps}
+          evaluations={[bare]}
+          onEvaluationsChange={mockOnChange}
+        />,
+      )
+
+      const editBtn = screen
+        .getAllByRole('button')
+        .find((b) => b.querySelector('[data-testid="pencil-icon"]'))
+      expect(editBtn).toBeDefined()
+      await user.click(editBtn!)
+
+      // It opens as an EDIT (not "new"), because a missing id is synthesised.
+      await waitFor(() => {
+        expect(
+          screen.getByText('evaluationBuilder.editEvaluation'),
+        ).toBeInTheDocument()
+      })
+      // And that id is written back so the later save updates this row.
+      expect(mockOnChange).toHaveBeenCalledWith([
+        expect.objectContaining({ metric: 'llm_judge', id: expect.any(String) }),
+      ])
+
+      // Advancing past the metric step no longer throws on the field lists.
+      await user.click(screen.getByTestId('wizard-next-button'))
+      await waitFor(() => {
+        expect(screen.getByTestId('wizard-step-indicator')).toBeInTheDocument()
+      })
+    })
+
     it('validates missing metric when trying to add', async () => {
       const user = userEvent.setup()
       render(<EvaluationBuilder {...defaultProps} />)

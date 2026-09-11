@@ -352,7 +352,21 @@ export function EvaluationBuilder({
   )
 
   const handleEditEvaluation = useCallback((evaluation: EvaluationConfig) => {
-    setEditingId(evaluation.id)
+    // A config written by something other than this builder can be missing
+    // keys the builder treats as guaranteed. An extension that appends an
+    // entry with only {metric, enabled, metric_parameters} used to crash the
+    // wizard on the field step (`prediction_fields.length` of undefined) and,
+    // having no `id`, would have been SAVED AS A DUPLICATE rather than
+    // updated. Normalise on the way in: missing arrays become empty (the user
+    // then picks fields, which the step already requires), and a missing id is
+    // synthesised so the save matches this row.
+    const editId = evaluation.id || generateEvaluationId(evaluation.metric)
+    if (!evaluation.id) {
+      onEvaluationsChange(
+        evaluations.map((e) => (e === evaluation ? { ...e, id: editId } : e)),
+      )
+    }
+    setEditingId(editId)
     // Distinguish a user-typed custom name from an auto-generated one so the
     // edit never (a) clobbers a real custom name, nor (b) freezes a stale
     // model into an auto-name when the judge model is changed during the edit.
@@ -376,13 +390,13 @@ export function EvaluationBuilder({
     setNewEvaluation({
       metric: evaluation.metric,
       display_name: isCustomName ? stored : '',
-      prediction_fields: evaluation.prediction_fields,
-      reference_fields: evaluation.reference_fields,
+      prediction_fields: evaluation.prediction_fields || [],
+      reference_fields: evaluation.reference_fields || [],
       metric_parameters: evaluation.metric_parameters || {},
     })
     setCurrentStep('metric')
     setIsAddingNew(true)
-  }, [])
+  }, [evaluations, onEvaluationsChange])
 
   const handleToggleEnabled = useCallback(
     (id: string) => {
