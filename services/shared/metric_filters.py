@@ -28,7 +28,15 @@ _METRIC_EXCLUDED_KEYS = frozenset({"raw_score", "error"})
 # them on the floor and the leaderboard column shows n/a for everyone even
 # though the per-row value exists (see aggregate_summaries.py — the
 # UNION ALL that lifts grade_points out of `details`).
-_METRIC_REGISTERED_OVERRIDES = frozenset({"llm_judge_falloesung_grade_points"})
+_METRIC_REGISTERED_OVERRIDES = frozenset(
+    {
+        "llm_judge_falloesung_grade_points",
+        # The rubric judge's twin. Same reason, same consequence: without
+        # it a Bewertungsbogen-graded project shows n/a in the Notenpunkte
+        # column while every row carries the value.
+        "llm_judge_rubric_grade_points",
+    }
+)
 
 
 def metric_key_is_real(key: Optional[str]) -> bool:

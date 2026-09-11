@@ -42,6 +42,12 @@ class TestRegisteredOverrides:
         # the leaderboard aggregator.
         assert metric_key_is_real("llm_judge_falloesung_grade_points") == True  # noqa: E712
 
+    def test_llm_judge_rubric_grade_points_passes(self):
+        # The Bewertungsbogen judge writes the same companion next to its
+        # rubric score. Without the override a rubric-graded project shows
+        # n/a in the Notenpunkte column although every row carries the value.
+        assert metric_key_is_real("llm_judge_rubric_grade_points") == True  # noqa: E712
+
     def test_other_grade_points_keys_still_filtered(self):
         # Override is explicit; unknown `*_grade_points` keys stay filtered.
         assert metric_key_is_real("accuracy_grade_points") == False  # noqa: E712
