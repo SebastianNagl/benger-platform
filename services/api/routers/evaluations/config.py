@@ -15,6 +15,11 @@ import extensions
 from app.core.authorization import Permission, auth_service
 from auth_module import User, require_user
 from database import get_async_db, get_db
+from grade_scale_history import (
+    GRADE_SCALE_KEY,
+    HISTORY_KEY as GRADE_SCALE_HISTORY_KEY,
+    append_grade_scale_change,
+)
 from services.evaluation.config import update_project_evaluation_config as generate_evaluation_config
 from services.grade_scale_recompute import grade_scale_drift, recompute_grade_scale
 from project_models import Project
@@ -501,7 +506,26 @@ async def update_project_evaluation_config(
         # callers send minimal bodies (e.g. only evaluation_configs) without
         # clobbering sibling keys a concurrent eval-defaults PATCH wrote
         # (issue #289 lost-update).
-        merged = deep_merge_dicts(project.evaluation_config or {}, config)
+        stored_config = project.evaluation_config or {}
+        merged = deep_merge_dicts(stored_config, config)
+
+        # Every Notenschlüssel change is recorded (contract v5) — the key
+        # retroactively rewrites grades people have already seen, so a grade
+        # must never move without a record of who moved it. The trail is
+        # SERVER-OWNED: whatever the body said about `grade_scale_history` is
+        # dropped and the stored list restored before the append, so this
+        # endpoint cannot be used to rewrite the audit.
+        stored_history = stored_config.get(GRADE_SCALE_HISTORY_KEY)
+        if isinstance(stored_history, list):
+            merged[GRADE_SCALE_HISTORY_KEY] = list(stored_history)
+        else:
+            merged.pop(GRADE_SCALE_HISTORY_KEY, None)
+        merged = append_grade_scale_change(
+            merged,
+            old=stored_config.get(GRADE_SCALE_KEY),
+            new=merged.get(GRADE_SCALE_KEY),
+            actor_id=str(current_user.id),
+        )
 
         # IMPORTANT: Include label_config_version to prevent unnecessary regeneration on GET
         # Without this, the GET endpoint will regenerate the config on every page reload,

@@ -56,7 +56,8 @@ from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 
-from models import EvaluationRun, TaskEvaluation
+from grade_scale_history import latest_grade_scale_change, mark_recomputed
+from models import EvaluationRun, TaskEvaluation, User
 from project_models import Project, TaskRubric
 from rubric_structure import grade_for_rubric
 
@@ -279,20 +280,95 @@ def _scale_source(project: Project, scan: _Scan) -> str:
     return "default"
 
 
+def _display_name(db: Session, user_id: Optional[str]) -> Optional[str]:
+    """Who a ``changed_by`` id belongs to, for the card's audit line.
+
+    Same rule as every other user-facing name on this surface
+    (``routers/evaluations/metadata/models_methods.py``): the pseudonym when
+    the user asked for it, else the real name, else the username. Falls back
+    to the raw id when the row is gone (a deleted account still has to be
+    attributable) and to ``None`` when nobody was recorded.
+    """
+    if not user_id:
+        return None
+    row = db.execute(
+        select(User.username, User.name, User.pseudonym, User.use_pseudonym).where(
+            User.id == user_id
+        )
+    ).first()
+    if row is None:
+        return str(user_id)
+    username, name, pseudonym, use_pseudonym = row
+    display = pseudonym if (use_pseudonym and pseudonym) else (name or username)
+    return display or str(user_id)
+
+
+def _last_change(db: Session, project: Project) -> Optional[Dict[str, Any]]:
+    """The newest ``grade_scale_history`` entry, resolved for the card.
+
+    ``{changed_at, changed_by, changed_by_name, from_preset, to_preset,
+    recomputed}`` or ``None`` when the exam's key was never changed. The
+    thresholds themselves are deliberately NOT projected — the card shows one
+    quiet line ("Zuletzt geändert am … von …"), not a diff.
+    """
+    entry = latest_grade_scale_change(project.evaluation_config)
+    if not entry:
+        return None
+
+    def _preset(scale: Any) -> Optional[str]:
+        preset = scale.get("preset") if isinstance(scale, dict) else None
+        return preset if isinstance(preset, str) else None
+
+    changed_by = entry.get("changed_by")
+    changed_by = str(changed_by) if changed_by else None
+    recomputed = entry.get("recomputed")
+    return {
+        "changed_at": entry.get("changed_at"),
+        "changed_by": changed_by,
+        "changed_by_name": _display_name(db, changed_by),
+        "from_preset": _preset(entry.get("from")),
+        "to_preset": _preset(entry.get("to")),
+        "recomputed": recomputed if isinstance(recomputed, int) else None,
+    }
+
+
 def grade_scale_drift(db: Session, project: Project) -> Dict[str, Any]:
     """How many stored gradings are off the project's current Notenschlüssel.
 
     ``{"stale": int, "graded": int, "scale_source": "project"|"rubric"|
-    "default"}`` — ``graded`` counts rows that carry a grade at all,
-    ``stale`` the subset whose stored grade (or pass flag) differs from what
-    the current key produces. Read-only.
+    "default", "last_change": {…}|null}`` — ``graded`` counts rows that carry
+    a grade at all, ``stale`` the subset whose stored grade (or pass flag)
+    differs from what the current key produces, ``last_change`` the newest
+    entry of the key's audit trail (contract v5). Read-only.
     """
     scan = _scan(db, project)
     return {
         "stale": len(scan.plans),
         "graded": scan.graded,
         "scale_source": _scale_source(project, scan),
+        "last_change": _last_change(db, project),
     }
+
+
+def _stamp_recompute(
+    db: Session, project: Project, updated: int, *, commit: bool = True
+) -> None:
+    """Record the finished recompute on the newest history entry.
+
+    A no-op for a project whose key was never changed (no entry to stamp).
+    Never fatal: the rewrite of the grades themselves is the point, and a
+    failure to annotate the audit must not roll it back.
+    """
+    try:
+        stamped = mark_recomputed(project.evaluation_config, updated)
+        if stamped == (project.evaluation_config or {}):
+            return
+        project.evaluation_config = stamped
+        flag_modified(project, "evaluation_config")
+        if commit:
+            db.commit()
+    except Exception:  # pragma: no cover - defensive, the grades already moved
+        logger.warning("could not stamp the grade-scale recompute", exc_info=True)
 
 
 def recompute_grade_scale(db: Session, project: Project) -> Dict[str, Any]:
@@ -301,9 +377,14 @@ def recompute_grade_scale(db: Session, project: Project) -> Dict[str, Any]:
     ``{"updated": int, "scanned": int}`` — ``scanned`` counts the rows that
     carry a grade, ``updated`` those actually rewritten. Idempotent: a second
     call over an unchanged key updates nothing. Commits once.
+
+    The run is stamped onto the newest ``grade_scale_history`` entry
+    (contract v5), so the audit trail says not just who moved the key but how
+    many grades that move actually moved.
     """
     scan = _scan(db, project)
     if not scan.plans:
+        _stamp_recompute(db, project, 0)
         return {"updated": 0, "scanned": scan.graded}
 
     by_id = {plan.row_id: plan for plan in scan.plans}
@@ -321,6 +402,7 @@ def recompute_grade_scale(db: Session, project: Project) -> Dict[str, Any]:
         # explicit flag keeps this correct if a caller ever mutates in place.
         flag_modified(record, "metrics")
         updated += 1
+    _stamp_recompute(db, project, updated, commit=False)
     db.commit()
     logger.info(
         "grade scale recompute: project=%s updated=%s of %s graded rows",

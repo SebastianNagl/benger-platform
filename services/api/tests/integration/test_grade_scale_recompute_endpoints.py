@@ -1,7 +1,8 @@
 """The two Notenschlüssel-recompute endpoints (contract v4).
 
     GET  /api/evaluations/projects/{id}/grade-scale/drift
-         -> {"stale": int, "graded": int, "scale_source": ...}
+         -> {"stale": int, "graded": int, "scale_source": ...,
+             "last_change": {...}|null}
     POST /api/evaluations/projects/{id}/grade-scale/recompute
          -> {"updated": int, "scanned": int}
 
@@ -210,7 +211,12 @@ class TestGradeScaleDrift:
             headers=_headers(auth_headers, test_org),
         )
         assert resp.status_code == 200, resp.text
-        assert resp.json() == {"stale": 1, "graded": 2, "scale_source": "project"}
+        assert resp.json() == {
+            "stale": 1,
+            "graded": 2,
+            "scale_source": "project",
+            "last_change": None,
+        }
 
     def test_a_project_without_gradings_reports_zero(
         self, client, test_db, test_users, auth_headers, test_org
@@ -221,7 +227,12 @@ class TestGradeScaleDrift:
             headers=_headers(auth_headers, test_org),
         )
         assert resp.status_code == 200, resp.text
-        assert resp.json() == {"stale": 0, "graded": 0, "scale_source": "default"}
+        assert resp.json() == {
+            "stale": 0,
+            "graded": 0,
+            "scale_source": "default",
+            "last_change": None,
+        }
 
     def test_scale_source_names_the_sheets_key_when_the_exam_has_none(
         self, client, test_db, test_users, auth_headers, test_org
@@ -241,7 +252,12 @@ class TestGradeScaleDrift:
             headers=_headers(auth_headers, test_org),
         ).json()
         assert body["scale_source"] == "rubric"
-        assert body == {"stale": 0, "graded": 1, "scale_source": "rubric"}
+        assert body == {
+            "stale": 0,
+            "graded": 1,
+            "scale_source": "rubric",
+            "last_change": None,
+        }
 
     def test_missing_project_404(self, client, auth_headers, test_org):
         resp = client.get(
@@ -372,3 +388,196 @@ class TestGradeScaleRecompute:
         assert _reload(test_db, record_id).metrics["llm_judge_rubric"]["details"][
             "grade_points"
         ] == 10
+
+
+@pytest.mark.integration
+class TestGradeScaleAudit:
+    """The key's audit trail (contract v5) as the two endpoints expose it.
+
+    The trail itself is written by the eval-config PUT (and by the extended
+    exam router, through the same shared helper). Here: the drift read
+    projects the newest entry with a server-resolved name, and a recompute
+    stamps how many grades it moved onto it.
+    """
+
+    def _save_key(self, client, auth_headers, test_org, project_id, preset, role="admin"):
+        return client.put(
+            f"{BASE}/projects/{project_id}/evaluation-config",
+            json={"grade_scale": _percent_key(preset)},
+            headers=_headers(auth_headers, test_org, role=role),
+        )
+
+    def test_an_untouched_project_reports_no_last_change(
+        self, client, test_db, test_users, auth_headers, test_org
+    ):
+        project = _seed_project(
+            test_db, test_users, test_org, {"grade_scale": _percent_key("standard")}
+        )
+        body = client.get(
+            f"{BASE}/projects/{project.id}/grade-scale/drift",
+            headers=_headers(auth_headers, test_org),
+        ).json()
+        assert body["last_change"] is None
+
+    def test_saving_the_key_is_recorded_and_read_back_with_a_name(
+        self, client, test_db, test_users, auth_headers, test_org
+    ):
+        project = _seed_project(test_db, test_users, test_org, {})
+        assert self._save_key(
+            client, auth_headers, test_org, project.id, "uebungsklausur"
+        ).status_code == 200
+
+        body = client.get(
+            f"{BASE}/projects/{project.id}/grade-scale/drift",
+            headers=_headers(auth_headers, test_org),
+        ).json()
+        change = body["last_change"]
+        assert change["changed_by"] == test_users[0].id
+        # Resolved server-side from the users table, not echoed as an id.
+        assert change["changed_by_name"] == "Test Admin"
+        assert change["from_preset"] is None
+        assert change["to_preset"] == "uebungsklausur"
+        assert change["recomputed"] is None
+        assert change["changed_at"]
+
+    def test_the_stored_trail_carries_the_full_scales(
+        self, client, test_db, test_users, auth_headers, test_org
+    ):
+        project = _seed_project(test_db, test_users, test_org, {})
+        self._save_key(client, auth_headers, test_org, project.id, "standard")
+        self._save_key(client, auth_headers, test_org, project.id, "uebungsklausur")
+
+        test_db.expire_all()
+        history = (
+            test_db.query(Project)
+            .filter(Project.id == project.id)
+            .first()
+            .evaluation_config["grade_scale_history"]
+        )
+        assert len(history) == 2
+        assert history[0]["from"] is None
+        assert history[0]["to"]["preset"] == "standard"
+        assert history[1]["from"]["preset"] == "standard"
+        assert history[1]["to"]["preset"] == "uebungsklausur"
+
+    def test_resaving_the_same_key_adds_nothing(
+        self, client, test_db, test_users, auth_headers, test_org
+    ):
+        project = _seed_project(test_db, test_users, test_org, {})
+        self._save_key(client, auth_headers, test_org, project.id, "standard")
+        self._save_key(client, auth_headers, test_org, project.id, "standard")
+        # An unrelated eval-config save must not plant an entry either.
+        client.put(
+            f"{BASE}/projects/{project.id}/evaluation-config",
+            json={"runs_per_task": 2},
+            headers=_headers(auth_headers, test_org),
+        )
+        test_db.expire_all()
+        config = (
+            test_db.query(Project).filter(Project.id == project.id).first().evaluation_config
+        )
+        assert len(config["grade_scale_history"]) == 1
+        assert config["runs_per_task"] == 2
+
+    def test_a_client_cannot_rewrite_the_trail_through_the_put(
+        self, client, test_db, test_users, auth_headers, test_org
+    ):
+        project = _seed_project(test_db, test_users, test_org, {})
+        self._save_key(client, auth_headers, test_org, project.id, "standard")
+        client.put(
+            f"{BASE}/projects/{project.id}/evaluation-config",
+            json={
+                "grade_scale_history": [
+                    {"changed_at": "1999-01-01T00:00:00+00:00", "changed_by": "someone-else"}
+                ]
+            },
+            headers=_headers(auth_headers, test_org),
+        )
+        test_db.expire_all()
+        history = (
+            test_db.query(Project)
+            .filter(Project.id == project.id)
+            .first()
+            .evaluation_config["grade_scale_history"]
+        )
+        assert len(history) == 1
+        assert history[0]["changed_by"] == test_users[0].id
+
+    def test_a_recompute_stamps_how_many_grades_it_moved(
+        self, client, test_db, test_users, auth_headers, test_org
+    ):
+        project = _seed_project(test_db, test_users, test_org, {})
+        rubric_id = _uid()
+        _seed_graded_row(
+            test_db, project, test_users[0].id,
+            metrics=_rubric_metrics(12, rubric_id),
+            rubric=TaskRubric(
+                id=rubric_id, criteria={}, total_points=100.0, status="active"
+            ),
+        )
+        # 73.5 / 100 is 12 Notenpunkte on the Übungsklausur key and 10 on the
+        # standard one, so switching the key makes the stored row stale.
+        self._save_key(client, auth_headers, test_org, project.id, "standard")
+
+        resp = client.post(
+            f"{BASE}/projects/{project.id}/grade-scale/recompute",
+            headers=_headers(auth_headers, test_org),
+        )
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["updated"] == 1
+
+        body = client.get(
+            f"{BASE}/projects/{project.id}/grade-scale/drift",
+            headers=_headers(auth_headers, test_org),
+        ).json()
+        assert body["stale"] == 0
+        assert body["last_change"]["recomputed"] == 1
+
+        # A second, idempotent run keeps the count it already recorded.
+        client.post(
+            f"{BASE}/projects/{project.id}/grade-scale/recompute",
+            headers=_headers(auth_headers, test_org),
+        )
+        body = client.get(
+            f"{BASE}/projects/{project.id}/grade-scale/drift",
+            headers=_headers(auth_headers, test_org),
+        ).json()
+        assert body["last_change"]["recomputed"] == 1
+
+    def test_a_recompute_without_any_key_change_stamps_nothing(
+        self, client, test_db, test_users, auth_headers, test_org
+    ):
+        project = _seed_project(
+            test_db, test_users, test_org, {"grade_scale": _percent_key("standard")}
+        )
+        resp = client.post(
+            f"{BASE}/projects/{project.id}/grade-scale/recompute",
+            headers=_headers(auth_headers, test_org),
+        )
+        assert resp.status_code == 200
+        test_db.expire_all()
+        config = (
+            test_db.query(Project).filter(Project.id == project.id).first().evaluation_config
+        )
+        assert "grade_scale_history" not in config
+
+    def test_a_deleted_actor_falls_back_to_the_raw_id(
+        self, client, test_db, test_users, auth_headers, test_org
+    ):
+        project = _seed_project(test_db, test_users, test_org, {})
+        self._save_key(client, auth_headers, test_org, project.id, "standard")
+        test_db.expire_all()
+        row = test_db.query(Project).filter(Project.id == project.id).first()
+        config = dict(row.evaluation_config)
+        history = [dict(e) for e in config["grade_scale_history"]]
+        history[-1]["changed_by"] = "gone-user-id"
+        config["grade_scale_history"] = history
+        row.evaluation_config = config
+        test_db.commit()
+
+        body = client.get(
+            f"{BASE}/projects/{project.id}/grade-scale/drift",
+            headers=_headers(auth_headers, test_org),
+        ).json()
+        assert body["last_change"]["changed_by"] == "gone-user-id"
+        assert body["last_change"]["changed_by_name"] == "gone-user-id"

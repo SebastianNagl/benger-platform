@@ -86,7 +86,10 @@ class TestExtensionLoader:
         # shared rubric_structure + task_rubric_service, task-rubrics writes +
         # the stateless parse route, rubric grade points in the judge and
         # optional generator keys on llm_judge_rubric configs.
-        assert CORE_API_VERSION == "2.13"
+        # 2.14 adds the shared ``grade_scale_history`` module — the one audit
+        # trail both writers of evaluation_config.grade_scale append through
+        # (the extended exam router imports it at module level).
+        assert CORE_API_VERSION == "2.14"
 
     def test_tasks_with_feedback_for_user_empty_without_package(self):
         """Community edition: no human-feedback workflow -> empty set."""

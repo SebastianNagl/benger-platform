@@ -131,6 +131,35 @@ def _falloesung_grade_scale_kwargs(fn, db, project_id) -> Dict[str, Any]:
     return {"grade_scale": scale} if scale else {}
 
 
+def _falloesung_prompt_version_kwargs(fn, metric_parameters) -> Dict[str, Any]:
+    """``{"prompt_version": …}`` when the extended Falllösung compute takes it.
+
+    The Falllösung judge prompt is versioned (contract v5) and the version a
+    project wants is a plain string in ``metric_parameters.prompt_version``.
+    Platform only carries it across the open-core seam: the extended side
+    owns which versions exist, what they say and what an absent value means
+    (its default, "v1", so no existing project re-scores).
+
+    Older benger_extended packages have no ``prompt_version`` parameter, so
+    the signature is probed first — same forward/backward compatibility
+    convention as ``_supported_extra_kwargs`` and
+    ``_falloesung_grade_scale_kwargs``. An unset version is not passed at
+    all, leaving the hook's own default in charge.
+    """
+    version = (metric_parameters or {}).get("prompt_version")
+    if not isinstance(version, str) or not version.strip():
+        return {}
+    import inspect as _inspect
+
+    try:
+        params = _inspect.signature(fn).parameters
+    except (TypeError, ValueError):  # pragma: no cover - builtins/C callables
+        return {}
+    if "prompt_version" not in params:
+        return {}
+    return {"prompt_version": version.strip()}
+
+
 def _stamp_rubric_grade(result, task_rubric, project_config=None) -> None:
     """Add ``grade_points`` / ``passed`` / ``grade_scale_source`` to a scored
     multi-dim result of an ``llm_judge_rubric`` cell (in place).
@@ -606,6 +635,10 @@ def evaluate_generation_cell_impl(
                                         thinking_budget=getattr(jr_evaluator, "thinking_budget", None),
                                         reasoning_effort=getattr(jr_evaluator, "reasoning_effort", None),
                                         **_falloesung_extra,
+                                        **_falloesung_prompt_version_kwargs(
+                                            falloesung_bulk_fn,
+                                            config.get("metric_parameters"),
+                                        ),
                                         **_falloesung_grade_scale_kwargs(
                                             falloesung_bulk_fn, db, project_id
                                         ),
@@ -1230,6 +1263,10 @@ def evaluate_annotation_cell_impl(
                                             prediction=str(prediction) if prediction else "",
                                             thinking_budget=getattr(jr_evaluator, "thinking_budget", None),
                                             reasoning_effort=getattr(jr_evaluator, "reasoning_effort", None),
+                                            **_falloesung_prompt_version_kwargs(
+                                                falloesung_bulk_fn,
+                                                config.get("metric_parameters"),
+                                            ),
                                             **_falloesung_grade_scale_kwargs(
                                                 falloesung_bulk_fn, db, project_id
                                             ),
