@@ -1616,7 +1616,7 @@
       "searchPlaceholder": "Search by task ID or title…",
       "taskPrefix": "Task",
       "labeled": "Labeled",
-      "feedbackAvailable": "Feedback",
+      "feedbackAvailable": "Grading",
       "evaluationAvailable": "Evaluation",
       "due": "Due",
       "result": {
@@ -9110,7 +9110,7 @@
       "result": {
         "details": "View grading",
         "graded": "Graded",
-        "humanFeedback": "Feedback on your submission",
+        "humanFeedback": "Corrected by a person",
         "humanFeedbackHint": "Your submission was graded by a human.",
         "notPassed": "Not passed",
         "passed": "Passed",
@@ -9126,7 +9126,7 @@
           "submission": "Submission",
           "musterloesung": "Model solution",
           "ki": "AI grading",
-          "human": "Feedback"
+          "human": "Human grading"
         },
         "taskPicker": "Exam",
         "taskFallback": "Exam {n}",
@@ -9461,7 +9461,9 @@
     "expandAll": "Expand all",
     "collapseAll": "Collapse all",
     "notRevealed": "The filled grading sheet is shown once the model solution is revealed.",
-    "noScores": "No checkpoints recorded."
+    "noScores": "No checkpoints recorded.",
+    "headingHuman": "Corrected by a person",
+    "headingLlm": "Corrected by the AI"
   },
   "notenschluessel": {
     "partLabel": "Grade scale",
@@ -9475,7 +9477,7 @@
     "presetShortStandard": "Standard",
     "presetShortUebungsklausur": "Practice exam",
     "presetShortCustom": "Own scale",
-    "customHint": "Own scale — \u201cReset\u201d restores the preset you picked last.",
+    "customHint": "Own scale — “Reset” restores the preset you picked last.",
     "reset": "Reset",
     "total": "Total points: {points}",
     "tableLabel": "Grade scale",
@@ -9510,7 +9512,9 @@
     "driftDoneNone": "There was nothing to update.",
     "driftDoneOne": "1 grading updated.",
     "driftDoneMany": "{count} gradings updated.",
-    "driftError": "The grade points could not be updated."
+    "driftError": "The grade points could not be updated.",
+    "lastChange": "Last changed on {date} by {name}",
+    "lastChangeUnknown": "Last changed on {date}"
   },
   "vendor": {
     "adminTitle": "Approve vendors (superadmin)",

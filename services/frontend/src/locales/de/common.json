@@ -1616,7 +1616,7 @@
       "searchPlaceholder": "Nach Aufgaben-ID oder Titel suchen…",
       "taskPrefix": "Aufgabe",
       "labeled": "Beschriftet",
-      "feedbackAvailable": "Feedback",
+      "feedbackAvailable": "Korrektur",
       "evaluationAvailable": "Bewertung",
       "due": "Fällig",
       "result": {
@@ -9118,7 +9118,7 @@
       "result": {
         "details": "Korrektur ansehen",
         "graded": "Korrigiert",
-        "humanFeedback": "Feedback deiner Korrektur",
+        "humanFeedback": "Von einem Menschen korrigiert",
         "humanFeedbackHint": "Deine Abgabe wurde von einem Menschen korrigiert.",
         "notPassed": "Nicht bestanden",
         "passed": "Bestanden",
@@ -9134,7 +9134,7 @@
           "submission": "Abgabe",
           "musterloesung": "Musterlösung",
           "ki": "KI-Korrektur",
-          "human": "Feedback"
+          "human": "Menschliche Korrektur"
         },
         "taskPicker": "Klausur",
         "taskFallback": "Klausur {n}",
@@ -9450,7 +9450,9 @@
     "expandAll": "Alle aufklappen",
     "collapseAll": "Alle zuklappen",
     "notRevealed": "Der ausgefüllte Bewertungsbogen wird nach Freigabe der Musterlösung angezeigt.",
-    "noScores": "Keine Schritte erfasst."
+    "noScores": "Keine Schritte erfasst.",
+    "headingHuman": "Korrektur durch eine Person",
+    "headingLlm": "Korrektur durch die KI"
   },
   "notenschluessel": {
     "partLabel": "Notenschlüssel",
@@ -9499,7 +9501,9 @@
     "driftDoneNone": "Es war nichts zu aktualisieren.",
     "driftDoneOne": "1 Bewertung aktualisiert.",
     "driftDoneMany": "{count} Bewertungen aktualisiert.",
-    "driftError": "Die Notenpunkte konnten nicht aktualisiert werden."
+    "driftError": "Die Notenpunkte konnten nicht aktualisiert werden.",
+    "lastChange": "Zuletzt geändert am {date} von {name}",
+    "lastChangeUnknown": "Zuletzt geändert am {date}"
   },
   "vendor": {
     "adminTitle": "Anbieter freischalten (Superadmin)",
