@@ -7,9 +7,16 @@
  * editor per config and edits each independently; unchecking the metric
  * removes the whole group. Uses the real metric registry (core metrics) and
  * the shared native-select mock from jest.config moduleNameMapper.
+ *
+ * Also pins the step's one extension point: the exam-level Notenschlüssel
+ * section (`ProjectWizardEvaluationGradeScale`) renders LAST and receives the
+ * raw wizard state + updater; a community build registers nothing and the
+ * step is unchanged.
  */
 import '@testing-library/jest-dom'
 import { fireEvent, render, screen, within } from '@testing-library/react'
+
+import type { ComponentProps } from 'react'
 
 import type { EvaluationConfig } from '@/lib/api/evaluation-types'
 import { StepEvaluationMethods } from '../StepEvaluationMethods'
@@ -18,6 +25,32 @@ jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
     t: (key: string, def?: any) => (typeof def === 'string' ? def : key),
   }),
+}))
+
+// `mock` prefix = hoist-safe; flipped per test to simulate the community
+// (nothing registered) and the extended build.
+let mockGradeScaleSlotRegistered = false
+jest.mock('@/lib/extensions/slots', () => ({
+  useSlot: (name: string) => {
+    if (name !== 'ProjectWizardEvaluationGradeScale') return null
+    if (!mockGradeScaleSlotRegistered) return null
+    const GradeScaleStub = ({ data, onChange }: any) => (
+      <div
+        data-testid="grade-scale-section"
+        data-slice={JSON.stringify(data?.gradeScale ?? null)}
+      >
+        <button
+          data-testid="grade-scale-write"
+          onClick={() => onChange({ gradeScale: { unit: 'percent' } })}
+        />
+      </div>
+    )
+    GradeScaleStub.displayName = 'GradeScaleStub'
+    return GradeScaleStub
+  },
+  getSlot: () => null,
+  hasSlot: () => false,
+  registerSlot: jest.fn(),
 }))
 
 jest.mock('@/hooks/useModels', () => ({
@@ -52,7 +85,10 @@ const JUDGE_PAIR: EvaluationConfig[] = [
   },
 ]
 
-function setup(configs: EvaluationConfig[] = []) {
+function setup(
+  configs: EvaluationConfig[] = [],
+  extra: Partial<ComponentProps<typeof StepEvaluationMethods>> = {},
+) {
   const onEvaluationConfigsChange = jest.fn()
   const onImmediateEvaluationChange = jest.fn()
   const utils = render(
@@ -64,10 +100,15 @@ function setup(configs: EvaluationConfig[] = []) {
       annotationFields={[{ name: 'loesung', type: 'TextArea' } as any]}
       dataColumns={['musterloesung']}
       selectedModelIds={[]}
+      {...extra}
     />,
   )
   return { onEvaluationConfigsChange, onImmediateEvaluationChange, ...utils }
 }
+
+afterEach(() => {
+  mockGradeScaleSlotRegistered = false
+})
 
 function expandMetric(metricKey: string) {
   const row = screen.getByTestId(`wizard-metric-${metricKey}`)
@@ -176,5 +217,47 @@ describe('StepEvaluationMethods — single-config behavior unchanged', () => {
     const panel = screen.getByTestId('wizard-metric-config-rouge-0')
     // No variant/sub-header line for single configs.
     expect(within(panel).queryByText('free')).not.toBeInTheDocument()
+  })
+})
+
+describe('StepEvaluationMethods — Notenschlüssel slot', () => {
+  const onWizardChange = jest.fn()
+  const wizardData = { gradeScale: null, title: 'Klausur' }
+
+  beforeEach(() => onWizardChange.mockClear())
+
+  it('renders nothing extra in a community build (slot unregistered)', () => {
+    setup([], { wizardData, onWizardChange })
+    expect(screen.queryByTestId('grade-scale-section')).not.toBeInTheDocument()
+  })
+
+  it('mounts the section last, with the wizard state and updater', () => {
+    mockGradeScaleSlotRegistered = true
+    const { container } = setup([], { wizardData, onWizardChange })
+    const section = screen.getByTestId('grade-scale-section')
+    expect(section).toHaveAttribute('data-slice', 'null')
+    // Last child of the step body — below the advanced-note alert.
+    expect(container.firstChild!.lastChild).toBe(section)
+
+    fireEvent.click(screen.getByTestId('grade-scale-write'))
+    expect(onWizardChange).toHaveBeenCalledWith({
+      gradeScale: { unit: 'percent' },
+    })
+  })
+
+  it('hands the slot the current slice so both editors agree', () => {
+    mockGradeScaleSlotRegistered = true
+    const scale = { unit: 'percent', preset: 'uebungsklausur' }
+    setup([], { wizardData: { gradeScale: scale }, onWizardChange })
+    expect(screen.getByTestId('grade-scale-section')).toHaveAttribute(
+      'data-slice',
+      JSON.stringify(scale),
+    )
+  })
+
+  it('stays unmounted when the host does not pass the wizard state', () => {
+    mockGradeScaleSlotRegistered = true
+    setup([])
+    expect(screen.queryByTestId('grade-scale-section')).not.toBeInTheDocument()
   })
 })

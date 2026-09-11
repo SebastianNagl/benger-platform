@@ -9489,7 +9489,16 @@
     "invalidCount": "Every grade point from 1 to 18 needs a threshold.",
     "invalidOrder": "Thresholds must increase from grade point 1 to 18.",
     "outOfRange": "Every threshold must be above 0 and must not exceed the total points.",
-    "invalidPassGrade": "The pass mark must be between 0 and 18 grade points."
+    "invalidPassGrade": "The pass mark must be between 0 and 18 grade points.",
+    "projectDefaultHint": "Without an own grade scale the standard applies: passed from 50 % of the total.",
+    "projectEnable": "Set an own grade scale",
+    "projectClear": "Use the standard grade scale",
+    "projectSave": "Save grade scale",
+    "projectSaving": "Saving…",
+    "projectSaved": "Grade scale saved.",
+    "projectSaveError": "The grade scale could not be saved.",
+    "wizardHint": "Optional: this project’s points-to-grade-points table. Without an own grade scale the standard applies — passed from 50 % of the total. The scale can be changed later on the project page.",
+    "builderHint": "Optional: an own points-to-grade-points table for the generated exam. Without an own scale the standard applies — passed from 50 %."
   },
   "vendor": {
     "adminTitle": "Approve vendors (superadmin)",

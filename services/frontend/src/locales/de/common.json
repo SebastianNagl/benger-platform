@@ -9478,7 +9478,16 @@
     "invalidCount": "Für jeden Notenpunkt von 1 bis 18 wird eine Schwelle gebraucht.",
     "invalidOrder": "Die Schwellen müssen von Notenpunkt 1 bis 18 aufsteigend sein.",
     "outOfRange": "Jede Schwelle muss über 0 liegen und darf die Gesamtpunktzahl nicht überschreiten.",
-    "invalidPassGrade": "Die Bestehensgrenze muss zwischen 0 und 18 Notenpunkten liegen."
+    "invalidPassGrade": "Die Bestehensgrenze muss zwischen 0 und 18 Notenpunkten liegen.",
+    "projectDefaultHint": "Ohne eigenen Notenschlüssel gilt der Standard: bestanden ab 50 % der Gesamtpunktzahl.",
+    "projectEnable": "Eigenen Notenschlüssel festlegen",
+    "projectClear": "Standard-Notenschlüssel verwenden",
+    "projectSave": "Notenschlüssel speichern",
+    "projectSaving": "Wird gespeichert…",
+    "projectSaved": "Notenschlüssel gespeichert.",
+    "projectSaveError": "Notenschlüssel konnte nicht gespeichert werden.",
+    "wizardHint": "Optional: die Punkte-zu-Notenpunkte-Tabelle dieses Projekts. Ohne eigenen Notenschlüssel gilt der Standard — bestanden ab 50 % der Gesamtpunktzahl. Der Schlüssel lässt sich später auf der Projektseite ändern.",
+    "builderHint": "Optional: eigene Punkte-zu-Notenpunkte-Tabelle für die erzeugte Klausur. Ohne eigenen Schlüssel gilt der Standard — bestanden ab 50 %."
   },
   "vendor": {
     "adminTitle": "Anbieter freischalten (Superadmin)",

@@ -20,10 +20,11 @@ import {
   isMetricImmediateEligible,
 } from '@/lib/api/evaluation-types'
 import { computeDefaultEvalName } from '@/lib/evaluation/evalName'
+import { useSlot } from '@/lib/extensions/slots'
 import { OutputField } from '@/lib/labelConfig/fieldExtractor'
 import { DEFAULT_MODEL_ID } from '@/lib/modelDefaults'
 import { ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/24/outline'
-import { useState } from 'react'
+import { createElement, useState } from 'react'
 
 interface StepEvaluationMethodsProps {
   evaluationConfigs: EvaluationConfig[]
@@ -33,6 +34,11 @@ interface StepEvaluationMethodsProps {
   annotationFields: OutputField[]
   dataColumns: string[]
   selectedModelIds: string[]
+  /** Raw wizard state + updater, only for extension slots hosted by this
+   *  step (the exam-level Notenschlüssel). Same convention as
+   *  StepDataImport's structured-exam tab. */
+  wizardData?: Record<string, any>
+  onWizardChange?: (partial: Record<string, any>) => void
 }
 
 const LLM_JUDGE_CATEGORY = 'LLM-as-Judge'
@@ -45,9 +51,15 @@ export function StepEvaluationMethods({
   annotationFields,
   dataColumns,
   selectedModelIds,
+  wizardData,
+  onWizardChange,
 }: StepEvaluationMethodsProps) {
   const { t } = useI18n()
   const { models } = useModels()
+  // Extended: the exam's Notenschlüssel as a section of this step. The slice
+  // it writes is handed to a post-create hook once the project exists;
+  // community builds register nothing and the step is unchanged.
+  const GradeScaleSection = useSlot('ProjectWizardEvaluationGradeScale')
   const [expandedMetric, setExpandedMetric] = useState<string | null>(null)
 
   const groupedMetrics = getGroupedMetrics()
@@ -553,6 +565,16 @@ export function StepEvaluationMethods({
           {t('projects.creation.wizard.step7.advancedNote')}
         </p>
       </Alert>
+
+      {/* createElement, not JSX: a slot component is looked up during render,
+          which the React-Compiler lint rule react-hooks/static-components
+          rejects as a JSX element type. */}
+      {GradeScaleSection && wizardData && onWizardChange
+        ? createElement(GradeScaleSection, {
+            data: wizardData,
+            onChange: onWizardChange,
+          })
+        : null}
     </div>
   )
 }

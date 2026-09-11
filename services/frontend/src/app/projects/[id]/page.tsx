@@ -353,6 +353,11 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   const [expanded, setExpanded] = useState(false)
   const ProjectSettingsExtended = useSlot('project-settings-extended')
   const ProjectStatisticsExtended = useSlot('project-statistics-extended')
+  // Exam-level Notenschlüssel editor inside the evaluation card. The slot
+  // owns its own save (a minimal `{ grade_scale }` PUT against the
+  // deep-merging eval-config endpoint), so the card's auto-save lifecycle
+  // stays untouched. Community builds register nothing → card unchanged.
+  const ProjectGradeScale = useSlot('project-evaluation-grade-scale')
   // Student access (share links, participants, discoverability) — sub-sections
   // of the Project settings card, filled by the extended edition.
   const ProjectSharing = useSlot('project-sharing')
@@ -2538,6 +2543,22 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                               </p>
                             </div>
                           </SubSection>
+                        </div>
+                      )}
+
+                      {/* Exam-level Notenschlüssel (extended slot). Sits
+                      between the scheduling knob and the methods builder
+                      because it is assessment policy over whatever the
+                      methods produce. Saves itself — see the slot comment
+                      at the useSlot call above. */}
+                      {canEditProject() && ProjectGradeScale && (
+                        <div className="mb-6">
+                          <ProjectGradeScale
+                            projectId={projectId || ''}
+                            evaluationConfig={
+                              currentProject?.evaluation_config ?? null
+                            }
+                          />
                         </div>
                       )}
 

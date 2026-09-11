@@ -166,6 +166,32 @@ jest.mock('@/components/projects/LabelConfigEditor', () => {
   LabelConfigEditor.displayName = 'LabelConfigEditorMock'
   return { LabelConfigEditor }
 })
+// Extension slots: everything is unregistered (community build) except the
+// exam-level Notenschlüssel, which a toggle arms per test so both the
+// "extended build mounts it" and the "community build renders nothing extra"
+// halves of the contract are pinned. `mock` prefix = hoist-safe.
+let mockGradeScaleSlotRegistered = false
+jest.mock('@/lib/extensions/slots', () => ({
+  useSlot: (name: string) => {
+    if (name !== 'project-evaluation-grade-scale') return null
+    if (!mockGradeScaleSlotRegistered) return null
+    const GradeScaleStub = ({ projectId, evaluationConfig }: any) => (
+      <div
+        data-testid="grade-scale-slot"
+        data-project-id={projectId}
+        data-grade-scale={JSON.stringify(
+          (evaluationConfig ?? {}).grade_scale ?? null,
+        )}
+      />
+    )
+    GradeScaleStub.displayName = 'GradeScaleStub'
+    return GradeScaleStub
+  },
+  getSlot: () => null,
+  hasSlot: () => false,
+  registerSlot: jest.fn(),
+}))
+
 jest.mock('@/components/projects/PromptStructuresManager', () => ({
   PromptStructuresManager: () => (
     <div data-testid="prompt-structures-manager" />
@@ -878,6 +904,61 @@ describe('Evaluation card', () => {
         'minimum',
       )
     })
+  })
+})
+
+// The Notenschlüssel is an extension point, not core behaviour: the card
+// hosts whatever the extended edition registers and is unchanged without it.
+describe('Evaluation card — grade-scale slot', () => {
+  afterEach(() => {
+    mockGradeScaleSlotRegistered = false
+  })
+
+  it('mounts the slot in the eval card with the project id + evaluation_config', async () => {
+    mockGradeScaleSlotRegistered = true
+    const gradeScale = { unit: 'percent', preset: 'uebungsklausur' }
+    setStore({
+      currentProject: {
+        ...baseProject,
+        evaluation_config: { grade_scale: gradeScale },
+      },
+    })
+    render(<ProjectDetailPage params={params()} />)
+    const card = await screen.findByTestId(
+      'config-card-project.evaluation.title',
+    )
+    const slot = within(card).getByTestId('grade-scale-slot')
+    expect(slot).toHaveAttribute('data-project-id', 'proj-1')
+    expect(slot).toHaveAttribute('data-grade-scale', JSON.stringify(gradeScale))
+  })
+
+  it('sits between the Multi-Run section and the Evaluierungsmethoden builder', async () => {
+    mockGradeScaleSlotRegistered = true
+    setStore()
+    render(<ProjectDetailPage params={params()} />)
+    await screen.findByTestId('config-card-project.evaluation.title')
+    const runs = screen.getByTestId(
+      'subsection-project.evaluationDefaults.runsTitle',
+    )
+    const slot = screen.getByTestId('grade-scale-slot')
+    const builder = await screen.findByTestId('evaluation-builder')
+    // Node.compareDocumentPosition: 4 = the argument FOLLOWS the receiver.
+    expect(runs.compareDocumentPosition(slot) & 4).toBeTruthy()
+    expect(slot.compareDocumentPosition(builder) & 4).toBeTruthy()
+  })
+
+  it('renders nothing extra in a community build (slot unregistered)', async () => {
+    setStore({
+      currentProject: {
+        ...baseProject,
+        evaluation_config: { grade_scale: { unit: 'percent' } },
+      },
+    })
+    render(<ProjectDetailPage params={params()} />)
+    await screen.findByTestId('config-card-project.evaluation.title')
+    expect(screen.queryByTestId('grade-scale-slot')).not.toBeInTheDocument()
+    // and the rest of the card is untouched
+    expect(await screen.findByTestId('evaluation-builder')).toBeInTheDocument()
   })
 })
 
