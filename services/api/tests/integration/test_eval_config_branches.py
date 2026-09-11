@@ -758,14 +758,7 @@ class TestUpdateEvaluationConfig:
             ]
         }
 
-    @pytest.mark.parametrize(
-        "missing_key",
-        [
-            "rubric_generator_model_id",
-            "rubric_prompt_key",
-            "custom_prompt_template",
-        ],
-    )
+    @pytest.mark.parametrize("missing_key", ["custom_prompt_template"])
     def test_rubric_missing_required_param_returns_422(
         self, client, test_db, test_users, auth_headers, test_org, missing_key
     ):
@@ -779,6 +772,56 @@ class TestUpdateEvaluationConfig:
         assert resp.status_code == 422
         detail = resp.json()["detail"]
         assert "llm_judge_rubric" in detail and missing_key in detail
+
+    def test_rubric_persists_without_generator_keys(
+        self, client, test_db, test_users, auth_headers, test_org
+    ):
+        """Uploaded / hand-written rubrics need no generator: the generator
+        model id and prompt key are optional (migration 100 wave)."""
+        project = _make_project(test_db, test_users[0], test_org)
+        config = self._rubric_config(
+            rubric_generator_model_id=None, rubric_prompt_key=None
+        )
+        resp = client.put(
+            f"/api/evaluations/projects/{project.id}/evaluation-config",
+            json=config,
+            headers=_org_headers(auth_headers, "admin", test_org),
+        )
+        assert resp.status_code == 200, resp.text
+        test_db.expire_all()
+        stored = (
+            test_db.query(Project).filter(Project.id == project.id).first()
+        ).evaluation_config
+        mp = stored["evaluation_configs"][0]["metric_parameters"]
+        assert "rubric_generator_model_id" not in mp
+        assert "rubric_prompt_key" not in mp
+        assert mp["custom_prompt_template"].startswith("Bewerte:")
+
+    def test_rubric_explicit_null_generator_key_is_accepted(
+        self, client, test_db, test_users, auth_headers, test_org
+    ):
+        project = _make_project(test_db, test_users[0], test_org)
+        config = self._rubric_config()
+        config["evaluation_configs"][0]["metric_parameters"]["rubric_prompt_key"] = None
+        resp = client.put(
+            f"/api/evaluations/projects/{project.id}/evaluation-config",
+            json=config,
+            headers=_org_headers(auth_headers, "admin", test_org),
+        )
+        assert resp.status_code == 200, resp.text
+
+    def test_rubric_blank_generator_model_returns_422(
+        self, client, test_db, test_users, auth_headers, test_org
+    ):
+        project = _make_project(test_db, test_users[0], test_org)
+        config = self._rubric_config(rubric_generator_model_id="  ")
+        resp = client.put(
+            f"/api/evaluations/projects/{project.id}/evaluation-config",
+            json=config,
+            headers=_org_headers(auth_headers, "admin", test_org),
+        )
+        assert resp.status_code == 422
+        assert "rubric_generator_model_id" in resp.json()["detail"]
 
     def test_rubric_empty_string_param_returns_422(
         self, client, test_db, test_users, auth_headers, test_org

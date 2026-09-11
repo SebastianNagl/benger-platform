@@ -350,3 +350,54 @@ async def test_refresh_and_update_keep_snapshot(async_test_client, async_test_db
         # explicit refresh recomputes
         r = await async_test_client.post(f"/api/projects/{project.id}/report/refresh")
         assert r.status_code == 200 and r.json()["content"]["snapshot"]["generated_at"]
+
+
+@pytest.mark.asyncio
+async def test_snapshot_lifts_rubric_grade_points(async_test_db):
+    """llm_judge_rubric rows (migration 100 wave) carry Notenpunkte under
+    ``details.grade_points`` plus the ``_grade_points`` / ``_passed``
+    siblings; the snapshot surfaces ``llm_judge_rubric_grade_points`` as a
+    0-18 method without any report-side change."""
+    from sqlalchemy import select
+
+    admin = await _user(async_test_db, is_superadmin=True)
+    ann = await _user(async_test_db)
+    project, _ = await _seed_benchmark(async_test_db, admin, ann)
+    generation = (await async_test_db.execute(
+        select(Generation).where(Generation.model_id == "official-model")
+    )).scalars().first()
+    er = EvaluationRun(
+        id=_uid(), project_id=project.id, model_id="official-model", evaluation_type_ids=["llm_judge_rubric"],
+        metrics={}, status="completed", samples_evaluated=1, eval_metadata={}, created_by=admin.id,
+        created_at=datetime.now(timezone.utc),
+    )
+    async_test_db.add(er)
+    await async_test_db.flush()
+    jr = EvaluationJudgeRun(id=_uid(), evaluation_id=er.id, judge_model_id="judge-model", run_index=0, status="completed")
+    async_test_db.add(jr)
+    await async_test_db.flush()
+    async_test_db.add(TaskEvaluation(
+        id=_uid(), evaluation_id=er.id, judge_run_id=jr.id, task_id=generation.task_id,
+        generation_id=generation.id, field_name="loesung|rubric", answer_type="long_text",
+        ground_truth={"value": "ref"}, prediction={"value": "pred"}, passed=True,
+        evaluation_config_id="cfg-rubric",
+        metrics={
+            "llm_judge_rubric": {
+                "value": 0.725, "method": "llm_judge_rubric", "error": None,
+                "details": {"scores": {}, "total_score": 72.5, "total_max": 100, "rubric_id": "rub-1",
+                            "grade_points": 12, "passed": True, "grade_scale_source": "rubric"},
+            },
+            "raw_score": 0.725,
+            "llm_judge_rubric_grade_points": 12.0,
+            "llm_judge_rubric_passed": 1.0,
+        },
+    ))
+    await async_test_db.flush()
+
+    snap = await async_test_db.run_sync(build_report_snapshot, project.id)
+
+    ids = {m["id"] for m in snap["methods"]}
+    assert {"llm_judge_rubric", "llm_judge_rubric_grade_points", "llm_judge_rubric_passed"} <= ids
+    row = next(r for r in snap["series"] if r["subject"]["id"] == "official-model" and r["config_id"] == "cfg-rubric")
+    assert row["metrics"]["llm_judge_rubric_grade_points"]["mean"] == pytest.approx(12.0)
+    assert row["metrics"]["llm_judge_rubric"]["pass_rate"] == pytest.approx(1.0)

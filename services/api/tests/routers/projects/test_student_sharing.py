@@ -899,6 +899,72 @@ async def test_score_history_labels_sources_and_excludes_batch_runs(
 
 @pytest.mark.integration
 @pytest.mark.asyncio
+async def test_score_history_carries_grade_points(async_test_client, async_test_db):
+    """Each point lifts Notenpunkte from ``details.grade_points`` or the
+    ``<metric>_grade_points`` sibling (rubric exams with their own
+    Notenschlüssel chart through it instead of the Falllösung table); rows
+    without a grade carry ``null``."""
+    from models import EvaluationJudgeRun, EvaluationRun, TaskEvaluation
+    from project_models import Annotation, Task
+
+    owner = await _make_user(async_test_db)
+    student = await _make_user(async_test_db)
+    exam = await _make_exam(async_test_db, owner)
+    task = Task(id=str(uuid.uuid4()), project_id=exam.id, data={"sachverhalt": "S"}, inner_id=1)
+    async_test_db.add(task)
+    await async_test_db.flush()
+    annotation = Annotation(
+        id=str(uuid.uuid4()), task_id=task.id, project_id=exam.id, completed_by=student.id,
+        result=[{"from_name": "loesung", "value": {"text": ["..."]}}],
+    )
+    async_test_db.add(annotation)
+    await async_test_db.flush()
+
+    async def _row(model_id, metrics, field_name):
+        run = EvaluationRun(
+            id=str(uuid.uuid4()), project_id=exam.id, model_id=model_id,
+            evaluation_type_ids=[], metrics={}, created_by=owner.id,
+        )
+        async_test_db.add(run)
+        await async_test_db.flush()
+        jr = EvaluationJudgeRun(id=str(uuid.uuid4()), evaluation_id=run.id, judge_model_id="gpt-5-mini")
+        async_test_db.add(jr)
+        await async_test_db.flush()
+        async_test_db.add(TaskEvaluation(
+            id=str(uuid.uuid4()), evaluation_id=run.id, judge_run_id=jr.id, task_id=task.id,
+            annotation_id=annotation.id, field_name=field_name, answer_type="long_text",
+            ground_truth="M", prediction="...", metrics=metrics, passed=True,
+        ))
+
+    # nested details.grade_points (immediate rubric judging, korrektur rows)
+    await _row("immediate", {
+        "llm_judge_rubric": {"value": 0.725, "method": "llm_judge_rubric", "error": None,
+                             "details": {"grade_points": 12, "passed": True, "rubric_id": "r"}},
+        "raw_score": 0.725,
+    }, "loesung")
+    # sibling key only (bulk-shaped row)
+    await _row("human", {
+        "korrektur_custom": {"value": 0.4, "method": "korrektur_custom", "error": None, "details": {}},
+        "korrektur_custom_grade_points": 4.0,
+    }, "loesung|b")
+    # no grade at all → null
+    await _row("immediate", {
+        "llm_judge_custom": {"value": 0.5, "method": "llm_judge_custom", "error": None, "details": {}},
+    }, "loesung|c")
+    await async_test_db.commit()
+
+    with _as_user(student):
+        r = await async_test_client.get("/api/student/score-history")
+        assert r.status_code == 200, r.text
+        points = r.json()
+    by_score = {round(p["score"], 3): p for p in points}
+    assert by_score[0.725]["grade_points"] == 12.0
+    assert by_score[0.4]["grade_points"] == 4.0
+    assert by_score[0.5]["grade_points"] is None
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
 async def test_collection_kind_deck_shares_list_and_join(async_test_client, async_test_db):
     """The current student collections are kind='flashcard_collection' (the
     legacy cases above use 'flashcard_collection'); both list in the directory and

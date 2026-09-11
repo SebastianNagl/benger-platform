@@ -53,15 +53,18 @@ def _evaluate_llm_judge_single_impl(
         getattr(judge_model_obj, "recommended_parameters", None) or None
     )
 
-    def _resolve_judge(key: str, fallback_default: Any = None):
-        value, _source, _rec = tasks._resolve_param(
+    def _resolve_judge_with_source(key: str, fallback_default: Any = None):
+        value, source, _rec = tasks._resolve_param(
             key=key,
             mode="evaluation",
             model_recommended=judge_recommended,
             project_cfg=None,
             per_model_cfg=params,
         )
-        return value if value is not None else fallback_default
+        return (value if value is not None else fallback_default), source
+
+    def _resolve_judge(key: str, fallback_default: Any = None):
+        return _resolve_judge_with_source(key, fallback_default)[0]
 
     # Apply per-model temperature constraint (e.g. Opus 4.7 → 1.0, GPT-5
     # → 1.0, DeepSeek-R1 min 0.6). Mirror of the generation-side clamp.
@@ -71,6 +74,14 @@ def _evaluate_llm_judge_single_impl(
     _judge_temp, _ = tasks._clamp_temperature_to_constraint(
         _resolve_judge("temperature", 0.0), judge_constraints
     )
+    # Per-metric floor on the DEFAULT max_tokens: a Bewertungsbogen judge
+    # emits 40-100 step reasons in one JSON object, which the 1500-token
+    # system default truncates. An explicit metric_parameters.max_tokens
+    # always wins (mirror of the bulk path in tasks.py).
+    _judge_max_tokens, _max_tokens_source = _resolve_judge_with_source("max_tokens", 500)
+    _judge_max_tokens = tasks._apply_metric_max_tokens_floor(
+        metric_type, _judge_max_tokens, _max_tokens_source
+    )
 
     llm_judge = create_llm_judge_for_user(
         db=db,
@@ -78,7 +89,7 @@ def _evaluate_llm_judge_single_impl(
         provider=provider,
         judge_model=judge_model,
         temperature=_judge_temp,
-        max_tokens=_resolve_judge("max_tokens", 500),
+        max_tokens=_judge_max_tokens,
         criteria=params.get("dimensions"),
         custom_criteria=params.get("custom_criteria"),
         custom_prompt_template=params.get("custom_prompt_template"),
@@ -210,6 +221,16 @@ def _evaluate_llm_judge_single_impl(
             "raw_output": multidim.get("_raw_output", ""),
         }
         judge_prompts_used = multidim.get("_judge_prompts_used")
+        row_passed = float(normalized) >= 0.5
+        row_metrics: Dict[str, Any] = {
+            metric_type: {
+                "value": float(normalized),
+                "method": metric_type,
+                "details": multidim_details,
+                "error": None,
+            },
+            "raw_score": float(normalized),
+        }
         if task_rubric is not None:
             multidim_details["rubric_id"] = task_rubric.id
             if isinstance(judge_prompts_used, dict):
@@ -217,6 +238,21 @@ def _evaluate_llm_judge_single_impl(
                 judge_prompts_used["task_rubric_generator"] = (
                     task_rubric.generator_model_id
                 )
+            # Notenpunkte from the rubric's own Notenschlüssel (or the
+            # default table scaled to its total). The row's pass flag and
+            # the <metric>_grade_points / <metric>_passed siblings mirror
+            # the bulk cell path so every reader (exam card, score history,
+            # report snapshot) sees one shape.
+            from rubric_structure import grade_for_rubric
+
+            grade_points, row_passed, scale_source = grade_for_rubric(
+                task_rubric, total, total_max
+            )
+            multidim_details["grade_points"] = grade_points
+            multidim_details["passed"] = row_passed
+            multidim_details["grade_scale_source"] = scale_source
+            row_metrics[f"{metric_type}_grade_points"] = float(grade_points)
+            row_metrics[f"{metric_type}_passed"] = 1.0 if row_passed else 0.0
         eval_record = TaskEvaluation(
             id=record_id,
             evaluation_id=immediate_eval_id,
@@ -230,17 +266,9 @@ def _evaluate_llm_judge_single_impl(
             answer_type="text",
             ground_truth=reference,
             prediction=prediction,
-            metrics={
-                metric_type: {
-                    "value": float(normalized),
-                    "method": metric_type,
-                    "details": multidim_details,
-                    "error": None,
-                },
-                "raw_score": float(normalized),
-            },
+            metrics=row_metrics,
             judge_prompts_used=judge_prompts_used,
-            passed=float(normalized) >= 0.5,
+            passed=row_passed,
         )
         db.add(eval_record)
         db.commit()
@@ -251,6 +279,8 @@ def _evaluate_llm_judge_single_impl(
             "score": float(normalized),
             "total_score": total,
             "total_max": total_max,
+            "grade_points": multidim_details.get("grade_points"),
+            "passed": row_passed,
         }
 
     # Derive the per-criterion key from the metric name. `llm_judge_helpfulness`

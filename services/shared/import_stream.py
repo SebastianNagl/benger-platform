@@ -599,6 +599,13 @@ def run_nested_import(db, project_id: str, fileobj, user_id: str) -> dict:
                 rub_data.get("criteria"), dict
             ):
                 continue
+            # structure / grade_scale round-trip as exported (dict or None);
+            # no validation or regeneration on import. total_points is a
+            # float since migration 100 (half BE); fall back to 100.0.
+            try:
+                imported_total = float(rub_data.get("total_points") or 100.0)
+            except (TypeError, ValueError):
+                imported_total = 100.0
             db.add(
                 TaskRubric(
                     id=str(uuid.uuid4()),
@@ -606,7 +613,17 @@ def run_nested_import(db, project_id: str, fileobj, user_id: str) -> dict:
                     project_id=project_id,
                     title=rub_data.get("title"),
                     criteria=rub_data["criteria"],
-                    total_points=rub_data.get("total_points") or 100,
+                    total_points=imported_total,
+                    structure=(
+                        rub_data.get("structure")
+                        if isinstance(rub_data.get("structure"), dict)
+                        else None
+                    ),
+                    grade_scale=(
+                        rub_data.get("grade_scale")
+                        if isinstance(rub_data.get("grade_scale"), dict)
+                        else None
+                    ),
                     source=rub_data.get("source") or "llm",
                     generator_model_id=rub_data.get("generator_model_id"),
                     prompt_key=rub_data.get("prompt_key"),

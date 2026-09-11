@@ -84,6 +84,11 @@ def _preprocess_jinja_placeholders(template: str) -> str:
     return re.sub(r"\{\{(\w+)\}\}", r"{\1}", template)
 
 
+# OpenAI structured-output limits for a single strict schema.
+RUBRIC_SCHEMA_MAX_ENUM_VALUES = 1000
+RUBRIC_SCHEMA_MAX_PROPERTIES = 5000
+
+
 def _half_point_enum(max_score: float) -> List[float]:
     """Produce the half-point enum [0, 0.5, 1.0, ..., max_score] for a dimension.
 
@@ -111,16 +116,35 @@ def _build_rubric_json_schema(custom_criteria: Dict[str, Dict[str, Any]]) -> Dic
     closed. Criteria without ``max_score`` are skipped — multi-dim mode
     is opt-in per criterion via that field.
     """
+    scored = [
+        (key, definition)
+        for key, definition in custom_criteria.items()
+        if definition.get("max_score") is not None
+    ]
+    # OpenAI strict mode caps a schema at 5,000 properties and 1,000 enum
+    # values in total; ours cost 4N+4 properties and 2·total+N enum values.
+    # A big Bewertungsbogen (many steps, high totals) would be rejected
+    # outright, so fall back to a plain numeric range per score and rely on
+    # the half-point snapping in the clamp loop instead.
+    enum_values = sum(int(round(float(d["max_score"]) * 2)) + 1 for _k, d in scored)
+    use_enum = (
+        enum_values <= RUBRIC_SCHEMA_MAX_ENUM_VALUES
+        and 4 * len(scored) + 4 <= RUBRIC_SCHEMA_MAX_PROPERTIES
+    )
+
     score_properties: Dict[str, Any] = {}
     score_required: List[str] = []
-    for key, definition in custom_criteria.items():
-        max_score = definition.get("max_score")
-        if max_score is None:
-            continue
+    for key, definition in scored:
+        max_score = definition["max_score"]
+        score_schema: Dict[str, Any] = (
+            {"type": "number", "enum": _half_point_enum(float(max_score))}
+            if use_enum
+            else {"type": "number", "minimum": 0, "maximum": max_score}
+        )
         score_properties[key] = {
             "type": "object",
             "properties": {
-                "score": {"type": "number", "enum": _half_point_enum(float(max_score))},
+                "score": score_schema,
                 "max": {"type": "number", "const": max_score},
                 "reason": {"type": "string"},
             },
@@ -1294,6 +1318,10 @@ class LLMJudgeEvaluator(BaseEvaluator):
                             score = float(raw.get("score", 0))
                         except (TypeError, ValueError):
                             score = 0.0
+                        # Snap to the half-point grid before clamping: only
+                        # OpenAI strict mode enforces the enum; other
+                        # providers happily return 7.3.
+                        score = round(score * 2) / 2
                         score = max(0.0, min(float(max_score), score))
                         clamped[key] = {
                             "score": score,
@@ -1301,10 +1329,16 @@ class LLMJudgeEvaluator(BaseEvaluator):
                             "reason": str(raw.get("reason", "") or ""),
                         }
                         total += score
-                    # Trust the model's total_score when present and within
-                    # tolerance of our sum; otherwise use the summed value.
+                    # Trust the model's total_score when present, on the
+                    # half-point grid and within tolerance of our sum;
+                    # otherwise use the summed (snapped) value.
                     model_total = parsed.get("total_score")
-                    if isinstance(model_total, (int, float)) and abs(float(model_total) - total) <= 0.5:
+                    if (
+                        isinstance(model_total, (int, float))
+                        and not isinstance(model_total, bool)
+                        and abs(float(model_total) - total) <= 0.5
+                        and abs(float(model_total) * 2 - round(float(model_total) * 2)) < 1e-9
+                    ):
                         total = float(model_total)
 
                     return {
@@ -1317,11 +1351,28 @@ class LLMJudgeEvaluator(BaseEvaluator):
                         "_judge_prompts_used": provenance,
                     }
 
+                call_meta = _extract_call_metadata(response)
+                if call_meta.get("truncated"):
+                    # finish_reason=length: the JSON never completed. Retrying
+                    # the identical call burns quota for an identical cut —
+                    # fail fast with an actionable message instead.
+                    last_failure = {
+                        "error": True,
+                        "error_message": (
+                            "judge response was truncated before the JSON completed "
+                            "(finish_reason=length); raise metric_parameters.max_tokens "
+                            "for this metric"
+                        ),
+                        "_call_metadata": {**call_meta, "error_type": "truncated"},
+                        "_raw_output": content,
+                        "_judge_prompts_used": provenance,
+                    }
+                    break
                 last_failure = {
                     "error": True,
                     "error_message": "judge response missing parseable scores dict",
                     "_call_metadata": {
-                        **_extract_call_metadata(response),
+                        **call_meta,
                         "error_type": "parse_error",
                     },
                     "_raw_output": content,

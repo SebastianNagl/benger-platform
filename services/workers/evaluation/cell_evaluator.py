@@ -74,31 +74,49 @@ def _render_rubric_text(rubric) -> str:
     contain them; instead this rendering is bound to the ``{bewertungsbogen}``
     template variable at eval time.
 
-    When the rubric row carries a pre-rendered full-document text
-    (``generation_metadata.rendered_text``, written by the extended
-    generation worker; carries document-level context like alternative
-    Lösungswege that flat criteria cannot), that string wins. Otherwise the
-    flat criteria are rendered generically; the ``[Schlüssel: …]`` suffix
-    lets the model map each step to its schema key.
+    Thin wrapper over ``rubric_structure.rubric_prompt_text`` (kept here by
+    name — tests and ``judge_evaluator`` import it from this module).
+    Precedence: a pre-rendered ``generation_metadata.rendered_text`` (written
+    by the extended generation worker; carries document-level context like
+    alternative Lösungswege) → the structure outline (uploaded / edited
+    rubrics) → the flat criteria with the ``[Schlüssel: …]`` mapping suffix.
+    The Notenschlüssel is deliberately NOT rendered: the grade is derived
+    server-side (``grade_for_rubric``), and a scale in the prompt would only
+    bias the model.
     """
-    metadata = getattr(rubric, "generation_metadata", None) or {}
-    rendered = metadata.get("rendered_text")
-    if isinstance(rendered, str) and rendered.strip():
-        return rendered
+    from rubric_structure import rubric_prompt_text
 
-    criteria = getattr(rubric, "criteria", None)
-    lines = []
-    for i, (key, step) in enumerate((criteria or {}).items(), start=1):
-        if not isinstance(step, dict):
-            continue
-        name = step.get("name") or key
-        pts = step.get("max_score")
-        lines.append(f"{i}. {name} ({pts} Punkte) [Schlüssel: {key}]")
-        for text in (step.get("description"), step.get("rubric")):
-            text = (text or "").strip()
-            for ln in text.splitlines():
-                lines.append(f"   {ln}")
-    return "\n".join(lines)
+    return rubric_prompt_text(rubric, include_grade_scale=False)
+
+
+def _stamp_rubric_grade(result, task_rubric) -> None:
+    """Add ``grade_points`` / ``passed`` / ``grade_scale_source`` to a scored
+    multi-dim result of an ``llm_judge_rubric`` cell (in place).
+
+    Notenpunkte come from the rubric's own Notenschlüssel or the default
+    table scaled to its total (``rubric_structure.grade_for_rubric``);
+    ``_build_multidim_judge_row_metrics`` lifts them into the row shape.
+    Error results and results without scores are left untouched.
+    """
+    if not isinstance(result, dict) or result.get("error") or "scores" not in result:
+        return
+    from rubric_structure import grade_for_rubric
+
+    total = float(result.get("total_score") or 0.0)
+    total_max = float(result.get("total_max") or 0.0)
+    grade_points, passed, source = grade_for_rubric(task_rubric, total, total_max)
+    result["grade_points"] = grade_points
+    result["passed"] = passed
+    result["grade_scale_source"] = source
+
+
+def _multidim_row_passed(metrics_dict, metric, normalized) -> bool:
+    """Row-level pass flag for a multi-dim judge row: the rubric-derived
+    ``details.passed`` when present, else the legacy ``value >= 0.5``."""
+    details = ((metrics_dict or {}).get(metric) or {}).get("details") or {}
+    if isinstance(details.get("passed"), bool):
+        return details["passed"]
+    return (normalized or 0.0) >= 0.5
 
 
 def _supported_extra_kwargs(fn, pairs) -> Dict[str, Any]:
@@ -594,6 +612,7 @@ def evaluate_generation_cell_impl(
                                     if task_rubric is not None:
                                         if isinstance(result, dict):
                                             result["rubric_id"] = task_rubric.id
+                                            _stamp_rubric_grade(result, task_rubric)
                                         if isinstance(judge_prompts, dict):
                                             judge_prompts["task_rubric_id"] = task_rubric.id
                                             judge_prompts["task_rubric_generator"] = (
@@ -619,7 +638,7 @@ def evaluate_generation_cell_impl(
                                         "ground_truth": str(ground_truth)[:1000] if ground_truth else "",
                                         "prediction": str(prediction)[:1000] if prediction else "",
                                         "metrics": metrics_dict,
-                                        "passed": (normalized or 0.0) >= 0.5,
+                                        "passed": _multidim_row_passed(metrics_dict, metric, normalized),
                                         "error_message": error_msg,
                                         "judge_prompts_used": judge_prompts,
                                         **_llm_judge_columns_from_result(result),
@@ -1209,6 +1228,7 @@ def evaluate_annotation_cell_impl(
                                         if task_rubric is not None:
                                             if isinstance(result, dict):
                                                 result["rubric_id"] = task_rubric.id
+                                                _stamp_rubric_grade(result, task_rubric)
                                             if isinstance(judge_prompts, dict):
                                                 judge_prompts["task_rubric_id"] = task_rubric.id
                                                 judge_prompts["task_rubric_generator"] = (
@@ -1235,7 +1255,7 @@ def evaluate_annotation_cell_impl(
                                             "ground_truth": str(ground_truth)[:1000] if ground_truth else "",
                                             "prediction": str(prediction)[:1000] if prediction else "",
                                             "metrics": metrics_dict,
-                                            "passed": (normalized or 0.0) >= 0.5,
+                                            "passed": _multidim_row_passed(metrics_dict, metric, normalized),
                                             "error_message": error_msg,
                                             "judge_prompts_used": judge_prompts,
                                             **_llm_judge_columns_from_result(result),

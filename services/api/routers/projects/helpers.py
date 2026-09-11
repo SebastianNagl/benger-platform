@@ -87,6 +87,29 @@ def attempt_score_from_metrics(metrics: Any) -> Optional[float]:
     return best
 
 
+def attempt_grade_points_from_metrics(metrics: Any) -> Optional[float]:
+    """Notenpunkte (0..18) of an attempt row, when its writer produced them.
+
+    Lifted from ``metrics[<metric>].details.grade_points`` (falloesung,
+    korrektur and rubric writers) or the flat ``<metric>_grade_points``
+    sibling (bulk judge rows); ``None`` for rows without a grade so callers
+    fall back to their own conversion.
+    """
+    if not isinstance(metrics, dict):
+        return None
+    for key, sub in metrics.items():
+        if not _metric_key_is_real(key):
+            continue
+        candidates = []
+        if isinstance(sub, dict) and isinstance(sub.get("details"), dict):
+            candidates.append(sub["details"].get("grade_points"))
+        candidates.append(metrics.get(f"{key}_grade_points"))
+        for value in candidates:
+            if isinstance(value, (int, float)) and not isinstance(value, bool):
+                return float(value)
+    return None
+
+
 def _scored_pairs_query(db: Session):
     """Base query that yields (project_id, subject_id, metric_key) for every
     (annotation|generation, metric) pair that has at least one scored row in a

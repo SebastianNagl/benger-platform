@@ -82,7 +82,11 @@ class TestExtensionLoader:
         # ProjectOrganization.group_id, group-scoped org API keys).
         # 2.12 adds the grading_feedback table + project_models.GradingFeedback
         # (solver thumbs/comment feedback on LLM and human gradings).
-        assert CORE_API_VERSION == "2.12"
+        # 2.13 adds task_rubrics.structure / grade_scale (float total_points),
+        # shared rubric_structure + task_rubric_service, task-rubrics writes +
+        # the stateless parse route, rubric grade points in the judge and
+        # optional generator keys on llm_judge_rubric configs.
+        assert CORE_API_VERSION == "2.13"
 
     def test_tasks_with_feedback_for_user_empty_without_package(self):
         """Community edition: no human-feedback workflow -> empty set."""

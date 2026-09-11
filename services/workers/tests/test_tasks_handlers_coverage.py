@@ -276,6 +276,79 @@ class TestBuildMultidimJudgeRowMetrics:
         }
         metrics, _ = _build_multidim_judge_row_metrics(multidim, "llm_judge", None)
         assert "rubric_id" not in metrics["llm_judge"]["details"]
+        # No grade stamped → no grade keys anywhere (Grundprinzipien-style rows).
+        assert "grade_points" not in metrics["llm_judge"]["details"]
+        assert "passed" not in metrics["llm_judge"]["details"]
+        assert "llm_judge_grade_points" not in metrics
+        assert "llm_judge_passed" not in metrics
+
+    def test_grade_points_land_in_details_and_sibling_keys(self):
+        """llm_judge_rubric cells stamp Notenpunkte (rubric_structure.grade_for_rubric)
+        into the multidim dict; the builder mirrors the falloesung row shape:
+        nested under details AND as <metric>_grade_points / <metric>_passed."""
+        multidim = {
+            "scores": {"s01": {"score": 5, "max": 8, "reason": "ok"}},
+            "total_score": 5.0,
+            "total_max": 8.0,
+            "rubric_id": "rub-1",
+            "grade_points": 7,
+            "passed": True,
+            "grade_scale_source": "default",
+        }
+        metrics, value = _build_multidim_judge_row_metrics(multidim, "llm_judge_rubric", None)
+        details = metrics["llm_judge_rubric"]["details"]
+        assert value == pytest.approx(0.625)
+        assert details["grade_points"] == 7
+        assert details["passed"] is True
+        assert details["grade_scale_source"] == "default"
+        assert metrics["llm_judge_rubric_grade_points"] == 7.0
+        assert metrics["llm_judge_rubric_passed"] == 1.0
+
+    def test_failed_grade_writes_zero_passed_sibling(self):
+        multidim = {
+            "scores": {"s01": {"score": 3, "max": 8, "reason": ""}},
+            "total_score": 3.0,
+            "total_max": 8.0,
+            "grade_points": 2,
+            "passed": False,
+        }
+        metrics, _ = _build_multidim_judge_row_metrics(multidim, "llm_judge_rubric", None)
+        assert metrics["llm_judge_rubric"]["details"]["passed"] is False
+        assert metrics["llm_judge_rubric_passed"] == 0.0
+        assert metrics["llm_judge_rubric_grade_points"] == 2.0
+
+
+# ===========================================================================
+# _apply_metric_max_tokens_floor
+# ===========================================================================
+
+
+class TestApplyMetricMaxTokensFloor:
+    def test_system_default_is_lifted_and_recorded(self):
+        provenance = {"max_tokens": {"value": 1500, "source": "system"}}
+        assert tasks_module._apply_metric_max_tokens_floor(
+            "llm_judge_rubric", 1500, "system", provenance
+        ) == tasks_module.METRIC_MAX_TOKENS_FLOOR["llm_judge_rubric"]
+        assert provenance["max_tokens"]["floored_for_metric"] == "llm_judge_rubric"
+        assert provenance["max_tokens"]["floored_from"] == 1500
+        assert provenance["max_tokens"]["value"] == 32000
+
+    def test_recommended_tier_is_lifted_too(self):
+        assert tasks_module._apply_metric_max_tokens_floor("llm_judge_rubric", 4000, "recommended") == 32000
+
+    def test_explicit_user_value_always_wins(self):
+        provenance = {"max_tokens": {"value": 1500, "source": "user_per_model"}}
+        assert tasks_module._apply_metric_max_tokens_floor(
+            "llm_judge_rubric", 1500, "user_per_model", provenance
+        ) == 1500
+        assert "floored_for_metric" not in provenance["max_tokens"]
+
+    def test_other_metrics_and_values_above_the_floor_untouched(self):
+        assert tasks_module._apply_metric_max_tokens_floor("llm_judge_falloesung", 1500, "system") == 1500
+        # Above the floor: a generous default is left exactly as resolved.
+        assert tasks_module._apply_metric_max_tokens_floor("llm_judge_rubric", 64000, "system") == 64000
+        assert tasks_module._apply_metric_max_tokens_floor(None, 1500, "system") == 1500
+        assert tasks_module._apply_metric_max_tokens_floor("llm_judge_rubric", "abc", "system") == "abc"
 
 
 # ===========================================================================

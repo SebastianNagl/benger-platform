@@ -299,26 +299,37 @@ def validate_evaluation_config_entries(eval_configs_list) -> None:
                 )
 
         # llm_judge_rubric grades against per-task Bewertungsbogen
-        # rows generated from a project prompt structure. Both the
-        # generator model and the prompt reference are required —
-        # without them the generate-missing-rubrics flow has nothing
-        # to run — and the grading prompt template must exist because
+        # rows. The grading prompt template must exist because
         # multi-dim mode fails without one (the wizard editor and the
         # extended setup endpoint write a default; API callers must
-        # supply their own).
+        # supply their own). The generator model + prompt reference are
+        # OPTIONAL: uploaded / hand-written rubrics need no generator
+        # (the generate-missing-rubrics flow simply has nothing to run),
+        # but when a key is set it must be a non-empty string.
         if cfg.get("metric") == "llm_judge_rubric":
+            template = mp.get("custom_prompt_template")
+            if not isinstance(template, str) or not template.strip():
+                raise HTTPException(
+                    status_code=422,
+                    detail=(
+                        "llm_judge_rubric requires metric_parameters."
+                        "custom_prompt_template (the grading prompt template) "
+                        "as a non-empty string"
+                    ),
+                )
             for key, label in (
                 ("rubric_generator_model_id", "the rubric-generator model id"),
                 ("rubric_prompt_key", "the generation_config.prompt_structures key"),
-                ("custom_prompt_template", "the grading prompt template"),
             ):
-                value = mp.get(key)
+                if key not in mp or mp[key] is None:
+                    continue
+                value = mp[key]
                 if not isinstance(value, str) or not value.strip():
                     raise HTTPException(
                         status_code=422,
                         detail=(
-                            f"llm_judge_rubric requires metric_parameters.{key} "
-                            f"({label}) as a non-empty string"
+                            f"llm_judge_rubric: metric_parameters.{key} "
+                            f"({label}) must be a non-empty string when set"
                         ),
                     )
             if mp.get("custom_criteria"):

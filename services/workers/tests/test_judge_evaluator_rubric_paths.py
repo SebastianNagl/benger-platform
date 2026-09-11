@@ -186,3 +186,87 @@ def test_unusable_rubric_raises_no_rubric_error():
     assert resolver.called
     assert "task-1" in str(exc.value)
     assert "Bewertungsbogen" in str(exc.value)
+
+
+# --- Notenpunkte (migration 100: per-rubric Notenschlüssel) ----------------
+
+COLLEAGUE_SCALE = {
+    "thresholds": [10, 20, 30, 40, 44, 48, 52, 56, 60, 64, 68, 72, 76, 80, 84, 88, 92, 96],
+    "rounding": "floor",
+    "pass_grade": 4,
+}
+
+
+def _run_graded(db_total, total_max=100.0, *, grade_scale=None, total_points=100, metric_params=None):
+    db = MagicMock()
+    task_row = SimpleNamespace(id="task-1", data={"musterloesung": "ML"})
+    db.query.return_value.filter.return_value.first.return_value = task_row
+    rubric = SimpleNamespace(
+        id="rub-9",
+        generator_model_id=None,
+        criteria={"s01_x": {"name": "X", "rubric": "r", "max_score": total_max}},
+        generation_metadata=None,
+        structure=None,
+        total_points=total_points,
+        grade_scale=grade_scale,
+        title=None,
+    )
+    judge = _judge_factory_mock()
+    judge.is_multidim_mode.return_value = True
+    judge._evaluate_multidim_single_call.return_value = {
+        "scores": {"s01_x": {"score": db_total, "max": total_max, "reason": "ok"}},
+        "total_score": float(db_total),
+        "total_max": float(total_max),
+        "overall_assessment": "solide",
+        "_call_metadata": {},
+        "_raw_output": "",
+        "_judge_prompts_used": {},
+    }
+    kwargs = _impl_kwargs(db)
+    if metric_params is not None:
+        kwargs["metric_params"] = metric_params
+    with patch(
+        "ml_evaluation.llm_judge_evaluator.create_llm_judge_for_user", return_value=judge
+    ) as factory, patch(
+        "evaluation.cell_evaluator._resolve_task_rubric", return_value=rubric
+    ):
+        result = _evaluate_llm_judge_single_impl(**kwargs)
+    return result, db.add.call_args.args[0], factory
+
+
+def test_default_scale_grades_80_of_100_as_np_13_with_siblings():
+    result, row, _ = _run_graded(80)
+    details = row.metrics["llm_judge_rubric"]["details"]
+    assert details["grade_points"] == 13
+    assert details["passed"] is True
+    assert details["grade_scale_source"] == "default"
+    assert row.metrics["llm_judge_rubric_grade_points"] == 13.0
+    assert row.metrics["llm_judge_rubric_passed"] == 1.0
+    assert row.passed is True
+    assert result["grade_points"] == 13 and result["passed"] is True
+    assert result["score"] == pytest.approx(0.8)
+
+
+def test_colleague_scale_grades_39_5_as_np_3_fail():
+    """39.5 BE → floor → 39 → NP 3 on the colleague's Notenschlüssel (pass from 40),
+    even though 0.395 < 0.5 would also fail on the legacy boundary; and 40 BE
+    passes although 0.4 < 0.5 — the rubric's scale decides, not value >= 0.5."""
+    _, row, _ = _run_graded(39.5, grade_scale=COLLEAGUE_SCALE)
+    details = row.metrics["llm_judge_rubric"]["details"]
+    assert details["grade_points"] == 3 and details["passed"] is False
+    assert details["grade_scale_source"] == "rubric"
+    assert row.metrics["llm_judge_rubric_passed"] == 0.0
+    assert row.passed is False
+
+    _, row, _ = _run_graded(40, grade_scale=COLLEAGUE_SCALE)
+    assert row.metrics["llm_judge_rubric"]["details"]["grade_points"] == 4
+    assert row.passed is True
+
+
+def test_rubric_metric_lifts_default_max_tokens_to_the_floor():
+    """No explicit max_tokens → system default (1500) → floored to 32000 for
+    llm_judge_rubric; an explicit metric_parameters.max_tokens wins."""
+    _, _, factory = _run_graded(80)
+    assert factory.call_args.kwargs["max_tokens"] == 32000
+    _, _, factory = _run_graded(80, metric_params={"judge_model": "gpt-5.4-mini", "max_tokens": 3000})
+    assert factory.call_args.kwargs["max_tokens"] == 3000

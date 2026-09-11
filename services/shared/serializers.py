@@ -62,12 +62,18 @@ def serialize_task(task, *, mode: str = "data", total_generations: int = 0) -> d
 
 
 def serialize_task_rubric(rubric) -> dict:
-    """Export shape for a task_rubrics row (per-task Bewertungsbogen)."""
+    """Export shape for a task_rubrics row (per-task Bewertungsbogen).
+
+    ``structure`` / ``grade_scale`` (migration 100) round-trip as stored —
+    ``None`` for legacy rows; ``total_points`` is a float (half BE allowed).
+    """
     return {
         "id": rubric.id,
         "title": rubric.title,
         "criteria": rubric.criteria,
         "total_points": rubric.total_points,
+        "structure": rubric.structure,
+        "grade_scale": rubric.grade_scale,
         "source": rubric.source,
         "generator_model_id": rubric.generator_model_id,
         "prompt_key": rubric.prompt_key,

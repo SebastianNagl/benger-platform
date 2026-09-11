@@ -11,8 +11,6 @@ Mounted at ``/api/student`` in ``main.py``. No proprietary logic — the extende
 widgets own presentation; this only shapes the data.
 """
 
-from datetime import datetime, timezone
-
 from typing import Literal
 
 from fastapi import APIRouter, Depends, Query
@@ -23,7 +21,10 @@ from auth_module import require_user
 from database import get_async_db
 from models import EvaluationRun, TaskEvaluation
 from project_models import Annotation, FlashcardReview, Project, Task
-from routers.projects.helpers import attempt_score_from_metrics
+from routers.projects.helpers import (
+    attempt_grade_points_from_metrics,
+    attempt_score_from_metrics,
+)
 
 router = APIRouter(prefix="/api/student", tags=["student-dashboard"])
 
@@ -57,7 +58,11 @@ async def score_history(
     Batch/research runs — which grade BOTH tier variants of every exam —
     would otherwise double-count into the curve. Each point carries
     ``source`` (``'ki'`` | ``'human'``) so the chart can plot the two lanes
-    as separate labeled series.
+    as separate labeled series, and ``grade_points`` (Notenpunkte 0..18,
+    lifted from ``details.grade_points`` or the ``<metric>_grade_points``
+    sibling; ``null`` when the writer produced none) so rubric exams with
+    their own Notenschlüssel chart correctly instead of through the
+    Falllösung table.
     """
     uid = str(current_user.id)
     stmt = (
@@ -95,6 +100,7 @@ async def score_history(
                 "title": r.title,
                 "kind": r.kind,
                 "score": score,
+                "grade_points": attempt_grade_points_from_metrics(r.metrics),
                 "attempted_at": r.attempted_at.isoformat() if r.attempted_at else None,
                 "source": "human" if r.run_model_id == "human" else "ki",
             }

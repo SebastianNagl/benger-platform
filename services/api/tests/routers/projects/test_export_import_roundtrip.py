@@ -960,3 +960,83 @@ class TestRoundtripExtensions:
         assert proj["allow_self_review"] == True  # noqa: E712
         assert proj["korrektur_enabled"] == True  # noqa: E712
         assert proj["korrektur_config"][0]["value"] == "✓"
+
+
+class TestTaskRubricRoundtrip:
+    """Bewertungsbogen rows (migration 100 shape) survive export → import:
+    ``structure`` / ``grade_scale`` round-trip as stored, ``total_points``
+    stays a float (72.5), legacy rows keep ``structure = None``."""
+
+    STRUCTURE = {
+        "version": 1,
+        "nodes": [
+            {"id": "n1", "level": 0, "kind": "section", "label": "A.", "title": "Zulässigkeit", "note": None},
+            {"id": "n2", "level": 1, "kind": "step", "label": "I.", "title": "Eröffnung", "note": None,
+             "key": "s01_eroeffnung", "max_score": 70, "emphasis": None, "hints": []},
+            {"id": "n3", "level": 1, "kind": "step", "label": "II.", "title": "Obersatz", "note": None,
+             "key": "s02_obersatz", "max_score": 2.5, "emphasis": "schwerpunkt", "hints": ["Vergangenheitsform!"]},
+        ],
+    }
+    SCALE = {
+        "unit": "BE",
+        "thresholds": [8, 15, 22, 29, 32, 35, 38, 41, 44, 47, 50, 53, 56, 59, 62, 65, 68, 71],
+        "rounding": "floor",
+        "pass_grade": 4,
+    }
+
+    def test_structure_scale_and_float_total_survive(
+        self, db_session, user, project_with_full_data
+    ):
+        from project_models import TaskRubric
+
+        data = project_with_full_data
+        project = data["project"]
+        structured = TaskRubric(
+            id=str(uuid.uuid4()), task_id=data["tasks"][0].id, project_id=project.id,
+            title="Korrekturbogen",
+            criteria={"s01_eroeffnung": {"name": "Eröffnung", "rubric": "r", "max_score": 70},
+                      "s02_obersatz": {"name": "Obersatz", "rubric": "r", "max_score": 2.5}},
+            total_points=72.5, structure=self.STRUCTURE, grade_scale=self.SCALE,
+            source="human", status="active", created_by=user.id,
+        )
+        legacy = TaskRubric(
+            id=str(uuid.uuid4()), task_id=data["tasks"][1].id, project_id=project.id,
+            title="Legacy", criteria={"s01_a": {"name": "A", "rubric": "r", "max_score": 100}},
+            total_points=100, source="llm", status="candidate", created_by=user.id,
+        )
+        db_session.add_all([structured, legacy])
+        db_session.commit()
+
+        rt = TestDataExportImportRoundtrip()
+        export = rt._export(db_session, project.id, [t.id for t in data["tasks"]], user.id)
+        exported = {r["title"]: r for item in export["tasks"] for r in item.get("rubrics", [])}
+        assert exported["Korrekturbogen"]["structure"] == self.STRUCTURE
+        assert exported["Korrekturbogen"]["grade_scale"] == self.SCALE
+        assert exported["Korrekturbogen"]["total_points"] == 72.5
+        assert exported["Legacy"]["structure"] is None
+        assert exported["Legacy"]["grade_scale"] is None
+
+        target = Project(
+            id=str(uuid.uuid4()), title="Rubric target",
+            label_config="<View></View>", created_by=user.id,
+        )
+        db_session.add(target)
+        db_session.commit()
+        rt._import(db_session, target.id, export, user.id)
+
+        imported = {
+            r.title: r
+            for r in db_session.query(TaskRubric).filter(TaskRubric.project_id == target.id).all()
+        }
+        assert set(imported) == {"Korrekturbogen", "Legacy"}
+        assert imported["Korrekturbogen"].structure == self.STRUCTURE
+        assert imported["Korrekturbogen"].grade_scale == self.SCALE
+        assert imported["Korrekturbogen"].total_points == 72.5
+        assert isinstance(imported["Korrekturbogen"].total_points, float)
+        assert imported["Korrekturbogen"].status == "active"
+        assert imported["Korrekturbogen"].source == "human"
+        assert imported["Legacy"].structure is None
+        assert imported["Legacy"].grade_scale is None
+        assert imported["Legacy"].total_points == 100.0
+        target_task_ids = {t.id for t in db_session.query(Task).filter(Task.project_id == target.id).all()}
+        assert {r.task_id for r in imported.values()} <= target_task_ids

@@ -23,6 +23,54 @@ SYSTEM_DEFAULTS: Dict[str, Any] = {
     "top_p": 1.0,
 }
 
+# Per-metric floors on the DEFAULT max_tokens. A Bewertungsbogen judge
+# (llm_judge_rubric) answers with one JSON object carrying a reason per step —
+# 40-100 steps for a real Korrekturbogen — which the 1500-token system default
+# (or a small catalog recommendation) truncates mid-document. The floor only
+# lifts values that came from the "system" / "recommended" tiers; an explicit
+# metric_parameters.max_tokens (user tier) always wins.
+#
+# 32000 is measured, not guessed: grading a submission against the 46-step
+# Polizeirecht Korrekturbogen on gpt-5-mini spent the ENTIRE 8000-token budget
+# (6928 prompt + 8000 completion) without closing the JSON. Reasoning models
+# bill their thinking against the same completion budget, so the usable room
+# for ~46 reasons is a fraction of the cap. The generator that writes these
+# sheets already runs at 32000 (bewertungsbogen_tasks.DEFAULT_MAX_TOKENS);
+# grading one is the same order of work. A cap is not a spend — only emitted
+# tokens are billed.
+METRIC_MAX_TOKENS_FLOOR: Dict[str, int] = {
+    "llm_judge_rubric": 32000,
+}
+
+
+def _apply_metric_max_tokens_floor(
+    metric: Optional[str],
+    value: Any,
+    source: Optional[str],
+    provenance: Optional[Dict[str, Dict[str, Any]]] = None,
+) -> Any:
+    """Raise a default-tier ``max_tokens`` to the metric's floor (see above).
+
+    ``source`` is the tier tag ``_resolve_param`` returned for the value;
+    when ``provenance`` is given, the ``max_tokens`` entry is annotated with
+    ``floored_for_metric`` / ``floored_from`` so the judge run records why
+    the value differs from the tier resolution.
+    """
+    floor = METRIC_MAX_TOKENS_FLOOR.get(metric or "")
+    if floor is None or source not in ("system", "recommended"):
+        return value
+    try:
+        current = int(value) if value is not None else None
+    except (TypeError, ValueError):
+        return value
+    if current is not None and current >= floor:
+        return value
+    if isinstance(provenance, dict) and isinstance(provenance.get("max_tokens"), dict):
+        provenance["max_tokens"]["floored_for_metric"] = metric
+        provenance["max_tokens"]["floored_from"] = value
+        provenance["max_tokens"]["value"] = floor
+    return floor
+
 
 def _clamp_temperature_to_constraint(
     temperature: Optional[float],
@@ -235,18 +283,30 @@ def _build_multidim_judge_row_metrics(
     # criteria this row was scored against.
     if multidim.get("rubric_id"):
         details["rubric_id"] = multidim["rubric_id"]
-    return (
-        {
-            metric: {
-                "value": float(normalized),
-                "method": metric,
-                "details": details,
-                "error": None,
-            },
-            "raw_score": float(normalized),
+    metrics: dict = {
+        metric: {
+            "value": float(normalized),
+            "method": metric,
+            "details": details,
+            "error": None,
         },
-        float(normalized),
-    )
+        "raw_score": float(normalized),
+    }
+    # Notenpunkte from the rubric's Notenschlüssel (stamped by the cell path
+    # via rubric_structure.grade_for_rubric): nested under details AND as the
+    # <metric>_grade_points / <metric>_passed siblings, mirroring the
+    # falloesung row shape so the report snapshot, score history and exam
+    # cards read one shape.
+    grade_points = multidim.get("grade_points")
+    if isinstance(grade_points, (int, float)) and not isinstance(grade_points, bool):
+        details["grade_points"] = grade_points
+        metrics[f"{metric}_grade_points"] = float(grade_points)
+    if isinstance(multidim.get("passed"), bool):
+        details["passed"] = multidim["passed"]
+        metrics[f"{metric}_passed"] = 1.0 if multidim["passed"] else 0.0
+    if multidim.get("grade_scale_source"):
+        details["grade_scale_source"] = multidim["grade_scale_source"]
+    return metrics, float(normalized)
 
 
 def _row_has_score(metrics: dict | None) -> bool:
@@ -1856,7 +1916,12 @@ def run_evaluation(
                                 return value
 
                             judge_temp = _resolve_judge("temperature", 0.0)
-                            judge_max_tokens = _resolve_judge("max_tokens", 500)
+                            judge_max_tokens = _apply_metric_max_tokens_floor(
+                                metric,
+                                _resolve_judge("max_tokens", 500),
+                                (judge_provenance.get("max_tokens") or {}).get("source"),
+                                judge_provenance,
+                            )
                             judge_seed_base = _resolve_judge("seed", 42)
                             # Apply per-model temperature constraint (e.g. Opus
                             # 4.7 requires 1.0, GPT-5 forces 1.0, DeepSeek-R1
