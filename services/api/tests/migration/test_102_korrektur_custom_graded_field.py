@@ -17,6 +17,7 @@ import os
 import uuid
 from contextlib import contextmanager
 
+import pytest
 import sqlalchemy as sa
 
 MIGRATION_PATH = os.path.normpath(
@@ -42,6 +43,28 @@ def _entry(metric, fields=None):
     if fields is not None:
         out["prediction_fields"] = fields
     return out
+
+
+class TestBareField:
+    """`human:`/`model:` marks where an answer came from, not its name."""
+
+    @pytest.mark.parametrize(
+        "selector,expected",
+        [
+            ("human:loesung", "loesung"),
+            ("model:loesung", "loesung"),
+            ("loesung", "loesung"),
+            ("  human:gliederung ", "gliederung"),
+        ],
+    )
+    def test_it_drops_the_role_prefix(self, selector, expected):
+        assert mig._bare(selector) == expected
+
+    @pytest.mark.parametrize(
+        "selector", ["__all_human__", "__all_model__", "", None, "human:"]
+    )
+    def test_selectors_naming_no_field_yield_none(self, selector):
+        assert mig._bare(selector) is None
 
 
 class TestFieldForProject:
@@ -149,6 +172,28 @@ class TestAgainstTheDatabase:
                 test_db.query(TaskEvaluation).filter(
                     TaskEvaluation.id == row.id
                 ).delete()
+            test_db.commit()
+
+    def test_a_role_prefixed_row_is_refiled_bare(self, test_db, test_user):
+        from models import TaskEvaluation
+
+        _p, _t, row = self._seed(
+            test_db, test_user.id,
+            configs=[_entry("llm_judge_rubric", ["loesung"]),
+                     _entry("korrektur_custom", ["human:loesung"])],
+            field_name="human:loesung",
+            metrics={"korrektur_custom": {"value": 0.75, "details": {}}},
+        )
+        try:
+            with _bound(test_db):
+                mig.upgrade()
+            test_db.expire_all()
+            # Same name the LLM judge's row carries, so the pair reads as one.
+            assert test_db.get(TaskEvaluation, row.id).field_name == "loesung"
+        finally:
+            test_db.query(TaskEvaluation).filter(
+                TaskEvaluation.id == row.id
+            ).delete()
             test_db.commit()
 
     def test_a_project_without_configuration_is_left_alone(self, test_db, test_user):

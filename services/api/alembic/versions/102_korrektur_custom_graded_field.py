@@ -40,8 +40,25 @@ depends_on = None
 #: What the rows were wrongly filed under.
 STALE_FIELD = "answer"
 
+#: `human:`/`model:` is a ROLE prefix, not part of the field name (platform's
+#: own row-to-config matcher strips it). A row filed under the prefixed form
+#: sits apart from the LLM judge's row for the same answer.
+_ROLE_PREFIXES = ("human:", "model:")
+
 #: The LLM judges a human rubric grading is meant to pair with, in order.
 _PEER_METRICS = ("llm_judge_rubric", "llm_judge_custom")
+
+
+def _bare(field):
+    """A field selector reduced to the name it refers to."""
+    value = (field or "").strip()
+    if not value or value in ("__all_human__", "__all_model__"):
+        return None
+    for prefix in _ROLE_PREFIXES:
+        if value.startswith(prefix):
+            value = value[len(prefix):].strip()
+            break
+    return value or None
 
 
 def _prediction_field(configs, metric):
@@ -49,8 +66,10 @@ def _prediction_field(configs, metric):
         if not isinstance(entry, dict) or entry.get("metric") != metric:
             continue
         for field in entry.get("prediction_fields") or []:
-            if isinstance(field, str) and field.strip():
-                return field.strip()
+            if isinstance(field, str):
+                bare = _bare(field)
+                if bare:
+                    return bare
     return None
 
 
@@ -81,11 +100,13 @@ def upgrade() -> None:
     rows = conn.execute(
         sa.text(
             """
-            SELECT te.id, te.task_id, p.evaluation_config
+            SELECT te.id, te.task_id, te.field_name, p.evaluation_config
             FROM task_evaluations te
             JOIN tasks t ON t.id = te.task_id
             JOIN projects p ON p.id = t.project_id
-            WHERE te.field_name = :stale
+            WHERE (te.field_name = :stale
+                   OR te.field_name LIKE 'human:%'
+                   OR te.field_name LIKE 'model:%')
               AND jsonb_typeof(CAST(te.metrics AS jsonb)) = 'object'
               AND CAST(te.metrics AS jsonb) ? 'korrektur_custom'
             """
@@ -94,8 +115,11 @@ def upgrade() -> None:
     ).fetchall()
 
     updated = 0
-    for row_id, task_id, config in rows:
-        field = _field_for_project(config)
+    for row_id, task_id, field_name, config in rows:
+        # A role-prefixed row already names its field; just drop the prefix.
+        field = _bare(field_name) if field_name != STALE_FIELD else None
+        if not field:
+            field = _field_for_project(config)
         if not field:
             # Last resort: the field the task's OTHER evaluation rows use.
             field = conn.execute(
@@ -109,6 +133,8 @@ def upgrade() -> None:
             ).scalar()
         if not field:
             continue
+        if field == field_name:
+            continue
         conn.execute(
             sa.text(
                 "UPDATE task_evaluations SET field_name = :field WHERE id = :id"
@@ -118,7 +144,7 @@ def upgrade() -> None:
         updated += 1
     print(
         f"102: re-filed {updated} of {len(rows)} korrektur_custom row(s) "
-        f"off '{STALE_FIELD}'"
+        f"off '{STALE_FIELD}' / a role prefix"
     )
 
 
