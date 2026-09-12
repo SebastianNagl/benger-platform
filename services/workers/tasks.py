@@ -412,16 +412,9 @@ def _pred_field_matches(row_field_name: str | None, config_pred_field: str) -> b
     if "|" in row_field_name:
         return False
 
-    def _strip_role(s: str) -> str:
-        if s in ("__all_human__", "__all_model__"):
-            return s
-        if s.startswith("human:") or s.startswith("model:"):
-            return s.split(":", 1)[1]
-        return s
+    from eval_field_classification import same_field
 
-    if row_field_name == config_pred_field:
-        return True
-    return _strip_role(row_field_name) == _strip_role(config_pred_field)
+    return same_field(row_field_name, config_pred_field)
 
 
 def _reconstruct_expected_keys(row, configs_by_id: dict) -> set:

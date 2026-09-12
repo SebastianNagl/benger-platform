@@ -50,7 +50,13 @@ _PEER_METRICS = ("llm_judge_rubric", "llm_judge_custom")
 
 
 def _bare(field):
-    """A field selector reduced to the name it refers to."""
+    """A field selector reduced to the name it refers to.
+
+    Deliberately a local copy of ``eval_field_classification.bare_field_name``
+    rather than an import: a migration is a snapshot of an intent at a point
+    in time and must keep doing exactly this even if the shared rule later
+    changes. Application code should import the shared helper instead.
+    """
     value = (field or "").strip()
     if not value or value in ("__all_human__", "__all_model__"):
         return None
