@@ -22,7 +22,9 @@ Public surface: :func:`parse_rubric_file`, :class:`RubricImportError`.
 
 from __future__ import annotations
 
+import csv
 import io
+import json
 import os
 import re
 import zipfile
@@ -55,7 +57,17 @@ MAX_RUBRIC_FILE_BYTES = 5 * 1024 * 1024
 # colleague's 100-BE sheet has a 28 KB worksheet part).
 MAX_ZIP_MEMBER_BYTES = 32 * 1024 * 1024
 MAX_RAW_ROWS = 2000
-SUPPORTED_EXTS = {".xlsx", ".docx"}
+#: Container formats a Korrekturbogen may arrive in. The OOXML pair is what
+#: a law chair actually produces; the three text formats exist because they
+#: are far easier to get RIGHT than a Word table — a chair that can export
+#: CSV, write Markdown or hand back a previously exported JSON gets an exact
+#: import instead of a heuristic one.
+SUPPORTED_EXTS = {".xlsx", ".docx", ".csv", ".md", ".json"}
+
+#: Text uploads are decoded through this list in order. `utf-8-sig` first so a
+#: BOM (Excel's "CSV UTF-8" export always writes one) does not end up inside
+#: the first cell; cp1252 last for files saved by older German Office builds.
+_TEXT_ENCODINGS = ("utf-8-sig", "utf-8", "cp1252")
 MAX_TITLE_CANDIDATE_LEN = 120
 
 WARNING_CODES = (
@@ -1325,6 +1337,211 @@ def _grade_scale_as_percent(
     return out
 
 
+# ---------------------------------------------------------------------------
+# Text formats: CSV, Markdown, JSON
+#
+# All three reduce to the SAME grid the XLSX reader produces, so column
+# detection, the outline builder, the Notenschlüssel detector and every
+# warning apply unchanged. Only JSON short-circuits: a file that already
+# carries a valid structure is taken as-is, which makes export → edit →
+# re-import exact rather than re-derived.
+# ---------------------------------------------------------------------------
+
+
+def _decode_text(data: bytes) -> str:
+    """Best-effort decode of an uploaded text file."""
+    for encoding in _TEXT_ENCODINGS:
+        try:
+            return data.decode(encoding)
+        except UnicodeDecodeError:
+            continue
+    # Last resort: never fail the import on a stray byte in a comment.
+    return data.decode("utf-8", errors="replace")
+
+
+def _grid_from_rows(rows: List[List[str]]) -> List[Tuple[int, Dict[int, Any]]]:
+    """Rows of cells → the `(row_no, {col: value})` grid shape.
+
+    A cell that is nothing but a number becomes a float, because that is what
+    the XLSX reader hands downstream and ``_detect_columns`` recognises a
+    points column by its numeric cells. Without the coercion a text format
+    would parse to an outline with no points at all — every cell being a
+    string, no column ever looks numeric.
+    """
+    grid: List[Tuple[int, Dict[int, Any]]] = []
+    for index, cells in enumerate(rows, start=1):
+        mapped: Dict[int, Any] = {}
+        for col, raw in enumerate(cells):
+            text = str(raw).strip()
+            if not text:
+                continue
+            number = _parse_number(text) if _POINTS_RE.match(text) else None
+            mapped[col] = text if number is None else number
+        if mapped:
+            grid.append((index, mapped))
+    return grid
+
+
+def _read_csv_grid(data: bytes) -> List[Tuple[int, Dict[int, Any]]]:
+    """CSV/TSV → grid. The delimiter is sniffed; German exports use ';'."""
+    text = _decode_text(data)
+    sample = text[:4096]
+    try:
+        dialect = csv.Sniffer().sniff(sample, delimiters=",;\t")
+        delimiter = dialect.delimiter
+    except csv.Error:
+        # Sniffing fails on a single-column file; count instead.
+        delimiter = max(",;\t", key=lambda d: sample.count(d))
+        if sample.count(delimiter) == 0:
+            delimiter = ","
+    reader = csv.reader(io.StringIO(text), delimiter=delimiter)
+    return _grid_from_rows([[c for c in row] for row in reader])
+
+
+_MD_TABLE_ROW_RE = re.compile(r"^\s*\|(.+)\|\s*$")
+_MD_TABLE_SEP_RE = re.compile(r"^\s*\|[\s:|-]+\|\s*$")
+_MD_HEADING_RE = re.compile(r"^(#{1,6})\s+(.*)$")
+_MD_LIST_RE = re.compile(r"^(\s*)[-*+]\s+(.*)$")
+_MD_TRAILING_POINTS_RE = re.compile(
+    r"^(.*?)[\s—–-]*[\(\[]?\s*(\d+(?:[.,]\d+)?)\s*(?:BE|P\.?|Pkt\.?|Punkte)\s*[\)\]]?\s*$",
+    re.I,
+)
+
+
+def _read_markdown_grid(data: bytes) -> List[Tuple[int, Dict[int, Any]]]:
+    """Markdown → grid.
+
+    A pipe table is read as a table (its cells map straight onto the grid).
+    Otherwise the document is treated as an outline: headings and list items
+    become the text column, and a trailing "… 10 BE" becomes the points
+    column. Either way the existing label heuristics (``A.``/``I.``/``a)``…)
+    do the structural work, so a chair can simply write the sheet out.
+    """
+    text = _decode_text(data)
+    lines = text.splitlines()
+    table_rows = [
+        [cell.strip() for cell in match.group(1).split("|")]
+        for line in lines
+        if (match := _MD_TABLE_ROW_RE.match(line)) and not _MD_TABLE_SEP_RE.match(line)
+    ]
+    if len(table_rows) >= 2:
+        return _grid_from_rows(table_rows)
+
+    rows: List[List[str]] = []
+    for line in lines:
+        stripped = line.strip()
+        if not stripped or stripped.startswith("```"):
+            continue
+        heading = _MD_HEADING_RE.match(stripped)
+        if heading:
+            rows.append([heading.group(2).strip(), ""])
+            continue
+        listed = _MD_LIST_RE.match(line)
+        content = listed.group(2).strip() if listed else stripped
+        points_match = _MD_TRAILING_POINTS_RE.match(content)
+        if points_match:
+            rows.append([points_match.group(1).strip(), points_match.group(2)])
+        else:
+            rows.append([content, ""])
+    return _grid_from_rows(rows)
+
+
+def _structure_payload_from_json(data: bytes) -> Optional[Dict[str, Any]]:
+    """A JSON upload that already carries a structure, or ``None``.
+
+    This is the round-trip door: what the outline editor exports (or an API
+    consumer builds) comes back in EXACTLY, with no heuristics between. Any
+    other JSON shape falls through to the grid path below.
+    """
+    try:
+        payload = json.loads(_decode_text(data))
+    except ValueError as exc:
+        raise RubricImportError(
+            "corrupt_file", f"Die JSON-Datei konnte nicht gelesen werden: {exc}"
+        ) from exc
+    if not isinstance(payload, dict):
+        return None
+    structure = payload.get("structure") if isinstance(payload.get("structure"), dict) else None
+    if structure is None and isinstance(payload.get("nodes"), list):
+        structure = payload
+    if structure is None or not isinstance(structure.get("nodes"), list):
+        return None
+    return {
+        "structure": structure,
+        "title": payload.get("title") if isinstance(payload.get("title"), str) else None,
+        "grade_scale": payload.get("grade_scale") if isinstance(payload.get("grade_scale"), dict) else None,
+    }
+
+
+def _read_json_grid(data: bytes) -> List[Tuple[int, Dict[int, Any]]]:
+    """A JSON list of step objects → grid (the non-round-trip shape)."""
+    try:
+        payload = json.loads(_decode_text(data))
+    except ValueError as exc:
+        raise RubricImportError(
+            "corrupt_file", f"Die JSON-Datei konnte nicht gelesen werden: {exc}"
+        ) from exc
+    if isinstance(payload, dict):
+        for key in ("rows", "steps", "criteria", "items"):
+            if isinstance(payload.get(key), list):
+                payload = payload[key]
+                break
+    if not isinstance(payload, list):
+        raise RubricImportError(
+            "no_table_found",
+            "Die JSON-Datei enthält weder eine Gliederung (\"structure\") noch eine Liste von Schritten.",
+        )
+    rows: List[List[str]] = []
+    for entry in payload:
+        if isinstance(entry, str):
+            rows.append([entry, ""])
+            continue
+        if not isinstance(entry, dict):
+            continue
+        label = str(entry.get("label") or "").strip()
+        title = str(entry.get("title") or entry.get("text") or entry.get("name") or "").strip()
+        points = entry.get("max_score", entry.get("points", entry.get("be")))
+        text = f"{label} {title}".strip() if label else title
+        rows.append([text, "" if points is None else str(points)])
+    return _grid_from_rows(rows)
+
+
+def _result_from_structure(payload: Dict[str, Any], warnings: _Warnings) -> Dict[str, Any]:
+    """The import result for a JSON file that already carries a structure.
+
+    Validated but never re-derived: this is the export of this very importer
+    (or of the outline editor) coming home, so the only useful thing to do is
+    check it and hand it back. A structure that does not validate is a hard
+    error rather than a silent repair — the file says what it means.
+    """
+    structure = normalize_structure(payload["structure"])
+    errors = validate_structure(structure)
+    if errors:
+        raise RubricImportError(
+            "no_scored_steps",
+            "Die Gliederung in der JSON-Datei ist ungültig: " + "; ".join(errors[:3]),
+        )
+    total = total_points_from_structure(structure)
+    grade_scale = payload.get("grade_scale")
+    if grade_scale is not None and validate_grade_scale(grade_scale, total):
+        warnings.add(
+            "grade_scale_unparsed",
+            "Der Notenschlüssel in der Datei passt nicht zur Gesamtsumme; es gilt der Standardschlüssel.",
+        )
+        grade_scale = None
+    title = (payload.get("title") or "").strip() or "Bewertungsbogen"
+    return {
+        "title": title[:255],
+        "structure": structure,
+        "criteria": criteria_from_structure(structure),
+        "total_points": total,
+        "grade_scale": grade_scale,
+        "grade_scale_percent": _grade_scale_as_percent(grade_scale, total),
+        "warnings": list(warnings),
+        "source_format": "json",
+    }
+
+
 def parse_rubric_file(filename: str, data: bytes) -> Dict[str, Any]:
     """Parse an XLSX or DOCX Korrekturbogen into the rubric contract.
 
@@ -1336,18 +1553,45 @@ def parse_rubric_file(filename: str, data: bytes) -> Dict[str, Any]:
     if ext not in SUPPORTED_EXTS:
         raise RubricImportError(
             "unsupported_type",
-            "Bitte eine Excel-Datei (.xlsx) oder ein Word-Dokument (.docx) hochladen.",
+            "Bitte eine Excel-Datei (.xlsx), ein Word-Dokument (.docx) oder eine "
+            "Text-Datei (.csv, .md, .json) hochladen.",
         )
     if not data:
         raise RubricImportError("corrupt_file", "Die Datei ist leer.")
 
     warnings = _Warnings()
+
+    # A JSON file that already carries a structure is taken verbatim: it is
+    # the export side of this importer coming back, so re-deriving it through
+    # the heuristics could only lose fidelity.
+    if ext == ".json":
+        payload = _structure_payload_from_json(data)
+        if payload is not None:
+            return _result_from_structure(payload, warnings)
+
     if ext == ".xlsx":
         rows, scale_grid = _rows_from_xlsx(_read_xlsx_grid(data), warnings)
         source_format = "xlsx"
-    else:
+    elif ext == ".docx":
         rows, scale_grid = _rows_from_docx(_read_docx(data), warnings)
         source_format = "docx"
+    else:
+        # CSV / Markdown / JSON-as-list all reduce to the XLSX grid shape, so
+        # column detection, the outline builder and the Notenschlüssel
+        # detector are shared rather than reimplemented per format.
+        reader = {
+            ".csv": _read_csv_grid,
+            ".md": _read_markdown_grid,
+            ".json": _read_json_grid,
+        }[ext]
+        grid = reader(data)
+        if not grid:
+            raise RubricImportError(
+                "no_table_found",
+                "Die Datei enthält keine lesbaren Zeilen.",
+            )
+        rows, scale_grid = _rows_from_xlsx(grid, warnings)
+        source_format = ext.lstrip(".")
 
     nodes, declared_total, title_candidate, rounding = _build_outline(rows, warnings)
     if not any(n.kind == "step" for n in nodes):
