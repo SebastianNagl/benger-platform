@@ -546,7 +546,9 @@
           "modelsError": "Modelle konnten nicht geladen werden.",
           "noTasksWarning": "Weder Datenimport noch KI-Generator sind aktiviert — beim Erstellen existieren keine Aufgaben, für die ein Bogen erzeugt werden könnte. Der Bogen kann später pro Aufgabe auf der Aufgabenseite erzeugt werden.",
           "warningTitle": "Experimentell – erzeugte Bögen vor dem Einsatz fachlich prüfen.",
-          "uploadHint": "Tipp: Ein vorhandener Korrekturbogen (z. B. vom Lehrstuhl, .xlsx/.docx) kann nach dem Erstellen pro Aufgabe auf der Aufgabenseite hochgeladen werden."
+          "uploadHint": "Tipp: Ein vorhandener Korrekturbogen (z. B. vom Lehrstuhl, .xlsx/.docx) kann nach dem Erstellen pro Aufgabe auf der Aufgabenseite hochgeladen werden.",
+          "noModelsWarning": "Für keinen Anbieter ist ein API-Schlüssel hinterlegt, daher kann kein Bewertungsbogen erzeugt werden. Hinterlegen Sie einen Schlüssel (Profil → API-Schlüssel oder in Ihrer Organisation); das Projekt lässt sich auch ohne erstellen und der Bogen später pro Aufgabe erzeugen oder hochladen.",
+          "noModelsOption": "Kein Modell verfügbar"
         }
       },
       "structuredExam": {
@@ -9432,7 +9434,8 @@
     "adoptScale": "Der Bogen enthält einen Notenschlüssel. Als Notenschlüssel der Klausur übernehmen?",
     "adoptScaleConfirm": "Übernehmen",
     "adoptScaleDismiss": "Ignorieren",
-    "keyboardHint": "Tastatur: Tab/Shift+Tab ein-/ausrücken, Alt+↑/↓ verschieben, Enter neuer Schritt."
+    "keyboardHint": "Tastatur: Tab/Shift+Tab ein-/ausrücken, Alt+↑/↓ verschieben, Enter neuer Schritt.",
+    "aiNoModels": "Für keinen Anbieter ist ein API-Schlüssel hinterlegt — der Bogen kann nicht per KI erzeugt werden. Hochladen und Selbst-Anlegen funktionieren weiterhin."
   },
   "rubricResult": {
     "title": "Bewertungsbogen",
