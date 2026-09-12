@@ -9439,7 +9439,8 @@
     "structureOffer": "Die Datei hat keine erkennbare Tabelle mit Punktwerten. Ein Modell kann versuchen, die Gliederung daraus abzuleiten — das Ergebnis ist ein Entwurf, den Sie hier prüfen.",
     "structureRun": "Mit KI strukturieren",
     "structuring": "Wird strukturiert…",
-    "structureFailed": "Strukturierung fehlgeschlagen."
+    "structureFailed": "Strukturierung fehlgeschlagen.",
+    "structureUnavailable": "Eine KI kann die Datei hier nicht strukturieren. Legen Sie die Klausur zuerst an — im Bearbeiten-Dialog steht die Option zur Verfügung."
   },
   "rubricResult": {
     "title": "Bewertungsbogen",

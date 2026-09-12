@@ -9450,7 +9450,8 @@
     "structureOffer": "The file has no recognisable table of point values. A model can try to derive the outline from it — the result is a draft for you to review here.",
     "structureRun": "Structure with AI",
     "structuring": "Structuring…",
-    "structureFailed": "Structuring failed."
+    "structureFailed": "Structuring failed.",
+    "structureUnavailable": "AI cannot structure the file here. Create the exam first — the option is available in the edit dialog."
   },
   "rubricResult": {
     "title": "Grading sheet",
