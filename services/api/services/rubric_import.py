@@ -1647,3 +1647,66 @@ def parse_rubric_file(filename: str, data: bytes) -> Dict[str, Any]:
         "warnings": list(warnings),
         "source_format": source_format,
     }
+
+
+#: Cap on the flattened text handed to a caller of :func:`rubric_document_text`.
+#: A Korrekturbogen is a few pages; anything past this is either the wrong file
+#: or padding, and the cost of sending it to a model scales with its length.
+MAX_DOCUMENT_TEXT_CHARS = 120_000
+
+
+def _cell_text(value: Any) -> str:
+    """A cell as it reads on screen — ``1``, not ``1.0``, and ``0.5`` intact."""
+    if isinstance(value, float) and value.is_integer():
+        return str(int(value))
+    return str(value).strip()
+
+
+def rubric_document_text(filename: str, data: bytes) -> str:
+    """Flatten an accepted rubric file into plain text, layout preserved.
+
+    This is the input for the *non*-deterministic route: when
+    :func:`parse_rubric_file` finds no table (or no points in one), a caller
+    can still hand the document's text to a model. Reading stays here rather
+    than in the caller so both routes accept exactly the same file types and
+    read them with exactly the same code.
+
+    Rows and table cells keep their reading order — an XLSX row becomes one
+    ``a | b | c`` line, a DOCX walks paragraphs and tables in document order —
+    because the order of an outline IS its meaning. Text formats are returned
+    as they are; they already look like what they are.
+    """
+    ext = os.path.splitext(filename or "")[1].lower()
+    if ext not in SUPPORTED_EXTS:
+        raise RubricImportError(
+            "unsupported_type",
+            "Bitte eine Excel-Datei (.xlsx), ein Word-Dokument (.docx) oder eine "
+            "Text-Datei (.csv, .md, .json) hochladen.",
+        )
+    if not data:
+        raise RubricImportError("corrupt_file", "Die Datei ist leer.")
+
+    if ext == ".xlsx":
+        lines = [
+            " | ".join(
+                text for text in (_cell_text(cells[c]) for c in sorted(cells)) if text
+            )
+            for _row, cells in _read_xlsx_grid(data)
+        ]
+    elif ext == ".docx":
+        lines = []
+        for kind, block in _read_docx(data).blocks:
+            if kind == "p":
+                lines.append(block.text)
+            else:
+                for row in block:
+                    cells = [
+                        " ".join(p.text for p in cell if p.text).strip()
+                        for cell in row
+                    ]
+                    lines.append(" | ".join(c for c in cells if c))
+    else:
+        lines = _decode_text(data).splitlines()
+
+    text = "\n".join(line for line in (ln.rstrip() for ln in lines) if line)
+    return text[:MAX_DOCUMENT_TEXT_CHARS]

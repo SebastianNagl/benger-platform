@@ -9435,7 +9435,11 @@
     "adoptScaleConfirm": "Übernehmen",
     "adoptScaleDismiss": "Ignorieren",
     "keyboardHint": "Tastatur: Tab/Shift+Tab ein-/ausrücken, Alt+↑/↓ verschieben, Enter neuer Schritt.",
-    "aiNoModels": "Für keinen Anbieter ist ein API-Schlüssel hinterlegt — der Bogen kann nicht per KI erzeugt werden. Hochladen und Selbst-Anlegen funktionieren weiterhin."
+    "aiNoModels": "Für keinen Anbieter ist ein API-Schlüssel hinterlegt — der Bogen kann nicht per KI erzeugt werden. Hochladen und Selbst-Anlegen funktionieren weiterhin.",
+    "structureOffer": "Die Datei hat keine erkennbare Tabelle mit Punktwerten. Ein Modell kann versuchen, die Gliederung daraus abzuleiten — das Ergebnis ist ein Entwurf, den Sie hier prüfen.",
+    "structureRun": "Mit KI strukturieren",
+    "structuring": "Wird strukturiert…",
+    "structureFailed": "Strukturierung fehlgeschlagen."
   },
   "rubricResult": {
     "title": "Bewertungsbogen",

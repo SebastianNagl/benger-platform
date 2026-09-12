@@ -93,7 +93,9 @@ class TestExtensionLoader:
         # fan-out no longer forwards ``metric_parameters.prompt_version`` (the
         # extended compute hook no longer takes it) and migration 101 strips
         # the dead key from stored evaluation configs. One judge prompt, one
-        # Notenschlüssel, for every exam.
+        # Notenschlüssel, for every exam. It also widens the rubric importer
+        # to .csv/.md/.json and adds ``rubric_import.rubric_document_text``,
+        # which the extended AI-structuring fallback reads its document with.
         assert CORE_API_VERSION == "2.15"
 
     def test_tasks_with_feedback_for_user_empty_without_package(self):

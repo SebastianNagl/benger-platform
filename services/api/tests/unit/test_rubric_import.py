@@ -29,6 +29,7 @@ from services.rubric_import import (  # noqa: E402
     MAX_ZIP_MEMBER_BYTES,
     RubricImportError,
     parse_rubric_file,
+    rubric_document_text,
 )
 from tests.fixtures.rubric_files import (  # noqa: E402
     COLLEAGUE_THRESHOLDS,
@@ -582,3 +583,72 @@ class TestDocx:
         with pytest.raises(RubricImportError) as exc:
             parse_rubric_file("b.docx", make_docx([rows]))
         assert exc.value.code == "too_many_rows"
+
+
+class TestRubricDocumentText:
+    """``rubric_document_text`` — the flattening the LLM fallback reads.
+
+    It accepts exactly the same file types as the deterministic parse, and it
+    exists so a file the parser refuses can still be handed to a model without
+    the caller re-implementing five readers.
+    """
+
+    def test_xlsx_rows_become_one_pipe_joined_line_each(self):
+        text = rubric_document_text(
+            "b.xlsx",
+            make_xlsx(
+                [
+                    {"A": "Text", "B": "max. BE"},
+                    {"A": "A. Zulässigkeit"},
+                    {"A": "I. Rechtsweg", "B": 1},
+                ]
+            ),
+        )
+        assert text.splitlines() == [
+            "Text | max. BE",
+            "A. Zulässigkeit",
+            "I. Rechtsweg | 1",
+        ]
+
+    def test_docx_keeps_paragraphs_and_table_cells_in_document_order(self):
+        data = make_docx(
+            [[[["I. Rechtsweg"], ["1"]], [["b) Maßnahmerichtung"], ["10"]]]],
+            paragraphs_before=["Korrekturbogen Polizeirecht"],
+            paragraphs_after=["bei 0,5 BE wird abgerundet"],
+        )
+        assert rubric_document_text("b.docx", data).splitlines() == [
+            "Korrekturbogen Polizeirecht",
+            "I. Rechtsweg | 1",
+            "b) Maßnahmerichtung | 10",
+            "bei 0,5 BE wird abgerundet",
+        ]
+
+    def test_text_formats_come_through_as_written(self):
+        for name, raw in (
+            ("b.md", "- I. Rechtsweg — 1 BE\n- b) Maßnahme — 10 BE"),
+            ("b.csv", "Text;max. BE\nI. Rechtsweg;1"),
+            ("b.json", '{"nodes": []}'),
+        ):
+            assert rubric_document_text(name, raw.encode("utf-8")) == raw
+
+    def test_blank_lines_are_dropped_but_indentation_survives(self):
+        # Indentation is outline information; empty rows are not.
+        text = rubric_document_text("b.md", b"  - a\n\n\n  - b\n")
+        assert text == "  - a\n  - b"
+
+    def test_long_documents_are_capped(self):
+        from services.rubric_import import MAX_DOCUMENT_TEXT_CHARS
+
+        data = ("x" * 200 + "\n") * 2000
+        assert len(rubric_document_text("b.md", data.encode())) == MAX_DOCUMENT_TEXT_CHARS
+
+    def test_rejects_the_same_files_the_parser_rejects(self):
+        with pytest.raises(RubricImportError) as exc:
+            rubric_document_text("scan.pdf", b"%PDF-1.4")
+        assert exc.value.code == "unsupported_type"
+        with pytest.raises(RubricImportError) as exc:
+            rubric_document_text("b.xlsx", b"")
+        assert exc.value.code == "corrupt_file"
+        with pytest.raises(RubricImportError) as exc:
+            rubric_document_text("b.docx", b"not a zip")
+        assert exc.value.code == "corrupt_file"
