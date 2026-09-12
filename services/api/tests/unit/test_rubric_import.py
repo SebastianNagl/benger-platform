@@ -585,6 +585,70 @@ class TestDocx:
         assert exc.value.code == "too_many_rows"
 
 
+class TestMarkdownSectionSubtotal:
+    """"insgesamt N BE" is a section's note, never that row's own score.
+
+    In .xlsx / .docx it lands in the text column and can't be mistaken for a
+    score. In an outline .md it sits exactly where the points sit, so without
+    an explicit carve-out the sheet's subtotals are counted a second time.
+    """
+
+    def test_a_section_subtotal_does_not_become_a_step(self):
+        md = (
+            "- A. Zulaessigkeit (insgesamt 20 BE)\n"
+            "  - I. Rechtsweg - 5 BE\n"
+            "  - II. Klageart - 15 BE\n"
+        )
+        result = parse_rubric_file("bogen.md", md.encode("utf-8"))
+        steps = _steps(result)
+        assert [s["title"] for s in steps] == ["Rechtsweg", "Klageart"]
+        assert result["total_points"] == 20
+        section = next(
+            n for n in result["structure"]["nodes"] if n["kind"] == "section"
+        )
+        assert section["title"] == "Zulaessigkeit"
+        assert "insgesamt 20 BE" in (section.get("note") or "")
+        # The subtotal matches, so no mismatch is reported.
+        assert "subtotal_mismatch" not in _codes(result)
+
+    def test_a_wrong_subtotal_is_still_reported(self):
+        md = (
+            "- A. Teil (insgesamt 99 BE)\n"
+            "  - I. Schritt - 5 BE\n"
+            "  - II. Schritt - 5 BE\n"
+        )
+        assert "subtotal_mismatch" in _codes(
+            parse_rubric_file("bogen.md", md.encode("utf-8"))
+        )
+
+
+class TestColumnHeaderRow:
+    """A "Gliederungspunkt | max. BE" header row is not the sheet's title."""
+
+    def test_csv_header_row_does_not_become_the_title(self):
+        csv = (
+            "Gliederungspunkt;max. BE;Ihre BE\n"
+            "A. Zulaessigkeit;;\n"
+            "I. Rechtsweg;1;\n"
+            "II. Klageart;\"2,5\";\n"
+        )
+        result = parse_rubric_file("bogen.csv", csv.encode("utf-8"))
+        assert result["title"] == "bogen"
+        assert "title_from_filename" in _codes(result)
+        assert [n["title"] for n in _steps(result)] == ["Rechtsweg", "Klageart"]
+        assert result["total_points"] == 3.5
+
+    def test_a_real_title_row_still_wins(self):
+        csv = (
+            "Korrekturbogen Polizeirecht;;\n"
+            "Gliederungspunkt;max. BE;\n"
+            "I. Rechtsweg;1;\n"
+            "II. Klageart;2;\n"
+        )
+        result = parse_rubric_file("bogen.csv", csv.encode("utf-8"))
+        assert result["title"] == "Korrekturbogen Polizeirecht"
+
+
 class TestRubricDocumentText:
     """``rubric_document_text`` — the flattening the LLM fallback reads.
 

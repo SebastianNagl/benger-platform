@@ -241,6 +241,8 @@ class _RawRow:
     note: Optional[str] = None
     points_raw: Any = None
     points_parsed: bool = True
+    #: This row names the columns ("… | max. BE"); its text is not a title.
+    column_header: bool = False
 
 
 @dataclass
@@ -491,6 +493,14 @@ def _rows_from_xlsx(grid, warnings: _Warnings) -> Tuple[List[_RawRow], List[Tupl
         text_value = cells.get(text_col)
         text = format_points(text_value) if isinstance(text_value, (int, float)) else str(text_value or "")
         points_value = cells.get(points_col) if points_col is not None else None
+        # A column-header row ("Gliederungspunkt | max. BE"): the points cell
+        # names the column instead of holding a value. The row still carries
+        # text worth keeping — in the colleague's sheet the header shares its
+        # row with "Frage 1:" — so it is only barred from the TITLE heuristic,
+        # which would otherwise offer "Gliederungspunkt" as the sheet's title.
+        column_header = isinstance(points_value, str) and bool(
+            _HEADER_CELL_RE.match(points_value.strip())
+        )
         note = None
         if isinstance(points_value, str) and _NOTE_RE.search(points_value):
             note = _NOTE_RE.search(points_value).group(1).strip()
@@ -499,6 +509,7 @@ def _rows_from_xlsx(grid, warnings: _Warnings) -> Tuple[List[_RawRow], List[Tupl
             _RawRow(
                 text=text, points=None, row=row_no, note=note,
                 points_raw=points_value, points_parsed=points_value is None,
+                column_header=column_header,
             )
         )
     return rows, grid
@@ -1120,7 +1131,12 @@ def _build_outline(rows: List[_RawRow], warnings: _Warnings) -> Tuple[List[_Node
             last_node = node
         else:
             if last_node is None:
-                if title_candidate is None and len(text) <= MAX_TITLE_CANDIDATE_LEN and not bullet:
+                if (
+                    title_candidate is None
+                    and not raw.column_header
+                    and len(text) <= MAX_TITLE_CANDIDATE_LEN
+                    and not bullet
+                ):
                     title_candidate = text
                 continue
             extra = body.strip()
@@ -1438,7 +1454,15 @@ def _read_markdown_grid(data: bytes) -> List[Tuple[int, Dict[int, Any]]]:
             continue
         listed = _MD_LIST_RE.match(line)
         content = listed.group(2).strip() if listed else stripped
-        points_match = _MD_TRAILING_POINTS_RE.match(content)
+        # A section's subtotal ("insgesamt 21 BE") is a NOTE, not that row's
+        # own score. In a table it lands in the text column and never reaches
+        # the points column; in an outline it sits at the end of the line
+        # where the points are, so it has to be excluded explicitly — else
+        # "A. Zulässigkeit (insgesamt 21 BE)" becomes a 21-point step and the
+        # sheet's total is counted twice.
+        points_match = (
+            None if _NOTE_RE.search(content) else _MD_TRAILING_POINTS_RE.match(content)
+        )
         if points_match:
             rows.append([points_match.group(1).strip(), points_match.group(2)])
         else:
