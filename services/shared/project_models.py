@@ -1403,13 +1403,29 @@ class TaskRubric(Base):
     workflow (LLM prompting, parsing, renormalization, activation policy)
     lives in the extended worker (``bewertungsbogen_tasks``).
 
+    ``structure`` (migration 100) is the canonical outline of the rubric:
+    ``{"version": 1, "nodes": [...]}`` — ordered, depth-first ``section`` and
+    ``step`` nodes with labels, hints, Schwerpunkt markers and section notes
+    (contract in ``services/shared/rubric_structure.py``). Uploaded,
+    AI-drafted and hand-written rubrics all carry one; legacy rows keep
+    ``structure = NULL`` and their hand-written criteria.
+
     ``criteria`` is a ``custom_criteria``-shaped dict
     ``{step_key: {name, description, rubric, max_score}}`` so the multi-dim
     LLM-judge schema builder and the korrektur_custom grading form consume it
-    unchanged. Multiple rows per task are expected (candidate rubrics from
-    different generator models); at most ONE row per task has
-    ``status='active'`` — enforced by the partial unique index
-    ``ux_task_rubrics_one_active`` (migration 088).
+    unchanged. When a structure is present the criteria are DERIVED from it
+    on every write (``criteria_from_structure``). ``max_score`` and
+    ``total_points`` are Bewertungseinheiten in half-point steps (floats;
+    ``total_points`` = sum of the step max scores, e.g. 72.5).
+
+    ``grade_scale`` is an optional per-rubric Notenschlüssel (18 thresholds,
+    rounding rule, pass grade); NULL means the default Falllösung table
+    scaled to ``total_points``.
+
+    Multiple rows per task are expected (candidate rubrics from different
+    generator models, clones created when a graded rubric is edited); at most
+    ONE row per task has ``status='active'`` — enforced by the partial unique
+    index ``ux_task_rubrics_one_active`` (migration 088).
     """
 
     __tablename__ = "task_rubrics"
@@ -1424,7 +1440,11 @@ class TaskRubric(Base):
 
     title = Column(String, nullable=True)
     criteria = Column(JSONB, nullable=False)
-    total_points = Column(Integer, nullable=False, default=100, server_default="100")
+    total_points = Column(Float, nullable=False, default=100, server_default="100")
+    # Canonical outline (sections + scored steps); criteria derive from it.
+    structure = Column(JSONB, nullable=True)
+    # Per-rubric Notenschlüssel; NULL → default table scaled to total_points.
+    grade_scale = Column(JSONB, nullable=True)
 
     # 'llm' (generated), 'llm_edited' (generated, then human-edited), 'human'
     source = Column(String(16), nullable=False, server_default="llm")

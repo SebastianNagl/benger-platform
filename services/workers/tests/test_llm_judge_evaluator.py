@@ -1212,3 +1212,98 @@ class TestEvaluateMultidimSingleCall:
         assert schema is not None
         assert schema["additionalProperties"] == False
         assert "result_correctness" in schema["properties"]["scores"]["properties"]
+
+
+class TestRubricSchemaBudgetAndSnapping:
+    """Bewertungsbogen judging (migration 100): strict-schema budget guard,
+    half-point snapping for providers that ignore the enum, and fail-fast on
+    truncated (finish_reason=length) responses."""
+
+    def _evaluator(self, criteria):
+        return LLMJudgeEvaluator(
+            ai_service=MagicMock(),
+            judge_model="gpt-4o",
+            custom_criteria=criteria,
+            custom_prompt_template="Bogen: {{bewertungsbogen}}\nAntwort: {{answer}}",
+            field_mappings={},
+        )
+
+    def test_half_point_enum_of_half_point_step(self):
+        assert _half_point_enum(0.5) == [0, 0.5]
+
+    def test_colleague_sized_rubric_keeps_enums(self):
+        # 46 steps summing to 100 BE → 2·100 + 46 = 246 enum values, 188 properties.
+        criteria = {f"s{i:02d}_x": {"name": "x", "rubric": "r", "max_score": 2} for i in range(1, 47)}
+        criteria["s46_x"]["max_score"] = 10
+        schema = _build_rubric_json_schema(criteria)
+        score = schema["properties"]["scores"]["properties"]["s01_x"]["properties"]["score"]
+        assert score["enum"] == [0, 0.5, 1.0, 1.5, 2.0]
+
+    def test_oversized_rubric_falls_back_to_numeric_ranges(self):
+        # 120 steps × max 10 → 120 × 21 = 2520 enum values > 1000 → no enums.
+        criteria = {f"s{i:03d}_x": {"name": "x", "rubric": "r", "max_score": 10} for i in range(1, 121)}
+        schema = _build_rubric_json_schema(criteria)
+        score = schema["properties"]["scores"]["properties"]["s001_x"]["properties"]["score"]
+        assert "enum" not in score
+        assert score == {"type": "number", "minimum": 0, "maximum": 10}
+        assert schema["properties"]["scores"]["properties"]["s001_x"]["properties"]["max"]["const"] == 10
+        assert len(schema["properties"]["scores"]["required"]) == 120
+
+    def test_scores_are_snapped_to_half_points_before_clamping(self):
+        criteria = {
+            "s01_a": {"name": "a", "rubric": "r", "max_score": 10},
+            "s02_b": {"name": "b", "rubric": "r", "max_score": 4},
+            "s03_c": {"name": "c", "rubric": "r", "max_score": 1},
+        }
+        ev = self._evaluator(criteria)
+        ev.ai_service.generate_structured.return_value = {
+            "success": True,
+            "content": (
+                '{"scores": {"s01_a": {"score": 7.3, "max": 10, "reason": ""},'
+                '"s02_b": {"score": 3.74, "max": 4, "reason": ""},'
+                '"s03_c": {"score": 1.4, "max": 1, "reason": ""}},'
+                '"total_score": 12.44, "overall_assessment": ""}'
+            ),
+            "usage": {},
+            "metadata": {"finish_reason": "stop", "truncated": False},
+        }
+        result = ev._evaluate_multidim_single_call(
+            context="", ground_truth="", prediction="", task_data={"bewertungsbogen": "B", "answer": "A"},
+        )
+        assert result["scores"]["s01_a"]["score"] == 7.5
+        assert result["scores"]["s02_b"]["score"] == 3.5
+        assert result["scores"]["s03_c"]["score"] == 1.0  # snapped to 1.5 then clamped to max
+        assert result["total_score"] == 12.0  # model total 12.44 is off by > 0.5 → summed value
+        assert result["total_max"] == 15
+
+    def test_truncated_response_fails_fast_without_retries(self):
+        ev = self._evaluator(GRUNDPRINZIPIEN_CRITERIA)
+        ev.max_retries = 3
+        ev.ai_service.generate_structured.return_value = {
+            "success": True,
+            "content": '{"scores": {"result_correctness": {"score": 38, "max": 40, "rea',
+            "usage": {"completion_tokens": 1500},
+            "metadata": {"finish_reason": "length", "truncated": True},
+        }
+        result = ev._evaluate_multidim_single_call(
+            context="", ground_truth="", prediction="", task_data={"fall": "x", "answer": "y"},
+        )
+        assert result["error"] is True
+        assert result["_call_metadata"]["error_type"] == "truncated"
+        assert "max_tokens" in result["error_message"]
+        assert ev.ai_service.generate_structured.call_count == 1
+        assert result["_judge_prompts_used"]["mode"] == "multidim_single_call"
+
+    def test_truncated_flag_with_parseable_json_still_succeeds(self):
+        ev = self._evaluator(GRUNDPRINZIPIEN_CRITERIA)
+        ev.ai_service.generate_structured.return_value = {
+            "success": True,
+            "content": _FOUR_DIM_ZEROES,
+            "usage": {},
+            "metadata": {"finish_reason": "length", "truncated": True},
+        }
+        result = ev._evaluate_multidim_single_call(
+            context="", ground_truth="", prediction="", task_data={"fall": "x", "answer": "y"},
+        )
+        assert not result.get("error")
+        assert result["_call_metadata"]["truncated"] is True

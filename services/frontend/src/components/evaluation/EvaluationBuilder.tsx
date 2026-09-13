@@ -351,38 +351,55 @@ export function EvaluationBuilder({
     [evaluations, onEvaluationsChange, addToast, t],
   )
 
-  const handleEditEvaluation = useCallback((evaluation: EvaluationConfig) => {
-    setEditingId(evaluation.id)
-    // Distinguish a user-typed custom name from an auto-generated one so the
-    // edit never (a) clobbers a real custom name, nor (b) freezes a stale
-    // model into an auto-name when the judge model is changed during the edit.
-    // A stored name counts as auto — and is prefilled EMPTY so it recomputes
-    // on save — when it matches any name the system itself would have produced:
-    // the model-enriched default, the bare metric-definition default (configs
-    // that predate this feature / an un-backfilled row), or the raw metric key.
-    // Only a genuinely custom name is prefilled into the input.
-    const metricDef = getMetricDefinitions()[evaluation.metric]
-    const stored = evaluation.display_name || ''
-    const autoNames = new Set([
-      computeDefaultEvalName(
-        metricDef,
-        evaluation.metric_parameters || {},
+  const handleEditEvaluation = useCallback(
+    (evaluation: EvaluationConfig) => {
+      // A config written by something other than this builder can be missing
+      // keys the builder treats as guaranteed. An extension that appends an
+      // entry with only {metric, enabled, metric_parameters} used to crash the
+      // wizard on the field step (`prediction_fields.length` of undefined) and,
+      // having no `id`, would have been SAVED AS A DUPLICATE rather than
+      // updated. Normalise on the way in: missing arrays become empty (the user
+      // then picks fields, which the step already requires), and a missing id is
+      // synthesised so the save matches this row.
+      const editId = evaluation.id || generateEvaluationId(evaluation.metric)
+      if (!evaluation.id) {
+        onEvaluationsChange(
+          evaluations.map((e) => (e === evaluation ? { ...e, id: editId } : e)),
+        )
+      }
+      setEditingId(editId)
+      // Distinguish a user-typed custom name from an auto-generated one so the
+      // edit never (a) clobbers a real custom name, nor (b) freezes a stale
+      // model into an auto-name when the judge model is changed during the edit.
+      // A stored name counts as auto — and is prefilled EMPTY so it recomputes
+      // on save — when it matches any name the system itself would have produced:
+      // the model-enriched default, the bare metric-definition default (configs
+      // that predate this feature / an un-backfilled row), or the raw metric key.
+      // Only a genuinely custom name is prefilled into the input.
+      const metricDef = getMetricDefinitions()[evaluation.metric]
+      const stored = evaluation.display_name || ''
+      const autoNames = new Set([
+        computeDefaultEvalName(
+          metricDef,
+          evaluation.metric_parameters || {},
+          evaluation.metric,
+        ),
+        metricDef?.display_name || '',
         evaluation.metric,
-      ),
-      metricDef?.display_name || '',
-      evaluation.metric,
-    ])
-    const isCustomName = stored !== '' && !autoNames.has(stored)
-    setNewEvaluation({
-      metric: evaluation.metric,
-      display_name: isCustomName ? stored : '',
-      prediction_fields: evaluation.prediction_fields,
-      reference_fields: evaluation.reference_fields,
-      metric_parameters: evaluation.metric_parameters || {},
-    })
-    setCurrentStep('metric')
-    setIsAddingNew(true)
-  }, [])
+      ])
+      const isCustomName = stored !== '' && !autoNames.has(stored)
+      setNewEvaluation({
+        metric: evaluation.metric,
+        display_name: isCustomName ? stored : '',
+        prediction_fields: evaluation.prediction_fields || [],
+        reference_fields: evaluation.reference_fields || [],
+        metric_parameters: evaluation.metric_parameters || {},
+      })
+      setCurrentStep('metric')
+      setIsAddingNew(true)
+    },
+    [evaluations, onEvaluationsChange],
+  )
 
   const handleToggleEnabled = useCallback(
     (id: string) => {

@@ -15,7 +15,13 @@ import extensions
 from app.core.authorization import Permission, auth_service
 from auth_module import User, require_user
 from database import get_async_db, get_db
+from grade_scale_history import (
+    GRADE_SCALE_KEY,
+    HISTORY_KEY as GRADE_SCALE_HISTORY_KEY,
+    append_grade_scale_change,
+)
 from services.evaluation.config import update_project_evaluation_config as generate_evaluation_config
+from services.grade_scale_recompute import grade_scale_drift, recompute_grade_scale
 from project_models import Project
 from routers.evaluations.helpers import extract_metric_name
 from routers.projects.helpers import (
@@ -299,26 +305,37 @@ def validate_evaluation_config_entries(eval_configs_list) -> None:
                 )
 
         # llm_judge_rubric grades against per-task Bewertungsbogen
-        # rows generated from a project prompt structure. Both the
-        # generator model and the prompt reference are required —
-        # without them the generate-missing-rubrics flow has nothing
-        # to run — and the grading prompt template must exist because
+        # rows. The grading prompt template must exist because
         # multi-dim mode fails without one (the wizard editor and the
         # extended setup endpoint write a default; API callers must
-        # supply their own).
+        # supply their own). The generator model + prompt reference are
+        # OPTIONAL: uploaded / hand-written rubrics need no generator
+        # (the generate-missing-rubrics flow simply has nothing to run),
+        # but when a key is set it must be a non-empty string.
         if cfg.get("metric") == "llm_judge_rubric":
+            template = mp.get("custom_prompt_template")
+            if not isinstance(template, str) or not template.strip():
+                raise HTTPException(
+                    status_code=422,
+                    detail=(
+                        "llm_judge_rubric requires metric_parameters."
+                        "custom_prompt_template (the grading prompt template) "
+                        "as a non-empty string"
+                    ),
+                )
             for key, label in (
                 ("rubric_generator_model_id", "the rubric-generator model id"),
                 ("rubric_prompt_key", "the generation_config.prompt_structures key"),
-                ("custom_prompt_template", "the grading prompt template"),
             ):
-                value = mp.get(key)
+                if key not in mp or mp[key] is None:
+                    continue
+                value = mp[key]
                 if not isinstance(value, str) or not value.strip():
                     raise HTTPException(
                         status_code=422,
                         detail=(
-                            f"llm_judge_rubric requires metric_parameters.{key} "
-                            f"({label}) as a non-empty string"
+                            f"llm_judge_rubric: metric_parameters.{key} "
+                            f"({label}) must be a non-empty string when set"
                         ),
                     )
             if mp.get("custom_criteria"):
@@ -331,6 +348,31 @@ def validate_evaluation_config_entries(eval_configs_list) -> None:
                         "for config-level criteria)"
                     ),
                 )
+
+
+def validate_eval_config_grade_scale(config) -> None:
+    """Contract-check ``evaluation_config.grade_scale`` (raises 422).
+
+    The exam-level Notenschlüssel: 18 non-decreasing
+    thresholds for Notenpunkte 1..18, a rounding rule, a pass grade and an
+    optional preset name. ``unit: "percent"`` thresholds are a share of
+    whatever the graded sheet totals, so no point total is known (or needed)
+    here; an absolute ``unit: "BE"`` key is only checked for shape.
+
+    Called from the eval-config PUT, which deep-merges the WHOLE document —
+    so the key is validated whenever the body carries it. An explicit
+    ``null`` clears the key and is accepted.
+    """
+    if not isinstance(config, dict) or config.get("grade_scale") is None:
+        return
+    from rubric_structure import validate_grade_scale
+
+    problems = list(validate_grade_scale(config["grade_scale"]) or [])
+    if problems:
+        raise HTTPException(
+            status_code=422,
+            detail="Invalid Notenschlüssel: " + "; ".join(problems),
+        )
 
 
 @router.put("/projects/{project_id}/evaluation-config")
@@ -454,13 +496,36 @@ async def update_project_evaluation_config(
         eval_configs_list = config.get("evaluation_configs") or config.get("multi_field_evaluations") or []
         validate_evaluation_config_entries(eval_configs_list)
 
+        # The exam-level Notenschlüssel lives next to them in the same
+        # document and is deep-merged like everything else.
+        validate_eval_config_grade_scale(config)
+
         # Deep-merge the body into the stored config — same contract as
         # PATCH /projects/{id} (crud.py): nested dicts merge recursively,
         # lists are replaced wholesale, explicit nulls delete keys. Lets
         # callers send minimal bodies (e.g. only evaluation_configs) without
         # clobbering sibling keys a concurrent eval-defaults PATCH wrote
         # (issue #289 lost-update).
-        merged = deep_merge_dicts(project.evaluation_config or {}, config)
+        stored_config = project.evaluation_config or {}
+        merged = deep_merge_dicts(stored_config, config)
+
+        # Every Notenschlüssel change is recorded — the key
+        # retroactively rewrites grades people have already seen, so a grade
+        # must never move without a record of who moved it. The trail is
+        # SERVER-OWNED: whatever the body said about `grade_scale_history` is
+        # dropped and the stored list restored before the append, so this
+        # endpoint cannot be used to rewrite the audit.
+        stored_history = stored_config.get(GRADE_SCALE_HISTORY_KEY)
+        if isinstance(stored_history, list):
+            merged[GRADE_SCALE_HISTORY_KEY] = list(stored_history)
+        else:
+            merged.pop(GRADE_SCALE_HISTORY_KEY, None)
+        merged = append_grade_scale_change(
+            merged,
+            old=stored_config.get(GRADE_SCALE_KEY),
+            new=merged.get(GRADE_SCALE_KEY),
+            actor_id=str(current_user.id),
+        )
 
         # IMPORTANT: Include label_config_version to prevent unnecessary regeneration on GET
         # Without this, the GET endpoint will regenerate the config on every page reload,
@@ -491,6 +556,82 @@ async def update_project_evaluation_config(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to update evaluation config: {str(e)}",
+        )
+
+
+def _project_for_grade_scale_write(
+    project_id: str, request: Request, current_user: User, db: Session
+) -> Project:
+    """The project a Notenschlüssel recompute acts on, edit-gated.
+
+    Same gate as the eval-config PUT that owns the key
+    (``Permission.PROJECT_EDIT``): rewriting stored Notenpunkte is an
+    assessment change, so a read-only visitor of a public project must not
+    reach it — not even the drift count, which discloses how many gradings
+    exist.
+    """
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Project '{project_id}' not found",
+        )
+    org_context = get_org_context_from_request(request)
+    if not auth_service.check_project_access(
+        current_user, project, Permission.PROJECT_EDIT, db, org_context=org_context
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail="You don't have permission to edit this project's evaluation config",
+        )
+    return project
+
+
+# Both handlers are declared SYNC on purpose: they walk the project's graded
+# TaskEvaluation rows over the psycopg2 lane, so FastAPI runs them in the
+# threadpool instead of blocking the event loop for the length of the scan.
+
+
+@router.get("/projects/{project_id}/grade-scale/drift")
+def get_grade_scale_drift(
+    project_id: str,
+    request: Request,
+    current_user: User = Depends(require_user),
+    db: Session = Depends(get_db),
+):
+    """How many stored gradings no longer match the exam's Notenschlüssel.
+
+    ``{"stale": int, "graded": int, "scale_source": "project"|"rubric"|
+    "default"}``. Read-only — the rewrite is the POST below.
+    """
+    project = _project_for_grade_scale_write(project_id, request, current_user, db)
+    return grade_scale_drift(db, project)
+
+
+@router.post("/projects/{project_id}/grade-scale/recompute")
+def post_grade_scale_recompute(
+    project_id: str,
+    request: Request,
+    current_user: User = Depends(require_user),
+    db: Session = Depends(get_db),
+):
+    """Rewrite stale Notenpunkte onto the exam's current Notenschlüssel.
+
+    ``{"updated": int, "scanned": int}``. Idempotent — running it twice
+    changes nothing the second time. Only rows that ALREADY carry a grade
+    are touched; published report snapshots, LTI grades already pushed and
+    anything a solver has seen are untouched by design.
+    """
+    project = _project_for_grade_scale_write(project_id, request, current_user, db)
+    try:
+        return recompute_grade_scale(db, project)
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to recompute Notenpunkte: {str(e)}",
         )
 
 

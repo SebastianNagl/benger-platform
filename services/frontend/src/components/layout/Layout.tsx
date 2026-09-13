@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useHydration } from '@/hooks/useHydration'
 import { isExtendedEdition, useResolvedUiMode } from '@/hooks/useResolvedUiMode'
 import { useSlot } from '@/lib/extensions/slots'
+import { isExpertOnlyRoute } from '@/lib/utils/routeSurface'
 import { useUIStore } from '@/stores'
 import { motion } from 'framer-motion'
 import { usePathname } from 'next/navigation'
@@ -69,7 +70,14 @@ export function Layout({
     // Student mode + a registered StudentShell slot → hand the whole app shell
     // to the extended package. If the slot is missing (community-style overlay
     // not loaded), fall through to the normal expert layout — never crash.
-    if (resolvedUiMode === 'student' && StudentShell) {
+    // Expert-workbench routes keep the expert layout even for a user in
+    // student mode: the student sidebar has no way back to them, and a
+    // project page inside student chrome reads as the wrong product.
+    if (
+      resolvedUiMode === 'student' &&
+      StudentShell &&
+      !isExpertOnlyRoute(pathname)
+    ) {
       return (
         <SectionProvider sections={allSections[pathname || '/'] ?? []}>
           {/* eslint-disable-next-line react-hooks/static-components */}

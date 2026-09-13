@@ -826,6 +826,8 @@ export function ProjectCreationWizard() {
             annotationFields={labelConfigFields.outputFields}
             dataColumns={wizardData.dataColumns}
             selectedModelIds={wizardData.selectedModelIds}
+            wizardData={wizardData}
+            onWizardChange={updateWizardData}
           />
         )
       case 'rubric':

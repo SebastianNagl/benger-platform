@@ -52,6 +52,7 @@ from models import (
 )
 from project_models import (
     Annotation,
+    GradingFeedback,
     KorrekturComment,
     PostAnnotationResponse,
     Project,
@@ -69,6 +70,7 @@ from serializers import (
     serialize_annotation,
     serialize_evaluation_run,
     serialize_generation,
+    serialize_grading_feedback,
     serialize_human_evaluation_data,
     serialize_korrektur_comment,
     serialize_task,
@@ -335,6 +337,14 @@ def stream_export_json(
         yield ("" if first else ",") + json.dumps(serialize_korrektur_comment(kc))
         first = False
         db.expunge(kc)
+
+    yield '], "grading_feedback": ['
+    first = True
+    gf_q = db.query(GradingFeedback).filter(GradingFeedback.project_id == project_id)
+    for fb in gf_q.yield_per(100):
+        yield ("" if first else ",") + json.dumps(serialize_grading_feedback(fb))
+        first = False
+        db.expunge(fb)
     # `export_complete` is a completeness sentinel, not data. A multi-GB export
     # that gets cut mid-stream by a proxy/connection drop can be saved by the
     # browser as a "successful" but truncated file whose tail (a task object's
@@ -919,6 +929,24 @@ def stream_comprehensive_project_data_json(
         first = False
     yield "],"
 
+    # --- grading_feedback (medium) ---
+    # The author id is collected into `user_ids` so the trailing `users` block
+    # carries the solver behind every opinion — the comprehensive importer maps
+    # authors through that block, and a feedback row whose author is missing
+    # from it is dropped rather than re-attributed.
+    yield '"grading_feedback": ['
+    first = True
+    gf_q = db.query(GradingFeedback).filter(GradingFeedback.project_id == project_id)
+    for fb in _drain(gf_q):
+        if fb.user_id:
+            user_ids.add(fb.user_id)
+        yield ("" if first else ",") + json.dumps(
+            serialize_grading_feedback(fb), ensure_ascii=False
+        )
+        first = False
+        stats["total_grading_feedback"] += 1
+    yield "],"
+
     # --- post_annotation_responses (medium) ---
     yield '"post_annotation_responses": ['
     first = True
@@ -1055,6 +1083,14 @@ def stream_export_ndjson(
     ):
         if uid:
             user_ids.add(uid)
+    # Feedback authors too: the importer keeps an opinion only when its author
+    # resolves through the `user` records, which lead this stream.
+    for (uid,) in (
+        db.query(GradingFeedback.user_id)
+        .filter(GradingFeedback.project_id == project_id)
+    ):
+        if uid:
+            user_ids.add(uid)
 
     if user_ids:
         for u in db.query(User).filter(User.id.in_(user_ids)).all():
@@ -1182,6 +1218,14 @@ def stream_export_ndjson(
         yield _emit("korrektur_comment", serialize_korrektur_comment(kc))
     for kc in _drain(kc_base.filter(KorrekturComment.parent_id.isnot(None))):
         yield _emit("korrektur_comment", serialize_korrektur_comment(kc))
+
+    # --- grading_feedback (medium; after annotations + evaluation runs, whose
+    # ids it references) ---
+    for fb in _drain(
+        db.query(GradingFeedback).filter(GradingFeedback.project_id == project_id)
+    ):
+        yield _emit("grading_feedback", serialize_grading_feedback(fb))
+        stats["total_grading_feedback"] += 1
 
     # --- project_members (small) ---
     for member in (

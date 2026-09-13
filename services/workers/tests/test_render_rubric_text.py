@@ -65,3 +65,58 @@ def test_non_dict_criteria_entries_are_skipped():
     text = _render_rubric_text(_row(criteria=criteria))
     assert "broken" not in text
     assert "[Schlüssel: s01_anspruch_entstanden]" in text
+
+
+# --- structured rubrics (migration 100) ------------------------------------
+
+STRUCTURE = {
+    "version": 1,
+    "nodes": [
+        {"id": "n1", "level": 0, "kind": "section", "label": "A.", "title": "Zulässigkeit", "note": "insgesamt 21 BE"},
+        {"id": "n2", "level": 1, "kind": "step", "label": "I.", "title": "Eröffnung", "key": "s01_eroeffnung",
+         "max_score": 1, "emphasis": None, "hints": ["Hinweis eins"]},
+        {"id": "n3", "level": 1, "kind": "step", "label": "II.", "title": "Maßnahmerichtung",
+         "key": "s02_massnahmerichtung", "max_score": 10, "emphasis": "schwerpunkt", "hints": []},
+    ],
+}
+SCALE = {
+    "thresholds": [10, 20, 30, 40, 44, 48, 52, 56, 60, 64, 68, 72, 76, 80, 84, 88, 92, 96],
+    "rounding": "floor",
+    "pass_grade": 4,
+}
+
+
+def _structured_row(rendered=None, structure=STRUCTURE, grade_scale=None):
+    metadata = {"rendered_text": rendered} if rendered is not None else {}
+    return SimpleNamespace(
+        criteria=CRITERIA, generation_metadata=metadata, structure=structure,
+        total_points=11, grade_scale=grade_scale, title="Klausur",
+    )
+
+
+def test_structure_beats_flat_criteria():
+    text = _render_rubric_text(_structured_row())
+    assert text.startswith("BEWERTUNGSBOGEN: Klausur (insgesamt 11 BE; halbe BE zulässig)")
+    assert "A. Zulässigkeit (insgesamt 21 BE)" in text
+    assert "  II. Maßnahmerichtung (10 BE) SCHWERPUNKT [Schlüssel: s02_massnahmerichtung]" in text
+    assert "– Hinweis: Hinweis eins" in text
+    # the flat criteria are NOT rendered when a structure exists
+    assert "s01_anspruch_entstanden" not in text
+
+
+def test_structure_rendering_omits_the_notenschluessel():
+    # The grade is derived server-side; a scale in the prompt would only bias the judge.
+    text = _render_rubric_text(_structured_row(grade_scale=SCALE))
+    assert "NOTENSCHLÜSSEL" not in text
+    assert "Bestanden" not in text
+
+
+def test_rendered_text_beats_structure():
+    text = _render_rubric_text(_structured_row(rendered="BEWERTUNGSBOGEN (100 Rohpunkte)"))
+    assert text == "BEWERTUNGSBOGEN (100 Rohpunkte)"
+
+
+def test_malformed_structure_falls_through_to_flat():
+    text = _render_rubric_text(_structured_row(structure={"version": 1, "nodes": [{"kind": "step"}]}))
+    assert "[Schlüssel: s01_anspruch_entstanden]" in text
+    assert "BEWERTUNGSBOGEN" not in text

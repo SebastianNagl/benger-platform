@@ -353,6 +353,11 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   const [expanded, setExpanded] = useState(false)
   const ProjectSettingsExtended = useSlot('project-settings-extended')
   const ProjectStatisticsExtended = useSlot('project-statistics-extended')
+  // Exam-level Notenschlüssel editor inside the evaluation card. The slot
+  // owns its own save (a minimal `{ grade_scale }` PUT against the
+  // deep-merging eval-config endpoint), so the card's auto-save lifecycle
+  // stays untouched. Community builds register nothing → card unchanged.
+  const ProjectGradeScale = useSlot('project-evaluation-grade-scale')
   // Student access (share links, participants, discoverability) — sub-sections
   // of the Project settings card, filled by the extended edition.
   const ProjectSharing = useSlot('project-sharing')
@@ -2345,7 +2350,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
               above. Splitting it makes the mode picker apply only to
               actual model parameters (temperature/max_tokens). */}
                   {canEditProject() && (
-                    <div className="mb-6">
+                    <div>
                       <SubSection
                         title={t(
                           'project.generationDefaults.runsTitle',
@@ -2493,7 +2498,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                       scheduling/budget knob orthogonal to the parameter
                       strategy picker above. Same split as the gen side. */}
                       {canEditProject() && (
-                        <div className="mb-6">
+                        <div>
                           <SubSection
                             title={t(
                               'project.evaluationDefaults.runsTitle',
@@ -2538,6 +2543,22 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                               </p>
                             </div>
                           </SubSection>
+                        </div>
+                      )}
+
+                      {/* Exam-level Notenschlüssel (extended slot). Sits
+                      between the scheduling knob and the methods builder
+                      because it is assessment policy over whatever the
+                      methods produce. Saves itself — see the slot comment
+                      at the useSlot call above. */}
+                      {canEditProject() && ProjectGradeScale && (
+                        <div>
+                          <ProjectGradeScale
+                            projectId={projectId || ''}
+                            evaluationConfig={
+                              currentProject?.evaluation_config ?? null
+                            }
+                          />
                         </div>
                       )}
 
@@ -2838,10 +2859,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                 {currentProject &&
                   (user?.is_superadmin ||
                     String(user?.id) === String(currentProject.created_by)) && (
-                    <div
-                      className="mt-6"
-                      data-testid="project-visibility-danger-zone"
-                    >
+                    <div data-testid="project-visibility-danger-zone">
                       <SubSection
                         title={t('project.settings.visibilityDangerZone.title')}
                         badge={
@@ -2880,19 +2898,21 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                       </SubSection>
                     </div>
                   )}
-              </ConfigCard>
 
-              {/* Sharing (extended): share links, participants and whether
-              students can find the project. Own collapsible; not gated on
-              enable_annotation so flashcard decks get it too. */}
-              {ProjectSharing && currentProject && canEditProject() && (
-                <div data-testid="project-sharing">
-                  <ProjectSharing
-                    project={currentProject}
-                    onRefresh={() => fetchProject(projectId)}
-                  />
-                </div>
-              )}
+                {/* Sharing (extended): share links, participants and whether
+              students can find the project. A sub-section of Settings — it
+              sits beside "Projekt-Sichtbarkeit" because both answer who may
+              reach this project. Not gated on enable_annotation, so flashcard
+              decks get it too. */}
+                {ProjectSharing && currentProject && canEditProject() && (
+                  <div data-testid="project-sharing">
+                    <ProjectSharing
+                      project={currentProject}
+                      onRefresh={() => fetchProject(projectId)}
+                    />
+                  </div>
+                )}
+              </ConfigCard>
             </>
           )}
         </div>

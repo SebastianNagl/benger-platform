@@ -1,5 +1,6 @@
 /**
- * ProjectCreationWizard — extended-edition AI-Bewertungsbogen step wiring.
+ * ProjectCreationWizard — extended-edition AI-Bewertungsbogen step wiring
+ * plus the exam-level Notenschlüssel section hosted by the evaluation step.
  *
  * The feature checkbox row comes from the ProjectWizardRubricEntry slot
  * (rendered by StepProjectInfo) and toggles `features.rubric`; when checked, a
@@ -101,6 +102,21 @@ jest.mock('@/lib/extensions/slots', () => ({
       RubricStepStub.displayName = 'RubricStepStub'
       return RubricStepStub
     }
+    if (name === 'ProjectWizardEvaluationGradeScale') {
+      const GradeScaleStub = ({ data, onChange }: any) => (
+        <div
+          data-testid="grade-scale-section"
+          data-slice={JSON.stringify(data?.gradeScale ?? null)}
+        >
+          <button
+            data-testid="grade-scale-write"
+            onClick={() => onChange({ gradeScale: { preset: 'standard' } })}
+          />
+        </div>
+      )
+      GradeScaleStub.displayName = 'GradeScaleStub'
+      return GradeScaleStub
+    }
     return null
   },
   getSlot: () => null,
@@ -172,5 +188,54 @@ describe('ProjectCreationWizard — rubric step (extended)', () => {
       screen.queryByTestId('wizard-feature-rubric'),
     ).not.toBeInTheDocument()
     expect(screen.queryByTestId('rubric-step-stub')).not.toBeInTheDocument()
+  })
+})
+
+describe('ProjectCreationWizard — Notenschlüssel section (extended)', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+    mockSlotsRegistered = true
+  })
+
+  it('hosts the section on the evaluation step and round-trips its slice', async () => {
+    const user = userEvent.setup()
+    render(<ProjectCreationWizard />)
+
+    await user.type(screen.getByTestId('project-create-name-input'), 'NS')
+    await user.click(
+      screen
+        .getByTestId('wizard-feature-evaluation')
+        .querySelector('input[type="checkbox"]') as HTMLElement,
+    )
+    await user.click(screen.getByTestId('project-create-next-button'))
+    await waitFor(() => expect(currentStepId()).toBe('evaluation'))
+
+    const section = screen.getByTestId('grade-scale-section')
+    expect(section).toHaveAttribute('data-slice', 'null')
+
+    // The section writes into the wizard state through the same updater the
+    // rubric step uses — the slice is what the post-create hook reads.
+    await user.click(screen.getByTestId('grade-scale-write'))
+    await waitFor(() =>
+      expect(screen.getByTestId('grade-scale-section')).toHaveAttribute(
+        'data-slice',
+        JSON.stringify({ preset: 'standard' }),
+      ),
+    )
+  })
+
+  it('is absent in the community edition (slot unregistered)', async () => {
+    mockSlotsRegistered = false
+    const user = userEvent.setup()
+    render(<ProjectCreationWizard />)
+    await user.type(screen.getByTestId('project-create-name-input'), 'NS2')
+    await user.click(
+      screen
+        .getByTestId('wizard-feature-evaluation')
+        .querySelector('input[type="checkbox"]') as HTMLElement,
+    )
+    await user.click(screen.getByTestId('project-create-next-button'))
+    await waitFor(() => expect(currentStepId()).toBe('evaluation'))
+    expect(screen.queryByTestId('grade-scale-section')).not.toBeInTheDocument()
   })
 })

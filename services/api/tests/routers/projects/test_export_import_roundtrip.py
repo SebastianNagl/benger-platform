@@ -871,6 +871,221 @@ class TestRoundtripExtensions:
         assert len(parents) == 1 and len(replies) == 1
         assert replies[0].parent_id == parents[0].id, "reply.parent_id must point to the new parent id"
 
+    def _seed_grading_feedback(self, db_session, data, user, *, author_id=None):
+        """Two feedback rows on the first submission: a rated LLM grading and a
+        comment-only `general` note."""
+        from project_models import GradingFeedback
+
+        ann = data["annotations"][0]
+        run = data["evaluation_runs"][1]
+        rows = [
+            GradingFeedback(
+                id=str(uuid.uuid4()),
+                project_id=data["project"].id,
+                task_id=ann.task_id,
+                annotation_id=ann.id,
+                user_id=author_id or user.id,
+                grading_source="llm",
+                evaluation_run_id=run.id,
+                judge_model_id="gpt-5-mini",
+                grade_points=12.0,
+                passed=True,
+                rating="down",
+                comment="Zu streng bei der Subsumtion.",
+                context={"metric_keys": ["llm_judge_falloesung"], "graded": True},
+            ),
+            GradingFeedback(
+                id=str(uuid.uuid4()),
+                project_id=data["project"].id,
+                task_id=ann.task_id,
+                annotation_id=ann.id,
+                user_id=author_id or user.id,
+                grading_source="general",
+                rating=None,
+                comment="Der Editor hakt auf dem Handy.",
+                context={"kind": "general"},
+            ),
+        ]
+        for row in rows:
+            db_session.add(row)
+        db_session.commit()
+        return rows
+
+    def _import_with_feedback(self, db_session, target_id, export, user_id, feedback):
+        from routers.projects._import_stream import run_nested_import
+
+        body = json.dumps({
+            "data": export["tasks"],
+            "evaluation_runs": export.get("evaluation_runs"),
+            "grading_feedback": feedback,
+        }).encode("utf-8")
+        return run_nested_import(db_session, target_id, io.BytesIO(body), user_id)
+
+    def test_grading_feedback_round_trips_with_its_author(
+        self, db_session, user, project_with_full_data
+    ):
+        """Feedback rows survive with remapped FKs, their author, and the
+        snapshot of what the solver saw."""
+        from models import EvaluationRun
+        from project_models import GradingFeedback
+
+        data = project_with_full_data
+        project = data["project"]
+        self._seed_grading_feedback(db_session, data, user)
+
+        rt = TestDataExportImportRoundtrip()
+        export = rt._export(db_session, project.id, [t.id for t in data["tasks"]], user.id)
+        assert "grading_feedback" in export
+        assert len(export["grading_feedback"]) == 2
+        exported_llm = next(
+            f for f in export["grading_feedback"] if f["grading_source"] == "llm"
+        )
+        assert exported_llm["judge_model_id"] == "gpt-5-mini"
+        assert exported_llm["context"] == {
+            "metric_keys": ["llm_judge_falloesung"], "graded": True
+        }
+
+        target = Project(
+            id=str(uuid.uuid4()), title="Grading feedback target",
+            label_config="<View></View>", created_by=user.id,
+        )
+        db_session.add(target)
+        db_session.commit()
+        result = self._import_with_feedback(
+            db_session, target.id, export, user.id, export["grading_feedback"]
+        )
+        assert result["created_grading_feedback"] == 2
+
+        imported = (
+            db_session.query(GradingFeedback)
+            .filter(GradingFeedback.project_id == target.id)
+            .all()
+        )
+        assert len(imported) == 2
+        by_source = {f.grading_source: f for f in imported}
+        assert set(by_source) == {"llm", "general"}
+
+        target_task_ids = {
+            t.id for t in db_session.query(Task).filter(Task.project_id == target.id).all()
+        }
+        target_ann_ids = {
+            a.id
+            for a in db_session.query(Annotation)
+            .filter(Annotation.project_id == target.id)
+            .all()
+        }
+        target_run_ids = {
+            r.id
+            for r in db_session.query(EvaluationRun)
+            .filter(EvaluationRun.project_id == target.id)
+            .all()
+        }
+        llm = by_source["llm"]
+        # FKs point into the NEW project, never back at the source rows.
+        assert llm.task_id in target_task_ids
+        assert llm.annotation_id in target_ann_ids
+        assert llm.annotation_id != data["annotations"][0].id
+        assert llm.evaluation_run_id in target_run_ids
+        assert llm.evaluation_run_id != data["evaluation_runs"][1].id
+        # The opinion and its snapshot travel verbatim.
+        assert llm.user_id == user.id
+        assert llm.rating == "down"
+        assert llm.comment == "Zu streng bei der Subsumtion."
+        assert llm.judge_model_id == "gpt-5-mini"
+        assert llm.grade_points == 12.0
+        assert llm.passed is True
+        assert llm.context == {"metric_keys": ["llm_judge_falloesung"], "graded": True}
+
+        general = by_source["general"]
+        assert general.rating is None
+        assert general.comment == "Der Editor hakt auf dem Handy."
+        assert general.evaluation_run_id is None
+        assert general.judge_model_id is None
+
+    def test_grading_feedback_keeps_a_foreign_author_never_the_importer(
+        self, db_session, user, project_with_full_data
+    ):
+        """An opinion from an author this deployment doesn't know keeps that
+        author (the nested importer stubs the user); it is never silently
+        re-attributed to whoever ran the import."""
+        from models import User as UserModel
+        from project_models import GradingFeedback
+
+        data = project_with_full_data
+        self._seed_grading_feedback(db_session, data, user)
+        rt = TestDataExportImportRoundtrip()
+        export = rt._export(
+            db_session, data["project"].id, [t.id for t in data["tasks"]], user.id
+        )
+        # Simulate an export from another deployment: the author is unknown here.
+        foreign_author = str(uuid.uuid4())
+        feedback = [dict(f, user_id=foreign_author) for f in export["grading_feedback"]]
+
+        target = Project(
+            id=str(uuid.uuid4()), title="Foreign author target",
+            label_config="<View></View>", created_by=user.id,
+        )
+        db_session.add(target)
+        db_session.commit()
+        self._import_with_feedback(db_session, target.id, export, user.id, feedback)
+
+        imported = (
+            db_session.query(GradingFeedback)
+            .filter(GradingFeedback.project_id == target.id)
+            .all()
+        )
+        assert len(imported) == 2
+        assert {f.user_id for f in imported} == {foreign_author}
+        assert user.id not in {f.user_id for f in imported}
+        # The stub user carrying the opinion exists, so the FK resolves.
+        assert (
+            db_session.query(UserModel).filter(UserModel.id == foreign_author).one()
+        )
+
+    def test_grading_feedback_without_its_submission_is_dropped(
+        self, db_session, user, project_with_full_data
+    ):
+        """A row whose annotation didn't come along is dropped, not dangled —
+        and a duplicate (user, annotation, source) never reaches the unique
+        index."""
+        from project_models import GradingFeedback
+
+        data = project_with_full_data
+        self._seed_grading_feedback(db_session, data, user)
+        rt = TestDataExportImportRoundtrip()
+        export = rt._export(
+            db_session, data["project"].id, [t.id for t in data["tasks"]], user.id
+        )
+        llm_row = next(
+            f for f in export["grading_feedback"] if f["grading_source"] == "llm"
+        )
+        feedback = [
+            dict(llm_row, id=str(uuid.uuid4()), annotation_id=str(uuid.uuid4())),
+            dict(llm_row, id=str(uuid.uuid4()), grading_source="klingon"),
+            dict(llm_row, id=str(uuid.uuid4()), rating=None, comment="   "),
+            llm_row,
+            dict(llm_row, id=str(uuid.uuid4()), rating="up"),  # duplicate key
+        ]
+
+        target = Project(
+            id=str(uuid.uuid4()), title="Dropped feedback target",
+            label_config="<View></View>", created_by=user.id,
+        )
+        db_session.add(target)
+        db_session.commit()
+        result = self._import_with_feedback(
+            db_session, target.id, export, user.id, feedback
+        )
+
+        imported = (
+            db_session.query(GradingFeedback)
+            .filter(GradingFeedback.project_id == target.id)
+            .all()
+        )
+        assert result["created_grading_feedback"] == 1
+        assert len(imported) == 1
+        assert imported[0].rating == "down"
+
     def test_judge_prompts_used_survives(
         self, db_session, user, project_with_full_data
     ):
@@ -960,3 +1175,83 @@ class TestRoundtripExtensions:
         assert proj["allow_self_review"] == True  # noqa: E712
         assert proj["korrektur_enabled"] == True  # noqa: E712
         assert proj["korrektur_config"][0]["value"] == "✓"
+
+
+class TestTaskRubricRoundtrip:
+    """Bewertungsbogen rows (migration 100 shape) survive export → import:
+    ``structure`` / ``grade_scale`` round-trip as stored, ``total_points``
+    stays a float (72.5), legacy rows keep ``structure = None``."""
+
+    STRUCTURE = {
+        "version": 1,
+        "nodes": [
+            {"id": "n1", "level": 0, "kind": "section", "label": "A.", "title": "Zulässigkeit", "note": None},
+            {"id": "n2", "level": 1, "kind": "step", "label": "I.", "title": "Eröffnung", "note": None,
+             "key": "s01_eroeffnung", "max_score": 70, "emphasis": None, "hints": []},
+            {"id": "n3", "level": 1, "kind": "step", "label": "II.", "title": "Obersatz", "note": None,
+             "key": "s02_obersatz", "max_score": 2.5, "emphasis": "schwerpunkt", "hints": ["Vergangenheitsform!"]},
+        ],
+    }
+    SCALE = {
+        "unit": "BE",
+        "thresholds": [8, 15, 22, 29, 32, 35, 38, 41, 44, 47, 50, 53, 56, 59, 62, 65, 68, 71],
+        "rounding": "floor",
+        "pass_grade": 4,
+    }
+
+    def test_structure_scale_and_float_total_survive(
+        self, db_session, user, project_with_full_data
+    ):
+        from project_models import TaskRubric
+
+        data = project_with_full_data
+        project = data["project"]
+        structured = TaskRubric(
+            id=str(uuid.uuid4()), task_id=data["tasks"][0].id, project_id=project.id,
+            title="Korrekturbogen",
+            criteria={"s01_eroeffnung": {"name": "Eröffnung", "rubric": "r", "max_score": 70},
+                      "s02_obersatz": {"name": "Obersatz", "rubric": "r", "max_score": 2.5}},
+            total_points=72.5, structure=self.STRUCTURE, grade_scale=self.SCALE,
+            source="human", status="active", created_by=user.id,
+        )
+        legacy = TaskRubric(
+            id=str(uuid.uuid4()), task_id=data["tasks"][1].id, project_id=project.id,
+            title="Legacy", criteria={"s01_a": {"name": "A", "rubric": "r", "max_score": 100}},
+            total_points=100, source="llm", status="candidate", created_by=user.id,
+        )
+        db_session.add_all([structured, legacy])
+        db_session.commit()
+
+        rt = TestDataExportImportRoundtrip()
+        export = rt._export(db_session, project.id, [t.id for t in data["tasks"]], user.id)
+        exported = {r["title"]: r for item in export["tasks"] for r in item.get("rubrics", [])}
+        assert exported["Korrekturbogen"]["structure"] == self.STRUCTURE
+        assert exported["Korrekturbogen"]["grade_scale"] == self.SCALE
+        assert exported["Korrekturbogen"]["total_points"] == 72.5
+        assert exported["Legacy"]["structure"] is None
+        assert exported["Legacy"]["grade_scale"] is None
+
+        target = Project(
+            id=str(uuid.uuid4()), title="Rubric target",
+            label_config="<View></View>", created_by=user.id,
+        )
+        db_session.add(target)
+        db_session.commit()
+        rt._import(db_session, target.id, export, user.id)
+
+        imported = {
+            r.title: r
+            for r in db_session.query(TaskRubric).filter(TaskRubric.project_id == target.id).all()
+        }
+        assert set(imported) == {"Korrekturbogen", "Legacy"}
+        assert imported["Korrekturbogen"].structure == self.STRUCTURE
+        assert imported["Korrekturbogen"].grade_scale == self.SCALE
+        assert imported["Korrekturbogen"].total_points == 72.5
+        assert isinstance(imported["Korrekturbogen"].total_points, float)
+        assert imported["Korrekturbogen"].status == "active"
+        assert imported["Korrekturbogen"].source == "human"
+        assert imported["Legacy"].structure is None
+        assert imported["Legacy"].grade_scale is None
+        assert imported["Legacy"].total_points == 100.0
+        target_task_ids = {t.id for t in db_session.query(Task).filter(Task.project_id == target.id).all()}
+        assert {r.task_id for r in imported.values()} <= target_task_ids

@@ -33,6 +33,7 @@ from models import (
 )
 from project_models import (
     Annotation,
+    GradingFeedback,
     KorrekturComment,
     PostAnnotationResponse,
     Project,
@@ -462,3 +463,181 @@ class TestGzipNDJSON:
         new_pid = result["project_id"]
         assert new_pid and new_pid != project.id
         assert _counts(test_db, new_pid) == _counts(test_db, project.id)
+
+
+@pytest.mark.integration
+class TestGradingFeedbackRoundtrip:
+    """Solver feedback ON a grading (thumbs/comment, and the free-text
+    `general` source) travels with the project — but only ever attributed to
+    the solver who gave it."""
+
+    def _seed(self, db, project, admin, *, author=None):
+        ann = (
+            db.query(Annotation).filter(Annotation.project_id == project.id).first()
+        )
+        run = (
+            db.query(EvaluationRun)
+            .filter(EvaluationRun.project_id == project.id)
+            .first()
+        )
+        rows = [
+            GradingFeedback(
+                id=_uid(),
+                project_id=project.id,
+                task_id=ann.task_id,
+                annotation_id=ann.id,
+                user_id=(author or admin).id,
+                grading_source="llm",
+                evaluation_run_id=run.id,
+                judge_model_id="gpt-5-mini",
+                grade_points=12.0,
+                passed=True,
+                rating="down",
+                comment="Zu streng.",
+                context={"metric_keys": ["llm_judge_falloesung"]},
+            ),
+            GradingFeedback(
+                id=_uid(),
+                project_id=project.id,
+                task_id=ann.task_id,
+                annotation_id=ann.id,
+                user_id=(author or admin).id,
+                grading_source="general",
+                rating=None,
+                comment="Der Editor hakt.",
+                context={"kind": "general"},
+            ),
+        ]
+        for row in rows:
+            db.add(row)
+        db.commit()
+        return ann, run
+
+    def test_records_follow_the_rows_they_reference(self, test_db, full_project):
+        project, admin = full_project
+        self._seed(test_db, project, admin)
+        lines = [json.loads(ln) for ln in _export_ndjson(test_db, project).splitlines()]
+        types = [r["_type"] for r in lines]
+
+        assert types.count("grading_feedback") == 2
+        first_fb = types.index("grading_feedback")
+        # Its FKs (author, submission, rated run) must already be on the wire.
+        for required in ("user", "annotation", "evaluation"):
+            assert types.index(required) < first_fb, required
+        assert types[-1] == "end"
+
+        payloads = [r for r in lines if r["_type"] == "grading_feedback"]
+        llm = next(p for p in payloads if p["grading_source"] == "llm")
+        assert llm["judge_model_id"] == "gpt-5-mini"
+        assert llm["grade_points"] == 12.0
+        assert llm["context"] == {"metric_keys": ["llm_judge_falloesung"]}
+        # The author rides along so the importer can resolve the opinion.
+        assert any(
+            r["_type"] == "user" and r.get("id") == admin.id for r in lines
+        )
+
+    def test_roundtrip_keeps_author_snapshot_and_remaps_fks(
+        self, test_db, full_project
+    ):
+        project, admin = full_project
+        source_ann, source_run = self._seed(test_db, project, admin)
+        ndjson = _export_ndjson(test_db, project)
+
+        result = run_ndjson_import(test_db, io.BytesIO(ndjson.encode()), admin.id)
+        new_id = result["project_id"]
+        assert result["statistics"]["imported_counts"]["grading_feedback"] == 2
+
+        imported = (
+            test_db.query(GradingFeedback)
+            .filter(GradingFeedback.project_id == new_id)
+            .all()
+        )
+        assert len(imported) == 2
+        by_source = {f.grading_source: f for f in imported}
+        assert set(by_source) == {"llm", "general"}
+
+        new_task_ids = {
+            t.id for t in test_db.query(Task).filter(Task.project_id == new_id).all()
+        }
+        new_ann_ids = {
+            a.id
+            for a in test_db.query(Annotation)
+            .filter(Annotation.project_id == new_id)
+            .all()
+        }
+        new_run_ids = {
+            r.id
+            for r in test_db.query(EvaluationRun)
+            .filter(EvaluationRun.project_id == new_id)
+            .all()
+        }
+        llm = by_source["llm"]
+        assert llm.task_id in new_task_ids
+        assert llm.annotation_id in new_ann_ids and llm.annotation_id != source_ann.id
+        assert llm.evaluation_run_id in new_run_ids
+        assert llm.evaluation_run_id != source_run.id
+        assert llm.user_id == admin.id
+        assert (llm.rating, llm.comment) == ("down", "Zu streng.")
+        assert llm.judge_model_id == "gpt-5-mini"
+        assert llm.grade_points == 12.0
+        assert llm.passed is True
+        assert llm.context == {"metric_keys": ["llm_judge_falloesung"]}
+        assert by_source["general"].rating is None
+        assert by_source["general"].evaluation_run_id is None
+
+    def test_unknown_author_is_dropped_not_reattributed(self, test_db, full_project):
+        """The comprehensive importer maps unknown users onto the importing
+        user. For an opinion that would be a lie, so the row is dropped."""
+        project, admin = full_project
+        self._seed(test_db, project, admin)
+        lines = _export_ndjson(test_db, project).splitlines()
+
+        # Simulate an export from a deployment whose solver is unknown here:
+        # the feedback references a user id that no `user` record resolves.
+        stranger = _uid()
+        rewritten = []
+        for ln in lines:
+            rec = json.loads(ln)
+            if rec.get("_type") == "grading_feedback":
+                rec["user_id"] = stranger
+            rewritten.append(json.dumps(rec))
+        body = ("\n".join(rewritten) + "\n").encode()
+
+        result = run_ndjson_import(test_db, io.BytesIO(body), admin.id)
+        new_id = result["project_id"]
+
+        imported = (
+            test_db.query(GradingFeedback)
+            .filter(GradingFeedback.project_id == new_id)
+            .all()
+        )
+        assert imported == []
+        assert result["statistics"]["imported_counts"]["grading_feedback"] == 0
+        # The rest of the project still imported normally.
+        assert test_db.query(Task).filter(Task.project_id == new_id).count() == 3
+
+    def test_comprehensive_json_path_matches_ndjson(self, test_db, full_project):
+        """The multi-pass (single-object JSON) importer imports the same rows."""
+        project, admin = full_project
+        self._seed(test_db, project, admin)
+        comprehensive = "".join(
+            stream_comprehensive_project_data_json(test_db, project.id)
+        )
+        payload = json.loads(comprehensive)
+        assert len(payload["grading_feedback"]) == 2
+        assert payload["statistics"]["total_grading_feedback"] == 2
+        # The users block carries the author, which is what gates the import.
+        assert any(u["id"] == admin.id for u in payload["users"])
+
+        result = run_full_project_import(
+            test_db, io.BytesIO(comprehensive.encode()), admin.id
+        )
+        new_id = result["project_id"]
+        imported = (
+            test_db.query(GradingFeedback)
+            .filter(GradingFeedback.project_id == new_id)
+            .all()
+        )
+        assert len(imported) == 2
+        assert {f.grading_source for f in imported} == {"llm", "general"}
+        assert {f.user_id for f in imported} == {admin.id}

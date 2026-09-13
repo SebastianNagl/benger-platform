@@ -62,12 +62,18 @@ def serialize_task(task, *, mode: str = "data", total_generations: int = 0) -> d
 
 
 def serialize_task_rubric(rubric) -> dict:
-    """Export shape for a task_rubrics row (per-task Bewertungsbogen)."""
+    """Export shape for a task_rubrics row (per-task Bewertungsbogen).
+
+    ``structure`` / ``grade_scale`` (migration 100) round-trip as stored —
+    ``None`` for legacy rows; ``total_points`` is a float (half BE allowed).
+    """
     return {
         "id": rubric.id,
         "title": rubric.title,
         "criteria": rubric.criteria,
         "total_points": rubric.total_points,
+        "structure": rubric.structure,
+        "grade_scale": rubric.grade_scale,
         "source": rubric.source,
         "generator_model_id": rubric.generator_model_id,
         "prompt_key": rubric.prompt_key,
@@ -302,6 +308,35 @@ def serialize_korrektur_comment(comment) -> dict:
         "created_by": comment.created_by,
         "created_at": _isoformat(comment.created_at),
         "updated_at": _isoformat(comment.updated_at),
+    }
+
+
+def serialize_grading_feedback(fb) -> dict:
+    """Full export shape for GradingFeedback — used by all three export sites.
+
+    ``context`` travels verbatim. It is a provenance snapshot of what the solver
+    saw (metric keys, judge/grader ids, the ids of the rated task_evaluation
+    rows); those inner ids belong to the SOURCE deployment and are deliberately
+    not remapped on import — they document the original grading, they are never
+    joined on (the same treatment a korrektur comment targeting an evaluation
+    row gets).
+    """
+    return {
+        "id": fb.id,
+        "project_id": fb.project_id,
+        "task_id": fb.task_id,
+        "annotation_id": fb.annotation_id,
+        "user_id": fb.user_id,
+        "grading_source": fb.grading_source,
+        "evaluation_run_id": fb.evaluation_run_id,
+        "judge_model_id": fb.judge_model_id,
+        "grade_points": fb.grade_points,
+        "passed": fb.passed,
+        "rating": fb.rating,
+        "comment": fb.comment,
+        "context": fb.context,
+        "created_at": _isoformat(fb.created_at),
+        "updated_at": _isoformat(fb.updated_at),
     }
 
 

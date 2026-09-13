@@ -82,7 +82,21 @@ class TestExtensionLoader:
         # ProjectOrganization.group_id, group-scoped org API keys).
         # 2.12 adds the grading_feedback table + project_models.GradingFeedback
         # (solver thumbs/comment feedback on LLM and human gradings).
-        assert CORE_API_VERSION == "2.12"
+        # 2.13 adds task_rubrics.structure / grade_scale (float total_points),
+        # shared rubric_structure + task_rubric_service, task-rubrics writes +
+        # the stateless parse route, rubric grade points in the judge and
+        # optional generator keys on llm_judge_rubric configs.
+        # 2.14 adds the shared ``grade_scale_history`` module — the one audit
+        # trail both writers of evaluation_config.grade_scale append through
+        # (the extended exam router imports it at module level).
+        # 2.15 REMOVES the Falllösung judge's prompt versioning: the bulk
+        # fan-out no longer forwards ``metric_parameters.prompt_version`` (the
+        # extended compute hook no longer takes it) and migration 101 strips
+        # the dead key from stored evaluation configs. One judge prompt, one
+        # Notenschlüssel, for every exam. It also widens the rubric importer
+        # to .csv/.md/.json and adds ``rubric_import.rubric_document_text``,
+        # which the extended AI-structuring fallback reads its document with.
+        assert CORE_API_VERSION == "2.15"
 
     def test_tasks_with_feedback_for_user_empty_without_package(self):
         """Community edition: no human-feedback workflow -> empty set."""
