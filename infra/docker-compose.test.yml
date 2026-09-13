@@ -90,7 +90,10 @@ services:
   # port mapping) so the host browser can replay them; containers talk to
   # http://test-minio:9000 directly.
   test-minio:
-    image: minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e
+    # quay.io, not Docker Hub: MinIO stopped serving minio/minio to anonymous
+    # pulls (both tag and digest now 401), which broke every CI job that brings
+    # up this stack. Same digest, so byte-identical content.
+    image: quay.io/minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e
     hostname: test-minio
     restart: unless-stopped
     ports:

@@ -181,7 +181,7 @@ services:
   # lifecycle rules). Internal S3 endpoint is minio:9000 (uploads); the browser
   # reaches presigned download URLs via the published localhost:9000.
   minio:
-    image: minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e  # RELEASE.2025-09-07T16-13-09Z
+    image: quay.io/minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e  # RELEASE.2025-09-07T16-13-09Z
     hostname: minio
     restart: unless-stopped
     command: ["server", "/data", "--console-address", ":9001"]
@@ -216,7 +216,7 @@ services:
   # parts only survive a hard-kill (OOM/SIGKILL) of the worker mid-upload — a
   # bounded, minor storage-cost edge case. Revisit if MinIO restores the action.
   minio-init:
-    image: minio/mc@sha256:a7fe349ef4bd8521fb8497f55c6042871b2ae640607cf99d9bede5e9bdf11727  # RELEASE.2025-08-13T08-35-41Z
+    image: quay.io/minio/mc@sha256:a7fe349ef4bd8521fb8497f55c6042871b2ae640607cf99d9bede5e9bdf11727  # RELEASE.2025-08-13T08-35-41Z
     depends_on:
       minio:
         condition: service_started
