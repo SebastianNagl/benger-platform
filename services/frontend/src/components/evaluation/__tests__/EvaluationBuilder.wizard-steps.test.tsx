@@ -865,7 +865,10 @@ describe('EvaluationBuilder wizard step rendering', () => {
       })
       // And that id is written back so the later save updates this row.
       expect(mockOnChange).toHaveBeenCalledWith([
-        expect.objectContaining({ metric: 'llm_judge', id: expect.any(String) }),
+        expect.objectContaining({
+          metric: 'llm_judge',
+          id: expect.any(String),
+        }),
       ])
 
       // Advancing past the metric step no longer throws on the field lists.
