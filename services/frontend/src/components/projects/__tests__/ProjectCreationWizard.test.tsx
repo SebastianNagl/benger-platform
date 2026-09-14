@@ -245,7 +245,8 @@ jest.mock('@/contexts/I18nContext', () => ({
         'toasts.project.evaluationConfigsSaveFailed': `Failed to save evaluation methods: ${params?.error}`,
         'toasts.project.evaluationConfigsSavedWithWarnings': `Saved with warnings: ${params?.warnings}`,
       }
-      return translations[key] || key
+      // A string second argument is the inline English fallback.
+      return translations[key] || (typeof params === 'string' ? params : key)
     },
   }),
 }))
