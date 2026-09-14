@@ -5333,7 +5333,8 @@
         "structuredData": "Structured Data",
         "spanSequence": "Span/Sequence Labeling",
         "hierarchical": "Hierarchical Metrics",
-        "llmJudge": "LLM-as-Judge"
+        "llmJudge": "LLM-as-Judge",
+        "humanEvaluation": "Human grading"
       },
       "categoryDesc": {
         "lexical": "String and surface-level matching",
@@ -5348,7 +5349,8 @@
         "spanSequence": "For token or span-level predictions",
         "hierarchical": "For hierarchical classifications",
         "llmJudge": "AI model-based evaluation (requires API key)",
-        "llmJudgeModel": "AI model-based evaluation with a judge model"
+        "llmJudgeModel": "AI model-based evaluation with a judge model",
+        "humanEvaluation": "Grading by human graders"
       },
       "metricName": {
         "bleu": "BLEU",
@@ -5406,7 +5408,15 @@
         "pathAccuracy": "Full hierarchical path matching with level weights (deeper = more important)",
         "lcaAccuracy": "Lowest Common Ancestor proximity scoring for taxonomy hierarchies",
         "llmJudgeClassic": "Evaluate using predefined dimensions (Helpfulness, Correctness, Fluency, etc.)",
-        "llmJudgeCustom": "Create a fully custom evaluation with your own prompt and criteria"
+        "llmJudgeCustom": "Create a fully custom evaluation with your own prompt and criteria",
+        "llmJudgeFalloesung": "German legal exam evaluation with a 10-dimension rubric and grade points",
+        "llmJudgeFalloesungGradePoints": "0–18 grade points from the Falllösung LLM judge.",
+        "llmJudgeRubric": "Fills in each task's grading sheet (units per step, half units allowed) and derives grade points from it.",
+        "llmJudgeRubricGradePoints": "0–18 grade points from the grading-sheet LLM judge.",
+        "llmJudgeLexam": "LEXam benchmark correctness judge (0.0–1.0 against the reference answer), adapted from Swiss to German law.",
+        "korrekturClassic": "Free comments, highlights and labels on annotations, generations and evaluations.",
+        "korrekturFalloesung": "Manual grading with the 10-dimension scheme of the standard Falllösung (identical to the LLM judge).",
+        "korrekturCustom": "Manual grading: fills in the task's grading sheet (or the project-specific dimensions from the custom LLM judge)."
       }
     },
     "sampleResults": {

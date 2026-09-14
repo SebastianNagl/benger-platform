@@ -5332,7 +5332,8 @@
         "structuredData": "Strukturierte Daten",
         "spanSequence": "Span-/Sequenz-Labeling",
         "hierarchical": "Hierarchische Metriken",
-        "llmJudge": "LLM-als-Richter"
+        "llmJudge": "LLM-als-Richter",
+        "humanEvaluation": "Menschliche Korrektur"
       },
       "categoryDesc": {
         "lexical": "Zeichenketten- und Oberflächenabgleich",
@@ -5347,7 +5348,8 @@
         "spanSequence": "Für Token- oder Span-Level-Vorhersagen",
         "hierarchical": "Für hierarchische Klassifikationen",
         "llmJudge": "KI-modellbasierte Evaluierung (API-Schlüssel erforderlich)",
-        "llmJudgeModel": "KI-modellbasierte Evaluierung mit einem Richtermodell"
+        "llmJudgeModel": "KI-modellbasierte Evaluierung mit einem Richtermodell",
+        "humanEvaluation": "Korrektur durch menschliche Bewerterinnen und Bewerter"
       },
       "metricName": {
         "bleu": "BLEU",
@@ -5405,7 +5407,15 @@
         "pathAccuracy": "Vollständiger hierarchischer Pfadabgleich mit Ebenengewichten (tiefer = wichtiger)",
         "lcaAccuracy": "Niedrigster Gemeinsamer Vorfahre - Nähebewertung für Taxonomiehierarchien",
         "llmJudgeClassic": "Evaluierung anhand vordefinierter Dimensionen (Hilfsbereitschaft, Korrektheit, Fluss usw.)",
-        "llmJudgeCustom": "Erstellen Sie eine vollständig benutzerdefinierte Evaluierung mit eigenem Prompt und Kriterien"
+        "llmJudgeCustom": "Erstellen Sie eine vollständig benutzerdefinierte Evaluierung mit eigenem Prompt und Kriterien",
+        "llmJudgeFalloesung": "Bewertung juristischer Klausuren mit einem Schema aus 10 Dimensionen und Notenpunkten",
+        "llmJudgeFalloesungGradePoints": "0–18 Notenpunkte des Falllösung-LLM-Judges.",
+        "llmJudgeRubric": "Füllt den Bewertungsbogen der jeweiligen Aufgabe aus (Bewertungseinheiten je Prüfungsschritt, halbe BE erlaubt) und leitet daraus Notenpunkte ab.",
+        "llmJudgeRubricGradePoints": "0–18 Notenpunkte des Bewertungsbogen-LLM-Judges.",
+        "llmJudgeLexam": "Korrektheits-Judge aus dem LEXam-Benchmark (0,0–1,0 gegenüber der Referenzantwort), vom Schweizer auf deutsches Recht übertragen.",
+        "korrekturClassic": "Freie Kommentare, Highlights und Labels auf Annotationen, Generierungen und Evaluationen.",
+        "korrekturFalloesung": "Manuelle Bewertung nach dem 10-Dimensionen-Schema der Standard Falllösung (identisch zum LLM Judge).",
+        "korrekturCustom": "Manuelle Bewertung: füllt den Bewertungsbogen der Aufgabe aus (oder die projektspezifischen Dimensionen aus dem Custom LLM Judge)."
       }
     },
     "sampleResults": {
