@@ -18,7 +18,16 @@ const config = {
         '<rootDir>/src/**/__tests__/**/*.{ts,tsx}',
         '<rootDir>/src/**/*.{test,spec}.{ts,tsx}',
         '<rootDir>/tests/**/*.{test,spec}.{ts,tsx}',
-        '!<rootDir>/src/app/api/**', // Exclude API routes from client project
+      ],
+      // API route tests belong to the api-routes project only. A negated
+      // testMatch entry never excluded them: Jest replaces <rootDir> only at
+      // the start of a pattern, and '!<rootDir>/...' does not start with it,
+      // so every route test ran twice, once per environment.
+      testPathIgnorePatterns: [
+        '<rootDir>/.next/',
+        '<rootDir>/node_modules/',
+        '<rootDir>/e2e/',
+        '<rootDir>/src/app/api/',
       ],
       moduleNameMapper: {
         '^@/components/shared/Select$':
