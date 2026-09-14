@@ -347,5 +347,27 @@ describe('/api/auth/profile route', () => {
       const data = await response.json()
       expect(data).toEqual({ error: 'Request body is required' })
     })
+
+    it('answers 422 for a body that is not valid JSON, without calling the backend', async () => {
+      const request = new NextRequest(
+        'http://localhost:3000/api/auth/profile',
+        {
+          method: 'PUT',
+          headers: {
+            cookie: 'access_token=valid-token',
+            'Content-Type': 'application/json',
+          },
+          body: 'not json',
+        },
+      )
+
+      const response = await PUT(request)
+
+      expect(response.status).toBe(422)
+      expect(await response.json()).toEqual({
+        detail: 'Request body must be valid JSON.',
+      })
+      expect(mockFetch).not.toHaveBeenCalled()
+    })
   })
 })

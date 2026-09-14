@@ -86,7 +86,7 @@ describe('/api/auth/resend-verification', () => {
     expect(data.error).toBe('Internal server error')
   })
 
-  it('returns 500 on an invalid JSON body', async () => {
+  it('answers 422 for a body that is not valid JSON', async () => {
     const request = new NextRequest(
       'http://benger.localhost/api/auth/resend-verification',
       {
@@ -100,6 +100,10 @@ describe('/api/auth/resend-verification', () => {
     )
 
     const response = await POST(request)
-    expect(response.status).toBe(500)
+    expect(response.status).toBe(422)
+    expect((await response.json()).detail).toBe(
+      'Request body must be valid JSON.',
+    )
+    expect(global.fetch).not.toHaveBeenCalled()
   })
 })

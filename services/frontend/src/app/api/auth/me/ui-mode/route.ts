@@ -1,4 +1,5 @@
 import { getInternalApiUrl } from '@/lib/utils/apiUrl'
+import { readJsonBody } from '@/lib/utils/jsonBody'
 import { NextRequest, NextResponse } from 'next/server'
 
 // Dedicated auth-write proxy for the student/expert view-mode preference
@@ -13,7 +14,9 @@ export async function PUT(request: NextRequest) {
     const apiBaseUrl = getInternalApiUrl(request)
     const cookies = request.headers.get('cookie') || ''
     const authorization = request.headers.get('authorization') || ''
-    const body = await request.json()
+    const parsed = await readJsonBody(request)
+    if (!parsed.ok) return parsed.response
+    const body = parsed.body
 
     const backendResponse = await fetch(`${apiBaseUrl}/api/auth/me/ui-mode`, {
       method: 'PUT',

@@ -1,4 +1,5 @@
 import { getInternalApiUrl } from '@/lib/utils/apiUrl'
+import { readJsonBody } from '@/lib/utils/jsonBody'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function POST(request: NextRequest) {
@@ -6,7 +7,9 @@ export async function POST(request: NextRequest) {
     const apiBaseUrl = getInternalApiUrl(request)
     const cookies = request.headers.get('cookie') || ''
     const authorization = request.headers.get('authorization') || ''
-    const body = await request.json()
+    const parsed = await readJsonBody(request)
+    if (!parsed.ok) return parsed.response
+    const body = parsed.body
 
     // Forward the request to the backend with cookies
     const backendResponse = await fetch(

@@ -383,7 +383,7 @@ describe('/api/auth/change-password', () => {
       expect(response.status).toBe(422)
     })
 
-    it('should handle malformed JSON', async () => {
+    it('answers 422 for a body that is not valid JSON', async () => {
       const request = createRequest(
         'http://localhost:3000/api/auth/change-password',
         {
@@ -397,9 +397,10 @@ describe('/api/auth/change-password', () => {
 
       const response = await POST(request)
 
-      expect(response.status).toBe(500)
+      expect(response.status).toBe(422)
       const data = await response.json()
-      expect(data.error).toBe('Internal server error')
+      expect(data.detail).toBe('Request body must be valid JSON.')
+      expect(global.fetch).not.toHaveBeenCalled()
     })
   })
 

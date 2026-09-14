@@ -146,4 +146,26 @@ describe('PUT /api/auth/me/exam-layout', () => {
     const response = await PUT(makeRequest())
     expect(response.status).toBe(500)
   })
+
+  it('answers 422 for a body that is not valid JSON, without calling the backend', async () => {
+    const request = new NextRequest(
+      'http://vertretbar.localhost/api/auth/me/exam-layout',
+      {
+        method: 'PUT',
+        headers: {
+          host: 'vertretbar.localhost',
+          'content-type': 'application/json',
+        },
+        body: 'not json',
+      },
+    )
+
+    const response = await PUT(request)
+
+    expect(response.status).toBe(422)
+    expect(await response.json()).toEqual({
+      detail: 'Request body must be valid JSON.',
+    })
+    expect(mockFetch).not.toHaveBeenCalled()
+  })
 })
