@@ -2398,6 +2398,7 @@ def run_evaluation(
                         f"generations={subject_counts['generations']}, "
                         f"answers={subject_counts['answers']})"
                     )
+                _attach_subject_counts(match_records, subject_counts)
 
             evaluation.eval_metadata = {
                 **(evaluation.eval_metadata or {}),
@@ -3633,6 +3634,28 @@ def _match_reason_help(reason, subject_counts=None):
             "grade on either side."
         )
     return _MATCH_REASON_HELP.get(reason, _MATCH_REASON_HELP["other"])
+
+
+def _attach_subject_counts(records, subject_counts):
+    """Store the run's subject counts on every config that matched nothing.
+
+    The run page phrases each unmatched config's reason in the reader's
+    language and names what the other side holds ("it has 3 submitted
+    answers"). The English ``error_message`` already carries that; this puts
+    the numbers into ``eval_metadata.match_by_config`` as data. Additive:
+    existing keys stay, matched configs get nothing, ``None`` counts are a
+    no-op. Mutates and returns ``records``.
+    """
+    if not subject_counts:
+        return records
+    counts = {
+        "generations": int(subject_counts.get("generations") or 0),
+        "annotations": int(subject_counts.get("answers") or 0),
+    }
+    for rec in records:
+        if rec.get("reason") is not None:
+            rec["subject_counts"] = dict(counts)
+    return records
 
 
 def _summarize_config_match(records, subject_counts=None):

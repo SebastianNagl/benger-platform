@@ -291,3 +291,64 @@ class TestTheMessageNamesTheOtherSide:
         )
         assert should_fail is True
         assert len(message) <= 500
+
+
+class TestSubjectCountsOnUnmatchedConfigs:
+    """The run page phrases each unmatched config in the reader's language and
+    names what the other side holds. It reads the counts from
+    ``match_by_config[*].subject_counts``, so every unmatched record carries
+    them, matched ones do not, and nothing that existed before changes."""
+
+    @staticmethod
+    def _records():
+        return [
+            {**side(config_id="c1", llm=["__all_model__"], name="Bogen"),
+             "reason": "no_generations"},
+            {**side(config_id="c2", human=["loesung"]), "reason": None},
+        ]
+
+    def test_unmatched_configs_get_both_counts(self):
+        from tasks import _attach_subject_counts
+
+        records = _attach_subject_counts(
+            self._records(), {"generations": 0, "answers": 3}
+        )
+        assert records[0]["subject_counts"] == {"generations": 0, "annotations": 3}
+        # Existing keys are untouched.
+        assert records[0]["reason"] == "no_generations"
+        assert records[0]["display_name"] == "Bogen"
+        assert records[0]["llm_fields"] == ["__all_model__"]
+
+    def test_matched_configs_get_no_counts(self):
+        from tasks import _attach_subject_counts
+
+        records = _attach_subject_counts(
+            self._records(), {"generations": 2, "answers": 0}
+        )
+        assert "subject_counts" not in records[1]
+
+    def test_without_counts_nothing_is_added(self):
+        from tasks import _attach_subject_counts
+
+        records = _attach_subject_counts(self._records(), None)
+        assert all("subject_counts" not in r for r in records)
+
+    def test_records_do_not_share_one_counts_dict(self):
+        from tasks import _attach_subject_counts
+
+        records = [
+            {**side(config_id=f"c{i}", llm=["__all_model__"]),
+             "reason": "no_generations"}
+            for i in range(2)
+        ]
+        _attach_subject_counts(records, {"generations": 0, "answers": 1})
+        records[0]["subject_counts"]["annotations"] = 99
+        assert records[1]["subject_counts"]["annotations"] == 1
+
+    def test_the_english_message_is_unchanged(self):
+        from tasks import _attach_subject_counts
+
+        counts = {"generations": 0, "answers": 3}
+        before = _summarize_config_match(self._records(), subject_counts=counts)
+        records = _attach_subject_counts(self._records(), counts)
+        assert _summarize_config_match(records, subject_counts=counts) == before
