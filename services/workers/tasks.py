@@ -1776,6 +1776,7 @@ def run_evaluation(
             # At the end of evaluation we walk the list and mark each judge_run
             # `completed`/`failed`; the parent EvaluationRun status is then
             # aggregated from these children.
+            from model_defaults import DEFAULT_JUDGE_MODEL_ID
             from models import EvaluationJudgeRun
             import uuid as _uuid_judge
 
@@ -1783,7 +1784,9 @@ def run_evaluation(
                 judges = params.get("judges")
                 if isinstance(judges, list) and judges:
                     return judges
-                legacy = params.get("judge_model", "gpt-4o")
+                # `or`, not a .get default: writers also store the key with a
+                # null or empty value, which a default does not cover.
+                legacy = params.get("judge_model") or DEFAULT_JUDGE_MODEL_ID
                 runs = int(params.get("runs_per_judge", 1) or 1)
                 return [{"judge_model_id": legacy, "runs": runs}]
 
@@ -1874,7 +1877,7 @@ def run_evaluation(
 
                     # One EvaluationJudgeRun + one evaluator per (judge, run).
                     for judge_entry in judges_list:
-                        judge_model = judge_entry.get("judge_model_id") or "gpt-4o"
+                        judge_model = judge_entry.get("judge_model_id") or DEFAULT_JUDGE_MODEL_ID
                         runs = max(1, int(judge_entry.get("runs", 1) or 1))
                         # Tiered parameter resolution for judges (mode='evaluation').
                         # Pulls model.recommended_parameters from the catalog so
@@ -2359,13 +2362,41 @@ def run_evaluation(
                     classifier_unavailable=classifier_unavailable,
                 )
                 match_records.append({**side, "reason": reason})
-                if reason is not None:
+
+            # What the run's tasks hold on EACH side, so a config that matched
+            # nothing can say what it could have graded instead. The scoped
+            # pools above are 0 for a side this run never enumerated, which
+            # made a model-side run over an exam log `ann_pool=0` although the
+            # exam had answers. Counted only when some config matched nothing,
+            # so the happy path runs no extra query.
+            subject_counts = None
+            if any(r["reason"] is not None for r in match_records):
+                run_task_ids = [t.id for t in tasks]
+                subject_counts = {
+                    "generations": (
+                        db.query(Generation)
+                        .filter(Generation.task_id.in_(run_task_ids))
+                        .count()
+                    ),
+                    "answers": (
+                        db.query(Annotation)
+                        .filter(
+                            Annotation.task_id.in_(run_task_ids),
+                            Annotation.was_cancelled == False,  # noqa: E712
+                        )
+                        .count()
+                    ),
+                }
+                for rec in match_records:
+                    if rec["reason"] is None:
+                        continue
                     logger.warning(
                         f"[evaluation {evaluation_id}] config "
-                        f"{side['config_id']} ({side['metric']}) matched 0 "
-                        f"cells: {reason} (human={side['human_fields']}, "
-                        f"llm={side['llm_fields']}, gen_pool={gen_pool_scoped}, "
-                        f"ann_pool={ann_pool_scoped})"
+                        f"{rec['config_id']} ({rec['metric']}) matched 0 "
+                        f"cells: {rec['reason']} (human={rec['human_fields']}, "
+                        f"llm={rec['llm_fields']}, "
+                        f"generations={subject_counts['generations']}, "
+                        f"answers={subject_counts['answers']})"
                     )
 
             evaluation.eval_metadata = {
@@ -2394,7 +2425,9 @@ def run_evaluation(
             # (legitimate), or the configuration asks for something that
             # cannot exist (a misconfiguration nobody was told about).
             if cells_dispatched == 0:
-                should_fail, diagnostic = _summarize_config_match(match_records)
+                should_fail, diagnostic = _summarize_config_match(
+                    match_records, subject_counts=subject_counts
+                )
                 evaluation.completed_at = datetime.now()
                 evaluation.samples_evaluated = 0
                 evaluation.metrics = {}
@@ -3560,12 +3593,56 @@ _MATCH_REASON_HELP = {
 }
 
 
-def _summarize_config_match(records):
+def _match_reason_help(reason, subject_counts=None):
+    """Operator-facing text for one match ``reason``.
+
+    With ``subject_counts`` ({"generations": int, "answers": int} over the
+    run's tasks), the two side-mismatch reasons say what the OTHER side holds
+    and which selector would grade it. On prod an exam's judge aimed at
+    '__all_model__' was told only that there were no generations, never that
+    the exam had submitted answers it could have graded. Every other reason,
+    and a call without counts, keeps the general text.
+    """
+    counts = subject_counts or {}
+    generations = counts.get("generations")
+    answers = counts.get("answers")
+    have_counts = isinstance(generations, int) and isinstance(answers, int)
+    if reason == "no_generations" and have_counts:
+        if answers > 0:
+            return (
+                f"grades model generations and this project has none. It has "
+                f"{answers} submitted answer(s): to grade them, point the "
+                f"evaluation at a 'human:' field such as 'human:loesung', or at "
+                f"'__all_human__'."
+            )
+        return (
+            "grades model generations, and this project has no model "
+            "generations and no submitted answers yet, so there is nothing to "
+            "grade on either side."
+        )
+    if reason == "no_annotations" and have_counts:
+        if generations > 0:
+            return (
+                f"grades human annotations and this project has none. It has "
+                f"{generations} model generation(s): to grade them, point the "
+                f"evaluation at a 'model:<field>' field or at '__all_model__'."
+            )
+        return (
+            "grades human annotations, and this project has no submitted "
+            "answers and no model generations yet, so there is nothing to "
+            "grade on either side."
+        )
+    return _MATCH_REASON_HELP.get(reason, _MATCH_REASON_HELP["other"])
+
+
+def _summarize_config_match(records, subject_counts=None):
     """``(should_fail, error_message)`` for a run that dispatched no cell.
 
     Fails when ANY config carries a blocking reason. The message names the
     configs and says what to do, in the spirit of the rubric-resolution error:
     state what was missing and how to fix it, not just that something was.
+    ``subject_counts`` ({"generations": int, "answers": int} over the run's
+    tasks) lets the side-mismatch reasons name what the other side holds.
     """
     blocking = [
         r
@@ -3582,7 +3659,7 @@ def _summarize_config_match(records):
     for rec in blocking[:2]:
         label = rec.get("display_name") or rec.get("config_id") or rec.get("metric")
         reason = rec.get("reason") or "other"
-        help_text = _MATCH_REASON_HELP.get(reason, _MATCH_REASON_HELP["other"])
+        help_text = _match_reason_help(reason, subject_counts)
         fields = rec.get("human_fields", []) + rec.get("llm_fields", [])
         selectors = ", ".join(repr(f) for f in fields) or "none"
         parts.append(

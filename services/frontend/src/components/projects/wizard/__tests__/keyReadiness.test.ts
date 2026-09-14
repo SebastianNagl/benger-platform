@@ -5,12 +5,10 @@
  */
 
 import type { EvaluationConfig } from '@/lib/api/evaluation-types'
-import { readFileSync } from 'fs'
-import { resolve } from 'path'
+import { DEFAULT_MODEL_ID } from '@/lib/modelDefaults'
 import {
   decideKeyWarnings,
   evaluationKeyRoute,
-  FALLBACK_JUDGE_MODEL_ID,
   hasNeededModels,
   judgeModelIds,
   type KeyReadinessInput,
@@ -67,18 +65,18 @@ describe('judgeModelIds', () => {
   it('keeps a config without an enabled flag, as the worker does', () => {
     const config = { ...judge(), enabled: undefined }
     expect(judgeModelIds(config as unknown as EvaluationConfig)).toEqual([
-      FALLBACK_JUDGE_MODEL_ID,
+      DEFAULT_MODEL_ID,
     ])
   })
 
   it('runs on the worker fallback when no judge model is named', () => {
-    expect(judgeModelIds(judge())).toEqual([FALLBACK_JUDGE_MODEL_ID])
+    expect(judgeModelIds(judge())).toEqual([DEFAULT_MODEL_ID])
     expect(judgeModelIds(judge({ metric_parameters: params(null) }))).toEqual([
-      FALLBACK_JUDGE_MODEL_ID,
+      DEFAULT_MODEL_ID,
     ])
     expect(
       judgeModelIds(judge({ metric_parameters: params({ judge_model: '' }) })),
-    ).toEqual([FALLBACK_JUDGE_MODEL_ID])
+    ).toEqual([DEFAULT_MODEL_ID])
   })
 
   it('uses the judge model the config names', () => {
@@ -103,11 +101,7 @@ describe('judgeModelIds', () => {
           }),
         }),
       ),
-    ).toEqual([
-      'claude-sonnet',
-      FALLBACK_JUDGE_MODEL_ID,
-      FALLBACK_JUDGE_MODEL_ID,
-    ])
+    ).toEqual(['claude-sonnet', DEFAULT_MODEL_ID, DEFAULT_MODEL_ID])
   })
 
   it('falls back to judge_model when the ensemble is empty', () => {
@@ -156,7 +150,7 @@ describe('neededModels', () => {
       selectedModelIds: ['gpt-5.4-mini', 'gpt-5.4-mini'],
     })
     expect(needed).toEqual({
-      evaluation: [FALLBACK_JUDGE_MODEL_ID, 'claude-sonnet'],
+      evaluation: [DEFAULT_MODEL_ID, 'claude-sonnet'],
       generation: ['gpt-5.4-mini'],
     })
     expect(hasNeededModels(needed)).toBe(true)
@@ -562,27 +556,5 @@ describe('decideKeyWarnings: generation', () => {
       'evaluation:OpenAI',
       'generation:Anthropic',
     ])
-  })
-})
-
-describe('FALLBACK_JUDGE_MODEL_ID', () => {
-  // The worker source is the authority. If its fallback moves, this constant
-  // has to move with it, or the warning checks the wrong provider.
-  it('is the model the worker runs a judge on when the config names none', () => {
-    const workers = resolve(__dirname, '../../../../../../workers')
-    const tasks = readFileSync(resolve(workers, 'tasks.py'), 'utf8')
-    const judgeEvaluator = readFileSync(
-      resolve(workers, 'evaluation/judge_evaluator.py'),
-      'utf8',
-    )
-    expect(tasks).toContain(
-      `params.get("judge_model", "${FALLBACK_JUDGE_MODEL_ID}")`,
-    )
-    expect(tasks).toContain(
-      `judge_entry.get("judge_model_id") or "${FALLBACK_JUDGE_MODEL_ID}"`,
-    )
-    expect(judgeEvaluator).toContain(
-      `params.get("judge_model", "${FALLBACK_JUDGE_MODEL_ID}")`,
-    )
   })
 })

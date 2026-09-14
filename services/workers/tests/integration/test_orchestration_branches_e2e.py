@@ -1204,6 +1204,51 @@ def test_llm_judge_generation_path_end_to_end(
     assert meta["judges_by_config"]["jcfg"][0]["status"] == "completed"
 
 
+def test_llm_judge_config_without_a_model_grades_with_the_shared_default(
+    db_conn, make_user, make_llm_model, make_project, make_task,
+    make_generation, make_evaluation_run, mock_judge_mode,
+):
+    """A judge config stored with ``judge_model`` null and no ``judges`` list
+    is graded by the shared default, the model every picker shows. The worker
+    used to fall back to gpt-4o while the UI showed gpt-5.4-mini."""
+    from model_defaults import DEFAULT_JUDGE_MODEL_ID
+
+    user = make_user()
+    make_llm_model(model_id=DEFAULT_JUDGE_MODEL_ID, provider="OpenAI")
+    model = make_llm_model(provider="OpenAI")
+    project = make_project(created_by=user.id)
+    task = make_task(project.id, {"expected": "ja"}, created_by=user.id)
+    make_generation(project.id, task.id, model.id, user.id, response_content="ja")
+    run = make_evaluation_run(project.id, user.id, status="pending")
+    db_conn.commit()
+
+    config = _llm_judge_config()
+    config["metric_parameters"] = {"judge_model": None, "score_scale": "0-1"}
+    result = _run(db_conn, run, project, [config])
+    assert result["status"] == "dispatched"
+    assert result["gen_cells"] == 1
+
+    judge_runs = (
+        db_conn.query(EvaluationJudgeRun)
+        .filter(EvaluationJudgeRun.evaluation_id == run.id)
+        .all()
+    )
+    assert [jr.judge_model_id for jr in judge_runs] == [DEFAULT_JUDGE_MODEL_ID]
+
+    rows = (
+        db_conn.query(TaskEvaluation)
+        .filter(TaskEvaluation.evaluation_id == run.id)
+        .all()
+    )
+    assert len(rows) == 1
+    assert rows[0].judge_run_id == judge_runs[0].id
+
+    fresh = _refresh(db_conn, run)
+    assert fresh.status == "completed"
+    meta = fresh.eval_metadata or {}
+    assert meta["judges_by_config"]["jcfg"][0]["judge_model_id"] == DEFAULT_JUDGE_MODEL_ID
+
+
 # ---------------------------------------------------------------------------
 # 13 — llm_judge multi-run ensemble (2 runs of the same judge)
 # ---------------------------------------------------------------------------
@@ -2307,10 +2352,12 @@ def _no_running_judge_runs(db_conn, run):
 
 def test_zero_cells_from_unmatchable_config_fails_with_diagnostic(
     db_conn, make_user, make_project, make_task, make_annotation,
-    make_evaluation_run, exact_match_config,
+    make_evaluation_run, exact_match_config, caplog,
 ):
     """The production shape: a model-side config over a project that only has
     human annotations. It must fail, and say what to do."""
+    import logging
+
     user = make_user()
     project = make_project(created_by=user.id)
     task = make_task(project.id, {"expected": "ja"}, created_by=user.id)
@@ -2318,7 +2365,8 @@ def test_zero_cells_from_unmatchable_config_fails_with_diagnostic(
     run = make_evaluation_run(project.id, user.id, status="pending")
     db_conn.commit()
 
-    result = _run(db_conn, run, project, [exact_match_config()])
+    with caplog.at_level(logging.WARNING):
+        result = _run(db_conn, run, project, [exact_match_config()])
 
     assert result["status"] == "error"
     assert result["cells_dispatched"] == 0
@@ -2329,8 +2377,13 @@ def test_zero_cells_from_unmatchable_config_fails_with_diagnostic(
     assert "no cells matched" in (fresh.error_message or "")
     assert "no_generations" in fresh.error_message
     assert "__all_model__" in fresh.error_message
-    # The message points at the fix, not just the fault.
+    # The message points at the fix, not just the fault, and names what the
+    # project could have graded instead.
     assert "human:" in fresh.error_message
+    assert "1 submitted answer(s)" in fresh.error_message
+    # The warning log counts both sides project-wide, not the scoped pool of
+    # a side the run never enumerated.
+    assert "generations=0, answers=1" in caplog.text
 
     meta = fresh.eval_metadata or {}
     record = meta["match_by_config"]["cfg1"]
@@ -2409,6 +2462,7 @@ def test_human_only_config_dispatches_no_generation_cells(
     assert meta["gen_cells_dispatched"] == 0
     assert meta["match_by_config"]["hcfg"]["reason"] == "no_annotations"
     assert "no_annotations" in fresh.error_message
+    assert "1 model generation(s)" in fresh.error_message
 
 
 def test_partial_mismatch_still_grades_and_records_the_unmatched_config(

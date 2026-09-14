@@ -1,4 +1,5 @@
 import { getExternalHost, getInternalApiUrl } from '@/lib/utils/apiUrl'
+import { readJsonBody } from '@/lib/utils/jsonBody'
 import { logger } from '@/lib/utils/logger'
 import { NextRequest, NextResponse } from 'next/server'
 
@@ -8,7 +9,9 @@ import { NextRequest, NextResponse } from 'next/server'
 // (Vertretbar on vertretbar.net) and builds the link on the right host.
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
+    const parsed = await readJsonBody(request)
+    if (!parsed.ok) return parsed.response
+    const body = parsed.body
     const apiBaseUrl = getInternalApiUrl(request)
 
     logger.debug(

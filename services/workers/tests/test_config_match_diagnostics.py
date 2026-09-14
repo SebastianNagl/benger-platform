@@ -210,3 +210,84 @@ class TestSummary:
         assert should_fail is True
         assert len(message) <= 500
         assert "[+4 more]" in message
+
+
+class TestTheMessageNamesTheOtherSide:
+    """The side-mismatch reasons say what the other side holds and which
+    selector would grade it. On prod an exam's judge aimed at '__all_model__'
+    was told only that there were no generations, never that the exam had
+    submitted answers it could have graded."""
+
+    @staticmethod
+    def _model_side_rubric():
+        return [
+            {
+                **side(config_id="c1", metric="llm_judge_rubric",
+                       llm=["__all_model__"], name="Bewertungsbogen"),
+                "reason": "no_generations",
+            }
+        ]
+
+    @staticmethod
+    def _human_side_config():
+        return [{**side(config_id="h1", human=["loesung"]), "reason": "no_annotations"}]
+
+    def test_a_model_side_config_in_a_project_with_answers(self):
+        should_fail, message = _summarize_config_match(
+            self._model_side_rubric(), subject_counts={"generations": 0, "answers": 3}
+        )
+        assert should_fail is True
+        assert "3 submitted answer(s)" in message
+        assert "'human:loesung'" in message
+        assert "'__all_human__'" in message
+
+    def test_a_model_side_config_in_a_project_with_nothing_yet(self):
+        _, message = _summarize_config_match(
+            self._model_side_rubric(), subject_counts={"generations": 0, "answers": 0}
+        )
+        assert "nothing to grade on either side" in message
+        assert "submitted answer(s):" not in message
+
+    def test_a_human_side_config_in_a_project_with_generations(self):
+        _, message = _summarize_config_match(
+            self._human_side_config(), subject_counts={"generations": 2, "answers": 0}
+        )
+        assert "2 model generation(s)" in message
+        assert "'model:<field>'" in message
+        assert "'__all_model__'" in message
+
+    def test_a_human_side_config_in_a_project_with_nothing_yet(self):
+        _, message = _summarize_config_match(
+            self._human_side_config(), subject_counts={"generations": 0, "answers": 0}
+        )
+        assert "nothing to grade on either side" in message
+        assert "model generation(s):" not in message
+
+    def test_without_counts_the_general_advice_stays(self):
+        _, message = _summarize_config_match(self._model_side_rubric())
+        assert "Generate responses first" in message
+        assert "human:" in message
+
+    def test_other_reasons_ignore_the_counts(self):
+        records = [
+            {**side(config_id="f1", llm=["__all_model__"]),
+             "reason": "generation_filters_excluded_all"},
+        ]
+        _, message = _summarize_config_match(
+            records, subject_counts={"generations": 5, "answers": 7}
+        )
+        assert "filters excluded every one of them" in message
+        assert "submitted answer" not in message
+
+    def test_the_message_stays_bounded_with_counts(self):
+        records = [
+            {**side(config_id=f"c{i}", llm=["__all_model__"],
+                    name="A rather long evaluation display name"),
+             "reason": "no_generations"}
+            for i in range(4)
+        ]
+        should_fail, message = _summarize_config_match(
+            records, subject_counts={"generations": 0, "answers": 12}
+        )
+        assert should_fail is True
+        assert len(message) <= 500

@@ -8,9 +8,12 @@ Centralized configuration of AI provider capabilities including:
 - Cost tracking per model
 """
 
-from typing import Any, Dict, List, Optional
+import logging
 from dataclasses import dataclass
 from enum import Enum
+from typing import Any, Dict, List, Optional
+
+logger = logging.getLogger(__name__)
 
 
 class StructuredOutputMethod(str, Enum):
@@ -307,12 +310,13 @@ def _load_costs_from_catalog() -> Dict[str, Dict[str, "ModelCost"]]:
 
 
 def reload_capability_caches() -> None:
-    """Clear the in-memory cost + seed-support caches so the next lookup
-    re-reads the YAML. Called after `POST /api/admin/llm-models/reseed`
+    """Clear the in-memory cost, seed-support and provider caches so the next
+    lookup re-reads the YAML. Called after `POST /api/admin/llm-models/reseed`
     to make hotfix YAML edits visible without a process restart."""
-    global _COST_CACHE, _SEED_SUPPORT_CACHE
+    global _COST_CACHE, _SEED_SUPPORT_CACHE, _PROVIDER_BY_MODEL_CACHE
     _COST_CACHE = None
     _SEED_SUPPORT_CACHE = None
+    _PROVIDER_BY_MODEL_CACHE = None
 
 
 # Backward-compat alias — the function used to be called `reload_cost_cache`
@@ -445,12 +449,104 @@ def get_providers_with_seed_support() -> List[str]:
     ]
 
 
-def get_provider_from_model(model_id: str) -> str:
-    """Determine LLM provider from model ID string.
+#: Provider spellings a catalog may use that are neither a registry key nor a
+#: registry display name. Keys and display names are matched directly and
+#: case-insensitively; this covers only the remaining short forms.
+_CATALOG_PROVIDER_ALIASES: Dict[str, str] = {
+    "xai": "grok",
+    "x.ai": "grok",
+    "mistralai": "mistral",
+}
 
-    Returns lowercase provider key matching PROVIDER_CAPABILITIES keys.
-    Falls back to 'openai' for unknown models.
+#: {model_id: provider_key} from llm_models.yaml, loaded once. ``None`` means
+#: not loaded yet; an empty dict means the catalog could not be read, and every
+#: lookup then falls through to the model-id heuristics.
+_PROVIDER_BY_MODEL_CACHE: Optional[Dict[str, str]] = None
+
+
+def _normalize_catalog_provider(name: Any) -> Optional[str]:
+    """The PROVIDER_CAPABILITIES key for a catalog provider name, or None.
+
+    The catalog records providers as display names ("OpenAI", "DeepInfra",
+    "Grok"); the registry and the API-key services use lowercase keys.
     """
+    value = str(name or "").strip().lower()
+    if not value:
+        return None
+    if value in PROVIDER_CAPABILITIES:
+        return value
+    for key, data in PROVIDER_CAPABILITIES.items():
+        if str(data.get("display_name") or "").strip().lower() == value:
+            return key
+    return _CATALOG_PROVIDER_ALIASES.get(value)
+
+
+def _load_provider_by_model_from_catalog() -> Dict[str, str]:
+    """Build {model_id: provider_key} from llm_models.yaml and its overlay.
+
+    Each id is also stored lowercased (without overriding an exact id), so a
+    caller that passes an id in a different case still finds its row.
+    """
+    from seeds.llm_models_loader import load_catalog
+
+    mapping: Dict[str, str] = {}
+    for model in load_catalog().models:
+        provider = _normalize_catalog_provider(model.get("provider"))
+        if provider is None:
+            logger.warning(
+                "llm_models catalog: model %r names unknown provider %r; its "
+                "provider falls back to the model-id heuristics",
+                model.get("id"),
+                model.get("provider"),
+            )
+            continue
+        model_id = str(model["id"])
+        mapping[model_id] = provider
+        mapping.setdefault(model_id.lower(), provider)
+    return mapping
+
+
+def _provider_from_catalog(model_id: str) -> Optional[str]:
+    """The catalog's provider for ``model_id``, or None when it is not listed.
+
+    Never raises. An unreadable catalog is logged once and cached as empty,
+    so every lookup falls back to the heuristics instead of failing a call.
+    """
+    global _PROVIDER_BY_MODEL_CACHE
+    if _PROVIDER_BY_MODEL_CACHE is None:
+        try:
+            _PROVIDER_BY_MODEL_CACHE = _load_provider_by_model_from_catalog()
+        except Exception:
+            logger.warning(
+                "llm_models catalog could not be loaded; resolving providers "
+                "from model-id heuristics only",
+                exc_info=True,
+            )
+            _PROVIDER_BY_MODEL_CACHE = {}
+    if not isinstance(model_id, str):
+        return None
+    return _PROVIDER_BY_MODEL_CACHE.get(model_id) or _PROVIDER_BY_MODEL_CACHE.get(
+        model_id.lower()
+    )
+
+
+def get_provider_from_model(model_id: str) -> str:
+    """Determine the LLM provider, and so the API key a call spends, for a model.
+
+    Returns the lowercase provider key matching PROVIDER_CAPABILITIES keys.
+
+    Resolution order:
+      1. The model catalog (llm_models.yaml), which records every official
+         model's provider explicitly. The id heuristics below cannot tell a
+         DeepInfra-hosted model whose id contains "gpt" or "mistral" from the
+         vendor's own model, and would spend the wrong provider's key on it.
+      2. For ids the catalog does not list: user-registered ``custom-`` ids,
+         then the substring heuristics, then 'openai'.
+    """
+    catalog_provider = _provider_from_catalog(model_id)
+    if catalog_provider is not None:
+        return catalog_provider
+
     model_lower = model_id.lower()
 
     # BYOM: generated PKs of user-registered models. Without this branch a

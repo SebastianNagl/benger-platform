@@ -201,15 +201,25 @@ export function EvaluationBuilder({
   // One hint line under the judge Select when any custom judge is locked —
   // per-option links don't work inside a disabled Listbox option, so the
   // pointer to /models (community section) lives below the control.
-  const renderJudgeCredentialHint = () =>
-    customJudges.some(isJudgeMissingCredential) ? (
-      <div className="mt-1 text-xs text-amber-600">
-        {t('customModels.picker.missingKey')}{' '}
+  // Names the locked custom judges. The generic "No API key stored." read as
+  // if grading itself lacked a key, even with an official judge selected
+  // and a working organization key.
+  const renderJudgeCredentialHint = () => {
+    const locked = customJudges.filter(isJudgeMissingCredential)
+    return locked.length > 0 ? (
+      <div
+        className="mt-1 text-xs text-amber-600"
+        data-testid="judge-credential-hint"
+      >
+        {t('customModels.picker.lockedCustomJudges', {
+          models: locked.map((m) => m.name).join(', '),
+        })}{' '}
         <Link href="/models" className="underline hover:text-amber-700">
           {t('customModels.picker.configureKey')}
         </Link>
       </div>
     ) : null
+  }
 
   // Field types for LLM Judge auto-detection
   const [fieldTypes, setFieldTypes] = useState<Record<string, FieldTypeInfo>>(
@@ -299,6 +309,16 @@ export function EvaluationBuilder({
     }
 
     const metricDef = getMetricDefinitions()[newEvaluation.metric]
+    // The judge picker shows DEFAULT_MODEL_ID when no model was chosen, so the
+    // saved config names it too. A judge config without a model used to be
+    // graded by a different model than the one on screen.
+    const judges = newEvaluation.metric_parameters.judges
+    const metricParameters =
+      newEvaluation.metric.startsWith('llm_judge_') &&
+      !newEvaluation.metric_parameters.judge_model &&
+      !(Array.isArray(judges) && judges.length > 0)
+        ? { ...newEvaluation.metric_parameters, judge_model: DEFAULT_MODEL_ID }
+        : newEvaluation.metric_parameters
     const newConfig: EvaluationConfig = {
       id: editingId || generateEvaluationId(newEvaluation.metric),
       metric: newEvaluation.metric,
@@ -306,10 +326,10 @@ export function EvaluationBuilder({
         newEvaluation.display_name?.trim() ||
         computeDefaultEvalName(
           metricDef,
-          newEvaluation.metric_parameters,
+          metricParameters,
           newEvaluation.metric,
         ),
-      metric_parameters: newEvaluation.metric_parameters,
+      metric_parameters: metricParameters,
       prediction_fields: newEvaluation.prediction_fields,
       reference_fields: newEvaluation.reference_fields,
       enabled: true,

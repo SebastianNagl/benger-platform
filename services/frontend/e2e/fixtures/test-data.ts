@@ -124,7 +124,8 @@ export function generateClassificationTasks(count: number) {
   const tasks = []
   for (let i = 0; i < count; i++) {
     const category = categories[i % categories.length]
-    const subcategoryList = subcategories[category]
+    const subcategoryList =
+      subcategories[category as keyof typeof subcategories]
     const subcategory = subcategoryList[i % subcategoryList.length]
 
     tasks.push({

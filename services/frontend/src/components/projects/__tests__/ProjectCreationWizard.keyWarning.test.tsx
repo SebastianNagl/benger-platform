@@ -7,6 +7,7 @@
  * confirmed, and never blocks creating it.
  */
 
+import { DEFAULT_MODEL_ID } from '@/lib/modelDefaults'
 import '@testing-library/jest-dom'
 import { act, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -78,8 +79,15 @@ jest.mock('@/lib/api', () => ({
   __esModule: true,
   default: {
     evaluations: {
+      // A judge the config does not name runs on DEFAULT_MODEL_ID.
       getPublicModelCatalog: () =>
-        Promise.resolve([{ id: 'gpt-4o', name: 'GPT-4o', provider: 'OpenAI' }]),
+        Promise.resolve([
+          {
+            id: jest.requireActual('@/lib/modelDefaults').DEFAULT_MODEL_ID,
+            name: 'GPT-5.4 Mini',
+            provider: 'OpenAI',
+          },
+        ]),
       getUserApiKeys: (...args: unknown[]) => mockGetUserApiKeys(...args),
     },
   },
@@ -134,7 +142,7 @@ describe('ProjectCreationWizard: missing-key warning', () => {
     const item = await screen.findByTestId(
       'wizard-key-warning-evaluation-openai',
     )
-    expect(item).toHaveTextContent('Bewertung mit gpt-4o')
+    expect(item).toHaveTextContent(`Bewertung mit ${DEFAULT_MODEL_ID}`)
 
     const submit = screen.getByTestId('project-create-submit-button')
     expect(submit).toBeEnabled()

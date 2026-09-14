@@ -788,7 +788,7 @@ describe('/api/auth/signup', () => {
       expect(response.status).toBe(400)
     })
 
-    it('should handle invalid JSON in request body', async () => {
+    it('answers 422 for a body that is not valid JSON', async () => {
       const request = new NextRequest('http://localhost:3000/api/auth/signup', {
         method: 'POST',
         headers: {
@@ -800,9 +800,10 @@ describe('/api/auth/signup', () => {
 
       const response = await POST(request)
 
-      expect(response.status).toBe(500)
+      expect(response.status).toBe(422)
       const data = await response.json()
-      expect(data.error).toBe('Internal server error')
+      expect(data.detail).toBe('Request body must be valid JSON.')
+      expect(global.fetch).not.toHaveBeenCalled()
     })
 
     it('should handle null values in required fields', async () => {

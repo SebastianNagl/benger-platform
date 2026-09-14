@@ -27,18 +27,10 @@
  */
 
 import type { EvaluationConfig } from '@/lib/api/evaluation-types'
+import { DEFAULT_MODEL_ID } from '@/lib/modelDefaults'
 import type { WizardData, WizardVisibility } from './types'
 
 export type KeyPurpose = 'evaluation' | 'generation'
-
-/**
- * The judge a config runs on when it names none. Mirrors the worker's
- * fallback in `_resolve_judges` (services/workers/tasks.py) and in
- * services/workers/evaluation/judge_evaluator.py, and a test pins them
- * together. It is not DEFAULT_MODEL_ID: that is only what a picker shows
- * before anyone chooses, and the wizard does not write it into the config.
- */
-export const FALLBACK_JUDGE_MODEL_ID = 'gpt-4o'
 
 export interface NeededModels {
   evaluation: string[]
@@ -104,7 +96,9 @@ const hasOwn = (record: object, key: string): boolean =>
   Object.prototype.hasOwnProperty.call(record, key)
 
 /** The model ids an evaluation config sends to an LLM, as the worker resolves
- * them. */
+ * them. A judge the config does not name runs on DEFAULT_MODEL_ID, the
+ * worker's DEFAULT_JUDGE_MODEL_ID (services/shared/model_defaults.py); a
+ * drift test pins the two together. */
 export function judgeModelIds(config: EvaluationConfig): string[] {
   // The worker keeps a config unless `enabled` is present and falsy.
   if (config.enabled !== undefined && !config.enabled) return []
@@ -114,11 +108,11 @@ export function judgeModelIds(config: EvaluationConfig): string[] {
   if (Array.isArray(judges) && judges.length > 0) {
     return judges.map((entry) => {
       const id = (entry as { judge_model_id?: unknown } | null)?.judge_model_id
-      return typeof id === 'string' && id ? id : FALLBACK_JUDGE_MODEL_ID
+      return typeof id === 'string' && id ? id : DEFAULT_MODEL_ID
     })
   }
   const model = params.judge_model
-  return [typeof model === 'string' && model ? model : FALLBACK_JUDGE_MODEL_ID]
+  return [typeof model === 'string' && model ? model : DEFAULT_MODEL_ID]
 }
 
 export function neededModels(

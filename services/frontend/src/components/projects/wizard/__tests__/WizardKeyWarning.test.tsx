@@ -8,6 +8,7 @@
  * including whenever a fact could not be loaded.
  */
 
+import { DEFAULT_MODEL_ID } from '@/lib/modelDefaults'
 import '@testing-library/jest-dom'
 import { act, render, screen, waitFor } from '@testing-library/react'
 import { INITIAL_WIZARD_DATA, type WizardData } from '../types'
@@ -65,8 +66,9 @@ jest.mock('@/contexts/I18nContext', () => ({
   }),
 }))
 
+// The judged project names no judge, so it runs on DEFAULT_MODEL_ID.
 const CATALOG = [
-  { id: 'gpt-4o', name: 'GPT-4o', provider: 'OpenAI' },
+  { id: DEFAULT_MODEL_ID, name: 'GPT-5.4 Mini', provider: 'OpenAI' },
   { id: 'claude-sonnet', name: 'Claude Sonnet', provider: 'Anthropic' },
 ]
 
@@ -130,7 +132,7 @@ describe('WizardKeyWarning', () => {
     const item = await screen.findByTestId(
       'wizard-key-warning-evaluation-openai',
     )
-    expect(item).toHaveTextContent('Bewertung mit gpt-4o')
+    expect(item).toHaveTextContent(`Bewertung mit ${DEFAULT_MODEL_ID}`)
     expect(item).toHaveTextContent(
       'Das Projekt gehört keiner Organisation an, daher wird mit Ihrem eigenen OpenAI-Schlüssel bewertet, und Sie haben keinen hinterlegt.',
     )

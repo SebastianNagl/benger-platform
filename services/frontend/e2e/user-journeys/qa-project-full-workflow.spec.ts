@@ -174,7 +174,7 @@ test.describe('QA Project Full Workflow (Create-to-Verify) @extended', () => {
 
     // Import tasks via the async flow (#158 removed the sync endpoint)
     const importResult = await page.evaluate(importTasksInBrowser, {
-      projectId,
+      projectId: projectId as string,
       tasks: TEST_TASKS,
     })
 

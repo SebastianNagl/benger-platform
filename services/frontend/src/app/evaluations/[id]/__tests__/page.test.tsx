@@ -800,5 +800,35 @@ describe('EvaluationDashboard ([id] page)', () => {
         screen.queryByTestId('evaluation-run-failed'),
       ).not.toBeInTheDocument()
     })
+
+    it('hides the model for a run over submitted answers and greys an empty pass rate', async () => {
+      ;(apiClient.evaluations.getResults as jest.Mock).mockResolvedValue({
+        ...baseEvaluation,
+        model_id: 'unknown',
+        status: 'failed',
+        samples_evaluated: 0,
+        eval_metadata: { ...baseEvaluation.eval_metadata, pass_rate: 0 },
+      })
+      renderPage()
+      await screen.findByTestId('evaluation-run-failed')
+      // The worker records 'unknown' for such runs; it is not a model.
+      expect(
+        screen.queryByTestId('evaluation-detail-model'),
+      ).not.toBeInTheDocument()
+      // A 0.0% pass rate with nothing graded is not shown as a success.
+      const passRate = screen.getByTestId('evaluation-detail-pass-rate')
+      expect(passRate).toHaveClass('text-gray-500')
+      expect(passRate).not.toHaveClass('text-green-600')
+    })
+
+    it('keeps the model and the green pass rate for a graded run', async () => {
+      renderPage()
+      expect(
+        await screen.findByTestId('evaluation-detail-model'),
+      ).toHaveTextContent('gpt-4o')
+      expect(screen.getByTestId('evaluation-detail-pass-rate')).toHaveClass(
+        'text-green-600',
+      )
+    })
   })
 })
