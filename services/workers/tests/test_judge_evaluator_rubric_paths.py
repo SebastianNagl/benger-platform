@@ -354,3 +354,36 @@ def test_project_without_a_key_still_uses_the_sheet_scale():
     details = row.metrics["llm_judge_rubric"]["details"]
     assert details["grade_points"] == 4
     assert details["grade_scale_source"] == "rubric"
+
+
+@pytest.mark.parametrize("stored", [None, ""])
+def test_a_stored_null_judge_model_resolves_to_the_shared_default(stored):
+    """Writers store the key with a null or empty value (the Bewertungsbogen
+    setup does when neither a judge nor a generator is given). The old
+    ``.get("judge_model", "gpt-4o")`` default did not cover that, so None
+    reached the provider lookup. It must resolve to the shared default, the
+    model every picker shows."""
+    from model_defaults import DEFAULT_JUDGE_MODEL_ID
+
+    db = MagicMock()
+    db.query.return_value.filter.return_value.first.return_value = None
+    kwargs = _impl_kwargs(db)
+    kwargs["metric_params"] = {"judge_model": stored}
+    providers_asked = []
+
+    def _provider(model_id):
+        providers_asked.append(model_id)
+        return "openai"
+
+    with patch("tasks._get_provider_from_model", side_effect=_provider), patch(
+        "ml_evaluation.llm_judge_evaluator.create_llm_judge_for_user",
+        return_value=_judge_factory_mock(),
+    ) as create_judge:
+        # No task row, so the run stops at the rubric lookup, after the judge
+        # was built.
+        with pytest.raises(RuntimeError) as exc:
+            _evaluate_llm_judge_single_impl(**kwargs)
+
+    assert str(exc.value) == _NO_RUBRIC_ERROR.format(task_id="task-1")
+    assert providers_asked == [DEFAULT_JUDGE_MODEL_ID]
+    assert create_judge.call_args.kwargs["judge_model"] == DEFAULT_JUDGE_MODEL_ID

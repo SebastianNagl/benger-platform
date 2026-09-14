@@ -23,6 +23,7 @@
 
 import { registerMetric, registerMetricGroup } from '@/lib/api/evaluation-types'
 import { registerMetricEditor } from '@/lib/extensions/metricEditors'
+import { DEFAULT_MODEL_ID } from '@/lib/modelDefaults'
 import {
   act,
   fireEvent,
@@ -753,5 +754,68 @@ describe('extended metric editor fallback', () => {
     expect(
       screen.getByText('evaluationBuilder.parameters.defaultParameters'),
     ).toBeInTheDocument()
+  })
+})
+
+// ====================================================================
+// The saved config names the judge the picker shows
+// ====================================================================
+
+describe('judge model stored on add', () => {
+  async function addFromReview(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(screen.getByTestId('wizard-next-button'))
+    await waitFor(() =>
+      expect(
+        screen.getByText('evaluationBuilder.steps.review.title'),
+      ).toBeInTheDocument(),
+    )
+    const addBtn = screen
+      .getAllByRole('button')
+      .find(
+        (b) =>
+          b.querySelector('[data-testid="check-icon"]') &&
+          b.textContent?.includes('evaluationBuilder.addEvaluation'),
+      )!
+    await user.click(addBtn)
+  }
+
+  function lastAdded(onEvaluationsChange: jest.Mock, metric: string) {
+    const calls = onEvaluationsChange.mock.calls
+    const configs = calls[calls.length - 1][0] as Array<Record<string, any>>
+    return configs.find((c) => c.metric === metric)!
+  }
+
+  it('stores the default judge when the picker was left untouched', async () => {
+    const onEvaluationsChange = jest.fn()
+    const user = userEvent.setup()
+    await gotoParameters(user, 'llm_judge_classic', {
+      ...defaultProps,
+      onEvaluationsChange,
+    })
+
+    await addFromReview(user)
+
+    // A config without a model was graded by the worker's own fallback,
+    // not by the model on screen.
+    const added = lastAdded(onEvaluationsChange, 'llm_judge_classic')
+    expect(added.metric_parameters.judge_model).toBe(DEFAULT_MODEL_ID)
+  })
+
+  it('keeps the judge the user picked', async () => {
+    const onEvaluationsChange = jest.fn()
+    const user = userEvent.setup()
+    await gotoParameters(user, 'llm_judge_classic', {
+      ...defaultProps,
+      onEvaluationsChange,
+    })
+    const judgeSelect = screen
+      .getAllByRole('combobox')
+      .find((el) => el.querySelector('option[value="claude-sonnet-4"]'))!
+    fireEvent.change(judgeSelect, { target: { value: 'claude-sonnet-4' } })
+
+    await addFromReview(user)
+
+    const added = lastAdded(onEvaluationsChange, 'llm_judge_classic')
+    expect(added.metric_parameters.judge_model).toBe('claude-sonnet-4')
   })
 })

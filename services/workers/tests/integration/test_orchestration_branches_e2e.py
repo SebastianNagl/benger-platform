@@ -1204,6 +1204,51 @@ def test_llm_judge_generation_path_end_to_end(
     assert meta["judges_by_config"]["jcfg"][0]["status"] == "completed"
 
 
+def test_llm_judge_config_without_a_model_grades_with_the_shared_default(
+    db_conn, make_user, make_llm_model, make_project, make_task,
+    make_generation, make_evaluation_run, mock_judge_mode,
+):
+    """A judge config stored with ``judge_model`` null and no ``judges`` list
+    is graded by the shared default, the model every picker shows. The worker
+    used to fall back to gpt-4o while the UI showed gpt-5.4-mini."""
+    from model_defaults import DEFAULT_JUDGE_MODEL_ID
+
+    user = make_user()
+    make_llm_model(model_id=DEFAULT_JUDGE_MODEL_ID, provider="OpenAI")
+    model = make_llm_model(provider="OpenAI")
+    project = make_project(created_by=user.id)
+    task = make_task(project.id, {"expected": "ja"}, created_by=user.id)
+    make_generation(project.id, task.id, model.id, user.id, response_content="ja")
+    run = make_evaluation_run(project.id, user.id, status="pending")
+    db_conn.commit()
+
+    config = _llm_judge_config()
+    config["metric_parameters"] = {"judge_model": None, "score_scale": "0-1"}
+    result = _run(db_conn, run, project, [config])
+    assert result["status"] == "dispatched"
+    assert result["gen_cells"] == 1
+
+    judge_runs = (
+        db_conn.query(EvaluationJudgeRun)
+        .filter(EvaluationJudgeRun.evaluation_id == run.id)
+        .all()
+    )
+    assert [jr.judge_model_id for jr in judge_runs] == [DEFAULT_JUDGE_MODEL_ID]
+
+    rows = (
+        db_conn.query(TaskEvaluation)
+        .filter(TaskEvaluation.evaluation_id == run.id)
+        .all()
+    )
+    assert len(rows) == 1
+    assert rows[0].judge_run_id == judge_runs[0].id
+
+    fresh = _refresh(db_conn, run)
+    assert fresh.status == "completed"
+    meta = fresh.eval_metadata or {}
+    assert meta["judges_by_config"]["jcfg"][0]["judge_model_id"] == DEFAULT_JUDGE_MODEL_ID
+
+
 # ---------------------------------------------------------------------------
 # 13 — llm_judge multi-run ensemble (2 runs of the same judge)
 # ---------------------------------------------------------------------------

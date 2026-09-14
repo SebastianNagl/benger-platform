@@ -1776,6 +1776,7 @@ def run_evaluation(
             # At the end of evaluation we walk the list and mark each judge_run
             # `completed`/`failed`; the parent EvaluationRun status is then
             # aggregated from these children.
+            from model_defaults import DEFAULT_JUDGE_MODEL_ID
             from models import EvaluationJudgeRun
             import uuid as _uuid_judge
 
@@ -1783,7 +1784,9 @@ def run_evaluation(
                 judges = params.get("judges")
                 if isinstance(judges, list) and judges:
                     return judges
-                legacy = params.get("judge_model", "gpt-4o")
+                # `or`, not a .get default: writers also store the key with a
+                # null or empty value, which a default does not cover.
+                legacy = params.get("judge_model") or DEFAULT_JUDGE_MODEL_ID
                 runs = int(params.get("runs_per_judge", 1) or 1)
                 return [{"judge_model_id": legacy, "runs": runs}]
 
@@ -1874,7 +1877,7 @@ def run_evaluation(
 
                     # One EvaluationJudgeRun + one evaluator per (judge, run).
                     for judge_entry in judges_list:
-                        judge_model = judge_entry.get("judge_model_id") or "gpt-4o"
+                        judge_model = judge_entry.get("judge_model_id") or DEFAULT_JUDGE_MODEL_ID
                         runs = max(1, int(judge_entry.get("runs", 1) or 1))
                         # Tiered parameter resolution for judges (mode='evaluation').
                         # Pulls model.recommended_parameters from the catalog so

@@ -54,10 +54,13 @@ def _evaluate_llm_judge_single_impl(
             backward compatibility; older callers leave it NULL.
     """
     from ml_evaluation.llm_judge_evaluator import create_llm_judge_for_user
+    from model_defaults import DEFAULT_JUDGE_MODEL_ID
     from models import TaskEvaluation
 
     params = metric_params or {}
-    judge_model = params.get("judge_model", "gpt-4o")
+    # `or`, not a .get default: a stored null model reached the provider
+    # lookup below as None.
+    judge_model = params.get("judge_model") or DEFAULT_JUDGE_MODEL_ID
     provider = tasks._get_provider_from_model(judge_model)
 
     # Tiered parameter resolution for the judge call (mode='evaluation').

@@ -299,6 +299,16 @@ export function EvaluationBuilder({
     }
 
     const metricDef = getMetricDefinitions()[newEvaluation.metric]
+    // The judge picker shows DEFAULT_MODEL_ID when no model was chosen, so the
+    // saved config names it too. A judge config without a model used to be
+    // graded by a different model than the one on screen.
+    const judges = newEvaluation.metric_parameters.judges
+    const metricParameters =
+      newEvaluation.metric.startsWith('llm_judge_') &&
+      !newEvaluation.metric_parameters.judge_model &&
+      !(Array.isArray(judges) && judges.length > 0)
+        ? { ...newEvaluation.metric_parameters, judge_model: DEFAULT_MODEL_ID }
+        : newEvaluation.metric_parameters
     const newConfig: EvaluationConfig = {
       id: editingId || generateEvaluationId(newEvaluation.metric),
       metric: newEvaluation.metric,
@@ -306,10 +316,10 @@ export function EvaluationBuilder({
         newEvaluation.display_name?.trim() ||
         computeDefaultEvalName(
           metricDef,
-          newEvaluation.metric_parameters,
+          metricParameters,
           newEvaluation.metric,
         ),
-      metric_parameters: newEvaluation.metric_parameters,
+      metric_parameters: metricParameters,
       prediction_fields: newEvaluation.prediction_fields,
       reference_fields: newEvaluation.reference_fields,
       enabled: true,
