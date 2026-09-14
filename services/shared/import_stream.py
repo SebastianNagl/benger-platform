@@ -1977,6 +1977,97 @@ def _insert_post_annotation_response(ctx: _FullImportContext, par_data: dict) ->
         ctx.db.add(new_par)
 
 
+def _setting(project_data: dict, key: str, default):
+    """``project_data[key]`` unless absent or null, then the column default.
+
+    For NOT NULL project settings: exports older than the key omit it, and a
+    stray explicit null must not fail the insert."""
+    value = project_data.get(key)
+    return default if value is None else value
+
+
+def _split_accessible_model_ids(ctx: "_FullImportContext", models, importing_user):
+    """Partition exported model ids into ``(kept, dropped)`` for this instance.
+
+    Kept: ids that exist here and are official, or custom (BYOM) rows the
+    importing user can access (superadmin, public, their own, or shared with
+    one of their active orgs). Everything else is dropped. Order is preserved.
+    Raises on DB errors; callers decide how to degrade.
+    """
+    # Lazy import: LLMModel/ModelOrganization aren't needed anywhere else
+    # in this module.
+    from models import LLMModel, ModelOrganization
+
+    candidate_ids = [m for m in models if isinstance(m, str)]
+    rows = (
+        ctx.db.query(LLMModel).filter(LLMModel.id.in_(candidate_ids)).all()
+        if candidate_ids
+        else []
+    )
+    rows_by_id = {r.id: r for r in rows}
+
+    is_superadmin = bool(getattr(importing_user, "is_superadmin", False))
+    active_org_ids = {
+        m.organization_id
+        for m in (importing_user.organization_memberships or [])
+        if m.is_active
+    }
+    custom_ids = [r.id for r in rows if not r.is_official]
+    org_shared_ids: Set[str] = set()
+    if custom_ids and active_org_ids and not is_superadmin:
+        org_shared_ids = {
+            mo.model_id
+            for mo in ctx.db.query(ModelOrganization)
+            .filter(
+                ModelOrganization.model_id.in_(custom_ids),
+                ModelOrganization.organization_id.in_(active_org_ids),
+            )
+            .all()
+        }
+
+    kept, dropped = [], []
+    for model_id in models:
+        row = rows_by_id.get(model_id) if isinstance(model_id, str) else None
+        if row is None:
+            dropped.append(model_id)
+        elif row.is_official:
+            kept.append(model_id)
+        elif (
+            is_superadmin
+            or row.is_public
+            or (row.created_by is not None and str(row.created_by) == str(ctx.user_id))
+            or row.id in org_shared_ids
+        ):
+            kept.append(model_id)
+        else:
+            dropped.append(model_id)
+    return kept, dropped
+
+
+def _reconcile_llm_model_ids(ctx: "_FullImportContext", llm_model_ids, importing_user):
+    """Same catalog/access reconciliation as generation_config, for the
+    project-level ``llm_model_ids`` selection. Best-effort: any failure keeps
+    the exported list untouched."""
+    if not isinstance(llm_model_ids, list) or not llm_model_ids:
+        return llm_model_ids
+    try:
+        kept, dropped = _split_accessible_model_ids(ctx, llm_model_ids, importing_user)
+    except Exception as e:  # noqa: BLE001 - a stale model list must never fail an import
+        logger.warning(
+            f"Import: could not reconcile llm_model_ids, keeping the exported "
+            f"list as-is: {e}"
+        )
+        return llm_model_ids
+    if dropped:
+        logger.warning(
+            "Import: dropped %d model id(s) from llm_model_ids (unknown on this "
+            "instance or not accessible to the importing user): %s",
+            len(dropped),
+            dropped,
+        )
+    return kept
+
+
 def _reconcile_generation_config_models(
     ctx: "_FullImportContext", generation_config, importing_user
 ):
@@ -2004,54 +2095,7 @@ def _reconcile_generation_config_models(
         return generation_config
 
     try:
-        # Lazy import: LLMModel/ModelOrganization aren't needed anywhere else
-        # in this module.
-        from models import LLMModel, ModelOrganization
-
-        candidate_ids = [m for m in models if isinstance(m, str)]
-        rows = (
-            ctx.db.query(LLMModel).filter(LLMModel.id.in_(candidate_ids)).all()
-            if candidate_ids
-            else []
-        )
-        rows_by_id = {r.id: r for r in rows}
-
-        is_superadmin = bool(getattr(importing_user, "is_superadmin", False))
-        active_org_ids = {
-            m.organization_id
-            for m in (importing_user.organization_memberships or [])
-            if m.is_active
-        }
-        custom_ids = [r.id for r in rows if not r.is_official]
-        org_shared_ids: Set[str] = set()
-        if custom_ids and active_org_ids and not is_superadmin:
-            org_shared_ids = {
-                mo.model_id
-                for mo in ctx.db.query(ModelOrganization)
-                .filter(
-                    ModelOrganization.model_id.in_(custom_ids),
-                    ModelOrganization.organization_id.in_(active_org_ids),
-                )
-                .all()
-            }
-
-        kept, dropped = [], []
-        for model_id in models:
-            row = rows_by_id.get(model_id) if isinstance(model_id, str) else None
-            if row is None:
-                dropped.append(model_id)
-            elif row.is_official:
-                kept.append(model_id)
-            elif (
-                is_superadmin
-                or row.is_public
-                or (row.created_by is not None and str(row.created_by) == str(ctx.user_id))
-                or row.id in org_shared_ids
-            ):
-                kept.append(model_id)
-            else:
-                dropped.append(model_id)
-
+        kept, dropped = _split_accessible_model_ids(ctx, models, importing_user)
         if dropped:
             logger.warning(
                 "Import: dropped %d model id(s) from generation_config."
@@ -2153,6 +2197,38 @@ def _create_imported_project(
         # which resets, a window is intrinsic project config worth carrying over).
         window_start_at=_parse_iso(project_data.get("window_start_at")),
         window_end_at=_parse_iso(project_data.get("window_end_at")),
+        # Kind + per-project settings. Older exports lack these keys, so every
+        # read falls back to the column default (also for an explicit null on
+        # a NOT NULL column).
+        kind=project_data.get("kind"),
+        icon=project_data.get("icon"),
+        annotator_full_visibility_after_submit=_setting(
+            project_data, "annotator_full_visibility_after_submit", False
+        ),
+        immediate_evaluation_enabled=_setting(
+            project_data, "immediate_evaluation_enabled", False
+        ),
+        annotation_time_limit_enabled=_setting(
+            project_data, "annotation_time_limit_enabled", False
+        ),
+        annotation_time_limit_seconds=project_data.get("annotation_time_limit_seconds"),
+        strict_timer_enabled=_setting(project_data, "strict_timer_enabled", False),
+        restorable_checkpoints_enabled=_setting(
+            project_data, "restorable_checkpoints_enabled", True
+        ),
+        checkpoint_interval_seconds=_setting(
+            project_data, "checkpoint_interval_seconds", 300
+        ),
+        skip_queue=_setting(project_data, "skip_queue", "requeue_for_others"),
+        llm_model_ids=_reconcile_llm_model_ids(
+            ctx, project_data.get("llm_model_ids"), user_with_memberships
+        ),
+        enable_annotation=_setting(project_data, "enable_annotation", True),
+        enable_generation=_setting(project_data, "enable_generation", True),
+        enable_evaluation=_setting(project_data, "enable_evaluation", True),
+        # Deliberately NOT imported: is_private / is_public / public_role /
+        # origin. Visibility is reset on import (the importer decides who sees
+        # the copy), and origin marks how the SOURCE project came to exist.
     )
 
     ctx.db.add(new_project)

@@ -1176,6 +1176,151 @@ class TestRoundtripExtensions:
         assert proj["korrektur_enabled"] == True  # noqa: E712
         assert proj["korrektur_config"][0]["value"] == "✓"
 
+    def test_project_kind_and_settings_survive_full_import(
+        self, db_session, user, project_with_full_data
+    ):
+        """kind, icon, timer/checkpoint/feature settings and llm_model_ids
+        survive export -> create-new import; visibility and origin do not."""
+        from models import LLMModel, Organization, OrganizationMembership
+        from routers.projects._import_stream import run_full_project_import
+
+        org = Organization(
+            id=str(uuid.uuid4()),
+            name="Roundtrip Org",
+            slug=f"rt-{uuid.uuid4().hex[:8]}",
+            display_name="Roundtrip Org",
+        )
+        db_session.add(org)
+        db_session.flush()
+        db_session.add(
+            OrganizationMembership(
+                id=str(uuid.uuid4()),
+                user_id=user.id,
+                organization_id=org.id,
+                role="ORG_ADMIN",
+                is_active=True,
+            )
+        )
+        official_id = f"rt-official-{uuid.uuid4().hex[:8]}"
+        db_session.add(
+            LLMModel(
+                id=official_id,
+                name="Roundtrip Official",
+                provider="openai",
+                model_type="chat",
+                capabilities=["text_generation"],
+                is_official=True,
+            )
+        )
+
+        project = project_with_full_data["project"]
+        project.kind = "exam"
+        project.icon = "📝"
+        project.origin = "student"
+        # is_private and is_public are mutually exclusive (DB check).
+        project.is_public = True
+        project.public_role = "ANNOTATOR"
+        project.annotator_full_visibility_after_submit = True
+        project.immediate_evaluation_enabled = True
+        project.annotation_time_limit_enabled = True
+        project.annotation_time_limit_seconds = 5400
+        project.strict_timer_enabled = True
+        project.restorable_checkpoints_enabled = False
+        project.checkpoint_interval_seconds = 120
+        project.skip_queue = "ignore_skipped"
+        project.llm_model_ids = [official_id, "no-such-model-on-this-instance"]
+        project.enable_annotation = True
+        project.enable_generation = False
+        project.enable_evaluation = False
+        db_session.commit()
+
+        export = _export_project_dict(db_session, project.id)
+        proj = export["project"]
+        assert proj["kind"] == "exam"
+        assert proj["icon"] == "📝"
+        assert proj["annotation_time_limit_seconds"] == 5400
+        assert proj["skip_queue"] == "ignore_skipped"
+        assert proj["enable_generation"] is False
+        for key in ("is_private", "is_public", "public_role", "origin"):
+            assert key not in proj, f"visibility/origin key exported: {key}"
+
+        result = run_full_project_import(
+            db_session, io.BytesIO(json.dumps(export).encode("utf-8")), user.id
+        )
+        imported = (
+            db_session.query(Project).filter(Project.id == result["project_id"]).one()
+        )
+        assert imported.id != project.id
+        assert imported.kind == "exam"
+        assert imported.icon == "📝"
+        assert imported.annotator_full_visibility_after_submit is True
+        assert imported.immediate_evaluation_enabled is True
+        assert imported.annotation_time_limit_enabled is True
+        assert imported.annotation_time_limit_seconds == 5400
+        assert imported.strict_timer_enabled is True
+        assert imported.restorable_checkpoints_enabled is False
+        assert imported.checkpoint_interval_seconds == 120
+        assert imported.skip_queue == "ignore_skipped"
+        assert imported.enable_annotation is True
+        assert imported.enable_generation is False
+        assert imported.enable_evaluation is False
+        # Unknown model ids are reconciled away like generation_config models.
+        assert imported.llm_model_ids == [official_id]
+        # Visibility is reset and origin is not carried over.
+        assert imported.is_private is False
+        assert imported.is_public is False
+        assert imported.public_role is None
+        assert imported.origin is None
+
+    def test_older_export_without_settings_imports_with_column_defaults(
+        self, db_session, user, project_with_full_data
+    ):
+        """An export predating the settings keys (or carrying explicit nulls)
+        imports with the column defaults instead of failing NOT NULL."""
+        from models import Organization, OrganizationMembership
+        from routers.projects._import_stream import run_full_project_import
+
+        org = Organization(
+            id=str(uuid.uuid4()),
+            name="Legacy Org",
+            slug=f"legacy-{uuid.uuid4().hex[:8]}",
+            display_name="Legacy Org",
+        )
+        db_session.add(org)
+        db_session.flush()
+        db_session.add(
+            OrganizationMembership(
+                id=str(uuid.uuid4()),
+                user_id=user.id,
+                organization_id=org.id,
+                role="ORG_ADMIN",
+                is_active=True,
+            )
+        )
+        db_session.commit()
+
+        export = _export_project_dict(
+            db_session, project_with_full_data["project"].id
+        )
+        proj = export["project"]
+        for key in ("kind", "icon", "strict_timer_enabled", "llm_model_ids"):
+            proj.pop(key)
+        proj["skip_queue"] = None
+        proj["checkpoint_interval_seconds"] = None
+        proj["enable_evaluation"] = None
+
+        result = run_full_project_import(
+            db_session, io.BytesIO(json.dumps(export).encode("utf-8")), user.id
+        )
+        imported = (
+            db_session.query(Project).filter(Project.id == result["project_id"]).one()
+        )
+        assert imported.kind is None
+        assert imported.strict_timer_enabled is False
+        assert imported.skip_queue == "requeue_for_others"
+        assert imported.checkpoint_interval_seconds == 300
+        assert imported.enable_evaluation is True
+
 
 class TestTaskRubricRoundtrip:
     """Bewertungsbogen rows (migration 100 shape) survive export → import:

@@ -371,6 +371,42 @@ class TestNDJSONRoundtrip:
         }
         assert any("Generated answer for" in c for c in contents)
 
+    def test_roundtrip_carries_kind_and_project_settings(self, test_db, full_project):
+        """The NDJSON meta record carries the same project settings as the
+        comprehensive JSON; visibility and origin are reset on import."""
+        project, admin = full_project
+        project.kind = "exam"
+        project.icon = "⚖️"
+        project.origin = "student"
+        project.is_private = True
+        project.annotation_time_limit_enabled = True
+        project.annotation_time_limit_seconds = 7200
+        project.strict_timer_enabled = True
+        project.checkpoint_interval_seconds = 600
+        project.immediate_evaluation_enabled = True
+        project.enable_generation = False
+        test_db.commit()
+
+        ndjson = _export_ndjson(test_db, project)
+        meta = json.loads(ndjson.splitlines()[0])
+        assert meta["project"]["kind"] == "exam"
+        assert "is_private" not in meta["project"]
+
+        new_pid = run_full_project_import(
+            test_db, io.BytesIO(ndjson.encode("utf-8")), admin.id
+        )["project_id"]
+        imported = test_db.query(Project).filter(Project.id == new_pid).one()
+        assert imported.kind == "exam"
+        assert imported.icon == "⚖️"
+        assert imported.annotation_time_limit_enabled is True
+        assert imported.annotation_time_limit_seconds == 7200
+        assert imported.strict_timer_enabled is True
+        assert imported.checkpoint_interval_seconds == 600
+        assert imported.immediate_evaluation_enabled is True
+        assert imported.enable_generation is False
+        assert imported.is_private is False
+        assert imported.origin is None
+
     def test_ndjson_matches_comprehensive_import(self, test_db, full_project):
         """Importing the NDJSON export and importing the comprehensive-JSON export
         of the same project must yield identical entity counts — proof the two
