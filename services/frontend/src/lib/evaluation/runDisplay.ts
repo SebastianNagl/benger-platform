@@ -260,13 +260,14 @@ const EMPTY_ANCHOR = /<a\s+id="[^"]*"\s*>\s*<\/a>/g
 // Markdown escapes the .docx conversion writes before punctuation
 // (`A\. Zulässigkeit`, `Polizei\- und`).
 const MARKDOWN_ESCAPE = /\\([\\`*_{}[\]()#+\-.!|<>~])/g
-// Bold markers around a run of text (`__Lösungshinweise__`), and empty ones.
-const MARKDOWN_STRONG = /(\*\*|__)(?=\S)([\s\S]*?\S)?\1/g
+// Bold markers (`__Lösungshinweise__`, `**fett**`), also when a converted
+// span is empty or crosses a line break. Single `_` and `*` stay.
+const MARKDOWN_STRONG = /\*\*|__/g
 
 function plainText(value: string): string {
   return value
     .replace(EMPTY_ANCHOR, '')
-    .replace(MARKDOWN_STRONG, (_match, _marker, inner) => inner ?? '')
+    .replace(MARKDOWN_STRONG, '')
     .replace(MARKDOWN_ESCAPE, '$1')
 }
 
