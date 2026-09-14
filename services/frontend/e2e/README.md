@@ -1,10 +1,10 @@
 # BenGER E2E Testing Suite
 
-This directory contains comprehensive End-to-End (E2E) tests for the BenGER application, implementing critical path coverage as described in Issue #471, along with existing template unification tests (Issue #219) and reliable authentication for production testing (Issue #379).
+This directory contains comprehensive End-to-End (E2E) tests for the BenGER application, implementing critical path coverage as described in Issue #471, along with existing template unification tests (Issue #219).
 
 ## Overview
 
-The E2E test suite provides complete coverage of critical user workflows, multi-organization collaboration, error recovery scenarios, cross-platform compatibility, template unification tests, and Puppeteer MCP integration.
+The E2E test suite provides complete coverage of critical user workflows, multi-organization collaboration, error recovery scenarios, cross-platform compatibility, and template unification tests.
 
 ## Test Structure
 
@@ -23,8 +23,7 @@ e2e/
 │   └── compatibility.spec.ts        # Chrome, Firefox, Safari compatibility
 ├── helpers/
 │   ├── test-helpers.ts               # Reusable test helper functions
-│   ├── TestOrchestrator.ts          # Multi-user test orchestration (Issue #471)
-│   └── PuppeteerAuthHelper.ts       # Authentication helpers (Issue #379)
+│   └── TestOrchestrator.ts          # Multi-user test orchestration (Issue #471)
 ├── factories/                        # Test data generation (Issue #471)
 │   └── DataFactory.ts               # Realistic test data for all scenarios
 ├── fixtures/
@@ -46,14 +45,11 @@ e2e/
 │   └── TasksListPage.ts
 ├── utils/
 │   └── test-helpers.ts              # Utility functions
-├── examples/
-│   └── reliable-auth-example.js     # Puppeteer MCP examples
 ├── scripts/
 │   └── run-e2e.sh                  # Enhanced test runner script
 ├── template-based-flow.spec.ts      # Template unification tests (Issue #219)
 ├── template-core-functionality.spec.ts
-├── annotation-comparison-modal.spec.ts # Annotation comparison modal tests (Issue #489)
-└── test-reliable-auth-demo.js       # Puppeteer MCP demo
+└── annotation-comparison-modal.spec.ts # Annotation comparison modal tests (Issue #489)
 ```
 
 ## Test Categories
@@ -201,12 +197,6 @@ Visual consistency across different states:
 - `template-based-flow.spec.ts` - Complete flow tests from task creation through annotation
 - `template-core-functionality.spec.ts` - Core template functionality tests
 
-#### Puppeteer MCP Integration (Issue #379)
-
-- `helpers/PuppeteerAuthHelper.ts` - Main authentication helper class for MCP integration
-- `examples/reliable-auth-example.js` - Usage examples and patterns for reliable authentication
-- `test-reliable-auth-demo.js` - Demo script showcasing authentication reliability features
-
 #### Feature-Specific Tests
 
 **Annotation Comparison Modal (Issue #489)**
@@ -233,90 +223,6 @@ Test Coverage:
 - Keyboard navigation and accessibility
 - Auto-save verification
 - Multi-tab switching and data display
-
-## Puppeteer MCP Authentication (Issue #379)
-
-### Overview
-
-The Puppeteer MCP authentication system provides reliable, production-ready authentication for automated testing with 99%+ success rate. It addresses common issues like accidental clicks on UI controls (language/theme toggles) and provides robust error recovery mechanisms.
-
-### Key Features
-
-- **Reliable Authentication**: Multiple fallback strategies with exponential backoff retry
-- **Language-Safe Testing**: Recovery mechanisms for language switching issues
-- **Environment Detection**: Automatic adaptation for development vs production environments
-- **UI Element Isolation**: Protection against accidental clicks on language/theme toggles
-- **Comprehensive Error Handling**: Graceful handling of network timeouts and UI changes
-- **State Management**: Reliable authentication state detection and persistence
-
-### Quick Start
-
-```javascript
-const puppeteer = require('puppeteer')
-const { PuppeteerAuthHelper } = require('./helpers/PuppeteerAuthHelper')
-
-async function reliableAuthExample() {
-  const browser = await puppeteer.launch({ headless: false })
-  const page = await browser.newPage()
-
-  const authHelper = new PuppeteerAuthHelper(page, {
-    username: 'admin',
-    password: 'admin',
-    timeout: 30000,
-    maxRetries: 3,
-    enableLogging: true,
-  })
-
-  // Perform reliable authentication
-  await authHelper.reliableLogin()
-
-  // Verify authentication state
-  const isAuthenticated = await authHelper.waitForAuth()
-  console.log('Authentication successful:', isAuthenticated)
-
-  await browser.close()
-}
-```
-
-### Configuration Options
-
-```typescript
-interface AuthConfig {
-  username?: string // Default: 'admin'
-  password?: string // Default: 'admin'
-  timeout?: number // Default: 30000ms
-  maxRetries?: number // Default: 3
-  enableLogging?: boolean // Default: true
-}
-```
-
-### Available Methods
-
-- `reliableLogin(username?, password?)` - Main authentication method with retry logic
-- `waitForAuth(timeout?)` - Wait for authentication with configurable timeout
-- `detectAuthState()` - Detect current authentication state
-- `isProductionEnvironment()` - Check if running in production environment
-- `recoverFromLanguageSwitch()` - Recover from accidental language changes
-- `resetUIState()` - Reset UI to known good state
-- `handleAuthFailure()` - Comprehensive error recovery
-- `bypassAutoAuth()` - Disable auto-authentication for production testing
-
-### Usage Examples
-
-See `examples/reliable-auth-example.js` for comprehensive usage patterns and `test-reliable-auth-demo.js` for a working demonstration.
-
-### Testing the Authentication Helper
-
-```bash
-# Run the demo script
-node e2e/test-reliable-auth-demo.js
-
-# Run comprehensive examples
-node e2e/examples/reliable-auth-example.js
-
-# Run unit tests
-npm test -- PuppeteerAuthHelper
-```
 
 ## Playwright Tests (Template Unification)
 
@@ -583,10 +489,6 @@ npm run test:e2e template-based-flow
 # Playwright UI and debug modes
 npm run test:e2e:ui                 # Interactive UI mode
 npm run test:e2e:debug              # Step-by-step debugging
-
-# Puppeteer MCP authentication demo (Issue #379)
-node e2e/test-reliable-auth-demo.js
-node e2e/examples/reliable-auth-example.js
 ```
 
 ## Test Coverage
@@ -653,30 +555,6 @@ The tests use mock data and don't require pre-existing database records. Test he
 - Login form may show German placeholders - test helpers account for both languages
 - Some tests may need adjustment based on actual backend responses
 - Template IDs in tests assume demo templates are available
-
-### Puppeteer MCP Authentication (Fixed in Issue #379)
-
-- ✅ **Fixed**: Language switching during authentication no longer breaks tests
-- ✅ **Fixed**: Accidental clicks on theme/language toggles prevented with UI isolation
-- ✅ **Fixed**: Network timeouts handled gracefully with retry mechanisms
-- ✅ **Fixed**: Authentication state detection improved with multiple indicators
-- ✅ **Fixed**: Production environment authentication reliability enhanced
-
-### Migration Notes
-
-If you have existing Puppeteer authentication code, consider upgrading to use `PuppeteerAuthHelper`:
-
-```javascript
-// Old approach (unreliable):
-await page.goto('http://localhost:3000/login')
-await page.type('[data-testid="auth-login-email-input"]', 'admin')
-await page.type('[data-testid="auth-login-password-input"]', 'admin')
-await page.click('[data-testid="auth-login-submit-button"]')
-
-// New approach (reliable):
-const authHelper = new PuppeteerAuthHelper(page)
-await authHelper.reliableLogin()
-```
 
 ## Success Criteria
 
@@ -756,16 +634,6 @@ The E2E test suite also fulfills all requirements from the original issue #472:
 - Verifies different field types (text, textarea, select)
 - Checks auto-save functionality
 - Tests template switching
-
-## Authentication Reliability (Issue #379)
-
-### Puppeteer MCP Integration
-
-- ✅ **Fixed**: Language switching during authentication no longer breaks tests
-- ✅ **Fixed**: Accidental clicks on theme/language toggles prevented with UI isolation
-- ✅ **Fixed**: Network timeouts handled gracefully with retry mechanisms
-- ✅ **Fixed**: Authentication state detection improved with multiple indicators
-- ✅ **Fixed**: Production environment authentication reliability enhanced
 
 ---
 

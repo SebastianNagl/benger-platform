@@ -5,6 +5,5 @@
     "incremental": false,
     "types": ["node"]
   },
-  "include": ["./**/*.ts", "../playwright.config.ts"],
-  "exclude": ["./__tests__/**"]
+  "include": ["./**/*.ts", "../playwright.config.ts"]
 }
