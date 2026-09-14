@@ -78,7 +78,7 @@ export function StepEvaluationMethods({
   // so a judge that grades a submitted answer could not be configured here:
   // the resulting config pointed at model generations an exam never has and
   // graded nothing, silently. The label_config being authored is the only
-  // field source at wizard time — no project or data exists yet — so the same
+  // field source at wizard time - no project or data exists yet - so the same
   // names serve both roles.
   const fieldNames = annotationFields.map((f) => f.name)
   const predictionOptions = buildPredictionFieldOptions({

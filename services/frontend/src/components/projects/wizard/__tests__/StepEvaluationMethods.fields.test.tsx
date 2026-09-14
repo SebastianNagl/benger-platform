@@ -1,7 +1,7 @@
 /**
  * @jest-environment jsdom
  *
- * StepEvaluationMethods — which evaluation FIELDS the step offers, and what a
+ * StepEvaluationMethods - which evaluation FIELDS the step offers, and what a
  * freshly-toggled metric starts with.
  *
  * The regression these pin: this step used to build its own prediction list
