@@ -32,7 +32,7 @@ import { defaultIconForKind } from '@/lib/projectKind'
 import { useProjectStore } from '@/stores/projectStore'
 import { ArrowLeftIcon, ArrowRightIcon } from '@heroicons/react/24/outline'
 import { useRouter } from 'next/navigation'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { preselectActiveOrganization } from './wizard/orgPreselect'
 import { StepAnnotationInstructions } from './wizard/StepAnnotationInstructions'
 import { StepDataImport } from './wizard/StepDataImport'
@@ -64,15 +64,22 @@ export function ProjectCreationWizard() {
   // Private stays one click away. `useOptionalAuth` rather than `useAuth`:
   // the wizard also mounts without an AuthProvider (tests, embeds).
   const activeOrganization = useOptionalAuth()?.currentOrganization ?? null
-  // The organization context arrives after the first render. Once anyone has
-  // made a visibility choice, that late arrival must never overwrite it.
-  const visibilityTouchedRef = useRef(false)
-  useEffect(() => {
-    if (!activeOrganization || visibilityTouchedRef.current) return
+  // The organization context arrives after the first render. It is applied
+  // when it arrives, once per organization, and never after anyone has made
+  // a visibility choice. Adjusted during render rather than in an effect, so
+  // the preselection costs no extra commit.
+  const [visibilityTouched, setVisibilityTouched] = useState(false)
+  const [preselectedOrgId, setPreselectedOrgId] = useState<string | null>(null)
+  if (
+    activeOrganization &&
+    !visibilityTouched &&
+    activeOrganization.id !== preselectedOrgId
+  ) {
+    setPreselectedOrgId(activeOrganization.id)
     setWizardData((prev) =>
       preselectActiveOrganization(prev, activeOrganization),
     )
-  }, [activeOrganization])
+  }
   const [currentStepIndex, setCurrentStepIndex] = useState(0)
   const [errors, setErrors] = useState<Record<string, string>>({})
   // Re-entrancy guard for the final "Create Project" action. The global store
@@ -294,7 +301,7 @@ export function ProjectCreationWizard() {
   const updateWizardData = useCallback(
     (partial: Partial<WizardData>) => {
       if ('visibility' in partial || 'organizationIds' in partial) {
-        visibilityTouchedRef.current = true
+        setVisibilityTouched(true)
       }
       setWizardData((prev) => {
         const next = { ...prev, ...partial }
@@ -647,12 +654,41 @@ export function ProjectCreationWizard() {
         wizardData.evaluationConfigs.length > 0
       ) {
         try {
-          await apiClient.put(
+          const evalResponse: any = await apiClient.put(
             `/evaluations/projects/${project.id}/evaluation-config`,
             { evaluation_configs: wizardData.evaluationConfigs },
           )
+          // Saved, but some configs will grade nothing as written.
+          const evalWarnings: string[] = Array.isArray(evalResponse?.warnings)
+            ? evalResponse.warnings
+                .map((warning: { message?: unknown }) => warning?.message)
+                .filter(
+                  (message: unknown): message is string =>
+                    typeof message === 'string' && message.length > 0,
+                )
+            : []
+          if (evalWarnings.length > 0) {
+            addToast(
+              t('toasts.project.evaluationConfigsSavedWithWarnings', {
+                warnings: evalWarnings.join(' '),
+              }),
+              'warning',
+              10000,
+            )
+          }
         } catch (evalError) {
-          addToast(t('projects.creation.wizard.evalSaveFailed'), 'error')
+          // The project already exists, so a rejected config must not abort
+          // creation. The reason still has to reach the user: the API names
+          // the evaluation and the field to choose instead.
+          const reason = evalError instanceof Error ? evalError.message : ''
+          addToast(
+            reason
+              ? t('toasts.project.evaluationConfigsSaveFailed', {
+                  error: reason,
+                })
+              : t('projects.creation.wizard.evalSaveFailed'),
+            'error',
+          )
         }
       }
 
