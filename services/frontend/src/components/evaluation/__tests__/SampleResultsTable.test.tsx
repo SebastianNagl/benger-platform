@@ -5,6 +5,10 @@
  * Target: 90%+ coverage (from 0%)
  */
 
+import {
+  registerMetricCell,
+  registerMetricDetail,
+} from '@/lib/extensions/metricRenderers'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { SampleResultsTable } from '../SampleResultsTable'
@@ -769,5 +773,119 @@ describe('SampleResultsTable Component', () => {
       const filterInput = screen.getByPlaceholderText('Filter by field name...')
       expect(filterInput).toBeInTheDocument()
     })
+  })
+})
+
+describe('SampleResultsTable: structured metric blobs', () => {
+  // Judge and Korrektur metrics are stored as {value, method, details, error}
+  // blobs. Expanding such a row used to call toFixed on the blob, which threw
+  // and replaced the whole run page with the error boundary.
+  const blobRow = {
+    id: 'blob-1',
+    task_id: 'task-blob-00000001',
+    field_name: 'cfg|human:loesung|musterloesung',
+    answer_type: 'text',
+    ground_truth: { text: 'Musterloesung' },
+    prediction: { text: 'Abgabe' },
+    metrics: {
+      raw_score: 1,
+      judge_metric_unregistered: {
+        value: 0.75,
+        method: 'judge_metric_unregistered',
+        details: { scores: { s1: { score: 3, max: 4 } } },
+        error: null,
+      },
+      judge_metric_errored: {
+        value: null,
+        method: 'judge_metric_errored',
+        details: {},
+        error: 'judge failed',
+      },
+    },
+    passed: true,
+    confidence_score: null,
+    error_message: null,
+    processing_time_ms: null,
+  }
+
+  it('expands a row with structured metrics without crashing', async () => {
+    const user = userEvent.setup()
+    render(<SampleResultsTable data={[blobRow]} />)
+    await user.click(screen.getAllByRole('button')[0])
+
+    await waitFor(() => {
+      expect(screen.getByText('Ground Truth')).toBeInTheDocument()
+    })
+    // The blob's numeric value, formatted like a plain metric.
+    expect(screen.getAllByText('0.750').length).toBeGreaterThan(0)
+    // A blob without a numeric value shows N/A instead of throwing.
+    expect(screen.getByText('judge_metric_errored')).toBeInTheDocument()
+    expect(screen.getAllByText('N/A').length).toBeGreaterThan(0)
+  })
+
+  it('uses a registered cell renderer in the expanded grid too', async () => {
+    registerMetricCell(
+      'judge_metric_cell_only',
+      (v) => `${Math.round(((v as { value?: number })?.value ?? 0) * 100)}%`,
+    )
+    const user = userEvent.setup()
+    render(
+      <SampleResultsTable
+        data={[
+          {
+            ...blobRow,
+            id: 'blob-2',
+            metrics: {
+              judge_metric_cell_only: { value: 0.5, details: {}, error: null },
+            },
+          },
+        ]}
+      />,
+    )
+    expect(screen.getAllByText('50%')).toHaveLength(1)
+
+    await user.click(screen.getAllByRole('button')[0])
+    await waitFor(() => {
+      expect(screen.getByText('Ground Truth')).toBeInTheDocument()
+    })
+    // The collapsed cell and the expanded grid.
+    expect(screen.getAllByText('50%')).toHaveLength(2)
+  })
+
+  it('renders a registered detail component with the blob and the row', async () => {
+    const received: Array<{ value: unknown; evaluation?: unknown }> = []
+    registerMetricDetail('judge_metric_with_detail', (props) => {
+      received.push(props)
+      return (
+        <div data-testid="registered-detail">
+          filled sheet {String((props.value as { value?: number }).value)}
+        </div>
+      )
+    })
+    const user = userEvent.setup()
+    render(
+      <SampleResultsTable
+        data={[
+          {
+            ...blobRow,
+            id: 'blob-3',
+            metrics: {
+              judge_metric_with_detail: {
+                value: 0.9,
+                details: { total_score: 9, total_max: 10 },
+                error: null,
+              },
+            },
+          },
+        ]}
+      />,
+    )
+    await user.click(screen.getAllByRole('button')[0])
+
+    expect(await screen.findByTestId('registered-detail')).toHaveTextContent(
+      'filled sheet 0.9',
+    )
+    const last = received.at(-1) as { evaluation?: { id?: string } }
+    expect(last.evaluation?.id).toBe('blob-3')
   })
 })
