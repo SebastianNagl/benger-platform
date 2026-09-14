@@ -278,18 +278,28 @@ RUBRIC_JUDGE_CLOSING_RULES = """VERBINDLICHE REGELN FÜR DIE BEWERTUNG (sie gelt
 
 # Reasoning effort for the rubric judge when its config sets none. The
 # interactive queue gives an immediate grading 180 s (soft limit); at the
-# API default a 46-step Bewertungsbogen took gpt-5-mini 90-440 s. Chosen
-# by measurement (W1 A/B, 2026-09-14). An explicit metric_parameters
-# value always wins, and the default is only sent to OpenAI reasoning
-# models that accept it.
+# API default a 46-step Bewertungsbogen took gpt-5-mini 164-191 s (up to
+# 440 s under load). Measured 2026-09-14 on a production exam, gpt-5-mini:
+# "low" 113-120 s with quality on par with the default; "minimal" 71-73 s
+# but it credited steps only the Musterlösung covers again. An explicit
+# metric_parameters value always wins.
 RUBRIC_JUDGE_DEFAULT_REASONING_EFFORT = "low"
 
 
 def _rubric_default_reasoning_effort(judge_model: Optional[str]) -> Optional[str]:
-    """The rubric default for this judge model, or None when it can't take it."""
+    """The rubric default for this judge model, or None to keep the API default.
+
+    Only OpenAI reasoning models that accept the value get it. GPT-5 point
+    releases (``gpt-5.4-mini`` …) are left out: they finish in about 16 s
+    at their API default, and at "low" the measured run credited a Frage 2
+    step with a sentence from Frage 1 again.
+    """
     try:
         from ai_services.provider_capabilities import openai_reasoning_efforts
     except Exception:  # pragma: no cover - shared package not importable
+        return None
+    model = (judge_model or "").lower()
+    if model.startswith("gpt-5."):
         return None
     if RUBRIC_JUDGE_DEFAULT_REASONING_EFFORT in openai_reasoning_efforts(judge_model):
         return RUBRIC_JUDGE_DEFAULT_REASONING_EFFORT

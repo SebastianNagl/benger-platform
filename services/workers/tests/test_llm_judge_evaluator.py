@@ -1829,7 +1829,16 @@ class TestRubricReasoningEffortDefault:
     def test_no_default_when_the_model_family_rejects_the_value(self):
         import ml_evaluation.llm_judge_evaluator as lje
 
-        # gpt-5.4-mini rejects "minimal" at the API; the judge must not send it.
+        # o3-mini rejects "minimal" at the API; the judge must not send it.
         with patch.object(lje, "RUBRIC_JUDGE_DEFAULT_REASONING_EFFORT", "minimal"):
-            assert self._sent(model="gpt-5.4-mini") == (None, None)
+            assert self._sent(model="o3-mini") == (None, None)
             assert self._sent(model="gpt-5-mini") == ("minimal", "minimal")
+
+    def test_gpt5_point_releases_keep_their_api_default(self):
+        assert self._sent(model="gpt-5.4-mini") == (None, None)
+        assert self._sent(model="gpt-5.4-mini", effort="low") == ("low", "low")
+
+    def test_o_series_gets_the_default(self):
+        from ml_evaluation.llm_judge_evaluator import RUBRIC_JUDGE_DEFAULT_REASONING_EFFORT
+
+        assert self._sent(model="o4-mini")[0] == RUBRIC_JUDGE_DEFAULT_REASONING_EFFORT
