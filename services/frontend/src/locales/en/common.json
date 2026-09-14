@@ -308,6 +308,7 @@
           },
           "assignedOrganizations": "Assigned organizations",
           "assignedOrganizationsHelp": "Pick the organizations whose members can access this project. Independent of the current subdomain.",
+          "orgPreselectedHint": "Preselected because you are working inside {name}. Choose Private if only you should have access.",
           "noOrganizationsAvailable": "No organizations available.",
           "groupScopeLabel": "Group",
           "groupScopeOrgWide": "Whole organization",

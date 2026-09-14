@@ -11,6 +11,7 @@
 import { Button } from '@/components/shared/Button'
 import { Card } from '@/components/shared/Card'
 import { useToast } from '@/components/shared/Toast'
+import { useOptionalAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { apiClient } from '@/lib/api/client'
 import { projectsAPI } from '@/lib/api/projects'
@@ -31,7 +32,8 @@ import { defaultIconForKind } from '@/lib/projectKind'
 import { useProjectStore } from '@/stores/projectStore'
 import { ArrowLeftIcon, ArrowRightIcon } from '@heroicons/react/24/outline'
 import { useRouter } from 'next/navigation'
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { preselectActiveOrganization } from './wizard/orgPreselect'
 import { StepAnnotationInstructions } from './wizard/StepAnnotationInstructions'
 import { StepDataImport } from './wizard/StepDataImport'
 import { StepEvaluationMethods } from './wizard/StepEvaluationMethods'
@@ -55,6 +57,21 @@ export function ProjectCreationWizard() {
   const { createProject, fetchProject, loading } = useProjectStore()
 
   const [wizardData, setWizardData] = useState<WizardData>(INITIAL_WIZARD_DATA)
+  // A project created from inside an organization belongs to it by default.
+  // Left private, the worker resolves API keys per user and every AI feature
+  // fails with "No API key found" although the organization has a key.
+  // Private stays one click away. `useOptionalAuth` rather than `useAuth`:
+  // the wizard also mounts without an AuthProvider (tests, embeds).
+  const activeOrganization = useOptionalAuth()?.currentOrganization ?? null
+  // The organization context arrives after the first render. Once anyone has
+  // made a visibility choice, that late arrival must never overwrite it.
+  const visibilityTouchedRef = useRef(false)
+  useEffect(() => {
+    if (!activeOrganization || visibilityTouchedRef.current) return
+    setWizardData((prev) =>
+      preselectActiveOrganization(prev, activeOrganization),
+    )
+  }, [activeOrganization])
   const [currentStepIndex, setCurrentStepIndex] = useState(0)
   const [errors, setErrors] = useState<Record<string, string>>({})
   // Re-entrancy guard for the final "Create Project" action. The global store
@@ -275,6 +292,9 @@ export function ProjectCreationWizard() {
 
   const updateWizardData = useCallback(
     (partial: Partial<WizardData>) => {
+      if ('visibility' in partial || 'organizationIds' in partial) {
+        visibilityTouchedRef.current = true
+      }
       setWizardData((prev) => {
         const next = { ...prev, ...partial }
         // Choosing a project type pre-selects the matching labeling template
@@ -713,6 +733,7 @@ export function ProjectCreationWizard() {
             data={wizardData}
             onChange={updateWizardData}
             errors={errors}
+            preselectedOrganization={activeOrganization}
           />
         )
       case 'synthetic':
