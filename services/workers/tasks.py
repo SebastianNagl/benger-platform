@@ -742,7 +742,7 @@ def _mark_immediate_run_failed(db, evaluation_record_id: str, message: str) -> N
     """Flip a stuck immediate-eval run to ``failed``.
 
     Every error path used to leave the row on ``running``. That is not a cosmetic
-    detail: the frontend poller keeps spinning until its own 300s ceiling and
+    detail: the frontend poller keeps spinning until its own 540s ceiling and
     only then soft-fails, AND ``_existing_immediate_run`` treats ``running`` as
     in-flight, so the hourly sweep never retries the annotation either. The
     dispatch path in shared/immediate_eval_dispatch.py already guards this same
@@ -3184,9 +3184,9 @@ def run_single_sample_evaluation(
         }
 
     except SoftTimeLimitExceeded:
-        # The `interactive` soft limit (180s) fired; the hard kill is 60s out.
-        # Do the minimum and get out: flag the row so the frontend's 2s poller
-        # reports a real failure well inside its own 300s ceiling.
+        # The soft time limit fired (celery_queues: 420s for this task); the
+        # hard kill is 60s out. Do the minimum and get out: flag the row so the
+        # frontend's 2s poller reports a real failure inside its 540s ceiling.
         logger.error(
             "[SingleSampleEval] soft time limit exceeded for run %s",
             evaluation_record_id,
