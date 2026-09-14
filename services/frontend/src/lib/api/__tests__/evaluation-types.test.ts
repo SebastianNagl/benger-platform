@@ -7,6 +7,7 @@ import {
   generateEvaluationId,
   getDimensionDisplayName,
   getFieldDisplayName,
+  getFieldDisplayNameKey,
   isSpecialFieldValue,
 } from '../evaluation-types'
 
@@ -90,5 +91,21 @@ describe('FIELD_SPECIFIERS', () => {
     expect(FIELD_SPECIFIERS.ALL_HUMAN).toBeDefined()
     expect(typeof FIELD_SPECIFIERS.ALL_MODEL).toBe('string')
     expect(typeof FIELD_SPECIFIERS.ALL_HUMAN).toBe('string')
+  })
+})
+
+describe('getFieldDisplayNameKey', () => {
+  it('names the i18n key of each bulk selector', () => {
+    expect(getFieldDisplayNameKey('__all_model__')).toBe(
+      'evaluationBuilder.fields.allModelResponses',
+    )
+    expect(getFieldDisplayNameKey('__all_human__')).toBe(
+      'evaluationBuilder.fields.allHumanAnnotations',
+    )
+  })
+
+  it('has no key for a plain field, which keeps its own name', () => {
+    expect(getFieldDisplayNameKey('human:loesung')).toBeUndefined()
+    expect(getFieldDisplayName('human:loesung')).toBe('human:loesung')
   })
 })
