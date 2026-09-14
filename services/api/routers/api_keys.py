@@ -9,9 +9,10 @@ from typing import Dict
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from auth_module import User, require_user
-from database import get_async_db
+from database import get_async_db, get_db, release_db_sessions
 from models import LLMModel as DBLLMModel
 
 # Add shared services to path
@@ -34,6 +35,7 @@ async def set_user_api_key(
     request: Dict[str, str],
     current_user: User = Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
+    request_db: Session = Depends(get_db),
 ):
     """Set API key for a provider"""
     api_key = request.get("api_key")
@@ -55,6 +57,11 @@ async def set_user_api_key(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Unsupported provider. Valid providers: {', '.join(valid_providers)}",
         )
+
+    # The provider round-trip can be slow: don't hold the auth lookup's
+    # transaction open across it (Postgres kills idle-in-transaction backends).
+    # The async session is untouched until the write below, so leave it be.
+    await release_db_sessions(request_db)
 
     # Optional: Validate API key by testing it
     try:
@@ -117,6 +124,7 @@ async def test_user_api_key(
     provider: str,
     request: Dict[str, str],
     current_user: User = Depends(require_user),
+    request_db: Session = Depends(get_db),
 ):
     """Test API key connection for a provider"""
     api_key = request.get("api_key")
@@ -138,6 +146,9 @@ async def test_user_api_key(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Unsupported provider. Valid providers: {', '.join(valid_providers)}",
         )
+
+    # End the auth lookup's transaction before the provider round-trip.
+    await release_db_sessions(request_db)
 
     try:
         is_valid, message, error_type = await user_api_key_service.validate_api_key(
@@ -161,6 +172,7 @@ async def test_saved_user_api_key(
     provider: str,
     current_user: User = Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
+    request_db: Session = Depends(get_db),
 ):
     """Test saved API key connection for a provider"""
     # Validate provider
@@ -186,6 +198,9 @@ async def test_saved_user_api_key(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"No API key found for provider {provider}",
         )
+
+    # End both read transactions before the provider round-trip.
+    await release_db_sessions(request_db, db)
 
     try:
         is_valid, message, error_type = await user_api_key_service.validate_api_key(

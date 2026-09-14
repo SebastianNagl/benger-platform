@@ -8,9 +8,10 @@ from typing import Dict, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from auth_module import User, require_user
-from database import get_async_db
+from database import get_async_db, get_db, release_db_sessions
 from models import LLMModel as DBLLMModel
 from models import (
     Organization,
@@ -232,6 +233,7 @@ async def test_org_api_key(
     group_id: Optional[str] = Query(None),
     current_user: User = Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
+    request_db: Session = Depends(get_db),
 ):
     """Test an unsaved API key for an organization provider.
 
@@ -253,6 +255,9 @@ async def test_org_api_key(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Unsupported provider",
         )
+
+    # End both read transactions before the provider round-trip.
+    await release_db_sessions(request_db, db)
 
     from services.user_api_key_service import user_api_key_service
 
@@ -280,6 +285,7 @@ async def test_saved_org_api_key(
     group_id: Optional[str] = Query(None),
     current_user: User = Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
+    request_db: Session = Depends(get_db),
 ):
     """Test a saved API key for an organization provider (one scope)."""
     await _require_org_exists(org_id, db)
@@ -293,6 +299,9 @@ async def test_saved_org_api_key(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"No API key found for provider {provider}",
         )
+
+    # End both read transactions before the provider round-trip.
+    await release_db_sessions(request_db, db)
 
     from services.user_api_key_service import user_api_key_service
 
