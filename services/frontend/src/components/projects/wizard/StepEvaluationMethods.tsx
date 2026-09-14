@@ -6,6 +6,7 @@ import { Label } from '@/components/shared/Label'
 import {
   Select,
   SelectContent,
+  SelectGroupLabel,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -21,6 +22,7 @@ import {
   getBaseFieldName,
   getGroupedMetrics,
   getMetricDefinitions,
+  groupPredictionFieldOptions,
   isMetricImmediateEligible,
   resolveDefaultFieldSelection,
 } from '@/lib/api/evaluation-types'
@@ -29,7 +31,7 @@ import { useSlot } from '@/lib/extensions/slots'
 import { OutputField } from '@/lib/labelConfig/fieldExtractor'
 import { DEFAULT_MODEL_ID } from '@/lib/modelDefaults'
 import { ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/24/outline'
-import { createElement, useState } from 'react'
+import { createElement, Fragment, useState } from 'react'
 
 interface StepEvaluationMethodsProps {
   evaluationConfigs: EvaluationConfig[]
@@ -89,6 +91,9 @@ export function StepEvaluationMethods({
     human_annotation_fields: fieldNames,
     reference_fields: dataColumns,
   })
+  // The human and the model option for one field share a name, so the
+  // prediction picker heads them by role instead of a flat list.
+  const predictionOptionGroups = groupPredictionFieldOptions(predictionOptions)
 
   const typeByName = new Map(annotationFields.map((f) => [f.name, f.type]))
   const labelFor = (opt: FieldOption): string => {
@@ -390,13 +395,20 @@ export function StepEvaluationMethods({
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  {predictionOptions.map((opt) => (
-                                    <SelectItem
-                                      key={opt.value}
-                                      value={opt.value}
-                                    >
-                                      {labelFor(opt)}
-                                    </SelectItem>
+                                  {predictionOptionGroups.map((group) => (
+                                    <Fragment key={group.kind}>
+                                      <SelectGroupLabel>
+                                        {t(group.labelKey, group.label)}
+                                      </SelectGroupLabel>
+                                      {group.options.map((opt) => (
+                                        <SelectItem
+                                          key={opt.value}
+                                          value={opt.value}
+                                        >
+                                          {labelFor(opt)}
+                                        </SelectItem>
+                                      ))}
+                                    </Fragment>
                                   ))}
                                 </SelectContent>
                               </Select>
