@@ -257,8 +257,8 @@ describe('MetricDistributionChart', () => {
       expect(cells.length).toBeGreaterThan(0)
 
       const colors = cells.map((cell) => cell.getAttribute('data-fill'))
-      expect(colors).toContain('#3b82f6')
-      expect(colors).toContain('#60a5fa')
+      expect(colors).toContain('#10b981')
+      expect(colors).toContain('#34d399')
     })
 
     it('renders cartesian grid', () => {
@@ -625,7 +625,7 @@ describe('MetricDistributionChart', () => {
       )
 
       const chartContainer = container.querySelector(
-        '.rounded-lg.border.bg-white.p-4',
+        '.rounded-lg.border.bg-white.p-6',
       )
       expect(chartContainer).toBeInTheDocument()
     })
@@ -636,7 +636,7 @@ describe('MetricDistributionChart', () => {
       )
 
       const statsContainer = container.querySelector(
-        '.bg-gray-50.p-4.rounded-lg',
+        '.bg-zinc-50.p-4.rounded-lg',
       )
       expect(statsContainer).toBeInTheDocument()
       expect(statsContainer).toHaveClass('grid')
