@@ -6373,6 +6373,7 @@
       "missingFields": "Fehlende erforderliche Datenfelder: {fields}",
       "configError": "Konfigurationsfehler",
       "taskData": "Aufgabendaten:",
+      "taskPosition": "Aufgabe {current} von {total}",
       "maxAnnotationsReached": "Maximales Annotationslimit für diese Aufgabe erreicht",
       "instructions": "Anweisungen",
       "showInstructions": "Anweisungen anzeigen",
