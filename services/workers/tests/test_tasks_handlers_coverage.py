@@ -1052,3 +1052,52 @@ class TestFinalizeEvaluationRunEarlyReturns:
         # No mutation/commit on a terminal re-entry.
         assert session.commits == 0
         assert session.closed is True
+
+
+class TestBuildMultidimJudgeRowMetricsEvidence:
+    def test_rubric_evidence_fields_survive_per_step(self):
+        """llm_judge_rubric steps carry evidence / evidence_verified /
+        model_score; the batch builder persists them (control chars
+        scrubbed) and adds no top-level details key."""
+        multidim = {
+            "scores": {
+                "s01": {
+                    "score": 0.0,
+                    "max": 2.0,
+                    "reason": "angesprochen [Punkte nicht vergeben]",
+                    "evidence": "Zitat\x00 aus der Bearbeitung",
+                    "evidence_verified": False,
+                    "model_score": 1.5,
+                },
+                "s02": {
+                    "score": 1.0,
+                    "max": 1.0,
+                    "reason": "ok",
+                    "evidence": "echtes Zitat",
+                    "evidence_verified": True,
+                    "model_score": 1.0,
+                },
+            },
+            "total_score": 1.0,
+            "total_max": 3.0,
+            "overall_assessment": "",
+            "_call_metadata": {},
+            "_raw_output": "",
+        }
+        metrics, value = _build_multidim_judge_row_metrics(multidim, "llm_judge_rubric", None)
+        details = metrics["llm_judge_rubric"]["details"]
+        assert details["scores"]["s01"] == {
+            "score": 0.0,
+            "max": 2.0,
+            "reason": "angesprochen [Punkte nicht vergeben]",
+            "evidence": "Zitat aus der Bearbeitung",
+            "evidence_verified": False,
+            "model_score": 1.5,
+        }
+        assert details["scores"]["s02"]["evidence_verified"] is True
+        assert set(details) == {
+            "scores", "total_score", "total_max", "overall_assessment",
+            "call_metadata", "raw_output",
+        }
+        assert details["total_score"] == 1.0
+        assert value == pytest.approx(1 / 3)

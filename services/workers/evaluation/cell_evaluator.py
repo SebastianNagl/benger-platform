@@ -565,6 +565,9 @@ def evaluate_generation_cell_impl(
                                     # (reconstructed per sub-task), so the
                                     # assignment cannot leak across tasks.
                                     jr_evaluator.custom_criteria = task_rubric.criteria
+                                    # Fixed roles, tagged inputs, verified
+                                    # evidence for the Bewertungsbogen judge.
+                                    jr_evaluator.rubric_mode = True
 
                                 multidim_mode = (
                                     metric != "llm_judge_falloesung"
@@ -1198,6 +1201,9 @@ def evaluate_annotation_cell_impl(
                                         # judge's criteria; evaluators are
                                         # cell-scoped, no cross-task leak.
                                         jr_evaluator.custom_criteria = task_rubric.criteria
+                                        # Fixed roles, tagged inputs, verified
+                                        # evidence for the Bewertungsbogen judge.
+                                        jr_evaluator.rubric_mode = True
 
                                     multidim_mode = (
                                         metric != "llm_judge_falloesung"
