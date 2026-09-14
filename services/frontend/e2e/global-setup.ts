@@ -8,6 +8,30 @@ interface HealthCheckResult {
   frontend: boolean
 }
 
+// The API hosts Traefik serves next to each frontend host.
+const API_HOSTS: Record<string, string> = {
+  'benger-test.localhost': 'api-test.localhost',
+  'benger.localhost': 'api.localhost',
+}
+
+/**
+ * The API's own health endpoint. PLAYWRIGHT_API_URL wins; otherwise the API
+ * host that Traefik serves next to the frontend host. Returns null when the
+ * base URL is not a known local stack, so the check is skipped rather than
+ * reported as failing.
+ */
+function apiHealthUrl(baseURL: string): string | null {
+  const explicit = process.env.PLAYWRIGHT_API_URL
+  if (explicit) return `${explicit.replace(/\/+$/, '')}/health`
+  const url = new URL(baseURL)
+  const apiHost = API_HOSTS[url.hostname]
+  if (!apiHost) return null
+  url.hostname = apiHost
+  url.pathname = '/health'
+  url.search = ''
+  return url.toString()
+}
+
 /**
  * Validate infrastructure health before running tests
  * Returns detailed health status for debugging
@@ -29,21 +53,34 @@ async function validateInfrastructure(
     console.log(`Health check attempt ${attempt}/${maxRetries}...`)
 
     try {
-      // Check API health endpoint
-      const healthResponse = await page.request.get(`${baseURL}/api/health`, {
-        timeout: 10000,
-      })
-
-      if (healthResponse.ok()) {
-        result.api = true
-        const healthData = await healthResponse.json().catch(() => ({}))
-        result.database =
-          healthData.status === 'healthy' || healthData.database === 'ok'
-        result.redis =
-          healthData.redis === 'connected' || healthData.redis === 'ok'
+      // The API's own /health reports redis, database and celery_workers.
+      // `${baseURL}/api/health` is the Next.js route, which carries backend
+      // fields only when API_BASE_URL is set, so reading Redis from it always
+      // printed FAIL on the test stack.
+      const healthUrl = apiHealthUrl(baseURL)
+      if (!healthUrl) {
         console.log(
-          `  API: OK, DB: ${result.database ? 'OK' : 'FAIL'}, Redis: ${result.redis ? 'OK' : 'FAIL'}`,
+          '  API health: not checked (set PLAYWRIGHT_API_URL to read database and Redis status)',
         )
+      } else {
+        try {
+          const healthResponse = await page.request.get(healthUrl, {
+            timeout: 10000,
+          })
+          // /health answers 503 with the same body when Redis or the database
+          // is down, so the fields are read whatever the status.
+          const healthData = await healthResponse.json().catch(() => ({}))
+          result.database = healthData.database === 'connected'
+          result.redis = healthData.redis === 'connected'
+          if (healthResponse.ok()) result.api = true
+          console.log(
+            `  API: ${healthResponse.ok() ? 'OK' : `HTTP ${healthResponse.status()}`}, DB: ${result.database ? 'OK' : 'FAIL'}, Redis: ${result.redis ? 'OK' : 'FAIL'}, workers: ${healthData.celery_workers ?? 'unknown'}`,
+          )
+        } catch (error) {
+          console.log(
+            `  API health not reachable at ${healthUrl}: ${error instanceof Error ? error.message : error}`,
+          )
+        }
       }
 
       // Verify demo user can authenticate
