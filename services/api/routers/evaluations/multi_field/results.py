@@ -423,11 +423,19 @@ async def get_evaluation_run_results(
         # raw ORM objects.
         _has_samples = getattr(evaluation, "has_sample_results", False)
         _model_id = getattr(evaluation, "model_id", None)
+        # JSON-safe like its neighbours: tests hand this serializer mocks.
+        _error_message = getattr(evaluation, "error_message", None)
+        if not isinstance(_error_message, str):
+            _error_message = None
         return {
             "evaluation_id": evaluation.id,
             "project_id": evaluation.project_id,
             "model_id": _model_id if isinstance(_model_id, (str, type(None))) else None,
             "status": evaluation.status,
+            # Why a run failed. A run that matched nothing now fails with a
+            # diagnostic naming the config and the fix; without this key the
+            # single-run page had no way to show it.
+            "error_message": _error_message,
             "evaluation_configs": evaluation.eval_metadata.get("evaluation_configs", []),
             "results_by_config": parsed_results,
             "aggregated_metrics": evaluation.metrics,

@@ -58,6 +58,9 @@ interface EvaluationData {
   project_id: string
   model_id: string
   status: string
+  // Set when the run failed. A run that matched nothing to grade fails with
+  // a diagnostic naming the config and what to change.
+  error_message?: string | null
   samples_evaluated: number
   metrics: Record<string, number>
   eval_metadata: {
@@ -69,6 +72,18 @@ interface EvaluationData {
     // configured (judge_model, run_index, judge_run_id) entries.
     judges_by_config?: Record<string, JudgeRunSummary[]>
     any_judge_failed?: boolean
+    // Per config, why it contributed nothing to grade (reason null = matched).
+    // Written by run_evaluation for every run.
+    match_by_config?: Record<
+      string,
+      {
+        metric: string
+        display_name?: string | null
+        human_fields?: string[]
+        llm_fields?: string[]
+        reason: string | null
+      }
+    >
   }
   // Issue #69: scope filters resolved to display form. null when the run
   // was a full sweep; otherwise carries the narrowed-to set so the UI
@@ -312,6 +327,18 @@ export default function EvaluationDashboard({
     return { metric, value, distinctJudges }
   })()
 
+  // Configs that matched nothing to grade, with the worker's reason. The two
+  // benign reasons are not failures: everything was already graded, or the
+  // metric is human grading that is never dispatched.
+  const unmatchedConfigs = Object.entries(
+    evaluation?.eval_metadata?.match_by_config ?? {},
+  ).filter(
+    ([, rec]) =>
+      !!rec?.reason &&
+      rec.reason !== 'all_cells_already_evaluated' &&
+      rec.reason !== 'manual_metric',
+  )
+
   const showJudgesTab =
     perRunRows.length > 0 || !!evaluation?.eval_metadata?.judges_by_config
 
@@ -403,7 +430,11 @@ export default function EvaluationDashboard({
         <div className="flex items-center gap-2">
           <Badge
             variant={
-              evaluation.status === 'completed' ? 'default' : 'secondary'
+              evaluation.status === 'completed'
+                ? 'default'
+                : evaluation.status === 'failed'
+                  ? 'destructive'
+                  : 'secondary'
             }
           >
             {evaluation.status}
@@ -413,6 +444,60 @@ export default function EvaluationDashboard({
           </Button>
         </div>
       </div>
+
+      {/* Why the run failed. A run that matched nothing used to be stored as
+          a success and shown as an empty results panel; it now fails, and this
+          is where the reason and the affected configs become visible. Same
+          banner shape as the page's judge-failure notice, in the error tone. */}
+      {evaluation.status === 'failed' && (
+        <div
+          role="alert"
+          data-testid="evaluation-run-failed"
+          className="mb-6 rounded border border-red-300 bg-red-50 p-3 text-sm text-red-800 dark:border-red-800 dark:bg-red-900/20 dark:text-red-200"
+        >
+          <p className="font-medium">
+            {t(
+              'evaluations.detail.runFailedTitle',
+              'Evaluierung fehlgeschlagen',
+            )}
+          </p>
+          {evaluation.error_message && (
+            <p className="mt-1 break-words whitespace-pre-wrap">
+              {evaluation.error_message}
+            </p>
+          )}
+          {unmatchedConfigs.length > 0 && (
+            <div className="mt-3">
+              <p className="font-medium">
+                {t(
+                  'evaluations.detail.unmatchedConfigsTitle',
+                  'Evaluierungen ohne passende Daten',
+                )}
+              </p>
+              <ul
+                className="mt-1 list-disc space-y-1 pl-5"
+                data-testid="evaluation-unmatched-configs"
+              >
+                {unmatchedConfigs.map(([configId, rec]) => {
+                  const fields = [
+                    ...(rec.human_fields ?? []),
+                    ...(rec.llm_fields ?? []),
+                  ]
+                  return (
+                    <li key={configId}>
+                      <span className="font-medium">
+                        {rec.display_name || configId}
+                      </span>{' '}
+                      ({rec.metric}): <code>{rec.reason}</code>
+                      {fields.length > 0 && <span> · {fields.join(', ')}</span>}
+                    </li>
+                  )
+                })}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="mb-6 border-b border-gray-200">

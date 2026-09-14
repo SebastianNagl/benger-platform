@@ -8218,7 +8218,9 @@
       "scopeModelsCount": "{count} model(s)",
       "scopeOneAnnotator": "1 annotator",
       "scopeAnnotatorsCount": "{count} annotators",
-      "scopeTasksCount": "{count} task(s)"
+      "scopeTasksCount": "{count} task(s)",
+      "runFailedTitle": "Evaluation failed",
+      "unmatchedConfigsTitle": "Evaluations that matched no data"
     },
     "human": {
       "likert": {

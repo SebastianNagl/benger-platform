@@ -6916,7 +6916,9 @@
       "scopeModelsCount": "{count} Modell(e)",
       "scopeOneAnnotator": "1 Annotator:in",
       "scopeAnnotatorsCount": "{count} Annotator:innen",
-      "scopeTasksCount": "{count} Task(s)"
+      "scopeTasksCount": "{count} Task(s)",
+      "runFailedTitle": "Evaluierung fehlgeschlagen",
+      "unmatchedConfigsTitle": "Evaluierungen ohne passende Daten"
     },
     "human": {
       "likert": {
