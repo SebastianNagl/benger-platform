@@ -2142,12 +2142,62 @@ def run_evaluation(
                     f"results across {len(evaluated_by_gen)} generations"
                 )
 
+            # Classify EVERY config up front, not just far enough to learn
+            # that one of them is human-side. Two things depend on the full
+            # picture: the model-side enumeration below is now guarded the
+            # same way the annotation side already was, and a run that
+            # dispatches nothing has to say WHICH config matched nothing and
+            # why.
+            config_sides: List[dict] = []
+            classifier_unavailable = False
+            try:
+                from eval_field_classification import classify_pred_fields as _classify_pf
+
+                for c in enabled_configs:
+                    metric = c.get("metric", "") or ""
+                    pred = c.get("prediction_fields", []) or []
+                    if metric.startswith("korrektur_"):
+                        human_pfs, llm_pfs = [], []
+                    else:
+                        human_pfs, llm_pfs = _classify_pf(metric, pred)
+                    config_sides.append({
+                        "config_id": c.get("id") or metric or "unknown",
+                        "metric": metric,
+                        "display_name": c.get("display_name"),
+                        "human_fields": list(human_pfs),
+                        "llm_fields": list(llm_pfs),
+                    })
+            except Exception:
+                # The worker cannot tell which side to grade. Previously this
+                # silently skipped the entire annotation block and the run
+                # graded nothing; now it is a reported, blocking reason.
+                classifier_unavailable = True
+                config_sides = [
+                    {
+                        "config_id": c.get("id") or c.get("metric") or "unknown",
+                        "metric": c.get("metric", "") or "",
+                        "display_name": c.get("display_name"),
+                        "human_fields": [],
+                        "llm_fields": [],
+                    }
+                    for c in enabled_configs
+                ]
+
+            has_human_config = any(s["human_fields"] for s in config_sides)
+            has_llm_config = any(s["llm_fields"] for s in config_sides)
+
             # Enumerate generation cells.
             uses_all_model = any(
                 "__all_model__" in c.get("prediction_fields", []) for c in enabled_configs
             )
             gen_cells: List[tuple] = []  # (task_id, generation_id, already_done_field_keys)
-            for task in tasks:
+            # Subject counters separate "nothing to grade" from "everything
+            # already graded" - the distinction the old short-circuit lost.
+            gen_pool_scoped = 0
+            generation_filters_active = bool(
+                label_config_version or model_ids or structure_keys
+            )
+            for task in tasks if has_llm_config else []:
                 generations_query = db.query(Generation).filter(Generation.task_id == task.id)
                 if not uses_all_model:
                     generations_query = generations_query.filter(
@@ -2173,6 +2223,7 @@ def run_evaluation(
                         Generation.generation_id == ResponseGeneration.id,
                     ).filter(ResponseGeneration.structure_key.in_(structure_keys))
                 generations = generations_query.all()
+                gen_pool_scoped += len(generations)
                 for gen in generations:
                     gen_done = evaluated_by_gen.get(gen.id, set())
                     if evaluate_missing_only:
@@ -2191,38 +2242,26 @@ def run_evaluation(
             # for dedup. We keep that pattern, just used for enumeration
             # instead of in-place iteration.
             ann_cells: List[tuple] = []  # (task_id, annotation_id)
-            has_human_config = False
-            try:
-                from eval_field_classification import classify_pred_fields as _classify_pf
-
-                for c in enabled_configs:
-                    metric = c.get("metric", "")
-                    if metric.startswith("korrektur_"):
-                        continue
-                    human_pfs, _ = _classify_pf(metric, c.get("prediction_fields", []))
-                    if human_pfs:
-                        has_human_config = True
-                        break
-            except Exception:
-                has_human_config = False
-
+            ann_pool_scoped = 0
+            ann_pre_filter = 0
             if has_human_config:
                 task_id_list = [t.id for t in tasks]
                 ann_query = db.query(Annotation).filter(
                     Annotation.task_id.in_(task_id_list),
                     Annotation.was_cancelled == False,  # noqa: E712
                 )
+                ann_pre_filter = ann_query.count()
                 if annotator_user_ids:
-                    ann_pre_count = ann_query.count()
                     ann_query = ann_query.filter(
                         Annotation.completed_by.in_(annotator_user_ids)
                     )
                 all_annotations = ann_query.all()
+                ann_pool_scoped = len(all_annotations)
                 if annotator_user_ids:
                     logger.info(
                         f"[evaluation {evaluation_id}] annotator_user_ids filter active "
                         f"({len(annotator_user_ids)} ids); annotation pool reduced from "
-                        f"{ann_pre_count} to {len(all_annotations)}"
+                        f"{ann_pre_filter} to {len(all_annotations)}"
                     )
 
                 evaluated_by_ann: Dict[str, set] = {}
@@ -2285,6 +2324,50 @@ def run_evaluation(
             cells_dispatched = len(gen_cells) + len(ann_cells)
             from sqlalchemy.orm.attributes import flag_modified
 
+            # Raw pool counts distinguish "the filters excluded everything"
+            # from "there was nothing there". Only queried when a side
+            # produced no subject, so the happy path costs nothing.
+            gen_pool_raw = 0
+            ann_pool_raw = 0
+            if has_llm_config and gen_pool_scoped == 0:
+                gen_pool_raw = (
+                    db.query(Generation)
+                    .filter(Generation.task_id.in_([t.id for t in tasks]))
+                    .count()
+                )
+            if has_human_config and ann_pool_scoped == 0:
+                ann_pool_raw = (
+                    db.query(Annotation)
+                    .filter(Annotation.task_id.in_([t.id for t in tasks]))
+                    .count()
+                )
+
+            match_records = []
+            for side in config_sides:
+                reason = _classify_config_match(
+                    side,
+                    gen_cells=gen_cells,
+                    ann_cells=ann_cells,
+                    gen_pool_scoped=gen_pool_scoped,
+                    gen_pool_raw=gen_pool_raw,
+                    ann_pool_scoped=ann_pool_scoped,
+                    ann_pool_raw=ann_pool_raw,
+                    ann_pre_filter=ann_pre_filter,
+                    missing_only=evaluate_missing_only,
+                    generation_filters_active=generation_filters_active,
+                    annotator_filter_active=bool(annotator_user_ids),
+                    classifier_unavailable=classifier_unavailable,
+                )
+                match_records.append({**side, "reason": reason})
+                if reason is not None:
+                    logger.warning(
+                        f"[evaluation {evaluation_id}] config "
+                        f"{side['config_id']} ({side['metric']}) matched 0 "
+                        f"cells: {reason} (human={side['human_fields']}, "
+                        f"llm={side['llm_fields']}, gen_pool={gen_pool_scoped}, "
+                        f"ann_pool={ann_pool_scoped})"
+                    )
+
             evaluation.eval_metadata = {
                 **(evaluation.eval_metadata or {}),
                 "dispatched_at": datetime.now().isoformat(),
@@ -2292,17 +2375,28 @@ def run_evaluation(
                 "judge_run_ids_by_config": judge_run_ids_by_config_serializable,
                 "gen_cells_dispatched": len(gen_cells),
                 "ann_cells_dispatched": len(ann_cells),
+                "match_by_config": {r["config_id"]: r for r in match_records},
+                "configs_matched": sum(1 for r in match_records if r["reason"] is None),
+                "configs_unmatched": sum(
+                    1 for r in match_records if r["reason"] is not None
+                ),
+                # Cells the missing-only skip removed. The UI already renders
+                # this when non-zero; nothing wrote it until now, which is part
+                # of why a legitimate no-op looked identical to a broken run.
+                "samples_skipped": max(0, gen_pool_scoped - len(gen_cells))
+                + max(0, ann_pool_scoped - len(ann_cells)),
             }
             flag_modified(evaluation, "eval_metadata")
             db.commit()
 
-            # Nothing to do — short-circuit (e.g. all targets already done in
-            # `missing-only` mode, or no generations exist for the project yet).
+            # Nothing dispatched. Two very different situations used to land
+            # here and both reported success: everything was already graded
+            # (legitimate), or the configuration asks for something that
+            # cannot exist (a misconfiguration nobody was told about).
             if cells_dispatched == 0:
-                evaluation.status = "completed"
+                should_fail, diagnostic = _summarize_config_match(match_records)
                 evaluation.completed_at = datetime.now()
                 evaluation.samples_evaluated = 0
-                evaluation.has_sample_results = True
                 evaluation.metrics = {}
                 eval_meta_after = evaluation.eval_metadata or {}
                 eval_meta_after.update({
@@ -2310,13 +2404,55 @@ def run_evaluation(
                     "samples_failed": 0,
                     "pass_rate": 0,
                     "any_judge_failed": False,
-                    "note": "no cells to dispatch (missing-only short-circuit)",
                 })
+
+                if should_fail:
+                    evaluation.status = "failed"
+                    evaluation.error_message = diagnostic
+                    # Claiming results exist when none do is what made the
+                    # empty results panel look like a rendering problem.
+                    evaluation.has_sample_results = False
+                    eval_meta_after["note"] = (
+                        "no cells matched the evaluation configuration"
+                    )
+                    # Children were created `running` and never settled; a
+                    # terminal parent with running children is exactly the
+                    # drift `_finalize_judge_runs_by_rows` exists to kill.
+                    try:
+                        _finalize_judge_runs_by_rows(db, evaluation_id)
+                    except Exception:  # pragma: no cover - defensive
+                        logger.warning(
+                            f"[evaluation {evaluation_id}] could not settle "
+                            f"judge runs after a zero-match run",
+                            exc_info=True,
+                        )
+                else:
+                    evaluation.status = "completed"
+                    evaluation.has_sample_results = True
+                    eval_meta_after["note"] = (
+                        "no cells to dispatch (missing-only short-circuit)"
+                    )
+                    _settle_judge_runs_as_noop(db, evaluation_id)
+
                 evaluation.eval_metadata = eval_meta_after
                 flag_modified(evaluation, "eval_metadata")
                 db.commit()
+
+                if should_fail:
+                    logger.error(
+                        f"❌ Eval {evaluation_id} matched nothing: {diagnostic}"
+                    )
+                    return {
+                        "status": "error",
+                        "message": diagnostic,
+                        "evaluation_id": evaluation_id,
+                        "cells_dispatched": 0,
+                        "samples_evaluated": 0,
+                    }
+
                 logger.info(
-                    f"Eval {evaluation_id} short-circuited: 0 cells to dispatch"
+                    f"Eval {evaluation_id} short-circuited: 0 cells to dispatch "
+                    f"(every config already fully evaluated)"
                 )
                 return {
                     "status": "success",
@@ -3300,6 +3436,170 @@ _FAILURE_REASON_BUCKETS = frozenset({
 })
 
 
+# Why an evaluation config matched no subject to grade. Same whitelist-only
+# discipline as the failure buckets above: an unrecognised situation lands in
+# `"other"` rather than leaking free text into `eval_metadata`.
+#
+# The split that matters is BENIGN vs blocking. "Everything was already
+# graded" is a legitimate no-op; every other reason means the run asked for
+# something that cannot exist, which is a misconfiguration an operator has to
+# see. The old code conflated the two and reported both as success.
+_CONFIG_MATCH_REASONS = frozenset({
+    "all_cells_already_evaluated",
+    "manual_metric",
+    "no_prediction_fields",
+    "no_generations",
+    "generation_filters_excluded_all",
+    "no_annotations",
+    "all_annotations_cancelled",
+    "annotator_filter_excluded_all",
+    "classifier_unavailable",
+    "other",
+})
+
+# The only reasons that must NOT fail a run.
+_BENIGN_MATCH_REASONS = frozenset({
+    "all_cells_already_evaluated",
+    "manual_metric",
+})
+
+
+def _classify_config_match(
+    side,
+    *,
+    gen_cells,
+    ann_cells,
+    gen_pool_scoped,
+    gen_pool_raw,
+    ann_pool_scoped,
+    ann_pool_raw,
+    ann_pre_filter,
+    missing_only,
+    generation_filters_active,
+    annotator_filter_active,
+    classifier_unavailable,
+):
+    """Why did this config contribute no cell? ``None`` when it did.
+
+    Cells are built per SUBJECT (a generation or an annotation) and every cell
+    carries the whole config list, so "this config produced no cell" really
+    means "the side this config grades held no subject". Which side that is
+    comes from ``eval_field_classification.classify_pred_fields``.
+
+    Precedence is deliberate and ordered, so the reported reason is the most
+    actionable one rather than whichever check ran first.
+    """
+    if classifier_unavailable:
+        return "classifier_unavailable"
+
+    metric = (side.get("metric") or "").strip()
+    if metric.startswith("korrektur_"):
+        # Human grading is a person filling a form, never dispatched.
+        return "manual_metric"
+
+    wants_human = bool(side.get("human_fields"))
+    wants_llm = bool(side.get("llm_fields"))
+    if not wants_human and not wants_llm:
+        return "no_prediction_fields"
+
+    # Matched if EITHER side produced a cell.
+    if (wants_llm and gen_cells) or (wants_human and ann_cells):
+        return None
+
+    # A config naming both sides reports the generation reason; an ambiguous
+    # merge of two reasons would be less useful than a definite one.
+    if wants_llm:
+        if gen_pool_scoped > 0:
+            # Subjects existed and every one was filtered out as done. Only
+            # missing-only mode builds that skip set; under a forced rerun
+            # zero cells can only mean a real mismatch.
+            return "all_cells_already_evaluated" if missing_only else "other"
+        if generation_filters_active and gen_pool_raw > 0:
+            return "generation_filters_excluded_all"
+        return "no_generations"
+
+    if ann_pool_scoped > 0:
+        return "all_cells_already_evaluated" if missing_only else "other"
+    if annotator_filter_active and ann_pre_filter > 0:
+        return "annotator_filter_excluded_all"
+    if ann_pool_raw > 0:
+        return "all_annotations_cancelled"
+    return "no_annotations"
+
+
+#: Operator-facing text per reason. `{label}` is the config's display name.
+_MATCH_REASON_HELP = {
+    "no_generations": (
+        "grades model generations and this project has none. Generate "
+        "responses first, or point the evaluation at a 'human:' field."
+    ),
+    "generation_filters_excluded_all": (
+        "grades model generations, and this run's model / prompt-structure "
+        "filters excluded every one of them."
+    ),
+    "no_annotations": (
+        "grades human annotations and this project has none. Submit an "
+        "annotation first, or point the evaluation at a 'model:' field."
+    ),
+    "all_annotations_cancelled": (
+        "grades human annotations and every annotation on these tasks is "
+        "cancelled."
+    ),
+    "annotator_filter_excluded_all": (
+        "grades human annotations, and this run's annotator filter excluded "
+        "every one of them."
+    ),
+    "no_prediction_fields": (
+        "has no prediction field configured, so there is nothing to grade."
+    ),
+    "classifier_unavailable": (
+        "could not be classified: the shared field-classification module "
+        "failed to import, so the worker cannot tell which side to grade."
+    ),
+    "other": "matched no subject to grade.",
+}
+
+
+def _summarize_config_match(records):
+    """``(should_fail, error_message)`` for a run that dispatched no cell.
+
+    Fails when ANY config carries a blocking reason. The message names the
+    configs and says what to do, in the spirit of the rubric-resolution error:
+    state what was missing and how to fix it, not just that something was.
+    """
+    blocking = [
+        r
+        for r in records
+        # `reason is None` means the config DID match; only an actual reason
+        # can block. Without this guard a matched config counted as blocking.
+        if r.get("reason") is not None
+        and r.get("reason") not in _BENIGN_MATCH_REASONS
+    ]
+    if not blocking:
+        return False, ""
+
+    parts = []
+    for rec in blocking[:2]:
+        label = rec.get("display_name") or rec.get("config_id") or rec.get("metric")
+        reason = rec.get("reason") or "other"
+        help_text = _MATCH_REASON_HELP.get(reason, _MATCH_REASON_HELP["other"])
+        fields = rec.get("human_fields", []) + rec.get("llm_fields", [])
+        selectors = ", ".join(repr(f) for f in fields) or "none"
+        parts.append(
+            f"'{label}' ({rec.get('metric')}) - {reason}: "
+            f"prediction field {selectors} {help_text}"
+        )
+    if len(blocking) > 2:
+        parts.append(f"[+{len(blocking) - 2} more]")
+
+    message = (
+        f"no cells matched the evaluation configuration "
+        f"({len(records) - len(blocking)} of {len(records)} configs matched "
+        f"any cell): " + "; ".join(parts)
+    )
+    return True, message[:500]
+
+
 def _record_cell_attempt(evaluation_id: str, cell_key: str) -> int:
     """Per-cell attempt counter in Redis, used as a poison-cell guard.
 
@@ -3592,6 +3892,42 @@ def evaluate_annotation_cell(
 ) -> Dict[str, Any]:
     from evaluation.cell_evaluator import evaluate_annotation_cell_impl
     return evaluate_annotation_cell_impl(self, evaluation_id, task_id, annotation_id, project_id, configs_for_cell, judge_run_ids_by_config, default_judge_run_id, organization_id, triggered_by_user_id, already_evaluated_field_keys)
+
+
+def _settle_judge_runs_as_noop(db, evaluation_id: str):
+    """Close this run's judge_runs for a legitimate no-op.
+
+    A missing-only run with nothing left to grade still created its
+    EvaluationJudgeRun children as ``running``, and the old short-circuit
+    returned without touching them: a ``completed`` parent over ``running``
+    children, forever.
+
+    NOT ``_finalize_judge_runs_by_rows``. That derives status from row count,
+    and on a no-op every child has zero rows (the rows belong to the earlier
+    run that did the work), so it would mark them all failed and contradict a
+    correct ``completed`` parent.
+    """
+    from datetime import datetime
+
+    from models import EvaluationJudgeRun
+
+    (
+        db.query(EvaluationJudgeRun)
+        .filter(
+            EvaluationJudgeRun.evaluation_id == evaluation_id,
+            EvaluationJudgeRun.status.notin_(("completed", "failed", "cancelled")),
+        )
+        .update(
+            {
+                "status": "completed",
+                "samples_evaluated": 0,
+                "completed_at": datetime.now(),
+                "error_message": None,
+            },
+            synchronize_session=False,
+        )
+    )
+    db.commit()
 
 
 def _finalize_judge_runs_by_rows(db, evaluation_id: str):

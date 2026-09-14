@@ -2268,3 +2268,227 @@ def test_annotation_cell_value_error_skips_pair(
         .count()
         == 0
     )
+
+
+# ---------------------------------------------------------------------------
+# 9b - a run that dispatches nothing must say why, and fail when it matters
+# ---------------------------------------------------------------------------
+#
+# A run that matched nothing used to be stored exactly like a run with nothing
+# left to do: `completed`, zero samples, `has_sample_results=True`. A production
+# Bewertungsbogen run graded nothing and reported success that way. These pin
+# the split: benign no-ops stay `completed`, misconfigurations fail loudly with
+# a diagnostic naming the config and the reason.
+
+
+def _human_config(config_id="hcfg", ref_field="task.expected"):
+    return {
+        "id": config_id,
+        "metric": "exact_match",
+        "prediction_fields": ["__all_human__"],
+        "reference_fields": [ref_field],
+        "metric_parameters": {},
+        "enabled": True,
+    }
+
+
+def _no_running_judge_runs(db_conn, run):
+    db_conn.expire_all()
+    return (
+        db_conn.query(EvaluationJudgeRun)
+        .filter(
+            EvaluationJudgeRun.evaluation_id == run.id,
+            EvaluationJudgeRun.status == "running",
+        )
+        .count()
+        == 0
+    )
+
+
+def test_zero_cells_from_unmatchable_config_fails_with_diagnostic(
+    db_conn, make_user, make_project, make_task, make_annotation,
+    make_evaluation_run, exact_match_config,
+):
+    """The production shape: a model-side config over a project that only has
+    human annotations. It must fail, and say what to do."""
+    user = make_user()
+    project = make_project(created_by=user.id)
+    task = make_task(project.id, {"expected": "ja"}, created_by=user.id)
+    make_annotation(project.id, task.id, user.id, result=[])
+    run = make_evaluation_run(project.id, user.id, status="pending")
+    db_conn.commit()
+
+    result = _run(db_conn, run, project, [exact_match_config()])
+
+    assert result["status"] == "error"
+    assert result["cells_dispatched"] == 0
+
+    fresh = _refresh(db_conn, run)
+    assert fresh.status == "failed"
+    assert fresh.has_sample_results is False
+    assert "no cells matched" in (fresh.error_message or "")
+    assert "no_generations" in fresh.error_message
+    assert "__all_model__" in fresh.error_message
+    # The message points at the fix, not just the fault.
+    assert "human:" in fresh.error_message
+
+    meta = fresh.eval_metadata or {}
+    record = meta["match_by_config"]["cfg1"]
+    assert record["reason"] == "no_generations"
+    assert record["llm_fields"] == ["__all_model__"]
+    assert meta["configs_unmatched"] == 1
+    assert (
+        db_conn.query(TaskEvaluation)
+        .filter(TaskEvaluation.evaluation_id == run.id)
+        .count()
+        == 0
+    )
+    # A terminal parent must not sit over `running` children.
+    assert _no_running_judge_runs(db_conn, run)
+
+
+def test_missing_only_noop_records_a_benign_reason(
+    db_conn, make_user, make_llm_model, make_project, make_task,
+    make_generation, make_evaluation_run, exact_match_config,
+):
+    """Everything already graded is legitimate and stays `completed`, but now
+    says so explicitly and fills the skipped count the UI already renders."""
+    user = make_user()
+    model = make_llm_model(provider="OpenAI")
+    project = make_project(created_by=user.id)
+    task = make_task(project.id, {"expected": "ja"}, created_by=user.id)
+    make_generation(project.id, task.id, model.id, user.id, response_content="ja")
+    run = make_evaluation_run(project.id, user.id, status="pending")
+    db_conn.commit()
+
+    config = exact_match_config()
+    _run(db_conn, run, project, [config])
+    fresh = _refresh(db_conn, run)
+    assert fresh.status == "completed"
+    fresh.status = "pending"
+    db_conn.commit()
+
+    result = tasks.run_evaluation(
+        evaluation_id=run.id, project_id=project.id,
+        evaluation_configs=[config], evaluate_missing_only=True,
+    )
+    assert result["status"] == "success"
+    assert result["cells_dispatched"] == 0
+
+    fresh2 = _refresh(db_conn, run)
+    assert fresh2.status == "completed"
+    assert fresh2.error_message is None
+    meta = fresh2.eval_metadata or {}
+    assert meta["note"] == "no cells to dispatch (missing-only short-circuit)"
+    assert meta["match_by_config"]["cfg1"]["reason"] == "all_cells_already_evaluated"
+    assert meta["samples_skipped"] == 1
+    assert _no_running_judge_runs(db_conn, run)
+
+
+def test_human_only_config_dispatches_no_generation_cells(
+    db_conn, make_user, make_llm_model, make_project, make_task,
+    make_generation, make_evaluation_run,
+):
+    """The model side is now guarded the way the annotation side always was.
+    Without the guard this run dispatched a generation cell that every config
+    skipped, and finalize blamed "all judge_runs failed" instead of the cause."""
+    user = make_user()
+    model = make_llm_model(provider="OpenAI")
+    project = make_project(created_by=user.id)
+    task = make_task(project.id, {"expected": "ja"}, created_by=user.id)
+    make_generation(project.id, task.id, model.id, user.id, response_content="ja")
+    run = make_evaluation_run(project.id, user.id, status="pending")
+    db_conn.commit()
+
+    result = _run(db_conn, run, project, [_human_config()])
+
+    assert result["status"] == "error"
+    fresh = _refresh(db_conn, run)
+    assert fresh.status == "failed"
+    meta = fresh.eval_metadata or {}
+    assert meta["gen_cells_dispatched"] == 0
+    assert meta["match_by_config"]["hcfg"]["reason"] == "no_annotations"
+    assert "no_annotations" in fresh.error_message
+
+
+def test_partial_mismatch_still_grades_and_records_the_unmatched_config(
+    db_conn, make_user, make_llm_model, make_project, make_task,
+    make_generation, make_evaluation_run, exact_match_config,
+):
+    """A run with real work must never be failed because a sibling config
+    matched nothing. The unmatched one is recorded, the rest is graded."""
+    user = make_user()
+    model = make_llm_model(provider="OpenAI")
+    project = make_project(created_by=user.id)
+    task = make_task(project.id, {"expected": "ja"}, created_by=user.id)
+    make_generation(project.id, task.id, model.id, user.id, response_content="ja")
+    run = make_evaluation_run(project.id, user.id, status="pending")
+    db_conn.commit()
+
+    _run(db_conn, run, project, [exact_match_config(), _human_config()])
+
+    fresh = _refresh(db_conn, run)
+    assert fresh.status == "completed"
+    meta = fresh.eval_metadata or {}
+    assert meta["match_by_config"]["cfg1"]["reason"] is None
+    assert meta["match_by_config"]["hcfg"]["reason"] == "no_annotations"
+    assert meta["configs_matched"] == 1
+    assert meta["configs_unmatched"] == 1
+    assert (
+        db_conn.query(TaskEvaluation)
+        .filter(TaskEvaluation.evaluation_id == run.id)
+        .count()
+        >= 1
+    )
+
+
+def test_a_registered_rule_routes_bare_fields_to_annotation_cells(
+    db_conn, make_user, make_project, make_task, make_annotation,
+    make_evaluation_run, monkeypatch,
+):
+    """The platform half of the Bewertungsbogen fix. A bare prediction field
+    classifies as model-side by default, so without a per-metric rule the
+    annotation pass never runs and the run grades nothing. With a rule
+    registered, the SAME config must dispatch annotation cells and score them.
+
+    Registered on `exact_match` for the duration of the test so this stays
+    free of benger_extended and of any judge; the rule is the one extended
+    registers for `llm_judge_rubric`."""
+    import eval_field_classification as efc
+
+    monkeypatch.setitem(efc._RULES, "exact_match", efc.unprefixed_is_human)
+
+    user = make_user()
+    project = make_project(created_by=user.id)
+    task = make_task(project.id, {"expected": "ja"}, created_by=user.id)
+    ann = make_annotation(
+        project.id, task.id, completed_by=user.id,
+        result=[_ann_result("answer", "ja")],
+    )
+    run = make_evaluation_run(project.id, user.id, status="pending")
+    db_conn.commit()
+
+    bare = {
+        "id": "cfg1",
+        "metric": "exact_match",
+        "prediction_fields": ["answer"],
+        "reference_fields": ["task.expected"],
+        "metric_parameters": {},
+        "enabled": True,
+    }
+    result = _run(db_conn, run, project, [bare])
+
+    assert result["status"] == "dispatched"
+    assert result["ann_cells"] == 1
+    assert result["gen_cells"] == 0
+
+    rows = (
+        db_conn.query(TaskEvaluation)
+        .filter(TaskEvaluation.evaluation_id == run.id)
+        .all()
+    )
+    assert [r.annotation_id for r in rows] == [ann.id]
+    assert rows[0].passed is True
+    fresh = _refresh(db_conn, run)
+    assert fresh.status == "completed"
+    assert (fresh.eval_metadata or {})["match_by_config"]["cfg1"]["reason"] is None
