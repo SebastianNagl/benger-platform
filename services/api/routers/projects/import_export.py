@@ -90,6 +90,7 @@ from models import (  # noqa: E402
     ExportJob,
     ImportJob,
     JobStatus,
+    Organization,
     OrganizationMembership,
     OrgStorageConnection,
 )
@@ -764,6 +765,47 @@ async def _load_full_import_job_for_read(
     return job
 
 
+async def _resolve_import_target_org(
+    db: AsyncSession, current_user: AuthUser, org_context: Optional[str]
+) -> Optional[str]:
+    """The org a create-new import should land in, from the request org context.
+
+    ``None`` for no context or ``"private"``: the worker then falls back to the
+    importer's first active membership. A named org requires an ACTIVE
+    membership (403 otherwise); a superadmin may target any active org (404
+    when it doesn't exist). The worker re-checks at project creation time.
+    """
+    if not org_context or org_context == "private":
+        return None
+    if current_user.is_superadmin:
+        org = (
+            await db.execute(
+                select(Organization.id).where(
+                    Organization.id == org_context,
+                    Organization.is_active == True,  # noqa: E712
+                )
+            )
+        ).scalar_one_or_none()
+        if org is None:
+            raise HTTPException(status_code=404, detail="Organization not found")
+        return org_context
+    membership = (
+        await db.execute(
+            select(OrganizationMembership.id).where(
+                OrganizationMembership.user_id == current_user.id,
+                OrganizationMembership.organization_id == org_context,
+                OrganizationMembership.is_active == True,  # noqa: E712
+            )
+        )
+    ).scalar_one_or_none()
+    if membership is None:
+        raise HTTPException(
+            status_code=403,
+            detail="You are not a member of the organization to import into",
+        )
+    return org_context
+
+
 @router.post("/project-imports/upload-url")
 async def create_full_import_upload_url(
     request: Request,
@@ -807,11 +849,16 @@ async def create_full_import_job(
     if not object_key.startswith("imports/") or f"/{current_user.id}/" not in object_key:
         raise HTTPException(status_code=400, detail="Invalid object_key")
 
+    organization_id = await _resolve_import_target_org(
+        db, current_user, get_org_context_from_request(request)
+    )
+
     job = ImportJob(
         id=str(uuid.uuid4()),
         project_id=None,
         requested_by=current_user.id,
         object_key=object_key,
+        organization_id=organization_id,
         status=JobStatus.PENDING.value,
         progress=0,
     )

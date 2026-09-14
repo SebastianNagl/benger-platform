@@ -640,6 +640,7 @@
       "invalidJsonFormat": "Invalid JSON format in file",
       "unsupportedFileFormat": "Unsupported file format version",
       "missingRequiredFields": "Missing required fields in import file",
+      "taskExportNotProject": "This file is a task export, not a project export. Import it on the Project data page of an existing project.",
       "projectsSelected": "{count} project(s) selected",
       "showingResults": "Showing {shown} of {total} results",
       "created": "Created",

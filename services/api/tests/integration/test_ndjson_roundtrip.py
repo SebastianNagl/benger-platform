@@ -371,6 +371,42 @@ class TestNDJSONRoundtrip:
         }
         assert any("Generated answer for" in c for c in contents)
 
+    def test_roundtrip_carries_kind_and_project_settings(self, test_db, full_project):
+        """The NDJSON meta record carries the same project settings as the
+        comprehensive JSON; visibility and origin are reset on import."""
+        project, admin = full_project
+        project.kind = "exam"
+        project.icon = "⚖️"
+        project.origin = "student"
+        project.is_private = True
+        project.annotation_time_limit_enabled = True
+        project.annotation_time_limit_seconds = 7200
+        project.strict_timer_enabled = True
+        project.checkpoint_interval_seconds = 600
+        project.immediate_evaluation_enabled = True
+        project.enable_generation = False
+        test_db.commit()
+
+        ndjson = _export_ndjson(test_db, project)
+        meta = json.loads(ndjson.splitlines()[0])
+        assert meta["project"]["kind"] == "exam"
+        assert "is_private" not in meta["project"]
+
+        new_pid = run_full_project_import(
+            test_db, io.BytesIO(ndjson.encode("utf-8")), admin.id
+        )["project_id"]
+        imported = test_db.query(Project).filter(Project.id == new_pid).one()
+        assert imported.kind == "exam"
+        assert imported.icon == "⚖️"
+        assert imported.annotation_time_limit_enabled is True
+        assert imported.annotation_time_limit_seconds == 7200
+        assert imported.strict_timer_enabled is True
+        assert imported.checkpoint_interval_seconds == 600
+        assert imported.immediate_evaluation_enabled is True
+        assert imported.enable_generation is False
+        assert imported.is_private is False
+        assert imported.origin is None
+
     def test_ndjson_matches_comprehensive_import(self, test_db, full_project):
         """Importing the NDJSON export and importing the comprehensive-JSON export
         of the same project must yield identical entity counts — proof the two
@@ -798,3 +834,188 @@ class TestTaskRubricsInNdjson:
         assert gradings
         for row in gradings:
             assert row.metrics["llm_judge_rubric"]["details"]["rubric_id"] == imported.id
+
+
+@pytest.mark.integration
+class TestImportOwningOrganization:
+    """``organization_id`` (the job's org context) picks the owning org and is
+    re-validated when the project is created."""
+
+    @staticmethod
+    def _second_org(test_db, name):
+        from models import Organization
+
+        oid = _uid()
+        org = Organization(
+            id=oid, name=name, display_name=name, slug=f"own-{oid[:8]}"
+        )
+        test_db.add(org)
+        test_db.flush()
+        return org
+
+    @staticmethod
+    def _join(test_db, user, org, active=True):
+        from models import OrganizationMembership
+
+        test_db.add(
+            OrganizationMembership(
+                id=_uid(),
+                user_id=user.id,
+                organization_id=org.id,
+                role="CONTRIBUTOR",
+                is_active=active,
+            )
+        )
+        test_db.flush()
+
+    @staticmethod
+    def _owner_org(test_db, project_id):
+        return (
+            test_db.query(ProjectOrganization.organization_id)
+            .filter(ProjectOrganization.project_id == project_id)
+            .scalar()
+        )
+
+    def test_member_org_owns_the_import_for_json_and_ndjson(
+        self, test_db, test_users, full_project
+    ):
+        project, _admin = full_project
+        contributor = test_users[1]  # active member of test_org
+        target = self._second_org(test_db, "Target")
+        self._join(test_db, contributor, target)
+        test_db.commit()
+
+        ndjson = _export_ndjson(test_db, project)
+        comprehensive = "".join(
+            stream_comprehensive_project_data_json(test_db, project.id)
+        )
+        for body in (ndjson, comprehensive):
+            pid = run_full_project_import(
+                test_db,
+                io.BytesIO(body.encode("utf-8")),
+                contributor.id,
+                organization_id=target.id,
+            )["project_id"]
+            assert self._owner_org(test_db, pid) == target.id
+
+    def test_without_org_context_first_active_membership_owns_it(
+        self, test_db, test_users, test_org, full_project
+    ):
+        project, _admin = full_project
+        contributor = test_users[1]
+        pid = run_full_project_import(
+            test_db,
+            io.BytesIO(_export_ndjson(test_db, project).encode("utf-8")),
+            contributor.id,
+        )["project_id"]
+        assert self._owner_org(test_db, pid) == test_org.id
+
+    def test_non_member_is_rejected_before_anything_is_written(
+        self, test_db, test_users, full_project
+    ):
+        project, _admin = full_project
+        contributor = test_users[1]
+        foreign = self._second_org(test_db, "Foreign")
+        inactive = self._second_org(test_db, "Inactive")
+        self._join(test_db, contributor, inactive, active=False)
+        test_db.commit()
+        ndjson = _export_ndjson(test_db, project)
+
+        for org in (foreign, inactive):
+            before = test_db.query(Project).count()
+            with pytest.raises(ImportValidationError) as exc:
+                run_full_project_import(
+                    test_db,
+                    io.BytesIO(ndjson.encode("utf-8")),
+                    contributor.id,
+                    organization_id=org.id,
+                )
+            assert exc.value.status_code == 403
+            test_db.rollback()
+            assert test_db.query(Project).count() == before
+
+    def test_superadmin_may_import_into_any_existing_org(
+        self, test_db, test_users, full_project
+    ):
+        project, admin = full_project
+        assert admin.is_superadmin
+        foreign = self._second_org(test_db, "Superadmin Target")
+        test_db.commit()
+        ndjson = _export_ndjson(test_db, project)
+
+        pid = run_full_project_import(
+            test_db,
+            io.BytesIO(ndjson.encode("utf-8")),
+            admin.id,
+            organization_id=foreign.id,
+        )["project_id"]
+        assert self._owner_org(test_db, pid) == foreign.id
+
+        with pytest.raises(ImportValidationError) as exc:
+            run_full_project_import(
+                test_db,
+                io.BytesIO(ndjson.encode("utf-8")),
+                admin.id,
+                organization_id=_uid(),
+            )
+        assert exc.value.status_code == 404
+
+
+@pytest.mark.integration
+class TestTaskExportRejectedByProjectImport:
+    """A Projektdaten task export must not pass as a project export."""
+
+    def test_task_export_is_rejected_with_a_stable_code(self, test_db, full_project):
+        from import_stream import TASK_EXPORT_NOT_PROJECT
+
+        project, admin = full_project
+        task_export = "".join(select_export_generator(test_db, project, "json"))
+        doc = json.loads(task_export)
+        assert "format_version" not in doc and "evaluation_runs" in doc
+
+        before = test_db.query(Project).count()
+        with pytest.raises(ImportValidationError) as exc:
+            run_full_project_import(
+                test_db, io.BytesIO(task_export.encode("utf-8")), admin.id
+            )
+        assert exc.value.status_code == 400
+        assert exc.value.code == TASK_EXPORT_NOT_PROJECT
+        assert exc.value.detail.startswith(f"{TASK_EXPORT_NOT_PROJECT}: ")
+        assert "task export" in exc.value.detail
+        test_db.rollback()
+        assert test_db.query(Project).count() == before
+
+    def test_nested_tasks_without_evaluation_runs_are_rejected(
+        self, test_db, full_project
+    ):
+        project, admin = full_project
+        doc = json.loads("".join(select_export_generator(test_db, project, "json")))
+        doc.pop("evaluation_runs")
+        with pytest.raises(ImportValidationError) as exc:
+            run_full_project_import(
+                test_db, io.BytesIO(json.dumps(doc).encode("utf-8")), admin.id
+            )
+        assert exc.value.code == "task_export_not_project"
+
+    def test_comprehensive_export_is_still_accepted(self, test_db, full_project):
+        project, admin = full_project
+        body = "".join(stream_comprehensive_project_data_json(test_db, project.id))
+        result = run_full_project_import(
+            test_db, io.BytesIO(body.encode("utf-8")), admin.id
+        )
+        assert result["project_id"]
+
+    def test_legacy_export_without_format_version_is_still_accepted(
+        self, test_db, full_project
+    ):
+        """Old comprehensive exports may lack format_version; their flat
+        top-level annotations block keeps them importable."""
+        project, admin = full_project
+        doc = json.loads(
+            "".join(stream_comprehensive_project_data_json(test_db, project.id))
+        )
+        doc.pop("format_version")
+        result = run_full_project_import(
+            test_db, io.BytesIO(json.dumps(doc).encode("utf-8")), admin.id
+        )
+        assert result["project_id"]

@@ -640,6 +640,7 @@
       "invalidJsonFormat": "Ungültiges JSON-Format in Datei",
       "unsupportedFileFormat": "Nicht unterstützte Dateiformatversion",
       "missingRequiredFields": "Fehlende Pflichtfelder in Importdatei",
+      "taskExportNotProject": "Diese Datei ist ein Aufgaben-Export und kein Projekt-Export. Importieren Sie sie auf der Seite Projektdaten eines bestehenden Projekts.",
       "projectsSelected": "{count} Projekt(e) ausgewählt",
       "showingResults": "Zeige {shown} von {total} Ergebnissen",
       "created": "Erstellt",

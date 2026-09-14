@@ -427,3 +427,127 @@ class TestGetImportJobStatus:
                 f"/api/projects/{project.id}/imports/{job.id}",
             )
         assert resp.status_code == 200
+
+
+@pytest.mark.integration
+class TestCreateFullImportJobOrgContext:
+    """POST /project-imports records the owning org from the org context."""
+
+    @staticmethod
+    def _key(user_id):
+        return f"imports/2026/09/{user_id}/20260914_120000_full.json"
+
+    async def _post(self, client, user, headers=None):
+        with _as_user(user), patch(
+            "routers.projects.import_export.send_task_safe",
+            return_value=MagicMock(id="celery-org"),
+        ) as mock_send:
+            resp = await client.post(
+                "/api/projects/project-imports",
+                json={"object_key": self._key(user.id)},
+                headers=headers or {},
+            )
+        return resp, mock_send
+
+    @pytest.mark.asyncio
+    async def test_member_org_context_is_stored_on_the_job(
+        self, async_test_client, async_test_db
+    ):
+        first = await _make_org(async_test_db, name="First Org")
+        target = await _make_org(async_test_db, name="Target Org")
+        user = await _make_user(async_test_db, name="Member")
+        await _add_member(async_test_db, user, first, OrganizationRole.CONTRIBUTOR)
+        await _add_member(async_test_db, user, target, OrganizationRole.CONTRIBUTOR)
+        await async_test_db.commit()
+
+        resp, _ = await self._post(
+            async_test_client, user, {"X-Organization-Context": target.id}
+        )
+        assert resp.status_code == 202, resp.text
+        job = await _get_job(async_test_db, resp.json()["job_id"])
+        assert job.organization_id == target.id
+
+    @pytest.mark.asyncio
+    async def test_non_member_org_context_403_and_no_job(
+        self, async_test_client, async_test_db
+    ):
+        own = await _make_org(async_test_db, name="Own Org")
+        foreign = await _make_org(async_test_db, name="Foreign Org")
+        user = await _make_user(async_test_db, name="Outsider")
+        await _add_member(async_test_db, user, own, OrganizationRole.CONTRIBUTOR)
+        await async_test_db.commit()
+
+        resp, mock_send = await self._post(
+            async_test_client, user, {"X-Organization-Context": foreign.id}
+        )
+        assert resp.status_code == 403, resp.text
+        mock_send.assert_not_called()
+        jobs = (
+            await async_test_db.execute(
+                select(ImportJob).where(ImportJob.requested_by == user.id)
+            )
+        ).scalars().all()
+        assert jobs == []
+
+    @pytest.mark.asyncio
+    async def test_inactive_membership_is_not_enough(
+        self, async_test_client, async_test_db
+    ):
+        org = await _make_org(async_test_db, name="Left Org")
+        user = await _make_user(async_test_db, name="Former member")
+        async_test_db.add(
+            OrganizationMembership(
+                id=_uid(),
+                user_id=user.id,
+                organization_id=org.id,
+                role=OrganizationRole.CONTRIBUTOR,
+                is_active=False,
+            )
+        )
+        await async_test_db.commit()
+
+        resp, _ = await self._post(
+            async_test_client, user, {"X-Organization-Context": org.id}
+        )
+        assert resp.status_code == 403, resp.text
+
+    @pytest.mark.asyncio
+    async def test_superadmin_may_target_any_org(
+        self, async_test_client, async_test_db
+    ):
+        org = await _make_org(async_test_db, name="Any Org")
+        admin = await _make_user(async_test_db, is_superadmin=True, name="SA")
+        await async_test_db.commit()
+
+        resp, _ = await self._post(
+            async_test_client, admin, {"X-Organization-Context": org.id}
+        )
+        assert resp.status_code == 202, resp.text
+        job = await _get_job(async_test_db, resp.json()["job_id"])
+        assert job.organization_id == org.id
+
+    @pytest.mark.asyncio
+    async def test_superadmin_unknown_org_404(self, async_test_client, async_test_db):
+        admin = await _make_user(async_test_db, is_superadmin=True, name="SA")
+        await async_test_db.commit()
+
+        resp, mock_send = await self._post(
+            async_test_client, admin, {"X-Organization-Context": _uid()}
+        )
+        assert resp.status_code == 404, resp.text
+        mock_send.assert_not_called()
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("headers", [{"X-Organization-Context": "private"}, {}])
+    async def test_private_or_absent_context_keeps_fallback(
+        self, async_test_client, async_test_db, headers
+    ):
+        org = await _make_org(async_test_db, name="Only Org")
+        user = await _make_user(async_test_db, name="Private")
+        await _add_member(async_test_db, user, org, OrganizationRole.CONTRIBUTOR)
+        await async_test_db.commit()
+
+        resp, _ = await self._post(async_test_client, user, headers)
+        assert resp.status_code == 202, resp.text
+        job = await _get_job(async_test_db, resp.json()["job_id"])
+        assert job.organization_id is None

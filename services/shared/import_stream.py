@@ -57,6 +57,7 @@ from models import (
     HumanEvaluationResult,
     HumanEvaluationSession,
     LikertScaleEvaluation,
+    Organization,
     PreferenceRanking,
     ResponseGeneration,
     TaskEvaluation,
@@ -160,12 +161,56 @@ class ImportValidationError(Exception):
     ``HTTPException`` they used to raise, while keeping this /shared module free
     of any FastAPI dependency (the workers container has no fastapi installed).
     The worker records ``detail`` on the failed job row instead.
+
+    ``code`` is an optional stable token for errors a client maps to its own
+    translated message. It is also prefixed to ``detail`` (``"<code>: ..."``)
+    because the job row only stores the message text.
     """
 
-    def __init__(self, status_code: int, detail: str):
+    def __init__(self, status_code: int, detail: str, code: Optional[str] = None):
+        if code:
+            detail = f"{code}: {detail}"
         super().__init__(detail)
         self.status_code = status_code
         self.detail = detail
+        self.code = code
+
+
+#: A Projektdaten task export (``stream_export_json``) given to the create-new
+#: project import. Mapped to a translated message by the frontend.
+TASK_EXPORT_NOT_PROJECT = "task_export_not_project"
+
+# Per-task keys only the nested task export carries (the comprehensive export
+# keeps these as flat top-level blocks).
+_NESTED_TASK_EXPORT_KEYS = ("annotations", "evaluations", "generations")
+
+
+def _is_nested_task_export(fileobj, top_obj: Dict[str, Any], kinds: Dict[str, str]) -> bool:
+    """Whether a single-object JSON body is a task export, not a project export.
+
+    The task export (Projektdaten page) has a ``project`` header and a
+    ``tasks`` array like the comprehensive export, but no ``format_version``,
+    a top-level ``evaluation_runs`` block and annotations / evaluations nested
+    in each task. The comprehensive export always writes ``format_version`` and
+    a flat top-level ``annotations`` block, so either one rules a task export
+    out. Reads at most the first task and then seeks back to 0 (later passes
+    re-seek on their own).
+    """
+    if "format_version" in top_obj or "annotations" in kinds:
+        return False
+    if "evaluation_runs" in kinds:
+        return True
+    if kinds.get("tasks") != "start_array":
+        return False
+    fileobj.seek(0)
+    try:
+        for task in ijson.items(fileobj, "tasks.item", use_float=True):
+            return isinstance(task, dict) and any(
+                key in task for key in _NESTED_TASK_EXPORT_KEYS
+            )
+        return False
+    finally:
+        fileobj.seek(0)
 
 
 def read_top_object(
@@ -1977,6 +2022,97 @@ def _insert_post_annotation_response(ctx: _FullImportContext, par_data: dict) ->
         ctx.db.add(new_par)
 
 
+def _setting(project_data: dict, key: str, default):
+    """``project_data[key]`` unless absent or null, then the column default.
+
+    For NOT NULL project settings: exports older than the key omit it, and a
+    stray explicit null must not fail the insert."""
+    value = project_data.get(key)
+    return default if value is None else value
+
+
+def _split_accessible_model_ids(ctx: "_FullImportContext", models, importing_user):
+    """Partition exported model ids into ``(kept, dropped)`` for this instance.
+
+    Kept: ids that exist here and are official, or custom (BYOM) rows the
+    importing user can access (superadmin, public, their own, or shared with
+    one of their active orgs). Everything else is dropped. Order is preserved.
+    Raises on DB errors; callers decide how to degrade.
+    """
+    # Lazy import: LLMModel/ModelOrganization aren't needed anywhere else
+    # in this module.
+    from models import LLMModel, ModelOrganization
+
+    candidate_ids = [m for m in models if isinstance(m, str)]
+    rows = (
+        ctx.db.query(LLMModel).filter(LLMModel.id.in_(candidate_ids)).all()
+        if candidate_ids
+        else []
+    )
+    rows_by_id = {r.id: r for r in rows}
+
+    is_superadmin = bool(getattr(importing_user, "is_superadmin", False))
+    active_org_ids = {
+        m.organization_id
+        for m in (importing_user.organization_memberships or [])
+        if m.is_active
+    }
+    custom_ids = [r.id for r in rows if not r.is_official]
+    org_shared_ids: Set[str] = set()
+    if custom_ids and active_org_ids and not is_superadmin:
+        org_shared_ids = {
+            mo.model_id
+            for mo in ctx.db.query(ModelOrganization)
+            .filter(
+                ModelOrganization.model_id.in_(custom_ids),
+                ModelOrganization.organization_id.in_(active_org_ids),
+            )
+            .all()
+        }
+
+    kept, dropped = [], []
+    for model_id in models:
+        row = rows_by_id.get(model_id) if isinstance(model_id, str) else None
+        if row is None:
+            dropped.append(model_id)
+        elif row.is_official:
+            kept.append(model_id)
+        elif (
+            is_superadmin
+            or row.is_public
+            or (row.created_by is not None and str(row.created_by) == str(ctx.user_id))
+            or row.id in org_shared_ids
+        ):
+            kept.append(model_id)
+        else:
+            dropped.append(model_id)
+    return kept, dropped
+
+
+def _reconcile_llm_model_ids(ctx: "_FullImportContext", llm_model_ids, importing_user):
+    """Same catalog/access reconciliation as generation_config, for the
+    project-level ``llm_model_ids`` selection. Best-effort: any failure keeps
+    the exported list untouched."""
+    if not isinstance(llm_model_ids, list) or not llm_model_ids:
+        return llm_model_ids
+    try:
+        kept, dropped = _split_accessible_model_ids(ctx, llm_model_ids, importing_user)
+    except Exception as e:  # noqa: BLE001 - a stale model list must never fail an import
+        logger.warning(
+            f"Import: could not reconcile llm_model_ids, keeping the exported "
+            f"list as-is: {e}"
+        )
+        return llm_model_ids
+    if dropped:
+        logger.warning(
+            "Import: dropped %d model id(s) from llm_model_ids (unknown on this "
+            "instance or not accessible to the importing user): %s",
+            len(dropped),
+            dropped,
+        )
+    return kept
+
+
 def _reconcile_generation_config_models(
     ctx: "_FullImportContext", generation_config, importing_user
 ):
@@ -2004,54 +2140,7 @@ def _reconcile_generation_config_models(
         return generation_config
 
     try:
-        # Lazy import: LLMModel/ModelOrganization aren't needed anywhere else
-        # in this module.
-        from models import LLMModel, ModelOrganization
-
-        candidate_ids = [m for m in models if isinstance(m, str)]
-        rows = (
-            ctx.db.query(LLMModel).filter(LLMModel.id.in_(candidate_ids)).all()
-            if candidate_ids
-            else []
-        )
-        rows_by_id = {r.id: r for r in rows}
-
-        is_superadmin = bool(getattr(importing_user, "is_superadmin", False))
-        active_org_ids = {
-            m.organization_id
-            for m in (importing_user.organization_memberships or [])
-            if m.is_active
-        }
-        custom_ids = [r.id for r in rows if not r.is_official]
-        org_shared_ids: Set[str] = set()
-        if custom_ids and active_org_ids and not is_superadmin:
-            org_shared_ids = {
-                mo.model_id
-                for mo in ctx.db.query(ModelOrganization)
-                .filter(
-                    ModelOrganization.model_id.in_(custom_ids),
-                    ModelOrganization.organization_id.in_(active_org_ids),
-                )
-                .all()
-            }
-
-        kept, dropped = [], []
-        for model_id in models:
-            row = rows_by_id.get(model_id) if isinstance(model_id, str) else None
-            if row is None:
-                dropped.append(model_id)
-            elif row.is_official:
-                kept.append(model_id)
-            elif (
-                is_superadmin
-                or row.is_public
-                or (row.created_by is not None and str(row.created_by) == str(ctx.user_id))
-                or row.id in org_shared_ids
-            ):
-                kept.append(model_id)
-            else:
-                dropped.append(model_id)
-
+        kept, dropped = _split_accessible_model_ids(ctx, models, importing_user)
         if dropped:
             logger.warning(
                 "Import: dropped %d model id(s) from generation_config."
@@ -2069,28 +2158,48 @@ def _reconcile_generation_config_models(
     return generation_config
 
 
-def _create_imported_project(
-    ctx: _FullImportContext, project_data: dict, new_title: str
-):
-    """Create the new Project row (+ ProjectOrganization) from project_data.
+def _resolve_owning_organization_id(
+    ctx: _FullImportContext, user_with_memberships, organization_id: Optional[str]
+) -> str:
+    """The org that will own the imported project.
 
-    Shared by the multi-pass and NDJSON importers. Sets ``ctx.new_project_id``
-    and records the old→new project id mapping. Raises ``ImportValidationError``
-    (400) when the importing user has no active organization to own the project.
+    ``organization_id`` is the org context the import was requested in (stored
+    on the job by ``POST /project-imports``). It is re-validated here because
+    memberships can change between enqueue and run: the importer must still be
+    an active member, or a superadmin and the org must still exist. Without an
+    org context the first active membership owns the project, as before.
     """
-    # Get user's primary organization for the imported project
-    user_with_memberships = (
-        ctx.db.query(User)
-        .options(joinedload(User.organization_memberships))
-        .filter(User.id == ctx.user_id)
-        .first()
-    )
+    if organization_id:
+        if user_with_memberships is None:
+            raise ImportValidationError(403, "Importing user not found")
+        is_member = any(
+            m.is_active and m.organization_id == organization_id
+            for m in (user_with_memberships.organization_memberships or [])
+        )
+        if is_member:
+            return organization_id
+        if getattr(user_with_memberships, "is_superadmin", False):
+            org = (
+                ctx.db.query(Organization.id)
+                .filter(
+                    Organization.id == organization_id,
+                    Organization.is_active == True,  # noqa: E712
+                )
+                .first()
+            )
+            if org is not None:
+                return organization_id
+            raise ImportValidationError(404, "Target organization not found")
+        raise ImportValidationError(
+            403, "You are not an active member of the target organization"
+        )
+
     if not user_with_memberships or not user_with_memberships.organization_memberships:
         raise ImportValidationError(
             400, "User must belong to an organization to import projects"
         )
 
-    # Use the first active organization membership
+    # No org context: use the first active organization membership.
     primary_membership = next(
         (m for m in user_with_memberships.organization_memberships if m.is_active), None
     )
@@ -2098,6 +2207,32 @@ def _create_imported_project(
         raise ImportValidationError(
             400, "User must have an active organization membership"
         )
+    return primary_membership.organization_id
+
+
+def _create_imported_project(
+    ctx: _FullImportContext,
+    project_data: dict,
+    new_title: str,
+    organization_id: Optional[str] = None,
+):
+    """Create the new Project row (+ ProjectOrganization) from project_data.
+
+    Shared by the multi-pass and NDJSON importers. Sets ``ctx.new_project_id``
+    and records the old→new project id mapping. The owning org is
+    ``organization_id`` when given (validated, 403/404 otherwise), else the
+    importer's first active membership; ``ImportValidationError`` (400) when
+    the importing user has no active organization to own the project.
+    """
+    user_with_memberships = (
+        ctx.db.query(User)
+        .options(joinedload(User.organization_memberships))
+        .filter(User.id == ctx.user_id)
+        .first()
+    )
+    owning_organization_id = _resolve_owning_organization_id(
+        ctx, user_with_memberships, organization_id
+    )
 
     new_project_id = str(uuid.uuid4())
     # Only add to mappings if the original project had an ID
@@ -2153,6 +2288,38 @@ def _create_imported_project(
         # which resets, a window is intrinsic project config worth carrying over).
         window_start_at=_parse_iso(project_data.get("window_start_at")),
         window_end_at=_parse_iso(project_data.get("window_end_at")),
+        # Kind + per-project settings. Older exports lack these keys, so every
+        # read falls back to the column default (also for an explicit null on
+        # a NOT NULL column).
+        kind=project_data.get("kind"),
+        icon=project_data.get("icon"),
+        annotator_full_visibility_after_submit=_setting(
+            project_data, "annotator_full_visibility_after_submit", False
+        ),
+        immediate_evaluation_enabled=_setting(
+            project_data, "immediate_evaluation_enabled", False
+        ),
+        annotation_time_limit_enabled=_setting(
+            project_data, "annotation_time_limit_enabled", False
+        ),
+        annotation_time_limit_seconds=project_data.get("annotation_time_limit_seconds"),
+        strict_timer_enabled=_setting(project_data, "strict_timer_enabled", False),
+        restorable_checkpoints_enabled=_setting(
+            project_data, "restorable_checkpoints_enabled", True
+        ),
+        checkpoint_interval_seconds=_setting(
+            project_data, "checkpoint_interval_seconds", 300
+        ),
+        skip_queue=_setting(project_data, "skip_queue", "requeue_for_others"),
+        llm_model_ids=_reconcile_llm_model_ids(
+            ctx, project_data.get("llm_model_ids"), user_with_memberships
+        ),
+        enable_annotation=_setting(project_data, "enable_annotation", True),
+        enable_generation=_setting(project_data, "enable_generation", True),
+        enable_evaluation=_setting(project_data, "enable_evaluation", True),
+        # Deliberately NOT imported: is_private / is_public / public_role /
+        # origin. Visibility is reset on import (the importer decides who sees
+        # the copy), and origin marks how the SOURCE project came to exist.
     )
 
     ctx.db.add(new_project)
@@ -2162,7 +2329,7 @@ def _create_imported_project(
     project_org = ProjectOrganization(
         id=str(uuid.uuid4()),
         project_id=new_project_id,
-        organization_id=primary_membership.organization_id,
+        organization_id=owning_organization_id,
         assigned_by=ctx.user_id,
     )
     ctx.db.add(project_org)
@@ -2352,7 +2519,9 @@ def _is_ndjson_stream(fileobj) -> bool:
     return isinstance(obj, dict) and bool(obj.get("_type"))
 
 
-def run_ndjson_import(db, fileobj, user_id: str) -> dict:
+def run_ndjson_import(
+    db, fileobj, user_id: str, organization_id: Optional[str] = None
+) -> dict:
     """Import an NDJSON typed-record comprehensive payload in a single pass.
 
     The NDJSON format frames the same comprehensive data as
@@ -2400,7 +2569,7 @@ def run_ndjson_import(db, fileobj, user_id: str) -> dict:
     ctx = _FullImportContext(db, user_id)
     # Create the project (+ ProjectOrganization). Raises 400 if the importing
     # user has no active organization. Sets ctx.new_project_id.
-    _create_imported_project(ctx, project_data, new_title)
+    _create_imported_project(ctx, project_data, new_title, organization_id)
 
     saw_end = False
     inserted = 0
@@ -2459,7 +2628,9 @@ def run_ndjson_import(db, fileobj, user_id: str) -> dict:
     }
 
 
-def run_full_project_import(db, fileobj, user_id: str) -> dict:
+def run_full_project_import(
+    db, fileobj, user_id: str, organization_id: Optional[str] = None
+) -> dict:
     """Import a flat comprehensive payload, creating a NEW project.
 
     Streams ``fileobj`` (a seekable spool already filled with the inner JSON;
@@ -2482,15 +2653,28 @@ def run_full_project_import(db, fileobj, user_id: str) -> dict:
     fileobj = _maybe_decompress(fileobj)
 
     if _is_ndjson_stream(fileobj):
-        return run_ndjson_import(db, fileobj, user_id)
+        return run_ndjson_import(db, fileobj, user_id, organization_id)
 
     # One streaming pass builds only the small top-level fields; malformed JSON
     # surfaces here (read_top_object parses through the whole document) and maps
     # to the same 400 the old json.load raised.
     try:
-        top_obj, _kinds = read_top_object(fileobj, {"format_version", "project"})
+        top_obj, kinds = read_top_object(fileobj, {"format_version", "project"})
     except ijson.JSONError:
         raise ImportValidationError(400, "Invalid JSON format")
+
+    # A task export would otherwise pass as a comprehensive export (missing
+    # format_version defaults to 1.0.0) and create a project with only its
+    # tasks, silently dropping the nested annotations and evaluations.
+    if _is_nested_task_export(fileobj, top_obj, kinds):
+        raise ImportValidationError(
+            400,
+            "This file is a task export from the Project data page, not a "
+            "project export. Import it on the Project data page of an "
+            "existing project, or export the whole project from the project "
+            "list and import that file here.",
+            code=TASK_EXPORT_NOT_PROJECT,
+        )
 
     # Validate format version
     format_version = top_obj.get("format_version", "1.0.0")
@@ -2520,7 +2704,7 @@ def run_full_project_import(db, fileobj, user_id: str) -> dict:
 
     # Create the new project (+ ProjectOrganization). Raises 400 if the importing
     # user has no active organization. Sets ctx.new_project_id.
-    _create_imported_project(ctx, project_data, new_title)
+    _create_imported_project(ctx, project_data, new_title, organization_id)
 
     # FK-dependency-ordered passes.
     for task_data in _stream_rows(db, fileobj, "tasks.item"):

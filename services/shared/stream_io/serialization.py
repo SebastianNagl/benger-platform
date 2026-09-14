@@ -60,7 +60,7 @@ def empty_export_stats() -> dict:
 
 def build_project_export_data(project, organization_id) -> dict:
     """The top-level ``project`` payload, identical in both comprehensive
-    generators (37 fields). ``organization_id`` is resolved by the caller from
+    generators. ``organization_id`` is resolved by the caller from
     ``ProjectOrganization`` (left to the caller because the lookup query differs
     in trivial ways and is cheap)."""
     return {
@@ -101,6 +101,28 @@ def build_project_export_data(project, organization_id) -> dict:
         # Timed access window (nullable timestamps) — survive export/import.
         "window_start_at": _iso(project.window_start_at),
         "window_end_at": _iso(project.window_end_at),
+        # Project kind + per-project settings. Without these a re-imported
+        # exam came back as a plain project (kind NULL drops it from student
+        # discovery) with its timer / checkpoint / feature toggles reset.
+        # Visibility (is_private / is_public / public_role) and `origin` are
+        # exported by neither generator and never imported: an imported
+        # project starts with fresh visibility by design.
+        "kind": project.kind,
+        "icon": project.icon,
+        "annotator_full_visibility_after_submit": (
+            project.annotator_full_visibility_after_submit
+        ),
+        "immediate_evaluation_enabled": project.immediate_evaluation_enabled,
+        "annotation_time_limit_enabled": project.annotation_time_limit_enabled,
+        "annotation_time_limit_seconds": project.annotation_time_limit_seconds,
+        "strict_timer_enabled": project.strict_timer_enabled,
+        "restorable_checkpoints_enabled": project.restorable_checkpoints_enabled,
+        "checkpoint_interval_seconds": project.checkpoint_interval_seconds,
+        "skip_queue": project.skip_queue,
+        "llm_model_ids": project.llm_model_ids,
+        "enable_annotation": project.enable_annotation,
+        "enable_generation": project.enable_generation,
+        "enable_evaluation": project.enable_evaluation,
     }
 
 
