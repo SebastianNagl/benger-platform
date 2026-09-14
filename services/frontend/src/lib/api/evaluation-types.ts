@@ -381,6 +381,23 @@ export interface AvailableMetric {
    * summable so users can't request a meaningless rollup. Defaults to
    * `false` when omitted — the conservative choice. */
   summable?: boolean
+  /** Field specifiers this metric prefers when it is first selected in a
+   * creation wizard, in priority order. Same vocabulary as
+   * `EvaluationConfig.prediction_fields`: a `FIELD_SPECIFIERS` value or a
+   * `model:`/`human:`-prefixed field name.
+   *
+   * Exists because the wizard otherwise defaults POSITIONALLY, to whatever
+   * option happens to be first. That is right for a benchmark metric
+   * comparing model outputs and silently wrong for a judge that grades a
+   * human's submitted answer: it produced configs pointing at model
+   * generations an exam does not have, which graded nothing at all.
+   *
+   * The wizard keeps only declared values that are actually on offer for the
+   * project being created, and falls back to the positional default when none
+   * are. Declaring a field never forces one that cannot exist. */
+  default_prediction_fields?: string[]
+  /** Same, for `reference_fields`. */
+  default_reference_fields?: string[]
   /** Whether this metric may run in IMMEDIATE (post-submit) evaluation.
    * Heavy/semantic metrics (BERTScore, MoverScore, semantic similarity,
    * FactCC, QAGS, coherence) load transformer models at compute time — fine
@@ -754,6 +771,106 @@ export function getFieldDisplayName(field: string): string {
         return 'Model Response (unstructured)'
       return field
   }
+}
+
+/** What a selectable evaluation field refers to, for grouping and labelling. */
+export type FieldOptionKind = 'special' | 'model' | 'human' | 'data'
+
+/** One entry in a prediction/reference picker. `labelKey` is set for UI
+ * strings so a caller with an i18n context can translate; `label` is the
+ * English fallback for callers without one. Raw field names carry no key. */
+export interface FieldOption {
+  value: string
+  labelKey?: string
+  label: string
+  kind: FieldOptionKind
+}
+
+/**
+ * The prediction fields a project can be evaluated on, in a FIXED order.
+ *
+ * One builder for every surface. The creation wizard used to hand-roll its
+ * own list and omitted the human side entirely, so a judge that grades a
+ * submitted answer could not be configured there at all: the only prediction
+ * options were "all model outputs" and `model:<field>`. A config built that
+ * way matches no subject in an exam project and grades nothing.
+ *
+ * Order is part of the contract and is pinned by tests. `__all_model__` stays
+ * first so a benchmark metric's positional default is unchanged.
+ */
+export function buildPredictionFieldOptions(fields: {
+  model_response_fields: string[]
+  human_annotation_fields: string[]
+}): FieldOption[] {
+  return [
+    {
+      value: FIELD_SPECIFIERS.ALL_MODEL,
+      labelKey: 'evaluationBuilder.fields.allModelResponses',
+      label: 'All model responses',
+      kind: 'special',
+    },
+    {
+      value: FIELD_SPECIFIERS.ALL_HUMAN,
+      labelKey: 'evaluationBuilder.fields.allHumanAnnotations',
+      label: 'All human annotations',
+      kind: 'special',
+    },
+    ...fields.model_response_fields.map((name) => ({
+      value: `${MODEL_FIELD_PREFIX}${name}`,
+      label: `${MODEL_FIELD_PREFIX}${name}`,
+      kind: 'model' as const,
+    })),
+    ...fields.human_annotation_fields.map((name) => ({
+      value: `${HUMAN_FIELD_PREFIX}${name}`,
+      label: `${HUMAN_FIELD_PREFIX}${name}`,
+      kind: 'human' as const,
+    })),
+  ]
+}
+
+/** The reference (ground-truth) fields, in a fixed order: human annotation
+ * fields first, then task-data columns. */
+export function buildReferenceFieldOptions(fields: {
+  human_annotation_fields: string[]
+  reference_fields: string[]
+}): FieldOption[] {
+  return [
+    ...fields.human_annotation_fields.map((name) => ({
+      value: `${HUMAN_FIELD_PREFIX}${name}`,
+      label: `${HUMAN_FIELD_PREFIX}${name}`,
+      kind: 'human' as const,
+    })),
+    ...fields.reference_fields.map((name) => ({
+      value: name,
+      label: name,
+      kind: 'data' as const,
+    })),
+  ]
+}
+
+/**
+ * Pick the field selection a freshly-toggled metric should start with.
+ *
+ * A metric may DECLARE preferred fields (`default_prediction_fields`). Those
+ * win, but only the ones actually on offer for this project: declaring a field
+ * can never select something that does not exist. A partial match keeps the
+ * matching subset rather than falling back, so a judge declaring two fields on
+ * a project that has one grades that one instead of silently flipping to the
+ * positional default, which is how configs ended up pointed at model
+ * generations in an exam.
+ *
+ * With nothing declared, or nothing declared that is on offer, the positional
+ * fallback applies and behaviour is exactly as it was.
+ */
+export function resolveDefaultFieldSelection(
+  declared: string[] | undefined,
+  options: FieldOption[],
+  positionalFallback: string,
+): string[] {
+  const offered = new Set(options.map((o) => o.value))
+  const kept = (declared ?? []).filter((v) => offered.has(v))
+  if (kept.length > 0) return kept
+  return positionalFallback ? [positionalFallback] : []
 }
 
 /**
