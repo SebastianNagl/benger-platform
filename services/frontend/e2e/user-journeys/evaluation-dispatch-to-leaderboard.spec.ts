@@ -392,7 +392,7 @@ test.describe('Evaluation Dispatch → Leaderboard @extended', () => {
     const lbResult = await page.evaluate(
       async ({ pid, orgId }) => {
         const params = new URLSearchParams({
-          project_ids: pid,
+          project_ids: pid ?? '',
           min_generation_count: '0',
           min_samples_evaluated: '0',
         })

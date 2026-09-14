@@ -766,7 +766,6 @@ test.describe('Label Config Updates - Permission Boundaries', () => {
       .first()
     if (!(await testAGGRow.isVisible({ timeout: 5000 }))) {
       console.log('Test AGG project not found - skipping')
-      await superadmin.logout()
       return
     }
 

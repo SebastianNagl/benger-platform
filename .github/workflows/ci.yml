@@ -56,6 +56,11 @@ jobs:
         if: matrix.shard == 1
         run: cd services/frontend && npx eslint src e2e --quiet
 
+      # The app tsconfig excludes e2e, so the specs were never type-checked.
+      - name: Type-check e2e specs
+        if: matrix.shard == 1
+        run: cd services/frontend && npx tsc -p e2e/tsconfig.json
+
       # Thresholds are evaluated per shard by Jest, which cannot work for a
       # global floor; disable them here and enforce them once on the merged
       # map in frontend-coverage-gate (scripts/coverage-gate.mjs).

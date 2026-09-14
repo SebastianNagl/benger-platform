@@ -163,7 +163,7 @@ test.describe('Span/NER Project Full Workflow (Create-to-Verify) @extended', () 
 
     // Async import flow (#158 removed the sync endpoint)
     const importResult = await page.evaluate(importTasksInBrowser, {
-      projectId,
+      projectId: projectId as string,
       tasks,
     })
 

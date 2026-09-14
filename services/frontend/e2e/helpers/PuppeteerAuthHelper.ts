@@ -464,7 +464,7 @@ export class PuppeteerAuthHelper {
         )
         if (errorElement) {
           const errorText = await this.page.evaluate(
-            (el) => el.textContent,
+            (el: Element) => el.textContent,
             errorElement,
           )
           throw new Error(`Login failed with error: ${errorText}`)

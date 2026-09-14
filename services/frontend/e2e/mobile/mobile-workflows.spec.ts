@@ -359,7 +359,9 @@ test.describe('Mobile Annotation Workflow', () => {
         const contextMenuItem = page.locator(
           '[data-testid="context-menu"], .context-menu',
         )
-        await firstRow.tap({ delay: 500 }) // Long press
+        // Playwright cannot hold a tap, so this is a plain tap; the
+        // context-menu check below only logs what it finds.
+        await firstRow.tap()
 
         const hasContextMenu = await contextMenuItem
           .isVisible({ timeout: 2000 })

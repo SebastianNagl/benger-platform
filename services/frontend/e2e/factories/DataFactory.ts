@@ -126,7 +126,9 @@ export class TestDataFactory {
       if (includeAnnotations) {
         row.push(
           `"${faker.lorem.words(3).replace(/"/g, '""')}"`,
-          faker.number.float({ min: 0.5, max: 1, precision: 0.01 }).toString(),
+          faker.number
+            .float({ min: 0.5, max: 1, fractionDigits: 2 })
+            .toString(),
         )
       }
 
@@ -173,7 +175,7 @@ export class TestDataFactory {
                   confidence: faker.number.float({
                     min: 0.5,
                     max: 1,
-                    precision: 0.01,
+                    fractionDigits: 2,
                   }),
                 },
                 from_name: 'answer',
