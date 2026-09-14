@@ -9541,7 +9541,10 @@
     "structureRun": "Structure with AI",
     "structuring": "Structuring…",
     "structureFailed": "Structuring failed.",
-    "structureUnavailable": "AI cannot structure the file here. Create the exam first — the option is available in the edit dialog."
+    "structureUnavailable": "AI cannot structure the file here. Create the exam first — the option is available in the edit dialog.",
+    "aiPayerOrg": "Paid by {org}. You do not need your own API key.",
+    "aiPayerOrgUnnamed": "Paid by your organization. You do not need your own API key.",
+    "aiNoOwnModels": "No model is available with your own API keys. Add a key in your profile. Uploading and creating the sheet yourself still work."
   },
   "rubricResult": {
     "title": "Grading sheet",
@@ -9562,7 +9565,9 @@
     "notRevealed": "The filled grading sheet is shown once the model solution is revealed.",
     "noScores": "No checkpoints recorded.",
     "headingHuman": "Corrected by a person",
-    "headingLlm": "Corrected by the AI"
+    "headingLlm": "Corrected by the AI",
+    "evidence": "Evidence",
+    "evidenceMissing": "No matching passage found in the answer; the AI had given {score} BE, counted as 0."
   },
   "notenschluessel": {
     "partLabel": "Grade scale",

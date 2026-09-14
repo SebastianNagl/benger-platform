@@ -9530,7 +9530,10 @@
     "structureRun": "Mit KI strukturieren",
     "structuring": "Wird strukturiert…",
     "structureFailed": "Strukturierung fehlgeschlagen.",
-    "structureUnavailable": "Eine KI kann die Datei hier nicht strukturieren. Legen Sie die Klausur zuerst an — im Bearbeiten-Dialog steht die Option zur Verfügung."
+    "structureUnavailable": "Eine KI kann die Datei hier nicht strukturieren. Legen Sie die Klausur zuerst an — im Bearbeiten-Dialog steht die Option zur Verfügung.",
+    "aiPayerOrg": "Bezahlt von {org}. Du brauchst keinen eigenen API-Schlüssel.",
+    "aiPayerOrgUnnamed": "Bezahlt von deiner Organisation. Du brauchst keinen eigenen API-Schlüssel.",
+    "aiNoOwnModels": "Mit deinen eigenen API-Schlüsseln ist kein Modell verfügbar. Hinterlege einen Schlüssel in deinem Profil. Hochladen und Selbst-Anlegen funktionieren weiterhin."
   },
   "rubricResult": {
     "title": "Bewertungsbogen",
@@ -9551,7 +9554,9 @@
     "notRevealed": "Der ausgefüllte Bewertungsbogen wird nach Freigabe der Musterlösung angezeigt.",
     "noScores": "Keine Schritte erfasst.",
     "headingHuman": "Korrektur durch eine Person",
-    "headingLlm": "Korrektur durch die KI"
+    "headingLlm": "Korrektur durch die KI",
+    "evidence": "Beleg",
+    "evidenceMissing": "Keine passende Stelle in der Bearbeitung gefunden; die KI hatte {score} BE vergeben, gewertet wird 0."
   },
   "notenschluessel": {
     "partLabel": "Notenschlüssel",
