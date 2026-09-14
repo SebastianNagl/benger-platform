@@ -13,7 +13,7 @@ from typing import Any, Dict, Optional
 from openai import OpenAI
 
 from .base_service import BaseAIService, derive_truncated
-from .provider_capabilities import model_supports_seed
+from .provider_capabilities import model_supports_seed, openai_reasoning_efforts
 
 
 
@@ -671,6 +671,24 @@ Your response must be ONLY the JSON object, no other text before or after.
             else:
                 api_params["max_tokens"] = max_tokens
 
+            # Reasoning models (GPT-5 family, o-series) take the Chat
+            # Completions ``reasoning_effort``. Only values the model family
+            # accepts are sent (the API 400s on e.g. "minimal" for gpt-5.4-mini);
+            # anything else keeps the API default and is logged.
+            requested_effort = kwargs.get("reasoning_effort")
+            sent_effort = None
+            if requested_effort:
+                accepted_efforts = openai_reasoning_efforts(model_name)
+                if requested_effort in accepted_efforts:
+                    api_params["reasoning_effort"] = requested_effort
+                    sent_effort = requested_effort
+                    logger.info(f"🧠 Using reasoning_effort={requested_effort} for {model_name}")
+                elif accepted_efforts:
+                    logger.warning(
+                        f"Ignoring reasoning_effort={requested_effort!r} for {model_name}; "
+                        f"accepted: {sorted(accepted_efforts)}"
+                    )
+
             response = self.client.chat.completions.create(**api_params)
 
             end_time = datetime.now()
@@ -708,6 +726,7 @@ Your response must be ONLY the JSON object, no other text before or after.
                     "truncated": derive_truncated(finish_reason),
                     "error_type": None,
                     "structured_output": True,
+                    "reasoning_effort": sent_effort,
                     "created_at": end_time.isoformat(),
                     "retry_attempts": _get_retry_history_snapshot(),
                     "retry_count": len(_get_retry_history_snapshot()),

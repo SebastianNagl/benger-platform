@@ -148,3 +148,36 @@ class TestClassifyErrorType:
 
     def test_falls_back_to_api_error(self):
         assert classify_error_type(Exception("internal server error")) == "api_error"
+
+
+class TestOpenAIReasoningEfforts:
+    """Which Chat Completions ``reasoning_effort`` values each OpenAI model
+    family accepts (checked against the live API on 2026-09-14)."""
+
+    def setup_method(self):
+        import importlib.util as _ilu
+
+        _pc_path = os.path.join(
+            _services_root, "shared", "ai_services", "provider_capabilities.py"
+        )
+        spec = _ilu.spec_from_file_location("_w1_provider_caps", _pc_path)
+        self.pc = _ilu.module_from_spec(spec)
+        spec.loader.exec_module(self.pc)
+
+    def test_gpt5_base_family_takes_minimal_but_not_none(self):
+        for model in ("gpt-5", "gpt-5-mini", "gpt-5-nano", "gpt-5-mini-2025-08-07"):
+            efforts = self.pc.openai_reasoning_efforts(model)
+            assert efforts == {"minimal", "low", "medium", "high"}, model
+
+    def test_gpt5_point_releases_take_none_but_not_minimal(self):
+        for model in ("gpt-5.1", "gpt-5.4-mini", "GPT-5.5"):
+            efforts = self.pc.openai_reasoning_efforts(model)
+            assert efforts == {"none", "low", "medium", "high"}, model
+
+    def test_o_series(self):
+        for model in ("o1", "o3", "o3-mini", "o4-mini"):
+            assert self.pc.openai_reasoning_efforts(model) == {"low", "medium", "high"}
+
+    def test_models_without_the_parameter(self):
+        for model in ("gpt-5.5-pro", "o3-pro", "gpt-5-chat-latest", "gpt-4o", "gpt-4.1", "", None):
+            assert self.pc.openai_reasoning_efforts(model) == frozenset(), model

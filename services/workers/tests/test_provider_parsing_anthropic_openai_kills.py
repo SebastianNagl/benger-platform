@@ -484,3 +484,51 @@ class TestProviderStripAsymmetry:
 
 if __name__ == "__main__":  # pragma: no cover
     raise SystemExit(pytest.main([__file__, "-q"]))
+
+
+# ===========================================================================
+# OPENAI — generate_structured() reasoning_effort forwarding
+# ===========================================================================
+class TestOpenAIStructuredReasoningEffort:
+    """Reasoning models get the Chat Completions ``reasoning_effort``; values
+    the model family rejects and non-reasoning models are left alone."""
+
+    @pytest.fixture(autouse=True)
+    def _no_e2e_mock(self, monkeypatch):
+        monkeypatch.delenv("E2E_TEST_MODE", raising=False)
+
+    def _call(self, model, effort=None):
+        svc = _make_openai(_openai_response(content='{"ok": "ok"}'))
+        extra = {} if effort is None else {"reasoning_effort": effort}
+        out = svc.generate_structured(
+            prompt="p",
+            system_prompt="s",
+            json_schema={"type": "object", "properties": {}},
+            model_name=model,
+            **extra,
+        )
+        return svc.client.chat.completions.create.call_args.kwargs, out
+
+    @pytest.mark.parametrize(
+        "model,effort",
+        [("gpt-5-mini", "low"), ("gpt-5-mini", "minimal"), ("gpt-5.4-mini", "none"), ("o3-mini", "high")],
+    )
+    def test_supported_values_are_sent_and_recorded(self, model, effort):
+        params, out = self._call(model, effort)
+        assert params["reasoning_effort"] == effort
+        assert out["metadata"]["reasoning_effort"] == effort
+
+    @pytest.mark.parametrize(
+        "model,effort",
+        [("gpt-5.4-mini", "minimal"), ("gpt-5-mini", "none"), ("gpt-4o", "low"), ("gpt-5-mini", "turbo")],
+    )
+    def test_rejected_values_and_non_reasoning_models_send_nothing(self, model, effort):
+        params, out = self._call(model, effort)
+        assert "reasoning_effort" not in params
+        assert out["metadata"]["reasoning_effort"] is None
+        assert out["success"] is True
+
+    def test_unset_sends_nothing(self):
+        params, out = self._call("gpt-5-mini")
+        assert "reasoning_effort" not in params
+        assert out["metadata"]["reasoning_effort"] is None
