@@ -313,6 +313,10 @@ describe('readableSampleValue on converted .docx text', () => {
     expect(readableSampleValue('**fett** und __auch__').text).toBe(
       'fett und auch',
     )
+    // A converted bold span that is empty or crosses a line break.
+    expect(
+      readableSampleValue('__Probeklausur  \n__\n\n__Lösungshinweise__').text,
+    ).toBe('Probeklausur  \n\n\nLösungshinweise')
   })
 })
 
