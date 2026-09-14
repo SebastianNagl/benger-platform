@@ -18,7 +18,10 @@ import {
   SelectValue,
 } from '@/components/shared/Select'
 import { useI18n } from '@/contexts/I18nContext'
-import { getMetricCell } from '@/lib/extensions/metricRenderers'
+import {
+  getMetricCell,
+  getMetricDetail,
+} from '@/lib/extensions/metricRenderers'
 import {
   CheckCircleIcon,
   ChevronDownIcon,
@@ -44,7 +47,7 @@ import {
   tableFeatures,
   useTable,
 } from '@tanstack/react-table'
-import { useMemo, useState } from 'react'
+import { type ReactNode, useMemo, useState } from 'react'
 
 // TanStack Table v9 is feature-sliced: declare once, statically, which
 // features and row models this table uses (sorting, per-column filtering for
@@ -67,6 +70,27 @@ const features = tableFeatures({
 })
 type SampleTableFeatures = typeof features
 
+/**
+ * What a metric shows in the table: a registered extension cell renderer
+ * first, then a plain number. Judge and Korrektur metrics are stored as a
+ * {value, method, details, error} blob rather than a number; without a
+ * renderer such a blob shows its numeric value. Anything else shows N/A
+ * instead of calling a method the value does not have, which used to crash
+ * the whole run page when a judge-graded row was expanded.
+ */
+function formatMetric(key: string, raw: unknown): ReactNode {
+  const custom = getMetricCell(key)?.(raw)
+  if (custom !== null && custom !== undefined) return custom
+  if (typeof raw === 'number' && Number.isFinite(raw)) return raw.toFixed(3)
+  if (raw && typeof raw === 'object') {
+    const value = (raw as { value?: unknown }).value
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return value.toFixed(3)
+    }
+  }
+  return 'N/A'
+}
+
 interface SampleResult {
   id: string
   task_id: string
@@ -74,7 +98,7 @@ interface SampleResult {
   answer_type: string
   ground_truth: Record<string, any>
   prediction: Record<string, any>
-  metrics: Record<string, number>
+  metrics: Record<string, unknown>
   passed: boolean
   confidence_score: number | null
   error_message: string | null
@@ -167,28 +191,14 @@ export function SampleResultsTable({
 
           return (
             <div className="flex flex-wrap gap-1">
-              {metricNames.slice(0, 2).map((key) => {
-                // Extension hook: extended metrics (e.g. korrektur_falloesung)
-                // can register a cell renderer to extract the score from a
-                // structured value blob ({value, method, details, error}).
-                const customCell = getMetricCell(key)?.(metrics[key])
-                if (customCell !== null && customCell !== undefined) {
-                  return (
-                    <div key={key} className="text-xs">
-                      <span className="font-medium">{key}:</span>{' '}
-                      <span className="text-blue-600">{customCell}</span>
-                    </div>
-                  )
-                }
-                return (
-                  <div key={key} className="text-xs">
-                    <span className="font-medium">{key}:</span>{' '}
-                    <span className="text-blue-600">
-                      {(metrics[key] as number)?.toFixed?.(3) ?? 'N/A'}
-                    </span>
-                  </div>
-                )
-              })}
+              {metricNames.slice(0, 2).map((key) => (
+                <div key={key} className="text-xs">
+                  <span className="font-medium">{key}:</span>{' '}
+                  <span className="text-blue-600">
+                    {formatMetric(key, metrics[key])}
+                  </span>
+                </div>
+              ))}
               {metricNames.length > 2 && (
                 <span className="text-xs text-gray-500">
                   {t('evaluation.sampleResultsTable.moreMetrics', {
@@ -443,16 +453,38 @@ export function SampleResultsTable({
                           </h4>
                           <div className="grid grid-cols-3 gap-2 rounded bg-white p-3 md:grid-cols-4 lg:grid-cols-6">
                             {Object.entries(row.original.metrics).map(
-                              ([key, value]) => (
-                                <div key={key} className="text-sm">
-                                  <div className="text-xs text-gray-600">
-                                    {key}
+                              ([key, value]) => {
+                                // As in ResultsTabs: a metric that registers a
+                                // detail component renders its full payload,
+                                // for a Bewertungsbogen the filled sheet,
+                                // across the row instead of a single number.
+                                const DetailComp = getMetricDetail(key)
+                                if (DetailComp) {
+                                  return (
+                                    <div key={key} className="col-span-full">
+                                      <DetailComp
+                                        value={value}
+                                        evaluation={
+                                          row.original as unknown as Record<
+                                            string,
+                                            unknown
+                                          >
+                                        }
+                                      />
+                                    </div>
+                                  )
+                                }
+                                return (
+                                  <div key={key} className="text-sm">
+                                    <div className="text-xs text-gray-600">
+                                      {key}
+                                    </div>
+                                    <div className="font-medium">
+                                      {formatMetric(key, value)}
+                                    </div>
                                   </div>
-                                  <div className="font-medium">
-                                    {value?.toFixed(3) ?? 'N/A'}
-                                  </div>
-                                </div>
-                              ),
+                                )
+                              },
                             )}
                           </div>
                         </div>
