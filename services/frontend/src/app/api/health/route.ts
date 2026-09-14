@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 
 /**
  * Health check endpoint for container monitoring
- * Returns basic health status, runtime information, and backend connectivity
+ * Returns the health status and runtime information of the Next.js server
  */
 export async function GET(request: NextRequest) {
   try {
@@ -34,25 +34,11 @@ export async function GET(request: NextRequest) {
       health.warning = `High memory usage: ${memoryUsagePercent.toFixed(1)}%`
     }
 
-    // Check backend API connectivity when API_BASE_URL is configured
-    const apiBaseUrl = process.env.API_BASE_URL
-    if (apiBaseUrl) {
-      try {
-        const backendRes = await fetch(`${apiBaseUrl}/health`, {
-          signal: AbortSignal.timeout(3000),
-        })
-        if (backendRes.ok) {
-          health.backend = 'ok'
-          const backendData = await backendRes.json().catch(() => ({}))
-          health.database = backendData.database || 'unknown'
-          health.redis = backendData.redis || 'unknown'
-        } else {
-          health.backend = 'error'
-        }
-      } catch {
-        health.backend = 'unreachable'
-      }
-    }
+    // Backend, database and Redis status live on the API's own /health.
+    // This route only reports on the Next.js server. A backend check here was
+    // keyed on API_BASE_URL, which no deployment sets, so it never ran, and
+    // probing the API from a liveness check would tie the frontend's health
+    // to the API's.
 
     // A memory "warning" (high-but-not-OOM heap) is surfaced in the body for
     // observability but does NOT fail the probe: the server is still serving.

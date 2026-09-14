@@ -498,11 +498,13 @@ describe('/api/health', () => {
     })
   })
 
-  describe('Backend Connectivity', () => {
-    let originalApiBaseUrl: string | undefined
+  describe('Backend independence', () => {
+    const saved: Record<string, string | undefined> = {}
 
     beforeEach(() => {
-      originalApiBaseUrl = process.env.API_BASE_URL
+      for (const key of ['API_BASE_URL', 'INTERNAL_API_URL']) {
+        saved[key] = process.env[key]
+      }
       process.memoryUsage = jest.fn().mockReturnValue({
         heapUsed: 100 * 1024 * 1024,
         heapTotal: 200 * 1024 * 1024,
@@ -514,15 +516,17 @@ describe('/api/health', () => {
     })
 
     afterEach(() => {
-      if (originalApiBaseUrl) {
-        process.env.API_BASE_URL = originalApiBaseUrl
-      } else {
-        delete process.env.API_BASE_URL
+      for (const [key, value] of Object.entries(saved)) {
+        if (value === undefined) delete process.env[key]
+        else process.env[key] = value
       }
     })
 
-    it('should not check backend when API_BASE_URL is not set', async () => {
-      delete process.env.API_BASE_URL
+    // Liveness of the Next.js server must not depend on the API. Backend,
+    // database and Redis status live on the API's own /health.
+    it('does not call the API, whatever API URL is configured', async () => {
+      process.env.API_BASE_URL = 'http://api:8000'
+      process.env.INTERNAL_API_URL = 'http://api:8000'
       const mockFetch = jest.fn()
       global.fetch = mockFetch
 
@@ -530,66 +534,11 @@ describe('/api/health', () => {
       const response = await GET(request)
 
       const data = await response.json()
-      expect(data.backend).toBeUndefined()
+      expect(response.status).toBe(200)
       expect(mockFetch).not.toHaveBeenCalled()
-    })
-
-    it('should report backend ok when health check succeeds', async () => {
-      process.env.API_BASE_URL = 'http://api:8000'
-      global.fetch = jest.fn().mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve({ database: 'ok', redis: 'ok' }),
-      })
-
-      const request = createRequest('http://localhost:3000/api/health')
-      const response = await GET(request)
-
-      const data = await response.json()
-      expect(data.backend).toBe('ok')
-      expect(data.database).toBe('ok')
-      expect(data.redis).toBe('ok')
-    })
-
-    it('should report backend error when API returns non-ok', async () => {
-      process.env.API_BASE_URL = 'http://api:8000'
-      global.fetch = jest.fn().mockResolvedValue({
-        ok: false,
-        status: 503,
-      })
-
-      const request = createRequest('http://localhost:3000/api/health')
-      const response = await GET(request)
-
-      const data = await response.json()
-      expect(data.backend).toBe('error')
-    })
-
-    it('should report backend unreachable when fetch throws', async () => {
-      process.env.API_BASE_URL = 'http://api:8000'
-      global.fetch = jest.fn().mockRejectedValue(new Error('ECONNREFUSED'))
-
-      const request = createRequest('http://localhost:3000/api/health')
-      const response = await GET(request)
-
-      const data = await response.json()
-      expect(data.backend).toBe('unreachable')
-    })
-
-    it('should handle backend json parsing failure', async () => {
-      process.env.API_BASE_URL = 'http://api:8000'
-      global.fetch = jest.fn().mockResolvedValue({
-        ok: true,
-        json: () => Promise.reject(new Error('Invalid JSON')),
-      })
-
-      const request = createRequest('http://localhost:3000/api/health')
-      const response = await GET(request)
-
-      const data = await response.json()
-      expect(data.backend).toBe('ok')
-      // When json() fails, database/redis should be 'unknown'
-      expect(data.database).toBe('unknown')
-      expect(data.redis).toBe('unknown')
+      expect(data.backend).toBeUndefined()
+      expect(data.database).toBeUndefined()
+      expect(data.redis).toBeUndefined()
     })
   })
 })
