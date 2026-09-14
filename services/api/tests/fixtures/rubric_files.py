@@ -353,3 +353,65 @@ def colleague_sample_rows(*, grades: Optional[List[int]] = None) -> List[Optiona
 
 def colleague_sample_xlsx(**kwargs) -> bytes:
     return make_xlsx(colleague_sample_rows(), **kwargs)
+
+
+# ---------------------------------------------------------------------------
+# One sheet in both container formats (synthetic; same content, same layout
+# quirks a chair's Word and Excel versions of one Korrekturbogen show).
+# ---------------------------------------------------------------------------
+
+
+def parity_sheet_xlsx() -> bytes:
+    """Excel layout: one outline line per row, points on the line they score."""
+    return make_xlsx(
+        [
+            {"A": "A.    Zulässigkeit"},
+            {"A": "I.        Statthaftigkeit", "B": 2},
+            {"A": "·        Verwaltungsakt (+)"},
+            {"A": "B.    Begründetheit"},
+            {"A": "I.        Rechtsgrundlage"},
+            {"A": "1.        Gefahr"},
+            {"A": "·        Konkrete Gefahr für die öffentliche Sicherheit", "B": 3},
+            {"A": "2.        Vorübergehend"},
+            {"A": "·        Dauer der Maßnahme", "B": "1,5"},
+            {"A": "II.       Maßnahmerichtung (Schwerpunkt!)", "B": 10},
+            {"A": "·        Zweckveranlasser"},
+            {"A": "III.      Ermessen"},
+            {"A": "1.        Auswahlermessen", "B": 2},
+            {"A": "2.        Grundrechtseingriff (weiterer Schwerpunkt!)"},
+            {"A": "a)        Schutzbereich", "B": 4},
+            {"A": "b)        Rechtfertigung", "B": 6},
+            {"A": "·        Verhältnismäßigkeit (Schwerpunkt!)"},
+            {"A": "Gesamt", "B": 28.5},
+        ]
+    )
+
+
+def parity_sheet_docx() -> bytes:
+    """Word layout of the same sheet: one table row per outline point, hint
+    bullets in the same cell as their heading, and the points paragraph either
+    on the heading's line or pushed down next to the bullet it scores."""
+
+    def bullet(text: str) -> Dict[str, Any]:
+        return {"text": text, "bullet": True}
+
+    return make_docx(
+        [
+            [
+                [["A. Zulässigkeit"], [""]],
+                [["I. Statthaftigkeit", bullet("Verwaltungsakt (+)")], ["2"]],
+                [["B. Begründetheit"], [""]],
+                [["I. Rechtsgrundlage"], [""]],
+                [["1. Gefahr", bullet("Konkrete Gefahr für die öffentliche Sicherheit")], ["", "3"]],
+                [["2. Vorübergehend", bullet("Dauer der Maßnahme")], ["", "1,5"]],
+                [["II. Maßnahmerichtung (Schwerpunkt!)", bullet("Zweckveranlasser")], ["10"]],
+                [["III. Ermessen"], [""]],
+                [["1. Auswahlermessen"], ["2"]],
+                [["2. Grundrechtseingriff (weiterer Schwerpunkt!)"], [""]],
+                [["a) Schutzbereich"], ["4"]],
+                [["b) Rechtfertigung", bullet("Verhältnismäßigkeit (Schwerpunkt!)")], ["6"]],
+                [["Gesamt"], ["28,5"]],
+            ]
+        ],
+        bullet_numbering=True,
+    )

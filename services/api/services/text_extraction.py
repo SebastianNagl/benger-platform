@@ -21,6 +21,7 @@ files directly.
 
 import io
 import os
+import re
 
 # Hard cap on the document size we will parse (defense-in-depth; the endpoint
 # also enforces it before reading the whole body). Documents for a single exam
@@ -45,11 +46,31 @@ class UnsupportedDocumentError(Exception):
         super().__init__(message)
 
 
+# Word bookmarks (every table-of-contents target, cross references) come out of
+# mammoth as empty HTML anchors; the TOC itself as links to those anchors.
+# Neither means anything outside the Word file, and both end up verbatim in the
+# Musterlösung the judge and the students read.
+_EMPTY_ANCHOR_RE = re.compile(r"<a\s+(?:name|id)\s*=\s*(?:\"[^\"]*\"|'[^']*')\s*>\s*</a>", re.IGNORECASE)
+_INTERNAL_LINK_RE = re.compile(r"\[((?:[^\[\]\\]|\\.)*)\]\(#[^()\s]*\)")
+
+
+def _clean_docx_markdown(text: str) -> str:
+    """Drop bookmark anchors and unwrap in-document links to their text.
+
+    External links (``[text](https://…)``) stay untouched. TOC entries join
+    heading and page number with tabs; those become single spaces.
+    """
+    text = _EMPTY_ANCHOR_RE.sub("", text)
+    return _INTERNAL_LINK_RE.sub(
+        lambda m: re.sub(r"[ \t]*\t[ \t]*", " ", m.group(1)).strip(), text
+    )
+
+
 def _extract_docx(data: bytes) -> str:
     import mammoth
 
     result = mammoth.convert_to_markdown(io.BytesIO(data))
-    return (result.value or "").strip()
+    return _clean_docx_markdown(result.value or "").strip()
 
 
 def _extract_pdf(data: bytes) -> str:

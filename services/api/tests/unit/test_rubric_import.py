@@ -39,6 +39,8 @@ from tests.fixtures.rubric_files import (  # noqa: E402
     colleague_sample_xlsx,
     make_docx,
     make_xlsx,
+    parity_sheet_docx,
+    parity_sheet_xlsx,
 )
 
 
@@ -583,6 +585,56 @@ class TestDocx:
         with pytest.raises(RubricImportError) as exc:
             parse_rubric_file("b.docx", make_docx([rows]))
         assert exc.value.code == "too_many_rows"
+
+
+class TestDocxXlsxParity:
+    """A chair's Word and Excel versions of one sheet import to one structure.
+
+    Guards the DOCX cell alignment against drifting from the row-per-line XLSX
+    reading: hint bullets share the heading's cell, the points paragraph sits
+    either next to the heading or next to the bullet it scores, and Schwerpunkt
+    markers appear on headings, on sections and at the end of a hint bullet.
+    """
+
+    @staticmethod
+    def _shape(result):
+        return [
+            (n["kind"], n["level"], n["label"], n.get("emphasis"), n.get("max_score"), len(n.get("hints") or []))
+            for n in result["structure"]["nodes"]
+        ]
+
+    @pytest.fixture(scope="class")
+    def results(self):
+        return (
+            parse_rubric_file("bogen.xlsx", parity_sheet_xlsx()),
+            parse_rubric_file("bogen.docx", parity_sheet_docx()),
+        )
+
+    def test_same_outline_in_both_formats(self, results):
+        xlsx, docx = results
+        assert self._shape(docx) == self._shape(xlsx)
+        assert docx["total_points"] == xlsx["total_points"] == 28.5
+
+    @pytest.mark.parametrize("index", [0, 1])
+    def test_counts(self, results, index):
+        result = results[index]
+        nodes = result["structure"]["nodes"]
+        assert sum(1 for n in nodes if n["kind"] == "section") == 7
+        assert [s["max_score"] for s in _steps(result)] == [2, 3, 1.5, 10, 2, 4, 6]
+        assert [s["title"] for s in _steps(result) if s.get("emphasis") == "schwerpunkt"] == [
+            "Maßnahmerichtung",
+            "Rechtfertigung",
+        ]
+        # The section-level marker is kept as the section's note, not dropped.
+        assert _by_title(result)["Grundrechtseingriff"]["note"] == "weiterer Schwerpunkt!"
+        # Points next to the bullet: the bullet is the scored step under a section.
+        gefahr = _by_title(result)["Gefahr"]
+        assert gefahr["kind"] == "section"
+        assert not validate_structure(result["structure"])
+
+    def test_no_alignment_guesses(self, results):
+        for result in results:
+            assert "alignment_uncertain" not in _codes(result)
 
 
 class TestMarkdownSectionSubtotal:

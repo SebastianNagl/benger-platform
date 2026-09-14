@@ -431,3 +431,72 @@ class TestSamplePredictionInputs:
             db=test_db, project_id=project.id, sample_size=3
         )
         assert len(texts) == 3
+
+
+# ---------------------------------------------------------------------------
+# Judge prompt sizing helpers
+# ---------------------------------------------------------------------------
+
+
+class TestNewerOpenAIIdsUseO200k:
+    @pytest.mark.parametrize("model_id", ["gpt-5.4-mini", "gpt-5.5-pro", "o4-mini-2099", "gpt-4.1-nano-x"])
+    def test_unknown_ids_of_o200k_families(self, model_id):
+        enc = _encoding_for_model(model_id)
+        assert enc is not None and enc.name == "o200k_base"
+
+
+class TestOverheadTokens:
+    def test_overhead_is_added_per_sample(self):
+        base = te.estimate_tokens_for_calls(
+            project_id=f"p-{uuid.uuid4()}", model_id="gpt-4o", prompt_samples=["a b c", "d e f"],
+            max_output_tokens=100,
+        )
+        with_overhead = te.estimate_tokens_for_calls(
+            project_id=f"p-{uuid.uuid4()}", model_id="gpt-4o", prompt_samples=["a b c", "d e f"],
+            max_output_tokens=100, overhead_tokens=[600, 800],
+        )
+        assert with_overhead.input_mean == pytest.approx(base.input_mean + 700)
+        assert with_overhead.input_p95 >= base.input_p95 + 600
+
+    def test_overhead_changes_the_cache_key(self):
+        pid = f"p-{uuid.uuid4()}"
+        first = te.estimate_tokens_for_calls(project_id=pid, model_id="gpt-4o", prompt_samples=["x"], max_output_tokens=1)
+        second = te.estimate_tokens_for_calls(
+            project_id=pid, model_id="gpt-4o", prompt_samples=["x"], max_output_tokens=1, overhead_tokens=[50]
+        )
+        assert second.input_mean == first.input_mean + 50
+
+
+class TestRendersJudgePrompt:
+    @pytest.mark.parametrize(
+        "config, expected",
+        [
+            ({"metric": "llm_judge_rubric", "prediction_fields": ["__all_model__"]}, True),
+            ({"metric": "llm_judge_custom", "prediction_fields": ["model:x"],
+              "metric_parameters": {"custom_prompt_template": "{prediction}"}}, True),
+            ({"metric": "llm_judge_custom", "prediction_fields": ["human:loesung"]}, True),
+            ({"metric": "llm_judge_custom", "prediction_fields": ["loesung"]}, True),
+            ({"metric": "llm_judge_custom", "prediction_fields": ["__all_model__", "model:x"]}, False),
+        ],
+    )
+    def test_matrix(self, config, expected):
+        assert te.renders_judge_prompt(config) is expected
+
+
+class TestRenderJudgeTemplate:
+    def test_single_pass_and_unknown_placeholders_stay(self):
+        out = te._render_judge_template(
+            "A {{ground_truth}} B {prediction} C {unknown}",
+            {"ground_truth": "muster {prediction}", "prediction": "antwort"},
+        )
+        assert out == "A muster {prediction} B antwort C {unknown}"
+
+
+class TestJudgeContext:
+    def test_blocks_in_worker_order(self):
+        ctx = te._judge_context(
+            {"Sachverhalt": "SV", "bearbeitervermerk": "BV", "zusatzmaterial": "", "korrekturhinweise": "KH"}
+        )
+        assert ctx.startswith("SV\n\n## Bearbeitervermerk\n\nBV\n\n")
+        assert ctx.endswith("(vom Aufgabensteller):\nKH")
+        assert "Zusatzmaterial" not in ctx
