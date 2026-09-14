@@ -240,6 +240,144 @@ async def get_project_evaluation_config(
         )
 
 
+def _config_label(cfg: dict) -> str:
+    """A human-readable name for an evaluation config in an error message."""
+    return str(cfg.get("display_name") or cfg.get("id") or cfg.get("metric") or "evaluation")
+
+
+def _validate_config_fields(cfg: dict) -> None:
+    """Reject a config whose prediction fields can never match anything.
+
+    Shape only, never project data. Configs are legitimately saved into
+    projects that have no annotations or generations yet - the creation
+    wizard, the Bewertungsbogen setup and exam creation all do it - so
+    "matches nothing today" is not a save-time error. What IS an error is a
+    selector that cannot match under ANY data: a missing or empty list, a
+    blank entry, a typo'd bulk selector or role prefix. Such configs used to
+    save happily and then grade nothing, silently.
+
+    Empty ``reference_fields`` are deliberately NOT rejected here. Live
+    projects carry them (40 entries across three projects on 2026-09-14, none
+    of which has ever produced a result) and the page that edits a project's
+    evaluations posts the whole list, so a 422 would block every unrelated
+    save on those projects. They surface as warnings instead, see
+    ``collect_evaluation_config_warnings``.
+
+    ``korrektur_*`` metrics are a person filling a form and are never
+    dispatched; they legitimately carry empty lists.
+    """
+    import re
+
+    from eval_field_classification import (
+        BULK_SELECTORS,
+        ROLE_PREFIXES,
+        classify_pred_fields,
+    )
+
+    metric = cfg.get("metric") or ""
+    if isinstance(metric, str) and metric.startswith("korrektur_"):
+        return
+    label = _config_label(cfg)
+    where = f"evaluation '{label}' ({metric})"
+    example = "e.g. 'human:loesung' for a submitted answer or '__all_model__' for model generations"
+
+    pred = cfg.get("prediction_fields")
+    if pred is None:
+        raise HTTPException(
+            status_code=422,
+            detail=f"{where}: prediction_fields is missing, so it can never grade anything. Choose a field, {example}.",
+        )
+    if not isinstance(pred, list):
+        raise HTTPException(
+            status_code=422,
+            detail=f"{where}: prediction_fields must be a list of field selectors, got {type(pred).__name__}.",
+        )
+    if not pred:
+        raise HTTPException(
+            status_code=422,
+            detail=f"{where}: prediction_fields is empty, so it can never grade anything. Choose a field, {example}.",
+        )
+
+    known_roles = tuple(prefix.rstrip(":") for prefix in ROLE_PREFIXES)
+    for selector in pred:
+        if not isinstance(selector, str) or not selector.strip():
+            raise HTTPException(
+                status_code=422,
+                detail=f"{where}: prediction_fields contains an empty selector. Every entry must name a field, {example}.",
+            )
+        # Scoped to the `__all…__` family on purpose: that is where the typos
+        # live (`__all_annotations__`, `__all_models__`). Other dunder names
+        # such as `__response__` are internal selectors the UI already knows.
+        if re.fullmatch(r"__all\w*__", selector) and selector not in BULK_SELECTORS:
+            valid = " and ".join(repr(s) for s in BULK_SELECTORS)
+            raise HTTPException(
+                status_code=422,
+                detail=f"{where}: unknown bulk selector {selector!r}. The only bulk selectors are {valid}.",
+            )
+        role = re.match(r"^([A-Za-z][A-Za-z0-9_]*):", selector)
+        if role and role.group(1) not in known_roles:
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    f"{where}: unknown role prefix '{role.group(1)}:' in {selector!r}. "
+                    f"Use 'human:<field>' for a submitted answer or 'model:<field>' for a generation."
+                ),
+            )
+
+    ref = cfg.get("reference_fields")
+    if ref is not None and not isinstance(ref, list):
+        raise HTTPException(
+            status_code=422,
+            detail=f"{where}: reference_fields must be a list of field names, got {type(ref).__name__}.",
+        )
+
+    # Pins the ClassifierRule contract at the API boundary: every selector
+    # lands on exactly one side. A future per-metric rule that breaks this
+    # fails here, at save, instead of by silently grading nothing.
+    human, llm = classify_pred_fields(metric, pred)
+    if sorted(human + llm) != sorted(pred) or set(human) & set(llm):
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"{where}: prediction_fields {pred!r} do not resolve cleanly to the human or the "
+                f"model side. This is a defect in a field-classification rule, not a user error."
+            ),
+        )
+
+
+def collect_evaluation_config_warnings(eval_configs_list) -> list:
+    """Problems worth telling the user at save time that must not block it.
+
+    Currently one: an enabled, dispatchable config with no reference field.
+    Every grading is a (prediction, reference) pair, so such a config grades
+    nothing; see ``_validate_config_fields`` for why it cannot be a 422.
+    """
+    warnings: list = []
+    if not isinstance(eval_configs_list, list):
+        return warnings
+    for cfg in eval_configs_list:
+        if not isinstance(cfg, dict) or cfg.get("enabled") is False:
+            continue
+        metric = cfg.get("metric") or ""
+        if isinstance(metric, str) and metric.startswith("korrektur_"):
+            continue
+        ref = cfg.get("reference_fields")
+        if isinstance(ref, list) and ref:
+            continue
+        warnings.append(
+            {
+                "config_id": cfg.get("id"),
+                "metric": metric,
+                "code": "no_reference_fields",
+                "message": (
+                    f"evaluation '{_config_label(cfg)}' ({metric}) has no reference field, "
+                    f"so it will grade nothing. Choose one, e.g. 'task.musterloesung'."
+                ),
+            }
+        )
+    return warnings
+
+
 def validate_evaluation_config_entries(eval_configs_list) -> None:
     """Per-entry validation of ``evaluation_configs`` (raises HTTPException 422).
 
@@ -253,6 +391,9 @@ def validate_evaluation_config_entries(eval_configs_list) -> None:
     for cfg in eval_configs_list:
         if not isinstance(cfg, dict):
             continue
+        # Field shape first: a config that can never match must not save,
+        # whatever its metric parameters look like.
+        _validate_config_fields(cfg)
         mp = cfg.get("metric_parameters")
         if not isinstance(mp, dict):
             continue
@@ -547,7 +688,19 @@ async def update_project_evaluation_config(
         db.commit()
         db.refresh(project)
 
-        return {"message": "Evaluation configuration updated successfully", "config": merged}
+        warnings = collect_evaluation_config_warnings(eval_configs_list)
+        for warning in warnings:
+            logger.warning(
+                f"[evaluation-config {project_id}] saved with a config that will "
+                f"grade nothing: {warning['message']}"
+            )
+        return {
+            "message": "Evaluation configuration updated successfully",
+            "config": merged,
+            # Non-blocking: the save succeeded, but these configs will grade
+            # nothing as written. Additive, so existing clients ignore it.
+            "warnings": warnings,
+        }
 
     except HTTPException:
         raise

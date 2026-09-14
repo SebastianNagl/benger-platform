@@ -620,7 +620,7 @@ class TestEvaluationConfig:
             with_generations=False,
             with_annotations=False,
         )
-        new_config = {"evaluation_configs": [{"metric": "bleu"}]}
+        new_config = {"evaluation_configs": [{"metric": "bleu", "prediction_fields": ["__all_model__"], "reference_fields": ["task.expected"]}]}
         resp = client.put(
             f"/api/evaluations/projects/{data['project'].id}/evaluation-config",
             json=new_config,
@@ -629,7 +629,7 @@ class TestEvaluationConfig:
         assert resp.status_code == 200
         assert len(seen) == 1
         assert seen[0]["project_id"] == data["project"].id
-        assert seen[0]["config"]["evaluation_configs"] == [{"metric": "bleu"}]
+        assert seen[0]["config"]["evaluation_configs"] == [{"metric": "bleu", "prediction_fields": ["__all_model__"], "reference_fields": ["task.expected"]}]
 
 
 @pytest.mark.integration

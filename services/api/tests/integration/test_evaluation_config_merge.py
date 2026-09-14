@@ -59,7 +59,7 @@ STORED = {
     "defaults_mode": "custom",
     "selected_methods": {"answer": {"automated": ["bleu"]}},
     "available_methods": {"answer": {"available_metrics": ["bleu"], "available_human": []}},
-    "evaluation_configs": [{"id": "a", "metric": "bleu", "enabled": True}],
+    "evaluation_configs": [{"id": "a", "metric": "bleu", "prediction_fields": ["__all_model__"], "reference_fields": ["task.expected"], "enabled": True}],
 }
 
 
@@ -72,7 +72,7 @@ class TestEvaluationConfigMerge:
         self, client, test_db, test_users, auth_headers, test_org
     ):
         project = _seed_project(test_db, test_users, test_org, dict(STORED))
-        new_configs = [{"id": "b", "metric": "rouge", "enabled": True}]
+        new_configs = [{"id": "b", "metric": "rouge", "prediction_fields": ["__all_model__"], "reference_fields": ["task.expected"], "enabled": True}]
         resp = client.put(
             f"{BASE}/projects/{project.id}/evaluation-config",
             json={"evaluation_configs": new_configs},
@@ -100,19 +100,19 @@ class TestEvaluationConfigMerge:
     ):
         stored = dict(STORED)
         stored["evaluation_configs"] = [
-            {"id": "a", "metric": "bleu", "enabled": True},
-            {"id": "b", "metric": "rouge", "enabled": True},
+            {"id": "a", "metric": "bleu", "prediction_fields": ["__all_model__"], "reference_fields": ["task.expected"], "enabled": True},
+            {"id": "b", "metric": "rouge", "prediction_fields": ["__all_model__"], "reference_fields": ["task.expected"], "enabled": True},
         ]
         project = _seed_project(test_db, test_users, test_org, stored)
         resp = client.put(
             f"{BASE}/projects/{project.id}/evaluation-config",
-            json={"evaluation_configs": [{"id": "a", "metric": "bleu", "enabled": True}]},
+            json={"evaluation_configs": [{"id": "a", "metric": "bleu", "prediction_fields": ["__all_model__"], "reference_fields": ["task.expected"], "enabled": True}]},
             headers=self._headers(auth_headers, test_org),
         )
         assert resp.status_code == 200, resp.text
         # Lists replace wholesale — removing an entry actually removes it.
         assert _stored_config(test_db, project.id)["evaluation_configs"] == [
-            {"id": "a", "metric": "bleu", "enabled": True}
+            {"id": "a", "metric": "bleu", "prediction_fields": ["__all_model__"], "reference_fields": ["task.expected"], "enabled": True}
         ]
 
     def test_put_none_value_deletes_key(
@@ -136,7 +136,7 @@ class TestEvaluationConfigMerge:
         when nothing is stored yet."""
         project = _seed_project(test_db, test_users, test_org, None)
         doc = {
-            "evaluation_configs": [{"id": "a", "metric": "bleu", "enabled": True}],
+            "evaluation_configs": [{"id": "a", "metric": "bleu", "prediction_fields": ["__all_model__"], "reference_fields": ["task.expected"], "enabled": True}],
             "defaults_mode": "recommended",
         }
         resp = client.put(

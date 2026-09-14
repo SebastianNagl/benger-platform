@@ -570,7 +570,7 @@ class TestUpdateEvaluationConfig:
         project = _make_project(test_db, test_users[0], test_org)
         config = {
             "evaluation_configs": [
-                {"metric": "llm_judge_classic", "metric_parameters": {"judges": "gpt-4"}}
+                {"metric": "llm_judge_classic", "prediction_fields": ["loesung"], "reference_fields": ["task.musterloesung"], "metric_parameters": {"judges": "gpt-4"}}
             ]
         }
         resp = client.put(
@@ -587,7 +587,7 @@ class TestUpdateEvaluationConfig:
         project = _make_project(test_db, test_users[0], test_org)
         config = {
             "evaluation_configs": [
-                {"metric": "llm_judge_classic", "metric_parameters": {"judges": []}}
+                {"metric": "llm_judge_classic", "prediction_fields": ["loesung"], "reference_fields": ["task.musterloesung"], "metric_parameters": {"judges": []}}
             ]
         }
         resp = client.put(
@@ -605,7 +605,7 @@ class TestUpdateEvaluationConfig:
         config = {
             "evaluation_configs": [
                 {
-                    "metric": "llm_judge_classic",
+                    "metric": "llm_judge_classic", "prediction_fields": ["loesung"], "reference_fields": ["task.musterloesung"],
                     "metric_parameters": {"judges": ["gpt-4"]},
                 }
             ]
@@ -625,7 +625,7 @@ class TestUpdateEvaluationConfig:
         config = {
             "evaluation_configs": [
                 {
-                    "metric": "llm_judge_classic",
+                    "metric": "llm_judge_classic", "prediction_fields": ["loesung"], "reference_fields": ["task.musterloesung"],
                     "metric_parameters": {"judges": [{"judge_model_id": "", "runs": 1}]},
                 }
             ]
@@ -645,7 +645,7 @@ class TestUpdateEvaluationConfig:
         config = {
             "evaluation_configs": [
                 {
-                    "metric": "llm_judge_classic",
+                    "metric": "llm_judge_classic", "prediction_fields": ["loesung"], "reference_fields": ["task.musterloesung"],
                     "metric_parameters": {
                         "judges": [{"judge_model_id": "gpt-4", "runs": 99}]
                     },
@@ -668,7 +668,7 @@ class TestUpdateEvaluationConfig:
             "evaluation_configs": [
                 {
                     "id": "answer_judge",
-                    "metric": "llm_judge_classic",
+                    "metric": "llm_judge_classic", "prediction_fields": ["loesung"], "reference_fields": ["task.musterloesung"],
                     "metric_parameters": {
                         "judges": [{"judge_model_id": "gpt-4", "runs": 2}]
                     },
@@ -695,7 +695,7 @@ class TestUpdateEvaluationConfig:
         config = {
             "evaluation_configs": [
                 {
-                    "metric": "llm_judge_falloesung",
+                    "metric": "llm_judge_falloesung", "prediction_fields": ["loesung"], "reference_fields": ["task.musterloesung"],
                     "metric_parameters": {
                         "judges": [{"judge_model_id": "gpt-4", "runs": 1}],
                         "score_scale": "1-5",
@@ -719,7 +719,7 @@ class TestUpdateEvaluationConfig:
         config = {
             "evaluation_configs": [
                 {
-                    "metric": "llm_judge_falloesung",
+                    "metric": "llm_judge_falloesung", "prediction_fields": ["loesung"], "reference_fields": ["task.musterloesung"],
                     "metric_parameters": {
                         "judges": [{"judge_model_id": "gpt-4", "runs": 1}],
                         "score_scale": "0-100",
@@ -754,7 +754,7 @@ class TestUpdateEvaluationConfig:
         mp = {k: v for k, v in mp.items() if v is not None}
         return {
             "evaluation_configs": [
-                {"metric": "llm_judge_rubric", "metric_parameters": mp}
+                {"metric": "llm_judge_rubric", "prediction_fields": ["loesung"], "reference_fields": ["task.musterloesung"], "metric_parameters": mp}
             ]
         }
 
@@ -1120,3 +1120,125 @@ class TestFieldTypes:
         assert field["type"] == "binary"
         assert "tag" in field
         assert isinstance(field["recommended_criteria"], list)
+
+
+class TestEvaluationConfigFieldValidation:
+    """A config whose prediction fields can never match anything must not save.
+
+    Such configs used to save happily and then grade nothing, silently: a
+    production Bewertungsbogen run reported success having scored no answer.
+    The rules are SHAPE-only on purpose - configs are legitimately saved into
+    projects with no data yet - and empty references are a warning rather than
+    a 422, because live projects carry them and a 422 would block every
+    unrelated save on those projects.
+    """
+
+    def _put(self, client, auth_headers, test_org, project, entry):
+        return client.put(
+            f"/api/evaluations/projects/{project.id}/evaluation-config",
+            json={"evaluation_configs": [entry]},
+            headers=_org_headers(auth_headers, "admin", test_org),
+        )
+
+    @pytest.mark.parametrize(
+        "patch,expected",
+        [
+            ({"prediction_fields": None}, "prediction_fields is missing"),
+            ({"prediction_fields": []}, "prediction_fields is empty"),
+            ({"prediction_fields": "loesung"}, "must be a list"),
+            ({"prediction_fields": [""]}, "empty selector"),
+            ({"prediction_fields": ["   "]}, "empty selector"),
+            ({"prediction_fields": ["__all_annotations__"]}, "unknown bulk selector"),
+            ({"prediction_fields": ["annotation:loesung"]}, "unknown role prefix"),
+            ({"reference_fields": "task.expected"}, "reference_fields must be a list"),
+        ],
+    )
+    def test_an_unmatchable_config_is_rejected_with_a_reason(
+        self, client, test_db, test_users, auth_headers, test_org, patch, expected
+    ):
+        project = _make_project(test_db, test_users[0], test_org)
+        entry = {
+            "id": "cfg1",
+            "metric": "exact_match",
+            "display_name": "Exact",
+            "prediction_fields": ["__all_model__"],
+            "reference_fields": ["task.expected"],
+        }
+        for key, value in patch.items():
+            if value is None:
+                entry.pop(key, None)
+            else:
+                entry[key] = value
+        resp = self._put(client, auth_headers, test_org, project, entry)
+        assert resp.status_code == 422, resp.text
+        detail = resp.json()["detail"]
+        assert expected in detail
+        # Names the config so the user knows WHICH evaluation is wrong.
+        assert "Exact" in detail and "exact_match" in detail
+
+    @pytest.mark.parametrize(
+        "selector",
+        ["__all_model__", "__all_human__", "loesung", "human:loesung", "model:answer",
+         "__response__"],
+    )
+    def test_every_live_selector_shape_still_saves(
+        self, client, test_db, test_users, auth_headers, test_org, selector
+    ):
+        """Pinned against the production sweep of 219 live configs: none may
+        start failing. `__response__` is the unstructured-response selector the
+        UI already offers, and must not be caught by the bulk-selector rule."""
+        project = _make_project(test_db, test_users[0], test_org)
+        resp = self._put(client, auth_headers, test_org, project, {
+            "id": "cfg1", "metric": "exact_match",
+            "prediction_fields": [selector], "reference_fields": ["task.expected"],
+        })
+        assert resp.status_code == 200, resp.text
+
+    def test_korrektur_configs_are_exempt(
+        self, client, test_db, test_users, auth_headers, test_org
+    ):
+        """Human grading is a person filling a form, never dispatched, and
+        legitimately carries empty field lists."""
+        project = _make_project(test_db, test_users[0], test_org)
+        resp = self._put(client, auth_headers, test_org, project, {
+            "id": "k1", "metric": "korrektur_custom",
+            "prediction_fields": [], "reference_fields": [],
+        })
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["warnings"] == []
+
+    def test_an_empty_reference_saves_but_warns(
+        self, client, test_db, test_users, auth_headers, test_org
+    ):
+        project = _make_project(test_db, test_users[0], test_org)
+        resp = self._put(client, auth_headers, test_org, project, {
+            "id": "cfg1", "metric": "exact_match", "display_name": "Exact",
+            "prediction_fields": ["__all_model__"], "reference_fields": [],
+        })
+        assert resp.status_code == 200, resp.text
+        warnings = resp.json()["warnings"]
+        assert [w["code"] for w in warnings] == ["no_reference_fields"]
+        assert warnings[0]["config_id"] == "cfg1"
+        assert "will grade nothing" in warnings[0]["message"]
+
+    def test_a_complete_config_has_no_warnings(
+        self, client, test_db, test_users, auth_headers, test_org
+    ):
+        project = _make_project(test_db, test_users[0], test_org)
+        resp = self._put(client, auth_headers, test_org, project, {
+            "id": "cfg1", "metric": "exact_match",
+            "prediction_fields": ["__all_model__"], "reference_fields": ["task.expected"],
+        })
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["warnings"] == []
+
+    def test_a_disabled_config_is_not_warned_about(
+        self, client, test_db, test_users, auth_headers, test_org
+    ):
+        project = _make_project(test_db, test_users[0], test_org)
+        resp = self._put(client, auth_headers, test_org, project, {
+            "id": "cfg1", "metric": "exact_match", "enabled": False,
+            "prediction_fields": ["__all_model__"], "reference_fields": [],
+        })
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["warnings"] == []
