@@ -45,6 +45,7 @@ def _make_job(
     status="pending",
     object_key="imports/proj-1/file.json",
     source_connection_id=None,
+    organization_id=None,
 ):
     return types.SimpleNamespace(
         id="ijob-1",
@@ -52,6 +53,7 @@ def _make_job(
         requested_by="user-1",
         object_key=object_key,
         source_connection_id=source_connection_id,
+        organization_id=organization_id,
         format=None,
         status=status,
         byte_size=None,
@@ -153,7 +155,10 @@ def test_import_comprehensive_creates_project_and_captures_id(_patched):
     job = _make_job(project_id=None, object_key="imports/u1/file.json")
     _stage_object(storage, job.object_key, content)
 
-    def _fake_full(db, fileobj, user_id):
+    captured = {}
+
+    def _fake_full(db, fileobj, user_id, organization_id=None):
+        captured["organization_id"] = organization_id
         return {"project_id": "new-proj-9", "message": "ok", "statistics": {}}
 
     with patch("import_stream.run_full_project_import", _fake_full), patch(
@@ -167,6 +172,30 @@ def test_import_comprehensive_creates_project_and_captures_id(_patched):
     # The newly-created project id is back-filled onto the job.
     assert job.project_id == "new-proj-9"
     assert result["project_id"] == "new-proj-9"
+    # No org context on the job -> the importer's fallback applies.
+    assert captured["organization_id"] is None
+
+
+def test_import_comprehensive_passes_job_organization_to_importer(_patched):
+    """The org context stored on the job reaches the create-new importer."""
+    workers_tasks, storage, ImportJob = _patched
+    content = b'{"format_version": "1.0", "project": {"title": "X"}}'
+    job = _make_job(
+        project_id=None, object_key="imports/u1/file.json", organization_id="org-lmu"
+    )
+    _stage_object(storage, job.object_key, content)
+
+    captured = {}
+
+    def _fake_full(db, fileobj, user_id, organization_id=None):
+        captured["organization_id"] = organization_id
+        return {"project_id": "new-proj-7", "message": "ok", "statistics": {}}
+
+    with patch("import_stream.run_full_project_import", _fake_full):
+        result, _ = _run_with_job(workers_tasks, ImportJob, job)
+
+    assert result["status"] == "completed"
+    assert captured["organization_id"] == "org-lmu"
 
 
 def test_import_validation_error_marks_failed(_patched):

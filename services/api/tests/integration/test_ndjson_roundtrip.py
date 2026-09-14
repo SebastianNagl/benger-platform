@@ -834,3 +834,128 @@ class TestTaskRubricsInNdjson:
         assert gradings
         for row in gradings:
             assert row.metrics["llm_judge_rubric"]["details"]["rubric_id"] == imported.id
+
+
+@pytest.mark.integration
+class TestImportOwningOrganization:
+    """``organization_id`` (the job's org context) picks the owning org and is
+    re-validated when the project is created."""
+
+    @staticmethod
+    def _second_org(test_db, name):
+        from models import Organization
+
+        oid = _uid()
+        org = Organization(
+            id=oid, name=name, display_name=name, slug=f"own-{oid[:8]}"
+        )
+        test_db.add(org)
+        test_db.flush()
+        return org
+
+    @staticmethod
+    def _join(test_db, user, org, active=True):
+        from models import OrganizationMembership
+
+        test_db.add(
+            OrganizationMembership(
+                id=_uid(),
+                user_id=user.id,
+                organization_id=org.id,
+                role="CONTRIBUTOR",
+                is_active=active,
+            )
+        )
+        test_db.flush()
+
+    @staticmethod
+    def _owner_org(test_db, project_id):
+        return (
+            test_db.query(ProjectOrganization.organization_id)
+            .filter(ProjectOrganization.project_id == project_id)
+            .scalar()
+        )
+
+    def test_member_org_owns_the_import_for_json_and_ndjson(
+        self, test_db, test_users, full_project
+    ):
+        project, _admin = full_project
+        contributor = test_users[1]  # active member of test_org
+        target = self._second_org(test_db, "Target")
+        self._join(test_db, contributor, target)
+        test_db.commit()
+
+        ndjson = _export_ndjson(test_db, project)
+        comprehensive = "".join(
+            stream_comprehensive_project_data_json(test_db, project.id)
+        )
+        for body in (ndjson, comprehensive):
+            pid = run_full_project_import(
+                test_db,
+                io.BytesIO(body.encode("utf-8")),
+                contributor.id,
+                organization_id=target.id,
+            )["project_id"]
+            assert self._owner_org(test_db, pid) == target.id
+
+    def test_without_org_context_first_active_membership_owns_it(
+        self, test_db, test_users, test_org, full_project
+    ):
+        project, _admin = full_project
+        contributor = test_users[1]
+        pid = run_full_project_import(
+            test_db,
+            io.BytesIO(_export_ndjson(test_db, project).encode("utf-8")),
+            contributor.id,
+        )["project_id"]
+        assert self._owner_org(test_db, pid) == test_org.id
+
+    def test_non_member_is_rejected_before_anything_is_written(
+        self, test_db, test_users, full_project
+    ):
+        project, _admin = full_project
+        contributor = test_users[1]
+        foreign = self._second_org(test_db, "Foreign")
+        inactive = self._second_org(test_db, "Inactive")
+        self._join(test_db, contributor, inactive, active=False)
+        test_db.commit()
+        ndjson = _export_ndjson(test_db, project)
+
+        for org in (foreign, inactive):
+            before = test_db.query(Project).count()
+            with pytest.raises(ImportValidationError) as exc:
+                run_full_project_import(
+                    test_db,
+                    io.BytesIO(ndjson.encode("utf-8")),
+                    contributor.id,
+                    organization_id=org.id,
+                )
+            assert exc.value.status_code == 403
+            test_db.rollback()
+            assert test_db.query(Project).count() == before
+
+    def test_superadmin_may_import_into_any_existing_org(
+        self, test_db, test_users, full_project
+    ):
+        project, admin = full_project
+        assert admin.is_superadmin
+        foreign = self._second_org(test_db, "Superadmin Target")
+        test_db.commit()
+        ndjson = _export_ndjson(test_db, project)
+
+        pid = run_full_project_import(
+            test_db,
+            io.BytesIO(ndjson.encode("utf-8")),
+            admin.id,
+            organization_id=foreign.id,
+        )["project_id"]
+        assert self._owner_org(test_db, pid) == foreign.id
+
+        with pytest.raises(ImportValidationError) as exc:
+            run_full_project_import(
+                test_db,
+                io.BytesIO(ndjson.encode("utf-8")),
+                admin.id,
+                organization_id=_uid(),
+            )
+        assert exc.value.status_code == 404

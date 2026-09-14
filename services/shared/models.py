@@ -2849,6 +2849,14 @@ class ImportJob(Base):
         nullable=True,
         index=True,
     )
+    # Owning org for a create-new (comprehensive) import, taken from the
+    # request's org context (migration 103). NULL = no org context, the worker
+    # falls back to the importer's first active membership.
+    organization_id = Column(
+        String,
+        ForeignKey("organizations.id", ondelete="SET NULL"),
+        nullable=True,
+    )
     byte_size = Column(BigInteger, nullable=True)
     progress = Column(Integer, nullable=False, server_default=text("0"))
     error_message = Column(Text, nullable=True)

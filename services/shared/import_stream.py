@@ -57,6 +57,7 @@ from models import (
     HumanEvaluationResult,
     HumanEvaluationSession,
     LikertScaleEvaluation,
+    Organization,
     PreferenceRanking,
     ResponseGeneration,
     TaskEvaluation,
@@ -2113,28 +2114,48 @@ def _reconcile_generation_config_models(
     return generation_config
 
 
-def _create_imported_project(
-    ctx: _FullImportContext, project_data: dict, new_title: str
-):
-    """Create the new Project row (+ ProjectOrganization) from project_data.
+def _resolve_owning_organization_id(
+    ctx: _FullImportContext, user_with_memberships, organization_id: Optional[str]
+) -> str:
+    """The org that will own the imported project.
 
-    Shared by the multi-pass and NDJSON importers. Sets ``ctx.new_project_id``
-    and records the old→new project id mapping. Raises ``ImportValidationError``
-    (400) when the importing user has no active organization to own the project.
+    ``organization_id`` is the org context the import was requested in (stored
+    on the job by ``POST /project-imports``). It is re-validated here because
+    memberships can change between enqueue and run: the importer must still be
+    an active member, or a superadmin and the org must still exist. Without an
+    org context the first active membership owns the project, as before.
     """
-    # Get user's primary organization for the imported project
-    user_with_memberships = (
-        ctx.db.query(User)
-        .options(joinedload(User.organization_memberships))
-        .filter(User.id == ctx.user_id)
-        .first()
-    )
+    if organization_id:
+        if user_with_memberships is None:
+            raise ImportValidationError(403, "Importing user not found")
+        is_member = any(
+            m.is_active and m.organization_id == organization_id
+            for m in (user_with_memberships.organization_memberships or [])
+        )
+        if is_member:
+            return organization_id
+        if getattr(user_with_memberships, "is_superadmin", False):
+            org = (
+                ctx.db.query(Organization.id)
+                .filter(
+                    Organization.id == organization_id,
+                    Organization.is_active == True,  # noqa: E712
+                )
+                .first()
+            )
+            if org is not None:
+                return organization_id
+            raise ImportValidationError(404, "Target organization not found")
+        raise ImportValidationError(
+            403, "You are not an active member of the target organization"
+        )
+
     if not user_with_memberships or not user_with_memberships.organization_memberships:
         raise ImportValidationError(
             400, "User must belong to an organization to import projects"
         )
 
-    # Use the first active organization membership
+    # No org context: use the first active organization membership.
     primary_membership = next(
         (m for m in user_with_memberships.organization_memberships if m.is_active), None
     )
@@ -2142,6 +2163,32 @@ def _create_imported_project(
         raise ImportValidationError(
             400, "User must have an active organization membership"
         )
+    return primary_membership.organization_id
+
+
+def _create_imported_project(
+    ctx: _FullImportContext,
+    project_data: dict,
+    new_title: str,
+    organization_id: Optional[str] = None,
+):
+    """Create the new Project row (+ ProjectOrganization) from project_data.
+
+    Shared by the multi-pass and NDJSON importers. Sets ``ctx.new_project_id``
+    and records the old→new project id mapping. The owning org is
+    ``organization_id`` when given (validated, 403/404 otherwise), else the
+    importer's first active membership; ``ImportValidationError`` (400) when
+    the importing user has no active organization to own the project.
+    """
+    user_with_memberships = (
+        ctx.db.query(User)
+        .options(joinedload(User.organization_memberships))
+        .filter(User.id == ctx.user_id)
+        .first()
+    )
+    owning_organization_id = _resolve_owning_organization_id(
+        ctx, user_with_memberships, organization_id
+    )
 
     new_project_id = str(uuid.uuid4())
     # Only add to mappings if the original project had an ID
@@ -2238,7 +2285,7 @@ def _create_imported_project(
     project_org = ProjectOrganization(
         id=str(uuid.uuid4()),
         project_id=new_project_id,
-        organization_id=primary_membership.organization_id,
+        organization_id=owning_organization_id,
         assigned_by=ctx.user_id,
     )
     ctx.db.add(project_org)
@@ -2428,7 +2475,9 @@ def _is_ndjson_stream(fileobj) -> bool:
     return isinstance(obj, dict) and bool(obj.get("_type"))
 
 
-def run_ndjson_import(db, fileobj, user_id: str) -> dict:
+def run_ndjson_import(
+    db, fileobj, user_id: str, organization_id: Optional[str] = None
+) -> dict:
     """Import an NDJSON typed-record comprehensive payload in a single pass.
 
     The NDJSON format frames the same comprehensive data as
@@ -2476,7 +2525,7 @@ def run_ndjson_import(db, fileobj, user_id: str) -> dict:
     ctx = _FullImportContext(db, user_id)
     # Create the project (+ ProjectOrganization). Raises 400 if the importing
     # user has no active organization. Sets ctx.new_project_id.
-    _create_imported_project(ctx, project_data, new_title)
+    _create_imported_project(ctx, project_data, new_title, organization_id)
 
     saw_end = False
     inserted = 0
@@ -2535,7 +2584,9 @@ def run_ndjson_import(db, fileobj, user_id: str) -> dict:
     }
 
 
-def run_full_project_import(db, fileobj, user_id: str) -> dict:
+def run_full_project_import(
+    db, fileobj, user_id: str, organization_id: Optional[str] = None
+) -> dict:
     """Import a flat comprehensive payload, creating a NEW project.
 
     Streams ``fileobj`` (a seekable spool already filled with the inner JSON;
@@ -2558,7 +2609,7 @@ def run_full_project_import(db, fileobj, user_id: str) -> dict:
     fileobj = _maybe_decompress(fileobj)
 
     if _is_ndjson_stream(fileobj):
-        return run_ndjson_import(db, fileobj, user_id)
+        return run_ndjson_import(db, fileobj, user_id, organization_id)
 
     # One streaming pass builds only the small top-level fields; malformed JSON
     # surfaces here (read_top_object parses through the whole document) and maps
@@ -2596,7 +2647,7 @@ def run_full_project_import(db, fileobj, user_id: str) -> dict:
 
     # Create the new project (+ ProjectOrganization). Raises 400 if the importing
     # user has no active organization. Sets ctx.new_project_id.
-    _create_imported_project(ctx, project_data, new_title)
+    _create_imported_project(ctx, project_data, new_title, organization_id)
 
     # FK-dependency-ordered passes.
     for task_data in _stream_rows(db, fileobj, "tasks.item"):
