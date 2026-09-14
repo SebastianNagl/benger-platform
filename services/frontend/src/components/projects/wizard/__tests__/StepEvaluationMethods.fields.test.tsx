@@ -142,7 +142,10 @@ describe('what a freshly toggled metric starts with', () => {
     const { onEvaluationConfigsChange } = setup()
     toggle('bleu')
     const cfg = lastConfigs(onEvaluationConfigsChange)[0]
-    expect(cfg.prediction_fields).toEqual(['human:loesung', '__all_human__'])
+    // The first declared field only. `__all_human__` is the fallback for a
+    // project without `loesung`; selected next to it, it would also grade the
+    // outline and the notes as if each were the answer.
+    expect(cfg.prediction_fields).toEqual(['human:loesung'])
     expect(cfg.reference_fields).toEqual(['musterloesung'])
   })
 
@@ -157,7 +160,7 @@ describe('what a freshly toggled metric starts with', () => {
     )
   })
 
-  it('keeps the offered subset instead of falling back', () => {
+  it('takes the next declared field when the first is missing', () => {
     registerTestMetric('chrf', {
       default_prediction_fields: ['human:nonexistent', 'human:loesung'],
     })

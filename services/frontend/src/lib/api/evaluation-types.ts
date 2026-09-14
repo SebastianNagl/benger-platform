@@ -851,16 +851,21 @@ export function buildReferenceFieldOptions(fields: {
 /**
  * Pick the field selection a freshly-toggled metric should start with.
  *
- * A metric may DECLARE preferred fields (`default_prediction_fields`). Those
- * win, but only the ones actually on offer for this project: declaring a field
- * can never select something that does not exist. A partial match keeps the
- * matching subset rather than falling back, so a judge declaring two fields on
- * a project that has one grades that one instead of silently flipping to the
- * positional default, which is how configs ended up pointed at model
- * generations in an exam.
+ * A metric may DECLARE preferred fields (`default_prediction_fields`). The
+ * list is an ordered preference, not a set of fields to grade: the first
+ * declared field that is on offer for this project is selected, alone. Later
+ * entries are fallbacks for projects that lack the earlier ones, which is how
+ * a judge can declare `['human:loesung', '__all_human__']` and still land on
+ * the human side when a project has no `loesung` field. Selecting every
+ * offered entry instead made `__all_human__` grade the outline and the notes
+ * of a submission against the same rubric, each as if it were the answer.
  *
- * With nothing declared, or nothing declared that is on offer, the positional
- * fallback applies and behaviour is exactly as it was.
+ * Declaring a field can never select something that does not exist, and an
+ * earlier entry that is missing never pushes the config to the positional
+ * default while a later declared entry is on offer. That positional default is
+ * how configs ended up pointed at model generations in an exam. With nothing
+ * declared, or nothing declared that is on offer, it applies and behaviour is
+ * exactly as it was.
  */
 export function resolveDefaultFieldSelection(
   declared: string[] | undefined,
@@ -868,8 +873,8 @@ export function resolveDefaultFieldSelection(
   positionalFallback: string,
 ): string[] {
   const offered = new Set(options.map((o) => o.value))
-  const kept = (declared ?? []).filter((v) => offered.has(v))
-  if (kept.length > 0) return kept
+  const preferred = (declared ?? []).find((v) => offered.has(v))
+  if (preferred !== undefined) return [preferred]
   return positionalFallback ? [positionalFallback] : []
 }
 

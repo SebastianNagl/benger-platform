@@ -84,19 +84,23 @@ describe('resolveDefaultFieldSelection', () => {
     ).toEqual(['__all_model__'])
   })
 
-  it('prefers a declared field that is on offer', () => {
+  it('selects only the first declared field that is on offer', () => {
+    // The declaration is an ordered preference. Selecting every offered entry
+    // made `__all_human__` grade the outline and the notes of a submission
+    // against the rubric, each as if it were the answer.
     expect(
       resolveDefaultFieldSelection(
         ['human:loesung', '__all_human__'],
         options,
         '__all_model__',
       ),
-    ).toEqual(['human:loesung', '__all_human__'])
+    ).toEqual(['human:loesung'])
   })
 
-  it('keeps the offered subset rather than falling back', () => {
-    // A judge declaring two fields on a project that only has one must grade
-    // that one. Falling back here is what silently aimed it at the model side.
+  it('takes the next declared field when an earlier one is not offered', () => {
+    // A judge whose first choice does not exist on this project must still
+    // grade a declared field. Falling back here is what silently aimed it at
+    // the model side.
     expect(
       resolveDefaultFieldSelection(
         ['human:nonexistent', 'human:loesung'],
@@ -104,6 +108,16 @@ describe('resolveDefaultFieldSelection', () => {
         '__all_model__',
       ),
     ).toEqual(['human:loesung'])
+  })
+
+  it('uses a declared bulk selector only as the fallback it is', () => {
+    expect(
+      resolveDefaultFieldSelection(
+        ['human:nonexistent', '__all_human__'],
+        options,
+        '__all_model__',
+      ),
+    ).toEqual(['__all_human__'])
   })
 
   it('falls back when nothing declared is on offer', () => {
