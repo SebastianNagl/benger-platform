@@ -146,7 +146,10 @@ interface SampleResultsTableProps {
   configs?: ReadonlyArray<RunConfigLabel>
 }
 
-type Translate = (key: string, vars?: Record<string, unknown>) => string
+type Translate = (
+  key: string,
+  varsOrFallback?: Record<string, unknown> | string,
+) => string
 
 /**
  * What the field column shows. The worker keys a sample as
@@ -162,7 +165,7 @@ function describeSampleField(
   if (!configId) return { title: sample.field_name, field: null }
   const firstMetric = visibleMetricKeys(sample.metrics ?? {})[0]
   const field = fieldSelectorLabel(predictionField, t)
-  const title = configDisplayLabel(configId, configs, firstMetric) ?? field
+  const title = configDisplayLabel(configId, configs, firstMetric, t) ?? field
   return { title, field: title === field ? null : field }
 }
 
@@ -323,7 +326,7 @@ export function SampleResultsTable({
               {metricNames.slice(0, 2).map((key) => (
                 <div key={key} className="text-xs">
                   <span className="font-medium text-zinc-700 dark:text-zinc-300">
-                    {metricDisplayLabel(key)}:
+                    {metricDisplayLabel(key, undefined, t)}:
                   </span>{' '}
                   <span className="text-emerald-700 tabular-nums dark:text-emerald-400">
                     {formatMetric(key, metrics[key])}
@@ -626,7 +629,7 @@ export function SampleResultsTable({
                                 return (
                                   <div key={key} className="text-sm">
                                     <div className="text-xs text-zinc-500 dark:text-zinc-400">
-                                      {metricDisplayLabel(key)}
+                                      {metricDisplayLabel(key, undefined, t)}
                                     </div>
                                     <div className="font-medium text-zinc-900 tabular-nums dark:text-white">
                                       {formatMetric(key, value)}

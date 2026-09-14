@@ -645,11 +645,12 @@ export default function EvaluationDashboard({
                                   configId,
                                   configs,
                                   rec.metric,
+                                  t,
                                 ) ||
                                 configId}
                             </span>{' '}
                             <span className="text-red-700 dark:text-red-300">
-                              ({metricDisplayLabel(rec.metric)})
+                              ({metricDisplayLabel(rec.metric, undefined, t)})
                             </span>
                             {sentence && <span>: {sentence}</span>}
                             <span className="mt-1 flex flex-wrap items-center gap-2 text-xs">
@@ -814,7 +815,7 @@ export default function EvaluationDashboard({
                     const display =
                       typeof v === 'number' ? formatMetricNumber(bare, v) : '—'
                     const configName = showConfigNames
-                      ? configDisplayLabel(configId, configs)
+                      ? configDisplayLabel(configId, configs, undefined, t)
                       : null
                     return (
                       <div
@@ -823,7 +824,7 @@ export default function EvaluationDashboard({
                         className="rounded-lg border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-800/50"
                       >
                         <div className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                          {metricDisplayLabel(bare)}
+                          {metricDisplayLabel(bare, undefined, t)}
                         </div>
                         {configName && (
                           <div className="text-xs text-zinc-500 dark:text-zinc-400">
@@ -969,7 +970,7 @@ export default function EvaluationDashboard({
                 <SelectContent>
                   {metricKeys.map((metric) => (
                     <SelectItem key={metric} value={metric}>
-                      {metricDisplayLabel(metric)}
+                      {metricDisplayLabel(metric, undefined, t)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -982,6 +983,8 @@ export default function EvaluationDashboard({
                 title={t('evaluation.metricDistribution.titleWithMetric', {
                   metric: metricDisplayLabel(
                     metricDistribution.metric_name || selectedMetric,
+                    undefined,
+                    t,
                   ),
                 })}
               />

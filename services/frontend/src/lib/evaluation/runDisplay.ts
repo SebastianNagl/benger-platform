@@ -13,11 +13,15 @@
 import {
   getFieldLabel,
   getMetricDefinitions,
+  metricDisplayName,
   type AvailableMetric,
 } from '@/lib/api/evaluation-types'
 import { humanizeMetricId } from '@/lib/reports/format'
 
-type Translate = (key: string, vars?: Record<string, unknown>) => string
+type Translate = (
+  key: string,
+  varsOrFallback?: Record<string, unknown> | string,
+) => string
 
 /** An evaluation config as far as labels are concerned. */
 export interface RunConfigLabel {
@@ -59,13 +63,17 @@ export function isSidecarMetricKey(key: string): boolean {
   )
 }
 
-/** Display name of a metric: the registry's name, else the humanized id. */
+/** Display name of a metric: the registry's name (translated when the metric
+ * carries a key and a translator is given), else the humanized id. */
 export function metricDisplayLabel(
   key: string,
   registry: Record<string, AvailableMetric> = getMetricDefinitions(),
+  t?: Translate,
 ): string {
   const bare = bareMetricName(key)
-  return registry[bare]?.display_name || humanizeMetricId(bare)
+  const def = registry[bare]
+  if (!def?.display_name) return humanizeMetricId(bare)
+  return t ? metricDisplayName(def, t) : def.display_name
 }
 
 /** Format an aggregated or per-sample number according to the metric scale. */
@@ -109,11 +117,12 @@ export function configDisplayLabel(
   configId: string | null,
   configs: ReadonlyArray<RunConfigLabel>,
   fallbackMetric?: string,
+  t?: Translate,
 ): string | null {
   const config = configId ? configs.find((c) => c.id === configId) : undefined
   if (config?.display_name) return config.display_name
   const metric = config?.metric || fallbackMetric
-  return metric ? metricDisplayLabel(metric) : null
+  return metric ? metricDisplayLabel(metric, undefined, t) : null
 }
 
 const RUN_STATUSES = new Set([
