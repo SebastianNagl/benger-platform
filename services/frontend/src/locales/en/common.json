@@ -6160,6 +6160,11 @@
       "multipleReferencesTitle": "Multiple references selected:",
       "multipleReferencesDescription": "Scores will be computed against each reference and the maximum score will be used (best match strategy)."
     },
+    "warnings": {
+      "noReferenceFields": "\"{name}\" has no reference field, so it grades nothing. Choose one, for example task.musterloesung.",
+      "modelSideWithoutGenerations": "\"{name}\" grades model generations{fields}, but this project has none. It has {count} submitted answer(s). To grade those, choose a human field such as human:loesung or __all_human__.",
+      "humanSideWithoutAnswers": "\"{name}\" grades submitted answers{fields}, but this project has none. It has {count} model generation(s). To grade those, choose a model field such as __all_model__."
+    },
     "metrics": {
       "lexicalMetrics": "Lexical Metrics",
       "lexicalDescription": "String and surface-level matching",

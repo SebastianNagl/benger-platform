@@ -15,6 +15,7 @@ import { useOptionalAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { apiClient } from '@/lib/api/client'
 import { projectsAPI } from '@/lib/api/projects'
+import { describeEvaluationConfigWarnings } from '@/lib/evaluation/configWarnings'
 import {
   getRegisteredWizardTemplates,
   getWizardKindPreset,
@@ -659,14 +660,11 @@ export function ProjectCreationWizard() {
             { evaluation_configs: wizardData.evaluationConfigs },
           )
           // Saved, but some configs will grade nothing as written.
-          const evalWarnings: string[] = Array.isArray(evalResponse?.warnings)
-            ? evalResponse.warnings
-                .map((warning: { message?: unknown }) => warning?.message)
-                .filter(
-                  (message: unknown): message is string =>
-                    typeof message === 'string' && message.length > 0,
-                )
-            : []
+          const evalWarnings = describeEvaluationConfigWarnings(
+            evalResponse?.warnings,
+            wizardData.evaluationConfigs,
+            t,
+          )
           if (evalWarnings.length > 0) {
             addToast(
               t('toasts.project.evaluationConfigsSavedWithWarnings', {

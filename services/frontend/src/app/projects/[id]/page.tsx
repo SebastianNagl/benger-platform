@@ -54,6 +54,7 @@ import type {
   AvailableEvaluationFields,
   EvaluationConfig,
 } from '@/lib/api/evaluation-types'
+import { describeEvaluationConfigWarnings } from '@/lib/evaluation/configWarnings'
 import { useSlot } from '@/lib/extensions/slots'
 import {
   getDefaultMaxTokens,
@@ -599,14 +600,11 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
       throw error
     }
 
-    const warningMessages: string[] = Array.isArray(response?.warnings)
-      ? response.warnings
-          .map((warning: { message?: unknown }) => warning?.message)
-          .filter(
-            (message: unknown): message is string =>
-              typeof message === 'string' && message.length > 0,
-          )
-      : []
+    const warningMessages = describeEvaluationConfigWarnings(
+      response?.warnings,
+      evaluations,
+      t,
+    )
     const warningSignature = warningMessages.join('\n')
     if (
       warningSignature &&
