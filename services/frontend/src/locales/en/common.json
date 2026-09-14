@@ -5645,6 +5645,10 @@
       "timeMs": "Time (ms)",
       "details": "Details",
       "filterPlaceholder": "Filter by field name...",
+      "showMore": "Show more",
+      "showLess": "Show less",
+      "empty": "No content",
+      "consistency": "Consistency",
       "allStatus": "All Status",
       "passedOnly": "Passed Only",
       "failedOnly": "Failed Only",
@@ -8307,7 +8311,37 @@
       "scopeAnnotatorsCount": "{count} annotators",
       "scopeTasksCount": "{count} task(s)",
       "runFailedTitle": "Evaluation failed",
-      "unmatchedConfigsTitle": "Evaluations that matched no data"
+      "unmatchedConfigsTitle": "Evaluations that matched no data",
+      "openProject": "Open project",
+      "judges": "Judges & runs",
+      "perJudgeRun": "Per judge & run",
+      "someJudgesFailed": "At least one judge run failed. The statistics below are based on the successful runs only.",
+      "createdAt": "Started {date}",
+      "technicalDetails": "Technical details",
+      "noMetrics": "This run has no aggregate metrics.",
+      "statusLabels": {
+        "completed": "Completed",
+        "failed": "Failed",
+        "running": "Running",
+        "pending": "Pending",
+        "queued": "Queued",
+        "cancelled": "Cancelled",
+        "paused": "Paused"
+      },
+      "matchReasons": {
+        "noGenerations": "Grades model generations, but this project has none. Generate responses first, or choose a human field (human:…).",
+        "noGenerationsWithAnswers": "Grades model generations, but this project has none. It has {count} submitted answer(s). To grade those, choose a human field such as human:loesung or __all_human__.",
+        "noGenerationsNothing": "Grades model generations. This project has neither model generations nor submitted answers yet, so there is nothing to grade.",
+        "noAnnotations": "Grades submitted answers, but this project has none. Submit an answer first, or choose a model field (model:…).",
+        "noAnnotationsWithGenerations": "Grades submitted answers, but this project has none. It has {count} model generation(s). To grade those, choose a model field such as __all_model__.",
+        "noAnnotationsNothing": "Grades submitted answers. This project has neither submitted answers nor model generations yet, so there is nothing to grade.",
+        "generationFiltersExcludedAll": "Grades model generations, but this run's model or prompt filters excluded all of them.",
+        "allAnnotationsCancelled": "Grades submitted answers, but every answer on these tasks is cancelled.",
+        "annotatorFilterExcludedAll": "Grades submitted answers, but this run's annotator filter excluded all of them.",
+        "noPredictionFields": "Has no prediction field, so it grades nothing.",
+        "classifierUnavailable": "Could not be classified: the worker cannot tell which side to grade.",
+        "other": "Found nothing to grade."
+      }
     },
     "human": {
       "likert": {

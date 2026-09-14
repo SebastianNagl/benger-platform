@@ -132,45 +132,50 @@ export function ConfusionMatrixChart({
       </div>
 
       {/* Metrics Summary */}
-      <div className="rounded-lg border bg-gray-50 p-4">
-        <h4 className="mb-3 font-medium">
+      <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-800/50">
+        <h4 className="mb-3 font-semibold text-zinc-900 dark:text-white">
           {t('evaluation.confusionMatrix.classificationMetrics')}
         </h4>
         <div className="mb-4">
-          <span className="text-sm font-medium">
+          <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
             {t('evaluation.confusionMatrix.overallAccuracy')}:{' '}
           </span>
-          <span className="text-lg font-bold text-blue-600">
+          <span className="text-lg font-semibold text-emerald-600 tabular-nums dark:text-emerald-400">
             {(data.accuracy * 100).toFixed(2)}%
           </span>
         </div>
 
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
           {data.labels.map((label) => (
-            <div key={label} className="rounded border bg-white p-3 shadow-sm">
-              <div className="mb-2 font-medium text-gray-700">{label}</div>
+            <div
+              key={label}
+              className="rounded-md border border-zinc-200 bg-white p-3 shadow-sm dark:border-zinc-700 dark:bg-zinc-900"
+            >
+              <div className="mb-2 font-medium text-zinc-700 dark:text-zinc-300">
+                {label}
+              </div>
               <div className="space-y-1 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-gray-600">
+                  <span className="text-zinc-500 dark:text-zinc-400">
                     {t('evaluation.confusionMatrix.precision')}:
                   </span>
-                  <span className="font-medium">
+                  <span className="font-medium text-zinc-900 tabular-nums dark:text-white">
                     {((data.precision_per_class[label] || 0) * 100).toFixed(1)}%
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-600">
+                  <span className="text-zinc-500 dark:text-zinc-400">
                     {t('evaluation.confusionMatrix.recall')}:
                   </span>
-                  <span className="font-medium">
+                  <span className="font-medium text-zinc-900 tabular-nums dark:text-white">
                     {((data.recall_per_class[label] || 0) * 100).toFixed(1)}%
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-600">
+                  <span className="text-zinc-500 dark:text-zinc-400">
                     {t('evaluation.confusionMatrix.f1')}:
                   </span>
-                  <span className="font-medium">
+                  <span className="font-medium text-zinc-900 tabular-nums dark:text-white">
                     {((data.f1_per_class[label] || 0) * 100).toFixed(1)}%
                   </span>
                 </div>

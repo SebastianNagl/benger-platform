@@ -56,8 +56,8 @@ export function MetricDistributionChart({
 
   return (
     <div className="space-y-4">
-      <div className="rounded-lg border bg-white p-4">
-        <h3 className="mb-4 text-lg font-medium">
+      <div className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+        <h3 className="mb-4 text-lg font-semibold text-zinc-900 dark:text-white">
           {title ||
             t('evaluation.metricDistribution.titleWithMetric', {
               metric: data.metric_name,
@@ -65,42 +65,52 @@ export function MetricDistributionChart({
         </h3>
 
         {/* Statistics Summary */}
-        <div className="mb-6 grid grid-cols-2 gap-4 rounded-lg bg-gray-50 p-4 md:grid-cols-5">
+        <div className="mb-6 grid grid-cols-2 gap-4 rounded-lg border border-zinc-200 bg-zinc-50 p-4 md:grid-cols-5 dark:border-zinc-800 dark:bg-zinc-800/50">
           <div>
-            <div className="text-xs text-gray-600">
+            <div className="text-xs text-zinc-500 dark:text-zinc-400">
               {t('evaluation.metricDistribution.mean')}
             </div>
-            <div className="text-lg font-bold">{data.mean.toFixed(3)}</div>
+            <div className="text-lg font-semibold text-zinc-900 tabular-nums dark:text-white">
+              {data.mean.toFixed(3)}
+            </div>
           </div>
           <div>
-            <div className="text-xs text-gray-600">
+            <div className="text-xs text-zinc-500 dark:text-zinc-400">
               {t('evaluation.metricDistribution.median')}
             </div>
-            <div className="text-lg font-bold">{data.median.toFixed(3)}</div>
+            <div className="text-lg font-semibold text-zinc-900 tabular-nums dark:text-white">
+              {data.median.toFixed(3)}
+            </div>
           </div>
           <div>
-            <div className="text-xs text-gray-600">
+            <div className="text-xs text-zinc-500 dark:text-zinc-400">
               {t('evaluation.metricDistribution.stdDev')}
             </div>
-            <div className="text-lg font-bold">{data.std.toFixed(3)}</div>
+            <div className="text-lg font-semibold text-zinc-900 tabular-nums dark:text-white">
+              {data.std.toFixed(3)}
+            </div>
           </div>
           <div>
-            <div className="text-xs text-gray-600">
+            <div className="text-xs text-zinc-500 dark:text-zinc-400">
               {t('evaluation.metricDistribution.min')}
             </div>
-            <div className="text-lg font-bold">{data.min.toFixed(3)}</div>
+            <div className="text-lg font-semibold text-zinc-900 tabular-nums dark:text-white">
+              {data.min.toFixed(3)}
+            </div>
           </div>
           <div>
-            <div className="text-xs text-gray-600">
+            <div className="text-xs text-zinc-500 dark:text-zinc-400">
               {t('evaluation.metricDistribution.max')}
             </div>
-            <div className="text-lg font-bold">{data.max.toFixed(3)}</div>
+            <div className="text-lg font-semibold text-zinc-900 tabular-nums dark:text-white">
+              {data.max.toFixed(3)}
+            </div>
           </div>
         </div>
 
         {/* Histogram */}
         <div>
-          <h4 className="mb-2 text-sm font-medium text-gray-700">
+          <h4 className="mb-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">
             {t('evaluation.metricDistribution.valueDistribution')}
           </h4>
           <ResponsiveContainer width="100%" height={height}>
@@ -134,7 +144,7 @@ export function MetricDistributionChart({
                 {histogramData.map((entry, index) => (
                   <Cell
                     key={`cell-${index}`}
-                    fill={index % 2 === 0 ? '#3b82f6' : '#60a5fa'}
+                    fill={index % 2 === 0 ? '#10b981' : '#34d399'}
                   />
                 ))}
               </Bar>
@@ -144,7 +154,7 @@ export function MetricDistributionChart({
 
         {/* Quartiles Visualization */}
         <div className="mt-6">
-          <h4 className="mb-2 text-sm font-medium text-gray-700">
+          <h4 className="mb-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">
             {t('evaluation.metricDistribution.quartiles')}
           </h4>
           <div className="relative h-8 w-full rounded bg-linear-to-r from-red-200 via-yellow-200 to-green-200">
@@ -156,7 +166,7 @@ export function MetricDistributionChart({
               }}
               title={`Q1: ${data.quartiles.q1.toFixed(3)}`}
             >
-              <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-xs font-medium">
+              <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-xs font-medium text-zinc-700 dark:text-zinc-300">
                 Q1
               </div>
             </div>
@@ -168,7 +178,7 @@ export function MetricDistributionChart({
               }}
               title={`${t('evaluation.metricDistribution.median')}: ${data.quartiles.q2.toFixed(3)}`}
             >
-              <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-xs font-medium">
+              <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-xs font-medium text-zinc-700 dark:text-zinc-300">
                 {t('evaluation.metricDistribution.median')}
               </div>
             </div>
@@ -180,12 +190,12 @@ export function MetricDistributionChart({
               }}
               title={`Q3: ${data.quartiles.q3.toFixed(3)}`}
             >
-              <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-xs font-medium">
+              <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-xs font-medium text-zinc-700 dark:text-zinc-300">
                 Q3
               </div>
             </div>
           </div>
-          <div className="mt-2 flex justify-between text-xs text-gray-600">
+          <div className="mt-2 flex justify-between text-xs text-zinc-500 dark:text-zinc-400">
             <span>
               {t('evaluation.metricDistribution.min')}: {data.min.toFixed(3)}
             </span>
