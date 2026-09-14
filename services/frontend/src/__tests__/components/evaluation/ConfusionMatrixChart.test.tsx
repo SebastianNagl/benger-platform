@@ -586,7 +586,7 @@ describe('ConfusionMatrixChart', () => {
       const { container } = render(<ConfusionMatrixChart data={mockData} />)
 
       const summary = container.querySelector(
-        '.rounded-lg.border.bg-gray-50.p-4',
+        '.rounded-lg.border.bg-zinc-50.p-4',
       )
       expect(summary).toBeInTheDocument()
     })
@@ -607,7 +607,7 @@ describe('ConfusionMatrixChart', () => {
       const { container } = render(<ConfusionMatrixChart data={mockData} />)
 
       const cards = container.querySelectorAll(
-        '.rounded.border.bg-white.p-3.shadow-sm',
+        '.rounded-md.border.bg-white.p-3.shadow-sm',
       )
       expect(cards).toHaveLength(3)
     })
@@ -621,10 +621,10 @@ describe('ConfusionMatrixChart', () => {
       expect(chartContainer).toBeInTheDocument()
     })
 
-    it('should apply blue color to accuracy value', () => {
+    it('should apply emerald color to accuracy value', () => {
       const { container } = render(<ConfusionMatrixChart data={mockData} />)
 
-      const accuracy = container.querySelector('.text-blue-600')
+      const accuracy = container.querySelector('.text-emerald-600')
       expect(accuracy).toHaveTextContent('93.00%')
     })
 
@@ -647,11 +647,11 @@ describe('ConfusionMatrixChart', () => {
     it('should have semantic metric card structure', () => {
       const { container } = render(<ConfusionMatrixChart data={mockData} />)
 
-      const cards = container.querySelectorAll('.rounded.border.bg-white')
+      const cards = container.querySelectorAll('.rounded-md.border.bg-white')
       expect(cards.length).toBe(3)
 
       cards.forEach((card) => {
-        const labelName = card.querySelector('.font-medium.text-gray-700')
+        const labelName = card.querySelector('.font-medium.text-zinc-700')
         const metrics = card.querySelectorAll('.flex.justify-between')
 
         expect(labelName).toBeInTheDocument()
